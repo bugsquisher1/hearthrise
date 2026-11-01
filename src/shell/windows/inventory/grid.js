@@ -84,6 +84,9 @@ export function toolsHtml(g) {
 
 /* "1 more on the way" / "4 being used": the pending part of a count (town-ticker.js), in words. */
 const aheadWords = (d) => whole(Math.abs(d)) + (d > 0 ? ' more on the way' : ' being used');
+/** The picked stack's count: what is in hand, then the pending part. A stack being spent counts what is left, the same number as
+    its pocket and the work line ("×15 · 14 being used" sat beside a pocket of 1, the panel 2026-11-01). Pure. */
+export const pickCountWords = (qty, ahead) => '×' + whole(qty + Math.min(0, ahead)) + (ahead ? ' · ' + aheadWords(ahead) : '');
 
 function patchPocket(li, r, st) {
   const locked = !!(st.rules && st.rules.locked.has(r.id));
@@ -142,7 +145,7 @@ export function patchTools(root, st, ctx) {
   text(pick.querySelector('b'), cur ? itemName(cur) : '');
   /* The count every action here spends is the server's; the ticker's pending part is named beside it. */
   const ahead = cur ? aheadQty(st.tick, cur) : 0;
-  text(pick.querySelector('small'), cur ? '×' + whole(st.qty.get(cur)) + (ahead ? ' · ' + aheadWords(ahead) : '') + (st.shop && st.shop.bids.has(cur) ? ' · the shop pays ' + gold(st.shop.bids.get(cur)) + ' each' : '') : '');
+  text(pick.querySelector('small'), cur ? pickCountWords(st.qty.get(cur), ahead) + (st.shop && st.shop.bids.has(cur) ? ' · the shop pays ' + gold(st.shop.bids.get(cur)) + ' each' : '') : '');
   const prim = primaryOf(st, cur);
   const pb = pick.querySelector('[data-hs-act="primary"]');
   text(pb, prim ? prim[1] : '');

@@ -51,7 +51,7 @@ import { mountContextMenu } from './context-menu.js?v=0.2.78';
 import { menuProvidersOf } from './menu-providers.js?v=0.2.78';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.78';
 import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.78';
-import { takeFresh } from '../hunt-view/summary-recorder.js?v=0.2.78';
+import { takeFresh, summaryFromEarlierPage } from '../hunt-view/summary-recorder.js?v=0.2.78';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.78';
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.78';
 import { watchTown, settleSpentBench } from '../session/town-poll.js?v=0.2.78';
@@ -124,7 +124,7 @@ export function mountShell(root, o) {
     if (!h || !h.ended) return true;
     /* ...and none while that summary is open: the bar would hold only a Summary press for the window already on
        screen (first-hour playtest 10-29 #10: on a phone, its ground's name given way to the sheet, an empty box). */
-    return id === 'hunt-topbar' && summaryClosed !== h.sessionId && !wm.isOpen('hunt-summary');
+    return id === 'hunt-topbar' && summaryClosed !== h.sessionId && !summaryFromEarlierPage(opts.character, h.sessionId) && !wm.isOpen('hunt-summary');
   };
   const hud = createHud({
     widgets: HUD_WIDGETS,

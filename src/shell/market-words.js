@@ -20,8 +20,8 @@ function resetWords() {
 
 const WORDS = Object.freeze({
   insufficient_item: () => 'You don\'t have that many any more.',
-  price_below_shop: (f) => (f.floor === undefined ? 'That\'s less than the shop pays. Ask at least that, or sell it at the shop.'
-    : 'The shop pays ' + whole(f.floor) + ' for one. Ask at least that, or sell it at the shop.'),
+  price_below_shop: (f) => (f.floor === undefined ? 'That\'s less than the shop pays, and nothing lists below that. Sell it at the shop or ask more.'
+    : 'The shop pays ' + whole(f.floor) + ' for one, and nothing lists below that. Sell it at the shop or ask more.'),
   price_above_cap: (f) => 'That\'s more than this can be listed for.' + (f.ceiling === undefined ? '' : ' The most is ' + whole(f.ceiling) + ' each.'),
   storage_no_room: (f, cs) => {
     const d = cs ? depotOf(cs) : null;

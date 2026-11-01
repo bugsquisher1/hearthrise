@@ -10,7 +10,8 @@
 // Scarce armour piece of that ground in the hero's chosen weight that she has
 // not given that hero yet (derived from the loot bands by
 // tools/gen-tally-tasks.mjs), and once every piece is given, the ground's
-// crafting material below, in turn.
+// crafting material below, in turn. A piece the hero found on the ground does not
+// move it: her board's line is what she pays (2027-02-15-panel-truth.sql).
 //
 // THE RULES, server-owned (supabase/migrations/2026-12-23-tally-tasks.sql):
 //   · taken at her board in town; at most TALLY_RULES.heldMax held per hero;
@@ -41,7 +42,7 @@ export const TALLY_KEEPER = Object.freeze({
   title: 'Gives out kill tasks in ' + TOWN_NAME,
   /* where her board stands (src/data/world/stations.js `tally`) */
   board: 'Hearth Square',
-  greeting: 'Take a task from my board and go hunting. When the count\'s done, I\'ll pay you in town: gold, plus a piece of armor you can wear.',
+  greeting: 'Take a task from my board and go hunting. When the count\'s done, I\'ll pay you in town: gold, plus the armor or materials my board shows.',
 });
 
 /** The server's limits (hr_tally_config). */

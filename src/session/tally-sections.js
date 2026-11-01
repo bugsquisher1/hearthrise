@@ -85,11 +85,12 @@ export function countsWords(task, where) {
   return 'Only ' + row.label + ' in ' + where + (/^the /i.test(row.label) ? ' counts' : ' count') + ', even while you\'re away.';
 }
 
-/** Her pick in words: "an Apprentice Hat", "4 Slime Gel" (`nameOf` names an item id). */
+/** Her pick in words: "an Apprentice Hat", "Iron Boots", "4 Slime Gel" (`nameOf` names an item id). A name already in the
+    plural takes no article (the panel 2026-11-01: "an Iron Boots"). */
 export function pickWords(pick, nameOf) {
   if (!pick || !pick.item) return '';
   const n = nameOf(pick.item);
-  if (pick.kind === 'piece' || pick.pick === 'piece') return (/^[aeiou]/i.test(n) ? 'an ' : 'a ') + n;
+  if (pick.kind === 'piece' || pick.pick === 'piece') return /s$/i.test(n) ? n : (/^[aeiou]/i.test(n) ? 'an ' : 'a ') + n;
   return pick.qty + ' ' + n;
 }
 

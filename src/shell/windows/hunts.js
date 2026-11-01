@@ -283,7 +283,7 @@ function patchPage(det, ctx, sc, v) {
   const other = (setups || []).find((p) => p.preset === chosen && !p.inUse);
   patchGo(det, ctx, {
     setups, chosen, off: sc.pending || !!now || follower,
-    before: now ? [] : beforeLines(cs, other ? { other: other.name } : null),
+    before: now ? [] : beforeLines(cs, { hunt: r.hunt, other: other ? other.name : null }),
     partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
       why: party ? 'You lead a party of ' + party.seats.length + '.' : (groupWords(r, size) || heroWords(r)) + '.',
       find: party ? 'Open the party finder' : 'Find a party',

@@ -41,6 +41,7 @@ import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.78';
 import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.78';
 import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.78';
 import { itemName } from './widgets/bits.js?v=0.2.78';
+import { noShotWords } from './hunt-go.js?v=0.2.78';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.78';
 import { deathSeen } from './death-popup.js?v=0.2.78';
 import { awayRecapOf, stampAway, markBack } from './away-recap.js?v=0.2.78';
@@ -126,9 +127,13 @@ function candidatesOf(cs, viewed) {
   /* The character ON SCREEN gets its hunt summary instead (it opens by itself: src/shell/shell.js followSummary), the
      one notice of a return (designer walk 2026-10-25 #5): its line is marked seen, never shown. */
   else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, quiet: viewed, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
-  else for (const l of lowItems(cs, h.hero)) {
-    out.push({ id: 'low:' + h.sessionId + ':' + l.item, kind: 'low', session: h.sessionId, item: l.item,
-      text: who(cs) + ' is out of ' + supplyWords(l.item) + '.' });
+  else {
+    for (const l of lowItems(cs, h.hero)) {
+      out.push({ id: 'low:' + h.sessionId + ':' + l.item, kind: 'low', session: h.sessionId, item: l.item,
+        text: who(cs) + ' is out of ' + supplyWords(l.item) + '.' });
+    }
+    const noShot = noShotWords(cs);
+    if (noShot) out.push({ id: 'low:' + h.sessionId + ':noshot', kind: 'low', session: h.sessionId, text: who(cs) + ': ' + noShot });
   }
   return out;
 }

@@ -208,7 +208,14 @@ const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['c', 'character'], ['g', '
 function scripted() {
   /* Like the real server, the residue a put stores comes back in every later envelope (client_state). */
   const s = { env: clone(FIXTURE), version: 1, calls: [], delayMs: 300, reply: { ok: true }, residue: {} };
-  s.next = () => Object.assign(clone(s.env), { version: ++s.version, client_state: clone(s.residue) });
+  /* Like the real server, its clock moves between answers: the first read is a roster answer aged forward (account-session.js
+     agedBy), and a later read stamped at the fixture's fixed `now` looks older, so _noteStorage drops every Storage change after it. */
+  const said = s.env.now, born = Date.now();
+  /* (A case that sets its own clock, AW-24's, keeps it.) */
+  s.next = () => {
+    const e = clone(s.env);
+    return Object.assign(e, { version: ++s.version, client_state: clone(s.residue), now: e.now === said ? new Date(Date.parse(said) + Date.now() - born).toISOString() : e.now });
+  };
   return s;
 }
 
@@ -529,12 +536,12 @@ async function planRules(base) {
   const UP = await imp('src/shell/upgrade-plan.js');
   const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
   /* AW-27 Before you go, a rune spell's line (starter bars, lane/a-starter-bars), over the hunt-go.js at `base`. */
-  const { beforeLines } = await imp('src/shell/hunt-go.js');
+  const { beforeLines, noShotWords } = await imp('src/shell/hunt-go.js');
   const STORE = FIXTURE.hunt_settings.store;
   const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
   const sess = (o) => { const e = Object.assign({ hunt_settings: { preset: 0, presets: [], slots: [], store: STORE }, state: { gold: 500 }, inventory: {},
     stamina: { ms: 28800000, at: '2026-10-22T00:00:00Z', max_ms: 28800000 }, equipment: { weapon: 'practice_sword' } }, o); return { read: (k) => e[k] }; };
-  const say = (cs) => beforeLines(cs).map((l) => (l.short ? '!' : '') + l.text).join(' | ');
+  const say = (cs, o) => beforeLines(cs, o).map((l) => (l.short ? '!' : '') + l.text).join(' | ');
   /* A rune spell with no rune and no store behind it loses that spell only (named, not a stop); no food is said. */
   const spell = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'flame_strike', 0)], store: STORE } }));
   /* (a rune spell spends any tier of its family, so the line names and counts the family: lane b-spell-content) */
@@ -562,6 +569,34 @@ async function planRules(base) {
   const paid = say(bowSet({ equipment: { weapon: 'practice_bow', ammo: 'iron_arrows' }, inventory: { iron_arrows: 9 } }));
   if (!paid.startsWith('Ammo: 9 Iron Arrows of yours, loaded.')) fails.push('AW-27 a bow with a paid arrow reads ' + JSON.stringify(paid));
   if (/Ammo/.test(say(sess({ hunt_settings: { preset: 0, presets: [], role: 'tank', slots: [], store: STORE } })))) fails.push('AW-27 a sword is told about ammo');
+  /* AW-27 WARNED, NEVER BLOCKED, AND THE WORDS AGREE (the panel 2026-11-01): the hunt screen says what prep said of a bow with
+     nothing to shoot; no weapon is said at prep; a held task that does not count here is said; the Sewer's words admit the lone hero who
+     walks in; "an Iron Boots"; "Bow or Crossbow or Bow or crossbow"; creation and prep agree on the free arrow. */
+  if (!/^nothing loaded, so your weapon can't shoot/.test(noShotWords(bowSet({ equipment: { weapon: 'practice_bow' } })))) fails.push('AW-27 the hunt screen is silent on a bow with nothing to shoot: ' + JSON.stringify(noShotWords(bowSet({ equipment: { weapon: 'practice_bow' } }))));
+  if (noShotWords(bowSet({ equipment: { weapon: 'practice_bow', ammo: 'bronze_arrows' } }))) fails.push('AW-27 the hunt screen warns a loaded bow');
+  if (!say(sess({ equipment: {} })).startsWith('!Weapon: none on')) fails.push('AW-27 no weapon reads ' + JSON.stringify(say(sess({ equipment: {} }))));
+  const TASK = { held: [{ place: 1, task: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', kills: 0, target: 120, keep: false, done: false }], paid_today: 0, per_day: 3, held_max: 3, order: [], recent: [] };
+  if (!/Tamsin's tasks: nothing here counts toward them\. Only Giant Rats in .+ count/.test(say(sess({ tally: TASK }), { hunt: 'meadowbrook_thicket' }))) fails.push('AW-27 a held task elsewhere reads ' + JSON.stringify(say(sess({ tally: TASK }), { hunt: 'meadowbrook_thicket' })));
+  if (/Tamsin/.test(say(sess({ tally: TASK }), { hunt: 'mill_cellar' }))) fails.push('AW-27 a task that counts here is warned about');
+  const { heroWords, huntRows } = await imp('src/shell/hunt-list.js');
+  const sewer = huntRows().find((r) => r.hunt === 'millrace_sewer');
+  if (heroWords(sewer) !== 'Best with 2 to ' + sewer.heroes + ', and a lone hero can enter') fails.push('AW-27 the Sewer reads ' + JSON.stringify(heroWords(sewer)));
+  const { pickWords } = await imp('src/session/tally-sections.js');
+  const picked = [['iron_boots', 'Iron Boots'], ['iron_helmet', 'an Iron Helm']].map(([item]) => pickWords({ pick: 'piece', item, qty: 1 }, (id) => ({ iron_boots: 'Iron Boots', iron_helmet: 'Iron Helm' }[id]))).join('|');
+  if (picked !== 'Iron Boots|an Iron Helm') fails.push('AW-27 her pick reads ' + picked);
+  /* While fueling the picked stack, its pocket and the work line count alike (the panel 2026-11-01: "×15 · 14 being used" by a pocket of 1). */
+  const { pickCountWords } = await imp('src/shell/windows/inventory/grid.js');
+  if (pickCountWords(15, -14) !== '×1 · 14 being used' || pickCountWords(100, 5) !== '×100 · 5 more on the way' || pickCountWords(7, 0) !== '×7') fails.push('AW-27 the picked stack reads ' + pickCountWords(15, -14));
+  const { factsOf } = await imp('src/shell/action-facts.js');
+  const { ABILITIES } = await imp('src/data/abilities.js');
+  for (const id of Object.keys(ABILITIES)) {
+    const req = factsOf({ type: 'ability', id }).requires || '';
+    const said = req.replace(/^Requires: |\.$/g, '').toLowerCase().split(' or ');
+    if (new Set(said).size !== said.length) fails.push('AW-27 ' + id + ' reads ' + JSON.stringify(req));
+  }
+  const { HOW_YOU_FIGHT } = await imp('src/data/how-to-play.js');
+  const shoot = HOW_YOU_FIGHT.find((f) => f.id === 'shoot');
+  if (!shoot || !/Bronze Arrows are free and never run out/.test(JSON.stringify(shoot))) fails.push('AW-27 creation says of the bow ' + JSON.stringify(shoot));
   /* AW-8 / AW-27 AN EMPTY FOOD SLOT IS A HEADS-UP, NOT A BLOCKER (Tyler 10-29: "0 food" in Hunt prep on a hero that
      carries food the bar does not name and is not getting hit). Both surfaces say the empty stock and the bag's spare
      food with the fix, and neither calls it short; empty ammo on a shooter's bar still stops it. */
@@ -1444,7 +1479,7 @@ async function checks(overrides, shots) {
           const m = await import('/src/shell/hunt-go.js?v=0.1.0');
           const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
           const sec = { hunt_settings: { preset: 0, presets: [], store: STORE, slots: [slot('ability', 'power_strike'), slot('consume', 'cooked_shrimp', 20), slot('consume', 'salted_shrimp', null), slot('consume', 'thin_turnip_juice', null)] },
-            state: { gold: 500 }, inventory: { cooked_shrimp: 20 }, equipment: {} };
+            state: { gold: 500 }, inventory: { cooked_shrimp: 20 }, equipment: { weapon: 'practice_sword' } };
           const party = { id: '0a47c0de-0000-4000-a000-00000000aa01', members: [{ seat: 0, name: 'Mira' }], self_seat: 0, leader_seat: 0 };
           const hero = (slot, n, p) => ({ slot, status: 'ready', read: (k) => (k === 'name' ? n : k === 'party' && p ? party : null) });
           const me = hero(0, 'Tyler');
@@ -2389,6 +2424,8 @@ const MUTANTS = [
   ['AW-27 the gold line never shows', 'src/shell/hunt-go.js', '  if (paysStore && gp !== null) {', '  if (false) {'],
   ['AW-27 low stamina is not said', 'src/shell/hunt-go.js', '  else if (st) {', '  else if (false) {'],
   ['AW-27 how long a hero lasts is said only when it is short', 'src/shell/hunt-go.js', '  else if (st) {', '  else if (st && st.msLeft < STAMINA_SAY_MS) {'],
+  ['plans: no weapon is not said', 'src/shell/hunt-go.js', '    if (worn && !worn.weapon) out.push(', '    if (false) out.push('],
+  ['plans: a held task that does not count here is not said', 'src/shell/hunt-go.js', '  if (tally) out.push(tally);', '  void tally;'],
   ['AW-27 a line that stops the hunt is not marked', 'src/shell/windows/hunt-detail.js', "cls(li, 'is-short', l.short);", "cls(li, 'is-short', false);"],
   ['AW-28 Find a party searches every ground', 'src/shell/windows/party-finder.js', '  const hunt = sc.ground || null, weapon = sc.weapon || null;', '  const hunt = null, weapon = sc.weapon || null;'],
   ['AW-28 the party path shows on every ground', 'src/shell/windows/hunts.js', "    partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {", '    partyBlock: !follower ? {'],

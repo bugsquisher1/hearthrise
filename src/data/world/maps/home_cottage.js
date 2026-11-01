@@ -5,7 +5,7 @@
 // signposts for rooms not built yet) comes from src/data/world/house-layouts.js.
 export default Object.freeze({
   id: 'home_cottage',
-  name: 'Your Cottage',
+  name: 'Your Home',
   kind: 'home',
   hunts: Object.freeze([]),
   outdoor: true,

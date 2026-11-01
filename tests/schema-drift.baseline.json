@@ -6,7 +6,7 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-31",
+ "generated": "2026-11-01",
  "digest": "8524539e5c792bc7bd46c3fb744d1e4eb93d11a3dfd636957e16c5e735624d8e",
  "counts": {
   "relations": 241,

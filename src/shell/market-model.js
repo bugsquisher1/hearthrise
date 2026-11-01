@@ -8,7 +8,7 @@
 // its locks: nothing here is spendable, and a listing's price is the locked row's.
 //
 //   rulesOf(raw) · summaryOf(raw) · asksOf(raw) · listingOf(raw) · historyRowOf(raw)
-//   feeOf / netEachOf     the listing fee and what one sale pays, from the server's rules
+//   feeOf / netEachOf / netLotOf / evenAskOf   the listing fee, what a sale pays, the ask that matches the shop
 //   planBuy(asks, want)   cheapest first across other accounts' listings, never own ones
 //   mostAffordable(asks, gold)   how many the purse covers, cheapest first
 //   searchIds(query, n)   the catalogue rows a search covers, listed or not
@@ -81,6 +81,22 @@ export function feeOf(rules, qty, ask) {
 /** What one sold unit pays the seller: the ask less the Weighhouse's cut, rounded up as the server rounds it. */
 export function netEachOf(rules, ask) {
   return ask - Math.ceil(ask * rules.cutBp / 10000);
+}
+
+/** What one sale of `qty` pays the seller: the cut comes off that sale's whole price (hr_market_buy), so one buyer
+    taking 10 at 35 pays 336, not ten times the 33 a single unit nets. */
+export function netLotOf(rules, qty, ask) {
+  const total = qty * ask;
+  return total - Math.ceil(total * rules.cutBp / 10000);
+}
+
+/** The lowest ask that pays at least the shop's `bid` after the cut, the same test as the sheet's warning. */
+export function evenAskOf(rules, bid) {
+  if (rules.cutBp >= 10000) return Math.max(1, bid);
+  /* Starts just under the exact answer, so a big bid costs a paint a step or two, never a count from the bid. */
+  let ask = Math.max(1, Math.floor(bid * 10000 / (10000 - rules.cutBp)) - 1);
+  while (netEachOf(rules, ask) < bid) ask++;
+  return ask;
 }
 
 /**
@@ -176,14 +192,14 @@ export function ageWords(at, now) {
   return n + (n === 1 ? ' day ago' : ' days ago');
 }
 
-/* "6 days left", "3 h left", "under an hour left". */
+/* "7 days left" (a listing made a moment ago, as the sheet promised it), "3 h left", "under an hour left". */
 function leftWords(at, now) {
   if (!Number.isFinite(at)) return '';
   const d = at - now;
   if (d <= 0) return 'coming back to your storage';
   if (d < HOUR) return 'under an hour left';
   if (d < 2 * DAY) return Math.ceil(d / HOUR) + ' h left';
-  return Math.floor(d / DAY) + ' days left';
+  return Math.round(d / DAY) + ' days left';
 }
 
 /** A Browse row's line: "from 13 each · 320 for sale · last sold 13, 2 h ago". */
@@ -236,7 +252,8 @@ export function noticesSince(history, seenAt) {
   return { rows: fresh, newest: fresh.length ? fresh[fresh.length - 1].at : seenAt };
 }
 
-/** The notice for a batch of rows: one line per returned stack, and the sales as one line (the design's). */
+/** The notice for a batch of rows: one line per returned stack, and the sales as one line: the price and what the seller
+    received, the Weighhouse's cut out of it (history's `gold`, the server's). */
 export function noticeLines(rows, away) {
   const out = [];
   const sold = rows.filter((r) => r.what === 'sold');
@@ -247,7 +264,8 @@ export function noticeLines(rows, away) {
     const gross = sold.reduce((n, s) => n + (s.each || 0) * s.qty, 0);
     const head = away ? 'While you were away the Weighhouse sold ' : 'The Weighhouse sold ';
     const lots = sold.length === 1 ? '1 lot' : whole(sold.length) + ' lots';
-    out.push({ key: 'sold', at: sold[sold.length - 1].at, item: null, text: head + lots + ' for ' + goldWords(gross) + '.' });
+    const got = sold.reduce((n, s) => n + s.gold, 0);
+    out.push({ key: 'sold', at: sold[sold.length - 1].at, item: null, text: head + lots + ' for ' + goldWords(gross) + '. You received ' + goldWords(got) + '.' });
   }
   for (const r of rows.filter((x) => x.what === 'returned')) {
     out.push({ key: 'back', at: r.at, item: r.item, text: whole(r.qty) + ' ' + itemName(r.item) + ' didn\'t sell and ' + (r.qty === 1 ? 'is' : 'are') + ' back in your storage.' });

@@ -3081,10 +3081,13 @@ const DB_ARMS = {
         else if (!s.session.ended_at || !['left', 'died'].includes(s.session.end_reason)) {
           problems.push(`${variant}/${door}: the stuck hunt did not end through its own settle (${s.session.end_reason}; ${r.outcome}/${r.reason})`);
         }
-        /* CONTROL: a landed window carried more kills than the as-built bound allowed (density is under test). */
+        /* CONTROL: a landed window carried more kills than the as-built bound allowed (density is under test). hr_hunt_grounds.spawns
+           also carries the party's default pull (gen-hunt-sessions.mjs), taken off here: pockets x the largest pull. */
+        const { HUNT_GROUNDS: REAL } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
+        const pullSpawns = REAL.mill_cellar.pockets.length * Math.max(0, ...(REAL.mill_cellar.partyPull || []));
         const over = await one(db, `select count(*) from public.player_ledger l, public.hr_hunt_grounds g
           where l.session_id = $1 and l.kind <> 'hunt' and g.hunt_id = 'mill_cellar' and jsonb_typeof(l.meta->'kills') = 'number'
-            and (l.meta->>'kills')::bigint > g.spawns * ((l.meta->>'ms')::bigint / g.respawn_ms + 2)`, [h.sid]);
+            and (l.meta->>'kills')::bigint > (g.spawns - $2::int) * ((l.meta->>'ms')::bigint / g.respawn_ms + 2)`, [h.sid, pullSpawns]);
         if (!(Number(over) > 0) && !problems.length) problems.push(`CONTROL ${variant}/${door}: no landed window exceeded the as-built kill bound`);
         await db.query('rollback to savepoint density');
       }

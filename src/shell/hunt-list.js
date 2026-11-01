@@ -9,8 +9,8 @@
 //   densityWords(row, n)  "6 packs of 7 · back in 60 s": the pull size the
 //                        server spawns at density `n` (the pick clamped to the
 //                        ground); the room as built only at 0
-//   densityStep(row, now, by, max)  the pick one press of the step reaches: picks in
-//                        order of size, "as built" standing among them
+//   densityStep(row, now, by, max, party)  the pick one press of the step reaches: picks in
+//                        order of size, no pick standing among them (a party's default pull, or the room as built)
 //   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
 //   recommendation(levels, size)  the Hunts window's default pick for this hero
 //                        or this party's levels, and a plain note when no ground
@@ -28,7 +28,7 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.79';
+import { HUNT_GROUNDS, PARTY_SCALE, partyPullOf } from '../data/hunt-grounds.js?v=0.2.79';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.79';
 import { MONSTERS } from '../data/monsters.js?v=0.2.79';
 import { SUPPLIES } from '../data/supplies.js?v=0.2.79';
@@ -65,7 +65,7 @@ export function huntRows() {
       groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
       soloFrom: Number.isInteger(g.soloFrom) ? g.soloFrom : null,
       heroes: Math.min(g.start.length, PARTY_SCALE.maxHeroes),
-      packs: g.pockets.length, packMin: Math.min(...sizes), packMax: Math.max(...sizes),
+      packs: g.pockets.length, packMin: Math.min(...sizes), packMax: Math.max(...sizes), partyPull: g.partyPull || null,
       respawnS: Math.round(g.respawnMs / 1000),
       boss: g.pockets.some((p) => p.spawns.some((s) => MONSTERS[s.monster] && MONSTERS[s.monster].boss === true)),
     });
@@ -90,10 +90,12 @@ export function densityWords(r, n) {
  * THE PICK ONE PRESS REACHES. "As built" (0) is a room, not a number: it stands where its packs' size stands among the
  * picks, so "More monsters" never brings fewer (blind playtest 2026-10-31: + on "As built (2 to 3)" went to "1 each",
  * and − was off). `by`: 1 or -1; `max`: the most this group may pick. Null at either end. A built size equal to a pick
- * takes that pick's place going up and going down, so no press does nothing on screen. Pure.
+ * takes that pick's place going up and going down, so no press does nothing on screen. IN A PARTY OF `party` HEROES a
+ * ground's default pull (`r.partyPull`) is what no pick spawns, so 0 stands at that size, or a press would jump. Pure.
  */
-export function densityStep(r, now, by, max) {
-  const size = (n) => (n > 0 ? n : (r.packMin + r.packMax) / 2);
+export function densityStep(r, now, by, max, party = 1) {
+  const pull = partyPullOf(r, party);
+  const size = (n) => (n > 0 ? n : pull > 0 ? pull : (r.packMin + r.packMax) / 2);
   let best = null;
   for (let n = 0; n <= max; n++) {
     const d = (size(n) - size(now)) * by;

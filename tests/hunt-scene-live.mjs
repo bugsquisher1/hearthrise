@@ -558,7 +558,8 @@ async function nodeRules(M) {
     // unit more than half a tile (was a 3-tile leap when a poll-behind playback fell to the live delay), and every unit
     // drawn has a sprite (was a unit an older frame's pose placed with no kind, and a spawn inside the catch-up).
     // THE CASE, BUILT ON PURPOSE (v0.2.66 run 40864729296: two LV-27 mutants escaped): the commit case switches back at
-    // 106 s, when the timeline holds units the snapshot no longer lists and the commit window that lands while joining
+    // 100 s (106 s until the Cellar's party pull, 2026-11-01, moved the duo's laps: at 106 s the units now stood 7 tiles off, the
+    // ease alone past the budget, as below), when the timeline holds units the snapshot no longer lists and the commit window that lands while joining
     // puts a unit more than a frame's step off where the snapshot drew it. (It switched back at 65 s until the poses
     // stopped placing corpses, timeline.js T12: the units the join forgot there were all corpses a pose had stood up; at
     // 95-103 s the units stand 8 tiles off and the T8 ease alone outlasts the latency budget.) At 60 s the duo stood in a cleared pocket
@@ -566,7 +567,7 @@ async function nodeRules(M) {
     // and the window agreed with the snapshot, so neither mutant could bite. Both are asserted below, so the scenario
     // can never go quiet again unseen.
     const delay = M.CFG.SESSION_CONFIG.liveDelayMs, ask = M.CFG.SESSION_CONFIG.liveAskMs, ease = M.CFG.SESSION_CONFIG.liveEaseMs, LAT = 850;
-    for (const [tag, back, quiet] of [['first ask a commit', 106000, 15000], ['first ask a start point', 53000, 0]]) {
+    for (const [tag, back, quiet] of [['first ask a commit', 100000, 15000], ['first ask a start point', 53000, 0]]) {
       const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
       const SW = [LIVE_H.T0 + 30000, LIVE_H.T0 + back];
       const r = { first: null, snapOff: null, liveAt: null, easeEndAt: null, easeTiles: 0, step: 0, speed: 0, speedPlay: 0, unnamed: 0, windowOff: 0, forgot: 0, deadSeen: 0, stood: 0, stoodIds: new Set() };

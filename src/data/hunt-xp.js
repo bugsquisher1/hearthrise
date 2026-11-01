@@ -12,6 +12,7 @@
 // The per-hero multiplier (bestiary mastery, boosts) is not a number here: it
 // is read server-side and injected per hero through the swing context
 // (`xpMultOf`); until the bestiary lane plugs in, every hero's is 1 (XP-07).
+// The party factor (better only with different classes) is its own table, src/data/party-class-xp.js.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════

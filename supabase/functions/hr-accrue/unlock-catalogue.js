@@ -37,6 +37,7 @@
 
 import { SHOP_OFFERS } from '../../../src/data/shops.js';
 import { ITEMS } from '../../../src/data/items.js';
+import { HELD_HOME_OFFERS } from '../../../src/data/homestead-tiers.js';
 import { catalogueGet } from './intents.js';
 
 /* ── THE SELLABLE SHAPE ─────────────────────────────────────────────────────
@@ -127,6 +128,9 @@ export function unlockOfferIneligibility(o) {
      which is false: the namespace is a one-shot action with no storage at all.
      The wider fact is the truer one, so it is reported first. */
   if (!SELLABLE_NAMESPACES.includes(ns)) return `namespace_unsupported:${ns}`;
+
+  /* THE HOUSE'S TOP, HELD (src/data/homestead-tiers.js): a real row, priced in an item no player can reach yet. */
+  if (HELD_HOME_OFFERS.includes(o.id)) return 'held:its_materials_have_no_source_yet';
 
   for (const k of Object.keys(o)) {
     if (!OFFER_FIELDS_UNDERSTOOD.includes(k)) return `unimplemented_field:${k}`;

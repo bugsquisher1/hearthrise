@@ -95,6 +95,9 @@
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
+//   LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31: better only with different classes): a mixed pair earns the table's
+//         factor and a same-class pair the even share, on the server's commits (browser closed, one long settle) and
+//         viewed (the prediction's own `xp` events), the same XP on every path; every commit matches.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -1187,11 +1190,71 @@ function rules(M) {
     ok('LV-NOFIGHT', !!end && end.reason === 'no_fight' && Date.parse(end.at) === T0 + SPAN, 'browser closed: a bare bow ended ' + JSON.stringify(end) + ', want no_fight at +' + SPAN + ' ms');
     ok('LV-NOFIGHT', verdicts.length > 30 && off.length === 0, 'viewed: ' + off.length + ' of ' + verdicts.length + ' commits did not match the prediction');
   }
+  { /* LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31), both paths: a Melee and a Ranger in the Cellar earn the table's 1.07 over
+       the even share; a Melee and a Melee earn the even share. The same swings pay the same XP viewed and browser closed. */
+    const SPAN = 240000;
+    const cast = { mixed: ['tank', 'ranger'], same: ['tank', 'melee_dps'] };
+    for (const [name, roles] of Object.entries(cast)) {
+      const heroes = () => roles.map((r, i) => memberOf(M, 'ab'[i], i, r, 6));
+      /* BROWSER CLOSED: one long settle, nobody watching. */
+      const closedMis = heroes();
+      const closed = server(M, closedMis);
+      const before = closedMis.map((m) => m.levelXp);
+      const c = closed.commit(T0 + SPAN);
+      const closedXp = closedMis.map((m, i) => m.levelXp - before[i]);
+      const evs = c.tl.hunt_events.filter((e) => e.type === 'xp');
+      const paid = evs.reduce((s, e) => s + e.amount, 0), raw = evs.reduce((s, e) => s + e.raw, 0);
+      /* VIEWED: the browser predicting swing by swing beside the server's 16 s commits. */
+      const viewedMis = heroes();
+      const v0 = viewedMis.map((m) => m.levelXp);
+      const r = run(M, viewedMis, SPAN);
+      const viewedXp = viewedMis.map((m, i) => m.levelXp - v0[i]);
+      const shown = {};
+      for (const e of r.fed.events) if (e.type === 'xp') shown[e.u] = (shown[e.u] || 0) + e.amount;
+      const shownXp = viewedMis.map((m) => shown[m.unitId] || 0);
+      const off = r.verdicts.filter((x) => x.v !== 'match').length;
+      console.log('  LV-CLASS ' + name + ': closed ' + closedXp + ', viewed ' + viewedXp + ', prediction ' + shownXp + ', ' + (raw ? (paid / raw).toFixed(3) : '-') + 'x the even share, ' + off + ' commits off');
+      ok('LV-CLASS', evs.length >= 8 && closedXp.every((x) => x > 0), name + ': the fixture earned ' + closedXp + ' on ' + evs.length + ' paid shares');
+      ok('LV-CLASS', closedXp.join() === viewedXp.join(), name + ': viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
+      ok('LV-CLASS', shownXp.join() === closedXp.join(), name + ': the prediction shows ' + shownXp + ', the server pays ' + closedXp);
+      ok('LV-CLASS', off === 0, name + ': ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
+      /* Whole shares floor: the cell moves each share by 1.20 before its floor, so the sum sits within a floor of it. */
+      const want = name === 'mixed' ? evs.reduce((s, e) => s + Math.floor(e.raw * 1.07 + 1e-9), 0) : raw;
+      ok('LV-CLASS', name === 'same' ? paid === raw : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares');
+    }
+    /* A PARTY'S DEFAULT PULL (designer 2026-11-01), both paths: a Thicket pair with no pick stands at 3 each in the server's world
+       and in the browser's, every commit matching; the same XP viewed and with the browser closed. */
+    const pair = () => ['tank', 'ranger'].map((r, i) => memberOf(M, 'ab'[i], i, r, 6));
+    const opt = { hunt: 'meadowbrook_thicket', id: 'i-pull' };
+    const closedMis = pair(), c0 = closedMis.map((m) => m.levelXp);
+    const closed = server(M, closedMis, opt);
+    closed.commit(T0 + SPAN);
+    const viewedMis = pair(), v0 = viewedMis.map((m) => m.levelXp);
+    const r = run(M, viewedMis, SPAN, { server: opt });
+    const closedXp = closedMis.map((m, i) => m.levelXp - c0[i]), viewedXp = viewedMis.map((m, i) => m.levelXp - v0[i]);
+    const off = r.verdicts.filter((x) => x.v !== 'match').length;
+    const pullOf = (s) => M.WS.decodeStored(JSON.parse(s.inst.world)).density;
+    const closedPull = pullOf(closed), viewedPull = pullOf(r.srv);
+    console.log('  LV-CLASS pull: density ' + closedPull + ' / ' + viewedPull + ', XP closed ' + closedXp + ', viewed ' + viewedXp + ', ' + off + ' commits off');
+    ok('LV-CLASS', closedPull === 3 && viewedPull === 3, 'pull: a Thicket pair with no pick stands at density ' + closedPull + ' closed, ' + viewedPull + ' viewed, want 3');
+    ok('LV-CLASS', closedXp.join() === viewedXp.join() && closedXp.every((x) => x > 0), 'pull: viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
+    ok('LV-CLASS', off === 0, 'pull: ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
+  }
   return fails;
 }
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  ['the party factor is not paid (LV-CLASS)', 'src/core/hunt/xp-share.js', '(raw * party * multOf(sc, h))', '(raw * 1000 * multOf(sc, h))', /^LV-CLASS: mixed/],
+  ["the browser's prediction fights on a ground it cannot name (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
+    '    const where = huntGroundOf(String(live.instance.hunt));\n',
+    "    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { id: 'nowhere' }) };\n", /^LV-CLASS: mixed: (the prediction|\d+ of)/],
+  ["the browser's prediction plays no party pull (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
+    '    const where = huntGroundOf(String(live.instance.hunt));\n',
+    '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { partyPull: undefined }) };\n', /^LV-CLASS: pull: \d+ of/],
+  ['a shield Melee and a Melee count as two classes (LV-CLASS)', 'src/data/party-class-xp.js',
+    "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['tank', 'melee_dps']) }),",
+    "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),", /^LV-CLASS: same/],
   /* A real per-frame slowdown: every 100th frame step does 60 ms of work, in every play (LV-E budget). */
   ['a frame step stalls 60 ms every 100 frames (LV-E budget)', 'src/session/live-link.js', '  advance(clientNow) {\n',
     '  advance(clientNow) {\n    this.__n = (this.__n || 0) + 1;\n    if (this.__n % 100 === 0) { const t = performance.now(); while (performance.now() - t < 60); }\n', /^LV-E: a frame step took/],

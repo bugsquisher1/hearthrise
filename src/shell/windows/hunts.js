@@ -95,7 +95,7 @@ function densityOf(picks, hunt, size) {
   const g = groundOf(hunt);
   if (!picks || !g) return null;
   const pick = Number.isInteger(picks[hunt]) ? picks[hunt] : 0;
-  return { now: densityFor(g, size, pick), max: densityFor(g, size, DENSITY_PICK.max) };
+  return { pick, now: densityFor(g, size, pick), max: densityFor(g, size, DENSITY_PICK.max) };
 }
 
 /* The density on screen: this ground's unsaved draft while there is one, else the server's (both clamped to
@@ -104,7 +104,7 @@ function shownDensity(sc, picks, hunt, size, party) {
   if (party && !party.isLeader) return densityOf(party.densities, hunt, size);
   const dn = densityOf(picks, hunt, size);
   if (!dn || !sc.draft || sc.draft.hunt !== hunt) return dn;
-  return { now: densityFor(groundOf(hunt), size, sc.draft.n), max: dn.max };
+  return { pick: sc.draft.n, now: densityFor(groundOf(hunt), size, sc.draft.n), max: dn.max };
 }
 
 /**
@@ -309,14 +309,16 @@ function patchPage(det, ctx, sc, v) {
     text(val, follower ? 'Set by ' + (party.leaderName || 'your leader') + ': ' + words : words);
     attr(val, 'data-pending', String(!follower && !!(sc.draft || sc.saving)));
     /* The size it clamps for, named: alone, or this party's seat count (the settle's clamp). */
-    text(det.querySelector('.hw-density-note'), follower ? 'Your party leader sets how many monsters each pull brings.'
-      : 'A pull is one pack: up to ' + dn.max
+    /* No pick in a party, on a ground with a default pull (designer 2026-11-01): the number shown is that pull. */
+    const partyPull = size > 1 && !dn.pick && dn.now > 0 ? 'Your party\'s pull. ' : '';
+    text(det.querySelector('.hw-density-note'), follower ? partyPull + 'Your party leader sets how many monsters each pull brings.'
+      : partyPull + 'A pull is one pack: up to ' + dn.max
       + (size === 1 ? ' when you hunt alone.' : ' for your party of ' + size + '. As the leader, your pick is the pull for everyone.')
       /* Why a pick matters (panel 2026-11-01, PRIORITY_BOARD): as built a hero's power and a party's bodies barely show, since the walk sets the pace.
          At 8 each a Wickstead hero of Level 18 kills 32% faster than a fresh one, and a party of four out-earns a lone hero per head. */
       + ' Bigger pulls pay more once your heroes can hold them. Kept for this ground.');
-    prop(det.querySelector('[data-by="-1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, -1, dn.max) === null);
-    prop(det.querySelector('[data-by="1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, 1, dn.max) === null);
+    prop(det.querySelector('[data-by="-1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, -1, dn.max, size) === null);
+    prop(det.querySelector('[data-by="1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, 1, dn.max, size) === null);
   }
 }
 
@@ -335,7 +337,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     const size = party ? party.seats.length : 1;
     const dn = shownDensity(sc, picks, hunt, size, party);
     const row = huntRows().find((x) => x.hunt === hunt);
-    const n = dn && row ? densityStep(row, dn.now, Number(t.getAttribute('data-by')), dn.max) : null;
+    const n = dn && row ? densityStep(row, dn.now, Number(t.getAttribute('data-by')), dn.max, size) : null;
     if (sc.pending || n === null) return true;
     sc.msg = '';
     /* Another ground's draft still waiting goes now (each ground keeps its own pick). */
@@ -343,7 +345,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     clearTimeout(sc.timer);
     sc.timer = null;
     /* Back on the server's value with nothing in flight: nothing to save. */
-    if (n === densityOf(picks, hunt, size).now && !sc.saving) sc.draft = null;
+    if (densityFor(groundOf(hunt), size, n) === densityOf(picks, hunt, size).now && !sc.saving) sc.draft = null;
     else {
       sc.draft = { hunt, n };
       sc.timer = setTimeout(() => saveDensity(cs, sc, repaint), DENSITY_SAVE_MS);

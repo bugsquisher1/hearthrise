@@ -810,10 +810,13 @@ export const MONSTERS = {
     drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'rooks_moss_charm', ch: .15, band: 'uncommon' }, { id: 'rooks_whistle', ch: .0038, band: 'rare' },
       { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' }] },
   brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
-    /* the springs' bruiser (lane b-unsourced-items): it fishes the Meadowbrook; the wet coat sheds frost, fire takes it */
+    /* the springs' bruiser (lane b-unsourced-items): it fishes the Meadowbrook; the wet coat sheds frost, fire takes it.
+       THE PELT IS ITS OWN PRODUCT (lane c-house-pelts, Andy's report): the Keep and the Trophy Room ask for it, and the
+       Common odds' floor keeps it an errand of about an hour at 30-50 bears an hour. The Claw, a trophy for a Cooking 70
+       pie, gives up the Common slot to it and rides a Rare row at the band's pace (drop-tables big-pull). */
     elementWeak: 'ember', elementResist: ['frost'],
     hp: 74, atk: 18, def: 8, xp: 420, gp: [14, 36], speed: 3000,
-    drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_claw', ch: .25, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }] },
+    drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_pelt', ch: .16, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }, { id: 'bear_claw', ch: .0019, band: 'rare' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
      src/data/hunt-grounds.js header. THE LOOT BANDS: tier-1 boots (rats) and helmets (wasps), tier-2 legs (spiders) and

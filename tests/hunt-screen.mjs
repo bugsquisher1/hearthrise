@@ -1876,7 +1876,7 @@ const MUTANTS = [
   ['the density waits for the server before it moves', 'src/shell/windows/hunts.js', '  if (!dn || !sc.draft || sc.draft.hunt !== hunt) return dn;', '  if (dn) return dn;'],
   ['the density draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the density pick', 'src/shell/windows/hunts.js', "densityWords(r, dn ? dn.now : null)", "densityWords(r, null)"],
-  ['the density shows the ground max, not the server pick', 'src/shell/windows/hunts.js', '  return { now: densityFor(g, size, pick), max: densityFor(g, size, DENSITY_PICK.max) };', '  return { now: densityFor(g, size, DENSITY_PICK.max), max: densityFor(g, size, DENSITY_PICK.max) };'],
+  ['the density shows the ground max, not the server pick', 'src/shell/windows/hunts.js', '  return { pick, now: densityFor(g, size, pick), max: densityFor(g, size, DENSITY_PICK.max) };', '  return { pick, now: densityFor(g, size, DENSITY_PICK.max), max: densityFor(g, size, DENSITY_PICK.max) };'],
   ['a party member steps its own density', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return densityOf(party.densities, hunt, size);\n", ''],
   ['a party member keeps the density step', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower);", "prop(b, 'hidden', false);"],
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', "      if (a.action.type === b.action.type && a.action.id === b.action.id) {", "      if (false) {"],

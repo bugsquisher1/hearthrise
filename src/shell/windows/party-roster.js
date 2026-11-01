@@ -16,7 +16,10 @@
 // one intent each), off from the press until the server answered; the tab
 // changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.79';
+import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.79';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.79';
+import { PARTY_CLASSES, partyClassXp } from '../../data/party-class-xp.js?v=0.2.79';
+import { recommendation } from '../hunt-list.js?v=0.2.79';
 import { huntName } from '../../session/party-sections.js?v=0.2.79';
 import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.79';
 import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.79';
@@ -27,6 +30,7 @@ import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.79';
 export function rosterHtml() {
   return '<ul class="hw-ledger hw-seats"></ul>'
     + '<p class="hs-note hw-party-next"></p>'
+    + '<p class="hs-note hw-party-class" hidden></p>'
     + '<div class="hw-add hw-party-acts">'
     + '<button type="button" class="hw-primary is-on" data-hs-act="party-hunts" hidden>Pick a hunt for the party</button>'
     + '<button type="button" class="hh-tool" data-hs-act="leave">Leave party</button>'
@@ -60,6 +64,29 @@ function nextStep(p, r) {
   return 'Waiting for ' + (lead ? lead.name : 'the leader') + ' to pick a hunt.';
 }
 
+const CLASS_NAMES = Object.values(PARTY_CLASSES).map((c) => c.label);
+const CLASS_WORDS = CLASS_NAMES.slice(0, -1).join(', ') + ' and ' + CLASS_NAMES[CLASS_NAMES.length - 1];
+
+/**
+ * THE CLASS LINE (Tyler 2026-10-31; designer's words), read off the ONE table the engine pays by (src/data/party-class-xp.js
+ * over the seats' server roles; a seat with no weapon fights as the engine's bare-handed Melee). It names the ground, since this
+ * window holds no ground of its own. Exported for tests/party-ui.mjs.
+ */
+export function classXpLine(roles, hunt) {
+  const ground = Object.values(HUNT_GROUNDS).find((g) => g.hunt === hunt);
+  const { permille, classes } = partyClassXp(ground ? ground.id : null, roles.map((r) => r || roleForWeapon('neutral')));
+  const gap = Math.round(Math.abs(permille - 1000) / 10);
+  const pay = permille > 1000 ? gap + '% more Level XP' : permille < 1000 ? gap + '% less Level XP' : 'no extra Level XP';
+  return 'Your party has ' + classes.length + ' of ' + CLASS_NAMES.length + ' classes: ' + pay + ' in ' + huntName(hunt) + '. ' + CLASS_WORDS + ' each count.';
+}
+
+/** The line before a hunt starts, on the party's last ground or the one the Hunts window opens on; '' for no line. */
+export function classLineOf(p, r) {
+  if (r.anyHunting || r.members.length < 2) return '';
+  const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;
+  return hunt ? classXpLine(r.members.map((m) => m.role), hunt) : '';
+}
+
 /** Patch the tab from the server's party; `p` partyMembershipOf (null: the tab is hidden by the window). */
 export function patchRoster(root, ctx, sc, p) {
   if (!p) return;
@@ -77,6 +104,9 @@ export function patchRoster(root, ctx, sc, p) {
     },
   });
   text(root.querySelector('.hw-party-next'), nextStep(p, r));
+  const classLine = classLineOf(p, r);
+  text(root.querySelector('.hw-party-class'), classLine);
+  prop(root.querySelector('.hw-party-class'), 'hidden', !classLine);
   const hunts = root.querySelector('[data-hs-act="party-hunts"]');
   prop(hunts, 'hidden', !(r.isLeader && !r.anyHunting));
   prop(root.querySelector('[data-hs-act="disband"]'), 'hidden', !r.isLeader);

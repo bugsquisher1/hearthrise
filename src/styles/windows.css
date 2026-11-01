@@ -567,6 +567,7 @@
 .hw-seat-state { flex: none; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-seat.is-away { opacity: .7; }
 .hw-party-next { margin: 8px 0 0; }
+.hw-party-class { margin: 4px 0 0; }
 .hw-party-acts .hw-primary { margin-right: auto; }
 .hw-party-acts [hidden] { display: none; }
 /* Who to invite, under the Party window's tabs (party.js): off on Find a party, which has its own way. */

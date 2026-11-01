@@ -194,6 +194,7 @@ export const HUNT_GROUNDS = Object.freeze({
     respawnMs: 32000, pullDist: 1.5, partyScale: true, groupFit: 'both',
     /* the tutorial room allows the full box and no more: its lesson is the pull */
     densityMax: Object.freeze([8, 8, 8, 8]),
+    partyPull: Object.freeze([0, 4, 5, 5]),
   }),
   millrace_sewer: Object.freeze({
     id: 'millrace_sewer', hunt: 'millrace_sewer', map: 'millrace_sewer',
@@ -238,6 +239,7 @@ export const HUNT_GROUNDS = Object.freeze({
     densityMax: Object.freeze([8, 8, 8, 8]),
     /* a solo hero may pull up to 6, a pair the full box */
     density: density(6, 2, 8),
+    partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the woodcutters' clearing: the first logs, by the trailhead */
       ['normal_tree', 6, 16, 0], ['normal_tree', 17, 14, 0], ['normal_tree', 18, 23, 0], ['normal_tree', 8, 22, 0],
@@ -322,6 +324,7 @@ export const HUNT_GROUNDS = Object.freeze({
     densityMax: Object.freeze([8, 8, 8, 8]),
     /* a solo hero may pull up to 6, a pair the full box (the Thicket's slider: the same solo-first shape) */
     density: density(6, 2, 8),
+    partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the Crow Field: pines by the trail */
       ['normal_tree', 6, 26, 0], ['normal_tree', 19, 34, 0], ['normal_tree', 8, 35, 0],
@@ -358,6 +361,7 @@ export const HUNT_GROUNDS = Object.freeze({
     densityMax: Object.freeze([8, 8, 8, 8]),
     /* a solo hero may pull up to 6, a pair the full box (the Thicket's slider: the same solo-first shape) */
     density: density(6, 2, 8),
+    partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the Rick Yard: the hedge pines */
       ['normal_tree', 7, 14, 0], ['normal_tree', 20, 14, 0], ['normal_tree', 7, 25, 0],
@@ -444,19 +448,29 @@ export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille
    "There should be a party leader that chooses the hunt settings"): the leader's
    pick is the pull for every member, the others' picks have no say (partyPick).
    EVERY ground's max is at least DENSITY_FULL_BOX (Tyler: "a full box", all 8 tiles
-   round the tank taken); a row may allow more. The values above 8 are ASSUMED. */
+   round the tank taken); a row may allow more. The values above 8 are ASSUMED.
+   A PARTY'S DEFAULT PULL (designer 2026-11-01: most players never press +, and a mixed party as built stayed under
+   solo): a row's `partyPull`, one entry per party size 1..4, is the pull of a party that picked none; absent = as built.
+   It follows the party standing, at the next spawn (designer 2026-11-01): a four dropping to three goes to three's pull,
+   and a lone survivor goes back to as built. A lone hero's entry is 0 and never read: its pull never moves. */
 export const DENSITY_FULL_BOX = 8;
 
 /* Who a ground is built for (the workbook's "Group fit"): see the row shape's groupFit. */
 export const GROUP_FITS = Object.freeze(['solo', 'party', 'both']);
 export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });
 
+/** A party's default pull on `ground` for `partySize` (the row's `partyPull`), or 0 (as built): always 0 for a lone hero. */
+export function partyPullOf(ground, partySize) {
+  const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
+  return n > 1 && ground && Array.isArray(ground.partyPull) ? ground.partyPull[n - 1] : 0;
+}
+
 /** The density an instance spawns at: the pick (partyPick's, for a party) clamped to the ground's max
-    for its size; 0 (as built) for no pick. */
+    for its size; with no pick, a party's default pull (partyPullOf), clamped too; 0 (as built) for anyone else. */
 export function densityFor(ground, partySize, pick) {
   const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
   const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;
-  const p = Number.isInteger(pick) && pick > 0 ? pick : 0;
+  const p = Number.isInteger(pick) && pick > 0 ? pick : partyPullOf(ground, n);
   return Math.max(0, Math.min(max, p, DENSITY_PICK.max));
 }
 
@@ -598,6 +612,10 @@ export function validateGround(row, refs) {
   if (row.densityMax !== undefined && !(Array.isArray(row.densityMax) && row.densityMax.length === PARTY_SCALE.maxHeroes
     && row.densityMax.every((v, i) => Number.isInteger(v) && v >= DENSITY_FULL_BOX && v <= DENSITY_PICK.max && (i === 0 || v >= row.densityMax[i - 1])))) {
     bad('densityMax must be ' + PARTY_SCALE.maxHeroes + ' whole numbers ' + DENSITY_FULL_BOX + '..' + DENSITY_PICK.max + ' (at least a full box), never falling as the party grows');
+  }
+  if (row.partyPull !== undefined && !(Array.isArray(row.partyPull) && row.partyPull.length === PARTY_SCALE.maxHeroes && row.partyPull[0] === 0
+    && row.partyPull.every((v, i) => Number.isInteger(v) && v >= 0 && v <= DENSITY_FULL_BOX && (i === 0 || v >= row.partyPull[i - 1])))) {
+    bad('partyPull must be ' + PARTY_SCALE.maxHeroes + ' whole numbers 0..' + DENSITY_FULL_BOX + ', 0 for a lone hero (its pull never moves), never falling as the party grows');
   }
   if (row.leashMargin !== undefined && !(Number.isInteger(row.leashMargin) && row.leashMargin >= 0 && row.leashMargin <= 8)) {
     bad('leashMargin must be an integer 0..8');

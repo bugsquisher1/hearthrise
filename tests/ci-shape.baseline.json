@@ -13,6 +13,8 @@
     "node tools/mutant-gate.mjs node tests/report-problem.mjs --mutate": "in-page-21",
     "node tests/death-popup.mjs": "in-page-21",
     "node tools/mutant-gate.mjs node tests/death-popup.mjs --mutate": "in-page-21",
+    "node tests/hud-reachable.mjs": "in-page-21",
+    "node tools/mutant-gate.mjs node tests/hud-reachable.mjs --mutate": "in-page-21",
     "node tests/alpha-windows.mjs": "in-page-10",
     "node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=1/6": "in-page-10",
     "node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=2/6": "in-page-11",

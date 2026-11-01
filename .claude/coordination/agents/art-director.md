@@ -3138,3 +3138,6 @@ summary is open (both sizes; on desktop it was a redundant "Mill Cellar Summary"
 served `window.__world` hook (screenOf on stats().hunt.hero/units), never by eye; (2) moving the card alone fails at
 844 (5 px) and the inset alone pushes the party under the Party panel: it took both; (3) 667x375 cannot fit a 260 px card
 beside a hero-centred fight: a party member 2 tiles left goes under the Party panel there (open, outside this brief).
+
+### 2026-11-01 lane/a-panels-on-screen (friends and crafter panels)
+hud.js clearOfEdges "stepped down" any edge panel a too-wide centred bar still hit, and a BOTTOM bar stepped them off the window. Top-corner panels now end above the bar and scroll (--hs-room, src/shell/hud-room.js); the screen plates (alerts, online) slide past panels and windows or wait hidden. Lessons: (1) a guard of "no overlap" (HS-13) was pinning the off-screen answer: test reachability by a press at the middle of the thing, plus a real wheel; (2) layout is real-font dependent: the Verdana swap found a bar 13 px over at 1024; (3) `scrollIntoView` scrolls overflow:hidden too, so it proves nothing about a player; (4) the away card was also firing every ten minutes of watching since the 11-01 stamp change: judge only on a RETURN; (5) a local-world skip in view is no absence (it moves the hunt, not the clock).

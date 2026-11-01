@@ -227,6 +227,20 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+    { // HR-5 a wide saved Chat beside a four-seat panel at the smallest size: no column clears, its head stays in reach
+      const { ctx, page, up } = await open((env) => { partyOf4(env); env.client_state = Object.assign({}, env.client_state, { winSize: { chat: [900, 400] } }); }, { width: 1024, height: 600 });
+      if (up) {
+        await page.keyboard.press('Enter');
+        await wait(page, () => document.querySelector('[data-hs-win="chat"] .hs-win-head'));
+        await settle(page);
+        const close = await presses(page, '.hs-win-head .hs-close', '[data-hs-win="chat"]');
+        if (!close.length || !close[0].ok) fails.push('HR-5 a wide Chat at 1024x600 has no head to press: ' + JSON.stringify(close[0] || null));
+        const tall = await page.evaluate(() => document.querySelector('[data-hs-win="chat"]').getBoundingClientRect().height);
+        if (tall < 100) fails.push('HR-5 a wide Chat at 1024x600 is a ' + Math.round(tall) + ' px sliver');
+      } else fails.push('HR-5 the wide Chat screen did not mount');
+      await ctx.close();
+    }
+
     { // HR-5 windows
       const { ctx, page, up } = await open();
       if (up) {
@@ -406,6 +420,7 @@ const MUTANTS = [
   ['a moved panel lies behind the bar (HR-4)', 'src/shell/hud-room.js', 'if (top !== Math.round(q.top)) e.style.top = top', 'if (false) e.style.top = top'],
   ['a docked window keeps its slot off a smaller window (HR-5)', 'src/shell/window-manager.js', 'return Math.max(DOCK_EDGE, Math.min(r, world().width - width(id) - DOCK_EDGE));', 'return r;'],
   ['a float keeps its place off a smaller window (HR-5)', 'src/shell/window-manager.js', 'return { x: Math.max(0, Math.min(w.width - width(id), f.x)), y: Math.max(0, Math.min(w.height - 48, f.y)) };', 'return { x: f.x, y: f.y };'],
+  ['a Chat with no room is a sliver (HR-5)', 'src/shell/shell.js', "Math.max(at.max, RESIZE_MIN.h) + 'px'", "at.max + 'px'"],
   ['a browser resize does not repaint the windows (HR-5)', 'src/shell/shell.js', 'function onResize() { paintWindows(); paintWidgets(); }', 'function onResize() { paintWidgets(); }'],
   ['the alerts stay in the left column over Chat and the party (HR-6)', 'src/shell/hud-room.js', 'if (left !== null) { alerts.style.left = left + \'px\'; way.push(Object.assign(q, { left })); }', ''],
   ['the alerts ignore the windows in their row (HR-6)', 'src/shell/hud-room.js', "return panels.concat(Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)'))).map(rel);", 'return panels.map(rel);'],

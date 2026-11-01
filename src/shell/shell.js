@@ -355,7 +355,8 @@ export function mountShell(root, o) {
       const at = homeAt({ left: DOCK_EDGE, width: w.offsetWidth }, bars, tops, DOCK_EDGE, HOME_BOTTOM, { width: b.width, height: b.height }, RESIZE_MIN.h);
       if (w.style.left !== at.left + 'px') w.style.left = at.left + 'px';
       if (w.style.bottom !== at.bottom + 'px') w.style.bottom = at.bottom + 'px';
-      const v = at.max === null ? '' : at.max + 'px';
+      /* No room anywhere (a wide saved Chat, a four-seat panel): its head stays in reach, over the panel, rather than a sliver no press can land on. */
+      const v = at.max === null ? '' : Math.max(at.max, RESIZE_MIN.h) + 'px';
       if (w.style.maxHeight !== v) w.style.maxHeight = v;
     }
   }

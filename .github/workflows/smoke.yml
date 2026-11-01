@@ -284,6 +284,7 @@ jobs:
   # nightly full sweep (40196078710, every --mutate): Observability 9.4 (--mutate 9.1;
   # it DECLARES play.html, so any real play.html change runs it) + Report a problem 1.4
   # + Death popup 4.1 + setup 0.9 = 15.7 min; x2 = 32. With the apt stall: 27.9 (87%).
+  # 2026-11-01: HUD in reach joins it, about 14 min with every mutant on a loaded PC: 29.7 min; x2 = 60.
   in-page-21:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -337,7 +338,7 @@ jobs:
 
       # EVERY PANEL IN REACH (friends' panel, 2026-11-01): at six desktop sizes, solo and a party of 4, every
       # HUD panel and window on screen and pressable, the bar at home, a moved panel clear of it; the away
-      # card follows the server and blocks nothing. --mutate plants sixteen defects.
+      # card follows the server and blocks nothing. --mutate plants seventeen defects.
       - name: HUD in reach (play.html)
         if: ${{ !cancelled() }}
         run: |

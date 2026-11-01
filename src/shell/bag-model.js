@@ -109,7 +109,8 @@ export function kindOf(id) {
   /* a monster's drop is loot unless a hero can make or gather it too; a tool is a tool however it is made */
   const made = it.type !== 'tool' && madeSet().has(id);
   if (dropSet().has(id) && !made) return 'loot';
-  if (made || it.raw || it.tag === 'crafting-mat' || it.seed || inputSet().has(id)) return 'material';
+  if (made) return 'material';
+  if (it.raw || it.tag === 'crafting-mat' || it.seed || inputSet().has(id)) return 'material';
   if (it.type === 'trophy' || RARE_TAGS.has(it.tag) || RARE_RUNGS.has(it.rarity)) return 'rare';
   return 'other';
 }

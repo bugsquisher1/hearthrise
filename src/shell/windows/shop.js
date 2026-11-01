@@ -97,8 +97,8 @@ function patchBuy(root, st, ctx) {
         const short = st.gold !== null && st.gold < o.price * n ? o.price * n - st.gold : 0;
         /* A tool says what it buys (panel 2026-11-01: the Shop listed them with no benefit). */
         const does = toolEffect(o.item);
-        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag'
-          + (does ? ' · ' + does + ' while in your bag' : '') + (short ? ' · You need ' + gold(short) + ' more.' : ''));
+        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag' + (does ? ' · ' + does + ' while in your bag' : '')
+          + (short ? ' · You need ' + gold(short) + ' more.' : ''));
         prop(li.querySelector('select'), 'value', String(n));
         const b = li.querySelector('[data-hs-act="buy"]');
         text(b, 'Buy ' + n + ' · ' + gold(o.price * n));

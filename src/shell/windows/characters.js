@@ -145,7 +145,7 @@ function patchRename(root, ctx, peers) {
   const purse = goldOf(target);
   text(panel.querySelector('.hw-rename-head'), 'Rename ' + name);
   const short = !!q && purse !== null && purse < q.price;
-  text(panel.querySelector('.hw-rename-quote'), !q ? 'Reading the price of a new name…'
+  text(panel.querySelector('.hw-rename-quote'), !q ? 'The server has not priced a new name yet.'
     : 'A new name costs ' + gold(q.price) + ' at Level ' + whole(q.level) + ', paid from your gold. The first name was free; every change after it costs gold.'
       + (!q.available ? ' ' + name + (RENAME_WHY[q.why] || ' cannot change name right now.')
         : short ? ' You have ' + gold(purse) + '.' : ''));

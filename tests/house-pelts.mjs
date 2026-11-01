@@ -271,7 +271,7 @@ async function wordsFails(root) {
   const openNames = new Set([...openIds].map((id) => MONSTERS[id].name));
   for (const [mid, m] of Object.entries(MONSTERS)) {
     if (openIds.has(mid) || openNames.has(m.name)) continue;
-    for (const d of m.drops || []) if (d && d.id && F.dropWhereWords(d.id).includes(m.name)) out.push('a creature no open ground spawns is named: ' + m.name + ' for ' + d.id);
+    for (const d of m.drops || []) if (d && d.id && new RegExp('(?:by |and |, )' + m.name + '(?: at| and|,)').test(F.dropWhereWords(d.id))) out.push('a creature no open ground spawns is named: ' + m.name + ' for ' + d.id);
   }
   const shortSilk = costLines({ gold: 1, items: [{ id: 'silk_thread', qty: 8 }] }, 9, [], []).lines.find((l) => l.key === 'silk_thread');
   if (!/Dropped by .* at Mill Cellar/.test(shortSilk.where)) out.push('the House\'s short Silk Thread names no source: ' + shortSilk.where);
@@ -288,7 +288,7 @@ async function wordsFails(root) {
 }
 const WORD_TREES = ['src/shell', 'src/render', 'src/session', 'src/utils', 'src/net', 'src/platform', 'src/app', 'src/social', 'src/world', 'src/hunt-view'];
 const WORD_MUTANTS = [
-  { name: 'the source names creatures on closed grounds', edits: [['src/shell/hunt-ground-facts.js', 'for (const g of Object.values(OPEN_GROUNDS)) {\n    const here', 'for (const g of Object.values(HUNT_GROUNDS)) {\n    const here']] },
+  { name: 'the source lists every catalogue creature again', edits: [['src/shell/hunt-ground-facts.js', "return 'Dropped by ' + listWords(first.names) + ' at '", "return 'Dropped by ' + listWords(Object.values(MONSTERS).filter((m) => (m.drops || []).some((d) => d && d.id === item)).map((m) => m.name), 99) + ' at '"]] },
   { name: 'the tip drops the pull', edits: [['src/shell/hunt-ground-facts.js', "return 'The ' + MONSTERS[best.id].name + ' only comes to a pull of '", "return '' && ' only comes to a pull of '"]] },
   { name: 'the House\'s short line drops the source', edits: [['src/shell/windows/house.js', "const where = short ? whereToGet(it.id) : '';", "const where = '';"]] },
   { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const where = short ? whereToGet(it.id) : '';", 'const where = whereToGet(it.id);']] },

@@ -608,9 +608,9 @@ async function itemTruthRules(base) {
   if (!/even if you made yours/.test(notListableWords('start_kit')) || !/for your own use/.test(notListableWords('no_value')) || !/for your own use/.test(notListableWords('no_shop_price'))) fails.push('AW-60 the Weighhouse says ' + notListableWords('start_kit') + ' / ' + notListableWords('no_value'));
   const keptLine = keptWords([{ name: 'Cooked Shrimp', why: 'start_kit' }, { name: 'Chalked Earth Rune', why: 'no_value' }, { name: 'Bronze Arrows', why: 'no_value' }]);
   if (!/^3 stacks here can't be sold to other players\. Cooked Shrimp: every new hero.*Chalked Earth Rune and Bronze Arrows: the shop doesn't buy them/.test(keptLine)) fails.push('AW-60 the Sell tab says ' + keptLine);
-  /* "The shop has not priced this yet" reads as an unfinished game: nowhere in the client. */
+  /* "... has not priced this yet" reads as an unfinished game: nowhere in the client. */
   const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === 'vendor' ? [] : walk(join(d, e.name))) : e.name.endsWith('.js') ? [join(d, e.name)] : []));
-  for (const f of walk(join(base, 'src'))) if (/'[^'\n]*has not priced[^'\n]*'/.test(readFileSync(f, 'utf8'))) fails.push('AW-60 ' + f.slice(base.length) + ' still says "has not priced"');
+  for (const f of walk(join(base, 'src'))) if (/has not priced this yet/.test(readFileSync(f, 'utf8'))) fails.push('AW-60 ' + f.slice(base.length) + ' still says "has not priced this yet"');
   /* BUG 10: a slot names ONE item, so own food the bar doesn't name goes unused: Before you go says so, beside what the bar will do. */
   const slot = (id) => ({ action: { type: 'consume', id }, conditions: [], join: 'and', usable: true });
   const STORE = FIXTURE.hunt_settings.store;
@@ -2515,6 +2515,9 @@ const MUTANTS = [
   ['armor weight: the doll line counts the bag, not the worn set', 'src/shell/windows/inventory/doll.js', "for (const x of wornWeights(eq))", "for (const x of wornWeights(Object.fromEntries((bagOf(st.cs) || []).map((r, i) => [i, r.id]))))"],
   ['armor weight: the tooltip drops the weight line', 'src/shell/windows/item-tip.js', '  if (wt) h +=', '  if (wt && false) h +='],
   ['armor weight: the share is not the server sum', 'src/data/armour-weights.js', "const pct = (pm) => '+' + (Math.round(pm) / 10) + '%';", "const pct = (pm) => '+' + (Math.round(pm) / 10 + 1) + '%';"],
+  ['AW-60 the Shop forgets the House', 'src/shell/windows/shop.js', 'const needs = upgradeNeeds(homeOf(st.cs), chestsOf(st.cs));', 'const needs = undefined;'],
+  ['AW-60 Storage puts a tool away in silence', 'src/shell/windows/storage.js', "const slower = dir === 'deposit' ? toolLossWords(cs, id, qty) : '';", "const slower = '';"],
+  ['AW-60 the tooltip says nothing of a stack no one buys', 'src/shell/windows/item-tip.js', 'const sale = saleWords(id);', "const sale = '';"],
   ['item truth: a whetstone is fired from a bow again', 'src/shell/item-lore.js', "if (it.reqSkill === 'melee') return 'Goes in the ammo slot", "if (it.reqSkill === 'nope') return 'Goes in the ammo slot"],
   ['item truth: a tool says sell it again', 'src/shell/item-lore.js', "  if (tool) out.push(tool);\n", ''],
   ['item truth: a kit stone says sell it', 'src/shell/item-lore.js', "Number(it.v) > 0 ? 'Sell it at the shop' : ", "true ? 'Sell it at the shop' : "],

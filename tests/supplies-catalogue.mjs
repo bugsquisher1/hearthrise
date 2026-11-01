@@ -366,7 +366,7 @@ function selftest() {
     }],
     ['S1', 'an unknown item id', (d) => { d.rows = [...d.rows, ['heal', 'not_an_item', true]]; }],
     ['K1', 'a kind with no shop supply paid per use', (d) => { d.basics = d.basics.filter((b) => b.kind !== 'mana'); }],
-    ['B1', 'a shop heal cheaper per point than the cooked one', (d) => { withBasic(d, 'salted_shark', { price: 100 }); }],
+    ['B1', 'a shop heal cheaper per point than the cooked one', (d) => { withBasic(d, 'salted_shark', { price: 1 }); }],
     ['B1', 'a shop heal as big as the cooked one', (d) => { withBasic(d, 'salted_trout', { heals: 14 }); }],
     ['B1', 'a shop supply that is also an item', (d) => { withBasic(d, 'salted_shrimp', { id: 'cooked_trout' }); }],
     /* BASIC_AMMO_PREMIUM is 1 since the spell-release balance (designer 2026-10-23): a store shot at its partner's book (4 g) holds, under it is red. */

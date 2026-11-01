@@ -114,6 +114,9 @@ const SB4_WINDOW = WINDOWS + 2;
    CONTROL names any new one. */
 const SEQUENCE_REFS = Object.freeze({ 'public.hunt_session_tally': ['ledger_hwm'] });
 const PRE_NAMES = Object.freeze({ hrsr_role_of: 'hr_hunt_role_of', hrsr_role_view: 'hr_role_view', hrsr_sections: 'hr_state_sections_of' });
+/* Bodies a LATER file moved on purpose. Their old pre-image would undo that file, not the settle-cost lanes (party-truth's why a
+   friend's end sent a hero home; bench tax's gold kind), so the "before" image holds the body as the chain ended, taken before any plant. */
+const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql', hr_gold_kind: '2027-02-19-bench-tax.sql' });
 /** The pre-image DDL the lane's files carry (their pg_temp copies), renamed back to the public functions they were. */
 export function preImages() {
   const out = [];
@@ -177,6 +180,13 @@ export async function parity(db, m, { plantAfter = null } = {}) {
   const diffOf = (a, b) => a.filter(([k, v], i) => !b[i] || b[i][0] !== k || b[i][1] !== v).map(([k]) => k);
   const pre = preImages();
   await db.exec('reset role');
+  const kept = {};
+  for (const [name, file] of Object.entries(RESTATED_AFTER)) {
+    const said = readFileSync(join(ROOT, 'supabase', 'migrations', file), 'utf8');
+    if (!said.includes('public.' + name)) throw new Error(`settle-budget: RESTATED_AFTER says ${file} moved ${name}, and it does not name it`);
+    kept[name] = (await db.query(`select pg_get_functiondef(p.oid) as d from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                                   where n.nspname = 'public' and p.proname = $1`, [name])).rows[0].d;
+  }
   await db.query('begin');
   try {
     if (plantAfter) await db.exec(plantAfter);
@@ -192,7 +202,7 @@ export async function parity(db, m, { plantAfter = null } = {}) {
     await db.query('rollback to savepoint sb4_w');
     const after = await snap();
     await db.query('rollback to savepoint sb4_w');
-    for (const x of pre) await db.exec(x.ddl);
+    for (const x of pre) await db.exec(kept[x.name] || x.ddl);
     const restored = (await db.query(`select count(*)::int n from pg_proc p join pg_language l on l.oid = p.prolang
        where p.oid in ('public.hr_hunt_limit(text)'::regprocedure, 'public.hr_jsonb_add(jsonb,jsonb)'::regprocedure) and l.lanname = 'sql'`)).rows[0].n === 2;
     await db.query('savepoint sb4_pre');

@@ -205,14 +205,14 @@ const CHAIN_END = (() => {
   const list = order.order || order.files || Object.values(order).find(Array.isArray);
   for (const f of [...list].reverse()) {
     let t; try { t = readFileSync(new URL('../supabase/migrations/' + f, import.meta.url), 'utf8'); } catch { continue; }
-    if (t.includes("('verdite_bar','Verdite Bar',true,null,320,") && t.includes("('dawnpoint_arrows','ammo')")) return f;
+    if (/\('verdite_bar','Verdite Bar',true,null,\d+,/.test(t) && t.includes("('dawnpoint_arrows','ammo')")) return f;
   }
   throw new Error('no migration seeds both arm anchors: re-anchor the selftest');
 })();
 
 const VERDITE_ROW = (() => {
   const t = readFileSync(new URL('../supabase/migrations/' + CHAIN_END, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const m = t.match(/^  \('verdite_bar','Verdite Bar',true,null,320,[^\n]*\n/m);
+  const m = t.match(/^  \('verdite_bar','Verdite Bar',true,null,\d+,[^\n]*\n/m);
   if (!m) throw new Error('the verdite_bar row is gone from ' + CHAIN_END + ': re-anchor arm (a)');
   return m[0];
 })();
@@ -236,7 +236,7 @@ async function selftest() {
     ['(a) a price literal drifts in the deep-seam migration only', {
       /* The row is READ off the chain-end file (its column list grows: the core rebuild added
          armour_weight), so the arm moves the price and nothing else. */
-      patches: new Map([[CHAIN_END, [[VERDITE_ROW, VERDITE_ROW.replace(',320,', ',260,')]]]]),
+      patches: new Map([[CHAIN_END, [[VERDITE_ROW, VERDITE_ROW.replace(/(true,null,)(\d+),/, (_, a, v) => a + (Number(v) + 60) + ',')]]]]),
     }, true],
 
     // (b) the mirror image: src/data moves and no migration follows it.

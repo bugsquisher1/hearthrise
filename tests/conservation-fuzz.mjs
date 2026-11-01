@@ -424,10 +424,11 @@ const INJECTIONS = {
        2,000,000 gold of drift over 400 ops. A gate that can no longer fire is a
        gate that quietly downgrades a catch to a harness error — budget_kind_scoped
        says so below, and this is that note applied to itself. */
-    /* 2026-12-15: the credit lands in the ACCOUNT purse (2026-12-15-account-gold.sql §5's gold block). */
+    /* 2026-12-15: the credit lands in the ACCOUNT purse (2026-12-15-account-gold.sql §5's gold block).
+       2027-02-19: the same line now carries the bench tax's floor (2027-02-19-bench-tax.sql §4b). */
     patches: [[
-      `        v_new_gold := public.hr_purse_move(v_uid, v_n, 0);`,
-      `        v_new_gold := public.hr_purse_move(v_uid, v_n + greatest(v_n, 0), 0);  -- INJECTED gold_double`,
+      `        v_new_gold := public.hr_purse_move(v_uid, v_n, coalesce(v_tax_keep, 0));`,
+      `        v_new_gold := public.hr_purse_move(v_uid, v_n + greatest(v_n, 0), coalesce(v_tax_keep, 0));  -- INJECTED gold_double`,
     ]],
   },
 

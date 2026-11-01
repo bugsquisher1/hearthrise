@@ -139,7 +139,7 @@ export function renderWork() {
   return '<div class="hw-trade">'
     + '<div class="hw-burying hw-work-now" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="work-stop">Stop</button></div>'
     + '<p class="hs-note hw-work-end" role="status"></p>'
-    + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make something with it.</p>' + renderTradeSkills() + '</div>'
+    + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ All skills</button>'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
     + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p><ul class="hw-ledger hw-work-rows"></ul></section>'

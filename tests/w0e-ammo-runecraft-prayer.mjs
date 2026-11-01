@@ -78,8 +78,8 @@ const MUTATIONS = {
   blanks_need_stonemason: {
     file: 'src/data/stonecraft.js',
     why: 'the level-1 blank cut eats Stonemason blocks again, so Runecrafting cannot start alone',
-    find: "inputs: { rune_essence: 4 },",
-    repl: "inputs: { dressed_block: 2 },",
+    find: "name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 6 },",
+    repl: "name: 'Cut Blank Runes',      icon: '⬜', inputs: { dressed_block: 2 },",
   },
 };
 

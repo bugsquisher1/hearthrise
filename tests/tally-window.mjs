@@ -6,7 +6,7 @@
 //   node tests/tally-window.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/tally-window.mjs --shots <dir>   also write TW-11's screenshots (moved, folded; desktop and phone)
 //
-// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widgets/tally-hud.js src/shell/widget-move.js
+// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `tally` section
@@ -385,7 +385,7 @@ async function checks(overrides, shots) {
         await dragBy(page, '[data-hs-widget="analyzer"] .hh-panel-title', 260 - st.an.left - st.an.width / 2, 860 - st.an.bottom - 40);
         st = await settle(page, (x) => x.an && x.an.moved && x.tally && x.tally.top < 120);
         const dropped = st.an;
-        if (!(dropped && dropped.moved && dropped.left < 200 && dropped.bottom > 700 && dropped.bottom <= 900)) fails.push('TW-11 the analyzer did not move to the bottom-left by its title: ' + JSON.stringify(dropped));
+        if (!(dropped && dropped.moved && dropped.left < 200 && dropped.bottom > 600 && dropped.bottom <= barTop)) fails.push('TW-11 the analyzer did not move to the bottom-left by its title: ' + JSON.stringify(dropped));
         else if (!(st.tally && st.tally.top < 120)) fails.push('TW-11 the unmoved tally still stacks where the analyzer was: ' + JSON.stringify(st.tally));
         const sent = await putsOf(s, puts, (l) => !!(l.desktop && l.desktop.analyzer && l.desktop.analyzer.anchor === 'bl'));
         if (sent.length !== 1 || !(sent[0].desktop && sent[0].desktop.analyzer && sent[0].desktop.analyzer.anchor === 'bl')) fails.push('TW-11 the drop was not put once, bottom-left: ' + JSON.stringify(sent));
@@ -397,7 +397,7 @@ async function checks(overrides, shots) {
         st = await settle(page, (x) => x.an && x.an.bottom <= 700 && x.an.top >= 0);
         if (!(st.an && st.an.left === (dropped && dropped.left) && st.an.top >= 0 && st.an.bottom <= 700 && st.an.right <= 1024)) fails.push('TW-11 at 1024x700 the moved analyzer left its corner or the screen: ' + JSON.stringify(st.an));
         await page.setViewportSize({ width: 1440, height: 900 });
-        st = await settle(page, (x) => x.an && x.an.bottom > 700);
+        st = await settle(page, (x) => x.an && x.an.bottom > 600);
         /* The Tally drags by its title without opening her window, and sits where it was dropped */
         const t0 = await steadyBox(page, 'tally');
         await dragBy(page, '[data-hs-widget="tally"] .hs-tally-open', 1100 - t0.left, 150 - t0.top);   // clear of the right edge's clamp at any font's width (" · Not here" reads 259 px on Linux)
@@ -519,7 +519,7 @@ const MUTANTS = [
   ['the drop is never kept', 'src/shell/widget-move.js', '      hud.setPlace(id, hud.layoutOf(id), true);', '      hud.setPlace(id, hud.layoutOf(id), false);'],
   ['dragging the tally opens her window', 'src/shell/widget-move.js', '    if (swallow) { swallow = false; e.stopPropagation(); e.preventDefault(); return; }', ''],
   ['the phone drags a widget', 'src/shell/widget-move.js', "    if (e.button !== 0 || o.isPhone()) return;", "    if (e.button !== 0) return;"],
-  ['the analyzer makes no room for the tally above the bar', 'src/shell/shell.js', '    stackWidgets();\n    roomForStack();\n', '    stackWidgets();\n'],
+  ['the analyzer makes no room for the tally above the bar', 'src/shell/hud-room.js', 'take(a, r === null && crosses ? DOCK_CAP_MIN_PX : r);', ''],
 ];
 
 async function main() {

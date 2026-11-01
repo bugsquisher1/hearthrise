@@ -18,7 +18,8 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell } from '../../bag-model.js?v=0.2.80';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.80';
+import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.80';
 import { skillsOf } from '../../../session/item-sections.js?v=0.2.80';
 import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.80';
 import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.80';
@@ -209,7 +210,7 @@ function patchHuntPane(root, st, ctx) {
   let worth = 0, priced = true;
   for (const l of loot) if (bids && bids.has(l.item)) worth += bids.get(l.item) * l.count; else priced = false;
   const n = loot.reduce((s, l) => s + l.count, 0);
-  const coin = new Set(lootToSell(loot.map((l) => ({ id: l.item, qty: l.count })), skillsOf(st.cs)));
+  const coin = new Set(lootToSell(loot.map((l) => ({ id: l.item, qty: l.count })), skillsOf(st.cs), upgradeNeeds(homeOf(st.cs), chestsOf(st.cs))));
   text(pane.querySelector('.hw-loot-sum'), loot.length ? 'This hunt: ' + whole(n) + (n === 1 ? ' item' : ' items') + (bids ? ' · worth ' + gold(worth) + (priced ? '' : ' or more') : '') : '');
   rows(pane.querySelector('.hw-loot'), loot, {
     key: (l) => l.item,

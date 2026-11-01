@@ -29,7 +29,7 @@ import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.
 import { whole, gold } from '../../render/format.js?v=0.2.80';
 import { itemName } from '../widgets/bits.js?v=0.2.80';
 import { runIntent } from '../intent-words.js?v=0.2.80';
-import { bigPullWords } from '../hunt-ground-facts.js?v=0.2.80';
+import { whereToGet } from '../item-lore.js?v=0.2.80';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const SCRATCH = new WeakMap();
@@ -67,7 +67,7 @@ function heldWords(inBag, storage) {
 }
 
 /* A step's cost against the building hero's bag and the account's Storage, which the server takes in that order
-   ('Oak Log 40 (12 in your bag + 30 in Storage)'): [{ key, label, short }] and whether all of it is there. A count
+   ('Oak Log 40 (12 in your bag + 30 in Storage)'): [{ key, label, where, short }] (`where`: a short material's source) and whether all of it is there. A count
    the server did not send is not invented: no bag means every line is short; no Storage means the bag alone. */
 export function costLines(step, purse, bag, bank) {
   const held = new Map((bag || []).map((r) => [r.id, r.qty]));
@@ -77,9 +77,9 @@ export function costLines(step, purse, bag, bank) {
     const inBag = bag ? held.get(it.id) || 0 : null;
     const inStorage = stored ? stored.get(it.id) || 0 : null;
     const short = inBag === null || inBag + (inStorage || 0) < it.qty;
-    /* A material short because its creature needs a bigger pull says so here, where the player is looking for it. */
-    const pull = short ? bigPullWords(it.id) : '';
-    lines.push({ key: it.id, label: itemName(it.id) + ' ' + whole(it.qty) + (inBag === null ? '' : ' (' + heldWords(inBag, inStorage) + ')') + (pull ? '. ' + pull + '.' : ''), short });
+    /* A short material says where it comes from, here, where the player is looking for it (a creature that needs a bigger pull too). */
+    const where = short ? whereToGet(it.id) : '';
+    lines.push({ key: it.id, label: itemName(it.id) + ' ' + whole(it.qty) + (inBag === null ? '' : ' (' + heldWords(inBag, inStorage) + ')'), where: where ? where + '.' : '', short });
   }
   return { lines, afford: !lines.some((l) => l.short) };
 }
@@ -89,8 +89,8 @@ function patchCost(ctx, ul, step, purse, bag, bank) {
   const c = step ? costLines(step, purse, bag, bank) : { lines: [], afford: false };
   rows(ul, c.lines, {
     key: (l) => l.key,
-    build: () => element(ctx.doc, '<li class="hw-mat"></li>'),
-    patch: (li, l) => { text(li, l.label); cls(li, 'is-short', l.short); },
+    build: () => element(ctx.doc, '<li class="hw-mat"><span></span> <small class="hw-mat-where"></small></li>'),
+    patch: (li, l) => { text(li.querySelector('span'), l.label); text(li.querySelector('small'), l.where || ''); cls(li, 'is-short', l.short); },
   });
   return c.afford;
 }

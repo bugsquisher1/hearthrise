@@ -16,7 +16,7 @@
 // The Inventory (its item menu, its This hunt tab, its tools row) and the Storage
 // window read this; the bag and Storage change only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.80';
+import { isStartKit } from './bag-model.js?v=0.2.80';
 import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.80';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.80';
 import { whole, gold } from '../render/format.js?v=0.2.80';
@@ -34,9 +34,7 @@ const WORDS = new Map(LOOT_CHOICES.map(([v, w]) => [v, w]));
 /** The words for a rule the server holds (no rule = Keep in bag). */
 export const planWords = (rule) => WORDS.get(rule || 'keep') || WORDS.get('keep');
 
-/* The hero's starting kit (src/data/start-kit.js, the source the server's hr_start_inventory is generated from): it
-   may be deposited but takes no Sell plan (hr_loot_plan_refusal 'start_kit': no gold from the kit). */
-const KIT = new Set([...Object.keys(START_INVENTORY), ...Object.values(START_EQUIPMENT)]);
+/* The hero's starting kit may be deposited but takes no Sell plan (hr_loot_plan_refusal 'start_kit': no gold from the kit). */
 const MOVES = new Set(['deposit', 'sell']);
 
 /** Why `plan` is off for item `id`, or '' — the server's two refusals by item, said before the press. `bids`: the shop's.
@@ -45,7 +43,7 @@ const MOVES = new Set(['deposit', 'sell']);
     pass `held` false and the server's own refusal answers the press. */
 export function planBlock(id, plan, bids, held = true) {
   if (!MOVES.has(plan)) return '';
-  if (plan === 'sell' && KIT.has(id)) return 'The shop does not buy back your starting kit.';
+  if (plan === 'sell' && isStartKit(id)) return 'The shop does not buy back your starting kit.';
   if (plan === 'sell' && held && bids && !bids.has(id)) return 'The shop does not buy this.';
   return '';
 }
@@ -56,7 +54,7 @@ export function dispatchBlock(cs) {
   if (h && !h.ended) return 'Your hero is out hunting. Dispatch loot works in town.';
   const rules = rulesOf(cs), bag = bagOf(cs);
   if (!rules || !bag) return 'Reading your bag…';
-  const planned = bag.some((r) => MOVES.has(rules.loot[r.id]) && !rules.locked.has(r.id) && !(rules.loot[r.id] === 'sell' && KIT.has(r.id)));
+  const planned = bag.some((r) => MOVES.has(rules.loot[r.id]) && !rules.locked.has(r.id) && !(rules.loot[r.id] === 'sell' && isStartKit(r.id)));
   /* The words on the item menu, and no "in the Inventory (B)" said inside the Inventory (core-loop play 2026-10-30). */
   return planned ? '' : 'Nothing in your bag is set to Deposit in storage or Sell yet. Open an item’s menu in the bag to choose where it goes.';
 }

@@ -342,9 +342,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('sell_loot', 'Sell what only pays coin',
-    'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps fuel for the Great Hearth (it raises your Inner Flame) and food you can cook. Point at anything to see what it\'s for.',
+    'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps fuel for the Great Hearth (it raises your Inner Flame), food you can cook, and materials your recipes or your next House step need. Point at anything to see what it\'s for.',
     'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
-    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps fuel for the Great Hearth and food you can cook.',
+    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps fuel for the Great Hearth, food you can cook, and materials you need.',
       hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
   /* One decision, not a form (panel 2026-11-01: a 14-dropdown list at hour one, "I don't know what I don't need yet"): after the
      Thicket the bag knows what piles up, and a plan once set is kept for every hunt after (the first principle). */
@@ -873,7 +873,7 @@ const SAY = Object.freeze({
     const s = f.slots[i], gp = isStore(s) ? priceOf(f, s.id) : 0;
     if (gp === null) return null;
     const how = isStore(s) ? 'buys ' + name(s.id) + ' (' + gp + ' gp)' : 'drinks your own ' + name(s.id);
-    return { text: 'Your moves cost mana. Below ' + below(s, 'self_mana_pct') + '% mana, ' + slotWords([i]) + ' ' + how + '. Your own turnips cook into juice that costs nothing.', barSlot: i };
+    return { text: 'Your moves cost mana. Below ' + below(s, 'self_mana_pct') + '% mana, ' + slotWords([i]) + ' ' + how + (isStore(s) ? '. Your own turnips cook into juice that costs nothing, once it has a slot on your bar before this one.' : '. Your own costs nothing.'), barSlot: i };
   },
   fight_settings: (f) => {
     const n = used(f, 'food');

@@ -23,7 +23,7 @@ export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed
 const MARKET_WORDS = Object.freeze({
   market_closed: 'The Weighhouse isn\'t trading right now. Your listings are safe, and you can still take them back.',
   rate_limited: 'Too fast. Wait a moment and try again.',
-  not_tradeable: 'Starter kit, gifts and trophies can\'t be sold to other players.',
+  not_tradeable: 'This can\'t be sold to other players. Pick it in the Weighhouse\'s Sell tab to see why.',
   item_locked: 'This is locked. Unlock it in your bag to list it.',
   gone: 'Someone bought those first.',
   expired: 'That listing just ran out.',

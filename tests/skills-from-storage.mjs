@@ -288,7 +288,7 @@ async function run(mutant) {
       ok(TW.workBlock(cs, W, false) === '', 'SS-4 the Work window blocks a bench Storage covers: ' + JSON.stringify(TW.workBlock(cs, W, false)));
       await put(A, 0, IN, 0, 0);
       const none = TW.workBlock(csOf(await envOf(A, 0)), W, false);
-      ok(/in your bag or Storage\.$/.test(none), 'SS-4 with neither, the line reads ' + JSON.stringify(none) + ' (want it to say it looked in the bag and Storage)');
+      ok(/in your bag or Storage\.( |$)/.test(none), 'SS-4 with neither, the line reads ' + JSON.stringify(none) + ' (want it to say it looked in the bag and Storage)');
       const br = BU.buryRecipeOf('bones');
       if (br) {
         await put(A, 0, 'bones', 1, 5);

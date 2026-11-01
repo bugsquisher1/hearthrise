@@ -34,7 +34,8 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.80';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.80';
 import { runIntent } from '../intent-words.js?v=0.2.80';
 import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.80';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.80';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine } from '../town-work.js?v=0.2.80';
+import { saleWords } from '../item-lore.js?v=0.2.80';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.80';
 import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.80';
 
@@ -98,7 +99,9 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const each = secs(actionMs(cs, w)) + ' · ' + whole(xpEach(w)) + ' XP each';
   const out = productOf(w);
   const gather = w.kind === 'gather';
-  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ' · ' + each : recipeWords(w));
+  /* Who won't buy it is said before it is made (panel 2026-11-01: 12,000 runes, no buyer, no word). */
+  const sale = !gather && out ? saleWords(out) : '';
+  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ' · ' + each : recipeWords(w) + (sale ? '. ' + sale + '.' : ''));
   const running = !!on && on.id === w.id;
   const why = running ? '' : workBlock(cs, w, hunting);
   /* The status line: running, why not, or what the server's bag holds / covers. A dish says its burn chance at the
@@ -139,7 +142,7 @@ export function renderWork() {
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make something with it.</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ All skills</button>'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
-    + '<p class="hs-note hw-work-use"></p><ul class="hw-ledger hw-work-rows"></ul></section>'
+    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p><ul class="hw-ledger hw-work-rows"></ul></section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -190,6 +193,9 @@ renderWork.patch = function patchWork(body, ctx) {
       ? 'Pick what to gather. Your hero keeps at it while you are away, until you stop it or start a hunt.'
       : 'Pick what to make. It uses the materials in your bag' + (drawsOnStorage(cs) ? ', then your Storage,' : '') + ' and stops when they run out.';
     text(view.querySelector('.hw-work-use'), (guide ? guide.use + ' ' : '') + how + (feeHeadWords(cs, skill) ? ' ' + feeHeadWords(cs, skill) : ''));
+    const tool = view.querySelector('.hw-work-tool'), toolSaid = toolLine(cs, skill);
+    text(tool, toolSaid);
+    prop(tool, 'hidden', !toolSaid);
     rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, heldOf(cs)), {
       key: (w) => w.id,
       build: (w) => element(ctx.doc, rowHtml(ctx.glyphs, w)),

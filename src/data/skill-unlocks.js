@@ -37,7 +37,10 @@ function unlocks() {
   if (UNLOCKS) return UNLOCKS;
   UNLOCKS = new Map();
   const add = (skill, lv, what, use, id) => { if (!(lv > 1) || !what) return; if (!UNLOCKS.has(skill)) UNLOCKS.set(skill, []); UNLOCKS.get(skill).push([lv, what, use || '', id || null]); };
-  for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const r of list || []) add(skill, r.req, r.output ? nameOf(r.output) : r.name, r.output ? itemUse(r.output) : '');
+  /* A recipe for what a lower one already makes opens the recipe, not the item ("Next at level 12: Blank Rune" read wrong to a hero
+     making Blank Runes since level 1, panel 2026-11-01). */
+  const firstAt = (skill, out) => Math.min(...(ARTISAN_RECIPES[skill] || []).filter((x) => x && x.output === out).map((x) => x.req));
+  for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const r of list || []) add(skill, r.req, r.output && r.req <= firstAt(skill, r.output) ? nameOf(r.output) : r.name, r.output ? itemUse(r.output) : '');
   for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) add(skill, n.req, n.name, nodeUse(skill));
   for (const c of Object.values(CROPS)) if (c) add('farming', c.req || c.lv, c.prod ? nameOf(c.prod) : c.name, nodeUse('farming'));
   const reach = reachableSources();

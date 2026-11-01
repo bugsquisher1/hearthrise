@@ -14,7 +14,8 @@ import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../sessio
 import { levelOf } from '../session/character-sections.js?v=0.2.80';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.80';
 import { COACH_READ_MAX } from '../session/residue.js?v=0.2.80';
-import { lootSale } from './bag-model.js?v=0.2.80';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.80';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.80';
 import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.80';
 import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.80';
 import { draftOf, serverBar } from './bar-draft.js?v=0.2.80';
@@ -123,7 +124,7 @@ export function coachFactsOf(cs, account) {
     roster,
     slotsOwned: rows ? rows.length : null,
     playLimit: account && typeof account.statedLimit === 'function' ? account.statedLimit() : null,
-    sellable: bag && shop ? lootSale(bag, rulesOf(cs), shop, skillsOf(cs)).lines.length : null,
+    sellable: bag && shop ? lootSale(bag, rulesOf(cs), shop, skillsOf(cs), upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length : null,
     upgrades: bag && eq ? upgradeOf(cs).picks.map((p) => p.id) : null,
     back: (cs.record && cs.record.residue && cs.record.residue.coach && cs.record.residue.coach.back) || null,
     slotCost: account && account.slotOffer ? account.slotOffer.cost : null,

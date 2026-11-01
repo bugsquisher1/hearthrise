@@ -115,7 +115,7 @@ const RUNE_ROWS = Object.fromEntries(CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_T
    rung here (the note above). */
 const BIND = Object.freeze([
   { blanks: 6, qty: 45, xp: 12, ms: 3400 },
-  { blanks: 16, qty: 40, xp: 60, ms: 3500 },
+  { blanks: 18, qty: 40, xp: 60, ms: 3500 },
   { blanks: 20, qty: 36, xp: 185, ms: 3600 },
   { blanks: 28, qty: 32, xp: 500, ms: 3800 },
   { blanks: 36, qty: 28, xp: 940, ms: 4000 },
@@ -179,8 +179,8 @@ export const STONECRAFT_ITEMS = {
   iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 3,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'melee', reqLv: AMMO_REQ_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
   steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 11, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'melee', reqLv: AMMO_REQ_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
   mithril_whetstone: { n: 'Mithril Whetstone',  icon: '🪨', v: 12, type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'melee', reqLv: AMMO_REQ_LV[4], strB: AMMO_STAT[4], ammoPerShot: 0.02 },
-  rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 365, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'melee', reqLv: AMMO_REQ_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
-  dawn_whetstone:    { n: 'Dawnsteel Whetstone',icon: '🪨', v: 990, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'melee', reqLv: AMMO_REQ_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
+  rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 20, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'melee', reqLv: AMMO_REQ_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
+  dawn_whetstone:    { n: 'Dawnsteel Whetstone',icon: '🪨', v: 100, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'melee', reqLv: AMMO_REQ_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
 
 };
 

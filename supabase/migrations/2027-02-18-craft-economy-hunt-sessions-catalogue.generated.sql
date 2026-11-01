@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 90d26c6feca03f9bd3c14bf740963df90814452138bb34fdb824c53608c0613f
+--   digest: 891ea64868425f0505d96a0769cf848fd551b073d34195d29885c3c45e3911b2
 --   82 supplies, 128 hunts (named + training), 48 limits, 13 end reasons,
 --   547 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
@@ -1119,18 +1119,18 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('cistern_venom_gland', 8),
   ('coal', 2),
   ('cooked_bear_meat', 42),
-  ('cooked_copper_crab', 11),
+  ('cooked_copper_crab', 10),
   ('cooked_frostfin', 1300),
   ('cooked_goldgill', 16),
-  ('cooked_herring', 6),
-  ('cooked_lobster', 18),
+  ('cooked_herring', 5),
+  ('cooked_lobster', 16),
   ('cooked_moonfish', 2100),
   ('cooked_panther_meat', 22),
-  ('cooked_pikeperch', 10),
+  ('cooked_pikeperch', 9),
   ('cooked_shark', 462),
   ('cooked_shrimp', 3),
   ('cooked_silverfin', 13),
-  ('cooked_swordfish', 26),
+  ('cooked_swordfish', 22),
   ('cooked_trout', 8),
   ('cooked_wolf_meat', 12),
   ('copper_bar', 3),
@@ -1159,7 +1159,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('dawn_platelegs', 11088),
   ('dawn_sword', 5040),
   ('dawn_warhammer', 5544),
-  ('dawn_whetstone', 990),
+  ('dawn_whetstone', 100),
   ('dawnbound_amulet', 10080),
   ('dawnforged_signet', 10080),
   ('dawnlit_mantle', 12096),
@@ -1252,7 +1252,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('grayjaw_whisker', 6),
   ('grayjaws_ruff', 155),
   ('graypelt_cloak', 75),
-  ('heartgarnet', 10),
+  ('heartgarnet', 8),
   ('heartgarnet_maul', 138),
   ('hearth_token', 25000),
   ('hell_ember', 600),
@@ -1265,7 +1265,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('hunters_feast', 420),
   ('iron_arrows', 1),
   ('iron_axe', 25),
-  ('iron_bar', 7),
+  ('iron_bar', 6),
   ('iron_belt', 55),
   ('iron_bolts', 1),
   ('iron_boots', 52),
@@ -1273,7 +1273,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('iron_gauntlets', 45),
   ('iron_hatchets', 65),
   ('iron_helm', 75),
-  ('iron_ore', 3),
+  ('iron_ore', 2),
   ('iron_pickaxe', 25),
   ('iron_platebody', 200),
   ('iron_platelegs', 142),
@@ -1302,7 +1302,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('longbow', 67),
   ('magic_essence', 10),
   ('maple_bow', 220),
-  ('maple_log', 5),
+  ('maple_log', 4),
   ('maple_plank', 13),
   ('maple_rod', 1000),
   ('maple_spellbook', 168),
@@ -1334,7 +1334,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('normal_log', 1),
   ('normal_plank', 3),
   ('oak_crossbow', 65),
-  ('oak_log', 3),
+  ('oak_log', 2),
   ('oak_plank', 6),
   ('oak_rod', 300),
   ('oak_spellbook', 52),
@@ -1393,7 +1393,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('rune_platelegs', 1386),
   ('rune_sword', 700),
   ('rune_warhammer', 693),
-  ('rune_whetstone', 365),
+  ('rune_whetstone', 20),
   ('runewood_bow', 1911),
   ('runewood_codex', 1456),
   ('runewood_log', 96),
@@ -1472,7 +1472,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('studded_pants', 100),
   ('sump_membrane', 4),
   ('swarm_heart', 650),
-  ('swordfish', 12),
+  ('swordfish', 10),
   ('timber_beam', 46),
   ('tomato', 18),
   ('tomato_juice', 30),
@@ -1495,7 +1495,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('verdite_bar', 28),
   ('verdite_blade', 126),
   ('verdite_helm', 151),
-  ('verdite_ore', 4),
+  ('verdite_ore', 3),
   ('verdite_platebody', 378),
   ('verdite_platelegs', 277),
   ('void_banquet', 2400),
@@ -1855,9 +1855,9 @@ begin
     raise exception 'the settle''s item bound is under what a monster of the ground drops: % (hunt item)', v_t; end if;
   -- THE CRAFT WAGE (2027-02-18): the items catalogue landed first, and the Weighhouse reads the new floor; refined goods are bid at a
   -- fifth of book, and no item a ground can drop lost its bid (a stack the shop will not buy is a stack sell-all leaves in the bag).
-  if (select i.value from public.hr_items i where i.item_id = 'iron_bar') is distinct from 35 then
-    raise exception 'apply 2027-02-18-craft-economy-items-catalogue.generated.sql first: hr_items.iron_bar is not 35'; end if;
-  if (select floor_each from public.hr_market_items where item_id = 'iron_bar') is distinct from 7::bigint
+  if (select i.value from public.hr_items i where i.item_id = 'iron_bar') is distinct from 30 then
+    raise exception 'apply 2027-02-18-craft-economy-items-catalogue.generated.sql first: hr_items.iron_bar is not 30'; end if;
+  if (select floor_each from public.hr_market_items where item_id = 'iron_bar') is distinct from 6::bigint
      or (select listable from public.hr_market_items where item_id = 'iron_bar') is not true then
     raise exception 'the Weighhouse does not list an Iron Bar from its new floor'; end if;
   if exists (select 1 from public.hr_hunt_vendor_value v join public.hr_items i on i.item_id = v.item_id

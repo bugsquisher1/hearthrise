@@ -198,9 +198,9 @@ export const ITEMS={
   /* Iron Bolts: against Barbed Arrows (3/3) a bolt misses more and hits harder (1/4). */
   iron_bolts:{n:'Iron Bolts',icon:'🏹',v:1,type:'ammo',slot:'ammo',tier:2,rarity:'uncommon',rangeAtkB:1,rangeStrB:4,ammoPerShot:1,reqSkill:'ranged',reqLv:15},
   iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',rangeAtkB:2,rangeStrB:3,critB:.01,ammoPerShot:1,reqSkill:'ranged',reqLv:1},
-  iron_ore:{n:'Iron Ore',icon:'⬜',v:15},
-  normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:15},
-  willow_log:{n:'Willow Log',icon:'🪵',v:20},maple_log:{n:'Maple Log',icon:'🪵',v:25},
+  iron_ore:{n:'Iron Ore',icon:'⬜',v:10},
+  normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:10},
+  willow_log:{n:'Willow Log',icon:'🪵',v:20},maple_log:{n:'Maple Log',icon:'🪵',v:20},
   yew_log:{n:'Yew Log',icon:'🪵',v:60},
   copper_ore:{n:'Copper Ore',icon:'🟤',v:5},coal:{n:'Coal',icon:'⬛',v:10},
   gold_ore:{n:'Gold Ore',icon:'🟡',v:35},mithril_ore:{n:'Mithril Ore',icon:'🔵',v:50},
@@ -295,7 +295,7 @@ export const ITEMS={
     buff:{type:'all_xp', magnitude:2,  durationMs:180000},
   },
   cooked_lobster: {
-    n:'Cooked Lobster', icon:'🦞', v:18, heals:300, foodTier:3, foodClass:'healing',
+    n:'Cooked Lobster', icon:'🦞', v:16, heals:300, foodTier:3, foodClass:'healing',
     buff:{type:'drop_rate', magnitude:3,  durationMs:300000},
   },
   cooked_shark: {
@@ -305,7 +305,7 @@ export const ITEMS={
 
   /* ── Recipe outputs: smithing (bars) ── */
   copper_bar:  {n:'Copper Bar',  icon:'🟫', v:15},
-  iron_bar:    {n:'Iron Bar',    icon:'⬛', v:35},
+  iron_bar:    {n:'Iron Bar',    icon:'⬛', v:30},
   gold_bar:    {n:'Gold Bar',    icon:'🟨', v:80},
   mithril_bar: {n:'Mithril Bar', icon:'🟦', v:250},
 
@@ -348,9 +348,9 @@ export const ITEMS={
      Mithril's tier band (it is what the tier drives — art, borders, drop
      routing) and is one rarity notch under it.
      ══════════════════════════════════════════════════════════════════ */
-  verdite_ore:  {n:'Verdite Ore', icon:'🟢', v:20},
+  verdite_ore:  {n:'Verdite Ore', icon:'🟢', v:15},
   flux_salt:    {n:'Fluxsalt',    icon:'🧂', v:20},
-  heartgarnet:  {n:'Heartgarnet', icon:'🔴', v:50},
+  heartgarnet:  {n:'Heartgarnet', icon:'🔴', v:40},
   verdite_bar:  {n:'Verdite Bar', icon:'🟩', v:140},
   verdite_helm: {n:'Verdite Helm', icon:'⛑️', v:1080, type:'armor', slot:'helmet',
     defB:13, rangeAtkB:-3, magicAtkB:-7, armourClass:'plate', rarity:'rare', tier:4,
@@ -399,7 +399,7 @@ export const ITEMS={
   duskwood_plank: {n:'Duskwood Plank', icon:'🪵', v:2600},
   /* Fishing gap-fillers (10 / 66) */
   herring:         {n:'Raw Herring', icon:'🐟', v:14, heals:48},
-  cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:6, heals:72, foodTier:1, foodClass:'healing',
+  cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:5, heals:72, foodTier:1, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:1, durationMs:120000}},
   frostfin:        {n:'Raw Frostfin', icon:'❄️', v:520, heals:216},
   cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:1300, heals:456, foodTier:4, foodClass:'healing',
@@ -416,10 +416,10 @@ export const ITEMS={
      auto-eat pool gains rungs rather than a cliff. `river_chowder` heals 30
      and `fishers_pie` is the one Feast of the batch (foodClass 'buff'). */
   pikeperch:             {n:'Raw Pikeperch', icon:'🐟', v:15, heals:96},
-  cooked_pikeperch:      {n:'Grilled Pikeperch', icon:'🐠', v:10, heals:192, foodTier:2, foodClass:'healing',
+  cooked_pikeperch:      {n:'Grilled Pikeperch', icon:'🐠', v:9, heals:192, foodTier:2, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:2, durationMs:180000}},
   copper_crab:           {n:'Copper Crab', icon:'🦞', v:20, heals:108},
-  cooked_copper_crab:    {n:'Steamed Copper Crab', icon:'🦞', v:11, heals:216, foodTier:2, foodClass:'healing',
+  cooked_copper_crab:    {n:'Steamed Copper Crab', icon:'🦞', v:10, heals:216, foodTier:2, foodClass:'healing',
     buff:{type:'all_xp', magnitude:2, durationMs:180000}},
   silverfin:             {n:'Raw Silverfin', icon:'🐠', v:25, heals:120},
   cooked_silverfin:      {n:'Silverfin Fillet', icon:'🍥', v:13, heals:252, foodTier:3, foodClass:'healing',
@@ -450,8 +450,8 @@ export const ITEMS={
           who stocks Moonfish pays more per meal for fewer meals; the chooser
           still prefers the CHEAPEST food that covers the deficit first.
      v / foodTier / foodClass / buff are unchanged. */
-  swordfish:        {n:'Raw Swordfish', icon:'🐠', v:60, heals:168},
-  cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:26, heals:384, foodTier:3, foodClass:'healing',
+  swordfish:        {n:'Raw Swordfish', icon:'🐠', v:50, heals:168},
+  cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:22, heals:384, foodTier:3, foodClass:'healing',
     buff:{type:'damage', magnitude:3, durationMs:300000}},
   moonfish:         {n:'Raw Moonfish', icon:'🌙', v:900, heals:288},
   cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:2100, heals:600, foodTier:4, foodClass:'healing',

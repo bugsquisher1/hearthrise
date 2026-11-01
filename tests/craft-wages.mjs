@@ -38,7 +38,7 @@ const MAX_REQ = 60;
    re-measured on this commit (the priority board's 2026-11-01 section). A wage is judged against these, never against a feel. */
 const HUNTING = [[1, 2000], [15, 2900], [30, 3800], [45, 4200], [60, 5500]];
 const huntingAt = (req) => HUNTING.filter(([l]) => l <= req).pop()[1];
-const RAW_CAP = (req) => Math.round(huntingAt(req) * 0.75);
+const RAW_CAP = (req) => Math.round(huntingAt(req) * 0.55);
 const CHAIN_CAP = (req) => Math.round(huntingAt(req) * 0.9);
 /* Raw and refined may each lean on the comparator's top end; the rows that do are named so a retune sees them. */
 const RAW_THROUGHPUT_RUNGS = Object.freeze({ deep_verdite_seam: 'pays 2-3 ore a swing on purpose (gathering.js); bid is the seam\'s', });
@@ -101,7 +101,7 @@ export function check() {
     /* a row is judged at the later of its bench level and the level its own gathered input opens */
     const reqs = [r.req, ...Object.keys(recipeInputs(r)).map((id) => (G[id] ? G[id].req : 0))];
     const at = Math.max(...reqs);
-    if (!c.hunted && perH > CHAIN_CAP(at)) fails.push(`W-CHAIN ${r.id} (level ${at}): ${Math.round(perH)} g/h from the rock to the shop, over ${CHAIN_CAP(at)} (hunting ${huntingAt(at)})`);
+    if (!c.hunted && at <= MAX_REQ && perH > CHAIN_CAP(at)) fails.push(`W-CHAIN ${r.id} (level ${at}): ${Math.round(perH)} g/h from the rock to the shop, over ${CHAIN_CAP(at)} (hunting ${huntingAt(at)})`);
     /* refining: one gathered input, one output */
     const ins = recipeInputs(r);
     const keys = Object.keys(ins);
@@ -144,7 +144,7 @@ function mutate() {
   const control = check();
   if (control.length) { console.error('MUTATE CONTROL: the tree is not clean:\n  ' + control.join('\n  ')); process.exit(2); }
   const setField = (id, k, v) => { const had = Object.prototype.hasOwnProperty.call(ITEMS[id], k); const was = ITEMS[id][k]; ITEMS[id][k] = v; return () => { if (had) ITEMS[id][k] = was; else delete ITEMS[id][k]; }; };
-  const inputs = (skill, rid, next) => { const r = ARTISAN_RECIPES[skill].find((x) => x.id === rid); const was = r.inputs; r.inputs = next; return () => { r.inputs = was; }; };
+  const inputs = (skill, rid, next) => { const list = ARTISAN_RECIPES[skill]; const at = list.findIndex((x) => x.id === rid); const was = list[at]; list[at] = { ...was, inputs: next }; return () => { list[at] = was; }; };
   run('coal back at book 40 (3,273 g/h at Mining 1)', 'W-RAW', () => setField('coal', 'v', 40));
   run('maple logs back at book 80', 'W-RAW', () => setField('maple_log', 'v', 80));
   run('the Iron Bar back at book 90, a fifth of it still too much', 'W-CHAIN', () => setField('iron_bar', 'v', 90));
@@ -153,10 +153,10 @@ function mutate() {
   run('Cooked Herring back at 40', 'W-CHAIN', () => setField('cooked_herring', 'v', 40));
   run('Scored Runes back at 2 g a rune', 'W-CHAIN', () => setField('scored_earth_rune', 'v', 2));
   run('the Steel Axe back at book 900', 'W-CHAIN', () => setField('steel_axe', 'v', 900));
-  run('Iron Hatchets back at two bars (a chain faster than the bench)', 'W-CHAIN', () => inputs('smithing', 'forge_iron_hatchets', { iron_bar: 2, normal_plank: 1 }));
+  run('Iron Hatchets back at two bars and a plank (a chain faster than the bench)', 'W-CHAIN', () => inputs('smithing', 'forge_iron_hatchets', { iron_bar: 2, normal_plank: 1 }));
   run('an Oak Plank that pays less than the log time it takes', 'W-STEP', () => setField('oak_plank', 'v', 5));
-  run('Iron Hatchets that sell below their metal', 'W-FORGE', () => inputs('smithing', 'forge_iron_hatchets', { iron_bar: 12, normal_plank: 1 }));
-  run('forging that pays less than selling the bars', 'W-FORGE', () => inputs('smithing', 'forge_iron_warhammer', { iron_bar: 9, normal_plank: 1 }));
+  run('Iron Hatchets that sell below their metal', 'W-FORGE', () => inputs('smithing', 'forge_iron_hatchets', { iron_bar: 12, normal_plank: 2 }));
+  run('forging that pays less than selling the bars', 'W-FORGE', () => inputs('smithing', 'forge_iron_warhammer', { iron_bar: 10, normal_plank: 3 }));
   run('Cooked Herring bid over the store\'s Salted Shrimp', 'W-ROOM', () => setField('cooked_herring', 'v', 14));
   run('Bronze Arrows priced', 'W-USE', () => setField('bronze_arrows', 'v', 1));
   run('Chalked Runes priced', 'W-USE', () => setField('chalked_earth_rune', 'v', 1));

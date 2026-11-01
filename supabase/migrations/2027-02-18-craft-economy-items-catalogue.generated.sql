@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: f8b57c6a3e6e4f6ea32d581d25f48abb4ce32e44a7d3479eeea823d577147cf3
+--   catalogue digest: 016aa50fc8b76bccce14d4e7f986bd60eec272f9f8da2d9383098d157b68f703
 --   rows: 572 items (6 untradeable) ·
 --         324 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 345 activities ·
@@ -298,18 +298,18 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('coal','Coal',true,null,10,null,null,null,false,null,false),
   ('coarse_whetstone','Coarse Whetstone',true,'ammo',0,'melee',1,null,false,null,false),
   ('cooked_bear_meat','Cooked Bear Meat',true,null,42,null,null,156,true,null,false),
-  ('cooked_copper_crab','Steamed Copper Crab',true,null,11,null,null,216,true,null,false),
+  ('cooked_copper_crab','Steamed Copper Crab',true,null,10,null,null,216,true,null,false),
   ('cooked_frostfin','Frostfin Supper',true,null,1300,null,null,456,true,null,false),
   ('cooked_goldgill','Goldgill Steak',true,null,16,null,null,276,true,null,false),
-  ('cooked_herring','Cooked Herring',true,null,6,null,null,72,true,null,false),
-  ('cooked_lobster','Cooked Lobster',true,null,18,null,null,300,true,null,false),
+  ('cooked_herring','Cooked Herring',true,null,5,null,null,72,true,null,false),
+  ('cooked_lobster','Cooked Lobster',true,null,16,null,null,300,true,null,false),
   ('cooked_moonfish','Moonfish Fillet',true,null,2100,null,null,600,true,null,false),
   ('cooked_panther_meat','Cooked Panther Meat',true,null,22,null,null,108,true,null,false),
-  ('cooked_pikeperch','Grilled Pikeperch',true,null,10,null,null,192,true,null,false),
+  ('cooked_pikeperch','Grilled Pikeperch',true,null,9,null,null,192,true,null,false),
   ('cooked_shark','Cooked Shark',true,null,900,null,null,528,true,null,false),
   ('cooked_shrimp','Cooked Shrimp',true,null,3,null,null,96,true,null,false),
   ('cooked_silverfin','Silverfin Fillet',true,null,13,null,null,252,true,null,false),
-  ('cooked_swordfish','Swordfish Steak',true,null,26,null,null,384,true,null,false),
+  ('cooked_swordfish','Swordfish Steak',true,null,22,null,null,384,true,null,false),
   ('cooked_trout','Cooked Trout',true,null,8,null,null,168,true,null,false),
   ('cooked_wolf_meat','Cooked Wolf Meat',true,null,12,null,null,72,true,null,false),
   ('copper_bar','Copper Bar',true,null,15,null,null,null,false,null,false),
@@ -338,7 +338,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dawn_platelegs','Dawnsteel Platelegs',true,'armor',79200,'level',88,null,false,'heavy',false),
   ('dawn_sword','Dawnsteel Sword',true,'weapon',36000,'level',88,null,false,null,false),
   ('dawn_warhammer','Dawnsteel Warhammer',true,'weapon',39600,'level',88,null,false,null,true),
-  ('dawn_whetstone','Dawnsteel Whetstone',true,'ammo',990,'melee',88,null,false,null,false),
+  ('dawn_whetstone','Dawnsteel Whetstone',true,'ammo',100,'melee',88,null,false,null,false),
   ('dawnbound_amulet','Dawnbound Amulet',true,'jewelry',72000,'level',86,null,false,null,false),
   ('dawnforged_signet','Dawnforged Signet',true,'jewelry',72000,'level',84,null,false,null,false),
   ('dawnlit_mantle','Dawnlit Mantle',true,'armor',86400,'level',88,null,false,null,false),
@@ -434,7 +434,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('grayjaw_whisker','Grayjaw Whisker',true,null,30,null,null,null,false,null,false),
   ('grayjaws_ruff','Grayjaw''s Ruff',true,'armor',310,'level',12,null,false,null,false),
   ('graypelt_cloak','Graypelt Cloak',true,'armor',150,'level',8,null,false,null,false),
-  ('heartgarnet','Heartgarnet',true,null,50,null,null,null,false,null,false),
+  ('heartgarnet','Heartgarnet',true,null,40,null,null,null,false,null,false),
   ('heartgarnet_maul','Heartgarnet Maul',true,'weapon',990,'level',42,null,false,null,false),
   ('hearth_token','Hearth Token',true,null,25000,null,null,null,false,null,false),
   ('hell_ember','Hell Ember',true,null,600,null,null,null,false,null,false),
@@ -447,7 +447,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('hunters_feast','Hunter''s Feast',true,null,420,null,null,420,false,null,false),
   ('iron_arrows','Iron Arrows',true,'ammo',1,'ranged',1,null,false,null,false),
   ('iron_axe','Iron Axe',true,'tool',125,null,null,null,false,null,false),
-  ('iron_bar','Iron Bar',true,null,35,null,null,null,false,null,false),
+  ('iron_bar','Iron Bar',true,null,30,null,null,null,false,null,false),
   ('iron_belt','Iron Belt',true,'armor',110,'level',15,null,false,'heavy',false),
   ('iron_bolts','Iron Bolts',true,'ammo',1,'ranged',15,null,false,null,false),
   ('iron_boots','Iron Boots',true,'armor',105,'level',15,null,false,'heavy',false),
@@ -455,7 +455,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('iron_gauntlets','Iron Gauntlets',true,'armor',90,'level',15,null,false,'heavy',false),
   ('iron_hatchets','Iron Hatchets',true,'weapon',130,'level',15,null,false,null,true),
   ('iron_helm','Iron Helm',true,'armor',150,'level',15,null,false,'heavy',false),
-  ('iron_ore','Iron Ore',true,null,15,null,null,null,false,null,false),
+  ('iron_ore','Iron Ore',true,null,10,null,null,null,false,null,false),
   ('iron_pickaxe','Iron Pickaxe',true,'tool',125,null,null,null,false,null,false),
   ('iron_platebody','Iron Platebody',true,'armor',400,'level',15,null,false,'heavy',false),
   ('iron_platelegs','Iron Platelegs',true,'armor',285,'level',15,null,false,'heavy',false),
@@ -484,7 +484,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('longbow','Longbow',true,'weapon',135,'level',15,null,false,null,true),
   ('magic_essence','Magic Essence',true,null,50,null,null,null,false,null,false),
   ('maple_bow','Maple Bow',true,'weapon',1575,'level',45,null,false,null,true),
-  ('maple_log','Maple Log',true,null,25,null,null,null,false,null,false),
+  ('maple_log','Maple Log',true,null,20,null,null,null,false,null,false),
   ('maple_plank','Maple Plank',true,null,65,null,null,null,false,null,false),
   ('maple_rod','Maple Rod',true,'tool',1000,null,null,null,false,null,false),
   ('maple_spellbook','Maplebound Spellbook',true,'offhand',1200,'level',45,null,false,null,false),
@@ -517,7 +517,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('normal_log','Normal Log',true,null,8,null,null,null,false,null,false),
   ('normal_plank','Normal Plank',true,null,18,null,null,null,false,null,false),
   ('oak_crossbow','Oak Crossbow',true,'weapon',130,'level',15,null,false,null,false),
-  ('oak_log','Oak Log',true,null,15,null,null,null,false,null,false),
+  ('oak_log','Oak Log',true,null,10,null,null,null,false,null,false),
   ('oak_plank','Oak Plank',true,null,30,null,null,null,false,null,false),
   ('oak_practice_blade','Oak Practice Blade',true,'weapon',0,'level',1,null,false,null,false),
   ('oak_rod','Oak Rod',true,'tool',300,null,null,null,false,null,false),
@@ -586,7 +586,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_platelegs','Rune Platelegs',true,'armor',9900,'level',60,null,false,'heavy',false),
   ('rune_sword','Rune Sword',true,'weapon',5000,'level',60,null,false,null,false),
   ('rune_warhammer','Rune Warhammer',true,'weapon',4950,'level',60,null,false,null,true),
-  ('rune_whetstone','Rune Whetstone',true,'ammo',365,'melee',75,null,false,null,false),
+  ('rune_whetstone','Rune Whetstone',true,'ammo',20,'melee',75,null,false,null,false),
   ('runewood_bow','Runewood Bow',true,'weapon',13650,'level',75,null,false,null,true),
   ('runewood_codex','Runewood Codex',true,'offhand',10400,'level',75,null,false,null,false),
   ('runewood_log','Runewood Log',true,null,480,null,null,null,false,null,false),
@@ -666,7 +666,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('studded_pants','Studded Leather Chaps',true,'armor',200,'level',15,null,false,'medium',false),
   ('sump_membrane','Sump Membrane',true,null,20,null,null,null,false,null,false),
   ('swarm_heart','Swarm Heart',true,null,650,null,null,null,false,null,false),
-  ('swordfish','Raw Swordfish',true,null,60,null,null,168,true,null,false),
+  ('swordfish','Raw Swordfish',true,null,50,null,null,168,true,null,false),
   ('tidecallers_pearl','Tidecaller''s Pearl',false,'trophy',0,null,null,null,false,null,false),
   ('timber_beam','Timber Beam',true,null,230,null,null,null,false,null,false),
   ('tomato','Tomato',true,null,90,null,null,48,true,null,false),
@@ -690,7 +690,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('verdite_bar','Verdite Bar',true,null,140,null,null,null,false,null,false),
   ('verdite_blade','Verdite Blade',true,'weapon',900,'level',38,null,false,null,false),
   ('verdite_helm','Verdite Helm',true,'armor',1080,'level',38,null,false,'heavy',false),
-  ('verdite_ore','Verdite Ore',true,null,20,null,null,null,false,null,false),
+  ('verdite_ore','Verdite Ore',true,null,15,null,null,null,false,null,false),
   ('verdite_platebody','Verdite Platebody',true,'armor',2700,'level',38,null,false,'heavy',false),
   ('verdite_platelegs','Verdite Platelegs',true,'armor',1980,'level',38,null,false,'heavy',false),
   ('void_banquet','Void Banquet',true,null,2400,null,null,720,false,null,false),
@@ -2036,7 +2036,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'f8b57c6a3e6e4f6ea32d581d25f48abb4ce32e44a7d3479eeea823d577147cf3', now())
+  values (true, '016aa50fc8b76bccce14d4e7f986bd60eec272f9f8da2d9383098d157b68f703', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2256,7 +2256,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest f8b57c6a3e6e4f6ea32d581d25f48abb4ce32e44a7d3479eeea823d577147cf3',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 016aa50fc8b76bccce14d4e7f986bd60eec272f9f8da2d9383098d157b68f703',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

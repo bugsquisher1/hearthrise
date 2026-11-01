@@ -54,7 +54,7 @@ export const SHIELD_ITEMS = Object.freeze({
 /* THE MADE SHIELDS' RECIPES (Smithing; the levels they are worn at). */
 const r = (id, name, inputs, output, xp, req, ms) => Object.freeze({ id, name, icon: '🛡️', inputs: Object.freeze(inputs), output, xp, req, ms });
 export const SHIELD_RECIPES = Object.freeze([
-  r('forge_ironbound_shield', 'Forge Ironbound Shield', { iron_bar: 7, normal_plank: 2 }, 'ironbound_shield', 130, 15, 3400),
+  r('forge_ironbound_shield', 'Forge Ironbound Shield', { iron_bar: 9, normal_plank: 3 }, 'ironbound_shield', 130, 15, 3400),
   r('forge_coppercap_shield', 'Forge Coppercap Shield', { steel_bar: 3, copper_bar: 4, normal_plank: 1 }, 'coppercap_shield', 300, 30, 4200),
   r('reforge_steelgrate', 'Reforge the Kingsgrate as Steelgrate', { kingsgrate: 1, steel_bar: 3 }, 'steelgrate', 320, 30, 4400),
 ]);

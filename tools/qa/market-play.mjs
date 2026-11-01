@@ -94,7 +94,7 @@ async function main() {
     await seller.page.click(WIN + ' .hw-mk-sell .hw-mk-row[data-item="' + item + '"]');
     await seller.page.waitForFunction((w) => /Listing fee/.test(document.querySelector(w + ' .hw-mk-terms')?.textContent || ''), WIN, { timeout: 60000 });
     const facts = await seller.page.evaluate((w) => document.querySelector(w + ' .hw-mk-sell').innerText, WIN);
-    step('the fee and the cut stand before the press', /Listing fee: [\d,]+ gold now .*the Weighhouse keeps 4%: you get [\d,]+ each\. Listed for 7 days/s.test(facts), facts);
+    step('the fee and the cut stand before the press', /Listing fee: [\d,]+ gold now .*The Weighhouse keeps 4% of each sale: you get [\d,]+.* Listed for 7 days/s.test(facts), facts);
     step('the shop price and the market price stand beside it', /The shop pays/.test(facts) && /Lowest now/.test(facts), facts);
     await seller.shot('sell-sheet');
     const floor = Number((await one('select floor_each::text f from public.hr_market_items where item_id = $1', [item])).f);
@@ -102,7 +102,7 @@ async function main() {
     step('no one-press chip reads market history (review change 5)', !chips.some((c) => /Lowest|Last sold/.test(c)), chips.join('|'));
     if (floor > 1) {
       await seller.page.fill(WIN + ' [data-hs-act="ms-ask"]', '1');
-      step('under the shop\'s bid the press is off and says why', await waitWin(seller, /The shop pays [\d,]+ for one\. Ask at least that/), await winText(seller));
+      step('under the shop\'s bid the press is off and says why', await waitWin(seller, /The shop pays [\d,]+ for one, and nothing lists below that/), await winText(seller));
       step('the press is off', await seller.page.$eval(WIN + ' [data-hs-act="ms-list"]', (b) => b.disabled), 'on');
     }
     /* Three lots of one each: one to sell (through a lost answer), one to cancel, one to expire. */
@@ -199,7 +199,7 @@ async function main() {
 
     /* The seller comes back: the notice, then the book. */
     await seller.reload();
-    const told = await seller.page.waitForFunction(() => /While you were away the Weighhouse sold 1 lot for [\d,]+ gold/.test(document.body.innerText), null, { timeout: 60000 }).then(() => true, () => false);
+    const told = await seller.page.waitForFunction(() => /While you were away the Weighhouse sold 1 lot for [\d,]+ gold\. You received [\d,]+ gold/.test(document.body.innerText), null, { timeout: 60000 }).then(() => true, () => false);
     step('the seller hears on return', told, (await seller.text()).slice(0, 400));
     await seller.shot('notice');
     await openMarket(seller);

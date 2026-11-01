@@ -252,7 +252,7 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/tally.js': [
     { cond: '!!why || st.sc.pending || st.hunting', words: "': take tasks when you are back in town.'", where: 'the button reads Held / Full; hunting says the board is in town' },
-    { cond: 'order.indexOf(s) === 0', words: '(the first cannot move up)', where: 'the first slot has nothing to move above (its button reads Earlier)' },
+    { cond: 'order.indexOf(s) === 0', words: '(the first cannot move up)', where: 'the first slot has nothing to move above (its button reads Move up)' },
     { cond: '!t', words: "'Loading her board…'", where: 'the board says it is loading' },
   ],
   'src/shell/windows/work.js': [

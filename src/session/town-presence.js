@@ -27,12 +27,13 @@
 //                  server's to remove; a block made on this device hides that
 //                  player here at once too (`hidden`).
 //   hr_town_move   this character's OWN steered tile, goal tile and facing — at
-//                  most one per publishMinMs, re-sent every keepaliveMs standing,
-//                  and one leave (null map) on show(null) or destroy(). Nothing
-//                  is published before the server's stand is known (`me`): the
-//                  hero starts there, never on a tile of the client's choosing.
+//                  most one per publishMinMs, re-sent every keepaliveMs while it
+//                  stands off its stand (_keepaliveDue), and one leave (null map)
+//                  on show(null) or destroy(). Nothing is published before the
+//                  server's stand is known (`me`): the hero starts there, never
+//                  on a tile of the client's choosing.
 //   hr_town_here   a PARKED character (not on screen, still in town) is present:
-//                  every parkedKeepaliveMs, no tile; the answer is its stand.
+//                  every keepaliveMs, no tile; the answer is its stand.
 //   hr_town_go     send the body to a counter or back to its work (go(station)).
 //   hearth()       the colour the Great Hearth's fire burns now (a named fuel,
 //                  2027-01-31-inner-flame.sql: hr_town_view `hearth`), on this
@@ -44,7 +45,7 @@
 // When the server moves the stand (a new activity, back from a hunt, a counter)
 // the World walks the hero there from where it is (me(), display only).
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.78';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.79';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -199,20 +200,38 @@ export class TownPresence {
     const now = this._now();
     const since = now - this._sentAt;
     if (since < this.limits.publishMinMs) return false;
-    if (samePlace(p, this._sent) && !(keepalive || since >= this.limits.keepaliveMs)) return false;
+    if (samePlace(p, this._sent) && !(keepalive || this._keepaliveDue(now))) return false;
     this._sending = true;
     this._sentAt = now;
+    /* LOST ON THE WAY (no word from the server): asked again one poll on, inside the 30 s a steered tile lasts */
+    const lost = () => { this._sentAt = now - this.limits.keepaliveMs + this.limits.pollMs; };
     this._server.rpc('hr_town_move', { p_slot: this._slot, p_map: p.map, p_x: p.x, p_y: p.y, p_gx: p.gx, p_gy: p.gy, p_dir: p.dir })
       .then((ans) => {
-        const b = ans && ans.body;
-        if (!ans || !ans.ok || !b || b.ok !== true || b.off) return;
+        if (!ans || !ans.ok) { lost(); return; }
+        const b = ans.body;
+        if (!b || b.ok !== true || b.off) return;
         this._out = true;
         /* left town (or closed) while this was in flight: the body it placed goes too */
         if (this._dead || this._map !== p.map) this._leave(); else this._sent = p;
-      }, () => {})
+      }, lost)
       .finally(() => { this._sending = false; });
     return true;
   }
+
+  /* DOES THE SERVER NEED TELLING THE HERO STILL STANDS HERE? A publish re-stamps two things (hr_town_bodies_at): the body's
+     presence and its steered tile. A read stamps the presence too (hr_town_view: "a read is a keepalive"), and when a steered
+     tile runs out the server answers the stand. So a hero ON ITS STAND in a town being read has nothing left to say (panel
+     10-31: 6 writes a minute from a player doing nothing). Off its stand, or in a town nobody reads (a hidden tab), it says so. */
+  _keepaliveDue(now) {
+    const p = this._want;
+    if (!p || now - this._sentAt < this.limits.keepaliveMs) return false;
+    const me = this.me();
+    const onStand = !!me && p.x === me.at[0] && p.y === me.at[1] && p.gx === p.x && p.gy === p.y;
+    return !(onStand && this._drawn(now));
+  }
+
+  /* A frame asked for the people lately: this town is being read. */
+  _drawn(now) { return now - this._drawnAt <= 2 * this.limits.pollMs; }
 
   /**
    * The World stopped showing this character (another one is viewed) while it stands in town:
@@ -293,12 +312,12 @@ export class TownPresence {
   _tick() {
     if (this._parked) {
       if (this._busy()) { this._leave(); return; }
-      if (this._now() - this._hereAt >= (this.limits.parkedKeepaliveMs || this.limits.keepaliveMs)) this.here();
+      if (this._now() - this._hereAt >= this.limits.keepaliveMs) this.here();
       return;
     }
-    if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);
+    if (this._keepaliveDue(this._now())) this._flush(true);
     /* READ ONLY WHAT IS DRAWN (perf audit 10-23: 30 reads a minute with no town on screen): a frame asked lately */
-    if (this._now() - this._drawnAt <= 2 * this.limits.pollMs && this._readDue()) this.read();
+    if (this._drawn(this._now()) && this._readDue()) this.read();
   }
 
   /* A TOWN AT REST IS READ SLOWER (TOWN_PRESENCE.idlePollMs): the poll keeps its pace while anything changes. */

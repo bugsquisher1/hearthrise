@@ -20,15 +20,16 @@
 // answers, and the ledger changes only from the re-read envelope. A refusal is
 // said in plain words. A room whose rungs do nothing yet offers no purchase.
 // ════════════════════════════════════════════════════════════════════════
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.78';
-import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.78';
-import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.78';
-import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.78';
-import { ROOM_PERKS } from '../../data/perks.js?v=0.2.78';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.78';
-import { whole, gold } from '../../render/format.js?v=0.2.78';
-import { itemName } from '../widgets/bits.js?v=0.2.78';
-import { runIntent } from '../intent-words.js?v=0.2.78';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.79';
+import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.79';
+import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.79';
+import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.79';
+import { ROOM_PERKS } from '../../data/perks.js?v=0.2.79';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.79';
+import { whole, gold } from '../../render/format.js?v=0.2.79';
+import { itemName } from '../widgets/bits.js?v=0.2.79';
+import { runIntent } from '../intent-words.js?v=0.2.79';
+import { bigPullWords } from '../hunt-ground-facts.js?v=0.2.79';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const SCRATCH = new WeakMap();
@@ -68,15 +69,17 @@ function heldWords(inBag, storage) {
 /* A step's cost against the building hero's bag and the account's Storage, which the server takes in that order
    ('Oak Log 40 (12 in your bag + 30 in Storage)'): [{ key, label, short }] and whether all of it is there. A count
    the server did not send is not invented: no bag means every line is short; no Storage means the bag alone. */
-function costLines(step, purse, bag, bank) {
+export function costLines(step, purse, bag, bank) {
   const held = new Map((bag || []).map((r) => [r.id, r.qty]));
   const stored = bank ? new Map(bank.map((r) => [r.id, r.qty])) : null;
   const lines = [{ key: 'gold', label: gold(step.gold) + (purse !== null && purse < step.gold ? ' (you have ' + whole(purse) + ')' : ''), short: purse === null || purse < step.gold }];
   for (const it of step.items) {
     const inBag = bag ? held.get(it.id) || 0 : null;
     const inStorage = stored ? stored.get(it.id) || 0 : null;
-    lines.push({ key: it.id, label: itemName(it.id) + ' ' + whole(it.qty) + (inBag === null ? '' : ' (' + heldWords(inBag, inStorage) + ')'),
-      short: inBag === null || inBag + (inStorage || 0) < it.qty });
+    const short = inBag === null || inBag + (inStorage || 0) < it.qty;
+    /* A material short because its creature needs a bigger pull says so here, where the player is looking for it. */
+    const pull = short ? bigPullWords(it.id) : '';
+    lines.push({ key: it.id, label: itemName(it.id) + ' ' + whole(it.qty) + (inBag === null ? '' : ' (' + heldWords(inBag, inStorage) + ')') + (pull ? '. ' + pull + '.' : ''), short });
   }
   return { lines, afford: !lines.some((l) => l.short) };
 }

@@ -13,19 +13,20 @@
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.78';
-import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.78';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.78';
-import { MONSTERS } from '../data/monsters.js?v=0.2.78';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.78';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.78';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.78';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.78';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.78';
-import { itemName, monsterName } from './widgets/bits.js?v=0.2.78';
-import { kindOf, riteOf, cookOf, namedFuelOf } from './bag-model.js?v=0.2.78';
-import { FLAMES } from '../data/hearth.js?v=0.2.78';
-import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.78';
+import { ITEMS } from '../data/items.js?v=0.2.79';
+import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.79';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.79';
+import { MONSTERS } from '../data/monsters.js?v=0.2.79';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.79';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.79';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.79';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.79';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.79';
+import { itemName, monsterName } from './widgets/bits.js?v=0.2.79';
+import { kindOf, riteOf, cookOf, namedFuelOf } from './bag-model.js?v=0.2.79';
+import { FLAMES } from '../data/hearth.js?v=0.2.79';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.79';
+import { bigPullWords, onOpenGround } from './hunt-ground-facts.js?v=0.2.79';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
@@ -83,7 +84,14 @@ export function kindWords(id) {
 export function sourcesOf(id, serverOffers) {
   const r = index().get(id);
   const out = [];
-  if (r && r.drops.length) out.push('Dropped by ' + listWords(r.drops.map(monsterName)));
+  if (r && r.drops.length) {
+    /* The creatures a player can meet, when any can: the catalogue keeps rows for monsters no open ground spawns, and
+       "Dropped by" six of those sent a Bear Pelt hunter nowhere. */
+    const met = r.drops.filter(onOpenGround);
+    out.push('Dropped by ' + listWords((met.length ? met : r.drops).map(monsterName)));
+    const pull = bigPullWords(id);
+    if (pull) out.push(pull);
+  }
   if (r && r.from.length) out.push('Gathered with ' + listWords(r.from.map(skillName)));
   if (r && r.made.length) out.push('Made with ' + listWords(r.made.map(skillName)));
   if ((r && r.shop) || (serverOffers || []).some((o) => o.item === id)) out.push('Sold at the shop');

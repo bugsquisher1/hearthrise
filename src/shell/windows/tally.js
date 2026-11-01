@@ -8,7 +8,7 @@
 //   Take        ONE hr_tally_accept (in town only; the weight is chosen once first)
 //   Give up     ONE hr_tally_drop (the count is lost; said on the button's line)
 //   Keep        ONE hr_tally_set { task, keep }: taken again the moment it pays
-//   Weight      ONE hr_tally_set { weight }; Earlier ONE hr_tally_set { order }
+//   Weight      ONE hr_tally_set { weight }; Move up ONE hr_tally_set { order }
 //   Being paid  automatic in the settle that brings the hero home; when the window
 //               opens in town with a done task due, it asks her ONCE (hr_tally_collect)
 // Every number is the server's: the tallies from the `tally` section
@@ -16,18 +16,18 @@
 // (hr_tally_view). Every control is off while an intent is in flight; the window
 // changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.78';
-import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.78';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.78';
-import { huntName } from '../../session/party-sections.js?v=0.2.78';
-import { goldOf } from '../../session/item-sections.js?v=0.2.78';
-import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.78';
-import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.78';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.78';
-import { whole, gold } from '../../render/format.js?v=0.2.78';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.78';
-import { itemName } from '../widgets/bits.js?v=0.2.78';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.78';
+import { tallyOf, tallyLine, waitWords, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.79';
+import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.79';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.79';
+import { huntName } from '../../session/party-sections.js?v=0.2.79';
+import { goldOf } from '../../session/item-sections.js?v=0.2.79';
+import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.79';
+import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.79';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.79';
+import { whole, gold } from '../../render/format.js?v=0.2.79';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.79';
+import { itemName } from '../widgets/bits.js?v=0.2.79';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.79';
 
 const SCRATCH = new WeakMap();
 /* `board` is her last answer (null until it comes), `asking` the read in flight, `stale` asks again,
@@ -42,6 +42,20 @@ const SLOT_WORDS = Object.freeze({ helmet: 'Head', body: 'Body', pants: 'Legs', 
 const labelOf = (task) => { const t = tallyTask(task); return t ? t.label.charAt(0).toUpperCase() + t.label.slice(1) : task; };
 /* "120 Giant Rats"; one named creature reads "The Rat King, 5 times". */
 const titleOf = (task, n) => { const t = tallyTask(task); return t && /^the /.test(t.label) ? labelOf(task) + ', ' + whole(n) + ' times' : whole(n) + ' ' + labelOf(task); };
+
+/* "480 gp + a Bronze Platebody": her answer's line for a task, what the server pays if it were paid now. */
+const payWords = (r) => gold(r.gold) + (r.pick ? ' + ' + pickWords(r.pick, itemName) : '');
+/* The pieces more than one task on her board offers: she gives a piece once, so the first of them paid gets it and the
+   other then shows her next pick (the panel 2026-11-01: "an Iron Helm" on two lines). */
+function sharedPieces(board) {
+  const seen = new Set(), both = new Set();
+  for (const r of board) {
+    if (!r.pick || r.pick.pick !== 'piece') continue;
+    if (seen.has(r.pick.item)) both.add(r.pick.item);
+    seen.add(r.pick.item);
+  }
+  return both;
+}
 
 const HUNTING_WHY = 'Her board is in ' + TALLY_KEEPER.board + ': take tasks when you are back in town.';
 
@@ -83,7 +97,9 @@ function patchHeld(li, h, st) {
   style(li.querySelector('.ht-stick i'), 'width', pct + '%');
   attr(li.querySelector('.ht-stick'), 'aria-valuenow', pct);
   cls(li, 'is-done', h.done);
-  text(li.querySelector('small'), h.done ? waitWords(st.t, h, st.hunting) : countsWords(h.task, huntName(h.hunt)));
+  /* What she pays for it, from the same answer as her board's line. */
+  const offer = st.board.find((r) => r.task === h.task);
+  text(li.querySelector('small'), (h.done ? waitWords(st.t, h, st.hunting) : countsWords(h.task, huntName(h.hunt))) + (offer ? ' Pays ' + payWords(offer) + '.' : ''));
   const keep = li.querySelector('[data-hs-act="keep"]');
   prop(keep, 'checked', h.keep);
   prop(keep, 'disabled', st.sc.pending);
@@ -94,7 +110,8 @@ function patchOffer(li, r, st) {
   const t = tallyTask(r.task);
   text(li.querySelector('b'), titleOf(r.task, r.target));
   const where = huntName(r.hunt) + (r.bandMin ? ' (Level ' + r.bandMin + ' ground)' : '') + (t && t.party ? ', best with a party' : '');
-  text(li.querySelector('small'), where + ' · ' + gold(r.gold) + (r.pick ? ' + ' + pickWords(r.pick, itemName) : ''));
+  const once = r.pick && st.shared.has(r.pick.item) ? ' (she gives it once: the first of these she pays gets it)' : '';
+  text(li.querySelector('small'), where + ' · ' + payWords(r) + once);
   const btn = li.querySelector('button');
   const why = r.held ? 'Held' : st.t && st.t.held.length >= st.t.heldMax ? 'Full' : '';
   text(btn, why || 'Take');
@@ -104,13 +121,13 @@ function patchOffer(li, r, st) {
     : st.hunting ? HUNTING_WHY : st.t && !st.t.weight ? 'Pick the armor weight she pays you in first.' : null);
 }
 
-/* Her slot order: each slot with an "Earlier" press (the first cannot move up). */
+/* Her slot order: each slot with a "Move up" press (the first cannot move up). */
 function patchOrder(root, st) {
   const order = st.t ? st.t.order : [];
   rows(root.querySelector('.ht-order'), order, {
     key: String,
     build: (s) => element(st.doc, '<li class="ht-slot"><span>' + esc(SLOT_WORDS[s] || s) + '</span>'
-      + '<button type="button" class="hh-tool" data-hs-act="earlier" data-slot-name="' + esc(s) + '" aria-label="Move ' + esc(SLOT_WORDS[s] || s) + ' earlier">Earlier</button></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="earlier" data-slot-name="' + esc(s) + '" aria-label="Move ' + esc(SLOT_WORDS[s] || s) + ' up">Move up</button></li>'),
     patch: (li, s) => prop(li.querySelector('button'), 'disabled', st.sc.pending || order.indexOf(s) === 0),
   });
 }
@@ -121,7 +138,8 @@ renderTally.patch = function patchTally(body, ctx) {
   const root = body.querySelector('.hw-tally');
   const t = tallyOf(cs);
   const h = huntOf(cs);
-  const st = { t, sc, doc: ctx.doc, hunting: !!h && !h.ended };
+  const board = sc.board ? sc.board.board : [];
+  const st = { t, sc, doc: ctx.doc, hunting: !!h && !h.ended, board, shared: sharedPieces(board) };
   cls(root, 'is-pending', sc.pending);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   const purse = goldOf(cs);
@@ -130,14 +148,13 @@ renderTally.patch = function patchTally(body, ctx) {
   rows(root.querySelector('.ht-held'), t ? t.held : [], { key: (x) => x.task, build: (x) => element(ctx.doc, heldHtml(x)), patch: (li, x) => patchHeld(li, x, st) });
   cls(root.querySelector('.ht-none'), 'is-on', !!t && !t.held.length);
   text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? 'Pick the armor weight she pays you in. You can change it later. ' + WEIGHT_ORDER.map(weightSentence).join(' ')
-    : 'Each task pays its gold and one ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you yet, in the slot order below. '
-      + 'Once you\'ve had every piece, she pays in crafting materials instead.');
+    : 'Each task pays what its line says: its gold and the next ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you, in the slot order below, even if you\'ve found one yourself. '
+      + 'Where she has no piece left to give, she pays in crafting materials instead.');
   for (const b of root.querySelectorAll('[data-hs-act="weight"]')) {
     attr(b, 'aria-pressed', String(!!t && t.weight === b.getAttribute('data-weight')));
     prop(b, 'disabled', sc.pending || !t);
   }
   patchOrder(root, st);
-  const board = sc.board ? sc.board.board : [];
   rows(root.querySelector('.ht-board'), board, { key: (r) => r.task, build: (r) => element(ctx.doc, boardHtml(r)), patch: (li, r) => patchOffer(li, r, st) });
   /* Hunting, the line stands however much of her board is loaded: every Take is off for this reason (phone playtest 10-31). */
   cls(root.querySelector('.ht-wait'), 'is-on', !sc.board || st.hunting);

@@ -119,6 +119,11 @@ async function runTests(M) {
     eq(Object.keys(MD.END_WORDS), [...END_ORDER], 'END_WORDS covers END_ORDER, in order');
     for (const r of END_ORDER) ok(/^[A-Z].*\.$/.test(MD.endWords(r)), r + ' is a sentence');
     ok(MD.endWords('nonsense') === 'The hunt ended.', 'an unknown reason still reads');
+    /* out of stamina: why, how it comes back, and what the hero has now (panel 2026-11-01: "Your stamina ran out." and nothing else) */
+    eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', 5 * 3600000 + 46 * 60000), MD.END_WORDS.stamina + ' Stamina now: 5 h 46 min.', 'the stamina end says what is rested');
+    ok(/comes back hour for hour/.test(MD.END_WORDS.stamina), 'the stamina end says how it comes back');
+    eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', null), MD.END_WORDS.stamina, 'an older hunt, or a server that has not said: no number');
+    eq(MD.reasonWords({ reason: 'left' }, 'Pip', 3600000), MD.END_WORDS.left, 'another end says nothing of stamina');
   });
 
   const entry = (i, over) => Object.assign({ id: 'sess-' + i, hunt: 'mill_cellar', at: 1000 + i, reason: 'left', ms: 60000, kills: i, xp: 10, gold: 5, died: 0,
@@ -318,7 +323,8 @@ const MUTANTS = [
   { test: 'D2', file: MODEL, from: "if (key === null || seen.has(key)) return false;", to: "if (key === null) return false;" },
   { test: 'D3', file: EXPLAIN, from: "e.atMs >= from && e.atMs <= to)", to: "e.atMs <= to)" },
   { test: 'D4', file: EXPLAIN, from: "kind: wipe ? 'wipe'", to: "kind: false ? 'wipe'" },
-  { test: 'S1', file: MODEL, from: "  stamina: 'Your stamina ran out.',\n", to: '' },
+  { test: 'S1', file: MODEL, from: "if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;", to: 'return why;' },
+  { test: 'S1', file: MODEL, from: "  stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\\'t hunting.',\n", to: '' },
   { test: 'S2', file: SUMMARIES, from: "    if (out.length >= HISTORY_MAX) break;", to: '' },
   { test: 'S2', file: SUMMARIES, from: "if (!s || seen.has(s.id)) continue;", to: "if (!s) continue;" },
   { test: 'S3', file: RESIDUE, from: "  huntSummaries: sanitizeSummaries,", to: "  huntSummaries: (v) => v," },

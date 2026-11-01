@@ -15,16 +15,16 @@
 // server's answer held as window scratch — never the record, and nothing can
 // spend them: Join is the server's own check under its lock.
 // ════════════════════════════════════════════════════════════════════════
-import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.78';
-import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.78';
-import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.78';
-import { roleOf } from '../../session/item-sections.js?v=0.2.78';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.78';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.78';
-import { refusalWords, runIntent } from '../intent-words.js?v=0.2.78';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.78';
-import { listParty } from '../../session/party-intents.js?v=0.2.78';
-import { huntRows } from '../hunt-list.js?v=0.2.78';
+import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.79';
+import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.79';
+import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.79';
+import { roleOf } from '../../session/item-sections.js?v=0.2.79';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.79';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.79';
+import { refusalWords, runIntent } from '../intent-words.js?v=0.2.79';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.79';
+import { listParty } from '../../session/party-intents.js?v=0.2.79';
+import { huntRows } from '../hunt-list.js?v=0.2.79';
 
 const SCRATCH = new WeakMap();
 
@@ -119,13 +119,13 @@ export function patchFinder(root, ctx, sc) {
 
 /* ONE finder read with the scratch's ground and weapon (p_hunt, p_weapon; empty = any). The rows are window
    scratch, never the record; an empty answer says what to do next, a refusal says why. */
-function search(cs, sc, repaint) {
+function search(ctx, cs, sc, repaint) {
   const hunt = sc.ground || null, weapon = sc.weapon || null;
   return runIntent(sc, repaint, async () => {
     const r = await cs.findParties(hunt, weapon);
     sc.found = r.ok ? finderRows(r.body) : null;
     sc.findMsg = !r.ok ? refusalWords(r.error) : sc.found && sc.found.length ? ''
-      : (hunt ? 'No open party lists ' + huntName(hunt) + ' right now. ' : 'No open party matches. ') + 'Right-click or hold a player’s name to invite them and start your own.';
+      : (hunt ? 'No open party lists ' + huntName(hunt) + ' right now. ' : 'No open party matches. ') + (ctx.isPhone && ctx.isPhone() ? 'Hold' : 'Right-click') + ' a player’s name to invite them and start your own.';
     return { ok: true };
   }, 'Searching…', () => '');
 }
@@ -141,7 +141,7 @@ export function openFinderOn(ctx, cs, hunt) {
   sc.weapon = ownWeapon(cs);
   sc.msg = '';
   ctx.show('hunt-party');
-  return search(cs, sc, () => ctx.refresh('hunt-party'));
+  return search(ctx, cs, sc, () => ctx.refresh('hunt-party'));
 }
 
 /** The finder's controls. Returns true when the action was the finder's. */
@@ -151,7 +151,7 @@ export function actFinder(ctx, body, action, t, repaint) {
   if (action === 'find') {
     sc.weapon = body.querySelector('[data-hs-act="find-weapon"]').value || '';
     sc.ground = body.querySelector('[data-hs-act="find-ground"]').value || '';
-    search(cs, sc, repaint);
+    search(ctx, cs, sc, repaint);
     return true;
   }
   if (action === 'list-party') {

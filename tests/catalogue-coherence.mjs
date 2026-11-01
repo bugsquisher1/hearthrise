@@ -54,6 +54,11 @@
 //       C11c the fate tells the truth: a planned door's items are reached with every planned
 //           door open and not without their own; a no-door fate's items are never reached;
 //       C11d the rows outside `staged` stay under UNREACHABLE_CEILING, which only falls.
+//   C12 a house price a player can pay (Andy's report, 2026-10-31: the Keep asked for Bear Pelts for months, and C1 and
+//       C7 counted the pelt as a source because monsters no ground spawns dropped it; only C11's door counts):
+//       C12a every unlock-granting shop row and storage chest not held costs only items reachableSources() reaches;
+//       C12b a held row (homestead-tiers.js HELD_HOME_OFFERS) exists and still costs an item with no door (shrink-only);
+//       C12c held rows are the top of their ladder: no visible rung above a held one, none gated on a held home.
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -78,13 +83,16 @@ import {
 } from '../src/data/catalogue-coherence.js';
 
 import { START_CURRENCY } from '../src/data/start-kit.js';
-import { PROPERTY_TIERS } from '../src/data/homestead-tiers.js';
+import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 /* C9's start kit: the shipped one, or a planted one (mutate() only; the data is frozen). */
 let KIT_PLANT = null;
 /* C10's ladder: the shipped one, or a planted one (mutate() only). */
 let TIERS_PLANT = null;
+/* C12's held list and chests: the shipped ones, or planted ones (mutate() only). */
+let HELD_PLANT = null;
+let CHESTS_PLANT = null;
 const realRead = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
 /* Gaps the audit handed to another W0 lane. SHRINK-ONLY: see the header. */
@@ -193,6 +201,8 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   // C11 — a source a player can reach.
   const far = reachFails({ src, awaiting, unreachable });
   fails.push(...far.fails);
+  // C12 — a house price a player can pay.
+  fails.push(...housePriceFails());
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length, ...far.counts } };
 }
 
@@ -227,6 +237,49 @@ export function reachFails({ src = itemSources(), awaiting = new Set(AWAITING_RO
   if (held > UNREACHABLE_CEILING) out.push(`C11d ${held} out-of-reach rows outside \`staged\`, over the ceiling ${UNREACHABLE_CEILING}: the list only shrinks — source the item instead`);
   if (held < UNREACHABLE_CEILING) out.push(`C11d ${held} out-of-reach rows outside \`staged\`, under the ceiling ${UNREACHABLE_CEILING}: lower UNREACHABLE_CEILING to ${held}`);
   return { fails: out, counts: { outOfReach: fateOf.size, reachable: reach.size } };
+}
+
+/* C12. reachableSources(), never itemSources(): the Bear Pelt had six "sources", on monsters no open ground spawns. */
+export function housePriceFails({ held = HELD_PLANT || HELD_HOME_OFFERS, chests = CHESTS_PLANT || STORAGE_CHESTS } = {}) {
+  const out = [];
+  const reach = reachableSources();
+  const unlockOf = (o) => (o.grant || []).find((g) => g && g.kind === 'unlock');
+  const itemsOf = (o) => (o.cost || []).filter((c) => c && c.kind === 'item').map((c) => c.id);
+  const dead = (ids) => ids.filter((id) => !reach.has(id));
+  const rows = SHOP_OFFERS.filter(unlockOf);
+  for (const o of rows) {
+    if (held.includes(o.id)) continue;
+    const no = dead(itemsOf(o));
+    if (no.length) out.push(`C12a ${o.id} (${o.name}) costs ${no.join(', ')}, which no player can reach: source it, re-cost the row, or hold it (HELD_HOME_OFFERS)`);
+  }
+  for (const c of chests) {
+    const no = dead(Object.keys(c.cost || {}).filter((k) => k !== 'gold'));
+    if (no.length) out.push(`C12a storage chest ${c.id} costs ${no.join(', ')}, which no player can reach`);
+  }
+  for (const id of held) {
+    const o = rows.find((r) => r.id === id);
+    if (!o) { out.push(`C12b held row ${id} is no unlock offer in src/data/shops.js`); continue; }
+    if (!dead(itemsOf(o)).length) out.push(`C12b stale held row ${id}: every item it costs is reachable now, so sell it (delete the row from HELD_HOME_OFFERS)`);
+  }
+  /* One ladder: the room's rungs, or (one rung each, chained by tier) the property tiers. */
+  const ladderOf = (o) => { const u = unlockOf(o).id; return u.startsWith('property:') ? 'property' : u; };
+  const ladders = {};
+  for (const o of rows) (ladders[ladderOf(o)] ||= []).push(o);
+  for (const [name, list] of Object.entries(ladders)) {
+    const sorted = list.slice().sort((a, b) => unlockOf(a).amount - unlockOf(b).amount);
+    const first = sorted.findIndex((o) => held.includes(o.id));
+    if (first < 0) continue;
+    const over = sorted.slice(first).filter((o) => !held.includes(o.id));
+    if (over.length) out.push(`C12c ${name}: ${over.map((o) => o.id).join(', ')} sit(s) above the held ${sorted[first].id}: a rung no player can reach`);
+  }
+  const heldTiers = new Set(PROPERTY_TIERS.map((t, i) => (held.includes('property.' + t.id) ? i : -1)).filter((i) => i >= 0));
+  for (const [room, rungs] of Object.entries(ROOM_RUNGS)) {
+    rungs.forEach((r, i) => {
+      const id = `room.${room}.${i + 1}`;
+      if (!held.includes(id) && heldTiers.has(Number(r.tier))) out.push(`C12c ${id} is gated on a held home (tier ${r.tier}): a rung no player can reach`);
+    });
+  }
+  return out;
 }
 
 /* C8. The ladder is the generated rung ids (GEAR_ITEMS) read through the LIVE rows,
@@ -437,6 +490,47 @@ function mutate() {
   run('the list grows: a new out-of-reach item tagged instead of sourced', 'C11d', () => {
     const restore = farFind('__mut_far2');
     return { unreachable: { ...UNREACHABLE, cut: [...UNREACHABLE.cut, '__mut_far2'] }, restore };
+  });
+
+  /* C12 — a house price a player can pay (Andy's report, 2026-10-31). */
+  run('the Brook Bear loses its pelt (the wall Andy hit: the Keep asks for what nothing drops)', 'C12a', () => {
+    const was = MONSTERS.brook_bear.drops;
+    MONSTERS.brook_bear.drops = was.filter((d) => d.id !== 'bear_pelt');
+    return { restore: () => { MONSTERS.brook_bear.drops = was; } };
+  });
+  const offerOf = (id) => SHOP_OFFERS.find((o) => o.id === id);
+  run('a visible rung re-costed to an item only unspawned monsters drop', 'C12a', () => {
+    const o = offerOf('room.trophy.2'); const was = o.cost;
+    o.cost = [was[0], { kind: 'item', id: 'troll_hide', amount: 3 }];
+    return { restore: () => { o.cost = was; } };
+  });
+  run('the Castle comes out of hiding with its dragon scales', 'C12a', () => {
+    HELD_PLANT = HELD_HOME_OFFERS.filter((id) => id !== 'property.castle');
+    return { restore: () => { HELD_PLANT = null; } };
+  });
+  run('a storage chest asks for a dragon scale', 'C12a', () => {
+    CHESTS_PLANT = STORAGE_CHESTS.map((c, i) => (i === 1 ? { ...c, cost: { ...c.cost, dragon_scale: 1 } } : c));
+    return { restore: () => { CHESTS_PLANT = null; } };
+  });
+  run('a row held though every item it costs is reachable', 'C12b', () => {
+    HELD_PLANT = [...HELD_HOME_OFFERS, 'room.garden.4'];
+    return { restore: () => { HELD_PLANT = null; } };
+  });
+  run('a held row no shop row prices', 'C12b', () => {
+    HELD_PLANT = [...HELD_HOME_OFFERS, 'room.nowhere.1'];
+    return { restore: () => { HELD_PLANT = null; } };
+  });
+  run('a held rung with a visible rung above it', 'C12c', () => {
+    const o = offerOf('room.kitchen.3'); const was = o.cost;
+    o.cost = [was[0], { kind: 'item', id: 'keystone', amount: 1 }];
+    HELD_PLANT = [...HELD_HOME_OFFERS, 'room.kitchen.3'];
+    return { restore: () => { o.cost = was; HELD_PLANT = null; } };
+  });
+  run('a visible rung gated on the held Castle', 'C12c', () => {
+    HELD_PLANT = HELD_HOME_OFFERS.filter((id) => id !== 'room.cellar.5');
+    const o = offerOf('room.cellar.5'); const was = o.cost;
+    o.cost = [was[0], { kind: 'item', id: 'oak_log', amount: 1 }];
+    return { restore: () => { o.cost = was; HELD_PLANT = null; } };
   });
 
   let bad = 0;

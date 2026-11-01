@@ -20,14 +20,14 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.78';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.78';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.78';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.78';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.78';
-import { residentsOf, scarceSetOf, raresOf } from '../hunt-ground-facts.js?v=0.2.78';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.78';
-import { chance } from '../../render/format.js?v=0.2.78';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.79';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.79';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.79';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.79';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.79';
+import { residentsOf, scarceSetOf, raresOf, bigPullLine } from '../hunt-ground-facts.js?v=0.2.79';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.79';
+import { chance } from '../../render/format.js?v=0.2.79';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -46,7 +46,7 @@ export function detailHtml() {
     + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-fit"></span></p>'
     + '<p class="hw-hd-who"></p><p class="hw-hunt-warn"></p></header>'
     + '<p class="hw-hd-theme"></p>'
-    + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul>'
+    + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-bigpull" hidden></p>'
     + '<h4 class="hw-hd-h">Drops <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="Drops"></ul>'
     + '<h4 class="hw-hd-h">Rare drops <small class="hw-hd-per">chance per kill of its creature</small></h4><ul class="hw-hd-rares" aria-label="Rare drops"></ul>'
     + '<p class="hw-hunt-party" hidden></p>'
@@ -173,6 +173,10 @@ export function patchGround(det, ctx, r, o) {
   /* One ground line: every creature stands at the height of the tallest drawn here, feet on the same row. */
   const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => c.height));
   style(lineup, '--stand-h', tallest ? tallest + 'px' : null);
+  /* Who the line above leaves out: a creature only a bigger pull brings, and what it drops (the Brook Bear's Bear Pelt). */
+  const bigPull = det.querySelector('.hw-hd-bigpull'), bigSaid = bigPullLine(r.hunt);
+  text(bigPull, bigSaid);
+  prop(bigPull, 'hidden', !bigSaid);
   /* What drops here and how often (Tyler 2026-10-24: "a % drop chance or nothing at all"): the gear a line a tier, the
      hero's own armour weight first ("Iron, Studded, Adept: helmets, boots; Iron Sword") with the chance a kill here drops
      any piece of it, then each Rare and Trophy, item and carrier, with its chance per kill of that creature. The odds

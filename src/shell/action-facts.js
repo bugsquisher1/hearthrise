@@ -16,17 +16,17 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.78';
-import { ABILITIES } from '../data/abilities.js?v=0.2.78';
-import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.78';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.78';
-import { STATUSES } from '../data/statuses.js?v=0.2.78';
-import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.78';
-import { ITEMS } from '../data/items.js?v=0.2.78';
-import { isRune } from '../data/supplies.js?v=0.2.78';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.78';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.78';
-import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.78';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.79';
+import { ABILITIES } from '../data/abilities.js?v=0.2.79';
+import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.79';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.79';
+import { STATUSES } from '../data/statuses.js?v=0.2.79';
+import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.79';
+import { ITEMS } from '../data/items.js?v=0.2.79';
+import { isRune } from '../data/supplies.js?v=0.2.79';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.79';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.79';
+import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.79';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -47,18 +47,20 @@ export function actionName(a) {
   return own(ATTACK_KINDS, a.id) ? 'The loaded ammo' : itemName(a.id);
 }
 
-/* The worn sets that give a discipline, in words ("Shield or Bare hands"): every role key playing it (ROLE_KEYS). */
+/* The worn sets that give a discipline, in words ("Shield or Bare hands"), each word once: every role key playing it (ROLE_KEYS). */
 function weaponsFor(disc) {
-  const w = Object.keys(ROLE_KEYS).filter((k) => ROLE_KEYS[k].discipline === disc).map((k) => WEAPON_WORDS[k] || k);
-  return w.length ? w.join(' or ') : disc;
+  return wordsOfKeys(Object.keys(ROLE_KEYS).filter((k) => ROLE_KEYS[k].discipline === disc)) || disc;
 }
 
 /* The worn sets that play any of `roles`, in words ("Bow or Crossbow"), each word once (ROLE_KEYS). */
 function weaponsOf(roles) {
+  return wordsOfKeys(Object.keys(ROLE_KEYS).filter((k) => ROLE_KEYS[k].roles.some((r) => roles.includes(r))));
+}
+
+function wordsOfKeys(keys) {
   const seen = new Set();
   const w = [];
-  for (const k of Object.keys(ROLE_KEYS)) {
-    if (!ROLE_KEYS[k].roles.some((r) => roles.includes(r))) continue;
+  for (const k of keys) {
     for (const word of String(WEAPON_WORDS[k] || k).split(' or ')) {
       if (!seen.has(word.toLowerCase())) { seen.add(word.toLowerCase()); w.push(word.charAt(0).toUpperCase() + word.slice(1)); }
     }

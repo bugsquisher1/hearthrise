@@ -16,14 +16,18 @@
 // what changed (src/shell/alerts.js, kind `away`), once (its id carries the
 // stamp's time, and alerts remember the ids they showed). Every number in the
 // line is a difference of two server answers; nothing is predicted or spendable.
+//
+// THE RETURN (panel 2026-11-01, played): the line says what to do next: the stamina left, or how long ago a hunt ended and
+// the stamina rested since. And markBack records the hunt the player came back to (residue `coach.back`), so the coach's
+// "just now" cards stand aside and no card opens over it (hunt-tutorial.js fresh_hunt, launcher.js restsNow).
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.78';
-import { huntOf, analyzerOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.78';
-import { nameOf } from '../session/item-sections.js?v=0.2.78';
-import { huntName } from '../session/party-sections.js?v=0.2.78';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.78';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.78';
-import { whole } from '../render/format.js?v=0.2.78';
+import { levelOf } from '../session/character-sections.js?v=0.2.79';
+import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.79';
+import { nameOf } from '../session/item-sections.js?v=0.2.79';
+import { huntName } from '../session/party-sections.js?v=0.2.79';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.79';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.79';
+import { whole } from '../render/format.js?v=0.2.79';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -41,6 +45,8 @@ function awayWords(ms) {
   const m = Math.max(0, Math.floor(ms / 60000));
   return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min';
 }
+/* Plain words where the shared copy says "1:1" (that copy ships in the engine's bundle; this line is the client's). How it comes back is the end card's. */
+const STAMINA_WORDS = Object.freeze({ stamina: 'Out of stamina, so {name} came home.' });
 const signed = (n, unit) => (n >= 0 ? '+' : '−') + whole(Math.abs(n)) + ' ' + unit;
 
 /* The coins this hero's hunt has taken (the analyzer's session tally), or null. */
@@ -83,11 +89,22 @@ export function awayRecapOf(cs) {
   const where = huntName(h.huntId);
   const head = 'While you were away (' + awayWords(gone) + '), ' + name + ' hunted ' + where;
   const body = parts.length ? ': ' + parts.join(', ') + '.' : '.';
+  const st = staminaOf(cs);
+  const stamina = st && st.msLeft > 0 ? awayWords(st.msLeft) : null;
+  const ago = h.ended && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
   const end = h.ended
-    ? ' The hunt has ended. ' + ((END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')
+    ? ' The hunt has ended' + ago + '. ' + (STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')
       .replace('{name}', name).replace('{ground}', where).replace('{member}', h.endBy || 'A party member').replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
-    : ' Still hunting.';
+      + (stamina ? ' Stamina now: ' + stamina + '.' : '')
+    : stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.';
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, text: (head + body + end).trim() };
+}
+
+/** Record the hunt the player came back to (see the header). Written once per return; display state only. */
+export function markBack(cs, session) {
+  if (typeof session !== 'string' || typeof cs.setResidue !== 'function') return false;
+  const r = (cs.record && cs.record.residue && cs.record.residue.coach) || {};
+  return r.back === session ? false : cs.setResidue('coach', Object.assign({}, r, { back: session }));
 }
 
 /** Renew the stamp when it is due (a hunt runs, and the last stamp is a minute old or for another hunt). */

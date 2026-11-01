@@ -20,6 +20,17 @@
 // PURE ESM DATA. No imports, no functions, no DOM. Node and Deno both.
 // ════════════════════════════════════════════════════════════════════════
 
+/** THE HOUSE'S TOP, HELD UNTIL ITS CONTENT EXISTS (lane c-house-pelts, 2026-10-31; CLAUDE.md §3.5 half-built features stay
+    hidden). Each row keeps its price but asks for an item no player can reach today (dragon scales, keystones, ancient
+    runes, dragon bones, a dragon gem), and it is far past a beta's first 100 hours: 150,000-320,000 gold, Crafting and
+    Smithing 60+. A held row is refused by name (unlock-catalogue.js) and so never reaches the House window (hr_home_view
+    lists sellable rows only). SHRINK-ONLY: tests/catalogue-coherence.mjs C12 fails a row whose items have all become
+    reachable, and any row a rung above a visible one could skip to. */
+export const HELD_HOME_OFFERS = Object.freeze([
+  'property.castle',
+  'room.cellar.5', 'room.forge.5', 'room.garden.5', 'room.kitchen.5', 'room.library.5', 'room.shrine.5', 'room.trophy.5', 'room.workshop.5',
+]);
+
 /** PROPERTY_TIERS[i] is property tier i. `rooms` are the rooms tier i first opens. */
 export const PROPERTY_TIERS = Object.freeze([
   {
@@ -242,13 +253,13 @@ export const ROOM_RUNGS = Object.freeze({
     {
       "cost": {
         "gold": 8000,
-        "troll_hide": 3
+        "bear_pelt": 2
       }
     },
     {
       "cost": {
         "gold": 25000,
-        "dragon_scale": 2
+        "bear_pelt": 4
       }
     },
     {
@@ -257,7 +268,7 @@ export const ROOM_RUNGS = Object.freeze({
         "gold": 60000,
         "iron_fitting": 12,
         "bear_pelt": 6,
-        "ancient_claw": 3
+        "war_crown": 1
       }
     },
     {
@@ -362,7 +373,7 @@ export const ROOM_RUNGS = Object.freeze({
     {
       "cost": {
         "gold": 13000,
-        "dragon_bones": 8
+        "big_bones": 40
       }
     },
     {
@@ -371,7 +382,7 @@ export const ROOM_RUNGS = Object.freeze({
         "gold": 55000,
         "iron_fitting": 10,
         "big_bones": 60,
-        "grave_dust": 20
+        "magic_essence": 30
       }
     },
     {

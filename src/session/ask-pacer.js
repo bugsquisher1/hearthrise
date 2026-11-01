@@ -18,7 +18,7 @@
 // measured, a whole poll starved the viewed prediction).
 // Timing only: nothing here is read as owned or spent.
 // ════════════════════════════════════════════════════════════════════════
-import { SESSION_CONFIG } from './config.js?v=0.2.78';
+import { SESSION_CONFIG } from './config.js?v=0.2.79';
 
 const MINUTE_MS = 60000;
 

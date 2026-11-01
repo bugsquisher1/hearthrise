@@ -2175,8 +2175,10 @@ const DB_ARMS = {
     if (!yielded || yielded.kind !== 'artisan' || yielded.id !== 'fuel_bones') problems.push(`the bury's stop was not journalled: ${JSON.stringify(yielded)}`);
     /* A DRY BENCH IS NOT RESUMED (tutorial board row 10, 2027-01-20-tutorial-facts.sql): the hero cooked until its shrimp
        ran out, hunted and died, and came home "working on Cook Shrimp" with 0 Raw Shrimp. BOTH PATHS, the same rows: the
-       browser closed (the tick's door) and the hunt viewed (the player's door). With one action's inputs in the bag the
-       same death resumes the bench. */
+       browser closed (the tick's door) and the hunt viewed (the player's door).
+       A STOCKED BENCH IS NOT RESUMED EITHER (2027-02-15-panel-truth.sql; the panel 2026-11-01: one "Fuel all 15" before an
+       11 h hunt burned its 1,954 Bones in town after the stamina end, unasked): a resume has no count, and a bench
+       spends what the player owns. Gathering, above, spends nothing and resumes. */
     const need = await one(db, `select public.hr_bench_inputs() -> 'cook_shrimp'`);
     if (!need || !Object.keys(need).length) return [...problems, 'CONTROL: hr_bench_inputs() names no input for cook_shrimp'];
     const doors = { closed: (sid) => ({ mode: 'tick', session: sid }), viewed: () => ({ mode: 'settle', bucket: null, project: true, live: true }) };
@@ -2197,9 +2199,8 @@ const DB_ARMS = {
         const res = await one(db, `select meta from public.player_ledger where session_id = $1 and intent = 'resume'`, [h.sid]);
         const tag = `${path}, ${stocked ? 'one action stocked' : 'dry'}`;
         if (s.session.end_reason !== 'died') { problems.push(`${tag}: CONTROL: the doomed hero's hunt ended ${s.session.end_reason}`); continue; }
-        const want = stocked ? 'artisan:cook_shrimp' : 'idle:';
-        if (s.active !== want) problems.push(`${tag}: the death left the hero ${s.active}, not ${want}`);
-        if (!res || res.resumed !== stocked || res.id !== 'cook_shrimp') problems.push(`${tag}: the resume journalled ${JSON.stringify(res)}`);
+        if (s.active !== 'idle:') problems.push(`${tag}: the death left the hero ${s.active}, not idle`);
+        if (!res || res.resumed !== false || res.id !== 'cook_shrimp') problems.push(`${tag}: the resume journalled ${JSON.stringify(res)}`);
       }
     }
     return problems;

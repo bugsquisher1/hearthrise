@@ -1286,6 +1286,41 @@ async function rules(M) {
       || Object.keys(sent[0]).some((k) => /price|gold|item/.test(k))) return 'create sent ' + JSON.stringify(sent) + ' -> ' + JSON.stringify([ok, no]);
     return true;
   });
+  /* ACC-READ (panel 10-31: hr_load x3 on a reload): the roster's own answer is the hero's first read while it is seconds
+     old, spent once; the list left standing, an answer that was no hero, a close and reopen read again; the join's hello
+     still settles and re-reads, so nothing a number relies on is older than it was. */
+  await t('ACC-READ', async () => {
+    let now = 1000;
+    const mk = (srv) => new A.AccountSession({ auth: { userId: () => UID, token: () => 'jwt', signOut: async () => {} }, server: srv, tab: memStore(), channel: fakeHub().channel,
+      timers: { setTimer: () => 0, clearTimer: () => {}, now: () => now } });
+    const SAID = Date.parse('2026-11-01T10:00:00.000Z');
+    const bySlot = { 0: env(7, { hero_slots: [0, 1], name: 'Ada', account: { max_concurrent: 4 }, now: new Date(SAID).toISOString() }), 1: env(3, { name: 'Bram' }) };
+    const srv = fakeServer(bySlot);
+    const loads = (s) => srv.calls.filter(([n, a]) => n === 'hr_load' && a.p_slot === s).length;
+    const acc = mk(srv);
+    await acc.roster();
+    now += CFG.SESSION_CONFIG.rosterReadFreshMs;
+    const r = await acc.open(0);
+    if (!r.ok || r.session.record.version !== 7) return 'the hero did not open on the roster\'s answer: ' + JSON.stringify(r.reason);
+    if (loads(0) !== 1) return 'opening on a fresh roster read hero 0 ' + loads(0) + ' times, want the roster\'s one';
+    /* the server's clock is measured as of now, not as of when the roster heard it (timeline.js T3: the first measure stands) */
+    const clock = r.session.serverNow();
+    if (clock !== SAID + CFG.SESSION_CONFIG.rosterReadFreshMs) return 'the server clock after a roster answer ' + CFG.SESSION_CONFIG.rosterReadFreshMs + ' ms old reads ' + (clock - SAID) + ' ms past what it said';
+    /* spent once: closed and opened again, still inside the window, it reads */
+    acc.close(0); await acc.open(0);
+    if (loads(0) !== 2) return 'a roster answer was spent twice (' + loads(0) + ' reads of hero 0 after a reopen)';
+    now += 1;
+    await acc.open(1);
+    if (loads(1) !== 2) return 'a roster answer older than rosterReadFreshMs was spent (' + loads(1) + ' reads of hero 1)';
+    /* a slot the roster found empty, then made: it reads the hero it now holds */
+    const made = { 0: env(1, { hero_slots: [0, 1], account: { max_concurrent: 4 } }) };
+    const srv2 = fakeServer(made);
+    const acc2 = mk(srv2);
+    await acc2.roster();
+    made[1] = env(2, { name: 'New' });
+    const r2 = await acc2.open(1);
+    return (r2.ok && r2.session.record.version === 2) || 'a slot the roster read empty did not read the hero it now holds: ' + JSON.stringify(r2.reason);
+  });
   /* ACC-6 (10-23 measure: the characters screen read four heroes one after another, 1.19 s): slot 0's answer
      names the owned slots, then every other owned slot is read AT ONCE (two round trips for four heroes), and
      the account's other heroes open at once after Play; the rows and the open heroes are the same either way. */
@@ -1296,7 +1331,8 @@ async function rules(M) {
     const srv = { calls: [], rpc: (name, args) => { srv.calls.push([name, args]); out++; most = Math.max(most, out);
       return new Promise((ok) => held.push(() => { out--; ok({ ok: true, status: 200, body: heroes[args.p_slot] || { ok: false, error: 'no_character' }, closed: false }); })); },
     accrue: async () => ({ ok: true, status: 200, body: { ok: true, accrued: false, version: 1 }, closed: false }) };
-    const acc = mkAccount(srv);
+    /* no roster answer is fresh here (ACC-READ spends them): every open really reads, and they must go together */
+    const acc = mkAccount(srv, { config: Object.assign({}, CFG.SESSION_CONFIG, { rosterReadFreshMs: -1 }) });
     const tick = () => new Promise((r) => setImmediate(r));
     /* answer every read in flight, one round trip at a time, until `p` settles: how many rounds it took */
     const rounds = async (p) => {
@@ -1812,6 +1848,11 @@ async function viewRules(base) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
+  ['a reload reads each hero again over the roster\'s answer', 'src/session/account-session.js', 'await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null);', 'await cs.load();'],
+  ['a character list left standing opens on its old answer', 'src/session/account-session.js', 'read && read.ans.ok && age <= this.config.rosterReadFreshMs ?', 'read && read.ans.ok ?'],
+  ['a roster answer sets the server clock back by its age', 'src/session/account-session.js', '? agedBy(read.ans.body, age) : null', '? read.ans.body : null'],
+  ['a roster answer that is no hero is taken, not read', 'src/session/character-session.js', "held && this._take(held, 'load') ? Promise.resolve(true) : this._reads.load();", "held ? Promise.resolve(this._take(held, 'load')) : this._reads.load();"],
+  ['a roster answer is spent more than once', 'src/session/account-session.js', '    this._rosterReads.delete(slot);\n', ''],
   ['[tick-span] a mid-hunt verb refused settle_first is not caught up', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    return ans;'],
   ['[tick-span] the catch-up retry reuses the refused key', 'src/session/catch-up.js', "() => server.rpc(name, { ...args, p_idem: newIdem() })", '() => server.rpc(name, args)'],
   ['[tick-span] the catch-up retries without settling first', 'src/session/catch-up.js', '    try { await o.catchUp(); } catch (e) { /* the retry\'s own answer says what the server holds */ }\n', ''],

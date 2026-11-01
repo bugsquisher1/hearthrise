@@ -197,10 +197,14 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE NO-FIGHT END (lane/a-no-fight, designer 2026-10-31): 2027-02-10 is APPLIED history; END_ORDER's no_fight + its limit and
    the world's fightAt (a new shape) land in this forward file, the same full replace, applied right before
    2027-02-11-no-fight-settle.sql. */
-/* A PARTY'S DEFAULT PULL (lane/b-party-class-xp, designer 2026-11-01): 2027-02-11 is APPLIED history; hr_hunt_grounds.spawns of the
-   Thicket, Wickstead and the Glade grows by pockets x the largest pull, the same full replace. The bound only WIDENS: this file
-   applies BEFORE the hr-accrue carrying the pull deploys (an edge first has every such party refused kills_over, then forfeited). */
-export const OUT_NAME = '2027-02-15-party-pull-hunt-sessions-catalogue.generated.sql';
+/* THE BROOK BEAR'S PELT (lane/c-house-pelts, Andy's report, 2026-10-31): 2027-02-11 is APPLIED history; the Bear Pelt joins the
+   bear's kill bound in this forward file, the same full replace. No shape, no limit moves.
+   THE BOUND WIDENS, so this applies BEFORE the hr-accrue edge that drops pelts. */
+/* A PARTY'S DEFAULT PULL (lane/b-party-class-xp, designer 2026-11-01): 2027-02-16-house-pelts is the file before this one, and this
+   one carries it; hr_hunt_grounds.spawns of the Cellar, the Thicket, Wickstead and the Glade grows by pockets x the largest pull, the
+   same full replace. The bound only WIDENS: this file applies BEFORE the hr-accrue carrying the pull deploys (an edge first has every
+   such party refused kills_over, then forfeited). */
+export const OUT_NAME = '2027-02-16-party-pull-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -639,20 +643,25 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN 2027-02-11 (lane/a-no-fight, designer 2026-10-31: a hero must not sit in a hunt it can't fight in): END_ORDER's
--- no_fight in hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK, its span in hr_hunt_limits.no_fight_min; the
--- world's shape gains fightAt, so hr_hunt_world_shape is rewritten. A catalogue and an edge landing seconds apart propose
--- nothing while the shapes differ (hunt-settle.js worldShapePending). ORDER: right before 2027-02-11-no-fight-settle.sql,
--- which proves the new end. EDGE: the hr-accrue carrying this world deploys with these two files.
+-- NEW IN THIS FILE (lane/b-party-class-xp, designer 2026-11-01): a party that picks no pull plays its ground's default
+-- (hunt-grounds.js partyPull: the Cellar 4/5/5, the Thicket, Wickstead and the Glade 3/3/4), at a frozen hunt_instances.density
+-- of 0. hr_hunt_apply_member counts spawns + pockets x that density, so hr_hunt_grounds.spawns grows by pockets x the largest
+-- pull on those four rows; nothing else moves, the world's shape included (no world_shape_pending). The bound only widens.
+-- ORDER: right AFTER 2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql (this file carries it), THEN the hr-accrue
+-- carrying the pull; an edge first refuses such a party kills_over and the sixth refusal forfeits its hunt. The self-check
+-- below asserts every ground's spawns.
 --
--- NEW IN 2027-02-15 (lane/b-party-class-xp, designer 2026-11-01): a party that picks no pull plays its ground's default
--- (hunt-grounds.js partyPull: Thicket 4/5/6, Wickstead 3/3/4, Glade 3/4/4), at a frozen hunt_instances.density of 0.
--- hr_hunt_apply_member counts spawns + pockets x that density, so hr_hunt_grounds.spawns grows by pockets x the largest
--- pull on those three rows; nothing else moves, the world's shape included (no world_shape_pending). The bound only
--- widens. ORDER: this file, THEN the hr-accrue carrying the pull; an edge first refuses such a party kills_over and the
--- sixth refusal forfeits its hunt. The self-check below asserts every ground's spawns.
+-- CARRIED FROM 2027-02-16 (lane/c-house-pelts, Andy's report, 2026-10-31): the Brook Bear's table gains the Bear Pelt (Common, 16%)
+-- and its Bear Claw moves to a Rare row: the bear's hr_hunt_kill_bounds names the pelt (hr_hunt_vendor_value and
+-- hr_hunt_cover_items already carry it). The self-check below executes the settle's own item bound for bear_pelt on the Glade.
+-- WORLD SHAPE: UNCHANGED (no freeze on either order). ORDER: APPLY THIS BEFORE THE hr-accrue EDGE: an edge dropping pelts
+-- over the old bound is refused value_over, and the sixth refusal forfeits the hunt; the old edge on this catalogue is
+-- safe (its claws stay inside the bound). Then the edge, then the client.
 --
--- CARRIED FROM 2027-02-11 (APPLIED 10-31; lane/a-no-fight):
+-- CARRIED FROM 2027-02-11 (APPLIED; lane/a-no-fight, designer 2026-10-31: a hero must not sit in a hunt it can't fight in):
+-- END_ORDER's no_fight in hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK, its span in hr_hunt_limits.no_fight_min;
+-- the world's shape gains fightAt, so hr_hunt_world_shape is rewritten.
+--
 -- CARRIED FROM 2027-02-10 (APPLIED 10-30; lane/c-bear-meat-bound): hr_hunt_ground_spawns lists EVERY monster a
 -- pull can bring (each pocket's whole pack, the rows hunt-grounds.js pullRows draws from at any density),
 -- not only each pocket's as-built rows. The Glade's Brook Bear stands only in its boxes' fill rows, so it

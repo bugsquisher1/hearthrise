@@ -3,15 +3,15 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.78';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.78';
-import { LIB2_DESC } from './library2-items.js?v=0.2.78';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.78';
-import { CHAMPION_DESC } from './champions.js?v=0.2.78';
-import { DRINK_DESC } from './drinks.js?v=0.2.78';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.78';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.78';
-import { SHIELD_DESC } from './shields.js?v=0.2.78';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.79';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.79';
+import { LIB2_DESC } from './library2-items.js?v=0.2.79';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.79';
+import { CHAMPION_DESC } from './champions.js?v=0.2.79';
+import { DRINK_DESC } from './drinks.js?v=0.2.79';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.79';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.79';
+import { SHIELD_DESC } from './shields.js?v=0.2.79';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -104,7 +104,7 @@ export const ITEM_DESC = {
   'bat_wing': 'Leathery wing torn from a cave bat, a minor alchemy reagent',
   'bear_claw': 'A curved claw torn from a bear, a trophy and crafting reagent',
   'bear_claw_pie': 'A rugged pie stuffed with bear meat, a fighter\'s feast that hardens your blows',
-  'bear_pelt': 'The heavy pelt of a bear, thick hide for rugged armor',
+  'bear_pelt': 'The heavy pelt of a Brook Bear, which joins the bigger pulls at Mosslight Glade. The Keep and the Trophy Room ask for them',
   'big_bones': 'Fuel for the Great Hearth in Havora, hotter than plain bones. Left by big brutes',
   'boarhide_belt': 'A broad boarhide belt, rugged enough for a ranger living out of camp',
   'boarhide_body': 'A boarhide jerkin, thick and rugged, cover built for a ranger who hunts the deep woods',

@@ -8,32 +8,29 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: c1ea5db3f594bf44862bbb50f61d563fd22dca77b3de20872fce8dcf429062d0
+--   digest: 0dc18aef9db5c527401fcb7ed82909a3e3a24fd4331247564036546a7057a266
 --   82 supplies, 128 hunts (named + training), 48 limits, 13 end reasons,
 --   547 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
 --
--- NEW IN 2027-02-11 (lane/a-no-fight, designer 2026-10-31: a hero must not sit in a hunt it can't fight in): END_ORDER's
--- no_fight in hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK, its span in hr_hunt_limits.no_fight_min; the
--- world's shape gains fightAt, so hr_hunt_world_shape is rewritten. A catalogue and an edge landing seconds apart propose
--- nothing while the shapes differ (hunt-settle.js worldShapePending). ORDER: right before 2027-02-11-no-fight-settle.sql,
--- which proves the new end. EDGE: the hr-accrue carrying this world deploys with these two files.
+-- NEW IN 2027-02-16 (lane/c-house-pelts, Andy's report, 2026-10-31): the Brook Bear's table gains the Bear Pelt (Common, 16%)
+-- and its Bear Claw moves to a Rare row: the bear's hr_hunt_kill_bounds names the pelt (hr_hunt_vendor_value and
+-- hr_hunt_cover_items already carry it). The self-check below executes the settle's own item bound for bear_pelt on the Glade.
+-- WORLD SHAPE: UNCHANGED (no freeze on either order). ORDER: APPLY THIS BEFORE THE hr-accrue EDGE: an edge dropping pelts
+-- over the old bound is refused value_over, and the sixth refusal forfeits the hunt; the old edge on this catalogue is
+-- safe (its claws stay inside the bound). Then the edge, then the client.
 --
--- NEW IN 2027-02-15 (lane/b-party-class-xp, designer 2026-11-01): a party that picks no pull plays its ground's default
--- (hunt-grounds.js partyPull: Thicket 4/5/6, Wickstead 3/3/4, Glade 3/4/4), at a frozen hunt_instances.density of 0.
--- hr_hunt_apply_member counts spawns + pockets x that density, so hr_hunt_grounds.spawns grows by pockets x the largest
--- pull on those three rows; nothing else moves, the world's shape included (no world_shape_pending). The bound only
--- widens. ORDER: this file, THEN the hr-accrue carrying the pull; an edge first refuses such a party kills_over and the
--- sixth refusal forfeits its hunt. The self-check below asserts every ground's spawns.
+-- CARRIED FROM 2027-02-11 (APPLIED; lane/a-no-fight, designer 2026-10-31: a hero must not sit in a hunt it can't fight in):
+-- END_ORDER's no_fight in hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK, its span in hr_hunt_limits.no_fight_min;
+-- the world's shape gains fightAt, so hr_hunt_world_shape is rewritten.
 --
--- CARRIED FROM 2027-02-11 (APPLIED 10-31; lane/a-no-fight):
 -- CARRIED FROM 2027-02-10 (APPLIED 10-30; lane/c-bear-meat-bound): hr_hunt_ground_spawns lists EVERY monster a
 -- pull can bring (each pocket's whole pack, the rows hunt-grounds.js pullRows draws from at any density),
 -- not only each pocket's as-built rows. The Glade's Brook Bear stands only in its boxes' fill rows, so it
 -- had no spawn row: the settle's value bound for raw_bear_meat, bear_claw and brook_bear_tooth on
 -- mosslight_glade was 0, every window that dropped one was refused value_over, and the sixth refusal
 -- forfeited the hunt (meta.end server). n is now a monster's head-count over the full boxes;
--- hr_hunt_grounds.spawns (the kill bound's base) did not move with it. The self-check below executes the
+-- hr_hunt_grounds.spawns (the kill bound's base) is unchanged. The self-check below executes the
 -- settle's own item bound for every item a monster of the ground can drop (src/data/monsters.js, each
 -- pocket's pack) and refuses any under one kill's rows. Moves no value; the bound only widens to what the
 -- engine already pays. EDGE: none. ORDER: after the APPLIED 2027-02-10-artisan-tick.sql.
@@ -473,7 +470,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('bog_vine', 42, 209, '{"willow_log":1,"silk_thread":1,"moonbloom":1,"steel_gauntlets":1}'::jsonb),
   ('briarcoat_wolf', 5, 85, '{"wolf_pelt":1,"bones":1,"briar_burr":1,"bronze_platelegs":1,"leather_pants":1,"apprentice_pants":1}'::jsonb),
   ('broodmother', 572, 1728, '{"silk_thread":1,"spider_eye":1,"void_chitin":1,"swarm_heart":1,"shadow_thread":1,"chitinweave_cloak":1}'::jsonb),
-  ('brook_bear', 36, 531, '{"raw_bear_meat":1,"bear_claw":1,"brook_bear_tooth":1}'::jsonb),
+  ('brook_bear', 36, 531, '{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb),
   ('carnivorous_plant', 100, 465, '{"maple_log":1,"moonbloom":1,"goldenroot":1,"emberfruit":1}'::jsonb),
   ('carrion_crow', 12, 210, '{"bone_chips":1,"crow_quill":1,"iron_boots":1,"studded_boots":1,"adept_boots":1}'::jsonb),
   ('carrion_swarm', 236, 857, '{"plague_ichor":1,"swarm_heart":1,"venom_sac":1}'::jsonb),
@@ -627,11 +624,11 @@ delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
   ('coppercap_warrens', 'coppercap_warrens', 6, 18, 90000, 4, '{8,8,8,8}'::int[]),
-  ('meadowbrook_thicket', 'meadowbrook_thicket', 6, 49, 60000, 2, '{8,8,8,8}'::int[]),
+  ('meadowbrook_thicket', 'meadowbrook_thicket', 6, 13, 60000, 2, '{8,8,8,8}'::int[]),
   ('mill_cellar', 'mill_cellar', 2, 5, 32000, 4, '{8,8,8,8}'::int[]),
   ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4, '{8,8,10,12}'::int[]),
-  ('mosslight_glade', 'mosslight_glade', 6, 37, 60000, 4, '{8,8,8,8}'::int[]),
-  ('wickstead', 'wickstead', 6, 36, 60000, 4, '{8,8,8,8}'::int[]);
+  ('mosslight_glade', 'mosslight_glade', 6, 13, 60000, 4, '{8,8,8,8}'::int[]),
+  ('wickstead', 'wickstead', 6, 12, 60000, 4, '{8,8,8,8}'::int[]);
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('coppercap_warrens', 'chief_coppercap', 1),
   ('coppercap_warrens', 'goblin_digger', 12),
@@ -1600,10 +1597,6 @@ begin
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
                (('coppercap_warrens', 90000), ('meadowbrook_thicket', 60000), ('mill_cellar', 32000), ('millrace_sewer', 90000), ('mosslight_glade', 60000), ('wickstead', 60000))) then
     raise exception 'a hunt ground''s respawn_ms is not hunt-grounds.js respawnMs'; end if;
-  -- THE KILL BOUND'S BASE covers a party's default pull: every ground's spawns, as generated, and each at least its pockets' largest pull.
-  if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.pockets, g.spawns) not in
-               (('coppercap_warrens', 6, 18), ('meadowbrook_thicket', 6, 49), ('mill_cellar', 2, 5), ('millrace_sewer', 6, 19), ('mosslight_glade', 6, 37), ('wickstead', 6, 36))) then
-    raise exception 'a hunt ground''s spawns is not as-built plus its pockets at a party''s largest default pull'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"yieldPm":30,"stance":31,"acc":32,"maxHit":33,"def":34,"element":35,"swingLeftMs":36,"mana":37,"maxMana":38,"manaMilli":39,"regenPm":40,"lanes":41,"cds":42,"shield":43,"markPm":44,"markUntil":45,"statuses":46,"laneAt":47,"otHp":48,"otMana":49,"ruleHold":50,"ruleWait":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16}}'::jsonb
      or exists (select 1 from unnest(array['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'otHp', 'otMana', 'role', 'dist', 'chase', 'tmode', 'stance']) n
@@ -1772,6 +1765,7 @@ begin
     ('mosslight_glade', 'adept_helmet', 1),
     ('mosslight_glade', 'adept_pants', 1),
     ('mosslight_glade', 'bear_claw', 1),
+    ('mosslight_glade', 'bear_pelt', 1),
     ('mosslight_glade', 'boarhide_helmet', 1),
     ('mosslight_glade', 'bone_chips', 1),
     ('mosslight_glade', 'bones', 1),

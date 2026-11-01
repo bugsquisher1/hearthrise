@@ -1919,7 +1919,7 @@ const MUTANTS = [
   ['the phone hub keeps the big medal (HS-22)', 'src/styles/hunt.css', '  .hb-medal { width: 72px; height: 72px; align-self: center; }', '  .hb-medal { width: 88px; height: 88px; align-self: center; }'],
   ['the world HUD stays under the alerts while a tooltip is open (HS-22)', 'src/styles/hunt.css', '.hb-buy.is-on) { z-index: 7; }', '.hb-buy.is-on) { z-index: 2; }'],
   ['the phone alerts dock on the left, over the Party panel (HS-22)', 'src/data/hud-widgets.js', "phone: Object.freeze({ anchor: 'br', dx: 4, dy: 104 }),", "phone: Object.freeze({ anchor: 'bl', dx: 4, dy: 160 }),"],
-  ['the phone alerts draw over an open window (HS-22)', 'src/styles/hunt.css', '  :root:has(.hs-win:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }', '.hs-widget.is-alerts { }'],
+  ['the phone alerts draw over an open window (HS-22)', 'src/styles/hunt.css', '  :root:has(.hs-win.is-modal:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }', '.hs-widget.is-alerts { }'],
   ['the fight settings sheet starts at the top of the screen (HS-22)', 'src/shell/widgets/action-bar.js', "    sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';", "    sheet.style.top = '0px';"],
   ['a widget that grows after it is placed is never placed again (HS-22)', 'src/shell/shell.js', 'const sized = host.ResizeObserver ? ', 'const sized = false ? '],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],

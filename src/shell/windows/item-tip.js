@@ -9,13 +9,13 @@
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.78';
-import { whole, gold } from '../../render/format.js?v=0.2.78';
-import { itemName } from '../widgets/bits.js?v=0.2.78';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.78';
-import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.78';
-import { planWords } from '../loot-dispatch.js?v=0.2.78';
-import { pieceWords } from '../../data/armour-weights.js?v=0.2.78';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.79';
+import { whole, gold } from '../../render/format.js?v=0.2.79';
+import { itemName } from '../widgets/bits.js?v=0.2.79';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.79';
+import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.79';
+import { planWords } from '../loot-dispatch.js?v=0.2.79';
+import { pieceWords } from '../../data/armour-weights.js?v=0.2.79';
 
 const GAP = 10;
 
@@ -60,6 +60,15 @@ function tipHtml(id, o) {
   return h;
 }
 
+/* TOUCH (panel 2026-11-01: a tapped Bones' tooltip lay over Fuel all; a card showed in the Shop with no tap at all): the
+   browser's emulated hover shows a tip only for the item just pressed, beside the sheet and never on it (the anchor
+   below is the sheet), it takes no press (windows.css), and the next press anywhere puts it away. */
+let pressed = null, tipFor = null;
+const touching = (doc) => !!doc.documentElement && doc.documentElement.classList.contains('is-touch');
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('pointerdown', (e) => { pressed = e.target; if (touching(document) && !(tipFor && tipFor.contains(pressed))) hideTip(document, true); }, true);
+}
+
 function tipEl(doc) {
   let el = doc.querySelector('.hw-tip');
   if (!el) {
@@ -73,23 +82,27 @@ function tipEl(doc) {
 
 /** Show the tooltip for `id` beside `anchor` (kept on screen). */
 export function showTip(doc, anchor, id, o) {
+  const touch = touching(doc);
+  if (touch && !(pressed && anchor.contains(pressed))) return;
+  tipFor = anchor;
   const el = tipEl(doc);
   const key = id + '|' + JSON.stringify(Object.assign({}, o, { skills: undefined, offers: undefined }));
   if (el.getAttribute('data-for') !== key) { el.innerHTML = tipHtml(id, o); el.setAttribute('data-for', key); }
   el.classList.add('is-on');
   const view = doc.defaultView;
-  const r = anchor.getBoundingClientRect();
+  const r = ((touch && anchor.closest('.hs-win')) || anchor).getBoundingClientRect();
   const w = el.offsetWidth, h = el.offsetHeight;
   let x = r.left - w - GAP;
-  if (x < 4) x = r.right + GAP;
+  if (x < 4) x = touch ? 4 : r.right + GAP;
   if (x + w > view.innerWidth - 4) x = Math.max(4, view.innerWidth - w - 4);
   const y = Math.max(4, Math.min(view.innerHeight - h - 4, r.top));
   el.style.left = Math.round(x) + 'px';
   el.style.top = Math.round(y) + 'px';
 }
 
-/** Hide the tooltip. */
-export function hideTip(doc) {
+/** Hide the tooltip. On touch only a press does (`byPress`): the emulated hover's mouseout fires when the row it points at moves. */
+export function hideTip(doc, byPress) {
+  if (touching(doc) && !byPress) return;
   const el = doc.querySelector('.hw-tip');
   if (el) el.classList.remove('is-on');
 }

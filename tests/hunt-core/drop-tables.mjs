@@ -36,6 +36,8 @@
 //   reveal-path      (the real settle, a fresh GEAR_HOURS hunt) every Rare item credited rides the settle's rare-drop hint
 //                    (the row the database journals as rare_drop and broadcasts), and no Scarce piece does; on a party
 //                    ground every Rare unit a party of four gets also went through the party's rare roll
+//   big-pull         (played at the pull that brings it) a Rare row on a monster only a bigger pull brings holds its band; the
+//                    Keep's five Bear Pelts come within two played hours
 //   profit-floor     at its band floor, in its first hour, each non-starter ground earns coin + commons at least +25% over
 //                    the store bill (a MINIMUM, Tyler 10-20)
 //   warrens-floor    the Warrens' party of four at 32 and a lone own-tier Melee at the card's soloFrom clear +25% on two seeds
@@ -496,6 +498,46 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
   for (const [gid, b] of Object.entries(partyB)) console.log('  party of four, ' + gid + ', ' + GEAR_HOURS + ' h at the floor: Rare units ' + b);
 }
 
+/* THE BIG PULL (lane c-house-pelts, 2026-10-31). A monster standing only in a pocket's FILL rows is never met in the floor
+   hours above, which play the pull as built: its Rare rows were measured on zero kills. So a Rare row on such a monster
+   holds its band on a played hour, for a solo hero at the floor, at the smallest pull that brings it and at the ground's
+   solo cap. The Bear Pelt, the Keep's Common, is held to BEAR_PELT_RULE: not a wall, and not free either way. */
+const KEEP_PELTS = 5;
+const PELT_MAX_HOURS = 2;       // the Keep's pelts within two played hours, whichever pull brings the bear
+const bigPullMonsters = (M, ground) => {
+  const asBuilt = new Set(ground.pockets.flatMap((p) => p.spawns.map((s) => s.monster)));
+  return rosterOf(ground).filter((id) => !asBuilt.has(id));
+};
+function bigPull(M, P, monsters, R, print) {
+  const out = [];
+  for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
+    const fill = bigPullMonsters(M, ground).filter((id) => (monsters[id].drops || []).some((d) => d.band === 'rare' || d.id === 'bear_pelt'));
+    if (!fill.length) continue;
+    const floor = M.HUNTS[ground.hunt].band[0];
+    const cap = M.G.densityCapFor(ground, 1);
+    for (const id of fill) {
+      const first = Math.min(...ground.pockets.map((p) => (p.pack || []).findIndex((s) => s.monster === id)).filter((i) => i >= 0)) + 1;
+      for (const density of [...new Set([first, cap])]) {
+        const x = P.run(gid, floor, ['tank'], { spanMs: H, density, monsters });
+        const kills = (x.killsBy[id] || 0) / (x.playedMs / H || 1);
+        R.ok(kills > 0, 'big-pull: ' + gid + ' at density ' + density + ' met no ' + id + ' in a played hour');
+        for (const d of monsters[id].drops) {
+          const perH = kills * M.drops.effectiveDropChance(d, { dropMult: monsters[id].dropBonus || 1, yieldMult: 1 });
+          if (d.band === 'rare') {
+            const [lo, hi] = M.LB.BAND_TARGETS.rare.hours;
+            R.ok(1 / perH >= lo && 1 / perH <= hi, 'big-pull: ' + gid + ' rare ' + d.id + ' (' + id + ', density ' + density + ') every ' + (1 / perH).toFixed(1) + ' h, outside ' + lo + '-' + hi + ' h');
+          }
+          if (d.id === 'bear_pelt') {
+            R.ok(KEEP_PELTS / perH <= PELT_MAX_HOURS, 'big-pull: ' + gid + ' the Keep\'s ' + KEEP_PELTS + ' pelts take ' + (KEEP_PELTS / perH).toFixed(1) + ' h at density ' + density + ', over ' + PELT_MAX_HOURS + ' h');
+            out.push('density ' + density + ': ' + kills.toFixed(0) + ' bears/h, ' + perH.toFixed(1) + ' pelts/h, the Keep\'s ' + KEEP_PELTS + ' in ' + (KEEP_PELTS / perH).toFixed(2) + ' h');
+          }
+        }
+      }
+    }
+  }
+  if (print) console.log('  the big pull, solo at the Glade floor: ' + out.join(' ; '));
+}
+
 /* THE CASTER FLOOR (designer pass 2026-10-21). Income is split evenly and each hero pays its own store bill
    (ruling 10-16), so each role's margin is its share of coin + commons over its own bill. */
 function casterFloor(M, P, R, print) {
@@ -684,6 +726,10 @@ const playMutants = [
   { name: 'the den mother\'s fang a War Crown at 2% (value, not gear)', rule: 'total-value: meadowbrook_thicket', edit: (ms) => { Object.assign(rowOf(ms, 'grayjaw', 'alpha_fang'), { id: 'war_crown', ch: 0.02 }); } },
   { name: 'a fresh hero\'s heavy boots gone', rule: 'gear-pace: a fresh hero at the meadowbrook_thicket', fresh: true, edit: (ms) => { ms.gray_whelp.drops = ms.gray_whelp.drops.filter((d) => d.id !== 'bronze_boots'); } },
 ];
+const bigPullMutants = [
+  { name: 'the Bear Claw at 2% (a reveal every hour or so)', rule: 'big-pull: mosslight_glade rare bear_claw', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_claw').ch = 0.02; } },
+  { name: 'the Bear Pelt at 1% (the Keep a long grind again)', rule: 'big-pull: mosslight_glade the Keep', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_pelt').ch = 0.01; } },
+];
 /* Planted trees (src/data, src/core, the settle), played on the ground the rule names. */
 const plantMutants = [
   { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1]);']] },
@@ -747,6 +793,7 @@ for (const [cn, fn] of Object.entries(cases)) {
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const P = await loadPlay(ROOT);
 await plays(M, P, M.MONSTERS, R, true);
+bigPull(M, P, M.MONSTERS, R, true);
 casterFloor(M, P, R, true);
 warrensFloor(M, P, R, true);
 rangerFloor(M, P, R, true);
@@ -768,6 +815,12 @@ const groundOf = (rule) => /meadowbrook_thicket|millrace_sewer|mosslight_glade|c
 for (const mu of playMutants) {
   const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
   await plays(M, P, clone(M.MONSTERS, mu.edit), MR, false, [groundOf(mu.rule)], mu.fresh === true);
+  R.ok(MR.fails.some((f) => f.startsWith(mu.rule)), 'mutant "' + mu.name + '" was NOT caught by ' + mu.rule + ' (fails: ' + (MR.fails.join(' | ') || 'none') + ')');
+}
+/* The big pull: what the floor hours cannot see (a Bear Claw at 2% passes them untouched). */
+for (const mu of bigPullMutants) {
+  const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
+  bigPull(M, P, clone(M.MONSTERS, mu.edit), MR, false);
   R.ok(MR.fails.some((f) => f.startsWith(mu.rule)), 'mutant "' + mu.name + '" was NOT caught by ' + mu.rule + ' (fails: ' + (MR.fails.join(' | ') || 'none') + ')');
 }
 for (const mu of plantMutants) {
@@ -805,5 +858,5 @@ for (const mu of rangerMutants) {
     if (MR.fails.length) console.log('  ranger mutant "' + mu.name + '" caught: ' + MR.fails[0].slice(0, 160));
   } finally { p.done(); }
 }
-if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases + the plays, ' + (dataMutants.length + engineMutants.length + playMutants.length + plantMutants.length + casterMutants.length + warrensMutants.length + rangerMutants.length) + ' mutants caught');
+if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases + the plays, ' + (dataMutants.length + engineMutants.length + playMutants.length + bigPullMutants.length + plantMutants.length + casterMutants.length + warrensMutants.length + rangerMutants.length) + ' mutants caught');
 R.finish();

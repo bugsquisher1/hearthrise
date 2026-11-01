@@ -6,8 +6,8 @@
 // or section gives. intent-words.js refusalText asks here first for a market verb; a code
 // not named here reads from src/data/refusal-words.js like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { whole } from '../render/format.js?v=0.2.78';
-import { depotOf, nameOf } from '../session/item-sections.js?v=0.2.78';
+import { whole } from '../render/format.js?v=0.2.79';
+import { depotOf, nameOf } from '../session/item-sections.js?v=0.2.79';
 
 const MARKET_VERBS = new Set(['market_list', 'market_buy', 'market_cancel', 'market_browse', 'market_item', 'market_mine']);
 
@@ -20,8 +20,8 @@ function resetWords() {
 
 const WORDS = Object.freeze({
   insufficient_item: () => 'You don\'t have that many any more.',
-  price_below_shop: (f) => (f.floor === undefined ? 'That\'s less than the shop pays. Ask at least that, or sell it at the shop.'
-    : 'The shop pays ' + whole(f.floor) + ' for one. Ask at least that, or sell it at the shop.'),
+  price_below_shop: (f) => (f.floor === undefined ? 'That\'s less than the shop pays, and nothing lists below that. Sell it at the shop or ask more.'
+    : 'The shop pays ' + whole(f.floor) + ' for one, and nothing lists below that. Sell it at the shop or ask more.'),
   price_above_cap: (f) => 'That\'s more than this can be listed for.' + (f.ceiling === undefined ? '' : ' The most is ' + whole(f.ceiling) + ' each.'),
   storage_no_room: (f, cs) => {
     const d = cs ? depotOf(cs) : null;

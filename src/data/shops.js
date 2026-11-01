@@ -42,8 +42,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.78';
-import { ITEMS } from './items.js?v=0.2.78';
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.79';
+import { ITEMS } from './items.js?v=0.2.79';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 
@@ -375,13 +375,13 @@ export const SHOP_OFFERS = [
   {
     id: "room.shrine.3", table: "room",
     name: "Shrine — The Chapel",
-    cost: [{ kind: "currency", id: "gold", amount: 13000 }, { kind: "item", id: "dragon_bones", amount: 8 }],
+    cost: [{ kind: "currency", id: "gold", amount: 13000 }, { kind: "item", id: "big_bones", amount: 40 }],
     grant: [{ kind: "unlock", id: "room:shrine", amount: 3 }],
   },
   {
     id: "room.shrine.4", table: "room",
     name: "Shrine — The Reliquary",
-    cost: [{ kind: "currency", id: "gold", amount: 55000 }, { kind: "item", id: "big_bones", amount: 60 }, { kind: "item", id: "grave_dust", amount: 20 }, { kind: "item", id: "iron_fitting", amount: 10 }],
+    cost: [{ kind: "currency", id: "gold", amount: 55000 }, { kind: "item", id: "big_bones", amount: 60 }, { kind: "item", id: "iron_fitting", amount: 10 }, { kind: "item", id: "magic_essence", amount: 30 }],
     grant: [{ kind: "unlock", id: "room:shrine", amount: 4 }],
   },
   {
@@ -399,19 +399,19 @@ export const SHOP_OFFERS = [
   {
     id: "room.trophy.2", table: "room",
     name: "Trophy Room — The Hall",
-    cost: [{ kind: "currency", id: "gold", amount: 8000 }, { kind: "item", id: "troll_hide", amount: 3 }],
+    cost: [{ kind: "currency", id: "gold", amount: 8000 }, { kind: "item", id: "bear_pelt", amount: 2 }],
     grant: [{ kind: "unlock", id: "room:trophy", amount: 2 }],
   },
   {
     id: "room.trophy.3", table: "room",
     name: "Trophy Room — Hall of Heads",
-    cost: [{ kind: "currency", id: "gold", amount: 25000 }, { kind: "item", id: "dragon_scale", amount: 2 }],
+    cost: [{ kind: "currency", id: "gold", amount: 25000 }, { kind: "item", id: "bear_pelt", amount: 4 }],
     grant: [{ kind: "unlock", id: "room:trophy", amount: 3 }],
   },
   {
     id: "room.trophy.4", table: "room",
     name: "Trophy Room — Hall of Banners",
-    cost: [{ kind: "currency", id: "gold", amount: 60000 }, { kind: "item", id: "ancient_claw", amount: 3 }, { kind: "item", id: "bear_pelt", amount: 6 }, { kind: "item", id: "iron_fitting", amount: 12 }],
+    cost: [{ kind: "currency", id: "gold", amount: 60000 }, { kind: "item", id: "bear_pelt", amount: 6 }, { kind: "item", id: "iron_fitting", amount: 12 }, { kind: "item", id: "war_crown", amount: 1 }],
     grant: [{ kind: "unlock", id: "room:trophy", amount: 4 }],
   },
   {

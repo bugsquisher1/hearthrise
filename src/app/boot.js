@@ -161,7 +161,7 @@ function startApp(win) {
 
   async function signOut() {
     endWatchers();
-    if (alerts) { alerts.destroy(); alerts = null; }
+    if (alerts) { alerts.leaving(); alerts.destroy(); alerts = null; }
     if (account) { const a = account; account = null; await a.signOut(); } else await auth.signOut();
     obs.forget();
     showAuth('sign-in');
@@ -368,6 +368,9 @@ function startApp(win) {
 
   /* A HIDDEN PAGE ASKS NOTHING (AccountSession.setPageHidden): the hunts run on the server; shown again, one catch-up. */
   doc.addEventListener('visibilitychange', () => { if (account) account.setPageHidden(doc.hidden); });
+  /* A phone's tab may never run again once hidden, and a closed one goes now: what "While you were away" reads is written on the way out (away-recap.js). */
+  doc.addEventListener('visibilitychange', () => { if (alerts && doc.hidden) alerts.leaving(); });
+  win.addEventListener('pagehide', () => { if (alerts) alerts.leaving(); });
 
   auth.onChange((ev) => {
     if (ev === 'recovery') showAuth('set-password');

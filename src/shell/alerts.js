@@ -273,6 +273,10 @@ export function createAlertCenter(account) {
       return true;
     },
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    /** The page is being left (src/app/boot.js): every open hero's last-seen stamp and pending residue go now, on a fetch that outlives the page. */
+    leaving() {
+      for (const cs of account.characters()) { stampAway(cs, true); cs.flushResidue({ keepalive: true }).catch(() => {}); }
+    },
     destroy() { offAccount(); for (const slot of Array.from(watching.keys())) unwatch(slot); listeners.clear(); },
   };
 }

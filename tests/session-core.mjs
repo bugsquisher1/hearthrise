@@ -1854,7 +1854,7 @@ const MUTANTS = [
   ['a roster answer that is no hero is taken, not read', 'src/session/character-session.js', "held && this._take(held, 'load') ? Promise.resolve(true) : this._reads.load();", "held ? Promise.resolve(this._take(held, 'load')) : this._reads.load();"],
   ['a roster answer is spent more than once', 'src/session/account-session.js', '    this._rosterReads.delete(slot);\n', ''],
   ['[tick-span] a mid-hunt verb refused settle_first is not caught up', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    return ans;'],
-  ['[tick-span] the catch-up retry reuses the refused key', 'src/session/catch-up.js', "() => server.rpc(name, { ...args, p_idem: newIdem() })", '() => server.rpc(name, args)'],
+  ['[tick-span] the catch-up retry reuses the refused key', 'src/session/catch-up.js', "() => server.rpc(name, { ...args, p_idem: newIdem() }, opt)", '() => server.rpc(name, args)'],
   ['[tick-span] the catch-up retries without settling first', 'src/session/catch-up.js', '    try { await o.catchUp(); } catch (e) { /* the retry\'s own answer says what the server holds */ }\n', ''],
   ['[tick-span] an engine intent\'s catch-up retry reuses the refused key', 'src/session/catch-up.js', 'const next = { ...body, intentId: newIdem() }; return server.accrue(next);', 'return server.accrue(body);'],
   ['[tick-span] a refusal in town is caught up too', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    if (!catchingUp(ans)) return ans;'],

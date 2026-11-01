@@ -572,13 +572,13 @@ export class CharacterSession {
     return true;
   }
 
-  /** Send the pending residue now (one put). */
-  async flushResidue() {
+  /** Send the pending residue now (one put). `keepalive`: the put outlives the page (it is being left). */
+  async flushResidue({ keepalive = false } = {}) {
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
     const patch = this._pending;
     if (this._closed || !Object.keys(patch).length) return false;
     this._pending = {}; this._sent = Object.assign({}, this._sent, patch);
-    const ans = await this._server.rpc('hr_put_client_state', { p_slot: this.slot, p_patch: patch, p_idem: newIdem() });
+    const ans = await this._server.rpc('hr_put_client_state', { p_slot: this.slot, p_patch: patch, p_idem: newIdem() }, { keepalive });
     if (!ans.ok && !this._closed) this._pending = Object.assign(patch, this._pending);   // kept for the next put
     return ans.ok;
   }

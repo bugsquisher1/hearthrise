@@ -34,6 +34,10 @@
 //        before any Play (src/world/prewarm.js), and the World never fetches one again
 //   B-15 A SESSION THAT ENDS WHILE THE TOWN PREWARM RUNS STOPS IT (v0.2.71 merge; run 41045835796: 6 sheets):
 //        signed out with the atlas manifests still held, the page asks for no sheet afterwards
+//   B-17 "WHILE YOU WERE AWAY" IS WRITTEN ON THE WAY OUT (beta cost 11-01: a put a minute per hero): a hunt on screen with a young
+//        stamp writes nothing; hiding the page writes every open hero's stamp once, on a fetch that outlives the page; a page
+//        flickering in and out of view writes no more; a page closed with no hide event (pagehide alone) still gets it out;
+//        a hunt this page has not stamped yet is stamped at once, so a tab killed with no goodbye still has an answer
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
 //        localStorage or sessionStorage (auth key, sb-*, the tab id, the heroes it had open)
@@ -102,6 +106,7 @@ async function stubServer(page, o) {
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const url = r.request().url();
     const body = JSON.parse(r.request().postData() || '{}');
+    if (o.puts && url.endsWith('/rpc/hr_put_client_state')) { o.puts.push(body); return r.fulfill({ contentType: 'application/json', body: '{"ok":true}' }); }
     if (o.revoked) { o.dead++; return r.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'UNAUTHORIZED_ASYMMETRIC_JWT' }) }); }
     if (o.closed) return r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'hr_closed', message: 'closed' }) });
     if (o.heroes) {   // a stateful account: { slot: name } heroes; hr_create_hero adds one, named
@@ -128,7 +133,8 @@ async function stubServer(page, o) {
           state: { active_kind: 'idle', gold: o.purse !== undefined ? (o.lag && o.lag[slot] ? o.lag[slot].gold : o.purse) : 0,
             gold_v: o.purse !== undefined ? (o.lag && o.lag[slot] ? o.lag[slot].v : o.goldV) : 0, level_xp: LEVEL_10_XP },
           /* B-9h: a hero the server holds in an open hunt ({ slot: hunt id }) */
-          ...(o.hunting && o.hunting[slot] ? { hunt: { session_id: '5d1c0f2e-0000-4000-8000-00000000000' + slot, hunt_id: o.hunting[slot], ended: false } } : {}) })
+          ...(o.hunting && o.hunting[slot] ? { hunt: { session_id: '5d1c0f2e-0000-4000-8000-00000000000' + slot, hunt_id: o.hunting[slot], ended: false } } : {}),
+          ...(o.stamped ? { client_state: { awaySeen: { s: '5d1c0f2e-0000-4000-8000-00000000000' + slot, at: Date.parse('2026-10-17T00:00:00Z') - 5 * 60000, xp: LEVEL_10_XP } } } : {}) })
           : { ok: false, error: 'no_character', hero_slots: slots };
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
       }
@@ -285,6 +291,59 @@ async function checks(overrides) {
       await page.waitForTimeout(400);
       if (errors.length) fails.push('B-8 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
+    }
+
+    { // B-17 the away stamp goes on the way out, for every open hero
+      const opened = async (stamped) => {
+        const o = { heroes: { 0: 'Tester', 1: 'Runner' }, hunting: { 0: 'mill_cellar', 1: 'mill_cellar' }, created: [], puts: [], stamped };
+        const f = await fresh(o);
+        /* what each put asked of the browser, and a page hidden on demand (document.hidden is not ours to set in a headless page) */
+        await f.page.addInitScript(() => {
+          const real = window.fetch;
+          window.__kept = [];
+          window.fetch = (u, i) => { if (String(u).endsWith('/rpc/hr_put_client_state')) window.__kept.push(!!(i && i.keepalive)); return real(u, i); };
+          let hidden = false;
+          Object.defineProperty(Document.prototype, 'hidden', { configurable: true, get: () => hidden });
+          window.__hide = (on) => { hidden = on; document.dispatchEvent(new Event('visibilitychange')); };
+        });
+        await f.page.goto(base + '/play.html', { waitUntil: 'load' });
+        await wait(f.page, () => document.querySelector('form[data-auth="sign-in"]'));
+        await f.page.fill('input[name=email]', 'qa@example.test');
+        await f.page.fill('input[name=password]', 'not-a-real-password');
+        await f.page.click('.auth-submit');
+        await wait(f.page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+        await f.page.click('[data-app="play"][data-slot="0"]');
+        await wait(f.page, () => document.querySelector('.char-tab[data-slot="1"]'));
+        await f.page.waitForTimeout(2500);   // past the residue's debounce
+        return Object.assign(f, { o });
+      };
+      const stamps = (o) => o.puts.filter((p) => p.p_patch && p.p_patch.awaySeen);
+      const seen = (o) => stamps(o).map((p) => p.p_slot).sort().join();
+
+      const a = await opened(true);
+      if (stamps(a.o).length) fails.push('B-17 a hunt on screen wrote its stamp with no one leaving: ' + JSON.stringify(stamps(a.o)));
+      await a.page.evaluate(() => window.__hide(true));
+      await a.page.waitForTimeout(400);
+      if (seen(a.o) !== '0,1') fails.push('B-17 hiding the page did not write each open hero\'s stamp: slots [' + seen(a.o) + ']');
+      const kept = await a.page.evaluate(() => window.__kept);
+      if (!kept.length || !kept.every(Boolean)) fails.push('B-17 the stamp was not sent on a fetch that outlives the page: ' + JSON.stringify(kept));
+      for (let i = 0; i < 6; i++) { await a.page.evaluate((h) => window.__hide(h), i % 2 === 0 ? false : true); await a.page.waitForTimeout(40); }
+      await a.page.waitForTimeout(300);
+      if (stamps(a.o).length !== 2) fails.push('B-17 a page flickering in and out of view wrote ' + stamps(a.o).length + ' stamps, not its first 2');
+      if (a.errors.length) fails.push('B-17 console errors: ' + a.errors.slice(0, 3).join(' | '));
+      await a.ctx.close();
+
+      const b = await opened(true);
+      /* closed with no visibilitychange seen (the event order a browser owes nobody): pagehide alone. The event, not a real
+         navigation: Playwright's routes do not see a request still in flight from a document that has gone. */
+      await b.page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: false })));
+      await b.page.waitForTimeout(400);
+      if (seen(b.o) !== '0,1') fails.push('B-17 a page closed did not get its heroes\' stamps out: slots [' + seen(b.o) + ']');
+      await b.ctx.close();
+
+      const c = await opened(false);
+      if (seen(c.o) !== '0,1') fails.push('B-17 a hunt not stamped yet was not stamped at once (a killed tab would have no answer): slots [' + seen(c.o) + ']');
+      await c.ctx.close();
     }
 
     { // B-12 a scene switches whole: the cellar shows only once the sheet it adds to the Common's has arrived
@@ -578,6 +637,13 @@ const MUTANTS = [
   ['a reload whose shown hero does not load stays on the reading screen (B-9)', 'src/app/boot.js', 'if (was && await play(was.viewed, was.slots)) return;', 'if (was) { await play(was.viewed, was.slots); return; }'],
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
+  ['the away stamp is not written on hide (B-17)', 'src/app/boot.js', 'if (alerts && doc.hidden) alerts.leaving();', ''],
+  ['the away stamp is not written on page leave (B-17)', 'src/app/boot.js', "win.addEventListener('pagehide', () => { if (alerts) alerts.leaving(); });", ''],
+  ['the away stamp goes on a fetch the closing page cancels (B-17)', 'src/shell/alerts.js', 'cs.flushResidue({ keepalive: true })', 'cs.flushResidue()'],
+  ['the keepalive never reaches the fetch (B-17)', 'src/session/server.js', '...(keep && body.length < KEEPALIVE_MAX_BYTES ? { keepalive: true } : {}),', ''],
+  ['only the viewed hero is stamped on the way out (B-17)', 'src/shell/alerts.js', 'for (const cs of account.characters()) { stampAway(cs, true);', 'for (const cs of account.characters().slice(0, 1)) { stampAway(cs, true);'],
+  ['every flicker of the page writes (B-17)', 'src/shell/away-recap.js', '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', '(leaving ? -1 : STAMP_EVERY_MS)'],
+  ['the away stamp is written every minute again (B-17)', 'src/shell/away-recap.js', 'export const STAMP_EVERY_MS = AWAY_MIN_MS;', 'export const STAMP_EVERY_MS = 60000;'],
   ['the town\'s sheets wait for Play again', 'src/app/boot.js', "    import('../world/prewarm.js?v=", "    Promise.resolve({ prewarmTown() {} }, '../world/prewarm.js?v="],
   ["a signed-out account's prewarm runs on (B-15)", 'src/world/prewarm.js', 'live: () => !run.stopped && alive() };', 'live: () => !run.stopped };'],
   ['the World fetches a prewarmed sheet again', 'src/render/images.js', '  let ready = HELD.get(url);\n  if (ready) return ready;', '  let ready = null;'],

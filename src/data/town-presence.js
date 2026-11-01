@@ -7,9 +7,9 @@
 // 2027-01-28-town-stands.sql (the stands and the read); the client keeps inside
 // them so a refusal is rare, never so a bound can be skipped:
 //   publishMinMs   never two position publishes closer than this (server floor 250 ms, 90/min)
-//   keepaliveMs    a standing hero re-publishes this often (server freshness 30 s)
-//   parkedKeepaliveMs  ...and an unviewed (parked) one says it is here (hr_town_here) this often,
-//                  still inside the 30 s freshness (server 30/min)
+//   keepaliveMs    a hero standing off its stand re-publishes this often, and an unviewed (parked) one says it is
+//                  here (hr_town_here, server 30/min): inside the 30 s a body and a steered tile last. A hero ON its
+//                  stand in a town being read sends none: the read is its keepalive (town-presence.js _keepaliveDue)
 //   pollMs         hr_town_view is read this often while a town is DRAWN (server 45/min): a frame that
 //                  asks for the people (walkers()); a hidden tab or a pane not drawing reads nobody
 //   idlePollMs     ...and this often once `idleAfterQuiet` answers in a row said nothing new and the hero stands (a town
@@ -26,8 +26,7 @@ import { TOWN_INSTANCE } from './world/stations.js?v=0.2.78';
 
 export const TOWN_PRESENCE = Object.freeze({
   publishMinMs: 1000,
-  keepaliveMs: 10000,
-  parkedKeepaliveMs: 20000,
+  keepaliveMs: 20000,
   pollMs: 2000,
   idlePollMs: 6000,
   idleAfterQuiet: 3,

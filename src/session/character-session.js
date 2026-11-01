@@ -479,8 +479,8 @@ export class CharacterSession {
     if (!this._record) { this._status = 'error'; this._emit('error'); }
   }
 
-  /** The full read, single-flight; resync: ONE bounded re-read after a refusal (read-gate.js). True when the record was replaced. */
-  load() { return this._closed ? Promise.resolve(false) : this._reads.load(); }
+  /** The full read, single-flight (`held`: a whole hr_load answer the account just got: read only if it does not land); resync: ONE bounded re-read after a refusal (read-gate.js). True when the record was replaced. */
+  load(held) { return this._closed ? Promise.resolve(false) : held && this._take(held, 'load') ? Promise.resolve(true) : this._reads.load(); }
   resync() { return this._closed ? Promise.resolve(false) : this._reads.resync(); }
   async _loadOnce() {
     if (this._closed) return false;

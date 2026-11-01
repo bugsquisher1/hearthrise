@@ -8,6 +8,8 @@
 //   node tests/town-walk.mjs --shots <dir>  also write the visual-gate screenshot (1440x900)
 //
 // TW-31 a town at rest reads every idlePollMs; anyone moving, or the hero's own step, brings back pollMs at once.
+// TW-32 a hero on its stand in a town being read publishes nothing (the read keeps it present); off its stand, or in a
+//       town nobody reads, one per keepaliveMs (inside the 30 s its tile lasts), and a lost one is asked again one poll on.
 // mutant-anchors: src/session/town-presence.js src/session/account-session.js src/world/world-boot.js src/world/walk-scene.js src/world/sandbox-scene.js src/app/world-pane.js supabase/migrations/2027-01-28-town-stands.sql
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
@@ -340,6 +342,51 @@ async function pureRules(M) {
     if (tail.length !== 2 || tail[1].args.p_map !== null) fail('TW-4 a publish in flight when the hero left town was not followed by a leave: ' + JSON.stringify(tail.map((c) => c.args.p_map)));
     tq.destroy();
   }
+  // TW-32: a hero on its stand in a town being read sends nothing (panel 10-31: 6 writes a minute, no input)
+  {
+    const sent = [];
+    let now = 0, poll = null, lose = false;
+    const base = meServer(sent);
+    const server = { rpc: (name, args) => (lose && name === 'hr_town_move' ? (sent.push({ name, args }), Promise.resolve({ ok: false, status: 0, error: 'network' })) : base.rpc(name, args)) };
+    const tp = new M.town.TownPresence({ server, slot: 0, self: () => TYLER, timers: { setTimer: (fn) => { poll = fn; return 1; }, clearTimer: () => {} }, now: () => now });
+    tp.show('town_common'); await settle();
+    const moves = () => sent.filter((c) => c.name === 'hr_town_move').length;
+    const reads = () => sent.filter((c) => c.name === 'hr_town_view').length;
+    /* `ms` of 250 ms frames (none while the tab is hidden) with the poll's timer running; microtasks only: the answers are resolved promises */
+    const run = async (place, ms, drawn = true) => {
+      for (const end = now + ms; now < end;) {
+        now += 250;
+        if (drawn) { tp.publish(place); tp.walkers(); }
+        if (now % L.pollMs === 0) poll();
+        for (let i = 0; i < 16; i++) await null;
+      }
+    };
+    const onStand = at(4, 11);
+    await run(onStand, 180000);
+    if (moves() !== 1) fail('TW-32 a hero on its stand sent ' + moves() + ' publishes in 3 minutes (want the first, then none)');
+    if (reads() < 180000 / L.idlePollMs - 2) fail('TW-32 the read that keeps it present stopped: ' + reads() + ' in 3 minutes');
+    if (!(L.keepaliveMs >= 20000 && L.keepaliveMs + L.pollMs < 30000)) fail('TW-32 keepaliveMs ' + L.keepaliveMs + ' is not inside the 30 s a steered tile lasts');
+    sent.length = 0;
+    await run(at(8, 11), 3 * L.keepaliveMs);
+    if (moves() < 3 || moves() > 4) fail('TW-32 a hero standing off its stand sent ' + moves() + ' publishes in ' + 3 * L.keepaliveMs + ' ms (its step, then one per keepaliveMs: its tile lasts 30 s)');
+    sent.length = 0;
+    await run(at(4, 11, 9, 11), 2.5 * L.keepaliveMs);
+    if (moves() < 2) fail('TW-32 a hero stopped ON its stand tile with a goal elsewhere counted as on its stand: ' + moves() + ' publishes');
+    /* a lost keepalive is asked again one poll on, not a whole keepalive later (its tile lasts 30 s) */
+    await run(at(8, 11), L.keepaliveMs + L.pollMs);
+    lose = true; sent.length = 0;
+    await run(at(8, 11), L.keepaliveMs);
+    const lostAt = moves();
+    await run(at(8, 11), 2 * L.pollMs);
+    if (!(lostAt >= 1 && moves() > lostAt)) fail('TW-32 a lost keepalive was not asked again within two polls: ' + lostAt + ' then ' + moves());
+    lose = false;
+    await run(at(4, 11), 2000);
+    /* a tab no frame draws: no read stamps the body, so its keepalive does */
+    sent.length = 0;
+    await run(at(4, 11), 3 * L.keepaliveMs, false);
+    if (moves() < 2 || moves() > 4) fail('TW-32 a hero on its stand in a town nobody reads sent ' + moves() + ' keepalives in ' + 3 * L.keepaliveMs + ' ms');
+    tp.destroy();
+  }
   // TW-18: no tile before the server's stand; a parked character never names one
   {
     const sent = [];
@@ -382,15 +429,15 @@ async function pureRules(M) {
     tp.publish(at(12, 9)); await settle();
     sent.length = 0;
     if (typeof tp.park === 'function') tp.park(); else tp.show(null);   // the World pane switched to another character
-    const parked = L.parkedKeepaliveMs || L.keepaliveMs;
+    const parked = L.keepaliveMs;
     for (now = 1000; now <= 3 * parked; now += L.pollMs) { if (tick10) tick10(); await settle(); }
     const heres = sent.filter((c) => c.name === 'hr_town_here');
     if (sent.some((c) => c.name === 'hr_town_move') || heres.length < 2)
       fail('TW-10 an unviewed character left town, named a tile or stopped its keepalive: ' + JSON.stringify(sent.map((c) => c.name)));
     if (heres.some((c) => Object.keys(c.args).sort().join(',') !== 'p_map,p_slot' || c.args.p_slot !== 1 || c.args.p_map !== 'town_common'))
       fail('TW-10 a keepalive names more than its slot and map: ' + JSON.stringify(heres[0] && heres[0].args));
-    /* perf audit 10-23: a parked body keeps alive at parkedKeepaliveMs (inside the server's 30 s), not the walking pace */
-    if (heres.length > 3 || !(parked > L.keepaliveMs && parked < 30000)) fail('TW-10 a parked body kept alive ' + heres.length + ' times in ' + 3 * parked + ' ms (every ' + parked + ' ms)');
+    /* perf audit 10-23: a parked body keeps alive at keepaliveMs (inside the server's 30 s), not the poll's pace */
+    if (heres.length > 3 || !(parked > L.pollMs && parked < 30000)) fail('TW-10 a parked body kept alive ' + heres.length + ' times in ' + 3 * parked + ' ms (every ' + parked + ' ms)');
     if (sent.some((c) => c.name === 'hr_town_view')) fail('TW-10 an unviewed character still reads the town');
     sent.length = 0; hunting = true;
     if (tick10) tick10(); await settle();
@@ -557,10 +604,10 @@ async function pureRules(M) {
     tp.show(town.id);             // ...and this one again
     if (String(tp.placeOn(town.id)) !== '14,9') fail('TW-15 viewed again, the body stands at ' + tp.placeOn(town.id) + ', not where it stood (14,9)');
     tp.park();
-    hunting = true; w15.hunting.add(TYLER + ':1'); now += L.parkedKeepaliveMs; tick15(); await settle();
+    hunting = true; w15.hunting.add(TYLER + ':1'); now += L.keepaliveMs; tick15(); await settle();
     hunting = false; w15.hunting.delete(TYLER + ':1'); w15.back.add(TYLER + ':1');
     const mark = w15.calls.length;
-    now += L.parkedKeepaliveMs; tick15(); await settle();
+    now += L.keepaliveMs; tick15(); await settle();
     const arr = w15.ARRIVE[0];
     if (String(tp.placeOn(town.id)) !== String([arr.x, arr.y]))
       fail('TW-15 back from a hunt the parked body stands at ' + tp.placeOn(town.id) + ', not where the server set it down (' + [arr.x, arr.y] + ')');
@@ -586,7 +633,7 @@ async function pureRules(M) {
     tp.publish(at(7, 8)); await settle();
     tp.park();
     stand = ME(19, 9, { station: 'woodpile', stand: 1, work: true, since_ms: 150 });
-    now += L.parkedKeepaliveMs; t19(); await settle();
+    now += L.keepaliveMs; t19(); await settle();
     if (String(tp.placeOn('town_common')) !== '19,9') fail('TW-19 a parked body the server moved stands at ' + tp.placeOn('town_common') + ', not its new stand (19,9)');
     tp.show('town_common'); await settle();
     sent.length = 0;
@@ -977,7 +1024,12 @@ async function switchRules(overrides) {
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const PURE_MUTANTS = [
   ['the publish is not capped', 'src/session/town-presence.js', '    if (since < this.limits.publishMinMs) return false;\n', ''],
-  ['standing still never keeps alive', 'src/session/town-presence.js', ' && !(keepalive || since >= this.limits.keepaliveMs)) return false;', ') return false;'],
+  ['standing still never keeps alive', 'src/session/town-presence.js', ' && !(keepalive || this._keepaliveDue(now))) return false;', ') return false;'],
+  ['a hero on its stand keeps publishing to a town it reads', 'src/session/town-presence.js', '    return !(onStand && this._drawn(now));', '    return true;'],
+  ['a hero off its stand stops keeping its tile', 'src/session/town-presence.js', '    const onStand = !!me && p.x === me.at[0] && p.y === me.at[1] && p.gx === p.x && p.gy === p.y;', '    const onStand = true;'],
+  ['a hero on its way past its stand counts as on it', 'src/session/town-presence.js', ' && p.gx === p.x && p.gy === p.y;', ';'],
+  ['a hero on its stand in a hidden tab falls out of town', 'src/session/town-presence.js', '    return !(onStand && this._drawn(now));', '    return !onStand;'],
+  ['a lost keepalive waits a whole keepalive', 'src/session/town-presence.js', '    const lost = () => { this._sentAt = now - this.limits.keepaliveMs + this.limits.pollMs; };', '    const lost = () => {};'],
   ['a blocked player stays drawn', 'src/session/town-presence.js', 'return this._walkers.filter((w) => !this._hidden(w.id));', 'return this._walkers.slice();'],
   ['your own character is a walker', 'src/session/town-presence.js', 'if (!w || (w.id === self && w.slot === this._slot)) continue;', 'if (!w) continue;'],
   ['your other character is hidden with you', 'src/session/town-presence.js', 'if (!w || (w.id === self && w.slot === this._slot)) continue;', 'if (!w || w.id === self) continue;'],
@@ -998,11 +1050,11 @@ const PURE_MUTANTS = [
   ['a parked body the server moved keeps its old place', 'src/session/town-presence.js', '    if (moved && this._parked) { this._want = null; this._sent = null; }\n', ''],
   ['the stand never changes once known', 'src/session/town-presence.js', '    const s = standOf(raw);', '    const s = this._me || standOf(raw);'],
   ['viewing another character leaves town', 'src/session/town-presence.js', '    if (!this._map) { this.stand(); return; }\n    this._parked = true;\n', '    if (!this._map) { this.stand(); return; }\n    this.show(null); return;\n'],
-  ['a parked character never keeps alive', 'src/session/town-presence.js', '      if (this._now() - this._hereAt >= (this.limits.parkedKeepaliveMs || this.limits.keepaliveMs)) this.here();\n', ''],
-  ['a parked body keeps alive at the walking pace', 'src/session/town-presence.js', '(this.limits.parkedKeepaliveMs || this.limits.keepaliveMs)', 'this.limits.keepaliveMs'],
+  ['a parked character never keeps alive', 'src/session/town-presence.js', '      if (this._now() - this._hereAt >= this.limits.keepaliveMs) this.here();\n', ''],
+  ['a parked body keeps alive at the poll\'s pace', 'src/session/town-presence.js', 'this._hereAt >= this.limits.keepaliveMs', 'this._hereAt >= this.limits.pollMs'],
   ['a parked body names the start tile', 'src/session/town-presence.js', "    return this._server.rpc('hr_town_here', { p_slot: this._slot, p_map: map }).then((ans) => {",
     "    this._server.rpc('hr_town_move', { p_slot: this._slot, p_map: map, p_x: 11, p_y: 9, p_gx: 11, p_gy: 9, p_dir: 's' });\n    return this._server.rpc('hr_town_here', { p_slot: this._slot, p_map: map }).then((ans) => {"],
-  ['a town nobody draws keeps reading', 'src/session/town-presence.js', '    if (this._now() - this._drawnAt <= 2 * this.limits.pollMs && this._readDue()) this.read();', '    if (this._readDue()) this.read();'],
+  ['a town nobody draws keeps reading', 'src/session/town-presence.js', '    if (this._drawn(this._now()) && this._readDue()) this.read();', '    if (this._readDue()) this.read();'],
   ['a town at rest keeps reading at the walking pace', 'src/session/town-presence.js', '    return this._quiet < L.idleAfterQuiet || this._now() - this._readAskedAt >= L.idlePollMs;', '    return true;'],
   ['a town at rest stays slow although someone moved', 'src/session/town-presence.js', '    this._quiet = walking || heard !== this._heard ? 0 : this._quiet + 1;', '    this._quiet++;'],
   ['a town at rest stays slow although the hero stepped', 'src/session/town-presence.js', "    if (!samePlace(place, this._want)) this._quiet = 0;   // the hero's own step: who is near it changes\n", ''],

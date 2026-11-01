@@ -107,26 +107,61 @@ Against where a lone hero is sent: the Warrens party already earns about 2x the 
 
 *Classes: four, not five.* Melee (shield or not), Ranger, Mage, Healer. Tyler 10-16: "Tank is a function (a Melee with shield/taunt), not a spec", and the screen says Melee on both. Tank + hammer measured no different from two tanks (0.85 and 0.91 at 8 each). A crossbow and shield is a Ranger.
 
-*THE RULE: Level XP only, never gold.* `share = monster XP / living heroes`, then `x table[ground][living heroes][different classes among the living]`, read fresh at every kill in `splitKillXp`, which already holds the living heroes. A data row per ground, in `src/data/hunt-xp.js`.
-| Ground | 2 heroes, classes 1 / 2 | 3 heroes, 1 / 2 / 3 | 4 heroes, 1 / 2 / 3 / 4 |
-|---|---|---|---|
-| Cellar, Thicket, Wickstead, Glade | 1.00 / **1.20** | 1.00 / 1.15 / **1.30** | 1.00 / 1.13 / 1.27 / **1.40** |
-| The Sewer | **0.80** / 1.00 | 0.80 / 1.08 / **1.15** | 0.80 / 1.08 / 1.17 / **1.25** |
-| The Warrens | 1.00 / 1.00 | 1.00 all | 1.00 all |
-One flat table cannot land: x1.40 on the Warrens would pay 1.6-1.7x a lone hero there and about 2.7x the Glade. Those grounds carry their premium already.
+*THE RULE: Level XP only, never gold.* `share = monster XP / living heroes`, then `x table[ground][living heroes][different classes among the living]`, read fresh at every kill. **And a party's default pull grows with its size, per ground; a lone hero's never moves** (2026-11-01: most players never press +, and with the bonus alone a mixed party as built stayed under solo, duo 0.86, four 0.74). Pull and table are both data rows per ground.
+| Ground | Default pull, 2 / 3 / 4 heroes | 2 heroes, classes 1 / 2 | 3 heroes, 1 / 2 / 3 | 4 heroes, 1 / 2 / 3 / 4 |
+|---|---|---|---|---|
+| Thicket | 4 / 5 / 6 | 1.00 / **1.15** | 1.00 / 1.13 / **1.27** | 1.00 / 1.13 / 1.20 / **1.27** |
+| Wickstead | 3 / 3 / 4 | **0.90** / **1.05** | 1.00 / 1.13 / **1.27** | 1.00 / 1.13 / 1.20 / **1.27** |
+| The Glade | 3 / 4 / 4 | 1.00 / **1.18** | 1.00 / 1.13 / **1.27** | 1.00 / 1.13 / 1.20 / **1.27** |
+| The Sewer | as built | **0.80** / 1.00 | 0.80 / 1.05 / **1.10** | 0.80 / 1.05 / 1.10 / **1.15** |
+| The Warrens | as built | 1.00 all | 1.00 all | 1.00 all |
+| Mill Cellar | as built | 1.00 / 1.20 | 1.00 / 1.13 / 1.30 | 1.00 / 1.13 / 1.27 / 1.40 |
+**The first table has to change:** 1.20 / 1.30 / 1.40 on top of a grown pull lands 1.33-1.39 for a four. It moves to 1.27, and the duo to a value per ground.
 
-*Where it lands* (solo grounds at 8 each; duo, trio and four played on Wickstead L13 through monster XP, the same arithmetic, 2 seeds): duo **1.11** (target 1.05-1.15), trio **1.14** (1.10-1.20), four **1.22** (1.15-1.25). By ratio over L5-L31: duo 1.08-1.14, four 1.15-1.26. The Sewer at 8 each by ratio: duo 1.00-1.12, trio 1.14, four 1.15-1.21. **As built a mixed party stays under solo** even with the bonus (duo 0.86, four 0.74), because the target is for a well-optimized party: so the leader's line has to say bigger pulls. Not measured: the Cellar, and trios anywhere but Wickstead L13 and Sewer L17.
+*Why pull alone fails.* At any pull, a mixed party and a same-class party earn about the same per head (Wickstead duo at 3 each: 1.00-1.11 and 1.05-1.10; Glade four at 8 each: 1.18 and 1.12-1.30). A pull that lifts one lifts the other. So each pull above is the largest where same-class stays at or under 1.00 with no cut. The one exception is the Wickstead duo: 3 each is the smallest step up from as built (0.72), and same class is already 1.01-1.10 there, so it takes the 0.90.
+
+*Measured, per head against the same heroes alone AS BUILT* (real settle, v0.2.78; parties 1 h x 2 seeds, lone heroes 1 h x 3; the same-class cells nearest the line played again on fresh seeds). The bonus is applied to the measured ratio.
+| Ground, pull | Mixed before bonus | Mixed with it | §5 | Same class, with its row |
+|---|---|---|---|---|
+| Thicket duo, 4 each | 0.87-1.00 | 1.00-1.15 | 1.05-1.15 | 0.88-0.95 |
+| Thicket trio, 5 each | 0.89 | 1.13 | 1.10-1.20 | 0.90-0.94 |
+| Thicket four, 6 each | 0.95 | 1.21 | 1.15-1.25 | 0.85-0.92 |
+| Wickstead duo, 3 each | 1.00-1.11 | 1.05-1.17 | 1.05-1.15 | 0.91-0.99 |
+| Wickstead trio, 3 each | 0.92-0.93 | 1.17-1.18 | 1.10-1.20 | 0.88-0.94 |
+| Wickstead four, 4 each | 0.97-0.99 | 1.23-1.26 | 1.15-1.25 | 0.88-0.95 |
+| Glade duo, 3 each | 0.89-0.98 | 1.05-1.16 | 1.05-1.15 | 0.93-0.95 |
+| Glade trio, 4 each | 0.93 | 1.18 | 1.10-1.20 | 0.95-0.98 |
+| Glade four, 4 each | 0.91-0.93 | 1.16-1.18 | 1.15-1.25 | 0.89-0.94 |
+| Sewer, as built (1 seed) | duo 1.14-1.21, trio 1.07, four 1.01-1.10 | 1.14-1.21, 1.18, 1.16-1.27 | | 0.73-0.94 |
+Within about 0.02 of the band except the Thicket's tank + healer (1.00) and a Sewer duo or four's top. The trio is thin: one or two mixes a ground.
+
+*What it costs.*
+- **Pressing + pays less than the first table did.** Against a lone hero who also goes to 8 each, a four lands 1.04-1.14 (was 1.15-1.26), and a Wickstead duo 0.95-1.00, about level with solo. I chose the default because most players never press it. If Tyler wants pressing + to stay on target too, the table needs a second value for a picked pull.
+- **Gold follows the pull with no bonus:** mixed net per head moves from 0.51-0.81 as built to about solo, 0.86-1.23, so parties create as much gold per head as lone heroes.
+- **Server cost unmeasured:** a Thicket four's instance holds 2.7x the monsters as built. Run `settle-budget` before shipping.
+- **Mill Cellar stays under solo:** 3 each only reaches 0.75-0.77 for a duo, and it is a tutorial room of about 20 minutes, so it is not worth a row. Its bonus numbers are unmeasured.
+- **The Warrens:** as built a four is 0.86-0.88 of a lone hero on the same ground, but a lone hero there at Level 22 loses 6k to 30k g/h, and against the Glade the party already earns about 2x. No row.
+- **Dice:** cells are 2-3 hero-hours, so about 3% either way. The guard should play these at more seeds.
+
+*Safety at the new pulls* (2 h x 3 seeds a cell, 2 x 12 h for the long runs): **0 deaths in every cell.** Fresh heroes in the practice set: Thicket Level 5 typical 80-100%, Wickstead Level 8 typical 82-100%, worst tenth 59-91%. Glade floor in floor gear: 89-100%. Twelve-hour hunts: Wickstead Level 8 practice duo and four, Glade Level 16 duo, 24 hours each, 0 deaths, 0 dips under 25%. **One edge:** unarmored hammer parties at the Thicket's floor had 2 dips under 25% in 6 h (three hammers at 5 each, four at 6 each), about the ruling's limit of one per hero per 12 h. The practice set is not what the ruling calls properly equipped, and armor drops there within the hour. All other bars: above +25% over the bill.
+
+*Exactly what changes* (for `lane/b-party-class-xp`):
+1. The XP table in the lane's data row: the values above.
+2. `src/data/hunt-grounds.js`: a new `partyPull` on three ground rows, `meadowbrook_thicket [0, 4, 5, 6]`, `wickstead [0, 3, 3, 4]`, `mosslight_glade [0, 3, 4, 4]`; absent = as built.
+3. `densityFor(ground, partySize, pick)`, the same file: with no pick and more than one hero, answer `partyPull[n - 1]`, clamped as now. Size 1 is untouched, so the solo Level curve cannot move; `level-curve` must stay green. `combat-sim.js` calls it when the world opens, so a death or a leave never changes the pull mid-hunt.
+4. `src/shell/hunt-list.js densityStep`: in a party, pick 0 now means the party's pull, so the steps must treat it as that size or a press would jump. `hunts.js` already shows the answer ("4 each"), and the note should say "Your party's pull".
+5. It moves the edge bundle: both paths, one local run-smoke, one deploy.
 
 *The hard line: a same-class party never beats solo per head.* Holds today on the Thicket, Wickstead, the Glade and the Warrens with no cap: best pull against the members' best pull alone, at most 0.99. **It breaks on the Sewer today**: 1.13-1.18 as built and up to 1.05 at the best pull, because the Rat King's hall opens only to a party. The cap is the Sewer's 0.80: its worst same-class cell (two bows, Level 8, as built) lands 0.95. x0.85 is not enough: it leaves that cell at 1.00. Dice: Sewer cells are one seed, so the engine lane's guard must play this at more seeds, on every ground, as built and at the full box, with the bar at 1.00.
 
 *Edge cases.*
-- **3 tanks + 1 healer:** two classes of four. 1.13 on a solo ground lands 0.92 at 8 each, better than same class and still under solo. 1.08 on the Sewer lands 1.04. A partial mix earns part of the bonus, and it should not beat solo by much.
-- **A death or a leave mid-hunt:** the next kill reads the living. Healer dead in a full four: 3 heroes, 3 classes, 1.30. No latch and no grace. A hero's class cannot change mid-hunt, since gear goes on in town. The default "Leave if anyone leaves" box sends most parties home anyway.
-- **One player's own four heroes:** paid as four strangers are, 1.22x per head at 8 each. Account total on Wickstead L13: about 218k Level XP/h, against 178k for the same four hunting alone (+22%) and 157k today. Gold gets no bonus (0.91x per head). **Monitor: flag any account with 3+ own heroes in one party whose per-head Level XP over 20 hunted hours exceeds 1.30x that ground's solo pace.** Review if flagged accounts pass a quarter of party hours.
+- **3 tanks + 1 healer:** two classes of four. 1.13 at the default pull lands 0.98 on Wickstead and the Glade; on the Sewer at 1.05 about 1.01 at 8 each (as built not measured). Three of four classes land 1.04-1.16. A partial mix earns part of the bonus and does not beat solo by much.
+- **A death or a leave mid-hunt:** the next kill reads the living. Healer dead in a full four: 3 heroes, 3 classes, 1.27. No latch and no grace. A hero's class cannot change mid-hunt, since gear goes on in town. The default "Leave if anyone leaves" box sends most parties home anyway.
+- **One player's own four heroes:** paid as four strangers are. Account total on Wickstead L13 at the default: about 140k Level XP/h, against 114k for the same four hunting alone as built (+22%) and 62k as a party today. Gold gets no bonus (about 1.0x per head). **Monitor: flag any account with 3+ own heroes in one party whose per-head Level XP over 20 hunted hours exceeds 1.30x that ground's solo pace.** Review if flagged accounts pass a quarter of party hours.
 - **A low-Level hero brought along for its class:** counts while alive and takes its even share, so the others lose XP to it. Watch it in the same flag.
 - **Not fixed by this:** a lone hammer at 8 each earns 71.9k on Wickstead against 54.4k for the mixed four. That is role parity (Tyler's open item), not this rule.
 
-*Where a player sees it*, before Start with party, on the Hunts page's party block and the Party window's Your party tab, from the same table: "Your party has 2 of 4 classes: 20% more Level XP here. Melee, Ranger, Mage and Healer each count." On the Sewer, one class: "One class only: 20% less Level XP here." No-bonus cells: "Your party has 1 of 4 classes: no extra Level XP here." The pull line beside it already says bigger pulls pay. Both ship with the engine change, so the words are never ahead of the game.
+*Where a player sees it*, before Start with party, on the Hunts page's party block and the Party window's Your party tab, from the same table: "Your party has 2 of 4 classes: 15% more Level XP here. Melee, Ranger, Mage and Healer each count." On the Sewer, one class: "One class only: 20% less Level XP here." (Wickstead duo: 10%.) No-bonus cells: "Your party has 1 of 4 classes: no extra Level XP here." The pull line beside it already says bigger pulls pay. All of it ships with the engine change, so the words are never ahead of the game.
 
 **(c) Hero power barely moves income.** Confirmed as built, and it is the walk again:
 | Kills/h, tank | Fresh, practice set | Grown, in gear | As built | At 8 each |

@@ -231,8 +231,8 @@ const BASE_RECIPES = {
 
        The faucet was never the batch anyway — it was `iron_arrows.v` at 60,
        fixed at the item (see the block in src/data/items.js). At v:1 this rung
-       vendors for 50 g against 180 g of input, i.e. it is no longer profitable
-       to farm, which is CORRECT for a consumable: arrows are made to be shot,
+       vendors for 50 g; since the craft wage (designer 2026-11-01) its inputs bid 24 g and the
+       whole cycle from the rock pays under hunting (tests/craft-wages.mjs): arrows are made to be shot,
        not sold, and paying for the capability is the point.
 
        ⏳ REDUNDANCY, STATED FOR THE GAME DESIGNER: `fletch_barbed_arrows` is

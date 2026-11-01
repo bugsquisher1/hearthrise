@@ -32,8 +32,8 @@ import { isMain } from './_is-main.mjs';
 
 const OFFERS = '2027-02-16-house-pelts-unlock-offers.generated.sql';
 const BOUNDS = '2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql';
-/* The next forward catalogue, applied right after these two: a full replace that carries the bear's bound. */
-const CARRIES = '2027-02-16-party-pull-hunt-sessions-catalogue.generated.sql';
+/* The newest forward catalogue, applied after these two: a full replace that carries the bear's bound. */
+const CARRIES = '2027-02-18-craft-economy-hunt-sessions-catalogue.generated.sql';
 const GLADE = 'mosslight_glade';
 const NEEDED = 5;
 const STEP_MS = 2 * 60000;           // one settle fire's reach (HUNT_SETTLE_SPAN_MS: a longer backlog lands in slices)

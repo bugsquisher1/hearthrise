@@ -855,7 +855,7 @@ export function isAutoEatable(item) {
    selling Dawnstone out-earned the King renown reward — 300,000 gold, the
    eleventh of twelve ranks — every 32 minutes, while asleep. This puts the
    three systems back in their correct economic roles: gathering is the
-   MATERIAL faucet, the artisan skills are the GOLD path, and the player
+   MATERIAL faucet (its "artisan skills are the GOLD path" is superseded: BULK_GOODS below), and the player
    market becomes the best price for raws, because another player will pay
    more than 20% for something they actually need.
 

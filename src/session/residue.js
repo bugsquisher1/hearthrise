@@ -183,6 +183,7 @@ function sanitizePanelAlpha(v) {
 /* The coach line's fold (src/shell/launcher.js coachFoldOf): folded or not, and the card id the player last had in
    front of them (a goal id joins its parts, so it may run long); and `read`, the tutorial cards the player pressed
    Got it on or had on screen long enough to read (src/shell/launcher.js markCoachRead; ids, oldest first, bounded).
+   and `back`, the hunt session the player last came back to after an absence (src/shell/away-recap.js).
    Display state like the death popup's seen mark: a read only finishes a card that teaches; it gates and spends nothing. */
 export const COACH_READ_MAX = 128;
 function sanitizeCoach(v) {
@@ -194,6 +195,7 @@ function sanitizeCoach(v) {
     const read = Array.from(new Set(v.read.filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,64}$/.test(id)))).slice(-COACH_READ_MAX);
     if (read.length) out.read = read;
   }
+  if (typeof v.back === 'string' && /^[A-Za-z0-9_:.-]{1,64}$/.test(v.back)) out.back = v.back;
   return out;
 }
 

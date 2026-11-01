@@ -33,7 +33,7 @@ export const END_WORDS = Object.freeze({
   ammo_out: 'You ran out of ammunition.',
   gold_out: 'Ran out of gold for supplies, returned to town.',
   rule: 'One of your stop rules was met, so you headed home.',
-  stamina: 'Your stamina ran out.',
+  stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\'t hunting.',
   hours: 'The hunt reached its time limit.',
   left: 'You left the hunt.',
   changed: 'You moved on to another hunt.',
@@ -64,6 +64,15 @@ export function endWords(reason, forfeit, by, hero) {
     return END_REASON_COPY[reason].one.replace('{member}', by).replace('{name}', (typeof hero === 'string' && hero) || 'your hero');
   }
   return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || 'The hunt ended.';
+}
+
+/** The end card's reason line. `msLeft`: the stamina the server says the hero has now, given only for the newest hunt with none running:
+    out of stamina, the card says what it has rested back, so Hunt again is a decision and not a guess (panel 2026-11-01). */
+export function reasonWords(s, hero, msLeft) {
+  const why = s.reason ? endWords(s.reason, s.forfeit, s.by, hero) : 'The hunt ended.';
+  if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;
+  const m = Math.floor(msLeft / 60000);
+  return why + ' Stamina now: ' + (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min.';
 }
 
 /* A tally's loot / supplies, whichever shape the server sent: {item: n}, [{item, count}] or {item: {own, store}}. */

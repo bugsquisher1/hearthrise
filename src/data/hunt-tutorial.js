@@ -50,10 +50,10 @@
 //   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), armoured (wears armor or a shield), blessings { held, of, freeUntil, prices },
 //   endReason (the latest hunt's, once ended), death { xp, saved } (the newest death_log row), supplies [{ item,
 //   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready, empty },
-//   home { owned, next }, gold, staminaMs, tally { held, paid, weight }, and from the SHELL (the lane 1 / lane 2
+//   home { owned, next }, gold, staminaMs, tally { held, paid, weight }, sessionId (the open hunt's), and from the SHELL (the lane 1 / lane 2
 //   interface, src/session/tutorial-sections.js pointerCardOf's second argument): read (Set of read card ids),
 //   roster [{ slot, level, name, open, hunting }], slotsOwned, playLimit, sellable (stacks Sell all loot sells
-//   now), upgrades ([item] Equip upgrades would put on).
+//   now), upgrades ([item] Equip upgrades would put on), back (the hunt the player came back to after an absence), slotCost (the next hero slot's price).
 //
 // No number is restated here: floors are read from hunts.js, pockets from hunt-grounds.js, the turnip's hours from
 // gathering.js, Tamsin's task from tally-tasks.js, prices from the server's store rows, Blessings from the server's
@@ -105,6 +105,8 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   /* Services is the Shop's third tab (Tyler 2026-10-25): the Shop's icon, its Services tab, then the next Bless */
   services: anchor('the Shop\'s Services tab (src/shell/windows/services.js): the Shop\'s icon, the Services tab, then the control', 'shop', true, 'services'),
   storage: anchor('Storage (src/shell/windows/storage.js): its icon', 'storage', true),
+  market: anchor('the Weighhouse (src/shell/windows/market): its icon', 'market', true),
+  honor: anchor('the Roll of Honor (src/shell/windows/honor.js): its icon', 'honor', true),
   settings: anchor('Settings (src/shell/windows/settings.js): its icon, then the Help tab', 'settings', true),
   hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js): the bar\'s setup corner, then Save current setup', 'hunt-prep', true),
   house: anchor('the House (src/shell/windows/house.js): its icon, then Buy', 'house', true),
@@ -145,8 +147,11 @@ const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket';
 export const KNOWN_LEVEL = 5;
 /* How long into a hunt past the Cellar the "more than one hero" card waits (the designer's 5 minutes). */
 const MORE_HEROES_MS = 5 * 60000;
-/* "Taking a beating?" comes once the hero has eaten this many times in one hunt. */
+/* "Taking a beating?" comes once the hero has eaten this many times in one hunt, at this many meals an hour or more: a
+   count alone called 35 meals in 8.5 h a beating (panel 2026-11-01, about 4 an hour at full health). Measured: a practice-set
+   tank eats 35-50 an hour at the Thicket's floor, 170-250 in the Glade under its floor, and 0-5 in armor in band. */
 const BEATING_EATS = 3;
+const BEATING_PER_HOUR = 30;
 /* The bag counts as nearly full at this share of its stacks (the designer's 80 of 100). */
 const BAG_NEAR_FULL = 0.8;
 /* "Drink your own juice" waits for a hunt that has bought this many of the store's drinks (designer 2026-10-31,
@@ -172,6 +177,17 @@ const CLOAK_PELTS = ((ARTISAN_RECIPES.crafting || []).find((r) => r.output === '
    never asks a hero to eat below the designer's 50%. */
 const PCT_STEP = 5, EAT_FLOOR_PCT = 50;
 const IN_TOWN = { kind: 'in_town' }, HUNTING = { kind: 'hunting' };
+/* WHAT THE FIRST TWO HUNTS DON'T NEED WAITS (panel 2026-11-01: eighteen cards before the second hunt, boredom peaking at "Decide
+   once"): the Thicket is where a hero has time to read, and the second return is when a bag has something to decide about. */
+const THICKET_BEHIND = { kind: 'been', hunt: THICKET };
+/* WHAT TO WANT, ONCE EACH (the same ruling): the Weighhouse when it opens (hr_market_config's default: the window says the live Level, and
+   sewer.mjs pins this to its migration), the Roll of Honor from the first Level the gear runs thin (none from 18 to 30). */
+export const WEIGHHOUSE_LEVEL = 10;
+export const ROLL_LEVEL = 16;
+/* A hero past the guide's last ground has found them. */
+const WANT_BELOW = HUNT_INDEX.millrace_sewer.band[1] + 1;
+/* THE CARDS THAT SAY "JUST NOW" stand aside in a hunt the player has just come back to: they speak of what nobody watched. */
+const FRESH = { kind: 'fresh_hunt' };
 const READ = { kind: 'read' };
 /* A CARD THAT ASKS NEVER WALLS (first-hour play 2026-10-31: a hero who only watched sat on "Plant your land" at Level 5 and
    would have until 15, with Cash in and the Thicket behind it; QA's Pellow, "Order matters", the same). A card that asks for
@@ -229,19 +245,20 @@ export const HUNT_TUTORIAL = Object.freeze([
       inWindow: 'Press Services, then Bless on each Blessing while they\'re free.', hooks: TO_BLESS }),
   step('first_eat', 'Your hero just ate',
     'Your HP fell low, so a food slot ate for you.',
-    'action_bar', READ, { reactive: true, when: [HUNTING, { kind: 'ate' }] }),
+    'action_bar', READ, { reactive: true, when: [HUNTING, FRESH, { kind: 'ate' }] }),
   step('first_drink', 'Your hero just drank',
     'Your moves cost mana, so a drink slot drank for you.',
-    'action_bar', READ, { reactive: true, when: [HUNTING, { kind: 'drank' }] }),
+    'action_bar', READ, { reactive: true, when: [HUNTING, FRESH, { kind: 'drank' }] }),
   /* Tyler 2026-10-25: the stance, chase and distance sit ON the bar's right side, never behind the sliders popup. */
   step('fight_settings', 'Taking a beating?',
     'The stance on your bar changes how hard your hero hits and is hit: Defensive takes less damage and deals less.',
     'hud_vitals', { kind: 'any', of: [READ, { kind: 'stance_changed' }] },
-    { reactive: true, knowledge: true, gotIt: true, when: [HUNTING, { kind: 'eaten_at_least', n: BEATING_EATS }], hooks: ['[data-coach-hook="stance"]'] }),
+    { reactive: true, knowledge: true, gotIt: true, when: [HUNTING, FRESH, { kind: 'eating_fast', n: BEATING_EATS, perHour: BEATING_PER_HOUR }], hooks: ['[data-coach-hook="stance"]'] }),
   step('more_heroes', 'More than one hero',
     'Your hero keeps hunting while you do something else. You can play more heroes at once: press Characters, then Create hero in your empty slot.',
-    'characters', { kind: 'heroes', atLeast: 2 },
-    { reactive: true, knowledge: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
+    /* A card that asks never walls: played 2026-11-01, a hero who wants one hero sat on this card in every hunt past 5 minutes, ahead of the Thicket's lessons. */
+    'characters', orGotIt({ kind: 'heroes', atLeast: 2 }),
+    { reactive: true, knowledge: true, gotIt: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
       hooks: ['.char-tool[data-app="characters"]', '.char-pick[data-app="create"]'] }),
   /* Gated on THIS hero's Level (the server's level_xp), not only on the account having a second hero in town: a
      reactive card here interrupts the chain, so a Level 2 hero beside an older one was asked to party before its own
@@ -274,7 +291,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('no_defense', 'Defense isn\'t training',
     'Defense rises only from blows you take while wearing armor or a shield, and you wear neither. The Shop sells Leather Gloves, which suit every way to fight.',
     'shop', { kind: 'any', of: [READ, { kind: 'armoured' }] },
-    { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'unarmoured' }],
+    { reactive: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND, { kind: 'unarmoured' }],
       inWindow: 'Press Buy, then buy Leather Gloves. Put them on from your bag.', hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="buy"]'] }),
   /* ── B. The first hunt, the bar while it fights ────────────────────── */
   /* In the cellar wait (designer 2026-10-24: dead minutes from minute 2 to Level 5); hr_farm_plant does not refuse a hunter. */
@@ -302,14 +319,14 @@ export const HUNT_TUTORIAL = Object.freeze([
      pick, on the real controls. Adding it or Got it finishes it; a hero who adds it with no rune met "Spells need runes". */
   step('first_spell', 'A spell costs runes',
     'Your bar has no spell that uses runes yet.',
-    'action_bar', { kind: 'any', of: [READ, { kind: 'rune_spell_on' }] }, { knowledge: true, gotIt: true, when: [LESSON, { kind: 'rune_spell_none' }],
+    'action_bar', { kind: 'any', of: [READ, { kind: 'rune_spell_on' }] }, { knowledge: true, gotIt: true, when: [HUNTING, THICKET_BEHIND, { kind: 'rune_spell_none' }],
       /* deepest first: the first on screen is ringed (launcher.js ringPlan), so the ring walks tab -> spell -> rune */
       hooks: ['[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]', '[data-hs-win="configure-action"] .ca-row[data-id="{spell}"]',
         '[data-hs-win="configure-action"] .ca-tab[data-tab="runes"]'] }),
   /* THE HELP PAGE, POINTED AT (the panel: "the best thing you've written, buried behind a gear icon"). */
   step('help_page', 'The whole picture',
     'The gear icon at the top right opens Settings, and its Help page explains hunting, supplies, loot, gear and dying in plain words. It\'s there whenever you want it.',
-    'settings', READ, { knowledge: true, gotIt: true, when: [LESSON], hooks: ['[data-hs-win="settings"] .st-tab[data-cat="help"]'] }),
+    'settings', READ, { knowledge: true, gotIt: true, when: [HUNTING, THICKET_BEHIND], hooks: ['[data-hs-win="settings"] .st-tab[data-cat="help"]'] }),
   step('earn_the_thicket', 'Out to the brook',
     'Keep hunting here until Level ' + HUNT_INDEX[THICKET].band[0] + ', about a quarter of an hour into your first hunt; then '
       + HUNT_INDEX[THICKET].name + ' fits you. You can close the game: your hero keeps hunting until its stamina runs out, and what it earns waits for you.',
@@ -329,14 +346,16 @@ export const HUNT_TUTORIAL = Object.freeze([
     'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
     { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps fuel for the Great Hearth and food you can cook.',
       hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
+  /* One decision, not a form (panel 2026-11-01: a 14-dropdown list at hour one, "I don't know what I don't need yet"): after the
+     Thicket the bag knows what piles up, and a plan once set is kept for every hunt after (the first principle). */
   step('loot_rules', 'Decide once',
-    'Open your bag\'s This hunt tab and give each thing you don\'t need a plan: Sell, or Deposit in storage. Back in town, Dispatch loot does every plan in one press.',
-    'inventory', { kind: 'any', asks: true, of: [READ, { kind: 'loot_rule' }, { kind: 'been', hunt: THICKET }] },
-    { knowledge: true, gotIt: true, when: [IN_TOWN], inWindow: 'Press This hunt, then set each thing you don\'t need to Sell.',
+    'Your bag\'s This hunt tab lists what you picked up. Pick one thing you only ever sell and set it to Sell: the game remembers, and Dispatch loot does every plan you set in one press.',
+    'inventory', { kind: 'any', asks: true, of: [READ, { kind: 'loot_rule' }] },
+    { knowledge: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND], inWindow: 'Press This hunt, then set one thing you only ever sell to Sell. Set more whenever you like.',
       hooks: ['[data-hs-win="inventory"] .hw-tab[data-tab="hunt"]', '[data-hs-win="inventory"] [data-rule-item][data-coin]'] }),
   step('cook_catch', 'Cook your catch',
     'Open Gathering and crafting, press Cooking, then Start on Cook Shrimp. Your Raw Shrimp become the Cooked Shrimp your {slot:cooked_shrimp} eats.',
-    'crafting', orGotIt({ kind: 'skill_xp', skill: 'cooking' }), { gotIt: true, when: [IN_TOWN], ring: { skill: 'cooking', work: 'cook_shrimp' },
+    'crafting', orGotIt({ kind: 'skill_xp', skill: 'cooking' }), { gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { skill: 'cooking', work: 'cook_shrimp' },
       inWindow: 'Press Cooking, then Start on Cook Shrimp. Your Raw Shrimp become the Cooked Shrimp your {slot:cooked_shrimp} eats.' }),
   step('tamsins_task', 'Tamsin\'s wolves',
     'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
@@ -385,6 +404,12 @@ export const HUNT_TUTORIAL = Object.freeze([
     'From now on each Blessing costs gold. They still cut what a death takes.',
     'services', { kind: 'any', of: [{ kind: 'blessed' }, READ] }, { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'at_free' }, { kind: 'unblessed' }],
       hooks: TO_BLESS }),
+  step('weighhouse', 'The Weighhouse is open',
+    'List what you find there and other heroes can buy it, and they may pay more than the Shop. Press its icon to look around.',
+    'market', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: WEIGHHOUSE_LEVEL, below: WANT_BELOW }] }),
+  step('roll_of_honor', 'The Roll of Honor',
+    'It ranks every hero in Havora. See where you stand, and who is ahead of you.',
+    'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }),
 ]);
 
 /* The kinds the SERVER finishes on its own (no press of the player's): the shell keeps such a card up long enough
@@ -484,6 +509,8 @@ const FACTS = Object.freeze({
   no_shot: (p, f) => (f.ammo === undefined || !Array.isArray(f.slots) || !f.carried ? null : !canShoot(f)),
   shot_ready: (p, f) => (f.ammo === undefined || !Array.isArray(f.slots) || !f.carried ? null : canShoot(f)),
   hunting: (p, f) => !!f.huntId,
+  /* not the hunt the player has just come back to (the shell's `back`, away-recap.js): nobody watched what happened in it */
+  fresh_hunt: (p, f) => !f.back || f.back !== f.sessionId,
   in_town: (p, f) => !f.huntId,
   enter: (p, f) => reached(f, p.hunt) || (p.hunt === CELLAR && f.levelXp > 0),
   /* `past: true`: only a ground past `hunt` counts */
@@ -499,7 +526,7 @@ const FACTS = Object.freeze({
   /* Level and kills (Level XP comes from kills only, so > 0 means a kill landed) */
   kills: (p, f) => f.levelXp > 0,
   level: (p, f) => f.charLevel >= 2,
-  level_at: (p, f) => f.charLevel >= p.at,
+  level_at: (p, f) => f.charLevel >= p.at && (!p.below || f.charLevel < p.below),
   unlock: (p, f) => f.charLevel >= HUNT_INDEX[p.hunt].band[0],
   /* town work, judged on facts that stay (Farming and Cooking XP; the shared land) */
   /* "plant a seed in EACH empty plot" (playtest 2026-10-29 #12: one plot finished it, since a plant pays Farming XP): done
@@ -543,6 +570,7 @@ const FACTS = Object.freeze({
   drank: (p, f) => known(used(f, 'drink'), (r) => r.length > 0),
   bought_drinks: (p, f) => known(used(f, 'drink', 'store'), (r) => sum(r) >= p.n),
   eaten_at_least: (p, f) => known(used(f, 'food'), (r) => sum(r) >= p.n),
+  eating_fast: (p, f) => known(used(f, 'food'), (r) => sum(r) >= p.n && sum(r) * 3600000 >= p.perHour * (f.huntMs || 0)),
   stamina_low: (p, f) => known(f.staminaMs, (ms) => ms <= STAMINA_LOW_MIN * 60000),
   /* the bag, loot and gear */
   sellable: (p, f) => known(f.sellable, (n) => n > 0),
@@ -574,7 +602,7 @@ const FACTS = Object.freeze({
   read: (p, f, c) => (f.read instanceof Set ? f.read.has(c.id) : null),
 });
 const PARAMS = Object.freeze({ lesson_time: ['hunt'], enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'],
-  tally_taken: ['task'], hunt_age: ['min', 'past'], pull: ['ground', 'pocket'], eaten_at_least: ['n'], heroes: ['atLeast'], drink_slot: ['item'],
+  tally_taken: ['task'], hunt_age: ['min', 'past'], pull: ['ground', 'pocket'], eaten_at_least: ['n'], eating_fast: ['n', 'perHour'], heroes: ['atLeast'], drink_slot: ['item'],
   carries: ['item'], kills: ['atLeast'], fuel_held: ['n'], bought_drinks: ['n'] });
 
 /* One fact as true / false / null; `any` is true once one is, null when none is and one is unknown. */
@@ -1018,6 +1046,26 @@ function readyWords(ready) {
   };
 }
 
+/* WHAT TO WANT, HOURS 5 TO 20 (panel 2026-11-01: 16-22k gold and "nothing to want"; designer's ruling, PRIORITY_BOARD 2026-11-01): the purse's
+   next buy on the What next line, at the server's price. Below this share of the next hero's price, it is too far off to be a goal. */
+const SAVING_FROM = 0.25;
+const ORDINAL = Object.freeze(['', 'first', 'second', 'third', 'fourth', 'fifth']);
+const gp = (n) => n.toLocaleString('en-US') + ' gp';
+/* The next thing the purse buys: a hero slot at the server's price, else the house's next deed. { text, ids } or null. */
+function purseLine(f) {
+  const purse = Number.isSafeInteger(f.gold) ? f.gold : null;
+  if (purse === null) return null;
+  const slot = Number.isSafeInteger(f.slotCost) && f.slotCost > 0 ? f.slotCost : null;
+  const nth = ORDINAL[(Number(f.slotsOwned) || 0) + 1];
+  if (slot && nth && purse >= slot) return { text: 'You can pay for a ' + nth + ' hero (' + gp(slot) + '): press Characters. It hunts while this one does.', ids: ['slot', String(slot)] };
+  const deed = f.home && f.home.next && Array.isArray(f.home.next.items) && !f.home.next.items.some((x) => !name(x.id)) ? f.home.next : null;
+  if (deed && purse >= deed.gold) {
+    return { text: 'You can pay for the ' + deed.name + ' (' + [gp(deed.gold), ...deed.items.map((x) => name(x.id) + ' ×' + x.qty)].join(', ') + '): open the House.', ids: ['deed', String(deed.gold)] };
+  }
+  if (slot && nth && purse >= slot * SAVING_FROM) return { text: 'A ' + nth + ' hero costs ' + gp(slot) + ': another hero hunting while this one does.', ids: ['saving', String(slot)] };
+  return null;
+}
+
 /* How a hero who hunts alone makes a party (the go_below card's lesson, said on the What next line instead). */
 const PARTY_HOW = 'Invite a friend, or make a second hero: up to four of yours can hunt at once.';
 /* A ground built for a party: a pocket of it needs one (hunt-grounds.js minParty). */
@@ -1103,6 +1151,8 @@ export function nextGoal(facts) {
     const made = madeWords(Number(gat[1]), gear, role);
     if (made) lines.push(made);
   }
+  const purse = purseLine(facts);
+  if (purse) { lines.push(purse.text); ids.push(...purse.ids); }
   const skill = ROLE_SKILL[facts.role];
   if (skill && Number.isInteger(facts.skillLevel)) {
     const u = nextUnlock(skill, facts.skillLevel);

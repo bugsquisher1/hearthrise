@@ -7,12 +7,13 @@
 //
 // ARMS
 //   W1  rangeWords: under band[0] within SESSION_LIMITS.belowRangeRefuse says
-//       "This hunt is above your level, expect losses."; that many or more under
+//       ABOVE_LEVEL_WORDS (first-week-bands.mjs proves them on the real engine); that many or more under
 //       says it is too far; at or over the floor, or with no level, says nothing
 //   W2  the Hunts window draws rangeWords on every line and never disables Enter
 //       on it (the server decides), and a successful enter that the server
 //       answered below_range repeats the warning
 //   W3  CharacterSession hands the server's below_range back to the window
+//   W4  the pull size says why a bigger pull matters
 //   S1  the margin is the DATA's: the forward hunt-sessions catalogue writes
 //       below_range_refuse = SESSION_LIMITS.belowRangeRefuse, and the gate file
 //       reads hr_hunt_limit('below_range_refuse') and names no number of its own;
@@ -46,7 +47,7 @@ async function run(base) {
   ok('W1', Number.isInteger(m) && m === 15, 'SESSION_LIMITS.belowRangeRefuse is ' + m + ' (Tyler 10-18: 15)');
   const row = { band: [40, 60] };
   const near = HL.rangeWords(row, 40 - m + 1), far = HL.rangeWords(row, 40 - m), at = HL.rangeWords(row, 40);
-  ok('W1', near === 'This hunt is above your level, expect losses.', 'one level inside the margin reads ' + JSON.stringify(near));
+  ok('W1', near === HL.ABOVE_LEVEL_WORDS && /above your level: more XP/.test(near) && !/expect losses/.test(near), 'one level inside the margin reads ' + JSON.stringify(near));
   ok('W1', typeof far === 'string' && far !== near && /too far/.test(far), 'the margin itself reads ' + JSON.stringify(far));
   ok('W1', at === null && HL.rangeWords(row, 70) === null && HL.rangeWords(row, null) === null, 'at / over the floor or with no level must say nothing');
 
@@ -93,6 +94,7 @@ async function run(base) {
   ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');") && win.includes('<p class="hw-hunt-warn"></p>')
     && win.includes("(groupWords(r, size) || heroWords(r)) + '.'"),
     'the Hunts line does not draw rangeWords');
+  ok('W4', win.includes('Bigger pulls pay more once your heroes can hold them.'), 'the pull size no longer says why a bigger pull matters (first-week-bands.mjs bigger-pulls-words plays it)');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning (the server decides)');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');
   const cs = read('src/session/character-session.js');
@@ -123,6 +125,7 @@ const MUTANTS = [
   ['the Warrens forgets its solo break-even', 'src/data/hunt-grounds.js', '    soloFrom: 45,\n', ''],
   ['the margin is ignored (everything under the floor is "too far")', 'src/shell/hunt-list.js', 'r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ?', 'true ?'],
   ['the margin moved off Tyler\'s 15', 'src/data/hunt-sessions.js', 'belowRangeRefuse: 15,', 'belowRangeRefuse: 10,'],
+  ['the pull size says nothing of why it matters', 'src/shell/windows/hunts.js', "' Bigger pulls pay more once your heroes can hold them. Kept for this ground.'", "' Kept for this ground.'"],
   ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');", ''],
   ['the session drops below_range', 'src/session/character-session.js', 'return { ok: true, belowRange: true };', 'return { ok: true };'],
   ['the gate keeps the hard floor', 'supabase/migrations/2026-10-25-hunt-floor-warning.sql', 'if v_min - v_cl >= coalesce(v_refuse, 1) then', 'if v_cl < v_min then'],

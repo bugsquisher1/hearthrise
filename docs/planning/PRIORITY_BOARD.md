@@ -30,6 +30,123 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-10-31 Blind panel, round 2: rulings and three items for Tyler (designer, lane/b-panel-rulings): PLAYED on the local world, MEASURED on the real engine at v0.2.78
+**Method.** Panel round 2 (`art/review/player-feedback-2026-11-01/`, veteran and newcomer, simulated, time-skipped): evidence, not verdicts. About 210 cells through `tools/balance-sim` cell.mjs (the real settle), 1 to 24 hero-hours each. Store supplies only, so bills are the top of the range: a hero eating its own food pays less (the veteran's 42 gp in 30 min against the sim's 570). Played on `tools/qa/local-world.mjs`: a fresh sword hero through both returns, 1440x900, page closed for each absence. **Not played:** a phone, a party, a real clock.
+
+**1. Level band words: BUILT.** "Expect losses" was false for an armored hero and true for an unarmored one, so it reads now: "This hunt is above your level: more XP, but monsters hit harder. In weak armor you can spend more on food than you earn, or die."
+| Level 11 sword + shield, first hour | Level XP/h | Store bill g/h | Net g/h | Deaths |
+|---|---|---|---|---|
+| Wickstead (fits), armor | 25.8k | 0 | 3,344 | 0 |
+| Glade (above), armor | 47.5k | 1,140 | 2,651 | 0 (54k XP/h, 0 in 24 h over 12 h hunts) |
+| Glade (above), practice set | 47.9k | 6,780 | -2,480 | 0, 2 close calls |
+| Glade, Level 2 sword, practice set | 44.6k | 16,500 | -12,929 | 4 in 2 h |
+| Warrens alone, Level 22, armor (10 under) | 94.6k | 24,500 | -21,059 | 0 |
+Every style, in every cell under a floor, earns more XP. Ruling: pushing up pays XP and costs food; that is Tyler's own 10-18 "waste hunt", and it is now a choice the screen states. "Fits your level" stays: it means the ground that holds your Level. `first-week-bands.mjs above-your-level-words` plays each claim on the engine, so a balance change that makes one false goes red.
+
+**2. The return: BUILT, words and existing screens.** What was the harness and what was real:
+| Panel saw | Cause | Now |
+|---|---|---|
+| "While you were away (10 min)" after 200 min; no recap at all | HARNESS: a skip moves the hunt back, not the clock on, so the stamp read real seconds | `world.wait(n, { away: true })` moves it. On a real absence the line fires: "(8 h 3 min) ... 3,825 kills. Still hunting, with 3 h 58 min of stamina left." |
+| "Taking a beating?" at 35 meals in 8.5 h, over a full-health hero | REAL | A beating is 3 meals at 30 an hour or more. The "just now" cards stand aside for the hunt the player came back to, and no card opens over it: it starts folded |
+| "Your stamina ran out." and nothing else | REAL | End card: why, how it comes back, "Stamina now: 4 h 14 min". Away line: "The hunt has ended 4 h 14 min ago." |
+| 5 h 46 m idle with no warning on leaving | REAL | Before you go, every hunt: "Stamina: 3 h 17 min. Your hero hunts that long, even with the game closed, then comes home." |
+| "Paid today 2 of 3" never resetting, dates out of order | HARNESS | Left |
+
+**3. Coach load: BUILT.** Cards before hunt 2: 17 to 13; in town between hunts 7 to 5. The first two hunts need: what fights, the Level ring, the farm, the bar, Cash in, Blessings, Sell, the Hearth, Tamsin, the Thicket. The Hearth stays, on evidence: the hero walking across town was the newcomer's best minute, and at 16 Bones it is quick. The spell offer and Help wait for the Thicket, where there is time to read. Cook, Decide once and "Defense isn't training" wait for the second return. **Decide once asks for one thing**, not a form: "Pick one thing you only ever sell and set it to Sell: the game remembers." "More than one hero" gets a Got it: it sat ahead of the Thicket's lessons in every hunt past 5 minutes for anyone who wants one hero.
+
+**4. What to want: RULED, built as words. No new content.**
+| Hour | Level, gold (panel, sim) | What to want | Where it says so |
+|---|---|---|---|
+| 5 | 6-8, 3-6k | The armor set, Wickstead at 8, a third hero | Equip upgrades; What next; "A third hero costs 15,000 gp" from a quarter of the price |
+| 12 | 10-11, about 16k | A third hero now, the Weighhouse, the Iron tier at 15 | "You can pay for a third hero (15,000 gp): press Characters." New card at Level 10, its icon ringed |
+| 20 | 15-16, 25-40k | Iron on, the Glade at 16, a fourth hero at 40,000, the next house deed, your place in Havora | Equip upgrades; What next; new card at Level 16 for the Roll of Honor, its icon ringed |
+Prices are the server's (`account.hero_slot_offer`, the house's own section). Both cards are one read each. **Flagged, not built:** Sell all loot leaves spare armor to one click a stack (newcomer, 47 of 100 spaces), a decision repeated by hand; the first-principle fix is a loot plan for gear below what is worn.
+
+**Walk-through: a fresh sword hero's first two hunts** (the machine check is `sewer.mjs tutorial-walk-through`; M = played)
+| Step | Card | Holds and can reach, from the kit and the steps before | Doable because |
+|---|---|---|---|
+| 1 | Every weapon is a style | Six practice sets, sword and shield worn | Got it (M) |
+| 2 | Rats in the mill | Hunts window; Cellar band 1-8 | Enter (M) |
+| 3-4 | Your hero fights alone, Your first Level | Hunt running | Server finishes them (M) |
+| 5 | Plant your land | 8 Turnip Seeds, the Farm opens in a hunt | Plant, or Got it |
+| 6 | Your action bar | The default bar | Got it |
+| 7 | Out to the brook, Cash in | Level 5 at about 16 min (M: Level 5 at 18) | Leave hunt (M) |
+| 8 | Feed the Hearth | 16 Bones from the Cellar (M) | Bag, Bones, Fuel all (M) |
+| 9 | Before the wolves | Free below Level 30 | Shop, Services, Bless (M, card) |
+| 10 | Sell what only pays coin | Cellar loot | Shop, Sell all loot (M, card) |
+| 11 | Tamsin's wolves | Tally open in town; a weight to pick | Take, or Got it (M, card) |
+| 12 | Into the Thicket | Level 5, band 5-15 | Enter (M) |
+| 13 | Eat on time, Your own food first, A spell costs runes, The whole picture | Hunting the Thicket; food on the bar; store rune 1 gp; gear icon | Configure action, or Got it |
+| 14 | Paid in town | Wolves counted while hunting | Leave |
+| 15 | Decide once | This hunt tab holds Thicket loot; shop bids on what the bag holds | One row to Sell, or Got it (M, card) |
+| 16 | Cook your catch | 10 Raw Shrimp from the kit, never cooked | Gathering and crafting, Cooking (M, card) |
+| 17 | Keep this bar | A bar saved at step 13 | Hunt prep. Then What next (M) |
+
+**The panel's three balance items.** (b) is decided, by Tyler, below. On (a) and (c), my recommendation to him: change no number for Sunday. All three read as separate problems and have one cause: **as built, the walk between packs sets the pace**, so more power or more bodies have little to do. A respawn cut by party size moved Wickstead's duo from 20.0k to 20.4k XP/h per hero. The pull size is where both show, and it works: the veteran's "+ did nothing" did not reproduce (As built, 3 each, 4 each, 5 each, one press each). So the Hunts window now says "Bigger pulls pay more once your heroes can hold them."
+
+**(a) No danger in band.** In-band armor: typical lowest HP 94-98%. Tyler's Normal is 60-80%, though his ruling calls those ranges diagnostic and the hard targets hold: 0 deaths. Blow size is the wrong lever, because it hurts the wrong hero first.
+| Monster blows, Glade Level 16 in armor | Tank: typical / worst tenth, bill g/h | Bow, Healer, Mage: deaths, close calls, bill g/h |
+|---|---|---|
+| Today | 94 / 83, 27 | 0, 0, 10-462 |
+| x1.5 | 91 / 74, 267 | 0 in 8 h each, 0, 165-676 |
+| x2 | 88 / 63, 740, net 3,594 from 4,340 | 0 in 8 h each, 3 / 0 / 2, 866-1,261 |
+| x3 | 82 / 53, 2,500; 0 deaths in 24 h | **Bow 2, Healer 3, Mage 6 deaths in 4 h**, 21-49 close calls |
+Even at x3 the tank is still Easy while the light armors die. Put on every tier, x1.5 also gives a fresh practice-set hero in the Thicket 14 close calls in 6 h, against 0 today. **Recommend:** keep 5.4 and 4.0 for the beta. The danger that exists is the pull size: at 8 each a fresh Thicket hero sits at 58% and a fresh Wickstead hero at 52% with a death in 4 h, while in-band armor sits at 92-97%. That is already a choice a player makes. First candidate after a week of real play: **tiers 2-3 x2 (8.0 for tier 3, and a new 10.8 row for tier 2)**. It touches the Glade, Turncoats, the Warrens and the Thicket's Dire Gray and Old Grayjaw, not the Cellar or the Sewer (all tier 1; the Sewer cells did not move). No death in 8 h a style in the Glade, and a bill that finally gives cooking a consumer. It risks an edge deploy, profit floors nobody has re-measured, a fresh Thicket hero against those two wolves, and a Warrens party unplayed at that number. Even so the typical encounter stays Easy, so Normal will need pack size per ground, not blows.
+
+**(b) Party XP: DECIDED (Tyler, 2026-10-31: "Party exp should only be better if there are different classes in the party"). Supersedes "no party bonus" (10-22); the 10-25 §5 targets apply to mixed parties. Rule below is the designer's, measured; the engine change is its own lane, NOT BUILT here.**
+
+*Baseline today, Level XP per hero against the mean of the same heroes alone, same ground, Level and pull* (v0.2.78, 1 h, 1 or 2 seeds; L5-L31 ranges from the 10-31 verdict at v0.2.74). Mix changes nothing yet: the walk sets the pace, whoever is in the party.
+| | Mixed duo | Mixed four | Same class duo | Same class four |
+|---|---|---|---|---|
+| Thicket, Wickstead, Glade, as built | 0.68-0.75 | 0.49-0.59 | 0.64-0.78 | 0.46-0.58 |
+| Same grounds, 8 each | 0.83-0.95 | 0.82-0.90 | 0.81-0.96 | 0.69-0.84 |
+| Sewer L8-L25, as built | 1.14-1.21 | 1.01-1.10 | **1.13-1.18** | 0.91-1.03 |
+| Sewer, 8 each | 1.00-1.12 | 0.92-0.97 | **0.95-1.05** | 0.84-0.98 |
+| Warrens L32-L50, 8 each | 1.03-1.05 | 1.13-1.23 | 0.99 (tank; a lone bow stalled at 8 each, 2,141 XP/h) | 0.95 |
+Against where a lone hero is sent: the Warrens party already earns about 2x the Glade, and the Sewer duo and four 1.27x and 1.06x at Level 8, 0.73x and 0.65x at Level 17.
+
+*Classes: four, not five.* Melee (shield or not), Ranger, Mage, Healer. Tyler 10-16: "Tank is a function (a Melee with shield/taunt), not a spec", and the screen says Melee on both. Tank + hammer measured no different from two tanks (0.85 and 0.91 at 8 each). A crossbow and shield is a Ranger.
+
+*THE RULE: Level XP only, never gold.* `share = monster XP / living heroes`, then `x table[ground][living heroes][different classes among the living]`, read fresh at every kill in `splitKillXp`, which already holds the living heroes. A data row per ground, in `src/data/hunt-xp.js`.
+| Ground | 2 heroes, classes 1 / 2 | 3 heroes, 1 / 2 / 3 | 4 heroes, 1 / 2 / 3 / 4 |
+|---|---|---|---|
+| Cellar, Thicket, Wickstead, Glade | 1.00 / **1.20** | 1.00 / 1.15 / **1.30** | 1.00 / 1.13 / 1.27 / **1.40** |
+| The Sewer | **0.80** / 1.00 | 0.80 / 1.08 / **1.15** | 0.80 / 1.08 / 1.17 / **1.25** |
+| The Warrens | 1.00 / 1.00 | 1.00 all | 1.00 all |
+One flat table cannot land: x1.40 on the Warrens would pay 1.6-1.7x a lone hero there and about 2.7x the Glade. Those grounds carry their premium already.
+
+*Where it lands* (solo grounds at 8 each; duo, trio and four played on Wickstead L13 through monster XP, the same arithmetic, 2 seeds): duo **1.11** (target 1.05-1.15), trio **1.14** (1.10-1.20), four **1.22** (1.15-1.25). By ratio over L5-L31: duo 1.08-1.14, four 1.15-1.26. The Sewer at 8 each by ratio: duo 1.00-1.12, trio 1.14, four 1.15-1.21. **As built a mixed party stays under solo** even with the bonus (duo 0.86, four 0.74), because the target is for a well-optimized party: so the leader's line has to say bigger pulls. Not measured: the Cellar, and trios anywhere but Wickstead L13 and Sewer L17.
+
+*The hard line: a same-class party never beats solo per head.* Holds today on the Thicket, Wickstead, the Glade and the Warrens with no cap: best pull against the members' best pull alone, at most 0.99. **It breaks on the Sewer today**: 1.13-1.18 as built and up to 1.05 at the best pull, because the Rat King's hall opens only to a party. The cap is the Sewer's 0.80: its worst same-class cell (two bows, Level 8, as built) lands 0.95. x0.85 is not enough: it leaves that cell at 1.00. Dice: Sewer cells are one seed, so the engine lane's guard must play this at more seeds, on every ground, as built and at the full box, with the bar at 1.00.
+
+*Edge cases.*
+- **3 tanks + 1 healer:** two classes of four. 1.13 on a solo ground lands 0.92 at 8 each, better than same class and still under solo. 1.08 on the Sewer lands 1.04. A partial mix earns part of the bonus, and it should not beat solo by much.
+- **A death or a leave mid-hunt:** the next kill reads the living. Healer dead in a full four: 3 heroes, 3 classes, 1.30. No latch and no grace. A hero's class cannot change mid-hunt, since gear goes on in town. The default "Leave if anyone leaves" box sends most parties home anyway.
+- **One player's own four heroes:** paid as four strangers are, 1.22x per head at 8 each. Account total on Wickstead L13: about 218k Level XP/h, against 178k for the same four hunting alone (+22%) and 157k today. Gold gets no bonus (0.91x per head). **Monitor: flag any account with 3+ own heroes in one party whose per-head Level XP over 20 hunted hours exceeds 1.30x that ground's solo pace.** Review if flagged accounts pass a quarter of party hours.
+- **A low-Level hero brought along for its class:** counts while alive and takes its even share, so the others lose XP to it. Watch it in the same flag.
+- **Not fixed by this:** a lone hammer at 8 each earns 71.9k on Wickstead against 54.4k for the mixed four. That is role parity (Tyler's open item), not this rule.
+
+*Where a player sees it*, before Start with party, on the Hunts page's party block and the Party window's Your party tab, from the same table: "Your party has 2 of 4 classes: 20% more Level XP here. Melee, Ranger, Mage and Healer each count." On the Sewer, one class: "One class only: 20% less Level XP here." No-bonus cells: "Your party has 1 of 4 classes: no extra Level XP here." The pull line beside it already says bigger pulls pay. Both ship with the engine change, so the words are never ahead of the game.
+
+**(c) Hero power barely moves income.** Confirmed as built, and it is the walk again:
+| Kills/h, tank | Fresh, practice set | Grown, in gear | As built | At 8 each |
+|---|---|---|---|---|
+| Cellar | L1 | L20 | 470 to 494, +5% | 1,075 to 1,196, +11% |
+| Thicket | L5 | L15 | 540 to 606, +12% | 855 to 1,032, +21% |
+| Wickstead | L8 | L18 | 501 to 579, +16% | 717 to 943, **+32%** (XP 33.9k to 44.6k; net -347 to 6,253 g/h; the fresh hero dips 11 times and dies once in 4 h) |
+Armor stays on target: 18-19.5% less damage a full tier (10-31 verdict). **A real weapon upgrade, measured** (the panel never tested one). Level 16 in Wickstead, armor and skills the same, 2 h x 3 seeds = 6 hero-hours a cell on the same dice, v0.2.78; before and after:
+| Style, practice weapon to first real rung | Pull | Kills/h | Level XP/h | Gold + loot g/h | Store g/h | §8 (+5-8%) |
+|---|---|---|---|---|---|---|
+| Sword to Iron Sword | as built | 544 to 572 (+5.1%) | 27,450 to 28,836 (+5.0%) | 3,721 to 3,684 | 0 to 0 | meets |
+| | 8 each | 854 to 924 (+8.2%) | 40,439 to 43,754 (+8.2%) | 5,226 to 5,872 | 61 to 82 | meets |
+| Hammer to Iron Warhammer | as built | 668 to 670 (+0.3%) | 33,688 to 33,831 (+0.4%) | 4,153 to 4,352 | 53 to 28 | misses |
+| | 8 each | 1,551 to 1,612 (+3.9%) | 73,477 to 76,446 (+4.0%) | 9,755 to 9,970 | 257 to 242 | misses |
+| Bow to Longbow | as built | 627 to 645 (+2.9%) | 31,659 to 32,543 (+2.8%) | 4,445 to 4,084 | 23 to 12 | misses |
+| | 8 each | 1,032 to 1,098 (+6.4%) | 48,880 to 52,001 (+6.4%) | 6,354 to 7,259 | 200 to 190 | meets |
+| Wand and book to Oak Wand and Oak Spellbook | as built | 673 to 676 (+0.4%) | 33,943 to 34,092 (+0.4%) | 4,590 to 4,350 | 252 to 190 | misses |
+| | 8 each | 1,510 to 1,543 (+2.2%) | 71,575 to 73,076 (+2.1%) | 9,567 to 9,967 | 911 to 891 | misses |
+Read kills and XP, which repeat closely. Gold + loot in 6 h is mostly dice on what dropped (it moves -8% to +14% with kills up 0-8%), so it shows no weapon effect either way at this sample. **The cause in the engine is overkill, then the walk.** A lone hero's monsters have 55% HP (`packScalePermille`, `hunt-grounds.js`): Wickstead's spawns have 7 to 18 HP, 10 of 12 at 16 or under. The median kill took no time after the first blow, on both weapons, for hammer and wand and nearly so for sword and bow, so a stronger blow lands on a monster that was dying anyway. The swing is a fixed 2.0 s (Tyler 10-15), so a weapon cannot speed that, and what is left of the hour is `pull-cycle.js`: walking to the next pack. Monsters that survive the first blow are where a weapon pays, which is why the Sword (the lowest hit) and full-box pulls show it. **Also:** nothing can be bought. The Shop sells no weapon, and from Level 1 to 14 there is no rung at all. The first ones are Level 15 drops: Iron Sword, Iron Warhammer, Longbow and Oak Wand are all listed from Sewer monsters, a party ground (Bramble Blade from Wickstead's Turncoats is the lone-hero sword). No number changed; a fix belongs with the pack-size work under (a), since more monster HP is the lever that makes a weapon, danger and a healer all count at once. Not run: tier 2 to 3, hatchets, staff, crossbow. **Recommend:** no number. Pull size is the optimizer's decision and it pays what a min-maxer wants; the line above now points at it. Raising the as-built pull instead would break the Level curve: Wickstead L13 earns 38% more XP at 8 each, and level-pace is fitted to as built. Risk of doing nothing: a player who never presses + still sees flat income. Watch `hunt_density` picks in vitals during the beta; if under a third of heroes past Level 10 touch it, make it louder in the Hunts window (art-director).
+
 ### 2026-10-31 Does the first arrow cost? (designer): BRONZE ARROWS STAY FREE. **This departs from a plain reading of Tyler's 10-15 words; he can overrule it**
 **Ruling, exact numbers.** Bronze Arrows stay `ammoPerShot: 0`, rangeAtkB 2, rangeStrB 2, with no store row and `NO_STORE_PARTNER` as it is. The kit keeps 50. Paying starts at the next arrow, which already exists: Iron Arrows (Ranged 1, `ammoPerShot: 1`, rangeStrB 3, crit 1%, store 1 g a shot), then Barbed (Ranged 15, store 1 g a shot). No coin, floor or kit number moves. lane/a-arrow-cost's Bronze cost does not ship.
 

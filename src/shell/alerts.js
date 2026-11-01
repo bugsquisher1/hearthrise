@@ -26,6 +26,12 @@
 //   invite  a party invite waiting for the character (`party_invites`), id =
 //           the server's invite id; Join / No thanks answer it, and it goes
 //           when the server no longer lists it (answered anywhere, expired)
+//   party   what another player's move did to this hero (`party_notices`,
+//           2027-02-18-party-truth.sql), id = the server's notice id: said no,
+//           removed it, closed the party, left
+//   partywarn  a warning first: the leader is about to take the party above this
+//           hero's level (a `party_notices` ground_warn, id = the notice's), or a
+//           friend's stamina is low (`stamina_low_ms`, id = session + seat)
 //
 // THE RULE: an alert fires ONCE per event id. The ids already shown are kept
 // in memory for the page and in the character's residue (`alerts.seen`,
@@ -39,7 +45,8 @@ import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.79';
 import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.79';
 import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.79';
 import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.79';
-import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.79';
+import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.79';
+import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.79';
 import { itemName } from './widgets/bits.js?v=0.2.79';
 import { noShotWords } from './hunt-go.js?v=0.2.79';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.79';
@@ -104,6 +111,11 @@ const supplyWords = (id) => itemName(id);
 function candidatesOf(cs, viewed) {
   const out = (invitesOf(cs) || []).map((i) => ({ id: 'invite:' + i.id, kind: 'invite', session: null, invite: i.id,
     text: i.from + ' invites ' + who(cs) + ' to their party.' }));
+  /* What another player's move did to this hero, once per notice the server wrote. */
+  for (const n of noticesOf(cs) || []) {
+    const said = noticeWords(n, { name: who(cs), ground: n.hunt ? huntName(n.hunt) : null });
+    if (said) out.push({ id: 'party:' + n.id, kind: n.kind === 'ground_warn' ? 'partywarn' : 'party', session: null, text: said });
+  }
   /* Tamsin's payments (the server's claims of the last day, `tally.recent`): one line each, ever. */
   for (const p of (tallyOf(cs) || { recent: [] }).recent) {
     out.push({ id: 'tally:' + p.claim, kind: 'tally', session: null, item: p.item,
@@ -134,16 +146,21 @@ function candidatesOf(cs, viewed) {
     }
     const noShot = noShotWords(cs);
     if (noShot) out.push({ id: 'low:' + h.sessionId + ':noshot', kind: 'low', session: h.sessionId, text: who(cs) + ': ' + noShot });
+    /* A friend's stamina, before it sends anyone home (the server says only once it is low). */
+    const p = partyMembershipOf(cs);
+    for (const s of p ? p.seats : []) {
+      if (s.seat !== p.me && s.hunting && s.staminaLowMs !== null) {
+        out.push({ id: 'lowstam:' + h.sessionId + ':' + s.seat, kind: 'partywarn', session: h.sessionId, text: staminaLowWords(s.name, s.staminaLowMs, who(cs), p.leaveTogether === true) });
+      }
+    }
   }
   return out;
 }
 
-/** A ticked hero's way home (LEAVE TOGETHER): who ended first, by the server's `end_by` ("A party member" when it
-    cannot say), and this hero's name. Pure; exported for tests/party-ui.mjs. */
+/** A ticked hero's way home (LEAVE TOGETHER): who ended first and why, by the server's `end_by` and `end_by_why` ("A party
+    member" when it cannot say), and this hero's name. Pure; exported for tests/party-ui.mjs. */
 export function cameHomeLine(h, hero) {
-  const copy = END_REASON_COPY[h && h.endReason];
-  if (!copy || (h.endReason !== 'party_member_died' && h.endReason !== 'party_member_left')) return '';
-  return copy.one.replace('{member}', (h.endBy && String(h.endBy)) || 'A party member').replace('{name}', hero);
+  return h ? cameHomeWords(h.endReason, h.endBy, h.endWhy, hero) : '';
 }
 
 /** The rare-drop alert for one arriving timeline event, or null. */
@@ -220,7 +237,9 @@ export function createAlertCenter(account) {
     for (let i = alerts.length - 1; i >= 0; i--) {
       const a = alerts[i];
       if (a.slot !== cs.slot) continue;
-      if ((a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; }
+      /* A warning is about what comes next: a friend's low stamina goes with the hunt it was raised in, a warned ground once a hunt is open. */
+      const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);
+      if (stale || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; }
     }
     if (any) changed();
   }

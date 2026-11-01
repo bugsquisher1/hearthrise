@@ -95,6 +95,8 @@ function patchMember(el, m, party, glyphs) {
 /* "Away, seat kept 7 min" (the server's seat_ms, whole minutes up); else what the hunt says it is doing. Exported for tests/party-ui.mjs (PR-4). */
 export function stateWords(m) {
   if (m.away) return m.seatMs === null ? 'Away' : 'Away, seat kept ' + Math.max(1, Math.ceil(m.seatMs / 60000)) + ' min';
+  /* The server says a seat's stamina only once it is low: their hunt ends with it, and the ticked boxes with theirs. */
+  if (Number.isFinite(m.staminaLowMs)) return 'Stamina ' + Math.max(1, Math.ceil(m.staminaLowMs / 60000)) + ' min';
   if (m.eating) return 'Eating';
   if (m.drinking) return 'Drinking';
   if (m.aggro) return 'Targeted';
@@ -124,7 +126,7 @@ export function rosterOf(cs) {
     const members = p.seats.map((s) => {
       const live = s.hunting ? bySeat.get(s.seat) : null;
       return Object.assign({}, NO_HUNT, live || {}, {
-        seat: s.seat, name: s.name, level: s.level, role: s.role, hunting: s.hunting, away: s.away, seatMs: s.seatMs,
+        seat: s.seat, name: s.name, level: s.level, role: s.role, hunting: s.hunting, away: s.away, seatMs: s.seatMs, staminaLowMs: s.staminaLowMs,
         hp: live ? live.hp : s.hp, hpMax: live ? live.hpMax : s.hpMax,
       });
     });

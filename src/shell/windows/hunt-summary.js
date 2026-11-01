@@ -154,7 +154,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">Show</button></li>'),
     patch: (el, s) => {
       text(el.querySelector('b'), groundName(s));
-      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs)).split('. ')[0].replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
+      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs), s.why).split('. ')[0].replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
     },
   });
 };

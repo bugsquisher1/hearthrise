@@ -76,6 +76,8 @@ export function huntOf(cs) {
     endedAtMs: isObj(h.session) && str(h.session.ended_at) ? Date.parse(h.session.ended_at) || null : null,
     /* LEAVE TOGETHER: who sent this hero home (the member whose own end did, hr_hunt_view `end_by`), or null. */
     endBy: isObj(h.session) && str(h.session.end_by) ? h.session.end_by.trim().slice(0, 40) || null : null,
+    /* What ended that member (hr_hunt_view `end_by_why`, an END_ORDER name: stamina, left ...), or null. */
+    endWhy: isObj(h.session) ? str(h.session.end_by_why) : null,
     /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
     huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
     units: unitsOf(h.pose),

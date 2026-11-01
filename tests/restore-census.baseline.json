@@ -605,6 +605,7 @@
   "character_presence": "A presence stamp, not progress: one row per character saying when its account's client last asked hr_players_online with it open. Every row is rewritten within 30 s of the player being online again, and the only thing it answers is the players-online count. Losing every row costs nobody anything.",
   "hr_character_sheets": "Derived, display-only: every row is recomputed by the hr-accrue sheet verb from the character's skills, gear, style, buffs and perks (which ARE restored), and is shown only while its input fingerprint matches. Losing every row costs one recompute each, never a value.",
   "hr_world_notices": "The rare-drop notice journal (2026-11-14-rare-broadcast.sql). It records that a System chat line was posted for a drop, never the drop itself: the item is in player_inventory and the ledger, both on the manifest. Losing it re-opens one day of the notice cap and loses who-was-announced history, nothing a player owns.",
+  "party_notices": "Display notices, not progress: who declined, removed, closed or left, an hour at most (2027-02-18-party-truth.sql). Player-scoped by user_id, but they hold no value and no gate reads them. Losing every row costs an unread line.",
   "party_seekers": "A finder listing, not progress: one row per character, every row expires 30 minutes after it is written (and sooner on a join, a hunt start or sign-out), grants nothing on its own (an invite is a separate verb with its own checks). Losing every row costs each seeker one press.",
   "account_play_net": "Anti-abuse stamp, not value: the play cap's record of which network an account last called from (a salted hash). A lost row costs a player nothing; the next hr_load writes it again.",
   "hero_play_net": "Anti-abuse stamp, not value: the network a playing hero started from (a salted hash), read only to count heroes per network. A lost row costs a player nothing; it lets that hero go uncounted per network until it starts again.",
@@ -1572,7 +1573,7 @@
   "hunt_party_members": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER STATE — one row per character in a party (seat, weapon type). Written only by the hr_hunt_party_* verbs; RLS own-read, no client write. Losing it leaves each member hunting its own shared instance until it re-forms; no value moves."
+   "note": "PLAYER STATE — one row per character in a party (its seat; its role is read from what it wears, 2027-02-18-party-truth.sql). Written only by the hr_hunt_party_* verbs; RLS own-read, no client write. Losing it leaves each member hunting its own shared instance until it re-forms; no value moves."
   },
   "hunt_session_events": {
    "class": "restore_only",
@@ -1658,6 +1659,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "M8 S1 (2026-09-23), ships EMPTY. One row per character per party, left_at NULL while live, plus removed_by (the removal audit, and what makes §18.3's per-PARTY kick clamp spellable). Carries the two partial unique indexes that ARE invariants 1 and 2 — one party per character, one character per user per party — so the invariants survive a rebuild even though the rows do not. Written ONLY by the SECURITY DEFINER verbs; no client write policy and no client write grant. ⚠ RE-CLASSIFIED BY M8 S2 (2026-09-23): S1's own note set the expiry — *\"the day S2 lands party_hunt, party_tick_lease and the settle, a member row is what binds a character to a paid window and to a share of it, and this table moves onto player_value_tables in the SAME batch that does it.\"* This is that batch. A live member row is now the join hr_partied resolves through, the set hr_party_tick_settle re-counts under the party lock, and the thing that decides whether a character is served by the party roster or by the per-character one. Its class may not be anything but restore_only from here."
+  },
+  "party_notices": {
+   "class": "operational",
+   "wiped_at_cutover": true,
+   "note": "Ephemeral (2027-02-18-party-truth.sql): one line per thing another player's move did to this hero, an hour at most. Ships EMPTY. Losing every row costs an unread line; nothing a player owns, ranks or trades is derived from it."
   },
   "party_seekers": {
    "class": "operational",

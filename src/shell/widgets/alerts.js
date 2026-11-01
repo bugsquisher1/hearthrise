@@ -22,7 +22,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.79';
 import { refusalWords } from '../intent-words.js?v=0.2.79';
 import { cardFacts, shareCard } from '../share-card.js?v=0.2.79';
 
-const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market' });
+const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', party: 'hunt-party' });
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */
 const SHARE_WORDS = Object.freeze({
   copied: 'Card copied: paste it anywhere.', shared: 'Card shared.', saved: 'Card saved to your downloads.',
@@ -85,7 +85,7 @@ async function settle(ctx, el, a, send) {
   let r;
   try { r = await send(cs); } catch (e) { r = { ok: false, error: 'network' }; }
   if (r.ok) ctx.alerts.dismiss(a.key);
-  else ctx.alerts.mark(a.key, false, refusalWords(r.error));
+  else ctx.alerts.mark(a.key, false, refusalWords(r.error, a.action === 'join' ? 'party_join' : undefined));
   renderAlerts.patch(el, ctx);
 }
 

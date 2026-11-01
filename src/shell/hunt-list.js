@@ -28,7 +28,8 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE, partyPullOf } from '../data/hunt-grounds.js?v=0.2.79';
+import { HUNT_GROUNDS, partyPullOf } from '../data/hunt-grounds.js?v=0.2.79';
+import { PARTY } from '../data/party.js?v=0.2.79';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.79';
 import { MONSTERS } from '../data/monsters.js?v=0.2.79';
 import { SUPPLIES } from '../data/supplies.js?v=0.2.79';
@@ -64,7 +65,9 @@ export function huntRows() {
       hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(),
       groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
       soloFrom: Number.isInteger(g.soloFrom) ? g.soloFrom : null,
-      heroes: Math.min(g.start.length, PARTY_SCALE.maxHeroes),
+      /* WHO MAY COME is the server's party size on every ground, never the ground's start tiles: two tiles read "up to 1 more"
+         on the Thicket while the server walked in four (panel 2026-11-01; heroes past the tiles stand beside them). */
+      heroes: PARTY.maxSize,
       packs: g.pockets.length, packMin: Math.min(...sizes), packMax: Math.max(...sizes), partyPull: g.partyPull || null,
       respawnS: Math.round(g.respawnMs / 1000),
       boss: g.pockets.some((p) => p.spawns.some((s) => MONSTERS[s.monster] && MONSTERS[s.monster].boss === true)),
@@ -122,6 +125,24 @@ export const ABOVE_LEVEL_WORDS = 'This hunt is above your level: more XP, but mo
 export function rangeWords(r, level) {
   if (!Number.isInteger(level) || level >= r.band[0]) return null;
   return r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ? 'You are too far below this hunt to enter it yet.' : ABOVE_LEVEL_WORDS;
+}
+
+/**
+ * THE LEADER'S PICK, BEFORE IT GOES (panel 2026-11-01: a leader's Glade killed a Level 9 unasked; the floor stays a warning, Tyler
+ * 10-18, and the pick the leader's, 10-20): the OTHER seats standing under this ground's floor, by the server's levels, and
+ * whether any stands so far under that the server will refuse the start anyway (`far`: its refusal names them). Display only.
+ */
+export function seatsUnder(r, party) {
+  const under = (party ? party.seats : []).filter((s) => s.seat !== party.me && Number.isInteger(s.level) && s.level < r.band[0]);
+  return { under, far: under.some((s) => r.band[0] - s.level >= SESSION_LIMITS.belowRangeRefuse) };
+}
+
+/** "Sorrel (Level 9) and Oren (Level 12) are under this ground's Level 16." or '' for nobody. Pure. */
+export function underWords(r, seats) {
+  if (!seats.length) return '';
+  const names = seats.map((s) => s.name + ' (Level ' + s.level + ')');
+  const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+  return list + (names.length > 1 ? ' are' : ' is') + ' under this ground’s Level ' + r.band[0] + '. It will hit them hard, and they could die.';
 }
 
 /** Is this ground built for a group of `partySize` (1 = alone)? A 'both' ground always is. */

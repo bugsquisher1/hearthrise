@@ -47,6 +47,9 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   market_item: MARKET_WORDS,
   market_mine: MARKET_WORDS,
   equip: Object.freeze({ hunt_open: 'Leave the hunt to change gear.' }),
+  /* A solo hunt can't grow a party, and a pending Leave is still a hunt until the hero is home (panel 2026-11-01). */
+  party_invite: Object.freeze({ hunt_open: 'You are on a hunt of your own. Leave it, and once you are back in town you can invite.' }),
+  party_join: Object.freeze({ hunt_open: 'You are on a hunt. Leave it, and once you are back in town press Join.' }),
   /* Dispatch loot (2027-01-23-loot-dispatch.sql): Storage is at home and the shop in town. */
   loot_dispatch: Object.freeze({
     hunting: 'Your hero is out hunting. Dispatch loot works in town.',
@@ -235,7 +238,7 @@ export const REFUSAL_WORDS = Object.freeze({
   bad_weapon: 'The server does not know that weapon.',
   no_character: 'Pick a character first.',
   /* The party. */
-  already_in_party: 'This character is already in a party. Leave it first.',
+  already_in_party: 'You are already in a party with someone. Press Leave party in the Party window, then try again.',
   party_full: 'That party is full.',
   no_party: 'That party is gone.',
   not_leader: 'Only the party leader can do that.',

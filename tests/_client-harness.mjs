@@ -20,10 +20,13 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
 export const UID = '11111111-2222-3333-4444-555555555555';
 
-export function serve(overrides) {
+/* `api`: answers what it recognises itself (true when it did), for a test whose server must be real: a request a page leaves
+   behind on its way out never reaches Playwright's routes (tests/client-boot.mjs B-18). */
+export function serve(overrides, api) {
   return new Promise((resolve) => {
     const server = createServer(async (req, res) => {
       try {
+        if (api && await api(req, res)) return;
         const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
         let f = normalize(join(ROOT, urlPath === '/' ? '/index.html' : urlPath));
         if (!f.startsWith(ROOT)) { res.writeHead(403).end(); return; }

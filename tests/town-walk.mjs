@@ -803,7 +803,7 @@ async function stub(page, s) {
     if (name === 'hr_town_here') return json({ ok: true, me: s.me });
     if (name === 'hr_town_move') return json({ ok: true, stamped: true });
     if (name === 'hr_chat_recent') return json({ ok: true, zone: 'local:town', party: null, lines: [] });
-    if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
+    if (name === 'hr_social_state' || name === 'hr_social_poll') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
     return json({ ok: true });
   });
@@ -929,7 +929,7 @@ async function stubTwo(page, s) {
       return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: ++s.version, area: AREA, gone: [], walkers, me: STANDS[body.p_slot] });
     }
     if (name === 'hr_chat_recent') return json({ ok: true, zone: 'local:town', party: null, lines: [] });
-    if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
+    if (name === 'hr_social_state' || name === 'hr_social_poll') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
     return json({ ok: true });
   });

@@ -51,7 +51,7 @@ import { mountContextMenu } from './context-menu.js?v=0.2.79';
 import { menuProvidersOf } from './menu-providers.js?v=0.2.79';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.79';
 import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.79';
-import { takeFresh, summaryFromEarlierPage } from '../hunt-view/summary-recorder.js?v=0.2.79';
+import { takeFresh, summaryFromEarlierPage, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.79';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.79';
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.79';
 import { watchTown, settleSpentBench } from '../session/town-poll.js?v=0.2.79';
@@ -409,15 +409,7 @@ export function mountShell(root, o) {
   function onWm() {
     /* the player closed an ended hunt's summary: its hunt bar leaves town with it (huntUp) */
     const so = wm.isOpen('hunt-summary');
-    if (summaryWasOpen && !so) {
-      const cs = ctx.character, h = huntOf(cs);
-      if (h && h.ended) {
-        summaryClosed = h.sessionId;
-        /* A closed summary stays closed: its record lands now, as a dismissed death does (death-popup.js), so a reload
-           inside the residue's debounce can't lose it and open the summary again. */
-        if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});
-      }
-    }
+    if (summaryWasOpen && !so) summaryClosed = summaryClosedBy(ctx.character) || summaryClosed;
     summaryWasOpen = so;
     paintWindows();
     /* an open window asked to show another tab (R on an open Shop: window-manager.js openTab) shows it at once */

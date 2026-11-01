@@ -2,7 +2,7 @@
 // src/session/server.js — THE ONE WAY THE CLIENT TALKS TO THE SERVER.
 //
 // createServerLink({ url, anonKey, token, fetch }) answers:
-//   rpc(name, args)       POST /rest/v1/rpc/<name>        (Postgres RPC)
+//   rpc(name, args, o)    POST /rest/v1/rpc/<name>        (Postgres RPC); o.keepalive: the fetch outlives the page
 //   accrue(body)          POST /functions/v1/hr-accrue    (the engine's intents)
 //   report(body)          POST /functions/v1/bug-report-bridge  (a player's problem report;
 //                         the bridge names the reporter from the token, stores and rate-limits)
@@ -61,6 +61,8 @@ export async function readServed(url, doFetch) {
   } catch (e) { return null; }
 }
 
+const KEEPALIVE_MAX_BYTES = 60000;
+
 const STALE_CODES = new Set(['PGRST202', '42883', 'unknown_verb', 'version_conflict']);
 
 /** Could this refused answer be a stale client's (a shape the server no longer has)? Pure. */
@@ -83,23 +85,28 @@ function looksStale(status, body) {
 export function createServerLink(o) {
   const base = String(o.url || '').replace(/\/+$/, '');
   const doFetch = o.fetch || ((...a) => globalThis.fetch(...a));
-  const send = (path, payload, jwt) => doFetch(base + path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: o.anonKey, Authorization: 'Bearer ' + jwt },
-    body: JSON.stringify(payload || {}),
-  });
-  async function post(path, payload) {
+  const send = (path, payload, jwt, keep) => {
+    const body = JSON.stringify(payload || {});
+    return doFetch(base + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: o.anonKey, Authorization: 'Bearer ' + jwt },
+      body,
+      /* the browser refuses a keepalive body over 64 KB outright: a larger one goes as a plain fetch while the page lasts */
+      ...(keep && body.length < KEEPALIVE_MAX_BYTES ? { keepalive: true } : {}),
+    });
+  };
+  async function post(path, payload, keep) {
     let jwt = null;
     try { jwt = await o.token(); } catch (e) { jwt = null; }
     if (!jwt) return { ok: false, status: 0, error: 'no_token', closed: false };
     let res;
     const ask = o.watch ? o.watch.asked() : 0;
     try {
-      res = await send(path, payload, jwt);
+      res = await send(path, payload, jwt, keep);
       if (res.status === 401 && o.renew) {
         let next = null;
         try { next = await o.renew(jwt); } catch (e) { next = null; }
-        if (next && next !== jwt) res = await send(path, payload, next);
+        if (next && next !== jwt) res = await send(path, payload, next, keep);
       }
     } catch (e) {
       if (o.watch) o.watch.failed(ask);
@@ -113,9 +120,9 @@ export function createServerLink(o) {
     return { ok: res.ok && !closed, status: res.status, body, closed, error: res.ok ? null : 'http_' + res.status };
   }
   return Object.freeze({
-    rpc: (name, args) => {
+    rpc: (name, args, opt) => {
       if (!/^[a-z_][a-z0-9_]*$/.test(String(name))) return Promise.resolve({ ok: false, status: 0, error: 'bad_rpc', closed: false });
-      return post('/rest/v1/rpc/' + name, args);
+      return post('/rest/v1/rpc/' + name, args, !!(opt && opt.keepalive));
     },
     accrue: (body) => post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body),
     report: (body) => post('/functions/v1/bug-report-bridge', body),

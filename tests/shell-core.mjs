@@ -613,12 +613,30 @@ async function runTests(mods) {
     eq(CS.sanitizeResidueField('coach', { back: 'x; drop' }), {}, 'a forged mark is dropped');
     ok(AR.awayRecapOf(env(T0 + 5 * 60 * 1000)) === null, 'a reload five minutes later is not an absence');
     ok(AR.awayRecapOf(env(T0 + H2, false, 's-2')) === null, 'another hunt is never compared with the old one');
-    /* the stamp: renewed once a minute while the hunt runs, bounded on the way in */
-    const cs = env(T0 + 30 * 1000);
-    ok(AR.stampAway(cs) === false && cs.writes.length === 0, 'a stamp 30 s old is not renewed');
-    const due = env(T0 + 90 * 1000);
-    ok(AR.stampAway(due) === true && due.writes[0][0] === 'awaySeen' && due.writes[0][1].at === T0 + 90 * 1000 && due.writes[0][1].gold === 1956,
-      'a due stamp writes the server numbers: ' + JSON.stringify(due.writes));
+    /* the stamp: written when the page is left; on screen only a new hunt's, and one per absence's length for a tab killed with no goodbye; bounded on the way in */
+    const MIN = 60 * 1000;
+    const cs = env(T0 + 9 * MIN);
+    ok(AR.stampAway(cs) === false && cs.writes.length === 0, 'a hunt on screen does not renew a stamp 9 minutes old');
+    const due = env(T0 + 10 * MIN);
+    ok(AR.stampAway(due) === true && due.writes[0][0] === 'awaySeen' && due.writes[0][1].at === T0 + 10 * MIN && due.writes[0][1].gold === 1956,
+      'a hunt on screen renews it at the shortest absence the line speaks of, with the server numbers: ' + JSON.stringify(due.writes));
+    const fresh = env(T0 + 1000, false, 's-2');
+    ok(AR.stampAway(fresh) === true && fresh.writes[0][1].s === 's-2', 'a hunt not stamped yet is stamped at once, so a killed tab still has an answer');
+    const flicker = env(T0 + 30 * 1000);
+    ok(AR.stampAway(flicker, true) === false && flicker.writes.length === 0, 'leaving 30 s after the last stamp writes nothing (a page flickering in and out of view)');
+    const left = env(T0 + 90 * 1000);
+    ok(AR.stampAway(left, true) === true && left.writes[0][1].at === T0 + 90 * 1000, 'leaving 90 s after it writes now: ' + JSON.stringify(left.writes));
+    /* A HUNT THAT ENDED IN VIEW: one last stamp with its final numbers, or the return credits what the player watched; never over a line still due */
+    const endedAt = (now, end, o) => { const c = env(now, true); const r = c.read; c.read = (k) => (k === 'hunt' ? { ...r(k), session: { end_reason: 'stamina', ended_at: new Date(end).toISOString() } } : r(k)); return Object.assign(c, o); };
+    const seenEnd = endedAt(T0 + 5 * MIN, T0 + 4 * MIN);
+    ok(AR.stampAway(seenEnd) === true && seenEnd.writes[0][1].at === T0 + 5 * MIN, 'a hunt seen ended takes one last stamp: ' + JSON.stringify(seenEnd.writes));
+    const stamped = endedAt(T0 + 6 * MIN, T0 + 4 * MIN);
+    stamped.record = { residue: { awaySeen: { ...stamp, at: T0 + 5 * MIN } } };
+    ok(AR.stampAway(stamped, true) === false, 'and only one: an ended hunt never writes again, however often the page is left');
+    const early = endedAt(T0 + 3 * MIN, T0 + 4 * MIN);
+    ok(AR.stampAway(early) === false, 'a browser clock short of the end stamps nothing: a stamp that did not pass the end would write itself again from its own listeners, for ever');
+    const lineDue = endedAt(T0 + H2, T0 + H2 - 5 * MIN);
+    ok(AR.stampAway(lineDue) === false, 'a stamp the return line still reads is kept: a new one would say the same hunt again');
     ok(CS.RESIDUE_FIELDS.includes('awaySeen'), 'awaySeen must be in RESIDUE_FIELDS');
     eq(CS.sanitizeResidueField('awaySeen', { s: 'x; drop', at: 1, xp: 2 }), {}, 'a forged session id is dropped');
     eq(CS.sanitizeResidueField('awaySeen', { s: 's-1', at: 5, xp: -3, gold: 9, kills: 1.5, extra: 1 }), { s: 's-1', at: 5, gold: 9 }, 'a stamp is shaped and bounded');
@@ -714,7 +732,13 @@ const MUTANTS = [
   { test: 'R3', file: 'src/shell/away-recap.js', from: "return r.back === session ? false :", to: "return" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "!was || !h || h.sessionId !== was.s ||", to: '!was || !h ||' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at", to: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + now" },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (was && was.s === next.s && next.at - was.at < STAMP_EVERY_MS) return false;', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (was && was.s === next.s && next.at - was.at < (leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)) return false;', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: 'STAMP_EVERY_MS' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: 'LEAVE_EVERY_MS' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '!(was.at < h.endedAtMs && next.at >= h.endedAtMs)', to: '!(next.at >= h.endedAtMs)' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '!(was.at < h.endedAtMs && next.at >= h.endedAtMs)', to: '!(was.at < h.endedAtMs)' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: ' || awayRecapOf(cs)) return false;', to: ') return false;' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!was || was.s !== next.s || !(was.at', to: 'if (true || !was || was.s !== next.s || !(was.at' },
   { test: 'R3', file: 'src/session/residue.js', from: '  awaySeen: sanitizeAwaySeen,', to: '  awaySeen: (v) => v,' },
 ];
 

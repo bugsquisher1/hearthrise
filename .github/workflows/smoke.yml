@@ -1381,10 +1381,11 @@ jobs:
   # Firefox is measured (not gated) by .github/workflows/perf-measure.yml.
   # MEASURED locally 2026-10-21: install ~2 min, the run ~4.7 min, --mutate (7
   # mutants: five real-time scenarios of 2-4 min, two PB-PIX) ~16 min when the
-  # gate runs it: ~23 min. Budget = x2 = 46.
+  # gate runs it: ~23 min. Budget = x2 = 46. PB-QUIET and PB-REQ (2026-11-01, 6
+  # more mutants) ran it past 62 on GitHub: limit raised to 90, no check removed.
   perf:
     runs-on: ubuntu-latest
-    timeout-minutes: 62
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v4

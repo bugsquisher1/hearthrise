@@ -21,7 +21,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **On a phone.** Coach cards are smaller, Leave and Disband stay on the sheet, Disband asks first, a tapped item no longer covers its buttons, sign-up and the sell sheet fit the screen, and you can invite to a party by name.
 
-**Lighter on your machine.** A still town stops redrawing the screen and asks the server for less, and a reload makes fewer calls.
+**Lighter on your machine.** The game downloads about half as much art after sign-in, with the same pixels. A still town stops redrawing the screen, each open game asks the server less often, and a reload makes fewer calls.
 
 **Fixed:** reloading no longer brings back the hunt bar after a hunt has ended.
 

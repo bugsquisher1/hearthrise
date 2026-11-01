@@ -55,10 +55,9 @@
 //         name on a line already held, and the conversation's label follows it
 //   CW-10 [page] a chat line already drawn takes the server's current name at the
 //         next read (hr_chat_row renders it), its menu target too
-//   ON-1  PLAYERS ONLINE (tracker r16): the count is hr_players_online's answer, asked
-//         on each social poll naming the account's open character slots, replaced by
-//         each answer; a refused or malformed answer reads "— online", never the last
-//         number
+//   ON-1  PLAYERS ONLINE (tracker r16): the count comes with hr_social_poll's answer, ONE
+//         request a poll naming the account's open character slots, replaced by each
+//         answer; a refused or malformed answer reads "— online", never the last number
 //   ON-2  [page] the counter reads the server's "3 online" at 12 px or more, on
 //         screen, overlapping no other widget; off by default on a phone
 //   CW-1  [page] a pushed line renders time + name [level, role glyph] + body, the
@@ -388,35 +387,38 @@ async function pureRules(M) {
     const held = conv ? wh.lines(conv.tab) : [];
     if (!conv || conv.name !== 'Bree Marsh' || held.length !== 1 || held[0].name !== 'Bree Marsh') fail('WH-2 after a rename the whisper reads ' + JSON.stringify({ conv, held: held.map((l) => l.name) }));
   }
-  // ON-1 (tracker r16): the online count is the server's answer, asked on every social poll naming exactly the
-  // account's open character slots (the server stamps its own of those present), REPLACED by each answer; a
+  // ON-1 (tracker r16): the online count is the server's answer, in the one request of every social poll, which names
+  // exactly the account's open character slots (the server stamps its own of those present), REPLACED by each answer; a
   // failed or malformed answer shows a dash, never the last number.
   {
-    let answer = { ok: true, online: 3 };
-    const { acct, calls, cs } = fakeAccount({ hr_players_online: () => answer });
+    let answer = { online: 3 };
+    const read = { ok: true, friends: [], incoming: [], outgoing: [], blocks: [] };
+    const { acct, calls, cs } = fakeAccount({ hr_social_poll: () => Object.assign({}, read, answer) });
     const second = { slot: 2, read: () => null, subscribe: () => () => {} };
     acct.characters = () => [cs, second];
     let poll = null;
     const soc = new M.store.SocialSession({ account: acct, realtime: fakeRealtime(), timers: { setTimer: (fn) => { poll = fn; return 1; }, clearTimer: () => {} } });
     soc.start();
     for (let i = 0; i < 5; i++) await tick();
-    const asks = calls.filter((c) => c.name === 'hr_players_online');
-    if (asks.length !== 1 || JSON.stringify(asks[0].args) !== '{"p_slots":[0,2]}') fail('ON-1 the first poll asked ' + JSON.stringify(asks.map((c) => c.args)) + ' (want the open slots 0 and 2, once)');
+    const asks = calls.filter((c) => c.name === 'hr_social_poll');
+    if (asks.length !== 1 || JSON.stringify(asks[0].args) !== '{"p_slot":0,"p_slots":[0,2]}') fail('ON-1 the first poll asked ' + JSON.stringify(asks.map((c) => c.args)) + ' (want the viewed slot and the open slots 0 and 2, once)');
+    const apart = calls.filter((c) => c.name === 'hr_social_state' || c.name === 'hr_players_online');
+    if (apart.length) fail('ON-1 a poll made a second request: ' + apart.map((c) => c.name).join(', ') + ' (one poll is one request)');
     if (soc.online.count !== 3 || M.online.onlineWords(soc.online.count) !== '3 online') fail('ON-1 the server said 3, the counter reads ' + M.online.onlineWords(soc.online.count));
-    answer = { ok: false, error: 'rate_limited' };
+    answer = { online: null };
     poll(); for (let i = 0; i < 5; i++) await tick();
     if (soc.online.count !== null || M.online.onlineWords(null) !== '— online') fail('ON-1 a refused ask kept the old count ' + soc.online.count);
-    answer = { ok: true, online: 'many' };
+    answer = { online: 'many' };
     poll(); for (let i = 0; i < 5; i++) await tick();
     if (soc.online.count !== null) fail('ON-1 a malformed count was shown: ' + soc.online.count);
-    answer = { ok: true, online: 1204 };
+    answer = { online: 1204 };
     poll(); for (let i = 0; i < 5; i++) await tick();
     if (M.online.onlineWords(soc.online.count) !== '1,204 online') fail('ON-1 the next answer did not replace the dash: ' + M.online.onlineWords(soc.online.count));
-    /* A poll whose social read fails (a session the server refused) sends no count ask and shows the dash. */
-    const asked = calls.filter((c) => c.name === 'hr_players_online').length;
+    /* A poll the server refuses (a session it no longer knows) is one dead call, and shows the dash. */
+    const asked = calls.length;
     acct.server.rpc = async (name, args) => { calls.push({ name, args }); return { ok: false, status: 401, body: null }; };
     poll(); for (let i = 0; i < 5; i++) await tick();
-    if (calls.filter((c) => c.name === 'hr_players_online').length !== asked) fail('ON-1 a refused social read still asked the count (two dead calls a poll)');
+    if (calls.length !== asked + 1) fail('ON-1 a refused poll made ' + (calls.length - asked) + ' calls (one is one)');
     if (soc.online.count !== null) fail('ON-1 a refused poll kept showing ' + soc.online.count);
     soc.destroy();
     if (soc.online.count !== null) fail('ON-1 a destroyed session still shows a count');
@@ -456,10 +458,9 @@ async function stub(page, s) {
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, env(s.seats), kept(), { version: ++s.version }));
     if (name === 'hr_chat_recent') return json({ ok: true, zone: ZONE, party: null, lines: s.recent || [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
     if (name === 'hr_chat_send') return json({ ok: true, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, from_weapon: 'staff', from_role: 'healer' }) });
-    if (name === 'hr_social_state') return json(s.social || { ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
+    if (name === 'hr_social_state' || name === 'hr_social_poll') return json(Object.assign({ online: 3 }, s.social || { ok: true, friends: [], incoming: [], outgoing: [], blocks: [] }));
     if (name === 'hr_friend_request' && s.ask) return json(s.ask);
     if (name === 'hr_block_set' && s.block) return json(s.block);
-    if (name === 'hr_players_online') return json({ ok: true, online: 3 });
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
     if (name === 'hr_inspect') return json({ ok: true, id: OTHER, name: 'Bramble', slot: 0, level: 34, weapon: 'sword', role: null, gear: [{ slot: 'weapon', item: 'bronze_sword' }] });
     return json({ ok: true });
@@ -837,8 +838,9 @@ const PURE_MUTANTS = [
     "        for (const tab of SERVER_TABS) { for (const l of this.lines(tab)) this._ids.delete(l.id); this._lines.set(tab, []); }\n        for (const row of b.lines) if (this._take(row, true)) any = true;\n        if (any) { for (const tab of SERVER_TABS)"],
   ['a whisper rejoin never catches up', 'src/social/whispers.js', ", () => this._catchUp());", ');'],
   ['a blocked player\'s public line is shown', 'src/social/chat-store.js', '    if (live && l.fromId && this._blocked(l.fromId)) return false;\n', ''],
-  ['a failed online ask keeps the last count', 'src/social/players-online.js', '    let n = null;', '    let n = this.count;'],
-  ['a refused social read still asks the count', 'src/social/social-session.js', '    if (!read) { this.online.clear(); return null; }\n', ''],
+  ['a failed online ask keeps the last count', 'src/social/players-online.js', 'online >= 0 ? online : null;', 'online >= 0 ? online : this.count;'],
+  ['a refused poll keeps showing the count', 'src/social/social-session.js', 'return this.online.take(read ? ans.body.online : null);', 'return read ? this.online.take(ans.body.online) : null;'],
+  ['a poll asks the count apart again', 'src/social/social-session.js', "    return this.online.take(read ? ans.body.online : null);", "    await this._account.server.rpc('hr_players_online', { p_slots: this.online.slots() });\n    return this.online.take(read ? ans.body.online : null);"],
   ['the online ask names only the viewed character', 'src/social/social-session.js',
     "o.account.characters().map((cs) => cs.slot)", '[o.account.viewed]'],
   ['the ground opens a menu', 'src/shell/menu-providers.js', "    if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };", "    return { kind: 'monster', id: mon, title: String(mon) };"],

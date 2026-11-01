@@ -57,8 +57,7 @@ const HUNT = 'millrace_sewer';
 const WEAPON = Object.freeze({ melee_dps: 'hammer', ranger: 'ranged', tank: 'sword' });
 const TICK_MS = 10000;   // the server's settle cadence (pg_cron, live-world-decision)
 
-const HUNT_ASKS_PER_MIN = 10, TOWN_ASKS_PER_MIN = 24;
-const TOWN_TAIL_MS = 45000;
+const TOWN_TAIL_MS = 60000;
 const IDLE_STAND = STATIONS.find((s) => s.kind === 'idle');
 /* THE BUDGETS (Chromium, 1440x900, the 4-minute CI scenario), from the measured numbers plus margin. */
 const BUDGET = Object.freeze({
@@ -83,8 +82,8 @@ const BUDGET = Object.freeze({
   townRecalcPerS: 40,      // ...and style recalcs a second: measured 0.3-19; a write a frame is 60
   leakNodesPerAct: 60,     // PB-LEAK: DOM nodes left after a forced GC per hero switch or bag open (the live page's own small growth apart from it)
   leakListenersPerAct: 2,  // ...and listeners
-  huntAsksPerMin: HUNT_ASKS_PER_MIN,  // PB-REQ, a hunt in view (party of two, a switch and a storm in it): measured 7.5; v0.2.79 was 13.5
-  townAsksPerMin: TOWN_ASKS_PER_MIN,  // ...and the still town after it: measured 17.5 (a read every 6 s, a parked hero's keepalive, the poll)
+  huntAsksPerMin: 9,       // PB-REQ, a hunt in view (party of two, a switch and a storm in it): measured 7.5; v0.2.79 10.5
+  townAsksPerMin: 20,      // ...and the still town after it: measured 16.2-17.5 (a read every 6 s, a parked hero's keepalive, the poll)
   pollPerMin: 3,           // hr_social_poll, one request every 30 s (two in a 30 s bucket at a window's edge)
   stampsInView: 0,         // hr_put_client_state carrying the away stamp while a hunt runs in view: written on the way out (away-recap.js)
 });
@@ -647,7 +646,7 @@ async function scenario(o) {
     /* PB-REQ: the still town long enough to count (a 4-minute run; the rate is a read every 6 s and a poll every 30 s) */
     if (o.minutes >= 4) await page.waitForTimeout(TOWN_TAIL_MS);
     /* ...and the still town: from a little after the party's end (its summary and the first reads) to the end of the run */
-    const asks = { hunt: asksIn(asked, t0, hiddenAt), town: asksIn(asked, (srv.S.endedAt || t0 + D) + 20000, Date.now()), stampsLeaving };
+    const asks = { hunt: asksIn(asked, t0, hiddenAt), town: asksIn(asked, (srv.S.endedAt || t0 + D) + 20000, Date.now()), stampsLeaving, townOwed: o.minutes >= 4 };
     return Object.assign(analyse(out, w0, o, srv), { asks, townPaintsPerS, townWritesPerS, townRecalcPerS, townTip: tail.tip, away, caught, awayFor, hiddenFor: shownAt - hiddenAt, heapMb: h0 === null ? null : (h1 - h0) / 1048576,
       heapRawMb: h0 === null ? null : (h1raw - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt });
   } finally {
@@ -760,8 +759,9 @@ function analyse(out, w0, o, srv) {
 function asksFails(a) {
   const f = [];
   const b = BUDGET;
-  /* the still town needs a window worth judging: a 2-minute --mutate run of another defect has none, a 4-minute one does */
+  /* the still town needs a window worth judging: a 2-minute --mutate run of another defect has none, a 4-minute one must */
   const town = a.town.ms >= 30000;
+  if (a.townOwed && !town) f.push(`asks: harness: only ${Math.round(a.town.ms / 1000)} s of still town to judge`);
   if (!(a.hunt.ms >= 30000)) f.push(`asks: harness: only ${Math.round(a.hunt.ms / 1000)} s of hunt in view to judge`);
   if (!(perMin(a.hunt) <= b.huntAsksPerMin)) f.push(`asks: ${perMin(a.hunt).toFixed(1)} requests a minute with a hunt in view (budget ${b.huntAsksPerMin}): ${JSON.stringify(a.hunt.verbs)}`);
   if (town && !(perMin(a.town) <= b.townAsksPerMin)) f.push(`asks: ${perMin(a.town).toFixed(1)} requests a minute in the still town (budget ${b.townAsksPerMin}): ${JSON.stringify(a.town.verbs)}`);

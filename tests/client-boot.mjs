@@ -150,7 +150,9 @@ async function stubServer(page, o) {
 
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
-async function checks(overrides) {
+/* `leaving`: run B-17 and B-18 too. Together about 20 s a run: --mutate runs them for their own mutants and the clean control only, or
+   36 mutants add 12 minutes to a 30-minute CI job (smoke.yml in-page, measured 14.2). */
+async function checks(overrides, leaving = true) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
@@ -295,7 +297,7 @@ async function checks(overrides) {
       await ctx.close();
     }
 
-    { // B-17 the away stamp goes on the way out, for every open hero
+    if (leaving) { // B-17 the away stamp goes on the way out, for every open hero
       const opened = async (stamped) => {
         const o = { heroes: { 0: 'Tester', 1: 'Runner' }, hunting: { 0: 'mill_cellar', 1: 'mill_cellar' }, created: [], puts: [], stamped };
         const f = await fresh(o);
@@ -322,6 +324,7 @@ async function checks(overrides) {
       const stamps = (o) => o.puts.filter((p) => p.p_patch && p.p_patch.awaySeen);
       const seen = (o) => stamps(o).map((p) => p.p_slot).sort().join();
 
+      try {
       const a = await opened(true);
       if (stamps(a.o).length) fails.push('B-17 a hunt on screen wrote its stamp with no one leaving: ' + JSON.stringify(stamps(a.o)));
       await a.page.evaluate(() => window.__hide(true));
@@ -346,9 +349,10 @@ async function checks(overrides) {
       const c = await opened(false);
       if (seen(c.o) !== '0,1') fails.push('B-17 a hunt not stamped yet was not stamped at once (a killed tab would have no answer): slots [' + seen(c.o) + ']');
       await c.ctx.close();
+      } catch (e) { fails.push('B-17 threw: ' + String(e && e.message).split('\n')[0]); }   // as B-18: a red, never the end of the run
     }
 
-    { // B-18 a Got it pressed just before a reload stays pressed
+    if (leaving) { // B-18 a Got it pressed just before a reload stays pressed
       /* a fresh hero in town (phone-touch PH-6): its first card, "Every weapon is a style", has a Got it in the bag */
       const fixture = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
       const residue = { coach: { read: [] } };
@@ -380,8 +384,8 @@ async function checks(overrides) {
         await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
         await page.click('[data-app="play"][data-slot="0"]');
         const got = '.hs-win-coach [data-tutorial] .hs-coach-got';
-        await wait(page, () => document.querySelector('.hs-launchers [data-hs-open="inventory"]'), null, 15000);
-        await page.click('.hs-launchers [data-hs-open="inventory"]');
+        if (await wait(page, () => document.querySelector('.hs-launchers [data-hs-open="inventory"]'), null, 15000)) await page.click('.hs-launchers [data-hs-open="inventory"]');
+        else fails.push('B-18 the game screen never showed its launchers');
         if (!(await wait(page, (q) => document.querySelector(q), got, 15000))) fails.push('B-18 CONTROL: a fresh hero shows no card with Got it');
         else {
           await page.waitForTimeout(2000);   // what the first paint wrote has landed: only the press is left to lose
@@ -400,6 +404,8 @@ async function checks(overrides) {
           if (again) fails.push('B-18 the card "' + card + '" came back after the reload');
         }
         if (errors.length) fails.push('B-18 console errors: ' + errors.slice(0, 3).join(' | '));
+      } catch (e) {   // a press that cannot land is this check's red, never the end of the run (--mutate plants a page with no game on it)
+        fails.push('B-18 threw: ' + String(e && e.message).split('\n')[0]);
       } finally { await ctx.close(); real.server.close(); }
     }
 
@@ -731,7 +737,7 @@ async function main() {
     const missing = pairs.find(([a]) => !text.includes(a));
     if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     for (const [a, b] of pairs) text = text.replace(a, b);
-    const fails = await checks({ [file]: text });
+    const fails = await checks({ [file]: text }, /\(B-1[78]\)/.test(name));
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

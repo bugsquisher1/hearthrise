@@ -4,10 +4,11 @@
 // decodePNG accepts what PixelLab and every paint tool emit: 8-bit grey, grey+alpha,
 // RGB, RGBA and indexed colour (1/2/4/8-bit, with tRNS), plus 16-bit channels
 // (truncated to 8). Interlaced files are refused by name rather than misread.
-// encodePNG writes indexed colour when the image has 256 colours or fewer (every sheet does: the world palette
-// holds 33-57 per sheet, alpha only 0 or 255) and 8-bit RGBA with a per-row filter choice otherwise. Same pixels,
-// 55% fewer bytes on a sheet (beta cost 2026-11-01: the town's six went 2,576 -> 1,172 KB). Compressed bytes depend
-// on the zlib build, so drift checks compare PIXELS (pixelHash), never file bytes.
+// encodePNG writes 8-bit RGBA with a per-row filter choice. encodeSheetPNG, for the shipped world sheets, writes indexed
+// colour when the image has 256 colours or fewer (every sheet does: the world palette holds 33-57 per sheet, alpha only
+// 0 or 255). Same pixels, 55% fewer bytes (beta cost 2026-11-01: the town's six went 2,576 -> 1,172 KB). Compressed bytes
+// depend on the zlib build, so the sheets' drift checks compare PIXELS (pixelHash), never file bytes; the tools that pin
+// their own small files by bytes (make-ui-steel-art, make-hud-bar-art, rune-icons) stay on encodePNG.
 import { inflateSync, deflateSync, constants as zlib } from 'node:zlib';
 import { createHash } from 'node:crypto';
 
@@ -135,10 +136,14 @@ function encodeIndexed(w, h, { colours, indices }) {
   return Buffer.concat([SIG, chunk('IHDR', ihdr), chunk('PLTE', plte), ...(alphas.length ? [chunk('tRNS', Buffer.from(alphas))] : []), chunk('IDAT', packed), chunk('IEND', Buffer.alloc(0))]);
 }
 
+/** A world sheet's bytes: indexed colour, or RGBA past 256 colours (no sheet can lose a colour to a palette). */
+export function encodeSheetPNG(img) {
+  const palette = paletteOf(img);
+  return palette ? encodeIndexed(img.width, img.height, palette) : encodePNG(img);
+}
+
 export function encodePNG(img) {
   const { width: w, height: h, data } = img;
-  const palette = paletteOf(img);
-  if (palette) return encodeIndexed(w, h, palette);
   const stride = w * 4;
   const raw = Buffer.alloc((stride + 1) * h);
   const cand = [0, 1, 2, 3, 4].map(() => Buffer.alloc(stride));

@@ -409,7 +409,15 @@ export function mountShell(root, o) {
   function onWm() {
     /* the player closed an ended hunt's summary: its hunt bar leaves town with it (huntUp) */
     const so = wm.isOpen('hunt-summary');
-    if (summaryWasOpen && !so) { const h = huntOf(ctx.character); if (h && h.ended) summaryClosed = h.sessionId; }
+    if (summaryWasOpen && !so) {
+      const cs = ctx.character, h = huntOf(cs);
+      if (h && h.ended) {
+        summaryClosed = h.sessionId;
+        /* A closed summary stays closed: its record lands now, as a dismissed death does (death-popup.js), so a reload
+           inside the residue's debounce can't lose it and open the summary again. */
+        if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});
+      }
+    }
     summaryWasOpen = so;
     paintWindows();
     /* an open window asked to show another tab (R on an open Shop: window-manager.js openTab) shows it at once */

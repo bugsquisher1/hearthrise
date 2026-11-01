@@ -241,7 +241,7 @@ async function pageRules(overrides, shots) {
         else {
           await e.page.click('[data-hs-close="hunt-summary"]');
           await wait(e.page, (q) => !document.querySelector(q), SUM, 3000);
-          await e.page.waitForTimeout(800);   // the card's residue put
+          await e.page.waitForTimeout(800);   // the close's residue put, sent at once: under the 1.5 s debounce on purpose (v0.2.79)
           const closed = await townView(e.page);
           if (closed.bar || !closed.home) fails.push('DP-4 [' + tag + '] closing the summary left ' + JSON.stringify(closed));
           await e.page.reload({ waitUntil: 'load' });
@@ -273,6 +273,7 @@ const PAGE_MUTANTS = [
   ['the projection drops the Blessing', 'src/session/character-sections.js', "      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null });", '      saved: undefined });'],
   ['Hunt summary only closes', 'src/shell/windows/death.js', "  if (action === 'death-summary') ctx.show('hunt-summary');\n", ''],
   ['a reload stands the hunt bar back up in town', 'src/shell/shell.js', " && !summaryFromEarlierPage(opts.character, h.sessionId)", ''],
+  ['a closed summary waits out the residue debounce', 'src/shell/shell.js', "if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});", 'void 0;'],
   ['the summary opens over the popup', 'src/shell/shell.js', "if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death'))", 'if (cs && takeFresh(cs))'],
 ];
 

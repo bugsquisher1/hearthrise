@@ -159,7 +159,7 @@ async function signInAndPlay(page, base) {
 
 /* TW-9 THE WORDS (Tyler 2026-10-24: "this is weird dialogue"): her greeting says what happens, and no line a player
    reads from her (data, window, HUD, refusals, alerts, the log) keeps the riddles it replaced. */
-const GREETING = 'Take a task from my board and go hunting. When the count\'s done, I\'ll pay you in town: gold, plus a piece of armor you can wear.';
+const GREETING = 'Take a task from my board and go hunting. When the count\'s done, I\'ll pay you in town: gold, plus the armor or materials my board shows.';
 const OLD_WORDS = /half of the stick|piece for your back|tally-keeper|picks for|her pick for you|tallies a day|you hold no tally|loads from the server|Tamsin has work/i;
 const COPY_FILES = ['src/data/tally-tasks.js', 'src/shell/windows/tally.js', 'src/session/tally-sections.js', 'src/shell/widgets/tally-hud.js',
   'src/data/refusal-words.js', 'src/data/alerts.js', 'src/shell/alerts.js', 'src/hunt-view/combat-log.js'];
@@ -508,7 +508,7 @@ const MUTANTS = [
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
   ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));", "text(li.querySelector('.hw-hunt-tally'), '');"],
   ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
-  ['her greeting is the riddle again', 'src/data/tally-tasks.js', "greeting: 'Take a task from my board and go hunting. When the count\\'s done, I\\'ll pay you in town: gold, plus a piece of armor you can wear.',",
+  ['her greeting is the riddle again', 'src/data/tally-tasks.js', "greeting: 'Take a task from my board and go hunting. When the count\\'s done, I\\'ll pay you in town: gold, plus the armor or materials my board shows.',",
     "greeting: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],
   ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !t || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !t || (!held.length && (hunting || !met)));"],
   ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!t && (!!t.weight || t.recent.length > 0);', '  const met = !!t;'],

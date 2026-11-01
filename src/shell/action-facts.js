@@ -47,18 +47,20 @@ export function actionName(a) {
   return own(ATTACK_KINDS, a.id) ? 'The loaded ammo' : itemName(a.id);
 }
 
-/* The worn sets that give a discipline, in words ("Shield or Bare hands"): every role key playing it (ROLE_KEYS). */
+/* The worn sets that give a discipline, in words ("Shield or Bare hands"), each word once: every role key playing it (ROLE_KEYS). */
 function weaponsFor(disc) {
-  const w = Object.keys(ROLE_KEYS).filter((k) => ROLE_KEYS[k].discipline === disc).map((k) => WEAPON_WORDS[k] || k);
-  return w.length ? w.join(' or ') : disc;
+  return wordsOfKeys(Object.keys(ROLE_KEYS).filter((k) => ROLE_KEYS[k].discipline === disc)) || disc;
 }
 
 /* The worn sets that play any of `roles`, in words ("Bow or Crossbow"), each word once (ROLE_KEYS). */
 function weaponsOf(roles) {
+  return wordsOfKeys(Object.keys(ROLE_KEYS).filter((k) => ROLE_KEYS[k].roles.some((r) => roles.includes(r))));
+}
+
+function wordsOfKeys(keys) {
   const seen = new Set();
   const w = [];
-  for (const k of Object.keys(ROLE_KEYS)) {
-    if (!ROLE_KEYS[k].roles.some((r) => roles.includes(r))) continue;
+  for (const k of keys) {
     for (const word of String(WEAPON_WORDS[k] || k).split(' or ')) {
       if (!seen.has(word.toLowerCase())) { seen.add(word.toLowerCase()); w.push(word.charAt(0).toUpperCase() + word.slice(1)); }
     }

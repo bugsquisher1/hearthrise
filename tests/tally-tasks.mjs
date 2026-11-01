@@ -27,7 +27,9 @@
 //                    a forged kills-by-monster past the window's kills is refused, moving nothing.
 //   TT-6  PICK       weight medium at the Thicket: helmet, body, legs, boots (her order), then the
 //                    task's materials in turn; never a piece twice (even sold back out of the
-//                    bag); a piece the hero carries is skipped; the hero's own slot order leads.
+//                    bag); a piece the hero carries or wears does NOT move her pick, so her board's line is
+//                    what she pays (2027-02-15-panel-truth.sql; the panel 2026-11-01: board "a Bronze
+//                    Platebody", paid "5 Raw Wolf Meat"); the hero's own slot order leads.
 //   TT-7  KEEP       "Keep this task": paid, then held again at once with a fresh count; off: gone.
 //   TT-8  OWN        no verb takes a target hero; a stranger's drop / set touches only its own
 //                    rows; no client may write a tally table.
@@ -79,6 +81,10 @@ export const MUTANTS = {
   pick_repeats: { arm: 'TT-6', why: 'her pick forgets what she gave: a piece sold out of the bag is given again',
     db: ['public.hr_tally_pick(uuid,integer,text)',
       'and not exists (select 1 from public.hero_tally_given g where g.user_id = p_user and g.slot = p_slot and g.item_id = p.item_id)', 'and true'] },
+  pick_skips_carried: { arm: 'TT-6', why: 'a piece the hero carries moves her pick: the board says one thing and she pays another',
+    db: ['public.hr_tally_pick(uuid,integer,text)',
+      'and not exists (select 1 from public.hero_tally_given g where g.user_id = p_user and g.slot = p_slot and g.item_id = p.item_id)',
+      'and not exists (select 1 from public.hero_tally_given g where g.user_id = p_user and g.slot = p_slot and g.item_id = p.item_id) and not exists (select 1 from public.player_inventory i where i.user_id = p_user and i.slot = p_slot and i.item_id = p.item_id)'] },
   pick_ignores_order: { arm: 'TT-6', why: 'her pick ignores the hero\'s slot order',
     db: ['public.hr_tally_pick(uuid,integer,text)', 'order by coalesce(array_position(v_order, p.equip_slot), 99), p.tier desc, p.item_id', 'order by p.item_id'] },
   keep_ignored: { arm: 'TT-7', why: '"Keep this task" is never honoured',
@@ -350,14 +356,18 @@ const ARMS = {
     const want = ['leather_helmet', 'leather_body', 'leather_pants', 'leather_boots', 'raw_wolf_meat', 'bones'];
     if (JSON.stringify(got) !== JSON.stringify(want)) problems.push('her picks at the Thicket (medium) were ' + JSON.stringify(got) + ', want ' + JSON.stringify(want));
     if (new Set(got.filter((x) => /leather/.test(String(x)))).size !== 4) problems.push('a piece came twice: ' + JSON.stringify(got));
-    /* Her slot order is the hero's to set; a carried piece is skipped. */
+    /* Her slot order is the hero's to set; a piece found on the ground does not move what she pays. */
     await db.query('delete from public.hero_tally_given where user_id = $1', [U]);
     await db.query('delete from public.hero_tally_claims where user_id = $1', [U]);
     const set = await rpc(db, U, 'select public.hr_tally_set(0, null, null, null, $1::text[], $2::uuid)', [['boots', 'pants', 'body', 'helmet', 'gloves', 'belt'], idem()]);
     if (!set || set.ok !== true) problems.push('the slot order was refused ' + JSON.stringify(set));
     await db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'leather_boots', 1) on conflict (user_id, slot, item_id) do update set qty = 1", [U]);
     const pick = await one(db, 'select public.hr_tally_pick($1, 0, $2)', [U, THICKET]);
-    if (!pick || pick.item !== 'leather_pants') problems.push('with her order boots-first and boots in the bag she would pick ' + JSON.stringify(pick) + ', want leather_pants');
+    if (!pick || pick.item !== 'leather_boots') problems.push('with her order boots-first and boots in the bag her board says ' + JSON.stringify(pick) + ', want leather_boots');
+    await finish(db, U, THICKET);
+    const paid = await rpc(db, U, 'select public.hr_tally_collect(0, $1::uuid)', [idem()]);
+    const paidItem = paid && paid.paid && paid.paid[0] && paid.paid[0].item;
+    if (paidItem !== pick.item) problems.push('her board said ' + JSON.stringify(pick && pick.item) + ' and she paid ' + JSON.stringify(paidItem));
     return problems;
   },
 

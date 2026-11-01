@@ -27,6 +27,9 @@
 //                  summary and stores the dismissal
 //   DP-3 OLDER ROW a death row from before the server half (no `saved`, no `session`) still
 //                  opens the popup with its cost and says nothing about a Blessing
+//   DP-4 RELOAD IN TOWN  an ordinary end opens its summary; closed, the hunt bar leaves town. A reload
+//                  brings neither back and the Town / Home strip stands (the panel 2026-11-01, twice:
+//                  "Last hunt: Wickstead | Summary" in its place until Summary was pressed)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -223,6 +226,30 @@ async function pageRules(overrides, shots) {
           if (r.lost !== WANT.lost || r.killed !== WANT.killed) fails.push('DP-3 [' + tag + '] an older row reads ' + JSON.stringify([r.killed, r.lost]));
         }
         await d.ctx.close();
+        /* DP-4 A RELOAD IN TOWN LEAVES THE TOWN CLEAR */
+        const s4 = scripted(false);
+        s4.env[0].hunt.ended = true;
+        s4.env[0].hunt.session = Object.assign({}, s4.env[0].hunt.session, { end_reason: 'stamina', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
+        const e = await fresh(s4);
+        const SUM = '[data-hs-win="hunt-summary"]:not(.is-leaving)';
+        const townView = (page) => page.evaluate((q) => {
+          const seen = (n) => !!n && n.getClientRects().length > 0;
+          return { bar: seen(document.querySelector('.ht-bar')), summary: !!document.querySelector(q), home: seen(document.querySelector('[data-world-choice="home"]')) };
+        }, SUM);
+        if (!e.ok || !(await wait(e.page, (q) => !!document.querySelector(q), SUM, 4000))) fails.push('DP-4 [' + tag + '] an ended hunt opened no summary on its first load');
+        else {
+          await e.page.click('[data-hs-close="hunt-summary"]');
+          await wait(e.page, (q) => !document.querySelector(q), SUM, 3000);
+          await e.page.waitForTimeout(800);   // the card's residue put
+          const closed = await townView(e.page);
+          if (closed.bar || !closed.home) fails.push('DP-4 [' + tag + '] closing the summary left ' + JSON.stringify(closed));
+          await e.page.reload({ waitUntil: 'load' });
+          await play(e.page);
+          await e.page.waitForTimeout(1200);
+          const back = await townView(e.page);
+          if (back.bar || back.summary || !back.home) fails.push('DP-4 [' + tag + '] a reload in town reads ' + JSON.stringify(back));
+        }
+        await e.ctx.close();
         if (errors.length) fails.push('DP [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       } catch (e) {
         fails.push('DP [' + tag + '] threw: ' + String(e && e.message).split('\n')[0]);
@@ -244,6 +271,7 @@ const PAGE_MUTANTS = [
   ['the own death is a side line again', 'src/shell/alerts.js', '    if (!viewed && !deathSeen(cs, h.sessionId)) out.push(', '    out.push('],
   ['the projection drops the Blessing', 'src/session/character-sections.js', "      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null });", '      saved: undefined });'],
   ['Hunt summary only closes', 'src/shell/windows/death.js', "  if (action === 'death-summary') ctx.show('hunt-summary');\n", ''],
+  ['a reload stands the hunt bar back up in town', 'src/shell/shell.js', " && !summaryFromEarlierPage(opts.character, h.sessionId)", ''],
   ['the summary opens over the popup', 'src/shell/shell.js', "if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death'))", 'if (cs && takeFresh(cs))'],
 ];
 

@@ -1,0 +1,16 @@
+HEARTHRISE v0.2.81 - BLIND NEWCOMER PLAYTEST 2 (f5-newcomer)
+Persona: first-time player, 1366x768 laptop, link from a friend, ~10 minutes of patience.
+Harness: tools/qa/local-world.mjs (PGlite world, real play.html), Playwright Chromium 1366x768, driven by a small local control server.
+STATUS: IN PROGRESS - this file is saved as I go. Sections are filled in order; the final commit is "LANE DONE".
+
+=== TIMELINE (running log) ===
+[t+0:05] Sign-in screen. Logo + Email/Password + Sign in. "Create an account" / "Forgot your password?" links. Nothing says what the game is.
+[t+0:07] Sign-up: short password -> "Use at least 10 characters." Mismatch -> "The two passwords do not match." Valid -> green "Check your email for a link to finish creating your account. If you already have an account, sign in instead." (button stays live; no automatic move back to sign-in). Harness auto-confirms accounts, so I clicked Back to sign in and signed in.
+[t+0:09] Characters screen: "Signed in as ... You own 2 hero slots, and up to 4 heroes can play at once. More slots cost gold: the third is 15,000." Two "Empty slot / Create hero" rows.
+[t+0:10] Create hero: Name + 4 colour rows (Head/Body/Legs/Feet) + "How you fight" panel. At 1366x768 the logo takes the top half; "Enter town" sits at y=985, below the fold, page scrolls (scrollHeight 1073). Empty name -> "A name needs at least 3 letters." (good).
+[t+0:12] Named hero Wren, picked Body colour 14 (blue), Enter town. In town as a silver knight (not my colours; creation text did say outfits can't be dyed yet).
+[t+0:16] First town: zoomed-in view of a cobbled square, my hero alone ("1 online"). Coach card 1 "Every weapon is a style" (Got it). Coach card 2 "Rats in the mill: The miller has rats in his grain. Open Hunts and enter the Mill Cellar." (ring on the Hunts icon). 17 icon-only buttons across the top; hotkeys only in hover titles.
+[t+0:18] Hunts window (H): 6 grounds listed (Mill Cellar L1-8 "Fits your level"; Meadowbrook L5-15, Sewer L8-25, Wickstead L8-18, Mosslight Glade L16-31, Coppercap Warrens L32-50, all "Above/Far above your level"). The window at 1366x768 is ~790x440: list shows 3 of 6 grounds, detail pane shows ~4 lines (drops table below the fold, scroll inside). The coach line "Press the Mill Cellar, then Enter" is repeated by the line under it "Pick a hunt, then Enter".
+[t+0:19] Enter -> walked in, hunting alone. Coach "Your hero fights alone: You don't click to attack..." Hunt looks alive (Power Strike, miss, damage numbers, rats, wasps). In 43 s: 7 kills, XP 84% of Lv1, "Your first Level" banner.
+[t+0:22] skip 10 min: Lv 4, 82 kills, 117 gp, loot value 165 gp. Coach "Plant your land" fires mid-hunt (Farm icon ringed). Opened Farm from the hunt, planted 2 Turnips (8 seeds come in the bag), Water -> "grows twice as fast for 2 hours".
+[t+0:25] Bag (while hunting): Inventory window is cut off at the bottom at 1366x768; footer (19 of 100 spaces, gold, Dispatch loot) only after scrolling inside the window. "Dispatch loot" is disabled with the hover reason "works in town".

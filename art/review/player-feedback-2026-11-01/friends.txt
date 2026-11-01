@@ -1,0 +1,236 @@
+HEARTHRISE: THREE FRIENDS IN A CALL (lane/f3-friends)
+Built from origin/release/v0.2.79. Local world only (tools/qa/local-world.mjs), real play.html, Playwright.
+Played 2026-11-01. Shot numbers below are files in friends-shots/. Opinions are marked OPINION. Everything else was on screen.
+
+Cast
+  Bram plays Bramwell: sword and shield.
+  Wren plays Wrenna: bow.
+  Sol plays Solace: staff. Sol also runs a second hero, Sorrel (sword and shield, the default).
+  A fourth account, Ash (Ashgrave), played a stranger.
+
+
+1. WHAT WE PLAYED
+- Sign-up from the first screen, hero creation, swapping weapons.
+- Town: seeing each other, global, local and private chat, the friends list.
+- Parties: invites by chat name, friends list and typed name; refusals; leaving; disbanding; removing a member.
+- The party finder: listing and searching. Join was not pressed.
+- Mill Cellar, Meadowbrook Thicket and Mosslight Glade, both in a party and alone.
+- Coppercap Warrens: refused at the door.
+- One friend closing the browser and returning. Second hero in the party. Two deaths in a party, one solo.
+- Stamina running out on one person. The pull-size setting.
+- The Weighhouse: list, buy, history.
+About 12.5 hours of hunting on Bram's clock, plus 4 hours of town rest. Solace ended at Level 13, Bramwell and Wrenna at 14, Sorrel at 9.
+
+WHAT WE DID NOT REACH
+- The Sewer and the Rat King, Wickstead, and any fight in Coppercap Warrens.
+- Leaving and re-joining the same hunt. A page reload during a party hunt.
+- The LEADER closing the browser (only a member did).
+- Removing a member who was still fighting (Sorrel was already home when removed).
+- Joining a stranger's party from the finder. Block (seen in the menu, not pressed).
+- Buying stamina or a hero slot. Blessings (opened, not bought). Tamsin's tasks (read, none taken). Feed the Hearth. Crafting, farm, house.
+- Phone or touch.
+- An apart sample on Meadowbrook Thicket, so that ground has together numbers only.
+- A real wrong-password or wrong-email sign-in.
+
+
+2. TIMELINE (hunting clock on Bram, h:mm; each time marks an event or the end of that stretch)
+0:00  Three sign-ups. Everyone stands together in town, names over heads. All three saw "1 online"; within a minute or so, "3 online".
+0:00  Wren says hi in Global. All three see it.
+0:00  Bram invites Wren from a right-click on her chat name. Wren refuses. Bram gets no notice and is left leading an empty party.
+0:00  Sol invites Bram by typed name. Bram presses Join: "This character is already in a party. Leave it first." He presses Leave party, then Join, and it works.
+0:00  Wren and Sol swap to bow and staff AFTER joining. The party calls all three "Melee (shield)" and draws three knights.
+0:34  Mill Cellar together, Level 1 to 5. Bram presses Leave hunt. After a countdown everyone is sent home.
+1:08  Disband. Mill Cellar apart at Level 5. "Best alone" and "Best in a party" now show side by side.
+1:43  Re-form, Mill Cellar together at Level 5 to 6. Roles and outfits are now correct.
+2:14  Thicket together. Wren closes her browser. Bram and Sol see no sign of it.
+3:16  Wren returns after 62 min; hunt still running. The away card reports the whole hunt, not her absence. Hunt ends here.
+3:27  Sorrel, Level 1, added as a fourth. Thicket, 11 min. Sorrel reaches Level 5.
+3:27  Warrens refused: "Nobody went in: Bramwell is too low a level for that hunt..."
+7:49  Glade as a four at Level 7 (ground is 16 to 31), default pull. Nobody died in 4 h 21 min. Bram and Wren reach Level 10.
+7:49  Weighhouse: Wren lists a robe, Sol buys it. (Bought during this hunt.)
+8:12  Bram and Wren solo in the Glade. Bram at the default pull, Wren at 8 per pack.
+12:08 Glade as a three at 8 per pack. Bram's stamina runs out and everyone goes home.
+16:08 Four hours of town rest.
+16:10 Wren and Sorrel pair in the Glade at 8 per pack. Sorrel dies within seconds of entering. Wren is sent home.
+16:10 Same again with Wren's "Leave if anyone leaves" box off. Sorrel is in town within seconds of entering; the Deaths tab shows a second Glade death. Wren keeps hunting. Wren removes Sorrel.
+16:28 All three solo in the Glade at 8 per pack. Wren dies. Bram and Solace survive the sample.
+
+
+3. NUMBERS
+Rates are as printed by the Hunt analyzer or Hunt summary. Balance is gold + loot value − supplies.
+
+PER PERSON, SAME GROUND, APART vs TOGETHER
+
+Mill Cellar, default pull, Level 5 to 6
+              Apart (about 30:40)                  Together, party of 3 (34:54)
+              XP/h    gold+loot/h   supplies       XP/h    gold+loot/h    Change
+  Bram        7,159   2,092         0              4,011   1,093          XP -44%, money -48%
+  Wren        7,472   2,092         59/h           4,011   1,122*         XP -46%, money -46%
+  Sol         6,206   1,828         0              4,011   1,128          XP -35%, money -38%
+  * Worked out from 653 gold+loot in 34:54; the rest are as printed.
+
+Mosslight Glade, default pull, Level 7 to 10
+              Apart, Bram only (22:36, Level 10)   Together, party of 4 (4:21:47)
+  Bram        XP/h 54,865, balance/h 3,895         XP/h 35,296, balance/h 2,935
+  Wren and Sol had no apart sample at this pull.
+
+Mosslight Glade, 8 per pack, Level 10 to 14
+              Apart                                Together, party of 3 (3:55:58, Level 10 to 13)
+  Bram        70,286 XP/h, balance 4,801/h         64,346 XP/h, balance 5,161/h
+              (15:52, Level 13 to 14)
+  Wren        84,120 XP/h, balance 6,150/h         64,346 XP/h, balance 4,894/h
+              (11:21, Level 10). A second solo
+              run at Level 13 ended in death, -4,776 XP.
+  Sol         52,424 XP/h, balance 3,323/h         64,346 XP/h, balance 4,468/h
+              (15:45, Level 13)
+  Levels differ across these samples, so treat them as rough. Bram's and Sol's apart balance is gold+loot/h minus supplies/h.
+
+Together only
+  Mill Cellar, Level 1 to 5, party of 3 (33:36): 3,902 XP/h. Balance/h Bram 973, Wren 905, Sol 1,129.
+  Thicket, Level 6 to 7, party of 3 (1:32:52): 13,839 XP/h. Balance/h Bram 1,825, Wren 1,441, Sol 1,525.
+  Thicket, Level 7, party of 4 with a Level 1 (11:12): 11,973 XP/h. Balance/h Bram 1,479, Wren 1,564, Sorrel 1,393.
+
+What grouping does, as we read it
+- Level XP and kill count were identical for every member at every read. Gold was close, loot differed person to person.
+- A Level 1 got the same XP as Level 7s: 2,034 XP and Level 1 to 5 in about 10 min.
+- Who pays: "Costs are personal." In the 8-per-pack three, at 3:52: Bram 48 gp, Wren 1,030 gp, Sol 2,165 gp. Sol's supplies hit 1,172/h in the first half hour. The healer's runes keep the tank alive and the healer alone pays.
+
+Does the game say beforehand what grouping does to earnings?
+- No line we could find says it. The Hunts window showed only: drop chance "in a party of 3" (Mill Cellar helmets 1% vs 0.65% alone; Queen's Comb 0.11% vs 0.072%); "Bigger pulls pay more once your heroes can hold them"; "Costs are personal" (in the hunt).
+- Reading the whole Hunts window, as leader and alone, found no line about sharing or splitting XP or gold.
+- The only comparison is after the fact: "Best alone" and "Best in a party" under "Your best here", once you have tried both.
+
+NUMBERS ON SCREEN THAT DISAGREE BETWEEN ACCOUNTS
+a. Role: all three "Melee (shield)" on every screen while Wren fired Precision Shot and Sol was on staff (bug 2).
+b. Max HP after a level-up. One read: Bram's screen had Wrenna 190/190, Wren's had herself 200/200. Another read: Bram's had Sorrel 150/150, Wren's and Sorrel's own had 190/190. In the one case re-read quickly, they matched about 20 s later. Separately, one read had Bram at 167/190 on his screen and 190/190 on Wren's.
+c. Online count: "1 online" with three heroes in view, for up to a minute or so. Later "5 online" with 4 accounts, so it counts heroes, not people.
+d. Thicket says "Alone or with up to 1 more" and "A pull ... for your party of 3" in the same window, and 3 then 4 walked in.
+e. Numbers that did agree: session clock, kills, Level XP, XP/h (to rounding).
+
+
+4. HOW SOMEONE WITH A NAME GETS INTO A PARTY (presses)
+  Name in chat:     right-click, Invite to party = 2. Receiver: Join = 1. Total 3.
+  Friend:           N, Invite to party = 2. Receiver: Join = 1. Total 3.
+  Typed name:       Y, Invites tab, type, Invite = 3 + typing. Receiver: Join = 1. Total 4 + typing. On a first open Y lands on Find a party, where there is no name box.
+  Then starting:    Y, Pick a hunt for the party, ground, Start with party = 4. If the leader already has the Hunts window, 3.
+  Party of 3 from nothing, by chat name: 3 + 3 + 4 = 10 presses.
+  Trap, invites crossing: anyone who has sent an invite already owns a party. +2 or 3 presses (Y, tab, Leave party, Join again).
+  Regrouping from solo hunts: both must Leave hunt first. Each waits out a countdown; once we still read "Hunting" 16 s after the press. Invite buttons stay lit and answer "Not while a hunt is running."
+  Name typed: case-insensitive. A typo says "No character goes by that name."
+
+
+5. CAN EVERYONE TELL WHAT IS GOING ON?
+Good
+- Hunt panel: names, HP, mana, "Targeted", "Holds every lap", "Too weak to hold", "Eating", and a crown on the leader.
+- "This hero" vs "Party" on the analyzer; a Party view adds everyone up.
+- Stamina card for the person affected: "Your stamina ran out, so your hero came home. It comes back hour for hour while you aren't hunting."
+- Death card: killer, exact XP cost, and what Blessings do.
+- The red warning on a too-hard ground. The refusal naming each hero who is too low.
+Poor
+- Nothing says how XP or gold work in a party.
+- Nothing shows a friend's stamina, or warns the party before someone runs out. Wren had 0:17, Bram 0:04, Sol 0:30.
+- Nothing shows that a friend has closed the browser.
+- DPS shows 0, 1 or 2 next to Totals in the thousands. OPINION: reads as broken even if the sums are honest.
+
+CAN EACH PERSON EXPLAIN THEIR ROLE AND WHAT TO BUY NEXT, FROM THE SCREEN ALONE?
+Bram: "I hold the monsters so you aren't hit." Yes, from hero creation and "Holds every lap". Buy next? The Shop lists shield, gloves, belt, ring, cape and necklace by price with no pointer. He had 2,694 gold and could not say which.
+Wren: "I shoot from a distance." Yes, once the party label is right. She knew Flame Volley needs Fire runes ("Runes: no Fire runes of yours"). Buy next? Could not say beyond runes, and noticed "Food: store" only late (her 20 shrimp were gone by the last solo run).
+Sol: "I heal." Yes, and HPS Total confirms it. She knew water runes cost 1 gp a cast and poison was missing. She could not say what lifts healing.
+All three: the summary's "Next:" gave a real next action (Wear what you found, Feed the Hearth), but about gear and fuel, never about buying. "Equip upgrades" honestly says "Nothing goes on by itself" and explains the armor choices. OPINION: that is good copy, but a new player still has to decide alone.
+
+
+6. WEIGHHOUSE AND GIVING TO A FRIEND
+HARNESS NOTE: on this local world the Weighhouse first said "isn't trading right now." I set hr_market_config.enabled = true in the local database so we could reach it. Not a game bug.
+- Level gate: "The Weighhouse trades with heroes of Level 10 or higher." The first friends got there around 7:49, helped by hunting well above their level. The wording suggests any hero on the account counts ("Reach it on any hero"); Sol bought as Solace, so not tested from Sorrel.
+- Trade worked: Wren listed an Adept Robe Top at 143, fee 2 gold. Sol bought it mid-hunt into her bag. Wren received 137. History on both sides reads correctly.
+- Wren was not told when it sold. Nothing popped up; her gold moved and History had a line.
+- Giving: there is no way we could find. The name menu has Inspect gear, Message, Add friend, Invite to party, Block.
+- Listing cheap is refused: "The shop pays 137 for one, and nothing lists below that... ask 143 or more." The listing shows in Browse for everyone, so a Level 10 stranger could presumably buy it first (not tested). A friend's "gift" costs the buyer 143, the seller 2 gold and the 4% cut. The Sell tab says "gifts" can't be sold, but we never saw a way to send one.
+
+
+7. CHAT, INVITES, REFUSALS, KICKS, STRANGERS
+- Global: everyone. Local: town only; Ash in town saw it, Bram hunting did not. Party tab exists. Private message from Friends: Message opens a named tab.
+- A private message arrived with no toast on Wren's screen. She saw a dot on the tab once she opened Chat. A friend request arrived with no toast or badge at all; Bram found it by opening Friends.
+- Stranger: Ash typed Bramwell's name and the invite popped up. Bram refused. Ash re-invited 5 times in about 5 s, each "Invite sent". Bram's screen showed one card at a time, and it came back after refusal. Nothing but Block would stop it (Block not pressed).
+- Finder: Ash shows as "Party of 1 / Ashgrave · 1 of 4 / Join", no ground, no need. Join is offered to someone already in a party, and the window says "You are in a party. Leave it to join another."
+- Leader leaving: Bram left, Solace became leader with no fuss.
+
+
+8. BUGS (exact steps; what we saw)
+1. Panels off the bottom of the window.
+   Steps: window narrower than about 1600 px, enter a hunt.
+   Saw: the Hunt analyzer's top edge sits 5 px above the window's bottom: 1280x720 at y=715; 1366x650 at y=645; 1440x780 at y=775; 1536x730 at y=725. Fine at 1600x780 and 1920x950. In a party at 1280x720 the Party panel was at y=715 too, so both were gone. The page does not scroll. "Hunt details" did not bring them in. Result: no HP for friends, no XP/h, no Remove button. Settings has a "HUD layout" entry; not tried. Shots 033, 040, 172.
+
+2. Party role and outfit frozen at join.
+   Steps: join a party, then equip a bow or staff, start a hunt.
+   Saw: Wrenna and Solace "Melee (shield)" in the roster and hunt panel, knight sprites, though Wrenna fired Precision Shot. Stayed wrong all hunt and on the next. Disband and re-form fixes it. Shots 033, 043, 079.
+
+3. Away card reports the whole hunt.
+   Steps: hunt 30 min in a party, close browser, 62 min pass, return.
+   Saw: "While you were away (1 h 2 min)... +21,161 Level XP, +1,299 gold, 1,068 kills." Her analyzer read 7,022 XP at closing and 21,183 at return, so the absence earned about 14,160.
+
+4. Away card goes stale and blocks things.
+   Steps: same; then leave the hunt, or open Chat.
+   Saw: still "Still hunting, with 8 h 48 min of stamina left" while in town at 4:03 stamina, hours later, until dismissed by hand. It sits over the Chat tabs; the browser driver reported it intercepts the press on Local (shot 176). The same card position also covers the Party panel (shot 135 shows it on Bram, whose card was the harness one; the position is the game's).
+
+5. A friend's stamina is reported as them leaving.
+   Steps: party; leader's stamina ends first, with "Leave if anyone leaves" on.
+   Saw: leader: "Your stamina ran out." Others: "Bramwell left the hunt, so Wrenna came home too."
+
+6. "Alone or with up to 1 more" on Meadowbrook Thicket is not true.
+   Steps: pick it with 3 or 4 in the party, Start with party.
+   Saw: all walked in, no warning, and it paid 13,839 XP/h.
+
+7. Removed member is not told.
+   Steps: leader presses Remove in the hunt panel.
+   Saw: leader: "Removed from the party." Removed player's screen: nothing. Also, the town roster has no Remove; it appears only in the hunt panel. (Member was already in town when removed.)
+
+8. Refused invite is silent.
+   Steps: A invites B; B presses No thanks.
+   Saw: nothing on A within 2 s, and A now leads an empty party. Same again with Ash.
+
+9. Sending an invite creates a party, so friends' invites collide.
+   Steps: A invites anyone; C invites A; A presses Join.
+   Saw: "This character is already in a party. Leave it first." The card stays; it works after Leave party.
+
+10. "Hunt again" lets a member start a hunt the Hunts window forbids.
+    Steps: party hunt ends, a non-leader presses Hunt again on the summary.
+    Saw: he set out with no leader action; the others pressed theirs and shared his world, with different session clocks (0:18 vs 0:04). Enter in the Hunts window was greyed: "Your party leader picks the hunt and starts it." OPINION: one of these is wrong.
+
+11. "1 online" (see 3c). Possibly a slow refresh; it corrected itself.
+
+12. One console error: "Failed to load resource: the server responded with a status of 409 (Conflict)" on Wren, first seen just after opening and using the Weighhouse before Level 10. Not traced to a press. No other console errors in any session, and nothing left the machine.
+
+13. Practice Bow's card lists Melee accuracy +5 and Melee damage +3 alongside Ranged. OPINION: confusing on a bow, maybe intended.
+
+Not bugs, but they hurt (OPINION)
+- The leader's pick drags everyone. Only the leader sees the red warning. Wren picked the Glade, Sorrel was Level 9, was never asked, and died in seconds at a cost of 3,127 Level XP.
+- "Leave if anyone leaves the hunt or dies" is on by default. One person going to dinner sends the group home. Only your own box is shown, and it is small.
+- The Glade at Level 7 in starter and bronze gear paid 35,296 XP/h for 4 h 21 min with no deaths. The Thicket "in your range" paid 13,839. The pull setting nearly doubled it again (35,296 as a four to 64,346 as a three at 8 per pack). The "above your level" warning did not stop us and hunting above level was simply better while a healer was with us.
+- A Level 1 second hero earns the full share. Sol's account earned double, and the seat cost Bram and Wren about 13% XP in the Thicket.
+
+HARNESS ODDITIES (not game bugs)
+- A skip with away:true also fired the away card on Bram and Sol, whose pages were open. Those two cards (+7,554) are from the harness. Only Wren's was a true absence.
+- world.wait with no open hunt did not push: stamina read 0:02 until the next refresh, then 4:03.
+- Weighhouse off locally (see section 6).
+- Clock labels: every summary says about 4:26 to 5:03 AM because time was compressed.
+- A first friends-list invite right after leaving a hunt produced no invite and I did not capture the message; probably the leave countdown. A retry worked. No "Invite sent" line was visible there 1 s after pressing, unlike the typed path.
+
+
+9. PERFORMANCE WITH SEVERAL TABS
+Three to four separate browser contexts in one headless Chromium, on a PC also running other work.
+- Frame rate read 48 to 61 fps on all pages during hunts. One dip to 48, once.
+- JS heap 15 to 32 MB per page; 830 to 1,237 elements (one sample, late in the session).
+Headless has no GPU work to speak of and the local database is one backend, so this says nothing about 15 real players on a real server. Unreached in any honest sense.
+
+
+10. TOP 5 TO FIX, RANKED
+1. Say what grouping does to earnings before people find out. In the Mill Cellar at the default pull, the same three people earned 35 to 48% less XP and money per person together than apart, and no line warns them. At 8 per pack in the Glade the gap closes and the healer is better off. The default and the pull setting decide everything, and the pull setting sits deep in the Hunts window.
+2. Stop panels landing off-screen below about 1600 px wide. At 1280x720 or a 1366 laptop, nobody can see their friends' HP or their own XP/h.
+3. Role and outfit frozen at join. Equip-after-invite is exactly what new friends do, and the first party in the game shows three identical knights labeled the same.
+4. Group flow traps: crossing invites ("already in a party"), silent refusal, silent removal, no inviting mid-hunt, no switching ground without everyone stopping, default "one leaves, all go home", and a friend's stamina reported as "left the hunt" with no warning first.
+5. The away card: counts the whole hunt instead of the absence, stays on "Still hunting" after the hunt ends, and blocks the Chat tabs and the Party panel until dismissed.
+
+
+11. VERDICT
+Probably yes for next week, but out of friendship more than because the game rewards it. The first ten minutes were lovely: we could see each other in town, three presses got someone into a party, the hunt is lively, and returning to a running hunt after a closed browser felt like the promise of the genre. Then the numbers bite. "Best alone 7,255, Best in a party 3,902" is the line that would stop a voice call, and the healer can see she is paying for everyone's survival. The Glade with a healer was safe and fast, but we found that by ignoring a warning and pressing a + deep in a window, and a laptop player could not even see the numbers that told us. If grouping is explained up front, panels stay on screen and the small silences (refused, removed, stamina out) are fixed, these three keep playing together. As it stands, one of them leaves for solo by the weekend and the others follow when the healer's bill comes due. This whole paragraph is OPINION; we did not play a real week.

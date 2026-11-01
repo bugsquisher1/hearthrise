@@ -133,6 +133,9 @@ function bareWords(kind, parts, carried) {
     + ' slot and pick ' + fixes.map((x) => x.name + ' (' + x.price + ' gp a cast)').join(' or ') + ' under "When your runes run out"' : '');
 }
 
+/* Every item the bar's slots name. */
+const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.action.type === 'consume').map((sl) => sl.action.id));
+
 /* One part of a supply line: "20 Cooked Shrimp of yours", "no Cooked Shrimp left", "Salted Shrimp from the store, 14 gp each". */
 function partWords(p) {
   const name = p.own ? p.own.name || itemName(p.own.id) : '';
@@ -223,8 +226,16 @@ export function beforeLines(cs, o) {
       const usable = parts.some((p) => (p.own && p.own.n > 0) || p.store);
       if (parts.some((p) => p.store)) paysStore = true;
       if (kind === 'rune') { out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + runeLine(parts, carried), short: false }); continue; }
+      /* A food or drink the bag holds and no slot names goes unused, whatever else the bar buys (panel 2026-11-01: 78 Turnip Juice sat
+         through a hunt under "Drink: from the store"; a slot names ONE item, Tyler 2026-10-21): said beside what the bar will do. */
+      const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';
       /* nothing usable: the stocks are listed, never chained with "then" (no fallback runs between empties) */
-      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts, carried)), short: !usable && !HEADS_UP_KINDS.has(kind) });
+      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts, carried)) + (spare ? '. ' + spare : ''), short: !usable && !HEADS_UP_KINDS.has(kind) });
+    }
+    /* A kind the bar has no slot for at all, with a stack waiting. */
+    for (const kind of HEADS_UP_KINDS) {
+      const spare = !kinds.has(kind) && (kinds.has('food') || kinds.has('drink')) ? spareWords(kind, carried, barNames(s)) : '';
+      if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. ' + spare, short: false });
     }
     if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
   }

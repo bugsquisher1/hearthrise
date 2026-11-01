@@ -45,7 +45,7 @@ export function staminaBuyHtml() {
 
 /* Why the next refill cannot be bought, in the server's refusal words, or null. */
 function whyNot(q, purse) {
-  if (!q) return 'The server has not priced a refill yet.';
+  if (!q) return 'Reading the price of a refill…';
   if (!q.available) return refusalWords(q.why);
   if (purse !== null && purse < q.price) return refusalWords('gold_short');
   return null;

@@ -56,7 +56,7 @@ export function patchServicesPane(body, ctx) {
   text(root.querySelector('.hw-stam-now'), st ? 'Stamina ' + hoursText(st.msLeft) + ' of ' + hoursText(st.capMs) + '.' : 'Stamina loads from the server.');
   const quote = root.querySelector('.hw-stam-quote');
   const ask = root.querySelector('[data-hs-act="stam-ask"]');
-  if (!q) { text(quote, 'The server has not priced a refill yet.'); text(ask, 'Buy stamina'); }
+  if (!q) { text(quote, 'Reading the price of a refill…'); text(ask, 'Buy stamina'); }
   else if (!q.available) {
     text(quote, q.why === 'stamina_full' ? 'Your stamina is full.' : 'You have bought all ' + whole(q.perDay) + ' refills for today. More tomorrow.');
     text(ask, 'Buy stamina');

@@ -50,6 +50,9 @@ import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sect
 import { townWorkRunning } from '../session/town-poll.js?v=0.2.79';
 import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.79';
 import { skillShortWords } from './intent-words.js?v=0.2.79';
+import { bestTool } from '../core/tools.js?v=0.2.79';
+import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.79';
+import { whereToGet, toolEffect } from './item-lore.js?v=0.2.79';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -189,7 +192,11 @@ export function workBlock(cs, w, huntRunning) {
     const inv = supplyOf(cs);
     for (const [id, need] of Object.entries(recipeInputs(w.row))) {
       const have = inv[id] || 0;
-      if (have < need) return have ? 'Needs ' + whole(need) + ' ' + itemName(id) + ' (you have ' + whole(have) + ').' : 'No ' + itemName(id) + ' ' + fromWords(cs) + '.';
+      /* The row that says what is short says where it comes from (panel 2026-11-01: "No Silk Thread", and no word on where). */
+      if (have < need) {
+        const where = whereToGet(id);
+        return (have ? 'Needs ' + whole(need) + ' ' + itemName(id) + ' (you have ' + whole(have) + ').' : 'No ' + itemName(id) + ' ' + fromWords(cs) + '.') + (where ? ' ' + where + '.' : '');
+      }
     }
     /* The bag's room (the engine's own test, artisan-sim.js bagFullFor, on the server's bag and stack cap): the
        product needs a new stack and the bag has none. The engine would stop the bench at once and say so. */
@@ -197,6 +204,44 @@ export function workBlock(cs, w, huntRunning) {
     if (full) return 'Your bag is full. Make room for ' + itemName(full) + ' first.';
   }
   return '';
+}
+
+const TOOLS = Object.freeze(Object.keys(ITEMS).filter((id) => ITEMS[id].type === 'tool'));
+const pick = (skill, held) => bestTool(skill, held, {}, ITEMS);
+
+/**
+ * THE TOOL LINE, where the seconds are shown (panel 2026-11-01: a row went from 4.3 s to 4.8 s with no word). '' for a skill with no
+ * tool a hero can get (the catalogue keeps rows for knives, needles, hammers and rods with no source yet). Reads the server's bag, its
+ * Storage and the shop's offers: the tool in the bag that the times below already count, a better one sitting in Storage that doesn't,
+ * or the first one to get.
+ */
+export function toolLine(cs, skill) {
+  const row = TOOLS.filter((id) => ITEMS[id].toolSkill === skill && whereToGet(id));
+  const inBag = pick(skill, invOf(cs));
+  const stored = pick(skill, Object.fromEntries((bankOf(cs) || []).map((r) => [r.id, r.qty])));
+  const better = stored && (!inBag || (stored.toolTier || 0) > (inBag.toolTier || 0)) ? itemName(stored.id) + ' is in Storage, so it doesn\'t count: take it out to go faster.' : '';
+  if (inBag) return ['Your ' + itemName(inBag.id) + ' is in your bag: ' + toolEffect(inBag.id) + '. The times below count it.', better ? 'Your ' + better : ''].filter(Boolean).join(' ');
+  if (better) return 'Your ' + better;
+  if (!row.length) return '';
+  const first = row.slice().sort((a, b) => (ITEMS[a].toolTier || 0) - (ITEMS[b].toolTier || 0))[0];
+  const sold = ((shopOf(cs) || {}).offers || []).some((o) => o.item === first);
+  return 'No tool in your bag. ' + itemName(first) + ' ' + (sold ? 'from the Shop' : '(' + whereToGet(first) + ')') + ': ' + toolEffect(first) + ' while it\'s in your bag.';
+}
+
+/**
+ * What moving `qty` of `id` out of the bag does to that skill's rate, or '' when nothing changes: only a tool in the bag counts, and
+ * the best one at that (panel 2026-11-01: axes put away in silence).
+ */
+export function toolLossWords(cs, id, qty) {
+  const it = ITEMS[id];
+  if (!it || it.type !== 'tool') return '';
+  const inv = invOf(cs);
+  const before = pick(it.toolSkill, inv);
+  if (!before || before.id !== id) return '';
+  const left = (inv[id] || 0) - qty;
+  if (left > 0) return '';
+  const after = pick(it.toolSkill, Object.assign({}, inv, { [id]: 0 }));
+  return skillWord(it.toolSkill) + ' is slower without it: a tool only counts in your bag' + (after ? ', so your ' + itemName(after.id) + ' takes over.' : '.');
 }
 
 /* ── The one run per character: the armed stop and the numbers it started from (display only). ── */

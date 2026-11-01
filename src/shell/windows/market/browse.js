@@ -22,6 +22,7 @@ import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.79';
 import { BAG_CATS } from '../../bag-model.js?v=0.2.79';
 import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.79';
 import { refusalText } from '../../intent-words.js?v=0.2.79';
+import { notListableWords } from '../../market-words.js?v=0.2.79';
 import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.79';
 import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.79';
 import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.79';
@@ -193,7 +194,7 @@ function patchPage(root, v) {
   const s = page ? page.item : sc.known.get(id) || null;
   const sample = page ? priceSample(page) : null;
   const now = Date.now();
-  text(root.querySelector('.hw-mk-price'), !s ? 'Reading the market…' : !s.listable ? 'This can\'t be sold to other players.'
+  text(root.querySelector('.hw-mk-price'), !s ? 'Reading the market…' : !s.listable ? notListableWords(s.why)
     : [s.typical !== null ? 'Usually ' + whole(s.typical) + ' each' : '', s.lastEach !== null ? 'last sold ' + whole(s.lastEach) + ', ' + ageWords(s.lastAt, now) : '', sample && sample.sales7d ? sample.line : ''].filter(Boolean).join(' · '));
   patchAsks(root, ctx, sc, page, v.off);
   const none = root.querySelector('.hw-mk-asks-none');

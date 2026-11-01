@@ -339,7 +339,7 @@
 .hw-hd-mon.is-carrier .hw-hd-mon-name { color: var(--rar-rare); }
 /* What drops here: the hourly gear a line a tier (the lines' words in ink, what they cover muted), then each Rare and
    Trophy as its own pixel icon at x1 in a sunk well, its name in its rarity colour and its carrier under it. */
-.hw-hd-sets, .hw-hd-rares { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.hw-hd-sets, .hw-hd-rares, .hw-hd-mats { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .hw-hd-set { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline; font-size: var(--t-small); color: var(--ink-2); }
 .hw-hd-set-lines { font-weight: 700; color: var(--ink); }
 /* The chance per kill (hunt-detail.js): one right-hand column, figures aligned. */
@@ -353,7 +353,7 @@
 .hw-hd-rare-name { font-weight: 700; color: var(--rar-rare); }
 .hw-hd-rare.is-trophy .hw-hd-rare-name { color: var(--rar-legendary); }
 .hw-hd-rare-by { font-size: var(--t-micro); color: var(--ink-2); }
-.hw-hd-h:has(+ .hw-hd-sets:empty), .hw-hd-h:has(+ .hw-hd-rares:empty) { display: none; }
+.hw-hd-h:has(+ .hw-hd-sets:empty), .hw-hd-h:has(+ .hw-hd-rares:empty), .hw-hd-h:has(+ .hw-hd-mats:empty) { display: none; }
 .hw-hunt-party { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hd-best { margin: 0; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hd-best[hidden], .hw-hunt-party[hidden], .hw-hd-bests[hidden] { display: none; }
@@ -735,6 +735,8 @@
 .hw-mats { display: flex; flex-wrap: wrap; gap: 0 12px; margin: 2px 0 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-mats:empty { display: none; }
 .hw-mat.is-short { color: var(--red); }
+.hw-mat-where { display: block; color: var(--ink-2); font-size: var(--t-micro); }
+.hw-mat-where:empty { display: none; }
 /* The ask and the server's answer stay on screen wherever the ledger is scrolled (the report window's foot). */
 .hw-house-foot { position: sticky; bottom: 0; background: var(--bg-1); }
 .hw-house-foot .hh-intent-msg { padding: 4px 2px; }

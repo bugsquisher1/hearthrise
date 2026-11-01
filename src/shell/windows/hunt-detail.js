@@ -10,8 +10,8 @@
 //   who lives here  each creature as the world draws it (style-1 idle frame at ×2,
 //                   src/render/creature-sprite.js) on one ground line, with how
 //                   common it is (src/shell/hunt-ground-facts.js)
-//   what drops      the gear, a line a tier in each armour weight (the hero's own first), then
-//                   every Rare and Trophy with its carrier; each with its chance per kill
+//   what drops      the gear, a line a tier in each armour weight (the hero's own first), the materials a
+//                   recipe or the House spends, then every Rare and Trophy with its carrier; each with its chance per kill
 //   your best       the server's hunt_bests, or ONE "No best here yet"
 // then the pull size (src/shell/windows/hunts.js) and the going-hunting part
 // (goHtml / patchGo, from src/shell/hunt-go.js): Go as (the setups as lines, the
@@ -25,9 +25,9 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.79';
 import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.79';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.79';
 import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.79';
-import { residentsOf, scarceSetOf, raresOf, bigPullLine } from '../hunt-ground-facts.js?v=0.2.79';
+import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.79';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.79';
-import { chance } from '../../render/format.js?v=0.2.79';
+import { chance, listWords } from '../../render/format.js?v=0.2.79';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -48,6 +48,7 @@ export function detailHtml() {
     + '<p class="hw-hd-theme"></p>'
     + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-bigpull" hidden></p>'
     + '<h4 class="hw-hd-h">Drops <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="Drops"></ul>'
+    + '<h4 class="hw-hd-h">Materials <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="Materials"></ul>'
     + '<h4 class="hw-hd-h">Rare drops <small class="hw-hd-per">chance per kill of its creature</small></h4><ul class="hw-hd-rares" aria-label="Rare drops"></ul>'
     + '<p class="hw-hunt-party" hidden></p>'
     + '<section class="hw-hd-bests" aria-label="Your best here"><h4 class="hw-hd-h">Your best here</h4>'
@@ -190,6 +191,19 @@ export function patchGround(det, ctx, r, o) {
       text(li.querySelector('.hw-hd-set-lines'), e.lines.join(', '));
       text(li.querySelector('.hw-hd-set-what'), (e.lines.length ? ': ' : '') + [e.slots.join(', '), e.weapons.join(', ')].filter(Boolean).join('; '));
       text(li.querySelector('.hw-hd-odds'), chance(e.chance));
+    },
+  });
+  /* The materials a shortage sends a player here for (panel 2026-11-01: Drops listed gear only). The rows look like the Rare list's. */
+  const mats = materialsOf(r.hunt, size);
+  text(det.querySelector('.hw-hd-mats-per'), 'chance per kill, ' + (size > 1 ? 'in a party of ' + size : 'hunting alone'));
+  rows(det.querySelector('.hw-hd-mats'), mats, {
+    key: (x) => x.id,
+    build: (x) => element(ctx.doc, '<li class="hw-hd-rare" data-item="' + esc(x.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, x.id) + '</span>'
+      + '<b class="hw-hd-rare-name"></b><small class="hw-hd-rare-by"></small><span class="hw-hd-odds"></span></li>'),
+    patch: (li, x) => {
+      text(li.querySelector('.hw-hd-rare-name'), x.name);
+      text(li.querySelector('.hw-hd-rare-by'), listWords(x.carriers));
+      text(li.querySelector('.hw-hd-odds'), chance(x.chance));
     },
   });
   rows(det.querySelector('.hw-hd-rares'), rares, {

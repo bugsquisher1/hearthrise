@@ -24,6 +24,8 @@ import { marketList } from '../../../session/market-intents.js?v=0.2.79';
 import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.79';
 import { feeOf, netEachOf, netLotOf, evenAskOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.79';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.79';
+import { notListableWords, keptWords } from '../../market-words.js?v=0.2.79';
+import { toolLossWords } from '../../town-work.js?v=0.2.79';
 import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.79';
 
 /** The Sell pane's skeleton. */
@@ -139,7 +141,7 @@ function patchSheet(pane, v, have, source) {
   const qty = g ? g.qty : whole0(f.qty), ask = g ? g.ask : whole0(f.ask);
   const rules = sc.rules;
   const locked = (bagRulesOf(cs) || { locked: new Set() }).locked.has(id);
-  const why = s && !s.listable ? 'Starter kit, gifts and trophies can\'t be sold to other players.'
+  const why = s && !s.listable ? notListableWords(s.why)
     : locked ? 'This is locked. Unlock it in your bag to list it.'
     : !qty ? 'Say how many.' : qty > have.qty ? 'You only have ' + whole(have.qty) + '.'
     : !ask ? 'Set a price.'
@@ -154,7 +156,9 @@ function patchSheet(pane, v, have, source) {
     : '');
   /* A sale that pays less than the shop would is the seller's call, and the sheet says so (a 1-gold ask nets 0 after the cut). */
   const under = rules && ask && bid !== null && netEachOf(rules, ask) < bid ? 'At this price the shop pays you more than a sale would. Ask ' + whole(evenAskOf(rules, bid)) + ' or more to match it.' : '';
-  text(foot.querySelector('.hw-mk-warn'), [under, setupNaming(cs, id)].filter(Boolean).join(' '));
+  /* Listing a tool from the bag slows its skill as storing it does. */
+  const slower = source === 'bag' && qty ? toolLossWords(cs, id, qty) : '';
+  text(foot.querySelector('.hw-mk-warn'), [under, setupNaming(cs, id), slower].filter(Boolean).join(' '));
   text(foot.querySelector('.hw-mk-why'), why || shortFee || f.msg);
   const press = foot.querySelector('[data-hs-act="ms-list"]');
   text(press, g ? 'Try again' : qty && ask ? 'List ' + whole(qty) + ' for ' + whole(ask) + ' each' : 'List');
@@ -194,7 +198,7 @@ export function patchSell(v) {
     },
   });
   text(pane.querySelector('.hw-mk-kept'), !shown.length && !kept.length ? (source === 'storage' ? 'Your storage is empty.' : 'This bag is empty. Loot from a hunt lands here.')
-    : kept.length ? whole(kept.length) + (kept.length === 1 ? ' stack' : ' stacks') + ' here can\'t be sold to other players: starter kit, gifts and trophies.' : '');
+    : keptWords(kept.map((r) => ({ name: itemName(r.id), why: (sc.known.get(r.id) || {}).why }))));
   cls(pane, 'is-paged', sc.paged && !!f.pick);
   cls(pane, 'is-bare', !shown.length);
   patchSheet(pane, v, f.pick ? [...shown, ...kept].find((r) => r.id === f.pick) : null, source);

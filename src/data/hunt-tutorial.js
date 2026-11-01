@@ -873,7 +873,7 @@ const SAY = Object.freeze({
     const s = f.slots[i], gp = isStore(s) ? priceOf(f, s.id) : 0;
     if (gp === null) return null;
     const how = isStore(s) ? 'buys ' + name(s.id) + ' (' + gp + ' gp)' : 'drinks your own ' + name(s.id);
-    return { text: 'Your moves cost mana. Below ' + below(s, 'self_mana_pct') + '% mana, ' + slotWords([i]) + ' ' + how + '. Your own turnips cook into juice that costs nothing.', barSlot: i };
+    return { text: 'Your moves cost mana. Below ' + below(s, 'self_mana_pct') + '% mana, ' + slotWords([i]) + ' ' + how + (isStore(s) ? '. Your own turnips cook into juice that costs nothing, once it has a slot on your bar before this one.' : '. Your own costs nothing.'), barSlot: i };
   },
   fight_settings: (f) => {
     const n = used(f, 'food');

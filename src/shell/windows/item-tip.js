@@ -12,7 +12,7 @@
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.79';
 import { whole, gold } from '../../render/format.js?v=0.2.79';
 import { itemName } from '../widgets/bits.js?v=0.2.79';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.79';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords } from '../item-lore.js?v=0.2.79';
 import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.79';
 import { planWords } from '../loot-dispatch.js?v=0.2.79';
 import { pieceWords } from '../../data/armour-weights.js?v=0.2.79';
@@ -50,11 +50,13 @@ function tipHtml(id, o) {
   const src = sourcesOf(id, opt.offers);
   if (src.length) h += '<p class="hw-tip-line"><small>Comes from</small>' + esc(src.join('. ')) + '</p>';
   h += '<p class="hw-tip-line"><small>Used for</small>' + esc(usesOf(id).join('. ')) + '</p>';
-  if (opt.bid !== undefined) {
-    const each = opt.bid === null ? 'The shop has not priced this yet' : 'The shop pays ' + gold(opt.bid) + ' each';
-    const all = opt.bid !== null && opt.qty > 1 ? ' · ' + gold(opt.bid * opt.qty) + ' for ' + whole(opt.qty) : '';
-    h += '<p class="hw-tip-line"><small>Value</small>' + esc(each + all) + '</p>';
+  /* The server's bid, for what the bag holds. No bid: the row says who won't buy it; the shop bids only on bag stacks, so an
+     item the bag doesn't hold (a Buy row) just has no value line. */
+  const sale = saleWords(id);
+  if (opt.bid !== undefined && opt.bid !== null) {
+    h += '<p class="hw-tip-line"><small>Value</small>' + esc('The shop pays ' + gold(opt.bid) + ' each' + (opt.qty > 1 ? ' · ' + gold(opt.bid * opt.qty) + ' for ' + whole(opt.qty) : '')) + '</p>';
   }
+  if (sale) h += '<p class="hw-tip-line"><small>' + (opt.bid === undefined || opt.bid === null ? 'Value' : 'Market') + '</small>' + esc(sale) + '</p>';
   if (opt.locked) h += '<p class="hw-tip-line"><small>Locked</small>Bulk sales never take it.</p>';
   if (opt.rule) h += '<p class="hw-tip-line"><small>' + (opt.rule === 'ignore' ? 'On pickup' : 'Loot plan') + '</small>' + esc(planWords(opt.rule)) + '</p>';
   return h;

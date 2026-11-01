@@ -182,7 +182,7 @@ export function sourceLine(row) {
   if (!row) return '';
   if (row.kind === 'spells' || row.kind === 'runes') return row.rune === '—' ? 'Costs only mana.' : 'Each cast uses ' + row.rune + '.';
   if (row.action.type === 'attack_with_item' && row.carry === null) return 'Uses whatever ammo you have loaded.';
-  if (row.store) return row.unpriced ? 'The server has not priced this yet.' : 'The store sells it at ' + row.price + ' g each, paid as used.';
+  if (row.store) return row.unpriced ? 'The store has no price for this right now.' : 'The store sells it at ' + row.price + ' g each, paid as used.';
   const n = row.carry > 0 ? row.carry : 0;
   if (row.kind === 'ammo') return row.price !== null
     ? (n ? 'Uses your ' + n + ' first, then the store at ' + row.price + ' g a shot.' : 'You carry none. The store sells it at ' + row.price + ' g a shot.')

@@ -43,6 +43,7 @@ import { showTip, hideTip } from './item-tip.js?v=0.2.79';
 import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.79';
 import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.79';
 import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.79';
+import { toolLossWords } from '../town-work.js?v=0.2.79';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };
@@ -139,8 +140,10 @@ function setPref(cs, key, value) {
 
 /* ONE hr_bank_move naming exactly `qty`; both grids change only from the re-read envelope. */
 function move(cs, sc, repaint, id, qty, dir) {
+  /* Read from the bag before the move: a tool put away slows its skill, and that is not a silent change (panel 2026-11-01). */
+  const slower = dir === 'deposit' ? toolLossWords(cs, id, qty) : '';
   return runIntent(sc, repaint, () => cs.moveStorage(id, qty, dir), dir === 'withdraw' ? 'Taking it out…' : 'Putting it away…',
-    () => (dir === 'withdraw' ? 'Took out ' : 'Put away ') + whole(qty) + ' ' + itemName(id) + '.');
+    () => (dir === 'withdraw' ? 'Took out ' : 'Put away ') + whole(qty) + ' ' + itemName(id) + '.' + (slower ? ' ' + slower : ''));
 }
 
 /* "How many?" beside the stack: Store X / Take X, up to the stack the server last sent. */

@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.80 — 2026-11-01 (Better Together)
+
+**Mixed parties earn more.** A party with different classes now earns more Level XP each than hunting alone: Melee, Ranger, Mage and Healer each count. A party of one class doesn't get the bonus, and on some grounds earns a little less. The party window tells you what yours gets before you go. Coin and loot are unchanged.
+
+**Parties pull more on their own.** On the Mill Cellar, Thicket, Wickstead and Glade, a party starts with a bigger pull than a lone hero, so grouping doesn't slow you down. A lone hero's pull hasn't changed.
+
+**Bear Pelts.** Brook Bears now drop them, so you can finish the Ironvale Keep and the Trophy Room. Bigger pulls at Mosslight Glade bring the bears: 3 or more. Bear Claws are now a rare find.
+
+**House costs you can actually pay.** Some Shrine and Trophy Room upgrades now ask for materials that are in the game. Hearthrise Castle and the top-level room upgrades are hidden until their materials are in too.
+
 ## v0.2.79 — 2026-11-01 (Straight Answers)
 
 **Tamsin pays what her board says.** A piece your hero already found or wears no longer changes her reward. A held task shows what it pays, and the prep screen says where it counts, so a hunt on the wrong ground won't surprise you.

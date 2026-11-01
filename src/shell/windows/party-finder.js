@@ -119,13 +119,13 @@ export function patchFinder(root, ctx, sc) {
 
 /* ONE finder read with the scratch's ground and weapon (p_hunt, p_weapon; empty = any). The rows are window
    scratch, never the record; an empty answer says what to do next, a refusal says why. */
-function search(cs, sc, repaint) {
+function search(ctx, cs, sc, repaint) {
   const hunt = sc.ground || null, weapon = sc.weapon || null;
   return runIntent(sc, repaint, async () => {
     const r = await cs.findParties(hunt, weapon);
     sc.found = r.ok ? finderRows(r.body) : null;
     sc.findMsg = !r.ok ? refusalWords(r.error) : sc.found && sc.found.length ? ''
-      : (hunt ? 'No open party lists ' + huntName(hunt) + ' right now. ' : 'No open party matches. ') + 'Right-click or hold a player’s name to invite them and start your own.';
+      : (hunt ? 'No open party lists ' + huntName(hunt) + ' right now. ' : 'No open party matches. ') + (ctx.isPhone && ctx.isPhone() ? 'Hold' : 'Right-click') + ' a player’s name to invite them and start your own.';
     return { ok: true };
   }, 'Searching…', () => '');
 }
@@ -141,7 +141,7 @@ export function openFinderOn(ctx, cs, hunt) {
   sc.weapon = ownWeapon(cs);
   sc.msg = '';
   ctx.show('hunt-party');
-  return search(cs, sc, () => ctx.refresh('hunt-party'));
+  return search(ctx, cs, sc, () => ctx.refresh('hunt-party'));
 }
 
 /** The finder's controls. Returns true when the action was the finder's. */
@@ -151,7 +151,7 @@ export function actFinder(ctx, body, action, t, repaint) {
   if (action === 'find') {
     sc.weapon = body.querySelector('[data-hs-act="find-weapon"]').value || '';
     sc.ground = body.querySelector('[data-hs-act="find-ground"]').value || '';
-    search(cs, sc, repaint);
+    search(ctx, cs, sc, repaint);
     return true;
   }
   if (action === 'list-party') {

@@ -20,6 +20,8 @@
 //   sellable    number           the stacks Sell all loot would sell now (src/shell/bag-model.js lootToSell, priced
 //                                and unlocked through sellPlan)
 //   upgrades    string[]         what Equip upgrades would put on (src/shell/upgrade-plan.js)
+//   back        string           the hunt the player came back to after an absence (residue `coach.back`, away-recap.js)
+//   slotCost    number           the next hero slot's price (AccountSession.slotOffer, the server's), absent when none is for sale
 // ════════════════════════════════════════════════════════════════════════
 import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.78';
 import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.78';
@@ -56,6 +58,7 @@ function shellFacts(sh) {
     read: read ? new Set(Array.from(read).filter((id) => typeof id === 'string' && ID.test(id))) : null,
     roster, slotsOwned: nat(o.slotsOwned), playLimit: nat(o.playLimit), sellable: nat(o.sellable),
     upgrades: Array.isArray(o.upgrades) ? o.upgrades.filter((id) => typeof id === 'string' && ID.test(id)).slice(0, 14) : null,
+    back: typeof o.back === 'string' ? o.back : null, slotCost: nat(o.slotCost),
   };
 }
 
@@ -115,7 +118,7 @@ export function tutorialFactsOf(cs, sh) {
     levelXp: lv.xp, charLevel: lv.level, self: Number.isInteger(cs && cs.slot) ? cs.slot : null, name: nameOf(cs),
     skillLevel: sk ? Math.max(1, ...Object.values(sk).map((r) => r.level)) : 1,
     skillXp: sk ? Object.fromEntries(Object.entries(sk).map(([k, r]) => [k, r.xp])) : null,
-    huntId: open ? open.huntId : null,
+    huntId: open ? open.huntId : null, sessionId: open ? open.sessionId : null,
     endReason: h && h.ended ? h.endReason : null,
     visited,
     unitKinds: new Set(open ? Array.from(open.units.values()).filter((u) => u.side === 'monster' && u.kind).map((u) => u.kind) : []),
@@ -162,7 +165,8 @@ export function pointerCardOf(cs, sh) {
   const sk = skillsOf(cs);
   const skill = ROLE_SKILL[role];
   return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
-    defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty });
+    defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty,
+    gold: f.gold, slotCost: f.slotCost, slotsOwned: f.slotsOwned, home: f.home });
 }
 
 /* The ACCOUNT's field as the server last said (2026-12-14-shared-farm: one field for every hero, and any hero may

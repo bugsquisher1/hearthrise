@@ -208,7 +208,14 @@ const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['c', 'character'], ['g', '
 function scripted() {
   /* Like the real server, the residue a put stores comes back in every later envelope (client_state). */
   const s = { env: clone(FIXTURE), version: 1, calls: [], delayMs: 300, reply: { ok: true }, residue: {} };
-  s.next = () => Object.assign(clone(s.env), { version: ++s.version, client_state: clone(s.residue) });
+  /* Like the real server, its clock moves between answers: the first read is a roster answer aged forward (account-session.js
+     agedBy), and a later read stamped at the fixture's fixed `now` looks older, so _noteStorage drops every Storage change after it. */
+  const said = s.env.now, born = Date.now();
+  /* (A case that sets its own clock, AW-24's, keeps it.) */
+  s.next = () => {
+    const e = clone(s.env);
+    return Object.assign(e, { version: ++s.version, client_state: clone(s.residue), now: e.now === said ? new Date(Date.parse(said) + Date.now() - born).toISOString() : e.now });
+  };
   return s;
 }
 
@@ -497,6 +504,9 @@ async function huntsPure(imp) {
   /* (A fresh hero's starter bar and Bring your heroes are read on the page's own modules, AW-27 / AW-28 in checks.) */
   const bare = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_shrimp', 0)], store: STORE }, state: { gold: 0 }, stamina: { ms: 0, max_ms: 28800000 } }));
   if (bare !== 'Food: no Cooked Shrimp left. Nothing will be eaten: HP comes back only between fights | !No stamina left: rest in town before you go.') fails.push('AW-27 an empty bar and no stamina read ' + JSON.stringify(bare));
+  /* before a hero walks away: how long this stamina lasts, game closed or not (panel 2026-11-01: 5 h 46 idle with no word before leaving) */
+  const lasts = say(sess({ stamina: { ms: 3 * 3600000 + 17 * 60000, max_ms: 43200000 } }));
+  if (!lasts.includes('Stamina: 3 h 17 min. Your hero hunts that long, even with the game closed, then comes home.')) fails.push('AW-27 a long stamina reads ' + JSON.stringify(lasts));
   const poor = say(sess({ state: { gold: 0 }, stamina: { ms: 30 * 60000, max_ms: 28800000 } }));
   if (!/\| Stamina: 30 min left, then the hunt ends\. \| !No gold for the store: the hunt ends when your own supplies run out\.$/.test(poor)) fails.push('AW-27 low stamina and no gold read ' + JSON.stringify(poor));
   const other = say(sess({}), { other: 'Bow' });
@@ -536,7 +546,7 @@ async function planRules(base) {
   const spell = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'flame_strike', 0)], store: STORE } }));
   /* (a rune spell spends any tier of its family, so the line names and counts the family: lane b-spell-content) */
   /* ...and says the fix: a style's default bar meets a new hero here first (designer 2026-10-29, lane/a-starter-bars) */
-  if (spell !== 'Runes: no Fire runes of yours. Flame Strike will not fire. To cast it, press its slot and pick Plain Fire Rune (1 gp a cast) under "When your runes run out" | Your bar eats and drinks nothing: HP and mana come back only between fights.') fails.push('AW-27 a spell with no rune reads ' + JSON.stringify(spell));
+  if (spell !== 'Runes: no Fire runes of yours. Flame Strike will not fire. To cast it, press its slot and pick Plain Fire Rune (1 gp a cast) under "When your runes run out" | Your bar eats and drinks nothing: HP and mana come back only between fights. | Stamina: 8 h 0 min. Your hero hunts that long, even with the game closed, then comes home.') fails.push('AW-27 a spell with no rune reads ' + JSON.stringify(spell));
   /* two spells of two families (the Mage's default Frost Lance and Arcane Barrier): both named, each family's store rune */
   const RUNES = STORE.concat([['plain_ice_rune', 'chalked_ice_rune'], ['plain_earth_rune', 'chalked_earth_rune']].map(([id, partner]) => ({ ...STORE.find((r) => r.id === 'plain_fire_rune'), id, partner })));
   const two = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'frost_lance', 0), slot('ability', 'arcane_barrier', 1)], store: RUNES } }));
@@ -595,7 +605,7 @@ async function planRules(base) {
   const fed = noStore([slot('consume', 'cooked_shrimp', 0)], { cooked_trout: 12 });
   const fedR = readinessOf(fed);
   const fedSaid = [readinessLine(fedR), fedR.checks.filter((c) => c.id === 'food').map((c) => (c.ok ? '' : '!') + c.text).join(), say(fed)].join(' || ');
-  if (fedSaid !== 'Brannoc: ready || Food: no Cooked Shrimp left. You carry 12 Cooked Trout: put it on the bar to eat it || Food: no Cooked Shrimp left. You carry 12 Cooked Trout: put it on the bar to eat it')
+  if (fedSaid !== 'Brannoc: ready || Food: no Cooked Shrimp left. You carry 12 Cooked Trout: put it on the bar to eat it || Food: no Cooked Shrimp left. You carry 12 Cooked Trout: put it on the bar to eat it | Stamina: 8 h 0 min. Your hero hunts that long, even with the game closed, then comes home.')
     fails.push('AW-8 an empty food slot with spare food in the bag reads ' + JSON.stringify(fedSaid));
   const shooter = readinessOf(noStore([{ action: { type: 'attack_with_item', id: 'loaded' }, conditions: [], join: 'and', usable: true }], {}));
   if (readinessLine(shooter) !== 'Brannoc: 0 ammo') fails.push('AW-8 a bar that shoots with no ammo reads ' + JSON.stringify(readinessLine(shooter)));
@@ -2412,7 +2422,8 @@ const MUTANTS = [
   ['AW-26 Go as offers a set the server cannot put on', 'src/shell/hunt-go.js', '  const ids = new Set(saved.map((p) => p.preset).concat([s.preset]));', '  const ids = new Set(s.presets.map((p) => p.preset).concat([s.preset]));'],
   ['AW-27 the store behind a slot is not said', 'src/shell/hunt-go.js', "  const store = st && st.price !== null ? { name: st.name, price: st.price, each: a.type === 'ability' ? 'a cast' : 'each' } : null;", '  const store = null;'],
   ['AW-27 the gold line never shows', 'src/shell/hunt-go.js', '  if (paysStore && gp !== null) {', '  if (false) {'],
-  ['AW-27 low stamina is not said', 'src/shell/hunt-go.js', '  else if (st && st.msLeft < STAMINA_SAY_MS) {', '  else if (false) {'],
+  ['AW-27 low stamina is not said', 'src/shell/hunt-go.js', '  else if (st) {', '  else if (false) {'],
+  ['AW-27 how long a hero lasts is said only when it is short', 'src/shell/hunt-go.js', '  else if (st) {', '  else if (st && st.msLeft < STAMINA_SAY_MS) {'],
   ['plans: no weapon is not said', 'src/shell/hunt-go.js', '    if (worn && !worn.weapon) out.push(', '    if (false) out.push('],
   ['plans: a held task that does not count here is not said', 'src/shell/hunt-go.js', '  if (tally) out.push(tally);', '  void tally;'],
   ['AW-27 a line that stops the hunt is not marked', 'src/shell/windows/hunt-detail.js', "cls(li, 'is-short', l.short);", "cls(li, 'is-short', false);"],

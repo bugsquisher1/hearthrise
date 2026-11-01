@@ -18,7 +18,7 @@
 // the page in its place, with a way back.
 // Enter is ONE hr_hunt_enter; the server checks the band, the stamina and the
 // stock, and the hunt shows only from the re-read envelope. A hunt above the
-// character's level says so ("expect losses"); the floor is a warning, and
+// character's level says so (ABOVE_LEVEL_WORDS); the floor is a warning, and
 // only the server refuses (Tyler 10-18: 15 or more levels under it).
 //
 // IN A PARTY (PARTY_SPEC.md §1.5, Tyler 10-19) the ground is chosen HERE, at
@@ -312,7 +312,9 @@ function patchPage(det, ctx, sc, v) {
     text(det.querySelector('.hw-density-note'), follower ? 'Your party leader sets how many monsters each pull brings.'
       : 'A pull is one pack: up to ' + dn.max
       + (size === 1 ? ' when you hunt alone.' : ' for your party of ' + size + '. As the leader, your pick is the pull for everyone.')
-      + ' Kept for this ground.');
+      /* Why a pick matters (panel 2026-11-01, PRIORITY_BOARD): as built a hero's power and a party's bodies barely show, since the walk sets the pace.
+         At 8 each a Wickstead hero of Level 18 kills 32% faster than a fresh one, and a party of four out-earns a lone hero per head. */
+      + ' Bigger pulls pay more once your heroes can hold them. Kept for this ground.');
     prop(det.querySelector('[data-by="-1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, -1, dn.max) === null);
     prop(det.querySelector('[data-by="1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, 1, dn.max) === null);
   }

@@ -30,7 +30,7 @@ import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.78';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.78';
 import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.78';
 import { carriedOf, equipmentOf } from '../../session/item-sections.js?v=0.2.78';
-import { text, cls, attr, element, keyedChild, prop } from '../../render/paint.js?v=0.2.78';
+import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.78';
 import { whole } from '../../render/format.js?v=0.2.78';
 import { glyphSvg } from '../launcher.js?v=0.2.78';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.78';
@@ -220,14 +220,18 @@ function pageSlots(el) {
   grid.scrollLeft = atEnd(grid) ? 0 : grid.scrollWidth;
 }
 
+/* What the open tip shows, by tip: re-read on every display tick, written only when it says something new (it was rebuilt four times a second: panel 10-31). */
+const TIP_SAYS = new WeakMap();
 function showTip(el, li, ctx) {
   const tip = el.querySelector('.hb-tip');
   const i = Number(li.getAttribute('data-slot'));
-  if (tip.getAttribute('data-for') !== String(i)) { tip.innerHTML = tipHtml(i, ctx); attr(tip, 'data-for', String(i)); }
+  const says = tipHtml(i, ctx);
+  if (TIP_SAYS.get(tip) !== says) { TIP_SAYS.set(tip, says); tip.innerHTML = says; }
+  attr(tip, 'data-for', String(i));
   cls(tip, 'is-on', true);
   /* Its own width (wider on a phone, hunt.css), centred on the slot and kept inside the bar. */
   const bar = el.querySelector('.hb-bar').getBoundingClientRect(), r = li.getBoundingClientRect(), w = tip.offsetWidth;
-  tip.style.left = Math.round(Math.max(0, Math.min(bar.width - w, r.left - bar.left + r.width / 2 - w / 2))) + 'px';
+  style(tip, 'left', Math.round(Math.max(0, Math.min(bar.width - w, r.left - bar.left + r.width / 2 - w / 2))) + 'px');
 }
 function hideTip(el) { const tip = el.querySelector('.hb-tip'); cls(tip, 'is-on', false); attr(tip, 'data-for', null); }
 
@@ -260,7 +264,7 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   for (const c of nm.querySelectorAll('button, input')) prop(c, 'disabled', !s || RENAMING.has(el));
   patchControls(el.querySelector('.hb-plaque'), cs);
   const tip = el.querySelector('.hb-tip.is-on');
-  if (tip) { const i = tip.getAttribute('data-for'); attr(tip, 'data-for', null); const li = el.querySelector('.hb-slot[data-slot="' + i + '"]'); if (li) showTip(el, li, ctx); }
+  if (tip) { const li = el.querySelector('.hb-slot[data-slot="' + tip.getAttribute('data-for') + '"]'); if (li) showTip(el, li, ctx); }
 };
 
 renderActionBar.events = Object.freeze(['dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout', 'pointerdown', 'pointerup', 'pointercancel', 'keydown']);

@@ -113,7 +113,10 @@ export function bandWords(r, level) {
 /** Words on a hunt ABOVE the character's level, or null. The floor is a warning (Tyler 10-18):
     under band[0] the server admits and warns; SESSION_LIMITS.belowRangeRefuse or more under, it refuses.
     Display only: nothing reads it to gate a press, the server decides. */
-export const ABOVE_LEVEL_WORDS = 'This hunt is above your level, expect losses.';
+/* True on the real engine, and pinned there (tests/hunt-core/first-week-bands.mjs above-your-level-words): a Level 11 sword and shield
+   in Thicket armor earns 47,500 Level XP/h in the Glade against 25,800 at Wickstead, with no death; in the practice set it spends
+   6,780 g/h on store food against 4,300 earned; a Level 2 sword alone dies. "Expect losses" alone was false for the armored hero. */
+export const ABOVE_LEVEL_WORDS = 'This hunt is above your level: more XP, but monsters hit harder. In weak armor you can spend more on food than you earn, or die.';
 export function rangeWords(r, level) {
   if (!Number.isInteger(level) || level >= r.band[0]) return null;
   return r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ? 'You are too far below this hunt to enter it yet.' : ABOVE_LEVEL_WORDS;

@@ -359,8 +359,7 @@ export async function bootWorld(panel, opts) {
       paintChrome(sc);
     }
     const banner = unmappedBanner(G, sc, monsterName);
-    if (banner !== lastBanner) { lastBanner = banner; idle.innerHTML = banner || ''; }
-    idle.hidden = !banner;
+    if (banner !== lastBanner) { lastBanner = banner; idle.innerHTML = banner || ''; idle.hidden = !banner; }   // never per frame: `hidden`, even unchanged, restyled the page
     return sc;
   }
 

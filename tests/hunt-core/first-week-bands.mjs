@@ -14,6 +14,11 @@
 //   party-<ground> the first ground the Hunts window sends a PAIR to that a lone hero is not (today the Millrace Sewer
 //                  at 8: the tutorial's "Into the sewer, together"), at its floor: a duo (tank + healer) and a four
 //                  (tank + healer + bow + mage) in the practice sets, every hero holding every bar
+//   above-your-level-words  THE WORDS ON A GROUND ABOVE YOUR LEVEL ARE TRUE (panel 2026-11-01: "expect losses" sat on the best XP on the list):
+//                  hunt-list.js ABOVE_LEVEL_WORDS claims more XP, harder hits, and that weak armor can spend more on food than it earns or
+//                  die. Each claim is played here against the ground that fits: a balance change that makes one false turns this red.
+//   bigger-pulls-words  the Hunts window's "Bigger pulls pay more once your heroes can hold them", played: a Level 18 hero in Wickstead at 8 each
+//                  against as built, and a fresh one who cannot hold them (it dips, and its food bill eats the gain).
 //   THE BARS (per hero): no death; coin + commons at least +25% over the store bill (Tyler 10-20, a minimum); Level XP
 //   an hour at least half the pace of record at that Level (level-pace.json: a way to fight that cannot clear the ground
 //   earns nothing near it). ALONE: no dip under 25% HP (a close call; the ruling allows one per 12 h, and the first
@@ -46,6 +51,7 @@ const STARTER = Object.freeze({ starter: true });
 const { recommendedHunt } = await import(pathToFileURL(join(ROOT, 'src/shell/hunt-list.js')).href + V);
 const G = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href + V);
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href + V);
+const HL = await import(pathToFileURL(join(ROOT, 'src/shell/hunt-list.js')).href + V);
 const groundOf = (hunt) => Object.values(G.OPEN_GROUNDS).find((g) => g.hunt === hunt).id;
 const SOLO = [...new Set(Array.from({ length: 15 }, (_, i) => recommendedHunt([i + 1], 1)).filter(Boolean).map((r) => r.hunt))].map(groundOf);
 const PAIR = Array.from({ length: 25 }, (_, i) => recommendedHunt([i + 1, i + 1], 2)).filter(Boolean).map((r) => groundOf(r.hunt)).find((g) => !SOLO.includes(g));
@@ -90,8 +96,43 @@ if (PAIR) {
 /* the advice itself: the first day is three solo grounds then a party floor, or this guard plays nothing new */
 cases['first-day-grounds'] = () => (SOLO.length >= 2 && PAIR ? null : 'the Hunts window sends a lone hero to ' + SOLO.join(', ') + ' and a pair first to ' + PAIR);
 
+/* THE WORDS, PLAYED: a Level 11 sword and shield in the Glade against Wickstead, the ground that fits it; in its armor, then in the practice set */
+cases['above-your-level-words'] = (R) => {
+  const words = HL.ABOVE_LEVEL_WORDS;
+  if (!/more XP/.test(words) || !/hit harder/.test(words) || !/spend more on food than you earn/.test(words) || !/or die/.test(words)) return 'the words claim something this case does not play: ' + words;
+  const L = 11, fits = recommendedHunt([L], 1);
+  const above = G.OPEN_GROUNDS.mosslight_glade;
+  if (HL.rangeWords(HL.huntRows().find((r) => r.hunt === above.hunt), L) !== words) return 'a Level ' + L + ' hero is not warned on ' + above.hunt;
+  const play = (ground, style, level, gear) => R.runCell({ id: 'words:' + ground + ':' + style + ':' + level, ground, party: [style], level, hours: 1, seeds: 1, ...(gear ? { gear } : {}) }).heroes[0];
+  const inFit = play(groundOf(fits.hunt), 'tank', L), inAbove = play(above.id, 'tank', L), bare = play(above.id, 'tank', L, STARTER);
+  if (!(inAbove.levelXpPerH > inFit.levelXpPerH)) return 'more XP: ' + inAbove.levelXpPerH + ' Level XP/h above the level, ' + inFit.levelXpPerH + ' on the ground that fits';
+  if (!(inAbove.dmgPerMonsterSwing > inFit.dmgPerMonsterSwing)) return 'harder hits: ' + inAbove.dmgPerMonsterSwing + ' a monster swing above the level, ' + inFit.dmgPerMonsterSwing + ' on the ground that fits';
+  if (!(bare.storePerH > bare.incomePerH)) return 'weak armor spends more than it earns: ' + bare.storePerH + ' g/h on the store against ' + bare.incomePerH + ' g/h earned';
+  if (inAbove.deaths) return 'armored, a hero is told only weak armor dies, and died ' + inAbove.deaths + ' time(s)';
+  const dies = play(above.id, 'sword', 2, STARTER);
+  if (!dies.deaths) return 'or die: a Level 2 sword in the practice set lived an hour in the Glade';
+  return null;
+};
+
+cases['bigger-pulls-words'] = (R) => {
+  const play = (level, density, gear) => R.runCell({ id: 'pull:' + level + ':' + density, ground: 'wickstead', party: ['tank'], level, hours: 1, seeds: 1, ...(density ? { density } : {}), ...(gear ? { gear } : {}) }).heroes[0];
+  const built = play(18, 0), big = play(18, 8), fresh = play(8, 8, STARTER);
+  if (!(big.levelXpPerH > built.levelXpPerH && big.profitPerH > built.profitPerH)) return 'a hero who can hold 8 earns ' + big.levelXpPerH + ' XP/h, ' + big.profitPerH + ' g/h at 8, ' + built.levelXpPerH + ', ' + built.profitPerH + ' as built';
+  if (!(fresh.profitPerH < big.profitPerH / 2)) return 'a fresh hero who cannot hold 8 nets ' + fresh.profitPerH + ' g/h against ' + big.profitPerH + ': the words say "once your heroes can hold them"';
+  return null;
+};
+const GLADE_SOFT = [['hp: 30, atk: 10, def: 1, xp: 165', 'hp: 30, atk: 2, def: 1, xp: 165'], ['hp: 32, atk: 12, def: 2, xp: 225', 'hp: 32, atk: 2, def: 2, xp: 225'],
+  ['hp: 35, atk: 9, def: 4, xp: 260', 'hp: 35, atk: 2, def: 4, xp: 260'], ['hp: 70, atk: 18, def: 10, xp: 360', 'hp: 70, atk: 2, def: 10, xp: 360'],
+  ['hp: 78, atk: 18, def: 11, xp: 520', 'hp: 78, atk: 2, def: 11, xp: 520'], ['hp: 74, atk: 18, def: 8, xp: 420', 'hp: 74, atk: 2, def: 8, xp: 420']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
+  { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',
+    edits: [['src/data/hunt-grounds.js', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = 1;']] },
+  { name: 'the Glade\'s crows and vines bite no harder than Wickstead\'s rats, and the words still say harder', case: 'above-your-level-words',
+    edits: GLADE_SOFT },
+  { name: 'store food at the Glade costs next to nothing, and the words still say weak armor loses gold', case: 'above-your-level-words',
+    edits: [['src/data/supply-basics.js', "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14)", "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 1)"],
+      ['src/data/supply-basics.js', "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40)", "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 1)"]] },
   { name: 'the Cellar\'s rats, slimes and wasps armoured like a Coppercap foreman (def 0 -> 60): a fresh hero cannot clear it', case: 'solo-mill_cellar',
     edits: [['src/data/monsters.js', 'hp: 9, atk: 2, def: 0, xp: 27, gp: [1, 4], speed: 3400,', 'hp: 9, atk: 2, def: 60, xp: 27, gp: [1, 4], speed: 3400,'],
       ['src/data/monsters.js', 'hp: 8, atk: 2, def: 0, xp: 22, gp: [1, 3], speed: 2400,', 'hp: 8, atk: 2, def: 60, xp: 22, gp: [1, 3], speed: 2400,'],

@@ -116,6 +116,15 @@
   .auth-links .auth-link:first-child { margin-left: -8px; }
   .auth-links .auth-link:last-child { margin-right: -8px; }
   .auth-foot { margin: 0 -16px -12px; padding: 6px 16px 8px; }
+  /* CREATE ACCOUNT FITS (panel 2026-11-01: Back to sign in at y 373 of 375): the two passwords share a row, their rule under them. */
+  .auth-card[data-auth="create"] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 10px; }
+  .auth-card[data-auth="create"] > * { grid-column: 1 / -1; }
+  .auth-card[data-auth="create"] > .auth-field:nth-of-type(n + 2) { grid-column: auto; }
+  .auth-card[data-auth="create"] > .auth-field:nth-of-type(n + 2) ~ * { order: 1; }
+  .auth-card[data-auth="create"] > .auth-field:last-of-type { order: 0; }
+  /* A screen still too short (a wider font, a keyboard) scrolls, from its top. */
+  .app.is-auth { height: 100vh; overflow-y: auto; place-items: start center; }
+  .auth { min-height: 100%; }
 }
 
 /* ── YOUR CHARACTERS: one steel list, a row per owned slot. The whole row is the press (Play, Show, Create
@@ -272,10 +281,12 @@
   .hero-form { gap: 4px; }
   .hero-dyes { grid-template-columns: repeat(16, 16px); padding: 3px; }
   .hero-dye { width: 16px; height: 16px; }
+  /* Each strip's word beside it, not over it: the card's foot (Enter town) ends on a 375 px screen (panel 2026-11-01: 9 px off). */
+  .hero-region legend { float: left; width: 38px; padding: 3px 0 0; }
   /* The phone shows How you fight too (playtest 2026-10-29: a phone player never met the five ways to fight): the
      column takes the form's height (it adds none of its own) and scrolls, so the card still fits 423 px. */
   .hero-body { align-items: stretch; }
-  .hero-how { min-width: 8rem; padding-left: 12px; contain: size; overflow-y: auto; }
+  .hero-how { min-width: 0; padding-left: 12px; contain: size; overflow-y: auto; }
   /* Beside this card the crest leaves a 667 px phone 455 px: Enter town and How you fight ran off the right edge (played
      2026-10-31). The crest stays on sign-in; this step uses the room. */
   .auth:has(.auth-card.is-create) { gap: 0; padding: 8px 4px; }

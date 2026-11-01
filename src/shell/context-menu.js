@@ -25,7 +25,7 @@ import { attr } from '../render/paint.js?v=0.2.78';
 
 const LONG_PRESS_MS = 500;
 /* How long a finished action's answer stays on the menu before it closes. */
-const DONE_SHOWN_MS = 1500;
+const DONE_SHOWN_MS = 3000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The player an element names (data-hs-player-id / -name / -slot), or null. */
@@ -101,6 +101,8 @@ export function mountContextMenu(ctx, roots, providers) {
         if (!e) return;
         ev.stopPropagation();
         btn.disabled = true;
+        /* The press answers at once (panel 2026-11-01: an invite on a slow signal read as nothing having happened). */
+        say('Sending…');
         Promise.resolve(e.run(target, ui)).then((r) => {
           /* Done: the answer shows a moment, then the menu leaves by itself (blind playtest 2026-10-31: it stayed up over
              the game after "Tally joined your party."). A refusal or a look stays until the player closes it. */

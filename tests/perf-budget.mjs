@@ -32,6 +32,7 @@
 //   a still world  PB-IDLE (old-laptop player 10-31): the same draw list paints nothing, the ground of a camera that stands is
 //                  composed once, and a kept frame is the frame a full redraw paints (PB-PIX); the real town after the hunt
 //                  paints what changes, never the frame rate
+//   a still page   PB-QUIET (panel 10-31): the same town, a slot's tip open: DOM changes and style recalcs a second, never a frame's or a tick's worth
 //   a hidden page  PB-AWAY: past the grace it asks the server nothing, shown again it catches up at once
 //   let go         PB-LEAK: DOM nodes and listeners after a forced GC, per hero switch and per bag open in a hunt
 //   the ground     PB-HELD (main run 40417203016): every map's ground (compose.js groundOf; the town's is 22k dual
@@ -71,6 +72,9 @@ const BUDGET = Object.freeze({
                            // theme or resize; unkept: ~30 a frame, perf lane 2026-10-28)
   idlePaintsIn10s: 300,    // PB-IDLE: a still scene whose only change is a clip's frame turning, at 60 frames a second (600 frames)
   townPaintsPerS: 25,      // the real page standing in town after the hunt: the Great Hearth's clip at most, never the frame rate
+  townWritesPerS: 10,      // PB-QUIET (panel 10-31: about 30 DOM changes a second, a style recalc every frame), the same page, a slot's tip open:
+                           // DOM changes a second, each added node one; measured 0.0-3.6 (a frame's worth is 60, a rebuilt tip 12 more)
+  townRecalcPerS: 40,      // ...and style recalcs a second: measured 0.3-19; a write a frame is 60
   leakNodesPerAct: 60,     // PB-LEAK: DOM nodes left after a forced GC per hero switch or bag open (the live page's own small growth apart from it)
   leakListenersPerAct: 2,  // ...and listeners
 });
@@ -149,6 +153,10 @@ const MUTANTS = [
     '    s.add(view.ox); s.add(view.oy); s.add(view.w); s.add(view.h);\n    s.add(decals);\n', '    s.add(view.w); s.add(view.h);\n    s.add(decals);\n', /^PB-PIX/, 'pix'],
   ['the real town repainted every frame', 'src/world/render/canvas-backend.js',
     'const changed = frameChanged(list, fv);', 'const changed = (frameChanged(list, fv), true);', /^town paints/, 'scenario', 3],
+  ['the World writes its banner\'s hidden every frame (panel 10-31: a style recalc every frame, 60 DOM changes a second, nothing moving)', 'src/world/world-boot.js',
+    "idle.innerHTML = banner || ''; idle.hidden = !banner; }", "idle.innerHTML = banner || ''; }\n    idle.hidden = !banner;", /^town writes/, 'scenario', 3],
+  ['an open slot tip is rebuilt every display tick (panel 10-31: 12 DOM changes a second, 4 layouts)', 'src/shell/widgets/action-bar.js',
+    'if (TIP_SAYS.get(tip) !== says) {', 'if (tip) {', /^town writes/, 'scenario', 3],
   ['a hidden tab goes on asking (old-laptop player 10-31: 64 calls and 1.45 MB in 2 minutes hidden)', 'src/app/boot.js',
     "  doc.addEventListener('visibilitychange', () => { if (account) account.setPageHidden(doc.hidden); });\n", '', /^hidden/, 'scenario', 4, 40000],
   ['each bar watches the timeline with its ctx (old-laptop player 10-31: ~1,080 nodes and 35 listeners a hop, never freed)', 'src/shell/widgets/action-bar.js',
@@ -584,10 +592,19 @@ async function scenario(o) {
     await at(D * 0.7); await page.evaluate(() => { window.__perf.trackOn = true; window.__perf.mark('death'); });
     srv.deathIn(0);
     await at(D - 8000);
-    /* the town after the hunt: the last seconds, standing still */
-    const paint0 = await page.evaluate(() => window.__perf.c.paint || 0);
+    /* the town after the hunt: the last seconds, standing still, a slot's tip open (PB-QUIET): what the page writes and restyles */
+    const recalcs = async () => { if (!cdp) return null; await cdp.send('Performance.enable'); return (await cdp.send('Performance.getMetrics')).metrics.find((x) => x.name === 'RecalcStyleCount').value; };
+    const recalc0 = await recalcs();
+    const paint0 = await page.evaluate(() => { const P = window.__perf;
+      const li = document.querySelector('.hb-slot[data-slot="19"]'); if (li) li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      P.writes = 0; P.wrote = new MutationObserver((ms) => { for (const m of ms) P.writes += 1 + m.addedNodes.length; });
+      P.wrote.observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+      return P.c.paint || 0; });
     await at(D);
-    const townPaintsPerS = ((await page.evaluate(() => window.__perf.c.paint || 0)) - paint0) / 8;
+    const tail = await page.evaluate(() => { const P = window.__perf; P.wrote.disconnect(); return { paint: P.c.paint || 0, writes: P.writes, tip: !!document.querySelector('.hb-tip.is-on') }; });
+    const townPaintsPerS = (tail.paint - paint0) / 8;
+    const townWritesPerS = tail.writes / 8;
+    const townRecalcPerS = cdp ? ((await recalcs()) - recalc0) / 8 : null;
     if (cdp && o.profile) (await import('node:fs')).writeFileSync(o.profile, JSON.stringify((await cdp.send('Profiler.stop')).profile));
     const h1raw = await heap();
     const out = await page.evaluate(() => { const P = window.__perf; P.stopped = true;
@@ -600,7 +617,7 @@ async function scenario(o) {
       return got; });
     const h1 = await heap();
     await snap('end');
-    return Object.assign(analyse(out, w0, o, srv), { townPaintsPerS, away, caught, awayFor, hiddenFor: shownAt - hiddenAt, heapMb: h0 === null ? null : (h1 - h0) / 1048576,
+    return Object.assign(analyse(out, w0, o, srv), { townPaintsPerS, townWritesPerS, townRecalcPerS, townTip: tail.tip, away, caught, awayFor, hiddenFor: shownAt - hiddenAt, heapMb: h0 === null ? null : (h1 - h0) / 1048576,
       heapRawMb: h0 === null ? null : (h1raw - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt });
   } finally {
     srv.close();
@@ -720,6 +737,9 @@ function budgetFails(m) {
   if (m.groundInFrame || m.groundRemade) f.push(`ground: a map's ground made ${m.groundInFrame} time(s) inside a frame, ${m.groundRemade} time(s) again for a map that had one (budget 0, compose.js groundOf)`);
   if (!(m.tokenReadsInDraw <= b.tokenReadsInDraw)) f.push(`tokens: ${m.tokenReadsInDraw} --world-* reads off the live style inside canvas draws (budget ${b.tokenReadsInDraw}, world-boot.js css keeps them)`);
   if (!(m.townPaintsPerS <= b.townPaintsPerS)) f.push(`town paints ${m.townPaintsPerS.toFixed(1)} frames a second standing still after the hunt (budget ${b.townPaintsPerS}: what changes, never the frame rate)`);
+  if (!m.townTip) f.push('PB-QUIET harness: no slot tip was open in the still town (the rebuilt tip this measures would not show)');
+  if (!(m.townWritesPerS <= b.townWritesPerS)) f.push(`town writes: ${m.townWritesPerS.toFixed(1)} DOM changes a second standing still, a tip open (budget ${b.townWritesPerS}: what changes, never a frame's or a tick's worth)`);
+  if (m.townRecalcPerS !== null && !(m.townRecalcPerS <= b.townRecalcPerS)) f.push(`town styles: ${m.townRecalcPerS.toFixed(1)} style recalcs a second standing still (budget ${b.townRecalcPerS}: not one a frame)`);
   if (m.hiddenFor > m.awayFor + 2000) {
     if (m.away) f.push(`hidden: the page asked the server ${m.away} time(s) while hidden past ${m.awayFor} ms (budget 0, AccountSession.setPageHidden)`);
     if (!m.caught) f.push('hidden: shown again, the viewed hero asked no catch-up within 3 s');
@@ -735,6 +755,7 @@ function row(m) {
     + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB' + (m.heapRawMb != null ? ' (with the probe records ' + m.heapRawMb.toFixed(1) + ')' : '')} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
     + ` | ground ${ms(m.ground)} (${m.ground ? m.ground.n : 0}) slice ${ms(m.groundSlice)} (${m.groundSlice ? m.groundSlice.n : 0}) in-frame ${m.groundInFrame} again ${m.groundRemade} tokens-in-draw ${m.tokenReadsInDraw}`
     + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers}) sheets ${m.sheets.bitmap} bitmap/${m.sheets.img} img`
+    + ` | still town: ${m.townPaintsPerS === undefined ? '-' : m.townPaintsPerS.toFixed(1)} paints/s ${m.townWritesPerS === undefined ? '-' : m.townWritesPerS.toFixed(1)} writes/s ${m.townRecalcPerS == null ? '-' : m.townRecalcPerS.toFixed(1)} recalcs/s`
     + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`;
 }
 

@@ -598,6 +598,19 @@ async function runTests(mods) {
     ok(back && back.id === 'away:s-1:' + T0, 'the line is shown once: its id carries the stamp ' + (back && back.id));
     const ended = AR.awayRecapOf(env(T0 + H2, true));
     ok(ended && /The hunt has ended\. Out of stamina/.test(ended.text), 'a hunt that stopped says why: ' + JSON.stringify(ended));
+    /* THE RETURN SAYS WHAT NEXT (panel 2026-11-01): the stamina left, how long ago a hunt ended, the stamina rested since; never "1:1" */
+    const withStamina = (cs, ms, at) => { const r = cs.read; return Object.assign(cs, { read: (k) => (k === 'stamina' ? { ms, max_ms: 43200000 } : k === 'hunt' && at ? { ...r(k), session: { ...r(k).session, ended_at: at } } : r(k)) }); };
+    const going = AR.awayRecapOf(withStamina(env(T0 + H2), 3 * 3600000 + 25 * 60000));
+    ok(going && /Still hunting, with 3 h 25 min of stamina left\./.test(going.text), 'a hunt still running says the stamina left: ' + JSON.stringify(going && going.text));
+    const idle = AR.awayRecapOf(withStamina(env(T0 + 8 * 3600000, true), 5 * 3600000 + 46 * 60000, new Date(T0 + 8 * 3600000 - (5 * 3600000 + 46 * 60000)).toISOString()));
+    ok(idle && /The hunt has ended 5 h 46 min ago\. Out of stamina, so Brannoc came home\. Stamina now: 5 h 46 min\./.test(idle.text) && !/1:1/.test(idle.text), 'a hunt that ran out while the player was away says when, and what now: ' + JSON.stringify(idle && idle.text));
+    /* the hunt the player came back to is recorded once, for the coach (hunt-tutorial.js fresh_hunt, launcher.js restsNow) */
+    const home = hero({ record: { residue: { coach: { read: ['x'] } } } });
+    ok(AR.markBack(home, 's-1') === true && home.writes[0][0] === 'coach' && home.writes[0][1].back === 's-1' && home.writes[0][1].read[0] === 'x', 'the return is marked, the reads kept: ' + JSON.stringify(home.writes));
+    home.record = { residue: { coach: { read: ['x'], back: 's-1' } } };
+    ok(AR.markBack(home, 's-1') === false, 'the same return is marked once');
+    eq(CS.sanitizeResidueField('coach', { back: 's-1', read: [] }), { back: 's-1' }, 'the mark survives the residue');
+    eq(CS.sanitizeResidueField('coach', { back: 'x; drop' }), {}, 'a forged mark is dropped');
     ok(AR.awayRecapOf(env(T0 + 5 * 60 * 1000)) === null, 'a reload five minutes later is not an absence');
     ok(AR.awayRecapOf(env(T0 + H2, false, 's-2')) === null, 'another hunt is never compared with the old one');
     /* the stamp: renewed once a minute while the hunt runs, bounded on the way in */
@@ -696,6 +709,9 @@ const MUTANTS = [
   { test: 'R2', file: HUD_FILE, from: "      character.setResidue('hudLayout', next);\n", to: '' },
   { test: 'R2', file: HUD_FILE, from: "      if (now && typeof character.flushResidue === 'function') Promise.resolve(character.flushResidue()).catch(() => {});\n", to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (gone < AWAY_MIN_MS) return null;\n', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.'", to: "' Still hunting.'" },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "(STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')", to: "((END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')" },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "return r.back === session ? false :", to: "return" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "!was || !h || h.sessionId !== was.s ||", to: '!was || !h ||' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at", to: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + now" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (was && was.s === next.s && next.at - was.at < STAMP_EVERY_MS) return false;', to: '' },

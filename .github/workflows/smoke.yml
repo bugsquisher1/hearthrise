@@ -4664,7 +4664,7 @@ jobs:
 
       # THE CRAFT WAGE (designer 2026-11-01, src/data/items.js BULK_GOODS): a hero's hour at the rock and the bench pays
       # under hunting at the hours it takes to reach, each step down the chain pays more, a forged piece sells above its
-      # metal, a cook can list under the store. --mutate plants fifteen defects, each CAUGHT by its arm.
+      # metal, a cook can list under the store, a house bench is a long goal. --mutate plants seventeen defects, each CAUGHT by its arm.
       - name: Craft wages - what a skill row pays at the shop
         if: ${{ !cancelled() }}
         run: |

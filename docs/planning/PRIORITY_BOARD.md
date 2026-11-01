@@ -30,6 +30,68 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-01 The bench tax and what a house bench costs (designer, lane/b-bench-prices; Tyler: "make building workbenches in your house WAY more expensive"): ROOM PRICES PLAYED AND STAGED, TAX COMPUTED until lane/c-bench-tax lands
+**The ruling.** A public bench charges 15% of what the job's output sells for at the shop, rounded to the nearest gold, in every bench skill: Smithing, Crafting, Cooking, Runecrafting. The Great Hearth is not a bench and stays free. Cheap goods round to nothing, so a fresh hero pays nothing: Copper Bar (3 g), Normal Plank (3 g), Cooked Shrimp (3 g), and goods with no shop price (Bronze Arrows, Chalked Runes, Coarse Whetstones). No job's fee can exceed what its output sells for, so pressing Start can't lose money on a priced good, and if the purse runs out the stack in the bag pays it back. A house bench is the first rung of its room (Kitchen, Forge, Workshop, Library), shared by the whole account.
+
+**Fee = round(0.15 x shop bid x output count), per job.** Row shape asked of lane/c-bench-tax: `{ smithing: 150, crafting: 150, cooking: 150, runecrafting: 150 }` in permille. If that branch ships a flat gold-per-craft row instead, the nearest honest numbers are 0 below recipe level 15 and 1 g a craft from there, which takes far less from gear and steel; ask me to re-rule.
+
+**After-tax wage, COMPUTED from the real rows and the measured times (not played: the mechanic has not landed).** One hero doing both halves at a public bench, gold/h.
+| Row (level) | Fee a job | Wage | Tax/h | After tax | Sold raw instead | Bench from stock, tax/h |
+|---|---|---|---|---|---|---|
+| Copper Bar (1) | 0 | 1,250 | 0 | 1,250 | 750 | 0 |
+| Normal Plank (1) | 0 | 1,250 | 0 | 1,250 | 750 | 0 |
+| Cooked Shrimp (1) | 0 | 1,144 | 0 | 1,144 | 643 | 0 |
+| Cooked Herring (8) | 1 | 1,654 | 331 | 1,324 | 1,071 | 865 |
+| Iron Bar (15) | 1 | 1,800 | 300 | 1,500 | 1,000 | 750 |
+| Oak Plank (15) | 1 | 1,929 | 321 | 1,607 | 1,125 | 750 |
+| Iron Hatchets (15) | 10 | 2,470 | 608 | 1,862 | | 6,618 |
+| Ironbound Shield (15) | 15 | 2,583 | 620 | 1,963 | | 9,926 |
+| Scored Runes (15) | 6 | 2,594 | 584 | 2,010 | | 3,857 |
+| Goldgill Steak (27) | 2 | 3,364 | 421 | 2,944 | 1,250 | 1,286 |
+| Willow Plank (30) | 2 | 2,473 | 495 | 1,978 | 1,227 | 1,250 |
+| Steel Bar (30) | 4 | 2,545 | 509 | 2,036 | | 2,500 |
+| Mithril Bar (45) | 8 | 3,814 | 610 | 3,203 | | 3,600 |
+Each step still pays more than stopping earlier. Own food stays far under the store: a Cooked Shrimp costs 1 g of raw fish and no fee against 14 g for 72 HP, a Goldgill 4 + 2 g, a Turnip Juice about 1 g a drink against 10 g. A mage's Chalked Runes are free; a Ranger's Barbed Arrows pay 8 g for 50, under 1 g a shot at the store.
+
+**What the sink takes per player-day (computed).**
+| Stage | Bench use | Tax a day | Share of that day's income |
+|---|---|---|---|
+| Day one, the tutorial path | Copper to Smithing 15, cloak, a first weapon | under 100 g | under 1% |
+| Hunter, 12 h hunts, 12 h rest split gathering and benching Iron or Oak | about 3,000 crafts | about 3,000 g | about 5% of 60k |
+| Dedicated crafter, 12 h both halves | Iron 3,600 g, Steel or Willow 5,900 to 6,100 g | | 17 to 20% of the wage |
+| Four heroes all crafting | Steel or Willow | about 24,000 g | 20% |
+| A bench fed from the market, 12 h | Iron 9,000 g, Hatchets about 79,000 g if the bars exist | | stock-limited: 7,900 jobs is 48,000 bars |
+
+**For Tyler: the first bench room, before and after.** "Time before" is at the Cellar's 2,000 g/h with the materials gathered. "Time after" is hours hunted at the 10-31 pace on the board (40,925 g at 18.1 h, 64,450 g at 27.6 h, spending nothing else). Tax saved is one hero at 12 h a day on both halves; pay-back is cost over that.
+| Room (opens with) | Cost before | Time before | Cost after | Time after | Tax/h it saves | Pay-back |
+|---|---|---|---|---|---|---|
+| Kitchen (Deed I) | 500 g, 20 logs | about 15 min | **40,000 g**, 60 Oak Planks, 60 Iron Bars, 50 Cooked Trout | about 18 h | 331 to 421 | **8 to 10 days** |
+| Forge (Deed II) | 800 g, 30 ore | about 25 min | **75,000 g**, 200 Iron Bars, 60 Oak Planks, 10 Iron Fittings | about 31 h (about 36 h after a third hero and three deeds) | 300 to 509 | **12 to 21 days** |
+| Workshop (Deed II) | 700 g, 40 logs | about 20 min | **75,000 g**, 200 Oak Planks, 10 Timber Beams, 5 Iron Fittings | about 31 h | 321 to 495 | **13 to 19 days** |
+| Library (Deed III) | 1,000 g, 50 logs | about 30 min | **60,000 g**, 80 Oak Planks, 15 Silk Thread, 8 Timber Beams | about 25 h | 584 | **about 9 days** |
+Rungs 2 to 4 climb to 110k / 160k / 240k (Forge, Workshop), 70k / 110k / 180k (Kitchen), 90k / 130k / 200k (Library), with materials; they buy a little speed, so they are a sink for the rich. Held rung 5s rise above them. A hero benching 2 h a day from stock on Iron saves 1,500 g a day: 50 days.
+
+**Risks, each with my recommendation: ship.** (1) **The house is account-shared, so four crafting heroes pay it back in 3 to 5 days.** That is the fastest case and it takes four heroes working all day; I would not price for it. (2) The Kitchen was a liked first purchase (panel, hour 3). The home stays quiet longer; Garden (600 g) and Cellar (1,200 g) stay cheap and keep the early goal. (3) A hero who already bought a cheap room keeps it free of tax until the wipe. (4) The hour figures are one played hero's gold; time to afford is not a sim. (5) A purse at 0 can't start a taxed job: lane/c-bench-tax must say why and name the stack to sell. Gathering is free, so nobody is stuck.
+
+**Ladder checks.** Deeds, Garden, Cellar, Shrine and Trophy Room are byte-equal in the generated rows. The Bear Pelt goal is untouched: 5 for the Keep, 2 and 4 for the Trophy Room, Brook Bear at the Glade. A deed now costs less than the room it opens (2,500 g opens a 75,000 g Forge), and that is fine: a deed also pays plots and opens the Cellar. Every new material has a door (catalogue-coherence C12 green). Played on the local world: each deed and first room refused one gold short (`insufficient_gold`) and sold at its price.
+
+**Walk-through: the new player's path never needs a bench room** (grepped against the data; the fees are computed; the forge steps played by `--walk`)
+| Step | Holds from the steps before | Room needed | Fee |
+|---|---|---|---|
+| Sign up (`styles`, `to_the_cellar`) | 500 g, 20 Cooked Shrimp, 10 Raw Shrimp, 2 plots, Turnip Seeds | none | none |
+| `plant_land`: Farm, plant Turnips | the kit's seeds, the kit's plots | none | none |
+| `cook_catch`: Cook Shrimp at the town's cook yard | 10 Raw Shrimp | none | 0 |
+| `sell_loot`, `tamsins_task`, Thicket | gold and pelts from the hunts | none | none |
+| `home`: Deed I | 400 g, 20 ore, 30 logs, all gathered free | none | none |
+| `stitch_cloak`: Graypelt Cloak | 6 Wolf Pelts from the Thicket | none | 11 g, it sells for 75 |
+| `own_runes`: Cut Blank Runes, Bind Chalked | 6 essence mined, 12 blanks | none | 2 g, then 0 |
+| `harvest_juice`: Turnip Juice | turnips from the plots | none | 3 g for 3 drinks |
+| First forge, 1.5 h: Smithing 15 on Copper Bars | 561 bars from the rock, 500 g untouched | none | 0 |
+| 1.6 h: 25 Iron Bars | Iron Ore from the rock | none | 25 g |
+| 1.7 h: 37 Normal Planks | logs from the tree | none | 0 |
+| 1.72 h: Forge Iron Hatchets | 6 bars, 2 planks | none | 10 g, it sells for 65 |
+The town's forges and cook yard are public stations (`src/data/world/stations.js`). No tutorial step or What next line names a room: `purseLine` offers a hero slot, then a deed.
+
 ### 2026-11-01 What a skill pays at the shop (designer, lane/c-craft-economy): MEASURED on the real settle and sale, RULED, STAGED. **Tyler should see this one; it ships unless he overrules**
 **The ruling.** The shop is a floor, not a wage. Per hero-hour at the hours played: sold raw about half of hunting, gather and refine about two thirds, the whole chain to a finished piece about four fifths, and never above hunting, because a resting hero skills for free (stamina refills 1:1 outside a hunt). The better price for a skiller is the Weighhouse, where a floor of 6 g on an Iron Bar now leaves room to sell to someone who wants to skip the labor. PROVISIONAL until an economy sim says otherwise. Hunting's own numbers did not move on the first five grounds.
 

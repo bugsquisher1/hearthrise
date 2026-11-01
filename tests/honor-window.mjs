@@ -124,7 +124,7 @@ async function checks(overrides, shots) {
   const pick = async (page, board) => {
     await page.selectOption('[data-hs-win="honor"] select[data-hs-act="board"]', board);
     return wait(page, (b) => { const w = document.querySelector('[data-hs-win="honor"]');
-      return w && w.querySelector('select').value === b && !/Reading the roll/.test(w.querySelector('.hr-empty').textContent || '')
+      return w && w.querySelector('select').value === b && !/Reading the board/.test(w.querySelector('.hr-empty').textContent || '')
         && (w.querySelector('.hr-roll:not(.hr-near) > .hr-line') || w.querySelector('.hr-empty.is-on')); }, board);
   };
   try {
@@ -134,14 +134,17 @@ async function checks(overrides, shots) {
       await page.keyboard.press('z');
       const drawn = await wait(page, () => document.querySelectorAll('[data-hs-win="honor"] .hr-roll:not(.hr-near) > .hr-line').length >= 4);
       const r = await readRoll(page);
-      if (!drawn || !r) fails.push('HP-1 Z did not open the Roll of Honor with the server\'s rows');
+      if (!drawn || !r) fails.push('HP-1 Z did not open Leaderboards with the server\'s rows');
+      /* Tyler 2026-11-01: "Just leaderboards is fine": the window's title and its icon's name. */
+      const named = await page.evaluate(() => [document.querySelector('[data-hs-win="honor"] .hs-win-title').textContent, document.querySelector('.hs-launch[data-hs-open="honor"]').getAttribute('aria-label')]);
+      if (named[0] !== 'Leaderboards' || named[1] !== 'Leaderboards (Z)') fails.push('HP-1 the window is named ' + JSON.stringify(named));
       else {
         const got = r.lines.map((l) => [l.place, l.name, l.value, l.xp].join(' ')).join(' | ');
         const want = '1st Wennet Level 12 90,210 XP | 2nd Osric Level 9 40,000 XP | 2nd Maela Level 9 40,000 XP | 4th Tyler Level 6 9,001 XP';
         if (got !== want) fails.push('HP-1/HP-6 the roll reads "' + got + '", the server said "' + want + '"');
         const tags = r.lines.map((l) => l.name + ':' + (l.tag || '-') + (l.viewed ? '*' : '')).join(' ');
         if (tags !== 'Wennet:Also yours Osric:- Maela:- Tyler:Your hero*') fails.push('HP-1 the marks read ' + tags);
-        if (r.title !== 'Level' || r.count !== '4 heroes on this roll' || r.fresh !== 'Updated 3 minutes ago') fails.push('HP-1 the heading reads ' + JSON.stringify([r.title, r.count, r.fresh]));
+        if (r.title !== 'Level' || r.count !== '4 heroes on this board' || r.fresh !== 'Updated 3 minutes ago') fails.push('HP-1 the heading reads ' + JSON.stringify([r.title, r.count, r.fresh]));
         if (r.you !== 'Tyler stands 4th of 4.' || r.next !== 'Maela, the next hero up, is 30,999 XP ahead.') fails.push('HP-1 the standing reads ' + JSON.stringify([r.you, r.next]));
         if (r.near.length) fails.push('HP-1 a hero on the top list is drawn twice (the rows around it)');
       }
@@ -161,7 +164,7 @@ async function checks(overrides, shots) {
       const f = await readRoll(page);
       if (reads(s).length !== n0 + 1 || reads(s).at(-1).body.p_board !== 'skill:fishing') fails.push('HP-4 picking Fishing sent ' + (reads(s).length - n0) + ' reads');
       if (f.lines.length || f.empty !== 'No hero has trained Fishing yet. The first to do it takes first place.'
-        || f.you !== 'Tyler is not on this roll yet. Train Fishing to earn a place: fish at a fishing spot.') fails.push('HP-4 the empty board reads ' + JSON.stringify(f));
+        || f.you !== 'Tyler is not on this board yet. Train Fishing to earn a place: fish at a fishing spot.') fails.push('HP-4 the empty board reads ' + JSON.stringify(f));
       await page.waitForTimeout(1200);
       if (reads(s).length !== n0 + 1) fails.push('HP-2 the window kept asking while open (' + (reads(s).length - n0) + ' reads in 1.2 s)');
       if (errors.length) fails.push('HP-1 console errors: ' + errors.slice(0, 3).join(' | '));
@@ -172,7 +175,7 @@ async function checks(overrides, shots) {
       s.refuse = true;
       await page.keyboard.press('z');
       const said = await wait(page, () => { const e = document.querySelector('[data-hs-win="honor"] .hr-empty.is-on');
-        return e && e.textContent && !/Reading the roll/.test(e.textContent); });
+        return e && e.textContent && !/Reading the board/.test(e.textContent); });
       const words = await page.evaluate(() => document.querySelector('[data-hs-win="honor"] .hr-empty')?.textContent || '');
       await page.waitForTimeout(1500);
       const n = reads(s).length;

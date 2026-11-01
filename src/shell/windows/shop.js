@@ -21,18 +21,21 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf } from '../../session/item-sections.js?v=0.2.80';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.80';
-import { whole, gold } from '../../render/format.js?v=0.2.80';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.80';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.80';
-import { kindOf, sellPlan, lootSale, lootKept, sellQty } from '../bag-model.js?v=0.2.80';
-import { runIntent } from '../intent-words.js?v=0.2.80';
-import { showTip, hideTip } from './item-tip.js?v=0.2.80';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.80';
-import { gearLocked } from '../gear-gate.js?v=0.2.80';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.80';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.80';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf } from '../../session/item-sections.js?v=0.2.81';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.81';
+import { whole, gold } from '../../render/format.js?v=0.2.81';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.81';
+import { kindOf, sellPlan, lootSale, lootKept, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.81';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.81';
+import { toolEffect } from '../item-lore.js?v=0.2.81';
+import { toolLossWords } from '../town-work.js?v=0.2.81';
+import { runIntent } from '../intent-words.js?v=0.2.81';
+import { showTip, hideTip } from './item-tip.js?v=0.2.81';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.81';
+import { gearLocked } from '../gear-gate.js?v=0.2.81';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.81';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.81';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -92,7 +95,9 @@ function patchBuy(root, st, ctx) {
         const n = st.sc.qty[o.offer] || 1;
         /* Short of the server's gold: Buy is off and the row says by how much (say-why). */
         const short = st.gold !== null && st.gold < o.price * n ? o.price * n - st.gold : 0;
-        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag'
+        /* A tool says what it buys (panel 2026-11-01: the Shop listed them with no benefit). */
+        const does = toolEffect(o.item);
+        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag' + (does ? ' · ' + does + ' while in your bag' : '')
           + (short ? ' · You need ' + gold(short) + ' more.' : ''));
         prop(li.querySelector('select'), 'value', String(n));
         const b = li.querySelector('[data-hs-act="buy"]');
@@ -111,7 +116,7 @@ function patchBuy(root, st, ctx) {
 /* What Sell all loot leaves out and why, so its price and the list under it add up (say-why). */
 function sellNote(plan, kept) {
   const parts = [];
-  if (kept.ids.length) parts.push('It keeps ' + whole(kept.ids.length) + (kept.ids.length === 1 ? ' stack' : ' stacks') + ' worth ' + gold(kept.worth) + ' that you can use: fuel, food to cook and materials. Sell those by hand if you want the gold.');
+  if (kept.ids.length) parts.push('It keeps ' + whole(kept.ids.length) + (kept.ids.length === 1 ? ' stack' : ' stacks') + ' worth ' + gold(kept.worth) + ' that you can use: fuel, food to cook, and materials for your recipes or your next House step. Sell those by hand if you want the gold.');
   if (plan.capped) parts.push('One sale takes up to ' + whole(sellQty(Infinity)) + ' of a stack.');
   return parts.join(' ');
 }
@@ -120,8 +125,9 @@ function patchSell(root, st, ctx) {
   const sc = st.sc;
   const locked = st.rules ? st.rules.locked : new Set();
   const bids = st.shop ? st.shop.bids : new Map();
-  const plan = lootSale(st.items, st.rules, st.shop, skillsOf(st.cs));
-  const kept = lootKept(st.items, st.rules, st.shop, skillsOf(st.cs));
+  const needs = upgradeNeeds(homeOf(st.cs), chestsOf(st.cs));
+  const plan = lootSale(st.items, st.rules, st.shop, skillsOf(st.cs), needs);
+  const kept = lootKept(st.items, st.rules, st.shop, skillsOf(st.cs), needs);
   const keptLoot = new Set(kept.ids);
   const list = st.items.filter((r) => bids.has(r.id)).sort((a, b) => (kindOf(b.id) === 'loot') - (kindOf(a.id) === 'loot') || bids.get(b.id) * b.qty - bids.get(a.id) * a.qty);
   rows(root.querySelector('.hw-sell-list'), list, {
@@ -152,7 +158,9 @@ function patchSell(root, st, ctx) {
   if (sc.confirm) {
     const p = sc.confirm;
     text(cf.querySelector('.hw-confirm-q'), p.lines.length === 1 ? 'Sell ' + itemName(p.lines[0].item) + ' ×' + whole(p.lines[0].qty) + '?' : 'Sell ' + p.lines.length + ' stacks?');
-    text(cf.querySelector('.hw-confirm-note'), p.kept.length ? p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.' : '');
+    /* Selling a tool away slows the skill: said before the press, as the sale's one warning. */
+    const slower = p.lines.map((l) => toolLossWords(st.cs, l.item, l.qty)).filter(Boolean).join(' ');
+    text(cf.querySelector('.hw-confirm-note'), [p.kept.length ? p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.' : '', slower].filter(Boolean).join(' '));
     const yes = cf.querySelector('[data-hs-act="confirm-yes"]');
     text(yes, 'Sell for ' + gold(p.total));
     prop(yes, 'disabled', sc.pending);
@@ -217,7 +225,7 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
     const items = bagOf(cs) || [];
     const rules = rulesOf(cs);
     const plan = action === 'sell' ? sellPlan(items, [t.getAttribute('data-item')], { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null })
-      : lootSale(items, rules, shop, skillsOf(cs));
+      : lootSale(items, rules, shop, skillsOf(cs), upgradeNeeds(homeOf(cs), chestsOf(cs)));
     sc.confirm = plan.lines.length ? plan : null;
     repaint();
     return true;

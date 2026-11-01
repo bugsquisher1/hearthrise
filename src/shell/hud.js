@@ -21,7 +21,7 @@
 //
 // PURE except for `residueStore`, the adapter onto one character's residue.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.80';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.81';
 
 export const SIZE_CLASSES = Object.freeze(['desktop', 'phone']);
 export const OPACITY_MIN = 0.4;
@@ -207,7 +207,7 @@ export function clearOfDock(r, dock, others, gap, stops = []) {
 }
 
 /* The shortest a docked window is capped to; under it the window keeps its height and the bar clears it instead. */
-const DOCK_CAP_MIN_PX = 160;
+export const DOCK_CAP_MIN_PX = 160;
 
 /**
  * A DOCKED WINDOW STOPS ABOVE THE BOTTOM BAR (Tyler 10-22: a Settings tab that made the docked window taller
@@ -242,6 +242,35 @@ export function stackRoom(a, s, bars, boxHeight, gap) {
 function barTopUnder(pane, bars, gap) {
   const under = bars.filter((b) => b.width > 0 && pane.left < b.left + b.width + gap && b.left < pane.left + pane.width + gap);
   return under.length ? Math.min(...under.map((b) => b.top)) : null;
+}
+
+/**
+ * A PANEL ENDS ABOVE THE FLOOR (friends' panel 2026-11-01: a tall panel was stepped below a bar that spans the row, off the
+ * window). The height the panel `q` may take from its top: to `gap` above the highest bottom bar crossing its column, else
+ * to `gap` above the box's foot. It reads no height of its own, so the cap it sets settles in one pass. Pure.
+ */
+export function panelRoom(q, bars, boxHeight, gap) {
+  const bar = barTopUnder(q, bars, gap);
+  return Math.max(0, Math.floor((bar === null ? boxHeight : bar) - gap - q.top));
+}
+
+/** The top of a moved panel `q` that never lies behind a bar crossing its column: `gap` above it, never over the box's top. Pure. */
+export function liftOverBars(q, bars, gap) {
+  const bar = barTopUnder(q, bars, gap);
+  return Math.round(bar === null ? q.top : Math.max(0, Math.min(q.top, bar - gap - q.height)));
+}
+
+/**
+ * A PLATE OVER THE WORLD TAKES NO PRESS FROM ANYTHING (friends' panel: the away card lay over the Chat tabs and the Party
+ * panel). The left closest to its own that clears, by `gap`, every rect in `way` crossing its row, sliding right only and
+ * staying `gap` inside the box; null when none does (it then waits hidden). Rects {left, top, width, height}. Pure.
+ */
+export function slideClear(r, way, boxWidth, gap) {
+  const row = way.filter((q) => q.width > 0 && q.height > 0 && q.top < r.top + r.height + gap && r.top < q.top + q.height + gap);
+  const clear = (x) => row.every((q) => x + r.width + gap <= q.left || q.left + q.width + gap <= x);
+  const tries = [r.left].concat(row.map((q) => q.left + q.width + gap)).filter((x) => x >= r.left).sort((a, b) => a - b);
+  for (const x of tries) if (x + r.width <= boxWidth - gap && clear(x)) return Math.round(x);
+  return null;
 }
 
 /**

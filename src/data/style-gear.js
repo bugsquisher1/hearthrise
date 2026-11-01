@@ -63,11 +63,13 @@ const r = (id, name, icon, inputs, output, xp, req, ms) => Object.freeze({ id, n
 
 export const STYLE_GEAR_RECIPES = Object.freeze({
   smithing: Object.freeze([
-    r('forge_iron_hatchets',  'Forge Iron Hatchets',  '🪓', { iron_bar: 2, normal_plank: 1 }, 'iron_hatchets',  120, 15, 3400),
-    r('forge_iron_warhammer', 'Forge Iron Warhammer', '🔨', { iron_bar: 3, normal_plank: 2 }, 'iron_warhammer', 150, 15, 3600),
+    /* Six bars since the craft wage (designer 2026-11-01): the piece sells above its metal and the forge pays a little better than
+       selling the bars, with no faster chain to it than the rest of the bench (tests/craft-wages.mjs). */
+    r('forge_iron_hatchets',  'Forge Iron Hatchets',  '🪓', { iron_bar: 6, normal_plank: 2 }, 'iron_hatchets',  120, 15, 3400),
+    r('forge_iron_warhammer', 'Forge Iron Warhammer', '🔨', { iron_bar: 6, normal_plank: 3 }, 'iron_warhammer', 150, 15, 3600),
     /* THE OTHER WEIGHTS' FIRST GLOVES AND SASH (lane b-unsourced-items, designer 2026-10-28): the Shop sells medium gloves and a
        heavy belt; the rest of the tier-1 pair is made, so a hero picks a weight in those slots too (made > bought, Tyler 10-14). */
-    r('forge_bronze_gauntlets', 'Forge Bronze Gauntlets', '🧤', { bronze_bar: 2 }, 'bronze_gauntlets', 40, 4, 2800),
+    r('forge_bronze_gauntlets', 'Forge Bronze Gauntlets', '🧤', { bronze_bar: 3 }, 'bronze_gauntlets', 40, 4, 2800),
   ]),
   crafting: Object.freeze([
     /* Tier-2 weapons: oak stock at Crafting 15, the level they are worn at. */

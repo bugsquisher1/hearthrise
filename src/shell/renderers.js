@@ -7,37 +7,38 @@
 // HTML. tests/shell-renderers.mjs fails the build on a row with no renderer or
 // a renderer with no row, so a launcher can never open an empty window.
 // ════════════════════════════════════════════════════════════════════════
-import { renderLaunchers } from './launcher.js?v=0.2.80';
-import { renderHudSettings } from './hud.js?v=0.2.80';
-import { renderHuntTopbar } from './widgets/hunt-topbar.js?v=0.2.80';
-import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.80';
-import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.80';
-import { renderActionBar } from './widgets/action-bar.js?v=0.2.80';
-import { renderConfigureAction } from './windows/configure-action.js?v=0.2.80';
-import { renderChat } from './windows/chat.js?v=0.2.80';
-import { renderFriends } from './windows/friends.js?v=0.2.80';
-import { renderInspect } from './windows/inspect.js?v=0.2.80';
-import { renderSettings } from './windows/settings.js?v=0.2.80';
-import { renderInventory } from './windows/inventory/index.js?v=0.2.80';
-import { renderWork } from './windows/work.js?v=0.2.80';
-import { renderCharacter } from './windows/character/index.js?v=0.2.80';
-import { renderHunts } from './windows/hunts.js?v=0.2.80';
-import { renderStorage } from './windows/storage.js?v=0.2.80';
-import { renderShop } from './windows/shop.js?v=0.2.80';
-import { renderMarket } from './windows/market/index.js?v=0.2.80';
-import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.80';
-import { renderParty } from './windows/party.js?v=0.2.80';
-import { renderCharacters } from './windows/characters.js?v=0.2.80';
-import { renderAlerts } from './widgets/alerts.js?v=0.2.80';
-import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.80';
-import { renderReport } from './windows/report.js?v=0.2.80';
-import { renderDeath } from './windows/death.js?v=0.2.80';
-import { renderOnline } from './widgets/online.js?v=0.2.80';
-import { renderHouse } from './windows/house.js?v=0.2.80';
-import { renderFarm } from './windows/farm.js?v=0.2.80';
-import { renderTally } from './windows/tally.js?v=0.2.80';
-import { renderHonor } from './windows/honor.js?v=0.2.80';
-import { renderTallyHud } from './widgets/tally-hud.js?v=0.2.80';
+import { renderLaunchers } from './launcher.js?v=0.2.81';
+import { renderHudSettings } from './hud.js?v=0.2.81';
+import { renderHuntTopbar } from './widgets/hunt-topbar.js?v=0.2.81';
+import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.81';
+import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.81';
+import { renderActionBar } from './widgets/action-bar.js?v=0.2.81';
+import { renderConfigureAction } from './windows/configure-action.js?v=0.2.81';
+import { renderChat } from './windows/chat.js?v=0.2.81';
+import { renderFriends } from './windows/friends.js?v=0.2.81';
+import { renderInspect } from './windows/inspect.js?v=0.2.81';
+import { renderSettings } from './windows/settings.js?v=0.2.81';
+import { renderInventory } from './windows/inventory/index.js?v=0.2.81';
+import { renderWork } from './windows/work.js?v=0.2.81';
+import { renderCharacter } from './windows/character/index.js?v=0.2.81';
+import { renderHunts } from './windows/hunts.js?v=0.2.81';
+import { renderStorage } from './windows/storage.js?v=0.2.81';
+import { renderShop } from './windows/shop.js?v=0.2.81';
+import { renderMarket } from './windows/market/index.js?v=0.2.81';
+import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.81';
+import { renderParty } from './windows/party.js?v=0.2.81';
+import { renderCharacters } from './windows/characters.js?v=0.2.81';
+import { renderAlerts } from './widgets/alerts.js?v=0.2.81';
+import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.81';
+import { renderReport } from './windows/report.js?v=0.2.81';
+import { renderDeath } from './windows/death.js?v=0.2.81';
+import { renderPlayCap } from './windows/play-cap.js?v=0.2.81';
+import { renderOnline } from './widgets/online.js?v=0.2.81';
+import { renderHouse } from './windows/house.js?v=0.2.81';
+import { renderFarm } from './windows/farm.js?v=0.2.81';
+import { renderTally } from './windows/tally.js?v=0.2.81';
+import { renderHonor } from './windows/honor.js?v=0.2.81';
+import { renderTallyHud } from './widgets/tally-hud.js?v=0.2.81';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
 export const WINDOW_RENDERERS = Object.freeze({
@@ -59,6 +60,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   hud: renderHudSettings,
   'configure-action': renderConfigureAction,
   death: renderDeath,
+  'play-cap': renderPlayCap,
   chat: renderChat,
   friends: renderFriends,
   inspect: renderInspect,

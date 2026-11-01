@@ -45,7 +45,7 @@
 .hs-online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 
 /* ── Tamsin's tally (widgets/tally-hud.js): each held kill task's server count on a notched stick ── */
-.hs-tally { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px; background: var(--hud-fill);
+.hs-tally { display: flex; flex-direction: column; gap: 4px; max-height: var(--hs-room, none); padding: 4px 6px; background: var(--hud-fill);
   border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; }
 .hs-widget.is-tally.is-quiet { display: none; }
 .hs-tally-head { display: flex; align-items: flex-start; gap: 4px; }
@@ -56,7 +56,7 @@
 .hs-tally-open:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .hs-tally-none { font-size: var(--t-micro); color: var(--ink-2); }
 .hs-tally-none:empty { display: none; }
-.hs-tally-list { margin: 0; padding: 0; list-style: none; }
+.hs-tally-list { min-height: 0; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
 .hs-tally-row { font-size: var(--t-micro); color: var(--ink); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .hs-tally-wait { display: block; max-width: 28ch; white-space: normal; color: var(--gold-2); }
 .hs-tally-wait:empty { display: none; }
@@ -256,8 +256,8 @@
   background: var(--gold-3); box-shadow: inset 2px 2px 0 var(--gold-2), inset -2px -2px 0 var(--bg-0); }
 .hs-win input[type="range"]:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .st-val { min-width: 44px; text-align: right; font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
-/* A CONFIRMATION in a window: a sunk well with the gold bar at its left (the picked row's mark). */
-.hw-confirm { background: var(--bg-0); box-shadow: var(--steel-well); border-left: 4px solid var(--gold); }
+/* A CONFIRMATION in a window, or the answer to a press: a sunk well with the gold bar at its left (the picked row's mark). */
+.hw-confirm, .hs-win .hh-intent-msg:not(:empty, .ca-msg) { background: var(--bg-0); box-shadow: var(--steel-well); border-left: 4px solid var(--gold); }
 /* A home window (Chat) is held to the World's bottom-left by its bottom edge; a sized one fills its frame.
    Its grip sits on the frame's top-right corner: drag right to widen, up to grow taller (window-sizes.js). */
 .hs-win.is-home { top: auto; }

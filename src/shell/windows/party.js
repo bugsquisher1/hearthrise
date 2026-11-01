@@ -21,12 +21,12 @@
 // Every control is one intent, off from the press until the server answered;
 // the window changes only from the re-read envelope. Nothing is predicted.
 // ════════════════════════════════════════════════════════════════════════
-import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.80';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.80';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.80';
-import { runIntent } from '../intent-words.js?v=0.2.80';
-import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.80';
-import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.80';
+import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.81';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.81';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
+import { runIntent } from '../intent-words.js?v=0.2.81';
+import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.81';
+import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.81';
 
 const TABS = Object.freeze([['party', 'Your party'], ['invites', 'Invites'], ['find', 'Find a party']]);
 
@@ -107,12 +107,12 @@ renderParty.act = function actParty(ctx, body, action, ev, t) {
     const box = body.querySelector('.hw-invite-in');
     const name = box.value.trim();
     if (name.length < 2) { sc.msg = 'Type the name of the player to invite.'; repaint(); return true; }
-    runIntent(sc, repaint, () => cs.inviteByName(name), 'Inviting…', () => { box.value = ''; return 'Invite sent to ' + name + '.'; });
+    runIntent(sc, repaint, () => cs.inviteByName(name).then((r) => (r.ok ? r : { ...r, verb: 'party_invite' })), 'Inviting…', () => { box.value = ''; return 'Invite sent to ' + name + '.'; });
     return true;
   }
   if (action === 'accept' || action === 'decline') {
     const yes = action === 'accept';
-    runIntent(sc, repaint, () => cs.answerInvite(t.getAttribute('data-invite'), yes), yes ? 'Joining…' : 'Declining…',
+    runIntent(sc, repaint, () => cs.answerInvite(t.getAttribute('data-invite'), yes).then((r) => (r.ok ? r : { ...r, verb: 'party_join' })), yes ? 'Joining…' : 'Declining…',
       () => (yes ? 'You joined the party.' : 'Invite declined.'));
     return true;
   }

@@ -9,6 +9,8 @@
 //   startPartyHunt(account, cs, hunt)   the leader picks the ground at Start;
 //                                       every member walks in, or nobody
 //                                       (`not_ready` names each seat and why)
+//   warnPartyGround(account, cs, hunt)  the leader, before that press lands: each seat
+//                                       under the ground's floor is told
 //   disbandParty(account, cs)           the leader closes the party, in town
 //   inviteOwn(account, cs, otherSlot)   one of this account's own characters
 //                                       joins at once (no accept step)
@@ -29,8 +31,8 @@
 // Each verb is ONE ask in the account's intent ledger (cs.intents, intent-ledger.js)
 // from its send until those re-reads are applied: the pressed control waits on it.
 // ════════════════════════════════════════════════════════════════════════
-import { partyMembershipOf } from './party-sections.js?v=0.2.80';
-import { askVia } from './intent-ledger.js?v=0.2.80';
+import { partyMembershipOf } from './party-sections.js?v=0.2.81';
+import { askVia } from './intent-ledger.js?v=0.2.81';
 
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -92,6 +94,16 @@ export async function startPartyHunt(account, cs, hunt) {
     for (const o of peers) await settleTownActivity(o);
     return settled(await account.server.rpc('hr_hunt_party_start', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() }), peers);
   });
+}
+
+/**
+ * THE WARNING BEFORE A START (2027-02-18-party-truth.sql): the leader, about to take the party to `hunt`, tells each seat under
+ * its floor. Starts nothing, refuses nothing: the floor is a warning and the pick the leader's. Nobody's record is re-read here:
+ * the notices reach the other heroes by their own nudge.
+ */
+export async function warnPartyGround(account, cs, hunt) {
+  if (!usable(account, cs) || !HUNT_ID.test(String(hunt))) return { ok: false, error: 'bad_intent', seats: [] };
+  return askVia(cs, 'hunt_party_warn', async () => settled(await account.server.rpc('hr_hunt_party_warn', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() }), []));
 }
 
 /** The leader closes the party (in town only; the server refuses `party_hunting` otherwise). */

@@ -46,25 +46,25 @@
 // server's `leader_densities`) with no step, and the server refuses a member's
 // pick (hr_hunt_density_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.80';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.80';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.80';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.80';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.80';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.80';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.80';
-import { whole } from '../../render/format.js?v=0.2.80';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.80';
-import { itemName } from '../widgets/bits.js?v=0.2.80';
-import { glyphSvg } from '../launcher.js?v=0.2.80';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.80';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.80';
-import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.80';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.80';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.80';
-import { inviteOwn } from '../../session/party-intents.js?v=0.2.80';
-import { openFinderOn } from './party-finder.js?v=0.2.80';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.80';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.81';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.81';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.81';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.81';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.81';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.81';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.81';
+import { whole } from '../../render/format.js?v=0.2.81';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
+import { itemName } from '../widgets/bits.js?v=0.2.81';
+import { glyphSvg } from '../launcher.js?v=0.2.81';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.81';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.81';
+import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, seatsUnder, underWords } from '../hunt-list.js?v=0.2.81';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.81';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.81';
+import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.81';
+import { openFinderOn } from './party-finder.js?v=0.2.81';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.81';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
@@ -88,6 +88,9 @@ function levelOf(cs) {
 }
 
 const groundOf = (hunt) => Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt) || null;
+
+/* What a leader's warning covered: this ground and these seats. Someone who sits down under the floor afterwards has not been told. */
+const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();
 
 /* The server's pick on this ground (`picks`: { [hunt]: n }, no key = 0, as built) as the ground would spawn it,
    and the most the ground allows for `size`; null = unknown (no section, or no ground). */
@@ -272,8 +275,9 @@ function patchPage(det, ctx, sc, v) {
   const { r, level, size, party, follower, now } = v;
   const cs = ctx.character;
   patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), repaint: () => ctx.refresh('hunts') });
-  /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse */
-  text(det.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');
+  /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse. A leader reads every seat's, its own and the others'. */
+  const under = party && !follower ? seatsUnder(r, party).under : [];
+  text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under)].filter(Boolean).join(' '));
   /* While a hunt runs, its own page says what its hunt bag holds (in town, Before you go says what the bar spends). */
   const carried = now ? huntBagOf(cs) : null;
   text(det.querySelector('.hw-hunt-pack'), now && now.huntId === r.hunt && carried ? carriedWords(carried) : '');
@@ -292,7 +296,7 @@ function patchPage(det, ctx, sc, v) {
   });
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
-  text(enter, party && !follower ? 'Start with party' : 'Enter');
+  text(enter, party && !follower ? (under.length && sc.warned === warnKey(r.hunt, under) ? 'Start anyway' : 'Start with party') : 'Enter');
   /* Enter and the pull step (Go as, Find a party and Bring are patchGo's: off for a member too). */
   for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', sc.pending || !!now);
   if (follower) prop(enter, 'disabled', true);
@@ -375,7 +379,18 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };
   if (action === 'enter' && partyMembershipOf(cs)) {
     sc.pick = hunt;
-    if (!partyMembershipOf(cs).isLeader) return true;
+    const lead = partyMembershipOf(cs);
+    if (!lead.isLeader) return true;
+    /* A seat under this ground's floor hears it first: the first press tells them and arms "Start anyway", the second goes. A seat
+       so far under that the server would refuse the start skips this: that refusal names it (panel 2026-11-01, designer's list). */
+    const row = huntRows().find((x) => x.hunt === hunt);
+    const low = row ? seatsUnder(row, lead) : { under: [], far: false };
+    if (low.under.length && !low.far && sc.warned !== warnKey(hunt, low.under)) {
+      runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
+        () => underWords(row, low.under) + ' They have been told. Press Start anyway to go.', cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
+      return true;
+    }
+    sc.warned = null;
     runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt))), 'Gathering the party for ' + huntName(hunt) + '…',
       () => 'Your party is on its way to ' + huntName(hunt) + '.', cs).then(thenClose);
     return true;

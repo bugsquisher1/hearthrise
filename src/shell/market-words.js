@@ -6,8 +6,34 @@
 // or section gives. intent-words.js refusalText asks here first for a market verb; a code
 // not named here reads from src/data/refusal-words.js like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { whole } from '../render/format.js?v=0.2.80';
-import { depotOf, nameOf } from '../session/item-sections.js?v=0.2.80';
+import { whole, listWords } from '../render/format.js?v=0.2.81';
+import { depotOf, nameOf } from '../session/item-sections.js?v=0.2.81';
+
+/** Why the Weighhouse won't list a stack, by the server's `why` (hr_market_items: its one listable rule). The sentence is the rule, never a guess. */
+const NO_BUYER = 'the shop doesn\'t buy them, and the Weighhouse lists only what the shop buys, so they\'re for your own use';
+const WHY_NOT = Object.freeze({
+  start_kit: 'every new hero starts with some, even if you made yours',
+  no_value: NO_BUYER,
+  no_shop_price: NO_BUYER,
+  untradeable: 'gifts and trophies stay with you',
+  premium: 'premium rewards stay with you',
+});
+const capital = (s) => s[0].toUpperCase() + s.slice(1);
+/** The one stack's refusal: "These can't be sold to other players: every new hero starts with some, even if you made yours." */
+export function notListableWords(why) {
+  return 'These can\'t be sold to other players' + (Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.');
+}
+/**
+ * The Sell tab's line over what it leaves out, each stack with its reason: "2 stacks here can't be sold to other players. Cooked
+ * Shrimp: every new hero starts with some, ...". `kept`: [{ name, why }] from the server's summaries.
+ */
+export function keptWords(kept) {
+  if (!kept.length) return '';
+  const byWhy = new Map();
+  for (const k of kept) { const said = WHY_NOT[k.why] || 'they stay with you'; byWhy.set(said, [...(byWhy.get(said) || []), k.name]); }
+  return whole(kept.length) + (kept.length === 1 ? ' stack' : ' stacks') + ' here can\'t be sold to other players. '
+    + Array.from(byWhy, ([said, names]) => listWords(names) + ': ' + said + '.').join(' ');
+}
 
 const MARKET_VERBS = new Set(['market_list', 'market_buy', 'market_cancel', 'market_browse', 'market_item', 'market_mine']);
 

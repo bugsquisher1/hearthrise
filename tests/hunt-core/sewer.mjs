@@ -835,7 +835,7 @@ const cases = {
       stored: [...after.stored, { type: 'consume', id: 'turnip_juice', conditions: [] }, { type: 'ability', id: 'flame_strike', conditions: [] }] };
     if ((say(R({ ...juiced, slots: runeless0 })) || {}).id === 'own_runes') return 'with no rune spell on the bar the coach asks for runes';
     const runes = say(R(juiced));
-    if (!runes || runes.id !== 'own_runes' || !runes.text.includes('Cut Blank Runes (4 essence make 12) and Bind Chalked Fire Runes (6 blanks make 45)')) return 'the rune card reads ' + JSON.stringify(runes && runes.text);
+    if (!runes || runes.id !== 'own_runes' || !runes.text.includes('Cut Blank Runes (6 essence make 12) and Bind Chalked Fire Runes (6 blanks make 45)')) return 'the rune card reads ' + JSON.stringify(runes && runes.text);
     if (say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } }))) return 'with own runes the coach still asks: ' + say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } })).id;
     /* THE FIRST HOUR (lane/b-first-hour, designer 2026-10-28). The day-one goals open at Level 7, the Thicket's first half hour. */
     const L7 = { ...town, presets: 1, levelXp: M.xp.charXpForLevel(7), charLevel: 7 };
@@ -891,17 +891,17 @@ const cases = {
     /* a deed the purse covers, once no hero is for sale; its materials are said, never hidden behind a price */
     const deed = goal(30, { gold: 9000, slotCost: null, slotsOwned: 5, home: { owned: true, next: { name: 'Cottage', gold: 8000, items: [{ id: 'normal_log', qty: 40 }] } } });
     if (!deed.includes('You can pay for the Cottage (8,000 gp, Normal Log ×40): open the House.')) return 'the house line reads ' + deed;
-    /* the Weighhouse by its own gate, the Roll of Honor from the Level the gear runs thin: one read each, the icon ringed, after the chain */
+    /* the Weighhouse by its own gate, Leaderboards from the Level the gear runs thin: one read each, the icon ringed, after the chain */
     const chainDone = walkChain(M, T).pop().facts;
     const atL = (n, ...read) => ({ ...chainDone, levelXp: M.xp.charXpForLevel(n), charLevel: n, read: new Set([...chainDone.read, ...read]) });
     if ((say(atL(M.tut.WEIGHHOUSE_LEVEL - 1)) || {}).id === 'weighhouse') return 'the Weighhouse card came below its Level';
     const wh = say(atL(M.tut.WEIGHHOUSE_LEVEL));
     if (!wh || wh.id !== 'weighhouse' || !wh.gotIt || M.tut.coachIcon(wh, () => false) !== 'market') return 'at its Level the Weighhouse card reads ' + JSON.stringify(wh);
     if ((say(atL(M.tut.WEIGHHOUSE_LEVEL, 'weighhouse')) || {}).id === 'weighhouse') return 'Got it does not pass the Weighhouse card';
-    if ((say(atL(M.tut.ROLL_LEVEL - 1, 'weighhouse')) || {}).id === 'roll_of_honor') return 'the Roll of Honor card came below its Level';
+    if ((say(atL(M.tut.ROLL_LEVEL - 1, 'weighhouse')) || {}).id === 'roll_of_honor') return 'the Leaderboards card came below its Level';
     const roll = say(atL(M.tut.ROLL_LEVEL, 'weighhouse'));
-    if (!roll || roll.id !== 'roll_of_honor' || M.tut.coachIcon(roll, () => false) !== 'honor') return 'the Roll of Honor card reads ' + JSON.stringify(roll);
-    if (say({ ...atL(M.tut.ROLL_LEVEL, 'weighhouse'), huntId: 'mosslight_glade' }) && say({ ...atL(M.tut.ROLL_LEVEL, 'weighhouse'), huntId: 'mosslight_glade' }).id === 'roll_of_honor') return 'the Roll of Honor card is up in a hunt';
+    if (!roll || roll.id !== 'roll_of_honor' || roll.title !== 'Leaderboards' || M.tut.coachIcon(roll, () => false) !== 'honor') return 'the Leaderboards card reads ' + JSON.stringify(roll);
+    if (say({ ...atL(M.tut.ROLL_LEVEL, 'weighhouse'), huntId: 'mosslight_glade' }) && say({ ...atL(M.tut.ROLL_LEVEL, 'weighhouse'), huntId: 'mosslight_glade' }).id === 'roll_of_honor') return 'the Leaderboards card is up in a hunt';
     const eligibility = readFileSync(join(M.root, 'supabase/migrations/2027-02-13-market-eligibility.sql'), 'utf8');
     if (!eligibility.includes('min_level int not null default ' + M.tut.WEIGHHOUSE_LEVEL)) return 'What next says the Weighhouse opens at Level ' + M.tut.WEIGHHOUSE_LEVEL + ', and its migration does not';
     return null;
@@ -1573,7 +1573,7 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "const slot = Number.isSafeInteger(f.slotCost) && f.slotCost > 0 ? f.slotCost : null;", "const slot = 15000;"]] },
   { name: 'More than one hero walls a hero who wants one', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "'characters', orGotIt({ kind: 'heroes', atLeast: 2 }),", "'characters', { kind: 'heroes', atLeast: 2 },"]] },
-  { name: 'the Roll of Honor card is gone', case: 'tutorial-reactive',
+  { name: 'the Leaderboards card is gone', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }", "'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: 9999 }] }"]] },
   { name: 'the Weighhouse line names a Level its gate does not', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', 'export const WEIGHHOUSE_LEVEL = 10;', 'export const WEIGHHOUSE_LEVEL = 12;']] },
@@ -1706,7 +1706,7 @@ const mutants = [
   { name: 'the shell passes the coach no facts (the twelve cards stay hidden)', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);', 'const card = pointerCardOf(cs, undefined);']] },
   { name: 'the coach counts the bag, not what Sell all loot sells', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'lootSale(bag, rulesOf(cs), shop, skillsOf(cs)).lines.length', 'bag.length']] },
+    edits: [['src/shell/launcher.js', 'lootSale(bag, rulesOf(cs), shop, skillsOf(cs), upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length', 'bag.length']] },
   { name: 'Got it records nothing', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher.js', "return cs.setResidue('coach', Object.assign({}, r, { read: Array.from(read).concat(card.id).slice(-COACH_READ_MAX) }));", 'return false;']] },
   { name: 'folding the coach forgets the reads', case: 'tutorial-shell-facts',

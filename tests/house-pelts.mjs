@@ -32,8 +32,10 @@ import { isMain } from './_is-main.mjs';
 
 const OFFERS = '2027-02-16-house-pelts-unlock-offers.generated.sql';
 const BOUNDS = '2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql';
-/* The next forward catalogue, applied right after these two: a full replace that carries the bear's bound. */
-const CARRIES = '2027-02-16-party-pull-hunt-sessions-catalogue.generated.sql';
+/* The newest forward catalogue, applied after these two: a full replace that carries the bear's bound. */
+const CARRIES = '2027-02-18-craft-economy-hunt-sessions-catalogue.generated.sql';
+/* The newest forward price list, the same way: a full replace of OFFERS' rows. */
+const OFFERS_NOW = '2027-02-19-bench-prices-unlock-offers.generated.sql';
 const GLADE = 'mosslight_glade';
 const NEEDED = 5;
 const STEP_MS = 2 * 60000;           // one settle fire's reach (HUNT_SETTLE_SPAN_MS: a longer backlog lands in slices)
@@ -233,7 +235,7 @@ const ARMS = {
       return JSON.stringify(out);
     };
     const before = await image();
-    for (const f of [BOUNDS, OFFERS, CARRIES]) await db.exec(readFileSync(join(H.ROOT, 'supabase', 'migrations', f), 'utf8'));
+    for (const f of [BOUNDS, OFFERS, CARRIES, OFFERS_NOW]) await db.exec(readFileSync(join(H.ROOT, 'supabase', 'migrations', f), 'utf8'));
     const after = await image();
     if (before !== after) problems.push(`a second apply moved something: ${before} -> ${after}`);
     return problems;
@@ -253,25 +255,48 @@ async function wordsFails(root) {
   if (at(2) || !at(3)) out.push('CONTROL: the engine brings the bear at pull 2 ' + at(2) + ', at pull 3 ' + at(3) + ': the words below state 3');
   const told = /The Brook Bear only comes to a pull of 3 or more at Mosslight Glade/;
   const src = sourcesOf('bear_pelt').join('. ');
-  if (!/^Dropped by Brook Bear\./.test(src) || !told.test(src)) out.push('the tip\'s Comes from reads: ' + src);
+  if (!told.test(src)) out.push('the tip\'s Comes from reads: ' + src);
   const step = { gold: 40000, items: [{ id: 'bear_pelt', qty: 5 }, { id: 'oak_log', qty: 1 }] };
   const shortLine = costLines(step, 50000, [], []).lines.find((l) => l.key === 'bear_pelt');
-  if (!told.test(shortLine.label) || !shortLine.short) out.push('the House\'s short pelt line reads: ' + shortLine.label);
+  if (!told.test(shortLine.where) || !shortLine.short) out.push('the House\'s short pelt line reads: ' + shortLine.where);
   const heldLine = costLines(step, 50000, [{ id: 'bear_pelt', qty: 5 }], []).lines.find((l) => l.key === 'bear_pelt');
-  if (/pull/.test(heldLine.label)) out.push('the House tells a hero holding the pelts to pull more: ' + heldLine.label);
+  if (heldLine.where) out.push('the House tells a hero holding the pelts where to get them: ' + heldLine.where);
   const page = F.bigPullLine(GLADE);
   if (!/Brook Bear \(3 or more a pull\)/.test(page) || !/Bear Pelt/.test(page)) out.push('the Glade\'s page reads: ' + page);
   if (F.raresOf(GLADE).every((x) => x.id !== 'bear_claw')) out.push('the Glade\'s Rare list leaves out the Bear Claw');
-  if (F.bigPullWords('wolf_pelt') !== '') out.push('an as-built creature\'s item is told to pull more: ' + F.bigPullWords('wolf_pelt'));
+  if (/pull/.test(F.dropWhereWords('wolf_pelt'))) out.push('an as-built creature\'s item is told to pull more: ' + F.dropWhereWords('wolf_pelt'));
+  /* PANEL 2026-11-01: the source line names creatures on open grounds and the ground, for every monster material. */
+  const pelt = F.dropWhereWords('wolf_pelt');
+  if (!/^Dropped by Briarcoat Wolf and Old Grayjaw at Meadowbrook Thicket, and at /.test(pelt)) out.push('the Wolf Pelt\'s source reads: ' + pelt);
+  const { MONSTERS } = await imp('src/data/monsters.js');
+  const openIds = new Set(Object.values(G.OPEN_GROUNDS).flatMap((g) => g.pockets.flatMap((p) => (p.pack || p.spawns).concat(p.spawns).map((s) => s.monster))));
+  const openNames = new Set([...openIds].map((id) => MONSTERS[id].name));
+  for (const [mid, m] of Object.entries(MONSTERS)) {
+    if (openIds.has(mid) || openNames.has(m.name)) continue;
+    for (const d of m.drops || []) if (d && d.id && new RegExp('(?:by |and |, )' + m.name + '(?: at| and|,)').test(F.dropWhereWords(d.id))) out.push('a creature no open ground spawns is named: ' + m.name + ' for ' + d.id);
+  }
+  const shortSilk = costLines({ gold: 1, items: [{ id: 'silk_thread', qty: 8 }] }, 9, [], []).lines.find((l) => l.key === 'silk_thread');
+  if (!/Dropped by .* at Mill Cellar/.test(shortSilk.where)) out.push('the House\'s short Silk Thread names no source: ' + shortSilk.where);
+  const shortBeam = costLines({ gold: 1, items: [{ id: 'timber_beam', qty: 6 }] }, 9, [], []).lines.find((l) => l.key === 'timber_beam');
+  if (!/Made with Crafting \d+/.test(shortBeam.where) || /Treant/.test(shortBeam.where)) out.push('the House\'s short Timber Beam reads: ' + shortBeam.where);
+  /* The Drops list names materials, with the engine's own chance. */
+  const thicket = F.materialsOf('meadowbrook_thicket');
+  const wolfRow = thicket.find((x) => x.id === 'wolf_pelt');
+  if (!wolfRow || !wolfRow.carriers.includes('Briarcoat Wolf') || !(wolfRow.chance > 0 && wolfRow.chance < 1)) out.push('the Thicket\'s Materials miss the Wolf Pelt: ' + JSON.stringify(thicket));
+  if (thicket.some((x) => x.id === 'gray_dewclaw')) out.push('a pure sell item is called a material');
+  if (!F.materialsOf('millrace_sewer').some((x) => x.id === 'bat_wing') || !F.materialsOf('mill_cellar').some((x) => x.id === 'slime_gel')) out.push('Bat Wing or Slime Gel is on no ground\'s Materials');
   if (F.bigPullLine('mill_cellar') !== '') out.push('a ground with no such creature says: ' + F.bigPullLine('mill_cellar'));
   return out;
 }
 const WORD_TREES = ['src/shell', 'src/render', 'src/session', 'src/utils', 'src/net', 'src/platform', 'src/app', 'src/social', 'src/world', 'src/hunt-view'];
 const WORD_MUTANTS = [
-  { name: 'the tip lists every catalogue monster again', edits: [['src/shell/item-lore.js', 'const met = r.drops.filter(onOpenGround);', 'const met = r.drops;']] },
-  { name: 'the tip drops the pull', edits: [['src/shell/item-lore.js', 'if (pull) out.push(pull);', '']] },
-  { name: 'the House\'s short line drops the pull', edits: [['src/shell/windows/house.js', "const pull = short ? bigPullWords(it.id) : '';", "const pull = '';"]] },
-  { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const pull = short ? bigPullWords(it.id) : '';", 'const pull = bigPullWords(it.id);']] },
+  { name: 'the source lists every catalogue creature again', edits: [['src/shell/hunt-ground-facts.js', "return 'Dropped by ' + listWords(first.names) + ' at '", "return 'Dropped by ' + listWords(Object.values(MONSTERS).filter((m) => (m.drops || []).some((d) => d && d.id === item)).map((m) => m.name), 99) + ' at '"]] },
+  { name: 'the tip drops the pull', edits: [['src/shell/hunt-ground-facts.js', "return 'The ' + MONSTERS[best.id].name + ' only comes to a pull of '", "return '' && ' only comes to a pull of '"]] },
+  { name: 'the House\'s short line drops the source', edits: [['src/shell/windows/house.js', "const where = short ? whereToGet(it.id) : '';", "const where = '';"]] },
+  { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const where = short ? whereToGet(it.id) : '';", 'const where = whereToGet(it.id);']] },
+  { name: 'the source names no ground', edits: [['src/shell/hunt-ground-facts.js', "' at ' + groundName(first.g) + (more.length", "(more.length"]] },
+  { name: 'a material with no drop on Materials: gear-only Drops again', edits: [['src/shell/hunt-ground-facts.js', "!isSpentMaterial(d.id)) continue;", "true) continue;"]] },
+  { name: 'Materials lists a pure sell item', edits: [['src/shell/hunt-ground-facts.js', "|| isRare(d) || !isSpentMaterial(d.id)) continue;", "|| isRare(d)) continue;"]] },
   { name: 'the page names no bear', edits: [['src/shell/hunt-ground-facts.js', "return said.length ? 'Bigger pulls also bring '", "return said.length > 9 ? 'Bigger pulls also bring '"]] },
   { name: 'the bear moves back a row: a pull of 3 no longer brings it', edits: [
     ['src/data/hunt-grounds.js', "['brook_bear', 'walking_vine', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']", "['walking_vine', 'brook_bear', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']"],

@@ -12,14 +12,14 @@
 // Every number is the server's: places (shared on a tie), levels, scores, the count and the
 // stamp. The window adds nothing up and ranks nobody (CLAUDE.md §1, §6).
 // ════════════════════════════════════════════════════════════════════════
-import { readBoard } from '../../session/honor-roll.js?v=0.2.80';
-import { nameOf } from '../../session/item-sections.js?v=0.2.80';
-import { HONOR_BOARDS, honorBoard, honorGroups } from '../../data/honor-roll.js?v=0.2.80';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.80';
-import { whole } from '../../render/format.js?v=0.2.80';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.80';
-import { glyphSvg } from '../widgets/bits.js?v=0.2.80';
-import { refusalText } from '../intent-words.js?v=0.2.80';
+import { readBoard } from '../../session/honor-roll.js?v=0.2.81';
+import { nameOf } from '../../session/item-sections.js?v=0.2.81';
+import { HONOR_BOARDS, honorBoard, honorGroups } from '../../data/honor-roll.js?v=0.2.81';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.81';
+import { whole } from '../../render/format.js?v=0.2.81';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
+import { glyphSvg } from '../widgets/bits.js?v=0.2.81';
+import { refusalText } from '../intent-words.js?v=0.2.81';
 
 /** Asked again while the window stays open, and after a read that did not land (ms of the shell's clock). */
 const REASK_MS = 120000;
@@ -81,10 +81,10 @@ export function renderHonor(ctx) {
   const options = honorGroups().map((g) => '<optgroup label="' + esc(g.group) + '">'
     + g.boards.map((b) => '<option value="' + esc(b.id) + '">' + esc(b.label) + '</option>').join('') + '</optgroup>').join('');
   return '<div class="hw-honor">'
-    + '<label class="hr-pick"><span>Roll</span><select class="hh-select" data-hs-act="board" aria-label="Which roll to read">' + options + '</select></label>'
+    + '<label class="hr-pick"><span>Board</span><select class="hh-select" data-hs-act="board" aria-label="Which leaderboard to read">' + options + '</select></label>'
     + '<header class="hr-head"><span class="hr-glyph" aria-hidden="true"></span><span class="hr-head-words"><b class="hr-title"></b><small class="hr-why"></small></span></header>'
     + '<p class="hw-cap"><span class="hr-count"></span><span class="hr-fresh"></span></p>'
-    + '<ol class="hr-roll" aria-label="The roll"></ol>'
+    + '<ol class="hr-roll" aria-label="The leaderboard"></ol>'
     + '<p class="hh-empty hr-empty"></p>'
     + '<section class="hr-you"><h3 class="hw-ledger-head is-on">Your hero</h3>'
     + '<p class="hr-you-line"></p><ol class="hr-roll hr-near" aria-label="Around your hero"></ol><p class="hr-you-next"></p></section>'
@@ -94,7 +94,7 @@ export function renderHonor(ctx) {
 /* Where the viewed hero stands: { line, next, near } in plain words, from the server's own rows. */
 function standing(b, roll, slot, heroName) {
   const me = roll.mine.find((m) => m.slot === slot) || null;
-  if (!me) return { line: heroName + ' is not on this roll yet. ' + b.join, next: '', near: [] };
+  if (!me) return { line: heroName + ' is not on this board yet. ' + b.join, next: '', near: [] };
   const shared = roll.top.concat(me.near).some((r) => r.place === me.place && r.rank !== me.rank);
   const line = me.place === 1
     ? me.name + (shared ? ' shares first place.' : ' holds first place.')
@@ -123,12 +123,12 @@ renderHonor.patch = function patchHonor(body, ctx) {
   text(root.querySelector('.hr-title'), b.label);
   text(root.querySelector('.hr-why'), b.why);
   const n = roll ? roll.total : null;
-  text(root.querySelector('.hr-count'), !n ? '' : n === 1 ? '1 hero on this roll' : whole(n) + ' heroes on this roll');   // an empty roll says so below
+  text(root.querySelector('.hr-count'), !n ? '' : n === 1 ? '1 hero on this board' : whole(n) + ' heroes on this board');   // an empty roll says so below
   text(root.querySelector('.hr-fresh'), roll ? freshWords(roll.refreshedAt, Date.now()) : '');
   lineRows(root.querySelector('.hr-roll:not(.hr-near)'), roll ? roll.top : [], st, ctx.doc);
   const empty = root.querySelector('.hr-empty');
   cls(empty, 'is-on', !roll || !roll.top.length);
-  text(empty, !roll ? (sc.asking ? 'Reading the roll…' : sc.msg || 'Reading the roll…') : b.empty);
+  text(empty, !roll ? (sc.asking ? 'Reading the board…' : sc.msg || 'Reading the board…') : b.empty);
   const you = roll ? standing(b, roll, cs.slot, nameOf(cs) || 'Your hero') : null;
   cls(root.querySelector('.hr-you'), 'is-on', !!you);
   text(root.querySelector('.hr-you-line'), you ? you.line : '');

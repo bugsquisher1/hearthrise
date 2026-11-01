@@ -10,15 +10,15 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.80';
-import { ITEMS } from '../data/items.js?v=0.2.80';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.80';
-import { skillsOf } from '../session/item-sections.js?v=0.2.80';
-import { levelOf } from '../session/character-sections.js?v=0.2.80';
-import { needOf, needWords } from './item-lore.js?v=0.2.80';
-import { whole } from '../render/format.js?v=0.2.80';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.80';
-import { marketRefusal } from './market-words.js?v=0.2.80';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.81';
+import { ITEMS } from '../data/items.js?v=0.2.81';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.81';
+import { skillsOf } from '../session/item-sections.js?v=0.2.81';
+import { levelOf } from '../session/character-sections.js?v=0.2.81';
+import { needOf, needWords } from './item-lore.js?v=0.2.81';
+import { whole } from '../render/format.js?v=0.2.81';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.81';
+import { marketRefusal } from './market-words.js?v=0.2.81';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -123,9 +123,23 @@ export function refusalText(r, cs) {
   return refusalWords(r && r.error, r && r.verb);
 }
 
+const PLAY_CAP = new Set(['too_many_playing', 'too_many_playing_here']);
+
+/**
+ * The play cap's code when this answer is that refusal, else null: the server's own (a hunt or town start), or a party
+ * start's first seat held back by it. The popup says it (windows/play-cap.js), so a window's line stays empty. Pure.
+ */
+export function playCapOf(r) {
+  if (!r || r.ok) return null;
+  if (PLAY_CAP.has(r.error)) return r.error;
+  const seat = r.error === 'not_ready' && Array.isArray(r.seats) ? r.seats.find((x) => x && PLAY_CAP.has(x.error)) : null;
+  return seat ? seat.error : null;
+}
+
 /**
  * Run one intent for a window: its controls go off at once (`sc.pending`),
- * `busy` shows while the server works, and the answer's words replace it.
+ * `busy` shows while the server works, and the answer's words replace it
+ * (the play cap's answer is the popup's, so nothing here).
  * The window's numbers change only from the re-read envelope.
  * @param {{pending:boolean, msg:string}} sc   the window's scratch
  * @param {() => void} repaint
@@ -142,7 +156,7 @@ export async function runIntent(sc, repaint, send, busy, done, cs) {
   let r;
   try { r = await send(); } catch (e) { r = { ok: false, error: 'network' }; }
   sc.pending = false;
-  sc.msg = r.ok ? (done ? done(r) : '') : refusalText(r, cs);
+  sc.msg = r.ok ? (done ? done(r) : '') : playCapOf(r) ? '' : refusalText(r, cs);
   repaint();
   return r;
 }

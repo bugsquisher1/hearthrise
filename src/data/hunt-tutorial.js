@@ -64,28 +64,28 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.80';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.80';
-import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.80';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.80';
-import { SKILLS_DEF } from './skills.js?v=0.2.80';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.80';
-import { tallyTask } from './tally-tasks.js?v=0.2.80';
-import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.80';
-import { ITEMS } from './items.js?v=0.2.80';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.80';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.80';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.80';
-import { isShield } from './shields.js?v=0.2.80';
-import { deriveProfile } from '../core/member.js?v=0.2.80';
-import { ABILITIES } from './abilities.js?v=0.2.80';
-import { CONSUMABLES } from './consumables.js?v=0.2.80';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.80';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.80';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.80';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.80';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.80';
-import { regenPermille } from '../core/vitals.js?v=0.2.80';
+import { HUNT_INDEX } from './hunts.js?v=0.2.81';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.81';
+import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.81';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.81';
+import { SKILLS_DEF } from './skills.js?v=0.2.81';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.81';
+import { tallyTask } from './tally-tasks.js?v=0.2.81';
+import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.81';
+import { ITEMS } from './items.js?v=0.2.81';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.81';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.81';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.81';
+import { isShield } from './shields.js?v=0.2.81';
+import { deriveProfile } from '../core/member.js?v=0.2.81';
+import { ABILITIES } from './abilities.js?v=0.2.81';
+import { CONSUMABLES } from './consumables.js?v=0.2.81';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.81';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.81';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.81';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.81';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.81';
+import { regenPermille } from '../core/vitals.js?v=0.2.81';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -106,7 +106,7 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   services: anchor('the Shop\'s Services tab (src/shell/windows/services.js): the Shop\'s icon, the Services tab, then the control', 'shop', true, 'services'),
   storage: anchor('Storage (src/shell/windows/storage.js): its icon', 'storage', true),
   market: anchor('the Weighhouse (src/shell/windows/market): its icon', 'market', true),
-  honor: anchor('the Roll of Honor (src/shell/windows/honor.js): its icon', 'honor', true),
+  honor: anchor('Leaderboards (src/shell/windows/honor.js): its icon', 'honor', true),
   settings: anchor('Settings (src/shell/windows/settings.js): its icon, then the Help tab', 'settings', true),
   hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js): the bar\'s setup corner, then Save current setup', 'hunt-prep', true),
   house: anchor('the House (src/shell/windows/house.js): its icon, then Buy', 'house', true),
@@ -342,9 +342,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('sell_loot', 'Sell what only pays coin',
-    'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps fuel for the Great Hearth (it raises your Inner Flame) and food you can cook. Point at anything to see what it\'s for.',
+    'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps fuel for the Great Hearth (it raises your Inner Flame), food you can cook, and materials your recipes or your next House step need. Point at anything to see what it\'s for.',
     'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
-    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps fuel for the Great Hearth and food you can cook.',
+    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps fuel for the Great Hearth, food you can cook, and materials you need.',
       hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
   /* One decision, not a form (panel 2026-11-01: a 14-dropdown list at hour one, "I don't know what I don't need yet"): after the
      Thicket the bag knows what piles up, and a plan once set is kept for every hunt after (the first principle). */
@@ -407,7 +407,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('weighhouse', 'The Weighhouse is open',
     'List what you find there and other heroes can buy it, and they may pay more than the Shop. Press its icon to look around.',
     'market', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: WEIGHHOUSE_LEVEL, below: WANT_BELOW }] }),
-  step('roll_of_honor', 'The Roll of Honor',
+  step('roll_of_honor', 'Leaderboards',
     'It ranks every hero in Havora. See where you stand, and who is ahead of you.',
     'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }),
 ]);
@@ -873,7 +873,7 @@ const SAY = Object.freeze({
     const s = f.slots[i], gp = isStore(s) ? priceOf(f, s.id) : 0;
     if (gp === null) return null;
     const how = isStore(s) ? 'buys ' + name(s.id) + ' (' + gp + ' gp)' : 'drinks your own ' + name(s.id);
-    return { text: 'Your moves cost mana. Below ' + below(s, 'self_mana_pct') + '% mana, ' + slotWords([i]) + ' ' + how + '. Your own turnips cook into juice that costs nothing.', barSlot: i };
+    return { text: 'Your moves cost mana. Below ' + below(s, 'self_mana_pct') + '% mana, ' + slotWords([i]) + ' ' + how + (isStore(s) ? '. Your own turnips cook into juice that costs nothing, once it has a slot on your bar before this one.' : '. Your own costs nothing.'), barSlot: i };
   },
   fight_settings: (f) => {
     const n = used(f, 'food');

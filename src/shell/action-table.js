@@ -16,13 +16,13 @@
 //   sourceLine(row, ctx)  where its uses come from
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.80';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.80';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.80';
-import { ITEMS } from '../data/items.js?v=0.2.80';
-import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.80';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.80';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.80';
+import { ABILITIES } from '../data/abilities.js?v=0.2.81';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.81';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.81';
+import { ITEMS } from '../data/items.js?v=0.2.81';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.81';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.81';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.81';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -182,7 +182,7 @@ export function sourceLine(row) {
   if (!row) return '';
   if (row.kind === 'spells' || row.kind === 'runes') return row.rune === '—' ? 'Costs only mana.' : 'Each cast uses ' + row.rune + '.';
   if (row.action.type === 'attack_with_item' && row.carry === null) return 'Uses whatever ammo you have loaded.';
-  if (row.store) return row.unpriced ? 'The server has not priced this yet.' : 'The store sells it at ' + row.price + ' g each, paid as used.';
+  if (row.store) return row.unpriced ? 'The store has no price for this right now.' : 'The store sells it at ' + row.price + ' g each, paid as used.';
   const n = row.carry > 0 ? row.carry : 0;
   if (row.kind === 'ammo') return row.price !== null
     ? (n ? 'Uses your ' + n + ' first, then the store at ' + row.price + ' g a shot.' : 'You carry none. The store sells it at ' + row.price + ' g a shot.')

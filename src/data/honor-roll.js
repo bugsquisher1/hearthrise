@@ -30,8 +30,8 @@
 //   stonemason, bountyHunter   no such skill in the catalogue: nobody can rank.
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from './skills.js?v=0.2.80';
-import { SKILL_GUIDE } from './skill-guide.js?v=0.2.80';
+import { SKILLS_DEF } from './skills.js?v=0.2.81';
+import { SKILL_GUIDE } from './skill-guide.js?v=0.2.81';
 
 /* A skill board: its name from SKILLS_DEF, where it is trained from SKILL_GUIDE (one wording, the Skills window's). */
 const skill = (id, group) => Object.freeze({
@@ -48,8 +48,8 @@ export const HONOR_BOARDS = Object.freeze([
     join: 'Defeat creatures in a hunt to earn Level and a place here.' }),
   Object.freeze({ id: 'total_level', group: 'Hunting', label: 'Total level', reads: 'total', glyph: 'uiStar',
     why: 'Every skill level a hero has, added together.',
-    empty: 'No hero is on this roll yet.',
-    join: 'Every skill level counts toward this roll.' }),
+    empty: 'No hero is on this board yet.',
+    join: 'Every skill level counts toward this board.' }),
   skill('melee', 'Fighting'),
   skill('ranged', 'Fighting'),
   skill('magic', 'Fighting'),

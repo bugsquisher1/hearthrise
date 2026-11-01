@@ -39,25 +39,27 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.80';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.80';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.80';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.80';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow, stackRoom } from './hud.js?v=0.2.80';
-import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.80';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.80';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.80';
-import { mountContextMenu } from './context-menu.js?v=0.2.80';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.80';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.80';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.80';
-import { takeFresh, summaryFromEarlierPage, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.80';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.80';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.80';
-import { watchTown, settleSpentBench } from '../session/town-poll.js?v=0.2.80';
-import { benchSpentAtMs } from './town-work.js?v=0.2.80';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.80';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.80';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.81';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.81';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.81';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.81';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.81';
+import { createHudRoom } from './hud-room.js?v=0.2.81';
+import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.81';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.81';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.81';
+import { mountContextMenu } from './context-menu.js?v=0.2.81';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.81';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.81';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.81';
+import { takeFresh, summaryFromEarlierPage, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.81';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.81';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.81';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.81';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.81';
+import { benchSpentAtMs } from './town-work.js?v=0.2.81';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.81';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.81';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -154,7 +156,7 @@ export function mountShell(root, o) {
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', row.label);
     el.innerHTML = '<header class="hs-win-head" data-hs-drag="' + esc(row.id) + '">' + glyphSvg(ctx.glyphs, row.glyph)
-      + '<h2 class="hs-win-title">' + esc(row.title || row.label) + '</h2><kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>'
+      + '<h2 class="hs-win-title">' + esc(row.title || row.label) + '</h2>' + (row.key ? '<kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>' : '')
       + '<button type="button" class="hs-close" data-hs-close="' + esc(row.id) + '" aria-label="Close ' + esc(row.label) + '">' + glyphSvg(ctx.glyphs, 'uiClose') + '</button></header>'
       /* the coach's card when it points into this window (coach() below), above the body: it covers nothing */
       + '<div class="hs-win-coach"></div>'
@@ -247,6 +249,7 @@ export function mountShell(root, o) {
     }
     stackWidgets();
     roomForStack();
+    liftMoved();
     capDock();
     /* A docked window never covers a widget (hud.js clearOfDock, r11): a right-anchored World widget it
        lands on slides left of the dock but never into the middle of the fight (hud.js stageOf), else
@@ -275,10 +278,14 @@ export function mountShell(root, o) {
       for (const e of els.filter(centred)) {
         const at = clearOfEdges(rel(e), edgeEls.map(rel), b.width, DOCK_EDGE, fixed);
         e.style.left = at.left + 'px';
+        /* Only a bar over the panels steps them down. Under a bottom bar a panel would leave the window: it ends above it instead (roomForStack). */
+        if (!phoneMq.matches && anchorOf(e)[0] !== 't') continue;
         for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';
       }
     }
+    roomForStack();
     stackWidgets();
+    clearPlates();
     publishInset();
     roomForCoach();
   }
@@ -313,30 +320,8 @@ export function mountShell(root, o) {
     }
   }
 
-  /* A widget others stack under (the analyzer, for the Tally) ends where the one under it still clears the bottom bar
-     (hud.js stackRoom, the 170 px bar): its CSS reads --hs-room. Written only when it changes; the size change re-places
-     the widgets (the observer above), and the room reads no height of its own, so the second pass writes nothing. */
-  function roomForStack() {
-    const b = worldHud.getBoundingClientRect();
-    const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
-    const els = Array.from(worldHud.querySelectorAll('[data-hs-widget]'));
-    const bars = els.filter((e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor === 'bc').map(rel);
-    const room = new Map();
-    for (const row of hud.rows()) {
-      const el = row.below && worldHud.querySelector('[data-hs-widget="' + row.id + '"]');
-      for (const id of row.below || []) {
-        const a = worldHud.querySelector('[data-hs-widget="' + id + '"]');
-        if (!a) continue;
-        const r = el && el.offsetWidth && !hud.isMoved(row.id) && !hud.isMoved(id) ? stackRoom(rel(a), rel(el), bars, b.height, DOCK_EDGE) : null;
-        room.set(a, r === null ? (room.get(a) ?? null) : Math.min(r, room.get(a) ?? r));
-      }
-    }
-    for (const [a, r] of room) {
-      const v = r === null ? '' : r + 'px';
-      if (a.style.getPropertyValue('--hs-room') === v) continue;
-      if (v) a.style.setProperty('--hs-room', v); else a.style.removeProperty('--hs-room');
-    }
-  }
+  /* Every panel ends above the floor and the screen's plates clear what they would cover (./hud-room.js). */
+  const { roomForStack, liftMoved, clearPlates } = createHudRoom({ hud, worldHud, screenHud, layer, isPhone: () => phoneMq.matches, gap: DOCK_EDGE });
 
   /* The docked windows' boxes in the World's px (the layer and the World HUD share the shell's box);
      layout boxes, so a window sliding in is where it will sit. Floating and centred windows are the
@@ -370,7 +355,8 @@ export function mountShell(root, o) {
       const at = homeAt({ left: DOCK_EDGE, width: w.offsetWidth }, bars, tops, DOCK_EDGE, HOME_BOTTOM, { width: b.width, height: b.height }, RESIZE_MIN.h);
       if (w.style.left !== at.left + 'px') w.style.left = at.left + 'px';
       if (w.style.bottom !== at.bottom + 'px') w.style.bottom = at.bottom + 'px';
-      const v = at.max === null ? '' : at.max + 'px';
+      /* No room anywhere (a wide saved Chat, a four-seat panel): its head stays in reach, over the panel, rather than a sliver no press can land on. */
+      const v = at.max === null ? '' : Math.max(at.max, RESIZE_MIN.h) + 'px';
       if (w.style.maxHeight !== v) w.style.maxHeight = v;
     }
   }
@@ -462,6 +448,8 @@ export function mountShell(root, o) {
     if (ctx.character && (wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);
     /* A bench the server's own numbers say is spent is settled for EVERY open character, watched or not (report #68). */
     for (const p of ctx.peers()) settleSpentBench(p, benchSpentAtMs(p));
+    /* What "While you were away" will compare with stays fresh for the hero on screen (./away-work.js). */
+    if (ctx.character && !doc.hidden) settleStaleTown(ctx.character, STAMP_EVERY_MS);
     for (const row of hud.rows()) {
       const render = WIDGET_RENDERERS[row.id];
       const el = render.patch && (row.layer === 'screen' ? screenHud : worldHud).querySelector('[data-hs-widget="' + row.id + '"]');
@@ -550,7 +538,7 @@ export function mountShell(root, o) {
     host.addEventListener('pointerup', up);
   }
   function onSizeClass() { wm.resize(); hud.reload(); }
-  function onResize() { paintWidgets(); }
+  function onResize() { paintWindows(); paintWidgets(); }
 
   shell.addEventListener('click', onClick);
   screen.addEventListener('click', onClick);
@@ -566,8 +554,8 @@ export function mountShell(root, o) {
   const offMoves = mountWidgetMoves({ boxes: [worldHud, screenHud], hud, host, isPhone: () => phoneMq.matches, place: placeWidgets, refresh });
   paintWidgets();
   coach();
-  /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. */
-  const offDeaths = followDeaths(ctx);
+  /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. The play cap's refusal opens its own. */
+  const offDeaths = followDeaths(ctx), offPlayCap = WINDOW_RENDERERS['play-cap'].follow(ctx, refresh);
 
   return {
     wm, hud,
@@ -584,7 +572,7 @@ export function mountShell(root, o) {
     onInset(fn) { insetListeners.add(fn); fn(insetNow()); return () => insetListeners.delete(fn); },
     menu: ctx.menu,
     destroy() {
-      offDeaths(); offWm(); offHud(); offMoves();
+      offDeaths(); offPlayCap(); offWm(); offHud(); offMoves();
       if (sized) sized.ro.disconnect();
       ctx.menu.destroy();
       host.clearInterval(ticker);

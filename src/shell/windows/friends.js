@@ -14,13 +14,13 @@
 //                  `social.blocked` row opens this window)
 // Every button is ONE rpc and stays off until the server answered.
 // ════════════════════════════════════════════════════════════════════════
-import { refusalWords } from '../intent-words.js?v=0.2.80';
-import { huntName } from '../../session/party-sections.js?v=0.2.80';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.80';
-import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.80';
-import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.80';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.80';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.80';
+import { refusalWords } from '../intent-words.js?v=0.2.81';
+import { huntName } from '../../session/party-sections.js?v=0.2.81';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.81';
+import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.81';
+import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.81';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.81';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
 
 const STATE = new WeakMap();
 const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: false, msg: '', asked: false }; STATE.set(body, s); } return s; };
@@ -107,9 +107,15 @@ async function settle(ctx, body, st, p, done) {
   renderFriends.patch(body, ctx);
   const r = await p;
   st.pending = false;
-  st.msg = r && r.ok === false ? refusalWords(r.error) : r && typeof r.say === 'string' ? r.say
-    : typeof done === 'function' ? done(r) || '' : done || '';
+  st.msg = answerWords(r, done);
   renderFriends.patch(body, ctx);
+}
+
+/** The line under an answer: the refusal, or a menu entry's own words ("Invite sent to Mira.": a press that worked said nothing,
+    panel 2026-11-01), else the window's. Pure; exported for tests/party-ui.mjs. */
+export function answerWords(r, done) {
+  return r && r.ok === false ? refusalWords(r.error) : r && typeof r.say === 'string' ? r.say : r && typeof r.done === 'string' ? r.done
+    : typeof done === 'function' ? done(r) || '' : done || '';
 }
 
 renderFriends.act = function actFriends(ctx, body, action, ev, t) {

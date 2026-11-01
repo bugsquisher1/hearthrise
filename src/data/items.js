@@ -1,16 +1,16 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.80';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.80';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.80';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.80';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.80';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.80';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.80';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.80';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.80';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.80';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.80';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.81';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.81';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.81';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.81';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.81';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.81';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.81';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.81';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.81';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.81';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.81';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -56,15 +56,15 @@ export const ITEMS={
      its smithing recipes. Rods, hammers, needles and knives have no source for
      now (catalogue-coherence AWAITING_ROSTER). */
   bronze_axe:{n:'Bronze Axe',icon:'🪓',v:60,type:'tool',toolSkill:'woodcutting',toolTier:1,toolSpeed:.05},
-  iron_axe:{n:'Iron Axe',icon:'🪓',v:250,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
-  steel_axe:{n:'Steel Axe',icon:'🪓',v:900,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},
-  mithril_axe:{n:'Mithril Axe',icon:'🪓',v:3200,type:'tool',toolSkill:'woodcutting',toolTier:4,toolSpeed:.20},
-  rune_axe:{n:'Rune Axe',icon:'🪓',v:9000,type:'tool',toolSkill:'woodcutting',toolTier:5,toolSpeed:.25},
+  iron_axe:{n:'Iron Axe',icon:'🪓',v:125,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
+  steel_axe:{n:'Steel Axe',icon:'🪓',v:370,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},
+  mithril_axe:{n:'Mithril Axe',icon:'🪓',v:600,type:'tool',toolSkill:'woodcutting',toolTier:4,toolSpeed:.20},
+  rune_axe:{n:'Rune Axe',icon:'🪓',v:1800,type:'tool',toolSkill:'woodcutting',toolTier:5,toolSpeed:.25},
   bronze_pickaxe:{n:'Bronze Pickaxe',icon:'⛏️',v:60,type:'tool',toolSkill:'mining',toolTier:1,toolSpeed:.05},
-  iron_pickaxe:{n:'Iron Pickaxe',icon:'⛏️',v:250,type:'tool',toolSkill:'mining',toolTier:2,toolSpeed:.10},
-  steel_pickaxe:{n:'Steel Pickaxe',icon:'⛏️',v:900,type:'tool',toolSkill:'mining',toolTier:3,toolSpeed:.15},
-  mithril_pickaxe:{n:'Mithril Pickaxe',icon:'⛏️',v:3200,type:'tool',toolSkill:'mining',toolTier:4,toolSpeed:.20},
-  rune_pickaxe:{n:'Rune Pickaxe',icon:'⛏️',v:9000,type:'tool',toolSkill:'mining',toolTier:5,toolSpeed:.25},
+  iron_pickaxe:{n:'Iron Pickaxe',icon:'⛏️',v:125,type:'tool',toolSkill:'mining',toolTier:2,toolSpeed:.10},
+  steel_pickaxe:{n:'Steel Pickaxe',icon:'⛏️',v:370,type:'tool',toolSkill:'mining',toolTier:3,toolSpeed:.15},
+  mithril_pickaxe:{n:'Mithril Pickaxe',icon:'⛏️',v:600,type:'tool',toolSkill:'mining',toolTier:4,toolSpeed:.20},
+  rune_pickaxe:{n:'Rune Pickaxe',icon:'⛏️',v:1800,type:'tool',toolSkill:'mining',toolTier:5,toolSpeed:.25},
   willow_rod:{n:'Willow Rod',icon:'🎣',v:80,type:'tool',toolSkill:'fishing',toolTier:1,toolSpeed:.05},
   oak_rod:{n:'Oak Rod',icon:'🎣',v:300,type:'tool',toolSkill:'fishing',toolTier:2,toolSpeed:.10},
   maple_rod:{n:'Maple Rod',icon:'🎣',v:1000,type:'tool',toolSkill:'fishing',toolTier:3,toolSpeed:.15},
@@ -198,14 +198,14 @@ export const ITEMS={
   /* Iron Bolts: against Barbed Arrows (3/3) a bolt misses more and hits harder (1/4). */
   iron_bolts:{n:'Iron Bolts',icon:'🏹',v:1,type:'ammo',slot:'ammo',tier:2,rarity:'uncommon',rangeAtkB:1,rangeStrB:4,ammoPerShot:1,reqSkill:'ranged',reqLv:15},
   iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',rangeAtkB:2,rangeStrB:3,critB:.01,ammoPerShot:1,reqSkill:'ranged',reqLv:1},
-  iron_ore:{n:'Iron Ore',icon:'⬜',v:25},
-  normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:20},
-  willow_log:{n:'Willow Log',icon:'🪵',v:40},maple_log:{n:'Maple Log',icon:'🪵',v:80},
-  yew_log:{n:'Yew Log',icon:'🪵',v:200},
-  copper_ore:{n:'Copper Ore',icon:'🟤',v:10},coal:{n:'Coal',icon:'⬛',v:40},
-  gold_ore:{n:'Gold Ore',icon:'🟡',v:100},mithril_ore:{n:'Mithril Ore',icon:'🔵',v:200},
-  shrimp:{n:'Raw Shrimp',icon:'🦐',v:5,heals:36},trout:{n:'Raw Trout',icon:'🐟',v:20,heals:84},
-  lobster:{n:'Raw Lobster',icon:'🦞',v:100,heals:144},shark:{n:'Raw Shark',icon:'🦈',v:400,heals:240},
+  iron_ore:{n:'Iron Ore',icon:'⬜',v:10},
+  normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:10},
+  willow_log:{n:'Willow Log',icon:'🪵',v:15},maple_log:{n:'Maple Log',icon:'🪵',v:15},
+  yew_log:{n:'Yew Log',icon:'🪵',v:45},
+  copper_ore:{n:'Copper Ore',icon:'🟤',v:5},coal:{n:'Coal',icon:'⬛',v:10},
+  gold_ore:{n:'Gold Ore',icon:'🟡',v:25},mithril_ore:{n:'Mithril Ore',icon:'🔵',v:40},
+  shrimp:{n:'Raw Shrimp',icon:'🦐',v:5,heals:36},trout:{n:'Raw Trout',icon:'🐟',v:15,heals:84},
+  lobster:{n:'Raw Lobster',icon:'🦞',v:25,heals:144},shark:{n:'Raw Shark',icon:'🦈',v:100,heals:240},
   turnip:{n:'Turnip',icon:'🥕',v:20,heals:24},carrot:{n:'Carrot',icon:'🥕',v:35,heals:36},
   wheat:{n:'Wheat',icon:'🌾',v:50,heals:12},potato:{n:'Potato',icon:'🥔',v:65,heals:60},
   tomato:{n:'Tomato',icon:'🍅',v:90,heals:48},pumpkin:{n:'Pumpkin',icon:'🎃',v:150,heals:96},
@@ -287,27 +287,27 @@ export const ITEMS={
        and Cooking XP — which is what keeps the fire the standard answer and
        the counter the emergency one. */
   cooked_shrimp: {
-    n:'Cooked Shrimp', icon:'🍤', v:18, heals:96, foodTier:1, foodClass:'healing',
+    n:'Cooked Shrimp', icon:'🍤', v:3, heals:96, foodTier:1, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:1,  durationMs:120000},
   },
   cooked_trout: {
-    n:'Cooked Trout', icon:'🐠', v:55, heals:168, foodTier:2, foodClass:'healing',
+    n:'Cooked Trout', icon:'🐠', v:8, heals:168, foodTier:2, foodClass:'healing',
     buff:{type:'all_xp', magnitude:2,  durationMs:180000},
   },
   cooked_lobster: {
-    n:'Cooked Lobster', icon:'🦞', v:240, heals:300, foodTier:3, foodClass:'healing',
+    n:'Cooked Lobster', icon:'🦞', v:16, heals:300, foodTier:3, foodClass:'healing',
     buff:{type:'drop_rate', magnitude:3,  durationMs:300000},
   },
   cooked_shark: {
-    n:'Cooked Shark', icon:'🍣', v:900, heals:528, foodTier:4, foodClass:'healing',
+    n:'Cooked Shark', icon:'🍣', v:48, heals:528, foodTier:4, foodClass:'healing',
     buff:{type:'damage', magnitude:4, durationMs:360000},
   },
 
   /* ── Recipe outputs: smithing (bars) ── */
-  copper_bar:  {n:'Copper Bar',  icon:'🟫', v:35},
-  iron_bar:    {n:'Iron Bar',    icon:'⬛', v:90},
-  gold_bar:    {n:'Gold Bar',    icon:'🟨', v:280},
-  mithril_bar: {n:'Mithril Bar', icon:'🟦', v:650},
+  copper_bar:  {n:'Copper Bar',  icon:'🟫', v:15},
+  iron_bar:    {n:'Iron Bar',    icon:'⬛', v:30},
+  gold_bar:    {n:'Gold Bar',    icon:'🟨', v:80},
+  mithril_bar: {n:'Mithril Bar', icon:'🟦', v:250},
 
   /* ══════════════════════════════════════════════════════════════════
      "DEEP SEAM" — THE STEEL→MITHRIL BRIDGE (game-designer, 2026-09-13)
@@ -348,10 +348,10 @@ export const ITEMS={
      Mithril's tier band (it is what the tier drives — art, borders, drop
      routing) and is one rarity notch under it.
      ══════════════════════════════════════════════════════════════════ */
-  verdite_ore:  {n:'Verdite Ore', icon:'🟢', v:55},
-  flux_salt:    {n:'Fluxsalt',    icon:'🧂', v:45},
-  heartgarnet:  {n:'Heartgarnet', icon:'🔴', v:200},
-  verdite_bar:  {n:'Verdite Bar', icon:'🟩', v:320},
+  verdite_ore:  {n:'Verdite Ore', icon:'🟢', v:10},
+  flux_salt:    {n:'Fluxsalt',    icon:'🧂', v:15},
+  heartgarnet:  {n:'Heartgarnet', icon:'🔴', v:30},
+  verdite_bar:  {n:'Verdite Bar', icon:'🟩', v:140},
   verdite_helm: {n:'Verdite Helm', icon:'⛑️', v:1080, type:'armor', slot:'helmet',
     defB:13, rangeAtkB:-3, magicAtkB:-7, armourClass:'plate', rarity:'rare', tier:4,
     reqSkill:'level', reqLv:38},
@@ -373,10 +373,10 @@ export const ITEMS={
 
   /* ── Recipe outputs: crafting (planks) ── */
   normal_plank: {n:'Normal Plank', icon:'🪵', v:18},
-  oak_plank:    {n:'Oak Plank',    icon:'🪵', v:55},
-  willow_plank: {n:'Willow Plank', icon:'🪵', v:120},
-  maple_plank:  {n:'Maple Plank',  icon:'🍁', v:240},
-  yew_plank:    {n:'Yew Plank',    icon:'🌲', v:520},
+  oak_plank:    {n:'Oak Plank',    icon:'🪵', v:30},
+  willow_plank: {n:'Willow Plank', icon:'🪵', v:50},
+  maple_plank:  {n:'Maple Plank',  icon:'🍁', v:65},
+  yew_plank:    {n:'Yew Plank',    icon:'🌲', v:135},
 
   /* ══════════════════════════════════════════════════════════════════
      b215 — LATE-GAME RESOURCE TIERS (levels 75-90)
@@ -386,23 +386,23 @@ export const ITEMS={
      waters and crops that feed them — carry every ladder to the cap.
      ══════════════════════════════════════════════════════════════════ */
   /* Mining (75 / 90) */
-  emberstone_ore: {n:'Emberstone Ore', icon:'🔶', v:520},
-  dawnstone_ore:  {n:'Dawnstone Ore',  icon:'🌟', v:1400},
+  emberstone_ore: {n:'Emberstone Ore', icon:'🔶', v:55},
+  dawnstone_ore:  {n:'Dawnstone Ore',  icon:'🌟', v:95},
   /* Smithing outputs */
-  ember_bar: {n:'Emberforged Bar', icon:'🟧', v:1600},
-  dawn_bar:  {n:'Dawnsteel Bar',   icon:'🟪', v:4200},
+  ember_bar: {n:'Emberforged Bar', icon:'🟧', v:500},
+  dawn_bar:  {n:'Dawnsteel Bar',   icon:'🟪', v:1050},
   /* Woodcutting (75 / 90) */
-  runewood_log: {n:'Runewood Log', icon:'🪵', v:480},
-  duskwood_log: {n:'Duskwood Log', icon:'🪵', v:1150},
+  runewood_log: {n:'Runewood Log', icon:'🪵', v:60},
+  duskwood_log: {n:'Duskwood Log', icon:'🪵', v:100},
   /* Crafting outputs */
-  runewood_plank: {n:'Runewood Plank', icon:'🪵', v:1150},
-  duskwood_plank: {n:'Duskwood Plank', icon:'🪵', v:2600},
+  runewood_plank: {n:'Runewood Plank', icon:'🪵', v:250},
+  duskwood_plank: {n:'Duskwood Plank', icon:'🪵', v:250},
   /* Fishing gap-fillers (10 / 66) */
   herring:         {n:'Raw Herring', icon:'🐟', v:14, heals:48},
-  cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:40, heals:72, foodTier:1, foodClass:'healing',
+  cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:5, heals:72, foodTier:1, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:1, durationMs:120000}},
-  frostfin:        {n:'Raw Frostfin', icon:'❄️', v:520, heals:216},
-  cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:1300, heals:456, foodTier:4, foodClass:'healing',
+  frostfin:        {n:'Raw Frostfin', icon:'❄️', v:70, heals:216},
+  cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:35, heals:456, foodTier:4, foodClass:'healing',
     buff:{type:'defense', magnitude:4, durationMs:360000}},
   /* ── "Reed & Tide" (game-designer ruling, 2026-09-13) ─────────────────
      The four fish that close the Trout(20)→Lobster(40) silence, their cooked
@@ -415,17 +415,17 @@ export const ITEMS={
      healing rows sit between Cooked Trout (14) and Cooked Lobster (25) so the
      auto-eat pool gains rungs rather than a cliff. `river_chowder` heals 30
      and `fishers_pie` is the one Feast of the batch (foodClass 'buff'). */
-  pikeperch:             {n:'Raw Pikeperch', icon:'🐟', v:27, heals:96},
-  cooked_pikeperch:      {n:'Grilled Pikeperch', icon:'🐠', v:75, heals:192, foodTier:2, foodClass:'healing',
+  pikeperch:             {n:'Raw Pikeperch', icon:'🐟', v:15, heals:96},
+  cooked_pikeperch:      {n:'Grilled Pikeperch', icon:'🐠', v:9, heals:192, foodTier:2, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:2, durationMs:180000}},
-  copper_crab:           {n:'Copper Crab', icon:'🦞', v:37, heals:108},
-  cooked_copper_crab:    {n:'Steamed Copper Crab', icon:'🦞', v:100, heals:216, foodTier:2, foodClass:'healing',
+  copper_crab:           {n:'Copper Crab', icon:'🦞', v:15, heals:108},
+  cooked_copper_crab:    {n:'Steamed Copper Crab', icon:'🦞', v:10, heals:216, foodTier:2, foodClass:'healing',
     buff:{type:'all_xp', magnitude:2, durationMs:180000}},
-  silverfin:             {n:'Raw Silverfin', icon:'🐠', v:51, heals:120},
-  cooked_silverfin:      {n:'Silverfin Fillet', icon:'🍥', v:135, heals:252, foodTier:3, foodClass:'healing',
+  silverfin:             {n:'Raw Silverfin', icon:'🐠', v:20, heals:120},
+  cooked_silverfin:      {n:'Silverfin Fillet', icon:'🍥', v:13, heals:252, foodTier:3, foodClass:'healing',
     buff:{type:'damage', magnitude:2, durationMs:240000}},
-  goldgill:              {n:'Raw Goldgill', icon:'🐟', v:71, heals:132},
-  cooked_goldgill:       {n:'Goldgill Steak', icon:'🍣', v:180, heals:276, foodTier:3, foodClass:'healing',
+  goldgill:              {n:'Raw Goldgill', icon:'🐟', v:20, heals:132},
+  cooked_goldgill:       {n:'Goldgill Steak', icon:'🍣', v:16, heals:276, foodTier:3, foodClass:'healing',
     buff:{type:'drop_rate', magnitude:2, durationMs:300000}},
   river_chowder:         {n:'River Chowder', icon:'🍲', v:380, heals:360, foodTier:3, foodClass:'healing',
     buff:{type:'defense', magnitude:2, durationMs:300000}},
@@ -450,11 +450,11 @@ export const ITEMS={
           who stocks Moonfish pays more per meal for fewer meals; the chooser
           still prefers the CHEAPEST food that covers the deficit first.
      v / foodTier / foodClass / buff are unchanged. */
-  swordfish:        {n:'Raw Swordfish', icon:'🐠', v:220, heals:168},
-  cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:560, heals:384, foodTier:3, foodClass:'healing',
+  swordfish:        {n:'Raw Swordfish', icon:'🐠', v:40, heals:168},
+  cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:22, heals:384, foodTier:3, foodClass:'healing',
     buff:{type:'damage', magnitude:3, durationMs:300000}},
-  moonfish:         {n:'Raw Moonfish', icon:'🌙', v:900, heals:288},
-  cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:2100, heals:600, foodTier:4, foodClass:'healing',
+  moonfish:         {n:'Raw Moonfish', icon:'🌙', v:110, heals:288},
+  cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:54, heals:600, foodTier:4, foodClass:'healing',
     buff:{type:'all_xp', magnitude:3, durationMs:420000}},
   /* Farming (62 / 75 / 88) */
   goldenroot:      {n:'Goldenroot', icon:'🥕', v:260, heals:144},
@@ -473,10 +473,10 @@ export const ITEMS={
 
   /* Tool ladder, tiers 6-7 — the best owned tool auto-applies, so these are
      the final gather-speed upgrades (+30% / +35%). */
-  ember_axe:      {n:'Emberforged Axe', icon:'🪓', v:22000, type:'tool', toolSkill:'woodcutting', toolTier:6, toolSpeed:.30},
-  dawn_axe:       {n:'Dawnsteel Axe',   icon:'🪓', v:55000, type:'tool', toolSkill:'woodcutting', toolTier:7, toolSpeed:.35},
-  ember_pickaxe:  {n:'Emberforged Pickaxe', icon:'⛏️', v:22000, type:'tool', toolSkill:'mining', toolTier:6, toolSpeed:.30},
-  dawn_pickaxe:   {n:'Dawnsteel Pickaxe',   icon:'⛏️', v:55000, type:'tool', toolSkill:'mining', toolTier:7, toolSpeed:.35},
+  ember_axe:      {n:'Emberforged Axe', icon:'🪓', v:1400, type:'tool', toolSkill:'woodcutting', toolTier:6, toolSpeed:.30},
+  dawn_axe:       {n:'Dawnsteel Axe',   icon:'🪓', v:2700, type:'tool', toolSkill:'woodcutting', toolTier:7, toolSpeed:.35},
+  ember_pickaxe:  {n:'Emberforged Pickaxe', icon:'⛏️', v:1400, type:'tool', toolSkill:'mining', toolTier:6, toolSpeed:.30},
+  dawn_pickaxe:   {n:'Dawnsteel Pickaxe',   icon:'⛏️', v:2700, type:'tool', toolSkill:'mining', toolTier:7, toolSpeed:.35},
   duskwood_rod:   {n:'Duskwood Rod',  icon:'🎣', v:23000, type:'tool', toolSkill:'fishing', toolTier:6, toolSpeed:.30},
   dawnsteel_rod:  {n:'Dawnsteel Rod', icon:'🎣', v:58000, type:'tool', toolSkill:'fishing', toolTier:7, toolSpeed:.35},
 
@@ -569,9 +569,9 @@ export const ITEMS={
   lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:600, foodClass:'buff', buff:{type:'gold_find',       magnitude:5, durationMs:300000}},
   void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:720, foodClass:'buff', buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
   // New bars (Phase A.1 progression — required by smelt_* and forge_* recipes below)
-  bronze_bar: {n:'Bronze Bar', icon:'🟫', v:32},
-  steel_bar:  {n:'Steel Bar',  icon:'⬜', v:150},
-  rune_bar:   {n:'Rune Bar',   icon:'🔷', v:1200},
+  bronze_bar: {n:'Bronze Bar', icon:'🟫', v:25},
+  steel_bar:  {n:'Steel Bar',  icon:'⬜', v:125},
+  rune_bar:   {n:'Rune Bar',   icon:'🔷', v:500},
   // Recipe scrolls — single-use unlocks for the gated cooking recipes
   soul_recipe:          {n:'Soul Recipe Scroll',        icon:'📜', v:0, recipe:'lich_soul_soup'},
   marrow_cookbook:      {n:'Marrow Cookbook',           icon:'📜', v:0, recipe:'dragon_stew'},
@@ -634,8 +634,8 @@ export const ITEMS={
      atlas glyph: nothing in reserve-art reads as a carved/cut masonry block
      (only raw ore-pile chunks and polished gems exist there) — a good glyph
      beats a wrong painting. */
-  timber_beam:  {n:'Timber Beam',  icon:'🪵', v:300,  tier:2, tag:'castle'},
-  iron_fitting: {n:'Iron Fitting', icon:'🔩', v:480,  tier:2, tag:'castle'},
+  timber_beam:  {n:'Timber Beam',  icon:'🪵', v:230,  tier:2, tag:'castle'},
+  iron_fitting: {n:'Iron Fitting', icon:'🔩', v:190,  tier:2, tag:'castle'},
   field_ration: {n:'Field Ration', icon:'🥖', v:90,   tier:1, tag:'castle'},
   keystone:     {n:'Keystone',     icon:'🧱', v:3000, tier:5, tag:'castle'},
 
@@ -855,7 +855,7 @@ export function isAutoEatable(item) {
    selling Dawnstone out-earned the King renown reward — 300,000 gold, the
    eleventh of twelve ranks — every 32 minutes, while asleep. This puts the
    three systems back in their correct economic roles: gathering is the
-   MATERIAL faucet, the artisan skills are the GOLD path, and the player
+   MATERIAL faucet (its "artisan skills are the GOLD path" is superseded: BULK_GOODS below), and the player
    market becomes the best price for raws, because another player will pay
    more than 20% for something they actually need.
 
@@ -887,7 +887,25 @@ const RAW_DROPS = [
   'raw_wolf_meat', 'raw_panther_meat', 'raw_bear_meat',
 ];
 
-export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS])];
+/* BULK GOODS (designer 2026-11-01, lane/c-craft-economy; the measured table is on the priority board). A shop buys a
+   refined stack the way it buys a gathered one, at the raw rate. Measured on the real settle and sale at v0.2.79: a
+   Copper Bar paid 35 g from 2 g of ore at Smithing 1 and an Iron Bar 90 g from 5 g, so a hero who did both halves made
+   14,600 to 27,000 g/h against 2,000 to 4,000 g/h hunting at the same hours, and every forged piece sold below its own
+   metal. The book value stays what it means elsewhere (market ceiling, the bench's SG-4 rule, the tool's shop price);
+   only what the shop bids moves. The player market is the better price for all of these. Food and ammo are not here:
+   a raw flag would take them off the supply lists (supplies.js supplyKindOf), so their `v` is the bid itself.
+   THE RULE, PROVISIONAL until an economy sim says otherwise: per hero-hour, sold raw about half of the hunting at the same
+   hours played, gather plus refine about two thirds, the whole chain to a finished piece about four fifths, and never above
+   hunting, because a resting hero skills for free (tests/craft-wages.mjs). */
+const BULK_GOODS = [
+  'copper_bar', 'bronze_bar', 'iron_bar', 'gold_bar', 'steel_bar', 'verdite_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar',
+  'normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank',
+  'rune_blank', 'timber_beam', 'iron_fitting', 'keystone',
+  'bronze_axe', 'iron_axe', 'steel_axe', 'mithril_axe', 'rune_axe', 'ember_axe', 'dawn_axe',
+  'bronze_pickaxe', 'iron_pickaxe', 'steel_pickaxe', 'mithril_pickaxe', 'rune_pickaxe', 'ember_pickaxe', 'dawn_pickaxe',
+];
+
+export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS, ...BULK_GOODS])];
 for (const id of RAW_MATERIAL_IDS) { if (ITEMS[id]) ITEMS[id].raw = true; }
 
 /* ══════════════════════════════════════════════════════════════════════

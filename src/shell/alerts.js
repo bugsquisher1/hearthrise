@@ -26,6 +26,12 @@
 //   invite  a party invite waiting for the character (`party_invites`), id =
 //           the server's invite id; Join / No thanks answer it, and it goes
 //           when the server no longer lists it (answered anywhere, expired)
+//   party   what another player's move did to this hero (`party_notices`,
+//           2027-02-18-party-truth.sql), id = the server's notice id: said no,
+//           removed it, closed the party, left
+//   partywarn  a warning first: the leader is about to take the party above this
+//           hero's level (a `party_notices` ground_warn, id = the notice's), or a
+//           friend's stamina is low (`stamina_low_ms`, id = session + seat)
 //
 // THE RULE: an alert fires ONCE per event id. The ids already shown are kept
 // in memory for the page and in the character's residue (`alerts.seen`,
@@ -34,20 +40,23 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.80';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.80';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.80';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.80';
-import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.80';
-import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.80';
-import { itemName } from './widgets/bits.js?v=0.2.80';
-import { noShotWords } from './hunt-go.js?v=0.2.80';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.80';
-import { deathSeen } from './death-popup.js?v=0.2.80';
-import { awayRecapOf, stampAway, markBack } from './away-recap.js?v=0.2.80';
-import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.80';
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.80';
-import { gold } from '../render/format.js?v=0.2.80';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.81';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.81';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.81';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.81';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.81';
+import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.81';
+import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.81';
+import { itemName } from './widgets/bits.js?v=0.2.81';
+import { noShotWords } from './hunt-go.js?v=0.2.81';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.81';
+import { deathSeen } from './death-popup.js?v=0.2.81';
+import { awayRecapOf, awayLineNow, awaySettled, stampAway, markBack } from './away-recap.js?v=0.2.81';
+import { benchStopRecapOf } from './bench-fee.js?v=0.2.81';
+import { workRow } from './town-work.js?v=0.2.81';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.81';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.81';
+import { gold } from '../render/format.js?v=0.2.81';
 
 const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
 
@@ -104,6 +113,11 @@ const supplyWords = (id) => itemName(id);
 function candidatesOf(cs, viewed) {
   const out = (invitesOf(cs) || []).map((i) => ({ id: 'invite:' + i.id, kind: 'invite', session: null, invite: i.id,
     text: i.from + ' invites ' + who(cs) + ' to their party.' }));
+  /* What another player's move did to this hero, once per notice the server wrote. */
+  for (const n of noticesOf(cs) || []) {
+    const said = noticeWords(n, { name: who(cs), ground: n.hunt ? huntName(n.hunt) : null });
+    if (said) out.push({ id: 'party:' + n.id, kind: n.kind === 'ground_warn' ? 'partywarn' : 'party', session: null, text: said });
+  }
   /* Tamsin's payments (the server's claims of the last day, `tally.recent`): one line each, ever. */
   for (const p of (tallyOf(cs) || { recent: [] }).recent) {
     out.push({ id: 'tally:' + p.claim, kind: 'tally', session: null, item: p.item,
@@ -134,16 +148,21 @@ function candidatesOf(cs, viewed) {
     }
     const noShot = noShotWords(cs);
     if (noShot) out.push({ id: 'low:' + h.sessionId + ':noshot', kind: 'low', session: h.sessionId, text: who(cs) + ': ' + noShot });
+    /* A friend's stamina, before it sends anyone home (the server says only once it is low). */
+    const p = partyMembershipOf(cs);
+    for (const s of p ? p.seats : []) {
+      if (s.seat !== p.me && s.hunting && s.staminaLowMs !== null) {
+        out.push({ id: 'lowstam:' + h.sessionId + ':' + s.seat, kind: 'partywarn', session: h.sessionId, text: staminaLowWords(s.name, s.staminaLowMs, who(cs), p.leaveTogether === true) });
+      }
+    }
   }
   return out;
 }
 
-/** A ticked hero's way home (LEAVE TOGETHER): who ended first, by the server's `end_by` ("A party member" when it
-    cannot say), and this hero's name. Pure; exported for tests/party-ui.mjs. */
+/** A ticked hero's way home (LEAVE TOGETHER): who ended first and why, by the server's `end_by` and `end_by_why` ("A party
+    member" when it cannot say), and this hero's name. Pure; exported for tests/party-ui.mjs. */
 export function cameHomeLine(h, hero) {
-  const copy = END_REASON_COPY[h && h.endReason];
-  if (!copy || (h.endReason !== 'party_member_died' && h.endReason !== 'party_member_left')) return '';
-  return copy.one.replace('{member}', (h.endBy && String(h.endBy)) || 'A party member').replace('{name}', hero);
+  return h ? cameHomeWords(h.endReason, h.endBy, h.endWhy, hero) : '';
 }
 
 /** The rare-drop alert for one arriving timeline event, or null. */
@@ -178,6 +197,8 @@ export function createAlertCenter(account) {
   const seen = new Map();            // slot -> Set of ids shown on this page
   const watching = new Map();        // slot -> [unsubscribe]
   const listeners = new Set();
+  /* The slots whose next read is a RETURN: this page's first of the hero, or the first after it was left (leaving). A hunt in view is never "away". */
+  const returning = new Set();
   let n = 0;
 
   const changed = () => { for (const fn of Array.from(listeners)) { try { fn(); } catch (e) { console.error('[alerts] a listener failed', e); } } };
@@ -207,10 +228,16 @@ export function createAlertCenter(account) {
        Without that a reload raised "has ended · Start again" over the hero on screen (QA2's Pellow, 10-25). */
     const now = candidatesOf(cs, account.viewed === cs.slot || account.viewed === null);
     /* "While you were away" (away-recap.js): judged against the last-seen stamp BEFORE it is renewed. */
-    const away = awayRecapOf(cs);
+    const judged = returning.has(cs.slot);
+    const away = judged ? awayRecapOf(cs) : null;
     if (away) { now.push(away); markBack(cs, away.session); }
+    /* A bench the server stopped for gold says so once, watched or not (the work bench tax: bench-fee.js). */
+    const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
+    if (broke) now.push(broke);
     for (const c of now) any = fire(cs, c) || any;
-    stampAway(cs);
+    /* A town job's return waits for the settle that pays it; the stamp waits with it. */
+    if (judged && awaySettled(cs)) returning.delete(cs.slot);
+    if (!returning.has(cs.slot)) stampAway(cs);
     /* An invite the server no longer lists (answered elsewhere, expired, its party gone) leaves the lines. */
     const live = new Set(now.filter((c) => c.kind === 'invite').map((c) => c.id));
     /* A NEW HUNT RETIRES THE LAST ONE'S LINES (Brannoc 10-22: "has ended · Start again" stayed up into the next
@@ -220,7 +247,12 @@ export function createAlertCenter(account) {
     for (let i = alerts.length - 1; i >= 0; i--) {
       const a = alerts[i];
       if (a.slot !== cs.slot) continue;
-      if ((a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; }
+      /* A warning is about what comes next: a friend's low stamina goes with the hunt it was raised in, a warned ground once a hunt is open. */
+      const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);
+      if (stale || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
+      /* "While you were away": what the hunt is doing now is the record's, never the moment the card came up (CLAUDE.md §6). */
+      const line = a.kind === 'away' ? awayLineNow(cs, a) : a.text;
+      if (line === null) { alerts.splice(i, 1); any = true; } else if (line !== a.text) { a.text = line; any = true; }
     }
     if (any) changed();
   }
@@ -233,11 +265,13 @@ export function createAlertCenter(account) {
       offs.push(cs.timeline.onArrive((ev) => { const c = rareOf(cs, ev) || runOutOf(cs, ev); if (c && fire(cs, c)) changed(); }));
     }
     watching.set(slot, offs);
+    returning.add(slot);
     scan(cs);
   }
   function unwatch(slot) {
     for (const off of watching.get(slot) || []) off();
     watching.delete(slot);
+    returning.delete(slot);
     seen.delete(slot);
     for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].slot === slot) alerts.splice(i, 1);
     changed();
@@ -277,6 +311,7 @@ export function createAlertCenter(account) {
         closed summary, a moved window) go now, on a fetch that outlives the page. `hidden`: only hidden, it may yet flicker back (flushResidue). */
     leaving({ hidden = false } = {}) {
       for (const cs of account.characters()) { stampAway(cs, true); cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }
+      for (const cs of account.characters()) returning.add(cs.slot);
     },
     destroy() { offAccount(); for (const slot of Array.from(watching.keys())) unwatch(slot); listeners.clear(); },
   };

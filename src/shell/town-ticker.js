@@ -44,15 +44,15 @@
 // a payout restarts the count from the new watermark and a lower payout snaps it
 // down; a stop or a hunt clears it with the pointer.
 // ════════════════════════════════════════════════════════════════════════
-import { simulateSkillSpan, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.80';
-import { simulateArtisanSpan, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.80';
-import { creditWindow } from '../core/away.js?v=0.2.80';
-import { burnChance, burnXp } from '../core/artisan.js?v=0.2.80';
-import { pacedXp } from '../core/pacing.js?v=0.2.80';
-import { levelOf } from '../core/xp.js?v=0.2.80';
-import { ITEMS } from '../data/items.js?v=0.2.80';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.80';
-import { rows, text, cls } from '../render/paint.js?v=0.2.80';
+import { simulateSkillSpan, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.81';
+import { simulateArtisanSpan, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.81';
+import { creditWindow } from '../core/away.js?v=0.2.81';
+import { burnChance, burnXp } from '../core/artisan.js?v=0.2.81';
+import { pacedXp } from '../core/pacing.js?v=0.2.81';
+import { levelOf } from '../core/xp.js?v=0.2.81';
+import { ITEMS } from '../data/items.js?v=0.2.81';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.81';
+import { rows, text, cls } from '../render/paint.js?v=0.2.81';
 
 /** Every roll on its smallest outcome: a range on its low end, a chance on "no" (yes only when certain). next() sits
     at the top of [0, 1), so a `next() < p` test reads "no" too. */
@@ -82,6 +82,7 @@ const count = (n) => (Number.isSafeInteger(n) && n > 0 ? n : 0);
  *   bagCap     the bag's stack cap (state.bank_cap), or null
  *   nowMs      the server's clock now (CharacterSession.serverNow)
  *   refused    true while a settle refusal stands on this record
+ *   tax        the bench tax this run owes (src/core/bench-tax.js taxFor, the server's numbers), or null; spent in place
  * @returns {{ actions: number, items: object, stored: object, xp: object, unsure: number } | null}
  *   items: { id: signed change } to the BAG (the product up, the inputs down, the bag first, as the server spends);
  *   stored: { id: signed change } to Storage (the inputs the bag could not cover); xp: { skill: XP }; unsure:
@@ -134,7 +135,7 @@ export function predictTown(o) {
     sum = simulateSkillSpan(scratch, Object.assign(ctx, { nodes: one }));
   } else {
     one[w.id] = { skill: w.skill, recipe: w.row };
-    sum = simulateArtisanSpan(scratch, Object.assign(ctx, { recipes: one, maxActions: count(o.left) || null }));
+    sum = simulateArtisanSpan(scratch, Object.assign(ctx, { recipes: one, maxActions: count(o.left) || null, tax: o.tax || null }));
   }
   const actions = count(sum && sum.ticks);
   const xpSkill = w.row.xpSkill || w.skill;

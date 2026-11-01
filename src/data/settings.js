@@ -33,13 +33,13 @@
 // Categories are data too, in the order the window lists them. Gameplay,
 // Chat & Social and Account stay hidden until a feature registers a row there.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.80';
-import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.80';
-import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.80';
-import { HOTKEYS } from './hunt-hud.js?v=0.2.80';
-import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.80';
-import { HELP_NOTES } from './how-to-play.js?v=0.2.80';
-import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.80';
+import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.81';
+import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.81';
+import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.81';
+import { HOTKEYS } from './hunt-hud.js?v=0.2.81';
+import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.81';
+import { HELP_NOTES } from './how-to-play.js?v=0.2.81';
+import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.81';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -101,7 +101,7 @@ const PANEL_ROWS = HUD_WIDGETS.filter((w) => w.removable).map((w) => row({
 }));
 
 /* ── Controls: every window's key, then the shell's own (display only: hunts play themselves) ── */
-const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !w.escape).map((w) => row({
+const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !w.escape && w.key).map((w) => row({
   id: 'key.' + w.id, category: 'controls', label: 'Open ' + w.label,
   help: 'Press this key to open or close the ' + w.label.toLowerCase() + ' window.',
   type: 'hotkey', key: w.key,

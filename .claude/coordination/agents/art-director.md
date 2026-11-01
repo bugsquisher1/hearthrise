@@ -3095,6 +3095,12 @@ has one in BOTH layouts; (7) a text probe must measure INK, not the range rect: 
 taller than its glyphs and reads as touching the ring when it does not; (8) a widget's open/close transform makes its
 box lie for 120 ms: wait for transform none before measuring where it stands.
 
+## 2026-11-01 lane/a-cap-popup
+A window's answer to a press now stands in the confirmation's well, sticky at the foot of what shows (windows.css), for
+every `.hs-win .hh-intent-msg` except Configure action's own; press-ack moves the list so it never covers the pressed
+control. A popup with nothing to say until the server speaks is a modal row with `key: null`. Listen on the account's
+intent ledger for anything every door must do: no door has to opt in. Shop rows at 667 wide still clip the item name.
+
 ## 2026-10-25 lane/b-window-icon-size (build of the picked C, amended)
 Tyler on the C mock: bag/storage "perfect"; Shop "too big"; doll "a bit smaller". Shipped: bag/storage wells 36 -> 44
 (6 / 10 a row at 1440), counts 14.5 -> 16; doll 52 px wells with 1x art; Shop lines 1x art in a 44 px sunk well,
@@ -3138,3 +3144,6 @@ summary is open (both sizes; on desktop it was a redundant "Mill Cellar Summary"
 served `window.__world` hook (screenOf on stats().hunt.hero/units), never by eye; (2) moving the card alone fails at
 844 (5 px) and the inset alone pushes the party under the Party panel: it took both; (3) 667x375 cannot fit a 260 px card
 beside a hero-centred fight: a party member 2 tiles left goes under the Party panel there (open, outside this brief).
+
+### 2026-11-01 lane/a-panels-on-screen (friends and crafter panels)
+hud.js clearOfEdges "stepped down" any edge panel a too-wide centred bar still hit, and a BOTTOM bar stepped them off the window. Top-corner panels now end above the bar and scroll (--hs-room, src/shell/hud-room.js); the screen plates (alerts, online) slide past panels and windows or wait hidden. Lessons: (1) a guard of "no overlap" (HS-13) was pinning the off-screen answer: test reachability by a press at the middle of the thing, plus a real wheel; (2) layout is real-font dependent: the Verdana swap found a bar 13 px over at 1024; (3) `scrollIntoView` scrolls overflow:hidden too, so it proves nothing about a player; (4) the away card was also firing every ten minutes of watching since the 11-01 stamp change: judge only on a RETURN; (5) a local-world skip in view is no absence (it moves the hunt, not the clock).

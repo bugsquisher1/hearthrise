@@ -805,9 +805,9 @@ async function stripReach(page, tag, fails) {
     return { ids: rows.map((r) => r.getAttribute('data-hs-open')).sort(), small: rows.filter((r) => r.getBoundingClientRect().height < 44).length, empty: rows.filter((r) => !r.textContent.trim()).length,
       market: !!document.querySelector('.hs-launch[data-hs-open="market"]'), onRow: ['honor', 'report'].filter((id) => document.querySelector('.hs-launch[data-hs-open="' + id + '"]')) }; });
   if (more.ids.join() !== 'honor,report' || more.small || more.empty) fails.push('PH-11 [' + tag + '] the sheet does not name what the row left out: ' + JSON.stringify(more));
-  if (!more.market || more.onRow.length) fails.push('PH-11 [' + tag + '] the row is not Market on, Roll of Honor and Report off: ' + JSON.stringify(more));
+  if (!more.market || more.onRow.length) fails.push('PH-11 [' + tag + '] the row is not Market on, Leaderboards and Report off: ' + JSON.stringify(more));
   await page.evaluate(() => document.querySelector('[data-hs-win="characters"] .hw-icon-name[data-hs-open="honor"]').click());
-  if (!(await wait(page, () => document.querySelector('[data-hs-win="honor"]'), null, 3000))) fails.push('PH-11 [' + tag + '] the Roll of Honor cannot be opened on a phone');
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="honor"]'), null, 3000))) fails.push('PH-11 [' + tag + '] Leaderboards cannot be opened on a phone');
   await page.click('.char-tool.is-all', { timeout: 2500 }).catch(() => null);
   await wait(page, () => document.querySelector('[data-hs-win="characters"] .hw-char'), null, 4000);
   /* A named icon opens its window. */
@@ -1419,7 +1419,7 @@ const MUTANTS = [
   ['PH-11 the tabs squash to a sliver', 'src/styles/app.css', '  @container char-strip (max-width: 150px) { .char-tabs { display: none; } }\n', '  .char-tab { min-width: 0; width: 12px; padding: 0; }\n'],
   ['PH-11 the three words stay in the strip', 'src/styles/app.css', '  .char-tool:not(.is-all), .char-tool-wide { display: none; }', '  .char-tool-wide { display: none; }'],
   ['PH-11 the sheet names no icons', 'src/shell/windows/characters.js', '    + iconListHtml(ctx)\n', ''],
-  ['PH-11 the Roll of Honor has no press on a phone', 'src/shell/windows/characters.js', "  + iconNames(ctx, iconRows(ctx).filter((r) => r.phoneIcon === false)) + '</ul></div>';", "  + '</ul></div>';"],
+  ['PH-11 Leaderboards has no press on a phone', 'src/shell/windows/characters.js', "  + iconNames(ctx, iconRows(ctx).filter((r) => r.phoneIcon === false)) + '</ul></div>';", "  + '</ul></div>';"],
   ['PH-11 a sixteenth icon squeezes the row', 'src/data/shell-windows.js', "key: 'z', phoneIcon: false, glyph: 'uiTrophy'", "key: 'z', glyph: 'uiTrophy'"],
   ['PH-11 no way to sign out on a phone', 'src/shell/windows/characters.js', '    + ACCOUNT_HTML\n', ''],
   ['PH-11 the phone\'s routes show on a desktop', 'src/styles/windows.css', '.hw-phone-only, .hw-char-invite { display: none; }', '.hw-phone-only { display: block; } .hw-char-invite { display: none; }'],

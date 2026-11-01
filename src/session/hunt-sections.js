@@ -18,10 +18,10 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.80';
-import { VITALS } from '../data/core-model.js?v=0.2.80';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.80';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.80';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.81';
+import { VITALS } from '../data/core-model.js?v=0.2.81';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.81';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.81';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -76,6 +76,8 @@ export function huntOf(cs) {
     endedAtMs: isObj(h.session) && str(h.session.ended_at) ? Date.parse(h.session.ended_at) || null : null,
     /* LEAVE TOGETHER: who sent this hero home (the member whose own end did, hr_hunt_view `end_by`), or null. */
     endBy: isObj(h.session) && str(h.session.end_by) ? h.session.end_by.trim().slice(0, 40) || null : null,
+    /* What ended that member (hr_hunt_view `end_by_why`, an END_ORDER name: stamina, left ...), or null. */
+    endWhy: isObj(h.session) ? str(h.session.end_by_why) : null,
     /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
     huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
     units: unitsOf(h.pose),

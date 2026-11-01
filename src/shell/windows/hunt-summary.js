@@ -17,19 +17,19 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.80';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.80';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.80';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.80';
-import { runIntent } from '../intent-words.js?v=0.2.80';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.80';
-import { packFor } from '../hunt-list.js?v=0.2.80';
-import { observeSessions } from '../../session/character-session.js?v=0.2.80';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.80';
-import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.80';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.80';
-import { heldCard } from '../launcher.js?v=0.2.80';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.80';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.81';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.81';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.81';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.81';
+import { runIntent } from '../intent-words.js?v=0.2.81';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.81';
+import { packFor } from '../hunt-list.js?v=0.2.81';
+import { observeSessions } from '../../session/character-session.js?v=0.2.81';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.81';
+import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.81';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.81';
+import { heldCard } from '../launcher.js?v=0.2.81';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.81';
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
 const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };
@@ -154,7 +154,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">Show</button></li>'),
     patch: (el, s) => {
       text(el.querySelector('b'), groundName(s));
-      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs)).split('. ')[0].replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
+      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs), s.why).split('. ')[0].replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
     },
   });
 };

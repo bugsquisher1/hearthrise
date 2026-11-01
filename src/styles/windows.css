@@ -79,7 +79,10 @@
 .hw-confirm-do { display: flex; gap: 6px; margin-top: 8px; }
 .hw-confirm-do .hw-primary { display: inline-block; }
 .hw-pane:has(.hw-confirm.is-on) .hw-pick .hw-primary { display: none; }
-.hs-win .hh-intent-msg { margin-top: 6px; }
+/* The answer to a press stays in view wherever the window is scrolled, in the confirmation's well (shell.css), not
+   small grey text under the last row (Tyler 2026-11-01: "it was hard to see"). */
+.hs-win .hh-intent-msg:where(:not(.ca-msg)) { margin-top: 6px; font-size: var(--t-small); color: var(--ink); }
+.hs-win .hh-intent-msg:not(:empty, .ca-msg) { position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }
 .is-pending .hh-intent-msg { color: var(--ink-2); }
 /* A sunk field (shell.css, Forged Steel), its magnifier inside. */
 .hw-search { flex: 1; display: flex; align-items: center; gap: 6px; padding-left: 8px; color: var(--ink-3); }
@@ -339,7 +342,7 @@
 .hw-hd-mon.is-carrier .hw-hd-mon-name { color: var(--rar-rare); }
 /* What drops here: the hourly gear a line a tier (the lines' words in ink, what they cover muted), then each Rare and
    Trophy as its own pixel icon at x1 in a sunk well, its name in its rarity colour and its carrier under it. */
-.hw-hd-sets, .hw-hd-rares { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.hw-hd-sets, .hw-hd-rares, .hw-hd-mats { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .hw-hd-set { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline; font-size: var(--t-small); color: var(--ink-2); }
 .hw-hd-set-lines { font-weight: 700; color: var(--ink); }
 /* The chance per kill (hunt-detail.js): one right-hand column, figures aligned. */
@@ -353,7 +356,7 @@
 .hw-hd-rare-name { font-weight: 700; color: var(--rar-rare); }
 .hw-hd-rare.is-trophy .hw-hd-rare-name { color: var(--rar-legendary); }
 .hw-hd-rare-by { font-size: var(--t-micro); color: var(--ink-2); }
-.hw-hd-h:has(+ .hw-hd-sets:empty), .hw-hd-h:has(+ .hw-hd-rares:empty) { display: none; }
+.hw-hd-h:has(+ .hw-hd-sets:empty), .hw-hd-h:has(+ .hw-hd-rares:empty), .hw-hd-h:has(+ .hw-hd-mats:empty) { display: none; }
 .hw-hunt-party { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hd-best { margin: 0; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hd-best[hidden], .hw-hunt-party[hidden], .hw-hd-bests[hidden] { display: none; }
@@ -462,7 +465,8 @@
 .hw-skill-xp.is-ahead { font-style: italic; }
 .hw-work-row .hw-line-name small { white-space: normal; }
 .hw-work-why { color: var(--ink-3); }
-.hw-work-why:empty { display: none; }
+.hw-work-why:empty, .hw-work-fee:empty, .hw-work-end:empty { display: none; }
+.hw-work-fee { color: var(--ink-3); }
 .hw-work-row.is-on .hw-line-name b, .hw-work-row.is-on .hw-work-why { color: var(--gold-2); }
 .hw-work-row.is-locked .hw-ico { opacity: .5; }
 /* "Make N": the amount sits under the row's words, a quiet well (hunt.css .hh-segs); a locked row has none. */
@@ -607,7 +611,7 @@
 /* ── The alert lines (src/shell/widgets/alerts.js): newest on top; with none, not there at all ── */
 .hs-widget.is-alerts:has(.hw-alerts.is-empty) { pointer-events: none; }
 .hw-alerts.is-empty { display: none; }
-.hw-alert-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; width: 360px; max-width: calc(100vw - 24px); }
+.hw-alert-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; width: var(--hs-alert-w, 360px); max-width: calc(100vw - 24px); max-height: var(--hs-room, none); overflow-y: auto; }
 /* Each alert is a HUD plate in the thin steel frame; its kind is the 4 px bar inside its left edge (gold a rare
    find, red a fall, steel the rest). */
 .hw-alert {
@@ -735,6 +739,8 @@
 .hw-mats { display: flex; flex-wrap: wrap; gap: 0 12px; margin: 2px 0 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-mats:empty { display: none; }
 .hw-mat.is-short { color: var(--red); }
+.hw-mat-where { display: block; color: var(--ink-2); font-size: var(--t-micro); }
+.hw-mat-where:empty { display: none; }
 /* The ask and the server's answer stay on screen wherever the ledger is scrolled (the report window's foot). */
 .hw-house-foot { position: sticky; bottom: 0; background: var(--bg-1); }
 .hw-house-foot .hh-intent-msg { padding: 4px 2px; }

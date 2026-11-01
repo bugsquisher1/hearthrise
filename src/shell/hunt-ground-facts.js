@@ -20,22 +20,26 @@
 //   wornWeightOf(eq)   the armour weight a hero wears most (heavy, medium, light), or null.
 //   bigPullOf(hunt)    the creatures only a bigger pull brings (a pocket's fill rows, hunt-grounds.js pullRows, the rows the
 //                      engine spawns), with the smallest pull that does and their everyday drops; bigPullLine(hunt) says so
-//                      on the ground's page, bigPullWords(item) wherever the player looks for that creature's drop
-//                      (Andy's report, 2026-10-31: no Brook Bear, so no Bear Pelt, below a pull of 3).
+//                      on the ground's page (Andy's report, 2026-10-31: no Brook Bear, so no Bear Pelt, below a pull of 3).
+//   dropWhereWords(item)  the creatures on open grounds that drop it, and where: the one source line for a monster material
+//                      (panel 2026-11-01: the House and the recipes named a shortage and never where to end it).
+//   materialsOf(hunt, size)  what this ground drops that a recipe or the House spends, with its carriers and its chance.
 //   THE ODDS (Tyler 2026-10-24: "either give like a % drop chance or nothing at all") are the
 //   server's own: src/data/monsters.js is the catalogue the hr-accrue engine rolls (bundled
 //   into it), and each row's chance on one kill is the roller's (drops.js effectiveDropChance)
 //   at the kill's yield share for a party of `size` (hunt-grounds.js yieldPermille), before any
 //   hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.80';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.80';
-import { MONSTERS } from '../data/monsters.js?v=0.2.80';
-import { ITEMS } from '../data/items.js?v=0.2.80';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.80';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.80';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.80';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.80';
+import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.81';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.81';
+import { MONSTERS } from '../data/monsters.js?v=0.2.81';
+import { ITEMS } from '../data/items.js?v=0.2.81';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.81';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.81';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.81';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.81';
+import { listWords } from '../render/format.js?v=0.2.81';
+import { isSpentMaterial } from './bag-model.js?v=0.2.81';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -90,27 +94,34 @@ export function bigPullLine(hunt) {
   return said.length ? 'Bigger pulls also bring ' + said.join('; ') + '.' : '';
 }
 
-/** Is this creature on a ground a player can walk today (any pull)? */
-export function onOpenGround(id) {
-  return Object.values(OPEN_GROUNDS).some((g) => g.pockets.some((p) => (p.pack || p.spawns).concat(p.spawns).some((s) => s.monster === id)));
-}
+const groundName = (g) => (HUNT_INDEX[g.hunt] || {}).name || g.hunt;
+const groundFloor = (g) => { const b = (HUNT_INDEX[g.hunt] || {}).band; return b ? b[0] : 0; };
 
 /**
- * Where a player finds out why an item is not dropping: "The Brook Bear only comes to a pull of 3 or more at Mosslight
- * Glade", or '' when a creature standing in some open ground's pack as built drops it too.
+ * WHERE A MONSTER MATERIAL COMES FROM, the one answer the tip, the House and the recipe rows give. Only creatures on grounds
+ * a player can walk today, the lowest ground first: "Dropped by Briarcoat Wolf and Old Grayjaw at Meadowbrook Thicket, and at
+ * Wickstead and Mosslight Glade". A creature only a bigger pull brings says that: "The Brook Bear only comes to a pull of 3 or
+ * more at Mosslight Glade". '' when no open ground has it (the catalogue keeps rows for creatures no open ground spawns).
  */
-export function bigPullWords(item) {
-  const found = [];
+export function dropWhereWords(item) {
+  const standing = [], pulled = [];
   for (const g of Object.values(OPEN_GROUNDS)) {
-    for (const id of new Set(g.pockets.flatMap((p) => (p.pack || p.spawns).concat(p.spawns).map((s) => s.monster)))) {
+    const here = new Set(g.pockets.flatMap((p) => (p.pack || p.spawns).concat(p.spawns).map((s) => s.monster)));
+    const names = [];
+    for (const id of here) {
       if (!((MONSTERS[id] || {}).drops || []).some((d) => d && d.id === item)) continue;
-      if (standsAsBuilt(g, id)) return '';
-      found.push({ g, id, pull: pullThatBrings(g, id) });
+      if (standsAsBuilt(g, id)) names.push(MONSTERS[id].name);
+      else pulled.push({ g, id, pull: pullThatBrings(g, id) });
     }
+    if (names.length) standing.push({ g, names });
   }
-  if (!found.length) return '';
-  const best = found.sort((a, b) => a.pull - b.pull)[0];
-  return 'The ' + MONSTERS[best.id].name + ' only comes to a pull of ' + best.pull + ' or more at ' + ((HUNT_INDEX[best.g.hunt] || {}).name || best.g.hunt);
+  if (standing.length) {
+    const [first, ...more] = standing.sort((a, b) => groundFloor(a.g) - groundFloor(b.g));
+    return 'Dropped by ' + listWords(first.names) + ' at ' + groundName(first.g) + (more.length ? ', and at ' + listWords(more.map((x) => groundName(x.g))) : '');
+  }
+  if (!pulled.length) return '';
+  const best = pulled.sort((a, b) => a.pull - b.pull)[0];
+  return 'The ' + MONSTERS[best.id].name + ' only comes to a pull of ' + best.pull + ' or more at ' + groundName(best.g);
 }
 
 /* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */
@@ -184,6 +195,27 @@ export function scarceSetOf(hunt, worn, size) {
     weapons: e.weapons,
     chance: Array.from(e.rows, ([id, rows]) => (mix.get(id) || 0) * anyOf(g, rows, n)).reduce((t, c) => t + c, 0),
   }));
+}
+
+/**
+ * WHAT THIS GROUND'S CREATURES DROP THAT A RECIPE OR THE HOUSE SPENDS (panel 2026-11-01: Drops listed gear only, so Wolf Pelt and
+ * Silk Thread had no page to be found on): [{ id, name, carriers: [names], chance }], likeliest first, `chance` that one kill here,
+ * by a party of `size`, drops it (the same mix and roller as the gear's). A Rare row stays on the Rare list. [] for a ground with none.
+ */
+export function materialsOf(hunt, size) {
+  const g = groundOf(hunt), n = sizeOf(size);
+  if (!g) return [];
+  const mix = killMixOf(g, n), found = new Map();
+  for (const [id, share] of mix) {
+    for (const d of (MONSTERS[id] || {}).drops || []) {
+      if (!d || !d.id || d.band === 'scarce' || d.lucky === true || d.salvage === true || isRare(d) || !isSpentMaterial(d.id)) continue;
+      if (!found.has(d.id)) found.set(d.id, { id: d.id, name: nameOf(d.id), carriers: [], chance: 0 });
+      const e = found.get(d.id);
+      e.carriers.push(MONSTERS[id].name);
+      e.chance += share * rowChance(g, d, n);
+    }
+  }
+  return [...found.values()].filter((e) => e.chance > 0).sort((a, b) => b.chance - a.chance || (a.name < b.name ? -1 : 1));
 }
 
 /**

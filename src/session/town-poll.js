@@ -14,7 +14,7 @@
 // one, the stop, a hunt's start or the next sign-in) pays all of it.
 // Timing only: nothing here is read as owned or spent.
 // ════════════════════════════════════════════════════════════════════════
-import { SESSION_CONFIG } from './config.js?v=0.2.80';
+import { SESSION_CONFIG } from './config.js?v=0.2.81';
 
 /** Does the server say this hero works in town (a gathering node or a bench), with no hunt open? */
 export function townWorkRunning(state, hunt) {
@@ -68,4 +68,17 @@ function askTown(cs, running) {
   a.at = now;
   Promise.resolve().then(() => cs.hello()).catch(() => false).then(() => { a.busy = false; });
   return true;
+}
+
+/**
+ * THE AWAY STAMP STAYS TRUE (src/shell/away-work.js): a job nobody watches is paid only by a settle, so the viewed hero's is asked
+ * for one at least every `everyMs` of the server's clock, and the numbers stamped on the way out are never older than that.
+ */
+export function settleStaleTown(cs, everyMs) {
+  if (!cs || typeof cs.read !== 'function' || typeof cs.hello !== 'function') return false;
+  const st = cs.read('state');
+  const serverNow = typeof cs.serverNow === 'function' ? cs.serverNow() : null;
+  const paid = st ? Date.parse(st.accrued_to) : NaN;
+  if (!Number.isFinite(serverNow) || !Number.isFinite(paid) || serverNow - paid < everyMs) return false;
+  return askTown(cs, townWorkRunning(st, cs.read('hunt')));
 }

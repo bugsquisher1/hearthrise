@@ -3,15 +3,15 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.80';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.80';
-import { LIB2_DESC } from './library2-items.js?v=0.2.80';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.80';
-import { CHAMPION_DESC } from './champions.js?v=0.2.80';
-import { DRINK_DESC } from './drinks.js?v=0.2.80';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.80';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.80';
-import { SHIELD_DESC } from './shields.js?v=0.2.80';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.81';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.81';
+import { LIB2_DESC } from './library2-items.js?v=0.2.81';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.81';
+import { CHAMPION_DESC } from './champions.js?v=0.2.81';
+import { DRINK_DESC } from './drinks.js?v=0.2.81';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.81';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.81';
+import { SHIELD_DESC } from './shields.js?v=0.2.81';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -125,7 +125,7 @@ export const ITEM_DESC = {
   'mosslight_clump': 'Burn it in the Great Hearth for a burst of Inner Flame; Havora\'s fire glows blue-green. Moss off a Mosslight Glade Walking Vine',
   'verdigris_cake': 'Burn it in the Great Hearth for a burst of Inner Flame; Havora\'s fire turns copper green. Scale off Chief Coppercap\'s stolen pots',
   'bronze_axe': 'Cast-bronze felling axe, a woodcutter\'s first honest tool',
-  'bronze_bar': 'Copper and tin smelted to bronze, the first true alloy',
+  'bronze_bar': 'A double measure of copper ore smelted hard into bronze, the first true alloy',
   'bronze_belt': 'Sturdy bronze girdle that braces a recruit\'s waist and hangs his kit',
   'bronze_boots': 'Cast-bronze boots to guard a recruit\'s step',
   'bronze_gauntlets': 'Cast-bronze gauntlets to armor a recruit\'s grip',
@@ -164,7 +164,7 @@ export const ITEM_DESC = {
   'cooked_wolf_meat': 'Roasted wolf, tough but honest, a woodsman\'s fill after a long hunt',
   'copper_bar': 'A bar of smelted copper, soft stock for the earliest smithing',
   'copper_crab': 'A small copper-shelled crab plucked from the tidepools, raw and briny, best cooked with care',
-  'copper_ore': 'Soft copper ore, smelted with tin to make bronze',
+  'copper_ore': 'Soft copper ore, smelted into copper bars, or into bronze at twice the ore',
   'copper_ring': 'Plain copper band lending a small edge to attack and strength',
   'cracked_spellstone': 'A fractured stone leaking spent magic, salvageable arcane stock',
   'dark_sigil': 'A rune-etched sigil steeped in shadow, a reagent for the dark craft',

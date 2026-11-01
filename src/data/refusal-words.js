@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.80';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.81';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -23,7 +23,7 @@ export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed
 const MARKET_WORDS = Object.freeze({
   market_closed: 'The Weighhouse isn\'t trading right now. Your listings are safe, and you can still take them back.',
   rate_limited: 'Too fast. Wait a moment and try again.',
-  not_tradeable: 'Starter kit, gifts and trophies can\'t be sold to other players.',
+  not_tradeable: 'This can\'t be sold to other players. Pick it in the Weighhouse\'s Sell tab to see why.',
   item_locked: 'This is locked. Unlock it in your bag to list it.',
   gone: 'Someone bought those first.',
   expired: 'That listing just ran out.',
@@ -47,6 +47,9 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   market_item: MARKET_WORDS,
   market_mine: MARKET_WORDS,
   equip: Object.freeze({ hunt_open: 'Leave the hunt to change gear.' }),
+  /* A solo hunt can't grow a party, and a pending Leave is still a hunt until the hero is home (panel 2026-11-01). */
+  party_invite: Object.freeze({ hunt_open: 'You are on a hunt of your own. Leave it, and once you are back in town you can invite.' }),
+  party_join: Object.freeze({ hunt_open: 'You are on a hunt. Leave it, and once you are back in town press Join.' }),
   /* Dispatch loot (2027-01-23-loot-dispatch.sql): Storage is at home and the shop in town. */
   loot_dispatch: Object.freeze({
     hunting: 'Your hero is out hunting. Dispatch loot works in town.',
@@ -108,6 +111,12 @@ export const REFUSAL_WORDS = Object.freeze({
   /* Items, gold and the bag. */
   insufficient_item: 'You no longer have that many.',
   insufficient_gold: 'Not enough gold.',
+  /* The work bench tax (2027-02-19-bench-tax.sql): the engine read something that moved. The next try reads it fresh. */
+  bench_tax_purse: 'Your gold changed while that bench settled. Try again.',
+  bench_tax_changed: 'The bench fee changed while that settled. Try again.',
+  bench_tax_missing: 'The bench fee could not be settled just now. Try again in a moment.',
+  bench_tax_short: 'The bench fee could not be settled just now. Try again in a moment.',
+  bench_tax_bad: 'The bench fee could not be settled just now. Try again in a moment.',
   cannot_afford: 'Not enough gold.',
   gold_short: 'Not enough gold.',
   item_locked: 'That item is locked. Unlock it first.',
@@ -216,8 +225,9 @@ export const REFUSAL_WORDS = Object.freeze({
   same_hunt: 'You are already hunting there.',
   /* The play cap (2027-01-19-play-cap.sql; Tyler 2026-10-17): at most four heroes play at once per account and per
      internet connection. The number is SESSION_CONFIG.maxConcurrentCharacters (tests/play-cap.mjs holds the words to it). */
-  too_many_playing: 'Four of your heroes are already playing. Stop one first.',
-  too_many_playing_here: 'Four heroes are already playing from this internet connection. Stop one first.',
+  /* These two open the centered popup (src/shell/windows/play-cap.js), never a window's foot line. */
+  too_many_playing: 'Four of your heroes are already playing. Stop one to start this one.',
+  too_many_playing_here: 'Four heroes are already playing from this internet connection. They can be on any account here. Stop one to start this one.',
   unknown_hunt: 'The server does not know that hunt.',
   unknown_preset: 'That setup is gone. Pick another under Saved setups.',
   /* hr_hunt_preset_apply: a piece the setup wears is no longer in the bag (Go as on the Hunts window stops there). */
@@ -235,7 +245,7 @@ export const REFUSAL_WORDS = Object.freeze({
   bad_weapon: 'The server does not know that weapon.',
   no_character: 'Pick a character first.',
   /* The party. */
-  already_in_party: 'This character is already in a party. Leave it first.',
+  already_in_party: 'You are already in a party with someone. Press Leave party in the Party window, then try again.',
   party_full: 'That party is full.',
   no_party: 'That party is gone.',
   not_leader: 'Only the party leader can do that.',

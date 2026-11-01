@@ -5,6 +5,7 @@
       "bag_rules",
       "bank",
       "bench_run",
+      "bench_tax",
       "blessings",
       "bounty",
       "buffs",
@@ -38,6 +39,7 @@
       "outfit",
       "party",
       "party_invites",
+      "party_notices",
       "party_people",
       "party_seek",
       "place",
@@ -92,5 +94,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-10-26"
+  "generatedAt": "2026-11-01"
 }

@@ -835,7 +835,7 @@ const cases = {
       stored: [...after.stored, { type: 'consume', id: 'turnip_juice', conditions: [] }, { type: 'ability', id: 'flame_strike', conditions: [] }] };
     if ((say(R({ ...juiced, slots: runeless0 })) || {}).id === 'own_runes') return 'with no rune spell on the bar the coach asks for runes';
     const runes = say(R(juiced));
-    if (!runes || runes.id !== 'own_runes' || !runes.text.includes('Cut Blank Runes (4 essence make 12) and Bind Chalked Fire Runes (6 blanks make 45)')) return 'the rune card reads ' + JSON.stringify(runes && runes.text);
+    if (!runes || runes.id !== 'own_runes' || !runes.text.includes('Cut Blank Runes (6 essence make 12) and Bind Chalked Fire Runes (6 blanks make 45)')) return 'the rune card reads ' + JSON.stringify(runes && runes.text);
     if (say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } }))) return 'with own runes the coach still asks: ' + say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } })).id;
     /* THE FIRST HOUR (lane/b-first-hour, designer 2026-10-28). The day-one goals open at Level 7, the Thicket's first half hour. */
     const L7 = { ...town, presets: 1, levelXp: M.xp.charXpForLevel(7), charLevel: 7 };

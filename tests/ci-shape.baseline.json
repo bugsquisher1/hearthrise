@@ -413,6 +413,8 @@
     "node tests/catalogue-coherence.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/style-gear.mjs --mutate": "client-guards",
     "node tests/style-gear.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/craft-wages.mjs --mutate": "client-guards",
+    "node tests/craft-wages.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/supplies-catalogue.mjs --selftest": "client-guards",
     "node tests/supplies-catalogue.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/refusal-words.mjs --mutate": "client-guards",

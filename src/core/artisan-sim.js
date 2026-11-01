@@ -45,6 +45,8 @@
 //                simulates without side effects
 //   ctx.bagCap   the bag's stack cap (player_state.bank_cap, hr_apply's bank_full
 //                fuse), or absent: no fuse (see bagFullFor)
+//   ctx.tax      the bench tax this run owes (src/core/bench-tax.js taxFor, spent
+//                in place), or absent: none
 //
 // ── WHERE A BENCH'S INPUTS COME FROM (Tyler 2026-10-25, skills from Storage) ──
 // `state.supply`, when the caller sets it, is the pool the inputs are counted
@@ -65,6 +67,7 @@ import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.80';
 import { sliceSpan } from './skill-sim.js?v=0.2.80';
 import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=0.2.80';
 import { levelOf } from './xp.js?v=0.2.80';
+import { canPayNext, payCraft } from './bench-tax.js?v=0.2.80';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 function call(fx, name, ...args) {
@@ -102,6 +105,10 @@ export const STOP_REASON = Object.freeze({
      degrade ladder would grind it to a forfeit). Reachable since inputs come
      from Storage (Tyler 2026-10-25): a bag whose input stacks never empty. */
   BAG_FULL: 'bag_full',
+  /* THE WORK BENCH TAX (Tyler 2026-11-01, src/core/bench-tax.js, `ctx.tax`): the next craft's whole gold is more than
+     the purse holds above what the hero keeps. A stop like SUPPLIES, checked BEFORE the action, so no material is spent on a
+     craft whose fee could not be paid. */
+  GOLD: 'gold',
 });
 
 /**
@@ -419,6 +426,14 @@ export function simulateArtisanSpan(state, ctx) {
         toolDouble: toolDouble(tool), toolXpB: toolXpB(tool),
       };
       let done = 0;
+      /* Out of gold for the next action's fee (ctx.tax): the stop. Absent tax, never. */
+      const outOfGold = () => {
+        if (!c.tax || canPayNext(c.tax)) return false;
+        stopReason = STOP_REASON.GOLD;
+        stoppedById = null;
+        call(fx, 'onStop', stopReason, skill, targetId, null);
+        return true;
+      };
       /* Out of an input for the next action: the stop, with what ran out and the rate it was spent at. */
       const outOfSupply = () => {
         const missing = missingInput(recipe, state.supply || state.inventory);
@@ -460,6 +475,8 @@ export function simulateArtisanSpan(state, ctx) {
           call(fx, 'onStop', stopReason, skill, targetId, full);
           return done;
         }
+        /* THE FEE, last of the pre-checks and BEFORE the action: nothing is consumed for a craft it could not pay. */
+        if (outOfGold()) return done;
         const r = resolveArtisanTick(state, recipe, tickCtx);
         if (r.outcome === OUTCOME.STOP) {
           /* Belt and braces: the resolver refused for a reason the pre-checks
@@ -474,10 +491,13 @@ export function simulateArtisanSpan(state, ctx) {
         toolDoubles += r.res.toolDoubles || 0;
         done++;
         budgetLeft--;
+        if (c.tax) payCraft(c.tax);
         /* THE ACTION THAT SPENT THE LAST INPUT ENDS THE RUN (report #68: "still fueling the hearth" with no fuel
            left). Checked only before an action, a window that closed right after the last Bones left the run
            going with none, until a later settle tried the next one: every path, viewed, unviewed or ticked. */
         if (outOfSupply()) return done;
+        /* The same for the action that spent the last gold it may: the run does not stand "working" until a later settle. */
+        if (outOfGold()) return done;
       }
       return done;
     },

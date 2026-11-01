@@ -203,9 +203,9 @@ export const SLOT_RECIPES = {
        real recurring craft rather than a five-second lifetime supply. Batches are
        uniform 50 across the ladder (dawnpoint drops its ×2). */
     { id: 'fletch_bronze_arrows',    name: 'Fletch Bronze Arrows ×50',    icon: '🏹', inputs: { bronze_bar: 6, normal_plank: 4 },                 output: 'bronze_arrows',    outputQty: 50,  xp: 90,  req: 5,  ms: 3200 },
-    { id: 'fletch_barbed_arrows',    name: 'Fletch Barbed Arrows ×50',    icon: '🏹', inputs: { iron_bar: 2, oak_plank: 2 },                      output: 'barbed_arrows',    outputQty: 50,  xp: 150, req: 18, ms: 3400 },
+    { id: 'fletch_barbed_arrows',    name: 'Fletch Barbed Arrows ×50',    icon: '🏹', inputs: { iron_bar: 3, oak_plank: 3 },                      output: 'barbed_arrows',    outputQty: 50,  xp: 150, req: 18, ms: 3400 },
     { id: 'fletch_steel_arrows',     name: 'Fletch Steel Arrows ×50',     icon: '🏹', inputs: { steel_bar: 2, willow_plank: 2 },                  output: 'steel_arrows',     outputQty: 50,  xp: 230, req: 33, ms: 3600 },
-    { id: 'fletch_mithril_arrows',   name: 'Fletch Mithril Arrows ×50',   icon: '🏹', inputs: { mithril_bar: 1, maple_plank: 2 },                 output: 'mithril_arrows',   outputQty: 50,  xp: 330, req: 48, ms: 3800 },
+    { id: 'fletch_mithril_arrows',   name: 'Fletch Mithril Arrows ×50',   icon: '🏹', inputs: { mithril_bar: 2, maple_plank: 2 },                 output: 'mithril_arrows',   outputQty: 50,  xp: 330, req: 48, ms: 3800 },
     { id: 'fletch_rune_arrows',      name: 'Fletch Rune Arrows ×50',      icon: '🏹', inputs: { rune_bar: 1, yew_plank: 1 },                      output: 'rune_arrows',      outputQty: 50,  xp: 450, req: 63, ms: 4000 },
     { id: 'fletch_emberhead_arrows', name: 'Fletch Emberhead Arrows ×50', icon: '🏹', inputs: { ember_bar: 1, silk_thread: 16 },                  output: 'emberhead_arrows', outputQty: 50,  xp: 600, req: 78, ms: 4200 },
     { id: 'fletch_dawnpoint_arrows', name: 'Fletch Dawnpoint Arrows ×50', icon: '🏹', inputs: { dawn_bar: 1, duskwood_plank: 1 },                 output: 'dawnpoint_arrows', outputQty: 50, xp: 820, req: 91, ms: 4400 },

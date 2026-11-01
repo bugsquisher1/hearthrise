@@ -624,6 +624,8 @@ try {
          arm is not vacuous); the bag's stack cap off `state.bank_cap`. */
       storage: { from: 'bank', level: 'top' },
       bagCap: { from: 'bank_cap', level: 'state' },
+      /* THE WORK BENCH TAX (2027-02-19-bench-tax.sql): the whole section, read at the top level. */
+      benchTax: { from: 'bench_tax', level: 'top' },
     };
 
     const declared = Object.keys(SOURCES);
@@ -696,6 +698,7 @@ try {
       activeLeft: env.bench_run && env.bench_run.left,
       storage: env.skill_inputs && env.skill_inputs.from && env.skill_inputs.from.includes('storage') ? env.bank : null,
       bagCap: env.state.bank_cap,
+      benchTax: env.bench_tax,
     };
     const wrongValue = Object.keys(EXPECT).filter((k) => !same(hy[k], EXPECT[k]));
     judge('H5b', wrongValue.length === 0,

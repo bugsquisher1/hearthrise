@@ -94,35 +94,41 @@ export const ROOM_RUNGS = Object.freeze({
   "kitchen": [
     {
       "cost": {
-        "gold": 500,
-        "normal_log": 20
+        "gold": 40000,
+        "oak_plank": 60,
+        "iron_bar": 60,
+        "cooked_trout": 50
       }
     },
     {
       "cost": {
-        "gold": 2000,
-        "normal_log": 50
+        "gold": 70000,
+        "willow_plank": 60,
+        "iron_bar": 100,
+        "cooked_lobster": 50
       }
     },
     {
       "cost": {
-        "gold": 8000,
-        "oak_log": 30
+        "gold": 110000,
+        "willow_plank": 100,
+        "steel_bar": 30,
+        "wheat_bread": 40
       }
     },
     {
       "tier": 3,
       "cost": {
-        "gold": 45000,
-        "timber_beam": 12,
-        "willow_log": 40,
-        "field_ration": 25
+        "gold": 180000,
+        "field_ration": 25,
+        "timber_beam": 20,
+        "willow_plank": 100
       }
     },
     {
       "tier": 5,
       "cost": {
-        "gold": 250000,
+        "gold": 400000,
         "keystone": 2,
         "duskwood_plank": 30,
         "dragon_scale": 8
@@ -132,35 +138,41 @@ export const ROOM_RUNGS = Object.freeze({
   "forge": [
     {
       "cost": {
-        "gold": 800,
-        "copper_ore": 30
+        "gold": 75000,
+        "iron_bar": 200,
+        "oak_plank": 60,
+        "iron_fitting": 10
       }
     },
     {
       "cost": {
-        "gold": 3000,
-        "iron_ore": 50
+        "gold": 110000,
+        "iron_bar": 300,
+        "steel_bar": 40,
+        "iron_fitting": 12
       }
     },
     {
       "cost": {
-        "gold": 12000,
-        "iron_ore": 100
+        "gold": 160000,
+        "steel_bar": 100,
+        "iron_fitting": 15,
+        "timber_beam": 10
       }
     },
     {
       "tier": 3,
       "cost": {
-        "gold": 55000,
-        "iron_fitting": 15,
-        "steel_bar": 60,
-        "coal": 20
+        "gold": 240000,
+        "coal": 200,
+        "iron_fitting": 25,
+        "steel_bar": 150
       }
     },
     {
       "tier": 4,
       "cost": {
-        "gold": 280000,
+        "gold": 480000,
         "keystone": 2,
         "mithril_bar": 20,
         "dragon_scale": 6
@@ -170,35 +182,41 @@ export const ROOM_RUNGS = Object.freeze({
   "library": [
     {
       "cost": {
-        "gold": 1000,
-        "normal_log": 50
+        "gold": 60000,
+        "oak_plank": 80,
+        "silk_thread": 15,
+        "timber_beam": 8
       }
     },
     {
       "cost": {
-        "gold": 4000,
-        "oak_log": 50
+        "gold": 90000,
+        "silk_thread": 25,
+        "timber_beam": 12,
+        "willow_plank": 60
       }
     },
     {
       "cost": {
-        "gold": 15000,
-        "maple_log": 30
+        "gold": 130000,
+        "maple_plank": 60,
+        "silk_thread": 30,
+        "timber_beam": 15
       }
     },
     {
       "tier": 3,
       "cost": {
-        "gold": 65000,
-        "timber_beam": 12,
-        "silk_thread": 25,
-        "magic_essence": 10
+        "gold": 200000,
+        "magic_essence": 10,
+        "silk_thread": 40,
+        "timber_beam": 20
       }
     },
     {
       "tier": 5,
       "cost": {
-        "gold": 300000,
+        "gold": 450000,
         "keystone": 2,
         "duskwood_plank": 30,
         "ancient_rune": 12
@@ -322,35 +340,40 @@ export const ROOM_RUNGS = Object.freeze({
   "workshop": [
     {
       "cost": {
-        "gold": 700,
-        "normal_log": 40
+        "gold": 75000,
+        "oak_plank": 200,
+        "timber_beam": 10,
+        "iron_fitting": 5
       }
     },
     {
       "cost": {
-        "gold": 2800,
-        "oak_plank": 25
+        "gold": 110000,
+        "willow_plank": 100,
+        "timber_beam": 12
       }
     },
     {
       "cost": {
-        "gold": 11000,
-        "willow_plank": 30
+        "gold": 160000,
+        "willow_plank": 200,
+        "timber_beam": 20,
+        "iron_fitting": 10
       }
     },
     {
       "tier": 3,
       "cost": {
-        "gold": 50000,
-        "iron_fitting": 12,
-        "maple_plank": 30,
-        "silk_thread": 10
+        "gold": 240000,
+        "iron_fitting": 25,
+        "maple_plank": 100,
+        "silk_thread": 30
       }
     },
     {
       "tier": 4,
       "cost": {
-        "gold": 260000,
+        "gold": 480000,
         "keystone": 2,
         "duskwood_plank": 25,
         "rune_bar": 6

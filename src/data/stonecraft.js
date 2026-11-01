@@ -98,7 +98,7 @@ const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legenda
    Thicket's (tests/hunt-core/forest-cave.mjs first-grounds-net-chain).
    Air is a family with no rows: it is hidden until a spell spends it (Tyler 10-23), and an item with no
    source and no use is not authored (tests/catalogue-coherence.mjs C1, the W0 rule). */
-const RUNE_VALUE = [0, 2, 4, 6, 9];
+const RUNE_VALUE = [0, 1, 1, 2, 3];
 const RUNE_GLYPH = Object.freeze({ fire: '🔥', earth: '🌍', water: '💧', ice: '❄️', poison: '🧪', rupture: '🩸' });
 /* The families bound into family x tier rows: every family a spell spends (none is hidden). The sample was the
    Fire family; the others followed in batches of 20 rows or fewer (DESIGN_STANDARDS §9). */
@@ -108,13 +108,14 @@ const runeRow = (family, t) => ({ n: runeName(family, t.tier), icon: RUNE_GLYPH[
 const RUNE_ROWS = Object.fromEntries(CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => [runeId(f, t.tier), runeRow(f, t)])));
 
 /* ONE BIND RECIPE A RUNE: the Blank Rune in, at the tier's Runecrafting level. A deeper mark takes more stone: a
-   higher tier spends more blanks and yields fewer runes a craft, so every rung turns its blanks into about 2.3-2.5x
-   their value at the vendor (tests/recipe-yield-guard.mjs: a batch is no faucet past 5x). XP is book value (the old
+   higher tier spends more blanks and yields fewer runes a craft. Runes are made to be cast: the shop's bid is the least a stack
+   can be (RUNE_VALUE; tests/craft-wages.mjs: a rune sold to the shop never out-earns a smelted bar, tests/recipe-yield-guard.mjs: a
+   batch is no faucet past 5x). XP is book value (the old
    ladder's rungs at the same levels: 12 at 1, 185 at 30, 500 at 45, 940 at 60). Sized under the clamp like every
    rung here (the note above). */
 const BIND = Object.freeze([
   { blanks: 6, qty: 45, xp: 12, ms: 3400 },
-  { blanks: 12, qty: 40, xp: 60, ms: 3500 },
+  { blanks: 18, qty: 40, xp: 60, ms: 3500 },
   { blanks: 20, qty: 36, xp: 185, ms: 3600 },
   { blanks: 28, qty: 32, xp: 500, ms: 3800 },
   { blanks: 36, qty: 28, xp: 940, ms: 4000 },
@@ -134,7 +135,7 @@ export const STONECRAFT_ITEMS = {
      (The Stonemason seam was cut in the 2026-10-14 demolition.)
      W0: Runecrafting's own blank stock, mined on its bench (RAW_QUARRIED).
      v 15 keeps the essence->blank cuts at 3.0x/3.3x vendor, 1.0x/1.1x book. */
-  rune_essence:    { n: 'Rune Essence',    icon: '🪨', v: 15, tier: 1, rarity: 'common' },
+  rune_essence:    { n: 'Rune Essence',    icon: '🪨', v: 5, tier: 1, rarity: 'common' },
   rune_blank:      { n: 'Blank Rune',      icon: '⬜', v: 3,  tier: 1, rarity: 'common' },
 
   /* ══ RUNES — spell reagents, family x tier (RUNE_ROWS above; Tyler 2026-10-23,
@@ -174,12 +175,12 @@ export const STONECRAFT_ITEMS = {
      protect and a free stone was a free +2 strB forever. 0.02 like its ladder: one stone per fifty
      swings. The arrow's first rung stays FREE: an empty quiver IS a penalty. It books at 0 (W0). */
   coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 0,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'melee', reqLv: AMMO_REQ_LV[0], strB: AMMO_STAT[0], ammoPerShot: 0.02 },
-  copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 15,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'melee', reqLv: AMMO_REQ_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
-  iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 48,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'melee', reqLv: AMMO_REQ_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
-  steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 108, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'melee', reqLv: AMMO_REQ_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
-  mithril_whetstone: { n: 'Mithril Whetstone',  icon: '🪨', v: 190, type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'melee', reqLv: AMMO_REQ_LV[4], strB: AMMO_STAT[4], ammoPerShot: 0.02 },
-  rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 365, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'melee', reqLv: AMMO_REQ_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
-  dawn_whetstone:    { n: 'Dawnsteel Whetstone',icon: '🪨', v: 990, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'melee', reqLv: AMMO_REQ_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
+  copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'melee', reqLv: AMMO_REQ_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
+  iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 3,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'melee', reqLv: AMMO_REQ_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
+  steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 11, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'melee', reqLv: AMMO_REQ_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
+  mithril_whetstone: { n: 'Mithril Whetstone',  icon: '🪨', v: 12, type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'melee', reqLv: AMMO_REQ_LV[4], strB: AMMO_STAT[4], ammoPerShot: 0.02 },
+  rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 20, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'melee', reqLv: AMMO_REQ_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
+  dawn_whetstone:    { n: 'Dawnsteel Whetstone',icon: '🪨', v: 100, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'melee', reqLv: AMMO_REQ_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
 
 };
 
@@ -200,7 +201,7 @@ export const STONECRAFT_RECIPES = {
        (every family's Chalked rune, at 1); the skill mines its own essence (a
        bench row paid to Mining, the quarry pattern: a level-1 ROCKS node would
        break the one-node-per-level bench gate) and cuts its own blanks. */
-    { id: 'cut_rune_blanks',    name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 4 },            output: 'rune_blank', outputQty: 12, xp: 8,   req: 1,  ms: 2800 },
+    { id: 'cut_rune_blanks',    name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 6 },            output: 'rune_blank', outputQty: 12, xp: 8,   req: 1,  ms: 2800 },
     { id: 'split_rune_blanks',  name: 'Split Blank Runes',    icon: '⬜', inputs: { rune_essence: 6 },            output: 'rune_blank', outputQty: 6,  xp: 40,  req: 12, ms: 3000 },
     /* THE BIND LADDER (lane b-spell-content, Tyler 2026-10-23): one bind a rune, family x tier (BIND_RECIPES
        above), the Blank Rune in, a new tier every 15 levels from 1 to 60. Runecrafting above 60 waits on later

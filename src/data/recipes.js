@@ -231,8 +231,8 @@ const BASE_RECIPES = {
 
        The faucet was never the batch anyway — it was `iron_arrows.v` at 60,
        fixed at the item (see the block in src/data/items.js). At v:1 this rung
-       vendors for 50 g against 180 g of input, i.e. it is no longer profitable
-       to farm, which is CORRECT for a consumable: arrows are made to be shot,
+       vendors for 50 g; since the craft wage (designer 2026-11-01) its inputs bid 24 g and the
+       whole cycle from the rock pays under hunting (tests/craft-wages.mjs): arrows are made to be shot,
        not sold, and paying for the capability is the point.
 
        ⏳ REDUNDANCY, STATED FOR THE GAME DESIGNER: `fletch_barbed_arrows` is
@@ -240,8 +240,8 @@ const BASE_RECIPES = {
        this one — so this rung is now strictly dominated and is a retire-or-merge
        candidate. Deliberately NOT done here: that is a content decision. */
     /* Iron Bolts: Barbed Arrows' inputs and level, so the choice is accuracy against weight. */
-    {id:'fletch_iron_bolts',      name:'Fletch Iron Bolts ×50',   icon:'🏹', inputs:{iron_bar:2, oak_plank:2},             output:'iron_bolts', outputQty:50, xp:150, req:18, ms:3400},
-    {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:5},          output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
+    {id:'fletch_iron_bolts',      name:'Fletch Iron Bolts ×50',   icon:'🏹', inputs:{iron_bar:3, oak_plank:3},             output:'iron_bolts', outputQty:50, xp:150, req:18, ms:3400},
+    {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:6},          output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
     /* b215: the last two planks — crafting stopped at 78 before this. */
     {id:'saw_runewood', name:'Runewood Plank', icon:'🪵', input:'runewood_log', output:'runewood_plank', xp:260, req:75, ms:6500},
     /* SELF-SUPPLY RULING (2026-09-13): 90 → 88, the Dawnsteel tier's own craft

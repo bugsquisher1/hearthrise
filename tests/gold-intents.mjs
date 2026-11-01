@@ -590,14 +590,16 @@ async function run(mutate) {
       /* WORN GEAR at half book (Tyler 2026-10-23, loot-bands.js VENDOR_GEAR_RATE), under the b565 cap: maul 110 -> 55
          (cap 70), bow 90 -> 45 (cap 60), staff 80 -> 40 (cap 60). */
       stone_maul: 55, shortbow: 45, apprentice_staff: 40,
-      rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
+      /* A Blank Rune is a bulk good since the craft wage (designer 2026-11-01, items.js BULK_GOODS): a fifth of its book, floored at 1. */
+      rune_blank: 1, goldenroot_seed: 75, emberfruit_seed: 150,
       /* Lane S2 (Coordinator ruling, 2026-10-18): cooked food is back on the shop
          as `supply.*` offers at the designer's rate (salted price a point x the
          food's heal: shrimp 19, trout 56, lobster 250), so the b565 cap applies
          again: floor(0.5 x the shop price) = 9 / 28 / 125 (was 18 / 55 / 240 while
-         the Counter sold none, master plan row 2). Taking food off the shop again,
-         or a price change, turns this red. */
-      cooked_lobster: 125, cooked_trout: 28, cooked_shrimp: 9,
+         the Counter sold none, master plan row 2). THE CRAFT WAGE (designer 2026-11-01): their book values fell under that
+         cap (a fish from the sea to the shop pays under hunting, tests/craft-wages.mjs), so the bid is the book value now and the cap
+         only stands over it (tests/vendor-shop-arbitrage.mjs). A price change turns this red. */
+      cooked_lobster: 16, cooked_trout: 8, cooked_shrimp: 3,
     };
     const offRuling = Object.keys(BUYBACK_EXPECT)
       .filter((id) => cat.vendorPriceOf(ITEMS, id) !== BUYBACK_EXPECT[id])

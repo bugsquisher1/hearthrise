@@ -45,6 +45,8 @@ import { noShotWords } from './hunt-go.js?v=0.2.80';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.80';
 import { deathSeen } from './death-popup.js?v=0.2.80';
 import { awayRecapOf, stampAway, markBack } from './away-recap.js?v=0.2.80';
+import { benchStopRecapOf } from './bench-fee.js?v=0.2.80';
+import { workRow } from './town-work.js?v=0.2.80';
 import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.80';
 import { tallyTask } from '../data/tally-tasks.js?v=0.2.80';
 import { gold } from '../render/format.js?v=0.2.80';
@@ -209,6 +211,9 @@ export function createAlertCenter(account) {
     /* "While you were away" (away-recap.js): judged against the last-seen stamp BEFORE it is renewed. */
     const away = awayRecapOf(cs);
     if (away) { now.push(away); markBack(cs, away.session); }
+    /* A bench the server stopped for gold says so once, watched or not (the work bench tax: bench-fee.js). */
+    const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
+    if (broke) now.push(broke);
     for (const c of now) any = fire(cs, c) || any;
     stampAway(cs);
     /* An invite the server no longer lists (answered elsewhere, expired, its party gone) leaves the lines. */

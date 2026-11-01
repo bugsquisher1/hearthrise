@@ -204,7 +204,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    one carries it; hr_hunt_grounds.spawns of the Cellar, the Thicket, Wickstead and the Glade grows by pockets x the largest pull, the
    same full replace. The bound only WIDENS: this file applies BEFORE the hr-accrue carrying the pull deploys (an edge first has every
    such party refused kills_over, then forfeited). */
-export const OUT_NAME = '2027-02-16-party-pull-hunt-sessions-catalogue.generated.sql';
+/* THE CRAFT WAGE (lane/c-craft-economy, designer 2026-11-01): 2027-02-16-party-pull is the file before this one, and this one carries it;
+   hr_hunt_vendor_value moves for gathered and refined goods, the same full replace. No kill bound, spawn or shape moves. */
+export const OUT_NAME = '2027-02-18-craft-economy-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -643,7 +645,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/b-party-class-xp, designer 2026-11-01): a party that picks no pull plays its ground's default
+-- NEW IN THIS FILE (lane/c-craft-economy, designer 2026-11-01): hr_hunt_vendor_value, the shop's bid and the Weighhouse's floor,
+-- falls for gathered and refined goods (src/data/items.js BULK_GOODS). No kill bound, spawn or limit moves, and the world's shape is
+-- unchanged (no world_shape_pending on either order). Four of the goods also drop in the Warrens and the Glade (Copper Ore, Coal, Iron
+-- Ore, Gold Ore); their loot sells for less, measured on the priority board. ORDER: after 2027-02-16-party-pull-hunt-sessions-catalogue
+-- and 2027-02-18-craft-economy-items-catalogue, then the hr-accrue carrying the same prices at once: until it lands the old engine's
+-- vendor_sell pays the old price while the Weighhouse's floor is already the new one. Applied alone it pauses nothing.
+--
+-- CARRIED FROM 2027-02-16 (lane/b-party-class-xp, designer 2026-11-01): a party that picks no pull plays its ground's default
 -- (hunt-grounds.js partyPull: the Cellar 4/5/5, the Thicket, Wickstead and the Glade 3/3/4), at a frozen hunt_instances.density
 -- of 0. hr_hunt_apply_member counts spawns + pockets x that density, so hr_hunt_grounds.spawns grows by pockets x the largest
 -- pull on those four rows; nothing else moves, the world's shape included (no world_shape_pending). The bound only widens.
@@ -1136,6 +1145,22 @@ ${r.drops.map((d) => `    (${sq(d.hunt)}, ${sq(d.item)}, ${d.need})`).join(',\n'
    order by 1 limit 1;
   if v_t is not null then
     raise exception 'the settle''s item bound is under what a monster of the ground drops: % (hunt item)', v_t; end if;` : '  -- (no ground ships: no drop to bound)'}
+  -- THE CRAFT WAGE (2027-02-18): the items catalogue landed first, and the Weighhouse reads the new floor; refined goods are bid at a
+  -- fifth of book, and no item a ground can drop lost its bid (a stack the shop will not buy is a stack sell-all leaves in the bag).
+  if (select i.value from public.hr_items i where i.item_id = 'iron_bar') is distinct from ${S_BOOK('iron_bar')} then
+    raise exception 'apply 2027-02-18-craft-economy-items-catalogue.generated.sql first: hr_items.iron_bar is not ${S_BOOK('iron_bar')}'; end if;
+  if (select floor_each from public.hr_market_items where item_id = 'iron_bar') is distinct from ${S_BID('iron_bar')}::bigint
+     or (select listable from public.hr_market_items where item_id = 'iron_bar') is not true then
+    raise exception 'the Weighhouse does not list an Iron Bar from its new floor'; end if;
+  if exists (select 1 from public.hr_hunt_vendor_value v join public.hr_items i on i.item_id = v.item_id
+              where v.item_id in ('copper_bar', 'iron_bar', 'steel_bar', 'oak_plank', 'willow_plank', 'timber_beam', 'iron_fitting')
+                and v.unit * 5 > i.value) then
+    raise exception 'a refined good is bid above a fifth of its book value'; end if;
+${r.drops.length ? `  select d.item_id into v_t from (values
+${[...new Set(r.drops.map((d) => d.item))].filter((id) => S_BID(id) > 0).map((id) => `    (${sq(id)})`).join(',\n')}
+  ) d (item_id)
+   where not exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = d.item_id and v.unit >= 1) order by 1 limit 1;
+  if v_t is not null then raise exception 'a ground drops % and the shop lost its bid', v_t; end if;` : ''}
   -- The Magic-XP bound covers the biggest store drink at one drink a consumable lane (else a settle that
   -- drank the basics it bought is refused as over-bound).
   if public.hr_hunt_limit('drink_mana_per_min_max')
@@ -1154,6 +1179,10 @@ ${r.drops.map((d) => `    (${sq(d.hunt)}, ${sq(d.item)}, ${d.need})`).join(',\n'
 end $$;
 `;
 }
+
+/* The prices the craft-wage self-check pins, from the one source (never typed). */
+function S_BOOK(id) { return Math.trunc(Number(ITEMS[id].v)); }
+function S_BID(id) { return vendorPriceOf(ITEMS, id); }
 
 /* --selftest: every refusal bites, and the shipped data passes. */
 function selftest() {

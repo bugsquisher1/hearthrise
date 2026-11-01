@@ -127,7 +127,7 @@ export const ENGINE_STATE_KEYS = Object.freeze([
   'toolCarry', 'ammoCarry', 'fight',
   'deathsTodayBefore', 'deathsLifetimeBefore',
   'hearthfindReady',
-  'storage', 'bagCap',
+  'storage', 'bagCap', 'benchTax',
 ]);
 
 /* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql, Tyler 2026-10-25): the account's Storage a bench
@@ -224,6 +224,10 @@ export function engineInputsFromEnvelope(env, nowMs) {
     /* THE BAG'S STACK CAP (player_state.bank_cap: hr_apply's bank_full fuse), so a bench stops BAG_FULL
        instead of proposing a stack the server refuses. null = unknown, no fuse. */
     bagCap: Number.isSafeInteger(st.bank_cap) && st.bank_cap > 0 ? st.bank_cap : null,
+    /* THE WORK BENCH TAX (2027-02-19-bench-tax.sql): the running job's fee, the carry and the gold kept. The section is the
+       switch: a database without it has no tax and an hr_apply that would refuse a `bench_tax` key, so an edge deployed before
+       the migration proposes none. */
+    benchTax: e.bench_tax ?? null,
     /* THE CONSUMABLE BUFF QUEUE (2026-09-13). player_state.buffs, written only
        by hr_apply's buff_apply block from hr_item_buffs + now(). PRESENCE OF
        KEY, not `|| []`: an ABSENT key means this database has no buff column

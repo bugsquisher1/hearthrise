@@ -57,7 +57,7 @@ export const ROCKS=[
   {id:'copper_rock',name:'Copper Rock',icon:'🟤',req:1,xp:21,ms:3000,prod:'copper_ore',qty:[1,1]},
   /* Game Designer ruling: Runecrafting's essence is MINED like copper, not
      conjured on the Runecrafting bench, so hired hands and the world tick work
-     it like any ore and it vendors at the raw 20% bid (3 g). */
+     it like any ore and it vendors at the raw 20% bid (1 g since the craft wage, designer 2026-11-01). */
   {id:'essence_rock',name:'Rune Essence',icon:'🪨',req:1,xp:21,ms:3000,prod:'rune_essence',qty:[1,1]},
   /* COAL AT ANY LEVEL (Tyler 2026-10-14, rulings-of-record: "first tiers, including
      coal, are gatherable at the town edge at any level"; lane/c-work-fixes 2026-10-22).

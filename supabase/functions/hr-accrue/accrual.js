@@ -101,6 +101,7 @@ import {
   simulateArtisanSpan, STOP_REASON as ARTISAN_STOP, benchPayable, benchBlockedBy,
 } from '../../../src/core/artisan-sim.js';
 import { BENCH_COUNTERS } from '../../../src/core/artisan.js';
+import { taxFor } from '../../../src/core/bench-tax.js';
 /* WHICH hours of an over-cap absence are credited. One definition, imported by
    both the server and (through core-bridge) the client — the flip from
    last-window to first-window crediting is a property of the away model, not a
@@ -1985,6 +1986,10 @@ function accrueArtisan(inp, span) {
      out. It caps the span like the degrade ladder's budget, and the run ENDS on the action that
      reaches it (below), so N actions are paid however the settles are cut. */
   const left0 = Number.isInteger(inp.activeLeft) && inp.activeLeft > 0 ? inp.activeLeft : null;
+  /* THE WORK BENCH TAX (Tyler 2026-11-01): the running job's fee, the carry and what the hero keeps, all from the server's
+     `bench_tax` section; the purse is the envelope's. null (no section, a free job, the account owns the room) = no tax and no
+     `bench_tax` key. hr_apply re-derives every number under the character lock (2027-02-19-bench-tax.sql). */
+  const tax = taxFor(inp.benchTax, inp.benchTax && inp.benchTax.now_mg, inp.gold);
   /* Equipment reaches an artisan night through exactly one channel — `xpB`,
      the same term the client's xpGrantCtx() supplies. A bench has no accuracy,
      no max hit and no swing speed. (Tool speed is not equipment: it is the best
@@ -2169,6 +2174,7 @@ function accrueArtisan(inp, span) {
     /* THE BAG'S STACK CAP (envelope.js bagCap, player_state.bank_cap): a product with no room stops the bench
        BAG_FULL (artisan-sim.js bagFullFor) rather than proposing a stack hr_apply refuses bank_full. */
     bagCap: Number.isSafeInteger(inp.bagCap) && inp.bagCap > 0 ? inp.bagCap : null,
+    tax,
     /* `minStepMs` is NOT SET, so `resolveStepMs` uses the real MIN_ACTION_MS
        floor. This object is built field by field and nothing is spread into it:
        if it were built from a request body, `minStepMs` would ride in through
@@ -2287,6 +2293,8 @@ function accrueArtisan(inp, span) {
                 || summary.stoppedBy === ARTISAN_STOP.GATE
                 /* A full bag stops the bench like an empty input: it cannot pay until the player makes room. */
                 || summary.stoppedBy === ARTISAN_STOP.BAG_FULL
+                /* Nor can it pay until the purse is fed: the end card says so (`stopped: 'gold'`, the run's tally). */
+                || summary.stoppedBy === ARTISAN_STOP.GOLD
                 || counted;
   const nothingHappened = itemKinds === 0 && Object.keys(xpDelta).length === 0 && summary.ticks === 0;
   if (nothingHappened && !stopped) return { accrued: false, reason: SKIP.NOTHING, summary };
@@ -2376,6 +2384,11 @@ function accrueArtisan(inp, span) {
     if (Object.keys(fr).length) delta.xp_frac = fr;
   }
   if (progress.length) delta.progress = progress;
+  /* THE TAX: the count hr_apply prices (never a rate), and the gold it must come to. */
+  if (tax) {
+    delta.bench_tax = { crafts: Math.floor(nat(summary.ticks, 0)) };
+    if (tax.paid > 0) delta.gold = -tax.paid;
+  }
   /* THE CARRY, written back only when the server actually owns it — see the
      `toolCarry` note in computeAccrual's contract. Artisan tools share the one
      `{ skill: 0..1 }` map with gathering tools, keyed by bench, so a smithing
@@ -2405,7 +2418,7 @@ function accrueArtisan(inp, span) {
     summary: {
       ...summary,
       ...windowEnvelope(credit, summary.stoppedBy ? summary.paidMs : null),
-      gold: 0,
+      gold: tax ? -tax.paid : 0,
       xp: xpDelta,
       items: items_,
       levelUps,

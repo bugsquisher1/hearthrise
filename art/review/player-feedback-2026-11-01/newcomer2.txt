@@ -1,33 +1,195 @@
-HEARTHRISE v0.2.81 - BLIND NEWCOMER PLAYTEST 2 (f5-newcomer)
-Persona: first-time player, 1366x768 laptop, link from a friend, ~10 minutes of patience.
-Harness: tools/qa/local-world.mjs (PGlite world, real play.html), Playwright Chromium 1366x768, driven by a small local control server.
-STATUS: IN PROGRESS - this file is saved as I go. Sections are filled in order; the final commit is "LANE DONE".
+HEARTHRISE v0.2.81 - BLIND NEWCOMER PLAYTEST 2 (lane/f5-newcomer)
 
-=== TIMELINE (running log) ===
-[t+0:05] Sign-in screen. Logo + Email/Password + Sign in. "Create an account" / "Forgot your password?" links. Nothing says what the game is.
-[t+0:07] Sign-up: short password -> "Use at least 10 characters." Mismatch -> "The two passwords do not match." Valid -> green "Check your email for a link to finish creating your account. If you already have an account, sign in instead." (button stays live; no automatic move back to sign-in). Harness auto-confirms accounts, so I clicked Back to sign in and signed in.
-[t+0:09] Characters screen: "Signed in as ... You own 2 hero slots, and up to 4 heroes can play at once. More slots cost gold: the third is 15,000." Two "Empty slot / Create hero" rows.
-[t+0:10] Create hero: Name + 4 colour rows (Head/Body/Legs/Feet) + "How you fight" panel. At 1366x768 the logo takes the top half; "Enter town" sits at y=985, below the fold, page scrolls (scrollHeight 1073). Empty name -> "A name needs at least 3 letters." (good).
-[t+0:12] Named hero Wren, picked Body colour 14 (blue), Enter town. In town as a silver knight (not my colours; creation text did say outfits can't be dyed yet).
-[t+0:16] First town: zoomed-in view of a cobbled square, my hero alone ("1 online"). Coach card 1 "Every weapon is a style" (Got it). Coach card 2 "Rats in the mill: The miller has rats in his grain. Open Hunts and enter the Mill Cellar." (ring on the Hunts icon). 17 icon-only buttons across the top; hotkeys only in hover titles.
-[t+0:18] Hunts window (H): 6 grounds listed (Mill Cellar L1-8 "Fits your level"; Meadowbrook L5-15, Sewer L8-25, Wickstead L8-18, Mosslight Glade L16-31, Coppercap Warrens L32-50, all "Above/Far above your level"). The window at 1366x768 is ~790x440: list shows 3 of 6 grounds, detail pane shows ~4 lines (drops table below the fold, scroll inside). The coach line "Press the Mill Cellar, then Enter" is repeated by the line under it "Pick a hunt, then Enter".
-[t+0:19] Enter -> walked in, hunting alone. Coach "Your hero fights alone: You don't click to attack..." Hunt looks alive (Power Strike, miss, damage numbers, rats, wasps). In 43 s: 7 kills, XP 84% of Lv1, "Your first Level" banner.
-[t+0:22] skip 10 min: Lv 4, 82 kills, 117 gp, loot value 165 gp. Coach "Plant your land" fires mid-hunt (Farm icon ringed). Opened Farm from the hunt, planted 2 Turnips (8 seeds come in the bag), Water -> "grows twice as fast for 2 hours".
-[t+0:27] ABSENCE 1 (1 h, hero HUNTING, tab closed, same browser profile): characters screen showed "Wren / Level 6 · Hunting in Mill Cellar / Play". Play -> hunt view with a recap card: "While you were away (1 h 0 min), Wren hunted Mill Cellar: Level 4 to 6, +7,273 Level XP, +689 gold, 472 kills. Still hunting, with 10 h 46 min of stamina left." + "See the hunt" / dismiss. Clear and good. A collapsed coach card "Cash in" (title only, Leave hunt ringed); clicking it expands: "You're Level 6. Leave the hunt to go back to town. Your loot is already in your bag."
-[t+0:30] Leave hunt: button shows "Leaving in 21s", hunt keeps running ~25 s, then Hunt summary window in town (Time, Monsters, Level XP, Gold, Loot value (unsold), Balance, per hour; "Next: Feed the Hearth", "Hunt again").
-[t+0:33] Next: Feed the Hearth -> Inventory opens with coach "Press the Bones, then Fuel all." Selected Bones, "Fuel all 59": hero walks to the Great Hearth, burns them over ~35 s (status "fueling the Great Hea..." clipped in the top bar), result "Done: +920 Inner Flame XP." (Inner Flame = a skill the game never introduced before this.)
-[t+0:36] Coach "Before the wolves" (long: dying ends the hunt, costs 2% Level XP, blessings free until Lv 30, "open the Shop's Services tab and Bless all three"). Shop: coach "Sell what only pays coin"; Sell tab -> "Sell all loot - 658 gp" -> confirm dialog "Sell 7 stacks? Sell for 658 gp / Cancel" -> "The shop paid 658 gp." (gold 1,352 -> 2,010). It correctly kept Silk Thread / Lamp Jelly and did not sell the 8 helmets. Services tab: Blessing I/II/III free, all bought in 3 clicks. Stamina refill: "Buy 1 h 11 m - 296 gp".
-[t+0:38] Character window: Level 6, Melee 8, Defense 5, Inner Flame 5, "Hit chance 67% against no armor", "Armor worn: None yet."
-[t+0:45] Helmet slot -> list of 3 helmets with stat lines and a Wear button; wearing Bronze Helm re-prices the others ("-1 Defense..." vs "No change") and the doll says "1 heavy (+4.6% max HP)". Gathering & crafting window: title clipped "Gathering and cr..." Started Woodcutting (Normal Tree, "keeps going while you are away. A hunt stops it").
-[t+0:55] ABSENCE 2 (8 h, hero CHOPPING in town, tab closed): characters screen "Level 6 - In town, chopping the Normal Tree". Return recap: "While you were away (8 h 0 min), Wren chopped the Normal Tree: +6,009 Normal Log, Woodcutting 1 to 39. Still chopping." Farm: both turnips "Ready", buttons "Harvest and replant" / "Harvest only"; "Harvested 3 Turnip (+1,008 Farming XP). Planted it again." Coach "Tamsin's wolves" is a 12-line wall of text that covers a third of the screen.
-[t+1:00] Crafting: "Sew Apprentice Slippers: 1 done. 2 gold paid to the public bench." Starting a craft silently ended my woodcutting job (status went to "In town, idle"). Tamsin's tally: Take buttons are disabled until an armor weight is picked, with no tooltip/reason; the board itself is below the fold under the armor picker. Took "200 Gray Wolves" (Meadowbrook, 480 gp + Bronze Helm).
-[t+1:05] Shop Buy: Leather Gloves 160 + Bronze Belt 220 ("Paid 160 gp."). Inventory "Equip upgrades" button put both on in one press ("Put on 2 pieces", 2 heavy +9.3% max HP).
-[t+1:10] Meadowbrook Thicket (Lv 6, "Fits your level"): pretty forest, coach "Your action bar". Tally widget on the hunt screen shows only its header "Tally" (32 px tall, clipped above the action bar); the counter text "Gray Wolves 1/200" is not visible. 30 min skip: 279 kills, 21,097 Level XP/h, no danger.
-[t+1:15] ABSENCE 3 (1 h, hero HUNTING Meadowbrook): "Level 7 - Hunting in Meadowbrook Thicket"; recap "Level 6 to 7, +21,546 Level XP, +1,383 gold, 546 kills. Still hunting, with 10 h 28 min of stamina left."
-[t+1:20] Skipped 4 h + 2 h more: Lv 9 then Lv 10 (7 h 32 min session, 4,396 kills, 11,000 gp + 9,709 gp loot, 6 Cooked Shrimp used). Task done: "Tamsin paid Wren 480 gp and a Bronze Helm for Gray Wolves." (paid automatically on return). Never close to dying in Mill Cellar or Meadowbrook.
-[step 30] Summary "Next: Wear what you found" -> Inventory -> "Equip upgrades" -> "Put on 3 pieces" (5 heavy +23.3% max HP). The hero sprite in the world does not change with armor (doll says "Your outfit is only a look"). Shop Sell all loot again: +2,054 gp (it left Wolf Pelt/Bones/Raw Wolf Meat/Silk Thread/Lamp Jelly "keeps for use"). Gold 15,162.
-[step 31] House window: "The deed I Hearthside Homestead: 400 gp, Copper Ore 20 (none in your bag or Storage) - Gathered with Mining. Normal Log 30". Mined Copper Rock (131 ore in ~10 min of town time), bought the deed through a confirm ("Pay 400 gp"), then built the Kitchen Garden (600 gp + 20 Wheat; no confirm). The next steps show costs and where to get each material. This is the clearest "what next" chain in the game.
-[step 32] Panel sweep at 1366x768 (see PANELS section): every window fits inside the viewport and stops above the action bar; content scrolls inside a ~380 px body. Market (Weighhouse) says "isn't trading right now" in this world.
-[step 33] Mosslight Glade at Lv 10 ("Above your level" - "In weak armor you can spend more on food than you earn, or die"): 54k Level XP/h, no danger. Coppercap Warrens: "You are too far below this hunt to enter it yet." (hard gate, good). The Sewer at Lv 10: 41k XP/h, food ran out and "Salted Shrimp (store)" was auto-bought at 14 gp each (Supplies used). Never died or came close in 4 grounds from Lv 1 to 12.
-[step 34] Stamina ended after 4 h 25 min in the Sewer: "Your stamina ran out, so your hero came home. It comes back hour for hour while you aren't hunting. Stamina now: 10 min." The hero then went back to the Copper Rock job I had started earlier (status "In town, mining the Copper Rock") without my asking.
-[t+0:25] Bag (while hunting): Inventory window is cut off at the bottom at 1366x768; footer (19 of 100 spaces, gold, Dispatch loot) only after scrolling inside the window. "Dispatch loot" is disabled with the hover reason "works in town".
+Persona: a first-time player on a mid-range 1366x768 laptop, link from a friend, patient for about ten minutes, not a Tibia/RuneScape veteran.
+Method: tools/qa/local-world.mjs (the real play.html over a local PGlite world), Playwright Chromium at 1366x768, driven by a small local control server. I read only the screen (page text, screenshots, element rectangles). I did not read src/, docs/, tests/, CHANGELOG, earlier reports or memory. Every number below is something the screen showed me.
+Time: about 50 minutes of my wall time; about 20 hours of hero hunting time, 9 hours of town time and three tab-closed absences, all through the world's skip/wait.
+Screenshots: art/review/player-feedback-2026-11-01/newcomer2-shots/ (29 files; names are cited as [shot NN]).
+Labels: "FACT" = something I saw. "OPINION" = my judgement as that player. Severity: P0 can't continue or loses progress; P1 a new player gets stuck or misled; P2 friction.
+
+========================================================================
+1. WHAT I PLAYED, AND WHAT I DID NOT REACH
+========================================================================
+Played, in order:
+- Sign-in screen, sign-up (short password, mismatched password, valid), sign-in, character list, hero creation (empty name, short name, colours), first town, both first coach cards.
+- First hunt (Mill Cellar), watched live for 43 s, then 10 min and 11 min of skipped time. Planted and watered 2 turnips from inside the hunt. Opened the bag while hunting.
+- ABSENCE 1: closed the tab for 1 h while the hero HUNTED (Mill Cellar). Returned via the character list.
+- Leave hunt -> Hunt summary -> "Next: Feed the Hearth" (burned 59 Bones) -> "Before the wolves" coach -> Shop (Sell all loot, Blessings I-III, stamina price) -> Character window.
+- Equipped a helmet from the doll, opened Gathering and crafting, started Woodcutting.
+- ABSENCE 2: closed the tab for 8 h while the hero WORKED IN TOWN (chopping). Returned, harvested the farm, crafted Apprentice Slippers, opened Tamsin's tally and took a task, bought Leather Gloves and a Bronze Belt, used "Equip upgrades".
+- Meadowbrook Thicket (Lv 6 to 10): 20 s live, 30 min, ABSENCE 3: closed the tab for 1 h while the hero HUNTED Meadowbrook, then 4 h + 2 h more, Tamsin's task paid, Lv 10.
+- Wear what you found, second Sell all loot, House (mined 131 Copper Ore, bought the Hearthside Homestead deed, built the Kitchen Garden), the Home view, a sweep of every panel at 1366x768.
+- Mosslight Glade (Lv 10, "Above your level"), Coppercap Warrens (refused), The Sewer (Lv 10 to 12, ran out of stamina), stamina purchases (Shop and top-bar), Wickstead (Lv 12 to 15), reload in the middle of a hunt, All characters, creating a second hero (Bryn), Chat/Friends/Report/Settings Help text, the action-slot chooser.
+- Death: my main hero never came close to dying. The second hero (Bryn, Lv 1) entered The Sewer (a Lv 8+ ground) on purpose and died; I saw the whole death flow.
+Reached: Lv 15 on Wren (about 19.6 h of hunting: Mill Cellar 1.2 h, Meadowbrook 7.5 h, Glade 0.35 h, Sewer 4.4 h, Wickstead 6 h). Bryn Lv 5 and one death.
+
+NOT reached (say so plainly):
+- Real email confirmation and real production sign-in (the harness confirms accounts at once).
+- Any other human: no party play, no real chat, friends or market. "2 online" was my own second hero.
+- The Weighhouse (market): the window said it "isn't trading right now" in this world.
+- Any weapon other than sword and shield (no bow, wand or staff play), saved setups, action-bar conditions beyond opening the chooser.
+- Fishing, Cooking, Smithing, Runecrafting, any farm crop beyond Turnip, the House past the first deed and the Garden, Millrace Crate.
+- Levels above 15, Coppercap Warrens (gated at Lv 10), Mosslight Glade for more than 20 min.
+- A real-time first ten minutes: I used the time skip to save wall time. I did watch the first 43 s and the first Mill Cellar fights live.
+- Phone, touch or any viewport other than 1366x768.
+- A death of the main hero.
+
+========================================================================
+2. TIMELINE (what happened and what the screen told me)
+========================================================================
+01 SIGN-IN [shot 01]. Logo, Email, Password, "Sign in", "Create an account", "Forgot your password?". Nothing says what the game is.
+02 SIGN-UP. Password "short" -> "Use at least 10 characters." Mismatch -> "The two passwords do not match." Valid -> green "Check your email for a link to finish creating your account. If you already have an account, sign in instead." [shot 04]. The Create account button stays live and nothing moves me back to sign-in. (Harness: account already confirmed; I pressed Back to sign in.)
+03 CHARACTER LIST. "Signed in as ... You own 2 hero slots, and up to 4 heroes can play at once. More slots cost gold: the third is 15,000." Two "Empty slot / Create hero" rows.
+04 CREATE HERO [shot 06]. Name, four colour rows, a "How you fight" panel. At 1366x768 the big logo fills the top half; "Enter town" is at y=985 (page height 1073), so I had to scroll to find it. Empty name -> "A name needs at least 3 letters." Named "Wren", picked body colour 14 (blue).
+05 FIRST TOWN [shot 09]. A zoomed-in cobbled square, my hero alone ("1 online"). Coach 1 "Every weapon is a style" -> Got it. Coach 2 "Rats in the mill: The miller has rats in his grain. Open Hunts and enter the Mill Cellar." with a ring on the Hunts icon. The hero is a silver knight, not my blue.
+06 HUNTS WINDOW [shot 11]. Six grounds: Mill Cellar (L1-8, "Fits your level"), Meadowbrook Thicket (L5-15), The Sewer (L8-25), Wickstead (L8-18), Mosslight Glade (L16-31), Coppercap Warrens (L32-50). The window is about 790x445; the list shows 3 grounds and the detail pane about 4 lines; drops, packs and "Before you go" are below the fold inside the pane.
+07 FIRST HUNT [shots 12, 14]. Enter -> hero walks in and fights by itself; coach "Your hero fights alone: You don't click to attack." In 43 s: 7 kills, XP 84% of Lv 1, banner "Your first Level". After a skipped 10 min: Lv 4, 82 kills, 117 gp. Coach "Plant your land" appeared mid-hunt (Farm icon ringed); I planted 2 Turnips from inside the hunt and watered one ("grows twice as fast for 2 hours").
+08 BAG WHILE HUNTING [shot 20]. The Inventory window is cut off at the bottom; footer rows (19 of 100 spaces, gold, Dispatch loot) need an inner scroll. "Dispatch loot" disabled with a hover reason.
+09 ABSENCE 1 (1 h, HUNTING, tab closed) [shots 21, 22]. Character list row: "Wren / Level 6 · Hunting in Mill Cellar / Play". After Play: recap card "While you were away (1 h 0 min), Wren hunted Mill Cellar: Level 4 to 6, +7,273 Level XP, +689 gold, 472 kills. Still hunting, with 10 h 46 min of stamina left." plus "See the hunt" and a dismiss button. The hunt analyzer showed the whole session (576 kills, 843 gp). Good.
+10 LEAVE HUNT [shot 25]. "Leaving in 21s" on the button; about 25 s later the hero is in town and a Hunt summary window opens (Time, Monsters, Level XP, Gold, Loot value (unsold), Balance, per hour) with "Next: Feed the Hearth" and "Hunt again".
+11 FEED THE HEARTH [shots 26, 29]. Coach "Press the Bones, then Fuel all." Selected Bones, pressed "Fuel all 59": the hero walked across town to the Great Hearth and burned them over about 35 s, ending with "Done: +920 Inner Flame XP." Then coach "Before the wolves" (dying costs 2% Level XP, blessings are free until Lv 30, "Bless all three").
+12 SHOP [shot 32]. Coach "Sell what only pays coin". Sell tab -> "Sell all loot · 658 gp" -> confirm "Sell 7 stacks? Sell for 658 gp / Cancel" -> "The shop paid 658 gp." (1,352 -> 2,010). It kept Silk Thread and Lamp Jelly and did not sell the helmets. Services tab: Blessing I, II, III all "free", three clicks. Stamina refill listed ("Buy 1 h 11 m · 296 gp").
+13 CHARACTER WINDOW [shot 39]. Lv 6, Melee 8, Defense 5, Inner Flame 5, "Hit chance 67% against no armor", "Armor worn: None yet."
+14 HELMET. Clicking the Helmet slot on the doll listed Leather Coif / Apprentice Hat / Bronze Helm with stat lines and a Wear button. After Wear, the others re-priced ("-1 Defense..." vs "No change") and the doll said "1 heavy (+4.6% max HP)".
+15 GATHERING AND CRAFTING [shot 43]. Window title shows "Gathering and cr...". Woodcutting: "Normal Tree, Normal Log · 4.8 s · 5 XP each"; started it.
+16 ABSENCE 2 (8 h, hero CHOPPING in town, tab closed) [shot 47]. List row "Level 6 · In town, chopping the Normal Tree". Recap: "While you were away (8 h 0 min), Wren chopped the Normal Tree: +6,009 Normal Log, Woodcutting 1 to 39. Still chopping." Stamina back to 12:00h. Farm: both Turnips "Ready", buttons "Harvest and replant" / "Harvest only" -> "Harvested 3 Turnip (+1,008 Farming XP). Planted it again."  A second coach card, "Tamsin's wolves", came up at the same time and is a 12-line block of text.
+17 CRAFT. "Sew Apprentice Slippers: 1 done. 2 gold paid to the public bench." Starting the craft ended my woodcutting job; the status went to "In town, idle" with no warning.
+18 TAMSIN [shot 53]. Opening her tally shows a block of text, then an armor-weight picker (Heavy / Medium / Light and six slot rows). The six "Take" buttons are disabled with no tooltip until a weight is picked, and the task board itself is below the fold. Picked Heavy, took "200 Gray Wolves" (Meadowbrook, 480 gp + Bronze Helm).
+19 BUY. Leather Gloves 160 gp and Bronze Belt 220 gp ("Paid 160 gp."). Inventory "Equip upgrades" put both on in one press: "Put on 2 pieces." (2 heavy +9.3% max HP).
+20 MEADOWBROOK (Lv 6) [shot 58]. A pretty forest. Coach "Your action bar". The Tally widget on the hunt screen is only its 32 px header: "Gray Wolves 1/200" is not visible on screen. 30 min: 279 kills, 21,097 Level XP/h, no danger.
+21 ABSENCE 3 (1 h, HUNTING Meadowbrook, tab closed) [shot 61]. "Level 7 · Hunting in Meadowbrook Thicket"; recap "Level 6 to 7, +21,546 Level XP, +1,383 gold, 546 kills. Still hunting, with 10 h 28 min of stamina left."
+22 TO LEVEL 10 [shot 63]. +4 h gave Lv 9; +2 h more and Leave hunt gave Lv 10 (session 7 h 32 min, 4,396 kills, 11,000 gp + 9,709 gp loot). Summary line: "Tamsin paid Wren 480 gp and a Bronze Helm for Gray Wolves." (paid automatically). Never close to dying.
+23 WEAR + SELL. "Next: Wear what you found" -> Equip upgrades -> "Put on 3 pieces" (5 heavy, +23.3% max HP). Second Sell all loot paid 2,054 gp (gold 15,162). It sold 3 Alpha Fang (a rare drop, 450 gp each) as part of the 2,054.
+24 HOUSE [shot 68]. "The deed I Hearthside Homestead: 400 gp, Copper Ore 20 (none in your bag or Storage) - Gathered with Mining. Normal Log 30." I mined Copper Rock for 10 minutes of town time (131 ore), bought the deed through a confirm ("Pay 400 gp"), then built the Kitchen Garden (600 gp + 20 Wheat, no confirm). Every later step lists its cost and where the materials come from.
+25 HOME VIEW [shot 86]. A homestead interior; the hero stands on the floor. Nice.
+26 PANEL SWEEP at 1366x768: see section 3b.
+27 ABOVE-LEVEL GROUNDS (Lv 10). Mosslight Glade ("Above your level"): "This hunt is above your level: more XP, but monsters hit harder. In weak armor you can spend more on food than you earn, or die." 54k XP/h, no danger. Coppercap Warrens: "You are too far below this hunt to enter it yet." The Sewer: 41k XP/h; the carried shrimp ran out and "Salted Shrimp (store)" was bought automatically at 14 gp each, shown under Supplies used.
+28 STAMINA ENDED [shot 85]. After 4 h 25 min in the Sewer: "Your stamina ran out, so your hero came home. It comes back hour for hour while you aren't hunting. Stamina now: 10 min." Then the status read "In town, mining the Copper Rock", a job I had started before the hunts; I had not restarted it (after my manual Leave hunt in the Glade the status had been "In town, idle").
+29 STAMINA PRICES. Shop Services: "Restores 4 h for 1,600 gp. Bought today: 0 of 6; each one costs more." with a confirm. Top-bar hourglass button [shot 91]: "One refill: +4 h for 2,040 gp" (Lv 14) and one press bought it with no confirm ("Stamina restored.").
+30 WICKSTEAD to Lv 15. 4 h 13 min then +1 h 50 min after a refill, "Hunt again" from the summary.
+31 RELOAD IN A HUNT. F5 during a hunt: the hunt came back at the right time, same ground, same hero. All characters window [shot 94] shows stamina bar, bag gold and alert toggles.
+32 SECOND HERO. Characters -> Create hero -> "Bryn" -> a fresh Lv 1 hero in town with the "Rats in the mill" coach again. Gold is shared ("Your gold: 39,723").
+33 DEATH [shot 102]. Bryn (Lv 1) entered The Sewer: 3 kills and Lv 2 in 47 s; after 40 skipped minutes she was Lv 5, back in town, with the dialog: "You died / Bryn died in The Sewer / Killed by Culvert Bat. / Dying cost 109 Level XP, 14 Defense XP and 8 Melee XP. / No Blessing was active. Blessings, in the Shop's Services tab, lower what dying costs, and they're free until Level 30. / Bryn is back in town with full health and mana." Buttons: Blessings, Hunt summary, OK.
+
+========================================================================
+3. BUGS (exact steps, then what I saw). No P0 and no P1 found.
+========================================================================
+P0: none. My progress was never lost; reload, tab-close and sign-in all brought the hero back where it was.
+P1: none that I can prove. The closest calls are the creation preview that does not match the in-world hero (B1) and Sell all loot selling rares without naming them (B9); both are P2 because the screen explains or lists the facts.
+
+B1 [P2] Hero colours picked at creation never show in the world.
+  Steps: Create hero -> Body colour 14 (blue) -> Enter town.
+  Saw: the creation preview is a blue-haired hero in a coloured shirt [shot 06]; in town the hero is a silver knight [shot 09]. The creation panel does say "In the world your hero wears the outfit of the weapon it holds, and outfits can't be dyed yet", but it is two paragraphs down, next to a colour picker that invites the choice. Armor I put on later (5 pieces) also changes nothing on the sprite ("Your outfit is only a look").
+
+B2 [P2] Hero creation puts "Enter town" below the fold at 1366x768.
+  Steps: Characters -> Create hero.
+  Saw: logo block fills y=0-440, the form card runs y=460-1073; "Enter town" at y=985-1025, page scrolls (scrollHeight 1073) [shot 06]. Nothing hints to scroll.
+
+B3 [P2] Windows are cramped at 1366x768; with a coach card open, a window shows 1 to 3 rows.
+  Steps: open Shop (V) while its coach card is up; open Hunts (H); open Inventory after "Next: Feed the Hearth".
+  Saw: every window is about 445 px tall (y=123-569) with a body of about 378 px. Shop with its coach: about 1.3 products visible [shot 32]. Hunts: 3 of 6 grounds and about 4 lines of detail [shot 11]. Inventory with its coach: about 3 bag rows [shot 26]. The Inventory footer (spaces, gold, Dispatch loot) and the lowest doll row (Ammo, Belt) are cut off in the pane [shot 20].
+
+B4 [P2] Tamsin's window hides the actual tasks.
+  Steps: Tamsin's tally (Q).
+  Saw: a text block, an armor-weight explainer and six slot rows come first; the board with the six "Take" buttons is below the fold [shot 53]. All six Take buttons are disabled with no title/tooltip until a weight is picked. The earlier coach card did say to pick a weight first, but its 12-line text is easy to skip (B6).
+
+B5 [P2] The Tally widget on the hunt screen shows only its header.
+  Steps: take "200 Gray Wolves", Enter Meadowbrook Thicket.
+  Saw: a 32 px "Tally" header with a minus button at x=1165-1345, y=535-567, right above the action bar [shot 58]. Its line "Gray Wolves 1/200" exists in the page text but there is no room to see it. After the task finished the line "Gray Wolves 200/200 · Done" is also hidden.
+
+B6 [P2] Coach cards: one is a wall of text; two show only a title.
+  Saw: "Tamsin's wolves" is 12 lines at 1366x768 and covers about a third of the screen [shot 47]. "Before the wolves" is 10 lines. "Cash in" and "Your first Level" show only a title; the body appears only if I click the card ("You're Level 6. Leave the hunt to go back to town. Your loot is already in your bag.").
+  Also: the Hunts window shows the same instruction twice: "Press the Mill Cellar, then Enter..." and under it "Pick a hunt, then Enter..." [shot 11].
+
+B7 [P2] Small layout clips on the hunt and window chrome.
+  - Hunt analyzer tab row: "Dealt" runs past the panel's right edge (x=1292-1351 vs panel edge about 1340) [shots 12, 14].
+  - Gathering and crafting window title is clipped: "Gathering and cr..." [shot 43].
+  - Top bar hero label is cut: "In town, fueling the Great Hea..." and "Hunting in Meadowbrook Thic...".
+  - While fueling, the Inventory footer shows "Fueling the Great Hearth with 59 Bones..." over the Bones detail row; text and a bar overlap near y=520-555 [shot 29].
+  - Character list after returning: "Your gold: 1,333" and "You need 13,667 more gold." squeezed into a 70 px column beside the disabled buy button [shot 21].
+
+B8 [P2] "Fuel all 59" keeps its old number while Bones drain.
+  Steps: select Bones (59), press Fuel all.
+  Saw: during the burn the bag read "Bones x36 · 23 being used" while the button still read "Fuel all 59".
+
+B9 [P2] "Sell all loot" can sell a rare without naming it.
+  Steps: Shop -> Sell -> Sell all loot after Meadowbrook (2,054 gp).
+  Saw: the first confirm read only "Sell 7 stacks? Sell for 658 gp / Cancel" (I did not read the second confirm's text). The second sale included 3 Alpha Fang (listed in the Hunts window under "Rare drops", worth 450 gp each) as the biggest item (1,350 of the 2,054). They are listed in the Sell tab beforehand, so a careful reader can see them; the confirm I read did not name stacks.
+
+B10 [P2] One job at a time, but the game never says so, and the stopped job comes back later.
+  Steps: start Woodcutting; open Crafting and Start a craft; later start Mining, then a hunt.
+  Saw: starting the craft ended woodcutting with no message ("In town, idle"). The banner on the Gathering window says only "A hunt stops it". After I pressed Leave hunt (Glade) the status was "In town, idle", but after the Sewer and Wickstead hunts ended by stamina it was "In town, mining the Copper Rock", a job I had started before those hunts. I did not restart it.
+  Also: a stale result line "Sew Apprentice Slippers: 1 done. 2 gold paid to the public bench." was still at the top of the Mining view hours later.
+
+B11 [P2] Two different purchase flows for the same thing.
+  Saw: stamina in the Shop asks "Buy 4 h of stamina for 1,600 gp? / Buy for ... / Cancel"; the top-bar hourglass pop-over spends 2,040 gp on one press with "Stamina restored." Housing: the deed asks to confirm, the Garden build does not.
+
+B12 [P2] The character list sells a hero slot while a free one is empty.
+  Saw: with one empty slot still free, the list says "Buy a hero slot - 15,000 gold" beside "Your gold" and "You need N more gold" [shot 21]. A newcomer may read it as needed to make a second hero. (Creating Bryn needed nothing.)
+
+B13 [P2, cause unknown] Console shows "Failed to load resource: the server responded with a status of 409 (Conflict)" twice.
+  Saw: the two console errors appeared before I started logging network responses; no visible symptom. Not reproduced after I added a response logger (second-hero creation, panels, stamina).
+
+========================================================================
+3b. PANEL CHECK AT 1366x768 (coordinates are CSS px)
+========================================================================
+FACT: every window container stayed inside the viewport and ended at or above y=569, above the action bar (y=579-751). None was positioned off-screen. Window rectangles (left, top, right, bottom):
+ Hunts 545,123,1345,569 | Inventory 785,123,1345,569 | Character 785,123,1345,569 | Gathering and crafting 965,123,1345,569 | Storage 805,123,1345,569 | Shop 865,123,1345,569 | Market 525,123,1345,388 | Farm 905,123,1345,569 | House 865,123,1345,569 | Tamsin 885,123,1345,569 | Leaderboards 905,123,1345,465 | Hunt prep 925,123,1345,569 | Party 905,123,1345,346 | Chat 21,289,421,569 | Friends 965,123,1345,449 | Settings 805,123,1345,569 | Report 925,123,1345,558.
+FACT: the content inside a window scrolls in a body about 378 px tall, so "stays on screen" is true and "readable at a glance" is not (B3).
+Clipped or hidden text with coordinates: Tally widget body (B5), Dealt tab at x=1292-1351 (B7), Gathering title (B7), top-bar hero label (B7), Inventory footer overlap y=520-555 while fueling (B7), Inventory doll's last row and footer (B3).
+The Character window and the Configure-action dialog [shot 98] are the densest screens; the dialog is centered and covers part of the action bar when open.
+
+========================================================================
+4. OPINIONS (mine, as the newcomer)
+========================================================================
+OPINION 1. The sign-in screen has a logo and two fields but no one-line pitch. A friend's link gives me no idea what I am about to play until I am inside.
+OPINION 2. The character list's first line ("2 hero slots... up to 4 heroes can play at once... the third is 15,000") is account-management text before I have a hero. I would not read it.
+OPINION 3. The first town is a zoomed-in empty cobbled square with "1 online". It does not show me a town. I have to trust the coach and open Hunts. The map I liked came later (the gate, the forge, the home).
+OPINION 4. I never felt danger. From Lv 1 to 15 across five grounds my main hero (heavy armor, sword and shield) never showed an HP reading below about 85% (I sampled HP at about 20 moments, not continuously), and I never saw a near-death. The warning text on harder grounds is honest but I never saw it matter. A newcomer could learn nothing about blessings, food or armor from play.
+OPINION 5. Gold piles up with little to spend on. At Lv 15 I had about 39,000 gp. The things to buy that I found were stamina (1,600 to 2,300 gp per 4 h), the House steps (2,500 gp next), the hero slot (15,000), and a few cheap accessories (120-360 gp). The House chain and stamina are real sinks; the rest of the shop felt like an afterthought for someone with this much gold.
+OPINION 6. Armor never shows on the hero, so equipping upgrades is a stat change only. Fine in a text game, flat in a game that has a pretty pixel world.
+OPINION 7. "Level XP" numbers are very large (173,424 after 7.5 h; "480 / 13,573 XP to Level 7"). I stopped reading them and watched the bar and the "Next level in" timer.
+OPINION 8. Terms the game never introduces before using them: "Inner Flame" (it appeared as a skill after burning bones), "armor weight" (Heavy/Medium/Light), "Level XP" vs skill XP, "Dispatch loot", "Preset 1", "Tally".
+OPINION 9. The first coach cards are written as steps and they work. The long ones (Tamsin, Before the wolves) read like documentation.
+OPINION 10. The icon-only top bar (17 icons) depends on hover titles; the coach rings carry the first 10 minutes, but after that I had to hover to find Farm, House, Hunt prep.
+
+========================================================================
+5. THINGS I LIKED (each one I can point to)
+========================================================================
+- The away recaps (shots 22, 47, 61): one sentence with hours away, what the hero did, levels gained, gold, kills, stamina left. After 1 h, 8 h and 1 h they were right and readable.
+- The character list tells me the state before I press Play ("Level 6 · Hunting in Mill Cellar", "In town, chopping the Normal Tree").
+- Hunt view is alive: moving packs, Power Strike text, damage numbers, wolves and bats, XP floaters (shots 12, 58). Leveling from 1 to 4 in 11 minutes gives an early reward.
+- Sell all loot is safe by default: it kept food/fuel/materials, asked to confirm and said how much it kept and why.
+- The deed chain in the House names the next cost and where each material comes from ("Gathered with Mining", "Dropped by Giant Rat at Mill Cellar"); the ladder gives me something to do next.
+- "Equip upgrades" with a tooltip that lists what it will wear; "Put on 3 pieces."; the doll summary "5 heavy (+23.3% max HP)".
+- The death dialog (shot 102) is plain and useful: who killed me, the exact XP cost, that no blessing was active, where blessings are, and that I am healed in town.
+- The refusal at Coppercap Warrens ("too far below this hunt to enter it yet") and the honest "above your level" warning.
+- The hunt survives a reload: same ground, same timer.
+- Stamina copy after it runs out: the reason, how it comes back, and the current value.
+- Help text in Settings (Help) explains stamina, food, selling and the action bar in plain words.
+
+========================================================================
+6. HARNESS ODDITIES (not game bugs)
+========================================================================
+H1 The main checkout's node_modules is an empty directory in this worktree set-up; I junctioned another worktree's node_modules (it has playwright, playwright-core, postgres, @electric-sql).
+H2 With a page open, a world.wait/skip moves server clocks but the page keeps showing the old count until its next poll (mining read "1 mined so far" right after a 10 min wait, "131 mined" about 20 s later).
+H3 Hunt summary times can look out of order ("Sewer, Nov 1, 4:40 PM" listed after "Mosslight Glade, 4:48 PM") because a skip moves hunt clocks back.
+H4 New accounts are confirmed immediately although the screen says "Check your email".
+H5 The Weighhouse reads "isn't trading right now" here; I cannot tell whether that is the world or a real gate.
+H6 Windows opened by a script click (role-name lookups on the Sell/Helmet buttons failed; position and text clicks worked). I treated that as my driver, not the game.
+H7 The coach/hover tooltip often sat under the mouse because my script's last click left the pointer on the hotbar; I moved the mouse before shots where it mattered.
+
+========================================================================
+7. TOP 5 FIXES, RANKED
+========================================================================
+1. Make 1366x768 windows readable: a window with an open coach card shows 1-3 rows (Shop, Hunts, Inventory). Collapse the coach to one line inside windows or let windows use the height above the action bar; keep footers (gold, space, Dispatch loot) visible. Evidence: shots 11, 20, 26, 32; rectangles in 3b.
+2. Fix the first minutes: a one-line pitch under the sign-in logo; shorter hero creation so "Enter town" is visible without scrolling; and either show the real in-world look in the creation preview or hide colours until outfits can be dyed (B1, B2).
+3. Tamsin's window: put "Your tasks" and the board first, armor weight after (or collapsed); give the disabled Take buttons a visible reason; show the Tally counter on the hunt screen (B4, B5).
+4. Coach copy: cut "Tamsin's wolves" and "Before the wolves" to 3 lines each; show the body of "Cash in"/"Your first Level" or drop the card (B6).
+5. Small polish that reads as bugs: analyzer "Dealt" tab, "Gathering and cr..." title, "Fuel all 59" stale number, inventory footer overlap while fueling, one purchase flow for stamina, name rare drops in the Sell-all confirm, say that a craft/hunt replaces the town job (B7-B11).
+
+========================================================================
+8. VERDICT: WOULD I COME BACK TOMORROW?
+========================================================================
+Honest answer as this player: probably yes, once, to collect my hero's result, and then it depends on whether anything pulls me past the numbers.
+Why yes: I closed the tab for 1 hour and for 8 hours and returned to exact, readable reports and real progress (Lv 4 to 6, 6,009 logs, ripe crops, Tamsin's payment). That is the best moment in the game and it works every time. The hunt view is alive and the first minute pays off ("Your first Level" at 43 s). Selling, equipping and the House ladder each told me what to press next.
+Why it might not stick: the first ten minutes before the hunt are the weakest part (no pitch, a creation screen where my colours vanish and the button is below the fold, an empty zoomed town, "1 online"). After that I never lost, never nearly died, never needed to choose; gear is invisible; gold stacks up with few ways to spend it; the stamina clock is the only brake (12 h of hunting, back "hour for hour" at rest, or 1,600-2,300 gp per 4 h). At Lv 15 I was doing "press Hunt again, close tab, come back", which is fine for an idle game and a thin reason to talk to a friend about it. If a friend is online with me (party play, which I could not test) the answer improves a lot; alone, the pull is the recap and the House chain.

@@ -3035,6 +3035,13 @@ const DB_ARMS = {
     try {
       const h = await hunter(db, M, { realGround: true, minutesAgo: 22, level: 2, density: 8,
         inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 1000 });
+      /* THE DENSITY TERM ALONE (v_pass = spawns + pockets x the frozen pick). hr_hunt_grounds.spawns also carries pockets x a party's
+         largest default pull (gen-hunt-sessions.mjs), which on the Cellar is room enough to hide a bound that drops the pick: this
+         arm holds the row at the as-built rows, for this transaction, so only the pick can admit these kills. The pull's own term
+         is tests/party-pull-bound.mjs's. */
+      const { HUNT_GROUNDS: REAL } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
+      const pullSpawns = REAL.mill_cellar.pockets.length * Math.max(0, ...(REAL.mill_cellar.partyPull || []));
+      await db.query("update public.hr_hunt_grounds set spawns = spawns - $1::int where hunt_id = 'mill_cellar'", [pullSpawns]);
       /* Hank's weapon: the club's cleave clears a full pack at once. */
       await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot in ('shield', 'weapon')", [UID]);
       await db.query("insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_club')", [UID]);
@@ -3081,13 +3088,10 @@ const DB_ARMS = {
         else if (!s.session.ended_at || !['left', 'died'].includes(s.session.end_reason)) {
           problems.push(`${variant}/${door}: the stuck hunt did not end through its own settle (${s.session.end_reason}; ${r.outcome}/${r.reason})`);
         }
-        /* CONTROL: a landed window carried more kills than the as-built bound allowed (density is under test). hr_hunt_grounds.spawns
-           also carries the party's default pull (gen-hunt-sessions.mjs), taken off here: pockets x the largest pull. */
-        const { HUNT_GROUNDS: REAL } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
-        const pullSpawns = REAL.mill_cellar.pockets.length * Math.max(0, ...(REAL.mill_cellar.partyPull || []));
+        /* CONTROL: a landed window carried more kills than the as-built bound allowed (density is under test). */
         const over = await one(db, `select count(*) from public.player_ledger l, public.hr_hunt_grounds g
           where l.session_id = $1 and l.kind <> 'hunt' and g.hunt_id = 'mill_cellar' and jsonb_typeof(l.meta->'kills') = 'number'
-            and (l.meta->>'kills')::bigint > (g.spawns - $2::int) * ((l.meta->>'ms')::bigint / g.respawn_ms + 2)`, [h.sid, pullSpawns]);
+            and (l.meta->>'kills')::bigint > g.spawns * ((l.meta->>'ms')::bigint / g.respawn_ms + 2)`, [h.sid]);
         if (!(Number(over) > 0) && !problems.length) problems.push(`CONTROL ${variant}/${door}: no landed window exceeded the as-built kill bound`);
         await db.query('rollback to savepoint density');
       }

@@ -768,6 +768,8 @@ const cases = {
     const more = say(R({ ...inThicket, ...one, huntMs: 5 * 60000 }));
     if (!more || more.id !== 'more_heroes' || !more.text.includes('Corliss keeps hunting') || !more.text.includes('up to 4 heroes at once, and you own 2 hero slots')) return 'the heroes card reads ' + JSON.stringify(more && more.text);
     if ((say(R({ ...inThicket, ...one, huntMs: 4 * 60000 })) || {}).id === 'more_heroes') return 'the heroes card came before 5 minutes';
+    /* a card that asks never walls (played 2026-11-01: it sat ahead of the Thicket's lessons in every hunt past 5 minutes) */
+    if (!more.gotIt || (say(R({ ...inThicket, ...one, huntMs: 5 * 60000 }, 'more_heroes')) || {}).id === 'more_heroes') return 'Got it does not pass the heroes card';
     if ((say(R({ ...inThicket, ...one, huntMs: 10 * 60000, huntId: 'mill_cellar' })) || {}).id === 'more_heroes') return 'the heroes card came in the Cellar';
     if ((say(R({ ...inThicket, ...one, roster: [...one.roster, { slot: 1, level: 1, name: 'Bree', open: false, hunting: false }], huntMs: 6e5 })) || {}).id === 'more_heroes') return 'with 2 heroes the heroes card is still up';
     /* two of the account's heroes in town and no party: hunt together, the other hero's tab */
@@ -1569,6 +1571,8 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "  const purse = purseLine(facts);\n  if (purse) { lines.push(purse.text); ids.push(...purse.ids); }\n", '']] },
   { name: 'What next offers a slot the server is not selling', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "const slot = Number.isSafeInteger(f.slotCost) && f.slotCost > 0 ? f.slotCost : null;", "const slot = 15000;"]] },
+  { name: 'More than one hero walls a hero who wants one', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "'characters', orGotIt({ kind: 'heroes', atLeast: 2 }),", "'characters', { kind: 'heroes', atLeast: 2 },"]] },
   { name: 'the Roll of Honor card is gone', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }", "'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: 9999 }] }"]] },
   { name: 'the Weighhouse line names a Level its gate does not', case: 'tutorial-reactive',

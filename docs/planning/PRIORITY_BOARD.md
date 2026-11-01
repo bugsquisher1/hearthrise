@@ -82,7 +82,7 @@ Prices are the server's (`account.hero_slot_offer`, the house's own section). Bo
 | 16 | Cook your catch | 10 Raw Shrimp from the kit, never cooked | Gathering and crafting, Cooking (M, card) |
 | 17 | Keep this bar | A bar saved at step 13 | Hunt prep. Then What next (M) |
 
-**Three items for Tyler. My recommendation on all three: change no number for Sunday.** They read as three problems and have one cause: **as built, the walk between packs sets the pace**, so more power or more bodies have little to do. A respawn cut by party size moved Wickstead's duo from 20.0k to 20.4k XP/h per hero. The pull size is where both show, and it works: the veteran's "+ did nothing" did not reproduce (As built, 3 each, 4 each, 5 each, one press each). So the Hunts window now says "Bigger pulls pay more once your heroes can hold them."
+**The panel's three balance items.** (b) is decided, by Tyler, below. On (a) and (c), my recommendation to him: change no number for Sunday. All three read as separate problems and have one cause: **as built, the walk between packs sets the pace**, so more power or more bodies have little to do. A respawn cut by party size moved Wickstead's duo from 20.0k to 20.4k XP/h per hero. The pull size is where both show, and it works: the veteran's "+ did nothing" did not reproduce (As built, 3 each, 4 each, 5 each, one press each). So the Hunts window now says "Bigger pulls pay more once your heroes can hold them."
 
 **(a) No danger in band.** In-band armor: typical lowest HP 94-98%. Tyler's Normal is 60-80%, though his ruling calls those ranges diagnostic and the hard targets hold: 0 deaths. Blow size is the wrong lever, because it hurts the wrong hero first.
 | Monster blows, Glade Level 16 in armor | Tank: typical / worst tenth, bill g/h | Bow, Healer, Mage: deaths, close calls, bill g/h |
@@ -93,15 +93,40 @@ Prices are the server's (`account.hero_slot_offer`, the house's own section). Bo
 | x3 | 82 / 53, 2,500; 0 deaths in 24 h | **Bow 2, Healer 3, Mage 6 deaths in 4 h**, 21-49 close calls |
 Even at x3 the tank is still Easy while the light armors die. Put on every tier, x1.5 also gives a fresh practice-set hero in the Thicket 14 close calls in 6 h, against 0 today. **Recommend:** keep 5.4 and 4.0 for the beta. The danger that exists is the pull size: at 8 each a fresh Thicket hero sits at 58% and a fresh Wickstead hero at 52% with a death in 4 h, while in-band armor sits at 92-97%. That is already a choice a player makes. First candidate after a week of real play: **tiers 2-3 x2 (8.0 for tier 3, and a new 10.8 row for tier 2)**. It touches the Glade, Turncoats, the Warrens and the Thicket's Dire Gray and Old Grayjaw, not the Cellar or the Sewer (all tier 1; the Sewer cells did not move). No death in 8 h a style in the Glade, and a bill that finally gives cooking a consumer. It risks an edge deploy, profit floors nobody has re-measured, a fresh Thicket hero against those two wolves, and a Warrens party unplayed at that number. Even so the typical encounter stays Easy, so Normal will need pack size per ground, not blows.
 
-**(b) Party pays less than solo.** Confirmed on the ground the veteran used, and it is mostly the ground:
-| Level XP/h per hero (v0.2.78 at Wickstead and the Sewer; v0.2.74 verdict at the full box) | Alone | Duo | Four |
+**(b) Party XP: DECIDED (Tyler, 2026-10-31: "Party exp should only be better if there are different classes in the party"). Supersedes "no party bonus" (10-22); the 10-25 §5 targets apply to mixed parties. Rule below is the designer's, measured; the engine change is its own lane, NOT BUILT here.**
+
+*Baseline today, Level XP per hero against the mean of the same heroes alone, same ground, Level and pull* (v0.2.78, 1 h, 1 or 2 seeds; L5-L31 ranges from the 10-31 verdict at v0.2.74). Mix changes nothing yet: the walk sets the pace, whoever is in the party.
+| | Mixed duo | Mixed four | Same class duo | Same class four |
+|---|---|---|---|---|
+| Thicket, Wickstead, Glade, as built | 0.68-0.75 | 0.49-0.59 | 0.64-0.78 | 0.46-0.58 |
+| Same grounds, 8 each | 0.83-0.95 | 0.82-0.90 | 0.81-0.96 | 0.69-0.84 |
+| Sewer L8-L25, as built | 1.14-1.21 | 1.01-1.10 | **1.13-1.18** | 0.91-1.03 |
+| Sewer, 8 each | 1.00-1.12 | 0.92-0.97 | **0.95-1.05** | 0.84-0.98 |
+| Warrens L32-L50, 8 each | 1.03-1.05 | 1.13-1.23 | 0.99 (tank; a lone bow stalled at 8 each, 2,141 XP/h) | 0.95 |
+Against where a lone hero is sent: the Warrens party already earns about 2x the Glade, and the Sewer duo and four 1.27x and 1.06x at Level 8, 0.73x and 0.65x at Level 17.
+
+*Classes: four, not five.* Melee (shield or not), Ranger, Mage, Healer. Tyler 10-16: "Tank is a function (a Melee with shield/taunt), not a spec", and the screen says Melee on both. Tank + hammer measured no different from two tanks (0.85 and 0.91 at 8 each). A crossbow and shield is a Ranger.
+
+*THE RULE: Level XP only, never gold.* `share = monster XP / living heroes`, then `x table[ground][living heroes][different classes among the living]`, read fresh at every kill in `splitKillXp`, which already holds the living heroes. A data row per ground, in `src/data/hunt-xp.js`.
+| Ground | 2 heroes, classes 1 / 2 | 3 heroes, 1 / 2 / 3 | 4 heroes, 1 / 2 / 3 / 4 |
 |---|---|---|---|
-| Wickstead L11, as built | 26.1k | 20.0k (0.77x), tank + healer 18.9k | 15.5k (0.59x) |
-| The Sewer L11, a party ground, as built | | 41.3k (**1.58x** Wickstead alone) | |
-| Wickstead L13, 8 each, against alone at 8 | 37.6k | 32.2k (0.85x) | 39.7k (1.05x) |
-| Thicket L10, 8 each | 26.9k | 22.9k (0.85x) | 29.0k (1.08x) |
-| Glade L24, 8 each | 80.1k | 77.9k (0.97x) | 86.6k (1.08x) |
-Against his 1.05-1.15 duo and 1.15-1.25 four, a party on a solo ground as built is far under; a party on the Sewer at its floor is over; a four at the full box is just under. Gold follows XP (duo 0.78x at Wickstead). The hole with no ground to fill it is Levels 17-25: the Sewer party pays 0.65-0.74x the solo Glade (10-31 verdict), and the Warrens starts at 32. **Recommend:** no bonus for Sunday. The Hunts window already sends a pair to "Fits your party" (the Sewer), and the pull line now says what pays. If you want the target met: a per-hero Level XP multiplier in a party (`xpMultOf`): **duo x1.25, four x1.12**, which lands 1.06-1.21 and 1.18-1.21 at the full box; a trio is unmeasured. It reverses your 10-22 "no party bonus", so it is your call. It risks: an edge deploy on a ranked surface, one player's four heroes each out-levelling the pace of record, and it still leaves a solo-ground party under target as built. Decide after a week of real parties.
+| Cellar, Thicket, Wickstead, Glade | 1.00 / **1.20** | 1.00 / 1.15 / **1.30** | 1.00 / 1.13 / 1.27 / **1.40** |
+| The Sewer | **0.80** / 1.00 | 0.80 / 1.08 / **1.15** | 0.80 / 1.08 / 1.17 / **1.25** |
+| The Warrens | 1.00 / 1.00 | 1.00 all | 1.00 all |
+One flat table cannot land: x1.40 on the Warrens would pay 1.6-1.7x a lone hero there and about 2.7x the Glade. Those grounds carry their premium already.
+
+*Where it lands* (solo grounds at 8 each; duo, trio and four played on Wickstead L13 through monster XP, the same arithmetic, 2 seeds): duo **1.11** (target 1.05-1.15), trio **1.14** (1.10-1.20), four **1.22** (1.15-1.25). By ratio over L5-L31: duo 1.08-1.14, four 1.15-1.26. The Sewer at 8 each by ratio: duo 1.00-1.12, trio 1.14, four 1.15-1.21. **As built a mixed party stays under solo** even with the bonus (duo 0.86, four 0.74), because the target is for a well-optimized party: so the leader's line has to say bigger pulls. Not measured: the Cellar, and trios anywhere but Wickstead L13 and Sewer L17.
+
+*The hard line: a same-class party never beats solo per head.* Holds today on the Thicket, Wickstead, the Glade and the Warrens with no cap: best pull against the members' best pull alone, at most 0.99. **It breaks on the Sewer today**: 1.13-1.18 as built and up to 1.05 at the best pull, because the Rat King's hall opens only to a party. The cap is the Sewer's 0.80: its worst same-class cell (two bows, Level 8, as built) lands 0.95. x0.85 is not enough: it leaves that cell at 1.00. Dice: Sewer cells are one seed, so the engine lane's guard must play this at more seeds, on every ground, as built and at the full box, with the bar at 1.00.
+
+*Edge cases.*
+- **3 tanks + 1 healer:** two classes of four. 1.13 on a solo ground lands 0.92 at 8 each, better than same class and still under solo. 1.08 on the Sewer lands 1.04. A partial mix earns part of the bonus, and it should not beat solo by much.
+- **A death or a leave mid-hunt:** the next kill reads the living. Healer dead in a full four: 3 heroes, 3 classes, 1.30. No latch and no grace. A hero's class cannot change mid-hunt, since gear goes on in town. The default "Leave if anyone leaves" box sends most parties home anyway.
+- **One player's own four heroes:** paid as four strangers are, 1.22x per head at 8 each. Account total on Wickstead L13: about 218k Level XP/h, against 178k for the same four hunting alone (+22%) and 157k today. Gold gets no bonus (0.91x per head). **Monitor: flag any account with 3+ own heroes in one party whose per-head Level XP over 20 hunted hours exceeds 1.30x that ground's solo pace.** Review if flagged accounts pass a quarter of party hours.
+- **A low-Level hero brought along for its class:** counts while alive and takes its even share, so the others lose XP to it. Watch it in the same flag.
+- **Not fixed by this:** a lone hammer at 8 each earns 71.9k on Wickstead against 54.4k for the mixed four. That is role parity (Tyler's open item), not this rule.
+
+*Where a player sees it*, before Start with party, on the Hunts page's party block and the Party window's Your party tab, from the same table: "Your party has 2 of 4 classes: 20% more Level XP here. Melee, Ranger, Mage and Healer each count." On the Sewer, one class: "One class only: 20% less Level XP here." No-bonus cells: "Your party has 1 of 4 classes: no extra Level XP here." The pull line beside it already says bigger pulls pay. Both ship with the engine change, so the words are never ahead of the game.
 
 **(c) Hero power barely moves income.** Confirmed as built, and it is the walk again:
 | Kills/h, tank | Fresh, practice set | Grown, in gear | As built | At 8 each |

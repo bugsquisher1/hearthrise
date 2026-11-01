@@ -863,6 +863,19 @@ export function scan(sources, playerTables) {
 // finding (an entry that matches nothing is RED — the list may not rot), and a
 // `proof` entry's strings must all still be present in the file.
 export const ACKNOWLEDGED = {
+  '2027-02-20-market-wipe.sql :: dml :: truncate market_listings': {
+    verdict: 'scoped-by-proof',
+    why: 'The file\'s WORK, not a self-check: Security market review change 3 empties the market as part of a declared '
+       + 'wipe, and global is the point. It is `excluded` from the chain and applies only on Tyler\'s word. The proof '
+       + 'strings are its fences: one-shot on hr_wipe_log, refused unless the game is closed and the market off, three '
+       + 'tables by name, RESTRICT. tests/market-wipe.mjs proves no character, bag, Storage, purse or ledger row moves.',
+    proof: [
+      "if exists (select 1 from public.hr_wipe_log where wipe_key = c_key) then",
+      "raise exception 'PRECONDITION: closed_mode is not ON",
+      "raise exception 'PRECONDITION: the market is ON",
+      'truncate table public.market_listings, public.market_sales, public.market_item_daily continue identity restrict;',
+    ],
+  },
   '2026-08-29-auto-eat-tiers.sql :: dml :: update player_state': {
     verdict: 'applied-backfill',
     why: 'Section 3 is the file\'s WORK, not a self-check: the one-time, idempotent pass that '

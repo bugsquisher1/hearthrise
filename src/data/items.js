@@ -200,12 +200,12 @@ export const ITEMS={
   iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',rangeAtkB:2,rangeStrB:3,critB:.01,ammoPerShot:1,reqSkill:'ranged',reqLv:1},
   iron_ore:{n:'Iron Ore',icon:'⬜',v:10},
   normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:10},
-  willow_log:{n:'Willow Log',icon:'🪵',v:20},maple_log:{n:'Maple Log',icon:'🪵',v:20},
-  yew_log:{n:'Yew Log',icon:'🪵',v:60},
+  willow_log:{n:'Willow Log',icon:'🪵',v:15},maple_log:{n:'Maple Log',icon:'🪵',v:15},
+  yew_log:{n:'Yew Log',icon:'🪵',v:50},
   copper_ore:{n:'Copper Ore',icon:'🟤',v:5},coal:{n:'Coal',icon:'⬛',v:10},
-  gold_ore:{n:'Gold Ore',icon:'🟡',v:35},mithril_ore:{n:'Mithril Ore',icon:'🔵',v:50},
+  gold_ore:{n:'Gold Ore',icon:'🟡',v:25},mithril_ore:{n:'Mithril Ore',icon:'🔵',v:40},
   shrimp:{n:'Raw Shrimp',icon:'🦐',v:5,heals:36},trout:{n:'Raw Trout',icon:'🐟',v:15,heals:84},
-  lobster:{n:'Raw Lobster',icon:'🦞',v:35,heals:144},shark:{n:'Raw Shark',icon:'🦈',v:400,heals:240},
+  lobster:{n:'Raw Lobster',icon:'🦞',v:25,heals:144},shark:{n:'Raw Shark',icon:'🦈',v:400,heals:240},
   turnip:{n:'Turnip',icon:'🥕',v:20,heals:24},carrot:{n:'Carrot',icon:'🥕',v:35,heals:36},
   wheat:{n:'Wheat',icon:'🌾',v:50,heals:12},potato:{n:'Potato',icon:'🥔',v:65,heals:60},
   tomato:{n:'Tomato',icon:'🍅',v:90,heals:48},pumpkin:{n:'Pumpkin',icon:'🎃',v:150,heals:96},
@@ -348,9 +348,9 @@ export const ITEMS={
      Mithril's tier band (it is what the tier drives — art, borders, drop
      routing) and is one rarity notch under it.
      ══════════════════════════════════════════════════════════════════ */
-  verdite_ore:  {n:'Verdite Ore', icon:'🟢', v:15},
-  flux_salt:    {n:'Fluxsalt',    icon:'🧂', v:20},
-  heartgarnet:  {n:'Heartgarnet', icon:'🔴', v:40},
+  verdite_ore:  {n:'Verdite Ore', icon:'🟢', v:10},
+  flux_salt:    {n:'Fluxsalt',    icon:'🧂', v:15},
+  heartgarnet:  {n:'Heartgarnet', icon:'🔴', v:30},
   verdite_bar:  {n:'Verdite Bar', icon:'🟩', v:140},
   verdite_helm: {n:'Verdite Helm', icon:'⛑️', v:1080, type:'armor', slot:'helmet',
     defB:13, rangeAtkB:-3, magicAtkB:-7, armourClass:'plate', rarity:'rare', tier:4,
@@ -418,13 +418,13 @@ export const ITEMS={
   pikeperch:             {n:'Raw Pikeperch', icon:'🐟', v:15, heals:96},
   cooked_pikeperch:      {n:'Grilled Pikeperch', icon:'🐠', v:9, heals:192, foodTier:2, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:2, durationMs:180000}},
-  copper_crab:           {n:'Copper Crab', icon:'🦞', v:20, heals:108},
+  copper_crab:           {n:'Copper Crab', icon:'🦞', v:15, heals:108},
   cooked_copper_crab:    {n:'Steamed Copper Crab', icon:'🦞', v:10, heals:216, foodTier:2, foodClass:'healing',
     buff:{type:'all_xp', magnitude:2, durationMs:180000}},
-  silverfin:             {n:'Raw Silverfin', icon:'🐠', v:25, heals:120},
+  silverfin:             {n:'Raw Silverfin', icon:'🐠', v:20, heals:120},
   cooked_silverfin:      {n:'Silverfin Fillet', icon:'🍥', v:13, heals:252, foodTier:3, foodClass:'healing',
     buff:{type:'damage', magnitude:2, durationMs:240000}},
-  goldgill:              {n:'Raw Goldgill', icon:'🐟', v:30, heals:132},
+  goldgill:              {n:'Raw Goldgill', icon:'🐟', v:20, heals:132},
   cooked_goldgill:       {n:'Goldgill Steak', icon:'🍣', v:16, heals:276, foodTier:3, foodClass:'healing',
     buff:{type:'drop_rate', magnitude:2, durationMs:300000}},
   river_chowder:         {n:'River Chowder', icon:'🍲', v:380, heals:360, foodTier:3, foodClass:'healing',
@@ -450,7 +450,7 @@ export const ITEMS={
           who stocks Moonfish pays more per meal for fewer meals; the chooser
           still prefers the CHEAPEST food that covers the deficit first.
      v / foodTier / foodClass / buff are unchanged. */
-  swordfish:        {n:'Raw Swordfish', icon:'🐠', v:50, heals:168},
+  swordfish:        {n:'Raw Swordfish', icon:'🐠', v:40, heals:168},
   cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:22, heals:384, foodTier:3, foodClass:'healing',
     buff:{type:'damage', magnitude:3, durationMs:300000}},
   moonfish:         {n:'Raw Moonfish', icon:'🌙', v:900, heals:288},
@@ -894,9 +894,9 @@ const RAW_DROPS = [
    metal. The book value stays what it means elsewhere (market ceiling, the bench's SG-4 rule, the tool's shop price);
    only what the shop bids moves. The player market is the better price for all of these. Food and ammo are not here:
    a raw flag would take them off the supply lists (supplies.js supplyKindOf), so their `v` is the bid itself.
-   THE RULE, PROVISIONAL until an economy sim says otherwise: per hero-hour, raw about a third of the hunting at the same
-   hours played, gather plus refine about half, the whole chain to a finished piece about two thirds, and never above
-   hunting (tests/craft-wages.mjs). */
+   THE RULE, PROVISIONAL until an economy sim says otherwise: per hero-hour, sold raw about half of the hunting at the same
+   hours played, gather plus refine about two thirds, the whole chain to a finished piece about four fifths, and never above
+   hunting, because a resting hero skills for free (tests/craft-wages.mjs). */
 const BULK_GOODS = [
   'copper_bar', 'bronze_bar', 'iron_bar', 'gold_bar', 'steel_bar', 'verdite_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar',
   'normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank',

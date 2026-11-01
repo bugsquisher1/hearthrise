@@ -37,11 +37,13 @@ const MAX_REQ = 60;
 /* In-band hunting at the hours a skill's level takes to reach, g/h per hero: the 2026-10-31 verdict (1,146 cells on the real settle),
    re-measured on this commit (the priority board's 2026-11-01 section). A wage is judged against these, never against a feel. */
 const HUNTING = [[1, 2000], [15, 2900], [30, 3800], [45, 4200], [60, 5500]];
-const huntingAt = (req) => HUNTING.filter(([l]) => l <= req).pop()[1];
-const RAW_CAP = (req) => Math.round(huntingAt(req) * 0.55);
+/* A gatherer gets there first: a node's level takes about 1 / 3 / 10 / 33 hours of that one job (played), so raw is judged against the
+   grounds of those hours, a bench row against the later hours of both skills. */
+const HUNTING_FOR_RAW = [[1, 2000], [15, 2600], [30, 2600], [45, 3500], [60, 4900]];
+const at = (table, req) => table.filter(([l]) => l <= req).pop()[1];
+const huntingAt = (req) => at(HUNTING, req);
+const RAW_CAP = (req) => Math.round(at(HUNTING_FOR_RAW, req) * 0.6);
 const CHAIN_CAP = (req) => Math.round(huntingAt(req) * 0.9);
-/* Raw and refined may each lean on the comparator's top end; the rows that do are named so a retune sees them. */
-const RAW_THROUGHPUT_RUNGS = Object.freeze({ deep_verdite_seam: 'pays 2-3 ore a swing on purpose (gathering.js); bid is the seam\'s', });
 /* Tier 3 sells at 0.14 of book by the 10-23 ruling, one price per item however it came: these are made to be carried. */
 const TIER_3_USE = Object.freeze({ forge_coppercap_shield: 'the Warrens-tier shield', reforge_steelgrate: 'a Rare Kingsgrate reforged' });
 const SELF_USE = Object.freeze(['bronze_arrows', 'coarse_whetstone', 'chalked_earth_rune', 'chalked_water_rune', 'chalked_fire_rune',
@@ -89,7 +91,7 @@ export function check() {
     if (n.req > MAX_REQ) continue;
     const each = (Number(n.qty?.[0] ?? 1) + Number(n.qty?.[1] ?? 1)) / 2;
     const perH = (3600000 / pacedActionMs(n.ms)) * each * bid(n.prod);
-    if (perH > RAW_CAP(n.req) && !RAW_THROUGHPUT_RUNGS[n.id]) fails.push(`W-RAW ${n.id} (level ${n.req}): ${Math.round(perH)} g/h sold raw, over ${RAW_CAP(n.req)} (hunting ${huntingAt(n.req)})`);
+    if (perH > RAW_CAP(n.req)) fails.push(`W-RAW ${n.id} (level ${n.req}): ${Math.round(perH)} g/h sold raw, over ${RAW_CAP(n.req)} (hunting ${at(HUNTING_FOR_RAW, n.req)} at those hours)`);
   }
   for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const r of list) {
     if (!r.output || r.gated || r.req > MAX_REQ) continue;
@@ -100,8 +102,8 @@ export function check() {
     const perH = c.sec > 0 ? (3600 / c.sec) * unit : 0;
     /* a row is judged at the later of its bench level and the level its own gathered input opens */
     const reqs = [r.req, ...Object.keys(recipeInputs(r)).map((id) => (G[id] ? G[id].req : 0))];
-    const at = Math.max(...reqs);
-    if (!c.hunted && at <= MAX_REQ && perH > CHAIN_CAP(at)) fails.push(`W-CHAIN ${r.id} (level ${at}): ${Math.round(perH)} g/h from the rock to the shop, over ${CHAIN_CAP(at)} (hunting ${huntingAt(at)})`);
+    const level = Math.max(...reqs);
+    if (!c.hunted && level <= MAX_REQ && perH > CHAIN_CAP(level)) fails.push(`W-CHAIN ${r.id} (level ${level}): ${Math.round(perH)} g/h from the rock to the shop, over ${CHAIN_CAP(level)} (hunting ${huntingAt(level)})`);
     /* refining: one gathered input, one output */
     const ins = recipeInputs(r);
     const keys = Object.keys(ins);

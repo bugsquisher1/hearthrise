@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 016aa50fc8b76bccce14d4e7f986bd60eec272f9f8da2d9383098d157b68f703
+--   catalogue digest: 724ab66c2b72634272a538ba409540f402c31c1a7e65a312d7b1196195d12b2b
 --   rows: 572 items (6 untradeable) ·
 --         324 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 345 activities ·
@@ -313,7 +313,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('cooked_trout','Cooked Trout',true,null,8,null,null,168,true,null,false),
   ('cooked_wolf_meat','Cooked Wolf Meat',true,null,12,null,null,72,true,null,false),
   ('copper_bar','Copper Bar',true,null,15,null,null,null,false,null,false),
-  ('copper_crab','Copper Crab',true,null,20,null,null,108,true,null,false),
+  ('copper_crab','Copper Crab',true,null,15,null,null,108,true,null,false),
   ('copper_ore','Copper Ore',true,null,5,null,null,null,false,null,false),
   ('copper_ring','Copper Ring',true,'jewelry',120,'level',1,null,false,null,false),
   ('copper_studs','Copper Studs',true,'jewelry',60,'level',1,null,false,null,false),
@@ -406,7 +406,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('field_cookbook','Field Cookbook',true,null,0,null,null,null,false,null,false),
   ('field_ration','Field Ration',true,null,90,null,null,null,false,null,false),
   ('fishers_pie','Fisher''s Pie',true,null,520,null,null,408,false,null,false),
-  ('flux_salt','Fluxsalt',true,null,20,null,null,null,false,null,false),
+  ('flux_salt','Fluxsalt',true,null,15,null,null,null,false,null,false),
   ('foremans_lash','Foreman''s Lash',true,null,92,null,null,null,false,null,false),
   ('frostfin','Raw Frostfin',true,null,520,null,null,216,true,null,false),
   ('giant_rat_hide','Giant Rat Hide',true,null,4,null,null,null,false,null,false),
@@ -415,13 +415,13 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('goblin_totem','Goblin Totem',true,null,120,null,null,null,false,null,false),
   ('gold_amulet','Gold Amulet',true,'jewelry',1100,'level',30,null,false,null,false),
   ('gold_bar','Gold Bar',true,null,80,null,null,null,false,null,false),
-  ('gold_ore','Gold Ore',true,null,35,null,null,null,false,null,false),
+  ('gold_ore','Gold Ore',true,null,25,null,null,null,false,null,false),
   ('gold_ring','Gold Ring',true,'jewelry',600,'level',30,null,false,null,false),
   ('goldenroot','Goldenroot',true,null,260,null,null,144,true,null,false),
   ('goldenroot_roast','Goldenroot Roast',true,null,700,null,null,312,false,null,false),
   ('goldenroot_seed','Goldenroot Seed',true,null,90,null,null,null,false,null,false),
   ('goldenroot_tea','Goldenroot Tea',true,null,86,null,null,null,false,null,false),
-  ('goldgill','Raw Goldgill',true,null,30,null,null,132,true,null,false),
+  ('goldgill','Raw Goldgill',true,null,20,null,null,132,true,null,false),
   ('granary_whisker','Granary Rat Whisker',true,null,18,null,null,null,false,null,false),
   ('grave_dust','Grave Dust',true,null,95,null,null,null,false,null,false),
   ('graven_earth_rune','Graven Earth Rune',true,'ammo',3,'magic',60,null,false,null,false),
@@ -434,7 +434,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('grayjaw_whisker','Grayjaw Whisker',true,null,30,null,null,null,false,null,false),
   ('grayjaws_ruff','Grayjaw''s Ruff',true,'armor',310,'level',12,null,false,null,false),
   ('graypelt_cloak','Graypelt Cloak',true,'armor',150,'level',8,null,false,null,false),
-  ('heartgarnet','Heartgarnet',true,null,40,null,null,null,false,null,false),
+  ('heartgarnet','Heartgarnet',true,null,30,null,null,null,false,null,false),
   ('heartgarnet_maul','Heartgarnet Maul',true,'weapon',990,'level',42,null,false,null,false),
   ('hearth_token','Hearth Token',true,null,25000,null,null,null,false,null,false),
   ('hell_ember','Hell Ember',true,null,600,null,null,null,false,null,false),
@@ -479,12 +479,12 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('lexarch_seal','Archivist Seal',true,'trophy',2200,null,null,null,false,null,false),
   ('lich_soul','Lich Soul',true,null,800,null,null,null,false,null,false),
   ('lich_soul_soup','Lich Soul Soup',true,null,1100,null,null,600,false,null,false),
-  ('lobster','Raw Lobster',true,null,35,null,null,144,true,null,false),
+  ('lobster','Raw Lobster',true,null,25,null,null,144,true,null,false),
   ('loft_web','Loft Web',true,null,26,null,null,null,false,null,false),
   ('longbow','Longbow',true,'weapon',135,'level',15,null,false,null,true),
   ('magic_essence','Magic Essence',true,null,50,null,null,null,false,null,false),
   ('maple_bow','Maple Bow',true,'weapon',1575,'level',45,null,false,null,true),
-  ('maple_log','Maple Log',true,null,20,null,null,null,false,null,false),
+  ('maple_log','Maple Log',true,null,15,null,null,null,false,null,false),
   ('maple_plank','Maple Plank',true,null,65,null,null,null,false,null,false),
   ('maple_rod','Maple Rod',true,'tool',1000,null,null,null,false,null,false),
   ('maple_spellbook','Maplebound Spellbook',true,'offhand',1200,'level',45,null,false,null,false),
@@ -499,7 +499,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('mithril_boots','Mithril Boots',true,'armor',1200,'level',45,null,false,'heavy',false),
   ('mithril_gauntlets','Mithril Gauntlets',true,'armor',1050,'level',45,null,false,'heavy',false),
   ('mithril_helm','Mithril Helm',true,'armor',1800,'level',45,null,false,'heavy',false),
-  ('mithril_ore','Mithril Ore',true,null,50,null,null,null,false,null,false),
+  ('mithril_ore','Mithril Ore',true,null,40,null,null,null,false,null,false),
   ('mithril_pickaxe','Mithril Pickaxe',true,'tool',600,null,null,null,false,null,false),
   ('mithril_platebody','Mithril Platebody',true,'armor',4500,'level',45,null,false,'heavy',false),
   ('mithril_platelegs','Mithril Platelegs',true,'armor',3300,'level',45,null,false,'heavy',false),
@@ -613,7 +613,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('shortbow','Shortbow',true,'weapon',90,'level',1,null,false,null,true),
   ('shrimp','Raw Shrimp',true,null,5,null,null,36,true,null,false),
   ('silk_thread','Silk Thread',true,null,55,null,null,null,false,null,false),
-  ('silverfin','Raw Silverfin',true,null,25,null,null,120,true,null,false),
+  ('silverfin','Raw Silverfin',true,null,20,null,null,120,true,null,false),
   ('skulkers_shiv','Skulker''s Shiv',true,null,76,null,null,null,false,null,false),
   ('slagheart_core','Slagheart Core',true,null,3200,null,null,null,false,null,false),
   ('slagheart_platebody','Slagheart Platebody',true,'armor',270000,'level',88,null,false,'heavy',false),
@@ -666,7 +666,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('studded_pants','Studded Leather Chaps',true,'armor',200,'level',15,null,false,'medium',false),
   ('sump_membrane','Sump Membrane',true,null,20,null,null,null,false,null,false),
   ('swarm_heart','Swarm Heart',true,null,650,null,null,null,false,null,false),
-  ('swordfish','Raw Swordfish',true,null,50,null,null,168,true,null,false),
+  ('swordfish','Raw Swordfish',true,null,40,null,null,168,true,null,false),
   ('tidecallers_pearl','Tidecaller''s Pearl',false,'trophy',0,null,null,null,false,null,false),
   ('timber_beam','Timber Beam',true,null,230,null,null,null,false,null,false),
   ('tomato','Tomato',true,null,90,null,null,48,true,null,false),
@@ -690,7 +690,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('verdite_bar','Verdite Bar',true,null,140,null,null,null,false,null,false),
   ('verdite_blade','Verdite Blade',true,'weapon',900,'level',38,null,false,null,false),
   ('verdite_helm','Verdite Helm',true,'armor',1080,'level',38,null,false,'heavy',false),
-  ('verdite_ore','Verdite Ore',true,null,15,null,null,null,false,null,false),
+  ('verdite_ore','Verdite Ore',true,null,10,null,null,null,false,null,false),
   ('verdite_platebody','Verdite Platebody',true,'armor',2700,'level',38,null,false,'heavy',false),
   ('verdite_platelegs','Verdite Platelegs',true,'armor',1980,'level',38,null,false,'heavy',false),
   ('void_banquet','Void Banquet',true,null,2400,null,null,720,false,null,false),
@@ -740,7 +740,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('whispering_codex','Whispering Codex',true,'weapon',6500,'level',45,null,false,null,false),
   ('widows_fang','Widow''s Fang',true,'weapon',7600,'level',38,null,false,null,false),
   ('willow_crossbow','Willow Crossbow',true,'weapon',500,'level',30,null,false,null,false),
-  ('willow_log','Willow Log',true,null,20,null,null,null,false,null,false),
+  ('willow_log','Willow Log',true,null,15,null,null,null,false,null,false),
   ('willow_longbow','Willow Longbow',true,'weapon',525,'level',30,null,false,null,true),
   ('willow_plank','Willow Plank',true,null,50,null,null,null,false,null,false),
   ('willow_rod','Willow Rod',true,'tool',80,null,null,null,false,null,false),
@@ -763,7 +763,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('wyvernhide_helmet','Wyvernhide Coif',true,'armor',3780,'level',60,null,false,'medium',false),
   ('wyvernhide_pants','Wyvernhide Chaps',true,'armor',6930,'level',60,null,false,'medium',false),
   ('yew_bow','Yew Bow',true,'weapon',4725,'level',60,null,false,null,true),
-  ('yew_log','Yew Log',true,null,60,null,null,null,false,null,false),
+  ('yew_log','Yew Log',true,null,50,null,null,null,false,null,false),
   ('yew_plank','Yew Plank',true,null,135,null,null,null,false,null,false),
   ('yew_rod','Yew Rod',true,'tool',3500,null,null,null,false,null,false),
   ('yew_spellbook','Yewclasp Spellbook',true,'offhand',3600,'level',60,null,false,null,false),
@@ -2036,7 +2036,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '016aa50fc8b76bccce14d4e7f986bd60eec272f9f8da2d9383098d157b68f703', now())
+  values (true, '724ab66c2b72634272a538ba409540f402c31c1a7e65a312d7b1196195d12b2b', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2256,7 +2256,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 016aa50fc8b76bccce14d4e7f986bd60eec272f9f8da2d9383098d157b68f703',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 724ab66c2b72634272a538ba409540f402c31c1a7e65a312d7b1196195d12b2b',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

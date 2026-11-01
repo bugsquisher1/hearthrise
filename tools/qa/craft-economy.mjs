@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/qa/craft-economy.mjs — WHAT A SKILL PAYS, MEASURED: REAL SETTLE, REAL SALE, ON THE LOCAL WORLD.
 //
-//   node tools/qa/craft-economy.mjs --out FILE [--max-req 60] [--samples 2] [--hours 2] [--hunts] [--careers] [--away]
+//   node tools/qa/craft-economy.mjs --out FILE [--max-req 60] [--samples 2] [--hours 2] [--hunts] [--careers] [--away] [--market]
 //
 // On tools/qa/local-world.mjs (the replayed chain, the real hr-accrue, nothing leaves the machine). Two accounts play each
 // row through the verbs a player's client sends: set_activity starts it, town time passes (world.wait), set_activity idle
@@ -12,11 +12,12 @@
 //   --away   one 8 h window against the same hours in 10 min windows: is a closed browser the same rate?
 //   --careers  a hero from 1 by the best row it can reach, an hour at a time: hours to 15, 30, 45, 60, 75, 99, gold sold
 //   --hunts  in-band grounds, 2 h each, the Level's kit: coin, loot sold, store bill, gold/h
+//   --market   the Weighhouse's floor played: one under it refused, one at it listed, bought by the other account, the seller paid
 // Levels, stock and kit are LOCAL fixtures, written straight to this in-memory database (party-soak's way); production has none of it.
 // mutant-anchors: none — a manual tool, not a CI guard
 // ════════════════════════════════════════════════════════════════════════
 import { randomUUID } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { TREES, ROCKS, FISH_SPOTS } from '../../src/data/gathering.js';
 import { ARTISAN_RECIPES } from '../../src/data/recipes.js';
 import { ITEMS } from '../../src/data/items.js';
@@ -263,6 +264,95 @@ if (has('--hunts')) for (const [ground, L, role] of [['mill_cellar', 4, 'tank'],
     netPerH: Math.round(ok.reduce((s, x) => s + x.net, 0) / ok.length / HOURS), samples: ok.map((x) => Math.round(x.net / HOURS)), ends: ok.map((x) => x.end), refused: rows.find((x) => x.refused)?.refused || null };
   report.hunts.push(row);
   log(`hunt ${ground} L${L} ${role}: coin after bill ${row.coinPerH} + loot sold ${row.lootPerH} = ${row.netPerH} g/h (samples ${row.samples.join('/')}, ends ${row.ends.join('/')})${row.refused ? ' REFUSED ' + JSON.stringify(row.refused).slice(0, 200) : ''}`);
+}
+
+// ── ONE HERO, BOTH HALVES ────────────────────────────────────────────────
+/* A row's rate is one thing; the whole cycle a player plays is the proof: gather, bench it all, sell it, gold over every hour it took. */
+const BENCH_MS = (id) => pacedActionMs(Object.values(ARTISAN_RECIPES).flat().find((r) => r.id === id).ms);
+async function benchAll(a, id, jobs) {
+  /* a job's time, one extra window so the stock (not the clock) ends the run; only the jobs' time is counted */
+  await run(a, 'artisan', id, ((jobs + 2) * BENCH_MS(id)) / 3600000);
+  return (jobs * BENCH_MS(id)) / 3600000;
+}
+if (has('--chains')) {
+  report.chains = [];
+  const cycles = [
+    { name: 'Copper Bar', skills: { mining: 1, smithing: 1 }, node: 'copper_rock', ore: 'copper_ore', bench: 'smelt_copper', out: 'copper_bar' },
+    { name: 'Iron Bar', skills: { mining: 15, smithing: 15 }, node: 'iron_rock', ore: 'iron_ore', bench: 'smelt_iron', out: 'iron_bar' },
+    { name: 'Oak Plank', skills: { woodcutting: 15, crafting: 15 }, node: 'oak_tree', ore: 'oak_log', bench: 'saw_oak', out: 'oak_plank' },
+    { name: 'Willow Plank', skills: { woodcutting: 30, crafting: 30 }, node: 'willow_tree', ore: 'willow_log', bench: 'saw_willow', out: 'willow_plank' },
+    { name: 'Cooked Herring', skills: { fishing: 10, cooking: 8 }, node: 'herring_s', ore: 'herring', bench: 'cook_herring', out: 'cooked_herring' },
+  ];
+  for (const c of cycles) {
+    const rows = [];
+    for (const a of heroes) {
+      await newDay(a); await emptyBag(a);
+      for (const [s, l] of Object.entries(c.skills)) await setSkill(a, s, l);
+      await run(a, 'gather', c.node, 1);
+      const got = (await bag(a))[c.ore] || 0;
+      const t = await benchAll(a, c.bench, got);
+      const sold = await sell(a, [c.out]);
+      rows.push({ ore: got, made: (await bag(a))[c.ore] || 0, gold: sold.gold, hours: 1 + t, perH: Math.round(sold.gold / (1 + t)) });
+    }
+    report.chains.push({ name: c.name, samples: rows });
+    log(`chain ${c.name}: ${rows.map((r) => r.gold + ' g in ' + r.hours.toFixed(2) + ' h = ' + r.perH + ' g/h').join(' / ')}`);
+  }
+  /* The whole forge: rock, bars, tree, planks, hatchets, shop. Iron Hatchets at Smithing 15. */
+  const rows = [];
+  for (const a of heroes) {
+    await newDay(a); await emptyBag(a);
+    for (const s of ['mining', 'smithing', 'woodcutting', 'crafting']) await setSkill(a, s, 15);
+    const forge = Object.values(ARTISAN_RECIPES).flat().find((r) => r.id === 'forge_iron_hatchets');
+    const ins = recipeInputs(forge);
+    await run(a, 'gather', 'iron_rock', 1);
+    const ore = (await bag(a)).iron_ore || 0;
+    let hours = 1 + await benchAll(a, 'smelt_iron', ore);
+    const jobs = Math.floor(ore / ins.iron_bar);
+    const planks = jobs * ins.normal_plank;
+    await run(a, 'gather', 'normal_tree', (planks * pacedActionMs(TREES[0].ms)) / 3600000 + 0.01);
+    hours += (planks * pacedActionMs(TREES[0].ms)) / 3600000;
+    hours += await benchAll(a, 'saw_normal', planks);
+    hours += await benchAll(a, 'forge_iron_hatchets', jobs);
+    const made = (await bag(a)).iron_hatchets || 0;
+    const sold = await sell(a, ['iron_hatchets']);
+    rows.push({ ore, jobs, made, gold: sold.gold, hours, perH: Math.round(sold.gold / hours) });
+  }
+  report.chains.push({ name: 'Iron Hatchets', samples: rows });
+  log(`chain Iron Hatchets: ${rows.map((r) => r.made + ' made, ' + r.gold + ' g in ' + r.hours.toFixed(2) + ' h = ' + r.perH + ' g/h').join(' / ')}`);
+}
+
+// ── THE WEIGHHOUSE ───────────────────────────────────────────────────────
+/* The real verbs against the real floor: one under it is refused, one at it lists, the other account buys it, the seller is paid.
+   market-on.sql applies to this memory only; the Level gate is a config row, set low so the fixture hero can trade. */
+if (has('--market')) {
+  const on = readFileSync(new URL('../../supabase/migrations/2027-02-14-market-on.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  await world.db.exec('begin;\n' + on + '\ncommit;');
+  await q('update public.hr_market_config set min_level = 1 where only_row');
+  const [seller, buyer] = heroes;
+  report.market = [];
+  for (const id of ['copper_ore', 'iron_ore', 'iron_bar', 'oak_plank', 'steel_bar', 'cooked_herring', 'cooked_trout', 'iron_hatchets', 'bronze_axe', 'scored_earth_rune', 'bronze_arrows', 'chalked_earth_rune']) {
+    const rule = (await q('select listable, why, floor_each::int as floor, ceiling_each::text as ceiling, book::int as book from public.hr_market_items where item_id = $1', [id]))[0];
+    const row = { id, bid: vendorPriceOf(ITEMS, id), listable: rule.listable, why: rule.why, floor: rule.floor, ceiling: rule.ceiling, book: rule.book };
+    if (rule.listable) {
+      await newDay(seller); await newDay(buyer);
+      await stock(seller, id, 10);
+      const list = (ask) => edge(seller, 'market_list', { market: { source: 'bag', item: id, qty: 1, ask_each: ask } });
+      const under = rule.floor > 1 ? await list(rule.floor - 1) : null;
+      row.underRefused = under ? (under.body && under.body.error) || under.status : 'floor is 1';
+      const listed = await list(rule.floor);
+      row.listed = listed.status === 200 && listed.body && listed.body.ok !== false;
+      const lid = row.listed ? (await q('select id from public.market_listings where user_id = $1 and item_id = $2 and qty > 0 order by expires_at desc limit 1', [seller.uid, id]))[0]?.id : null;
+      if (lid) {
+        await q(`insert into public.account_wallet (user_id, gold) values ($1, 100000) on conflict (user_id) do update set gold = 100000`, [buyer.uid]);
+        const before = await purse(seller);
+        const bought = await edge(buyer, 'market_buy', { market: { listing: lid, qty: 1, max_each: rule.floor, deliver: 'storage' } });
+        row.bought = bought.status === 200 && bought.body && bought.body.ok !== false ? true : (bought.body && bought.body.error);
+        row.sellerPaid = (await purse(seller)) - before;
+      }
+    }
+    report.market.push(row);
+    log(`market ${id}: ${JSON.stringify(row)}`);
+  }
 }
 
 if (OUT) writeFileSync(OUT, JSON.stringify(report, null, 1));

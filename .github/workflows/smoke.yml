@@ -4662,6 +4662,15 @@ jobs:
           node tools/mutant-gate.mjs node tests/style-gear.mjs --mutate
           node tests/style-gear.mjs
 
+      # THE CRAFT WAGE (designer 2026-11-01, src/data/items.js BULK_GOODS): a hero's hour at the rock and the bench pays
+      # under hunting at the hours it takes to reach, each step down the chain pays more, a forged piece sells above its
+      # metal, a cook can list under the store. --mutate plants fifteen defects, each CAUGHT by its arm.
+      - name: Craft wages - what a skill row pays at the shop
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/craft-wages.mjs --mutate
+          node tests/craft-wages.mjs
+
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt
       # has a walk and a sensible bag, and every end reason has plain copy.

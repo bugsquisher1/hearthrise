@@ -220,10 +220,10 @@
 .hb-plaque { order: 4; }
 /* THE SLOT SIZE (Tyler 10-25: "making the icons a bit bigger so people can see what they are"): a 32 px pixel icon at
    x2 (64 px, whole-number scale, ART_DIRECTION §3) in a 68 px well, so the bar spends its width on the art. The size
-   follows the screen between a 40 px well (a narrow desktop) and 68 px: the bar is twelve wells wide (ten slots, Food,
+   follows the screen between a 40 px well (a narrow desktop) and 68 px, reaching 44 px at 1024 so the bar fits the World in any font (friends' panel): twelve wells wide (ten slots, Food,
    Charm) plus 464 px of everything else, so it fits from 1280 px (a Steam Deck) up with 68 px wells, and the icon
    inside always snaps to a whole scale of its 32 art px (round(down, ..., 32px)): x2 in a 68 well, x1 below it. */
-.hb-slots { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, clamp(40px, calc((100vw - 464px) / 12), 68px)); grid-auto-rows: clamp(40px, calc((100vw - 464px) / 12), 68px); gap: 4px; }
+.hb-slots { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, clamp(40px, calc(9.375vw - 52px), 68px)); grid-auto-rows: clamp(40px, calc(9.375vw - 52px), 68px); gap: 4px; }
 .hb-slot { position: relative; display: grid; place-items: center; cursor: pointer; background: var(--bg-2); box-shadow: var(--steel-well); }
 .hb-slot:hover { background: var(--bg-3); }
 .hb-slot:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }

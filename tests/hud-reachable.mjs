@@ -4,6 +4,7 @@
 //
 //   node tests/hud-reachable.mjs                 the rules
 //   node tests/hud-reachable.mjs --mutate        every planted defect must turn a named rule RED
+//   node tests/hud-reachable.mjs --mutate --only <words>   only the mutants whose name holds <words>
 //   node tests/hud-reachable.mjs --shots <dir>   also write a screenshot per size, solo and in a party of 4
 //
 // mutant-anchors: src/shell/shell.js src/shell/hud-room.js src/shell/hud.js src/shell/window-manager.js src/shell/away-recap.js src/shell/alerts.js src/styles/hunt.css
@@ -176,8 +177,16 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (crossing(world[i][1], world[j][1])) fails.push('HR-1 ' + at + ': ' + world[i][0] + ' and ' + world[j][0] + ' overlap');
         }
         if (await page.evaluate(() => document.documentElement.scrollHeight > innerHeight + 1 || document.documentElement.scrollWidth > innerWidth + 1)) fails.push('HR-2 ' + at + ': the page itself scrolls');
-        const needed = ['.hp-m .hh-gauge.is-hp', '.hp-m .hh-gauge.is-mana', '.ha-analyzer .hs-wfold', '.ha-stats [data-stat="xp_h"], .ha-stats [data-stat="kills"]'];
+        const needed = ['.hp-m .hh-gauge.is-hp', '.hp-m .hh-gauge.is-mana', '.ha-analyzer .hs-wfold', '.ha-stats [data-stat="xp_h"], .ha-stats [data-stat="kills"]', '.hb-plaque .hh-step button'];
         if (tag !== 'solo') needed.push('.hp-kick', '.hp-acts button');
+        /* A player scrolls with a wheel: a board cut off by its room must move under one. */
+        const cut = await page.evaluate(() => { const e = document.querySelector('.hp-party .hh-panel-body'); if (!e || e.scrollHeight <= e.clientHeight + 1) return null; const q = e.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; });
+        if (cut) {
+          await page.mouse.move(cut[0], cut[1]);
+          await page.mouse.wheel(0, 200);
+          if (!(await wait(page, () => document.querySelector('.hp-party .hh-panel-body').scrollTop > 0, null, 2000))) fails.push('HR-2 ' + at + ': the Party panel does not move under a wheel');
+          await scrollBack(page);
+        }
         for (const sel of needed) {
           const got = await presses(page, sel);
           if (!got.length) fails.push('HR-2 ' + at + ': nothing shows ' + sel);
@@ -188,6 +197,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (bar && Math.abs((bar.left + bar.right) / 2 - w / 2) > 1) fails.push('HR-3 ' + at + ': the action bar slid off its centre to ' + Math.round(bar.left));
         if (shots) await page.screenshot({ path: join(shots, tag.replace(/ /g, '') + '-' + w + 'x' + h + '.png') });
       }
+      /* Shorter than any size we promise, where a panel's own minimum outgrows its room: it may touch the bar, it never leaves the window. */
+      await size(page, 1100, 430);
+      const low = await presses(page, '.ha-analyzer .hs-wfold');
+      if (!low.length || !low[0].ok) fails.push('HR-3 ' + tag + ' 1100x430: the bar pushed the analyzer off the window: ' + JSON.stringify(low[0] || null));
       if (errors.length) fails.push('HR-1 ' + tag + ': page errors: ' + errors.slice(0, 2).join(' | '));
       await ctx.close();
     }
@@ -351,11 +364,11 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     }
 
     { // HR-9 a hunt in view is never an absence: the clock passes the stamp's age with the page open, no card; the stamp renews
-      const { ctx, page, s, up } = await open();
+      const { ctx, page, s, up } = await open((env) => { env.client_state = Object.assign({}, env.client_state, { awaySeen: { s: env.hunt.session_id, at: env.hunt_server_now_ms - 596000, xp: env.state.level_xp, gold: 0, kills: 1 } }); });
       if (up) {
-        const clock = (ms) => { s.env.now = new Date(Date.parse(s.env.now) + ms).toISOString(); s.env.hunt_server_now_ms += ms; };
-        await page.waitForTimeout(300);
-        for (const min of [6, 6, 6]) { clock(min * 60000); await pushEnvelope(page, s); }
+        /* the stamp turns ten minutes old with the page open */
+        await page.waitForTimeout(9000);
+        await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const shown = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).join(' | '));
         if (/While you were away/.test(shown)) fails.push('HR-9 a hunt on screen says "While you were away": ' + shown);
@@ -385,7 +398,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 const STOP = Symbol('first red');
 
 const MUTANTS = [
-  ['the bar steps a tall panel below itself again (HR-1)', 'src/shell/shell.js', "if (!phoneMq.matches && anchorOf(e)[0] !== 't') continue;", ''],
+  ['the bar steps a tall panel below itself again (HR-3)', 'src/shell/shell.js', "if (!phoneMq.matches && anchorOf(e)[0] !== 't') continue;", ''],
   ['a panel gets no room above the bar (HR-1)', 'src/shell/hud-room.js', 'take(e, panelRoom(moved ? Object.assign(q, { top: 0 }) : q, bars, height, gap));', ''],
   ['the Party panel ignores its room (HR-1)', 'src/styles/hunt.css', '.hp-party { width: 250px; max-height: var(--hs-room, none); }', '.hp-party { width: 250px; }'],
   ['the Party panel does not scroll (HR-2)', 'src/styles/hunt.css', '.hp-party .hh-panel-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }', '.hp-party .hh-panel-body { min-height: 0; overflow: hidden; }'],
@@ -399,7 +412,7 @@ const MUTANTS = [
   ['the card with no room stays over the window (HR-6)', 'src/shell/hud-room.js', "alerts.classList.toggle('is-under-dock', left === null);", ''],
   ['the away card keeps the line it came up with (HR-7)', 'src/shell/alerts.js', 'const line = a.kind === \'away\' ? awayLineNow(cs, a) : a.text;', 'const line = a.text;'],
   ['the away card stays after the hunt ended (HR-7)', 'src/shell/away-recap.js', 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended)) return null;', 'if (!h || h.sessionId !== a.session) return null;'],
-  ['a hunt in view is judged as an absence (HR-9)', 'src/shell/alerts.js', 'const judged = returning.has(cs.slot);', 'const judged = true;'],
+  ['a hunt in view is judged as an absence (HR-9)', 'src/shell/alerts.js', 'if (judged && awaySettled(cs)) returning.delete(cs.slot);', ''],
   ['the desktop\'s room reaches the phone (HR-8)', 'src/shell/hud-room.js', 'if (phone) { if (!room.has(e)) room.set(e, null); continue; }', ''],
 ];
 
@@ -417,7 +430,9 @@ async function main() {
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   const counts = { caught: 0, harness: 0, escaped: 0 };
+  const only = process.argv.indexOf('--only') > 0 ? process.argv[process.argv.indexOf('--only') + 1] : null;
   for (const [name, file, from, to] of MUTANTS) {
+    if (only && !name.includes(only)) continue;
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, null, { stopAtFirst: true })), counts));

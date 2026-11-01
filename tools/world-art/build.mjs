@@ -31,7 +31,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodePNG, encodePNG, crop, pixelHash } from './png.mjs';
+import { decodePNG, encodeSheetPNG, crop, pixelHash } from './png.mjs';
 import { lock } from './lock.mjs';
 import { measureFrame, contactSpans } from './measure.mjs';
 import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames } from './validate.mjs';
@@ -259,7 +259,7 @@ if (isMain) {
       if (argv.includes('--report')) continue;
       const p = atlasPaths(set);
       mkdirSync(join(ROOT, OUT_DIR), { recursive: true });
-      writeFileSync(join(ROOT, p.image), encodePNG(b.atlas));
+      writeFileSync(join(ROOT, p.image), encodeSheetPNG(b.atlas));
       writeFileSync(join(ROOT, p.manifest), stringifyManifest(b.manifest) + '\n');
       console.log(`  wrote ${p.image} + ${p.manifest}`);
     }

@@ -58,7 +58,7 @@
 import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
-import { decodePNG, encodePNG, pixelHash, cloneImage, createImage, blit, scaleNearest } from '../tools/world-art/png.mjs';
+import { decodePNG, encodePNG, encodeSheetPNG, pixelHash, cloneImage, createImage, blit, scaleNearest } from '../tools/world-art/png.mjs';
 import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames, bodyOf } from '../tools/world-art/validate.mjs';
 import { measureFrame } from '../tools/world-art/measure.mjs';
 import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
@@ -211,7 +211,7 @@ function loadAtlases(root = ROOT) {
 
 /** A sheet's bytes are not indexed colour (PNG colour type 3): the finding, or null. */
 function encodingFinding(file, bytes) {
-  return bytes[25] === 3 ? null : `${file}: [sheet-encoding] PNG colour type ${bytes[25]}, not indexed (3): the same pixels at about twice the bytes (tools/world-art/png.mjs encodePNG)`;
+  return bytes[25] === 3 ? null : `${file}: [sheet-encoding] PNG colour type ${bytes[25]}, not indexed (3): the same pixels at about twice the bytes (tools/world-art/png.mjs encodeSheetPNG)`;
 }
 
 function guard() {
@@ -414,7 +414,7 @@ function selftest(atlases) {
   const few = createImage(8, 8);
   for (let i = 0; i < 16; i += 4) { few.data[i] = 200; few.data[i + 1] = 100; few.data[i + 2] = 50; few.data[i + 3] = 255; }
   few.data[20] = 9; few.data[21] = 9; few.data[22] = 9; few.data[23] = 0;   // a transparent pixel keeps its colour bytes
-  const roundTrips = [[many, 6], [few, 3]].every(([img, ct]) => { const b = encodePNG(img); return b[25] === ct && pixelHash(decodePNG(b)) === pixelHash(img); });
+  const roundTrips = [[many, 6], [few, 3]].every(([img, ct]) => { const b = encodeSheetPNG(img); return b[25] === ct && pixelHash(decodePNG(b)) === pixelHash(img); });
   if (encodingOk && roundTrips) console.log('  ✓ a sheet written RGBA: caught by [sheet-encoding]; the encoder gives back every pixel');
   else { escaped++; console.log(`  ✗ the sheet encoding: guard ${encodingOk}, round trip ${roundTrips}`); }
 

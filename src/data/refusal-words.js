@@ -108,6 +108,12 @@ export const REFUSAL_WORDS = Object.freeze({
   /* Items, gold and the bag. */
   insufficient_item: 'You no longer have that many.',
   insufficient_gold: 'Not enough gold.',
+  /* The work bench tax (2027-02-19-bench-tax.sql): the engine read something that moved. The next try reads it fresh. */
+  bench_tax_purse: 'Your gold changed while that bench settled. Try again.',
+  bench_tax_changed: 'The bench fee changed while that settled. Try again.',
+  bench_tax_missing: 'The bench fee could not be settled just now. Try again in a moment.',
+  bench_tax_short: 'The bench fee could not be settled just now. Try again in a moment.',
+  bench_tax_bad: 'The bench fee could not be settled just now. Try again in a moment.',
   cannot_afford: 'Not enough gold.',
   gold_short: 'Not enough gold.',
   item_locked: 'That item is locked. Unlock it first.',

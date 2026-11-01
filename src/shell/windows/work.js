@@ -34,8 +34,9 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.79';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.79';
 import { runIntent } from '../intent-words.js?v=0.2.79';
 import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.79';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.79';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.79';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.79';
+import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.79';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
@@ -71,6 +72,8 @@ export function rowsFor(skill, level, inv) {
 }
 
 const secs = (ms) => (Math.round(ms / 100) / 10) + ' s';
+/* A bench recipe's own name, for the line about its last run. */
+const recipeNameOf = (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'That job'; };
 
 /* "2 Copper Ore → Bronze Bar", "6 Rune Blank → 45 Earth Rune", "Bones" (a rite). */
 function recipeWords(w) {
@@ -83,7 +86,7 @@ function recipeWords(w) {
 function rowHtml(g, w) {
   const icon = productOf(w) || Object.keys(recipeInputs(w.row))[0];
   return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '"><span class="hw-ico">' + itemIconHtml(g, icon) + '</span>'
-    + '<span class="hw-line-name"><b>' + esc(w.row.name) + '</b><small class="hw-work-what"></small><small class="hw-work-why"></small>'
+    + '<span class="hw-line-name"><b>' + esc(w.row.name) + '</b><small class="hw-work-what"></small><small class="hw-work-fee"></small><small class="hw-work-why"></small>'
     /* "Make N" (a bench row only), under the row's words: how many the next Start makes; the server stops the bench there. */
     + (w.kind === 'artisan' ? '<span class="hh-segs hw-work-n" role="group" aria-label="How many to make">'
       + BENCH_COUNTS.map((n) => '<button type="button" class="hh-seg" data-hs-act="work-n" data-id="' + esc(w.id) + '" data-n="' + n + '">'
@@ -103,7 +106,11 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const burn = w.skill === 'cooking' && out ? burnPct(w.row, lv, 0) : 0;
   const pick = gather ? 'all' : countOf(sc, w);
   /* The bench's count reads what it draws on: the server's bag + Storage (heldOf), the server's own order. */
-  const runs = runsOf(w.row, heldOf(cs));
+  const runs = gather ? 0 : affordable(cs, w, runsOf(w.row, heldOf(cs)));
+  /* What the public bench takes, before the press (bench-fee.js): the whole sentence on the pointer, the number on the row. */
+  const fee = li.querySelector('.hw-work-fee');
+  text(fee, feeRowWords(cs, w));
+  attr(fee, 'title', feeFullWords(cs, w) || null);
   const makes = (pick === 'all' ? 'Makes up to ' + whole(runs * yieldOf(w))
     : 'Makes ' + whole(Math.min(pick, runs) * yieldOf(w)) + ' of up to ' + whole(runs * yieldOf(w)));
   const have = gather ? gatherBagWords(cs, w, running)
@@ -128,6 +135,7 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
 export function renderWork() {
   return '<div class="hw-trade">'
     + '<div class="hw-burying hw-work-now" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="work-stop">Stop</button></div>'
+    + '<p class="hs-note hw-work-end" role="status"></p>'
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make something with it.</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ All skills</button>'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
@@ -148,6 +156,8 @@ renderWork.patch = function patchWork(body, ctx) {
   cls(now, 'is-on', line.length > 0);
   paintLine(now.querySelector('.hw-burying-q'), line, ctx.doc);
   prop(now.querySelector('button'), 'disabled', sc.pending);
+  /* The last run's end, with nothing running: why the bench stopped and what it took. */
+  text(root.querySelector('.hw-work-end'), line.length ? '' : benchEndWords(cs, recipeNameOf));
   /* The ledger, each skill with a door pressable. */
   const ledger = root.querySelector('.hw-trade-ledger');
   renderTradeSkills.patch(ledger, ctx);
@@ -179,7 +189,7 @@ renderWork.patch = function patchWork(body, ctx) {
     const how = SKILLS_DEF[skill].cat === 'gather'
       ? 'Pick what to gather. Your hero keeps at it while you are away, until you stop it or start a hunt.'
       : 'Pick what to make. It uses the materials in your bag' + (drawsOnStorage(cs) ? ', then your Storage,' : '') + ' and stops when they run out.';
-    text(view.querySelector('.hw-work-use'), (guide ? guide.use + ' ' : '') + how);
+    text(view.querySelector('.hw-work-use'), (guide ? guide.use + ' ' : '') + how + (feeHeadWords(cs, skill) ? ' ' + feeHeadWords(cs, skill) : ''));
     rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, heldOf(cs)), {
       key: (w) => w.id,
       build: (w) => element(ctx.doc, rowHtml(ctx.glyphs, w)),

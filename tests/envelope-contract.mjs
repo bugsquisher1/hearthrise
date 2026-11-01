@@ -157,6 +157,9 @@ function contract(R, cs, body, tl) {
   // where a town skill's inputs come from (2027-01-24-skills-from-storage.sql): the bag, then the account's Storage
   need('skill_inputs', R.IS.drawsOnStorage(cs) === true && typeof R.IS.heldOf(cs) === 'object',
     'drawsOnStorage reads ' + JSON.stringify(body.skill_inputs) + ' (want {from: ["bag", "storage"]})');
+  // the work bench tax (2027-02-19-bench-tax.sql): what a public bench takes, the words before Start
+  need('bench_tax', R.BT.benchTaxOf(cs) !== null && Number.isInteger(R.BT.benchTaxOf(cs).carry) && Object.keys(R.BT.benchTaxOf(cs).rooms).length > 0,
+    'benchTaxOf reads ' + JSON.stringify(body.bench_tax).slice(0, 160));
   // the ACCOUNT storage's space (2026-11-28-storage-chests.sql): used / cap and the next chest, the Storage window's line
   const dp = R.IS.depotOf(cs);
   need('depot', !!dp && dp.cap >= 1 && dp.used >= 0 && (dp.next === null || (dp.next.stacks >= 1 && dp.next.name.length > 0)),
@@ -246,7 +249,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs']);
+  'skill_inputs', 'bench_tax']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -301,7 +304,7 @@ async function readers(root) {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
-    TS: await import(u('src/session/tally-sections.js')),
+    TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')),
   };
@@ -413,6 +416,7 @@ const DB_MUTANTS = [
   ['tally', 'public.hr_tally_section(uuid,integer)', "'per_day', cfg.paid_per_day,", "'perday', cfg.paid_per_day,"],
   ['tally', 'public.hr_tally_count(uuid,integer,uuid,jsonb)', "coalesce((p_meta->'km'->>v_r.monster_id)::bigint, 0)", '0::bigint'],
   ['skill_inputs', 'public.hr_skill_inputs_view(uuid,integer)', "jsonb_build_object('from', jsonb_build_array('bag', 'storage'))", "jsonb_build_object('sources', jsonb_build_array('bag', 'storage'))"],
+  ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

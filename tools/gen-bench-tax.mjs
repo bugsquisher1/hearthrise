@@ -2,22 +2,24 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/gen-bench-tax.mjs — GENERATE THE WORK BENCH TAX'S SERVER CATALOGUE.
 //
-// src/data/bench-tax.js is the single source of what a public bench takes (Tyler 2026-11-01; the designer's rows). Postgres
-// must know it to do what only it may: re-derive a settle's fee under the character lock. Emitted as hr_bench_tax_rates, one
-// row per bench skill, a full delete + insert replace.
+// src/data/bench-tax.js is the single source of what a public bench takes (Tyler 2026-11-01; the designer's rows) and
+// src/data/recipes.js of what a job makes. Postgres must know both to do what only it may: re-derive a settle's fee under the
+// character lock. Emitted as hr_bench_tax_rates, one row per priced bench recipe, a full delete + insert replace. The shop's
+// bid is NOT copied here: the server reads hr_hunt_vendor_value (catalogue.js vendorPriceOf's generated copy, the price it
+// pays at the shop), so a bid has one home and a re-priced good moves its fee.
 //
 //   Regenerate:  node tools/gen-bench-tax.mjs
 //   Verify:      node tools/gen-bench-tax.mjs --check     (exit 1 on drift)
 //   Selftest:    node tools/gen-bench-tax.mjs --selftest  (every refusal bites)
 //
-// REFUSES (throws, nothing written): a bench skill with no row, a row for no bench skill, a room with no rung of that
-// number, a rate that is not a whole milligold at or above 0.
+// REFUSES (throws, nothing written): a bench skill that is neither taxed nor named untaxed, a row for no bench skill, a taxed
+// skill with no room or a room with no such rung, a share that is not a whole permille from 0 to 1000.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
-import { BENCH_TAX } from '../src/data/bench-tax.js';
+import { BENCH_TAX, BENCH_TAX_ROOMS, BENCH_TAX_UNTAXED, BENCH_TAX_FREE_UNDER_MG } from '../src/data/bench-tax.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ROOM_RUNGS } from '../src/data/homestead-tiers.js';
 
@@ -27,56 +29,75 @@ export const OUT_FILE = '2027-02-19-bench-tax-rates.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /** What is wrong with the rows, as sentences. */
-export function problemsOf(rows, recipes, rungs) {
+export function problemsOf(tax, rooms, untaxed, recipes, rungs) {
   const out = [];
-  for (const skill of Object.keys(recipes)) if (!rows[skill]) out.push(`the bench skill ${skill} has no row`);
-  for (const [skill, r] of Object.entries(rows)) {
+  for (const skill of Object.keys(recipes)) if (!(skill in tax) && !(skill in untaxed)) out.push(`the bench skill ${skill} is neither taxed nor named untaxed`);
+  for (const [skill, p] of Object.entries(tax)) {
     if (!recipes[skill]) out.push(`${skill} is no bench skill`);
-    if (!rungs[r.room] || !rungs[r.room][r.rung - 1]) out.push(`${skill}: the room ${r.room} has no rung ${r.rung}`);
-    for (const k of ['baseMg', 'perReqMg']) if (!Number.isSafeInteger(r[k]) || r[k] < 0) out.push(`${skill}: ${k} is ${r[k]}, not a whole milligold`);
+    if (!Number.isInteger(p) || p < 0 || p > 1000) out.push(`${skill}: ${p} is not a share from 0 to 1000 permille`);
+    const r = rooms[skill];
+    if (!r || !rungs[r.room] || !rungs[r.room][r.rung - 1]) out.push(`${skill}: no room takes it off (${JSON.stringify(r)})`);
   }
   return out;
 }
 
 const lit = (s) => "'" + String(s).replace(/'/g, "''") + "'";
 
+export function rowsOf() {
+  const seen = new Set();
+  const out = [];
+  for (const skill of Object.keys(BENCH_TAX).sort()) {
+    for (const r of ARTISAN_RECIPES[skill]) {
+      if (!r.id || !r.output || seen.has(r.id)) continue;
+      seen.add(r.id);
+      out.push({ recipe: r.id, skill, output: r.output, qty: Math.max(1, Number(r.outputQty) || 1) });
+    }
+  }
+  return out.sort((a, b) => (a.recipe < b.recipe ? -1 : 1));
+}
+
 export function build() {
-  const problems = problemsOf(BENCH_TAX, ARTISAN_RECIPES, ROOM_RUNGS);
+  const problems = problemsOf(BENCH_TAX, BENCH_TAX_ROOMS, BENCH_TAX_UNTAXED, ARTISAN_RECIPES, ROOM_RUNGS);
   if (problems.length) throw new Error('gen-bench-tax: ' + problems.join('; '));
-  const rows = Object.keys(BENCH_TAX).sort().map((s) => {
-    const r = BENCH_TAX[s];
-    return `  (${lit(s)}, ${lit(r.room)}, ${r.rung}, ${r.baseMg}, ${r.perReqMg})`;
+  const rows = rowsOf().map((r) => {
+    const room = BENCH_TAX_ROOMS[r.skill];
+    return `  (${lit(r.recipe)}, ${lit(r.skill)}, ${lit(r.output)}, ${r.qty}, ${BENCH_TAX[r.skill]}, ${lit(room.room)}, ${room.rung}, ${BENCH_TAX_FREE_UNDER_MG})`;
   });
   return `-- ════════════════════════════════════════════════════════════════════════
--- ${OUT_FILE} — WHAT THE PUBLIC BENCH TAKES, PER SKILL.
--- Generated by tools/gen-bench-tax.mjs from src/data/bench-tax.js.
+-- ${OUT_FILE} — WHAT THE PUBLIC BENCH TAKES, PER RECIPE.
+-- Generated by tools/gen-bench-tax.mjs from src/data/bench-tax.js and src/data/recipes.js.
 --   Any hand edit FAILS \`node tools/gen-bench-tax.mjs --check\`.
+-- A recipe's fee in milligold = permille x hr_hunt_vendor_value.unit(output) x qty; no bid, no fee; under free_under_mg, no fee.
 -- Read by hr_bench_tax_settle and hr_bench_tax_view (2027-02-19-bench-tax.sql). Moves no value by itself.
--- RLS on, no policy, no client grant: a client reads a rate through its own envelope. No begin/commit.
+-- RLS on, no policy, no client grant: a client reads a fee through its own envelope. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.hr_bench_tax_rates (
-  skill      text primary key,
-  room       text not null,
-  rung       int  not null check (rung >= 1),
-  base_mg    int  not null check (base_mg >= 0),
-  per_req_mg int  not null check (per_req_mg >= 0)
+  recipe_id     text primary key check (recipe_id ~ '^[a-z0-9_]{1,64}$'),
+  skill         text not null,
+  output        text not null,
+  qty           int  not null check (qty >= 1),
+  permille      int  not null check (permille between 0 and 1000),
+  room          text not null,
+  rung          int  not null check (rung >= 1),
+  free_under_mg int  not null check (free_under_mg >= 0)
 );
 alter table public.hr_bench_tax_rates enable row level security;
 revoke all on table public.hr_bench_tax_rates from public, anon, authenticated, service_role;
 
 delete from public.hr_bench_tax_rates;
-insert into public.hr_bench_tax_rates (skill, room, rung, base_mg, per_req_mg) values
+insert into public.hr_bench_tax_rates (recipe_id, skill, output, qty, permille, room, rung, free_under_mg) values
 ${rows.join(',\n')};
 
--- §4 SELF-CHECK: every bench recipe's skill has a row, every room is a real unlock, and no client can write or read the table.
+-- §4 SELF-CHECK: every row is a real bench recipe of its skill with a real output and a real room, and no client can write or read the table.
 do $$
 declare v text;
 begin
-  select a.req_skill into v from public.hr_activities a
-   where a.kind = 'artisan' and not exists (select 1 from public.hr_bench_tax_rates r where r.skill = a.req_skill) limit 1;
-  if v is not null then raise exception 'bench-tax-rates §4: the bench skill % has no row', v; end if;
-  select r.room into v from public.hr_bench_tax_rates r
-   where not exists (select 1 from public.hr_unlocks u where u.unlock_id = 'room:' || r.room) limit 1;
+  select r.recipe_id into v from public.hr_bench_tax_rates r
+   where not exists (select 1 from public.hr_activities a where a.kind = 'artisan' and a.activity_id = r.recipe_id and a.req_skill = r.skill) limit 1;
+  if v is not null then raise exception 'bench-tax-rates §4: % is no bench recipe of its skill', v; end if;
+  select r.output into v from public.hr_bench_tax_rates r where not exists (select 1 from public.hr_items i where i.item_id = r.output) limit 1;
+  if v is not null then raise exception 'bench-tax-rates §4: % is no item', v; end if;
+  select r.room into v from public.hr_bench_tax_rates r where not exists (select 1 from public.hr_unlocks u where u.unlock_id = 'room:' || r.room) limit 1;
   if v is not null then raise exception 'bench-tax-rates §4: the room % is no unlock', v; end if;
   if exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'hr_bench_tax_rates') then
     raise exception 'bench-tax-rates §4: a policy opens the table to a client'; end if;
@@ -88,19 +109,21 @@ end $$;
 
 function selftest() {
   let bad = 0;
-  const bites = (name, rows, want) => {
-    const hit = problemsOf(rows, ARTISAN_RECIPES, ROOM_RUNGS).some((p) => p.includes(want));
+  const bites = (name, want, tax = BENCH_TAX, rooms = BENCH_TAX_ROOMS, untaxed = BENCH_TAX_UNTAXED) => {
+    const hit = problemsOf(tax, rooms, untaxed, ARTISAN_RECIPES, ROOM_RUNGS).some((p) => p.includes(want));
     console.log(`  ${hit ? 'CAUGHT' : 'MISSED'} ${name}`);
     if (!hit) bad++;
   };
-  const clean = problemsOf(BENCH_TAX, ARTISAN_RECIPES, ROOM_RUNGS);
+  const clean = problemsOf(BENCH_TAX, BENCH_TAX_ROOMS, BENCH_TAX_UNTAXED, ARTISAN_RECIPES, ROOM_RUNGS);
   if (clean.length) { console.error('gen-bench-tax --selftest: the tree is not clean: ' + clean.join('; ')); process.exit(2); }
   const { cooking, ...noCooking } = BENCH_TAX;
-  bites('a bench skill loses its row', noCooking, 'cooking has no row');
-  bites('a row for no bench skill', { ...BENCH_TAX, fishing: cooking }, 'fishing is no bench skill');
-  bites('a rung the room does not have', { ...BENCH_TAX, cooking: { ...cooking, rung: 9 } }, 'no rung 9');
-  bites('a fraction of a milligold', { ...BENCH_TAX, cooking: { ...cooking, baseMg: 0.5 } }, 'baseMg');
-  bites('a negative rate', { ...BENCH_TAX, cooking: { ...cooking, perReqMg: -1 } }, 'perReqMg');
+  bites('a bench skill loses its row', 'cooking is neither', noCooking);
+  bites('a row for no bench skill', 'fishing is no bench skill', { ...BENCH_TAX, fishing: 150 });
+  bites('a share over the whole bid', '1500 is not a share', { ...BENCH_TAX, smithing: 1500 });
+  bites('a fraction of a permille', '0.5 is not a share', { ...BENCH_TAX, smithing: 0.5 });
+  bites('a taxed skill no room takes off', 'no room takes it off', BENCH_TAX, { ...BENCH_TAX_ROOMS, cooking: undefined });
+  bites('a rung the room does not have', 'no room takes it off', BENCH_TAX, { ...BENCH_TAX_ROOMS, cooking: { room: 'kitchen', rung: 9 } });
+  bites('the Hearth forgotten', 'inner_flame is neither', BENCH_TAX, BENCH_TAX_ROOMS, {});
   if (bad) { console.error(`gen-bench-tax --selftest: ${bad} refusal(s) did not bite`); process.exit(1); }
   console.log('gen-bench-tax --selftest: every refusal bites');
 }

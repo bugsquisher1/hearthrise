@@ -462,7 +462,8 @@
 .hw-skill-xp.is-ahead { font-style: italic; }
 .hw-work-row .hw-line-name small { white-space: normal; }
 .hw-work-why { color: var(--ink-3); }
-.hw-work-why:empty { display: none; }
+.hw-work-why:empty, .hw-work-fee:empty, .hw-work-end:empty { display: none; }
+.hw-work-fee { color: var(--ink-3); }
 .hw-work-row.is-on .hw-line-name b, .hw-work-row.is-on .hw-work-why { color: var(--gold-2); }
 .hw-work-row.is-locked .hw-ico { opacity: .5; }
 /* "Make N": the amount sits under the row's words, a quiet well (hunt.css .hh-segs); a locked row has none. */

@@ -82,6 +82,7 @@ const count = (n) => (Number.isSafeInteger(n) && n > 0 ? n : 0);
  *   bagCap     the bag's stack cap (state.bank_cap), or null
  *   nowMs      the server's clock now (CharacterSession.serverNow)
  *   refused    true while a settle refusal stands on this record
+ *   tax        the bench tax this run owes (src/core/bench-tax.js taxFor, the server's numbers), or null; spent in place
  * @returns {{ actions: number, items: object, stored: object, xp: object, unsure: number } | null}
  *   items: { id: signed change } to the BAG (the product up, the inputs down, the bag first, as the server spends);
  *   stored: { id: signed change } to Storage (the inputs the bag could not cover); xp: { skill: XP }; unsure:
@@ -134,7 +135,7 @@ export function predictTown(o) {
     sum = simulateSkillSpan(scratch, Object.assign(ctx, { nodes: one }));
   } else {
     one[w.id] = { skill: w.skill, recipe: w.row };
-    sum = simulateArtisanSpan(scratch, Object.assign(ctx, { recipes: one, maxActions: count(o.left) || null }));
+    sum = simulateArtisanSpan(scratch, Object.assign(ctx, { recipes: one, maxActions: count(o.left) || null, tax: o.tax || null }));
   }
   const actions = count(sum && sum.ticks);
   const xpSkill = w.row.xpSkill || w.skill;

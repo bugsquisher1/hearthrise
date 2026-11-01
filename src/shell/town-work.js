@@ -50,6 +50,7 @@ import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sect
 import { townWorkRunning } from '../session/town-poll.js?v=0.2.79';
 import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.79';
 import { skillShortWords } from './intent-words.js?v=0.2.79';
+import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.79';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -132,6 +133,12 @@ export function actionMs(cs, w) {
   return w.kind === 'gather' ? gatherIntervalMs(st, w.skill, w.row, { items: ITEMS }) : artisanIntervalMs(st, w.skill, w.row, { items: ITEMS });
 }
 
+/** Actions the supply covers, cut to what the purse pays (the work bench tax: the engine stops the bench there). */
+export function affordable(cs, w, runs) {
+  const paid = runsPaid(cs, w);
+  return paid === null ? runs : Math.min(runs, paid);
+}
+
 /**
  * The SERVER-clock ms by which the bench run the server holds has certainly spent its supply (or its count), so the
  * engine stops it on the next settle (the settle that pays its last action ends it: artisan-sim.js); null for anything
@@ -145,7 +152,7 @@ export function benchSpentAtMs(cs) {
   const from = Date.parse(st.accrued_to);
   if (!Number.isFinite(from)) return null;
   const left = leftOf(cs);
-  const runs = left === null ? runsOf(w.row, supplyOf(cs)) : Math.min(left, runsOf(w.row, supplyOf(cs)));
+  const runs = affordable(cs, w, left === null ? runsOf(w.row, supplyOf(cs)) : Math.min(left, runsOf(w.row, supplyOf(cs))));
   return from + runs * actionMs(cs, w) + SLACK_MS;
 }
 
@@ -195,6 +202,9 @@ export function workBlock(cs, w, huntRunning) {
        product needs a new stack and the bag has none. The engine would stop the bench at once and say so. */
     const full = bagFullFor({ inventory: invOf(cs) }, w.row, w.skill, { bagCap: bagCapOf(cs), burns: false });
     if (full) return 'Your bag is full. Make room for ' + itemName(full) + ' first.';
+    /* The work bench tax (bench-fee.js): the server would stop it at the first craft and say so; say it before the press. */
+    const broke = feeBlock(cs, w);
+    if (broke) return broke;
   }
   return '';
 }
@@ -227,7 +237,7 @@ export function startWork(cs, w, send, repaint, words, count) {
     run.from = { id: w.id, xp: xpOf(cs, w.skill), skill: w.skill, out, made: out ? bag[out] || 0 : 0, burnt: bag[BURNT] || 0 };
     if (w.kind === 'artisan') {
       const sup = supplyOf(cs);
-      const runs = n === null ? runsOf(w.row, sup) : Math.min(n, runsOf(w.row, sup));
+      const runs = affordable(cs, w, n === null ? runsOf(w.row, sup) : Math.min(n, runsOf(w.row, sup)));
       const endAt = Date.now() + runs * actionMs(cs, w) + SLACK_MS;
       const arm = () => { run.timer = setTimeout(fire, Math.max(0, Math.min(MAX_WAIT_MS, endAt - Date.now()))); };
       /* At the end: stop (it collects). On a long run, every MAX_WAIT_MS: one settle (hello) so the bag and XP move. */
@@ -247,7 +257,7 @@ export function startWork(cs, w, send, repaint, words, count) {
 }
 
 /* "Done: 7 Cooked Wolf Meat, 3 burnt, +245 Cooking XP." — every number a difference of two server envelopes. */
-function doneWords(cs, from, xpBefore) {
+function doneWords(cs, from, xpBefore, sinceMs) {
   const xp = xpOf(cs, from.skill);
   const x0 = from.xp !== null ? from.xp : xpBefore;
   const bag = invOf(cs);
@@ -257,6 +267,8 @@ function doneWords(cs, from, xpBefore) {
   if (made > 0) parts.push(whole(made) + ' ' + itemName(from.out));
   if (burnt > 0) parts.push(whole(burnt) + ' burnt');
   if (xp !== null && x0 !== null && xp > x0) parts.push('+' + whole(xp - x0) + ' ' + skillWord(from.skill) + ' XP');
+  const paid = benchPaidWords(cs, from.id, sinceMs);
+  if (paid) parts.push(paid);
   return parts.length ? 'Done: ' + parts.join(', ') + '.' : 'Stopped.';
 }
 
@@ -269,9 +281,11 @@ export function stopWork(cs, send) {
   const from = run.from && on && run.from.id === on.id ? run.from
     : on ? { id: on.id, xp: null, skill: on.skill, out: null, made: 0, burnt: 0 } : null;
   const before = from ? xpOf(cs, from.skill) : null;
+  const was = stateOf(cs);
+  const sinceMs = was ? Date.parse(was.active_since) : NaN;
   return send(() => cs.edgeIntent('set_activity', { activity: { kind: 'idle' } }), 'Finishing…', () => {
     run.from = null;
-    return from ? doneWords(cs, from, before) : 'Stopped.';
+    return from ? doneWords(cs, from, before, sinceMs) : 'Stopped.';
   });
 }
 
@@ -303,7 +317,7 @@ export function tickOf(cs) {
   const storage = {};
   for (const [id, n] of Object.entries(supplyOf(cs))) if (n > (bag[id] || 0)) storage[id] = n - (bag[id] || 0);
   const tick = predictTown({ w: workOf(cs), state: st, skills: skillsOf(cs), inventory: bag, storage, equipment: eqOf(cs),
-    left: leftOf(cs), bagCap: bagCapOf(cs), nowMs: at, refused });
+    left: leftOf(cs), bagCap: bagCapOf(cs), nowMs: at, refused, tax: rowTax(cs, workOf(cs)) });
   TICKS.set(cs, { rec, at, no, tick });
   return tick;
 }

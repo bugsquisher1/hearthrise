@@ -520,6 +520,21 @@ begin
     raise exception 'sellable house rows cost an item no player can reach: %', v_bad;
   end if;
 
+  -- A BENCH AT HOME IS A LONG GOAL (lane/b-bench-prices, Tyler 2026-11-01: "make building workbenches in your house WAY more
+  -- expensive"). The first rung of a room that frees its skill from the public bench's tax is a week's money, and no rung
+  -- of any room costs less gold than the one below it.
+  select string_agg(o.offer_id, ', ') into v_bad from public.hr_unlock_offers o
+   where o.offer_id in ('room.kitchen.1', 'room.forge.1', 'room.workshop.1', 'room.library.1') and o.gold < 40000;
+  if v_bad is not null then
+    raise exception 'a bench room''s first rung is under 40,000 gold: %', v_bad;
+  end if;
+  select string_agg(a.offer_id, ', ') into v_bad from public.hr_unlock_offers a
+    join public.hr_unlock_offers b on b.unlock_id = a.unlock_id and b.value = a.value + 1
+   where a.table_name = 'room' and b.table_name = 'room' and b.gold < a.gold;
+  if v_bad is not null then
+    raise exception 'a room''s next rung costs less gold than: %', v_bad;
+  end if;
+
   -- THE KITCHEN IS SELLABLE. Everything downstream of this file exists so that
   -- a server-owned Kitchen rung can make 'artisan' payable; a table that lost
   -- it would still pass every check above.

@@ -127,8 +127,9 @@ export function stampAway(cs, leaving = false) {
   if (!next) return false;
   const was = stampOf(cs);
   if (h.ended) {
-    /* only the hunt this stamp is for, once, and never over a line still due: a new stamp would be a new line about the same hunt */
-    if (!was || was.s !== next.s || !Number.isFinite(h.endedAtMs) || was.at >= h.endedAtMs || awayRecapOf(cs)) return false;
+    /* only the hunt this stamp is for, once (this stamp lands past the end, the last one before it: a write re-runs this through its
+       listeners, so a clock short of the end must not stamp at all), and never over a line still due: a new stamp would be a new line about the same hunt */
+    if (!was || was.s !== next.s || !(was.at < h.endedAtMs && next.at >= h.endedAtMs) || awayRecapOf(cs)) return false;
   } else if (was && was.s === next.s && next.at - was.at < (leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)) return false;
   return cs.setResidue('awaySeen', next);
 }

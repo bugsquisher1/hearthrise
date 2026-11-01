@@ -633,6 +633,8 @@ async function runTests(mods) {
     const stamped = endedAt(T0 + 6 * MIN, T0 + 4 * MIN);
     stamped.record = { residue: { awaySeen: { ...stamp, at: T0 + 5 * MIN } } };
     ok(AR.stampAway(stamped, true) === false, 'and only one: an ended hunt never writes again, however often the page is left');
+    const early = endedAt(T0 + 3 * MIN, T0 + 4 * MIN);
+    ok(AR.stampAway(early) === false, 'a browser clock short of the end stamps nothing: a stamp that did not pass the end would write itself again from its own listeners, for ever');
     const lineDue = endedAt(T0 + H2, T0 + H2 - 5 * MIN);
     ok(AR.stampAway(lineDue) === false, 'a stamp the return line still reads is kept: a new one would say the same hunt again');
     ok(CS.RESIDUE_FIELDS.includes('awaySeen'), 'awaySeen must be in RESIDUE_FIELDS');
@@ -733,9 +735,10 @@ const MUTANTS = [
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (was && was.s === next.s && next.at - was.at < (leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)) return false;', to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: 'STAMP_EVERY_MS' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: 'LEAVE_EVERY_MS' },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: 'was.at >= h.endedAtMs || ', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '!(was.at < h.endedAtMs && next.at >= h.endedAtMs)', to: '!(next.at >= h.endedAtMs)' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '!(was.at < h.endedAtMs && next.at >= h.endedAtMs)', to: '!(was.at < h.endedAtMs)' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: ' || awayRecapOf(cs)) return false;', to: ') return false;' },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!was || was.s !== next.s || !Number.isFinite(h.endedAtMs)', to: 'if (true || !was || was.s !== next.s || !Number.isFinite(h.endedAtMs)' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!was || was.s !== next.s || !(was.at', to: 'if (true || !was || was.s !== next.s || !(was.at' },
   { test: 'R3', file: 'src/session/residue.js', from: '  awaySeen: sanitizeAwaySeen,', to: '  awaySeen: (v) => v,' },
 ];
 

@@ -4671,6 +4671,16 @@ jobs:
           node tools/mutant-gate.mjs node tests/craft-wages.mjs --mutate
           node tests/craft-wages.mjs
 
+      # THE WORK BENCH TAX (Tyler 2026-11-01): a public bench takes a share of what a job sells for, viewed or with the
+      # browser closed, from the account's purse, journalled, stopping before a craft it cannot pay; a house bench is free.
+      - name: Bench tax - the fee, both paths, the stop, the house, a forged value
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-bench-tax.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-bench-tax.mjs --selftest
+          node tests/bench-tax.mjs
+          node tools/mutant-gate.mjs node tests/bench-tax.mjs --mutate
+
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt
       # has a walk and a sensible bag, and every end reason has plain copy.

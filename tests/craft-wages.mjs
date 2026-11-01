@@ -7,6 +7,10 @@
 // from the rock paid 27,000 g/h at Smithing 15 against about 3,000 g/h hunting at the same hours played, and a forged piece sold below its
 // own metal. Hunting drives most income (balance ruling 10-25 §1); every skill still pays, and each step down the chain pays more.
 //
+// AFTER TAX (Tyler 2026-11-01): W-STEP and W-FORGE are floors and read the wage at a PUBLIC bench, after its fee, because that is the
+// hero they must still pay. W-RAW and W-CHAIN are ceilings and read the wage with no fee, because that is the hero with a house, the
+// most the row pays anyone. A change to a bid, a permille or the cheap goods line moves these numbers by itself.
+//
 // Chain rate: one hero doing every step, no tool, the row's own paced times (the rates tools/qa/craft-economy.mjs plays on the real
 // settle). Stock made from monster drops is bounded by the hunt, so a row with a hunted input is out of the wage (W-CHAIN).
 //
@@ -17,6 +21,8 @@
 //             pays more than selling its bars
 //   W-ROOM    a cooked fish's bid sits under the store's price for the same heal, so a cook can undercut the store on the Weighhouse
 //   W-USE     Bronze Arrows, Coarse Whetstones and Chalked Runes stay priced at nothing: made for your own use
+//   W-TAX     the public bench's fee (src/data/bench-tax.js): no craft charges more than its output sells for, and a row the cheap goods
+//             line leaves free never out-earns the taxed rows it stands beside, so the line cannot become the way to work
 //   W-BENCH   a house bench is a long goal (Tyler 2026-11-01): each bench room's first rung costs at least a week's money, rungs climb,
 //             and the shop row and the ladder agree
 //
@@ -35,6 +41,8 @@ import { SHOP_OFFERS } from '../src/data/shops.js';
 import { recipeInputs } from '../src/core/artisan.js';
 import { pacedActionMs } from '../src/core/pacing.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
+import { BENCH_TAX, BENCH_TAX_FREE_UNDER_MG } from '../src/data/bench-tax.js';
+import { feeMgOf } from '../src/core/bench-tax.js';
 
 /* Every row: a resting hero gathers for free, so a second hero reaches Mining 60 in 29 h and 75 in 114 h of that one job (played: tools/qa/craft-economy.mjs --careers), inside one beta. */
 const MAX_REQ = 99;
@@ -54,6 +62,10 @@ const SELF_USE = Object.freeze(['bronze_arrows', 'coarse_whetstone', 'chalked_ea
   'chalked_ice_rune', 'chalked_poison_rune', 'chalked_rupture_rune']);
 
 const bid = (id) => vendorPriceOf(ITEMS, id);
+/* The rows this guard judges, as a mutable copy so --mutate can plant a rate on it (the data rows are frozen). */
+const TAX = { permille: { ...BENCH_TAX }, freeUnderMg: BENCH_TAX_FREE_UNDER_MG };
+/* One job's fee at a public bench, in gold (exact, the carry makes it so). 0: no fee. */
+const feeG = (r) => feeMgOf(TAX.permille[r.skill] || 0, bid(r.output), r.outputQty || 1, TAX.freeUnderMg) / 1000;
 /* The rooms that free their skill from the public bench's tax, and the least their first rung may cost: about 17 h of hunting at the
    10-31 pace for the Kitchen, 31 h for the Forge and the Workshop (the priority board's 2026-11-01 bench table). */
 const BENCH_ROOMS = Object.freeze({ kitchen: 40000, forge: 75000, workshop: 75000, library: 60000 });
@@ -78,17 +90,19 @@ function benchIndex() {
 }
 /* Seconds of one hero's time for ONE of `item`, and whether a monster's drop is anywhere in it. */
 function chainOf(item, G, B, seen = new Set()) {
-  if (G[item]) return { sec: G[item].sec, hunted: false };
+  if (G[item]) return { sec: G[item].sec, hunted: false, fee: 0 };
   const r = B[item];
-  if (!r || seen.has(item)) return { sec: 0, hunted: true };
+  if (!r || seen.has(item)) return { sec: 0, hunted: true, fee: 0 };
   seen.add(item);
-  let sec = pacedActionMs(r.ms) / 1000, hunted = false;
+  let sec = pacedActionMs(r.ms) / 1000, hunted = false, fee = feeG(r);
   for (const [id, n] of Object.entries(recipeInputs(r))) {
     const c = chainOf(id, G, B, new Set(seen));
     sec += n * c.sec;
+    fee += n * c.fee;
     hunted = hunted || c.hunted;
   }
-  return { sec: sec / (Number(r.outputQty) || 1), hunted };
+  const out = Number(r.outputQty) || 1;
+  return { sec: sec / out, hunted, fee: fee / out };
 }
 
 export function check() {
@@ -107,6 +121,8 @@ export function check() {
     const c = chainOf(r.output, G, B);
     const unit = bid(r.output);
     const perH = c.sec > 0 ? (3600 / c.sec) * unit : 0;
+    /* What the same hour pays at a public bench, every step's fee taken (the header). */
+    const afterH = c.sec > 0 ? (3600 / c.sec) * (unit - c.fee) : 0;
     /* a row is judged at the later of its bench level and the level its own gathered input opens */
     const reqs = [r.req, ...Object.keys(recipeInputs(r)).map((id) => (G[id] ? G[id].req : 0))];
     const level = Math.max(...reqs);
@@ -116,15 +132,16 @@ export function check() {
     const keys = Object.keys(ins);
     if (keys.length === 1 && G[keys[0]] && (Number(r.outputQty) || 1) === 1 && !it.type && r.req <= MAX_REQ && skill !== 'runecrafting') {
       const raw = (3600 / (G[keys[0]].sec * ins[keys[0]])) * bid(keys[0]);
-      if (perH <= raw) fails.push(`W-STEP ${r.id}: refined pays ${Math.round(perH)} g/h, the raw stack ${Math.round(raw)}: nobody would refine for the shop`);
+      if (afterH <= raw) fails.push(`W-STEP ${r.id}: refined pays ${Math.round(afterH)} g/h after the bench's fee, the raw stack ${Math.round(raw)}: nobody would refine for the shop`);
     }
     if (['weapon', 'armor', 'offhand'].includes(it.type) && !TIER_3_USE[r.id]) {
-      const cost = keys.reduce((s, id) => s + ins[id] * bid(id), 0);
-      if (unit <= cost) fails.push(`W-FORGE ${r.id}: sells for ${unit} g, the shop's bid for what went in is ${cost} g`);
+      const cost = keys.reduce((s, id) => s + ins[id] * bid(id), 0) + feeG(r) / (Number(r.outputQty) || 1);
+      if (unit <= cost) fails.push(`W-FORGE ${r.id}: sells for ${unit} g, the shop's bid for what went in plus the bench's fee is ${cost} g`);
       const bars = keys.filter((id) => /_bar$/.test(id));
       for (const b of bars) {
-        const barRate = (3600 / chainOf(b, G, B).sec) * bid(b);
-        if (!c.hunted && perH <= barRate) fails.push(`W-FORGE ${r.id}: forging pays ${Math.round(perH)} g/h, selling the ${b} ${Math.round(barRate)}`);
+        const bc = chainOf(b, G, B);
+        const barRate = (3600 / bc.sec) * (bid(b) - bc.fee);
+        if (!c.hunted && afterH <= barRate) fails.push(`W-FORGE ${r.id}: forging pays ${Math.round(afterH)} g/h after the bench's fee, selling the ${b} ${Math.round(barRate)}`);
       }
     }
   }
@@ -137,6 +154,24 @@ export function check() {
     const it = ITEMS[r.output];
     const store = heals.filter((b) => b.heals <= Number(it.heals)).pop();
     if (store && bid(r.output) >= store.price) fails.push(`W-ROOM ${r.output}: the shop bids ${bid(r.output)} g, the store sells ${store.n} (${store.heals} HP) at ${store.price} g: no cook can list under the store`);
+  }
+  /* W-TAX: the fee against what it is a share of, and the free rows against the taxed rows beside them. */
+  for (const r of Object.values(B)) {
+    const fee = feeG(r);
+    const sells = bid(r.output) * (Number(r.outputQty) || 1);
+    if (fee > 0 && Math.ceil(fee) > sells) fails.push(`W-TAX ${r.id}: a craft can charge ${Math.ceil(fee)} g and the job sells for ${sells} g`);
+    if (fee > 0 || sells === 0 || !(r.skill in TAX.permille)) continue;
+    /* Free by the line: it may not pay more than the best taxed row of its skill within a tier above it pays after tax. */
+    const c = chainOf(r.output, G, B);
+    if (c.hunted || !(c.sec > 0)) continue;
+    const wage = (3600 / c.sec) * bid(r.output);
+    let best = 0;
+    for (const t of Object.values(B)) {
+      if (t.skill !== r.skill || !(feeG(t) > 0) || t.req > r.req + 15) continue;
+      const tc = chainOf(t.output, G, B);
+      if (!tc.hunted && tc.sec > 0) best = Math.max(best, (3600 / tc.sec) * (bid(t.output) - tc.fee));
+    }
+    if (wage >= best) fails.push(`W-TAX ${r.id}: free by the cheap goods line, it pays ${Math.round(wage)} g/h and the best taxed ${r.skill} row within 15 levels pays ${Math.round(best)} after its fee`);
   }
   for (const id of SELF_USE) if (bid(id) !== 0) fails.push(`W-USE ${id}: the shop bids ${bid(id)} g; it is made for your own use (the recipe says so)`);
   for (const [room, least] of Object.entries(BENCH_ROOMS)) {
@@ -177,6 +212,11 @@ function mutate() {
   run('Iron Hatchets that sell below their metal', 'W-FORGE', () => inputs('smithing', 'forge_iron_hatchets', { iron_bar: 12, normal_plank: 2 }));
   run('forging that pays less than selling the bars', 'W-FORGE', () => inputs('smithing', 'forge_iron_warhammer', { iron_bar: 10, normal_plank: 3 }));
   run('Cooked Herring bid over the store\'s Salted Shrimp', 'W-ROOM', () => setField('cooked_herring', 'v', 14));
+  const rate = (key, v, skill) => () => { if (skill) { const was = TAX.permille[skill]; TAX.permille[skill] = v; return () => { TAX.permille[skill] = was; }; } const was = TAX[key]; TAX[key] = v; return () => { TAX[key] = was; }; };
+  run('a public bench taking the whole bid: refining pays less than the raw stack', 'W-STEP', rate(null, 1000, 'smithing'));
+  run('a public bench taking 60%: forging pays less than its metal', 'W-FORGE', rate(null, 600, 'smithing'));
+  run('a fee above what the job sells for', 'W-TAX', rate(null, 1500, 'cooking'));
+  run('the cheap goods line raised until the free rows out-earn the taxed ones', 'W-TAX', rate('freeUnderMg', 6000));
   run('Bronze Arrows priced', 'W-USE', () => setField('bronze_arrows', 'v', 1));
   run('Chalked Runes priced', 'W-USE', () => setField('chalked_earth_rune', 'v', 1));
   const rung = (room, i, gold) => { const c = ROOM_RUNGS[room][i].cost; const was = c.gold; try { c.gold = gold; } catch { /* frozen below */ } return () => { c.gold = was; }; };

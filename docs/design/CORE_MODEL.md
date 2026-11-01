@@ -61,7 +61,7 @@ re-derives it and proves N bones pay exactly N x 15.5 with the fraction carried)
 3. Price (Q7): Level loses `DEATH_XP_LOSS` (2%) of `DEATH_XP_BASE` (`total` Level XP; `level` = the current Level's span),
    never below the current Level's floor; each combat skill loses 2% of its progress toward the next level. Blessings
    (320/630/950 permille) reduce both. SQL re-bounds the price and debits it (`death_xp_over` refuses an over-charge).
-4. `END_ORDER` starts `died`, `party_member_died`; both resume the last non-hunt activity (`RESUME_AFTER_END`).
+4. `END_ORDER` starts `died`, `party_member_died`; both resume the last non-hunt activity (`RESUME_AFTER_END`), gathering only: a bench spends what the player owns and is never restarted (`2027-02-15-panel-truth.sql`).
 5. Copy: `"{name} died in {ground} and returned to town."` / `"{member} died in {ground}, so the party returned to town."`
    (`END_REASON_COPY`); alerts kind `death`; the Deaths tab (`death_log`) shows killer, ground, Level and skill XP lost.
 6. Deleted: recovery/knockout (`recovery.js`, `KNOCKOUT_MS`, `recovering_until`, `consec_falls`, falls limits, `down`, `down_ms`).

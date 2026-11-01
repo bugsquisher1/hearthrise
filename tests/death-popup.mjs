@@ -228,6 +228,7 @@ async function pageRules(overrides, shots) {
         await d.ctx.close();
         /* DP-4 A RELOAD IN TOWN LEAVES THE TOWN CLEAR */
         const s4 = scripted(false);
+        s4.env[0].state = Object.assign({}, s4.env[0].state, { active_kind: 'idle', active_id: null });
         s4.env[0].hunt.ended = true;
         s4.env[0].hunt.session = Object.assign({}, s4.env[0].hunt.session, { end_reason: 'stamina', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
         const e = await fresh(s4);

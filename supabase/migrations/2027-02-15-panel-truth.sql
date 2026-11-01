@@ -31,8 +31,8 @@ do $mig$
 declare v_md5 text; r record;
 begin
   for r in select * from (values
-    ('public.hr_tally_pick(uuid,integer,text)', '29d106e22a5edac5d8bab9ef6873ccb1', '8956066872c1d7ea186d98f89c855d9c', '2026-12-23-tally-tasks.sql'),
-    ('public.hr_resume_has_inputs(uuid,integer,text,text)', 'e50c6b59dfa79520d01e592753067e8a', 'b16cc5441892b3f15234c98c2a63ce02', '2027-01-24-skills-from-storage.sql')
+    ('public.hr_tally_pick(uuid,integer,text)', '1bbc4966ded0167c2bf66bb4c6fa39d6', '47c265f6d101a7720f83e59073968841', '2026-12-23-tally-tasks.sql'),
+    ('public.hr_resume_has_inputs(uuid,integer,text,text)', 'aa41bbd819d4ec3ad68adf855466444e', '8956066872c1d7ea186d98f89c855d9c', '2027-01-24-skills-from-storage.sql')
   ) p(sig, pre, post, src) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(r.sig);
     if v_md5 is null then raise exception 'PIN: % is missing', r.sig; end if;

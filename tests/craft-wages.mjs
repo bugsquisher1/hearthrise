@@ -32,14 +32,14 @@ import { recipeInputs } from '../src/core/artisan.js';
 import { pacedActionMs } from '../src/core/pacing.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 
-/* The rows a beta player reaches in 40 hours (Mining 60 at 29 h, Woodcutting 60 at 37 h, played: tools/qa/craft-economy.mjs --careers). */
-const MAX_REQ = 60;
+/* Every row: a resting hero gathers for free, so a second hero reaches Mining 60 in 29 h and 75 in 114 h of that one job (played: tools/qa/craft-economy.mjs --careers), inside one beta. */
+const MAX_REQ = 99;
 /* In-band hunting at the hours a skill's level takes to reach, g/h per hero: the 2026-10-31 verdict (1,146 cells on the real settle),
    re-measured on this commit (the priority board's 2026-11-01 section). A wage is judged against these, never against a feel. */
-const HUNTING = [[1, 2000], [15, 2900], [30, 3800], [45, 4200], [60, 5500]];
+const HUNTING = [[1, 2000], [15, 2900], [30, 3800], [45, 4200], [60, 5500], [75, 7000]];
 /* A gatherer gets there first: a node's level takes about 1 / 3 / 10 / 33 hours of that one job (played), so raw is judged against the
    grounds of those hours, a bench row against the later hours of both skills. */
-const HUNTING_FOR_RAW = [[1, 2000], [15, 2600], [30, 2600], [45, 3500], [60, 4900]];
+const HUNTING_FOR_RAW = [[1, 2000], [15, 2600], [30, 2600], [45, 3500], [60, 4900], [75, 6000]];
 const at = (table, req) => table.filter(([l]) => l <= req).pop()[1];
 const huntingAt = (req) => at(HUNTING, req);
 const RAW_CAP = (req) => Math.round(at(HUNTING_FOR_RAW, req) * 0.6);

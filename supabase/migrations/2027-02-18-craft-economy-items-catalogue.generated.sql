@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 724ab66c2b72634272a538ba409540f402c31c1a7e65a312d7b1196195d12b2b
+--   catalogue digest: ca3b235f3d7382e317f7d9cd1e55171628c86cbc28a9aeff922ea65054cef2ec
 --   rows: 572 items (6 untradeable) ·
 --         324 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 345 activities ·
@@ -299,14 +299,14 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('coarse_whetstone','Coarse Whetstone',true,'ammo',0,'melee',1,null,false,null,false),
   ('cooked_bear_meat','Cooked Bear Meat',true,null,42,null,null,156,true,null,false),
   ('cooked_copper_crab','Steamed Copper Crab',true,null,10,null,null,216,true,null,false),
-  ('cooked_frostfin','Frostfin Supper',true,null,1300,null,null,456,true,null,false),
+  ('cooked_frostfin','Frostfin Supper',true,null,35,null,null,456,true,null,false),
   ('cooked_goldgill','Goldgill Steak',true,null,16,null,null,276,true,null,false),
   ('cooked_herring','Cooked Herring',true,null,5,null,null,72,true,null,false),
   ('cooked_lobster','Cooked Lobster',true,null,16,null,null,300,true,null,false),
-  ('cooked_moonfish','Moonfish Fillet',true,null,2100,null,null,600,true,null,false),
+  ('cooked_moonfish','Moonfish Fillet',true,null,54,null,null,600,true,null,false),
   ('cooked_panther_meat','Cooked Panther Meat',true,null,22,null,null,108,true,null,false),
   ('cooked_pikeperch','Grilled Pikeperch',true,null,9,null,null,192,true,null,false),
-  ('cooked_shark','Cooked Shark',true,null,900,null,null,528,true,null,false),
+  ('cooked_shark','Cooked Shark',true,null,48,null,null,528,true,null,false),
   ('cooked_shrimp','Cooked Shrimp',true,null,3,null,null,96,true,null,false),
   ('cooked_silverfin','Silverfin Fillet',true,null,13,null,null,252,true,null,false),
   ('cooked_swordfish','Swordfish Steak',true,null,22,null,null,384,true,null,false),
@@ -327,13 +327,13 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('crown_shard','Crown Shard',true,null,150,null,null,null,false,null,false),
   ('culvert_bat_fang','Culvert Bat Fang',true,null,30,null,null,null,false,null,false),
   ('dark_sigil','Dark Sigil',true,null,180,null,null,null,false,null,false),
-  ('dawn_axe','Dawnsteel Axe',true,'tool',55000,null,null,null,false,null,false),
-  ('dawn_bar','Dawnsteel Bar',true,null,4200,null,null,null,false,null,false),
+  ('dawn_axe','Dawnsteel Axe',true,'tool',2700,null,null,null,false,null,false),
+  ('dawn_bar','Dawnsteel Bar',true,null,1050,null,null,null,false,null,false),
   ('dawn_belt','Dawnsteel Belt',true,'armor',28800,'level',88,null,false,'heavy',false),
   ('dawn_boots','Dawnsteel Boots',true,'armor',28800,'level',88,null,false,'heavy',false),
   ('dawn_gauntlets','Dawnsteel Gauntlets',true,'armor',25200,'level',88,null,false,'heavy',false),
   ('dawn_helm','Dawnsteel Helm',true,'armor',43200,'level',88,null,false,'heavy',false),
-  ('dawn_pickaxe','Dawnsteel Pickaxe',true,'tool',55000,null,null,null,false,null,false),
+  ('dawn_pickaxe','Dawnsteel Pickaxe',true,'tool',2700,null,null,null,false,null,false),
   ('dawn_platebody','Dawnsteel Platebody',true,'armor',108000,'level',88,null,false,'heavy',false),
   ('dawn_platelegs','Dawnsteel Platelegs',true,'armor',79200,'level',88,null,false,'heavy',false),
   ('dawn_sword','Dawnsteel Sword',true,'weapon',36000,'level',88,null,false,null,false),
@@ -344,7 +344,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dawnlit_mantle','Dawnlit Mantle',true,'armor',86400,'level',88,null,false,null,false),
   ('dawnpoint_arrows','Dawnpoint Arrows',true,'ammo',12,'ranged',88,null,false,null,false),
   ('dawnsteel_rod','Dawnsteel Rod',true,'tool',58000,null,null,null,false,null,false),
-  ('dawnstone_ore','Dawnstone Ore',true,null,1400,null,null,null,false,null,false),
+  ('dawnstone_ore','Dawnstone Ore',true,null,95,null,null,null,false,null,false),
   ('death_steel','Death Steel',true,null,550,null,null,null,false,null,false),
   ('deepvein_lodestar','Deepvein Lodestar',false,'trophy',0,null,null,null,false,null,false),
   ('demon_shard','Demon Shard',true,null,200,null,null,null,false,null,false),
@@ -370,19 +370,19 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dragonrib_bow','Dragonrib Bow',true,'weapon',13650,'level',75,null,false,null,true),
   ('dry_husk','Dry Husk',true,null,1,null,null,null,false,null,false),
   ('duskwood_bow','Duskwood Bow',true,'weapon',37800,'level',88,null,false,null,true),
-  ('duskwood_log','Duskwood Log',true,null,1150,null,null,null,false,null,false),
-  ('duskwood_plank','Duskwood Plank',true,null,2600,null,null,null,false,null,false),
+  ('duskwood_log','Duskwood Log',true,null,100,null,null,null,false,null,false),
+  ('duskwood_plank','Duskwood Plank',true,null,250,null,null,null,false,null,false),
   ('duskwood_rod','Duskwood Rod',true,'tool',23000,null,null,null,false,null,false),
   ('duskwood_staff','Duskwood Staff',true,'weapon',36000,'level',88,null,false,null,true),
   ('elderscale_heart','Elderscale Heart',true,null,9000,null,null,null,false,null,false),
   ('elderscale_platebody','Elderscale Platebody',true,'armor',118800,'level',95,null,false,'heavy',false),
-  ('ember_axe','Emberforged Axe',true,'tool',22000,null,null,null,false,null,false),
-  ('ember_bar','Emberforged Bar',true,null,1600,null,null,null,false,null,false),
+  ('ember_axe','Emberforged Axe',true,'tool',1400,null,null,null,false,null,false),
+  ('ember_bar','Emberforged Bar',true,null,500,null,null,null,false,null,false),
   ('ember_belt','Emberforged Belt',true,'armor',10400,'level',75,null,false,'heavy',false),
   ('ember_boots','Emberforged Boots',true,'armor',10400,'level',75,null,false,'heavy',false),
   ('ember_gauntlets','Emberforged Gauntlets',true,'armor',9100,'level',75,null,false,'heavy',false),
   ('ember_helm','Emberforged Helm',true,'armor',15600,'level',75,null,false,'heavy',false),
-  ('ember_pickaxe','Emberforged Pickaxe',true,'tool',22000,null,null,null,false,null,false),
+  ('ember_pickaxe','Emberforged Pickaxe',true,'tool',1400,null,null,null,false,null,false),
   ('ember_platebody','Emberforged Platebody',true,'armor',39000,'level',75,null,false,'heavy',false),
   ('ember_platelegs','Emberforged Platelegs',true,'armor',28600,'level',75,null,false,'heavy',false),
   ('ember_sword','Emberforged Sword',true,'weapon',13000,'level',75,null,false,null,false),
@@ -394,7 +394,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('emberfruit_seed','Emberfruit Seed',true,null,160,null,null,null,false,null,false),
   ('emberhead_arrows','Emberhead Arrows',true,'ammo',9,'ranged',75,null,false,null,false),
   ('emberheart','Emberheart',false,'trophy',0,null,null,null,false,null,false),
-  ('emberstone_ore','Emberstone Ore',true,null,520,null,null,null,false,null,false),
+  ('emberstone_ore','Emberstone Ore',true,null,55,null,null,null,false,null,false),
   ('etched_earth_rune','Etched Earth Rune',true,'ammo',1,'magic',30,null,false,null,false),
   ('etched_fire_rune','Etched Fire Rune',true,'ammo',1,'magic',30,null,false,null,false),
   ('etched_ice_rune','Etched Ice Rune',true,'ammo',1,'magic',30,null,false,null,false),
@@ -408,7 +408,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('fishers_pie','Fisher''s Pie',true,null,520,null,null,408,false,null,false),
   ('flux_salt','Fluxsalt',true,null,15,null,null,null,false,null,false),
   ('foremans_lash','Foreman''s Lash',true,null,92,null,null,null,false,null,false),
-  ('frostfin','Raw Frostfin',true,null,520,null,null,216,true,null,false),
+  ('frostfin','Raw Frostfin',true,null,70,null,null,216,true,null,false),
   ('giant_rat_hide','Giant Rat Hide',true,null,4,null,null,null,false,null,false),
   ('glowing_copper_fleck','Glowing Copper Fleck',true,null,68,null,null,null,false,null,false),
   ('goblin_ear','Goblin Ear',true,null,8,null,null,null,false,null,false),
@@ -509,7 +509,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('moonbloom','Moonbloom',true,null,850,null,null,240,true,null,false),
   ('moonbloom_elixir','Moonbloom Elixir',true,null,2600,null,null,480,false,null,false),
   ('moonbloom_seed','Moonbloom Seed',true,null,280,null,null,null,false,null,false),
-  ('moonfish','Raw Moonfish',true,null,900,null,null,288,true,null,false),
+  ('moonfish','Raw Moonfish',true,null,110,null,null,288,true,null,false),
   ('mosslight_clump','Mosslight Clump',true,null,180,null,null,null,false,null,false),
   ('mosslight_tendril','Mosslight Tendril',true,null,44,null,null,null,false,null,false),
   ('night_fang','Night Fang',true,null,90,null,null,null,false,null,false),
@@ -569,7 +569,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('ruby_signet','Ruby Signet',true,'jewelry',9000,'level',52,null,false,null,false),
   ('rubyfire_studs','Rubyfire Studs',true,'jewelry',4500,'level',66,null,false,null,false),
   ('rune_arrows','Rune Arrows',true,'ammo',6,'ranged',60,null,false,null,false),
-  ('rune_axe','Rune Axe',true,'tool',9000,null,null,null,false,null,false),
+  ('rune_axe','Rune Axe',true,'tool',1800,null,null,null,false,null,false),
   ('rune_bar','Rune Bar',true,null,500,null,null,null,false,null,false),
   ('rune_belt','Rune Belt',true,'armor',3600,'level',60,null,false,'heavy',false),
   ('rune_blank','Blank Rune',true,null,3,null,null,null,false,null,false),
@@ -581,7 +581,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_helm','Rune Helm',true,'armor',5400,'level',60,null,false,'heavy',false),
   ('rune_knife','Rune Knife',true,'tool',9200,null,null,null,false,null,false),
   ('rune_needle','Rune Needle',true,'tool',9200,null,null,null,false,null,false),
-  ('rune_pickaxe','Rune Pickaxe',true,'tool',9000,null,null,null,false,null,false),
+  ('rune_pickaxe','Rune Pickaxe',true,'tool',1800,null,null,null,false,null,false),
   ('rune_platebody','Rune Platebody',true,'armor',13500,'level',60,null,false,'heavy',false),
   ('rune_platelegs','Rune Platelegs',true,'armor',9900,'level',60,null,false,'heavy',false),
   ('rune_sword','Rune Sword',true,'weapon',5000,'level',60,null,false,null,false),
@@ -589,8 +589,8 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_whetstone','Rune Whetstone',true,'ammo',20,'melee',75,null,false,null,false),
   ('runewood_bow','Runewood Bow',true,'weapon',13650,'level',75,null,false,null,true),
   ('runewood_codex','Runewood Codex',true,'offhand',10400,'level',75,null,false,null,false),
-  ('runewood_log','Runewood Log',true,null,480,null,null,null,false,null,false),
-  ('runewood_plank','Runewood Plank',true,null,1150,null,null,null,false,null,false),
+  ('runewood_log','Runewood Log',true,null,60,null,null,null,false,null,false),
+  ('runewood_plank','Runewood Plank',true,null,250,null,null,null,false,null,false),
   ('runewood_rod','Runewood Rod',true,'tool',9500,null,null,null,false,null,false),
   ('runewood_staff','Runewood Staff',true,'weapon',13000,'level',75,null,false,null,true),
   ('runewood_wand','Runewood Wand',true,'weapon',11700,'level',75,null,false,null,false),
@@ -609,7 +609,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('shadow_pelt','Shadow Pelt',true,null,480,null,null,null,false,null,false),
   ('shadow_thread','Shadow Thread',true,null,320,null,null,null,false,null,false),
   ('shadowsilk_cape','Shadowsilk Cape',true,'armor',10800,'level',63,null,false,null,false),
-  ('shark','Raw Shark',true,null,400,null,null,240,true,null,false),
+  ('shark','Raw Shark',true,null,100,null,null,240,true,null,false),
   ('shortbow','Shortbow',true,'weapon',90,'level',1,null,false,null,true),
   ('shrimp','Raw Shrimp',true,null,5,null,null,36,true,null,false),
   ('silk_thread','Silk Thread',true,null,55,null,null,null,false,null,false),
@@ -763,7 +763,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('wyvernhide_helmet','Wyvernhide Coif',true,'armor',3780,'level',60,null,false,'medium',false),
   ('wyvernhide_pants','Wyvernhide Chaps',true,'armor',6930,'level',60,null,false,'medium',false),
   ('yew_bow','Yew Bow',true,'weapon',4725,'level',60,null,false,null,true),
-  ('yew_log','Yew Log',true,null,50,null,null,null,false,null,false),
+  ('yew_log','Yew Log',true,null,45,null,null,null,false,null,false),
   ('yew_plank','Yew Plank',true,null,135,null,null,null,false,null,false),
   ('yew_rod','Yew Rod',true,'tool',3500,null,null,null,false,null,false),
   ('yew_spellbook','Yewclasp Spellbook',true,'offhand',3600,'level',60,null,false,null,false),
@@ -2036,7 +2036,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '724ab66c2b72634272a538ba409540f402c31c1a7e65a312d7b1196195d12b2b', now())
+  values (true, 'ca3b235f3d7382e317f7d9cd1e55171628c86cbc28a9aeff922ea65054cef2ec', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2256,7 +2256,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 724ab66c2b72634272a538ba409540f402c31c1a7e65a312d7b1196195d12b2b',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ca3b235f3d7382e317f7d9cd1e55171628c86cbc28a9aeff922ea65054cef2ec',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

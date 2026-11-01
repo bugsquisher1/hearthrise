@@ -59,12 +59,12 @@ export const ITEMS={
   iron_axe:{n:'Iron Axe',icon:'🪓',v:125,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
   steel_axe:{n:'Steel Axe',icon:'🪓',v:370,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},
   mithril_axe:{n:'Mithril Axe',icon:'🪓',v:600,type:'tool',toolSkill:'woodcutting',toolTier:4,toolSpeed:.20},
-  rune_axe:{n:'Rune Axe',icon:'🪓',v:9000,type:'tool',toolSkill:'woodcutting',toolTier:5,toolSpeed:.25},
+  rune_axe:{n:'Rune Axe',icon:'🪓',v:1800,type:'tool',toolSkill:'woodcutting',toolTier:5,toolSpeed:.25},
   bronze_pickaxe:{n:'Bronze Pickaxe',icon:'⛏️',v:60,type:'tool',toolSkill:'mining',toolTier:1,toolSpeed:.05},
   iron_pickaxe:{n:'Iron Pickaxe',icon:'⛏️',v:125,type:'tool',toolSkill:'mining',toolTier:2,toolSpeed:.10},
   steel_pickaxe:{n:'Steel Pickaxe',icon:'⛏️',v:370,type:'tool',toolSkill:'mining',toolTier:3,toolSpeed:.15},
   mithril_pickaxe:{n:'Mithril Pickaxe',icon:'⛏️',v:600,type:'tool',toolSkill:'mining',toolTier:4,toolSpeed:.20},
-  rune_pickaxe:{n:'Rune Pickaxe',icon:'⛏️',v:9000,type:'tool',toolSkill:'mining',toolTier:5,toolSpeed:.25},
+  rune_pickaxe:{n:'Rune Pickaxe',icon:'⛏️',v:1800,type:'tool',toolSkill:'mining',toolTier:5,toolSpeed:.25},
   willow_rod:{n:'Willow Rod',icon:'🎣',v:80,type:'tool',toolSkill:'fishing',toolTier:1,toolSpeed:.05},
   oak_rod:{n:'Oak Rod',icon:'🎣',v:300,type:'tool',toolSkill:'fishing',toolTier:2,toolSpeed:.10},
   maple_rod:{n:'Maple Rod',icon:'🎣',v:1000,type:'tool',toolSkill:'fishing',toolTier:3,toolSpeed:.15},
@@ -201,11 +201,11 @@ export const ITEMS={
   iron_ore:{n:'Iron Ore',icon:'⬜',v:10},
   normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:10},
   willow_log:{n:'Willow Log',icon:'🪵',v:15},maple_log:{n:'Maple Log',icon:'🪵',v:15},
-  yew_log:{n:'Yew Log',icon:'🪵',v:50},
+  yew_log:{n:'Yew Log',icon:'🪵',v:45},
   copper_ore:{n:'Copper Ore',icon:'🟤',v:5},coal:{n:'Coal',icon:'⬛',v:10},
   gold_ore:{n:'Gold Ore',icon:'🟡',v:25},mithril_ore:{n:'Mithril Ore',icon:'🔵',v:40},
   shrimp:{n:'Raw Shrimp',icon:'🦐',v:5,heals:36},trout:{n:'Raw Trout',icon:'🐟',v:15,heals:84},
-  lobster:{n:'Raw Lobster',icon:'🦞',v:25,heals:144},shark:{n:'Raw Shark',icon:'🦈',v:400,heals:240},
+  lobster:{n:'Raw Lobster',icon:'🦞',v:25,heals:144},shark:{n:'Raw Shark',icon:'🦈',v:100,heals:240},
   turnip:{n:'Turnip',icon:'🥕',v:20,heals:24},carrot:{n:'Carrot',icon:'🥕',v:35,heals:36},
   wheat:{n:'Wheat',icon:'🌾',v:50,heals:12},potato:{n:'Potato',icon:'🥔',v:65,heals:60},
   tomato:{n:'Tomato',icon:'🍅',v:90,heals:48},pumpkin:{n:'Pumpkin',icon:'🎃',v:150,heals:96},
@@ -299,7 +299,7 @@ export const ITEMS={
     buff:{type:'drop_rate', magnitude:3,  durationMs:300000},
   },
   cooked_shark: {
-    n:'Cooked Shark', icon:'🍣', v:900, heals:528, foodTier:4, foodClass:'healing',
+    n:'Cooked Shark', icon:'🍣', v:48, heals:528, foodTier:4, foodClass:'healing',
     buff:{type:'damage', magnitude:4, durationMs:360000},
   },
 
@@ -386,23 +386,23 @@ export const ITEMS={
      waters and crops that feed them — carry every ladder to the cap.
      ══════════════════════════════════════════════════════════════════ */
   /* Mining (75 / 90) */
-  emberstone_ore: {n:'Emberstone Ore', icon:'🔶', v:520},
-  dawnstone_ore:  {n:'Dawnstone Ore',  icon:'🌟', v:1400},
+  emberstone_ore: {n:'Emberstone Ore', icon:'🔶', v:55},
+  dawnstone_ore:  {n:'Dawnstone Ore',  icon:'🌟', v:95},
   /* Smithing outputs */
-  ember_bar: {n:'Emberforged Bar', icon:'🟧', v:1600},
-  dawn_bar:  {n:'Dawnsteel Bar',   icon:'🟪', v:4200},
+  ember_bar: {n:'Emberforged Bar', icon:'🟧', v:500},
+  dawn_bar:  {n:'Dawnsteel Bar',   icon:'🟪', v:1050},
   /* Woodcutting (75 / 90) */
-  runewood_log: {n:'Runewood Log', icon:'🪵', v:480},
-  duskwood_log: {n:'Duskwood Log', icon:'🪵', v:1150},
+  runewood_log: {n:'Runewood Log', icon:'🪵', v:60},
+  duskwood_log: {n:'Duskwood Log', icon:'🪵', v:100},
   /* Crafting outputs */
-  runewood_plank: {n:'Runewood Plank', icon:'🪵', v:1150},
-  duskwood_plank: {n:'Duskwood Plank', icon:'🪵', v:2600},
+  runewood_plank: {n:'Runewood Plank', icon:'🪵', v:250},
+  duskwood_plank: {n:'Duskwood Plank', icon:'🪵', v:250},
   /* Fishing gap-fillers (10 / 66) */
   herring:         {n:'Raw Herring', icon:'🐟', v:14, heals:48},
   cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:5, heals:72, foodTier:1, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:1, durationMs:120000}},
-  frostfin:        {n:'Raw Frostfin', icon:'❄️', v:520, heals:216},
-  cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:1300, heals:456, foodTier:4, foodClass:'healing',
+  frostfin:        {n:'Raw Frostfin', icon:'❄️', v:70, heals:216},
+  cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:35, heals:456, foodTier:4, foodClass:'healing',
     buff:{type:'defense', magnitude:4, durationMs:360000}},
   /* ── "Reed & Tide" (game-designer ruling, 2026-09-13) ─────────────────
      The four fish that close the Trout(20)→Lobster(40) silence, their cooked
@@ -453,8 +453,8 @@ export const ITEMS={
   swordfish:        {n:'Raw Swordfish', icon:'🐠', v:40, heals:168},
   cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:22, heals:384, foodTier:3, foodClass:'healing',
     buff:{type:'damage', magnitude:3, durationMs:300000}},
-  moonfish:         {n:'Raw Moonfish', icon:'🌙', v:900, heals:288},
-  cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:2100, heals:600, foodTier:4, foodClass:'healing',
+  moonfish:         {n:'Raw Moonfish', icon:'🌙', v:110, heals:288},
+  cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:54, heals:600, foodTier:4, foodClass:'healing',
     buff:{type:'all_xp', magnitude:3, durationMs:420000}},
   /* Farming (62 / 75 / 88) */
   goldenroot:      {n:'Goldenroot', icon:'🥕', v:260, heals:144},
@@ -473,10 +473,10 @@ export const ITEMS={
 
   /* Tool ladder, tiers 6-7 — the best owned tool auto-applies, so these are
      the final gather-speed upgrades (+30% / +35%). */
-  ember_axe:      {n:'Emberforged Axe', icon:'🪓', v:22000, type:'tool', toolSkill:'woodcutting', toolTier:6, toolSpeed:.30},
-  dawn_axe:       {n:'Dawnsteel Axe',   icon:'🪓', v:55000, type:'tool', toolSkill:'woodcutting', toolTier:7, toolSpeed:.35},
-  ember_pickaxe:  {n:'Emberforged Pickaxe', icon:'⛏️', v:22000, type:'tool', toolSkill:'mining', toolTier:6, toolSpeed:.30},
-  dawn_pickaxe:   {n:'Dawnsteel Pickaxe',   icon:'⛏️', v:55000, type:'tool', toolSkill:'mining', toolTier:7, toolSpeed:.35},
+  ember_axe:      {n:'Emberforged Axe', icon:'🪓', v:1400, type:'tool', toolSkill:'woodcutting', toolTier:6, toolSpeed:.30},
+  dawn_axe:       {n:'Dawnsteel Axe',   icon:'🪓', v:2700, type:'tool', toolSkill:'woodcutting', toolTier:7, toolSpeed:.35},
+  ember_pickaxe:  {n:'Emberforged Pickaxe', icon:'⛏️', v:1400, type:'tool', toolSkill:'mining', toolTier:6, toolSpeed:.30},
+  dawn_pickaxe:   {n:'Dawnsteel Pickaxe',   icon:'⛏️', v:2700, type:'tool', toolSkill:'mining', toolTier:7, toolSpeed:.35},
   duskwood_rod:   {n:'Duskwood Rod',  icon:'🎣', v:23000, type:'tool', toolSkill:'fishing', toolTier:6, toolSpeed:.30},
   dawnsteel_rod:  {n:'Dawnsteel Rod', icon:'🎣', v:58000, type:'tool', toolSkill:'fishing', toolTier:7, toolSpeed:.35},
 

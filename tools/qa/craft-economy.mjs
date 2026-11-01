@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/qa/craft-economy.mjs — WHAT A SKILL PAYS, MEASURED: REAL SETTLE, REAL SALE, ON THE LOCAL WORLD.
 //
-//   node tools/qa/craft-economy.mjs --out FILE [--max-req 60] [--samples 2] [--hours 2] [--hunts] [--careers] [--away] [--market]
+//   node tools/qa/craft-economy.mjs --out FILE [--max-req 60] [--samples 2] [--hours 2] [--hunts] [--careers] [--away] [--chains] [--walk] [--market]
 //
 // On tools/qa/local-world.mjs (the replayed chain, the real hr-accrue, nothing leaves the machine). Two accounts play each
 // row through the verbs a player's client sends: set_activity starts it, town time passes (world.wait), set_activity idle
@@ -12,6 +12,8 @@
 //   --away   one 8 h window against the same hours in 10 min windows: is a closed browser the same rate?
 //   --careers  a hero from 1 by the best row it can reach, an hour at a time: hours to 15, 30, 45, 60, 75, 99, gold sold
 //   --hunts  in-band grounds, 2 h each, the Level's kit: coin, loot sold, store bill, gold/h
+//   --chains   one hero, both halves, whole cycles played: gold over every hour it took
+//   --walk     a fresh hero's first forged weapon, no fixture: what it holds at each step
 //   --market   the Weighhouse's floor played: one under it refused, one at it listed, bought by the other account, the seller paid
 // Levels, stock and kit are LOCAL fixtures, written straight to this in-memory database (party-soak's way); production has none of it.
 // mutant-anchors: none — a manual tool, not a CI guard
@@ -319,6 +321,46 @@ if (has('--chains')) {
   }
   report.chains.push({ name: 'Iron Hatchets', samples: rows });
   log(`chain Iron Hatchets: ${rows.map((r) => r.made + ' made, ' + r.gold + ' g in ' + r.hours.toFixed(2) + ' h = ' + r.perH + ' g/h').join(' / ')}`);
+}
+
+// ── A FRESH HERO'S FIRST FORGED WEAPON ───────────────────────────────────
+/* No fixture past the sign-up: what the hero holds at each step is what the steps before it made. Every press is one a player has. */
+if (has('--walk')) {
+  const a = await account('walkera');
+  const walk = [];
+  let hours = 0;
+  const note = async (step) => {
+    const b = await bag(a);
+    const skills = {};
+    for (const s of ['mining', 'smithing', 'woodcutting', 'crafting']) skills[s] = lvl(s, await xpOf(a, s));
+    walk.push({ step, hours: Math.round(hours * 100) / 100, gold: await purse(a), ore: b.copper_ore || 0, ironOre: b.iron_ore || 0, copperBars: b.copper_bar || 0, ironBars: b.iron_bar || 0, logs: b.normal_log || 0, planks: b.normal_plank || 0, hatchets: b.iron_hatchets || 0, skills });
+    log(`walk ${JSON.stringify(walk[walk.length - 1])}`);
+  };
+  const go = async (kind, id, h) => { const r = await run(a, kind, id, h); hours += h; return r; };
+  await note('signed up');
+  /* Mining to 15 on copper; every bar it makes takes Smithing up with it. */
+  while (lvl('mining', await xpOf(a, 'mining')) < 15) await go('gather', 'copper_rock', 0.25);
+  await note('Mining 15 on Copper Rock');
+  while (lvl('smithing', await xpOf(a, 'smithing')) < 15) {
+    const have = (await bag(a)).copper_ore || 0;
+    if (have < 10) await go('gather', 'copper_rock', 0.25);
+    await go('artisan', 'smelt_copper', 0.25);
+  }
+  await note('Smithing 15 on Copper Bars');
+  await go('gather', 'iron_rock', 0.05);
+  await note('Iron Rock: ore for six bars');
+  await go('artisan', 'smelt_iron', 0.05);
+  await note('smelted');
+  await go('gather', 'normal_tree', 0.05);
+  await note('Normal Tree: logs for two planks');
+  await go('artisan', 'saw_normal', 0.05);
+  await note('sawed');
+  const forged = await edge(a, 'set_activity', { activity: { kind: 'artisan', id: 'forge_iron_hatchets', count: 1 } });
+  await world.wait(1);
+  await edge(a, 'set_activity', { activity: { kind: 'idle' } });
+  hours += 1 / 60;
+  await note('Forge Iron Hatchets, Make 1: ' + (forged.body && forged.body.ok === false ? JSON.stringify(forged.body) : 'accepted'));
+  report.walk = walk;
 }
 
 // ── THE WEIGHHOUSE ───────────────────────────────────────────────────────

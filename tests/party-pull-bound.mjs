@@ -12,11 +12,13 @@
 // THE MEASURE: the replayed chain (PGlite), four heroes in one party with the leader's pick unset, settled through the shipped
 // world tick for several 90 s windows (tools/settle-cost.mjs's `fire` door, the browser closed), on the Cellar (the largest
 // pull, on the smallest bound) and the Thicket. Every window lands. The party's world really stands at the pull (the control),
-// and the frozen density stays 0.
+// and the frozen density stays 0. The file's own self-check refuses the as-built spawns, and a second apply moves no byte.
 //
 // mutant-anchors: none — the mutant is SQL patched into the booted replay, not an anchored patch of a file.
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { isMain } from './_is-main.mjs';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, ROOT } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { decodeStored } from '../src/core/hunt/world-state.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
@@ -48,6 +50,34 @@ async function play(db, hunt) {
   return problems;
 }
 
+/* THE FILE ITSELF, over the chain: its §4 self-check refuses the as-built spawns, and a second apply moves no byte of any
+   table it writes, of the world shape, or of any public function. */
+async function selfCheck(db) {
+  const problems = [];
+  const text = readFileSync(join(ROOT, 'supabase', 'migrations', CATALOGUE), 'utf8');
+  const row = "('mill_cellar', 'mill_cellar', 2, 15, 32000,";
+  if (text.split(row).length !== 2) return ['the Cellar\'s row is not in ' + CATALOGUE + ' exactly once: ' + row];
+  await db.query('begin');
+  let err = null;
+  try { await db.exec(text.replace(row, "('mill_cellar', 'mill_cellar', 2, 5, 32000,")); } catch (e) { err = String(e && e.message); }
+  await db.query('rollback');
+  if (!err || !err.includes('largest default pull')) problems.push('the self-check answered ' + (err ? err.slice(0, 160) : 'nothing (it applied)') + ' on the Cellar\'s as-built spawns');
+  const image = async () => {
+    const out = {};
+    for (const t of ['hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_kill_bounds', 'hr_hunt_limits', 'hr_hunt_vendor_value', 'hr_hunt_cover_items', 'hr_hunt_world_shape']) {
+      out[t] = (await db.query(`select md5(coalesce(string_agg(x.r, '|' order by x.r), '')) m from (select t::text r from public.${t} t) x`)).rows[0].m;
+    }
+    out.functions = (await db.query(`select md5(string_agg(p.oid::regprocedure::text || pg_get_functiondef(p.oid), '|' order by p.oid::regprocedure::text)) m
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prokind = 'f'`)).rows[0].m;
+    return JSON.stringify(out);
+  };
+  const before = await image();
+  await db.exec(text);
+  const after = await image();
+  if (before !== after) problems.push('a second apply moved something: ' + before + ' -> ' + after);
+  return problems;
+}
+
 async function main() {
   if (process.argv.includes('--mutate')) {
     /* The as-built spawns back on the row, in the row and in the self-check that pins it. */
@@ -62,10 +92,13 @@ async function main() {
   }
   const problems = [];
   /* One replay a ground: the fixture's heroes are one party, and its hunt is its ground. */
+  let last = null;
   for (const hunt of GROUNDS) {
     const { db } = await bootReplay();
     problems.push(...await play(db, hunt));
+    last = db;
   }
+  problems.push(...await selfCheck(last));
   for (const p of problems) console.log('  ✗ ' + p);
   console.log(problems.length ? 'party-pull-bound: RED' : 'party-pull-bound: a four with no pick lands ' + (WINDOWS + 1) + ' windows of 90 s on ' + GROUNDS.join(' and '));
   process.exitCode = problems.length ? 1 : 0;

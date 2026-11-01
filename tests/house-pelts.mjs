@@ -17,7 +17,7 @@
 //   HP-3 HELD    the Castle and the rung 5s are refused by name, hr_home_view stops at the Keep and at four rungs a room,
 //                and no sellable row costs an item the catalogue cannot reach.
 //   HP-4 SELF-CHECK the two 2027-02-16 files refuse their own apply on a visible rung with a dead item, a sold Castle, and a
-//                bear whose kill bound forgets the pelt.
+//                bear whose kill bound forgets the pelt; a second apply of both is byte-identical.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -213,6 +213,20 @@ const ARMS = {
     ['if v_n <> 36 then', 'if v_n <> 37 then']], 'held house rows are sellable', 'the Castle sold');
     await refuses(BOUNDS, [[`'{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`, `'{"raw_bear_meat":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`]],
       'item bound is under', 'the bear\'s bound forgets the pelt');
+    /* A SECOND APPLY IS BYTE-IDENTICAL: both files over themselves, the tables they write and the schema around them. */
+    const image = async () => {
+      const out = {};
+      for (const t of ['hr_unlock_offers', 'hr_hunt_kill_bounds', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_limits', 'hr_hunt_vendor_value', 'hr_hunt_cover_items', 'hr_hunt_world_shape']) {
+        out[t] = await one(db, `select md5(coalesce(string_agg(x.r, '|' order by x.r), '')) from (select t::text r from public.${t} t) x`);
+      }
+      out.functions = await one(db, `select md5(string_agg(p.oid::regprocedure::text || pg_get_functiondef(p.oid), '|' order by p.oid::regprocedure::text))
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prokind = 'f'`);
+      return JSON.stringify(out);
+    };
+    const before = await image();
+    for (const f of [BOUNDS, OFFERS]) await db.exec(readFileSync(join(H.ROOT, 'supabase', 'migrations', f), 'utf8'));
+    const after = await image();
+    if (before !== after) problems.push(`a second apply moved something: ${before} -> ${after}`);
     return problems;
   },
 };

@@ -3,11 +3,15 @@
 //
 // THE RULE (one place; a solo hunt is a party of one):
 //   base share = monster XP / heroes alive at the kill        (XP-01)
-//   hero XP    = floor(base share x that hero's multiplier)   (XP-02)
+//   hero XP    = floor(base share x party factor x that hero's multiplier)   (XP-02)
+// THE PARTY FACTOR (Tyler 2026-10-31: better only with different classes) is
+// src/data/party-class-xp.js, read from the living heroes at each kill, on the
+// ground in `inst`, never latched: a death or a leave changes the next kill.
 // The multiplier is read server-side and injected per hero as
 // `sc.xpMultOf(heroUnit)` (bestiary mastery, boosts, later modifiers); absent,
-// every hero's is 1 (XP-07, the bestiary-ready hook). "Raw" XP is the share
-// before the multiplier (spec §3.6 #3) and rides on each `xp` event as `raw`.
+// every hero's is 1 (XP-07, the bestiary-ready hook). "Raw" XP is the even share
+// before the party factor and the multiplier both (spec §3.6 #3) and rides on
+// each `xp` event as `raw`: the gap to `amount` is what they paid, or cut.
 //
 // "+XP" GROUPING (XP-03). Kills within HUNT_XP.groupMs of the first are ONE
 // `xp_group` event: `amount` the party's XP, `by` each hero's own (the view
@@ -23,6 +27,7 @@
 // ============================================================
 
 import { HUNT_XP } from '../../data/hunt-xp.js?v=0.2.78';
+import { partyClassXp } from '../../data/party-class-xp.js?v=0.2.78';
 import { skillLevelFromXp, charLevelFromXp } from '../xp.js?v=0.2.78';
 import { makeEvent } from './events.js?v=0.2.78';
 
@@ -43,14 +48,15 @@ const xpOf = (kill) => {
 };
 
 /**
- * THE SPLIT. `heroes` are the living heroes (objects with an integer `id`).
+ * THE SPLIT. `heroes` are the living heroes (objects with an integer `id` and a `role`), `groundId` the ground fought on.
  * Answers { [id]: { xp, raw } }; nobody alive is nobody paid.
  */
-function splitKillXp(xp, heroes, sc) {
+function splitKillXp(xp, heroes, sc, groundId) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
   const raw = xp / heroes.length;
-  for (const h of heroes) out[h.id] = { xp: Math.floor(raw * multOf(sc, h) + 1e-9), raw: Math.floor(raw + 1e-9) };
+  const party = partyClassXp(groundId, heroes.map((h) => h.role)).permille;
+  for (const h of heroes) out[h.id] = { xp: Math.floor((raw * party * multOf(sc, h)) / 1000 + 1e-9), raw: Math.floor(raw + 1e-9) };
   return out;
 }
 
@@ -64,7 +70,7 @@ export function shareKillXp(inst, kill, sc) {
   const xp = xpOf(kill);
   const units = (inst && inst.world && inst.world.units) || [];
   const living = units.filter((u) => u.side === 'hero' && u.alive === true);
-  const paid = splitKillXp(xp, living, sc);
+  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground.id : null);
   const ids = Object.keys(paid);
   const answer = {};
   if (!ids.length) return answer;

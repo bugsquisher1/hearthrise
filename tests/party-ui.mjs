@@ -131,6 +131,8 @@ async function load(base, gen = 0) {
     ROLES: await import(u('src/data/hunt-roles.js')),
     PI: await import(u('src/session/party-intents.js')),
     PP: await import(u('src/shell/widgets/party-panel.js')),
+    PRO: await import(u('src/shell/windows/party-roster.js')),
+    PCX: await import(u('src/data/party-class-xp.js')),
     IW: await import(u('src/shell/intent-words.js')),
     BURY: await import(u('src/shell/windows/inventory/bury.js')),
     SC: await import(u('src/shell/share-card.js')),
@@ -801,8 +803,52 @@ async function pureRules(M, base) {
     return tboxes() === 'on,-' || 'after starting again the rows read ' + tboxes();
   });
 
+  /* PR-CLASS (Tyler 2026-10-31; designer's words): the Your party tab's line states what the table pays for that party on that
+     ground, in the designer's words, on every row and cell: it can never say what the server will not pay (§6). */
+  await t('PR-CLASS', async () => {
+    const L = M.PRO.classXpLine;
+    const end = ' Melee, Ranger, Mage and Healer each count.';
+    for (const [roles, hunt, want] of [
+      [['tank', 'ranger'], 'meadowbrook_thicket', 'Your party has 2 of 4 classes: 20% more Level XP in Meadowbrook Thicket.'],
+      [['tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: no extra Level XP in Meadowbrook Thicket.'],
+      [['tank', 'melee_dps'], 'millrace_sewer', 'Your party has 1 of 4 classes: 20% less Level XP in The Sewer.'],
+      [['tank', 'mage', 'healer'], 'coppercap_warrens', 'Your party has 3 of 4 classes: no extra Level XP in Coppercap Warrens.'],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: 25% more Level XP in The Sewer.'],
+      /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
+      [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: 20% more Level XP in Wickstead.'],
+      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: no extra Level XP in Wickstead.'],
+    ]) {
+      if (L(roles, hunt) !== want + end) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
+    }
+    const all = ['tank', 'ranger', 'mage', 'healer'];
+    for (const [g, row] of Object.entries(M.PCX.PARTY_CLASS_XP)) for (const [n, cells] of Object.entries(row)) cells.forEach((pm, i) => {
+      const roles = Array.from({ length: Number(n) }, (_, s) => all[Math.min(s, i)]);
+      const pay = pm > 1000 ? Math.round((pm - 1000) / 10) + '% more' : pm < 1000 ? Math.round((1000 - pm) / 10) + '% less' : 'no extra';
+      const hunt = Object.values(HUNT_GROUNDS).find((x) => x.id === g).hunt;
+      if (!L(roles, hunt).includes((i + 1) + ' of 4 classes: ' + pay + ' Level XP in ')) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + pm);
+    });
+    /* On the tab: shown before a hunt starts, gone once anyone hunts, none alone. */
+    const seat = (s, weapon, hunting) => ({ seat: s, unit: null, name: 'H' + s, level: 6, weapon, hunting: hunting === true, hp: 100, hp_max: 100 });
+    const tab = (members, hunt) => {
+      const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt, max: 4, open: true, self_seat: 0, leader_seat: 0, members } : undefined) };
+      const p = M.PS.partyMembershipOf(cs);
+      const box = {};
+      const el = (sel) => (box[sel] = box[sel] || { hidden: false, textContent: '', setAttribute() {}, getAttribute() { return null; }, classList: { toggle() {} }, querySelector: () => el('.x'), querySelectorAll: () => [], children: [], kids: [], appendChild() {}, append() {} });
+      const root = { querySelector: el, querySelectorAll: () => [] };
+      M.PRO.patchRoster(root, { character: cs, doc: null, glyphs: {} }, { pending: false }, p);
+      const c = el('.hw-party-class');
+      return c.hidden ? null : c.textContent;
+    };
+    const shown = tab([seat(0, 'shield'), seat(1, 'ranged')], 'mill_cellar');
+    if (shown !== 'Your party has 2 of 4 classes: 20% more Level XP in Mill Cellar.' + end) return 'in town the tab reads ' + JSON.stringify(shown);
+    if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== null) return 'the line stayed once the party hunts';
+    if (tab([seat(0, 'shield')], 'mill_cellar') !== null) return 'a party of one reads a class line';
+    const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
+    return (fresh && fresh.includes('2 of 4 classes: 20% more Level XP in ')) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
+  });
+
   await t('PR-1', async () => {
-    const members = [{ seat: 0, weapon: 'staff', role_pick: 'healer' }, { seat: 1, weapon: 'wand', role_pick: 'tank' }, { seat: 2, weapon: 'bow', role_pick: 'tank' }, { seat: 3, weapon: 'no_such_weapon', role_pick: 'tank' }];
+    const members = [{ seat: 0, weapon: 'staff', role_pick: 'healer' },{ seat: 1, weapon: 'wand', role_pick: 'tank' }, { seat: 2, weapon: 'bow', role_pick: 'tank' }, { seat: 3, weapon: 'no_such_weapon', role_pick: 'tank' }];
     const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt: 'mill_cellar', max: 4, leader_seat: 0, self_seat: 0, members } : undefined) };
     const p = M.PS.partyMembershipOf(cs);
     const roles = p ? p.seats.map((s) => String(s.role)).join(',') : 'none';
@@ -1184,6 +1230,10 @@ async function pageRules(overrides, shots) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const PURE_MUTANTS = [
+  ['the class line promises the bonus whatever the table says (PR-CLASS)', 'src/shell/windows/party-roster.js', "const pay = permille > 1000 ? gap + '% more Level XP'", "const pay = classes.length > 1 ? '20% more Level XP'"],
+  ['a seat with no weapon holds no class on the class line (PR-CLASS)', 'src/shell/windows/party-roster.js', "roles.map((r) => r || roleForWeapon('neutral'))", 'roles'],
+  ['the class line stays on while the party hunts (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (r.anyHunting || r.members.length < 2) return '';", "if (r.members.length < 2) return '';"],
+  ['the class line needs a ground the party has hunted (PR-CLASS)', 'src/shell/windows/party-roster.js', 'const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;', 'const hunt = p.hunt;'],
   ['the last hunt\'s end line stays into the next (AL-3, Brannoc 10-22)', 'src/shell/alerts.js', '|| (open && RETIRE.has(a.kind) && a.session && a.session !== open)', ''],
   ['the low alert counts the bag mid-hunt (AL-2, Brannoc 10-22)', 'src/session/item-sections.js', '  return huntBagOf(cs) || bagOf(cs);', '  return bagOf(cs);'],
   ['a reload raises "has ended" over the hero on screen (AL-3, QA2 Pellow 10-25)', 'src/shell/alerts.js', 'account.viewed === cs.slot || account.viewed === null);', 'account.viewed === cs.slot);'],

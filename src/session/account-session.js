@@ -88,6 +88,10 @@ export function accountLimitOf(read) {
   return a && typeof a === 'object' && Number.isInteger(a.max_concurrent) && a.max_concurrent >= 1 && a.max_concurrent <= 8 ? a.max_concurrent : null;
 }
 
+/* An answer taken `ms` after it came: the session measures the server's clock off `now` as it takes it, and that first measure
+   stands (timeline.js T3), so `now` moves on by what has passed here. */
+const agedBy = (body, ms) => (body && typeof body.now === 'string' ? Object.assign({}, body, { now: new Date(Date.parse(body.now) + ms).toISOString() }) : body);
+
 /** A roster row's hero, from one hr_load answer: its name, Level (the server's state.level_xp on the
     shared curve, CORE_MODEL.md §1), the ACCOUNT purse it read (state.gold at version state.gold_v:
     the same gold on every hero) and what it is doing when that is more than standing idle in town
@@ -169,6 +173,7 @@ export class AccountSession {
     this.closedGame = false;
     this._limit = null;
     this._roster = null;
+    this._rosterReads = new Map();   // slot -> the roster's own hr_load answer, until that hero opens (_open)
     this.slotOffer = null;
     this.viewed = null;
     this._purse = null;
@@ -273,6 +278,7 @@ export class AccountSession {
     return true;
   }
 
+  _nowMs() { return this._timers.now ? this._timers.now() : Date.now(); }
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
   _emit(why, detail) { for (const fn of Array.from(this._listeners)) { try { fn(why, detail); } catch (e) { console.error('[account] a listener failed', e); } } }
 
@@ -293,6 +299,7 @@ export class AccountSession {
     this.slotOffer = slotOfferOf(first.ok && first.body ? first.body.account : null, this.config);
     const owned = ownedSlots(first.ok && first.body ? first.body.hero_slots : null, this.config);
     const answers = await Promise.all(owned.map((slot) => (slot === 0 ? first : this.server.rpc('hr_load', { p_slot: slot }))));
+    this._rosterReads = new Map(owned.map((slot, i) => [slot, { ans: answers[i], at: this._nowMs() }]));
     const rows = owned.map((slot, i) => {
       const ans = answers[i];
       this._noteClosed(ans);
@@ -374,7 +381,12 @@ export class AccountSession {
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
     this._emit('opening', slot);   // watchers (the alerts) hear the first load's events too
-    await cs.load();
+    /* THE ROSTER JUST READ THIS HERO (hr_load, whole): its answer is the first read, spent once, while it is seconds old (a list
+       left standing reads again). The join's hello below still settles and re-reads, so nothing is older than it was. */
+    const read = this._rosterReads.get(slot);
+    this._rosterReads.delete(slot);
+    const age = read ? this._nowMs() - read.at : Infinity;
+    await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null);
     if (cs.status !== 'ready') {
       const reason = cs.status;
       this.close(slot);

@@ -37,6 +37,9 @@ export const SESSION_CONFIG = Object.freeze({
       (hunt-settle.js HUNT_SETTLE_MIN_MS, 15 s) so each ask pays a window; the world tick only flushes a
       session owed 90 s or more, so without this an attended hunt shows nothing for a minute and a half. */
   huntPollMs: 16000,
+  /** The roster's own hr_load answer is a hero's first read while it is this fresh (account-session.js _open): a reload
+      opens at once on what it just read, a character list left standing reads again. */
+  rosterReadFreshMs: 10000,
   /** A page hidden this long stops asking (AccountSession.setPageHidden; old-laptop player 10-31: 64 calls and 1.45 MB in
       2 minutes hidden, for hunts the server runs anyway), and asks ONE catch-up per character when it is shown again. A
       glance at another tab, under this, changes nothing. Under the look-ahead (liveRefillMs + its seeds) on purpose. */

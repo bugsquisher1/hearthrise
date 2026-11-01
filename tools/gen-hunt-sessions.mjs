@@ -197,7 +197,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE NO-FIGHT END (lane/a-no-fight, designer 2026-10-31): 2027-02-10 is APPLIED history; END_ORDER's no_fight + its limit and
    the world's fightAt (a new shape) land in this forward file, the same full replace, applied right before
    2027-02-11-no-fight-settle.sql. */
-export const OUT_NAME = '2027-02-11-no-fight-hunt-sessions-catalogue.generated.sql';
+/* A PARTY'S DEFAULT PULL (lane/b-party-class-xp, designer 2026-11-01): 2027-02-11 is APPLIED history; hr_hunt_grounds.spawns of the
+   Thicket, Wickstead and the Glade grows by pockets x the largest pull, the same full replace. The bound only WIDENS: this file
+   applies BEFORE the hr-accrue carrying the pull deploys (an edge first has every such party refused kills_over, then forfeited). */
+export const OUT_NAME = '2027-02-15-party-pull-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -225,7 +228,7 @@ export function groundRows(grounds, refs = {}) {
        Past a box's base a pull brings its FILL rows (its `pack` past its `spawns`); a monster standing only there (the
        Glade's Brook Bear, v0.2.64) had no row, so every drop of it was refused value_over and the sixth refusal
        forfeited the hunt (2026-10-30). n = its rows over those authored rows (the full-box head-count);
-       hr_hunt_grounds.spawns stays the AS-BUILT count (the kill bound's base, v_pass: unchanged). */
+       hr_hunt_grounds.spawns is the kill bound's base (v_pass), counted below. */
     const counts = {};
     let n = 0;
     for (const p of g.pockets || []) {
@@ -246,7 +249,12 @@ export function groundRows(grounds, refs = {}) {
     if (!dmax.every((v, i) => whole(v) && v >= 0 && v <= DENSITY_PICK.max && (i === 0 || v >= dmax[i - 1]))) {
       throw new Error(`ground ${id} density max ${dmax} is not 0..${DENSITY_PICK.max}, never falling as the party grows`);
     }
-    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n, respawn: g.respawnMs, seats: g.start.length, dmax });
+    /* THE KILL BOUND'S BASE (hr_hunt_apply_member v_pass = spawns + pockets x the instance's frozen pick): the most the ground
+       presents with NO pick, its as-built rows plus every pocket at a party's largest default pull (hunt-grounds.js partyPull,
+       designer 2026-11-01). The engine plays that pull at a frozen pick of 0, so a bound of the as-built rows alone refused
+       a Thicket four's every window (kills_over, then the forfeit). */
+    const pull = Math.max(0, ...(g.partyPull || []));
+    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n + g.pockets.length * pull, respawn: g.respawnMs, seats: g.start.length, dmax });
     for (const m of Object.keys(counts).sort()) spawns.push({ hunt: g.hunt, monster: m, n: counts[m] });
   }
   return { rows, spawns };
@@ -637,13 +645,21 @@ export function render(src) {
 -- nothing while the shapes differ (hunt-settle.js worldShapePending). ORDER: right before 2027-02-11-no-fight-settle.sql,
 -- which proves the new end. EDGE: the hr-accrue carrying this world deploys with these two files.
 --
+-- NEW IN 2027-02-15 (lane/b-party-class-xp, designer 2026-11-01): a party that picks no pull plays its ground's default
+-- (hunt-grounds.js partyPull: Thicket 4/5/6, Wickstead 3/3/4, Glade 3/4/4), at a frozen hunt_instances.density of 0.
+-- hr_hunt_apply_member counts spawns + pockets x that density, so hr_hunt_grounds.spawns grows by pockets x the largest
+-- pull on those three rows; nothing else moves, the world's shape included (no world_shape_pending). The bound only
+-- widens. ORDER: this file, THEN the hr-accrue carrying the pull; an edge first refuses such a party kills_over and the
+-- sixth refusal forfeits its hunt. The self-check below asserts every ground's spawns.
+--
+-- CARRIED FROM 2027-02-11 (APPLIED 10-31; lane/a-no-fight):
 -- CARRIED FROM 2027-02-10 (APPLIED 10-30; lane/c-bear-meat-bound): hr_hunt_ground_spawns lists EVERY monster a
 -- pull can bring (each pocket's whole pack, the rows hunt-grounds.js pullRows draws from at any density),
 -- not only each pocket's as-built rows. The Glade's Brook Bear stands only in its boxes' fill rows, so it
 -- had no spawn row: the settle's value bound for raw_bear_meat, bear_claw and brook_bear_tooth on
 -- mosslight_glade was 0, every window that dropped one was refused value_over, and the sixth refusal
 -- forfeited the hunt (meta.end server). n is now a monster's head-count over the full boxes;
--- hr_hunt_grounds.spawns (the kill bound's base) is unchanged. The self-check below executes the
+-- hr_hunt_grounds.spawns (the kill bound's base) did not move with it. The self-check below executes the
 -- settle's own item bound for every item a monster of the ground can drop (src/data/monsters.js, each
 -- pocket's pack) and refuses any under one kill's rows. Moves no value; the bound only widens to what the
 -- engine already pays. EDGE: none. ORDER: after the APPLIED 2027-02-10-artisan-tick.sql.
@@ -1059,6 +1075,10 @@ begin
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
                (${r.grounds.length ? r.grounds.map((g) => `(${sq(g.ground)}, ${g.respawn})`).join(', ') : `(null::text, null::int)`})) then
     raise exception 'a hunt ground''s respawn_ms is not hunt-grounds.js respawnMs'; end if;
+  -- THE KILL BOUND'S BASE covers a party's default pull: every ground's spawns, as generated, and each at least its pockets' largest pull.
+  if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.pockets, g.spawns) not in
+               (${r.grounds.length ? r.grounds.map((g) => `(${sq(g.ground)}, ${g.pockets}, ${g.spawns})`).join(', ') : `(null::text, null::int, null::int)`})) then
+    raise exception 'a hunt ground''s spawns is not as-built plus its pockets at a party''s largest default pull'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from ${sq(JSON.stringify(r.world.fields))}::jsonb
      or exists (select 1 from unnest(array[${WORLD_FIELDS_READ.unit.map(sq).join(', ')}]) n

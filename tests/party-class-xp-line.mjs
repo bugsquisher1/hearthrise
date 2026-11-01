@@ -8,14 +8,19 @@
 // seeds, at the ground's floor Level, in the ladder kit.
 //
 // THE MEASURE: Level XP per hero per hour in the party, over the mean of what the SAME heroes (each its own way to fight)
-// earn per hour alone, seeds pooled (one seed is dice: a 30-minute cell swings several percent, designer 11-01). The worst
+// earn per hour alone, seeds pooled (one seed is dice: a short cell swings several percent, designer 11-01). The worst
 // single seed is printed beside it. A Melee pair of a shield and two axes is compared with the mean of its two solos: how
-// the two fare together against how those two fare apart. The bar is 1.00 against each hero alone AS BUILT, where a lone
-// hero is sent.
+// the two fare together against how those two fare apart.
 //
-//   node tests/party-class-xp-line.mjs             the guard
+// THE BAR IS 1.00. At the default pull, against each hero alone AS BUILT (what no pick spawns for either). At 8 each, against
+// each hero alone at ITS better pull (as built or 8 each: the board's "best pull against the members' best pull alone"), since
+// a lone hero can press + too: a lone hero at 8 earns up to 1.5x its as-built, so a party at 8 against a lone hero as built
+// reads 1.2-1.7 on the solo grounds whatever the class. That reading is printed on every 8-each cell and is not the bar.
+//
+//   node tests/party-class-xp-line.mjs             the guard (the CI cut: 15-minute party cells, duos on every seed)
 //   node tests/party-class-xp-line.mjs --mutate    the proof: each mutant turns its cell red
-//   --seeds N    a wider measurement   --workers N   --table every cell's ratio   --mixed the mixed parties too (10-25 §5)
+//   --wide       the designer's read: 30-minute cells, every size on more seeds (about 4x the guard)
+//   --seeds N    --workers N   --table every cell's ratio   --mixed the mixed parties too (10-25 §5)
 //
 // mutant-anchors: src/data/party-class-xp.js src/data/hunt-grounds.js
 import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
@@ -29,7 +34,10 @@ import { loadCellRunner } from '../tools/balance-sim/cell.mjs';
 import { runPool } from '../tools/balance-sim/pool.mjs';
 
 const BAR = 1.0;
-const HOURS = 0.5;
+const WIDE = process.argv.includes('--wide');
+/* A party cell's hours, and a lone hero's as built: every party is judged against those, and they are the cheapest cells. */
+const HOURS = WIDE ? 0.5 : 0.25;
+const SOLO_HOURS = 0.5;
 /* null = no pick: the party's default pull (the room as built where a ground has none, and for a lone hero). */
 const ARMS = Object.freeze([{ id: 'pull', density: null, words: 'default pull' }, { id: 'eight', density: 8, words: '8 each' }]);
 /* Every party is ONE class by the game's map (oneClassProblems holds it). */
@@ -53,7 +61,7 @@ const groundIds = Object.keys(G.HUNT_GROUNDS);
 const floorOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0];
 
 const cellOf = (g, arm, seed, party, name) => ({
-  id: [g, arm.id, seed, name].join(':'), ground: g, party, level: floorOf(g), hours: HOURS, seeds: 1, seedBase: seed,
+  id: [g, arm.id, seed, name].join(':'), ground: g, party, level: floorOf(g), hours: party.length === 1 && arm.density === null ? SOLO_HOURS : HOURS, seeds: 1, seedBase: seed,
   ...(arm.density === null ? {} : { density: arm.density }),
 });
 
@@ -62,14 +70,18 @@ function oneClassProblems() {
   return Object.entries({ ...DUOS, ...LARGER }).filter(([, p]) => new Set(p.map(classOf)).size !== 1).map(([n, p]) => n + ' (' + p + ') is not one class');
 }
 
-/** The cells a sweep plays: duos every seed, a larger party two seeds at its default pull and one at 8 each. */
+/** The cells a sweep plays. The CI cut: the default pull every seed for duos and lone heroes, the first seed for a larger
+    party; 8 each, the first two seeds for duos and lone heroes, the first for a four. --wide: larger parties two seeds and
+    every seed at 8 each. A party cell and its lone heroes share their seeds, so each cell's solos are played. */
 function planOf(seeds, mixed) {
   const jobs = [];
   for (const g of groundIds) for (const arm of ARMS) for (let seed = 0; seed < seeds; seed++) {
+    const eight = arm.density !== null;
+    if (!WIDE && eight && seed > 1) continue;
     for (const w of WAYS) jobs.push(cellOf(g, arm, seed, [w], 'solo-' + w));
     for (const [n, p] of Object.entries(DUOS)) jobs.push(cellOf(g, arm, seed, p, n));
-    if (seed < (arm.density === null ? 2 : 1)) for (const [n, p] of Object.entries(LARGER)) jobs.push(cellOf(g, arm, seed, p, n));
-    if (mixed && arm.density === null) for (const [n, p] of Object.entries(MIXED)) jobs.push(cellOf(g, arm, seed, p, n));
+    if (seed < (WIDE && !eight ? 2 : 1)) for (const [n, p] of Object.entries(LARGER)) if (WIDE || !eight || p.length === 4) jobs.push(cellOf(g, arm, seed, p, n));
+    if (mixed && !eight) for (const [n, p] of Object.entries(MIXED)) jobs.push(cellOf(g, arm, seed, p, n));
   }
   return jobs;
 }
@@ -178,10 +190,13 @@ async function main() {
     if (process.argv.includes('--table')) for (const r of same) console.log('  ' + cellWords(r));
     for (const r of rows.filter((x) => mixedNames.includes(x.name))) console.log('  MIXED ' + cellWords(r));
     for (const g of groundIds) for (const arm of ARMS) {
-      const top = same.filter((r) => r.g === g && r.armId === arm.id).sort((a, b) => b.ratio - a.ratio)[0];
-      console.log('  ' + g.padEnd(20) + arm.words.padEnd(13) + ' worst ' + top.ratio.toFixed(3) + ' ' + top.party.join('+') + ' (worst seed ' + top.worstSeed.toFixed(3) + ')');
+      const on = (r) => (arm.id === 'pull' ? r.ratio : r.vsBest);
+      const top = same.filter((r) => r.g === g && r.armId === arm.id).sort((a, b) => on(b) - on(a))[0];
+      console.log('  ' + g.padEnd(20) + arm.words.padEnd(13) + ' worst ' + on(top).toFixed(3) + ' ' + top.party.join('+'));
     }
-    const reds = same.filter((r) => r.ratio > BAR);
+    const eight = same.filter((r) => r.armId === 'eight');
+    console.log('  8 each against alone as built (read, not the bar): ' + eight.filter((r) => r.ratio > BAR).length + ' of ' + eight.length + ' cells over ' + BAR.toFixed(2));
+    const reds = same.filter((r) => (r.armId === 'pull' ? r.ratio : r.vsBest) > BAR);
     for (const p of problems) console.log('  ✗ ' + p);
     for (const r of reds) console.log('  ✗ ' + cellWords(r));
     const ok = !reds.length && !problems.length;

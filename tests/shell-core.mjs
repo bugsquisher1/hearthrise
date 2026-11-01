@@ -640,6 +640,59 @@ async function runTests(mods) {
     ok(CS.RESIDUE_FIELDS.includes('awaySeen'), 'awaySeen must be in RESIDUE_FIELDS');
     eq(CS.sanitizeResidueField('awaySeen', { s: 'x; drop', at: 1, xp: 2 }), {}, 'a forged session id is dropped');
     eq(CS.sanitizeResidueField('awaySeen', { s: 's-1', at: 5, xp: -3, gold: 9, kills: 1.5, extra: 1 }), { s: 's-1', at: 5, gold: 9 }, 'a stamp is shaped and bounded');
+    /* A HUNT OVER BEFORE THE PLAYER LEFT IS NO PART OF THE ABSENCE (crafter's panel 2026-11-01). */
+    const overBefore = endedAt(T0 + H2, T0 - 5 * MIN);
+    ok(AR.awayRecapOf(overBefore) === null, 'a hunt that ended before the stamp raises no line: ' + JSON.stringify(AR.awayRecapOf(overBefore)));
+    /* THE CARD NEVER OUTLIVES ITS WORDS (friends' panel): what the hunt does now is the record's; a hunt that ends with the card up takes the card. */
+    const up = AR.awayRecapOf(withStamina(env(T0 + H2), 3 * 3600000));
+    ok(AR.awayLineNow(withStamina(env(T0 + H2), 2 * 3600000), up) === up.said + ' Still hunting, with 2 h 0 min of stamina left.', 'the stamina is the record\'s now');
+    ok(AR.awayLineNow(env(T0 + H2, true), up) === null && AR.awayLineNow(env(T0 + H2, false, 's-2'), up) === null, 'the hunt over, or another one open: the card goes');
+    const upEnded = AR.awayRecapOf(env(T0 + H2, true));
+    ok(typeof AR.awayLineNow(env(T0 + H2, true), upEnded) === 'string', 'a card about a hunt that ended while away stays');
+  });
+  t('R3b the away line for a hero working in town: what the job did, from two server answers', () => {
+    const T0 = 1_800_000_000_000, H8 = 8 * 3600 * 1000, MIN = 60 * 1000;
+    const iso = (ms) => new Date(ms).toISOString();
+    const hero = (now, state, skills, inventory, stamp, hunt = null) => ({
+      slot: 0, writes: [], record: { residue: { awaySeen: stamp } },
+      setResidue(f, v) { this.writes.push([f, v]); return true; },
+      serverNow: () => now,
+      read: (k) => ({ name: 'Tess', state, skills, inventory, hunt })[k],
+    });
+    const rock = { s: 'town:gather:copper_rock', at: T0, sx: XP.skillXpForLevel('mining', 26), n: 10 };
+    const mining = (accrued) => ({ active_kind: 'gather', active_id: 'copper_rock', active_since: iso(T0 - H8), accrued_to: iso(accrued) });
+    const paid = { mining: { xp: XP.skillXpForLevel('mining', 47), level: 47 } };
+    /* a hero who has never hunted: no hunt section at all */
+    const back = AR.awayRecapOf(hero(T0 + H8, mining(T0 + H8), paid, { copper_ore: 4313 }, rock));
+    ok(back && back.text === 'While you were away (8 h 0 min), Tess mined the Copper Rock: +4,303 Copper Ore, Mining 26 to 47. Still mining.', 'the gathering line: ' + JSON.stringify(back && back.text));
+    ok(back && back.action === 'bag' && back.session === null && back.id === 'away:town:gather:copper_rock:' + T0, 'it opens the bag and is shown once: ' + JSON.stringify(back));
+    /* the first read back is from before the sign-in's settle: the line waits for the numbers */
+    const unpaid = hero(T0 + H8, mining(T0), { mining: { xp: rock.sx, level: 26 } }, { copper_ore: 10 }, rock);
+    ok(AR.awayRecapOf(unpaid) === null && AR.awaySettled(unpaid) === false, 'nothing is judged before the settle that pays it');
+    ok(AR.stampAway(unpaid) === false, 'and the stamp is not renewed over the numbers it must compare with');
+    ok(AR.awaySettled(hero(T0 + 5 * MIN, mining(T0), {}, {}, rock)) === true, 'a look under ten minutes is no absence: nothing is waited for');
+    const ended = hero(T0 + H8, mining(T0 + H8), paid, { copper_ore: 4313 }, rock, { session_id: 's-old', hunt_id: 'mill_cellar', ended: true, session: { end_reason: 'left', ended_at: iso(T0 - MIN) }, hero: {}, pose: { units: [] } });
+    ok(/mined the Copper Rock/.test((AR.awayRecapOf(ended) || {}).text || '') && !/hunt/i.test(AR.awayRecapOf(ended).text), 'the job, never the hunt that ended before it: ' + JSON.stringify(AR.awayRecapOf(ended)));
+    /* a bench that ran out: what it made, the level, when and why it stopped */
+    const saw = { s: 'town:artisan:saw_normal', at: T0, sx: XP.skillXpForLevel('crafting', 10), n: 0 };
+    const idle = { active_kind: 'idle', active_id: null, accrued_to: iso(T0 + 50 * MIN) };
+    const benched = AR.awayRecapOf(hero(T0 + 50 * MIN, idle, { crafting: { xp: XP.skillXpForLevel('crafting', 29), level: 29 } }, { normal_plank: 392 }, saw));
+    ok(benched && /^While you were away \(50 min\), Tess made Normal Plank: \+392 Normal Plank, Crafting 10 to 29\. It stopped about \d+ min in: out of Normal Log\.$/.test(benched.text), 'the bench line: ' + JSON.stringify(benched && benched.text));
+    /* nothing came of it: no line */
+    ok(AR.awayRecapOf(hero(T0 + H8, idle, { crafting: { xp: saw.sx, level: 10 } }, {}, saw)) === null, 'a job that made nothing raises no line');
+    /* the stamp: at the server's watermark, with the server's skill and bag */
+    const going = hero(T0 + 11 * MIN, mining(T0 + 11 * MIN), paid, { copper_ore: 50 }, rock);
+    ok(AR.stampAway(going) === true && going.writes[0][1].s === rock.s && going.writes[0][1].at === T0 + 11 * MIN && going.writes[0][1].sx === paid.mining.xp && going.writes[0][1].n === 50, 'a job is stamped as of its watermark: ' + JSON.stringify(going.writes));
+    const young = hero(T0 + 9 * MIN, mining(T0 + 9 * MIN), paid, { copper_ore: 50 }, rock);
+    ok(AR.stampAway(young) === false, 'and renewed no oftener than a hunt');
+    const stopped = hero(T0 + 3 * MIN, idle, paid, { copper_ore: 50 }, rock);
+    ok(AR.stampAway(stopped) === true && stopped.writes[0][1].s === 'idle', 'a job stopped in view leaves nothing for the next return: ' + JSON.stringify(stopped.writes));
+    /* the card: "Still mining" goes when the record says otherwise; a stopped job's line is history */
+    ok(AR.awayLineNow(hero(T0 + H8, mining(T0 + H8), paid, {}, rock), back) === back.text, 'a job still running keeps its card');
+    ok(AR.awayLineNow(hero(T0 + H8, idle, paid, {}, rock), back) === null, 'stopped since: the card goes');
+    ok(typeof AR.awayLineNow(hero(T0 + 50 * MIN, idle, {}, {}, saw), benched) === 'string', 'a card about a job that stopped while away stays');
+    eq(CS.sanitizeResidueField('awaySeen', { s: 'town:gather:copper_rock', at: 5, sx: 9, n: 1, extra: 1 }), { s: 'town:gather:copper_rock', at: 5, sx: 9, n: 1 }, 'a job\'s stamp survives the residue');
+    eq(CS.sanitizeResidueField('awaySeen', { s: 'town:gather:x', at: 5, sx: -1, n: 1.5 }), { s: 'town:gather:x', at: 5 }, 'and is bounded');
   });
 
   return fails;
@@ -727,6 +780,16 @@ const MUTANTS = [
   { test: 'R2', file: HUD_FILE, from: "      character.setResidue('hudLayout', next);\n", to: '' },
   { test: 'R2', file: HUD_FILE, from: "      if (now && typeof character.flushResidue === 'function') Promise.resolve(character.flushResidue()).catch(() => {});\n", to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (gone < AWAY_MIN_MS) return null;\n', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (h.ended && Number.isFinite(h.endedAtMs) && h.endedAtMs <= was.at) return null;\n', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended)) return null;', to: 'if (!h || h.sessionId !== a.session) return null;' },
+  { test: 'R3b', file: 'src/shell/away-work.js', from: 'return paid > was.at && now - paid < SETTLED_WITHIN_MS;', to: 'return true;' },
+  { test: 'R3b', file: 'src/shell/away-work.js', from: "const still = !!goes && keyOf(goes) === was.s;", to: 'const still = true;' },
+  { test: 'R3b', file: 'src/shell/away-work.js', from: "if (!parts.length) return null;", to: '' },
+  { test: 'R3b', file: 'src/shell/away-work.js', from: "if (gained > 0) parts.push('+' + whole(gained) + ' ' + itemName(made));", to: '' },
+  { test: 'R3b', file: 'src/shell/away-work.js', from: "return { s: keyOf(w), at: Math.floor(at),", to: "return { s: keyOf(w), at: Math.floor(serverNowOf(cs)) + 1,"},
+  { test: 'R3b', file: 'src/shell/away-recap.js', from: 'if (isWorkStamp(was) && (!h || h.ended)) {', to: 'if (false) {' },
+  { test: 'R3b', file: 'src/shell/away-recap.js', from: 'return (a.still && !(w && w.s === a.work)) || (h && !h.ended) ? null : a.text;', to: 'return a.text;' },
+  { test: 'R3b', file: 'src/session/residue.js', from: "for (const k of ['xp', 'gold', 'kills', 'sx', 'n'])", to: "for (const k of ['xp', 'gold', 'kills'])" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.'", to: "' Still hunting.'" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "(STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')", to: "((END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "return r.back === session ? false :", to: "return" },

@@ -51,7 +51,7 @@ import { itemName } from './widgets/bits.js?v=0.2.80';
 import { noShotWords } from './hunt-go.js?v=0.2.80';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.80';
 import { deathSeen } from './death-popup.js?v=0.2.80';
-import { awayRecapOf, stampAway, markBack } from './away-recap.js?v=0.2.80';
+import { awayRecapOf, awayLineNow, awaySettled, stampAway, markBack } from './away-recap.js?v=0.2.80';
 import { benchStopRecapOf } from './bench-fee.js?v=0.2.80';
 import { workRow } from './town-work.js?v=0.2.80';
 import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.80';
@@ -197,6 +197,8 @@ export function createAlertCenter(account) {
   const seen = new Map();            // slot -> Set of ids shown on this page
   const watching = new Map();        // slot -> [unsubscribe]
   const listeners = new Set();
+  /* The slots whose next read is a RETURN: this page's first of the hero, or the first after it was left (leaving). A hunt in view is never "away". */
+  const returning = new Set();
   let n = 0;
 
   const changed = () => { for (const fn of Array.from(listeners)) { try { fn(); } catch (e) { console.error('[alerts] a listener failed', e); } } };
@@ -226,13 +228,16 @@ export function createAlertCenter(account) {
        Without that a reload raised "has ended · Start again" over the hero on screen (QA2's Pellow, 10-25). */
     const now = candidatesOf(cs, account.viewed === cs.slot || account.viewed === null);
     /* "While you were away" (away-recap.js): judged against the last-seen stamp BEFORE it is renewed. */
-    const away = awayRecapOf(cs);
+    const judged = returning.has(cs.slot);
+    const away = judged ? awayRecapOf(cs) : null;
     if (away) { now.push(away); markBack(cs, away.session); }
     /* A bench the server stopped for gold says so once, watched or not (the work bench tax: bench-fee.js). */
     const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
     if (broke) now.push(broke);
     for (const c of now) any = fire(cs, c) || any;
-    stampAway(cs);
+    /* A town job's return waits for the settle that pays it; the stamp waits with it. */
+    if (judged && awaySettled(cs)) returning.delete(cs.slot);
+    if (!returning.has(cs.slot)) stampAway(cs);
     /* An invite the server no longer lists (answered elsewhere, expired, its party gone) leaves the lines. */
     const live = new Set(now.filter((c) => c.kind === 'invite').map((c) => c.id));
     /* A NEW HUNT RETIRES THE LAST ONE'S LINES (Brannoc 10-22: "has ended · Start again" stayed up into the next
@@ -244,7 +249,10 @@ export function createAlertCenter(account) {
       if (a.slot !== cs.slot) continue;
       /* A warning is about what comes next: a friend's low stamina goes with the hunt it was raised in, a warned ground once a hunt is open. */
       const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);
-      if (stale || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; }
+      if (stale || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
+      /* "While you were away": what the hunt is doing now is the record's, never the moment the card came up (CLAUDE.md §6). */
+      const line = a.kind === 'away' ? awayLineNow(cs, a) : a.text;
+      if (line === null) { alerts.splice(i, 1); any = true; } else if (line !== a.text) { a.text = line; any = true; }
     }
     if (any) changed();
   }
@@ -257,11 +265,13 @@ export function createAlertCenter(account) {
       offs.push(cs.timeline.onArrive((ev) => { const c = rareOf(cs, ev) || runOutOf(cs, ev); if (c && fire(cs, c)) changed(); }));
     }
     watching.set(slot, offs);
+    returning.add(slot);
     scan(cs);
   }
   function unwatch(slot) {
     for (const off of watching.get(slot) || []) off();
     watching.delete(slot);
+    returning.delete(slot);
     seen.delete(slot);
     for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].slot === slot) alerts.splice(i, 1);
     changed();
@@ -301,6 +311,7 @@ export function createAlertCenter(account) {
         closed summary, a moved window) go now, on a fetch that outlives the page. `hidden`: only hidden, it may yet flicker back (flushResidue). */
     leaving({ hidden = false } = {}) {
       for (const cs of account.characters()) { stampAway(cs, true); cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }
+      for (const cs of account.characters()) returning.add(cs.slot);
     },
     destroy() { offAccount(); for (const slot of Array.from(watching.keys())) unwatch(slot); listeners.clear(); },
   };

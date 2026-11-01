@@ -608,7 +608,7 @@
 /* ── The alert lines (src/shell/widgets/alerts.js): newest on top; with none, not there at all ── */
 .hs-widget.is-alerts:has(.hw-alerts.is-empty) { pointer-events: none; }
 .hw-alerts.is-empty { display: none; }
-.hw-alert-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; width: 360px; max-width: calc(100vw - 24px); }
+.hw-alert-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; width: var(--hs-alert-w, 360px); max-width: calc(100vw - 24px); max-height: var(--hs-room, none); overflow-y: auto; }
 /* Each alert is a HUD plate in the thin steel frame; its kind is the 4 px bar inside its left edge (gold a rare
    find, red a fall, steel the rest). */
 .hw-alert {

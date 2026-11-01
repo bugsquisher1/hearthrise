@@ -239,6 +239,17 @@ export function createWindowManager(o) {
     return openWindow(id);
   }
 
+  /* A WINDOW MADE SMALLER NEVER LOSES ONE (friends' panel 2026-11-01): the kept place stays as it was, so it comes back when the
+     window grows; what is drawn is held on screen. A float keeps its head in reach; a docked window overlaps its neighbour
+     rather than run off the left edge, and a press raises it. */
+  function floatAt(id) {
+    const f = floating.get(id), w = world();
+    return { x: Math.max(0, Math.min(w.width - width(id), f.x)), y: Math.max(0, Math.min(w.height - 48, f.y)) };
+  }
+  function dockRight(id, r) {
+    return Math.max(DOCK_EDGE, Math.min(r, world().width - width(id) - DOCK_EDGE));
+  }
+
   /** The live windows, oldest first (a window sliding out is already gone). */
   const live = () => open.filter((id) => !leaving.has(id));
 
@@ -322,8 +333,9 @@ export function createWindowManager(o) {
       if (isModal(id)) Object.assign(e, { docked: false, modal: true, width: r.width }, !phone && floating.has(id) ? modalAt(id, floating.get(id)) : {});
       else if (phone) Object.assign(e, { docked: true, right: 0, width: null });
       else if (floating.has(id) && floating.get(id).home) Object.assign(e, { docked: false, x: DOCK_EDGE, bottom: HOME_BOTTOM, width: width(id), height: r.resizable ? sizeNow(id).h : null });
-      else if (floating.has(id)) Object.assign(e, { docked: false, x: floating.get(id).x, y: floating.get(id).y, width: width(id), height: r.resizable ? sizeNow(id).h : null });
+      else if (floating.has(id)) Object.assign(e, floatAt(id), { docked: false, width: width(id), height: r.resizable ? sizeNow(id).h : null });
       else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE, width: width(id), height: r.resizable ? sizeNow(id).h : null });
+      if (e.docked && !phone) e.right = dockRight(id, e.right);
       out.push(e);
     }
     entering.clear();

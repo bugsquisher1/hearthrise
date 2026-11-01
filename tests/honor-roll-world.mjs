@@ -59,7 +59,7 @@ const pick = async (page, board) => {
   await page.selectOption('[data-hs-win="honor"] select[data-hs-act="board"]', board);
   return waitRoll(page, (b) => {
     const w = document.querySelector('[data-hs-win="honor"]');
-    return w && w.querySelector('select').value === b && !/Reading the roll/.test(w.querySelector('.hr-empty').textContent || '')
+    return w && w.querySelector('select').value === b && !/Reading the board/.test(w.querySelector('.hr-empty').textContent || '')
       && (w.querySelector('.hr-roll:not(.hr-near) > .hr-line') || w.querySelector('.hr-empty.is-on'));
   }, board);
 };
@@ -99,7 +99,7 @@ try {
   await a.page.keyboard.press('z');
   const opened = await waitRoll(a.page, () => document.querySelectorAll('[data-hs-win="honor"] .hr-roll:not(.hr-near) > .hr-line').length === 2);
   const r1 = await readRoll(a.page);
-  step('HW-2 Z opens the Roll of Honor on the Level board with both heroes', opened && r1 && r1.title === 'Level' && r1.lines.length === 2, JSON.stringify(r1));
+  step('HW-2 Z opens Leaderboards on the Level board with both heroes', opened && r1 && r1.title === 'Level' && r1.lines.length === 2, JSON.stringify(r1));
   /* The server's order (rank: score, then a stable tiebreak) and its places (a tie is one place twice); each level must
      also be hr_char_level of that hero's Level XP in player_state, the column the settle writes. */
   const ranked = await sql(`select name, level, place from public.leaderboard_ranked where board = 'level' order by rank`);
@@ -112,7 +112,7 @@ try {
   step('HW-3 the viewer\'s hero is marked "Your hero"; the other is not', mineLine && mineLine.viewed && mineLine.tag === 'Your hero'
     && theirs && !theirs.viewed && theirs.tag === '', JSON.stringify(r1 && r1.lines));
   const myPlace = xp[0].name === 'Brannoc' || xp[0].xp === xp[1].xp ? 1 : 2;
-  step('HW-3 the count, the stamp and the standing line', r1 && r1.count === '2 heroes on this roll' && /^Updated (just now|\d+ minutes? ago)$/.test(r1.fresh)
+  step('HW-3 the count, the stamp and the standing line', r1 && r1.count === '2 heroes on this board' && /^Updated (just now|\d+ minutes? ago)$/.test(r1.fresh)
     && (myPlace === 1 ? /^Brannoc (holds|shares) first place\.$/.test(r1.you) : /^Brannoc stands 2nd of 2\.$/.test(r1.you)
       && /^Osric, the next hero up, is [\d,]+ XP ahead\.$/.test(r1.next)), JSON.stringify(r1));
   await a.shot('honor-level-desktop');
@@ -121,7 +121,7 @@ try {
   const r2 = await readRoll(a.page);
   step('HW-4 an empty board says so and tells the viewer how to get on', fishing && r2.lines.length === 0
     && r2.empty === 'No hero has trained Fishing yet. The first to do it takes first place.'
-    && r2.you === 'Brannoc is not on this roll yet. Train Fishing to earn a place: fish at a fishing spot.', JSON.stringify(r2));
+    && r2.you === 'Brannoc is not on this board yet. Train Fishing to earn a place: fish at a fishing spot.', JSON.stringify(r2));
   await a.shot('honor-fishing-empty');
   const total = await pick(a.page, 'total_level');
   const r3 = await readRoll(a.page);
@@ -150,7 +150,7 @@ try {
     return w && w.querySelector('select').value === 'total_level' && w.querySelectorAll('.hr-roll:not(.hr-near) > .hr-line').length === 1;
   });
   const r5 = await readRoll(a.page);
-  step('HW-6 a hidden account holds no place', one && r5.lines.map((l) => l.name).join() === 'Brannoc' && r5.count === '1 hero on this roll', JSON.stringify(r5));
+  step('HW-6 a hidden account holds no place', one && r5.lines.map((l) => l.name).join() === 'Brannoc' && r5.count === '1 hero on this board', JSON.stringify(r5));
   // ── HW-7 ──
   step('HW-2 no console errors on either screen', a.errors.length === 0 && b.errors.length === 0, [...a.errors, ...b.errors].slice(0, 5).join(' | '));
   step('HW-7 nothing left the machine', a.offsite.length === 0 && b.offsite.length === 0 && world.offsite.length === 0,

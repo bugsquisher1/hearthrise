@@ -101,7 +101,7 @@ const PANEL_ROWS = HUD_WIDGETS.filter((w) => w.removable).map((w) => row({
 }));
 
 /* ── Controls: every window's key, then the shell's own (display only: hunts play themselves) ── */
-const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !w.escape).map((w) => row({
+const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !w.escape && w.key).map((w) => row({
   id: 'key.' + w.id, category: 'controls', label: 'Open ' + w.label,
   help: 'Press this key to open or close the ' + w.label.toLowerCase() + ' window.',
   type: 'hotkey', key: w.key,

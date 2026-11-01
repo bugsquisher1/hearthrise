@@ -32,6 +32,7 @@ import { renderAlerts } from './widgets/alerts.js?v=0.2.80';
 import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.80';
 import { renderReport } from './windows/report.js?v=0.2.80';
 import { renderDeath } from './windows/death.js?v=0.2.80';
+import { renderPlayCap } from './windows/play-cap.js?v=0.2.80';
 import { renderOnline } from './widgets/online.js?v=0.2.80';
 import { renderHouse } from './windows/house.js?v=0.2.80';
 import { renderFarm } from './windows/farm.js?v=0.2.80';
@@ -59,6 +60,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   hud: renderHudSettings,
   'configure-action': renderConfigureAction,
   death: renderDeath,
+  'play-cap': renderPlayCap,
   chat: renderChat,
   friends: renderFriends,
   inspect: renderInspect,

@@ -10,7 +10,8 @@
 //   id       stable id; the renderer key and the [data-hs-win] attribute
 //   label    the title and the launcher tooltip
 //   key      KeyboardEvent.key, lower-cased ('b', 'enter'); unique. Digits 1-0
-//            belong to the action bar and are refused by the window manager
+//            belong to the action bar and are refused by the window manager.
+//            null: a modal only the game opens (the play cap's popup)
 //   glyph    a window.HR_GLYPHS key (src/data/glyphs.js)
 //   width    docked width on desktop, CSS px (the phone uses one sheet width)
 //   object   the frame's object variant (ART_DIRECTION §6): plain | satchel | doll | ledger | deed | book
@@ -55,9 +56,9 @@ export const SHELL_WINDOWS = Object.freeze([
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): kill tasks counted by the server, paid in town. Her board on the
      Common opens it too (src/data/world/stations.js TAP_OPENS), and so does the HUD's tally. */
   Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', glyph: 'navBounty', width: 460, object: 'ledger' }),
-  /* The Roll of Honor (lane/b-leaderboards, 2026-10-31): Havora's heroes in order, one board at a time, every
-     place and number the server's (src/data/honor-roll.js names the boards). */
-  Object.freeze({ id: 'honor', label: 'Roll of Honor', key: 'z', phoneIcon: false, glyph: 'uiTrophy', width: 440, object: 'book' }),
+  /* Leaderboards (lane/b-leaderboards, 2026-10-31; named by Tyler 2026-11-01): Havora's heroes in order, one board at a
+     time, every place and number the server's (src/data/honor-roll.js names the boards). */
+  Object.freeze({ id: 'honor', label: 'Leaderboards', key: 'z', phoneIcon: false, glyph: 'uiTrophy', width: 440, object: 'book' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */
@@ -69,6 +70,8 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 800, object: 'plain', launcher: false, modal: true }),
   /* Tyler 2026-10-19: a death opens a centred popup (src/shell/death-popup.js opens it; its key shows the last death). */
   Object.freeze({ id: 'death', label: 'You died', key: 'x', glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
+  /* Tyler 2026-11-01: the play cap's refusal opens a centered popup (windows/play-cap.js). It has nothing to say until the server refuses a start, so no key. */
+  Object.freeze({ id: 'play-cap', label: 'Too many heroes playing', key: null, glyph: 'uiWarn', width: 420, object: 'plain', launcher: false, modal: true }),
   /* Tyler 2026-10-22: Chat opens floating at the bottom-left (never docked) and the player resizes it (kept in the residue). */
   Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', glyph: 'uiChat', width: 400, height: 280, home: 'bl', resizable: true, object: 'plain' }),
   /* The social side (2026-10-18): friends, and a read-only look at another player's worn gear

@@ -20,7 +20,8 @@
 //   THE ACK       when every bound ask has settled (its answer AND the re-read
 //                 envelope), the pending state goes; a refusal leaves
 //                 `is-refused` on the control for REFUSED_MS. Its words are the
-//                 component's own message line (refusalText), never a guess.
+//                 component's own message line (refusalText), never a guess,
+//                 and that line never covers the control (clearOfAnswer).
 //
 // Display state only: it predicts no number and gates nothing the server owns
 // (CLAUDE.md §6); the control's own disabled state stays the component's.
@@ -31,6 +32,17 @@ const CONTROL = 'button, select, input, textarea, [data-hs-act], [role="button"]
 /* How long the refused mark stays on a control. */
 export const REFUSED_MS = 1600;
 const PRESS_EVENTS = Object.freeze(['click', 'change', 'drop', 'keydown']);
+
+/* A window's answer stands at the foot of what shows (windows.css), so it may land on the control just pressed: the
+   list moves up from under it, and the player sees the press and its answer together. */
+function clearOfAnswer(el) {
+  const win = el.closest('[data-hs-win]');
+  const line = win ? Array.from(win.querySelectorAll('.hh-intent-msg:not(:empty)')).find((m) => m.getClientRects().length) : null;
+  const body = line ? win.querySelector('[data-hs-body]') : null;
+  if (!body || !body.contains(el) || line.contains(el)) return;
+  const a = line.getBoundingClientRect(), b = el.getBoundingClientRect();
+  if (b.bottom > a.top && b.top < a.bottom) body.scrollTop += b.bottom - a.top + 8;
+}
 
 /**
  * Mount the press acknowledgement on a document for one account's ledger.
@@ -80,7 +92,7 @@ export function mountPressAck(doc, ledger, o) {
     p.settling = false;
     if (p.open > 0) return;
     mark(p.el, false);
-    if (p.refused) refuse(p.el);
+    if (p.refused) { refuse(p.el); clearOfAnswer(p.el); }
   }
 
   const off = ledger.subscribe((kind, entry) => {

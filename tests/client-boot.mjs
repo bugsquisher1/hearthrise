@@ -38,6 +38,8 @@
 //        stamp writes nothing; hiding the page writes every open hero's stamp once, on a fetch that outlives the page; a page
 //        flickering in and out of view writes no more; a page closed with no hide event (pagehide alone) still gets it out;
 //        a hunt this page has not stamped yet is stamped at once, so a tab killed with no goodbye still has an answer
+//   B-18 RESIDUE IN THE DEBOUNCE SURVIVES A RELOAD (coach's Got it, lost for 1.5 s after every press): Got it, reload at once, over a real
+//        server (a real page's way out; Playwright's routes never see it): the server holds the read and the card stays dismissed
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
 //        localStorage or sessionStorage (auth key, sb-*, the tab id, the heroes it had open)
@@ -328,7 +330,7 @@ async function checks(overrides) {
       const kept = await a.page.evaluate(() => window.__kept);
       if (!kept.length || !kept.every(Boolean)) fails.push('B-17 the stamp was not sent on a fetch that outlives the page: ' + JSON.stringify(kept));
       for (let i = 0; i < 6; i++) { await a.page.evaluate((h) => window.__hide(h), i % 2 === 0 ? false : true); await a.page.waitForTimeout(40); }
-      await a.page.waitForTimeout(300);
+      await a.page.waitForTimeout(2000);   // past the debounce: what a hide held back would have gone by now
       if (stamps(a.o).length !== 2) fails.push('B-17 a page flickering in and out of view wrote ' + stamps(a.o).length + ' stamps, not its first 2');
       if (a.errors.length) fails.push('B-17 console errors: ' + a.errors.slice(0, 3).join(' | '));
       await a.ctx.close();
@@ -344,6 +346,61 @@ async function checks(overrides) {
       const c = await opened(false);
       if (seen(c.o) !== '0,1') fails.push('B-17 a hunt not stamped yet was not stamped at once (a killed tab would have no answer): slots [' + seen(c.o) + ']');
       await c.ctx.close();
+    }
+
+    { // B-18 a Got it pressed just before a reload stays pressed
+      /* a fresh hero in town (phone-touch PH-6): its first card, "Every weapon is a style", has a Got it in the bag */
+      const fixture = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
+      const residue = { coach: { read: [] } };
+      let version = 1;
+      const puts = [];
+      const api = async (req, res) => {
+        const name = (/^\/(?:rest\/v1\/rpc|functions\/v1)\/([a-z_-]+)/.exec(req.url) || [])[1];
+        if (!name) return false;
+        let raw = ''; for await (const c of req) raw += c;
+        const body = JSON.parse(raw || '{}');
+        if (name === 'hr_put_client_state') { puts.push(body.p_patch); Object.assign(residue, body.p_patch); }
+        const hero = name === 'hr_load' || name === 'hr-accrue';
+        const answer = hero ? Object.assign({}, fixture, { version: ++version, hunt: null, client_state: residue, state: Object.assign({}, fixture.state, { level_xp: 0, active_kind: null, active_id: null }),
+          equipment: Object.assign({}, fixture.equipment, { weapon: 'practice_sword' }) }) : { ok: true };
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, answer) : answer));
+        return true;
+      };
+      const boot = await readFile(join(ROOT, 'src/net/supabase-bootstrap.js'), 'utf8');
+      const here = boot.replace("url: 'https://nezapsylztqbbwuwembx.supabase.co',", 'url: globalThis.location.origin,');
+      if (here === boot) fails.push('B-18 harness: the project URL in supabase-bootstrap.js moved');
+      const real = await serve(Object.assign({}, overrides, { 'src/net/supabase-bootstrap.js': here }), api);
+      const { ctx, page, errors } = await fresh();
+      try {
+        await page.goto('http://127.0.0.1:' + real.port + '/play.html', { waitUntil: 'load' });
+        await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+        await page.fill('input[name=email]', 'qa@example.test');
+        await page.fill('input[name=password]', 'not-a-real-password');
+        await page.click('.auth-submit');
+        await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+        await page.click('[data-app="play"][data-slot="0"]');
+        const got = '.hs-win-coach [data-tutorial] .hs-coach-got';
+        await wait(page, () => document.querySelector('.hs-launchers [data-hs-open="inventory"]'), null, 15000);
+        await page.click('.hs-launchers [data-hs-open="inventory"]');
+        if (!(await wait(page, (q) => document.querySelector(q), got, 15000))) fails.push('B-18 CONTROL: a fresh hero shows no card with Got it');
+        else {
+          await page.waitForTimeout(2000);   // what the first paint wrote has landed: only the press is left to lose
+          const card = await page.evaluate((q) => document.querySelector(q).closest('[data-tutorial]').getAttribute('data-tutorial'), got);
+          const before = puts.length;
+          const t0 = Date.now();
+          await page.evaluate((q) => document.querySelector(q).click(), got);
+          await page.reload({ waitUntil: 'commit' });
+          const ms = Date.now() - t0;
+          if (ms > 1200) fails.push('B-18 CONTROL: the reload began ' + ms + ' ms after the press, past the debounce: this run proves nothing');
+          await wait(page, () => document.querySelector('.hs-launchers'), null, 15000);
+          await page.waitForTimeout(1500);
+          const read = residue.coach && residue.coach.read;
+          if (!Array.isArray(read) || !read.includes(card)) fails.push('B-18 Got it on "' + card + '" just before a reload never reached the server: ' + JSON.stringify(puts.slice(before)));
+          const again = await page.evaluate((id) => !!document.querySelector('[data-tutorial="' + id + '"]'), card);
+          if (again) fails.push('B-18 the card "' + card + '" came back after the reload');
+        }
+        if (errors.length) fails.push('B-18 console errors: ' + errors.slice(0, 3).join(' | '));
+      } finally { await ctx.close(); real.server.close(); }
     }
 
     { // B-12 a scene switches whole: the cellar shows only once the sheet it adds to the Common's has arrived
@@ -637,9 +694,10 @@ const MUTANTS = [
   ['a reload whose shown hero does not load stays on the reading screen (B-9)', 'src/app/boot.js', 'if (was && await play(was.viewed, was.slots)) return;', 'if (was) { await play(was.viewed, was.slots); return; }'],
   ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
-  ['the away stamp is not written on hide (B-17)', 'src/app/boot.js', 'if (alerts && doc.hidden) alerts.leaving();', ''],
+  ['the away stamp is not written on hide (B-17)', 'src/app/boot.js', 'if (alerts && doc.hidden) alerts.leaving({ hidden: true });', ''],
   ['the away stamp is not written on page leave (B-17)', 'src/app/boot.js', "win.addEventListener('pagehide', () => { if (alerts) alerts.leaving(); });", ''],
-  ['the away stamp goes on a fetch the closing page cancels (B-17)', 'src/shell/alerts.js', 'cs.flushResidue({ keepalive: true })', 'cs.flushResidue()'],
+  ['the away stamp goes on a fetch the closing page cancels (B-17)', 'src/shell/alerts.js', 'cs.flushResidue({ keepalive: true, hidden })', 'cs.flushResidue({ hidden })'],
+  ['only the away stamp is flushed on the way out, a pending Got it is lost to the reload (B-18)', 'src/shell/alerts.js', '{ stampAway(cs, true); cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }', '{ if (stampAway(cs, true)) cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }'],
   ['the keepalive never reaches the fetch (B-17)', 'src/session/server.js', '...(keep && body.length < KEEPALIVE_MAX_BYTES ? { keepalive: true } : {}),', ''],
   ['only the viewed hero is stamped on the way out (B-17)', 'src/shell/alerts.js', 'for (const cs of account.characters()) { stampAway(cs, true);', 'for (const cs of account.characters().slice(0, 1)) { stampAway(cs, true);'],
   ['every flicker of the page writes (B-17)', 'src/shell/away-recap.js', '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', '(leaving ? -1 : STAMP_EVERY_MS)'],

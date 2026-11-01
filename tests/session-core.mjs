@@ -248,6 +248,28 @@ async function rules(M) {
     const puts = srv.calls.filter((c) => c[0] === 'hr_put_client_state');
     return (puts.length === 1 && puts[0][1].p_slot === 0) || 'the residue put named the wrong slot';
   });
+  /* RES-HIDE: a page being left sends what sits in the debounce; one only hidden, flickering, writes no oftener than the debounce did */
+  await t('RES-HIDE', async () => {
+    const srv = fakeServer({ 0: env(1) });
+    let at = 1000;
+    let armed = 0;
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: fakeHub().channel, setTimer: () => { armed++; return armed; }, clearTimer: () => {}, now: () => at });
+    await cs.load();
+    const puts = () => srv.calls.filter((c) => c[0] === 'hr_put_client_state').length;
+    cs.setResidue('hudLayout', { desktop: { vitals: { visible: false } } });
+    await cs.flushResidue({ keepalive: true, hidden: true });
+    if (puts() !== 1) return 'hiding the page left the first write in the debounce';
+    cs.setResidue('hudLayout', { desktop: { vitals: { visible: true } } });
+    at += 500;
+    await cs.flushResidue({ keepalive: true, hidden: true });
+    if (puts() !== 1) return 'a page hidden again 500 ms after a put wrote again: a flicker writes faster than the debounce';
+    await cs.flushResidue({ keepalive: true });
+    if (puts() !== 2) return 'a page closing inside the debounce kept its write back: closing is the last chance';
+    cs.setResidue('hudLayout', { desktop: { vitals: { visible: false } } });
+    at += 1500;
+    await cs.flushResidue({ keepalive: true, hidden: true });
+    return puts() === 3 || 'a page hidden past the debounce kept its write back';
+  });
   await t('ISO-2', async () => {
     const srv = fakeServer({ 0: env(1), 1: env(1) });
     const hub = fakeHub();
@@ -1854,6 +1876,8 @@ const MUTANTS = [
   ['a roster answer that is no hero is taken, not read', 'src/session/character-session.js', "held && this._take(held, 'load') ? Promise.resolve(true) : this._reads.load();", "held ? Promise.resolve(this._take(held, 'load')) : this._reads.load();"],
   ['a roster answer is spent more than once', 'src/session/account-session.js', '    this._rosterReads.delete(slot);\n', ''],
   ['[tick-span] a mid-hunt verb refused settle_first is not caught up', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    return ans;'],
+  ['[RES-HIDE] a flickering page writes on every hide', 'src/session/character-session.js', "if (hidden && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;", ''],
+  ['[RES-HIDE] a closing page holds its write back like a hidden one', 'src/session/character-session.js', "if (hidden && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;", 'if (this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;'],
   ['[tick-span] the catch-up retry reuses the refused key', 'src/session/catch-up.js', "() => server.rpc(name, { ...args, p_idem: newIdem() }, opt)", '() => server.rpc(name, args)'],
   ['[tick-span] the catch-up retries without settling first', 'src/session/catch-up.js', '    try { await o.catchUp(); } catch (e) { /* the retry\'s own answer says what the server holds */ }\n', ''],
   ['[tick-span] an engine intent\'s catch-up retry reuses the refused key', 'src/session/catch-up.js', 'const next = { ...body, intentId: newIdem() }; return server.accrue(next);', 'return server.accrue(body);'],

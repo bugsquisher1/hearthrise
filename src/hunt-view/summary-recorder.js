@@ -92,6 +92,15 @@ export function attach(cs) {
     not stand the hunt bar back up in town (the panel 2026-11-01: the Havora / Town / Home strip gone until Summary). */
 export function summaryFromEarlierPage(cs, sessionId) { return attach(cs).earlier === sessionId; }
 
+/** The player closed the summary: the ended hunt's session, or null. A closed summary stays closed: its record lands now, as a dismissed
+    death does (death-popup.js), so a reload inside the residue's debounce can't lose it and open the summary again. */
+export function summaryClosedBy(cs) {
+  const h = huntOf(cs);
+  if (!h || !h.ended) return null;
+  if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});
+  return h.sessionId;
+}
+
 /** True once per freshly ended hunt: the shell opens the window when it is. */
 export function takeFresh(cs) {
   const a = attach(cs);

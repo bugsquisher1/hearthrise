@@ -368,8 +368,8 @@ function startApp(win) {
 
   /* A HIDDEN PAGE ASKS NOTHING (AccountSession.setPageHidden): the hunts run on the server; shown again, one catch-up. */
   doc.addEventListener('visibilitychange', () => { if (account) account.setPageHidden(doc.hidden); });
-  /* A phone's tab may never run again once hidden, and a closed one goes now: what "While you were away" reads is written on the way out (away-recap.js). */
-  doc.addEventListener('visibilitychange', () => { if (alerts && doc.hidden) alerts.leaving(); });
+  /* A phone's tab may never run again once hidden, and a closed one goes now: what "While you were away" reads and any residue still in its debounce are written on the way out (alerts.js leaving). */
+  doc.addEventListener('visibilitychange', () => { if (alerts && doc.hidden) alerts.leaving({ hidden: true }); });
   win.addEventListener('pagehide', () => { if (alerts) alerts.leaving(); });
 
   auth.onChange((ev) => {

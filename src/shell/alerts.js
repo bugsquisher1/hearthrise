@@ -273,9 +273,10 @@ export function createAlertCenter(account) {
       return true;
     },
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    /** The page is being left (src/app/boot.js): every open hero's last-seen stamp and pending residue go now, on a fetch that outlives the page. */
-    leaving() {
-      for (const cs of account.characters()) { stampAway(cs, true); cs.flushResidue({ keepalive: true }).catch(() => {}); }
+    /** The page is being left (src/app/boot.js): every open hero's last-seen stamp and whatever residue still sits in the debounce (a Got it, a
+        closed summary, a moved window) go now, on a fetch that outlives the page. `hidden`: only hidden, it may yet flicker back (flushResidue). */
+    leaving({ hidden = false } = {}) {
+      for (const cs of account.characters()) { stampAway(cs, true); cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }
     },
     destroy() { offAccount(); for (const slot of Array.from(watching.keys())) unwatch(slot); listeners.clear(); },
   };

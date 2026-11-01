@@ -22,8 +22,10 @@ import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.
 import { whole, gold, clock } from '../../render/format.js?v=0.2.81';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.81';
 import { runIntent } from '../intent-words.js?v=0.2.81';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.81';
-import { packFor } from '../hunt-list.js?v=0.2.81';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.81';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.81';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.81';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.81';
 import { observeSessions } from '../../session/character-session.js?v=0.2.81';
 import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.81';
 import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.81';
@@ -132,11 +134,12 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     cls(root.querySelector('.hsum-h-deaths'), 'is-on', cur.deaths.length > 0);
     lines(root.querySelector('.hsum-deaths'), ctx.doc, cur.deaths);
     const again = huntAgainOf(cur);
+    const route = again ? againRoute(partyMembershipOf(cs), again.hunt) : null;
     const go = root.querySelector('[data-hs-act="again"]');
-    prop(go, 'disabled', sc.pending || huntOpen || !again);
-    attr(go, 'title', huntOpen ? 'A hunt is already running.' : again ? 'Same ground, action set and limits, with what your bag holds now.' : 'This hunt did not keep its settings.');
+    prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
+    attr(go, 'title', huntOpen ? 'A hunt is already running.' : !again ? 'This hunt did not keep its settings.' : route.why || 'Same ground, action set and limits, with what your bag holds now.');
     /* Hunt again off says why on the line under it, not only in a title (say-why). */
-    againWhy = huntOpen ? 'Hunt again is off: a hunt is already running.' : again ? '' : 'Hunt again is off: this hunt did not keep its settings.';
+    againWhy = huntOpen ? 'Hunt again is off: a hunt is already running.' : !again ? 'Hunt again is off: this hunt did not keep its settings.' : route.why ? 'Hunt again is off. ' + route.why : '';
     const card = huntOpen ? null : nextStepOf(ctx);
     const next = root.querySelector('[data-hs-act="coach-next"]');
     prop(next, 'hidden', !card);
@@ -181,8 +184,25 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, t) {
     const list = summariesOf(cs);
     const cur = list.find((s) => s.id === sc.pick) || list[0];
     const args = huntAgainOf(cur);
-    if (args) runIntent(sc, repaint, () => cs.huntAgain(againWithBag(args, packFor(bagOf(cs)))), 'Setting out…', () => 'Setting out.', cs);
+    const how = args ? againRoute(partyMembershipOf(cs), args.hunt).how : null;
+    if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);
+    else if (how === 'enter') runIntent(sc, repaint, () => cs.huntAgain(againWithBag(args, packFor(bagOf(cs)))), 'Setting out…', () => 'Setting out.', cs);
     return true;
   }
   return false;
 };
+
+/* THE LEADER'S HUNT AGAIN is the party's Start, as Enter's is (hunts.js): a seat under the ground's floor hears it on the first press, the second goes. */
+function leadAgain(ctx, cs, sc, repaint, hunt) {
+  const party = partyMembershipOf(cs);
+  const row = huntRows().find((x) => x.hunt === hunt);
+  const low = row ? seatsUnder(row, party) : { under: [], far: false };
+  const warned = hunt + ':' + low.under.map((s) => s.seat).join();
+  if (low.under.length && !low.far && sc.warned !== warned) {
+    runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
+      () => underWords(row, low.under) + ' They have been told. Press Hunt again to go.', cs).then(() => { sc.warned = warned; repaint(); });
+    return;
+  }
+  sc.warned = null;
+  runIntent(sc, repaint, () => startPartyHunt(ctx.account, cs, hunt), 'Gathering the party for ' + huntName(hunt) + '…', () => 'Your party is on its way to ' + huntName(hunt) + '.', cs);
+}

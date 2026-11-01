@@ -598,6 +598,12 @@ async function runTests(mods) {
     ok(back && back.id === 'away:s-1:' + T0, 'the line is shown once: its id carries the stamp ' + (back && back.id));
     const ended = AR.awayRecapOf(env(T0 + H2, true));
     ok(ended && /The hunt has ended\. Out of stamina/.test(ended.text), 'a hunt that stopped says why: ' + JSON.stringify(ended));
+    /* A FRIEND'S END SAYS WHAT ENDED IT (friends' panel 2026-11-01: a leader's stamina read "left the hunt"), the server's end_by_why */
+    const sentHome = (why) => { const e = env(T0 + H2, true), r = e.read; return Object.assign(e, { read: (k) => (k === 'hunt' ? { ...r(k), session: { end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: why } } : r(k)) }); };
+    const tired = AR.awayRecapOf(sentHome('stamina'));
+    ok(tired && /Bramwell ran out of stamina, so Brannoc came home too\./.test(tired.text), 'a friend\'s stamina on the return line: ' + JSON.stringify(tired && tired.text));
+    const walked = AR.awayRecapOf(sentHome(null));
+    ok(walked && /Bramwell left the hunt, so Brannoc came home too\./.test(walked.text), 'a friend who left on the return line: ' + JSON.stringify(walked && walked.text));
     /* THE RETURN SAYS WHAT NEXT (panel 2026-11-01): the stamina left, how long ago a hunt ended, the stamina rested since; never "1:1" */
     const withStamina = (cs, ms, at) => { const r = cs.read; return Object.assign(cs, { read: (k) => (k === 'stamina' ? { ms, max_ms: 43200000 } : k === 'hunt' && at ? { ...r(k), session: { ...r(k).session, ended_at: at } } : r(k)) }); };
     const going = AR.awayRecapOf(withStamina(env(T0 + H2), 3 * 3600000 + 25 * 60000));
@@ -791,7 +797,8 @@ const MUTANTS = [
   { test: 'R3b', file: 'src/shell/away-recap.js', from: 'return (a.still && !(w && w.s === a.work)) || (h && !h.ended) ? null : a.text;', to: 'return a.text;' },
   { test: 'R3b', file: 'src/session/residue.js', from: "for (const k of ['xp', 'gold', 'kills', 'sx', 'n'])", to: "for (const k of ['xp', 'gold', 'kills'])" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.'", to: "' Still hunting.'" },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: "(STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')", to: "((END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')" },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "(cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS", to: "(STAMINA_WORDS" },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "|| STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')", to: "|| (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "return r.back === session ? false :", to: "return" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "!was || !h || h.sessionId !== was.s ||", to: '!was || !h ||' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at", to: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + now" },

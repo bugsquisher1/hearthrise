@@ -55,6 +55,7 @@ import { TownPresence } from './town-presence.js?v=0.2.81';
 import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.81';
 import { charLevelFromXp } from '../core/xp.js?v=0.2.81';
 import { assignmentOf } from './party-sections.js?v=0.2.81';
+import { benchJobOver } from './bench-sections.js?v=0.2.81';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.81';
 import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.81';
 
@@ -111,8 +112,10 @@ export function heroOf(body) {
 
 /* What an hr_load answer says its hero is doing, in the strip's words; null when idle in town or unread. */
 function doingOf(body) {
-  const a = assignmentOf({ read: (k) => body[k] });
-  return a.kind === 'hunting' || a.kind === 'busy' ? a.text : null;
+  const read = { read: (k) => body[k] };
+  const a = assignmentOf(read);
+  if (a.kind === 'hunting') return a.text;
+  return a.kind === 'busy' && !benchJobOver(read, Date.parse(body.now)) ? a.text : null;
 }
 
 /** The next hero slot the server sells, from an `account` section: { slotId, cost, max }, or null

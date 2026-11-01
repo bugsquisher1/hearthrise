@@ -14,7 +14,7 @@
 //   action   what the button does (src/shell/alerts.js NEXT): 'bag' opens the
 //            bag, 'restart' sends the restart intent, 'show'
 //            switches to the character, 'join' accepts a party invite,
-//            'party' opens the Party window
+//            'party' opens the Party window, 'chat' the conversation, 'friends' the Friends window
 //   decline  a second button's words (the invite's No thanks), or none
 //   share    a Share button's words: the rare find's card (src/shell/share-card.js)
 //   button   the button's words
@@ -41,6 +41,9 @@ export const ALERT_KINDS = Object.freeze([
   Object.freeze({ id: 'tally', label: 'Tamsin pays for a task', glyph: 'navBounty', action: 'bag', button: 'Open your inventory', fadeMs: 30000 }),
   /* The Weighhouse (market design 2026-10-24): a sale, or goods back in Storage, batched per minute (src/shell/market-watch.js). */
   Object.freeze({ id: 'market', label: 'Weighhouse sales', glyph: 'navMarket', action: 'market', button: 'Open the market', fadeMs: 30000 }),
+  /* A private message or a friend request came in (src/shell/social-watch.js). A request waits for its answer. */
+  Object.freeze({ id: 'whisper', label: 'Private messages', glyph: 'uiChat', action: 'chat', button: 'Read it', fadeMs: 30000 }),
+  Object.freeze({ id: 'friend', label: 'Friend requests', glyph: 'navProfile', action: 'friends', button: 'Open Friends' }),
 ]);
 
 export const ALERT_INDEX = Object.freeze(Object.fromEntries(ALERT_KINDS.map((k) => [k.id, k])));

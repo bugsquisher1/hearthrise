@@ -42,6 +42,8 @@
    1x art in the bag's well size and the price at the supporting size from 1280; a phone keeps today's line. */
 .hw-shop .hw-line { min-height: round(down, clamp(52px, 52px + (100vw - 1024px) / 64, 56px), 2px); }
 .hw-shop .hw-line .hw-ico { width: round(down, clamp(40px, 40px + (100vw - 1024px) / 64, 44px), 2px); height: round(down, clamp(40px, 40px + (100vw - 1024px) / 64, 44px), 2px); background: var(--bg-1); box-shadow: var(--hw-well); }
+/* A long name wraps rather than clips beside the count and the price (667 wide, a wide fallback font). */
+.hw-shop .hw-line-name b { white-space: normal; line-height: 1.15; }
 .hw-shop .hw-line-name small { font-size: clamp(var(--t-micro), var(--t-micro) + (100vw - 1024px) / 170, var(--t-small)); }
 /* The one primary: the gold plate (shell.css, Forged Steel). Here only when it shows. */
 .hw-primary { display: none; white-space: nowrap; cursor: pointer; }

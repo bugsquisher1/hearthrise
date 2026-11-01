@@ -626,6 +626,77 @@ async function itemTruthRules(base) {
   /* Smaller lines of the same report. */
   if (/Next at level 12: Blank Rune/.test(nextUnlock('runecrafting', 11))) fails.push('AW-60 ' + nextUnlock('runecrafting', 11));
   for (const id of ['copper_ore', 'bronze_bar']) if (/\btin\b/.test(ITEM_DESC[id])) fails.push('AW-60 there is no tin: ' + ITEM_DESC[id]);
+  return fails.concat(await panelLeftovers(base));
+}
+
+/* AW-61 THE PANEL'S LEFTOVERS (lane/a-panel-leftovers, 2026-11-01), over the src at `base`, judged by the `panel:` mutants. */
+async function panelLeftovers(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  /* OWN STOCK BEFORE THE STORE: what "put it on the bar" sends, against the starter bar. */
+  const { assignToBar } = await imp('src/shell/bar-assign.js');
+  const hp = (v) => [{ metric: 'self_hp_pct', op: 'lt', value: v }], mana = (v) => [{ metric: 'self_mana_pct', op: 'lt', value: v }];
+  const row = (id, conditions) => ({ action: { type: 'consume', id }, conditions, join: 'and', usable: true });
+  const bar = (slots) => { const out = []; const e = { hunt_settings: { preset: 0, presets: [], slots, store: FIXTURE.hunt_settings.store } };
+    return { read: (k) => e[k], setHuntOptions: async (_, o) => { out.push(o.slots); return { ok: true }; }, out }; };
+  const sent = async (slots, id, at) => { const c = bar(slots); const r = await assignToBar(c, id, at); return c.out.length ? c.out[0].slice(0, slots.length + 2).map((w) => (w ? w.action.id + ':' + w.conditions.map((x) => x.value).join() : '-')).join(' ') : r.error; };
+  const START = () => [row('cooked_shrimp', hp(60)), row('salted_shrimp', hp(60)), row('thin_turnip_juice', mana(30))];
+  const own = await sent(START(), 'turnip_juice');
+  if (own !== 'cooked_shrimp:60 salted_shrimp:60 turnip_juice:30 thin_turnip_juice:30 -') fails.push('AW-61 own juice goes on the bar as ' + own);
+  const food = await sent(START(), 'cooked_wolf_meat');
+  if (food !== 'cooked_shrimp:60 cooked_wolf_meat:60 salted_shrimp:60 thin_turnip_juice:30 -') fails.push('AW-61 own food goes on the bar as ' + food);
+  const named = await sent(START(), 'turnip_juice', 7);
+  if (!/^cooked_shrimp:60 salted_shrimp:60 thin_turnip_juice:30 -/.test(named)) fails.push('AW-61 a slot the player named is overridden: ' + named);
+  const gap = await sent([row('cooked_shrimp', hp(60)), { empty: true }, row('thin_turnip_juice', mana(25))], 'turnip_juice');
+  if (gap !== 'cooked_shrimp:60 turnip_juice:25 thin_turnip_juice:25 - -') fails.push('AW-61 a gap before the store slot reads ' + gap);
+  const noStore = await sent([row('cooked_shrimp', hp(60))], 'turnip_juice');
+  if (noStore !== 'cooked_shrimp:60 turnip_juice:30 -') fails.push('AW-61 a bar with no store drink reads ' + noStore);
+  /* HUNT AGAIN IN A PARTY: the leader chooses; a member may only go back to the hunt its party is on. */
+  const { againRoute } = await imp('src/hunt-view/summary-model.js');
+  const party = (isLeader, hunting, hunt) => ({ me: 1, isLeader, hunt, seats: [{ seat: 0, hunting }, { seat: 1, hunting: false }] });
+  const how = (p, h) => { const r = againRoute(p, h); return (r.how || 'off') + (r.why ? ':' + r.why : ''); };
+  if (how(null, 'mill_cellar') !== 'enter') fails.push('AW-61 a lone hero\'s Hunt again: ' + how(null, 'mill_cellar'));
+  if (how(party(false, false, 'mill_cellar'), 'mill_cellar') !== 'off:Your party leader picks the hunt and starts it.') fails.push('AW-61 a member\'s Hunt again: ' + how(party(false, false, 'mill_cellar'), 'mill_cellar'));
+  if (how(party(true, false, 'mill_cellar'), 'mill_cellar') !== 'party') fails.push('AW-61 the leader\'s Hunt again: ' + how(party(true, false, 'mill_cellar'), 'mill_cellar'));
+  if (how(party(false, true, 'mill_cellar'), 'mill_cellar') !== 'enter') fails.push('AW-61 a member going back in: ' + how(party(false, true, 'mill_cellar'), 'mill_cellar'));
+  if (!/^off:Your party is hunting on another ground/.test(how(party(true, true, 'wickstead'), 'mill_cellar'))) fails.push('AW-61 Hunt again elsewhere with the party out: ' + how(party(true, true, 'wickstead'), 'mill_cellar'));
+  /* THE ROSTER LINE: a bench job past its end is not "working on". */
+  const { heroOf } = await imp('src/session/account-session.js');
+  const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
+  const recipe = Object.values(ARTISAN_RECIPES).flat().find((r) => r.output === 'normal_plank');
+  const input = Object.keys(recipe.inputs || { [recipe.input]: 1 })[0] || recipe.input;
+  const body = (left, ageMs) => ({ ok: true, name: 'Tess', now: '2026-11-01T12:00:00.000Z', inventory: { [input]: left },
+    state: { level_xp: 0, gold: 1, gold_v: 1, active_kind: 'artisan', active_id: recipe.id, accrued_to: new Date(Date.parse('2026-11-01T12:00:00.000Z') - ageMs).toISOString() } });
+  if (!/working on/.test(heroOf(body(1000, 60000)).doing || '')) fails.push('AW-61 a job with logs left reads ' + heroOf(body(1000, 60000)).doing);
+  if (heroOf(body(392, 3600000)).doing !== null) fails.push('AW-61 a job past its end still reads ' + heroOf(body(392, 3600000)).doing);
+  if (heroOf(body(0, 0)).doing !== null) fails.push('AW-61 a job with nothing left reads ' + heroOf(body(0, 0)).doing);
+  const gathering = { ok: true, now: '2026-11-01T12:00:00.000Z', state: { level_xp: 0, active_kind: 'gather', active_id: recipe.id, accrued_to: '2026-11-01T01:00:00.000Z' } };
+  if (!heroOf(gathering).doing) fails.push('AW-61 gathering never stops, and reads idle');
+  /* A PRIVATE MESSAGE, A FRIEND REQUEST: a toast, once; the message's words stay in the chat. */
+  const { createAlertCenter } = await imp('src/shell/alerts.js');
+  const { mountSocialWatch } = await imp('src/shell/social-watch.js');
+  const hero = { slot: 0, read: () => null, setResidue(f, v) { this.record.residue[f] = v; return true; }, record: { residue: {} }, subscribe: () => () => {} };
+  const fns = new Set();
+  const convs = [{ tab: 'w:z', id: 'z', name: 'Read Already', unread: 0 }], asks = [], said = [{ id: 'l1', body: 'secret' }];
+  const social = { subscribe: (fn) => { fns.add(fn); return () => fns.delete(fn); }, whispers: { conversations: () => convs, lines: () => said }, friends: { incoming: () => asks } };
+  const account = { viewed: 0, social, character: () => hero, characters: () => [hero], subscribe: () => () => {} };
+  const center = createAlertCenter(account);
+  const watch = mountSocialWatch(account, center);
+  const tell = () => { for (const fn of fns) fn(); };
+  tell();
+  if (center.list().length) fails.push('AW-61 nothing arrived, and a toast says ' + center.list()[0].text);
+  convs.push({ tab: 'w:x', id: 'x', name: 'Wrenna', unread: 1 });
+  tell();
+  said.push({ id: 'l2', body: 'and more' });
+  tell();
+  const toast = center.list().filter((a) => a.kind === 'whisper');
+  if (toast.length !== 1 || toast[0].text !== 'Wrenna sent you a private message.' || toast[0].tab !== 'w:x' || toast[0].button !== 'Read it') fails.push('AW-61 a private message toasts ' + JSON.stringify(toast));
+  if ((hero.record.residue.alerts || { seen: [] }).seen.some((id) => /^whisper/.test(id))) fails.push('AW-61 a live whisper takes a place in the saved list');
+  asks.push({ id: 'y', name: 'Ashgrave', slot: 0 });
+  tell(); tell();
+  const asked = center.list().filter((a) => a.kind === 'friend');
+  if (asked.length !== 1 || asked[0].text !== 'Ashgrave wants to be your friend.' || !(hero.record.residue.alerts || { seen: [] }).seen.includes('friend:y')) fails.push('AW-61 a friend request toasts ' + JSON.stringify(asked));
+  watch.destroy(); center.destroy();
   return fails;
 }
 
@@ -2428,6 +2499,59 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // AW-61 NOTHING CLIPS: every window's title and a Shop name, in a wide fallback font (GitHub's Linux runner has one); a member's Hunt again is off and says why
+      const { ctx, page, s, up } = await open({ viewport: { width: 1365, height: 846 } });
+      if (!up) fails.push('AW-61 the page did not mount');
+      else {
+        await page.addStyleTag({ content: ':root { --f-ui: Verdana, "DejaVu Sans", sans-serif !important; --f-display: Verdana, "DejaVu Sans", sans-serif !important; }' });
+        const { SHELL_WINDOWS } = await import(pathToFileURL(join(ROOT, 'src/data/shell-windows.js')).href);
+        const heads = await page.evaluate((list) => list.map((r) => {
+          const host = document.createElement('div');
+          host.style.cssText = 'position:fixed;left:0;top:0;visibility:hidden;width:' + r.width + 'px';
+          host.innerHTML = '<header class="hs-win-head"><span class="hs-glyph"></span><h2 class="hs-win-title"></h2>' + (r.key ? '<kbd class="hs-key">M</kbd>' : '') + '<button class="hs-close"></button></header>';
+          host.querySelector('h2').textContent = r.title;
+          document.body.appendChild(host);
+          const t = host.querySelector('h2'), got = { id: r.id, w: t.scrollWidth - t.clientWidth, band: host.firstChild.offsetHeight, ell: getComputedStyle(t).textOverflow };
+          host.remove();
+          return got;
+        }), SHELL_WINDOWS.map((r) => ({ id: r.id, title: r.title || r.label, width: r.width, key: r.key })));
+        for (const h of heads) if (h.w > 0 || h.band > 46 || h.ell === 'ellipsis') fails.push('AW-61 the ' + h.id + ' title clips: ' + JSON.stringify(h));
+        /* the Shop at the phone's 667: the name wraps, it is never cut */
+        await page.setViewportSize({ width: 667, height: 375 });
+        if (!(await openWin(page, 'v', 'shop'))) fails.push('AW-61 the Shop did not open at 667');
+        else {
+          await wait(page, () => document.querySelector('[data-hs-win="shop"] .hw-line-name b'), null, 3000);
+          const cut = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="shop"] .hw-line-name b')).filter((b) => b.getClientRects().length && (b.scrollWidth > b.clientWidth || getComputedStyle(b).whiteSpace === 'nowrap')).map((b) => b.textContent));
+          if (cut.length) fails.push('AW-61 Shop names cut at 667: ' + cut.join(', '));
+          await page.keyboard.press('v');
+        }
+        await page.setViewportSize({ width: 1365, height: 846 });
+        /* a member's summary: Hunt again is off, says who chooses, and sends nothing */
+        const seat = (n, name) => ({ seat: n, name, unit: 10 + n, hunting: false });
+        s.env.party = { id: '00000000-0000-4000-a000-0000000000aa', hunt: 'mill_cellar', max: 4, leader_seat: 0, self_seat: 1, members: [seat(0, 'Bramwell'), seat(1, 'Brannoc')] };
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: { end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'stamina', preset: 0, ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(page, s);
+        if (!(await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="again"]'), null, 4000))) fails.push('AW-61 the member\'s summary did not open');
+        else {
+          await page.waitForTimeout(300);
+          const seen = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); const b = w.querySelector('[data-hs-act="again"]'); return { off: b.disabled, why: w.querySelector('.hh-intent-msg').textContent, reason: w.querySelector('.hsum-reason').textContent }; });
+          if (!seen.off || seen.why !== 'Hunt again is off. Your party leader picks the hunt and starts it.') fails.push('AW-61 a member\'s Hunt again reads ' + JSON.stringify(seen));
+          if (!/Bramwell ran out of stamina, so .* came home too\./.test(seen.reason)) fails.push('AW-61 the member\'s end card reads ' + seen.reason);
+          /* the leader's own press is the party's Start, never a lone Enter */
+          s.env.party = Object.assign({}, s.env.party, { self_seat: 0, leader_seat: 0 });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(300);
+          const mark = s.calls.length;
+          await page.click('[data-hs-win="hunt-summary"] [data-hs-act="again"]');
+          await page.waitForTimeout(400);
+          const names = s.calls.slice(mark).map((c) => c.name);
+          if (!names.includes('hr_hunt_party_start') || names.includes('hr_hunt_enter')) fails.push('AW-61 the leader\'s Hunt again sent ' + names.join(','));
+        }
+      }
+      await ctx.close();
+    }
+
     { // AW-30 the window opacity: a display preference in the residue, the fills fade, the words do not, a reload keeps it
       const { ctx, page, s, up } = await open();
       if (!up) fails.push('AW-30 the page did not mount');
@@ -2540,9 +2664,25 @@ const MUTANTS = [
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return 'For your own use", "if (false) return 'For your own use"],
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? 'The shop buys it", "return false ? 'The shop buys it"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
+  ['AW-61 a window title clips again', 'src/styles/shell.css', '.hs-win-title { margin: 0; flex: 1; min-width: 0;', '.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
+  ['AW-61 Shop names are cut again', 'src/styles/windows.css', '.hw-shop .hw-line-name b { white-space: normal; line-height: 1.15; }', ''],
+  ['AW-61 the summary ignores who may press', 'src/shell/windows/hunt-summary.js', "prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);", "prop(go, 'disabled', sc.pending || huntOpen || !again);"],
+  ['AW-61 the leader enters alone', 'src/shell/windows/hunt-summary.js', "if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);\n    else if (how === 'enter')", "if (how)"],
   ['item truth: Before you go hides the spare juice', 'src/shell/hunt-go.js', "const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';", "const spare = '';"],
   ['item truth: Before you go nags about what is on the bar', 'src/shell/hunt-go.js', "const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.action.type === 'consume').map((sl) => sl.action.id));", 'const barNames = () => new Set();'],
   ['item truth: no drink slot, no word', 'src/shell/hunt-go.js', "if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. '", "if (false) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. '"],
+  ['item truth: panel: own stock goes behind the store again', 'src/shell/bar-assign.js', 'const store = named ? -1 : storeSlotFor(wire, id);', 'const store = -1;'],
+  ['item truth: panel: own stock keeps its own lower condition', 'src/shell/bar-assign.js', 'conditions: conditions.map((c) => Object.assign({}, c)), join };', 'conditions: startConditions(action), join };'],
+  ['item truth: panel: a named slot is overridden', 'src/shell/bar-assign.js', 'const store = named ? -1 : storeSlotFor(wire, id);', 'const store = storeSlotFor(wire, id);'],
+  ['item truth: panel: a member starts a hunt', 'src/hunt-view/summary-model.js', "return party.isLeader ? { how: 'party', why: '' } : { how: null, why: 'Your party leader picks the hunt and starts it.' };", "return party.isLeader ? { how: 'party', why: '' } : { how: 'enter', why: '' };"],
+  ['item truth: panel: a member cannot go back in', 'src/hunt-view/summary-model.js', "return party.hunt === hunt ? { how: 'enter', why: '' } :", "return false ? { how: 'enter', why: '' } :"],
+  ['item truth: panel: the leader enters alone', 'src/hunt-view/summary-model.js', "return party.isLeader ? { how: 'party', why: '' } :", "return party.isLeader ? { how: 'enter', why: '' } :"],
+  ['item truth: panel: a finished job reads working', 'src/session/account-session.js', "return a.kind === 'busy' && !benchJobOver(read, Date.parse(body.now)) ? a.text : null;", "return a.kind === 'busy' ? a.text : null;"],
+  ['item truth: panel: gathering reads as a finished job', 'src/session/bench-sections.js', "st.active_kind === 'artisan' && Object.prototype", "Object.prototype"],
+  ['item truth: panel: a whisper toasts for every line', 'src/shell/social-watch.js', "if (last && !up.some((a) => a.kind === 'whisper' && a.peer === c.id)) {", 'if (last) {'],
+  ['item truth: panel: a whisper with no news toasts', 'src/shell/social-watch.js', 'const last = c.unread > 0 ?', 'const last = true ?'],
+  ['item truth: panel: a friend request stays silent', 'src/shell/social-watch.js', "alerts.say(cs, { id: 'friend:' + p.id,", "if (0) alerts.say(cs, { id: 'friend:' + p.id,"],
+  ['item truth: panel: a live whisper fills the saved list', 'src/shell/alerts.js', 'if (!c.transient) {', 'if (true) {'],
   ['item truth: the rune says Next at level 12: Blank Rune', 'src/data/skill-unlocks.js', 'r.output && r.req <= firstAt(skill, r.output) ? nameOf(r.output) : r.name', 'r.output ? nameOf(r.output) : r.name'],
   ['armor words: the coach card stops naming the weights', 'src/data/hunt-tutorial.js', "away. ' + WEIGHTS_SAID + pick", "away. ' + pick"],
   ['armor words: the Help note forgets medium', 'src/data/how-to-play.js', "    + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces", "    + WEIGHT_ORDER.filter((w) => w !== 'medium').map(weightSentence).join(' ') + ' Pieces"],

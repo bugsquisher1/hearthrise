@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-01",
- "replay_ms": 16354,
+ "replay_ms": 5879,
  "counts": {
-  "tracked_names": 709,
-  "entries": 564
+  "tracked_names": 717,
+  "entries": 572
  },
  "functions": [
   {
@@ -1133,17 +1133,18 @@
     "2027-01-31-inner-flame.sql",
     "2027-02-02-settle-cost.sql",
     "2027-02-11-bag-over-cap.sql",
-    "2027-02-11-hunt-loot-past-bag-cap.sql"
+    "2027-02-11-hunt-loot-past-bag-cap.sql",
+    "2027-02-19-bench-tax.sql"
    ],
    "live": {
-    "md5": "a589ce00e2f1d700be62ef2534736783",
-    "norm_len": 137377,
+    "md5": "3bd42d5ee3c79af236f189d5eeb13bbd",
+    "norm_len": 139335,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a589ce00e2f1d700be62ef2534736783",
-    "norm_len": 137377,
+    "md5": "3bd42d5ee3c79af236f189d5eeb13bbd",
+    "norm_len": 139335,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1371,16 +1372,17 @@
     "2027-01-20-bench-inputs.generated.sql",
     "2027-01-31-bench-inputs.generated.sql",
     "2027-02-05-first-hour-bench-inputs.generated.sql",
-    "2027-02-08-unsourced-bench-inputs.generated.sql"
+    "2027-02-08-unsourced-bench-inputs.generated.sql",
+    "2027-02-18-craft-economy-bench-inputs.generated.sql"
    ],
    "live": {
-    "md5": "2d35c0c28f81f288c62f4eddf4470344",
+    "md5": "205361bd1f69b86c619912ea5ba93a89",
     "norm_len": 7323,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2d35c0c28f81f288c62f4eddf4470344",
+    "md5": "205361bd1f69b86c619912ea5ba93a89",
     "norm_len": 7323,
     "source": "computed-from-replay"
    },
@@ -1405,6 +1407,116 @@
    "replay": {
     "md5": "f55ed40275aff0177c9d231c9ec36d07",
     "norm_len": 658,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bench_tax_due_mg(p_user uuid, p_slot integer, p_recipe text)",
+   "name": "hr_bench_tax_due_mg",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-19-bench-tax.sql"
+   ],
+   "live": {
+    "md5": "95644a71690c8b4589b0f8ec04ef598a",
+    "norm_len": 474,
+    "measured": "2026-11-01",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "95644a71690c8b4589b0f8ec04ef598a",
+    "norm_len": 474,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bench_tax_keep(p_user uuid, p_slot integer)",
+   "name": "hr_bench_tax_keep",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-19-bench-tax.sql"
+   ],
+   "live": {
+    "md5": "5c564faba32fe781c36592448dbcdac7",
+    "norm_len": 526,
+    "measured": "2026-11-01",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "5c564faba32fe781c36592448dbcdac7",
+    "norm_len": 526,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bench_tax_mg(p_recipe text)",
+   "name": "hr_bench_tax_mg",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-19-bench-tax.sql"
+   ],
+   "live": {
+    "md5": "8d4a0c15876353145add752564f8a6e7",
+    "norm_len": 277,
+    "measured": "2026-11-01",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "8d4a0c15876353145add752564f8a6e7",
+    "norm_len": 277,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bench_tax_settle(p_user uuid, p_slot integer, p_st player_state, p_delta jsonb, p_taken jsonb)",
+   "name": "hr_bench_tax_settle",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-19-bench-tax.sql"
+   ],
+   "live": {
+    "md5": "e06ed6927413be130033af7e89fd0e9a",
+    "norm_len": 3497,
+    "measured": "2026-11-01",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e06ed6927413be130033af7e89fd0e9a",
+    "norm_len": 3497,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bench_tax_view(p_user uuid, p_slot integer)",
+   "name": "hr_bench_tax_view",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-19-bench-tax.sql"
+   ],
+   "live": {
+    "md5": "c4bf845d675f10f5a71eba00d9b89193",
+    "norm_len": 1924,
+    "measured": "2026-11-01",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c4bf845d675f10f5a71eba00d9b89193",
+    "norm_len": 1924,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -4299,17 +4411,18 @@
    "touched_by": [
     "2026-12-15-account-gold.sql",
     "2026-12-23-tally-tasks.sql",
-    "2027-02-11-settle-plan-cache-2.generated.sql"
+    "2027-02-11-settle-plan-cache-2.generated.sql",
+    "2027-02-19-bench-tax.sql"
    ],
    "live": {
-    "md5": "2a09e62c83b237234ff5c51d7bbe2f60",
-    "norm_len": 1306,
+    "md5": "fd32c7be4afbef1ca7f5eb9485902fe1",
+    "norm_len": 1422,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2a09e62c83b237234ff5c51d7bbe2f60",
-    "norm_len": 1306,
+    "md5": "fd32c7be4afbef1ca7f5eb9485902fe1",
+    "norm_len": 1422,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5759,20 +5872,22 @@
    "sig": "hr_hunt_party_decline(p_slot integer, p_invite uuid, p_idem uuid)",
    "name": "hr_hunt_party_decline",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-25-party-invites.sql"
+    "2026-10-25-party-invites.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "e3d6a2d73afe03d0f4c61eb8ac1e8789",
-    "norm_len": 1655,
+    "md5": "0b63aa7b074748b8a92b6847c3c48712",
+    "norm_len": 1900,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e3d6a2d73afe03d0f4c61eb8ac1e8789",
-    "norm_len": 1655,
+    "md5": "0b63aa7b074748b8a92b6847c3c48712",
+    "norm_len": 1900,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5781,20 +5896,22 @@
    "sig": "hr_hunt_party_disband(p_slot integer, p_idem uuid)",
    "name": "hr_hunt_party_disband",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-28-party-flow.sql"
+    "2026-10-28-party-flow.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "5db5c21a0a2e71e6a30745af84f975e5",
-    "norm_len": 2089,
+    "md5": "7cd0bfde55b8def5e96b96be13c5e312",
+    "norm_len": 2399,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5db5c21a0a2e71e6a30745af84f975e5",
-    "norm_len": 2089,
+    "md5": "7cd0bfde55b8def5e96b96be13c5e312",
+    "norm_len": 2399,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5811,17 +5928,18 @@
     "2026-10-23-hunt-party.sql",
     "2026-10-25-settle-hooks.sql",
     "2026-10-29-party-security.sql",
-    "2026-12-07-party-finder.sql"
+    "2026-12-07-party-finder.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "fb993bd74750d4c7d74deb4d3d10a831",
-    "norm_len": 3474,
+    "md5": "39ecc0684bfc5530902d484677552e59",
+    "norm_len": 3617,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "fb993bd74750d4c7d74deb4d3d10a831",
-    "norm_len": 3474,
+    "md5": "39ecc0684bfc5530902d484677552e59",
+    "norm_len": 3617,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5932,17 +6050,18 @@
    "touched_by": [
     "2026-10-23-hunt-party.sql",
     "2026-10-29-party-security.sql",
-    "2026-10-31-live-horizon.sql"
+    "2026-10-31-live-horizon.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "cc619214bfd63432cd4bf22c0b3760d6",
-    "norm_len": 3210,
+    "md5": "46fac3427727d8780a0b8429c73a7d68",
+    "norm_len": 3375,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "cc619214bfd63432cd4bf22c0b3760d6",
-    "norm_len": 3210,
+    "md5": "46fac3427727d8780a0b8429c73a7d68",
+    "norm_len": 3375,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5951,20 +6070,22 @@
    "sig": "hr_hunt_party_leave(p_slot integer, p_idem uuid)",
    "name": "hr_hunt_party_leave",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-23-hunt-party.sql"
+    "2026-10-23-hunt-party.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "33c2356cc927923f5046f76c8643e880",
-    "norm_len": 2300,
+    "md5": "4419442dc3805ccfd9bd47ad3ff6a834",
+    "norm_len": 2597,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "33c2356cc927923f5046f76c8643e880",
-    "norm_len": 2300,
+    "md5": "4419442dc3805ccfd9bd47ad3ff6a834",
+    "norm_len": 2597,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6050,20 +6171,22 @@
    "sig": "hr_hunt_party_sweep(p_limit integer)",
    "name": "hr_hunt_party_sweep",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-28-party-flow.sql"
+    "2026-10-28-party-flow.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "78cf3dd2313cc074e4a14568cb7a4225",
-    "norm_len": 1404,
+    "md5": "e92f841c491a990ee0dc2d11d4c16305",
+    "norm_len": 1716,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "78cf3dd2313cc074e4a14568cb7a4225",
-    "norm_len": 1404,
+    "md5": "e92f841c491a990ee0dc2d11d4c16305",
+    "norm_len": 1716,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6087,17 +6210,41 @@
     "2026-12-07-party-finder.sql",
     "2026-12-08-party-hold.sql",
     "2026-12-18-party-leave-together.sql",
-    "2027-01-25-town-defaults.sql"
+    "2027-01-25-town-defaults.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "42ff4d940604b65e59bbf45fc80b0509",
-    "norm_len": 8819,
+    "md5": "0efddc2a09ec27338bb423de546f246a",
+    "norm_len": 9407,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "42ff4d940604b65e59bbf45fc80b0509",
-    "norm_len": 8819,
+    "md5": "0efddc2a09ec27338bb423de546f246a",
+    "norm_len": 9407,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_party_warn(p_slot integer, p_hunt text, p_idem uuid)",
+   "name": "hr_hunt_party_warn",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-18-party-truth.sql"
+   ],
+   "live": {
+    "md5": "a195f72dcbd3d7f6832a12a9faca3a1d",
+    "norm_len": 2797,
+    "measured": "2026-11-01",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a195f72dcbd3d7f6832a12a9faca3a1d",
+    "norm_len": 2797,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6866,17 +7013,18 @@
     "2026-11-17-hunt-density-home.sql",
     "2026-11-20-hunt-forfeit-durable.sql",
     "2026-12-18-party-leave-together.sql",
-    "2027-02-10-settle-plan-cache.generated.sql"
+    "2027-02-10-settle-plan-cache.generated.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "0957afff3c03db9d849dc0e5977ea4f8",
-    "norm_len": 2722,
+    "md5": "a4e2bb43d38a9d3d7f05c1da04313342",
+    "norm_len": 3242,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0957afff3c03db9d849dc0e5977ea4f8",
-    "norm_len": 2722,
+    "md5": "a4e2bb43d38a9d3d7f05c1da04313342",
+    "norm_len": 3242,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8765,20 +8913,22 @@
    "sig": "hr_party_join_for(p_uid uuid, p_slot integer, p_party uuid, p_need_listed boolean)",
    "name": "hr_party_join_for",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-29-party-security.sql"
+    "2026-10-29-party-security.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "c85a19341b2f37958f14a01e4a7c7e21",
-    "norm_len": 1710,
+    "md5": "9cc3b5612deb09cc8e9d80828d8485d3",
+    "norm_len": 2349,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c85a19341b2f37958f14a01e4a7c7e21",
-    "norm_len": 1710,
+    "md5": "9cc3b5612deb09cc8e9d80828d8485d3",
+    "norm_len": 2349,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8875,6 +9025,52 @@
    "agree": true
   },
   {
+   "sig": "hr_party_notice(p_user uuid, p_slot integer, p_kind text, p_actor uuid, p_actor_slot integer, p_hunt text)",
+   "name": "hr_party_notice",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-18-party-truth.sql"
+   ],
+   "live": {
+    "md5": "f405dab39489e7a06f97502f088c7c2b",
+    "norm_len": 1162,
+    "measured": "2026-11-01",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f405dab39489e7a06f97502f088c7c2b",
+    "norm_len": 1162,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_party_notices_view(p_user uuid, p_slot integer)",
+   "name": "hr_party_notices_view",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-18-party-truth.sql"
+   ],
+   "live": {
+    "md5": "5e31ef1b5935d32c780b047fc07beab0",
+    "norm_len": 735,
+    "measured": "2026-11-01",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "5e31ef1b5935d32c780b047fc07beab0",
+    "norm_len": 735,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_party_nudge(p_user uuid, p_slot integer)",
    "name": "hr_party_nudge",
    "tracked_by": [
@@ -8900,20 +9096,22 @@
    "sig": "hr_party_nudge_trg()",
    "name": "hr_party_nudge_trg",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-02-11-party-nudge.sql"
+    "2027-02-11-party-nudge.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "ef0c06dcacf0065870198e06c55ddf62",
-    "norm_len": 1178,
+    "md5": "875b4364c9bb81111145464274457c07",
+    "norm_len": 1976,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ef0c06dcacf0065870198e06c55ddf62",
-    "norm_len": 1178,
+    "md5": "875b4364c9bb81111145464274457c07",
+    "norm_len": 1976,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8944,20 +9142,22 @@
    "sig": "hr_party_open(p_user uuid, p_slot integer)",
    "name": "hr_party_open",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-28-party-flow.sql"
+    "2026-10-28-party-flow.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "e4cd0e2c44ef154232e67b994ac9951a",
-    "norm_len": 542,
+    "md5": "e6524081a9fdb8763c06fcf96a47eb21",
+    "norm_len": 487,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e4cd0e2c44ef154232e67b994ac9951a",
-    "norm_len": 542,
+    "md5": "e6524081a9fdb8763c06fcf96a47eb21",
+    "norm_len": 487,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9060,20 +9260,22 @@
    "sig": "hr_party_seat_into(p_party uuid, p_user uuid, p_slot integer)",
    "name": "hr_party_seat_into",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-28-party-flow.sql"
+    "2026-10-28-party-flow.sql",
+    "2027-02-18-party-truth.sql"
    ],
    "live": {
-    "md5": "5727a7d2e30ad1d15dacacb07ab6dd16",
-    "norm_len": 757,
+    "md5": "ba15f080e5b5a090b5af3c6b63999c86",
+    "norm_len": 702,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5727a7d2e30ad1d15dacacb07ab6dd16",
-    "norm_len": 757,
+    "md5": "ba15f080e5b5a090b5af3c6b63999c86",
+    "norm_len": 702,
     "source": "computed-from-replay"
    },
    "agree": true

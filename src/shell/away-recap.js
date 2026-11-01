@@ -45,8 +45,8 @@ function awayWords(ms) {
   const m = Math.max(0, Math.floor(ms / 60000));
   return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min';
 }
-/* Plain words where the shared copy says "1:1" (that copy ships in the engine's bundle; this line is the client's). */
-const STAMINA_WORDS = Object.freeze({ stamina: 'Out of stamina, so {name} came home. It comes back hour for hour while you aren\'t hunting.' });
+/* Plain words where the shared copy says "1:1" (that copy ships in the engine's bundle; this line is the client's). How it comes back is the end card's. */
+const STAMINA_WORDS = Object.freeze({ stamina: 'Out of stamina, so {name} came home.' });
 const signed = (n, unit) => (n >= 0 ? '+' : '−') + whole(Math.abs(n)) + ' ' + unit;
 
 /* The coins this hero's hunt has taken (the analyzer's session tally), or null. */

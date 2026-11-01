@@ -256,8 +256,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     { reactive: true, knowledge: true, gotIt: true, when: [HUNTING, FRESH, { kind: 'eating_fast', n: BEATING_EATS, perHour: BEATING_PER_HOUR }], hooks: ['[data-coach-hook="stance"]'] }),
   step('more_heroes', 'More than one hero',
     'Your hero keeps hunting while you do something else. You can play more heroes at once: press Characters, then Create hero in your empty slot.',
-    'characters', { kind: 'heroes', atLeast: 2 },
-    { reactive: true, knowledge: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
+    /* A card that asks never walls: played 2026-11-01, a hero who wants one hero sat on this card in every hunt past 5 minutes, ahead of the Thicket's lessons. */
+    'characters', orGotIt({ kind: 'heroes', atLeast: 2 }),
+    { reactive: true, knowledge: true, gotIt: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
       hooks: ['.char-tool[data-app="characters"]', '.char-pick[data-app="create"]'] }),
   /* Gated on THIS hero's Level (the server's level_xp), not only on the account having a second hero in town: a
      reactive card here interrupts the chain, so a Level 2 hero beside an older one was asked to party before its own

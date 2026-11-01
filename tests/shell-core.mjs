@@ -603,7 +603,7 @@ async function runTests(mods) {
     const going = AR.awayRecapOf(withStamina(env(T0 + H2), 3 * 3600000 + 25 * 60000));
     ok(going && /Still hunting, with 3 h 25 min of stamina left\./.test(going.text), 'a hunt still running says the stamina left: ' + JSON.stringify(going && going.text));
     const idle = AR.awayRecapOf(withStamina(env(T0 + 8 * 3600000, true), 5 * 3600000 + 46 * 60000, new Date(T0 + 8 * 3600000 - (5 * 3600000 + 46 * 60000)).toISOString()));
-    ok(idle && /The hunt has ended 5 h 46 min ago\. Out of stamina, so Brannoc came home\. It comes back hour for hour while you aren't hunting\. Stamina now: 5 h 46 min\./.test(idle.text) && !/1:1/.test(idle.text), 'a hunt that ran out while the player was away says when, and what now: ' + JSON.stringify(idle && idle.text));
+    ok(idle && /The hunt has ended 5 h 46 min ago\. Out of stamina, so Brannoc came home\. Stamina now: 5 h 46 min\./.test(idle.text) && !/1:1/.test(idle.text), 'a hunt that ran out while the player was away says when, and what now: ' + JSON.stringify(idle && idle.text));
     /* the hunt the player came back to is recorded once, for the coach (hunt-tutorial.js fresh_hunt, launcher.js restsNow) */
     const home = hero({ record: { residue: { coach: { read: ['x'] } } } });
     ok(AR.markBack(home, 's-1') === true && home.writes[0][0] === 'coach' && home.writes[0][1].back === 's-1' && home.writes[0][1].read[0] === 'x', 'the return is marked, the reads kept: ' + JSON.stringify(home.writes));

@@ -312,7 +312,9 @@ function patchPage(det, ctx, sc, v) {
     text(det.querySelector('.hw-density-note'), follower ? 'Your party leader sets how many monsters each pull brings.'
       : 'A pull is one pack: up to ' + dn.max
       + (size === 1 ? ' when you hunt alone.' : ' for your party of ' + size + '. As the leader, your pick is the pull for everyone.')
-      + ' Kept for this ground.');
+      /* Why a pick matters (panel 2026-11-01, PRIORITY_BOARD): as built a hero's power and a party's bodies barely show, since the walk sets the pace.
+         At 8 each a Wickstead hero of Level 18 kills 32% faster than a fresh one, and a party of four out-earns a lone hero per head. */
+      + ' Bigger pulls pay more once your heroes can hold them. Kept for this ground.');
     prop(det.querySelector('[data-by="-1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, -1, dn.max) === null);
     prop(det.querySelector('[data-by="1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, 1, dn.max) === null);
   }

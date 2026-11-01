@@ -189,6 +189,9 @@ function contract(R, cs, body, tl) {
   const inv = R.PS.invitesOf(cs);
   need('party_invites', Array.isArray(inv) && inv.length === 1 && inv[0].from === SEED.inviter && inv[0].hunt === (body.party_invites[0].hunt ?? null),
     'invitesOf yields ' + JSON.stringify(inv) + ' from ' + JSON.stringify(body.party_invites));
+  const pn = R.PS.noticesOf(cs);
+  need('party_notices', Array.isArray(pn) && pn.length === 1 && pn[0].kind === 'left' && pn[0].who === SEED.inviter,
+    'noticesOf yields ' + JSON.stringify(pn) + ' from ' + JSON.stringify(body.party_notices));
   /* The Services window's readers (src/session/item-sections.js). */
   const sr = R.IS.staminaRefillOf(cs);
   need('stamina_refill', !!sr && isNum(sr.n) && isNum(sr.perDay) && (sr.available ? isNum(sr.price) && isNum(sr.restoreMs) : typeof sr.why === 'string'),
@@ -244,7 +247,7 @@ function sheetContract(R, cs, body) {
 /* The envelope keys CONTRACT covers (with the settle-response keys). */
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
-  'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
+  'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
   'skill_inputs']);
 
@@ -268,6 +271,8 @@ async function seedS2(db, M, H) {
   await ok(other, 'select public.hr_character_name_set(0, $1, gen_random_uuid())', [SEED.inviter]);
   await ok(other, 'select public.hr_hunt_party_invite(0, $1, gen_random_uuid())', [SEED.name]);
   await db.query("select set_config('request.jwt.claim.sub', '', true)");
+  /* A notice to this character: what the other player's move did (the verbs write it; PF-NOTICE plays them). */
+  await db.query("select public.hr_party_notice($1, 0, 'left', $2, 0)", [me, other]);
   /* hunt_bests: an earlier 30-minute solo hunt on the Mill Cellar, finished and folded by the server's own fold
      (2026-11-04-hunt-bests.sql): 1,000 XP and 100 gp of coins in half an hour = 2,000 XP and 200 gp an hour. */
   const sid = await H.one(db, "insert into public.hunt_sessions (user_id, slot, hunt_id, entered_at, hunt_from, settled_to, next_swing_at, ended_at, end_reason) "
@@ -398,6 +403,7 @@ const DB_MUTANTS = [
   ['hunt_presets', 'public.hr_hunt_presets_view(uuid,integer)', "'action_set', p.action_set,", "'set', p.action_set,"],
   ['role', 'public.hr_role_view(uuid,integer)', "'weapon', w.weapon_type)", "'weapon_type', w.weapon_type)"],
   ['party_invites', 'public.hr_party_invites_view(uuid,integer)', "'from', public.hr_character_name(", "'sender', public.hr_character_name("],
+  ['party_notices', 'public.hr_party_notices_view(uuid,integer)', "'who', left(public.hr_character_name(", "'actor', left(public.hr_character_name("],
   ['stamina_refill', 'public.hr_stamina_refill_quote(uuid,integer)', "'restore_ms', v_min * 60000,", "'restore', v_min * 60000,"],
   ['blessings', 'public.hr_blessings_view(uuid,integer)', "'tiers', coalesce(", "'tier_list', coalesce("],
   ['character_sheet', 'public.hr_character_sheet_view(uuid,integer)', "'slain', (select", "'killed', (select"],

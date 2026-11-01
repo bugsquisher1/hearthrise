@@ -60,6 +60,13 @@ async function account(name) {
 }
 const rpcOf = (a) => async (fn, args) => (await post('/rest/v1/rpc/' + fn, args, a.token)).body;
 const fresh = (a) => q('delete from public.hr_rate_counters where user_id = $1', [a.uid]);
+/* A new day for the character: rows measured back to back would otherwise fill one hero's daily budgets (25M gold, 1M units a
+   day, hr_day_budget_check) and every later sale would be refused. The ledger leaves this in-memory database, and only this one. */
+async function newDay(a) {
+  await q('alter table public.player_ledger disable trigger user');
+  await q('delete from public.player_ledger where user_id = $1', [a.uid]);
+  await q('alter table public.player_ledger enable trigger user');
+}
 async function edge(a, verb, fields) {
   await fresh(a);
   const r = await post('/functions/v1/hr-accrue', { slot: 0, verb, intentId: idem(), ...fields }, a.token);
@@ -113,6 +120,7 @@ for (const [skill, list] of nodes) for (const n of list) {
   if (n.req > MAX_REQ) continue;
   const rows = [];
   for (const a of heroes) {
+    await newDay(a);
     await emptyBag(a);
     await setSkill(a, skill, n.req);
     const xp0 = await xpOf(a, skill);
@@ -140,6 +148,7 @@ for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const rec of l
   const jobs = Math.ceil((HOURS * 3600000) / pacedActionMs(rec.ms)) + 50;   // enough stock that the stock never ends the window
   const rows = [];
   for (const a of heroes) {
+    await newDay(a);
     await emptyBag(a);
     await setSkill(a, skill, rec.req);
     for (const [id, n] of Object.entries(ins)) await stock(a, id, jobs * n);
@@ -170,6 +179,7 @@ for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const rec of l
 if (has('--away')) for (const [skill, id, prod, level] of [['mining', 'iron_rock', 'iron_ore', 26], ['woodcutting', 'oak_tree', 'oak_log', 15]]) {
   const a = heroes[0];
   for (const [label, hours, steps] of [['away, one 8 h window', 8, 1], ['active, 8 h in 10 min windows', 8, 48], ['away, 24 h', 24, 1]]) {
+    await newDay(a);
     await emptyBag(a);
     await setSkill(a, skill, level);
     const x0 = await xpOf(a, skill);
@@ -188,12 +198,13 @@ if (has('--careers')) for (const [skill, list] of nodes) {
   await setSkill(a, skill, 1);
   let hours = 0, gold = 0, xp = await xpOf(a, skill);
   const at = {};
-  while (hours < 200) {
+  while (hours < 130) {
     const L = lvl(skill, xp);
     for (const m of [15, 30, 45, 60, 75, 90, 99]) if (L >= m && at[m] === undefined) at[m] = { hours, gold };
     if (L >= 99) break;
     const usable = list.filter((n) => n.req <= L);
     const node = usable[usable.length - 1];
+    await newDay(a);
     await run(a, 'gather', node.id, 1);
     const s = await sell(a, [node.prod]);
     gold += s.gold;
@@ -222,6 +233,7 @@ if (has('--hunts')) for (const [ground, L, role] of [['mill_cellar', 4, 'tank'],
   const rows = [];
   for (const a of heroes) {
     a.token = (await a.login()).access_token;
+    await newDay(a);
     await emptyBag(a);
     await q('update public.player_state set level_xp = $2, hp = 1000000, stamina_ms = 43200000, stamina_at = now() where user_id = $1 and slot = 0', [a.uid, charXpForLevel(L)]);
     for (const k of ['melee', 'ranged', 'magic', 'defense']) await setSkill(a, k, L);
@@ -230,7 +242,7 @@ if (has('--hunts')) for (const [ground, L, role] of [['mill_cellar', 4, 'tank'],
     await fresh(a);
     const rpc = rpcOf(a);
     await q(`insert into public.account_wallet (user_id, gold) values ($1, 1000000) on conflict (user_id) do update set gold = 1000000`, [a.uid]);
-    const entered = await rpc('hr_hunt_enter', { p_slot: 0, p_hunt: ground, p_idem: idem() });
+    const entered = await rpc('hr_hunt_enter', { p_slot: 0, p_hunt: ground, p_bag: [], p_preset: 0, p_hours: null, p_idem: idem() });
     if (!entered || entered.ok !== true) { rows.push({ refused: entered }); continue; }
     const coin0 = await purse(a);
     for (let m = 0; m < HOURS * 6; m++) {

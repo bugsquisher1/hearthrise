@@ -147,7 +147,7 @@ async function settle(page, fn) {
 }
 
 async function signInAndPlay(page, base) {
-  await page.goto(base + '/play.html', { waitUntil: 'load' });
+  await page.goto(base + '/play.html', { waitUntil: 'load', timeout: 60000 });
   await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
   await page.fill('input[name=email]', 'qa@example.test');
   await page.fill('input[name=password]', 'not-a-real-password');
@@ -275,10 +275,16 @@ async function checks(overrides, shots) {
         return out;
       });
       const { ctx, page: page8, up } = await open({ tally: clone(TALLY3) });
+      /* AT A LAPTOP'S 1366x768 the lines themselves show, under the analyzer: the panel's box alone said nothing (a 32 px head and no row) */
+      const rowsSeen = () => page8.evaluate(() => { const l = document.querySelector('[data-hs-widget="tally"] .hs-tally-list'); if (!l) return null; const b = l.getBoundingClientRect(); return Array.from(l.querySelectorAll('.hs-tally-row')).filter((r) => { const q = r.getBoundingClientRect(); return q.height > 0 && q.top >= b.top - 1 && q.bottom <= b.bottom + 1; }).length; });
       const shown = up && await wait(page8, () => document.querySelectorAll('[data-hs-widget="tally"] .hs-tally-row').length === 3
         && !!document.querySelector('[data-hs-hud="world"] [data-hs-widget="analyzer"]'));
       if (!shown) fails.push('TW-8 the three held tallies and the analyzer never showed while hunting');
       else {
+        await page8.setViewportSize({ width: 1366, height: 768 });
+        await page8.waitForTimeout(600);
+        const seen = await rowsSeen();
+        if (seen !== 3) fails.push('TW-8 at 1366x768 the Tally shows ' + seen + ' of its 3 lines');
         for (const vp of [{ width: 1440, height: 900 }, { width: 1100, height: 800 }, { width: 1024, height: 700 }]) {
           await page8.setViewportSize(vp);
           await page8.waitForTimeout(500);
@@ -507,6 +513,9 @@ const MUTANTS = [
   ['the HUD shows one more kill than the server', 'src/session/tally-sections.js', "return label + ' ' + h.kills + '/' + h.target;", "return label + ' ' + (h.kills + 1) + '/' + h.target;"],
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
   ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));", "text(li.querySelector('.hw-hunt-tally'), '');"],
+  ['the Tally is held at its capped height', 'src/shell/hud-room.js', 'Object.assign(rel(el), { height: wholeHeight(el) })', 'rel(el)'],
+  ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const takeWhy = sc.board ? takeWhyOf(t, st.hunting) : '';", "const takeWhy = '';"],
+  ['the weight picker stands over her board again', 'src/shell/windows/tally.js', "    + '<h3 class=\"hw-ledger-head is-on\">Her board</h3><p class=\"hh-empty ht-wait\">Loading her board…</p>'", "    + '<div class=\"ht-weights\"></div><h3 class=\"hw-ledger-head is-on\">Her board</h3><p class=\"hh-empty ht-wait\">Loading her board…</p>'"],
   ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
   ['her greeting is the riddle again', 'src/data/tally-tasks.js', "greeting: 'Take a task from my board and go hunting. When the count\\'s done, I\\'ll pay you in town: gold, plus the armor or materials my board shows.',",
     "greeting: 'Bring me your half of the stick when the count is done, and I pay. Coin, and a piece for your back.',"],

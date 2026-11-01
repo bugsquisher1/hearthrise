@@ -697,6 +697,28 @@ async function panelLeftovers(base) {
   const asked = center.list().filter((a) => a.kind === 'friend');
   if (asked.length !== 1 || asked[0].text !== 'Ashgrave wants to be your friend.' || !(hero.record.residue.alerts || { seen: [] }).seen.includes('friend:y')) fails.push('AW-61 a friend request toasts ' + JSON.stringify(asked));
   watch.destroy(); center.destroy();
+  /* THE NEWCOMER'S PANEL (2026-11-01). */
+  const { takeWhyOf } = await imp('src/shell/windows/tally.js');
+  if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You hold as many/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
+    || takeWhyOf({ weight: 'heavy', held: [], heldMax: 3 }, false) !== '' || takeWhyOf({ weight: null, held: [], heldMax: 3 }, true) !== '') fails.push('AW-62 the line over her board is wrong');
+  const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
+  const bones = buryRecipeOf('bones');
+  const burning = { read: (k) => (k === 'state' ? { active_kind: 'artisan', active_id: bones.recipe.id } : null) };
+  if (buryLabel(bones, 59) !== 'Fuel all 59' || buryLabel(bones, 59, { read: () => null }) !== 'Fuel all 59' || buryLabel(bones, 59, burning) !== 'Fueling…') fails.push('AW-62 the fuel label reads ' + buryLabel(bones, 59, burning));
+  const { rareSaleWords } = await imp('src/shell/item-lore.js');
+  if (rareSaleWords([{ item: 'rat_tail', qty: 4 }, { item: 'alpha_fang', qty: 3 }]) !== 'This sells rare finds: 3 Alpha Fang.' || rareSaleWords([{ item: 'rat_tail', qty: 4 }]) !== '') fails.push('AW-62 the sale says ' + rareSaleWords([{ item: 'alpha_fang', qty: 3 }]));
+  const { slotOfferHtml, playLineOf } = await imp('src/app/slot-offer.js');
+  const offer = { slotId: 2, cost: 15000, max: 5 }, one = { exists: true, slot: 0, gold: 500, goldV: 1 }, two = { exists: true, slot: 1, gold: 500, goldV: 1 };
+  if (slotOfferHtml(offer, [one, { exists: false, slot: 1 }]) !== '' || !/Buy a hero slot/.test(slotOfferHtml(offer, [one, two]))) fails.push('AW-62 the slot offer with a free slot empty');
+  if (/cost gold/.test(playLineOf(4, 4, 2, offer, [one, { exists: false, slot: 1 }])) || !/the third is 15,000/.test(playLineOf(4, 4, 2, offer, [one, two]))) fails.push('AW-62 the play line with a free slot empty');
+  const { jobReplacedWords } = await imp('src/shell/town-work.js');
+  const worker = (state, hunt) => ({ read: (k) => (k === 'state' ? state : k === 'hunt' ? hunt : null) });
+  const tree = { active_kind: 'gather', active_id: 'normal_tree', active_since: '2026-11-01T00:00:00Z' };
+  const wrow = (await imp('src/shell/town-work.js')).workRow;
+  const craft = wrow('artisan', Object.keys((await imp('src/shell/town-work.js')).BENCH_INDEX)[0]);
+  if (jobReplacedWords(worker(tree, null), craft) !== 'You stopped chopping the Normal Tree.') fails.push('AW-62 a craft over chopping says ' + JSON.stringify(jobReplacedWords(worker(tree, null), craft)));
+  if (jobReplacedWords(worker(tree, null), wrow('gather', 'normal_tree')) !== '') fails.push('AW-62 pressing the running job says it stopped');
+  if (jobReplacedWords(worker({ active_kind: 'idle' }, null), craft) !== '') fails.push('AW-62 an idle hero stopped something');
   return fails;
 }
 
@@ -869,13 +891,14 @@ async function armourWordRules(base) {
   const { HELP_NOTES } = await imp('src/data/how-to-play.js');
   const tamStep = HUNT_TUTORIAL.find((st) => st.id === 'tamsins_task') || {};
   /* both the card as written and as the coach says it to a hero (cardFor: the role's advice) */
-  const tam = (tamStep.text || '') + ' | ' + ((cardFor(tamStep, { role: 'mage' }) || {}).text || '');
+  /* What each weight gives is said beside the picker: her window's line and each button's title, off the same sentences (the card is the way, in three lines). */
+  const tallySrc = readFileSync(join(base, 'src/shell/windows/tally.js'), 'utf8');
+  if (!tallySrc.includes("WEIGHT_ORDER.map(weightSentence).join(' ')") || !tallySrc.includes('title="\' + esc(weightSentence(w))')) fails.push('AW-34 her window no longer says what each weight gives');
+  if (!/armor weight/.test(tamStep.text || '') || !/armor weight/.test((cardFor(tamStep, { role: 'mage' }) || {}).text || '')) fails.push('AW-34 the tally card no longer asks for a weight');
   const help = (HELP_NOTES.find((n) => n.id === 'armour') || {}).text || '';
   for (const w of AW.WEIGHT_ORDER) {
-    if (tam.split(' | ').some((t) => !t.includes(AW.weightShort(w)))) fails.push('AW-34 the tally card does not say what ' + w + ' armor gives: ' + JSON.stringify(tam));
     if (!help.includes(AW.weightSentence(w))) fails.push('AW-34 the Help note does not say what ' + w + ' armor gives');
   }
-  if (!/max HP/.test(tam) || !/max mana/.test(tam) || !/miss/.test(tam)) fails.push('AW-34 the tally card names no weight effect: ' + JSON.stringify(tam));
   return fails;
 }
 
@@ -2500,11 +2523,20 @@ async function checks(overrides, shots) {
     }
 
     { // AW-61 NOTHING CLIPS: every window's title and a Shop name, in a wide fallback font (GitHub's Linux runner has one); a member's Hunt again is off and says why
-      const stall = (e) => { e.shop = Object.assign({}, e.shop, { offers: [{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }, { offer: 'gear.iron_helm', item: 'iron_helm', kind: 'gear', price: 180 }] }); };
+      const stall = (e) => { e.shop = Object.assign({}, e.shop, { offers: [{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }, { offer: 'gear.iron_helm', item: 'iron_helm', kind: 'gear', price: 180 }],
+        bids: Object.assign({}, e.shop.bids, { alpha_fang: 450, rat_tail: 1 }) }); e.inventory = Object.assign({}, e.inventory, { alpha_fang: 3, rat_tail: 4 }); };
       const { ctx, page, s, up } = await open({ viewport: { width: 1365, height: 846 }, mutateEnv: stall });
       if (!up) fails.push('AW-61 the page did not mount');
       else {
-        await page.addStyleTag({ content: ':root { --f-ui: Verdana, "DejaVu Sans", sans-serif !important; --f-display: Verdana, "DejaVu Sans", sans-serif !important; }' });
+        /* AW-62 AT THE LAPTOP'S WIDTH, IN THE GAME'S OWN FONT: the stance words whole on the bar; the analyzer's tabs inside their panel; Inventory's foot in the window with a coach card up. */
+        const chrome = await page.evaluate(() => {
+          const stance = Array.from(document.querySelectorAll('.hb-stance .hh-seg')).map((b) => ({ t: b.textContent, over: b.scrollWidth - b.clientWidth }));
+          const panel = document.querySelector('[data-hs-widget="analyzer"]');
+          const tabs = panel ? Array.from(panel.querySelectorAll('.ha-tab')).map((b) => ({ t: b.textContent, right: b.getBoundingClientRect().right, over: b.scrollWidth - b.clientWidth })) : [];
+          return { stance, tabs, edge: panel ? panel.getBoundingClientRect().right : null };
+        });
+        if (chrome.stance.length !== 3 || chrome.stance.some((s) => s.over > 0)) fails.push('AW-62 the stance words read ' + JSON.stringify(chrome.stance));
+        if (chrome.tabs.length && chrome.tabs.some((t) => t.over > 0 || t.right > chrome.edge)) fails.push('AW-62 the analyzer tabs read ' + JSON.stringify(chrome));
         const { SHELL_WINDOWS } = await import(pathToFileURL(join(ROOT, 'src/data/shell-windows.js')).href);
         const heads = await page.evaluate((list) => list.map((r) => {
           const host = document.createElement('div');
@@ -2527,6 +2559,13 @@ async function checks(overrides, shots) {
           for (const n of names) if (n.over > 0) fails.push('AW-61 ' + tag + ': the Shop cuts ' + JSON.stringify(n));
         };
         await shopNames(page, '1365');
+        /* AW-62 the Shop's confirmation names the rare finds in the sale */
+        await page.click('[data-hs-win="shop"] .hw-tab[data-tab="sell"]');
+        await wait(page, () => document.querySelector('[data-hs-act="sell-loot"]:not([disabled])'), null, 3000);
+        await page.click('[data-hs-act="sell-loot"]');
+        const saleNote = await page.evaluate(() => document.querySelector('[data-pane="sell"] .hw-confirm-note').textContent);
+        if (!/This sells rare finds: 3 Alpha Fang\./.test(saleNote)) fails.push('AW-62 Sell all loot asks: ' + saleNote);
+        await page.click('[data-hs-win="shop"] [data-hs-act="confirm-no"]');
         await page.keyboard.press('v');
         const phone = await open({ viewport: { width: 667, height: 375 }, mutateEnv: stall });
         if (!phone.up) fails.push('AW-61 the phone did not mount');
@@ -2670,6 +2709,18 @@ const MUTANTS = [
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return 'For your own use", "if (false) return 'For your own use"],
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? 'The shop buys it", "return false ? 'The shop buys it"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
+  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !t.weight ? NO_WEIGHT_WHY : t.held.length >= t.heldMax ? FULL_WHY : '';", "  return '';"],
+  ['item truth: panel: Fuel all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
+  ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "return rare.length ? 'This sells rare finds: ' + listWords(rare) + '.' : '';", "return '';"],
+  ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],
+  ['item truth: panel: the play line sells a slot beside an empty one', 'src/app/slot-offer.js', "  if (anEmptySlot(rows)) return 'You own '", "  if (false) return 'You own '"],
+  ['item truth: panel: a replaced job says nothing', 'src/shell/town-work.js', "  return what ? 'You stopped ' + what + '.' : '';", "  return '';"],
+  ['item truth: panel: pressing the running job says it stopped', 'src/shell/town-work.js', "if (!now || now.id === w.id || !townWorkRunning(", "if (!now || !townWorkRunning("],
+  ['AW-62 the Shop\'s confirmation hides the rares', 'src/shell/windows/shop.js', "[rareSaleWords(p.lines), p.kept.length", "[p.kept.length"],
+  ['AW-62 the stance words clip', 'src/styles/hunt.css', 'padding: 0 1px; font-size: var(--t-micro); letter-spacing: 0; overflow: hidden;', 'padding: 0 1px; overflow: hidden;'],
+  ['AW-62 the analyzer tab runs past the panel', 'src/styles/hunt.css', '.ha-tabs .ha-tab { margin-bottom: -2px; padding: 0 4px; }', '.ha-tabs .ha-tab { margin-bottom: -2px; }'],
+  ['AW-62 a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],
+  ['AW-62 the foot scrolls off', 'src/styles/windows.css', '.hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }\n', ''],
   ['AW-61 a window title clips again', 'src/styles/shell.css', '.hs-win-title { margin: 0; flex: 1; min-width: 0;', '.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
   ['AW-61 Shop names are cut again', 'src/styles/windows.css', '  .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }', ''],
   ['AW-61 the summary ignores who may press', 'src/shell/windows/hunt-summary.js', "prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);", "prop(go, 'disabled', sc.pending || huntOpen || !again);"],
@@ -2690,7 +2741,7 @@ const MUTANTS = [
   ['item truth: panel: a friend request stays silent', 'src/shell/social-watch.js', "alerts.say(cs, { id: 'friend:' + p.id,", "if (0) alerts.say(cs, { id: 'friend:' + p.id,"],
   ['item truth: panel: a live whisper fills the saved list', 'src/shell/alerts.js', 'if (!c.transient) {', 'if (true) {'],
   ['item truth: the rune says Next at level 12: Blank Rune', 'src/data/skill-unlocks.js', 'r.output && r.req <= firstAt(skill, r.output) ? nameOf(r.output) : r.name', 'r.output ? nameOf(r.output) : r.name'],
-  ['armor words: the coach card stops naming the weights', 'src/data/hunt-tutorial.js', "away. ' + WEIGHTS_SAID + pick", "away. ' + pick"],
+  ['armor words: her window stops naming the weights', 'src/shell/windows/tally.js', "WEIGHT_ORDER.map(weightSentence).join(' ')", "''"],
   ['armor words: the Help note forgets medium', 'src/data/how-to-play.js', "    + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces", "    + WEIGHT_ORDER.filter((w) => w !== 'medium').map(weightSentence).join(' ') + ' Pieces"],
   ['a bag icon draws at 1.5x in its well', 'src/styles/windows.css', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 48px; height: 48px; }'],
   ['the Shop lines go 2x again', 'src/styles/windows.css', '.hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-line .hw-ico .hh-icon { width: 64px; height: 64px; }'],

@@ -37,13 +37,12 @@ export function renderInventory(ctx) {
   if (ctx.character) commitSeen(ctx.character);
   return '<div class="hw-inv" tabindex="0" data-hs-act="inv" aria-label="Inventory">'
     + toolbarHtml(g)
-    + '<div class="hw-inv-cols">' + dollHtml(g) + '<div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
-    + weightsHtml()
+    + '<div class="hw-inv-scroll"><div class="hw-inv-cols">' + dollHtml(g) + '<div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
+    + weightsHtml() + '<p class="hw-keys">' + esc(KEYS) + '</p></div>'
     + '<div class="hw-inv-foot"><span class="hw-capacity"><span class="hw-capbar" role="meter" aria-label="Bag spaces used" aria-valuemin="0"><i class="hw-capfill"></i></span><small class="hw-captext"></small></span>'
     + '<label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label>'
     + '<b class="hw-gold"></b></div>'
-    + slotLineHtml() + toolsHtml(g) + advancedHtml()
-    + '<p class="hw-keys">' + esc(KEYS) + '</p></div>';
+    + slotLineHtml() + toolsHtml(g) + advancedHtml() + '</div>';
 }
 
 /* The foot: the bag's spaces against the server's stack cap (hidden when the server sends none), and the gold. */

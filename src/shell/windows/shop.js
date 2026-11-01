@@ -28,7 +28,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
 import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.81';
 import { kindOf, sellPlan, lootSale, lootKept, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.81';
 import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.81';
-import { toolEffect } from '../item-lore.js?v=0.2.81';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.81';
 import { toolLossWords } from '../town-work.js?v=0.2.81';
 import { runIntent } from '../intent-words.js?v=0.2.81';
 import { showTip, hideTip } from './item-tip.js?v=0.2.81';
@@ -160,7 +160,7 @@ function patchSell(root, st, ctx) {
     text(cf.querySelector('.hw-confirm-q'), p.lines.length === 1 ? 'Sell ' + itemName(p.lines[0].item) + ' ×' + whole(p.lines[0].qty) + '?' : 'Sell ' + p.lines.length + ' stacks?');
     /* Selling a tool away slows the skill: said before the press, as the sale's one warning. */
     const slower = p.lines.map((l) => toolLossWords(st.cs, l.item, l.qty)).filter(Boolean).join(' ');
-    text(cf.querySelector('.hw-confirm-note'), [p.kept.length ? p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.' : '', slower].filter(Boolean).join(' '));
+    text(cf.querySelector('.hw-confirm-note'), [rareSaleWords(p.lines), p.kept.length ? p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.' : '', slower].filter(Boolean).join(' '));
     const yes = cf.querySelector('[data-hs-act="confirm-yes"]');
     text(yes, 'Sell for ' + gold(p.total));
     prop(yes, 'disabled', sc.pending);

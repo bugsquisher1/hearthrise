@@ -7,7 +7,8 @@
 // SERVER's quote (the `stamina_refill` section, item-sections.js staminaRefillOf),
 // and a Buy that sends ONE hr_stamina_refill carrying that quoted price
 // (CharacterSession.buyStamina, the Services window's own path; the server refuses
-// quote_changed rather than charge another sum). Buy stays off until the server
+// quote_changed rather than charge another sum). Buy asks first, in the Shop's words (the panel 2026-11-01: 2,040 gp
+// on one press here, a confirmation there; both read this one quote, which rises with Level and with each refill today). Buy stays off until the server
 // answers (bar-draft.js answerWithin bounds the wait); the stamina shown changes
 // only with the re-read envelope (CLAUDE.md §6). When it cannot be bought (full,
 // today's refills used, not enough gold) Buy is off and the panel says why in the
@@ -26,7 +27,10 @@ import { answerWithin } from '../bar-draft.js?v=0.2.81';
 
 const PREMIUM_HOURS = Math.round((STAMINA_MAX_MS.premium - STAMINA_MAX_MS.free) / 3600000);
 const STATE = new WeakMap();   // the bar element -> { open, pending, msg, off }
-const stateOf = (el) => { let s = STATE.get(el); if (!s) { s = { open: false, pending: false, msg: '', off: null }; STATE.set(el, s); } return s; };
+const stateOf = (el) => { let s = STATE.get(el); if (!s) { s = { open: false, pending: false, msg: '', off: null, asking: false }; STATE.set(el, s); } return s; };
+
+/** "Buy 4 h of stamina for 1,600 gp?": the one question before a refill, here and in the Shop's Services tab. */
+export const staminaAskWords = (q) => 'Buy ' + hoursWords(q.restoreMs) + ' of stamina for ' + gold(q.price) + '?';
 
 /** The "+" after the stamina timer (inside the hub's stamina line). */
 export function staminaPlusHtml() {
@@ -39,7 +43,8 @@ export function staminaBuyHtml() {
     + '<div class="hb-buy-head"><b>Stamina</b><span class="hb-buy-now"></span><button type="button" class="hh-tool" data-hs-act="stam-close" aria-label="Close">×</button></div>'
     + '<p class="hb-buy-quote"></p><p class="hb-buy-day"></p><p class="hb-buy-why"></p>'
     + '<p class="hb-buy-premium">Premium raises your stamina cap by ' + PREMIUM_HOURS + ' hours.</p>'
-    + '<button type="button" class="hh-tool is-primary hb-buy-go" data-hs-act="stam-go"></button>'
+    + '<div class="hb-buy-do"><button type="button" class="hh-tool is-primary hb-buy-go" data-hs-act="stam-go"></button>'
+    + '<button type="button" class="hh-tool hb-buy-no" data-hs-act="stam-no" hidden>Cancel</button></div>'
     + '<p class="hh-intent-msg hb-buy-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -62,12 +67,14 @@ export function patchStaminaBuy(el, ctx) {
   const st = staminaOf(cs), q = staminaRefillOf(cs), purse = goldOf(cs);
   const why = whyNot(q, purse);
   text(box.querySelector('.hb-buy-now'), st ? hoursWords(st.msLeft) + ' of ' + hoursWords(st.capMs) : '');
-  text(box.querySelector('.hb-buy-quote'), q && q.available ? 'One refill: +' + hoursWords(q.restoreMs) + ' for ' + gold(q.price) + '.' : '');
+  if (why) s.asking = false;
+  text(box.querySelector('.hb-buy-quote'), !(q && q.available) ? '' : s.asking ? staminaAskWords(q) : 'One refill: +' + hoursWords(q.restoreMs) + ' for ' + gold(q.price) + '.');
   text(box.querySelector('.hb-buy-day'), q ? 'Bought today: ' + whole(q.boughtToday) + ' of ' + whole(q.perDay) + '. Each one costs more.' : '');
   text(box.querySelector('.hb-buy-why'), why || '');
   cls(box.querySelector('.hb-buy-premium'), 'is-on', !isPremium(cs));
   const go = box.querySelector('.hb-buy-go');
-  text(go, q && q.available ? 'Buy +' + hoursWords(q.restoreMs) + ' · ' + gold(q.price) : 'Buy');
+  text(go, !(q && q.available) ? 'Buy' : s.asking ? 'Buy for ' + gold(q.price) : 'Buy +' + hoursWords(q.restoreMs) + ' · ' + gold(q.price));
+  prop(box.querySelector('.hb-buy-no'), 'hidden', !s.asking);
   prop(go, 'disabled', !!why || s.pending);
   attr(go, 'title', why);
   text(box.querySelector('.hb-buy-msg'), s.msg);
@@ -80,6 +87,7 @@ function setOpen(ctx, el, open, repaint) {
   const s = stateOf(el);
   if (s.off) { s.off(); s.off = null; }
   s.open = open;
+  s.asking = false;
   if (open) {
     s.msg = '';
     const doc = ctx.doc, box = el.querySelector('.hb-buy'), plus = el.querySelector('.hb-stam-buy');
@@ -98,9 +106,12 @@ export function actStaminaBuy(ctx, el, action, ev, repaint) {
   const s = stateOf(el);
   if (action === 'stam-buy') { setOpen(ctx, el, !s.open, repaint); return true; }
   if (action === 'stam-close') { setOpen(ctx, el, false, repaint); return true; }
+  if (action === 'stam-no') { s.asking = false; repaint(); return true; }
   if (action !== 'stam-go') return false;
   const cs = ctx.character, q = staminaRefillOf(cs);
   if (s.pending || whyNot(q, goldOf(cs))) { repaint(); return true; }
+  if (!s.asking) { s.asking = true; s.msg = ''; repaint(); return true; }
+  s.asking = false;
   s.pending = true;
   s.msg = 'Buying stamina…';
   repaint();

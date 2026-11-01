@@ -39,6 +39,11 @@ export const OUTFIT_ROWS = Object.freeze({
 /* A region's name in the picker. */
 export const REGION_LABEL = Object.freeze({ hat: 'Hat', robe: 'Robe', trim: 'Trim', head: 'Head', body: 'Body', legs: 'Legs', feet: 'Feet' });
 
+/* THE COLORS STEP IS HIDDEN (CLAUDE.md §3.5, half-built stays hidden; newcomer panel 2026-11-01: a picked blue never showed): no worn outfit has its
+   mask art, so the creation step shows no strips and no preview, and a new hero takes BASE_DEFAULT_COLORS. Turn this on when the world draws dyes:
+   the strips, the preview and the intent all still run behind it (src/app/hero-create.js). */
+export const HERO_DYES_SHOWN = false;
+
 /* THE STANDARD HERO's recolour regions, in picker order (Tyler 2026-10-20: a new hero picks a
    colour for each at creation). The server's hr_base_regions() (2026-11-02-hero-creation.sql) is
    held equal by tests/hero-creation.mjs. A saved colour is a dye INDEX, like an outfit's. */

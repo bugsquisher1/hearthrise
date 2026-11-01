@@ -221,7 +221,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const brWhy = br ? buryBlock(st.cs, br) : '';
   /* a fuel stack offers ONE ("Fuel the hearth", a bench count of one) beside the whole stack ("Fuel all N", Tyler 10-25) */
   if (br && br.skill !== 'cooking' && buryQty(st.cs, id) > br.need) h += item('m-fuel-one', 'Fuel the hearth', !brWhy, '', brWhy);
-  if (br) h += item('m-bury', buryLabel(br, buryQty(st.cs, id)), !brWhy, '', brWhy);
+  if (br) h += item('m-bury', buryLabel(br, buryQty(st.cs, id), st.cs), !brWhy, '', brWhy);
   const nf = namedFuelOf(id);
   const nfWhy = nf ? namedBlock(st.cs, id) : '';
   if (nf) h += item('m-hearth', 'Fuel the hearth', !nfWhy, '', nfWhy);

@@ -126,6 +126,12 @@ export function dropWhereWords(item) {
 
 /* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */
 const isRare = (d) => !!d && d.lucky !== true && d.salvage !== true && d.ch < 1 && REVEAL_BANDS.includes(bandOf(d));
+let RARE_ITEMS = null;
+/** Is this item a Rare somewhere (the Hunts page's own test)? From the rows, built once. */
+export function isRareItem(id) {
+  if (!RARE_ITEMS) { RARE_ITEMS = new Set(); for (const m of Object.values(MONSTERS)) for (const d of (m && m.drops) || []) if (isRare(d)) RARE_ITEMS.add(d.id); }
+  return RARE_ITEMS.has(id);
+}
 const nameOf = (id) => (ITEMS[id] && ITEMS[id].n) || id;
 const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
 const SLOT_WORDS = Object.freeze({ helmet: 'helmets', body: 'bodies', pants: 'legs', boots: 'boots' });

@@ -113,7 +113,7 @@ export function primaryOf(st, id) {
   if (k === 'food') return ['eat', 'Eat'];
   if (barKind(id) && st.bar && barIndexOf(st.cs, id) < 0) return ['bar', 'Put on the bar'];
   const br = buryRecipeOf(id);
-  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id))];
+  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id), st.cs)];
   /* a named fuel burns alone in the Great Hearth (bury.js burnNamed) */
   if (namedFuelOf(id)) return ['hearth', 'Fuel the hearth'];
   if (st.shop && st.shop.bids.has(id) && !(st.rules && st.rules.locked.has(id))) return ['sell', 'Sell'];

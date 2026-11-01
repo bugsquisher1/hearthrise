@@ -511,8 +511,12 @@ async function checks(overrides, leaving = true) {
         fails.push('B-9 one hero and an empty owned slot list as ' + JSON.stringify(rows));
       else {
         await page.click('[data-app="create"][data-slot="1"]');
-        /* The creation step: a name, four colour rows and a preview; nothing is sent before Enter town. */
-        const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelectorAll('.hero-region').length === 4 && document.querySelector('.hero-preview'));
+        /* The creation step: a name and how you fight; nothing is sent before Enter town. The colors are hidden until the world draws them
+           (outfits.js HERO_DYES_SHOWN, newcomer panel 2026-11-01), and Enter town shows with no scrolling at a laptop's 1366x768. */
+        await page.setViewportSize({ width: 1366, height: 768 });
+        const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelector('.hero-how-list'));
+        const laptop = await page.evaluate(() => { const b = document.querySelector('.hero-confirm').getBoundingClientRect(); return { bottom: Math.round(b.bottom), H: innerHeight, doc: document.documentElement.scrollHeight, dyes: document.querySelectorAll('.hero-region, .hero-preview, .hero-note').length }; });
+        if (laptop.bottom > laptop.H || laptop.doc > laptop.H || laptop.dyes) fails.push('B-9 at 1366x768 the creation step reads ' + JSON.stringify(laptop));
         if (!step) fails.push('B-9 Create did not open the creation step (sent ' + JSON.stringify(o.created) + ')');
         else {
           /* On a 922x423 phone the five ways to fight show too (playtest 2026-10-29: the phone hid them), in a column
@@ -527,7 +531,6 @@ async function checks(overrides, leaving = true) {
             return { go: Math.round(b.right), how: Math.round(h.right), doc: document.documentElement.scrollWidth, W: innerWidth }; });
           if (small.go > small.W || small.how > small.W || small.doc > small.W) fails.push('B-9 at 667x375 the creation step runs off the right edge: ' + JSON.stringify(small));
           await page.setViewportSize({ width: 1280, height: 720 });
-          await page.click('.hero-dye[data-hero-region="body"][data-hero-dye="6"]');
           await page.click('.hero-confirm');
           const short = await page.evaluate(() => document.querySelector('.auth-message').textContent);
           if (o.created.length || !/3 letters/.test(short)) fails.push('B-9 the creation step sent ' + JSON.stringify(o.created) + ' / said "' + short + '" for an empty name');
@@ -536,7 +539,7 @@ async function checks(overrides, leaving = true) {
         }
         const played = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]'));
         const c = o.created[0];
-        if (o.created.length !== 1 || c.slot !== 1 || c.name !== 'Fennick' || !c.colors || c.colors.body !== 6 || Object.keys(c.colors).join() !== 'head,body,legs,feet' || !played)
+        if (o.created.length !== 1 || c.slot !== 1 || c.name !== 'Fennick' || !c.colors || Object.keys(c.colors).join() !== 'head,body,legs,feet' || !played)
           fails.push('B-9 Enter town sent ' + JSON.stringify(o.created) + (played ? '' : ' and did not play the new hero'));
         /* The reload: Fennick is shown again and Tester plays beside it, with no characters screen and no press. */
         const named = () => Array.from(document.querySelectorAll('.char-tab[data-app="show"] .char-tab-name')).map((n) => n.textContent).join() === 'Tester,Fennick';
@@ -598,7 +601,8 @@ async function checks(overrides, leaving = true) {
         if (o.bought.length !== 1 || sent.p_slot_id !== 2 || sent.p_slot !== 0 || typeof sent.p_idem !== 'string' || Object.keys(sent).some((k) => /price|cost|gold/.test(k)))
           fails.push('B-11 the press sent ' + JSON.stringify(o.bought));
         const b3 = await btn();
-        if (!reread || !b3 || b3.text !== 'Buy a hero slot — 40,000 gold') fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(b3) + (reread ? '' : ' with no new empty slot'));
+        /* The new slot stands empty, so no other is on sale until a hero is in it (newcomer panel 2026-11-01); the third hero brings the fourth slot's price. */
+        if (!reread || b3) fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(b3) + (reread ? ' beside the new empty slot' : ' with no new empty slot'));
         o.slots.push(3, 4);
         await page.reload({ waitUntil: 'load' });
         await wait(page, () => document.querySelectorAll('.char-row').length === 5);

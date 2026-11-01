@@ -45,7 +45,7 @@ import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.81';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.81';
 import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.81';
 import { createHudRoom } from './hud-room.js?v=0.2.81';
-import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.81';
+import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.81';
 import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.81';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.81';
 import { mountContextMenu } from './context-menu.js?v=0.2.81';
@@ -412,6 +412,7 @@ export function mountShell(root, o) {
     const win = coachWindow(card);
     for (const slot of layer.querySelectorAll('[data-hs-win] > .hs-win-coach')) {
       placeCoach(slot, win && slot.parentElement.getAttribute('data-hs-win') === win ? coachHtml(cs, card, true) : '');
+      fitCoachLine(slot);
     }
     const id = card ? card.id : null;
     if (tick && id !== coachShown) paintWidgets();

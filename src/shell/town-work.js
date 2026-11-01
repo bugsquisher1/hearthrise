@@ -48,6 +48,7 @@ import { whole } from '../render/format.js?v=0.2.81';
 import { itemName } from './widgets/bits.js?v=0.2.81';
 import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.81';
 import { townWorkRunning } from '../session/town-poll.js?v=0.2.81';
+import { townActivityWords } from '../session/party-sections.js?v=0.2.81';
 import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.81';
 import { skillShortWords } from './intent-words.js?v=0.2.81';
 import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.81';
@@ -265,6 +266,15 @@ function xpOf(cs, skill) { const sk = skillsOf(cs); return sk && sk[skill] ? sk[
 const skillRefusal = (cs, w) => (r) => (r && !r.ok && r.error === 'activity_locked'
   ? Object.assign({}, r, { error: 'level_too_low', skill: { id: w.skill, need: w.row.req || 1, have: levelFor(cs, w.skill), doing: doWords(w) } }) : r);
 
+/** "You stopped chopping the Normal Tree." when pressing `w` replaces another town job the server says is running, else ''. One job at a time, and the
+    press that ends one says so (newcomer panel 2026-11-01: a craft ended the woodcutting in silence). Read before the press lands. */
+export function jobReplacedWords(cs, w) {
+  const now = workOf(cs), st = stateOf(cs);
+  if (!now || now.id === w.id || !townWorkRunning(st, typeof cs.read === 'function' ? cs.read('hunt') : null)) return '';
+  const what = townActivityWords(st);
+  return what ? 'You stopped ' + what + '.' : '';
+}
+
 /**
  * Start (or switch to) a work row: ONE set_activity. `send(fn, busy, done)` is the window's runIntent;
  * `repaint` repaints it when the armed stop fires while something else is in flight. Returns send's promise.
@@ -274,6 +284,7 @@ export function startWork(cs, w, send, repaint, words, count) {
   /* A whole count only on a bench row; anything else (All, a gathering node) runs until stopped or out. */
   const n = w.kind === 'artisan' && Number.isInteger(count) && count > 0 ? count : null;
   const activity = n === null ? { kind: w.kind, id: w.id } : { kind: w.kind, id: w.id, count: n };
+  const replaced = jobReplacedWords(cs, w);
   return send(() => cs.edgeIntent('set_activity', { activity }).then(skillRefusal(cs, w)), 'Starting…', () => {
     clearTimeout(run.timer);
     run.timer = null;
@@ -297,7 +308,7 @@ export function startWork(cs, w, send, repaint, words, count) {
       arm();
     }
     /* The work line already says what runs (nowParts); a caller with its own words (the bag's Bury all) passes them. */
-    return words || '';
+    return [replaced, words].filter(Boolean).join(' ');
   });
 }
 

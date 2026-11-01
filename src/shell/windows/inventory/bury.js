@@ -82,9 +82,12 @@ export function buryingWord(e) { return e.skill === 'cooking' ? 'Cooking' : 'Fue
 
 /**
  * The label for `qty` units (pass buryQty: the bag + Storage the bench spends): "Cook" / "Cook all"; a fuel's is
- * "Fuel the hearth" for one and "Fuel all 120" for a stack (the board's item menu, Tyler 10-25).
+ * "Fuel the hearth" for one and "Fuel all 120" for a stack (the board's item menu, Tyler 10-25). While this stack is the
+ * one burning, a count would be the last settle's ("Fuel all 59" beside "x36, 23 being used", newcomer panel 2026-11-01):
+ * `cs` given, it says what is happening; the line under the bag has the live count and its Stop.
  */
-export function buryLabel(e, qty) {
+export function buryLabel(e, qty, cs) {
+  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';
   if (e.skill !== 'cooking') return qty > e.need ? 'Fuel all ' + whole(qty) : 'Fuel the hearth';
   return buryVerb(e) + (qty > e.need ? ' all' : '');
 }

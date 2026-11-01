@@ -54,6 +54,8 @@
 .hw-bulk.is-on { display: flex; }
 .hw-burying { display: none; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-burying.is-on { display: flex; }
+/* While a stack burns its line takes the row Dispatch loot stood on: at a laptop's height the two ran off the window's foot together. */
+.hw-inv:has(.hw-burying.is-on) .hw-tools { display: none; }
 .hw-burying-q { flex: 1; }
 /* "Equip upgrades": what the press puts on, in words, beside the button (src/shell/widgets/upgrade-line.js). */
 .hw-upgrade { display: none; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
@@ -208,6 +210,13 @@
 
 /* ── The Inventory (src/shell/windows/inventory/*): the doll beside the grid, one iron-and-slate window ── */
 .hw-inv { outline: none; }
+/* THE FOOT STAYS IN VIEW (newcomer panel 2026-11-01: spaces, gold and Dispatch loot under the fold at 1366x768): the doll and the bag scroll between the toolbar and it; whatever else opens scrolls the whole. */
+.hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+[data-hs-win="inventory"] .hw-inv { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
+[data-hs-win="inventory"] .hw-inv > * { flex: none; }
+[data-hs-win="inventory"] .hw-inv > .hw-inv-scroll { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }
+[data-hs-win="inventory"] .hw-cats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+[data-hs-win="inventory"] .hw-cat { flex: none; padding: 0 6px; }
 .hw-inv:focus-visible { outline: 1px dashed var(--aqua-2); outline-offset: 2px; }
 .hw-inv-cols { display: flex; align-items: flex-start; gap: 10px; }
 .hw-inv-grid { flex: 1; min-width: 0; min-height: 186px; padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
@@ -504,6 +513,10 @@
   /* A Shop row on the half-wide sheet: the icon and name on one line, the count and the price under them (the name had 23 px and read "C…"). */
   .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }
   .hw-shop .hw-line-name { flex: 1 1 calc(100% - 52px); }
+  /* The phone sheet scrolls as one, its foot under the list. */
+  .hs-win[data-hs-win="inventory"] .hs-win-body { display: block; overflow: auto; }
+  [data-hs-win="inventory"] .hw-inv { display: block; overflow-y: visible; }
+  [data-hs-win="inventory"] .hw-inv > .hw-inv-scroll { overflow-y: visible; }
   .hw-keys { display: none; }
   .hw-tab { min-height: 36px; }
   .hw-cat { min-height: 36px; flex: none; }
@@ -792,6 +805,10 @@
 .ht-keeper b { font-family: var(--f-label); font-weight: 700; font-size: var(--t-lead); color: var(--ink); }
 .ht-keeper small { font-size: var(--t-micro); color: var(--ink-3); }
 .ht-keeper .hs-note { margin: 4px 0 0; color: var(--ink-2); }
+.ht-take-why { display: none; align-items: center; gap: 8px; color: var(--gold-2); }
+.ht-take-why.is-on { display: flex; }
+.ht-take-why > span { flex: 1; min-width: 0; }
+.ht-take-why > button { flex: none; }
 .ht-tally .hw-line-name small { white-space: normal; }
 .ht-tally.is-done .hw-line-name b { color: var(--gold-2); }
 .ht-keep { display: flex; align-items: center; gap: 4px; flex: none; font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }

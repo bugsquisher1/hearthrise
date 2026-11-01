@@ -17,7 +17,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.81';
 import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js?v=0.2.81';
-import { listWords } from '../render/format.js?v=0.2.81';
+import { listWords, whole } from '../render/format.js?v=0.2.81';
 import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.81';
 import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.81';
 import { MONSTERS } from '../data/monsters.js?v=0.2.81';
@@ -30,7 +30,7 @@ import { itemName } from './widgets/bits.js?v=0.2.81';
 import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit } from './bag-model.js?v=0.2.81';
 import { FLAMES } from '../data/hearth.js?v=0.2.81';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.81';
-import { dropWhereWords } from './hunt-ground-facts.js?v=0.2.81';
+import { dropWhereWords, isRareItem } from './hunt-ground-facts.js?v=0.2.81';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
@@ -134,6 +134,12 @@ export function saleWords(id) {
   if (!it) return '';
   if (!(Number(it.v) > 0) || it.bop) return 'For your own use: the shop and the Weighhouse won\'t take it';
   return isStartKit(id) ? 'The shop buys it, but every new hero starts with some, so the Weighhouse won\'t list it' : '';
+}
+
+/** A sale's rare finds by name, for its confirmation ("Sell 7 stacks?" hid 3 Alpha Fang worth 1,350 of 2,054 gp, newcomer panel 2026-11-01), or ''. `lines`: { item, qty }. */
+export function rareSaleWords(lines) {
+  const rare = (lines || []).filter((l) => isRareItem(l.item)).map((l) => whole(l.qty) + ' ' + itemName(l.item));
+  return rare.length ? 'This sells rare finds: ' + listWords(rare) + '.' : '';
 }
 
 /** What it is for, in plain words. */

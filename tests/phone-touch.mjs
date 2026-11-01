@@ -553,6 +553,11 @@ async function staminaBuy(open, fails, done) {
   if (!p0.on || !p0.whole || !p0.reach || !/\+4 h for 1,880 gp/.test(p0.quote) || p0.off || p0.now !== '3 h 12 m of 8 h') fails.push('PH-9 [' + tag + '] the "+" did not open the server\'s quote whole on screen: ' + JSON.stringify(p0));
   if (!p0.premium) fails.push('PH-9 [' + tag + '] a hero without premium is not told premium raises the cap');
   a.s.holdRefill = true;
+  /* The first press asks, in the Shop's words; nothing is sent until the second. */
+  await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
+  await a.page.waitForTimeout(150);
+  const asked = await panelOf(a.page);
+  if (!/^Buy 4 h of stamina for 1,880 gp\?$/.test(asked.quote) || a.s.calls.some((c) => c.name === 'hr_stamina_refill')) fails.push('PH-9 [' + tag + '] the first press on Buy: ' + JSON.stringify(asked));
   a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: a.s.env.stamina.ms + H4 }); a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 }); return { ok: true }; };
   await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
   for (let i = 0; i < 40 && !a.s.calls.some((c) => c.name === 'hr_stamina_refill'); i++) await a.page.waitForTimeout(50);
@@ -565,6 +570,8 @@ async function staminaBuy(open, fails, done) {
   if (sent.length !== 1 || sent[0].body.p_price !== 1880 || sent[0].body.p_slot !== 0 || !sent[0].body.p_idem) fails.push('PH-9 [' + tag + '] Buy sent ' + JSON.stringify(sent.map((c) => c.body)));
   if (!bought) fails.push('PH-9 [' + tag + '] after the server answered the panel reads ' + JSON.stringify(await panelOf(a.page)));
   a.s.onRefill = () => ({ ok: false, error: 'quote_changed' });
+  await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
+  await a.page.waitForTimeout(100);
   await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
   if (!(await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent), null, 6000))) fails.push('PH-9 [' + tag + '] a refused refill reads ' + JSON.stringify(await panelOf(a.page)));
   await done(a, tag);
@@ -677,9 +684,9 @@ async function heroDoor(page, tag, fails) {
   await page.waitForTimeout(150);
   const on = await page.evaluate(RECT + `;[document.querySelector('.hero-confirm'), document.querySelector('.hero-back')].every((e) => window.__onScreen(window.__r(e)))`);
   if (!on) fails.push('PH-22 [' + tag + '] Enter town or its way back runs off the screen');
-  /* What keeps the foot on screen in ANY font (9 px off in Segoe UI, on screen in a shorter font): each strip's word beside it, never over it. */
-  const over = await page.evaluate(() => Array.from(document.querySelectorAll('.hero-region')).filter((f) => f.querySelector('legend').getBoundingClientRect().right > f.querySelector('.hero-dyes').getBoundingClientRect().left + 0.5).length);
-  if (over) fails.push('PH-22 [' + tag + '] ' + over + ' colour strip(s) carry their word above them, the height the card has no room for');
+  /* The column takes no height from its words (contain: size), so its own floor is what shows them. */
+  const tall = await page.evaluate(() => Math.round(document.querySelector('.hero-how').getBoundingClientRect().height));
+  if (tall < 150) fails.push('PH-22 [' + tag + '] How you fight is ' + tall + ' px tall');
 }
 /* ── PH-23 ── The Weighhouse and the sorts: whole inside the sheet; the sell sheet's two fields and List together. */
 async function weighhouse(page, tag, fails) {
@@ -1462,7 +1469,7 @@ const MUTANTS = [
   ['PH-21 the tip lies on the sheet', 'src/shell/windows/item-tip.js', "const r = ((touch && anchor.closest('.hs-win')) || anchor).getBoundingClientRect();", 'const r = anchor.getBoundingClientRect();'],
   ['PH-21 a mouseout puts the tip away', 'src/shell/windows/item-tip.js', '  if (touching(doc) && !byPress) return;\n', ''],
   ['PH-22 Back to sign in falls off the screen', 'src/styles/app.css', '  .auth-card[data-auth="create"] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 10px; }\n', ''],
-  ['PH-22 Enter town runs off the foot', 'src/styles/app.css', '  .hero-region legend { float: left; width: 38px; padding: 3px 0 0; }\n', ''],
+  ['PH-22 How you fight loses its height', 'src/styles/app.css', '  .hero-how { min-width: 0; min-height: 190px; padding-left: 12px;', '  .hero-how { min-width: 0; padding-left: 12px;'],
   ['PH-23 Refresh is cut in half', 'src/styles/market.css', '  .hw-mk-refresh { position: absolute; top: 0; left: 0; margin: 0; }\n', ''],
   ['PH-23 the sell sheet keeps its purse and tabs', 'src/styles/market.css', '  .hw-mk:has(.hw-mk-sell.is-on.is-paged) > :is(.hw-mk-greet, .hw-tabs) { display: none; }\n', ''],
   ['PH-23 what it would fetch comes first', 'src/styles/market.css', '  .hw-mk-sell .hw-mk-facts { order: 1; }\n', '  .hw-mk-sell .hw-mk-facts { order: -1; min-height: 80px; }\n'],

@@ -515,9 +515,6 @@
   .hw-tip > * { break-inside: avoid; }
   /* On touch it stands in the World beside the sheet (item-tip.js). */
   :root.is-touch .hw-tip { box-sizing: border-box; width: min(460px, calc(52vw - 16px)); columns: 150px; }
-  /* THUMB-SIZED (QA 10-24: 30 px): the Shop's Buy and its amount. */
-  .hw-line > .hh-tool { min-height: 40px; }
-  .hw-line > .hh-select { min-height: 40px; }
   /* This hunt on the sheet: the plan's menu under the item's name (playtest 2026-10-29: beside it, the name read one
      word a line). */
   .hw-loot-row { flex-wrap: wrap; padding: 4px 0; }

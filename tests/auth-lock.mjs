@@ -31,6 +31,7 @@ import { join } from 'node:path';
 import { leaseBrowser } from './_chrome.mjs';
 import { ROOT, UID, serve } from './_client-harness.mjs';
 import { isMain } from './_is-main.mjs';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const KEY = 'hr-auth';
 const LOCK = 'lock:' + KEY;
@@ -282,11 +283,14 @@ async function main() {
     console.log(fails.length ? 'auth-lock: ' + fails.length + ' check(s) RED' : 'auth-lock: a lasting session never asks for the lock, one refresher across tabs, a stuck holder is passed, sign-out and a dead session hold');
     process.exit(fails.length ? 1 : 0);
   }
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const MINE = scopedMutants('tests/auth-lock.mjs', MUTANTS);
+  if (!MINE.length) process.exit(0);
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
-  for (const [name, file, from, to] of MUTANTS) {
+  for (const [name, file, from, to] of MINE) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     const fails = await checks({ [file]: text.replace(from, to) });
@@ -295,7 +299,7 @@ async function main() {
     if (fails.some((f) => f.startsWith(want))) console.log('  ✓ ' + name + ' — caught');
     else { console.log('  ✗ ' + name + ' — NOT caught' + (fails.length ? ', only: ' + fails.join('; ') : '')); bad++; }
   }
-  console.log(bad ? 'auth-lock --mutate: ' + bad + ' escaped' : 'auth-lock --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'auth-lock --mutate: ' + bad + ' escaped' : 'auth-lock --mutate: ' + MINE.length + '/' + MINE.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 

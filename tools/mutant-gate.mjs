@@ -26,8 +26,17 @@
 //   The release cache-buster (`?v=` and build-info's version/date) is not a change —
 //   not as a file (guard-deps cacheBusterOnly) and not as a line (changedLines).
 // A skipped command prints why; nothing is skipped silently. When the diff cannot be
-// computed (a shallow clone that will not deepen, no merge base), it FAILS SAFE: the
-// full sweep, said out loud.
+// computed (a shallow clone that will not deepen, no merge base, a commit main already
+// holds, so the diff is empty and says nothing), it FAILS SAFE: the full sweep, said out loud.
+//
+// THE HISTORY (tools/lib/ci-history.mjs). A job the last nightly did not prove green runs
+// every proof it holds until a sweep proves it; a nightly that cannot be read, or is over
+// 48 h old, makes every job full. Main's push skips the proofs a green release run already
+// ran on the very same commit; its plain runs still run.
+//
+// A REHEARSAL. `gh workflow run smoke.yml --ref <lane> -f rehearse_range=<sha>..<sha>` (not
+// on main) runs this branch's guards under the plan an old release's diff gets: how to
+// measure a change to this gate without touching release/** or main. It gates nothing.
 //
 // THE BASE. release/**, next and pull requests: the merge base with main (for a
 // release, the previous release on main). main: the push's `before` (the previous tip
@@ -40,8 +49,10 @@
 //                                     which registered proofs a diff would run
 //   node tools/mutant-gate.mjs --selftest   the selection, the modes and the CLI,
 //                                     each proved by a planted mutant
+//   node tools/mutant-gate.mjs --rules-from <run log>   refresh tests/<guard>.mutant-rules.json
+//                                     from a full run (`gh run view <id> --log`)
 //
-// mutant-anchors: .github/workflows/smoke.yml tools/lib/guard-deps.mjs tools/guard-anchors.mjs
+// mutant-anchors: .github/workflows/smoke.yml tools/lib/guard-deps.mjs tools/guard-anchors.mjs tools/lib/mutant-scope.mjs tools/lib/ci-history.mjs
 // ════════════════════════════════════════════════════════════════════════
 import { spawnSync, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -53,7 +64,8 @@ import {
   PROOF_FLAG, GATE_PREFIX, unwrapGate, guardFileOf, touchedBy, guardSources, committedDiff, cacheBusterOnly, changedLines,
 } from './lib/guard-deps.mjs';
 import { scopedProofs, committedTexts, anchorLinesIn } from './guard-anchors.mjs';
-import { scopeMutants, splitMutants, parseMutants } from './lib/mutant-scope.mjs';
+import { scopeMutants, splitMutants, parseMutants, classifyRuleEdit } from './lib/mutant-scope.mjs';
+import { readHistory, historyPolicy, STALE_MS } from './lib/ci-history.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 
@@ -70,6 +82,7 @@ export function decideMode(env) {
   if (env.GITHUB_ACTIONS !== 'true') return { full: true, why: 'not a GitHub Actions run — local runs prove everything' };
   const ev = env.GITHUB_EVENT_NAME || '';
   if (ev === 'push' || ev === 'pull_request') return { full: false, event: ev };
+  if (ev === 'workflow_dispatch' && env.HR_MUTANT_GATE_RANGE && env.GITHUB_REF_NAME !== 'main') return { full: false, event: ev, rehearsal: true };
   return { full: true, why: `the ${ev || 'unknown'} event is the full sweep` };
 }
 
@@ -113,9 +126,25 @@ export function ciBase(env) {
   const refspecs = [`+${head}:refs/hr-gate/head`, `+refs/heads/${branch}:refs/remotes/origin/${branch}`];
   const how = `the merge base of origin/${branch} and HEAD`;
   fetchHistory(refspecs, 50);
-  try { return { sha: gitOut(['merge-base', `origin/${branch}`, 'HEAD']), how }; } catch { /* further back than 50 */ }
-  fetchHistory(refspecs, DEPTH);
-  return { sha: gitOut(['merge-base', `origin/${branch}`, 'HEAD']), how };
+  let sha = null;
+  try { sha = gitOut(['merge-base', `origin/${branch}`, 'HEAD']); } catch { /* further back than 50 */ }
+  if (!sha) { fetchHistory(refspecs, DEPTH); sha = gitOut(['merge-base', `origin/${branch}`, 'HEAD']); }
+  return { sha: usableBase(sha, gitOut(['rev-parse', 'HEAD'])), how };
+}
+
+/* Main already holds this commit (a release and main pushed together: run 41327717372 went
+   green in 22 min with every proof skipped). The diff is empty and proves nothing. */
+export function usableBase(mergeBase, head) {
+  if (mergeBase === head) throw new Error('main already holds this commit, so its diff is empty');
+  return mergeBase;
+}
+
+/* A rehearsal's two ends, fetched by full SHA. */
+function rehearsalRange(range) {
+  const m = /^([0-9a-f]{40})\.\.([0-9a-f]{40})$/.exec(range);
+  if (!m) throw new Error(`rehearse_range must be <40 hex>..<40 hex>, got ${range}`);
+  fetchHistory([`+${m[1]}:refs/hr-gate/before`, `+${m[2]}:refs/hr-gate/tip`], 1);
+  return { base: m[1], tip: m[2] };
 }
 
 // ── THE SELECTION ─────────────────────────────────────────────────────────
@@ -154,6 +183,7 @@ export function selectGuards(changed, { base = null, extraGuards = [], sources =
 export function decide(cmd, plan, guard = guardFileOf(cmd)) {
   const inner = unwrapGate(cmd);
   if (!PROOF_FLAG.test(inner)) return { run: true, why: 'a plain run — always runs' };
+  if (plan.proved) return { run: false, why: `run ${plan.proved.id} on ${plan.proved.branch} proved this exact commit` };
   if (plan.full) return { run: true, why: `full sweep: ${plan.why}` };
   if (!guard) return { run: true, why: 'the guard file could not be read from the command — runs (fail safe)' };
   const why = (plan.selected || {})[norm(guard)];
@@ -165,14 +195,28 @@ export function planFor(env, { extraGuards = [] } = {}) {
   const mode = decideMode(env);
   if (mode.full) return mode;
   const key = createHash('sha256').update(JSON.stringify([env.GITHUB_SHA, env.GITHUB_EVENT_NAME, env.GITHUB_REF_NAME,
-    env.GITHUB_BASE_REF, env.HR_MUTANT_GATE_FILES ?? null])).digest('hex').slice(0, 16);
+    env.GITHUB_BASE_REF, env.HR_MUTANT_GATE_FILES ?? null, env.HR_GATE_HISTORY ?? null, env.GITHUB_JOB ?? null])).digest('hex').slice(0, 16);
   const cache = join(env.RUNNER_TEMP || tmpdir(), `hr-mutant-gate-${key}.json`);
   let plan = null;
   try { plan = JSON.parse(readFileSync(cache, 'utf8')); } catch { /* first command of the job */ }
   if (!plan) {
+    /* The selftest's diff is hermetic unless it hands over a history; a rehearsal has no release to block. */
+    const asks = !mode.rehearsal && (env.HR_MUTANT_GATE_FILES === undefined || env.HR_GATE_HISTORY);
+    const policy = asks ? historyPolicy(readHistory(env), { job: env.GITHUB_JOB, event: env.GITHUB_EVENT_NAME, ref: env.GITHUB_REF_NAME, now: Date.now() }) : {};
+    if (policy.full) plan = { full: true, why: policy.why };
+    else if (policy.proved) plan = { full: false, proved: policy.proved, selected: {} };
+    if (plan) {
+      try { writeFileSync(cache, JSON.stringify(plan)); } catch { /* recomputed next time */ }
+      console.log(plan.full ? `mutant-gate: ${plan.why}` : `mutant-gate: run ${plan.proved.id} on ${plan.proved.branch} proved this exact commit; plain runs only`);
+      return plan;
+    }
     try {
-      let changed; let base = null; let how; let regions = null;
-      if (env.HR_MUTANT_GATE_FILES !== undefined) {
+      let changed; let base = null; let how; let regions = null; let tip = null;
+      if (mode.rehearsal) {
+        ({ base, tip } = rehearsalRange(env.HR_MUTANT_GATE_RANGE));
+        how = `a rehearsal of ${env.HR_MUTANT_GATE_RANGE}`;
+        ({ files: changed, regions } = committedDiff(ROOT, `${base}..${tip}`));
+      } else if (env.HR_MUTANT_GATE_FILES !== undefined) {
         changed = env.HR_MUTANT_GATE_FILES.split(',').map((s) => s.trim()).filter(Boolean);
         how = 'HR_MUTANT_GATE_FILES';
       } else {
@@ -180,7 +224,7 @@ export function planFor(env, { extraGuards = [] } = {}) {
         base = b.sha; how = b.how;
         ({ files: changed, regions } = committedDiff(ROOT, `${base}..HEAD`));
       }
-      plan = { full: false, base, how, changed, selected: {} };
+      plan = { full: false, base, tip, how, changed, selected: {} };
       /* The line map is used once, here; the cached plan keeps only what the guards read. */
       Object.defineProperty(plan, 'regions', { value: regions, enumerable: false });
     } catch (e) {
@@ -188,7 +232,8 @@ export function planFor(env, { extraGuards = [] } = {}) {
     }
     if (!plan.full) {
       try {
-        plan.selected = Object.fromEntries(selectGuards(plan.changed, { base: plan.base, regions: plan.regions }));
+        const read = plan.tip ? (rel) => committedTexts(ROOT, plan.base, rel, plan.tip) : undefined;
+        plan.selected = Object.fromEntries(selectGuards(plan.changed, { base: plan.base, regions: plan.regions, read }));
       } catch (e) {
         plan = { full: true, why: `the guard map could not be built (${e.message.split('\n')[0]}) — fail safe` };
       }
@@ -197,14 +242,14 @@ export function planFor(env, { extraGuards = [] } = {}) {
     if (plan.full) console.log(`mutant-gate: ${plan.why}`);
     else {
       const sel = Object.keys(plan.selected);
-      console.log(`mutant-gate: ${env.GITHUB_EVENT_NAME} on ${env.GITHUB_REF_NAME || '?'} — base ${String(plan.base || '-').slice(0, 9)} `
+      console.log(`mutant-gate: ${mode.event} on ${env.GITHUB_REF_NAME || '?'} — base ${String(plan.base || '-').slice(0, 9)} `
         + `(${plan.how}); ${plan.changed.length} changed file(s); ${sel.length} guard(s) touched`);
       for (const f of plan.changed.slice(0, 40)) console.log(`mutant-gate:   changed ${f}`);
       if (plan.changed.length > 40) console.log(`mutant-gate:   … +${plan.changed.length - 40} more`);
     }
   }
   /* A wrapped guard outside the shared source map (bash bump-version.sh): judged on its own text. */
-  if (!plan.full) {
+  if (!plan.full && !plan.proved) {
     for (const g of extraGuards.map(norm)) {
       if (g in plan.selected || /^(tests|tools)\/.+\.mjs$/.test(g)) continue;
       let text = null;
@@ -275,6 +320,26 @@ function explain(argv) {
 }
 
 // ── --selftest ────────────────────────────────────────────────────────────
+// ── --rules-from ──────────────────────────────────────────────────────────
+/* Every opted-in guard's mutants -> the rule that caught them, from a full run's log. The
+   sidecars only narrow a rule edit; a mutant missing from one always runs. */
+function rulesFrom(logPath) {
+  const log = readFileSync(logPath, 'utf8').split('\n');
+  const caught = new Map();
+  for (const l of log) { const m = /✓ (.*) — caught \(([^)]+)\)\s*$/.exec(l); if (m) caught.set(m[1], m[2]); }
+  for (const [guard, src] of guardSources(ROOT)) {
+    const raw = readFileSync(join(ROOT, guard), 'utf8');
+    if (src === null || !/^\/\/ mutant-rule-functions:/m.test(raw)) continue;
+    const split = splitMutants(raw);
+    if (!split) continue;
+    const names = parseMutants(split.block).map((m) => m[0]);
+    const rows = names.filter((n) => caught.has(n)).sort().map((n) => `  ${JSON.stringify(n)}: ${JSON.stringify(caught.get(n))}`);
+    writeFileSync(join(ROOT, guard.replace(/\.mjs$/, '.mutant-rules.json')), `{\n${rows.join(',\n')}\n}\n`);
+    console.log(`  ${guard}: ${rows.length} of ${names.length} mutants on record`);
+  }
+  return 0;
+}
+
 /* The properties, against an implementation; the real one must pass them all and
    every planted mutant must fail at least one. */
 function properties(impl, proofs) {
@@ -453,7 +518,8 @@ async function selftest() {
     const want = list.filter((m) => m[1] === ANALYZER).map((m) => m[0]);
     const victim = list.find((m) => m[1] !== ANALYZER);
     const edited = head.replace(JSON.stringify(victim[0]).slice(1, -1), `${victim[0]} (old)`);
-    const harnessEdit = head.replace('const MUTANTS = [', '// an older harness\nconst MUTANTS = [');
+    const harnessEdit = head.replace('async function main() {', 'async function main() {\n  const older = 1;');
+    const commentEdit = head.replace('async function main() {', '// an older comment\nasync function main() {');
     const run = (fn, changed, baseSource) => fn({ guard: HS, root: ROOT, changed, base: null, headSource: head, baseSource, sources });
     const same = (s, names) => !s.all && s.keep.size === names.length && names.every((n) => s.keep.has(n));
     const scopeChecks = (fn) => [
@@ -463,6 +529,7 @@ async function selftest() {
       [run(fn, ['tests/_client-harness.mjs']).all, 'an edit to tests/_client-harness.mjs (the harness it imports) runs every mutant'],
       [run(fn, null).all, 'no scope (nightly, manual, local) runs every mutant'],
       [same(run(fn, ['src/shell/chat.js']), []), 'an edit no mutant patches runs none'],
+      [same(run(fn, [HS], commentEdit), []), 'a comment outside MUTANTS moves no mutant'],
     ];
     for (const [ok, label] of scopeChecks(scopeMutants)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} scope: ${label}`); }
     const scopeMutantsOf = [
@@ -476,6 +543,147 @@ async function selftest() {
       if (missed) bad++;
       console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} scope mutant: ${label}`);
     }
+
+    /* THE RULE EDIT, on the real guard: the edited rule's mutants run, a mutant with no rule on
+       record runs, three canaries run, and everything it cannot classify runs all of them. */
+    const lines = head.split('\n');
+    const start = lines.findIndex((l) => l.trim() === '/* mutant-rules-start */');
+    const ruleLine = lines.find((l, i) => i > start && /fails\.push\('HS-13 /.test(l) && (l.match(/\bHS-\d+/g) || []).length === 1);
+    const helperLine = lines.slice(0, start).reverse().find((l) => /^ {2,}const \w+ = /.test(l));
+    const recorded = Object.fromEntries(list.slice(1).map((m, i) => [m[0], i % 2 ? 'HS-13' : 'HS-999']));
+    const edited13 = head.replace(ruleLine, `${ruleLine} `);
+    const helperEdit = head.replace(helperLine, `${helperLine} `);
+    const statementEdit = `${head}\nglobalThis.older = 1;\n`;
+    const noHeader = head.replace(/^\/\/ mutant-rule-functions:.*\n/m, '');
+    const ruleRun = (fn, o) => fn({ guard: HS, root: ROOT, changed: [HS], base: null, sources, rules: recorded, ...o });
+    const ruleChecks = (fn) => {
+      const s = ruleRun(fn, { headSource: head, baseSource: edited13 });
+      const wanted = list.filter((m, i) => i > 0 && (i - 1) % 2).map((m) => m[0]);
+      const others = s.all ? list.length : list.filter((m, i) => i > 0 && !((i - 1) % 2) && s.keep.has(m[0])).length;
+      return [
+        [!s.all && wanted.every((n) => s.keep.has(n)), 'a rule edit runs every mutant that rule catches'],
+        [!s.all && s.keep.has(list[0][0]), 'a rule edit runs a mutant with no rule on record'],
+        [!s.all && others <= 3, 'a rule edit leaves other rules\' mutants to the nightly, bar the canaries'],
+        [!s.all && others >= 1, 'a rule edit runs canaries from outside the rule'],
+        [ruleRun(fn, { headSource: head, baseSource: helperEdit }).all, 'a helper above mutant-rules-start runs every mutant'],
+        [ruleRun(fn, { headSource: statementEdit, baseSource: head }).all, 'a new top-level statement runs every mutant'],
+        [ruleRun(fn, { headSource: noHeader, baseSource: noHeader.replace(ruleLine, `${ruleLine} `) }).all, 'a guard with no opt-in header runs every mutant'],
+      ];
+    };
+    for (const [ok, label] of ruleChecks(scopeMutants)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} rule edit: ${label}`); }
+    const dropWhy = (rx) => (o) => {
+      const s = scopeMutants(o);
+      return s.all ? s : { all: false, keep: new Set([...s.keep].filter((n) => !rx.test(s.why.get(n)))), why: s.why };
+    };
+    for (const [label, fn] of [
+      ['the edited rule\'s mutants do not run', dropWhy(/^its rule /)],
+      ['a mutant with no rule on record does not run', dropWhy(/^no rule on record/)],
+      ['the canaries do not run', dropWhy(/^a canary/)],
+      ['a rule edit runs every mutant', (o) => { const s = scopeMutants(o); return s.keep && s.keep.size ? { all: true, why: 'mutant' } : s; }],
+      ['nothing is ever unclassifiable', (o) => { const s = scopeMutants(o); return s.all ? { all: false, keep: new Set(list.map((m) => m[0]).slice(0, 2)), why: new Map() } : s; }],
+    ]) {
+      const missed = ruleChecks(fn).every(([ok]) => ok);
+      if (missed) bad++;
+      console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} rule edit mutant: ${label}`);
+    }
+    /* The classifier alone, on the smallest text that shows each answer. */
+    const G = '// mutant-rule-functions: rules\n';
+    const text = (rule, helper = 'const h = 1;') => `${G}function rules() {\n  ${helper}\n  /* mutant-rules-start */\n  if (a) fails.push('AW-1 one');\n  ${rule}\n  if (b) fails.push('AW-2 two');\n}\nfunction other() {\n  return 1;\n}\n`;
+    const classifyChecks = (fn) => {
+      const near = fn(text('const x = 1;'), text('const x = 2;'));
+      const own = fn(`${text('')}`, `${text("if (c) fails.push('AW-3 three');")}`);
+      return [
+        [near.ok && near.rules.has('AW-1') && near.rules.has('AW-2'), 'a changed line with no id belongs to the named rules beside it'],
+        [own.ok && own.rules.has('AW-3') && !own.rules.has('AW-1'), 'a changed line with an id belongs to that rule'],
+        [!fn(text('', 'const h = 1;'), text('', 'const h = 2;')).ok, 'a helper above the start line is the harness'],
+        [!fn(`${G}function rules() {\n  const x = 1;\n}\n`, `${G}function rules() {\n  const x = 2;\n}\n`).ok, 'a changed line with no rule id anywhere near is unclassifiable'],
+        [!fn(text(''), text('').replace('return 1;', 'return 2;')).ok, 'a function the header does not list is the harness'],
+        [!fn(text(''), text('').replace(/function other[\s\S]*$/, '')).ok, 'a removed function is the harness'],
+        [(fn(`// mutant-runner-functions: other\n${text('')}`, `// mutant-runner-functions: other\n${text('').replace('return 1;', 'return 2;')}`).rules || { size: 1 }).size === 0, 'a runner function the header lists changes no rule'],
+        [(fn(text(''), text('').replace('function other', '// a comment\nfunction other')).rules || { size: 1 }).size === 0, 'a comment names no rule and moves nothing'],
+      ];
+    };
+    for (const [ok, label] of classifyChecks(classifyRuleEdit)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} classify: ${label}`); }
+    for (const [label, fn] of [
+      ['every edit is a rule edit', (a, b) => { const r = classifyRuleEdit(a, b); return r.ok ? r : { ok: true, rules: new Set(['AW-1']) }; }],
+      ['no edit is a rule edit', () => ({ ok: false, why: 'mutant' })],
+      ['the neighbours of a changed line are not read', (a, b) => { const r = classifyRuleEdit(a, b); return r.ok ? { ok: true, rules: new Set([...r.rules].filter((x) => x !== 'AW-2')) } : r; }],
+    ]) {
+      const missed = classifyChecks(fn).every(([ok]) => ok);
+      if (missed) bad++;
+      console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} classify mutant: ${label}`);
+    }
+
+    /* A server guard is never narrowed when its server or combat file moved; a client guard is. */
+    const headOf = (g) => readFileSync(join(ROOT, g), 'utf8').replace(/\r\n/g, '\n');
+    const strictRun = (fn, guard, changed) => fn({ guard, root: ROOT, changed, base: null, headSource: headOf(guard), sources });
+    const SG = 'tests/hunt-scene-live.mjs'; const CG = 'tests/perf-budget.mjs';
+    const strictChecks = (fn) => [
+      [strictRun(fn, SG, ['src/data/items.js']).all, 'hunt-scene-live (mutants in src/core) runs every mutant when combat\'s data moves'],
+      [strictRun(fn, SG, ['src/core/combat-sim.js']).all, 'hunt-scene-live runs every mutant when the combat engine moves'],
+      [!strictRun(fn, CG, ['src/data/items.js']).all, 'perf-budget (client mutants only) stays scoped'],
+    ];
+    for (const [ok, label] of strictChecks(scopeMutants)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} server guard: ${label}`); }
+    for (const [label, fn] of [
+      ['a server guard is narrowed like any other', (o) => scopeMutants({ ...o, strict: () => false })],
+      ['every guard counts as a server guard', (o) => (scopeMutants({ ...o, strict: () => false }).all ? scopeMutants(o) : { all: true, why: 'mutant' })],
+    ]) {
+      const missed = strictChecks(fn).every(([ok]) => ok);
+      if (missed) bad++;
+      console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} server guard mutant: ${label}`);
+    }
+  }
+
+  /* THE HISTORY: a job the last sweep did not prove runs in full, an unreadable or old sweep
+     makes every job full, and only main may skip what a release run proved of this commit. */
+  {
+    const now = Date.parse('2026-11-02T12:00:00Z');
+    const green = { at: '2026-11-02T01:00:00Z', id: 1, red: [] };
+    const redIn = { at: '2026-11-02T01:00:00Z', id: 2, red: ['perf'] };
+    const ask = (fn, h, o = {}) => fn({ nightly: null, nightlyError: null, proved: null, ...h }, { job: 'perf', event: 'push', ref: 'release/v0.0.1', now, ...o });
+    const proved = { id: 9, branch: 'release/v0.0.1' };
+    const histChecks = (fn) => [
+      [!ask(fn, { nightly: green }).full && !ask(fn, { nightly: green }).proved, 'a green sweep leaves the push to its diff'],
+      [ask(fn, { nightly: redIn }).full === true, 'a job the sweep left red runs every proof'],
+      [!ask(fn, { nightly: redIn }, { job: 'edge' }).full, 'a job the sweep proved green stays scoped'],
+      [ask(fn, { nightly: { ...redIn, red: ['*'] } }, { job: 'edge' }).full === true, 'a red no job explains makes every job full'],
+      [ask(fn, { nightly: { ...green, at: '2026-10-31T11:00:00Z' } }).full === true, 'a sweep over 48 h old makes every job full'],
+      [!ask(fn, { nightly: { ...green, at: new Date(now - STALE_MS + 60000).toISOString() } }).full, 'a sweep just under 48 h old still counts'],
+      [ask(fn, { nightlyError: 'HTTP 500' }).full === true, 'a sweep that cannot be read makes every job full'],
+      [ask(fn, {}).full === true, 'no sweep on record makes every job full'],
+      [!!ask(fn, { nightly: redIn, proved }, { ref: 'main' }).proved, 'main skips what a release run proved of this commit'],
+      [!ask(fn, { nightly: green, proved }).proved, 'a release branch never skips on another run\'s say-so'],
+      [!ask(fn, { nightly: green }, { ref: 'main' }).proved, 'main with no proving run keeps its own diff'],
+    ];
+    for (const [ok, label] of histChecks(historyPolicy)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} history: ${label}`); }
+    const off = (from, to) => (h, o) => { const r = historyPolicy(h, o); return from(r, h) ? to : r; };
+    for (const [label, fn] of [
+      ['a red sweep is ignored', off((r) => /did not prove/.test(r.why || ''), {})],
+      ['an old sweep counts', off((r) => /over 48 h/.test(r.why || ''), {})],
+      ['an unreadable sweep counts as green', off((r) => /could not be read/.test(r.why || ''), {})],
+      ['no sweep counts as green', off((r) => /no nightly/.test(r.why || ''), {})],
+      ['any branch may skip', (h, o) => historyPolicy(h, { ...o, ref: h.proved ? 'main' : o.ref })],
+      ['main never skips', (h, o) => historyPolicy({ ...h, proved: null }, o)],
+    ]) {
+      const missed = histChecks(fn).every(([ok]) => ok);
+      if (missed) bad++;
+      console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} history mutant: ${label}`);
+    }
+    const baseChecks = (fn) => {
+      let threw = false;
+      try { fn('abc', 'abc'); } catch { threw = true; }
+      return [[threw, 'a commit main already holds has no usable base'], [fn('abc', 'def') === 'abc', 'a commit ahead of main is measured from the merge base']];
+    };
+    for (const [ok, label] of baseChecks(usableBase)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} base: ${label}`); }
+    const missedBase = baseChecks((a) => a).every(([ok]) => ok);
+    if (missedBase) bad++;
+    console.log(`  ${missedBase ? 'MISSED  ' : 'CAUGHT  '} base mutant: an empty diff counts as a diff`);
+    /* A rehearsal gates a lane's run under an old diff; on main the dispatch stays the full sweep. */
+    const dis = (ref) => decideMode({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF_NAME: ref, HR_MUTANT_GATE_RANGE: 'a..b' });
+    const rehearsalOk = dis('lane/x').rehearsal === true && dis('main').full === true
+      && decideMode({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'schedule', GITHUB_REF_NAME: 'lane/x', HR_MUTANT_GATE_RANGE: 'a..b' }).full === true;
+    if (!rehearsalOk) bad++;
+    console.log(`  ${rehearsalOk ? 'ok      ' : 'FAILED  '} rehearsal: a dispatch with a range is gated, except on main; the schedule never is`);
   }
 
   /* The cache-buster: a release's `?v=` bump is not a change; anything else in the same file is. */
@@ -554,8 +762,20 @@ async function selftest() {
         return cli(['node', sp, '--mutate'], env(k)).status === 5
           && cli(['node', sp, '--mutate'], env(k, { GITHUB_EVENT_NAME: 'schedule', HR_MUTANT_SCOPE: join(dir, 'stale.json') })).status === 6;
       }],
+      ['a job the last nightly left red runs an untouched proof; another job skips it', () => {
+        const h = JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, red: ['red-job'] } });
+        const red = cli(['node', probe, '--mutate'], env('', { GITHUB_JOB: 'red-job', HR_GATE_HISTORY: h }));
+        const other = cli(['node', probe, '--mutate'], env('', { GITHUB_JOB: 'other-job', HR_GATE_HISTORY: h }));
+        return red.status === 7 && /did not prove job red-job green/.test(red.stdout) && other.status === 0 && /SKIP/.test(other.stdout);
+      }],
+      ['main skips a proof a release run proved of this commit; its plain run still runs', () => {
+        const h = JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, red: [] }, proved: { id: 77, branch: 'release/v0.0.1' } });
+        const e = env(probeKey, { GITHUB_REF_NAME: 'main', GITHUB_JOB: 'x', HR_GATE_HISTORY: h });
+        const proof = cli(['node', probe, '--mutate'], e);
+        return proof.status === 0 && /SKIP .*run 77 on release\/v0\.0\.1 proved this exact commit/.test(proof.stdout) && cli(['node', probe], e).status === 3;
+      }],
       ['a push whose base cannot be found fails safe to the full sweep', () => {
-        const e = env('', { GITHUB_SHA: 'selftest-nobase', GITHUB_EVENT_PATH: join(dir, 'missing.json') });
+        const e = env('', { GITHUB_SHA: 'selftest-nobase', GITHUB_EVENT_PATH: join(dir, 'missing.json'), HR_GATE_HISTORY: JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, red: [] } }) });
         delete e.HR_MUTANT_GATE_FILES;
         e.GITHUB_REF_NAME = 'main';
         e.GIT_DIR = join(dir, 'not-a-repo');
@@ -581,6 +801,7 @@ if (isMain(import.meta.url)) {
     if (argv[0] === 'node' || argv[0] === 'bash') code = gate(argv);
     else if (argv.includes('--selftest')) code = await selftest();
     else if (argv.includes('--explain')) code = explain(argv);
+    else if (argv[0] === '--rules-from') code = rulesFrom(argv[1]);
     else { console.error('usage: node tools/mutant-gate.mjs node <guard> --mutate … | --explain [--base REF | --files a,b] [--all] | --selftest'); code = 2; }
   } catch (e) {
     console.error(`mutant-gate: ${e.message}`);

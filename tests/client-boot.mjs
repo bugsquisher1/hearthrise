@@ -77,6 +77,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { TOWN_NAME } from '../src/data/world/town/plan.js';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 /* Level 10's total on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const LEVEL_10_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(10);
 
@@ -725,12 +726,15 @@ async function main() {
     console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play (the Common sheets only), a scene switched whole, a late sheet on a closed pane, two characters, one hero + a named, coloured hero created in the second slot, the open heroes back after a reload, sign-out, a dead session, reset and closed all hold');
     process.exit(fails.length ? 1 : 0);
   }
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const MINE = scopedMutants('tests/client-boot.mjs', MUTANTS);
+  if (!MINE.length) process.exit(0);
   let bad = 0;
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those mutants (a local re-check)
-  const chosen = MUTANTS.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]));
+  const chosen = MINE.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]));
   for (const [name, file, from, to] of chosen) {
     let text = await readFile(join(ROOT, file), 'utf8');
     const pairs = Array.isArray(from) ? from : [[from, to]];

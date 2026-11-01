@@ -49,6 +49,7 @@ import { randomUUID } from 'node:crypto';
 import { HARNESS as LIVE_H } from './hunt-live.mjs';
 import { LOG_MAX_LINES } from '../src/data/combat-text.js';
 import { STATIONS } from '../src/data/world/stations.js';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope-live.json'), 'utf8'));
@@ -834,7 +835,11 @@ async function main() {
   if (process.argv.includes('--mutate')) {
     let escaped = 0;
     const only = arg('--only', null);   // a name fragment: prove just those mutants (a local re-check)
-    const chosen = MUTANTS.filter((mt) => !only || mt[0].includes(only));
+    /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs): run 41339988105 spent 80 min here
+       re-proving 27 mutants because one line of src/data/alerts.js moved. The nightly proves them all. */
+    const MINE = scopedMutants('tests/perf-budget.mjs', MUTANTS);
+    if (!MINE.length) process.exit(0);
+    const chosen = MINE.filter((mt) => !only || mt[0].includes(only));
     for (const mt of chosen) {
       const fails = mt[5] === 'pix' ? await pixelRule('chromium', [mt]) : mt[5] === 'leak' ? await leakRule([mt])
         : budgetFails(await scenario({ browser: 'chromium', width: 1440, height: 900, minutes: mt[6] || 2, hiddenMs: mt[7] || 20000, overrides: planted([mt]) }));

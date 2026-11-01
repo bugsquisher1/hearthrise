@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// mutant-rule-functions: checks pure huntsPure itemTruthRules planRules armourWordRules tickerRules
+// mutant-runner-functions: main shardOf tickerMutant pureMutant
 // ════════════════════════════════════════════════════════════════════════
 // tests/alpha-windows.mjs — THE ALPHA WINDOWS' RULES, IN A REAL CHROMIUM.
 //
@@ -167,7 +169,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
-import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
+import { harnessFail, ruleOf, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -996,8 +999,13 @@ async function tickerRules(base) {
   return fails;
 }
 
-async function checks(overrides, shots) {
+/* A mutant needs ONE named red rule, the same rule verdict() reads first: the run stops there instead of walking every
+   rule to the end (each browser mutant cost a whole suite, ~154 s, on run 41339988105). A HARNESS line does not stop it,
+   so a later named rule still judges exactly as before. The clean control and the plain run see every rule. */
+const STOP = Symbol('first red');
+async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = overrides ? [] : await pure();
+  if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); if (a.some((x) => ruleOf(x))) throw STOP; return this.length; };
   const { server, port } = await serve(Object.assign({}, HOOK, overrides || {}));
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -1016,6 +1024,7 @@ async function checks(overrides, shots) {
     return { ctx, page, errors, s, up };
   };
   const shot = async (page, name) => { if (shots) await page.screenshot({ path: join(shots, name + '.png') }); };
+  /* mutant-rules-start */
   try {
     { // AW-1 AW-2 AW-3 AW-4
       const { ctx, page, errors, s, up } = await open();
@@ -2502,7 +2511,7 @@ async function checks(overrides, shots) {
   } catch (e) {
     /* A step that threw is HARNESS, never a rule (2026-10-22: AW-8's disabled click "caught" every later
        mutant). A rule whose control a mutant can hide checks for the control and fails BY NAME. */
-    fails.push(harnessFail('a page step', e));
+    if (e !== STOP) fails.push(harnessFail('a page step', e));
   } finally {
     await browser.close();
     server.close();
@@ -2700,8 +2709,12 @@ async function main() {
      its clean control is the pure rules, which are all that judge those mutants). */
   const only = (process.argv.find((x) => x.startsWith('--only=')) || '').slice(7);
   const sharded = shardOf(MUTANTS);
-  const mine = sharded && only ? sharded.filter(([n]) => n.startsWith(only)) : sharded;
-  if (!mine || !mine.length) { console.log('  ✗ HARNESS: bad --shard (want --shard=K/N with 1 <= K <= N) or no mutant matches --only'); process.exit(2); }
+  const picked = sharded && only ? sharded.filter(([n]) => n.startsWith(only)) : sharded;
+  if (!picked || !picked.length) { console.log('  ✗ HARNESS: bad --shard (want --shard=K/N with 1 <= K <= N) or no mutant matches --only'); process.exit(2); }
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const shard = (process.argv.find((x) => x.startsWith('--shard=')) || '').slice(8);
+  const mine = scopedMutants('tests/alpha-windows.mjs', picked, { companion: Object.fromEntries(Object.entries(COMPANION).map(([k, v]) => [k, [v[0]]])), tag: shard ? ' (shard ' + shard + ')' : '' });
+  if (!mine.length) process.exit(0);
   const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:') || n.startsWith('item truth:'));
   const clean = await cleanControl(() => (pureOnly ? pure() : checks(null, null)));
   console.log(clean.line);
@@ -2717,7 +2730,7 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : checks(over, null)));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : checks(over, null, { stopAtFirst: true })));
     console.log(report(name, v, counts));
   }
   console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));

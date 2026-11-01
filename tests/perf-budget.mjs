@@ -602,8 +602,11 @@ async function scenario(o) {
     await at(D * 0.25); await page.evaluate(() => window.__perf.mark('switch A')); await tab(0); if (!phone) await showLog(); await showAnalyzer();
     await at(D * 0.35); await page.evaluate(() => window.__perf.mark('storm')); srv.S.storm = true;
     await at(D * 0.35 + 20000); srv.S.storm = false; await page.evaluate(() => window.__perf.mark('storm end'));
-    await at(D * 0.5); await page.evaluate(() => window.__perf.hide(true));
+    await at(D * 0.5);
+    /* The moment is taken BEFORE the hide: the page writes its stamps inside hide()'s own task, so on a fast runner the requests reach the
+       route before the evaluate's answer reaches here (v0.2.80 run: the 2 stamps of the hide counted "in view", 0 "on the way out"). */
     const hiddenAt = Date.now();
+    await page.evaluate(() => window.__perf.hide(true));
     await at(D * 0.5 + HID); await page.evaluate(() => window.__perf.hide(false));
     const shownAt = Date.now();
     await page.waitForTimeout(3000);

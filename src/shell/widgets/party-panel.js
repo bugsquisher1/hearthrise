@@ -165,10 +165,23 @@ export function liveRoster(cs, r) {
  */
 export function leaveOrDisband(ctx, cs, sc, repaint, action) {
   if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
-  else if (action === 'disband') runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'The party is disbanded.');
-  else return false;
+  else if (action === 'disband') {
+    /* A thumb asks twice (panel 2026-11-01: one tap, no question, party gone): the first press arms it, and its words say so. */
+    if (ctx.isPhone && ctx.isPhone() && !sc.disbandArmed) {
+      sc.disbandArmed = true;
+      sc.msg = 'Press Sure? to end the party for everyone in it.';
+      repaint();
+      setTimeout(() => { if (sc.disbandArmed) { sc.disbandArmed = false; sc.msg = ''; repaint(); } }, DISBAND_ARMED_MS);
+      return true;
+    }
+    sc.disbandArmed = false;
+    runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'The party is disbanded.');
+  } else return false;
   return true;
 }
+const DISBAND_ARMED_MS = 5000;
+/** Disband's word: "Sure?" while a first press has armed it. */
+export const disbandWord = (sc) => (sc.disbandArmed ? 'Sure?' : 'Disband');
 
 const scratch = new WeakMap();
 function scOf(el) {
@@ -206,6 +219,7 @@ renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
   prop(disband, 'hidden', !(r.inParty && r.isLeader));
   prop(leave, 'disabled', sc.pending);
   prop(disband, 'disabled', sc.pending);
+  text(disband, disbandWord(sc));
   cls(el.querySelector('.hp-acts'), 'is-off', !r.inParty);
   text(el.querySelector('.hp-msg'), sc.msg);
   patchHold(el, r.hold, sc.pending, ctx.doc);

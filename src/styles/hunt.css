@@ -703,8 +703,11 @@ label.st-line { cursor: pointer; }
   .hb-pl-fold { display: contents; }
   .hb-pl-head { order: -1; color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); letter-spacing: 0; }
   .hb-pl-more .hb-pl-row, .hb-pl-more .hh-seg, .hb-pl-more .hh-select { min-height: 40px; }
-  /* An open window is the phone's one sheet: the alert stack (a screen widget, over the windows' layer) waits. */
-  :root:has(.hs-win:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }
+  /* A full-screen window (Configure action): the alert stack (a screen widget, over the windows' layer) waits. */
+  :root:has(.hs-win.is-modal:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }
+  /* ...except that a side sheet leaves the World's half free, and an invite must reach a player reading one (panel
+     2026-11-01: no toast, only a red 1): the stack stands beside the sheet instead. */
+  :root:has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-alerts { transform: translateX(calc(-1 * min(400px, 48vw) - 8px)); }
   /* A short screen: the tooltip runs wide instead of tall, so it never climbs into the top strip. */
   .hb-tip { width: 440px; }
   /* CONFIGURE ACTION ON A PHONE: the whole screen under the icon row, in three bands. The top row (the slot, the
@@ -796,5 +799,7 @@ label.st-line { cursor: pointer; }
   .ha-clocks small { display: inline; margin-right: 6px; }
   /* The analyzer is the player's ask: while it shows, the coach card under the hunt bar waits (it would lie over
      the analyzer's head and its close); it comes back when the analyzer closes. */
-  .app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { display: none; }
+  .app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer { display: none; }
+  /* Summary and Leave are not one thumb apart (panel 2026-11-01: 7 px, "I wanted Summary"). */
+  .ht-bar [data-hs-act="leave"] { margin-left: 10px; }
 }

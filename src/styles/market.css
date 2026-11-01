@@ -100,8 +100,26 @@
   .hw-mk .hw-tab { padding: 4px 6px; white-space: nowrap; }
   /* The toolbar on a wider font: the search gives way, the sort keeps its select and drops its word. */
   .hw-mk .hw-search { flex: 1 1 0; min-width: 0; }
-  .hw-mk .hw-sort { flex: none; }
-  .hw-mk .hw-sort > span { display: none; }
+  /* Refresh stands in the purse's row: four tabs and it never fit a 320 px sheet (panel 2026-11-01: cut in half). */
+  .hw-mk { position: relative; }
+  .hw-mk-greet { align-items: center; min-height: 40px; }
+  .hw-mk-refresh { position: absolute; top: 0; left: 0; margin: 0; }
+  /* A PICKED STACK HAS THE SHEET (panel: 86 px of scroll, How many and Price each never on screen together): no purse, no
+     tabs (its Back is the way out), its name small, and the two fields first, right above the pinned List; what it
+     would fetch and the terms come after them, a scroll down. */
+  .hw-mk:has(.hw-mk-sell.is-on.is-paged) > :is(.hw-mk-greet, .hw-tabs) { display: none; }
+  .hw-mk-sell.is-paged .hw-hd-page { padding: 0 8px; }
+  .hw-mk-sell.is-paged .hw-hd-back { margin: 0; }
+  .hw-mk-sheet.is-on { display: flex; flex-direction: column; }
+  .hw-mk-sell .hw-mk-head { margin-bottom: 2px; }
+  .hw-mk-sell .hw-mk-ico, .hw-mk-sell .hw-mk-kind { display: none; }
+  .hw-mk-sell .hw-mk-name { font-size: var(--t-small); }
+  .hw-mk-sell .hw-mk-facts { order: 1; }
+  .hw-mk-field { flex-wrap: nowrap; margin-bottom: 2px; }
+  .hw-mk-field > label { flex: none; min-width: 0; width: 56px; line-height: 1.1; }
+  .hw-mk-field .hw-mk-chips { flex-wrap: nowrap; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .hw-mk-field .hh-num { flex: none; width: 64px; }
+  .hw-mk-field .hh-seg { flex: none; }
   .hw-mk .is-paged .hw-mk-kept { display: none; }
   /* A SHORT SCREEN CANNOT SPARE A FOOT: the whole page scrolls as one, and only the press stays pinned at the bottom
      of the sheet, always in reach (QA 10-24: Equip sat a scroll away). The 30-day line waits for a bigger screen. */

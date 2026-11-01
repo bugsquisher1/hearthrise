@@ -35,7 +35,7 @@ export const HUD_WIDGETS = Object.freeze([
     min: Object.freeze([240, 8]), opacity: 1, visible: true, removable: true, when: 'always',
     /* On a phone the stack docks above the bottom bar on the RIGHT (at most 96 px tall, tests/hunt-screen.mjs
        HS-22): that strip is clear world (the Party panel holds the left), and it grows upward, never over the
-       bar or its drop menu. While a window is open it hides (hunt.css): a phone window is the whole sheet. */
+       bar or its drop menu. Beside a side sheet it steps left into the World's half; under a full-screen window it waits (hunt.css). */
     phone: Object.freeze({ anchor: 'br', dx: 4, dy: 104 }),
   }),
   /* Tracker r16: how many players are online, as the server counts (src/social/players-online.js).

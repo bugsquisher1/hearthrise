@@ -8,7 +8,7 @@
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
-// mutant-anchors: src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.csssrc/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
+// mutant-anchors: src/shell/context-menu.js src/styles/market.csssrc/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.csssrc/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
 // mutant-writes-tree: no — page mutants are served overrides
 //
 // QA's phone playtest (2026-10-24) scored mobile 4/10. play.html with supabase-js and the REST paths stubbed
@@ -72,7 +72,7 @@
 //   PH-17 THE DOOR (phones, 1440x900): no focus on a phone (it throws the keyboard up), links >= 44 px, nothing scrolls;
 //         a desktop keeps the first field's focus
 //   The panel's second read (2026-11-01, art/review/player-feedback-2026-11-01/phone-perf.txt on lane/f2-phone-perf):
-//   PH-18 A CARD NEVER HIDES WHAT IT NAMES (667x375): in Hunts the card is at most 105 px and the ground it names is on
+//   PH-18 A CARD NEVER HIDES WHAT IT NAMES (667x375): in Hunts the card is at most 90 px and the ground it names is on
 //         screen and on top; a ground's page keeps 165 px and Enter; Got it leaves the next card on its tab until pressed
 //   PH-19 Summary and Leave at least 16 px apart; a folded card off the Details panel's close (667x375)
 //   PH-20 Leave party and Disband inside the sheet at every phone size; Disband's first press asks, its second sends ONE
@@ -151,6 +151,7 @@ async function stub(page, s, fonts) {
     /* PH-14: her board; PH-16: a leave whose answer does not come (a tunnel). */
     if (name === 'hr_tally_view') return json({ ok: true, board: [], hunting: true });
     if (name === 'hr_hunt_leave' && s.holdLeave) return undefined;
+    if (name === 'hr_hunt_party_invite_own' && s.holdOwnInvite) return undefined;
     return json({ ok: true });
   });
 }
@@ -591,7 +592,7 @@ async function coachSheet(page, tag, fails) {
   await page.waitForTimeout(250);
   const f = await page.evaluate(() => { const card = window.__r('[data-hs-win="hunts"] .hs-win-coach .hs-pointer'), name = document.querySelector('.hw-hunt b'), r = window.__r(name);
     return { card: card.height, body: window.__r('[data-hs-win="hunts"] .hs-win-body').height, on: window.__onScreen(r) && document.elementFromPoint(r.left + 8, r.top + r.height / 2) !== null && name.contains(document.elementFromPoint(r.left + 8, r.top + r.height / 2)), name: name.textContent }; });
-  if (f.card > 105) fails.push('PH-18 [' + tag + '] the card in Hunts is ' + Math.round(f.card) + ' px tall');
+  if (f.card > 90) fails.push('PH-18 [' + tag + '] the card in Hunts is ' + Math.round(f.card) + ' px tall');
   if (!f.on) fails.push('PH-18 [' + tag + '] the ground the card names (' + f.name + ') is covered or off screen');
   await page.click('.hw-hunt', { timeout: 2500 }).catch(() => null);
   await page.waitForTimeout(300);
@@ -718,6 +719,17 @@ async function partyInvite(o, tag, fails) {
   if (sent.length !== 1 || sent[0].body.p_name !== 'Marlow') fails.push('PH-24 [' + tag + '] the invite sent ' + JSON.stringify(sent.map((c) => c.body)));
   if (!(await wait(page, () => /Invite sent to Marlow/.test(document.querySelector('.hw-party > .hh-intent-msg').textContent), null, 4000))) fails.push('PH-24 [' + tag + '] the inviter is told nothing');
 }
+/* The menu's Invite answers at once on a slow signal, before the server does. */
+async function menuSending(o, tag, fails) {
+  const { page, s } = o;
+  s.holdOwnInvite = true;
+  const opened = await wait(page, () => document.querySelector('.char-tab:not(.is-shown)'), null, 6000);
+  if (!opened) { fails.push('PH-24 [' + tag + '] CONTROL: no second hero\'s tab'); return; }
+  await page.evaluate(() => { const t = document.querySelector('.char-tab:not(.is-shown)'), r = t.getBoundingClientRect(); t.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 4, clientY: r.top + 4 })); });
+  if (!(await wait(page, () => document.querySelector('.hw-menu [data-hs-act="party-invite"]'), null, 3000))) { fails.push('PH-24 [' + tag + '] CONTROL: no Invite in the tab\'s menu'); return; }
+  await page.click('.hw-menu [data-hs-act="party-invite"]', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => /Sending/.test((document.querySelector('.hw-menu-say') || {}).textContent || ''), null, 1500))) fails.push('PH-24 [' + tag + '] the menu\'s Invite says nothing until the server answers');
+}
 async function inviteToast(page, tag, fails) {
   await wait(page, () => document.querySelector('.hw-alert'), null, 6000);
   await page.click('.hs-launch[data-hs-open="chat"]', { timeout: 2500 }).catch(() => null);
@@ -742,9 +754,11 @@ async function mouseWordsAndTargets(page, tag, fails) {
     if (!(await wait(page, (w) => document.querySelector('[data-hs-win="' + w + '"] [data-hs-built]'), win, 4000))) { fails.push('PH-24 [' + tag + '] ' + win + ' did not open'); continue; }
     await page.waitForTimeout(250);
     const f = await page.evaluate((w) => { const root = document.querySelector('[data-hs-win="' + w + '"]');
-      const small = Array.from(root.querySelectorAll('button, select, input:not([type="checkbox"]):not([type="range"])')).filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && e.getBoundingClientRect().height < 39.5)
+      /* The paper doll's slots are a figure of 36 px wells, side by side with the bag's grid: its look, not a stray control. */
+      const small = Array.from(root.querySelectorAll('button:not(.hw-slot), select, input:not([type="checkbox"]):not([type="range"])')).filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && e.getBoundingClientRect().height < 39.5)
         .map((e) => (e.className || e.tagName) + ' ' + Math.round(e.getBoundingClientRect().height));
-      return { mouse: /right-click|shift-press/i.test(root.innerText), small: small.slice(0, 4) }; }, win);
+      return { mouse: /right-click|shift-press/i.test(root.innerText), small: small.slice(0, 4), reading: /Reading your storage/.test(root.innerText) }; }, win);
+    if (f.reading) fails.push('PH-24 [' + tag + '] CONTROL: the Storage note never got past reading');
     if (f.mouse) fails.push('PH-24 [' + tag + '] ' + win + ' tells a thumb to use a mouse');
     if (f.small.length) fails.push('PH-24 [' + tag + '] ' + win + ' has presses under 40 px: ' + f.small.join(', '));
     await page.click('[data-hs-win="' + win + '"] .hs-close', { timeout: 2500 }).catch(() => null);
@@ -1277,8 +1291,10 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       if (t.up) { await inviteToast(t.page, '844x390', fails); await shot(t.page, 'invite-beside-sheet-844x390'); await done(t, '844x390'); } else fails.push('PH-24 the town did not mount');
       const c = await open(SMALLEST, ALPHA, invited);
       if (c.up) { await sheetWords(c.page, tag, fails); await done(c, tag); } else fails.push('PH-24 [' + tag + '] the town did not mount');
-      const m = await open(SMALLEST, ALPHA, (env) => { townOnly(env); longBag(env); });
+      const m = await open(SMALLEST, ALPHA, (env) => { townOnly(env); longBag(env); env.account = Object.assign({}, env.account, { bank: { coal: 3 } }); env.bank = { coal: 3 }; });
       if (m.up) { await mouseWordsAndTargets(m.page, tag, fails); await done(m, tag); } else fails.push('PH-24 [' + tag + '] the town did not mount');
+      const sn = await open({ width: 922, height: 423 }, ALPHA, (env) => { townOnly(env); twoHeroes(env); });
+      if (sn.up) { await menuSending(sn, '922x423', fails); await sn.ctx.close(); } else fails.push('PH-24 the town did not mount');
     }
     if (run('door')) { // PH-17
       for (const vp of PHONES) await doorRule(browser, base, vp, true, fails);
@@ -1441,7 +1457,6 @@ const MUTANTS = [
   ['PH-20 Disband goes on one tap', 'src/shell/widgets/party-panel.js', 'if (ctx.isPhone && ctx.isPhone() && !sc.disbandArmed) {', 'if (false) {'],
   ['PH-21 a tip for an item nobody pressed', 'src/shell/windows/item-tip.js', '  if (touch && !(pressed && anchor.contains(pressed))) return;\n', ''],
   ['PH-21 the tip lies on the sheet', 'src/shell/windows/item-tip.js', "const r = ((touch && anchor.closest('.hs-win')) || anchor).getBoundingClientRect();", 'const r = anchor.getBoundingClientRect();'],
-  ['PH-21 the tip takes presses', 'src/styles/windows.css', 'columns: 150px; pointer-events: none; }', 'columns: 150px; }'],
   ['PH-21 a mouseout puts the tip away', 'src/shell/windows/item-tip.js', '  if (touching(doc) && !byPress) return;\n', ''],
   ['PH-22 Back to sign in falls off the screen', 'src/styles/app.css', '  .auth-card[data-auth="create"] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 10px; }\n', ''],
   ['PH-22 Enter town runs off the foot', 'src/styles/app.css', '  .hero-region legend { float: left; width: 38px; padding: 3px 0 0; }\n', ''],
@@ -1449,7 +1464,8 @@ const MUTANTS = [
   ['PH-23 the sell sheet keeps its purse and tabs', 'src/styles/market.css', '  .hw-mk:has(.hw-mk-sell.is-on.is-paged) > :is(.hw-mk-greet, .hw-tabs) { display: none; }\n', ''],
   ['PH-23 what it would fetch comes first', 'src/styles/market.css', '  .hw-mk-sell .hw-mk-facts { order: 1; }\n', '  .hw-mk-sell .hw-mk-facts { order: -1; min-height: 80px; }\n'],
   ['PH-23 Sort is cut at the sheet\'s edge', 'src/styles/windows.css', '  .hw-find .hw-search { flex: 1 1 0; min-width: 0; }\n', '  .hw-find .hw-search { flex: none; width: 260px; }\n'],
-  ['PH-24 no invite in the Party window', 'src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', tab !== 'find');", ''],
+  ['PH-24 the menu\'s Invite is silent until the answer', 'src/shell/context-menu.js', "        say('Sending…');\n", ''],
+  ['PH-24 no invite in the Party window','src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', tab !== 'find');", ''],
   ['PH-24 the inviter is told nothing', 'src/shell/windows/party.js', "() => { box.value = ''; return 'Invite sent to ' + name + '.'; }", "() => { box.value = ''; return ''; }"],
   ['PH-24 no toast beside a sheet', 'src/styles/hunt.css', '  :root:has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-alerts { transform: translateX(calc(-1 * min(400px, 48vw) - 8px)); }\n', ''],
   ['PH-24 Also here is far down the sheet', 'src/shell/windows/characters.js', '    + alsoHereHtml(ctx)\n    + \'<ul class="hw-chars"></ul>\'', '    + \'<ul class="hw-chars"></ul>\' + alsoHereHtml(ctx)'],

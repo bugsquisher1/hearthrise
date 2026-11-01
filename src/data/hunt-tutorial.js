@@ -247,7 +247,7 @@ export const HUNT_TUTORIAL = Object.freeze([
      reactive card here interrupts the chain, so a Level 2 hero beside an older one was asked to party before its own
      Cellar steps (played on live 10-28, Pellow beside Corliss). Past the Cellar stretch it fits. */
   step('party_own', 'Hunt together',
-    'Your heroes can share a hunt. Right-click (long-press on a phone) another hero\'s tab and choose Invite to party; your own heroes join at once. Then the Party window\'s Your party tab shows everyone in it.',
+    'Your heroes can share a hunt. Right-click another hero\'s tab (on a phone: Heroes, then Invite) and choose Invite to party; your own heroes join at once. Then the Party window\'s Your party tab shows everyone in it.',
     'strip', { kind: 'partied' }, { reactive: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'own_hero_in_town' }],
       hooks: ['.char-tab[data-slot="{other}"]'] }),
   step('equip_upgrades', 'Wear what you found',
@@ -860,7 +860,7 @@ const SAY = Object.freeze({
   party_own: (f) => {
     const o = (heroesOn(f) || []).find((x) => x.slot !== f.self && x.open === true && x.hunting === false && x.name);
     if (!o) return null;
-    return { text: 'Your heroes can share a hunt. Right-click (long-press on a phone) ' + o.name + '\'s tab and choose Invite to party; your own heroes join at once. A shield tank holds the pack and a staff heals. Then the Party window\'s Your party tab shows everyone in it.', other: o.slot };
+    return { text: 'Your heroes can share a hunt. Right-click ' + o.name + '\'s tab (on a phone: Heroes, then Invite) and choose Invite to party; your own heroes join at once. A shield tank holds the pack and a staff heals. Then the Party window\'s Your party tab shows everyone in it.', other: o.slot };
   },
   equip_upgrades: (f) => {
     const ids = (f.upgrades || []).filter((id) => name(id));

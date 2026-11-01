@@ -3095,6 +3095,12 @@ has one in BOTH layouts; (7) a text probe must measure INK, not the range rect: 
 taller than its glyphs and reads as touching the ring when it does not; (8) a widget's open/close transform makes its
 box lie for 120 ms: wait for transform none before measuring where it stands.
 
+## 2026-11-01 lane/a-cap-popup
+A window's answer to a press now stands in the confirmation's well, sticky at the foot of what shows (windows.css), for
+every `.hs-win .hh-intent-msg` except Configure action's own; press-ack moves the list so it never covers the pressed
+control. A popup with nothing to say until the server speaks is a modal row with `key: null`. Listen on the account's
+intent ledger for anything every door must do: no door has to opt in. Shop rows at 667 wide still clip the item name.
+
 ## 2026-10-25 lane/b-window-icon-size (build of the picked C, amended)
 Tyler on the C mock: bag/storage "perfect"; Shop "too big"; doll "a bit smaller". Shipped: bag/storage wells 36 -> 44
 (6 / 10 a row at 1440), counts 14.5 -> 16; doll 52 px wells with 1x art; Shop lines 1x art in a 44 px sunk well,

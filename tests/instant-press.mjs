@@ -6,7 +6,7 @@
 //   node tests/instant-press.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/instant-press.mjs --shots <dir>  also write the popup and the answer in view (1440x900, 667x375)
 //
-// mutant-anchors: src/shell/press-ack.js src/session/intent-ledger.js src/session/character-session.js src/app/live-overlay.js src/shell/windows/play-cap.js src/shell/intent-words.js src/styles/windows.css
+// mutant-anchors: src/shell/press-ack.js src/session/intent-ledger.js src/session/character-session.js src/app/live-overlay.js src/shell/windows/play-cap.js src/shell/intent-words.js src/styles/windows.css src/shell/widgets/alerts.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the Services sections.
@@ -40,6 +40,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 
 const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
+const { BUILD } = await import(pathToFileURL(join(ROOT, 'src/build-info.js')).href);
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const SECTIONS = {
@@ -308,6 +309,23 @@ async function checks(overrides) {
       if (SHOTS) await page.screenshot({ path: join(SHOTS, 'play-cap-party-1440x900.png') });
       await ctx.close();
     }
+    { // IP-6, an alert's Start again: the alert's own line stays empty for the cap (the popup says it) and speaks for anything else.
+      const { ctx, page } = await inTown({ width: 1440, height: 900 });
+      const said = await page.evaluate(async (v) => {
+        const { renderAlerts } = await import('/src/shell/widgets/alerts.js?v=' + v);
+        renderAlerts.patch = () => {};
+        const run = async (error) => {
+          const marks = [];
+          const a = { key: 'k', action: 'restart', session: 's', slot: 0 };
+          await renderAlerts.act({ alerts: { list: () => [a], mark: (k, on, msg) => marks.push(msg), dismiss() {} }, peers: () => [{ slot: 0, restartHunt: async () => ({ ok: false, error }) }] },
+            {}, 'alert-do', { type: 'click' }, { getAttribute: () => 'k' });
+          return marks[marks.length - 1];
+        };
+        return [await run('too_many_playing'), await run('no_stamina')];
+      }, BUILD.version);
+      if (said[0] !== '' || !said[1]) fails.push('IP-6 an alert\'s line reads ' + JSON.stringify(said));
+      await ctx.close();
+    }
     // IP-7: the press is high in a window that scrolls, and the line's own place is below the fold.
     for (const [tag, viewport] of [['1440x900', { width: 1440, height: 900 }], ['667x375', { width: 667, height: 375 }]]) {
       const { ctx, page, s } = await inTown(viewport);
@@ -375,6 +393,7 @@ const MUTANTS = [
   ['the play cap also shows at the window\'s foot', 'src/shell/intent-words.js', "playCapOf(r) ? '' : refusalText(r, cs)", 'refusalText(r, cs)'],
   ['a party\'s Start held back by the cap opens no popup', 'src/shell/intent-words.js', "r.error === 'not_ready' && Array.isArray(r.seats) ? r.seats.find((x) => x && PLAY_CAP.has(x.error)) : null", 'null'],
   ['every refusal opens the popup', 'src/shell/intent-words.js', 'if (PLAY_CAP.has(r.error)) return r.error;', "if (r.error) return 'too_many_playing';"],
+  ['an alert also says the play cap on its line', 'src/shell/widgets/alerts.js', "playCapOf(r) ? '' : refusalWords(r.error)", 'refusalWords(r.error)'],
   ['the answer covers the press', 'src/shell/press-ack.js', 'if (p.refused) { refuse(p.el); clearOfAnswer(p.el); }', 'if (p.refused) refuse(p.el);'],
   ['the answer to a press scrolls away', 'src/styles/windows.css', '{ position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }', '{ padding: 6px 10px; }'],
 ];

@@ -22,6 +22,8 @@
 // overhang (a baked shadow is exactly that), no isometric corner, atlas ≤ 2048².
 // It also rebuilds every set from art/world/** in memory and fails on drift, so
 // an atlas cannot be hand-edited past the pipeline (tools/world-art/build.mjs).
+// A sheet ships as indexed colour (beta cost 2026-11-01: the town's six sheets were RGBA, 2,576 KB of a slow phone's first
+// minute, for 33-57 colours; indexed, 1,172 KB and the same pixels): a sheet written RGBA is red.
 //
 // The content contract the world renderer builds against is pinned too: the hunt
 // outfits (the hero everywhere, src/session/hero-look.js), the Rat King and every
@@ -207,6 +209,11 @@ function loadAtlases(root = ROOT) {
   });
 }
 
+/** A sheet's bytes are not indexed colour (PNG colour type 3): the finding, or null. */
+function encodingFinding(file, bytes) {
+  return bytes[25] === 3 ? null : `${file}: [sheet-encoding] PNG colour type ${bytes[25]}, not indexed (3): the same pixels at about twice the bytes (tools/world-art/png.mjs encodePNG)`;
+}
+
 function guard() {
   const fails = [];
   const atlases = loadAtlases();
@@ -217,6 +224,8 @@ function guard() {
     if (m.palette !== PALETTE_ID) fails.push(`${file}: locked to palette ${m.palette}, the world palette is ${PALETTE_ID}`);
     if (atlas.width !== m.size[0] || atlas.height !== m.size[1]) fails.push(`${file}: size ${m.size} but the PNG is ${atlas.width}x${atlas.height}`);
     if (pixelHash(atlas) !== m.pixels) fails.push(`${file}: atlas pixels do not match the manifest hash`);
+    const enc = encodingFinding(file, readFileSync(join(ROOT, OUT_DIR, m.image)));
+    if (enc) fails.push(enc);
     for (const f of validateAtlasSize(m.set, atlas.width, atlas.height)) fails.push(`${file}: [${f.rule}] ${f.detail}`);
     /* each set is held to ITS grid's budget (art/world/<set>/_set.json; the base grid without one) */
     const grid = setGrid(ROOT, m.set);
@@ -395,6 +404,20 @@ function selftest(atlases) {
   liveCase('a spawn whose monster has no sprite at all (the brown stub)', 'brown stub', new Map([...monsters, ['ghost_rat', new Set(['mill_cellar'])]]), sprites);
   const LIVE_MUTANTS = 7;
 
+  // The sheet encoding: the committed bytes pass, RGBA is red, and the encoder gives back every pixel, transparent ones
+  // included, past 256 colours too (it falls back to RGBA there, so no sheet can lose a colour to a palette).
+  const sheetBytes = readFileSync(join(ROOT, OUT_DIR, atlases[0].manifest.image));
+  const rgba = Buffer.from(sheetBytes); rgba[25] = 6;
+  const encodingOk = encodingFinding('x', sheetBytes) === null && /sheet-encoding/.test(encodingFinding('x', rgba) || '');
+  const many = createImage(40, 40);
+  for (let i = 0; i < many.data.length; i += 4) { many.data[i] = i & 255; many.data[i + 1] = (i >> 8) & 255; many.data[i + 2] = 7; many.data[i + 3] = 255; }
+  const few = createImage(8, 8);
+  for (let i = 0; i < 16; i += 4) { few.data[i] = 200; few.data[i + 1] = 100; few.data[i + 2] = 50; few.data[i + 3] = 255; }
+  few.data[20] = 9; few.data[21] = 9; few.data[22] = 9; few.data[23] = 0;   // a transparent pixel keeps its colour bytes
+  const roundTrips = [[many, 6], [few, 3]].every(([img, ct]) => { const b = encodePNG(img); return b[25] === ct && pixelHash(decodePNG(b)) === pixelHash(img); });
+  if (encodingOk && roundTrips) console.log('  ✓ a sheet written RGBA: caught by [sheet-encoding]; the encoder gives back every pixel');
+  else { escaped++; console.log(`  ✗ the sheet encoding: guard ${encodingOk}, round trip ${roundTrips}`); }
+
   // Drift, end to end: a copy of the tree with one atlas pixel edited by hand must
   // fail the rebuild comparison the plain run makes (checkAll), not just a hash.
   const tmp = mkdtempSync(join(tmpdir(), 'world-assets-'));
@@ -411,7 +434,7 @@ function selftest(atlases) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 11 + LIVE_MUTANTS} planted defects caught; ${controls.length + 2} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 12 + LIVE_MUTANTS} planted defects caught; ${controls.length + 2} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

@@ -42,9 +42,9 @@ export function catchUpLink(server, o) {
   };
   /* the link's own members are read-only (server.js freezes it): the view defines its two, inherits the rest */
   return Object.create(server, {
-    rpc: { value: (name, args) => (args && typeof args.p_idem === 'string'
-      ? once(() => server.rpc(name, args), () => server.rpc(name, { ...args, p_idem: newIdem() }))
-      : server.rpc(name, args)) },
+    rpc: { value: (name, args, opt) => (args && typeof args.p_idem === 'string'
+      ? once(() => server.rpc(name, args, opt), () => server.rpc(name, { ...args, p_idem: newIdem() }, opt))
+      : server.rpc(name, args, opt)) },
     accrue: { value: (body) => (body && typeof body.intentId === 'string'
       /* A market gesture keeps its one key (market-intents.js): settle_first took no claim on it, and an answer lost after
          this retry must replay when the player presses again, not buy twice under a key the window never saw. */

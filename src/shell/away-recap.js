@@ -10,12 +10,19 @@
 // stamped into the display-only residue field `awaySeen` (src/session/residue.js):
 // the hunt session, the server clock, Level XP, the coins THIS hero's hunt has taken
 // (the analyzer's, never the purse: gold is the account's, 2026-12-15-account-gold.sql,
-// so the purse moves with every hero) and the session's kills, at
-// most once a minute. On the next visit the first envelope is compared with that
-// stamp: if at least AWAY_MIN_MS of server time has passed, one alert line says
-// what changed (src/shell/alerts.js, kind `away`), once (its id carries the
-// stamp's time, and alerts remember the ids they showed). Every number in the
-// line is a difference of two server answers; nothing is predicted or spendable.
+// so the purse moves with every hero) and the session's kills. On the next visit the
+// first envelope is compared with that stamp: if at least AWAY_MIN_MS of server time
+// has passed, one alert line says what changed (src/shell/alerts.js, kind `away`),
+// once (its id carries the stamp's time, and alerts remember the ids they showed).
+// Every number in the line is a difference of two server answers; nothing is
+// predicted or spendable.
+//
+// WHEN IT IS WRITTEN (beta cost 2026-11-01: a put a minute per hero, 1 of a hunt's 8.3 requests a minute). When the page
+// is left, for every open hero (hidden, closed, signed out: alerts.js leaving, src/app/boot.js), on a fetch that outlives
+// the page. A hunt the page has not stamped yet is stamped at once, and a hunt on screen is renewed every AWAY_MIN_MS, so a
+// tab killed with no goodbye still has an answer, its absence overstated by less than the shortest one the line speaks of.
+// A page flickering in and out of view writes at most once per LEAVE_EVERY_MS. A hunt that ended in view gets one last
+// stamp with its final numbers, or the return would credit what the player watched.
 //
 // THE RETURN (panel 2026-11-01, played): the line says what to do next: the stamina left, or how long ago a hunt ended and
 // the stamina rested since. And markBack records the hunt the player came back to (residue `coach.back`), so the coach's
@@ -31,8 +38,10 @@ import { whole } from '../render/format.js?v=0.2.79';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
-/* How often the last-seen stamp is renewed while a hunt runs on screen (one residue put per character). */
-export const STAMP_EVERY_MS = 60 * 1000;
+/* How often the last-seen stamp is renewed while a hunt runs on screen, for a tab that dies with no goodbye. */
+export const STAMP_EVERY_MS = AWAY_MIN_MS;
+/* The most often leaving writes (one residue put per character): a page that flickers in and out of view is no absence. */
+export const LEAVE_EVERY_MS = 60 * 1000;
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const stampOf = (cs) => {
@@ -52,12 +61,11 @@ const signed = (n, unit) => (n >= 0 ? '+' : '−') + whole(Math.abs(n)) + ' ' + 
 /* The coins this hero's hunt has taken (the analyzer's session tally), or null. */
 const coinsOf = (a) => (a && a.hero && Number.isSafeInteger(a.hero.gold) && a.hero.gold >= 0 ? a.hero.gold : null);
 
-/** The numbers to stamp now (server's), or null when no hunt runs or the server has not said yet. */
-function awayStampOf(cs) {
-  const h = huntOf(cs);
+/** The numbers to stamp now (server's), or null when there is no hunt or the server has not said yet. */
+function awayStampOf(cs, h) {
   const lv = levelOf(cs);
   const now = serverNowOf(cs);
-  if (!h || h.ended || !lv || !Number.isFinite(now)) return null;
+  if (!h || !lv || !Number.isFinite(now)) return null;
   const a = analyzerOf(cs);
   const kills = a && a.hero && Number.isFinite(a.hero.kills) ? Math.floor(a.hero.kills) : null;
   const gold = coinsOf(a);
@@ -107,11 +115,21 @@ export function markBack(cs, session) {
   return r.back === session ? false : cs.setResidue('coach', Object.assign({}, r, { back: session }));
 }
 
-/** Renew the stamp when it is due (a hunt runs, and the last stamp is a minute old or for another hunt). */
-export function stampAway(cs) {
-  const next = awayStampOf(cs);
-  if (!next || typeof cs.setResidue !== 'function') return false;
+/**
+ * Renew the stamp when it is due: a hunt not stamped yet, one last stamp for a hunt seen ended, else by age (see the header).
+ * @param {object} cs
+ * @param {boolean} [leaving]  the page is being left: the stamp is now, unless the last one is under LEAVE_EVERY_MS old
+ */
+export function stampAway(cs, leaving = false) {
+  if (typeof cs.setResidue !== 'function') return false;
+  const h = huntOf(cs);
+  const next = awayStampOf(cs, h);
+  if (!next) return false;
   const was = stampOf(cs);
-  if (was && was.s === next.s && next.at - was.at < STAMP_EVERY_MS) return false;
+  if (h.ended) {
+    /* only the hunt this stamp is for, once (this stamp lands past the end, the last one before it: a write re-runs this through its
+       listeners, so a clock short of the end must not stamp at all), and never over a line still due: a new stamp would be a new line about the same hunt */
+    if (!was || was.s !== next.s || !(was.at < h.endedAtMs && next.at >= h.endedAtMs) || awayRecapOf(cs)) return false;
+  } else if (was && was.s === next.s && next.at - was.at < (leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)) return false;
   return cs.setResidue('awaySeen', next);
 }

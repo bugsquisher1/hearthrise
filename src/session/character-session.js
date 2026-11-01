@@ -88,12 +88,10 @@ export class CharacterSession {
     this._record = null;
     this._status = 'idle';
     this._listeners = new Set();
-    this._leave = null;
-    this._attempt = 0;
-    this._retry = null;
+    this._leave = null; this._attempt = 0; this._retry = null;
     this._residueTimer = null;
     this._leaveAsk = null; this._asking = null; this._wholeAt = -1; this._fed = false;   // the hello in flight; the version known whole; re-read last armed by a frame
-    this._pending = {}; this._sent = {};   // residue to put; residue put and not yet seen back (residue.js unconfirmedResidue)
+    this._pending = {}; this._sent = {}; this._putAt = -Infinity;   // residue to put; put and not yet seen back (residue.js unconfirmedResidue); the last put
     this._closed = false; this._viewed = o.viewed !== false; this._away = false;   // shown (AccountSession.view): only it streams live (setViewed); away: setAway
     this.lastVerdict = null;
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
@@ -572,13 +570,15 @@ export class CharacterSession {
     return true;
   }
 
-  /** Send the pending residue now (one put). */
-  async flushResidue() {
+  /** Send the pending residue now (one put). `keepalive`: the put outlives the page (it is being left). `hidden`: the page is
+      only hidden, and one flickering in and out of view writes no oftener than the debounce: inside it, the armed timer sends. */
+  async flushResidue({ keepalive = false, hidden = false } = {}) {
+    if (hidden && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
     const patch = this._pending;
     if (this._closed || !Object.keys(patch).length) return false;
-    this._pending = {}; this._sent = Object.assign({}, this._sent, patch);
-    const ans = await this._server.rpc('hr_put_client_state', { p_slot: this.slot, p_patch: patch, p_idem: newIdem() });
+    this._pending = {}; this._sent = Object.assign({}, this._sent, patch); this._putAt = this._now();
+    const ans = await this._server.rpc('hr_put_client_state', { p_slot: this.slot, p_patch: patch, p_idem: newIdem() }, { keepalive });
     if (!ans.ok && !this._closed) this._pending = Object.assign(patch, this._pending);   // kept for the next put
     return ans.ok;
   }

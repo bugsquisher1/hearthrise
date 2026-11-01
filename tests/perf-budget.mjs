@@ -8,7 +8,7 @@
 //                                              --sizes 1440x900,922x423 narrow it); prints, never fails
 //   node tests/perf-budget.mjs --mutate        every planted defect must turn the budget RED
 //
-// mutant-anchors: src/world/render/frame-sig.js src/shell/widgets/action-bar.js src/app/boot.js src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
+// mutant-anchors: src/social/social-session.js src/shell/away-recap.js src/shell/alerts.js src/world/render/frame-sig.js src/shell/widgets/action-bar.js src/app/boot.js src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
 // mutant-writes-tree: no — probes and mutants are served from memory (tests/_client-harness.mjs serve overrides)
 //
 // THE SCENARIO (Andy, Firefox, live v0.2.23: "the page is slowing down", "the analyser seems to have slowed
@@ -34,6 +34,8 @@
 //                  paints what changes, never the frame rate
 //   a still page   PB-QUIET (panel 10-31): the same town, a slot's tip open: DOM changes and style recalcs a second, never a frame's or a tick's worth
 //   a hidden page  PB-AWAY: past the grace it asks the server nothing, shown again it catches up at once
+//   what it asks   PB-REQ (beta cost 2026-11-01): requests a minute by verb, a hunt in view and the still town: each is a cost per
+//                  player the server pays for ever, so the totals, the social poll and the away stamp each hold a budget
 //   let go         PB-LEAK: DOM nodes and listeners after a forced GC, per hero switch and per bag open in a hunt
 //   the ground     PB-HELD (main run 40417203016): every map's ground (compose.js groundOf; the town's is 22k dual
 //                  tiles) is made once, in a task of its own: never inside a frame, never twice for one map
@@ -46,6 +48,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { HARNESS as LIVE_H } from './hunt-live.mjs';
 import { LOG_MAX_LINES } from '../src/data/combat-text.js';
+import { STATIONS } from '../src/data/world/stations.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope-live.json'), 'utf8'));
@@ -54,6 +57,8 @@ const HUNT = 'millrace_sewer';
 const WEAPON = Object.freeze({ melee_dps: 'hammer', ranger: 'ranged', tank: 'sword' });
 const TICK_MS = 10000;   // the server's settle cadence (pg_cron, live-world-decision)
 
+const TOWN_TAIL_MS = 60000;
+const IDLE_STAND = STATIONS.find((s) => s.kind === 'idle');
 /* THE BUDGETS (Chromium, 1440x900, the 4-minute CI scenario), from the measured numbers plus margin. */
 const BUDGET = Object.freeze({
   fpsMedianMin: 55,        // rAF frames per second, median over 1 s buckets
@@ -77,6 +82,10 @@ const BUDGET = Object.freeze({
   townRecalcPerS: 40,      // ...and style recalcs a second: measured 0.3-19; a write a frame is 60
   leakNodesPerAct: 60,     // PB-LEAK: DOM nodes left after a forced GC per hero switch or bag open (the live page's own small growth apart from it)
   leakListenersPerAct: 2,  // ...and listeners
+  huntAsksPerMin: 9,       // PB-REQ, a hunt in view (party of two, a switch and a storm in it): measured 7.5; v0.2.79 10.5
+  townAsksPerMin: 20,      // ...and the still town after it: measured 16.2-17.5 (a read every 6 s, a parked hero's keepalive, the poll)
+  pollPerMin: 3,           // hr_social_poll, one request every 30 s (two in a 30 s bucket at a window's edge)
+  stampsInView: 0,         // hr_put_client_state carrying the away stamp while a hunt runs in view: written on the way out (away-recap.js)
 });
 
 /* ── the page's probes (served copies only: the shipped files never carry them) ── */
@@ -157,6 +166,14 @@ const MUTANTS = [
     "idle.innerHTML = banner || ''; idle.hidden = !banner; }", "idle.innerHTML = banner || ''; }\n    idle.hidden = !banner;", /^town writes/, 'scenario', 3],
   ['an open slot tip is rebuilt every display tick (panel 10-31: 12 DOM changes a second, 4 layouts)', 'src/shell/widgets/action-bar.js',
     'if (TIP_SAYS.get(tip) !== says) {', 'if (tip) {', /^town writes/, 'scenario', 3],
+  ['the away stamp is written every minute again (beta cost 11-01: 1 of a hunt\'s 8.3 requests a minute, per hero)', 'src/shell/away-recap.js',
+    'export const STAMP_EVERY_MS = AWAY_MIN_MS;', 'export const STAMP_EVERY_MS = 60 * 1000;', /^asks: .*away stamp/, 'scenario', 4],
+  ['the online count is asked apart from the social poll again (beta cost 11-01: 2 requests a minute for nothing)', 'src/social/social-session.js',
+    '    return this.online.take(read ? ans.body.online : null);', "    this._account.server.rpc('hr_players_online', { p_slots: this.online.slots() });\n    return this.online.take(read ? ans.body.online : null);", /^asks: .*apart/, 'scenario', 4],
+  ['the social poll is sent twice as often (the total must see what no verb budget names)', 'src/social/social-session.js',
+    "this._poll = set(() => { if (!this._away", "this._poll = set(() => { this.reread(); this.reread(); if (!this._away", /^asks: .*a minute/, 'scenario', 4],
+  ['the page does not say goodbye (its heroes\' stamps stay where they were when it is hidden)', 'src/shell/alerts.js',
+    'for (const cs of account.characters()) { stampAway(cs, true);', 'for (const cs of []) { stampAway(cs, true);', /^asks: .*on the way out/, 'scenario', 4],
   ['a hidden tab goes on asking (old-laptop player 10-31: 64 calls and 1.45 MB in 2 minutes hidden)', 'src/app/boot.js',
     "  doc.addEventListener('visibilitychange', () => { if (account) account.setPageHidden(doc.hidden); });\n", '', /^hidden/, 'scenario', 4, 40000],
   ['each bar watches the timeline with its ctx (old-laptop player 10-31: ~1,080 nodes and 35 listeners a hop, never freed)', 'src/shell/widgets/action-bar.js',
@@ -325,6 +342,13 @@ async function makeServer(second = 'melee_dps') {
       const e = env(slot);
       if (S.ended || mis[slot].unitId === null) return Object.assign(e, { accrued: false, settled: false, reason: 'not_due' });
       return Object.assign(e, { accrued: false, settled: false, reason: 'below_min_span', hunt_live: shiftLive(LM.HS.huntLive(srv.inst, mis, UID, slot)) });
+    }
+    /* a town at rest (2027-01-28-town-stands.sql's shape): this hero on its stand, nobody else, so the page reads and stays as a player's does */
+    if (name === 'hr_town_view' || name === 'hr_town_here') {
+      if (!S.ended) return { ok: false, error: 'hunting' };
+      const [x, y] = IDLE_STAND.stands[slot];
+      return { ok: true, map: args.p_map, inst: 1, cap: 120, full: true, cursor: Date.now(), area: [0, 0, 255, 255], walkers: [], gone: [],
+        me: { map: args.p_map, inst: 1, station: IDLE_STAND.id, stand: slot + 1, x, y, gx: x, gy: y, dir: 's', at: [x, y], work: false, since_ms: 1 } };
     }
     return { ok: true };
   };
@@ -523,7 +547,7 @@ async function scenario(o) {
   const browser = await engine.launch(launch);
   const D = o.minutes * 60000, HID = o.hiddenMs;
   const errors = [];
-  const asked = [];   // every call the page made: [wall ms, name]
+  const asked = [];   // every call the page made: [wall ms, name, is it the away stamp]
   try {
     const ctx = await browser.newContext({ viewport: { width: o.width, height: o.height } });
     const page = await ctx.newPage();
@@ -536,7 +560,7 @@ async function scenario(o) {
     await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
       const name = r.request().url().split('?')[0].split('/').pop();
       let args = null; try { args = r.request().postDataJSON(); } catch (e) { args = null; }
-      asked.push([Date.now(), name]);
+      asked.push([Date.now(), name, name === 'hr_put_client_state' && !!(args && args.p_patch && args.p_patch.awaySeen)]);
       return r.fulfill({ contentType: 'application/json', body: JSON.stringify(srv.answer(name, args)) });
     });
     const cdp = o.browser === 'chromium' ? await ctx.newCDPSession(page) : null;
@@ -583,6 +607,8 @@ async function scenario(o) {
     await at(D * 0.5 + HID); await page.evaluate(() => window.__perf.hide(false));
     const shownAt = Date.now();
     await page.waitForTimeout(3000);
+    /* PB-REQ: the hunt in view, warm-up over, up to the hidden span (the hero switches and the alert storm are in it, as a player's are) */
+    const stampsLeaving = asked.filter(([t, , stamp]) => stamp && t >= hiddenAt && t < hiddenAt + 3000).length;
     /* PB-AWAY: past the grace a hidden page asks nothing of the engine or the character (the social poll's presence stamp apart);
        shown again, the viewed hero's catch-up goes at once and the live view comes back on it */
     const awayFor = (await import('../src/session/config.js')).SESSION_CONFIG.awayAfterMs;
@@ -617,7 +643,11 @@ async function scenario(o) {
       return got; });
     const h1 = await heap();
     await snap('end');
-    return Object.assign(analyse(out, w0, o, srv), { townPaintsPerS, townWritesPerS, townRecalcPerS, townTip: tail.tip, away, caught, awayFor, hiddenFor: shownAt - hiddenAt, heapMb: h0 === null ? null : (h1 - h0) / 1048576,
+    /* PB-REQ: the still town long enough to count (a 4-minute run; the rate is a read every 6 s and a poll every 30 s) */
+    if (o.minutes >= 4) await page.waitForTimeout(TOWN_TAIL_MS);
+    /* ...and the still town: from a little after the party's end (its summary and the first reads) to the end of the run */
+    const asks = { hunt: asksIn(asked, t0, hiddenAt), town: asksIn(asked, (srv.S.endedAt || t0 + D) + 20000, Date.now()), stampsLeaving, townOwed: o.minutes >= 4 };
+    return Object.assign(analyse(out, w0, o, srv), { asks, townPaintsPerS, townWritesPerS, townRecalcPerS, townTip: tail.tip, away, caught, awayFor, hiddenFor: shownAt - hiddenAt, heapMb: h0 === null ? null : (h1 - h0) / 1048576,
       heapRawMb: h0 === null ? null : (h1raw - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt });
   } finally {
     srv.close();
@@ -627,6 +657,16 @@ async function scenario(o) {
 }
 
 /* ── the numbers ── */
+/** The calls in [from, to): how long, how many, each verb's count, the away stamps among them. */
+function asksIn(asked, from, to) {
+  const inside = asked.filter(([t]) => t >= from && t < to);
+  const verbs = {};
+  for (const [, n] of inside) verbs[n] = (verbs[n] || 0) + 1;
+  return { ms: Math.max(0, to - from), n: inside.length, verbs, stamps: inside.filter((a) => a[2]).length };
+}
+const perMin = (w) => (w.ms > 0 ? (w.n * 60000) / w.ms : 0);
+const verbPerMin = (w, verb) => (w.ms > 0 ? ((w.verbs[verb] || 0) * 60000) / w.ms : 0);
+
 function analyse(out, w0, o, srv) {
   const mark = (n) => (out.marks.find((m) => m[1] === n) || [null])[0];
   const hid = mark('hidden'), shown = mark('shown');
@@ -715,8 +755,25 @@ function analyse(out, w0, o, srv) {
   };
 }
 
-function budgetFails(m) {
+/* PB-REQ. */
+function asksFails(a) {
   const f = [];
+  const b = BUDGET;
+  /* the still town needs a window worth judging: a 2-minute --mutate run of another defect has none, a 4-minute one must */
+  const town = a.town.ms >= 30000;
+  if (a.townOwed && !town) f.push(`asks: harness: only ${Math.round(a.town.ms / 1000)} s of still town to judge`);
+  if (!(a.hunt.ms >= 30000)) f.push(`asks: harness: only ${Math.round(a.hunt.ms / 1000)} s of hunt in view to judge`);
+  if (!(perMin(a.hunt) <= b.huntAsksPerMin)) f.push(`asks: ${perMin(a.hunt).toFixed(1)} requests a minute with a hunt in view (budget ${b.huntAsksPerMin}): ${JSON.stringify(a.hunt.verbs)}`);
+  if (town && !(perMin(a.town) <= b.townAsksPerMin)) f.push(`asks: ${perMin(a.town).toFixed(1)} requests a minute in the still town (budget ${b.townAsksPerMin}): ${JSON.stringify(a.town.verbs)}`);
+  if (!(verbPerMin(a.hunt, 'hr_social_poll') <= b.pollPerMin)) f.push(`asks: the social poll ${verbPerMin(a.hunt, 'hr_social_poll').toFixed(1)} a minute (budget ${b.pollPerMin})`);
+  if (a.hunt.verbs.hr_players_online || a.town.verbs.hr_players_online) f.push(`asks: the online count asked apart from the social poll, ${(a.hunt.verbs.hr_players_online || 0) + (a.town.verbs.hr_players_online || 0)} time(s) (budget 0: hr_social_poll answers it)`);
+  if (a.hunt.stamps > b.stampsInView) f.push(`asks: the away stamp written ${a.hunt.stamps} time(s) with a hunt in view (budget ${b.stampsInView}: it is written on the way out, away-recap.js)`);
+  if (a.stampsLeaving !== 2) f.push(`asks: hiding the page wrote ${a.stampsLeaving} away stamp(s) on the way out (the two open heroes: 2)`);
+  return f;
+}
+
+function budgetFails(m) {
+  const f = asksFails(m.asks);
   const b = BUDGET;
   if (m.errors.length) f.push('page errors: ' + m.errors.join(' | '));
   if (!(m.fpsMedian >= b.fpsMedianMin)) f.push(`fps median ${m.fpsMedian} (budget >= ${b.fpsMedianMin})`);
@@ -756,7 +813,8 @@ function row(m) {
     + ` | ground ${ms(m.ground)} (${m.ground ? m.ground.n : 0}) slice ${ms(m.groundSlice)} (${m.groundSlice ? m.groundSlice.n : 0}) in-frame ${m.groundInFrame} again ${m.groundRemade} tokens-in-draw ${m.tokenReadsInDraw}`
     + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers}) sheets ${m.sheets.bitmap} bitmap/${m.sheets.img} img`
     + ` | still town: ${m.townPaintsPerS === undefined ? '-' : m.townPaintsPerS.toFixed(1)} paints/s ${m.townWritesPerS === undefined ? '-' : m.townWritesPerS.toFixed(1)} writes/s ${m.townRecalcPerS == null ? '-' : m.townRecalcPerS.toFixed(1)} recalcs/s`
-    + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`;
+    + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`
+    + `\n  PB-REQ a hunt in view ${perMin(m.asks.hunt).toFixed(1)}/min ${JSON.stringify(m.asks.hunt.verbs)} over ${Math.round(m.asks.hunt.ms / 1000)} s; still town ${perMin(m.asks.town).toFixed(1)}/min ${JSON.stringify(m.asks.town.verbs)} over ${Math.round(m.asks.town.ms / 1000)} s; away stamps in view ${m.asks.hunt.stamps}, on the way out ${m.asks.stampsLeaving}`;
 }
 
 /* Each frame the page held over 50 ms: where in the scenario, what ran in it (Long Animation Frames: entry point,

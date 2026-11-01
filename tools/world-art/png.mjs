@@ -4,9 +4,11 @@
 // decodePNG accepts what PixelLab and every paint tool emit: 8-bit grey, grey+alpha,
 // RGB, RGBA and indexed colour (1/2/4/8-bit, with tRNS), plus 16-bit channels
 // (truncated to 8). Interlaced files are refused by name rather than misread.
-// encodePNG writes 8-bit RGBA with a per-row filter choice. Compressed bytes depend
+// encodePNG writes indexed colour when the image has 256 colours or fewer (every sheet does: the world palette
+// holds 33-57 per sheet, alpha only 0 or 255) and 8-bit RGBA with a per-row filter choice otherwise. Same pixels,
+// 55% fewer bytes on a sheet (beta cost 2026-11-01: the town's six went 2,576 -> 1,172 KB). Compressed bytes depend
 // on the zlib build, so drift checks compare PIXELS (pixelHash), never file bytes.
-import { inflateSync, deflateSync } from 'node:zlib';
+import { inflateSync, deflateSync, constants as zlib } from 'node:zlib';
 import { createHash } from 'node:crypto';
 
 const SIG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -102,8 +104,41 @@ function chunk(type, body) {
   return out;
 }
 
+/** The image's colours and each pixel's index, or null over 256 colours. Transparent colours come first, so tRNS stays short. */
+function paletteOf({ width: w, height: h, data }) {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const count = new Map();
+  for (let i = 0; i < w * h * 4; i += 4) {
+    const v = view.getUint32(i);
+    count.set(v, (count.get(v) || 0) + 1);
+    if (count.size > 256) return null;
+  }
+  const opaque = (v) => ((v & 255) === 255 ? 1 : 0);
+  const colours = [...count.keys()].sort((a, b) => opaque(a) - opaque(b) || count.get(b) - count.get(a));
+  const indexOf = new Map(colours.map((v, i) => [v, i]));
+  const indices = new Uint8Array(w * h);
+  for (let p = 0; p < indices.length; p++) indices[p] = indexOf.get(view.getUint32(p * 4));
+  return { colours, indices };
+}
+
+/* Palette indices are not magnitudes: row filters only hurt them. */
+function encodeIndexed(w, h, { colours, indices }) {
+  const raw = Buffer.alloc((w + 1) * h);
+  for (let y = 0; y < h; y++) raw.set(indices.subarray(y * w, (y + 1) * w), y * (w + 1) + 1);
+  const plte = Buffer.alloc(colours.length * 3);
+  colours.forEach((v, i) => { plte[i * 3] = v >>> 24; plte[i * 3 + 1] = (v >>> 16) & 255; plte[i * 3 + 2] = (v >>> 8) & 255; });
+  const alphas = colours.filter((v) => (v & 255) !== 255).map((v) => v & 255);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; ihdr[9] = 3;
+  const packed = [zlib.Z_DEFAULT_STRATEGY, zlib.Z_FILTERED].map((strategy) => deflateSync(raw, { level: 9, memLevel: 9, strategy })).sort((a, b) => a.length - b.length)[0];
+  return Buffer.concat([SIG, chunk('IHDR', ihdr), chunk('PLTE', plte), ...(alphas.length ? [chunk('tRNS', Buffer.from(alphas))] : []), chunk('IDAT', packed), chunk('IEND', Buffer.alloc(0))]);
+}
+
 export function encodePNG(img) {
   const { width: w, height: h, data } = img;
+  const palette = paletteOf(img);
+  if (palette) return encodeIndexed(w, h, palette);
   const stride = w * 4;
   const raw = Buffer.alloc((stride + 1) * h);
   const cand = [0, 1, 2, 3, 4].map(() => Buffer.alloc(stride));

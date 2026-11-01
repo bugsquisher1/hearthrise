@@ -92,7 +92,7 @@ async function stub(page, residue) {
     if (name === 'hr_town_view') return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: 1, area: [0, 0, 23, 13], gone: [], me: STAND, walkers: [
       { id: ANDY, slot: 0, name: PEER, level: 9, role: 'healer', x: PEER_AT[0], y: PEER_AT[1], gx: PEER_AT[0], gy: PEER_AT[1], dir: 'w', age_ms: 0, station: 'arrival', work: false }] });
     if (name === 'hr_chat_recent') return json({ ok: true, zone: 'local:town', party: null, lines: [] });
-    if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
+    if (name === 'hr_social_state' || name === 'hr_social_poll') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
     return json({ ok: true });
   });
@@ -208,7 +208,7 @@ async function stubSlots(page, s) {
     if (name === 'hr_town_here') return json({ ok: true, me: STAND });
     if (name === 'hr_town_view') return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: 1, area: [0, 0, 23, 13], gone: [], me: STAND, walkers: [] });
     if (name === 'hr_chat_recent') return json({ ok: true, zone: 'local:town', party: null, lines: [] });
-    if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
+    if (name === 'hr_social_state' || name === 'hr_social_poll') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
     return json({ ok: true });
   });

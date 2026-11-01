@@ -124,7 +124,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_friend_remove: 'end a friendship or withdraw an ask (FriendStore.remove)',
   hr_social_state: 'friends, asks and blocks, and this account’s presence stamp, a read (SocialSession.reread)',
   hr_inspect: 'another player’s worn items, a read (inspectOf)',
-  hr_players_online: 'stamp this account’s own open characters present (slots only) and read how many characters are playing, a count only (PlayersOnline.ask; 2026-11-07-players-online.sql)',
+  hr_social_poll: 'the social read plus stamping this account’s own open characters present (slots only) and how many characters are playing, a count only, in one request (SocialSession._presence; 2027-02-17-social-poll.sql)',
   /* Town presence (2026-10-25-town-walk.sql): this character's own tile, goal tile and facing, catalogue-bounded; never a user or a time.
      The stands (2027-01-28-town-stands.sql): the SERVER places every body; the client names its slot, a map, a station id,
      a window centre and the last answer's cursor, never a stand, a tile of a parked body, a user or a time. */

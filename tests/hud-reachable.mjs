@@ -7,7 +7,7 @@
 //   node tests/hud-reachable.mjs --mutate --only <words>   only the mutants whose name holds <words>
 //   node tests/hud-reachable.mjs --shots <dir>   also write a screenshot per size, solo and in a party of 4
 //
-// mutant-anchors: src/shell/shell.js src/shell/hud-room.js src/shell/hud.js src/shell/window-manager.js src/shell/away-recap.js src/shell/alerts.js src/styles/hunt.css
+// mutant-anchors: src/shell/shell.js src/shell/hud-room.js src/shell/hud.js src/shell/window-manager.js src/shell/away-recap.js src/shell/alerts.js src/styles/hunt.css src/styles/app.css
 // mutant-writes-tree: no — page mutants are served overrides
 //
 // Three friends' panel, 2026-11-01 (art/review/player-feedback-2026-11-01/friends.txt on lane/f3-friends): below about 1550 px
@@ -30,6 +30,9 @@
 //        while away keeps saying so, with the stamina now
 //   HR-8 THE PHONE KEEPS ITS OWN RULES (922x423): no desktop room is written on the Party panel or the alerts
 //   HR-9 A HUNT IN VIEW IS NOT AN ABSENCE: past the stamp's age with the page open, no "While you were away"
+//   HR-10 THE NEW-VERSION BANNER (live 1365x846, 2026-11-01: the launcher row lay over Reload and Later): raised and dismissed on a
+//        live page at each size and two phones, its line and presses are clear, the launchers and every panel sit in the room below it
+//        and take their presses, a window's close too; Later gives the room back
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -399,6 +402,84 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       } else fails.push('HR-8 the phone screen did not mount (' + up + ')');
       await ctx.close();
     }
+
+    /* HR-10: the banner comes and goes on a live page (no resize event), at each size, phones too. */
+    const raised = async (page) => {
+      await page.route('**/src/build-info.js?n=*', (r) => r.fulfill({ contentType: 'text/javascript', body: "export const BUILD = { version: '9.9.9' };" }));
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+      const up = await wait(page, () => document.querySelector('.new-version'), null, 5000);
+      await settle(page);
+      return up;
+    };
+    const bannerHolds = async (page, at, w, h, phone) => {
+      for (const g of await presses(page, '.new-version-reload, .new-version-later')) if (!g.ok) fails.push('HR-10 ' + at + ': "' + g.what + '" cannot be pressed: at ' + g.at + ' lies ' + g.on);
+      const read = await page.evaluate(() => {
+        const b = document.querySelector('.new-version'), l = document.querySelector('.new-version-line').getBoundingClientRect();
+        const ends = [l.left + 2, l.right - 2].map((x) => { const on = document.elementFromPoint(x, l.top + l.height / 2); return !!on && b.contains(on); });
+        const row = Array.from(document.querySelectorAll('[data-hs-open]')).filter((e) => e.offsetWidth).map((e) => e.getBoundingClientRect().top);
+        return { foot: b.getBoundingClientRect().bottom, ends, row, scrolls: document.documentElement.scrollHeight > innerHeight + 1 || document.documentElement.scrollWidth > innerWidth + 1 };
+      });
+      if (read.ends.includes(false)) fails.push('HR-10 ' + at + ': something lies over the banner\'s line');
+      if (!read.row.length || read.row.some((t) => t < read.foot - 0.5)) fails.push('HR-10 ' + at + ': the launcher row starts above the banner\'s foot ' + Math.round(read.foot) + ': ' + JSON.stringify(read.row.slice(0, 3).map(Math.round)));
+      if (read.scrolls) fails.push('HR-10 ' + at + ': the banner makes the page scroll');
+      const b = await boxes(page);
+      /* A phone's panels are sheets, out of view until opened (phone-touch); its bar is what lives on screen. */
+      if (phone) {
+        const pb = b['action-bar'];
+        if (!pb || pb.top < read.foot - 0.5 || pb.bottom > h + 0.5) fails.push('HR-10 ' + at + ': the action bar is not in the room below the banner: ' + JSON.stringify(pb || null));
+        return;
+      }
+      for (const k of ['party', 'analyzer', 'action-bar']) if (!b[k]) fails.push('HR-10 ' + at + ': the ' + k + ' panel is not shown');
+      for (const [k, q] of Object.entries(b)) if (q.top < read.foot - 0.5 || q.left < 0 || q.bottom > h + 0.5 || q.right > w + 0.5) fails.push('HR-10 ' + at + ': ' + k + ' is not in the room below the banner: ' + JSON.stringify([q.left, q.top, q.right, q.bottom].map(Math.round)));
+      const world = Object.entries(b).filter(([, q]) => q.world);
+      for (let i = 0; i < world.length; i++) for (let j = i + 1; j < world.length; j++) if (crossing(world[i][1], world[j][1])) fails.push('HR-10 ' + at + ': ' + world[i][0] + ' and ' + world[j][0] + ' overlap');
+      const bar = b['action-bar'];
+      if (bar && Math.abs((bar.left + bar.right) / 2 - w / 2) > 1) fails.push('HR-10 ' + at + ': the action bar slid off its centre');
+      for (const sel of ['[data-hs-open]', '.hp-m .hh-gauge.is-hp', '.ha-analyzer .hs-wfold', '.hb-plaque .hh-step button', '.hp-kick', '.hp-acts button']) {
+        const got = await presses(page, sel);
+        if (!got.length) fails.push('HR-10 ' + at + ': nothing shows ' + sel);
+        for (const g of got) if (!g.ok) fails.push('HR-10 ' + at + ': "' + g.what + '" (' + sel + ') cannot be reached: at ' + g.at + ' lies ' + g.on);
+      }
+      await scrollBack(page);
+    };
+    { // HR-10 desktop
+      const { ctx, page, up } = await open(partyOf4);
+      if (up) {
+        await wait(page, () => document.querySelectorAll('.hp-m').length === 4);
+        for (const [w, h] of [...SIZES, [1365, 846]]) {
+          const at = w + 'x' + h;
+          await size(page, w, h);
+          if (!(await raised(page))) { fails.push('HR-10 CONTROL ' + at + ': no banner'); break; }
+          await bannerHolds(page, at, w, h, false);
+          /* A window opened with the banner up stays below it, and takes its press. */
+          if (w === 1024) {
+            const id = await page.$eval('[data-hs-open]', (e) => e.getAttribute('data-hs-open'));
+            await page.click('[data-hs-open="' + id + '"]');
+            if (await wait(page, (i) => document.querySelector('[data-hs-win="' + i + '"]'), id, 5000)) {
+              await settle(page);
+              for (const g of await presses(page, '.hs-win-head .hs-close, .hs-win-head [data-hs-close]', '[data-hs-win="' + id + '"]')) if (!g.ok) fails.push('HR-10 ' + at + ': ' + id + '\'s close cannot be pressed: at ' + g.at + ' lies ' + g.on);
+              await page.click('[data-hs-open="' + id + '"]');
+              await wait(page, (i) => !document.querySelector('[data-hs-win="' + i + '"]'), id, 5000);
+            } else fails.push('HR-10 ' + at + ': ' + id + ' did not open under the banner');
+          }
+          await page.click('.new-version-later');
+          await settle(page);
+          /* Later gives the room back: the row is at the top of the page again and the bar at the foot, as with no banner. */
+          const back = await page.evaluate(() => ({ gone: !document.querySelector('.new-version'), row: document.querySelector('[data-hs-open]').getBoundingClientRect().top, bar: document.querySelector('[data-hs-widget="action-bar"]').getBoundingClientRect().bottom }));
+          if (!back.gone || back.row > 8 || back.bar < h - 40) fails.push('HR-10 ' + at + ': Later did not give the room back: ' + JSON.stringify(back));
+        }
+      } else fails.push('HR-10 the screen did not mount');
+      await ctx.close();
+    }
+    for (const [w, h] of [[922, 423], [667, 375]]) { // HR-10 phones
+      const { ctx, page } = await open(partyOf4, { width: w, height: h });
+      if (await wait(page, () => document.querySelector('.hb-bar') && document.querySelector('.hp-m'))) {
+        await settle(page);
+        if (await raised(page)) await bannerHolds(page, w + 'x' + h, w, h, true);
+        else fails.push('HR-10 CONTROL ' + w + 'x' + h + ': no banner');
+      } else fails.push('HR-10 the phone screen did not mount at ' + w + 'x' + h);
+      await ctx.close();
+    }
   } catch (e) {
     if (e !== STOP) throw e;
   } finally {
@@ -429,6 +510,7 @@ const MUTANTS = [
   ['the away card stays after the hunt ended (HR-7)', 'src/shell/away-recap.js', 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended)) return null;', 'if (!h || h.sessionId !== a.session) return null;'],
   ['a hunt in view is judged as an absence (HR-9)', 'src/shell/alerts.js', 'if (judged && awaySettled(cs)) returning.delete(cs.slot);', ''],
   ['the desktop\'s room reaches the phone (HR-8)', 'src/shell/hud-room.js', 'if (phone) { if (!room.has(e)) room.set(e, null); continue; }', ''],
+  ['the launcher row stays at the top of the page, over the banner (HR-10)', 'src/styles/app.css', '.client-page.has-new-version .app { position: relative; flex: 1;', '.client-page.has-new-version .app { flex: 1;'],
 ];
 
 async function main() {

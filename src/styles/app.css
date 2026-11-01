@@ -328,9 +328,10 @@
 .live-overlay p { margin: 0; white-space: nowrap; }
 
 /* A NEW RELEASE (src/app/new-version.js): one calm line above the app, IN FLOW, so it pushes the
-   game down and never covers the action bar or a window. Later hides it until the next check. */
+   game down and never covers the action bar or a window. Later hides it until the next check.
+   The app is the box of the screen layer (.hs-screen, the launcher row), so the row comes down with it and never lies over Reload. */
 .client-page.has-new-version { display: flex; flex-direction: column; height: 100vh; }
-.client-page.has-new-version .app { flex: 1; min-height: 0; height: auto; }
+.client-page.has-new-version .app { position: relative; flex: 1; min-height: 0; height: auto; }
 .client-page.has-new-version .app.is-auth { overflow: auto; }
 .new-version {
   flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 14px;

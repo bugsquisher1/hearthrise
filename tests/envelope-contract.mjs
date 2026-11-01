@@ -158,7 +158,8 @@ function contract(R, cs, body, tl) {
   need('skill_inputs', R.IS.drawsOnStorage(cs) === true && typeof R.IS.heldOf(cs) === 'object',
     'drawsOnStorage reads ' + JSON.stringify(body.skill_inputs) + ' (want {from: ["bag", "storage"]})');
   // the work bench tax (2027-02-19-bench-tax.sql): what a public bench takes, the words before Start
-  need('bench_tax', R.BT.benchTaxOf(cs) !== null && Number.isInteger(R.BT.benchTaxOf(cs).carry) && Object.keys(R.BT.benchTaxOf(cs).rooms).length > 0,
+  // This hero is hunting: the section sends no rooms and no fees to a hunter (settle cost), only the carry; a town hero's rooms: tests/bench-tax.mjs T-HOUSE.
+  need('bench_tax', R.BT.benchTaxOf(cs) !== null && Number.isInteger(body.bench_tax && body.bench_tax.carry_mg) && R.BT.benchTaxOf(cs).carry === body.bench_tax.carry_mg,
     'benchTaxOf reads ' + JSON.stringify(body.bench_tax).slice(0, 160));
   // the ACCOUNT storage's space (2026-11-28-storage-chests.sql): used / cap and the next chest, the Storage window's line
   const dp = R.IS.depotOf(cs);

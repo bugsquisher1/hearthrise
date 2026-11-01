@@ -110,6 +110,8 @@ export function kindOf(id) {
   const made = it.type !== 'tool' && madeSet().has(id);
   if (dropSet().has(id) && !made) return 'loot';
   if (made) return 'material';
+  /* the raw flag on a tool is only the shop's bid (BULK_GOODS, src/data/items.js), never its kind */
+  if (it.type === 'tool') return 'other';
   if (it.raw || it.tag === 'crafting-mat' || it.seed || inputSet().has(id)) return 'material';
   if (it.type === 'trophy' || RARE_TAGS.has(it.tag) || RARE_RUNGS.has(it.rarity)) return 'rare';
   return 'other';

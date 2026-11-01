@@ -34,7 +34,8 @@ import { whole, gold } from '../render/format.js?v=0.2.78';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
-/* Stamina under this much is said before a hunt (the hunt will end on it soon). */
+/* Stamina under this much is said as the short of it; above it, what it means for a player about to walk away (panel 2026-11-01:
+   8 h away on 3 h 17 of stamina, 5 h 46 idle with no word before leaving). */
 const STAMINA_SAY_MS = 2 * 3600000;
 
 /* The role a worn set plays (src/data/hunt-roles.js, the ONE weapon -> role source: the weapon and the shield
@@ -207,9 +208,11 @@ export function beforeLines(cs, o) {
   }
   const st = staminaOf(cs);
   if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: 'No stamina left: rest in town before you go.', short: true });
-  else if (st && st.msLeft < STAMINA_SAY_MS) {
+  else if (st) {
     const m = Math.floor(st.msLeft / 60000);
-    out.push({ id: 'stamina', text: 'Stamina: ' + (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min left, then the hunt ends.', short: false });
+    const left = (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min';
+    out.push({ id: 'stamina', text: st.msLeft < STAMINA_SAY_MS ? 'Stamina: ' + left + ' left, then the hunt ends.'
+      : 'Stamina: ' + left + '. Your hero hunts that long, even with the game closed, then comes home.', short: false });
   }
   const gp = goldOf(cs);
   if (paysStore && gp !== null) {

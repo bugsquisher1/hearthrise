@@ -18,7 +18,7 @@
 // the page in its place, with a way back.
 // Enter is ONE hr_hunt_enter; the server checks the band, the stamina and the
 // stock, and the hunt shows only from the re-read envelope. A hunt above the
-// character's level says so ("expect losses"); the floor is a warning, and
+// character's level says so (ABOVE_LEVEL_WORDS); the floor is a warning, and
 // only the server refuses (Tyler 10-18: 15 or more levels under it).
 //
 // IN A PARTY (PARTY_SPEC.md §1.5, Tyler 10-19) the ground is chosen HERE, at

@@ -387,7 +387,8 @@ const cases = {
       seen.push(c.id);
       f = { ...f, read: new Set([...f.read, c.id]) };
     }
-    for (const want of ['plant_land', 'bar_intro', 'first_spell', 'help_page']) if (!seen.includes(want)) return want + ' was not on the way past: ' + seen.join(', ');
+    for (const want of ['plant_land', 'bar_intro']) if (!seen.includes(want)) return want + ' was not on the way past: ' + seen.join(', ');
+    for (const later of ['first_spell', 'help_page']) if (seen.includes(later)) return later + ' came in the first hunt (it waits for the Thicket): ' + seen.join(', ');
     /* town: every asking card has its way past too, up to the Thicket's Enter */
     let t = tutAt(M, K, floor, { levelXp: M.xp.charXpForLevel(floor), visited: new Set(['mill_cellar']), sellable: 3 });
     t = { ...t, read: new Set(seen) };
@@ -424,7 +425,7 @@ const cases = {
     if (id(bow({ ...S, slots: [...B.slots, { type: 'attack_with_item', id: 'bronze_arrows', conditions: [], enabled: true, usable: true, count: 50 }] })) !== 'to_the_cellar') return 'arrows on the bar still read as nothing to shoot';
     if (id(tutAt(M, K, 1, { ...S, ammo: null })) !== 'to_the_cellar') return 'a sword with no ammo is told it has nothing to shoot';
     /* A spell costs runes: the ring walks deeper as the player goes (deepest first; launcher.js ringPlan takes the first on screen) */
-    const off = { ...fresh(floor - 1), read: new Set(seen.filter((x) => x !== 'first_spell')) };
+    const off = fresh(floor + 1, { huntId: 'meadowbrook_thicket', visited: new Set(['mill_cellar', 'meadowbrook_thicket']), read: new Set(seen) });
     const offer = M.tut.cardFor(M.tut.currentCard(off), off);
     if (offer.id !== 'first_spell' || !/data-store/.test(offer.hooks[0]) || !/data-id/.test(offer.hooks[1]) || !/data-tab/.test(offer.hooks[2])) return 'A spell costs runes rings ' + JSON.stringify(offer.hooks);
     return null;
@@ -505,9 +506,12 @@ const cases = {
     const order = walkChain(M, T).map((x) => x.id);
     /* the sword's default sets hold no rune spell (playtest 2026-10-29 #9: Flame Strike sat struck from minute one); "A spell
        costs runes" offers it in the Cellar, and a hero who takes it (store rune on) meets "Make your own runes" on day one */
-    /* the panel's order (2026-10-31): the style before any hunt, Blessings first on the way back, the food sums once the hero has eaten */
-    const want = ['styles', 'to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'first_spell', 'help_page', 'earn_the_thicket',
-      'leave_cellar', 'bless', 'sell_loot', 'loot_rules', 'cook_catch', 'tamsins_task', 'into_the_thicket', 'food_when', 'food_order', 'tamsin_pays', 'save_setup', 'own_runes', null];
+    /* the panel's order (2026-10-31): the style before any hunt, Blessings first on the way back, the food sums once the hero has eaten.
+       The panel again (2026-11-01, "about ten tips before hunt 2"): what the first two hunts need comes first; the spell offer and the
+       Help page wait for the Thicket, where a hero has time to read, and Cook and Decide once for the second return */
+    const want = ['styles', 'to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'earn_the_thicket',
+      'leave_cellar', 'bless', 'sell_loot', 'tamsins_task', 'into_the_thicket', 'food_when', 'food_order', 'first_spell', 'help_page', 'tamsin_pays',
+      'loot_rules', 'cook_catch', 'save_setup', 'own_runes', null];
     if (order.join() !== want.join()) return 'a sword-and-shield hero walks ' + order.join(' > ') + ', wanted ' + want.join(' > ');
     /* NO SOLO WALL: paid, a solo hero at the Sewer's floor is done (What next), at any Level up to the Sewer's top. */
     const done = walkChain(M, T).pop().facts;
@@ -598,8 +602,11 @@ const cases = {
       /* a bar with no rune spell, of a style that has one, is offered it ("A spell costs runes"); Got it moves on */
       const offer = !T.slots.some((s) => s.type === 'ability' && M.abilities.ABILITIES[s.id].rune)
         && Object.values(M.abilities.ABILITIES).some((a) => a.active && a.rune && a.disciplines.includes(T.discipline));
-      if ((say(fixedOrder) || {}).id !== (offer ? 'first_spell' : 'help_page')) return set + ': with the bar set the card is ' + (say(fixedOrder) || {}).id;
-      if (offer && (say({ ...fixedOrder, read: new Set([...fixedOrder.read, 'first_spell']) }) || {}).id !== 'help_page') return set + ': after Got it on the spell offer the card is ' + (say({ ...fixedOrder, read: new Set([...fixedOrder.read, 'first_spell']) }) || {}).id;
+      /* the spell offer and the Help page wait for the Thicket's time (panel 2026-11-01) */
+      const inThicket = { ...fixedOrder, huntId: 'meadowbrook_thicket', visited: new Set([...fixedOrder.visited, 'meadowbrook_thicket']) };
+      if (['first_spell', 'help_page'].includes((say(fixedOrder) || {}).id)) return set + ': in the first hunt the card is ' + (say(fixedOrder) || {}).id;
+      if ((say(inThicket) || {}).id !== (offer ? 'first_spell' : 'help_page')) return set + ': in the Thicket, with the bar set, the card is ' + (say(inThicket) || {}).id;
+      if (offer && (say({ ...inThicket, read: new Set([...inThicket.read, 'first_spell']) }) || {}).id !== 'help_page') return set + ': after Got it on the spell offer the card is ' + (say({ ...inThicket, read: new Set([...inThicket.read, 'first_spell']) }) || {}).id;
       /* the store slot moved BEFORE the own food at the same HP: the first slot whose conditions pass fires, so it eats
          first; the card asks to move it after the own slot (lowering it to the same HP would not do) */
       const swapped = fixedOrder.slots.slice();
@@ -620,13 +627,14 @@ const cases = {
        eats on time; the hatchets' Rend (no store rune by default) is the struck spell the rune card speaks of */
     const tank = tutKit(M, 'tank');
     const T = tutKit(M, null, 'practice_hatchets');
-    const env = (stored, usable, K = T) => ({ state: { level_xp: M.xp.charXpForLevel(3) }, skills: { farming: { xp: 28, level: 1 } },
-      hunt: { session_id: 's', hunt_id: 'mill_cellar', ended: false, session: {}, hero: { hp_max: 170 }, pose: { units: [] } },
+    const env = (stored, usable, K = T, ground = 'mill_cellar') => ({ state: { level_xp: M.xp.charXpForLevel(3) }, skills: { farming: { xp: 28, level: 1 } },
+      hunt: { session_id: 's', hunt_id: ground, ended: false, session: {}, hero: { hp_max: 170 }, pose: { units: [] } },
       hunt_settings: { preset: 0, role: K.role, discipline: K.discipline, stance: 'balanced', store: K.storeRows,
         slots: K.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and', usable: usable || s.usable, count: s.count })), bar: stored } });
     const cardOn = (e, sh) => { const c = tsb.pointerCardOf({ read: (k) => e[k], slot: 0 }, sh); return c && c.id; };
     if (tank.slots.some((s) => s.usable === false)) return 'the kit\'s sword-and-shield bar shows a struck slot: ' + tank.slots.filter((s) => s.usable === false).map((s) => s.id).join();
-    if (cardOn(env([], false, tank), { read: ['bar_intro'] }) !== 'first_spell') return 'through the envelope a tank at Level 3, the bar read, sees ' + cardOn(env([], false, tank), { read: ['bar_intro'] });
+    if (cardOn(env([], false, tank, 'meadowbrook_thicket'), { read: ['bar_intro'] }) !== 'first_spell') return 'through the envelope a tank in the Thicket, the bar read, sees ' + cardOn(env([], false, tank, 'meadowbrook_thicket'), { read: ['bar_intro'] });
+    if (cardOn(env([], false, tank), { read: ['bar_intro'] }) === 'first_spell') return 'through the envelope a tank in the Cellar is offered a spell before the Thicket';
     if (cardOn(env([])) !== 'spell_runes') return 'through the envelope (no Got it recorder) a hatchet hero at Level 3 sees ' + cardOn(env([]));
     if (cardOn(env([]), { read: [] }) !== 'bar_intro') return 'through the envelope with a recorder the bar card is not up: ' + cardOn(env([]), { read: [] });
     if (cardOn(env([]), { read: ['bar_intro'] }) !== 'spell_runes') return 'through the envelope, read, the rune card is not up';
@@ -711,9 +719,16 @@ const cases = {
     /* Cash in tells the truth: loot is in the bag as it drops (the old card said it goes there when you leave) */
     const cash = said('leave_cellar');
     if (!cash || /when you do/.test(cash.text) || !cash.text.includes('already in your bag')) return 'the Cash in card reads ' + JSON.stringify(cash && cash.text);
-    /* back in town from the Thicket with loot to sell, the first-return cards do not come back */
-    const back = { ...steps.find((s) => s.id === 'save_setup').facts, sellable: 6, lootRules: {} };
-    if (['sell_loot', 'loot_rules'].includes((M.tut.currentCard(back) || {}).id)) return 'back from the Thicket the coach asks again: ' + M.tut.currentCard(back).id;
+    /* back in town from the Thicket with loot to sell, Sell does not come back; Decide once and Cook come now, not on the first return */
+    const back = { ...steps.find((s) => s.id === 'loot_rules').facts, sellable: 6 };
+    if ((M.tut.currentCard(back) || {}).id !== 'loot_rules') return 'back from the Thicket with no plan yet the coach says ' + (M.tut.currentCard(back) || {}).id;
+    const said1 = M.tut.cardFor(M.tut.currentCard(back), back);
+    if (!/one thing/.test(said1.textIn || '') || /each thing/.test(said1.text + ' ' + said1.textIn)) return 'Decide once asks for more than one plan: ' + JSON.stringify([said1.text, said1.textIn]);
+    const firstBack = steps.findIndex((s) => s.id === 'into_the_thicket');
+    const beforeHunt2 = steps.slice(0, firstBack + 1).map((s) => s.id);
+    for (const later of ['loot_rules', 'cook_catch', 'first_spell', 'help_page', 'no_defense']) if (beforeHunt2.includes(later)) return later + ' came before the second hunt: ' + beforeHunt2.join(', ');
+    /* a hero who skipped ahead of the Thicket still meets them: they ask on being there or past it */
+    if ((M.tut.currentCard({ ...back, visited: new Set(['mill_cellar', 'wickstead']) }) || {}).id !== 'loot_rules') return 'a hero past the Thicket never meets Decide once';
     return null;
   },
   'tutorial-reactive': async (M) => {
@@ -737,6 +752,17 @@ const cases = {
     const beat = say(R({ ...inThicket, supplies: own(3) }, 'first_eat'));
     if (!beat || beat.id !== 'fight_settings' || !beat.text.includes('Defensive takes 15% less damage and deals 10% less; Offensive deals and takes 10% more.')) return 'the stance card reads ' + JSON.stringify(beat && beat.text);
     if ((say(R({ ...inThicket, supplies: own(3), stance: 'defensive' }, 'first_eat')) || {}).id === 'fight_settings') return 'the stance changed, yet the stance card is up';
+    /* A BEATING IS A RATE (panel 2026-11-01: "Your hero has eaten 35 times this hunt" over a full-health hero, 8.5 h in, about 4 an hour) */
+    const H = 3600000;
+    if ((say(R({ ...inThicket, supplies: own(35), huntMs: 8.5 * H }, 'first_eat', 'food_when')) || {}).id === 'fight_settings') return '35 meals in 8.5 h read as a beating';
+    if ((say(R({ ...inThicket, supplies: own(3), huntMs: 4 * 60000 }, 'first_eat')) || {}).id !== 'fight_settings') return '3 meals in 4 minutes are not a beating';
+    /* BACK FROM AN ABSENCE, the "just now" cards stand aside for that hunt (they speak of what the player did not see) and come back on the next */
+    const sid = { sessionId: 's-back' };
+    const backNow = (more) => say(R({ ...inThicket, ...sid, back: 's-back', ...more }));
+    if ((backNow({ supplies: own(2), carried: { cooked_shrimp: 18 } }) || {}).id === 'first_eat') return 'on a return "Your hero just ate" is up';
+    if ((backNow({ supplies: [{ item: 'thin_turnip_juice', source: 'store', count: 1 }] }) || {}).id === 'first_drink') return 'on a return "Your hero just drank" is up';
+    if ((say(R({ ...inThicket, ...sid, back: 's-back', supplies: own(3) }, 'first_eat')) || {}).id === 'fight_settings') return 'on a return "Taking a beating?" is up';
+    if ((say(R({ ...inThicket, sessionId: 's-next', back: 's-back', supplies: own(2), carried: { cooked_shrimp: 18 } })) || {}).id !== 'first_eat') return 'the next hunt never says "Your hero just ate"';
     /* more than one hero: 5 minutes into a hunt past the Cellar, one hero on an account that owns an empty slot */
     const one = { roster: [{ slot: 0, level: 6, name: 'Corliss', open: true, hunting: true }], slotsOwned: 2, playLimit: 4, name: 'Corliss' };
     const more = say(R({ ...inThicket, ...one, huntMs: 5 * 60000 }));
@@ -765,6 +791,13 @@ const cases = {
       death_log: [{ id: 1, at: '2026-10-25T00:30:00Z', hunt: 'mosslight_glade', monster: 'rook_the_poacher', xp: 0, xp_lost: { level: 10 }, saved }],
       blessings: { held: [], permille: 0, free_until: M.blessings.BLESSING_RULES.freeUntilLevel, tiers: tiers(held, L) } });
     const died = (e, sh) => { const c = tsb.pointerCardOf({ read: (k) => e[k], slot: 0 }, sh); return c || {}; };
+    /* a return, through the real envelope: the open hunt's session against the shell's `back` */
+    const hungry = { state: { level_xp: M.xp.charXpForLevel(6) }, hunt: { session_id: 's-b', hunt_id: 'meadowbrook_thicket', ended: false, session: {}, hero: {}, pose: { units: [] } },
+      hunt_settings: { preset: 0, role: T.role, discipline: T.discipline, stance: T.stance || 'balanced', store: T.storeRows, slots: T.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and', usable: s.usable, count: s.count })), bar: [] },
+      hunt_analyzer: { hero: { supplies: { own: { cooked_shrimp: 2 } } } } };
+    const onEnv = (back) => (tsb.pointerCardOf({ read: (k) => hungry[k], slot: 0 }, { read: ['bar_intro', 'plant_land'], back }) || {}).id;
+    if (onEnv(null) !== 'first_eat') return 'through the envelope a hero who ate sees ' + onEnv(null);
+    if (onEnv('s-b') === 'first_eat') return 'through the envelope a return still says "Your hero just ate"';
     const d1 = died(deathEnv(9, { level: 190 }, false));
     if (d1.id !== 'first_death' || !d1.text.includes('Corliss came home') || !d1.text.includes('Dying cost 10 Level XP; your Blessings saved 190 more and are used up now.')
       || !d1.text.includes('free until Level ' + M.blessings.BLESSING_RULES.freeUntilLevel)) return 'the death card reads ' + JSON.stringify(d1.text);
@@ -778,7 +811,7 @@ const cases = {
     /* the day-one cards wait for the chain: Level 9, a task held, in town: Tamsin's card, not the house */
     const homeNext = { owned: false, next: { name: 'Hearthside Homestead', gold: 400, items: [{ id: 'normal_log', qty: 30 }, { id: 'copper_ore', qty: 20 }] } };
     const L9 = (f) => ({ ...f, levelXp: M.xp.charXpForLevel(9), charLevel: 9 });
-    if ((say(R(L9({ ...inThicket, huntId: null, home: homeNext, bag: { normal_log: 3 } }))) || {}).id !== 'tamsin_pays') return 'a day-one card jumped the chain';
+    if ((say(R(L9({ ...inThicket, huntId: null, home: homeNext, bag: { normal_log: 3 } }), 'loot_rules', 'cook_catch')) || {}).id !== 'tamsin_pays') return 'a day-one card jumped the chain';
     const after = L9({ ...town, presets: 1 });
     const home = say(R({ ...after, home: homeNext, bag: { normal_log: 3 } }));
     if (!home || home.id !== 'home' || !home.text.includes('needs 400 gp, Normal Log ×30 and Copper Ore ×20. Normal Log so far: 3 of 30. Get more in Gathering and crafting, Woodcutting, Normal Tree.')) return 'the house card reads ' + JSON.stringify(home && home.text);
@@ -824,7 +857,7 @@ const cases = {
     if ((say(R({ ...town, armoured: true })) || {}).id === 'no_defense') return 'wearing armor, the Defense card is still up';
     /* through the real envelope: the server's worn set, read by the engine's own wearsArmour (a staff alone counts for
        nothing; the kit's Practice Shield does) */
-    const worn = (equipment) => died({ state: { level_xp: M.xp.charXpForLevel(5) }, equipment }, { read: [] }).id;
+    const worn = (equipment) => died({ state: { level_xp: M.xp.charXpForLevel(5) }, equipment, hunt: { session_id: 's', hunt_id: 'meadowbrook_thicket', ended: true, session: { end_reason: 'left' }, hero: {}, pose: { units: [] } } }, { read: [] }).id;
     if (worn({ weapon: 'practice_staff' }) !== 'no_defense') return 'through the envelope a staff-only hero in town sees ' + worn({ weapon: 'practice_staff' });
     if (worn({ ...M.kit.START_EQUIPMENT }) === 'no_defense') return 'through the envelope the kit\'s sword and shield hero is told Defense is not training';
     /* The first-hour rung: at the cloak's Level with the pelts, the card rings the recipe; any Crafting XP ends it */
@@ -846,6 +879,29 @@ const cases = {
     const forge = (M.recipes.ARTISAN_RECIPES.smithing || []).find((r) => r.output === 'ironbound_shield');
     const g12 = M.tut.nextGoal({ charLevel: shield.reqLv - 3, role: 'tank', skillLevel: 12, defenseXp: 9, land: null, inParty: false });
     if (!forge || !g12 || !g12.text.includes('Ironbound Shield is made at Smithing ' + forge.req + ' from Iron Bar ×')) return 'tank at Level ' + (shield.reqLv - 3) + ': What next reads ' + JSON.stringify(g12 && g12.text);
+    /* WHAT THE GOLD IS FOR (panel 2026-11-01: 22,355 gp and "no idea what I'm saving for"), at the server's price */
+    const goal = (charLevel, more) => (M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 9, land: null, inParty: false, ...more }) || { text: '' }).text;
+    if (!goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 }).includes('You can pay for a third hero (15,000 gp): press Characters. It hunts while this one does.')) return 'at 16,000 gp What next reads ' + goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 });
+    if (!goal(8, { gold: 6000, slotCost: 15000, slotsOwned: 2 }).includes('A third hero costs 15,000 gp')) return 'at 6,000 gp What next names no price: ' + goal(8, { gold: 6000, slotCost: 15000, slotsOwned: 2 });
+    if (/hero \(|hero costs/.test(goal(12, { gold: 16000, slotCost: null, slotsOwned: 5 }))) return 'with no slot for sale What next offers one';
+    if (/hero costs/.test(goal(5, { gold: 400, slotCost: 15000, slotsOwned: 2 }))) return 'at 400 gp the third hero is held up as a goal';
+    if (!goal(20, { gold: 45000, slotCost: 40000, slotsOwned: 3 }).includes('a fourth hero (40,000 gp)')) return 'the fourth hero reads ' + goal(20, { gold: 45000, slotCost: 40000, slotsOwned: 3 });
+    /* a deed the purse covers, once no hero is for sale; its materials are said, never hidden behind a price */
+    const deed = goal(30, { gold: 9000, slotCost: null, slotsOwned: 5, home: { owned: true, next: { name: 'Cottage', gold: 8000, items: [{ id: 'normal_log', qty: 40 }] } } });
+    if (!deed.includes('You can pay for the Cottage (8,000 gp, Normal Log ×40): open the House.')) return 'the house line reads ' + deed;
+    /* the Weighhouse by its own gate, the Roll of Honor from the Level the gear runs thin: one read each, the icon ringed, after the chain */
+    const chainDone = walkChain(M, T).pop().facts;
+    const atL = (n, ...read) => ({ ...chainDone, levelXp: M.xp.charXpForLevel(n), charLevel: n, read: new Set([...chainDone.read, ...read]) });
+    if ((say(atL(M.tut.WEIGHHOUSE_LEVEL - 1)) || {}).id === 'weighhouse') return 'the Weighhouse card came below its Level';
+    const wh = say(atL(M.tut.WEIGHHOUSE_LEVEL));
+    if (!wh || wh.id !== 'weighhouse' || !wh.gotIt || M.tut.coachIcon(wh, () => false) !== 'market') return 'at its Level the Weighhouse card reads ' + JSON.stringify(wh);
+    if ((say(atL(M.tut.WEIGHHOUSE_LEVEL, 'weighhouse')) || {}).id === 'weighhouse') return 'Got it does not pass the Weighhouse card';
+    if ((say(atL(M.tut.ROLL_LEVEL - 1, 'weighhouse')) || {}).id === 'roll_of_honor') return 'the Roll of Honor card came below its Level';
+    const roll = say(atL(M.tut.ROLL_LEVEL, 'weighhouse'));
+    if (!roll || roll.id !== 'roll_of_honor' || M.tut.coachIcon(roll, () => false) !== 'honor') return 'the Roll of Honor card reads ' + JSON.stringify(roll);
+    if (say({ ...atL(M.tut.ROLL_LEVEL, 'weighhouse'), huntId: 'mosslight_glade' }) && say({ ...atL(M.tut.ROLL_LEVEL, 'weighhouse'), huntId: 'mosslight_glade' }).id === 'roll_of_honor') return 'the Roll of Honor card is up in a hunt';
+    const eligibility = readFileSync(join(M.root, 'supabase/migrations/2027-02-13-market-eligibility.sql'), 'utf8');
+    if (!eligibility.includes('min_level int not null default ' + M.tut.WEIGHHOUSE_LEVEL)) return 'What next says the Weighhouse opens at Level ' + M.tut.WEIGHHOUSE_LEVEL + ', and its migration does not';
     return null;
   },
   /* "Plant your land" asks for EACH empty plot (playtest 2026-10-29 #12: one plot finished it, a plant pays Farming XP):
@@ -1496,6 +1552,27 @@ const mutants = [
   { name: 'the party scale is flat', case: 'party-scale',
     edits: [['src/data/hunt-grounds.js', 'perHeroPermille: 150', 'perHeroPermille: 0']] },
   /* THE FIRST HOUR (lane/b-first-hour, 2026-10-28) */
+  /* THE PANEL, ROUND 2 (2026-11-01): the coach's load before hunt 2, a return's stale cards, What next's goals */
+  { name: 'Decide once is back before the second hunt', case: 'tutorial-town-chain',
+    edits: [['src/data/hunt-tutorial.js', "{ knowledge: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND], inWindow:", "{ knowledge: true, gotIt: true, when: [IN_TOWN], inWindow:"]] },
+  { name: 'Cook your catch is back before the second hunt', case: 'tutorial-town-chain',
+    edits: [['src/data/hunt-tutorial.js', "{ gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { skill: 'cooking', work: 'cook_shrimp' },", "{ gotIt: true, when: [IN_TOWN], ring: { skill: 'cooking', work: 'cook_shrimp' },"]] },
+  { name: 'Decide once asks for every stack again', case: 'tutorial-town-chain',
+    edits: [['src/data/hunt-tutorial.js', "inWindow: 'Press This hunt, then set one thing you only ever sell to Sell.", "inWindow: 'Press This hunt, then set each thing to Sell."]] },
+  { name: 'a beating is a count again, not a rate (35 meals in 8.5 h)', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', 'sum(r) >= p.n && sum(r) * 3600000 >= p.perHour * (f.huntMs || 0)', 'sum(r) >= p.n']] },
+  { name: 'the "just now" cards speak over a return', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "fresh_hunt: (p, f) => !f.back || f.back !== f.sessionId,", "fresh_hunt: () => true,"]] },
+  { name: 'the envelope never says which hunt the player came back to', case: 'tutorial-reactive',
+    edits: [['src/session/tutorial-sections.js', "huntId: open ? open.huntId : null, sessionId: open ? open.sessionId : null,", "huntId: open ? open.huntId : null,"]] },
+  { name: 'What next forgets the third hero', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "  const purse = purseLine(facts);\n  if (purse) { lines.push(purse.text); ids.push(...purse.ids); }\n", '']] },
+  { name: 'What next offers a slot the server is not selling', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "const slot = Number.isSafeInteger(f.slotCost) && f.slotCost > 0 ? f.slotCost : null;", "const slot = 15000;"]] },
+  { name: 'the Roll of Honor card is gone', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }", "'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: 9999 }] }"]] },
+  { name: 'the Weighhouse line names a Level its gate does not', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', 'export const WEIGHHOUSE_LEVEL = 10;', 'export const WEIGHHOUSE_LEVEL = 12;']] },
   { name: 'the own-juice card asks a hero who hardly drinks (core-loop 10-31)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),", "when: [{ kind: 'carries', item: 'turnip_juice' }] }),"]] },
   { name: 'What next hides a made piece\'s bench level (core-loop 10-31)', case: 'tutorial-reactive',

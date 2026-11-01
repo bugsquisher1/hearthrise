@@ -14,12 +14,13 @@
 //   node tools/qa/local-world.mjs serve [--port 8787] [--no-tick]    a world for any browser: http://127.0.0.1:8787/play.html
 //   node tools/qa/local-world.mjs skip 30 [--port 8787]              skip 30 minutes in a world that is serving
 //   node tools/qa/local-world.mjs wait 480 [--port 8787]             8 hours pass for everyone: hunts, and town too
+//   node tools/qa/local-world.mjs wait 480 --away [--port 8787]      the same, for a player who CLOSED the page: the "While you were away" stamp moves too
 //   node tools/qa/local-world.mjs --selftest                         the production refusal + the skip's mover, planted
 //
 //   import { openWorld } from './tools/qa/local-world.mjs';
 //   const world = await openWorld();                     // { url, db, skip, tick, play, close }; one world per process
 //   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x' });
-//   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);  await world.wait(480);
+//   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);  await world.wait(480);  await world.wait(480, { away: true });
 //   await p.shot('after');  p.text();  p.errors;  p.offsite;  p.page /* raw Playwright */;  await p.reload();  await world.close();
 //
 // A TIME SKIP compresses waiting and fakes no result: every open hunt's clocks AND every epoch value in its
@@ -28,6 +29,9 @@
 // keeps its order (the newest session by entered_at is still the newest: the analyzer, the summary and the coach read
 // it that way). A WAIT is a skip in which town time passes too: a hero not hunting rests (stamina_at), the shared land's
 // crops grow (planted_at, waterings), and a bench or gathering job runs on (active_since, accrued_to). Only waiting moves, never a result.
+// A skip moves the hunt back rather than the clock on, so the browser's last-seen stamp (residue `awaySeen`, away-recap.js) would read
+// the real seconds that passed: "While you were away (10 min)" after 200 min (panel 2026-11-01). `away: true` moves the stamp with it, as a
+// real absence does; use it with the page closed, since an open tab renews the stamp and was never away.
 // Only this process's in-memory database moves.
 //
 // SAFE BY CONSTRUCTION: refuses to start when any environment value names the production project; the client's
@@ -425,7 +429,7 @@ export async function openWorld(o = {}) {
       }
       if (p === '/functions/v1/bug-report-bridge') { reports.push(JSON.parse(await readBody(req))); return send(res, 200, { ok: true }); }
       if (p === '/__world/skip') return send(res, 200, await world.skip(Number(url.searchParams.get('minutes'))));
-      if (p === '/__world/wait') return send(res, 200, await world.wait(Number(url.searchParams.get('minutes'))));
+      if (p === '/__world/wait') return send(res, 200, await world.wait(Number(url.searchParams.get('minutes')), { away: url.searchParams.has('away') }));
       if (p === '/__world/status') return send(res, 200, { ok: true, offsite, reports: reports.length, pushed: push.pushed() });
       if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, null);
       return await serveStatic(res, decodeURIComponent(p), origin, held);
@@ -527,6 +531,10 @@ export async function openWorld(o = {}) {
         for (const s of (await tx.query(`select id from public.hunt_sessions where ended_at is not null`)).rows) {
           await moveRow(tx, 'hunt_sessions', s.id, ms, [...sessionClocks, 'ended_at'], []);
         }
+        if (how.away) {
+          await tx.query(`update public.player_state set client_state = jsonb_set(client_state, '{awaySeen,at}', to_jsonb((client_state->'awaySeen'->>'at')::bigint - $1::bigint))
+            where jsonb_typeof(client_state->'awaySeen'->'at') = 'number'`, [ms]);
+        }
         if (how.town) {
           const back = `make_interval(secs => $1::float8 / 1000)`;
           const idle = `not exists (select 1 from public.hunt_sessions s where s.ended_at is null and s.user_id = p.user_id and s.slot = p.slot)`;
@@ -541,7 +549,7 @@ export async function openWorld(o = {}) {
       return settleUp({ moved, minutes });
     },
     /** `minutes` pass for everyone: every open hunt as skip() moves it, and town time too (rest, crops, a bench job). */
-    wait(minutes) { return world.skip(minutes, { town: true }); },
+    wait(minutes, how = {}) { return world.skip(minutes, { ...how, town: true }); },
     play: (opts) => play(world, opts),
     async close() {
       if (ticker) clearInterval(ticker);
@@ -769,7 +777,7 @@ if (isMain(import.meta.url)) {
     const world = await openWorld({ port: Number(opt('--port') || 8787), tickMs: args.includes('--no-tick') ? false : 10000, liveFiles: true });
     console.log('local-world: open ' + world.url + '   (Ctrl-C ends the world; nothing is kept)');
   } else if (cmd === 'skip' || cmd === 'wait') {
-    const res = await fetch('http://127.0.0.1:' + Number(opt('--port') || 8787) + '/__world/' + cmd + '?minutes=' + Number(args[1]));
+    const res = await fetch('http://127.0.0.1:' + Number(opt('--port') || 8787) + '/__world/' + cmd + '?minutes=' + Number(args[1]) + (args.includes('--away') ? '&away=1' : ''));
     console.log(await res.text());
     process.exit(res.ok ? 0 : 1);
   } else {

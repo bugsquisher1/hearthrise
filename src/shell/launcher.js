@@ -59,6 +59,9 @@ function restsNow(ctx, card) {
   if (now === null) return false;
   const r = cs.record && cs.record.residue ? cs.record.residue.coach : null;
   if (r && r.seen === card.id && r.min !== true) return false;
+  /* BACK FROM AN ABSENCE the away line speaks first (away-recap.js): no card opens over the hunt the player came back to */
+  const h = huntOf(cs);
+  if (r && r.back && h && h.sessionId === r.back) return true;
   const s = OPEN_SINCE.get(cs);
   if (!s || s.id !== card.id) { OPEN_SINCE.set(cs, { id: card.id, since: now }); return false; }
   return now - s.since >= Math.max(COACH_HUNT_OPEN_MS, 2 * readMs(card));
@@ -122,6 +125,8 @@ export function coachFactsOf(cs, account) {
     playLimit: account && typeof account.statedLimit === 'function' ? account.statedLimit() : null,
     sellable: bag && shop ? lootSale(bag, rulesOf(cs), shop, skillsOf(cs)).lines.length : null,
     upgrades: bag && eq ? upgradeOf(cs).picks.map((p) => p.id) : null,
+    back: (cs.record && cs.record.residue && cs.record.residue.coach && cs.record.residue.coach.back) || null,
+    slotCost: account && account.slotOffer ? account.slotOffer.cost : null,
   };
   if (cs.record) FACTS.set(cs, { record: cs.record, account, open: open.map((c) => ({ cs: c, record: c.record })), sh });
   return sh;
@@ -257,6 +262,8 @@ export function actCoach(ctx, el, action, ev) {
   /* Opening clears the mark: the card the player now sees is the one they have seen. The reads stay. */
   const read = coachReadOf(cs);
   const keep = read && read.size ? { read: Array.from(read) } : {};
+  const r = cs.record && cs.record.residue && cs.record.residue.coach;
+  if (r && r.back) keep.back = r.back;
   cs.setResidue('coach', Object.assign(action === 'coach-min' ? { min: true, seen: card.id } : { seen: card.id }, keep));
   /* The box is redrawn on the residue change (one repaint per task): keep the keyboard on the coach's control. */
   if (hadFocus) queueMicrotask(() => { const b = el.querySelector('[data-hs-act^="coach-"]'); if (b) b.focus(); });

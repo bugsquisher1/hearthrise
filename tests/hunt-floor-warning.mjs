@@ -7,7 +7,7 @@
 //
 // ARMS
 //   W1  rangeWords: under band[0] within SESSION_LIMITS.belowRangeRefuse says
-//       "This hunt is above your level, expect losses."; that many or more under
+//       ABOVE_LEVEL_WORDS (first-week-bands.mjs proves them on the real engine); that many or more under
 //       says it is too far; at or over the floor, or with no level, says nothing
 //   W2  the Hunts window draws rangeWords on every line and never disables Enter
 //       on it (the server decides), and a successful enter that the server
@@ -46,7 +46,7 @@ async function run(base) {
   ok('W1', Number.isInteger(m) && m === 15, 'SESSION_LIMITS.belowRangeRefuse is ' + m + ' (Tyler 10-18: 15)');
   const row = { band: [40, 60] };
   const near = HL.rangeWords(row, 40 - m + 1), far = HL.rangeWords(row, 40 - m), at = HL.rangeWords(row, 40);
-  ok('W1', near === 'This hunt is above your level, expect losses.', 'one level inside the margin reads ' + JSON.stringify(near));
+  ok('W1', near === HL.ABOVE_LEVEL_WORDS && /above your level: more XP/.test(near) && !/expect losses/.test(near), 'one level inside the margin reads ' + JSON.stringify(near));
   ok('W1', typeof far === 'string' && far !== near && /too far/.test(far), 'the margin itself reads ' + JSON.stringify(far));
   ok('W1', at === null && HL.rangeWords(row, 70) === null && HL.rangeWords(row, null) === null, 'at / over the floor or with no level must say nothing');
 

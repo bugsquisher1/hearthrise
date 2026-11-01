@@ -43,7 +43,7 @@ import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.78';
 import { itemName } from './widgets/bits.js?v=0.2.78';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.78';
 import { deathSeen } from './death-popup.js?v=0.2.78';
-import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.78';
+import { awayRecapOf, stampAway, markBack } from './away-recap.js?v=0.2.78';
 import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.78';
 import { tallyTask } from '../data/tally-tasks.js?v=0.2.78';
 import { gold } from '../render/format.js?v=0.2.78';
@@ -203,7 +203,7 @@ export function createAlertCenter(account) {
     const now = candidatesOf(cs, account.viewed === cs.slot || account.viewed === null);
     /* "While you were away" (away-recap.js): judged against the last-seen stamp BEFORE it is renewed. */
     const away = awayRecapOf(cs);
-    if (away) now.push(away);
+    if (away) { now.push(away); markBack(cs, away.session); }
     for (const c of now) any = fire(cs, c) || any;
     stampAway(cs);
     /* An invite the server no longer lists (answered elsewhere, expired, its party gone) leaves the lines. */

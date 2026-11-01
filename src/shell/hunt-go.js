@@ -15,26 +15,29 @@
 //                       line per kind of supply the bar spends, in slot order ("Food: 20
 //                       Cooked Shrimp of yours, then Salted Shrimp from the store, 14 gp
 //                       each"), the stamina when it will end the hunt soon, the gold when
-//                       the store is paid from it. A line shows only when it informs.
+//                       the store is paid from it, no weapon, and held tasks that do not count on
+//                       this ground. A line shows only when it informs, and never stops the press.
 //   freeHeroes(cs, all) "Bring your heroes" (B #3): this account's other open
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.78';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.78';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.78';
-import { ITEMS } from '../data/items.js?v=0.2.78';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.78';
-import { hasShot } from './action-facts.js?v=0.2.78';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.78';
-import { ABILITIES } from '../data/abilities.js?v=0.2.78';
-import { storeOf, storeName } from './bar-draft.js?v=0.2.78';
-import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.78';
-import { whole, gold } from '../render/format.js?v=0.2.78';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.79';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.79';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.79';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.79';
+import { ITEMS } from '../data/items.js?v=0.2.79';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.79';
+import { hasShot } from './action-facts.js?v=0.2.79';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.79';
+import { ABILITIES } from '../data/abilities.js?v=0.2.79';
+import { storeOf, storeName } from './bar-draft.js?v=0.2.79';
+import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.79';
+import { whole, gold } from '../render/format.js?v=0.2.79';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
-/* Stamina under this much is said before a hunt (the hunt will end on it soon). */
+/* Stamina under this much is said as the short of it; above it, what it means for a player about to walk away (panel 2026-11-01:
+   8 h away on 3 h 17 of stamina, 5 h 46 idle with no word before leaving). */
 const STAMINA_SAY_MS = 2 * 3600000;
 
 /* The role a worn set plays (src/data/hunt-roles.js, the ONE weapon -> role source: the weapon and the shield
@@ -168,10 +171,28 @@ function shotLine(s, cs, carried) {
     + (spare ? 'Open your bag, press ' + itemName(spare.id) + ', then Put on the bar.' : 'Press an empty slot on your bar, then Ammo, and pick a shot from the store.'), short: true };
 }
 
+/** The hunt screen's warning: a hero hunting with a weapon that can shoot nothing won't attack at all (the panel 2026-11-01
+    lost 10 minutes and 784 gp to a silent hunt screen before the no-fight end), or '' when it can. */
+export function noShotWords(cs) {
+  const s = settingsOf(cs);
+  const shot = s ? shotLine(s, cs, carriedOf(cs) || []) : null;
+  return shot && shot.short ? shot.text.replace(/^Ammo: /, '') : '';
+}
+
+/* HELD TASKS THAT DO NOT COUNT HERE (the panel 2026-11-01: 11 h at 0/120 because the list had moved its pick): said, never
+   a stop. Quiet with no open task, or when any open task counts on this ground. */
+function tallyElsewhere(cs, hunt) {
+  const t = tallyOf(cs);
+  const open = t && hunt ? t.held.filter((h) => !h.done) : [];
+  if (!open.length || open.some((h) => h.hunt === hunt)) return null;
+  return { id: 'tally', text: 'Tamsin\'s tasks: nothing here counts toward them. ' + open.map((h) => countsWords(h.task, huntName(h.hunt))).join(' '), short: false };
+}
+
 /**
  * "Before you go": [{ id, text, short }] for the setup in use, or null when the server sent no bar.
  * `o.other` names another setup chosen under Go as: its bar is not in the envelope, so one line says
- * its supplies follow its own bar. `short` marks a line that will stop the hunt or leaves it bare.
+ * its supplies follow its own bar. `short` marks a line that will stop the hunt or leaves it bare. `o.hunt` names the
+ * ground picked, for the line about held tasks.
  */
 export function beforeLines(cs, o) {
   const s = settingsOf(cs);
@@ -193,6 +214,8 @@ export function beforeLines(cs, o) {
       if (!kinds.has(p.kind)) kinds.set(p.kind, []);
       kinds.get(p.kind).push(p);
     }
+    const worn = equipmentOf(cs);
+    if (worn && !worn.weapon) out.push({ id: 'weapon', text: 'Weapon: none on, so your hero fights bare-handed. Put one on from your bag.', short: true });
     const shot = shotLine(s, cs, carried);
     if (shot) out.push(shot);
     for (const [kind, parts] of kinds) {
@@ -205,11 +228,15 @@ export function beforeLines(cs, o) {
     }
     if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
   }
+  const tally = tallyElsewhere(cs, o && o.hunt);
+  if (tally) out.push(tally);
   const st = staminaOf(cs);
   if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: 'No stamina left: rest in town before you go.', short: true });
-  else if (st && st.msLeft < STAMINA_SAY_MS) {
+  else if (st) {
     const m = Math.floor(st.msLeft / 60000);
-    out.push({ id: 'stamina', text: 'Stamina: ' + (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min left, then the hunt ends.', short: false });
+    const left = (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min';
+    out.push({ id: 'stamina', text: st.msLeft < STAMINA_SAY_MS ? 'Stamina: ' + left + ' left, then the hunt ends.'
+      : 'Stamina: ' + left + '. Your hero hunts that long, even with the game closed, then comes home.', short: false });
   }
   const gp = goldOf(cs);
   if (paysStore && gp !== null) {

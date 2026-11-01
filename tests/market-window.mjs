@@ -67,6 +67,13 @@ async function runTests({ M, I, G, C, F, R, T, base }) {
   ok('W2', M.feeOf(RULES, 1, 5) === 1, 'the fee is never under its minimum');
   ok('W2', M.netEachOf(RULES, 240) === 230, 'a 240 sale pays 230 after a 4% cut rounded up: ' + M.netEachOf(RULES, 240));
   ok('W2', M.netEachOf(RULES, 13) === 12, 'the cut rounds UP, as the server rounds it: ' + M.netEachOf(RULES, 13));
+  /* THE WORDS AND THE NUMBERS AGREE (the panel 2026-11-01): 10 pelts at 35 paid 336 and 1 paid 33; a shop bid of 7 still warned at
+     7, so the ask to name is 8; "Listed for 7 days" read "6 days left" a moment later. */
+  ok('W2', M.netLotOf(RULES, 10, 35) === 336 && M.netLotOf(RULES, 1, 35) === 33, 'a lot pays its own cut, once: ' + M.netLotOf(RULES, 10, 35) + ', ' + M.netLotOf(RULES, 1, 35));
+  ok('W2', M.evenAskOf(RULES, 7) === 8 && M.netEachOf(RULES, M.evenAskOf(RULES, 7)) >= 7 && M.netEachOf(RULES, 7) < 7, 'the ask that matches a bid of 7: ' + M.evenAskOf(RULES, 7));
+  ok('W2', M.evenAskOf(RULES, 0) === 1, 'a bid of nothing asks 1: ' + M.evenAskOf(RULES, 0));
+  const FRESH = Date.parse('2026-10-31T10:00:00Z');
+  ok('W2', /· 7 days left$/.test(M.listingWords({ qty: 1, listed: 1, each: 35, expiresAt: FRESH + 7 * 86400000 - 60000, received: 0 }, FRESH)), 'a listing made a minute ago: ' + M.listingWords({ qty: 1, listed: 1, each: 35, expiresAt: FRESH + 7 * 86400000 - 60000, received: 0 }, FRESH));
 
   /* W3 what the purse covers */
   ok('W3', M.mostAffordable(ASKS, 44) === 4, 'two at 10 and two at 12 for 44 gold: ' + M.mostAffordable(ASKS, 44));
@@ -81,7 +88,7 @@ async function runTests({ M, I, G, C, F, R, T, base }) {
 
   /* W5 the refusal table */
   const say = (error, figures, verb = 'market_list') => T.refusalText({ ok: false, error, verb, figures });
-  ok('W5', /The shop pays 142 for one\. Ask at least that/.test(say('price_below_shop', { floor: 142 })), 'floor: ' + say('price_below_shop', { floor: 142 }));
+  ok('W5', /The shop pays 142 for one, and nothing lists below that/.test(say('price_below_shop', { floor: 142 })), 'floor: ' + say('price_below_shop', { floor: 142 }));
   ok('W5', /The most is 28,500 each/.test(say('price_above_cap', { ceiling: 28500 })), 'ceiling: ' + say('price_above_cap', { ceiling: 28500 }));
   ok('W5', /You have 50 listings up/.test(say('too_many_listings', { limit: 50 })), 'listings cap');
   ok('W5', /The listing fee is 8 gold/.test(say('insufficient_gold', { need: 8, have: 2 })), 'a list short of its fee');
@@ -126,7 +133,7 @@ async function runTests({ M, I, G, C, F, R, T, base }) {
   ok('W7', n.rows.length === 3 && n.newest === T0 + 4 * 60000, 'only sold and returned, newer than the last told: ' + n.rows.length);
   ok('W7', M.noticesSince(hist, T0 + 4 * 60000).rows.length === 0, 'nothing is told twice');
   const away = M.noticeLines(n.rows, true);
-  ok('W7', /^While you were away the Weighhouse sold 2 lots for 39 gold\.$/.test(away[0].text), 'the away line: ' + away[0].text);
+  ok('W7', /^While you were away the Weighhouse sold 2 lots for 39 gold\. You received 36 gold\.$/.test(away[0].text), 'the away line says what the seller received: ' + away[0].text);
   ok('W7', /2 Coal didn't sell and are back in your storage\./.test(away[1].text), 'the return: ' + away[1].text);
   const one = M.noticeLines(n.rows.filter((x) => x.qty === 2 && x.what === 'sold'), false);
   ok('W7', /^The Weighhouse sold 2 Coal for 26 gold\. You received 24 gold\.$/.test(one[0].text), 'one sale online: ' + one[0].text);

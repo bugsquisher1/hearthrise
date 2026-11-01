@@ -1,5 +1,14 @@
 # Art Director — running log
 
+## 2026-11-01 - the panel's second phone read (lane/a-panel-phone, from main v0.2.78)
+
+- **A later rule can quietly win.** My in-sheet card cap did nothing because an older same-weight rule (5.5 lines) sat below
+  it, and the test's threshold was lax enough to pass anyway. A mutant that "NOT caught" was what exposed it. Read computed
+  values before believing a cap.
+- **Mouse emulation on touch moves with the layout:** the tip disappeared when the picked row shifted the list under the
+  emulated pointer, firing mouseout. On touch only a press hides it now.
+- **`node_modules` left the main checkout on 10-31:** a worktree needs its own `npm ci` before any browser test.
+
 ## 2026-10-31 - the phone a thumb can reach (lane/a-phone-reach, from set/v0.2.75)
 
 A simulated phone player's named problems, fixed without moving the layout. Lessons worth keeping:

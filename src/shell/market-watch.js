@@ -4,15 +4,15 @@
 // The seller is paid inside the buyer's transaction, online or not, so the only news is
 // the account's own history (hr_market_mine). On sign-in that read is compared with the last
 // sale this player was told about (residue `marketSeen`): anything newer is ONE away line,
-// "While you were away the Weighhouse sold 4 lots for 1,727 gold." After that, only while
+// "While you were away the Weighhouse sold 4 lots for 1,727 gold. You received 1,657 gold." After that, only while
 // the account has a listing up and the page is showing, one read a minute: a sale reads
 // "The Weighhouse sold 1 Iron Platelegs for 240 gold. You received 230." and the purse is
 // re-read from the server. Goods back from an expiry say so too. An account with nothing
 // listed makes no reads at all. The lines go through the alert centre, so they are also the
 // chat's System lines. Every number is the server's; nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { marketMine } from '../session/market-intents.js?v=0.2.78';
-import { noticesSince, noticeLines } from './market-model.js?v=0.2.78';
+import { marketMine } from '../session/market-intents.js?v=0.2.79';
+import { noticesSince, noticeLines } from './market-model.js?v=0.2.79';
 
 const EVERY_MS = 60 * 1000;
 

@@ -10,10 +10,10 @@
 // field `huntSummaries`, with the death explanation (death-explain.js) taken
 // from those events. It authors no number: it reads the server's sections.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.78';
-import { monsterName } from '../shell/widgets/bits.js?v=0.2.78';
-import { explainDeaths } from './death-explain.js?v=0.2.78';
-import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.78';
+import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.79';
+import { monsterName } from '../shell/widgets/bits.js?v=0.2.79';
+import { explainDeaths } from './death-explain.js?v=0.2.79';
+import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.79';
 
 const ATTACHED = new WeakMap();
 
@@ -78,7 +78,8 @@ export function attach(cs) {
     if (!s.ended) { if (a.sid !== s.id) { a.rec.reset(); a.sid = s.id; a.live = null; a.liveSig = ''; } return; }
     if (a.done.has(s.id)) return;
     a.done.add(s.id);
-    if (summariesOf(cs).some((x) => x.id === s.id)) return;
+    /* Recorded on an earlier page: it has already had its moment (summaryFromEarlierPage). */
+    if (summariesOf(cs).some((x) => x.id === s.id)) { a.earlier = s.id; return; }
     const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { deaths: [] };
     const deaths = ex.deaths.map((f) => f.lines.join(' '));
     a.fresh = s.id;
@@ -86,6 +87,10 @@ export function attach(cs) {
   });
   return a;
 }
+
+/** True when this ended hunt's summary was recorded before this page loaded: it won't open by itself, so a reload must
+    not stand the hunt bar back up in town (the panel 2026-11-01: the Havora / Town / Home strip gone until Summary). */
+export function summaryFromEarlierPage(cs, sessionId) { return attach(cs).earlier === sessionId; }
 
 /** True once per freshly ended hunt: the shell opens the window when it is. */
 export function takeFresh(cs) {

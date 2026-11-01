@@ -3,17 +3,19 @@
 //
 // One short line per held kill task, the SERVER's count from the `tally` section
 // (src/session/tally-sections.js; the settle counts, never the browser), a notched
-// stick under it, and "Done" once the server says so. In town with nothing held it
+// stick under it, "Done" once the server says so, and while hunting where a task
+// counts when it isn't this ground (the panel 2026-11-01: 11 h at 0/120). In town with nothing held it
 // says where Tamsin is; while hunting with nothing held it shows nothing. A press
 // opens her window. A widget the player can hide (Settings, HUD layout), drag by its
 // title and fold to it (src/shell/widget-move.js, Tyler 2026-10-25). Built once,
 // patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords } from '../../session/tally-sections.js?v=0.2.78';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.78';
-import { TALLY_KEEPER } from '../../data/tally-tasks.js?v=0.2.78';
-import { rows, text, cls, style, element } from '../../render/paint.js?v=0.2.78';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.78';
+import { tallyOf, tallyLine, waitWords } from '../../session/tally-sections.js?v=0.2.79';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.79';
+import { huntName } from '../../session/party-sections.js?v=0.2.79';
+import { TALLY_KEEPER } from '../../data/tally-tasks.js?v=0.2.79';
+import { rows, text, cls, attr, style, element } from '../../render/paint.js?v=0.2.79';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.79';
 
 /** The skeleton (built once). Its title opens her window on a press and drags the widget on a drag. */
 export function renderTallyHud() {
@@ -38,7 +40,9 @@ renderTallyHud.patch = function patchTallyHud(el, ctx) {
     key: (x) => x.task,
     build: () => element(ctx.doc, '<li class="hs-tally-row"><span></span><span class="ht-stick" aria-hidden="true"><i></i></span><small class="hs-tally-wait"></small></li>'),
     patch: (li, x) => {
-      text(li.querySelector('span'), tallyLine(x) + (x.done ? ' · Done' : ''));
+      const elsewhere = hunting && !x.done && x.hunt !== h.huntId;
+      text(li.querySelector('span'), tallyLine(x) + (x.done ? ' · Done' : elsewhere ? ' · Not here' : ''));
+      attr(li, 'title', elsewhere ? 'Counts only in ' + huntName(x.hunt) + '.' : null);
       /* A done task says how it gets paid (lane/b-first-hour: "200/200 · Done" never said to come home): back in town,
          or why it waits (the tally window's own words, tally-sections.js waitWords). */
       text(li.querySelector('.hs-tally-wait'), x.done ? waitWords(t, x, hunting).replace(/^Done\. /, '') : '');

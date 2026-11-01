@@ -22,10 +22,10 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.78';
-import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.78';
-import { STARTER_SETS } from './start-kit.js?v=0.2.78';
-import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.78';
+import { ITEMS } from './items.js?v=0.2.79';
+import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.79';
+import { STARTER_SETS } from './start-kit.js?v=0.2.79';
+import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.79';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
@@ -40,7 +40,7 @@ export const HOW_YOU_FIGHT = Object.freeze([
   style('hit', 'melee_dps', ['practice_hatchets', 'practice_club'], 'Two axes or a hammer',
     'Hits hardest, up close.', 'Uses food.'),
   style('shoot', 'ranger', ['practice_bow', 'practice_crossbow'], 'Bow or crossbow',
-    'Shoots from a distance.', 'Uses arrows or bolts, and food.'),
+    'Shoots from a distance.', 'Bronze Arrows are free and never run out; better ammo costs a little per shot. Uses food.'),
   style('cast', 'mage', ['practice_wand', 'practice_spellbook'], 'Wand and spellbook',
     'Casts spells at the monsters.', 'Spells cost mana: drinks bring it back.'),
   style('heal', 'healer', ['practice_staff'], 'Staff',
@@ -55,7 +55,7 @@ export const HELP_NOTES = Object.freeze([
   note('away', 'It keeps hunting with the game closed',
     'Hunts run on our server, so you can close the game and come back to what your hero earned. A hunt stops when stamina runs out, when your hero dies, when it cannot pay for supplies, or when you press Leave hunt.'),
   note('stamina', 'Stamina is hunting time',
-    'Every minute of hunting uses a minute of stamina, and every minute out of a hunt gives one back, even with the game closed. A hero holds up to 8 hours, or 12 with premium: the hourglass on your bar shows yours.'),
+    'Every minute of hunting uses a minute of stamina, and every minute out of a hunt gives one back, even with the game closed. A hero holds up to 8 hours, or 12 with premium, and every hero has premium during the beta: the hourglass on your bar shows yours.'),
   note('weapon', 'Your weapon is how you fight',
     'There is no class. A sword and shield hold monsters on you, two axes or a hammer hit hard, a bow or crossbow shoots from a distance, a wand and spellbook cast spells, and a staff heals. Equip another from your bag to switch.'),
   note('supplies', 'Food and drink',

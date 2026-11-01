@@ -513,6 +513,8 @@
      runs wide, in two columns, and never past the screen's height. */
   .hw-tip { width: 460px; columns: 2; column-gap: 16px; max-height: calc(100vh - 8px); overflow: hidden; }
   .hw-tip > * { break-inside: avoid; }
+  /* On touch it stands in the World beside the sheet (item-tip.js). */
+  :root.is-touch .hw-tip { box-sizing: border-box; width: min(460px, calc(52vw - 16px)); columns: 150px; }
   /* THUMB-SIZED (QA 10-24: 30 px): the Shop's Buy and its amount. */
   .hw-line > .hh-tool { min-height: 40px; }
   .hw-line > .hh-select { min-height: 40px; }
@@ -536,7 +538,21 @@
   .hw-hd-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 4px -6px; }
   .hw-hd-page { padding: 8px 12px 10px; }
   .hw-hd-name { font-size: var(--t-h2); }
-  .hw-hd-foot { padding: 6px 12px 8px; }
+  /* A refusal gets the foot's width, on its own line over the press (panel 2026-11-01: one word per line in 45 px). */
+  .hw-hd-foot { flex-wrap: wrap; padding: 6px 12px 8px; }
+  .hw-hd-foot .hh-intent-msg:not(:empty) { flex: 1 0 100%; }
+  .hw-pick.is-on { flex-wrap: wrap; }
+  .hw-pick.is-on .hw-pick-name { flex: 1 1 80px; }
+  .hw-upgrade-q { flex: 1 0 100%; }
+  /* The search gives way and the sort keeps its select, in every window that has them (panel: Sort cut at the sheet's edge). */
+  .hw-find .hw-search { flex: 1 1 0; min-width: 0; }
+  .hw-find .hw-sort { flex: none; }
+  .hw-find .hw-sort > span { display: none; }
+  /* THUMB-SIZED IN EVERY SHEET (panel 2026-11-01: Plant, Search, Add friend, the selects at 30 px; the close at 32). */
+  .hs-win .hh-tool, .hs-win .hh-select, .hs-win .hh-seg, .hs-win .hh-num, .hs-win .hw-search, .hs-win .hf-name, .hs-win .st-search, .hs-win .hs-close { min-height: 40px; }
+  .hs-win .hs-close { min-width: 40px; }
+  .hs-win .hw-tab, .hs-win .hw-cat { min-height: 40px; }
+  .hs-win input[type="checkbox"] { width: 20px; height: 20px; }
 }
 
 /* ── The Party window (src/shell/windows/party.js): invites and the finder; role glyphs ── */
@@ -556,6 +572,10 @@
 .hw-party-next { margin: 8px 0 0; }
 .hw-party-acts .hw-primary { margin-right: auto; }
 .hw-party-acts [hidden] { display: none; }
+/* Who to invite, under the Party window's tabs (party.js): off on Find a party, which has its own way. */
+.hw-invite-name { display: none; margin: 0 0 8px; }
+.hw-invite-name.is-on { display: flex; }
+.hw-invite-name .hh-num { flex: 1; min-width: 0; text-align: left; }
 
 /* ── The command centre (src/shell/windows/characters.js): one ledger row per character ── */
 .hw-chars { margin: 0; padding: 0; list-style: none; }
@@ -578,6 +598,7 @@
 /* The phone's routes in this sheet (characters.js): an Invite on each other hero, the icons by name, Character list and
    Sign out. The desktop has the strip, the tooltips and the right-click, and shows none of them. */
 .hw-phone-only, .hw-char-invite { display: none; }
+.hw-char-waits, .hw-phone-word { display: none; }
 /* The rename panel (Tyler 10-22: a new name costs gold): shown only for the hero whose Rename was pressed. */
 .hw-rename { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
 .hw-rename.is-on { display: block; }
@@ -623,6 +644,14 @@
   .app:has(.hs-widget.is-analyzer) .hs-widget.is-alerts { visibility: hidden; }
   /* All characters: Invite under Rename, the icons by name in two columns of thumb-sized presses, the account at the foot. */
   .hw-phone-only { display: block; }
+  .hw-phone-word { display: inline; }
+  .hw-desk-word { display: none; }
+  /* What a hero's red count is waiting for, in words on its row. */
+  .hw-char-waits:not(:empty) { display: block; margin: 0; font-size: var(--t-micro); color: var(--gold-2); }
+  /* The party's presses wrap inside the sheet (panel: Leave party and Disband ran off its edge at every phone size). */
+  .hw-party-acts { flex-wrap: wrap; }
+  .hw-party-acts .hw-primary { flex: 1 0 100%; margin-right: 0; }
+  .hw-party-acts .hh-tool { flex: 1 1 0; }
   .hw-char-invite:not([hidden]) { display: inline-grid; place-items: center; min-height: 40px; }
   .hw-char { flex-wrap: wrap; }
   .hw-char-do { flex: 1 0 100%; flex-direction: row; justify-content: flex-end; }

@@ -14,13 +14,13 @@
 //                  `social.blocked` row opens this window)
 // Every button is ONE rpc and stays off until the server answered.
 // ════════════════════════════════════════════════════════════════════════
-import { refusalWords } from '../intent-words.js?v=0.2.78';
-import { huntName } from '../../session/party-sections.js?v=0.2.78';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.78';
-import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.78';
-import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.78';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.78';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.78';
+import { refusalWords } from '../intent-words.js?v=0.2.79';
+import { huntName } from '../../session/party-sections.js?v=0.2.79';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.79';
+import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.79';
+import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.79';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.79';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.79';
 
 const STATE = new WeakMap();
 const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: false, msg: '', asked: false }; STATE.set(body, s); } return s; };
@@ -37,7 +37,7 @@ export function renderFriends() {
     + '<button type="button" class="hh-tool" data-hs-act="ask">Add friend</button></div>'
     + '<p class="hf-msg" role="status" aria-live="polite"></p>'
     + '<h3 class="hs-sub hf-head is-in">Asks for you</h3><ul class="hf-list is-in"></ul>'
-    + '<h3 class="hs-sub">Friends</h3><ul class="hf-list is-friends"></ul><p class="hh-empty hf-none">No friends yet. Right-click or hold a name in chat to add one.</p>'
+    + '<h3 class="hs-sub">Friends</h3><ul class="hf-list is-friends"></ul><p class="hh-empty hf-none">No friends yet. <span class="hw-desk-word">Right-click</span><span class="hw-phone-word">Hold</span> a name in chat to add one.</p>'
     + '<h3 class="hs-sub hf-head is-out">Your asks</h3><ul class="hf-list is-out"></ul>' + blocksHtml() + '</div>';
 }
 

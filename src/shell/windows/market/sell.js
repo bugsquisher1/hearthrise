@@ -3,8 +3,9 @@
 //
 // The list is the viewed hero's bag or the account's Storage, each stack with the shop's bid
 // and the market's lowest beside it. The sheet beside it shows the fee and the cut before the
-// press: "Listing fee: 8 gold now (kept if it doesn't sell). When one sells, the Weighhouse
-// keeps 4%: you get 230 each. Listed for 7 days; anything unsold comes back to your storage."
+// press: "Listing fee: 8 gold now (kept if it doesn't sell). The Weighhouse keeps 4% of each sale:
+// you get 691 for all 3 (230 each if they sell one at a time). Listed for 7 days; anything unsold
+// comes back to your storage."
 //
 // THE PRICE CHIPS (Security market review change 5, threat model #10): a one-press chip only
 // from what no other account can steer: Suggested (the catalogue's value) and Your last price.
@@ -12,18 +13,18 @@
 // as numbers with their sales count, and the player types the price, until the server's read
 // carries the sample rules. A listing's price then only ever comes from this player's eyes.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.78';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.78';
-import { whole } from '../../../render/format.js?v=0.2.78';
-import { ITEMS } from '../../../data/items.js?v=0.2.78';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.78';
-import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.78';
-import { refusalText } from '../../intent-words.js?v=0.2.78';
-import { marketList } from '../../../session/market-intents.js?v=0.2.78';
-import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.78';
-import { feeOf, netEachOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.78';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.78';
-import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.78';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.79';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.79';
+import { whole } from '../../../render/format.js?v=0.2.79';
+import { ITEMS } from '../../../data/items.js?v=0.2.79';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.79';
+import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.79';
+import { refusalText } from '../../intent-words.js?v=0.2.79';
+import { marketList } from '../../../session/market-intents.js?v=0.2.79';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.79';
+import { feeOf, netEachOf, netLotOf, evenAskOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.79';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.79';
+import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.79';
 
 /** The Sell pane's skeleton. */
 export function sellHtml() {
@@ -70,6 +71,15 @@ function suggested(id, s) {
 function lastAsk(sc, id) {
   const row = sc.mine ? sc.mine.history.find((h) => h.what === 'listed' && h.item === id && Number.isSafeInteger(h.each)) : null;
   return row ? row.each : null;
+}
+
+/* What the sale pays, in the numbers the server will use: the cut is taken per sale, so a lot sold whole pays more than
+   the same lot sold singly (the panel 2026-11-01: "you get 33 each" on 10 pelts that paid 336). */
+function payWords(rules, qty, ask) {
+  const each = netEachOf(rules, ask);
+  if (qty === 1) return 'you get ' + whole(each) + '.';
+  const lot = netLotOf(rules, qty, ask);
+  return 'you get ' + whole(lot) + ' for all ' + whole(qty) + (lot === each * qty ? '.' : ' (' + whole(each) + ' each if they sell one at a time).');
 }
 
 const whole0 = (raw) => { const n = Math.floor(Number(raw)); return Number.isSafeInteger(n) && n > 0 ? n : 0; };
@@ -133,17 +143,17 @@ function patchSheet(pane, v, have, source) {
     : locked ? 'This is locked. Unlock it in your bag to list it.'
     : !qty ? 'Say how many.' : qty > have.qty ? 'You only have ' + whole(have.qty) + '.'
     : !ask ? 'Set a price.'
-    : s && s.floor !== null && ask < s.floor ? 'The shop pays ' + whole(s.floor) + ' for one. Ask at least that, or sell it at the shop.'
+    : s && s.floor !== null && ask < s.floor ? 'The shop pays ' + whole(s.floor) + ' for one, and nothing lists below that.' + (rules ? ' To get that much after the Weighhouse\'s cut, ask ' + whole(evenAskOf(rules, s.floor)) + ' or more.' : ' Ask more, or sell it at the shop.')
     : s && s.ceiling !== null && ask > s.ceiling ? 'That\'s more than this can be listed for. The most is ' + whole(s.ceiling) + ' each.'
     : '';
   const purse = goldOf(cs);
   const fee = rules && qty && ask ? feeOf(rules, qty, ask) : null;
   const shortFee = fee !== null && purse !== null && purse < fee ? 'The listing fee is ' + goldWords(fee) + '.' : '';
   text(foot.querySelector('.hw-mk-terms'), rules && fee !== null && !why
-    ? 'Listing fee: ' + goldWords(fee) + ' now (kept if it doesn\'t sell). When one sells, the Weighhouse keeps ' + (rules.cutBp / 100) + '%: you get ' + whole(netEachOf(rules, ask)) + ' each. Listed for ' + Math.round(rules.ttlH / 24) + ' days; anything unsold comes back to your storage.'
+    ? 'Listing fee: ' + goldWords(fee) + ' now (kept if it doesn\'t sell). The Weighhouse keeps ' + (rules.cutBp / 100) + '% of each sale: ' + payWords(rules, qty, ask) + ' Listed for ' + Math.round(rules.ttlH / 24) + ' days; anything unsold comes back to your storage.'
     : '');
   /* A sale that pays less than the shop would is the seller's call, and the sheet says so (a 1-gold ask nets 0 after the cut). */
-  const under = rules && ask && bid !== null && netEachOf(rules, ask) < bid ? 'At this price the shop pays you more than a sale would.' : '';
+  const under = rules && ask && bid !== null && netEachOf(rules, ask) < bid ? 'At this price the shop pays you more than a sale would. Ask ' + whole(evenAskOf(rules, bid)) + ' or more to match it.' : '';
   text(foot.querySelector('.hw-mk-warn'), [under, setupNaming(cs, id)].filter(Boolean).join(' '));
   text(foot.querySelector('.hw-mk-why'), why || shortFee || f.msg);
   const press = foot.querySelector('[data-hs-act="ms-list"]');

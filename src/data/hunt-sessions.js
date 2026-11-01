@@ -12,9 +12,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.78';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.78';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.78';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.79';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.79';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.79';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -211,7 +211,9 @@ export const NO_FIGHT_END_MIN = 10;
    points the character at its last non-hunt activity
    (player_state.last_activity_kind / _id), if that is still allowed; else
    idle in town. A data row so Huntera-style combat training can take its
-   place later without touching the settle. */
+   place later without touching the settle. A BENCH IS REMEMBERED BUT NEVER RESUMED
+   (2027-02-15-panel-truth.sql hr_resume_has_inputs): a resume has no count, so it would spend
+   a whole hunt's loot the player never pointed at. Gathering spends nothing and resumes. */
 export const RESUME_AFTER_END = Object.freeze(['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'no_fight', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`

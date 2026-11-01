@@ -31,20 +31,20 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.78';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.78';
-import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.78';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.78';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.78';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.78';
-import { runIntent } from '../intent-words.js?v=0.2.78';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.78';
-import { short, whole } from '../../render/format.js?v=0.2.78';
-import { glyphSvg } from '../launcher.js?v=0.2.78';
-import { markPlayer } from '../context-menu.js?v=0.2.78';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.78';
-import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.78';
-import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.78';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.79';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.79';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.79';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.79';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.79';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.79';
+import { runIntent } from '../intent-words.js?v=0.2.79';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.79';
+import { short, whole } from '../../render/format.js?v=0.2.79';
+import { glyphSvg } from '../launcher.js?v=0.2.79';
+import { markPlayer } from '../context-menu.js?v=0.2.79';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.79';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.79';
+import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.79';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -165,10 +165,23 @@ export function liveRoster(cs, r) {
  */
 export function leaveOrDisband(ctx, cs, sc, repaint, action) {
   if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
-  else if (action === 'disband') runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'The party is disbanded.');
-  else return false;
+  else if (action === 'disband') {
+    /* A thumb asks twice (panel 2026-11-01: one tap, no question, party gone): the first press arms it, and its words say so. */
+    if (ctx.isPhone && ctx.isPhone() && !sc.disbandArmed) {
+      sc.disbandArmed = true;
+      sc.msg = 'Press Sure? to end the party for everyone in it.';
+      repaint();
+      setTimeout(() => { if (sc.disbandArmed) { sc.disbandArmed = false; sc.msg = ''; repaint(); } }, DISBAND_ARMED_MS);
+      return true;
+    }
+    sc.disbandArmed = false;
+    runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'The party is disbanded.');
+  } else return false;
   return true;
 }
+const DISBAND_ARMED_MS = 5000;
+/** Disband's word: "Sure?" while a first press has armed it. */
+export const disbandWord = (sc) => (sc.disbandArmed ? 'Sure?' : 'Disband');
 
 const scratch = new WeakMap();
 function scOf(el) {
@@ -206,6 +219,7 @@ renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
   prop(disband, 'hidden', !(r.inParty && r.isLeader));
   prop(leave, 'disabled', sc.pending);
   prop(disband, 'disabled', sc.pending);
+  text(disband, disbandWord(sc));
   cls(el.querySelector('.hp-acts'), 'is-off', !r.inParty);
   text(el.querySelector('.hp-msg'), sc.msg);
   patchHold(el, r.hold, sc.pending, ctx.doc);

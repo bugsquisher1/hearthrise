@@ -16,12 +16,12 @@
 // one intent each), off from the press until the server answered; the tab
 // changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.78';
-import { huntName } from '../../session/party-sections.js?v=0.2.78';
-import { rosterOf, stateWords, leaveOrDisband } from '../widgets/party-panel.js?v=0.2.78';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.78';
-import { glyphSvg } from '../launcher.js?v=0.2.78';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.78';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.79';
+import { huntName } from '../../session/party-sections.js?v=0.2.79';
+import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.79';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.79';
+import { glyphSvg } from '../launcher.js?v=0.2.79';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.79';
 
 /** The tab's skeleton (built once with the window). */
 export function rosterHtml() {
@@ -80,6 +80,7 @@ export function patchRoster(root, ctx, sc, p) {
   const hunts = root.querySelector('[data-hs-act="party-hunts"]');
   prop(hunts, 'hidden', !(r.isLeader && !r.anyHunting));
   prop(root.querySelector('[data-hs-act="disband"]'), 'hidden', !r.isLeader);
+  text(root.querySelector('[data-hs-act="disband"]'), disbandWord(sc));
   for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', sc.pending);
 }
 

@@ -573,11 +573,13 @@
     "2027-02-12-leaderboard-heroes.sql",
     "2027-02-13-market-premium-bond.sql",
     "2027-02-13-market-eligibility.sql",
+    "2027-02-15-panel-truth.sql",
     "2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql",
     "2027-02-16-house-pelts-unlock-offers.generated.sql"
   ],
   "_order_notes": {
-    "2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql": "STAGED, NOT APPLIED (lane/c-house-pelts, systems-engineer, 2026-10-31; Andy's report; pre-EA: applies on its passing self-check). After 2027-02-15-panel-truth.sql (another lane, first). The Brook Bear's kill bound names the Bear Pelt; the self-check executes the settle's item bound. World shape unchanged. APPLY BEFORE the hr-accrue edge that drops pelts: that edge over the old bound is refused value_over and the sixth refusal forfeits the hunt; the old edge on this catalogue is safe. Then the edge, then the client.",
+    "2027-02-15-panel-truth.sql": "APPLIED 2026-11-01 05:21 UTC (lane/a-panel-truth, systems-engineer, 2026-10-31): hr_tally_pick no longer skips a carried or worn piece, so her board's line is what she pays; hr_resume_has_inputs answers false for every bench, so a hunt's automatic end never restarts one. Bodies only, no table, no edge. Before the client half that says a found piece does not move her pick.",
+    "2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql": "STAGED, NOT APPLIED (lane/c-house-pelts, systems-engineer, 2026-10-31; Andy's report; pre-EA: applies on its passing self-check). After the APPLIED 2027-02-15-panel-truth.sql. The Brook Bear's kill bound names the Bear Pelt; the self-check executes the settle's item bound. World shape unchanged. APPLY BEFORE the hr-accrue edge that drops pelts: that edge over the old bound is refused value_over and the sixth refusal forfeits the hunt; the old edge on this catalogue is safe. Then the edge, then the client.",
     "2027-02-16-house-pelts-unlock-offers.generated.sql": "STAGED, NOT APPLIED (lane/c-house-pelts, systems-engineer, 2026-10-31; pre-EA: applies on its passing self-check). The house's prices: five Keep-era rungs re-costed to items that exist, the Castle and the eight rung 5s held (refused by name, hidden from hr_home_view). Self-check: held rows refused, no sellable row costs an unreachable item. No edge order of its own: hr_unlock_buy reads this table, and a held row is refused with either edge.",
     "2027-02-13-market-premium-bond.sql": "APPLIED 2026-10-31 19:44 UTC (lane/b-market-window, systems-engineer, 2026-10-31): Security market review change 1, the premium bond is refused by the one listable rule. Before the switch. No edge, no client half.",
     "2027-02-13-market-eligibility.sql": "APPLIED 2026-10-31 19:44 UTC (lane/b-market-window, systems-engineer, 2026-10-31): threat model #9, market_locked on list and buy below hr_market_config.min_level. Before the switch and before accounts join; after 2027-02-13-market-premium-bond.sql.",

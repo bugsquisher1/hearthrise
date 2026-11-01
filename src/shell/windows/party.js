@@ -21,12 +21,12 @@
 // Every control is one intent, off from the press until the server answered;
 // the window changes only from the re-read envelope. Nothing is predicted.
 // ════════════════════════════════════════════════════════════════════════
-import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.78';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.78';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.78';
-import { runIntent } from '../intent-words.js?v=0.2.78';
-import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.78';
-import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.78';
+import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.79';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.79';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.79';
+import { runIntent } from '../intent-words.js?v=0.2.79';
+import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.79';
+import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.79';
 
 const TABS = Object.freeze([['party', 'Your party'], ['invites', 'Invites'], ['find', 'Find a party']]);
 
@@ -34,6 +34,9 @@ const TABS = Object.freeze([['party', 'Your party'], ['invites', 'Invites'], ['f
 export function renderParty() {
   return '<div class="hw-party">'
     + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l]) => '<button type="button" role="tab" class="hw-tab" data-hs-act="party-tab" data-tab="' + id + '" aria-selected="false">' + esc(l) + '</button>').join('') + '</div>'
+    /* "Only players you invite can join" needs a way to invite (panel 2026-11-01): a name, one intent, its answer in words. */
+    + '<div class="hw-add hw-invite-name"><input type="text" class="hh-num hw-invite-in" maxlength="24" placeholder="A player’s name" aria-label="A player’s name">'
+    + '<button type="button" class="hh-tool" data-hs-act="invite-name">Invite</button></div>'
     + '<section class="hw-pane" data-pane="party">' + rosterHtml() + '</section>'
     + '<section class="hw-pane" data-pane="invites">'
     + '<ul class="hw-ledger hw-invites"></ul>'
@@ -63,7 +66,7 @@ function patchInvites(root, ctx, sc, inv) {
   const none = root.querySelector('.hw-invites-none');
   cls(none, 'is-on', !inv.length);
   text(none, partyMembershipOf(ctx.character) ? 'No invites. You are in a party: its members show on the Your party tab.'
-    : 'No invites right now. ' + (ctx.isPhone && ctx.isPhone() ? 'Hold a player’s name' : 'Right-click a player') + ' and choose Invite to party to start your own.');
+    : 'No invites right now. ' + (ctx.isPhone && ctx.isPhone() ? 'Type a name above, or hold a player’s name' : 'Type a name above, or right-click a player') + ' and choose Invite to party to start your own.');
 }
 
 renderParty.patch = function patchParty(body, ctx) {
@@ -85,6 +88,8 @@ renderParty.patch = function patchParty(body, ctx) {
     if (b.getAttribute('data-tab') === 'invites') text(b, inv.length ? 'Invites (' + inv.length + ')' : 'Invites');
   }
   for (const p of root.querySelectorAll('.hw-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === tab);
+  cls(root.querySelector('.hw-invite-name'), 'is-on', tab !== 'find');
+  prop(root.querySelector('[data-hs-act="invite-name"]'), 'disabled', sc.pending);
   cls(root, 'is-pending', sc.pending);
   patchRoster(root, ctx, sc, mine);
   patchInvites(root, ctx, sc, inv);
@@ -98,6 +103,13 @@ renderParty.act = function actParty(ctx, body, action, ev, t) {
   const sc = partyScratch(cs);
   const repaint = () => renderParty.patch(body, ctx);
   if (action === 'party-tab') { sc.tab = t.getAttribute('data-tab'); sc.msg = ''; repaint(); return true; }
+  if (action === 'invite-name') {
+    const box = body.querySelector('.hw-invite-in');
+    const name = box.value.trim();
+    if (name.length < 2) { sc.msg = 'Type the name of the player to invite.'; repaint(); return true; }
+    runIntent(sc, repaint, () => cs.inviteByName(name), 'Inviting…', () => { box.value = ''; return 'Invite sent to ' + name + '.'; });
+    return true;
+  }
   if (action === 'accept' || action === 'decline') {
     const yes = action === 'accept';
     runIntent(sc, repaint, () => cs.answerInvite(t.getAttribute('data-invite'), yes), yes ? 'Joining…' : 'Declining…',

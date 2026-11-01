@@ -28,12 +28,12 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.78';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.78';
-import { MONSTERS } from '../data/monsters.js?v=0.2.78';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.78';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.78';
-import { whole, gold } from '../render/format.js?v=0.2.78';
+import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.79';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.79';
+import { MONSTERS } from '../data/monsters.js?v=0.2.79';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.79';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.79';
+import { whole, gold } from '../render/format.js?v=0.2.79';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -113,7 +113,10 @@ export function bandWords(r, level) {
 /** Words on a hunt ABOVE the character's level, or null. The floor is a warning (Tyler 10-18):
     under band[0] the server admits and warns; SESSION_LIMITS.belowRangeRefuse or more under, it refuses.
     Display only: nothing reads it to gate a press, the server decides. */
-export const ABOVE_LEVEL_WORDS = 'This hunt is above your level, expect losses.';
+/* True on the real engine, and pinned there (tests/hunt-core/first-week-bands.mjs above-your-level-words): a Level 11 sword and shield
+   in Thicket armor earns 47,500 Level XP/h in the Glade against 25,800 at Wickstead, with no death; in the practice set it spends
+   6,780 g/h on store food against 4,300 earned; a Level 2 sword alone dies. "Expect losses" alone was false for the armored hero. */
+export const ABOVE_LEVEL_WORDS = 'This hunt is above your level: more XP, but monsters hit harder. In weak armor you can spend more on food than you earn, or die.';
 export function rangeWords(r, level) {
   if (!Number.isInteger(level) || level >= r.band[0]) return null;
   return r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ? 'You are too far below this hunt to enter it yet.' : ABOVE_LEVEL_WORDS;
@@ -213,11 +216,12 @@ export function fitWords(r, level) {
   return level > r.band[1] ? { words: 'Below your level', tone: 'below' } : { words: 'In your range', tone: 'in' };
 }
 
-/** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "A party of 2 to 4"
-    (with ", or alone from Level 45" when its row measured a lone hero's break-even, hunt-grounds.js soloFrom). */
+/** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "A party of 2 to 4, or alone from Level 45"
+    when its row measured a lone hero's break-even (hunt-grounds.js soloFrom), else "Best with 2 to 4, and a lone hero can
+    enter": no rule holds a lone hero out of it (the panel 2026-11-01 walked the Sewer alone at Level 10). */
 export function heroWords(r) {
   if (r.groupFit === 'party' && r.heroes > 1) {
-    return 'A party of 2 to ' + r.heroes + (Number.isInteger(r.soloFrom) ? ', or alone from Level ' + r.soloFrom : '');
+    return Number.isInteger(r.soloFrom) ? 'A party of 2 to ' + r.heroes + ', or alone from Level ' + r.soloFrom : 'Best with 2 to ' + r.heroes + ', and a lone hero can enter';
   }
   return r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';
 }

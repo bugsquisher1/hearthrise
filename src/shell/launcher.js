@@ -6,19 +6,19 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.78';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.78';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon } from '../data/hunt-tutorial.js?v=0.2.78';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.78';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.78';
-import { levelOf } from '../session/character-sections.js?v=0.2.78';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.78';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.78';
-import { lootSale } from './bag-model.js?v=0.2.78';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.78';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.78';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.78';
-import { trackOnce } from '../net/observability.js?v=0.2.78';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.79';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.79';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.79';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.79';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.79';
+import { levelOf } from '../session/character-sections.js?v=0.2.79';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.79';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.79';
+import { lootSale } from './bag-model.js?v=0.2.79';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.79';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.79';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.79';
+import { trackOnce } from '../net/observability.js?v=0.2.79';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -59,6 +59,9 @@ function restsNow(ctx, card) {
   if (now === null) return false;
   const r = cs.record && cs.record.residue ? cs.record.residue.coach : null;
   if (r && r.seen === card.id && r.min !== true) return false;
+  /* BACK FROM AN ABSENCE the away line speaks first (away-recap.js): no card opens over the hunt the player came back to */
+  const h = huntOf(cs);
+  if (r && r.back && h && h.sessionId === r.back) return true;
   const s = OPEN_SINCE.get(cs);
   if (!s || s.id !== card.id) { OPEN_SINCE.set(cs, { id: card.id, since: now }); return false; }
   return now - s.since >= Math.max(COACH_HUNT_OPEN_MS, 2 * readMs(card));
@@ -122,6 +125,8 @@ export function coachFactsOf(cs, account) {
     playLimit: account && typeof account.statedLimit === 'function' ? account.statedLimit() : null,
     sellable: bag && shop ? lootSale(bag, rulesOf(cs), shop, skillsOf(cs)).lines.length : null,
     upgrades: bag && eq ? upgradeOf(cs).picks.map((p) => p.id) : null,
+    back: (cs.record && cs.record.residue && cs.record.residue.coach && cs.record.residue.coach.back) || null,
+    slotCost: account && account.slotOffer ? account.slotOffer.cost : null,
   };
   if (cs.record) FACTS.set(cs, { record: cs.record, account, open: open.map((c) => ({ cs: c, record: c.record })), sh });
   return sh;
@@ -193,6 +198,11 @@ export function heldCard(ctx) {
   return passed ? show(passed, now) : show(card, now);
 }
 
+/* GOT IT GIVES THE SHEET BACK (panel 2026-11-01: the Shop's next card landed at once, 40 px of list left): on a phone, after a
+   Got it in a window, the next card there stays folded to its tab until the window closes (renderLaunchers) or the tab is
+   pressed (actCoach). Display only. */
+const RESTED = new WeakMap();
+
 /** The coach box for `card` (folded to its title, or open), the same wherever it is drawn. Open, its words are their
  *  own box (.hs-coach-text): on a phone a long card scrolls there, under its title and its dash (shell.css). `inWin`:
  *  drawn inside the window the card points into, where it says its words for there (card.textIn: "Press Enter",
@@ -200,7 +210,7 @@ export function heldCard(ctx) {
 export function coachHtml(cs, card, inWin, rest) {
   if (inWin && card.textIn) card = Object.assign({}, card, { text: card.textIn });
   const folded = coachFoldOf(cs, card);
-  const fresh = folded.fresh, min = folded.min || !!rest;
+  const fresh = folded.fresh, min = folded.min || !!rest || (!!inWin && RESTED.get(cs) === coachWindow(card));
   /* Close (x): only where a read finishes the card and this client can record it; it records the read. */
   const close = readable(card) && coachReadOf(cs) ? '<button type="button" class="hs-coach-close" data-hs-act="coach-close" aria-label="Close '
     + esc(card.title) + '" title="Close"></button>' : '';
@@ -250,13 +260,16 @@ export function actCoach(ctx, el, action, ev) {
   const cs = ctx.character;
   const card = cs && heldCard(ctx);
   if (!card || typeof cs.setResidue !== 'function') return true;
-  if (action === 'coach-got') { if (card.gotIt) markCoachRead(cs, card); return true; }
+  if (action === 'coach-open') RESTED.delete(cs);
+  if (action === 'coach-got') { if (card.gotIt) { if (ctx.isPhone && ctx.isPhone() && coachWindow(card)) RESTED.set(cs, coachWindow(card)); markCoachRead(cs, card); } return true; }
   if (action === 'coach-close') { if (readable(card)) { markCoachRead(cs, card); return true; } action = 'coach-min'; }
   const doc = el.ownerDocument;
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
   /* Opening clears the mark: the card the player now sees is the one they have seen. The reads stay. */
   const read = coachReadOf(cs);
   const keep = read && read.size ? { read: Array.from(read) } : {};
+  const r = cs.record && cs.record.residue && cs.record.residue.coach;
+  if (r && r.back) keep.back = r.back;
   cs.setResidue('coach', Object.assign(action === 'coach-min' ? { min: true, seen: card.id } : { seen: card.id }, keep));
   /* The box is redrawn on the residue change (one repaint per task): keep the keyboard on the coach's control. */
   if (hadFocus) queueMicrotask(() => { const b = el.querySelector('[data-hs-act^="coach-"]'); if (b) b.focus(); });
@@ -274,6 +287,7 @@ function launcherRows(ctx) {
  *  as ringCoach (below) would set it, so a repaint never finds this row changed. */
 export function renderLaunchers(ctx) {
   const open = new Set(ctx.wm.openIds());
+  if (ctx.character && RESTED.has(ctx.character) && !open.has(RESTED.get(ctx.character))) RESTED.delete(ctx.character);
   const ring = ctx.character ? coachIcon(heldCard(ctx), (id) => open.has(id)) : null;
   const buttons = launcherRows(ctx).map((r) => {
     const on = open.has(r.id);

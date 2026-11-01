@@ -18,23 +18,23 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell } from '../../bag-model.js?v=0.2.78';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.78';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.78';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.78';
-import { whole, gold } from '../../../render/format.js?v=0.2.78';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.78';
-import { glyphSvg } from '../../launcher.js?v=0.2.78';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.78';
-import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.78';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.78';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.78';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.78';
-import { buryParts, buryBlock, buryRecipeOf, namedBlock } from './bury.js?v=0.2.78';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.78';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.78';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.78';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.78';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell } from '../../bag-model.js?v=0.2.79';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.79';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.79';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.79';
+import { whole, gold } from '../../../render/format.js?v=0.2.79';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.79';
+import { glyphSvg } from '../../launcher.js?v=0.2.79';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.79';
+import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.79';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.79';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.79';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.79';
+import { buryParts, buryBlock, buryRecipeOf, namedBlock } from './bury.js?v=0.2.79';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.79';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.79';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.79';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.79';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
@@ -84,6 +84,9 @@ export function toolsHtml(g) {
 
 /* "1 more on the way" / "4 being used": the pending part of a count (town-ticker.js), in words. */
 const aheadWords = (d) => whole(Math.abs(d)) + (d > 0 ? ' more on the way' : ' being used');
+/** The picked stack's count: what is in hand, then the pending part. A stack being spent counts what is left, the same number as
+    its pocket and the work line ("×15 · 14 being used" sat beside a pocket of 1, the panel 2026-11-01). Pure. */
+export const pickCountWords = (qty, ahead) => '×' + whole(qty + Math.min(0, ahead)) + (ahead ? ' · ' + aheadWords(ahead) : '');
 
 function patchPocket(li, r, st) {
   const locked = !!(st.rules && st.rules.locked.has(r.id));
@@ -142,7 +145,7 @@ export function patchTools(root, st, ctx) {
   text(pick.querySelector('b'), cur ? itemName(cur) : '');
   /* The count every action here spends is the server's; the ticker's pending part is named beside it. */
   const ahead = cur ? aheadQty(st.tick, cur) : 0;
-  text(pick.querySelector('small'), cur ? '×' + whole(st.qty.get(cur)) + (ahead ? ' · ' + aheadWords(ahead) : '') + (st.shop && st.shop.bids.has(cur) ? ' · the shop pays ' + gold(st.shop.bids.get(cur)) + ' each' : '') : '');
+  text(pick.querySelector('small'), cur ? pickCountWords(st.qty.get(cur), ahead) + (st.shop && st.shop.bids.has(cur) ? ' · the shop pays ' + gold(st.shop.bids.get(cur)) + ' each' : '') : '');
   const prim = primaryOf(st, cur);
   const pb = pick.querySelector('[data-hs-act="primary"]');
   text(pb, prim ? prim[1] : '');

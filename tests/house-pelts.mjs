@@ -18,9 +18,14 @@
 //                and no sellable row costs an item the catalogue cannot reach.
 //   HP-4 SELF-CHECK the two 2027-02-16 files refuse their own apply on a visible rung with a dead item, a sold Castle, and a
 //                bear whose kill bound forgets the pelt; a second apply of both is byte-identical.
+//   HP-5 THE WORDS (no database) no Brook Bear below a pull of 3, and the player reading for a pelt is told: the item tip's
+//                "Comes from" names the bear and not the six monsters no ground spawns, the House's short cost line and the
+//                Glade's page say a bigger pull brings it, a held-enough line and an as-built creature's item say nothing.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { plant } from './hunt-core/fixtures/h1.js';
 import { isMain } from './_is-main.mjs';
 
 const OFFERS = '2027-02-16-house-pelts-unlock-offers.generated.sql';
@@ -231,6 +236,44 @@ const ARMS = {
   },
 };
 
+/* HP-5, on the tree at `root` (a planted copy for its mutants). */
+async function wordsFails(root) {
+  const imp = (p) => import(pathToFileURL(join(root, p)).href);
+  const F = await imp('src/shell/hunt-ground-facts.js');
+  const { sourcesOf } = await imp('src/shell/item-lore.js');
+  const { costLines } = await imp('src/shell/windows/house.js');
+  const G = await imp('src/data/hunt-grounds.js');
+  const out = [];
+  const glade = G.HUNT_GROUNDS[GLADE];
+  const at = (n) => glade.pockets.some((_, p) => G.pullRows(glade, p, n).some((s) => s.monster === 'brook_bear'));
+  if (at(2) || !at(3)) out.push('CONTROL: the engine brings the bear at pull 2 ' + at(2) + ', at pull 3 ' + at(3) + ': the words below state 3');
+  const told = /The Brook Bear only comes to a pull of 3 or more at Mosslight Glade/;
+  const src = sourcesOf('bear_pelt').join('. ');
+  if (!/^Dropped by Brook Bear\./.test(src) || !told.test(src)) out.push('the tip\'s Comes from reads: ' + src);
+  const step = { gold: 40000, items: [{ id: 'bear_pelt', qty: 5 }, { id: 'oak_log', qty: 1 }] };
+  const shortLine = costLines(step, 50000, [], []).lines.find((l) => l.key === 'bear_pelt');
+  if (!told.test(shortLine.label) || !shortLine.short) out.push('the House\'s short pelt line reads: ' + shortLine.label);
+  const heldLine = costLines(step, 50000, [{ id: 'bear_pelt', qty: 5 }], []).lines.find((l) => l.key === 'bear_pelt');
+  if (/pull/.test(heldLine.label)) out.push('the House tells a hero holding the pelts to pull more: ' + heldLine.label);
+  const page = F.bigPullLine(GLADE);
+  if (!/Brook Bear \(3 or more a pull\)/.test(page) || !/Bear Pelt/.test(page)) out.push('the Glade\'s page reads: ' + page);
+  if (F.raresOf(GLADE).every((x) => x.id !== 'bear_claw')) out.push('the Glade\'s Rare list leaves out the Bear Claw');
+  if (F.bigPullWords('wolf_pelt') !== '') out.push('an as-built creature\'s item is told to pull more: ' + F.bigPullWords('wolf_pelt'));
+  if (F.bigPullLine('mill_cellar') !== '') out.push('a ground with no such creature says: ' + F.bigPullLine('mill_cellar'));
+  return out;
+}
+const WORD_TREES = ['src/shell', 'src/render', 'src/session', 'src/utils', 'src/net', 'src/platform', 'src/app', 'src/social', 'src/world', 'src/hunt-view'];
+const WORD_MUTANTS = [
+  { name: 'the tip lists every catalogue monster again', edits: [['src/shell/item-lore.js', 'const met = r.drops.filter(onOpenGround);', 'const met = r.drops;']] },
+  { name: 'the tip drops the pull', edits: [['src/shell/item-lore.js', 'if (pull) out.push(pull);', '']] },
+  { name: 'the House\'s short line drops the pull', edits: [['src/shell/windows/house.js', "const pull = short ? bigPullWords(it.id) : '';", "const pull = '';"]] },
+  { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const pull = short ? bigPullWords(it.id) : '';", 'const pull = bigPullWords(it.id);']] },
+  { name: 'the page names no bear', edits: [['src/shell/hunt-ground-facts.js', "return said.length ? 'Bigger pulls also bring '", "return said.length > 9 ? 'Bigger pulls also bring '"]] },
+  { name: 'the bear moves back a row: a pull of 3 no longer brings it', edits: [
+    ['src/data/hunt-grounds.js', "['brook_bear', 'walking_vine', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']", "['walking_vine', 'brook_bear', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']"],
+    ['src/data/hunt-grounds.js', "['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']", "['walking_vine', 'brook_bear', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']"]] },
+];
+
 /* THE PLANTED DEFECTS: each runs inside its arm's transaction, before the arm. `js` plants on the edge's own data. */
 const MUTANTS = {
   bear_has_no_pelt: { arm: 'HP-2', why: 'the bug Andy hit: the bear drops no pelt, so nothing can pay the Keep',
@@ -273,7 +316,14 @@ async function main() {
       console.log(`  ${p.length ? 'CAUGHT' : 'MISSED'} ${id} [${m.arm}]: ${m.why}${p.length ? ' (' + p[0].slice(0, 110) + ')' : ''}`);
       if (!p.length) missed++;
     }
-    console.log(`house-pelts --selftest: ${Object.keys(MUTANTS).length} mutants, ${missed} missed`);
+    for (const mu of WORD_MUTANTS) {
+      const p = plant(mu.edits, WORD_TREES);
+      let f;
+      try { f = await wordsFails(p.root); } catch (e) { f = ['threw: ' + String(e && e.message).slice(0, 200)]; } finally { p.done(); }
+      console.log(`  ${f.length ? 'CAUGHT' : 'MISSED'} ${mu.name} [HP-5]${f.length ? ' (' + f[0].slice(0, 110) + ')' : ''}`);
+      if (!f.length) missed++;
+    }
+    console.log(`house-pelts --selftest: ${Object.keys(MUTANTS).length + WORD_MUTANTS.length} mutants, ${missed} missed`);
     process.exit(missed ? 1 : 0);
   }
   const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
@@ -284,7 +334,11 @@ async function main() {
     try { p = await runArm(db, H, M, id, null); } catch (e) { p = ['threw: ' + String(e && e.stack || e).slice(0, 500)]; }
     if (p.length) { bad++; for (const m of p) console.error(`✗ ${id}: ${m}`); } else console.log(`✓ ${id}`);
   }
-  console.log(bad ? `house-pelts: ${bad} arm(s) red` : `house-pelts: all ${ids.length} arms green`);
+  if (!only || only.split(',').includes('HP-5')) {
+    const f = await wordsFails(H.ROOT);
+    if (f.length) { bad++; for (const m of f) console.error(`✗ HP-5: ${m}`); } else console.log('✓ HP-5');
+  }
+  console.log(bad ? `house-pelts: ${bad} arm(s) red` : 'house-pelts: green');
   process.exit(bad ? 1 : 0);
 }
 

@@ -409,7 +409,7 @@ async function pure() {
 /* AW-25 .. AW-28 PURE: the Hunts page's facts from the data rows and its lines from the server's sections. */
 async function huntsPure(imp) {
   const fails = [];
-  const { residentsOf, scarceSetOf, raresOf, wornWeightOf } = await imp('src/shell/hunt-ground-facts.js');
+  const { residentsOf, scarceSetOf, raresOf, wornWeightOf, bigPullOf } = await imp('src/shell/hunt-ground-facts.js');
   const { MONSTERS } = await imp('src/data/monsters.js');
   const { huntRows, fitWords, bestLine, bestWords, densityStep } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
@@ -433,7 +433,7 @@ async function huntsPure(imp) {
      Trophies last, never a Scarce piece; the hourly gear a line a tier, the worn weight's line word first. */
   for (const r of huntRows()) {
     const want = new Set(), got = raresOf(r.hunt);
-    for (const m of residentsOf(r.hunt)) for (const d of MONSTERS[m.id].drops || []) if (d.band === 'rare' || d.band === 'trophy') want.add(d.id + '@' + m.id);
+    for (const m of [...residentsOf(r.hunt), ...bigPullOf(r.hunt)]) for (const d of MONSTERS[m.id].drops || []) if (d.band === 'rare' || d.band === 'trophy') want.add(d.id + '@' + m.id);
     const ids = got.map((x) => x.id + '@' + x.carrier.id);
     if (ids.length !== want.size || ids.some((k) => !want.has(k))) fails.push('AW-25 ' + r.hunt + ' rares read ' + ids.join('+') + ', the rows say ' + [...want].join('+'));
     if (got.some((x, i) => x.trophy && got.slice(i + 1).some((y) => !y.trophy))) fails.push('AW-25 ' + r.hunt + ' lists a Trophy before a Rare');

@@ -26,6 +26,7 @@ import { itemName, monsterName } from './widgets/bits.js?v=0.2.79';
 import { kindOf, riteOf, cookOf, namedFuelOf } from './bag-model.js?v=0.2.79';
 import { FLAMES } from '../data/hearth.js?v=0.2.79';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.79';
+import { bigPullWords, onOpenGround } from './hunt-ground-facts.js?v=0.2.79';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
@@ -83,7 +84,14 @@ export function kindWords(id) {
 export function sourcesOf(id, serverOffers) {
   const r = index().get(id);
   const out = [];
-  if (r && r.drops.length) out.push('Dropped by ' + listWords(r.drops.map(monsterName)));
+  if (r && r.drops.length) {
+    /* The creatures a player can meet, when any can: the catalogue keeps rows for monsters no open ground spawns, and
+       "Dropped by" six of those sent a Bear Pelt hunter nowhere. */
+    const met = r.drops.filter(onOpenGround);
+    out.push('Dropped by ' + listWords((met.length ? met : r.drops).map(monsterName)));
+    const pull = bigPullWords(id);
+    if (pull) out.push(pull);
+  }
   if (r && r.from.length) out.push('Gathered with ' + listWords(r.from.map(skillName)));
   if (r && r.made.length) out.push('Made with ' + listWords(r.made.map(skillName)));
   if ((r && r.shop) || (serverOffers || []).some((o) => o.item === id)) out.push('Sold at the shop');

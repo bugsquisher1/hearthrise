@@ -18,13 +18,18 @@
 //                      (src/core/drops.js bandOf, REVEAL_BANDS), never a server-revealed
 //                      surprise (`lucky`, `salvage`).
 //   wornWeightOf(eq)   the armour weight a hero wears most (heavy, medium, light), or null.
+//   bigPullOf(hunt)    the creatures only a bigger pull brings (a pocket's fill rows, hunt-grounds.js pullRows, the rows the
+//                      engine spawns), with the smallest pull that does and their everyday drops; bigPullLine(hunt) says so
+//                      on the ground's page, bigPullWords(item) wherever the player looks for that creature's drop
+//                      (Andy's report, 2026-10-31: no Brook Bear, so no Bear Pelt, below a pull of 3).
 //   THE ODDS (Tyler 2026-10-24: "either give like a % drop chance or nothing at all") are the
 //   server's own: src/data/monsters.js is the catalogue the hr-accrue engine rolls (bundled
 //   into it), and each row's chance on one kill is the roller's (drops.js effectiveDropChance)
 //   at the kill's yield share for a party of `size` (hunt-grounds.js yieldPermille), before any
 //   hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.79';
+import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.79';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.79';
 import { MONSTERS } from '../data/monsters.js?v=0.2.79';
 import { ITEMS } from '../data/items.js?v=0.2.79';
 import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.79';
@@ -58,6 +63,54 @@ export function residentsOf(hunt) {
     const m = MONSTERS[id] || {};
     return { id, name: m.name || id, level: Number.isInteger(m.level) ? m.level : null, boss: m.boss === true, points: n, share: n / all, band: shareBand(n / all) };
   }).sort((a, b) => b.points - a.points || (a.level || 0) - (b.level || 0) || (a.name < b.name ? -1 : 1));
+}
+
+/* The smallest pull on ground `g` that spawns `id` (the engine's own rows), or 0 if no pull does. */
+function pullThatBrings(g, id) {
+  for (let n = 1; n <= DENSITY_PICK.max; n++) {
+    for (let p = 0; p < g.pockets.length; p++) if (pullRows(g, p, n).some((s) => s.monster === id)) return n;
+  }
+  return 0;
+}
+const standsAsBuilt = (g, id) => g.pockets.some((p) => p.spawns.some((s) => s.monster === id));
+const everyday = (id) => ((MONSTERS[id] || {}).drops || []).filter((d) => d.band === 'common').map((d) => nameOf(d.id));
+
+/** The creatures on a ground only a bigger pull brings: [{ id, name, pull, drops: [item names] }]. [] for none. */
+export function bigPullOf(hunt) {
+  const g = groundOf(hunt);
+  if (!g) return [];
+  const ids = new Set(g.pockets.flatMap((p) => (p.pack || []).map((s) => s.monster)));
+  return [...ids].filter((id) => !standsAsBuilt(g, id)).sort().map((id) => (
+    { id, name: (MONSTERS[id] || {}).name || id, pull: pullThatBrings(g, id), drops: everyday(id) }));
+}
+
+/** The ground page's line: "Bigger pulls also bring the Brook Bear (3 or more a pull): Raw Bear Meat, Bear Pelt.", or ''. */
+export function bigPullLine(hunt) {
+  const said = bigPullOf(hunt).map((m) => 'the ' + m.name + ' (' + m.pull + ' or more a pull): ' + m.drops.join(', '));
+  return said.length ? 'Bigger pulls also bring ' + said.join('; ') + '.' : '';
+}
+
+/** Is this creature on a ground a player can walk today (any pull)? */
+export function onOpenGround(id) {
+  return Object.values(OPEN_GROUNDS).some((g) => g.pockets.some((p) => (p.pack || p.spawns).concat(p.spawns).some((s) => s.monster === id)));
+}
+
+/**
+ * Where a player finds out why an item is not dropping: "The Brook Bear only comes to a pull of 3 or more at Mosslight
+ * Glade", or '' when a creature standing in some open ground's pack as built drops it too.
+ */
+export function bigPullWords(item) {
+  const found = [];
+  for (const g of Object.values(OPEN_GROUNDS)) {
+    for (const id of new Set(g.pockets.flatMap((p) => (p.pack || p.spawns).concat(p.spawns).map((s) => s.monster)))) {
+      if (!((MONSTERS[id] || {}).drops || []).some((d) => d && d.id === item)) continue;
+      if (standsAsBuilt(g, id)) return '';
+      found.push({ g, id, pull: pullThatBrings(g, id) });
+    }
+  }
+  if (!found.length) return '';
+  const best = found.sort((a, b) => a.pull - b.pull)[0];
+  return 'The ' + MONSTERS[best.id].name + ' only comes to a pull of ' + best.pull + ' or more at ' + ((HUNT_INDEX[best.g.hunt] || {}).name || best.g.hunt);
 }
 
 /* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */
@@ -140,7 +193,8 @@ export function scarceSetOf(hunt, worn, size) {
 export function raresOf(hunt, size) {
   const g = groundOf(hunt), n = sizeOf(size);
   const out = [];
-  for (const r of residentsOf(hunt)) {
+  /* A creature only a bigger pull brings carries its Rares too (the Brook Bear's Claw). */
+  for (const r of [...residentsOf(hunt), ...bigPullOf(hunt)]) {
     for (const d of ((MONSTERS[r.id] || {}).drops || []).filter(isRare)) {
       if (!out.some((x) => x.id === d.id && x.carrier.id === r.id)) {
         out.push({ id: d.id, name: nameOf(d.id), trophy: bandOf(d) === 'trophy', carrier: { id: r.id, name: r.name }, chance: rowChance(g, d, metBy(g, r.id, n)) });

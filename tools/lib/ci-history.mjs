@@ -12,13 +12,20 @@
 // run on the very same commit (41296159657 and 41302817036: 88 minutes each), holding
 // the 20 runner slots a fix-forward needs. Plain guards still run there.
 //
+// A FIX-FORWARD RE-PROVES ONLY THE FIX. v0.2.80 took five pushes and v0.2.81 two, each
+// re-running the whole release's proofs for a one-file fix: about 100 minutes a time. A
+// job green at an earlier commit of this branch has proved everything up to it, so on the
+// next push it is measured from that commit. A job that went red has no such commit and
+// keeps the release's whole diff.
+//
 // GitHub is read through one child process so the gate can stay synchronous, the token
 // stays out of argv, and a stalled API costs a bounded wait.
 // ════════════════════════════════════════════════════════════════════════
 import { spawnSync } from 'node:child_process';
 
 export const STALE_MS = 48 * 3600 * 1000;
-const WORKFLOW = '.github/workflows/smoke.yml';
+export const WORKFLOW = '.github/workflows/smoke.yml';
+const LOOKBACK = 6;
 const GET = `const u = process.env.HR_GATE_URL, t = process.env.HR_GATE_TOKEN;
 const h = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'hr-mutant-gate' };
 if (t) h.Authorization = 'Bearer ' + t;
@@ -40,9 +47,9 @@ function ghGet(path, env) {
 
 /** The last completed sweep on main: { at, id, red: [job names] } (a `*` when no job explains a red run), or null. */
 function readNightly(env) {
-  const latest = (ev) => ghGet(`/actions/workflows/smoke.yml/runs?branch=main&event=${ev}&status=completed&per_page=1`, env).workflow_runs || [];
-  const runs = [...latest('schedule'), ...latest('workflow_dispatch')].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
-  const run = runs[0];
+  /* One call for both sweep events: the token allows 1000 calls an hour and 39 jobs each ask. */
+  const runs = ghGet('/actions/workflows/smoke.yml/runs?branch=main&status=completed&per_page=50', env).workflow_runs || [];
+  const run = runs.filter((r) => r.event === 'schedule' || r.event === 'workflow_dispatch').sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))[0];
   if (!run) return null;
   if (run.conclusion === 'success') return { at: run.updated_at, id: run.id, red: [] };
   const jobs = ghGet(`/actions/runs/${run.id}/jobs?per_page=100&filter=latest`, env).jobs || [];
@@ -56,6 +63,23 @@ function readProved(env) {
   const hit = runs.find((r) => r.path === WORKFLOW && /^release\//.test(r.head_branch) && String(r.id) !== String(env.GITHUB_RUN_ID));
   return hit ? { id: hit.id, branch: hit.head_branch } : null;
 }
+
+/**
+ * The newest earlier run of this branch whose job was green at a commit `usable` accepts:
+ * { id, sha }, or null. `get` is GitHub's answer, injectable for the selftest.
+ */
+export function lastGreenRun({ job, ref, own, usable, get }) {
+  const runs = get(`/actions/workflows/smoke.yml/runs?branch=${encodeURIComponent(ref)}&event=push&status=completed&per_page=${LOOKBACK}`).workflow_runs || [];
+  for (const run of runs) {
+    if (String(run.id) === String(own)) continue;
+    const jobs = get(`/actions/runs/${run.id}/jobs?per_page=100&filter=latest`).jobs || [];
+    if (jobs.some((j) => j.name === job && j.conclusion === 'success') && usable(run.head_sha)) return { id: run.id, sha: run.head_sha };
+  }
+  return null;
+}
+
+/** ghGet bound to this run's environment, for lastGreenRun. */
+export const githubReader = (env) => (path) => ghGet(path, env);
 
 /**
  * Everything the policy reads. HR_GATE_HISTORY (JSON) stands in for GitHub in the selftest.

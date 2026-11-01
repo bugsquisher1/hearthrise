@@ -881,6 +881,37 @@ jobs:
           node tests/town-walk.mjs
           node tools/mutant-gate.mjs node tests/town-walk.mjs --mutate
 
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-13
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # in-page-24: Town stands and Phone touch, split out of in-page-13 (lane a-ci-speed, 2026-11-01). Run 41339988105
+  # measured in-page-13 at 37.0 min: 23.6 stays, 13.3 + setup here, x2 = 30.
+  in-page-24:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
       # THE REAL TOWN'S STANDS (2026-10-25, Tyler: heroes stacked on one tile; L2 of the
       # real-town plan): the SERVER places every body on a stand of its activity's station
       # (2027-01-28-town-stands.sql), one body a stand, in town instances of 60 players,
@@ -918,7 +949,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-failure-in-page-13
+          name: smoke-failure-in-page-24
           path: |
             tests/**/*.png
             tests/**/*.log
@@ -5011,6 +5042,26 @@ jobs:
           node tools/mutant-gate.mjs node tests/w0f-fun-content.mjs --selftest
 
 
+
+  # client-guards-2: the second half of client-guards, split at World art (lane a-ci-speed, 2026-11-01). Run
+  # 41339988105 measured the family at 31.6 of its 32 min: 12.0 stays, 19.7 + setup here, x2 = 41.
+  client-guards-2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 41
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
 
       # World art (lane W2): every committed world atlas keeps one scale and stands
       # on the floor - class body budget, locked palette, shared 64x64 character

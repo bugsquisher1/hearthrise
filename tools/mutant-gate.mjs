@@ -32,7 +32,8 @@
 // THE HISTORY (tools/lib/ci-history.mjs). A job the last nightly did not prove green runs
 // every proof it holds until a sweep proves it; a nightly that cannot be read, or is over
 // 48 h old, makes every job full. Main's push skips the proofs a green release run already
-// ran on the very same commit; its plain runs still run.
+// ran on the very same commit; its plain runs still run. A job green at an earlier commit
+// of this release branch is measured from that commit, so a fix-forward re-proves the fix.
 //
 // A REHEARSAL. `gh workflow run smoke.yml --ref <lane> -f rehearse_range=<sha>..<sha>` (not
 // on main) runs this branch's guards under the plan an old release's diff gets: how to
@@ -65,7 +66,7 @@ import {
 } from './lib/guard-deps.mjs';
 import { scopedProofs, committedTexts, anchorLinesIn } from './guard-anchors.mjs';
 import { scopeMutants, splitMutants, parseMutants, classifyRuleEdit } from './lib/mutant-scope.mjs';
-import { readHistory, historyPolicy, STALE_MS } from './lib/ci-history.mjs';
+import { readHistory, historyPolicy, lastGreenRun, githubReader, STALE_MS, WORKFLOW as WORKFLOW_PATH } from './lib/ci-history.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 
@@ -129,7 +130,25 @@ export function ciBase(env) {
   let sha = null;
   try { sha = gitOut(['merge-base', `origin/${branch}`, 'HEAD']); } catch { /* further back than 50 */ }
   if (!sha) { fetchHistory(refspecs, DEPTH); sha = gitOut(['merge-base', `origin/${branch}`, 'HEAD']); }
-  return { sha: usableBase(sha, gitOut(['rev-parse', 'HEAD'])), how };
+  usableBase(sha, gitOut(['rev-parse', 'HEAD']));
+  return (ev === 'push' && greenBase(env)) || { sha, how };
+}
+
+/* A job green at an earlier commit of this branch is measured from there (ci-history.mjs). Not
+   when the workflow moved since: a step that changed jobs was not proved by this one's green.
+   Any doubt keeps the release's whole diff. */
+function greenBase(env) {
+  try {
+    const usable = (sha) => {
+      if (!/^[0-9a-f]{40}$/.test(sha) || !gitOk(['cat-file', '-e', `${sha}^{commit}`])) {
+        fetchHistory([`+${sha}:refs/hr-gate/green`], 50);
+      }
+      if (!gitOk(['merge-base', '--is-ancestor', sha, 'HEAD'])) return false;
+      return !committedDiff(ROOT, `${sha}..HEAD`).files.includes(WORKFLOW_PATH);
+    };
+    const g = lastGreenRun({ job: env.GITHUB_JOB, ref: env.GITHUB_REF_NAME, own: env.GITHUB_RUN_ID, usable, get: githubReader(env) });
+    return g ? { sha: g.sha, how: `job ${env.GITHUB_JOB} was green here in run ${g.id}` } : null;
+  } catch { return null; }
 }
 
 /* Main already holds this commit (a release and main pushed together: run 41327717372 went
@@ -518,14 +537,16 @@ async function selftest() {
     const want = list.filter((m) => m[1] === ANALYZER).map((m) => m[0]);
     const victim = list.find((m) => m[1] !== ANALYZER);
     const edited = head.replace(JSON.stringify(victim[0]).slice(1, -1), `${victim[0]} (old)`);
-    const harnessEdit = head.replace('async function main() {', 'async function main() {\n  const older = 1;');
+    const harnessEdit = head.replace('function scripted() {', 'function scripted() {\n  const older = 1;');
+    const runnerEdit = head.replace('async function main() {', 'async function main() {\n  const older = 1;');
     const commentEdit = head.replace('async function main() {', '// an older comment\nasync function main() {');
     const run = (fn, changed, baseSource) => fn({ guard: HS, root: ROOT, changed, base: null, headSource: head, baseSource, sources });
     const same = (s, names) => !s.all && s.keep.size === names.length && names.every((n) => s.keep.has(n));
     const scopeChecks = (fn) => [
       [want.length > 0 && same(run(fn, [ANALYZER]), want), `an edit to ${ANALYZER} runs only its ${want.length} analyzer mutant(s) of ${list.length}`],
       [same(run(fn, [HS], edited), [victim[0]]), 'an edited (renamed) mutant entry runs that mutant alone'],
-      [run(fn, [HS], harnessEdit).all, 'an edit to hunt-screen outside MUTANTS runs every mutant'],
+      [run(fn, [HS], harnessEdit).all, 'an edit to a hunt-screen helper runs every mutant'],
+      [(({ all, keep }) => !all && keep.size === 3)(run(fn, [HS], runnerEdit)), 'an edit to the loop that plants and judges runs the three canaries'],
       [run(fn, ['tests/_client-harness.mjs']).all, 'an edit to tests/_client-harness.mjs (the harness it imports) runs every mutant'],
       [run(fn, null).all, 'no scope (nightly, manual, local) runs every mutant'],
       [same(run(fn, ['src/shell/chat.js']), []), 'an edit no mutant patches runs none'],
@@ -668,6 +689,33 @@ async function selftest() {
       const missed = histChecks(fn).every(([ok]) => ok);
       if (missed) bad++;
       console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} history mutant: ${label}`);
+    }
+    /* A fix-forward: the newest green job at a usable commit, never a red one, never this run. */
+    const FAKE = { 5: 'failure', 4: 'success', 3: 'success' };
+    const get = (path) => {
+      const m = /runs\/(\d+)\/jobs/.exec(path);
+      if (m) return { jobs: [{ name: 'j', conclusion: FAKE[m[1]] }, { name: 'other', conclusion: 'failure' }] };
+      return { workflow_runs: [{ id: 6, head_sha: 'f' }, { id: 5, head_sha: 'e' }, { id: 4, head_sha: 'd' }, { id: 3, head_sha: 'c' }] };
+    };
+    const greenChecks = (fn) => {
+      const pick = (o) => fn({ job: 'j', ref: 'release/v0.0.1', own: 6, usable: () => true, get, ...o });
+      return [
+        [(pick() || {}).id === 4, 'a job red in the newest run is measured from its last green one'],
+        [(pick({ usable: (s) => s !== 'd' }) || {}).id === 3, 'a commit that cannot be used (not an ancestor, the workflow moved) is passed over'],
+        [pick({ job: 'other' }) === null, 'a job never green keeps the whole diff'],
+        [pick({ usable: () => false }) === null, 'no usable commit keeps the whole diff'],
+        [(pick({ own: 4 }) || {}).id === 3, 'this run itself never counts'],
+      ];
+    };
+    for (const [ok, label] of greenChecks(lastGreenRun)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} fix-forward: ${label}`); }
+    for (const [label, fn] of [
+      ['a red job counts as green', (o) => lastGreenRun({ ...o, get: (p) => { const r = o.get(p); return r.jobs ? { jobs: r.jobs.map((j) => ({ ...j, conclusion: 'success' })) } : r; } })],
+      ['any commit is usable', (o) => lastGreenRun({ ...o, usable: () => true })],
+      ['this run counts', (o) => lastGreenRun({ ...o, own: -1 })],
+    ]) {
+      const missed = greenChecks(fn).every(([ok]) => ok);
+      if (missed) bad++;
+      console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} fix-forward mutant: ${label}`);
     }
     const baseChecks = (fn) => {
       let threw = false;

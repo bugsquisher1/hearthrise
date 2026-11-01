@@ -45,13 +45,12 @@ const RENAME_WHY = Object.freeze({ hunt_open: ' is hunting. Rename once the hunt
    phoneIcon: they have no other press here); and Characters and Sign out, which no longer fit beside the row. */
 const iconNames = (ctx, rows) => rows.map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
   + glyphSvg(ctx.glyphs, r.glyph) + '<span>' + esc(r.label) + '</span></button></li>').join('');
-const iconListHtml = (ctx) => {
-  const rows = ctx.wm.rows().filter((r) => r.launcher !== false);
-  return '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">What the icons open</h3><ul class="hw-icon-names">'
-    + iconNames(ctx, rows.filter((r) => r.phoneIcon !== false)) + '</ul>'
-    + '<h3 class="hw-ledger-head is-on">Also here</h3><ul class="hw-icon-names is-more">'
-    + iconNames(ctx, rows.filter((r) => r.phoneIcon === false)) + '</ul></div>';
-};
+const iconRows = (ctx) => ctx.wm.rows().filter((r) => r.launcher !== false);
+const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">What the icons open</h3><ul class="hw-icon-names">'
+  + iconNames(ctx, iconRows(ctx).filter((r) => r.phoneIcon !== false)) + '</ul></div>';
+/* "Also here" is the sheet's first row: these have no icon on a phone, so a long scroll hid them (panel 2026-11-01: ~700 px down). */
+const alsoHereHtml = (ctx) => '<div class="hw-phone-only"><ul class="hw-icon-names is-more" aria-label="Also here">'
+  + iconNames(ctx, iconRows(ctx).filter((r) => r.phoneIcon === false)) + '</ul></div>';
 const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">Character list</button>'
   + '<button type="button" class="hh-tool" data-app="sign-out">Sign out</button></div>';
 
@@ -66,6 +65,7 @@ function inviteEntry(ctx, x) {
 /** The skeleton (built once per opening). */
 export function renderCharacters(ctx) {
   return '<div class="hw-command">'
+    + alsoHereHtml(ctx)
     + '<ul class="hw-chars"></ul>'
     + '<div class="hw-rename"><h3 class="hs-sub hw-rename-head"></h3>'
     + '<p class="hs-note hw-rename-quote"></p>'
@@ -90,7 +90,7 @@ function charRow(ctx) {
   return element(ctx.doc, '<li class="hw-char">'
     + '<span class="hw-ico hw-roleglyph" aria-hidden="true"></span>'
     + '<div class="hw-char-main"><p class="hw-char-line"><b class="hw-char-name"></b><span class="hw-char-doing"></span>'
-    + '<span class="hw-badge" aria-label="Alerts waiting"></span></p>'
+    + '<span class="hw-badge" aria-label="Alerts waiting"></span></p><p class="hw-char-waits"></p>'
     + '<div class="hw-char-gauges">' + gaugeHtml('hp', 'Health') + gaugeHtml('mana', 'Mana') + gaugeHtml('stamina', 'Stamina') + '</div>'
     + '<p class="hw-char-facts"><span class="hw-char-bag"></span><span class="hw-char-ready"></span><span class="hw-char-party"></span></p></div>'
     + '<span class="hw-char-do"><button type="button" class="hh-tool hw-char-show" data-hs-act="show">Show</button>'
@@ -106,6 +106,9 @@ function patchRow(li, x, ctx) {
   const badge = li.querySelector('.hw-badge');
   text(badge, x.alerts ? String(x.alerts) : '');
   cls(badge, 'is-on', x.alerts > 0);
+  /* What the red count is waiting for: the newest of this hero's alerts, in its own words (panel 2026-11-01). */
+  const wait = x.alerts && ctx.alerts ? ctx.alerts.list().find((a) => a.slot === x.slot) : null;
+  text(li.querySelector('.hw-char-waits'), wait ? wait.text : '');
   patchGauge(li.querySelector('.is-hp'), v.hp, v.hpMax, v.hp === null ? 'HP –' : whole(v.hp) + ' / ' + whole(v.hpMax));
   patchGauge(li.querySelector('.is-mana'), v.mana, v.manaMax, v.mana === null ? 'Mana –' : whole(v.mana) + ' / ' + whole(v.manaMax));
   patchGauge(li.querySelector('.is-stamina'), v.staminaMs, v.staminaCapMs, hoursMinutes(v.staminaMs));

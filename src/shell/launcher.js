@@ -8,7 +8,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.78';
 import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.78';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon } from '../data/hunt-tutorial.js?v=0.2.78';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.78';
 import { tallyOf } from '../session/tally-sections.js?v=0.2.78';
 import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.78';
 import { levelOf } from '../session/character-sections.js?v=0.2.78';
@@ -193,6 +193,11 @@ export function heldCard(ctx) {
   return passed ? show(passed, now) : show(card, now);
 }
 
+/* GOT IT GIVES THE SHEET BACK (panel 2026-11-01: the Shop's next card landed at once, 40 px of list left): on a phone, after a
+   Got it in a window, the next card there stays folded to its tab until the window closes (renderLaunchers) or the tab is
+   pressed (actCoach). Display only. */
+const RESTED = new WeakMap();
+
 /** The coach box for `card` (folded to its title, or open), the same wherever it is drawn. Open, its words are their
  *  own box (.hs-coach-text): on a phone a long card scrolls there, under its title and its dash (shell.css). `inWin`:
  *  drawn inside the window the card points into, where it says its words for there (card.textIn: "Press Enter",
@@ -200,7 +205,7 @@ export function heldCard(ctx) {
 export function coachHtml(cs, card, inWin, rest) {
   if (inWin && card.textIn) card = Object.assign({}, card, { text: card.textIn });
   const folded = coachFoldOf(cs, card);
-  const fresh = folded.fresh, min = folded.min || !!rest;
+  const fresh = folded.fresh, min = folded.min || !!rest || (!!inWin && RESTED.get(cs) === coachWindow(card));
   /* Close (x): only where a read finishes the card and this client can record it; it records the read. */
   const close = readable(card) && coachReadOf(cs) ? '<button type="button" class="hs-coach-close" data-hs-act="coach-close" aria-label="Close '
     + esc(card.title) + '" title="Close"></button>' : '';
@@ -250,7 +255,8 @@ export function actCoach(ctx, el, action, ev) {
   const cs = ctx.character;
   const card = cs && heldCard(ctx);
   if (!card || typeof cs.setResidue !== 'function') return true;
-  if (action === 'coach-got') { if (card.gotIt) markCoachRead(cs, card); return true; }
+  if (action === 'coach-open') RESTED.delete(cs);
+  if (action === 'coach-got') { if (card.gotIt) { if (ctx.isPhone && ctx.isPhone() && coachWindow(card)) RESTED.set(cs, coachWindow(card)); markCoachRead(cs, card); } return true; }
   if (action === 'coach-close') { if (readable(card)) { markCoachRead(cs, card); return true; } action = 'coach-min'; }
   const doc = el.ownerDocument;
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
@@ -274,6 +280,7 @@ function launcherRows(ctx) {
  *  as ringCoach (below) would set it, so a repaint never finds this row changed. */
 export function renderLaunchers(ctx) {
   const open = new Set(ctx.wm.openIds());
+  if (ctx.character && RESTED.has(ctx.character) && !open.has(RESTED.get(ctx.character))) RESTED.delete(ctx.character);
   const ring = ctx.character ? coachIcon(heldCard(ctx), (id) => open.has(id)) : null;
   const buttons = launcherRows(ctx).map((r) => {
     const on = open.has(r.id);

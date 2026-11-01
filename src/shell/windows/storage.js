@@ -108,7 +108,7 @@ renderStorage.patch = function patchStorage(body, ctx) {
   prop(root.querySelector('[data-hs-act="sort"]'), 'value', prefs.sort);
   for (const b of root.querySelectorAll('.hw-cat')) attr(b, 'aria-pressed', String(b.getAttribute('data-cat') === prefs.cat));
   text(root.querySelector('.hw-store-note'), away ? 'Your storage is at home and your hero is out hunting. Leave the hunt to use it.'
-    : !bank ? 'Reading your storage…' : 'Press a stack to move one across. Shift-press moves all of it. Right-click (or hold) to choose how many.');
+    : !bank ? 'Reading your storage…' : (ctx.isPhone && ctx.isPhone() ? 'Press a stack to move one across. Hold it to choose how many.' : 'Press a stack to move one across. Shift-press moves all of it. Right-click (or hold) to choose how many.'));
   const depot = depotOf(cs);
   patchSide(root, ctx, 'bank', bank || [], view(bank || [], Object.assign({ seen: marks || residueOf(cs).storeSeen || {} }, o)), off, depot);
   /* "73 of 100 stacks. 2 more are kept free for your market listings." (a listing's return always has its place) */

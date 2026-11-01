@@ -306,6 +306,8 @@
   .hs-launchers > .hs-pointer::before { display: none; }
   .hs-launchers > .hs-pointer:not(.is-min) { top: calc(100% + 50px); max-height: calc(var(--coach-room) - 58px); }
   .hs-launchers > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, var(--coach-room) - 80px - 1.5lh, 1lh) + .5lh); }
+  /* Got it takes its row out of the words' room, so they still end part-way into a line above it, never against it. */
+  .hs-launchers > .hs-pointer:not(.is-min):has(.hs-coach-got) > .hs-coach-text { max-height: calc(round(down, var(--coach-room) - 126px - 1.5lh, 1lh) + .5lh); }
   /* An alert under the card leaves it too little room (shell.js roomForCoach): the card keeps its title until it closes. */
   .hs-widget.is-short-room > .hs-pointer:not(.is-min) > :is(.hs-coach-text, .hs-coach-got) { display: none; }
   /* While a leave counts down: what the wait is for, in one line under the hunt bar (hunt-topbar.js), the card aside. */
@@ -332,10 +334,20 @@
     min-height: 0; max-height: calc(round(down, var(--coach-room) - 42px - 1.5lh, 1lh) + .5lh); overflow-y: auto; overscroll-behavior: contain;
     pointer-events: auto;
   }
+  /* A CARD IN A SHEET LEAVES THE SHEET TO THE CONTROL IT NAMES (panel 2026-11-01: 667x375, 156 px of card over 40 px of
+     list). Its title and presses one row; its words a line and a half on a short screen (they scroll, the cut says so). */
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
-  /* INSIDE A SHEET the card has no --coach-room: five and a half lines, then the words scroll, so Got it stays on screen
-     (played at 667x375, 2026-10-31: the style card ran 88 px off the foot with its Got it). */
-  .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { display: block; max-height: calc(5.5 * 1lh); }
+  .hs-win-coach > .hs-pointer:not(.is-min), .hs-win-coach > .hs-pointer.has-close:not(.is-min) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; padding: 0 0 4px 12px; }
+  .hs-win-coach > .hs-pointer:not(.is-min) > b { grid-area: 1 / 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-got { grid-area: 1 / 2; margin: 0; min-height: 40px; padding: 0 8px; }
+  .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-min, .hs-win-coach > .hs-pointer.has-close:not(.is-min) > .hs-coach-min { position: static; grid-area: 1 / 3; width: 40px; height: 40px; }
+  .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-close { position: static; grid-area: 1 / 4; width: 40px; height: 40px; }
+  /* Got it and the cross would say the same thing: one press for it, and the row's room for the title. */
+  .hs-win-coach > .hs-pointer:has(.hs-coach-got) > .hs-coach-close { display: none; }
+  .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { grid-area: 2 / 1 / 3 / -1; padding-right: 8px; max-height: calc(round(down, 100vh / 3 - 100px, 1lh) + .5lh); }
+  /* A ground's page has its Enter ringed: the title alone says so. */
+  [data-hs-win="hunts"]:has(.is-paged) .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { display: none; }
+  [data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now { display: none; }
   /* The town card's own cap, past the general one above (same weight, later wins): its 50 px drop stays inside the room. */
   .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) { max-height: calc(var(--coach-room) - 58px); }
   /* The card under the hunt bar stands at the bar's right end, its tip under Leave (first-hour playtest 10-29 #10:

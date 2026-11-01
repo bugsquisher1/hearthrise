@@ -79,7 +79,10 @@
 .hw-confirm-do { display: flex; gap: 6px; margin-top: 8px; }
 .hw-confirm-do .hw-primary { display: inline-block; }
 .hw-pane:has(.hw-confirm.is-on) .hw-pick .hw-primary { display: none; }
-.hs-win .hh-intent-msg { margin-top: 6px; }
+/* The answer to a press stays in view wherever the window is scrolled, in the confirmation's well (shell.css), not
+   small grey text under the last row (Tyler 2026-11-01: "it was hard to see"). */
+.hs-win .hh-intent-msg:where(:not(.ca-msg)) { margin-top: 6px; font-size: var(--t-small); color: var(--ink); }
+.hs-win .hh-intent-msg:not(:empty, .ca-msg) { position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }
 .is-pending .hh-intent-msg { color: var(--ink-2); }
 /* A sunk field (shell.css, Forged Steel), its magnifier inside. */
 .hw-search { flex: 1; display: flex; align-items: center; gap: 6px; padding-left: 8px; color: var(--ink-3); }

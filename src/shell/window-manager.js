@@ -63,7 +63,8 @@ export function validateWindowRows(rows) {
     if (!r || typeof r.id !== 'string' || !/^[a-z][a-z0-9_-]*$/.test(r.id)) throw new Error('shell windows: bad id ' + JSON.stringify(r && r.id));
     if (byId.has(r.id)) throw new Error('shell windows: duplicate id ' + r.id);
     if (typeof r.label !== 'string' || !r.label) throw new Error('shell windows: ' + r.id + ' has no label');
-    if (!KEY_RE.test(r.key || '')) throw new Error('shell windows: ' + r.id + ' key must be a letter, enter or escape');
+    const noKey = r.key === null && r.modal === true && r.launcher === false;   // a popup only the game opens
+    if (!noKey && !KEY_RE.test(r.key || '')) throw new Error('shell windows: ' + r.id + ' key must be a letter, enter or escape');
     if (keys.has(r.key)) throw new Error('shell windows: key ' + r.key + ' is both ' + keys.get(r.key) + ' and ' + r.id);
     /* tabKeys: a second shortcut that opens this window on one of its tabs ({ r: 'services' }: R opens the Shop on Services) */
     if (r.tabKeys !== undefined) {
@@ -82,7 +83,7 @@ export function validateWindowRows(rows) {
     if ((r.home || r.resizable) && r.modal) throw new Error('shell windows: ' + r.id + ' a modal neither sits home nor resizes');
     if (r.escape) escapes++;
     byId.set(r.id, r);
-    keys.set(r.key, r.id);
+    if (!noKey) keys.set(r.key, r.id);
   }
   if (escapes > 1) throw new Error('shell windows: more than one escape row');
   return byId;

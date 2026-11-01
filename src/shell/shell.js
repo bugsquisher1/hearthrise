@@ -154,7 +154,7 @@ export function mountShell(root, o) {
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', row.label);
     el.innerHTML = '<header class="hs-win-head" data-hs-drag="' + esc(row.id) + '">' + glyphSvg(ctx.glyphs, row.glyph)
-      + '<h2 class="hs-win-title">' + esc(row.title || row.label) + '</h2><kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>'
+      + '<h2 class="hs-win-title">' + esc(row.title || row.label) + '</h2>' + (row.key ? '<kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>' : '')
       + '<button type="button" class="hs-close" data-hs-close="' + esc(row.id) + '" aria-label="Close ' + esc(row.label) + '">' + glyphSvg(ctx.glyphs, 'uiClose') + '</button></header>'
       /* the coach's card when it points into this window (coach() below), above the body: it covers nothing */
       + '<div class="hs-win-coach"></div>'
@@ -566,8 +566,8 @@ export function mountShell(root, o) {
   const offMoves = mountWidgetMoves({ boxes: [worldHud, screenHud], hud, host, isPhone: () => phoneMq.matches, place: placeWidgets, refresh });
   paintWidgets();
   coach();
-  /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. */
-  const offDeaths = followDeaths(ctx);
+  /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. The play cap's refusal opens its own. */
+  const offDeaths = followDeaths(ctx), offPlayCap = WINDOW_RENDERERS['play-cap'].follow(ctx, refresh);
 
   return {
     wm, hud,
@@ -584,7 +584,7 @@ export function mountShell(root, o) {
     onInset(fn) { insetListeners.add(fn); fn(insetNow()); return () => insetListeners.delete(fn); },
     menu: ctx.menu,
     destroy() {
-      offDeaths(); offWm(); offHud(); offMoves();
+      offDeaths(); offPlayCap(); offWm(); offHud(); offMoves();
       if (sized) sized.ro.disconnect();
       ctx.menu.destroy();
       host.clearInterval(ticker);

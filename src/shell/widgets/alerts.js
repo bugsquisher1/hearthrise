@@ -19,7 +19,7 @@
 import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.79';
 import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.79';
 import { glyphSvg } from '../launcher.js?v=0.2.79';
-import { refusalWords } from '../intent-words.js?v=0.2.79';
+import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.79';
 import { cardFacts, shareCard } from '../share-card.js?v=0.2.79';
 
 const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market' });
@@ -85,7 +85,7 @@ async function settle(ctx, el, a, send) {
   let r;
   try { r = await send(cs); } catch (e) { r = { ok: false, error: 'network' }; }
   if (r.ok) ctx.alerts.dismiss(a.key);
-  else ctx.alerts.mark(a.key, false, refusalWords(r.error));
+  else ctx.alerts.mark(a.key, false, playCapOf(r) ? '' : refusalWords(r.error));
   renderAlerts.patch(el, ctx);
 }
 

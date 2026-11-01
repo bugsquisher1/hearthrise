@@ -106,7 +106,7 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   services: anchor('the Shop\'s Services tab (src/shell/windows/services.js): the Shop\'s icon, the Services tab, then the control', 'shop', true, 'services'),
   storage: anchor('Storage (src/shell/windows/storage.js): its icon', 'storage', true),
   market: anchor('the Weighhouse (src/shell/windows/market): its icon', 'market', true),
-  honor: anchor('the Roll of Honor (src/shell/windows/honor.js): its icon', 'honor', true),
+  honor: anchor('Leaderboards (src/shell/windows/honor.js): its icon', 'honor', true),
   settings: anchor('Settings (src/shell/windows/settings.js): its icon, then the Help tab', 'settings', true),
   hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js): the bar\'s setup corner, then Save current setup', 'hunt-prep', true),
   house: anchor('the House (src/shell/windows/house.js): its icon, then Buy', 'house', true),
@@ -407,7 +407,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('weighhouse', 'The Weighhouse is open',
     'List what you find there and other heroes can buy it, and they may pay more than the Shop. Press its icon to look around.',
     'market', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: WEIGHHOUSE_LEVEL, below: WANT_BELOW }] }),
-  step('roll_of_honor', 'The Roll of Honor',
+  step('roll_of_honor', 'Leaderboards',
     'It ranks every hero in Havora. See where you stand, and who is ahead of you.',
     'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }),
 ]);

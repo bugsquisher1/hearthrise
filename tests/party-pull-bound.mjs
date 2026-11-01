@@ -49,7 +49,7 @@ async function play(db) {
 async function main() {
   if (process.argv.includes('--mutate')) {
     const { db } = await bootReplay({ patches: new Map([[CATALOGUE, [["('meadowbrook_thicket', 'meadowbrook_thicket', 6, 49, 60000, 2,", "('meadowbrook_thicket', 'meadowbrook_thicket', 6, 13, 60000, 2,"],
-      ["('meadowbrook_thicket', 6, 49)", "('meadowbrook_thicket', 6, 13)"]]]]) });
+      ["('meadowbrook_thicket', 6, 49)", "('meadowbrook_thicket', 6, 13)"]]]]), upTo: CATALOGUE });
     const got = await play(db);
     const hit = got.some((p) => /kills_over/.test(p));
     console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' the as-built spawns on the Thicket: ' + (got[0] || 'every window landed').slice(0, 160));

@@ -273,7 +273,7 @@ const PAGE_MUTANTS = [
   ['the projection drops the Blessing', 'src/session/character-sections.js', "      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null });", '      saved: undefined });'],
   ['Hunt summary only closes', 'src/shell/windows/death.js', "  if (action === 'death-summary') ctx.show('hunt-summary');\n", ''],
   ['a reload stands the hunt bar back up in town', 'src/shell/shell.js', " && !summaryFromEarlierPage(opts.character, h.sessionId)", ''],
-  ['a closed summary waits out the residue debounce', 'src/shell/shell.js', "if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});", 'void 0;'],
+  ['a closed summary waits out the residue debounce', 'src/shell/shell.js', ' landSummary(ctx.character);', ''],
   ['the summary opens over the popup', 'src/shell/shell.js', "if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death'))", 'if (cs && takeFresh(cs))'],
 ];
 

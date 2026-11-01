@@ -2,7 +2,7 @@
 // tests/world-tick-stall-after-repoint.mjs — REGRESSION (2026-09-28)
 //
 //   node tests/world-tick-stall-after-repoint.mjs            green = the tick resumes
-//   node tests/world-tick-stall-after-repoint.mjs --mutate   the fix reverted: R-G-a must go red (exit 0 when it does; R-C retired, lane C2)
+//   node tests/world-tick-stall-after-repoint.mjs --mutate   the fix reverted, either half: R-G-a and R-A must go red (exit 0 when they do; R-C retired, lane C2)
 //
 // THE PRODUCTION FINDING (read-only status pass, 2026-09-28 03:24Z). Two
 // rostered characters, the cron posting every 10 s with HTTP 200, and ZERO
@@ -48,10 +48,22 @@
 // back by whole milliseconds (the fence and the engine read only differences
 // against now()).
 //
+// ── THE SECOND HALF: THE DRIVER (lane/c-beta-server, 2026-11-01) ─────────────
+// fenceWindowFrom's fix never reached production. npm:postgres serializes a
+// parameter Postgres describes as timestamptz with new Date(x).toISOString()
+// (node_modules/postgres/src/types.js), so `$6::timestamptz` cut the fence's own
+// microsecond spelling back to the millisecond on the wire. Live: 168 refusals on
+// 10-30, ~600 on 11-01 05:00 and 07:00, then Andy's three heroes every fire, each
+// ending only at a real settle. PGlite has no such serializer, so this file stayed
+// green. `exec` below now runs the REAL driver's serializer on every parameter a
+// direct `$n::timestamptz` cast would describe, and R-A proves an ARMED window pays.
+//
 // Exit: 0 green (or, under --mutate, the mutant caught) · 1 red · 2 harness.
 // ============================================================================
 
 import { readFile, writeFile, cp, mkdtemp } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import postgres from 'postgres';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -60,6 +72,8 @@ import { runSetActivity } from '../supabase/functions/hr-accrue/set-activity.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
+/* The second mutant, a child of --mutate: the fence's window start bound as a direct timestamptz again. */
+const MUTATE_BIND = process.argv.includes('--mutate-bind');
 const CADENCE_MS = 10000;
 const FLUSH_MS = 90000;
 const SUB_MS = 357;                         // µs a production now() carries past the ms
@@ -76,7 +90,7 @@ const judge = (id, ok, okMsg, badMsg) => (ok ? good(id, okMsg) : bad(id, badMsg)
    because accrual.js reaches `../../../src/core/**`. */
 async function tickEntry() {
   const here = join(ROOT, 'supabase', 'functions', 'hr-accrue');
-  if (!MUTATE) return import(pathToFileURL(join(here, 'tick.js')).href);
+  if (!MUTATE && !MUTATE_BIND) return import(pathToFileURL(join(here, 'tick.js')).href);
   const base = await mkdtemp(join(tmpdir(), 'hr-wtsr-'));
   const dir = join(base, 'supabase', 'functions', 'hr-accrue');
   await cp(here, dir, { recursive: true });
@@ -88,7 +102,14 @@ async function tickEntry() {
       + 'the mutation cannot be applied, so a green run would prove nothing.');
     process.exit(2);
   }
-  await writeFile(join(dir, 'tick.js'), src.replace(marker, 'windowFrom: a.p_window_from,'), 'utf8');
+  const bind = "' $6::text::timestamptz, $7::timestamptz,";
+  if (!src.includes(bind)) {
+    console.error('--mutate: tick.js no longer binds the window start as text — the mutation cannot be applied.');
+    process.exit(2);
+  }
+  await writeFile(join(dir, 'tick.js'), MUTATE_BIND
+    ? src.replace(bind, "' $6::timestamptz, $7::timestamptz,")
+    : src.replace(marker, 'windowFrom: a.p_window_from,'), 'utf8');
   return import(pathToFileURL(join(dir, 'tick.js')).href);
 }
 
@@ -101,10 +122,18 @@ try {
 }
 const { runTick } = await tickEntry();
 
+/* THE WIRE, AS index.ts'S DRIVER WRITES IT. The real npm:postgres serializer, with the pool's own options (nothing
+   connects). A parameter Postgres describes as timestamptz goes through it; `$n::text::timestamptz` is described as text. */
+const DRIVER = postgres('postgres://driver@127.0.0.1:1/none', { prepare: false, fetch_types: false });
+const TIMESTAMPTZ_OID = 1184;
+const onTheWire = (text, params) => (params || []).map((v, i) => (
+  v !== null && v !== undefined && new RegExp(`\\$${i + 1}::timestamptz\\b`).test(text)
+    ? DRIVER.options.serializers[TIMESTAMPTZ_OID](v) : v));
+
 /** The one-statement seam index.ts hands both modules, as the real role. */
 const exec = async (text, params) => {
   await db.exec('set role hr_engine');
-  try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); }
+  try { return (await db.query(text, onTheWire(text, params))).rows; } finally { await db.exec('reset role'); }
 };
 const one = async (sql, p) => (await db.query(sql, p)).rows[0];
 
@@ -256,11 +285,47 @@ await arm('R-G', U(2), 'gather', 'oak_tree', { microClock: true });
    The truncation this file guards lives in tick.js's fence binding, which the
    gather arms drive unchanged. */
 
-/* --mutate is GREEN when the mutant is caught: the two production-clock arms
+/* R-A: THE MONEY PATH. Armed, a hero who started a job with a microsecond switch stamp and closed the browser is PAID
+   by the next fire past the flush, and the mark moves (live: Andy's heroes were refused every fire, unpaid). */
+{
+  const u = U(3);
+  await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[], armed_channels = array['gather']::text[] where id;");
+  await seed(u, 'gather');
+  const r = await runSetActivity({ exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind: 'gather', id: 'oak_tree' } });
+  if (r.status !== 200) bad('R-A', `set_activity answered ${r.status} ${JSON.stringify(r.body)}`);
+  else {
+    const iv = `interval '${SUB_MS} microseconds'`;
+    await db.exec(`update public.player_state set accrued_to = accrued_to + ${iv}, active_since = active_since + ${iv} where user_id = '${u}'`);
+    await db.exec(`update public.hr_return_anchor set real_return_at = now() where user_id = '${u}'`);
+    await travel(u, FLUSH_MS + CADENCE_MS);
+    await db.exec(`update public.hr_return_anchor set real_return_at = real_return_at - interval '${FLUSH_MS + CADENCE_MS} milliseconds' where user_id = '${u}'`);
+    const m0 = (await one(`select accrued_to::text as t from public.player_state where user_id = '${u}'`)).t;
+    const f = await fire(u);
+    const m1 = (await one(`select accrued_to::text as t from public.player_state where user_id = '${u}'`)).t;
+    const paid = Number((await one(`select count(*) as n from public.player_ledger where user_id = '${u}' and kind = 'gather' and meta->>'src' = 'tick'`)).n);
+    judge('R-A', paid === 1 && m1 !== m0,
+      `armed: the first fire past the flush pays a hero whose mark carries microseconds (${m0} -> ${m1}, one tick row)`,
+      `armed: the hero sat unpaid: mark ${m0} -> ${m1}, ${paid} tick rows, fire ${JSON.stringify(f.reasons)}`);
+  }
+}
+
+/* --mutate is GREEN when the mutant is caught: the production-clock arms
    must go red and nothing else may (the controls stay green, which is what
-   names the sub-millisecond digits as the cause). */
+   names the sub-millisecond digits as the cause). The driver half runs as a child. */
+if (MUTATE_BIND) {
+  const caught = problems.includes('R-G-a') && problems.includes('R-A');
+  console.log(caught ? '\n--mutate-bind: green — binding the window start as a direct timestamptz turns R-G-a and R-A red.'
+    : `\n--mutate-bind: RED — red arms: [${problems.join(', ')}], wanted R-G-a and R-A`);
+  process.exit(caught ? 0 : 1);
+}
 if (MUTATE) {
-  const want = ['R-G-a'];
+  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--mutate-bind'], { encoding: 'utf8' });
+  console.log(String(child.stdout || '').trim().split('\n').slice(-1)[0]);
+  if (child.status !== 0) {
+    console.log('\nworld-tick-stall-after-repoint --mutate: RED — the driver mutant was not caught.');
+    process.exit(1);
+  }
+  const want = ['R-G-a', 'R-A'];
   const caught = want.every((id) => problems.includes(id))
     && problems.every((id) => want.includes(id));
   console.log(caught

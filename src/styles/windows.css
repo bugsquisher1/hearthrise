@@ -501,6 +501,9 @@
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* A Shop row on the half-wide sheet: the icon and name on one line, the count and the price under them (the name had 23 px and read "C…"). */
+  .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }
+  .hw-shop .hw-line-name { flex: 1 1 calc(100% - 52px); }
   .hw-keys { display: none; }
   .hw-tab { min-height: 36px; }
   .hw-cat { min-height: 36px; flex: none; }

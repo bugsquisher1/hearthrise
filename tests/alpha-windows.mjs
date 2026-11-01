@@ -2500,7 +2500,8 @@ async function checks(overrides, shots) {
     }
 
     { // AW-61 NOTHING CLIPS: every window's title and a Shop name, in a wide fallback font (GitHub's Linux runner has one); a member's Hunt again is off and says why
-      const { ctx, page, s, up } = await open({ viewport: { width: 1365, height: 846 } });
+      const stall = (e) => { e.shop = Object.assign({}, e.shop, { offers: [{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }, { offer: 'gear.iron_helm', item: 'iron_helm', kind: 'gear', price: 180 }] }); };
+      const { ctx, page, s, up } = await open({ viewport: { width: 1365, height: 846 }, mutateEnv: stall });
       if (!up) fails.push('AW-61 the page did not mount');
       else {
         await page.addStyleTag({ content: ':root { --f-ui: Verdana, "DejaVu Sans", sans-serif !important; --f-display: Verdana, "DejaVu Sans", sans-serif !important; }' });
@@ -2516,16 +2517,21 @@ async function checks(overrides, shots) {
           return got;
         }), SHELL_WINDOWS.map((r) => ({ id: r.id, title: r.title || r.label, width: r.width, key: r.key })));
         for (const h of heads) if (h.w > 0 || h.band > 46 || h.ell === 'ellipsis') fails.push('AW-61 the ' + h.id + ' title clips: ' + JSON.stringify(h));
-        /* the Shop at the phone's 667: the name wraps, it is never cut */
-        await page.setViewportSize({ width: 667, height: 375 });
-        if (!(await openWin(page, 'v', 'shop'))) fails.push('AW-61 the Shop did not open at 667');
-        else {
-          await wait(page, () => document.querySelector('[data-hs-win="shop"] .hw-line-name b'), null, 3000);
-          const cut = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="shop"] .hw-line-name b')).filter((b) => b.getClientRects().length && (b.scrollWidth > b.clientWidth || getComputedStyle(b).whiteSpace === 'nowrap')).map((b) => b.textContent));
-          if (cut.length) fails.push('AW-61 Shop names cut at 667: ' + cut.join(', '));
-          await page.keyboard.press('v');
-        }
-        await page.setViewportSize({ width: 1365, height: 846 });
+        /* the Shop on the phone (a sheet, half of 667): the name has its own line and is never cut; desktop keeps its one row */
+        const shopNames = async (p, tag) => {
+          await p.addStyleTag({ content: ':root { --f-ui: Verdana, "DejaVu Sans", sans-serif !important; --f-display: Verdana, "DejaVu Sans", sans-serif !important; }' });
+          if (!(await openWin(p, 'v', 'shop'))) { fails.push('AW-61 the Shop did not open at ' + tag); return; }
+          await wait(p, () => document.querySelector('[data-hs-win="shop"] .hw-line-name b'), null, 3000);
+          const names = await p.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="shop"] .hw-line-name b')).filter((b) => b.getClientRects().length).map((b) => ({ t: b.textContent, over: b.scrollWidth - b.clientWidth })));
+          if (!names.length) fails.push('AW-61 no Shop name to measure at ' + tag);
+          for (const n of names) if (n.over > 0) fails.push('AW-61 ' + tag + ': the Shop cuts ' + JSON.stringify(n));
+        };
+        await shopNames(page, '1365');
+        await page.keyboard.press('v');
+        const phone = await open({ viewport: { width: 667, height: 375 }, mutateEnv: stall });
+        if (!phone.up) fails.push('AW-61 the phone did not mount');
+        else await shopNames(phone.page, '667');
+        await phone.ctx.close();
         /* a member's summary: Hunt again is off, says who chooses, and sends nothing */
         const seat = (n, name) => ({ seat: n, name, unit: 10 + n, hunting: false });
         s.env.party = { id: '00000000-0000-4000-a000-0000000000aa', hunt: 'mill_cellar', max: 4, leader_seat: 0, self_seat: 1, members: [seat(0, 'Bramwell'), seat(1, 'Brannoc')] };
@@ -2665,7 +2671,7 @@ const MUTANTS = [
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? 'The shop buys it", "return false ? 'The shop buys it"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
   ['AW-61 a window title clips again', 'src/styles/shell.css', '.hs-win-title { margin: 0; flex: 1; min-width: 0;', '.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
-  ['AW-61 Shop names are cut again', 'src/styles/windows.css', '.hw-shop .hw-line-name b { white-space: normal; line-height: 1.15; }', ''],
+  ['AW-61 Shop names are cut again', 'src/styles/windows.css', '  .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }', ''],
   ['AW-61 the summary ignores who may press', 'src/shell/windows/hunt-summary.js', "prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);", "prop(go, 'disabled', sc.pending || huntOpen || !again);"],
   ['AW-61 the leader enters alone', 'src/shell/windows/hunt-summary.js', "if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);\n    else if (how === 'enter')", "if (how)"],
   ['item truth: Before you go hides the spare juice', 'src/shell/hunt-go.js', "const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';", "const spare = '';"],

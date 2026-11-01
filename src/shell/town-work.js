@@ -35,25 +35,25 @@
 // server's engine has certainly done since its watermark (tickOf: town-ticker.js,
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.81';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.81';
-import { ITEMS } from '../data/items.js?v=0.2.81';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.81';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.81';
-import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.81';
-import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.81';
-import { recipeInputs } from '../core/artisan.js?v=0.2.81';
-import { pacedXp } from '../core/pacing.js?v=0.2.81';
-import { whole } from '../render/format.js?v=0.2.81';
-import { itemName } from './widgets/bits.js?v=0.2.81';
-import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.81';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.81';
-import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.81';
-import { skillShortWords } from './intent-words.js?v=0.2.81';
-import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.81';
-import { bestTool } from '../core/tools.js?v=0.2.81';
-import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.81';
-import { whereToGet, toolEffect } from './item-lore.js?v=0.2.81';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.82';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.82';
+import { ITEMS } from '../data/items.js?v=0.2.82';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.82';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.82';
+import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.82';
+import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.82';
+import { recipeInputs } from '../core/artisan.js?v=0.2.82';
+import { pacedXp } from '../core/pacing.js?v=0.2.82';
+import { whole } from '../render/format.js?v=0.2.82';
+import { itemName } from './widgets/bits.js?v=0.2.82';
+import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.82';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.82';
+import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.82';
+import { skillShortWords } from './intent-words.js?v=0.2.82';
+import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.82';
+import { bestTool } from '../core/tools.js?v=0.2.82';
+import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.82';
+import { whereToGet, toolEffect } from './item-lore.js?v=0.2.82';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });

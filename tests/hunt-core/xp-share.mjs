@@ -42,11 +42,14 @@ function away(M, fx, xpMultOf, awayFlag) {
   runSpan(M, f, []);
 }
 
-/* THE DESIGNER'S TABLE (2026-10-31): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
-const LADDER = { 2: [1000, 1200], 3: [1000, 1150, 1300], 4: [1000, 1130, 1270, 1400] };
+/* THE DESIGNER'S TABLE (2026-11-01): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
+const LARGE = { 3: [1000, 1130, 1270], 4: [1000, 1130, 1200, 1270] };
 const PARTY_TABLE = {
-  mill_cellar: LADDER, meadowbrook_thicket: LADDER, wickstead: LADDER, mosslight_glade: LADDER,
-  millrace_sewer: { 2: [800, 1000], 3: [800, 1080, 1150], 4: [800, 1080, 1170, 1250] },
+  mill_cellar: { 2: [1000, 1200], 3: [1000, 1130, 1300], 4: [1000, 1130, 1270, 1400] },
+  meadowbrook_thicket: { 2: [1000, 1150], ...LARGE },
+  wickstead: { 2: [900, 1050], ...LARGE },
+  mosslight_glade: { 2: [1000, 1180], ...LARGE },
+  millrace_sewer: { 2: [800, 1000], 3: [800, 1050, 1100], 4: [800, 1050, 1100, 1150] },
   coppercap_warrens: { 2: [1000, 1000], 3: [1000, 1000, 1000], 4: [1000, 1000, 1000, 1000] },
 };
 /* A kill big enough that every cell lands whole (no floor hides a cell), divisible by 2, 3, 4 and 5. */
@@ -119,20 +122,20 @@ const cases = {
   },
   /* A shield Melee and a Melee are ONE class, whichever shares the party; a Melee beside a Ranger is two. */
   'party-class-melee-is-one': (M) => {
-    const one = killOn(M, 'wickstead', ['tank', 'melee_dps'], BIG);
+    const one = killOn(M, 'meadowbrook_thicket', ['tank', 'melee_dps'], BIG);
     if (Object.values(one).some((v) => v !== BIG / 2)) return 'tank + melee_dps paid ' + JSON.stringify(one) + ', the one-class cell is the even share';
     const four = killOn(M, 'mosslight_glade', ['tank', 'tank', 'melee_dps', 'melee_dps'], BIG);
     if (Object.values(four).some((v) => v !== BIG / 4)) return 'four Melee paid ' + JSON.stringify(four);
     const sewer = killOn(M, 'millrace_sewer', ['tank', 'melee_dps'], BIG);
     if (Object.values(sewer).some((v) => v !== Math.round((BIG / 2) * 0.8))) return 'tank + melee_dps in the Sewer paid ' + JSON.stringify(sewer);
-    const two = killOn(M, 'wickstead', ['tank', 'ranger'], BIG);
+    const two = killOn(M, 'mill_cellar', ['tank', 'ranger'], BIG);
     return Object.values(two).every((v) => v === Math.round((BIG / 2) * 1.2)) ? null : 'CONTROL: a Melee and a Ranger paid ' + JSON.stringify(two);
   },
   /* READ AT EACH KILL, NO LATCH: a death changes the mix on the NEXT kill, a leave too, and the last hero standing is the identity. */
   'party-class-death-changes-next-kill': (M) => {
     const heroes = ['tank', 'ranger', 'mage', 'healer'].map((role, i) => unit(M, i + 1, 'hero', { role }));
     const w = worldOf(M, [...heroes, unit(M, 9, 'mon')]);
-    const at = { world: w, ground: { id: 'meadowbrook_thicket' }, grid: null, occ: null };
+    const at = { world: w, ground: { id: 'mill_cellar' }, grid: null, occ: null };
     const kill = () => M.xpshare.shareKillXp(at, { t: 9, u: 1, xp: BIG }, ctx35(M, 7));
     const each = (o) => [...new Set(Object.values(o))];
     let got = each(kill());
@@ -151,10 +154,10 @@ const cases = {
     const w2 = worldOf(M, [...t, unit(M, 9, 'mon')]);
     const at2 = { world: w2, ground: { id: 'wickstead' }, grid: null, occ: null };
     got = each(M.xpshare.shareKillXp(at2, { t: 9, u: 1, xp: BIG }, ctx35(M, 7)));
-    if (got.join() !== String(Math.round((BIG / 3) * 1.15))) return 'three heroes of two classes paid ' + got;
+    if (got.join() !== String(Math.round((BIG / 3) * 1.13))) return 'three heroes of two classes paid ' + got;
     t[1].alive = false;
     got = each(M.xpshare.shareKillXp(at2, { t: 9, u: 1, xp: BIG }, ctx35(M, 7)));
-    return got.join() === String(Math.round((BIG / 2) * 1.2)) ? null : 'two heroes of two classes paid ' + got;
+    return got.join() === String(Math.round((BIG / 2) * 1.05)) ? null : 'two heroes of two classes paid ' + got;
   },
   /* THE DEFAULT: a ground with no row pays the even share, mixed or not, and a hero alone is the identity everywhere. */
   'party-class-no-row-is-even': (M) => {
@@ -172,7 +175,7 @@ const cases = {
   'party-class-raw-is-the-even-share': (M) => {
     const w = worldOf(M, [unit(M, 1, 'hero', { role: 'tank' }), unit(M, 2, 'hero', { role: 'mage' }), unit(M, 9, 'mon')]);
     const sc = ctx35(M, 8, { xpMultOf: (h) => (h.id === 1 ? 2 : 1) });
-    const paid = M.xpshare.shareKillXp({ world: w, ground: { id: 'wickstead' }, grid: null, occ: null }, { t: 9, u: 1, xp: BIG }, sc);
+    const paid = M.xpshare.shareKillXp({ world: w, ground: { id: 'mill_cellar' }, grid: null, occ: null }, { t: 9, u: 1, xp: BIG }, sc);
     if (paid[1] !== Math.round(BIG * 1.2) || paid[2] !== Math.round((BIG / 2) * 1.2)) return 'the factor and the hook paid ' + JSON.stringify(paid);
     const xp = ofType(sc, 'xp');
     return xp.length === 2 && xp.every((e) => e.raw === BIG / 2) ? null : 'raw must stay the even share: ' + JSON.stringify(xp);
@@ -192,7 +195,7 @@ const cases = {
       for (const m of members) totals.gold += m.state.gold || 0;
       return totals;
     };
-    const flat = play('a_ground_with_no_row'); const mixed = play('wickstead');
+    const flat = play('a_ground_with_no_row'); const mixed = play('mill_cellar');
     if (flat.kills < 3) return 'the fixture killed ' + flat.kills;
     if (mixed.kills !== flat.kills) return 'the factor changed the fight: ' + mixed.kills + ' kills against ' + flat.kills;
     if (mixed.gold !== flat.gold || flat.gold <= 0) return 'gold moved with the factor: ' + mixed.gold + ' against ' + flat.gold;

@@ -809,14 +809,14 @@ async function pureRules(M, base) {
     const L = M.PRO.classXpLine;
     const end = ' Melee, Ranger, Mage and Healer each count.';
     for (const [roles, hunt, want] of [
-      [['tank', 'ranger'], 'meadowbrook_thicket', 'Your party has 2 of 4 classes: 20% more Level XP in Meadowbrook Thicket.'],
+      [['tank', 'ranger'], 'meadowbrook_thicket', 'Your party has 2 of 4 classes: 15% more Level XP in Meadowbrook Thicket.'],
       [['tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: no extra Level XP in Meadowbrook Thicket.'],
       [['tank', 'melee_dps'], 'millrace_sewer', 'Your party has 1 of 4 classes: 20% less Level XP in The Sewer.'],
       [['tank', 'mage', 'healer'], 'coppercap_warrens', 'Your party has 3 of 4 classes: no extra Level XP in Coppercap Warrens.'],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: 25% more Level XP in The Sewer.'],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: 15% more Level XP in The Sewer.'],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
-      [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: 20% more Level XP in Wickstead.'],
-      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: no extra Level XP in Wickstead.'],
+      [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: 5% more Level XP in Wickstead.'],
+      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: 10% less Level XP in Wickstead.'],
     ]) {
       if (L(roles, hunt) !== want + end) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
     }
@@ -831,20 +831,14 @@ async function pureRules(M, base) {
     const seat = (s, weapon, hunting) => ({ seat: s, unit: null, name: 'H' + s, level: 6, weapon, hunting: hunting === true, hp: 100, hp_max: 100 });
     const tab = (members, hunt) => {
       const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt, max: 4, open: true, self_seat: 0, leader_seat: 0, members } : undefined) };
-      const p = M.PS.partyMembershipOf(cs);
-      const box = {};
-      const el = (sel) => (box[sel] = box[sel] || { hidden: false, textContent: '', setAttribute() {}, getAttribute() { return null; }, classList: { toggle() {} }, querySelector: () => el('.x'), querySelectorAll: () => [], children: [], kids: [], appendChild() {}, append() {} });
-      const root = { querySelector: el, querySelectorAll: () => [] };
-      M.PRO.patchRoster(root, { character: cs, doc: null, glyphs: {} }, { pending: false }, p);
-      const c = el('.hw-party-class');
-      return c.hidden ? null : c.textContent;
+      return M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
     };
     const shown = tab([seat(0, 'shield'), seat(1, 'ranged')], 'mill_cellar');
     if (shown !== 'Your party has 2 of 4 classes: 20% more Level XP in Mill Cellar.' + end) return 'in town the tab reads ' + JSON.stringify(shown);
-    if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== null) return 'the line stayed once the party hunts';
-    if (tab([seat(0, 'shield')], 'mill_cellar') !== null) return 'a party of one reads a class line';
+    if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
+    if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
-    return (fresh && fresh.includes('2 of 4 classes: 20% more Level XP in ')) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
+    return (fresh && /2 of 4 classes: (\d+% more|no extra) Level XP in /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
   });
 
   await t('PR-1', async () => {
@@ -1200,13 +1194,17 @@ async function pageRules(overrides, shots) {
             const lr = leave && leave.getBoundingClientRect();
             const opts = Array.from(document.querySelectorAll(q + '[data-hs-act="find-weapon"] option')).map((o) => o.textContent);
             const pick = document.querySelector(q + '[data-hs-act="party-hunts"]');
+            const klass = document.querySelector(q + '.hw-party-class');
             return { tab: sel && sel.getAttribute('data-tab'), seats, next: document.querySelector(q + '.hw-party-next').textContent,
+              classLine: klass && !klass.hidden && klass.getBoundingClientRect().height > 0 ? klass.textContent : null,
               memberPicks: !!pick && pick.getBoundingClientRect().width > 0,
               leave: !!leave && !leave.hidden && !leave.disabled && lr.width > 0 && leave.textContent === 'Leave party', opts };
           }, P);
           const names = v.seats.map((x) => x.name + (x.lead ? '*' : '') + ':' + x.where).join('|');
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
+          /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes: 1.00). */
+          if (v.classLine !== 'Your party has 2 of 4 classes: no extra Level XP in The Sewer. Melee, Ranger, Mage and Healer each count.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword · Melee') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');

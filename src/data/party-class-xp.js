@@ -6,7 +6,7 @@
 // trio 110-120, four 115-125 against a comparable solo); a same-class party never
 // beats solo per head (tests/party-class-xp-line.mjs plays that on the real engine).
 //
-// Designer's rule (10-31):
+// Designer's rule (10-31, table 11-01; it reads with each ground's `partyPull`, hunt-grounds.js):
 //   - LEVEL XP only (src/core/hunt/xp-share.js): no gold or loot effect, skill XP untouched.
 //   - FOUR CLASSES: Melee (a shield or not), Ranger, Mage, Healer.
 //   - Read from the LIVING heroes at EACH kill, never latched: a death or a leave
@@ -40,13 +40,13 @@ export const PARTY_CLASSES = Object.freeze({
 
 const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 
-/* ground id → its row (designer 2026-10-31). */
+/* ground id → its row (designer 2026-11-01). */
 export const PARTY_CLASS_XP = Object.freeze({
-  mill_cellar: row([1000, 1200], [1000, 1150, 1300], [1000, 1130, 1270, 1400]),
-  meadowbrook_thicket: row([1000, 1200], [1000, 1150, 1300], [1000, 1130, 1270, 1400]),
-  wickstead: row([1000, 1200], [1000, 1150, 1300], [1000, 1130, 1270, 1400]),
-  mosslight_glade: row([1000, 1200], [1000, 1150, 1300], [1000, 1130, 1270, 1400]),
-  millrace_sewer: row([800, 1000], [800, 1080, 1150], [800, 1080, 1170, 1250]),
+  mill_cellar: row([1000, 1200], [1000, 1130, 1300], [1000, 1130, 1270, 1400]),
+  meadowbrook_thicket: row([1000, 1150], [1000, 1130, 1270], [1000, 1130, 1200, 1270]),
+  wickstead: row([900, 1050], [1000, 1130, 1270], [1000, 1130, 1200, 1270]),
+  mosslight_glade: row([1000, 1180], [1000, 1130, 1270], [1000, 1130, 1200, 1270]),
+  millrace_sewer: row([800, 1000], [800, 1050, 1100], [800, 1050, 1100, 1150]),
   coppercap_warrens: row([1000, 1000], [1000, 1000, 1000], [1000, 1000, 1000, 1000]),
 });
 

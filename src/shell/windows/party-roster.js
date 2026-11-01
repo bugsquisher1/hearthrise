@@ -80,8 +80,8 @@ export function classXpLine(roles, hunt) {
   return 'Your party has ' + classes.length + ' of ' + CLASS_NAMES.length + ' classes: ' + pay + ' in ' + huntName(hunt) + '. ' + CLASS_WORDS + ' each count.';
 }
 
-/* The line before a hunt starts, on the party's last ground or the one the Hunts window opens on; '' for no line. */
-function classLineOf(p, r) {
+/** The line before a hunt starts, on the party's last ground or the one the Hunts window opens on; '' for no line. */
+export function classLineOf(p, r) {
   if (r.anyHunting || r.members.length < 2) return '';
   const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;
   return hunt ? classXpLine(r.members.map((m) => m.role), hunt) : '';

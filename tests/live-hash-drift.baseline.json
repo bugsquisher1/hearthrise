@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-01",
- "replay_ms": 139728,
+ "replay_ms": 121158,
  "counts": {
-  "tracked_names": 708,
-  "entries": 563
+  "tracked_names": 709,
+  "entries": 564
  },
  "functions": [
   {
@@ -11023,6 +11023,28 @@
    "replay": {
     "md5": "f62ada6db4e4094f6bc0d9981afc25bf",
     "norm_len": 338,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_social_poll(p_slot integer, p_slots integer[])",
+   "name": "hr_social_poll",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-17-social-poll.sql"
+   ],
+   "live": {
+    "md5": "2e2a0c71e61d4915a73d2c3a5b58d450",
+    "norm_len": 925,
+    "measured": "2026-11-01",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2e2a0c71e61d4915a73d2c3a5b58d450",
+    "norm_len": 925,
     "source": "computed-from-replay"
    },
    "agree": true

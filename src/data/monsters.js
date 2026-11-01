@@ -816,7 +816,7 @@ export const MONSTERS = {
        pie, gives up the Common slot to it and rides a Rare row at the band's pace (drop-tables big-pull). */
     elementWeak: 'ember', elementResist: ['frost'],
     hp: 74, atk: 18, def: 8, xp: 420, gp: [14, 36], speed: 3000,
-    drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_pelt', ch: .16, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }, { id: 'bear_claw', ch: .0018, band: 'rare' }] },
+    drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_pelt', ch: .16, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }, { id: 'bear_claw', ch: .0019, band: 'rare' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
      src/data/hunt-grounds.js header. THE LOOT BANDS: tier-1 boots (rats) and helmets (wasps), tier-2 legs (spiders) and

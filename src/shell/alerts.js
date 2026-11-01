@@ -216,8 +216,11 @@ export function createAlertCenter(account) {
       share: kind.share || null, glyph: kind.glyph, pending: false, msg: '' }, c));
     if (alerts.length > 32) alerts.length = 32;
     if (kind.fadeMs) { const key = alerts[0].key; setTimeout(() => { const i = alerts.findIndex((a) => a.key === key); if (i >= 0) { alerts.splice(i, 1); changed(); } }, kind.fadeMs); }
-    const r = residueOf(cs);
-    cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });
+    /* `transient`: live news a reload never raises again, so it takes no place in the saved list */
+    if (!c.transient) {
+      const r = residueOf(cs);
+      cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });
+    }
     return true;
   }
 

@@ -13,9 +13,11 @@ import { itemName } from './widgets/bits.js?v=0.2.81';
 
 const roomWords = (t, skill) => (t && t.rooms[skill] ? t.rooms[skill].room : null);
 
-/** "3 gold a craft", "about 10 gold a craft", "about 1 gold every 2 crafts". */
+/** "3 gold a craft", "about 2.4 gold a craft", "about 10 gold a craft", "about 1 gold every 2 crafts". The server charges the exact milligold, each
+    whole gold as the carry passes it (core/bench-tax.js), so a fee under 10 gold keeps its tenth: "about 3" over 5 crafts that took 12 read as a wrong bill (Tyler 2026-11-01). */
 export function feeWords(mg) {
-  if (mg >= 1000) return (mg % 1000 === 0 ? '' : 'about ') + whole(Math.round(mg / 1000)) + ' gold a craft';
+  if (mg >= 10000 || mg % 1000 === 0) return (mg % 1000 === 0 ? '' : 'about ') + whole(Math.round(mg / 1000)) + ' gold a craft';
+  if (mg >= 1000) return 'about ' + Math.round(mg / 100) / 10 + ' gold a craft';
   const every = Math.max(1, Math.round(1000 / mg));
   return every === 1 ? 'about 1 gold a craft' : 'about 1 gold every ' + whole(every) + ' crafts';
 }

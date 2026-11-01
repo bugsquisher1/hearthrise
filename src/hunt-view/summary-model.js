@@ -167,6 +167,21 @@ export function huntAgainOf(summary) {
 }
 
 /**
+ * WHAT HUNT AGAIN MAY DO IN A PARTY (the LEADER chooses the hunt, Tyler 2026-10-20; friends' panel 2026-11-01: a member's Hunt again set out
+ * with no leader action, where Enter said "Your party leader picks the hunt and starts it"). `party`: partyMembershipOf, null for a lone hero.
+ *   { how: 'enter' }  this hero alone: no party, or back into the hunt its party is on now (the ground the leader chose)
+ *   { how: 'party' }  the leader, nobody out: the party's Start, everyone walks in
+ *   { how: null, why } off, and why. Display only: the server checks every intent (a member's own hr_hunt_enter is not refused yet).
+ */
+export function againRoute(party, hunt) {
+  if (!party) return { how: 'enter', why: '' };
+  if (party.seats.some((s) => s.seat !== party.me && s.hunting)) {
+    return party.hunt === hunt ? { how: 'enter', why: '' } : { how: null, why: 'Your party is hunting on another ground. You can only go back to that one.' };
+  }
+  return party.isLeader ? { how: 'party', why: '' } : { how: null, why: 'Your party leader picks the hunt and starts it.' };
+}
+
+/**
  * Hunt again with what the bag holds NOW (`pack`: hunt-list.js packFor, Enter's own), never the old hunt's loaded counts:
  * the supplies it ate are gone, so the old counts were refused as "You no longer have that many." while Enter went in
  * at once (blind playtest 2026-10-31). What stays the old hunt's: the ground, the set, the limits, its essential marks.

@@ -331,8 +331,10 @@ async function arms(db, tick, setActivity, opts) {
     const none = cs(0, 0, {});
     const recap = F.benchStopRecapOf(low, () => 'Iron Bar');
     const words = [F.feeRowWords(low, w), F.feeFullWords(low, w), F.feeHeadWords(low, 'smithing'), F.feeBlock(low, w), F.feeBlock(none, w), F.feeBlock(cs(500, 0, {}), w), F.benchEndWords(low, () => 'Iron Bar')];
-    const goodWords = words[0] === 'The public bench takes about 10 gold a craft.'
-      && words[1] === 'The public bench takes about 10 gold a craft. A forge in your house takes none.'
+    const goodWords = words[0] === 'The public bench takes about 9.8 gold a craft.'
+      && words[1] === 'The public bench takes about 9.8 gold a craft. A forge in your house takes none.'
+      /* the rate the server's carry charges (5 crafts took 12 gold under "about 3 gold a craft", Tyler's live play 2026-11-01) */
+      && F.feeWords(2400) === 'about 2.4 gold a craft' && F.feeWords(2500) === 'about 2.5 gold a craft' && F.feeWords(12400) === 'about 12 gold a craft'
       && /15% .*A forge in your house takes none\./.test(words[2])
       && /Sell your 40 Iron Bar at the shop, or gather something: gathering is free\./.test(words[3]) && /wants 9 gold/.test(words[3])
       && /Gather something and sell it: gathering is free\./.test(words[4]) && words[5] === ''

@@ -194,15 +194,16 @@
 /* The title band: darker than the floor, ruled off in dim gold; the window's glyph and name in gold. */
 .hs-win-head {
   display: flex; align-items: center; gap: 10px;
-  height: 44px; padding: 0 6px 0 12px; flex: none;
+  min-height: 44px; padding: 0 6px 0 12px; flex: none;
   background: var(--fill-0);
   border-bottom: 2px solid var(--steel-rule);
   color: var(--gold-2);
   cursor: grab; user-select: none; touch-action: none;
 }
 .hs-win-head .hs-glyph { width: 22px; height: 22px; }
-/* The window's name in Cinzel (Tyler approved Forged Steel 2026-10-24: a characterful heading over a readable body). */
-.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* The window's name in Cinzel (Tyler approved Forged Steel 2026-10-24: a characterful heading over a readable body). A long name takes a second
+   line inside the band, never an ellipsis ("Gathering and C…", "Too many heroes playi…", Tyler's live play 2026-11-01). */
+.hs-win-title { margin: 0; flex: 1; min-width: 0;
   font-family: var(--f-display); font-weight: 700; font-size: var(--t-lead); line-height: 1.1; letter-spacing: .12em; color: var(--gold-2); }
 /* Square steel buttons: the window's key and its close; the key style also caps a hotkey in Settings. */
 .hs-key { display: inline-grid; place-items: center; min-width: 32px; height: 32px; padding: 0 6px; box-sizing: border-box;
@@ -377,7 +378,7 @@
     border-width: 6px;
     border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch;
   }
-  .hs-win-head { height: 40px; cursor: default; }
+  .hs-win-head { min-height: 40px; cursor: default; }
   .hs-grip { display: none; }
   .hs-win-body { padding: 8px 10px 10px; }
   .st .st-tabs { width: 100%; border-right: 0; }

@@ -286,7 +286,7 @@ jobs:
   # + Death popup 4.1 + setup 0.9 = 15.7 min; x2 = 32. With the apt stall: 27.9 (87%).
   in-page-21:
     runs-on: ubuntu-latest
-    timeout-minutes: 32
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -334,6 +334,15 @@ jobs:
         run: |
           node tests/death-popup.mjs
           node tools/mutant-gate.mjs node tests/death-popup.mjs --mutate
+
+      # EVERY PANEL IN REACH (friends' panel, 2026-11-01): at six desktop sizes, solo and a party of 4, every
+      # HUD panel and window on screen and pressable, the bar at home, a moved panel clear of it; the away
+      # card follows the server and blocks nothing. --mutate plants sixteen defects.
+      - name: HUD in reach (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hud-reachable.mjs
+          node tools/mutant-gate.mjs node tests/hud-reachable.mjs --mutate
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts

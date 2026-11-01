@@ -27,6 +27,17 @@
 // THE RETURN (panel 2026-11-01, played): the line says what to do next: the stamina left, or how long ago a hunt ended and
 // the stamina rested since. And markBack records the hunt the player came back to (residue `coach.back`), so the coach's
 // "just now" cards stand aside and no card opens over it (hunt-tutorial.js fresh_hunt, launcher.js restsNow).
+//
+// THE CARD NEVER OUTLIVES ITS LAST WORDS (friends' panel 2026-11-01: "Still hunting" in town, hours after the hunt ended). What
+// happened while away is history and stays as it came up. What the hunt is doing now is read from each new envelope (awayLineNow,
+// src/shell/alerts.js scan), and a hunt that ends with the card up takes the card: its summary or its own alert is the notice now.
+//
+// ONLY A RETURN IS JUDGED (src/shell/alerts.js): this page's first read of the hero, or its first after the page was left. A hunt on
+// screen past the stamp's age is being watched, not missed: it renews the stamp and says nothing.
+//
+// IN VIEW, A TIME SKIP (tools/qa/local-world.mjs) IS NOT AN ABSENCE. It moves the hunt, not the clock, so the stamp stays as young as
+// real time says; a tab closed with no goodbye right after one reports the skipped stretch too. No real clock can do that: a stamp is
+// never older than the absence it reports plus the renewal below, and its time and its numbers are the same stamp's.
 // ════════════════════════════════════════════════════════════════════════
 import { levelOf } from '../session/character-sections.js?v=0.2.79';
 import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.79';
@@ -35,6 +46,7 @@ import { huntName } from '../session/party-sections.js?v=0.2.79';
 import { charLevelFromXp } from '../core/xp.js?v=0.2.79';
 import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.79';
 import { whole } from '../render/format.js?v=0.2.79';
+import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.79';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -78,12 +90,19 @@ function awayStampOf(cs, h) {
  */
 export function awayRecapOf(cs) {
   const was = stampOf(cs);
+  /* A hero working in town when the player left: what the job did (./away-work.js). */
+  if (isWorkStamp(was)) {
+    const now = serverNowOf(cs);
+    return Number.isFinite(now) && now - was.at >= AWAY_MIN_MS && awayWorkSettled(cs, was, AWAY_MIN_MS) ? awayWorkLineOf(cs, was, awayWords) : null;
+  }
   const h = huntOf(cs);
   const lv = levelOf(cs);
   const now = serverNowOf(cs);
   if (!was || !h || h.sessionId !== was.s || !lv || !Number.isFinite(now)) return null;
   const gone = now - was.at;
   if (gone < AWAY_MIN_MS) return null;
+  /* A hunt that was over when the player left is no part of the absence (crafter's panel 2026-11-01). */
+  if (h.ended && Number.isFinite(h.endedAtMs) && h.endedAtMs <= was.at) return null;
   const parts = [];
   const from = charLevelFromXp(was.xp);
   if (lv.level > from) parts.push('Level ' + from + ' to ' + lv.level);
@@ -94,18 +113,43 @@ export function awayRecapOf(cs) {
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
   const name = nameOf(cs) || 'Your hero';
+  const head = 'While you were away (' + awayWords(gone) + '), ' + name + ' hunted ' + huntName(h.huntId);
+  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.');
+  return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
+    text: (said + nowWords(cs, h, now)).trim() };
+}
+
+/* What the hunt is doing now, from the envelope: the stamina left, or how long ago it ended and the stamina rested since. */
+function nowWords(cs, h, now) {
+  const name = nameOf(cs) || 'Your hero';
   const where = huntName(h.huntId);
-  const head = 'While you were away (' + awayWords(gone) + '), ' + name + ' hunted ' + where;
-  const body = parts.length ? ': ' + parts.join(', ') + '.' : '.';
   const st = staminaOf(cs);
   const stamina = st && st.msLeft > 0 ? awayWords(st.msLeft) : null;
   const ago = h.ended && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
-  const end = h.ended
+  return h.ended
     ? ' The hunt has ended' + ago + '. ' + (STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')
       .replace('{name}', name).replace('{ground}', where).replace('{member}', h.endBy || 'A party member').replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
       + (stamina ? ' Stamina now: ' + stamina + '.' : '')
     : stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.';
-  return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, text: (head + body + end).trim() };
+}
+
+/**
+ * The away alert `a` (awayRecapOf's) as the record says it now, or null when it is over: another hunt is the character's now, or
+ * the hunt was running when the card came up and has ended since. Pure.
+ */
+export function awayLineNow(cs, a) {
+  const h = huntOf(cs);
+  if (a.work) { const w = workStampOf(cs); return (a.still && !(w && w.s === a.work)) || (h && !h.ended) ? null : a.text; }
+  if (!h || h.sessionId !== a.session || (h.ended && !a.ended)) return null;
+  const now = serverNowOf(cs);
+  return Number.isFinite(now) ? (a.said + nowWords(cs, h, now)).trim() : a.text;
+}
+
+/** May the line be judged now? False until the record and the server's clock are in, and while a town job's return waits for the settle that pays it (./away-work.js). */
+export function awaySettled(cs) {
+  if (!cs.record || !Number.isFinite(serverNowOf(cs))) return false;
+  const was = stampOf(cs);
+  return !isWorkStamp(was) || awayWorkSettled(cs, was, AWAY_MIN_MS);
 }
 
 /** Record the hunt the player came back to (see the header). Written once per return; display state only. */
@@ -122,10 +166,17 @@ export function markBack(cs, session) {
  */
 export function stampAway(cs, leaving = false) {
   if (typeof cs.setResidue !== 'function') return false;
+  const was = stampOf(cs);
+  const work = workStampOf(cs);
+  if (work) {
+    const young = leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS;
+    return was && was.s === work.s && work.at - was.at < young ? false : cs.setResidue('awaySeen', work);
+  }
   const h = huntOf(cs);
+  /* A job that stopped in view, with no hunt running: the next return has nothing of it to tell. */
+  if (isWorkStamp(was) && (!h || h.ended)) { const now = serverNowOf(cs); return Number.isFinite(now) ? cs.setResidue('awaySeen', { s: 'idle', at: Math.floor(now) }) : false; }
   const next = awayStampOf(cs, h);
   if (!next) return false;
-  const was = stampOf(cs);
   if (h.ended) {
     /* only the hunt this stamp is for, once (this stamp lands past the end, the last one before it: a write re-runs this through its
        listeners, so a clock short of the end must not stamp at all), and never over a line still due: a new stamp would be a new line about the same hunt */

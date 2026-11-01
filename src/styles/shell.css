@@ -45,7 +45,7 @@
 .hs-online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 
 /* ── Tamsin's tally (widgets/tally-hud.js): each held kill task's server count on a notched stick ── */
-.hs-tally { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px; background: var(--hud-fill);
+.hs-tally { display: flex; flex-direction: column; gap: 4px; max-height: var(--hs-room, none); padding: 4px 6px; background: var(--hud-fill);
   border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; }
 .hs-widget.is-tally.is-quiet { display: none; }
 .hs-tally-head { display: flex; align-items: flex-start; gap: 4px; }
@@ -56,7 +56,7 @@
 .hs-tally-open:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .hs-tally-none { font-size: var(--t-micro); color: var(--ink-2); }
 .hs-tally-none:empty { display: none; }
-.hs-tally-list { margin: 0; padding: 0; list-style: none; }
+.hs-tally-list { min-height: 0; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
 .hs-tally-row { font-size: var(--t-micro); color: var(--ink); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .hs-tally-wait { display: block; max-width: 28ch; white-space: normal; color: var(--gold-2); }
 .hs-tally-wait:empty { display: none; }

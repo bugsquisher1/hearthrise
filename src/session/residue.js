@@ -152,7 +152,7 @@ function sanitizeAlerts(v) {
 function sanitizeAwaySeen(v) {
   if (!isObj(v) || typeof v.s !== 'string' || !/^[A-Za-z0-9_:.-]{1,64}$/.test(v.s) || !Number.isSafeInteger(v.at) || v.at < 0) return {};
   const out = { s: v.s, at: v.at };
-  for (const k of ['xp', 'gold', 'kills']) if (Number.isSafeInteger(v[k]) && v[k] >= 0) out[k] = v[k];
+  for (const k of ['xp', 'gold', 'kills', 'sx', 'n']) if (Number.isSafeInteger(v[k]) && v[k] >= 0) out[k] = v[k];
   return out;
 }
 

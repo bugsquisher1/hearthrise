@@ -89,7 +89,9 @@
 .ht-leaving { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 
 /* ── Party board ── */
-.hp-party { width: 250px; }
+/* It ends above the action bar and scrolls inside (--hs-room, hud-room.js; the phone's own cap is below). */
+.hp-party { width: 250px; max-height: var(--hs-room, none); }
+.hp-party .hh-panel-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .hp-party.is-empty .hh-empty { display: block; }
 .hp-members { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .hp-m { display: flex; gap: 8px; align-items: flex-start; }
@@ -626,7 +628,6 @@ label.st-line { cursor: pointer; }
   /* A party of two with the hold switch is 245 px tall: past the action bar's top at 390 px, so the bar pushed the
      board below the screen. It ends above the bar (at most 100 px tall, 2 px up) and scrolls inside. */
   .hp-party { max-height: calc(100vh - 160px); }
-  .hp-party .hh-panel-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .hp-portrait { width: 28px; height: 28px; }
   .hp-role { display: none; }
   /* The hold switch on one line in the phone's 200 px board: the short labels (party-hold.js holdHtml). */

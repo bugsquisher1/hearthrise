@@ -462,11 +462,16 @@ async function checks(overrides) {
         /* WC-4: right-click the peer with the real mouse, on the figure and on the far end of the long name
            over it (beyond the figure's own box), and on bare ground (no menu, and no browser menu either). */
         await page.evaluate(() => { window.__ctxPrevented = []; window.addEventListener('contextmenu', (e) => window.__ctxPrevented.push(e.defaultPrevented)); });
+        /* The first-minute coach card hangs over this spot, and its own buttons take presses: at GitHub's font its Got it lay on the
+           name's far end (v0.2.81 run 41332990107). Folded, the rule reads the World and only the World. */
+        if (await page.$('.hs-launchers [data-hs-act="coach-min"]')) { await press(page, '.hs-launchers [data-hs-act="coach-min"]'); await settle(page); }
         const spots = [['figure', async () => page.evaluate(([x, y]) => window.__world.screenOf(x, y), PEER_AT)],
           ['name', async () => page.evaluate((n) => { const q = window.__world.stats().names.find((x) => x.name === n); return q ? { x: q.r - 3, y: (q.t + q.b) / 2 } : null; }, PEER)]];
         for (const [where, at] of spots) {
           const p = await at();
           if (!p) { fails.push('WC-4 no ' + where + ' drawn for ' + PEER); continue; }
+          const over = await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return e && e.tagName === 'CANVAS' ? null : (e ? e.tagName + '.' + e.className : 'nothing'); }, [p.x, p.y]);
+          if (over) { fails.push('WC-4 CONTROL: ' + over + ' lies over ' + PEER + '’s ' + where); continue; }
           await page.mouse.click(p.x, p.y, { button: 'right' });
           await page.waitForTimeout(250);
           const menu = await page.evaluate(() => { const m = document.querySelector('.hw-menu.is-on'); return m ? m.querySelector('.hw-menu-title').textContent : null; });

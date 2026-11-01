@@ -226,9 +226,12 @@ jobs:
   # in-page-21. MEASURED, nightly full sweep (40196078710, every --mutate): setup 0.9 +
   # node suite 6.7 + client boot 6.6 (--mutate 6.3) = 14.2 min; x2 = 28, 30 so the apt
   # stall (14.2 + 12.2 = 26.4) keeps 12% slack.
+  # RE-MEASURED 2026-11-01, run 41332990107 (client boot --mutate now 35 mutants, B-17 and B-18 in): setup 0.6 + node suite
+  # 5.0 + client boot 17.2 = 22.8 min green; a slower runner hit the old 30 on main's v0.2.80 run (41327721118, cancelled).
+  # x2 = 46, 50 for the apt stall's room.
   in-page:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 50
 
     steps:
       - uses: actions/checkout@v4

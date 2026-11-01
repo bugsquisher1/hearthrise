@@ -5,6 +5,7 @@
 //   node tests/hunt-screen.mjs                the rules
 //   node tests/hunt-screen.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/hunt-screen.mjs --mutate --shard=K/N   the Kth of N shards, balanced by measured seconds (CI splits them)
+//   node tests/hunt-screen.mjs --mutate --only <words>   only the mutants whose name holds <words>
 //   node tests/hunt-screen.mjs --shard-plan   no browser: smoke.yml's shards partition MUTANTS within budget
 //     (on a push, tools/mutant-gate.mjs narrows a shard to the mutants its diff touches —
 //      tools/lib/mutant-scope.mjs; the nightly runs every mutant)
@@ -1007,7 +1008,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (bare.length) fails.push('HS-13 hunt panels overlap with no window open: ' + bare.join(', '));
         /* A window floats over the World and never narrows it (Tyler 10-19), so the row that is too
            narrow comes from the screen: a narrow desktop makes the edge panels step below the bar. */
-        for (const vp of [{ width: 1100, height: 800 }, { width: 1024, height: 700 }]) {
+        /* 760 wide: the hunt bar has no room to slide beside the panels, so only the step keeps them apart. */
+        for (const vp of [{ width: 1100, height: 800 }, { width: 1024, height: 700 }, { width: 760, height: 700 }]) {
           await page.setViewportSize(vp);
           await page.waitForTimeout(500);
           const narrow = await settled();
@@ -1848,6 +1850,7 @@ const MUTANTS = [
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['the Hunts window stays over the hunt it entered (HS-9b, playtest 2026-10-24)', 'src/shell/windows/hunts.js', "  if (sc.closeOnHunt && now) { sc.closeOnHunt = false; queueMicrotask(() => ctx.wm.close('hunts')); }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
+  ['the hunt bar never slides clear of the edge panels', 'src/shell/shell.js', "        e.style.left = at.left + 'px';\n", ''],
   ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', "const html = leaving && !over ? '' : pointerFor(ctx, !over);", "const html = '';"],
   ['the tutorial card hangs over the hunt bar', 'src/styles/shell.css', '.hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }', '.hs-widget > .hs-pointer { left: 0; top: 0; width: min(260px, 100%); }'],
   ['an ended hunt still offers Leave hunt','src/shell/widgets/hunt-topbar.js', "  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));\n", ''],
@@ -2026,7 +2029,10 @@ async function main() {
      the file a mutant patches changed, or its own entry here did; any other change to this file or
      to a tests/ helper it loads runs them all. No scope (nightly, manual, local) = all of them. */
   const scope = scopeMutants({ guard: 'tests/hunt-screen.mjs', root: ROOT, ...gateScope() });
-  const mine = scope.all ? shard : shard.filter(([name]) => scope.keep.has(name));
+  const onlyAt = process.argv.indexOf('--only');
+  const onlyWords = onlyAt > 0 ? process.argv[onlyAt + 1] : null;
+  const mine = (scope.all ? shard : shard.filter(([name]) => scope.keep.has(name))).filter(([name]) => !onlyWords || name.includes(onlyWords));
+  if (onlyWords && !mine.length) { console.log('  ✗ --only ' + onlyWords + ' selects no mutant'); process.exit(1); }
   if (!scope.all) {
     console.log('  scope: ' + mine.length + ' of ' + shard.length + ' mutant(s)' + tag + ' touched by this diff');
     for (const [name] of mine) console.log('    ' + name + ' — ' + scope.why.get(name));

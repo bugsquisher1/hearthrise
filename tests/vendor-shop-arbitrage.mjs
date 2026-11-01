@@ -307,8 +307,8 @@ update public.hr_items set value = value * 2 where item_id = '${item}';
   const cleanCraft = findCraftArbitrage({ sqlVal });
   if (judgeCraft(cleanCraft).fails.length) fails.push(`craft control: tree is not clean (${judgeCraft(cleanCraft).fails.join('; ')})`);
   const mutOffers = Object.assign(Object.create(null), GOLD_OFFERS, {
-    'equip.__mut_copper_bar': { id: 'equip.__mut_copper_bar', gold: 10, grant: [{ id: 'copper_bar', amount: 1 }] },
-    'equip.__mut_copper_ore': { id: 'equip.__mut_copper_ore', gold: 5, grant: [{ id: 'copper_ore', amount: 1 }] } });
+    'equip.__mut_copper_bar': { id: 'equip.__mut_copper_bar', gold: 1, grant: [{ id: 'copper_bar', amount: 1 }] },
+    'equip.__mut_copper_ore': { id: 'equip.__mut_copper_ore', gold: 1, grant: [{ id: 'copper_ore', amount: 1 }] } });
   const m5 = findCraftArbitrage({ offers: mutOffers, sqlVal });
   if (!judgeCraft(m5).fails.some((f) => / -> copper_whetstone:/.test(f))) fails.push('M5 cheap copper offers (whetstone loop): not caught');
   // M6 — a held loop that GROWS must go red (and a held one that did not, stays held).

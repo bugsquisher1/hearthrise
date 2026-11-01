@@ -27,7 +27,7 @@
 // PURE ESM. Data, and the one reader of it (the engine and the party window both).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.78';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.79';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */
@@ -40,14 +40,14 @@ export const PARTY_CLASSES = Object.freeze({
 
 const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 
-/* ground id → its row (designer 2026-11-01). */
+/* ground id → its row (designer's final table, 2026-11-01). */
 export const PARTY_CLASS_XP = Object.freeze({
-  mill_cellar: row([1000, 1200], [1000, 1130, 1300], [1000, 1130, 1270, 1400]),
-  meadowbrook_thicket: row([1000, 1150], [1000, 1130, 1270], [1000, 1130, 1200, 1270]),
-  wickstead: row([900, 1050], [1000, 1130, 1270], [1000, 1130, 1200, 1270]),
-  mosslight_glade: row([1000, 1180], [1000, 1130, 1270], [1000, 1130, 1200, 1270]),
-  millrace_sewer: row([800, 1000], [800, 1050, 1100], [800, 1050, 1100, 1150]),
-  coppercap_warrens: row([1000, 1000], [1000, 1000, 1000], [1000, 1000, 1000, 1000]),
+  mill_cellar: row([1000, 1070], [1000, 1120, 1180], [1000, 1250, 1270, 1400]),
+  meadowbrook_thicket: row([1000, 1280], [1000, 1400, 1480], [1000, 1500, 1510, 1520]),
+  wickstead: row([880, 1070], [970, 1160, 1220], [970, 1200, 1240, 1270]),
+  mosslight_glade: row([960, 1180], [1000, 1300, 1400], [1000, 1200, 1290, 1320]),
+  millrace_sewer: row([800, 1000], [800, 1050, 1100], [800, 1050, 1100, 1180]),
+  coppercap_warrens: row([1000, 1180], [1000, 1200, 1280], [1000, 1200, 1260, 1360]),
 });
 
 const CLASS_OF_ROLE = Object.freeze(Object.fromEntries(Object.entries(PARTY_CLASSES).flatMap(([c, r]) => r.roles.map((x) => [x, c]))));

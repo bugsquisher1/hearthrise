@@ -811,7 +811,7 @@ const cases = {
      no pick and more than one hero answers the row's partyPull, clamped; a lone hero's answer is untouched on every ground. */
   'party-pull': (M) => {
     const G = M.grounds;
-    const want = { meadowbrook_thicket: [0, 4, 5, 6], wickstead: [0, 3, 3, 4], mosslight_glade: [0, 3, 4, 4], mill_cellar: [0, 0, 0, 0], millrace_sewer: [0, 0, 0, 0], coppercap_warrens: [0, 0, 0, 0] };
+    const want = { meadowbrook_thicket: [0, 3, 3, 4], wickstead: [0, 3, 3, 4], mosslight_glade: [0, 3, 3, 4], mill_cellar: [0, 4, 5, 5], millrace_sewer: [0, 0, 0, 0], coppercap_warrens: [0, 0, 0, 0] };
     if (Object.keys(G.HUNT_GROUNDS).sort().join() !== Object.keys(want).sort().join()) return 'a new ground: give it a line here, its pull is a choice';
     for (const [id, row] of Object.entries(want)) {
       const got = [1, 2, 3, 4].map((n) => G.densityFor(G.HUNT_GROUNDS[id], n, 0));
@@ -821,9 +821,9 @@ const cases = {
     const low = { partyPull: [0, 9, 9, 9], densityMax: [8, 8, 8, 8] };
     if (G.densityFor(low, 2, 0) !== 8) return 'a pull over the ground\'s max reads ' + G.densityFor(low, 2, 0) + ', the clamp is 8';
     if (G.validateGround(Object.assign({}, G.HUNT_GROUNDS.wickstead, { partyPull: [3, 3, 3, 4] })).every((s) => !/partyPull/.test(s))) return 'a pull for a lone hero passed validation';
-    /* The settle opens at it: a Thicket four with no pick stands at 6 each, a lone hero at the room as built. */
+    /* The settle opens at it: a Thicket four with no pick stands at 4 each, a lone hero at the room as built. */
     const opened = (n) => M.worldstate.decode(JSON.parse(freshParty(M, 'meadowbrook_thicket', 0.25, 3, Array.from({ length: n }, (_, i) => (i ? {} : { lead: true }))).world)).density;
-    if (opened(4) !== 6) return 'a Thicket four settled at density ' + opened(4);
+    if (opened(4) !== 4) return 'a Thicket four settled at density ' + opened(4);
     return opened(1) === 0 ? null : 'a lone hero on the Thicket settled at density ' + opened(1) + ', its pull never moves';
   },
   'density-laps': (M) => {

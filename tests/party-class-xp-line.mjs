@@ -131,17 +131,17 @@ const cellWords = (r) => r.g + ', ' + armWords(r.armId) + ', ' + r.party.join('+
 const MUTANTS = [
   { name: 'the Sewer pays same-class parties the even share again (no 0.80)', cells: [['millrace_sewer', ['bow', 'bow']]],
     edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([800, 1000]', 'millrace_sewer: row([1000, 1000]']] },
-  { name: 'Wickstead\'s same-class pair keeps the even share (no 0.90)', cells: [['wickstead', ['bow', 'bow']], ['wickstead', ['tank', 'tank']], ['wickstead', ['healer', 'healer']]],
-    edits: [['src/data/party-class-xp.js', 'wickstead: row([900, 1050]', 'wickstead: row([1000, 1050]']] },
-  { name: 'a one-class cell above the identity on one flat row (the Warrens)', cells: [['coppercap_warrens', ['bow', 'bow']]],
-    edits: [['src/data/party-class-xp.js', 'coppercap_warrens: row([1000, 1000]', 'coppercap_warrens: row([1500, 1000]']] },
-  { name: 'every party reads its top cell, classes or no classes', cells: [['mosslight_glade', ['bow', 'bow']]],
+  { name: 'Wickstead\'s same-class pair keeps the even share (no 0.88)', cells: [['wickstead', ['bow', 'bow']], ['wickstead', ['tank', 'tank']], ['wickstead', ['healer', 'healer']]],
+    edits: [['src/data/party-class-xp.js', 'wickstead: row([880, 1070]', 'wickstead: row([1000, 1070]']] },
+  { name: 'a one-class cell above the identity on one row (the Warrens)', cells: [['coppercap_warrens', ['bow', 'bow']]],
+    edits: [['src/data/party-class-xp.js', 'coppercap_warrens: row([1000, 1180]', 'coppercap_warrens: row([1500, 1180]']] },
+  { name: 'every party reads its top cell, classes or no classes', cells: [['mosslight_glade', ['bow', 'bow']], ['wickstead', ['bow', 'bow']]],
     edits: [['src/data/party-class-xp.js', 'return { permille: cells[Math.min(Math.max(classes.length, 1), cells.length) - 1], classes };', 'return { permille: cells[cells.length - 1], classes };']] },
   { name: 'a shield Melee and a Melee count as two classes', cells: [['millrace_sewer', ['tank', 'axes']], ['meadowbrook_thicket', ['tank', 'axes']]],
     edits: [['src/data/party-class-xp.js', "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['tank', 'melee_dps']) }),",
       "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),"]] },
-  { name: 'a pull far past the line on one row (the Glade pair at the full box)', cells: [['mosslight_glade', ['bow', 'bow']]],
-    edits: [['src/data/hunt-grounds.js', 'partyPull: Object.freeze([0, 3, 4, 4])', 'partyPull: Object.freeze([0, 8, 8, 8])']] },
+  { name: 'a pull far past the line on one row (the Cellar pair at the full box)', cells: [['mill_cellar', ['bow', 'bow']]],
+    edits: [['src/data/hunt-grounds.js', 'partyPull: Object.freeze([0, 4, 5, 5])', 'partyPull: Object.freeze([0, 8, 8, 8])']] },
 ];
 
 async function mutate() {

@@ -17,8 +17,10 @@
 //   HP-3 HELD    the Castle and the rung 5s are refused by name, hr_home_view stops at the Keep and at four rungs a room,
 //                and no sellable row costs an item the catalogue cannot reach.
 //   HP-4 SELF-CHECK the two 2027-02-16 files refuse their own apply on a visible rung with a dead item, a sold Castle, and a
-//                bear whose kill bound forgets the pelt; a second apply of both is byte-identical.
-//   HP-5 THE WORDS (no database) no Brook Bear below a pull of 3, and the player reading for a pelt is told: the item tip's
+//                bear whose kill bound forgets the pelt; a second apply of both, with the catalogue that carries them forward
+//                (the next full replace, the party pull's), is byte-identical.
+//   HP-5 THE WORDS (no database) no Brook Bear below a pull of 3 (the pull's own rows: a lone hero asks for it, and a Glade
+//                party's default of 3 meets it, hunt-grounds.js partyPull), and the player reading for a pelt is told: the item tip's
 //                "Comes from" names the bear and not the six monsters no ground spawns, the House's short cost line and the
 //                Glade's page say a bigger pull brings it, a held-enough line and an as-built creature's item say nothing.
 // ════════════════════════════════════════════════════════════════════════
@@ -30,6 +32,8 @@ import { isMain } from './_is-main.mjs';
 
 const OFFERS = '2027-02-16-house-pelts-unlock-offers.generated.sql';
 const BOUNDS = '2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql';
+/* The next forward catalogue, applied right after these two: a full replace that carries the bear's bound. */
+const CARRIES = '2027-02-16-party-pull-hunt-sessions-catalogue.generated.sql';
 const GLADE = 'mosslight_glade';
 const NEEDED = 5;
 const STEP_MS = 2 * 60000;           // one settle fire's reach (HUNT_SETTLE_SPAN_MS: a longer backlog lands in slices)
@@ -229,7 +233,7 @@ const ARMS = {
       return JSON.stringify(out);
     };
     const before = await image();
-    for (const f of [BOUNDS, OFFERS]) await db.exec(readFileSync(join(H.ROOT, 'supabase', 'migrations', f), 'utf8'));
+    for (const f of [BOUNDS, OFFERS, CARRIES]) await db.exec(readFileSync(join(H.ROOT, 'supabase', 'migrations', f), 'utf8'));
     const after = await image();
     if (before !== after) problems.push(`a second apply moved something: ${before} -> ${after}`);
     return problems;

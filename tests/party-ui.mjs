@@ -809,14 +809,15 @@ async function pureRules(M, base) {
     const L = M.PRO.classXpLine;
     const end = ' Melee, Ranger, Mage and Healer each count.';
     for (const [roles, hunt, want] of [
-      [['tank', 'ranger'], 'meadowbrook_thicket', 'Your party has 2 of 4 classes: 15% more Level XP in Meadowbrook Thicket.'],
+      [['tank', 'ranger'], 'meadowbrook_thicket', 'Your party has 2 of 4 classes: 28% more Level XP in Meadowbrook Thicket.'],
       [['tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: no extra Level XP in Meadowbrook Thicket.'],
       [['tank', 'melee_dps'], 'millrace_sewer', 'Your party has 1 of 4 classes: 20% less Level XP in The Sewer.'],
-      [['tank', 'mage', 'healer'], 'coppercap_warrens', 'Your party has 3 of 4 classes: no extra Level XP in Coppercap Warrens.'],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: 15% more Level XP in The Sewer.'],
+      [['tank', 'mage', 'healer'], 'coppercap_warrens', 'Your party has 3 of 4 classes: 28% more Level XP in Coppercap Warrens.'],
+      [['tank', 'ranger'], 'millrace_sewer', 'Your party has 2 of 4 classes: no extra Level XP in The Sewer.'],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: 18% more Level XP in The Sewer.'],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
-      [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: 5% more Level XP in Wickstead.'],
-      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: 10% less Level XP in Wickstead.'],
+      [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: 7% more Level XP in Wickstead.'],
+      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: 12% less Level XP in Wickstead.'],
     ]) {
       if (L(roles, hunt) !== want + end) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
     }
@@ -834,7 +835,7 @@ async function pureRules(M, base) {
       return M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
     };
     const shown = tab([seat(0, 'shield'), seat(1, 'ranged')], 'mill_cellar');
-    if (shown !== 'Your party has 2 of 4 classes: 20% more Level XP in Mill Cellar.' + end) return 'in town the tab reads ' + JSON.stringify(shown);
+    if (shown !== 'Your party has 2 of 4 classes: 7% more Level XP in Mill Cellar.' + end) return 'in town the tab reads ' + JSON.stringify(shown);
     if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
     if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);

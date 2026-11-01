@@ -194,6 +194,7 @@ export const HUNT_GROUNDS = Object.freeze({
     respawnMs: 32000, pullDist: 1.5, partyScale: true, groupFit: 'both',
     /* the tutorial room allows the full box and no more: its lesson is the pull */
     densityMax: Object.freeze([8, 8, 8, 8]),
+    partyPull: Object.freeze([0, 4, 5, 5]),
   }),
   millrace_sewer: Object.freeze({
     id: 'millrace_sewer', hunt: 'millrace_sewer', map: 'millrace_sewer',
@@ -238,7 +239,7 @@ export const HUNT_GROUNDS = Object.freeze({
     densityMax: Object.freeze([8, 8, 8, 8]),
     /* a solo hero may pull up to 6, a pair the full box */
     density: density(6, 2, 8),
-    partyPull: Object.freeze([0, 4, 5, 6]),
+    partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the woodcutters' clearing: the first logs, by the trailhead */
       ['normal_tree', 6, 16, 0], ['normal_tree', 17, 14, 0], ['normal_tree', 18, 23, 0], ['normal_tree', 8, 22, 0],
@@ -323,7 +324,7 @@ export const HUNT_GROUNDS = Object.freeze({
     densityMax: Object.freeze([8, 8, 8, 8]),
     /* a solo hero may pull up to 6, a pair the full box (the Thicket's slider: the same solo-first shape) */
     density: density(6, 2, 8),
-    partyPull: Object.freeze([0, 3, 4, 4]),
+    partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the Crow Field: pines by the trail */
       ['normal_tree', 6, 26, 0], ['normal_tree', 19, 34, 0], ['normal_tree', 8, 35, 0],
@@ -450,7 +451,8 @@ export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille
    round the tank taken); a row may allow more. The values above 8 are ASSUMED.
    A PARTY'S DEFAULT PULL (designer 2026-11-01: most players never press +, and a mixed party as built stayed under
    solo): a row's `partyPull`, one entry per party size 1..4, is the pull of a party that picked none; absent = as built.
-   A lone hero's entry is 0 and never read: its pull never moves. */
+   It follows the party standing, at the next spawn (designer 2026-11-01): a four dropping to three goes to three's pull,
+   and a lone survivor goes back to as built. A lone hero's entry is 0 and never read: its pull never moves. */
 export const DENSITY_FULL_BOX = 8;
 
 /* Who a ground is built for (the workbook's "Group fit"): see the row shape's groupFit. */

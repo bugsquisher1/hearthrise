@@ -1222,6 +1222,23 @@ function rules(M) {
       const want = name === 'mixed' ? evs.reduce((s, e) => s + Math.floor(e.raw * 1.2 + 1e-9), 0) : raw;
       ok('LV-CLASS', name === 'same' ? paid === raw : paid >= want && paid > raw * 1.1, name + ': ' + paid + ' Level XP on ' + raw + ' even shares');
     }
+    /* A PARTY'S DEFAULT PULL (designer 2026-11-01), both paths: a Thicket pair with no pick stands at 4 each in the server's world
+       and in the browser's, every commit matching; the same XP viewed and with the browser closed. */
+    const pair = () => ['tank', 'ranger'].map((r, i) => memberOf(M, 'ab'[i], i, r, 6));
+    const opt = { hunt: 'meadowbrook_thicket', id: 'i-pull' };
+    const closedMis = pair(), c0 = closedMis.map((m) => m.levelXp);
+    const closed = server(M, closedMis, opt);
+    closed.commit(T0 + SPAN);
+    const viewedMis = pair(), v0 = viewedMis.map((m) => m.levelXp);
+    const r = run(M, viewedMis, SPAN, { server: opt });
+    const closedXp = closedMis.map((m, i) => m.levelXp - c0[i]), viewedXp = viewedMis.map((m, i) => m.levelXp - v0[i]);
+    const off = r.verdicts.filter((x) => x.v !== 'match').length;
+    const pullOf = (s) => M.WS.decodeStored(JSON.parse(s.inst.world)).density;
+    const closedPull = pullOf(closed), viewedPull = pullOf(r.srv);
+    console.log('  LV-CLASS pull: density ' + closedPull + ' / ' + viewedPull + ', XP closed ' + closedXp + ', viewed ' + viewedXp + ', ' + off + ' commits off');
+    ok('LV-CLASS', closedPull === 4 && viewedPull === 4, 'pull: a Thicket pair with no pick stands at density ' + closedPull + ' closed, ' + viewedPull + ' viewed, want 4');
+    ok('LV-CLASS', closedXp.join() === viewedXp.join() && closedXp.every((x) => x > 0), 'pull: viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
+    ok('LV-CLASS', off === 0, 'pull: ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
   }
   return fails;
 }
@@ -1232,6 +1249,9 @@ const MUTANTS = [
   ["the browser's prediction fights on a ground it cannot name (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
     "    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { id: 'nowhere' }) };\n", /^LV-CLASS: mixed: (the prediction|\d+ of)/],
+  ["the browser's prediction plays no party pull (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
+    '    const where = huntGroundOf(String(live.instance.hunt));\n',
+    '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { partyPull: undefined }) };\n', /^LV-CLASS: pull: \d+ of/],
   ['a shield Melee and a Melee count as two classes (LV-CLASS)', 'src/data/party-class-xp.js',
     "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['tank', 'melee_dps']) }),",
     "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),", /^LV-CLASS: same/],

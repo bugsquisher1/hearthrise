@@ -12,22 +12,22 @@
 // next plan is on screen before any more gold moves. A lost answer keeps the plan and its
 // keys: the next press resends them and the server replays what it already did.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, prop, style, element } from '../../../render/paint.js?v=0.2.80';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.80';
-import { whole } from '../../../render/format.js?v=0.2.80';
-import { glyphSvg } from '../../launcher.js?v=0.2.80';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.80';
-import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.80';
-import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.80';
-import { BAG_CATS } from '../../bag-model.js?v=0.2.80';
-import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.80';
-import { refusalText } from '../../intent-words.js?v=0.2.80';
-import { notListableWords } from '../../market-words.js?v=0.2.80';
-import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.80';
-import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.80';
-import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.80';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.80';
-import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey } from './state.js?v=0.2.80';
+import { rows, text, cls, attr, prop, style, element } from '../../../render/paint.js?v=0.2.81';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.81';
+import { whole } from '../../../render/format.js?v=0.2.81';
+import { glyphSvg } from '../../launcher.js?v=0.2.81';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.81';
+import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.81';
+import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.81';
+import { BAG_CATS } from '../../bag-model.js?v=0.2.81';
+import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.81';
+import { refusalText } from '../../intent-words.js?v=0.2.81';
+import { notListableWords } from '../../market-words.js?v=0.2.81';
+import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.81';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.81';
+import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.81';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.81';
+import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey } from './state.js?v=0.2.81';
 
 const SEARCH_MAX = 50;
 const LOST_WORDS = 'No answer from the Weighhouse. Press again: it won\'t buy twice.';

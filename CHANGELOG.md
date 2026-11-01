@@ -5,6 +5,26 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.81 — 2026-11-01 (Fair Pay)
+
+**Crafting pays.** Gathered and refined goods have new shop prices, and forged gear now sells above the metal in it. Hunting still pays more at the shop.
+
+**The bench tax.** A town bench now takes 15% of what a job's goods would sell for at the shop. Own the matching room in your house (Forge, Workshop, Kitchen or Library) and every hero on your account works free. If a hero can't pay, the bench stops and says so.
+
+**House rooms cost more.** Forge, Workshop, Kitchen and Library upgrades are now real gold goals.
+
+**Panels stay on screen.** Windows and panels stay in reach at every desktop size.
+
+**Coming back.** The away card keeps up with what's happening now and leaves when the hunt ends. A hero working in town gets one too, saying what the job did.
+
+**Parties tell the truth.** A hero's role now comes from what they're wearing right now. You're told when someone declines, leaves, closes the party or removes you, and why a friend's exit sent you home. The leader is warned before starting a ground that's too high for someone.
+
+**Where items come from.** Item tips now say where to get an item, what it does and who buys it.
+
+**The four-hero limit.** Trying to play a fifth hero opens a clear popup in the middle of the screen.
+
+**Leaderboards.** The Roll of Honor is now called Leaderboards.
+
 ## v0.2.80 — 2026-11-01 (Better Together)
 
 **Mixed parties earn more.** A party with different classes now earns more Level XP each than hunting alone: Melee, Ranger, Mage and Healer each count. A party of one class doesn't get the bonus, and on some grounds earns a little less. The party window tells you what yours gets before you go. Coin and loot are unchanged.

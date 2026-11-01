@@ -24,22 +24,22 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.2.80';
-import { STATUSES } from '../../data/statuses.js?v=0.2.80';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.80';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.80';
-import { cheb } from './grid.js?v=0.2.80';
-import { atRest, unitById } from './movement.js?v=0.2.80';
-import { makeEvent } from './events.js?v=0.2.80';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.80';
-import { fallen, partySize } from './pull-cycle.js?v=0.2.80';
-import { shareKillXp } from './xp-share.js?v=0.2.80';
-import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.80';
-import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.80';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.80';
-import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.80';
-import { mitigate } from '../mitigation.js?v=0.2.80';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.80';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.81';
+import { STATUSES } from '../../data/statuses.js?v=0.2.81';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.81';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.81';
+import { cheb } from './grid.js?v=0.2.81';
+import { atRest, unitById } from './movement.js?v=0.2.81';
+import { makeEvent } from './events.js?v=0.2.81';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.81';
+import { fallen, partySize } from './pull-cycle.js?v=0.2.81';
+import { shareKillXp } from './xp-share.js?v=0.2.81';
+import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.81';
+import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.81';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.81';
+import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.81';
+import { mitigate } from '../mitigation.js?v=0.2.81';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.81';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);

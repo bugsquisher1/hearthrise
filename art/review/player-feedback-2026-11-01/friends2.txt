@@ -1,0 +1,27 @@
+FRIENDS2 BLIND PLAYTEST  (lane/f5-friends, release/v0.2.82 build, local world, 2026-11-01/02)
+STATUS: WORKING NOTES, milestone 1 (about 35 min in). Final structure is written at the end.
+
+HARNESS NOTES
+- Local world via tools/qa/local-world.mjs openWorld(); accounts bram/wren/sol through world.play({account}) which signed each account up and in (the sign-up screen itself was not driven by me).
+- hr_market_config.enabled was false in the local DB; I set it true with one UPDATE (harness note, as instructed).
+- Viewports: Bram 1366x768, Sol 1366x768, Wren 1920x1080.
+- Other lanes share the PC; CPU 55-60% at start. First world boot took about 15 min (chain replay) under that load.
+
+TIMELINE (wall clock UTC, 11-01 23:36 start)
+23:53 world up. Three accounts signed up. Each lands on "Your characters" with 2 hero slots (3rd costs 15,000 gold).
+23:55 Create hero: name + 4 colors, text says "There's no class to pick. The weapon you hold is how you fight."  Everyone starts as sword and shield; the other starter weapons are in the bag (bow, club, crossbow, hatchets, spellbook, staff, wand).
+23:56 Bram and Sol: first click on "Enter town" did nothing (name typed, button pressed once, stayed on the create screen); a second click worked. Wren's first click worked. Unclear if harness or game (see P2-1).
+23:58 Wren equips Practice Bow, Sol equips Practice Staff in the bag (click item, Equip). Outfit in the world changes to ranger / green healer robe within seconds. Party window then labels them "Ranger" and "Healer"; Bram is "Melee (shield)".
+00:00 Invite by name from Party > Invites tab: self-invite -> "That is you."; unknown -> "No character goes by that name."; empty -> "Type the name of the player to invite."; good -> "Invite sent to Wren." Invitee gets a toast "Bram invites Wren to their party." with Join / No thanks plus a badge on their hero tab. No thanks -> inviter sees "Wren said no to your party invite."
+00:03 Crossing invites (Bram->Wren and Wren->Bram, Sol->Wren at once): no crash, no auto-merge; each side shows the other's invite. Wren joins Bram's: Wren is in Bram's party. Sol's pending invite to Wren, accepted while in a party: "You are already in a party with someone. Press Leave party in the Party window, then try again." (clear).
+00:05 Sol joins Bram's party. Party window promise, verbatim: "Your party has 2 of 4 classes: 7% more Level XP in Mill Cellar. Melee, Ranger, Mage and Healer each count." then with Sol: "3 of 4 classes: 18% more Level XP in Mill Cellar."
+00:07 Removing someone: no kick/remove control found for the leader (member right-click menu = Inspect gear / Message / Add friend / Block). Sol "Leave party" -> others see "Sol left the party." and the bonus drops back to 2 of 4 / 7%. Leader "Disband" is one click, no confirm -> "The party is disbanded." / members see "Bram closed the party."
+00:09 Global chat works: Bram typed with the chat open, Wren saw "18:03 Bram [1]: hello from Bram".
+00:10 Hunts window: Mill Cellar says "Alone or with up to 3 more." and "A pull is one pack: up to 8 when you hunt alone. Bigger pulls pay more once your heroes can hold them." Drop table is headed "chance per kill, hunting alone".
+
+BUGS SO FAR
+P2-1 Enter town needed two presses for Bram and Sol (Wren fine). Not yet reproduced; may be harness.
+P2-2 Party window: the transient notice ("Invite sent to Sol.") sits on top of the Leave party / Disband buttons at 1366x768 for a few seconds (only "Dis" visible); at 1920x1080 the right edge of the Party window clips "Disband" to "Dis". Screens: bram_party_of_three.png, wren_crossing.png.
+P2-3 Stale lines stay in the Party window after they are resolved: "Invite sent to Bram." remains after Wren joined Bram's party and after Bram disbanded.
+P2-4 No way for a leader to remove one member without disbanding everyone.
+P2-5 Disband has no confirm.

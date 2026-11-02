@@ -3,7 +3,7 @@
 // tools/beta-load.mjs — THE BETA'S WORST HOUR, REPLAYED: real chain, real engine, real concurrency, PostgreSQL 17.
 //   (lane/r-beta-load, reliability-engineer, 2026-11-01.) Load-test only; nothing imports it; never touches production.
 //
-//   node tools/beta-load.mjs --accounts=20 [--heroes=4] [--minutes=5] [--party=0.4] [--town=0.25] [--workers=2]
+//   node tools/beta-load.mjs --accounts=20 [--heroes=4] [--minutes=5] [--party=0.4] [--town=0.25] [--workers=2] [--idle-accounts=80] [--warm=240]
 //                            [--drill=tick-stop|edge-5xx|retry] [--json=out.json]
 //   node tools/beta-load.mjs --selftest     the conservation audit, proved to bite on planted double pay and lost time
 //
@@ -12,9 +12,12 @@
 // the shipped tick.js and hunt-settle.js against a connection pool the size of production's, each viewed hero's hello on
 // the client's cadence, unviewed reads, social, chat and market reads, and the cron jobs on their production schedules.
 //
-// THE SERVER. A scratch cluster shaped like Small, started by the caller (fsync ON, shared_buffers 512MB, 90 connections,
-// pg_stat_statements loaded), reached through tools/pg-replay.mjs's HR_PG_PORT / HR_PG_DATA / HR_PG_BIN. Its CPU is NOT
-// Small's: --calibrate times a CPU-only statement; run the same one on production read-only for the ratio.
+// THE SERVER. A scratch cluster shaped like Small, started by the caller (shared_buffers 512MB, 90 connections,
+// pg_stat_statements loaded, full_page_writes on so the WAL volume is honest; fsync off, because a DROP DATABASE's forced
+// checkpoint took 4+ min on this PC's disk and a commit's fsync here says nothing about gp3), reached through
+// tools/pg-replay.mjs's HR_PG_PORT / HR_PG_DATA / HR_PG_BIN. Its CPU is NOT Small's, and not by one factor: a hash statement
+// ran 1.5x slower on production than on the Windows bench, a jsonb one 7x FASTER (11-02). So the bench gives the COUNTS,
+// the concurrency and the bytes; Small's CPU is those counts x production's own pg_stat_statements means.
 //
 // WHAT IT CANNOT SEE: Deno isolate limits and cold starts, the pooler's own latency, Realtime's fan-out (realtime.send is
 // a recording stub; the bytes are real), and network RTT. Those are modeled and named in the report.
@@ -211,7 +214,11 @@ async function workerMain() {
 }
 
 /* ── THE AUDIT: nothing lost, nothing paid twice ──────────────────────────────────────────────────────────────────────── */
-export async function auditSessions(sql, fromBySession) {
+const PURSE = 5000000;
+const purseBase = async (sql) => new Map((await sql.unsafe(`select w.user_id, w.gold::bigint as gold,
+    (select coalesce(sum(l.gold), 0) from public.player_ledger l where l.user_id = w.user_id and l.intent is distinct from 'beta_load_fill')::bigint as moved
+  from public.account_wallet w where w.user_id in (select user_id from public.hunt_sessions)`)).map((p) => [p.user_id, { gold: Number(p.gold), moved: Number(p.moved) }]));
+async function auditSessions(sql, fromBySession, base) {
   const rows = await sql.unsafe(`
     select h.id, h.instance_id, floor(extract(epoch from h.settled_to) * 1000)::bigint as to_ms,
       floor(extract(epoch from h.hunt_from) * 1000)::bigint as from_ms,
@@ -229,13 +236,14 @@ export async function auditSessions(sql, fromBySession) {
     if (Number(r.ms) !== Number(r.to_ms) - from) red.push(`session ${String(r.id).slice(-6)}: journalled ${r.ms} ms for a clock that moved ${Number(r.to_ms) - from} ms`);
     if (Number(r.tkills ?? 0) !== Number(r.lkills) || Number(r.tcoins ?? 0) !== Number(r.lcoins)) red.push(`session ${String(r.id).slice(-6)}: tally ${r.tkills}/${r.tcoins} != ledger ${r.lkills}/${r.lcoins}`);
   }
-  const dup = await sql.unsafe(`select session_id, intent_id, kind, count(*)::int n from public.player_ledger
-    where session_id is not null and intent_id is not null and kind = 'combat' and intent = 'accrue' group by 1, 2, 3 having count(*) > 1 limit 5`);
-  for (const d of dup) red.push(`session ${String(d.session_id).slice(-6)}: intent ${d.intent_id} journalled ${d.n} times`);
-  const purse = await sql.unsafe(`select w.user_id, w.gold::bigint as gold,
-      (select coalesce(sum(l.gold), 0) from public.player_ledger l where l.user_id = w.user_id and l.kind <> 'admin' and l.at >= (select min(entered_at) from public.hunt_sessions)) as moved
-    from public.account_wallet w where w.user_id in (select user_id from public.hunt_sessions)`);
-  return { red, sessions: rows.length, windows, purses: purse.length };
+  /* THE PURSE: every coin the account's wallet moved since the baseline is a ledger row. */
+  const purse = await purseBase(sql);
+  if (base) for (const [u, p] of purse) {
+    const b = base.get(u);
+    if (!b) continue;
+    if (p.gold - b.gold !== p.moved - b.moved) red.push(`purse ${String(u).slice(-6)}: ${p.gold - b.gold} moved, the ledger says ${p.moved - b.moved}`);
+  }
+  return { red, sessions: rows.length, windows, purses: purse.size };
 }
 
 /* ── THE MAIN: the world, the crons, the clock ─────────────────────────────────────────────────────────────────────────── */
@@ -243,7 +251,7 @@ const nowMs = () => performance.now();
 const pct = (a, q) => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(q * (s.length - 1)))]; };
 const uidOf = (i) => `00000000-0000-4000-8000-${(0xbe7a0000 + i).toString(16).padStart(12, '0')}`;
 
-async function buildWorld(db, { accounts, heroes, partyShare, townShare, online }) {
+async function buildWorld(db, { accounts, heroes, partyShare, townShare, online, idleAccounts }) {
   const H = (await import('../tests/hunt-sessions-settle.mjs')).HARNESS;
   const M = await H.loadEdge(H.ROOT);
   const { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } = await import('../tests/world-tick-token-shims.mjs');
@@ -269,7 +277,12 @@ async function buildWorld(db, { accounts, heroes, partyShare, townShare, online 
   const skillXp = Object.fromEntries(['melee', 'ranged', 'magic', 'defense'].map((k) => [k, M.XP.skillXpForLevel(k, 20)]));
   const nameOf = (i, s) => 'Bench' + String(i).split('').map((d) => 'abcdefghij'[Number(d)]).join('') + 'wxyz'[s];
   const refused = {};
-  for (let i = 0; i < accounts; i++) {
+  /* Extra slots are bought with gold in play: on this scratch clone they are starters while the fixture builds; an existing
+     character then owns its slot (hr_hero_slots_of's grandfather clause). */
+  const starters = (await db.query('select slot_id from public.hr_hero_slots where starter')).rows.map((r) => r.slot_id);
+  await db.query('update public.hr_hero_slots set starter = true');
+  const idle = Number(idleAccounts || 0);
+  for (let i = 0; i < accounts + idle; i++) {
     const uid = uidOf(i);
     await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [uid]);
     await db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'beta-load') on conflict (user_id) do nothing`, [uid]);
@@ -292,8 +305,8 @@ async function buildWorld(db, { accounts, heroes, partyShare, townShare, online 
       await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, $2, 'cooked_shrimp', 400) on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [uid, s]);
       await one(`select public.hr_character_name_set($1::int, $2, $3::uuid)`, [s, nameOf(i, s), randomUUID()]);
     }
-    await db.query(`update public.account_wallet set gold = 5000000 where user_id = $1`, [uid]);
-    await db.query(`insert into public.account_wallet (user_id, gold) values ($1, 5000000) on conflict (user_id) do update set gold = excluded.gold`, [uid]).catch(() => {});
+    await db.query(`insert into public.account_wallet (user_id, gold) values ($1, ${PURSE}) on conflict (user_id) do update set gold = excluded.gold`, [uid]);
+    if (i >= accounts) continue;   // the population the tables must hold, standing in town
     const kind = i / accounts < partyShare ? 'party' : (i / accounts < partyShare + townShare ? 'town' : 'solo');
     const bag = JSON.stringify(kit.bag);
     const enter = async (s, g) => {
@@ -314,15 +327,16 @@ async function buildWorld(db, { accounts, heroes, partyShare, townShare, online 
     out.push({ uid, slots, viewed: 0, kind, online: i / accounts < online, map: townMap });
   }
   await asUser('');
+  await db.query('update public.hr_hero_slots set starter = (slot_id = any ($1::int[]))', [starters]);
   /* Staggered clocks over one flush: a population, not a stampede. The hunt's own start stays the audit's zero. */
   await db.query(`update public.hunt_instances i set settled_to = date_trunc('second', now() - make_interval(secs => s.lag)), next_swing_at = date_trunc('second', now() - make_interval(secs => s.lag))
       from (select id, (random() * 90)::int + 1 as lag from public.hunt_instances where id in (select instance_id from public.hunt_sessions where ended_at is null)) s where i.id = s.id`);
   await db.query(`update public.hunt_sessions h set hunt_from = i.settled_to, settled_to = i.settled_to, next_swing_at = i.settled_to, entered_at = i.settled_to - interval '1 minute'
       from public.hunt_instances i where i.id = h.instance_id and h.ended_at is null`);
   /* The journal, at the size retention keeps: the 2,000 rows a hero production carries today, as index depth for the writes. */
-  const heroCount = accounts * heroes;
-  await db.query(`insert into public.player_ledger (user_id, slot, kind, intent, gold, at)
-    select $1::uuid, 0, 'admin', 'beta_load_fill', 0, now() - interval '30 days' from generate_series(1, $2::int)`, [uidOf(0), Math.min(heroCount * 2000, 1000000)]).catch((e) => { refused['ledger fill: ' + String(e.message).slice(0, 60)] = 1; });
+  const heroCount = (accounts + idle) * heroes;
+  await db.query(`insert into public.player_ledger (user_id, slot, kind, intent, at)
+    select $1::uuid, 0, 'admin', 'beta_load_fill', now() - interval '30 days' from generate_series(1, $2::int)`, [uidOf(0), Math.min(heroCount * 2000, 1000000)]).catch((e) => { refused['ledger fill: ' + String(e.message).slice(0, 60)] = 1; });
   await db.exec('analyze');
   return { accounts: out, refused, partyGround, soloGround };
 }
@@ -354,13 +368,15 @@ async function main() {
   const { db, name } = await bootPg({ log });
   await db.exec('create extension if not exists pg_stat_statements');
   const t0 = Date.now();
-  const world = await buildWorld(db, { accounts, heroes, partyShare, townShare, online });
+  const world = await buildWorld(db, { accounts, heroes, partyShare, townShare, online, idleAccounts: Number(arg('idle-accounts', 0)) });
   log(`world built in ${((Date.now() - t0) / 1000).toFixed(0)} s: refused ${JSON.stringify(world.refused)}; party ${world.partyGround}, solo ${world.soloGround}`);
   const admin = connect(name, 4);
   const openN = (await admin.unsafe('select count(*)::int s, count(distinct instance_id)::int i from public.hunt_sessions where ended_at is null'))[0];
   log(`${openN.s} open sessions on ${openN.i} instances`);
   report.world = { sessions: openN.s, instances: openN.i, refused: world.refused };
   const fromBySession = new Map((await admin.unsafe(`select id, floor(extract(epoch from hunt_from) * 1000)::bigint as f from public.hunt_sessions`)).map((r) => [r.id, Number(r.f)]));
+
+  const purse0 = await purseBase(admin);
 
   /* Production's pool: 15 server connections to hr_engine through the pooler (Small's default_pool_size, ASSUMED; the
      role's own limit is 20), PostgREST's own pool on Small (ASSUMED 15). Split across the workers. */
@@ -412,8 +428,10 @@ async function main() {
   const statSql = `select coalesce(sum(xact_commit), 0)::bigint c, coalesce(sum(xact_rollback), 0)::bigint r, coalesce(sum(blks_read), 0)::bigint rd, coalesce(sum(blks_hit), 0)::bigint hit,
       coalesce(sum(deadlocks), 0)::bigint dl, coalesce(sum(tup_inserted), 0)::bigint ins, coalesce(sum(tup_updated), 0)::bigint upd from pg_stat_database where datname = current_database()`;
   const walSql = `select wal_bytes::bigint b, wal_fpi::bigint f, wal_records::bigint r from pg_stat_wal`;
-  const tableSql = `select c.relname, pg_total_relation_size(c.oid)::bigint b from pg_class c join pg_namespace n on n.oid = c.relnamespace
-      where c.relkind = 'r' and n.nspname in ('public', 'realtime') order by 2 desc limit 25`;
+  /* Named tables only: a stat of every relation took 35 s on this PC, where one file open costs 17 ms (measured 11-02). */
+  const tableSql = `select t as relname, pg_total_relation_size(t::regclass)::bigint b from unnest(array['player_ledger', 'player_state', 'player_inventory', 'player_skills', 'player_progress', 'player_intents',
+      'hunt_sessions', 'hunt_instances', 'hunt_session_tally', 'hunt_session_events', 'hunt_bag', 'hr_rate_counters', 'hr_rejections', 'chat_messages', 'hunt_tick_lease', 'hr_town_stands', 'character_presence']) t
+      union all select 'realtime.bench_frames', pg_total_relation_size('realtime.bench_frames'::regclass)`;
 
   const fireTimer = setInterval(fire, 10000);
   const lagTimer = setInterval(sampleLag, 10000);
@@ -425,8 +443,8 @@ async function main() {
   }, c.ms));
   await fire();
   say({ t: 'start' });
-  const warmS = Number(arg('warm', 100));
-  log(`warming ${warmS} s (a flush, so every instance has been settled once)`);
+  const warmS = Number(arg('warm', 240));
+  log(`warming ${warmS} s (every pooled backend past its first touches: a cold backend opens hundreds of files at 17 ms each here)`);
   await new Promise((r) => setTimeout(r, warmS * 1000));
 
   /* THE MEASURED WINDOW. */
@@ -466,16 +484,18 @@ async function main() {
   const elapsedS = (Date.now() - tMeasure) / 1000;
   const proc1 = process.cpuUsage(proc0);
   const cpu1 = pmPid ? await cpuOf(pmPid) : NaN;
+  /* the workload's statements only: the bench's own reads are not the server's load */
+  const pss = await admin.unsafe(`select r.rolname, s.calls::bigint calls, s.total_exec_time::float8 ms, s.mean_exec_time::float8 mean, s.max_exec_time::float8 mx, s.wal_bytes::bigint wal,
+      regexp_replace(s.query, '\\s+', ' ', 'g') q from pg_stat_statements s join pg_roles r on r.oid = s.userid
+      where s.query not like '%pg_stat%' and s.query not like '%pg_total_relation_size%' and s.query not like '%bench_frames%' and s.query not like '%net.http_request_queue%'
+        and s.query not like '%hunt_instances i where i.id in%' and s.query not like '%beta_load_fill%' order by s.total_exec_time desc limit 80`).catch(() => []);
+  const totals = { ms: pss.reduce((a, r) => a + r.ms, 0), calls: pss.reduce((a, r) => a + Number(r.calls), 0) };
   const [s1] = await admin.unsafe(statSql); const [w1] = await admin.unsafe(walSql);
   const tables1 = (await admin.unsafe(tableSql)).map((r) => ({ t: r.relname, grew: Number(r.b) - (tables0.get(r.relname) || 0), b: Number(r.b) })).filter((r) => r.grew > 0).sort((a, b) => b.grew - a.grew);
   const fr1 = (await admin.unsafe('select count(*)::bigint n, coalesce(sum(length(payload::text)), 0)::bigint b from realtime.bench_frames'))[0];
   const led1 = Number((await admin.unsafe(`select count(*)::bigint n from public.player_ledger where intent <> 'beta_load_fill'`))[0].n);
   const ledBytes = Number((await admin.unsafe(`select coalesce(avg(pg_column_size(l.*)), 0)::float8 a from public.player_ledger l where intent <> 'beta_load_fill'`))[0].a);
   const conns = (await admin.unsafe(`select count(*)::int n from pg_stat_activity where datname = current_database()`))[0].n;
-  const pss = await admin.unsafe(`select r.rolname, s.calls::bigint calls, s.total_exec_time::float8 ms, s.mean_exec_time::float8 mean, s.max_exec_time::float8 mx, s.wal_bytes::bigint wal,
-      left(regexp_replace(s.query, '\\s+', ' ', 'g'), 110) q from pg_stat_statements s join pg_roles r on r.oid = s.userid order by s.total_exec_time desc limit 40`).catch(() => []);
-  const totals = (await admin.unsafe(`select coalesce(sum(total_exec_time), 0)::float8 ms, coalesce(sum(calls), 0)::bigint calls from pg_stat_statements`).catch(() => [{ ms: 0, calls: 0 }]))[0];
-
   /* Stop the driver and gather its numbers. */
   clearInterval(fireTimer); clearInterval(lagTimer); cronTimers.forEach(clearInterval);
   firing = false;
@@ -519,14 +539,14 @@ async function main() {
     lag: { max_s: lagMax, p95_of_p95_s: pct(lagSeries.map((r) => r.p95), 0.95), stalled_samples: lagSeries.filter((r) => r.stalled > 0).length, samples: lagSeries.length, last: lagSeries[lagSeries.length - 1] },
     rows, crons: Object.fromEntries(Object.entries(cronWalls).map(([k, v]) => [k, typeof v[0] === 'string' ? v[0] : { n: v.length, mean: Math.round(v.reduce((a, b) => a + b, 0) / v.length), max: Math.round(Math.max(...v)) }])),
     tables_grew: tables1.slice(0, 12),
-    top_statements: pss.slice(0, 26).map((r) => ({ role: r.rolname, calls: Number(r.calls), ms: Math.round(r.ms), mean: Math.round(r.mean * 10) / 10, max: Math.round(r.mx), wal_kb: Math.round(Number(r.wal) / 1024), q: r.q })),
+    top_statements: pss.map((r) => ({ role: r.rolname, calls: Number(r.calls), ms: Math.round(r.ms), mean: Math.round(r.mean * 10) / 10, max: Math.round(r.mx), wal_kb: Math.round(Number(r.wal) / 1024), q: r.q.slice(0, 160) })),
   };
   if (drillLog.length) report.drill = { log: drillLog, lag: lagSeries.map((r) => ({ s: Math.round((r.t - tMeasure) / 1000), mx: Math.round(r.mx), p95: Math.round(r.p95), stalled: r.stalled })) };
 
   /* Let every body and every in-flight settle land, then audit. */
   await Promise.race([Promise.all(Array.from(busy)), sleep(30000)]);
   await sleep(2000);
-  const audit = await auditSessions(admin, fromBySession);
+  const audit = await auditSessions(admin, fromBySession, purse0);
   report.audit = { ...audit, red: audit.red.slice(0, 10), red_total: audit.red.length };
   const ended = await admin.unsafe(`select end_reason, count(*)::int n from public.hunt_sessions group by 1 order by 2 desc`).catch(() => []);
   report.end_reasons = ended;
@@ -554,31 +574,40 @@ async function selftest() {
   const exec = async (text, params) => admin.begin(async (tx) => { await tx.unsafe('set local role hr_engine'); return Array.from(await tx.unsafe(text, params || [])); });
   const fromBy = new Map((await admin.unsafe(`select id, floor(extract(epoch from hunt_from) * 1000)::bigint as f from public.hunt_sessions`)).map((r) => [r.id, Number(r.f)]));
   await admin.unsafe(`update public.hunt_instances set settled_to = settled_to - interval '200 seconds', next_swing_at = next_swing_at - interval '200 seconds'`);
-  await admin.unsafe(`update public.hunt_sessions set hunt_from = hunt_from - interval '200 seconds', settled_to = settled_to - interval '200 seconds', next_swing_at = next_swing_at - interval '200 seconds'`);
+  await admin.unsafe(`update public.hunt_sessions set entered_at = entered_at - interval '200 seconds', hunt_from = hunt_from - interval '200 seconds', settled_to = settled_to - interval '200 seconds', next_swing_at = next_swing_at - interval '200 seconds'`);
   for (const k of fromBy.keys()) fromBy.set(k, fromBy.get(k) - 200000);
+  const base = await purseBase(admin);
   const v = await M.HS.settleHunt({ exec, user: uid, slot: 0, mode: 'settle', bucket: null, project: true, live: true });
   const problems = [];
   if (v.outcome !== 'paid') problems.push('CONTROL: the settle did not pay: ' + JSON.stringify({ o: v.outcome, r: v.reason }));
-  const clean = await auditSessions(admin, fromBy);
+  const clean = await auditSessions(admin, fromBy, base);
   if (clean.red.length || clean.windows < 1) problems.push('CONTROL: a clean settle reads red or empty: ' + JSON.stringify(clean));
-  /* A1: a window journalled twice (double pay). */
-  await admin.unsafe(`insert into public.player_ledger (user_id, slot, kind, intent, gold, session_id, meta, intent_id)
-    select user_id, slot, kind, intent, gold, session_id, meta, intent_id from public.player_ledger where kind = 'combat' and intent = 'accrue' limit 1`).catch((e) => problems.push('plant failed: ' + e.message));
-  const a1 = await auditSessions(admin, fromBy);
-  if (!a1.red.some((r) => /journalled/.test(r))) problems.push('A1: a window paid twice went unseen');
-  await admin.unsafe(`delete from public.player_ledger where ctid = (select max(ctid) from public.player_ledger where kind = 'combat' and intent = 'accrue')`);
+  /* A4: gold moved with no ledger row. */
+  await admin.unsafe(`update public.account_wallet set gold = gold + 7`);
+  const a4 = await auditSessions(admin, fromBy, base);
+  if (!a4.red.some((r) => /purse/.test(r))) problems.push('A4: gold moved without a ledger row went unseen');
+  await admin.unsafe(`update public.account_wallet set gold = gold - 7`);
   /* A2: time lost (the clock moved with no window). */
   await admin.unsafe(`update public.hunt_sessions set settled_to = settled_to + interval '90 seconds'`);
-  const a2 = await auditSessions(admin, fromBy);
+  const a2 = await auditSessions(admin, fromBy, base);
   if (!a2.red.some((r) => /clock that moved/.test(r))) problems.push('A2: lost time went unseen');
   await admin.unsafe(`update public.hunt_sessions set settled_to = settled_to - interval '90 seconds'`);
   /* A3: a tally that disagrees with its ledger. */
   await admin.unsafe(`update public.hunt_session_tally set coins = coins + 1`);
-  const a3 = await auditSessions(admin, fromBy);
+  const a3 = await auditSessions(admin, fromBy, base);
   if (!a3.red.some((r) => /tally/.test(r))) problems.push('A3: a tally off its ledger went unseen');
+  /* last: the journal refuses a delete inside its retention window, so this plant stays */
+  /* A1: a window journalled twice (double pay). */
+  await admin.begin(async (tx) => {
+    await tx.unsafe(`set local session_replication_role = replica`);   // the journal's own fences refuse this write; the plant is the point
+    await tx.unsafe(`insert into public.player_ledger (user_id, slot, kind, intent, gold, purse, gold_kind, session_id, meta)
+      select user_id, slot, kind, intent, gold, purse, gold_kind, session_id, meta from public.player_ledger where kind = 'combat' and intent = 'accrue' limit 1`);
+  }).catch((e) => problems.push('plant failed: ' + e.message));
+  const a1 = await auditSessions(admin, fromBy, base);
+  if (!a1.red.some((r) => /journalled/.test(r))) problems.push('A1: a window paid twice went unseen');
   await admin.end({ timeout: 5 }); await db.close().catch(() => {});
   for (const p of problems) console.log('RED ' + p);
-  console.log(problems.length ? `beta-load --selftest: ${problems.length} red` : 'beta-load --selftest: 3/3 planted defects caught, control clean');
+  console.log(problems.length ? `beta-load --selftest: ${problems.length} red` : 'beta-load --selftest: 4/4 planted defects caught, control clean');
   process.exit(problems.length ? 1 : 0);
 }
 

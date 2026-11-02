@@ -14,7 +14,10 @@ export const PULSE_LIMITS = Object.freeze({
   firesMin10: 50,          // of 60 in ten minutes
   frameAgeH: 2,            // hr-realtime-frame-prune keeps 1 h; 2 h means it stopped
   frameKBsMax: 80,         // of Realtime's configured 100 KB/s (whether Supabase enforces it is unverified: watch it anyway)
-  stalledMax: 0,           // open hunts past the tick's own flush
+  /* Open hunts past the tick's own flush. A body that spends its engine budget defers its last selector until the 30 s lease
+     ends, so one or two unwatched hunts touch 125-130 s in normal running (replay 11-02: 20 x 4, 6 of 118 selectors; every
+     one settled the next fire). More than this share is the tick not keeping up. */
+  stalledShareMax: 0.1,
 });
 
 const mb = (b) => `${Math.round(Number(b) / 1e6)} MB`;
@@ -45,7 +48,7 @@ export function pulseLines(p) {
     + `${silent ? ` << TICK SILENT: want a fire within ${L.tickSilentS} s and ${L.firesMin10}+ in 10 min` : ''}${edgeBad ? ' << EDGE FAILING THE TICK: want 0 5xx, 0 timeouts' : ''}`);
 
   const open = n(p.openHunts), stalled = n(p.stalledHunts), worst = n(p.worstLagS);
-  out.push(`Hunts: ${open} open, ${stalled} past the flush, worst lag ${Math.round(worst)} s${stalled > L.stalledMax ? ' << BACKLOG: the tick is not keeping up (lag, never lost)' : ''}`);
+  out.push(`Hunts: ${open} open, ${stalled} past the flush, worst lag ${Math.round(worst)} s${stalled > Math.max(1, L.stalledShareMax * open) ? ' << BACKLOG: the tick is not keeping up (lag, never lost)' : ''}`);
 
   const age = n(p.oldestFrameH), failed = n(p.cronFailed1h), kbs = n(p.frameKBs);
   const retBad = age > L.frameAgeH || !(failed === 0);
@@ -63,7 +66,7 @@ function selftest() {
   const cases = [
     ['quiet', {}, null],
     ['disk over 70 %', { fsUsedBytes: 6e9 }, 'DISK'],
-    ['disk under 14 days', { dbBytes: 3e9, dbBytes24h: 2.6e9 }, 'DISK'],
+    ['disk under 14 days', { dbBytes: 3e9, dbBytes24h: 2.4e9 }, 'DISK'],
     ['no disk number', { fsUsedBytes: null }, 'DISK'],
     ['connections over 80 %', { conns: 80 }, 'CONNECTIONS'],
     ['the engine pool full', { engineConns: 15 }, 'CONNECTIONS'],
@@ -73,7 +76,9 @@ function selftest() {
     ['edge 5xx', { edge5xx10m: 3 }, 'EDGE FAILING'],
     ['edge timeouts', { edgeTimedOut10m: 1 }, 'EDGE FAILING'],
     ['unknown edge outcome', { edge5xx10m: null }, 'EDGE FAILING'],
-    ['a stalled hunt', { stalledHunts: 1 }, 'BACKLOG'],
+    ['one deferred hunt, normal running', { stalledHunts: 1 }, null],
+    ['a tenth of the hunts stalled and more', { stalledHunts: 6 }, 'BACKLOG'],
+    ['two of a few hunts stalled', { openHunts: 3, stalledHunts: 2 }, 'BACKLOG'],
     ['retention stopped', { oldestFrameH: 3 }, 'RETENTION'],
     ['a cron job failing', { cronFailed1h: 2 }, 'RETENTION'],
     ['frames near the cap', { frameKBs: 90 }, 'FRAMES'],

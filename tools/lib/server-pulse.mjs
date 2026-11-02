@@ -5,6 +5,8 @@
 //   node tools/lib/server-pulse.mjs --selftest   every alarm proved to fire and to stay quiet
 //
 // Pure: a row of read-only numbers in, one line each out. An alarm line carries `<<`; a quiet one never does.
+import { isMain } from '../../tests/_is-main.mjs';
+
 export const PULSE_LIMITS = Object.freeze({
   diskDaysMin: 14,         // under two weeks of runway is a decision, not a surprise
   diskShareMax: 0.7,       // Supabase auto-grows the disk at 90 %, billed; say so well before
@@ -18,7 +20,7 @@ export const PULSE_LIMITS = Object.freeze({
      ends, so one or two unwatched hunts touch 125-130 s in normal running (replay 11-02: 20 x 4, 6 of 118 selectors; every
      one settled the next fire). More than this share is the tick not keeping up. */
   stalledShareMax: 0.1,
-  dbBusyMax: 1400,         // ms a second of database execution: 70 % of Small's 2 shared cores. Replay 11-02: 20 x 4 worst hour ~350, 100 x 4 ~1,800
+  dbBusyMax: 1400,         // ms a second of database execution: 70 % of Small's 2 shared cores. Replay 11-02: 20 x 4 worst hour ~300, 100 x 4 ~1,450
 });
 
 const mb = (b) => `${Math.round(Number(b) / 1e6)} MB`;
@@ -101,4 +103,4 @@ function selftest() {
   console.log(bad ? `server-pulse --selftest: ${bad} RED` : `server-pulse --selftest: ${cases.length}/${cases.length} alarms fire and stay quiet`);
   process.exit(bad ? 1 : 0);
 }
-if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/lib/server-pulse.mjs') && process.argv.includes('--selftest')) selftest();
+if (isMain(import.meta.url) && process.argv.includes('--selftest')) selftest();

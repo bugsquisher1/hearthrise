@@ -12,12 +12,20 @@
 // the shipped tick.js and hunt-settle.js against a connection pool the size of production's, each viewed hero's hello on
 // the client's cadence, unviewed reads, social, chat and market reads, and the cron jobs on their production schedules.
 //
-// THE SERVER. A scratch cluster shaped like Small, started by the caller (shared_buffers 512MB, 90 connections,
-// pg_stat_statements loaded, full_page_writes on so the WAL volume is honest; fsync off, because a DROP DATABASE's forced
-// checkpoint took 4+ min on this PC's disk and a commit's fsync here says nothing about gp3), reached through
-// tools/pg-replay.mjs's HR_PG_PORT / HR_PG_DATA / HR_PG_BIN. Its CPU is NOT Small's, and not by one factor: a hash statement
-// ran 1.5x slower on production than on the Windows bench, a jsonb one 7x FASTER (11-02). So the bench gives the COUNTS,
-// the concurrency and the bytes; Small's CPU is those counts x production's own pg_stat_statements means.
+// THE SERVER. A scratch cluster shaped like Small, started by the caller and reached through tools/pg-replay.mjs's HR_PG_PORT /
+// HR_PG_DATA / HR_PG_BIN: shared_buffers 512MB, max_connections 200, shared_preload_libraries pg_stat_statements, full_page_writes on
+// (the WAL volume is honest), fsync off, and max_files_per_process 4000. THE LAST TWO ARE NOT OPTIONAL ON WINDOWS: one file open costs
+// 17 ms on this PC, so at the default 1000 every backend churns its descriptors and statements read 5-10x slow; with fsync on, a clone's
+// forced checkpoint takes 4+ minutes. Build the template with fsync and synchronous_commit off too (it takes ~50 minutes either way).
+// CPU: production ran a CPU-only hash statement 1.4x slower than this bench (read-only, 11-02), and per-statement production means agree
+// (hr_state_of 40 vs 24 ms, hr_tick_cron_run 24 vs 16, hr_perks_of 2.3 vs 1.6; hr_load 92 vs 27-35, its heroes carry more). So the bench gives
+// the counts, the concurrency and the bytes; Small's CPU is about 1.4 x db_cpu_cores_local, cross-checked as counts x production's means.
+//
+// MEASURED 2026-11-02, worst realistic hour (party 0.4, town 0.25, every account online, every hero hunting, 5 min after warm-up):
+//   20 x 4    0.22 bench cores (~0.30 on Small), 120 edge calls/min, 1.7 frames/s, lag 129 s max (a deferred selector), audit 0 red
+//   100 x 4   1.01 bench cores (~1.45 on Small), 588 edge calls/min, 8.2 frames/s, lag 102 s max, pool queue < 51 ms, audit 0 red
+//   20 x 4, --unviewed-poll-ms=0: exec 205 -> 164 ms/s on the bench; hr_load is 3x dearer on production, so ~-30 % there.
+//   Drills, audit 0 red each: tick-stop (20 x 4) peak lag 681 s, drained 60 s after the return; edge-5xx (12 x 4) peak 189 s; retry (12 x 4).
 //
 // WHAT IT CANNOT SEE: Deno isolate limits and cold starts, the pooler's own latency, Realtime's fan-out (realtime.send is
 // a recording stub; the bytes are real), and network RTT. Those are modeled and named in the report.

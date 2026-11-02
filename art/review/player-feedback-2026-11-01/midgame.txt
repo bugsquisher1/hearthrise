@@ -1,17 +1,224 @@
-HEARTHRISE MIDGAME BLIND PLAYTEST (DRAFT, checkpoint 1) -- lane/f5-midgame, build v0.2.82
-Persona: patient old-school MMO / idle veteran, plays for the chase. Local world (tools/qa/local-world.mjs), real play.html at 1920x1080,
-Playwright, skip/wait compress time. One account "vet", hero Aldric (sword and shield). Blind: no src/docs/tests/CHANGELOG read.
+HEARTHRISE MIDGAME BLIND PLAYTEST -- lane/f5-midgame, build v0.2.82, 2026-11-01
+Persona: patient old-school MMO / idle veteran who plays for the chase. Reads numbers, calls out what does not add up. Honest, not hostile.
+Method: local world (tools/qa/local-world.mjs, header only), real play.html at 1920x1080 in Playwright, skip/wait to compress time.
+One account "vet". Hero 1 Aldric (sword and shield, later two axes). Hero 2 Wren (created at hero-hour ~14). Blind: no src/, docs/, tests/,
+CHANGELOG, earlier art/review reports or memory read. Numbers below are what the game's own Hunt analyzer / Hunt summary / sheets showed.
+Weighhouse enabled locally at Level 10 (hr_market_config.enabled = true, local DB only).
 
-STATUS AT CHECKPOINT 1 (about 7.7 h of hero hunting time, Level 10 at 37%)
-  Cellar L1-6: 2.5 h | Thicket L6-8: 2.2 h | Sewer 1 h | Wickstead 1 h | Glade 1 h (at L9, "above your level") + town gathering.
+================================================================================
+1. PLAYED AND NOT REACHED
+================================================================================
+PLAYED (hero hunting time about 21.4 h, plus about 5 h of town time; Level 25 at 6%). Sessions were 1-4 h blocks with town waits between; I did NOT
+model a true 2-4 sessions a day pattern or any overnight absence beyond one page reload.
+  Mill Cellar 2.5 h | Meadowbrook Thicket 2.0 h | The Sewer 1.0 h solo (no boss) | Wickstead 1.0 h | Mosslight Glade about 14.7 h |
+  Coppercap Warrens 1 h 5 min at L20-25 (solo; refused once at L13) | a 75-second party hunt in the Sewer with a Level 1 alt.
+  Town: gathering (woodcutting, mining), House deed + Garden + Millrace Crate, shop buying, 6 stamina refills' worth of price observed (3 bought),
+  Tamsin (armor weight set to Heavy, one task taken, never finished), Weighhouse (opened, empty), second hero created and partied once.
+  Second weapon style: two axes (Practice Hatchets) tried for about 4 h of Glade hunting. A real death: Wren (L1) only. Aldric never died.
 
-NUMBERS SO FAR (hero Aldric, from the in-game hunt analyzer, sword and shield, heavy armor, auto-bought gear)
-  ground              hero level   XP/h     gold+loot value/h   notes
-  Mill Cellar         1-6          7,200    1,900-2,000         L1->5 in 31 min; L5->6 took ~2 h more
-  Meadowbrook Thicket 6-8          22,900   2,600               3x the Cellar
-  The Sewer           8-9          40,500   4,900               supplies 136 gp/h
-  Wickstead           9            28,800   3,400
-  Mosslight Glade     9-10         56,600   4,500               "Far above your level" per the Hunts list at L1, "Above" at L9. No death, HP 223/272 at end.
-  => each step up the ground ladder is 1.3-3x the XP; the ladder is the whole game so far.
+NOT REACHED (honest list)
+  - 60+ hours and Level 35. The compression cost 1.5-4.5 s of real time per game minute (more kills per minute = slower); about 21 h fit in
+    the budget. Level 25 is where I stopped, 10 levels short.
+  - What the game does when content runs out (past Coppercap, past Level 31 in the Glade, past Level 50). Not observed.
+  - The Sewer boss (Rat King) and Tamsin's boss/party tasks. Chief Coppercap. Any rare-drop reveal after the first hour.
+  - Crafting/smithing/runecrafting as a gear route. I never smithed, cooked or crafted anything; gear came from the shop and from drops only.
+  - Bow, wand, staff, club styles. Blessings. Farming. Chat, friends, honor board with other players. A real 2-4 sessions-a-day return pattern.
+  - House Fieldworth Farmstead and up (Oak Log needs Woodcutting 15; I only got 14).
 
-(Full report follows at the final commit.)
+================================================================================
+2. TIMELINE BY LEVEL (hero hunting hours -> level, Aldric)
+================================================================================
+  hunt-h  level        ground / what I did
+   0.0    L1           Mill Cellar, sword and shield, 20 shrimp. First hunt: L5 in 31 min (3,726 XP). Rare Queen's Comb (0.072%) dropped
+                       on the very first hunt (lucky, but it was the only rare moment of the whole run).
+   0.5    L5           sold loot, bought Studs/Shield/Gloves/Belt (shop gear), "Equip upgrades" button wore the helm.
+   2.5    L6 74%       still Mill Cellar; L5->L6 took about 2 h at 7.2k XP/h. The Hunts list says "Best 7,303 Level XP/h" there.
+   2.5    L6           moved to Thicket on my own (list said "Above your level"): 22.9k XP/h, 3x the Cellar.
+   4.7    L8 34%       2 h in Thicket. Took Tamsin's Gray Wolves task, chose Heavy armor.
+   4.7    L8           Sewer 1 h solo: 40.5k XP/h. Wickstead 1 h: 28.8k. Glade 1 h at L9 ("Far above your level" at L1, "Above" at L9): 56.6k.
+   7.7    L10 37%      enabled Weighhouse. Town: logs/ore, deed (400 gp, 20 ore, 30 logs), Garden, Millrace Crate.
+   9.7    L12 3%       Glade 2 h at 57.5k XP/h.
+  11.7    L13 66%       Glade 2 h at 58.8k XP/h. (Flat for 4 hours: 57-59k.)
+  11.7    L13          tried Coppercap: Enter was live, hunt ended after 4 s, nothing happened (the detail text says too far below).
+  12.7    L14 73%      Glade, pack density raised to the max (8 each): 79.1k XP/h (+35%), supplies 1,414 gp/h (was about 70).
+  13.7    L16 27%      swapped to Practice Hatchets (two axes), density 8: 126k XP/h (+60% over sword/shield at the same density).
+                       HP ended 145/343 (42%): first time Aldric was really hurt. Gold 27.8k.
+  16.5    L20 9%       Glade 2 h 48 min until "Your stamina ran out, so your hero came home". 33.3k gp+loot in 2.8 h.
+  16.6    L20          Coppercap at L20: Enter worked this time (5 min, 15 kills: slow).
+  20.6    L24 11%      Glade 4 h: 134.5k XP/h, 11.6k gp+loot/h, supplies 1.5k/h, 4,457 kills.
+  21.7    L25 6%       Coppercap 1 h solo: 156.5k XP/h but supplies 6,714 gp/h, balance -1,591 gp/h, HP 313/450.
+Pace: from Level 10 to 25 it is a steady 1.0-1.2 hours per level. The XP needed for the next level was 55,888 at L8 and 185,445 at L25.
+
+================================================================================
+3. NUMBERS TABLE (every row is a measured hunt; "gp+loot/h" is the analyzer's "Gold and loot value per hour")
+================================================================================
+ ground        lv    gear/setting                 min    XP/h     gp+loot/h  supplies/h   hrs to next level (at that rate)   end HP
+ Mill Cellar   1-5   starter, shield              31     7,135    2,013      0            0.66 (L5, 27%)
+ Mill Cellar   5-6   +shop gear                   120    7,239    1,880      0            0.48 (L6, 74%)
+ Thicket       6-8   +ring/cape/necklace          120    22,917   2,619      ~0           1.6 (L8, 34%)
+ Sewer         8-9   same                         60     40,468   4,927      136          1.6 (L9, 8%)
+ Wickstead     9     same                         60     28,800   3,367      0            1.2 (L9, 52%)
+ Glade         9-10  same                         60     56,614   4,482      56           0.8 (L10, 37%)
+ Glade         10-12 same                         120    57,488   4,633      112          1.2 (L12, 3%)
+ Glade         12-13 same                         120    58,825   5,244      70           0.4 (L13, 66%)
+ Glade         13-14 density 8                    60     79,143   6,451      1,414        0.26 (L14, 73%)            312/332
+ Glade         14-16 hatchets + density 8         60     126,138  9,360      1,086        0.5 (L16, 27%)             145/343
+ Glade         16-20 hatchets + density 8         168    n/p      ~11,900    n/p          (ended by stamina)         403/403 at home
+ Glade         20-24 hatchets + density 8         240    134,470  11,585     1,492        1.1 (L24, 11%)             403/403
+ Coppercap     24-25 hatchets + density 8, solo   60     156,488  4,968      6,714        1.2 (L25, 6%)              313/450
+ (n/p = the harness did not capture the analyzer before the hunt ended)
+
+ DECISION EVIDENCE
+  Ground: each step up the ladder was worth 1.3x-3x XP; there was no ground "trap" until Coppercap. Cellar 7.2k vs Glade 56.6k = 7.8x for the
+          same hero, same gear. The hunt list's "Best N Level XP/h" per ground is the ground chooser.
+  Pull density (a Hunts-window stepper, easy to miss): 58.8k -> 79.1k XP/h (+35%), gp+loot +23%, supplies 70 -> 1,414 gp/h. Dominant while gold is
+          plentiful. HP stayed 94%.
+  Weapon style: two axes (the weakest "Practice" tier) 126k vs sword+shield 79k at the same density and ground (+60%). Confound: Aldric went
+          L14 -> L16 across that hour and the Glade's range starts at 16; also the sword was an Iron Sword, the hatchets a Practice item. The cost:
+          end HP 42% instead of 94%. The "Taking a beating?" coach tip fires. Axes were never abandoned afterwards, so for XP/h shield-and-sword
+          never competed again. No shield bonus I can see pays for 60%.
+  Armor weight (Tamsin's choice, Heavy/Medium/Light): I picked Heavy once, +18.6% max HP shown on the bag. I never saw numbers that let me
+          compare weights; no way to test cheaply. Untested.
+  Hunt choice at Level 24: Glade 134k XP/h and +10.1k gp/h net vs Coppercap 157k XP/h (+17%) and -1.6k gp/h net. Coppercap is dominated until
+          armor/healing or a party fixes the supply bill (463 Salted Shrimp at 14 gp in one hour).
+
+ GOLD
+  gold at L5 859 -> L8 2.5k -> L10 10.8k -> L13 19.8k -> L16 27.8k -> L20 39.7k -> L25 61.0k. Sinks I found: 7 shop gear pieces (1.2k total),
+  House deed 400 + Garden 600 + Crate 1.5k, stamina refills 1,700-3,040 gp per 4 h (price +320 per buy, 6 per day, scales with level),
+  hero slot 15,000, Kitchen's Hearthstone 40,000 gp for "cooking 2% faster, 13% less burnt food".
+
+ STAMINA (as a player would use it)
+  12 h pool; hunting spends it 1:1; town time regenerates it about 1:1 (4:52 -> 8:27 over 3 h 55 of town time incl. gathering). So the free budget
+  is about a 50% duty cycle. Ran dry once (L16-20 hunt ended with "Your stamina ran out, so your hero came home"). Refills measured 425 gp per
+  hunting hour at L13 and 760 gp/h at L24; always worth buying in the Glade (income 11-12k/h), not in Coppercap. Needs two clicks (Buy, then a confirm).
+
+ TOWN GATHERING
+  Woodcutting 14 and Mining 27 after about 1.5 game-hours of idle gathering; 383 logs, 1,237 copper ore. Gathering also kept stamina regenerating.
+  Ore and logs are effectively free; the House asks for 30 logs + 20 ore at step I.
+
+================================================================================
+4. WHAT AM I WORKING TOWARD? (asked every 5 levels)
+================================================================================
+ L5: "Next: Every weapon is a style" coach chain + "Rats in the mill". Clear. Worth doing. It opens the Thicket (list says Level 5-15).
+ L10: Nothing tells me. The Hunts list shows "Best X Level XP/h" per ground and range labels; analyzer says "Next level in". The chase is "a bigger
+      number than last time". Tamsin's Thicket/Wickstead tasks pay 480-780 gp + one Bronze Helm: worth about 6 minutes of Glade income. The House
+      deed (400 gp, ore, logs) opens "Garden, Kitchen" that I do not need. Weighhouse is empty. The chase is the ground ladder only.
+ L15: I am working toward Level 16 for the Glade range, and toward the density stepper and axes I found by poking. The game never told me about
+      either. A player who does not poke sits at 58k XP/h for 4+ hours (see dead stretches).
+ L20: no goal on screen. The sheet shows "Next at level 45: Steel Whetstone". Coppercap lists Steel/Boarhide/Scholar sets at 7.6%/kill and
+      rares at 0.15-0.88%, but it is a party ground ("alone from Level 45") and my solo run loses money.
+ L25: the real next step is a party or better armor so Coppercap pays. The game has hints (party window "1 of 4 classes: 20% less Level XP"),
+      but I had no party, and my only other hero is Level 3.
+
+================================================================================
+5. DEAD STRETCHES (hours where nothing about my character changed)
+================================================================================
+ 1. Level 10 -> 13, about 4 hunt-hours (hero-h 7.7 -> 11.7): XP/h flat at 57,488-58,825, gp/h flat 4.6-5.2k, gear unchanged (4 heavy + 2 medium,
+    bought at L5-8). The only change is a level number every 0.8-1.2 h. A player who does not find density or weapon swap stays here.
+ 2. Gear, hero-h 5 -> 21: about 16 hours with no gear upgrade. The shop's gear list never changed after Level 5 (Copper Studs ... Hunter Necklace).
+    Drops: 40+ Iron Platebodies and other armor filled the bag (114 of 100 spaces) and I never wore any; Equip upgrades picked nothing better.
+    Armor stayed "4 heavy (+18.6% max HP), 2 medium" from L10 to L25. Combat sheet at L25: Defense 33, Dodge 13.6%, Absorb 34.6%.
+ 3. Gold, hero-h 8 -> 21: 61k gold unspent by Level 25. Nothing I wanted cost gold except stamina (which is a sink, fine).
+    The Hearthstone at 40,000 gp is the only big item and it is worth nothing to a hunter.
+ Not dead: levels came every 1.0-1.2 h from L10 on, Glade income grew, the Hunts "Best" line moved.
+
+================================================================================
+6. DOES ANY DECISION MATTER?
+================================================================================
+ YES: ground, pull density, weapon style (60%), stamina refills when gold is plentiful, party class mix (stated, untested).
+ DOMINANT: the highest ground I can enter + density 8 + two axes. No tradeoff survived contact with the numbers except end HP (42%) and supplies.
+ NEARLY USELESS: Tamsin's tasks after Level 8 (rewards smaller than 1 h of Glade); Wickstead once you can enter the Sewer/Glade (28.8k vs 40-56k);
+ the Weighhouse for one player (empty); Kitchen Hearthstone; hero slot 3 (15,000 gp) when slot 2 is idle; Garden room.
+ NOT TESTED but suspect: armor weight choice (no numbers to compare weights), blessings (free under Level 30, so a free safety net).
+
+================================================================================
+7. DANGER, GOLD, DROPS
+================================================================================
+ Last in danger: Aldric at hero-h 13.7: HP 145/343 after an hour of axes at density 8 in the Glade. Coppercap at L24: HP 313/450 and the "Taking a
+   beating?" tip. The only DEATH was Wren, Level 1, in the Sewer (75 seconds, killed by Culvert Bat). Danger is mild for a solo veteran in the Glade;
+   the price of pushing is supply cost, not death.
+ Gold last mattered: hero-h 0-8 (shop gear, the first refill at 4h/1,700 gp on hero-h ~12) and again at Coppercap (supplies 6.7k/h). Between hero-h 8 and
+   L24 it did not.
+ Last drop that excited me: the Queen's Comb on the very first hunt (L1, 0.072%). Nothing after it moved me: Bone Chips x130, Bones x96, Pithwood x58.
+   I never saw a rare-drop reveal or broadcast on screen in 21 h (the Hunts pages list rares 0.07-0.88%; no rare dropped for me after the Comb).
+ Content wall: Coppercap Warrens (32-50, boss Chief Coppercap L52) is the last ground in the list. The Glade ends at 31. I did not reach the
+   point where the game has nothing to offer; I only know Coppercap solo loses gold at L25.
+
+================================================================================
+8. BUGS / FRICTION (exact steps; P0 = progress lost or cannot continue, P1 = stuck or misled, P2 = friction)
+================================================================================
+ P1  Party trap leaves the strong hero stuck and the weak hero's death ends both hunts.
+     Steps: second hero Wren (L1), her Hunts window, The Sewer, press "Bring Aldric", Enter. After 1 min 15 s she is killed by a Culvert Bat:
+     "Wren fell, so Aldric came home too." Aldric (L16) loses the hunt and is left in her party ("Follow Wren" in his Target box).
+     Switch to Aldric, Hunts, Mosslight Glade: Enter is disabled with no text next to it; only the header line "Your party leader picks the hunt
+     and starts it" hints. The way out is Party window -> "Leave party". Recoverable, but it reads as "the game is broken".
+     Wren still got Level 1 -> 3 (509 XP) in 75 s, so a carry works if the alt survives. The Sewer carries "or die" in its own text but not
+     that the carrier loses the hunt.
+ P2  Coppercap Warrens: Enter is lit at Level 13 even though the detail text says "You are too far below this hunt to enter it yet." Pressing Enter
+     starts and ends the hunt in about 4 s with no message I could find in town. At Level 20 it worked.
+ P2  Bag overflow: Inventory header reads "93 of 100 spaces" at hero-h 12, then "114 of 100 spaces" at L25. No visible warning or refusal; not
+     checked whether loot was dropped. "Sell all loot" keeps gear; "Dispatch loot" is greyed with a hover hint to set per-item rules; there is
+     no "sell all gear I'm not wearing" (40+ Iron Platebodies).
+ P2  Stamina refill: two clicks (Buy, then "Buy for X gp"). The price steps by 320 per purchase and by level (1,700 at L13, 3,040 for the 3rd at L24)
+     but the daily "Bought today: N of 6" is the only hint. Fine, but a real player will hit the second dialog as a surprise.
+ P2  Tamsin's tally HUD card "Gray Wolves 0/200 - Not here" stays pinned for hours on a task I will never finish (it was a trap for my
+     attention, not progress). No "drop task" nudge.
+ P2  House step I: "Opens the Garden, the Kitchen" but the Kitchen's first upgrade costs 40,000 gp for 2% cooking speed. Reads as a mis-priced reward.
+ P2  Weapon-style change lowers the HP floor by a lot (42%) with no pre-swap number to warn me. The bag has a hint ("You fight as a Melee hero now").
+
+================================================================================
+9. OPINIONS (marked)
+================================================================================
+ OPINION  The ground ladder is a good chase while it lasts: seven times the XP from Cellar to Glade, readable "Best N Level XP/h", honest "Above your
+          level" labels. I never felt lied to on XP.
+ OPINION  Level 10-25 is a treadmill with one lever (the Hunts window). The two levers I found (density, axes) are worth +110% combined and are
+          hidden: a density stepper inside the Hunts detail and a weapon in the starter bag. Tell the player. Without them the hero sits at 58k XP/h.
+ OPINION  Gear is where the game thinks it is a hunter MMO and then does not deliver: no armor tier shows up between Level 5 and Level 25 except through
+          drops I could not use, and the sheet's Defense and Dodge hardly move. The crafting route (Smithing 15 etc.) is not signposted, so a hunter
+          never sees it.
+ OPINION  Gold after Level 10 is a number that grows with no outlet except stamina. 61k at Level 25 is a smell. A sink that matters (armor tiers, boss
+          entry, a real house step) is missing.
+ OPINION  Party design is smart (4 classes, 20% less XP when missing) but the alt-carry path is a trap with a Level 1 alt.
+ OPINION  Coppercap should be the next chase, but solo it is a loss; the game should say so before I enter ("supplies about 6,500 gp/h at your level").
+
+================================================================================
+10. LIKED
+================================================================================
+ - First 30 minutes: Level 5 before I thought about it. The coach chain ("Every weapon is a style") is short and does not nag.
+ - The Hunts list's "Best N Level XP/h" per ground and the hunt-range labels: the best single piece of guidance in the game.
+ - Hunt summary after leaving: time, kills, XP, gold, loot value, balance per hour, supplies used by name. I could do my whole spreadsheet from it.
+ - Equip upgrades one button. Sell all loot one button. "Put on 1 piece."
+ - The hunt screen with the analyzer docked; "Taking a beating?" tip when HP drops; "Wren fell, so Aldric came home too" clear after the fact.
+ - Gathering in town while stamina regenerates: ore and logs show up while I read the shop.
+ - Reload restored everything (hero, state, stamina 8:27) with no loss.
+
+================================================================================
+11. HARNESS ODDITIES (not game bugs unless noted)
+================================================================================
+ - First world boot took about 20 minutes on a loaded PC (several lanes replaying the chain at once); the CPU sat at 64-77%.
+ - The shared scratchpad is shared between lanes: another lane overwrote my driver.mjs mid-launch; I moved to a private f5-midgame folder.
+ - Skip speed: 1.5 s/game min in the Cellar, 2.2-2.7 in Glade/Sewer, 3.5-4.5 in Thicket/Glade at high density; 60 h would be about 2.3 h of wall.
+ - The HUD stamina did not refresh after world.wait() until I reloaded the page (4:52 shown vs 8:27 real); looks like the page only learns on envelope.
+ - Escape opens Settings (do not use as "close all"). page.click sometimes hangs after skip; DOM .click() was reliable.
+ - Aldric kept returning to "In town, mining the Copper Rock" after hunts (a gather job I had started). Probably intended: the job resumes in town.
+ - Coppercap L20 test only sampled 5 minutes; Glade L16-20 analyzer was not captured (the hunt ended on stamina before my read).
+ - Mass "sell" loop in the Sell tab hit one line 80 times with no visible effect: my script, not necessarily the game.
+
+================================================================================
+12. TOP 5
+================================================================================
+ 1. Tell the player about pull density and the weapon-style choice (+110% XP/h together). Today it takes poking.
+ 2. Give gold a job after Level 10: armor tiers or boss/party entry. 61k idle at Level 25.
+ 3. Fix the party-trap flow (strong hero stranded in a party; weak hero death ends everyone's hunt; Enter silently greyed).
+ 4. Show a supply-cost estimate before entering a ground (Coppercap: -1,600 gp/h at Level 25) and gate Enter with the real reason.
+ 5. Show gear progress and a route to better armor between L5 and L25, and a one-click "sell gear I am not wearing" (114/100 bag).
+
+================================================================================
+13. VERDICT: WHEN WOULD I STOP?
+================================================================================
+ I would not stop for hours 0-8 (ladder, quick levels). I would start to drift at about hero-hour 10-12 (Level 12-13): XP/h flat at 58k, gold piling,
+ gear unchanged, one lever. I found density and axes by poking and that kept me playing, but only because the persona pokes. At about hero-hour 20
+ (Level 24) I would still be playing, but the chase has narrowed to "more hours in the same Glade". I would stop between hero-hour 22 and 30 (Level
+ 25-28): Coppercap is the only next ground, it loses gold solo and needs a party I do not have, my second hero is a Level 3 alt behind 20 hours of
+ progress, and nothing in gold or gear pulls me. Why: the loop is strong, but the middle has one lever and no outlet for gold or gear.
+ Caveat: I did not reach 60 h or Level 35, so the true late midgame is unobserved.

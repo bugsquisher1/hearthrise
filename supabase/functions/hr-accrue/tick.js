@@ -602,10 +602,17 @@ async function fence(exec, args) {
      it — a carrier that is silently dropped on the branch that pays is how a
      stale proposal would reach hr_apply. It is declared `default null` in SQL
      so the migration can apply BEFORE this payload is deployed without the
-     nine-argument probe breaking for the length of the deploy window. */
+     nine-argument probe breaking for the length of the deploy window.
+
+     ⚠ `$6::text::timestamptz` IS THE FIX, NOT STYLE (lane/c-beta-server, 2026-11-01, live 0d959747:0,2,3).
+       npm:postgres serializes a parameter Postgres describes as timestamptz with
+       `new Date(x).toISOString()`, which cuts fenceWindowFrom's microsecond spelling back to the
+       millisecond, so a window starting at a switch's mark read "before" it and was refused
+       `window_already_settled` on every fire until the owner's next settle. Described as text, the
+       string reaches the fence whole. tests/world-tick-stall-after-repoint.mjs runs the real serializer. */
   const [r] = await exec(
     'select public.hr_tick_settle($1::text, $2::uuid, $3::int, $4::text, $5::bigint,'
-    + ' $6::timestamptz, $7::timestamptz, $8::uuid, $9::text::jsonb,'
+    + ' $6::text::timestamptz, $7::timestamptz, $8::uuid, $9::text::jsonb,'
     + ' $10::text::jsonb) as res',
     [args.holder, args.user, args.slot, args.channel, args.version,
       args.windowFrom, args.windowTo, args.intentId, args.delta,

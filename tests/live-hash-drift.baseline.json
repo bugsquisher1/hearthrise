@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-01",
- "replay_ms": 5879,
+ "replay_ms": 60455,
  "counts": {
   "tracked_names": 717,
   "entries": 572
@@ -12109,17 +12109,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-10-10-world-tick-gather-widen.sql"
+    "2026-10-10-world-tick-gather-widen.sql",
+    "2027-02-20-tick-fuse-load.sql"
    ],
    "live": {
-    "md5": "18d852e5c7994ebb55219331fa9f0c37",
-    "norm_len": 3908,
+    "md5": "5e9df63951d317dee1391a13b462f5e1",
+    "norm_len": 4322,
     "measured": "2026-11-01",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "18d852e5c7994ebb55219331fa9f0c37",
-    "norm_len": 3908,
+    "md5": "5e9df63951d317dee1391a13b462f5e1",
+    "norm_len": 4322,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -3,7 +3,7 @@
 // tools/beta-load.mjs — THE BETA'S WORST HOUR, REPLAYED: real chain, real engine, real concurrency, PostgreSQL 17.
 //   (lane/r-beta-load, reliability-engineer, 2026-11-01.) Load-test only; nothing imports it; never touches production.
 //
-//   node tools/beta-load.mjs --accounts=20 [--heroes=4] [--minutes=5] [--party=0.4] [--town=0.25] [--workers=2] [--idle-accounts=80] [--warm=240]
+//   node tools/beta-load.mjs --accounts=20 [--heroes=4] [--minutes=5] [--party=0.4] [--town=0.25] [--workers=2] [--idle-accounts=80] [--warm=240] [--engine-pool=15] [--rest-pool=15] [--unviewed-poll-ms=60000]
 //                            [--drill=tick-stop|edge-5xx|retry] [--json=out.json]
 //   node tools/beta-load.mjs --selftest     the conservation audit, proved to bite on planted double pay and lost time
 //
@@ -176,7 +176,8 @@ async function workerMain() {
       }
       for (const slot of a.slots) {
         if (slot === a.viewed) continue;
-        every(C.unviewedPollMs, () => rpc('hr_load', a.uid, 'select public.hr_load(p_slot => $1::int) as r', [slot]));
+        /* --unviewed-poll-ms=0: the cut that raises the client's poll past the frames' own cadence, so it never fires while they flow */
+        if (workerData.unviewedPollMs > 0) every(workerData.unviewedPollMs, () => rpc('hr_load', a.uid, 'select public.hr_load(p_slot => $1::int) as r', [slot]));
       }
       every(C.socialPollMs, () => rpc('social_poll', a.uid, 'select public.hr_social_poll(p_slot => $1::int, p_slots => $2::int[]) as r', [a.viewed, a.slots]));
       every(C.marketReadMs, () => market(a));
@@ -384,7 +385,7 @@ async function main() {
   const workers = [];
   for (let i = 0; i < W; i++) {
     const w = new Worker(fileURLToPath(import.meta.url), { workerData: { hrBetaLoad: true, dbName: name, root: join(fileURLToPath(new URL('..', import.meta.url))),
-      enginePool: Math.max(1, Math.floor(engineTotal / W)), restPool: Math.max(1, Math.floor(restTotal / W)),
+      unviewedPollMs: Number(arg('unviewed-poll-ms', C.unviewedPollMs)), enginePool: Math.max(1, Math.floor(engineTotal / W)), restPool: Math.max(1, Math.floor(restTotal / W)),
       accounts: world.accounts.filter((_, k) => k % W === i) } });
     await new Promise((res, rej) => { w.once('message', res); w.once('error', rej); });
     w.setMaxListeners(0);

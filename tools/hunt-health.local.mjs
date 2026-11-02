@@ -60,14 +60,32 @@ const PULSE_FRAMES = `select extract(epoch from (now() at time zone 'utc') - min
   from realtime.messages where event = 'frame'`;
 const PULSE_CRON = `select count(*) failed from cron.job_run_details where status = 'failed' and start_time > now() - interval '1 hour'`;
 
+/* THE DATABASE'S BUSY TIME, over a few seconds: the first thing the beta's load reaches (tools/beta-load.mjs). pg_stat_statements' execution time is
+   CPU here (production's hit ratio is 1.0), in ms a second; 1,000 is one core. The Management API shows no CPU figure. */
+const PULSE_BUSY = "select sum(total_exec_time) ms, extract(epoch from clock_timestamp()) at_s from extensions.pg_stat_statements";
+const BUSY_WINDOW_MS = 3000;
+/* The edge's own answers to everyone (browser and tick), from its logs: 10 minutes, bounded so a slow logs read costs a line, never the screen. */
+const PULSE_EDGE_SQL = "select count() as n, countIf(toInt32OrZero(log_attributes['response.status_code']) >= 500) as e5xx from logs where source = 'function_edge_logs' and log_attributes['request.pathname'] = '/functions/v1/hr-accrue'";
+async function edgeAnswers() {
+  const end = new Date();
+  const qs = new URLSearchParams({ sql: PULSE_EDGE_SQL, iso_timestamp_start: new Date(end.getTime() - 600000).toISOString(), iso_timestamp_end: end.toISOString() });
+  const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/analytics/endpoints/logs?${qs}`, { headers: { Authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout(4000) });
+  const j = await r.json();
+  return (j.result || [])[0] || {};
+}
+
 async function pulse(hunts, stalled) {
-  const [[d], [t], [n], [f], [c]] = await Promise.all([q(PULSE_DB), q(PULSE_TICK), q(PULSE_NET), q(PULSE_FRAMES), q(PULSE_CRON)]);
+  const [b0] = await q(PULSE_BUSY);
+  const [[d], [t], [n], [f], [c], logs] = await Promise.all([q(PULSE_DB), q(PULSE_TICK), q(PULSE_NET), q(PULSE_FRAMES), q(PULSE_CRON), edgeAnswers().catch(() => ({})),
+    new Promise((res) => setTimeout(res, BUSY_WINDOW_MS))]);
+  const [b1] = await q(PULSE_BUSY);
+  const dbMsPerS = (Number(b1.ms) - Number(b0.ms)) / Math.max(0.5, Number(b1.at_s) - Number(b0.at_s));
   /* The filesystem's own numbers: WAL and the slot's reserve live on this disk too (902 MB used for a 288 MB database, 11-02). */
   const util = await fetch(`https://api.supabase.com/v1/projects/${REF}/config/disk/util`, { headers: { Authorization: 'Bearer ' + tok } }).then((r) => r.json()).catch(() => null);
   const fs = (util && util.metrics) || {};
   return pulseLines({ dbBytes: d.db_bytes, dbBytes24h: d.db_bytes_24h, fsUsedBytes: fs.fs_used_bytes, diskBytes: fs.fs_size_bytes, conns: d.conns, maxConns: d.max_conns, engineConns: d.engine_conns, engineCap: d.engine_cap,
     active: d.active, peakConns: d.peak_conns, ledgerRows24h: d.ledger_rows_24h, tickLastS: t.last_s, fires10m: t.fires, edgePosts10m: n.posts, edge5xx10m: n.e5xx, edgeTimedOut10m: n.timed_out,
-    openHunts: hunts.length, stalledHunts: stalled, worstLagS: Math.max(0, ...hunts.map((h) => Number(h.lag_s) || 0)), oldestFrameH: f.oldest_h, frames1m: f.frames_1m, frameKBs: f.kbs, cronFailed1h: c.failed });
+    openHunts: hunts.length, stalledHunts: stalled, worstLagS: Math.max(0, ...hunts.map((h) => Number(h.lag_s) || 0)), oldestFrameH: f.oldest_h, frames1m: f.frames_1m, frameKBs: f.kbs, cronFailed1h: c.failed, dbMsPerS, edgeAll10m: logs.n, edgeAll5xx10m: logs.e5xx });
 }
 
 async function once() {

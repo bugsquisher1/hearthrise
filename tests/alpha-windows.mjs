@@ -2758,7 +2758,7 @@ const MUTANTS = [
   ['item truth: panel: a replaced job says nothing', 'src/shell/town-work.js', "  return what ? 'You stopped ' + what + '.' : '';", "  return '';"],
   ['item truth: panel: pressing the running job says it stopped', 'src/shell/town-work.js', "if (!now || now.id === w.id || !townWorkRunning(", "if (!now || !townWorkRunning("],
   ['AW-62 the Shop\'s confirmation hides the rares', 'src/shell/windows/shop.js', "[rareSaleWords(p.lines), p.kept.length", "[p.kept.length"],
-  ['AW-62 the stance words clip', 'src/styles/hunt.css', 'padding: 0 1px; font-size: var(--t-micro); letter-spacing: 0; overflow: hidden;', 'padding: 0 1px; overflow: hidden;'],
+  ['AW-62 the stance words clip', 'src/styles/hunt.css', '.hb-plaque { position: relative; align-self: stretch; width: 232px;', '.hb-plaque { position: relative; align-self: stretch; width: 170px;'],
   ['AW-62 the top bar cuts a hero\'s job', 'src/styles/app.css', '  min-width: 0; max-width: 360px;\n', '  min-width: 0; max-width: 250px;\n'],
   ['AW-62 the how-to stays beside a card', 'src/styles/shell.css', '[data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now.is-hint { display: none; }\n', ''],
   ['AW-62 the analyzer tab runs past the panel', 'src/styles/hunt.css', '.ha-tabs .ha-tab { margin-bottom: -2px; padding: 0 4px; }', '.ha-tabs .ha-tab { margin-bottom: -2px; }'],

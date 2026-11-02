@@ -72,7 +72,7 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap })
         const a = worldHud.querySelector('[data-hs-widget="' + id + '"]');
         if (!a) continue;
         const stacked = el && el.offsetWidth && !hud.isMoved(row.id) && !hud.isMoved(id);
-        const r = stacked ? stackRoom(rel(a), Object.assign(rel(el), { height: wholeHeight(el) }), bars, height, gap) : null;
+        const r = stacked ? stackRoom(rel(a), phone ? rel(el) : Object.assign(rel(el), { height: wholeHeight(el) }), bars, height, gap) : null;
         const crosses = stacked && !phone && rel(el).left < rel(a).left + rel(a).width && rel(el).left + rel(el).width > rel(a).left;
         take(a, r === null && crosses ? DOCK_CAP_MIN_PX : r);
       }

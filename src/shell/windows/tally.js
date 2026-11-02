@@ -27,7 +27,7 @@ import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2
 import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.81';
 import { whole, gold } from '../../render/format.js?v=0.2.81';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.81';
+import { itemName } from '../widgets/bits.js?v=0.2.81';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.81';
 
 const SCRATCH = new WeakMap();
@@ -208,7 +208,7 @@ renderTally.act = function actTally(ctx, body, action, ev, t) {
     return true;
   }
   if (ev.type !== 'click') return false;
-  if (action === 'to-weight') { revealInWindow(body.querySelector('.ht-pick-head')); return true; }
+  if (action === 'to-weight') { body.querySelector('.ht-pick-head').scrollIntoView({ block: 'start' }); return true; }
   if (action === 'take') {
     const row = tallyTask(task);
     run(() => takeTask(ctx.account, cs, task, null), 'Taking it…',

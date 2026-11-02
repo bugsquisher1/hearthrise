@@ -90,7 +90,7 @@ async function stub(page, s) {
 /* A reload keeps the signed-in session: the sign-in form, the character list or the World, whichever comes; then
    `ready` (default: the three held tallies). */
 async function backIn(page, ready = () => document.querySelectorAll('[data-hs-widget="tally"] .hs-tally-row').length === 3) {
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
   await wait(page, () => document.querySelector('form[data-auth="sign-in"], [data-app="play"][data-slot="0"], .hs-launchers'));
   if (await page.$('form[data-auth="sign-in"]')) {
     await page.fill('input[name=email]', 'qa@example.test');
@@ -180,6 +180,7 @@ async function checks(overrides, shots) {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
     page.setDefaultTimeout(6000);
+    page.setDefaultNavigationTimeout(60000);   // a load on a busy machine is no rule of this test
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -299,7 +300,7 @@ async function checks(overrides, shots) {
       const phoneLayout = { client_state: { hudLayout: { phone: { tally: { visible: true } } } } };
       const ctx = await browser.newContext({ viewport: { width: 922, height: 423 }, hasTouch: true, isMobile: false });
       const page = await ctx.newPage();
-      page.setDefaultTimeout(6000);
+      page.setDefaultTimeout(6000); page.setDefaultNavigationTimeout(60000);
       const s = { env: Object.assign(clone(BASE_ENV), { tally: clone(TALLY3) }, phoneLayout), version: 1, calls: [], answers: {}, board: clone(BOARD) };
       await stub(page, s);
       const up = await signInAndPlay(page, 'http://127.0.0.1:' + port);
@@ -333,10 +334,31 @@ async function checks(overrides, shots) {
       }
       await ctx.close();
     }
+    { // TW-13 HER BOARD FIRST (newcomer panel 2026-11-01): the board stands over the weight picker; with no weight the rule holds, and a line over the grey Takes says why, with a press to the picker
+      const fresh = Object.assign(clone(TALLY), { held: [], recent: [], weight: null, paid_today: 0 });
+      const { ctx, page, s, up } = await open(Object.assign(clone(TOWN), { tally: fresh }));
+      if (!(up && await show(page))) fails.push('TW-13 her window did not open');
+      else {
+        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-offer'), null, 4000);
+        const seen = await page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="tally"]'), why = w.querySelector('.ht-take-why');
+          return { first: !!(w.querySelector('.ht-board').compareDocumentPosition(w.querySelector('.ht-weights')) & Node.DOCUMENT_POSITION_FOLLOWING),
+            why: why.classList.contains('is-on') ? why.querySelector('span').textContent : '', off: Array.from(w.querySelectorAll('[data-hs-act="take"]')).every((b) => b.disabled), toPicker: !w.querySelector('[data-hs-act="to-weight"]').hidden };
+        });
+        if (!seen.first) fails.push('TW-13 the weight picker stands over her board');
+        if (!seen.off || !/^Pick the armor weight she pays you in first/.test(seen.why) || !seen.toPicker) fails.push('TW-13 with no weight her board reads ' + JSON.stringify(seen));
+        await page.click('[data-hs-win="tally"] [data-hs-act="to-weight"]');
+        await page.waitForTimeout(200);
+        const inView = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"] .hs-win-body').getBoundingClientRect(), p = document.querySelector('[data-hs-win="tally"] .ht-weights').getBoundingClientRect(); return p.top >= w.top && p.bottom <= w.bottom; });
+        if (!inView) fails.push('TW-13 Pick a weight did not bring the picker into view');
+        if (sent(s, 'hr_tally_accept').length) fails.push('TW-13 a task was taken with no weight');
+      }
+      await ctx.close();
+    }
     { // TW-10 a new hero who has not met Tamsin (no weight asked, nothing held or paid): no Tally box in town; once met, her line
       const fresh = Object.assign(clone(TALLY), { held: [], recent: [], weight: null, paid_today: 0 });
       const { ctx, page, up } = await open(Object.assign(clone(TOWN), { tally: fresh }));
-      const quiet = () => page.evaluate(() => { const w = document.querySelector('[data-hs-widget="tally"]'); return !w || w.classList.contains('is-quiet') || !w.getClientRects().length; });
+      const quiet =() => page.evaluate(() => { const w = document.querySelector('[data-hs-widget="tally"]'); return !w || w.classList.contains('is-quiet') || !w.getClientRects().length; });
       if (!up) fails.push('TW-10 the town did not mount');
       else {
         await page.waitForTimeout(500);
@@ -448,7 +470,7 @@ async function checks(overrides, shots) {
       const phoneLayout = { client_state: { hudLayout: { phone: { analyzer: { visible: true } } } } };
       const ctx = await browser.newContext({ viewport: vp, hasTouch: true, isMobile: false });
       const page = await ctx.newPage();
-      page.setDefaultTimeout(6000);
+      page.setDefaultTimeout(6000); page.setDefaultNavigationTimeout(60000);
       const s = { env: Object.assign(clone(HUNT_ENV), phoneLayout), version: 1, calls: [], answers: {}, board: clone(BOARD) };
       await stub(page, s);
       const ready = () => !!document.querySelector('[data-hs-hud="world"] [data-hs-widget="analyzer"] .ha-tab');
@@ -513,7 +535,7 @@ const MUTANTS = [
   ['the HUD shows one more kill than the server', 'src/session/tally-sections.js', "return label + ' ' + h.kills + '/' + h.target;", "return label + ' ' + (h.kills + 1) + '/' + h.target;"],
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
   ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));", "text(li.querySelector('.hw-hunt-tally'), '');"],
-  ['the Tally is held at its capped height', 'src/shell/hud-room.js', 'Object.assign(rel(el), { height: wholeHeight(el) })', 'rel(el)'],
+  ['the Tally is held at its capped height', 'src/shell/hud-room.js', 'phone ? rel(el) : Object.assign(rel(el), { height: wholeHeight(el) })', 'rel(el)'],
   ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const takeWhy = sc.board ? takeWhyOf(t, st.hunting) : '';", "const takeWhy = '';"],
   ['the weight picker stands over her board again', 'src/shell/windows/tally.js', "    + '<h3 class=\"hw-ledger-head is-on\">Her board</h3><p class=\"hh-empty ht-wait\">Loading her board…</p>'", "    + '<div class=\"ht-weights\"></div><h3 class=\"hw-ledger-head is-on\">Her board</h3><p class=\"hh-empty ht-wait\">Loading her board…</p>'"],
   ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],

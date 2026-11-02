@@ -685,7 +685,7 @@ const MUTANTS = [
   ['the loading bar never moves', 'src/platform/load-shell.js', '      paint();\n', ''],
   ['a module that cannot load is not said', 'src/platform/load-shell.js', "    failed = true;\n", "    return;\n"],
   ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],
-  ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !purse || actor === null) return '';", "  return '';"],
+  ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "  return '';"],
   ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
   ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
   ['a hero short of gold can press buy', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(o.pending ? ' disabled' : '')"],

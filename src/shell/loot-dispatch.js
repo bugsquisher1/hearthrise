@@ -56,7 +56,7 @@ export function dispatchBlock(cs) {
   if (!rules || !bag) return 'Reading your bag…';
   const planned = bag.some((r) => MOVES.has(rules.loot[r.id]) && !rules.locked.has(r.id) && !(rules.loot[r.id] === 'sell' && isStartKit(r.id)));
   /* The words on the item menu, and no "in the Inventory (B)" said inside the Inventory (core-loop play 2026-10-30). */
-  return planned ? '' : 'Nothing in your bag is set to Deposit in storage or Sell yet. Open an item’s menu in the bag to choose where it goes.';
+  return planned ? '' : 'Nothing is set to Deposit or Sell yet. Set it in an item’s menu.';
 }
 
 const stacks = (n) => whole(n) + (n === 1 ? ' stack' : ' stacks');

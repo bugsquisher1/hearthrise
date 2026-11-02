@@ -348,7 +348,7 @@
   /* A CARD IN A SHEET LEAVES THE SHEET TO THE CONTROL IT NAMES (panel 2026-11-01: 667x375, 156 px of card over 40 px of
      list). Its title and presses one row; its words a line and a half on a short screen (they scroll, the cut says so). */
   /* The phone keeps its own card: a title row over words that scroll, already held to a third of the sheet. */
-  .hs-win-coach > .hs-pointer.is-line { white-space: normal; }
+  .hs-win-coach > .hs-pointer.is-line { gap: 0; white-space: normal; }
   .hs-win-coach > .hs-pointer.is-line > .hs-coach-text { overflow-y: auto; text-overflow: clip; }
   .hs-coach-more { display: none; }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }

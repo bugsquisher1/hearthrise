@@ -256,7 +256,7 @@ async function stub(page, s) {
    font sheet, none of which a rule reads then (2026-10-22: the first goto timed out at 6 s on a loaded box, the
    server's first answer alone taking 2.7 s). The boot gets BOOT_MS: no rule is about how fast a page boots. */
 const BOOTED = 'domcontentloaded';
-const BOOT_MS = 20000;
+const BOOT_MS = 60000;
 
 /* A reload: the stub keeps the session, so the page comes back to the character (or its picker). */
 async function reloadAndPlay(page) {
@@ -698,6 +698,10 @@ async function panelLeftovers(base) {
   if (asked.length !== 1 || asked[0].text !== 'Ashgrave wants to be your friend.' || !(hero.record.residue.alerts || { seen: [] }).seen.includes('friend:y')) fails.push('AW-61 a friend request toasts ' + JSON.stringify(asked));
   watch.destroy(); center.destroy();
   /* THE NEWCOMER'S PANEL (2026-11-01). */
+  const { coachHtml } = await imp('src/shell/launcher.js');
+  const reader = { read: () => null, record: { residue: { coach: { read: [] } } } };
+  const aCard = { id: 'x', title: 'A title', text: 'Some words', done: { kind: 'read' }, gotIt: true };
+  if (!/hs-pointer is-line/.test(coachHtml(reader, aCard, true)) || !/data-hs-act="coach-more"/.test(coachHtml(reader, aCard, true)) || /is-line|coach-more/.test(coachHtml(reader, aCard, false))) fails.push('AW-62 a card in a window is not one line, or one outside is');
   const { takeWhyOf } = await imp('src/shell/windows/tally.js');
   if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You hold as many/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
     || takeWhyOf({ weight: 'heavy', held: [], heldMax: 3 }, false) !== '' || takeWhyOf({ weight: null, held: [], heldMax: 3 }, true) !== '') fails.push('AW-62 the line over her board is wrong');
@@ -1471,7 +1475,7 @@ async function checks(overrides, shots) {
         await openWin(page, 't', 'storage');
         await page.waitForTimeout(150);
         const sb = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="storage"] [data-hs-act="dispatch"]'); return b ? { off: b.disabled, why: document.querySelector('.hw-store-do .hw-why').textContent, pelt: !!document.querySelector('[data-hs-win="storage"] .hw-pockets[data-side="bank"] [data-item="wolf_pelt"]') } : null; });
-        if (!sb || !sb.off || !/^Nothing in your bag is set to Deposit in storage or Sell yet\. Open an item’s menu in the bag to choose where it goes\.$/.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
+        if (!sb || !sb.off || !/^Nothing is set to Deposit or Sell yet\. Set it in an item’s menu\.$/.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
         if (shots) await shot(page, 'dispatch-1440x900-storage-after');
         if (errors.length) fails.push('AW-32 console errors: ' + errors.slice(0, 3).join(' | '));
       } else fails.push('AW-32 the screen did not mount (town)');
@@ -2535,6 +2539,8 @@ async function checks(overrides, shots) {
           const tabs = panel ? Array.from(panel.querySelectorAll('.ha-tab')).map((b) => ({ t: b.textContent, right: b.getBoundingClientRect().right, over: b.scrollWidth - b.clientWidth })) : [];
           return { stance, tabs, edge: panel ? panel.getBoundingClientRect().right : null };
         });
+        const label = await page.evaluate(() => { const d = document.querySelector('.char-tab.is-shown .char-tab-doing') || document.querySelector('.char-tab-doing'); if (!d) return null; const was = d.textContent; d.textContent = 'In town, fueling the Great Hearth with Bones'; const over = d.scrollWidth - d.clientWidth; d.textContent = was; return over; });
+        if (label === null || label > 0) fails.push('AW-62 the top bar cuts a hero\'s job by ' + label + ' px');
         if (chrome.stance.length !== 3 || chrome.stance.some((s) => s.over > 0)) fails.push('AW-62 the stance words read ' + JSON.stringify(chrome.stance));
         if (chrome.tabs.length && chrome.tabs.some((t) => t.over > 0 || t.right > chrome.edge)) fails.push('AW-62 the analyzer tabs read ' + JSON.stringify(chrome));
         const { SHELL_WINDOWS } = await import(pathToFileURL(join(ROOT, 'src/data/shell-windows.js')).href);
@@ -2567,6 +2573,36 @@ async function checks(overrides, shots) {
         if (!/This sells rare finds: 3 Alpha Fang\./.test(saleNote)) fails.push('AW-62 Sell all loot asks: ' + saleNote);
         await page.click('[data-hs-win="shop"] [data-hs-act="confirm-no"]');
         await page.keyboard.press('v');
+        /* AW-62 Inventory's foot stands inside the window at a laptop's height, the bag scrolling above it, with a card up too */
+        if (!(await openWin(page, 'b', 'inventory'))) fails.push('AW-62 Inventory did not open');
+        else {
+          await page.setViewportSize({ width: 1366, height: 768 });
+          await page.waitForTimeout(300);
+          const foot = await page.evaluate(() => {
+            const w = document.querySelector('[data-hs-win="inventory"]');
+            w.querySelector('.hs-win-coach').insertAdjacentHTML('beforeend', '<p class="hs-pointer is-line"><b>A card</b> <span class="hs-coach-text">words</span></p>');
+            const bottom = (q) => { const e = w.querySelector(q); return e && e.getClientRects().length ? Math.round(e.getBoundingClientRect().bottom) : null; };
+            const out = { win: Math.round(w.getBoundingClientRect().bottom), foot: bottom('.hw-inv-foot'), tools: bottom('.hw-tools'), scroll: w.querySelector('.hw-inv-scroll').clientHeight };
+            w.querySelector('.hs-win-coach').textContent = '';
+            return out;
+          });
+          if (foot.foot === null || foot.foot > foot.win || foot.tools === null || foot.tools > foot.win || foot.scroll < 90) fails.push('AW-62 Inventory at 1366x768 reads ' + JSON.stringify(foot));
+          await page.keyboard.press('b');
+          /* the Hunts how-to stands aside for a card there, and comes back */
+          if (await openWin(page, 'h', 'hunts')) {
+            const hint = await page.evaluate(() => {
+              const w = document.querySelector('[data-hs-win="hunts"]'), n = w.querySelector('.hw-hunts-now'), slot = w.querySelector('.hs-win-coach');
+              const was = getComputedStyle(n).display;
+              slot.insertAdjacentHTML('beforeend', '<p class="hs-pointer is-line"><b>A card</b></p>');
+              const under = getComputedStyle(n).display;
+              slot.textContent = '';
+              return { was, under };
+            });
+            if (hint.was === 'none' || hint.under !== 'none') fails.push('AW-62 the Hunts how-to beside a card reads ' + JSON.stringify(hint));
+            await page.keyboard.press('h');
+          }
+          await page.setViewportSize({ width: 1365, height: 846 });
+        }
         const phone = await open({ viewport: { width: 667, height: 375 }, mutateEnv: stall });
         if (!phone.up) fails.push('AW-61 the phone did not mount');
         else await shopNames(phone.page, '667');
@@ -2718,8 +2754,10 @@ const MUTANTS = [
   ['item truth: panel: pressing the running job says it stopped', 'src/shell/town-work.js', "if (!now || now.id === w.id || !townWorkRunning(", "if (!now || !townWorkRunning("],
   ['AW-62 the Shop\'s confirmation hides the rares', 'src/shell/windows/shop.js', "[rareSaleWords(p.lines), p.kept.length", "[p.kept.length"],
   ['AW-62 the stance words clip', 'src/styles/hunt.css', 'padding: 0 1px; font-size: var(--t-micro); letter-spacing: 0; overflow: hidden;', 'padding: 0 1px; overflow: hidden;'],
+  ['AW-62 the top bar cuts a hero\'s job', 'src/styles/app.css', '  min-width: 0; max-width: 360px;\n', '  min-width: 0; max-width: 250px;\n'],
+  ['AW-62 the how-to stays beside a card', 'src/styles/shell.css', '[data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now.is-hint { display: none; }\n', ''],
   ['AW-62 the analyzer tab runs past the panel', 'src/styles/hunt.css', '.ha-tabs .ha-tab { margin-bottom: -2px; padding: 0 4px; }', '.ha-tabs .ha-tab { margin-bottom: -2px; }'],
-  ['AW-62 a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],
+  ['item truth: panel: a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],
   ['AW-62 the foot scrolls off', 'src/styles/windows.css', '.hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }\n', ''],
   ['AW-61 a window title clips again', 'src/styles/shell.css', '.hs-win-title { margin: 0; flex: 1; min-width: 0;', '.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
   ['AW-61 Shop names are cut again', 'src/styles/windows.css', '  .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }', ''],
@@ -2778,7 +2816,7 @@ const MUTANTS = [
   ['the Storage chip and sort are not applied', 'src/shell/windows/storage.js', '  const o = { cat: prefs.cat, query: sc.query, sort: prefs.sort,', "  const o = { cat: 'all', query: sc.query, sort: 'name',"],
   ['the amount picker sends the whole stack', 'src/shell/widgets/amount.js', "  return n ? clampAmount(n.value, n.getAttribute('data-max')) : 1;", "  return n ? clampAmount(n.getAttribute('data-max'), n.getAttribute('data-max')) : 1;"],
   ['Enter in the amount picker does nothing', 'src/shell/windows/float-menu.js', "      if (e.key === 'Enter' && def) { e.preventDefault(); e.stopPropagation(); def.click(); }\n", ''],
-  ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id))];\n", ''],
+  ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id), st.cs)];\n", ''],
   ['Bury debits the bag before the server answers', 'src/shell/windows/inventory/bury.js', "  const qty = buryQty(cs, id);\n", "  const qty = buryQty(cs, id);\n  delete cs.read('inventory')[id];\n"],
   ['Stop does not collect', 'src/shell/town-work.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],
   ['a skill opens no work', 'src/shell/windows/work.js', "attr(li, 'data-hs-act', door ? 'open-skill' : null);", "attr(li, 'data-hs-act', null);"],

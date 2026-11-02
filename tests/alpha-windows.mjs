@@ -2543,16 +2543,34 @@ async function checks(overrides, shots) {
       if (!up) fails.push('AW-61 the page did not mount');
       else {
         /* AW-62 AT THE LAPTOP'S WIDTH, IN THE GAME'S OWN FONT: the stance words whole on the bar; the analyzer's tabs inside their panel; Inventory's foot in the window with a coach card up. */
-        const chrome = await page.evaluate(() => {
+        const readChrome = () => page.evaluate(() => {
           const stance = Array.from(document.querySelectorAll('.hb-stance .hh-seg')).map((b) => ({ t: b.textContent, over: b.scrollWidth - b.clientWidth }));
           const panel = document.querySelector('[data-hs-widget="analyzer"]');
           const tabs = panel ? Array.from(panel.querySelectorAll('.ha-tab')).map((b) => ({ t: b.textContent, right: b.getBoundingClientRect().right, over: b.scrollWidth - b.clientWidth })) : [];
-          return { stance, tabs, edge: panel ? panel.getBoundingClientRect().right : null };
+          const d = document.querySelector('.char-tab.is-shown .char-tab-doing') || document.querySelector('.char-tab-doing');
+          let label = null;
+          if (d) { const was = d.textContent; d.textContent = 'In town, fueling the Great Hearth with Bones'; label = d.scrollWidth - d.clientWidth; d.textContent = was; }
+          return { stance, tabs, label, edge: panel ? panel.getBoundingClientRect().right : null };
         });
-        const label = await page.evaluate(() => { const d = document.querySelector('.char-tab.is-shown .char-tab-doing') || document.querySelector('.char-tab-doing'); if (!d) return null; const was = d.textContent; d.textContent = 'In town, fueling the Great Hearth with Bones'; const over = d.scrollWidth - d.clientWidth; d.textContent = was; return over; });
-        if (label === null || label > 0) fails.push('AW-62 the top bar cuts a hero\'s job by ' + label + ' px');
-        if (chrome.stance.length !== 3 || chrome.stance.some((s) => s.over > 0)) fails.push('AW-62 the stance words read ' + JSON.stringify(chrome.stance));
-        if (chrome.tabs.length && chrome.tabs.some((t) => t.over > 0 || t.right > chrome.edge)) fails.push('AW-62 the analyzer tabs read ' + JSON.stringify(chrome));
+        /* EVERY MACHINE READS THE WIDE FONT TOO: the page's web font is stubbed here, so a box measures its own fallback, and a green on Windows
+           (Segoe UI) said nothing of a Linux player's (run 41385560100: the job 9 px and the stance words 7 px over). Verdana or its Linux twin,
+           at the laptop's width and, for the bar's words, at a Steam Deck's 1280; then the fallback this box has. */
+        const wideFont = await page.addStyleTag({ content: ':root, body, body[data-theme] { --f-ui: Verdana, "DejaVu Sans", sans-serif !important; }' });
+        const wide = await readChrome();
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await page.waitForTimeout(150);
+        const deck = await readChrome();
+        await page.setViewportSize({ width: 1365, height: 846 });
+        await page.waitForTimeout(150);
+        await wideFont.evaluate((e) => e.remove());
+        const own = await readChrome();
+        for (const [font, chrome] of [['the wide font', wide], ['this box\'s font', own]]) {
+          if (chrome.label === null || chrome.label > 0) fails.push('AW-62 in ' + font + ' the top bar cuts a hero\'s job by ' + chrome.label + ' px');
+        }
+        for (const [font, chrome] of [['the wide font', wide], ['the wide font at 1280', deck], ['this box\'s font', own]]) {
+          if (chrome.stance.length !== 3 || chrome.stance.some((s) => s.over > 0)) fails.push('AW-62 in ' + font + ' the stance words read ' + JSON.stringify(chrome.stance));
+          if (chrome.tabs.length && chrome.tabs.some((t) => t.over > 0 || t.right > chrome.edge)) fails.push('AW-62 in ' + font + ' the analyzer tabs read ' + JSON.stringify(chrome));
+        }
         const { SHELL_WINDOWS } = await import(pathToFileURL(join(ROOT, 'src/data/shell-windows.js')).href);
         const heads = await page.evaluate((list) => list.map((r) => {
           const host = document.createElement('div');
@@ -2815,6 +2833,8 @@ const MUTANTS = [
   ['AW-62 the Shop\'s confirmation hides the rares', 'src/shell/windows/shop.js', "[rareSaleWords(p.lines), p.kept.length", "[p.kept.length"],
   ['AW-62 the stance words clip', 'src/styles/hunt.css', '.hb-plaque { position: relative; align-self: stretch; width: 232px;', '.hb-plaque { position: relative; align-self: stretch; width: 170px;'],
   ['AW-62 the top bar cuts a hero\'s job', 'src/styles/app.css', '  min-width: 0; max-width: 360px;\n', '  min-width: 0; max-width: 250px;\n'],
+  ['AW-62 a wide font clips the stance words', 'src/styles/hunt.css', 'font-size: var(--t-micro); font-size-adjust: var(--f-ui-aspect); letter-spacing: 0;', 'font-size: var(--t-micro); letter-spacing: 0;'],
+  ['AW-62 a wide font cuts a hero\'s job', 'src/styles/app.css', '.char-tab-doing { font-size: var(--t-micro); font-size-adjust: var(--f-ui-aspect);', '.char-tab-doing { font-size: var(--t-micro);'],
   ['AW-62 the how-to stays beside a card', 'src/styles/shell.css', '[data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now.is-hint { display: none; }\n', ''],
   ['AW-62 the analyzer tab runs past the panel', 'src/styles/hunt.css', '.ha-tabs .ha-tab { margin-bottom: -2px; padding: 0 4px; }', '.ha-tabs .ha-tab { margin-bottom: -2px; }'],
   ['item truth: panel: a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],

@@ -473,6 +473,10 @@ body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg, #20242b, #14
 body[data-theme="hearthlight"] {
   --f-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
   --f-ui: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+  /* About the aspect of --f-ui's first font (Alegreya Sans measures .47), for font-size-adjust on a label with no room to spare: in Alegreya its
+     letters keep their size, and a wide fallback (the web font never came; Verdana's width, Linux's DejaVu: .55) comes down to Alegreya's height
+     and about its width, with nothing moved. */
+  --f-ui-aspect: .46;
   --f-label: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
   --f-accent: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
 

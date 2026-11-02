@@ -230,6 +230,8 @@ export async function bootWorld(panel, opts) {
 
   function paintChrome(sc) {
     stage.classList.remove('is-hot');
+    /* The scene on screen, for the pane's CSS (app.css): the title row gives way to the hunt bar in a hunt scene and in no other. */
+    panel.setAttribute('data-scene', sc.kind);
     const title = chrome.querySelector('.world-title');
     if (title) title.textContent = ROWS.get(sc.map).name;
     chrome.querySelectorAll('[data-world-choice]').forEach((b) => {

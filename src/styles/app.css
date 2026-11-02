@@ -253,8 +253,10 @@
   .conn-line { top: 104px; font-size: var(--t-micro); }
 }
 /* In a hunt the top bar carries the ground's name and clock, so the pane's own
-   title row would only repeat it and cost the stage a line. */
-.app.is-game:has(.ht-bar) #panel-world .world-chrome { display: none; }
+   title row would only repeat it and cost the stage a line. Keyed on the SCENE (world-boot.js paintChrome), never on
+   the bar alone: the bar stays up in town after a hunt ends ("Last hunt: ... Summary") and took the Town / Home
+   buttons with it (Andy 2026-11-01: no way back out of the house). */
+.app.is-game #panel-world[data-scene="hunt"]:has(.ht-bar) .world-chrome { display: none; }
 
 /* THE CREATION STEP (src/app/hero-create.js), in the account card: the hero in a sunk mirror on the left (drawn at
    x4, standing on the pixel ground shadow at the same x4), its name and four colour strips beside it, then How you

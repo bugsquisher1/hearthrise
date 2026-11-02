@@ -1,27 +1,144 @@
 FRIENDS2 BLIND PLAYTEST  (lane/f5-friends, release/v0.2.82 build, local world, 2026-11-01/02)
-STATUS: WORKING NOTES, milestone 1 (about 35 min in). Final structure is written at the end.
+Three friends in a voice call: Bram (sword and shield, 1366x768), Wren (bow, 1920x1080), Sol (staff, healer, 1366x768).
+Blind: I read no src/, docs/, tests/, CHANGELOG, older reports or memory. Everything below is from the screen (page text + screenshots).
+STATUS: written at about 95 min of a 2 h budget. Parts of the plan were NOT reached; see section 1.
 
-HARNESS NOTES
-- Local world via tools/qa/local-world.mjs openWorld(); accounts bram/wren/sol through world.play({account}) which signed each account up and in (the sign-up screen itself was not driven by me).
-- hr_market_config.enabled was false in the local DB; I set it true with one UPDATE (harness note, as instructed).
-- Viewports: Bram 1366x768, Sol 1366x768, Wren 1920x1080.
-- Other lanes share the PC; CPU 55-60% at start. First world boot took about 15 min (chain replay) under that load.
+======================================================================
+0. HARNESS NOTES (read these before trusting any number)
+======================================================================
+- Local world via tools/qa/local-world.mjs openWorld(); accounts through world.play({account}), which signed each account up and in. I did not drive the sign-up screen myself.
+- hr_market_config.enabled was false in the local DB; I set it true with one UPDATE (as instructed). Later I also set min_level from 10 to 1 so level-5 heroes could use the Weighhouse (harness change, see section 6).
+- I used six accounts: the cast (bram, wren, sol) and three "twin" accounts (Brin sword, Wynn bow, Sola staff) that hunted SOLO in the same ground, started minutes before the party, as the "playing alone" baseline. Twins were fresh Level 1 heroes like the cast.
+- The PC was shared with other lanes and the local world is one Node process with an in-memory database. As hunts piled up (6 heroes in real time + two time skips) the world slowed: screenshots of hunting pages timed out after 8-25 s, a 14-minute skip took 115 s, and new browser pages could not load play.html at all (page.goto timed out at 180 s, twice) after about 01:00 UTC. The game itself showed a "Slow connection. Still trying..." line on Sol's page at that point. I treat all of that as harness load, not as a game bug, but I did not isolate it.
+- First "Enter town" glitch on the create-hero screen: see bug P1-1, which could be load-related.
+- Two other agents were writing to the same scratchpad directory; I had to rename my files. No effect on the game.
+- Nothing was written to production; the local world refuses it by construction.
 
-TIMELINE (wall clock UTC, 11-01 23:36 start)
+======================================================================
+1. WHAT I PLAYED AND WHAT I DID NOT REACH
+======================================================================
+PLAYED
+- Sign-up to town for three accounts; hero creation; swapping weapons (bag > item > Equip).
+- Party: invite by name, bad names, decline, crossing invites, three invites at one player, accepting an invite while already in a party, joining, leaving, disbanding, class-mix bonus text with 1, 2, 3 classes.
+- Chat (global).
+- Hunts window as a solo and as a party leader (what it promises).
+- Mill Cellar: party of 3 (Melee + Ranger + Healer) for 43 minutes of party time, vs three solo twins of the same classes (14 / 14 / 12 minute marks), same ground, default pulls.
+- A 60-minute time skip of the same party (results in section 4 if they came back; see TIMELINE).
+- Leader Remove / Leave if anyone leaves controls on the hunt panel (seen on screen).
+NOT REACHED
+- Meadowbrook Thicket and the next ground (the load wall above ended new work).
+- Three-swords contrast party, Sorrel (Sol's second hero) as the 4th class, 4-of-4 bonus.
+- Party pull "pressed up" (read default only: "5 each").
+- A member closing the browser for an hour and returning; stamina running out; a death; leader closing the browser; reload during a party hunt; Hunt again.
+- 2 h and 4 h of party hunting; grouping at levels above their own.
+- Weighhouse trade (opened for Bram; see section 6 for what was reached).
+
+======================================================================
+2. TIMELINE (UTC, 11-01 23:36 start)
+======================================================================
 23:53 world up. Three accounts signed up. Each lands on "Your characters" with 2 hero slots (3rd costs 15,000 gold).
-23:55 Create hero: name + 4 colors, text says "There's no class to pick. The weapon you hold is how you fight."  Everyone starts as sword and shield; the other starter weapons are in the bag (bow, club, crossbow, hatchets, spellbook, staff, wand).
-23:56 Bram and Sol: first click on "Enter town" did nothing (name typed, button pressed once, stayed on the create screen); a second click worked. Wren's first click worked. Unclear if harness or game (see P2-1).
-23:58 Wren equips Practice Bow, Sol equips Practice Staff in the bag (click item, Equip). Outfit in the world changes to ranger / green healer robe within seconds. Party window then labels them "Ranger" and "Healer"; Bram is "Melee (shield)".
-00:00 Invite by name from Party > Invites tab: self-invite -> "That is you."; unknown -> "No character goes by that name."; empty -> "Type the name of the player to invite."; good -> "Invite sent to Wren." Invitee gets a toast "Bram invites Wren to their party." with Join / No thanks plus a badge on their hero tab. No thanks -> inviter sees "Wren said no to your party invite."
-00:03 Crossing invites (Bram->Wren and Wren->Bram, Sol->Wren at once): no crash, no auto-merge; each side shows the other's invite. Wren joins Bram's: Wren is in Bram's party. Sol's pending invite to Wren, accepted while in a party: "You are already in a party with someone. Press Leave party in the Party window, then try again." (clear).
-00:05 Sol joins Bram's party. Party window promise, verbatim: "Your party has 2 of 4 classes: 7% more Level XP in Mill Cellar. Melee, Ranger, Mage and Healer each count." then with Sol: "3 of 4 classes: 18% more Level XP in Mill Cellar."
-00:07 Removing someone: no kick/remove control found for the leader (member right-click menu = Inspect gear / Message / Add friend / Block). Sol "Leave party" -> others see "Sol left the party." and the bonus drops back to 2 of 4 / 7%. Leader "Disband" is one click, no confirm -> "The party is disbanded." / members see "Bram closed the party."
-00:09 Global chat works: Bram typed with the chat open, Wren saw "18:03 Bram [1]: hello from Bram".
-00:10 Hunts window: Mill Cellar says "Alone or with up to 3 more." and "A pull is one pack: up to 8 when you hunt alone. Bigger pulls pay more once your heroes can hold them." Drop table is headed "chance per kill, hunting alone".
+23:55 Create hero: name + 4 colors; text says "There's no class to pick. The weapon you hold is how you fight." Everyone starts sword and shield; other starter weapons are in the bag (bow, club, crossbow, hatchets, spellbook, staff, wand).
+23:56 Bram and Sol: first "Enter town" press did nothing visible; second worked. (P1-1)
+23:58 Wren equips Practice Bow, Sol Practice Staff (click item, Equip). World outfit changes within seconds (ranger, green healer). Party window labels them "Ranger" and "Healer"; Bram "Melee (shield)".
+00:00 Invite by name (Party > Invites tab): self -> "That is you."; unknown -> "No character goes by that name."; empty -> "Type the name of the player to invite."; good -> "Invite sent to Wren." Invitee gets a toast "Bram invites Wren to their party." with Join / No thanks and a badge on their hero tab. No thanks -> inviter sees "Wren said no to your party invite."
+00:03 Crossing invites (Bram>Wren and Wren>Bram, Sol>Wren): no merge, no crash; each shows. Wren joins Bram. Sol's old invite accepted while in a party: "You are already in a party with someone. Press Leave party in the Party window, then try again."
+00:05 Sol joins. Promise on screen, verbatim: "Your party has 2 of 4 classes: 7% more Level XP in Mill Cellar. Melee, Ranger, Mage and Healer each count." With Sol: "3 of 4 classes: 18% more Level XP in Mill Cellar."
+00:07 Sol "Leave party" -> others: "Sol left the party."; bonus back to 2 of 4 / 7%. Bram "Disband" -> one click, no confirm; Wren sees "Bram closed the party."
+00:09 Global chat works across accounts.
+00:10 Hunts window (alone): Mill Cellar "Alone or with up to 3 more." Drop heading "chance per kill, hunting alone". Packs "2 packs of 2 to 3". Pull control "As built". "A pull is one pack: up to 8 when you hunt alone."
+00:09-00:23 Solo twins Brin / Wynn / Sola start Mill Cellar one after the other, default pull.
+00:28 Party re-formed; Hunts window with party (3 members) says: drop heading "chance per kill, in a party of 3" with higher numbers; "2 packs of 5"; pull "5 each"; "Your party's pull. A pull is one pack: up to 8 for your party of 3. As the leader, your pick is the pull for everyone." Button: "Start with party".
+00:29 Party starts. Bram's hunt panel says "Your hero fights alone" (P2-6) even though the panel lists the party. Leader panel has a "Leave if anyone leaves the hunt or dies" checkbox and a "Remove" button per member; members do not.
+00:29 + 14 min skip, + real time: party at 19:17 / 23:38 / 43:23 session time (numbers in section 3).
+01:05 + 60 min skip (see section 4).
 
-BUGS SO FAR
-P2-1 Enter town needed two presses for Bram and Sol (Wren fine). Not yet reproduced; may be harness.
-P2-2 Party window: the transient notice ("Invite sent to Sol.") sits on top of the Leave party / Disband buttons at 1366x768 for a few seconds (only "Dis" visible); at 1920x1080 the right edge of the Party window clips "Disband" to "Dis". Screens: bram_party_of_three.png, wren_crossing.png.
-P2-3 Stale lines stay in the Party window after they are resolved: "Invite sent to Bram." remains after Wren joined Bram's party and after Bram disbanded.
-P2-4 No way for a leader to remove one member without disbanding everyone.
-P2-5 Disband has no confirm.
+======================================================================
+3. NUMBERS TABLE  (Mill Cellar, default pulls, all Level 1 at start)
+======================================================================
+Source: the "Hunt analyzer" panel read off each hero's own screen. Level XP/h is the panel's figure. gp/h = (Gold + Loot value) / session hours. Supplies = "Supplies cost".
+Samples: solos n=1 each (one read), party n=3 reads of the same session (they agree).
+
+                      session   kills  Level XP   XP/h    gold+loot/h   supplies (gp / per h)
+SOLO sword (Brin)     14:15     112    1,724      7,277   ~1,776        0 / 0
+SOLO bow   (Wynn)     13:48     112    1,724      ~7,480  ~2,557        20 / ~87
+SOLO staff (Sola)     11:50     77     1,185      6,045   ~1,632        3 / ~15
+PARTY sword+bow+staff 19:17     298    2,615 each 8,164   Bram 1,767    Wren 40 gp (125/h), Bram 0
+ (each member)        23:38     364    3,201      8,135   Bram 1,789
+                      43:23     678    5,997      8,281   Bram 1,877, Wren 1,899   Wren 80 gp (110/h), Bram 0
+
+Derived (my arithmetic):
+- Party Level XP/h per hero vs solo: sword +14% (8,281 / 7,277), bow +11%, staff +37%.
+- Level XP per kill per hero: party about 8.9, solo sword 15.4. A party kills about 15.6 per minute (5.2 per hero) vs solo 7.9 per minute. So the hero gets about 57% of the XP per kill but the pack dies about twice as fast.
+- Gold + loot per hour per hero: party about 1,880 vs solo sword 1,776 (+6%), vs solo bow 2,557 (-26%), vs solo staff 1,632 (+15%). Per kill per hero: party about 2.0 gp, solo sword 3.8 gp.
+- Supplies: "Costs are personal." Each hero pays their own. Over 43 minutes Bram 0 gp, Wren 80 gp (Thin Turnip Juice x8, a mana drink for the bow), Sol not read. Solo bow 87 gp/h, party bow 110-125 gp/h.
+- The party's per-hour rate stayed flat across the session (8,164 / 8,135 / 8,281), so leveling from 1 to 5 did not distort it here.
+
+What the screen promised vs what I measured:
+- Promised: "3 of 4 classes: 18% more Level XP in Mill Cellar."  Measured per hero: +11% to +14% against the sword and bow solos. No panel line separates the class bonus: "Level XP per hour" and "Level XP per hour before bonuses" are the SAME number (8,281 and 8,281). So the screen gives no way for a player to see the 18%. I cannot tell from the screen whether the bonus was applied; the arithmetic above is also mixed with the pull difference (below).
+- Promised: bigger packs in a party ("2 packs of 5" vs "2 packs of 2 to 3") and better drop chances ("in a party of 3": e.g. Bones 18% vs 12% alone, Wheat 15% vs 9.9%, Slime Gel 14% vs 8.8%). Measured: gold + loot per hour per hero is about the same as a solo sword hero, not higher.
+- Confound I could not remove: the party fought packs of 5; the solos fought packs of 2-3 (both are the default). So "grouping" and "bigger default pull" are not separated. I did not get to the pressed-up pull test.
+
+======================================================================
+4. LONGER RUNS
+======================================================================
+(see TIMELINE 01:05 and final addendum below if the 60-minute skip returned)
+
+======================================================================
+5. BUGS  (exact steps)
+======================================================================
+P1-1 Create-hero "Enter town" can create the hero but leave you on the create screen; pressing again says "That name is taken. Try another."
+  Steps: Create hero, type a name, press Enter town. Nothing changes for 3+ s. Press again (up to 4 times). Message "That name is taken. Try another." appears. Press "Back to your characters": the hero exists (Level 1, "Play"). Seen with Sola; Bram and Sol needed a second press. Might be load (the world was slow), but the button gives no "working..." state and the second press turns a success into an error message. Screens: sola_state2.png.
+P2-1 Party window: the transient status line ("Invite sent to Sol.") sits on top of the Leave party / Disband buttons at 1366x768 for several seconds; at 1920x1080 the right edge of the window clips "Disband" to "Dis". Screens: bram_party_of_three.png, wren_crossing.png.
+P2-2 Stale lines stay in the Party window after they stop being true: "Invite sent to Bram." stays after Wren joined Bram; "Sol left the party." stays on the leader's panel across later actions.
+P2-3 No way to remove one member while in town. (A "Remove" button exists on the hunt panel for the leader.) The right-click menu on a party member offers Inspect gear / Message / Add friend / Block only. Screen: bram_rightclick_player.png.
+P2-4 Disband is one click with no confirm.
+P2-5 The quest box says "Press the Mill Cellar, then Enter" while the button for a party leader is "Start with party".
+P2-6 Leader's hunt panel header says "Your hero fights alone. You don't click to attack..." while the same panel lists the party below. Members do not see it.
+P2-7 The party's Level XP per hour and "before bonuses" are identical, so the +7% / +18% promise cannot be checked by a player (see section 3). If the bonus is real, the panel should show it; if it is not applied, that is a bug.
+P2-8 The Hunts window "chance per kill, hunting alone" / "in a party of 3" lists drop chances that are about 1.5x higher in a party; my measured gold + loot per hero per hour did not rise (section 3). Either the table or the loot split is not telling the whole story. Needs a server-side look, I only saw the screens.
+
+======================================================================
+6. WEIGHHOUSE / GIVING ITEMS
+======================================================================
+- Weighhouse is off by default in this local world and needs Level 10 (min_level 10 in the config). Both were changed by me (harness). Starter weapons say "For your own use: the shop and the Weighhouse won't take it", so the first things a friend would try to give another (the bow, the staff) cannot be given.
+- Opened Bram's Weighhouse: tabs Browse / Sell / My listings / History, search "Find any item", Sort, category chips.
+- I did not complete a listing and a buy between two heroes (see section 1). Other ways to give an item (trade window, mail, drop) were not found in the toolbar: Hunts, Inventory, Character, Gathering and crafting, Storage, Shop, Market, Farm, House, Tamsin's tally, Leaderboards, Hunt prep, Party, Chat, Friends, Settings, Report.
+
+======================================================================
+7. OPINION (marked)
+======================================================================
+OPINION: Party UI is the best part of this build for friends. The invite flow, refusal messages and crossing invites are all clear and truthful; the class labels (Melee / Ranger / Healer) appear as soon as a weapon is equipped, and the bonus line tells you immediately why a mixed party is wanted.
+OPINION: The promise and the payoff are too quiet. +18% Level XP is a number a friend group will quote in the call; if the hunt panel then shows no "party bonus" line, it will feel invented even if it is real.
+OPINION: In party the single hero's numbers hardly move (+11 to +14% Level XP, same gold), but the pack dies twice as fast and the healer's solo hunt is weak (6,045 vs 7,277), so the real appeal for the healer is large. A friend who plays staff will always want to join the sword and the bow.
+OPINION: The "Remove" button and the "Leave if anyone leaves" checkbox only exist once the hunt has started, which makes sense but is hard to discover from town.
+
+======================================================================
+8. LIKED
+======================================================================
+- Create-hero text: "There's no class to pick. The weapon you hold is how you fight."; the bag tooltip that compares each weapon against what you wear ("Against your Practice Sword: +5 Ranged accuracy").
+- Invite flow messages (all in plain words), badge on the hero tab, toast with Join / No thanks.
+- The Hunts window changes its numbers and button when you are in a party ("in a party of 3", "Start with party").
+- The Hunt analyzer: per hour, "Next level in", supplies used, loot collected, per-hero tabs.
+- Pixel town and the outfit changes with the weapon.
+- "Costs are personal." is on every hunt panel.
+
+======================================================================
+9. HARNESS ODDITIES
+======================================================================
+- play() signs accounts in and out for me; I never saw the sign-up screen.
+- Under load the local world stops serving new pages; existing pages keep working; screenshots of hunting pages time out while page text still reads in 0.1-7 s.
+- "Escape" opens Settings and closed the Party window for Bram (so be careful with it as a "close" key).
+
+======================================================================
+10. TOP 5
+======================================================================
+1. Show the party bonus on the hunt panel (a "Party bonus +18%" line) so the promise can be checked; today "with bonuses" and "before bonuses" read the same number.
+2. Make the grouping gain obvious in the numbers: per hero the XP/h gain over solo was +11-14% for sword/bow while the drop table promises about +50%; check the loot split.
+3. Fix the Create hero double-press: show a working state and treat a second press on the same name as "already created".
+4. Party window layout: status line over the Leave/Disband buttons, "Disband" clipped at 1920, stale lines, no confirm on Disband.
+5. Give leaders a town-side Remove for one member and fix "Your hero fights alone" on a party leader's panel.
+
+======================================================================
+11. VERDICT
+======================================================================
+(see final addendum)

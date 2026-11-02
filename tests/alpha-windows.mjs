@@ -723,6 +723,9 @@ async function panelLeftovers(base) {
   if (jobReplacedWords(worker(tree, null), craft) !== 'You stopped chopping the Normal Tree.') fails.push('AW-62 a craft over chopping says ' + JSON.stringify(jobReplacedWords(worker(tree, null), craft)));
   if (jobReplacedWords(worker(tree, null), wrow('gather', 'normal_tree')) !== '') fails.push('AW-62 pressing the running job says it stopped');
   if (jobReplacedWords(worker({ active_kind: 'idle' }, null), craft) !== '') fails.push('AW-62 an idle hero stopped something');
+  const { startWork } = await imp('src/shell/town-work.js');
+  const pressed = await startWork(worker(tree, null), craft, (fn, busy, done) => done({ ok: true }), null);
+  if (pressed !== 'You stopped chopping the Normal Tree.') fails.push('AW-62 the press over chopping answers ' + JSON.stringify(pressed));
   return fails;
 }
 
@@ -2592,6 +2595,7 @@ async function checks(overrides, shots) {
           if (await openWin(page, 'h', 'hunts')) {
             const hint = await page.evaluate(() => {
               const w = document.querySelector('[data-hs-win="hunts"]'), n = w.querySelector('.hw-hunts-now'), slot = w.querySelector('.hs-win-coach');
+              n.classList.add('is-hint');   // the how-to's own class: the fixture's hero is hunting, and a running hunt's line stays
               const was = getComputedStyle(n).display;
               slot.insertAdjacentHTML('beforeend', '<p class="hs-pointer is-line"><b>A card</b></p>');
               const under = getComputedStyle(n).display;
@@ -2750,6 +2754,7 @@ const MUTANTS = [
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "return rare.length ? 'This sells rare finds: ' + listWords(rare) + '.' : '';", "return '';"],
   ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],
   ['item truth: panel: the play line sells a slot beside an empty one', 'src/app/slot-offer.js', "  if (anEmptySlot(rows)) return 'You own '", "  if (false) return 'You own '"],
+  ['item truth: panel: the press drops the replaced job\'s line', 'src/shell/town-work.js', "return [replaced, words].filter(Boolean).join(' ');", "return words || '';"],
   ['item truth: panel: a replaced job says nothing', 'src/shell/town-work.js', "  return what ? 'You stopped ' + what + '.' : '';", "  return '';"],
   ['item truth: panel: pressing the running job says it stopped', 'src/shell/town-work.js', "if (!now || now.id === w.id || !townWorkRunning(", "if (!now || !townWorkRunning("],
   ['AW-62 the Shop\'s confirmation hides the rares', 'src/shell/windows/shop.js', "[rareSaleWords(p.lines), p.kept.length", "[p.kept.length"],

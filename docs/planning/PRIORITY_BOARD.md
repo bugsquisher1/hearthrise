@@ -30,6 +30,32 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-02 Harder monsters: the search, and a trade for Tyler (designer, lane/b-rulings-1102): MEASURED on the real engine, **MONSTER NUMBERS NOT BUILT, one decision owed**
+**The search.** Plans `b1102a` to `b1102e` (what-ifs on the real settle, 2-4 h a cell, seeds 0-1; 12 h hunts on the last candidate): every monster's atk x1.5-3, base accuracy 0.65-0.80, HP x3-5, by ground, floor to top, five ways to fight, Level kit and practice set, as built, 4 and 8 each. **Atk and accuracy do not move XP/h, so no Level curve re-fit**; HP does (-60% at x5).
+
+**What can't all hold.** Tyler's 60-80% in band against his other rules:
+| Pushed to reach it | Typical lowest HP | What breaks |
+|---|---|---|
+| Glade floor, atk x2.5 | tank 69%, hammer 72%, **bow 89%, mage 93%** | Tank's bill 7,580 g/h on 4,409 earned: loses gold. Bow and mage die (1-2 in 2 h), healer 12 close calls |
+| Thicket, atk x3 | L5 tank 92%, hammer 92%, **others 95-100%** | Bow 4 deaths in 2 h, healer 1 and 27 close calls: the solo healer rule |
+| Thicket, any accuracy step everywhere (0.80, atk x1.25) | L5 practice tank 86% | Practice tank 2 deaths, 17 close calls, net about 100 g/h: the first hour |
+| Thicket and Wickstead, fights 3-5x longer (HP x5, atk x2, accuracy 0.80) | L10 tank 75%, hammer 84% | XP -60%, gold -60%, bill above income, fresh L5 hero 50-92 deaths in 2 h |
+Two causes. A kiter is rarely reached, so its typical stays 90-100% whatever the number, and when it is reached the blow kills: deaths come long before 80%. On the first grounds a pack of 2 dies in one or two swings, so there is nothing to feel without a blow big enough to kill a fresh hero.
+
+**Best every rule allows** (accuracy step rather than bigger blows, because blows make the spikes: Glade floor at atk x2 gives bow 6 close calls in 2 h; accuracy 0.80 + atk x1.25 gives 0):
+| Where, numbers | Melee typical, floor → top | Light armor | Bill floor (tank) | Deaths, close calls | Pull |
+|---|---|---|---|---|---|
+| Today, Glade | 94 → 100 | 95-100 | 20 g/h | 0, 0 | 8 each at L24 pays more gold |
+| **A: Glade accuracy 0.80, atk x1.25** (recommended) | **83-86 → 95** | 87-97 | 1,790, income 4,499 (+151%) | 0, 0 in 2-4 h a cell | L31: 4 each nets more, 8 each 147k XP at about equal gold. L24: 4 each more XP, less gold. L16 at 8: 1 death, 18 close calls in 2 h, loses gold |
+| B: Glade accuracy 0.80, atk x1.5 | **80-82 → 93** | 84-96 | 2,890, income 3,946 (+37%) | 0, 0 as built | 4 each loses gold until about L31; L16 at 8: 40 deaths in 2 h. "Bigger pull pays once held" fails for most of the band |
+| Wickstead accuracy 0.65, atk x1.25 | 94 → 98 | 98-100 | 10 | 0; practice hammer 1 close call in 2 h | |
+| Cellar, Thicket | unchanged: first hour and solo healer | | | | |
+**So 60-80% as built is out of reach everywhere under his other rules.** At the pull, Normal is real: under A, L24 at 4 each 60-71%, L31 at 8 each 59%.
+
+**Built, not waiting on this:** level gap (`underFloorAtkPm` 50), "before bonuses" fix, Thicket `groupFit: both`, 4 seats, pull `[0,4,5,6]`, table; Houndskin Cloak on Rook; Wickstead wear Levels 12/14/14; Tamsin's Glade task pays Steel; measured party line (`PARTY_VS_ALONE`); per-party drop words; pull card. **`xp-share.js:59` floor: left alone.** It costs 5-10% only on Cellar shares, the curve is fitted over it, and fixing it moves Level 1-5 pace for nothing a player reads. **Proposal 1, re-ruled:** build the words now, a card at Level 10 naming + and its price, since harder monsters make a big pull a real risk. The "biggest pull held" readout waits for real picks.
+
+**Parties at the new Thicket row** (1 h x 2 seeds, one mix a cell): duo 1.11, trio 1.18, four 1.21; same class 0.86-0.91 (was 0.69-0.84). **Gap live:** L7 alone in the Glade, tank net -221, hammer +1,874; four +3,508 at 64k XP against the Thicket's +2,474 at 33k: as Tyler chose, a party may still push.
+
 ### 2026-11-01 What to chase from Level 10 to 30, and the panels' balance claims (designer, lane/b-balance-1120): MEASURED on the real engine at v0.2.82, NOTHING SHIPPED. **Three choices for Tyler below**
 **Method.** `tools/balance-sim` plans `b1120`, `b1120w`, `b1120g`, `b1120f` (real settle, real data; every candidate is a what-if in memory, on the same dice as today): 237 cells and 91 candidate cells, 1,694 hero-hours at today's numbers, seeds 0-2, 8 lives. Tables: `tools/balance-sim/b1120-summary.json`, printed by `b1120-table.mjs`. Wage: `tools/qa/craft-economy.mjs` on the local world, real settle and real sale, 2 samples, every row to level 60, the tax taken as the purse's whole move. Cells are small (usually 4 hero-hours), so about 3% either way on XP and far more on gold in one cell. **Store supplies only**, so a bill is the top of its range. **Not run:** live vitals (the brief's 3 deaths in 29,800 fights is taken as given), tier 2 to 3 weapon step at Level 31, a tank or bow life at the full box, a real party on live, 12 h stamina patterns, Level 30+ lives, the market with real sellers.
 

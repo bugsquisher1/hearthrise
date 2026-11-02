@@ -185,13 +185,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 const rule = (s = '') => console.log(s ? `\n── ${s} ${'─'.repeat(Math.max(0, 74 - s.length))}` : '─'.repeat(78));
 const fmt = (n, d = 1) => (Number.isFinite(n) ? n.toFixed(d) : String(n));
 
-/** Read url + anon key out of the client bootstrap, so this tool can never
+/** Read url + publishable key out of the client bootstrap, so this tool can never
     disagree with the app about which project it is talking to. Same source
     tools/switch-on-test.mjs and tests/rpc-resolution.mjs read. */
 function readProjectConfig() {
   const boot = fs.readFileSync(new URL('../src/net/supabase-bootstrap.js', import.meta.url), 'utf8');
   const url = (boot.match(/https:\/\/[a-z0-9]+\.supabase\.co/) || [])[0];
-  const key = (boot.match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0];
+  const key = (boot.match(/sb_publishable_[A-Za-z0-9_-]+/) || [])[0];
   return { url, key };
 }
 
@@ -270,7 +270,7 @@ async function postJson(ctx, path, body, { auth = true, timeoutMs = 20000 } = {}
    this file sent no headers and would have aborted every live run at the first
    preflight step with "404 means hr-accrue is not deployed", which is both
    wrong and the most expensive kind of wrong: it names a cause the operator
-   would then go and chase. The anon key is not a secret — it ships in the
+   would then go and chase. The publishable key is not a secret — it ships in the
    client bundle — and sending it is exactly what a browser does. */
 async function getJson(ctx, path, { timeoutMs = 15000 } = {}) {
   const t0 = nowAbs();
@@ -940,7 +940,7 @@ function printPlan(a, cfg, names) {
 async function main(a) {
   const cfg = readProjectConfig();
   if (!cfg.url || !cfg.key) {
-    console.error('Could not read the project url/anon key out of src/net/supabase-bootstrap.js');
+    console.error('Could not read the project url/publishable key out of src/net/supabase-bootstrap.js');
     process.exit(1);
   }
   let names = (a.scenarios?.length ? a.scenarios : Object.keys(SCENARIOS))
@@ -989,7 +989,7 @@ async function main(a) {
   console.log(`   GET  hr-accrue -> HTTP ${ping.status} ${deployedHash ? `payload ${deployedHash.slice(0, 16)}…` : ping.text.slice(0, 140)}`);
   if (ping.status !== 200 || !deployedHash) {
     console.log('\n   The function did not answer its GET branch, so nothing below can run.');
-    if (ping.status === 401) console.log('   401 here is the GATEWAY, not the function — the anon key was rejected or missing.');
+    if (ping.status === 401) console.log('   401 here is the GATEWAY, not the function — the publishable key was rejected or missing.');
     else if (ping.status === 404) console.log('   404 here means hr-accrue is not deployed on this project.');
     return 3;
   }

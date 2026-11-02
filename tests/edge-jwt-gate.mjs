@@ -38,7 +38,7 @@
 // check and can only be rejected by real verification). It must be refused by
 // the GATEWAY, i.e. before our code runs.
 //
-//   • No credential is needed: the anon key is public by design and already
+//   • No credential is needed: the publishable key is public by design and already
 //     ships in src/net/supabase-bootstrap.js. Read from there, never a copy.
 //   • No row is written. On a correctly-configured function the request never
 //     reaches the function body at all; on a MIS-configured one it reaches a
@@ -51,7 +51,7 @@
 // wrong URL, a DNS failure, or a network with no egress — which would make this
 // guard silently blind, the failure mode this repo has shipped six of. So the
 // run ALSO makes a request that MUST succeed (the public leaderboard RPC with
-// the real anon key). If the control cannot get through, the verdict is
+// the real publishable key). If the control cannot get through, the verdict is
 // INCONCLUSIVE and the exit code says so, rather than a green tick.
 //
 // ── OFFLINE / NO-NETWORK ───────────────────────────────────────────────────
@@ -85,17 +85,17 @@ const GARBAGE_BEARER = 'aaa.bbb.ccc';
 
 // ── Config comes from the shipped client, never a second copy ──────────────
 function readClientConfig() {
-  if (process.env.HR_SUPABASE_URL && process.env.HR_ANON) {
-    return { url: process.env.HR_SUPABASE_URL, anonKey: process.env.HR_ANON, from: 'env' };
+  if (process.env.HR_SUPABASE_URL && process.env.HR_PUBLISHABLE_KEY) {
+    return { url: process.env.HR_SUPABASE_URL, publishableKey: process.env.HR_PUBLISHABLE_KEY, from: 'env' };
   }
   const p = path.join(ROOT, 'src', 'net', 'supabase-bootstrap.js');
   const src = fs.readFileSync(p, 'utf8');
   const url = /url:\s*'([^']+)'/.exec(src);
-  const key = /anonKey:\s*'([^']+)'/.exec(src);
+  const key = /publishableKey:\s*'([^']+)'/.exec(src);
   if (!url || !key) {
-    throw new Error('could not read DEFAULT_CONFIG {url, anonKey} out of ' + p);
+    throw new Error('could not read DEFAULT_CONFIG {url, publishableKey} out of ' + p);
   }
-  return { url: url[1].replace(/\/+$/, ''), anonKey: key[1], from: 'src/net/supabase-bootstrap.js' };
+  return { url: url[1].replace(/\/+$/, ''), publishableKey: key[1], from: 'src/net/supabase-bootstrap.js' };
 }
 
 // ── The functions under test come from config.toml, not from a list here ───
@@ -219,7 +219,7 @@ async function main() {
   // ── THE CONTROL, FIRST. If this does not pass, nothing below means anything.
   const control = await post(
     cfg.url + '/rest/v1/rpc/hr_leaderboard',
-    { apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey, 'Content-Type': 'application/json' },
+    { apikey: cfg.publishableKey, Authorization: 'Bearer ' + cfg.publishableKey, 'Content-Type': 'application/json' },
     JSON.stringify({ p_board: 'total_level', p_limit: 1, p_span: 0 }),
   );
   const controlOk = control.status === 200;
@@ -242,7 +242,7 @@ async function main() {
     const r = await post(
       cfg.url + '/functions/v1/' + name,
       {
-        apikey: cfg.anonKey,
+        apikey: cfg.publishableKey,
         Authorization: 'Bearer ' + GARBAGE_BEARER,
         'Content-Type': 'application/json',
       },

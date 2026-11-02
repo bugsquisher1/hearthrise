@@ -226,7 +226,7 @@
 //
 // ── THE REQUEST ────────────────────────────────────────────────────────────
 //   POST <SUPABASE_URL>/functions/v1/hr-accrue
-//     apikey:        <anon key>
+//     apikey:        <publishable key>
 //     Authorization: Bearer <user JWT>     ← the ONLY identity. There is no
 //                                            user field in the body and no way
 //                                            for one player to name another.

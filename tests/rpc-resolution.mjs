@@ -114,18 +114,18 @@ const AS_JSON = argv.includes('--json');
 // against a project the game no longer talks to. Read the values the browser
 // actually uses. Env vars override, for a branch database.
 function readClientConfig() {
-  if (process.env.HR_SUPABASE_URL && process.env.HR_ANON) {
-    return { url: process.env.HR_SUPABASE_URL, anonKey: process.env.HR_ANON, from: 'env' };
+  if (process.env.HR_SUPABASE_URL && process.env.HR_PUBLISHABLE_KEY) {
+    return { url: process.env.HR_SUPABASE_URL, publishableKey: process.env.HR_PUBLISHABLE_KEY, from: 'env' };
   }
   const p = path.join(ROOT, 'src', 'net', 'supabase-bootstrap.js');
   const src = fs.readFileSync(p, 'utf8');
   const url = /url:\s*'([^']+)'/.exec(src);
-  const key = /anonKey:\s*'([^']+)'/.exec(src);
+  const key = /publishableKey:\s*'([^']+)'/.exec(src);
   if (!url || !key) {
-    throw new Error('could not read DEFAULT_CONFIG {url, anonKey} out of ' + p +
+    throw new Error('could not read DEFAULT_CONFIG {url, publishableKey} out of ' + p +
       ' — if the shape of that file changed, fix this reader rather than hardcoding a second copy');
   }
-  return { url: url[1], anonKey: key[1], from: 'src/net/supabase-bootstrap.js' };
+  return { url: url[1], publishableKey: key[1], from: 'src/net/supabase-bootstrap.js' };
 }
 
 // ── The probe. Identical logic to the 2026-08-11 hand run. ───────────────
@@ -137,8 +137,8 @@ async function probe(cfg, targets) {
       const res = await fetch(cfg.url.replace(/\/+$/, '') + '/rest/v1/rpc/' + name, {
         method: 'POST',
         headers: {
-          apikey: cfg.anonKey,
-          Authorization: 'Bearer ' + cfg.anonKey,
+          apikey: cfg.publishableKey,
+          Authorization: 'Bearer ' + cfg.publishableKey,
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },

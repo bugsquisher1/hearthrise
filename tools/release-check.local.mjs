@@ -37,7 +37,7 @@ async function liveVersion() {
 async function edgeVerdict() {
   let want = '';
   try { want = execFileSync('node', ['tools/pack-edge.mjs', 'hr-accrue', '--hash'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).match(/[0-9a-f]{64}/)?.[0] || ''; } catch (e) { /* no hash */ }
-  const key = (readFileSync('src/net/supabase-bootstrap.js', 'utf8').match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0] || '';
+  const key = (readFileSync('src/net/supabase-bootstrap.js', 'utf8').match(/sb_publishable_[A-Za-z0-9_-]+/) || [])[0] || '';
   let live = '';
   try { live = (await (await fetch(EDGE, { headers: { Authorization: 'Bearer ' + key, apikey: key } })).json()).payload_sha256 || ''; } catch (e) { /* unreachable */ }
   if (!want || !live) return `engine: could not compare (build ${want.slice(0, 8) || '?'}, live ${live.slice(0, 8) || '?'})`;

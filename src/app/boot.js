@@ -180,7 +180,7 @@ function startApp(win) {
     import('../world/prewarm.js?v=0.2.82').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
     /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that */
     const tokenForCall = async () => { const t = await auth.freshToken(); timing.sending(); return t; };
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: tokenForCall, renew: auth.renewToken, watch: connection,
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, publishableKey: SUPABASE_CONFIG.publishableKey, token: tokenForCall, renew: auth.renewToken, watch: connection,
       stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });

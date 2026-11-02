@@ -574,14 +574,14 @@ async function runFn() {
   const { readFile } = await import('node:fs/promises');
   const boot = await readFile(new URL('../src/net/supabase-bootstrap.js', import.meta.url), 'utf8');
   const url = (boot.match(/https:\/\/[a-z0-9]+\.supabase\.co/) || [])[0];
-  const anon = (boot.match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0];
-  if (!url || !anon) throw Object.assign(new Error('could not read project url/anon key'), { harness: true });
+  const key = (boot.match(/sb_publishable_[A-Za-z0-9_-]+/) || [])[0];
+  if (!url || !key) throw Object.assign(new Error('could not read project url/publishable key'), { harness: true });
   const endpoint = `${url}/functions/v1/hr-accrue`;
 
   p('══ FN SIDE — deployed hr-accrue, bounded auth-only probe ════════════════');
   p(`   endpoint : ${endpoint}`);
   p(`   requests : ${FN_N} per path, SEQUENTIAL (cap ${MAX_FN_REQUESTS})`);
-  p('   paths    : GET (health, no auth, no DB) and POST with the ANON key');
+  p('   paths    : GET (health, no auth, no DB) and POST with the PUBLISHABLE key');
   p('              (a validly SIGNED token whose role is not `authenticated`,');
   p('              so it is refused BEFORE hr_rate_gate — no player is touched)');
   p('');
@@ -599,7 +599,7 @@ async function runFn() {
   const res = { endpoint, get: null, post_anon: null, cold: null, payload_sha256: null };
 
   const gets = [];
-  for (let i = 0; i < FN_N; i++) gets.push(await one({ method: 'GET', headers: { apikey: anon, Authorization: `Bearer ${anon}` } }));
+  for (let i = 0; i < FN_N; i++) gets.push(await one({ method: 'GET', headers: { apikey: key, Authorization: `Bearer ${key}` } }));
   res.cold = gets[0].ms;
   try { res.payload_sha256 = JSON.parse(gets.find((g) => g.status === 200)?.body || '{}').payload_sha256 ?? null; } catch { /* shape probe only */ }
   res.get = { ...stats(gets.slice(1).map((g) => g.ms)), first_ms: gets[0].ms, statuses: [...new Set(gets.map((g) => g.status))] };
@@ -608,7 +608,7 @@ async function runFn() {
   for (let i = 0; i < FN_N; i++) {
     posts.push(await one({
       method: 'POST',
-      headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' },
+      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ verb: 'accrue', slot: 0 }),
     }));
   }
@@ -619,10 +619,10 @@ async function runFn() {
   p(`   body: ${res.post_anon.sample}`);
   p(`   deployed payload_sha256: ${res.payload_sha256 ?? '—'}`);
 
-  // The anon key is a valid SIGNED token with role `anon`. If it is ever
+  // The publishable key passes the gateway and names no player. If it is ever
   // accepted, the identity seam has regressed and an unauthenticated caller can
   // read any player's envelope (design §2a-iii, review D2).
-  assert('the project anon key cannot accrue (role is not `authenticated`)',
+  assert('the project publishable key cannot accrue (no player behind it)',
     res.post_anon.statuses.every((s) => s === 401 || s === 403),
     `statuses ${res.post_anon.statuses.join(',')}`);
 

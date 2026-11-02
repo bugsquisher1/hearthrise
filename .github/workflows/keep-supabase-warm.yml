@@ -8,7 +8,7 @@
 # After the repo is on GitHub:
 #   1. Go to repo → Settings → Secrets → Actions
 #   2. Add secret SUPABASE_URL = https://nezapsylztqbbwuwembx.supabase.co
-#   3. Add secret SUPABASE_ANON_KEY = your anon key
+#   3. Add secret SUPABASE_PUBLISHABLE_KEY = the project publishable key (never a legacy JWT)
 #   4. The job runs automatically every day at 11:00 UTC.
 #
 # To test it manually: Actions tab → Keep Supabase Warm → Run workflow.
@@ -33,16 +33,15 @@ jobs:
       - name: Hit Supabase REST endpoint
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "Secrets not configured — skipping. Set SUPABASE_URL and SUPABASE_ANON_KEY in repo Settings → Secrets."
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "Secrets not configured — skipping. Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in repo Settings → Secrets."
             exit 0
           fi
           # Simple count query against a known view — keeps RLS happy and counts as activity
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
             "$SUPABASE_URL/rest/v1/lb_total_level?select=id&limit=1")
           echo "Ping status: $STATUS"
           if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then

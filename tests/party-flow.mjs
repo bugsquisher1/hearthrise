@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
+// mutant-anchors: supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
 // mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -23,6 +23,8 @@
 //   PF-START    start waits for everyone: an away member refuses it, nobody
 //               enters and the ground stays; then all walk in on the leader's
 //               ground; a new ground mid-hunt is refused
+//   PF-LEADER   (2027-02-20-party-leader-starts.sql) a seated member cannot open the party's ground when nobody is on it
+//               (`not_party_leader`, nothing written), own second character included; the leader can; then the member goes in
 //   PF-KEEP     a member unseen 9 minutes keeps the seat, 11 loses it; the
 //               leader dropped hands the lead on; a hunter is never dropped;
 //               the last one swept closes the party
@@ -81,6 +83,8 @@ const RESET = '2027-02-10-party-instance-reset.sql';
 const NUDGE = '2027-02-11-party-nudge.sql';
 /* 2027-02-18-party-truth.sql restates the seat, join, decline, kick, disband, leave, sweep and finder bodies last: their mutants plant there. */
 const TRUTH = '2027-02-18-party-truth.sql';
+/* 2027-02-20-party-leader-starts.sql restates hr_hunt_enter last: only the leader starts. */
+const LEAD = '2027-02-20-party-leader-starts.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -248,6 +252,30 @@ const ARMS = {
     if (err(s) !== 'ok' || s.entered !== 3 || n !== 3) p.push('the start did not walk all three in: ' + JSON.stringify(s));
     if (await one(db, 'select hunt_id from public.hunt_parties where id = $1', [pid]) !== hunt) p.push('the start did not set the leader\'s ground');
     if (other && err(await start(db, A, other)) !== 'party_hunting') p.push('a new ground was taken mid-hunt');
+    return p;
+  },
+
+  'PF-LEADER': async (db) => {
+    const { hunt } = await world(db);
+    const p = await threeOf(db);
+    const pid = await partyOf(db, A);
+    const enter = (uid, slot, g = hunt) => as(db, uid, 'select public.hr_hunt_enter($1, $2, $3::jsonb, 0, null, $4::uuid)', [slot, g, '[]', idem()]);
+    /* A hunt has ended: the party keeps its ground and no seat is on it. */
+    if (err(await start(db, A, hunt)) !== 'ok') return [...p, 'HARNESS: the first start was refused'];
+    await db.query("select public.hr_hunt_close(h.id, 'left', now(), true) from public.hunt_sessions h where h.instance_id = $1 and h.ended_at is null", [pid]);
+    await db.query('update public.player_state set active_kind = $2, active_id = null where user_id = any ($1::uuid[])', [U, 'idle']);
+    await db.query('delete from public.hr_rate_counters');
+    const open = async () => Number(await one(db, 'select count(*) from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid]));
+    if (await one(db, 'select hunt_id from public.hunt_parties where id = $1', [pid]) !== hunt) p.push('HARNESS: the party lost its ground');
+    const m = await enter(B, 0);
+    if (err(m) !== 'not_party_leader' || await open()) p.push('a member started the party\'s hunt: ' + JSON.stringify(m).slice(0, 160) + ', ' + (await open()) + ' on the ground');
+    const o = await enter(A, 1);
+    if (err(o) !== 'not_party_leader' || await open()) p.push('the leader\'s own second character, a member, started it: ' + JSON.stringify(o).slice(0, 160));
+    if (!Number(await one(db, "select count(*) from public.hr_rejections where user_id = $1 and code = 'not_party_leader'", [B]))) p.push('the refusal was not journalled');
+    const l = await enter(A, 0);
+    if (err(l) !== 'ok' || (await open()) !== 1) p.push('the leader could not start: ' + JSON.stringify(l).slice(0, 160));
+    const back = await enter(B, 0);
+    if (err(back) !== 'ok' || (await open()) !== 2) p.push('a member could not go into the hunt the party is on: ' + JSON.stringify(back).slice(0, 160));
     return p;
   },
 
@@ -768,6 +796,11 @@ const MUTANTS = [
     repl: '  if false then' },
   { arm: 'PF-START', file: PLAY, why: 'the start never writes the leader\'s ground',
     find: '    update public.hunt_parties set hunt_id = p_hunt where id = v_pid and hunt_id is distinct from p_hunt;', repl: '    perform 1;' },
+  { arm: 'PF-LEADER', file: LEAD, why: 'a member opens the party\'s ground with nobody on it',
+    find: "       and not (v_p.leader_user = v_uid and v_p.leader_slot = p_slot)\n", repl: "       and false\n" },
+  { arm: 'PF-LEADER', file: LEAD, why: 'a member cannot join a hunt the party is on',
+    find: "       and not exists (select 1 from public.hunt_sessions h where h.instance_id = v_party and h.ended_at is null) then\n      return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'not_party_leader')); end if;",
+    repl: "       then\n      return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'not_party_leader')); end if;" },
   { arm: 'PF-KEEP', why: 'the sweep drops a seat the moment it is away',
     find: "returns interval language sql immutable set search_path = public, pg_catalog as $$ select interval '10 minutes' $$;",
     repl: "returns interval language sql immutable set search_path = public, pg_catalog as $$ select interval '75 seconds' $$;" },

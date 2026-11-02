@@ -134,6 +134,11 @@ cases['level-gap'] = (R) => {
   const play = (ground, level, windowMs) => R.runCell({ id: 'gap:' + ground + ':' + level + ':' + windowMs, ground, party: ['tank'], level, hours: 1, seeds: 1, ...(windowMs ? { windowMs } : {}) }).heroes[0];
   const viewed = play(glade.id, 7, 10000), closed = play(glade.id, 7, 600000);
   for (const k of ['levelXpPerH', 'takenPerH', 'storePerH', 'coinPerH']) if (viewed[k] !== closed[k]) return k + ': viewed ' + viewed[k] + ', browser closed ' + closed[k];
+  /* THE BLOW ITSELF: in the same practice set, a landed blow at Level 7 is the gap's x1.45 bigger than at the floor (accuracy aside: Defense moves that). */
+  const perLanded = (h) => h.dmgPerMonsterSwing / Math.max(0.01, (h.landedPct || 0) / 100);
+  const bare = (level) => R.runCell({ id: 'gapb:' + level, ground: glade.id, party: ['tank'], level, hours: 0.5, seeds: 1, gear: { starter: true } }).heroes[0];
+  const low = bare(7), floor = bare(16);
+  if (!(perLanded(low) > perLanded(floor) * 1.25)) return 'a landed blow at Level 7 averages ' + perLanded(low).toFixed(1) + ', at the floor ' + perLanded(floor).toFixed(1) + ': the gap is not in the blow';
   const fits = play(G.OPEN_GROUNDS.meadowbrook_thicket.id, 7);
   if (!(viewed.levelXpPerH > fits.levelXpPerH * 1.5)) return 'under the floor pays ' + viewed.levelXpPerH + ' XP/h against ' + fits.levelXpPerH + ': the ruling keeps the higher XP';
   if (!(viewed.profitPerH < fits.profitPerH * 0.5)) return 'under the floor nets ' + viewed.profitPerH + ' g/h against ' + fits.profitPerH + ': the ruling says it loses gold';

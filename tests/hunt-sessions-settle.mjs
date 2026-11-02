@@ -112,6 +112,13 @@
 //   OWN-DRINK  an own crafted drink is spent the same way, with the browser closed
 //              (the tick's door) and the hunt viewed (the player's door); one past the
 //              bag is refused bag_short.
+//   CARRY-IN   carry in mid-hunt (Tyler 2026-11-02; 2027-02-21-hunt-carry-in.sql): Cooked Shrimp carried from the
+//              bag into a hunt the store was feeding are eaten before the store, the same rows with the browser
+//              closed and the hunt viewed. THE RACES, every order the locks admit: a carry between a settle's read
+//              and its commit (that window neither spends nor loses it; the next spends it first); two carries at
+//              once (two keys add up, one key moves once); a carry racing the end (the end's close gives it back
+//              whole; after it, no_hunt; a pending Leave, hunt_leaving).
+//   CARRY-IN-IDEM  a second apply of 2027-02-21-hunt-carry-in.sql is byte-identical (body, grants, baseline row).
 //   NO-FIGHT   a hero who can't fight goes home (designer 10-31): a bare bow with the store shut ends no_fight at its hunt
 //              start + the limit's minutes, a town-side automatic end, nothing bought, browser closed and viewed; the
 //              database refuses that end before the minutes and with a kill in its window.
@@ -1876,6 +1883,184 @@ const DB_ARMS = {
       problems.push('a drink past the bag moved the purse or the bag');
     }
     return problems;
+  }),
+  /* CARRY IN MID-HUNT (Tyler 2026-11-02, "Yes, add a press", from Andy's report; 2027-02-21-hunt-carry-in.sql
+     hr_hunt_restock, the client's verb). The bar names the hero's own Cooked Shrimp first and the store's Salted Shrimp
+     behind it; Enter packed none, so the store feeds it. The hero carries its bag's shrimp into the running hunt and
+     the next windows eat THOSE before the store. BOTH PATHS: the browser closed (the tick's door) and the hunt viewed
+     (the player's settle door), the carry at the same boundary, the same rows. THE RACES, in every order the locks
+     admit (PGlite is one backend: the locks decide WHICH order, each order is played here): a carry between a
+     settle's read and its commit; two carries at once (two keys add up; one key moves once); a carry racing the end
+     (the end's close gives it back whole; after the end, no_hunt; a pending Leave, hunt_leaving). The server clock is
+     pinned to each cut, so the carry's 20 s slack is measured as in production. */
+  'CARRY-IN': async (db, M) => {
+    const problems = [];
+    const FROM = Date.UTC(2026, 9, 29, 12, 0, 0);
+    const pinNow = (ms) => db.query(`select set_config('hr.test_now', $1, true)`, [new Date(ms).toISOString()]);
+    const exec = makeExec(db);
+    const eat = (id) => ({ action: { type: 'consume', id }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' });
+    const HERO = { ...WEAK, fromMs: FROM, gold: 100000, inv: { cooked_shrimp: 100 }, bag: [],
+      options: { supply_source: 'mine', on_empty: 'switch', gold_floor: 0, slots: [eat('cooked_shrimp'), eat('salted_shrimp')] } };
+    const heals = M.SB.BASIC_SUPPLIES.filter((b) => b.kind === 'heal').map((b) => b.id);
+    const boughtFood = (sid, afterId) => one(db, `select coalesce(sum((x.value->>'qty')::int), 0)::int from public.player_ledger l, jsonb_each(l.meta->'items') x
+       where l.session_id = $1 and l.intent = 'supply_buy' and l.id > $2 and x.key = any($3::text[])`, [sid, afterId, heals]);
+    const mark = async () => Number(await one(db, 'select coalesce(max(id), 0)::bigint from public.player_ledger'));
+    const line = async (sid) => (await q(db, `select qty_loaded::int l, qty_left::int r from public.hunt_bag where session_id = $1 and item_id = 'cooked_shrimp'`, [sid]))[0] || null;
+    const held = async () => Number(await one(db, `select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'cooked_shrimp'), 0)::int`, [UID]));
+    const carry = async (qty, key) => {
+      await asUser(db, UID);
+      try { return await one(db, `select public.hr_hunt_restock(0, 'cooked_shrimp', $1::bigint, $2::uuid)`, [qty, key || idem()]); }
+      finally { await db.query(`select set_config('request.jwt.claim.sub', '', true)`); }
+    };
+    const settleAt = async (door, t) => { await pinNow(t); return M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: t, ...door }); };
+    /* THE READ AND THE PROPOSAL of one window to `t`, then `between()`, then its COMMIT (hunt-settle.js's three pieces). */
+    const raced = async (t, between) => {
+      await pinNow(t);
+      const plan = await M.HS.readHuntSettle({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: t }, 'tick');
+      if (plan.answer) return { skipped: plan.answer.reason };
+      const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+      if (!p.out.accrued) return { skipped: p.out.reason };
+      const mid = await between(p.commit);
+      return { mid, uses: Number((p.commit.members[0].hunt.uses || {}).cooked_shrimp || 0), res: await M.HS.commitHuntSettle(exec, { ...p.commit, project: null }) };
+    };
+
+    /* (1) BOTH PATHS: the store feeds the bar, the carry lands at +60 s, the carried shrimp are eaten before the store. */
+    const doors = {
+      closed: { door: { mode: 'tick' }, before: [30000, 60000], after: [90000, 150000, 180000] },
+      viewed: { door: { mode: 'settle', bucket: null, project: true, live: true }, before: [17345, 41111, 60000], after: [77777, 133333, 180000] },
+    };
+    const seen = {};
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, HERO);
+      await db.query('savepoint carry_paths');
+      for (const [path, d] of Object.entries(doors)) {
+        const door = d.door.mode === 'tick' ? { ...d.door, session: h.sid } : d.door;
+        const go = async (cuts) => {
+          for (const t of cuts) {
+            const r = await settleAt(door, h.from + t);
+            if (!r || r.outcome !== 'paid') { problems.push(`${path}: the window to +${t} ms answered ${r && r.outcome}/${r && r.reason} ${JSON.stringify(r && r.body).slice(0, 200)}`); return false; }
+          }
+          return true;
+        };
+        if (await go(d.before)) {
+          if (!((await boughtFood(h.sid, 0)) > 0)) problems.push(`${path}: CONTROL: with no shrimp packed the store sold no food before the carry`);
+          if (await line(h.sid)) problems.push(`${path}: CONTROL: Enter packed the shrimp`);
+          /* more than the food lane can eat in the windows after it (one a 2 s lane), so "before the store" always binds */
+          const c = await carry(90);
+          if (!c || c.ok !== true || c.left !== 90 || c.have !== 10 || c.qty !== 90) problems.push(`${path}: the carry answered ${JSON.stringify(c)}`);
+          const after = await mark();
+          if (await go(d.after)) {
+            const s = await snapshot(db, h.sid);
+            const l = await line(h.sid);
+            const used = l ? l.l - l.r : 0;
+            if (!l || l.l !== 90) problems.push(`${path}: the hunt bag's shrimp line is ${JSON.stringify(l)}, not 90 carried in`);
+            if (!(used > 0)) problems.push(`${path}: the hero ate none of the 90 Cooked Shrimp it carried in`);
+            if (!l || !(l.r > 0)) problems.push(`${path}: CONTROL: the carried shrimp ran out, so "before the store" does not bind (${JSON.stringify(l)})`);
+            else if ((await boughtFood(h.sid, after)) > 0) problems.push(`${path}: the store sold food while ${l.r} carried shrimp were left`);
+            if (s.inv.cooked_shrimp !== 10) problems.push(`${path}: the bag holds ${s.inv.cooked_shrimp} shrimp, not the 10 left after the carry`);
+            if (!s.ledger.hunt_pack || Number(s.ledger.hunt_pack[1]) !== 90) problems.push(`${path}: the hunt's journal packed ${JSON.stringify(s.ledger.hunt_pack)}, not the 90 carried`);
+            if (!s.ledger.supply_own || Number(s.ledger.supply_own[1]) !== -used) problems.push(`${path}: supply_own ${JSON.stringify(s.ledger.supply_own)} is not the ${used} eaten`);
+            seen[path] = s;
+          }
+        }
+        await db.query('rollback to savepoint carry_paths');
+      }
+    });
+    if (seen.closed && seen.viewed && canon(seen.closed) !== canon(seen.viewed)) {
+      problems.push(`a carry with the browser closed and with the hunt viewed wrote different rows ${firstDiff(canon(seen.closed), canon(seen.viewed))}`);
+    }
+
+    /* (2) A CARRY BETWEEN A SETTLE'S READ AND ITS COMMIT: the window was priced on the 3 packed; the commit debits what it
+       used from the line AS IT STANDS, so the 25 carried are neither spent nor lost by it, and the next windows eat them
+       before the store. The carry costs the settle no retry (its CAS is the world's swing, which a carry never moves). */
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, { ...HERO, inv: { cooked_shrimp: 73 }, bag: [{ item: 'cooked_shrimp', qty: 3 }] });
+      const x = await raced(h.from + 20000, () => carry(55));
+      if (x.skipped || !x.res || x.res.ok !== true) { problems.push(`race: the settle read before the carry answered ${JSON.stringify(x.skipped || x.res).slice(0, 300)}`); return; }
+      if (!x.mid || x.mid.ok !== true) problems.push(`race: the carry mid-settle answered ${JSON.stringify(x.mid)}`);
+      if (!(x.uses > 0)) problems.push('race: CONTROL: the window read before the carry ate none of the packed shrimp');
+      const l = await line(h.sid);
+      if (!l || l.l !== 58 || l.r !== 3 + 55 - x.uses) problems.push(`race: the line is ${JSON.stringify(l)} after a window that ate ${x.uses}, want loaded 58, left ${3 + 55 - x.uses}`);
+      if (await held() !== 15) problems.push(`race: the bag holds ${await held()} shrimp, not 15`);
+      const after = await mark();
+      for (const t of [50000, 80000]) await settleAt({ mode: 'tick', session: h.sid }, h.from + t);
+      const l2 = await line(h.sid);
+      if (!l2 || !(l2.r < l.r)) problems.push(`race: the next windows ate none of the carried shrimp (${JSON.stringify(l)} -> ${JSON.stringify(l2)})`);
+      if (!l2 || !(l2.r > 0)) problems.push(`race: CONTROL: the carried shrimp ran out, so "before the store" does not bind (${JSON.stringify(l2)})`);
+      else if ((await boughtFood(h.sid, after)) > 0) problems.push(`race: the store sold food while ${l2.r} carried shrimp were left`);
+      const bagSide = Number(await one(db, `select coalesce(sum(qty), 0)::int from public.player_ledger where session_id = $1 and kind = 'hunt' and meta->>'side' = 'bag' and item_id = 'cooked_shrimp'`, [h.sid]));
+      const own = Number(await one(db, `select coalesce(sum((meta->'items'->>'cooked_shrimp')::int), 0)::int from public.player_ledger where session_id = $1 and intent = 'supply_own'`, [h.sid]));
+      if (l2 && bagSide - own !== l2.r) problems.push(`race: the journal (packed ${bagSide}, eaten ${own}) does not leave the line's ${l2.r}`);
+    });
+
+    /* (3) TWO CARRIES AT ONCE: two keys add up; the same key again answers the same and moves nothing. */
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, HERO);
+      await settleAt({ mode: 'tick', session: h.sid }, h.from + 10000);
+      const ka = idem();
+      const a = await carry(5, ka);
+      const b = await carry(7);
+      const a2 = await carry(5, ka);
+      if (!a || a.ok !== true || !b || b.ok !== true) problems.push(`two carries: ${JSON.stringify(a)} / ${JSON.stringify(b)}`);
+      if (canon(a2) !== canon(a)) problems.push(`one key twice answered ${JSON.stringify(a2)}, not the first answer ${JSON.stringify(a)}`);
+      const l = await line(h.sid);
+      if (!l || l.l !== 12 || l.r !== 12 || await held() !== 88) problems.push(`two carries left the line ${JSON.stringify(l)} and the bag ${await held()}, want 12 / 88`);
+      const pairs = Number(await one(db, `select count(*)::int from public.player_ledger where user_id = $1 and slot = 0 and intent = 'hunt_pack' and item_id = 'cooked_shrimp'`, [UID]));
+      if (pairs !== 4) problems.push(`two carries journalled ${pairs} hunt_pack rows, not two pairs`);
+    });
+
+    /* (4) A CARRY RACING THE END. Read first, carry, then the commit that ends the hunt (its stamina runs out in the
+       window): the close gives back the 25 whole. After the end, no_hunt. Past the slack, settle_first; a Leave
+       pending, hunt_leaving. Nothing moves on a refusal. */
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, { ...HERO, stamina: 25000 });
+      await settleAt({ mode: 'tick', session: h.sid }, h.from + 10000);
+      const x = await raced(h.from + 30000, () => carry(25));
+      if (x.skipped || !x.res || x.res.ok !== true || !x.mid || x.mid.ok !== true) { problems.push(`end race: ${JSON.stringify(x.skipped || x.res).slice(0, 200)} / carry ${JSON.stringify(x.mid)}`); return; }
+      const s = await snapshot(db, h.sid);
+      if (s.session.end_reason !== 'stamina') problems.push(`end race: CONTROL: the window did not end the hunt on stamina (${s.session.end_reason})`);
+      const l = await line(h.sid);
+      if (!l || l.l !== 25 || l.r !== 0 || await held() !== 100) problems.push(`end race: the close left the line ${JSON.stringify(l)} and the bag ${await held()}, want the 25 back home (100)`);
+      if (Number(await one(db, `select coalesce(sum(qty), 0)::int from public.player_ledger where session_id = $1 and kind = 'hunt' and meta->>'side' = 'bag'`, [h.sid])) !== 0) {
+        problems.push('end race: the ended hunt\'s bag journal does not balance to 0');
+      }
+      const late = await carry(5);
+      if (!late || late.error !== 'no_hunt' || await held() !== 100) problems.push(`a carry after the end answered ${JSON.stringify(late)} (bag ${await held()})`);
+    });
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, HERO);
+      await settleAt({ mode: 'tick', session: h.sid }, h.from + 10000);
+      await pinNow(h.from + 31000);
+      const slow = await carry(5);
+      if (!slow || slow.error !== 'settle_first') problems.push(`a carry 21 s past the settle answered ${JSON.stringify(slow)}`);
+      await pinNow(h.from + 20000);
+      await asUser(db, UID);
+      const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+      if (!lv || lv.ok !== true) problems.push(`CONTROL: Leave answered ${JSON.stringify(lv)}`);
+      const leaving = await carry(5);
+      if (!leaving || leaving.error !== 'hunt_leaving') problems.push(`a carry with a Leave pending answered ${JSON.stringify(leaving)}`);
+      if (await line(h.sid) || await held() !== 100) problems.push('a refused carry moved the shrimp');
+    });
+    return problems;
+  },
+  /* CARRY-IN-IDEM: a second apply of 2027-02-21-hunt-carry-in.sql (its §3 self-check included) is byte-identical: the
+     verb's body and grants, and its client baseline row (§0 accepts its own post-image). */
+  'CARRY-IN-IDEM': async (db) => inTx(db, async () => {
+    const image = () => one(db, `select jsonb_build_object(
+        'def', md5(replace(pg_get_functiondef('public.hr_hunt_restock(integer,text,bigint,uuid)'::regprocedure), chr(13), '')),
+        'acl', (select proacl::text from pg_proc where oid = 'public.hr_hunt_restock(integer,text,bigint,uuid)'::regprocedure),
+        'baseline', (select jsonb_agg(to_jsonb(b) order by b.grantee) from public.hr_client_rpc_baseline b where b.proname = 'hr_hunt_restock'))`);
+    const before = await image();
+    try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', '2027-02-21-hunt-carry-in.sql'), 'utf8').replace(/\r\n/g, '\n')); }
+    catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
+    const after = await image();
+    if (!before || !before.baseline) return [`CONTROL: the replay holds no hr_hunt_restock baseline row: ${JSON.stringify(before)}`];
+    return canon(after) === canon(before) ? [] : [`a second apply moved ${firstDiff(canon(before), canon(after))}`];
   }),
   'NO-FIGHT': async (db, M) => inTx(db, async () => {
     const problems = [];
@@ -3851,6 +4036,18 @@ const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
 const SR = 'public.hr_hunt_settle_refused(uuid,bigint,jsonb,jsonb)';
 const DB_MUTANTS = [
+  /* CARRY IN MID-HUNT (2027-02-21-hunt-carry-in.sql): each rule of the carry goes red on its own defect. */
+  { arm: 'CARRY-IN', name: '[carry-in] a carry never takes the shrimp out of the bag (a dupe)', fn: 'public.hr_hunt_restock(integer,text,bigint,uuid)',
+    find: '  if v_have = p_qty then\n    delete from public.player_inventory where user_id = v_uid and slot = p_slot and item_id = p_item;\n  else\n    update public.player_inventory set qty = qty - p_qty where user_id = v_uid and slot = p_slot and item_id = p_item;\n  end if;',
+    replace: '  null;' },
+  { arm: 'CARRY-IN', name: '[carry-in] a carry overwrites the line it adds to (the stock already in it is lost)', fn: 'public.hr_hunt_restock(integer,text,bigint,uuid)',
+    find: 'qty_left = qty_left + p_qty', replace: 'qty_left = p_qty' },
+  { arm: 'CARRY-IN', name: '[carry-in] one key moves the stack twice', fn: 'public.hr_hunt_restock(integer,text,bigint,uuid)',
+    find: '  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, c_verb);\n  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;\n', replace: '' },
+  { arm: 'CARRY-IN', name: '[carry-in] a pending Leave takes a carry', fn: 'public.hr_hunt_restock(integer,text,bigint,uuid)',
+    find: '  if v_s.leave_at is not null or v_s.change_at is not null then', replace: '  if false then' },
+  { arm: 'CARRY-IN', name: '[carry-in] a carry lands in a hunt minutes behind its settle', fn: 'public.hr_hunt_restock(integer,text,bigint,uuid)',
+    find: '  if public.hr_hunt_gap_ms(v_s) > c_slack_ms then', replace: '  if false then' },
   /* A FULL BAG NEVER STOPS A HUNT (2027-02-11-hunt-loot-past-bag-cap.sql): the settle is fused again. */
   { arm: 'BAG-CAP', name: '[bag cap] a hunt\'s settle is refused bank_full at a full bag', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
     find: "if coalesce(current_setting('hr.hunt_session', true), '') = '' and v_stacks > v_st.bank_cap and v_stacks > v_stacks_before then",

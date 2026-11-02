@@ -47,6 +47,7 @@ import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patc
 import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.82';
 import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.82';
 import { renameActionSet } from '../../session/preset-intents.js?v=0.2.82';
+import { carryRows } from '../carry-in.js?v=0.2.82';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -185,7 +186,7 @@ function tipHtml(i, ctx) {
   const bag = carriedOf(ctx.character);
   const hero = h && !h.ended ? h.hero : null;
   const worn = (equipmentOf(ctx.character) || {}).ammo;
-  const why = reasonOf(s, set, bag, hero, worn) || holdingReason(s, holdsPackNow(ctx.character, hero));
+  const why = reasonOf(s, set, bag, hero, worn, carryRows(ctx.character)) || holdingReason(s, holdsPackNow(ctx.character, hero));
   const shared = sharedCooldownOf(wires, i);
   const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag, worn)).filter(Boolean);
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
@@ -253,10 +254,12 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const now = ctx.now();
   const holding = holdsPackNow(cs, hero);
   const worn = (equipmentOf(cs) || {}).ammo;
+  /* What the running hunt could carry in from the bag: a slot it is out of says where its stock waits (carry-in.js). */
+  const pack = carryRows(cs);
   for (const li of el.querySelectorAll('.hb-slot')) {
     const i = Number(li.getAttribute('data-slot'));
     const sl = slots[i] || { empty: true };
-    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero, worn) || holdingReason(sl, holding));
+    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero, worn, pack) || holdingReason(sl, holding));
     patchCooldown(li, sl, casts, now);
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);

@@ -58,6 +58,8 @@ export const CLIENT_RPCS = Object.freeze({
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
   hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt; CharacterSession.huntAgain, the Hunt again card)',
   hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',
+  /* Tyler 2026-11-02 "Yes, add a press" (2027-02-21-hunt-carry-in.sql): an item id and a count; catalogue, stock and the open hunt are the server's. */
+  hr_hunt_restock: 'carry a hunt supply from this hero\'s bag into its running hunt, value-neutral, one key moves once (carry-intents.js carryIntoHunt)',
   /* The alpha windows (2026-10-18; CONFLICTS.md): staged for the server lane, refused as http_404 until it lands. */
   hr_item_lock: 'lock or unlock an item so no bulk sale can name it (CharacterSession.lockItem)',
   hr_loot_rule_set: "an item's loot plan (keep in bag / deposit in storage / sell) or its pickup filter (do not pick up); a name and a word, the server validates it (CharacterSession.setLootRule)",

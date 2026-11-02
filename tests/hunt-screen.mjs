@@ -1841,7 +1841,7 @@ const MUTANTS = [
     ['  const food = foodOf(carriedOf(cs));', '  const food = foodOf(bagOf(cs));']]],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
   ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
-  ['the struck reason of a food slot ignores the server', 'src/shell/action-facts.js', "    if (sl.why === 'none_left') return", "    if (false) return"],
+  ['the struck reason of a food slot ignores the server', 'src/shell/action-facts.js', "    if (sl.why === 'none_left') {", "    if (false) {"],
   ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
   ['a spell the weapon cannot cast reads like a castable one', 'src/shell/windows/configure-action.js', "  cls(el, 'is-locked', !!r.locked);", ''],
   ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role));", ''],

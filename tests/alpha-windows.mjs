@@ -10,7 +10,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js
+// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -203,7 +203,7 @@ function levelOne(e) {
   e.hunt_settings = Object.assign({}, e.hunt_settings, { presets: [{ preset: 0, name: 'Hunt' }, { preset: 1, name: 'Bow' }, { preset: 2, name: 'Bare set' }] });
 }
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
-const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move', 'hr_loot_dispatch'];
+const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move', 'hr_loot_dispatch', 'hr_hunt_restock'];
 /* The windows a player opens from the launcher row, with their keys (src/data/shell-windows.js). */
 const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['c', 'character'], ['g', 'skills-trade'], ['t', 'storage'], ['v', 'shop'], ['p', 'hunt-prep']];
 
@@ -932,6 +932,46 @@ async function planRules(base) {
   const planSaid = [planBlock('rat_tail', 'sell', noBid, false), planBlock('rat_tail', 'sell', noBid, true), planBlock('rat_tail', 'sell', noBid),
     planBlock('practice_bow', 'sell', noBid, false)].join('|');
   if (planSaid !== '|The shop does not buy this.|The shop does not buy this.|The shop does not buy back your starting kit.') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
+  /* AW-65 CARRY IN (Tyler 2026-11-02, "Yes, add a press"; Andy: supplies that reached the bag mid-hunt sat unused): while the
+     hunt runs and is not on its way home, every hunt supply in the BAG is a row with the server's two counts, what the bar
+     spends first (a rune spell spends every tier of its family); never gear or loot; none in town, on the way home or once it
+     ended. A struck slot whose stock waits in the bag says so and that a press on the slot carries it in. */
+  {
+    const { carryRows, carryFor, carryWords } = await imp('src/shell/carry-in.js');
+    const { reasonOf } = await imp('src/shell/action-facts.js');
+    const spell = { action: { type: 'ability', id: 'fireball' }, conditions: [], join: 'and', usable: false };
+    const bar = [Object.assign(slot('consume', 'cooked_shrimp', 0), { usable: false, why: 'none_left' }), spell];
+    const BAG = { rat_tail: 9, bronze_sword: 1, wheat_bread: 300, cooked_shrimp: 40, scored_fire_rune: 2, chalked_fire_rune: 12 };
+    const hunting = (session, inv = BAG) => sess({ hunt_settings: { preset: 0, presets: [], slots: bar, store: STORE, discipline: 'destruction' }, inventory: inv,
+      hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: false, session } });
+    const open = { bag: [{ item: 'wheat_bread', left: 5, loaded: 5 }, { item: 'cooked_shrimp', left: 0, loaded: 3 }] };
+    const said = (rows) => (rows ? rows.map((r) => r.id + ':' + r.have + '/' + r.inHunt + (r.named ? '*' : '')).join(' ') : String(rows));
+    const want65 = 'cooked_shrimp:40/0* chalked_fire_rune:12/0* scored_fire_rune:2/0* wheat_bread:300/5';
+    if (said(carryRows(hunting(open))) !== want65) fails.push('AW-65 a running hunt offers ' + said(carryRows(hunting(open))) + ', want ' + want65);
+    for (const [what, cs] of [['in town', sess({ inventory: BAG })], ['on the way home', hunting(Object.assign({ leave_at: '2026-11-02T12:00:00Z' }, open))],
+      ['once it ended', sess({ inventory: BAG, hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: true, session: open } })], ['with no session read', hunting(undefined)]]) {
+      if (carryRows(cs) !== null) fails.push('AW-65 ' + what + ' a hunt offers to carry ' + said(carryRows(cs)));
+    }
+    const fire = carryFor(hunting(open), spell.action);
+    if (said(fire) !== 'chalked_fire_rune:12/0* scored_fire_rune:2/0*') fails.push('AW-65 Fireball\'s slot offers ' + said(fire));
+    /* the bar's "loaded" shot spends the WORN ammo (the server's equipment): its stack in the bag is the slot's to carry */
+    const loaded = { type: 'attack_with_item', id: 'loaded' };
+    const ranger = sess({ hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [{ action: loaded, conditions: [], join: 'and', usable: true }], store: STORE },
+      equipment: { weapon: 'willow_longbow', ammo: 'steel_arrows' }, inventory: { steel_arrows: 500, iron_arrows: 9 },
+      hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: false, session: { bag: [] } } });
+    if (said(carryFor(ranger, loaded)) !== 'steel_arrows:500/0*' || said(carryRows(ranger)) !== 'steel_arrows:500/0* iron_arrows:9/0')
+      fails.push('AW-65 the loaded shot on Steel Arrows offers ' + said(carryFor(ranger, loaded)) + ' of ' + said(carryRows(ranger)));
+    if (carryWords({ max: 40 }) !== 'Carry 40 into this hunt' || carryWords({ max: 100000 }) !== 'Carry 100,000 into this hunt') fails.push('AW-65 the press reads ' + carryWords({ max: 40 }));
+    const big = carryRows(hunting(open, { cooked_shrimp: 250000 }));
+    if (!big || big[0].max !== 100000 || big[0].have !== 250000) fails.push('AW-65 a stack past one carry offers ' + JSON.stringify(big));
+    const pack = carryRows(hunting(open));
+    const food = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, pack);
+    if (!food || !food.strike || food.text !== 'None in this hunt: 40 Cooked Shrimp wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
+    const rune = reasonOf(spell, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [], null, null, pack);
+    if (!rune || rune.text !== 'Needs a Fire rune for each cast: none in this hunt, and 14 wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
+    const none = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null);
+    if (!none || none.text !== 'None left: you carry no Cooked Shrimp. The next food or drink slot fires instead.') fails.push('AW-65 with nothing in the bag the food slot reads ' + JSON.stringify(none));
+  }
   return fails;
 }
 
@@ -1446,6 +1486,68 @@ async function checks(overrides, shots) {
           await shot(page, 'alpha-1440x900-find');
         }
       } else fails.push('AW-7 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // AW-65 CARRY IN (Tyler 2026-11-02, "Yes, add a press"): a hunting hero's Hunt prep offers the bag's supplies with the
+      // server's two counts; Carry asks how many and sends ONE hr_hunt_restock (an item id and a count, nothing else); the
+      // counts change only from the server's re-read; a settle_first refusal runs the hunter's settle, then ONE more ask
+      // under a NEW key. A stateful stub: the server's answer moves its own counts.
+      const hunting = (e) => {
+        e.hunt = Object.assign({}, e.hunt, { ended: false, session: { bag: [{ item: 'wheat_bread', left: 9, loaded: 14, essential: false }] } });
+        e.inventory = Object.assign({}, e.inventory, { cooked_shrimp: 40 });
+      };
+      const { ctx, page, s, errors, up } = await open({ mutateEnv: hunting });
+      if (up) {
+        s.onCall = (name, b) => {
+          if (name !== 'hr_hunt_restock') return;
+          if (s.carryRefuse) { s.reply = { ok: false, error: s.carryRefuse }; s.carryRefuse = null; return; }
+          const inv = s.env.inventory, bag = s.env.hunt.session.bag;
+          inv[b.p_item] -= b.p_qty; if (!inv[b.p_item]) delete inv[b.p_item];
+          const l = bag.find((x) => x.item === b.p_item);
+          if (l) { l.left += b.p_qty; l.loaded += b.p_qty; } else bag.push({ item: b.p_item, left: b.p_qty, loaded: b.p_qty, essential: false });
+          s.reply = { ok: true, item: b.p_item, qty: b.p_qty, left: (l || bag[bag.length - 1]).left, have: inv[b.p_item] || 0 };
+        };
+        const P = '[data-hs-win="hunt-prep"] ';
+        const row = () => page.evaluate((w) => {
+          const b = document.querySelector(w + '[data-hs-act="carry"][data-item="cooked_shrimp"]'), li = b && b.closest('li');
+          return li ? { press: b.textContent, label: b.getAttribute('aria-label'), small: li.querySelector('small').textContent, head: !!document.querySelector(w + '.hw-carry-head.is-on') } : null;
+        }, P);
+        const carry = async (n) => {
+          await page.click(P + '[data-hs-act="carry"][data-item="cooked_shrimp"]');
+          if (!(await wait(page, () => document.querySelector('.hw-menu.is-on .hw-amt-n'), null, 2000))) return false;
+          await page.fill('.hw-menu .hw-amt-n', String(n));
+          await page.keyboard.press('Enter');
+          return true;
+        };
+        const said = () => page.evaluate((w) => document.querySelector(w + '.hh-intent-msg').textContent, P);
+        if (!(await openWin(page, 'p', 'hunt-prep'))) fails.push('AW-65 P did not open Hunt prep while hunting');
+        await page.waitForTimeout(200);
+        const r0 = await row();
+        if (!r0 || r0.press !== 'Carry 40' || r0.label !== 'Carry 40 into this hunt' || r0.small !== '40 in your backpack · 0 in this hunt' || !r0.head)
+          fails.push('AW-65 a hunting hero\'s Hunt prep offers ' + JSON.stringify(r0) + ' ' + errors.slice(0, 2).join(' | '));
+        if (!(await carry(25))) fails.push('AW-65 Carry did not ask how many');
+        for (let i = 0; i < 40 && !/^Carried/.test(await said()); i++) await page.waitForTimeout(100);
+        const c = sent(s, 'hr_hunt_restock');
+        if (c.length !== 1 || c[0].body.p_slot !== 0 || c[0].body.p_item !== 'cooked_shrimp' || c[0].body.p_qty !== 25 || !/^[0-9a-f-]{36}$/.test(c[0].body.p_idem)
+            || Object.keys(c[0].body).sort().join() !== 'p_idem,p_item,p_qty,p_slot') fails.push('AW-65 Carry 25 sent ' + JSON.stringify(c.map((x) => x.body)));
+        const r1 = await row();
+        if (!r1 || r1.small !== '15 in your backpack · 25 in this hunt' || r1.press !== 'Carry 15') fails.push('AW-65 after the server moved 25, Hunt prep reads ' + JSON.stringify(r1));
+        if ((await said()) !== 'Carried 25 Cooked Shrimp into this hunt.') fails.push('AW-65 the answer reads ' + JSON.stringify(await said()));
+        /* the hunt is still catching up: the hunter's own settle (paced: catch-up.js's rule), then ONE more ask under a NEW
+           key (the first wrote nothing), and the line is the second answer's */
+        s.carryRefuse = 'settle_first';
+        const at = s.calls.length;
+        if (!(await carry(5))) fails.push('AW-65 the second Carry did not ask how many');
+        for (let i = 0; i < 40 && sent(s, 'hr_hunt_restock').length < 3; i++) await page.waitForTimeout(100);
+        for (let i = 0; i < 40 && !/^Carried 5 /.test(await said()); i++) await page.waitForTimeout(100);
+        const asks = s.calls.slice(at).filter((x) => x.name === 'hr_hunt_restock');
+        if (asks.length !== 2 || asks[0].body.p_idem === asks[1].body.p_idem || asks.some((x) => x.body.p_qty !== 5))
+          fails.push('AW-65 a carry refused settle_first sent ' + JSON.stringify(asks.map((x) => x.body)));
+        const r2 = await row();
+        if (!r2 || r2.small !== '10 in your backpack · 30 in this hunt') fails.push('AW-65 after the retried carry, Hunt prep reads ' + JSON.stringify(r2));
+        if (shots) await shot(page, 'alpha-1440x900-hunt-prep-carry');
+      } else fails.push('AW-65 the screen did not mount');
       await ctx.close();
     }
 
@@ -2968,6 +3070,15 @@ const MUTANTS = [
   ['plans: AW-64 Hunt prep reads the bag in a hunt', 'src/shell/readiness.js', '  const carried = carriedOf(cs);', "  const inv = cs.read('inventory');\n  const carried = inv ? Object.entries(inv).map(([id, qty]) => ({ id, qty })) : null;"],
   ['plans: AW-64 a free arrow is said with the store behind it', 'src/shell/hunt-go.js', '    if (free && !o.ruled) { endless = true; break; }\n', ''],
   ['plans: AW-64 arrows are said in the bar\'s order, not the engine\'s', 'src/shell/hunt-go.js', 'of attackOrder(rows.concat([DEFAULT_ATTACK_ROW])))', 'of rows.concat([DEFAULT_ATTACK_ROW]))'],
+  /* AW-65 carry in (Tyler 2026-11-02): the press sends the count the player picked, and only that. */
+  ['AW-65 Carry sends the whole stack, not the count picked', 'src/shell/carry-in.js', 'carryIntoHunt(ctx.account, cs, row.id, n)', 'carryIntoHunt(ctx.account, cs, row.id, row.max)'],
+  /* AW-65 carry in (Tyler 2026-11-02): what may be offered, when, how many, and the struck slot's words. */
+  ['plans: AW-65 a carry offers gear and loot', 'src/shell/carry-in.js', '  return bag.filter((r) => SUPPLIES[r.id] && r.qty > 0)', '  return bag.filter((r) => r.qty > 0)'],
+  ['plans: AW-65 a hunt on its way home still offers a carry', 'src/shell/carry-in.js', '!s.ended_at && !s.leave_at && !s.change_at', '!s.ended_at'],
+  ['plans: AW-65 one carry offers past the server\'s per-call max', 'src/shell/carry-in.js', 'max: Math.min(r.qty, CARRY_MAX)', 'max: r.qty'],
+  ['plans: AW-65 a rune spell offers no rune of its family', 'src/shell/carry-in.js', '  return !!r && familyCount(r, [{ id, qty: 1 }]) > 0;', '  return false;'],
+  ['plans: AW-65 the loaded shot offers nothing of the worn ammo', 'src/shell/carry-in.js', "return (a.id === 'loaded' ? worn : a.id) === id;", 'return a.id === id;'],
+  ['plans: AW-65 a struck slot never says its stock waits in the bag', 'src/shell/action-facts.js', '  const inPack = (id) => ((pack || []).find((r) => r.id === id) || {}).have || 0;', '  const inPack = () => 0;'],
   ['plans: AW-64 a worn slot with none left is not said', 'src/shell/hunt-go.js', 'const parts = (dry ? [dry] : [])', 'const parts = []'],
   ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '')", "''"],
   ['plans: AW-64 a whetstone reads as a spare arrow', 'src/shell/hunt-go.js', ': carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot', ': carried.filter((r) => r.qty > 0 && ammoPerShot'],

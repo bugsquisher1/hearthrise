@@ -20,12 +20,18 @@
 //   Ready?     every open character's checklist (src/shell/readiness.js), with
 //              what is short in one line. Supplies are never bought here: the
 //              action bar pays the store per use (Tyler 2026-10-20).
+//   Carry in   while this hero hunts (Tyler 2026-11-02, "Yes, add a press"): every
+//              hunt supply in its bag, how many the hunt holds, and "Carry 40":
+//              how many (src/shell/carry-in.js), then ONE hr_hunt_restock.
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
 import { presetsOf } from '../../session/item-sections.js?v=0.2.82';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.82';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.82';
 import { runIntent } from '../intent-words.js?v=0.2.82';
+import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.82';
+import { itemName } from '../widgets/bits.js?v=0.2.82';
+import { whole } from '../../render/format.js?v=0.2.82';
 import { readinessOf, readinessLine } from '../readiness.js?v=0.2.82';
 import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.82';
 import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.82';
@@ -42,6 +48,9 @@ const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: fa
 export function renderHuntPrep() {
   return '<div class="hw-prep">'
     + '<h3 class="hw-ledger-head is-on">Ready to hunt?</h3><ul class="hw-ready"></ul>'
+    + '<h3 class="hw-ledger-head hw-carry-head">Carry into this hunt</h3>'
+    + '<p class="hs-note hw-carry-note" hidden>This hunt uses only the supplies it carries, then buys from the store. What you got after you set out waits in your backpack until you carry it in.</p>'
+    + '<ul class="hw-ledger hw-carry" hidden></ul><p class="hh-empty hw-carry-none"></p>'
     + '<h3 class="hw-ledger-head is-on">Saved setups</h3>'
     + '<p class="hs-note">A setup is a whole loadout: its own action bar and the gear it wears. The bar always shows the setup in use, and changing the bar changes that setup. To make another, save what you have on as a new setup, then change it.</p>'
     + '<ul class="hw-ledger hw-presets"></ul><p class="hh-empty hw-presets-none"></p>'
@@ -83,6 +92,7 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
       });
     },
   });
+  patchCarry(root, ctx, cs, sc);
   const presets = presetsOf(cs);
   const set = settingsOf(cs);
   const h = huntOf(cs);
@@ -116,12 +126,43 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   text(root.querySelector('.hh-intent-msg'), sc.msg || (full && !hunting ? 'All ' + MAX_PRESETS + ' setup slots are used. Delete one to save a new setup.' : ''));
 };
 
+/* CARRY IN (src/shell/carry-in.js): the bag's hunt supplies while this hero hunts, each with the server's two counts. */
+function patchCarry(root, ctx, cs, sc) {
+  const carry = carryRows(cs);
+  cls(root.querySelector('.hw-carry-head'), 'is-on', !!carry);
+  prop(root.querySelector('.hw-carry-note'), 'hidden', !carry);
+  const list = root.querySelector('.hw-carry');
+  prop(list, 'hidden', !carry || !carry.length);
+  rows(list, carry || [], {
+    key: (r) => r.id,
+    build: (r) => element(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span>'
+      + '<button type="button" class="hh-tool" data-hs-act="carry" data-item="' + r.id + '"></button></li>'),
+    patch: (li, r) => {
+      text(li.querySelector('b'), itemName(r.id));
+      text(li.querySelector('small'), whole(r.have) + ' in your backpack · ' + whole(r.inHunt) + ' in this hunt');
+      const b = li.querySelector('button');
+      text(b, 'Carry ' + whole(r.max));
+      attr(b, 'aria-label', carryWords(r));
+      prop(b, 'disabled', sc.pending);
+    },
+  });
+  const none = root.querySelector('.hw-carry-none');
+  cls(none, 'is-on', !!carry && !carry.length);
+  text(none, carry && !carry.length ? 'Nothing in your backpack can be carried into a hunt.' : '');
+}
+
 renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, t) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderHuntPrep.patch(body, ctx);
   if (action === 'rename-key') return renameKey(ctx, ev, t, sc, repaint);
   if (ev.type !== 'click') return false;
+  if (action === 'carry') {
+    const row = (carryRows(cs) || []).find((r) => r.id === t.getAttribute('data-item'));
+    const at = t.getBoundingClientRect();
+    if (row && !sc.pending) askCarry(ctx, body, sc, repaint, row, { x: at.left, y: at.bottom });
+    return true;
+  }
   const preset = Number(t.getAttribute('data-preset'));
   const setup = (presetsOf(cs) || []).find((x) => x.preset === preset);
   if (action !== 'delete' && sc.arming !== null) { sc.arming = null; repaint(); }

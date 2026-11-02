@@ -55,6 +55,14 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     hunting: 'Your hero is out hunting. Dispatch loot works in town.',
     storage_full: 'Storage is full, so nothing was stored. Storage chests in the House (E) make more room.',
   }),
+  /* Carrying supplies into a running hunt (2027-02-21-hunt-carry-in.sql hr_hunt_restock). */
+  hunt_restock: Object.freeze({
+    no_hunt: 'Your hero isn\'t hunting right now, so there is nothing to carry it into.',
+    hunt_leaving: 'Your hero is on the way back to town, so nothing more can be carried in.',
+    too_many_lines: 'This hunt already carries 10 kinds of supplies. You can carry more of a kind it has.',
+    unknown_supply: 'Only food, drinks, ammo and runes can be carried into a hunt.',
+    bad_qty: 'You can carry 1 to 100,000 at a time.',
+  }),
   /* A named fuel in the Great Hearth (2027-01-31-inner-flame.sql hr_hearth_burn): the Hearth is in Havora's square. */
   hearth_burn: Object.freeze({
     hunting: 'Your hero is out hunting. The Great Hearth is in town.',

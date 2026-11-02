@@ -28,6 +28,7 @@ import { ammoPerShot } from '../core/ammo.js?v=0.2.82';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.82';
 import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.82';
 import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.82';
+import { whole } from '../render/format.js?v=0.2.82';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -266,10 +267,15 @@ export function hasShot(set, bag, worn) {
  * `strike` = the server would not fire it at all; a reason without strike
  * (mana short) only waits. Order: the first rule that fails is the one named.
  * `worn` is the worn ammo (the equipment's `ammo`): the attack lane's default shot (hasShot).
+ * `pack` is what a running hunt could carry in from the bag (carry-in.js carryRows: [{ id, have }]), or null: a
+ * stock the hunt is out of but the bag holds says so, and that a press on the slot carries it in (Andy, 2026-11-02).
  */
-export function reasonOf(sl, set, bag, hero, worn) {
+export function reasonOf(sl, set, bag, hero, worn, pack) {
   if (!sl || sl.empty) return null;
   const a = sl.action;
+  /* "N Cooked Shrimp wait in your backpack. Press this slot to carry them in." for what the bag holds, or null. */
+  const waiting = (n) => (n > 0 ? whole(n) + (n === 1 ? ' waits in your backpack. Press this slot to carry it in.' : ' wait in your backpack. Press this slot to carry them in.') : null);
+  const inPack = (id) => ((pack || []).find((r) => r.id === id) || {}).have || 0;
   if (a.type === 'ability') {
     const r = ABILITIES[a.id];
     if (!r) return { code: 'unknown', text: 'The server does not know this ability.', glyph: 'uiLock', strike: true };
@@ -280,7 +286,9 @@ export function reasonOf(sl, set, bag, hero, worn) {
     const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
     if (r.rune && !(familyCount(r.rune, bag) > 0) && !(storeOn && storeOf(a, set && set.store))) {
       const rune = runeWords(r.rune, 1);
-      return { code: 'rune', text: 'Needs ' + (/^[aeiou]/i.test(rune) ? 'an ' : 'a ') + rune + ' for each cast: you carry none. Pick the store’s rune for this slot to buy one as used.', glyph: 'uiChest', strike: true };
+      const packed = waiting(familyCount(r.rune, (pack || []).map((x) => ({ id: x.id, qty: x.have }))));
+      return { code: 'rune', text: 'Needs ' + (/^[aeiou]/i.test(rune) ? 'an ' : 'a ') + rune + ' for each cast: '
+        + (packed ? 'none in this hunt, and ' + packed : 'you carry none. Pick the store’s rune for this slot to buy one as used.'), glyph: 'uiChest', strike: true };
     }
     if (r.ammo > 0 && set && !hasShot(set, bag, worn)) {
       return { code: 'ammo', text: 'Nothing loaded to shoot. Put arrows or bolts on the bar (Ammo): this spell casts them.', glyph: 'uiChest', strike: true };
@@ -291,7 +299,11 @@ export function reasonOf(sl, set, bag, hero, worn) {
   }
   /* A food or drink's struck state is the SERVER's (hr_hunt_settings_view `usable` + `why`), never the browser's own count. */
   if (a.type === 'consume' && sl.usable === false) {
-    if (sl.why === 'none_left') return { code: 'none_left', text: 'None left: you carry no ' + itemName(a.id) + '. The next food or drink slot fires instead.', glyph: 'uiChest', strike: true };
+    if (sl.why === 'none_left') {
+      const packed = waiting(inPack(a.id));
+      return { code: 'none_left', text: packed ? 'None in this hunt: ' + packed.replace(/^([\d,]+)/, '$1 ' + itemName(a.id))
+        : 'None left: you carry no ' + itemName(a.id) + '. The next food or drink slot fires instead.', glyph: 'uiChest', strike: true };
+    }
     if (sl.why === 'store_off') return { code: 'store_off', text: 'This hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
   }
   /* An attack item the worn weapon cannot shoot never fires (the engine passes it over: damage.js pickShot). */
@@ -304,6 +316,8 @@ export function reasonOf(sl, set, bag, hero, worn) {
   const st = storeOf(a, set && set.store);
   const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
   if (st && storeOn) return null;
+  const packed = waiting(inPack(a.id));
+  if (packed) return { code: 'stock', text: 'None in this hunt: ' + packed.replace(/^([\d,]+)/, '$1 ' + itemName(a.id)), glyph: 'uiChest', strike: true };
   if (st) return { code: 'store_off', text: 'Out of stock, and this hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
   return { code: 'stock', text: 'Out of stock, and the store does not sell it.', glyph: 'uiChest', strike: true };
 }

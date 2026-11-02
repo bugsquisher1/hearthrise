@@ -9,6 +9,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Your own food and drink.** Putting your own food or drink on the bar now puts it ahead of the store's, so a hunt spends yours first.
 
+**Heroes keep working.** A hero gathering or crafting while you're away now keeps earning without waiting for you to come back. A bug could leave a hero stuck until you returned; that's fixed.
+
 **You'll see messages.** Private messages and friend requests now pop up when they arrive.
 
 **The leader picks the hunt.** A party member's Hunt again no longer starts a new hunt for the party. A member can still go back into a hunt the party is on.

@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: a1dbf5e74916e1b9e6138191f8b792dad6ed2d216ece362bb5dd2a1c1d4980dd
+--   catalogue digest: 4c1284b80338e99ca2499bb8f8165c1d93ad5bdc6b38f1ee2319b70b2639c01e
 --   rows: 572 items (6 untradeable) ·
 --         324 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 345 activities ·
@@ -228,7 +228,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('archmage_pants','Archmage Robe Bottom',true,'armor',20020,'level',75,null,false,'light',false),
   ('ashcrown_greatsword','Ashcrown Greatsword',true,'weapon',40000,'level',65,null,false,null,false),
   ('baked_potato','Baked Potato',true,null,150,null,null,240,true,null,false),
-  ('banded_signet','Banded Signet',true,'jewelry',260,'level',14,null,false,null,false),
+  ('banded_signet','Banded Signet',true,'jewelry',260,'level',15,null,false,null,false),
   ('barbed_arrows','Barbed Arrows',true,'ammo',1,'ranged',15,null,false,null,false),
   ('barn_wasp_sting','Barn Wasp Sting',true,null,22,null,null,null,false,null,false),
   ('barrowking_mantle','Barrow-King''s Mantle',true,'armor',1700,'level',52,null,false,null,false),
@@ -401,7 +401,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('etched_poison_rune','Etched Poison Rune',true,'ammo',1,'magic',30,null,false,null,false),
   ('etched_rupture_rune','Etched Rupture Rune',true,'ammo',1,'magic',30,null,false,null,false),
   ('etched_water_rune','Etched Water Rune',true,'ammo',1,'magic',30,null,false,null,false),
-  ('fang_studs','Fang Studs',true,'jewelry',130,'level',14,null,false,null,false),
+  ('fang_studs','Fang Studs',true,'jewelry',130,'level',15,null,false,null,false),
   ('fangdart_recurve','Fangdart Recurve',true,'weapon',7200,'level',36,null,false,null,true),
   ('field_cookbook','Field Cookbook',true,null,0,null,null,null,false,null,false),
   ('field_ration','Field Ration',true,null,90,null,null,null,false,null,false),
@@ -748,7 +748,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('willow_staff','Willow Staff',true,'weapon',500,'level',30,null,false,null,true),
   ('willow_wand','Willow Wand',true,'weapon',450,'level',30,null,false,null,false),
   ('wolf_pelt','Wolf Pelt',true,null,35,null,null,null,false,null,false),
-  ('wolfbone_torc','Wolfbone Torc',true,'jewelry',260,'level',12,null,false,null,false),
+  ('wolfbone_torc','Wolfbone Torc',true,'jewelry',260,'level',15,null,false,null,false),
   ('woolen_cloak','Woollen Cloak',true,'armor',145,'level',12,null,false,null,false),
   ('worldroot_seed','Worldroot Seed',false,'trophy',0,null,null,null,false,null,false),
   ('wraith_veil','Wraith Veil',true,null,420,null,null,null,false,null,false),
@@ -2036,7 +2036,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'a1dbf5e74916e1b9e6138191f8b792dad6ed2d216ece362bb5dd2a1c1d4980dd', now())
+  values (true, '4c1284b80338e99ca2499bb8f8165c1d93ad5bdc6b38f1ee2319b70b2639c01e', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2256,7 +2256,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest a1dbf5e74916e1b9e6138191f8b792dad6ed2d216ece362bb5dd2a1c1d4980dd',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 4c1284b80338e99ca2499bb8f8165c1d93ad5bdc6b38f1ee2319b70b2639c01e',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

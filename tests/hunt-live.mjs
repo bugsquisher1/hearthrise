@@ -339,7 +339,8 @@ function rules(M) {
 
   { // LV-U: THE LEVEL GAP, VIEWED (Tyler 2026-11-02): heroes under the Glade's floor, the viewer and a peer whose browser row holds only frozen numbers: the
     // server's harder blows are predicted swing for swing. The closed-browser half is first-week-bands level-gap (one 10 minute cut against 10 s settles).
-    const mis = [memberOf(M, 'a', 0, 'melee_dps', 8), memberOf(M, 'b', 1, 'tank', 8)];
+    const mis = [memberOf(M, 'a', 0, 'melee_dps', 12), memberOf(M, 'b', 1, 'tank', 12)];
+    for (const mi of mis) { mi.huntId = 'mosslight_glade'; mi.equipment = Object.assign({}, mi.equipment, { helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' }); }
     let hits = 0;
     const r = run(M, mis, 96000, { server: { hunt: 'mosslight_glade', id: 'i-live' }, onCommit: ({ c }) => { hits += c.tl.hunt_events.filter((e) => e.type === 'dmg' && e.t === mis[1].unitId).length; } });
     const bad = r.verdicts.filter((x) => x.v !== 'match');
@@ -721,6 +722,8 @@ function rules(M) {
     const mk = () => [['a', 'tank', null], ['b', 'melee_dps', 'follow'], ['c', 'melee_dps', 'strongest']].map(([user, role, mode], i) => {
       const mi = memberOf(M, user, i, role, 30);
       mi.huntId = hunt;
+      /* THE STEEL A LEVEL 30 HERO WEARS (Tyler's harder Glade, 2026-11-02): in the practice set the tank now dies at 8 each and the span ends */
+      mi.equipment = Object.assign({}, mi.equipment, { helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' });
       mi.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: role === 'tank' ? 'sword' : 'hammer', options: mode ? { target_mode: mode } : {},
         bar: [], partyRoles: ['tank', 'melee_dps', 'melee_dps'], lead: i === 0 }), { density: 8 });
       return mi;
@@ -1246,7 +1249,8 @@ function rules(M) {
     const pullOf = (s) => M.WS.decodeStored(JSON.parse(s.inst.world)).density;
     const closedPull = pullOf(closed), viewedPull = pullOf(r.srv);
     console.log('  LV-CLASS pull: density ' + closedPull + ' / ' + viewedPull + ', XP closed ' + closedXp + ', viewed ' + viewedXp + ', ' + off + ' commits off');
-    ok('LV-CLASS', closedPull === 3 && viewedPull === 3, 'pull: a Thicket pair with no pick stands at density ' + closedPull + ' closed, ' + viewedPull + ' viewed, want 3');
+    const pairPull = M.HG.huntGroundOf('meadowbrook_thicket').ground.partyPull[1];
+    ok('LV-CLASS', closedPull === pairPull && viewedPull === pairPull, 'pull: a Thicket pair with no pick stands at density ' + closedPull + ' closed, ' + viewedPull + ' viewed, want ' + pairPull);
     ok('LV-CLASS', closedXp.join() === viewedXp.join() && closedXp.every((x) => x > 0), 'pull: viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
     ok('LV-CLASS', off === 0, 'pull: ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
   }

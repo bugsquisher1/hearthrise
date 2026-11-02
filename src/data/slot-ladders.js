@@ -93,7 +93,7 @@ export const SLOT_ITEMS = {
      `level < req_lv`); it states the lane's requirement so the column is non-NULL across
      all seven rungs and the server has one shape to read. */
   copper_studs:        { n: 'Copper Studs',        icon: '💎', v: priced(100, 1), type: 'jewelry', slot: 'earrings', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 1,  defB: 1, critB: 0.005 },
-  fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 18, defB: 2, critB: 0.01 },
+  fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 14, defB: 2, critB: 0.01 },
   spidereye_studs:     { n: 'Spider-Eye Studs',    icon: '💎', v: priced(100, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 34, defB: 3, critB: 0.015, strB: 2 },
   wraithglass_drops:   { n: 'Wraithglass Drops',   icon: '💎', v: priced(100, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50, defB: 4, critB: 0.02,  strB: 3 },
   rubyfire_studs:      { n: 'Rubyfire Studs',      icon: '💎', v: priced(100, 5), type: 'jewelry', slot: 'earrings', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 66, defB: 5, critB: 0.025, strB: 3 },
@@ -134,7 +134,7 @@ export const SLOT_ITEMS = {
   dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'level', reqLv: 88, defB: 30, strB: 3, critB: 0.01 },
 
   /* ══ NECKLACE — accuracy low, damage high ═══════════════════════════════ */
-  wolfbone_torc:     { n: 'Wolfbone Torc',     icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 16, atkB: 3, defB: 2 },
+  wolfbone_torc:     { n: 'Wolfbone Torc',     icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 12, atkB: 3, defB: 2 },
   spidersilk_choker: { n: 'Spidersilk Choker', icon: '📿', v: priced(200, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare',     reqSkill: 'level', reqLv: 34, atkB: 5, critB: 0.01 },
   warlords_torc:     { n: "Warlord's Torc",    icon: '📿', v: priced(200, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic',     reqSkill: 'level', reqLv: 52, atkB: 6, strB: 5, defB: 3 },
   dawnbound_amulet:  { n: 'Dawnbound Amulet',  icon: '📿', v: priced(200, 7), type: 'jewelry', slot: 'necklace', tier: 7, rarity: 'mythic',   reqSkill: 'level', reqLv: 86, atkB: 8, strB: 7, defB: 4 },
@@ -142,7 +142,7 @@ export const SLOT_ITEMS = {
   /* ══ RING — the hybrid, and remember BOTH ring slots take one ═══════════
      Every number here is doubled in practice (ring1 + ring2), which is why the
      ring rungs are roughly half the necklace's.                             */
-  banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 18, atkB: 2, strB: 2 },
+  banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 14, atkB: 2, strB: 2 },
   ruby_signet:       { n: 'Ruby Signet',       icon: '💍', v: priced(200, 5), type: 'jewelry', slot: 'ring', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 52, atkB: 4, strB: 4, critB: 0.01 },
   /* The second scroll the code has been waiting for: `spellstone_diagram` →
      `spellstone_ring`, same b145 note, same three steps. Magic-flavoured

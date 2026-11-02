@@ -251,6 +251,95 @@ export function buildPlan(name, axes, scale = 1) {
     for (const c of cells) for (const [x, whatIf] of VARIANTS) out.push({ ...cellOf({ ...c, x }), ...(whatIf ? { whatIf } : {}) });
     return out;
   }
+  if (name === 'b1102a') {
+    /* LANE b-rulings-1102, Tyler's "harder monsters": the search for the smallest change, in the sim only. Every monster's atk
+       (accuracy and blow) x m: kill speed and yield do not read it, so XP/h should hold. A ground's floor and top, Level kit,
+       as built, five ways to fight. x=A100 is today. */
+    for (const [ground, levels] of [['mosslight_glade', [16, 31]], ['wickstead', [8, 18]], ['meadowbrook_thicket', [5, 15]]]) for (const level of levels) for (const party of [['tank'], ['hammer'], ['bow'], ['mage'], ['healer']]) {
+      for (const m of [1, 1.5, 2, 2.5, 3]) {
+        const x = 'A' + Math.round(m * 100);
+        out.push({ ...cellOf({ ground, party, level, hours: H(1), seeds: 2, x }), ...(m > 1 ? { whatIf: { monsters: { '*': { atk: '*' + m } } } } : {}) });
+      }
+    }
+    return out;
+  }
+  if (name === 'b1102b') {
+    /* Round 2: blows make the spikes (light armor's close calls at atk x2), so hit MORE OFTEN instead: the monsters' base accuracy (src/core
+       combat.js monsterBaseAccuracy, cap monsterMaxAccuracy), alone and with a smaller atk step. No blow gets bigger at B alone. */
+    const V = [[65, 1], [80, 1], [65, 1.5], [80, 1.25], [80, 1.5]];
+    for (const [ground, levels] of [['mosslight_glade', [16, 24]], ['wickstead', [8]], ['meadowbrook_thicket', [5]]]) for (const level of levels) for (const party of [['tank'], ['hammer'], ['bow'], ['mage'], ['healer']]) {
+      for (const [b, m] of V) {
+        out.push({ ...cellOf({ ground, party, level, hours: H(1), seeds: 2, x: 'B' + b + 'A' + Math.round(m * 100) }), whatIf: { combat: { monsterBaseAccuracy: b / 100 }, ...(m > 1 ? { monsters: { '*': { atk: '*' + m } } } : {}) } });
+      }
+    }
+    return out;
+  }
+  if (name === 'b1102c') {
+    /* Round 3: the candidate every hold-rule allows. Base accuracy 0.80 everywhere (no blow gets bigger; light armor's close calls stay near today),
+       atk by ground. The level gap is live in this tree. x=C0 is today's numbers (with the gap), x=C1 the candidate. */
+    const ATK = { mill_cellar: 1, meadowbrook_thicket: 1.25, wickstead: 1.5, millrace_sewer: 1.25, mosslight_glade: 1.5, coppercap_warrens: 1 };
+    const FIVE = [['tank'], ['hammer'], ['bow'], ['mage'], ['healer']];
+    const FOUR = PARTIES.four;
+    const cells = [];
+    for (const [ground, L] of [['meadowbrook_thicket', 5], ['meadowbrook_thicket', 10], ['wickstead', 8], ['wickstead', 13], ['mosslight_glade', 16], ['mosslight_glade', 24]]) for (const party of FIVE) cells.push({ ground, party, level: L });
+    for (const [ground, L] of [['mill_cellar', 1], ['meadowbrook_thicket', 5], ['wickstead', 8]]) for (const party of FIVE) cells.push({ ground, party, level: L, gear: { starter: true } });
+    for (const [ground, L] of [['wickstead', 13], ['mosslight_glade', 16], ['mosslight_glade', 24]]) for (const party of [['tank'], ['hammer'], ['mage']]) cells.push({ ground, party, level: L, density: 8 });
+    for (const [ground, L] of [['millrace_sewer', 8], ['millrace_sewer', 17], ['coppercap_warrens', 32], ['meadowbrook_thicket', 7]]) cells.push({ ground, party: FOUR, level: L });
+    cells.push({ ground: 'millrace_sewer', party: PARTIES.duo, level: 8, gear: { starter: true } });
+    cells.push({ ground: 'mosslight_glade', party: FOUR, level: 7 }, { ground: 'mosslight_glade', party: ['tank'], level: 7 }, { ground: 'mosslight_glade', party: ['hammer'], level: 7 }, { ground: 'mosslight_glade', party: ['tank'], level: 12 });
+    const go = (c, x, extra) => { const m = ATK[c.ground]; return { ...cellOf({ hours: H(1), seeds: 2, ...c, ...extra, x }), ...(x === 'C1' ? { whatIf: { combat: { monsterBaseAccuracy: 0.8 }, ...(m > 1 ? { monsters: { '*': { atk: '*' + m } } } : {}) } } : {}) }; };
+    for (const c of cells) for (const x of ['C1', 'C0']) out.push(go(c, x));
+    /* twelve-hour hunts, the unattended bound, the candidate only */
+    for (const [ground, party, L, gear] of [['meadowbrook_thicket', ['healer'], 5, { starter: true }], ['wickstead', ['bow'], 8, null], ['mosslight_glade', ['mage'], 16, null], ['mosslight_glade', ['tank'], 16, null]]) {
+      out.push(go({ ground, party, level: L, gear, hours: H(24), seeds: 2, segmentH: 12 }, 'C1'));
+    }
+    return out;
+  }
+  if (name === 'b1102d') {
+    /* Can the FIRST grounds reach 60-80 at all? Fights that last far longer (HP x3, x5) with the same accuracy step and bigger blows. What it costs in kills, and who dies. */
+    for (const [ground, L, gear] of [['meadowbrook_thicket', 5, { starter: true }], ['meadowbrook_thicket', 10, null], ['wickstead', 8, { starter: true }], ['wickstead', 13, null], ['mosslight_glade', 24, null]]) {
+      for (const party of [['tank'], ['hammer'], ['bow'], ['mage'], ['healer']]) for (const [x, hp, atk] of [['D3a15', 3, 1.5], ['D3a20', 3, 2], ['D5a15', 5, 1.5], ['D5a20', 5, 2]]) {
+        out.push({ ...cellOf({ ground, party, level: L, gear, hours: H(1), seeds: 2, x }), whatIf: { combat: { monsterBaseAccuracy: 0.8 }, monsters: { '*': { hp: '*' + hp, atk: '*' + atk } } } });
+      }
+    }
+    return out;
+  }
+  if (name === 'b1102e') {
+    /* Round 4: per ground, since a global accuracy step breaks the first hour (Thicket L5 practice tank: 2 deaths in 2 h). The Glade's three candidates, floor to top, as built
+       and at 8 each; Wickstead's two lighter ones with the practice set; the party grounds at the accuracy step alone. */
+    const V = (b, m) => ({ whatIf: { combat: { monsterBaseAccuracy: b / 100 }, ...(m > 1 ? { monsters: { '*': { atk: '*' + m } } } : {}) } });
+    const FIVE = [['tank'], ['hammer'], ['bow'], ['mage'], ['healer']];
+    for (const [b, m] of [[80, 1.25], [80, 1.5], [65, 1.5]]) {
+      const x = 'E' + b + 'a' + Math.round(m * 100);
+      for (const L of [16, 24, 31]) for (const party of FIVE) out.push({ ...cellOf({ ground: 'mosslight_glade', party, level: L, hours: H(2), seeds: 2, x }), ...V(b, m) });
+      for (const L of [16, 24, 31]) for (const party of [['tank'], ['hammer'], ['mage']]) for (const density of [4, 8]) out.push({ ...cellOf({ ground: 'mosslight_glade', party, level: L, density, hours: H(1), seeds: 2, x }), ...V(b, m) });
+    }
+    for (const [b, m] of [[65, 1.25], [65, 1.5]]) {
+      const x = 'E' + b + 'a' + Math.round(m * 100);
+      for (const party of FIVE) {
+        out.push({ ...cellOf({ ground: 'wickstead', party, level: 8, gear: { starter: true }, hours: H(1), seeds: 2, x }), ...V(b, m) });
+        out.push({ ...cellOf({ ground: 'wickstead', party, level: 8, hours: H(1), seeds: 2, x }), ...V(b, m) });
+      }
+      for (const L of [13, 18]) out.push({ ...cellOf({ ground: 'wickstead', party: ['tank'], level: L, hours: H(1), seeds: 2, x }), ...V(b, m) });
+    }
+    /* the unattended bound on the lighter Glade candidate: twelve-hour hunts at its floor */
+    for (const party of FIVE) out.push({ ...cellOf({ ground: 'mosslight_glade', party, level: 16, hours: H(24), seeds: 2, segmentH: 12, x: 'EL80a125' }), ...V(80, 1.25) });
+    for (const [ground, level] of [['millrace_sewer', 8], ['millrace_sewer', 17], ['coppercap_warrens', 32], ['coppercap_warrens', 41]]) for (const b of [65, 80]) {
+      out.push({ ...cellOf({ ground, party: PARTIES.four, level, hours: H(1), seeds: 2, x: 'E' + b + 'a100' }), ...V(b, 1) });
+    }
+    return out;
+  }
+  if (name === 'b1102p') {
+    /* The Party window's "about N% more Level XP each than alone": every ground x party size x class count, against the same heroes alone, at the default pull. */
+    const coarse = { windowMs: 120000 };
+    const COMP = [['tank', 'tank'], ['tank', 'healer'], ['tank', 'tank', 'tank'], ['tank', 'tank', 'healer'], ['tank', 'bow', 'healer'],
+      ['tank', 'tank', 'tank', 'tank'], ['tank', 'tank', 'bow', 'bow'], ['tank', 'tank', 'bow', 'healer'], ['tank', 'healer', 'bow', 'mage']];
+    for (const [ground, level] of [['meadowbrook_thicket', 10], ['wickstead', 13], ['mosslight_glade', 24], ['millrace_sewer', 17], ['mill_cellar', 4], ['coppercap_warrens', 41]]) {
+      for (const s of ['tank', 'bow', 'mage', 'healer']) out.push({ ...cellOf({ ground, party: [s], level, hours: H(1), seeds: 2, x: 'Q' }), ...coarse });
+      for (const party of COMP) out.push({ ...cellOf({ ground, party, level, hours: H(1), seeds: 2, x: 'Q' }), ...coarse });
+    }
+    return out;
+  }
   if (name === 'b1120f') {
     /* The friends' blind party (lane f5-friends, v0.2.82): a mixed three in the Mill Cellar against the same heroes alone, the same three at
        the party's pull alone (the pull's share of the gain), and one class at the party's pull (the bonus's share: same pull, same dice). */

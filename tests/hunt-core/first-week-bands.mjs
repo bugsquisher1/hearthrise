@@ -19,6 +19,9 @@
 //                  die. Each claim is played here against the ground that fits: a balance change that makes one false turns this red.
 //   bigger-pulls-words  the Hunts window's "Bigger pulls pay more once your heroes can hold them", played: a Level 18 hero in Wickstead at 8 each
 //                  against as built, and a fresh one who cannot hold them (it dips, and its food bill eats the gain).
+//   level-gap      under a floor the XP stays and the gold goes, and a watched hunt and a closed browser walk the same swings.
+//   vs-alone       the Party window's measured line against a full mix on two grounds.
+//   before-bonuses the analyzer's "before bonuses" is the even share, not what was paid.
 //   THE BARS (per hero): no death; coin + commons at least +25% over the store bill (Tyler 10-20, a minimum); Level XP
 //   an hour at least half the pace of record at that Level (level-pace.json: a way to fight that cannot clear the ground
 //   earns nothing near it). ALONE: no dip under 25% HP (a close call; the ruling allows one per 12 h, and the first
@@ -52,6 +55,7 @@ const { recommendedHunt } = await import(pathToFileURL(join(ROOT, 'src/shell/hun
 const G = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href + V);
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href + V);
 const HL = await import(pathToFileURL(join(ROOT, 'src/shell/hunt-list.js')).href + V);
+const PCX = await import(pathToFileURL(join(ROOT, 'src/data/party-class-xp.js')).href + V);
 const groundOf = (hunt) => Object.values(G.OPEN_GROUNDS).find((g) => g.hunt === hunt).id;
 const SOLO = [...new Set(Array.from({ length: 15 }, (_, i) => recommendedHunt([i + 1], 1)).filter(Boolean).map((r) => r.hunt))].map(groundOf);
 const PAIR = Array.from({ length: 25 }, (_, i) => recommendedHunt([i + 1, i + 1], 2)).filter(Boolean).map((r) => groundOf(r.hunt)).find((g) => !SOLO.includes(g));
@@ -121,11 +125,65 @@ cases['bigger-pulls-words'] = (R) => {
   if (!(fresh.profitPerH < big.profitPerH / 2)) return 'a fresh hero who cannot hold 8 nets ' + fresh.profitPerH + ' g/h against ' + big.profitPerH + ': the words say "once your heroes can hold them"';
   return null;
 };
+/* THE LEVEL GAP (Tyler 2026-11-02, his 10-18 "waste hunt"): under a floor the XP stays and the gold goes, BOTH PATHS. "Viewed" settles every 10 s, as a watched
+   hunt does; "browser closed" settles the same span in one 10-minute cut. The swings must match (TICK-1), because a Level gained counts from the next swing either way. */
+cases['level-gap'] = (R) => {
+  const glade = G.OPEN_GROUNDS.mosslight_glade;
+  for (const [L, pm] of [[7, 1450], [15, 1050], [16, 1000], [40, 1000], [undefined, 1000]]) if (G.underFloorPm(glade, L) !== pm) return 'underFloorPm at Level ' + L + ' reads ' + G.underFloorPm(glade, L) + ', not ' + pm;
+  const play = (ground, level, windowMs) => R.runCell({ id: 'gap:' + ground + ':' + level + ':' + windowMs, ground, party: ['tank'], level, hours: 1, seeds: 1, ...(windowMs ? { windowMs } : {}) }).heroes[0];
+  const viewed = play(glade.id, 7, 10000), closed = play(glade.id, 7, 600000);
+  for (const k of ['levelXpPerH', 'takenPerH', 'storePerH', 'coinPerH']) if (viewed[k] !== closed[k]) return k + ': viewed ' + viewed[k] + ', browser closed ' + closed[k];
+  const fits = play(G.OPEN_GROUNDS.meadowbrook_thicket.id, 7);
+  if (!(viewed.levelXpPerH > fits.levelXpPerH * 1.5)) return 'under the floor pays ' + viewed.levelXpPerH + ' XP/h against ' + fits.levelXpPerH + ': the ruling keeps the higher XP';
+  if (!(viewed.profitPerH < fits.profitPerH * 0.5)) return 'under the floor nets ' + viewed.profitPerH + ' g/h against ' + fits.profitPerH + ': the ruling says it loses gold';
+  return null;
+};
+
+/* "LEVEL XP BEFORE BONUSES" IS THE EVEN SHARE (blind party test 2026-11-01: it always equalled what was paid). A mixed party was paid above it, a one-class
+   Sewer party under it; alone the two are one number. Both paths: the same totals in 30 s and 10 min cuts. */
+cases['before-bonuses'] = () => {
+  const totals = (ground, roles, windowMs) => {
+    const sum = { raw: 0, paid: 0 };
+    PLAY.run(ground, 17, roles, { spanMs: 1800000, windowMs, onWindow: (out) => { for (const p of out.members) { sum.raw += (p.hunt.raw_xp && p.hunt.raw_xp.level) || 0; sum.paid += p.delta.level_xp || 0; } } });
+    return sum;
+  };
+  const mixed = totals('wickstead', ['tank', 'healer'], 30000);
+  if (!(mixed.raw > 0 && mixed.paid > mixed.raw)) return 'a mixed party was paid ' + mixed.paid + ' on a share of ' + mixed.raw;
+  const again = totals('wickstead', ['tank', 'healer'], 600000);
+  if (again.raw !== mixed.raw || again.paid !== mixed.paid) return 'browser closed reads ' + JSON.stringify(again) + ', viewed ' + JSON.stringify(mixed);
+  const cut = totals('millrace_sewer', ['tank', 'tank'], 30000);
+  if (!(cut.paid < cut.raw)) return 'a one-class Sewer party was paid ' + cut.paid + ' on a share of ' + cut.raw;
+  const lone = totals('wickstead', ['tank'], 30000);
+  if (Math.abs(lone.raw - lone.paid) > lone.paid * 0.01) return 'a lone hero reads ' + lone.raw + ' before bonuses and ' + lone.paid + ' paid';
+  return null;
+};
+
+/* THE PARTY WINDOW'S LINE IS MEASURED (designer 2026-11-02): the full mix against the same heroes alone, within 10 points of what the window says. */
+cases['vs-alone'] = (R) => {
+  const lone = (g, s, L) => R.runCell({ id: 'va:' + g + ':' + s, ground: g, party: [s], level: L, hours: 0.5, seeds: 1, windowMs: 120000 }).heroes[0].levelXpPerH;
+  const MIX = ['tank', 'healer', 'bow', 'mage'];
+  for (const [g, L, roles] of [['meadowbrook_thicket', 10, ['tank', 'healer', 'ranger', 'mage']], ['mosslight_glade', 24, ['tank', 'healer', 'ranger', 'mage']]]) {
+    const hs = R.runCell({ id: 'va:' + g, ground: g, party: MIX, level: L, hours: 0.5, seeds: 2, windowMs: 120000 }).heroes;
+    const each = hs.reduce((s, h) => s + h.levelXpPerH, 0) / hs.length, alone = MIX.reduce((s, x) => s + lone(g, x, L), 0) / MIX.length;
+    const got = Math.round((each / alone - 1) * 100), said = PCX.partyVsAlone(g, roles);
+    if (Math.abs(got - said) > 10) return g + ': a full mix measures ' + got + '% against alone, and the Party window says ' + said + '%';
+  }
+  return null;
+};
+
 const GLADE_SOFT = [['hp: 30, atk: 10, def: 1, xp: 165', 'hp: 30, atk: 2, def: 1, xp: 165'], ['hp: 32, atk: 12, def: 2, xp: 225', 'hp: 32, atk: 2, def: 2, xp: 225'],
   ['hp: 35, atk: 9, def: 4, xp: 260', 'hp: 35, atk: 2, def: 4, xp: 260'], ['hp: 70, atk: 18, def: 10, xp: 360', 'hp: 70, atk: 2, def: 10, xp: 360'],
   ['hp: 78, atk: 18, def: 11, xp: 520', 'hp: 78, atk: 2, def: 11, xp: 520'], ['hp: 74, atk: 18, def: 8, xp: 420', 'hp: 74, atk: 2, def: 8, xp: 420']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
+  { name: 'the level gap never reaches the blow: under a floor costs no gold', case: 'level-gap',
+    edits: [['src/core/hunt/damage.js', "const gap = t.side === 'hero' ? underFloorPm(inst.ground, t.heroLv) : 1000;", 'const gap = 1000;']] },
+  { name: 'the Level is read once and kept: a cut changes the swings', case: 'level-gap',
+    edits: [['src/core/combat-sim.js', 'u.heroLv = snap.level;', 'u.heroLv = u.heroLv || snap.level;']] },
+  { name: 'the Thicket pays the old 1.52 on its wider pull, and the window still says 20%', case: 'vs-alone',
+    edits: [['src/data/party-class-xp.js', 'row([1000, 1290], [1000, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([1000, 1290], [1000, 1180, 1310], [1000, 1210, 1260, 1520])']] },
+  { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
+    edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',
     edits: [['src/data/hunt-grounds.js', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = 1;']] },
   { name: 'the Glade\'s crows and vines bite no harder than Wickstead\'s rats, and the words still say harder', case: 'above-your-level-words',
@@ -150,6 +208,8 @@ const mutants = [
 
 const R = makeReport('hunt-core/first-week-bands');
 const RUN = await loadCellRunner(ROOT);
+const { loadPlay } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+let PLAY = await loadPlay(ROOT);
 for (const [cn, fn] of Object.entries(cases)) {
   let why = null;
   try { why = fn(RUN); } catch (e) { why = 'threw ' + (e && e.stack || e); }
@@ -160,7 +220,8 @@ for (const mu of mutants) {
   const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
   try {
     let why = null;
-    try { why = cases[mu.case](await loadCellRunner(p.root)); } catch (e) { why = 'threw ' + e.message; }
+    const home = PLAY;
+    try { PLAY = await loadPlay(p.root); why = cases[mu.case](await loadCellRunner(p.root)); } catch (e) { why = 'threw ' + e.message; } finally { PLAY = home; }
     R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
   } finally { p.done(); }

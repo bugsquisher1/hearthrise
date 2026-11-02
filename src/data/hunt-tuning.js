@@ -50,6 +50,10 @@ export const HUNT_TUNING = Object.freeze({
      earlier than the last of them (2026-10-31-live-horizon.sql c_horizon_ms = liveSeeds x tickMs,
      pinned by tests/hunt-live.mjs LV-H). */
   liveSeeds: 16,
+  /* THE LEVEL GAP (Tyler 2026-11-02, his 10-18 "waste hunt" made true): a hero under a ground's floor takes every monster's blow at
+     atk x (1 + this permille x Levels under the floor), accuracy and blow both. In band nothing moves. hunt-grounds.js underFloorPm is
+     the one reader. Calibrated on the real engine (board 2026-11-02): at 50 a lone Level 7 in the Glade pays for its XP in food. */
+  underFloorAtkPm: 50,
 });
 
 /** Every problem with the table, as strings. Empty = valid. */
@@ -58,7 +62,7 @@ export function validate() {
   const T = HUNT_TUNING;
   const posInt = (k, v) => { if (!Number.isInteger(v) || v <= 0) out.push(k + ' must be a positive integer, got ' + v); };
   for (const k of ['stepMs', 'pathNodeCap', 'blockedRepathMs', 'blockedAvoidRadius', 'trailLen',
-    'trailSpacing', 'followRepathMs', 'oocRegenPermillePerS', 'corpseMs', 'regroupMs', 'regroupRadius', 'worldMaxBytes', 'liveSeeds']) posInt(k, T[k]);
+    'trailSpacing', 'followRepathMs', 'oocRegenPermillePerS', 'corpseMs', 'regroupMs', 'regroupRadius', 'worldMaxBytes', 'liveSeeds', 'underFloorAtkPm']) posInt(k, T[k]);
   posInt('stepCost.straight', T.stepCost.straight);
   posInt('stepCost.diagonal', T.stepCost.diagonal);
   if (!Number.isInteger(T.leashMarginDefault) || T.leashMarginDefault < 0) out.push('leashMarginDefault must be an integer >= 0');

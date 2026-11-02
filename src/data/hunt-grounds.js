@@ -216,7 +216,7 @@ export const HUNT_GROUNDS = Object.freeze({
   meadowbrook_thicket: Object.freeze({
     id: 'meadowbrook_thicket', hunt: 'meadowbrook_thicket', map: 'meadowbrook_thicket',
     /* the meadow path in from the west */
-    start: Object.freeze([[1, 19], [1, 18]]),
+    start: Object.freeze([[1, 19], [1, 18], [2, 19], [1, 20]]),
     pockets: Object.freeze([
       /* P0 Woodcutters' Clearing: whelps, the first lesson */
       box([5, 13, 21, 24], [15, 19], ['gray_whelp', 'gray_whelp'], ['gray_wolf', 'gray_whelp', 'gray_whelp', 'gray_wolf', 'gray_whelp', 'gray_whelp']),
@@ -232,14 +232,18 @@ export const HUNT_GROUNDS = Object.freeze({
       box([3, 27, 20, 38], [10, 33], ['gray_wolf', 'gray_whelp'], ['briarcoat_wolf', 'gray_whelp', 'gray_wolf', 'gray_whelp', 'briarcoat_wolf', 'gray_whelp']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
+    respawnMs: 60000, pullDist: 1.5, partyScale: true,
+    /* 'both' (designer 2026-11-02, lane/b-rulings-1102): a new party was held in the Cellar until the Sewer's floor at 8, Level 8 at
+       5.4 h against 2.0-2.7 h alone. Advice only; a pair and a four go on to the Sewer at 8. */
+    groupFit: 'both',
     /* integration v0.2.1: the engine's density (densityFor) reads densityMax, which every ground
        holds at the full box at least (the action engine ruling); the slider caps below are the
        designer's and wait on densityCapFor being wired (CONFLICTS.md 2026-10-18 density). */
     densityMax: Object.freeze([8, 8, 8, 8]),
     /* a solo hero may pull up to 6, a pair the full box */
     density: density(6, 2, 8),
-    partyPull: Object.freeze([0, 3, 3, 4]),
+    /* Tyler 2026-11-02: widen the Thicket's party pull so same-weapon friends lose less (was [0, 3, 3, 4]: 0.69-0.84 per head). */
+    partyPull: Object.freeze([0, 4, 5, 6]),
     gather: gather(9000, [
       /* P0 the woodcutters' clearing: the first logs, by the trailhead */
       ['normal_tree', 6, 16, 0], ['normal_tree', 17, 14, 0], ['normal_tree', 18, 23, 0], ['normal_tree', 8, 22, 0],
@@ -482,6 +486,14 @@ export function partyPick(heroes) {
   const lead = list.find((h) => h.lead === true)
     || list.slice().sort((a, b) => (Number(a.seat) || 0) - (Number(b.seat) || 0))[0];
   return lead && Number.isInteger(lead.density) && lead.density > 0 ? lead.density : 0;
+}
+
+/** THE LEVEL GAP (hunt-tuning.js underFloorAtkPm): the permille of a monster's atk a hero of `level` meets on `ground`: 1000 in band or
+    above it, and for a unit whose Level the engine was not told (a bare fixture). Read per blow, so a Level gained counts at once. */
+export function underFloorPm(ground, level) {
+  const band = ground && HUNT_INDEX[ground.hunt] && HUNT_INDEX[ground.hunt].band;
+  if (!band || !Number.isInteger(level) || level >= band[0]) return 1000;
+  return 1000 + HUNT_TUNING.underFloorAtkPm * (band[0] - level);
 }
 
 /** The HP scale (permille) for a pack in an instance of `partySize` heroes. */

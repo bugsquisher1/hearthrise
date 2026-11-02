@@ -182,7 +182,9 @@ export function patchGround(det, ctx, r, o) {
      hero's own armour weight first ("Iron, Studded, Adept: helmets, boots; Iron Sword") with the chance a kill here drops
      any piece of it, then each Rare and Trophy, item and carrier, with its chance per kill of that creature. The odds
      are the engine's own rows at this hero's party size (hunt-ground-facts.js), never a number typed here. */
-  text(det.querySelector('.hw-hd-per-size'), 'chance per kill, ' + (size > 1 ? 'in a party of ' + size : 'hunting alone'));
+  /* PER KILL, FOR THE WHOLE PARTY (blind party test 2026-11-01; played): each kill rolls once and each drop goes to one hero, so a party's higher odds are shared out
+     and each hero's loot per hour stays about the same as alone (hunt-rewards.js payKill). */
+  text(det.querySelector('.hw-hd-per-size'), size > 1 ? 'chance per kill, for your party of ' + size + ': each drop goes to one of you' : 'chance per kill, hunting alone');
   rows(det.querySelector('.hw-hd-sets'), scarceSetOf(r.hunt, o.worn || null, size), {
     key: (e) => String(e.tier),
     build: () => element(ctx.doc, '<li class="hw-hd-set"><span><b class="hw-hd-set-lines"></b><span class="hw-hd-set-what"></span></span>'
@@ -195,7 +197,7 @@ export function patchGround(det, ctx, r, o) {
   });
   /* The materials a shortage sends a player here for (panel 2026-11-01: Drops listed gear only). The rows look like the Rare list's. */
   const mats = materialsOf(r.hunt, size);
-  text(det.querySelector('.hw-hd-mats-per'), 'chance per kill, ' + (size > 1 ? 'in a party of ' + size : 'hunting alone'));
+  text(det.querySelector('.hw-hd-mats-per'), size > 1 ? 'chance per kill, for your party of ' + size + ': each drop goes to one of you' : 'chance per kill, hunting alone');
   rows(det.querySelector('.hw-hd-mats'), mats, {
     key: (x) => x.id,
     build: (x) => element(ctx.doc, '<li class="hw-hd-rare" data-item="' + esc(x.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, x.id) + '</span>'

@@ -808,7 +808,9 @@ export const MONSTERS = {
     /* the poachers' chief, camped in the ruined spring-house; the crows know his whistle. The rare carrier. */
     hp: 78, atk: 18, def: 11, xp: 520, gp: [16, 40], speed: 3200,
     drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'rooks_moss_charm', ch: .15, band: 'uncommon' }, { id: 'rooks_whistle', ch: .0038, band: 'rare' },
-      { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' }] },
+      { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' },
+      /* A Rare a Glade hero can wear before the Steel tier (designer 2026-11-02, lane/b-rulings-1102): no ground offered a new piece from Level 18 to 30. He skins the Meadowbrook's hounds. */
+      { id: 'houndskin_cloak', ch: .0038, band: 'rare' }] },
   brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
     /* the Meadowbrook's bruiser: the wet coat sheds frost, fire takes it. The Keep and Trophy Room ask for its Pelt (Andy's report), about an hour's errand, so the Claw, a pie's trophy, rides a Rare row (drop-tables big-pull). */
     elementWeak: 'ember', elementResist: ['frost'],

@@ -805,30 +805,30 @@ async function pureRules(M, base) {
     return tboxes() === 'on,-' || 'after starting again the rows read ' + tboxes();
   });
 
-  /* PR-CLASS (Tyler 2026-10-31; designer's words): the Your party tab's line states what the table pays for that party on that
-     ground, in the designer's words, on every row and cell: it can never say what the server will not pay (§6). */
+  /* PR-CLASS (Tyler 2026-10-31; designer's words 2026-11-02): the Your party tab's line states the measured answer against hunting alone for that party on
+     that ground, in the designer's words, on every row and cell (PARTY_VS_ALONE; first-week-bands vs-alone plays it). */
   await t('PR-CLASS', async () => {
     const L = M.PRO.classXpLine;
     const end = ' Melee, Ranger, Mage and Healer each count.';
     for (const [roles, hunt, want] of [
-      [['tank', 'ranger'], 'meadowbrook_thicket', 'Your party has 2 of 4 classes: 28% more Level XP in Meadowbrook Thicket.'],
-      [['tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: no extra Level XP in Meadowbrook Thicket.'],
-      [['tank', 'melee_dps'], 'millrace_sewer', 'Your party has 1 of 4 classes: 20% less Level XP in The Sewer.'],
-      [['tank', 'mage', 'healer'], 'coppercap_warrens', 'Your party has 3 of 4 classes: 28% more Level XP in Coppercap Warrens.'],
-      [['tank', 'ranger'], 'millrace_sewer', 'Your party has 2 of 4 classes: no extra Level XP in The Sewer.'],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: 18% more Level XP in The Sewer.'],
+      [['tank', 'ranger'], 'meadowbrook_thicket', 'Your party has 2 of 4 classes: about 10% more Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['tank', 'melee_dps'], 'millrace_sewer', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in The Sewer.'],
+      [['tank', 'mage', 'healer'], 'coppercap_warrens', 'Your party has 3 of 4 classes: about 15% more Level XP each than hunting alone in Coppercap Warrens.'],
+      [['tank', 'ranger'], 'millrace_sewer', 'Your party has 2 of 4 classes: about 15% more Level XP each than hunting alone in The Sewer.'],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: about 20% more Level XP each than hunting alone in The Sewer.'],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
-      [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: 7% more Level XP in Wickstead.'],
-      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: 12% less Level XP in Wickstead.'],
+      [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: about 5% more Level XP each than hunting alone in Wickstead.'],
+      [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Wickstead.'],
     ]) {
       if (L(roles, hunt) !== want + end) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
     }
     const all = ['tank', 'ranger', 'mage', 'healer'];
-    for (const [g, row] of Object.entries(M.PCX.PARTY_CLASS_XP)) for (const [n, cells] of Object.entries(row)) cells.forEach((pm, i) => {
+    for (const [g, row] of Object.entries(M.PCX.PARTY_VS_ALONE)) for (const [n, cells] of Object.entries(row)) cells.forEach((vs, i) => {
       const roles = Array.from({ length: Number(n) }, (_, s) => all[Math.min(s, i)]);
-      const pay = pm > 1000 ? Math.round((pm - 1000) / 10) + '% more' : pm < 1000 ? Math.round((1000 - pm) / 10) + '% less' : 'no extra';
+      const pay = vs > 0 ? 'about ' + vs + '% more Level XP each than hunting alone in ' : vs < 0 ? 'about ' + -vs + '% less Level XP each than hunting alone in ' : 'about the same Level XP each as hunting alone in ';
       const hunt = Object.values(HUNT_GROUNDS).find((x) => x.id === g).hunt;
-      if (!L(roles, hunt).includes((i + 1) + ' of 4 classes: ' + pay + ' Level XP in ')) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + pm);
+      if (!L(roles, hunt).includes((i + 1) + ' of 4 classes: ' + pay)) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + vs);
     });
     /* On the tab: shown before a hunt starts, gone once anyone hunts, none alone. */
     const seat = (s, weapon, hunting) => ({ seat: s, unit: null, name: 'H' + s, level: 6, weapon, hunting: hunting === true, hp: 100, hp_max: 100 });
@@ -837,11 +837,11 @@ async function pureRules(M, base) {
       return M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
     };
     const shown = tab([seat(0, 'shield'), seat(1, 'ranged')], 'mill_cellar');
-    if (shown !== 'Your party has 2 of 4 classes: 7% more Level XP in Mill Cellar.' + end) return 'in town the tab reads ' + JSON.stringify(shown);
+    if (shown !== 'Your party has 2 of 4 classes: about 10% more Level XP each than hunting alone in Mill Cellar.' + end) return 'in town the tab reads ' + JSON.stringify(shown);
     if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
     if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
-    return (fresh && /2 of 4 classes: (\d+% more|no extra) Level XP in /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
+    return (fresh && /2 of 4 classes: about (\d+% (more|less)|the same) Level XP each /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
   });
 
   /* PR-TRUTH (blind panel 2026-11-01): what the server knows, said. A swapped weapon changes the role, the class line and the panel; a friend's

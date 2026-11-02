@@ -1,37 +1,94 @@
 HEARTHRISE - BLIND PHONE PLAYTEST 2 (landscape, one thumb, touch only)
-Lane: lane/f5-phone, base origin/release/v0.2.82 (feb879a7b). Local world only (tools/qa/local-world.mjs serve, port 8799), Playwright Chromium, touch + mobile emulation.
-Main viewport 844x390 @2x (Android Chrome UA). Spot checks 667x375 and 922x423 pending. Player is blind: no src/docs/tests/changelog/memory read.
-Input: Playwright touchscreen taps, CDP touch swipes and a 650 ms long press. Text entry used insertText as a stand-in for the on-screen keyboard.
-Status: IN PROGRESS (interim save at ~18:15 CST; world run began 17:52).
+Lane: lane/f5-phone, base origin/release/v0.2.82 (feb879a7b). Local world only (tools/qa/local-world.mjs serve, port 8799), Playwright Chromium 4x CPU throttle via CDP where stated, touch + mobile emulation, Android Chrome UA, 2x pixel ratio.
+Main viewport 844x390. Spot checks 667x375, 922x423, portrait 390x844. The player is blind: no src/docs/tests/changelog/memory read.
+Input: Playwright touchscreen taps, CDP touch-event swipes, a 650-700 ms long press. Text entry used insertText as a stand-in for the on-screen keyboard (no hover, no keyboard shortcuts, no right-click used).
+Screenshots: art/review/player-feedback-2026-11-01/phone2-shots/ (29 files).
+Run window: 17:52 to about 18:55 CST, 2026-11-01.
 
-== 1. PLAYED / NOT REACHED (interim) ==
-Played so far: sign-up, hero creation, first town, first hunt (Mill Cellar), bag, hunt summary, shop, equip (bow), mining job, farm (planted turnip), Tamsin's tally (took a task), House, Home view, chat (sent a message), all other windows opened once (Storage, Market, Hunt prep, Party, Friends, Settings, Character, Gathering).
-Not reached yet: bench job, time-skip returns (1 h / 8 h / 1 h), Level 10, portrait rotate, 667x375 and 922x423 spot checks, 20-minute heap run.
+== 1. PLAYED / NOT REACHED ==
+PLAYED: sign-up (screen only; no email step in this harness), sign-in, hero creation, first town, first hunt (Mill Cellar, then a 9 h away hunt, then Meadowbrook Thicket), bag (equip a bow, "Equip upgrades"), shop (bought a Bronze Pickaxe), gathering (Mining, copper), farm (planted a turnip), Tamsin's tally (armour weight, took a task, was paid), House, Home view, chat (sent a message), and each of the other windows once: Storage, Market, Hunt prep, Party, Friends, Settings, Character, Hunt summary. Returns after 1 h, 8 h (page closed, "wait --away"), and a third hour (see timeline).
+Long press tried on an action-bar slot and on a bag item. Swipe used for every scrolling sheet.
+NOT REACHED / PARTIAL: Level 10 (see timeline for where it ended), a real bench job (see section 3), buying a store plot upgrade, the Weighhouse (Market says it is not trading), friends and party play (no other players in a local world), a real on-screen keyboard, a real phone (everything here is Chromium emulation).
 
-== 2. TIMELINE (interim) ==
-17:52  world up (first start replayed the migration chain, about 20 min wall with other lanes running; harness only).
-17:53  first load at 4x CPU: sign-in screen text at 10.2 s, DOMContentLoaded 9.95 s, load 10.1 s, FCP 1.9 s, 390 requests, 4.47 MB (uncompressed from the local server).
-17:55  sign-up by touch: Create an account -> fields -> Create account -> "Check your email" message (the harness confirms at once) -> Back to sign in -> Sign in. 2.6 s to the hero list.
+== 2. TIMELINE ==
+17:52  local world up. (First start replays the migration chain: about 20 minutes wall with other lanes running. Harness cost, not a player cost.)
+17:53  first load at 4x CPU: sign-in text at 10.2 s, DOMContentLoaded 9.95 s, load 10.1 s, first contentful paint 1.9 s; 390 requests, 4.47 MB (uncompressed from the local server).
+17:55  sign-up by touch -> "Check your email" message (the harness confirms accounts at once) -> Back to sign in -> Sign in. 2.6 s to the hero list.
 17:57  hero creation: name + one colour swatch + Enter town.
-17:58  first hunt: Mill Cellar. Level 2 after about 1 minute, hunt left after 2:21 with 20 kills.
-18:00  bag, shop (bought a Bronze Pickaxe), equipped Practice Bow ("You fight as a Ranger now").
-18:05  mining copper, planted a turnip, took Tamsin's task (needed an armour weight first), House, Home, chat message.
+17:58  first hunt, Mill Cellar. Level 2 inside the first minute; left after 2:21 with 20 kills (308 XP, 33 gp).
+18:00  bag, shop (Bronze Pickaxe), Practice Bow equipped in town: "You fight as a Ranger now... Bronze Arrows loaded."
+18:05  mining copper, planted a turnip (4 h), took Tamsin's rat task (after choosing an armour weight), House, Home view, chat message sent.
+18:12  hunt again; closed the page; 1 h passed away. Reopened: Level 6, hunt still running at 1:06.
+18:25  closed the page again; 8 h passed away. Reopened: "While you were away (8 h 1 min), Pippa hunted Mill Cellar: Level 6 to 8, +60,880 Level XP, +5,751 gold, 3,953 kills. Still hunting, with 2 h 50 min of stamina left." Left the hunt: 9:11:42, 4,533 kills, 69,804 XP, 6,596 gp, loot worth 12,435 gp unsold. Tamsin paid 100 gp and a Bronze Helm for the rat task.
+18:30  Equip upgrades put on a Leather Coif. Hunted Meadowbrook Thicket for the performance and heap runs.
+18:40  667x375, 922x423 and portrait checks (still in the Meadowbrook hunt).
+FINAL STATE: see the end of section 3 (TBD lines are filled at the end).
 
-== 3. BUGS / FRICTION (interim, rated) ==
-(P0: none found so far.)
-P2-01  Sign-up success message pushes the card past the 390 px screen; "Back to sign in" ends up half off the bottom edge until you swipe up (the card scrolls but nothing says so).
-P2-02  Hero creation colour swatches are 16x16 px with 2 px gaps (Head/Body/Legs/Feet, 16 each). A thumb cannot pick one reliably.
-P2-03  Text inputs are 36 px tall (sign-in, sign-up, hero name); buttons are 40-44 px. Slightly under a 40 px target.
-P2-04  Tamsin's tally: the Take buttons are greyed out until an armour weight is chosen, the chooser (Heavy/Medium/Light) sits about 500 px above the board, and the explanation only appears after tapping a dim button ("Pick the armor weight she pays you in first."). Take buttons are 51x36.
-P2-05  Every window is a 400x290 sheet; the usable scrolling body is about 190 px (248 px minus a 55 px sticky bar in the bag). Shop list is about 2000 px tall (10 screens of swiping). Bag is 805 px tall. Hunt summary buries "Hunt again" and "Open bag" under the numbers.
-P2-06  Soft keyboard (emulated by shrinking the viewport to 172 px): the chat input at y=193 falls below the visible area; the top bar and title row take 130 px. NOT verified on a real device.
-P2-07  Action bar slots are 36x36; the "+" add-spell glyphs inside them are 10x10; chat channel tabs are 48x20, 38x20; hunt summary / "Dispatch loot" (bag) are below the fold in the sheet.
+== 3. BUGS / FRICTION (rated) ==
+P0: none found. No progress was lost, nothing stopped me continuing. Reload, close, away and rotate all kept the hunt.
+P1: none found that I can reproduce. Closest candidate is P2-05 (bag and tally buried actions); I was never stuck, only scrolling a lot.
 
-== PERFORMANCE (interim, 4x CPU throttle through CDP) ==
-Hunt (Mill Cellar, hero + 3 monsters), 25.1 s window: 40.4 fps average, frame p50 16.7 ms, p95 66.7 ms, p99 133 ms, max 217 ms; 80 long tasks totalling 6.8 s (27 % of the window), longest 228 ms. JS heap 19.9 MB used (after 5 min of play). 889 DOM nodes.
+P2-01  Sign-up success card overflows the 390 px screen.
+       Steps: sign-in screen -> Create an account -> fill email and both password fields -> Create account.
+       The green "Check your email..." line makes the card taller than the screen and "Back to sign in" ends up half cut at the bottom edge (y 318 to 362 only after you swipe up; the card scrolls but nothing hints at it). Not a dead end: swipe up shows it.
+P2-02  Hero creation colour swatches are 16x16 px with 2 px gaps (16 swatches in each of 4 rows, 18 px pitch). A thumb cannot pick one reliably. Everything else on that screen is fine (Enter town 165x40, Back 180x44).
+P2-03  Text inputs are 36 px tall (sign-in, sign-up, hero name, chat is 40). Buttons 40 to 44 px.
+P2-04  Tamsin's tally: the Take buttons look disabled until you pick an armour weight. The Heavy/Medium/Light picker and the six "Move up" rows sit about 500 px above her board, so a first-time player scrolls past them to the board, taps a dim Take, and gets a small tooltip "Pick the armor weight she pays you in first." The explanation is right but the fix is far from the button. Take buttons are 51x36.
+P2-05  Sheets are small. Every window is a 400x290 box (x 435 to 835, y 91 to 381 in town); the scrolling body is about 190 px tall once the title row and the bag's sticky bar are subtracted.
+       Bag body 805 px tall (4 screens), shop list about 2,000 px (10 screens of swiping), tally board about 900 px down. Hunt summary: "Hunt again" and "Open bag" are below the numbers (one swipe). In town the sheet starts 48 px lower than in a hunt because of the Town / Home row.
+P2-06  Soft keyboard (emulated by shrinking the viewport to 172 px; NOT verified on a real device): the chat input lands at y=193 and is below the visible area; the top bar and title row alone take 130 px.
+P2-07  Under-40 px targets measured at 844x390: action bar slots 36x36 (the "+" inside empty slots is 10x10), bag/equipment slots 36x36, stance buttons 36 px tall, bag Sell/Equip buttons 36 to 40, shop Buy 117x40 (fine), chat channel tabs 48x20, 38x20, 52x20 and 57x20 (text only), Take 51x36, the "More slots" chevron 24x74, small icon buttons 16 to 22 px (gather window glyphs, the heroes hero tab icon), every swatch 16x16.
+P2-08  A long press on an action bar slot opens a good tooltip (Cooked Shrimp, "Slot 4", what it heals) but it does NOT close on release; it stays over the party card and the arena until you tap somewhere else (confirmed: still open 4 minutes later). Nothing says "tap to close".
+P2-09  At 667x375 the hunt title truncates ("Meadowb..."), the hero tab name is dropped, the stance row crams and the bar loses slot 5 onward. Still playable. At 922x423 nothing breaks.
+P2-10  Hunt arena is small at 844x390. The Party card (about 170x155) sits on the left, the hunt title and the coach card cover the top and right, so the playfield is about 330x260 of the 844x390 screen. Readable (HP, MP, cooldowns, damage numbers all visible) but the coach card ("Your hero fights alone", "Cash in", "Plant your land") covers a third of it until dismissed.
+P2-11  The bag's "Dispatch loot" says nothing is set to Deposit or Sell and points at "an item's menu"; on a phone that menu is the small "..." button (32x40) next to Sell, which a new player will not find. After a 9 h hunt (12,700 gp of loot, 30 stacks) the quick way to cash it in is not obvious.
 
-== LIKED (interim) ==
-- Landscape layout is purpose-built: top icon bar, slide-out sheets with a clear X (40x40), sticky Enter button on the hunt detail.
-- The hunt is readable at 844x390: HP/MP in the orb and in the party card, cooldown numbers on the action bar, floating damage.
-- "Next: Plant your land" on the hunt summary and the pulsing farm icon point at what to do next.
-- Items show a comparison card on tap (Practice Bow vs Practice Sword) and the Equip result says what changed.
+== 4. PERFORMANCE (Chromium, 4x CPU throttle through CDP, 844x390 @2x; the world server is local, uncompressed, same machine as other lanes at about 60 percent CPU) ==
+Method: a requestAnimationFrame counter gives fps and frame times; PerformanceObserver('longtask') gives long tasks; performance.memory after a forced GC every 60 s gives heap; Network.loadingFinished gives encoded bytes; navigation timing gives DCL and load.
+| What | Number |
+| First load, sign-in screen (4x) | text at 10.2 s, DCL 9.95 s, load 10.1 s, FCP 1.9 s, 390 requests, 4.47 MB |
+| Reload while signed in and hunting (4x) | DCL 28.1 s, load 28.7 s, FCP 9.0 s, hero HUD ready 31.3 s, 426 requests, 5.54 MB |
+| Reopen while signed in (no throttle) | HUD ready 18.6 s, 428 requests, 5.58 MB (so the signed-in load is mostly request count and server time, not CPU) |
+| Hunt, Mill Cellar (4x), 25 s | 40.4 fps average, frame p50 16.7 ms, p95 66.7 ms, p99 133 ms, max 217 ms; 80 long tasks = 6.8 s (27 percent of the window), longest 228 ms |
+| Hunt, Meadowbrook (4x), 30 s | 29.5 fps average, p50 16.7 ms, p95 116.7 ms, p99 183 ms, max 283 ms; 149 long tasks = 15.2 s (51 percent), longest 291 ms |
+| Town fps | TBD |
+| JS heap (forced GC every 60 s), hunt, 4x | TBD |
+| DOM nodes | 889 to 900, flat |
+| Page text under 12 px | none found on any screen visited (every windowed sheet, the HUD, the hunt) |
+Harness caveats: the local server sends no compression and no HTTP/2, so byte totals and signed-in load times overstate a real CDN load; CPU throttle 4x is a harsh mid-range phone; the hunt ran at the real 100 ms combat step.
+
+== 5. OPINION (marked) ==
+OPINION: the single biggest phone cost is vertical space. Top bar (40) + title row (50) + action bar (100) leave about 200 px for the world, and a sheet gets 190 px of scrolling body. The layout is clearly built for this (sheets, sticky buttons), but every list (shop, bag, tally) is a long thin scroll.
+OPINION: the hunt is the best part on a phone. Pull-and-watch is exactly one-thumb. The "While you were away" card and the summary give the numbers I would want on a bus.
+OPINION: the colour swatches and the action bar slots are the only things where I would mis-tap daily.
+OPINION: 29 fps at 4x throttle in Meadowbrook with 51 percent of the main thread in long tasks would feel janky on a low-end phone; Mill Cellar is smoother (40 fps).
+
+== 6. LIKED ==
+- Portrait: a clear full-screen "Turn your phone sideways / Hearthrise plays in landscape" with the crest; rotating back restored the same screen without reload, the hunt kept running (screenshot 37).
+- Landscape-only design with a top icon bar (44x40 per icon), slide-out sheets, a 40x40 close X on every sheet and a sticky action (Enter, Equip) at the bottom of the detail.
+- No hover, keyboard shortcut or right-click was needed anywhere. Long press on a slot is the touch answer to hover, and it shows real detail.
+- Hunt screen is readable: HP and MP in the orb and the party card, cooldown numbers on the bar, "miss" and damage numbers, the hunt clock, Leave and Summary in the top strip.
+- "Next: Plant your land", the pulsing icon in the top bar, and the coach cards say what to do next without a tutorial wall. "Press the Mill Cellar, then Enter" matched the real controls.
+- Away return: "While you were away (8 h 1 min), Pippa hunted Mill Cellar: Level 6 to 8, +60,880 Level XP, +5,751 gold, 3,953 kills. Still hunting, with 2 h 50 min of stamina left." plus "See the hunt".
+- The hunt detail's "Before you go" lines (food, drink, stamina, gold, and the Fire Rune warning) are clear and honest.
+- Equip result text: "You fight as a Ranger now, and your bar has this weapon's moves."
+- Items show a comparison card (Practice Bow against Practice Sword) when tapped.
+- Mining text: "It keeps going while you are away. A hunt stops it." Exactly what a bus player needs to know.
+
+== 7. HARNESS ODDITIES ==
+- The first start replays the whole migration chain (about 20 minutes with other lanes running; I raised the process priority to get through it).
+- Sign-up says "Check your email" but the harness confirms accounts at once, so it never tests the email step.
+- The 1 h return: my first page.goto timed out at 30 s under 4x throttle (the page had actually loaded); the open tab renewed the away stamp, so the "While you were away" card for 1 h was never shown. The 8 h return (unthrottled) showed it correctly.
+- Playwright has no soft keyboard; I used insertText and, separately, shrank the viewport to emulate it.
+- Pointer and touch events are synthetic: no finger size, no palm rejection, no real scrolling momentum (my swipes have no fling), so "swipes needed" overstates a real flick.
+- performance.memory needs --enable-precise-memory-info (set); heap is quantised.
+
+== 8. TOP 5 ==
+1. Give the sheet bodies more vertical room (or collapse the Town/Home row and coach cards while a sheet is open): 190 px of scroll body is the dominant phone cost.
+2. Put the action first in the long sheets: Tamsin's board above the armour-weight setup (or move the picker beside a disabled Take), Hunt again / Open bag at the top of the summary, shop section chips (Gear / Tools / Seeds) to jump instead of 2,000 px of swiping.
+3. Make the touch targets real: hero colour swatches (16 px) as a bigger grid or a picker sheet; action bar and bag slots 36 px to 40+; chat channel tabs 20 px to 40.
+4. Close the long-press tooltip on release (or add "tap anywhere to close") and surface the loot "..." menu next to Sell.
+5. Look at the Meadowbrook hunt cost on a low-end phone: 149 long tasks and 51 percent of the main thread at 4x, plus a 28 s signed-in reload at 4x (426 requests).
+
+== 9. VERDICT: would I keep this on my phone? ==
+TBD (finalised at the end).

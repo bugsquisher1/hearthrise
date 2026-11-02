@@ -45,7 +45,7 @@ function away(M, fx, xpMultOf, awayFlag) {
 /* THE DESIGNER'S TABLE (2026-11-01): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
 const PARTY_TABLE = {
   mill_cellar: { 2: [1000, 1070], 3: [1000, 1120, 1180], 4: [1000, 1250, 1270, 1400] },
-  meadowbrook_thicket: { 2: [1000, 1280], 3: [1000, 1400, 1480], 4: [1000, 1500, 1510, 1520] },
+  meadowbrook_thicket: { 2: [980, 1290], 3: [970, 1180, 1310], 4: [970, 1210, 1260, 1300] },
   wickstead: { 2: [880, 1070], 3: [970, 1160, 1220], 4: [970, 1200, 1240, 1270] },
   mosslight_glade: { 2: [960, 1180], 3: [1000, 1300, 1400], 4: [1000, 1200, 1290, 1320] },
   millrace_sewer: { 2: [800, 1000], 3: [800, 1050, 1100], 4: [800, 1050, 1100, 1180] },
@@ -122,13 +122,13 @@ const cases = {
   /* A shield Melee and a Melee are ONE class, whichever shares the party; a Melee beside a Ranger is two. */
   'party-class-melee-is-one': (M) => {
     const one = killOn(M, 'meadowbrook_thicket', ['tank', 'melee_dps'], BIG);
-    if (Object.values(one).some((v) => v !== BIG / 2)) return 'tank + melee_dps paid ' + JSON.stringify(one) + ', the one-class cell is the even share';
+    if (Object.values(one).some((v) => v !== Math.round((BIG / 2) * 0.98))) return 'tank + melee_dps paid ' + JSON.stringify(one) + ', the one-class cell is 980';
     const four = killOn(M, 'mosslight_glade', ['tank', 'tank', 'melee_dps', 'melee_dps'], BIG);
     if (Object.values(four).some((v) => v !== BIG / 4)) return 'four Melee paid ' + JSON.stringify(four);
     const sewer = killOn(M, 'millrace_sewer', ['tank', 'melee_dps'], BIG);
     if (Object.values(sewer).some((v) => v !== Math.round((BIG / 2) * 0.8))) return 'tank + melee_dps in the Sewer paid ' + JSON.stringify(sewer);
     const two = killOn(M, 'meadowbrook_thicket', ['tank', 'ranger'], BIG);
-    return Object.values(two).every((v) => v === Math.round((BIG / 2) * 1.28)) ? null : 'CONTROL: a Melee and a Ranger paid ' + JSON.stringify(two);
+    return Object.values(two).every((v) => v === Math.round((BIG / 2) * 1.29)) ? null : 'CONTROL: a Melee and a Ranger paid ' + JSON.stringify(two);
   },
   /* READ AT EACH KILL, NO LATCH: a death changes the mix on the NEXT kill, a leave too, and the last hero standing is the identity. */
   'party-class-death-changes-next-kill': (M) => {

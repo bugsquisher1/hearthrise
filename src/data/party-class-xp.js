@@ -43,7 +43,7 @@ const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obje
 /* ground id → its row (designer's final table, 2026-11-01). */
 export const PARTY_CLASS_XP = Object.freeze({
   mill_cellar: row([1000, 1070], [1000, 1120, 1180], [1000, 1250, 1270, 1400]),
-  meadowbrook_thicket: row([1000, 1290], [1000, 1180, 1310], [1000, 1210, 1260, 1300]),
+  meadowbrook_thicket: row([980, 1290], [970, 1180, 1310], [970, 1210, 1260, 1300]),
   wickstead: row([880, 1070], [970, 1160, 1220], [970, 1200, 1240, 1270]),
   mosslight_glade: row([960, 1180], [1000, 1300, 1400], [1000, 1200, 1290, 1320]),
   millrace_sewer: row([800, 1000], [800, 1050, 1100], [800, 1050, 1100, 1180]),
@@ -52,12 +52,13 @@ export const PARTY_CLASS_XP = Object.freeze({
 
 /* WHAT THE PLAYER IS TOLD (designer 2026-11-02; blind party test 2026-11-01). The table above is a factor on an even share of a bigger pull, so "52% more" sat on a party
    that measured 19% more than its heroes alone. THIS row is the measured answer, in whole percent to the nearest 5: Level XP per hero at the default pull, against the
-   same heroes alone as built, one row per ground in the table's shape (tools/balance-sim plan b1102p, real settle, 1 h x 2 seeds a cell, one mix a cell). It pays nothing;
+   same heroes alone as built, one row per ground in the table's shape (tools/balance-sim plan b1102p, real settle, 1 h x 2 seeds a cell, one mix a cell; the Thicket's one-class
+   cells are the mean of its shield, bow and wand parties after party-class-xp-line moved them under 1000). It pays nothing;
    tests/hunt-core/first-week-bands.mjs vs-alone plays the full mix against it. Retune the table, re-measure this. */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 export const PARTY_VS_ALONE = Object.freeze({
   mill_cellar: said([-5, 10], [-5, 5, 15], [-20, 5, 5, 25]),
-  meadowbrook_thicket: said([-10, 10], [-10, 5, 20], [-15, 0, 5, 20]),
+  meadowbrook_thicket: said([-10, 10], [-10, 5, 20], [-10, 0, 5, 20]),
   wickstead: said([-10, 5], [-10, 5, 10], [-15, 5, 5, 20]),
   mosslight_glade: said([-10, 5], [-15, 5, 15], [-10, 5, 10, 20]),
   millrace_sewer: said([-10, 15], [-15, 10, 20], [-20, 10, 10, 20]),

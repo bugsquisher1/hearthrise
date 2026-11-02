@@ -207,7 +207,7 @@ const mutants = [
   { name: 'the Level is read once and kept: a cut changes the swings', case: 'level-gap',
     edits: [['src/core/combat-sim.js', 'u.heroLv = snap.level;', 'u.heroLv = u.heroLv || snap.level;']] },
   { name: 'the Thicket pays the old 1.52 on its wider pull, and the window still says 20%', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([1000, 1290], [1000, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([1000, 1290], [1000, 1180, 1310], [1000, 1210, 1260, 1520])']] },
+    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [970, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [970, 1210, 1260, 1520])']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',

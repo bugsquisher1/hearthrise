@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-11-01",
- "digest": "f52113f5413c7713844ff66e1edd9a3cb5ad7d54598f1b6795ed6dcc28a9fd8f",
+ "generated": "2026-11-02",
+ "digest": "2e1ed3982eabcdd78a97b0071bf34bf2d547749dfb73a2130f47c0e03a16db6c",
  "counts": {
   "relations": 244,
-  "functions": 587,
+  "functions": 588,
   "policies": 115,
   "indexes": 345,
   "triggers": 61,
@@ -790,6 +790,7 @@
    "hr_tick_cron_run()",
    "hr_tick_crypto_schema()",
    "hr_tick_enrol(p_limit integer)",
+   "hr_tick_gateway_headers(p_apikey text, p_legacy_jwt text)",
    "hr_tick_probe_commit(p_holder text, p_user uuid, p_slot integer, p_channel text, p_window_from timestamp with time zone, p_window_to timestamp with time zone, p_payload text, p_close_id bigint, p_close_result jsonb, p_open_input jsonb)",
    "hr_tick_probe_fetch(p_holder text, p_user uuid, p_slot integer, p_channel text)",
    "hr_tick_probe_prune(p_limit integer)",

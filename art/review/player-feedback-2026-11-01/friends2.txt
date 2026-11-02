@@ -1,7 +1,7 @@
 FRIENDS2 BLIND PLAYTEST  (lane/f5-friends, release/v0.2.82 build, local world, 2026-11-01/02)
 Three friends in a voice call: Bram (sword and shield, 1366x768), Wren (bow, 1920x1080), Sol (staff, healer, 1366x768).
 Blind: I read no src/, docs/, tests/, CHANGELOG, older reports or memory. Everything below is from the screen (page text + screenshots).
-STATUS: written at about 95 min of a 2 h budget. Parts of the plan were NOT reached; see section 1.
+STATUS: FINAL, written at about 110 min of a 2 h budget. Parts of the plan were NOT reached; see section 1.
 
 ======================================================================
 0. HARNESS NOTES (read these before trusting any number)
@@ -22,16 +22,16 @@ PLAYED
 - Party: invite by name, bad names, decline, crossing invites, three invites at one player, accepting an invite while already in a party, joining, leaving, disbanding, class-mix bonus text with 1, 2, 3 classes.
 - Chat (global).
 - Hunts window as a solo and as a party leader (what it promises).
-- Mill Cellar: party of 3 (Melee + Ranger + Healer) for 43 minutes of party time, vs three solo twins of the same classes (14 / 14 / 12 minute marks), same ground, default pulls.
-- A 60-minute time skip of the same party (results in section 4 if they came back; see TIMELINE).
-- Leader Remove / Leave if anyone leaves controls on the hunt panel (seen on screen).
+- Mill Cellar: party of 3 (Melee + Ranger + Healer) for 2 h 02 min of party time (reads at 19, 23, 43 min and 2 h), vs three solo twins of the same classes (14 / 14 / 12 minute marks), same ground, default pulls.
+- Time skips: +14 min and +60 min of the same party hunt (the 60-minute skip took 9.5 minutes of wall time in this loaded world).
+- Leaving: a member's "Leave hunt" with "Leave if anyone leaves" on; a member closing the browser mid-hunt and coming back; "Hunt again" on a member's summary.
+- Weighhouse: listed and bought between two heroes (section 6).
 NOT REACHED
-- Meadowbrook Thicket and the next ground (the load wall above ended new work).
+- Meadowbrook Thicket and the next ground (the load wall above ended new work); grouping above their own level.
 - Three-swords contrast party, Sorrel (Sol's second hero) as the 4th class, 4-of-4 bonus.
 - Party pull "pressed up" (read default only: "5 each").
-- A member closing the browser for an hour and returning; stamina running out; a death; leader closing the browser; reload during a party hunt; Hunt again.
-- 2 h and 4 h of party hunting; grouping at levels above their own.
-- Weighhouse trade (opened for Bram; see section 6 for what was reached).
+- Stamina running out (12 h pool; 10 h left after 2 h); a death; leader closing the browser; reload during a party hunt; the leader's own Hunt again; leave with the box OFF.
+- 4 h of party hunting. The browser was closed for about 3 minutes, not an hour.
 
 ======================================================================
 2. TIMELINE (UTC, 11-01 23:36 start)
@@ -50,7 +50,10 @@ NOT REACHED
 00:28 Party re-formed; Hunts window with party (3 members) says: drop heading "chance per kill, in a party of 3" with higher numbers; "2 packs of 5"; pull "5 each"; "Your party's pull. A pull is one pack: up to 8 for your party of 3. As the leader, your pick is the pull for everyone." Button: "Start with party".
 00:29 Party starts. Bram's hunt panel says "Your hero fights alone" (P2-6) even though the panel lists the party. Leader panel has a "Leave if anyone leaves the hunt or dies" checkbox and a "Remove" button per member; members do not.
 00:29 + 14 min skip, + real time: party at 19:17 / 23:38 / 43:23 session time (numbers in section 3).
-01:05 + 60 min skip (see section 4).
+01:05 + 60 min skip (see section 4): party at 2 h of session, Level 6 each.
+01:15 Wren closes her browser; Sol presses Leave hunt (countdown "Leaving in 17s"); all three home. Summaries: "Sol left the hunt, so Bram came home too."
+01:18 Wren signs back in: "Wren, Level 6, Play" -> summary waiting.
+01:20 Weighhouse: Bram lists 20 Wheat at 12; Wren buys 10 for 120 gold (section 6).
 
 ======================================================================
 3. NUMBERS TABLE  (Mill Cellar, default pulls, all Level 1 at start)
@@ -65,6 +68,9 @@ SOLO staff (Sola)     11:50     77     1,185      6,045   ~1,632        3 / ~15
 PARTY sword+bow+staff 19:17     298    2,615 each 8,164   Bram 1,767    Wren 40 gp (125/h), Bram 0
  (each member)        23:38     364    3,201      8,135   Bram 1,789
                       43:23     678    5,997      8,281   Bram 1,877, Wren 1,899   Wren 80 gp (110/h), Bram 0
+                      1:59:32   1,872  16,622     8,346   Wren 1,892                Wren 160 gp (80/h)
+                      2:02:06   1,915  17,005     8,356   Bram 1,887 (3,840 bal)    Wren 160 gp; Sol: 2 Plain Water Runes
+                      (Sol summary 1,782/h, Wren 1,797/h; all three Level 6 at the end)
 
 Derived (my arithmetic):
 - Party Level XP/h per hero vs solo: sword +14% (8,281 / 7,277), bow +11%, staff +37%.
@@ -81,7 +87,13 @@ What the screen promised vs what I measured:
 ======================================================================
 4. LONGER RUNS
 ======================================================================
-(see TIMELINE 01:05 and final addendum below if the 60-minute skip returned)
+Two hours of party hunting at their own level (Mill Cellar band 1-8, heroes Level 1 -> 6): the rate stayed flat (8,164 / 8,135 / 8,281 / 8,346 / 8,356 Level XP/h at 19 min, 23 min, 43 min, 2 h, 2 h 02). Gold + loot about 1,780-1,890 per hour per hero, supplies 0 / 80 / ~1 gp per hour for sword / bow / healer. Stamina: 12:00h at start, 9:58h after 2 h 02 (it counts down 1 for 1). Nothing died, nobody ran dry. Four hours and "above their own level" were not reached, so I cannot say whether the rate holds on harder ground.
+
+LEAVING (all from the screen)
+- A member closes the browser mid-hunt (Wren, about 3 minutes): the leader's panel kept showing Wren hunting with HP moving (57/150), so the party hunt did not pause. I came back by signing in again: the character list said "Wren, Level 6, Play" and pressing it opened her hunt summary at once. The hunt keeps running without the browser: TRUE on screen.
+- "Leave if anyone leaves the hunt or dies" (leader's checkbox, on by default): Sol pressed Leave hunt. Her panel changed to "Leaving in 17s". When it ended all three were in town and each summary says, in plain words, "Sol left the hunt, so Bram came home too." / "...so Wren came home too." Wren had her browser closed at the time and still came home: she saw the summary when she signed back in. Truthful and clear.
+- Hunt again: Sol's and Wren's summary says "Hunt again is off. Your party leader picks the hunt and starts it." (clear). Bram's shows "Start again". The leader's own Start again was not pressed.
+- Same totals on all three summaries: 1,915 monsters, 17,005 Level XP in 2:02:06; gold and loot differ by a few percent (Sol 3,626 balance, Wren 3,656, Bram 3,840).
 
 ======================================================================
 5. BUGS  (exact steps)
@@ -101,8 +113,10 @@ P2-8 The Hunts window "chance per kill, hunting alone" / "in a party of 3" lists
 6. WEIGHHOUSE / GIVING ITEMS
 ======================================================================
 - Weighhouse is off by default in this local world and needs Level 10 (min_level 10 in the config). Both were changed by me (harness). Starter weapons say "For your own use: the shop and the Weighhouse won't take it", so the first things a friend would try to give another (the bow, the staff) cannot be given.
-- Opened Bram's Weighhouse: tabs Browse / Sell / My listings / History, search "Find any item", Sort, category chips.
-- I did not complete a listing and a buy between two heroes (see section 1). Other ways to give an item (trade window, mail, drop) were not found in the toolbar: Hunts, Inventory, Character, Gathering and crafting, Storage, Shop, Market, Farm, House, Tamsin's tally, Leaderboards, Hunt prep, Party, Chat, Friends, Settings, Report.
+- Sell tab says, in words: "12 stacks here can't be sold to other players. Raw Shrimp, Turnip Seed and Cooked Shrimp: every new hero starts with some... Practice Bow, Bronze Arrows, Practice Club and 6 more: the shop doesn't buy them, and the Weighhouse lists only what the shop buys, so they're for your own use." Clear and true to what I then saw.
+- TRADE WORKED: Bram listed 20 Wheat at 12 each ("Listed 20 Wheat for 12 each. The fee was 3 gold."). Wren searched Wheat, saw "from 12 each - 20 for sale", chose 10, pressed "Buy 10 for 120 gold": "Bought 10 Wheat for 120 gold. It's in your storage." Wren's gold 1,750 -> 1,630 (exactly 120). Bram's My listings: "10 of 20 left - 12 each - 7 days left - received 115" (120 less the house tax of 4%, rounded). So Bram nets 112 after the 3 gold fee. The screen said what happened in each step; nothing was misleading.
+- Other ways to give an item (direct trade, mail, drop) were not found in the toolbar: Hunts, Inventory, Character, Gathering and crafting, Storage, Shop, Market, Farm, House, Tamsin's tally, Leaderboards, Hunt prep, Party, Chat, Friends, Settings, Report. So the only way to give something to a friend is to list it at a price they are willing to pay. OPINION: friends will want a "send to friend" that is not a sale; the starter weapons being unsellable means a friend cannot hand a new friend a bow.
+- Harness: I set min_level to 1 (default 10) so Level 6 heroes could use the Weighhouse.
 
 ======================================================================
 7. OPINION (marked)
@@ -141,4 +155,7 @@ OPINION: The "Remove" button and the "Leave if anyone leaves" checkbox only exis
 ======================================================================
 11. VERDICT
 ======================================================================
-(see final addendum)
+Would these friends still be playing together next week? PROBABLY YES for the first week, with a wobble.
+Why yes: the party flow is easy and honest (invite by name, plain refusals, the party follows the leader into the hunt, Leave/closing the browser behave exactly as the screen says, and nobody lost anything). It costs nothing to group: per hero Level XP/h was 11-14% above a solo sword/bow and the gold was the same, and the healer gains the most (+37% over a solo staff, who also hunts slowly). The Weighhouse worked first time and told the truth about fees.
+Why the wobble: (1) the promise is "18% more Level XP" in a number they will quote on the call, but the panel never shows a party bonus and its two Level XP figures are identical, so the first friend who checks will say it is fake; (2) nothing in a party hunt asks the three of them to do anything together beyond pressing Start with party, and the hunt panel for the leader says "Your hero fights alone"; (3) I could not test harder grounds or a death, which is where parties either bond or fall apart. If the bonus is real and shown, and if the next ground makes the healer feel needed, they stay. If not, they drift back to separate characters.
+What the game told truthfully: invite results, the "already in a party" refusal, the leave-hunt countdown and "Sol left the hunt, so Bram came home too", "Hunt again is off. Your party leader picks...", Weighhouse fee/tax/total, supplies "Costs are personal." What it did not tell: the size of the party bonus, and that a party of 3 fights packs of 5 by default while a solo fights 2 to 3.

@@ -61,7 +61,8 @@ export function runCareer(R, job) {
     });
     hours += h;
     trace.push({ chunk, hours: Math.round(hours * 100) / 100, ground, levels, deaths: m.heroes.map((x) => x.deaths),
-      xpPerH: m.heroes.map((x) => x.levelXpPerH), profitPerH: m.heroes.map((x) => x.profitPerH),
+      xpPerH: m.heroes.map((x) => x.levelXpPerH), profitPerH: m.heroes.map((x) => x.profitPerH), netPerH: m.heroes.map((x) => x.netWithRaresPerH),
+      coinPerH: m.heroes.map((x) => x.coinPerH), storePerH: m.heroes.map((x) => x.storePerH), minHp: m.heroes.map((x) => x.encMinHpPct.p10),
       skills: seats.map((s) => Object.fromEntries(R.COMBAT_SKILLS.map((k) => [k, XP.skillLevelFromXp(k, s.skills[k] || 0)]))) });
     chunk++;
   }

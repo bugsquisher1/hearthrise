@@ -15,7 +15,15 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **The leader picks the hunt.** A party member's Hunt again no longer starts a new hunt for the party. A member can still go back into a hunt the party is on.
 
+**Easier on a laptop.** Coach tips inside a window shrink to one line, and the Inventory keeps your gold and bag space in view. "Enter town" fits on the screen when you make a hero.
+
+**Tamsin's board comes first.** Her tasks are at the top of her window, a Take button that's off says why, and your Tally count shows while you hunt.
+
+**Party fixes.** The Party window's buttons fit, Disband asks first, and if a party's leader falls, your other hero's Hunts window says why Enter is off and offers Leave party.
+
 **Small fixes.**
+- Sell all loot's confirm names any rare finds it's about to sell.
+- The top-bar stamina button asks before it spends.
 - The away card says when a friend ran out of stamina, rather than saying they left.
 - The hero list no longer says a hero is working on a job that has already finished.
 - The bench fee line shows the real amount for small fees.

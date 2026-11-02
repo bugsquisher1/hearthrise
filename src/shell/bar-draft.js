@@ -92,12 +92,13 @@ export function conditionFor(metric) {
  * copy: with no rows read yet the answer is null. What one use buys:
  *   a store food or drink   that row, per use (it is the slot's item)
  *   a crafted food or drink nothing: own stock only (null)
- *   an ammo line            an arrow's plain partner once yours are gone; the loaded ammo, the matching one;
+ *   an ammo line            an arrow's plain partner once yours are gone; the loaded ammo, the partner of
+ *                           `worn` (what is in the ammo slot: the free rung has none, nor does an empty slot);
  *                           a rune nothing (its store row feeds spells only: supplies.js isRune)
  *   a rune spell            the store rune the slot names; with none, carried runes only
  * { id, name, price, amount } or null.
  */
-export function storeOf(a, rows) {
+export function storeOf(a, rows, worn) {
   if (!a || !a.id || !Array.isArray(rows)) return null;
   const row = (b) => ({ id: b.id, name: storeName(b.id), price: b.price, amount: b.amount });
   if (a.type === 'consume') { const b = rows.find((r) => r.id === a.id); return b ? row(b) : null; }
@@ -105,9 +106,9 @@ export function storeOf(a, rows) {
     const b = a.store ? rows.find((r) => r.id === a.store) : null;
     return b ? row(b) : null;
   }
-  if (a.type === 'attack_with_item' && a.id === 'loaded') return { id: null, name: 'the matching plain ammo', price: null, amount: 0 };
-  if (a.type === 'attack_with_item' && isRune(ITEMS[a.id])) return null;
-  const b = rows.find((r) => r.partner === a.id);
+  const id = a.type === 'attack_with_item' && a.id === 'loaded' ? worn : a.id;
+  if (!id || (a.type === 'attack_with_item' && isRune(ITEMS[id]))) return null;
+  const b = rows.find((r) => r.partner === id);
   return b ? row(b) : null;
 }
 
@@ -142,9 +143,7 @@ export function storeDefault(a, rows) {
 
 /** The store line in words: "then the store's, from 14 g each, paid as used". */
 export function storeWords(st) {
-  if (!st) return '';
-  return st.price === null ? 'then the store’s ' + st.name + ', paid as used'
-    : 'then the store’s ' + st.name + ', ' + st.price + ' g each, paid as used';
+  return st ? 'then the store’s ' + st.name + ', ' + st.price + ' g each, paid as used' : '';
 }
 
 function valueWords(c, m) {

@@ -7,6 +7,7 @@
 //                                              10 minutes each (--minutes N, --browsers chromium,firefox,
 //                                              --sizes 1440x900,922x423 narrow it); prints, never fails
 //   node tests/perf-budget.mjs --mutate        every planted defect must turn the budget RED
+//   node tests/perf-budget.mjs --mutate --shard=K/N   the Kth of N shards, balanced by each mutant's scenario length
 //
 // mutant-anchors: src/social/social-session.js src/shell/away-recap.js src/shell/alerts.js src/world/render/frame-sig.js src/shell/widgets/action-bar.js src/app/boot.js src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
 // mutant-writes-tree: no — probes and mutants are served from memory (tests/_client-harness.mjs serve overrides)
@@ -49,7 +50,7 @@ import { randomUUID } from 'node:crypto';
 import { HARNESS as LIVE_H } from './hunt-live.mjs';
 import { LOG_MAX_LINES } from '../src/data/combat-text.js';
 import { STATIONS } from '../src/data/world/stations.js';
-import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { scopedMutants, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope-live.json'), 'utf8'));
@@ -829,6 +830,22 @@ function printHeld(m) {
     + (h.spans.length ? ' {' + h.spans.join(', ') + '}' : ''));
 }
 
+/* --shard=K/N: a pixel mutant costs a second, a scenario mutant its minutes + about 20 s of boot (run 41339988105). */
+function shardOf(list) {
+  const sh = process.argv.find((a) => a.startsWith('--shard='));
+  if (!sh) return list;
+  const m = /^--shard=(\d+)\/(\d+)$/.exec(sh);
+  if (!m || +m[1] < 1 || +m[1] > +m[2]) { console.log('  ✗ bad ' + sh + ' (want --shard=K/N, 1 <= K <= N)'); process.exit(2); }
+  const names = list.map((mt) => mt[0]);
+  const seconds = Object.fromEntries(list.map((mt) => [mt[0], mt[5] === 'pix' ? 2 : (mt[6] || 2) * 60 + 20]));
+  const plan = planShards(names, +m[2], seconds);
+  const broken = checkShards(names, plan);
+  if (broken.length) { console.log('  ✗ the shard plan is not a partition: ' + broken.join('; ')); process.exit(2); }
+  const mine = new Set(plan[+m[1] - 1].names);
+  console.log('  shard ' + sh.slice(8) + ': ' + mine.size + ' mutant(s), ~' + Math.round(plan[+m[1] - 1].seconds / 60) + ' min booked');
+  return list.filter((mt) => mine.has(mt[0]));
+}
+
 function arg(name, dv) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : dv; }
 
 async function main() {
@@ -837,7 +854,7 @@ async function main() {
     const only = arg('--only', null);   // a name fragment: prove just those mutants (a local re-check)
     /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs): run 41339988105 spent 80 min here
        re-proving 27 mutants because one line of src/data/alerts.js moved. The nightly proves them all. */
-    const MINE = scopedMutants('tests/perf-budget.mjs', MUTANTS);
+    const MINE = scopedMutants('tests/perf-budget.mjs', shardOf(MUTANTS));
     if (!MINE.length) process.exit(0);
     const chosen = MINE.filter((mt) => !only || mt[0].includes(only));
     for (const mt of chosen) {

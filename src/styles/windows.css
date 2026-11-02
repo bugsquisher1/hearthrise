@@ -417,6 +417,10 @@
    Solid at any window opacity: it is the press that matters most. Enter goes somewhere: a dark arrow follows it. */
 .hw-hd-foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 18px 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .hw-hd-foot .hh-intent-msg { flex: 1; min-width: 0; margin: 0; }
+.hw-enter-why { flex: 1; min-width: 0; margin: 0; font-size: var(--t-small); color: var(--ink); }
+.hw-enter-why:empty { display: none; }
+.hw-hd-foot [data-hs-act="leave-party"] { flex: none; }
+.hw-hd-foot [data-hs-act="leave-party"][hidden] { display: none; }
 .hw-hd-foot .hw-primary { flex: none; margin-left: auto; min-height: 44px; padding: 0 16px 0 20px; font-size: var(--t-body); letter-spacing: .1em; }
 .hw-hunt-enter::after { content: ''; display: inline-block; width: 6px; height: 10px; margin-left: 10px; vertical-align: 1px;
   background: url('../../assets/ui/steel-arrow.png') 0 0 / 6px 10px no-repeat; image-rendering: pixelated; }
@@ -588,6 +592,9 @@
 .hw-seat-lead .hs-glyph { width: 14px; height: 14px; }
 .hw-seat-state { flex: none; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-seat.is-away { opacity: .7; }
+/* The window's answer stands under its presses, never over Leave party and Disband. */
+.hs-win .hw-party > .hh-intent-msg:not(:empty) { position: static; }
+.hw-party-acts { flex-wrap: wrap; }
 .hw-party-next { margin: 8px 0 0; }
 .hw-party-class { margin: 4px 0 0; }
 .hw-party-acts .hw-primary { margin-right: auto; }

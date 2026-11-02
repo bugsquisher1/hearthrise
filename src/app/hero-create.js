@@ -133,21 +133,38 @@ export function renderHeroCreate(card, o) {
   const confirm = card.querySelector('.hero-confirm');
   let busy = false;
   let gone = false;
+  /* THE PRESS MOVES ON (friends' panel 2026-11-01: on a slow line the hero was made, the button came back live, and the second press said "That name is taken").
+     `made`: the server said yes, so no press ever asks again; `tried`: a press whose answer never came keeps its key, so the server replays its answer. */
+  let made = false;
+  let tried = null;
+  const pressWords = confirm.textContent;
+  const hold = (words) => { busy = true; confirm.disabled = true; confirm.textContent = words; };
+  const release = () => { busy = false; confirm.disabled = false; confirm.textContent = pressWords; };
+  async function enter() {
+    hold('Entering town…');
+    let went;
+    try { went = await o.done(); } catch (e) { went = false; }
+    if (gone || went !== false) return;
+    release();
+    msg.textContent = 'Your hero is made, but town did not open. Press Enter town to try again.';
+  }
   const repaint = () => paintPreview(canvas, colors, o.colorOf);
   repaint();
 
   async function submit() {
     if (busy || gone) return;
+    msg.textContent = '';
+    if (made) { enter(); return; }
     const name = input.value.trim().replace(/\s+/g, ' ');
     if (name.length < 3) { msg.textContent = NAME_REASON.short; input.focus(); return; }
-    busy = true;
-    confirm.disabled = true;   // stays off until the server answers
-    msg.textContent = '';
-    const r = await o.create(name, Object.assign({}, colors));
+    hold('Making your hero…');   // stays off until the server answers
+    if (!tried || tried.name !== name) tried = { name, key: globalThis.crypto.randomUUID() };
+    const r = await o.create(name, Object.assign({}, colors), tried.key);
     if (gone) return;
-    busy = false;
-    confirm.disabled = false;
-    if (r && r.ok) { o.done(); return; }
+    if (r && (r.ok || r.reason === 'already_created')) { made = true; enter(); return; }
+    /* An answered refusal is final for that key; a lost answer keeps it (`answered`: account-session.js create). */
+    if (r && r.answered) tried = null;
+    release();
     msg.textContent = refusalText(r);
   }
 

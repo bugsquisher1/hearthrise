@@ -279,8 +279,8 @@ function startApp(win) {
     creating = renderHeroCreate(root.querySelector('.auth-card'), {
       slot,
       colorOf: (t) => tokens.getPropertyValue('--' + t),
-      create: (name, colors) => account.create(slot, name, colors),
-      done: () => { track('character_created'); play(slot); },
+      create: (name, colors, key) => account.create(slot, name, colors, key),
+      done: () => { track('character_created'); return play(slot); },
       back: () => showCharacters(),
     });
   }

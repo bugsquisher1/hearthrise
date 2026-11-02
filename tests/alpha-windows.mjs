@@ -697,6 +697,13 @@ async function panelLeftovers(base) {
   const asked = center.list().filter((a) => a.kind === 'friend');
   if (asked.length !== 1 || asked[0].text !== 'Ashgrave wants to be your friend.' || !(hero.record.residue.alerts || { seen: [] }).seen.includes('friend:y')) fails.push('AW-61 a friend request toasts ' + JSON.stringify(asked));
   watch.destroy(); center.destroy();
+  /* AW-63 the panels' round 3 (2026-11-01). */
+  const { enterOffWords } = await imp('src/shell/windows/hunts.js');
+  const warrens = { name: 'Coppercap Warrens', band: [32, 50] };
+  if (enterOffWords(warrens, 13, null) !== 'You need Level 18 to enter Coppercap Warrens. You are Level 13.' || enterOffWords(warrens, 18, null) !== '' || enterOffWords(warrens, 13, { isLeader: true }) !== '' || enterOffWords(warrens, null, null) !== '') fails.push('AW-63 Enter off reads ' + enterOffWords(warrens, 13, null));
+  if (!/^You're in Mira's party/.test(enterOffWords(warrens, 40, { isLeader: false, leaderName: 'Mira' }))) fails.push('AW-63 a member\'s Enter reads ' + enterOffWords(warrens, 40, { isLeader: false, leaderName: 'Mira' }));
+  const { overBagWords } = await imp('src/shell/windows/inventory/index.js');
+  if (overBagWords(99, 100) !== '' || !/Hunts still pick up loot/.test(overBagWords(114, 100))) fails.push('AW-63 a bag past its spaces says ' + overBagWords(114, 100));
   /* THE NEWCOMER'S PANEL (2026-11-01). */
   const { coachHtml } = await imp('src/shell/launcher.js');
   const reader = { read: () => null, record: { residue: { coach: { read: [] } } } };
@@ -2632,6 +2639,54 @@ async function checks(overrides, shots) {
           await page.waitForTimeout(400);
           const names = s.calls.slice(mark).map((c) => c.name);
           if (!names.includes('hr_hunt_party_start') || names.includes('hr_hunt_enter')) fails.push('AW-61 the leader\'s Hunt again sent ' + names.join(','));
+          s.env.party = Object.assign({}, s.env.party, { self_seat: 1, leader_seat: 0 });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(300);
+          /* AW-63 sent home still in the party (midgame panel 2026-11-01): Hunts' Enter is off with its reason beside it, and Leave party there is ONE intent */
+          if (await openWin(page, 'h', 'hunts')) {
+            await page.waitForTimeout(200);
+            const foot = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'), e = w.querySelector('.hw-hunt-enter'), l = w.querySelector('[data-hs-act="leave-party"]'); return { off: e.disabled, why: w.querySelector('.hw-enter-why').textContent, leave: !l.hidden && l.getClientRects().length > 0 }; });
+            if (!foot.off || !/^You're in Bramwell's party, and they pick the hunt\./.test(foot.why) || !foot.leave) fails.push('AW-63 a member\'s Hunts foot reads ' + JSON.stringify(foot));
+            const mk = s.calls.length;
+            await page.click('[data-hs-win="hunts"] [data-hs-act="leave-party"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunts\"] [data-hs-act=\"leave-party\"]'"));
+            await page.waitForTimeout(300);
+            if (s.calls.slice(mk).filter((c) => /party_leave/.test(c.name)).length !== 1) fails.push('AW-63 Leave party in Hunts sent ' + s.calls.slice(mk).map((c) => c.name).join());
+            await page.keyboard.press('h');
+          }
+          /* AW-63 the Party window: its answer under its presses, Disband whole and asking first, a seat coming retires an old answer */
+          s.env.party = Object.assign({}, s.env.party, { self_seat: 0, leader_seat: 0 });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(200);
+          if (await openWin(page, 'y', 'hunt-party')) {
+            await page.click('[data-hs-win="hunt-party"] .hw-tab[data-tab="party"]').catch(() => {});
+            await page.click('[data-hs-win="hunt-party"] [data-hs-act="invite-name"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunt-party\"] [data-hs-act=\"invite-name\"]'"));
+            await page.waitForTimeout(150);
+            const lay = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-party"]'), m = w.querySelector('.hw-party > .hh-intent-msg').getBoundingClientRect(), a = w.querySelector('.hw-party-acts').getBoundingClientRect(), d = w.querySelector('[data-hs-act="disband"]'), dr = d.getBoundingClientRect(), b = w.querySelector('.hs-win-body').getBoundingClientRect();
+              return { over: m.height > 0 && m.top < a.bottom && a.top < m.bottom, clip: d.scrollWidth - d.clientWidth, past: dr.right - b.right, said: w.querySelector('.hw-party > .hh-intent-msg').textContent }; });
+            if (lay.over || lay.clip > 0 || lay.past > 0 || !lay.said) fails.push('AW-63 the Party window lays out as ' + JSON.stringify(lay));
+            s.env.party = Object.assign({}, s.env.party, { members: s.env.party.members.concat([{ seat: 2, name: 'Solace', unit: 12, hunting: false }]) });
+            await pushEnvelope(page, s);
+            await page.waitForTimeout(300);
+            const stale = await page.evaluate(() => document.querySelector('[data-hs-win="hunt-party"] .hw-party > .hh-intent-msg').textContent);
+            if (stale) fails.push('AW-63 an old answer stands after a seat came: ' + stale);
+            const dk = s.calls.length;
+            await page.click('[data-hs-win="hunt-party"] [data-hs-act="disband"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunt-party\"] [data-hs-act=\"disband\"]'"));
+            await page.waitForTimeout(150);
+            const armed = await page.evaluate(() => document.querySelector('[data-hs-win="hunt-party"] [data-hs-act="disband"]').textContent);
+            if (armed !== 'Sure?' || s.calls.slice(dk).some((c) => /disband/.test(c.name))) fails.push('AW-63 Disband\'s first press: ' + armed);
+            await page.keyboard.press('y');
+          }
+          /* AW-63 a lone hero far under a ground's floor: Enter off, and when it opens (Coppercap at Level 13: a live Enter under "too far below") */
+          delete s.env.party;
+          s.env.state = Object.assign({}, s.env.state, { level_xp: 0 });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(300);
+          if (await openWin(page, 'h', 'hunts')) {
+            await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="coppercap_warrens"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunts\"] .hw-hunt[data-hunt=\"coppercap_warrens\"]'"));
+            await page.waitForTimeout(200);
+            const far = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'), e = w.querySelector('.hw-hunt-enter'); return { off: e.disabled, why: w.querySelector('.hw-enter-why').textContent }; });
+            if (!far.off || far.why !== 'You need Level 18 to enter Coppercap Warrens. You are Level 1.') fails.push('AW-63 Coppercap far under its floor reads ' + JSON.stringify(far));
+          }
         }
       }
       await ctx.close();
@@ -2764,6 +2819,13 @@ const MUTANTS = [
   ['AW-62 the analyzer tab runs past the panel', 'src/styles/hunt.css', '.ha-tabs .ha-tab { margin-bottom: -2px; padding: 0 4px; }', '.ha-tabs .ha-tab { margin-bottom: -2px; }'],
   ['item truth: panel: a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],
   ['AW-62 the foot scrolls off', 'src/styles/windows.css', '.hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }\n', ''],
+  ['item truth: panel: Enter stays lit far under the floor', 'src/shell/windows/hunts.js', "  return 'You need Level ' + (r.band[0] - SESSION_LIMITS.belowRangeRefuse + 1) + ' to enter '", "  return '' && ' to enter '"],
+  ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Your bag is full.", "  return false ? 'Your bag is full."],
+  ['AW-63 Enter off has no reason beside it', 'src/shell/windows/hunts.js', "  text(det.querySelector('.hw-enter-why'), off);\n", ''],
+  ['AW-63 a member has no way out at Enter', 'src/shell/windows/hunts.js', "  prop(det.querySelector('[data-hs-act=\"leave-party\"]'), 'hidden', now || !follower);\n", ''],
+  ['AW-63 the answer covers Leave party', 'src/styles/windows.css', '.hs-win .hw-party > .hh-intent-msg:not(:empty) { position: static; }\n', ''],
+  ['AW-63 Disband goes on one press', 'src/shell/widgets/party-panel.js', '    if (!sc.disbandArmed) {', '    if (false) {'],
+  ['AW-63 an old answer stands after a seat came', 'src/shell/windows/party.js', "if (sc.msgSeats !== undefined && !sc.pending) sc.msg = '';", ''],
   ['AW-61 a window title clips again', 'src/styles/shell.css', '.hs-win-title { margin: 0; flex: 1; min-width: 0;', '.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
   ['AW-61 Shop names are cut again', 'src/styles/windows.css', '  .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }', ''],
   ['AW-61 the summary ignores who may press', 'src/shell/windows/hunt-summary.js', "prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);", "prop(go, 'disabled', sc.pending || huntOpen || !again);"],

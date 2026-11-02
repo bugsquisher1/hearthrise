@@ -226,7 +226,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Your weapon shoots what is loaded, and nothing is, so your hero won\'t attack. Leave the hunt, then put arrows on your bar from your bag.',
     'hunt_topbar', { kind: 'shot_ready' }, { when: [HUNTING, { kind: 'no_shot' }] }),
   /* ── B. The first hunt: the cards the server finishes on its own come first (AUTO_KINDS) ── */
-  step('first_kill', 'Your hero fights alone',
+  step('first_kill', 'Your hero fights on its own',
     'You don\'t click to attack. Your hero goes after the rats, fights them, and picks the next one.',
     'world', { kind: 'kills', atLeast: 1 }, { knowledge: true }),
   /* Shown from the first kill until Level 2 lands, so it never names the Level (playtest 2026-10-29: "Level 2" sat

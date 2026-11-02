@@ -52,6 +52,8 @@ import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.82';
 import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.82';
 import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.82';
 import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.82';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.82';
+import { SESSION_LIMITS } from '../../data/hunt-sessions.js?v=0.2.82';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.82';
 import { whole } from '../../render/format.js?v=0.2.82';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.82';
@@ -88,6 +90,18 @@ function levelOf(cs) {
 }
 
 const groundOf = (hunt) => Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt) || null;
+
+/**
+ * WHY THIS HERO'S ENTER IS OFF, or '' when it is live. A party member's belongs to its leader (the server refuses it: not_party_leader). A lone hero far under
+ * the floor is one the server refuses (hr_hunt_admit), so the press is off at once: Coppercap at Level 13 read "too far below" over a live Enter. Only what
+ * the server's Level and the shared limit already say; the server still decides. A leader's start names its own seats. Pure.
+ */
+export function enterOffWords(r, level, party) {
+  if (party && !party.isLeader) return 'You\'re in ' + (party.leaderName || 'your leader') + '\'s party, and they pick the hunt. Leave the party to pick your own.';
+  if (party || !Number.isInteger(level) || r.band[0] - level < SESSION_LIMITS.belowRangeRefuse) return '';
+  /* the sentence the server's own refusal reads as (refusal.js activity_locked) */
+  return 'You need Level ' + (r.band[0] - SESSION_LIMITS.belowRangeRefuse + 1) + ' to enter ' + r.name + '. You are Level ' + level + '.';
+}
 
 /* What a leader's warning covered: this ground and these seats. Someone who sits down under the floor afterwards has not been told. */
 const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();
@@ -186,6 +200,7 @@ export function renderHunts(ctx) {
     + '<p class="hw-density-note"></p>'
     + '<p class="hw-hunt-pack"></p>' + goHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
+    + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>Leave party</button>'
     + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">Enter</button></div>'
     + '</section></div></div>';
 }
@@ -299,7 +314,11 @@ function patchPage(det, ctx, sc, v) {
   text(enter, party && !follower ? (under.length && sc.warned === warnKey(r.hunt, under) ? 'Start anyway' : 'Start with party') : 'Enter');
   /* Enter and the pull step (Go as, Find a party and Bring are patchGo's: off for a member too). */
   for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', sc.pending || !!now);
-  if (follower) prop(enter, 'disabled', true);
+  /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
+  const off = now ? '' : enterOffWords(r, level, party);
+  if (off) prop(enter, 'disabled', true);
+  text(det.querySelector('.hw-enter-why'), off);
+  prop(det.querySelector('[data-hs-act="leave-party"]'), 'hidden', now || !follower);
   /* This hero's density pick per ground (hunt_density); null = the server sent none, no number shows. */
   const dn = shownDensity(sc, huntDensityOf(cs), r.hunt, size, party);
   /* The pull size the server spawns at the shown pick (this ground's own pick). */
@@ -377,6 +396,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   }
   /* An Enter the server took closes this window once its hunt section shows the hunt (patchHunts). */
   const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };
+  if (action === 'leave-party') { leaveOrDisband(ctx, cs, sc, repaint, 'leave'); return true; }
   if (action === 'enter' && partyMembershipOf(cs)) {
     sc.pick = hunt;
     const lead = partyMembershipOf(cs);

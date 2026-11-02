@@ -505,6 +505,49 @@ async function checks(overrides, leaving = true) {
       /* The sign-in says what the game is, once, under the crest (newcomer panel 2026-11-01). */
       const pitch = await page.evaluate(() => { const p = document.querySelector('.auth-brand .auth-pitch'); return p && p.getClientRects().length ? p.textContent : null; });
       if (pitch !== 'Your heroes hunt, gather and craft, even while you\'re away.') fails.push('B-9 the sign-in screen pitches ' + JSON.stringify(pitch));
+      /* THE PRESS MOVES ON (friends' panel 2026-11-01): off with its words while the server is out; a lost answer's retry keeps its key; once made, no press asks again. */
+      const press = await page.evaluate(async () => {
+        const { renderHeroCreate } = await import(location.origin + '/src/app/hero-create.js');
+        const card = document.createElement('div'); document.body.append(card);
+        const keys = []; let dones = 0, answer, went;
+        const step = renderHeroCreate(card, { slot: 1, colorOf: () => '#000000', dyes: false, back() {},
+          create: (n, c, k) => { keys.push(k); return new Promise((r) => { answer = r; }); }, done: () => { dones++; return new Promise((r) => { went = r; }); } });
+        const b = card.querySelector('.hero-confirm'), tick = () => new Promise((r) => setTimeout(r, 0));
+        card.querySelector('.hero-name').value = 'Fennick';
+        b.click();
+        const out = { working: [b.disabled, b.textContent] };
+        b.click();
+        out.oneAsk = keys.length === 1;
+        answer({ ok: false, answered: false, reason: 'network' }); await tick();
+        out.lost = [b.disabled, b.textContent];
+        b.click();
+        out.sameKey = keys.length === 2 && keys[0] === keys[1];
+        answer({ ok: true, answered: true }); await tick();
+        out.entering = [b.disabled, b.textContent, dones];
+        b.click();
+        out.noAsk = keys.length === 2 && dones === 1;
+        went(false); await tick();
+        out.stuck = [b.disabled, card.querySelector('.auth-message').textContent];
+        b.click();
+        out.again = keys.length === 2 && dones === 2;
+        step.destroy(); card.remove();
+        return out;
+      });
+      if (!press.working[0] || press.working[1] !== 'Making your hero…' || !press.oneAsk || press.lost[0] || press.lost[1] !== 'Enter town' || !press.sameKey
+        || !press.entering[0] || press.entering[1] !== 'Entering town…' || press.entering[2] !== 1 || !press.noAsk || press.stuck[0] || !/hero is made/.test(press.stuck[1]) || !press.again) fails.push('B-9 the Enter town press: ' + JSON.stringify(press));
+      /* Sign-up sent: the fields stand aside for the message and the way back (phone panel 2026-11-01: Back half off a 390 px screen). */
+      const sent = await page.evaluate(async () => {
+        const { renderAuthScreen } = await import(location.origin + '/src/app/sign-in.js');
+        const box = document.createElement('div'); document.body.append(box);
+        renderAuthScreen(box, { signUp: async () => ({ ok: true, message: 'Check your email.' }) }, 'create', {});
+        const form = box.querySelector('form');
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+        await new Promise((r) => setTimeout(r, 0));
+        const out = { field: box.querySelector('.auth-field').getClientRects().length, submit: box.querySelector('.auth-submit').getClientRects().length, back: box.querySelector('.auth-link').getClientRects().length, said: box.querySelector('.auth-message').textContent };
+        box.remove();
+        return out;
+      });
+      if (sent.field || sent.submit || !sent.back || sent.said !== 'Check your email.') fails.push('B-9 a sign-up sent reads ' + JSON.stringify(sent));
       await page.fill('input[name=email]', 'qa@example.test');
       await page.fill('input[name=password]', 'not-a-real-password');
       await page.click('.auth-submit');
@@ -688,6 +731,10 @@ const MUTANTS = [
   ['the loading bar never moves', 'src/platform/load-shell.js', '      paint();\n', ''],
   ['a module that cannot load is not said', 'src/platform/load-shell.js', "    failed = true;\n", "    return;\n"],
   ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],
+  ['a made hero\'s press asks the server again', 'src/app/hero-create.js', "    if (made) { enter(); return; }\n", ''],
+  ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold('Entering town…');\n", ''],
+  ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name) tried =", '    tried ='],
+  ['a sign-up sent keeps its fields', 'src/styles/app.css', '.auth-card.is-sent .auth-field, .auth-card.is-sent .auth-submit { display: none; }\n', ''],
   ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],
   ['Enter town runs under the fold at 1366x768', 'src/styles/app.css', '.auth:has(.auth-card.is-create) .auth-brand { display: none; }\n', ''],
   ['the color strips are back while the world draws none', 'src/data/outfits.js', 'export const HERO_DYES_SHOWN = false;', 'export const HERO_DYES_SHOWN = true;'],

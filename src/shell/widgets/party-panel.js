@@ -168,8 +168,8 @@ export function liveRoster(cs, r) {
 export function leaveOrDisband(ctx, cs, sc, repaint, action) {
   if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
   else if (action === 'disband') {
-    /* A thumb asks twice (panel 2026-11-01: one tap, no question, party gone): the first press arms it, and its words say so. */
-    if (ctx.isPhone && ctx.isPhone() && !sc.disbandArmed) {
+    /* It asks twice, on every screen (panels 2026-11-01: one press, no question, party gone): the first press arms it, and its words say so. */
+    if (!sc.disbandArmed) {
       sc.disbandArmed = true;
       sc.msg = 'Press Sure? to end the party for everyone in it.';
       repaint();

@@ -1128,7 +1128,7 @@ const cases = {
     const before = draw(cs);
     cs = hero(env('mill_cellar'), cs.record.residue);
     const marked = draw(cs);
-    if (!folded(marked) || !marked.includes('hs-coach-new') || !marked.includes('Your hero fights alone')) return 'a new card while folded: no mark, or it opened: ' + marked;
+    if (!folded(marked) || !marked.includes('hs-coach-new') || !marked.includes('Your hero fights on its own')) return 'a new card while folded: no mark, or it opened: ' + marked;
     /* the hunt bar (built once) redraws the coach when the fold or the card changes, and only then */
     let node = null, inserts = 0;
     const attrOf = (h, a) => (new RegExp(a + '="([^"]+)"').exec(h) || [])[1] || null;

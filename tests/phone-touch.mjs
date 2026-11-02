@@ -1464,7 +1464,7 @@ const MUTANTS = [
   ['PH-19 Summary and Leave stay 7 px apart', 'src/styles/hunt.css', '  .ht-bar [data-hs-act="leave"] { margin-left: 10px; }\n', ''],
   ['PH-19 the folded card lies on the Details close', 'src/styles/hunt.css', '.app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer { display: none; }', '.app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { display: none; }'],
   ['PH-20 the party\'s presses run off the sheet', 'src/styles/windows.css', '  .hw-party-acts { flex-wrap: wrap; }\n', '  .hw-party-acts { flex-wrap: nowrap; min-width: 460px; }\n'],
-  ['PH-20 Disband goes on one tap', 'src/shell/widgets/party-panel.js', 'if (ctx.isPhone && ctx.isPhone() && !sc.disbandArmed) {', 'if (false) {'],
+  ['PH-20 Disband goes on one tap', 'src/shell/widgets/party-panel.js', '    if (!sc.disbandArmed) {', 'if (false) {'],
   ['PH-21 a tip for an item nobody pressed', 'src/shell/windows/item-tip.js', '  if (touch && !(pressed && anchor.contains(pressed))) return;\n', ''],
   ['PH-21 the tip lies on the sheet', 'src/shell/windows/item-tip.js', "const r = ((touch && anchor.closest('.hs-win')) || anchor).getBoundingClientRect();", 'const r = anchor.getBoundingClientRect();'],
   ['PH-21 a mouseout puts the tip away', 'src/shell/windows/item-tip.js', '  if (touching(doc) && !byPress) return;\n', ''],

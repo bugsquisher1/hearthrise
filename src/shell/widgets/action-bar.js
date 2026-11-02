@@ -429,7 +429,8 @@ renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
       press.held = false;
       if (ev.pointerType === 'touch') press.timer = setTimeout(() => { press.held = true; showTip(el, t, ctx); }, LONG_PRESS_MS);
       return;
-    case 'pointerup': case 'pointercancel': clearTimeout(press.timer); return;
+    /* A long press's tooltip reads while the thumb is down and goes with it (phone panel 2026-11-01: still open 4 minutes later). */
+    case 'pointerup': case 'pointercancel': clearTimeout(press.timer); if (press.held) hideTip(el); return;
     case 'dragstart':
       if (t.classList.contains('is-empty') || !ev.dataTransfer) return;
       ev.dataTransfer.setData(SLOT_DRAG, String(i));

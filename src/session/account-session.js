@@ -325,13 +325,13 @@ export class AccountSession {
 
   /** Ask the server to make the hero in an owned slot with its name and colours ({ head, body, legs, feet }
       dye indices). { ok } or { ok:false, reason, nameReason }: the server's verdict, never the client's. */
-  create(slot, name, colors) {
+  create(slot, name, colors, key) {
     return this.intents.track('create_hero', async () => {
-      const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: newIdem() });
+      const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: key || newIdem() });
       this._noteClosed(ans);
       const b = ans.body;
       const ok = !!(ans.ok && b && b.ok === true);
-      return { ok, error: ok ? null : (b && b.error) || ans.error || 'refused', reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
+      return { ok, answered: !!b, error: ok ? null : (b && b.error) || ans.error || 'refused', reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
     });
   }
 

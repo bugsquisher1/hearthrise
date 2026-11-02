@@ -77,6 +77,8 @@ export function renderAuthScreen(box, auth, mode, on) {
     else r = await auth.signIn(val('email'), val('password'));
     btn.disabled = false;
     say(r.message, r.ok);
+    /* Sent: the fields and their button stand aside, or the message pushes the way back off a phone's screen (phone panel 2026-11-01). */
+    form.classList.toggle('is-sent', !!r.ok && mode === 'create');
     if (r.ok && (mode === 'sign-in' || mode === 'set-password')) on.signedIn();
   });
   focusOffTouch(form.querySelector('input'));

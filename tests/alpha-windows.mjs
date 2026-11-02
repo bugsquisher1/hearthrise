@@ -40,6 +40,8 @@
 //         button and the hunt summary no Restock
 //   AW-8  HUNT PREP: the readiness line names this character's shortages from the
 //         server's bag and bar; Use sends ONE hr_hunt_preset_apply
+//   AW-64 HUNT PREP AND BEFORE YOU GO PRINT ONE READER of what the hero can use NOW (the hunt bag in
+//         a hunt), every tier of food, drink, ammo and runes, ammo in the engine's order (Andy #74)
 //   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
 //         and Dispatch loot stay off and the bag value reads a dash
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
@@ -823,8 +825,74 @@ async function planRules(base) {
   const fedSaid = [readinessLine(fedR), fedR.checks.filter((c) => c.id === 'food').map((c) => (c.ok ? '' : '!') + c.text).join(), say(fed)].join(' || ');
   if (fedSaid !== 'Brannoc: ready || Food: no Cooked Shrimp left. You carry 12 Cooked Trout: put it on the bar to eat it || Food: no Cooked Shrimp left. You carry 12 Cooked Trout: put it on the bar to eat it | Stamina: 8 h 0 min. Your hero hunts that long, even with the game closed, then comes home.')
     fails.push('AW-8 an empty food slot with spare food in the bag reads ' + JSON.stringify(fedSaid));
-  const shooter = readinessOf(noStore([{ action: { type: 'attack_with_item', id: 'loaded' }, conditions: [], join: 'and', usable: true }], {}));
+  const shooter = readinessOf(sess({ hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [{ action: { type: 'attack_with_item', id: 'loaded' }, conditions: [], join: 'and', usable: true }], store: STORE, supplySource: 'own', onEmpty: 'stop' }, inventory: {}, name: 'Brannoc' }));
   if (readinessLine(shooter) !== 'Brannoc: 0 ammo') fails.push('AW-8 a bar that shoots with no ammo reads ' + JSON.stringify(readinessLine(shooter)));
+  /* AW-64 HUNT PREP READS WHAT THE HERO CAN USE NOW (Andy #74, live 11-02: Eddie with 2,000 Cooked Swordfish in his hunt bag read
+     "Food: the store, 432 gp each as used", Fremulon "Ammo: the store as used"; Enter MOVES supplies out of the bag, and the ledger
+     shows neither ever paid). Prep and Before you go print ONE reader; in a hunt and in town say the same; every tier of food, drink,
+     ammo and runes; ammo in the engine's order (conditions.js attackOrder), so a free stack ends the line and nothing behind it is said. */
+  {
+  const { BASIC_SUPPLIES } = await imp('src/data/supply-basics.js');
+  const { ABILITIES: SPELLS } = await imp('src/data/abilities.js');
+  const { itemName: nameOfItem, runeWords: runeWordsOf } = await imp('src/shell/widgets/bits.js');
+  const { supplyLines } = await imp('src/shell/action-facts.js');
+  const LIVE = BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, heals: b.heals || null, mana: b.mana || null, price: b.price }));
+  const barOf = (role, slots) => ({ preset: 0, presets: [], role, slots, store: LIVE, supply_source: 'mine', on_empty: 'switch' });
+  const inHunt = (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: {},
+    hunt: { session_id: 's-1', hunt_id: 'mosslight_glade', session: { bag: Object.entries(packed).map(([item, left]) => ({ item, left })) } } });
+  const inTown = (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: packed });
+  const prepOf = (cs, id) => (readinessOf(cs).checks.find((c) => c.id === id) || {}).text;
+  const beforeOf = (cs, id) => (beforeLines(cs).find((l) => l.id === id) || {}).text;
+  const eat = (id) => slot('consume', id);
+  const spellStore = (id, store) => ({ action: { type: 'ability', id, store }, conditions: [], join: 'and', usable: true });
+  const shoot = (id) => slot('attack_with_item', id);
+  const EDDIE = [[spellStore('flame_strike', 'plain_fire_rune'), spellStore('rend', 'plain_rupture_rune'), eat('cooked_swordfish'), eat('salted_swordfish'), eat('thin_carrot_juice')],
+    { chalked_fire_rune: 7342, cooked_swordfish: 2000 }, { weapon: 'steel_hatchets', ammo: 'steel_whetstone' }];
+  const FREMULON = [[shoot('loaded'), shoot('bronze_arrows'), shoot('barbed_arrows'), eat('cooked_swordfish'), eat('thin_carrot_juice')],
+    { mithril_arrows: 27300, coarse_whetstone: 26340, bronze_arrows: 2600, cooked_swordfish: 150, cooked_shrimp: 25 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }];
+  const FREMULON_SAYS = 'Ammo: no Steel Arrows left, then Bronze Arrows. They never run out. You carry 27,300 Mithril Arrows: put them on the bar to shoot them.';
+  const want64 = [
+    ['Eddie food', 'food', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Food: 2,000 Swordfish Steak of yours, then Salted Swordfish from the store, 432 gp each'],
+    ['Eddie drink', 'drink', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Drink: Thin Carrot Juice from the store, 18 gp each'],
+    ['Eddie ammo', 'ammo', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], undefined],
+    ['Fremulon ammo', 'ammo', ['Fremulon', 'ranger', ...FREMULON], FREMULON_SAYS],
+    /* the player's order stands: a store slot ahead of his own is said as what it is, the store first */
+    ['store ahead of own', 'food', ['A', 'melee_dps', [eat('salted_shrimp'), eat('cooked_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp from the store, 14 gp each, then 5 Cooked Shrimp of yours'],
+    /* carried first, the worn ahead of the bar's, the store last, whatever the bar's order */
+    ['the engine\'s order', 'ammo', ['A', 'ranger', [shoot('barbed_arrows')], { barbed_arrows: 5, iron_arrows: 3 }, { weapon: 'willow_longbow', ammo: 'iron_arrows' }], 'Ammo: 3 Iron Arrows of yours, loaded, then 5 Barbed Arrows of yours, then Plain Iron Arrows from the store, 1 gp each.'],
+    /* a whetstone or a rune is no one's shot, and the free rung ends the line */
+    ['no whetstone in the arrows', 'ammo', ['A', 'ranger', [shoot('loaded')], { coarse_whetstone: 30000, chalked_fire_rune: 40, bronze_arrows: 5 }, { weapon: 'willow_longbow', ammo: 'bronze_arrows' }], 'Ammo: Bronze Arrows loaded. They never run out.'],
+    /* the worn slot empty, own stock behind: the store is reached only when it is gone, and idle stock is said beside it */
+    ['store with stock idle', 'ammo', ['A', 'ranger', [], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows from the store, 1 gp each. You carry 9 Mithril Arrows: put them on the bar to shoot them.'],
+    /* a slot switched Off spends nothing */
+    ['an Off slot', 'food', ['A', 'melee_dps', [Object.assign(eat('cooked_shrimp'), { enabled: false }), eat('salted_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp from the store, 14 gp each. You carry 5 Cooked Shrimp: put it on the bar to eat it'],
+  ];
+  /* every tier, every line: own stock counted, then its store row at the server's price */
+  const KIND_64 = { heal: ['food', 'Food'], mana: ['drink', 'Drink'] };
+  for (const b of BASIC_SUPPLIES) {
+    if (KIND_64[b.kind]) want64.push(['tier ' + b.partner, KIND_64[b.kind][0], ['A', 'melee_dps', [eat(b.partner), eat(b.id)], { [b.partner]: 7 }, { weapon: 'steel_hatchets' }], KIND_64[b.kind][1] + ': 7 ' + nameOfItem(b.partner) + ' of yours, then ' + b.n + ' from the store, ' + b.price + ' gp each']);
+    else if (!/_rune$/.test(b.id)) want64.push(['tier ' + b.partner, 'ammo', ['A', 'ranger', [shoot('loaded')], { [b.partner]: 7 }, { weapon: 'willow_longbow', ammo: b.partner }], 'Ammo: 7 ' + nameOfItem(b.partner) + ' of yours, loaded, then ' + b.n + ' from the store, ' + b.price + ' gp each.']);
+    else {
+      const spell = Object.values(SPELLS).find((a) => a.rune === b.partner);
+      if (spell) want64.push(['tier ' + b.partner, 'rune', ['A', 'mage', [spellStore(spell.id, b.id)], { [b.partner]: 7 }, { weapon: 'practice_staff' }], 'Runes: 7 ' + runeWordsOf(spell.rune, 7) + ' of yours, then ' + b.n + ' from the store, ' + b.price + ' gp a cast']);
+    }
+  }
+  for (const [what, id, args, text] of want64) {
+    for (const [where, make] of [['in a hunt', inHunt], ['in town', inTown]]) {
+      const cs = make(...args);
+      if (prepOf(cs, id) !== text) fails.push('AW-64 ' + what + ' ' + where + ', Hunt prep reads ' + JSON.stringify(prepOf(cs, id)));
+      if (beforeOf(cs, id) !== text) fails.push('AW-64 ' + what + ' ' + where + ', Before you go reads ' + JSON.stringify(beforeOf(cs, id)));
+    }
+  }
+  if (readinessLine(readinessOf(inHunt('Fremulon', 'ranger', ...FREMULON))) !== 'Fremulon: ready') fails.push('AW-64 Fremulon is not ready: ' + readinessLine(readinessOf(inHunt('Fremulon', 'ranger', ...FREMULON))));
+  /* the slot's tooltip says the same of the loaded ammo: what is worn, what it costs, and no store behind a free arrow */
+  const loadedSays = (worn, bag) => supplyLines({ type: 'attack_with_item', id: 'loaded' }, { role: 'ranger', store: LIVE, supplySource: 'mine', onEmpty: 'switch' }, bag, worn).join(' ');
+  for (const [worn, bag, text] of [
+    ['steel_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'You carry no Steel Arrows. Your other ammo fires first, then the store’s Plain Steel Arrows, 1 g each, paid as used.'],
+    ['iron_arrows', [{ id: 'iron_arrows', qty: 9 }], 'You carry 9 Iron Arrows. Own stock first, then the store’s Plain Iron Arrows, 1 g each, paid as used.'],
+    ['bronze_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'Bronze Arrows loaded. They never run out.'],
+  ]) if (loadedSays(worn, bag) !== text) fails.push('AW-64 the loaded slot on ' + worn + ' reads ' + JSON.stringify(loadedSays(worn, bag)));
+  }
   /* AW-8 Hunt prep says HOW MUCH stamina, and in town the supply rate is the LAST hunt's (core-loop play 2026-10-30:
      "Stamina left" with no amount; "on this hunt" over a hero standing in Havora). */
   const an = { hero: { per_hour: { waste: 500 } } };
@@ -2851,7 +2919,7 @@ const MUTANTS = [
   ['AW-61 the summary ignores who may press', 'src/shell/windows/hunt-summary.js', "prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);", "prop(go, 'disabled', sc.pending || huntOpen || !again);"],
   ['AW-61 the leader enters alone', 'src/shell/windows/hunt-summary.js', "if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);\n    else if (how === 'enter')", "if (how)"],
   ['item truth: Before you go hides the spare juice', 'src/shell/hunt-go.js', "const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';", "const spare = '';"],
-  ['item truth: Before you go nags about what is on the bar', 'src/shell/hunt-go.js', "const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.action.type === 'consume').map((sl) => sl.action.id));", 'const barNames = () => new Set();'],
+  ['item truth: Before you go nags about what is on the bar', 'src/shell/hunt-go.js', "const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'consume').map((sl) => sl.action.id));", 'const barNames = () => new Set();'],
   ['item truth: no drink slot, no word', 'src/shell/hunt-go.js', "if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. '", "if (false) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. '"],
   ['item truth: panel: own stock goes behind the store again', 'src/shell/bar-assign.js', 'const store = named ? -1 : storeSlotFor(wire, id);', 'const store = -1;'],
   ['item truth: panel: own stock keeps its own lower condition', 'src/shell/bar-assign.js', 'conditions: conditions.map((c) => Object.assign({}, c)), join };', 'conditions: startConditions(action), join };'],
@@ -2883,7 +2951,15 @@ const MUTANTS = [
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
-  ['plans: Hunt prep calls an empty food slot short', 'src/shell/readiness.js', '      if (out && !heads) short.push(', '      if (out) short.push('],
+  ['plans: Hunt prep calls an empty food slot short', 'src/shell/hunt-go.js', "(spare ? '. ' + spare : ''), short: false });", "(spare ? '. ' + spare : ''), short: !usable });"],
+  ['plans: AW-64 Hunt prep reads the bag in a hunt', 'src/shell/readiness.js', '  const carried = carriedOf(cs);', "  const inv = cs.read('inventory');\n  const carried = inv ? Object.entries(inv).map(([id, qty]) => ({ id, qty })) : null;"],
+  ['plans: AW-64 a free arrow is said with the store behind it', 'src/shell/hunt-go.js', '    if (free && !o.ruled) { endless = true; break; }\n', ''],
+  ['plans: AW-64 arrows are said in the bar\'s order, not the engine\'s', 'src/shell/hunt-go.js', 'of attackOrder(rows.concat([DEFAULT_ATTACK_ROW])))', 'of rows.concat([DEFAULT_ATTACK_ROW]))'],
+  ['plans: AW-64 a worn slot with none left is not said', 'src/shell/hunt-go.js', 'const parts = (dry ? [dry] : [])', 'const parts = []'],
+  ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '')", "''"],
+  ['plans: AW-64 a whetstone reads as a spare arrow', 'src/shell/hunt-go.js', ': carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot', ': carried.filter((r) => r.qty > 0 && ammoPerShot'],
+  ['plans: AW-64 the loaded slot names a store shot it never buys', 'src/shell/bar-draft.js', "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? worn : a.id;", "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? 'steel_arrows' : a.id;"],
+  ['plans: AW-64 a slot switched Off is said as spending', 'src/shell/hunt-go.js', 'if (!sl || sl.empty || sl.enabled === false) return null;', 'if (!sl || sl.empty) return null;'],
   ['plans: Hunt prep says stamina with no amount', 'src/shell/readiness.js', "'Stamina: ' + hoursWords(st.msLeft) + ' left'", "'Stamina left'"],
   ['plans: Hunt prep calls the last hunt this hunt', 'src/shell/readiness.js', "h && !h.ended ? 'this hunt' : 'your last hunt'", "'this hunt'"],
   ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    if (mine.length) front = mine;', '    if (mine.length) front = front.slice();'],

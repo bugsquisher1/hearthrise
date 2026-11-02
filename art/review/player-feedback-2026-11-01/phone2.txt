@@ -3,12 +3,12 @@ Lane: lane/f5-phone, base origin/release/v0.2.82 (feb879a7b). Local world only (
 Main viewport 844x390. Spot checks 667x375, 922x423, portrait 390x844. The player is blind: no src/docs/tests/changelog/memory read.
 Input: Playwright touchscreen taps, CDP touch-event swipes, a 650-700 ms long press. Text entry used insertText as a stand-in for the on-screen keyboard (no hover, no keyboard shortcuts, no right-click used).
 Screenshots: art/review/player-feedback-2026-11-01/phone2-shots/ (29 files).
-Run window: 17:52 to about 18:55 CST, 2026-11-01.
+Run window: 17:52 to about 19:05 CST, 2026-11-01 (about 95 minutes including the 20-minute world start). The sign-in screen shot was overwritten by my own script, so the first-load screen is not in the folder; 02-hero-creation onward are.
 
 == 1. PLAYED / NOT REACHED ==
 PLAYED: sign-up (screen only; no email step in this harness), sign-in, hero creation, first town, first hunt (Mill Cellar, then a 9 h away hunt, then Meadowbrook Thicket), bag (equip a bow, "Equip upgrades"), shop (bought a Bronze Pickaxe), gathering (Mining, copper), farm (planted a turnip), Tamsin's tally (armour weight, took a task, was paid), House, Home view, chat (sent a message), and each of the other windows once: Storage, Market, Hunt prep, Party, Friends, Settings, Character, Hunt summary. Returns after 1 h, 8 h (page closed, "wait --away"), and a third hour (see timeline).
 Long press tried on an action-bar slot and on a bag item. Swipe used for every scrolling sheet.
-NOT REACHED / PARTIAL: Level 10 (see timeline for where it ended), a real bench job (see section 3), buying a store plot upgrade, the Weighhouse (Market says it is not trading), friends and party play (no other players in a local world), a real on-screen keyboard, a real phone (everything here is Chromium emulation).
+NOT REACHED / PARTIAL: Level 10 (ended at Level 9, 76 percent), a real bench job (I opened Gathering and crafting, saw Smithing, Crafting, Cooking and Runecrafting listed with their next unlocks, but ran no bench job), selling loot with Dispatch loot (it said nothing was set to sell or deposit and I did not set per-item plans), buying a store plot upgrade, the Weighhouse (Market says it is not trading), friends and party play (no other players in a local world), a real on-screen keyboard, a real phone (everything here is Chromium emulation).
 
 == 2. TIMELINE ==
 17:52  local world up. (First start replays the migration chain: about 20 minutes wall with other lanes running. Harness cost, not a player cost.)
@@ -22,7 +22,9 @@ NOT REACHED / PARTIAL: Level 10 (see timeline for where it ended), a real bench 
 18:25  closed the page again; 8 h passed away. Reopened: "While you were away (8 h 1 min), Pippa hunted Mill Cellar: Level 6 to 8, +60,880 Level XP, +5,751 gold, 3,953 kills. Still hunting, with 2 h 50 min of stamina left." Left the hunt: 9:11:42, 4,533 kills, 69,804 XP, 6,596 gp, loot worth 12,435 gp unsold. Tamsin paid 100 gp and a Bronze Helm for the rat task.
 18:30  Equip upgrades put on a Leather Coif. Hunted Meadowbrook Thicket for the performance and heap runs.
 18:40  667x375, 922x423 and portrait checks (still in the Meadowbrook hunt).
-FINAL STATE: see the end of section 3 (TBD lines are filled at the end).
+18:52  left the hunt, measured town fps at 4x.
+18:58  third hour: Meadowbrook, page closed, 1 h away. Reopened: "While you were away (1 h 1 min), Pippa hunted Meadowbrook Thicket: Level 8 to 9, +26,676 Level XP, +1,723 gold, 676 kills. Still hunting, with 2 h 33 min of stamina left." (screenshot 38 is that return.) A further 2 h skip with the page open: Level 9 at 76 percent, 32 min of stamina left.
+FINAL STATE: Level 9 (76 percent). LEVEL 10 NOT REACHED: stamina ran down to 32 minutes and the time budget ended. Mill Cellar ran out of use at Level 8 (its range is 1 to 8). 3 away returns done (1 h, 8 h, 1 h).
 
 == 3. BUGS / FRICTION (rated) ==
 P0: none found. No progress was lost, nothing stopped me continuing. Reload, close, away and rotate all kept the hunt.
@@ -51,8 +53,8 @@ Method: a requestAnimationFrame counter gives fps and frame times; PerformanceOb
 | Reopen while signed in (no throttle) | HUD ready 18.6 s, 428 requests, 5.58 MB (so the signed-in load is mostly request count and server time, not CPU) |
 | Hunt, Mill Cellar (4x), 25 s | 40.4 fps average, frame p50 16.7 ms, p95 66.7 ms, p99 133 ms, max 217 ms; 80 long tasks = 6.8 s (27 percent of the window), longest 228 ms |
 | Hunt, Meadowbrook (4x), 30 s | 29.5 fps average, p50 16.7 ms, p95 116.7 ms, p99 183 ms, max 283 ms; 149 long tasks = 15.2 s (51 percent), longest 291 ms |
-| Town fps | TBD |
-| JS heap (forced GC every 60 s), hunt, 4x | TBD |
+| Town idle (4x), 25 s | 33.1 fps average, p50 16.7 ms, p95 100 ms, p99 200 ms, max 450 ms; 74 long tasks = 7.2 s (29 percent), longest 451 ms |
+| JS heap (forced GC every 60 s), Meadowbrook hunt, 4x, 20 min | 19.7 MB at 0 min, about 21.2 MB at 10 min, 20.9 MB at 20 min (range 19.3 to 21.4 MB): plateau, about +1.2 MB, no leak shape; DOM nodes 892 to 900 |
 | DOM nodes | 889 to 900, flat |
 | Page text under 12 px | none found on any screen visited (every windowed sheet, the HUD, the hunt) |
 Harness caveats: the local server sends no compression and no HTTP/2, so byte totals and signed-in load times overstate a real CDN load; CPU throttle 4x is a harsh mid-range phone; the hunt ran at the real 100 ms combat step.
@@ -91,4 +93,4 @@ OPINION: 29 fps at 4x throttle in Meadowbrook with 51 percent of the main thread
 5. Look at the Meadowbrook hunt cost on a low-end phone: 149 long tasks and 51 percent of the main thread at 4x, plus a 28 s signed-in reload at 4x (426 requests).
 
 == 9. VERDICT: would I keep this on my phone? ==
-TBD (finalised at the end).
+Yes, for the hunting loop, with reservations. Everything I needed was reachable by tap, swipe and long press with no keyboard, hover or right-click, the portrait guard is graceful, nothing was lost across reload, close, away or rotate, and the away report is exactly what a bus player wants. What would make me drop it on a phone: the 190 px sheets (shop, bag and tally are long thin scrolls), the 16 px colour swatches, and a 28 s signed-in reload at 4x throttle (the load is request-count bound: 426 files). I would not rate it by what I could not test: real fingers, a real soft keyboard, real mobile network and thermal throttling.

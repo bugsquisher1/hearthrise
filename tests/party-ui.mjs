@@ -853,7 +853,7 @@ async function pureRules(M, base) {
     const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
     const before = look(party('shield', 'shield')), after = look(party('shield', 'ranged'));
     if (before[0] !== 'tank,tank' || !/has 1 of 4 classes/.test(before[2])) return 'two shields read ' + JSON.stringify(before);
-    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/has 2 of 4 classes: 28% more Level XP in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
+    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/has 2 of 4 classes: about 10% more Level XP each than hunting alone in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
     /* (2) WHY A FRIEND CAME HOME, on both surfaces. */
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');
     if (why('party_member_left', 'Bramwell', 'stamina') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'a stamina end reads ' + why('party_member_left', 'Bramwell', 'stamina');
@@ -1303,7 +1303,7 @@ async function pageRules(overrides, shots) {
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes: 1.00). */
-          if (v.classLine !== 'Your party has 2 of 4 classes: no extra Level XP in The Sewer. Melee, Ranger, Mage and Healer each count.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
+          if (v.classLine !== 'Your party has 2 of 4 classes: about 15% more Level XP each than hunting alone in The Sewer. Melee, Ranger, Mage and Healer each count.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword · Melee') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');
@@ -1327,7 +1327,7 @@ async function pageRules(overrides, shots) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const PURE_MUTANTS = [
-  ['the class line promises the bonus whatever the table says (PR-CLASS)', 'src/shell/windows/party-roster.js', "const pay = permille > 1000 ? gap + '% more Level XP'", "const pay = classes.length > 1 ? '20% more Level XP'"],
+  ['the class line promises the bonus whatever the table says (PR-CLASS)', 'src/shell/windows/party-roster.js', "const pay = vs === null ? 'no extra Level XP in ' + huntName(hunt)", "const pay = classes.length > 1 ? 'about 20% more Level XP each than hunting alone in ' + huntName(hunt) : vs === null ? 'no extra Level XP in ' + huntName(hunt)"],
   ['a seat with no weapon holds no class on the class line (PR-CLASS)', 'src/shell/windows/party-roster.js', "roles.map((r) => r || roleForWeapon('neutral'))", 'roles'],
   ['the class line stays on while the party hunts (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (r.anyHunting || r.members.length < 2) return '';", "if (r.members.length < 2) return '';"],
   ['the class line needs a ground the party has hunted (PR-CLASS)', 'src/shell/windows/party-roster.js', 'const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;', 'const hunt = p.hunt;'],

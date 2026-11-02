@@ -329,6 +329,18 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'b1102f') {
+    /* THE BUILT ROWS, no what-if: Tyler's option A in the data, the gap live. The final table: the Glade floor to top, the pulls, the pusher, twelve-hour hunts, and two lives. */
+    const FIVE = [['tank'], ['hammer'], ['bow'], ['mage'], ['healer']];
+    for (const level of [16, 24, 31]) for (const party of FIVE) out.push(cellOf({ ground: 'mosslight_glade', party, level, hours: H(2), seeds: 2, x: 'F' }));
+    for (const level of [16, 24, 31]) for (const party of [['tank'], ['hammer'], ['mage']]) for (const density of [4, 8]) out.push(cellOf({ ground: 'mosslight_glade', party, level, density, hours: H(1), seeds: 2, x: 'F' }));
+    for (const party of [['tank'], ['hammer'], ['mage'], PARTIES.four]) out.push(cellOf({ ground: 'mosslight_glade', party, level: 7, hours: H(1), seeds: 2, x: 'F' }));
+    out.push(cellOf({ ground: 'mosslight_glade', party: PARTIES.four, level: 24, hours: H(1), seeds: 2, x: 'F' }));
+    for (const party of FIVE) out.push(cellOf({ ground: 'mosslight_glade', party, level: 16, hours: H(24), seeds: 2, segmentH: 12, x: 'FL' }));
+    out.push({ kind: 'career', id: 'C:four', party: PARTIES.four, startLevel: 1, targetLevel: 40, maxHours: 12, chunkH: 1, chunkByLevel: [[1, 0.25], [8, 0.5], [12, 1]], seed: 0 });
+    out.push({ kind: 'career', id: 'C:tank', party: ['tank'], startLevel: 1, targetLevel: 40, maxHours: 45, chunkH: 1, chunkByLevel: [[1, 0.25], [8, 0.5], [12, 1]], seed: 0 });
+    return out;
+  }
   if (name === 'b1102p') {
     /* The Party window's "about N% more Level XP each than alone": every ground x party size x class count, against the same heroes alone, at the default pull. */
     const coarse = { windowMs: 120000 };

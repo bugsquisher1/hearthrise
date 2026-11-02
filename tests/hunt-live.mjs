@@ -337,6 +337,16 @@ function rules(M) {
     ok('LV-A', r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict the armoured peer: ${bad.length} of ${r.verdicts.length} commits diverged`);
   }
 
+  { // LV-U: THE LEVEL GAP, VIEWED (Tyler 2026-11-02): heroes under the Glade's floor, the viewer and a peer whose browser row holds only frozen numbers: the
+    // server's harder blows are predicted swing for swing. The closed-browser half is first-week-bands level-gap (one 10 minute cut against 10 s settles).
+    const mis = [memberOf(M, 'a', 0, 'melee_dps', 8), memberOf(M, 'b', 1, 'tank', 8)];
+    let hits = 0;
+    const r = run(M, mis, 96000, { server: { hunt: 'mosslight_glade', id: 'i-live' }, onCommit: ({ c }) => { hits += c.tl.hunt_events.filter((e) => e.type === 'dmg' && e.t === mis[1].unitId).length; } });
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-U', r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict blows under the floor: ${bad.length} of ${r.verdicts.length} commits diverged`);
+    ok('LV-U', hits > 0, 'the peer was never hit under the floor, so nothing was predicted');
+  }
+
   { // LV-K: THE LEADER CHOOSES (Tyler 2026-10-20): the peer leader's pick is the pull, on the server and in the browser.
     const pick = (mi, density, lead) => { mi.hero = Object.assign({}, mi.hero, { density, lead }); return mi; };
     const mis = [pick(memberOf(M, 'a', 0, 'tank', 6), 3, false), pick(memberOf(M, 'b', 1, 'melee_dps', 6), 7, true)];
@@ -1245,6 +1255,7 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  ["the peer's Level stays out of its frozen row, so the browser under-predicts the level gap (LV-U)", 'src/core/member.js', 'mit: snap.mit || NO_MITIGATION, level: snap.level }', 'mit: snap.mit || NO_MITIGATION }', /^LV-U: the viewer/],
   ['the party factor is not paid (LV-CLASS)', 'src/core/hunt/xp-share.js', '(raw * party * multOf(sc, h))', '(raw * 1000 * multOf(sc, h))', /^LV-CLASS: mixed/],
   ["the browser's prediction fights on a ground it cannot name (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
@@ -1304,7 +1315,7 @@ const MUTANTS = [
     'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
-  ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, mit: snap.mit || NO_MITIGATION }, vs,', 'def: snap.def }, vs,', /^LV-A/],
+  ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, mit: snap.mit || NO_MITIGATION, level: snap.level }, vs,', 'def: snap.def, level: snap.level }, vs,', /^LV-A/],
   ['the settle never puts the armour on the hero (LV-A)', 'src/core/combat-sim.js', '  u.mit = snap.mit || null;', '  u.mit = null;', /^LV-A/],
   ['the pull leader is back to role order (LV-PULL, bug #61)', 'src/core/hunt/pull-cycle.js', '  return holderTank(inst).id;\n', '  return byRole;\n', /^LV-PULL/],
   ['the "One tank holds" pick does not pull (LV-PULL)', 'src/core/hunt/pull-cycle.js', '  if (pick) return pick.id;\n', '  if (pick) return pickLeader(inst.world.units);\n', /^LV-PULL/],

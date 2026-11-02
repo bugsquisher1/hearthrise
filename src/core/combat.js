@@ -391,7 +391,9 @@ export function defenceReduction(monster) {
 /** A monster's chance to land a blow on a hero of `playerDefense`. */
 export function monsterAccuracy(monster, playerDefense) {
   const b = COMBAT_BALANCE;
-  return clamp(b.monsterBaseAccuracy + ((((monster && monster.atk) || 1) - playerDefense) * b.monsterAccuracyPerPoint),
+  /* A row may state its own base (monsters.js `baseAcc`, the Glade's): it hits more often without hitting harder. */
+  const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;
+  return clamp(base + ((((monster && monster.atk) || 1) - playerDefense) * b.monsterAccuracyPerPoint),
     b.monsterMinAccuracy, b.monsterMaxAccuracy);
 }
 

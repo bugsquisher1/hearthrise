@@ -30,10 +30,26 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
-### 2026-11-02 Harder monsters: the search, and a trade for Tyler (designer, lane/b-rulings-1102): MEASURED on the real engine, **MONSTER NUMBERS NOT BUILT, one decision owed**
+### 2026-11-02 Harder monsters: Tyler chose A, BUILT (designer, lane/b-rulings-1102): MEASURED on the built rows, one engine batch, staged
+**Tyler's call:** A: the Glade at accuracy 0.80, atk x1.25; Cellar and Thicket unchanged. Wickstead, the Sewer and the Warrens stay as they are too: he chose the Glade, and the board's accuracy cells for them (Warrens floor party 74-82%) are there if he asks. Rows: `monsters.js` `baseAcc` and `atk` on the Glade's six (13, 15, 11, 23, 23, 23), `combat.js monsterAccuracy` reads `baseAcc`. Neither reaches SQL.
+
+**The built rows** (2 h x 2 seeds a cell as built, 1 h x 2 at a pull; identical to the what-if on the same dice):
+| Glade, per hero | Before: typical / worst tenth, bill, net | After |
+|---|---|---|
+| L16 tank | 94 / 83, 20, 4,430 | 83 / 58, 1,790, 2,709 |
+| L16 hammer | 94 / 85, 180, 6,311 | 86 / 66, 1,190, 4,667 |
+| L16 bow | 99 / 83, 304, 5,374 | 92 / 69, 834, 4,856 |
+| L16 mage | 100 / 87, 459, 6,325 | 97 / 74, 1,066, 5,173 |
+| L16 healer | 95 / 80, 14, 5,244 | 87 / 62, 215, 5,240 |
+| L24 tank | 93 / 86, 0, 4,461 | 89 / 69, 580, 4,025 |
+| L31 tank | 100 / 96, 0, 5,184 | 95 / 88, 10, 5,472 |
+XP/h unmoved. Margin at the floor: tank +151%, the lowest. **Twelve-hour hunts at the floor, 48 h a way to fight, five ways: 0 deaths, 0 close calls in 240 h** (95% bound 15 per 1,000 h: not proof of his ceiling). **Pulls:** L16 4 each: tank loses gold (5,659 against 8,140), hammer +14%. L24 4 each: tank 72k XP, net 1,864, less gold than as built. L31 4 each pays more of both (tank 6,684, hammer 9,556); 8 each 97-152k XP, about as much gold for melee, more for the mage. L16 at 8: hammer 1 death, 18 close calls in 2 h: named by the new card.
+**Gap live with A:** L7 alone in the Glade: tank net -6,408, hammer -3,144, mage -4,213 and 33 close calls; XP 46-69k. L7 four: 65k XP, net 2,203, against the Thicket's 33k and 2,474: a party pushes for XP at a small gold loss, as he chose.
+**Lives:** tank L25 41.2 h, as before. A new four: L8 2.0 h (was 5.4), L10 4.6 h (was 8), L15 11.4 h (was 14.8): the Thicket row.
+
 **The search.** Plans `b1102a` to `b1102e` (what-ifs on the real settle, 2-4 h a cell, seeds 0-1; 12 h hunts on the last candidate): every monster's atk x1.5-3, base accuracy 0.65-0.80, HP x3-5, by ground, floor to top, five ways to fight, Level kit and practice set, as built, 4 and 8 each. **Atk and accuracy do not move XP/h, so no Level curve re-fit**; HP does (-60% at x5).
 
-**What can't all hold.** Tyler's 60-80% in band against his other rules:
+**What could not all hold (why he was asked).** His 60-80% in band against his other rules:
 | Pushed to reach it | Typical lowest HP | What breaks |
 |---|---|---|
 | Glade floor, atk x2.5 | tank 69%, hammer 72%, **bow 89%, mage 93%** | Tank's bill 7,580 g/h on 4,409 earned: loses gold. Bow and mage die (1-2 in 2 h), healer 12 close calls |
@@ -42,7 +58,7 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 | Thicket and Wickstead, fights 3-5x longer (HP x5, atk x2, accuracy 0.80) | L10 tank 75%, hammer 84% | XP -60%, gold -60%, bill above income, fresh L5 hero 50-92 deaths in 2 h |
 Two causes. A kiter is rarely reached, so its typical stays 90-100% whatever the number, and when it is reached the blow kills: deaths come long before 80%. On the first grounds a pack of 2 dies in one or two swings, so there is nothing to feel without a blow big enough to kill a fresh hero.
 
-**Best every rule allows** (accuracy step rather than bigger blows, because blows make the spikes: Glade floor at atk x2 gives bow 6 close calls in 2 h; accuracy 0.80 + atk x1.25 gives 0):
+**What every rule allows** (accuracy step rather than bigger blows, because blows make the spikes: Glade floor at atk x2 gives bow 6 close calls in 2 h; accuracy 0.80 + atk x1.25 gives 0):
 | Where, numbers | Melee typical, floor → top | Light armor | Bill floor (tank) | Deaths, close calls | Pull |
 |---|---|---|---|---|---|
 | Today, Glade | 94 → 100 | 95-100 | 20 g/h | 0, 0 | 8 each at L24 pays more gold |
@@ -52,7 +68,7 @@ Two causes. A kiter is rarely reached, so its typical stays 90-100% whatever the
 | Cellar, Thicket | unchanged: first hour and solo healer | | | | |
 **So 60-80% as built is out of reach everywhere under his other rules.** At the pull, Normal is real: under A, L24 at 4 each 60-71%, L31 at 8 each 59%.
 
-**Built, not waiting on this:** level gap (`underFloorAtkPm` 50), "before bonuses" fix, Thicket `groupFit: both`, 4 seats, pull `[0,4,5,6]`, table; Houndskin Cloak on Rook; Wickstead wear Levels 12/14/14; Tamsin's Glade task pays Steel; measured party line (`PARTY_VS_ALONE`); per-party drop words; pull card. **`xp-share.js:59` floor: left alone.** It costs 5-10% only on Cellar shares, the curve is fitted over it, and fixing it moves Level 1-5 pace for nothing a player reads. **Proposal 1, re-ruled:** build the words now, a card at Level 10 naming + and its price, since harder monsters make a big pull a real risk. The "biggest pull held" readout waits for real picks.
+**Also built:** level gap (`underFloorAtkPm` 50), "before bonuses" fix, Thicket `groupFit: both`, 4 seats, pull `[0,4,5,6]`, table; Houndskin Cloak on Rook; Wickstead wear Levels 12/14/14; Tamsin's Glade task pays Steel; measured party line (`PARTY_VS_ALONE`); per-party drop words; pull card. **`xp-share.js:59` floor: left alone.** It costs 5-10% only on Cellar shares, the curve is fitted over it, and fixing it moves Level 1-5 pace for nothing a player reads. **Proposal 1, re-ruled:** build the words now, a card at Level 10 naming + and its price, since harder monsters make a big pull a real risk. The "biggest pull held" readout waits for real picks.
 
 **Parties at the new Thicket row** (1 h x 2 seeds, one mix a cell): duo 1.11, trio 1.18, four 1.21; same class 0.86-0.91 (was 0.69-0.84). **Gap live:** L7 alone in the Glade, tank net -221, hammer +1,874; four +3,508 at 64k XP against the Thicket's +2,474 at 33k: as Tyler chose, a party may still push.
 

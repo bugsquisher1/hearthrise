@@ -310,7 +310,7 @@ const MUTANTS = [
   { name: 'endedHuntPartied', why: 'an ENDED hunt still makes its members partied', expect: /^V14$/,
     find: ' and ph.ended_at is null', repl: '' },
   { name: 'parkedIsSentinel', why: 'a PARKED gatherer still counts as a sentinel (reads STALLED while waiting)', expect: /^V16$/,
-    find: '                      where hz.user_id = o.user_id and hz.slot = o.slot\n', repl: '                      where false\n' },
+    find: '\n                      where hz.user_id = o.user_id and hz.slot = o.slot\n', repl: '\n                      where false\n' },
   { name: 'parkedNoMark', why: 'a LOGGED character still owed windows is excused as parked (silent stall)', expect: /^V17$/,
     find: '                        and ps.accrued_to + make_interval(secs => c.flush) > hz.horizon_at)\n',
     repl: '                        and true)\n' },

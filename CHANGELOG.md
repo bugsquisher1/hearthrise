@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.82 — 2026-11-01 (Your Own Stock)
+
+**Your own food and drink.** Putting your own food or drink on the bar now puts it ahead of the store's, so a hunt spends yours first.
+
+**Heroes keep working.** A hero gathering or crafting while you're away now keeps earning without waiting for you to come back. A bug could leave a hero stuck until you returned; that's fixed.
+
+**You'll see messages.** Private messages and friend requests now pop up when they arrive.
+
+**The leader picks the hunt.** A party member's Hunt again no longer starts a new hunt for the party. A member can still go back into a hunt the party is on.
+
+**Small fixes.**
+- The away card says when a friend ran out of stamina, rather than saying they left.
+- The hero list no longer says a hero is working on a job that has already finished.
+- The bench fee line shows the real amount for small fees.
+- Long window titles fit, and Shop names fit on a phone.
+
 ## v0.2.81 — 2026-11-01 (Fair Pay)
 
 **Crafting pays.** Gathered and refined goods have new shop prices, and forged gear now sells above the metal in it. Hunting still pays more at the shop.

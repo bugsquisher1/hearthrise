@@ -20,13 +20,13 @@
 //               rows), for the shell's one context menu
 //   want(tab)   ask the chat window to show a tab (a new whisper)
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.81';
-import { ChatStore } from './chat-store.js?v=0.2.81';
-import { WhisperStore } from './whispers.js?v=0.2.81';
-import { FriendStore } from './friends.js?v=0.2.81';
-import { BlockStore } from './blocks.js?v=0.2.81';
-import { inspectOf } from './inspect.js?v=0.2.81';
-import { PlayersOnline } from './players-online.js?v=0.2.81';
+import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.82';
+import { ChatStore } from './chat-store.js?v=0.2.82';
+import { WhisperStore } from './whispers.js?v=0.2.82';
+import { FriendStore } from './friends.js?v=0.2.82';
+import { BlockStore } from './blocks.js?v=0.2.82';
+import { inspectOf } from './inspect.js?v=0.2.82';
+import { PlayersOnline } from './players-online.js?v=0.2.82';
 
 export class SocialSession {
   /**

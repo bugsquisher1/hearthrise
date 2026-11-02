@@ -21,18 +21,18 @@
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.81';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.81';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.81';
-import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.81';
-import { ITEMS } from '../data/items.js?v=0.2.81';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.81';
-import { hasShot } from './action-facts.js?v=0.2.81';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.81';
-import { ABILITIES } from '../data/abilities.js?v=0.2.81';
-import { storeOf, storeName } from './bar-draft.js?v=0.2.81';
-import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.81';
-import { whole, gold } from '../render/format.js?v=0.2.81';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.82';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.82';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.82';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.82';
+import { ITEMS } from '../data/items.js?v=0.2.82';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.82';
+import { hasShot } from './action-facts.js?v=0.2.82';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.82';
+import { ABILITIES } from '../data/abilities.js?v=0.2.82';
+import { storeOf, storeName } from './bar-draft.js?v=0.2.82';
+import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.82';
+import { whole, gold } from '../render/format.js?v=0.2.82';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;

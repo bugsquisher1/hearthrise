@@ -177,6 +177,102 @@ export function buildPlan(name, axes, scale = 1) {
     const rank = (j) => (/x=V6/.test(j.id) ? 0 : /x=V4/.test(j.id) ? 1 : 2);
     return out.map((j, i) => [rank(j), i, j]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
   }
+  if (name === 'b1120') {
+    /* LANE b-balance-1120 (2026-11-01, v0.2.82): the panel's five claims, on the same dice. x=R: hunting above your Level
+       (the 10-18 "waste hunt"), x=P: parties against the same heroes alone, x=W: one upgrade step, x=D: in-band danger,
+       x=DD: deep 12 h hunts for the deaths bound, C: careers (gold and hours, hours 1-20 first). */
+    const STARTER = { starter: true };
+    const MIX = PARTIES.four;
+    const REACH = [[7, ['meadowbrook_thicket', 'wickstead', 'millrace_sewer', 'mosslight_glade'], [null, STARTER]],
+      [12, ['meadowbrook_thicket', 'wickstead', 'millrace_sewer', 'mosslight_glade'], [null]], [25, ['mosslight_glade', 'millrace_sewer', 'coppercap_warrens'], [null]]];
+    for (const [L, gs, kits] of REACH) for (const ground of gs) for (const gear of kits) for (const density of [null, 8]) {
+      out.push(cellOf({ ground, party: MIX, level: L, density, gear, hours: H(L === 7 ? 4 : 2), seeds: 2, x: 'R' }));
+      for (const s of ['tank', 'hammer', 'mage']) out.push(cellOf({ ground, party: [s], level: L, density, gear, hours: H(2), seeds: 2, x: 'R' }));
+    }
+    /* a 2 min settle for the cells that read XP and gold: any cut walks the same swings (TICK-1), and it costs less */
+    const coarse = { windowMs: 120000 };
+    const midOf = (g) => Math.round((g.band[0] + g.band[1]) / 2);
+    const COMPS = [['tank', 'healer'], MIX, ['tank', 'hammer', 'bow', 'mage'], ['tank', 'tank'], ['bow', 'bow'], ['mage', 'mage'],
+      ['tank', 'tank', 'tank', 'tank'], ['bow', 'bow', 'bow', 'bow'], ['mage', 'mage', 'mage', 'mage']];
+    for (const g of G.filter((x) => x.id !== 'mill_cellar')) for (const density of [null, 8]) {
+      for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) out.push({ ...cellOf({ ground: g.id, party: [s], level: midOf(g), density, hours: H(2), seeds: 2, x: 'P' }), ...coarse });
+      for (const party of COMPS) out.push({ ...cellOf({ ground: g.id, party, level: midOf(g), density, hours: H(1), seeds: 2, x: 'P' }), ...coarse });
+    }
+    /* the party pull itself: the rows the 11-01 table first measured (duo 4, three 5, four 6), same class and mixed; and a lone hero's
+       default pull moved to 4, the other way to put danger in the default */
+    for (const [ground, level] of [['meadowbrook_thicket', 10], ['wickstead', 13], ['mosslight_glade', 24]]) {
+      for (const party of [['tank', 'tank'], ['bow', 'bow'], ['tank', 'healer']]) out.push({ ...cellOf({ ground, party, level, density: 4, hours: H(1), seeds: 2, x: 'P' }), ...coarse });
+      for (const party of [['tank', 'tank', 'tank', 'tank'], ['bow', 'bow', 'bow', 'bow'], MIX]) out.push({ ...cellOf({ ground, party, level, density: 6, hours: H(1), seeds: 2, x: 'P' }), ...coarse });
+      for (const s of ['tank', 'hammer', 'mage']) out.push(cellOf({ ground, party: [s], level, density: 4, hours: H(2), seeds: 2, x: 'D' }));
+    }
+    /* the upgrade steps: everything else equal, on the ground that Level's lone hero is sent to */
+    for (const T of axes.tierLevels.filter((t) => t > 1 && t <= 30)) {
+      const g = G.filter((x) => x.groupFit !== 'party' && x.band[0] <= T + 1).pop();
+      for (const s of ['tank', 'hammer', 'axes', 'bow', 'mage', 'healer']) for (const only of [null, 'weapon', 'armour']) for (const density of [null, 8]) {
+        out.push({ ...cellOf({ ground: g.id, party: [s], level: T + 1, density, gear: only ? { tierOffset: -1, only } : null, hours: H(3), seeds: 2, x: 'W' }), ...coarse });
+      }
+    }
+    const life = { kind: 'career', startLevel: 1, targetLevel: 40, maxHours: 30, chunkH: 1, chunkByLevel: [[1, 0.25], [8, 0.5], [12, 1]], seed: 0 };
+    for (const s of ['tank', 'hammer', 'axes', 'bow', 'mage', 'healer']) out.push({ ...life, id: 'C:life:' + s, party: [s] });
+    for (const s of ['hammer', 'mage']) out.push({ ...life, id: 'C:box:' + s, party: [s], density: 8 });
+    out.push({ ...life, id: 'C:four', party: MIX });
+    out.push({ ...life, id: 'C:four:box', party: MIX, density: 8 });
+    /* the pusher: from Level 7 straight to the Glade and it never leaves, alone and as a four, as built and at the full box */
+    const push = { ...life, startLevel: 7, ground: 'mosslight_glade', chunkByLevel: [[1, 0.5], [12, 1]] };
+    out.push({ ...push, id: 'C:push:four', party: MIX }, { ...push, id: 'C:push:four:box', party: MIX, density: 8 });
+    out.push({ ...push, id: 'C:push:tank', party: ['tank'] }, { ...push, id: 'C:push:box:tank', party: ['tank'], density: 8 });
+    for (const g of G.filter((x) => x.groupFit !== 'party')) for (const L of [g.band[0], g.band[1]]) for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const density of [null, 8]) {
+      out.push(cellOf({ ground: g.id, party: [s], level: L, density, hours: H(2), seeds: 2, x: 'D' }));
+      if (g.band[0] <= 16 && L === g.band[0]) out.push(cellOf({ ground: g.id, party: [s], level: L, density, gear: STARTER, hours: H(2), seeds: 2, x: 'D' }));
+    }
+    for (const g of G.filter((x) => x.groupFit === 'party')) for (const L of [g.band[0], g.band[1]]) for (const party of [PARTIES.duo, MIX]) {
+      out.push(cellOf({ ground: g.id, party, level: L, hours: H(1), seeds: 2, x: 'D' }));
+    }
+    for (const [ground, party, level, density] of [['meadowbrook_thicket', ['healer'], 5, null], ['mosslight_glade', ['healer'], 16, null], ['mosslight_glade', ['hammer'], 16, 8]]) {
+      out.push(cellOf({ ground, party, level, density, hours: H(24), seeds: 2, segmentH: 12, x: 'DD' }));
+    }
+    const stage = (j) => (/x=R/.test(j.id) ? 0 : j.id.startsWith('C:') ? 1 : /x=P/.test(j.id) ? 2 : /x=W/.test(j.id) ? 3 : 4);
+    return out.map((j, i) => [stage(j), i, j]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
+  }
+  if (name === 'b1120w') {
+    /* LANE b-balance-1120's candidates, in the sim only (worker.mjs whatIf): every monster's row HP (a data row: the kill's
+       yield does not read it, so XP and coin per kill stay) and the blow scale, on the same dice as today (x=W0). */
+    const blow = (k) => ({ monsterAttackDamageScale: Math.round(5.4 * k * 100) / 100, monsterDamageScaleByTier: { 3: Math.round(4.0 * k * 100) / 100, 4: 4.0, 5: 3.0, 6: 2.2 } });
+    const hp = (k) => ({ '*': { hp: '*' + k } });
+    const VARIANTS = [['W0', null], ['Hx2', { monsters: hp(2) }], ['Hx2B', { monsters: hp(2), combat: blow(1.5) }]];
+    const cells = [];
+    for (const [ground, L] of [['mosslight_glade', 16], ['wickstead', 8], ['meadowbrook_thicket', 5], ['mosslight_glade', 24]]) {
+      for (const s of ['tank', 'hammer', 'mage', 'healer']) for (const density of [null, 8]) cells.push({ ground, party: [s], level: L, density, hours: H(2), seeds: 2 });
+    }
+    for (const density of [null, 8]) {
+      cells.push({ ground: 'mosslight_glade', party: PARTIES.four, level: 7, density, hours: H(2), seeds: 2 }, { ground: 'mosslight_glade', party: ['tank'], level: 7, density, hours: H(2), seeds: 2 }, { ground: 'mosslight_glade', party: ['tank'], level: 12, density, hours: H(2), seeds: 2 });
+      for (const s of ['hammer', 'mage']) cells.push({ ground: 'wickstead', party: [s], level: 16, density, gear: { tierOffset: -1, only: 'weapon' }, hours: H(2), seeds: 2 }, { ground: 'wickstead', party: [s], level: 16, density, hours: H(2), seeds: 2 });
+    }
+    for (const c of cells) for (const [x, whatIf] of VARIANTS) out.push({ ...cellOf({ ...c, x }), ...(whatIf ? { whatIf } : {}) });
+    return out;
+  }
+  if (name === 'b1120f') {
+    /* The friends' blind party (lane f5-friends, v0.2.82): a mixed three in the Mill Cellar against the same heroes alone, the same three at
+       the party's pull alone (the pull's share of the gain), and one class at the party's pull (the bonus's share: same pull, same dice). */
+    const coarse = { windowMs: 120000 };
+    const TRIO = ['tank', 'bow', 'healer'];
+    for (const [gear, level] of [[{ starter: true }, 3], [null, 3], [null, 6]]) {
+      out.push({ ...cellOf({ ground: 'mill_cellar', party: TRIO, level, gear, hours: H(1), seeds: 3, x: 'F' }), ...coarse });
+      out.push({ ...cellOf({ ground: 'mill_cellar', party: ['tank', 'tank', 'tank'], level, gear, hours: H(1), seeds: 3, x: 'F' }), ...coarse });
+      for (const s of TRIO) for (const density of [null, 5]) out.push({ ...cellOf({ ground: 'mill_cellar', party: [s], level, density, gear, hours: H(1), seeds: 3, x: 'F' }), ...coarse });
+    }
+    return out;
+  }
+  if (name === 'b1120g') {
+    /* The same lane's level-gap term, in the sim only: every monster's `atk` (its accuracy AND its blow) x (1 + k per Level the
+       hero stands under the ground's floor). An ENGINE change if chosen (the settle reads the hero's Level against the floor);
+       played here as a monsters what-if, since every hero of a cell stands at one Level. In band is untouched by definition. */
+    const refs = [['mosslight_glade', 7, 9], ['mosslight_glade', 12, 4], ['coppercap_warrens', 25, 7], ['wickstead', 5, 3]];
+    for (const [ground, level, gap] of refs) for (const party of [['tank'], ['hammer'], ['mage'], PARTIES.four]) for (const [x, k] of [['G3', 0.03], ['G5', 0.05], ['G8', 0.08], ['G12', 0.12]]) {
+      out.push({ ...cellOf({ ground, party, level, hours: H(2), seeds: 2, x }), whatIf: { monsters: { '*': { atk: '*' + Math.round((1 + k * gap) * 100) / 100 } } } });
+    }
+    return out;
+  }
   if (name === 'career8') {
     /* the same lives at the full box (density 8: the "reasonably efficient" pick wherever it stays safe) */
     for (const s of ['tank', 'hammer', 'bow', 'mage']) out.push({ id: 'S1:career8:' + s + ':s0', kind: 'career', party: [s], startLevel: 1, targetLevel: 50, maxHours: 200, chunkH: 1, seed: 0, density: 8 });

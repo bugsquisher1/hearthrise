@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/qa/craft-economy.mjs — WHAT A SKILL PAYS, MEASURED: REAL SETTLE, REAL SALE, ON THE LOCAL WORLD.
 //
-//   node tools/qa/craft-economy.mjs --out FILE [--max-req 60] [--samples 2] [--hours 2] [--hunts] [--careers] [--away] [--chains] [--walk] [--rooms] [--market]
+//   node tools/qa/craft-economy.mjs --out FILE [--max-req 60] [--samples 2] [--hours 2] [--only REGEX | --no-rows] [--hunts] [--careers] [--away] [--chains] [--walk] [--rooms] [--market]
 //
 // On tools/qa/local-world.mjs (the replayed chain, the real hr-accrue, nothing leaves the machine). Two accounts play each
 // row through the verbs a player's client sends: set_activity starts it, town time passes (world.wait), set_activity idle
@@ -115,6 +115,12 @@ async function run(a, kind, id, hours, steps = 1, count) {
   return { ok: true };
 }
 
+/* --only REGEX: the gather and bench rows whose id matches (the rest are not played); --no-rows: none of them. */
+const ONLY = arg('--only', null) ? new RegExp(arg('--only', null)) : null;
+const rowOn = (id) => !has('--no-rows') && (!ONLY || ONLY.test(id));
+/* THE BENCH TAX (v0.2.81) leaves the purse while a job runs, not at the sale, so a wage is the whole purse's move. A rich purse so
+   the fee never stops the job: the row's rate is the question here, not the fresh hero's purse. */
+const rich = (a) => q(`insert into public.account_wallet (user_id, gold) values ($1, 1000000) on conflict (user_id) do update set gold = 1000000`, [a.uid]);
 const nodes = [['woodcutting', TREES], ['mining', ROCKS], ['fishing', FISH_SPOTS]];
 const heroes = [];
 for (let i = 0; i < SAMPLES; i++) heroes.push(await account('smith' + 'abcdefgh'[i]));
@@ -122,7 +128,7 @@ const report = { commit: process.env.HR_COMMIT || null, samples: SAMPLES, hours:
 
 // ── GATHER ───────────────────────────────────────────────────────────────
 for (const [skill, list] of nodes) for (const n of list) {
-  if (n.req > MAX_REQ) continue;
+  if (n.req > MAX_REQ || !rowOn(n.id)) continue;
   const rows = [];
   for (const a of heroes) {
     await newDay(a);
@@ -148,7 +154,7 @@ for (const [skill, list] of nodes) for (const n of list) {
 // ── BENCH ────────────────────────────────────────────────────────────────
 const SKIP_BENCH = /^(bind_(chalked|scored|etched|carved|graven)_(water|fire|ice|poison|rupture)|fuel_)/;
 for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const rec of list) {
-  if (rec.req > MAX_REQ || !rec.output || rec.gated || SKIP_BENCH.test(rec.id)) continue;
+  if (rec.req > MAX_REQ || !rec.output || rec.gated || SKIP_BENCH.test(rec.id) || !rowOn(rec.id)) continue;
   const ins = recipeInputs(rec);
   const jobs = Math.ceil((HOURS * 3600000) / pacedActionMs(rec.ms)) + 50;   // enough stock that the stock never ends the window
   const rows = [];
@@ -158,15 +164,18 @@ for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const rec of l
     await setSkill(a, skill, rec.req);
     for (const [id, n] of Object.entries(ins)) await stock(a, id, jobs * n);
     const xp0 = await xpOf(a, skill);
+    await rich(a);
+    const purse0 = await purse(a);
     const r = await run(a, 'artisan', rec.id, HOURS);
     if (r.refused) { rows.push({ refused: r.refused }); continue; }
+    const tax = purse0 - await purse(a);
     const b = await bag(a);
     const firstIn = Object.keys(ins)[0];
     const used = (jobs * ins[firstIn] - (b[firstIn] || 0)) / ins[firstIn];
     const made = b[rec.output] || 0;
     const xp1 = await xpOf(a, skill);
     const sold = await sell(a, [rec.output]);
-    rows.push({ jobs: used, made, xp: xp1 - xp0, gold: sold.gold, to: lvl(skill, xp1), unsold: sold.refused.length > 0 });
+    rows.push({ jobs: used, made, xp: xp1 - xp0, gold: sold.gold, tax, to: lvl(skill, xp1), unsold: sold.refused.length > 0 });
   }
   const ok = rows.filter((x) => !x.refused);
   if (!ok.length) { report.bench.push({ skill, id: rec.id, req: rec.req, refused: rows[0].refused }); log(`bench ${rec.id}: REFUSED ${JSON.stringify(rows[0].refused).slice(0, 160)}`); continue; }
@@ -175,9 +184,9 @@ for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const rec of l
   const jobsPerH = mean('jobs');
   const outUnit = ok[0].made ? Math.round((ok[0].gold / ok[0].made) * 100) / 100 : 0;
   const row = { skill, id: rec.id, req: rec.req, inputs: ins, output: rec.output, jobsPerH: Math.round(jobsPerH), outPerH: Math.round(mean('made')), secEach: Math.round(36000 / jobsPerH) / 10,
-    xpPerH: Math.round(mean('xp')), soldPerH: Math.round(mean('gold')), inBidPerJob: inBid, netFromStockPerH: Math.round(mean('gold') - inBid * jobsPerH), outUnit, unsold: ok.some((x) => x.unsold), samples: ok.map((x) => x.made) };
+    xpPerH: Math.round(mean('xp')), soldPerH: Math.round(mean('gold')), taxPerH: Math.round(mean('tax')), inBidPerJob: inBid, netFromStockPerH: Math.round(mean('gold') - mean('tax') - inBid * jobsPerH), outUnit, unsold: ok.some((x) => x.unsold), samples: ok.map((x) => x.made) };
   report.bench.push(row);
-  log(`bench ${skill} ${rec.id} L${rec.req}: ${row.jobsPerH} jobs/h (${row.secEach} s), ${row.outPerH} out/h @${outUnit}, sold ${row.soldPerH} g/h, net from stock ${row.netFromStockPerH} g/h, ${row.xpPerH} XP/h${row.unsold ? ', NO SHOP PRICE' : ''}`);
+  log(`bench ${skill} ${rec.id} L${rec.req}: ${row.jobsPerH} jobs/h (${row.secEach} s), ${row.outPerH} out/h @${outUnit}, sold ${row.soldPerH} g/h, tax ${row.taxPerH} g/h, net from stock after tax ${row.netFromStockPerH} g/h, ${row.xpPerH} XP/h${row.unsold ? ', NO SHOP PRICE' : ''}`);
 }
 
 // ── AWAY ─────────────────────────────────────────────────────────────────
@@ -286,20 +295,24 @@ if (has('--chains')) {
     { name: 'Oak Plank', skills: { woodcutting: 15, crafting: 15 }, node: 'oak_tree', ore: 'oak_log', bench: 'saw_oak', out: 'oak_plank' },
     { name: 'Willow Plank', skills: { woodcutting: 30, crafting: 30 }, node: 'willow_tree', ore: 'willow_log', bench: 'saw_willow', out: 'willow_plank' },
     { name: 'Cooked Herring', skills: { fishing: 10, cooking: 8 }, node: 'herring_s', ore: 'herring', bench: 'cook_herring', out: 'cooked_herring' },
+    { name: 'Cooked Trout', skills: { fishing: 20, cooking: 15 }, node: 'trout_s', ore: 'trout', bench: 'cook_trout', out: 'cooked_trout' },
   ];
   for (const c of cycles) {
     const rows = [];
     for (const a of heroes) {
       await newDay(a); await emptyBag(a);
       for (const [s, l] of Object.entries(c.skills)) await setSkill(a, s, l);
+      await rich(a);
+      const purse0 = await purse(a);
       await run(a, 'gather', c.node, 1);
       const got = (await bag(a))[c.ore] || 0;
       const t = await benchAll(a, c.bench, got);
       const sold = await sell(a, [c.out]);
-      rows.push({ ore: got, made: (await bag(a))[c.ore] || 0, gold: sold.gold, hours: 1 + t, perH: Math.round(sold.gold / (1 + t)) });
+      const net = (await purse(a)) - purse0;
+      rows.push({ ore: got, made: (await bag(a))[c.ore] || 0, gold: sold.gold, tax: sold.gold - net, net, hours: 1 + t, perH: Math.round(sold.gold / (1 + t)), afterTaxPerH: Math.round(net / (1 + t)) });
     }
     report.chains.push({ name: c.name, samples: rows });
-    log(`chain ${c.name}: ${rows.map((r) => r.gold + ' g in ' + r.hours.toFixed(2) + ' h = ' + r.perH + ' g/h').join(' / ')}`);
+    log(`chain ${c.name}: ${rows.map((r) => r.gold + ' g, tax ' + r.tax + ' in ' + r.hours.toFixed(2) + ' h = ' + r.perH + ' g/h, after tax ' + r.afterTaxPerH).join(' / ')}`);
   }
   /* The whole forge: rock, bars, tree, planks, hatchets, shop. Iron Hatchets at Smithing 15. */
   const rows = [];
@@ -308,6 +321,8 @@ if (has('--chains')) {
     for (const s of ['mining', 'smithing', 'woodcutting', 'crafting']) await setSkill(a, s, 15);
     const forge = Object.values(ARTISAN_RECIPES).flat().find((r) => r.id === 'forge_iron_hatchets');
     const ins = recipeInputs(forge);
+    await rich(a);
+    const purse0 = await purse(a);
     await run(a, 'gather', 'iron_rock', 1);
     const ore = (await bag(a)).iron_ore || 0;
     let hours = 1 + await benchAll(a, 'smelt_iron', ore);
@@ -319,10 +334,31 @@ if (has('--chains')) {
     hours += await benchAll(a, 'forge_iron_hatchets', jobs);
     const made = (await bag(a)).iron_hatchets || 0;
     const sold = await sell(a, ['iron_hatchets']);
-    rows.push({ ore, jobs, made, gold: sold.gold, hours, perH: Math.round(sold.gold / hours) });
+    const net = (await purse(a)) - purse0;
+    rows.push({ ore, jobs, made, gold: sold.gold, tax: sold.gold - net, net, hours, perH: Math.round(sold.gold / hours), afterTaxPerH: Math.round(net / hours) });
   }
   report.chains.push({ name: 'Iron Hatchets', samples: rows });
-  log(`chain Iron Hatchets: ${rows.map((r) => r.made + ' made, ' + r.gold + ' g in ' + r.hours.toFixed(2) + ' h = ' + r.perH + ' g/h').join(' / ')}`);
+  log(`chain Iron Hatchets: ${rows.map((r) => r.made + ' made, ' + r.gold + ' g, tax ' + r.tax + ' in ' + r.hours.toFixed(2) + ' h = ' + r.perH + ' g/h, after tax ' + r.afterTaxPerH).join(' / ')}`);
+  /* The same Iron Bar with the Forge's first rung owned: the tax comes off and the room's speed goes on, the whole of what the 75,000 g buys. */
+  const owned = heroes[0];
+  const offer = SHOP_OFFERS.find((o) => o.id === 'room.forge.1');
+  for (const o of [SHOP_OFFERS.find((x) => x.id === 'property.homestead'), SHOP_OFFERS.find((x) => x.id === 'property.farmstead'), offer]) {
+    await rich(owned);
+    for (const c of o.cost) if (c.kind === 'item') await stock(owned, c.id, c.amount);
+    const b = await edge(owned, 'unlock_buy', { offer: o.id });
+    log(`bought ${o.id}: ${b.status} ${JSON.stringify(b.body && b.body.ok === false ? b.body : 'ok')}`);
+  }
+  await newDay(owned); await emptyBag(owned);
+  await setSkill(owned, 'mining', 15); await setSkill(owned, 'smithing', 15);
+  await rich(owned);
+  const p0 = await purse(owned);
+  await run(owned, 'gather', 'iron_rock', 1);
+  const ore = (await bag(owned)).iron_ore || 0;
+  const t = await benchAll(owned, 'smelt_iron', ore);
+  const sold = await sell(owned, ['iron_bar']);
+  const net = (await purse(owned)) - p0;
+  report.chains.push({ name: 'Iron Bar, Forge owned', samples: [{ ore, gold: sold.gold, tax: sold.gold - net, net, hours: 1 + t, afterTaxPerH: Math.round(net / (1 + t)) }] });
+  log(`chain Iron Bar, Forge owned: ${sold.gold} g, tax ${sold.gold - net} in ${(1 + t).toFixed(2)} h, after tax ${Math.round(net / (1 + t))} g/h`);
 }
 
 // ── A FRESH HERO'S FIRST FORGED WEAPON ───────────────────────────────────

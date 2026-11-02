@@ -1,0 +1,37 @@
+HEARTHRISE - BLIND PHONE PLAYTEST 2 (landscape, one thumb, touch only)
+Lane: lane/f5-phone, base origin/release/v0.2.82 (feb879a7b). Local world only (tools/qa/local-world.mjs serve, port 8799), Playwright Chromium, touch + mobile emulation.
+Main viewport 844x390 @2x (Android Chrome UA). Spot checks 667x375 and 922x423 pending. Player is blind: no src/docs/tests/changelog/memory read.
+Input: Playwright touchscreen taps, CDP touch swipes and a 650 ms long press. Text entry used insertText as a stand-in for the on-screen keyboard.
+Status: IN PROGRESS (interim save at ~18:15 CST; world run began 17:52).
+
+== 1. PLAYED / NOT REACHED (interim) ==
+Played so far: sign-up, hero creation, first town, first hunt (Mill Cellar), bag, hunt summary, shop, equip (bow), mining job, farm (planted turnip), Tamsin's tally (took a task), House, Home view, chat (sent a message), all other windows opened once (Storage, Market, Hunt prep, Party, Friends, Settings, Character, Gathering).
+Not reached yet: bench job, time-skip returns (1 h / 8 h / 1 h), Level 10, portrait rotate, 667x375 and 922x423 spot checks, 20-minute heap run.
+
+== 2. TIMELINE (interim) ==
+17:52  world up (first start replayed the migration chain, about 20 min wall with other lanes running; harness only).
+17:53  first load at 4x CPU: sign-in screen text at 10.2 s, DOMContentLoaded 9.95 s, load 10.1 s, FCP 1.9 s, 390 requests, 4.47 MB (uncompressed from the local server).
+17:55  sign-up by touch: Create an account -> fields -> Create account -> "Check your email" message (the harness confirms at once) -> Back to sign in -> Sign in. 2.6 s to the hero list.
+17:57  hero creation: name + one colour swatch + Enter town.
+17:58  first hunt: Mill Cellar. Level 2 after about 1 minute, hunt left after 2:21 with 20 kills.
+18:00  bag, shop (bought a Bronze Pickaxe), equipped Practice Bow ("You fight as a Ranger now").
+18:05  mining copper, planted a turnip, took Tamsin's task (needed an armour weight first), House, Home, chat message.
+
+== 3. BUGS / FRICTION (interim, rated) ==
+(P0: none found so far.)
+P2-01  Sign-up success message pushes the card past the 390 px screen; "Back to sign in" ends up half off the bottom edge until you swipe up (the card scrolls but nothing says so).
+P2-02  Hero creation colour swatches are 16x16 px with 2 px gaps (Head/Body/Legs/Feet, 16 each). A thumb cannot pick one reliably.
+P2-03  Text inputs are 36 px tall (sign-in, sign-up, hero name); buttons are 40-44 px. Slightly under a 40 px target.
+P2-04  Tamsin's tally: the Take buttons are greyed out until an armour weight is chosen, the chooser (Heavy/Medium/Light) sits about 500 px above the board, and the explanation only appears after tapping a dim button ("Pick the armor weight she pays you in first."). Take buttons are 51x36.
+P2-05  Every window is a 400x290 sheet; the usable scrolling body is about 190 px (248 px minus a 55 px sticky bar in the bag). Shop list is about 2000 px tall (10 screens of swiping). Bag is 805 px tall. Hunt summary buries "Hunt again" and "Open bag" under the numbers.
+P2-06  Soft keyboard (emulated by shrinking the viewport to 172 px): the chat input at y=193 falls below the visible area; the top bar and title row take 130 px. NOT verified on a real device.
+P2-07  Action bar slots are 36x36; the "+" add-spell glyphs inside them are 10x10; chat channel tabs are 48x20, 38x20; hunt summary / "Dispatch loot" (bag) are below the fold in the sheet.
+
+== PERFORMANCE (interim, 4x CPU throttle through CDP) ==
+Hunt (Mill Cellar, hero + 3 monsters), 25.1 s window: 40.4 fps average, frame p50 16.7 ms, p95 66.7 ms, p99 133 ms, max 217 ms; 80 long tasks totalling 6.8 s (27 % of the window), longest 228 ms. JS heap 19.9 MB used (after 5 min of play). 889 DOM nodes.
+
+== LIKED (interim) ==
+- Landscape layout is purpose-built: top icon bar, slide-out sheets with a clear X (40x40), sticky Enter button on the hunt detail.
+- The hunt is readable at 844x390: HP/MP in the orb and in the party card, cooldown numbers on the action bar, floating damage.
+- "Next: Plant your land" on the hunt summary and the pulsing farm icon point at what to do next.
+- Items show a comparison card on tap (Practice Bow vs Practice Sword) and the Equip result says what changed.

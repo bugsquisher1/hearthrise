@@ -1,0 +1,17 @@
+HEARTHRISE MIDGAME BLIND PLAYTEST (DRAFT, checkpoint 1) -- lane/f5-midgame, build v0.2.82
+Persona: patient old-school MMO / idle veteran, plays for the chase. Local world (tools/qa/local-world.mjs), real play.html at 1920x1080,
+Playwright, skip/wait compress time. One account "vet", hero Aldric (sword and shield). Blind: no src/docs/tests/CHANGELOG read.
+
+STATUS AT CHECKPOINT 1 (about 7.7 h of hero hunting time, Level 10 at 37%)
+  Cellar L1-6: 2.5 h | Thicket L6-8: 2.2 h | Sewer 1 h | Wickstead 1 h | Glade 1 h (at L9, "above your level") + town gathering.
+
+NUMBERS SO FAR (hero Aldric, from the in-game hunt analyzer, sword and shield, heavy armor, auto-bought gear)
+  ground              hero level   XP/h     gold+loot value/h   notes
+  Mill Cellar         1-6          7,200    1,900-2,000         L1->5 in 31 min; L5->6 took ~2 h more
+  Meadowbrook Thicket 6-8          22,900   2,600               3x the Cellar
+  The Sewer           8-9          40,500   4,900               supplies 136 gp/h
+  Wickstead           9            28,800   3,400
+  Mosslight Glade     9-10         56,600   4,500               "Far above your level" per the Hunts list at L1, "Above" at L9. No death, HP 223/272 at end.
+  => each step up the ground ladder is 1.3-3x the XP; the ladder is the whole game so far.
+
+(Full report follows at the final commit.)

@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: c7e7d8805aed74eb94fa6eec6bc4efce8b3025261140d8bbdb62feabbf10e2b4
+--   digest: c8ad6044bed82af695c1658de41602578cb4bf357468f1f75e21ec800f10ee26
 --   82 supplies, 128 hunts (named + training), 48 limits, 13 end reasons,
 --   547 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
@@ -523,7 +523,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('giant_bat', 12, 60, '{"bat_wing":1,"night_fang":1,"bones":1,"fang_studs":1}'::jsonb),
   ('giant_boar', 238, 943, '{"bear_pelt":1,"big_bones":1,"raw_bear_meat":1,"bear_claw":1,"wyvernhide_belt":1}'::jsonb),
   ('giant_spider', 98, 429, '{"silk_thread":1,"venom_sac":1,"spider_eye":1,"shadow_thread":1,"wraithglass_drops":1}'::jsonb),
-  ('glade_poacher', 18, 273, '{"wolf_pelt":1,"bones":1,"snare_wire":1,"iron_platelegs":1,"studded_pants":1,"adept_pants":1,"longbow":1}'::jsonb),
+  ('glade_poacher', 18, 273, '{"wolf_pelt":1,"bones":1,"snare_wire":1,"iron_platelegs":1,"studded_pants":1,"adept_pants":1,"longbow":1,"houndskin_cloak":1}'::jsonb),
   ('gnoll', 17, 83, '{"goblin_ear":1,"wolf_pelt":1,"bat_wing":1,"iron_ore":1,"willow_longbow":1}'::jsonb),
   ('gnoll_packlord', 40, 185, '{"bones":1,"goblin_ear":1,"wolf_pelt":1,"iron_ore":1,"packlord_band":1}'::jsonb),
   ('goblin', 8, 36, '{"goblin_ear":1,"bones":1,"bronze_sword":1,"goblin_totem":1}'::jsonb),
@@ -571,7 +571,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('rat_king', 238, 4740, '{"rat_tail":1,"bones":1,"knotted_tails":1,"crown_shard":1,"kingsgrate":1,"rat_kings_knot":1,"rat_kings_crown":1}'::jsonb),
   ('revenant', 512, 1707, '{"big_bones":1,"death_steel":1,"ancient_rune":1,"grave_dust":1,"ember_gauntlets":1}'::jsonb),
   ('rock_troll', 48, 226, '{"troll_hide":1,"iron_ore":1,"coal":1,"big_bones":1,"steel_belt":1}'::jsonb),
-  ('rook_poacher', 40, 637, '{"raw_wolf_meat":1,"bones":1,"rooks_moss_charm":1,"rooks_whistle":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1,"houndskin_cloak":1}'::jsonb),
+  ('rook_poacher', 40, 637, '{"raw_wolf_meat":1,"bones":1,"rooks_moss_charm":1,"rooks_whistle":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1}'::jsonb),
   ('salamander', 17, 81, '{"dragon_scale":1,"coal":1,"bones":1,"studded_gloves":1}'::jsonb),
   ('scarecrow', 5, 33, '{"wheat":1,"normal_log":1,"pumpkin":1,"bronze_gauntlets":1}'::jsonb),
   ('shadow_creeper', 190, 760, '{"shadow_thread":1,"silk_thread":1,"void_chitin":1,"shadowsilk_cape":1}'::jsonb),

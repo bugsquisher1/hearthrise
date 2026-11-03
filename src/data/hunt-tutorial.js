@@ -924,8 +924,8 @@ const SAY = Object.freeze({
     if (!r || !club || !name('practice_club')) return null;
     if (f.carried && f.carried.klappas_club > 0) return { text: 'Your ' + club + ' is in your bag and your hands are empty. Open your bag, press it, then Equip.', anchor: 'inventory' };
     const makes = Object.entries(r.inputs).filter(([id]) => id !== 'practice_club').map(([id, n]) => name(id) + ' ×' + n);
-    return { text: 'Your ' + name('practice_club') + ' can be reforged into ' + club + ', which hits as hard as an ' + name('iron_warhammer') + '. It takes ' + listed(makes)
-      + ': mine Copper Ore, smelt Bronze Bars in Smithing, and the Mill Cellar\'s rats drop the fangs. Take the club off, press Start on ' + r.name + ', then wear it.' };
+    return { text: 'Your ' + name('practice_club') + ' can become ' + club + ', which hits as hard as an ' + name('iron_warhammer') + '. It takes ' + listed(makes)
+      + ' from the Mill Cellar\'s rats. Mine Copper Ore and smelt the bars in Smithing, take the club off, press Start on ' + r.name + ', then wear it.' };
   },
   fuel_hearth: (f) => {
     /* the bag's biggest first-rung fuel stack: the one the card rings and names */

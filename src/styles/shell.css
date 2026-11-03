@@ -115,6 +115,16 @@
 .hs-win-coach:empty { display: none; }
 .hs-win-coach > .hs-pointer { position: relative; top: auto; left: auto; z-index: auto; width: auto; margin: 8px 12px 0; box-shadow: inset 4px 0 0 var(--gold); }
 .hs-win-coach > .hs-pointer::before { display: none; }
+/* One line (launcher.js coachHtml): the title, the words up to the line's end, More when they do not fit, Got it. The window's rows stay. */
+.hs-win-coach > .hs-pointer.is-line { display: flex; align-items: center; gap: 8px; padding-block: 0; white-space: nowrap; }
+.hs-win-coach > .hs-pointer.is-line > b { flex: none; }
+.hs-win-coach > .hs-pointer.is-line > .hs-coach-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hs-win-coach > .hs-pointer.is-line > .hs-coach-got { flex: none; margin: 0; min-height: 24px; }
+.hs-coach-more { flex: none; min-height: 28px; padding: 0 6px; border: 0; background: none; color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); cursor: pointer; pointer-events: auto; }
+.hs-coach-more:hover { color: var(--ink); }
+.hs-coach-more:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+/* The card says what to press on the Hunts window, so its own how-to line stands aside (a running hunt's line stays). */
+[data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now.is-hint { display: none; }
 /* THE COACH'S RING (launcher.js ringCoach and renderLaunchers): the one control the card names, ringed in gold,
    a pixel line clear of its edge; it blinks a few times as it lands, then holds still (no glow, never a pulse: the
    press-ack ring below is the one that pulses). A list row or a bar slot rings inside its own edge (a list's scroll
@@ -194,15 +204,16 @@
 /* The title band: darker than the floor, ruled off in dim gold; the window's glyph and name in gold. */
 .hs-win-head {
   display: flex; align-items: center; gap: 10px;
-  height: 44px; padding: 0 6px 0 12px; flex: none;
+  min-height: 44px; padding: 0 6px 0 12px; flex: none;
   background: var(--fill-0);
   border-bottom: 2px solid var(--steel-rule);
   color: var(--gold-2);
   cursor: grab; user-select: none; touch-action: none;
 }
 .hs-win-head .hs-glyph { width: 22px; height: 22px; }
-/* The window's name in Cinzel (Tyler approved Forged Steel 2026-10-24: a characterful heading over a readable body). */
-.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* The window's name in Cinzel (Tyler approved Forged Steel 2026-10-24: a characterful heading over a readable body). A long name takes a second
+   line inside the band, never an ellipsis ("Gathering and C…", "Too many heroes playi…", Tyler's live play 2026-11-01). */
+.hs-win-title { margin: 0; flex: 1; min-width: 0;
   font-family: var(--f-display); font-weight: 700; font-size: var(--t-lead); line-height: 1.1; letter-spacing: .12em; color: var(--gold-2); }
 /* Square steel buttons: the window's key and its close; the key style also caps a hotkey in Settings. */
 .hs-key { display: inline-grid; place-items: center; min-width: 32px; height: 32px; padding: 0 6px; box-sizing: border-box;
@@ -336,6 +347,10 @@
   }
   /* A CARD IN A SHEET LEAVES THE SHEET TO THE CONTROL IT NAMES (panel 2026-11-01: 667x375, 156 px of card over 40 px of
      list). Its title and presses one row; its words a line and a half on a short screen (they scroll, the cut says so). */
+  /* The phone keeps its own card: a title row over words that scroll, already held to a third of the sheet. */
+  .hs-win-coach > .hs-pointer.is-line { gap: 0; white-space: normal; }
+  .hs-win-coach > .hs-pointer.is-line > .hs-coach-text { overflow-y: auto; text-overflow: clip; }
+  .hs-coach-more { display: none; }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
   .hs-win-coach > .hs-pointer:not(.is-min), .hs-win-coach > .hs-pointer.has-close:not(.is-min) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; padding: 0 0 4px 12px; }
   .hs-win-coach > .hs-pointer:not(.is-min) > b { grid-area: 1 / 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -377,7 +392,7 @@
     border-width: 6px;
     border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch;
   }
-  .hs-win-head { height: 40px; cursor: default; }
+  .hs-win-head { min-height: 40px; cursor: default; }
   .hs-grip { display: none; }
   .hs-win-body { padding: 8px 10px 10px; }
   .st .st-tabs { width: 100%; border-right: 0; }

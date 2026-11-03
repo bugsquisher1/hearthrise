@@ -20,11 +20,11 @@
 // the prefix, and the step's .hc-body laid every chat line out (2026-10-24).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.81';
-import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL } from '../data/outfits.js?v=0.2.81';
-import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.81';
-import { refusalWords } from '../shell/intent-words.js?v=0.2.81';
-import { focusOffTouch } from './sign-in.js?v=0.2.81';
+import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.82';
+import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN } from '../data/outfits.js?v=0.2.82';
+import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.82';
+import { refusalWords } from '../shell/intent-words.js?v=0.2.82';
+import { focusOffTouch } from './sign-in.js?v=0.2.82';
 
 /* The preview's integer scale: 16 x 24 cells at 8 = 128 x 192 px. */
 export const PREVIEW_SCALE = 8;
@@ -82,9 +82,6 @@ export function heroCells(colors, colorOf) {
 export function howYouFightHtml() {
   return '<section class="hero-how" aria-labelledby="hero-how-title"><h2 class="hero-how-title hs-sub" id="hero-how-title">How you fight</h2>'
     + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + '</p>'
-    /* THE WORLD DRAWS NO DYE YET (the panel 2026-10-31: "None of my colours anywhere"): no outfit has its mask art (outfits.js
-       regions: []), so the step says so rather than let the first thing a player makes vanish. */
-    + '<p class="hero-how-lead hero-note">Your colors are saved with your hero. In the world your hero wears the outfit of the weapon it holds, and outfits can\'t be dyed yet.</p>'
     + '<ul class="hero-how-list">'
     + HOW_YOU_FIGHT.map((r) => '<li data-style="' + r.id + '"><b>' + r.name + '</b> ' + r.does + ' <span class="hero-how-uses">' + r.uses + '</span></li>').join('')
     + '</ul></section>';
@@ -106,11 +103,12 @@ function paintPreview(canvas, colors, colorOf) {
  * Render the creation step into `card` (the characters card).
  * @param card  the .auth-card element
  * @param o { slot, colorOf (token) -> '#rrggbb', create (name, colors) -> Promise<{ ok, reason, nameReason }>,
- *            done () (the hero exists: play it), back () (return to the characters) }
+ *            done () (the hero exists: play it), back () (return to the characters), dyes (the strips and preview: outfits.js HERO_DYES_SHOWN) }
  * @returns { colors () the picked indices, destroy () }
  */
 export function renderHeroCreate(card, o) {
   const colors = Object.assign({}, BASE_DEFAULT_COLORS);
+  const dyes = o.dyes === undefined ? HERO_DYES_SHOWN : o.dyes === true;
   const swatches = (g) => {
     let h = '';
     for (let i = 0; i < DYE_COUNT; i++) {
@@ -121,10 +119,10 @@ export function renderHeroCreate(card, o) {
   };
   card.innerHTML = '<h1 class="auth-title">Create your hero</h1>'
     + '<div class="hero-body">'
-    + '<canvas class="hero-preview" width="' + HERO_BASE_W * PREVIEW_SCALE + '" height="' + HERO_BASE_H * PREVIEW_SCALE + '" role="img" aria-label="Your hero"></canvas>'
+    + (dyes ? '<canvas class="hero-preview" width="' + HERO_BASE_W * PREVIEW_SCALE + '" height="' + HERO_BASE_H * PREVIEW_SCALE + '" role="img" aria-label="Your hero"></canvas>' : '')
     + '<div class="hero-form">'
     + '<label class="auth-field">Name<input type="text" class="hero-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="3 to 20 letters"></label>'
-    + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('')
+    + (dyes ? BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('') : '')
     + '</div>' + howYouFightHtml() + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
     + '<div class="auth-foot"><button type="button" class="auth-link hero-back">Back to your characters</button>'
@@ -135,21 +133,38 @@ export function renderHeroCreate(card, o) {
   const confirm = card.querySelector('.hero-confirm');
   let busy = false;
   let gone = false;
+  /* THE PRESS MOVES ON (friends' panel 2026-11-01: on a slow line the hero was made, the button came back live, and the second press said "That name is taken").
+     `made`: the server said yes, so no press ever asks again; `tried`: a press whose answer never came keeps its key, so the server replays its answer. */
+  let made = false;
+  let tried = null;
+  const pressWords = confirm.textContent;
+  const hold = (words) => { busy = true; confirm.disabled = true; confirm.textContent = words; };
+  const release = () => { busy = false; confirm.disabled = false; confirm.textContent = pressWords; };
+  async function enter() {
+    hold('Entering town…');
+    let went;
+    try { went = await o.done(); } catch (e) { went = false; }
+    if (gone || went !== false) return;
+    release();
+    msg.textContent = 'Your hero is made, but town did not open. Press Enter town to try again.';
+  }
   const repaint = () => paintPreview(canvas, colors, o.colorOf);
   repaint();
 
   async function submit() {
     if (busy || gone) return;
+    msg.textContent = '';
+    if (made) { enter(); return; }
     const name = input.value.trim().replace(/\s+/g, ' ');
     if (name.length < 3) { msg.textContent = NAME_REASON.short; input.focus(); return; }
-    busy = true;
-    confirm.disabled = true;   // stays off until the server answers
-    msg.textContent = '';
-    const r = await o.create(name, Object.assign({}, colors));
+    hold('Making your hero…');   // stays off until the server answers
+    if (!tried || tried.name !== name) tried = { name, key: globalThis.crypto.randomUUID() };
+    const r = await o.create(name, Object.assign({}, colors), tried.key);
     if (gone) return;
-    busy = false;
-    confirm.disabled = false;
-    if (r && r.ok) { o.done(); return; }
+    if (r && (r.ok || r.reason === 'already_created')) { made = true; enter(); return; }
+    /* An answered refusal is final for that key; a lost answer keeps it (`answered`: account-session.js create). */
+    if (r && r.answered) tried = null;
+    release();
     msg.textContent = refusalText(r);
   }
 

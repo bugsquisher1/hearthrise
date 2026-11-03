@@ -42,6 +42,8 @@
 //         button and the hunt summary no Restock
 //   AW-8  HUNT PREP: the readiness line names this character's shortages from the
 //         server's bag and bar; Use sends ONE hr_hunt_preset_apply
+//   AW-64 HUNT PREP AND BEFORE YOU GO PRINT ONE READER of what the hero can use NOW (the hunt bag in
+//         a hunt), every tier of food, drink, ammo and runes, ammo in the engine's order (Andy #74)
 //   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
 //         and Dispatch loot stay off and the bag value reads a dash
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
@@ -259,7 +261,7 @@ async function stub(page, s) {
    font sheet, none of which a rule reads then (2026-10-22: the first goto timed out at 6 s on a loaded box, the
    server's first answer alone taking 2.7 s). The boot gets BOOT_MS: no rule is about how fast a page boots. */
 const BOOTED = 'domcontentloaded';
-const BOOT_MS = 20000;
+const BOOT_MS = 60000;
 
 /* A reload: the stub keeps the session, so the page comes back to the character (or its picker). */
 async function reloadAndPlay(page) {
@@ -629,6 +631,113 @@ async function itemTruthRules(base) {
   /* Smaller lines of the same report. */
   if (/Next at level 12: Blank Rune/.test(nextUnlock('runecrafting', 11))) fails.push('AW-60 ' + nextUnlock('runecrafting', 11));
   for (const id of ['copper_ore', 'bronze_bar']) if (/\btin\b/.test(ITEM_DESC[id])) fails.push('AW-60 there is no tin: ' + ITEM_DESC[id]);
+  return fails.concat(await panelLeftovers(base));
+}
+
+/* AW-61 THE PANEL'S LEFTOVERS (lane/a-panel-leftovers, 2026-11-01), over the src at `base`, judged by the `panel:` mutants. */
+async function panelLeftovers(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  /* OWN STOCK BEFORE THE STORE: what "put it on the bar" sends, against the starter bar. */
+  const { assignToBar } = await imp('src/shell/bar-assign.js');
+  const hp = (v) => [{ metric: 'self_hp_pct', op: 'lt', value: v }], mana = (v) => [{ metric: 'self_mana_pct', op: 'lt', value: v }];
+  const row = (id, conditions) => ({ action: { type: 'consume', id }, conditions, join: 'and', usable: true });
+  const bar = (slots) => { const out = []; const e = { hunt_settings: { preset: 0, presets: [], slots, store: FIXTURE.hunt_settings.store } };
+    return { read: (k) => e[k], setHuntOptions: async (_, o) => { out.push(o.slots); return { ok: true }; }, out }; };
+  const sent = async (slots, id, at) => { const c = bar(slots); const r = await assignToBar(c, id, at); return c.out.length ? c.out[0].slice(0, slots.length + 2).map((w) => (w ? w.action.id + ':' + w.conditions.map((x) => x.value).join() : '-')).join(' ') : r.error; };
+  const START = () => [row('cooked_shrimp', hp(60)), row('salted_shrimp', hp(60)), row('thin_turnip_juice', mana(30))];
+  const own = await sent(START(), 'turnip_juice');
+  if (own !== 'cooked_shrimp:60 salted_shrimp:60 turnip_juice:30 thin_turnip_juice:30 -') fails.push('AW-61 own juice goes on the bar as ' + own);
+  const food = await sent(START(), 'cooked_wolf_meat');
+  if (food !== 'cooked_shrimp:60 cooked_wolf_meat:60 salted_shrimp:60 thin_turnip_juice:30 -') fails.push('AW-61 own food goes on the bar as ' + food);
+  const named = await sent(START(), 'turnip_juice', 7);
+  if (!/^cooked_shrimp:60 salted_shrimp:60 thin_turnip_juice:30 -/.test(named)) fails.push('AW-61 a slot the player named is overridden: ' + named);
+  const gap = await sent([row('cooked_shrimp', hp(60)), { empty: true }, row('thin_turnip_juice', mana(25))], 'turnip_juice');
+  if (gap !== 'cooked_shrimp:60 turnip_juice:25 thin_turnip_juice:25 - -') fails.push('AW-61 a gap before the store slot reads ' + gap);
+  const noStore = await sent([row('cooked_shrimp', hp(60))], 'turnip_juice');
+  if (noStore !== 'cooked_shrimp:60 turnip_juice:30 -') fails.push('AW-61 a bar with no store drink reads ' + noStore);
+  /* HUNT AGAIN IN A PARTY: the leader chooses; a member may only go back to the hunt its party is on. */
+  const { againRoute } = await imp('src/hunt-view/summary-model.js');
+  const party = (isLeader, hunting, hunt) => ({ me: 1, isLeader, hunt, seats: [{ seat: 0, hunting }, { seat: 1, hunting: false }] });
+  const how = (p, h) => { const r = againRoute(p, h); return (r.how || 'off') + (r.why ? ':' + r.why : ''); };
+  if (how(null, 'mill_cellar') !== 'enter') fails.push('AW-61 a lone hero\'s Hunt again: ' + how(null, 'mill_cellar'));
+  if (how(party(false, false, 'mill_cellar'), 'mill_cellar') !== 'off:Your party leader picks the hunt and starts it.') fails.push('AW-61 a member\'s Hunt again: ' + how(party(false, false, 'mill_cellar'), 'mill_cellar'));
+  if (how(party(true, false, 'mill_cellar'), 'mill_cellar') !== 'party') fails.push('AW-61 the leader\'s Hunt again: ' + how(party(true, false, 'mill_cellar'), 'mill_cellar'));
+  if (how(party(false, true, 'mill_cellar'), 'mill_cellar') !== 'enter') fails.push('AW-61 a member going back in: ' + how(party(false, true, 'mill_cellar'), 'mill_cellar'));
+  if (!/^off:Your party is hunting on another ground/.test(how(party(true, true, 'wickstead'), 'mill_cellar'))) fails.push('AW-61 Hunt again elsewhere with the party out: ' + how(party(true, true, 'wickstead'), 'mill_cellar'));
+  /* THE ROSTER LINE: a bench job past its end is not "working on". */
+  const { heroOf } = await imp('src/session/account-session.js');
+  const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
+  const recipe = Object.values(ARTISAN_RECIPES).flat().find((r) => r.output === 'normal_plank');
+  const input = Object.keys(recipe.inputs || { [recipe.input]: 1 })[0] || recipe.input;
+  const body = (left, ageMs) => ({ ok: true, name: 'Tess', now: '2026-11-01T12:00:00.000Z', inventory: { [input]: left },
+    state: { level_xp: 0, gold: 1, gold_v: 1, active_kind: 'artisan', active_id: recipe.id, accrued_to: new Date(Date.parse('2026-11-01T12:00:00.000Z') - ageMs).toISOString() } });
+  if (!/working on/.test(heroOf(body(1000, 60000)).doing || '')) fails.push('AW-61 a job with logs left reads ' + heroOf(body(1000, 60000)).doing);
+  if (heroOf(body(392, 3600000)).doing !== null) fails.push('AW-61 a job past its end still reads ' + heroOf(body(392, 3600000)).doing);
+  if (heroOf(body(0, 0)).doing !== null) fails.push('AW-61 a job with nothing left reads ' + heroOf(body(0, 0)).doing);
+  const gathering = { ok: true, now: '2026-11-01T12:00:00.000Z', state: { level_xp: 0, active_kind: 'gather', active_id: recipe.id, accrued_to: '2026-11-01T01:00:00.000Z' } };
+  if (!heroOf(gathering).doing) fails.push('AW-61 gathering never stops, and reads idle');
+  /* A PRIVATE MESSAGE, A FRIEND REQUEST: a toast, once; the message's words stay in the chat. */
+  const { createAlertCenter } = await imp('src/shell/alerts.js');
+  const { mountSocialWatch } = await imp('src/shell/social-watch.js');
+  const hero = { slot: 0, read: () => null, setResidue(f, v) { this.record.residue[f] = v; return true; }, record: { residue: {} }, subscribe: () => () => {} };
+  const fns = new Set();
+  const convs = [{ tab: 'w:z', id: 'z', name: 'Read Already', unread: 0 }], asks = [], said = [{ id: 'l1', body: 'secret' }];
+  const social = { subscribe: (fn) => { fns.add(fn); return () => fns.delete(fn); }, whispers: { conversations: () => convs, lines: () => said }, friends: { incoming: () => asks } };
+  const account = { viewed: 0, social, character: () => hero, characters: () => [hero], subscribe: () => () => {} };
+  const center = createAlertCenter(account);
+  const watch = mountSocialWatch(account, center);
+  const tell = () => { for (const fn of fns) fn(); };
+  tell();
+  if (center.list().length) fails.push('AW-61 nothing arrived, and a toast says ' + center.list()[0].text);
+  convs.push({ tab: 'w:x', id: 'x', name: 'Wrenna', unread: 1 });
+  tell();
+  said.push({ id: 'l2', body: 'and more' });
+  tell();
+  const toast = center.list().filter((a) => a.kind === 'whisper');
+  if (toast.length !== 1 || toast[0].text !== 'Wrenna sent you a private message.' || toast[0].tab !== 'w:x' || toast[0].button !== 'Read it') fails.push('AW-61 a private message toasts ' + JSON.stringify(toast));
+  if ((hero.record.residue.alerts || { seen: [] }).seen.some((id) => /^whisper/.test(id))) fails.push('AW-61 a live whisper takes a place in the saved list');
+  asks.push({ id: 'y', name: 'Ashgrave', slot: 0 });
+  tell(); tell();
+  const asked = center.list().filter((a) => a.kind === 'friend');
+  if (asked.length !== 1 || asked[0].text !== 'Ashgrave wants to be your friend.' || !(hero.record.residue.alerts || { seen: [] }).seen.includes('friend:y')) fails.push('AW-61 a friend request toasts ' + JSON.stringify(asked));
+  watch.destroy(); center.destroy();
+  /* AW-63 the panels' round 3 (2026-11-01). */
+  const { enterOffWords } = await imp('src/shell/windows/hunts.js');
+  const warrens = { name: 'Coppercap Warrens', band: [32, 50] };
+  if (enterOffWords(warrens, 13, null) !== 'You need Level 18 to enter Coppercap Warrens. You are Level 13.' || enterOffWords(warrens, 18, null) !== '' || enterOffWords(warrens, 13, { isLeader: true }) !== '' || enterOffWords(warrens, null, null) !== '') fails.push('AW-63 Enter off reads ' + enterOffWords(warrens, 13, null));
+  if (!/^You're in Mira's party/.test(enterOffWords(warrens, 40, { isLeader: false, leaderName: 'Mira' }))) fails.push('AW-63 a member\'s Enter reads ' + enterOffWords(warrens, 40, { isLeader: false, leaderName: 'Mira' }));
+  const { overBagWords } = await imp('src/shell/windows/inventory/index.js');
+  if (overBagWords(99, 100) !== '' || !/Hunts still pick up loot/.test(overBagWords(114, 100))) fails.push('AW-63 a bag past its spaces says ' + overBagWords(114, 100));
+  /* THE NEWCOMER'S PANEL (2026-11-01). */
+  const { coachHtml } = await imp('src/shell/launcher.js');
+  const reader = { read: () => null, record: { residue: { coach: { read: [] } } } };
+  const aCard = { id: 'x', title: 'A title', text: 'Some words', done: { kind: 'read' }, gotIt: true };
+  if (!/hs-pointer is-line/.test(coachHtml(reader, aCard, true)) || !/data-hs-act="coach-more"/.test(coachHtml(reader, aCard, true)) || /is-line|coach-more/.test(coachHtml(reader, aCard, false))) fails.push('AW-62 a card in a window is not one line, or one outside is');
+  const { takeWhyOf } = await imp('src/shell/windows/tally.js');
+  if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You hold as many/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
+    || takeWhyOf({ weight: 'heavy', held: [], heldMax: 3 }, false) !== '' || takeWhyOf({ weight: null, held: [], heldMax: 3 }, true) !== '') fails.push('AW-62 the line over her board is wrong');
+  const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
+  const bones = buryRecipeOf('bones');
+  const burning = { read: (k) => (k === 'state' ? { active_kind: 'artisan', active_id: bones.recipe.id } : null) };
+  if (buryLabel(bones, 59) !== 'Fuel all 59' || buryLabel(bones, 59, { read: () => null }) !== 'Fuel all 59' || buryLabel(bones, 59, burning) !== 'Fueling…') fails.push('AW-62 the fuel label reads ' + buryLabel(bones, 59, burning));
+  const { rareSaleWords } = await imp('src/shell/item-lore.js');
+  if (rareSaleWords([{ item: 'rat_tail', qty: 4 }, { item: 'alpha_fang', qty: 3 }]) !== 'This sells rare finds: 3 Alpha Fang.' || rareSaleWords([{ item: 'rat_tail', qty: 4 }]) !== '') fails.push('AW-62 the sale says ' + rareSaleWords([{ item: 'alpha_fang', qty: 3 }]));
+  const { slotOfferHtml, playLineOf } = await imp('src/app/slot-offer.js');
+  const offer = { slotId: 2, cost: 15000, max: 5 }, one = { exists: true, slot: 0, gold: 500, goldV: 1 }, two = { exists: true, slot: 1, gold: 500, goldV: 1 };
+  if (slotOfferHtml(offer, [one, { exists: false, slot: 1 }]) !== '' || !/Buy a hero slot/.test(slotOfferHtml(offer, [one, two]))) fails.push('AW-62 the slot offer with a free slot empty');
+  if (/cost gold/.test(playLineOf(4, 4, 2, offer, [one, { exists: false, slot: 1 }])) || !/the third is 15,000/.test(playLineOf(4, 4, 2, offer, [one, two]))) fails.push('AW-62 the play line with a free slot empty');
+  const { jobReplacedWords } = await imp('src/shell/town-work.js');
+  const worker = (state, hunt) => ({ read: (k) => (k === 'state' ? state : k === 'hunt' ? hunt : null) });
+  const tree = { active_kind: 'gather', active_id: 'normal_tree', active_since: '2026-11-01T00:00:00Z' };
+  const wrow = (await imp('src/shell/town-work.js')).workRow;
+  const craft = wrow('artisan', Object.keys((await imp('src/shell/town-work.js')).BENCH_INDEX)[0]);
+  if (jobReplacedWords(worker(tree, null), craft) !== 'You stopped chopping the Normal Tree.') fails.push('AW-62 a craft over chopping says ' + JSON.stringify(jobReplacedWords(worker(tree, null), craft)));
+  if (jobReplacedWords(worker(tree, null), wrow('gather', 'normal_tree')) !== '') fails.push('AW-62 pressing the running job says it stopped');
+  if (jobReplacedWords(worker({ active_kind: 'idle' }, null), craft) !== '') fails.push('AW-62 an idle hero stopped something');
+  const { startWork } = await imp('src/shell/town-work.js');
+  const pressed = await startWork(worker(tree, null), craft, (fn, busy, done) => done({ ok: true }), null);
+  if (pressed !== 'You stopped chopping the Normal Tree.') fails.push('AW-62 the press over chopping answers ' + JSON.stringify(pressed));
   return fails;
 }
 
@@ -719,8 +828,74 @@ async function planRules(base) {
   const fedSaid = [readinessLine(fedR), fedR.checks.filter((c) => c.id === 'food').map((c) => (c.ok ? '' : '!') + c.text).join(), say(fed)].join(' || ');
   if (fedSaid !== 'Brannoc: ready || Food: no Cooked Shrimp left. You carry 12 Cooked Trout: put it on the bar to eat it || Food: no Cooked Shrimp left. You carry 12 Cooked Trout: put it on the bar to eat it | Stamina: 8 h 0 min. Your hero hunts that long, even with the game closed, then comes home.')
     fails.push('AW-8 an empty food slot with spare food in the bag reads ' + JSON.stringify(fedSaid));
-  const shooter = readinessOf(noStore([{ action: { type: 'attack_with_item', id: 'loaded' }, conditions: [], join: 'and', usable: true }], {}));
+  const shooter = readinessOf(sess({ hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [{ action: { type: 'attack_with_item', id: 'loaded' }, conditions: [], join: 'and', usable: true }], store: STORE, supplySource: 'own', onEmpty: 'stop' }, inventory: {}, name: 'Brannoc' }));
   if (readinessLine(shooter) !== 'Brannoc: 0 ammo') fails.push('AW-8 a bar that shoots with no ammo reads ' + JSON.stringify(readinessLine(shooter)));
+  /* AW-64 HUNT PREP READS WHAT THE HERO CAN USE NOW (Andy #74, live 11-02: Eddie with 2,000 Cooked Swordfish in his hunt bag read
+     "Food: the store, 432 gp each as used", Fremulon "Ammo: the store as used"; Enter MOVES supplies out of the bag, and the ledger
+     shows neither ever paid). Prep and Before you go print ONE reader; in a hunt and in town say the same; every tier of food, drink,
+     ammo and runes; ammo in the engine's order (conditions.js attackOrder), so a free stack ends the line and nothing behind it is said. */
+  {
+  const { BASIC_SUPPLIES } = await imp('src/data/supply-basics.js');
+  const { ABILITIES: SPELLS } = await imp('src/data/abilities.js');
+  const { itemName: nameOfItem, runeWords: runeWordsOf } = await imp('src/shell/widgets/bits.js');
+  const { supplyLines } = await imp('src/shell/action-facts.js');
+  const LIVE = BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, heals: b.heals || null, mana: b.mana || null, price: b.price }));
+  const barOf = (role, slots) => ({ preset: 0, presets: [], role, slots, store: LIVE, supply_source: 'mine', on_empty: 'switch' });
+  const inHunt = (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: {},
+    hunt: { session_id: 's-1', hunt_id: 'mosslight_glade', session: { bag: Object.entries(packed).map(([item, left]) => ({ item, left })) } } });
+  const inTown = (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: packed });
+  const prepOf = (cs, id) => (readinessOf(cs).checks.find((c) => c.id === id) || {}).text;
+  const beforeOf = (cs, id) => (beforeLines(cs).find((l) => l.id === id) || {}).text;
+  const eat = (id) => slot('consume', id);
+  const spellStore = (id, store) => ({ action: { type: 'ability', id, store }, conditions: [], join: 'and', usable: true });
+  const shoot = (id) => slot('attack_with_item', id);
+  const EDDIE = [[spellStore('flame_strike', 'plain_fire_rune'), spellStore('rend', 'plain_rupture_rune'), eat('cooked_swordfish'), eat('salted_swordfish'), eat('thin_carrot_juice')],
+    { chalked_fire_rune: 7342, cooked_swordfish: 2000 }, { weapon: 'steel_hatchets', ammo: 'steel_whetstone' }];
+  const FREMULON = [[shoot('loaded'), shoot('bronze_arrows'), shoot('barbed_arrows'), eat('cooked_swordfish'), eat('thin_carrot_juice')],
+    { mithril_arrows: 27300, coarse_whetstone: 26340, bronze_arrows: 2600, cooked_swordfish: 150, cooked_shrimp: 25 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }];
+  const FREMULON_SAYS = 'Ammo: no Steel Arrows left, then Bronze Arrows. They never run out. You carry 27,300 Mithril Arrows: put them on the bar to shoot them.';
+  const want64 = [
+    ['Eddie food', 'food', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Food: 2,000 Swordfish Steak of yours, then Salted Swordfish from the store, 432 gp each'],
+    ['Eddie drink', 'drink', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Drink: Thin Carrot Juice from the store, 18 gp each'],
+    ['Eddie ammo', 'ammo', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], undefined],
+    ['Fremulon ammo', 'ammo', ['Fremulon', 'ranger', ...FREMULON], FREMULON_SAYS],
+    /* the player's order stands: a store slot ahead of his own is said as what it is, the store first */
+    ['store ahead of own', 'food', ['A', 'melee_dps', [eat('salted_shrimp'), eat('cooked_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp from the store, 14 gp each, then 5 Cooked Shrimp of yours'],
+    /* carried first, the worn ahead of the bar's, the store last, whatever the bar's order */
+    ['the engine\'s order', 'ammo', ['A', 'ranger', [shoot('barbed_arrows')], { barbed_arrows: 5, iron_arrows: 3 }, { weapon: 'willow_longbow', ammo: 'iron_arrows' }], 'Ammo: 3 Iron Arrows of yours, loaded, then 5 Barbed Arrows of yours, then Plain Iron Arrows from the store, 1 gp each.'],
+    /* a whetstone or a rune is no one's shot, and the free rung ends the line */
+    ['no whetstone in the arrows', 'ammo', ['A', 'ranger', [shoot('loaded')], { coarse_whetstone: 30000, chalked_fire_rune: 40, bronze_arrows: 5 }, { weapon: 'willow_longbow', ammo: 'bronze_arrows' }], 'Ammo: Bronze Arrows loaded. They never run out.'],
+    /* the worn slot empty, own stock behind: the store is reached only when it is gone, and idle stock is said beside it */
+    ['store with stock idle', 'ammo', ['A', 'ranger', [], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows from the store, 1 gp each. You carry 9 Mithril Arrows: put them on the bar to shoot them.'],
+    /* a slot switched Off spends nothing */
+    ['an Off slot', 'food', ['A', 'melee_dps', [Object.assign(eat('cooked_shrimp'), { enabled: false }), eat('salted_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp from the store, 14 gp each. You carry 5 Cooked Shrimp: put it on the bar to eat it'],
+  ];
+  /* every tier, every line: own stock counted, then its store row at the server's price */
+  const KIND_64 = { heal: ['food', 'Food'], mana: ['drink', 'Drink'] };
+  for (const b of BASIC_SUPPLIES) {
+    if (KIND_64[b.kind]) want64.push(['tier ' + b.partner, KIND_64[b.kind][0], ['A', 'melee_dps', [eat(b.partner), eat(b.id)], { [b.partner]: 7 }, { weapon: 'steel_hatchets' }], KIND_64[b.kind][1] + ': 7 ' + nameOfItem(b.partner) + ' of yours, then ' + b.n + ' from the store, ' + b.price + ' gp each']);
+    else if (!/_rune$/.test(b.id)) want64.push(['tier ' + b.partner, 'ammo', ['A', 'ranger', [shoot('loaded')], { [b.partner]: 7 }, { weapon: 'willow_longbow', ammo: b.partner }], 'Ammo: 7 ' + nameOfItem(b.partner) + ' of yours, loaded, then ' + b.n + ' from the store, ' + b.price + ' gp each.']);
+    else {
+      const spell = Object.values(SPELLS).find((a) => a.rune === b.partner);
+      if (spell) want64.push(['tier ' + b.partner, 'rune', ['A', 'mage', [spellStore(spell.id, b.id)], { [b.partner]: 7 }, { weapon: 'practice_staff' }], 'Runes: 7 ' + runeWordsOf(spell.rune, 7) + ' of yours, then ' + b.n + ' from the store, ' + b.price + ' gp a cast']);
+    }
+  }
+  for (const [what, id, args, text] of want64) {
+    for (const [where, make] of [['in a hunt', inHunt], ['in town', inTown]]) {
+      const cs = make(...args);
+      if (prepOf(cs, id) !== text) fails.push('AW-64 ' + what + ' ' + where + ', Hunt prep reads ' + JSON.stringify(prepOf(cs, id)));
+      if (beforeOf(cs, id) !== text) fails.push('AW-64 ' + what + ' ' + where + ', Before you go reads ' + JSON.stringify(beforeOf(cs, id)));
+    }
+  }
+  if (readinessLine(readinessOf(inHunt('Fremulon', 'ranger', ...FREMULON))) !== 'Fremulon: ready') fails.push('AW-64 Fremulon is not ready: ' + readinessLine(readinessOf(inHunt('Fremulon', 'ranger', ...FREMULON))));
+  /* the slot's tooltip says the same of the loaded ammo: what is worn, what it costs, and no store behind a free arrow */
+  const loadedSays = (worn, bag) => supplyLines({ type: 'attack_with_item', id: 'loaded' }, { role: 'ranger', store: LIVE, supplySource: 'mine', onEmpty: 'switch' }, bag, worn).join(' ');
+  for (const [worn, bag, text] of [
+    ['steel_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'You carry no Steel Arrows. Your other ammo fires first, then the store’s Plain Steel Arrows, 1 g each, paid as used.'],
+    ['iron_arrows', [{ id: 'iron_arrows', qty: 9 }], 'You carry 9 Iron Arrows. Own stock first, then the store’s Plain Iron Arrows, 1 g each, paid as used.'],
+    ['bronze_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'Bronze Arrows loaded. They never run out.'],
+  ]) if (loadedSays(worn, bag) !== text) fails.push('AW-64 the loaded slot on ' + worn + ' reads ' + JSON.stringify(loadedSays(worn, bag)));
+  }
   /* AW-8 Hunt prep says HOW MUCH stamina, and in town the supply rate is the LAST hunt's (core-loop play 2026-10-30:
      "Stamina left" with no amount; "on this hunt" over a hero standing in Havora). */
   const an = { hero: { per_hour: { waste: 500 } } };
@@ -801,13 +976,14 @@ async function armourWordRules(base) {
   const { HELP_NOTES } = await imp('src/data/how-to-play.js');
   const tamStep = HUNT_TUTORIAL.find((st) => st.id === 'tamsins_task') || {};
   /* both the card as written and as the coach says it to a hero (cardFor: the role's advice) */
-  const tam = (tamStep.text || '') + ' | ' + ((cardFor(tamStep, { role: 'mage' }) || {}).text || '');
+  /* What each weight gives is said beside the picker: her window's line and each button's title, off the same sentences (the card is the way, in three lines). */
+  const tallySrc = readFileSync(join(base, 'src/shell/windows/tally.js'), 'utf8');
+  if (!tallySrc.includes("WEIGHT_ORDER.map(weightSentence).join(' ')") || !tallySrc.includes('title="\' + esc(weightSentence(w))')) fails.push('AW-34 her window no longer says what each weight gives');
+  if (!/armor weight/.test(tamStep.text || '') || !/armor weight/.test((cardFor(tamStep, { role: 'mage' }) || {}).text || '')) fails.push('AW-34 the tally card no longer asks for a weight');
   const help = (HELP_NOTES.find((n) => n.id === 'armour') || {}).text || '';
   for (const w of AW.WEIGHT_ORDER) {
-    if (tam.split(' | ').some((t) => !t.includes(AW.weightShort(w)))) fails.push('AW-34 the tally card does not say what ' + w + ' armor gives: ' + JSON.stringify(tam));
     if (!help.includes(AW.weightSentence(w))) fails.push('AW-34 the Help note does not say what ' + w + ' armor gives');
   }
-  if (!/max HP/.test(tam) || !/max mana/.test(tam) || !/miss/.test(tam)) fails.push('AW-34 the tally card names no weight effect: ' + JSON.stringify(tam));
   return fails;
 }
 
@@ -1386,7 +1562,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await openWin(page, 't', 'storage');
         await page.waitForTimeout(150);
         const sb = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="storage"] [data-hs-act="dispatch"]'); return b ? { off: b.disabled, why: document.querySelector('.hw-store-do .hw-why').textContent, pelt: !!document.querySelector('[data-hs-win="storage"] .hw-pockets[data-side="bank"] [data-item="wolf_pelt"]') } : null; });
-        if (!sb || !sb.off || !/^Nothing in your bag is set to Deposit in storage or Sell yet\. Open an item’s menu in the bag to choose where it goes\.$/.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
+        if (!sb || !sb.off || !/^Nothing is set to Deposit or Sell yet\. Set it in an item’s menu\.$/.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
         if (shots) await shot(page, 'dispatch-1440x900-storage-after');
         if (errors.length) fails.push('AW-32 console errors: ' + errors.slice(0, 3).join(' | '));
       } else fails.push('AW-32 the screen did not mount (town)');
@@ -2437,6 +2613,193 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+    { // AW-61 NOTHING CLIPS: every window's title and a Shop name, in a wide fallback font (GitHub's Linux runner has one); a member's Hunt again is off and says why
+      const stall = (e) => { e.shop = Object.assign({}, e.shop, { offers: [{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }, { offer: 'gear.iron_helm', item: 'iron_helm', kind: 'gear', price: 180 }],
+        bids: Object.assign({}, e.shop.bids, { alpha_fang: 450, rat_tail: 1 }) }); e.inventory = Object.assign({}, e.inventory, { alpha_fang: 3, rat_tail: 4 }); };
+      const { ctx, page, s, up } = await open({ viewport: { width: 1365, height: 846 }, mutateEnv: stall });
+      if (!up) fails.push('AW-61 the page did not mount');
+      else {
+        /* AW-62 AT THE LAPTOP'S WIDTH, IN THE GAME'S OWN FONT: the stance words whole on the bar; the analyzer's tabs inside their panel; Inventory's foot in the window with a coach card up. */
+        const readChrome = () => page.evaluate(() => {
+          const stance = Array.from(document.querySelectorAll('.hb-stance .hh-seg')).map((b) => ({ t: b.textContent, over: b.scrollWidth - b.clientWidth }));
+          const panel = document.querySelector('[data-hs-widget="analyzer"]');
+          const tabs = panel ? Array.from(panel.querySelectorAll('.ha-tab')).map((b) => ({ t: b.textContent, right: b.getBoundingClientRect().right, over: b.scrollWidth - b.clientWidth })) : [];
+          const d = document.querySelector('.char-tab.is-shown .char-tab-doing') || document.querySelector('.char-tab-doing');
+          let label = null;
+          if (d) { const was = d.textContent; d.textContent = 'In town, fueling the Great Hearth with Bones'; label = d.scrollWidth - d.clientWidth; d.textContent = was; }
+          return { stance, tabs, label, edge: panel ? panel.getBoundingClientRect().right : null };
+        });
+        /* EVERY MACHINE READS THE WIDE FONT TOO: the page's web font is stubbed here, so a box measures its own fallback, and a green on Windows
+           (Segoe UI) said nothing of a Linux player's (run 41385560100: the job 9 px and the stance words 7 px over). Verdana or its Linux twin,
+           at the laptop's width and, for the bar's words, at a Steam Deck's 1280; then the fallback this box has. */
+        const wideFont = await page.addStyleTag({ content: ':root, body, body[data-theme] { --f-ui: Verdana, "DejaVu Sans", sans-serif !important; }' });
+        const wide = await readChrome();
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await page.waitForTimeout(150);
+        const deck = await readChrome();
+        await page.setViewportSize({ width: 1365, height: 846 });
+        await page.waitForTimeout(150);
+        await wideFont.evaluate((e) => e.remove());
+        const own = await readChrome();
+        for (const [font, chrome] of [['the wide font', wide], ['this box\'s font', own]]) {
+          if (chrome.label === null || chrome.label > 0) fails.push('AW-62 in ' + font + ' the top bar cuts a hero\'s job by ' + chrome.label + ' px');
+        }
+        for (const [font, chrome] of [['the wide font', wide], ['the wide font at 1280', deck], ['this box\'s font', own]]) {
+          if (chrome.stance.length !== 3 || chrome.stance.some((s) => s.over > 0)) fails.push('AW-62 in ' + font + ' the stance words read ' + JSON.stringify(chrome.stance));
+          if (chrome.tabs.length && chrome.tabs.some((t) => t.over > 0 || t.right > chrome.edge)) fails.push('AW-62 in ' + font + ' the analyzer tabs read ' + JSON.stringify(chrome));
+        }
+        const { SHELL_WINDOWS } = await import(pathToFileURL(join(ROOT, 'src/data/shell-windows.js')).href);
+        const heads = await page.evaluate((list) => list.map((r) => {
+          const host = document.createElement('div');
+          host.style.cssText = 'position:fixed;left:0;top:0;visibility:hidden;width:' + r.width + 'px';
+          host.innerHTML = '<header class="hs-win-head"><span class="hs-glyph"></span><h2 class="hs-win-title"></h2>' + (r.key ? '<kbd class="hs-key">M</kbd>' : '') + '<button class="hs-close"></button></header>';
+          host.querySelector('h2').textContent = r.title;
+          document.body.appendChild(host);
+          const t = host.querySelector('h2'), got = { id: r.id, w: t.scrollWidth - t.clientWidth, band: host.firstChild.offsetHeight, ell: getComputedStyle(t).textOverflow };
+          host.remove();
+          return got;
+        }), SHELL_WINDOWS.map((r) => ({ id: r.id, title: r.title || r.label, width: r.width, key: r.key })));
+        for (const h of heads) if (h.w > 0 || h.band > 46 || h.ell === 'ellipsis') fails.push('AW-61 the ' + h.id + ' title clips: ' + JSON.stringify(h));
+        /* the Shop on the phone (a sheet, half of 667): the name has its own line and is never cut; desktop keeps its one row */
+        const shopNames = async (p, tag) => {
+          await p.addStyleTag({ content: ':root { --f-ui: Verdana, "DejaVu Sans", sans-serif !important; --f-display: Verdana, "DejaVu Sans", sans-serif !important; }' });
+          if (!(await openWin(p, 'v', 'shop'))) { fails.push('AW-61 the Shop did not open at ' + tag); return; }
+          await wait(p, () => document.querySelector('[data-hs-win="shop"] .hw-line-name b'), null, 3000);
+          const names = await p.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="shop"] .hw-line-name b')).filter((b) => b.getClientRects().length).map((b) => ({ t: b.textContent, over: b.scrollWidth - b.clientWidth })));
+          if (!names.length) fails.push('AW-61 no Shop name to measure at ' + tag);
+          for (const n of names) if (n.over > 0) fails.push('AW-61 ' + tag + ': the Shop cuts ' + JSON.stringify(n));
+        };
+        await shopNames(page, '1365');
+        /* AW-62 the Shop's confirmation names the rare finds in the sale */
+        await page.click('[data-hs-win="shop"] .hw-tab[data-tab="sell"]');
+        await wait(page, () => document.querySelector('[data-hs-act="sell-loot"]:not([disabled])'), null, 3000);
+        await page.click('[data-hs-act="sell-loot"]');
+        const saleNote = await page.evaluate(() => document.querySelector('[data-pane="sell"] .hw-confirm-note').textContent);
+        if (!/This sells rare finds: 3 Alpha Fang\./.test(saleNote)) fails.push('AW-62 Sell all loot asks: ' + saleNote);
+        await page.click('[data-hs-win="shop"] [data-hs-act="confirm-no"]');
+        await page.keyboard.press('v');
+        /* AW-62 Inventory's foot stands inside the window at a laptop's height, the bag scrolling above it, with a card up too */
+        if (!(await openWin(page, 'b', 'inventory'))) fails.push('AW-62 Inventory did not open');
+        else {
+          await page.setViewportSize({ width: 1366, height: 768 });
+          await page.waitForTimeout(300);
+          const foot = await page.evaluate(() => {
+            const w = document.querySelector('[data-hs-win="inventory"]');
+            w.querySelector('.hs-win-coach').insertAdjacentHTML('beforeend', '<p class="hs-pointer is-line"><b>A card</b> <span class="hs-coach-text">words</span></p>');
+            const bottom = (q) => { const e = w.querySelector(q); return e && e.getClientRects().length ? Math.round(e.getBoundingClientRect().bottom) : null; };
+            const out = { win: Math.round(w.getBoundingClientRect().bottom), foot: bottom('.hw-inv-foot'), tools: bottom('.hw-tools'), scroll: w.querySelector('.hw-inv-scroll').clientHeight };
+            w.querySelector('.hs-win-coach').textContent = '';
+            return out;
+          });
+          if (foot.foot === null || foot.foot > foot.win || foot.tools === null || foot.tools > foot.win || foot.scroll < 90) fails.push('AW-62 Inventory at 1366x768 reads ' + JSON.stringify(foot));
+          await page.keyboard.press('b');
+          /* the Hunts how-to stands aside for a card there, and comes back */
+          if (await openWin(page, 'h', 'hunts')) {
+            const hint = await page.evaluate(() => {
+              const w = document.querySelector('[data-hs-win="hunts"]'), n = w.querySelector('.hw-hunts-now'), slot = w.querySelector('.hs-win-coach');
+              n.classList.add('is-hint');   // the how-to's own class: the fixture's hero is hunting, and a running hunt's line stays
+              const was = getComputedStyle(n).display;
+              slot.insertAdjacentHTML('beforeend', '<p class="hs-pointer is-line"><b>A card</b></p>');
+              const under = getComputedStyle(n).display;
+              slot.textContent = '';
+              return { was, under };
+            });
+            if (hint.was === 'none' || hint.under !== 'none') fails.push('AW-62 the Hunts how-to beside a card reads ' + JSON.stringify(hint));
+            await page.keyboard.press('h');
+          }
+          await page.setViewportSize({ width: 1365, height: 846 });
+        }
+        const phone = await open({ viewport: { width: 667, height: 375 }, mutateEnv: stall });
+        if (!phone.up) fails.push('AW-61 the phone did not mount');
+        else await shopNames(phone.page, '667');
+        await phone.ctx.close();
+        /* a member's summary: Hunt again is off, says who chooses, and sends nothing */
+        const seat = (n, name) => ({ seat: n, name, unit: 10 + n, hunting: false });
+        s.env.party = { id: '00000000-0000-4000-a000-0000000000aa', hunt: 'mill_cellar', max: 4, leader_seat: 0, self_seat: 1, members: [seat(0, 'Bramwell'), seat(1, 'Brannoc')] };
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: { end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'stamina', preset: 0, ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(page, s);
+        if (!(await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="again"]'), null, 4000))) fails.push('AW-61 the member\'s summary did not open');
+        else {
+          await page.waitForTimeout(300);
+          const seen = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); const b = w.querySelector('[data-hs-act="again"]'); return { off: b.disabled, why: w.querySelector('.hh-intent-msg').textContent, reason: w.querySelector('.hsum-reason').textContent }; });
+          if (!seen.off || seen.why !== 'Hunt again is off. Your party leader picks the hunt and starts it.') fails.push('AW-61 a member\'s Hunt again reads ' + JSON.stringify(seen));
+          if (!/Bramwell ran out of stamina, so .* came home too\./.test(seen.reason)) fails.push('AW-61 the member\'s end card reads ' + seen.reason);
+          /* the leader's own press is the party's Start, never a lone Enter */
+          s.env.party = Object.assign({}, s.env.party, { self_seat: 0, leader_seat: 0 });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(300);
+          const mark = s.calls.length;
+          await page.click('[data-hs-win="hunt-summary"] [data-hs-act="again"]');
+          await page.waitForTimeout(400);
+          const names = s.calls.slice(mark).map((c) => c.name);
+          if (!names.includes('hr_hunt_party_start') || names.includes('hr_hunt_enter')) fails.push('AW-61 the leader\'s Hunt again sent ' + names.join(','));
+          s.env.party = Object.assign({}, s.env.party, { self_seat: 1, leader_seat: 0 });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(300);
+          /* AW-63 sent home still in the party (midgame panel 2026-11-01): Hunts' Enter is off with its reason beside it, and Leave party there is ONE intent */
+          if (await openWin(page, 'h', 'hunts')) {
+            await page.waitForTimeout(200);
+            const foot = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'), e = w.querySelector('.hw-hunt-enter'), l = w.querySelector('[data-hs-act="leave-party"]'); return { off: e.disabled, why: w.querySelector('.hw-enter-why').textContent, leave: !l.hidden && l.getClientRects().length > 0 }; });
+            if (!foot.off || !/^You're in Bramwell's party, and they pick the hunt\./.test(foot.why) || !foot.leave) fails.push('AW-63 a member\'s Hunts foot reads ' + JSON.stringify(foot));
+            const mk = s.calls.length;
+            await page.click('[data-hs-win="hunts"] [data-hs-act="leave-party"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunts\"] [data-hs-act=\"leave-party\"]'"));
+            await page.waitForTimeout(300);
+            if (s.calls.slice(mk).filter((c) => /party_leave/.test(c.name)).length !== 1) fails.push('AW-63 Leave party in Hunts sent ' + s.calls.slice(mk).map((c) => c.name).join());
+            await page.keyboard.press('h');
+          }
+          /* AW-63 the Party window: its answer under its presses, Disband whole and asking first, a seat coming retires an old answer */
+          s.env.party = Object.assign({}, s.env.party, { self_seat: 0, leader_seat: 0 });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(200);
+          if (await openWin(page, 'y', 'hunt-party')) {
+            await page.click('[data-hs-win="hunt-party"] .hw-tab[data-tab="party"]').catch(() => {});
+            await page.click('[data-hs-win="hunt-party"] [data-hs-act="invite-name"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunt-party\"] [data-hs-act=\"invite-name\"]'"));
+            await page.waitForTimeout(150);
+            const lay = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-party"]'), m = w.querySelector('.hw-party > .hh-intent-msg').getBoundingClientRect(), a = w.querySelector('.hw-party-acts').getBoundingClientRect(), d = w.querySelector('[data-hs-act="disband"]'), dr = d.getBoundingClientRect(), b = w.querySelector('.hs-win-body').getBoundingClientRect();
+              return { over: m.height > 0 && m.top < a.bottom && a.top < m.bottom, clip: d.scrollWidth - d.clientWidth, past: dr.right - b.right, said: w.querySelector('.hw-party > .hh-intent-msg').textContent }; });
+            if (lay.over || lay.clip > 0 || lay.past > 0 || !lay.said) fails.push('AW-63 the Party window lays out as ' + JSON.stringify(lay));
+            /* ...and where the window scrolls too (a 1366x768 laptop's browser: 620 px of page), the presses scrolled to its foot: the sticky
+               answer every other window keeps would pin itself there, over Leave party and Disband (an unscrolled window never shows it). */
+            await page.setViewportSize({ width: 1366, height: 620 });
+            await page.waitForTimeout(200);
+            const low = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-party"]'), body = w.querySelector('.hs-win-body'), acts = w.querySelector('.hw-party-acts'), m = w.querySelector('.hw-party > .hh-intent-msg');
+              const scrolls = body.scrollHeight > body.clientHeight + 1;
+              body.scrollTop += acts.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom;
+              const a = acts.getBoundingClientRect(), r = m.getBoundingClientRect();
+              return { scrolls, said: m.textContent, over: r.height > 0 && r.top < a.bottom && a.top < r.bottom, msg: [Math.round(r.top), Math.round(r.bottom)], acts: [Math.round(a.top), Math.round(a.bottom)] }; });
+            await page.setViewportSize({ width: 1365, height: 846 });
+            await page.waitForTimeout(200);
+            if (!low.scrolls || !low.said) fails.push('AW-63 CONTROL: at 1366x620 the Party window does not scroll with its answer up: ' + JSON.stringify(low));
+            else if (low.over) fails.push('AW-63 scrolled to its presses, the Party window\'s answer lies over them: ' + JSON.stringify(low));
+            s.env.party = Object.assign({}, s.env.party, { members: s.env.party.members.concat([{ seat: 2, name: 'Solace', unit: 12, hunting: false }]) });
+            await pushEnvelope(page, s);
+            await page.waitForTimeout(300);
+            const stale = await page.evaluate(() => document.querySelector('[data-hs-win="hunt-party"] .hw-party > .hh-intent-msg').textContent);
+            if (stale) fails.push('AW-63 an old answer stands after a seat came: ' + stale);
+            const dk = s.calls.length;
+            await page.click('[data-hs-win="hunt-party"] [data-hs-act="disband"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunt-party\"] [data-hs-act=\"disband\"]'"));
+            await page.waitForTimeout(150);
+            const armed = await page.evaluate(() => document.querySelector('[data-hs-win="hunt-party"] [data-hs-act="disband"]').textContent);
+            if (armed !== 'Sure?' || s.calls.slice(dk).some((c) => /disband/.test(c.name))) fails.push('AW-63 Disband\'s first press: ' + armed);
+            await page.keyboard.press('y');
+          }
+          /* AW-63 a lone hero far under a ground's floor: Enter off, and when it opens (Coppercap at Level 13: a live Enter under "too far below") */
+          delete s.env.party;
+          s.env.state = Object.assign({}, s.env.state, { level_xp: 0 });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(300);
+          if (await openWin(page, 'h', 'hunts')) {
+            await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="coppercap_warrens"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunts\"] .hw-hunt[data-hunt=\"coppercap_warrens\"]'"));
+            await page.waitForTimeout(200);
+            const far = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'), e = w.querySelector('.hw-hunt-enter'); return { off: e.disabled, why: w.querySelector('.hw-enter-why').textContent }; });
+            if (!far.off || far.why !== 'You need Level 18 to enter Coppercap Warrens. You are Level 1.') fails.push('AW-63 Coppercap far under its floor reads ' + JSON.stringify(far));
+          }
+        }
+      }
+      await ctx.close();
+    }
+
     { // AW-30 the window opacity: a display preference in the residue, the fills fade, the words do not, a reload keeps it
       const { ctx, page, s, up } = await open();
       if (!up) fails.push('AW-30 the page did not mount');
@@ -2549,11 +2912,51 @@ const MUTANTS = [
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return 'For your own use", "if (false) return 'For your own use"],
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? 'The shop buys it", "return false ? 'The shop buys it"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
+  ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !t.weight ? NO_WEIGHT_WHY : t.held.length >= t.heldMax ? FULL_WHY : '';", "  return '';"],
+  ['item truth: panel: Fuel all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
+  ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "return rare.length ? 'This sells rare finds: ' + listWords(rare) + '.' : '';", "return '';"],
+  ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],
+  ['item truth: panel: the play line sells a slot beside an empty one', 'src/app/slot-offer.js', "  if (anEmptySlot(rows)) return 'You own '", "  if (false) return 'You own '"],
+  ['item truth: panel: the press drops the replaced job\'s line', 'src/shell/town-work.js', "return [replaced, words].filter(Boolean).join(' ');", "return words || '';"],
+  ['item truth: panel: a replaced job says nothing', 'src/shell/town-work.js', "  return what ? 'You stopped ' + what + '.' : '';", "  return '';"],
+  ['item truth: panel: pressing the running job says it stopped', 'src/shell/town-work.js', "if (!now || now.id === w.id || !townWorkRunning(", "if (!now || !townWorkRunning("],
+  ['AW-62 the Shop\'s confirmation hides the rares', 'src/shell/windows/shop.js', "[rareSaleWords(p.lines), p.kept.length", "[p.kept.length"],
+  ['AW-62 the stance words clip', 'src/styles/hunt.css', '.hb-plaque { position: relative; align-self: stretch; width: 232px;', '.hb-plaque { position: relative; align-self: stretch; width: 170px;'],
+  ['AW-62 the top bar cuts a hero\'s job', 'src/styles/app.css', '  min-width: 0; max-width: 360px;\n', '  min-width: 0; max-width: 250px;\n'],
+  ['AW-62 a wide font clips the stance words', 'src/styles/hunt.css', 'font-size: var(--t-micro); font-size-adjust: var(--f-ui-aspect); letter-spacing: 0;', 'font-size: var(--t-micro); letter-spacing: 0;'],
+  ['AW-62 a wide font cuts a hero\'s job', 'src/styles/app.css', '.char-tab-doing { font-size: var(--t-micro); font-size-adjust: var(--f-ui-aspect);', '.char-tab-doing { font-size: var(--t-micro);'],
+  ['AW-62 the how-to stays beside a card', 'src/styles/shell.css', '[data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now.is-hint { display: none; }\n', ''],
+  ['AW-62 the analyzer tab runs past the panel', 'src/styles/hunt.css', '.ha-tabs .ha-tab { margin-bottom: -2px; padding: 0 4px; }', '.ha-tabs .ha-tab { margin-bottom: -2px; }'],
+  ['item truth: panel: a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],
+  ['AW-62 the foot scrolls off', 'src/styles/windows.css', '.hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }\n', ''],
+  ['item truth: panel: Enter stays lit far under the floor', 'src/shell/windows/hunts.js', "  return 'You need Level ' + (r.band[0] - SESSION_LIMITS.belowRangeRefuse + 1) + ' to enter '", "  return '' && ' to enter '"],
+  ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Your bag is full.", "  return false ? 'Your bag is full."],
+  ['AW-63 Enter off has no reason beside it', 'src/shell/windows/hunts.js', "  text(det.querySelector('.hw-enter-why'), off);\n", ''],
+  ['AW-63 a member has no way out at Enter', 'src/shell/windows/hunts.js', "  prop(det.querySelector('[data-hs-act=\"leave-party\"]'), 'hidden', now || !follower);\n", ''],
+  ['AW-63 the answer covers Leave party', 'src/styles/windows.css', '.hs-win .hw-party > .hh-intent-msg:not(:empty) { position: static; }\n', ''],
+  ['AW-63 Disband goes on one press', 'src/shell/widgets/party-panel.js', '    if (!sc.disbandArmed) {', '    if (false) {'],
+  ['AW-63 an old answer stands after a seat came', 'src/shell/windows/party.js', "if (sc.msgSeats !== undefined && !sc.pending) sc.msg = '';", ''],
+  ['AW-61 a window title clips again', 'src/styles/shell.css', '.hs-win-title { margin: 0; flex: 1; min-width: 0;', '.hs-win-title { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
+  ['AW-61 Shop names are cut again', 'src/styles/windows.css', '  .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }', ''],
+  ['AW-61 the summary ignores who may press', 'src/shell/windows/hunt-summary.js', "prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);", "prop(go, 'disabled', sc.pending || huntOpen || !again);"],
+  ['AW-61 the leader enters alone', 'src/shell/windows/hunt-summary.js', "if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);\n    else if (how === 'enter')", "if (how)"],
   ['item truth: Before you go hides the spare juice', 'src/shell/hunt-go.js', "const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';", "const spare = '';"],
-  ['item truth: Before you go nags about what is on the bar', 'src/shell/hunt-go.js', "const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.action.type === 'consume').map((sl) => sl.action.id));", 'const barNames = () => new Set();'],
+  ['item truth: Before you go nags about what is on the bar', 'src/shell/hunt-go.js', "const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'consume').map((sl) => sl.action.id));", 'const barNames = () => new Set();'],
   ['item truth: no drink slot, no word', 'src/shell/hunt-go.js', "if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. '", "if (false) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. '"],
+  ['item truth: panel: own stock goes behind the store again', 'src/shell/bar-assign.js', 'const store = named ? -1 : storeSlotFor(wire, id);', 'const store = -1;'],
+  ['item truth: panel: own stock keeps its own lower condition', 'src/shell/bar-assign.js', 'conditions: conditions.map((c) => Object.assign({}, c)), join };', 'conditions: startConditions(action), join };'],
+  ['item truth: panel: a named slot is overridden', 'src/shell/bar-assign.js', 'const store = named ? -1 : storeSlotFor(wire, id);', 'const store = storeSlotFor(wire, id);'],
+  ['item truth: panel: a member starts a hunt', 'src/hunt-view/summary-model.js', "return party.isLeader ? { how: 'party', why: '' } : { how: null, why: 'Your party leader picks the hunt and starts it.' };", "return party.isLeader ? { how: 'party', why: '' } : { how: 'enter', why: '' };"],
+  ['item truth: panel: a member cannot go back in', 'src/hunt-view/summary-model.js', "return party.hunt === hunt ? { how: 'enter', why: '' } :", "return false ? { how: 'enter', why: '' } :"],
+  ['item truth: panel: the leader enters alone', 'src/hunt-view/summary-model.js', "return party.isLeader ? { how: 'party', why: '' } :", "return party.isLeader ? { how: 'enter', why: '' } :"],
+  ['item truth: panel: a finished job reads working', 'src/session/account-session.js', "return a.kind === 'busy' && !benchJobOver(read, Date.parse(body.now)) ? a.text : null;", "return a.kind === 'busy' ? a.text : null;"],
+  ['item truth: panel: gathering reads as a finished job', 'src/session/bench-sections.js', "st.active_kind === 'artisan' && Object.prototype", "Object.prototype"],
+  ['item truth: panel: a whisper toasts for every line', 'src/shell/social-watch.js', "if (last && !up.some((a) => a.kind === 'whisper' && a.peer === c.id)) {", 'if (last) {'],
+  ['item truth: panel: a whisper with no news toasts', 'src/shell/social-watch.js', 'const last = c.unread > 0 ?', 'const last = true ?'],
+  ['item truth: panel: a friend request stays silent', 'src/shell/social-watch.js', "alerts.say(cs, { id: 'friend:' + p.id,", "if (0) alerts.say(cs, { id: 'friend:' + p.id,"],
+  ['item truth: panel: a live whisper fills the saved list', 'src/shell/alerts.js', 'if (!c.transient) {', 'if (true) {'],
   ['item truth: the rune says Next at level 12: Blank Rune', 'src/data/skill-unlocks.js', 'r.output && r.req <= firstAt(skill, r.output) ? nameOf(r.output) : r.name', 'r.output ? nameOf(r.output) : r.name'],
-  ['armor words: the coach card stops naming the weights', 'src/data/hunt-tutorial.js', "away. ' + WEIGHTS_SAID + pick", "away. ' + pick"],
+  ['armor words: her window stops naming the weights', 'src/shell/windows/tally.js', "WEIGHT_ORDER.map(weightSentence).join(' ')", "''"],
   ['armor words: the Help note forgets medium', 'src/data/how-to-play.js', "    + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces", "    + WEIGHT_ORDER.filter((w) => w !== 'medium').map(weightSentence).join(' ') + ' Pieces"],
   ['a bag icon draws at 1.5x in its well', 'src/styles/windows.css', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 48px; height: 48px; }'],
   ['the Shop lines go 2x again', 'src/styles/windows.css', '.hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-line .hw-ico .hh-icon { width: 64px; height: 64px; }'],
@@ -2570,7 +2973,15 @@ const MUTANTS = [
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
-  ['plans: Hunt prep calls an empty food slot short', 'src/shell/readiness.js', '      if (out && !heads) short.push(', '      if (out) short.push('],
+  ['plans: Hunt prep calls an empty food slot short', 'src/shell/hunt-go.js', "(spare ? '. ' + spare : ''), short: false });", "(spare ? '. ' + spare : ''), short: !usable });"],
+  ['plans: AW-64 Hunt prep reads the bag in a hunt', 'src/shell/readiness.js', '  const carried = carriedOf(cs);', "  const inv = cs.read('inventory');\n  const carried = inv ? Object.entries(inv).map(([id, qty]) => ({ id, qty })) : null;"],
+  ['plans: AW-64 a free arrow is said with the store behind it', 'src/shell/hunt-go.js', '    if (free && !o.ruled) { endless = true; break; }\n', ''],
+  ['plans: AW-64 arrows are said in the bar\'s order, not the engine\'s', 'src/shell/hunt-go.js', 'of attackOrder(rows.concat([DEFAULT_ATTACK_ROW])))', 'of rows.concat([DEFAULT_ATTACK_ROW]))'],
+  ['plans: AW-64 a worn slot with none left is not said', 'src/shell/hunt-go.js', 'const parts = (dry ? [dry] : [])', 'const parts = []'],
+  ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '')", "''"],
+  ['plans: AW-64 a whetstone reads as a spare arrow', 'src/shell/hunt-go.js', ': carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot', ': carried.filter((r) => r.qty > 0 && ammoPerShot'],
+  ['plans: AW-64 the loaded slot names a store shot it never buys', 'src/shell/bar-draft.js', "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? worn : a.id;", "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? 'steel_arrows' : a.id;"],
+  ['plans: AW-64 a slot switched Off is said as spending', 'src/shell/hunt-go.js', 'if (!sl || sl.empty || sl.enabled === false) return null;', 'if (!sl || sl.empty) return null;'],
   ['plans: Hunt prep says stamina with no amount', 'src/shell/readiness.js', "'Stamina: ' + hoursWords(st.msLeft) + ' left'", "'Stamina left'"],
   ['plans: Hunt prep calls the last hunt this hunt', 'src/shell/readiness.js', "h && !h.ended ? 'this hunt' : 'your last hunt'", "'this hunt'"],
   ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    if (mine.length) front = mine;', '    if (mine.length) front = front.slice();'],
@@ -2590,7 +3001,7 @@ const MUTANTS = [
   ['the Storage chip and sort are not applied', 'src/shell/windows/storage.js', '  const o = { cat: prefs.cat, query: sc.query, sort: prefs.sort,', "  const o = { cat: 'all', query: sc.query, sort: 'name',"],
   ['the amount picker sends the whole stack', 'src/shell/widgets/amount.js', "  return n ? clampAmount(n.value, n.getAttribute('data-max')) : 1;", "  return n ? clampAmount(n.getAttribute('data-max'), n.getAttribute('data-max')) : 1;"],
   ['Enter in the amount picker does nothing', 'src/shell/windows/float-menu.js', "      if (e.key === 'Enter' && def) { e.preventDefault(); e.stopPropagation(); def.click(); }\n", ''],
-  ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id))];\n", ''],
+  ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id), st.cs)];\n", ''],
   ['Bury debits the bag before the server answers', 'src/shell/windows/inventory/bury.js', "  const qty = buryQty(cs, id);\n", "  const qty = buryQty(cs, id);\n  delete cs.read('inventory')[id];\n"],
   ['Stop does not collect', 'src/shell/town-work.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],
   ['a skill opens no work', 'src/shell/windows/work.js', "attr(li, 'data-hs-act', door ? 'open-skill' : null);", "attr(li, 'data-hs-act', null);"],

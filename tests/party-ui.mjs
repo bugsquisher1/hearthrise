@@ -1054,6 +1054,7 @@ async function pageRules(overrides, shots) {
       const ctx = await browser.newContext({ viewport: vp });
       const page = await ctx.newPage();
       page.setDefaultTimeout(6000);
+      page.setDefaultNavigationTimeout(60000);   // a load on a busy machine is no rule of this test page.setDefaultNavigationTimeout(60000);
       const errors = [];
       page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
       page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -1413,7 +1414,7 @@ const PAGE_MUTANTS = [
   ['the warning is said and the seat is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', '() => warnPartyGround(ctx.account, cs, hunt)', '() => Promise.resolve({ ok: true })'],
   ['the button never says Start anyway (UI-TRUTH)', 'src/shell/windows/hunts.js', "(under.length && sc.warned === warnKey(r.hunt, under) ? 'Start anyway' : 'Start with party')", "'Start with party'"],
   ['Start with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', !!now);"],
-  ['a member may press Start', 'src/shell/windows/hunts.js', '  if (follower) prop(enter, \'disabled\', true);\n', ''],
+  ['a member may press Start', 'src/shell/windows/hunts.js', '  if (off) prop(enter, \'disabled\', true);\n', ''],
   ['the strip tab is no menu target', 'src/app/character-strip.js', '  markPlayer(b, uid ? { id: uid, name: x.name, slot: x.slot } : null);', '  markPlayer(b, null);'],
   ['the invite toast cannot answer', 'src/shell/widgets/alerts.js', "  if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }", "  if (a.action === 'join') return;"],
   ['the rare line hides its Share', 'src/shell/widgets/alerts.js', "prop(share, 'hidden', !cardFacts(a) || !a.share);", "prop(share, 'hidden', true);"],

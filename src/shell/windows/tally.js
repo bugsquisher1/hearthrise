@@ -3,8 +3,9 @@
 //
 // Tamsin Reeve keeps the Common's tally (src/data/tally-tasks.js). Her window is a
 // board, not a card grid: the hero's tallies on top, each a notched stick with the
-// SERVER's count ("Gray Wolves 112/200"), then her pick (the armour weight she
-// gives for, and her slot order), then her board of tasks with what each pays.
+// SERVER's count ("Gray Wolves 112/200"), then her board of tasks with what each pays,
+// then her pick (the armour weight she gives for, and her slot order). Until a weight
+// is picked the board says so, with a press that brings the picker into view.
 //   Take        ONE hr_tally_accept (in town only; the weight is chosen once first)
 //   Give up     ONE hr_tally_drop (the count is lost; said on the button's line)
 //   Keep        ONE hr_tally_set { task, keep }: taken again the moment it pays
@@ -16,18 +17,18 @@
 // (hr_tally_view). Every control is off while an intent is in flight; the window
 // changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.81';
-import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.81';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.81';
-import { huntName } from '../../session/party-sections.js?v=0.2.81';
-import { goldOf } from '../../session/item-sections.js?v=0.2.81';
-import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.81';
-import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.81';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.81';
-import { whole, gold } from '../../render/format.js?v=0.2.81';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
-import { itemName } from '../widgets/bits.js?v=0.2.81';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.81';
+import { tallyOf, tallyLine, waitWords, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.82';
+import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.82';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.82';
+import { huntName } from '../../session/party-sections.js?v=0.2.82';
+import { goldOf } from '../../session/item-sections.js?v=0.2.82';
+import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.82';
+import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.82';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.82';
+import { whole, gold } from '../../render/format.js?v=0.2.82';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.82';
+import { itemName } from '../widgets/bits.js?v=0.2.82';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.82';
 
 const SCRATCH = new WeakMap();
 /* `board` is her last answer (null until it comes), `asking` the read in flight, `stale` asks again,
@@ -58,6 +59,14 @@ function sharedPieces(board) {
 }
 
 const HUNTING_WHY = 'Her board is in ' + TALLY_KEEPER.board + ': take tasks when you are back in town.';
+const NO_WEIGHT_WHY = 'Pick the armor weight she pays you in first. You can change it later.';
+const FULL_WHY = 'You hold as many tasks as she gives. Give one up first.';
+
+/** What holds every Take on her board off, in words for the line over it, or '' (a row's own Held says its own). Hunting has its own line. Pure. */
+export function takeWhyOf(t, hunting) {
+  if (!t || hunting) return '';
+  return !t.weight ? NO_WEIGHT_WHY : t.held.length >= t.heldMax ? FULL_WHY : '';
+}
 
 /** The skeleton (built once per opening): her board is asked for afresh. */
 export function renderTally(ctx) {
@@ -67,13 +76,14 @@ export function renderTally(ctx) {
     + '<p class="hs-note">' + esc(TALLY_KEEPER.greeting) + '</p></header>'
     + '<p class="hw-cap"><span class="ht-today"></span><span class="hw-gold"></span></p>'
     + '<h3 class="hw-ledger-head is-on">Your tasks</h3><ul class="hw-ledger ht-held"></ul>'
-    + '<p class="hh-empty ht-none">You don\'t have a task from her yet. Take one from her board below.</p>'
-    + '<h3 class="hw-ledger-head is-on">The armor she pays you in</h3>'
+    + '<p class="hh-empty ht-none">You don\'t have a task from her yet. Take one from her board.</p>'
+    + '<h3 class="hw-ledger-head is-on">Her board</h3><p class="hh-empty ht-wait">Loading her board…</p>'
+    + '<p class="hs-note ht-take-why"><span></span><button type="button" class="hh-tool" data-hs-act="to-weight" hidden>Pick a weight</button></p><ul class="hw-ledger ht-board"></ul>'
+    + '<h3 class="hw-ledger-head is-on ht-pick-head">The armor she pays you in</h3>'
     + '<p class="hs-note ht-pick-note"></p>'
     + '<div class="ht-weights" role="group" aria-label="The armor weight she pays you in">'
     + TALLY_RULES.weights.map((w) => '<button type="button" class="hh-seg" data-hs-act="weight" data-weight="' + w + '" aria-pressed="false" title="' + esc(weightSentence(w)) + '">' + WEIGHT_WORDS[w] + '</button>').join('')
     + '</div><ol class="ht-order" aria-label="The order she pays armor slots in"></ol>'
-    + '<h3 class="hw-ledger-head is-on">Her board</h3><p class="hh-empty ht-wait">Loading her board…</p><ul class="hw-ledger ht-board"></ul>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -117,8 +127,8 @@ function patchOffer(li, r, st) {
   text(btn, why || 'Take');
   prop(btn, 'disabled', !!why || st.sc.pending || st.hunting || !st.t || !st.t.weight);
   /* What a press on the grey button says (src/shell/off-why.js). */
-  attr(btn, 'data-off-why', r.held ? 'You already have this task.' : why ? 'You hold as many tasks as she gives. Give one up first.'
-    : st.hunting ? HUNTING_WHY : st.t && !st.t.weight ? 'Pick the armor weight she pays you in first.' : null);
+  attr(btn, 'data-off-why', r.held ? 'You already have this task.' : why ? FULL_WHY
+    : st.hunting ? HUNTING_WHY : st.t && !st.t.weight ? NO_WEIGHT_WHY : null);
 }
 
 /* Her slot order: each slot with a "Move up" press (the first cannot move up). */
@@ -155,6 +165,11 @@ renderTally.patch = function patchTally(body, ctx) {
     prop(b, 'disabled', sc.pending || !t);
   }
   patchOrder(root, st);
+  /* The line over her board: why every Take is off, where the eye goes after a grey button. */
+  const takeWhy = sc.board ? takeWhyOf(t, st.hunting) : '';
+  cls(root.querySelector('.ht-take-why'), 'is-on', !!takeWhy);
+  text(root.querySelector('.ht-take-why span'), takeWhy);
+  prop(root.querySelector('[data-hs-act="to-weight"]'), 'hidden', takeWhy !== NO_WEIGHT_WHY);
   rows(root.querySelector('.ht-board'), board, { key: (r) => r.task, build: (r) => element(ctx.doc, boardHtml(r)), patch: (li, r) => patchOffer(li, r, st) });
   /* Hunting, the line stands however much of her board is loaded: every Take is off for this reason (phone playtest 10-31). */
   cls(root.querySelector('.ht-wait'), 'is-on', !sc.board || st.hunting);
@@ -193,6 +208,7 @@ renderTally.act = function actTally(ctx, body, action, ev, t) {
     return true;
   }
   if (ev.type !== 'click') return false;
+  if (action === 'to-weight') { body.querySelector('.ht-pick-head').scrollIntoView({ block: 'start' }); return true; }
   if (action === 'take') {
     const row = tallyTask(task);
     run(() => takeTask(ctx.account, cs, task, null), 'Taking it…',

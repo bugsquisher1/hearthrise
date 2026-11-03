@@ -11,28 +11,31 @@
 //                       with its weapon, the role that weapon plays and, for the one in
 //                       use, its bar's first four actions (the only bar the envelope
 //                       carries). The default is the setup in use.
-//   beforeLines(cs, o)  "Before you go" (A #5), replacing the readiness checklist: one
-//                       line per kind of supply the bar spends, in slot order ("Food: 20
-//                       Cooked Shrimp of yours, then Salted Shrimp from the store, 14 gp
-//                       each"), the stamina when it will end the hunt soon, the gold when
-//                       the store is paid from it, no weapon, and held tasks that do not count on
-//                       this ground. A line shows only when it informs, and never stops the press.
+//   supplyWords(s, cs, c) THE ONE READER of what a bar will spend, said per kind (Before you go and
+//                       Hunt prep both print it, so they can never disagree; Andy #74): food, drink
+//                       and runes in slot order ("Food: 20 Cooked Shrimp of yours, then Salted Shrimp
+//                       from the store, 14 gp each"), ammo in the engine's own order (shotPlan). `c` is
+//                       what the hero can use NOW (item-sections.js carriedOf: the hunt bag in a hunt).
+//   beforeLines(cs, o)  "Before you go" (A #5): supplyWords, the stamina when it will end the hunt
+//                       soon, the gold when the store is paid from it, no weapon, and held tasks that do
+//                       not count on this ground. A line shows only when it informs, and never stops the press.
 //   freeHeroes(cs, all) "Bring your heroes" (B #3): this account's other open
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.81';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.81';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.81';
-import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.81';
-import { ITEMS } from '../data/items.js?v=0.2.81';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.81';
-import { hasShot } from './action-facts.js?v=0.2.81';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.81';
-import { ABILITIES } from '../data/abilities.js?v=0.2.81';
-import { storeOf, storeName } from './bar-draft.js?v=0.2.81';
-import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.81';
-import { whole, gold } from '../render/format.js?v=0.2.81';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.82';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.82';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.82';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.82';
+import { ITEMS } from '../data/items.js?v=0.2.82';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.82';
+import { attackOrder, DEFAULT_ATTACK_ROW } from '../core/hunt/conditions.js?v=0.2.82';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.82';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.82';
+import { ABILITIES } from '../data/abilities.js?v=0.2.82';
+import { storeOf, storeName } from './bar-draft.js?v=0.2.82';
+import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.82';
+import { whole, gold } from '../render/format.js?v=0.2.82';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
@@ -67,11 +70,12 @@ export function setupsOf(cs) {
   });
 }
 
-const KIND_WORDS = Object.freeze({ food: 'Food', drink: 'Drink', ammo: 'Ammo', rune: 'Runes' });
+const KIND_WORDS = Object.freeze({ food: 'Food', drink: 'Drink', rune: 'Runes' });
 
-/* What one bar slot spends: { kind, own: { id, n } | null, store: { name, price, each } | null, off }, or null. */
+/* What one bar slot spends: { kind, own: { id, n } | null, store: { name, price, each } | null, off }, or null. A slot
+   switched Off never fires. An ammo slot is shotPlan's: the bar's order is not the order arrows fly in. */
 function slotSupply(sl, s, carried) {
-  if (!sl || sl.empty) return null;
+  if (!sl || sl.empty || sl.enabled === false) return null;
   const a = sl.action;
   const have = (id) => (carried.find((r) => r.id === id) || {}).qty || 0;
   const st = storeOf(a, s.store);
@@ -85,10 +89,6 @@ function slotSupply(sl, s, carried) {
     return c.source === 'store' ? { kind: c.kind, own: null, store: off ? null : store, off }
       : { kind: c.kind, own: { id: a.id, n: Number.isInteger(sl.count) ? sl.count : have(a.id) }, store: null, off };
   }
-  if (a.type === 'attack_with_item') {
-    const kind = /_rune$/.test(a.id) ? 'rune' : 'ammo';
-    return { kind, own: a.id === 'loaded' ? null : { id: a.id, n: have(a.id) }, store: off ? null : store, off };
-  }
   if (a.type === 'ability' && ABILITIES[a.id] && ABILITIES[a.id].rune) {
     /* a rune spell spends any tier of its family: count them all, say the family */
     const r = ABILITIES[a.id].rune, n = familyCount(r, carried);
@@ -100,20 +100,18 @@ function slotSupply(sl, s, carried) {
   return null;
 }
 
-/* What a kind with nothing usable means for the hunt. Empty ammo leaves a hero that shoots unable to attack (a
-   short line). An empty food or drink slot is a heads-up, never a stop: hunting without them is a fair choice, HP
-   and mana come back between fights (designer 2026-10-29, Tyler's "0 food" report); food the bag carries but the bar
-   does not name is said with the fix. A rune spell that cannot fire only loses that spell, and says which. */
-export const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten: HP comes back only between fights',
-  drink: 'Nothing will be drunk: mana comes back only between fights', ammo: 'Nothing to shoot' });
-/** The kinds an empty slot of which stops nothing: food and drink (a heads-up line). */
-export const HEADS_UP_KINDS = Object.freeze(new Set(['food', 'drink']));
+/* What a kind with nothing usable means for the hunt. An empty food or drink slot is a heads-up, never a stop: hunting
+   without them is a fair choice, HP and mana come back between fights (designer 2026-10-29, Tyler's "0 food" report); food
+   the bag carries but the bar does not name is said with the fix. A rune spell that cannot fire only loses that spell, and
+   says which. Empty ammo leaves a hero that shoots unable to attack (shotLine's short line). */
+const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten: HP comes back only between fights',
+  drink: 'Nothing will be drunk: mana comes back only between fights' });
+/* The kinds an empty slot of which stops nothing: food and drink (a heads-up line). */
+const HEADS_UP_KINDS = Object.freeze(new Set(['food', 'drink']));
 
-/**
- * "You carry 12 Trout: put it on the bar to eat it", or '': the biggest own stack of a food or drink in `rows`
- * (the server's bag) that the bar does not name (`named`, a Set of item ids). Display only.
- */
-export function spareWords(kind, rows, named) {
+/* "You carry 12 Trout: put it on the bar to eat it", or '': the biggest own stack of a food or drink in `rows`
+   (what the hero can use now) that the bar does not name (`named`, a Set of item ids). Display only. */
+function spareWords(kind, rows, named) {
   let best = null;
   for (const r of rows || []) {
     const c = CONSUMABLES[r.id];
@@ -134,7 +132,7 @@ function bareWords(kind, parts, carried) {
 }
 
 /* Every item the bar's slots name. */
-const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.action.type === 'consume').map((sl) => sl.action.id));
+const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'consume').map((sl) => sl.action.id));
 
 /* One part of a supply line: "20 Cooked Shrimp of yours", "no Cooked Shrimp left", "Salted Shrimp from the store, 14 gp each". */
 function partWords(p) {
@@ -156,22 +154,62 @@ function runeLine(parts, carried) {
   return words.join(', then ') + (dead.length ? '. ' + bareWords('rune', dead, carried) : '');
 }
 
-/* THE SHOOTER'S LINE (first-hour play 2026-10-31): the bar names no shot for a bow that shoots what is loaded, so this
-   line is the only warning of a hero that will not attack at all. Null for a hero that does not shoot, or whose bar names
-   its ammo (that slot's own line says it). `short` when nothing can be shot. */
+/* WHAT A SHOOTER WILL SPEND, IN THE ENGINE'S ORDER (conditions.js attackOrder, damage.js pickShot; Andy #63, #74): the bar's
+   ammo slots with conditions, then the worn ammo, then the bar's other ammo, each on what the hero carries; only then, in the
+   same order, the store. A free stack with no condition never runs out, so nothing behind it ever flies, the store included.
+   { order: [ids], own: [{ id, n, free }], store: [storeOf rows] }. */
+function shotPlan(s, worn, carried) {
+  const rows = s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'attack_with_item').map((sl) => ({ rule: sl.id, slot: sl }));
+  const order = [];
+  for (const r of attackOrder(rows.concat([DEFAULT_ATTACK_ROW]))) {
+    const id = r.slot.action.id === 'loaded' ? worn : r.slot.action.id;
+    if (!id || !shootsItem(s.role, ITEMS[id])) continue;
+    const ruled = r.slot.conditions.length > 0, seen = order.find((o) => o.id === id);
+    if (seen) seen.ruled = seen.ruled && ruled;
+    else order.push({ id, ruled });
+  }
+  const own = [], store = [];
+  let endless = false;
+  for (const o of order) {
+    const n = (carried.find((r) => r.id === o.id) || {}).qty || 0;
+    if (n <= 0) continue;
+    const free = ammoPerShot(ITEMS[o.id]) === 0;
+    own.push({ id: o.id, n, free });
+    if (free && !o.ruled) { endless = true; break; }
+  }
+  if (!endless && (s.supplySource === 'store' || s.onEmpty === 'switch')) {
+    for (const o of order) {
+      const st = storeOf({ type: 'attack_with_item', id: o.id }, s.store);
+      if (st) store.push(st);
+      if (st && !o.ruled) break;
+    }
+  }
+  return { order: order.map((o) => o.id), own, store };
+}
+
+/* THE AMMO LINE: { id, text, short, pays }, or null for a hero whose weapon shoots nothing. `short` when nothing can be shot:
+   the bar names no shot for a bow that shoots what is worn, so this line is the only warning of a hero that will not attack at
+   all (first-hour play 2026-10-31). The free rung shows no count: "49 of yours" read as 49 shots left (designer 2026-10-31). A
+   paid stack no shot reaches is said when the hero would otherwise shoot the free rung or pay the store (Andy #74: 27,300
+   Mithril Arrows in the bag behind an empty worn slot and free Bronze). */
 function shotLine(s, cs, carried) {
   if (!s.role || !shootsItem(s.role, { slot: 'ammo', reqSkill: 'ranged' })) return null;
   const worn = (equipmentOf(cs) || {}).ammo || null;
-  if (worn && shootsItem(s.role, ITEMS[worn])) {
-    const n = (carried.find((r) => r.id === worn) || {}).qty || 0;
-    if (s.slots.some((sl) => !sl.empty && sl.action.type === 'attack_with_item')) return null;
-    /* The free rung (Bronze Arrows, designer 2026-10-31) shows no count: "49 of yours" read as 49 shots left. */
-    return { id: 'ammo', text: Number(ITEMS[worn].ammoPerShot) > 0 ? 'Ammo: ' + whole(n) + ' ' + itemName(worn) + ' of yours, loaded.' : 'Ammo: ' + itemName(worn) + ' loaded. They never run out.', short: false };
+  const plan = shotPlan(s, worn, carried);
+  const dry = !!worn && shootsItem(s.role, ITEMS[worn]) && !((carried.find((r) => r.id === worn) || {}).qty > 0) ? 'no ' + itemName(worn) + ' left' : null;
+  if (!plan.own.length && !plan.store.length) {
+    const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]));
+    return { id: 'ammo', text: 'Ammo: ' + (dry || 'nothing loaded') + ', so your weapon can\'t shoot and your hero won\'t attack. '
+      + (spare ? 'Open your bag, press ' + itemName(spare.id) + ', then Put on the bar.' : 'Press an empty slot on your bar, then Ammo, and pick a shot from the store.'), short: true, pays: false };
   }
-  if (hasShot(s, carried, worn)) return null;
-  const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]));
-  return { id: 'ammo', text: 'Ammo: nothing loaded, so your weapon can\'t shoot and your hero won\'t attack. '
-    + (spare ? 'Open your bag, press ' + itemName(spare.id) + ', then Put on the bar.' : 'Press an empty slot on your bar, then Ammo, and pick a shot from the store.'), short: true };
+  const parts = (dry ? [dry] : [])
+    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id) + ' of yours') + (o.id === worn ? (o.free ? ' loaded' : ', loaded') : '')))
+    .concat(plan.store.map((st) => st.name + ' from the store, ' + st.price + ' gp each'));
+  const idle = plan.own.length && !plan.own[0].free ? []
+    : carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot(ITEMS[r.id]) > 0 && !plan.order.includes(r.id));
+  const spare = idle.reduce((best, r) => (!best || r.qty > best.qty ? r : best), null);
+  return { id: 'ammo', text: 'Ammo: ' + parts.join(', then ') + '.' + (plan.own.some((o) => o.free) ? ' They never run out.' : '')
+    + (spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : ''), short: false, pays: plan.store.length > 0 };
 }
 
 /** The hunt screen's warning: a hero hunting with a weapon that can shoot nothing won't attack at all (the panel 2026-11-01
@@ -192,6 +230,47 @@ function tallyElsewhere(cs, hunt) {
 }
 
 /**
+ * WHAT THE BAR WILL SPEND, per kind: { lines: [{ id, text, short }], paysStore }. `carried` is what the hero can use now
+ * (carriedOf). `short` marks a shooter with nothing to shoot; an empty food or drink slot or a dead spell is never a stop.
+ */
+export function supplyWords(s, cs, carried) {
+  const out = [];
+  const kinds = new Map();
+  const seen = new Set();
+  for (const sl of s.slots) {
+    const p = slotSupply(sl, s, carried);
+    if (!p) continue;
+    /* Two slots spending the same stock (two spells of one family) say it once. */
+    if (p.own && seen.has(p.own.id)) p.own = null;
+    else if (p.own) seen.add(p.own.id);
+    if (!p.own && !p.store && !p.off) continue;
+    if (!kinds.has(p.kind)) kinds.set(p.kind, []);
+    kinds.get(p.kind).push(p);
+  }
+  const shot = shotLine(s, cs, carried);
+  if (shot) out.push({ id: shot.id, text: shot.text, short: shot.short });
+  let paysStore = !!shot && shot.pays;
+  for (const [kind, parts] of kinds) {
+    const words = parts.map(partWords).filter(Boolean);
+    const usable = parts.some((p) => (p.own && p.own.n > 0) || p.store);
+    if (parts.some((p) => p.store)) paysStore = true;
+    if (kind === 'rune') { out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + runeLine(parts, carried), short: false }); continue; }
+    /* A food or drink the bag holds and no slot names goes unused, whatever else the bar buys (panel 2026-11-01: 78 Turnip Juice sat
+       through a hunt under "Drink: from the store"; a slot names ONE item, Tyler 2026-10-21): said beside what the bar will do. */
+    const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';
+    /* nothing usable: the stocks are listed, never chained with "then" (no fallback runs between empties) */
+    out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts, carried)) + (spare ? '. ' + spare : ''), short: false });
+  }
+  /* A kind the bar has no slot for at all, with a stack waiting. */
+  for (const kind of HEADS_UP_KINDS) {
+    const spare = !kinds.has(kind) && (kinds.has('food') || kinds.has('drink')) ? spareWords(kind, carried, barNames(s)) : '';
+    if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. ' + spare, short: false });
+  }
+  if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
+  return { lines: out, paysStore };
+}
+
+/**
  * "Before you go": [{ id, text, short }] for the setup in use, or null when the server sent no bar.
  * `o.other` names another setup chosen under Go as: its bar is not in the envelope, so one line says
  * its supplies follow its own bar. `short` marks a line that will stop the hunt or leaves it bare. `o.hunt` names the
@@ -204,40 +283,11 @@ export function beforeLines(cs, o) {
   let paysStore = false;
   if (o && o.other) out.push({ id: 'other', text: 'Supplies: as ' + o.other + '’s own bar sets them. It shows here once that setup is on.', short: false });
   else {
-    const carried = carriedOf(cs) || [];
-    const kinds = new Map();
-    const seen = new Set();
-    for (const sl of s.slots) {
-      const p = slotSupply(sl, s, carried);
-      if (!p) continue;
-      /* Two slots spending the same stock (a rune spell and a rune attack) say it once. */
-      if (p.own && seen.has(p.own.id)) p.own = null;
-      else if (p.own) seen.add(p.own.id);
-      if (!p.own && !p.store && !p.off) continue;
-      if (!kinds.has(p.kind)) kinds.set(p.kind, []);
-      kinds.get(p.kind).push(p);
-    }
     const worn = equipmentOf(cs);
     if (worn && !worn.weapon) out.push({ id: 'weapon', text: 'Weapon: none on, so your hero fights bare-handed. Put one on from your bag.', short: true });
-    const shot = shotLine(s, cs, carried);
-    if (shot) out.push(shot);
-    for (const [kind, parts] of kinds) {
-      const words = parts.map(partWords).filter(Boolean);
-      const usable = parts.some((p) => (p.own && p.own.n > 0) || p.store);
-      if (parts.some((p) => p.store)) paysStore = true;
-      if (kind === 'rune') { out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + runeLine(parts, carried), short: false }); continue; }
-      /* A food or drink the bag holds and no slot names goes unused, whatever else the bar buys (panel 2026-11-01: 78 Turnip Juice sat
-         through a hunt under "Drink: from the store"; a slot names ONE item, Tyler 2026-10-21): said beside what the bar will do. */
-      const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';
-      /* nothing usable: the stocks are listed, never chained with "then" (no fallback runs between empties) */
-      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts, carried)) + (spare ? '. ' + spare : ''), short: !usable && !HEADS_UP_KINDS.has(kind) });
-    }
-    /* A kind the bar has no slot for at all, with a stack waiting. */
-    for (const kind of HEADS_UP_KINDS) {
-      const spare = !kinds.has(kind) && (kinds.has('food') || kinds.has('drink')) ? spareWords(kind, carried, barNames(s)) : '';
-      if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. ' + spare, short: false });
-    }
-    if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
+    const said = supplyWords(s, cs, carriedOf(cs) || []);
+    out.push(...said.lines);
+    paysStore = said.paysStore;
   }
   const tally = tallyElsewhere(cs, o && o.hunt);
   if (tally) out.push(tally);

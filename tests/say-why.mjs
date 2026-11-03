@@ -471,22 +471,17 @@ async function screens(overrides) {
         if (!row || !row.off || !/You need 350 gp more\./.test(row.small)) fails.push('SW-4 a Shop buy short of gold reads ' + JSON.stringify(row));
         await shot('shop-short');
       }
-      /* (c) a hunt the server refuses for the Level: the Enter answer names both Levels. */
+      /* (c) a hunt the server would refuse for the Level: Enter is off, and the line beside it names both Levels (no press is spent to learn it). */
       if (!(await openWin('h', 'hunts'))) fails.push('SW-4 the Hunts window did not open');
       else {
         const pick = '[data-hs-win="hunts"] .hw-hunt[data-hunt="' + hard.id + '"]';
         if (await page.$(pick)) { await page.click(pick); await page.waitForTimeout(200); }
         const enter = '[data-hs-win="hunts"] .hw-hunt-enter';
-        const on = await page.evaluate((q) => { const b = document.querySelector(q); return !!b && !b.disabled && b.getAttribute('data-hunt'); }, enter);
-        if (on !== hard.id) fails.push('SW-4 Enter on ' + hard.name + ' is not on (' + JSON.stringify(on) + ')');
-        else {
-          await page.click(enter);
-          const said = await wait(page, () => /You need Level/.test((document.querySelector('[data-hs-win="hunts"] .hh-intent-msg') || {}).textContent || ''), null, 4000);
-          const msg = await page.evaluate(() => document.querySelector('[data-hs-win="hunts"] .hh-intent-msg').textContent);
-          const want = 'You need Level ' + (hard.band[0] - 4) + ' to enter ' + hard.name + '. You are Level 1.';
-          if (!said || msg !== want || s.enter !== 1) fails.push('SW-4 a locked hunt\'s Enter said ' + JSON.stringify(msg) + ' (want ' + JSON.stringify(want) + ', ' + s.enter + ' enter(s) sent)');
-          await shot('hunt-locked');
-        }
+        const off = await page.evaluate((q) => { const b = document.querySelector(q); return !!b && b.disabled; }, enter);
+        const msg = await page.evaluate(() => document.querySelector('[data-hs-win="hunts"] .hw-enter-why').textContent);
+        const want = 'You need Level ' + (hard.band[0] - 14) + ' to enter ' + hard.name + '. You are Level 1.';
+        if (!off || msg !== want || s.enter !== 0) fails.push('SW-4 a locked hunt\'s Enter reads ' + JSON.stringify(msg) + ' (off ' + off + ', want ' + JSON.stringify(want) + ', ' + s.enter + ' enter(s) sent)');
+        await shot('hunt-locked');
       }
       if (errors.length) fails.push('SW-4 console errors at ' + w + '×' + h + ': ' + errors.slice(0, 3).join(' | ').slice(0, 300));
       await ctx.close();

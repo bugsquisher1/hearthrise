@@ -16,12 +16,12 @@
 // The Inventory (its item menu, its This hunt tab, its tools row) and the Storage
 // window read this; the bag and Storage change only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { isStartKit } from './bag-model.js?v=0.2.81';
-import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.81';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.81';
-import { whole, gold } from '../render/format.js?v=0.2.81';
-import { dispatchLoot } from '../session/loot-intents.js?v=0.2.81';
-import { runIntent, refusalWords } from './intent-words.js?v=0.2.81';
+import { isStartKit } from './bag-model.js?v=0.2.82';
+import { bagOf, rulesOf } from '../session/item-sections.js?v=0.2.82';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.82';
+import { whole, gold } from '../render/format.js?v=0.2.82';
+import { dispatchLoot } from '../session/loot-intents.js?v=0.2.82';
+import { runIntent, refusalWords } from './intent-words.js?v=0.2.82';
 
 /** The three plans, then the pickup filter: [rule, words, group]. The rule is the server's word (player_item_rules.loot_rule). */
 export const LOOT_CHOICES = Object.freeze([
@@ -56,7 +56,7 @@ export function dispatchBlock(cs) {
   if (!rules || !bag) return 'Reading your bag…';
   const planned = bag.some((r) => MOVES.has(rules.loot[r.id]) && !rules.locked.has(r.id) && !(rules.loot[r.id] === 'sell' && isStartKit(r.id)));
   /* The words on the item menu, and no "in the Inventory (B)" said inside the Inventory (core-loop play 2026-10-30). */
-  return planned ? '' : 'Nothing in your bag is set to Deposit in storage or Sell yet. Open an item’s menu in the bag to choose where it goes.';
+  return planned ? '' : 'Nothing is set to Deposit or Sell yet. Set it in an item’s menu.';
 }
 
 const stacks = (n) => whole(n) + (n === 1 ? ' stack' : ' stacks');

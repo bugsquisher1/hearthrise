@@ -6,20 +6,20 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.81';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.81';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.81';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.81';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.81';
-import { levelOf } from '../session/character-sections.js?v=0.2.81';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.81';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.81';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.81';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.81';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.81';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.81';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.81';
-import { trackOnce } from '../net/observability.js?v=0.2.81';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.82';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.82';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.82';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.82';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.82';
+import { levelOf } from '../session/character-sections.js?v=0.2.82';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.82';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.82';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.82';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.82';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.82';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.82';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.82';
+import { trackOnce } from '../net/observability.js?v=0.2.82';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -54,7 +54,9 @@ export function pointerFor(ctx, hunting) {
    Display scratch per character: gates, spends and stores nothing. */
 export const COACH_HUNT_OPEN_MS = 20000;
 const OPEN_SINCE = new WeakMap();
-function restsNow(ctx, card) {
+export function restsNow(ctx, card) {
+  /* A card whose title says nothing alone keeps its words (newcomer panel 2026-11-01: "Cash in", "Your first Level"). */
+  if (card.holdOpen) return false;
   const cs = ctx.character;
   const now = typeof ctx.now === 'function' ? ctx.now() : null;
   if (now === null) return false;
@@ -216,7 +218,10 @@ export function coachHtml(cs, card, inWin, rest) {
   const close = readable(card) && coachReadOf(cs) ? '<button type="button" class="hs-coach-close" data-hs-act="coach-close" aria-label="Close '
     + esc(card.title) + '" title="Close"></button>' : '';
   /* data-coach: what the box shows (the card, folded or not, marked or not); the hunt bar redraws when it changes. */
-  const head = '<p class="hs-pointer' + (min ? ' is-min' : '') + (close ? ' has-close' : '') + '" role="note" data-tutorial="' + esc(card.id) + '" data-coach="'
+  /* ONE LINE INSIDE A WINDOW (newcomer panel 2026-11-01: at 1366x768 a window under its card showed 1 to 3 rows): the ring shows the
+     control, the words run to the line's end, and More (fitCoachLine: only when they don't fit) opens the whole card for that window's stay. */
+  const line = !!inWin && !min;
+  const head = '<p class="hs-pointer' + (min ? ' is-min' : '') + (line ? ' is-line' : '') + (close ? ' has-close' : '') + '" role="note" data-tutorial="' + esc(card.id) + '" data-coach="'
     + esc(card.id + (min ? (fresh ? ':new' : ':min') : '')) + '"' + (card.anchor ? ' data-anchor="' + esc(card.anchor) + '"' : '') + '>';
   if (min) {
     return head + '<button type="button" class="hs-coach-tab" data-hs-act="coach-open" aria-expanded="false" aria-label="'
@@ -227,7 +232,18 @@ export function coachHtml(cs, card, inWin, rest) {
      offered only where this client can record the press, so it is never a button that does nothing. */
   const got = card.gotIt && coachReadOf(cs) ? ' <button type="button" class="hs-coach-got" data-hs-act="coach-got">Got it</button>' : '';
   return head + '<button type="button" class="hs-coach-min" data-hs-act="coach-min" aria-expanded="true" aria-label="Minimize '
-    + esc(card.title) + '" title="Minimize"></button>' + close + '<b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>' + got + '</p>';
+    + esc(card.title) + '" title="Minimize"></button>' + close + '<b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>'
+    + (line ? '<button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="false" hidden>More</button>' : '') + got + '</p>';
+}
+
+/** A window's one-line card offers More only when its words do not fit. Reads one element's width, writes only a change. */
+export function fitCoachLine(slot) {
+  const p = slot.querySelector(':scope > .hs-pointer');
+  const more = p && p.querySelector(':scope > .hs-coach-more');
+  if (!more) return;
+  const t = p.querySelector(':scope > .hs-coach-text');
+  const off = p.classList.contains('is-line') && t.scrollWidth <= t.clientWidth;
+  if (more.hidden !== off) more.hidden = off;
 }
 
 /**
@@ -256,8 +272,14 @@ export function placeCoach(el, html) {
 /** The coach's fold, open, Got it and close presses, from wherever it is drawn (this row, the hunt top bar, a window).
  *  Close records the read of a card a read finishes; any other card it only folds. True when handled. */
 export function actCoach(ctx, el, action, ev) {
-  if (action !== 'coach-min' && action !== 'coach-open' && action !== 'coach-got' && action !== 'coach-close') return false;
+  if (action !== 'coach-min' && action !== 'coach-open' && action !== 'coach-got' && action !== 'coach-close' && action !== 'coach-more') return false;
   if (ev.type !== 'click') return true;
+  /* the whole card, or its one line again: this box only (a new card or a new opening starts as one line) */
+  if (action === 'coach-more') {
+    const p = el.querySelector(':scope > .hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');
+    if (b) { const open = p.classList.toggle('is-line') === false; b.textContent = open ? 'Less' : 'More'; b.setAttribute('aria-expanded', String(open)); }
+    return true;
+  }
   const cs = ctx.character;
   const card = cs && heldCard(ctx);
   if (!card || typeof cs.setResidue !== 'function') return true;

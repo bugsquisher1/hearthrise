@@ -21,12 +21,12 @@
 // Every control is one intent, off from the press until the server answered;
 // the window changes only from the re-read envelope. Nothing is predicted.
 // ════════════════════════════════════════════════════════════════════════
-import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.81';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.81';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
-import { runIntent } from '../intent-words.js?v=0.2.81';
-import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.81';
-import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.81';
+import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.82';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.82';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.82';
+import { runIntent } from '../intent-words.js?v=0.2.82';
+import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.82';
+import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.82';
 
 const TABS = Object.freeze([['party', 'Your party'], ['invites', 'Invites'], ['find', 'Find a party']]);
 
@@ -78,6 +78,9 @@ renderParty.patch = function patchParty(body, ctx) {
   /* A pick lasts while the party it was made in does: joining or leaving one opens the window afresh. */
   const partyKey = mine ? mine.id : '';
   if (sc.tabFor !== partyKey) { if (sc.tabFor !== undefined) sc.tab = null; sc.tabFor = partyKey; }
+  /* The window's answer was about the party as it stood ("Invite sent to Bram." after Wren joined Bram, friends' panel 2026-11-01): a seat coming or going retires it. */
+  const seatsKey = partyKey + ':' + (mine ? mine.seats.length : 0);
+  if (sc.msgSeats !== seatsKey) { if (sc.msgSeats !== undefined && !sc.pending) sc.msg = ''; sc.msgSeats = seatsKey; }
   /* The tab the player picked (Your party only while in one); until then Your party while in one, Invites when
      one is waiting, else the finder. */
   const picked = sc.tab === 'party' && !mine ? null : sc.tab;

@@ -692,14 +692,11 @@ const cases = {
     const steps = walkChain(M, T);
     const said = (id) => (steps.find((s) => s.id === id) || {}).card;
     const bless = said('bless');
-    if (!bless || !bless.text.includes('costs ' + Math.round(M.sessions.DEATH_XP_LOSS * 100) + '% of your Level XP, never a Level')
-      || !bless.text.includes('up to ' + M.blessings.BLESSING_TIERS[M.blessings.BLESSING_TIERS.length - 1].xpLossReductionPermille / 10 + '%')
+    if (!bless || bless.text.length > 130
       || !bless.text.includes('free until Level ' + M.blessings.BLESSING_RULES.freeUntilLevel) || !bless.text.includes('Bless all three')) return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
     const tam = said('tamsins_task');
-    if (!tam || !tam.text.includes('Heavy suits a shield tank') || !tam.text.includes('Take 200 Gray Wolves')) return 'Tamsin\'s card reads ' + JSON.stringify(tam && tam.text);
-    /* playtest 2026-10-29: the way comes first (on a phone the card's foot, its Take, was cut off under the armor words);
-       a card shown from the first kill until Level 2 never names the Level; words inside a window name the server's slot */
-    if (tam.text.indexOf('Take 200 Gray Wolves') > tam.text.indexOf('Heavy adds')) return 'Tamsin\'s card says the weights before the way: ' + JSON.stringify(tam.text);
+    if (!tam || !tam.textIn.includes('Heavy suits a shield tank') || !tam.text.includes('Take 200 Gray Wolves') || tam.text.length > 130) return 'Tamsin\'s card reads ' + JSON.stringify(tam && tam.text);
+    /* a card shown from the first kill until Level 2 never names the Level; words inside a window name the server's slot */
     const lv = M.tut.HUNT_TUTORIAL.find((c) => c.id === 'first_level');
     if (!lv || /\bLevel \d/.test(lv.title + ' ' + lv.text)) return 'the first-Level card (shown at Level 1) names a Level: ' + JSON.stringify(lv && lv.title);
     const cook = said('cook_catch');
@@ -1131,7 +1128,7 @@ const cases = {
     const before = draw(cs);
     cs = hero(env('mill_cellar'), cs.record.residue);
     const marked = draw(cs);
-    if (!folded(marked) || !marked.includes('hs-coach-new') || !marked.includes('Your hero fights alone')) return 'a new card while folded: no mark, or it opened: ' + marked;
+    if (!folded(marked) || !marked.includes('hs-coach-new') || !marked.includes('Your hero fights on its own')) return 'a new card while folded: no mark, or it opened: ' + marked;
     /* the hunt bar (built once) redraws the coach when the fold or the card changes, and only then */
     let node = null, inserts = 0;
     const attrOf = (h, a) => (new RegExp(a + '="([^"]+)"').exec(h) || [])[1] || null;
@@ -1153,7 +1150,7 @@ const cases = {
      own press on the tab opens it for good; in town it stays open. */
   'coach-rests-in-a-hunt': async (M) => {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
-    const { pointerFor, COACH_HUNT_OPEN_MS } = await imp('src/shell/launcher.js');
+    const { pointerFor, restsNow, COACH_HUNT_OPEN_MS } = await imp('src/shell/launcher.js');
     let t = 1000;
     const env = { state: { level_xp: M.xp.charXpForLevel(3) }, hunt_settings: { preset: 1, slots: [] }, hunt: { session_id: 's1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } } };
     const cs = { read: (k) => env[k], record: { residue: {} }, setResidue: (k, v) => { cs.record = { residue: { ...cs.record.residue, [k]: v } }; return true; } };
@@ -1167,6 +1164,11 @@ const cases = {
     cs.setResidue('coach', { seen: first });
     if (key(true) !== first) return 'the player opened it and it folded again: ' + key(true);
     if (!(COACH_HUNT_OPEN_MS >= 10000)) return 'a card has too little time to be read: ' + COACH_HUNT_OPEN_MS;
+    /* A title that says nothing alone keeps its words, however long the hunt (newcomer panel 2026-11-01). */
+    for (const id of ['first_level', 'leave_cellar']) {
+      const c = M.tut.HUNT_TUTORIAL.find((s) => s.id === id);
+      if (!c.holdOpen || restsNow(ctx, c)) return 'under the hunt bar ' + id + ' folds to its bare title';
+    }
     return null;
   },
   'coach-hold': async (M) => {
@@ -1531,6 +1533,8 @@ const mutants = [
     edits: [['src/shell/launcher.js', '/data-coach="([a-z0-9_:]+)"/', '/data-tutorial="([a-z0-9_]+)"/'],
       ['src/shell/launcher.js', "have.getAttribute('data-coach') !== key", "have.getAttribute('data-tutorial') !== key"],
       ['src/shell/launcher.js', "have.getAttribute('data-coach') === key", "have.getAttribute('data-tutorial') === key"]] },
+  { name: 'Cash in folds to its bare title in a hunt', case: 'coach-rests-in-a-hunt',
+    edits: [['src/shell/launcher.js', '  if (card.holdOpen) return false;\n', '']] },
   { name: 'the coach never rests in a hunt', case: 'coach-rests-in-a-hunt',
     edits: [['src/shell/launcher.js', "return card ? coachHtml(cs, card, false, !!hunting && restsNow(ctx, card)) : '';", "return card ? coachHtml(cs, card) : '';"]] },
   { name: 'the first hunt\'s lessons wall Cash in again', case: 'first-hour-never-walls',

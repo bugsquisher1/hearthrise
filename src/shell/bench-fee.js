@@ -5,17 +5,19 @@
 // (src/session/bench-sections.js) and its purse, read here and spent nowhere. The server stops a job it cannot pay and says
 // so; these are the words for that stop, before Start and after it, and they name the stack the shop would pay it back with.
 // ════════════════════════════════════════════════════════════════════════
-import { taxFor, craftsCovered, canPayNext, dueNext } from '../core/bench-tax.js?v=0.2.81';
-import { benchTaxOf, benchFeeMg, benchRunOf } from '../session/bench-sections.js?v=0.2.81';
-import { goldOf, shopOf } from '../session/item-sections.js?v=0.2.81';
-import { whole } from '../render/format.js?v=0.2.81';
-import { itemName } from './widgets/bits.js?v=0.2.81';
+import { taxFor, craftsCovered, canPayNext, dueNext } from '../core/bench-tax.js?v=0.2.82';
+import { benchTaxOf, benchFeeMg, benchRunOf } from '../session/bench-sections.js?v=0.2.82';
+import { goldOf, shopOf } from '../session/item-sections.js?v=0.2.82';
+import { whole } from '../render/format.js?v=0.2.82';
+import { itemName } from './widgets/bits.js?v=0.2.82';
 
 const roomWords = (t, skill) => (t && t.rooms[skill] ? t.rooms[skill].room : null);
 
-/** "3 gold a craft", "about 10 gold a craft", "about 1 gold every 2 crafts". */
+/** "3 gold a craft", "about 2.4 gold a craft", "about 10 gold a craft", "about 1 gold every 2 crafts". The server charges the exact milligold, each
+    whole gold as the carry passes it (core/bench-tax.js), so a fee under 10 gold keeps its tenth: "about 3" over 5 crafts that took 12 read as a wrong bill (Tyler 2026-11-01). */
 export function feeWords(mg) {
-  if (mg >= 1000) return (mg % 1000 === 0 ? '' : 'about ') + whole(Math.round(mg / 1000)) + ' gold a craft';
+  if (mg >= 10000 || mg % 1000 === 0) return (mg % 1000 === 0 ? '' : 'about ') + whole(Math.round(mg / 1000)) + ' gold a craft';
+  if (mg >= 1000) return 'about ' + Math.round(mg / 100) / 10 + ' gold a craft';
   const every = Math.max(1, Math.round(1000 / mg));
   return every === 1 ? 'about 1 gold a craft' : 'about 1 gold every ' + whole(every) + ' crafts';
 }

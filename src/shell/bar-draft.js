@@ -11,16 +11,16 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.81';
-import { STATUSES } from '../data/statuses.js?v=0.2.81';
-import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.81';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.81';
-import { isRune } from '../data/supplies.js?v=0.2.81';
-import { ITEMS } from '../data/items.js?v=0.2.81';
-import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.81';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.81';
-import { ABILITIES } from '../data/abilities.js?v=0.2.81';
-import { refusalWords } from './intent-words.js?v=0.2.81';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.82';
+import { STATUSES } from '../data/statuses.js?v=0.2.82';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.82';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.82';
+import { isRune } from '../data/supplies.js?v=0.2.82';
+import { ITEMS } from '../data/items.js?v=0.2.82';
+import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.82';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.82';
+import { ABILITIES } from '../data/abilities.js?v=0.2.82';
+import { refusalWords } from './intent-words.js?v=0.2.82';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -92,12 +92,13 @@ export function conditionFor(metric) {
  * copy: with no rows read yet the answer is null. What one use buys:
  *   a store food or drink   that row, per use (it is the slot's item)
  *   a crafted food or drink nothing: own stock only (null)
- *   an ammo line            an arrow's plain partner once yours are gone; the loaded ammo, the matching one;
+ *   an ammo line            an arrow's plain partner once yours are gone; the loaded ammo, the partner of
+ *                           `worn` (what is in the ammo slot: the free rung has none, nor does an empty slot);
  *                           a rune nothing (its store row feeds spells only: supplies.js isRune)
  *   a rune spell            the store rune the slot names; with none, carried runes only
  * { id, name, price, amount } or null.
  */
-export function storeOf(a, rows) {
+export function storeOf(a, rows, worn) {
   if (!a || !a.id || !Array.isArray(rows)) return null;
   const row = (b) => ({ id: b.id, name: storeName(b.id), price: b.price, amount: b.amount });
   if (a.type === 'consume') { const b = rows.find((r) => r.id === a.id); return b ? row(b) : null; }
@@ -105,9 +106,9 @@ export function storeOf(a, rows) {
     const b = a.store ? rows.find((r) => r.id === a.store) : null;
     return b ? row(b) : null;
   }
-  if (a.type === 'attack_with_item' && a.id === 'loaded') return { id: null, name: 'the matching plain ammo', price: null, amount: 0 };
-  if (a.type === 'attack_with_item' && isRune(ITEMS[a.id])) return null;
-  const b = rows.find((r) => r.partner === a.id);
+  const id = a.type === 'attack_with_item' && a.id === 'loaded' ? worn : a.id;
+  if (!id || (a.type === 'attack_with_item' && isRune(ITEMS[id]))) return null;
+  const b = rows.find((r) => r.partner === id);
   return b ? row(b) : null;
 }
 
@@ -142,9 +143,7 @@ export function storeDefault(a, rows) {
 
 /** The store line in words: "then the store's, from 14 g each, paid as used". */
 export function storeWords(st) {
-  if (!st) return '';
-  return st.price === null ? 'then the store’s ' + st.name + ', paid as used'
-    : 'then the store’s ' + st.name + ', ' + st.price + ' g each, paid as used';
+  return st ? 'then the store’s ' + st.name + ', ' + st.price + ' g each, paid as used' : '';
 }
 
 function valueWords(c, m) {

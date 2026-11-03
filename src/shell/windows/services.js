@@ -18,12 +18,13 @@
 // Every control is off while an intent is in flight; nothing changes on
 // screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.81';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.81';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.81';
-import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.81';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
-import { runIntent } from '../intent-words.js?v=0.2.81';
+import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.82';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.82';
+import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.82';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.82';
+import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.82';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.82';
+import { runIntent } from '../intent-words.js?v=0.2.82';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();
@@ -73,7 +74,7 @@ export function patchServicesPane(body, ctx) {
   const yes = root.querySelector('[data-hs-act="stam-yes"]');
   cls(yes, 'is-on', sc.confirm);
   if (sc.confirm && q) {
-    text(cf.querySelector('.hw-confirm-q'), 'Buy ' + hoursText(q.restoreMs) + ' of stamina for ' + gold(q.price) + '?');
+    text(cf.querySelector('.hw-confirm-q'), staminaAskWords(q));
     text(yes, 'Buy for ' + gold(q.price));
   }
   prop(yes, 'disabled', sc.pending);

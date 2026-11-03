@@ -7,12 +7,19 @@
 // drink "when my mana is below 30%" (bar-draft.js startConditions), ammo with no test; the
 // slot editor changes any of it. The bar on screen changes only when the
 // server's re-read envelope says so.
+//
+// OWN STOCK BEFORE THE STORE (Tyler 2026-10-16; a slot names ONE item and the first slot that can fire, fires: 2026-10-21).
+// With no slot named, the hero's own food or drink goes in front of the first store slot of its kind, on that slot's own
+// conditions, and the rest shift down. The first empty slot sits behind the store's Thin Turnip Juice, and the engine would
+// buy that for ever while the hero's own juice waited (crafter's panel 2026-11-01: 78 Turnip Juice untouched through a 160 min
+// hunt). A slot the player names (a drag, `at`) is the player's order and is never moved.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.81';
-import { attackItem } from '../core/hunt/conditions.js?v=0.2.81';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.81';
-import { kindOf } from './bag-model.js?v=0.2.81';
-import { startConditions } from './bar-draft.js?v=0.2.81';
+import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.82';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.82';
+import { attackItem } from '../core/hunt/conditions.js?v=0.2.82';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.82';
+import { kindOf } from './bag-model.js?v=0.2.82';
+import { startConditions } from './bar-draft.js?v=0.2.82';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 
@@ -52,9 +59,25 @@ export async function assignToBar(cs, id, at) {
   if (!s) return { ok: false, error: 'no_bar' };
   if (!kind) return { ok: false, error: 'not_for_bar' };
   const wire = Array.from({ length: SLOTS }, (_, i) => wireSlot(s.slots[i]));
-  const i = Number.isInteger(at) && at >= 0 && at < SLOTS ? at : wire.findIndex((w) => !w);
-  if (i < 0) return { ok: false, error: 'bar_full' };
+  const named = Number.isInteger(at) && at >= 0 && at < SLOTS;
+  const free = named ? at : wire.findIndex((w) => !w);
+  if (free < 0) return { ok: false, error: 'bar_full' };
   const action = { type: kind === 'ammo' ? 'attack_with_item' : 'consume', id };
-  wire[i] = { action, conditions: startConditions(action), join: 'and' };
+  const store = named ? -1 : storeSlotFor(wire, id);
+  if (store < 0) wire[free] = { action, conditions: startConditions(action), join: 'and' };
+  else {
+    const { conditions, join } = wire[store];
+    /* an empty slot already in front of the store's needs nothing moved; else the store's and everything up to the gap step down */
+    if (free > store) { wire.splice(free, 1); wire.splice(store, 0, null); }
+    wire[Math.min(free, store)] = { action, conditions: conditions.map((c) => Object.assign({}, c)), join };
+  }
   return cs.setHuntOptions(s.preset, { slots: wire });
+}
+
+/* The first working store slot of the kind this own stack is, whose place it takes; -1 with none on the bar. (A store row is no bag item: barKind holds it off this path.) */
+function storeSlotFor(wire, id) {
+  const c = CONSUMABLES[id];
+  if (!c) return -1;
+  return wire.findIndex((w) => w && w.enabled !== false && w.action.type === 'consume' && CONSUMABLES[w.action.id]
+    && CONSUMABLES[w.action.id].kind === c.kind && CONSUMABLES[w.action.id].source === 'store');
 }

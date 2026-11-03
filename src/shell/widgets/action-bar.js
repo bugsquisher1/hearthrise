@@ -26,27 +26,27 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.81';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.81';
-import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.81';
-import { carriedOf, equipmentOf } from '../../session/item-sections.js?v=0.2.81';
-import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.81';
-import { whole } from '../../render/format.js?v=0.2.81';
-import { glyphSvg } from '../launcher.js?v=0.2.81';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.81';
-import { actionIconHtml } from './bits.js?v=0.2.81';
-import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.81';
-import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.81';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.81';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, holdingReason, sharedCooldownOf } from '../action-facts.js?v=0.2.81';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.81';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.81';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.81';
-import { refusalWords } from '../intent-words.js?v=0.2.81';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.81';
-import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.81';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.81';
-import { renameActionSet } from '../../session/preset-intents.js?v=0.2.81';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.82';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.82';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.82';
+import { carriedOf, equipmentOf } from '../../session/item-sections.js?v=0.2.82';
+import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.82';
+import { whole } from '../../render/format.js?v=0.2.82';
+import { glyphSvg } from '../launcher.js?v=0.2.82';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.82';
+import { actionIconHtml } from './bits.js?v=0.2.82';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.82';
+import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.82';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.82';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, holdingReason, sharedCooldownOf } from '../action-facts.js?v=0.2.82';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.82';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.82';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.82';
+import { refusalWords } from '../intent-words.js?v=0.2.82';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.82';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.82';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.82';
+import { renameActionSet } from '../../session/preset-intents.js?v=0.2.82';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -184,9 +184,10 @@ function tipHtml(i, ctx) {
   const h = huntOf(ctx.character);
   const bag = carriedOf(ctx.character);
   const hero = h && !h.ended ? h.hero : null;
-  const why = reasonOf(s, set, bag, hero, (equipmentOf(ctx.character) || {}).ammo) || holdingReason(s, holdsPackNow(ctx.character, hero));
+  const worn = (equipmentOf(ctx.character) || {}).ammo;
+  const why = reasonOf(s, set, bag, hero, worn) || holdingReason(s, holdsPackNow(ctx.character, hero));
   const shared = sharedCooldownOf(wires, i);
-  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag)).filter(Boolean);
+  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag, worn)).filter(Boolean);
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
     + (why ? '<p class="' + (why.quiet ? 'is-why' : 'is-warn is-why') + '">' + esc(why.text) + '</p>' : '')
     + lines.map((l) => '<p>' + esc(l) + '</p>').join('')
@@ -429,7 +430,8 @@ renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
       press.held = false;
       if (ev.pointerType === 'touch') press.timer = setTimeout(() => { press.held = true; showTip(el, t, ctx); }, LONG_PRESS_MS);
       return;
-    case 'pointerup': case 'pointercancel': clearTimeout(press.timer); return;
+    /* A long press's tooltip reads while the thumb is down and goes with it (phone panel 2026-11-01: still open 4 minutes later). */
+    case 'pointerup': case 'pointercancel': clearTimeout(press.timer); if (press.held) hideTip(el); return;
     case 'dragstart':
       if (t.classList.contains('is-empty') || !ev.dataTransfer) return;
       ev.dataTransfer.setData(SLOT_DRAG, String(i));

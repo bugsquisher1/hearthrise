@@ -21,15 +21,15 @@
 // (src/render/paint.js). Opening it again is what clears the "new" marks the
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.81';
-import { whole, gold } from '../../../render/format.js?v=0.2.81';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.81';
-import { closeFloatMenu } from '../float-menu.js?v=0.2.81';
-import { stateOf } from './state.js?v=0.2.81';
-import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights } from './doll.js?v=0.2.81';
-import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.81';
-import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.81';
-import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.81';
+import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.82';
+import { whole, gold } from '../../../render/format.js?v=0.2.82';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.82';
+import { closeFloatMenu } from '../float-menu.js?v=0.2.82';
+import { stateOf } from './state.js?v=0.2.82';
+import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights } from './doll.js?v=0.2.82';
+import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.82';
+import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.82';
+import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.82';
 
 /** The skeleton (built once per opening). */
 export function renderInventory(ctx) {
@@ -37,13 +37,17 @@ export function renderInventory(ctx) {
   if (ctx.character) commitSeen(ctx.character);
   return '<div class="hw-inv" tabindex="0" data-hs-act="inv" aria-label="Inventory">'
     + toolbarHtml(g)
-    + '<div class="hw-inv-cols">' + dollHtml(g) + '<div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
-    + weightsHtml()
+    + '<div class="hw-inv-scroll"><div class="hw-inv-cols">' + dollHtml(g) + '<div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
+    + weightsHtml() + '<p class="hw-keys">' + esc(KEYS) + '</p></div>'
     + '<div class="hw-inv-foot"><span class="hw-capacity"><span class="hw-capbar" role="meter" aria-label="Bag spaces used" aria-valuemin="0"><i class="hw-capfill"></i></span><small class="hw-captext"></small></span>'
     + '<label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label>'
-    + '<b class="hw-gold"></b></div>'
-    + slotLineHtml() + toolsHtml(g) + advancedHtml()
-    + '<p class="hw-keys">' + esc(KEYS) + '</p></div>';
+    + '<b class="hw-gold"></b></div><p class="hw-why hw-over"></p>'
+    + slotLineHtml() + toolsHtml(g) + advancedHtml() + '</div>';
+}
+
+/** What a bag at or past its spaces means (midgame panel 2026-11-01: "114 of 100 spaces" with no word): the server's rule, 2027-02-11-hunt-loot-past-bag-cap.sql. Pure. */
+export function overBagWords(used, cap) {
+  return used >= cap ? 'Your bag is full. Hunts still pick up loot, but town work that makes a new item stops, and new items won\'t come out of Storage. Sell some, or put some away.' : '';
 }
 
 /* The foot: the bag's spaces against the server's stack cap (hidden when the server sends none), and the gold. */
@@ -58,7 +62,8 @@ function patchFoot(root, st) {
     cls(box, 'is-full', used >= cap);
     text(box.querySelector('.hw-captext'), whole(used) + ' of ' + whole(cap) + ' spaces');
     box.querySelector('.hw-capbar').setAttribute('aria-valuenow', String(used));
-  }
+    text(root.querySelector('.hw-over'), overBagWords(used, cap));
+  } else text(root.querySelector('.hw-over'), '');
   text(root.querySelector('.hw-gold'), st.gold === null ? '' : 'Your gold ' + gold(st.gold));   // the ACCOUNT's purse, every hero's
   prop(root.querySelector('[data-hs-act="advanced"]'), 'checked', st.prefs.advanced);
 }

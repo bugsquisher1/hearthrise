@@ -49,14 +49,15 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.81';
-import { CharacterSession } from './character-session.js?v=0.2.81';
-import { TownPresence } from './town-presence.js?v=0.2.81';
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.81';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.81';
-import { assignmentOf } from './party-sections.js?v=0.2.81';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.81';
-import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.81';
+import { SESSION_CONFIG } from './config.js?v=0.2.82';
+import { CharacterSession } from './character-session.js?v=0.2.82';
+import { TownPresence } from './town-presence.js?v=0.2.82';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.82';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.82';
+import { assignmentOf } from './party-sections.js?v=0.2.82';
+import { benchJobOver } from './bench-sections.js?v=0.2.82';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.82';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.82';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
@@ -111,8 +112,10 @@ export function heroOf(body) {
 
 /* What an hr_load answer says its hero is doing, in the strip's words; null when idle in town or unread. */
 function doingOf(body) {
-  const a = assignmentOf({ read: (k) => body[k] });
-  return a.kind === 'hunting' || a.kind === 'busy' ? a.text : null;
+  const read = { read: (k) => body[k] };
+  const a = assignmentOf(read);
+  if (a.kind === 'hunting') return a.text;
+  return a.kind === 'busy' && !benchJobOver(read, Date.parse(body.now)) ? a.text : null;
 }
 
 /** The next hero slot the server sells, from an `account` section: { slotId, cost, max }, or null
@@ -322,13 +325,13 @@ export class AccountSession {
 
   /** Ask the server to make the hero in an owned slot with its name and colours ({ head, body, legs, feet }
       dye indices). { ok } or { ok:false, reason, nameReason }: the server's verdict, never the client's. */
-  create(slot, name, colors) {
+  create(slot, name, colors, key) {
     return this.intents.track('create_hero', async () => {
-      const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: newIdem() });
+      const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: key || newIdem() });
       this._noteClosed(ans);
       const b = ans.body;
       const ok = !!(ans.ok && b && b.ok === true);
-      return { ok, error: ok ? null : (b && b.error) || ans.error || 'refused', reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
+      return { ok, answered: !!b, error: ok ? null : (b && b.error) || ans.error || 'refused', reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
     });
   }
 

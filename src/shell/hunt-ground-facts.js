@@ -30,16 +30,16 @@
 //   at the kill's yield share for a party of `size` (hunt-grounds.js yieldPermille), before any
 //   hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.81';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.81';
-import { MONSTERS } from '../data/monsters.js?v=0.2.81';
-import { ITEMS } from '../data/items.js?v=0.2.81';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.81';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.81';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.81';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.81';
-import { listWords } from '../render/format.js?v=0.2.81';
-import { isSpentMaterial } from './bag-model.js?v=0.2.81';
+import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.82';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.82';
+import { MONSTERS } from '../data/monsters.js?v=0.2.82';
+import { ITEMS } from '../data/items.js?v=0.2.82';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.82';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.82';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.82';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.82';
+import { listWords } from '../render/format.js?v=0.2.82';
+import { isSpentMaterial } from './bag-model.js?v=0.2.82';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -126,6 +126,12 @@ export function dropWhereWords(item) {
 
 /* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */
 const isRare = (d) => !!d && d.lucky !== true && d.salvage !== true && d.ch < 1 && REVEAL_BANDS.includes(bandOf(d));
+let RARE_ITEMS = null;
+/** Is this item a Rare somewhere (the Hunts page's own test)? From the rows, built once. */
+export function isRareItem(id) {
+  if (!RARE_ITEMS) { RARE_ITEMS = new Set(); for (const m of Object.values(MONSTERS)) for (const d of (m && m.drops) || []) if (isRare(d)) RARE_ITEMS.add(d.id); }
+  return RARE_ITEMS.has(id);
+}
 const nameOf = (id) => (ITEMS[id] && ITEMS[id].n) || id;
 const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
 const SLOT_WORDS = Object.freeze({ helmet: 'helmets', body: 'bodies', pants: 'legs', boots: 'boots' });

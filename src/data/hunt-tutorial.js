@@ -37,6 +37,7 @@
 //                the chain, so it never nags a hero the first day is behind
 //     knowledge  a lesson a second hero is not asked again (another hero on the account past KNOWN_LEVEL)
 //     gotIt      the card finishes on its Got it press (`read`); without it a `read` card is read on sight
+//     holdOpen   under the hunt bar it keeps its words: never folds to a bare title (the title alone says nothing: "Cash in")
 //     text       may name a bar slot as {slot:<item id>}: cardFor() writes the server's slot there; a card with
 //                a word builder (SAY) is stated from the facts, and one that cannot be stated truly is passed by
 //     done       a fact kind (FACTS), or { kind: 'any', of: [...] }
@@ -64,28 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.81';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.81';
-import { END_ORDER, DEATH_XP_LOSS, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.81';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.81';
-import { SKILLS_DEF } from './skills.js?v=0.2.81';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.81';
-import { tallyTask } from './tally-tasks.js?v=0.2.81';
-import { WEIGHT_ORDER, weightShort } from './armour-weights.js?v=0.2.81';
-import { ITEMS } from './items.js?v=0.2.81';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.81';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.81';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.81';
-import { isShield } from './shields.js?v=0.2.81';
-import { deriveProfile } from '../core/member.js?v=0.2.81';
-import { ABILITIES } from './abilities.js?v=0.2.81';
-import { CONSUMABLES } from './consumables.js?v=0.2.81';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.81';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.81';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.81';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.81';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.81';
-import { regenPermille } from '../core/vitals.js?v=0.2.81';
+import { HUNT_INDEX } from './hunts.js?v=0.2.82';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.82';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.82';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.82';
+import { SKILLS_DEF } from './skills.js?v=0.2.82';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.82';
+import { tallyTask } from './tally-tasks.js?v=0.2.82';
+import { ITEMS } from './items.js?v=0.2.82';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.82';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.82';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.82';
+import { isShield } from './shields.js?v=0.2.82';
+import { deriveProfile } from '../core/member.js?v=0.2.82';
+import { ABILITIES } from './abilities.js?v=0.2.82';
+import { CONSUMABLES } from './consumables.js?v=0.2.82';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.82';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.82';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.82';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.82';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.82';
+import { regenPermille } from '../core/vitals.js?v=0.2.82';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -132,7 +132,7 @@ export function coachIcon(card, open) {
   return a && a.icon && !open(a.window) ? a.window : null;
 }
 
-const MORE = ['ring', 'when', 'hooks', 'inWindow', 'party', 'reactive', 'knowledge', 'gotIt', 'dayOne'];
+const MORE = ['ring', 'when', 'hooks', 'inWindow', 'party', 'reactive', 'knowledge', 'gotIt', 'dayOne', 'holdOpen'];
 const freeze = (v) => (Array.isArray(v) ? Object.freeze(v.map(freeze)) : v && typeof v === 'object' ? Object.freeze(Object.fromEntries(Object.entries(v).map(([k, x]) => [k, freeze(x)]))) : v);
 const step = (id, title, text, anchor, done, more) => Object.freeze({ id, title, text, anchor, done: freeze(done),
   ...Object.fromEntries(MORE.filter((k) => more && more[k] !== undefined).map((k) => [k, freeze(more[k])])) });
@@ -140,7 +140,7 @@ const step = (id, title, text, anchor, done, more) => Object.freeze({ id, title,
 /* The task Tamsin's card names: a solo task on the solo ground (tally-tasks.js). */
 const WOLVES = tallyTask('thicket_gray_wolves');
 /* The first place a new hero picks an armor weight: one sentence a weight (Tyler 2026-10-25, src/data/armour-weights.js). */
-const WEIGHTS_SAID = WEIGHT_ORDER.map(weightShort).join(' ');
+const TAMSIN_WAY = 'Tamsin pays for kills. Open her tally, pick an armor weight, then Take ' + WOLVES.count + ' ' + WOLVES.label + '. Kills count while you\'re away.';
 const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket';
 /* A second hero skips the knowledge cards once another hero on the account is past this Level (the designer's rule:
    it has lived through the first hour; the cards that set THIS hero's own state still show). */
@@ -226,14 +226,14 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Your weapon shoots what is loaded, and nothing is, so your hero won\'t attack. Leave the hunt, then put arrows on your bar from your bag.',
     'hunt_topbar', { kind: 'shot_ready' }, { when: [HUNTING, { kind: 'no_shot' }] }),
   /* ── B. The first hunt: the cards the server finishes on its own come first (AUTO_KINDS) ── */
-  step('first_kill', 'Your hero fights alone',
+  step('first_kill', 'Your hero fights on its own',
     'You don\'t click to attack. Your hero goes after the rats, fights them, and picks the next one.',
     'world', { kind: 'kills', atLeast: 1 }, { knowledge: true }),
   /* Shown from the first kill until Level 2 lands, so it never names the Level (playtest 2026-10-29: "Level 2" sat
      over a bar that read Lv 1). */
   step('first_level', 'Your first Level',
     'Every kill pays Level XP and fills the ring around your Level. Each Level gives you more health and mana and opens new grounds and gear.',
-    'hud_vitals', { kind: 'level' }, { knowledge: true, hooks: ['[data-coach-hook="level"]'] }),
+    'hud_vitals', { kind: 'level' }, { knowledge: true, holdOpen: true, hooks: ['[data-coach-hook="level"]'] }),
   /* ── Reactive cards that interrupt the chain (after the first-minute cards, so the shell's "passed" rule never
      replays one of those). Each starts on its own fact and explains what just happened. ── */
   step('stamina_low', 'Stamina is low',
@@ -333,12 +333,12 @@ export const HUNT_TUTORIAL = Object.freeze([
     'hud_vitals', { kind: 'unlock', hunt: THICKET }, { hooks: ['[data-coach-hook="stamina"]'] }),
   step('leave_cellar', 'Cash in',
     'Leave the hunt to go back to town. Your loot is already in your bag.',
-    'hunt_topbar', { kind: 'ended', reason: 'left' }),
+    'hunt_topbar', { kind: 'ended', reason: 'left' }, { holdOpen: true }),
   /* ── C. The first return: sell or keep, cook, styles, Blessings before danger, Tamsin ── */
   /* Blessings first on the way back: they are one press and the next ground is where a hero can die (the panel: "Before the
      wolves" came after the wolves). */
   step('bless', 'Before the wolves',
-    'Out past the Cellar you can die. Blessings protect most of what a death costs, and they\'re free for now: open the Shop\'s Services tab and Bless all three.',
+    'Past the Cellar you can die. Blessings soften the cost and are free for now: in the Shop\'s Services tab, Bless all three.',
     'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('sell_loot', 'Sell what only pays coin',
@@ -358,8 +358,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'crafting', orGotIt({ kind: 'skill_xp', skill: 'cooking' }), { gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { skill: 'cooking', work: 'cook_shrimp' },
       inWindow: 'Press Cooking, then Start on Cook Shrimp. Your Raw Shrimp become the Cooked Shrimp your {slot:cooked_shrimp} eats.' }),
   step('tamsins_task', 'Tamsin\'s wolves',
-    'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
-      + '. Each one counts, even while you\'re away. ' + WEIGHTS_SAID,
+    TAMSIN_WAY,
     'tally', orGotIt({ kind: 'tally_taken', task: WOLVES.id }), { gotIt: true, when: [IN_TOWN], ring: { task: WOLVES.id } }),
   step('into_the_thicket', 'Into the Thicket',
     'Open Hunts and pick ' + HUNT_INDEX[THICKET].name + '. Your hero walks from clearing to clearing by itself and fights each pack it finds.',
@@ -832,18 +831,17 @@ const SAY = Object.freeze({
   bless: (f) => {
     const b = f.blessings;
     if (!b || !Number.isInteger(b.freeUntil) || !(b.best > 0)) return null;
-    return { text: 'Out past the Cellar you can die. Dying ends the hunt, sends you home and costs ' + Math.round(DEATH_XP_LOSS * 100)
-      + '% of your Level XP, never a Level. Blessings protect up to ' + Math.round(b.best / 10) + '% of that, and they\'re free until Level ' + b.freeUntil
-      + ': open the Shop\'s Services tab and Bless all ' + inWords(b.of) + '.' };
+    /* Three lines (newcomer panel 2026-11-01: ten read like documentation): what to press. What a death costs is the death popup's, and Help's. */
+    return { text: 'Past the Cellar you can die. Blessings soften the cost and are free until Level ' + b.freeUntil
+      + ': in the Shop\'s Services tab, Bless all ' + inWords(b.of) + '.' };
   },
-  /* The way first, then what each weight gives (playtest 2026-10-29: on a phone the card's foot, "Then Take 200 Gray
-     Wolves", was cut off under four sentences about armor). */
+  /* The way, in three lines (newcomer panel 2026-11-01: twelve read like documentation, and a phone's Take was cut off under them). What each
+     weight gives is her window's own line, beside the picker. */
   tamsins_task: (f) => {
     const w = WEIGHT_FOR_ROLE[f.role];
     const pick = w ? ' ' + uc(w) + ' suits ' + ROLE_WORDS[f.role] + '.' : '';
-    return { text: 'Tamsin pays for kills. Open her tally, pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label
-      + ': each one counts, even while you\'re away. ' + WEIGHTS_SAID + pick,
-    /* inside her window it no longer says "open her tally" (the window's own lines say what each weight does) */
+    return { text: TAMSIN_WAY,
+    /* inside her window it no longer says "open her tally" */
     textIn: 'Pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label + ': each one counts, even while you\'re away.' + pick };
   },
   first_death: (f) => {

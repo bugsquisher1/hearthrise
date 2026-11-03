@@ -73,7 +73,8 @@
 //         a desktop keeps the first field's focus
 //   The panel's second read (2026-11-01, art/review/player-feedback-2026-11-01/phone-perf.txt on lane/f2-phone-perf):
 //   PH-18 A CARD NEVER HIDES WHAT IT NAMES (667x375): in Hunts the card is at most 90 px and the ground it names is on
-//         screen and on top; a ground's page keeps 165 px and Enter; Got it leaves the next card on its tab until pressed
+//         screen and on top; a ground's page keeps 165 px and Enter; Got it leaves the next card on its tab until pressed;
+//         a running hunt's note stands aside for a Hunts card
 //   PH-19 Summary and Leave at least 16 px apart; a folded card off the Details panel's close (667x375)
 //   PH-20 Leave party and Disband inside the sheet at every phone size; Disband's first press asks, its second sends ONE
 //   PH-21 A TAPPED ITEM (touch, 667x375): its tip stands off the sheet, takes no press, the action is hit first time;
@@ -100,6 +101,7 @@ const ALPHA = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelop
 HUNT.hunt_server_now_ms += (await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href)).SESSION_CONFIG.huntPlaybackDelayMs;
 const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
 const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
+const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
 const { HUNT_TUTORIAL } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tutorial.js')).href);
 /* A long bag (the playtest's hero carried 42 stacks): thirty more stacks of plain materials. */
 const MATERIALS = Object.keys(ITEMS).filter((id) => !ITEMS[id].kind && !ITEMS[id].type && !(id in ALPHA.inventory)).slice(0, 30);
@@ -554,6 +556,11 @@ async function staminaBuy(open, fails, done) {
   if (!p0.on || !p0.whole || !p0.reach || !/\+4 h for 1,880 gp/.test(p0.quote) || p0.off || p0.now !== '3 h 12 m of 8 h') fails.push('PH-9 [' + tag + '] the "+" did not open the server\'s quote whole on screen: ' + JSON.stringify(p0));
   if (!p0.premium) fails.push('PH-9 [' + tag + '] a hero without premium is not told premium raises the cap');
   a.s.holdRefill = true;
+  /* The first press asks, in the Shop's words; nothing is sent until the second. */
+  await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
+  await a.page.waitForTimeout(150);
+  const asked = await panelOf(a.page);
+  if (!/^Buy 4 h of stamina for 1,880 gp\?$/.test(asked.quote) || a.s.calls.some((c) => c.name === 'hr_stamina_refill')) fails.push('PH-9 [' + tag + '] the first press on Buy: ' + JSON.stringify(asked));
   a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: a.s.env.stamina.ms + H4 }); a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 }); return { ok: true }; };
   await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
   for (let i = 0; i < 40 && !a.s.calls.some((c) => c.name === 'hr_stamina_refill'); i++) await a.page.waitForTimeout(50);
@@ -566,6 +573,8 @@ async function staminaBuy(open, fails, done) {
   if (sent.length !== 1 || sent[0].body.p_price !== 1880 || sent[0].body.p_slot !== 0 || !sent[0].body.p_idem) fails.push('PH-9 [' + tag + '] Buy sent ' + JSON.stringify(sent.map((c) => c.body)));
   if (!bought) fails.push('PH-9 [' + tag + '] after the server answered the panel reads ' + JSON.stringify(await panelOf(a.page)));
   a.s.onRefill = () => ({ ok: false, error: 'quote_changed' });
+  await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
+  await a.page.waitForTimeout(100);
   await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
   if (!(await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent), null, 6000))) fails.push('PH-9 [' + tag + '] a refused refill reads ' + JSON.stringify(await panelOf(a.page)));
   await done(a, tag);
@@ -599,6 +608,16 @@ async function coachSheet(page, tag, fails) {
   await page.waitForTimeout(300);
   const g = await page.evaluate(() => ({ body: window.__r('[data-hs-win="hunts"] .hs-win-body').height, enter: (() => { const b = document.querySelector('.hw-hunt-enter'); return !!b && window.__onScreen(window.__r(b)) && window.__hits(b); })() }));
   if (g.body < 165 || !g.enter) fails.push('PH-18 [' + tag + '] a ground\'s page gets ' + Math.round(g.body) + ' px beside its card, Enter ' + g.enter);
+}
+/* The how-to already stands aside on every screen (shell.css .is-hint), so a hero in town no longer tells: only a hero mid-hunt with a Hunts card
+   up still has a note, "You are hunting in …", and on a phone it gives the sheet's room to the card and the grounds as well. */
+async function coachSheetHunting(page, tag, fails) {
+  await page.click('.hs-launch[data-hs-open="hunts"]', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hs-win-coach .hs-pointer') && document.querySelector('.hw-hunts-now') && document.querySelector('.hw-hunt b'), null, 4000))) { fails.push('PH-18 [' + tag + '] CONTROL: no card in Hunts mid-hunt'); return; }
+  await page.waitForTimeout(250);
+  const n = await page.evaluate(() => { const note = document.querySelector('.hw-hunts-now'); return { hint: note.classList.contains('is-hint'), said: note.textContent, box: note.getClientRects().length }; });
+  if (n.hint || !/^You are hunting in /.test(n.said)) fails.push('PH-18 [' + tag + '] CONTROL: mid-hunt the note reads ' + JSON.stringify(n));
+  else if (n.box) fails.push('PH-18 [' + tag + '] the note of the running hunt stands over the grounds the card names');
 }
 /* Got it hands the sheet back: the next card waits on its tab until the tab is pressed. */
 async function gotItRests(page, tag, fails) {
@@ -678,9 +697,9 @@ async function heroDoor(page, tag, fails) {
   await page.waitForTimeout(150);
   const on = await page.evaluate(RECT + `;[document.querySelector('.hero-confirm'), document.querySelector('.hero-back')].every((e) => window.__onScreen(window.__r(e)))`);
   if (!on) fails.push('PH-22 [' + tag + '] Enter town or its way back runs off the screen');
-  /* What keeps the foot on screen in ANY font (9 px off in Segoe UI, on screen in a shorter font): each strip's word beside it, never over it. */
-  const over = await page.evaluate(() => Array.from(document.querySelectorAll('.hero-region')).filter((f) => f.querySelector('legend').getBoundingClientRect().right > f.querySelector('.hero-dyes').getBoundingClientRect().left + 0.5).length);
-  if (over) fails.push('PH-22 [' + tag + '] ' + over + ' colour strip(s) carry their word above them, the height the card has no room for');
+  /* The column takes no height from its words (contain: size), so its own floor is what shows them. */
+  const tall = await page.evaluate(() => Math.round(document.querySelector('.hero-how').getBoundingClientRect().height));
+  if (tall < 150) fails.push('PH-22 [' + tag + '] How you fight is ' + tall + ' px tall');
 }
 /* ── PH-23 ── The Weighhouse and the sorts: whole inside the sheet; the sell sheet's two fields and List together. */
 async function weighhouse(page, tag, fails) {
@@ -1244,6 +1263,13 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       const c = await open(SMALLEST, ALPHA, (env) => { reading(env, 'bless', charXpForLevel(5)); longBag(env);
         env.blessings = { tiers: [1, 2, 3].map((tier) => ({ tier, permille: 320, price: 0, held: false })), permille: 0, free_until: 30 }; });
       if (c.up) { await gotItRests(c.page, tag, fails); await done(c, tag); } else fails.push('PH-18 [' + tag + '] the town did not mount');
+      /* The one card that still lies over a running hunt's Hunts: "Into the sewer, together", a hero in a party on the Thicket at the Sewer's Level. */
+      const h = await open(SMALLEST, HUNT, (env) => { const seat = HUNT.party.members[0].seat;
+        env.hunt = Object.assign({}, env.hunt, { hunt_id: 'meadowbrook_thicket' });
+        env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(HUNT_INDEX.millrace_sewer.band[0]) });
+        env.party = Object.assign(clone(HUNT.party), { id: '11111111-0000-4000-8000-00000000000b', max: 4, self_seat: seat, leader_seat: seat });
+        env.client_state = Object.assign({}, env.client_state, { coach: { read: readSoFar('go_below') } }); });
+      if (h.up) { await coachSheetHunting(h.page, tag, fails); await done(h, tag); } else fails.push('PH-18 [' + tag + '] the hunt did not mount');
     }
     if (run('apart')) { // PH-19
       const tag = tagOf(SMALLEST);
@@ -1458,12 +1484,12 @@ const MUTANTS = [
   ['PH-19 Summary and Leave stay 7 px apart', 'src/styles/hunt.css', '  .ht-bar [data-hs-act="leave"] { margin-left: 10px; }\n', ''],
   ['PH-19 the folded card lies on the Details close', 'src/styles/hunt.css', '.app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer { display: none; }', '.app:has(.hs-widget.is-analyzer) .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { display: none; }'],
   ['PH-20 the party\'s presses run off the sheet', 'src/styles/windows.css', '  .hw-party-acts { flex-wrap: wrap; }\n', '  .hw-party-acts { flex-wrap: nowrap; min-width: 460px; }\n'],
-  ['PH-20 Disband goes on one tap', 'src/shell/widgets/party-panel.js', 'if (ctx.isPhone && ctx.isPhone() && !sc.disbandArmed) {', 'if (false) {'],
+  ['PH-20 Disband goes on one tap', 'src/shell/widgets/party-panel.js', '    if (!sc.disbandArmed) {', 'if (false) {'],
   ['PH-21 a tip for an item nobody pressed', 'src/shell/windows/item-tip.js', '  if (touch && !(pressed && anchor.contains(pressed))) return;\n', ''],
   ['PH-21 the tip lies on the sheet', 'src/shell/windows/item-tip.js', "const r = ((touch && anchor.closest('.hs-win')) || anchor).getBoundingClientRect();", 'const r = anchor.getBoundingClientRect();'],
   ['PH-21 a mouseout puts the tip away', 'src/shell/windows/item-tip.js', '  if (touching(doc) && !byPress) return;\n', ''],
   ['PH-22 Back to sign in falls off the screen', 'src/styles/app.css', '  .auth-card[data-auth="create"] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 10px; }\n', ''],
-  ['PH-22 Enter town runs off the foot', 'src/styles/app.css', '  .hero-region legend { float: left; width: 38px; padding: 3px 0 0; }\n', ''],
+  ['PH-22 How you fight loses its height', 'src/styles/app.css', '  .hero-how { min-width: 0; min-height: 190px; padding-left: 12px;', '  .hero-how { min-width: 0; padding-left: 12px;'],
   ['PH-23 Refresh is cut in half', 'src/styles/market.css', '  .hw-mk-refresh { position: absolute; top: 0; left: 0; margin: 0; }\n', ''],
   ['PH-23 the sell sheet keeps its purse and tabs', 'src/styles/market.css', '  .hw-mk:has(.hw-mk-sell.is-on.is-paged) > :is(.hw-mk-greet, .hw-tabs) { display: none; }\n', ''],
   ['PH-23 what it would fetch comes first', 'src/styles/market.css', '  .hw-mk-sell .hw-mk-facts { order: 1; }\n', '  .hw-mk-sell .hw-mk-facts { order: -1; min-height: 80px; }\n'],

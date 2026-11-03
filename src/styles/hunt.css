@@ -167,7 +167,7 @@
 .ha-tabs, .hc-tabs { display: flex; gap: 2px; margin-bottom: 6px; border-bottom: 1px solid var(--line-soft); }
 /* The analyzer's tabs and sections part on the steel separator (2 px, one art px). */
 .ha-tabs { border-bottom: 2px solid var(--steel-sep); }
-.ha-tabs .ha-tab { margin-bottom: -2px; }
+.ha-tabs .ha-tab { margin-bottom: -2px; padding: 0 4px; }
 .ha-tab { flex: 1; min-height: 30px; margin-bottom: -1px; padding: 0 10px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ink-3); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; cursor: pointer; }
 .hc-tabs .ha-tab { flex: none; }
 .ha-tab:hover { color: var(--ink); }
@@ -252,7 +252,7 @@
 /* THE FIGHT PANEL at the far right (Tyler 10-19, 10-25): the setup, its target, stance, chase and distance, each in
    view; the sliders fold out what does not fit (the gold to keep) above the bar's end. A groove cut down the plate
    (bar-socket.png's shadowed wall) parts it from the slots. */
-.hb-plaque { position: relative; align-self: stretch; width: 216px; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding-left: 10px; border-left: 4px solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 0 0 0 4px stretch; image-rendering: pixelated; }
+.hb-plaque { position: relative; align-self: stretch; width: 232px; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding-left: 10px; border-left: 4px solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 0 0 0 4px stretch; image-rendering: pixelated; }
 .hb-pl-row { display: flex; align-items: center; gap: 6px; min-height: 30px; }
 .hb-pl-more { display: contents; }
 .hb-pl-fold { position: absolute; right: -16px; bottom: calc(100% + 20px); width: 284px; display: flex; flex-direction: column; gap: 6px; padding: 6px 10px 10px; z-index: 3;
@@ -269,7 +269,7 @@
 .hb-pl-row .hh-select { flex: 1; min-width: 0; }
 .hb-stance { display: flex; width: 100%; }
 /* each its own width: three equal thirds cut "Offensive" and "Defensive" to an ellipsis at 216 px (first-hour play 2026-10-31) */
-.hb-stance .hh-seg { flex: 1 1 auto; min-width: 0; padding: 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-stance .hh-seg { flex: 1 1 auto; min-width: 0; padding: 0 1px; font-size: var(--t-micro); font-size-adjust: var(--f-ui-aspect); letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hb-dist { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .hb-pl-row .hb-gold { flex: 1; min-width: 0; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
 /* The status line floats above the panel: a message coming or going never shifts a control under the pointer. */
@@ -351,6 +351,8 @@
    be bought, the premium note for a hero without premium, Buy (the gold plate), the status line. */
 .hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 280px; padding: 8px 10px 10px; flex-direction: column; gap: 4px; background: var(--modal-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; z-index: 3; }
 .hb-buy.is-on { display: flex; }
+.hb-buy-do { display: flex; gap: 6px; }
+.hb-buy-do > .hb-buy-go { flex: 1; }
 .hb-buy-head { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 .hb-buy-head b { font-family: var(--f-display); font-size: var(--t-micro); letter-spacing: .1em; color: var(--gold-2); }
 .hb-buy-now { flex: 1; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }

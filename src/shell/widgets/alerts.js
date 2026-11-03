@@ -16,13 +16,13 @@
 //                                answerInvite INTENT, the same way (PARTY_SPEC
 //                                §1.3: the toast reaches a player anywhere)
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.81';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.81';
-import { glyphSvg } from '../launcher.js?v=0.2.81';
-import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.81';
-import { cardFacts, shareCard } from '../share-card.js?v=0.2.81';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.82';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.82';
+import { glyphSvg } from '../launcher.js?v=0.2.82';
+import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.82';
+import { cardFacts, shareCard } from '../share-card.js?v=0.2.82';
 
-const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', party: 'hunt-party' });
+const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', party: 'hunt-party', chat: 'chat', friends: 'friends' });
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */
 const SHARE_WORDS = Object.freeze({
   copied: 'Card copied: paste it anywhere.', shared: 'Card shared.', saved: 'Card saved to your downloads.',
@@ -112,6 +112,8 @@ renderAlerts.act = async function actAlerts(ctx, el, action, ev, t) {
   if (action !== 'alert-do') return;
   if (a.action !== 'restart') {
     ctx.alerts.dismiss(key);
+    /* a private message opens on its own conversation */
+    if (a.tab && ctx.account && ctx.account.social) ctx.account.social.want(a.tab);
     if (ctx.goTo) ctx.goTo(a.slot, OPENS[a.action] || null);
     return;
   }

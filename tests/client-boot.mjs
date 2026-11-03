@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html
+// mutant-anchors: src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -503,6 +503,52 @@ async function checks(overrides, leaving = true) {
       const { ctx, page, errors } = await fresh(o);
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      /* The sign-in says what the game is, once, under the crest (newcomer panel 2026-11-01). */
+      const pitch = await page.evaluate(() => { const p = document.querySelector('.auth-brand .auth-pitch'); return p && p.getClientRects().length ? p.textContent : null; });
+      if (pitch !== 'Your heroes hunt, gather and craft, even while you\'re away.') fails.push('B-9 the sign-in screen pitches ' + JSON.stringify(pitch));
+      /* THE PRESS MOVES ON (friends' panel 2026-11-01): off with its words while the server is out; a lost answer's retry keeps its key; once made, no press asks again. */
+      const press = await page.evaluate(async () => {
+        const { renderHeroCreate } = await import(location.origin + '/src/app/hero-create.js');
+        const card = document.createElement('div'); document.body.append(card);
+        const keys = []; let dones = 0, answer, went;
+        const step = renderHeroCreate(card, { slot: 1, colorOf: () => '#000000', dyes: false, back() {},
+          create: (n, c, k) => { keys.push(k); return new Promise((r) => { answer = r; }); }, done: () => { dones++; return new Promise((r) => { went = r; }); } });
+        const b = card.querySelector('.hero-confirm'), tick = () => new Promise((r) => setTimeout(r, 0));
+        card.querySelector('.hero-name').value = 'Fennick';
+        b.click();
+        const out = { working: [b.disabled, b.textContent] };
+        b.click();
+        out.oneAsk = keys.length === 1;
+        answer({ ok: false, answered: false, reason: 'network' }); await tick();
+        out.lost = [b.disabled, b.textContent];
+        b.click();
+        out.sameKey = keys.length === 2 && keys[0] === keys[1];
+        answer({ ok: true, answered: true }); await tick();
+        out.entering = [b.disabled, b.textContent, dones];
+        b.click();
+        out.noAsk = keys.length === 2 && dones === 1;
+        went(false); await tick();
+        out.stuck = [b.disabled, card.querySelector('.auth-message').textContent];
+        b.click();
+        out.again = keys.length === 2 && dones === 2;
+        step.destroy(); card.remove();
+        return out;
+      });
+      if (!press.working[0] || press.working[1] !== 'Making your hero…' || !press.oneAsk || press.lost[0] || press.lost[1] !== 'Enter town' || !press.sameKey
+        || !press.entering[0] || press.entering[1] !== 'Entering town…' || press.entering[2] !== 1 || !press.noAsk || press.stuck[0] || !/hero is made/.test(press.stuck[1]) || !press.again) fails.push('B-9 the Enter town press: ' + JSON.stringify(press));
+      /* Sign-up sent: the fields stand aside for the message and the way back (phone panel 2026-11-01: Back half off a 390 px screen). */
+      const sent = await page.evaluate(async () => {
+        const { renderAuthScreen } = await import(location.origin + '/src/app/sign-in.js');
+        const box = document.createElement('div'); document.body.append(box);
+        renderAuthScreen(box, { signUp: async () => ({ ok: true, message: 'Check your email.' }) }, 'create', {});
+        const form = box.querySelector('form');
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+        await new Promise((r) => setTimeout(r, 0));
+        const out = { field: box.querySelector('.auth-field').getClientRects().length, submit: box.querySelector('.auth-submit').getClientRects().length, back: box.querySelector('.auth-link').getClientRects().length, said: box.querySelector('.auth-message').textContent };
+        box.remove();
+        return out;
+      });
+      if (sent.field || sent.submit || !sent.back || sent.said !== 'Check your email.') fails.push('B-9 a sign-up sent reads ' + JSON.stringify(sent));
       await page.fill('input[name=email]', 'qa@example.test');
       await page.fill('input[name=password]', 'not-a-real-password');
       await page.click('.auth-submit');
@@ -512,10 +558,14 @@ async function checks(overrides, leaving = true) {
         fails.push('B-9 one hero and an empty owned slot list as ' + JSON.stringify(rows));
       else {
         await page.click('[data-app="create"][data-slot="1"]');
-        /* The creation step: a name, four colour rows and a preview; nothing is sent before Enter town. */
-        const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelectorAll('.hero-region').length === 4 && document.querySelector('.hero-preview'));
+        /* The creation step: a name and how you fight; nothing is sent before Enter town. The colors are hidden until the world draws them
+           (outfits.js HERO_DYES_SHOWN, newcomer panel 2026-11-01), and Enter town shows with no scrolling at a laptop's 1366x768. */
+        await page.setViewportSize({ width: 1366, height: 768 });
+        const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelector('.hero-how-list'));
         if (!step) fails.push('B-9 Create did not open the creation step (sent ' + JSON.stringify(o.created) + ')');
         else {
+          const laptop = await page.evaluate(() => { const b = document.querySelector('.hero-confirm').getBoundingClientRect(); return { bottom: Math.round(b.bottom), H: innerHeight, doc: document.documentElement.scrollHeight, dyes: document.querySelectorAll('.hero-region, .hero-preview, .hero-note').length }; });
+          if (laptop.bottom > laptop.H || laptop.doc > laptop.H || laptop.dyes) fails.push('B-9 at 1366x768 the creation step reads ' + JSON.stringify(laptop));
           /* On a 922x423 phone the five ways to fight show too (playtest 2026-10-29: the phone hid them), in a column
              that scrolls, and Enter town still fits the screen. */
           await page.setViewportSize({ width: 922, height: 423 });
@@ -528,7 +578,6 @@ async function checks(overrides, leaving = true) {
             return { go: Math.round(b.right), how: Math.round(h.right), doc: document.documentElement.scrollWidth, W: innerWidth }; });
           if (small.go > small.W || small.how > small.W || small.doc > small.W) fails.push('B-9 at 667x375 the creation step runs off the right edge: ' + JSON.stringify(small));
           await page.setViewportSize({ width: 1280, height: 720 });
-          await page.click('.hero-dye[data-hero-region="body"][data-hero-dye="6"]');
           await page.click('.hero-confirm');
           const short = await page.evaluate(() => document.querySelector('.auth-message').textContent);
           if (o.created.length || !/3 letters/.test(short)) fails.push('B-9 the creation step sent ' + JSON.stringify(o.created) + ' / said "' + short + '" for an empty name');
@@ -537,7 +586,7 @@ async function checks(overrides, leaving = true) {
         }
         const played = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]'));
         const c = o.created[0];
-        if (o.created.length !== 1 || c.slot !== 1 || c.name !== 'Fennick' || !c.colors || c.colors.body !== 6 || Object.keys(c.colors).join() !== 'head,body,legs,feet' || !played)
+        if (o.created.length !== 1 || c.slot !== 1 || c.name !== 'Fennick' || !c.colors || Object.keys(c.colors).join() !== 'head,body,legs,feet' || !played)
           fails.push('B-9 Enter town sent ' + JSON.stringify(o.created) + (played ? '' : ' and did not play the new hero'));
         /* The reload: Fennick is shown again and Tester plays beside it, with no characters screen and no press. */
         const named = () => Array.from(document.querySelectorAll('.char-tab[data-app="show"] .char-tab-name')).map((n) => n.textContent).join() === 'Tester,Fennick';
@@ -599,7 +648,8 @@ async function checks(overrides, leaving = true) {
         if (o.bought.length !== 1 || sent.p_slot_id !== 2 || sent.p_slot !== 0 || typeof sent.p_idem !== 'string' || Object.keys(sent).some((k) => /price|cost|gold/.test(k)))
           fails.push('B-11 the press sent ' + JSON.stringify(o.bought));
         const b3 = await btn();
-        if (!reread || !b3 || b3.text !== 'Buy a hero slot — 40,000 gold') fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(b3) + (reread ? '' : ' with no new empty slot'));
+        /* The new slot stands empty, so no other is on sale until a hero is in it (newcomer panel 2026-11-01); the third hero brings the fourth slot's price. */
+        if (!reread || b3) fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(b3) + (reread ? ' beside the new empty slot' : ' with no new empty slot'));
         o.slots.push(3, 4);
         await page.reload({ waitUntil: 'load' });
         await wait(page, () => document.querySelectorAll('.char-row').length === 5);
@@ -682,7 +732,14 @@ const MUTANTS = [
   ['the loading bar never moves', 'src/platform/load-shell.js', '      paint();\n', ''],
   ['a module that cannot load is not said', 'src/platform/load-shell.js', "    failed = true;\n", "    return;\n"],
   ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],
-  ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !purse || actor === null) return '';", "  return '';"],
+  ['a made hero\'s press asks the server again', 'src/app/hero-create.js', "    if (made) { enter(); return; }\n", ''],
+  ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold('Entering town…');\n", ''],
+  ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name) tried =", '    tried ='],
+  ['a sign-up sent keeps its fields', 'src/styles/app.css', '.auth-card.is-sent .auth-field, .auth-card.is-sent .auth-submit { display: none; }\n', ''],
+  ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],
+  ['Enter town runs under the fold at 1366x768', 'src/styles/app.css', '.auth:has(.auth-card.is-create) .auth-brand { display: none; }\n', ''],
+  ['the color strips are back while the world draws none', 'src/data/outfits.js', 'export const HERO_DYES_SHOWN = false;', 'export const HERO_DYES_SHOWN = true;'],
+  ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "  return '';"],
   ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
   ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
   ['a hero short of gold can press buy', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(o.pending ? ' disabled' : '')"],

@@ -29,23 +29,23 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.81';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.81';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.81';
-import { SKILLS_DEF } from './skills.js?v=0.2.81';
-import { SHOP_OFFERS } from './shops.js?v=0.2.81';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.81';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.81';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.81';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.81';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.81';
-import { MONSTERS } from './monsters.js?v=0.2.81';
-import { NAMED_FUELS } from './hearth.js?v=0.2.81';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.81';
-import { HUNT_INDEX } from './hunts.js?v=0.2.81';
+import { ITEMS } from './items.js?v=0.2.82';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.82';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.82';
+import { SKILLS_DEF } from './skills.js?v=0.2.82';
+import { SHOP_OFFERS } from './shops.js?v=0.2.82';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.82';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.82';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.82';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.82';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.82';
+import { MONSTERS } from './monsters.js?v=0.2.82';
+import { NAMED_FUELS } from './hearth.js?v=0.2.82';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.82';
+import { HUNT_INDEX } from './hunts.js?v=0.2.82';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.81';
+} from './item-authority.js?v=0.2.82';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module

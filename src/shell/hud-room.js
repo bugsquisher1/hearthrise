@@ -14,7 +14,7 @@
 // DOM reads and style writes only. Each writes only what changed, and reads no height of its own to set its room,
 // so the size change a write causes settles in the next pass (shell.js's observer).
 // ════════════════════════════════════════════════════════════════════════
-import { DOCK_CAP_MIN_PX, liftOverBars, panelRoom, placeWidget, slideClear, stackRoom } from './hud.js?v=0.2.81';
+import { DOCK_CAP_MIN_PX, liftOverBars, panelRoom, placeWidget, slideClear, stackRoom } from './hud.js?v=0.2.82';
 
 /* A stack of alerts is never squeezed shorter than one alert with its button. */
 const ALERTS_MIN_ROOM = 120;
@@ -43,6 +43,10 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap })
     if (v) el.style.setProperty('--hs-room', v); else el.style.removeProperty('--hs-room');
   };
 
+  /* A panel's height with its list unsqueezed. Its own cap is what the room above it left, so reading the box alone kept a capped Tally at its 32 px
+     head for good, its line out of sight (newcomer panel 2026-11-01: "Gray Wolves 1/200" never showed at 1366x768). */
+  const wholeHeight = (el) => { const l = el.querySelector('.hs-tally-list'); return el.offsetHeight + (l ? Math.max(0, l.scrollHeight - l.clientHeight) : 0); };
+
   /* The bars where they sit with nothing in their way: a bar that slid for a docked window must not change whose column it crosses. */
   function barsAtHome() {
     const rel = relTo(worldHud), box = { width: worldHud.clientWidth, height: worldHud.clientHeight };
@@ -68,7 +72,7 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap })
         const a = worldHud.querySelector('[data-hs-widget="' + id + '"]');
         if (!a) continue;
         const stacked = el && el.offsetWidth && !hud.isMoved(row.id) && !hud.isMoved(id);
-        const r = stacked ? stackRoom(rel(a), rel(el), bars, height, gap) : null;
+        const r = stacked ? stackRoom(rel(a), phone ? rel(el) : Object.assign(rel(el), { height: wholeHeight(el) }), bars, height, gap) : null;
         const crosses = stacked && !phone && rel(el).left < rel(a).left + rel(a).width && rel(el).left + rel(el).width > rel(a).left;
         take(a, r === null && crosses ? DOCK_CAP_MIN_PX : r);
       }

@@ -35,22 +35,22 @@
 // A count rides the ONE set_activity (2026-12-01-bench-count.sql: the server stops
 // the bench after that many); a dish is always the whole stack (Cook all).
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.81';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.81';
-import { recipeInputs } from '../../../core/artisan.js?v=0.2.81';
-import { whole } from '../../../render/format.js?v=0.2.81';
-import { itemName } from '../../widgets/bits.js?v=0.2.81';
-import { riteOf, cookOf } from '../../bag-model.js?v=0.2.81';
-import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.81';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.81';
-import { townActivityWords } from '../../../session/party-sections.js?v=0.2.81';
-import { startWork, stopWork, workRow, workOf, runParts, doWords, workBlock } from '../../town-work.js?v=0.2.81';
-import { skillShortWords } from '../../intent-words.js?v=0.2.81';
-import { lineParts, lineText } from '../../town-ticker.js?v=0.2.81';
-import { namedFuelOf } from '../../bag-model.js?v=0.2.81';
-import { HUNT_INDEX } from '../../../data/hunts.js?v=0.2.81';
-import { nameOf } from '../../../session/item-sections.js?v=0.2.81';
-import { burnNamedFuel } from '../../../session/hearth-intents.js?v=0.2.81';
+import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.82';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.82';
+import { recipeInputs } from '../../../core/artisan.js?v=0.2.82';
+import { whole } from '../../../render/format.js?v=0.2.82';
+import { itemName } from '../../widgets/bits.js?v=0.2.82';
+import { riteOf, cookOf } from '../../bag-model.js?v=0.2.82';
+import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.82';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.82';
+import { townActivityWords } from '../../../session/party-sections.js?v=0.2.82';
+import { startWork, stopWork, workRow, workOf, runParts, doWords, workBlock } from '../../town-work.js?v=0.2.82';
+import { skillShortWords } from '../../intent-words.js?v=0.2.82';
+import { lineParts, lineText } from '../../town-ticker.js?v=0.2.82';
+import { namedFuelOf } from '../../bag-model.js?v=0.2.82';
+import { HUNT_INDEX } from '../../../data/hunts.js?v=0.2.82';
+import { nameOf } from '../../../session/item-sections.js?v=0.2.82';
+import { burnNamedFuel } from '../../../session/hearth-intents.js?v=0.2.82';
 
 /* The Hearth's skill: every output-less bench row is a fuel (src/data/hearth.js). */
 const FLAME = 'inner_flame';
@@ -82,9 +82,12 @@ export function buryingWord(e) { return e.skill === 'cooking' ? 'Cooking' : 'Fue
 
 /**
  * The label for `qty` units (pass buryQty: the bag + Storage the bench spends): "Cook" / "Cook all"; a fuel's is
- * "Fuel the hearth" for one and "Fuel all 120" for a stack (the board's item menu, Tyler 10-25).
+ * "Fuel the hearth" for one and "Fuel all 120" for a stack (the board's item menu, Tyler 10-25). While this stack is the
+ * one burning, a count would be the last settle's ("Fuel all 59" beside "x36, 23 being used", newcomer panel 2026-11-01):
+ * `cs` given, it says what is happening; the line under the bag has the live count and its Stop.
  */
-export function buryLabel(e, qty) {
+export function buryLabel(e, qty, cs) {
+  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';
   if (e.skill !== 'cooking') return qty > e.need ? 'Fuel all ' + whole(qty) : 'Fuel the hearth';
   return buryVerb(e) + (qty > e.need ? ' all' : '');
 }

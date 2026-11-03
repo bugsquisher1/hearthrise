@@ -16,17 +16,18 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.81';
-import { ABILITIES } from '../data/abilities.js?v=0.2.81';
-import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.81';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.81';
-import { STATUSES } from '../data/statuses.js?v=0.2.81';
-import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.81';
-import { ITEMS } from '../data/items.js?v=0.2.81';
-import { isRune } from '../data/supplies.js?v=0.2.81';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.81';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.81';
-import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.81';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.82';
+import { ABILITIES } from '../data/abilities.js?v=0.2.82';
+import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.82';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.82';
+import { STATUSES } from '../data/statuses.js?v=0.2.82';
+import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.82';
+import { ITEMS } from '../data/items.js?v=0.2.82';
+import { isRune } from '../data/supplies.js?v=0.2.82';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.82';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.82';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.82';
+import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.82';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -143,9 +144,22 @@ export function carried(a, bag) {
   return (bag.find((l) => l.id === a.id) || { qty: 0 }).qty;
 }
 
-/** Where an action's uses come from: own stock first, then the store per use, and the supply setting. */
-export function supplyLines(a, set, bag) {
-  const st = storeOf(a, set && set.store);
+/* The loaded-ammo slot's words, by what is in the ammo slot (`worn`) and what the hero carries. The free rung never runs out, so
+   the store never sells behind it; with none left the hero's other ammo flies before the store (conditions.js attackOrder).
+   Null for a weapon that shoots nothing (a Melee swing and a caster's basic spend no ammo: damage.js pickShot). */
+function loadedLine(worn, set, bag, st) {
+  const role = set && set.role;
+  if (!shootsItem(role, { slot: 'ammo', reqSkill: 'ranged' })) return null;
+  if (!worn || !shootsItem(role, ITEMS[worn])) return 'Nothing loaded: your weapon shoots the ammo on your bar, then waits.';
+  const n = (bag || []).reduce((t, l) => (l && l.id === worn ? t + l.qty : t), 0);
+  if (n > 0 && ammoPerShot(ITEMS[worn]) === 0) return itemName(worn) + ' loaded. They never run out.';
+  if (n > 0) return 'You carry ' + n + ' ' + itemName(worn) + '. ' + (st ? 'Own stock first, ' + storeWords(st) + '.' : 'When they run out, your other ammo fires.');
+  return 'You carry no ' + itemName(worn) + '. Your other ammo fires first' + (st ? ', ' + storeWords(st) : '') + '.';
+}
+
+/** Where an action's uses come from: own stock first, then the store per use, and the supply setting. `worn` is the ammo slot's item. */
+export function supplyLines(a, set, bag, worn) {
+  const st = storeOf(a, set && set.store, worn);
   if (a.type === 'ability') {
     const r = ABILITIES[a.id];
     if (!r || !r.rune) return [];
@@ -155,10 +169,10 @@ export function supplyLines(a, set, bag) {
   const n = carried(a, bag);
   const out = [];
   /* ONE item a slot (Tyler 2026-10-21): a store item is bought per use; a crafted one is your own stock only. */
-  if (a.type === 'consume' && st && n === null) out.push('Bought from the store at ' + st.price + ' g each, paid as used.');
+  if (own(ATTACK_KINDS, a.id)) { const said = loadedLine(worn, set, bag, st); if (said) out.push(said); }
+  else if (a.type === 'consume' && st && n === null) out.push('Bought from the store at ' + st.price + ' g each, paid as used.');
   else if (n !== null && n > 0) out.push('You carry ' + n + '. ' + (st && a.type !== 'consume' ? 'Own stock first, ' + storeWords(st) + '.' : 'When they run out, this slot waits and the next slot fires.'));
   else if (n !== null) out.push(st && a.type !== 'consume' ? 'You carry none: ' + storeWords(st).replace(/^then /, '') + '.' : 'You carry none, so this slot waits and the next slot fires.');
-  else if (st) out.push('Own stock first, ' + storeWords(st) + '.');
   if (st && set && set.supplySource !== 'store' && set.onEmpty !== 'switch') out.push('This hero is set to end the hunt when its own stock runs out, so the store stays off.');
   return out;
 }

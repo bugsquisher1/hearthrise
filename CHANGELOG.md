@@ -5,6 +5,34 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.82 — 2026-11-01 (Your Own Stock)
+
+**Your own food and drink.** Putting your own food or drink on the bar now puts it ahead of the store's, so a hunt spends yours first.
+
+**Heroes keep working.** A hero gathering or crafting while you're away now keeps earning without waiting for you to come back. A bug could leave a hero stuck until you returned; that's fixed.
+
+**You'll see messages.** Private messages and friend requests now pop up when they arrive.
+
+**The leader picks the hunt.** A party member's Hunt again no longer starts a new hunt for the party. A member can still go back into a hunt the party is on.
+
+**Easier on a laptop.** Coach tips inside a window shrink to one line, and the Inventory keeps your gold and bag space in view. "Enter town" fits on the screen when you make a hero.
+
+**Tamsin's board comes first.** Her tasks are at the top of her window, a Take button that's off says why, and your Tally count shows while you hunt.
+
+**Party fixes.** The Party window's buttons fit, Disband asks first, and if a party's leader falls, your other hero's Hunts window says why Enter is off and offers Leave party.
+
+**Hunt prep tells the truth.** Hunt prep and Before you go now count the food, drink and ammo your hero actually carried into the hunt, so they stop saying you're buying from the store when you aren't.
+
+**Small fixes.**
+- Town and Home stay at the top right whenever you're not in a hunt, including after a hunt ends or a hero dies.
+- Stance buttons and your hero's job line read in full on wider fonts.
+- Sell all loot's confirm names any rare finds it's about to sell.
+- The top-bar stamina button asks before it spends.
+- The away card says when a friend ran out of stamina, rather than saying they left.
+- The hero list no longer says a hero is working on a job that has already finished.
+- The bench fee line shows the real amount for small fees.
+- Long window titles fit, and Shop names fit on a phone.
+
 ## v0.2.81 — 2026-11-01 (Fair Pay)
 
 **Crafting pays.** Gathered and refined goods have new shop prices, and forged gear now sells above the metal in it. Hunting still pays more at the shop.

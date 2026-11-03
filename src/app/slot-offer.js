@@ -14,7 +14,7 @@
 // PURE: strings in, strings out. src/app/boot.js mounts and wires it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { whole } from '../render/format.js?v=0.2.81';
+import { whole } from '../render/format.js?v=0.2.82';
 
 const ORDINAL = Object.freeze(['first', 'second', 'third', 'fourth', 'fifth', 'sixth']);
 
@@ -44,16 +44,21 @@ export function slotRefusalText(r) {
  * @param limit   AccountSession.limit(): that, under the tab's ceiling
  * @param owned   the roster's slots
  * @param offer   AccountSession.slotOffer
+ * @param rows    AccountSession.roster() rows: with an empty one, buying more isn't the next thing to read
  */
-export function playLineOf(stated, limit, owned, offer) {
+export function playLineOf(stated, limit, owned, offer, rows) {
   if (stated === null) return '';
   if (stated <= 1) return 'One can play at a time.';
   const most = Math.min(stated, limit);
   if (!(owned < most)) return 'Up to ' + most + ' can play at once.';
+  if (anEmptySlot(rows)) return 'You own ' + owned + ' hero ' + (owned === 1 ? 'slot' : 'slots') + ', and up to ' + most + ' heroes can play at once.';
   const nth = offer ? ORDINAL[offer.slotId] : null;
   return 'You own ' + owned + ' hero ' + (owned === 1 ? 'slot' : 'slots') + ', and up to ' + most + ' heroes can play at once. More slots cost gold'
     + (nth ? ': the ' + nth + ' is ' + whole(offer.cost) + '.' : '.');
 }
+
+/* A slot the account owns with no hero in it: nothing need be bought to make the next one (newcomer panel 2026-11-01: it read as if a second hero cost 15,000). */
+const anEmptySlot = (rows) => (Array.isArray(rows) ? rows : []).some((r) => r && !r.exists);
 
 /**
  * The account's purse as the roster read it: the newest wallet version among its heroes' answers
@@ -85,7 +90,7 @@ function actingSlot(roster) {
 export function slotOfferHtml(offer, roster, o = {}) {
   const purse = rosterPurse(roster);
   const actor = actingSlot(roster);
-  if (!offer || !purse || actor === null) return '';
+  if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';
   const nth = ORDINAL[offer.slotId] || '';
   const short = offer.cost - purse.gold;
   return '<section class="slot-offer" data-slot-id="' + offer.slotId + '">'

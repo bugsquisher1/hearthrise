@@ -31,20 +31,20 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.81';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.81';
-import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.81';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.81';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.81';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.81';
-import { runIntent } from '../intent-words.js?v=0.2.81';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.81';
-import { short, whole } from '../../render/format.js?v=0.2.81';
-import { glyphSvg } from '../launcher.js?v=0.2.81';
-import { markPlayer } from '../context-menu.js?v=0.2.81';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.81';
-import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.81';
-import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.81';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.82';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.82';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.82';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.82';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.82';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.82';
+import { runIntent } from '../intent-words.js?v=0.2.82';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.82';
+import { short, whole } from '../../render/format.js?v=0.2.82';
+import { glyphSvg } from '../launcher.js?v=0.2.82';
+import { markPlayer } from '../context-menu.js?v=0.2.82';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.82';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.82';
+import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.82';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -168,8 +168,8 @@ export function liveRoster(cs, r) {
 export function leaveOrDisband(ctx, cs, sc, repaint, action) {
   if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
   else if (action === 'disband') {
-    /* A thumb asks twice (panel 2026-11-01: one tap, no question, party gone): the first press arms it, and its words say so. */
-    if (ctx.isPhone && ctx.isPhone() && !sc.disbandArmed) {
+    /* It asks twice, on every screen (panels 2026-11-01: one press, no question, party gone): the first press arms it, and its words say so. */
+    if (!sc.disbandArmed) {
       sc.disbandArmed = true;
       sc.msg = 'Press Sure? to end the party for everyone in it.';
       repaint();

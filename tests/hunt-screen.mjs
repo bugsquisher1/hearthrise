@@ -1571,9 +1571,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (!saved) fails.push('HS-8 the town slot did not show the server’s Salted Trout after it confirmed');
       /* Nobody is told to buy first (Tyler 10-19): with a store food on the bar and an empty bag, Hunt prep reads the store per use. */
       await page.keyboard.press('p');
-      const prep = await wait(page, () => /Food: the store, 40 gp each as used/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null);
+      const prep = await wait(page, () => /Food: [^|]*Salted Trout from the store, 40 gp each/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null);
       const prepText = await page.evaluate(() => (document.querySelector('[data-hs-win="hunt-prep"]') || {}).innerText || '');
-      if (!prep || /0 food/.test(prepText)) fails.push('HS-8 Hunt prep does not read the store per use for a store food: ' + prepText.slice(0, 200));
+      if (!prep || /0 food/.test(prepText)) fails.push('HS-8 Hunt prep does not read the store per use for a store food: ' + prepText.slice(0, 500));
       await page.keyboard.press('p');
       /* Density on the hunt picker: the press answers at once, a run of presses is ONE intent, the server's answer replaces the draft. */
       await page.keyboard.press('h');
@@ -1887,7 +1887,7 @@ const MUTANTS = [
   ['a party member keeps the density step', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower);", "prop(b, 'hidden', false);"],
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', "      if (a.action.type === b.action.type && a.action.id === b.action.id) {", "      if (false) {"],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
-  ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action, s.store) : null;', '      const st = null;'],
+  ['Hunt prep tells a player to buy first', 'src/shell/hunt-go.js', "return c.source === 'store' ? { kind: c.kind, own: null, store: off ? null : store, off }", "return c.source === 'store' ? { kind: c.kind, own: null, store: null, off }"],
   ['the mana gauge hides for a hero with no pool', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));", "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));\n  el.querySelector('.hb-read.is-mana').style.display = v.manaMax > 0 ? '' : 'none';"],
   ['the hub keeps the first level it drew', 'src/shell/widgets/vitals-hub.js', '  const level = v.level;', '  const level = 24;'],
   ['the HP arc does not follow the server', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));", "  fill(el.querySelector('.hb-arc.is-hp'), 1);"],

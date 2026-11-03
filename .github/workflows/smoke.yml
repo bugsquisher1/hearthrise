@@ -2693,6 +2693,15 @@ jobs:
           node tests/db-retention.mjs
           node tools/mutant-gate.mjs node tests/db-retention.mjs --mutate
 
+      # WHO HEARS IT (2027-02-22-alert-relay.sql): the watch files only what is broken, the relay posts new criticals
+      # (capped, deduped, the webhook in Vault and nowhere else), the dead-man pings only if both ran clean. Against stub
+      # Vault, pg_net and pg_cron run history. --mutate: 39.
+      - name: Alert relay — the watch, the relay, the dead-man
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/alert-relay.mjs
+          node tools/mutant-gate.mjs node tests/alert-relay.mjs --mutate
+
       # ── AND WHAT DOES THE ENTRY HAND THE ENGINE? (2026-09-22, the gather
       # shadow's first armed measurement.) Every row in hr_tick_shadow for a
       # Mining 61-64 character on mithril_rock came back `would_ticks: 0,

@@ -6,8 +6,8 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-11-02",
- "digest": "2e1ed3982eabcdd78a97b0071bf34bf2d547749dfb73a2130f47c0e03a16db6c",
+ "generated": "2026-11-03",
+ "digest": "06f68e118181b03fba4e44bdf55b1621e6c0bd5d7043b62f50f4fd20a872e126",
  "counts": {
   "relations": 244,
   "functions": 588,
@@ -747,7 +747,7 @@
    "hr_skill_xp_for_level(p_skill text, p_level integer)",
    "hr_slot_health()",
    "hr_slot_health_alert()",
-   "hr_slot_health_judge(p_slots jsonb, p_pubs jsonb, p_realtime boolean)",
+   "hr_slot_health_judge(p_slots jsonb, p_pubs jsonb, p_realtime boolean, p_present boolean)",
    "hr_social_blocked(p_a uuid, p_b uuid)",
    "hr_social_doing(p_user uuid)",
    "hr_social_friends(p_a uuid, p_b uuid)",

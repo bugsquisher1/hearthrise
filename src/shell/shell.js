@@ -60,6 +60,7 @@ import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.84';
 import { benchSpentAtMs } from './town-work.js?v=0.2.84';
 import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.84';
 import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.84';
+import { heroIsAlone } from './widgets/party-panel.js?v=0.2.84';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -132,6 +133,7 @@ export function mountShell(root, o) {
     sizeClass: () => (phoneMq.matches ? 'phone' : 'desktop'),
     store: residueStore(opts.character),
     inHunt: huntUp,
+    alone: () => heroIsAlone(opts.character),
   });
   const insetListeners = new Set();
   const ctx = {
@@ -223,7 +225,8 @@ export function mountShell(root, o) {
       else { const html = render(ctx); if (el.innerHTML !== html) el.innerHTML = html; }
       const L = hud.layoutOf(row.id);
       el.style.setProperty('--hs-op', String(L.opacity));
-      el.style.minWidth = row.min[0] + 'px';
+      /* A phone's folded widget is its title's width, or its empty box would still take presses and the camera's room. */
+      el.style.minWidth = L.folded && phoneMq.matches ? '' : row.min[0] + 'px';
       el.style.minHeight = L.folded ? '' : row.min[1] + 'px';
       paintMove(el, L, hud.isMoved(row.id));
       if (sized && !sized.watched.has(el)) { sized.watched.add(el); sized.ro.observe(el, { box: 'border-box' }); }

@@ -29,7 +29,9 @@ export const OPACITY_MAX = 1;
 const ANCHOR_RE = /^[tmb][lcr]$/;
 const LAYERS = new Set(['world', 'screen']);
 const WHENS = new Set(['always', 'hunt']);
-const PHONE_KEYS = new Set(['anchor', 'dx', 'dy', 'opacity', 'visible']);
+const PHONE_KEYS = new Set(['anchor', 'dx', 'dy', 'opacity', 'visible', 'folded']);
+/* A row's default fold that follows the game: folded while the hero has no party. A press saves a boolean, which wins from then on. */
+const FOLDED_ALONE = 'alone';
 
 const clampOpacity = (v) => Math.max(OPACITY_MIN, Math.min(OPACITY_MAX, Number(v)));
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -54,6 +56,7 @@ export function validateWidgetRows(rows) {
     if (!isObj(r.phone)) throw new Error(where + ': phone must be an object');
     for (const k of Object.keys(r.phone)) if (!PHONE_KEYS.has(k)) throw new Error(where + ': phone.' + k + ' is not overridable');
     if (r.phone.anchor !== undefined && !ANCHOR_RE.test(r.phone.anchor)) throw new Error(where + ': bad phone anchor');
+    if (r.phone.folded !== undefined && r.phone.folded !== FOLDED_ALONE) throw new Error(where + ': phone.folded can only be ' + FOLDED_ALONE);
     if (r.below !== undefined && (!Array.isArray(r.below) || !r.below.every((x) => typeof x === 'string' && x !== r.id))) throw new Error(where + ': below must list other widget ids');
     byId.set(r.id, r);
   }
@@ -373,12 +376,14 @@ export function residueStore(character) {
  * @param {{read():object|null, write(v:object):void}} o.store
  * @param {(id: string) => boolean} [o.inHunt]  true while hunt widget `id` belongs on screen (a hunt is running;
  *                                         src/shell/shell.js huntUp keeps the hunt bar until its summary is closed)
+ * @param {() => boolean} [o.alone]        true while the hero has no party: a row's `folded: 'alone'` default reads it
  */
 export function createHud(o) {
   const rows = validateWidgetRows(o.widgets);
   const sizeClass = o.sizeClass;
   const store = o.store;
   const inHunt = o.inHunt || (() => false);
+  const alone = o.alone || (() => false);
   const listeners = new Set();
   let cls = null;
   let layout = new Map();
@@ -471,7 +476,12 @@ export function createHud(o) {
   return {
     sizeClass: () => cls,
     reload() { load(); changed(null); },
-    layoutOf: (id) => (layout.has(id) ? Object.assign({}, layout.get(id)) : null),
+    layoutOf(id) {
+      if (!layout.has(id)) return null;
+      const L = Object.assign({}, layout.get(id));
+      if (L.folded === FOLDED_ALONE) L.folded = alone();
+      return L;
+    },
     rows: () => Array.from(rows.values()),
     row: (id) => rows.get(id) || null,
     /** Shown = the player's switch, and the row's `when` (a hunt widget only in a hunt). */

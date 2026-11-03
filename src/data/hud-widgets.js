@@ -15,7 +15,8 @@
 //   visible    the default
 //   removable  false: the widget can never be hidden
 //   when       'always' | 'hunt'
-//   phone      overrides of anchor/dx/dy/opacity/visible on the phone size class
+//   phone      overrides of anchor/dx/dy/opacity/visible on the phone size class; folded: 'alone' starts the widget
+//              folded while the hero has no party, open in one, until the player presses its fold (hud.js layoutOf)
 //   below      (optional) widget ids this one stacks under when it would overlap them (hud.js stackBelow)
 //
 // The player's layout is a DISPLAY preference (residue `hudLayout`, CLAUDE.md §6).
@@ -57,7 +58,8 @@ export const HUD_WIDGETS = Object.freeze([
   Object.freeze({
     id: 'party', label: 'Party', layer: 'world', anchor: 'tl', dx: 12, dy: 12,
     min: Object.freeze([240, 80]), opacity: 0.9, visible: true, removable: true, when: 'hunt',
-    phone: Object.freeze({ dx: 4, dy: 4 }),
+    /* On a phone a hero with no party starts it folded (the World is 245 px tall; a party of one says nothing the bar does not). */
+    phone: Object.freeze({ dx: 4, dy: 4, folded: 'alone' }),
   }),
   /* On a phone it shares the top-right corner with the hunt bar, so it STACKS under it (`below`): open, it never
      covers Hunt details, Summary or Leave hunt (QA phone playtest 10-24: one press on Hunt details hid all three). */

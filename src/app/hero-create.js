@@ -20,7 +20,7 @@
 // the prefix, and the step's .hc-body laid every chat line out (2026-10-24).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.84';
+import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD, HOW_YOU_FIGHT_SLOTS } from '../data/how-to-play.js?v=0.2.84';
 import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN } from '../data/outfits.js?v=0.2.84';
 import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.84';
 import { refusalWords } from '../shell/intent-words.js?v=0.2.84';
@@ -81,10 +81,27 @@ export function heroCells(colors, colorOf) {
 /** The "How you fight" column: the rule, then one line per way to fight. Pure. */
 export function howYouFightHtml() {
   return '<section class="hero-how" aria-labelledby="hero-how-title"><h2 class="hero-how-title hs-sub" id="hero-how-title">How you fight</h2>'
-    + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + '</p>'
+    + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + ' <span class="hero-how-slots">' + HOW_YOU_FIGHT_SLOTS + '</span></p>'
     + '<ul class="hero-how-list">'
     + HOW_YOU_FIGHT.map((r) => '<li data-style="' + r.id + '"><b>' + r.name + '</b> ' + r.does + ' <span class="hero-how-uses">' + r.uses + '</span></li>').join('')
-    + '</ul></section>';
+    + '</ul><p class="hero-how-more" hidden>More below</p></section>';
+}
+
+/* While words wait below the step's fold, its cue says so: a phone's scrollbar shows only during a swipe (phone panel v0.2.83: "nothing shows that it scrolls"). Returns the detach. */
+function watchHowMore(card) {
+  const body = card.querySelector('.hero-body'), more = body && body.querySelector('.hero-how-more');
+  const win = body && body.ownerDocument.defaultView;
+  if (!more || !win || !win.ResizeObserver) return () => {};
+  const sync = () => {
+    const below = body.scrollHeight - body.clientHeight - body.scrollTop - (more.hidden ? 0 : more.offsetHeight);
+    const hide = below <= 1;
+    if (more.hidden !== hide) more.hidden = hide;
+  };
+  const ro = new win.ResizeObserver(sync);
+  ro.observe(body);
+  body.addEventListener('scroll', sync, { passive: true });
+  sync();
+  return () => { ro.disconnect(); body.removeEventListener('scroll', sync); };
 }
 
 /** Paint the preview into a canvas at PREVIEW_SCALE (whole cells, no smoothing). */
@@ -186,8 +203,9 @@ export function renderHeroCreate(card, o) {
   card.addEventListener('click', onClick);
   card.addEventListener('keydown', onKey);
   focusOffTouch(input);
+  const unwatchHow = watchHowMore(card);
   return {
     colors: () => Object.assign({}, colors),
-    destroy() { gone = true; card.removeEventListener('click', onClick); card.removeEventListener('keydown', onKey); },
+    destroy() { gone = true; unwatchHow(); card.removeEventListener('click', onClick); card.removeEventListener('keydown', onKey); },
   };
 }

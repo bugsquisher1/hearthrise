@@ -201,6 +201,8 @@ export function renderHunts(ctx) {
     + '<p class="hw-hunt-pack"></p>' + goHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>Leave party</button>'
+    /* The phone's way back (windows.css): beside Enter, in reach however far down the page has been read. */
+    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="back">Back to the list</button>'
     + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">Enter</button></div>'
     + '</section></div></div>';
 }
@@ -313,7 +315,7 @@ function patchPage(det, ctx, sc, v) {
   attr(enter, 'data-hunt', r.hunt);
   text(enter, party && !follower ? (under.length && sc.warned === warnKey(r.hunt, under) ? 'Start anyway' : 'Start with party') : 'Enter');
   /* Enter and the pull step (Go as, Find a party and Bring are patchGo's: off for a member too). */
-  for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', sc.pending || !!now);
+  for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-density button')) prop(b, 'disabled', sc.pending || !!now);
   /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
   const off = now ? '' : enterOffWords(r, level, party);
   if (off) prop(enter, 'disabled', true);

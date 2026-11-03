@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-11-01",
- "digest": "f52113f5413c7713844ff66e1edd9a3cb5ad7d54598f1b6795ed6dcc28a9fd8f",
+ "generated": "2026-11-03",
+ "digest": "44491493b3e3eea264ecc49f7fda64f58f7e92a63df2cf2a21288589c5cd2b57",
  "counts": {
   "relations": 244,
-  "functions": 587,
+  "functions": 589,
   "policies": 115,
   "indexes": 345,
   "triggers": 61,
@@ -557,6 +557,8 @@
    "hr_hunt_role_of(p_user uuid, p_slot integer)",
    "hr_hunt_roster(p_holder text, p_limit integer, p_lease_ms integer)",
    "hr_hunt_roster_sharded(p_prefix text, p_body_max integer, p_lease_ms integer)",
+   "hr_hunt_rune_spells()",
+   "hr_hunt_rune_state(p_user uuid, p_slot integer, p_session uuid, p_ability text)",
    "hr_hunt_saved_bag(p_user uuid, p_slot integer)",
    "hr_hunt_section_view(p_user uuid, p_slot integer)",
    "hr_hunt_set_preset(p_slot integer, p_preset integer, p_idem uuid)",

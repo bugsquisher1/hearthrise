@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.84 — 2026-11-03 (Try Again)
+
+**The game starts more reliably.** If a file fails to load while the game starts, the page now tries again by itself, and only asks you to reload if that doesn't help.
+
 ## v0.2.83 — 2026-11-03 (Carry It In)
 
 **Carry supplies into a running hunt.** Press to carry food, drinks, ammo and runes from your backpack into a hunt that's already going, from Hunt prep or the action slot. What you don't use comes home when the hunt ends.

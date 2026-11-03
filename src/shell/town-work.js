@@ -35,26 +35,26 @@
 // server's engine has certainly done since its watermark (tickOf: town-ticker.js,
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.83';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.83';
-import { ITEMS } from '../data/items.js?v=0.2.83';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.83';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.83';
-import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.83';
-import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.83';
-import { recipeInputs } from '../core/artisan.js?v=0.2.83';
-import { pacedXp } from '../core/pacing.js?v=0.2.83';
-import { whole } from '../render/format.js?v=0.2.83';
-import { itemName } from './widgets/bits.js?v=0.2.83';
-import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.83';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.83';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.83';
-import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.83';
-import { skillShortWords } from './intent-words.js?v=0.2.83';
-import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.83';
-import { bestTool } from '../core/tools.js?v=0.2.83';
-import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.83';
-import { whereToGet, toolEffect } from './item-lore.js?v=0.2.83';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.84';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.84';
+import { ITEMS } from '../data/items.js?v=0.2.84';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.84';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.84';
+import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.84';
+import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.84';
+import { recipeInputs } from '../core/artisan.js?v=0.2.84';
+import { pacedXp } from '../core/pacing.js?v=0.2.84';
+import { whole } from '../render/format.js?v=0.2.84';
+import { itemName } from './widgets/bits.js?v=0.2.84';
+import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.84';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.84';
+import { townActivityWords } from '../session/party-sections.js?v=0.2.84';
+import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.84';
+import { skillShortWords } from './intent-words.js?v=0.2.84';
+import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.84';
+import { bestTool } from '../core/tools.js?v=0.2.84';
+import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.84';
+import { whereToGet, toolEffect } from './item-lore.js?v=0.2.84';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -198,14 +198,20 @@ export function workBlock(cs, w, huntRunning) {
   if (w.kind === 'artisan') {
     if (w.row.gated) return 'Needs the ' + itemName(w.row.gated) + ' recipe.';
     const inv = supplyOf(cs);
+    /* A worn piece is not in the bag, and the bench spends the bag's (a reforge: Klappa's Club, Steelgrate). Said last, so nobody
+       takes a weapon off for a job the rest of the row can't do yet. */
+    const worn = Object.values(eqOf(cs));
+    let inHand = null;
     for (const [id, need] of Object.entries(recipeInputs(w.row))) {
       const have = inv[id] || 0;
+      if (have < need && worn.includes(id)) { inHand = inHand || id; continue; }
       /* The row that says what is short says where it comes from (panel 2026-11-01: "No Silk Thread", and no word on where). */
       if (have < need) {
         const where = whereToGet(id);
         return (have ? 'Needs ' + whole(need) + ' ' + itemName(id) + ' (you have ' + whole(have) + ').' : 'No ' + itemName(id) + ' ' + fromWords(cs) + '.') + (where ? ' ' + where + '.' : '');
       }
     }
+    if (inHand) return 'You\'re wearing your ' + itemName(inHand) + '. Take it off first.';
     /* The bag's room (the engine's own test, artisan-sim.js bagFullFor, on the server's bag and stack cap): the
        product needs a new stack and the bag has none. The engine would stop the bench at once and say so. */
     const full = bagFullFor({ inventory: invOf(cs) }, w.row, w.skill, { bagCap: bagCapOf(cs), burns: false });

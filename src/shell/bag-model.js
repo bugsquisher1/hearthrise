@@ -20,19 +20,19 @@
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
 //   isSpentMaterial(id)   does any recipe or House price spend this?
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.83';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.83';
-import { MONSTERS } from '../data/monsters.js?v=0.2.83';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.83';
-import { NAMED_FUELS } from '../data/hearth.js?v=0.2.83';
-import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.83';
-import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.83';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.83';
-import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.83';
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.83';
-import { recipeInputs } from '../core/artisan.js?v=0.2.83';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.83';
-import { itemName } from './widgets/bits.js?v=0.2.83';
+import { ITEMS } from '../data/items.js?v=0.2.84';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.84';
+import { MONSTERS } from '../data/monsters.js?v=0.2.84';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.84';
+import { NAMED_FUELS } from '../data/hearth.js?v=0.2.84';
+import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.84';
+import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.84';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.84';
+import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.84';
+import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.84';
+import { recipeInputs } from '../core/artisan.js?v=0.2.84';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.84';
+import { itemName } from './widgets/bits.js?v=0.2.84';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([
@@ -80,6 +80,11 @@ function madeSet() {
 const KIT = new Set([...Object.keys(START_INVENTORY), ...Object.values(START_EQUIPMENT)]);
 /** Is this in the starting kit? */
 export const isStartKit = (id) => KIT.has(id);
+/* A kit piece reforged at the bench into its own slot (Klappa's Club, style-gear.js): the kit holds one and nothing sells another, so a sale is the end of it. */
+const KIT_MADE = new Map();
+for (const rows of Object.values(ARTISAN_RECIPES)) for (const r of rows || []) if (r && ITEMS[r.output]) for (const id of Object.keys(recipeInputs(r) || {})) if (KIT.has(id) && ITEMS[id] && ITEMS[id].slot && ITEMS[id].slot === ITEMS[r.output].slot) KIT_MADE.set(r.output, id);
+/** The kit piece this one was made from, or null. */
+export const madeFromKit = (id) => KIT_MADE.get(id) || null;
 
 let HOME_SPENDS = null;
 /* Every item some House price names, built once: the deeds and rooms a player can reach, and the storage chests. */
@@ -298,7 +303,7 @@ export function spareSale(items, worn, rules, shop, o) {
   const wanted = (o && o.wanted) || new Set();
   const rare = (o && o.isRare) || (() => false);
   const plans = rules ? rules.loot : {};
-  const ids = (items || []).filter((r) => kindOf(r.id) === 'gear' && !isStartKit(r.id) && !wanted.has(r.id) && !rare(r.id) && !aboveWorn(r.id, worn)
+  const ids = (items || []).filter((r) => kindOf(r.id) === 'gear' && !isStartKit(r.id) && !madeFromKit(r.id) && !wanted.has(r.id) && !rare(r.id) && !aboveWorn(r.id, worn)
     && plans[r.id] !== 'keep' && plans[r.id] !== 'deposit').map((r) => r.id);
   const plan = sellPlan(items || [], ids, { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
   if (plan.lines.length <= SELL_LINES_MAX) return plan;

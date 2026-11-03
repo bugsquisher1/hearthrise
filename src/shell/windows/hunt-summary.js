@@ -17,21 +17,21 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.83';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.83';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.83';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.83';
-import { runIntent } from '../intent-words.js?v=0.2.83';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.83';
-import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.83';
-import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.83';
-import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.83';
-import { observeSessions } from '../../session/character-session.js?v=0.2.83';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.83';
-import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.83';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.83';
-import { heldCard } from '../launcher.js?v=0.2.83';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.83';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.84';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.84';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.84';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.84';
+import { runIntent } from '../intent-words.js?v=0.2.84';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.84';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.84';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.84';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.84';
+import { observeSessions } from '../../session/character-session.js?v=0.2.84';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.84';
+import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.84';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.84';
+import { heldCard } from '../launcher.js?v=0.2.84';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.84';
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
 const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };
@@ -147,6 +147,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     cls(go, 'is-primary', !card);
     for (const b of root.querySelectorAll('.hsum-actions button:not(.is-primary):not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
   }
+  /* THE ANSWER IS THE PRESS'S (party panel 2026-11-03: "Setting out." still up with the hero home from that hunt): a hunt that opens or ends makes it old. */
+  const huntNow = open ? open.id + (open.ended ? ':over' : '') : '';
+  if (sc.huntNow !== huntNow) { if (!sc.pending) sc.msg = ''; sc.huntNow = huntNow; }
   text(root.querySelector('.hh-intent-msg'), sc.msg || againWhy);
 
   const past = list.filter((s) => s !== cur);

@@ -4,6 +4,7 @@
 //   node tools/deploy-edge.local.mjs --deploy   pack, deploy hr-accrue, then poll until live payload_sha256 = the pack's
 //
 // Packs with tools/pack-edge.mjs into a temp workdir (+ supabase/config.toml), deploys with
+// The CLI (3.0.0+) stops a hosted change from an agent run unless --yes says a person OK'd it; Tyler 2026-11-03: yes, every deploy.
 // `npx supabase functions deploy` and SUPABASE_ACCESS_TOKEN read from ~/.supabase-token (in the
 // child's env, never argv, never printed). Run from the checkout whose code should go live.
 import { execFileSync } from 'node:child_process';
@@ -32,7 +33,7 @@ mkdirSync(join(dir, 'supabase'), { recursive: true });
 run('node', ['tools/pack-edge.mjs', 'hr-accrue', '--out', join(dir, 'supabase', 'functions', 'hr-accrue')]);
 copyFileSync('supabase/config.toml', join(dir, 'supabase', 'config.toml'));
 const env = { ...process.env, SUPABASE_ACCESS_TOKEN: readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim() };
-try { run('npx', ['--yes', 'supabase@latest', 'functions', 'deploy', 'hr-accrue', '--workdir', dir, '--project-ref', REF], env); }
+try { run('npx', ['--yes', 'supabase@latest', 'functions', 'deploy', 'hr-accrue', '--workdir', dir, `--remote=${REF}`, '--yes'], env); }
 catch (e) { console.error('deploy failed:', String(e.stderr || e.message).replace(env.SUPABASE_ACCESS_TOKEN, '***').slice(-800)); return 1; }
 for (let i = 0; i < 12; i++) {
   const now = await live();

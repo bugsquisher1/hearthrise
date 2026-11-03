@@ -40,23 +40,24 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.83';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.83';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.83';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.83';
-import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.83';
-import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.83';
-import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.83';
-import { itemName } from './widgets/bits.js?v=0.2.83';
-import { noShotWords } from './hunt-go.js?v=0.2.83';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.83';
-import { deathSeen } from './death-popup.js?v=0.2.83';
-import { awayRecapOf, awayLineNow, awaySettled, stampAway, markBack } from './away-recap.js?v=0.2.83';
-import { benchStopRecapOf } from './bench-fee.js?v=0.2.83';
-import { workRow } from './town-work.js?v=0.2.83';
-import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.83';
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.83';
-import { gold } from '../render/format.js?v=0.2.83';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.84';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.84';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.84';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.84';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.84';
+import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.84';
+import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.84';
+import { itemName } from './widgets/bits.js?v=0.2.84';
+import { noShotWords } from './hunt-go.js?v=0.2.84';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.84';
+import { deathSeen } from './death-popup.js?v=0.2.84';
+import { summaryClosedFor } from '../hunt-view/summary-recorder.js?v=0.2.84';
+import { awayRecapOf, awayLineNow, awaySettled, stampAway, markBack } from './away-recap.js?v=0.2.84';
+import { benchStopRecapOf } from './bench-fee.js?v=0.2.84';
+import { workRow } from './town-work.js?v=0.2.84';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.84';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.84';
+import { gold } from '../render/format.js?v=0.2.84';
 
 const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
 
@@ -252,7 +253,9 @@ export function createAlertCenter(account) {
       if (a.slot !== cs.slot) continue;
       /* A warning is about what comes next: a friend's low stamina goes with the hunt it was raised in, a warned ground once a hunt is open. */
       const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);
-      if (stale || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
+      /* AN END ALREADY SEEN IS OVER (party panel 2026-11-03: "Pip left the hunt, so Kell came home too" outlived that hunt's summary): the player closed the summary, or dismissed the death. */
+      const seenEnd = !!a.session && (a.kind === 'ended' || a.kind === 'death') && (summaryClosedFor(cs, a.session) || deathSeen(cs, a.session));
+      if (stale || seenEnd || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
       /* "While you were away": what the hunt is doing now is the record's, never the moment the card came up (CLAUDE.md §6). */
       const line = a.kind === 'away' ? awayLineNow(cs, a) : a.text;
       if (line === null) { alerts.splice(i, 1); any = true; } else if (line !== a.text) { a.text = line; any = true; }
@@ -287,6 +290,8 @@ export function createAlertCenter(account) {
   for (const cs of account.characters()) watch(cs.slot);
 
   return {
+    /** Judge this hero's lines again: something a record does not say has changed (its summary was closed, shell.js). */
+    rescan(cs) { if (cs && watching.has(cs.slot)) scan(cs); },
     /** A line this centre did not read off a record (the Weighhouse's notices, market-watch.js): fired once by its id. */
     say(cs, c) { if (fire(cs, c)) changed(); },
     /** The alerts on screen, newest first. */

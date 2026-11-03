@@ -19,19 +19,19 @@
 // the server refuses rather than charge another sum. Refusals in plain words.
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.83';
-import { summaryOf } from '../command-model.js?v=0.2.83';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.83';
-import { huntName } from '../../session/party-sections.js?v=0.2.83';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.83';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.83';
-import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.83';
-import { runIntent } from '../intent-words.js?v=0.2.83';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.83';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.83';
-import { glyphSvg } from '../launcher.js?v=0.2.83';
-import { entriesFor } from '../context-menu.js?v=0.2.83';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.83';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.84';
+import { summaryOf } from '../command-model.js?v=0.2.84';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.84';
+import { huntName } from '../../session/party-sections.js?v=0.2.84';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.84';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.84';
+import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.84';
+import { runIntent } from '../intent-words.js?v=0.2.84';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.84';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.84';
+import { glyphSvg } from '../launcher.js?v=0.2.84';
+import { entriesFor } from '../context-menu.js?v=0.2.84';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.84';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();
@@ -112,7 +112,8 @@ function patchRow(li, x, ctx) {
   patchGauge(li.querySelector('.is-hp'), v.hp, v.hpMax, v.hp === null ? 'HP –' : whole(v.hp) + ' / ' + whole(v.hpMax));
   patchGauge(li.querySelector('.is-mana'), v.mana, v.manaMax, v.mana === null ? 'Mana –' : whole(v.mana) + ' / ' + whole(v.manaMax));
   patchGauge(li.querySelector('.is-stamina'), v.staminaMs, v.staminaCapMs, hoursMinutes(v.staminaMs));
-  text(li.querySelector('.hw-char-bag'), 'Bag ' + gold(x.bagValue));
+  /* What this hero's bag would fetch at the shop, never gold it holds: the purse is the account's (optimizer panel 11-03: "Bag 19,369 gp" beside "Your gold 51.7k" read as two purses). */
+  text(li.querySelector('.hw-char-bag'), 'Bag worth ' + gold(x.bagValue));
   text(li.querySelector('.hw-char-ready'), x.readyLine);
   cls(li.querySelector('.hw-char-ready'), 'is-short', x.loaded && !x.ready);
   text(li.querySelector('.hw-char-party'), x.party ? 'Party: ' + huntName(x.party.hunt) + (x.party.isLeader ? ', leads' : '') : 'No party');

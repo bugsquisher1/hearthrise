@@ -5,7 +5,9 @@
 // request with nothing at all. The lines go through the alert centre, like the Weighhouse's, off what the account's social
 // stores hold: a whisper the store counts as unread (pushed while not on screen), a request the server lists as asked of this
 // account. One line per person while it is up; a request is told once per hero (the alerts' seen list), and it waits for an
-// answer, so it does not fade. Nothing here gates or spends anything, and no message's text is shown: the chat is where it is read.
+// answer, so it does not fade. A line whose request was answered or whose message was read goes at once, wherever that was done (party
+// panel 2026-11-03: "Kell wants to be your friend" stood through a whole hunt after Accept). Nothing here gates or spends anything, and
+// no message's text is shown: the chat is where it is read.
 // ════════════════════════════════════════════════════════════════════════
 
 /** @returns {{destroy(): void}} */
@@ -16,6 +18,9 @@ export function mountSocialWatch(account, alerts) {
   const viewed = () => (account.viewed !== null && account.viewed !== undefined ? account.character(account.viewed) : null);
 
   function check() {
+    const asked = new Set(social.friends.incoming().map((p) => 'friend:' + p.id));
+    const unread = new Set(social.whispers.conversations().filter((c) => c.unread > 0).map((c) => c.id));
+    for (const a of alerts.list()) if ((a.kind === 'friend' && !asked.has(a.id)) || (a.kind === 'whisper' && !unread.has(a.peer))) alerts.dismiss(a.key);
     const cs = viewed();
     if (!cs) return;
     const up = alerts.list();

@@ -21,22 +21,22 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.83';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.83';
-import { whole, gold } from '../../render/format.js?v=0.2.83';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.83';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.83';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.83';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.83';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.83';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.83';
-import { toolLossWords } from '../town-work.js?v=0.2.83';
-import { runIntent } from '../intent-words.js?v=0.2.83';
-import { showTip, hideTip } from './item-tip.js?v=0.2.83';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.83';
-import { gearLocked } from '../gear-gate.js?v=0.2.83';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.83';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.83';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.84';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.84';
+import { whole, gold } from '../../render/format.js?v=0.2.84';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.84';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.84';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.84';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.84';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.84';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.84';
+import { toolLossWords } from '../town-work.js?v=0.2.84';
+import { runIntent } from '../intent-words.js?v=0.2.84';
+import { showTip, hideTip } from './item-tip.js?v=0.2.84';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.84';
+import { gearLocked } from '../gear-gate.js?v=0.2.84';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.84';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.84';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -147,7 +147,7 @@ function patchSell(root, st, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="sell" data-item="' + esc(r.id) + '"></button></li>'),
     patch: (li, r) => {
       const isLocked = locked.has(r.id);
-      text(li.querySelector('small'), '×' + whole(r.qty) + ' · ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ' · locked' : keptLoot.has(r.id) ? ' · Sell all loot keeps it' : spares.has(r.id) ? ' · spare' : ''));
+      text(li.querySelector('small'), '×' + whole(r.qty) + ' · ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ' · locked' : keptLoot.has(r.id) ? ' · Sell all loot keeps it' : spares.has(r.id) ? ' · spare' : madeFromKit(r.id) ? ' · Sell spare gear keeps it' : ''));
       const b = li.querySelector('button');
       /* One sale takes up to the server's limit of a stack: a bigger stack's button says how many, so its price adds up. */
       const take = sellQty(r.qty);

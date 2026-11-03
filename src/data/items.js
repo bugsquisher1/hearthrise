@@ -1,16 +1,16 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.83';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.83';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.83';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.83';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.83';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.83';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.83';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.83';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.83';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.83';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.83';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.84';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.84';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.84';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.84';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.84';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.84';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.84';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.84';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.84';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.84';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.84';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -230,6 +230,8 @@ export const ITEMS={
   practice_wand:{n:'Practice Wand',icon:'🪄',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',atkB:4,strB:4,magicAtkB:4,magicStrB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_spellbook:{n:'Practice Spellbook',icon:'📕',v:0,type:'offhand',slot:'shield',offhand:'spellbook',discipline:'destruction',magicAtkB:1,magicStrB:2,defB:1,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_staff:{n:'Practice Staff',icon:'🔮',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,atkB:3,strB:5,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
+  /* Klappa's Club (Tyler 2026-11-03, the tribute to Andy; style-gear.js holds the reforge): the club hero's rung between the Practice Club and the Iron Warhammer. */
+  klappas_club:{n:'Klappa\'s Club',icon:'🏏',v:100,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:12,tier:1,rarity:'uncommon',reqSkill:'level',reqLv:5},
   iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
   steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
   rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},

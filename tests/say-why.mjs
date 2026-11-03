@@ -355,6 +355,13 @@ async function pure(base = ROOT) {
   if (bear !== 'You need Cooking 40 to cook Raw Bear Meat. You have 11.') fails.push('SW-3 Cook all above the level reads ' + JSON.stringify(bear));
   const axe = workBlock({ read: read(1, {}) }, workRow('artisan', 'forge_bronze_axe'), false);
   if (axe !== 'You need Smithing 3 to make Bronze Axe. You have 1.') fails.push('SW-3 a bench row above the level reads ' + JSON.stringify(axe));
+  /* A reforge spends the bag's piece: a hero wearing it hears why, once the rest of the row is there (lane/c-klappa-club) */
+  const wearing = (inv) => ({ read: (k) => (k === 'equipment' ? { weapon: 'practice_club' } : read(1, inv)(k)) });
+  const club = workRow('artisan', 'reforge_klappas_club');
+  const ready = workBlock(wearing({ bronze_bar: 6, small_fang: 3 }), club, false);
+  if (ready !== 'You\'re wearing your Practice Club. Take it off first.') fails.push('SW-3 a reforge of the worn weapon reads ' + JSON.stringify(ready));
+  const early = workBlock(wearing({ small_fang: 3 }), club, false);
+  if (!/^No Bronze Bar /.test(early)) fails.push('SW-3 the row tells a hero to take the weapon off before the bars are there: ' + JSON.stringify(early));
   /* The engine's own refusal of the same press (activity_locked), driven through the one start path. */
   const sc = { pending: false, msg: '' };
   const cs = { read: read(11, { raw_bear_meat: 2 }), edgeIntent: async () => refusalOf({ ok: false, body: { ok: false, error: 'activity_locked', kind: 'artisan', id: 'cook_bear_meat' } }) };

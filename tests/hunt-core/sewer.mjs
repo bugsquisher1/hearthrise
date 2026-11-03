@@ -872,6 +872,24 @@ const cases = {
     if (!sc || sc.id !== 'stitch_cloak' || !sc.text.includes('Start on ' + stitch.name + ' (Wolf Pelt ×' + stitch.inputs.wolf_pelt + ' each)') || !(sc.ring && sc.ring.work === stitch.id)) return 'the cloak card reads ' + JSON.stringify(sc && { id: sc.id, text: sc.text, ring: sc.ring });
     if (say(R({ ...atCloak, carried: { ...atCloak.carried, wolf_pelt: stitch.inputs.wolf_pelt - 1 } }))) return 'the cloak card asked with too few pelts';
     if (say(R({ ...atCloak, skillXp: { ...atCloak.skillXp, crafting: 30 } }))) return 'the cloak card is up after a craft';
+    /* Klappa's Club (Tyler 2026-11-03): a club hero at its Level hears the whole way; a hero of any other weapon hears nothing; the card stays
+       with the hero's hands empty (taken off to reforge, or reforged and not yet worn), and moves to the bag once the club is made */
+    const kclub = M.items.ITEMS.klappas_club;
+    const reforge = (M.recipes.ARTISAN_RECIPES.smithing || []).find((r) => r.output === 'klappas_club');
+    const atClub = { ...atCloak, carried: { ...juiced.carried, chalked_fire_rune: 45 }, levelXp: M.xp.charXpForLevel(kclub.reqLv), charLevel: kclub.reqLv, weapon: 'practice_club' };
+    const kc = say(R(atClub));
+    if (!kc || kc.id !== 'klappas_club' || !kc.text.includes('Bronze Bar ×' + reforge.inputs.bronze_bar + ' and Small Fang ×' + reforge.inputs.small_fang) || !kc.text.includes('Start on ' + reforge.name)
+      || !(kc.ring && kc.ring.work === reforge.id) || kc.anchor !== 'crafting') return 'the club card reads ' + JSON.stringify(kc && { id: kc.id, text: kc.text, ring: kc.ring, anchor: kc.anchor });
+    if ((say(R({ ...atClub, levelXp: M.xp.charXpForLevel(kclub.reqLv - 1), charLevel: kclub.reqLv - 1 })) || {}).id === 'klappas_club') return 'the club card came before its Level';
+    if ((say(R({ ...atClub, weapon: 'practice_sword' })) || {}).id === 'klappas_club') return 'the club card asked a sword hero';
+    if ((say(R(atClub, 'klappas_club')) || {}).id === 'klappas_club') return 'the club card is up after its Got it';
+    const emptied = { ...atClub, weapon: null, carried: { ...atClub.carried, practice_club: 1 } };
+    if ((say(R(emptied)) || {}).id !== 'klappas_club') return 'the club card left when the hero took the club off to reforge it';
+    const forged = { ...atClub, weapon: null, carried: { ...atClub.carried, klappas_club: 1 } };
+    const kb = say(R(forged));
+    if (!kb || kb.id !== 'klappas_club' || kb.anchor !== 'inventory' || !kb.text.includes('Equip') || !kb.hooks.some((h) => h.includes('.hw-pick[data-item="klappas_club"]'))) return 'reforged and empty-handed, the card reads ' + JSON.stringify(kb && { id: kb.id, text: kb.text, anchor: kb.anchor });
+    if ((say(R({ ...atClub, weapon: 'klappas_club' })) || {}).id === 'klappas_club') return 'the club card is up with the club in hand';
+    if ((say(R({ ...atClub, levelXp: M.xp.charXpForLevel(16), charLevel: 16 })) || {}).id === 'klappas_club') return 'the club card is up past the first day\'s grounds';
     /* What next names the rung and how it is made, for every role, below its Level (the line that said "Level 12: Grayjaw's Ruff") */
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
       const g = M.tut.nextGoal({ charLevel: cloak.reqLv - 1, role, skillLevel: 5, defenseXp: 9, land: null, inParty: false });
@@ -914,6 +932,17 @@ const cases = {
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, { huntId: 'mosslight_glade' })) || {}).id === 'purse_goal') return 'the gold card came up in a hunt';
     if ((say(rich(10, 15000)) || {}).id !== 'purse_goal') return 'at Level 10 with 15,000 gp the House\'s own card stands ahead of the gold card: ' + (say(rich(10, 15000)) || {}).id;
     if ((say(rich(10, 15000, {}, 'purse_goal')) || {}).id !== 'home') return 'past the gold card at Level 10 the card is ' + (say(rich(10, 15000, {}, 'purse_goal')) || {}).id;
+    /* KLAPPA'S CLUB, THEN GOLD (walk-through 11-03: a club hero at Level 5 with the next hero's price): one card at a time, the club's first, and the gold waits while its hands are empty
+       mid-job; a sword hero goes straight to the gold; a second hero keeps the club, its own state, and skips the gold, a read another hero has had */
+    const clubRich = { ...atClub, gold: 15000, slotCost: 15000, slotsOwned: 2, home: { owned: false, next: DEED }, chest: CHEST };
+    if ((say(R(clubRich)) || {}).id !== 'klappas_club') return 'a rich club hero at Level 5 meets ' + (say(R(clubRich)) || {}).id + ' before the club';
+    if ((say(R({ ...clubRich, weapon: null, carried: { ...clubRich.carried, klappas_club: 1 } })) || {}).id !== 'klappas_club') return 'the gold card cut in with the hero\'s hands empty mid-reforge';
+    if ((say(R(clubRich, 'klappas_club')) || {}).id !== 'purse_goal') return 'past the club a rich hero meets ' + (say(R(clubRich, 'klappas_club')) || {}).id;
+    if ((say(R({ ...clubRich, weapon: 'klappas_club' })) || {}).id !== 'purse_goal') return 'with the club worn a rich hero meets ' + (say(R({ ...clubRich, weapon: 'klappas_club' })) || {}).id;
+    if ((say(R({ ...clubRich, weapon: 'practice_sword' })) || {}).id !== 'purse_goal') return 'a rich sword hero meets ' + (say(R({ ...clubRich, weapon: 'practice_sword' })) || {}).id;
+    const vetClub = { ...clubRich, roster: [{ slot: 0, level: kclub.reqLv, name: 'New', open: true, hunting: false }, { slot: 1, level: M.tut.KNOWN_LEVEL + 1, name: 'Old', open: false, hunting: false }], self: 0 };
+    if ((say(R(vetClub)) || {}).id !== 'klappas_club') return 'a second hero with the club meets ' + (say(R(vetClub)) || {}).id;
+    if ((say(R(vetClub, 'klappas_club')) || {}).id === 'purse_goal') return 'a second hero is told what gold buys again';
     /* A CARD THAT ASKS NEVER WALLS: Hunt together (optimizer panel 11-03: "Next: Hunt together" for two days over a woodcutting alt) finishes on its Got it, and what is behind it comes */
     const walled = { ...rich(M.tut.ROLL_LEVEL, 15000), roster: [{ slot: 0, level: 16, name: 'A', open: true, hunting: false }, { slot: 1, level: 1, name: 'Bree', open: true, hunting: false }], self: 0 };
     if ((say(walled) || {}).id !== 'party_own') return 'the Hunt together setup put up ' + (say(walled) || {}).id;
@@ -1541,6 +1570,8 @@ const mutants = [
     edits: [['src/shell/launcher.js', 'ctx.wm.openIds().length > 0', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
+  { name: 'the gold card stands ahead of Klappa\'s Club', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "  step('purse_goal', 'What your gold buys',\n    'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_pays_hero' }] }),\n", ''], ['src/data/hunt-tutorial.js', "  step('klappas_club', 'Klappa\\'s Club',\n", "  step('purse_goal', 'What your gold buys',\n    'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_pays_hero' }] }),\n" + "  step('klappas_club', 'Klappa\\'s Club',\n"]] },
   { name: 'the gold card never comes', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost : null),", "false : null),"]] },
   { name: 'Hunt together walls the coach again', case: 'tutorial-reactive',
@@ -1627,6 +1658,12 @@ const mutants = [
     edits: [['src/session/tutorial-sections.js', 'armoured: eq ? wearsArmour(eq, ITEMS) : undefined,', 'armoured: eq ? true : undefined,']] },
   { name: 'the cloak card asks with any pelt', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', 'c[p.item] >= (p.n || 1)', 'c[p.item] > 0']] },
+  { name: 'the club card asks every weapon', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "f.weapon === p.item || (!f.weapon && (f.carried[p.item] > 0 || f.carried[p.made] > 0))", 'true']] },
+  { name: 'the club card leaves a hero empty-handed once the club is made', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "(!f.weapon && (f.carried[p.item] > 0 || f.carried[p.made] > 0))", "(!f.weapon && f.carried[p.item] > 0)"]] },
+  { name: 'the ring stays on the bench when the words have moved to the bag', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "...(said.anchor ? { anchor: said.anchor } : {}), ", '']] },
   { name: 'What next names the cloak but not how it is made', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', '    if (made) lines.push(made);\n', '']] },
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',

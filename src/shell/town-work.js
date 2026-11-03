@@ -202,6 +202,8 @@ export function workBlock(cs, w, huntRunning) {
       const have = inv[id] || 0;
       /* The row that says what is short says where it comes from (panel 2026-11-01: "No Silk Thread", and no word on where). */
       if (have < need) {
+        /* A worn piece is not in the bag, and the bench spends the bag's (a reforge: Klappa's Club, Steelgrate). */
+        if (Object.values(eqOf(cs)).includes(id)) return 'You're wearing your ' + itemName(id) + '. Take it off first.';
         const where = whereToGet(id);
         return (have ? 'Needs ' + whole(need) + ' ' + itemName(id) + ' (you have ' + whole(have) + ').' : 'No ' + itemName(id) + ' ' + fromWords(cs) + '.') + (where ? ' ' + where + '.' : '');
       }

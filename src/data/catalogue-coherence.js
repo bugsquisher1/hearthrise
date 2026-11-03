@@ -80,10 +80,10 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
      were deleted, and these lost every consumer they had. They still drop
      (or, for the two bars and heartgarnet, are still made or mined),
      so until the new roster gives them a job they are sold, nothing more.
-     rat_tail and small_fang are also the coach's sell-loot step (coach.js
-     COACH_LOOT). Heartgarnet's Mining node is a dead end awaiting a designer
-     ruling. Shrink this list as the roster lands. */
-  'bat_wing', 'rune_frag', 'ruby', 'rat_tail', 'small_fang', 'night_fang', 'dark_sigil',
+     rat_tail is also the coach's sell-loot step (coach.js COACH_LOOT).
+     Heartgarnet's Mining node is a dead end awaiting a designer ruling.
+     Shrink this list as the roster lands. */
+  'bat_wing', 'rune_frag', 'ruby', 'rat_tail', 'night_fang', 'dark_sigil',
   'venom_sac', 'spider_eye', 'brute_plate', 'dire_fang', 'alpha_fang', 'plague_ichor',
   'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal',
   'shadow_pelt', 'death_steel', 'hollow_sigil', 'abyssal_pearl', 'gold_bar', 'verdite_bar',

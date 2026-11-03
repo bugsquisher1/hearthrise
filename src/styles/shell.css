@@ -340,7 +340,7 @@
      (tests/phone-touch.mjs PH-6). */
   .hs-pointer:not(.is-min), .hs-pointer.has-close:not(.is-min), .hs-win-coach > .hs-pointer:not(.is-min), .hs-win-coach > .hs-pointer.has-close:not(.is-min) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-rows: auto minmax(0, 1fr); align-items: center; padding: 0 0 4px 12px; }
   .hs-pointer:not(.is-min) > b { grid-area: 1 / 1; line-height: 1.2; }
-  .hs-pointer:not(.is-min) > .hs-coach-got { grid-area: 1 / 2; margin: 0; min-height: 40px; padding: 0 8px; }
+  .hs-pointer:not(.is-min) > .hs-coach-got, .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-got { grid-area: 1 / 2; margin: 0; min-height: 40px; padding: 0 8px; }
   .hs-pointer:not(.is-min) > .hs-coach-min { position: static; grid-area: 1 / 3; width: 40px; height: 40px; }
   .hs-pointer:not(.is-min) > .hs-coach-close { position: static; grid-area: 1 / 4; width: 40px; height: 40px; }
   /* Got it and the cross would say the same thing: one press for it, and the row's room for the title. */
@@ -360,16 +360,16 @@
   .hs-pointer:not(.is-min) > .hs-coach-text::after { content: ''; display: block; height: 1lh; margin: -1lh -14px 0 0; background: var(--bg-2); }
   /* A CARD ABOUT A SHEET STANDS BESIDE THE SHEET (phone panel v0.2.83: inside it, it took 60 px of the 166 a ground's page had,
      and cut its own words at a line and a half): where the town's card stands, in the World's half, so the sheet keeps its whole
-     height and the words their room. Its left is the sheet's own (min(400px, 48vw) wide, 8 px off the screen's right, its 12 px
-     spine outside this box) brought back to 8 px; its top clears the place's name in town and the hunt bar in a hunt. A
-     full-screen window (Configure action) has no World beside it: its card stays in it. */
+     height and the words their room, and the card does not jump when a sheet opens. Its left is the sheet's own (min(400px, 48vw)
+     wide, 8 px off the screen's right, its 12 px spine outside this box) brought back to 8 px; its top clears the place's name
+     in town and the hunt bar in a hunt. A full-screen window (Configure action) has no World beside it: its card stays in it. */
   .hs-win-coach > .hs-pointer.is-line { gap: 0; white-space: normal; }
   .hs-win-coach > .hs-pointer.is-line > .hs-coach-text { overflow-y: auto; text-overflow: clip; }
   .hs-coach-more { display: none; }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
   .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh / 3 - 100px, 1lh) + .5lh); }
-  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 48px; left: calc(min(400px, 48vw) + 5px - 100vw); }
-  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) { width: min(340px, calc(100vw - min(400px, 48vw) - 32px)); max-height: calc(100vh - 200px); }
+  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 50px; left: calc(min(400px, 48vw) + 5px - 100vw); }
+  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) { width: min(340px, calc(50vw - 56px)); max-height: calc(100vh - 200px); }
   .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh - 256px - .5lh, 1lh) + .5lh); }
   #panel-world[data-scene="hunt"] .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { top: 64px; }
   #panel-world[data-scene="hunt"] .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) { max-height: calc(100vh - 216px); }
@@ -398,10 +398,10 @@
     border-width: 0 0 0 12px;
     border-image: url('../../assets/ui/steel-frame.png') 6 / 0 0 0 12px stretch;
   }
-  /* A SHEET IS FULL HEIGHT IN TOWN TOO: up over the place's row (the 44 px Town and Home, its 4 px gap) to the icon row, as it
-     stands in a hunt, where that row is gone. It cost every sheet 48 px of a 340 px screen. The stage's clip lets it out while
-     it is open (the panel's own clip still holds the page from panning). */
-  #panel-world:not([data-scene="hunt"]) .hs-win:not(.is-modal) { top: calc(-1 * (var(--tap) + 4px)); }
+  /* A SHEET IS FULL HEIGHT IN TOWN TOO: up over the place's row (the 44 px Town and Home, the panel's 2 px, its 4 px gap) to the
+     icon row, as it stands in a hunt, where that row is gone. It cost every sheet 50 px of a 340 px screen. The stage's clip lets
+     it out while it is open (the panel's own clip still holds the page from panning). */
+  #panel-world:not([data-scene="hunt"]) .hs-win:not(.is-modal) { top: calc(-1 * (var(--tap) + 6px)); }
   #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal)) .world-stage { overflow: visible; }
   .hs-win.is-modal {
     top: 50%; bottom: auto; left: 50%; right: auto;

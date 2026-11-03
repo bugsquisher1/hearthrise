@@ -147,8 +147,7 @@ export const MONSTER_CLASS_ORDER = Object.freeze(
    HERE, once, with the reason. */
 export const TIER_BANDS = Object.freeze({
   1: { hp: [8, 16],    atk: [2, 5],    def: [0, 2],   xp: [5, 14],     gpLo: [1, 3],     gpHi: [3, 9] },
-  /* tier 2's atk to 15: Tyler's harder Glade (2026-11-02, option A: the Glade's six at x1.25) */
-  2: { hp: [24, 35],   atk: [7, 15],   def: [1, 4],   xp: [24, 55],    gpLo: [4, 10],    gpHi: [12, 25] },
+  2: { hp: [24, 35],   atk: [7, 12],   def: [1, 4],   xp: [24, 55],    gpLo: [4, 10],    gpHi: [12, 25] },
   3: { hp: [52, 78],   atk: [14, 24],  def: [5, 12],  xp: [82, 135],   gpLo: [14, 24],   gpHi: [34, 60] },
   4: { hp: [100, 165], atk: [26, 40],  def: [13, 22], xp: [210, 340],  gpLo: [38, 60],   gpHi: [82, 140] },
   5: { hp: [190, 260], atk: [48, 72],  def: [22, 40], xp: [475, 680],  gpLo: [90, 145],  gpHi: [190, 310] },

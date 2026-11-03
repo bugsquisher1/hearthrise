@@ -21,7 +21,7 @@
 //                  against as built, and a fresh one who cannot hold them (it dips, and its food bill eats the gain).
 //   level-gap      under a floor the XP stays and the gold goes, and a watched hunt and a closed browser walk the same swings.
 //   vs-alone       the Party window's measured line against a full mix on two grounds.
-//   glade-harder   Tyler's harder monsters, both paths: felt at the floor, no death, profit, pace, the top eases, a held pull pays.
+//   glade-harder   Tyler's harder monsters (accuracy 0.80), both paths: felt at the floor, no death, profit, pace, the top eases, a held pull pays.
 //   before-bonuses the analyzer's "before bonuses" is the even share, not what was paid.
 //   THE BARS (per hero): no death; coin + commons at least +25% over the store bill (Tyler 10-20, a minimum); Level XP
 //   an hour at least half the pace of record at that Level (level-pace.json: a way to fight that cannot clear the ground
@@ -177,13 +177,13 @@ cases['vs-alone'] = (R) => {
   return null;
 };
 
-/* HARDER MONSTERS (Tyler 2026-11-02, option A), BOTH PATHS. The Glade's floor is felt by melee, nobody dies, the hunt still pays its +25%, XP holds the pace, the top of its band
+/* HARDER MONSTERS (Tyler 2026-11-02: the Glade's accuracy 0.80 at its own attack), BOTH PATHS. The Glade's floor is felt by melee, nobody dies, the hunt still pays its +25%, XP holds the pace, the top of its band
    is easy again, a pull still pays once held, and a watched hunt (10 s settles) and a closed browser (10 min) walk the same swings. */
 cases['glade-harder'] = (R) => {
   const play = (s, level, o) => R.runCell({ id: 'gh:' + s + ':' + level + ':' + JSON.stringify(o || {}), ground: 'mosslight_glade', party: [s], level, hours: 1, seeds: 1, ...(o || {}) }).heroes[0];
   for (const s of ['tank', 'hammer']) {
     const h = play(s, 16);
-    if (!(h.encMinHpPct.p50 < 90)) return s + ' at the floor: typical ' + h.encMinHpPct.p50 + '% (today it read 94%): the hero should feel it';
+    if (!(h.encMinHpPct.p50 < 92)) return s + ' at the floor: typical ' + h.encMinHpPct.p50 + '% (it read 94% before the harder Glade, 88-89% after): the hero should feel it';
     if (!(h.encMinHpPct.p50 >= 60)) return s + ' at the floor: typical ' + h.encMinHpPct.p50 + '%, under Normal';
   }
   for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) {
@@ -200,9 +200,9 @@ cases['glade-harder'] = (R) => {
   return null;
 };
 
-const GLADE_SOFT = [['hp: 30, atk: 13, baseAcc: 0.8, def: 1, xp: 165', 'hp: 30, atk: 2, def: 1, xp: 165'], ['hp: 32, atk: 15, baseAcc: 0.8, def: 2, xp: 225', 'hp: 32, atk: 2, def: 2, xp: 225'],
-  ['hp: 35, atk: 11, baseAcc: 0.8, def: 4, xp: 260', 'hp: 35, atk: 2, def: 4, xp: 260'], ['hp: 70, atk: 23, baseAcc: 0.8, def: 10, xp: 360', 'hp: 70, atk: 2, def: 10, xp: 360'],
-  ['hp: 78, atk: 23, baseAcc: 0.8, def: 11, xp: 520', 'hp: 78, atk: 2, def: 11, xp: 520'], ['hp: 74, atk: 23, baseAcc: 0.8, def: 8, xp: 420', 'hp: 74, atk: 2, def: 8, xp: 420']].map(([a, b]) => ['src/data/monsters.js', a, b]);
+const GLADE_SOFT = [['hp: 30, atk: 10, baseAcc: 0.8, def: 1, xp: 165', 'hp: 30, atk: 2, def: 1, xp: 165'], ['hp: 32, atk: 12, baseAcc: 0.8, def: 2, xp: 225', 'hp: 32, atk: 2, def: 2, xp: 225'],
+  ['hp: 35, atk: 9, baseAcc: 0.8, def: 4, xp: 260', 'hp: 35, atk: 2, def: 4, xp: 260'], ['hp: 70, atk: 18, baseAcc: 0.8, def: 10, xp: 360', 'hp: 70, atk: 2, def: 10, xp: 360'],
+  ['hp: 78, atk: 18, baseAcc: 0.8, def: 11, xp: 520', 'hp: 78, atk: 2, def: 11, xp: 520'], ['hp: 74, atk: 18, baseAcc: 0.8, def: 8, xp: 420', 'hp: 74, atk: 2, def: 8, xp: 420']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',

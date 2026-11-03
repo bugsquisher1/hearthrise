@@ -245,9 +245,10 @@ jobs:
   # RE-MEASURED 2026-11-01, run 41332990107 (client boot --mutate now 35 mutants, B-17 and B-18 in): setup 0.6 + node suite
   # 5.0 + client boot 17.2 = 22.8 min green; a slower runner hit the old 30 on main's v0.2.80 run (41327721118, cancelled).
   # x2 = 46, 50 for the apt stall's room.
+  # RE-MEASURED 2026-11-03, run 41688819367 (cancelled at 50, no red): setup 7 (apt stall) + node suite 9 + client boot --mutate about 48 (61 mutants; B-19's reload mutants cost 25 of it) = about 64 when the harness moved. 80: only a diff that touches client-boot pays this.
   in-page:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 80
 
     steps:
       - uses: actions/checkout@v4

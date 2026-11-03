@@ -356,7 +356,7 @@ async function checks(overrides, shots) {
           if (!inView) fails.push('TW-13 Pick a weight did not bring the picker into view');
         }
         if (sent(s, 'hr_tally_accept').length) fails.push('TW-13 a task was taken before a press');
-        const task = await page.evaluate(() => document.querySelector('[data-hs-win="tally"] [data-hs-act="take"]:not([disabled])').getAttribute('data-task'));
+        const task = await page.evaluate(() => document.querySelector('[data-hs-win="tally"] [data-hs-act="take"]:not([disabled])')?.getAttribute('data-task') || 'none open');
         await page.click('[data-hs-win="tally"] [data-hs-act="take"][data-task="' + task + '"]', { timeout: 3000 }).catch(() => fails.push('TW-13 the first Take is not pressable'));
         await page.waitForTimeout(200);
         const tk = sent(s, 'hr_tally_accept');

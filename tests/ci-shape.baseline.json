@@ -168,6 +168,8 @@
     "node tools/mutant-gate.mjs node tests/artisan-tick.mjs --mutate": "db-replay-5",
     "node tests/db-retention.mjs": "db-replay-5",
     "node tools/mutant-gate.mjs node tests/db-retention.mjs --mutate": "db-replay-5",
+    "node tests/alert-relay.mjs": "db-replay-5",
+    "node tools/mutant-gate.mjs node tests/alert-relay.mjs --mutate": "db-replay-5",
     "node tests/world-tick-hydration.mjs": "db-replay-5",
     "node tools/mutant-gate.mjs node tests/world-tick-hydration.mjs --mutate": "db-replay-5",
     "node tests/world-tick-stall-after-repoint.mjs": "db-replay-5",

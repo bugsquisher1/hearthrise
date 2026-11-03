@@ -5,7 +5,7 @@
 //   node tests/pg-net-queue-unreachable.mjs            the guard (no DB, no credential, no network)
 //   node tests/pg-net-queue-unreachable.mjs --list     every statement it looked at, and its verdict
 //   node tests/pg-net-queue-unreachable.mjs --selftest plant the defects, require each caught
-//   node tests/pg-net-queue-unreachable.mjs --live     the external probe (Coordinator; anon key only)
+//   node tests/pg-net-queue-unreachable.mjs --live     the external probe (Coordinator; publishable key only)
 //
 // ── WHY THIS EXISTS (T-5, docs/planning/SEC_WORLD_TICK_M1_2026-09-21.md) ─────
 // The world-tick driver `hr_tick_cron_run` POSTs to hr-accrue through
@@ -629,13 +629,13 @@ async function sources() {
   return { migrations, configToml, order, notes };
 }
 
-// ── --live: the external probe, anon key only ───────────────────────────────
-const ANON_RE = /anonKey:\s*'([^']+)'/;
+// ── --live: the external probe, publishable key only ───────────────────────────────
+const KEY_RE = /publishableKey:\s*'([^']+)'/;
 
 async function live() {
   const boot = await readFile(path.join(ROOT, 'src', 'net', 'supabase-bootstrap.js'), 'utf8');
-  const key = ANON_RE.exec(boot)?.[1];
-  if (!key) throw new Harness('no anon key in src/net/supabase-bootstrap.js — the probe cannot authenticate');
+  const key = KEY_RE.exec(boot)?.[1];
+  if (!key) throw new Harness('no publishable key in src/net/supabase-bootstrap.js — the probe cannot authenticate');
   let bad = 0;
   for (const t of QUEUE_TABLES) {
     const url = `${PROJECT_URL}/rest/v1/${t}?select=id&limit=1`;

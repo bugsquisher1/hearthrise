@@ -92,6 +92,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { RING_WORDS, RING_WORDS_WIDEST } from './_bar-probes.mjs';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -1519,7 +1520,10 @@ async function main() {
     process.exit(fails.length ? 1 : 0);
   }
   /* --mutate --only PH-n: that rule's own mutants over its own pages (the gate runs them all). */
-  const planted = oi > 0 ? MUTANTS.filter(([name]) => name.split(' ')[0] === process.argv[oi + 1]) : MUTANTS;
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const MINE = scopedMutants('tests/phone-touch.mjs', MUTANTS);
+  if (!MINE.length) process.exit(0);
+  const planted = oi > 0 ? MINE.filter(([name]) => name.split(' ')[0] === process.argv[oi + 1]) : MINE;
   const clean = await rules(null, null, { blocks });
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');

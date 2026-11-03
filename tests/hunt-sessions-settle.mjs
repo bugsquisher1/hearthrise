@@ -4130,13 +4130,31 @@ const SQL_MUTANTS = [
    fixture rolls the same swings on every run and every mutant. */
 async function pinDice(db) {
   await db.query(`update public.hr_server_secrets set secret = sha256(convert_to('hunt-sessions-settle:fixed-prng:2', 'utf8')) where name = 'prng'`);
+  /* THE CANARY: a body planned on the built-ins BEFORE the pin, read the way hr_hunt_settle_session reads its fold bound. */
   await db.exec(`create sequence if not exists public.hr_test_uuid_seq;
-    create or replace function pg_catalog.gen_random_uuid() returns uuid language sql volatile as
+    create function pg_temp.hr_pin_canary() returns jsonb language plpgsql as
+      $f$ declare v_at timestamptz := now(); v_id uuid := gen_random_uuid(); begin return jsonb_build_object('at', v_at, 'id', v_id); end $f$;`);
+  const [seq] = await q(db, 'select last_value::text as v, is_called as c from public.hr_test_uuid_seq');
+  await db.query('select pg_temp.hr_pin_canary()');
+  await db.exec(`create or replace function pg_catalog.gen_random_uuid() returns uuid language sql volatile as
       $f$ select ('00000000-0000-4000-8000-' || lpad(to_hex(nextval('public.hr_test_uuid_seq')), 12, '0'))::uuid $f$;
     /* AN ARM CAN PIN THE SERVER CLOCK (hr.test_now, one transaction); unpinned, now() is what it always is. Installed once,
        here and not in the arm: a plan inlines a built-in's body and a rollback does not invalidate that plan. */
     create or replace function pg_catalog.now() returns timestamptz language sql stable as
       $f$ select coalesce(nullif(current_setting('hr.test_now', true), '')::timestamptz, transaction_timestamp()) $f$;`);
+  /* ...AND THE PIN MUST REACH EVERY PLAN (rehearsal 41600804145; tests/core-loop.mjs found the same cause 10-22). A COLD boot is the
+     backend that applied the chain: its §4 self-checks already planned the settle on the built-ins, and the plan cache tracks no
+     dependency on a built-in. BOTH-PATH-MIDNIGHT's settle then took its fold bound from the REAL now() - 25 h, past its pinned death
+     row since 11-01 00:01 UTC: `end_not_proven`, on a cold boot only. Drop every cached plan; the canary proves it, on any boot. */
+  await db.exec('discard plans');
+  await db.query(`select set_config('hr.test_now', '2000-01-01T00:00:00Z', false)`);
+  const canary = await one(db, 'select pg_temp.hr_pin_canary()');
+  await db.query(`select set_config('hr.test_now', '', false)`);
+  await db.query(`select setval('public.hr_test_uuid_seq', $1::bigint, $2::boolean)`, [seq.v, seq.c]);
+  await db.exec('drop function pg_temp.hr_pin_canary()');
+  if (Date.parse(canary.at) !== Date.UTC(2000, 0, 1) || !String(canary.id).startsWith('00000000-0000-4000-8000-')) {
+    throw new Error(`harness: the pinned clock and dice never reached a body planned before them: ${JSON.stringify(canary)}`);
+  }
 }
 const rewindDice = (db) => db.query(`select setval('public.hr_test_uuid_seq', 1000, false)`);
 function e2harness(msg) { return /patch anchor matched|produced identical SQL|did not land verbatim/.test(msg); }

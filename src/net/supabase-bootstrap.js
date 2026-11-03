@@ -1,9 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/net/supabase-bootstrap.js — THE PROJECT, AND THE ONE CLIENT FOR IT.
 //
-// The production project URL and its PUBLIC anon key (designed to be shipped:
-// it grants only what Row-Level Security allows). The service-role key is never
-// in this repo (CLAUDE.md §2).
+// The production project URL and its PUBLISHABLE key (designed to be shipped: it
+// grants only what Row-Level Security allows). No secret key, and no legacy JWT
+// key, is ever in this repo (CLAUDE.md §2; tests/legacy-keys.mjs).
 //
 // createSupabaseClient builds the supabase-js client the account session uses
 // for auth and the push channel. Its session lives in the storage the caller
@@ -16,7 +16,7 @@ import { createAuthLock } from './auth-lock.js?v=0.2.82';
 
 export const SUPABASE_CONFIG = Object.freeze({
   url: 'https://nezapsylztqbbwuwembx.supabase.co',
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lemFwc3lsenRxYmJ3dXdlbWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzM0NzYsImV4cCI6MjA5MzQwOTQ3Nn0.pd7ZT9M7dd8CtyQPLafCNib9m3S6BSVLRCfvZgql1MM',
+  publishableKey: 'sb_publishable_0nx0mXKTfnU01UM4ZESflQ_RjYBEUU9',
   /* The database is in us-west-2. An Edge Function left to the nearest region runs a coast away
      from it and pays that distance on every sequential query of a settle (p50 4 s vs 1 s, 2026-10-20). */
   functionRegion: 'us-west-2',
@@ -55,7 +55,7 @@ export function authLockFor(win, store, storageKey) {
  */
 export function createSupabaseClient(sdk, store, storageKey, lock, cfg = SUPABASE_CONFIG) {
   if (!sdk || typeof sdk.createClient !== 'function') throw new Error('supabase-js did not load');
-  return sdk.createClient(cfg.url, cfg.anonKey, {
+  return sdk.createClient(cfg.url, cfg.publishableKey, {
     auth: { storage: storageAdapter(store), storageKey, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, lock },
   });
 }

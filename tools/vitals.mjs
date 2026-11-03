@@ -404,6 +404,14 @@ const STALL_RULE_TEXT = `STALL = tick in SHADOW mode and EACH of the last ${STAL
 // it to supabase_read_only_user, which is who this endpoint runs as. Before that
 // file is applied the call fails and the line says so.
 const SLOT_HEALTH = 'select public.hr_slot_health() as h';
+const ALERT_RELAY = `select exists (select 1 from vault.secrets where name = 'hr_alert_discord_webhook') as hook,
+    exists (select 1 from vault.secrets where name = 'hr_alert_deadman_url') as deadman,
+    (select count(*) from public.maintenance_alerts where severity = 'critical' and acked_at is null) as open_critical,
+    (select count(*) from public.maintenance_alerts a, hr_ops.alert_relay_state s
+      where a.id > s.cursor_id and a.severity = 'critical' and a.acked_at is null) as waiting,
+    (select coalesce(jsonb_agg(code), '[]'::jsonb) from hr_ops.watch_state where alert_ref is not null) as firing,
+    (select max(at) from hr_ops.alert_relay_posts) as last_post,
+    (select status from hr_ops.alert_relay_posts order by id desc limit 1) as last_status`;
 /* CLOSED MODE'S PRE-REQUEST HOOK (closedGateVerdict). A missing flag row reads
    CLOSED, exactly as hr_admitted reads it. */
 const CLOSED_GATE = `
@@ -875,10 +883,19 @@ if (selftestMode) {
       const h = (await ask(SLOT_HEALTH, { soft: true }))[0]?.h || {};
       const codes = (h.alarms || []).map((a) => `${a.code}(${a.severity})`).join(' ');
       console.log(`realtime slots: ${h.ok ? 'OK' : `ALARM ${codes}`} — pgoutput ${h.pgoutput_slots}/${h.slots} slot(s), `
-        + `min safe ${h.min_safe_mb ?? '?'} MB (line 384)`);
+        + `min safe ${h.min_safe_mb ?? '?'} MB (line 384)${h.idle ? ', idle: nobody online' : ''}`);
     } catch (e) {
       console.log(`realtime slots: UNREAD — hr_slot_health() not callable (${e.message}); `
         + 'is 2026-10-07-frame-emit-online-only.sql applied?');
+    }
+    // WHO HEARS IT (2027-02-22-alert-relay.sql): names and counts only, never a Vault value.
+    try {
+      const a = (await ask(ALERT_RELAY, { soft: true }))[0] || {};
+      const firing = (a.firing || []).join(' ') || 'nothing firing';
+      console.log(`alert relay: ${a.hook ? 'webhook set' : 'NO WEBHOOK (Vault hr_alert_discord_webhook, Tyler)'}, ${a.deadman ? 'dead-man set' : 'NO DEAD-MAN (Vault hr_alert_deadman_url, Tyler)'} — `
+        + `${a.open_critical} open critical, ${a.waiting} waiting, ${firing}; last post ${a.last_post ?? 'never'} (status ${a.last_status ?? '-'})`);
+    } catch (e) {
+      console.log(`alert relay: UNREAD — ${e.message}; is 2027-02-22-alert-relay.sql applied?`);
     }
   }
 }

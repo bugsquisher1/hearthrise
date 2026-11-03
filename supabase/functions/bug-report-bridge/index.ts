@@ -33,6 +33,7 @@
 // The metered body read and the escaped/capped staff embed live in bounds.js
 // (plain JS, so tests/bug-report-bridge-bounds.mjs drives the shipped bytes).
 import { MAX_BODY_BYTES, readBodyBytes, buildEmbed } from './bounds.js';
+import { projectApiKey } from './api-key.js';
 
 const MAX_IMAGE_BYTES = 1_500_000;
 const MAX_SUMMARY = 200;
@@ -197,14 +198,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
   state = { ...state, hasScreenshot: !!shot };
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+  const apiKey = projectApiKey((name) => Deno.env.get(name));
   let rpc: Record<string, unknown>;
   try {
     const res = await fetch(`${supabaseUrl}/rest/v1/rpc/bug_report_submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': anonKey,
+        'apikey': apiKey,
         'Authorization': authHeader,
       },
       body: JSON.stringify({

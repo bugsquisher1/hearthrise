@@ -289,6 +289,13 @@ export class AccountSession {
     if (ans && ans.closed && !this.closedGame) { this.closedGame = true; this._emit('closed-game'); }
   }
 
+  /** One more look at the door (the closed notice's Check again: admission takes effect at once on the server). Moves nothing.
+      'in' | 'closed' | 'unanswered': the server's word, and a failed read is not a no. */
+  async admission() {
+    const ans = await this.server.rpc('hr_load', { p_slot: 0 });
+    return ans.closed ? 'closed' : ans.ok ? 'in' : 'unanswered';
+  }
+
   /** [{ slot, exists, unnamed, name, level }] for every slot this account owns. `unnamed`: the server
       holds a character there that may not enter the world until it is named (hr_load needs_name).
       Slot 0's read names the owned slots; the others are then read AT ONCE, so the screen waits two

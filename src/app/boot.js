@@ -23,7 +23,8 @@
 // instead. A fresh tab, a sign-in and a sign-out start at the characters screen.
 //
 // THE CLOSED GAME: the server refuses a non-allowlisted account (403
-// hr_closed); the first such answer replaces everything with the closed notice.
+// hr_closed); the first such answer replaces everything with the closed notice
+// (src/app/closed-notice.js: their account id to pass on, and Check again).
 //
 // A NEW RELEASE (src/app/new-version.js): every screen, signed in or not, asks
 // which build the site serves; a different one raises one reload banner. An
@@ -45,6 +46,7 @@ import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.82';
 import { mountWorldPane } from './world-pane.js?v=0.2.82';
 import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.82';
 import { renderHeroCreate } from './hero-create.js?v=0.2.82';
+import { renderClosedNotice } from './closed-notice.js?v=0.2.82';
 import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.82';
 import { createAlertCenter } from '../shell/alerts.js?v=0.2.82';
 import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.82';
@@ -136,12 +138,8 @@ function startApp(win) {
     clear();
     obs.screen('closed');
     root.className = 'app is-auth';
-    root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card">'
-      + '<h1 class="auth-title">Playtest</h1>'
-      + '<p class="auth-lead">Hearthrise is a new game in development. Follow Discord for the first playtest.</p>'
-      + '<p class="auth-lead">Your account is not on the list for this test. Discord gets the date first.</p>'
-      + '<p class="auth-links"><a class="auth-link" href="' + DISCORD + '" rel="noopener">Join the Discord</a>'
-      + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';
+    const a = account;
+    renderClosedNotice(root, { id: auth.userId(), discord: DISCORD, win, admission: () => a.admission() });
   }
 
   /* The session ended under the game: close everything, then say so on the sign-in screen. */
@@ -180,7 +178,7 @@ function startApp(win) {
     import('../world/prewarm.js?v=0.2.82').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
     /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that */
     const tokenForCall = async () => { const t = await auth.freshToken(); timing.sending(); return t; };
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: tokenForCall, renew: auth.renewToken, watch: connection,
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, publishableKey: SUPABASE_CONFIG.publishableKey, token: tokenForCall, renew: auth.renewToken, watch: connection,
       stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });

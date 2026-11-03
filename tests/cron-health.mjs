@@ -345,15 +345,16 @@ async function probe(db, plant) {
      useless: "a huge scale raises no alert on a healthy database" passes
      identically whether the clamp exists or not, because nothing was going to
      alert anyway. So the probe first makes a REAL fuse fire — an impossible
-     previous sample (a database of MINUS 200 MB yesterday) puts today's 24h
-     growth over the 150 MB critical line — and then asks for a scale of a
-     million. Clamped, the alert still fires. Unclamped, the fuse moves to 150 PB
+     previous sample (a database of MINUS 2 GB yesterday) puts today's 24h
+     growth over the critical line (1.5 GB since 2027-02-22-alert-relay.sql, 150 MB
+     in this file's own mutant replays) — and then asks for a scale of a
+     million. Clamped, the alert still fires. Unclamped, the fuse moves to 1.5 EB
      and the alarm silently disappears, which is exactly what an off switch
      looks like. */
   await clear();
   await q('delete from public.hr_db_samples');
   await q(`insert into public.hr_db_samples (at, db_bytes, max_conns, used_conns, tables, jobs)
-           values (now() - interval '25 hours', -200000000, 60, 1, '{}'::jsonb, '{}'::jsonb)`);
+           values (now() - interval '25 hours', -2000000000, 60, 1, '{}'::jsonb, '{}'::jsonb)`);
   await scaled(1000000);
   obs.h3_growth = await alerts('db-growth:%');
   /* …and it is still the SAME detector at scale 1: no size alert on a 16 MB

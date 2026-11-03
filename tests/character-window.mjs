@@ -43,6 +43,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
@@ -415,16 +416,19 @@ async function main() {
       : 'character-window: rows match the server; stats only from the server section; nothing that does not exist is drawn; one sheet ask per version; outfit save is one intent; the death log is the server\'s; skills split with named unlocks' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const MINE = scopedMutants('tests/character-window.mjs', MUTANTS);
+  if (!MINE.length) process.exit(0);
   const clean = await cleanControl(() => checks(null, null));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   const counts = { caught: 0, harness: 0, escaped: 0 };
-  for (const [name, file, from, to] of MUTANTS) {
+  for (const [name, file, from, to] of MINE) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, null)), counts));
   }
-  console.log(exitOf(counts) ? 'character-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'character-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  console.log(exitOf(counts) ? 'character-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'character-window --mutate: ' + MINE.length + '/' + MINE.length + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));
 }
 

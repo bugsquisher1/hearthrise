@@ -385,28 +385,6 @@ async function pure() {
   /* Two copper rings fill both ring slots; the one-line preview names the change. */
   const rings = plan({ weapon: 'bronze_sword' }, [['copper_ring', 2]]);
   if (ops(rings) !== '{"ring1":"copper_ring","ring2":"copper_ring"}' || upgradeWords(rings) !== 'Wear Copper Ring ×2 (+1 Melee accuracy each).') fails.push('AW-21 two rings: ' + ops(rings) + ' / ' + upgradeWords(rings));
-  /* THE WEAPON, SAME FAMILY ONLY (designer 2026-11-03; blind panel: a sword hero wore the Practice Sword for 19 hunted hours over eight Iron Swords). A better one of its family goes on, the
-     shield stays where it is, and the style and role never move: another family, another grip, empty hands and the off-hand are the player's choice. */
-  const hands = plan({ weapon: 'bronze_sword' }, [['practice_shield'], ['ironbound_shield']], { melee: { level: 99 }, defense: { level: 99 } }, 30);
-  if (Object.keys(hands.ops).length) fails.push('AW-21 Equip upgrades would put a shield on: ' + ops(hands));
-  const tank = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['iron_sword', 8]], lv1, 15);
-  if (ops(tank) !== '{"weapon":"iron_sword"}' || upgradeWords(tank) !== 'Wear Iron Sword (+3 Melee accuracy).') fails.push('AW-21 a sword-and-shield hero with Iron Swords at Level 15 reads ' + ops(tank) + ' / ' + upgradeWords(tank));
-  if (Object.keys(plan({ weapon: 'practice_sword' }, [['iron_sword']], lv1, 14).ops).length) fails.push('AW-21 an Iron Sword goes on under its Level');
-  const steelOverIron = plan({ weapon: 'practice_sword' }, [['iron_sword'], ['steel_sword']], lv1, 30);
-  if (ops(steelOverIron) !== '{"weapon":"steel_sword"}') fails.push('AW-21 of two better swords it would put on ' + ops(steelOverIron));
-  const LADDER = (await imp('src/data/style-gear.js')).STYLE_LADDER;
-  for (const [family, row] of Object.entries(LADDER)) {
-    if (family === 'spellbook') continue;
-    const got = plan({ weapon: row.practice }, [[row.rungs[0]]], lv1, 15);
-    if (ops(got) !== JSON.stringify({ weapon: row.rungs[0] })) fails.push('AW-21 the ' + family + ' ladder: Level 15 with ' + row.rungs[0] + ' would put on ' + ops(got));
-  }
-  /* Never another style, whatever it is worth: [worn, better in the bag], each a different family or grip */
-  for (const [wornW, other] of [['practice_sword', 'iron_warhammer'], ['practice_sword', 'iron_hatchets'], ['practice_sword', 'longbow'], ['practice_sword', 'oak_wand'], ['practice_club', 'iron_hatchets'],
-    ['practice_bow', 'oak_crossbow'], ['practice_crossbow', 'longbow'], ['practice_wand', 'oak_staff'], ['practice_staff', 'oak_wand']]) {
-    const got = plan({ weapon: wornW }, [[other]], lv1, 15);
-    if ('weapon' in got.ops) fails.push('AW-21 Equip upgrades would change the style: ' + wornW + ' to ' + got.ops.weapon);
-  }
-  if (Object.keys(plan({}, [['iron_sword']], lv1, 15).ops).length) fails.push('AW-21 Equip upgrades would put a weapon in empty hands');
   /* A worn piece is never traded away: the plate Bronze Belt (more Defense) never replaces a worn Leather Belt (its critical chance). */
   const worn = plan({ weapon: 'bronze_sword', belt: 'leather_belt' }, [['bronze_belt']]);
   if ('belt' in worn.ops) fails.push('AW-21 Equip upgrades traded away a worn belt: ' + ops(worn));
@@ -947,6 +925,31 @@ async function planRules(base) {
     if (prepSaid(ended) !== prepWant(which)) fails.push('AW-8 Hunt prep ' + (ended ? 'in town' : 'mid-hunt') + ' reads ' + JSON.stringify(prepSaid(ended)));
   }
   const ops2 = (p) => JSON.stringify(Object.fromEntries(Object.entries(p.ops).sort(([a], [b]) => (a < b ? -1 : 1))));
+  {
+    const plan = (equipment, bag, skills = lv1, level = 5) => UP.upgradePlan({ equipment, bag: bag.map(([id, qty]) => ({ id, qty: qty || 1 })), skills, level });
+    /* THE WEAPON, SAME FAMILY ONLY (designer 2026-11-03; blind panel: a sword hero wore the Practice Sword for 19 hunted hours over eight Iron Swords). A better one of its family goes on, the
+       shield stays where it is, and the style and role never move: another family, another grip, empty hands and the off-hand are the player's choice. */
+    const hands = plan({ weapon: 'bronze_sword' }, [['practice_shield'], ['ironbound_shield']], { melee: { level: 99 }, defense: { level: 99 } }, 30);
+    if (Object.keys(hands.ops).length) fails.push('AW-21 Equip upgrades would put a shield on: ' + ops2(hands));
+    const tank = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['iron_sword', 8]], lv1, 15);
+    if (ops2(tank) !== '{"weapon":"iron_sword"}' || UP.upgradeWords(tank) !== 'Wear Iron Sword (+3 Melee accuracy).') fails.push('AW-21 a sword-and-shield hero with Iron Swords at Level 15 reads ' + ops2(tank) + ' / ' + UP.upgradeWords(tank));
+    if (Object.keys(plan({ weapon: 'practice_sword' }, [['iron_sword']], lv1, 14).ops).length) fails.push('AW-21 an Iron Sword goes on under its Level');
+    const steelOverIron = plan({ weapon: 'practice_sword' }, [['iron_sword'], ['steel_sword']], lv1, 30);
+    if (ops2(steelOverIron) !== '{"weapon":"steel_sword"}') fails.push('AW-21 of two better swords it would put on ' + ops2(steelOverIron));
+    const LADDER = (await imp('src/data/style-gear.js')).STYLE_LADDER;
+    for (const [family, row] of Object.entries(LADDER)) {
+      if (family === 'spellbook') continue;
+      const got = plan({ weapon: row.practice }, [[row.rungs[0]]], lv1, 15);
+      if (ops2(got) !== JSON.stringify({ weapon: row.rungs[0] })) fails.push('AW-21 the ' + family + ' ladder: Level 15 with ' + row.rungs[0] + ' would put on ' + ops2(got));
+    }
+    /* Never another style, whatever it is worth: [worn, better in the bag], each a different family or grip */
+    for (const [wornW, other] of [['practice_sword', 'iron_warhammer'], ['practice_sword', 'iron_hatchets'], ['practice_sword', 'longbow'], ['practice_sword', 'oak_wand'], ['practice_club', 'iron_hatchets'],
+      ['practice_bow', 'oak_crossbow'], ['practice_crossbow', 'longbow'], ['practice_wand', 'oak_staff'], ['practice_staff', 'oak_wand']]) {
+      const got = plan({ weapon: wornW }, [[other]], lv1, 15);
+      if ('weapon' in got.ops) fails.push('AW-21 Equip upgrades would change the style: ' + wornW + ' to ' + got.ops.weapon);
+    }
+    if (Object.keys(plan({}, [['iron_sword']], lv1, 15).ops).length) fails.push('AW-21 Equip upgrades would put a weapon in empty hands');
+  }
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
      heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight chosen,
      or none of that weight in the bag: the tie stands, the player's call. */
@@ -3253,7 +3256,7 @@ const MUTANTS = [
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
   ['the Shop lists supplies again', 'src/data/supply-basics.js', "export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);", "export const SHOP_SOLD_KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool', 'gear', 'seed']);"],
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
-  ['Equip upgrades puts a shield on', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['shield', 'ammo']);", "const STYLE_SLOTS = new Set(['ammo']);"],
+  ['plans: AW-21 Equip upgrades puts a shield on', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['shield', 'ammo']);", "const STYLE_SLOTS = new Set(['ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],

@@ -110,7 +110,7 @@ function gainsOf(before, after) {
 }
 
 /* A weapon that plays what the worn one plays: its family (hunt-roles.js roleWeaponOf: sword, hammer, axe, wand, staff, ranged), the same grip (a bow and a crossbow share
-   their family, and a crossbow can hold a shield), and the worn set's role unmoved. */
+   their family, and a crossbow can hold a shield), and the worn set's role unmoved. Empty hands have no family, so they stay the player's choice of style. */
 const sameHands = (id, cur, worn) => roleWeaponOf(ITEMS[id]) === roleWeaponOf(ITEMS[cur]) && !!ITEMS[id].twoHanded === !!ITEMS[cur].twoHanded
   && wornRoleKey(Object.assign({}, worn, { weapon: id }), ITEMS) === wornRoleKey(worn, ITEMS);
 
@@ -119,8 +119,6 @@ function bestFor(slot, worn, left, o) {
   const cur = worn[slot] || null;
   const curIt = cur ? ITEMS[cur] : null;
   if (curIt && unpriced(curIt)) return null;
-  /* Empty hands are a choice of style. */
-  if (slot === 'weapon' && !curIt) return null;
   const fits = [];
   for (const [id, n] of left) {
     const it = ITEMS[id];

@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-03",
- "replay_ms": 324622,
+ "replay_ms": 11209,
  "counts": {
-  "tracked_names": 718,
-  "entries": 573
+  "tracked_names": 720,
+  "entries": 575
  },
  "functions": [
   {
@@ -6436,20 +6436,22 @@
    "sig": "hr_hunt_restock(p_slot integer, p_item text, p_qty bigint, p_idem uuid)",
    "name": "hr_hunt_restock",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-21-hunt-sessions.sql"
+    "2026-10-21-hunt-sessions.sql",
+    "2027-02-21-hunt-carry-in.sql"
    ],
    "live": {
-    "md5": "c810c7afe13a1f2331a700151437dc66",
-    "norm_len": 4152,
+    "md5": "15be4b5480034aff4f132e53c9a757ee",
+    "norm_len": 5753,
     "measured": "2026-11-03",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c810c7afe13a1f2331a700151437dc66",
-    "norm_len": 4152,
+    "md5": "15be4b5480034aff4f132e53c9a757ee",
+    "norm_len": 5753,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6577,6 +6579,50 @@
    "agree": true
   },
   {
+   "sig": "hr_hunt_rune_spells()",
+   "name": "hr_hunt_rune_spells",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-21-rune-spells.generated.sql"
+   ],
+   "live": {
+    "md5": "ff2026991841700be7a431edaee942e9",
+    "norm_len": 1762,
+    "measured": "2026-11-03",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ff2026991841700be7a431edaee942e9",
+    "norm_len": 1762,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_rune_state(p_user uuid, p_slot integer, p_session uuid, p_ability text)",
+   "name": "hr_hunt_rune_state",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-21-hunt-carry-in.sql"
+   ],
+   "live": {
+    "md5": "3248ad68ef8cfe4b75695ea16b203f7d",
+    "norm_len": 1038,
+    "measured": "2026-11-03",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "3248ad68ef8cfe4b75695ea16b203f7d",
+    "norm_len": 1038,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_hunt_saved_bag(p_user uuid, p_slot integer)",
    "name": "hr_hunt_saved_bag",
    "tracked_by": [
@@ -6667,17 +6713,18 @@
     "2026-11-15-preset-names.sql",
     "2026-11-17-hunt-density-home.sql",
     "2027-01-13-spell-roles.sql",
-    "2027-01-25-town-defaults.sql"
+    "2027-01-25-town-defaults.sql",
+    "2027-02-21-hunt-carry-in.sql"
    ],
    "live": {
-    "md5": "c2f066207c5b3d01759166f4d6570e98",
-    "norm_len": 10811,
+    "md5": "87677b80058b01bf909a441651b064ea",
+    "norm_len": 11277,
     "measured": "2026-11-03",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c2f066207c5b3d01759166f4d6570e98",
-    "norm_len": 10811,
+    "md5": "87677b80058b01bf909a441651b064ea",
+    "norm_len": 11277,
     "source": "computed-from-replay"
    },
    "agree": true

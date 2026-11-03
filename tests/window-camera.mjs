@@ -59,6 +59,7 @@ import { join } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import WARRENS from '../src/data/world/maps/coppercap_warrens.js';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -685,13 +686,16 @@ async function main() {
       : 'window-camera: the X closes; the dock never moves under the pointer; clicks in windows leave the World and the hero alone; windows float over the World; right-click on a player works; the hunt camera is on the viewed hero');
     process.exit(fails.length ? 1 : 0);
   }
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const MINE = scopedMutants('tests/window-camera.mjs', MUTANTS);
+  if (!MINE.length) process.exit(0);
   const clean = await cleanControl(() => checks(null));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   const counts = { caught: 0, harness: 0, escaped: 0 };
   /* --only TEXT: just the mutants whose name holds it (a lane re-proving its own) */
   const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
-  for (const [name, file, from, to] of MUTANTS.filter((m) => !only || m[0].includes(only))) {
+  for (const [name, file, from, to] of MINE.filter((m) => !only || m[0].includes(only))) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, /WC-9/.test(name))), counts));

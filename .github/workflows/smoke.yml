@@ -27,14 +27,22 @@ on:
       - '**/*.md'
   pull_request:
   workflow_dispatch:
+    inputs:
+      rehearse_range:
+        description: 'A lane only: <full sha>..<full sha>, run this branch under the plan that diff gets (tools/mutant-gate.mjs). Empty = the full sweep.'
+        required: false
+        default: ''
   # THE NIGHTLY MUTATION SWEEP (CLAUDE.md §3.6/§4, Tyler 2026-10-21): the whole
-  # matrix, every --mutate/--selftest, on main once a night at 08:00 UTC (01:00
-  # Pacific; clear of the 00:00-00:10 UTC day boundary). A red nightly blocks the
-  # next release until fixed. On push and pull_request every proof command goes
-  # through tools/mutant-gate.mjs and runs only when the diff touches its guard
-  # (a skipped one prints why); plain guard runs always run.
+  # matrix, every --mutate/--selftest, on main once a night at 08:23 UTC (01:23
+  # Pacific; clear of the 00:00-00:10 UTC day boundary; GitHub starts it hours late).
+  # A red nightly blocks the next release until fixed: every job it did not prove
+  # green runs all its proofs on the next push (tools/lib/ci-history.mjs). On push and
+  # pull_request every proof command goes through tools/mutant-gate.mjs and runs only
+  # when the diff touches its guard (a skipped one prints why), narrowed to the mutants
+  # the diff can have moved where the guard calls tools/lib/mutant-scope.mjs; plain
+  # guard runs always run.
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '23 8 * * *'
 
 # ── LEAST PRIVILEGE FOR THE WORKFLOW TOKEN (2026-08-23, open-beta hardening) ──
 # The repository is PUBLIC and hearthrise.net is served from main, so the
@@ -47,9 +55,17 @@ on:
 #
 # `permissions:` here overrides the repository default, so this holds even if
 # somebody flips that setting later. Nothing in this workflow writes anything:
-# it checks out, installs, and runs tests. `contents: read` is the whole need.
+# it checks out, installs, and runs tests. `contents: read` is the whole need,
+# plus `actions: read`: tools/mutant-gate.mjs reads the last nightly and this commit's
+# earlier runs, public data on this public repository. That read-only token is all
+# HR_GATE_TOKEN holds, so a step that can see it learns nothing it could not fetch.
 permissions:
   contents: read
+  actions: read
+
+env:
+  HR_GATE_TOKEN: ${{ github.token }}
+  HR_MUTANT_GATE_RANGE: ${{ inputs.rehearse_range }}
 
 # ── THE MATRIX (cleanup slice 8a, 2026-09-07) ───────────────────────────────
 # This was ONE sequential job of 58 commands. The b514 run took 50.2 minutes
@@ -865,6 +881,37 @@ jobs:
           node tests/town-walk.mjs
           node tools/mutant-gate.mjs node tests/town-walk.mjs --mutate
 
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-13
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # in-page-24: Town stands and Phone touch, split out of in-page-13 (lane a-ci-speed, 2026-11-01). Run 41339988105
+  # measured in-page-13 at 37.0 min: 23.6 stays, 13.3 + setup here, x2 = 30.
+  in-page-24:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
       # THE REAL TOWN'S STANDS (2026-10-25, Tyler: heroes stacked on one tile; L2 of the
       # real-town plan): the SERVER places every body on a stand of its activity's station
       # (2027-01-28-town-stands.sql), one body a stand, in town instances of 60 players,
@@ -902,7 +949,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-failure-in-page-13
+          name: smoke-failure-in-page-24
           path: |
             tests/**/*.png
             tests/**/*.log
@@ -1396,9 +1443,12 @@ jobs:
   # mutants: five real-time scenarios of 2-4 min, two PB-PIX) ~16 min when the
   # gate runs it: ~23 min. Budget = x2 = 46. PB-QUIET and PB-REQ (2026-11-01, 6
   # more mutants) ran it past 62 on GitHub: limit raised to 90, no check removed.
+  # SHARDED 2026-11-01 (lane a-ci-speed): 27 mutants at 1 s to 5 min each took 80.7 of perf's 87.3 min on run
+  # 41339988105, 3 min short of its 90-min limit, and a red nightly re-runs them all on the next push. Three
+  # shards balanced by each mutant's own scenario length: about 27 min each, + 6 plain here. x2 = 66.
   perf:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 66
 
     steps:
       - uses: actions/checkout@v4
@@ -1418,13 +1468,81 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/perf-budget.mjs
-          node tools/mutant-gate.mjs node tests/perf-budget.mjs --mutate
+          node tools/mutant-gate.mjs node tests/perf-budget.mjs --mutate --shard=1/3
 
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-perf
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # perf-2: perf-budget --mutate, shard 2 of 3 (see perf's header). About 27 min + setup, x2 = 56.
+  perf-2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 56
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      - name: Hunt page perf budget mutants, shard 2 of 3
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/perf-budget.mjs --mutate --shard=2/3
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-perf-2
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # perf-3: perf-budget --mutate, shard 3 of 3 (see perf's header). About 27 min + setup, x2 = 56.
+  perf-3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 56
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      - name: Hunt page perf budget mutants, shard 3 of 3
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/perf-budget.mjs --mutate --shard=3/3
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-perf-3
           path: |
             tests/**/*.png
             tests/**/*.log
@@ -1567,9 +1685,11 @@ jobs:
   # db-replay-3, which had the room (3.7-6.2 min). What stays: fast 386 s
   # (39364497698), slow ~609 s, ~7 / ~10.8 min with setup. Budget = fast x2 =
   # 14, left at 16 so the slow runner keeps x1.5.
+  # 30 (2026-11-03): cancelled at 16 on 6 of the last 8 nightlies before its last step ended, so the job
+  # never reached a verdict. 2x the worst completed night (15.2, 41210136392).
   db-replay-4:
     runs-on: ubuntu-latest
-    timeout-minutes: 16
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -1813,9 +1933,11 @@ jobs:
   # 639 s of guards, plus ~11 s of checkout/setup-node/install = 650 s
   # (10.8 min) — comfortably inside the EXISTING 19-min timeout, which is
   # left unraised: the point of the split is headroom, not a bigger ceiling.
+  # 32 (2026-11-03): cancelled at 19 on 41497147816 and 41076244190 before its last step ended. 2x the
+  # worst completed night of the last seven (16.2, 41318382608).
   db-replay-2:
     runs-on: ubuntu-latest
-    timeout-minutes: 19
+    timeout-minutes: 32
 
     steps:
       - uses: actions/checkout@v4
@@ -2557,9 +2679,11 @@ jobs:
   # MEASURED from run 37470960216's own step times: verify 64 s + 525 s of
   # world-tick guards + ~11 s checkout/setup/install = 600 s (10.0 min).
   # Budget = measured x2 = 20 min.
+  # 40 (2026-11-03): cancelled at 20 on 41497147816 before its last step ended. 2x the worst completed
+  # night (19.6, 40898080100).
   db-replay-5:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -2944,7 +3068,9 @@ jobs:
     # + server-perf (2026-10-24: ~1.5 min measured locally, x2 = 3) = 28
     # market-v2 --selftest grew 57 -> ~100 s locally (lane c-market-account, 2026-10-24; 22-37 s
     # on GitHub before): worst 18.0 min of 28 (64%) on run 40069060383, ~18.3 projected (65%). Kept.
-    timeout-minutes: 28
+    # 52 (2026-11-03): cancelled at 28 on 41497147816 and 41318382608 before its last step ended. 2x the
+    # worst completed night (25.9, 41076244190).
+    timeout-minutes: 52
 
     steps:
       - uses: actions/checkout@v4
@@ -3240,25 +3366,6 @@ jobs:
           node tests/companion-equip-version-bump.mjs
           node tools/mutant-gate.mjs node tests/companion-equip-version-bump.mjs --mutate
 
-      # LANE S2 (2026-10-25-*.sql): the alpha windows' and the party UI's server
-      # half. The catalogue (supply offers, stamina refill, blessings) is GENERATED
-      # from src/data; on the real chain every S2 file re-applies byte-identically,
-      # the edge shop_buy and the SQL refill price one offer alike, a locked item is
-      # refused at the REAL vendor_sell_many, the loot filter and a blessed death run
-      # in the REAL settle (tick and player door), a mid-hunt stamina refill raises
-      # the pool the next settles read, and the leader's one start enters each member
-      # with its own bag. --mutate plants twelve defects, each red on its arm.
-      - name: Lane S2 server — locks, loot filter, refill, stamina, blessings, party start
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-alpha-catalogue.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-alpha-catalogue.mjs --selftest
-          node tests/alpha-server.mjs
-          node tools/mutant-gate.mjs node tests/alpha-server.mjs --mutate
-          node tools/build-settle-hooks.mjs --check
-          node tests/settle-hooks.mjs
-          node tools/mutant-gate.mjs node tests/settle-hooks.mjs --mutate
-
       # THE LOOT PLAN AND DISPATCH LOOT (Tyler 2026-10-25, 2027-01-23-loot-dispatch.sql): a
       # real hunt with deposit / sell / keep / sell-but-locked plans picks up loot and SELLS
       # NOTHING at pickup; Dispatch mid-hunt is refused; after the real leave it moves the
@@ -3358,6 +3465,45 @@ jobs:
         run: |
           node tests/mutant-control.mjs
           node tools/mutant-gate.mjs node tests/mutant-control.mjs --selftest
+
+  # db-replay-9: Lane S2 server, split out of db-replay-7 (lane a-ci-speed, 2026-11-01). Run 41339988105
+  # measured db-replay-7 at 48.3 of its 50 min, Lane S2 21.1 of it: 21.7 min here, 26.6 left there. x2 = 44.
+  db-replay-9:
+    runs-on: ubuntu-latest
+    timeout-minutes: 44
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # LANE S2 (2026-10-25-*.sql): the alpha windows' and the party UI's server
+      # half. The catalogue (supply offers, stamina refill, blessings) is GENERATED
+      # from src/data; on the real chain every S2 file re-applies byte-identically,
+      # the edge shop_buy and the SQL refill price one offer alike, a locked item is
+      # refused at the REAL vendor_sell_many, the loot filter and a blessed death run
+      # in the REAL settle (tick and player door), a mid-hunt stamina refill raises
+      # the pool the next settles read, and the leader's one start enters each member
+      # with its own bag. --mutate plants twelve defects, each red on its arm.
+      - name: Lane S2 server — locks, loot filter, refill, stamina, blessings, party start
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-alpha-catalogue.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-alpha-catalogue.mjs --selftest
+          node tests/alpha-server.mjs
+          node tools/mutant-gate.mjs node tests/alpha-server.mjs --mutate
+          node tools/build-settle-hooks.mjs --check
+          node tests/settle-hooks.mjs
+          node tools/mutant-gate.mjs node tests/settle-hooks.mjs --mutate
 
   # ── db-replay-8 ── SPLIT OUT OF db-replay-5 2026-10-08 (CI-SPLIT-6). The
   # GitHub run for 3ea45544 (set/b565 on next, run 37725703255) CANCELLED
@@ -3484,30 +3630,6 @@ jobs:
   # with nothing. MEASURED 2026-10-11 locally on a loaded box: 28 min.
   # Budget = measured x2 = 56; re-measure from the first GitHub run and tighten.
 
-      # Lane C2 hunt sessions — THE SETTLE (supabase/functions/hr-accrue/
-      # hunt-settle.js + 2026-10-22-hunt-sessions-settle.sql, ruling
-      # HR-2026-10-14 §4): TICK-2 (no ctx.away / presence / cap read on the hunt
-      # path; presence inputs inert), the per-swing seed is HMAC-keyed by the
-      # 64-bit secret (an FNV text mix is red), max HP is raise-only (FX-4), the
-      # old path never prices a hunter, and on the REAL chain: 20 world-tick
-      # windows == one span (tally, bag, character, clock), a death with a
-      # client connected writes the same rows as one with none, tally = Σ
-      # ledger, a press lands at its first swing boundary and never before, and
-      # a dry bag ends the hunt. RESUME-LINE / QUIVER / HEAL / PARITY / SLOT /
-      # XPDOOR carry the properties of the guards the closed rebuild deleted
-      # (world-tick-combat-parity, -resume-alignment, -maxhp-carry, -probe-bar,
-      # -bestiary-parity, sec-world-tick-m3-seed-label, attended-loot-credit,
-      # combat-xp-settle-first/-split, accrual-engine's away arms): --mutate
-      # plants each retired guard's faults, tagged [guard], against the hunt
-      # engine, and every one must go red with the rest. Measured 2026-10-15
-      # locally: plain 9 s, --mutate 2 min 47 s (91 mutants); the job ran 4.0
-      # min on GitHub before this (step 1.3 min) against its 21.
-      - name: Hunt sessions settle — TICK-1/TICK-2, both paths, tally = ledger, keyed seed
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/hunt-sessions-settle.mjs
-          node tests/hunt-sessions-settle.mjs --closed
-          node tools/mutant-gate.mjs node tests/hunt-sessions-settle.mjs --mutate
       # WHAT ONE WATCHED SETTLE MAY CALL (lane/c-settle-cost-2, 2026-10-30): tools/settle-cost.mjs's viewed door
       # (four heroes, frames on, live's 4 live asks per 3 settles) on the replay, CALL COUNTS, never ms: hr_state_of
       # <= 5.33 a settle (SB-1), the weapon lookup read once (SB-2), no stable SQL helper re-planned per call on
@@ -3580,6 +3702,50 @@ jobs:
         run: |
           node tests/envelope-contract.mjs
           node tools/mutant-gate.mjs node tests/envelope-contract.mjs --mutate
+  # db-replay-10: Hunt sessions settle, split out of db-replay-8 (lane a-ci-speed, 2026-11-01). db-replay-8 measured
+  # 29.8 min on run 41339988105 and its own limit cancelled it at 30.1 on 41362364405: 16.3 + setup here, x2 = 34.
+  db-replay-10:
+    runs-on: ubuntu-latest
+    timeout-minutes: 34
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # Lane C2 hunt sessions — THE SETTLE (supabase/functions/hr-accrue/
+      # hunt-settle.js + 2026-10-22-hunt-sessions-settle.sql, ruling
+      # HR-2026-10-14 §4): TICK-2 (no ctx.away / presence / cap read on the hunt
+      # path; presence inputs inert), the per-swing seed is HMAC-keyed by the
+      # 64-bit secret (an FNV text mix is red), max HP is raise-only (FX-4), the
+      # old path never prices a hunter, and on the REAL chain: 20 world-tick
+      # windows == one span (tally, bag, character, clock), a death with a
+      # client connected writes the same rows as one with none, tally = Σ
+      # ledger, a press lands at its first swing boundary and never before, and
+      # a dry bag ends the hunt. RESUME-LINE / QUIVER / HEAL / PARITY / SLOT /
+      # XPDOOR carry the properties of the guards the closed rebuild deleted
+      # (world-tick-combat-parity, -resume-alignment, -maxhp-carry, -probe-bar,
+      # -bestiary-parity, sec-world-tick-m3-seed-label, attended-loot-credit,
+      # combat-xp-settle-first/-split, accrual-engine's away arms): --mutate
+      # plants each retired guard's faults, tagged [guard], against the hunt
+      # engine, and every one must go red with the rest. Measured 2026-10-15
+      # locally: plain 9 s, --mutate 2 min 47 s (91 mutants); the job ran 4.0
+      # min on GitHub before this (step 1.3 min) against its 21.
+      - name: Hunt sessions settle — TICK-1/TICK-2, both paths, tally = ledger, keyed seed
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-sessions-settle.mjs
+          node tests/hunt-sessions-settle.mjs --closed
+          node tools/mutant-gate.mjs node tests/hunt-sessions-settle.mjs --mutate
   artisan-selftest:
     runs-on: ubuntu-latest
     timeout-minutes: 56
@@ -3932,6 +4098,26 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-tally-tasks.mjs --selftest
           node tests/tally-tasks.mjs
           node tools/mutant-gate.mjs node tests/tally-tasks.mjs --selftest
+
+  # economy-selftests-2: the second half of economy-selftests, split at the Great Hearth (lane a-ci-speed,
+  # 2026-11-01). Run 41339988105 measured the family at 47.5 min: 24.7 stays, 22.8 + a cold replay here. x2 = 50.
+  economy-selftests-2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
 
       # THE GREAT HEARTH (Tyler 2026-10-25: Inner Flame replaces Prayer): a hero fuels the
       # Hearth through the real edge intent (its body stands at a fuel stand, the collect pays
@@ -4973,6 +5159,26 @@ jobs:
           node tools/mutant-gate.mjs node tests/w0f-fun-content.mjs --selftest
 
 
+
+  # client-guards-2: the second half of client-guards, split at World art (lane a-ci-speed, 2026-11-01). Run
+  # 41339988105 measured the family at 31.6 of its 32 min: 12.0 stays, 19.7 + setup here, x2 = 41.
+  client-guards-2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 41
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
 
       # World art (lane W2): every committed world atlas keeps one scale and stands
       # on the floor - class body budget, locked palette, shared 64x64 character

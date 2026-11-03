@@ -82,6 +82,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { HARNESS as LIVE_H } from './hunt-live.mjs';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
@@ -1563,7 +1564,10 @@ async function mutate() {
   let escaped = 0;
   /* `--only <text>`: just the mutants whose name holds <text> (a lane proves its own rule without the whole sweep) */
   const at = process.argv.indexOf('--only');
-  const list = at > 0 ? MUTANTS.filter(([name]) => name.includes(String(process.argv[at + 1] || ''))) : MUTANTS;
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const MINE = scopedMutants('tests/hunt-scene-live.mjs', MUTANTS);
+  if (!MINE.length) process.exit(0);
+  const list = at > 0 ? MINE.filter(([name]) => name.includes(String(process.argv[at + 1] || ''))) : MINE;
   /* `more`: further [from, to] edits in the same file, planted with the first (a rule two doors hold). */
   for (const [name, file, from, to, arm, more] of list) {
     const base = mkdtempSync(join(tmpdir(), 'hr-hsl-'));

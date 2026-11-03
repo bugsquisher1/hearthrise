@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// mutant-rule-functions: checks
+// mutant-runner-functions: main shardPlan
 // ════════════════════════════════════════════════════════════════════════
 // tests/hunt-screen.mjs — THE HUNT SCREEN'S PANEL RULES, IN A REAL CHROMIUM.
 //
@@ -352,6 +354,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     const up = await signInAndPlay(page, base, !!o.town);
     return { ctx, page, errors, s, up };
   };
+  /* mutant-rules-start */
   try {
     /* HS-27 runs FIRST: its mutants are caught (stopAtFirst) a page boot in, not after every rule before it (shard budget). */
     { // HS-27 THE BAR IS CONFIGURABLE IN TOWN (Tyler 2026-10-25, a Level-30 hero in town: target, stance, chase and distance

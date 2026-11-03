@@ -38,6 +38,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
 const { BUILD } = await import(pathToFileURL(join(ROOT, 'src/build-info.js')).href);
@@ -407,17 +408,20 @@ async function main() {
       : 'instant-press: a press is pending in its own frame until the re-read, once; a refusal is marked and worded; ?debug=live only');
     process.exit(fails.length ? 1 : 0);
   }
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const MINE = scopedMutants('tests/instant-press.mjs', MUTANTS);
+  if (!MINE.length) process.exit(0);
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   let bad = 0;
-  for (const [name, file, from, to] of MUTANTS) {
+  for (const [name, file, from, to] of MINE) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     const fails = await checks({ [file]: text.replace(from, to) });
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'instant-press --mutate: ' + bad + ' escaped' : 'instant-press --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'instant-press --mutate: ' + bad + ' escaped' : 'instant-press --mutate: ' + MINE.length + '/' + MINE.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 

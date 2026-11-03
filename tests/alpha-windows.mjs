@@ -3330,7 +3330,7 @@ const MUTANTS = [
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
   ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !t.weight ? (suggest ? suggest.words : NO_WEIGHT_WHY) : t.held.length >= t.heldMax ? FULL_WHY : '';", "  return '';"],
   ['item truth: panel: Fuel all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
-  ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "return rare.length ? 'This sells rare finds: ' + listWords(rare) + '.' : '';", "return '';"],
+  ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? 'This sells rare finds: ' + listWords(rare) + '.' : ''", "''"],
   ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],
   ['item truth: panel: the play line sells a slot beside an empty one', 'src/app/slot-offer.js', "  if (anEmptySlot(rows)) return 'You own '", "  if (false) return 'You own '"],
   ['item truth: panel: the press drops the replaced job\'s line', 'src/shell/town-work.js', "return [replaced, words].filter(Boolean).join(' ');", "return words || '';"],

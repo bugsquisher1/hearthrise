@@ -91,6 +91,7 @@
 /* ── Party board ── */
 /* It ends above the action bar and scrolls inside (--hs-room, hud-room.js; the phone's own cap is below). */
 .hp-party { width: 250px; max-height: var(--hs-room, none); }
+.hp-party .hs-wfold { display: none; }
 .hp-party .hh-panel-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .hp-party.is-empty .hh-empty { display: block; }
 .hp-members { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
@@ -627,6 +628,12 @@ label.st-line { cursor: pointer; }
   .st-row input[type="range"]::-webkit-slider-thumb { width: 16px; height: 22px; margin-top: -4px; }
   .st-row input[type="range"]::-moz-range-thumb { width: 16px; height: 22px; }
   .hp-party { width: 200px; }
+  /* SOLO, THE PANEL STARTS FOLDED (phone panel v0.2.83: board, hunt bar and card covered 60% of a 245 px World, and a party of
+     one says nothing the bar does not): its name and its plus, the width of those; hud-widgets.js says when. */
+  .hp-party .hs-wfold { display: grid; margin: -2px -6px; }
+  .is-folded > .hp-party { width: max-content; }
+  .is-folded > .hp-party > .hh-panel-body, .is-folded > .hp-party [data-hs-act="expand"] { display: none; }
+  .is-folded > .hp-party > .hh-panel-head { border-bottom: 0; }
   /* A party of two with the hold switch is 245 px tall: past the action bar's top at 390 px, so the bar pushed the
      board below the screen. It ends above the bar (at most 100 px tall, 2 px up) and scrolls inside. */
   .hp-party { max-height: calc(100vh - 160px); }
@@ -648,7 +655,7 @@ label.st-line { cursor: pointer; }
   .hb-grid { order: 1; display: flex; gap: 2px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; }
   .hb-grid::-webkit-scrollbar { display: none; }
   /* The slots' page press (action-bar.js): only where ten columns do not fit; a gold chevron, the bar's "+" gold. */
-  .hb-page:not([hidden]) { order: 1; flex: none; display: grid; place-items: center; align-self: center; width: 24px; height: 74px; padding: 0; border: 0; background: var(--bg-1); color: var(--gold-2); font-family: var(--f-ui); font-size: var(--t-lead); font-weight: 700; line-height: 1; cursor: pointer; }
+  .hb-page:not([hidden]) { order: 1; flex: none; display: grid; place-items: center; align-self: center; width: 36px; height: 74px; padding: 0; border: 0; background: var(--bg-1); color: var(--gold-2); font-family: var(--f-ui); font-size: var(--t-lead); font-weight: 700; line-height: 1; cursor: pointer; }
   .hb-page::before { content: '\203A'; }
   .hb-page.is-back::before { content: '\2039'; }
   .hb-plaque { order: 2; }

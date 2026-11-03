@@ -30,7 +30,7 @@
 // never steps back; display only, the next envelope replaces it. The view, tab
 // and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.83';
+import { analyzerOf, isPremium, partyOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.83';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.83';
 import { whole, gold, clock, hoursMinutes } from '../../render/format.js?v=0.2.83';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.83';
@@ -186,6 +186,9 @@ renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
   if (!a) return;
   const scope = premium && panel.getAttribute('data-scope') === 'party' && a.party ? 'party' : 'hero';
   cls(panel, 'has-party', premium && !!a.party);
+  /* The server sends a party view for a party of one too. A phone spends no row on a switch between two equal numbers (hunt.css). */
+  const crew = partyOf(ctx.character);
+  cls(panel, 'is-alone', !crew || crew.members.length < 2);
   cls(panel, 'is-ended', a.ended);
   const since = ctx.character.receivedAt;
   const live = !a.ended && Number.isFinite(since) ? Math.max(0, ctx.now() - since) : 0;

@@ -41,6 +41,8 @@
 .auth-crest { display: block; width: 311px; height: 384px; }
 /* What the game is, for someone who followed a friend's link: under the crest where a sign-in or a sign-up is asked for. */
 .auth-card.is-sent .auth-field, .auth-card.is-sent .auth-submit { display: none; }
+/* Sent: the answer says it all. The lead and the password's rule are words about a form that has gone (phone panel v0.2.83). */
+.auth-card.is-sent .auth-lead { display: none; }
 .auth-pitch { display: none; max-width: 311px; margin: 0; font-size: var(--t-small); line-height: 1.35; color: var(--ink); text-align: center; }
 .auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }
 .auth-name {

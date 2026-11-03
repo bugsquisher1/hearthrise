@@ -45,6 +45,7 @@ import { markPlayer } from '../context-menu.js?v=0.2.83';
 import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.83';
 import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.83';
 import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.83';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.83';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -192,10 +193,15 @@ function scOf(el) {
   return sc;
 }
 
-/** The skeleton (built once). */
+/** No seat but this hero's own: what a phone's Party panel folds on until the player says otherwise (hud-widgets.js). */
+export function heroIsAlone(cs) {
+  return rosterOf(cs).members.length < 2;
+}
+
+/** The skeleton (built once). The fold is the phone's (hunt.css); the desktop panel never folds. */
 export function renderPartyPanel() {
   return panelHtml('hp-party', 'Party',
-    '<button type="button" class="hh-tool" data-hs-act="expand" aria-pressed="false" hidden>DPS and HPS</button>',
+    '<button type="button" class="hh-tool" data-hs-act="expand" aria-pressed="false" hidden>DPS and HPS</button>' + foldButtonHtml('Party'),
     '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol>' + holdHtml()
     + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>Leave party</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>Disband</button></div>'

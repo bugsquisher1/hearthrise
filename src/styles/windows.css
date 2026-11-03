@@ -559,7 +559,12 @@
   .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now, .hw-hunts.is-paged .hw-hunts-reco { display: none; }
   .hw-hunts.is-paged .hw-hunt-detail:not([hidden]) { display: flex; flex: 1 1 auto; }
   .hw-hd-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 4px -6px; }
+  .hw-hd-foot .hw-hd-back { margin: 0; }
   .hw-hd-page { padding: 8px 12px 10px; }
+  /* THE PAGE GETS THE SHEET (phone panel v0.2.83: 104 px of a 1501 px page, about 14 swipes to the drops): no second frame
+     or padding round it; only the sheet's head and the foot (the way back, Enter) stand outside its scroller. */
+  [data-hs-win="hunts"]:has(.is-paged) .hs-win-body { padding: 0; }
+  .hw-hunts.is-paged .hw-hunt-detail:not([hidden]) { border: 0; }
   .hw-hd-name { font-size: var(--t-h2); }
   /* A refusal gets the foot's width, on its own line over the press (panel 2026-11-01: one word per line in 45 px). */
   .hw-hd-foot { flex-wrap: wrap; padding: 6px 12px 8px; }

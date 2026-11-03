@@ -42,7 +42,6 @@ const asked = new Set();
 /** The page's skeleton: the ground's facts (this module) and the slots hunts.js fills. */
 export function detailHtml() {
   return '<header class="hw-hd-head">'
-    + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="back">Back to the list</button>'
     + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-fit"></span></p>'
     + '<p class="hw-hd-who"></p><p class="hw-hunt-warn"></p></header>'
     + '<p class="hw-hd-theme"></p>'

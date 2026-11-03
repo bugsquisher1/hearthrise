@@ -1313,7 +1313,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     }
     for (const vp of run('bar') ? PHONES : []) { // PH-7
       const tag = tagOf(vp);
-      const o = await open(vp, HUNT);
+      const o = await open(vp, HUNT, (env) => { env.hunt_settings.presets[0].name = 'Preset 1'; }); // a new hero's own setup's name
       if (!o.up) { fails.push('PH-7 [' + tag + '] the hunt did not mount'); await o.ctx.close(); continue; }
       await shot(o.page, 'bar-' + tag);
       await barFits(o.page, tag, fails);
@@ -1740,7 +1740,8 @@ const MUTANTS = [
   ['PH-29 a desktop shows the fold', 'src/styles/hunt.css', '.hp-party .hs-wfold { display: none; }\n', ''],
   ['PH-30 More slots stays 24 px', 'src/styles/hunt.css', 'align-self: center; width: 36px; height: 74px;', 'align-self: center; width: 24px; height: 74px;'],
   ['PH-30 the setup\'s name stays a line of text', 'src/styles/hunt.css', '  .hb-set .hs-name { width: 100%; height: 100%; }\n', ''],
-  ['PH-30 the name runs under its neighbour', 'src/styles/hunt.css', 'grid-template-columns: minmax(clamp(46px, calc((100vw - 667px) * .5), 64px), auto) auto auto auto auto;', 'grid-template-columns: minmax(46px, auto) auto auto auto auto;'],
+  ['PH-30 the name runs under its neighbour', 'src/styles/hunt.css', '  .hb-set { grid-area: set; align-self: stretch;', '  .hb-set { grid-area: set; align-self: stretch; min-width: 90px;'],
+  ['PH-30 the name reads Pre...', 'src/styles/hunt.css', '  .hb-set .hs-name-t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }\n', ''],
   ['PH-31 the form\'s words stay after Create account', 'src/styles/app.css', '.auth-card.is-sent .auth-lead { display: none; }\n', ''],
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
 ];

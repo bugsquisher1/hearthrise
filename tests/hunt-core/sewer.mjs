@@ -868,6 +868,24 @@ const cases = {
     if (!sc || sc.id !== 'stitch_cloak' || !sc.text.includes('Start on ' + stitch.name + ' (Wolf Pelt ×' + stitch.inputs.wolf_pelt + ' each)') || !(sc.ring && sc.ring.work === stitch.id)) return 'the cloak card reads ' + JSON.stringify(sc && { id: sc.id, text: sc.text, ring: sc.ring });
     if (say(R({ ...atCloak, carried: { ...atCloak.carried, wolf_pelt: stitch.inputs.wolf_pelt - 1 } }))) return 'the cloak card asked with too few pelts';
     if (say(R({ ...atCloak, skillXp: { ...atCloak.skillXp, crafting: 30 } }))) return 'the cloak card is up after a craft';
+    /* Klappa's Club (Tyler 2026-11-03): a club hero at its Level hears the whole way; a hero of any other weapon hears nothing; the card stays
+       with the hero's hands empty (taken off to reforge, or reforged and not yet worn), and moves to the bag once the club is made */
+    const kclub = M.items.ITEMS.klappas_club;
+    const reforge = (M.recipes.ARTISAN_RECIPES.smithing || []).find((r) => r.output === 'klappas_club');
+    const atClub = { ...atCloak, carried: { ...juiced.carried, chalked_fire_rune: 45 }, levelXp: M.xp.charXpForLevel(kclub.reqLv), charLevel: kclub.reqLv, weapon: 'practice_club' };
+    const kc = say(R(atClub));
+    if (!kc || kc.id !== 'klappas_club' || !kc.text.includes('Bronze Bar ×' + reforge.inputs.bronze_bar + ' and Small Fang ×' + reforge.inputs.small_fang) || !kc.text.includes('Start on ' + reforge.name)
+      || !(kc.ring && kc.ring.work === reforge.id) || kc.anchor !== 'crafting') return 'the club card reads ' + JSON.stringify(kc && { id: kc.id, text: kc.text, ring: kc.ring, anchor: kc.anchor });
+    if ((say(R({ ...atClub, levelXp: M.xp.charXpForLevel(kclub.reqLv - 1), charLevel: kclub.reqLv - 1 })) || {}).id === 'klappas_club') return 'the club card came before its Level';
+    if ((say(R({ ...atClub, weapon: 'practice_sword' })) || {}).id === 'klappas_club') return 'the club card asked a sword hero';
+    if ((say(R(atClub, 'klappas_club')) || {}).id === 'klappas_club') return 'the club card is up after its Got it';
+    const emptied = { ...atClub, weapon: null, carried: { ...atClub.carried, practice_club: 1 } };
+    if ((say(R(emptied)) || {}).id !== 'klappas_club') return 'the club card left when the hero took the club off to reforge it';
+    const forged = { ...atClub, weapon: null, carried: { ...atClub.carried, klappas_club: 1 } };
+    const kb = say(R(forged));
+    if (!kb || kb.id !== 'klappas_club' || kb.anchor !== 'inventory' || !kb.text.includes('Equip') || !kb.hooks.some((h) => h.includes('.hw-pick[data-item="klappas_club"]'))) return 'reforged and empty-handed, the card reads ' + JSON.stringify(kb && { id: kb.id, text: kb.text, anchor: kb.anchor });
+    if ((say(R({ ...atClub, weapon: 'klappas_club' })) || {}).id === 'klappas_club') return 'the club card is up with the club in hand';
+    if ((say(R({ ...atClub, levelXp: M.xp.charXpForLevel(16), charLevel: 16 })) || {}).id === 'klappas_club') return 'the club card is up past the first day\'s grounds';
     /* What next names the rung and how it is made, for every role, below its Level (the line that said "Level 12: Grayjaw's Ruff") */
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
       const g = M.tut.nextGoal({ charLevel: cloak.reqLv - 1, role, skillLevel: 5, defenseXp: 9, land: null, inParty: false });
@@ -1599,6 +1617,12 @@ const mutants = [
     edits: [['src/session/tutorial-sections.js', 'armoured: eq ? wearsArmour(eq, ITEMS) : undefined,', 'armoured: eq ? true : undefined,']] },
   { name: 'the cloak card asks with any pelt', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', 'c[p.item] >= (p.n || 1)', 'c[p.item] > 0']] },
+  { name: 'the club card asks every weapon', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "f.weapon === p.item || (!f.weapon && (f.carried[p.item] > 0 || f.carried[p.made] > 0))", 'true']] },
+  { name: 'the club card leaves a hero empty-handed once the club is made', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "(!f.weapon && (f.carried[p.item] > 0 || f.carried[p.made] > 0))", "(!f.weapon && f.carried[p.item] > 0)"]] },
+  { name: 'the ring stays on the bench when the words have moved to the bag', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "...(said.anchor ? { anchor: said.anchor } : {}), ", '']] },
   { name: 'What next names the cloak but not how it is made', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', '    if (made) lines.push(made);\n', '']] },
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',

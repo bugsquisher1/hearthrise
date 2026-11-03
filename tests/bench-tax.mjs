@@ -40,7 +40,7 @@ const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--sel
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const FN = 'supabase/functions/hr-accrue';
 const MIG = '2027-02-19-bench-tax.sql';
-const RATES = '2027-02-19-bench-tax-rates.generated.sql';
+const RATES = '2027-02-23-klappa-bench-tax-rates.generated.sql';
 const COLORS = '{"head": 13, "body": 5, "legs": 3, "feet": 0}';
 
 const recipeMaking = (skill, output) => ARTISAN_RECIPES[skill].find((r) => r.output === output && !r.gated);

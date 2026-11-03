@@ -206,7 +206,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
    such party refused kills_over, then forfeited). */
 /* THE CRAFT WAGE (lane/c-craft-economy, designer 2026-11-01): 2027-02-16-party-pull is the file before this one, and this one carries it;
    hr_hunt_vendor_value moves for gathered and refined goods, the same full replace. No kill bound, spawn or shape moves. */
-export const OUT_NAME = '2027-02-21-rulings-hunt-sessions-catalogue.generated.sql';
+/* KLAPPA'S CLUB (lane/c-klappa-club, designer 2026-11-03): 2027-02-21-rulings is APPLIED history; hr_hunt_vendor_value gains the club's bid, the same full replace. No kill bound, spawn or shape moves. */
+export const OUT_NAME = '2027-02-23-klappa-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

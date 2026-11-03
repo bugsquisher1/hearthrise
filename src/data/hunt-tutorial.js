@@ -173,6 +173,8 @@ const FLAME_PCT = Math.round((regenPermille(FLAME_AT) - 1000) / 10);
 /* The first-hour rung and the pelts its stitch takes (slot-ladders.js), read from the rows, never restated. */
 const CLOAK = ITEMS.graypelt_cloak;
 const CLOAK_PELTS = ((ARTISAN_RECIPES.crafting || []).find((r) => r.output === 'graypelt_cloak') || { inputs: {} }).inputs.wolf_pelt;
+/* The club hero's first bench job (style-gear.js, Tyler 2026-11-03), read from its row. */
+const CLUB_REFORGE = (ARTISAN_RECIPES.smithing || []).find((r) => r.output === 'klappas_club');
 /* Eat on time: Configure action's − and + move an HP condition in 5% steps (configure-action.js nudge), and the card
    never asks a hero to eat below the designer's 50%. */
 const PCT_STEP = 5, EAT_FLOOR_PCT = 50;
@@ -388,6 +390,14 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Put your Turnip Juice in a drink slot before the store\'s juice: your own drinks cost nothing.',
     'action_bar', { kind: 'drink_slot', item: 'turnip_juice' }, { reactive: true, dayOne: true,
       when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),
+  /* KLAPPA'S CLUB (Tyler 2026-11-03; Andy's own idea, the first taste of the bench): a club hero's next rung is 10 Levels away and this one
+     is two minutes of mining and smelting. Before Build your home, which holds the line until a house is owned. The bench spends the bag's
+     club, so the hero's hands are empty when it is done: the card stays until the new club is worn, and then rings the bag (SAY). */
+  step('klappas_club', 'Klappa\'s Club',
+    'Your Practice Club can be reforged into Klappa\'s Club, which hits as hard as an Iron Warhammer. Open Gathering and crafting, then press Smithing.',
+    'crafting', orGotIt({ kind: 'wields', item: 'klappas_club' }), { reactive: true, dayOne: true, gotIt: true, ring: { skill: 'smithing', work: CLUB_REFORGE.id },
+      when: [IN_TOWN, { kind: 'level_at', at: ITEMS.klappas_club.reqLv }, { kind: 'club_hand', item: 'practice_club', made: 'klappas_club' }],
+      hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="klappas_club"]', '[data-hs-win="inventory"] .hw-pick[data-item="klappas_club"] [data-hs-act="primary"]'] }),
   step('home', 'Build your home',
     'Your first house needs gold, ore and logs: start with logs in Gathering and crafting, Woodcutting.',
     'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),
@@ -582,6 +592,9 @@ const FACTS = Object.freeze({
   loot_sold: (p, f) => known(f.sellable, (n) => n === 0),
   loot_rule: (p, f) => known(f.lootRules, (r) => Object.values(r).some((v) => v === 'sell' || v === 'deposit')),
   weapon_changed: (p, f) => known(f.weapon, (w) => w !== START_EQUIPMENT.weapon),
+  /* this weapon in hand, or hands empty with it or what it is made into in the bag (taken off to reforge: the bench spends the bag's) */
+  club_hand: (p, f) => (f.weapon === undefined || !f.carried ? null : f.weapon === p.item || (!f.weapon && (f.carried[p.item] > 0 || f.carried[p.made] > 0))),
+  wields: (p, f) => (f.weapon === undefined ? null : f.weapon === p.item),
   /* worn armor or a shield, the pieces Defense trains in (core/vitals.js wearsArmour over the server's worn set) */
   armoured: (p, f) => known(f.armoured, (a) => a === true),
   unarmoured: (p, f) => known(f.armoured, (a) => a === false),
@@ -608,7 +621,7 @@ const FACTS = Object.freeze({
 });
 const PARAMS = Object.freeze({ lesson_time: ['hunt'], enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'],
   tally_taken: ['task'], hunt_age: ['min', 'past'], pull: ['ground', 'pocket'], eaten_at_least: ['n'], eating_fast: ['n', 'perHour'], heroes: ['atLeast'], drink_slot: ['item'],
-  carries: ['item'], kills: ['atLeast'], fuel_held: ['n'], bought_drinks: ['n'] });
+  carries: ['item'], club_hand: ['item', 'made'], wields: ['item'], kills: ['atLeast'], fuel_held: ['n'], bought_drinks: ['n'] });
 
 /* One fact as true / false / null; `any` is true once one is, null when none is and one is unknown. */
 function judge(d, f, c) {
@@ -642,7 +655,8 @@ export function validate(rows = HUNT_TUTORIAL) {
     if (d.kind === 'ended' && !END_ORDER.includes(d.reason)) bad('end reason ' + d.reason + ' is not in END_ORDER');
     if (d.kind === 'skill_xp' && !SKILLS_DEF[d.skill]) bad('skill ' + d.skill + ' is not a skill');
     if (d.kind === 'tally_taken' && !tallyTask(d.task)) bad('task ' + d.task + ' is not one of Tamsin\'s tasks');
-    if ((d.kind === 'drink_slot' || d.kind === 'carries') && !ITEMS[d.item]) bad(d.kind + ' item ' + d.item + ' is not an item');
+    if (['drink_slot', 'carries', 'club_hand', 'wields'].includes(d.kind) && !ITEMS[d.item]) bad(d.kind + ' item ' + d.item + ' is not an item');
+    if (d.kind === 'club_hand' && !ITEMS[d.made]) bad('club_hand made ' + d.made + ' is not an item');
     if (d.kind === 'pull') {
       const gr = HUNT_GROUNDS[d.ground];
       if (!gr) bad('ground ' + d.ground + ' is not in hunt-grounds.js');
@@ -905,6 +919,14 @@ const SAY = Object.freeze({
     return { text: 'You\'re Level ' + CLOAK.reqLv + ', so you can wear ' + anA(CLOAK.n) + '. Open Gathering and crafting, press Crafting, then Start on ' + r.name + ' ('
       + name('wolf_pelt') + ' ×' + CLOAK_PELTS + ' each), then put it on from your bag.' };
   },
+  klappas_club: (f) => {
+    const r = CLUB_REFORGE, club = name('klappas_club');
+    if (!r || !club || !name('practice_club')) return null;
+    if (f.carried && f.carried.klappas_club > 0) return { text: 'Your ' + club + ' is in your bag and your hands are empty. Open your bag, press it, then Equip.', anchor: 'inventory' };
+    const makes = Object.entries(r.inputs).filter(([id]) => id !== 'practice_club').map(([id, n]) => name(id) + ' ×' + n);
+    return { text: 'Your ' + name('practice_club') + ' can become ' + club + ', which hits as hard as an ' + name('iron_warhammer') + '. It takes ' + listed(makes)
+      + ' from the Mill Cellar\'s rats. Mine Copper Ore and smelt the bars in Smithing, take the club off, press Start on ' + r.name + ', then wear it.' };
+  },
   fuel_hearth: (f) => {
     /* the bag's biggest first-rung fuel stack: the one the card rings and names */
     const top = f.bag ? FIRST_FUELS.map((id) => [id, Number(f.bag[id]) || 0]).sort((a, b) => b[1] - a[1])[0] : null;
@@ -997,7 +1019,8 @@ export function cardFor(card, facts) {
   const hooks = (card.hooks || []).map((h) => h.replace('{store}', said.store || '').replace('{other}', said.other === undefined ? '' : String(said.other))
     .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || '').replace('{spell}', said.spell || '').replace('{shot}', said.shot || ''));
   const textIn = said.textIn || card.inWindow || null;
-  return Object.freeze({ ...card, text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
+  /* `said.anchor`: the words moved on to another surface (Klappa's Club: from the bench to the bag), so the ring goes with them */
+  return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
 }
 
 /* ── AFTER THE GUIDE: WHAT NEXT ───────────────────────────────────────────

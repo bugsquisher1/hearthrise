@@ -26,34 +26,34 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.83';
-import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.83';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.83';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.83';
-import { MONSTERS } from '../data/monsters.js?v=0.2.83';
-import { compileMap } from './core/map-compile.js?v=0.2.83';
-import { createBook } from './core/book.js?v=0.2.83';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.83';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.83';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.83';
-import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.83';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.83';
-import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.83';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.83';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.83';
-import { huntOfMap } from './hunt-maps.js?v=0.2.83';
-import { createHuntScene } from './hunt-scene.js?v=0.2.83';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.83';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.83';
-import { createWalkScene } from './walk-scene.js?v=0.2.83';
-import { createTownZoom } from './town-zoom.js?v=0.2.83';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.83';
-import { runAction } from './steer-local.js?v=0.2.83';
-import { heroSprite } from '../session/hero-look.js?v=0.2.83';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.83';
-import { homeOf } from '../session/home-sections.js?v=0.2.83';
-import { skillsOf } from '../session/item-sections.js?v=0.2.83';
-import { createHearthView } from './hearth-burn.js?v=0.2.83';
+import { BUILD } from '../build-info.js?v=0.2.84';
+import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.84';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.84';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.84';
+import { MONSTERS } from '../data/monsters.js?v=0.2.84';
+import { compileMap } from './core/map-compile.js?v=0.2.84';
+import { createBook } from './core/book.js?v=0.2.84';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.84';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.84';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.84';
+import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.84';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.84';
+import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.84';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.84';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.84';
+import { huntOfMap } from './hunt-maps.js?v=0.2.84';
+import { createHuntScene } from './hunt-scene.js?v=0.2.84';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.84';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.84';
+import { createWalkScene } from './walk-scene.js?v=0.2.84';
+import { createTownZoom } from './town-zoom.js?v=0.2.84';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.84';
+import { runAction } from './steer-local.js?v=0.2.84';
+import { heroSprite } from '../session/hero-look.js?v=0.2.84';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.84';
+import { homeOf } from '../session/home-sections.js?v=0.2.84';
+import { skillsOf } from '../session/item-sections.js?v=0.2.84';
+import { createHearthView } from './hearth-burn.js?v=0.2.84';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the

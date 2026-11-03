@@ -39,27 +39,27 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.83';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.83';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.83';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.83';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.83';
-import { createHudRoom } from './hud-room.js?v=0.2.83';
-import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.83';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.83';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.83';
-import { mountContextMenu } from './context-menu.js?v=0.2.83';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.83';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.83';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.83';
-import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.83';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.83';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.83';
-import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.83';
-import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.83';
-import { benchSpentAtMs } from './town-work.js?v=0.2.83';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.83';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.83';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.84';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.84';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.84';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.84';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.84';
+import { createHudRoom } from './hud-room.js?v=0.2.84';
+import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.84';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.84';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.84';
+import { mountContextMenu } from './context-menu.js?v=0.2.84';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.84';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.84';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.84';
+import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.84';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.84';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.84';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.84';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.84';
+import { benchSpentAtMs } from './town-work.js?v=0.2.84';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.84';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.84';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;

@@ -392,8 +392,8 @@ export const HUNT_TUTORIAL = Object.freeze([
       when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),
   /* KLAPPA'S CLUB (Tyler 2026-11-03; Andy's own idea, the first taste of the bench): a club hero's next rung is 10 Levels away and this one
      is two minutes of mining and smelting. Before Build your home, which holds the line until a house is owned. Ends on owning it or its Got it. */
-  step('klappas_club', 'Klappa's Club',
-    'Your Practice Club can be reforged into Klappa's Club, which hits as hard as an Iron Warhammer. Open Gathering and crafting, press Smithing.',
+  step('klappas_club', 'Klappa\'s Club',
+    'Your Practice Club can be reforged into Klappa\'s Club, which hits as hard as an Iron Warhammer. Open Gathering and crafting, then press Smithing.',
     'crafting', orGotIt({ kind: 'owns', item: 'klappas_club' }), { reactive: true, dayOne: true, gotIt: true, ring: { skill: 'smithing', work: CLUB_REFORGE.id },
       when: [IN_TOWN, { kind: 'level_at', at: ITEMS.klappas_club.reqLv }, { kind: 'club_hand', item: 'practice_club' }] }),
   step('home', 'Build your home',
@@ -922,7 +922,7 @@ const SAY = Object.freeze({
     if (!r || !club || !name('practice_club')) return null;
     const makes = Object.entries(r.inputs).filter(([id]) => id !== 'practice_club').map(([id, n]) => name(id) + ' ×' + n);
     return { text: 'Your ' + name('practice_club') + ' can be reforged into ' + club + ', which hits as hard as an ' + name('iron_warhammer') + '. It takes ' + listed(makes)
-      + '. Mine Copper Ore, smelt it in Smithing, take the club off, then Start on ' + r.name + '.' };
+      + ': mine Copper Ore, smelt Bronze Bars in Smithing, and the Mill Cellar\'s rats drop the fangs. Then take the club off and press Start on ' + r.name + '.' };
   },
   fuel_hearth: (f) => {
     /* the bag's biggest first-rung fuel stack: the one the card rings and names */

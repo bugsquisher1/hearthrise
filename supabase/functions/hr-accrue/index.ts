@@ -79,7 +79,7 @@ import { engineInputsFromEnvelope } from './envelope.js';
    cheap "is a hunt open?" read the accrue path makes so the old combat pricing
    never runs for a hunter. */
 import { runHuntVerb, settleHunt, HUNT_OPEN_SQL } from './hunt-settle.js';
-import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
+import { verifyJwt, bearerOf } from './jwt.js';
 import { parseIntent, readBodyBytes, bodyJson, MAX_INTENT_BYTES } from './request.js';
 import { frameSelfMarker } from './frame-self.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
@@ -159,17 +159,13 @@ function assertPooler(): void {
 }
 
 /* ── Identity configuration ─────────────────────────────────────────────────
-   SUPABASE_URL and SUPABASE_ANON_KEY are injected into every Edge Function by
-   the platform. The anon key is used for exactly one thing — the `apikey`
-   header GoTrue requires on the HS* introspection fallback — and it grants
-   nothing this function does not already have. NO SIGNING SECRET IS READ HERE,
-   and none must ever be: a function that can verify an HS256 token can also
-   mint `role: service_role` (design §2a-i, permanently rejected). */
+   SUPABASE_URL is injected into every Edge Function by the platform. NO API KEY
+   AND NO SIGNING SECRET IS READ HERE, and none must ever be: a function that can
+   verify an HS256 token can also mint `role: service_role` (design §2a-i,
+   permanently rejected). tests/legacy-keys.mjs holds this file to that. */
 const SUPABASE_URL = (Deno.env.get('SUPABASE_URL') ?? '').replace(/\/+$/, '');
-const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const JWKS_URL = SUPABASE_URL ? `${SUPABASE_URL}/auth/v1/.well-known/jwks.json` : '';
 const ISSUER = SUPABASE_URL ? `${SUPABASE_URL}/auth/v1` : '';
-const introspect = SUPABASE_URL ? gotrueIntrospector(SUPABASE_URL, ANON_KEY) : undefined;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -321,7 +317,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
   try {
     if (!JWKS_URL) throw new Error('config:SUPABASE_URL missing — cannot verify a token');
     user = await verifyJwt(bearerOf(req.headers.get('Authorization')), {
-      jwksUrl: JWKS_URL, issuer: ISSUER, introspect,
+      jwksUrl: JWKS_URL, issuer: ISSUER,
     });
   } catch (e) {
     const msg = String((e as Error)?.message || e);

@@ -61,15 +61,24 @@ export function renderStorage(ctx) {
     + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>'
     + '<p class="hs-note hw-store-note"></p>'
-    /* The press's answer sits ABOVE both grids (Andy 10-26: under a full bag it was off the bottom, and a refused
-       12k-arrow press read as lag): it says "Putting it away…", then the result or the refusal, where the eye is. */
-    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<h3 class="hw-ledger-head is-on">In storage <small class="hw-store-n" data-n="bank"></small></h3>'
     + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="In storage"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
     + '<p class="hs-note hw-store-room"></p>'
     + '<h3 class="hw-ledger-head is-on">In your bag <small class="hw-store-n" data-n="bag"></small></h3>'
     + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">Dispatch loot</button><p class="hw-why"></p></div>'
-    + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p></div>';
+    + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
+    /* The press's answer: "Putting it away…", then the result or the refusal. At the foot, it stands in view however the window is scrolled
+       (windows.css, sticky), and its coming moves no stack from under the hand. Above the grids, a bag scrolled into reach left it out of sight, and a
+       press read as nothing at all (Andy 10-26, a refused 12k-arrow press; 11-02, 14 presses in 25 s). */
+    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
+}
+
+const STORE_AWAY = 'Your storage is at home and your hero is out hunting. Leave the hunt to use it.';
+
+/* SAY WHY: a press on a stack with the hero out hunting moves nothing, and the note that says so has scrolled away by the time the bag is in reach. */
+function sayAway(cs, sc, repaint) {
+  const h = huntOf(cs);
+  if (h && !h.ended && !sc.pending) { sc.msg = STORE_AWAY; repaint(); }
 }
 
 function patchSide(root, ctx, side, list, shown, off, depot) {
@@ -108,7 +117,7 @@ renderStorage.patch = function patchStorage(body, ctx) {
   if (ctx.doc.activeElement !== input) prop(input, 'value', sc.query);
   prop(root.querySelector('[data-hs-act="sort"]'), 'value', prefs.sort);
   for (const b of root.querySelectorAll('.hw-cat')) attr(b, 'aria-pressed', String(b.getAttribute('data-cat') === prefs.cat));
-  text(root.querySelector('.hw-store-note'), away ? 'Your storage is at home and your hero is out hunting. Leave the hunt to use it.'
+  text(root.querySelector('.hw-store-note'), away ? STORE_AWAY
     : !bank ? 'Reading your storage…' : (ctx.isPhone && ctx.isPhone() ? 'Press a stack to move one across. Hold it to choose how many.' : 'Press a stack to move one across. Shift-press moves all of it. Right-click (or hold) to choose how many.'));
   const depot = depotOf(cs);
   patchSide(root, ctx, 'bank', bank || [], view(bank || [], Object.assign({ seen: marks || residueOf(cs).storeSeen || {} }, o)), off, depot);
@@ -126,6 +135,7 @@ renderStorage.patch = function patchStorage(body, ctx) {
   text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);
   cls(root, 'is-pending', sc.pending);
   cls(root, 'is-off', off);
+  if (!away && sc.msg === STORE_AWAY) sc.msg = '';   // back in town, it no longer holds
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 
@@ -190,11 +200,12 @@ renderStorage.act = function actStorage(ctx, body, action, ev, t) {
   if (type === 'contextmenu') {
     ev.preventDefault();
     if (!off && row) askAmount(ctx, body, cs, sc, repaint, row, action, { x: ev.clientX, y: ev.clientY });
+    else sayAway(cs, sc, repaint);
     return true;
   }
   if (type !== 'click') return false;
   if (sc.pressed) { sc.pressed = false; return true; }
-  if (off || !row) return true;
+  if (off || !row) { sayAway(cs, sc, repaint); return true; }
   hideTip(ctx.doc);
   move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);
   return true;

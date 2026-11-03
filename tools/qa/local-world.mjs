@@ -22,6 +22,8 @@
 //   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x' });
 //   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);  await world.wait(480);  await world.wait(480, { away: true });
 //   await p.shot('after');  p.text();  p.errors;  p.offsite;  p.page /* raw Playwright */;  await p.reload();  await world.close();
+//   The closed game: before world.play, await world.db.query("update public.hr_flags set enabled = true where key = 'closed_mode'"): a new account lands on the
+//   closed notice ([data-closed-notice]); insert its id into public.hr_access_allowlist (user_id, note) to admit it.
 //
 // A TIME SKIP compresses waiting and fakes no result: every open hunt's clocks AND every epoch value in its
 // world JSON move back together (a hero idles if only one moves), then the real engine settles the window the
@@ -365,7 +367,7 @@ function rewriteServed(rel, text, origin) {
   const must = (from, to) => { if (!from.test(text)) throw new Error('local-world: ' + rel + ' moved, no anchor ' + from); text = text.replace(from, to); };
   if (rel === 'src/net/supabase-bootstrap.js') {
     must(/url: 'https:\/\/[a-z0-9]+\.supabase\.co'/, "url: '" + origin + "'");
-    must(/anonKey: '[^']+'/, "anonKey: 'local-world-anon'");
+    must(/publishableKey: '[^']+'/, "publishableKey: 'local-world-publishable'");
   }
   if (rel === 'play.html') {
     must(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/, '');
@@ -469,7 +471,7 @@ export async function openWorld(o = {}) {
   verifyJwtFn = (token) => verifyJwt(token, { jwksUrl: origin + '/auth/v1/.well-known/jwks.json', issuer: auth.issuer.issuer });
   rest = createRest({ db, ipOf: auth.shim.ipOf, verify: verifyJwtFn });
   push = createPush(db);
-  engine = await loadEngine(db, { HR_ENGINE_DB_URL: 'postgres://local-world@127.0.0.1:6543/local', HR_TICK_SHARED_SECRET: tickSecret, SUPABASE_URL: origin, SUPABASE_ANON_KEY: 'local-world-anon' });
+  engine = await loadEngine(db, { HR_ENGINE_DB_URL: 'postgres://local-world@127.0.0.1:6543/local', HR_TICK_SHARED_SECRET: tickSecret, SUPABASE_URL: origin, SUPABASE_PUBLISHABLE_KEYS: '{"default":"sb_publishable_local_world"}' });
 
   /* THE WORLD TICK, the production path: the cron body queues signed POSTs (pg_net's shape), the handler verifies and settles them.
      The chain pins edge_url to production (Security M-5). Here pg_net is a queue this process drains into its own handler, so the URL
@@ -629,7 +631,7 @@ async function play(world, { account, viewport = { width: 1280, height: 720 }, t
   await page.fill('input[name=email]', email);
   await page.fill('input[name=password]', PASSWORD);
   await page.click('.auth-submit');
-  await page.waitForSelector('.char-row, .hs-launchers');
+  await page.waitForSelector('.char-row, .hs-launchers, [data-closed-notice]');
   let n = 0;
   return {
     page, errors, offsite, email,
@@ -655,7 +657,7 @@ async function play(world, { account, viewport = { width: 1280, height: 720 }, t
       await page.click('.hw-hunt-enter');
       await page.waitForSelector('[data-hs-act="leave"]');
     },
-    async reload() { await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.char-row, .hs-launchers'); },
+    async reload() { await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.char-row, .hs-launchers, [data-closed-notice]'); },
     close: async () => { driver.contexts.delete(ctx); await ctx.close(); },
   };
 }

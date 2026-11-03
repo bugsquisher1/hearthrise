@@ -37,22 +37,14 @@
 // this seam for: nothing here can MINT a token, so nothing here can claim
 // `role: service_role`.
 //
-// ── THE HS256 PROBLEM, AND THE SECRET-FREE ANSWER ───────────────────────────
-// A project that has not yet rotated to asymmetric signing keys issues HS256
-// tokens whose key is a shared secret JWKS cannot publish. Verifying those
-// in-function would mean holding `SUPABASE_JWT_SECRET` — the one credential
-// whose disclosure lets anyone mint `role: service_role`, and which §2a-i
-// rejects permanently.
-//
-// The answer is to ask the issuer instead: `GET /auth/v1/user` with the token.
-// GoTrue verifies its own signature and returns the user, or 401. It costs one
-// round trip, it holds no secret, and it is reached ONLY for algorithms JWKS
-// cannot cover. Positive results are cached briefly, keyed by a hash of the
-// token and bounded by the token's own `exp`.
-//
-// Measured on nezapsylztqbbwuwembx (2026-08-11): the JWKS endpoint publishes one
-// ES256 key, so the asymmetric path is the live path today and the fallback is
-// insurance for a project caught mid-rotation.
+// ── AN HS* TOKEN IS REFUSED, WITHOUT A ROUND TRIP (2026-11-01) ───────────────
+// HS256 is the legacy JWT secret's algorithm. Verifying it here would mean holding
+// that secret, which §2a-i rejects permanently, and this module used to ask GoTrue
+// instead. Measured on nezapsylztqbbwuwembx: ES256 has been the only key in use
+// since 2026-05-03 and tokens last an hour, so no player has held an HS256 token
+// for months. What was left of that path was a way for a token minted with the
+// exposed legacy secret to reach the engine, and the one reason this function
+// read a legacy API key. Now no API key is read here at all.
 //
 // ── FAIL CLOSED, ALWAYS ─────────────────────────────────────────────────────
 // Every path throws. There is no branch that returns a subject without a
@@ -81,9 +73,7 @@ export const JWT_ERR = {
 
 /* The ONLY algorithms this module verifies itself. `none` is not on the list,
    and neither is any HS*: an HMAC "verification" needs the signing secret,
-   which is the same capability as minting. An HS* token is therefore not
-   rejected outright — it is handed to the issuer (see `introspect`) — but it is
-   never verified here. */
+   which is the same capability as minting. Such a token is refused. */
 const ASYM = {
   ES256: { import: { name: 'ECDSA', namedCurve: 'P-256' }, verify: { name: 'ECDSA', hash: 'SHA-256' }, kty: 'EC' },
   ES384: { import: { name: 'ECDSA', namedCurve: 'P-384' }, verify: { name: 'ECDSA', hash: 'SHA-384' }, kty: 'EC' },
@@ -141,11 +131,10 @@ export function bearerOf(headerValue) {
 const TTL_MS = 10 * 60 * 1000;
 const REFETCH_MS = 60 * 1000;
 const jwksCache = new Map();     // url → { keys, at, lastTry }
-const tokenCache = new Map();    // sha256(token) → { sub, until }   (HS* path only)
 
 /** Test seam. Caches are module state; a test that cannot clear them is a test
     whose second assertion is measuring the first one's leftovers. */
-export function _resetJwtCaches() { jwksCache.clear(); tokenCache.clear(); }
+export function _resetJwtCaches() { jwksCache.clear(); }
 
 async function jwksFor(url, fetchImpl, nowMs, force) {
   const c = jwksCache.get(url);
@@ -190,19 +179,11 @@ async function verifySignature(token, jwk, alg, subtle) {
   if (!okSig) throw new Error(JWT_ERR.BAD_SIG);
 }
 
-const INTROSPECT_TTL_MS = 60 * 1000;
-const TOKEN_CACHE_MAX = 500;     // bounded: a warm-invocation cache, not a session store
-
-async function sha256Hex(s, subtle) {
-  const buf = new Uint8Array(await subtle.digest('SHA-256', new TextEncoder().encode(s)));
-  return Array.from(buf).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 /**
  * Verify a Supabase access token and return its subject.
  *
- * EVERY return path has checked a signature — either here, against the
- * project's published public key, or at the issuer, by asking it.
+ * EVERY return path has checked a signature here, against the project's
+ * published public key.
  *
  * @param token            the raw compact JWS
  * @param opts.jwksUrl     `<project>/auth/v1/.well-known/jwks.json`  (required)
@@ -210,10 +191,6 @@ async function sha256Hex(s, subtle) {
  * @param opts.fetchImpl   injectable for tests; defaults to global fetch
  * @param opts.subtle      injectable; defaults to globalThis.crypto.subtle
  * @param opts.nowMs       injectable clock; defaults to Date.now()
- * @param opts.introspect  async (token) => sub | null. Optional. Used ONLY when
- *                         the token's alg is HS* (a project that has not rotated
- *                         to JWKS signing keys). Absent ⇒ HS* is a hard
- *                         rejection, which is the fail-closed default.
  * @returns the verified `sub` (a uuid)
  * @throws  Error whose message is a machine code from JWT_ERR
  */
@@ -237,42 +214,19 @@ export async function verifyJwt(token, opts) {
      unverified blob. */
   assertClaims(claims, o.issuer, nowMs);
 
-  if (ASYM[alg]) {
-    const keys = await jwksFor(o.jwksUrl, fetchImpl, nowMs, false);
-    let jwk = pickKey(keys, header.kid, alg);
-    if (!jwk) {
-      /* An unknown kid is the ordinary shape of a key rotation, so refetch once —
-         rate-floored — before giving up. */
-      jwk = pickKey(await jwksFor(o.jwksUrl, fetchImpl, nowMs, true), header.kid, alg);
-    }
-    if (!jwk) throw new Error(JWT_ERR.NO_KEY);
-    await verifySignature(token, jwk, alg, subtle);
-  } else {
-    /* Not an algorithm anyone can verify with a public key. `alg: "none"` lands
-       here too, and lands on a hard rejection: the allowlist below is HS* only,
-       and even with an introspector the ISSUER will not accept `none` either. */
-    if (typeof o.introspect !== 'function') throw new Error(JWT_ERR.BAD_ALG);
-    if (!/^HS(256|384|512)$/.test(alg)) throw new Error(JWT_ERR.BAD_ALG);
+  /* Not an algorithm anyone can verify with a public key: `alg: "none"` and every
+     HS* land here and go no further. */
+  if (!ASYM[alg]) throw new Error(JWT_ERR.BAD_ALG);
 
-    const key = await sha256Hex(token, subtle);
-    const hit = tokenCache.get(key);
-    if (hit && hit.until > nowMs) return hit.sub;
-
-    let sub = null;
-    try { sub = await o.introspect(token); }
-    catch { throw new Error(JWT_ERR.UNAVAILABLE); }
-    if (!sub || !UUID_RE.test(String(sub))) throw new Error(JWT_ERR.BAD_SIG);
-    /* The issuer's answer wins, and the two must agree — a mismatch means one of
-       them is not describing this token. */
-    if (String(sub) !== String(claims.sub)) throw new Error(JWT_ERR.BAD_CLAIMS);
-
-    if (tokenCache.size >= TOKEN_CACHE_MAX) tokenCache.clear();
-    tokenCache.set(key, {
-      sub: String(sub),
-      until: Math.min(nowMs + INTROSPECT_TTL_MS, Number(claims.exp) * 1000 || 0),
-    });
-    return String(sub);
+  const keys = await jwksFor(o.jwksUrl, fetchImpl, nowMs, false);
+  let jwk = pickKey(keys, header.kid, alg);
+  if (!jwk) {
+    /* An unknown kid is the ordinary shape of a key rotation, so refetch once —
+       rate-floored — before giving up. */
+    jwk = pickKey(await jwksFor(o.jwksUrl, fetchImpl, nowMs, true), header.kid, alg);
   }
+  if (!jwk) throw new Error(JWT_ERR.NO_KEY);
+  await verifySignature(token, jwk, alg, subtle);
 
   /* Re-asserted after verification. Everything above this line that touched a
      claim did so on bytes that had not yet been proven; everything the caller
@@ -316,21 +270,4 @@ export function assertClaims(claims, issuer, nowMs) {
     throw new Error(JWT_ERR.BAD_CLAIMS);
   }
   return String(c.sub);
-}
-
-/**
- * The secret-free HS* fallback: ask GoTrue. Returns the user id or null.
- * Built here rather than inline in index.ts so the suite exercises the exact
- * function that ships.
- */
-export function gotrueIntrospector(supabaseUrl, apiKey, fetchImpl) {
-  const f = fetchImpl || globalThis.fetch;
-  return async (token) => {
-    const res = await f(`${supabaseUrl}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}`, apikey: apiKey || '', Accept: 'application/json' },
-    });
-    if (!res || !res.ok) return null;
-    const body = await res.json().catch(() => null);
-    return body && typeof body.id === 'string' ? body.id : null;
-  };
 }

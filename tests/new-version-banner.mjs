@@ -160,7 +160,7 @@ async function rules(m) {
     for (const [status, body, want] of answers) {
       let told = 0;
       const fetch = async () => { if (status === 'network') throw new Error('down'); return { ok: status < 300, status, json: async () => body }; };
-      const link = S.createServerLink({ url: 'https://x', anonKey: 'anon', token: () => 'jwt', fetch, stale: () => { told++; } });
+      const link = S.createServerLink({ url: 'https://x', publishableKey: 'sb_publishable_test', token: () => 'jwt', fetch, stale: () => { told++; } });
       await link.rpc('hr_town_move', { p_slot: 0 });
       if ((told === 1) !== want) return JSON.stringify([status, body]) + ' told stale ' + told + ' time(s)';
     }

@@ -14,7 +14,7 @@
 // The forgeries, and why each one is in the list:
 //   • a tampered payload            — the entire point of a signature
 //   • `alg: none`                   — the classic JWT bypass
-//   • `alg: HS256` with no introspector — the "verify with the public key as an
+//   • `alg: HS256` — the "verify with the public key as an
 //                                     HMAC secret" key-confusion attack, which
 //                                     is why HS* is never verified in-process
 //   • an unknown `kid`              — a key the project does not publish
@@ -36,7 +36,7 @@ import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 
 import {
-  verifyJwt, assertClaims, bearerOf, splitJwt, gotrueIntrospector, _resetJwtCaches,
+  verifyJwt, assertClaims, bearerOf, splitJwt, _resetJwtCaches,
 } from '../supabase/functions/hr-accrue/jwt.js';
 
 const subtle = webcrypto.subtle;
@@ -138,9 +138,8 @@ async function run() {
     `${b64uStr(JSON.stringify({ alg: 'none', typ: 'JWT' }))}.${parts[1]}.${parts[2]}`, base);
 
   // Key confusion: the PUBLIC key used as an HS256 secret. Not verifiable here
-  // by construction — HS* is never verified in-process — so with no introspector
-  // configured this is a hard rejection.
-  await expectReject('alg:HS256 with no introspector',
+  // by construction — HS* is never verified in-process — so this is a hard rejection.
+  await expectReject('alg:HS256',
     `${b64uStr(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))}.${parts[1]}.${parts[2]}`, base);
 
   // An unknown kid.
@@ -176,31 +175,22 @@ async function run() {
     await expectReject(label, tok, base);
   }
 
-  // ── 3. THE HS* FALLBACK, when one is configured ─────────────────────────
+  // ── 3. NO HS* PATH, whatever a caller passes (2026-11-01) ───────────────
+  // An HS256 token is what the exposed legacy secret can mint. It is refused
+  // without a network call, even if a caller still hands in an introspector:
+  // the option is dead and must stay dead.
   const hsTok = `${b64uStr(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))}.${parts[1]}.${parts[2]}`;
-  const introspectOk = { ...base, introspect: async () => SUB };
-  _resetJwtCaches();
-  try {
-    const s = await verifyJwt(hsTok, introspectOk);
-    ok(s === SUB, `the introspection fallback returned ${s}`);
-  } catch (e) { problems.push(`the introspection fallback rejected a token GoTrue accepted: ${e?.message || e}`); }
-
-  await expectReject('introspection saying a DIFFERENT user',
-    hsTok, { ...base, introspect: async () => '99999999-9999-4999-8999-999999999999' });
-  await expectReject('introspection refusing', hsTok, { ...base, introspect: async () => null });
-  await expectReject('introspection erroring', hsTok, { ...base, introspect: async () => { throw new Error('boom'); } });
-  // The fallback must still not resurrect alg:none.
-  await expectReject('alg:none WITH an introspector configured',
-    `${b64uStr(JSON.stringify({ alg: 'none' }))}.${parts[1]}.`, introspectOk);
-
-  // The introspection result is cached, so the fallback costs one round trip
-  // per token per minute rather than one per accrual.
-  _resetJwtCaches();
-  let calls = 0;
-  const counting = { ...base, introspect: async () => { calls++; return SUB; } };
-  await verifyJwt(hsTok, counting);
-  await verifyJwt(hsTok, counting);
-  ok(calls === 1, `the introspection fallback called GoTrue ${calls}x for the same token`);
+  let asked = 0;
+  await expectReject('alg:HS256 with an introspector that vouches for it',
+    hsTok, { ...base, introspect: async () => { asked++; return SUB; } });
+  ok(asked === 0, `an HS256 token reached an introspector ${asked}x`);
+  let fetched = 0;
+  await expectReject('alg:HS256 must not touch the network',
+    hsTok, { ...base, fetchImpl: async (...a) => { fetched++; return base.fetchImpl(...a); } });
+  ok(fetched === 0, `an HS256 token caused ${fetched} fetch(es)`);
+  for (const alg of ['HS384', 'HS512']) {
+    await expectReject(`alg:${alg}`, `${b64uStr(JSON.stringify({ alg, typ: 'JWT' }))}.${parts[1]}.${parts[2]}`, base);
+  }
 
   // ── 4. JWKS UNAVAILABLE ─────────────────────────────────────────────────
   // A cold start with no reachable JWKS must FAIL, and it must fail as OUR
@@ -232,8 +222,6 @@ async function run() {
     assertClaims(claims(), ISSUER, NOW);
   } catch (e) { problems.push(`assertClaims rejected a good claim set: ${e?.message}`); }
 
-  ok(typeof gotrueIntrospector(PROJECT, 'k') === 'function', 'gotrueIntrospector did not build a callable');
-
   // ── 6. THE LIVE PROJECT ─────────────────────────────────────────────────
   // Everything above uses a stubbed JWKS, so everything above would still pass
   // if the module never talked to the real world. This one does: it fetches the
@@ -260,8 +248,8 @@ async function liveJwksCheck(kp, other, H) {
   if (!Array.isArray(keys) || !keys.length) {
     /* Not a failure of this module: it means the project has NOT rotated to
        asymmetric signing keys and every real token is HS256, which the
-       introspection fallback covers. Say so out loud. */
-    return 'SKIPPED (the project publishes no JWKS keys — tokens are HS256, the introspection fallback is the live path)';
+       engine refuses every such token. Say so out loud. */
+    return 'SKIPPED (the project publishes no JWKS keys — tokens would be HS256, which the engine refuses)';
   }
 
   const kid = keys[0].kid;

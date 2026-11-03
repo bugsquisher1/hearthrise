@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/net/observability-config.js — WHERE THE CLIENT'S TELEMETRY GOES.
 //
-// Two PUBLIC, ingest-only client keys (like SUPABASE_CONFIG's anon key: made to
+// Two PUBLIC, ingest-only client keys (like SUPABASE_CONFIG's publishable key: made to
 // ship in a browser bundle; they can send events, never read them):
 //   sentry   errors (uncaught, unhandled rejections, console.error)
 //   posthog  named events and session replay

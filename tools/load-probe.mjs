@@ -82,30 +82,31 @@
 
 import { bootReplay } from '../tests/schema-replay.mjs';
 
-// ── Ground truth, measured against nezapsylztqbbwuwembx on 2026-10-30 ───────
+// ── Ground truth, measured against nezapsylztqbbwuwembx on 2026-10-30, compute and size re-read 2026-11-02 ───────
+// (tools/beta-load.mjs replays the whole population at once; this model still multiplies one measured settle.)
 // Every number here was READ from the project, not assumed. Where a number is
 // a platform default rather than something we set, it says so.
 const GROUND = {
   project: 'nezapsylztqbbwuwembx',
   region: 'us-west-2',
   plan: 'pro',                       // GET /v1/organizations/<org>
-  compute: 'ci_micro',               // GET /v1/projects/<ref>/billing/addons
+  compute: 'ci_small',               // GET /v1/projects/<ref>/billing/addons
   cpu_cores: 2,                      // "2-core ARM (shared)": bursts, then falls to a baseline
   /* ⚠ ASSUMED, NOT MEASURED: the sustained share of those 2 cores. Supabase says
      Nano..2XL "can burst to higher performance levels for short periods of
-     time" and publishes no baseline; 1 GB / 2 ARM cores is AWS t4g.micro, whose
-     baseline is 10 % per vCPU. The model prints the verdict at BOTH numbers and
+     time" and publishes no baseline; 2 GB / 2 ARM cores is AWS t4g.small, whose
+     baseline is 20 % per vCPU. The model prints the verdict at BOTH numbers and
      asserts on the burst one; the dashboard's CPU chart under real load is the
      only thing that settles which one production gets. */
-  cpu_cores_baseline_assumed: 0.2,
-  memory_gb: 1,
-  max_connections: 60,               // select current_setting('max_connections')
-  connections_pooler: 200,           // ci_micro meta.connections_pooler (max_client_conn)
+  cpu_cores_baseline_assumed: 0.4,
+  memory_gb: 2,
+  max_connections: 90,               // select current_setting('max_connections')
+  connections_pooler: 400,           // ci_small meta.connections_pooler (max_client_conn)
   engine_role_connlimit: 20,         // pg_roles.rolconnlimit for hr_engine_login
   peak_connections_seen: 44,         // hr_db_samples.used_conns max, 10-21..10-30 (10-23 10:07)
   live_characters: 15,               // select count(*) from player_state
   live_users: 4,                     // select count(distinct user_id) from player_state
-  db_bytes: 850832531,               // pg_database_size, 10-30 02:27 UTC
+  db_bytes: 288214163,               // pg_database_size, 11-01 23:39 UTC, after 2027-02-11-db-retention.sql
 };
 
 // THE PLAYTEST (Tyler 10-30): about 10 players, each up to 4 heroes hunting.
@@ -574,14 +575,14 @@ async function runFn() {
   const { readFile } = await import('node:fs/promises');
   const boot = await readFile(new URL('../src/net/supabase-bootstrap.js', import.meta.url), 'utf8');
   const url = (boot.match(/https:\/\/[a-z0-9]+\.supabase\.co/) || [])[0];
-  const anon = (boot.match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0];
-  if (!url || !anon) throw Object.assign(new Error('could not read project url/anon key'), { harness: true });
+  const key = (boot.match(/sb_publishable_[A-Za-z0-9_-]+/) || [])[0];
+  if (!url || !key) throw Object.assign(new Error('could not read project url/publishable key'), { harness: true });
   const endpoint = `${url}/functions/v1/hr-accrue`;
 
   p('══ FN SIDE — deployed hr-accrue, bounded auth-only probe ════════════════');
   p(`   endpoint : ${endpoint}`);
   p(`   requests : ${FN_N} per path, SEQUENTIAL (cap ${MAX_FN_REQUESTS})`);
-  p('   paths    : GET (health, no auth, no DB) and POST with the ANON key');
+  p('   paths    : GET (health, no auth, no DB) and POST with the PUBLISHABLE key');
   p('              (a validly SIGNED token whose role is not `authenticated`,');
   p('              so it is refused BEFORE hr_rate_gate — no player is touched)');
   p('');
@@ -599,7 +600,7 @@ async function runFn() {
   const res = { endpoint, get: null, post_anon: null, cold: null, payload_sha256: null };
 
   const gets = [];
-  for (let i = 0; i < FN_N; i++) gets.push(await one({ method: 'GET', headers: { apikey: anon, Authorization: `Bearer ${anon}` } }));
+  for (let i = 0; i < FN_N; i++) gets.push(await one({ method: 'GET', headers: { apikey: key, Authorization: `Bearer ${key}` } }));
   res.cold = gets[0].ms;
   try { res.payload_sha256 = JSON.parse(gets.find((g) => g.status === 200)?.body || '{}').payload_sha256 ?? null; } catch { /* shape probe only */ }
   res.get = { ...stats(gets.slice(1).map((g) => g.ms)), first_ms: gets[0].ms, statuses: [...new Set(gets.map((g) => g.status))] };
@@ -608,7 +609,7 @@ async function runFn() {
   for (let i = 0; i < FN_N; i++) {
     posts.push(await one({
       method: 'POST',
-      headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' },
+      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ verb: 'accrue', slot: 0 }),
     }));
   }
@@ -619,10 +620,10 @@ async function runFn() {
   p(`   body: ${res.post_anon.sample}`);
   p(`   deployed payload_sha256: ${res.payload_sha256 ?? '—'}`);
 
-  // The anon key is a valid SIGNED token with role `anon`. If it is ever
+  // The publishable key passes the gateway and names no player. If it is ever
   // accepted, the identity seam has regressed and an unauthenticated caller can
   // read any player's envelope (design §2a-iii, review D2).
-  assert('the project anon key cannot accrue (role is not `authenticated`)',
+  assert('the project publishable key cannot accrue (no player behind it)',
     res.post_anon.statuses.every((s) => s === 401 || s === 403),
     `statuses ${res.post_anon.statuses.join(',')}`);
 
@@ -802,7 +803,7 @@ function runModel(db, liveSettle) {
   const ceil = (x) => Math.max(0, Math.floor(x));
   const ceilings = {
     'DB CPU, burst (2 cores)': ceil((RHO_LAG * GROUND.cpu_cores - cron) / perPlayer),
-    'DB CPU, baseline (ASSUMED 0.2 core)': ceil((RHO_LAG * GROUND.cpu_cores_baseline_assumed - cron) / perPlayer),
+    'DB CPU, baseline (ASSUMED 0.4 core)': ceil((RHO_LAG * GROUND.cpu_cores_baseline_assumed - cron) / perPlayer),
     'engine connections (20)': ceil(GROUND.engine_role_connlimit / (partyCores * PEAK)),
     'Edge invocations (2M/mo, 4.5 h/day)': ceil(QUOTA.invocations_month / (S.invocations_per_active_hour * HOURS * 30)),
     'egress (250 GB/mo, frames)': ceil(QUOTA.egress_gb_month * 1e9 / (S.frames_per_active_hour * S.frame_bytes_wire * HOURS * 30)),
@@ -825,7 +826,7 @@ function runModel(db, liveSettle) {
       + `  ${(Math.round(r.invocations_month_typical / 1e3) + 'k|' + Math.round(r.invocations_month_allday / 1e3) + 'k').padStart(17)}`
       + ` ${fx(r.egress_gb_month, 0).padStart(14)} ${fx(r.realtime_gb_steady, 1).padStart(12)} ${fx(r.ledger_gb_day, 2).padStart(14)}`);
   }
-  p('   * baseline = the ASSUMED sustained share of the shared Micro CPU once burst credit is spent (see GROUND).');
+  p('   * baseline = the ASSUMED sustained share of the shared Small CPU once burst credit is spent (see GROUND).');
   p('');
   p('   ceilings (players, worst case):');
   const sorted = Object.entries(ceilings).sort((x, y) => x[1] - y[1]);
@@ -842,10 +843,10 @@ function runModel(db, liveSettle) {
   const model = { inputs: S, per_player_db_cores: perPlayer, rho_lag: RHO_LAG, scenarios: rows, ceilings,
     first_bottleneck: { surface: burstFirst[0], players: burstFirst[1] }, playtest: pt, disk_gb_14d: disk14, days_to_8gb: daysTo8 };
   p(`   FIRST BOTTLENECK (burst CPU): ${burstFirst[0]} at ~${burstFirst[1]} players;`
-    + ` at the assumed baseline: ~${ceilings['DB CPU, baseline (ASSUMED 0.2 core)']} players`);
+    + ` at the assumed baseline: ~${ceilings['DB CPU, baseline (ASSUMED 0.4 core)']} players`);
 
   // ── THE ASSERTIONS: the playtest, at what production verifiably has ───────
-  assert(`playtest DB CPU under 50 % of the Micro's ${GROUND.cpu_cores} cores at burst`,
+  assert(`playtest DB CPU under 50 % of Small's ${GROUND.cpu_cores} cores at burst`,
     pt.cpu_pct_burst < 50, `${fx(pt.cpu_pct_burst, 0)} % (${fx(pt.db_cores, 2)} cores)`);
   assert(`playtest watched settle lag under the ${S.look_ahead_ms / 1000} s look-ahead`,
     pt.lag_ms_burst < S.look_ahead_ms, `${lagTxt(pt.lag_ms_burst)} (poll ${S.poll_ms / 1000} s + settle p95 stretched by 1/(1-rho))`);

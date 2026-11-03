@@ -124,6 +124,7 @@ async function checks(overrides) {
     const ctx = await browser.newContext({ viewport: viewport || { width: 1440, height: 900 } });
     const page = await ctx.newPage();
     page.setDefaultTimeout(6000);
+    page.setDefaultNavigationTimeout(30000);   // a page load is the machine's, not a rule (window-camera's note: a cold module graph took 12 s on a slow disk)
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -394,7 +395,7 @@ const MUTANTS = [
   ['a party\'s Start held back by the cap opens no popup', 'src/shell/intent-words.js', "r.error === 'not_ready' && Array.isArray(r.seats) ? r.seats.find((x) => x && PLAY_CAP.has(x.error)) : null", 'null'],
   ['every refusal opens the popup', 'src/shell/intent-words.js', 'if (PLAY_CAP.has(r.error)) return r.error;', "if (r.error) return 'too_many_playing';"],
   ['an alert also says the play cap on its line', 'src/shell/widgets/alerts.js', "playCapOf(r) ? '' : refusalWords(r.error, a.action === 'join' ? 'party_join' : undefined)", 'refusalWords(r.error)'],
-  ['the answer covers the press', 'src/shell/press-ack.js', 'if (p.refused) { refuse(p.el); clearOfAnswer(p.el); }', 'if (p.refused) refuse(p.el);'],
+  ['the answer covers the press', 'src/shell/press-ack.js', '    clearOfAnswer(p.el);\n', ''],
   ['the answer to a press scrolls away', 'src/styles/windows.css', '{ position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }', '{ padding: 6px 10px; }'],
 ];
 

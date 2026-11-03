@@ -52,7 +52,7 @@ import { mountContextMenu } from './context-menu.js?v=0.2.82';
 import { menuProvidersOf } from './menu-providers.js?v=0.2.82';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.82';
 import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.82';
-import { takeFresh, summaryFromEarlierPage, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.82';
+import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.82';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.82';
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.82';
 import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.82';
@@ -117,16 +117,15 @@ export function mountShell(root, o) {
   /* THE HUNT'S WIDGETS LEAVE TOWN WITH IT (designer walk 2026-10-25 #5: the summary, "Not in a party", the hunt bar's
      Summary, the analyzer's "Hunt ended" and a toast, five overlays on return): the party panel and the analyzer show
      while a hunt runs and the server has not said it ended; the hunt bar, which keeps only the way back to the summary
-     once the hunt is over (Tyler 10-19), leaves with the summary: when the player closes it (summaryClosed), so the
+     once the hunt is over (Tyler 10-19), leaves with the summary: when the player closes it (summaryDone), so the
      summary opens by itself (followSummary below) as the one notice and then the town is clear. */
-  let summaryClosed = null;   // the ended session whose summary the player has closed (display scratch)
   const huntUp = (id) => {
     if (!opts.inHunt || !opts.inHunt()) return false;
     const h = huntOf(opts.character);
     if (!h || !h.ended) return true;
     /* ...and none while that summary is open: the bar would hold only a Summary press for the window already on
        screen (first-hour playtest 10-29 #10: on a phone, its ground's name given way to the sheet, an empty box). */
-    return id === 'hunt-topbar' && summaryClosed !== h.sessionId && !summaryFromEarlierPage(opts.character, h.sessionId) && !wm.isOpen('hunt-summary');
+    return id === 'hunt-topbar' && !summaryDone(opts.character, h.sessionId) && !wm.isOpen('hunt-summary');
   };
   const hud = createHud({
     widgets: HUD_WIDGETS,
@@ -395,7 +394,7 @@ export function mountShell(root, o) {
   function onWm() {
     /* the player closed an ended hunt's summary: its hunt bar leaves town with it (huntUp) */
     const so = wm.isOpen('hunt-summary');
-    if (summaryWasOpen && !so) summaryClosed = summaryClosedBy(ctx.character) || summaryClosed;
+    if (summaryWasOpen && !so) summaryClosedBy(ctx.character);
     summaryWasOpen = so;
     paintWindows();
     /* an open window asked to show another tab (R on an open Shop: window-manager.js openTab) shows it at once */
@@ -573,6 +572,8 @@ export function mountShell(root, o) {
     onInset(fn) { insetListeners.add(fn); fn(insetNow()); return () => insetListeners.delete(fn); },
     menu: ctx.menu,
     destroy() {
+      /* a switch of the viewed hero takes the windows with it: the summary on screen has been seen, and the bar must not stand in for it on the way back */
+      if (wm.isOpen('hunt-summary')) summaryClosedBy(ctx.character);
       offDeaths(); offPlayCap(); offWm(); offHud(); offMoves();
       if (sized) sized.ro.disconnect();
       ctx.menu.destroy();

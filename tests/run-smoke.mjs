@@ -132,7 +132,7 @@ async function deployedPayloadGuard() {
      of the game with 400 items while the game had 426.
 
      The env vars were never actually needed. `tests/rpc-resolution.mjs` already
-     established the right pattern: read the project url and the ANON key out of
+     established the right pattern: read the project url and the PUBLISHABLE key out of
      src/net/supabase-bootstrap.js rather than duplicating them into config, so
      the check cannot be silently switched off by a missing variable. The anon
      key is public and already committed — there is no secret here to withhold.
@@ -145,7 +145,7 @@ async function deployedPayloadGuard() {
     try {
       const boot = await readFile(new URL('../src/net/supabase-bootstrap.js', import.meta.url), 'utf8');
       const base = (boot.match(/https:\/\/[a-z0-9]+\.supabase\.co/) || [])[0];
-      derivedKey = (boot.match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0] || '';
+      derivedKey = (boot.match(/sb_publishable_[A-Za-z0-9_-]+/) || [])[0] || '';
       if (base) url = `${base}/functions/v1/hr-accrue`;
     } catch { /* fall through to the hard failure below */ }
   }
@@ -284,6 +284,8 @@ async function secretGuard() {
     if (shaped) {
       problems.push(`${rel}: a credential-shaped Discord webhook URL is committed (…${shaped[0].slice(-8)}) — regenerate it in Discord and move it to a server-side secret`);
     }
+    const sbSecret = text.match(/\bsb_secret_[A-Za-z0-9_-]{20,}\b/);
+    if (sbSecret) problems.push(`${rel}: a Supabase SECRET key is committed — it bypasses RLS entirely; delete it in the dashboard now`);
     const pat = text.match(PAT);
     if (pat) problems.push(`${rel}: a GitHub personal access token is committed (${pat[0].slice(0, 8)}…)`);
 

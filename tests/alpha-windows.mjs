@@ -10,7 +10,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js
+// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -42,6 +42,9 @@
 //         server's bag and bar; Use sends ONE hr_hunt_preset_apply
 //   AW-64 HUNT PREP AND BEFORE YOU GO PRINT ONE READER of what the hero can use NOW (the hunt bag in
 //         a hunt), every tier of food, drink, ammo and runes, ammo in the engine's order (Andy #74)
+//   AW-65 A STORAGE PRESS ANSWERS IN VIEW (Andy, analytics 11-02: 14 presses in 25 s): at 1366x768 with both grids long and the bag
+//         scrolled into reach, "Putting it away…" and the result or the refusal stand in view and off the stack pressed; no stack moves
+//         from under the hand; a hero out hunting is told why at the press, and the line goes once the hero is home
 //   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
 //         and Dispatch loot stay off and the bag value reads a dash
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
@@ -2057,6 +2060,96 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // AW-65 a Storage press answers in view
+      const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
+      const W65 = '[data-hs-win="storage"] ';
+      const STACK = W65 + '[data-side="bag"] .hw-pocket[data-item="copper_ore"]';
+      const stored = Object.fromEntries(Object.keys(ITEMS).slice(0, 60).map((i) => [i, 3]));
+      const bagFull = Object.fromEntries(Object.keys(ITEMS).slice(60, 100).map((i) => [i, 14]));
+      const long = (e) => { e.bank = Object.assign({}, stored); e.inventory = Object.assign({}, e.inventory, bagFull, { copper_ore: 14 }); };
+      /* The line as a player sees it: its words, in the scrolled body's view or not, and whether it lies on the stack. */
+      const lineNow = (page) => page.evaluate(([w, st]) => {
+        const body = document.querySelector(w + '[data-hs-body]'), m = document.querySelector(w + '.hh-intent-msg'), s = document.querySelector(st);
+        const b = body.getBoundingClientRect(), r = m.getBoundingClientRect(), k = s.getBoundingClientRect();
+        return { text: m.textContent, scrolled: body.scrollTop, inView: r.height > 0 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1, onStack: r.height > 0 && r.top < k.bottom && k.top < r.bottom,
+          sending: s.classList.contains('is-sending'), stackTop: Math.round(k.top) };
+      }, [W65, STACK]);
+      const reach = async (page) => {
+        await openWin(page, 't', 'storage');
+        await page.waitForTimeout(300);
+        await page.locator(STACK).scrollIntoViewIfNeeded();
+        await page.evaluate((st) => document.querySelector(st).scrollIntoView({ block: 'end' }), STACK);
+        await page.waitForTimeout(100);
+      };
+      {
+        const { ctx, page, errors, s, up } = await open({ viewport: { width: 1366, height: 768 }, mutateEnv: (e) => { long(e); for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 400 }); } });
+        if (!up) fails.push('AW-65 the town did not mount');
+        else {
+          await reach(page);
+          const before = await lineNow(page);
+          if (!before.scrolled) fails.push('AW-65 CONTROL: the window does not scroll, so this proves nothing');
+          s.delayMs = 700;
+          await page.click(STACK);
+          await page.waitForTimeout(150);
+          const waiting = await lineNow(page);
+          if (!/^Putting it away/.test(waiting.text) || !waiting.inView || !waiting.sending) fails.push('AW-65 a press in a scrolled bag, while it waits: ' + JSON.stringify(waiting));
+          await wait(page, (w) => /^Put away/.test(document.querySelector(w + '.hh-intent-msg').textContent), W65, 4000);
+          await page.waitForTimeout(150);
+          const done = await lineNow(page);
+          if (!done.inView) fails.push('AW-65 the result of a press in a scrolled bag is out of sight: ' + JSON.stringify(done));
+          if (done.onStack) fails.push('AW-65 the answer lies on the stack just pressed: ' + JSON.stringify(done));
+          /* The next press lands where the hand is: its answer moves nothing now the line is up. */
+          await page.click(STACK);
+          await page.waitForTimeout(100);
+          await wait(page, (w) => /^Put away/.test(document.querySelector(w + '.hh-intent-msg').textContent), W65, 4000);
+          await page.waitForTimeout(150);
+          const twice = await lineNow(page);
+          if (twice.stackTop !== done.stackTop) fails.push('AW-65 the stack moved under the hand: y ' + done.stackTop + ' then ' + twice.stackTop);
+          if (sent(s, 'hr_bank_move').length !== 2) fails.push('AW-65 two presses sent ' + sent(s, 'hr_bank_move').length + ' moves');
+          s.delayMs = 0;
+          s.reply = { ok: false, error: 'bank_full', cap: 400 };
+          await page.click(STACK);
+          await wait(page, (w) => /full/.test(document.querySelector(w + '.hh-intent-msg').textContent), W65, 5000);
+          const refused = await lineNow(page);
+          if (refused.text !== 'Your storage is full.' || !refused.inView) fails.push('AW-65 a refusal in a scrolled bag: ' + JSON.stringify(refused));
+          s.reply = { ok: true };
+        }
+        if (errors.length) fails.push('AW-65 console errors: ' + errors.slice(0, 2).join(' | '));
+        await ctx.close();
+      }
+      {
+        const { ctx, page, errors, s, up } = await open({ viewport: { width: 1366, height: 768 }, mutateEnv: long });
+        if (!up) fails.push('AW-65 the hunt did not mount');
+        else {
+          await reach(page);
+          await page.click(STACK, { button: 'right', force: true });
+          await page.waitForTimeout(150);
+          const asked = await lineNow(page);
+          if (!/out hunting/.test(asked.text) || !asked.inView) fails.push('AW-65 a right-click with the hero out hunting does not say why in view: ' + JSON.stringify(asked));
+          /* Home: the line no longer holds. */
+          const away = clone(s.env);
+          for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete s.env[k];
+          s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(200);
+          const home = await lineNow(page);
+          if (home.text) fails.push('AW-65 back in town the line still says ' + JSON.stringify(home.text));
+          /* Out again, the line empty: a press says why by itself. */
+          s.env = away;
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(200);
+          await page.evaluate((st) => document.querySelector(st).scrollIntoView({ block: 'end' }), STACK);
+          await page.click(STACK, { force: true });
+          await page.waitForTimeout(150);
+          const said = await lineNow(page);
+          if (!/out hunting/.test(said.text) || !said.inView) fails.push('AW-65 a press with the hero out hunting does not say why in view: ' + JSON.stringify(said));
+          if (sent(s, 'hr_bank_move').length) fails.push('AW-65 a hero out hunting sent a move');
+        }
+        if (errors.length) fails.push('AW-65 console errors (hunting): ' + errors.slice(0, 2).join(' | '));
+        await ctx.close();
+      }
+    }
+
     { // AW-18 amounts in Storage; AW-19 bury — a stateful stub: the server's answer moves its own counts
       const town = (e) => {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
@@ -2117,9 +2210,7 @@ async function checks(overrides, shots) {
             for (let n = m.parentElement; n && n !== win.parentElement; n = n.parentElement) {
               if (/(auto|scroll|hidden)/.test(getComputedStyle(n).overflowY)) { const b = n.getBoundingClientRect(); box = { top: Math.max(box.top, b.top), bottom: Math.min(box.bottom, b.bottom) }; }
             }
-            /* above both grids: a full bag scrolls them, never the answer to the press */
-            const above = !!(m.compareDocumentPosition(document.querySelector(w + '.hw-pockets[data-side="bank"]')) & Node.DOCUMENT_POSITION_FOLLOWING);
-            return { text: m.textContent, shown: above && r.height > 0 && r.top >= box.top - 1 && r.bottom <= box.bottom + 1 };
+            return { text: m.textContent, shown: r.height > 0 && r.top >= box.top - 1 && r.bottom <= box.bottom + 1 };
           }, W18);
           s.reply = { ok: false, error: 'insufficient_item', item_id: 'copper_ore', have: 0, need: 7 };
           await page.click(W18 + '[data-side="bag"] .hw-pocket[data-item="copper_ore"]', { modifiers: ['Shift'] });
@@ -2924,6 +3015,11 @@ const MUTANTS = [
   ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Your bag is full.", "  return false ? 'Your bag is full."],
   ['AW-63 Enter off has no reason beside it', 'src/shell/windows/hunts.js', "  text(det.querySelector('.hw-enter-why'), off);\n", ''],
   ['AW-63 a member has no way out at Enter', 'src/shell/windows/hunts.js', "  prop(det.querySelector('[data-hs-act=\"leave-party\"]'), 'hidden', now || !follower);\n", ''],
+  ['AW-65 the answer stays behind a scrolled bag', 'src/styles/windows.css', '.hs-win .hh-intent-msg:not(:empty, .ca-msg) { position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }', '.hs-win .hh-intent-msg:not(:empty, .ca-msg) { padding: 6px 10px; }'],
+  ['AW-65 a result lies on the stack pressed', 'src/shell/press-ack.js', '    clearOfAnswer(p.el);\n', '    if (p.refused) clearOfAnswer(p.el);\n'],
+  ['AW-65 a press mid-hunt says nothing', 'src/shell/windows/storage.js', 'if (off || !row) { sayAway(cs, sc, repaint); return true; }', 'if (off || !row) return true;'],
+  ['AW-65 a right-click mid-hunt says nothing', 'src/shell/windows/storage.js', '    else sayAway(cs, sc, repaint);\n', ''],
+  ['AW-65 the why stays up in town', 'src/shell/windows/storage.js', "  if (!away && sc.msg === STORE_AWAY) sc.msg = '';   // back in town, it no longer holds\n", ''],
   ['AW-63 the answer covers Leave party', 'src/styles/windows.css', '.hs-win .hw-party > .hh-intent-msg:not(:empty) { position: static; }\n', ''],
   ['AW-63 Disband goes on one press', 'src/shell/widgets/party-panel.js', '    if (!sc.disbandArmed) {', '    if (false) {'],
   ['AW-63 an old answer stands after a seat came', 'src/shell/windows/party.js', "if (sc.msgSeats !== undefined && !sc.pending) sc.msg = '';", ''],

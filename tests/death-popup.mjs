@@ -3,10 +3,10 @@
 // tests/death-popup.mjs — THE DEATH POPUP (Tyler 2026-10-19; tracker r15), IN A REAL CHROMIUM.
 //
 //   node tests/death-popup.mjs                the rules
-//   node tests/death-popup.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/death-popup.mjs --mutate       every planted defect must turn a rule RED (--only TEXT: just the mutants whose name holds it)
 //   node tests/death-popup.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/shell/death-popup.js src/shell/windows/death.js src/shell/alerts.js src/session/character-sections.js src/shell/widgets/hunt-topbar.js src/shell/shell.js src/styles/app.css src/world/world-boot.js
+// mutant-anchors: src/shell/death-popup.js src/shell/windows/death.js src/shell/alerts.js src/session/character-sections.js src/shell/widgets/hunt-topbar.js src/shell/shell.js src/styles/app.css src/world/world-boot.js src/hunt-view/summary-recorder.js
 // mutant-writes-tree: no — page mutants are served overrides
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs), on
@@ -32,6 +32,8 @@
 //                  "Last hunt: Wickstead | Summary" in its place until Summary was pressed)
 //   DP-5 BAR IN TOWN  a hunt bar left standing in town (a death's summary opens by no one) keeps the Town / Home
 //                  row, clear of the bar; a running hunt hides the row (Andy 2026-11-01: no way out of the house)
+//   DP-6 HERO SWITCH  the summary closed, or still up, when the viewed hero changes: on the way back the "Last hunt"
+//                  bar stays out of town and the summary stays shut (a switch remounts the shell)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -155,6 +157,7 @@ async function pageRules(overrides, shots) {
         const ctx = await browser.newContext({ viewport: vp });
         const page = await ctx.newPage();
         page.setDefaultTimeout(6000);
+        page.setDefaultNavigationTimeout(30000);   // a page load is the machine's, not a rule (window-camera's note: a cold module graph took 12 s on a slow disk)
         page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
         page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
         await stub(page, s);
@@ -281,6 +284,42 @@ async function pageRules(overrides, shots) {
         if (!live.ok || !running.bar) fails.push('DP-5 [' + tag + '] a running hunt showed no hunt bar: ' + JSON.stringify(running));
         else if (running.chrome || running.town || running.home) fails.push('DP-5 [' + tag + '] a running hunt still shows the Town / Home row: ' + JSON.stringify(running));
         await live.ctx.close();
+        /* DP-6 A HERO SWITCH DOESN'T BRING THE "LAST HUNT" BAR BACK (v0.2.82, played): a switch of the viewed hero remounts the shell, and "the summary was closed"
+           went with the old one. Closed then switched, or switched away with the summary up: on the way back the town stays clear, and the summary stays shut. */
+        const endedHere = () => {
+          const s6 = scripted(false);
+          s6.env[0].state = Object.assign({}, s6.env[0].state, { active_kind: 'idle', active_id: null });
+          s6.env[0].hunt.ended = true;
+          s6.env[0].hunt.session = Object.assign({}, s6.env[0].hunt.session, { end_reason: 'stamina', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
+          return s6;
+        };
+        const showHero = async (page, slot) => {
+          await wait(page, (k) => document.querySelector('.char-tab[data-slot="' + k + '"]'), slot);
+          await page.evaluate((k) => document.querySelector('.char-tab[data-slot="' + k + '"]').click(), slot);
+          return wait(page, (k) => document.querySelector('#panel-world[data-slot="' + k + '"]') && document.querySelector('.hs-launchers'), slot);
+        };
+        for (const closeIt of [true, false]) {
+          const say = closeIt ? 'closed, then a switch' : 'a switch with the summary up';
+          const w = await fresh(endedHere());
+          if (!w.ok || !(await wait(w.page, (q) => !!document.querySelector(q), SUM, 4000))) fails.push('DP-6 [' + tag + '] [' + say + '] the ended hunt opened no summary');
+          else {
+            if (closeIt) {
+              await w.page.click('[data-hs-close="hunt-summary"]');
+              await wait(w.page, (q) => !document.querySelector(q), SUM, 3000);
+              await w.page.waitForTimeout(300);
+            }
+            const before = await townView(w.page);
+            if (closeIt && (before.bar || !before.home)) fails.push('DP-6 [' + tag + '] [' + say + '] closing it left ' + JSON.stringify(before));
+            if (!(await showHero(w.page, 1))) fails.push('DP-6 [' + tag + '] [' + say + '] the other hero did not show');
+            else if (!(await showHero(w.page, 0))) fails.push('DP-6 [' + tag + '] [' + say + '] the hero did not show again');
+            else {
+              await w.page.waitForTimeout(600);
+              const back = await townView(w.page);
+              if (back.bar || back.summary || !back.home) fails.push('DP-6 [' + tag + '] [' + say + '] back on the hero the town reads ' + JSON.stringify(back));
+            }
+          }
+          await w.ctx.close();
+        }
         if (errors.length) fails.push('DP [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       } catch (e) {
         fails.push('DP [' + tag + '] threw: ' + String(e && e.message).split('\n')[0]);
@@ -302,7 +341,9 @@ const PAGE_MUTANTS = [
   ['the own death is a side line again', 'src/shell/alerts.js', '    if (!viewed && !deathSeen(cs, h.sessionId)) out.push(', '    out.push('],
   ['the projection drops the Blessing', 'src/session/character-sections.js', "      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null });", '      saved: undefined });'],
   ['Hunt summary only closes', 'src/shell/windows/death.js', "  if (action === 'death-summary') ctx.show('hunt-summary');\n", ''],
-  ['a reload stands the hunt bar back up in town', 'src/shell/shell.js', " && !summaryFromEarlierPage(opts.character, h.sessionId)", ''],
+  ['a reload stands the hunt bar back up in town', 'src/hunt-view/summary-recorder.js', 'return a.earlier === sessionId || a.closed === sessionId;', 'return a.closed === sessionId;'],
+  ['a hero switch stands the hunt bar back up in town (DP-6)', 'src/hunt-view/summary-recorder.js', 'attach(cs).closed = h.sessionId;', 'void attach(cs);'],
+  ['a hero switch with the summary up stands the hunt bar in its place (DP-6)', 'src/shell/shell.js', "if (wm.isOpen('hunt-summary')) summaryClosedBy(ctx.character);", 'void 0;'],
   ['a closed summary waits out the residue debounce', 'src/hunt-view/summary-recorder.js', "if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});", 'void 0;'],
   ['the hunt bar alone hides the Town / Home row', 'src/styles/app.css', '.app.is-game #panel-world[data-scene="hunt"]:has(.ht-bar) .world-chrome', '.app.is-game:has(.ht-bar) #panel-world .world-chrome'],
   ['the pane never names its scene', 'src/world/world-boot.js', "    panel.setAttribute('data-scene', sc.kind);", '    void 0;'],
@@ -323,14 +364,16 @@ async function main() {
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
-  for (const [name, file, from, to] of PAGE_MUTANTS) {
+  const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
+  const chosen = PAGE_MUTANTS.filter((m) => !only || m[0].includes(only));
+  for (const [name, file, from, to] of chosen) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
     const fails = await pageRules({ [file]: text.replace(from, to) }, null);
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'death-popup --mutate: ' + bad + ' escaped' : 'death-popup --mutate: ' + PAGE_MUTANTS.length + '/' + PAGE_MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'death-popup --mutate: ' + bad + ' escaped' : 'death-popup --mutate: ' + chosen.length + '/' + chosen.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 

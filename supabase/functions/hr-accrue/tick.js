@@ -13,9 +13,8 @@
 // bypasses.
 //
 // ── THE TWO HEADERS, AND WHY THERE ARE TWO ──────────────────────────────────
-//   Authorization: Bearer …   the project's GATEWAY key (the anon key is a
-//                             valid JWT and the gateway accepts it). Checked by
-//                             Supabase, before this function runs, because
+//   apikey: sb_publishable_…  the project's GATEWAY key. Checked by Supabase,
+//                             before this function runs, because
 //                             `verify_jwt = true` stays on. It is PUBLIC and it
 //                             is NOT the tick's authorisation.
 //   X-HR-Tick-Auth            the tick bearer, Vault `hr_tick_shared_secret`,

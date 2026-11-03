@@ -5,7 +5,7 @@
 //   node tests/window-camera.mjs           the rules, in a real Chromium
 //   node tests/window-camera.mjs --mutate  every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/window-manager.js src/shell/shell.js src/world/core/camera.js src/world/render/canvas-backend.js src/styles/world.css src/hunt-view/scene.js src/world/world-boot.js src/world/town-zoom.js
+// mutant-anchors: src/shell/window-manager.js src/shell/shell.js src/world/core/camera.js src/world/render/canvas-backend.js src/styles/world.css src/hunt-view/scene.js src/world/world-boot.js src/world/town-zoom.js src/session/residue.js
 // mutant-writes-tree: no — mutants are served overrides
 //
 // Tyler's playtest, 2026-10-18 (v0.2.1), on play.html with supabase-js and the
@@ -47,6 +47,10 @@
 //         within one tile of the middle of the World the party panel, analyzer, hunt bar and
 //         action bar leave uncovered, unless that part already meets the room's edge on the
 //         hero's side; and that part never shows past the room
+//   WC-8  THE TOWN ZOOM: its steps, its presses at each zoom, the phone (see townZoom below)
+//   WC-9  THE TOWN ZOOM IS THE VIEWER'S, NOT THE HERO'S (Andy's report #75: "Apollo's screen is very zoomed out after a hunt, but the others
+//         aren't"): one hero's old bare `townZoom: 1` draws no hero zoomed out; a press on one hero shows on the other and goes into both
+//         residues; a reload keeps it on both; a hero that holds an older pick does not put it back, whichever hero is on screen
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -77,7 +81,7 @@ function townEnv() {
   return e;
 }
 
-async function stub(page, residue) {
+async function stub(page, residue, perSlot) {
   let version = 1;
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
@@ -85,7 +89,12 @@ async function stub(page, residue) {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
-    if (name === 'hr_load') return json(Object.assign(townEnv(), { version: ++version }, residue ? { client_state: residue } : {}));
+    /* perSlot (WC-9): the account's heroes, each with the residue the server holds for it: { slot: {...} }, kept by every put */
+    if (perSlot && name === 'hr_put_client_state') { Object.assign(perSlot[body.p_slot], body.p_patch); return json({ ok: true }); }
+    if (name === 'hr_load') {
+      if (perSlot && !perSlot[body.p_slot]) return json({ ok: false, error: 'no_character', hero_slots: Object.keys(perSlot).map(Number) });
+      return json(Object.assign(townEnv(), { version: ++version }, perSlot ? { hero_slots: Object.keys(perSlot).map(Number), account: { max_concurrent: 4 }, name: 'Hero ' + body.p_slot, client_state: perSlot[body.p_slot] } : residue ? { client_state: residue } : {}));
+    }
     if (name === 'hr-accrue') return json({ accrued: false });
     /* the town (2027-01-28-town-stands.sql): the server stands the hero on its stand (the arrival's first, the Common's start tile) */
     if (name === 'hr_town_here') return json({ ok: true, me: STAND });
@@ -100,14 +109,14 @@ async function stub(page, residue) {
 
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
-async function enter(browser, base, viewport, residue) {
+async function enter(browser, base, viewport, residue, perSlot) {
   const ctx = await browser.newContext({ viewport });
   const page = await ctx.newPage();
   page.setDefaultTimeout(6000);
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-  await stub(page, residue);
+  await stub(page, residue, perSlot);
   /* the page load is the machine's, not a rule: a cold module graph on a slow disk took 12 s (2026-10-22) */
   await page.goto(base + '/play.html', { waitUntil: 'load', timeout: 30000 });
   await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
@@ -309,7 +318,8 @@ async function huntCamera(browser, base) {
   return fails;
 }
 
-async function checks(overrides) {
+/* `viewer`: run WC-9 too, about 20 s a run on two heroes: --mutate runs it for its own mutants and the clean control only (smoke.yml in-page-2 budgets this job's minutes). */
+async function checks(overrides, viewer = true) {
   const fails = [];
   const { server, port } = await serve(Object.assign({}, HOOKS, overrides || {}));
   const base = 'http://127.0.0.1:' + port;
@@ -498,6 +508,7 @@ async function checks(overrides) {
     }
     fails.push(...(await huntCamera(browser, base)));   // WC-7
     fails.push(...(await townZoom(browser, base)));     // WC-8
+    if (viewer) fails.push(...(await viewerZoom(browser, base)));   // WC-9
   } catch (e) {
     /* a step that threw is HARNESS, never a rule (2026-10-22, tests/_mutant-verdict.mjs) */
     fails.push(harnessFail('a page step', e));
@@ -511,7 +522,7 @@ async function checks(overrides) {
 /* WC-8 THE TOWN ZOOM (Tyler 2026-10-26: "a bit too zoomed in", then "I think 2x is fine"; src/world/town-zoom.js,
    src/data/world/view-zoom.js). At 1440x900 the town opens at x2 with its + / − on the stage (+ off at the end);
    at every zoom a press on a ground tile walks to THAT tile and a right-click on the peer names the peer; − draws
-   x1 on the next frame with the hero on screen and puts `townZoom: 1` into the residue (one hr_put_client_state);
+   x1 on the next frame with the hero on screen and puts { z: 1 } into the residue (one hr_put_client_state);
    the wheel steps back to x2. Reloaded with that residue the town opens at x1. A 2560 px window draws the town at
    x2 too (no longer the wide x3). On the phone (922x423) there is no control and the screen class's x2 stays. */
 const TAP_AT = { x2: [11, 12], x1: [13, 12] };   // the arrival yard, south of the stand (a new tile per zoom: the hero stands on the last)
@@ -552,7 +563,7 @@ async function townZoom(browser, base) {
       if (!onScreen) fails.push('WC-8 the hero left the screen at x1');
       await hits(page, 'x1');
       await page.waitForTimeout(1900);   // the residue debounce (SESSION_CONFIG.residueDebounceMs)
-      if (!puts.some((p) => p && p.townZoom === 1)) fails.push('WC-8 the pick was not put into the residue: ' + JSON.stringify(puts));
+      if (!puts.some((p) => p && p.townZoom && p.townZoom.z === 1)) fails.push('WC-8 the pick was not put into the residue: ' + JSON.stringify(puts));
       const c = await page.evaluate(() => { const r = document.querySelector('#panel-world canvas').getBoundingClientRect(); return [r.left + r.width / 3, r.top + r.height / 3]; });
       await page.mouse.move(c[0], c[1]);
       await page.mouse.wheel(0, -120);
@@ -562,7 +573,7 @@ async function townZoom(browser, base) {
     if (errors.length) fails.push('WC-8 console errors: ' + errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
-  for (const [vp, residue, want, tag] of [[{ width: 1440, height: 900 }, { townZoom: 1 }, 1, 'reload'], [{ width: 2560, height: 1271 }, null, 2, '2560 wide']]) {
+  for (const [vp, residue, want, tag] of [[{ width: 1440, height: 900 }, { townZoom: { z: 1, at: 1 } }, 1, 'reload'], [{ width: 2560, height: 1271 }, null, 2, '2560 wide']]) {
     const { ctx, page, errors, up } = await enter(browser, base, vp, residue || undefined);
     if (!up) fails.push('WC-8 the town did not mount (' + tag + ')');
     else if ((await zoomNow(page)) !== want) fails.push('WC-8 [' + tag + '] the town opens at x' + (await zoomNow(page)) + ', want x' + want);
@@ -570,7 +581,7 @@ async function townZoom(browser, base) {
     await ctx.close();
   }
   {
-    const { ctx, page, errors, up } = await enter(browser, base, { width: 922, height: 423 }, { townZoom: 1 });
+    const { ctx, page, errors, up } = await enter(browser, base, { width: 922, height: 423 }, { townZoom: { z: 1, at: 1 } });
     if (!up) fails.push('WC-8 the town did not mount (phone)');
     else {
       if ((await zoomNow(page)) !== 2) fails.push('WC-8 the phone town draws x' + (await zoomNow(page)) + ', want the screen class\'s x2');
@@ -579,6 +590,62 @@ async function townZoom(browser, base) {
     if (errors.length) fails.push('WC-8 console errors (phone): ' + errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
+  return fails;
+}
+
+/* WC-9: two heroes on one account, played from the characters screen; a hero tab shows the other. */
+async function viewerZoom(browser, base) {
+  const fails = [];
+  const zoomNow = (page) => page.evaluate(() => window.__world.stats().z);
+  const ofHero = async (page, slot) => {
+    await page.evaluate(() => { window.__world = null; });
+    await page.click('.char-tab[data-slot="' + slot + '"]');
+    await wait(page, (k) => document.querySelector('#panel-world[data-slot="' + k + '"]') && window.__world && window.__world.stats().frames > 0 && document.querySelector('.hs-launchers'), slot);
+    await settle(page);
+    return zoomNow(page);
+  };
+  const bothOpen = (page) => wait(page, () => document.querySelector('.char-tab[data-slot="0"]') && document.querySelector('.char-tab[data-slot="1"]'));
+  for (const [tag, held, want] of [
+    /* the state of report #75: Apollo's old bare pick from before this rule, his friends with none */
+    ['an old bare pick on one hero', { 0: {}, 1: { townZoom: 1 } }, 2],
+    /* each way round, so it is the stamp that decides and not who is on screen */
+    ['the other hero holds an older pick', { 0: { townZoom: { z: 2, at: 200 } }, 1: { townZoom: { z: 1, at: 100 } } }, 2],
+    ['the hero on screen holds the older pick', { 0: { townZoom: { z: 2, at: 100 } }, 1: { townZoom: { z: 1, at: 200 } } }, 1],
+  ]) {
+    const { ctx, page, errors, up } = await enter(browser, base, { width: 1440, height: 900 }, null, held);
+    if (!up || !(await bothOpen(page))) fails.push('WC-9 [' + tag + '] two heroes did not open');
+    else {
+      await settle(page);
+      const a = await ofHero(page, 1), b = await ofHero(page, 0);
+      if (a !== want || b !== want) fails.push('WC-9 [' + tag + '] the heroes draw x' + a + ' and x' + b + ', want both at x' + want);
+    }
+    if (errors.length) fails.push('WC-9 console errors (' + tag + '): ' + errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  const held = { 0: {}, 1: {} };
+  const { ctx, page, errors, up } = await enter(browser, base, { width: 1440, height: 900 }, null, held);
+  if (!up || !(await bothOpen(page))) fails.push('WC-9 two heroes did not open');
+  else {
+    await press(page, '.world-zoom [data-zoom="-1"]');
+    await settle(page);
+    if ((await zoomNow(page)) !== 1) fails.push('WC-9 − did not draw x1');
+    const other = await ofHero(page, 1);
+    if (other !== 1) fails.push('WC-9 a pick on one hero left the other at x' + other);
+    await page.waitForTimeout(1900);   // the residue debounce (SESSION_CONFIG.residueDebounceMs)
+    if (!(held[0].townZoom && held[0].townZoom.z === 1 && held[1].townZoom && held[1].townZoom.z === 1)) fails.push('WC-9 the pick did not reach both heroes on the server: ' + JSON.stringify(held));
+    await page.reload({ waitUntil: 'load', timeout: 30000 });
+    await wait(page, () => window.__world && window.__world.stats().frames > 0 && document.querySelector('.hs-launchers'));
+    await bothOpen(page);
+    await settle(page);
+    const after = [await ofHero(page, 0), await ofHero(page, 1)];
+    if (after[0] !== 1 || after[1] !== 1) fails.push('WC-9 a reload lost the pick: the heroes draw ' + after.join(', '));
+    await press(page, '.world-zoom [data-zoom="1"]');
+    await settle(page);
+    const back = await ofHero(page, 0);
+    if (back !== 2) fails.push('WC-9 a second pick on the other hero left this one at x' + back);
+  }
+  if (errors.length) fails.push('WC-9 console errors: ' + errors.slice(0, 3).join(' | '));
+  await ctx.close();
   return fails;
 }
 
@@ -601,7 +668,11 @@ const MUTANTS = [
   ['the hunt camera holds the whole view on the room again: the hero hugs the analyzer (WC-7)', 'src/world/core/camera.js', "const rule = { wholeView: map.kind !== 'hunt' };", 'const rule = { wholeView: true };'],
   ['a pane mounted mid-hunt never hears the HUD inset (WC-7)', 'src/shell/shell.js', 'insetListeners.add(fn); fn(insetNow());', 'insetListeners.add(fn);'],
   ['the town never takes the viewer\'s zoom (WC-8)', 'src/world/world-boot.js', '    backend.setZoom(zoom.zoomOf(sc.kind));', '    backend.setZoom(null);'],
-  ['the town zoom is never put into the residue (WC-8)', 'src/world/town-zoom.js', "if (character && typeof character.setResidue === 'function') character.setResidue('townZoom', next);", ''],
+  ['the town zoom is never put into the residue (WC-8)', 'src/world/town-zoom.js', "for (const cs of all) if (typeof cs.setResidue === 'function') cs.setResidue('townZoom', pick);", ''],
+  ['a pick stays on the hero it was made on (WC-9, report #75)', 'src/world/town-zoom.js', "for (const cs of all) if (typeof cs.setResidue === 'function') cs.setResidue('townZoom', pick);", "if (character) character.setResidue('townZoom', pick);"],
+  ['a hero reads only its own pick (WC-9, report #75)', 'src/world/town-zoom.js', 'const p = newestPick(heroes());', 'const p = newestPick(character ? [character] : []);'],
+  ['the oldest pick wins (WC-9)', 'src/world/town-zoom.js', 'if (p && (!best || p.at > best.at)) best = p;', 'if (p && (!best || p.at < best.at)) best = p;'],
+  ['an old bare pick still zooms one hero out (WC-9, report #75)', 'src/session/residue.js', 'return isObj(v) && TOWN_ZOOM.steps.includes(v.z)', 'if (TOWN_ZOOM.steps.includes(v)) return { z: v, at: 0 };\n  return isObj(v) && TOWN_ZOOM.steps.includes(v.z)'],
   ['the phone takes the desktop\'s pick (WC-8)', 'src/world/town-zoom.js', 'const current = () => (phone() ? null : picked() ?? TOWN_ZOOM.desktop);', 'const current = () => (picked() ?? TOWN_ZOOM.desktop);'],
   ['the hunt camera follows the party leader, not the viewed hero (WC-7)','src/hunt-view/scene.js', 'viewed: h && h.hero.unit !== null ? h.hero.unit :', 'viewed: p && p.leader !== null ? p.leader :'],
 ];
@@ -623,7 +694,7 @@ async function main() {
   for (const [name, file, from, to] of MUTANTS.filter((m) => !only || m[0].includes(only))) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
-    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) })), counts));
+    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, /WC-9/.test(name))), counts));
   }
   console.log(exitOf(counts) ? 'window-camera --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'window-camera --mutate: ' + counts.caught + '/' + counts.caught + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));

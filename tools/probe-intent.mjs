@@ -23,8 +23,8 @@ import readline from 'node:readline';
 
 const boot = fs.readFileSync(new URL('../src/net/supabase-bootstrap.js', import.meta.url), 'utf8');
 const url = (boot.match(/https:\/\/[a-z0-9]+\.supabase\.co/) || [])[0];
-const key = (boot.match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0];
-if (!url || !key) { console.error('could not read project url/anon key'); process.exit(1); }
+const key = (boot.match(/sb_publishable_[A-Za-z0-9_-]+/) || [])[0];
+if (!url || !key) { console.error('could not read project url/publishable key'); process.exit(1); }
 
 const argOf = (f, d) => { const i = process.argv.indexOf(f); return i >= 0 ? process.argv[i + 1] : d; };
 const KIND = argOf('--kind', 'combat');

@@ -8,7 +8,7 @@
 //                                              --sizes 1440x900,922x423 narrow it); prints, never fails
 //   node tests/perf-budget.mjs --mutate        every planted defect must turn the budget RED
 //
-// mutant-anchors: src/social/social-session.js src/shell/away-recap.js src/shell/alerts.js src/world/render/frame-sig.js src/shell/widgets/action-bar.js src/app/boot.js src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
+// mutant-anchors: src/social/social-session.js src/shell/away-recap.js src/shell/alerts.js src/world/render/frame-sig.js src/shell/widgets/action-bar.js src/app/boot.js src/session/page-away.js src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
 // mutant-writes-tree: no — probes and mutants are served from memory (tests/_client-harness.mjs serve overrides)
 //
 // THE SCENARIO (Andy, Firefox, live v0.2.23: "the page is slowing down", "the analyser seems to have slowed
@@ -58,6 +58,7 @@ const WEAPON = Object.freeze({ melee_dps: 'hammer', ranger: 'ranged', tank: 'swo
 const TICK_MS = 10000;   // the server's settle cadence (pg_cron, live-world-decision)
 
 const TOWN_TAIL_MS = 60000;
+const SHOW_ANSWER_HELD_MS = 1500;   // PB-AWAY: the show's answer waits this long, so its catch-up is at the route first on every run (scenario)
 const IDLE_STAND = STATIONS.find((s) => s.kind === 'idle');
 /* THE BUDGETS (Chromium, 1440x900, the 4-minute CI scenario), from the measured numbers plus margin. */
 const BUDGET = Object.freeze({
@@ -176,6 +177,8 @@ const MUTANTS = [
     'for (const cs of account.characters()) { stampAway(cs, true);', 'for (const cs of []) { stampAway(cs, true);', /^asks: .*on the way out/, 'scenario', 4],
   ['a hidden tab goes on asking (old-laptop player 10-31: 64 calls and 1.45 MB in 2 minutes hidden)', 'src/app/boot.js',
     "  doc.addEventListener('visibilitychange', () => { if (account) account.setPageHidden(doc.hidden); });\n", '', /^hidden/, 'scenario', 4, 40000],
+  ['ONE ask from a hidden tab, 5 s past the grace (a timer armed on the way out): the budget is 0, so a lone ask is red', 'src/session/page-away.js',
+    '    cs._dropChannel();\n    return;', '    cs._dropChannel();\n    if (cs._viewed) setTimeout(() => cs.hello(), 5000);\n    return;', /^hidden: the page asked the server 1 time/, 'scenario', 2, 40000],
   ['each bar watches the timeline with its ctx (old-laptop player 10-31: ~1,080 nodes and 35 listeners a hop, never freed)', 'src/shell/widgets/action-bar.js',
     '  const w = cs ? CASTS.get(cs) : null;\n  if (w) return w;\n  const at = new Map();\n  const tl = cs && cs.timeline;\n  const clock = ctx.now;   // the clock alone, never the ctx\n',
     '  if (ctx.__casts) return ctx.__casts;\n  const at = new Map();\n  ctx.__casts = { at };\n  const tl = cs && cs.timeline;\n  const clock = () => ctx.now();\n', /^leak/, 'leak'],
@@ -607,15 +610,18 @@ async function scenario(o) {
        route before the evaluate's answer reaches here (v0.2.80 run: the 2 stamps of the hide counted "in view", 0 "on the way out"). */
     const hiddenAt = Date.now();
     await page.evaluate(() => window.__perf.hide(true));
-    await at(D * 0.5 + HID); await page.evaluate(() => window.__perf.hide(false));
+    await at(D * 0.5 + HID);
+    /* ...and the moment it is shown, for the same reason: hide(false) sends the catch-up (page-away.js) in its own task. Read after the answer, this clock counted
+       that catch-up as asked "while hidden" (nightly 41497147816, rehearsal 41362364405). The answer is HELD: a clock read after it is red every run, not one in N. */
     const shownAt = Date.now();
+    await page.evaluate((ms) => { window.__perf.hide(false); return new Promise((r) => setTimeout(r, ms)); }, SHOW_ANSWER_HELD_MS);
     await page.waitForTimeout(3000);
     /* PB-REQ: the hunt in view, warm-up over, up to the hidden span (the hero switches and the alert storm are in it, as a player's are) */
     const stampsLeaving = asked.filter(([t, , stamp]) => stamp && t >= hiddenAt && t < hiddenAt + 3000).length;
     /* PB-AWAY: past the grace a hidden page asks nothing of the engine or the character (the social poll's presence stamp apart);
        shown again, the viewed hero's catch-up goes at once and the live view comes back on it */
     const awayFor = (await import('../src/session/config.js')).SESSION_CONFIG.awayAfterMs;
-    const away = asked.filter(([t, n]) => t > hiddenAt + awayFor + 1000 && t < shownAt && (n === 'hr-accrue' || n === 'hr_load')).length;
+    const away = asked.filter(([t, n]) => t > hiddenAt + awayFor + 1000 && t < shownAt && (n === 'hr-accrue' || n === 'hr_load')).map(([t, n]) => `${n} ${t - hiddenAt} ms after the hide, ${shownAt - t} ms before the show`);
     const caught = asked.filter(([t, n]) => t >= shownAt && t < shownAt + 3000 && n === 'hr-accrue').length;
     if (o.viewAtDeath) { await at(D * 0.7 - 3000); await tab(o.viewAtDeath); }
     await at(D * 0.7); await page.evaluate(() => { window.__perf.trackOn = true; window.__perf.mark('death'); });
@@ -801,7 +807,7 @@ function budgetFails(m) {
   if (!(m.townWritesPerS <= b.townWritesPerS)) f.push(`town writes: ${m.townWritesPerS.toFixed(1)} DOM changes a second standing still, a tip open (budget ${b.townWritesPerS}: what changes, never a frame's or a tick's worth)`);
   if (m.townRecalcPerS !== null && !(m.townRecalcPerS <= b.townRecalcPerS)) f.push(`town styles: ${m.townRecalcPerS.toFixed(1)} style recalcs a second standing still (budget ${b.townRecalcPerS}: not one a frame)`);
   if (m.hiddenFor > m.awayFor + 2000) {
-    if (m.away) f.push(`hidden: the page asked the server ${m.away} time(s) while hidden past ${m.awayFor} ms (budget 0, AccountSession.setPageHidden)`);
+    if (m.away.length) f.push(`hidden: the page asked the server ${m.away.length} time(s) while hidden past ${m.awayFor} ms (budget 0, AccountSession.setPageHidden): ${m.away.join('; ')}`);
     if (!m.caught) f.push('hidden: shown again, the viewed hero asked no catch-up within 3 s');
   }
   if (!(m.drawsOffLoop <= b.drawsOffLoop)) f.push(`repaint: ${m.drawsOffLoop} World draws outside the frame loop, ${m.drawsInAnswers} of them inside answers (budget ${b.drawsOffLoop})`);

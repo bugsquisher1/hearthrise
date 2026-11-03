@@ -22,6 +22,8 @@
 //   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x' });
 //   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);  await world.wait(480);  await world.wait(480, { away: true });
 //   await p.shot('after');  p.text();  p.errors;  p.offsite;  p.page /* raw Playwright */;  await p.reload();  await world.close();
+//   The closed game: before world.play, await world.db.query("update public.hr_flags set enabled = true where key = 'closed_mode'"): a new account lands on the
+//   closed notice ([data-closed-notice]); insert its id into public.hr_access_allowlist (user_id, note) to admit it.
 //
 // A TIME SKIP compresses waiting and fakes no result: every open hunt's clocks AND every epoch value in its
 // world JSON move back together (a hero idles if only one moves), then the real engine settles the window the

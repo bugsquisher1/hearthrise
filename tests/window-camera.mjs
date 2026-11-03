@@ -93,7 +93,7 @@ async function stub(page, residue, perSlot) {
     if (perSlot && name === 'hr_put_client_state') { Object.assign(perSlot[body.p_slot], body.p_patch); return json({ ok: true }); }
     if (name === 'hr_load') {
       if (perSlot && !perSlot[body.p_slot]) return json({ ok: false, error: 'no_character', hero_slots: Object.keys(perSlot).map(Number) });
-      return json(Object.assign(townEnv(), { version: ++version }, perSlot ? { hero_slots: Object.keys(perSlot).map(Number), name: 'Hero ' + body.p_slot, client_state: perSlot[body.p_slot] } : residue ? { client_state: residue } : {}));
+      return json(Object.assign(townEnv(), { version: ++version }, perSlot ? { hero_slots: Object.keys(perSlot).map(Number), account: { max_concurrent: 4 }, name: 'Hero ' + body.p_slot, client_state: perSlot[body.p_slot] } : residue ? { client_state: residue } : {}));
     }
     if (name === 'hr-accrue') return json({ accrued: false });
     /* the town (2027-01-28-town-stands.sql): the server stands the hero on its stand (the arrival's first, the Common's start tile) */

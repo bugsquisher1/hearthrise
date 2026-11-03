@@ -3,7 +3,7 @@
 // tests/death-popup.mjs — THE DEATH POPUP (Tyler 2026-10-19; tracker r15), IN A REAL CHROMIUM.
 //
 //   node tests/death-popup.mjs                the rules
-//   node tests/death-popup.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/death-popup.mjs --mutate       every planted defect must turn a rule RED (--only TEXT: just the mutants whose name holds it)
 //   node tests/death-popup.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
 // mutant-anchors: src/shell/death-popup.js src/shell/windows/death.js src/shell/alerts.js src/session/character-sections.js src/shell/widgets/hunt-topbar.js src/shell/shell.js src/styles/app.css src/world/world-boot.js src/hunt-view/summary-recorder.js
@@ -157,6 +157,7 @@ async function pageRules(overrides, shots) {
         const ctx = await browser.newContext({ viewport: vp });
         const page = await ctx.newPage();
         page.setDefaultTimeout(6000);
+        page.setDefaultNavigationTimeout(30000);   // a page load is the machine's, not a rule (window-camera's note: a cold module graph took 12 s on a slow disk)
         page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
         page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
         await stub(page, s);
@@ -363,14 +364,16 @@ async function main() {
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
-  for (const [name, file, from, to] of PAGE_MUTANTS) {
+  const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
+  const chosen = PAGE_MUTANTS.filter((m) => !only || m[0].includes(only));
+  for (const [name, file, from, to] of chosen) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
     const fails = await pageRules({ [file]: text.replace(from, to) }, null);
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'death-popup --mutate: ' + bad + ' escaped' : 'death-popup --mutate: ' + PAGE_MUTANTS.length + '/' + PAGE_MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'death-popup --mutate: ' + bad + ' escaped' : 'death-popup --mutate: ' + chosen.length + '/' + chosen.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 

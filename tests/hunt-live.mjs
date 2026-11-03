@@ -1156,6 +1156,8 @@ function rules(M) {
   }
   { /* LV-RANGER a Ranger's bar, viewed and with the browser closed (Andy 2026-10-23, Fremulon) */
     const mi = memberOf(M, 'a', 0, 'ranger', 10);
+    /* Melee 15 meets the Copper Whetstone's own requirement. At Level 10's Melee the skill gate (abilities.js shotLocked) passes it over first, which hid whether a bow may shoot it: this rule is the weapon's (damage.js pickShot). */
+    mi.skills = Object.assign({}, mi.skills, { melee: M.XP.skillXpForLevel('melee', 15) });
     mi.huntSession = Object.assign({}, mi.huntSession, { bag: { iron_arrows: { loaded: 400, left: 400 }, copper_whetstone: { loaded: 50, left: 50 },
       cooked_shrimp: { loaded: 30, left: 30, essential: true } } });
     const slot = (type, id) => ({ action: { type, id }, conditions: [], join: 'and' });

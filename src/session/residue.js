@@ -199,9 +199,9 @@ function sanitizeCoach(v) {
   return out;
 }
 
-/* The town zoom the viewer picked (src/world/town-zoom.js): one of TOWN_ZOOM.steps, else no pick at all. */
+/* The town zoom the viewer picked (src/world/town-zoom.js): one of TOWN_ZOOM.steps and when it was picked (the newest any open hero holds is the pick), else no pick at all. */
 function sanitizeTownZoom(v) {
-  return TOWN_ZOOM.steps.includes(v) ? v : undefined;
+  return isObj(v) && TOWN_ZOOM.steps.includes(v.z) && Number.isSafeInteger(v.at) && v.at >= 0 ? { z: v.z, at: v.at } : undefined;
 }
 
 /** field -> sanitizer. The keys ARE the allowlist. */
@@ -221,7 +221,7 @@ const SANITIZERS = Object.freeze({
   coach: sanitizeCoach,             // display state: the coach line folded to its title and the cards read (src/shell/launcher.js); gates and spends nothing
   marketView: sanitizeMarketView,   // display preference: the market window's category, sort, delivery and source; the server still decides each press
   marketSeen: sanitizeMarketSeen,   // display state: the newest market sale already told (src/shell/market-watch.js); gates and spends nothing
-  townZoom: sanitizeTownZoom,       // display preference: the town view's zoom (src/world/town-zoom.js); gates and spends nothing
+  townZoom: sanitizeTownZoom,       // display preference: the viewer's town zoom, one for every hero (src/world/town-zoom.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

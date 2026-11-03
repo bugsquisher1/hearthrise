@@ -2,32 +2,47 @@
 // src/world/town-zoom.js — THE TOWN VIEW'S ZOOM CONTROL (Tyler 2026-10-26).
 //
 // The mouse wheel over the town and two small + / − buttons on the stage step through
-// TOWN_ZOOM.steps (src/data/world/view-zoom.js). The pick is the viewing character's
-// display preference, residue `townZoom` (character.setResidue): it gates and spends
-// nothing, and the next envelope's residue is what is read back. Before any pick the
-// desktop draws TOWN_ZOOM.desktop. Under the mobile query there is no control and no pick:
-// zoomOf() answers null and the backend keeps the screen class's zoom (camera.js zoomFor).
+// TOWN_ZOOM.steps (src/data/world/view-zoom.js). Before any pick the desktop draws
+// TOWN_ZOOM.desktop. Under the mobile query there is no control and no pick: zoomOf()
+// answers null and the backend keeps the screen class's zoom (camera.js zoomFor).
 // The camera stays on the viewed hero (frameView); taps still pick by the frame drawn.
+//
+// THE PICK IS THE VIEWER'S, NEVER ONE HERO'S (Tyler 10-26, "remembered per viewer"; Andy's report
+// #75: one wheel turn over the town left Apollo alone zoomed out, his other heroes at x2). The
+// residue is per character, so a pick { z, at } goes to EVERY open hero, and what shows is the
+// newest any open hero holds (at: the server's clock): a hero that was closed for a pick can't
+// put its older one back. Display only: it gates and spends nothing, and the next envelope's
+// residue is what is read back.
 // ════════════════════════════════════════════════════════════════════════
 import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.82';
+import { serverNowOf } from '../session/hunt-sections.js?v=0.2.82';
 
 /* deltaY a wheel turns into one step (a mouse notch is ~100 px; a trackpad's small deltas add up) */
 const WHEEL_STEP = 100;
 const LINE_PX = 40;
 
+/* The newest pick any of these heroes holds, or null. */
+function newestPick(heroes) {
+  let best = null;
+  for (const cs of heroes) {
+    const p = cs.record && cs.record.residue && cs.record.residue.townZoom;
+    if (p && (!best || p.at > best.at)) best = p;
+  }
+  return best;
+}
+
 /**
- * @param {{win: Window, doc: Document, stage: HTMLElement, character?: object, mq?: MediaQueryList|null,
- *          onChange: () => void}} o  onChange: the zoom changed (the World draws a frame)
+ * @param {{win: Window, doc: Document, stage: HTMLElement, character?: object, peers?: () => object[], mq?: MediaQueryList|null,
+ *          onChange: () => void}} o  peers: the account's open heroes. onChange: the zoom changed (the World draws a frame)
  */
 export function createTownZoom(o) {
   const { doc, stage, character, mq } = o;
   const phone = () => !!(mq && mq.matches);
   let local = null;   // a pick with no character to keep it (a review page)
+  const heroes = () => { const all = o.peers ? o.peers() : []; return !character || all.includes(character) ? all : all.concat(character); };
   function picked() {
-    const r = character && character.record && character.record.residue;
-    const v = r && r.townZoom;
-    if (TOWN_ZOOM.steps.includes(v)) return v;
-    return local;
+    const p = newestPick(heroes());
+    return p ? p.z : local;
   }
   /** The town's zoom now: the pick, else the desktop default; null on the phone (the screen class's). */
   const current = () => (phone() ? null : picked() ?? TOWN_ZOOM.desktop);
@@ -59,7 +74,9 @@ export function createTownZoom(o) {
     const next = s[Math.max(0, Math.min(s.length - 1, i + dir))];
     if (next === z) return false;
     local = next;
-    if (character && typeof character.setResidue === 'function') character.setResidue('townZoom', next);
+    const all = heroes(), was = newestPick(all);
+    const pick = { z: next, at: Math.max(Math.floor(serverNowOf(character)) || 0, was ? was.at + 1 : 0) };
+    for (const cs of all) if (typeof cs.setResidue === 'function') cs.setResidue('townZoom', pick);
     paint();
     o.onChange();
     return true;

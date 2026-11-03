@@ -356,6 +356,26 @@ async function pureRules(M, base) {
     return (h && h.length === 0) || 'food in the hunt bag (none in the bag) still warned out of food: ' + JSON.stringify(h);
   });
 
+  /* AL-3 AN END ALREADY SEEN IS OVER (party panel 2026-11-03): a death off screen raises a line, which goes once its popup was dismissed on the hero
+     (the came-home line and its closed summary: death-popup.mjs DP-7, on a real page). */
+  await t('AL-3', async () => {
+    const srv2 = fakeServer();
+    const d = srv2.env[0];
+    d.hunt_events = [];
+    d.hunt.ended = true;
+    d.hunt.session = { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' };
+    const acc2 = account(M, srv2);
+    acc2.viewed = 1;
+    const centre2 = M.AL.createAlertCenter(acc2);
+    const cs2 = (await acc2.open(0)).session;
+    if (!cs2) return 'the second fixture character did not open';
+    const died = () => centre2.list().filter((a) => a.kind === 'death').length;
+    if (died() !== 1) return 'a death off screen raised ' + died() + ' line(s), want 1';
+    const seen = (cs2.record.residue.alerts && cs2.record.residue.alerts.seen) || [];
+    cs2.setResidue('alerts', { off: [], seen: seen.concat('died:' + d.hunt.session_id) });
+    return died() === 0 || 'a dismissed death still stands in the alert lines';
+  });
+
   /* AL-3 A NEW HUNT RETIRES THE LAST ONE'S END LINE (Brannoc 10-22: "has ended · Start again" stayed up into the next
      hunt): the ended line shows while the hunt is over, and goes once the server says another session is open. */
   await t('AL-3', async () => {
@@ -1331,6 +1351,7 @@ const PURE_MUTANTS = [
   ['a seat with no weapon holds no class on the class line (PR-CLASS)', 'src/shell/windows/party-roster.js', "roles.map((r) => r || roleForWeapon('neutral'))", 'roles'],
   ['the class line stays on while the party hunts (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (r.anyHunting || r.members.length < 2) return '';", "if (r.members.length < 2) return '';"],
   ['the class line needs a ground the party has hunted (PR-CLASS)', 'src/shell/windows/party-roster.js', 'const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;', 'const hunt = p.hunt;'],
+  ['a seen end stays in the lines (AL-3, party panel 2026-11-03)', 'src/shell/alerts.js', 'if (stale || seenEnd || ', 'if (stale || '],
   ['the last hunt\'s end line stays into the next (AL-3, Brannoc 10-22)', 'src/shell/alerts.js', '|| (open && RETIRE.has(a.kind) && a.session && a.session !== open)', ''],
   ['the low alert counts the bag mid-hunt (AL-2, Brannoc 10-22)', 'src/session/item-sections.js', '  return huntBagOf(cs) || bagOf(cs);', '  return bagOf(cs);'],
   ['a reload raises "has ended" over the hero on screen (AL-3, QA2 Pellow 10-25)', 'src/shell/alerts.js', 'account.viewed === cs.slot || account.viewed === null);', 'account.viewed === cs.slot);'],

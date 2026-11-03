@@ -112,7 +112,8 @@ function patchRow(li, x, ctx) {
   patchGauge(li.querySelector('.is-hp'), v.hp, v.hpMax, v.hp === null ? 'HP –' : whole(v.hp) + ' / ' + whole(v.hpMax));
   patchGauge(li.querySelector('.is-mana'), v.mana, v.manaMax, v.mana === null ? 'Mana –' : whole(v.mana) + ' / ' + whole(v.manaMax));
   patchGauge(li.querySelector('.is-stamina'), v.staminaMs, v.staminaCapMs, hoursMinutes(v.staminaMs));
-  text(li.querySelector('.hw-char-bag'), 'Bag ' + gold(x.bagValue));
+  /* What this hero's bag would fetch at the shop, never gold it holds: the purse is the account's (optimizer panel 11-03: "Bag 19,369 gp" beside "Your gold 51.7k" read as two purses). */
+  text(li.querySelector('.hw-char-bag'), 'Bag worth ' + gold(x.bagValue));
   text(li.querySelector('.hw-char-ready'), x.readyLine);
   cls(li.querySelector('.hw-char-ready'), 'is-short', x.loaded && !x.ready);
   text(li.querySelector('.hw-char-party'), x.party ? 'Party: ' + huntName(x.party.hunt) + (x.party.isLeader ? ', leads' : '') : 'No party');

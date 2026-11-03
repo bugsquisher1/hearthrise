@@ -12,7 +12,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js
+// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -47,6 +47,12 @@
 //   AW-65 A STORAGE PRESS ANSWERS IN VIEW (Andy, analytics 11-02: 14 presses in 25 s): at 1366x768 with both grids long and the bag
 //         scrolled into reach, "Putting it away…" and the result or the refusal stand in view and off the stack pressed; no stack moves
 //         from under the hand; a hero out hunting is told why at the press, and the line goes once the hero is home
+//   AW-66 THE SUMMARY'S ANSWER IS THE PRESS'S (party panel 2026-11-03): at 1366x620, on a card tall enough to scroll, the line lies on no press (it
+//         stood on the gold "Next:" plate, whose foot read as a half-filled progress bar), and "Setting out." goes once the hunt it set out on is over
+//   AW-67 NOTHING LIES ON THE PRESS IN HAND (newcomer panel 2026-11-03, 1366x768, the coach's line up): a stack in hand drops the last press's
+//         result; its Fuel all, and Stop while it fuels, take a real press at their middle, over the answer line and inside the column; the
+//         player's own scroll is not fought; the Shop's tabs stay whole at the top of a scrolled body; the All characters card's
+//         figure says what it is (optimizer panel: "Bag 19,369 gp" beside "Your gold 51.7k")
 //   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
 //         and Dispatch loot stay off and the bag value reads a dash
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
@@ -704,6 +710,13 @@ async function panelLeftovers(base) {
   tell(); tell();
   const asked = center.list().filter((a) => a.kind === 'friend');
   if (asked.length !== 1 || asked[0].text !== 'Ashgrave wants to be your friend.' || !(hero.record.residue.alerts || { seen: [] }).seen.includes('friend:y')) fails.push('AW-61 a friend request toasts ' + JSON.stringify(asked));
+  /* ...AND IT GOES ONCE IT IS OVER (party panel 2026-11-03: "Kell wants to be your friend" stood through a whole hunt after Accept, only a reload cleared it). */
+  asks.length = 0;
+  tell();
+  if (center.list().some((a) => a.kind === 'friend')) fails.push('AW-61 a request already answered still toasts');
+  convs.find((c) => c.id === 'x').unread = 0;
+  tell();
+  if (center.list().some((a) => a.kind === 'whisper')) fails.push('AW-61 a message already read still toasts');
   watch.destroy(); center.destroy();
   /* AW-63 the panels' round 3 (2026-11-01). */
   const { enterOffWords } = await imp('src/shell/windows/hunts.js');
@@ -2294,6 +2307,114 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       }
     }
 
+    { // AW-66 the summary's answer line and its width
+      const W66 = '[data-hs-win="hunt-summary"] ';
+      const OVER = { hunt: 'mill_cellar', preset: 0, bag: [], end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'left', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' };
+      const past = (id, at) => ({ id, hunt: 'mill_cellar', at, reason: 'party_member_left', by: 'Bramwell', why: 'left', ms: 3600000, kills: 1336, xp: 12176, gold: 1135, lootValue: 2243, balance: 3378, balanceH: 1944, rawXpH: 7009, died: 0, loot: [], supplies: [], preset: 0, hoursLimit: null, bag: [], deaths: [] });
+      const { ctx, page, errors, s, up } = await open({ viewport: { width: 1366, height: 620 }, mutateEnv: (e) => {
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+        for (const k of ['hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.hunt.ended = true;
+        e.hunt.session = Object.assign({}, e.hunt.session, OVER);
+      }, residue: { huntSummaries: [past('11111111-0000-4000-8000-000000000001', Date.parse('2026-10-17T12:30:00Z')), past('11111111-0000-4000-8000-000000000002', Date.parse('2026-10-17T11:00:00Z'))] } });
+      if (!up) fails.push('AW-66 the town did not mount');
+      else {
+        if (!(await openWin(page, 'l', 'hunt-summary'))) fails.push('AW-66 the summary did not open');
+        else {
+          await page.waitForTimeout(300);
+          /* The card with every number on it: the presses are pushed down to the window's foot. */
+          await page.click(W66 + '.hsum-past [data-hs-act="pick"]');
+          await page.waitForTimeout(200);
+          /* The press's line, as this hero's scratch holds it: its words go with the hunt they were said about. */
+          await page.evaluate((w) => { const b = document.querySelector(w + '[data-hs-act="again"]'); if (b) { b.disabled = false; b.click(); } }, W66);
+          await page.waitForTimeout(700);
+          const said = await page.evaluate((w) => {
+            const body = document.querySelector(w + '[data-hs-body]'), m = document.querySelector(w + '.hh-intent-msg');
+            body.scrollTop = 0;   // the window as it opens: reaching Earlier hunts scrolled it past the presses
+            const r = m.getBoundingClientRect();
+            /* It stands under every press, wherever the window is scrolled: stuck to the foot it lay on one, or over one still below the fold. */
+            const on = Array.from(document.querySelectorAll(w + '.hsum-actions button')).filter((x) => !x.hidden && x.getClientRects().length)
+              .filter((x) => r.top < x.getBoundingClientRect().bottom - 1).map((x) => x.textContent);
+            return { text: m.textContent, scrolls: body.scrollHeight - body.clientHeight, on };
+          }, W66);
+          if (!/^Setting out/.test(said.text)) fails.push('AW-66 CONTROL: Hunt again did not say it set out: ' + JSON.stringify(said));
+          if (said.scrolls <= 0) fails.push('AW-66 CONTROL: the card does not scroll at this size, so the line has nothing to lie on');
+          if (said.on.length) fails.push('AW-66 the summary\'s answer stands over ' + said.on.join(', '));
+          s.env.hunt = Object.assign({}, s.env.hunt, { ended: false, session_id: '5d1c0f2e-0000-4000-8000-000000000066', session: Object.assign({}, s.env.hunt.session, { end_reason: null, ended_at: null, phase: 'hunting' }) });
+          await pushEnvelope(page, s);
+          s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: Object.assign({}, s.env.hunt.session, OVER) });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(400);
+          const home = await page.evaluate((w) => { const m = document.querySelector(w + '.hh-intent-msg'); return m ? m.textContent : null; }, W66);
+          if (/Setting out/.test(home || '')) fails.push('AW-66 the hero is home and the summary still says ' + JSON.stringify(home));
+        }
+      }
+      if (errors.length) fails.push('AW-66 console errors: ' + errors.slice(0, 2).join(' | '));
+      await ctx.close();
+    }
+
+    { // AW-67 nothing lies on the press in hand
+      const W67 = '[data-hs-win="inventory"] ';
+      const town = (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+        e.inventory = Object.assign({}, e.inventory, { bones: 23 });
+      };
+      /* The press takes a real click at its middle: nothing lies on it, and it is inside the column's view. */
+      const takes = (page, sel) => page.evaluate((q) => {
+        const b = document.querySelector(q);
+        if (!b || !b.getClientRects().length) return { hit: false, why: 'not on screen' };
+        const r = b.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2), low = document.elementFromPoint(r.left + r.width / 2, r.bottom - 2);
+        const on = (n) => !!n && (n === b || b.contains(n));
+        return { hit: on(top) && on(low), top: top && (top.className || top.tagName), low: low && (low.className || low.tagName) };
+      }, sel);
+      const { ctx, page, errors, s, up } = await open({ viewport: { width: 1366, height: 660 }, mutateEnv: town });
+      s.onCall = (name, b) => { if (name === 'hr-accrue' && b.verb === 'set_activity') Object.assign(s.env.state, b.activity && b.activity.kind ? { active_kind: b.activity.kind, active_id: b.activity.id } : { active_kind: 'idle', active_id: null }); };
+      if (!up) fails.push('AW-67 the town did not mount');
+      else {
+        await openWin(page, 'b', 'inventory');
+        await page.waitForTimeout(300);
+        await page.evaluate((w) => { const m = document.querySelector(w + '.hh-intent-msg'); m.textContent = 'Put on 1 piece.'; }, W67);
+        await page.click(W67 + '.hw-pocket[data-item="bones"]');
+        await page.waitForTimeout(250);
+        const col = await page.evaluate((w) => { const c = document.querySelector(w + '.hw-inv'); return c.scrollHeight - c.clientHeight; }, W67);
+        if (col <= 0) fails.push('AW-67 CONTROL: the column does not overflow at this size, so this proves nothing');
+        const fuel = await takes(page, W67 + '.hw-pick [data-hs-act="primary"]');
+        if (!fuel.hit) fails.push('AW-67 Fuel all does not take a press with the stack in hand: ' + JSON.stringify(fuel));
+        await page.click(W67 + '.hw-pick [data-hs-act="primary"]');
+        await wait(page, (w) => document.querySelector(w + '.hw-burying.is-on'), W67, 4000);
+        await page.waitForTimeout(400);
+        const line = await page.evaluate((w) => document.querySelector(w + '.hh-intent-msg').textContent, W67);
+        const stop = await takes(page, W67 + '[data-hs-act="bury-stop"]');
+        if (!stop.hit) fails.push('AW-67 Stop does not take a press while it fuels (line ' + JSON.stringify(line) + '): ' + JSON.stringify(stop));
+        /* The player's own scroll stands: the next patch does not pull the column back. */
+        await page.evaluate((w) => { document.querySelector(w + '.hw-inv').scrollTop = 0; }, W67);
+        await page.waitForTimeout(700);
+        if ((await page.evaluate((w) => document.querySelector(w + '.hw-inv').scrollTop, W67)) !== 0) fails.push('AW-67 the column fights the player\'s own scroll');
+        /* The Shop's tabs on a scrolled body. */
+        await openWin(page, 'v', 'shop');
+        await page.waitForTimeout(300);
+        await page.click('[data-hs-win="shop"] .hw-tab:last-child');
+        await page.waitForTimeout(250);
+        const tabs = await page.evaluate(() => {
+          const b = document.querySelector('[data-hs-win="shop"] [data-hs-body]'), t = document.querySelector('[data-hs-win="shop"] .hw-tabs');
+          b.scrollTop = 40;
+          const br = b.getBoundingClientRect(), r = t.getBoundingClientRect();
+          return { scrolled: b.scrollTop, whole: r.top >= br.top - 1 && r.bottom <= br.bottom };
+        });
+        if (!tabs.scrolled) fails.push('AW-67 CONTROL: the Shop does not scroll at this size');
+        if (!tabs.whole) fails.push('AW-67 the Shop\'s tabs are cut on a scrolled body: ' + JSON.stringify(tabs));
+        /* The card's figure is what the bag would fetch, never a purse (Tyler 10-23: one purse per account). */
+        await openWin(page, 'o', 'characters');
+        await page.waitForTimeout(250);
+        const bagWords = await page.evaluate(() => (document.querySelector('.hw-char .hw-char-bag') || {}).textContent);
+        if (!/^Bag worth /.test(bagWords || '')) fails.push('AW-67 the All characters card reads ' + JSON.stringify(bagWords));
+      }
+      if (errors.length) fails.push('AW-67 console errors: ' + errors.slice(0, 2).join(' | '));
+      await ctx.close();
+    }
+
     { // AW-18 amounts in Storage; AW-19 bury — a stateful stub: the server's answer moves its own counts
       const town = (e) => {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
@@ -3164,6 +3285,14 @@ const MUTANTS = [
   ['AW-65 a press mid-hunt says nothing', 'src/shell/windows/storage.js', 'if (off || !row) { sayAway(cs, sc, repaint); return true; }', 'if (off || !row) return true;'],
   ['AW-65 a right-click mid-hunt says nothing', 'src/shell/windows/storage.js', '    else sayAway(cs, sc, repaint);\n', ''],
   ['AW-65 the why stays up in town', 'src/shell/windows/storage.js', "  if (!away && sc.msg === STORE_AWAY) sc.msg = '';   // back in town, it no longer holds\n", ''],
+  ['item truth: panel: a request already answered still toasts (AW-61)', 'src/shell/social-watch.js', "(a.kind === 'friend' && !asked.has(a.id)) || ", ''],
+  ['item truth: panel: a message already read still toasts (AW-61)', 'src/shell/social-watch.js', " || (a.kind === 'whisper' && !unread.has(a.peer))", ''],
+  ['AW-66 "Setting out." outlives its hunt', 'src/shell/windows/hunt-summary.js', "  if (sc.huntNow !== huntNow) { if (!sc.pending) sc.msg = ''; sc.huntNow = huntNow; }\n", ''],
+  ['AW-66 the summary\'s answer lies on its presses', 'src/styles/windows.css', '.hs-win .hsum-card > .hh-intent-msg:not(:empty) { position: static; }\n', ''],
+  ['AW-67 the card reads as a purse', 'src/shell/windows/characters.js', "'Bag worth ' + gold(x.bagValue)", "'Bag ' + gold(x.bagValue)"],
+  ['AW-67 the press in hand stays under the answer', 'src/shell/windows/inventory/index.js', '  if (over > 0) root.scrollTop += over + 4;\n', ''],
+  ['AW-67 the column fights the player', 'src/shell/windows/inventory/index.js', '  if (st.sc.clearSig === sig) return;\n', ''],
+  ['AW-67 the Shop\'s tabs slice', 'src/styles/windows.css', '.hw-shop > .hw-tabs { position: sticky; top: 0; z-index: 1; background: var(--bg-1); }\n', ''],
   ['AW-63 the answer covers Leave party', 'src/styles/windows.css', '.hs-win .hw-party > .hh-intent-msg:not(:empty) { position: static; }\n', ''],
   ['AW-63 Disband goes on one press', 'src/shell/widgets/party-panel.js', '    if (!sc.disbandArmed) {', '    if (false) {'],
   ['AW-63 an old answer stands after a seat came', 'src/shell/windows/party.js', "if (sc.msgSeats !== undefined && !sc.pending) sc.msg = '';", ''],

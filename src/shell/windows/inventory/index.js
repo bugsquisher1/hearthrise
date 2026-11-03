@@ -68,6 +68,22 @@ function patchFoot(root, st) {
   prop(root.querySelector('[data-hs-act="advanced"]'), 'checked', st.prefs.advanced);
 }
 
+/* THE PRESS IN HAND STANDS CLEAR OF THE ANSWER LINE (newcomer panel 2026-11-03, 1366x768: "Fuel all 23" half under "Put on 1 piece.", Stop wholly under
+   "Fueling…"). The column scrolls and the line stands over its foot (windows.css), so when the stack, the job or the line changes the column brings the
+   press up from under it, once: the player's own scrolling is never fought. Where the column does not scroll (the phone's sheet) the body has its own rule. */
+function keepPickClear(root, st) {
+  const line = root.querySelector('.hh-intent-msg');
+  const shown = root.querySelector('.hw-burying.is-on') || root.querySelector('.hw-pick.is-on ~ .hw-pick-why:not(:empty)') || root.querySelector('.hw-pick.is-on');
+  const sig = (shown ? shown.className : '') + '|' + st.sc.cursor + '|' + line.textContent;
+  if (st.sc.clearSig === sig) return;
+  st.sc.clearSig = sig;
+  if (!shown || root.scrollHeight <= root.clientHeight) return;
+  const box = root.getBoundingClientRect();
+  const floor = line.textContent ? Math.min(box.bottom, line.getBoundingClientRect().top) : box.bottom;
+  const over = shown.getBoundingClientRect().bottom - floor;
+  if (over > 0) root.scrollTop += over + 4;
+}
+
 renderInventory.patch = function patchInventory(body, ctx) {
   const st = stateOf(ctx);
   if (st.unmarked && st.loaded && st.items.length) commitSeen(st.cs, st.items.map((r) => r.id));
@@ -81,6 +97,7 @@ renderInventory.patch = function patchInventory(body, ctx) {
   patchTools(root, st, ctx);
   patchAdvanced(root, st, ctx);
   cls(root, 'is-pending', st.sc.pending);
+  keepPickClear(root, st);
   if (!st.sc.menu) closeFloatMenu(ctx.doc, st.sc.menuOwner || null);   // its own menu only: a world or chat menu stays open
 };
 

@@ -18,6 +18,8 @@
 
 /* ── Shared: tabs, the capacity line, ledgers, the primary action, confirmations ── */
 .hw-tabs { display: flex; gap: 2px; margin-bottom: 8px; border-bottom: 2px solid var(--steel-sep); }
+/* The Shop's tabs stay whole and in reach however far its body is scrolled (newcomer panel 2026-11-03: sliced under the coach card). */
+.hw-shop > .hw-tabs { position: sticky; top: 0; z-index: 1; background: var(--bg-1); }
 .hw-tab { margin-bottom: -2px; border: 0; background: none; padding: 4px 10px; min-height: 32px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); cursor: pointer; border-bottom: 2px solid transparent; }
 .hw-tab:hover { color: var(--ink); }
 .hw-tab[aria-selected="true"] { color: var(--gold-2); border-bottom-color: var(--gold); }
@@ -594,6 +596,9 @@
 .hw-seat.is-away { opacity: .7; }
 /* The window's answer stands under its presses, never over Leave party and Disband. */
 .hs-win .hw-party > .hh-intent-msg:not(:empty) { position: static; }
+/* The Hunt summary's answer stands right under its presses, so it is in view with them. Stuck to the window's foot it lay on them, with the foot of the
+   gold "Next:" plate showing under it: the half-filled bar the party panel read as a stuck progress line (2026-11-03). */
+.hs-win .hsum-card > .hh-intent-msg:not(:empty) { position: static; }
 .hw-party-acts { flex-wrap: wrap; }
 .hw-party-next { margin: 8px 0 0; }
 .hw-party-class { margin: 4px 0 0; }

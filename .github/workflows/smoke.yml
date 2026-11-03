@@ -1685,9 +1685,11 @@ jobs:
   # db-replay-3, which had the room (3.7-6.2 min). What stays: fast 386 s
   # (39364497698), slow ~609 s, ~7 / ~10.8 min with setup. Budget = fast x2 =
   # 14, left at 16 so the slow runner keeps x1.5.
+  # 30 (2026-11-03): cancelled at 16 on 6 of the last 8 nightlies before its last step ended, so the job
+  # never reached a verdict. 2x the worst completed night (15.2, 41210136392).
   db-replay-4:
     runs-on: ubuntu-latest
-    timeout-minutes: 16
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -1931,9 +1933,11 @@ jobs:
   # 639 s of guards, plus ~11 s of checkout/setup-node/install = 650 s
   # (10.8 min) — comfortably inside the EXISTING 19-min timeout, which is
   # left unraised: the point of the split is headroom, not a bigger ceiling.
+  # 32 (2026-11-03): cancelled at 19 on 41497147816 and 41076244190 before its last step ended. 2x the
+  # worst completed night of the last seven (16.2, 41318382608).
   db-replay-2:
     runs-on: ubuntu-latest
-    timeout-minutes: 19
+    timeout-minutes: 32
 
     steps:
       - uses: actions/checkout@v4
@@ -2675,9 +2679,11 @@ jobs:
   # MEASURED from run 37470960216's own step times: verify 64 s + 525 s of
   # world-tick guards + ~11 s checkout/setup/install = 600 s (10.0 min).
   # Budget = measured x2 = 20 min.
+  # 40 (2026-11-03): cancelled at 20 on 41497147816 before its last step ended. 2x the worst completed
+  # night (19.6, 40898080100).
   db-replay-5:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -3053,7 +3059,9 @@ jobs:
     # + server-perf (2026-10-24: ~1.5 min measured locally, x2 = 3) = 28
     # market-v2 --selftest grew 57 -> ~100 s locally (lane c-market-account, 2026-10-24; 22-37 s
     # on GitHub before): worst 18.0 min of 28 (64%) on run 40069060383, ~18.3 projected (65%). Kept.
-    timeout-minutes: 28
+    # 52 (2026-11-03): cancelled at 28 on 41497147816 and 41318382608 before its last step ended. 2x the
+    # worst completed night (25.9, 41076244190).
+    timeout-minutes: 52
 
     steps:
       - uses: actions/checkout@v4

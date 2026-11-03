@@ -66,7 +66,7 @@ import {
 } from './lib/guard-deps.mjs';
 import { scopedProofs, committedTexts, anchorLinesIn } from './guard-anchors.mjs';
 import { scopeMutants, splitMutants, parseMutants, classifyRuleEdit } from './lib/mutant-scope.mjs';
-import { readHistory, historyPolicy, lastGreenRun, githubReader, STALE_MS, WORKFLOW as WORKFLOW_PATH } from './lib/ci-history.mjs';
+import { readHistory, readNightly, historyPolicy, lastGreenRun, githubReader, STALE_MS, WORKFLOW as WORKFLOW_PATH } from './lib/ci-history.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 
@@ -659,15 +659,17 @@ async function selftest() {
      makes every job full, and only main may skip what a release run proved of this commit. */
   {
     const now = Date.parse('2026-11-02T12:00:00Z');
-    const green = { at: '2026-11-02T01:00:00Z', id: 1, red: [] };
-    const redIn = { at: '2026-11-02T01:00:00Z', id: 2, red: ['perf'] };
+    const green = { at: '2026-11-02T01:00:00Z', id: 1, jobs: { perf: 'success', edge: 'success' } };
+    const redIn = { at: '2026-11-02T01:00:00Z', id: 2, jobs: { perf: 'failure', edge: 'success' } };
     const ask = (fn, h, o = {}) => fn({ nightly: null, nightlyError: null, proved: null, ...h }, { job: 'perf', event: 'push', ref: 'release/v0.0.1', now, ...o });
     const proved = { id: 9, branch: 'release/v0.0.1' };
     const histChecks = (fn) => [
       [!ask(fn, { nightly: green }).full && !ask(fn, { nightly: green }).proved, 'a green sweep leaves the push to its diff'],
       [ask(fn, { nightly: redIn }).full === true, 'a job the sweep left red runs every proof'],
       [!ask(fn, { nightly: redIn }, { job: 'edge' }).full, 'a job the sweep proved green stays scoped'],
-      [ask(fn, { nightly: { ...redIn, red: ['*'] } }, { job: 'edge' }).full === true, 'a red no job explains makes every job full'],
+      [ask(fn, { nightly: green }, { job: 'client-guards-2' }).full === true, 'a job absent from a green sweep runs every proof'],
+      [ask(fn, { nightly: redIn }, { job: 'client-guards-2' }).full === true, 'a job absent from a red sweep runs every proof'],
+      [ask(fn, { nightly: { ...green, jobs: { perf: 'skipped' } } }).full === true, 'a job the sweep skipped runs every proof'],
       [ask(fn, { nightly: { ...green, at: '2026-10-31T11:00:00Z' } }).full === true, 'a sweep over 48 h old makes every job full'],
       [!ask(fn, { nightly: { ...green, at: new Date(now - STALE_MS + 60000).toISOString() } }).full, 'a sweep just under 48 h old still counts'],
       [ask(fn, { nightlyError: 'HTTP 500' }).full === true, 'a sweep that cannot be read makes every job full'],
@@ -680,6 +682,8 @@ async function selftest() {
     const off = (from, to) => (h, o) => { const r = historyPolicy(h, o); return from(r, h) ? to : r; };
     for (const [label, fn] of [
       ['a red sweep is ignored', off((r) => /did not prove/.test(r.why || ''), {})],
+      ['a job absent from the sweep counts as proved', off((r) => /not in that sweep/.test(r.why || ''), {})],
+      ['a skipped job counts as proved', off((r) => /\(skipped\)/.test(r.why || ''), {})],
       ['an old sweep counts', off((r) => /over 48 h/.test(r.why || ''), {})],
       ['an unreadable sweep counts as green', off((r) => /could not be read/.test(r.why || ''), {})],
       ['no sweep counts as green', off((r) => /no nightly/.test(r.why || ''), {})],
@@ -689,6 +693,40 @@ async function selftest() {
       const missed = histChecks(fn).every(([ok]) => ok);
       if (missed) bad++;
       console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} history mutant: ${label}`);
+    }
+    /* The sweep as GitHub answers it, shaped like 41497147816: main's job list has no client-guards-2. */
+    const sweep = (conclusion, jobs, more = []) => (path) => (/\/jobs\?/.test(path)
+      ? { jobs: Object.entries(jobs).map(([name, c]) => ({ name, conclusion: c })) }
+      : { workflow_runs: [{ id: 7, event: 'schedule', conclusion, updated_at: '2026-11-02T01:00:00Z' }, ...more] });
+    const redSweep = sweep('failure', { edge: 'success', 'client-guards': 'cancelled', perf: 'failure' });
+    const nightlyChecks = (read) => {
+      const policy = (get, job) => historyPolicy({ nightly: read(get), nightlyError: null, proved: null }, { job, event: 'push', ref: 'release/v0.0.1', now });
+      const greenSweep = sweep('success', { edge: 'success' });
+      return [
+        [policy(redSweep, 'client-guards-2').full === true, 'a job a red sweep never ran runs every proof'],
+        [policy(greenSweep, 'client-guards-2').full === true, 'a job a green sweep never ran runs every proof'],
+        [policy(redSweep, 'client-guards').full === true && policy(redSweep, 'perf').full === true, 'a cancelled or failed job runs every proof'],
+        [!policy(redSweep, 'edge').full && !policy(greenSweep, 'edge').full, 'a job the sweep proved green stays scoped, red sweep or green'],
+        [policy(sweep('failure', { edge: 'success' }), 'edge').full === true, 'a red run no job explains makes every job full'],
+        [read(() => ({ workflow_runs: [{ id: 1, event: 'push', conclusion: 'success', updated_at: '2026-11-02T01:00:00Z' }] })) === null, 'a push is not a sweep'],
+        [(read(sweep('success', { edge: 'success' }, [{ id: 8, event: 'workflow_dispatch', conclusion: 'success', updated_at: '2026-11-02T02:00:00Z' }])) || {}).id === 8, 'the newest sweep is the one that counts'],
+      ];
+    };
+    for (const [ok, label] of nightlyChecks(readNightly)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} nightly: ${label}`); }
+    const runsAs = (f) => (get) => readNightly((p) => { const x = get(p); return x.workflow_runs ? { workflow_runs: f(x.workflow_runs) } : x; });
+    for (const [label, read] of [
+      ['a green sweep proves every job, listed or not', (get) => {
+        const n = readNightly(get);
+        return n && get('runs').workflow_runs[0].conclusion === 'success' ? { ...n, jobs: new Proxy({}, { get: () => 'success' }) } : n;
+      }],
+      ['a red job counts as green', (get) => readNightly((p) => { const x = get(p); return x.jobs ? { jobs: x.jobs.map((j) => ({ ...j, conclusion: 'success' })) } : x; })],
+      ['a red run no job explains keeps its green jobs', runsAs((rs) => rs.map((r) => ({ ...r, conclusion: 'success' })))],
+      ['a push counts as a sweep', runsAs((rs) => rs.map((r) => ({ ...r, event: 'schedule' })))],
+      ['the first sweep listed counts, not the newest', runsAs((rs) => rs.slice(0, 1))],
+    ]) {
+      const missed = nightlyChecks(read).every(([ok]) => ok);
+      if (missed) bad++;
+      console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} nightly mutant: ${label}`);
     }
     /* A fix-forward: the newest green job at a usable commit, never a red one, never this run. */
     const FAKE = { 5: 'failure', 4: 'success', 3: 'success' };
@@ -811,19 +849,24 @@ async function selftest() {
           && cli(['node', sp, '--mutate'], env(k, { GITHUB_EVENT_NAME: 'schedule', HR_MUTANT_SCOPE: join(dir, 'stale.json') })).status === 6;
       }],
       ['a job the last nightly left red runs an untouched proof; another job skips it', () => {
-        const h = JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, red: ['red-job'] } });
+        const h = JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, jobs: { 'red-job': 'failure', 'other-job': 'success' } } });
         const red = cli(['node', probe, '--mutate'], env('', { GITHUB_JOB: 'red-job', HR_GATE_HISTORY: h }));
         const other = cli(['node', probe, '--mutate'], env('', { GITHUB_JOB: 'other-job', HR_GATE_HISTORY: h }));
         return red.status === 7 && /did not prove job red-job green/.test(red.stdout) && other.status === 0 && /SKIP/.test(other.stdout);
       }],
+      ['a job the last nightly never ran runs an untouched proof', () => {
+        const h = JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, jobs: { 'other-job': 'success' } } });
+        const r = cli(['node', probe, '--mutate'], env('', { GITHUB_JOB: 'new-job', HR_GATE_HISTORY: h }));
+        return r.status === 7 && /did not prove job new-job green \(not in that sweep\)/.test(r.stdout);
+      }],
       ['main skips a proof a release run proved of this commit; its plain run still runs', () => {
-        const h = JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, red: [] }, proved: { id: 77, branch: 'release/v0.0.1' } });
+        const h = JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, jobs: {} }, proved: { id: 77, branch: 'release/v0.0.1' } });
         const e = env(probeKey, { GITHUB_REF_NAME: 'main', GITHUB_JOB: 'x', HR_GATE_HISTORY: h });
         const proof = cli(['node', probe, '--mutate'], e);
         return proof.status === 0 && /SKIP .*run 77 on release\/v0\.0\.1 proved this exact commit/.test(proof.stdout) && cli(['node', probe], e).status === 3;
       }],
       ['a push whose base cannot be found fails safe to the full sweep', () => {
-        const e = env('', { GITHUB_SHA: 'selftest-nobase', GITHUB_EVENT_PATH: join(dir, 'missing.json'), HR_GATE_HISTORY: JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, red: [] } }) });
+        const e = env('', { GITHUB_SHA: 'selftest-nobase', GITHUB_JOB: 'x', GITHUB_EVENT_PATH: join(dir, 'missing.json'), HR_GATE_HISTORY: JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, jobs: { x: 'success' } } }) });
         delete e.HR_MUTANT_GATE_FILES;
         e.GITHUB_REF_NAME = 'main';
         e.GIT_DIR = join(dir, 'not-a-repo');

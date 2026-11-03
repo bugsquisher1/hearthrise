@@ -4,9 +4,10 @@
 // A NIGHTLY RED BLOCKS THE NEXT RELEASE (CLAUDE.md §3.6). Nothing enforced that: of the
 // last ten nightlies six were red or cancelled and releases shipped over them. So a
 // job the last sweep did not prove green runs every proof it holds on the next push,
-// whatever the diff. If the red is still there the push goes red; once it is fixed the
-// push goes green. A sweep that cannot be read or is older than STALE_MS proves nothing,
-// so every job runs in full.
+// whatever the diff: red, cancelled, skipped, or not in that sweep at all (41497147816 was
+// cancelled before "Hunt scene", which now lives in client-guards-2, a job it never ran).
+// If the red is still there the push goes red; once it is fixed the push goes green. A
+// sweep that cannot be read or is older than STALE_MS proves nothing, so every job runs in full.
 //
 // A COMMIT IS PROVED ONCE. Main's push re-ran the proofs the green release run had just
 // run on the very same commit (41296159657 and 41302817036: 88 minutes each), holding
@@ -45,16 +46,18 @@ function ghGet(path, env) {
   throw new Error(`GET ${path}: ${last}`);
 }
 
-/** The last completed sweep on main: { at, id, red: [job names] } (a `*` when no job explains a red run), or null. */
-function readNightly(env) {
-  /* One call for both sweep events: the token allows 1000 calls an hour and 39 jobs each ask. */
-  const runs = ghGet('/actions/workflows/smoke.yml/runs?branch=main&status=completed&per_page=50', env).workflow_runs || [];
+/**
+ * The last completed sweep on main: { at, id, jobs: { job name: conclusion } }, or null. A red
+ * run no job explains proves nothing, so its list is empty. `get` is GitHub's answer, injectable for the selftest.
+ */
+export function readNightly(get) {
+  /* One call for both sweep events: the token allows 1000 calls an hour and every job asks. */
+  const runs = get('/actions/workflows/smoke.yml/runs?branch=main&status=completed&per_page=50').workflow_runs || [];
   const run = runs.filter((r) => r.event === 'schedule' || r.event === 'workflow_dispatch').sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))[0];
   if (!run) return null;
-  if (run.conclusion === 'success') return { at: run.updated_at, id: run.id, red: [] };
-  const jobs = ghGet(`/actions/runs/${run.id}/jobs?per_page=100&filter=latest`, env).jobs || [];
-  const red = jobs.filter((j) => !['success', 'skipped'].includes(j.conclusion)).map((j) => j.name);
-  return { at: run.updated_at, id: run.id, red: red.length ? red : ['*'] };
+  const list = get(`/actions/runs/${run.id}/jobs?per_page=100&filter=latest`).jobs || [];
+  const explained = run.conclusion === 'success' || list.some((j) => j.conclusion !== 'success');
+  return { at: run.updated_at, id: run.id, jobs: explained ? Object.fromEntries(list.map((j) => [j.name, j.conclusion])) : {} };
 }
 
 /** A green release run of smoke.yml on this very commit: { id, branch }, or null. */
@@ -88,7 +91,7 @@ export const githubReader = (env) => (path) => ghGet(path, env);
 export function readHistory(env) {
   if (env.HR_GATE_HISTORY) return JSON.parse(env.HR_GATE_HISTORY);
   const out = { nightly: null, nightlyError: null, proved: null };
-  try { out.nightly = readNightly(env); } catch (e) { out.nightlyError = e.message; }
+  try { out.nightly = readNightly(githubReader(env)); } catch (e) { out.nightlyError = e.message; }
   if (env.GITHUB_EVENT_NAME === 'push' && env.GITHUB_REF_NAME === 'main') {
     try { out.proved = readProved(env); } catch { /* not proved: the push's own diff decides */ }
   }
@@ -102,6 +105,7 @@ export function historyPolicy(history, { job, event, ref, now }) {
   const n = history.nightly;
   if (!n) return { full: true, why: 'no nightly sweep on record — fail safe' };
   if (!(now - Date.parse(n.at) <= STALE_MS)) return { full: true, why: `the last nightly (${n.id}, ${n.at}) is over 48 h old — fail safe` };
-  if (n.red.includes('*') || n.red.includes(job)) return { full: true, why: `the last nightly (${n.id}) did not prove job ${job} green — a red nightly blocks the next release until fixed` };
+  const seen = n.jobs?.[job];
+  if (seen !== 'success') return { full: true, why: `the last nightly (${n.id}) did not prove job ${job} green (${seen || 'not in that sweep'}) — a red nightly blocks the next release until fixed` };
   return {};
 }

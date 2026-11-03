@@ -40,7 +40,6 @@
 .hw-line-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hw-line-name b { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-line-name small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
-.hsum-past .hw-line-name small { white-space: normal; }
 /* The Shop's lines (Buy, Sell, Services) take the bag's treatment, not 2x (Tyler 10-25: "Shop is too big"): the same
    1x art in the bag's well size and the price at the supporting size from 1280; a phone keeps today's line. */
 .hw-shop .hw-line { min-height: round(down, clamp(52px, 52px + (100vw - 1024px) / 64, 56px), 2px); }
@@ -597,6 +596,9 @@
 .hw-seat.is-away { opacity: .7; }
 /* The window's answer stands under its presses, never over Leave party and Disband. */
 .hs-win .hw-party > .hh-intent-msg:not(:empty) { position: static; }
+/* The Hunt summary's answer stands right under its presses, so it is in view with them. Stuck to the window's foot it lay on them, with the foot of the
+   gold "Next:" plate showing under it: the half-filled bar the party panel read as a stuck progress line (2026-11-03). */
+.hs-win .hsum-card > .hh-intent-msg:not(:empty) { position: static; }
 .hw-party-acts { flex-wrap: wrap; }
 .hw-party-next { margin: 8px 0 0; }
 .hw-party-class { margin: 4px 0 0; }

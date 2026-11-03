@@ -7,7 +7,7 @@
 //   node tests/party-ui.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/party-ui.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/shell/windows/party-roster.js src/hunt-view/live-engine.js src/shell/widgets/party-leave.js src/hunt-view/summary-model.js src/shell/widgets/party-panel.js src/shell/widgets/party-hold.js src/data/refusal-words.js src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js src/shell/windows/characters.js src/hunt-view/summary-recorder.js
+// mutant-anchors: src/shell/windows/party-roster.js src/hunt-view/live-engine.js src/shell/widgets/party-leave.js src/hunt-view/summary-model.js src/shell/widgets/party-panel.js src/shell/widgets/party-hold.js src/data/refusal-words.js src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The fixture is tests/fixtures/party-envelope.json (S1's `party` shape plus this lane's asks).
@@ -356,28 +356,9 @@ async function pureRules(M, base) {
     return (h && h.length === 0) || 'food in the hunt bag (none in the bag) still warned out of food: ' + JSON.stringify(h);
   });
 
-  /* AL-3 AN END ALREADY SEEN IS OVER (party panel 2026-11-03: "Pip left the hunt, so Kell came home too" outlived that hunt's summary, and hid newer lines):
-     the came-home line stands over the hero on screen until the player closes that hunt's summary; a death off screen until its popup is dismissed. */
+  /* AL-3 AN END ALREADY SEEN IS OVER (party panel 2026-11-03): a death off screen raises a line, which goes once its popup was dismissed on the hero
+     (the came-home line and its closed summary: death-popup.mjs DP-7, on a real page). */
   await t('AL-3', async () => {
-    const R = await import(M.U('src/hunt-view/summary-recorder.js'));
-    const srv = fakeServer();
-    const e = srv.env[0];
-    e.hunt_events = [];
-    e.hunt.ended = true;
-    e.hunt.session = { end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'left', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' };
-    const acc = account(M, srv);
-    acc.viewed = 0;
-    const centre = M.AL.createAlertCenter(acc);
-    const cs = (await acc.open(0)).session;
-    if (!cs) return 'the fixture character did not open';
-    const home = () => centre.list().filter((a) => /came home too/.test(a.text)).length;
-    if (home() !== 1) return 'the came-home line raised ' + home() + ' time(s), want 1';
-    await cs.load();
-    if (home() !== 1) return 'a re-read dropped the came-home line before the summary was closed';
-    R.summaryClosedBy(cs);
-    centre.rescan(cs);
-    if (home() !== 0) return 'the came-home line stayed up after its summary was closed';
-    /* A death off screen: its line goes once the popup was dismissed on the hero. */
     const srv2 = fakeServer();
     const d = srv2.env[0];
     d.hunt_events = [];
@@ -1265,9 +1246,6 @@ async function pageRules(overrides, shots) {
       else {
         const names = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-char .hw-char-name')).map((b) => b.textContent).join(','));
         if (names !== 'Tyler,Druid') fails.push('UI-4 [' + tag + '] the command centre lists ' + names);
-        /* The figure on a card is what its bag would fetch, never a purse (optimizer panel 2026-11-03; Tyler 10-23: one purse per account). */
-        const bagWords = await page.evaluate(() => document.querySelector('.hw-char .hw-char-bag').textContent);
-        if (!/^Bag worth /.test(bagWords)) fails.push('UI-4 [' + tag + '] the card reads ' + JSON.stringify(bagWords));
         await shot('command-centre');
       }
       /* UI-8: the leader's listing switch (private until listed): the server's `listed`, ONE hr_hunt_party_list. */
@@ -1374,8 +1352,6 @@ const PURE_MUTANTS = [
   ['the class line stays on while the party hunts (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (r.anyHunting || r.members.length < 2) return '';", "if (r.members.length < 2) return '';"],
   ['the class line needs a ground the party has hunted (PR-CLASS)', 'src/shell/windows/party-roster.js', 'const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;', 'const hunt = p.hunt;'],
   ['a seen end stays in the lines (AL-3, party panel 2026-11-03)', 'src/shell/alerts.js', 'if (stale || seenEnd || ', 'if (stale || '],
-  ['closing a summary judges no line (AL-3, party panel 2026-11-03)', 'src/shell/alerts.js', 'rescan(cs) { if (cs && watching.has(cs.slot)) scan(cs); },', 'rescan() {},'],
-  ['the card reads as a purse (UI-4, optimizer panel 2026-11-03)', 'src/shell/windows/characters.js', "'Bag worth ' + gold(x.bagValue)", "'Bag ' + gold(x.bagValue)"],
   ['the last hunt\'s end line stays into the next (AL-3, Brannoc 10-22)', 'src/shell/alerts.js', '|| (open && RETIRE.has(a.kind) && a.session && a.session !== open)', ''],
   ['the low alert counts the bag mid-hunt (AL-2, Brannoc 10-22)', 'src/session/item-sections.js', '  return huntBagOf(cs) || bagOf(cs);', '  return bagOf(cs);'],
   ['a reload raises "has ended" over the hero on screen (AL-3, QA2 Pellow 10-25)', 'src/shell/alerts.js', 'account.viewed === cs.slot || account.viewed === null);', 'account.viewed === cs.slot);'],

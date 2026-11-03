@@ -44,7 +44,7 @@
 export const STYLE_LADDER = Object.freeze({
   sword:     Object.freeze({ practice: 'practice_sword',     rungs: Object.freeze(['iron_sword', 'steel_sword']), next: '' }),
   dual_axe:  Object.freeze({ practice: 'practice_hatchets',  rungs: Object.freeze(['iron_hatchets', 'steel_hatchets']),  next: '' }),
-  club:      Object.freeze({ practice: 'practice_club',      rungs: Object.freeze(['iron_warhammer', 'steel_warhammer']), next: '' }),
+  club:      Object.freeze({ practice: 'practice_club',      rungs: Object.freeze(['klappas_club', 'iron_warhammer', 'steel_warhammer']), next: '' }),
   bow:       Object.freeze({ practice: 'practice_bow',       rungs: Object.freeze(['longbow', 'willow_longbow']),        next: '' }),
   crossbow:  Object.freeze({ practice: 'practice_crossbow',  rungs: Object.freeze(['oak_crossbow', 'willow_crossbow']),  next: '' }),
   wand:      Object.freeze({ practice: 'practice_wand',      rungs: Object.freeze(['oak_wand', 'willow_wand']),          next: '' }),
@@ -63,6 +63,10 @@ const r = (id, name, icon, inputs, output, xp, req, ms) => Object.freeze({ id, n
 
 export const STYLE_GEAR_RECIPES = Object.freeze({
   smithing: Object.freeze([
+    /* KLAPPA'S CLUB (Tyler 2026-11-03: a beginner club, a tribute to Andy, who has done much of this game's real testing; his own idea,
+       a practice club reforged, after the Kingsgrate). Any hero makes it the normal way: one run from the kit's one club, so the row is
+       a first taste of the bench and never a wage. Mine, smelt, hunt the Cellar's rats, forge. Numbers on the priority board, 2026-11-03. */
+    r('reforge_klappas_club', 'Reforge Klappa\'s Club', '🏏', { practice_club: 1, bronze_bar: 6, small_fang: 3 }, 'klappas_club', 120, 1, 3000),
     /* Six bars since the craft wage (designer 2026-11-01): the piece sells above its metal and the forge pays a little better than
        selling the bars, with no faster chain to it than the rest of the bench (tests/craft-wages.mjs). */
     r('forge_iron_hatchets',  'Forge Iron Hatchets',  '🪓', { iron_bar: 6, normal_plank: 2 }, 'iron_hatchets',  120, 15, 3400),

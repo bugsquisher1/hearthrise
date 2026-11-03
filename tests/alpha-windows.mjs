@@ -410,7 +410,7 @@ async function pure() {
   const { rowsFor } = await imp('src/shell/windows/work.js');
   const { workBlock, workRow, runsOf } = await imp('src/shell/town-work.js');
   const smith = rowsFor('smithing', 1, { copper_ore: 10 }).map((w) => w.id);
-  if (smith.slice(-2).join() !== 'forge_bronze_axe,forge_bronze_pickaxe' || !smith.includes('smelt_bronze') || smith.length !== 5) fails.push('AW-22 Smithing 1 shows ' + smith.join());
+  if (smith.slice(-2).join() !== 'forge_bronze_axe,forge_bronze_pickaxe' || !smith.includes('smelt_bronze') || !smith.includes('reforge_klappas_club') || smith.length !== 6) fails.push('AW-22 Smithing 1 shows ' + smith.join());
   const wcs = (lv, inv) => ({ read: (k) => (k === 'skills' ? { smithing: { xp: 0, level: lv } } : k === 'inventory' ? inv : null) });
   const bronze = workRow('artisan', 'smelt_bronze');
   const said = [workBlock(wcs(1, { copper_ore: 1 }), bronze, false), workBlock(wcs(1, { copper_ore: 2 }), bronze, true),

@@ -394,7 +394,7 @@ export function mountShell(root, o) {
   function onWm() {
     /* the player closed an ended hunt's summary: its hunt bar leaves town with it (huntUp) */
     const so = wm.isOpen('hunt-summary');
-    if (summaryWasOpen && !so) summaryClosedBy(ctx.character);
+    if (summaryWasOpen && !so) { summaryClosedBy(ctx.character); if (ctx.alerts) ctx.alerts.rescan(ctx.character); }
     summaryWasOpen = so;
     paintWindows();
     /* an open window asked to show another tab (R on an open Shop: window-manager.js openTab) shows it at once */

@@ -356,6 +356,45 @@ async function pureRules(M, base) {
     return (h && h.length === 0) || 'food in the hunt bag (none in the bag) still warned out of food: ' + JSON.stringify(h);
   });
 
+  /* AL-3 AN END ALREADY SEEN IS OVER (party panel 2026-11-03: "Pip left the hunt, so Kell came home too" outlived that hunt's summary, and hid newer lines):
+     the came-home line stands over the hero on screen until the player closes that hunt's summary; a death off screen until its popup is dismissed. */
+  await t('AL-3', async () => {
+    const R = await import(M.U('src/hunt-view/summary-recorder.js'));
+    const srv = fakeServer();
+    const e = srv.env[0];
+    e.hunt_events = [];
+    e.hunt.ended = true;
+    e.hunt.session = { end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'left', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' };
+    const acc = account(M, srv);
+    acc.viewed = 0;
+    const centre = M.AL.createAlertCenter(acc);
+    const cs = (await acc.open(0)).session;
+    if (!cs) return 'the fixture character did not open';
+    const home = () => centre.list().filter((a) => /came home too/.test(a.text)).length;
+    if (home() !== 1) return 'the came-home line raised ' + home() + ' time(s), want 1';
+    await cs.load();
+    if (home() !== 1) return 'a re-read dropped the came-home line before the summary was closed';
+    R.summaryClosedBy(cs);
+    centre.rescan(cs);
+    if (home() !== 0) return 'the came-home line stayed up after its summary was closed';
+    /* A death off screen: its line goes once the popup was dismissed on the hero. */
+    const srv2 = fakeServer();
+    const d = srv2.env[0];
+    d.hunt_events = [];
+    d.hunt.ended = true;
+    d.hunt.session = { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' };
+    const acc2 = account(M, srv2);
+    acc2.viewed = 1;
+    const centre2 = M.AL.createAlertCenter(acc2);
+    const cs2 = (await acc2.open(0)).session;
+    if (!cs2) return 'the second fixture character did not open';
+    const died = () => centre2.list().filter((a) => a.kind === 'death').length;
+    if (died() !== 1) return 'a death off screen raised ' + died() + ' line(s), want 1';
+    const seen = (cs2.record.residue.alerts && cs2.record.residue.alerts.seen) || [];
+    cs2.setResidue('alerts', { off: [], seen: seen.concat('died:' + d.hunt.session_id) });
+    return died() === 0 || 'a dismissed death still stands in the alert lines';
+  });
+
   /* AL-3 A NEW HUNT RETIRES THE LAST ONE'S END LINE (Brannoc 10-22: "has ended · Start again" stayed up into the next
      hunt): the ended line shows while the hunt is over, and goes once the server says another session is open. */
   await t('AL-3', async () => {
@@ -1226,6 +1265,9 @@ async function pageRules(overrides, shots) {
       else {
         const names = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-char .hw-char-name')).map((b) => b.textContent).join(','));
         if (names !== 'Tyler,Druid') fails.push('UI-4 [' + tag + '] the command centre lists ' + names);
+        /* The figure on a card is what its bag would fetch, never a purse (optimizer panel 2026-11-03; Tyler 10-23: one purse per account). */
+        const bagWords = await page.evaluate(() => document.querySelector('.hw-char .hw-char-bag').textContent);
+        if (!/^Bag worth /.test(bagWords)) fails.push('UI-4 [' + tag + '] the card reads ' + JSON.stringify(bagWords));
         await shot('command-centre');
       }
       /* UI-8: the leader's listing switch (private until listed): the server's `listed`, ONE hr_hunt_party_list. */
@@ -1331,6 +1373,9 @@ const PURE_MUTANTS = [
   ['a seat with no weapon holds no class on the class line (PR-CLASS)', 'src/shell/windows/party-roster.js', "roles.map((r) => r || roleForWeapon('neutral'))", 'roles'],
   ['the class line stays on while the party hunts (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (r.anyHunting || r.members.length < 2) return '';", "if (r.members.length < 2) return '';"],
   ['the class line needs a ground the party has hunted (PR-CLASS)', 'src/shell/windows/party-roster.js', 'const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;', 'const hunt = p.hunt;'],
+  ['a seen end stays in the lines (AL-3, party panel 2026-11-03)', 'src/shell/alerts.js', 'if (stale || seenEnd || ', 'if (stale || '],
+  ['closing a summary judges no line (AL-3, party panel 2026-11-03)', 'src/shell/alerts.js', 'rescan(cs) { if (cs && watching.has(cs.slot)) scan(cs); },', 'rescan() {},'],
+  ['the card reads as a purse (UI-4, optimizer panel 2026-11-03)', 'src/shell/windows/characters.js', "'Bag worth ' + gold(x.bagValue)", "'Bag ' + gold(x.bagValue)"],
   ['the last hunt\'s end line stays into the next (AL-3, Brannoc 10-22)', 'src/shell/alerts.js', '|| (open && RETIRE.has(a.kind) && a.session && a.session !== open)', ''],
   ['the low alert counts the bag mid-hunt (AL-2, Brannoc 10-22)', 'src/session/item-sections.js', '  return huntBagOf(cs) || bagOf(cs);', '  return bagOf(cs);'],
   ['a reload raises "has ended" over the hero on screen (AL-3, QA2 Pellow 10-25)', 'src/shell/alerts.js', 'account.viewed === cs.slot || account.viewed === null);', 'account.viewed === cs.slot);'],

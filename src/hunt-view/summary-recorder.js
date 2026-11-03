@@ -93,6 +93,9 @@ export function attach(cs) {
     (summaryClosedBy). Kept on the CHARACTER: a switch of the viewed hero remounts the shell, and the bar came back with every switch. */
 export function summaryDone(cs, sessionId) { const a = attach(cs); return a.earlier === sessionId || a.closed === sessionId; }
 
+/** Has the player closed this ended hunt's summary? (Its alert line then has nothing left to say: src/shell/alerts.js.) */
+export function summaryClosedFor(cs, sessionId) { const a = ATTACHED.get(cs); return !!a && a.closed === sessionId; }
+
 /** The player closed the summary, or left it open and went to another hero. A closed summary stays closed: its record lands now, as a dismissed
     death does (death-popup.js), so a reload inside the residue's debounce can't lose it and open the summary again. */
 export function summaryClosedBy(cs) {

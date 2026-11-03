@@ -390,6 +390,8 @@ function onPocket(ctx, body, st, action, ev, t, repaint) {
   else if (ev.ctrlKey || ev.metaKey || sc.sel.size) toggleSel(sc, id);
   sc.cursor = id;
   sc.menu = null;
+  /* The last press's result is old news once another stack is in hand (newcomer panel 2026-11-03: "Put on 1 piece." over the Bones' Fuel all). */
+  if (!sc.pending && !sc.msgAt) sc.msg = '';
   commitSeen(st.cs, [id]);
   repaint();
   t.focus();

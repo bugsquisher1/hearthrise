@@ -147,6 +147,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     cls(go, 'is-primary', !card);
     for (const b of root.querySelectorAll('.hsum-actions button:not(.is-primary):not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
   }
+  /* THE ANSWER IS THE PRESS'S (party panel 2026-11-03: "Setting out." still up with the hero home from that hunt): a hunt that opens or ends makes it old. */
+  const huntNow = open ? open.id + (open.ended ? ':over' : '') : '';
+  if (sc.huntNow !== huntNow) { if (!sc.pending) sc.msg = ''; sc.huntNow = huntNow; }
   text(root.querySelector('.hh-intent-msg'), sc.msg || againWhy);
 
   const past = list.filter((s) => s !== cur);

@@ -318,7 +318,7 @@
   /* Open, it runs from the left edge to just short of the hero's column: wide words, few lines. */
   .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) { width: min(340px, calc(50vw - 56px)); right: calc(100vw - 8px - min(340px, calc(50vw - 56px))); }
   .hs-launchers > .hs-pointer:not(.is-min) { top: calc(100% + 50px); max-height: calc(var(--coach-room) - 58px); }
-  .hs-launchers > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, var(--coach-room) - 114px - .5lh, 1lh) + .5lh); }
+  .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) > .hs-coach-text { max-height: calc(round(down, var(--coach-room) - 114px - .5lh, 1lh) + .5lh); }
   /* An alert under the card leaves it too little room (shell.js roomForCoach): the card keeps its title until it closes. */
   .hs-widget.is-short-room > .hs-pointer:not(.is-min) > :is(.hs-coach-text, .hs-coach-got) { display: none; }
   /* While a leave counts down: what the wait is for, in one line under the hunt bar (hunt-topbar.js), the card aside. */
@@ -338,7 +338,6 @@
      line in (the room less those 20 px, the frame's 12, the row's 40 and the foot's 4), so a cut line always says there is
      more: a phone's scrollbar shows only while it scrolls. The card's own cap holds where round() or lh is missing
      (tests/phone-touch.mjs PH-6). */
-  .hs-widget > .hs-pointer:not(.is-min), .hs-launchers > .hs-pointer:not(.is-min) { max-height: calc(var(--coach-room) - 20px); }
   .hs-pointer:not(.is-min), .hs-pointer.has-close:not(.is-min), .hs-win-coach > .hs-pointer:not(.is-min), .hs-win-coach > .hs-pointer.has-close:not(.is-min) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-rows: auto minmax(0, 1fr); align-items: center; padding: 0 0 4px 12px; }
   .hs-pointer:not(.is-min) > b { grid-area: 1 / 1; line-height: 1.2; }
   .hs-pointer:not(.is-min) > .hs-coach-got { grid-area: 1 / 2; margin: 0; min-height: 40px; padding: 0 8px; }
@@ -346,6 +345,7 @@
   .hs-pointer:not(.is-min) > .hs-coach-close { position: static; grid-area: 1 / 4; width: 40px; height: 40px; }
   /* Got it and the cross would say the same thing: one press for it, and the row's room for the title. */
   .hs-pointer:has(.hs-coach-got) > .hs-coach-close { display: none; }
+  .hs-widget > .hs-pointer:not(.is-min), .hs-launchers > .hs-pointer:not(.is-min) { max-height: calc(var(--coach-room) - 20px); }
   .hs-pointer:not(.is-min) > .hs-coach-text {
     grid-area: 2 / 1 / 3 / -1; padding-right: 14px;
     min-height: 0; max-height: calc(round(down, var(--coach-room) - 76px - .5lh, 1lh) + .5lh); overflow-y: auto; overscroll-behavior: contain;
@@ -357,7 +357,7 @@
       linear-gradient(to bottom left, var(--gold-2) 50%, transparent 50%) no-repeat right 7px bottom 2px / 5px 6px,
       linear-gradient(to bottom right, var(--gold-2) 50%, transparent 50%) no-repeat right 2px bottom 2px / 5px 6px;
   }
-  .hs-pointer:not(.is-min) > .hs-coach-text::after { content: ''; display: block; height: 1lh; margin-top: -1lh; background: var(--bg-2); }
+  .hs-pointer:not(.is-min) > .hs-coach-text::after { content: ''; display: block; height: 1lh; margin: -1lh -14px 0 0; background: var(--bg-2); }
   /* A CARD ABOUT A SHEET STANDS BESIDE THE SHEET (phone panel v0.2.83: inside it, it took 60 px of the 166 a ground's page had,
      and cut its own words at a line and a half): where the town's card stands, in the World's half, so the sheet keeps its whole
      height and the words their room. Its left is the sheet's own (min(400px, 48vw) wide, 8 px off the screen's right, its 12 px
@@ -389,7 +389,6 @@
   .hs-widget > .hs-pointer[data-anchor="action_bar"]:not(.is-min), .hs-launchers > .hs-pointer[data-anchor="action_bar"]:not(.is-min) {
     top: auto; bottom: calc(8px - var(--coach-room)); max-height: calc(var(--coach-room) - 20px);
   }
-  .hs-launchers > .hs-pointer[data-anchor="action_bar"]:not(.is-min) > .hs-coach-text { max-height: calc(round(down, var(--coach-room) - 76px - .5lh, 1lh) + .5lh); }
   .hs-pointer[data-anchor="action_bar"]:not(.is-min)::before { display: none; }
   /* The sheet keeps the steel frame's spine down its left edge, a stud at each end; a phone dialog the thin frame. */
   .hs-win {

@@ -802,7 +802,7 @@ label.st-line { cursor: pointer; }
   .is-folded > .ha-analyzer > .hh-panel-body { display: none; }
   .ha-analyzer .ha-tab { padding: 0 4px; }
   .ha-close { display: grid; grid-area: 1 / 3; width: var(--tap); height: var(--tap); }
-  .ha-clocks { grid-area: 2 / 1 / 3 / 2; justify-content: flex-start; margin: 4px 0; }
+  .ha-clocks { grid-area: 2 / 1 / 3 / 2; justify-content: flex-start; margin: 0; }
   /* The whole row, its words at the right end: spanning the fold's and the close's columns alone, its 125 px widened both and took it out of the tabs. */
   .ha-analyzer .ha-scope { grid-area: 2 / 1 / 3 / -1; justify-self: end; margin-bottom: 0; }
   /* A hero with no party: no row for the switch, and the Session tab's first head does not say Session again. The numbers get both. */

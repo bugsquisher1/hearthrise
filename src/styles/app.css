@@ -301,14 +301,19 @@
   .hero-dye { width: 16px; height: 16px; }
   /* Each strip's word beside it, not over it: the card's foot (Enter town) ends on a 375 px screen (panel 2026-11-01: 9 px off). */
   .hero-region legend { float: left; width: 38px; padding: 3px 0 0; }
-  /* The phone shows How you fight too (playtest 2026-10-29: a phone player never met the five ways to fight). The column takes
-     the screen's height, less the card's own 142 px and the page's 6 (it adds none of its own); the lead stands under the name, so
-     all five ways fit beside it (phone panel v0.2.83: cut after the bow, nothing said there was more). A screen still too
-     short scrolls the column, and its cue says so (hero-create.js). The lead's word on slots waits for the Help page. */
-  .hero-body { position: relative; align-items: stretch; }
-  .hero-how { min-width: 0; min-height: min(calc(100vh - 148px), 280px); padding-left: 12px; contain: size; overflow-y: auto; }
-  .hero-form { flex: none; width: 190px; min-width: 0; }
-  .hero-how-lead { position: absolute; left: 0; top: 66px; width: 190px; margin: 0; line-height: 1.3; }
+  /* The phone shows How you fight too (playtest 2026-10-29: a phone player never met the five ways to fight). The step takes
+     the screen's height, less the card's own 136 px and the page's 6, and scrolls as one: the name and the lead at the left, all
+     five ways beside them (phone panel v0.2.83: cut after the bow, nothing said there was more). A screen still too short
+     scrolls, and its cue says so (hero-create.js). A refusal's line takes its room from here, so Enter town stays on screen.
+     The lead's word on slots waits for the Help page. */
+  .hero-body { position: relative; align-items: flex-start; height: min(calc(100vh - 142px), 280px); overflow-y: auto; overscroll-behavior: contain; }
+  .auth-card.is-create .auth-message:empty { display: none; }
+  .auth-card.is-create:has(.auth-message:not(:empty)) .hero-body { height: min(calc(100vh - 176px), 246px); }
+  .hero-how { min-width: 0; min-height: 100%; padding-left: 12px; }
+  .hero-form { flex: none; width: 200px; min-width: 0; }
+  .hero-form .auth-field { flex-direction: row; align-items: center; gap: 8px; }
+  .hero-form .hero-name { flex: 1; min-width: 0; }
+  .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px; margin: 0; line-height: 1.3; }
   .hero-how-slots { display: none; }
   .hero-how-list { gap: 3px; line-height: 1.3; }
   .hero-how-more:not([hidden]) { display: block; position: sticky; bottom: 0; margin: 2px 0 0; background: var(--bg-1); font-size: var(--t-micro); font-weight: 700; color: var(--gold-2); text-align: right; }

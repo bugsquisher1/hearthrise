@@ -87,21 +87,21 @@ export function howYouFightHtml() {
     + '</ul><p class="hero-how-more" hidden>More below</p></section>';
 }
 
-/* While words wait below the column's fold, its cue says so: a phone's scrollbar shows only during a swipe (phone panel v0.2.83: "nothing shows that it scrolls"). Returns the detach. */
+/* While words wait below the step's fold, its cue says so: a phone's scrollbar shows only during a swipe (phone panel v0.2.83: "nothing shows that it scrolls"). Returns the detach. */
 function watchHowMore(card) {
-  const how = card.querySelector('.hero-how'), more = how && how.querySelector('.hero-how-more');
-  const win = how && how.ownerDocument.defaultView;
+  const body = card.querySelector('.hero-body'), more = body && body.querySelector('.hero-how-more');
+  const win = body && body.ownerDocument.defaultView;
   if (!more || !win || !win.ResizeObserver) return () => {};
   const sync = () => {
-    const below = how.scrollHeight - how.clientHeight - how.scrollTop - (more.hidden ? 0 : more.offsetHeight);
+    const below = body.scrollHeight - body.clientHeight - body.scrollTop - (more.hidden ? 0 : more.offsetHeight);
     const hide = below <= 1;
     if (more.hidden !== hide) more.hidden = hide;
   };
   const ro = new win.ResizeObserver(sync);
-  ro.observe(how);
-  how.addEventListener('scroll', sync, { passive: true });
+  ro.observe(body);
+  body.addEventListener('scroll', sync, { passive: true });
   sync();
-  return () => { ro.disconnect(); how.removeEventListener('scroll', sync); };
+  return () => { ro.disconnect(); body.removeEventListener('scroll', sync); };
 }
 
 /** Paint the preview into a canvas at PREVIEW_SCALE (whole cells, no smoothing). */

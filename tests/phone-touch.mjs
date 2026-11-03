@@ -744,32 +744,41 @@ async function heroDoor(page, tag, fails) {
   await page.waitForTimeout(150);
   const on = await page.evaluate(RECT + `;[document.querySelector('.hero-confirm'), document.querySelector('.hero-back')].every((e) => window.__onScreen(window.__r(e)))`);
   if (!on) fails.push('PH-22 [' + tag + '] Enter town or its way back runs off the screen');
-  /* The column takes no height from its words (contain: size), so its own floor is what shows them. */
-  const tall = await page.evaluate(() => Math.round(document.querySelector('.hero-how').getBoundingClientRect().height));
+  /* The step's box takes no height from its words, so its own height is what shows them. */
+  const tall = await page.evaluate(() => Math.round(document.querySelector('.hero-body').getBoundingClientRect().height));
   if (tall < 150) fails.push('PH-22 [' + tag + '] How you fight is ' + tall + ' px tall');
-  /* PH-28: all five ways with no scroll on a phone's screen; too short for them (browser bars, a keyboard), the cue says so until the end. */
-  const how = () => page.evaluate(() => { const h = document.querySelector('.hero-how'), last = h.querySelector('.hero-how-list li:last-child').getBoundingClientRect(), b = h.getBoundingClientRect(), cue = h.querySelector('.hero-how-more');
-    const c = cue.getBoundingClientRect(); return { ways: h.querySelectorAll('.hero-how-list li').length, over: Math.round(last.bottom - b.bottom), end: h.scrollHeight - h.clientHeight, cue: !!cue.getClientRects().length && c.bottom <= b.bottom + 1 && c.top >= b.top - 1 }; });
+  /* PH-28: the lead and all five ways with no scroll on a phone's screen; too short for them (browser bars, a keyboard), the cue says so until the end. */
+  const how = () => page.evaluate(() => { const s = document.querySelector('.hero-body'), h = s.querySelector('.hero-how'), box = (e) => e.getBoundingClientRect(), last = box(h.querySelector('.hero-how-list li:last-child')), lead = box(s.querySelector('.hero-how-lead')), b = box(s), name = box(s.querySelector('.hero-name')), cue = h.querySelector('.hero-how-more'), c = box(cue);
+    return { ways: h.querySelectorAll('.hero-how-list li').length, over: Math.round(last.bottom - b.bottom), leadOver: Math.round(lead.bottom - b.bottom), leadOnName: lead.top < name.bottom - 0.5, leadOnWays: lead.right > box(h).left + 0.5, field: Math.round(name.width), end: s.scrollHeight - s.clientHeight, cue: !!cue.getClientRects().length && c.bottom <= b.bottom + 1 && c.top >= b.top - 1 }; });
   for (const vp of [SMALL_PHONES[0], SMALL_PHONES[1]]) {
     await page.setViewportSize(vp);
     await page.waitForTimeout(150);
     const f = await how();
     if (f.ways !== 5) fails.push('PH-28 [' + tagOf(vp) + '] CONTROL: ' + f.ways + ' ways to fight');
-    if (f.over > 0) fails.push('PH-28 [' + tagOf(vp) + '] How you fight is cut: its last way ends ' + f.over + ' px below the column');
-    if (f.cue) fails.push('PH-28 [' + tagOf(vp) + '] the column says More below with nothing below');
+    if (f.over > 0) fails.push('PH-28 [' + tagOf(vp) + '] How you fight is cut: its last way ends ' + f.over + ' px below the step');
+    if (f.leadOver > 0) fails.push('PH-28 [' + tagOf(vp) + '] the lead is cut: it ends ' + f.leadOver + ' px below the step');
+    if (f.leadOnName || f.leadOnWays) fails.push('PH-28 [' + tagOf(vp) + '] the lead lies on ' + (f.leadOnName ? 'the name' : 'the five ways'));
+    if (f.field < 110) fails.push('PH-28 [' + tagOf(vp) + '] the name\'s field is ' + f.field + ' px wide');
+    if (f.cue) fails.push('PH-28 [' + tagOf(vp) + '] the step says More below with nothing below');
     const on = await page.evaluate(() => { const r = (q) => document.querySelector(q).getBoundingClientRect(); return [r('.hero-confirm'), r('.hero-back'), r('.auth-card')].every((b) => b.top >= -0.5 && b.bottom <= innerHeight + 0.5); });
     if (!on) fails.push('PH-28 [' + tagOf(vp) + '] the card runs off the screen');
   }
+  /* A refusal's line takes its room from the step: Enter town stays on screen, and the step says it runs on. */
+  await page.click('.hero-confirm', { timeout: 2500 }).catch(() => null);
+  await page.waitForTimeout(250);
+  const said = await page.evaluate(() => { const m = document.querySelector('.auth-message'), r = (e) => e.getBoundingClientRect(); return { words: m.textContent, on: [r(m), r(document.querySelector('.hero-confirm')), r(document.querySelector('.hero-back'))].every((b) => b.bottom <= innerHeight + 0.5) }; });
+  if (!said.words) fails.push('PH-28 [667x375] CONTROL: an empty name was not refused');
+  else if (!said.on) fails.push('PH-28 [667x375] a refusal pushes Enter town off the screen');
   await page.setViewportSize({ width: 844, height: 300 });
   await page.waitForTimeout(250);
   const short = await how();
-  if (!(short.end > 0)) { fails.push('PH-28 [844x300] CONTROL: the column does not overflow on a short screen'); return; }
-  if (!short.cue) fails.push('PH-28 [844x300] the column runs on with no sign of it');
-  await page.evaluate(() => { const h = document.querySelector('.hero-how'); h.scrollTop = h.scrollHeight; });
+  if (!(short.end > 0)) { fails.push('PH-28 [844x300] CONTROL: the step does not overflow on a short screen'); return; }
+  if (!short.cue) fails.push('PH-28 [844x300] the step runs on with no sign of it');
+  await page.evaluate(() => { const s = document.querySelector('.hero-body'); s.scrollTop = s.scrollHeight; });
   await page.waitForTimeout(150);
-  await page.evaluate(() => { const h = document.querySelector('.hero-how'); h.scrollTop = h.scrollHeight; });
+  await page.evaluate(() => { const s = document.querySelector('.hero-body'); s.scrollTop = s.scrollHeight; });
   await page.waitForTimeout(150);
-  if ((await how()).cue) fails.push('PH-28 [844x300] More below stays at the column\'s end');
+  if ((await how()).cue) fails.push('PH-28 [844x300] More below stays at the step\'s end');
 }
 
 /* ── PH-25 to PH-30 ── THE SMALL-PHONE PANEL ON v0.2.83 (2026-11-03). */
@@ -1705,7 +1714,7 @@ const MUTANTS = [
   ['PH-21 the tip lies on the sheet', 'src/shell/windows/item-tip.js', "const r = ((touch && anchor.closest('.hs-win')) || anchor).getBoundingClientRect();", 'const r = anchor.getBoundingClientRect();'],
   ['PH-21 a mouseout puts the tip away', 'src/shell/windows/item-tip.js', '  if (touching(doc) && !byPress) return;\n', ''],
   ['PH-22 Back to sign in falls off the screen', 'src/styles/app.css', '  .auth-card[data-auth="create"] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 10px; }\n', ''],
-  ['PH-22 How you fight loses its height', 'src/styles/app.css', '  .hero-how { min-width: 0; min-height: min(calc(100vh - 148px), 280px); padding-left: 12px;', '  .hero-how { min-width: 0; padding-left: 12px;'],
+  ['PH-22 How you fight loses its height', 'src/styles/app.css', 'overflow-y: auto; overscroll-behavior: contain; }\n  .auth-card.is-create .auth-message:empty', 'overflow-y: auto; overscroll-behavior: contain; max-height: 120px; }\n  .auth-card.is-create .auth-message:empty'],
   ['PH-23 Refresh is cut in half', 'src/styles/market.css', '  .hw-mk-refresh { position: absolute; top: 0; left: 0; margin: 0; }\n', ''],
   ['PH-23 the sell sheet keeps its purse and tabs', 'src/styles/market.css', '  .hw-mk:has(.hw-mk-sell.is-on.is-paged) > :is(.hw-mk-greet, .hw-tabs) { display: none; }\n', ''],
   ['PH-23 what it would fetch comes first', 'src/styles/market.css', '  .hw-mk-sell .hw-mk-facts { order: 1; }\n', '  .hw-mk-sell .hw-mk-facts { order: -1; min-height: 80px; }\n'],
@@ -1732,7 +1741,10 @@ const MUTANTS = [
   ['PH-27 the card under the hunt bar stays narrow', 'src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { width: min(320px, 100%); }\n', '  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { width: min(200px, 100%); }\n'],
   ['PH-27 no tip says the words go on', 'src/styles/shell.css', 'linear-gradient(to bottom left, var(--gold-2) 50%, transparent 50%) no-repeat right 7px bottom 2px / 5px 6px,\n      linear-gradient(to bottom right, var(--gold-2) 50%, transparent 50%) no-repeat right 2px bottom 2px / 5px 6px;', 'none;'],
   ['PH-27 the tip never goes', 'src/styles/shell.css', "  .hs-pointer:not(.is-min) > .hs-coach-text::after { content: ''; display: block; height: 1lh; margin: -1lh -14px 0 0; background: var(--bg-2); }\n", ''],
-  ['PH-28 the lead stays in the column', 'src/styles/app.css', '  .hero-how-lead { position: absolute; left: 0; top: 66px; width: 190px; margin: 0; line-height: 1.3; }\n', ''],
+  ['PH-28 the lead stays in the column', 'src/styles/app.css', '  .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px; margin: 0; line-height: 1.3; }\n', ''],
+  ['PH-28 the longer lead runs past the step', 'src/styles/app.css', '  .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px;', '  .hero-how-lead { position: absolute; left: 0; top: 66px; width: 150px;'],
+  ['PH-28 the name\'s label stands over its field', 'src/styles/app.css', '  .hero-form .auth-field { flex-direction: row; align-items: center; gap: 8px; }\n', ''],
+  ['PH-28 a refusal pushes Enter town off the screen', 'src/styles/app.css', '  .auth-card.is-create:has(.auth-message:not(:empty)) .hero-body { height: min(calc(100vh - 176px), 246px); }\n', ''],
   ['PH-28 nothing says the column runs on', 'src/app/hero-create.js', '    if (more.hidden !== hide) more.hidden = hide;\n', ''],
   ['PH-29 a hero alone keeps the panel open', 'src/data/hud-widgets.js', "phone: Object.freeze({ dx: 4, dy: 4, folded: 'alone' }),", 'phone: Object.freeze({ dx: 4, dy: 4 }),'],
   ['PH-29 a party\'s panel folds as well', 'src/shell/shell.js', 'alone: () => heroIsAlone(opts.character),', 'alone: () => true,'],

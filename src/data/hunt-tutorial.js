@@ -917,9 +917,8 @@ const SAY = Object.freeze({
     const priced = (r) => [gp(r.gold), ...r.items.map((x) => name(x.id) + ' ×' + x.qty)].join(', ');
     const named = (r) => !!r && Array.isArray(r.items) && !r.items.some((x) => !name(x.id));
     const house = [named(f.home && f.home.next) ? 'the ' + f.home.next.name + ' (' + priced(f.home.next) + ')' : null,
-      named(f.chest) ? 'the ' + f.chest.name + ', a storage chest (' + priced(f.chest) + ')' : null].filter(Boolean);
-    return { text: 'You hold ' + gp(f.gold) + '. It buys a ' + nth + ' hero (' + gp(f.slotCost) + '): press Characters, and it hunts while this one does.'
-      + (house.length ? ' In the House: ' + listed(house) + '.' : '') };
+      named(f.chest) ? 'storage chests (the ' + f.chest.name + ', ' + priced(f.chest) + ')' : null].filter(Boolean);
+    return { text: 'You hold ' + gp(f.gold) + ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' + (house.length ? ' In the House: ' + listed(house) + '.' : '') };
   },
   stitch_cloak: () => {
     const r = (ARTISAN_RECIPES.crafting || []).find((x) => x.output === 'graypelt_cloak');

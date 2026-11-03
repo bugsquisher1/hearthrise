@@ -907,7 +907,7 @@ const cases = {
     const CHEST = { name: 'Millrace Crate', gold: 1500, items: [{ id: 'normal_log', qty: 40 }] };
     const rich = (lv, gold, more, ...read) => ({ ...atL(lv, 'weighhouse', 'roll_of_honor', 'pull_goal', ...read), gold, slotCost: 15000, slotsOwned: 2, home: { owned: false, next: DEED }, chest: CHEST, ...more });
     const purse = say(rich(M.tut.ROLL_LEVEL, 15000));
-    if (!purse || purse.id !== 'purse_goal' || purse.text !== 'You hold 15,000 gp. It buys a third hero (15,000 gp): press Characters, and it hunts while this one does. In the House: the Hearthside Homestead (400 gp, Copper Ore ×20, Normal Log ×30) and the Millrace Crate, a storage chest (1,500 gp, Normal Log ×40).' || !purse.gotIt || M.tut.coachWindow(purse) !== 'house') return 'with 15,000 gp the card reads ' + JSON.stringify(purse);
+    if (!purse || purse.id !== 'purse_goal' || purse.text !== 'You hold 15,000 gp: enough for a third hero (15,000 gp, press Characters). In the House: the Hearthside Homestead (400 gp, Copper Ore ×20, Normal Log ×30) and storage chests (the Millrace Crate, 1,500 gp, Normal Log ×40).' || !purse.gotIt || M.tut.coachWindow(purse) !== 'house') return 'with 15,000 gp the card reads ' + JSON.stringify(purse);
     if ((say(rich(M.tut.ROLL_LEVEL, 14999)) || {}).id === 'purse_goal') return 'the gold card came under the next hero\'s price';
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, {}, 'purse_goal')) || {}).id === 'purse_goal') return 'Got it does not pass the gold card';
     if ((say(rich(M.tut.ROLL_LEVEL, 99999, { slotCost: null, slotsOwned: 5 })) || {}).id === 'purse_goal') return 'with no hero on offer the gold card still offers one';

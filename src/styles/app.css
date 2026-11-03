@@ -99,6 +99,12 @@
 }
 .auth-link:hover, .auth-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .auth-link:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+/* THE ACCOUNT ID (the closed notice, closed-notice.js): sunk like a field, whole on one line wherever it fits, one press selects it all. */
+.auth-id { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.auth-id-value { flex: 1 1 18em; min-height: 36px; box-sizing: border-box; display: flex; align-items: center; padding: 4px 10px; background: var(--bg-0); box-shadow: var(--steel-well);
+  font-family: var(--f-ui); font-size: var(--t-micro); font-variant-numeric: tabular-nums; color: var(--ink); overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
+.auth-id-value::selection { background: var(--gold); color: var(--bg-0); }
+.auth-id .hh-tool { min-height: 36px; padding: 0 14px; box-shadow: inset 0 0 0 2px var(--steel-sep); }
 /* A card's foot with a way back and a way on (hero creation): back at the left, the gold plate at the right. */
 .auth-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 -20px -18px; padding: 10px 20px 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .auth-foot .auth-submit { padding: 0 16px 0 20px; }
@@ -117,6 +123,8 @@
   .auth-links { padding-top: 2px; }
   /* A thumb's press, not a line of text (phone playtest 2026-10-31: 24 px). */
   .auth-link { min-height: var(--tap); padding: 0 8px; }
+  a.auth-link { display: inline-flex; align-items: center; }   /* its words in the middle of the press, level with a button's */
+  .auth-id .hh-tool, .auth-id-value { min-height: var(--tap); }
   .auth-links .auth-link:first-child { margin-left: -8px; }
   .auth-links .auth-link:last-child { margin-right: -8px; }
   .auth-foot { margin: 0 -16px -12px; padding: 6px 16px 8px; }

@@ -26,8 +26,8 @@
 //                     enemies_in_aoe and falls back when the 5x5 runs out, one unit a shot; the Druid heals only the
 //                     Knight and only under 80%; the Sorcerer casts at density 3+; cut into windows (the client closed,
 //                     the away path) the instance is byte-identical; kills and loot are tallied once
-//   solo-healer       a FRESH solo Healer (start kit, Apprentice Staff) on the REAL settle clears mill_cellar and the
-//                     Millrace Sewer's first pocket with no fall
+//   solo-healer       a FRESH solo Healer (start kit, Apprentice Staff) on the REAL settle clears mill_cellar with no fall, then the Thicket's
+//                     first pocket at Level 5 (its first real ground, Tyler 10-21) and the Sewer's at its floor (under a floor the level gap bites, as ruled 11-02)
 //   sql-rows          the migration's catalogue rows equal the registry, the action ids and ROLE_RULES
 //
 //   node tests/hunt-core/conditions.mjs            cases + mutants
@@ -144,8 +144,8 @@ function party(M, o) {
     member(M, 'd-sorc', 'mage', { seat: 3, maxHit: 2, bag: { chalked_fire_rune: { loaded: 300 } }, slots: [ab('fireball', [c('enemies_in_aoe', 'gte', 3)])] }),
   ];
 }
-/* The injected item catalogue: the 5x5 and 3x3 arrows are fixture rows over real ammo (designer data, not a ruling). */
-const itemsWith = (M) => Object.assign({}, M.ITEMS, { [HAVOC]: Object.assign({}, M.ITEMS[HAVOC], { area: 5 }), [BURST]: Object.assign({}, M.ITEMS[BURST], { area: 3 }) });
+/* The injected item catalogue: the 5x5 and 3x3 arrows are fixture rows over real ammo (designer data, not a ruling), and any Ranged may loose them: this case is the footprint's, not the skill's. */
+const itemsWith = (M) => Object.assign({}, M.ITEMS, { [HAVOC]: Object.assign({}, M.ITEMS[HAVOC], { area: 5, reqLv: 1 }), [BURST]: Object.assign({}, M.ITEMS[BURST], { area: 3, reqLv: 1 }) });
 
 function runParty(M, cuts, o) {
   const members = party(M, o);
@@ -165,12 +165,12 @@ function runParty(M, cuts, o) {
 }
 
 /* A FRESH CHARACTER on the REAL settle (accrueHunt) at a real ground: the start kit's skills and food, a staff. */
-function freshHealer(M, huntId, minutes, seed, options, element) {
-  return freshParty(M, huntId, minutes, seed, [options], element);
+function freshHealer(M, huntId, minutes, seed, options, element, level) {
+  return freshParty(M, huntId, minutes, seed, [options], element, level);
 }
 /* The same fresh start-kit Healer, one per entry of `optionsList` (each its own stored options, as
-   hr_hunt_member_read hands the settle player_action_sets.options), on ONE instance through the real settle. */
-function freshParty(M, huntId, minutes, seed, optionsList, element) {
+   hr_hunt_member_read hands the settle player_action_sets.options), on ONE instance through the real settle. `level`: its Level, start kit and skills as they are (default 1). */
+function freshParty(M, huntId, minutes, seed, optionsList, element, level) {
   const { ground, grid } = M.hg.huntGroundOf(huntId);
   const from = T0; const to = from + minutes * 60000;
   const food = Object.keys(M.kit.START_INVENTORY).find((id) => M.SUP.SUPPLIES[id] && M.SUP.SUPPLIES[id].kind === 'heal');
@@ -182,7 +182,7 @@ function freshParty(M, huntId, minutes, seed, optionsList, element) {
       huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch',
         bag: { [food]: { loaded: M.kit.START_INVENTORY[food] } },
         staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
-      skills: Object.assign({}, M.kit.START_SKILL_XP), levelXp: 0, hp: M.kit.START_CURRENCY.hp, gold: M.kit.START_CURRENCY.gold,
+      skills: Object.assign({}, M.kit.START_SKILL_XP), levelXp: level ? M.XP.charXpForLevel(level) : 0, hp: M.kit.START_CURRENCY.hp, gold: M.kit.START_CURRENCY.gold,
       equipment: { weapon: 'apprentice_staff' }, inventory: {}, hero: Object.assign({}, hero, { element: element || '' }) };
   });
   const secret = String(BigInt.asIntN(64, BigInt(seed) * 2654435761n + 1n));
@@ -730,12 +730,14 @@ const cases = {
       const spawned = M.grounds.HUNT_GROUNDS.mill_cellar.pockets.reduce((a, p) => a + p.spawns.length, 0);
       if (ce.some((e) => e.type === 'wipe') || ce.some((e) => e.type === 'death')) return tag + ': a fresh solo healer died in the cellar';
       if (!ce.some((e) => e.type === 'pull' && e.pocket === 1) || ce.filter((e) => e.type === 'kill').length < spawned) return tag + ': the cellar was not cleared';
-      const sewer = freshHealer(M, 'millrace_sewer', 10, seed, null, el);
-      const pulls = sewer.events.filter((e) => e.type === 'pull');
-      const second = pulls.find((e) => e.pocket !== 0);
-      if (!second) return tag + ': the sewer\'s first pocket was never cleared in 10 minutes';
-      const fell = sewer.events.find((e) => e.type === 'wipe' && e.atMs < second.atMs);
-      if (fell) return tag + ': the healer fell in the sewer\'s first pocket at ' + (fell.atMs - T0) + ' ms';
+      /* The Thicket is a fresh solo hero's first real ground (Tyler 10-21); the Sewer is a party's, and below a floor the level gap is meant to bite (Tyler 11-02): each is held at its own floor. */
+      for (const [huntId, level] of [['meadowbrook_thicket', 5], ['millrace_sewer', 8]]) {
+        const next = freshHealer(M, huntId, 10, seed, null, el, level);
+        const second = next.events.filter((e) => e.type === 'pull').find((e) => e.pocket !== 0);
+        if (!second) return tag + ': ' + huntId + '\'s first pocket was never cleared in 10 minutes at Level ' + level;
+        const fell = next.events.find((e) => e.type === 'wipe' && e.atMs < second.atMs);
+        if (fell) return tag + ': the healer fell in ' + huntId + '\'s first pocket at ' + (fell.atMs - T0) + ' ms';
+      }
     }
     return null;
   },
@@ -810,7 +812,7 @@ const cases = {
      no pick and more than one hero answers the row's partyPull, clamped; a lone hero's answer is untouched on every ground. */
   'party-pull': (M) => {
     const G = M.grounds;
-    const want = { meadowbrook_thicket: [0, 3, 3, 4], wickstead: [0, 3, 3, 4], mosslight_glade: [0, 3, 3, 4], mill_cellar: [0, 4, 5, 5], millrace_sewer: [0, 0, 0, 0], coppercap_warrens: [0, 0, 0, 0] };
+    const want = { meadowbrook_thicket: [0, 4, 5, 6], wickstead: [0, 3, 3, 4], mosslight_glade: [0, 3, 3, 4], mill_cellar: [0, 4, 5, 5], millrace_sewer: [0, 0, 0, 0], coppercap_warrens: [0, 0, 0, 0] };
     if (Object.keys(G.HUNT_GROUNDS).sort().join() !== Object.keys(want).sort().join()) return 'a new ground: give it a line here, its pull is a choice';
     for (const [id, row] of Object.entries(want)) {
       const got = [1, 2, 3, 4].map((n) => G.densityFor(G.HUNT_GROUNDS[id], n, 0));
@@ -820,9 +822,9 @@ const cases = {
     const low = { partyPull: [0, 9, 9, 9], densityMax: [8, 8, 8, 8] };
     if (G.densityFor(low, 2, 0) !== 8) return 'a pull over the ground\'s max reads ' + G.densityFor(low, 2, 0) + ', the clamp is 8';
     if (G.validateGround(Object.assign({}, G.HUNT_GROUNDS.wickstead, { partyPull: [3, 3, 3, 4] })).every((s) => !/partyPull/.test(s))) return 'a pull for a lone hero passed validation';
-    /* The settle opens at it: a Thicket four with no pick stands at 4 each, a lone hero at the room as built. */
+    /* The settle opens at it: a Thicket four with no pick stands at 6 each (Tyler 11-02), a lone hero at the room as built. */
     const opened = (n) => M.worldstate.decode(JSON.parse(freshParty(M, 'meadowbrook_thicket', 0.25, 3, Array.from({ length: n }, (_, i) => (i ? {} : { lead: true }))).world)).density;
-    if (opened(4) !== 4) return 'a Thicket four settled at density ' + opened(4);
+    if (opened(4) !== 6) return 'a Thicket four settled at density ' + opened(4);
     return opened(1) === 0 ? null : 'a lone hero on the Thicket settled at density ' + opened(1) + ', its pull never moves';
   },
   'density-laps': (M) => {
@@ -942,7 +944,7 @@ const mutants = [
     edits: [['src/core/hunt/conditions.js', 'SHOOTERS.some((r) => shootsItem(r, ITEMS[id]))', "!!ITEMS[id] && ITEMS[id].reqSkill !== 'magic'"]] },
   { name: 'a slot may ignore without bound', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (s.ignore.length > MAX_IGNORED) return { error: 'too_many_ignored' };\n", '']] },
   { name: 'an area shot spends one unit per monster hit', case: 'attack-item', edits: [['src/core/hunt/damage.js', '    for (const m of hits) if (m.alive) blow(inst, sc, u, h, m, shot.pick.price, sharePm);', '    for (const m of hits) { if (m !== aim && shot.pick.ammo) payBasic(inst, u, { ammo: shot.pick.ammo }, sc); if (m.alive) blow(inst, sc, u, h, m, shot.pick.price, sharePm); }']] },
-  { name: 'an empty attack stack does not fall back', case: 'attack-item', edits: [['src/core/hunt/damage.js', "    if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };\n    const size", '    if (!l.id) return { id, size: 1, aim: cx.aim || u };\n    const size']] },
+  { name: 'an empty attack stack does not fall back', case: 'attack-item', edits: [['src/core/hunt/damage.js', "    if (!l.id || l.why) return { why: shotWait(l) };\n    const size", '    if (!l.id) return { id, size: 1, aim: cx.aim || u };\n    const size']] },
   { name: 'target_is_boss reads the wrong flag', case: 'metrics-misc', edits: [['src/core/hunt/conditions.js', 'MONSTERS[t.kind].boss === true', 'MONSTERS[t.kind].formation === false']] },
   { name: 'the id is the slot position', case: 'stable-ids', edits: [['src/core/hunt/conditions.js', '  list.forEach((s, at) => { if (keep(s) && s.enabled !== false) out.push({ rule: s.id, slot: s, at }); });', '  list.forEach((s, at) => { if (keep(s) && s.enabled !== false) out.push({ rule: \'p\' + at, slot: s, at }); });']] },
   { name: 'a bar edit keeps a dropped rule\'s state', case: 'rekey', edits: [['src/core/hunt/conditions.js', '    for (const [id, ms] of Object.entries(u.ruleHold)) if (ids.has(id)) hold[id] = int(ms);', '    for (const [id, ms] of Object.entries(u.ruleHold)) hold[id] = int(ms);']] },

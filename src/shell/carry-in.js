@@ -8,8 +8,11 @@
 // read again for every patch; nothing here gates a press (the server decides it).
 //   carryRows(cs)          while this hero's hunt runs and is not on its way home:
 //                          every hunt supply in the bag, [{ id, have, inHunt, max,
-//                          named }], what the bar names first, then the largest; null
-//                          in town, on the way home, or with no bag read yet
+//                          named, wait }], what the bar names first, then the largest;
+//                          null in town, on the way home, or with no bag read yet.
+//                          `wait`: a shot above the hero's skill. The press still
+//                          carries it (the units only move; the slot wakes at the level,
+//                          designer 2026-11-03), and every line says it can't be shot yet
 //   carryFor(cs, action)   the rows one bar action can use: its own item, or every
 //                          tier of a rune spell's family
 //   carryWords(row)        "Carry 40 into this hunt"
@@ -18,11 +21,14 @@
 //                          its line is the server's answer, and every count on
 //                          screen changes only from the re-read envelope
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, equipmentOf } from '../session/item-sections.js?v=0.2.82';
+import { bagOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.82';
 import { huntBagOf, settingsOf } from '../session/hunt-sections.js?v=0.2.82';
 import { carryIntoHunt, CARRY_MAX } from '../session/carry-intents.js?v=0.2.82';
 import { SUPPLIES } from '../data/supplies.js?v=0.2.82';
 import { ABILITIES } from '../data/abilities.js?v=0.2.82';
+import { ITEMS } from '../data/items.js?v=0.2.82';
+import { shootsItem } from '../data/hunt-roles.js?v=0.2.82';
+import { shortOf } from './item-lore.js?v=0.2.82';
 import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.82';
 import { amountHtml, amountOf, stepAmount } from './widgets/amount.js?v=0.2.82';
 import { runIntent } from './intent-words.js?v=0.2.82';
@@ -49,6 +55,13 @@ function spends(a, id, worn) {
 /* The worn ammo (the server's equipment), which the bar's "loaded" shot spends. */
 const wornOf = (cs) => (equipmentOf(cs) || {}).ammo || null;
 
+/* The engine's rule for a shot under its skill (abilities.js shotLine: neither shot nor bought), in words, or null. Only a
+   shot the worn weapon looses: a rune's version is its spell's (the server's `rune_level`), and food has no such gate. */
+function waitOf(id, role, skills) {
+  const need = shootsItem(role, ITEMS[id]) ? shortOf(id, skills, null) : null;
+  return need ? need.text + ': it can’t be shot until then.' : null;
+}
+
 /** The bag's hunt supplies this running hunt could carry in, or null (see the header). */
 export function carryRows(cs) {
   if (!running(cs)) return null;
@@ -58,9 +71,10 @@ export function carryRows(cs) {
   const s = settingsOf(cs);
   const bar = s ? s.slots.filter((sl) => !sl.empty && sl.enabled !== false).map((sl) => sl.action) : [];
   const worn = wornOf(cs);
+  const skills = skillsOf(cs);
   return bag.filter((r) => SUPPLIES[r.id] && r.qty > 0)
     .map((r) => ({ id: r.id, have: r.qty, inHunt: (hunt.find((x) => x.id === r.id) || {}).qty || 0,
-      max: Math.min(r.qty, CARRY_MAX), named: bar.some((a) => spends(a, r.id, worn)) }))
+      max: Math.min(r.qty, CARRY_MAX), named: bar.some((a) => spends(a, r.id, worn)), wait: s ? waitOf(r.id, s.role, skills) : null }))
     .sort((a, b) => Number(b.named) - Number(a.named) || b.have - a.have || (a.id < b.id ? -1 : 1));
 }
 
@@ -91,7 +105,7 @@ export function askCarry(ctx, body, sc, repaint, row, at) {
       closeFloatMenu(ctx.doc);
       if (!sc.pending) {
         runIntent(sc, repaint, () => carryIntoHunt(ctx.account, cs, row.id, n), 'Carrying it in…',
-          (r) => 'Carried ' + whole(r.qty) + ' ' + name + ' into this hunt.', cs);
+          (r) => 'Carried ' + whole(r.qty) + ' ' + name + ' into this hunt.' + (row.wait ? ' ' + row.wait : ''), cs);
       }
     },
     onClose: () => {},

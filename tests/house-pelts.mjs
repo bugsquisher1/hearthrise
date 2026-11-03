@@ -33,7 +33,7 @@ import { isMain } from './_is-main.mjs';
 const OFFERS = '2027-02-16-house-pelts-unlock-offers.generated.sql';
 const BOUNDS = '2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql';
 /* The newest forward catalogue, applied after these two: a full replace that carries the bear's bound. */
-const CARRIES = '2027-02-18-craft-economy-hunt-sessions-catalogue.generated.sql';
+const CARRIES = '2027-02-21-rulings-hunt-sessions-catalogue.generated.sql';
 /* The newest forward price list, the same way: a full replace of OFFERS' rows. */
 const OFFERS_NOW = '2027-02-19-bench-prices-unlock-offers.generated.sql';
 const GLADE = 'mosslight_glade';
@@ -51,6 +51,11 @@ const bagOf = async (db, uid, item) => Number(await one(db, 'select coalesce((se
 /* A hero on the real Glade MAX_HOURS + 1 ago, its pull at 3 (the smallest that brings the bear). */
 async function gladeHunter(db, H, M, uid) {
   await H.character(db, M, uid, { level: 24, gold: 5000000, inv: {} });
+  /* IN THE IRON PLATE A LEVEL 24 HERO HAS WORN SINCE 15 (Tyler's harder Glade, 2026-11-02): in the practice set alone it now dies at a pull of 3, which is the
+     ground's own words ("in weak armor ... or die"), not this guard's claim. A local fixture, like the Level above. */
+  for (const [equipSlot, item] of [['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'], ['boots', 'iron_boots']]) {
+    await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, equipSlot, item]);
+  }
   await db.query('update public.hr_hunt_config set enabled = true where id');
   await asUser(db, uid);
   await calm(db);

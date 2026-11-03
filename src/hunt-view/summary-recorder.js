@@ -88,17 +88,18 @@ export function attach(cs) {
   return a;
 }
 
-/** True when this ended hunt's summary was recorded before this page loaded: it won't open by itself, so a reload must
-    not stand the hunt bar back up in town (the panel 2026-11-01: the Havora / Town / Home strip gone until Summary). */
-export function summaryFromEarlierPage(cs, sessionId) { return attach(cs).earlier === sessionId; }
+/** True when this ended hunt's summary has had its moment, so the hunt bar stays out of town: it was recorded before this page loaded and won't open
+    by itself, so a reload must not stand the bar back up (the panel 2026-11-01: the Havora / Town / Home strip gone until Summary), or it was closed
+    (summaryClosedBy). Kept on the CHARACTER: a switch of the viewed hero remounts the shell, and the bar came back with every switch. */
+export function summaryDone(cs, sessionId) { const a = attach(cs); return a.earlier === sessionId || a.closed === sessionId; }
 
-/** The player closed the summary: the ended hunt's session, or null. A closed summary stays closed: its record lands now, as a dismissed
+/** The player closed the summary, or left it open and went to another hero. A closed summary stays closed: its record lands now, as a dismissed
     death does (death-popup.js), so a reload inside the residue's debounce can't lose it and open the summary again. */
 export function summaryClosedBy(cs) {
   const h = huntOf(cs);
-  if (!h || !h.ended) return null;
+  if (!h || !h.ended) return;
+  attach(cs).closed = h.sessionId;
   if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});
-  return h.sessionId;
 }
 
 /** True once per freshly ended hunt: the shell opens the window when it is. */

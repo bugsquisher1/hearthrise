@@ -1403,6 +1403,8 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
     const v = Number(t.xp[k]);
     if (Number.isFinite(v) && v > 0) rawXp[k] = Math.round(v * 1000) / 1000;
   }
+  /* "Level XP before bonuses" is the even share, not what was paid (blind panel 2026-11-01: the analyzer's two lines always matched). */
+  if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;
   const next = Math.max(Math.floor(hs.nextSwingAtMs), Math.floor(settledToMs));
   return {
     swing_from: swingFrom,

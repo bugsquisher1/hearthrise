@@ -317,7 +317,7 @@ Edit `src/net/supabase-bootstrap.js` and set the default config at the top:
 ```js
 const DEFAULT_CONFIG = {
   url: 'https://YOUR_PROJECT.supabase.co',
-  anonKey: 'eyJhbG...',
+  publishableKey: 'sb_publishable_...',
 };
 ```
 

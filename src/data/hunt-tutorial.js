@@ -184,6 +184,7 @@ const THICKET_BEHIND = { kind: 'been', hunt: THICKET };
    sewer.mjs pins this to its migration), the Roll of Honor from the first Level the gear runs thin (none from 18 to 30). */
 export const WEIGHHOUSE_LEVEL = 10;
 export const ROLL_LEVEL = 16;
+const PULL_LEVEL = 10;
 /* A hero past the guide's last ground has found them. */
 const WANT_BELOW = HUNT_INDEX.millrace_sewer.band[1] + 1;
 /* THE CARDS THAT SAY "JUST NOW" stand aside in a hunt the player has just come back to: they speak of what nobody watched. */
@@ -409,6 +410,11 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('roll_of_honor', 'Leaderboards',
     'It ranks every hero in Havora. See where you stand, and who is ahead of you.',
     'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }),
+  /* THE ONE DECISION OF LEVELS 10-30 (designer 2026-11-02, re-ruled with Tyler's harder monsters; a blind veteran found it by poking, +110% XP/h): it costs food now, and too big
+     can kill, so it is named once with its price. Words only: a "biggest pull held" readout waits on real picks in the beta. */
+  step('pull_goal', 'How big a pull can you hold?',
+    'On a hunt\'s page, + brings more monsters at once: more XP and more loot, a bigger food bill, and too many can kill you. Better armor and your Level let you hold more.',
+    'hunt_picker', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: PULL_LEVEL, below: WANT_BELOW }] }),
 ]);
 
 /* The kinds the SERVER finishes on its own (no press of the player's): the shell keeps such a card up long enough

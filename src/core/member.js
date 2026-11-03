@@ -119,7 +119,7 @@ export function heroSnapshot(state, c) {
      blow that lands (ruling K7, src/core/mitigation.js), at the hero's Level now. */
   const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.guardB) || 0) + (Number(c.bonus('defense')) || 0));
   const mit = mitigationFor(c.equipment, c.items, charLevelFromXp(state.levelXp));
-  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, mit };
+  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, mit, level: charLevelFromXp(state.levelXp) };
 }
 
 /* THE SET A FIGHT IS PRICED BY (Tyler 2026-10-23: runes fuel SPELLS only, caster basics cost mana): the
@@ -209,9 +209,11 @@ export function memberSide(mi, ctx) {
     },
     /* LEVEL XP: the kill share xp-share.js already split, whole (Level comes from
        kills only). A Level raises max HP and max mana from the next swing. */
-    addLevelXp(amt) {
+    addLevelXp(amt, raw) {
       const n = Math.max(0, Math.floor(Number(amt) || 0));
       if (!n) return;
+      /* "Before bonuses": the kill's even share (xp-share.js `raw`), before the party factor and the hero's multiplier. */
+      hs.tally.rawLevelXp = (hs.tally.rawLevelXp || 0) + Math.max(0, Math.floor(Number(raw ?? n) || 0));
       const lv0 = charLevelFromXp(state.levelXp);
       state.levelXp += n;
       levelGained += n;
@@ -442,7 +444,7 @@ export function frozenOf(side, kinds, atMs) {
   const session = {};
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
-    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def, mit: snap.mit || NO_MITIGATION }, vs, family: m.family, armoured: m.armoured === true,
+    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def, mit: snap.mit || NO_MITIGATION, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }
 

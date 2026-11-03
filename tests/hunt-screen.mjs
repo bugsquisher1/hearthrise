@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// mutant-rule-functions: checks
+// mutant-runner-functions: main shardPlan
 // ════════════════════════════════════════════════════════════════════════
 // tests/hunt-screen.mjs — THE HUNT SCREEN'S PANEL RULES, IN A REAL CHROMIUM.
 //
@@ -352,6 +354,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     const up = await signInAndPlay(page, base, !!o.town);
     return { ctx, page, errors, s, up };
   };
+  /* mutant-rules-start */
   try {
     /* HS-27 runs FIRST: its mutants are caught (stopAtFirst) a page boot in, not after every rule before it (shard budget). */
     { // HS-27 THE BAR IS CONFIGURABLE IN TOWN (Tyler 2026-10-25, a Level-30 hero in town: target, stance, chase and distance
@@ -1844,7 +1847,7 @@ const MUTANTS = [
   ['the struck reason of a food slot ignores the server', 'src/shell/action-facts.js', "    if (sl.why === 'none_left') {", "    if (false) {"],
   ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
   ['a spell the weapon cannot cast reads like a castable one', 'src/shell/windows/configure-action.js', "  cls(el, 'is-locked', !!r.locked);", ''],
-  ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role));", ''],
+  ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role, skillsOf(cs)));", ''],
   ['the phone sheet cuts the heal warning to one line and says it nowhere whole', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-d-warn'), warn);", ''],
   ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],

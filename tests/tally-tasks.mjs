@@ -174,7 +174,8 @@ const ARMS = {
       || JSON.stringify(cfg[0].slot_order) !== JSON.stringify(X.T.TALLY_RULES.slotOrder)) problems.push('hr_tally_config ' + JSON.stringify(cfg) + ' is not TALLY_RULES');
     const D = await X.G.inputs(X.H.ROOT);
     for (const t of X.T.TALLY_TASKS) {
-      const g = Object.values(D.grounds).find((x) => x.hunt === t.hunt);
+      /* a task may pay another ground's Scarce set (piecesFrom: the Glade's Steel, lane/b-rulings-1102) */
+      const g = Object.values(D.grounds).find((x) => x.hunt === (t.piecesFrom || t.hunt));
       const exp = X.G.groundPieces(g, { ...D, slotOrder: X.T.TALLY_RULES.slotOrder }).map((p) => p.item).sort();
       const got = (await q(db, 'select item_id from public.hr_tally_pieces where hunt_id = $1', [t.hunt])).map((r) => r.item_id).sort();
       if (JSON.stringify(got) !== JSON.stringify(exp)) problems.push(`${t.hunt}: pieces ${got} are not the ground's Scarce armour ${exp}`);

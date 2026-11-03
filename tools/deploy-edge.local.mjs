@@ -20,7 +20,7 @@ const run = (cmd, args, env) => execFileSync(cmd, args, { encoding: 'utf8', stdi
 async function main() {
 const want = (run('node', ['tools/pack-edge.mjs', 'hr-accrue', '--hash']).match(/[0-9a-f]{64}/) || [])[0];
 if (!want) { console.error('pack-edge gave no hash'); return 1; }
-const key = (readFileSync('src/net/supabase-bootstrap.js', 'utf8').match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0] || '';
+const key = (readFileSync('src/net/supabase-bootstrap.js', 'utf8').match(/sb_publishable_[A-Za-z0-9_-]+/) || [])[0] || '';
 const live = async () => { try { return (await (await fetch(EDGE, { headers: { Authorization: 'Bearer ' + key, apikey: key } })).json()).payload_sha256 || ''; } catch (e) { return ''; } };
 const before = await live();
 console.log(`this checkout ${want.slice(0, 12)} · live ${before.slice(0, 12) || '?'}${want === before ? ' · already live' : ''}`);

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// mutant-rule-functions: checks pure huntsPure itemTruthRules planRules armourWordRules tickerRules
+// mutant-runner-functions: main shardOf tickerMutant pureMutant
 // ════════════════════════════════════════════════════════════════════════
 // tests/alpha-windows.mjs — THE ALPHA WINDOWS' RULES, IN A REAL CHROMIUM.
 //
@@ -10,7 +12,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js
+// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -42,6 +44,9 @@
 //         server's bag and bar; Use sends ONE hr_hunt_preset_apply
 //   AW-64 HUNT PREP AND BEFORE YOU GO PRINT ONE READER of what the hero can use NOW (the hunt bag in
 //         a hunt), every tier of food, drink, ammo and runes, ammo in the engine's order (Andy #74)
+//   AW-65 A STORAGE PRESS ANSWERS IN VIEW (Andy, analytics 11-02: 14 presses in 25 s): at 1366x768 with both grids long and the bag
+//         scrolled into reach, "Putting it away…" and the result or the refusal stand in view and off the stack pressed; no stack moves
+//         from under the hand; a hero out hunting is told why at the press, and the line goes once the hero is home
 //   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
 //         and Dispatch loot stay off and the bag value reads a dash
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
@@ -169,7 +174,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
-import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
+import { harnessFail, ruleOf, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -884,6 +890,19 @@ async function planRules(base) {
       if (beforeOf(cs, id) !== text) fails.push('AW-64 ' + what + ' ' + where + ', Before you go reads ' + JSON.stringify(beforeOf(cs, id)));
     }
   }
+  /* AMMO THE HERO'S SKILL CAN'T USE YET (the engine passes over it, abilities.js shotLine): never said as what flies, never offered as a spare, and said why */
+  const atRanged = (level) => (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: packed, skills: { ranged: { xp: 1, level } } });
+  const BOW = { weapon: 'willow_longbow' };
+  for (const [what, level, args, text] of [
+    ['a Mithril slot under its Ranged, Bronze behind it', 42, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: Bronze Arrows. They never run out. Mithril Arrows wait on your bar. Needs Ranged 45 — you have 42.'],
+    ['the same bar at the level', 45, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: 9 Mithril Arrows of yours, then Bronze Arrows. They never run out.'],
+    ['a stack under its Ranged no slot names', 42, [[], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows from the store, 1 gp each.'],
+    ['nothing else to shoot', 42, [[shoot('mithril_arrows')], { mithril_arrows: 9 }, BOW], 'Ammo: nothing loaded, so your weapon can\'t shoot and your hero won\'t attack. Press an empty slot on your bar, then Ammo, and pick a shot from the store. Mithril Arrows wait on your bar. Needs Ranged 45 — you have 42.'],
+  ]) {
+    const cs = atRanged(level)('A', 'ranger', ...args);
+    if (beforeOf(cs, 'ammo') !== text) fails.push('AW-64 ' + what + ', Before you go reads ' + JSON.stringify(beforeOf(cs, 'ammo')));
+    if (prepOf(cs, 'ammo') !== text) fails.push('AW-64 ' + what + ', Hunt prep reads ' + JSON.stringify(prepOf(cs, 'ammo')));
+  }
   if (readinessLine(readinessOf(inHunt('Fremulon', 'ranger', ...FREMULON))) !== 'Fremulon: ready') fails.push('AW-64 Fremulon is not ready: ' + readinessLine(readinessOf(inHunt('Fremulon', 'ranger', ...FREMULON))));
   /* the slot's tooltip says the same of the loaded ammo: what is worn, what it costs, and no store behind a free arrow */
   const loadedSays = (worn, bag) => supplyLines({ type: 'attack_with_item', id: 'loaded' }, { role: 'ranger', store: LIVE, supplySource: 'mine', onEmpty: 'switch' }, bag, worn).join(' ');
@@ -965,17 +984,31 @@ async function planRules(base) {
     const big = carryRows(hunting(open, { cooked_shrimp: 250000 }));
     if (!big || big[0].max !== 100000 || big[0].have !== 250000) fails.push('AW-65 a stack past one carry offers ' + JSON.stringify(big));
     const pack = carryRows(hunting(open));
-    const food = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, pack);
+    const food = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, pack);
     if (!food || !food.strike || food.text !== 'None in this hunt: 40 Cooked Shrimp wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
-    const rune = reasonOf(spell, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [], null, null, pack);
+    const rune = reasonOf(spell, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [], null, null, null, pack);
     if (!rune || rune.text !== 'Needs a Fire rune for each cast: none in this hunt, and 14 wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
     /* RUNE-TRUTH (2027-02-21-hunt-carry-in.sql): the server struck a spell whose runes are all above the hero's level: the slot says that, not "the server says". */
-    const locked = reasonOf({ ...spell, usable: false, why: 'rune_level' }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'graven_fire_rune', qty: 2 }], null, null, null);
+    const locked = reasonOf({ ...spell, usable: false, why: 'rune_level' }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'graven_fire_rune', qty: 2 }], null, null, null, null);
     if (!locked || locked.code !== 'rune_level' || !locked.strike || !/^Your Fire runes are a higher tier than your level can cast\./.test(locked.text)) fails.push('AW-65 a spell whose runes are above the level reads ' + JSON.stringify(locked));
     /* ...and a slot the server calls ready is not struck by the browser, whatever the backpack says (the hunt bag holds its runes). */
-    const ready = reasonOf({ ...spell, usable: true }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'chalked_fire_rune', qty: 2 }], null, null, []);
+    const ready = reasonOf({ ...spell, usable: true }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'chalked_fire_rune', qty: 2 }], null, null, null, []);
     if (ready) fails.push('AW-65 a spell with runes in the hunt bag and none in the backpack reads ' + JSON.stringify(ready));
-    const none = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null);
+    /* A SHOT WAITING FOR ITS LEVEL, its stack in the backpack (lane/b-rulings-1102's wait meets the press): the press still carries it,
+       every carry line says it can't be shot yet, and the bar's reason stays the wait: it never offers the carry as what makes the slot fire. */
+    const waitSlot = { action: { type: 'attack_with_item', id: 'mithril_arrows' }, conditions: [], join: 'and', usable: true };
+    const archer = (lv) => sess({ hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [waitSlot], store: STORE }, skills: { ranged: { xp: 1, level: lv } },
+      equipment: { weapon: 'willow_longbow' }, inventory: { mithril_arrows: 40 }, hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: false, session: { bag: [] } } });
+    const shotSet = { slots: [waitSlot], store: STORE, role: 'ranger', supplySource: 'mine', onEmpty: 'end' };
+    const [under] = carryFor(archer(42), waitSlot.action) || [];
+    if (!under || under.id !== 'mithril_arrows' || under.max !== 40 || under.wait !== 'Needs Ranged 45 — you have 42: it can’t be shot until then.') fails.push('AW-65 a shot waiting for its level offers ' + JSON.stringify(under));
+    const waits = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 42 } }, carryRows(archer(42)));
+    if (!waits || waits.code !== 'skill' || !waits.strike || waits.text !== 'Needs Ranged 45 — you have 42. This slot waits until then, and your next ammo fires.') fails.push('AW-65 a waiting shot with its stack in the backpack reads ' + JSON.stringify(waits));
+    const [atLevel] = carryFor(archer(45), waitSlot.action) || [];
+    if (!atLevel || atLevel.wait !== null) fails.push('AW-65 a shot at its level still says it waits: ' + JSON.stringify(atLevel));
+    const woke = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 45 } }, carryRows(archer(45)));
+    if (!woke || woke.code !== 'stock' || woke.text !== 'None in this hunt: 40 Mithril Arrows wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 at its level the shot in the backpack reads ' + JSON.stringify(woke));
+    const none = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, null);
     if (!none || none.text !== 'None left: you carry no Cooked Shrimp. The next food or drink slot fires instead.') fails.push('AW-65 with nothing in the bag the food slot reads ' + JSON.stringify(none));
   }
   return fails;
@@ -1218,8 +1251,13 @@ async function tickerRules(base) {
   return fails;
 }
 
-async function checks(overrides, shots) {
+/* A mutant needs ONE named red rule, the same rule verdict() reads first: the run stops there instead of walking every
+   rule to the end (each browser mutant cost a whole suite, ~154 s, on run 41339988105). A HARNESS line does not stop it,
+   so a later named rule still judges exactly as before. The clean control and the plain run see every rule. */
+const STOP = Symbol('first red');
+async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = overrides ? [] : await pure();
+  if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); if (a.some((x) => ruleOf(x))) throw STOP; return this.length; };
   const { server, port } = await serve(Object.assign({}, HOOK, overrides || {}));
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -1238,6 +1276,7 @@ async function checks(overrides, shots) {
     return { ctx, page, errors, s, up };
   };
   const shot = async (page, name) => { if (shots) await page.screenshot({ path: join(shots, name + '.png') }); };
+  /* mutant-rules-start */
   try {
     { // AW-1 AW-2 AW-3 AW-4
       const { ctx, page, errors, s, up } = await open();
@@ -2165,6 +2204,96 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // AW-65 a Storage press answers in view
+      const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
+      const W65 = '[data-hs-win="storage"] ';
+      const STACK = W65 + '[data-side="bag"] .hw-pocket[data-item="copper_ore"]';
+      const stored = Object.fromEntries(Object.keys(ITEMS).slice(0, 60).map((i) => [i, 3]));
+      const bagFull = Object.fromEntries(Object.keys(ITEMS).slice(60, 100).map((i) => [i, 14]));
+      const long = (e) => { e.bank = Object.assign({}, stored); e.inventory = Object.assign({}, e.inventory, bagFull, { copper_ore: 14 }); };
+      /* The line as a player sees it: its words, in the scrolled body's view or not, and whether it lies on the stack. */
+      const lineNow = (page) => page.evaluate(([w, st]) => {
+        const body = document.querySelector(w + '[data-hs-body]'), m = document.querySelector(w + '.hh-intent-msg'), s = document.querySelector(st);
+        const b = body.getBoundingClientRect(), r = m.getBoundingClientRect(), k = s.getBoundingClientRect();
+        return { text: m.textContent, scrolled: body.scrollTop, inView: r.height > 0 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1, onStack: r.height > 0 && r.top < k.bottom && k.top < r.bottom,
+          sending: s.classList.contains('is-sending'), stackTop: Math.round(k.top) };
+      }, [W65, STACK]);
+      const reach = async (page) => {
+        await openWin(page, 't', 'storage');
+        await page.waitForTimeout(300);
+        await page.locator(STACK).scrollIntoViewIfNeeded();
+        await page.evaluate((st) => document.querySelector(st).scrollIntoView({ block: 'end' }), STACK);
+        await page.waitForTimeout(100);
+      };
+      {
+        const { ctx, page, errors, s, up } = await open({ viewport: { width: 1366, height: 768 }, mutateEnv: (e) => { long(e); for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 400 }); } });
+        if (!up) fails.push('AW-65 the town did not mount');
+        else {
+          await reach(page);
+          const before = await lineNow(page);
+          if (!before.scrolled) fails.push('AW-65 CONTROL: the window does not scroll, so this proves nothing');
+          s.delayMs = 700;
+          await page.click(STACK);
+          await page.waitForTimeout(150);
+          const waiting = await lineNow(page);
+          if (!/^Putting it away/.test(waiting.text) || !waiting.inView || !waiting.sending) fails.push('AW-65 a press in a scrolled bag, while it waits: ' + JSON.stringify(waiting));
+          await wait(page, (w) => /^Put away/.test(document.querySelector(w + '.hh-intent-msg').textContent), W65, 4000);
+          await page.waitForTimeout(150);
+          const done = await lineNow(page);
+          if (!done.inView) fails.push('AW-65 the result of a press in a scrolled bag is out of sight: ' + JSON.stringify(done));
+          if (done.onStack) fails.push('AW-65 the answer lies on the stack just pressed: ' + JSON.stringify(done));
+          /* The next press lands where the hand is: its answer moves nothing now the line is up. */
+          await page.click(STACK);
+          await page.waitForTimeout(100);
+          await wait(page, (w) => /^Put away/.test(document.querySelector(w + '.hh-intent-msg').textContent), W65, 4000);
+          await page.waitForTimeout(150);
+          const twice = await lineNow(page);
+          if (twice.stackTop !== done.stackTop) fails.push('AW-65 the stack moved under the hand: y ' + done.stackTop + ' then ' + twice.stackTop);
+          if (sent(s, 'hr_bank_move').length !== 2) fails.push('AW-65 two presses sent ' + sent(s, 'hr_bank_move').length + ' moves');
+          s.delayMs = 0;
+          s.reply = { ok: false, error: 'bank_full', cap: 400 };
+          await page.click(STACK);
+          await wait(page, (w) => /full/.test(document.querySelector(w + '.hh-intent-msg').textContent), W65, 5000);
+          const refused = await lineNow(page);
+          if (refused.text !== 'Your storage is full.' || !refused.inView) fails.push('AW-65 a refusal in a scrolled bag: ' + JSON.stringify(refused));
+          s.reply = { ok: true };
+        }
+        if (errors.length) fails.push('AW-65 console errors: ' + errors.slice(0, 2).join(' | '));
+        await ctx.close();
+      }
+      {
+        const { ctx, page, errors, s, up } = await open({ viewport: { width: 1366, height: 768 }, mutateEnv: long });
+        if (!up) fails.push('AW-65 the hunt did not mount');
+        else {
+          await reach(page);
+          await page.click(STACK, { button: 'right', force: true });
+          await page.waitForTimeout(150);
+          const asked = await lineNow(page);
+          if (!/out hunting/.test(asked.text) || !asked.inView) fails.push('AW-65 a right-click with the hero out hunting does not say why in view: ' + JSON.stringify(asked));
+          /* Home: the line no longer holds. */
+          const away = clone(s.env);
+          for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete s.env[k];
+          s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(200);
+          const home = await lineNow(page);
+          if (home.text) fails.push('AW-65 back in town the line still says ' + JSON.stringify(home.text));
+          /* Out again, the line empty: a press says why by itself. */
+          s.env = away;
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(200);
+          await page.evaluate((st) => document.querySelector(st).scrollIntoView({ block: 'end' }), STACK);
+          await page.click(STACK, { force: true });
+          await page.waitForTimeout(150);
+          const said = await lineNow(page);
+          if (!/out hunting/.test(said.text) || !said.inView) fails.push('AW-65 a press with the hero out hunting does not say why in view: ' + JSON.stringify(said));
+          if (sent(s, 'hr_bank_move').length) fails.push('AW-65 a hero out hunting sent a move');
+        }
+        if (errors.length) fails.push('AW-65 console errors (hunting): ' + errors.slice(0, 2).join(' | '));
+        await ctx.close();
+      }
+    }
+
     { // AW-18 amounts in Storage; AW-19 bury — a stateful stub: the server's answer moves its own counts
       const town = (e) => {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
@@ -2225,9 +2354,7 @@ async function checks(overrides, shots) {
             for (let n = m.parentElement; n && n !== win.parentElement; n = n.parentElement) {
               if (/(auto|scroll|hidden)/.test(getComputedStyle(n).overflowY)) { const b = n.getBoundingClientRect(); box = { top: Math.max(box.top, b.top), bottom: Math.min(box.bottom, b.bottom) }; }
             }
-            /* above both grids: a full bag scrolls them, never the answer to the press */
-            const above = !!(m.compareDocumentPosition(document.querySelector(w + '.hw-pockets[data-side="bank"]')) & Node.DOCUMENT_POSITION_FOLLOWING);
-            return { text: m.textContent, shown: above && r.height > 0 && r.top >= box.top - 1 && r.bottom <= box.bottom + 1 };
+            return { text: m.textContent, shown: r.height > 0 && r.top >= box.top - 1 && r.bottom <= box.bottom + 1 };
           }, W18);
           s.reply = { ok: false, error: 'insufficient_item', item_id: 'copper_ore', have: 0, need: 7 };
           await page.click(W18 + '[data-side="bag"] .hw-pocket[data-item="copper_ore"]', { modifiers: ['Shift'] });
@@ -2973,7 +3100,7 @@ async function checks(overrides, shots) {
   } catch (e) {
     /* A step that threw is HARNESS, never a rule (2026-10-22: AW-8's disabled click "caught" every later
        mutant). A rule whose control a mutant can hide checks for the control and fails BY NAME. */
-    fails.push(harnessFail('a page step', e));
+    if (e !== STOP) fails.push(harnessFail('a page step', e));
   } finally {
     await browser.close();
     server.close();
@@ -3032,6 +3159,11 @@ const MUTANTS = [
   ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Your bag is full.", "  return false ? 'Your bag is full."],
   ['AW-63 Enter off has no reason beside it', 'src/shell/windows/hunts.js', "  text(det.querySelector('.hw-enter-why'), off);\n", ''],
   ['AW-63 a member has no way out at Enter', 'src/shell/windows/hunts.js', "  prop(det.querySelector('[data-hs-act=\"leave-party\"]'), 'hidden', now || !follower);\n", ''],
+  ['AW-65 the answer stays behind a scrolled bag', 'src/styles/windows.css', '.hs-win .hh-intent-msg:not(:empty, .ca-msg) { position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }', '.hs-win .hh-intent-msg:not(:empty, .ca-msg) { padding: 6px 10px; }'],
+  ['AW-65 a result lies on the stack pressed', 'src/shell/press-ack.js', '    clearOfAnswer(p.el);\n', '    if (p.refused) clearOfAnswer(p.el);\n'],
+  ['AW-65 a press mid-hunt says nothing', 'src/shell/windows/storage.js', 'if (off || !row) { sayAway(cs, sc, repaint); return true; }', 'if (off || !row) return true;'],
+  ['AW-65 a right-click mid-hunt says nothing', 'src/shell/windows/storage.js', '    else sayAway(cs, sc, repaint);\n', ''],
+  ['AW-65 the why stays up in town', 'src/shell/windows/storage.js', "  if (!away && sc.msg === STORE_AWAY) sc.msg = '';   // back in town, it no longer holds\n", ''],
   ['AW-63 the answer covers Leave party', 'src/styles/windows.css', '.hs-win .hw-party > .hh-intent-msg:not(:empty) { position: static; }\n', ''],
   ['AW-63 Disband goes on one press', 'src/shell/widgets/party-panel.js', '    if (!sc.disbandArmed) {', '    if (false) {'],
   ['AW-63 an old answer stands after a seat came', 'src/shell/windows/party.js', "if (sc.msgSeats !== undefined && !sc.pending) sc.msg = '';", ''],
@@ -3085,11 +3217,15 @@ const MUTANTS = [
   ['plans: AW-65 a rune spell offers no rune of its family', 'src/shell/carry-in.js', '  return !!r && familyCount(r, [{ id, qty: 1 }]) > 0;', '  return false;'],
   ['plans: AW-65 the loaded shot offers nothing of the worn ammo', 'src/shell/carry-in.js', "return (a.id === 'loaded' ? worn : a.id) === id;", 'return a.id === id;'],
   ['plans: AW-65 a struck slot never says its stock waits in the bag', 'src/shell/action-facts.js', '  const inPack = (id) => ((pack || []).find((r) => r.id === id) || {}).have || 0;', '  const inPack = () => 0;'],
+  ['plans: AW-65 a shot waiting for its level is carried in with no word of the wait', 'src/shell/carry-in.js', "  return need ? need.text + ': it can’t be shot until then.' : null;", '  return null;'],
+  ['plans: AW-65 a waiting shot offers the carry as what makes it fire', 'src/shell/action-facts.js', "  const shot = shotProblem(a, set && set.role, skills);", "  const shot = (pack || []).some((r) => r.id === a.id) ? '' : shotProblem(a, set && set.role, skills);"],
   ['plans: AW-65 a spell whose runes are above the level says only that the server refused', 'src/shell/action-facts.js', "    if (sl.usable === false && sl.why === 'rune_level') {", '    if (false) {'],
   ['plans: AW-64 a worn slot with none left is not said', 'src/shell/hunt-go.js', 'const parts = (dry ? [dry] : [])', 'const parts = []'],
   ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '')", "''"],
   ['plans: AW-64 a whetstone reads as a spare arrow', 'src/shell/hunt-go.js', ': carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot', ': carried.filter((r) => r.qty > 0 && ammoPerShot'],
   ['plans: AW-64 the loaded slot names a store shot it never buys', 'src/shell/bar-draft.js', "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? worn : a.id;", "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? 'steel_arrows' : a.id;"],
+  ['plans: AW-64 ammo under its skill is said as what flies', 'src/shell/hunt-go.js', "    if (short) { if (!locked.some((l) => l.id === id)) locked.push({ id, text: short.text }); continue; }\n", ''],
+  ['plans: AW-64 a stack under its skill is offered as a spare', 'src/shell/hunt-go.js', ' && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));', ' && !plan.order.includes(r.id));'],
   ['plans: AW-64 a slot switched Off is said as spending', 'src/shell/hunt-go.js', 'if (!sl || sl.empty || sl.enabled === false) return null;', 'if (!sl || sl.empty) return null;'],
   ['plans: Hunt prep says stamina with no amount', 'src/shell/readiness.js', "'Stamina: ' + hoursWords(st.msLeft) + ' left'", "'Stamina left'"],
   ['plans: Hunt prep calls the last hunt this hunt', 'src/shell/readiness.js', "h && !h.ended ? 'this hunt' : 'your last hunt'", "'this hunt'"],
@@ -3229,8 +3365,12 @@ async function main() {
      its clean control is the pure rules, which are all that judge those mutants). */
   const only = (process.argv.find((x) => x.startsWith('--only=')) || '').slice(7);
   const sharded = shardOf(MUTANTS);
-  const mine = sharded && only ? sharded.filter(([n]) => n.startsWith(only)) : sharded;
-  if (!mine || !mine.length) { console.log('  ✗ HARNESS: bad --shard (want --shard=K/N with 1 <= K <= N) or no mutant matches --only'); process.exit(2); }
+  const picked = sharded && only ? sharded.filter(([n]) => n.startsWith(only)) : sharded;
+  if (!picked || !picked.length) { console.log('  ✗ HARNESS: bad --shard (want --shard=K/N with 1 <= K <= N) or no mutant matches --only'); process.exit(2); }
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const shard = (process.argv.find((x) => x.startsWith('--shard=')) || '').slice(8);
+  const mine = scopedMutants('tests/alpha-windows.mjs', picked, { companion: Object.fromEntries(Object.entries(COMPANION).map(([k, v]) => [k, [v[0]]])), tag: shard ? ' (shard ' + shard + ')' : '' });
+  if (!mine.length) process.exit(0);
   const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:') || n.startsWith('item truth:'));
   const clean = await cleanControl(() => (pureOnly ? pure() : checks(null, null)));
   console.log(clean.line);
@@ -3246,7 +3386,7 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : checks(over, null)));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : checks(over, null, { stopAtFirst: true })));
     console.log(report(name, v, counts));
   }
   console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));

@@ -44,6 +44,7 @@ import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* TW-10's phone: the hunt screen's own fixture, whose action bar keeps HS-22's 100 px (alpha's runs 104 px at 844x390). */
@@ -566,11 +567,14 @@ async function main() {
       : 'tally-window: opens on Q; the server\'s tallies and her board; a due tally handed in once in town; Take sends ids only, controls off in flight; refusals in words; nothing taken or handed in mid-hunt; HUD and hunt list read the server; fails safe; the analyzer and the tally move and fold');
     process.exit(fails.length ? 1 : 0);
   }
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const MINE = scopedMutants('tests/tally-window.mjs', MUTANTS);
+  if (!MINE.length) process.exit(0);
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   let bad = 0;
   const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
-  const list = MUTANTS.filter((m) => !pick || m[0].includes(pick));
+  const list = MINE.filter((m) => !pick || m[0].includes(pick));
   for (const [name, file, from, to] of list) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }

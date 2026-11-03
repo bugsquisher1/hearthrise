@@ -3,9 +3,9 @@
 // just a bit too zoomed in").
 //
 // A zoom is CSS px per base art px (a 32 px tile is 32 x zoom CSS px). The town view's
-// mouse wheel and its + / − buttons step through `steps`; the pick is the viewing
-// character's display preference (residue `townZoom`, src/session/residue.js), never a
-// server value: it gates and spends nothing.
+// mouse wheel and its + / − buttons step through `steps`; the pick is the VIEWER's display
+// preference, the same on every hero (residue `townZoom`, src/world/town-zoom.js): it gates
+// and spends nothing.
 //   steps    the zooms offered, ascending (1.5 was shown and not picked: it draws uneven
 //            1/2-px columns at DPR 1, art/review/town-zoom-2026-10-26)
 //   desktop  the zoom before any pick, at EVERY desktop width (Tyler 2026-10-26, "I think 2x is

@@ -27,7 +27,7 @@ import { STATUSES } from '../../data/statuses.js?v=0.2.82';
 import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.82';
 import { vitalsOf } from '../../session/party-sections.js?v=0.2.82';
 import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.82';
-import { carriedOf, equipmentOf } from '../../session/item-sections.js?v=0.2.82';
+import { carriedOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.82';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.82';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.82';
 import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.82';
@@ -152,7 +152,7 @@ function patchRow(el, r, picked, off) {
   cls(el, 'is-store', r.carry === 'store');
   cls(el, 'is-mana', r.kind === 'drink' || r.kind === 'spells' || r.kind === 'runes');
   cls(el, 'is-locked', !!r.locked);
-  attr(el, 'title', r.locked ? (r.kind === 'ammo' ? 'Your weapon can’t shoot this' : 'Your weapon can’t cast this') : '');
+  attr(el, 'title', r.locked ? (r.lockWhy || (r.kind === 'ammo' ? 'Your weapon can’t shoot this' : 'Your weapon can’t cast this')) : '');
   prop(el, 'disabled', off);
 }
 
@@ -179,7 +179,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const bag = carriedOf(cs);
   const v = viewOf(cs);
   const tab = v.tab || (d.action.id ? tabOf(d.action) : LAST_TAB.get(cs) || 'spells');
-  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store });
+  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: skillsOf(cs) });
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
   text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));
@@ -187,14 +187,14 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
      this window, so the words are here, first (shown on a phone only, hunt.css). */
   const saved = set.slots[s.open];
   const hunt = huntOf(cs);
-  const fireWhy = saved && !saved.empty ? reasonOf(saved, set, bag, hunt && !hunt.ended ? hunt.hero : null, (equipmentOf(cs) || {}).ammo, carryRows(cs)) : null;
+  const fireWhy = saved && !saved.empty ? reasonOf(saved, set, bag, hunt && !hunt.ended ? hunt.hero : null, (equipmentOf(cs) || {}).ammo, skillsOf(cs), carryRows(cs)) : null;
   text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');
   /* CARRY IN: the most of this action's supply the bag holds while the hunt runs (every tier of a rune spell's family). */
   const carry = d.action.id ? (carryFor(cs, d.action) || [])[0] || null : null;
   const cl = root.querySelector('.ca-carry');
   prop(cl, 'hidden', !carry);
   if (carry) {
-    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemName(carry.id) + ' in your backpack, ' + whole(carry.inHunt) + ' in this hunt.');
+    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemName(carry.id) + ' in your backpack, ' + whole(carry.inHunt) + ' in this hunt.' + (carry.wait ? ' ' + carry.wait : ''));
     const b = cl.querySelector('[data-x="carry"]');
     text(b, carryWords(carry));
     attr(b, 'data-item', carry.id);
@@ -209,7 +209,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-note'), say.note ? ' ' + say.note : '');
   text(root.querySelector('.ca-ready'), d.action.id && !d.conditions.length ? ' whenever it is ready.' : '');
   root.querySelectorAll('.ca-cond').forEach((row, i) => patchCond(row, d.conditions[i], i, s, ctx.doc));
-  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role));
+  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role, skillsOf(cs)));
   /* The heal warning: the hero's hunt (running, else the last one) at the party's size, the server's max HP. */
   const h = huntOf(cs), p = partyOf(cs);
   const blow = h && h.huntId ? biggestBlowOn(h.huntId, p ? p.members.length : 1) : null;

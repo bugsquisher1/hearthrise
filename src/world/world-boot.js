@@ -209,7 +209,7 @@ export async function bootWorld(panel, opts) {
 
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
   /* THE TOWN ZOOM (town-zoom.js): the viewer's pick over the town, the screen class's anywhere else */
-  const zoom = createTownZoom({ win, doc, stage, character, mq, onChange: () => { if (!running) sync(); } });
+  const zoom = createTownZoom({ win, doc, stage, character, peers: opts.peers, mq, onChange: () => { if (!running) sync(); } });
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
   let walk = null, lastWalk = null;
   let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to

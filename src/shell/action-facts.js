@@ -27,6 +27,7 @@ import { isRune } from '../data/supplies.js?v=0.2.82';
 import { ammoPerShot } from '../core/ammo.js?v=0.2.82';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.82';
 import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.82';
+import { shortOf } from './item-lore.js?v=0.2.82';
 import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.82';
 import { whole } from '../render/format.js?v=0.2.82';
 
@@ -73,11 +74,12 @@ function wordsOfKeys(keys) {
 /* WHAT THE WORN WEAPON CAN SHOOT, in words: the engine's own rule (hunt-roles.js shootsItem; damage.js pickShot
    passes over any other item, Andy 2026-10-23: a bow loosed Copper Whetstones from an attack slot). '' when the
    hero's weapon (the server's role) can shoot the slot's item, or the slot is no item attack. A whetstone and a
-   rune are no one's shot (the server refuses either in an attack slot: 2027-01-13-slot-truth.sql). */
-function shotProblem(a, role) {
+   rune are no one's shot (the server refuses either in an attack slot: 2027-01-13-slot-truth.sql). A shot the weapon can
+   loose whose skill the hero is under waits (abilities.js shotLine; SAY WHY, Tyler 2026-10-25): `skills` is the server's. */
+function shotProblem(a, role, skills) {
   if (!a || a.type !== 'attack_with_item' || own(ATTACK_KINDS, a.id)) return '';
   const it = ITEMS[a.id];
-  if (shootsItem(role, it)) return '';
+  if (shootsItem(role, it)) { const need = shortOf(a.id, skills, null); return need ? need.text + '. This slot waits until then, and your next ammo fires.' : ''; }
   if (it && it.reqSkill === 'melee') return 'A whetstone is not a shot: it sharpens a Melee weapon worn in the ammo slot. No weapon shoots it, so this slot never fires.';
   if (isRune(it)) return 'A rune isn’t a shot: it fuels your spells. No weapon shoots it, so this slot never fires.';
   const by = weaponsOf(Object.keys(HUNT_ROLES).filter((r) => shootsItem(r, it)));
@@ -87,10 +89,10 @@ function shotProblem(a, role) {
 
 /** "Your weapon can’t cast this. The slot stays struck until you wield a Shield." for a spell the hero's worn
     set (the server's discipline, hunt_settings.discipline) cannot cast, or the same for an attack item its
-    weapon (the server's role, hunt_settings.role) cannot shoot; '' otherwise. A warning, never a refusal
-    (art spec §8): the bar is configured for whichever weapon the hero wields next. */
-export function weaponWarning(a, disc, role) {
-  if (a && a.type === 'attack_with_item') return shotProblem(a, role);
+    weapon (the server's role, hunt_settings.role) cannot shoot or the hero's skill (`skills`, the server's) cannot use yet; '' otherwise.
+    A warning, never a refusal (art spec §8): the bar is configured for whichever weapon the hero wields next. */
+export function weaponWarning(a, disc, role, skills) {
+  if (a && a.type === 'attack_with_item') return shotProblem(a, role, skills);
   const r = a && a.type === 'ability' ? ABILITIES[a.id] : null;
   if (!r || r.universal || (disc && r.disciplines.includes(disc))) return '';
   return 'Your weapon can’t cast this. The slot stays struck until you wield a ' + weaponsFor(r.disciplines[0]) + '.';
@@ -245,13 +247,13 @@ export function conflictsOf(wires) {
 
 /* A SHOT SPELL'S SHOTS (Andy #62: Precision Shot and Flame Volley looked ready and never fired). A cast looses what
    the attack lane would (abilities.js castShotOf): the worn ammo, or the item of an ammo slot on the bar, that the worn
-   weapon shoots, carried, or bought from its store row while the store is on. With none the engine never casts it. */
-export function hasShot(set, bag, worn) {
+   weapon shoots and the hero's skill allows, carried, or bought from its store row while the store is on. With none the engine never casts it. */
+export function hasShot(set, bag, worn, skills) {
   const storeOn = set.supplySource === 'store' || set.onEmpty === 'switch';
   const ids = new Set([worn]);
   for (const s of set.slots || []) if (s && !s.empty && s.enabled !== false && s.action.type === 'attack_with_item') ids.add(own(ATTACK_KINDS, s.action.id) ? worn : s.action.id);
   for (const id of ids) {
-    if (!id || !shootsItem(set.role, ITEMS[id])) continue;
+    if (!id || !shootsItem(set.role, ITEMS[id]) || shortOf(id, skills, null)) continue;
     if ((bag || []).some((l) => l && l.id === id && l.qty > 0)) return true;
     if (storeOn && storeOf({ type: 'attack_with_item', id }, set.store)) return true;
   }
@@ -267,11 +269,12 @@ export function hasShot(set, bag, worn) {
  *   { code, text, glyph, strike }   or null when nothing stops it.
  * `strike` = the server would not fire it at all; a reason without strike
  * (mana short) only waits. Order: the first rule that fails is the one named.
- * `worn` is the worn ammo (the equipment's `ammo`): the attack lane's default shot (hasShot).
+ * `worn` is the worn ammo (the equipment's `ammo`): the attack lane's default shot (hasShot). `skills` is the server's skills section.
  * `pack` is what a running hunt could carry in from the bag (carry-in.js carryRows: [{ id, have }]), or null: a
  * stock the hunt is out of but the bag holds says so, and that a press on the slot carries it in (Andy, 2026-11-02).
+ * A shot under its skill reads its level wait first: stock could not make it fire, so it never offers a carry as the fix.
  */
-export function reasonOf(sl, set, bag, hero, worn, pack) {
+export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
   if (!sl || sl.empty) return null;
   const a = sl.action;
   /* "N Cooked Shrimp wait in your backpack. Press this slot to carry them in." for what the bag holds, or null. */
@@ -291,7 +294,7 @@ export function reasonOf(sl, set, bag, hero, worn, pack) {
       return { code: 'rune', text: 'Needs ' + (/^[aeiou]/i.test(rune) ? 'an ' : 'a ') + rune + ' for each cast: '
         + (packed ? 'none in this hunt, and ' + packed : 'you carry none. Pick the store’s rune for this slot to buy one as used.'), glyph: 'uiChest', strike: true };
     }
-    if (r.ammo > 0 && set && !hasShot(set, bag, worn)) {
+    if (r.ammo > 0 && set && !hasShot(set, bag, worn, skills)) {
       return { code: 'ammo', text: 'Nothing loaded to shoot. Put arrows or bolts on the bar (Ammo): this spell casts them.', glyph: 'uiChest', strike: true };
     }
     if (sl.usable === false && sl.why === 'rune_level') {
@@ -310,9 +313,9 @@ export function reasonOf(sl, set, bag, hero, worn, pack) {
     }
     if (sl.why === 'store_off') return { code: 'store_off', text: 'This hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
   }
-  /* An attack item the worn weapon cannot shoot never fires (the engine passes it over: damage.js pickShot). */
-  const shot = shotProblem(a, set && set.role);
-  if (shot) return { code: 'weapon', text: shot, glyph: 'uiLock', strike: true };
+  /* An attack item the worn weapon cannot shoot, or the hero's skill cannot use yet, never fires (the engine passes it over: damage.js pickShot). */
+  const shot = shotProblem(a, set && set.role, skills);
+  if (shot) return { code: shootsItem(set && set.role, ITEMS[a.id]) ? 'skill' : 'weapon', text: shot, glyph: 'uiLock', strike: true };
   if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
   if (a.type === 'consume') return null;
   const n = Number.isInteger(sl.count) && !own(ATTACK_KINDS, a.id) ? sl.count : carried(a, bag);

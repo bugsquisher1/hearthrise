@@ -72,6 +72,7 @@ import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const BUILD_SRC = await readFile(join(ROOT, 'src/build-info.js'), 'utf8');
 const VERSION = /version:\s*'([^']+)'/.exec(BUILD_SRC)[1];
@@ -789,6 +790,9 @@ async function main() {
     console.log(fails.length ? 'observability: ' + fails.length + ' check(s) RED' : 'observability: both SDKs wired and masked on hearthrise.net; nothing loads or sends on localhost or with ?noanalytics=1; the named events and the live-view stall arrive; each error is sent at most 5 times and 25 in all; one hang message names the open hunt');
     process.exit(fails.length ? 1 : 0);
   }
+  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
+  const MINE = scopedMutants('tests/observability.mjs', MUTANTS);
+  if (!MINE.length) process.exit(0);
   let bad = 0;
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
@@ -796,7 +800,7 @@ async function main() {
   /* --only=<pattern>: just the mutants whose name matches the regular expression (a way to re-prove a few after an edit; the sweep runs them all) */
   const onlyArg = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
   const only = onlyArg ? new RegExp(onlyArg, 'i') : null;
-  for (const [name, file, from, to] of MUTANTS) {
+  for (const [name, file, from, to] of MINE) {
     if (only && !only.test(name)) continue;
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
@@ -807,7 +811,7 @@ async function main() {
     else if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  const ran = only ? MUTANTS.filter(([name]) => only.test(name)).length : MUTANTS.length;
+  const ran = only ? MINE.filter(([name]) => only.test(name)).length : MINE.length;
   console.log(bad ? 'observability --mutate: ' + bad + ' escaped' : 'observability --mutate: ' + ran + '/' + ran + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }

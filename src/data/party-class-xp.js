@@ -43,11 +43,26 @@ const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obje
 /* ground id → its row (designer's final table, 2026-11-01). */
 export const PARTY_CLASS_XP = Object.freeze({
   mill_cellar: row([1000, 1070], [1000, 1120, 1180], [1000, 1250, 1270, 1400]),
-  meadowbrook_thicket: row([1000, 1280], [1000, 1400, 1480], [1000, 1500, 1510, 1520]),
+  meadowbrook_thicket: row([980, 1290], [970, 1180, 1310], [970, 1210, 1260, 1300]),
   wickstead: row([880, 1070], [970, 1160, 1220], [970, 1200, 1240, 1270]),
   mosslight_glade: row([960, 1180], [1000, 1300, 1400], [1000, 1200, 1290, 1320]),
   millrace_sewer: row([800, 1000], [800, 1050, 1100], [800, 1050, 1100, 1180]),
   coppercap_warrens: row([1000, 1180], [1000, 1200, 1280], [1000, 1200, 1260, 1360]),
+});
+
+/* WHAT THE PLAYER IS TOLD (designer 2026-11-02; blind party test 2026-11-01). The table above is a factor on an even share of a bigger pull, so "52% more" sat on a party
+   that measured 19% more than its heroes alone. THIS row is the measured answer, in whole percent to the nearest 5: Level XP per hero at the default pull, against the
+   same heroes alone as built, one row per ground in the table's shape (tools/balance-sim plan b1102p, real settle, 1 h x 2 seeds a cell, one mix a cell; the Thicket's one-class
+   cells are the mean of its shield, bow and wand parties after party-class-xp-line moved them under 1000). It pays nothing;
+   tests/hunt-core/first-week-bands.mjs vs-alone plays the full mix against it. Retune the table, re-measure this. */
+const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
+export const PARTY_VS_ALONE = Object.freeze({
+  mill_cellar: said([-5, 10], [-5, 5, 15], [-20, 5, 5, 25]),
+  meadowbrook_thicket: said([-10, 10], [-10, 5, 20], [-15, 0, 5, 20]),
+  wickstead: said([-10, 5], [-10, 5, 10], [-15, 5, 5, 20]),
+  mosslight_glade: said([-10, 5], [-15, 5, 15], [-10, 5, 10, 20]),
+  millrace_sewer: said([-10, 15], [-15, 10, 20], [-20, 10, 10, 20]),
+  coppercap_warrens: said([-5, 10], [-10, 5, 15], [-15, 5, 10, 20]),
 });
 
 const CLASS_OF_ROLE = Object.freeze(Object.fromEntries(Object.entries(PARTY_CLASSES).flatMap(([c, r]) => r.roles.map((x) => [x, c]))));
@@ -69,6 +84,15 @@ export function partyClassXp(groundId, roles) {
   return { permille: cells[Math.min(Math.max(classes.length, 1), cells.length) - 1], classes };
 }
 
+/** The measured percent (PARTY_VS_ALONE) for these living roles on this ground; null with no row or under two heroes. */
+export function partyVsAlone(groundId, roles) {
+  if (roles.length < 2 || !Object.hasOwn(PARTY_VS_ALONE, groundId)) return null;
+  const { classes } = partyClassXp(groundId, roles);
+  const tab = PARTY_VS_ALONE[groundId];
+  const cells = tab[Math.min(roles.length, Math.max(...Object.keys(tab).map(Number)))];
+  return cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];
+}
+
 /** Every problem with the tables, as strings. Empty = valid. `grounds`: the ground ids a row may name. */
 export function validate(grounds) {
   const out = [];
@@ -85,6 +109,9 @@ export function validate(grounds) {
       if (cells[0] > 1000) out.push(g + ': ' + n + ' heroes of one class pay above solo (' + cells[0] + ')');
       for (let i = 1; i < cells.length; i++) if (cells[i] < cells[i - 1]) out.push(g + ': ' + n + ' heroes: another class pays less');
     }
+    const words = PARTY_VS_ALONE[g];
+    if (!words) out.push(g + ': the Party window has no measured line for this ground');
+    else for (const n of [2, 3, 4]) if (!Array.isArray(words[n]) || words[n].length !== Math.min(n, classCount) || words[n].some((v) => !Number.isInteger(v) || v % 5 !== 0)) out.push(g + ': ' + n + ' heroes: PARTY_VS_ALONE needs whole fives, one per class count');
   }
   return out;
 }

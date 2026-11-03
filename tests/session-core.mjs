@@ -1610,7 +1610,7 @@ async function rules(M) {
   await t('NET-1', async () => {
     const urls = [];
     const fetch = async (url) => { urls.push(url); return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
-    const link = S.createServerLink({ url: NB.SUPABASE_CONFIG.url, anonKey: 'anon', token: () => 'jwt', fetch });
+    const link = S.createServerLink({ url: NB.SUPABASE_CONFIG.url, publishableKey: 'sb_publishable_test', token: () => 'jwt', fetch });
     await link.accrue({ slot: 0 });
     if (NB.SUPABASE_CONFIG.functionRegion !== 'us-west-2') return 'the function region is not the database\'s (us-west-2): ' + NB.SUPABASE_CONFIG.functionRegion;
     const want = NB.SUPABASE_CONFIG.url + '/functions/v1/hr-accrue?forceFunctionRegion=' + NB.SUPABASE_CONFIG.functionRegion;
@@ -1759,7 +1759,7 @@ async function rules(M) {
       const dead = (o.dead || ['A']).includes(tok) && (o.reject401 || tok !== 'B');
       return { ok: !dead, status: dead ? 401 : 200, json: async () => (dead ? { code: 'UNAUTHORIZED' } : { ok: true, accrued: true, version: 1, state: { gold: 1 } }) };
     };
-    const server = S.createServerLink({ url: 'https://p', anonKey: 'anon', token: auth.freshToken, renew: auth.renewToken, fetch });
+    const server = S.createServerLink({ url: 'https://p', publishableKey: 'sb_publishable_test', token: auth.freshToken, renew: auth.renewToken, fetch });
     const heard = [];
     auth.onChange((ev) => heard.push(ev));
     return { clock, auth, server, sent, n, doc, heard };

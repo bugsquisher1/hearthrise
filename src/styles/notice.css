@@ -44,3 +44,16 @@
 .notice-discord:focus-visible {
   background: var(--gold-bg);
 }
+/* The quiet way in for someone invited who typed the bare domain. */
+.notice-signin {
+  display: block;
+  width: fit-content;
+  margin: 1.25rem auto 0;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+  text-underline-offset: 3px;
+}
+.notice-signin:hover,
+.notice-signin:focus-visible {
+  color: var(--gold);
+}

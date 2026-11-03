@@ -249,7 +249,7 @@ async function liveHash() {
   const pinned = arg('--hash', null);
   if (pinned) return pinned;
   const boot = readFileSync(join(process.cwd(), 'src', 'net', 'supabase-bootstrap.js'), 'utf8');
-  const key = (boot.match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0] || '';
+  const key = (boot.match(/sb_publishable_[A-Za-z0-9_-]+/) || [])[0] || '';
   const res = await fetch(EDGE, { headers: key ? { Authorization: `Bearer ${key}`, apikey: key } : {} });
   if (!res.ok) throw new Error(`GET hr-accrue answered ${res.status}`);
   const h = (await res.json()).payload_sha256;

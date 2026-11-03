@@ -21,7 +21,8 @@
 //                 envelope), the pending state goes; a refusal leaves
 //                 `is-refused` on the control for REFUSED_MS. Its words are the
 //                 component's own message line (refusalText), never a guess,
-//                 and that line never covers the control (clearOfAnswer).
+//                 and that line, refusal or result, never covers the control
+//                 (clearOfAnswer): the next press of a stack lands on the stack.
 //
 // Display state only: it predicts no number and gates nothing the server owns
 // (CLAUDE.md §6); the control's own disabled state stays the component's.
@@ -92,7 +93,8 @@ export function mountPressAck(doc, ledger, o) {
     p.settling = false;
     if (p.open > 0) return;
     mark(p.el, false);
-    if (p.refused) { refuse(p.el); clearOfAnswer(p.el); }
+    if (p.refused) refuse(p.el);
+    clearOfAnswer(p.el);
   }
 
   const off = ledger.subscribe((kind, entry) => {

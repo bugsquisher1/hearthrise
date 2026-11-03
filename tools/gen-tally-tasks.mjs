@@ -33,7 +33,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2026-12-23-tally-catalogue.generated.sql is APPLIED history (5 tasks). Wickstead's task (lane/b-core-loop-20h,
    2026-10-31) lands in this forward file, which rewrites the same tables: it must follow 2027-02-06's Wickstead hunt
    catalogue, or the chain has no ground to name. */
-export const OUT_FILE = '2027-02-11-wickstead-tally.generated.sql';
+export const OUT_FILE = '2027-02-21-tally-glade-steel.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 const lit = (s) => "'" + String(s).replace(/'/g, "''") + "'";
@@ -87,7 +87,10 @@ export function buildSql(D) {
     if (!groundMonsters(g).includes(t.monster)) throw new Error(`gen-tally-tasks: task ${t.id}: ${t.monster} does not spawn on ${t.hunt}`);
     if (huntsDone.has(t.hunt)) continue;
     huntsDone.add(t.hunt);
-    const ps = groundPieces(g, { monsters, items, armourWeight, slotOrder: TALLY_RULES.slotOrder });
+    /* A task may pay another ground's Scarce set (piecesFrom): the Glade's Steel, worn at 30. */
+    const from = t.piecesFrom ? groundOf(t.piecesFrom) : g;
+    if (!from) throw new Error(`gen-tally-tasks: task ${t.id} takes its pieces from ${t.piecesFrom}, which has no ground`);
+    const ps = groundPieces(from, { monsters, items, armourWeight, slotOrder: TALLY_RULES.slotOrder });
     if (!ps.length) throw new Error(`gen-tally-tasks: ${t.hunt} drops no Scarce armour: Tamsin could only pick materials there`);
     for (const p of ps) pieces.push({ hunt: t.hunt, ...p });
   }
@@ -229,6 +232,7 @@ async function selftest() {
   expectThrow('a hunt with no ground', () => buildSql(withTask({ hunt: 'ridge_camp', monster: 'gnoll' })));
   expectThrow('a material that is not an item', () => buildSql(withTask({ materials: [{ item: 'moonstone_dust', qty: 2 }] })));
   expectThrow('a count of 0', () => buildSql(withTask({ count: 0 })));
+  expectThrow('pieces from a hunt with no ground', () => buildSql(withTask({ piecesFrom: 'ridge_camp' })));
   expectThrow('a duplicate id', () => buildSql(withTask({ id: D.tally.TALLY_TASKS[0].id })));
   expectThrow('a second task for one ground and monster', () => buildSql(withTask({ hunt: D.tally.TALLY_TASKS[0].hunt, monster: D.tally.TALLY_TASKS[0].monster, id: 'twin_task' })));
   const noScarce = { ...D, monsters: Object.fromEntries(Object.entries(D.monsters).map(([k, m]) => [k, { ...m, drops: (m.drops || []).filter((d) => d.band !== 'scarce') }])) };

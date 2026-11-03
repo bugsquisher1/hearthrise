@@ -198,16 +198,20 @@ export function workBlock(cs, w, huntRunning) {
   if (w.kind === 'artisan') {
     if (w.row.gated) return 'Needs the ' + itemName(w.row.gated) + ' recipe.';
     const inv = supplyOf(cs);
+    /* A worn piece is not in the bag, and the bench spends the bag's (a reforge: Klappa's Club, Steelgrate). Said last, so nobody
+       takes a weapon off for a job the rest of the row can't do yet. */
+    const worn = Object.values(eqOf(cs));
+    let inHand = null;
     for (const [id, need] of Object.entries(recipeInputs(w.row))) {
       const have = inv[id] || 0;
+      if (have < need && worn.includes(id)) { inHand = inHand || id; continue; }
       /* The row that says what is short says where it comes from (panel 2026-11-01: "No Silk Thread", and no word on where). */
       if (have < need) {
-        /* A worn piece is not in the bag, and the bench spends the bag's (a reforge: Klappa's Club, Steelgrate). */
-        if (Object.values(eqOf(cs)).includes(id)) return 'You\'re wearing your ' + itemName(id) + '. Take it off first.';
         const where = whereToGet(id);
         return (have ? 'Needs ' + whole(need) + ' ' + itemName(id) + ' (you have ' + whole(have) + ').' : 'No ' + itemName(id) + ' ' + fromWords(cs) + '.') + (where ? ' ' + where + '.' : '');
       }
     }
+    if (inHand) return 'You\'re wearing your ' + itemName(inHand) + '. Take it off first.';
     /* The bag's room (the engine's own test, artisan-sim.js bagFullFor, on the server's bag and stack cap): the
        product needs a new stack and the bag has none. The engine would stop the bench at once and say so. */
     const full = bagFullFor({ inventory: invOf(cs) }, w.row, w.skill, { bagCap: bagCapOf(cs), burns: false });

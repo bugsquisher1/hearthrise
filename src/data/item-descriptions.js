@@ -316,7 +316,7 @@ export const ITEM_DESC = {
   'practice_wand': 'With the Practice Spellbook it makes you a mage, casting harm from range. Plain birch',
   'practice_spellbook': 'Carried beside a wand, it holds the first spells a mage learns',
   'practice_staff': 'Wield it to fight as a healer, keeping your party standing. Straight hazel',
-  'klappas_club': 'A Practice Club banded in bronze and set with Mill Cellar rat teeth: it hits like a warhammer and misses more often. Klappa broke every club in the drill yard finding this one',
+  'klappas_club': 'A Practice Club banded in bronze and set with Mill Cellar rat teeth: it hits like a warhammer and aims like a practice club. Klappa broke every club in the drill yard finding this one',
   'oak_practice_blade': 'Hide-wrapped oak blade from the drill yard; it teaches the swing, not the kill',
   'oak_rod':'Sturdy oak rod that lands bigger catches from deeper water',
   'oak_staff': 'Sturdy oak staff that steadies a growing healer and their mending',

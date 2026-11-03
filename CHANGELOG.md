@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.85 — 2026-11-03 (Klappa's Club)
+
+**New weapon: Klappa's Club.** Reforge your Practice Club with 6 Bronze Bars and 3 Small Fangs and swing it from Level 5; it hits as hard as an Iron Warhammer. Sell spare gear keeps it. Selling it by hand warns you that nothing sells the Practice Club that makes another.
+
+**A clearer start.** Your first view of Havora shows the Great Hearth and Tamsin's board. Creating a hero says there's nothing to choose: your hero owns every weapon. Your first Take at Tamsin's asks for the armor weight that suits you; change it under her board. Equip upgrades now puts on a better weapon of the kind you hold and never changes how you fight.
+
+**Gold and gear.** Sell spare gear in the Shop: one press and one confirm, keeping what you wear, higher tiers, Rare pieces and anything locked or set to Keep or Deposit. A card says what your gold buys once you can afford another hero.
+
+**Parties.** "Hunt together" can be dismissed. The Party window shows how to invite on every tab. "Cash in" warns that leaving can bring your party home.
+
+**Fixes.** All characters says "Bag worth", so it no longer reads as a second purse. Friend requests and messages leave your alerts once answered or read, and "came home too" leaves with that hunt's summary. The Hunt summary no longer keeps "Setting out." or covers its buttons. In the Inventory, Fuel all and Stop stay in reach above the status line. The Shop's tabs stay whole when you scroll. Putting on armor in town keeps your hero at full HP.
+
+**Phones.** A hunting ground's page has more than twice the room to read, and windows use the full height in town. Tutorial cards stand beside windows and show their whole text; the longest ones show a gold arrow when there is more. Hunt Details shows all four tabs and more numbers, and the Party panel starts folded when you hunt alone. Easier buttons for More slots and the setup name; Create hero shows all five ways to fight. After Create account, only the answer and the way back remain on the card.
+
 ## v0.2.84 — 2026-11-03 (Try Again)
 
 **The game starts more reliably.** If a file fails to load while the game starts, the page now tries again by itself, and only asks you to reload if that doesn't help.

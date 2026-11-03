@@ -14,7 +14,7 @@
 // DOM reads and style writes only. Each writes only what changed, and reads no height of its own to set its room,
 // so the size change a write causes settles in the next pass (shell.js's observer).
 // ════════════════════════════════════════════════════════════════════════
-import { DOCK_CAP_MIN_PX, liftOverBars, panelRoom, placeWidget, slideClear, stackRoom } from './hud.js?v=0.2.84';
+import { DOCK_CAP_MIN_PX, liftOverBars, panelRoom, placeWidget, slideClear, stackRoom } from './hud.js?v=0.2.85';
 
 /* A stack of alerts is never squeezed shorter than one alert with its button. */
 const ALERTS_MIN_ROOM = 120;

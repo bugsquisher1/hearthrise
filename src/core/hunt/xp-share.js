@@ -26,10 +26,10 @@
 // Draws nothing. PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_XP } from '../../data/hunt-xp.js?v=0.2.84';
-import { partyClassXp } from '../../data/party-class-xp.js?v=0.2.84';
-import { skillLevelFromXp, charLevelFromXp } from '../xp.js?v=0.2.84';
-import { makeEvent } from './events.js?v=0.2.84';
+import { HUNT_XP } from '../../data/hunt-xp.js?v=0.2.85';
+import { partyClassXp } from '../../data/party-class-xp.js?v=0.2.85';
+import { skillLevelFromXp, charLevelFromXp } from '../xp.js?v=0.2.85';
+import { makeEvent } from './events.js?v=0.2.85';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([]), world: Object.freeze([['xpGroup', 'json']]), pack: Object.freeze([]) });
 

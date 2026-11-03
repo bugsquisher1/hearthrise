@@ -16,15 +16,15 @@
 // one intent each), off from the press until the server answered; the tab
 // changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.84';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.84';
-import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.84';
-import { recommendation } from '../hunt-list.js?v=0.2.84';
-import { huntName } from '../../session/party-sections.js?v=0.2.84';
-import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.84';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.84';
-import { glyphSvg } from '../launcher.js?v=0.2.84';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.84';
+import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.85';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.85';
+import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.85';
+import { recommendation } from '../hunt-list.js?v=0.2.85';
+import { huntName } from '../../session/party-sections.js?v=0.2.85';
+import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.85';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.85';
+import { glyphSvg } from '../launcher.js?v=0.2.85';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.85';
 
 /** The tab's skeleton (built once with the window). */
 export function rosterHtml() {

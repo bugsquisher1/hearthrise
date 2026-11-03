@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.83 — 2026-11-03 (Carry It In)
+
+**Carry supplies into a running hunt.** Press to carry food, drinks, ammo and runes from your backpack into a hunt that's already going, from Hunt prep or the action slot. What you don't use comes home when the hunt ends.
+
+**Ammo you can't use yet waits.** It stays on your bar and says why: it isn't shot or bought, your next ammo fires, and it wakes at the level. Spell slots now show as struck only when the spell really can't cast.
+
+**The Mosslight Glade bites harder.** Its monsters land their blows more often. Good armor still pays well, and a thin kit pays in food. Below a hunt's floor, monsters hit harder for every Level you're short: big XP, and you may lose gold.
+
+**Parties.** The Thicket now takes parties from Level 5, with bigger pulls, so same-weapon friends lose less. The Party window tells you how a party compares with hunting alone, and hunt pages say each drop goes to one of you. A new card at Level 10 asks how big a pull you can hold, and what it costs.
+
+**New goals from Level 15 to 30.** Wickstead's three rare pieces wear at 15, Glade Poachers can drop the Houndskin Cloak, and Tamsin's Glade task pays Steel pieces, once each. Brook Bears drop Bear Claws about twice as often, and a few more pelts.
+
+**Getting in.** If your account isn't on the invite list yet, you now see your account id with a Copy button. Send it to whoever invited you, press Check again, and you're in once they've added you, without signing in again. hearthrise.net now has a "Have an invite? Sign in" link.
+
+**Fixes.** Town zoom is now the same on all your heroes, and one hero can't get stuck zoomed out. The "Last hunt" bar no longer comes back when you switch heroes. Storage always shows the answer to a press, even with your bag scrolled down, and tells you why if your hero is out hunting. "Level XP before bonuses" in the analyzer now shows the real figure.
+
 ## v0.2.82 — 2026-11-01 (Your Own Stock)
 
 **Your own food and drink.** Putting your own food or drink on the bar now puts it ahead of the store's, so a hunt spends yours first.

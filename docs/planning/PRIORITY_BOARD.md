@@ -50,7 +50,7 @@ Simulated players are evidence, not verdicts; each was checked against the rulin
 | Create hero | Nothing yet | `start-kit.js`: sword and shield on, every other starter weapon in the bag |
 | First town | That kit | `hearth_square` stand 1 is (109,47) on the plan, the server's lowest free; `great_hearth` fire at (117,46), crier at (104,45) |
 | Level 5, Tamsin's wolves | Cellar loot | `thicket_gray_wolves` is on her board; role `tank` → `heavy` |
-| Level 15, the weapon | Iron Sword from the Sewer's Cistern Spider | `reqLv` 15, same family, same grip; dominates at 7/6 over 4/3 |
+| Level 15, the weapon | Iron Sword from the Sewer's Kobold Tosher (scarce, 5%) or Ridge Camp's Hobgoblin | `reqLv` 15, same family, same grip; dominates at 7/6 over 4/3 |
 | A return, spare gear | Bronze and Iron from the Thicket, Wickstead, the Glade | The shop bids on each (`hr_shop_view`); 64 lines a sale, the engine's cap |
 | 15,000 gp | The purse | `account.slotOffer` 15,000; Homestead 400 gp, Copper Ore ×20, Normal Log ×30 (both gathered at the town edge); Millrace Crate 1,500 gp, Normal Log ×40 |
 

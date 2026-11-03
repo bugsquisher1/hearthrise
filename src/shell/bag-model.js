@@ -279,6 +279,34 @@ export function lootSale(items, rules, shop, skills, needs) {
   return sellPlan(items || [], lootToSell(items, skills, needs), { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
 }
 
+/* The lines one sale may carry (edge-intents.js EDGE_LIMITS.sellLines, the engine's MAX_SELL_LINES). */
+const SELL_LINES_MAX = 64;
+/* Worth keeping against what is worn: an empty slot it could fill, or a higher tier than the piece there (an item with no tier: the safe side). */
+function aboveWorn(id, worn) {
+  const it = ITEMS[id];
+  if (!Number.isInteger(it.tier)) return true;
+  return expandItemSlot(it.slot).some((s) => { const w = worn && worn[s] ? ITEMS[worn[s]] : null; return !w || (Number.isInteger(w.tier) && it.tier > w.tier); });
+}
+
+/**
+ * THE RETURN CHORE (designer 2026-11-03; optimizer panel, its quit moment at hour 11-12: "sell-all, hand-sell 17-20 armor stacks"): what "Sell spare gear" sells, ONE sale
+ * with its total shown first. Gear the hero has outgrown, of any weight or weapon family: never what Equip upgrades would put on (`wanted`: its picks and choices), an empty
+ * slot's piece, a higher tier than the piece worn in that slot, a Rare (`isRare`, hunt-ground-facts.js isRareOnly: never sold unasked, Tyler 2026-10-14), the start kit, or a stack the player locked
+ * or gave a plan to Keep or Deposit. What is worn is not in the bag (the server's inventory). `worn`: equipmentOf. Pure.
+ */
+export function spareSale(items, worn, rules, shop, o) {
+  const wanted = (o && o.wanted) || new Set();
+  const rare = (o && o.isRare) || (() => false);
+  const plans = rules ? rules.loot : {};
+  const ids = (items || []).filter((r) => kindOf(r.id) === 'gear' && !isStartKit(r.id) && !wanted.has(r.id) && !rare(r.id) && !aboveWorn(r.id, worn)
+    && plans[r.id] !== 'keep' && plans[r.id] !== 'deposit').map((r) => r.id);
+  const plan = sellPlan(items || [], ids, { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
+  if (plan.lines.length <= SELL_LINES_MAX) return plan;
+  const lines = plan.lines.slice(0, SELL_LINES_MAX);
+  const bids = shop.bids;
+  return { ...plan, lines, total: lines.reduce((n, l) => n + bids.get(l.item) * l.qty, 0), capped: true };
+}
+
 /**
  * WHAT "SELL ALL LOOT" LEAVES, in the same words the button is priced from (blind playtest 2026-10-31: "Sell all loot ·
  * 423 gp" over a list worth 1,215, the rule invisible): the loot the shop bids on that the button keeps for a use

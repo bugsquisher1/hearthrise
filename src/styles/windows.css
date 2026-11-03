@@ -600,6 +600,7 @@
 .hw-party-acts .hw-primary { margin-right: auto; }
 .hw-party-acts [hidden] { display: none; }
 /* Who to invite, under the Party window's tabs (party.js): off on Find a party, which has its own way. */
+.hw-list-party[hidden], .hw-invite-how:empty { display: none; }
 .hw-invite-name { display: none; margin: 0 0 8px; }
 .hw-invite-name.is-on { display: flex; }
 .hw-invite-name .hh-num { flex: 1; min-width: 0; text-align: left; }

@@ -716,6 +716,10 @@ const cases = {
     /* Cash in tells the truth: loot is in the bag as it drops (the old card said it goes there when you leave) */
     const cash = said('leave_cellar');
     if (!cash || /when you do/.test(cash.text) || !cash.text.includes('already in your bag')) return 'the Cash in card reads ' + JSON.stringify(cash && cash.text);
+    /* in a party a leaver takes the others home (Tyler 10-22; party panel 11-03: the card did not say so on a member's screen) */
+    const cashRow = M.tut.HUNT_TUTORIAL.find((c) => c.id === 'leave_cellar');
+    const inParty = M.tut.cardFor(cashRow, { charLevel: 5, inParty: true }), alone = M.tut.cardFor(cashRow, { charLevel: 5, inParty: false });
+    if (!inParty.text.includes('Talk to your party first') || !inParty.text.includes('Leave if anyone leaves the hunt or dies') || /Talk to your party/.test(alone.text)) return 'the Cash in card reads ' + JSON.stringify([inParty.text, alone.text]);
     /* back in town from the Thicket with loot to sell, Sell does not come back; Decide once and Cook come now, not on the first return */
     const back = { ...steps.find((s) => s.id === 'loot_rules').facts, sellable: 6 };
     if ((M.tut.currentCard(back) || {}).id !== 'loot_rules') return 'back from the Thicket with no plan yet the coach says ' + (M.tut.currentCard(back) || {}).id;
@@ -898,6 +902,22 @@ const cases = {
     if ((say(atL(M.tut.ROLL_LEVEL - 1, 'weighhouse')) || {}).id === 'roll_of_honor') return 'the Leaderboards card came below its Level';
     const roll = say(atL(M.tut.ROLL_LEVEL, 'weighhouse'));
     if (!roll || roll.id !== 'roll_of_honor' || roll.title !== 'Leaderboards' || M.tut.coachIcon(roll, () => false) !== 'honor') return 'the Leaderboards card reads ' + JSON.stringify(roll);
+    /* WHAT GOLD BUYS (blind panel 11-03, 15k and "nothing says what's next"): once the purse can pay for the next hero, one read naming what exists at the server's prices, ahead of the House's own card; the House opens from it */
+    const DEED = { name: 'Hearthside Homestead', gold: 400, items: [{ id: 'copper_ore', qty: 20 }, { id: 'normal_log', qty: 30 }] };
+    const CHEST = { name: 'Millrace Crate', gold: 1500, items: [{ id: 'normal_log', qty: 40 }] };
+    const rich = (lv, gold, more, ...read) => ({ ...atL(lv, 'weighhouse', 'roll_of_honor', 'pull_goal', ...read), gold, slotCost: 15000, slotsOwned: 2, home: { owned: false, next: DEED }, chest: CHEST, ...more });
+    const purse = say(rich(M.tut.ROLL_LEVEL, 15000));
+    if (!purse || purse.id !== 'purse_goal' || purse.text !== 'You hold 15,000 gp. It buys a third hero (15,000 gp): press Characters, and it hunts while this one does. In the House: the Hearthside Homestead (400 gp, Copper Ore ×20, Normal Log ×30) and the Millrace Crate, a storage chest (1,500 gp, Normal Log ×40).' || !purse.gotIt || M.tut.coachWindow(purse) !== 'house') return 'with 15,000 gp the card reads ' + JSON.stringify(purse);
+    if ((say(rich(M.tut.ROLL_LEVEL, 14999)) || {}).id === 'purse_goal') return 'the gold card came under the next hero\'s price';
+    if ((say(rich(M.tut.ROLL_LEVEL, 15000, {}, 'purse_goal')) || {}).id === 'purse_goal') return 'Got it does not pass the gold card';
+    if ((say(rich(M.tut.ROLL_LEVEL, 99999, { slotCost: null, slotsOwned: 5 })) || {}).id === 'purse_goal') return 'with no hero on offer the gold card still offers one';
+    if ((say(rich(M.tut.ROLL_LEVEL, 15000, { huntId: 'mosslight_glade' })) || {}).id === 'purse_goal') return 'the gold card came up in a hunt';
+    if ((say(rich(10, 15000)) || {}).id !== 'purse_goal') return 'at Level 10 with 15,000 gp the House\'s own card stands ahead of the gold card: ' + (say(rich(10, 15000)) || {}).id;
+    if ((say(rich(10, 15000, {}, 'purse_goal')) || {}).id !== 'home') return 'past the gold card at Level 10 the card is ' + (say(rich(10, 15000, {}, 'purse_goal')) || {}).id;
+    /* A CARD THAT ASKS NEVER WALLS: Hunt together (optimizer panel 11-03: "Next: Hunt together" for two days over a woodcutting alt) finishes on its Got it, and what is behind it comes */
+    const walled = { ...rich(M.tut.ROLL_LEVEL, 15000), roster: [{ slot: 0, level: 16, name: 'A', open: true, hunting: false }, { slot: 1, level: 1, name: 'Bree', open: true, hunting: false }], self: 0 };
+    if ((say(walled) || {}).id !== 'party_own') return 'the Hunt together setup put up ' + (say(walled) || {}).id;
+    if ((say({ ...walled, read: new Set([...walled.read, 'party_own']) }) || {}).id !== 'purse_goal') return 'Got it does not pass Hunt together: ' + (say({ ...walled, read: new Set([...walled.read, 'party_own']) }) || {}).id;
     if (say({ ...atL(M.tut.ROLL_LEVEL, 'weighhouse'), huntId: 'mosslight_glade' }) && say({ ...atL(M.tut.ROLL_LEVEL, 'weighhouse'), huntId: 'mosslight_glade' }).id === 'roll_of_honor') return 'the Leaderboards card is up in a hunt';
     const eligibility = readFileSync(join(M.root, 'supabase/migrations/2027-02-13-market-eligibility.sql'), 'utf8');
     if (!eligibility.includes('min_level int not null default ' + M.tut.WEIGHHOUSE_LEVEL)) return 'What next says the Weighhouse opens at Level ' + M.tut.WEIGHHOUSE_LEVEL + ', and its migration does not';
@@ -1239,10 +1259,12 @@ const cases = {
       ['cook_catch', at(null), '.hs-launchers [data-hs-open="skills-trade"]'],
       ['cook_catch', at('skills-trade'), '.hw-work-row[data-id="cook_shrimp"] [data-hs-act="work-go"]'],
       ['tamsins_task', at(null), '.hs-launchers [data-hs-open="tally"]'],
-      ['tamsins_task', at('tally', { weight: false }), '.ht-weights'],
+      /* a first Take asks for the weight that suits, so it is rung; the picker only while the Take is off */
+      ['tamsins_task', at('tally', { weight: false }), '[data-hs-act="take"][data-task="thicket_gray_wolves"]'],
       ['tamsins_task', at('tally', { weight: true }), '[data-hs-act="take"][data-task="thicket_gray_wolves"]'],
     ];
     for (const [id, a, sel] of want) if (!first(id, a).includes(sel)) return id + ' rings ' + JSON.stringify(first(id, a)) + ', wanted ' + sel;
+    if (!ringPlan(card('tamsins_task'), at('tally', { weight: false })).some((q) => q.includes('.ht-weights'))) return 'with the Take off and no weight the picker is never rung';
     if (!ringPlan(card('to_the_cellar'), at('hunts')).some((q) => q.includes('.hw-hunt[data-hunt="mill_cellar"]'))) return 'Hunts open on a phone list: the Mill Cellar line is never ringed';
     for (const id of ['first_kill', 'tamsin_pays']) if (ringPlan(card(id), at(null)).length) return id + ' rings something, but names no control';
     /* a card on the bar's Level or stamina rings that hook (the bar draws it: lane/b-action-bar-fix) */
@@ -1519,6 +1541,12 @@ const mutants = [
     edits: [['src/shell/launcher.js', 'ctx.wm.openIds().length > 0', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
+  { name: 'the gold card never comes', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost : null),", "false : null),"]] },
+  { name: 'Hunt together walls the coach again', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "'strip', orGotIt({ kind: 'partied' }), { reactive: true, gotIt: true, when:", "'strip', { kind: 'partied' }, { reactive: true, when:"]] },
+  { name: 'Cash in says nothing of the party on a member\'s screen', case: 'tutorial-town-chain',
+    edits: [['src/data/hunt-tutorial.js', "  leave_cellar: (f) => ({ text: f.inParty === true\n", "  leave_cellar: (f) => ({ text: f.inParty === 'never'\n"]] },
   { name: 'the coach names gear no player can get (the copy audit\'s five)', case: 'coach-gear-by-level',
     edits: [['src/data/skill-unlocks.js', "|| it.reqSkill === LEVEL_REQ) && reach.has(id)) add(", '|| it.reqSkill === LEVEL_REQ)) add(']] },
   { name: 'the coach names gear the role does not wear (plate for a Mage)', case: 'coach-gear-by-level',

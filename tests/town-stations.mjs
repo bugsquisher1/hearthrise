@@ -27,6 +27,7 @@
 //        tile of every WAY (town/plan.js WAYS: the high street, the gate road, the bridges, the east gate,
 //        the mine road, the south road, the boardwalk) is open and reachable, so a footprint, a fence or a
 //        prop dropped on a road can never cut the town in two
+//   ST-12 a new hero's first frame (2x at 1366x768, between the top bar and the action bar) holds the Great Hearth's fire and Tamsin; an account's four all see the fire
 //   ST-11 a cook works at a cook fire: the kitchen's first stands (one per hero of an account) touch a spit or cauldron
 //   ST-8 arrival (the SERVER hands out the arrival station's stands, lowest first:
 //        2027-01-28-town-stands.sql): it has a primary stand for each of an account's
@@ -262,6 +263,17 @@ function check(S, editRow = null) {
       ok('ST-11', !!at, 'the kitchen\'s stand ' + x + ',' + y + ' (among its first ' + heroes + ') is at no cook fire');
     }
   }
+  /* ST-12 THE FIRST FRAME (blind panel 11-03: "all I saw was grey paving"; Tyler 10-26: the town stays at 2x). The world's rows between the top bar and the action bar at 1366x768,
+     measured on the panel's shots (y 108 to 582, 64 CSS px a tile at 2x). The fire's tile (town/sites.js AMBIENT, lifted 86 art px) and Tamsin's crier (stations.js) stand in that frame. */
+  const FRAME_W = 1366 / 64, FRAME_H = (582 - 108) / 64;
+  const inFrame = ([x, y], [tx, ty]) => Math.abs(tx - x) <= FRAME_W / 2 - 1 && Math.abs(ty - y) <= FRAME_H / 2;
+  const idle = S.STATION_BY_ID[S.ACTIVITY_STATIONS.idle];
+  const fireAt = M.plan.at(117, 46), tamsinAt = M.plan.at(104, 45);
+  if (idle) {
+    ok('ST-12', inFrame(idle.stands[0], fireAt), 'a new hero on ' + idle.stands[0] + ' does not see the fire at ' + fireAt);
+    ok('ST-12', inFrame(idle.stands[0], tamsinAt), 'a new hero on ' + idle.stands[0] + ' does not see Tamsin at ' + tamsinAt);
+    for (const at of idle.stands.slice(0, heroes)) ok('ST-12', Math.abs(fireAt[0] - at[0]) <= FRAME_W / 2 && Math.abs(fireAt[1] - at[1]) <= FRAME_H / 2, 'an account\'s hero on ' + at + ' does not see the fire at ' + fireAt);
+  }
   return fails;
 }
 
@@ -305,6 +317,8 @@ if (process.argv.includes('--selftest')) {
     ['ST-8', 'the first arrivals stand by the tavern wall, out of a phone\'s view of the gate', (c) => {
       const g = by(c, 'gatehouse'); g.stands = g.stands.slice(g.primary).concat(g.stands.slice(0, g.primary)); }],
     ['ST-8', 'fewer arrival stands than an account\'s heroes', (c) => { by(c, 'gatehouse').primary = 3; }],
+    ['ST-12', 'a new hero on the square\'s far corner again, grey paving and no fire', (c) => {
+      const h = by(c, 'hearth_square'); h.stands = h.stands.slice().reverse(); }],
     ['ST-11', 'the bread ovens listed first again (the first cook at the oven on the path)', (c) => {
       const k = by(c, 'tavern_kitchen'); k.stands = k.stands.slice(8, 12).concat(k.stands.slice(0, 8), k.stands.slice(12)); }],
   ];

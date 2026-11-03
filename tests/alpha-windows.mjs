@@ -42,6 +42,7 @@
 //         button and the hunt summary no Restock
 //   AW-8  HUNT PREP: the readiness line names this character's shortages from the
 //         server's bag and bar; Use sends ONE hr_hunt_preset_apply
+//   AW-70 SELL SPARE GEAR sells what the hero has outgrown in ONE sale, its total first; never what it wears or wants, a higher tier, a Rare, the kit, a locked or planned stack
 //   AW-64 HUNT PREP AND BEFORE YOU GO PRINT ONE READER of what the hero can use NOW (the hunt bag in
 //         a hunt), every tier of food, drink, ammo and runes, ammo in the engine's order (Andy #74)
 //   AW-65 A STORAGE PRESS ANSWERS IN VIEW (Andy, analytics 11-02: 14 presses in 25 s): at 1366x768 with both grids long and the bag
@@ -82,7 +83,7 @@
 //         set_activity { kind:'artisan', id:'cook_wolf_meat' }; the Cooking line reads the
 //         server's pointer; Stop says what the server made and burnt; the tooltip says it
 //         cooks; Sell all loot keeps it; a level under the recipe's says so in words
-//   AW-21 EQUIP UPGRADES: ONE equip intent naming every strictly better piece (never the weapon
+//   AW-21 EQUIP UPGRADES: ONE equip intent naming every strictly better piece (the weapon only within its family and grip, never the off-hand or ammo; never the weapon's style
 //         or a piece above the hero's skill), its slots and stacks marked until the answer, a
 //         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees;
 //         the screen never offers what the server refuses (Tyler 2026-10-24): an unmet requirement
@@ -384,9 +385,28 @@ async function pure() {
   /* Two copper rings fill both ring slots; the one-line preview names the change. */
   const rings = plan({ weapon: 'bronze_sword' }, [['copper_ring', 2]]);
   if (ops(rings) !== '{"ring1":"copper_ring","ring2":"copper_ring"}' || upgradeWords(rings) !== 'Wear Copper Ring ×2 (+1 Melee accuracy each).') fails.push('AW-21 two rings: ' + ops(rings) + ' / ' + upgradeWords(rings));
-  /* Never the hands: a better weapon or a shield in the bag is the player's choice of style. */
-  const hands = plan({ weapon: 'bronze_sword' }, [['iron_sword'], ['practice_shield']], { melee: { level: 99 }, defense: { level: 99 } });
-  if (Object.keys(hands.ops).length) fails.push('AW-21 Equip upgrades would change the hands: ' + ops(hands));
+  /* THE WEAPON, SAME FAMILY ONLY (designer 2026-11-03; blind panel: a sword hero wore the Practice Sword for 19 hunted hours over eight Iron Swords). A better one of its family goes on, the
+     shield stays where it is, and the style and role never move: another family, another grip, empty hands and the off-hand are the player's choice. */
+  const hands = plan({ weapon: 'bronze_sword' }, [['practice_shield'], ['ironbound_shield']], { melee: { level: 99 }, defense: { level: 99 } }, 30);
+  if (Object.keys(hands.ops).length) fails.push('AW-21 Equip upgrades would put a shield on: ' + ops(hands));
+  const tank = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['iron_sword', 8]], lv1, 15);
+  if (ops(tank) !== '{"weapon":"iron_sword"}' || upgradeWords(tank) !== 'Wear Iron Sword (+3 Melee accuracy).') fails.push('AW-21 a sword-and-shield hero with Iron Swords at Level 15 reads ' + ops(tank) + ' / ' + upgradeWords(tank));
+  if (Object.keys(plan({ weapon: 'practice_sword' }, [['iron_sword']], lv1, 14).ops).length) fails.push('AW-21 an Iron Sword goes on under its Level');
+  const steelOverIron = plan({ weapon: 'practice_sword' }, [['iron_sword'], ['steel_sword']], lv1, 30);
+  if (ops(steelOverIron) !== '{"weapon":"steel_sword"}') fails.push('AW-21 of two better swords it would put on ' + ops(steelOverIron));
+  const LADDER = (await imp('src/data/style-gear.js')).STYLE_LADDER;
+  for (const [family, row] of Object.entries(LADDER)) {
+    if (family === 'spellbook') continue;
+    const got = plan({ weapon: row.practice }, [[row.rungs[0]]], lv1, 15);
+    if (ops(got) !== JSON.stringify({ weapon: row.rungs[0] })) fails.push('AW-21 the ' + family + ' ladder: Level 15 with ' + row.rungs[0] + ' would put on ' + ops(got));
+  }
+  /* Never another style, whatever it is worth: [worn, better in the bag], each a different family or grip */
+  for (const [wornW, other] of [['practice_sword', 'iron_warhammer'], ['practice_sword', 'iron_hatchets'], ['practice_sword', 'longbow'], ['practice_sword', 'oak_wand'], ['practice_club', 'iron_hatchets'],
+    ['practice_bow', 'oak_crossbow'], ['practice_crossbow', 'longbow'], ['practice_wand', 'oak_staff'], ['practice_staff', 'oak_wand']]) {
+    const got = plan({ weapon: wornW }, [[other]], lv1, 15);
+    if ('weapon' in got.ops) fails.push('AW-21 Equip upgrades would change the style: ' + wornW + ' to ' + got.ops.weapon);
+  }
+  if (Object.keys(plan({}, [['iron_sword']], lv1, 15).ops).length) fails.push('AW-21 Equip upgrades would put a weapon in empty hands');
   /* A worn piece is never traded away: the plate Bronze Belt (more Defense) never replaces a worn Leather Belt (its critical chance). */
   const worn = plan({ weapon: 'bronze_sword', belt: 'leather_belt' }, [['bronze_belt']]);
   if ('belt' in worn.ops) fails.push('AW-21 Equip upgrades traded away a worn belt: ' + ops(worn));
@@ -717,7 +737,12 @@ async function panelLeftovers(base) {
   const reader = { read: () => null, record: { residue: { coach: { read: [] } } } };
   const aCard = { id: 'x', title: 'A title', text: 'Some words', done: { kind: 'read' }, gotIt: true };
   if (!/hs-pointer is-line/.test(coachHtml(reader, aCard, true)) || !/data-hs-act="coach-more"/.test(coachHtml(reader, aCard, true)) || /is-line|coach-more/.test(coachHtml(reader, aCard, false))) fails.push('AW-62 a card in a window is not one line, or one outside is');
-  const { takeWhyOf } = await imp('src/shell/windows/tally.js');
+  const { takeWhyOf, suggestedWeight } = await imp('src/shell/windows/tally.js');
+  /* What a first Take asks for: the weight worn most, else the role's; neither said, nothing (blind panel 11-03: "no recommendation") */
+  const bySuggest = [[{ boots: 'leather_boots' }, 'tank', 'medium'], [{ helmet: 'iron_helm' }, 'mage', 'heavy'], [{}, 'tank', 'heavy'], [{}, 'melee_dps', 'heavy'], [{}, 'ranger', 'medium'], [{}, 'mage', 'light'], [{}, 'healer', 'light']];
+  for (const [w, r, want] of bySuggest) if ((suggestedWeight(w, r) || {}).weight !== want) fails.push('AW-62 a first Take for ' + r + ' in ' + JSON.stringify(w) + ' asks for ' + JSON.stringify(suggestedWeight(w, r)));
+  if (suggestedWeight({}, null) !== null) fails.push('AW-62 with nothing said a first Take still guesses ' + JSON.stringify(suggestedWeight({}, null)));
+  if (takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')) !== 'Your first Take asks her for heavy armor, which suits a shield tank. Change it below any time.') fails.push('AW-62 the line over her board with a suggestion reads ' + takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')));
   if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You hold as many/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
     || takeWhyOf({ weight: 'heavy', held: [], heldMax: 3 }, false) !== '' || takeWhyOf({ weight: null, held: [], heldMax: 3 }, true) !== '') fails.push('AW-62 the line over her board is wrong');
   const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
@@ -951,6 +976,34 @@ async function planRules(base) {
   const planSaid = [planBlock('rat_tail', 'sell', noBid, false), planBlock('rat_tail', 'sell', noBid, true), planBlock('rat_tail', 'sell', noBid),
     planBlock('practice_bow', 'sell', noBid, false)].join('|');
   if (planSaid !== '|The shop does not buy this.|The shop does not buy this.|The shop does not buy back your starting kit.') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
+  /* AW-70 SELL SPARE GEAR (designer 2026-11-03; optimizer panel, its quit moment: "sell-all, hand-sell 17-20 armor stacks" each return). One sale with its total first: what the hero has outgrown,
+     of any weight or family; never what Equip upgrades wants, an empty slot's piece, a higher tier than worn, a Rare, the start kit, or a stack locked or planned Keep or Deposit. */
+  const { spareSale } = await imp('src/shell/bag-model.js');
+  const FACTS = await imp('src/shell/hunt-ground-facts.js');
+  const IRON = { weapon: 'iron_sword', shield: 'ironbound_shield', helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots', gloves: 'leather_gloves', belt: 'bronze_belt',
+    ring1: 'copper_ring', ring2: 'copper_ring', necklace: 'hunter_necklace', earrings: 'copper_studs', cape: 'traveler_cape' };
+  const stack = (ids) => ids.map((id) => ({ id, qty: 3 }));
+  const bidsOn = (rows) => ({ bids: new Map(rows.map((r) => [r.id, 10])) });
+  const rulesAre = (loot, locked) => ({ loot: loot || {}, locked: new Set(locked || []) });
+  const spareIds = (rows, worn, rules, o) => spareSale(rows, worn, rules || rulesAre(), bidsOn(rows), { isRare: FACTS.isRareOnly, ...(o || {}) }).lines.map((l) => l.item).sort().join();
+  /* (the Iron Helm and the Longbow are Rare somewhere and everyday elsewhere, so they are spare; the Iron Warhammer drops only as a Rare, so it is not) */
+  const OUTGROWN = ['bronze_helm', 'bronze_platelegs', 'iron_helm', 'studded_helmet', 'adept_pants', 'leather_boots', 'longbow'];
+  if (spareIds(stack(OUTGROWN), IRON) !== OUTGROWN.slice().sort().join()) fails.push('AW-70 an Iron hero\'s outgrown stacks read ' + spareIds(stack(OUTGROWN), IRON));
+  for (const [what, id, rows, worn, rules, o] of [
+    ['a higher tier of another weight', 'boarhide_body', null, IRON],
+    ['a higher tier of its own slot', 'steel_platebody', null, IRON],
+    ['a piece for an empty slot', 'bronze_helm', null, { ...IRON, helmet: null }],
+    ['a Rare', 'houndskin_cloak', null, { ...IRON, cape: 'trollhide_cape' }],
+    ['a Rare of a lower tier', 'iron_warhammer', null, { ...IRON, weapon: 'steel_sword' }],
+    ['the start kit', 'practice_club', null, IRON],
+    ['a locked stack', 'bronze_helm', null, IRON, rulesAre({}, ['bronze_helm'])],
+    ['a stack planned Keep', 'bronze_helm', null, IRON, rulesAre({ bronze_helm: 'keep' })],
+    ['a stack planned Deposit', 'bronze_helm', null, IRON, rulesAre({ bronze_helm: 'deposit' })],
+    ['what Equip upgrades wants', 'bronze_helm', null, IRON, null, { wanted: new Set(['bronze_helm']) }],
+    ['a potato, not gear', 'rat_tail', null, IRON],
+  ]) if (spareIds(stack([id]), worn, rules, o)) fails.push('AW-70 Sell spare gear would sell ' + what + ': ' + id);
+  const big = spareSale(stack(Array.from({ length: 70 }, () => 'bronze_helm')), IRON, rulesAre(), { bids: new Map([['bronze_helm', 10]]) }, {});
+  if (big.lines.length !== 64 || big.total !== 64 * 3 * 10 || !big.capped) fails.push('AW-70 past the engine\'s 64 lines a sale reads ' + big.lines.length + ' lines, ' + big.total + ' gp');
   /* AW-65 CARRY IN (Tyler 2026-11-02, "Yes, add a press"; Andy: supplies that reached the bag mid-hunt sat unused): while the
      hunt runs and is not on its way home, every hunt supply in the BAG is a row with the server's two counts, what the bar
      spends first (a rune spell spends every tier of its family); never gear or loot; none in town, on the way home or once it
@@ -2480,8 +2533,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       // answer; a refusal in words with nothing moved; the Shop offers it right after a gear purchase; a reload agrees
       const town = (e) => {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
-        /* Level 30 (gear is worn by Level, Tyler 2026-10-24): the bag's Steel Sword is better than the worn Iron Sword, and
-           still never put on (the weapon sets the style); the Mithril Helm needs Level 45. */
+        /* Level 30 (gear is worn by Level, Tyler 2026-10-24): the bag's Steel Sword is better than the worn Iron Sword, the same family, so it goes on
+           (designer 2026-11-03); the Mithril Helm needs Level 45. */
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: LEVEL_30_XP });
         Object.assign(e.inventory, { leather_gloves: 1, bronze_belt: 1, copper_ring: 1, mithril_helm: 1 });
         e.shop.offers.push({ offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 });
@@ -2497,7 +2550,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (!--s.env.inventory[id]) delete s.env.inventory[id];
         }
       };
-      const WANT = '{"belt":"bronze_belt","body":"iron_platebody","gloves":"leather_gloves","helmet":"iron_helm","ring2":"copper_ring"}';
+      const WANT = '{"belt":"bronze_belt","body":"iron_platebody","gloves":"leather_gloves","helmet":"iron_helm","ring2":"copper_ring","weapon":"steel_sword"}';
       const sorted = (o) => JSON.stringify(Object.fromEntries(Object.entries(o || {}).sort(([a], [b]) => (a < b ? -1 : 1))));
       const msg = () => page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
       if (up) {
@@ -2530,15 +2583,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('.hw-inv [data-hs-act="equip-upgrades"]');
         const mid = await page.evaluate(() => ({ slots: Array.from(document.querySelectorAll('.hw-slot.is-wearing')).map((b) => b.getAttribute('data-slot')).sort().join(','),
           stacks: document.querySelectorAll('.hw-pocket.is-wearing').length, off: document.querySelector('.hw-inv [data-hs-act="equip-upgrades"]').disabled }));
-        if (mid.slots !== 'belt,body,gloves,helmet,ring2' || mid.stacks !== 5 || !mid.off) fails.push('AW-21 the upgrades in flight are not marked on their slots and stacks: ' + JSON.stringify(mid));
+        if (mid.slots !== 'belt,body,gloves,helmet,ring2,weapon' || mid.stacks !== 6 || !mid.off) fails.push('AW-21 the upgrades in flight are not marked on their slots and stacks: ' + JSON.stringify(mid));
         await wait(page, () => !document.querySelector('.hw-slot.is-wearing'), null, 3000);
         await page.waitForTimeout(200);
         const eqs = sent(s, 'hr-accrue', 'equip');
         if (eqs.length !== 2 || sorted(eqs[0].body.equip) !== WANT || sorted(eqs[1].body.equip) !== WANT) fails.push('AW-21 Equip upgrades sent ' + JSON.stringify(eqs.map((c) => c.body.equip)) + ', want ' + WANT + ' once per press');
-        if (eqs.some((c) => 'weapon' in c.body.equip || 'shield' in c.body.equip)) fails.push('AW-21 Equip upgrades touched the hands (the weapon sets the style)');
+        if (eqs.some((c) => 'shield' in c.body.equip || 'ammo' in c.body.equip)) fails.push('AW-21 Equip upgrades touched the off-hand or the ammo');
         const after = await page.evaluate(() => ({ helm: document.querySelector('.hw-slot[data-slot="helmet"]').getAttribute('data-item'), weapon: document.querySelector('.hw-slot[data-slot="weapon"]').getAttribute('data-item'),
           line: document.querySelector('.hw-inv .hw-upgrade').classList.contains('is-on') }));
-        if (after.helm !== 'iron_helm' || after.weapon !== 'iron_sword' || after.line || (await msg()) !== 'Put on 5 pieces.') fails.push('AW-21 after the server answered: ' + JSON.stringify(after) + ' ' + JSON.stringify(await msg()));
+        if (after.helm !== 'iron_helm' || after.weapon !== 'steel_sword' || after.line || (await msg()) !== 'Put on 6 pieces.') fails.push('AW-21 after the server answered: ' + JSON.stringify(after) + ' ' + JSON.stringify(await msg()));
         if (!(await reloadAndPlay(page))) fails.push('AW-21 the reload did not come back');
         else {
           await openWin(page, 'b', 'inventory');
@@ -3226,6 +3279,15 @@ const MUTANTS = [
   ['plans: AW-64 the loaded slot names a store shot it never buys', 'src/shell/bar-draft.js', "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? worn : a.id;", "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? 'steel_arrows' : a.id;"],
   ['plans: AW-64 ammo under its skill is said as what flies', 'src/shell/hunt-go.js', "    if (short) { if (!locked.some((l) => l.id === id)) locked.push({ id, text: short.text }); continue; }\n", ''],
   ['plans: AW-64 a stack under its skill is offered as a spare', 'src/shell/hunt-go.js', ' && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));', ' && !plan.order.includes(r.id));'],
+  ['plans: AW-70 spare gear sells a higher tier', 'src/shell/bag-model.js', "return !w || (Number.isInteger(w.tier) && it.tier > w.tier); });", 'return !w; });'],
+  ['plans: AW-70 spare gear sells what an empty slot could wear', 'src/shell/bag-model.js', "return !w || (Number.isInteger(w.tier) && it.tier > w.tier); });", "return !!w && Number.isInteger(w.tier) && it.tier > w.tier; });"],
+  ['plans: AW-70 spare gear sells a Rare', 'src/shell/bag-model.js', ' && !wanted.has(r.id) && !rare(r.id) && !aboveWorn(r.id, worn)', ' && !wanted.has(r.id) && !aboveWorn(r.id, worn)'],
+  ['plans: AW-70 spare gear overrides a Keep plan', 'src/shell/bag-model.js', "    && plans[r.id] !== 'keep' && plans[r.id] !== 'deposit').map((r) => r.id);", "    ).map((r) => r.id);"],
+  ['plans: AW-70 a sale past the engine\'s line cap', 'src/shell/bag-model.js', '  if (plan.lines.length <= SELL_LINES_MAX) return plan;', '  return plan;'],
+  ['plans: AW-21 a better weapon stays in the bag', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['shield', 'ammo']);", "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);"],
+  ['plans: AW-21 Equip upgrades changes the style', 'src/shell/upgrade-plan.js', "    if (slot === 'weapon' && !sameHands(id, cur, worn)) continue;\n", ''],
+  ['plans: AW-21 a bow turns into a crossbow', 'src/shell/upgrade-plan.js', ' && !!ITEMS[id].twoHanded === !!ITEMS[cur].twoHanded', ''],
+  ['plans: AW-21 a weapon goes into empty hands', 'src/shell/upgrade-plan.js', "  if (slot === 'weapon' && !curIt) return null;\n", ''],
   ['plans: AW-64 a slot switched Off is said as spending', 'src/shell/hunt-go.js', 'if (!sl || sl.empty || sl.enabled === false) return null;', 'if (!sl || sl.empty) return null;'],
   ['plans: Hunt prep says stamina with no amount', 'src/shell/readiness.js', "'Stamina: ' + hoursWords(st.msLeft) + ' left'", "'Stamina left'"],
   ['plans: Hunt prep calls the last hunt this hunt', 'src/shell/readiness.js', "h && !h.ended ? 'this hunt' : 'your last hunt'", "'this hunt'"],

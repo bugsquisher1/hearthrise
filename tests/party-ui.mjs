@@ -1252,6 +1252,13 @@ async function pageRules(overrides, shots) {
         /* An invite is waiting: the Invites tab opens first; Join is ONE accept naming it. */
         const tab = await page.evaluate((q) => { const b = document.querySelector(q + '.hw-tab[aria-selected="true"]'); return b && b.getAttribute('data-tab'); }, P);
         if (tab !== 'invites') fails.push('UI-3 [' + tag + '] the Party window opened on ' + JSON.stringify(tab) + ' with an invite waiting');
+        /* UI-17 (party panel 11-03: the window opened on the finder, "only players you invite can join", and never said how): the way to invite is on the finder tab too, and a hero
+           with no party is not told about its party's listing (the switch's [hidden] lost to .hw-add's display). */
+        await page.click(P + '.hw-tab[data-tab="find"]');
+        const way = await page.evaluate((q) => { const box = document.querySelector(q + '.hw-invite-name'), how = document.querySelector(q + '.hw-invite-how'), sw = document.querySelector(q + '.hw-list-party');
+          return { box: !!box && box.getClientRects().length > 0, how: how ? how.textContent : '', sw: !!sw && sw.getClientRects().length > 0 }; }, P);
+        if (!way.box || !/Invite to party\.$/.test(way.how) || way.sw) fails.push('UI-17 [' + tag + '] with no party the finder tab reads ' + JSON.stringify(way));
+        await page.click(P + '.hw-tab[data-tab="invites"]');
         await shot('party-invites');
         const acc1 = sent(s, 'hr_hunt_party_accept').length;
         /* (not on screen = the rule is red, never a crash) */

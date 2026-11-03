@@ -375,8 +375,8 @@ export function ringPlan(card, at) {
         inWin('skills-trade', '.hw-skill[data-key="' + g.skill + '"]'),
         inWin('skills-trade', '.hw-work.is-on:not(:has(.hw-work-row[data-id="' + g.work + '"])) [data-hs-act="work-back"]')];
     case 'tally':
-      return at.weight === false ? [inWin('tally', '.ht-weights')]
-        : [inWin('tally', '[data-hs-act="take"][data-task="' + g.task + '"]:not([disabled])')];
+      /* A first Take asks for the weight that suits (tally.js suggestedWeight), so it is rung while it can fire; off (the server has not said the role), the picker */
+      return [inWin('tally', '[data-hs-act="take"][data-task="' + g.task + '"]:not([disabled])'), ...(at.weight === false ? [inWin('tally', '.ht-weights')] : [])];
     /* Every other anchor rings the card's own hooks (src/data/hunt-tutorial.js, tokens written by cardFor). They are
        written in the order the player meets them, so the deepest that is on screen comes first: the Shop's Sell tab ->
        Sell all loot -> its confirmation's Sell; Characters -> Create hero. */

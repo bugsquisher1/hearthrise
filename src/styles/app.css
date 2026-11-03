@@ -122,7 +122,8 @@
   .auth-submit { min-height: 40px; }
   .auth-links { padding-top: 2px; }
   /* A thumb's press, not a line of text (phone playtest 2026-10-31: 24 px). */
-  .auth-link { min-height: var(--tap); padding: 0 8px; display: inline-flex; align-items: center; }
+  .auth-link { min-height: var(--tap); padding: 0 8px; }
+  a.auth-link { display: inline-flex; align-items: center; }   /* its words in the middle of the press, level with a button's */
   .auth-id .hh-tool, .auth-id-value { min-height: var(--tap); }
   .auth-links .auth-link:first-child { margin-left: -8px; }
   .auth-links .auth-link:last-child { margin-right: -8px; }

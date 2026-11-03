@@ -318,7 +318,8 @@ async function huntCamera(browser, base) {
   return fails;
 }
 
-async function checks(overrides) {
+/* `viewer`: run WC-9 too, about 20 s a run on two heroes: --mutate runs it for its own mutants and the clean control only (smoke.yml in-page-2 budgets this job's minutes). */
+async function checks(overrides, viewer = true) {
   const fails = [];
   const { server, port } = await serve(Object.assign({}, HOOKS, overrides || {}));
   const base = 'http://127.0.0.1:' + port;
@@ -507,7 +508,7 @@ async function checks(overrides) {
     }
     fails.push(...(await huntCamera(browser, base)));   // WC-7
     fails.push(...(await townZoom(browser, base)));     // WC-8
-    fails.push(...(await viewerZoom(browser, base)));   // WC-9
+    if (viewer) fails.push(...(await viewerZoom(browser, base)));   // WC-9
   } catch (e) {
     /* a step that threw is HARNESS, never a rule (2026-10-22, tests/_mutant-verdict.mjs) */
     fails.push(harnessFail('a page step', e));
@@ -693,7 +694,7 @@ async function main() {
   for (const [name, file, from, to] of MUTANTS.filter((m) => !only || m[0].includes(only))) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
-    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) })), counts));
+    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, /WC-9/.test(name))), counts));
   }
   console.log(exitOf(counts) ? 'window-camera --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'window-camera --mutate: ' + counts.caught + '/' + counts.caught + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));

@@ -2122,22 +2122,28 @@ async function checks(overrides, shots) {
         if (!up) fails.push('AW-65 the hunt did not mount');
         else {
           await reach(page);
-          await page.click(STACK, { force: true });
-          await page.waitForTimeout(150);
-          const said = await lineNow(page);
-          if (!/out hunting/.test(said.text) || !said.inView) fails.push('AW-65 a press with the hero out hunting does not say why in view: ' + JSON.stringify(said));
-          await page.evaluate((w) => { document.querySelector(w + '.hh-intent-msg').textContent = ''; }, W65);
           await page.click(STACK, { button: 'right', force: true });
           await page.waitForTimeout(150);
-          if (!/out hunting/.test((await lineNow(page)).text)) fails.push('AW-65 a right-click with the hero out hunting does not say why');
-          if (sent(s, 'hr_bank_move').length) fails.push('AW-65 a hero out hunting sent a move');
+          const asked = await lineNow(page);
+          if (!/out hunting/.test(asked.text) || !asked.inView) fails.push('AW-65 a right-click with the hero out hunting does not say why in view: ' + JSON.stringify(asked));
           /* Home: the line no longer holds. */
+          const away = clone(s.env);
           for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete s.env[k];
           s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
           await pushEnvelope(page, s);
           await page.waitForTimeout(200);
           const home = await lineNow(page);
           if (home.text) fails.push('AW-65 back in town the line still says ' + JSON.stringify(home.text));
+          /* Out again, the line empty: a press says why by itself. */
+          s.env = away;
+          await pushEnvelope(page, s);
+          await page.waitForTimeout(200);
+          await page.evaluate((st) => document.querySelector(st).scrollIntoView({ block: 'end' }), STACK);
+          await page.click(STACK, { force: true });
+          await page.waitForTimeout(150);
+          const said = await lineNow(page);
+          if (!/out hunting/.test(said.text) || !said.inView) fails.push('AW-65 a press with the hero out hunting does not say why in view: ' + JSON.stringify(said));
+          if (sent(s, 'hr_bank_move').length) fails.push('AW-65 a hero out hunting sent a move');
         }
         if (errors.length) fails.push('AW-65 console errors (hunting): ' + errors.slice(0, 2).join(' | '));
         await ctx.close();

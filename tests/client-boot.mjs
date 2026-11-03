@@ -155,8 +155,8 @@ async function stubServer(page, o) {
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 /* `leaving`: run B-17 and B-18 too. Together about 20 s a run: --mutate runs them for their own mutants and the clean control only, or
-   36 mutants add 12 minutes to a 30-minute CI job (smoke.yml in-page, measured 14.2). */
-async function checks(overrides, leaving = true) {
+   36 mutants add 12 minutes to a 30-minute CI job (smoke.yml in-page, measured 14.2). `notice`: B-7's whole walk, the same way (with no flag, the notice's arrival only). */
+async function checks(overrides, leaving = true, notice = true) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
@@ -180,7 +180,8 @@ async function checks(overrides, leaving = true) {
       if (!n.link || !/Discord gets the [a-z ]*date first/i.test(n.text)) fails.push('N-1 the notice page lost its copy or Discord link');
       if (n.scripts.some((s) => !/^src\/platform\/(https-upgrade|sw-killswitch)\.js\?v=\d[\d.]*$/.test(String(s)))) fails.push('N-1 the notice page loads an app script: ' + n.scripts.join(', '));
       await page.click('a[href="play.html"]').catch(() => fails.push('N-1 someone invited who typed the bare domain has no way in'));
-      if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]'), null, 30000))) fails.push('N-1 the way in does not reach the sign-in screen');
+      /* The client page itself answers; its boot is B-1's and B-16's rule, and how long 372 modules take on a busy disk is the machine's. */
+      if (!(await wait(page, () => /\/play\.html$/.test(location.pathname) && document.querySelector('.boot-shell, form[data-auth="sign-in"]'), null, 30000))) fails.push('N-1 the way in does not reach the client page: ' + page.url());
       const hs = await page.request.get(base + '/prototypes/hunt-sim/');
       if (hs.status() !== 200) fails.push('N-1 /prototypes/hunt-sim/ answered ' + hs.status());
       if (errors.length) fails.push('N-1 console errors: ' + errors.join(' | '));
@@ -203,7 +204,8 @@ async function checks(overrides, leaving = true) {
       if (!bar) fails.push('B-16 the loading bar never moved as the modules landed');
       if (await page.$('form[data-auth="sign-in"]')) fails.push('B-16 the sign-in screen came before its module');
       free();
-      if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]') && !document.querySelector('.boot-shell')))) fails.push('B-16 the shell did not give way to the sign-in screen');
+      /* 372 modules on a busy disk: how fast they land is the machine's, not this rule's (read red twice with other lanes running) */
+      if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]') && !document.querySelector('.boot-shell'), null, 30000))) fails.push('B-16 the shell did not give way to the sign-in screen');
       if (errors.length) fails.push('B-16 console errors: ' + errors.join(' | '));
       await ctx.close();
       /* a module that cannot load says so (the wait never runs for ever) */
@@ -717,19 +719,20 @@ async function checks(overrides, leaving = true) {
 
     { // B-7
       const NOTICE = '[data-closed-notice]', CHECK = '[data-closed="check"]', COPY = '[data-closed="copy"]';
+      /* No rule here is about how fast a page boots: DOMContentLoaded, never the `load` event, and the machine's time (alpha-windows' BOOTED note). */
       const landOnNotice = async (page) => {
-        await page.goto(base + '/play.html', { waitUntil: 'load' });
-        await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+        await page.goto(base + '/play.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await wait(page, () => document.querySelector('form[data-auth="sign-in"]'), null, 60000);
         await page.fill('input[name=email]', 'qa@example.test');
         await page.fill('input[name=password]', 'not-a-real-password');
         await page.click('.auth-submit');
-        return wait(page, (q) => document.querySelector(q), NOTICE);
+        return wait(page, (q) => document.querySelector(q), NOTICE, 30000);
       };
       const lineOf = (page) => page.evaluate((q) => document.querySelector(q + ' .auth-message').textContent, NOTICE);
       const o = { closed: true, heroes: {}, created: [] };
       const { ctx, page, errors } = await fresh(o, { width: 1366, height: 768 });
       if (!(await landOnNotice(page))) fails.push('B-7 the closed answer did not show the closed notice');
-      else {
+      else if (notice) {
         const said = await page.evaluate((q) => document.querySelector(q).innerText, NOTICE);
         if (!/invite-only right now/i.test(said) || !/signed up/i.test(said) || !/whoever invited you/i.test(said)) fails.push('B-7 the notice does not say what is going on and what to do: ' + JSON.stringify(said));
         if (!said.includes(UID)) fails.push('B-7 the notice does not show the account id: ' + JSON.stringify(said));
@@ -742,7 +745,7 @@ async function checks(overrides, leaving = true) {
         if (copied !== UID) fails.push('B-7 Copy put ' + JSON.stringify(copied) + ' on the clipboard, want the account id');
         if (!/^Copied/.test(await lineOf(page))) fails.push('B-7 Copy did not say it copied: ' + JSON.stringify(await lineOf(page)));
         /* A clipboard that refuses: said, and the id left selected to copy by hand. */
-        await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error('refused')); document.execCommand = () => false; });
+        await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error('refused')); document.execCommand = () => false; getSelection().removeAllRanges(); });
         await page.click(COPY);
         await wait(page, (q) => /blocked/.test(document.querySelector(q + ' .auth-message').textContent), NOTICE, 3000);
         if (!/blocked/.test(await lineOf(page))) fails.push('B-7 a refused copy did not say why: ' + JSON.stringify(await lineOf(page)));
@@ -770,7 +773,7 @@ async function checks(overrides, leaving = true) {
       if (bad.length) fails.push('B-7 console errors: ' + bad.slice(0, 3).join(' | '));
       await ctx.close();
 
-      for (const vp of [{ width: 1366, height: 768 }, { width: 922, height: 423 }, { width: 667, height: 375 }]) {
+      if (notice) for (const vp of [{ width: 1366, height: 768 }, { width: 922, height: 423 }, { width: 667, height: 375 }]) {
         const s = await fresh({ closed: true }, vp);
         if (!(await landOnNotice(s.page))) fails.push('B-7 no notice at ' + vp.width + 'x' + vp.height);
         else {
@@ -826,7 +829,7 @@ const MUTANTS = [
   ['the bare domain strands an invited player (N-1)', 'index.html', '<a class="notice-signin" href="play.html">Have an invite? Sign in</a>', ''],
   ['the closed notice shows no account id (B-7)', 'src/app/closed-notice.js', "esc(o.id || '')", "''"],
   ['Copy copies something else (B-7)', 'src/app/closed-notice.js', "writeText(value)", "writeText('')"],
-  ['a refused copy says nothing and selects nothing (B-7)', 'src/app/closed-notice.js', "  select();\n  try { return win.document.execCommand", "  try { return win.document.execCommand"],
+  ['a refused copy leaves nothing selected (B-7)', 'src/app/closed-notice.js', "  select();\n  try { return win.document.execCommand", "  try { return win.document.execCommand"],
   ['Check again stays lit while it asks (B-7)', 'src/app/closed-notice.js', "    check.disabled = true;\n", ''],
   ['a no reads as no answer (B-7)', 'src/app/closed-notice.js', "say(SAY[answer] || SAY.unanswered);", "say(SAY.unanswered);"],
   ['a failed read reads as a no (B-7)', 'src/session/account-session.js', "return ans.closed ? 'closed' : ans.ok ? 'in' : 'unanswered';", "return ans.ok ? 'in' : 'closed';"],
@@ -869,7 +872,7 @@ async function main() {
     const missing = pairs.find(([a]) => !text.includes(a));
     if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     for (const [a, b] of pairs) text = text.replace(a, b);
-    const fails = await checks({ [file]: text }, /\(B-1[78]\)/.test(name));
+    const fails = await checks({ [file]: text }, /\(B-1[78]\)/.test(name), /\(B-7\)/.test(name));
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

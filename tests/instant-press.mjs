@@ -124,6 +124,7 @@ async function checks(overrides) {
     const ctx = await browser.newContext({ viewport: viewport || { width: 1440, height: 900 } });
     const page = await ctx.newPage();
     page.setDefaultTimeout(6000);
+    page.setDefaultNavigationTimeout(30000);   // a page load is the machine's, not a rule (window-camera's note: a cold module graph took 12 s on a slow disk)
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));

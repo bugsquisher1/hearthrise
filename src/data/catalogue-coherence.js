@@ -29,23 +29,23 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.83';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.83';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.83';
-import { SKILLS_DEF } from './skills.js?v=0.2.83';
-import { SHOP_OFFERS } from './shops.js?v=0.2.83';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.83';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.83';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.83';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.83';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.83';
-import { MONSTERS } from './monsters.js?v=0.2.83';
-import { NAMED_FUELS } from './hearth.js?v=0.2.83';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.83';
-import { HUNT_INDEX } from './hunts.js?v=0.2.83';
+import { ITEMS } from './items.js?v=0.2.84';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.84';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.84';
+import { SKILLS_DEF } from './skills.js?v=0.2.84';
+import { SHOP_OFFERS } from './shops.js?v=0.2.84';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.84';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.84';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.84';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.84';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.84';
+import { MONSTERS } from './monsters.js?v=0.2.84';
+import { NAMED_FUELS } from './hearth.js?v=0.2.84';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.84';
+import { HUNT_INDEX } from './hunts.js?v=0.2.84';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.83';
+} from './item-authority.js?v=0.2.84';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
@@ -80,10 +80,10 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
      were deleted, and these lost every consumer they had. They still drop
      (or, for the two bars and heartgarnet, are still made or mined),
      so until the new roster gives them a job they are sold, nothing more.
-     rat_tail and small_fang are also the coach's sell-loot step (coach.js
-     COACH_LOOT). Heartgarnet's Mining node is a dead end awaiting a designer
-     ruling. Shrink this list as the roster lands. */
-  'bat_wing', 'rune_frag', 'ruby', 'rat_tail', 'small_fang', 'night_fang', 'dark_sigil',
+     rat_tail is also the coach's sell-loot step (coach.js COACH_LOOT).
+     Heartgarnet's Mining node is a dead end awaiting a designer ruling.
+     Shrink this list as the roster lands. */
+  'bat_wing', 'rune_frag', 'ruby', 'rat_tail', 'night_fang', 'dark_sigil',
   'venom_sac', 'spider_eye', 'brute_plate', 'dire_fang', 'alpha_fang', 'plague_ichor',
   'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal',
   'shadow_pelt', 'death_steel', 'hollow_sigil', 'abyssal_pearl', 'gold_bar', 'verdite_bar',

@@ -65,27 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.83';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.83';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.83';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.83';
-import { SKILLS_DEF } from './skills.js?v=0.2.83';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.83';
-import { tallyTask } from './tally-tasks.js?v=0.2.83';
-import { ITEMS } from './items.js?v=0.2.83';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.83';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.83';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.83';
-import { isShield } from './shields.js?v=0.2.83';
-import { deriveProfile } from '../core/member.js?v=0.2.83';
-import { ABILITIES } from './abilities.js?v=0.2.83';
-import { CONSUMABLES } from './consumables.js?v=0.2.83';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.83';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.83';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.83';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.83';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.83';
-import { regenPermille } from '../core/vitals.js?v=0.2.83';
+import { HUNT_INDEX } from './hunts.js?v=0.2.84';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.84';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.84';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.84';
+import { SKILLS_DEF } from './skills.js?v=0.2.84';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.84';
+import { tallyTask } from './tally-tasks.js?v=0.2.84';
+import { ITEMS } from './items.js?v=0.2.84';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.84';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.84';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.84';
+import { isShield } from './shields.js?v=0.2.84';
+import { deriveProfile } from '../core/member.js?v=0.2.84';
+import { ABILITIES } from './abilities.js?v=0.2.84';
+import { CONSUMABLES } from './consumables.js?v=0.2.84';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.84';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.84';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.84';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.84';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.84';
+import { regenPermille } from '../core/vitals.js?v=0.2.84';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -140,7 +140,7 @@ const step = (id, title, text, anchor, done, more) => Object.freeze({ id, title,
 /* The task Tamsin's card names: a solo task on the solo ground (tally-tasks.js). */
 const WOLVES = tallyTask('thicket_gray_wolves');
 /* The first place a new hero picks an armor weight: one sentence a weight (Tyler 2026-10-25, src/data/armour-weights.js). */
-const TAMSIN_WAY = 'Tamsin pays for kills. Open her tally, pick an armor weight, then Take ' + WOLVES.count + ' ' + WOLVES.label + '. Kills count while you\'re away.';
+const TAMSIN_WAY = 'Tamsin pays for kills. Open her tally and Take ' + WOLVES.count + ' ' + WOLVES.label + ': she pays in the armor weight that suits you.';
 const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket';
 /* A second hero skips the knowledge cards once another hero on the account is past this Level (the designer's rule:
    it has lived through the first hour; the cards that set THIS hero's own state still show). */
@@ -173,6 +173,8 @@ const FLAME_PCT = Math.round((regenPermille(FLAME_AT) - 1000) / 10);
 /* The first-hour rung and the pelts its stitch takes (slot-ladders.js), read from the rows, never restated. */
 const CLOAK = ITEMS.graypelt_cloak;
 const CLOAK_PELTS = ((ARTISAN_RECIPES.crafting || []).find((r) => r.output === 'graypelt_cloak') || { inputs: {} }).inputs.wolf_pelt;
+/* The club hero's first bench job (style-gear.js, Tyler 2026-11-03), read from its row. */
+const CLUB_REFORGE = (ARTISAN_RECIPES.smithing || []).find((r) => r.output === 'klappas_club');
 /* Eat on time: Configure action's − and + move an HP condition in 5% steps (configure-action.js nudge), and the card
    never asks a hero to eat below the designer's 50%. */
 const PCT_STEP = 5, EAT_FLOOR_PCT = 50;
@@ -264,9 +266,10 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* Gated on THIS hero's Level (the server's level_xp), not only on the account having a second hero in town: a
      reactive card here interrupts the chain, so a Level 2 hero beside an older one was asked to party before its own
      Cellar steps (played on live 10-28, Pellow beside Corliss). Past the Cellar stretch it fits. */
+  /* A card that asks never walls (optimizer panel 11-03: "Next: Hunt together" for two days over a woodcutting alt, and nothing behind it was reached). */
   step('party_own', 'Hunt together',
     'Your heroes can share a hunt. Right-click another hero\'s tab (on a phone: Heroes, then Invite) and choose Invite to party; your own heroes join at once. Then the Party window\'s Your party tab shows everyone in it.',
-    'strip', { kind: 'partied' }, { reactive: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'own_hero_in_town' }],
+    'strip', orGotIt({ kind: 'partied' }), { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'own_hero_in_town' }],
       hooks: ['.char-tab[data-slot="{other}"]'] }),
   step('equip_upgrades', 'Wear what you found',
     'You found gear that beats what you wear. Gear goes on in town: open your bag and press Equip upgrades.',
@@ -388,6 +391,21 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Put your Turnip Juice in a drink slot before the store\'s juice: your own drinks cost nothing.',
     'action_bar', { kind: 'drink_slot', item: 'turnip_juice' }, { reactive: true, dayOne: true,
       when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),
+  /* KLAPPA'S CLUB (Tyler 2026-11-03; Andy's own idea, the first taste of the bench): a club hero's next rung is 10 Levels away and this one
+     is two minutes of mining and smelting. Before Build your home, which holds the line until a house is owned. The bench spends the bag's
+     club, so the hero's hands are empty when it is done: the card stays until the new club is worn, and then rings the bag (SAY). */
+  step('klappas_club', 'Klappa\'s Club',
+    'Your Practice Club can be reforged into Klappa\'s Club, which hits as hard as an Iron Warhammer. Open Gathering and crafting, then press Smithing.',
+    'crafting', orGotIt({ kind: 'wields', item: 'klappas_club' }), { reactive: true, dayOne: true, gotIt: true, ring: { skill: 'smithing', work: CLUB_REFORGE.id },
+      when: [IN_TOWN, { kind: 'level_at', at: ITEMS.klappas_club.reqLv }, { kind: 'club_hand', item: 'practice_club', made: 'klappas_club' }],
+      hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="klappas_club"]', '[data-hs-win="inventory"] .hw-pick[data-item="klappas_club"] [data-hs-act="primary"]'] }),
+  /* GOLD WITH NOWHERE TO GO (designer's 10-31 pass ruled it a FIX; blind panel 11-03, hour 11, 15k banked: "nothing says what's next"): What next carries it in a line, but What next only
+     speaks with every window shut and no card up, and a return lands on the Hunt summary. So once the purse can pay for the next hero, one card names what exists at the server's
+     prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Club, one card at a time: the club has a job in it and a Level on it, and the gold
+     keeps. */
+  step('purse_goal', 'What your gold buys',
+    'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',
+    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_pays_hero' }] }),
   step('home', 'Build your home',
     'Your first house needs gold, ore and logs: start with logs in Gathering and crafting, Woodcutting.',
     'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),
@@ -582,6 +600,9 @@ const FACTS = Object.freeze({
   loot_sold: (p, f) => known(f.sellable, (n) => n === 0),
   loot_rule: (p, f) => known(f.lootRules, (r) => Object.values(r).some((v) => v === 'sell' || v === 'deposit')),
   weapon_changed: (p, f) => known(f.weapon, (w) => w !== START_EQUIPMENT.weapon),
+  /* this weapon in hand, or hands empty with it or what it is made into in the bag (taken off to reforge: the bench spends the bag's) */
+  club_hand: (p, f) => (f.weapon === undefined || !f.carried ? null : f.weapon === p.item || (!f.weapon && (f.carried[p.item] > 0 || f.carried[p.made] > 0))),
+  wields: (p, f) => (f.weapon === undefined ? null : f.weapon === p.item),
   /* worn armor or a shield, the pieces Defense trains in (core/vitals.js wearsArmour over the server's worn set) */
   armoured: (p, f) => known(f.armoured, (a) => a === true),
   unarmoured: (p, f) => known(f.armoured, (a) => a === false),
@@ -598,6 +619,8 @@ const FACTS = Object.freeze({
   unblessed: (p, f) => known(f.blessings, (b) => b.held < b.of),
   below_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel < b.freeUntil),
   at_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel >= b.freeUntil),
+  /* the purse holds the price of the next hero slot the server offers; none on offer: never (unknown until the account's offer is read) */
+  purse_pays_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost : null),
   /* more than one hero (the account's roster, from the shell) */
   one_hero: (p, f) => known(heroesOn(f), (h) => h.length === 1 && Number.isInteger(f.slotsOwned) && f.slotsOwned > 1),
   heroes: (p, f) => known(heroesOn(f), (h) => h.length >= p.atLeast),
@@ -608,7 +631,7 @@ const FACTS = Object.freeze({
 });
 const PARAMS = Object.freeze({ lesson_time: ['hunt'], enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'],
   tally_taken: ['task'], hunt_age: ['min', 'past'], pull: ['ground', 'pocket'], eaten_at_least: ['n'], eating_fast: ['n', 'perHour'], heroes: ['atLeast'], drink_slot: ['item'],
-  carries: ['item'], kills: ['atLeast'], fuel_held: ['n'], bought_drinks: ['n'] });
+  carries: ['item'], club_hand: ['item', 'made'], wields: ['item'], kills: ['atLeast'], fuel_held: ['n'], bought_drinks: ['n'] });
 
 /* One fact as true / false / null; `any` is true once one is, null when none is and one is unknown. */
 function judge(d, f, c) {
@@ -642,7 +665,8 @@ export function validate(rows = HUNT_TUTORIAL) {
     if (d.kind === 'ended' && !END_ORDER.includes(d.reason)) bad('end reason ' + d.reason + ' is not in END_ORDER');
     if (d.kind === 'skill_xp' && !SKILLS_DEF[d.skill]) bad('skill ' + d.skill + ' is not a skill');
     if (d.kind === 'tally_taken' && !tallyTask(d.task)) bad('task ' + d.task + ' is not one of Tamsin\'s tasks');
-    if ((d.kind === 'drink_slot' || d.kind === 'carries') && !ITEMS[d.item]) bad(d.kind + ' item ' + d.item + ' is not an item');
+    if (['drink_slot', 'carries', 'club_hand', 'wields'].includes(d.kind) && !ITEMS[d.item]) bad(d.kind + ' item ' + d.item + ' is not an item');
+    if (d.kind === 'club_hand' && !ITEMS[d.made]) bad('club_hand made ' + d.made + ' is not an item');
     if (d.kind === 'pull') {
       const gr = HUNT_GROUNDS[d.ground];
       if (!gr) bad('ground ' + d.ground + ' is not in hunt-grounds.js');
@@ -737,7 +761,7 @@ export const wasteAt = (amount, pct, max) => amount - Math.round((max * (100 - p
 /* The armor weight that costs a role's style nothing (wornByRole: plate costs a caster and a Ranger accuracy, cloth a
    Melee): what Tamsin's card advises. */
 export const WEIGHT_FOR_ROLE = Object.freeze({ tank: 'heavy', melee_dps: 'heavy', ranger: 'medium', mage: 'light', healer: 'light' });
-const ROLE_WORDS = Object.freeze({ tank: 'a shield tank', melee_dps: 'a Melee hero', ranger: 'a Ranger', mage: 'a Mage', healer: 'a Healer' });
+export const ROLE_WORDS = Object.freeze({ tank: 'a shield tank', melee_dps: 'a Melee hero', ranger: 'a Ranger', mage: 'a Mage', healer: 'a Healer' });
 const STANCE_WORDS = (() => {
   const pc = (pm) => Math.abs(pm - 1000) / 10 + '%';
   const d = HUNT_STANCES.defensive, o = HUNT_STANCES.offensive;
@@ -826,7 +850,10 @@ const SAY = Object.freeze({
       + ' To try it, press ' + slotWords([free]) + ', then Runes, ' + a.n + ', ' + name(st.id) + ', then Save.',
     barSlot: free, store: st.id, spell: a.id };
   },
-  leave_cellar: (f) => ({ text: 'You\'re Level ' + f.charLevel + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
+  /* In a party a leaver takes the others home (Tyler 10-22: every ticked box, on by default): the card says so before the press (party panel 11-03). */
+  leave_cellar: (f) => ({ text: f.inParty === true
+    ? 'You\'re Level ' + f.charLevel + ', and your loot is already in your bag. Talk to your party first: if you leave the hunt, anyone with "Leave if anyone leaves the hunt or dies" ticked comes home too.'
+    : 'You\'re Level ' + f.charLevel + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
   styles: () => {
     /* the switch and the door to better ones, on top of the list (Tyler 2026-10-22; style-gear.js: each rung is made at a bench) */
     /* Short: over the town and inside a phone's bag sheet the long list cut Got it off the screen (played at 922x423). The
@@ -848,7 +875,7 @@ const SAY = Object.freeze({
     const pick = w ? ' ' + uc(w) + ' suits ' + ROLE_WORDS[f.role] + '.' : '';
     return { text: TAMSIN_WAY,
     /* inside her window it no longer says "open her tally" */
-    textIn: 'Pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label + ': each one counts, even while you\'re away.' + pick };
+    textIn: 'Take ' + WOLVES.count + ' ' + WOLVES.label + ': each one counts, even while you\'re away. She pays you in armor, and you can change the weight under her board.' + pick };
   },
   first_death: (f) => {
     const d = f.death, b = f.blessings;
@@ -899,11 +926,28 @@ const SAY = Object.freeze({
     if (!ids.length) return null;
     return { text: 'You found ' + listed(ids.slice(0, 2).map(name)) + (ids.length > 2 ? ' and more' : '') + '. Gear goes on in town: open your bag and press Equip upgrades.' };
   },
+  purse_goal: (f) => {
+    const nth = ORDINAL[(Number(f.slotsOwned) || 0) + 1];
+    if (!nth || !Number.isSafeInteger(f.slotCost) || !Number.isSafeInteger(f.gold)) return null;
+    const priced = (r) => [gp(r.gold), ...r.items.map((x) => name(x.id) + ' ×' + x.qty)].join(', ');
+    const named = (r) => !!r && Array.isArray(r.items) && !r.items.some((x) => !name(x.id));
+    const house = [named(f.home && f.home.next) ? 'the ' + f.home.next.name + ' (' + priced(f.home.next) + ')' : null,
+      named(f.chest) ? 'storage chests (the ' + f.chest.name + ', ' + priced(f.chest) + ')' : null].filter(Boolean);
+    return { text: 'You hold ' + gp(f.gold) + ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' + (house.length ? ' In the House: ' + listed(house) + '.' : '') };
+  },
   stitch_cloak: () => {
     const r = (ARTISAN_RECIPES.crafting || []).find((x) => x.output === 'graypelt_cloak');
     if (!r || !CLOAK || !Number.isInteger(CLOAK_PELTS)) return null;
     return { text: 'You\'re Level ' + CLOAK.reqLv + ', so you can wear ' + anA(CLOAK.n) + '. Open Gathering and crafting, press Crafting, then Start on ' + r.name + ' ('
       + name('wolf_pelt') + ' ×' + CLOAK_PELTS + ' each), then put it on from your bag.' };
+  },
+  klappas_club: (f) => {
+    const r = CLUB_REFORGE, club = name('klappas_club');
+    if (!r || !club || !name('practice_club')) return null;
+    if (f.carried && f.carried.klappas_club > 0) return { text: 'Your ' + club + ' is in your bag and your hands are empty. Open your bag, press it, then Equip.', anchor: 'inventory' };
+    const makes = Object.entries(r.inputs).filter(([id]) => id !== 'practice_club').map(([id, n]) => name(id) + ' ×' + n);
+    return { text: 'Your ' + name('practice_club') + ' can become ' + club + ', which hits as hard as an ' + name('iron_warhammer') + '. It takes ' + listed(makes)
+      + ' from the Mill Cellar\'s rats. Mine Copper Ore and smelt the bars in Smithing, take the club off, press Start on ' + r.name + ', then wear it.' };
   },
   fuel_hearth: (f) => {
     /* the bag's biggest first-rung fuel stack: the one the card rings and names */
@@ -997,7 +1041,8 @@ export function cardFor(card, facts) {
   const hooks = (card.hooks || []).map((h) => h.replace('{store}', said.store || '').replace('{other}', said.other === undefined ? '' : String(said.other))
     .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || '').replace('{spell}', said.spell || '').replace('{shot}', said.shot || ''));
   const textIn = said.textIn || card.inWindow || null;
-  return Object.freeze({ ...card, text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
+  /* `said.anchor`: the words moved on to another surface (Klappa's Club: from the bench to the bag), so the ring goes with them */
+  return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
 }
 
 /* ── AFTER THE GUIDE: WHAT NEXT ───────────────────────────────────────────

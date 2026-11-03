@@ -23,16 +23,16 @@
 //   back        string           the hunt the player came back to after an absence (residue `coach.back`, away-recap.js)
 //   slotCost    number           the next hero slot's price (AccountSession.slotOffer, the server's), absent when none is for sale
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.83';
-import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.83';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.83';
-import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf } from './item-sections.js?v=0.2.83';
-import { farmFieldOf } from './farm-sections.js?v=0.2.83';
-import { homeOf } from './home-sections.js?v=0.2.83';
-import { tallyOf } from './tally-sections.js?v=0.2.83';
-import { partyMembershipOf } from './party-sections.js?v=0.2.83';
-import { wearsArmour } from '../core/vitals.js?v=0.2.83';
-import { ITEMS } from '../data/items.js?v=0.2.83';
+import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.84';
+import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.84';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.84';
+import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf } from './item-sections.js?v=0.2.84';
+import { farmFieldOf } from './farm-sections.js?v=0.2.84';
+import { homeOf, chestsOf } from './home-sections.js?v=0.2.84';
+import { tallyOf } from './tally-sections.js?v=0.2.84';
+import { partyMembershipOf } from './party-sections.js?v=0.2.84';
+import { wearsArmour } from '../core/vitals.js?v=0.2.84';
+import { ITEMS } from '../data/items.js?v=0.2.84';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -84,6 +84,13 @@ function homeFacts(cs) {
   if (!h) return null;
   const next = h.tiers.find((t) => !t.owned && t.tier > h.tier) || null;
   return { owned: h.tier > 0 || h.tiers.some((t) => t.owned), next: next ? { name: next.name, gold: next.gold, items: next.items } : null };
+}
+
+/* The next storage chest the server says can be built now, or null: { name, gold, items }. */
+function chestFact(cs) {
+  const c = chestsOf(cs);
+  const n = c && c.next && c.next.canBuild ? c.next : null;
+  return n ? { name: n.name, gold: n.gold, items: n.items } : null;
 }
 
 /**
@@ -143,7 +150,7 @@ export function tutorialFactsOf(cs, sh) {
     /* `empty`: the field's open plots holding no crop (an extra plot past the cap is not open land) */
     landPlanted: field ? field.plots.size > 0 : null,
     land: field ? { ready, empty: Math.max(0, field.cap - Array.from(field.plots.values()).filter((p) => !p.extra && p.i < field.cap).length) } : null,
-    home: homeFacts(cs), gold: goldOf(cs),
+    home: homeFacts(cs), gold: goldOf(cs), chest: chestFact(cs),
     staminaMs: stamina ? stamina.msLeft : null,
     tally: tally ? { held: tally.held.length, paid: tally.recent.length, weight: !!tally.weight } : null,
     inParty: !!party && party.seats.length >= 2,

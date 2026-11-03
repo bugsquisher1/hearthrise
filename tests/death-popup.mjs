@@ -34,6 +34,8 @@
 //                  row, clear of the bar; a running hunt hides the row (Andy 2026-11-01: no way out of the house)
 //   DP-6 HERO SWITCH  the summary closed, or still up, when the viewed hero changes: on the way back the "Last hunt"
 //                  bar stays out of town and the summary stays shut (a switch remounts the shell)
+//   DP-7 AN END ALREADY SEEN IS OVER  (party panel 2026-11-03) "Pip left the hunt, so Kell came home too" stands over the hero on screen with
+//                  that hunt's summary, and goes when the summary is closed, with no new answer from the server
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -320,6 +322,24 @@ async function pageRules(overrides, shots) {
           }
           await w.ctx.close();
         }
+        /* DP-7 */
+        if (vp.width > 1000) {
+          const s7 = endedHere();
+          Object.assign(s7.env[0].hunt.session, { end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'left' });
+          const z = await fresh(s7);
+          const homeLine = (page) => page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert-text')).filter((n) => /came home too/.test(n.textContent)).length);
+          if (!z.ok || !(await wait(z.page, (q) => !!document.querySelector(q), SUM, 4000))) fails.push('DP-7 [' + tag + '] the ended hunt opened no summary');
+          else {
+            await wait(z.page, () => Array.from(document.querySelectorAll('.hw-alert-text')).some((n) => /came home too/.test(n.textContent)), null, 4000);
+            if ((await homeLine(z.page)) !== 1) fails.push('DP-7 [' + tag + '] CONTROL: no came-home line stands with the summary');
+            const reads = s7.calls.length;
+            await z.page.click('[data-hs-close="hunt-summary"]');
+            await wait(z.page, (q) => !document.querySelector(q), SUM, 3000);
+            await z.page.waitForTimeout(700);
+            if ((await homeLine(z.page)) !== 0) fails.push('DP-7 [' + tag + '] the came-home line outlived its summary (' + (s7.calls.length - reads) + ' calls since the close)');
+          }
+          await z.ctx.close();
+        }
         if (errors.length) fails.push('DP [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       } catch (e) {
         fails.push('DP [' + tag + '] threw: ' + String(e && e.message).split('\n')[0]);
@@ -342,6 +362,8 @@ const PAGE_MUTANTS = [
   ['the projection drops the Blessing', 'src/session/character-sections.js', "      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null });", '      saved: undefined });'],
   ['Hunt summary only closes', 'src/shell/windows/death.js', "  if (action === 'death-summary') ctx.show('hunt-summary');\n", ''],
   ['a reload stands the hunt bar back up in town', 'src/hunt-view/summary-recorder.js', 'return a.earlier === sessionId || a.closed === sessionId;', 'return a.closed === sessionId;'],
+  ['a seen end stays in the lines (DP-7)', 'src/shell/alerts.js', 'if (stale || seenEnd || ', 'if (stale || '],
+  ['closing a summary judges no line (DP-7)', 'src/shell/shell.js', 'if (ctx.alerts) ctx.alerts.rescan(ctx.character);', ''],
   ['a hero switch stands the hunt bar back up in town (DP-6)', 'src/hunt-view/summary-recorder.js', 'attach(cs).closed = h.sessionId;', 'void attach(cs);'],
   ['a hero switch with the summary up stands the hunt bar in its place (DP-6)', 'src/shell/shell.js', "if (wm.isOpen('hunt-summary')) summaryClosedBy(ctx.character);", 'void 0;'],
   ['a closed summary waits out the residue debounce', 'src/hunt-view/summary-recorder.js', "if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});", 'void 0;'],

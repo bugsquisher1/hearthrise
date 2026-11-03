@@ -356,6 +356,26 @@ async function pureRules(M, base) {
     return (h && h.length === 0) || 'food in the hunt bag (none in the bag) still warned out of food: ' + JSON.stringify(h);
   });
 
+  /* AL-3 AN END ALREADY SEEN IS OVER (party panel 2026-11-03): a death off screen raises a line, which goes once its popup was dismissed on the hero
+     (the came-home line and its closed summary: death-popup.mjs DP-7, on a real page). */
+  await t('AL-3', async () => {
+    const srv2 = fakeServer();
+    const d = srv2.env[0];
+    d.hunt_events = [];
+    d.hunt.ended = true;
+    d.hunt.session = { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' };
+    const acc2 = account(M, srv2);
+    acc2.viewed = 1;
+    const centre2 = M.AL.createAlertCenter(acc2);
+    const cs2 = (await acc2.open(0)).session;
+    if (!cs2) return 'the second fixture character did not open';
+    const died = () => centre2.list().filter((a) => a.kind === 'death').length;
+    if (died() !== 1) return 'a death off screen raised ' + died() + ' line(s), want 1';
+    const seen = (cs2.record.residue.alerts && cs2.record.residue.alerts.seen) || [];
+    cs2.setResidue('alerts', { off: [], seen: seen.concat('died:' + d.hunt.session_id) });
+    return died() === 0 || 'a dismissed death still stands in the alert lines';
+  });
+
   /* AL-3 A NEW HUNT RETIRES THE LAST ONE'S END LINE (Brannoc 10-22: "has ended · Start again" stayed up into the next
      hunt): the ended line shows while the hunt is over, and goes once the server says another session is open. */
   await t('AL-3', async () => {
@@ -1252,6 +1272,13 @@ async function pageRules(overrides, shots) {
         /* An invite is waiting: the Invites tab opens first; Join is ONE accept naming it. */
         const tab = await page.evaluate((q) => { const b = document.querySelector(q + '.hw-tab[aria-selected="true"]'); return b && b.getAttribute('data-tab'); }, P);
         if (tab !== 'invites') fails.push('UI-3 [' + tag + '] the Party window opened on ' + JSON.stringify(tab) + ' with an invite waiting');
+        /* UI-17 (party panel 11-03: the window opened on the finder, "only players you invite can join", and never said how): the way to invite is on the finder tab too, and a hero
+           with no party is not told about its party's listing (the switch's [hidden] lost to .hw-add's display). */
+        await page.click(P + '.hw-tab[data-tab="find"]');
+        const way = await page.evaluate((q) => { const box = document.querySelector(q + '.hw-invite-name'), how = document.querySelector(q + '.hw-invite-how'), sw = document.querySelector(q + '.hw-list-party');
+          return { box: !!box && box.getClientRects().length > 0, how: how ? how.textContent : '', sw: !!sw && sw.getClientRects().length > 0 }; }, P);
+        if (!way.box || !/Invite to party\.$/.test(way.how) || way.sw) fails.push('UI-17 [' + tag + '] with no party the finder tab reads ' + JSON.stringify(way));
+        await page.click(P + '.hw-tab[data-tab="invites"]');
         await shot('party-invites');
         const acc1 = sent(s, 'hr_hunt_party_accept').length;
         /* (not on screen = the rule is red, never a crash) */
@@ -1331,6 +1358,7 @@ const PURE_MUTANTS = [
   ['a seat with no weapon holds no class on the class line (PR-CLASS)', 'src/shell/windows/party-roster.js', "roles.map((r) => r || roleForWeapon('neutral'))", 'roles'],
   ['the class line stays on while the party hunts (PR-CLASS)', 'src/shell/windows/party-roster.js', "if (r.anyHunting || r.members.length < 2) return '';", "if (r.members.length < 2) return '';"],
   ['the class line needs a ground the party has hunted (PR-CLASS)', 'src/shell/windows/party-roster.js', 'const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;', 'const hunt = p.hunt;'],
+  ['a seen end stays in the lines (AL-3, party panel 2026-11-03)', 'src/shell/alerts.js', 'if (stale || seenEnd || ', 'if (stale || '],
   ['the last hunt\'s end line stays into the next (AL-3, Brannoc 10-22)', 'src/shell/alerts.js', '|| (open && RETIRE.has(a.kind) && a.session && a.session !== open)', ''],
   ['the low alert counts the bag mid-hunt (AL-2, Brannoc 10-22)', 'src/session/item-sections.js', '  return huntBagOf(cs) || bagOf(cs);', '  return bagOf(cs);'],
   ['a reload raises "has ended" over the hero on screen (AL-3, QA2 Pellow 10-25)', 'src/shell/alerts.js', 'account.viewed === cs.slot || account.viewed === null);', 'account.viewed === cs.slot);'],
@@ -1409,6 +1437,9 @@ const PURE_MUTANTS = [
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [
+  ['the finder tab has no way to invite (UI-17)', 'src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', true);", "cls(root.querySelector('.hw-invite-name'), 'is-on', tab !== 'find');"],
+  ['the finder tab never says how to invite (UI-17)', 'src/shell/windows/party.js', "text(root.querySelector('.hw-invite-how'), tab === 'find' ?", "text(root.querySelector('.hw-invite-how'), tab === 'nowhere' ?"],
+  ['a hero with no party reads that its party is private (UI-17)', 'src/styles/windows.css', '.hw-list-party[hidden], .hw-invite-how:empty { display: none; }', '.hw-invite-how:empty { display: none; }'],
   ['the leader\'s Start walks a seat under the floor in with no word (UI-TRUTH)', 'src/shell/windows/hunts.js', 'if (low.under.length && !low.far && sc.warned !== warnKey(hunt, low.under)) {', 'if (false) {'],
   ['a seat that sits down after the warning is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', "const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();", "const warnKey = (hunt) => hunt;"],
   ['the warning is said and the seat is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', '() => warnPartyGround(ctx.account, cs, hunt)', '() => Promise.resolve({ ok: true })'],
@@ -1463,6 +1494,8 @@ async function main() {
   const shots = at > 0 ? resolve(process.argv[at + 1] || 'party-shots') : null;
   if (shots) await mkdir(shots, { recursive: true });
   const onlyPure = process.argv.includes('--pure');
+  const only = (process.argv.find((x) => x.startsWith('--only=')) || '').slice(7);
+  const picked = (rows) => rows.filter(([name]) => name.includes(only));
   if (!process.argv.includes('--mutate')) {
     const fails = [...await pureRules(await load(ROOT), ROOT), ...(onlyPure ? [] : await pageRules(null, shots))];
     for (const f of fails) console.log('  ✗ ' + f);
@@ -1478,7 +1511,7 @@ async function main() {
   register('data:text/javascript,' + encodeURIComponent(GEN_HOOK), { data: { root: pathToFileURL(tmp).href } });
   let gen = 0;
   try {
-    for (const [name, file, from, to] of PURE_MUTANTS) {
+    for (const [name, file, from, to] of picked(PURE_MUTANTS)) {
       const text = readFileSync(join(tmp, file), 'utf8');
       if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
@@ -1487,12 +1520,12 @@ async function main() {
       finally { writeFileSync(join(tmp, file), text); }
     }
   } finally { rmSync(tmp, { recursive: true, force: true }); }
-  for (const [name, file, from, to] of onlyPure ? [] : PAGE_MUTANTS) {
+  for (const [name, file, from, to] of onlyPure ? [] : picked(PAGE_MUTANTS)) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     console.log(report(name, await judge(() => pageRules({ [file]: text.replace(from, to) }, null)), counts));
   }
-  const n = PURE_MUTANTS.length + (onlyPure ? 0 : PAGE_MUTANTS.length);
+  const n = picked(PURE_MUTANTS).length + (onlyPure ? 0 : picked(PAGE_MUTANTS).length);
   console.log(exitOf(counts) ? 'party-ui --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'party-ui --mutate: ' + n + '/' + n + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));
 }

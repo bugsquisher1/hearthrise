@@ -323,6 +323,10 @@
 .boot-shell-line { margin: 0; font-family: var(--f-ui); font-size: 15px; color: var(--ink); text-align: center; }
 .boot-shell-bar { width: min(280px, 70vw); height: 4px; background: var(--line); }
 .boot-shell-fill { display: block; width: 0; height: 100%; background: var(--gold); transition: width .2s linear; }
+/* The press after the page's own tries: drawn with no image, since the images may be what is not arriving (the gold plate's text alone is dark on dark). */
+.boot-shell-again { pointer-events: auto; min-height: 44px; padding: 0 24px; border: 0; background: var(--gold); color: var(--bg-0); font-family: var(--f-ui); font-size: var(--t-body); font-weight: 700; cursor: pointer; }
+.boot-shell-again:hover { background: var(--gold-2); }
+.boot-shell-again:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .boot-shell .auth-crest { width: 78px; height: 96px; }
 }

@@ -10,10 +10,10 @@
 // field `huntSummaries`, with the death explanation (death-explain.js) taken
 // from those events. It authors no number: it reads the server's sections.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.83';
-import { monsterName } from '../shell/widgets/bits.js?v=0.2.83';
-import { explainDeaths } from './death-explain.js?v=0.2.83';
-import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.83';
+import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.84';
+import { monsterName } from '../shell/widgets/bits.js?v=0.2.84';
+import { explainDeaths } from './death-explain.js?v=0.2.84';
+import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.84';
 
 const ATTACHED = new WeakMap();
 
@@ -92,6 +92,9 @@ export function attach(cs) {
     by itself, so a reload must not stand the bar back up (the panel 2026-11-01: the Havora / Town / Home strip gone until Summary), or it was closed
     (summaryClosedBy). Kept on the CHARACTER: a switch of the viewed hero remounts the shell, and the bar came back with every switch. */
 export function summaryDone(cs, sessionId) { const a = attach(cs); return a.earlier === sessionId || a.closed === sessionId; }
+
+/** Has the player closed this ended hunt's summary? (Its alert line then has nothing left to say: src/shell/alerts.js.) */
+export function summaryClosedFor(cs, sessionId) { const a = ATTACHED.get(cs); return !!a && a.closed === sessionId; }
 
 /** The player closed the summary, or left it open and went to another hero. A closed summary stays closed: its record lands now, as a dismissed
     death does (death-popup.js), so a reload inside the residue's debounce can't lose it and open the summary again. */

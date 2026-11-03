@@ -22,16 +22,16 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.83';
-import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.83';
-import { STARTER_SETS } from './start-kit.js?v=0.2.83';
-import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.83';
+import { ITEMS } from './items.js?v=0.2.84';
+import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.84';
+import { STARTER_SETS } from './start-kit.js?v=0.2.84';
+import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.84';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
 /* The lead line above the rows: the rule itself. The sword and shield are WORN, not in the bag (start-kit.js
    START_EQUIPMENT); a player can make more heroes and play several at once (2 slots to start, up to 4 at once). */
-export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick. The weapon you hold is how you fight: you start with a sword and shield on, and the other starter weapons are in your bag. To switch, equip another in town.';
+export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick, and nothing to choose here: your hero owns every weapon below. The weapon you hold is how you fight. You start with the sword and shield on, and the rest are in your bag. To switch, equip another in town, any time.';
 /* The lead's last sentence: not about fighting, so a phone's short card leaves it to the Help page (app.css). */
 export const HOW_YOU_FIGHT_SLOTS = 'You start with two hero slots, gold buys more, and up to four heroes can play at once.';
 
@@ -65,7 +65,7 @@ export const HELP_NOTES = Object.freeze([
   note('bar', 'The action bar',
     'Each slot is one spell, food or drink, with up to three conditions such as My HP % below 60. The first slot that can fire, fires, so put the most important one first.'),
   note('loot', 'Selling and keeping loot',
-    'Loot lands in your bag as it drops, even while the hunt runs. In the Shop, Sell all loot sells what is only worth gold and keeps Bones (fuel for the Great Hearth, which raises your Inner Flame), food you can cook, and materials your recipes or your next House step need. Give a thing a plan once (Sell, or Deposit in storage) from its menu in your bag, and Dispatch loot does every plan in one press when you are back in town.'),
+    'Loot lands in your bag as it drops, even while the hunt runs. In the Shop, Sell all loot sells what is only worth gold and keeps Bones (fuel for the Great Hearth, which raises your Inner Flame), food you can cook, and materials your recipes or your next House step need. Sell spare gear sells the armor and weapons you have outgrown, and keeps what you wear, anything of a higher tier and Rare pieces. Give a thing a plan once (Sell, or Deposit in storage) from its menu in your bag, and Dispatch loot does every plan in one press when you are back in town.'),
   note('gold', 'What gold is for',
     'Store supplies cost gold as your hero uses them. In town the Shop sells gloves, belts, jewelry and tools, and its Services tab sells extra stamina and Blessings. Save up and you can buy another hero slot.'),
   note('armour', 'Armor and Defense',

@@ -3,15 +3,15 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.83';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.83';
-import { LIB2_DESC } from './library2-items.js?v=0.2.83';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.83';
-import { CHAMPION_DESC } from './champions.js?v=0.2.83';
-import { DRINK_DESC } from './drinks.js?v=0.2.83';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.83';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.83';
-import { SHIELD_DESC } from './shields.js?v=0.2.83';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.84';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.84';
+import { LIB2_DESC } from './library2-items.js?v=0.2.84';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.84';
+import { CHAMPION_DESC } from './champions.js?v=0.2.84';
+import { DRINK_DESC } from './drinks.js?v=0.2.84';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.84';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.84';
+import { SHIELD_DESC } from './shields.js?v=0.2.84';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -316,6 +316,7 @@ export const ITEM_DESC = {
   'practice_wand': 'With the Practice Spellbook it makes you a mage, casting harm from range. Plain birch',
   'practice_spellbook': 'Carried beside a wand, it holds the first spells a mage learns',
   'practice_staff': 'Wield it to fight as a healer, keeping your party standing. Straight hazel',
+  'klappas_club': 'A Practice Club banded in bronze and set with Mill Cellar rat teeth: it hits like a warhammer and aims like a practice club. Klappa broke every club in the drill yard finding this one',
   'oak_practice_blade': 'Hide-wrapped oak blade from the drill yard; it teaches the swing, not the kill',
   'oak_rod':'Sturdy oak rod that lands bigger catches from deeper water',
   'oak_staff': 'Sturdy oak staff that steadies a growing healer and their mending',

@@ -40,7 +40,7 @@
 // floor(stands / heroesPerPlayer). view/margin/cap: the area a viewer reads (its view in tiles +
 // margin on every side, at most cap bodies a read; hr_town_view).
 // ════════════════════════════════════════════════════════════════════════
-import { at, TOWN_MAP } from './town/plan.js?v=0.2.83';
+import { at, TOWN_MAP } from './town/plan.js?v=0.2.84';
 
 export const TAP_OPENS = Object.freeze({
   anvil: Object.freeze({ open: 'skill', skill: 'smithing' }),
@@ -118,9 +118,11 @@ const ROWS = [
   /* HEARTH SQUARE (x106-129 y36-59): the fire, the field and flanks, the benches */
   { id: 'hearth', district: 'hearth_square', kind: 'artisan', skill: 'inner_flame', opens: win('inventory'), props: HEARTH_PROPS,
     stands: [...F(112, 49, 11, 1), ...F(111, 50, 13, 1)], overflow: [], fallback: 'square_benches' },
-  /* the field (y52-53, checkered, the x110-111 aisle kept open) and the two flanks; then the corner by the storage */
+  /* THE FIRST FRAME (designer 2026-11-03; blind panel: "all I saw was grey paving" at the 2x Tyler ruled, 10-26): a new hero appears on this station's first free
+     stand, so the west flank beside the fire comes first, nearest the Hearth's corner: the fire on the right, Tamsin's board on the left, even at 1366x768
+     (tests/town-stations.mjs ST-12). Then the field (y52-53, checkered, the x110-111 aisle kept open), the east flank; then the corner by the storage */
   { id: 'hearth_square', district: 'hearth_square', kind: 'idle', opens: null, props: [],
-    stands: [...C(106, 52, 4, 2), ...C(112, 52, 17, 2), ...C(107, 42, 3, 9), ...F(124, 42, 5, 9)],
+    stands: [...nearest(C(107, 42, 3, 9), [109, 47]), ...C(106, 52, 4, 2), ...C(112, 52, 17, 2), ...F(124, 42, 5, 9)],
     overflow: [...F(106, 55, 4, 4), ...C(112, 55, 10, 4)], fallback: 'square_benches' },
   /* six benches (two rows of three, town/sites.js), a seat on the row south of each */
   { id: 'square_benches', district: 'hearth_square', kind: 'idle', opens: null, props: [],

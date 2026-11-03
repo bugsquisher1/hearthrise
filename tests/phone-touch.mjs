@@ -1711,7 +1711,7 @@ const MUTANTS = [
   ['PH-23 what it would fetch comes first', 'src/styles/market.css', '  .hw-mk-sell .hw-mk-facts { order: 1; }\n', '  .hw-mk-sell .hw-mk-facts { order: -1; min-height: 80px; }\n'],
   ['PH-23 Sort is cut at the sheet\'s edge', 'src/styles/windows.css', '  .hw-find .hw-search { flex: 1 1 0; min-width: 0; }\n', '  .hw-find .hw-search { flex: none; width: 260px; }\n'],
   ['PH-24 the menu\'s Invite is silent until the answer', 'src/shell/context-menu.js', "        say('Sending…');\n", ''],
-  ['PH-24 no invite in the Party window','src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', tab !== 'find');", ''],
+  ['PH-24 no invite in the Party window','src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', true);", ''],
   ['PH-24 the inviter is told nothing', 'src/shell/windows/party.js', "() => { box.value = ''; return 'Invite sent to ' + name + '.'; }", "() => { box.value = ''; return ''; }"],
   ['PH-24 no toast beside a sheet', 'src/styles/hunt.css', '  :root:has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-alerts { transform: translateX(calc(-1 * min(400px, 48vw) - 8px)); }\n', ''],
   ['PH-24 Also here is far down the sheet', 'src/shell/windows/characters.js', '    + alsoHereHtml(ctx)\n    + \'<ul class="hw-chars"></ul>\'', '    + \'<ul class="hw-chars"></ul>\' + alsoHereHtml(ctx)'],

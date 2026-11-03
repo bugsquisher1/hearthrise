@@ -21,21 +21,22 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf } from '../../session/item-sections.js?v=0.2.83';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.83';
-import { whole, gold } from '../../render/format.js?v=0.2.83';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.83';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.83';
-import { kindOf, sellPlan, lootSale, lootKept, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.83';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.83';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.83';
-import { toolLossWords } from '../town-work.js?v=0.2.83';
-import { runIntent } from '../intent-words.js?v=0.2.83';
-import { showTip, hideTip } from './item-tip.js?v=0.2.83';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.83';
-import { gearLocked } from '../gear-gate.js?v=0.2.83';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.83';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.83';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.84';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.84';
+import { whole, gold } from '../../render/format.js?v=0.2.84';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.84';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.84';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.84';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.84';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.84';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.84';
+import { toolLossWords } from '../town-work.js?v=0.2.84';
+import { runIntent } from '../intent-words.js?v=0.2.84';
+import { showTip, hideTip } from './item-tip.js?v=0.2.84';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.84';
+import { gearLocked } from '../gear-gate.js?v=0.2.84';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.84';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.84';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -63,7 +64,7 @@ export function renderShop() {
       + '<ul class="hw-ledger hw-buy-list" data-kind="' + kind + '"></ul>').join('')
     + '<p class="hh-empty hw-buy-none">The shop has no prices for you yet.</p>' + upgradeLineHtml() + '</section>'
     + '<section class="hw-pane" data-pane="sell">'
-    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="sell-loot"></button></div><p class="hw-sell-note"></p>'
+    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="sell-loot"></button><button type="button" class="hh-tool" data-hs-act="sell-spare" hidden></button></div><p class="hw-sell-note"></p>'
     /* the confirmation beside the press, never under the list (the coach rings its Sell: data-coach-hook) */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
@@ -113,9 +114,16 @@ function patchBuy(root, st, ctx) {
     { locked: gearLocked(st.cs), msg: st.sc.msgAt === 'upgrade' ? st.sc.msg : '' });
 }
 
+/* Sell spare gear, as its button shows and sends it: what Equip upgrades would put on stays (upgrade-line.js upgradeOf, the same plan). */
+function spareOf(cs, items, rules, shop) {
+  const up = upgradeOf(cs);
+  const wanted = new Set([...up.picks.map((p) => p.id), ...up.choices.flatMap((c) => c.ids)]);
+  return { ...spareSale(items, equipmentOf(cs) || {}, rules, shop, { wanted, isRare: isRareOnly }), spare: true };
+}
 /* What Sell all loot leaves out and why, so its price and the list under it add up (say-why). */
-function sellNote(plan, kept) {
+function sellNote(plan, kept, spare) {
   const parts = [];
+  if (spare.lines.length) parts.push('Sell spare gear keeps what you wear, anything of a higher tier and Rare pieces.');
   if (kept.ids.length) parts.push('It keeps ' + whole(kept.ids.length) + (kept.ids.length === 1 ? ' stack' : ' stacks') + ' worth ' + gold(kept.worth) + ' that you can use: fuel, food to cook, and materials for your recipes or your next House step. Sell those by hand if you want the gold.');
   if (plan.capped) parts.push('One sale takes up to ' + whole(sellQty(Infinity)) + ' of a stack.');
   return parts.join(' ');
@@ -129,6 +137,8 @@ function patchSell(root, st, ctx) {
   const plan = lootSale(st.items, st.rules, st.shop, skillsOf(st.cs), needs);
   const kept = lootKept(st.items, st.rules, st.shop, skillsOf(st.cs), needs);
   const keptLoot = new Set(kept.ids);
+  const spare = spareOf(st.cs, st.items, st.rules, st.shop);
+  const spares = new Set(spare.lines.map((l) => l.item));
   const list = st.items.filter((r) => bids.has(r.id)).sort((a, b) => (kindOf(b.id) === 'loot') - (kindOf(a.id) === 'loot') || bids.get(b.id) * b.qty - bids.get(a.id) * a.qty);
   rows(root.querySelector('.hw-sell-list'), list, {
     key: (r) => r.id,
@@ -137,7 +147,7 @@ function patchSell(root, st, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="sell" data-item="' + esc(r.id) + '"></button></li>'),
     patch: (li, r) => {
       const isLocked = locked.has(r.id);
-      text(li.querySelector('small'), '×' + whole(r.qty) + ' · ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ' · locked' : keptLoot.has(r.id) ? ' · Sell all loot keeps it' : ''));
+      text(li.querySelector('small'), '×' + whole(r.qty) + ' · ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ' · locked' : keptLoot.has(r.id) ? ' · Sell all loot keeps it' : spares.has(r.id) ? ' · spare' : madeFromKit(r.id) ? ' · Sell spare gear keeps it' : ''));
       const b = li.querySelector('button');
       /* One sale takes up to the server's limit of a stack: a bigger stack's button says how many, so its price adds up. */
       const take = sellQty(r.qty);
@@ -149,7 +159,11 @@ function patchSell(root, st, ctx) {
   const lb = root.querySelector('[data-hs-act="sell-loot"]');
   text(lb, 'Sell all loot' + (plan.lines.length ? ' · ' + gold(plan.total) : ''));
   prop(lb, 'disabled', sc.pending || !plan.lines.length);
-  text(root.querySelector('.hw-sell-note'), sellNote(plan, kept));
+  const sb = root.querySelector('[data-hs-act="sell-spare"]');
+  prop(sb, 'hidden', !spare.lines.length);
+  text(sb, spare.lines.length ? 'Sell spare gear · ' + gold(spare.total) : '');
+  prop(sb, 'disabled', sc.pending);
+  text(root.querySelector('.hw-sell-note'), sellNote(plan, kept, spare));
   const cf = root.querySelector('[data-pane="sell"] .hw-confirm');
   const opening = !!sc.confirm && !cf.classList.contains('is-on');
   cls(cf, 'is-on', !!sc.confirm);
@@ -160,7 +174,7 @@ function patchSell(root, st, ctx) {
     text(cf.querySelector('.hw-confirm-q'), p.lines.length === 1 ? 'Sell ' + itemName(p.lines[0].item) + ' ×' + whole(p.lines[0].qty) + '?' : 'Sell ' + p.lines.length + ' stacks?');
     /* Selling a tool away slows the skill: said before the press, as the sale's one warning. */
     const slower = p.lines.map((l) => toolLossWords(st.cs, l.item, l.qty)).filter(Boolean).join(' ');
-    text(cf.querySelector('.hw-confirm-note'), [rareSaleWords(p.lines), p.kept.length ? p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.' : '', slower].filter(Boolean).join(' '));
+    text(cf.querySelector('.hw-confirm-note'), [p.spare ? '' : rareSaleWords(p.lines), p.kept.length ? p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.' : '', slower].filter(Boolean).join(' '));
     const yes = cf.querySelector('[data-hs-act="confirm-yes"]');
     text(yes, 'Sell for ' + gold(p.total));
     prop(yes, 'disabled', sc.pending);
@@ -221,11 +235,12 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
     return true;
   }
   if (action === 'equip-upgrades') { equipUpgrades(cs, sc, repaint, upgradeOf(cs)); return true; }
-  if (action === 'sell' || action === 'sell-loot') {
+  if (action === 'sell' || action === 'sell-loot' || action === 'sell-spare') {
     const items = bagOf(cs) || [];
     const rules = rulesOf(cs);
     const plan = action === 'sell' ? sellPlan(items, [t.getAttribute('data-item')], { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null })
-      : lootSale(items, rules, shop, skillsOf(cs), upgradeNeeds(homeOf(cs), chestsOf(cs)));
+      : action === 'sell-spare' ? spareOf(cs, items, rules, shop)
+        : lootSale(items, rules, shop, skillsOf(cs), upgradeNeeds(homeOf(cs), chestsOf(cs)));
     sc.confirm = plan.lines.length ? plan : null;
     repaint();
     return true;

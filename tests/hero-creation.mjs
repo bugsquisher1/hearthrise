@@ -116,6 +116,8 @@ export function checkClient({ cells = heroCells, text = refusalText, shop = shop
   // weapon is the style, one line per way to fight naming its starter weapon, every role and starter weapon covered.
   const how = howHtml();
   if (!/no class to pick/i.test(how) || !/weapon you hold/i.test(how)) out.push('H-C4 the creation step does not say the weapon, not a class, sets the style');
+  /* the five rows read as a menu (blind panel 11-03: "I wanted to pick"): the lead says there is nothing to pick, and that the hero already owns them all */
+  if (!/nothing to choose here/i.test(how) || !/owns every weapon below/i.test(how)) out.push('H-C4 the creation step lists five styles and does not say they are not a choice here');
   for (const r of HOW_YOU_FIGHT) if (!how.includes('data-style="' + r.id + '"') || !how.includes(r.name)) out.push(`H-C4 the creation step leaves out ${r.name}`);
   for (const p of howValidate()) out.push('H-C4 ' + p);
   return out;
@@ -228,6 +230,7 @@ const DATA_MUTANTS = {
   shop_sells_food: { why: 'the session keeps a food offer a server still sends', run: () => checkClient({ shop: (cs) => ({ offers: cs.read('shop').offers, bids: new Map() }) }) },
   summary_restock: { why: 'the hunt summary offers Restock again', run: () => checkClient({ windows: { ...WINDOWS, summary: () => renderHuntSummary() + '<button data-hs-act="restock">Restock</button>' } }) },
   creation_silent_on_styles: { why: 'the creation step says nothing about how you fight', run: () => checkClient({ howHtml: () => '' }) },
+  styles_read_as_a_menu: { why: 'the lead no longer says there is nothing to choose', run: () => checkClient({ howHtml: () => howYouFightHtml().replace('nothing to choose here', 'a choice to make') }) },
   style_row_dropped: { why: 'the staff (Healer) row leaves the how-you-fight list', run: () => checkClient({ howHtml: () => howYouFightHtml().replace(/<li data-style="heal">.*?<\/li>/, '') }) },};
 
 if (isMain(import.meta.url)) {

@@ -335,7 +335,8 @@ async function checks(overrides, shots) {
       }
       await ctx.close();
     }
-    { // TW-13 HER BOARD FIRST (newcomer panel 2026-11-01): the board stands over the weight picker; with no weight the rule holds, and a line over the grey Takes says why, with a press to the picker
+    { // TW-13 HER BOARD FIRST (newcomer panel 2026-11-01): the board stands over the weight picker. With no weight a first Take asks for the one that suits (blind panel 11-03: every Take grey
+      // until a paragraph was read): the weight the hero wears most (the fixture's Leather Boots), said over the board with a press to the picker, sent as ONE accept naming it.
       const fresh = Object.assign(clone(TALLY), { held: [], recent: [], weight: null, paid_today: 0 });
       const { ctx, page, s, up } = await open(Object.assign(clone(TOWN), { tally: fresh }));
       if (!(up && await show(page))) fails.push('TW-13 her window did not open');
@@ -347,14 +348,32 @@ async function checks(overrides, shots) {
             why: why.classList.contains('is-on') ? why.querySelector('span').textContent : '', off: Array.from(w.querySelectorAll('[data-hs-act="take"]')).every((b) => b.disabled), toPicker: !w.querySelector('[data-hs-act="to-weight"]').hidden };
         });
         if (!seen.first) fails.push('TW-13 the weight picker stands over her board');
-        if (!seen.off || !/^Pick the armor weight she pays you in first/.test(seen.why) || !seen.toPicker) fails.push('TW-13 with no weight her board reads ' + JSON.stringify(seen));
+        if (seen.off || seen.why !== 'Your first Take asks her for medium armor, the weight you wear most. Change it below any time.' || !seen.toPicker) fails.push('TW-13 with no weight her board reads ' + JSON.stringify(seen));
         if (seen.toPicker) { // no press to make when it is hidden: that is already a named fail above, never a page.click timeout that kills the run
           await page.click('[data-hs-win="tally"] [data-hs-act="to-weight"]');
           await page.waitForTimeout(200);
           const inView = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"] .hs-win-body').getBoundingClientRect(), p = document.querySelector('[data-hs-win="tally"] .ht-weights').getBoundingClientRect(); return p.top >= w.top && p.bottom <= w.bottom; });
           if (!inView) fails.push('TW-13 Pick a weight did not bring the picker into view');
         }
-        if (sent(s, 'hr_tally_accept').length) fails.push('TW-13 a task was taken with no weight');
+        if (sent(s, 'hr_tally_accept').length) fails.push('TW-13 a task was taken before a press');
+        const task = await page.evaluate(() => document.querySelector('[data-hs-win="tally"] [data-hs-act="take"]:not([disabled])')?.getAttribute('data-task') || 'none open');
+        await page.click('[data-hs-win="tally"] [data-hs-act="take"][data-task="' + task + '"]', { timeout: 3000 }).catch(() => fails.push('TW-13 the first Take is not pressable'));
+        await page.waitForTimeout(200);
+        const tk = sent(s, 'hr_tally_accept');
+        if (tk.length !== 1 || tk[0].body.p_weight !== 'medium' || tk[0].body.p_task !== task) fails.push('TW-13 a first Take on ' + task + ' sent ' + JSON.stringify(tk.map((c) => c.body)));
+      }
+      await ctx.close();
+    }
+    { // TW-13 with nothing to go on (nothing worn, the server has not said the role): the old way stands, grey Takes and the line that says why; never a guess
+      const fresh = Object.assign(clone(TALLY), { held: [], recent: [], weight: null, paid_today: 0 });
+      const env = Object.assign(clone(TOWN), { tally: fresh, equipment: { weapon: 'iron_sword' } });
+      const { ctx, page, s, up } = await open(env);
+      if (!(up && await show(page))) fails.push('TW-13 her window did not open with nothing worn');
+      else {
+        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-offer'), null, 4000);
+        const seen = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]'), why = w.querySelector('.ht-take-why');
+          return { why: why.querySelector('span').textContent, off: Array.from(w.querySelectorAll('[data-hs-act="take"]')).every((b) => b.disabled), role: !!w }; });
+        if (!seen.off || !/^Pick the armor weight she pays you in first/.test(seen.why)) fails.push('TW-13 with no worn weight and no role her board reads ' + JSON.stringify(seen));
       }
       await ctx.close();
     }
@@ -530,7 +549,7 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
-  ['Take stays on while hunting', 'src/shell/windows/tally.js', "prop(btn, 'disabled', !!why || st.sc.pending || st.hunting || !st.t || !st.t.weight);", "prop(btn, 'disabled', !!why || st.sc.pending || !st.t || !st.t.weight);"],
+  ['Take stays on while hunting', 'src/shell/windows/tally.js', "prop(btn, 'disabled', !!why || st.sc.pending || st.hunting || !st.t || (!st.t.weight && !st.suggest));", "prop(btn, 'disabled', !!why || st.sc.pending || !st.t || !st.t.weight);"],
   ['a done task is handed in mid-hunt', 'src/shell/windows/tally.js', "const due = t && !st.hunting && t.paidToday < t.perDay", 'const due = t && t.paidToday < t.perDay'],
   ['the visit is sent on every repaint', 'src/shell/windows/tally.js', '  if (due.length && sc.collected !== key && !sc.pending && ctx.account) {', '  if (due.length && !sc.pending && ctx.account) {'],
   ['the reader invents a tally', 'src/session/tally-sections.js', "  if (!isObj(raw)) return null;\n  const had", "  if (!isObj(raw)) raw = { held: [], paid_today: 0, per_day: 3, held_max: 3, order: [] };\n  const had"],
@@ -539,7 +558,10 @@ const MUTANTS = [
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
   ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));", "text(li.querySelector('.hw-hunt-tally'), '');"],
   ['the Tally is held at its capped height', 'src/shell/hud-room.js', 'phone ? rel(el) : Object.assign(rel(el), { height: wholeHeight(el) })', 'rel(el)'],
-  ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const takeWhy = sc.board ? takeWhyOf(t, st.hunting) : '';", "const takeWhy = '';"],
+  ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const takeWhy = sc.board ? takeWhyOf(t, st.hunting, suggest) : '';", "const takeWhy = '';"],
+  ['every Take stays grey until a weight is picked', 'src/shell/windows/tally.js', "st.hunting || !st.t || (!st.t.weight && !st.suggest));", "st.hunting || !st.t || !st.t.weight);"],
+  ['a first Take names no weight', 'src/shell/windows/tally.js', "takeTask(ctx.account, cs, task, first ? first.weight : null)", "takeTask(ctx.account, cs, task, null)"],
+  ['a first Take guesses with nothing to go on', 'src/shell/windows/tally.js', "const weight = wears || WEIGHT_FOR_ROLE[role] || null;", "const weight = wears || WEIGHT_FOR_ROLE[role] || 'heavy';"],
   ['the weight picker stands over her board again', 'src/shell/windows/tally.js', "    + '<h3 class=\"hw-ledger-head is-on\">Her board</h3><p class=\"hh-empty ht-wait\">Loading her board…</p>'", "    + '<div class=\"ht-weights\"></div><h3 class=\"hw-ledger-head is-on\">Her board</h3><p class=\"hh-empty ht-wait\">Loading her board…</p>'"],
   ['the tally sits at its anchor, over the analyzer', 'src/shell/shell.js', '      const top = stackBelow(at, above, DOCK_EDGE);', '      const top = Math.round(at.top);'],
   ['her greeting is the riddle again', 'src/data/tally-tasks.js', "greeting: 'Take a task from my board and go hunting. When the count\\'s done, I\\'ll pay you in town: gold, plus the armor or materials my board shows.',",

@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-03",
- "replay_ms": 11209,
+ "replay_ms": 15019,
  "counts": {
-  "tracked_names": 720,
-  "entries": 575
+  "tracked_names": 721,
+  "entries": 576
  },
  "functions": [
   {
@@ -1373,17 +1373,18 @@
     "2027-01-31-bench-inputs.generated.sql",
     "2027-02-05-first-hour-bench-inputs.generated.sql",
     "2027-02-08-unsourced-bench-inputs.generated.sql",
-    "2027-02-18-craft-economy-bench-inputs.generated.sql"
+    "2027-02-18-craft-economy-bench-inputs.generated.sql",
+    "2027-02-23-klappa-bench-inputs.generated.sql"
    ],
    "live": {
-    "md5": "205361bd1f69b86c619912ea5ba93a89",
-    "norm_len": 7323,
+    "md5": "1c5e271698d779800c453dc6b2d7fa09",
+    "norm_len": 7396,
     "measured": "2026-11-03",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "205361bd1f69b86c619912ea5ba93a89",
-    "norm_len": 7323,
+    "md5": "1c5e271698d779800c453dc6b2d7fa09",
+    "norm_len": 7396,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5150,7 +5151,8 @@
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
     "2026-10-23-hunt-world-state.sql",
-    "2027-02-11-forfeit-home-whole.sql"
+    "2027-02-11-forfeit-home-whole.sql",
+    "2027-02-23-town-hp-whole.sql"
    ],
    "live": {
     "md5": "70deff7d6fbf79df81a7dcbb0027715d",
@@ -12540,6 +12542,28 @@
    "agree": true
   },
   {
+   "sig": "hr_town_hp_whole()",
+   "name": "hr_town_hp_whole",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-23-town-hp-whole.sql"
+   ],
+   "live": {
+    "md5": "9ec8d2b877201ac7411ee784e9b4c3f3",
+    "norm_len": 879,
+    "measured": "2026-11-03",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "9ec8d2b877201ac7411ee784e9b4c3f3",
+    "norm_len": 879,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_town_live(p_user uuid, p_slot integer)",
    "name": "hr_town_live",
    "tracked_by": [
@@ -12913,7 +12937,8 @@
     "2027-01-29-havora-stations.generated.sql",
     "2027-01-30-havora-yards.generated.sql",
     "2027-01-31-town-stations.generated.sql",
-    "2027-02-09-town-stations.generated.sql"
+    "2027-02-09-town-stations.generated.sql",
+    "2027-02-23-town-stations.generated.sql"
    ],
    "live": {
     "md5": "1768152bb5d23488014488973f677f6d",

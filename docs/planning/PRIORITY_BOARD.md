@@ -61,13 +61,13 @@ Survival at Thicket 5, pull 8: typical lowest HP 93.0 / 93.2 / 93.1%, store bill
 | Klappa's Club (hammer) | 51,342, 93.2%, 6,128 | 52,865, 95.1%, 6,523 |
 | Practice Club (hammer) | 50,439, 93%, 5,880 | 52,105, 94.9%, 6,208 |
 | Practice Hatchets | 49,382, 92.3%, 5,669 | 51,436, 94.8%, 6,360 |
-| Practice Wand + Spellbook | 49,818, 97.1%, 5,319 | not played |
+| Practice Wand + Spellbook | 49,818, 97.1%, 5,319 | 52,734, 98.4%, 5,607 |
 | Practice Crossbow | 36,125, 92.9%, 4,251 | 39,125, 96.3%, 4,460 |
 | Practice Bow | 34,970, 91.8%, 3,999 | 38,911, 95%, 4,543 |
 | Practice Sword alone | 26,488, 78.5%, 2,961 | 31,767, 87.8%, 3,887 |
 | Practice Sword + Shield | 26,641, 86.2%, 3,234 | 31,440, 92.1%, 3,930 |
 | Practice Staff | 22,832, 93.6%, 3,070 | not played |
-The hammer and the hatchets lead this ground with any weapon: Cleave sweeps the box. The club widens that lead by under 2%, so the gap is not its doing.
+The hammer and the hatchets (Cleave sweeps the box) and the wand lead this ground with any kit weapon. The club adds under 2% to its hammer, so the gap to the sword and the bow is not its doing. It is the best of these at both Levels, by 3% over the wand at Level 5 and 0.2% at 10.
 
 **Where it comes in.** Level 5 at 14 minutes in the Mill Cellar (40 seeds, 14-14.2). Small Fangs by then: median 6, p10 4, at least 3 in 39 of 40. 12 Copper Ore is 58 s with no tool, 6 Bronze Bars 25 s, the reforge 4.8 s: about a minute and a half at the bench end of a first return. The hero then wears it until Level 15, 17.6 hours of hunting (`level-pace.json`), the longest stretch a club hero had with nothing to look forward to. The Iron Warhammer stays the next step: Smithing 15, or the Sewer's Kobold Tosher.
 

@@ -398,11 +398,18 @@ function regenMana(u, dtMs) {
  * catalogue).
  */
 export function shotLine(h, id) {
-  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, undefined);
+  return isRune(itemRow(h, id)) ? { why: 'none' } : shotLocked(h, id) ? { why: 'level' } : resolveLine(h && h.hs, id, undefined);
 }
 /** shotLine's carried half: own stock only, never the store (a shot's first pass, conditions.js attackOrder). */
 export function ownShotLine(h, id) {
-  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, null);
+  return isRune(itemRow(h, id)) ? { why: 'none' } : shotLocked(h, id) ? { why: 'level' } : resolveLine(h && h.hs, id, null);
+}
+/* A SHOT THE HERO CAN'T USE YET (supplies keep their skill requirement, Tyler 2026-10-24: the ammo slot's equip gate held it and a bar slot walked round it, a Ranged 42 hero
+   on Mithril Arrows, Ranged 45). Neither shot nor bought, and the next row fires. The slot is kept, never refused (designer 2026-11-03): a bar set up ahead wakes at the level
+   with nothing to press again, and the bar says why (action-facts.js reasonOf). A hero whose entry carries no skills is not gated here (a bare fixture, a peer the browser draws), as runeFor. */
+function shotLocked(h, id) {
+  const it = itemRow(h, id);
+  return !!(h && h.skills && it && it.reqSkill && it.reqLv > 1) && levelOf(h.skills, it.reqSkill) < it.reqLv;
 }
 
 /**

@@ -591,7 +591,7 @@ const mutants = [
     edits: [['src/core/action-rules.js', "  return !!hs && (hs.supplySource === 'store' || hs.onEmpty === 'switch');",
       "  return !!hs && (hs.supplySource === 'store' || (hs.onEmpty === 'switch' && !Object.keys(hs.bag || {}).some((id) => kindOf(id) === 'ammo' && leftOf(hs, id) > 0)));"]] },
   { name: 'a basic shot spends or buys a rune (8 g a shot)', case: 'basic-shot-never-buys-a-rune',
-    edits: [['src/core/hunt/abilities.js', "  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, undefined);", '  return resolveLine(h && h.hs, id);']] },
+    edits: [['src/core/hunt/abilities.js', "  return isRune(itemRow(h, id)) ? { why: 'none' } : shotLocked(h, id) ? { why: 'level' } : resolveLine(h && h.hs, id, undefined);", "  return shotLocked(h, id) ? { why: 'level' } : resolveLine(h && h.hs, id);"]] },
   { name: 'a spent rune line with no store row ends a default hunt ammo_out', case: 'spent-runes-never-end-a-default-hunt',
     edits: [['src/core/action-rules.js', "  if (kind === 'ammo' && storeAllowed(hs)) return false;\n", '']] },
   { name: 'an unaffordable slot marks the hunt gold_out while the bar is still walked', case: 'unaffordable-slot-waits',

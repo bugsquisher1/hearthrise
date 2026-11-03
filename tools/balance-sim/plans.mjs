@@ -341,6 +341,24 @@ export function buildPlan(name, axes, scale = 1) {
     out.push({ kind: 'career', id: 'C:tank', party: ['tank'], startLevel: 1, targetLevel: 40, maxHours: 45, chunkH: 1, chunkByLevel: [[1, 0.25], [8, 0.5], [12, 1]], seed: 0 });
     return out;
   }
+  if (name === 'b1102t') {
+    /* Tyler's party call: same-weapon friends in the Thicket lose about 6-15%, party gold stays below solo. Every way to fight alone, in twos, threes and fours of one weapon, and the mixed three. */
+    const coarse = { windowMs: 120000 };
+    for (const level of [5, 10]) {
+      for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) {
+        for (const n of [1, 2, 3, 4]) out.push({ ...cellOf({ ground: 'meadowbrook_thicket', party: Array(n).fill(s), level, hours: H(1), seeds: 2, x: 'T' }), ...coarse });
+      }
+      for (const party of [PARTIES.duo, PARTIES.trio, PARTIES.four]) out.push({ ...cellOf({ ground: 'meadowbrook_thicket', party, level, hours: H(1), seeds: 2, x: 'T' }), ...coarse });
+    }
+    return out;
+  }
+  if (name === 'b1102u') {
+    /* The cost of pulling same-weapon coin under solo: threes at 4 each and fours at 5 each, the one row narrower than Tyler's wider pull, against plan b1102t's alone cells. */
+    const coarse = { windowMs: 120000 };
+    for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const [n, density] of [[3, 4], [4, 5]]) out.push({ ...cellOf({ ground: 'meadowbrook_thicket', party: Array(n).fill(s), level: 10, density, hours: H(1), seeds: 2, x: 'U' }), ...coarse });
+    for (const [party, density] of [[PARTIES.trio, 4], [PARTIES.four, 5]]) out.push({ ...cellOf({ ground: 'meadowbrook_thicket', party, level: 10, density, hours: H(1), seeds: 2, x: 'U' }), ...coarse });
+    return out;
+  }
   if (name === 'b1102p') {
     /* The Party window's "about N% more Level XP each than alone": every ground x party size x class count, against the same heroes alone, at the default pull. */
     const coarse = { windowMs: 120000 };

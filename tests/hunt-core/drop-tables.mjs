@@ -591,12 +591,13 @@ function warrensFloor(M, P, R, print) {
    supply-basics.js BASIC_AMMO_PREMIUM). A crossbow takes a shield (Tyler 2026-10-23: a Ranger with guard, never a tank)
    and has no free bolt rung, so a store-fed one buys every shot. The Ranger wears the crossbow and shield of its Level
    (the Practice Crossbow and the Shop's Bronze-Rimmed under 15, Oak and the smiths' Ironbound under 30, then Willow and
-   the Coppercap: the fixture kit's shield steps) beside the measured party, its bag empty, its ammo slot on Iron Bolts.
+   the Coppercap: the fixture kit's shield steps) beside the measured party, its bag empty, its ammo slot on Iron Bolts, or
+   the same store price in Iron Arrows under Ranged 15, which Iron Bolts need (the engine holds that now, abilities.js shotLine).
    MEASURED (1 h, the fixture seed): at 2 g a shot the floors read -30% (Sewer 8) and -30% (Warrens 32), in range +13%
    (Sewer 20) and +4% (Warrens 50), the shots 96-180% of the coin share; at 1 g +32% / +39% at the floors and +125% /
    +107% in range, the shots 48% / 59% of coin in range. */
 const RANGER_AT = Object.freeze({ millrace_sewer: 20, coppercap_warrens: 50 });   // in range: printed, not floored
-const crossbowSet = (L, kit) => ({ ...kit, ammo: 'iron_bolts',
+const crossbowSet = (L, kit) => ({ ...kit, ammo: L < 15 ? 'iron_arrows' : 'iron_bolts',
   weapon: L < 15 ? 'practice_crossbow' : L < 30 ? 'oak_crossbow' : 'willow_crossbow',
   shield: L < 15 ? 'bronze_rimmed_shield' : L < 30 ? 'ironbound_shield' : 'coppercap_shield' });
 function rangerFloor(M, P, R, print) {
@@ -609,16 +610,16 @@ function rangerFloor(M, P, R, print) {
       const T = x.totals, h = x.playedMs / H || 1, coin = T.coin / h / PARTY.length, share = (T.coin + T.commons) / h / PARTY.length;
       const rk = x.heroes.find((k) => k.startsWith('ranger')), buys = Object.entries(T.buys[rk] || {});
       const gold = (rows) => rows.reduce((s, [id, q]) => s + q * ((P.basics[id] || {}).price || 0), 0) / h;
-      const bolts = buys.filter(([id]) => id === 'plain_iron_bolts'), bill = gold(buys), shots = gold(bolts), m = bill > 0 ? (share / bill - 1) * 100 : Infinity;
+      const bolts = buys.filter(([id]) => id === 'plain_iron_bolts' || id === 'plain_iron_arrows'), bill = gold(buys), shots = gold(bolts), m = bill > 0 ? (share / bill - 1) * 100 : Infinity;
       if (L === floor) {
         R.ok(x.playedMs >= H && T.falls === 0, 'ranger-floor: the ' + gid + ' party with a crossbow + shield Ranger at ' + L + ' ended after ' + (x.playedMs / 60000).toFixed(1) + ' min, ' + T.falls + ' death(s) (' + T.ended.join(', ') + ')');
-        R.ok(bolts.length > 0, 'ranger-floor: the crossbow Ranger at the ' + gid + ' floor bought no store Iron Bolts (' + JSON.stringify(T.buys[rk] || {}) + ')');
+        R.ok(bolts.length > 0, 'ranger-floor: the crossbow Ranger at the ' + gid + ' floor bought no store shots (' + JSON.stringify(T.buys[rk] || {}) + ')');
         R.ok(m >= MARGIN_MIN, 'ranger-floor: the crossbow + shield Ranger at the ' + gid + ' floor (' + L + ') earns ' + pct(m) + ' (share ' + Math.round(share) + ' g/h vs its bill ' + Math.round(bill) + ' g/h), under +' + MARGIN_MIN + '%');
       }
       out.push(gid + ' L' + L + (L === floor ? ' (floor)' : '') + ': shots ' + Math.round(shots) + ' g/h = ' + Math.round(100 * shots / coin) + '% of coin ' + Math.round(coin) + ', bill ' + Math.round(bill) + ', ' + pct(m));
     }
   }
-  if (print) console.log('  crossbow + shield Ranger on store Iron Bolts, party of 4, per hero per hour: ' + out.join(' ; '));
+  if (print) console.log('  crossbow + shield Ranger on store shots (Iron Arrows under 15, then Iron Bolts), party of 4, per hero per hour: ' + out.join(' ; '));
 }
 
 /* ── MUTANTS: every case and every play rule must bite ─────────────────── */

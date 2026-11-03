@@ -23,6 +23,7 @@ import { ITEMS } from '../data/items.js?v=0.2.82';
 import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.82';
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.82';
 import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.82';
+import { shortOf } from './item-lore.js?v=0.2.82';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -108,7 +109,11 @@ export function tableOf(tab, ctx) {
      worn weapon cannot shoot is listed LOCKED, as a spell is. */
   const roles = Object.keys(HUNT_ROLES);
   const ammo = Object.keys(ATTACK_KINDS).concat(Object.values(SUPPLIES).filter((r) => r.kind === 'ammo' && roles.some((k) => shootsItem(k, ITEMS[r.id]))).map((r) => r.id))
-    .map((id) => Object.assign(ammoRow(id, c.store, c.bag), { locked: !own(ATTACK_KINDS, id) && !shootsItem(c.role, ITEMS[id]) }));
+    .map((id) => {
+      /* under its skill it is locked too, and keeps its place on a bar for the level (abilities.js shotLine); `skills` is the server's */
+      const short = shortOf(id, c.skills, null);
+      return Object.assign(ammoRow(id, c.store, c.bag), { locked: !own(ATTACK_KINDS, id) && (!shootsItem(c.role, ITEMS[id]) || !!short), lockWhy: short ? short.text : null });
+    });
   const loaded = ammo.filter((r) => own(ATTACK_KINDS, r.action.id));
   runs.push({ kind: 'ammo', label: RUN_LABEL.ammo, cols: RUN_COLUMNS.ammo, rows: loaded.concat(ammo.filter((r) => !own(ATTACK_KINDS, r.action.id)).sort((a, b) => (a.locked - b.locked) || byValue(a, b))) });
   return { runs, empty: null };

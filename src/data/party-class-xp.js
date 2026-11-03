@@ -58,7 +58,7 @@ export const PARTY_CLASS_XP = Object.freeze({
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 export const PARTY_VS_ALONE = Object.freeze({
   mill_cellar: said([-5, 10], [-5, 5, 15], [-20, 5, 5, 25]),
-  meadowbrook_thicket: said([-10, 10], [-10, 5, 20], [-10, 0, 5, 20]),
+  meadowbrook_thicket: said([-10, 10], [-10, 5, 20], [-15, 0, 5, 20]),
   wickstead: said([-10, 5], [-10, 5, 10], [-15, 5, 5, 20]),
   mosslight_glade: said([-10, 5], [-15, 5, 15], [-10, 5, 10, 20]),
   millrace_sewer: said([-10, 15], [-15, 10, 20], [-20, 10, 10, 20]),

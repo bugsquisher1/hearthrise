@@ -218,6 +218,12 @@ export function needOf(id, skills, level) {
   return { text: needWords(it.reqSkill, it.reqLv, have), short: have !== null && have < it.reqLv };
 }
 
+/** needOf when the hero is under the requirement, else null: nothing is claimed before the server has sent the number. */
+export function shortOf(id, skills, level) {
+  const need = needOf(id, skills, level);
+  return need && need.short ? need : null;
+}
+
 /** The item's description line, or ''. */
 export function flavourOf(id) {
   return ITEM_DESC[id] || DRINK_DESC[id] || '';

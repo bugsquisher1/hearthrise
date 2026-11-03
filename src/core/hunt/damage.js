@@ -236,6 +236,9 @@ function blow(inst, sc, u, h, t, price, sharePm) {
     vs ? Number(vs.critChance) || 0 : 0);
 }
 
+/* Why a shot's line cannot pay, in conditions.js WAIT_WHY words. */
+const shotWait = (l) => (l.why === 'gold_short' || l.why === 'level' ? l.why : 'no_stock');
+
 /* The attack slot a hero's swing takes now: { pick: { ammo (an item id, or null =
    nothing to pay), price (the item the blow is priced with: blow above), size, aim,
    mana? + magicXpMult? (a caster's basic) }, rule, mask, label } or null. An item slot
@@ -266,7 +269,7 @@ function pickShot(inst, u, h, t, sc) {
       const w = shoots ? (own ? ownShotLine(h, h.ammo) : shotLine(h, h.ammo)) : null;
       if (w && (!w.id || w.why)) {
         if (!own && w.why === 'gold_short') wornShort = true;
-        return { why: w.why === 'gold_short' ? 'gold_short' : 'no_stock' };
+        return { why: shotWait(w) };
       }
       return { ammo: shoots ? h.ammo : null, price: shoots ? h.ammo : undefined, size: 1, aim: t };
     }
@@ -276,7 +279,7 @@ function pickShot(inst, u, h, t, sc) {
        one fires. A bow loosed Copper Whetstones (Melee ammo), one a shot, from a slot ahead of its arrows. */
     if (!shootsItem(u.role, itemRow(h, id))) return null;
     const l = own ? ownShotLine(h, id) : shotLine(h, id);
-    if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };
+    if (!l.id || l.why) return { why: shotWait(l) };
     const size = footprintOf(slot, h);
     /* A ONE-TARGET item shoots the swing's own target, as the loaded ammo does (a pull's first shot at a pack
        that holds no target yet fell to the loaded ammo); an area item takes its best aim. */

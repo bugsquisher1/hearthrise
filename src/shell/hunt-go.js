@@ -24,7 +24,7 @@
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
 import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.82';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.82';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf } from '../session/item-sections.js?v=0.2.82';
 import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.82';
 import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.82';
 import { ITEMS } from '../data/items.js?v=0.2.82';
@@ -35,6 +35,7 @@ import { CONSUMABLES } from '../data/consumables.js?v=0.2.82';
 import { ABILITIES } from '../data/abilities.js?v=0.2.82';
 import { storeOf, storeName } from './bar-draft.js?v=0.2.82';
 import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.82';
+import { shortOf } from './item-lore.js?v=0.2.82';
 import { whole, gold } from '../render/format.js?v=0.2.82';
 
 /* How many of the bar's actions a setup line shows. */
@@ -157,13 +158,16 @@ function runeLine(parts, carried) {
 /* WHAT A SHOOTER WILL SPEND, IN THE ENGINE'S ORDER (conditions.js attackOrder, damage.js pickShot; Andy #63, #74): the bar's
    ammo slots with conditions, then the worn ammo, then the bar's other ammo, each on what the hero carries; only then, in the
    same order, the store. A free stack with no condition never runs out, so nothing behind it ever flies, the store included.
-   { order: [ids], own: [{ id, n, free }], store: [storeOf rows] }. */
-function shotPlan(s, worn, carried) {
+   A slot's ammo the hero's skill can't use yet is passed over (abilities.js shotLine) and listed in `locked` with its words.
+   { order: [ids], own: [{ id, n, free }], store: [storeOf rows], locked: [{ id, text }] }. */
+function shotPlan(s, worn, carried, skills) {
   const rows = s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'attack_with_item').map((sl) => ({ rule: sl.id, slot: sl }));
-  const order = [];
+  const order = [], locked = [];
   for (const r of attackOrder(rows.concat([DEFAULT_ATTACK_ROW]))) {
     const id = r.slot.action.id === 'loaded' ? worn : r.slot.action.id;
     if (!id || !shootsItem(s.role, ITEMS[id])) continue;
+    const short = shortOf(id, skills, null);
+    if (short) { if (!locked.some((l) => l.id === id)) locked.push({ id, text: short.text }); continue; }
     const ruled = r.slot.conditions.length > 0, seen = order.find((o) => o.id === id);
     if (seen) seen.ruled = seen.ruled && ruled;
     else order.push({ id, ruled });
@@ -184,32 +188,34 @@ function shotPlan(s, worn, carried) {
       if (st && !o.ruled) break;
     }
   }
-  return { order: order.map((o) => o.id), own, store };
+  return { order: order.map((o) => o.id), own, store, locked };
 }
 
 /* THE AMMO LINE: { id, text, short, pays }, or null for a hero whose weapon shoots nothing. `short` when nothing can be shot:
    the bar names no shot for a bow that shoots what is worn, so this line is the only warning of a hero that will not attack at
    all (first-hour play 2026-10-31). The free rung shows no count: "49 of yours" read as 49 shots left (designer 2026-10-31). A
    paid stack no shot reaches is said when the hero would otherwise shoot the free rung or pay the store (Andy #74: 27,300
-   Mithril Arrows in the bag behind an empty worn slot and free Bronze). */
+   Mithril Arrows in the bag behind an empty worn slot and free Bronze); a stack the hero's skill can't use yet is never offered. */
 function shotLine(s, cs, carried) {
   if (!s.role || !shootsItem(s.role, { slot: 'ammo', reqSkill: 'ranged' })) return null;
   const worn = (equipmentOf(cs) || {}).ammo || null;
-  const plan = shotPlan(s, worn, carried);
+  const skills = skillsOf(cs);
+  const plan = shotPlan(s, worn, carried, skills);
+  const waiting = plan.locked.map((l) => ' ' + itemName(l.id) + ' wait on your bar. ' + l.text + '.').join('');
   const dry = !!worn && shootsItem(s.role, ITEMS[worn]) && !((carried.find((r) => r.id === worn) || {}).qty > 0) ? 'no ' + itemName(worn) + ' left' : null;
   if (!plan.own.length && !plan.store.length) {
-    const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]));
+    const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && !shortOf(r.id, skills, null));
     return { id: 'ammo', text: 'Ammo: ' + (dry || 'nothing loaded') + ', so your weapon can\'t shoot and your hero won\'t attack. '
-      + (spare ? 'Open your bag, press ' + itemName(spare.id) + ', then Put on the bar.' : 'Press an empty slot on your bar, then Ammo, and pick a shot from the store.'), short: true, pays: false };
+      + (spare ? 'Open your bag, press ' + itemName(spare.id) + ', then Put on the bar.' : 'Press an empty slot on your bar, then Ammo, and pick a shot from the store.') + waiting, short: true, pays: false };
   }
   const parts = (dry ? [dry] : [])
     .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id) + ' of yours') + (o.id === worn ? (o.free ? ' loaded' : ', loaded') : '')))
     .concat(plan.store.map((st) => st.name + ' from the store, ' + st.price + ' gp each'));
   const idle = plan.own.length && !plan.own[0].free ? []
-    : carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot(ITEMS[r.id]) > 0 && !plan.order.includes(r.id));
+    : carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot(ITEMS[r.id]) > 0 && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));
   const spare = idle.reduce((best, r) => (!best || r.qty > best.qty ? r : best), null);
   return { id: 'ammo', text: 'Ammo: ' + parts.join(', then ') + '.' + (plan.own.some((o) => o.free) ? ' They never run out.' : '')
-    + (spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : ''), short: false, pays: plan.store.length > 0 };
+    + (spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '') + waiting, short: false, pays: plan.store.length > 0 };
 }
 
 /** The hunt screen's warning: a hero hunting with a weapon that can shoot nothing won't attack at all (the panel 2026-11-01

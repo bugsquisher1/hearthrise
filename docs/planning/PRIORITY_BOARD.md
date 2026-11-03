@@ -30,6 +30,157 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-02 Harder monsters: the Glade hits more often, BUILT (designer, lane/b-rulings-1102): MEASURED on the built rows, one engine batch, staged
+**Tyler's calls:** A, then "drop the 1.25x attack, keep Glade accuracy 0.80 at today's attack". With x1.25 a floor hero in helm and body earned 17-35% under its store bill on the rule's own count (coin and commons), below the +25% minimum; my first A table had counted every non-rare drop and read +151%. Cellar, Thicket, Wickstead, the Sewer and the Warrens are unchanged. Rows: `monsters.js` `baseAcc: 0.8` on the Glade's six at their own attack; `combat.js monsterAccuracy` reads it. Neither reaches SQL.
+
+**The profit rule at the floor, its own count** (Level 16, coin + commons over the store bill, per hour, the six seeds `forest-cave` plays, 1 h each, `tests/hunt-core/fixtures/play-ground.mjs` kits; 0 deaths in all 66 h):
+| Way to fight | Helm + body of its line | Helm, body, legs, boots |
+|---|---|---|
+| Shield tank | +52 to +88% (median +65), net 1,282 g/h | +187 to +259% (median +236), net 2,266 |
+| Hammer | +125 to +178% (median +135), net 2,463 | Iron plate +336 to +714% (median +415), net 3,397. The fixture's own full set dresses a hammer in cloth: +8 to +35% (median +18), net 677 |
+| Bow | +1,714% and up, net 3,932 | +685% and up, net 4,071 |
+| Wand | +142 to +233% (median +198), net 2,202 | +348 to +550% (median +389), net 3,682 |
+| Staff | +620% and up, net 1,899 | +2,563% and up, net 3,488 |
+**The hero who really walks in** (shield tank, nobody visited a smith): practice sword and shield, Iron body and legs from Wickstead, Bronze helm and boots from the Thicket: +46 to +138% (median +83), net 1,373, 0 deaths. Still in the Thicket's four Bronze: +3 to +38% (median +33), net 753, 0 deaths, one seed under +25: under-geared, and it reads so. The rule holds for every way to fight in its own armor. Tyler's +52 to +76 was on four of these six seeds; the floor is the same.
+
+**`glade-between` went red and is re-ruled, not loosened** (`forest-cave`). It asked the Glade's helm-and-body hero to net more than the Sewer's party at its floor: 1,282 against 2,024. That hero is thinner than anyone who reaches Level 16 (a fresh hero holds 4 of 4 slots after 6 h in the Thicket; Wickstead and the Glade drop Iron about hourly), and armor is what the harder floor asks for. Its step is now measured in four plate pieces, as the Warrens' already is: 2,024 → 2,266 → 3,469 g/h, 40k → 55k → 194k XP/h. The profit rule stays on the thinner kit. New mutants: the Glade's coin halved, and the x1.25 attack Tyler dropped.
+
+**Bear Claw, measured wrong and fixed.** `drop-tables` big-pull counted a lone hero's bear at full yield and read 11-19 h; the real settle pays 0.55 of every chance (48.5 bears/h at pull 3, 28.6 at pull 6, 0.08 pelts a bear over 16 h), so the Claw came every 20-37 h. **Now 0.33%: 11.4 h at pull 3, 19.3 h at pull 6.** The guard reads the real yield, with the old rate as a mutant. The Keep's 5 pelts asked within 2 played hours then read 2.2 h at pull 6, so the Pelt goes 16% → 18%: 1.0 and 1.8 h. **The Houndskin Cloak moved from Rook to the Glade Poacher** (`loot-structure`: a reveal is its monster's tier or one above, Rook is tier 3 and the Cloak tier 2): 0.18% on 65 kills/h at the floor, about one every 15.5 h. Fits: he's the poacher who skins hounds.
+
+**The built rows** (2 h x 2 seeds; the Glade):
+| Per hero | Before: typical / worst tenth, bill | After |
+|---|---|---|
+| L16 tank | 94 / 83, 20 | 88 / 67, 590 |
+| L16 hammer | 94 / 85, 180 | 89 / 75, 369 |
+| L16 bow | 99 / 83, 304 | 95 / 77, 430 |
+| L16 mage | 100 / 87, 459 | 97 / 81, 600 |
+| L16 healer | 95 / 80, 14 | 92 / 70, 52 |
+| L24 five ways | 93-100 | 93-100 |
+| L31 five ways | 100 | 96-100 |
+XP/h unmoved. Twelve-hour hunts at the floor (tank, healer; 48 h each): 0 deaths, 0 close calls, typical 91-93%. **Plainly: the floor is now felt a little (94 → 88-89% for melee), not Normal.** Normal lives at the pull, on the built rows (plan `b1102f` pressed cells, 1 h x 2 seeds, Level kit, typical lowest HP; net g/h):
+| | Tank, 4 each | Tank, 8 each | Hammer, 4 each | Hammer, 8 each | Mage, 4 each | Mage, 8 each |
+|---|---|---|---|---|---|---|
+| L16 | **59**, +1,247 | 54, -9,614 | **67**, +4,879 | 54, -6,610 | 86, +7,182 | **60**, +6,212 |
+| L24 | **71**, +4,876 | 56, -3,253 | **79**, +8,144 | 57, +20 | 92, +9,222 | **79**, +8,940 |
+| L31 | 91, +6,894 | **70**, +7,178 | 90, +10,266 | **71**, +11,458 | 98, +10,226 | 94, +11,320 |
+0 deaths in 36 h; one close call (mage, L16 at 8). So the 60-80% is real at 4 each from about Level 16-24 and at 8 each by 31, and 8 each too early loses gold: the decision the pull card names.
+**Level curve:** re-measured on these rows (`pace` 8 lives, `ladder` 120 cells): L10 6.3 h, L25 35.0 h, L50 172.6 h; `level-pace.json` re-pinned, `level-curve` green, no re-fit.
+**Gap live:** L7 alone in the Glade, tank net -3,032, hammer +56, mage -1,153; XP 47-69k against the Thicket's 21-28k. L7 four: 65k XP, net 3,204 against the Thicket's 33k and 2,474: a party pushes for XP, as Tyler chose.
+**Lives:** tank L25 41.2 h, as before. A new four: L8 2.0 h (was 5.4), L10 4.6 h (was 8), L15 11.4 h (was 14.8): the Thicket row.
+**`hunt-sessions-settle` NO-FIGHT, found and fixed, test only:** no game bug. A player door's catch-up stops at its measured engine budget (`hunt-settle.js settleHunt`, 800 ms of wall clock): on GitHub five door calls landed the owed slices, on a loaded PC one 2-min slice a call, so the arm's five cuts stopped at swing 247 of 300 and it read "ended null". A real door is the hunt re-read every 16 s, and the tick takes the rest. The arm now pins the door to the busy case (`engineBudget(0)`) and calls it as often as that takes, so its answer no longer depends on the machine.
+
+### 2026-11-03 A bar slot naming ammo the hero can't use yet (designer, lane/b-rulings-1102): BUILT, played on the local world
+Supplies keep their skill (Tyler 10-24); the equip gate held that for the ammo slot and a bar slot walked round it, so a Ranged 42 hero shot and bought Mithril (Ranged 45). **Ruled: the slot stays and waits, never refused.** The engine passes over it, carried or from the store (`abilities.js shotLine`, the one resolver swing and shot spell share), the next slot fires, and it wakes at the level with nothing to press (first principle). The bar strikes it with the lock and says "Needs Ranged 45 — you have 42. This slot waits until then, and your next ammo fires."; Configure action says the same, its Ammo tab locks the row and sorts it last; Hunt prep and Before you go never say it flies or offer it as a spare. With nothing else to shoot the hero ends `no_fight`, and Hunt prep warns first. **Measured** (12 min alone in the Glade, real settle): Ranged 42: 208 shots, all Bronze, Precision Shot 77, Mithril spent 0; Ranged 45: 292 Mithril; store at 42: 0 bought; store at 45: 281; the same bar woke after 13 shots when Ranged reached 45. Viewed: 14 shots, every commit matching. **Played** (`tools/qa/local-world.mjs`, a fresh hero, practice bow, Barbed Arrows at Ranged 1): row locked, words shown, slot struck, 10 min in the Cellar shot Bronze, bought no Barbed, no page errors.
+
+**The search.** Plans `b1102a` to `b1102e` (what-ifs on the real settle, 2-4 h a cell, seeds 0-1; 12 h hunts on the last candidate): every monster's atk x1.5-3, base accuracy 0.65-0.80, HP x3-5, by ground, floor to top, five ways to fight, Level kit and practice set, as built, 4 and 8 each. **Atk and accuracy do not move XP/h, so no Level curve re-fit**; HP does (-60% at x5).
+
+**What could not all hold (why he was asked).** His 60-80% in band against his other rules:
+| Pushed to reach it | Typical lowest HP | What breaks |
+|---|---|---|
+| Glade floor, atk x2.5 | tank 69%, hammer 72%, **bow 89%, mage 93%** | Tank's bill 7,580 g/h on 4,409 earned: loses gold. Bow and mage die (1-2 in 2 h), healer 12 close calls |
+| Thicket, atk x3 | L5 tank 92%, hammer 92%, **others 95-100%** | Bow 4 deaths in 2 h, healer 1 and 27 close calls: the solo healer rule |
+| Thicket, any accuracy step everywhere (0.80, atk x1.25) | L5 practice tank 86% | Practice tank 2 deaths, 17 close calls, net about 100 g/h: the first hour |
+| Thicket and Wickstead, fights 3-5x longer (HP x5, atk x2, accuracy 0.80) | L10 tank 75%, hammer 84% | XP -60%, gold -60%, bill above income, fresh L5 hero 50-92 deaths in 2 h |
+Two causes. A kiter is rarely reached, so its typical stays 90-100% whatever the number, and when it is reached the blow kills: deaths come long before 80%. On the first grounds a pack of 2 dies in one or two swings, so there is nothing to feel without a blow big enough to kill a fresh hero.
+
+**What every rule allows** (accuracy step rather than bigger blows, because blows make the spikes: Glade floor at atk x2 gives bow 6 close calls in 2 h; accuracy 0.80 + atk x1.25 gives 0):
+| Where, numbers | Melee typical, floor → top | Light armor | Bill floor (tank) | Deaths, close calls | Pull |
+|---|---|---|---|---|---|
+| Today, Glade | 94 → 100 | 95-100 | 20 g/h | 0, 0 | 8 each at L24 pays more gold |
+| **A: Glade accuracy 0.80, atk x1.25** (recommended) | **83-86 → 95** | 87-97 | 1,790, income 4,499 (+151%) | 0, 0 in 2-4 h a cell | L31: 4 each nets more, 8 each 147k XP at about equal gold. L24: 4 each more XP, less gold. L16 at 8: 1 death, 18 close calls in 2 h, loses gold |
+| B: Glade accuracy 0.80, atk x1.5 | **80-82 → 93** | 84-96 | 2,890, income 3,946 (+37%) | 0, 0 as built | 4 each loses gold until about L31; L16 at 8: 40 deaths in 2 h. "Bigger pull pays once held" fails for most of the band |
+| Wickstead accuracy 0.65, atk x1.25 | 94 → 98 | 98-100 | 10 | 0; practice hammer 1 close call in 2 h | |
+| Cellar, Thicket | unchanged: first hour and solo healer | | | | |
+**So 60-80% as built is out of reach everywhere under his other rules.** At the pull, Normal is real: under A, L24 at 4 each 60-71%, L31 at 8 each 59%.
+
+**Also built:** level gap (`underFloorAtkPm` 50), "before bonuses" fix, Thicket `groupFit: both`, 4 seats, pull `[0,4,5,6]`, table; Houndskin Cloak on the Glade Poacher; Wickstead Rares wear at 15; Tamsin's Glade task pays Steel; measured party line (`PARTY_VS_ALONE`); per-party drop words; pull card. **`xp-share.js:59` floor: left alone.** It costs 5-10% only on Cellar shares, the curve is fitted over it, and fixing it moves Level 1-5 pace for nothing a player reads. **Proposal 1, re-ruled:** build the words now, a card at Level 10 naming + and its price, since harder monsters make a big pull a real risk. The "biggest pull held" readout waits for real picks.
+
+**Tyler's party call, measured at the new Thicket row** (pull `[0,4,5,6]`, table `[980,1290] [970,1180,1310] [970,1210,1260,1300]`; plan `b1102t`, 1 h x 2 seeds, Level kit, per head against the same heroes alone, Level 5 / Level 10):
+| Level XP | Two | Three | Four |
+|---|---|---|---|
+| Shields | 0.86 / 0.85 | 0.88 / 0.87 | **0.81 / 0.79** |
+| Hammers | 0.89 / 0.89 | 0.90 / 0.91 | 0.83 / 0.84 |
+| Bows | 0.89 / 0.91 | 0.90 / 0.91 | 0.85 / 0.85 |
+| Wands | 0.96 / 0.96 | 1.00 / 1.00 | 0.97 / 0.97 |
+| Staffs | 0.87 / 0.89 | 0.89 / 0.90 | 0.82 / 0.83 |
+| Mean of the five | 0.89 / 0.90 | 0.91 / 0.92 | 0.86 / 0.86 |
+| Mixed (shield, staff, then bow, then wand) | 1.10 / 1.11 | 1.18 / 1.18 | 1.20 / 1.21 |
+**So "about 6-15%" holds on average at every size (9-14%) and for bows; it misses at the edges:** four shields lose 19-21%, four hammers or staffs 16-18%, wands 0-4%. One table row can't close a 20-point gap between weapons. The Party window says "about 10%" for two and three of a class, "about 15%" for four. **Party coin per head:** mixed 0.90-0.98, every same-weapon party but wands 0.88-0.99: below solo. **Wand-only parties are 1.05-1.12 on coin** (net 0.89-1.12, their bill up 27-43%), breaking "party gold below solo" in that one case. **Why it stands:** the only lever is the pull, and one step narrower (`[0,4,4,5]`, plan `b1102u`, L10) takes wands to 0.86-0.95 coin but drops the mixed three to 1.00 XP, losing its bonus, and same-weapon friends to 0.71-0.87. Rare in play, Level 5-15 gold, watch it in the beta. 0 deaths in all 46 cells; a mixed party's tank stays at 91-94%.
+
+
+### 2026-11-01 What to chase from Level 10 to 30, and the panels' balance claims (designer, lane/b-balance-1120): MEASURED on the real engine at v0.2.82, NOTHING SHIPPED. **Three choices for Tyler below**
+**Method.** `tools/balance-sim` plans `b1120`, `b1120w`, `b1120g`, `b1120f` (real settle, real data; every candidate is a what-if in memory, on the same dice as today): 237 cells and 91 candidate cells, 1,694 hero-hours at today's numbers, seeds 0-2, 8 lives. Tables: `tools/balance-sim/b1120-summary.json`, printed by `b1120-table.mjs`. Wage: `tools/qa/craft-economy.mjs` on the local world, real settle and real sale, 2 samples, every row to level 60, the tax taken as the purse's whole move. Cells are small (usually 4 hero-hours), so about 3% either way on XP and far more on gold in one cell. **Store supplies only**, so a bill is the top of its range. **Not run:** live vitals (the brief's 3 deaths in 29,800 fights is taken as given), tier 2 to 3 weapon step at Level 31, a tank or bow life at the full box, a real party on live, 12 h stamina patterns, Level 30+ lives, the market with real sellers.
+
+**The claims**
+| Claim | Measured (per head per hour) | Target | Verdict |
+|---|---|---|---|
+| 1. Above your level pays more, no risk | L7 mixed four, Glade (9 under): 65.8k XP, net 3,844, 0 deaths, 0 close calls in 32 h. Thicket: 28.6k, 2,014. Alone in Level kit: tank 47.3k / 2,579 against 21.5k / 2,605; hammer 69.9k / 4,283 against 28.1k / 3,102; mage 64.3k / 2,457 against 28.2k / 2,812 | 10-18: higher XP, **gold loss, more deaths** | **HOLDS.** XP x2.2-2.5, gold 0.87-1.91x. It bites only in the practice set (net -1,112 to -4,871) or at 8 each (tank -3,748, hammer -2,274) and on the Warrens (L25 alone: tank -16,694, hammer -22,424, on the guide food; the veteran's -1,591 ate Salted Shrimp) |
+| | Whole lives: from L7 straight to the Glade, L25 in 21.5 h a four, 29.5 h a tank (advised: tank 41.2 h, hammer 33.5 h; target 36 h) | | Costs the curve 20-30%, not 2x |
+| 2. No danger in band | Typical lowest HP, Level kit, as built: **87-100%**, 0 deaths in 170 h (95% bound 22 per 1,000 h: this sample cannot prove 1). 48 h each of 12 h hunts: healer at Thicket and Glade floors, hammer at 8 each: 0 deaths, 0 close calls | Normal 60-80%, at most 1 per 1,000 h | **HOLDS as built, above Easy.** Hard targets met. At 8 each in Level kit: 58-93%, Normal to Hard at the Glade floor, bills to 6,481 g/h. Practice set at 8 each: 153 deaths in 80 h, nearly all the Glade |
+| 3. Gold piles up | Unspent, selling all loot at the shop: hour 12 39-47k, hour 20 68-82k, hour 30 114-142k (veteran: 61k at L25, spending some). Bill: tank 10 g in 45 h, hammer 1.3% of income, mage 7% | no target (10-25 §12 later) | **PARTLY.** Prices exist, wants don't. See rooms below |
+| 4. Crafting against hunting (owed W-TAX) | Rock to shop, played, after tax: Copper Bar 1,250; Iron Bar 1,800 → **1,530**; Oak Plank 1,638; Herring 1,162; Trout 1,468; Willow Plank 2,102; Iron Hatchets 2,463 → 1,888. Hunting, played: Cellar 1,959, Thicket 2,620, Wickstead 3,652, Glade 4,856 tank, 7,080 mage | under hunting; each step pays more | **FITS.** Was about 70,900 on Iron Bars. 0.40-0.64 of hunting at the same stage, on hours that are free (stamina refills). No row beats hunting; `craft-wages` exit 0. No change |
+| 5a. Pressing + in a party | Mixed four against the same four alone: as built 1.18-1.20 (duo 1.04-1.13). At 8 each against alone at 8: 1.08 Wickstead, 1.12 Glade | 1.15-1.25, duo 1.05-1.15 | Default **ON TARGET** (one duo 0.01 short; a four with a hammer for the healer 1.06-1.19). Pressed **MISSES** by 0.03-0.07, known 11-01 |
+| 5b. Same-weapon friends 3-12% less | Same class, as built: Glade 0.88-0.93, Sewer 0.90-0.92, Wickstead 0.83-0.95, **Thicket 0.69-0.84** | never above 1.00 | Line holds. **The claim understates the Thicket** |
+| 5c. Weapon upgrades flat | Practice to first rung, Glade L16 (where that hero is sent), XP as built / at 8: sword and shield +6 / +10%, hammer +6 / +5%, bow +7 / +8%, wand +3 / +4% | +5-8% | **Hammer does not miss on the right ground** (0 to +4% at Wickstead, one-hit kills). Wand 1-2 points short, inside the dice. No change. Armor step: 14-23% less taken (mage 39% as built), and at 8 each it cuts the bill by a third (tank 5,700 → 3,793, net x7) |
+
+**Level curve holds on the advised path:** L10 5.8-7.4 h (target 6), L25 33.5 h hammer, 41.2 h tank (target 36). A four: L10 8 h, L20 22.4 h.
+
+**THE TOP QUESTION: what does a hero chase from Level 10 to 30?** The veteran's dead stretches, checked:
+| Veteran said | Engine or data says | Verdict |
+|---|---|---|
+| XP flat L10-13 at 57-59k | Tank at the Glade: L7 47.3k, L12 49.5k, L16 55.6k, L24 60.4k | True. 17 Levels are worth +28% |
+| Gear unchanged hour 5-21 | Wearable rows: 30 at L15, 1 at L16, 2 at L18 (all Wickstead 0.3% Rares), Packlord Band L22 and Houndskin Cloak L28 with **no source on any open ground**, then Steel at L30. The Glade drops nothing wearable that's new at L16-29: its Scarce is L15, its only wearable Rares are three L30 helmets | **True: no ground offers a new piece from L18 to L30** |
+| 40+ Iron Platebodies, Equip upgrades picked nothing | The planner on a Bronze set at L25 picks all four Iron pieces. Not reproduced; world not played. If he wore Iron already, the rest of his read stands: more Iron is only shop gold | Not reproduced |
+| Gold unspent from hour 8 | Under 40,000 g the home and hero ladders sum to 52,300 g, passed at about hour 13-16 with one hero. Past that, the 40,000 g slot, and rooms a hunter has no reason to want | True for a hunter |
+| Coppercap the only next ground, loses gold | Glade to 31, Warrens alone from 45; L25 alone loses as above. A four at L25: 153k, net +3,391 | True alone. A party's real step: 1.75x XP at 0.64x gold, the waste hunt as ruled |
+| Density + style +110%, hidden | Glade L16: tank 55.6k, at 8 71.3k; axes at 8 123k (his 126k); hammer 128k; wand 130k | **True.** Pressed from Level 1: L25 in 17.2 h, 185k gold by hour 20, 0 deaths. Against the target that's 2x |
+
+**The chase already exists and nobody can see it: how big a pull you can hold.** At L16 in the Glade, 8 each loses gold (tank net 4,294 → 2,730; 58% typical); at L24 it pays (4,461 → 6,518; 79%). Armor moves that line: Iron against Bronze at 8 each is net x4.6 to x7. So Level, gear, food and style all feed one number the player chooses, and it answers "why does this piece matter". It is on one stepper, with no goal and no readout.
+
+**Ranked proposals, by effect on Level 10-30**
+| # | Change | Rows | Who rules | Evidence and cost |
+|---|---|---|---|---|
+| 1 | **Name the pull as the goal.** A card at Level 10: what + does, what it costs, "Glade: can you hold 8?". The Hunts card shows the biggest pull this hero has held and its gold per hour | Coach row in `hunt-tutorial.js`; `hunt_bests` gains the pull (lane C, small); art-director | Designer, after choice 1 | Above. **Raises pace for everyone who reads it**, so choice 1 comes first |
+| 2 | **Give L18-30 gear to want, from rows that exist.** (a) Rook the Poacher drops Houndskin Cloak (L28) at .0038, as his helmets. (b) Wickstead's Rares wear at 12-14: Wolfbone Torc 16 → 12, Fang Studs and Banded Signet 18 → 14. (c) **Tamsin's next pick:** after a ground's Scarce pieces, the next tier's piece in the chosen weight, once each, so Glade tasks build a Steel set ("3 of 6") to wear at 30 | (a)(b) `monsters.js`, `slot-ladders.js`/`items.js`; (c) `gen-tally-tasks`, generated catalogue (lane C). No engine | Designer | Steel sells at 0.14 of book (210 g a platebody), so no faucet; 3 tasks paid a day caps it. Lone heroes get Steel a party ground otherwise owns. Packlord Band stays the champion's (one source). Sample first; run `drop-tables` value cap |
+| 3 | **Send a new party to the Thicket at 5.** `meadowbrook_thicket.groupFit: 'solo'` → `'both'`, and 4 `start` tiles | `hunt-grounds.js` | Designer (advice only; 10-21 names the Sewer the first party ground and that stays at 8) | A four sits in the Cellar until 8: L8 at 5.4 h against 2.0-2.7 h alone; Thicket 28.6k against about 9k. About 3 h saved inside every party's first 6. Walk-through below |
+| 4 | **The level-gap term:** a monster's atk x (1 + 5% per Level the hero is under the floor) | **ENGINE** (a data row plus `damage.js`): batch it | Designer: it is Tyler's 10-18 made true | L7 alone in the Glade at 5%: tank net 2,579 → -366, mage 2,457 → -652, hammer 4,283 → 2,326 (8%: 34). XP unmoved, 0 deaths in 12 h; 12% brings close calls. In band nothing moves. **Does not stop a mixed four:** 3,844 → 2,621 at 12%, healer pays little. Hence choice 3. Sample is 4-16 h a cell |
+| 5 | **Words that tell the truth** (friends' test, below) | `party-roster.js:79`, `hunt-detail.js:52,185,198`, a measured `vsAlone` row in `party-class-xp.js` | Designer | Copy only |
+| 6 | **Thicket party pull** `[0,3,3,4]` → `[0,4,5,6]`, table 2 heroes `[1000,1290]`, 4 heroes `[1000,…,1300]` | `hunt-grounds.js`, `party-class-xp.js` | Choice 2 | Same class 0.69-0.84 → 0.85-0.94; mixed 1.09 and 1.20 by arithmetic on the measured ratio, not played at the new row. Trio unmeasured. Moves the edge bundle; server cost unmeasured, run `settle-budget`. Not on Wickstead or the Glade: at 6 each a bow four is 1.03-1.06, over the line |
+
+**Tried and rejected, on the same dice:** monster HP x2: XP -19 to -38% as built, net -24 to -47%, typical HP still 95-100% on the first grounds; it lifts the weapon step only to +3-7% and needs a Level curve re-fit. HP x2 + blows x1.5: first grounds 92-96%, Glade floor 82-87%, net -25 to -67%, at 8 each the bill eats the hunt. A lone default pull of 4: XP +11 to +70%, typical HP still 91-100%, so a bigger default adds pace and no danger.
+
+**Hask's Ford: STAYS ON HOLD for the invite; first content lane after it.** Its band is 45-60, so it answers nothing a veteran quits over at hour 22-30, and the branch is 12 releases behind with its own Level curve re-fit. It should come off when the first beta hero passes Level 35, or at the end of beta week one: a lone hero has no new ground from 32 to 45, a pressed hammer is Level 32 at hour 28.6, and a two-week beta at 12 h a day is 168 h. The Level 32-45 gap stays open either way.
+
+**Rooms, measured.** Kitchen rung 1's 40,000 g is hour 11-12 of hunting, spending nothing (the 11-01 table said 18 h; careers sell all their loot). Tax saved doing both halves, played: Herring 248, Trout 337, Iron 270 (Forge owned: 1,530 → 1,800 g/h, confirmed), Oak 289, Willow 371, Hatchets 575 g/h. At 12 h a day: Kitchen 10-13 days, Forge 11-23, Workshop 17-22, Library about 9 (its both-halves rate computed, not played). **Ruling: keep every first rung.** It's what Tyler asked for, and rooms are the long goal for someone who crafts. Garden stays reachable: 20 Wheat is 30% off the Cellar's Giant Rat. A hunter should never want a Kitchen, and that's fine; the fix is the words: Deed I's "Opens the Garden, the Kitchen" reads as a mis-priced reward, so say what each costs and who it's for. **The whole visible ladder is about 2.8M g:** one hero at the Glade 36-47 days of 12 h, a four-hero account 9-12 days. No recurring sink exists until Level 30 Blessings beyond food and stamina refills (at L25, 2,900 g for 4 h: good value at 5-6k g/h, excluded from the baseline). Imbuing is the sink and gear chase the game promises and hasn't built (`imbuements.js`): after the invite, and not a tuning job. **Watch four-hero purses in the beta.**
+
+**The friends' party test (blind, v0.2.82), confound removed.** Mill Cellar, 3 seeds of 1 h, three heroes each, L3 and L6:
+| | Level XP/h a hero | Gold net |
+|---|---|---|
+| Mixed three (tank, bow, healer), default pull 5 | 8,327-8,505 (his 8,164-8,356) | 1,779-1,876 |
+| One class, same pull, same kills | 6,645-6,675 | 1,808-1,840 |
+| Same heroes alone, as built | tank 7,202-7,304, bow 7,473-7,607, healer 6,216-6,929 | 1,673-2,003 |
+| Same heroes alone at 5 each | 9,525-12,978 | 2,509-3,274 |
+(1) **The bonus is real and meets the ruling:** the mean against those heroes alone is 1.17-1.20 (§5 trio 1.10-1.20). His +11%, +14% and +37% are one even share against three different lone speeds. Mixed against one class reads 1.25-1.27, not 1.18, because each kill's share floors to a whole number (`xp-share.js:59`) and costs more on a smaller share: about 0.5 XP on 7-9. Tutorial-room scale; flagged for the engine batch. **Gold unchanged: true, as ruled.** A lone hero pressing to the same 5 out-earns the party by about 40%, the pressed gap again. **The promise misleads, and worse elsewhere:** "18% more Level XP" is the table's factor on the share, not more than alone. Thicket reads "52% more" for a measured 1.19; Wickstead 27% for 1.20; the Glade 32% for 1.19. **Ruled words:** "Your party has 3 of 4 classes: about 20% more Level XP each than hunting alone here." One class: "One class only: about 15% less Level XP each than alone here." From a measured `vsAlone` row, played by the guard. His P2-7 is **a bug**: `accrual.js:1401` builds `raw_xp` from the tally's paid XP, so "before bonuses" always equals the total; the `xp` event's `raw` never reaches it. Engine batch, or hide the line until then.
+(2) **Per kill for the whole party, not per hero.** Each kill rolls once at the party's yield (0.85 for three, 0.55 alone) and each drop goes to one hero (`hunt-rewards.js:91,104`). Per hero per hour: 313 kills x 0.85 against 468 x 0.55 = about 1.03x. Played: 0.94-0.99x gold. **Ruled words:** "chance per kill, for your party of 3: each drop goes to one of you", and below it, "A party's kills drop more often and the drops are shared, so each hero's loot per hour stays about the same as alone." A Rare says the same: the roll picks one.
+
+**Walk-through for proposal 3** (grepped: `hunt-grounds.js`, `hunts.js`, `hunt-list.js recommendation`; L7 four played 32 h; the row change itself not played)
+| Step | Holds | Doable because |
+|---|---|---|
+| L1, party forms, Hunts recommends the Cellar | Practice sets | band 1-8, groupFit both |
+| L5, Hunts recommends the Thicket (today: Cellar) | Same, plus Cellar drops | band 5-15 holds Level 5, highest floor that fits once it's `both` |
+| L8, Hunts recommends the Sewer | Thicket's armor drops | floor 8 beats 5; the tutorial's "Into the sewer, together" is unmoved |
+| Lone hero | | `solo` also fits `both`: path unchanged, Level curve untouched |
+Run `hunt-floor-warning`, `first-week-bands`, `forest-cave` on the row. The Thicket has 2 start tiles; a four spawned fine in the settle, but `hunt-spawn.js:97` refuses more heroes than tiles on one path, so give it 4.
+
+**For Tyler: three choices.**
+1. **Danger and big pulls.** As built, nothing threatens a geared hero (87-100% HP). Pressing + is where danger and cost live, and it doubles the pace (Level 25 in 17 h against your 36). **A (recommended): keep it. The default stays safe for 12 h away, the pull is the danger dial, tell players so, and read the beta's real picks.** B: harder monsters (HP x2, blows x1.5): first grounds still 92-96%, 19-38% less XP, 25-67% less gold, curve re-fit. C: bigger pulls pay less per monster: an engine change, and it dulls the one decision Level 10-30 has.
+2. **Parties that earn less.** Mixed parties now hit your XP targets as built. Same-weapon friends earn 5-17% less, and 16-31% less in the Thicket. Mixed parties net 0.70-1.03x gold, which you haven't ruled (§13). **A (recommended): widen the Thicket's pull so same-weapon friends lose 6-15%, and leave party gold below solo.** B: change nothing. C: pay party gold up to solo: a new faucet.
+3. **How far under a floor?** Today 15 Levels, so Level 7 friends enter the Glade for 2.3x XP and 1.9x gold. The gap term makes it cost a lone hero; a party with a healer shrugs it off. **A (recommended): refuse from 6 under (`belowRangeRefuse`), so Glade from 10, plus the gap term.** B: keep 15, gap term only, and let parties push as a party's reward. C: refuse from 3: safest and least fun.
+
+**Handoffs.** Warrens Enter lit at L13 though the server refuses (veteran P2; 19 under). Party trap: a weak alt's death leaves the strong hero in a party with a dark Enter (P1 by his steps, not reproduced here). Bag at 114 of 100 with no warning. All Coordinator triage.
+
+**Done / measured / assumed.** Done: tools and tables, this section; no game data moved. Measured: every number above except as named. Assumed: the mixed rows in proposal 6, pay-backs at 12 h a day, ladder days at 5-6.5k g/h, and that a shop sale prices loot (a real market is unmeasured).
+
 ### 2026-11-01 The bench tax and what a house bench costs (designer, lane/b-bench-prices; Tyler: "make building workbenches in your house WAY more expensive"): ROOM PRICES PLAYED AND STAGED, TAX COMPUTED until lane/c-bench-tax lands
 **The ruling.** A public bench charges 15% of what the job's output sells for at the shop, rounded to the nearest gold, in every bench skill: Smithing, Crafting, Cooking, Runecrafting. The Great Hearth is not a bench and stays free. Cheap goods round to nothing, so a fresh hero pays nothing: Copper Bar (3 g), Normal Plank (3 g), Cooked Shrimp (3 g), and goods with no shop price (Bronze Arrows, Chalked Runes, Coarse Whetstones). No job's fee can exceed what its output sells for, so pressing Start can't lose money on a priced good, and if the purse runs out the stack in the bag pays it back. A house bench is the first rung of its room (Kitchen, Forge, Workshop, Library), shared by the whole account.
 

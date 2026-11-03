@@ -63,6 +63,7 @@ export const TALLY_RULES = Object.freeze({
      count     kills to finish
      gold      what she pays (into the account purse)
      party     true: the ground is built for a party (the board says so)
+     piecesFrom (optional) a hunt id: her pieces on this task are that ground's Scarce set, not its own (the Glade: lane/b-rulings-1102)
      materials her pick once every Scarce piece of the ground is given, in turn: [{ item, qty }] */
 const row = (r) => Object.freeze({ ...r, materials: Object.freeze(r.materials.map((m) => Object.freeze(m))) });
 
@@ -81,7 +82,10 @@ export const TALLY_TASKS = Object.freeze([
   /* The designer's Sewer materials (2026-10-23). */
   row({ id: 'sewer_rat_king', hunt: 'millrace_sewer', monster: 'rat_king', label: 'the Rat King', count: 5, gold: 1020, party: true,
     materials: [{ item: 'silk_thread', qty: 3 }, { item: 'bat_wing', qty: 4 }, { item: 'bone_chips', qty: 3 }] }),
-  row({ id: 'glade_poachers', hunt: 'mosslight_glade', monster: 'glade_poacher', label: 'Glade Poachers', count: 60, gold: 920, party: false,
+  /* THE LEVEL 18-30 GOAL (designer 2026-11-02, lane/b-rulings-1102): no ground offered a new piece from 18 to 30, and the Glade drops Iron about hourly, so her
+     Iron here paid nothing a hero lacked. She pays the Steel set instead, once each, worn at 30: a set to finish before the Warrens. Steel bids 0.14 of book
+     (10-23), so it is no faucet, and paid-per-day caps it. */
+  row({ id: 'glade_poachers', hunt: 'mosslight_glade', monster: 'glade_poacher', label: 'Glade Poachers', count: 60, gold: 920, party: false, piecesFrom: 'coppercap_warrens',
     materials: [{ item: 'magic_essence', qty: 2 }, { item: 'bone_chips', qty: 4 }, { item: 'copper_ore', qty: 4 }] }),
   row({ id: 'warrens_goblin_diggers', hunt: 'coppercap_warrens', monster: 'goblin_digger', label: 'Goblin Diggers', count: 30, gold: 1090, party: true,
     materials: [{ item: 'copper_ore', qty: 8 }, { item: 'coal', qty: 4 }, { item: 'iron_ore', qty: 3 }] }),

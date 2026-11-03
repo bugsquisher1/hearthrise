@@ -134,7 +134,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'duskwood_bow', 'duskwood_rod', 'duskwood_staff', 'elderscale_heart', 'elderscale_platebody',
   'ember_belt', 'ember_boots', 'ember_helm', 'ember_platebody',
   'ember_platelegs', 'ember_sword', 'ember_warhammer', 'fangdart_recurve', 'gold_amulet',
-  'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring', 'houndskin_cloak',
+  'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring',
   'lexarch_seal',
   'maple_rod', 'maple_staff', 'mithril_helm',
   'mithril_platebody', 'mithril_platelegs', 'mithril_sword', 'mithril_warhammer',

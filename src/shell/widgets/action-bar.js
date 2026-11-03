@@ -29,7 +29,7 @@
 import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.82';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.82';
 import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.82';
-import { carriedOf, equipmentOf } from '../../session/item-sections.js?v=0.2.82';
+import { carriedOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.82';
 import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.82';
 import { whole } from '../../render/format.js?v=0.2.82';
 import { glyphSvg } from '../launcher.js?v=0.2.82';
@@ -185,7 +185,7 @@ function tipHtml(i, ctx) {
   const bag = carriedOf(ctx.character);
   const hero = h && !h.ended ? h.hero : null;
   const worn = (equipmentOf(ctx.character) || {}).ammo;
-  const why = reasonOf(s, set, bag, hero, worn) || holdingReason(s, holdsPackNow(ctx.character, hero));
+  const why = reasonOf(s, set, bag, hero, worn, skillsOf(ctx.character)) || holdingReason(s, holdsPackNow(ctx.character, hero));
   const shared = sharedCooldownOf(wires, i);
   const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag, worn)).filter(Boolean);
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
@@ -253,10 +253,11 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const now = ctx.now();
   const holding = holdsPackNow(cs, hero);
   const worn = (equipmentOf(cs) || {}).ammo;
+  const skills = skillsOf(cs);
   for (const li of el.querySelectorAll('.hb-slot')) {
     const i = Number(li.getAttribute('data-slot'));
     const sl = slots[i] || { empty: true };
-    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero, worn) || holdingReason(sl, holding));
+    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero, worn, skills) || holdingReason(sl, holding));
     patchCooldown(li, sl, casts, now);
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);

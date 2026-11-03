@@ -61,6 +61,8 @@
 //         never the hunt): a tank with no food of its own and an "Any food" slot naming
 //         Salted Trout buys Salted Trout and nothing else, on the server's commits (the
 //         browser closed) and in the browser's prediction (viewed), every commit matching.
+//   LV-SHOT-SKILL a slot's ammo the hero's skill can't use yet (Mithril Arrows, Ranged 45, at Ranged 42): viewed and closed, neither
+//             shot nor spent, the next slot flies, every commit matches (the settle half: tests/hunt-core/ranger-bar.mjs under-skill)
 //   LV-RANGER A RANGER'S BAR (Andy 2026-10-23, Fremulon): a bow with NO ammo worn, a Copper Whetstone
 //         slot ahead of its arrows: it shoots only its arrows (never the whetstone) and Precision Shot
 //         casts on them, on the server's commits (browser closed) and in the prediction (viewed).
@@ -335,6 +337,17 @@ function rules(M) {
     ok('LV-A', dodges > 0, 'the armoured peer tank dodged nothing in 96 s on the server (its armour never reached the fight)');
     const bad = r.verdicts.filter((x) => x.v !== 'match');
     ok('LV-A', r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict the armoured peer: ${bad.length} of ${r.verdicts.length} commits diverged`);
+  }
+
+  { // LV-U: THE LEVEL GAP, VIEWED (Tyler 2026-11-02): heroes under the Glade's floor, the viewer and a peer whose browser row holds only frozen numbers: the
+    // server's harder blows are predicted swing for swing. The closed-browser half is first-week-bands level-gap (one 10 minute cut against 10 s settles).
+    const mis = [memberOf(M, 'a', 0, 'melee_dps', 12), memberOf(M, 'b', 1, 'tank', 12)];
+    for (const mi of mis) { mi.huntId = 'mosslight_glade'; mi.equipment = Object.assign({}, mi.equipment, { helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' }); }
+    let hits = 0;
+    const r = run(M, mis, 96000, { server: { hunt: 'mosslight_glade', id: 'i-live' }, onCommit: ({ c }) => { hits += c.tl.hunt_events.filter((e) => e.type === 'dmg' && e.t === mis[1].unitId).length; } });
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-U', r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict blows under the floor: ${bad.length} of ${r.verdicts.length} commits diverged`);
+    ok('LV-U', hits > 0, 'the peer was never hit under the floor, so nothing was predicted');
   }
 
   { // LV-K: THE LEADER CHOOSES (Tyler 2026-10-20): the peer leader's pick is the pull, on the server and in the browser.
@@ -711,6 +724,8 @@ function rules(M) {
     const mk = () => [['a', 'tank', null], ['b', 'melee_dps', 'follow'], ['c', 'melee_dps', 'strongest']].map(([user, role, mode], i) => {
       const mi = memberOf(M, user, i, role, 30);
       mi.huntId = hunt;
+      /* THE STEEL A LEVEL 30 HERO WEARS (Tyler's harder Glade, 2026-11-02): in the practice set the tank now dies at 8 each and the span ends */
+      mi.equipment = Object.assign({}, mi.equipment, { helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' });
       mi.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: role === 'tank' ? 'sword' : 'hammer', options: mode ? { target_mode: mode } : {},
         bar: [], partyRoles: ['tank', 'melee_dps', 'melee_dps'], lead: i === 0 }), { density: 8 });
       return mi;
@@ -1167,6 +1182,23 @@ function rules(M) {
       'viewed: the browser predicted casts ' + JSON.stringify(casts(viewedEvs)) + ' and ' + shots(viewedEvs).length + ' shots');
     ok('LV-RANGER', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
   }
+  { /* LV-SHOT-SKILL a slot's ammo under its skill, viewed and with the browser closed: the server and the browser pass over it alike */
+    const mi = memberOf(M, 'a', 0, 'ranger', 42);
+    mi.huntSession = Object.assign({}, mi.huntSession, { bag: { mithril_arrows: { loaded: 400, left: 400 }, iron_arrows: { loaded: 400, left: 400 }, cooked_shrimp: { loaded: 30, left: 30, essential: true } } });
+    const slot = (id) => ({ action: { type: 'attack_with_item', id }, conditions: [], join: 'and' });
+    mi.hero = M.SPAWN.heroSetup({ weaponType: 'ranged', options: {}, partyRoles: ['ranger'], bar: [slot('mithril_arrows'), slot('iron_arrows')] });
+    const r = run(M, [mi], 96000);
+    const shots = (evs) => evs.filter((e) => e.type === 'shot').map((e) => e.item);
+    const closedEvs = r.verdicts.flatMap((x) => x.tl.hunt_events);
+    const viewedEvs = r.fed.events.filter((e) => e.atMs < r.srv.inst.settled_to_ms);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    const bag = mi.huntSession.bag;
+    console.log('  LV-SHOT-SKILL: Ranged 42, the server shot ' + shots(closedEvs).length + ' [' + [...new Set(shots(closedEvs))].join(', ') + '], Mithril ' + bag.mithril_arrows.left + '/400; the browser shot ' + shots(viewedEvs).length);
+    ok('LV-SHOT-SKILL', shots(closedEvs).length >= 10, 'CONTROL: the Ranger shot ' + shots(closedEvs).length + ' time(s) in 96 s');
+    ok('LV-SHOT-SKILL', shots(closedEvs).every((id) => id === 'iron_arrows') && bag.mithril_arrows.left === 400, 'browser closed: a Ranged 42 hero shot Mithril Arrows (Ranged 45): ' + JSON.stringify([...new Set(shots(closedEvs))]) + ', ' + bag.mithril_arrows.left + ' of 400 left');
+    ok('LV-SHOT-SKILL', JSON.stringify(shots(viewedEvs)) === JSON.stringify(shots(closedEvs)), 'viewed: the browser predicted ' + shots(viewedEvs).length + ' shots of ' + JSON.stringify([...new Set(shots(viewedEvs))]));
+    ok('LV-SHOT-SKILL', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
+  }
   { /* LV-NOFIGHT a hero who can't fight goes home, viewed and with the browser closed */
     const SPAN = M.HSD.NO_FIGHT_END_MIN * 60000;
     const mi = memberOf(M, 'a', 0, 'ranger', 30);
@@ -1236,7 +1268,8 @@ function rules(M) {
     const pullOf = (s) => M.WS.decodeStored(JSON.parse(s.inst.world)).density;
     const closedPull = pullOf(closed), viewedPull = pullOf(r.srv);
     console.log('  LV-CLASS pull: density ' + closedPull + ' / ' + viewedPull + ', XP closed ' + closedXp + ', viewed ' + viewedXp + ', ' + off + ' commits off');
-    ok('LV-CLASS', closedPull === 3 && viewedPull === 3, 'pull: a Thicket pair with no pick stands at density ' + closedPull + ' closed, ' + viewedPull + ' viewed, want 3');
+    const pairPull = M.HG.huntGroundOf('meadowbrook_thicket').ground.partyPull[1];
+    ok('LV-CLASS', closedPull === pairPull && viewedPull === pairPull, 'pull: a Thicket pair with no pick stands at density ' + closedPull + ' closed, ' + viewedPull + ' viewed, want ' + pairPull);
     ok('LV-CLASS', closedXp.join() === viewedXp.join() && closedXp.every((x) => x > 0), 'pull: viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
     ok('LV-CLASS', off === 0, 'pull: ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
   }
@@ -1245,6 +1278,8 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  ['the engine shoots ammo under its skill (LV-SHOT-SKILL)', 'src/core/hunt/abilities.js', "function shotLocked(h, id) {\n", "function shotLocked(h, id) {\n  if (h) return false;\n", /^LV-SHOT-SKILL: browser closed/],
+  ["the peer's Level stays out of its frozen row, so the browser under-predicts the level gap (LV-U)", 'src/core/member.js', 'mit: snap.mit || NO_MITIGATION, level: snap.level }', 'mit: snap.mit || NO_MITIGATION }', /^LV-U: the viewer/],
   ['the party factor is not paid (LV-CLASS)', 'src/core/hunt/xp-share.js', '(raw * party * multOf(sc, h))', '(raw * 1000 * multOf(sc, h))', /^LV-CLASS: mixed/],
   ["the browser's prediction fights on a ground it cannot name (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
@@ -1304,7 +1339,7 @@ const MUTANTS = [
     'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
-  ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, mit: snap.mit || NO_MITIGATION }, vs,', 'def: snap.def }, vs,', /^LV-A/],
+  ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, mit: snap.mit || NO_MITIGATION, level: snap.level }, vs,', 'def: snap.def, level: snap.level }, vs,', /^LV-A/],
   ['the settle never puts the armour on the hero (LV-A)', 'src/core/combat-sim.js', '  u.mit = snap.mit || null;', '  u.mit = null;', /^LV-A/],
   ['the pull leader is back to role order (LV-PULL, bug #61)', 'src/core/hunt/pull-cycle.js', '  return holderTank(inst).id;\n', '  return byRole;\n', /^LV-PULL/],
   ['the "One tank holds" pick does not pull (LV-PULL)', 'src/core/hunt/pull-cycle.js', '  if (pick) return pick.id;\n', '  if (pick) return pickLeader(inst.world.units);\n', /^LV-PULL/],

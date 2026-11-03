@@ -102,7 +102,7 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    made tier-1 gloves and sashes (hr_activities artisan rows) land in ONE forward file, the same full delete+insert replace. */
 /* THE CRAFT WAGE (lane/c-craft-economy, designer 2026-11-01): 2027-02-08-unsourced-items-catalogue is APPLIED history; the gathered and
    refined goods' book values (hr_items.value, read by the market's ceiling) land in ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-18-craft-economy-items-catalogue.generated.sql');
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-21-rulings-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

@@ -18,7 +18,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.82';
 import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.82';
-import { PARTY_CLASSES, partyClassXp } from '../../data/party-class-xp.js?v=0.2.82';
+import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.82';
 import { recommendation } from '../hunt-list.js?v=0.2.82';
 import { huntName } from '../../session/party-sections.js?v=0.2.82';
 import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.82';
@@ -68,16 +68,21 @@ const CLASS_NAMES = Object.values(PARTY_CLASSES).map((c) => c.label);
 const CLASS_WORDS = CLASS_NAMES.slice(0, -1).join(', ') + ' and ' + CLASS_NAMES[CLASS_NAMES.length - 1];
 
 /**
- * THE CLASS LINE (Tyler 2026-10-31; designer's words), read off the ONE table the engine pays by (src/data/party-class-xp.js
+ * THE CLASS LINE (Tyler 2026-10-31; designer's words), the classes read off the ONE table the engine pays by and the answer off its measured row (src/data/party-class-xp.js
  * over the seats' server roles; a seat with no weapon fights as the engine's bare-handed Melee). It names the ground, since this
  * window holds no ground of its own. Exported for tests/party-ui.mjs.
  */
 export function classXpLine(roles, hunt) {
   const ground = Object.values(HUNT_GROUNDS).find((g) => g.hunt === hunt);
-  const { permille, classes } = partyClassXp(ground ? ground.id : null, roles.map((r) => r || roleForWeapon('neutral')));
-  const gap = Math.round(Math.abs(permille - 1000) / 10);
-  const pay = permille > 1000 ? gap + '% more Level XP' : permille < 1000 ? gap + '% less Level XP' : 'no extra Level XP';
-  return 'Your party has ' + classes.length + ' of ' + CLASS_NAMES.length + ' classes: ' + pay + ' in ' + huntName(hunt) + '. ' + CLASS_WORDS + ' each count.';
+  const seats = roles.map((r) => r || roleForWeapon('neutral'));
+  const { classes } = partyClassXp(ground ? ground.id : null, seats);
+  /* The measured answer against hunting alone (designer 2026-11-02), never the table's factor on a share: see PARTY_VS_ALONE. */
+  const vs = partyVsAlone(ground ? ground.id : null, seats);
+  const pay = vs === null ? 'no extra Level XP in ' + huntName(hunt)
+    : vs > 0 ? 'about ' + vs + '% more Level XP each than hunting alone in ' + huntName(hunt)
+      : vs < 0 ? 'about ' + -vs + '% less Level XP each than hunting alone in ' + huntName(hunt)
+        : 'about the same Level XP each as hunting alone in ' + huntName(hunt);
+  return 'Your party has ' + classes.length + ' of ' + CLASS_NAMES.length + ' classes: ' + pay + '. ' + CLASS_WORDS + ' each count.';
 }
 
 /** The line before a hunt starts, on the party's last ground or the one the Hunts window opens on; '' for no line. */

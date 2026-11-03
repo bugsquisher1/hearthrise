@@ -1887,14 +1887,17 @@ const DB_ARMS = {
     const to = h.from + SPAN + 60000;
     const doors = {
       closed: { mode: 'tick', session: h.sid, cuts: ticksOf(90000, to - h.from)(h.from) },
-      viewed: { mode: 'settle', bucket: null, project: true, live: true, cuts: [h.from + 12345, h.from + 195000, h.from + 381111, h.from + 544321, to] },
+      /* A PLAYER DOOR'S CATCH-UP STOPS AT ITS MEASURED ENGINE BUDGET (hunt-settle.js settleHunt, 800 ms of wall clock): an idle box landed the owed
+         slices in one call, a busy one one slice a call, so these cuts ended the hunt on GitHub and stopped at swing 247 on a loaded PC. The door is
+         pinned to the busy case, one 2-min slice a call (budget 0), and called as often as that takes; a real door is the hunt re-read, every 16 s. */
+      viewed: { mode: 'settle', bucket: null, project: true, live: true, budget: () => M.HS.engineBudget(0), cuts: [h.from + 12345, h.from + 195000, h.from + 381111, h.from + 544321, to, to, to, to] },
     };
     await db.query('savepoint no_fight');
     const seen = {};
     for (const [path, d] of Object.entries(doors)) {
-      const { cuts, ...door } = d;
+      const { cuts, budget, ...door } = d;
       for (const t of cuts) {
-        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: t, ...door });
+        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: t, ...door, ...(budget ? { budget: budget() } : {}) });
         if (!r || (r.outcome !== 'paid' && r.outcome !== 'none')) { problems.push(`${path}: the window to +${t - h.from} ms answered ${r && r.outcome}/${r && r.reason} ${JSON.stringify(r && r.body).slice(0, 200)}`); break; }
         if (r.outcome === 'none' || r.ended) break;
       }
@@ -3586,7 +3589,7 @@ const MUTANTS = [
   { arm: 'HONE', name: 'a spent whetstone keeps paying its bonus', file: 'src/core/member.js',
     from: '    if (honeLeft() <= 0) unhone();\n  };', to: '  };' },
   { arm: 'RUNE-SPEND', name: '[spell-core] a spent arrow line never falls to its store row (Iron Arrows, 10-23)', file: 'src/core/hunt/abilities.js',
-    from: "  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, undefined);", to: "  return isRune(itemRow(h, id)) ? { why: 'none' } : resolveLine(h && h.hs, id, null);" },
+    from: "  return isRune(itemRow(h, id)) ? { why: 'none' } : shotLocked(h, id) ? { why: 'level' } : resolveLine(h && h.hs, id, undefined);", to: "  return isRune(itemRow(h, id)) ? { why: 'none' } : shotLocked(h, id) ? { why: 'level' } : resolveLine(h && h.hs, id, null);" },
   /* the swing prices the worn ammo's store shot in its pick (damage.js pickShot, the shot order of Andy #63), so an
      unpayable basic is decided there, before payBasic */
   { arm: 'RUNE-SPEND', name: '[spell-core] a basic supply the purse cannot buy never ends the hunt', file: 'src/core/hunt/damage.js',

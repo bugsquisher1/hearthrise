@@ -890,6 +890,19 @@ async function planRules(base) {
       if (beforeOf(cs, id) !== text) fails.push('AW-64 ' + what + ' ' + where + ', Before you go reads ' + JSON.stringify(beforeOf(cs, id)));
     }
   }
+  /* AMMO THE HERO'S SKILL CAN'T USE YET (the engine passes over it, abilities.js shotLine): never said as what flies, never offered as a spare, and said why */
+  const atRanged = (level) => (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: packed, skills: { ranged: { xp: 1, level } } });
+  const BOW = { weapon: 'willow_longbow' };
+  for (const [what, level, args, text] of [
+    ['a Mithril slot under its Ranged, Bronze behind it', 42, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: Bronze Arrows. They never run out. Mithril Arrows wait on your bar. Needs Ranged 45 — you have 42.'],
+    ['the same bar at the level', 45, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: 9 Mithril Arrows of yours, then Bronze Arrows. They never run out.'],
+    ['a stack under its Ranged no slot names', 42, [[], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows from the store, 1 gp each.'],
+    ['nothing else to shoot', 42, [[shoot('mithril_arrows')], { mithril_arrows: 9 }, BOW], 'Ammo: nothing loaded, so your weapon can\'t shoot and your hero won\'t attack. Press an empty slot on your bar, then Ammo, and pick a shot from the store. Mithril Arrows wait on your bar. Needs Ranged 45 — you have 42.'],
+  ]) {
+    const cs = atRanged(level)('A', 'ranger', ...args);
+    if (beforeOf(cs, 'ammo') !== text) fails.push('AW-64 ' + what + ', Before you go reads ' + JSON.stringify(beforeOf(cs, 'ammo')));
+    if (prepOf(cs, 'ammo') !== text) fails.push('AW-64 ' + what + ', Hunt prep reads ' + JSON.stringify(prepOf(cs, 'ammo')));
+  }
   if (readinessLine(readinessOf(inHunt('Fremulon', 'ranger', ...FREMULON))) !== 'Fremulon: ready') fails.push('AW-64 Fremulon is not ready: ' + readinessLine(readinessOf(inHunt('Fremulon', 'ranger', ...FREMULON))));
   /* the slot's tooltip says the same of the loaded ammo: what is worn, what it costs, and no store behind a free arrow */
   const loadedSays = (worn, bag) => supplyLines({ type: 'attack_with_item', id: 'loaded' }, { role: 'ranger', store: LIVE, supplySource: 'mine', onEmpty: 'switch' }, bag, worn).join(' ');
@@ -3077,6 +3090,8 @@ const MUTANTS = [
   ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '')", "''"],
   ['plans: AW-64 a whetstone reads as a spare arrow', 'src/shell/hunt-go.js', ': carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot', ': carried.filter((r) => r.qty > 0 && ammoPerShot'],
   ['plans: AW-64 the loaded slot names a store shot it never buys', 'src/shell/bar-draft.js', "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? worn : a.id;", "const id = a.type === 'attack_with_item' && a.id === 'loaded' ? 'steel_arrows' : a.id;"],
+  ['plans: AW-64 ammo under its skill is said as what flies', 'src/shell/hunt-go.js', "    if (short) { if (!locked.some((l) => l.id === id)) locked.push({ id, text: short.text }); continue; }\n", ''],
+  ['plans: AW-64 a stack under its skill is offered as a spare', 'src/shell/hunt-go.js', ' && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));', ' && !plan.order.includes(r.id));'],
   ['plans: AW-64 a slot switched Off is said as spending', 'src/shell/hunt-go.js', 'if (!sl || sl.empty || sl.enabled === false) return null;', 'if (!sl || sl.empty) return null;'],
   ['plans: Hunt prep says stamina with no amount', 'src/shell/readiness.js', "'Stamina: ' + hoursWords(st.msLeft) + ' left'", "'Stamina left'"],
   ['plans: Hunt prep calls the last hunt this hunt', 'src/shell/readiness.js', "h && !h.ended ? 'this hunt' : 'your last hunt'", "'this hunt'"],

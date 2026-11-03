@@ -8,7 +8,8 @@
 -- bag and its hunt bag). EDGE: none, pack-edge --hash unmoved (the engine already reads the hunt bag fresh at every
 -- settle: hr_hunt_member_read `bag`). CLIENT: src/session/carry-intents.js (Hunt prep, the bar's Configure action)
 -- rides the next release; the verb's signature and grant are today's, so either may land first.
--- ORDER: after 2027-02-20-party-leader-starts.sql. No object in common with any staged file.
+-- ORDER: after 2027-02-21-rune-spells.generated.sql (§0 refuses without it), itself after 2027-02-20-party-leader-starts.sql.
+-- No object in common with any staged file.
 --
 -- ── THE GAP ─────────────────────────────────────────────────────────────────
 -- Enter (hr_hunt_enter_for) moves every hunt supply in the bag into hunt_bag; the engine spends only hunt_bag, then
@@ -44,11 +45,14 @@
 --   -qty, the bag side +qty stamped with the session. hunt_return pairs give back qty_left at the end, so the bag
 --   side of the journal equals the hunt bag at every instant (tests/hunt-sessions-db.mjs B1).
 --
--- ── CONCURRENCY (the race argument; tests/hunt-sessions-settle.mjs CARRY-IN executes each order) ──
--- Locks, in order: the key's own advisory lock ('hr:intent:<user>:<key>', taken only here, before anything else),
--- then the character lock hr_hunt_lock (hr_apply's advisory key, the player_state row, the open session row), then
--- the hunt_bag line and the player_inventory row FOR UPDATE. Every writer of those rows (the settle, Enter, the
--- close, every bag verb) takes the same character lock first, so no deadlock and no interleaving inside a move.
+-- ── CONCURRENCY (the race argument; tests/hunt-sessions-settle.mjs CARRY-IN plays each order on PGlite) ──
+-- Locks, in order: the key's own advisory lock ('hr:intent:<user>:<key>', taken only here, before anything else), the
+-- `hunt` rate bucket's row (hr_rpc_gate, held to the commit, as every hunt verb), then the character lock hr_hunt_lock
+-- (hr_apply's advisory key, the player_state row, the open session row), then the hunt_bag line and the player_inventory
+-- row FOR UPDATE. The settle, Enter and the close queue on that advisory key; a bag verb (hr_bank_move) on that
+-- player_state row, its next step; so none of them interleaves inside a move, and the stack is read under its own row
+-- lock. No deadlock: a press takes one character lock, after its bucket, and never the instance lock the settle holds
+-- before its heroes. tests/hunt-carry-race.mjs PROVES EVERY ORDER BELOW ON POSTGRESQL 17, each actor its own backend.
 --   A carry DURING A SETTLE (between the edge's read and hr_hunt_apply_instance's commit): the engine priced the
 --     window on the line it read; the commit takes the character lock after (or before) the carry, re-checks each
 --     use against the line AS IT STANDS (bag_short) and debits RELATIVELY (qty_left = qty_left - uses). So the line
@@ -75,9 +79,24 @@
 -- A player press, never a tick: 2 ledger rows + 1 intent row per carry (~200 B each); at a generous 20 carries a
 -- hunter-day x 600 hunters, 36k rows / ~7 MB a day, below Enter's own pairs. One extra advisory lock a call.
 --
+-- ── THE SAME SURFACE: A STRUCK SPELL THAT FIRES (§1b; §6 "the browser never says one thing while the server says another") ──
+-- hr_hunt_settings_view read a rune spell's `usable` from the BACKPACK and only the family's Chalked rune. The engine
+-- (abilities.js runeFor) spends the HUNT BAG, any tier of the family whose version the hero has unlocked. So:
+--   a mage who set out with its runes (Enter moves them all out of the backpack) read "The server says this cannot fire
+--     now" on a slot that fired every cast: the false strike;
+--   a hero holding only a higher tier it can cast was struck the same way, in town too;
+--   a hunting hero whose runes reached the backpack mid-hunt read a slot ready that the engine would not cast.
+-- hr_hunt_settings_view is RESTATED WHOLE (live prosrc df4f3886 = 2027-01-13-spell-roles.sql plus the two splices of
+-- 2027-01-25-town-defaults.sql; the restatement ends that chain) over hr_hunt_rune_state, which reads
+-- hr_hunt_rune_spells() (2027-02-21-rune-spells.generated.sql: the family, the versions' levels and the spell's skill,
+-- through the calls runeFor makes; `node tools/gen-catalogues.mjs --check` is its drift guard). Nothing else in the view
+-- moves. A rune held but above the hero's level now says why: `why` = rune_level.
+--
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
--- Re-apply hr_hunt_restock from 2026-10-21-hunt-sessions.sql (prosrc md5 b1c0df0a) and its baseline note, by hand
--- (§0 accepts only the two images). No row, column or player value moves either way.
+-- Re-apply hr_hunt_restock from 2026-10-21-hunt-sessions.sql (prosrc md5 b1c0df0a) and its baseline note, and
+-- hr_hunt_settings_view from 2027-01-13-spell-roles.sql + the 2027-01-25-town-defaults.sql splices (prosrc md5 df4f3886), by
+-- hand (§0 accepts only the two images of each). hr_hunt_rune_state and hr_hunt_rune_spells may stay: nothing else reads
+-- them. No row, column or player value moves either way.
 -- No begin/commit. No cron.* write.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -94,6 +113,12 @@ begin
    where p.oid = to_regprocedure('public.hr_hunt_restock(integer,text,bigint,uuid)');
   if v_src is null or v_src not in ('b1c0df0a740d5c94c912aa95dae7bc17', 'b92561b2ab9d0675c10c9084c75e6ad7') then
     raise exception 'PRECONDITION: hr_hunt_restock prosrc md5 is %, expected the live b1c0df0a (2026-10-21-hunt-sessions.sql) or this file''s. Re-cut this file.', v_src; end if;
+  if to_regprocedure('public.hr_hunt_rune_spells()') is null or to_regprocedure('public.hr_skill_level(text,bigint)') is null then
+    raise exception 'PRECONDITION: apply 2027-02-21-rune-spells.generated.sql first (hr_hunt_rune_spells), on the skill chain (hr_skill_level)'; end if;
+  select md5(replace(p.prosrc, chr(13), '')) into v_src from pg_proc p
+   where p.oid = to_regprocedure('public.hr_hunt_settings_view(uuid,integer)');
+  if v_src is null or v_src not in ('df4f38861c08003b0713e8c1f7d191a0', '0d3576f97773c924c111e83bd2e1486f') then
+    raise exception 'PRECONDITION: hr_hunt_settings_view prosrc md5 is %, expected the live df4f3886 (2027-01-25-town-defaults.sql) or this file''s. Re-cut this file.', v_src; end if;
 end $mig$;
 
 -- ── §1 THE VERB ─────────────────────────────────────────────────────────────
@@ -183,6 +208,202 @@ begin
   return v_r;
 end $$;
 
+-- ── §1b A STRUCK SPELL IS ONE THE ENGINE WOULD NOT CAST ─────────────────────
+-- What abilities.js runeFor answers about the hero's OWN runes: 'ready' (a rune of the spell's family it can cast),
+-- 'locked' (it holds the family, every tier above its level), 'none'. From the hunt bag while a session is open, else
+-- the backpack (what Enter packs). The store behind a slot is the view's half.
+create or replace function public.hr_hunt_rune_state(p_user uuid, p_slot int, p_session uuid, p_ability text)
+returns text language plpgsql stable set search_path = public, pg_catalog as $$
+declare
+  v_row jsonb := public.hr_hunt_rune_spells()->p_ability;
+  v_min int;
+  v_lv  int;
+begin
+  if v_row is null then return 'none'; end if;
+  if p_session is not null then
+    select min((v_row->'runes'->>b.item_id)::int) into v_min from public.hunt_bag b
+     where b.session_id = p_session and b.qty_left > 0 and v_row->'runes' ? b.item_id;
+  else
+    select min((v_row->'runes'->>pi.item_id)::int) into v_min from public.player_inventory pi
+     where pi.user_id = p_user and pi.slot = p_slot and pi.qty > 0 and v_row->'runes' ? pi.item_id;
+  end if;
+  if v_min is null then return 'none'; end if;
+  select public.hr_skill_level(v_row->>'skill', k.xp) into v_lv from public.player_skills k
+   where k.user_id = p_user and k.slot = p_slot and k.skill_id = v_row->>'skill';
+  return case when coalesce(v_lv, 1) >= v_min then 'ready' else 'locked' end;
+end $$;
+revoke execute on function public.hr_hunt_rune_state(uuid, int, uuid, text) from public, anon, authenticated, service_role;
+
+create or replace function public.hr_hunt_settings_view(p_user uuid, p_slot int)
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $$
+declare
+  s       public.hunt_sessions%rowtype;
+  a       public.player_action_sets%rowtype;
+  i       public.hunt_instances%rowtype;
+  v_shape public.hr_hunt_world_shape%rowtype;
+  v_preset int;
+  v_opt   jsonb;
+  v_wj    jsonb;
+  v_uf    jsonb;
+  v_me    jsonb;
+  v_unit  jsonb := '{}'::jsonb;
+  v_role  text;
+  v_disc  text;
+  v_list  jsonb := '[]'::jsonb;
+  v_def   jsonb;
+  v_d     jsonb;
+  v_pos   int;
+  v_slots jsonb := '[]'::jsonb;
+  v_e     jsonb;
+  v_presets jsonb;
+  v_eff   jsonb := '{}'::jsonb;
+  v_o     record;
+  v_val   jsonb;
+  v_ab    public.hr_hunt_abilities%rowtype;
+  v_n     bigint;
+  v_own   boolean;
+  v_on    boolean;
+  v_rune  text;
+  v_can   boolean;
+  v_rdef  jsonb;   -- TOWN-DEFAULTS (2027-01-25-town-defaults.sql): the engine's pick for an option the hero never set
+  v_party text[];
+begin
+  select * into s from public.hunt_sessions h where h.user_id = p_user and h.slot = p_slot and h.ended_at is null
+   order by h.entered_at desc limit 1;
+  -- SPELL-ROLES (2027-01-13-spell-roles.sql): the abilities the bar may hold are the worn set's ROLE KEY's discipline
+  -- (hr_hunt_weapon_roles.discipline over hr_hunt_weapon_of: the weapon and the shield beside it), never the role's;
+  -- the role default slots are kept to that discipline (as the engine's heroSlots keeps them); `discipline` is projected.
+  -- DENSITY-HOME (2026-11-17-hunt-density-home.sql): no `density` key; the pick per ground is the hunt_density section.
+  -- SETS-MODEL (2026-11-15-preset-names.sql): out of a hunt the bar is the hero's CURRENT setup's, not set 0.
+  v_preset := coalesce(s.preset, public.hr_hunt_active_set(p_user, p_slot));
+  select * into a from public.player_action_sets x where x.user_id = p_user and x.slot = p_slot and x.preset = v_preset;
+  v_opt := coalesce(a.options, '{}'::jsonb);
+  -- The hunting hero's unit: its role and the settings the engine runs it on.
+  if s.id is not null and s.unit_id is not null then
+    select * into i from public.hunt_instances where id = s.instance_id;
+    select * into v_shape from public.hr_hunt_world_shape where id;
+    begin
+      v_wj := i.world::jsonb;
+    exception when others then
+      v_wj := null;
+    end;
+    if v_wj is not null and jsonb_typeof(v_wj) = 'object' and v_shape.id and jsonb_typeof(v_wj->'u') = 'array'
+       and (v_wj->>'v') = v_shape.version::text and (v_wj->>'s') = v_shape.shape::text then
+      v_uf := v_shape.fields->'unit';
+      select e into v_me from jsonb_array_elements(v_wj->'u') e
+       where e->>((v_uf->>'side')::int) = 'hero' and (e->>((v_uf->>'id')::int))::int = s.unit_id limit 1;
+      if v_me is not null then
+        v_role := v_me->>((v_uf->>'role')::int);
+        v_unit := jsonb_build_object('distance', v_me->((v_uf->>'dist')::int), 'chase', v_me->((v_uf->>'chase')::int),
+                                     'target_mode', v_me->((v_uf->>'tmode')::int), 'stance', v_me->((v_uf->>'stance')::int));
+      end if;
+    end if;
+  end if;
+  -- Not hunting: the role the worn weapon gives (a staff's pick kept when it allows it).
+  if v_role is null or v_role = '' then
+    select case when v_opt->>'role' = any (w.roles) then v_opt->>'role' else w.roles[1] end into v_role
+      from public.hr_hunt_weapon_roles w where w.weapon_type = public.hr_hunt_weapon_of(p_user, p_slot);
+  end if;
+  -- TOWN-DEFAULTS (2027-01-25-town-defaults.sql): an option still unset reads what the ENGINE would play (hunt-spawn.js
+  -- heroSetup over roles.js defaultSettings: the role's default for this party, hr_hunt_role_default) and the gold to keep
+  -- the store bill keeps (gold_floor_default), so the bar is set in town and the browser never keeps its own copy. The
+  -- party: in a hunt its instance's open seats; in town the hero's party's seats; else the hero alone.
+  v_party := case when s.id is not null
+                  then array(select public.hr_hunt_role_of(h.user_id, h.slot) from public.hunt_sessions h
+                              where h.instance_id = s.instance_id and h.ended_at is null order by h.user_id, h.slot)
+                  else array(select public.hr_hunt_role_of(m.user_id, m.slot) from public.hunt_party_members m
+                              where m.party_id = public.hr_hunt_party_of(p_user, p_slot) order by m.seat) end;
+  v_rdef := coalesce(public.hr_hunt_role_default(v_role, v_party), '{}'::jsonb)
+            || jsonb_build_object('gold_floor', public.hr_hunt_limit('gold_floor_default'));
+  for v_o in select o.opt, o.dflt from public.hr_hunt_set_options o order by o.opt loop
+    v_val := coalesce(nullif(v_opt->v_o.opt, 'null'::jsonb), v_unit->v_o.opt, v_o.dflt, v_rdef->v_o.opt);
+    v_eff := v_eff || jsonb_build_object(v_o.opt, v_val);
+  end loop;
+  select w.discipline into v_disc from public.hr_hunt_weapon_roles w where w.weapon_type = public.hr_hunt_weapon_of(p_user, p_slot);
+  -- THE BAR: the stored slots (an invalid row reads as an empty tablet), then the defaults.
+  for v_e in select value from jsonb_array_elements(case when jsonb_typeof(a.slots) = 'array' then a.slots else '[]'::jsonb end) loop
+    v_d := public.hr_hunt_slot_check(v_e);
+    v_list := v_list || jsonb_build_array(case when (v_d->>'ok')::boolean then v_d->'slot' else 'null'::jsonb end);
+  end loop;
+  v_def := '[]'::jsonb;
+  if not exists (select 1 from jsonb_array_elements(v_list) e join public.hr_hunt_abilities ab on ab.ability_id = e->'action'->>'id'
+                  where e->'action'->>'type' = 'ability' and v_disc = any (ab.disciplines)) then
+    select coalesce(jsonb_agg(r.slot order by r.ord), '[]'::jsonb) into v_def from public.hr_hunt_role_rules r
+     where r.role = v_role
+       and exists (select 1 from public.hr_hunt_abilities ab where ab.ability_id = r.slot->'action'->>'id' and v_disc = any (ab.disciplines));
+  end if;
+  -- STORE-BY-SLOT (2026-11-04): NO default food or drink (Tyler 2026-10-21: the game never picks a
+  -- supply). A NEW hero, whose stored bar holds nothing at all, gets the start kit's bar
+  -- (src/data/start-kit.js START_BAR, pinned by tests/hunt-core/conditions.mjs): its own Cooked
+  -- Shrimp, then the store's Salted Shrimp, then Thin Turnip Juice.
+  if not exists (select 1 from jsonb_array_elements(v_list) e where jsonb_typeof(e) = 'object') then
+    -- ⟦starter-bar⟧
+    v_def := v_def || '[{"id": "d_food", "action": {"type": "consume", "id": "cooked_shrimp"}, "conditions": [{"metric": "self_hp_pct", "op": "lt", "value": 60}], "join": "and"}, {"id": "d_food_store", "action": {"type": "consume", "id": "salted_shrimp"}, "conditions": [{"metric": "self_hp_pct", "op": "lt", "value": 60}], "join": "and"}, {"id": "d_drink", "action": {"type": "consume", "id": "thin_turnip_juice"}, "conditions": [{"metric": "self_mana_pct", "op": "lt", "value": 30}], "join": "and"}]'::jsonb;
+    -- ⟦/starter-bar⟧
+  end if;
+  for v_d in select value from jsonb_array_elements(v_def) loop
+    select min(n - 1) into v_pos from jsonb_array_elements(v_list) with ordinality x(e, n) where jsonb_typeof(x.e) = 'null';
+    if v_pos is null then v_list := v_list || jsonb_build_array(v_d);
+    else v_list := jsonb_set(v_list, array[v_pos::text], v_d); end if;
+  end loop;
+  -- The display fields, THE SERVER'S STRUCK STATE (the browser never counts its own): an ability's
+  -- mana and whether it can fire (active, of the discipline, a rune it can cast: RUNE-TRUTH below, or
+  -- STORE-BY-SLOT: its slot names the rune's store row and the hero's setting lets the store supply); a food or drink's
+  -- count (the open hunt's bag, else the inventory) and why it cannot fire (`why`): a crafted item
+  -- with none left is `none_left`, a store item under the hero's "end the hunt" is `store_off`.
+  v_on := v_eff->>'supply_source' = 'store' or v_eff->>'on_empty' = 'switch';
+  for v_e in select value from jsonb_array_elements(v_list) loop
+    if jsonb_typeof(v_e) = 'null' then v_slots := v_slots || jsonb_build_array(v_e); continue; end if;
+    if v_e->'action'->>'type' = 'ability' then
+      select * into v_ab from public.hr_hunt_abilities ab where ab.ability_id = v_e->'action'->>'id';
+      -- RUNE-TRUTH (2027-02-21-hunt-carry-in.sql): the rune is read where the engine spends it (abilities.js runeFor), a
+      -- hunting hero's hunt bag and never its backpack, in town the backpack Enter packs from; any tier of the spell's
+      -- family whose version the hero has unlocked. Held but above its level, the slot says so (`why` rune_level).
+      v_rune := case when v_ab.rune is null then 'ready' else public.hr_hunt_rune_state(p_user, p_slot, s.id, v_ab.ability_id) end;
+      v_can := coalesce(v_ab.active, false) and v_disc = any (v_ab.disciplines) and (v_rune = 'ready' or (v_on and exists (
+          select 1 from public.hr_hunt_basic_supplies q where q.basic_id = v_e->'action'->>'store' and q.partner = v_ab.rune)));
+      v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('mana', v_ab.mana, 'usable', v_can,
+        'why', case when v_can is false and v_rune = 'locked' then 'rune_level' end));
+    elsif v_e->'action'->>'type' = 'consume'
+          and exists (select 1 from public.hr_hunt_basic_supplies q where q.basic_id = v_e->'action'->>'id') then
+      v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('usable', v_on, 'count', null,
+        'why', case when v_on then null else 'store_off' end));
+    else
+      v_n := case when s.id is not null
+                  then (select coalesce(sum(b.qty_left), 0) from public.hunt_bag b where b.session_id = s.id and b.item_id = v_e->'action'->>'id')
+                  else (select coalesce(sum(pi.qty), 0) from public.player_inventory pi
+                         where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = v_e->'action'->>'id') end;
+      v_own := v_e->'action'->>'type' = 'consume';
+      v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('usable', not v_own or v_n > 0, 'count', v_n,
+        'why', case when v_own and v_n = 0 then 'none_left' end));
+    end if;
+  end loop;
+  select coalesce(jsonb_agg(jsonb_build_object('preset', x.preset, 'name', coalesce(hp.name, x.name), 'grounds', coalesce(x.options->'grounds', '[]'::jsonb))
+           order by x.preset), '[]'::jsonb) into v_presets
+    from public.player_action_sets x
+    left join public.player_hunt_presets hp on hp.user_id = x.user_id and hp.slot = x.slot and hp.preset = x.preset
+   where x.user_id = p_user and x.slot = p_slot;
+  if not exists (select 1 from jsonb_array_elements(v_presets) e where (e->>'preset')::int = v_preset) then
+    v_presets := v_presets || jsonb_build_array(jsonb_build_object('preset', v_preset, 'name', coalesce((select hp.name from public.player_hunt_presets hp
+      where hp.user_id = p_user and hp.slot = p_slot and hp.preset = v_preset), 'Preset ' || (v_preset + 1)), 'grounds', '[]'::jsonb));
+  end if;
+  return jsonb_build_object(
+    'preset', v_preset, 'presets', v_presets, 'role', v_role, 'discipline', v_disc,
+    'target_mode', v_eff->'target_mode', 'stance', v_eff->'stance', 'distance', v_eff->'distance', 'chase', v_eff->'chase',
+    'food_pct', v_eff->'food_below_pct', 'drink_pct', v_eff->'drink_below_pct',
+    'supply_source', v_eff->'supply_source', 'on_empty', v_eff->'on_empty', 'action_set', v_eff->'action_set',
+    'gold_floor', v_eff->'gold_floor',
+    'gather_share', v_eff->'gather_share', 'gather_inert', true,
+    'stop_rules', coalesce(v_opt->'stop_rules', '[]'::jsonb), 'grounds', coalesce(v_opt->'grounds', '[]'::jsonb),
+    'slots', v_slots,
+    -- THE STORE at the server's price (the Configure action table's numbers: never a client copy).
+    'store', coalesce((select jsonb_agg(jsonb_build_object('id', q.basic_id, 'kind', q.kind, 'partner', q.partner,
+                                                             'heals', q.heals, 'mana', q.mana, 'price', q.price) order by q.kind, q.price, q.basic_id)
+                         from public.hr_hunt_basic_supplies q), '[]'::jsonb),
+    'bar', coalesce(a.slots, '[]'::jsonb), 'options', v_opt);
+end $$;
+revoke execute on function public.hr_hunt_settings_view(uuid, int) from public, anon, authenticated, service_role;
+
 -- ── §2 GRANTS: revoke-then-grant; the client baseline row says what it is now ──
 revoke execute on function public.hr_hunt_restock(integer, text, bigint, uuid) from public;
 revoke execute on function public.hr_hunt_restock(integer, text, bigint, uuid) from anon, service_role;
@@ -191,7 +412,9 @@ declare v_role text;
 begin
   foreach v_role in array array['hr_engine', 'hr_tick'] loop
     if exists (select 1 from pg_roles where rolname = v_role) then
-      execute format('revoke all on function public.hr_hunt_restock(integer, text, bigint, uuid) from %I', v_role); end if;
+      execute format('revoke all on function public.hr_hunt_restock(integer, text, bigint, uuid) from %I', v_role);
+      execute format('revoke all on function public.hr_hunt_rune_state(uuid, integer, uuid, text) from %I', v_role);
+      execute format('revoke all on function public.hr_hunt_settings_view(uuid, integer) from %I', v_role); end if;
   end loop;
 end $grants$;
 grant  execute on function public.hr_hunt_restock(integer, text, bigint, uuid) to authenticated;
@@ -226,6 +449,17 @@ begin
   if (select strpos(p.prosrc, 'pg_advisory_xact_lock(hashtextextended(''hr:intent:''') from pg_proc p where p.oid = 'public.hr_hunt_restock(integer,text,bigint,uuid)'::regprocedure) = 0
      or (select strpos(p.prosrc, 'pg_advisory_xact_lock(hashtextextended(''hr:intent:''') > strpos(p.prosrc, 'hr_intent_replay(') from pg_proc p where p.oid = 'public.hr_hunt_restock(integer,text,bigint,uuid)'::regprocedure) then
     raise exception 'hunt-carry-in §3(a): the key is replayed before its lock is taken'; end if;
+  if (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p where p.oid = 'public.hr_hunt_settings_view(uuid,integer)'::regprocedure)
+     <> '0d3576f97773c924c111e83bd2e1486f' then
+    raise exception 'hunt-carry-in §3(a): the installed hr_hunt_settings_view is not this file''s'; end if;
+  foreach v_k in array array['public.hr_hunt_rune_state(uuid,integer,uuid,text)', 'public.hr_hunt_settings_view(uuid,integer)'] loop
+    if has_function_privilege('anon', v_k::regprocedure, 'execute') or has_function_privilege('authenticated', v_k::regprocedure, 'execute')
+       or has_function_privilege('service_role', v_k::regprocedure, 'execute')
+       or (exists (select 1 from pg_roles where rolname = 'hr_engine') and has_function_privilege('hr_engine', v_k::regprocedure, 'execute'))
+       or exists (select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                   where p.oid = v_k::regprocedure and a.grantee = 0 and a.privilege_type = 'EXECUTE') then
+      raise exception 'hunt-carry-in §3(a): % is client-reachable', v_k; end if;
+  end loop;
 
   begin
     -- THE PROBE: a hero hunting the lowest ground with ONE kind packed, more of it and nine other kinds in its bag.
@@ -342,10 +576,49 @@ begin
       raise exception 'hunt-carry-in §3(g): the close did not give back exactly what was carried (bag %, start %)',
         (select coalesce(sum(qty), 0) from public.player_inventory where user_id = c_a and slot = 0), v_inv0; end if;
 
+    -- (h) ★ THE STRUCK SPELL TELLS THE TRUTH: a wand's Fireball slot, its rune named, no store rune behind it. In town the
+    --     backpack answers; once the runes are packed the hunt bag answers (the false strike), and a rune in the backpack
+    --     mid-hunt does not; a tier above the hero's Magic is held but cannot be cast (rune_level); a tier it has unlocked,
+    --     not the Chalked one, casts.
+    v_gear := (select w.item_id from public.hr_hunt_weapons w where w.weapon_type = 'wand' order by w.item_id limit 1);
+    delete from public.player_inventory where user_id = c_a and slot = 0;
+    delete from public.player_equipment where user_id = c_a and slot = 0;
+    insert into public.player_equipment (user_id, slot, equip_slot, item_id) values (c_a, 0, 'weapon', v_gear);
+    insert into public.player_inventory (user_id, slot, item_id, qty) values (c_a, 0, 'chalked_fire_rune', 5);
+    v := public.hr_action_set_options(0, 0, jsonb_build_object('supply_source', 'mine', 'on_empty', 'end',
+           'slots', jsonb_build_array(jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', 'fireball'), 'conditions', '[]'::jsonb, 'join', 'and'))),
+           (k || '00000c50')::uuid);
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'hunt-carry-in §3(h)-harness: the bar was refused: %', v; end if;
+    v := public.hr_hunt_settings_view(c_a, 0)->'slots'->0;
+    if v->>'usable' is distinct from 'true' then raise exception 'hunt-carry-in §3(h): the runes in the backpack in town read %', v; end if;
+    v := public.hr_hunt_enter(0, v_hunt, jsonb_build_array(jsonb_build_object('item', 'chalked_fire_rune', 'qty', 5)), 0, null, (k || '00000c51')::uuid);
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'hunt-carry-in §3(h)-harness: enter refused: %', v; end if;
+    v_sid := (v->'session'->>'id')::uuid;
+    v := public.hr_hunt_settings_view(c_a, 0)->'slots'->0;
+    if v->>'usable' is distinct from 'true' then raise exception 'hunt-carry-in §3(h): the runes in the hunt bag read % (the false strike)', v; end if;
+    update public.hunt_bag set qty_left = 0 where session_id = v_sid;
+    insert into public.player_inventory (user_id, slot, item_id, qty) values (c_a, 0, 'chalked_fire_rune', 3);
+    v := public.hr_hunt_settings_view(c_a, 0)->'slots'->0;
+    if v->>'usable' is distinct from 'false' or v->>'why' is not null then
+      raise exception 'hunt-carry-in §3(h): runes left only in the backpack mid-hunt read %', v; end if;
+    insert into public.hunt_bag (session_id, user_id, slot, item_id, qty_loaded, qty_left, essential)
+      values (v_sid, c_a, 0, 'graven_fire_rune', 1, 1, true);
+    v := public.hr_hunt_settings_view(c_a, 0)->'slots'->0;
+    if v->>'usable' is distinct from 'false' or v->>'why' is distinct from 'rune_level' then
+      raise exception 'hunt-carry-in §3(h): a tier above the hero''s Magic read %', v; end if;
+    update public.player_skills set xp = (select min(c.xp) from public.hr_skill_curve c where c.level = 60)
+     where user_id = c_a and slot = 0 and skill_id = 'magic';
+    if not found then
+      insert into public.player_skills (user_id, slot, skill_id, xp) values (c_a, 0, 'magic', (select min(c.xp) from public.hr_skill_curve c where c.level = 60));
+    end if;
+    v := public.hr_hunt_settings_view(c_a, 0)->'slots'->0;
+    if v->>'usable' is distinct from 'true' or v->>'why' is not null then
+      raise exception 'hunt-carry-in §3(h): a tier the hero unlocked, not the Chalked one, read %', v; end if;
+
     raise exception using errcode = 'HRC21', message = 'hunt-carry-in §3 complete - rolling back';
   exception when sqlstate 'HRC21' then null;
   end;
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from auth.users where id in (c_a, c_b)) then raise exception 'hunt-carry-in §3: LEAKED a probe row'; end if;
-  raise notice 'hunt-carry-in: a hunting hero carries its own supplies into its own hunt, once per key, as one matched pair; all green';
+  raise notice 'hunt-carry-in: a hunting hero carries its own supplies into its own hunt, once per key, as one matched pair; a spell slot is struck only when the engine would not cast it; all green';
 end $$;

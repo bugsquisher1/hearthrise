@@ -434,7 +434,7 @@ const below = (s, metric) => {
 };
 const hpBelow = (s) => below(s, 'self_hp_pct');
 /* A spell slot the SERVER struck for its rune: on, of the worn weapon's discipline, active, needing a rune, and
-   `usable: false` (hr_hunt_settings_view: no rune of it held and no store rune named on the slot). */
+   `usable: false` (hr_hunt_settings_view: no rune it can cast where the engine spends it, and no store rune named on the slot). */
 function struckSpell(f) {
   if (!Array.isArray(f.slots)) return -1;
   return f.slots.findIndex((s) => on(s) && s.type === 'ability' && s.usable === false && !!ABILITIES[s.id] && ABILITIES[s.id].active

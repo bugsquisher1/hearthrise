@@ -126,7 +126,7 @@ function slotOf(s) {
        a slot switched Off never fires, so it shows struck. */
     enabled: s.enabled !== false, ignore: list(s.ignore, (m) => str(m), 16),
     usable: s.usable !== false && s.enabled !== false, mana: int(s.mana), count: int(s.count),
-    /* WHY THE SERVER STRUCK IT (hr_hunt_settings_view): none_left (own stock gone) | store_off; null when it can fire. */
+    /* WHY THE SERVER STRUCK IT (hr_hunt_settings_view): none_left (own stock gone) | store_off | rune_level (a spell's runes are all above the hero's level); null when it can fire. */
     why: str(s.why),
   };
 }

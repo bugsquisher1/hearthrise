@@ -261,7 +261,8 @@ export function hasShot(set, bag, worn) {
 /**
  * WHY A SLOT CANNOT FIRE NOW, from the server's own facts and the catalogue
  * rules the server applies (hr_hunt_settings_view `usable`: the ability is
- * active, of the worn weapon's discipline, its rune in the bag; a consume or
+ * active, of the worn weapon's discipline, a rune it can cast where the engine
+ * spends it, or the store's behind the slot; a consume or
  * attack slot: stock, or the store behind it under the supply setting):
  *   { code, text, glyph, strike }   or null when nothing stops it.
  * `strike` = the server would not fire it at all; a reason without strike
@@ -292,6 +293,9 @@ export function reasonOf(sl, set, bag, hero, worn, pack) {
     }
     if (r.ammo > 0 && set && !hasShot(set, bag, worn)) {
       return { code: 'ammo', text: 'Nothing loaded to shoot. Put arrows or bolts on the bar (Ammo): this spell casts them.', glyph: 'uiChest', strike: true };
+    }
+    if (sl.usable === false && sl.why === 'rune_level') {
+      return { code: 'rune_level', text: 'Your ' + runeWords(r.rune, 2) + ' are a higher tier than your level can cast. Carry a lower tier, or pick the store’s rune for this slot.', glyph: 'uiLock', strike: true };
     }
     if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
     if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: 'Needs ' + r.mana + ' mana, you have ' + Math.floor(hero.mana) + '.', glyph: 'uiPotion', strike: false };

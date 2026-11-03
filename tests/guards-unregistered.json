@@ -19,6 +19,16 @@
   ],
   "reviewed": "2026-09-06 (cleanup program, slice 2)",
   "guards": {
+    "hunt-carry-race.mjs": {
+      "reason": "THE REAL TWO-CONNECTION PROOF of carry-in's conservation (2027-02-21-hunt-carry-in.sql): one backend per actor on a local PostgreSQL 17 cluster (tools/pg-replay.mjs), which PGlite, one backend, cannot be. GitHub has no PostgreSQL 17 binaries and a clone of the chain takes a 25 min build, so it runs by hand when the verb, the hunt close or the settle's bag debit moves; tests/hunt-sessions-settle.mjs CARRY-IN plays the same orders in CI.",
+      "owner": "backend-architect",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "runner": "by hand: HR_PG_PORT=<free port> HR_PG_DATA=<scratch dir> node tests/hunt-carry-race.mjs [--mutate]"
+      }
+    },
     "away-recap-world.mjs": {
       "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: real closed tabs and world.wait(n, { away: true }) on the real play.html and hr-accrue engine over the replayed chain, about 6 min on a machine's first run. It proves the away line on real settles; the rules are mutation-proven in CI by tests/shell-core.mjs R3, R3b and tests/hud-reachable.mjs HR-7, HR-9.",
       "owner": "art-director",

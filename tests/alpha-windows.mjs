@@ -969,6 +969,12 @@ async function planRules(base) {
     if (!food || !food.strike || food.text !== 'None in this hunt: 40 Cooked Shrimp wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
     const rune = reasonOf(spell, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [], null, null, pack);
     if (!rune || rune.text !== 'Needs a Fire rune for each cast: none in this hunt, and 14 wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
+    /* RUNE-TRUTH (2027-02-21-hunt-carry-in.sql): the server struck a spell whose runes are all above the hero's level: the slot says that, not "the server says". */
+    const locked = reasonOf({ ...spell, usable: false, why: 'rune_level' }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'graven_fire_rune', qty: 2 }], null, null, null);
+    if (!locked || locked.code !== 'rune_level' || !locked.strike || !/^Your Fire runes are a higher tier than your level can cast\./.test(locked.text)) fails.push('AW-65 a spell whose runes are above the level reads ' + JSON.stringify(locked));
+    /* ...and a slot the server calls ready is not struck by the browser, whatever the backpack says (the hunt bag holds its runes). */
+    const ready = reasonOf({ ...spell, usable: true }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'chalked_fire_rune', qty: 2 }], null, null, []);
+    if (ready) fails.push('AW-65 a spell with runes in the hunt bag and none in the backpack reads ' + JSON.stringify(ready));
     const none = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null);
     if (!none || none.text !== 'None left: you carry no Cooked Shrimp. The next food or drink slot fires instead.') fails.push('AW-65 with nothing in the bag the food slot reads ' + JSON.stringify(none));
   }
@@ -3079,6 +3085,7 @@ const MUTANTS = [
   ['plans: AW-65 a rune spell offers no rune of its family', 'src/shell/carry-in.js', '  return !!r && familyCount(r, [{ id, qty: 1 }]) > 0;', '  return false;'],
   ['plans: AW-65 the loaded shot offers nothing of the worn ammo', 'src/shell/carry-in.js', "return (a.id === 'loaded' ? worn : a.id) === id;", 'return a.id === id;'],
   ['plans: AW-65 a struck slot never says its stock waits in the bag', 'src/shell/action-facts.js', '  const inPack = (id) => ((pack || []).find((r) => r.id === id) || {}).have || 0;', '  const inPack = () => 0;'],
+  ['plans: AW-65 a spell whose runes are above the level says only that the server refused', 'src/shell/action-facts.js', "    if (sl.usable === false && sl.why === 'rune_level') {", '    if (false) {'],
   ['plans: AW-64 a worn slot with none left is not said', 'src/shell/hunt-go.js', 'const parts = (dry ? [dry] : [])', 'const parts = []'],
   ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '')", "''"],
   ['plans: AW-64 a whetstone reads as a spare arrow', 'src/shell/hunt-go.js', ': carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot', ': carried.filter((r) => r.qty > 0 && ammoPerShot'],

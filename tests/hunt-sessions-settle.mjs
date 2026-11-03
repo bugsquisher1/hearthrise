@@ -118,7 +118,11 @@
 //              and its commit (that window neither spends nor loses it; the next spends it first); two carries at
 //              once (two keys add up, one key moves once); a carry racing the end (the end's close gives it back
 //              whole; after it, no_hunt; a pending Leave, hunt_leaving).
-//   CARRY-IN-IDEM  a second apply of 2027-02-21-hunt-carry-in.sql is byte-identical (body, grants, baseline row).
+//   CARRY-IN-IDEM  a second apply of 2027-02-21-hunt-carry-in.sql is byte-identical (bodies, grants, baseline row).
+//   RUNE-TRUTH  a spell slot is struck exactly when the engine would not cast it (2027-02-21-hunt-carry-in.sql): runes packed
+//              at Enter read ready and are spent (the false strike); runes left in the backpack mid-hunt read struck and are
+//              not, until carried in; a tier above the hero's level in the SPELL'S skill is rune_level and casts nothing; a
+//              higher tier it has unlocked casts. Browser closed and hunt viewed write the same rows.
 //   NO-FIGHT   a hero who can't fight goes home (designer 10-31): a bare bow with the store shut ends no_fight at its hunt
 //              start + the limit's minutes, a town-side automatic end, nothing bought, browser closed and viewed; the
 //              database refuses that end before the minutes and with a kill in its window.
@@ -2054,6 +2058,10 @@ const DB_ARMS = {
     const image = () => one(db, `select jsonb_build_object(
         'def', md5(replace(pg_get_functiondef('public.hr_hunt_restock(integer,text,bigint,uuid)'::regprocedure), chr(13), '')),
         'acl', (select proacl::text from pg_proc where oid = 'public.hr_hunt_restock(integer,text,bigint,uuid)'::regprocedure),
+        'view', md5(replace(pg_get_functiondef('public.hr_hunt_settings_view(uuid,integer)'::regprocedure), chr(13), '')),
+        'view_acl', (select proacl::text from pg_proc where oid = 'public.hr_hunt_settings_view(uuid,integer)'::regprocedure),
+        'state', md5(replace(pg_get_functiondef('public.hr_hunt_rune_state(uuid,integer,uuid,text)'::regprocedure), chr(13), '')),
+        'state_acl', (select proacl::text from pg_proc where oid = 'public.hr_hunt_rune_state(uuid,integer,uuid,text)'::regprocedure),
         'baseline', (select jsonb_agg(to_jsonb(b) order by b.grantee) from public.hr_client_rpc_baseline b where b.proname = 'hr_hunt_restock'))`);
     const before = await image();
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', '2027-02-21-hunt-carry-in.sql'), 'utf8').replace(/\r\n/g, '\n')); }
@@ -2062,6 +2070,118 @@ const DB_ARMS = {
     if (!before || !before.baseline) return [`CONTROL: the replay holds no hr_hunt_restock baseline row: ${JSON.stringify(before)}`];
     return canon(after) === canon(before) ? [] : [`a second apply moved ${firstDiff(canon(before), canon(after))}`];
   }),
+  /* RUNE-TRUTH (2027-02-21-hunt-carry-in.sql; §6): the server's `usable` on a rune spell, measured against what the real
+     engine does with the same hero in the next windows. One bar slot naming the spell, no store rune behind it. */
+  'RUNE-TRUTH': async (db, M) => {
+    const problems = [];
+    const FROM = Date.UTC(2026, 9, 29, 12, 0, 0);
+    const pinNow = (ms) => db.query(`select set_config('hr.test_now', $1, true)`, [new Date(ms).toISOString()]);
+    const exec = makeExec(db);
+    const spell = (id) => ({ action: { type: 'ability', id }, conditions: [], join: 'and' });
+    const slot0 = async () => (await one(db, 'select public.hr_hunt_settings_view($1::uuid, 0) v', [UID])).slots[0];
+    const said = (x) => JSON.stringify({ usable: x && x.usable, why: x && x.why });
+    /* what the engine spent, from the journal (a hunt that ended gave the rest of the line back) */
+    const burnt = (sid, item) => one(db, "select coalesce(sum((meta->'items'->>$2)::int), 0)::int from public.player_ledger where session_id = $1 and intent = 'supply_own'", [sid, item]);
+    const doors = { closed: { mode: 'tick' }, viewed: { mode: 'settle', bucket: null, project: true, live: true } };
+    const cutsOf = { closed: [30000, 60000, 90000, 120000], viewed: [17345, 41111, 77777, 120000] };
+    const settle = async (path, h, cuts, base = h.from) => {
+      for (const t of cuts) {
+        await pinNow(base + t);
+        const door = path === 'closed' ? { ...doors.closed, session: h.sid } : doors.viewed;
+        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: base + t, ...door });
+        /* the window before it ended the hunt (a weak hero, its stop on empty): nothing more to settle */
+        if (r && r.outcome === 'none' && r.reason === 'no_hunt') return true;
+        if (!r || r.outcome !== 'paid') { problems.push(`${path}: the window to +${t} ms answered ${r && r.outcome}/${r && r.reason} ${JSON.stringify(r && r.body).slice(0, 200)}`); return false; }
+      }
+      return true;
+    };
+    const MAGE = { fromMs: FROM, gold: 100000, level: 20, options: { supply_source: 'mine', on_empty: 'end', gold_floor: 0, slots: [spell('fireball')] },
+      beforeEnter: () => admin(db, UID, { equip: { weapon: 'practice_wand', shield: null, ammo: null } }) };
+
+    /* (1) THE FALSE STRIKE: Enter packed every Fire rune, the backpack holds none: the slot reads ready, and the engine spends them. */
+    const seen = {};
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, { ...MAGE, inv: { chalked_fire_rune: 200, practice_wand: 1 }, bag: [{ item: 'chalked_fire_rune', qty: 200 }] });
+      await db.query('savepoint rune_paths');
+      for (const path of Object.keys(doors)) {
+        const held = await one(db, `select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'chalked_fire_rune'), 0)::int`, [UID]);
+        if (held !== 0) problems.push(`${path}: CONTROL: Enter left ${held} runes in the backpack`);
+        const v0 = await slot0();
+        if (v0.usable !== true || v0.why) problems.push(`${path}: runes in the hunt bag, none in the backpack, read ${said(v0)} (the false strike)`);
+        if (await settle(path, h, cutsOf[path])) {
+          const n = await burnt(h.sid, 'chalked_fire_rune');
+          if (!(n > 0)) problems.push(`${path}: the slot read ready and the engine spent no rune`);
+          const v1 = await slot0();
+          if (v1.usable !== true) problems.push(`${path}: after ${n} casts with stock left the slot reads ${said(v1)}`);
+          seen[path] = await snapshot(db, h.sid);
+        }
+        await db.query('rollback to savepoint rune_paths');
+      }
+    });
+    if (seen.closed && seen.viewed && canon(seen.closed) !== canon(seen.viewed)) {
+      problems.push(`the false-strike hunt, browser closed vs viewed, wrote different rows ${firstDiff(canon(seen.closed), canon(seen.viewed))}`);
+    }
+
+    /* (2) THE REVERSE LIE: runes that reached the backpack mid-hunt: the slot reads struck and the engine casts nothing, until a carry brings them; then both flip. */
+    const seen2 = {};
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, { ...MAGE, inv: { chalked_fire_rune: 200, practice_wand: 1 }, bag: [] });
+      await db.query('savepoint rune_paths2');
+      for (const path of Object.keys(doors)) {
+        const v0 = await slot0();
+        if (v0.usable !== false || v0.why) problems.push(`${path}: runes only in the backpack mid-hunt read ${said(v0)}`);
+        if (await settle(path, h, [30000, 60000])) {
+          if (await burnt(h.sid, 'chalked_fire_rune')) problems.push(`${path}: the engine cast from runes the hunt does not carry`);
+          await asUser(db, UID);
+          const c = await one(db, `select public.hr_hunt_restock(0, 'chalked_fire_rune', 150, $1::uuid)`, [idem()]);
+          await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+          if (!c || c.ok !== true) problems.push(`${path}: the carry answered ${JSON.stringify(c)}`);
+          const v1 = await slot0();
+          if (v1.usable !== true) problems.push(`${path}: after the carry the slot reads ${said(v1)}`);
+          if (await settle(path, h, [90000, 120000, 150000])) {
+            if (!(await burnt(h.sid, 'chalked_fire_rune') > 0)) problems.push(`${path}: the carried runes were not cast`);
+            seen2[path] = await snapshot(db, h.sid);
+          }
+        }
+        await db.query('rollback to savepoint rune_paths2');
+      }
+    });
+    if (seen2.closed && seen2.viewed && canon(seen2.closed) !== canon(seen2.viewed)) {
+      problems.push(`the carried-rune hunt, browser closed vs viewed, wrote different rows ${firstDiff(canon(seen2.closed), canon(seen2.viewed))}`);
+    }
+
+    /* (3) THE VERSION: a tier above the hero's level in the SPELL'S skill casts nothing and says why, in town and hunting; a
+       higher tier it has unlocked (no Chalked one held) casts. A weapon ability levels on its weapon's skill, never Magic. */
+    const version = async (name, o, item, want) => {
+      await inTx(db, async () => {
+        await pinNow(FROM);
+        let town = null;
+        const h = await hunter(db, M, { ...o, inv: { [item]: 200, ...o.kit }, bag: [{ item, qty: 200 }],
+          beforeEnter: async () => { await o.beforeEnter(); town = await slot0(); } });
+        const v = await slot0();
+        const ok = (x) => (want === 'casts' ? x.usable === true && !x.why : x.usable === false && x.why === 'rune_level');
+        if (!ok(town)) problems.push(`${name}: in town the slot reads ${said(town)}, want ${want}`);
+        if (!ok(v)) problems.push(`${name}: hunting the slot reads ${said(v)}, want ${want}`);
+        if (await settle('closed', h, [30000, 60000, 90000, 120000])) {
+          const n = await burnt(h.sid, item);
+          if (want === 'casts' && !(n > 0)) problems.push(`${name}: the slot reads ready and the engine cast no ${item}`);
+          if (want !== 'casts' && n !== 0) problems.push(`${name}: the slot is struck and the engine cast ${n} ${item}`);
+        }
+      });
+    };
+    const noLevel = { level: undefined };
+    /* (Magic 1, a body that lives through two minutes of the fixture's monsters.) */
+    await version('Magic 1 with Graven Fire', { ...MAGE, ...noLevel, skillsXp: { defense: M.XP.skillXpForLevel('defense', 40) }, kit: { practice_wand: 1 } }, 'graven_fire_rune', 'rune_level');
+    await version('Magic 20 with Scored Fire, no Chalked', { ...MAGE, kit: { practice_wand: 1 } }, 'scored_fire_rune', 'casts');
+    const xpAt = (skill, lv) => ({ [skill]: M.XP.skillXpForLevel(skill, lv) });
+    const BLADE = { fromMs: FROM, gold: 100000, options: { supply_source: 'mine', on_empty: 'end', gold_floor: 0, slots: [spell('flame_strike')] },
+      kit: { practice_sword: 1 }, beforeEnter: () => admin(db, UID, { equip: { weapon: 'practice_sword', shield: null, ammo: null } }) };
+    await version('Flame Strike, Melee 20, Magic 1, Scored Fire', { ...BLADE, skillsXp: xpAt('melee', 20) }, 'scored_fire_rune', 'casts');
+    await version('Flame Strike, Melee 1, Magic 20, Scored Fire', { ...BLADE, skillsXp: xpAt('magic', 20) }, 'scored_fire_rune', 'rune_level');
+    return problems;
+  },
   'NO-FIGHT': async (db, M) => inTx(db, async () => {
     const problems = [];
     const SPAN = M.HSD.NO_FIGHT_END_MIN * 60000;
@@ -4048,6 +4168,16 @@ const DB_MUTANTS = [
     find: '  if v_s.leave_at is not null or v_s.change_at is not null then', replace: '  if false then' },
   { arm: 'CARRY-IN', name: '[carry-in] a carry lands in a hunt minutes behind its settle', fn: 'public.hr_hunt_restock(integer,text,bigint,uuid)',
     find: '  if public.hr_hunt_gap_ms(v_s) > c_slack_ms then', replace: '  if false then' },
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] a hunting hero\'s runes are read from the backpack (the false strike)', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+    find: '  if p_session is not null then', replace: '  if false then' },
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] a rune above the hero\'s level reads ready', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+    find: "case when coalesce(v_lv, 1) >= v_min then 'ready' else 'locked' end", replace: "'ready'" },
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] a weapon ability\'s version is read on Magic', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+    find: "k.skill_id = v_row->>'skill'", replace: "k.skill_id = 'magic'" },
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] only the family\'s Chalked rune counts', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
+    find: "and b.qty_left > 0 and v_row->'runes' ? b.item_id", replace: "and b.qty_left > 0 and b.item_id like 'chalked_%'" },
+  { arm: 'RUNE-TRUTH', name: '[rune-truth] the view says nothing of a rune above the level', fn: 'public.hr_hunt_settings_view(uuid,integer)',
+    find: "'why', case when v_can is false and v_rune = 'locked' then 'rune_level' end", replace: "'why', null::text" },
   /* A FULL BAG NEVER STOPS A HUNT (2027-02-11-hunt-loot-past-bag-cap.sql): the settle is fused again. */
   { arm: 'BAG-CAP', name: '[bag cap] a hunt\'s settle is refused bank_full at a full bag', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
     find: "if coalesce(current_setting('hr.hunt_session', true), '') = '' and v_stacks > v_st.bank_cap and v_stacks > v_stacks_before then",
@@ -4331,6 +4461,10 @@ async function pinDice(db) {
        here and not in the arm: a plan inlines a built-in's body and a rollback does not invalidate that plan. */
     create or replace function pg_catalog.now() returns timestamptz language sql stable as
       $f$ select coalesce(nullif(current_setting('hr.test_now', true), '')::timestamptz, transaction_timestamp()) $f$;`);
+  /* A COLD BOOT (no snapshot to restore) replayed the chain on this session, and PostgreSQL 18 keeps the plan of a LANGUAGE sql
+     function it has run: hr_hunt_gap_ms's still calls the built-in now(), which no pg_proc change invalidates (a built-in is
+     not a recorded plan dependency), so a pinned clock would reach some bodies and not others. Every plan is rebuilt on the hook. */
+  await db.exec('discard plans');
 }
 const rewindDice = (db) => db.query(`select setval('public.hr_test_uuid_seq', 1000, false)`);
 function e2harness(msg) { return /patch anchor matched|produced identical SQL|did not land verbatim/.test(msg); }

@@ -95,6 +95,20 @@ async function run(base) {
     const named = r.groupFit === 'party' ? Number((/ 2 to (\d+)/.exec(said) || [])[1]) : Number((/up to (\d+) more/.exec(said) || [])[1]) + 1;
     ok('G3', named === most, r.hunt + ' reads ' + JSON.stringify(said) + ', and the server walks in ' + most);
   }
+  /* THE FIXTURE GROUND: since the Thicket gained four seats (Tyler 2026-11-02) no live ground has fewer start tiles than the party, so the rows above can't tell the party
+     from the tiles. A copy of src with the Thicket cut back to the two tiles it had: it must still name the server's party. */
+  const two = mkdtempSync(join(tmpdir(), 'hunt-floor-g3-'));
+  try {
+    cpSync(join(base, 'src'), join(two, 'src'), { recursive: true });
+    const grounds = join(two, 'src/data/hunt-grounds.js');
+    const FOUR_TILES = 'start: Object.freeze([[1, 19], [1, 18], [2, 19], [1, 20]]),';
+    const text = readFileSync(grounds, 'utf8').replace(/\r\n/g, '\n');
+    ok('G3', text.includes(FOUR_TILES), 'CONTROL: the Thicket\'s four start tiles moved, so the fixture ground was not built');
+    writeFileSync(grounds, text.replace(FOUR_TILES, 'start: Object.freeze([[1, 19], [1, 18]]),'));
+    const HL2 = await import(pathToFileURL(join(two, 'src/shell/hunt-list.js')).href + '?t=' + Math.random());
+    const thin = HL2.huntRows().find((r) => r.hunt === 'meadowbrook_thicket');
+    ok('G3', !!thin && thin.heroes === most, 'a ground of two start tiles names ' + (thin && thin.heroes) + ' heroes, and the server walks in ' + most);
+  } finally { rmSync(two, { recursive: true, force: true }); }
   /* The leader's warning (2027-02-18-party-truth.sql): only the OTHER seats under the floor; `far` lets the server's refusal speak. */
   const glade = { band: [16, 31] };
   const seats = { me: 0, seats: [{ seat: 0, name: 'Wren', level: 5 }, { seat: 1, name: 'Sorrel', level: 9 }, { seat: 2, name: 'Bram', level: 20 }, { seat: 3, name: 'Null', level: null }] };

@@ -693,15 +693,19 @@ label.st-line { cursor: pointer; }
   .hb-socket.is-food .hb-socket-ico { display: none; }
   /* The fight panel in two rows of thumb-sized controls: stance and Chase; the setup corner (its name, the saved
      setups, the sliders) and distance. */
-  .hb-plaque { width: auto; align-self: center; display: grid; grid-template-columns: minmax(36px, auto) auto auto auto auto; grid-template-rows: 36px 36px; gap: 3px 4px; grid-template-areas: "stance stance stance stance chase" "set ok more dist dist"; padding-left: 4px; }
+  .hb-plaque { width: auto; align-self: center; display: grid; grid-template-columns: minmax(clamp(46px, calc((100vw - 667px) * .5), 64px), auto) auto auto auto auto; grid-template-rows: 36px 36px; gap: 3px 2px; grid-template-areas: "stance stance stance stance chase" "set ok more dist dist"; padding-left: 4px; }
   .hb-pl-row.is-set, .hb-pl-row.is-move { display: contents; }
   .hb-pl-row.is-set > .hb-label { display: none; }
-  .hb-set { grid-area: set; align-self: center; font-family: var(--f-ui); font-size: var(--t-micro); letter-spacing: 0; }
+  /* The setup's name is a press the height of its row (phone panel v0.2.83: 21 px tall, reading "Pre..."): one line where the
+     screen has the width for it, two short ones at 667 px. */
+  .hb-set { grid-area: set; align-self: stretch; font-family: var(--f-ui); font-size: var(--t-micro); letter-spacing: 0; line-height: 1.1; white-space: normal; }
+  .hb-set .hs-name { width: 100%; height: 100%; }
+  .hb-set .hs-name-t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
   .hb-ok { grid-area: ok; }
   .hb-plaque .hb-more { grid-area: more; }
   .hb-pl-row.is-stance { grid-area: stance; min-height: 0; }
   .hb-chase { grid-area: chase; }
-  .hb-dist { grid-area: dist; gap: 4px; margin-left: 0; }
+  .hb-dist { grid-area: dist; gap: 2px; margin-left: 0; }
   .hb-plaque .hh-tool, .hb-plaque .hh-seg { min-height: 36px; }
   .hb-stance .hh-seg { flex: 1 0 auto; padding: 0 clamp(2px, calc((100vw - 667px) / 30), 6px); }
   .hb-dist .hb-label { letter-spacing: 0; }
@@ -785,21 +789,26 @@ label.st-line { cursor: pointer; }
      and the hero / party switch share the second, and the numbers scroll under them. The head, the body and the
      main box lend their children to the panel's own grid (display: contents); the desktop panel is unchanged. */
   .ha-analyzer { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-    align-items: center; column-gap: 6px; width: 340px; max-height: min(calc(100vh - 224px), var(--hs-room, 100vh)); padding: 0 6px 4px; }
+    align-items: center; column-gap: 2px; width: min(376px, calc(100vw - 232px)); max-height: min(calc(100vh - 219px), var(--hs-room, 100vh)); padding: 0 6px 4px; }
   .ha-analyzer .hh-panel-head, .ha-analyzer .hh-panel-body, .ha-analyzer .ha-main { display: contents; }
   .ha-analyzer .hh-panel-title { display: none; }
-  /* The tabs share row 1 with the fold and the close: a premium hero's four run past their column, so the strip pans
-     sideways under the thumb (its last tab cut at the edge says there is more) and never runs under the fold. */
+  /* The tabs share row 1 with the fold and the close: all four fit (phone panel v0.2.83: Taken cut, Dealt behind the buttons);
+     under a wider font the strip pans sideways under the thumb and still never runs under the fold. */
   .ha-analyzer .ha-tabs { grid-area: 1 / 1 / 2 / 2; min-width: 0; margin-bottom: 0; overflow-x: auto; scrollbar-width: none; }
   .ha-analyzer .ha-tabs .ha-tab { flex: none; }
   .ha-analyzer .hs-wfold { grid-area: 1 / 2; }
   /* Folded, the phone panel is its name, its plus and its close: one 44 px row under the hunt bar. */
   .is-folded > .ha-analyzer .hh-panel-title { display: block; grid-area: 1 / 1; align-self: center; }
   .is-folded > .ha-analyzer > .hh-panel-body { display: none; }
-  .ha-analyzer .ha-tab { padding: 0 6px; }
+  .ha-analyzer .ha-tab { padding: 0 4px; }
   .ha-close { display: grid; grid-area: 1 / 3; width: var(--tap); height: var(--tap); }
   .ha-clocks { grid-area: 2 / 1 / 3 / 2; justify-content: flex-start; margin: 4px 0; }
-  .ha-analyzer .ha-scope { grid-area: 2 / 2 / 3 / 4; justify-self: end; margin-bottom: 0; }
+  /* The whole row, its words at the right end: spanning the fold's and the close's columns alone, its 125 px widened both and took it out of the tabs. */
+  .ha-analyzer .ha-scope { grid-area: 2 / 1 / 3 / -1; justify-self: end; margin-bottom: 0; }
+  /* A hero with no party: no row for the switch, and the Session tab's first head does not say Session again. The numbers get both. */
+  .ha-analyzer.is-alone .ha-scope { display: none; }
+  .ha-sec[data-sec="totals"] { border-top: 0; }
+  .ha-sec[data-sec="totals"] > .ha-sec-head { display: none; }
   .ha-analyzer .ha-wait, .ha-analyzer .ha-ended { grid-area: 3 / 1 / 4 / -1; }
   .ha-scroll { grid-area: 4 / 1 / 5 / -1; align-self: stretch; }
   .ha-more { grid-area: 5 / 1 / 6 / -1; margin: 4px 0 0; }

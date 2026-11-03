@@ -339,7 +339,7 @@
      more: a phone's scrollbar shows only while it scrolls. The card's own cap holds where round() or lh is missing
      (tests/phone-touch.mjs PH-6). */
   .hs-widget > .hs-pointer:not(.is-min), .hs-launchers > .hs-pointer:not(.is-min) { max-height: calc(var(--coach-room) - 20px); }
-  .hs-pointer:not(.is-min), .hs-win-coach > .hs-pointer:not(.is-min) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-rows: auto minmax(0, 1fr); align-items: center; padding: 0 0 4px 12px; }
+  .hs-pointer:not(.is-min), .hs-pointer.has-close:not(.is-min), .hs-win-coach > .hs-pointer:not(.is-min), .hs-win-coach > .hs-pointer.has-close:not(.is-min) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-rows: auto minmax(0, 1fr); align-items: center; padding: 0 0 4px 12px; }
   .hs-pointer:not(.is-min) > b { grid-area: 1 / 1; line-height: 1.2; }
   .hs-pointer:not(.is-min) > .hs-coach-got { grid-area: 1 / 2; margin: 0; min-height: 40px; padding: 0 8px; }
   .hs-pointer:not(.is-min) > .hs-coach-min { position: static; grid-area: 1 / 3; width: 40px; height: 40px; }
@@ -347,10 +347,17 @@
   /* Got it and the cross would say the same thing: one press for it, and the row's room for the title. */
   .hs-pointer:has(.hs-coach-got) > .hs-coach-close { display: none; }
   .hs-pointer:not(.is-min) > .hs-coach-text {
-    grid-area: 2 / 1 / 3 / -1; padding-right: 8px;
+    grid-area: 2 / 1 / 3 / -1; padding-right: 14px;
     min-height: 0; max-height: calc(round(down, var(--coach-room) - 76px - .5lh, 1lh) + .5lh); overflow-y: auto; overscroll-behavior: contain;
     pointer-events: auto;
+    /* A cut line alone read as cut off, with "no way to read the rest": a gold tip in the box's corner, in the gutter its padding
+       keeps, says the words go on. It is the box's own background, so it stays put as they scroll; ::after, one line tall and
+       drawn back over the last line (under its words), covers it once that line is in view, so it shows only while more waits. */
+    background:
+      linear-gradient(to bottom left, var(--gold-2) 50%, transparent 50%) no-repeat right 7px bottom 2px / 5px 6px,
+      linear-gradient(to bottom right, var(--gold-2) 50%, transparent 50%) no-repeat right 2px bottom 2px / 5px 6px;
   }
+  .hs-pointer:not(.is-min) > .hs-coach-text::after { content: ''; display: block; height: 1lh; margin-top: -1lh; background: var(--bg-2); }
   /* A CARD ABOUT A SHEET STANDS BESIDE THE SHEET (phone panel v0.2.83: inside it, it took 60 px of the 166 a ground's page had,
      and cut its own words at a line and a half): where the town's card stands, in the World's half, so the sheet keeps its whole
      height and the words their room. Its left is the sheet's own (min(400px, 48vw) wide, 8 px off the screen's right, its 12 px
@@ -361,7 +368,7 @@
   .hs-coach-more { display: none; }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
   .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh / 3 - 100px, 1lh) + .5lh); }
-  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 48px; left: calc(min(400px, 48vw) + 4px - 100vw); }
+  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 48px; left: calc(min(400px, 48vw) + 5px - 100vw); }
   .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) { width: min(340px, calc(100vw - min(400px, 48vw) - 32px)); max-height: calc(100vh - 200px); }
   .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh - 256px - .5lh, 1lh) + .5lh); }
   #panel-world[data-scene="hunt"] .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { top: 64px; }
@@ -373,6 +380,7 @@
   /* The card under the hunt bar stands at the bar's right end, its tip under Leave (first-hour playtest 10-29 #10:
      at the left end it lay over the hero mid-fight); the camera frames the World beside it (shell.js insetNow). */
   .hs-widget.is-hunt-topbar > .hs-pointer { left: auto; right: 0; }
+  .hs-widget.is-hunt-topbar > .hs-pointer:not(.is-min) { width: min(320px, 100%); }
   .hs-widget.is-hunt-topbar > .hs-pointer::before { left: auto; right: 10px; }
   .hs-coach-got { min-height: var(--tap); }
   /* A card about the action bar stands just above the bar on a phone (board 2026-10-25 sample s7: under the hunt bar it
@@ -392,8 +400,10 @@
     border-image: url('../../assets/ui/steel-frame.png') 6 / 0 0 0 12px stretch;
   }
   /* A SHEET IS FULL HEIGHT IN TOWN TOO: up over the place's row (the 44 px Town and Home, its 4 px gap) to the icon row, as it
-     stands in a hunt, where that row is gone. It cost every sheet 48 px of a 340 px screen. */
+     stands in a hunt, where that row is gone. It cost every sheet 48 px of a 340 px screen. The stage's clip lets it out while
+     it is open (the panel's own clip still holds the page from panning). */
   #panel-world:not([data-scene="hunt"]) .hs-win:not(.is-modal) { top: calc(-1 * (var(--tap) + 4px)); }
+  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal)) .world-stage { overflow: visible; }
   .hs-win.is-modal {
     top: 50%; bottom: auto; left: 50%; right: auto;
     max-width: calc(100vw - 16px); max-height: calc(100% - 8px);

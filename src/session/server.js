@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/session/server.js — THE ONE WAY THE CLIENT TALKS TO THE SERVER.
 //
-// createServerLink({ url, anonKey, token, fetch }) answers:
+// createServerLink({ url, publishableKey, token, fetch }) answers:
 //   rpc(name, args, o)    POST /rest/v1/rpc/<name>        (Postgres RPC); o.keepalive: the fetch outlives the page
 //   accrue(body)          POST /functions/v1/hr-accrue    (the engine's intents)
 //   report(body)          POST /functions/v1/bug-report-bridge  (a player's problem report;
@@ -75,7 +75,7 @@ function looksStale(status, body) {
 /**
  * @param {object} o
  * @param {string} o.url        the project URL
- * @param {string} o.anonKey    the public anon key
+ * @param {string} o.publishableKey    the project's public key
  * @param {() => string|null|Promise<string|null>} o.token   the signed-in user's access token, valid for the call
  * @param {(bad: string) => string|null|Promise<string|null>} [o.renew]  a new token after a 401, or null
  * @param {typeof fetch} [o.fetch]
@@ -89,7 +89,7 @@ export function createServerLink(o) {
     const body = JSON.stringify(payload || {});
     return doFetch(base + path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: o.anonKey, Authorization: 'Bearer ' + jwt },
+      headers: { 'Content-Type': 'application/json', apikey: o.publishableKey, Authorization: 'Bearer ' + jwt },
       body,
       /* the browser refuses a keepalive body over 64 KB outright: a larger one goes as a plain fetch while the page lasts */
       ...(keep && body.length < KEEPALIVE_MAX_BYTES ? { keepalive: true } : {}),

@@ -220,6 +220,8 @@
     "node tools/mutant-gate.mjs node tests/playtest-open.mjs --mutate": "db-replay-6",
     "node tests/market-wipe.mjs": "db-replay-6",
     "node tools/mutant-gate.mjs node tests/market-wipe.mjs --mutate": "db-replay-6",
+    "node tests/legacy-keys.mjs": "db-replay-6",
+    "node tools/mutant-gate.mjs node tests/legacy-keys.mjs --selftest": "db-replay-6",
     "node tests/frame-self-echo.mjs": "db-replay-6",
     "node tools/mutant-gate.mjs node tests/frame-self-echo.mjs --mutate": "db-replay-6",
     "node tests/frame-push-revive.mjs": "db-replay-6",

@@ -27,9 +27,9 @@ import readline from 'node:readline';
 
 const boot = fs.readFileSync(new URL('../src/net/supabase-bootstrap.js', import.meta.url), 'utf8');
 const url = (boot.match(/https:\/\/[a-z0-9]+\.supabase\.co/) || [])[0];
-const key = (boot.match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0];
+const key = (boot.match(/sb_publishable_[A-Za-z0-9_-]+/) || [])[0];
 if (!url || !key) {
-  console.error('Could not read the project url/anon key out of src/net/supabase-bootstrap.js');
+  console.error('Could not read the project url/publishable key out of src/net/supabase-bootstrap.js');
   process.exit(1);
 }
 

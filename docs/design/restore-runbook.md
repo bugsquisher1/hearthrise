@@ -508,7 +508,7 @@ change plus a redeploy; nothing here is lost, only re-pointed.
 | # | What | Where | Note |
 |---|---|---|---|
 | 1 | Project URL | `src/net/supabase-bootstrap.js:52` `url: 'https://<ref>.supabase.co'` | Ships to browsers — needs a cache-buster bump (`./bump-version.sh <NNN>`) or players run the old ref for ~10 min |
-| 2 | anon key | `src/net/supabase-bootstrap.js:53` | New project ⇒ new key. Never paste a service-role key here |
+| 2 | publishable key | `src/net/supabase-bootstrap.js` | New project ⇒ new key, and the Vault row `hr_tick_gateway_apikey` holds the same value. Never paste a secret key here |
 | 3 | CLI project id | `supabase/config.toml:30` `project_id` | Needed before `supabase functions deploy` |
 | 4 | Edge Functions | redeploy **both**: `hr-accrue` (**v22**, was v12 this morning — it ships several times a day) and `bug-report-bridge` (v4) ✅ re-verified 2026-08-15 20:5x UTC | Code is in the repo. Pack with `tools/pack-edge.mjs` — do **not** hand-edit the `?v=` rule |
 | 5 | `HR_ENGINE_DB_URL` | Edge Function secret | Embeds host **and** the `hr_engine_login` password. Both change. Pooler port **6543**, never 5432 (design §2a-ii — `max_connections` is 60 and an unpooled driver exhausts it). **Full procedure: §6a-iii step 2** |

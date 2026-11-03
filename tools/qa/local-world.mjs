@@ -365,7 +365,7 @@ function rewriteServed(rel, text, origin) {
   const must = (from, to) => { if (!from.test(text)) throw new Error('local-world: ' + rel + ' moved, no anchor ' + from); text = text.replace(from, to); };
   if (rel === 'src/net/supabase-bootstrap.js') {
     must(/url: 'https:\/\/[a-z0-9]+\.supabase\.co'/, "url: '" + origin + "'");
-    must(/anonKey: '[^']+'/, "anonKey: 'local-world-anon'");
+    must(/publishableKey: '[^']+'/, "publishableKey: 'local-world-publishable'");
   }
   if (rel === 'play.html') {
     must(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/, '');
@@ -469,7 +469,7 @@ export async function openWorld(o = {}) {
   verifyJwtFn = (token) => verifyJwt(token, { jwksUrl: origin + '/auth/v1/.well-known/jwks.json', issuer: auth.issuer.issuer });
   rest = createRest({ db, ipOf: auth.shim.ipOf, verify: verifyJwtFn });
   push = createPush(db);
-  engine = await loadEngine(db, { HR_ENGINE_DB_URL: 'postgres://local-world@127.0.0.1:6543/local', HR_TICK_SHARED_SECRET: tickSecret, SUPABASE_URL: origin, SUPABASE_ANON_KEY: 'local-world-anon' });
+  engine = await loadEngine(db, { HR_ENGINE_DB_URL: 'postgres://local-world@127.0.0.1:6543/local', HR_TICK_SHARED_SECRET: tickSecret, SUPABASE_URL: origin, SUPABASE_PUBLISHABLE_KEYS: '{"default":"sb_publishable_local_world"}' });
 
   /* THE WORLD TICK, the production path: the cron body queues signed POSTs (pg_net's shape), the handler verifies and settles them.
      The chain pins edge_url to production (Security M-5). Here pg_net is a queue this process drains into its own handler, so the URL

@@ -132,6 +132,12 @@ export function isRareItem(id) {
   if (!RARE_ITEMS) { RARE_ITEMS = new Set(); for (const m of Object.values(MONSTERS)) for (const d of (m && m.drops) || []) if (isRare(d)) RARE_ITEMS.add(d.id); }
   return RARE_ITEMS.has(id);
 }
+let EVERYDAY = null;
+/** Is this item a Rare wherever it drops (Rook's Whistle), not a ground's everyday piece as well (the Iron Helm: Rare on the Thicket's den mother, Scarce in the Glade)? */
+export function isRareOnly(id) {
+  if (!EVERYDAY) { EVERYDAY = new Set(); for (const m of Object.values(MONSTERS)) for (const d of (m && m.drops) || []) if (d && d.lucky !== true && d.salvage !== true && !isRare(d)) EVERYDAY.add(d.id); }
+  return isRareItem(id) && !EVERYDAY.has(id);
+}
 const nameOf = (id) => (ITEMS[id] && ITEMS[id].n) || id;
 const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
 const SLOT_WORDS = Object.freeze({ helmet: 'helmets', body: 'bodies', pants: 'legs', boots: 'boots' });

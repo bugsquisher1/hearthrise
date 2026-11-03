@@ -30,6 +30,44 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-03 The blind panel's small design problems on v0.2.83 (designer, lane/b-0284-return): BUILT, played on the local world, one catalogue migration staged
+Simulated players are evidence, not verdicts; each was checked against the rulings first. No new system, content, combat number or sink price.
+
+| Panel's problem | Ruling | Measured |
+|---|---|---|
+| First town view is grey paving (newcomer) | **The hero moves, not the camera or the zoom** (Tyler 10-26: 2x; 10-19: the hero stays centered). The Hearth Square's idle stands now start on the west flank, nearest (109,47) | At 1366x768: the fire to the right, Tamsin and her board to the left, played. At 1440x900 and 1920x1080 the whole Hearth too. Was: stand (106,52), paving only |
+| Create hero lists five styles you can't pick | **Words only:** "nothing to choose here: your hero owns every weapon below." The five rows stay (Tyler 10-22 asks for them) | Played |
+| Tamsin: every Take grey behind a paragraph | **A first Take asks for the weight that suits:** the weight worn most, else the role's (the coach's own table). Said over her board, changeable below. No worn weight and no role from the server: the old grey Take, never a guess. No migration: `hr_tally_accept` already takes a weight | Played: Level 1 tank, Take on, the server holds `heavy`, her board then reads "480 gp + a Bronze Helm" |
+| Practice Sword for 19 h over 8 Iron Swords | **Equip upgrades takes a weapon of the same family and grip when strictly better.** Never another family, a bow for a crossbow, empty hands, the off-hand or the ammo, so style and role can't move. Replaces my 10-22 "never the weapon"; Tyler's 10-16 (the weapon sets the role) stands | Played: Level 15, sword and shield, "Put on 5 pieces", the server wears Iron Sword, the shield stays. All seven weapon ladders pass, nine style changes refused |
+| Hand-selling 17-20 armor stacks each return | **One more press: Sell spare gear**, its total shown first, one sale. Sells what's outgrown, of any weight or family. Never what Equip upgrades wants, a piece for an empty slot, a higher tier than worn, a Rare-only drop, the kit, or a stack locked or planned Keep or Deposit. Beside Sell all loot rather than inside it: spare gear may be for another hero, and Storage is one press away | Played: 9 stacks, 55 pieces, 2,938 gp, the purse 16,000 → 18,938; Steel Platebody, Iron Warhammer and the Cloak kept. Stack count per return is from the panel, not re-measured |
+| 15k gold and nothing says what's next | **One read, "What your gold buys"**, once the purse covers the next hero: the slot, the next deed and the next chest at the server's prices. The What next line had this since 11-01, but it speaks only with every window shut and no card up, and a return lands on the Hunt summary. The summary's Next opens the House. **"Hunt together" gets a Got it:** it walled everything behind it for two days over a woodcutting alt | Played: 16,000 gp, card in town, "Next: What your gold buys" on the summary, House opens |
+| Party window never says how to invite | **The invite box is on every tab**, with the how-to under it on the finder. A hero with no party no longer sees "Your party is private" (`.hw-add` beat the switch's `[hidden]`) | Played |
+| "Cash in" on a member's screen | **The card stays and tells the truth in a party:** talk to your party first, a ticked box brings them home too. Hiding it would raise "Open Hunts and pick the Thicket" on a member, which is false | Tested on the words, not played in a party |
+
+**Walk-through against real rows** (grepped; `tests/hunt-core/sewer.mjs`, played as above):
+| Step | Holds | Doable because |
+|---|---|---|
+| Create hero | Nothing yet | `start-kit.js`: sword and shield on, every other starter weapon in the bag |
+| First town | That kit | `hearth_square` stand 1 is (109,47) on the plan, the server's lowest free; `great_hearth` fire at (117,46), crier at (104,45) |
+| Level 5, Tamsin's wolves | Cellar loot | `thicket_gray_wolves` is on her board; role `tank` → `heavy` |
+| Level 15, the weapon | Iron Sword from the Sewer's Kobold Tosher (scarce, 5%) or Ridge Camp's Hobgoblin | `reqLv` 15, same family, same grip; dominates at 7/6 over 4/3 |
+| A return, spare gear | Bronze and Iron from the Thicket, Wickstead, the Glade | The shop bids on each (`hr_shop_view`); 64 lines a sale, the engine's cap |
+| 15,000 gp | The purse | `account.slotOffer` 15,000; Homestead 400 gp, Copper Ore ×20, Normal Log ×30 (both gathered at the town edge); Millrace Crate 1,500 gp, Normal Log ×40 |
+
+**Cut:** shields and spellbooks in Equip upgrades (the same gap, but a heavy shield costs accuracy, so it's a real trade: left to the doll). A first-arrival camera pan (Tyler 10-19: the hero stays centered). A finder-tab default change: Hunts' "Find a party" opens there on purpose. **For Tyler, not ruled here:** gold is still dead past hour 11 once the slot is bought; sink prices are his.
+**Assumed:** that the new frame reads as better to a real newcomer; only a blind player can say. **Migration:** one catalogue, `2027-02-23-town-stations.generated.sql`, same tiles in a new order, no function body, no world shape, no edge. A hero already standing keeps its stand number, so it may shift a tile or two on the square when applied.
+
+**Merged with Klappa's Club (set/v0.2.85).** The two cards, walked on a club hero holding the next hero's price (real rows, `tutorial-reactive`; not played in a browser, the chain ahead of them is too long to press through):
+| Hero | Facts | Card |
+|---|---|---|
+| Practice Club in hand, Level 5 to 15, 15,000 gp | Both cards' conditions hold | Klappa's Club alone: one card at a time, and the gold keeps |
+| Same, club off to reforge, or reforged and not yet worn | Hands empty | Klappa's Club, then the bag; the gold waits |
+| Same, the club worn or its Got it pressed | | What your gold buys |
+| A sword hero with that purse | `club_hand` false | What your gold buys |
+| A second hero beside a veteran | `knowledge` skips the gold read | Klappa's Club, never the gold read |
+
+**The clubs at the Shop.** The Practice Club has no bid (`hr_hunt_vendor_value`), so it never lists, and Sell spare gear treats it as kit. Klappa's Club keeps its 50 gp bid from its own lane. Sell all loot never names gear. **Sell spare gear keeps whatever the bench makes from a kit piece** (`madeFromKit`, read off the recipes: only this club today), whatever is in hand. **A hand sale stays:** the row says Sell spare gear keeps it and the confirm says "Nothing sells the Practice Club that makes another Klappa's Club." It's one press and one confirm of the player's own, and a club that can never leave the bag is no kindness.
+
 ### 2026-11-03 Klappa's Club, Tyler's beginner club for Andy (designer, lane/c-klappa-club): BUILT, played on the local world, four files STAGED, nothing applied
 **The item.** Klappa's Club (`klappas_club`, Tier 1, Uncommon): a two-handed hammer worn at Level 5, Melee accuracy +3, Melee damage +12, the shop pays 50 g. "A Practice Club banded in bronze and set with Mill Cellar rat teeth: it hits like a warhammer and aims like a practice club. Klappa broke every club in the drill yard finding this one." The kit's Practice Club is 3/7 and the Iron Warhammer 7/12: it takes the Warhammer's damage ten Levels early and keeps the Practice Club's aim. That is Andy's "busted" and its trade-off, in one line. Name if Tyler wants another: Klappa's Cudgel.
 

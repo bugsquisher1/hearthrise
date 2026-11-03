@@ -27,7 +27,7 @@ import { SHOP_OFFERS } from '../data/shops.js?v=0.2.84';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.84';
 import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.84';
 import { itemName } from './widgets/bits.js?v=0.2.84';
-import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit } from './bag-model.js?v=0.2.84';
+import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit } from './bag-model.js?v=0.2.84';
 import { FLAMES } from '../data/hearth.js?v=0.2.84';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.84';
 import { dropWhereWords, isRareItem } from './hunt-ground-facts.js?v=0.2.84';
@@ -139,7 +139,8 @@ export function saleWords(id) {
 /** A sale's rare finds by name, for its confirmation ("Sell 7 stacks?" hid 3 Alpha Fang worth 1,350 of 2,054 gp, newcomer panel 2026-11-01), or ''. `lines`: { item, qty }. */
 export function rareSaleWords(lines) {
   const rare = (lines || []).filter((l) => isRareItem(l.item)).map((l) => whole(l.qty) + ' ' + itemName(l.item));
-  return rare.length ? 'This sells rare finds: ' + listWords(rare) + '.' : '';
+  const once = (lines || []).filter((l) => madeFromKit(l.item)).map((l) => 'Nothing sells the ' + itemName(madeFromKit(l.item)) + ' that makes another ' + itemName(l.item) + '.');
+  return [rare.length ? 'This sells rare finds: ' + listWords(rare) + '.' : '', ...once].filter(Boolean).join(' ');
 }
 
 /** What it is for, in plain words. */

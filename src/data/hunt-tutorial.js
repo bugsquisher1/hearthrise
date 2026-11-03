@@ -140,7 +140,7 @@ const step = (id, title, text, anchor, done, more) => Object.freeze({ id, title,
 /* The task Tamsin's card names: a solo task on the solo ground (tally-tasks.js). */
 const WOLVES = tallyTask('thicket_gray_wolves');
 /* The first place a new hero picks an armor weight: one sentence a weight (Tyler 2026-10-25, src/data/armour-weights.js). */
-const TAMSIN_WAY = 'Tamsin pays for kills. Open her tally, pick an armor weight, then Take ' + WOLVES.count + ' ' + WOLVES.label + '. Kills count while you\'re away.';
+const TAMSIN_WAY = 'Tamsin pays for kills. Open her tally and Take ' + WOLVES.count + ' ' + WOLVES.label + ': she pays in the armor weight that suits you.';
 const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket';
 /* A second hero skips the knowledge cards once another hero on the account is past this Level (the designer's rule:
    it has lived through the first hour; the cards that set THIS hero's own state still show). */
@@ -266,9 +266,10 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* Gated on THIS hero's Level (the server's level_xp), not only on the account having a second hero in town: a
      reactive card here interrupts the chain, so a Level 2 hero beside an older one was asked to party before its own
      Cellar steps (played on live 10-28, Pellow beside Corliss). Past the Cellar stretch it fits. */
+  /* A card that asks never walls (optimizer panel 11-03: "Next: Hunt together" for two days over a woodcutting alt, and nothing behind it was reached). */
   step('party_own', 'Hunt together',
     'Your heroes can share a hunt. Right-click another hero\'s tab (on a phone: Heroes, then Invite) and choose Invite to party; your own heroes join at once. Then the Party window\'s Your party tab shows everyone in it.',
-    'strip', { kind: 'partied' }, { reactive: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'own_hero_in_town' }],
+    'strip', orGotIt({ kind: 'partied' }), { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'own_hero_in_town' }],
       hooks: ['.char-tab[data-slot="{other}"]'] }),
   step('equip_upgrades', 'Wear what you found',
     'You found gear that beats what you wear. Gear goes on in town: open your bag and press Equip upgrades.',
@@ -398,6 +399,13 @@ export const HUNT_TUTORIAL = Object.freeze([
     'crafting', orGotIt({ kind: 'wields', item: 'klappas_club' }), { reactive: true, dayOne: true, gotIt: true, ring: { skill: 'smithing', work: CLUB_REFORGE.id },
       when: [IN_TOWN, { kind: 'level_at', at: ITEMS.klappas_club.reqLv }, { kind: 'club_hand', item: 'practice_club', made: 'klappas_club' }],
       hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="klappas_club"]', '[data-hs-win="inventory"] .hw-pick[data-item="klappas_club"] [data-hs-act="primary"]'] }),
+  /* GOLD WITH NOWHERE TO GO (designer's 10-31 pass ruled it a FIX; blind panel 11-03, hour 11, 15k banked: "nothing says what's next"): What next carries it in a line, but What next only
+     speaks with every window shut and no card up, and a return lands on the Hunt summary. So once the purse can pay for the next hero, one card names what exists at the server's
+     prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Club, one card at a time: the club has a job in it and a Level on it, and the gold
+     keeps. */
+  step('purse_goal', 'What your gold buys',
+    'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',
+    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_pays_hero' }] }),
   step('home', 'Build your home',
     'Your first house needs gold, ore and logs: start with logs in Gathering and crafting, Woodcutting.',
     'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),
@@ -611,6 +619,8 @@ const FACTS = Object.freeze({
   unblessed: (p, f) => known(f.blessings, (b) => b.held < b.of),
   below_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel < b.freeUntil),
   at_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel >= b.freeUntil),
+  /* the purse holds the price of the next hero slot the server offers; none on offer: never (unknown until the account's offer is read) */
+  purse_pays_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost : null),
   /* more than one hero (the account's roster, from the shell) */
   one_hero: (p, f) => known(heroesOn(f), (h) => h.length === 1 && Number.isInteger(f.slotsOwned) && f.slotsOwned > 1),
   heroes: (p, f) => known(heroesOn(f), (h) => h.length >= p.atLeast),
@@ -751,7 +761,7 @@ export const wasteAt = (amount, pct, max) => amount - Math.round((max * (100 - p
 /* The armor weight that costs a role's style nothing (wornByRole: plate costs a caster and a Ranger accuracy, cloth a
    Melee): what Tamsin's card advises. */
 export const WEIGHT_FOR_ROLE = Object.freeze({ tank: 'heavy', melee_dps: 'heavy', ranger: 'medium', mage: 'light', healer: 'light' });
-const ROLE_WORDS = Object.freeze({ tank: 'a shield tank', melee_dps: 'a Melee hero', ranger: 'a Ranger', mage: 'a Mage', healer: 'a Healer' });
+export const ROLE_WORDS = Object.freeze({ tank: 'a shield tank', melee_dps: 'a Melee hero', ranger: 'a Ranger', mage: 'a Mage', healer: 'a Healer' });
 const STANCE_WORDS = (() => {
   const pc = (pm) => Math.abs(pm - 1000) / 10 + '%';
   const d = HUNT_STANCES.defensive, o = HUNT_STANCES.offensive;
@@ -840,7 +850,10 @@ const SAY = Object.freeze({
       + ' To try it, press ' + slotWords([free]) + ', then Runes, ' + a.n + ', ' + name(st.id) + ', then Save.',
     barSlot: free, store: st.id, spell: a.id };
   },
-  leave_cellar: (f) => ({ text: 'You\'re Level ' + f.charLevel + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
+  /* In a party a leaver takes the others home (Tyler 10-22: every ticked box, on by default): the card says so before the press (party panel 11-03). */
+  leave_cellar: (f) => ({ text: f.inParty === true
+    ? 'You\'re Level ' + f.charLevel + ', and your loot is already in your bag. Talk to your party first: if you leave the hunt, anyone with "Leave if anyone leaves the hunt or dies" ticked comes home too.'
+    : 'You\'re Level ' + f.charLevel + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
   styles: () => {
     /* the switch and the door to better ones, on top of the list (Tyler 2026-10-22; style-gear.js: each rung is made at a bench) */
     /* Short: over the town and inside a phone's bag sheet the long list cut Got it off the screen (played at 922x423). The
@@ -862,7 +875,7 @@ const SAY = Object.freeze({
     const pick = w ? ' ' + uc(w) + ' suits ' + ROLE_WORDS[f.role] + '.' : '';
     return { text: TAMSIN_WAY,
     /* inside her window it no longer says "open her tally" */
-    textIn: 'Pick the armor weight she pays you in, then Take ' + WOLVES.count + ' ' + WOLVES.label + ': each one counts, even while you\'re away.' + pick };
+    textIn: 'Take ' + WOLVES.count + ' ' + WOLVES.label + ': each one counts, even while you\'re away. She pays you in armor, and you can change the weight under her board.' + pick };
   },
   first_death: (f) => {
     const d = f.death, b = f.blessings;
@@ -912,6 +925,15 @@ const SAY = Object.freeze({
     const ids = (f.upgrades || []).filter((id) => name(id));
     if (!ids.length) return null;
     return { text: 'You found ' + listed(ids.slice(0, 2).map(name)) + (ids.length > 2 ? ' and more' : '') + '. Gear goes on in town: open your bag and press Equip upgrades.' };
+  },
+  purse_goal: (f) => {
+    const nth = ORDINAL[(Number(f.slotsOwned) || 0) + 1];
+    if (!nth || !Number.isSafeInteger(f.slotCost) || !Number.isSafeInteger(f.gold)) return null;
+    const priced = (r) => [gp(r.gold), ...r.items.map((x) => name(x.id) + ' ×' + x.qty)].join(', ');
+    const named = (r) => !!r && Array.isArray(r.items) && !r.items.some((x) => !name(x.id));
+    const house = [named(f.home && f.home.next) ? 'the ' + f.home.next.name + ' (' + priced(f.home.next) + ')' : null,
+      named(f.chest) ? 'storage chests (the ' + f.chest.name + ', ' + priced(f.chest) + ')' : null].filter(Boolean);
+    return { text: 'You hold ' + gp(f.gold) + ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' + (house.length ? ' In the House: ' + listed(house) + '.' : '') };
   },
   stitch_cloak: () => {
     const r = (ARTISAN_RECIPES.crafting || []).find((x) => x.output === 'graypelt_cloak');

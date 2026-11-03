@@ -23,10 +23,13 @@
 //                    16 in a full Bronze plate set, wore none of ten Iron Platebodies,
 //                    because each one alone broke the set's +1% critical chance). The
 //                    set rewards finishing a tier; it never holds a hero below one.
+//   the weapon       only for a better one of the SAME FAMILY in the same grip, which sets the
+//                    same style and role (designer ruling 2026-11-03; blind panel: a sword
+//                    hero wore the Practice Sword for 19 hunted hours over eight Iron Swords)
 // WHAT IT NEVER DOES (the decisions, 2026-10-22):
-//   · never touches the weapon, the off-hand or the ammo: the
-//     hands set the style and the role (ruling 2026-10-16) and the player picks
-//     every supply (ruling 2026-10-21)
+//   · never changes the style: never another weapon family, never a weapon into empty
+//     hands, never the off-hand or the ammo: the hands set the style and the role
+//     (ruling 2026-10-16) and the player picks every supply (ruling 2026-10-21)
 //   · never takes off a piece of another armour weight (the player chose heavy,
 //     medium or light), nor one carrying an effect the numbers do not price
 //     (a bane, an away effect); it fills EMPTY slots first, then upgrades within
@@ -42,11 +45,12 @@ import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.84';
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.84';
 import { loadoutOf } from '../core/member.js?v=0.2.84';
 import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.84';
+import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.84';
 import { itemName } from './widgets/bits.js?v=0.2.84';
 import { reqHave } from './item-lore.js?v=0.2.84';
 
-/* The slots the hands and the quiver fill: the player's own choice, never this one. */
-const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);
+/* The off-hand and the quiver: the player's own choice, never this one. */
+const STYLE_SLOTS = new Set(['shield', 'ammo']);
 /* Every other equip slot, in the catalogue's order (a new slot row joins with no code). */
 const UPGRADE_SLOTS = Object.freeze(Object.keys(EQUIP_SLOT_META).filter((s) => !STYLE_SLOTS.has(s)));
 const EPS = 1e-9;
@@ -105,6 +109,11 @@ function gainsOf(before, after) {
   return out;
 }
 
+/* A weapon that plays what the worn one plays: its family (hunt-roles.js roleWeaponOf: sword, hammer, axe, wand, staff, ranged), the same grip (a bow and a crossbow share
+   their family, and a crossbow can hold a shield), and the worn set's role unmoved. Empty hands have no family, so they stay the player's choice of style. */
+const sameHands = (id, cur, worn) => roleWeaponOf(ITEMS[id]) === roleWeaponOf(ITEMS[cur]) && !!ITEMS[id].twoHanded === !!ITEMS[cur].twoHanded
+  && wornRoleKey(Object.assign({}, worn, { weapon: id }), ITEMS) === wornRoleKey(worn, ITEMS);
+
 /* The best piece in the bag for one slot, or { choice } when two trade off, or null. */
 function bestFor(slot, worn, left, o) {
   const cur = worn[slot] || null;
@@ -115,6 +124,7 @@ function bestFor(slot, worn, left, o) {
     const it = ITEMS[id];
     if (n < 1 || !it || !it.slot || !expandItemSlot(it.slot).includes(slot) || unpriced(it) || !meets(it, o.skills, o.level)) continue;
     if (curIt && weightOf(it) !== weightOf(curIt)) continue;
+    if (slot === 'weapon' && !sameHands(id, cur, worn)) continue;
     fits.push(id);
   }
   /* A tier step in the bag: every piece for this slot is judged with the set bonus out of both sides (the header). */

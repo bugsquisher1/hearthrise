@@ -1272,6 +1272,13 @@ async function pageRules(overrides, shots) {
         /* An invite is waiting: the Invites tab opens first; Join is ONE accept naming it. */
         const tab = await page.evaluate((q) => { const b = document.querySelector(q + '.hw-tab[aria-selected="true"]'); return b && b.getAttribute('data-tab'); }, P);
         if (tab !== 'invites') fails.push('UI-3 [' + tag + '] the Party window opened on ' + JSON.stringify(tab) + ' with an invite waiting');
+        /* UI-17 (party panel 11-03: the window opened on the finder, "only players you invite can join", and never said how): the way to invite is on the finder tab too, and a hero
+           with no party is not told about its party's listing (the switch's [hidden] lost to .hw-add's display). */
+        await page.click(P + '.hw-tab[data-tab="find"]');
+        const way = await page.evaluate((q) => { const box = document.querySelector(q + '.hw-invite-name'), how = document.querySelector(q + '.hw-invite-how'), sw = document.querySelector(q + '.hw-list-party');
+          return { box: !!box && box.getClientRects().length > 0, how: how ? how.textContent : '', sw: !!sw && sw.getClientRects().length > 0 }; }, P);
+        if (!way.box || !/Invite to party\.$/.test(way.how) || way.sw) fails.push('UI-17 [' + tag + '] with no party the finder tab reads ' + JSON.stringify(way));
+        await page.click(P + '.hw-tab[data-tab="invites"]');
         await shot('party-invites');
         const acc1 = sent(s, 'hr_hunt_party_accept').length;
         /* (not on screen = the rule is red, never a crash) */
@@ -1430,6 +1437,9 @@ const PURE_MUTANTS = [
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [
+  ['the finder tab has no way to invite (UI-17)', 'src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', true);", "cls(root.querySelector('.hw-invite-name'), 'is-on', tab !== 'find');"],
+  ['the finder tab never says how to invite (UI-17)', 'src/shell/windows/party.js', "text(root.querySelector('.hw-invite-how'), tab === 'find' ?", "text(root.querySelector('.hw-invite-how'), tab === 'nowhere' ?"],
+  ['a hero with no party reads that its party is private (UI-17)', 'src/styles/windows.css', '.hw-list-party[hidden], .hw-invite-how:empty { display: none; }', '.hw-invite-how:empty { display: none; }'],
   ['the leader\'s Start walks a seat under the floor in with no word (UI-TRUTH)', 'src/shell/windows/hunts.js', 'if (low.under.length && !low.far && sc.warned !== warnKey(hunt, low.under)) {', 'if (false) {'],
   ['a seat that sits down after the warning is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', "const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();", "const warnKey = (hunt) => hunt;"],
   ['the warning is said and the seat is never told (UI-TRUTH)', 'src/shell/windows/hunts.js', '() => warnPartyGround(ctx.account, cs, hunt)', '() => Promise.resolve({ ok: true })'],
@@ -1484,6 +1494,8 @@ async function main() {
   const shots = at > 0 ? resolve(process.argv[at + 1] || 'party-shots') : null;
   if (shots) await mkdir(shots, { recursive: true });
   const onlyPure = process.argv.includes('--pure');
+  const only = (process.argv.find((x) => x.startsWith('--only=')) || '').slice(7);
+  const picked = (rows) => rows.filter(([name]) => name.includes(only));
   if (!process.argv.includes('--mutate')) {
     const fails = [...await pureRules(await load(ROOT), ROOT), ...(onlyPure ? [] : await pageRules(null, shots))];
     for (const f of fails) console.log('  ✗ ' + f);
@@ -1499,7 +1511,7 @@ async function main() {
   register('data:text/javascript,' + encodeURIComponent(GEN_HOOK), { data: { root: pathToFileURL(tmp).href } });
   let gen = 0;
   try {
-    for (const [name, file, from, to] of PURE_MUTANTS) {
+    for (const [name, file, from, to] of picked(PURE_MUTANTS)) {
       const text = readFileSync(join(tmp, file), 'utf8');
       if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
@@ -1508,12 +1520,12 @@ async function main() {
       finally { writeFileSync(join(tmp, file), text); }
     }
   } finally { rmSync(tmp, { recursive: true, force: true }); }
-  for (const [name, file, from, to] of onlyPure ? [] : PAGE_MUTANTS) {
+  for (const [name, file, from, to] of onlyPure ? [] : picked(PAGE_MUTANTS)) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     console.log(report(name, await judge(() => pageRules({ [file]: text.replace(from, to) }, null)), counts));
   }
-  const n = PURE_MUTANTS.length + (onlyPure ? 0 : PAGE_MUTANTS.length);
+  const n = picked(PURE_MUTANTS).length + (onlyPure ? 0 : picked(PAGE_MUTANTS).length);
   console.log(exitOf(counts) ? 'party-ui --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'party-ui --mutate: ' + n + '/' + n + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));
 }

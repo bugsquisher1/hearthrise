@@ -269,7 +269,7 @@
 .hb-pl-row .hh-select { flex: 1; min-width: 0; }
 .hb-stance { display: flex; width: 100%; }
 /* each its own width: three equal thirds cut "Offensive" and "Defensive" to an ellipsis at 216 px (first-hour play 2026-10-31) */
-.hb-stance .hh-seg { flex: 1 1 auto; min-width: 0; padding: 0 1px; font-size: var(--t-micro); letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-stance .hh-seg { flex: 1 1 auto; min-width: 0; padding: 0 1px; font-size: var(--t-micro); font-size-adjust: var(--f-ui-aspect); letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hb-dist { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .hb-pl-row .hb-gold { flex: 1; min-width: 0; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
 /* The status line floats above the panel: a message coming or going never shifts a control under the pointer. */

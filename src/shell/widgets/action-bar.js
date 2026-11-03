@@ -184,9 +184,10 @@ function tipHtml(i, ctx) {
   const h = huntOf(ctx.character);
   const bag = carriedOf(ctx.character);
   const hero = h && !h.ended ? h.hero : null;
-  const why = reasonOf(s, set, bag, hero, (equipmentOf(ctx.character) || {}).ammo) || holdingReason(s, holdsPackNow(ctx.character, hero));
+  const worn = (equipmentOf(ctx.character) || {}).ammo;
+  const why = reasonOf(s, set, bag, hero, worn) || holdingReason(s, holdsPackNow(ctx.character, hero));
   const shared = sharedCooldownOf(wires, i);
-  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag)).filter(Boolean);
+  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag, worn)).filter(Boolean);
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
     + (why ? '<p class="' + (why.quiet ? 'is-why' : 'is-warn is-why') + '">' + esc(why.text) + '</p>' : '')
     + lines.map((l) => '<p>' + esc(l) + '</p>').join('')

@@ -21,7 +21,11 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Party fixes.** The Party window's buttons fit, Disband asks first, and if a party's leader falls, your other hero's Hunts window says why Enter is off and offers Leave party.
 
+**Hunt prep tells the truth.** Hunt prep and Before you go now count the food, drink and ammo your hero actually carried into the hunt, so they stop saying you're buying from the store when you aren't.
+
 **Small fixes.**
+- Town and Home stay at the top right whenever you're not in a hunt, including after a hunt ends or a hero dies.
+- Stance buttons and your hero's job line read in full on wider fonts.
 - Sell all loot's confirm names any rare finds it's about to sell.
 - The top-bar stamina button asks before it spends.
 - The away card says when a friend ran out of stamina, rather than saying they left.

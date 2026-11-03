@@ -73,7 +73,8 @@
 //         a desktop keeps the first field's focus
 //   The panel's second read (2026-11-01, art/review/player-feedback-2026-11-01/phone-perf.txt on lane/f2-phone-perf):
 //   PH-18 A CARD NEVER HIDES WHAT IT NAMES (667x375): in Hunts the card is at most 90 px and the ground it names is on
-//         screen and on top; a ground's page keeps 165 px and Enter; Got it leaves the next card on its tab until pressed
+//         screen and on top; a ground's page keeps 165 px and Enter; Got it leaves the next card on its tab until pressed;
+//         a running hunt's note stands aside for a Hunts card
 //   PH-19 Summary and Leave at least 16 px apart; a folded card off the Details panel's close (667x375)
 //   PH-20 Leave party and Disband inside the sheet at every phone size; Disband's first press asks, its second sends ONE
 //   PH-21 A TAPPED ITEM (touch, 667x375): its tip stands off the sheet, takes no press, the action is hit first time;
@@ -99,6 +100,7 @@ const ALPHA = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelop
 HUNT.hunt_server_now_ms += (await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href)).SESSION_CONFIG.huntPlaybackDelayMs;
 const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
 const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
+const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
 const { HUNT_TUTORIAL } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tutorial.js')).href);
 /* A long bag (the playtest's hero carried 42 stacks): thirty more stacks of plain materials. */
 const MATERIALS = Object.keys(ITEMS).filter((id) => !ITEMS[id].kind && !ITEMS[id].type && !(id in ALPHA.inventory)).slice(0, 30);
@@ -605,6 +607,16 @@ async function coachSheet(page, tag, fails) {
   await page.waitForTimeout(300);
   const g = await page.evaluate(() => ({ body: window.__r('[data-hs-win="hunts"] .hs-win-body').height, enter: (() => { const b = document.querySelector('.hw-hunt-enter'); return !!b && window.__onScreen(window.__r(b)) && window.__hits(b); })() }));
   if (g.body < 165 || !g.enter) fails.push('PH-18 [' + tag + '] a ground\'s page gets ' + Math.round(g.body) + ' px beside its card, Enter ' + g.enter);
+}
+/* The how-to already stands aside on every screen (shell.css .is-hint), so a hero in town no longer tells: only a hero mid-hunt with a Hunts card
+   up still has a note, "You are hunting in …", and on a phone it gives the sheet's room to the card and the grounds as well. */
+async function coachSheetHunting(page, tag, fails) {
+  await page.click('.hs-launch[data-hs-open="hunts"]', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hs-win-coach .hs-pointer') && document.querySelector('.hw-hunts-now') && document.querySelector('.hw-hunt b'), null, 4000))) { fails.push('PH-18 [' + tag + '] CONTROL: no card in Hunts mid-hunt'); return; }
+  await page.waitForTimeout(250);
+  const n = await page.evaluate(() => { const note = document.querySelector('.hw-hunts-now'); return { hint: note.classList.contains('is-hint'), said: note.textContent, box: note.getClientRects().length }; });
+  if (n.hint || !/^You are hunting in /.test(n.said)) fails.push('PH-18 [' + tag + '] CONTROL: mid-hunt the note reads ' + JSON.stringify(n));
+  else if (n.box) fails.push('PH-18 [' + tag + '] the note of the running hunt stands over the grounds the card names');
 }
 /* Got it hands the sheet back: the next card waits on its tab until the tab is pressed. */
 async function gotItRests(page, tag, fails) {
@@ -1250,6 +1262,13 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       const c = await open(SMALLEST, ALPHA, (env) => { reading(env, 'bless', charXpForLevel(5)); longBag(env);
         env.blessings = { tiers: [1, 2, 3].map((tier) => ({ tier, permille: 320, price: 0, held: false })), permille: 0, free_until: 30 }; });
       if (c.up) { await gotItRests(c.page, tag, fails); await done(c, tag); } else fails.push('PH-18 [' + tag + '] the town did not mount');
+      /* The one card that still lies over a running hunt's Hunts: "Into the sewer, together", a hero in a party on the Thicket at the Sewer's Level. */
+      const h = await open(SMALLEST, HUNT, (env) => { const seat = HUNT.party.members[0].seat;
+        env.hunt = Object.assign({}, env.hunt, { hunt_id: 'meadowbrook_thicket' });
+        env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(HUNT_INDEX.millrace_sewer.band[0]) });
+        env.party = Object.assign(clone(HUNT.party), { id: '11111111-0000-4000-8000-00000000000b', max: 4, self_seat: seat, leader_seat: seat });
+        env.client_state = Object.assign({}, env.client_state, { coach: { read: readSoFar('go_below') } }); });
+      if (h.up) { await coachSheetHunting(h.page, tag, fails); await done(h, tag); } else fails.push('PH-18 [' + tag + '] the hunt did not mount');
     }
     if (run('apart')) { // PH-19
       const tag = tagOf(SMALLEST);

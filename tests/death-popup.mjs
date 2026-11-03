@@ -6,7 +6,7 @@
 //   node tests/death-popup.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/death-popup.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/shell/death-popup.js src/shell/windows/death.js src/shell/alerts.js src/session/character-sections.js src/shell/widgets/hunt-topbar.js src/shell/shell.js
+// mutant-anchors: src/shell/death-popup.js src/shell/windows/death.js src/shell/alerts.js src/session/character-sections.js src/shell/widgets/hunt-topbar.js src/shell/shell.js src/styles/app.css src/world/world-boot.js
 // mutant-writes-tree: no — page mutants are served overrides
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs), on
@@ -30,6 +30,8 @@
 //   DP-4 RELOAD IN TOWN  an ordinary end opens its summary; closed, the hunt bar leaves town. A reload
 //                  brings neither back and the Town / Home strip stands (the panel 2026-11-01, twice:
 //                  "Last hunt: Wickstead | Summary" in its place until Summary was pressed)
+//   DP-5 BAR IN TOWN  a hunt bar left standing in town (a death's summary opens by no one) keeps the Town / Home
+//                  row, clear of the bar; a running hunt hides the row (Andy 2026-11-01: no way out of the house)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -251,6 +253,34 @@ async function pageRules(overrides, shots) {
           if (back.bar || back.summary || !back.home) fails.push('DP-4 [' + tag + '] a reload in town reads ' + JSON.stringify(back));
         }
         await e.ctx.close();
+        /* DP-5 A HUNT BAR LEFT STANDING IN TOWN KEEPS THE TOWN / HOME ROW (Andy 2026-11-01: "the button's not there to go back").
+           A death's summary never opens by itself, so its bar stands in town ("Last hunt: ... Summary") until Summary is pressed and
+           closed; the row of Town / Home buttons shares its way out with the house and must stand under it. A running hunt hides the row. */
+        const rowView = (page) => page.evaluate(() => {
+          const box = (n) => { const r = n && n.getClientRects().length ? n.getBoundingClientRect() : null; return r ? { top: r.top, bottom: r.bottom } : null; };
+          return { bar: box(document.querySelector('.ht-bar')), chrome: box(document.querySelector('#panel-world .world-chrome')),
+            town: box(document.querySelector('[data-world-choice="town"]')), home: box(document.querySelector('[data-world-choice="home"]')) };
+        });
+        const s5 = scripted(true);
+        s5.env[0].state = Object.assign({}, s5.env[0].state, { active_kind: 'idle', active_id: null });
+        const g = await fresh(s5);
+        if (!g.ok || !(await popWaits(g.page))) fails.push('DP-5 [' + tag + '] a death in town opened no popup');
+        else {
+          await g.page.click(POP + ' [data-hs-act="death-ok"]');
+          await wait(g.page, () => !document.querySelector('[data-hs-win="death"]'), null, 3000);
+          await g.page.waitForTimeout(600);
+          const left = await rowView(g.page);
+          if (!left.bar) fails.push('DP-5 [' + tag + '] the scenario did not leave the hunt bar standing in town: ' + JSON.stringify(left));
+          else if (!left.town || !left.home) fails.push('DP-5 [' + tag + '] the hunt bar standing in town took the Town / Home buttons: ' + JSON.stringify(left));
+          else if (left.bar.top < left.chrome.bottom - 1) fails.push('DP-5 [' + tag + '] the hunt bar overlaps the Town / Home row: ' + JSON.stringify(left));
+        }
+        await g.ctx.close();
+        const live = await fresh(scripted(false));
+        await live.page.waitForTimeout(1200);
+        const running = await rowView(live.page);
+        if (!live.ok || !running.bar) fails.push('DP-5 [' + tag + '] a running hunt showed no hunt bar: ' + JSON.stringify(running));
+        else if (running.chrome || running.town || running.home) fails.push('DP-5 [' + tag + '] a running hunt still shows the Town / Home row: ' + JSON.stringify(running));
+        await live.ctx.close();
         if (errors.length) fails.push('DP [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       } catch (e) {
         fails.push('DP [' + tag + '] threw: ' + String(e && e.message).split('\n')[0]);
@@ -274,6 +304,8 @@ const PAGE_MUTANTS = [
   ['Hunt summary only closes', 'src/shell/windows/death.js', "  if (action === 'death-summary') ctx.show('hunt-summary');\n", ''],
   ['a reload stands the hunt bar back up in town', 'src/shell/shell.js', " && !summaryFromEarlierPage(opts.character, h.sessionId)", ''],
   ['a closed summary waits out the residue debounce', 'src/hunt-view/summary-recorder.js', "if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});", 'void 0;'],
+  ['the hunt bar alone hides the Town / Home row', 'src/styles/app.css', '.app.is-game #panel-world[data-scene="hunt"]:has(.ht-bar) .world-chrome', '.app.is-game:has(.ht-bar) #panel-world .world-chrome'],
+  ['the pane never names its scene', 'src/world/world-boot.js', "    panel.setAttribute('data-scene', sc.kind);", '    void 0;'],
   ['the summary opens over the popup', 'src/shell/shell.js', "if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death'))", 'if (cs && takeFresh(cs))'],
 ];
 

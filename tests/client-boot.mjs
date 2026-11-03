@@ -561,10 +561,10 @@ async function checks(overrides, leaving = true) {
            (outfits.js HERO_DYES_SHOWN, newcomer panel 2026-11-01), and Enter town shows with no scrolling at a laptop's 1366x768. */
         await page.setViewportSize({ width: 1366, height: 768 });
         const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelector('.hero-how-list'));
-        const laptop = await page.evaluate(() => { const b = document.querySelector('.hero-confirm').getBoundingClientRect(); return { bottom: Math.round(b.bottom), H: innerHeight, doc: document.documentElement.scrollHeight, dyes: document.querySelectorAll('.hero-region, .hero-preview, .hero-note').length }; });
-        if (laptop.bottom > laptop.H || laptop.doc > laptop.H || laptop.dyes) fails.push('B-9 at 1366x768 the creation step reads ' + JSON.stringify(laptop));
         if (!step) fails.push('B-9 Create did not open the creation step (sent ' + JSON.stringify(o.created) + ')');
         else {
+          const laptop = await page.evaluate(() => { const b = document.querySelector('.hero-confirm').getBoundingClientRect(); return { bottom: Math.round(b.bottom), H: innerHeight, doc: document.documentElement.scrollHeight, dyes: document.querySelectorAll('.hero-region, .hero-preview, .hero-note').length }; });
+          if (laptop.bottom > laptop.H || laptop.doc > laptop.H || laptop.dyes) fails.push('B-9 at 1366x768 the creation step reads ' + JSON.stringify(laptop));
           /* On a 922x423 phone the five ways to fight show too (playtest 2026-10-29: the phone hid them), in a column
              that scrolls, and Enter town still fits the screen. */
           await page.setViewportSize({ width: 922, height: 423 });

@@ -206,7 +206,7 @@
 .char-roleglyph .hs-glyph { width: 18px; height: 18px; fill: currentColor; }
 .char-tab-main { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
 .char-tab-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.char-tab-doing { font-size: var(--t-micro); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.char-tab-doing { font-size: var(--t-micro); font-size-adjust: var(--f-ui-aspect); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .char-tab.is-hunting .char-tab-doing { color: var(--ink-2); }
 .char-bars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; width: 96px; }
 .char-bar { position: relative; display: block; height: 3px; background: var(--bg-0); overflow: hidden; }
@@ -253,8 +253,10 @@
   .conn-line { top: 104px; font-size: var(--t-micro); }
 }
 /* In a hunt the top bar carries the ground's name and clock, so the pane's own
-   title row would only repeat it and cost the stage a line. */
-.app.is-game:has(.ht-bar) #panel-world .world-chrome { display: none; }
+   title row would only repeat it and cost the stage a line. Keyed on the SCENE (world-boot.js paintChrome), never on
+   the bar alone: the bar stays up in town after a hunt ends ("Last hunt: ... Summary") and took the Town / Home
+   buttons with it (Andy 2026-11-01: no way back out of the house). */
+.app.is-game #panel-world[data-scene="hunt"]:has(.ht-bar) .world-chrome { display: none; }
 
 /* THE CREATION STEP (src/app/hero-create.js), in the account card: the hero in a sunk mirror on the left (drawn at
    x4, standing on the pixel ground shadow at the same x4), its name and four colour strips beside it, then How you

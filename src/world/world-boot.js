@@ -87,10 +87,9 @@ const standKeyOf = (town) => {
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
 
 /**
- * A FIGHT THE WORLD HAS NO MAP FOR (Ridge Camp, say): the town or home stays on
- * screen as the viewer picked, and one slim line over it names where the hero
- * really is and offers the hunt that IS in the World. Null when the scene
- * speaks for itself. Its button only names that hunt's entrance (the pane opens Hunts on it).
+ * A FIGHT THE WORLD HAS NO MAP FOR (Ridge Camp, say): the town or home stays on screen as the viewer picked, and one
+ * slim line over it names where the hero really is and offers the hunt that IS in the World. Null when the scene speaks
+ * for itself. Its button only names that hunt's entrance (the pane opens Hunts on it).
  * @param {object} G  read only
  * @param {{kind: string}} sc  the scene showing
  * @param {(id: string) => string} monsterName
@@ -230,6 +229,8 @@ export async function bootWorld(panel, opts) {
 
   function paintChrome(sc) {
     stage.classList.remove('is-hot');
+    /* The scene on screen, for the pane's CSS (app.css): the title row gives way to the hunt bar in a hunt scene and in no other. */
+    panel.setAttribute('data-scene', sc.kind);
     const title = chrome.querySelector('.world-title');
     if (title) title.textContent = ROWS.get(sc.map).name;
     chrome.querySelectorAll('[data-world-choice]').forEach((b) => {

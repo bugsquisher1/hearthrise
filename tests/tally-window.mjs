@@ -347,10 +347,12 @@ async function checks(overrides, shots) {
         });
         if (!seen.first) fails.push('TW-13 the weight picker stands over her board');
         if (!seen.off || !/^Pick the armor weight she pays you in first/.test(seen.why) || !seen.toPicker) fails.push('TW-13 with no weight her board reads ' + JSON.stringify(seen));
-        await page.click('[data-hs-win="tally"] [data-hs-act="to-weight"]');
-        await page.waitForTimeout(200);
-        const inView = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"] .hs-win-body').getBoundingClientRect(), p = document.querySelector('[data-hs-win="tally"] .ht-weights').getBoundingClientRect(); return p.top >= w.top && p.bottom <= w.bottom; });
-        if (!inView) fails.push('TW-13 Pick a weight did not bring the picker into view');
+        if (seen.toPicker) { // no press to make when it is hidden: that is already a named fail above, never a page.click timeout that kills the run
+          await page.click('[data-hs-win="tally"] [data-hs-act="to-weight"]');
+          await page.waitForTimeout(200);
+          const inView = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"] .hs-win-body').getBoundingClientRect(), p = document.querySelector('[data-hs-win="tally"] .ht-weights').getBoundingClientRect(); return p.top >= w.top && p.bottom <= w.bottom; });
+          if (!inView) fails.push('TW-13 Pick a weight did not bring the picker into view');
+        }
         if (sent(s, 'hr_tally_accept').length) fails.push('TW-13 a task was taken with no weight');
       }
       await ctx.close();

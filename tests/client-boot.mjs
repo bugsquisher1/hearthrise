@@ -17,6 +17,10 @@
 //        script, one quiet way in that reaches the sign-in screen, and /prototypes/hunt-sim/ still serves
 //   B-16 a slow first visit paints a loading shell (crest, line, a bar that moves) before the page's modules run; the first
 //        screen takes over from it; a module that cannot load says so
+//   B-19 ONE FILE NEVER DECIDES THE PAGE (live v0.2.83: float-menu.js answered 503 once and the page stopped until a reload): one 503 on a
+//        file of the entry's graph, or on a preload nothing else imports yet, and the page boots with no press; a file that always fails ends
+//        on the words and a Reload press after exactly two reloads, then stays there (the press is one more try, never a loop); a third
+//        party's script reloads nothing; the World's module failing behind the first screen gets the same second go
 //   B-1  play.html boots to the sign-in screen with zero console errors
 //   B-2  sign in -> the characters screen lists the server's owned slots
 //   B-3  Play -> the World pane (a canvas) and the shell mount for that character;
@@ -154,10 +158,18 @@ async function stubServer(page, o) {
 }
 
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
+/* wait, for a page that reloads itself: a navigation under a waitForFunction answers false at once. */
+const until = async (page, fn, arg, ms = 60000) => {
+  for (const end = Date.now() + ms; Date.now() < end; await new Promise((k) => setTimeout(k, 200))) {
+    try { if (await page.evaluate(fn, arg)) return true; } catch (e) { /* the page is on its way to the next load */ }
+  }
+  return false;
+};
 
 /* `leaving`: run B-17 and B-18 too. Together about 20 s a run: --mutate runs them for their own mutants and the clean control only, or
-   36 mutants add 12 minutes to a 30-minute CI job (smoke.yml in-page, measured 14.2). `notice`: B-7's whole walk, the same way (with no flag, the notice's arrival only). */
-async function checks(overrides, leaving = true, notice = true) {
+   36 mutants add 12 minutes to a 30-minute CI job (smoke.yml in-page, measured 14.2). `notice`: B-7's whole walk, the same way (with no flag, the notice's arrival only).
+   `reloads`: B-19, the same way. */
+async function checks(overrides, leaving = true, notice = true, reloads = true) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
@@ -209,12 +221,114 @@ async function checks(overrides, leaving = true, notice = true) {
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]') && !document.querySelector('.boot-shell'), null, 30000))) fails.push('B-16 the shell did not give way to the sign-in screen');
       if (errors.length) fails.push('B-16 console errors: ' + errors.join(' | '));
       await ctx.close();
-      /* a module that cannot load says so (the wait never runs for ever) */
+      /* a module that cannot load says so (the wait never runs for ever), once the page's own second goes are spent (B-19) */
       const dead = await fresh();
       await dead.page.route('**/src/app/boot.js*', (r) => r.abort());
       await dead.page.goto(base + '/play.html', { waitUntil: 'commit' });
-      if (!(await wait(dead.page, () => /could not finish loading/.test((document.querySelector('.boot-shell-line') || {}).textContent || '')))) fails.push('B-16 a module that could not load left the shell saying it is still loading');
+      if (!(await until(dead.page, () => /could not finish loading/.test((document.querySelector('.boot-shell-line') || {}).textContent || '')))) fails.push('B-16 a module that could not load left the shell saying it is still loading');
       await dead.ctx.close();
+    }
+
+    if (reloads) { // B-19
+      const FAILS = (s) => '**/' + s + '*';
+      const answer503 = (r) => r.fulfill({ status: 503, contentType: 'text/plain', body: 'Service Unavailable' });
+      /* The page's own document loads, counted off the wire. */
+      const docsOf = (page) => { const seen = { n: 0 }; page.on('request', (q) => { if (q.isNavigationRequest() && q.frame() === page.mainFrame()) seen.n++; }); return seen; };
+      const atSignIn = (page) => until(page, () => document.querySelector('form[data-auth="sign-in"]') && !document.querySelector('.boot-shell'));
+      /* A file of the entry's graph (the entry's own script fails), and a classic script from before the tab store has loaded (the verdict waits for the parse). */
+      for (const [tag, file] of [['a file of the entry\'s graph', 'src/shell/windows/float-menu.js'], ['a classic script', 'src/vendor/supabase-js-']]) {
+        const s = await fresh();
+        const docs = docsOf(s.page);
+        let hits = 0;
+        await s.page.route(FAILS(file), (r) => (++hits === 1 ? answer503(r) : r.fallback()));
+        await s.page.goto(base + '/play.html', { waitUntil: 'commit', timeout: 60000 });
+        if (!(await atSignIn(s.page))) fails.push('B-19 [' + tag + '] one 503 on ' + file + ' stopped the page: ' + JSON.stringify((await s.page.evaluate(() => document.body.innerText)).slice(0, 120)));
+        else if (docs.n !== 2) fails.push('B-19 [' + tag + '] the page took ' + docs.n + ' document load(s), want 2');
+        if (!hits) fails.push('B-19 [' + tag + '] CONTROL: the route never answered');
+        await s.ctx.close();
+      }
+      /* A preload nothing has imported yet, failing with the shell up (the entry held, so the link's own error is the only word of it). */
+      {
+        const s = await fresh();
+        const docs = docsOf(s.page);
+        let go = null;
+        const shellUp = new Promise((k) => { go = k; });
+        await s.page.route(FAILS('src/app/boot.js'), async (r) => { if (docs.n > 1) return r.fallback(); await new Promise(() => {}); });
+        await s.page.route(FAILS('src/world/world-boot.js'), async (r) => { if (docs.n > 1) return r.fallback(); await shellUp; return answer503(r).catch(() => {}); });
+        await s.page.goto(base + '/play.html', { waitUntil: 'commit', timeout: 60000 });
+        await until(s.page, () => document.querySelector('.boot-shell') && document.readyState !== 'loading');
+        go();
+        if (!(await atSignIn(s.page))) fails.push('B-19 [a preload] one 503 on a preload stopped the page');
+        else if (docs.n !== 2) fails.push('B-19 [a preload] the page took ' + docs.n + ' document load(s), want 2');
+        await s.ctx.close();
+      }
+      /* Always down: exactly two reloads, then the words and the press, and it stays there. */
+      const down = await fresh();
+      const docs = docsOf(down.page);
+      await down.page.route(FAILS('src/shell/windows/float-menu.js'), answer503);
+      await down.page.goto(base + '/play.html', { waitUntil: 'commit', timeout: 60000 });
+      const said = (page) => page.evaluate(() => { const b = document.querySelector('.boot-shell-again');
+        return { words: /could not finish loading/.test((document.querySelector('.boot-shell-line') || {}).textContent || ''), press: !!b, seen: !!b && getComputedStyle(b).backgroundColor !== 'rgba(0, 0, 0, 0)' }; });
+      if (!(await until(down.page, () => !!document.querySelector('.boot-shell-again')))) fails.push('B-19 a file that always fails never ended on the Reload press: ' + JSON.stringify(await said(down.page)) + ' after ' + docs.n + ' loads');
+      else {
+        const first = await said(down.page);
+        if (!first.words) fails.push('B-19 the Reload press stands without the words');
+        /* The images may be what is not arriving: the press draws itself (read off the screenshot: the gold plate's text alone was dark on dark). */
+        if (!first.seen) fails.push('B-19 the Reload press has no fill of its own');
+        const after = docs.n;
+        await down.page.waitForTimeout(4000);
+        if (after !== 3 || docs.n !== 3) fails.push('B-19 a file that always fails took ' + after + ' then ' + docs.n + ' document loads, want exactly 3 and no more');
+        const box = await down.page.locator('.boot-shell-again').boundingBox();
+        await down.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        for (let i = 0; i < 60 && docs.n < 4; i++) await down.page.waitForTimeout(250);
+        if (docs.n < 4) fails.push('B-19 the Reload press did not reload the page');
+        else {
+          await until(down.page, () => !!document.querySelector('.boot-shell-again'));
+          await down.page.waitForTimeout(4000);
+          if (docs.n !== 4) fails.push('B-19 the press took ' + docs.n + ' document loads in all, want 4: one press, one try');
+        }
+      }
+      await down.ctx.close();
+      /* A third party's script failing reloads nothing. */
+      const other = await fresh();
+      const otherDocs = docsOf(other.page);
+      let letBoot = null;
+      const bootHeld = new Promise((k) => { letBoot = k; });
+      await other.page.route('https://cdn.example.test/**', (r) => r.fulfill({ status: 503, body: '' }));
+      /* The entry held, so the shell is up and listening when the third party's script fails. */
+      await other.page.route(FAILS('src/app/boot.js'), async (r) => { await bootHeld; return r.fallback(); });
+      await other.page.goto(base + '/play.html', { waitUntil: 'commit', timeout: 60000 });
+      await until(other.page, () => document.querySelector('.boot-shell') && document.readyState !== 'loading');
+      const refused = await other.page.evaluate(() => new Promise((k) => { const x = document.createElement('script'); x.onerror = () => k(true); x.onload = () => k(false); x.src = 'https://cdn.example.test/tracker.js'; document.head.appendChild(x); }));
+      if (!refused) fails.push('B-19 CONTROL: the third party\'s script did not fail');
+      await other.page.waitForTimeout(3500);
+      if (otherDocs.n !== 1) fails.push('B-19 a third party\'s failing script reloaded the page: ' + otherDocs.n + ' document loads');
+      letBoot();
+      if (!(await atSignIn(other.page))) fails.push('B-19 a third party\'s script stopped the page');
+      await other.ctx.close();
+      /* The World's module, failing behind the first screen: the hero's Play reloads by itself, and the hero stands in the World. */
+      const late = await fresh({ heroes: { 0: 'Tester' }, created: [] });
+      const lateDocs = docsOf(late.page);
+      let free = null;
+      const held = new Promise((k) => { free = k; });
+      /* Held past the first screen, then down for as long as this first page lasts: the preload and the import alike. */
+      await late.page.route(FAILS('src/world/world-boot.js'), async (r) => { if (lateDocs.n > 1) return r.fallback(); await held; return answer503(r); });
+      await late.page.goto(base + '/play.html', { waitUntil: 'commit', timeout: 60000 });
+      if (!(await atSignIn(late.page))) fails.push('B-19 the sign-in screen waited on the World\'s module');
+      else {
+        await late.page.fill('input[name=email]', 'qa@example.test');
+        await late.page.fill('input[name=password]', 'not-a-real-password');
+        await late.page.click('.auth-submit');
+        await wait(late.page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+        free();
+        await late.page.waitForTimeout(2500);   // past the first reload's pause (load-shell.js RETRY_PAUSES), or a reload under the player would still be on its way
+        if (lateDocs.n !== 1) fails.push('B-19 a preload failing behind the first screen reloaded the page under the player');
+        await late.page.click('[data-app="play"][data-slot="0"]');
+        if (!(await until(late.page, () => document.querySelector('#panel-world canvas')))) fails.push('B-19 the World\'s module failing once left the hero out of the World: ' + JSON.stringify((await late.page.evaluate(() => document.body.innerText)).slice(0, 160)));
+        else if (lateDocs.n !== 2) fails.push('B-19 the World\'s module took ' + lateDocs.n + ' document load(s), want 2');
+      }
+      free();
+      await late.ctx.close();
     }
 
     { // B-1 .. B-5
@@ -800,6 +914,16 @@ const MUTANTS = [
   ['the loading shell stays over the first screen', 'src/app/boot.js', '    if (loading) loading.remove();\n', ''],
   ['the loading bar never moves', 'src/platform/load-shell.js', '      paint();\n', ''],
   ['a module that cannot load is not said', 'src/platform/load-shell.js', "    failed = true;\n", "    return;\n"],
+  ['one 503 stops the page again (B-19)', 'src/platform/load-shell.js', 'if (!win.HearthriseRetryLoad()) sayFailed();', 'sayFailed();'],
+  ['the page reloads for ever (B-19)', 'src/platform/load-shell.js', 'if (spent >= RETRY_PAUSES.length) return null;', 'if (spent >= 99) return null;\n      spent = 0;'],
+  ['the reloads are spent and nothing is said (B-19)', 'src/platform/load-shell.js', '  function sayFailed() {\n', '  function sayFailed() {\n    return;\n'],
+  ['the words stand with no press (B-19)', 'src/platform/load-shell.js', '    shell.appendChild(again);\n', ''],
+  ['the press is painted but takes no click (B-19)', 'src/styles/app.css', '.boot-shell-again { pointer-events: auto; ', '.boot-shell-again { '],
+  ['the press cannot be seen with no image (B-19)', 'src/styles/app.css', 'border: 0; background: var(--gold); color: var(--bg-0); font-family: var(--f-ui); font-size: var(--t-body); font-weight: 700; cursor: pointer; }', 'border: 0; background: none; color: var(--bg-0); cursor: pointer; }'],
+  ['a third party\'s failure reloads the page (B-19)', 'src/platform/load-shell.js', "if (url.indexOf(win.location.origin) !== 0 || !/\\.js(\\?|$)/.test(url)) return;", 'if (!/\\.js(\\?|$)/.test(url)) return;'],
+  ['a failure behind the first screen reloads under the player (B-19)', 'src/platform/load-shell.js', [['    if (!shell.parentNode) return;\n    if (!win.HearthriseRetryLoad', '    if (!win.HearthriseRetryLoad'], ['if (failed || !t || !shell.parentNode || (t.tagName', 'if (failed || !t || (t.tagName']]],
+  ['the World\'s module gets no second go (B-19)', 'src/app/world-pane.js', "reloading = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();", 'void win;'],
+  ['a script that fails before the store is up is lost (B-19)', 'src/platform/load-shell.js', "if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', failedNow); else failedNow();", 'failedNow();'],
   ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],
   ['a made hero\'s press asks the server again', 'src/app/hero-create.js', "    if (made) { enter(); return; }\n", ''],
   ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold('Entering town…');\n", ''],
@@ -876,7 +1000,7 @@ async function main() {
     const missing = pairs.find(([a]) => !text.includes(a));
     if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     for (const [a, b] of pairs) text = text.replace(a, b);
-    const fails = await checks({ [file]: text }, /\(B-1[78]\)/.test(name), /\(B-7\)/.test(name));
+    const fails = await checks({ [file]: text }, /\(B-1[78]\)/.test(name), /\(B-7\)/.test(name), /\(B-19\)|cannot load/.test(name));
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

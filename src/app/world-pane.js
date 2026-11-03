@@ -96,15 +96,20 @@ export async function mountWorldPane(host, character, o) {
   sayWait();
 
   let runtime = null;
+  let reloading = false;   // the World's module did not load and the page is about to try again by itself (src/platform/load-shell.js)
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=0.2.83');
+    const { bootWorld } = await import('../world/world-boot.js?v=0.2.83').catch((e) => {
+      const win = doc.defaultView;
+      reloading = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();
+      throw e;
+    });
     const town = opts.account && typeof opts.account.townOf === 'function' ? opts.account.townOf(character.slot) : null;
     runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers });
     runtime.sync();
   } catch (e) {
     console.error('[world] the world failed to load', e);
     const s = stage.querySelector('.world-status');
-    if (s) s.textContent = 'The world could not load. Reload the page to try again.';
+    if (s && !reloading) s.textContent = 'The world could not load. Reload the page to try again.';
   } finally {
     doc.defaultView.clearInterval(waitTick);
     doc.defaultView.removeEventListener('offline', sayWait);

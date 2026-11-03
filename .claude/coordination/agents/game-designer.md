@@ -802,3 +802,9 @@ Full design: `docs/planning/PRIORITY_BOARD.md`, Decisions, "Marketplace design (
 review before players, systems-engineer + art-director lane 4 (window/sheet), asset-director lane 5
 (Weighhouse, Aldous Pell, icon). Systems + Art Director: the Storage window's client-only
 "Leave the hunt to use it" line conflicts with remote market reach and Quick stash.
+
+## 2026-11-03 lane/c-klappa-club (Klappa's Club, Tyler's tribute to Andy)
+- A weapon's stats barely move XP/h early: Cleave and Power Strike deal flat damage and carry 60-70% of it (`dealtBy`), so Practice Club to Iron Warhammer is +2-5% XP/h, under the ruling's +5-8%. A big `strB` is a feel number here, not a band-breaker. Measure before fearing "busted".
+- Sell all loot keeps a drop only if a recipe the hero can make NOW spends it (bag-model `madeInto`). A recipe above level 1 that names a Cellar drop loses the drop on the first trip home.
+- `Equip upgrades` never touches the hands (`STYLE_SLOTS`), and the bench spends the bag, not the worn set: a reforge of a worn weapon leaves the hero empty-handed unless the words say so.
+- Balance sim: two instances of `ITEMS` (bare and `?v=`); a what-if on one alone changes nothing. Patch both, or edit the row.

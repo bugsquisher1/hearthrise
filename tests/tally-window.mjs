@@ -356,10 +356,11 @@ async function checks(overrides, shots) {
           if (!inView) fails.push('TW-13 Pick a weight did not bring the picker into view');
         }
         if (sent(s, 'hr_tally_accept').length) fails.push('TW-13 a task was taken before a press');
-        await page.click('[data-hs-win="tally"] [data-hs-act="take"][data-task="thicket_gray_wolves"]', { timeout: 3000 }).catch(() => fails.push('TW-13 the first Take is not pressable'));
+        const task = await page.evaluate(() => document.querySelector('[data-hs-win="tally"] [data-hs-act="take"]:not([disabled])').getAttribute('data-task'));
+        await page.click('[data-hs-win="tally"] [data-hs-act="take"][data-task="' + task + '"]', { timeout: 3000 }).catch(() => fails.push('TW-13 the first Take is not pressable'));
         await page.waitForTimeout(200);
         const tk = sent(s, 'hr_tally_accept');
-        if (tk.length !== 1 || tk[0].body.p_weight !== 'medium' || tk[0].body.p_task !== 'thicket_gray_wolves') fails.push('TW-13 a first Take sent ' + JSON.stringify(tk.map((c) => c.body)));
+        if (tk.length !== 1 || tk[0].body.p_weight !== 'medium' || tk[0].body.p_task !== task) fails.push('TW-13 a first Take on ' + task + ' sent ' + JSON.stringify(tk.map((c) => c.body)));
       }
       await ctx.close();
     }

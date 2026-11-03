@@ -573,9 +573,10 @@ async function runTests(mods) {
   });
   t('R5 townZoom is an allowlisted residue field: one of the offered steps, else no pick', () => {
     ok(CS.RESIDUE_FIELDS.includes('townZoom'), 'townZoom must be in RESIDUE_FIELDS');
-    eq(CS.sanitizeResidueField('townZoom', 1), 1, 'a step is kept');
-    eq(CS.sanitizeResidueField('townZoom', 2), 2, 'a step is kept');
-    for (const bad of [0, 1.7, 9, -1, '2', null, {}]) eq(CS.sanitizeResidueField('townZoom', bad), undefined, 'not a step: ' + JSON.stringify(bad));
+    eq(JSON.stringify(CS.sanitizeResidueField('townZoom', { z: 1, at: 5, x: 9 })), '{"z":1,"at":5}', 'a step and its stamp are kept, nothing else');
+    eq(JSON.stringify(CS.sanitizeResidueField('townZoom', { z: 2, at: 0 })), '{"z":2,"at":0}', 'a step is kept');
+    /* a bare step is no pick: it says nothing of when, and one hero's old copy would stand against the rest (report #75) */
+    for (const bad of [1, 2, 0, null, {}, { z: 9, at: 1 }, { z: 1.7, at: 1 }, { z: '2', at: 1 }, { z: 2 }, { z: 2, at: -1 }, { z: 2, at: 1.5 }]) eq(CS.sanitizeResidueField('townZoom', bad), undefined, 'not a pick: ' + JSON.stringify(bad));
   });
 
   /* ── R3: "while you were away" (src/shell/away-recap.js, designer 2026-10-22) ── */

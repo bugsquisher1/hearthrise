@@ -99,6 +99,10 @@
 }
 .auth-link:hover, .auth-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .auth-link:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+/* THE ACCOUNT ID (the closed notice, closed-notice.js): sunk like a field, whole on one line wherever it fits, one press selects it all. */
+.auth-id { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.auth-id-value { flex: 1 1 18em; min-height: 36px; box-sizing: border-box; display: flex; align-items: center; padding: 4px 10px; background: var(--bg-0); box-shadow: var(--steel-well);
+  font-family: var(--f-ui); font-size: var(--t-small); font-variant-numeric: tabular-nums; color: var(--ink); overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
 /* A card's foot with a way back and a way on (hero creation): back at the left, the gold plate at the right. */
 .auth-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 -20px -18px; padding: 10px 20px 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .auth-foot .auth-submit { padding: 0 16px 0 20px; }

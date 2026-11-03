@@ -629,7 +629,7 @@ async function play(world, { account, viewport = { width: 1280, height: 720 }, t
   await page.fill('input[name=email]', email);
   await page.fill('input[name=password]', PASSWORD);
   await page.click('.auth-submit');
-  await page.waitForSelector('.char-row, .hs-launchers');
+  await page.waitForSelector('.char-row, .hs-launchers, [data-closed-notice]');
   let n = 0;
   return {
     page, errors, offsite, email,
@@ -655,7 +655,7 @@ async function play(world, { account, viewport = { width: 1280, height: 720 }, t
       await page.click('.hw-hunt-enter');
       await page.waitForSelector('[data-hs-act="leave"]');
     },
-    async reload() { await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.char-row, .hs-launchers'); },
+    async reload() { await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.char-row, .hs-launchers, [data-closed-notice]'); },
     close: async () => { driver.contexts.delete(ctx); await ctx.close(); },
   };
 }

@@ -7,7 +7,9 @@
 //   sentence  the slot read as one editable sentence: "Eat [Salted Trout] when [my HP]
 //             [is at or below] [−45+]%", then "and …" for each further condition (all
 //             must match), "+ Add a condition", and the heal warning under it (the
-//             hunt's hardest blow, pull-cycle.js biggestBlowOn, against the server's max HP)
+//             hunt's hardest blow, pull-cycle.js biggestBlowOn, against the server's max HP); while
+//             the hero hunts, the slot's supply waiting in the bag and "Carry 40 into this hunt"
+//             (carry-in.js, Tyler 2026-11-02)
 //   table     the tab's items in runs (Food and Drink; Ammo on its own tab), each row its numbers from the
 //             SERVER's rows (hunt_settings.store), sorted cheapest per point
 //             (action-table.js tableOf); the picked row gold and pinned at the top
@@ -28,11 +30,13 @@ import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.82';
 import { carriedOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.82';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.82';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.82';
-import { actionIconHtml } from '../widgets/bits.js?v=0.2.82';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.82';
 import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.82';
 import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, reasonOf } from '../action-facts.js?v=0.2.82';
 import { glyphSvg } from '../launcher.js?v=0.2.82';
 import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.82';
+import { carryRows, carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.82';
+import { whole } from '../../render/format.js?v=0.2.82';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -82,6 +86,8 @@ export function renderConfigureAction(ctx) {
     + '<span class="ca-note"></span><span class="ca-ready"></span></p>'
     + '<ol class="ca-conds">' + conds + '</ol>'
     + '<p class="ca-weapon" role="note"></p>'
+    /* CARRY IN (src/shell/carry-in.js): while this hero hunts, the slot's own supply waiting in the bag, and the press. */
+    + '<p class="ca-carry" hidden><span class="ca-carry-t"></span> ' + tool('carry', '') + '</p>'
     + tool('add', '+ Add a condition', ' ca-add')
     + '<p class="ca-warn" role="note"></p></div>'
     + '<div class="ca-pick">'
@@ -181,8 +187,18 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
      this window, so the words are here, first (shown on a phone only, hunt.css). */
   const saved = set.slots[s.open];
   const hunt = huntOf(cs);
-  const fireWhy = saved && !saved.empty ? reasonOf(saved, set, bag, hunt && !hunt.ended ? hunt.hero : null, (equipmentOf(cs) || {}).ammo, skillsOf(cs)) : null;
+  const fireWhy = saved && !saved.empty ? reasonOf(saved, set, bag, hunt && !hunt.ended ? hunt.hero : null, (equipmentOf(cs) || {}).ammo, skillsOf(cs), carryRows(cs)) : null;
   text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');
+  /* CARRY IN: the most of this action's supply the bag holds while the hunt runs (every tier of a rune spell's family). */
+  const carry = d.action.id ? (carryFor(cs, d.action) || [])[0] || null : null;
+  const cl = root.querySelector('.ca-carry');
+  prop(cl, 'hidden', !carry);
+  if (carry) {
+    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemName(carry.id) + ' in your backpack, ' + whole(carry.inHunt) + ' in this hunt.' + (carry.wait ? ' ' + carry.wait : ''));
+    const b = cl.querySelector('[data-x="carry"]');
+    text(b, carryWords(carry));
+    attr(b, 'data-item', carry.id);
+  }
   for (const b of root.querySelectorAll('.ca-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === tab));
   /* THE SENTENCE */
   const say = sentenceOf(d.action, set.store);
@@ -313,6 +329,12 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
     else if (x === 'drop' && c) d.conditions.splice(Number(t.getAttribute('data-i')), 1);
     else if ((x === 'inc' || x === 'dec') && c) nudge(c, x === 'inc' ? 1 : -1);
     else if (x === 'up' || x === 'down') { moveSlot(cs, s.open, x === 'up' ? -1 : 1, repaint); return; }
+    else if (x === 'carry') {
+      const row = (carryFor(cs, d.action) || []).find((r) => r.id === t.getAttribute('data-item'));
+      const at = t.getBoundingClientRect();
+      if (row) askCarry(ctx, body, s, repaint, row, { x: at.left, y: at.bottom });
+      return;
+    }
     else if (x === 'save') { saveOpen(cs, repaint, done); return; }
     else if (x === 'clear') { emptyOpen(cs, repaint, done); return; }
     else if (x === 'cancel') { closeSlot(cs); done(); return; }

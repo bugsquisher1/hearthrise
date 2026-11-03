@@ -5,6 +5,7 @@
 //   node tools/pg-replay.mjs [--build]        build (or reuse) the chain template and print where it is
 //   node tools/pg-replay.mjs --stop           stop the scratch server
 //   import { bootPg } from './pg-replay.mjs'  a fresh database cloned from the chain, PGlite's { query, exec } shape
+//   import { attachPg } from './pg-replay.mjs'  another connection to that database: a real second backend
 //
 // WHY IT EXISTS (lane/c-settle-cost-2, 2026-10-30). tests/schema-replay.mjs replays the chain on PGlite, which is
 // PostgreSQL 18; production is 17. Version 18 caches the plans of LANGUAGE sql functions; 17 parses, rewrites and
@@ -152,6 +153,20 @@ export async function bootPg({ log, template } = {}) {
     },
   };
   return { db, name, template: tpl };
+}
+
+/**
+ * ANOTHER CONNECTION to a database bootPg made: a separate backend, for the races a one-connection PGlite cannot play
+ * (tests/hunt-carry-race.mjs). { query, exec, close }; its session state is its own.
+ */
+export async function attachPg(name) {
+  const sql = connect(name);
+  for (const s of await sessionSql()) await sql.unsafe(s);
+  return {
+    async query(text, params) { const rows = await sql.unsafe(text, params || []); return { rows: Array.from(rows) }; },
+    async exec(text) { return sql.unsafe(text); },
+    async close() { await sql.end({ timeout: 5 }); },
+  };
 }
 
 async function main() {

@@ -416,7 +416,7 @@
 .ca-drop { margin-left: auto; }
 .ca-add { align-self: flex-start; font-size: var(--t-small); }
 .ca-warn { margin: 0; font-size: var(--t-small); color: var(--gold-2); line-height: 1.45; }
-.ca-weapon { margin: 0; font-size: var(--t-small); color: var(--gold-2); line-height: 1.45; }
+.ca-weapon, .ca-carry { margin: 0; font-size: var(--t-small); color: var(--gold-2); line-height: 1.45; }
 .ca-warn:empty, .ca-note:empty, .ca-weapon:empty, .ca-d-warn { display: none; }
 .ca-d-warn { color: var(--gold-2); }
 /* The table beside the detail: one sunken well, only the list scrolls. */

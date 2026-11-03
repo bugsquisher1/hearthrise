@@ -851,9 +851,10 @@ const SAY = Object.freeze({
     barSlot: free, store: st.id, spell: a.id };
   },
   /* In a party a leaver takes the others home (Tyler 10-22: every ticked box, on by default): the card says so before the press (party panel 11-03). */
+  /* The goal it reached, not the Level now: the card stays up while the hero levels on (read Level 5 on a Level 6 hero, v0.2.85 gate). */
   leave_cellar: (f) => ({ text: f.inParty === true
-    ? 'You\'re Level ' + f.charLevel + ', and your loot is already in your bag. Talk to your party first: if you leave the hunt, anyone with "Leave if anyone leaves the hunt or dies" ticked comes home too.'
-    : 'You\'re Level ' + f.charLevel + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
+    ? 'You\'ve reached Level ' + HUNT_INDEX[THICKET].band[0] + ', and your loot is already in your bag. Talk to your party first: if you leave the hunt, anyone with "Leave if anyone leaves the hunt or dies" ticked comes home too.'
+    : 'You\'ve reached Level ' + HUNT_INDEX[THICKET].band[0] + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
   styles: () => {
     /* the switch and the door to better ones, on top of the list (Tyler 2026-10-22; style-gear.js: each rung is made at a bench) */
     /* Short: over the town and inside a phone's bag sheet the long list cut Got it off the screen (played at 922x423). The

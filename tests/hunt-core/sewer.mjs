@@ -720,6 +720,9 @@ const cases = {
     const cashRow = M.tut.HUNT_TUTORIAL.find((c) => c.id === 'leave_cellar');
     const inParty = M.tut.cardFor(cashRow, { charLevel: 5, inParty: true }), alone = M.tut.cardFor(cashRow, { charLevel: 5, inParty: false });
     if (!inParty.text.includes('Talk to your party first') || !inParty.text.includes('Leave if anyone leaves the hunt or dies') || /Talk to your party/.test(alone.text)) return 'the Cash in card reads ' + JSON.stringify([inParty.text, alone.text]);
+    /* the card stays up while the hero levels on: it names the goal reached, never a Level that goes stale */
+    const later = M.tut.cardFor(cashRow, { charLevel: 6, inParty: false });
+    if (!later.text.includes('reached Level 5') || /Level 6/.test(later.text)) return 'Cash in on a Level 6 hero reads ' + JSON.stringify(later.text);
     /* back in town from the Thicket with loot to sell, Sell does not come back; Decide once and Cook come now, not on the first return */
     const back = { ...steps.find((s) => s.id === 'loot_rules').facts, sellable: 6 };
     if ((M.tut.currentCard(back) || {}).id !== 'loot_rules') return 'back from the Thicket with no plan yet the coach says ' + (M.tut.currentCard(back) || {}).id;

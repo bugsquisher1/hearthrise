@@ -91,7 +91,7 @@
 //         at least 72 px of numbers with Next level in showing (it was 61, its first 30 a head that said Session again); in a party the switch stays
 //   PH-27 EVERY CARD'S WORDS FIT: each tutorial card's words whole without a scroll, in the town's card, beside a sheet and under the
 //         hunt bar, up to the length each room holds; a longer card's corner shows the gold tip until its words end
-//   PH-28 HOW YOU FIGHT: all five ways in the column with no scroll; on a screen too short, "More below" until its end
+//   PH-28 HOW YOU FIGHT: the lead and all five ways whole with no scroll; a refusal keeps Enter town on screen; on a screen too short, "More below" until its end
 //   PH-29 THE PARTY PANEL: alone, folded to its name and plus, and a press opens it for good; in a party, open; a desktop never folds
 //   PH-30 THE BAR'S PRESSES: the slots' page at least 36 px wide, the setup's name 36 px tall and clear of its neighbour
 //   PH-31 AFTER CREATE ACCOUNT: only the answer and the way back, no word left from the form

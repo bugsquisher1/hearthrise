@@ -13,9 +13,9 @@
 // press keeps its key; new words make a new one. On the server's yes the AccountSession moves every screen to the
 // way back (src/app/account-leaving.js), so this form has nothing more to say.
 // ════════════════════════════════════════════════════════════════════════
-import { ACCOUNT_GRACE_DAYS } from '../../data/account-rules.js?v=0.2.87';
-import { DELETE_WORD, requestDeletion, wordTyped } from '../../session/account-leaving.js?v=0.2.87';
-import { newIdem } from '../../session/catch-up.js?v=0.2.87';
+import { ACCOUNT_GRACE_DAYS } from '../../data/account-rules.js?v=0.2.88';
+import { DELETE_WORD, requestDeletion, wordTyped } from '../../session/account-leaving.js?v=0.2.88';
+import { newIdem } from '../../session/catch-up.js?v=0.2.88';
 
 const WORDS = Object.freeze({
   what: 'This deletes your whole account, not just one hero: every hero with their levels, gear and items, your Storage, house and farm, all your gold, your hero names, your friends list and your chat messages.',

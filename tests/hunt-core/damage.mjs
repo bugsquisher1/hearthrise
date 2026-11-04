@@ -1,6 +1,6 @@
 // tests/hunt-core/damage.mjs — src/core/hunt/damage.js, the one hurt() (spec §2 damage; parity RO-19, DM-13).
 // Run by run-all.mjs.
-import { suite, H, E, inst2, sc2, world } from './fixtures/h2.js';
+import { suite, H, E, inst2, sc2, world, groundRow } from './fixtures/h2.js';
 
 const D = 'src/core/hunt/damage.js';
 const fight = (M, units) => inst2(M, world(M, units, { phase: 'fight', leader: 1 }));
@@ -26,6 +26,17 @@ function shotFixture(M, bag, ammo, stored, o) {
 }
 
 const cases = {
+  /* TYLER 2026-11-04: "They are just simply harder ... it's inherent in the game, not a penalty driven system." A monster's blow reads its own stats against the hero's own stats:
+     at the same stats and on the same dice, every swing of a hero at any Level is the same swing. Both paths: this hook is the one both a watched hunt and a closed browser step through. */
+  'same-blow-at-any-level': (M) => {
+    const base = blowsAtLevel(M, 32);
+    if (base.length < 20 || !base.some((b) => b.startsWith('dmg:')) || !base.some((b) => b.startsWith('miss:'))) return 'the fixture swung ' + base.length + ' times: ' + base.slice(0, 4).join();
+    for (const lv of [1, 5, 16, 31, 33, 60, undefined]) {
+      const got = blowsAtLevel(M, lv);
+      if (got.join() !== base.join()) return 'Level ' + lv + ' is struck differently from Level 32: ' + got.slice(0, 6).join() + ' against ' + base.slice(0, 6).join();
+    }
+    return null;
+  },
   /* contract §1.5 (today's element profile): weak pays the weakness bonus, immune takes 0, neutral pays 1x. */
   'weak-resist-immune': (M) => {
     const weakId = Object.keys(M.MONSTERS).find((id) => M.MONSTERS[id].elementWeak && M.C.defenceReduction(M.MONSTERS[id]) === 0
@@ -314,7 +325,24 @@ const cases = {
   },
 };
 
+/* NO LEVEL TERM IN A MONSTER'S BLOW: one foreman, one hero's stats, one ground, one dice stream, swung for a minute at each hero Level. */
+const blowsAtLevel = (M, heroLv) => {
+  const k = H(M, 1, 12, 3, 'tank', { hp: 1000000, maxHp: 1000000, target: 2, def: 20 });
+  k.heroLv = heroLv;
+  const m = E(M, 2, 0, 13, 3, 1, { kind: 'hobgoblin_foreman', hp: 1000000, maxHp: 1000000 });
+  const inst = inst2(M, world(M, [k, m], { phase: 'fight', leader: 1 }), groundRow({ hunt: 'coppercap_warrens' }));
+  const sc = sc2(M, 7);
+  for (let i = 0; i < 600; i++) { M.movement.occupancy(inst); M.damage.resolveAttacks(inst, sc); sc.atMs += 100; }
+  return sc.events.filter((e) => e.u === 2 && (e.type === 'dmg' || e.type === 'miss')).map((e) => e.type + ':' + (e.amount || 0) + '@' + e.atMs);
+};
+
 const mutants = [
+  { name: 'a level term on the blow: a hero under the floor is hit twice as hard', case: 'same-blow-at-any-level',
+    edits: [[D, 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));', 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row) * (t.heroLv < 32 ? 2 : 1));']] },
+  { name: 'a level term on the to-hit roll: a hero under the floor is hit more often', case: 'same-blow-at-any-level',
+    edits: [[D, 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));', 'swing(inst, sc, u, t, monsterAccuracy(row, t.def - (t.heroLv < 32 ? 30 : 0)), monsterMaxHit(row));']] },
+  { name: 'the 11-02 term comes back: atk x 1.05 per Level under the floor', case: 'same-blow-at-any-level',
+    edits: [[D, 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));', 'const foe = Object.assign({}, row, { atk: row.atk * (1 + 0.05 * Math.max(0, 32 - (t.heroLv || 32))) }); swing(inst, sc, u, t, monsterAccuracy(foe, t.def), monsterMaxHit(foe));']] },
   { name: 'the element is ignored', case: 'weak-resist-immune', edits: [[D, '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? 1000 : 1000;']] },
   { name: 'immune still takes damage', case: 'weak-resist-immune', edits: [[D, '  if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };', '']] },
   { name: 'defence is ignored', case: 'def-reduction', edits: [[D, " - defenceReduction(MONSTERS[target.kind]);", ';']] },

@@ -139,9 +139,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.87';
-import { HUNT_INDEX } from './hunts.js?v=0.2.87';
-import { MONSTERS } from './monsters.js?v=0.2.87';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.88';
+import { HUNT_INDEX } from './hunts.js?v=0.2.88';
+import { MONSTERS } from './monsters.js?v=0.2.88';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
@@ -492,14 +492,6 @@ export function partyPick(heroes) {
   const lead = list.find((h) => h.lead === true)
     || list.slice().sort((a, b) => (Number(a.seat) || 0) - (Number(b.seat) || 0))[0];
   return lead && Number.isInteger(lead.density) && lead.density > 0 ? lead.density : 0;
-}
-
-/** THE LEVEL GAP (hunt-tuning.js underFloorAtkPm): the permille of a monster's atk a hero of `level` meets on `ground`: 1000 in band or
-    above it, and for a unit whose Level the engine was not told (a bare fixture). Read per blow, so a Level gained counts at once. */
-export function underFloorPm(ground, level) {
-  const band = ground && HUNT_INDEX[ground.hunt] && HUNT_INDEX[ground.hunt].band;
-  if (!band || !Number.isInteger(level) || level >= band[0]) return 1000;
-  return 1000 + HUNT_TUNING.underFloorAtkPm * (band[0] - level);
 }
 
 /** THE LEVEL SHARE (hunt-tuning.js partyShareRangePm): the permille of its Level XP share a seat of `level` keeps on `ground` with `top` the party's highest living Level. 1000 at or

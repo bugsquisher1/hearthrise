@@ -276,7 +276,7 @@ export function buildPlan(name, axes, scale = 1) {
   }
   if (name === 'b1102c') {
     /* Round 3: the candidate every hold-rule allows. Base accuracy 0.80 everywhere (no blow gets bigger; light armor's close calls stay near today),
-       atk by ground. The level gap is live in this tree. x=C0 is today's numbers (with the gap), x=C1 the candidate. */
+       atk by ground. Measured while the level gap was live (it's gone since 2026-11-04). x=C0 is that day's numbers, x=C1 the candidate. */
     const ATK = { mill_cellar: 1, meadowbrook_thicket: 1.25, wickstead: 1.5, millrace_sewer: 1.25, mosslight_glade: 1.5, coppercap_warrens: 1 };
     const FIVE = [['tank'], ['hammer'], ['bow'], ['mage'], ['healer']];
     const FOUR = PARTIES.four;
@@ -440,10 +440,19 @@ export function buildPlan(name, axes, scale = 1) {
     return out;
   }
   if (name === 'riskclimb') {
-    /* DOES THE PAY CLIMB WITH THE GROUND? The same built hero, one Level, every ground: alone at 10 and 24, a full mix at 24. */
-    const built = { supply: 'own', bar: { eatPct: 70 } };
-    for (const g of G) for (const [party, level] of [[['tank'], 10], [['tank'], 24], [PARTIES.four, 24]]) {
-      out.push({ ...cellOf({ ground: g.id, party, level, hours: H(1), seeds: 2, x: 'Climb', ...built }), windowMs: 120000 });
+    /* DOES THE PAY CLIMB WITH THE GROUND, AND THE BILL WITH IT? One hero at one Level on every ground its Level hasn't outgrown: alone and a full mix, average and built (plan risk's builds). */
+    const BUILDS = { average: { gear: { armourSlots: ['helmet', 'body', 'boots'] } }, optimized: { supply: 'own', bar: { eatPct: 70 } } };
+    for (const g of G) for (const level of [10, 13, 24, 29]) for (const party of [['tank'], PARTIES.four]) for (const [x, b] of Object.entries(BUILDS)) {
+      if (level > g.band[1]) continue;
+      out.push({ ...cellOf({ ground: g.id, party, level, hours: H(party.length > 1 ? 1 : 2), seeds: 2, x: 'C' + x, ...b }), windowMs: 120000 });
+    }
+    return out;
+  }
+  if (name === 'riskwhat') {
+    /* A PROPOSAL'S EVIDENCE, IN THE SIM ONLY (worker.mjs whatIf; never written to a data file): the party grounds' monsters at atk x1.25 and x1.5, at the floor and pushing, a full mix and a pair, on store food. */
+    const avg = { gear: { armourSlots: ['helmet', 'body', 'boots'] } };
+    for (const [ground, levels] of [['coppercap_warrens', [32, 26, 17]], ['millrace_sewer', [8, 5, 2]]]) for (const level of levels) for (const party of [PARTIES.four, PARTIES.duo]) for (const m of [1, 1.25, 1.5]) {
+      out.push({ ...cellOf({ ground, party, level, hours: H(1), seeds: 2, x: 'W' + m * 100, ...avg }), windowMs: 120000, ...(m > 1 ? { whatIf: { monsters: { '*': { atk: '*' + m } } } } : {}) });
     }
     return out;
   }

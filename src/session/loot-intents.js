@@ -13,8 +13,8 @@
 // and says which verb it was, so its words can be the verb's own.
 //   dispatchLoot(account, cs)   hr_loot_dispatch
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.87';
-import { refusalOf } from './refusal.js?v=0.2.87';
+import { askVia } from './intent-ledger.js?v=0.2.88';
+import { refusalOf } from './refusal.js?v=0.2.88';
 
 const VERB = 'loot_dispatch';
 const newIdem = () => globalThis.crypto.randomUUID();

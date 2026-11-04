@@ -11,8 +11,8 @@
 //                      session, no second sign-in. Not yet, or no answer: the line says which.
 // Sign out and Delete account stay on the card: their presses are boot.js's (data-app).
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.87';
-import { AUTH_BRAND } from './sign-in.js?v=0.2.87';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.88';
+import { AUTH_BRAND } from './sign-in.js?v=0.2.88';
 
 const CHECK = Object.freeze({ idle: 'Check again', busy: 'Checking…' });
 const SAY = Object.freeze({

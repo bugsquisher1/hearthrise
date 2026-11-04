@@ -44,18 +44,18 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.87';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.87';
-import { createRng } from './rng.js?v=0.2.87';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.87';
-import { stepSwing } from './hunt/world-step.js?v=0.2.87';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.87';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.87';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.87';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.87';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.88';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.88';
+import { createRng } from './rng.js?v=0.2.88';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.88';
+import { stepSwing } from './hunt/world-step.js?v=0.2.88';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.88';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.88';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.88';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.88';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.87';
+export { stepSwing } from './hunt/world-step.js?v=0.2.88';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -103,7 +103,7 @@ function heroOf(m) {
 function syncUnit(u, m) {
   const snap = m.snapshot(m.state);
   u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def;
-  /* THE LEVEL, for the level gap (damage.js): a level gained mid-window counts from the next swing, never persisted, like `mit`. */
+  /* THE LEVEL, for the party's level share (xp-share.js) and nothing else: a level gained mid-window counts from the next kill, never persisted, like `mit`. */
   u.heroLv = snap.level;
   /* THE ARMOUR'S MITIGATION (ruling K7, mitigation.js): derived from the member's gear and Level at
      every boundary and never persisted, so a decoded world gets it back here before any blow. */

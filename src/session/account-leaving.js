@@ -8,8 +8,8 @@
 //   keepAccount       one hr_account_keep. Moves nothing else; the page reloads to the characters screen.
 // A yes to the request tells the AccountSession, and every screen gives way to the way back (boot.js showClosed).
 // ════════════════════════════════════════════════════════════════════════
-import { AUTH_COPY } from '../net/auth.js?v=0.2.87';
-import { newIdem } from './catch-up.js?v=0.2.87';
+import { AUTH_COPY } from '../net/auth.js?v=0.2.88';
+import { newIdem } from './catch-up.js?v=0.2.88';
 
 /** What the player types, and what the server's request wants (its p_confirm). */
 export const DELETE_WORD = 'DELETE';

@@ -6,8 +6,8 @@
 // press off until it answers; on the yes the page reloads and signs back in from the stored session, no second
 // sign-in. Sign out stays on the card: its press is boot.js's (data-app).
 // ════════════════════════════════════════════════════════════════════════
-import { AUTH_BRAND } from './sign-in.js?v=0.2.87';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.87';
+import { AUTH_BRAND } from './sign-in.js?v=0.2.88';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.88';
 
 const KEEP = Object.freeze({ idle: 'Keep my account', busy: 'Keeping it…' });
 

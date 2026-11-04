@@ -1,5 +1,5 @@
 // tests/hunt-core/first-week-bands.mjs — THE FIRST WEEK HOLDS ITS BAND, EVERY WAY TO FIGHT (Tyler's balance ruling
-// 2026-10-25; lane b-balance-baseline). Run by run-all.mjs. Plays the REAL engine through tools/balance-sim's cell
+// 2026-10-25; lane b-balance-baseline). Run by run-all.mjs; `--only a,b` plays just those cases and their mutants. Plays the REAL engine through tools/balance-sim's cell
 // runner (the settle the world tick runs, play-ground.mjs), deterministic on a commit. Every bar is one of the
 // ruling's absolute targets, never a pinned number, so a legitimate data change re-pins nothing; a balance move that
 // breaks a first-week hard target turns it red.
@@ -277,12 +277,15 @@ const R = makeReport('hunt-core/first-week-bands');
 const RUN = await loadCellRunner(ROOT);
 const { loadPlay } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 let PLAY = await loadPlay(ROOT);
-for (const [cn, fn] of Object.entries(cases)) {
+const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null;
+for (const k of ONLY || []) R.ok(!!cases[k], '--only names no case ' + k);
+for (const [cn, fn] of Object.entries(cases).filter(([k]) => !ONLY || ONLY.includes(k))) {
   let why = null;
   try { why = fn(RUN); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
-for (const mu of mutants) {
+const PICKED = mutants.filter((m) => !ONLY || ONLY.includes(m.case));
+for (const mu of PICKED) {
   if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
   const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
   try {
@@ -293,5 +296,5 @@ for (const mu of mutants) {
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
   } finally { p.done(); }
 }
-if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases (' + SOLO.join(', ') + ' alone; ' + PAIR + ' in a party), ' + mutants.length + ' mutants caught');
+if (!R.fails.length) console.log('  ' + (ONLY ? ONLY.length : Object.keys(cases).length) + ' cases (' + SOLO.join(', ') + ' alone; ' + PAIR + ' in a party), ' + PICKED.length + ' mutants caught');
 R.finish();

@@ -31,7 +31,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
 ### 2026-11-04 The Steam shell: the real game runs as a desktop app (systems-engineer, lane/b-steam-shell): PROTOTYPE in `desktop/`, nothing ships. **Six things for Tyler below**
-`desktop/` is its own npm package: one Electron window that plays the real `play.html`, Steamworks, a "can't reach the server" page. No game file changed; the root `npm ci` and CI don't see it. Proofs in `desktop/tests/` drive it through Playwright with the window off every screen, so nothing popped up on Tyler's PC.
+`desktop/` is its own npm package: one Electron window that plays the real `play.html`, Steamworks, a "can't reach the server" page. No game file changed; the root `npm ci` and CI don't see it. Proofs in `desktop/tests/` drive it through Playwright with the window off every screen and unable to take focus, so Tyler's PC stays his.
 
 **What worked, measured.** All on this PC, with other lanes running; the local world is `tools/qa/local-world.mjs` (real engine, real chain, auth shim, no production).
 | Question | Result | How sure |
@@ -59,9 +59,9 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 
 **How the client loads: always the live site, plus one local page for "can't reach the server" (option A).** Option B (ship `tools/build-site.mjs`'s output) was built and run: an Electron handler answers `https://hearthrise.net/*` from the folder, so the origin stays the same (it must: `hr-accrue` allows only https://hearthrise.net, www, the github.io and loopback, and `file://` or `app://` would be refused, and auth's redirect would miss `uri_allow_list`). It works. Reasons against it:
 - An old installed client is the main risk, and A removes it. §1 says no back-compat, and releases go out several times a day. Under B every release needs a SteamPipe build, and a player on an old build gets refused asks and a Reload banner whose reload serves the same old files.
-- B's gain is start time, and it's in the noise here: sign-in form on a first launch A 2.2-68 s, later launch A 30-63 s, B 13-23 s, on a PC swinging by a factor of 30. Live page: 397 requests. The worker on `lane/b-ship-build` closes most of that gap for later launches.
+- B's gain is start time. Sign-in form: A first launch 2.2-101 s, A later launch 30-72 s, B 10-23 s, on a PC swinging by a factor of 40, so B is probably faster and nobody can say by how much here. Live page: 397 requests. The worker on `lane/b-ship-build` should close most of that gap for later launches (assumed).
 - With A the Steam build changes only when the shell does: Valve reviews once, updates need no re-review, the release lane stays as it is.
-- Risks of A: the site host goes down (Supabase going down is the same outage). And **GitHub Pages' terms say it isn't "to run your online business" or commercial SaaS, with a soft 100 GB a month, so the site needs a real host before EA either way.** No Valve page I read forbids a client that loads its game remotely, and none blesses it. Offline: with a warm cache the page opens from disk and the press says "could not reach"; with nothing cached the app's own page says why and returns by itself (measured).
+- Risks of A: the site host goes down (Supabase going down is the same outage). And **GitHub Pages' terms say it isn't "to run your online business" or commercial SaaS, with a soft 100 GB a month, so the site needs a real host before EA either way.** No Valve page I read forbids a client that loads its game remotely, and none blesses it. Offline: with a warm cache the page opens from disk (measured; the sign-in press then answers with the game's own "Could not reach the server", read from the code); with nothing cached the app's own page says why and returns by itself (measured).
 
 **The email link.** A confirmation or reset link opens in the system browser, often on another device: a phone. So nothing that carries the session back to this PC can be the flow.
 | Case | Works today, no change anywhere (measured on the shim, its email part played by a second browser) | Small lane to make it good |
@@ -70,7 +70,7 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 | Reset | Link opens the game's own Choose a new password in the browser. Back in the app the new password works, the old one is refused | Same words. Better: a 6-digit code in the mail (`{{ .Token }}`, `verifyOtp`), typed in the app. Works from a phone, and a mail scanner can't burn it as it can a link (door panel 2026-11-04). Template change is Coordinator and Tyler |
 | Expired | The browser says so and offers the way on | None |
 - `uri_allow_list` needs no change: the window's origin is `https://hearthrise.net`, and a `?from=app` on the redirect still matches `https://hearthrise.net/**`.
-- Tried and rejected: `hearthrise://` works on this PC (a second launch hands over, the app signs in, the token leaves the address; measured). But a link read on a phone never arrives, the scheme is registered inside Proton's prefix on a Deck, it needs an allow-list change, and any web page could push someone's session into the app.
+- Tried and rejected: `hearthrise://` works on this PC (a second launch hands over, the app signs in, the token leaves the address; measured). But a link read on a phone never arrives, the scheme would be registered inside Proton's prefix on a Deck (assumed), it needs an allow-list change, and any web page could push someone's session into the app.
 - Later, Tyler's call: Sign in with Steam (ticket from `getAuthTicketForWebApi`, checked by the server against Steam's Web API) removes email for Steam players. A new server surface and an account-linking decision; it can't be tried until there's a real app id and a publisher key.
 
 **Everything left before a Steam Early Access build.** Sources: Steamworks docs read today.
@@ -106,9 +106,51 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 - Real auth: the shim sends no mail and has no reuse detection. Real links, scanners and rate limits on retry-on-focus aren't exercised, and no real sign-in has run in the app.
 - The start and exit numbers (above).
 - Stop and straight back to Play: the one relaunch under 30 s after a kill came back signed out, with storage empty; the others waited minutes and were fine. My read: a dying child still held the storage database and Chromium started empty. It costs a typed password, nothing else (progress is on the server). Keep the session in a store of our own (`safeStorage`) if a quiet PC still shows it.
-- Display scaling was forced by a switch, not real Windows 125%/150%. A real multi-monitor move is untested.
+- Windows 125% and 150% never ran on a display, and a move between monitors is untested.
+- Two launches on a used profile sat more than 5 minutes short of the characters screen, and one run logged a failed socket to the local world. Likely this PC; not chased further.
 
 **For Tyler, in one line each:** (1) is the Steam account through, and what's the app id; (2) free or paid, given the web rule; (3) legal entity and a lawyer; (4) a real host for the site before EA; (5) Deck hardware or rely on Valve's review; (6) say when 20 s of a visible window is fine, for the overlay's last proof.
+
+### 2026-11-04 No level penalty: the monsters are simply stronger (systems-engineer, lane/c-no-level-penalty): BUILT, engine deploy, no migration. **Tyler should read the party finding and the Warrens proposal**
+**Tyler, 2026-11-04:** "Tibia doesn't have a scaling penalty for higher level monsters.... They are just simply harder. That is the risk lol so either A. The player or party dies, or B. They have to spend more on supplies to stay alive. (Healing/more damage to kill/ etc) it's inherent in the game, not a penalty driven system..." This replaces the level gap in the 2026-11-03 "Rush if you dare" section below and the 11-02 x1.05 per Level before it: both are gone, not softened.
+
+**What moved.** `underFloorAtkPm` and `underFloorPm` are deleted. A monster's blow is its own stats against the hero's own stats. The warning says the monsters are stronger, expect to spend more on supplies or to die, more XP and better loot; the death card names no percentage. Enter stays allowed, with its one confirm.
+
+**The sweep, every rule that reads a hero's Level against a ground.** Removed: the level gap (`damage.js`). Kept, Tyler deciding: the party's level share (`xp-share.js`, `underFloorSharePm`). Words only: `hr_hunt_below_range`, `hr_hunt_party_warn`, the Hunts page, the advice. Nothing in loot, gold or drops reads a Level. **Not a gap, and it cuts the other way:** armor's absorb is `value / (value + k x Level)` capped at 60% (`mitigation.js`, ruling K7), so the same bronze plate absorbs 60% at Level 1 and 46% at Level 16. A low hero gets MORE from the same armor. Defense XP reads the monster's own level, so it pays more on harder ground.
+
+**Does the cost show up on its own?** The same hero and Level, on the ground in its range against a push (`node tools/balance-sim/risk-table.mjs`, real settle; average gear on store food; net is after the store bill; no cell here died):
+| Hero | Ground | Under | XP/h | Net g/h | Supplies g/h | Meals/h | Typical low HP |
+|---|---|---|---|---|---|---|---|
+| Alone, Level 10 | Wickstead | in range | 25.8k | +2.9k | 0 | 0 | 92% |
+| | Glade | 6 | 48.4k | -1.0k | 4.4k | 111 | 63% |
+| | Warrens | 22 | 69.2k | -48.8k | 51.2k | 289 | 37% |
+| Alone, Level 24 | Glade | in range | 59.5k | +3.8k | 330 | 8 | 83% |
+| | Warrens | 8 | 97.4k | -24.4k | 27.9k | 155 | 47% |
+| Four, Level 10 | Wickstead | in range | 33.1k | +2.7k | 261 | 19 | 90% |
+| | Glade | 6 | 63.6k | **+2.7k** | 765 | 31 | 63% |
+| | Warrens | 22 | 82.2k | -3.9k | 6.0k | 74 | 37% |
+| Four, Level 24 | Glade | in range | 84.9k | +4.7k | 122 | 3 | 83% |
+| | Warrens | 8 | 133k | +2.0k | 1.4k | 18 | 58% |
+**Alone, yes:** XP about doubles and the bill swings a hero from profit to a loss it can't carry for long. The sim has no purse: a real Level 10 with a few thousand gold is sent home by gold_out within minutes in the Warrens. That is Tyler's B, with no rule behind it.
+
+**Who dies now. Only the practice set: not one death in any of the 140 average or built cells played** (alone or in a four, down to a Level 7 in the Warrens, 25 under, 36% typical). The practice set alone dies in the Sewer 3 under in 34 min, the Glade 6 under in about 1.3 h and 15 under in 17 min, the Warrens 10 under in 2 h and 15 under in 14 min. Built, on crafted food, paid in meals instead: 246 of them an hour for a Level 10 in the Warrens against none in Wickstead (the table counts them; net doesn't, since crafted food costs its crafter). So A has become rare and B carries the risk. The sim's purse is bottomless, so a real hero's gold_out, not a death, is what ends most of these hunts.
+
+**Where a low hero sits safely for little extra cost.** (1) A mixed four on the Glade: Level 10, double Wickstead's XP at the same net gold, 504 g/h more on supplies. Level 13: net goes UP, +3.1k against +2.8k. (2) A mixed four on the Warrens 3-8 under: Level 29, 1.7x the XP for 1.7k less net, 630 g/h of supplies. (3) The first grounds, alone in three pieces of bronze: a Level 2 in the Sewer earns 34.6k XP/h against the Cellar's 7k, net +2.8k, 1,031 g/h against 930 at its floor. A Level 2 in Wickstead pays 58 g/h, against 14 at its floor. The monsters there hit too softly to matter.
+
+**No rule was added.** The one lever allowed is monsters' own stats, and they move in-range heroes too. **Glade and first grounds: no.** The Glade's atk x1.25 already failed its floor's profit on 11-02. The first grounds carry his first-hour rulings. **Warrens, a proposal, not built:** every monster's atk x1.25 (sim only, plan `riskwhat`, store food, average gear, 1 h x 2 seeds):
+| Warrens | Who | atk | Supplies g/h | Income over supplies | Typical low HP |
+|---|---|---|---|---|---|
+| Level 32, in range | four | today | 67 | +7,215% | 78% |
+| | four | x1.25 | 569 | +739% | **65%** |
+| | pair | today | 140 | +3,287% | 75% |
+| | pair | x1.25 | 2.3k | +103% | 59% |
+| Level 26, 6 under | four | today | 1.2k | +194% | 60% |
+| | four | x1.25 | 3.9k | **-14%** | 50% |
+| Level 17, 15 under | four | today | 2.7k | +16% | 51% |
+| | four | x1.25 | 6.4k | **-53%** | 43% |
+In range it stays over his +25-35% and a four stays in his 60-80% band (a pair dips to 59%); a pusher's bill grows two to three times and turns to a loss. Nobody died in these cells. It raises what a Warrens party pays today, Andy's included, and a monster data change is a re-measure of `level-curve`. His call. It doesn't touch (1) or (3). The Sewer doesn't move enough to help: x1.5 still leaves a four at +397% in range and +347% at 3 under.
+
+**Not moved, for him to know:** the armor curve above is why the danger is so flat under a floor. Evening it out would be a change to a hero's own stats rather than a penalty, but it's his K7 ruling, moves every in-range number, and isn't measured.
 
 ### 2026-11-04 Weapon rungs and the Thicket (designer, lane/c-weapon-thicket): BUILT, measured on the real engine, no migration, the edge deploys. **One choice for Tyler below**
 **Weapons (balance 10-25 §8: +5-8% per meaningful upgrade).** The gap is neither clubs alone nor a whole class: it's the box-sweepers. Cleave and spells roll their own numbers and read no weapon power, so a rung reaches a hammer, hatchets or a wand through basic blows only. **Moved: Iron Warhammer 7/12 → 7/16, Steel Warhammer 9/19 → 9/23, Iron Hatchets 7/7 → 9/11, Steel Hatchets 12/11 → 14/14, Klappa's Club 3/12 → 3/16, so it still hits as hard as the Iron Warhammer.** Prices, sources and recipes don't move. Level XP an hour, one tier up, all else equal (`tools/balance-sim` cell runner, the Level's kit, 1 h x 2 seeds, same dice, 0 deaths):

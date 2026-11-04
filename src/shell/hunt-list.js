@@ -28,13 +28,13 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.87';
-import { PARTY } from '../data/party.js?v=0.2.87';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.87';
-import { MONSTERS } from '../data/monsters.js?v=0.2.87';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.87';
-import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.87';
-import { whole, gold } from '../render/format.js?v=0.2.87';
+import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.88';
+import { PARTY } from '../data/party.js?v=0.2.88';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.88';
+import { MONSTERS } from '../data/monsters.js?v=0.2.88';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.88';
+import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.88';
+import { whole, gold } from '../render/format.js?v=0.2.88';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -118,13 +118,12 @@ export function bandWords(r, level) {
 /** Words on a hunt ABOVE the character's level, or null. The floor is only ever a warning (Tyler 2026-11-04 UTC: "big risks should include warnings
     but should allow the player to take them"): any hero may walk into any ground, and these words say what it is risking. Display only: the first
     press of Enter arms "Enter anyway" (hunts.js), and that one confirm is all that stands between a hero and a ground. */
-/* True on the real engine, and pinned there (tests/hunt-core/first-week-bands.mjs above-your-level-words): a Level 11 sword and shield
-   in Thicket armor earns 47,500 Level XP/h in the Glade against 25,800 at Wickstead, with no death; in the practice set it spends
-   6,780 g/h on store food against 4,300 earned; a Level 2 sword alone dies. "Expect losses" alone was false for the armored hero. */
-export const ABOVE_LEVEL_WORDS = 'More XP and better loot, but its monsters hit harder. In weak armor you can spend more on food than you earn, or die.';
-/* FAR under a floor: past here only a hero built for it lasts (risk-table.mjs), and the list line says so. Display only: the engine's gap is one straight line (hunt-grounds.js underFloorPm). */
+/* THE MONSTERS ARE SIMPLY STRONGER (Tyler 2026-11-04: "it's inherent in the game, not a penalty driven system"): nothing in the fight reads a hero's Level against the ground. The claims are played on the
+   real engine (tests/hunt-core/first-week-bands.mjs above-your-level-words), so a balance change that makes one false turns it red. */
+export const ABOVE_LEVEL_WORDS = 'Its monsters are stronger than you: expect to spend more on supplies, or to die. More XP and better loot.';
+/* FAR under a floor: the words and the list line lean harder. Display only. */
 const FAR_UNDER_LEVELS = 10;
-const FAR_WORDS = 'More XP and better loot, but its monsters hit far harder. Only a hero or party built for it lasts here.';
+const FAR_WORDS = 'Its monsters are far stronger than you: expect to spend much more on supplies, or to die. More XP and better loot.';
 export function rangeWords(r, level) {
   if (!Number.isInteger(level) || level >= r.band[0]) return null;
   const gap = r.band[0] - level;

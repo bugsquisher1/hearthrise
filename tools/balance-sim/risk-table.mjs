@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// tools/balance-sim/risk-table.mjs — THE RISK LADDER, one screen (Tyler 2026-11-04 UTC: "harder mobs grant better loot and more exp ... it comes with risk").
+// tools/balance-sim/risk-table.mjs — THE RISK, one screen (Tyler 2026-11-04: "either A. The player or party dies, or B. They have to spend more on supplies to stay alive ... it's inherent in the game").
 //
 //   node tools/balance-sim/sim.mjs --plan risk --workers 4 --out tools/balance-sim/out/risk
-//   node tools/balance-sim/risk-table.mjs [--in tools/balance-sim/out/risk] [--write]
+//   node tools/balance-sim/sim.mjs --plan riskclimb --workers 4 --out tools/balance-sim/out/riskclimb
+//   node tools/balance-sim/risk-table.mjs [--in tools/balance-sim/out/risk] [--climb tools/balance-sim/out/riskclimb] [--write]
 //
 // Each row: a ground, how many Levels the hero stands under its floor, solo or party, and for each build (poor, average, optimized) the Level XP an hour, the net gold an
-// hour after the store bill, and how long a hunt lasted (hours per death, the worst hero's in a party; "held" = no death in the cell's hours). Every number is read off the
-// engine's cells; the only arithmetic here is pooling. --write commits the evidence as risk-summary.json beside the other summaries.
+// hour after the store bill, the supplies an hour (the store bill in gold, then every meal and drink, crafted ones included: crafted food costs its crafter, not this bill), and how long a
+// hunt lasted (hours per death, across a party's heroes; "held" = no death in the cell's hours). --climb adds one Level on every ground its band doesn't sit under: pushing against the ground in
+// range, same hero. Every number is read off the engine's cells; the only arithmetic here is pooling. --write commits the evidence as risk-summary.json beside the other summaries.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,7 +24,8 @@ const readCell = (c) => {
   const hs = c.heroes, hours = hs.reduce((s, h) => s + h.hours, 0);
   const w = (f) => hs.reduce((s, h) => s + (f(h) || 0) * h.hours, 0) / (hours || 1);
   const deaths = hs.reduce((s, h) => s + h.deaths, 0);
-  return { xp: round(w((h) => h.levelXpPerH), 0), net: round(w((h) => h.profitPerH), 0), deaths, hours: round(hours, 1), hPerDeath: deaths ? round(hours / deaths, 2) : null, hp: Math.min(...hs.map((h) => h.encMinHpPct.p50 ?? 100)) };
+  const meals = (h) => h.eatsPerH.own + h.eatsPerH.store + h.drinksPerH.own + h.drinksPerH.store;
+  return { xp: round(w((h) => h.levelXpPerH), 0), net: round(w((h) => h.profitPerH), 0), store: round(w((h) => h.storePerH), 0), meals: round(w(meals), 0), deaths, hours: round(hours, 1), hPerDeath: deaths ? round(hours / deaths, 2) : null, hp: Math.min(...hs.map((h) => h.encMinHpPct.p50 ?? 100)) };
 };
 const rows = new Map();
 for (const c of cells) {
@@ -34,10 +37,21 @@ for (const c of cells) {
 }
 const list = [...rows.values()].sort((a, b) => (a.band ? a.band[0] : 0) - (b.band ? b.band[0] : 0) || a.ground.localeCompare(b.ground) || a.size - b.size || a.gap - b.gap);
 const life = (r) => (!r ? '-' : r.deaths === 0 ? 'held ' + r.hours + ' h' : r.hPerDeath < 1 ? 'dies in ' + Math.round(r.hPerDeath * 60) + ' min' : 'dies in ' + r.hPerDeath + ' h');
-const one = (r) => (r ? (r.xp + ' XP/h ' + r.net + ' g/h ' + life(r) + ' (hp ' + r.hp + '%)') : '-');
+const one = (r) => (r ? (r.xp + ' XP/h, net ' + r.net + ' g/h, supplies ' + r.store + ' g/h (' + r.meals + ' meals/h), ' + life(r) + ' (hp ' + r.hp + '%)') : '-');
 console.log('| Ground | Levels under | Who | Poor | Average | Optimized |\n|---|---|---|---|---|---|');
 for (const r of list) console.log('| ' + (SHORT[r.ground] || r.ground) + ' (L' + r.level + ') | ' + (r.gap || 'in range') + ' | ' + (r.size > 1 ? 'four' : 'solo') + ' | ' + one(r.poor) + ' | ' + one(r.average) + ' | ' + one(r.optimized) + ' |');
+/* PUSHING AGAINST THE GROUND IN RANGE: one hero, one Level, every ground (riskclimb). */
+const climbDir = arg('climb', null);
+const climb = [];
+if (climbDir) {
+  for (const c of readFileSync(join(resolve(climbDir), 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.heroes)) {
+    climb.push({ ground: c.ground, band: c.hunt.band, level: c.cell.level, size: c.cell.party.length, build: c.cell.x.slice(1), ...readCell(c) });
+  }
+  climb.sort((a, b) => a.size - b.size || a.level - b.level || a.build.localeCompare(b.build) || a.band[0] - b.band[0] || a.ground.localeCompare(b.ground));
+  console.log('\n| Who | Build | Ground | Under | XP/h | Net g/h | Supplies g/h | Meals/h | Lasted | Typical low HP |\n|---|---|---|---|---|---|---|---|---|---|');
+  for (const r of climb) console.log('| ' + (r.size > 1 ? 'four' : 'solo') + ' L' + r.level + ' | ' + r.build + ' | ' + (SHORT[r.ground] || r.ground) + ' | ' + (r.level >= r.band[0] ? 'in range' : r.band[0] - r.level) + ' | ' + r.xp + ' | ' + r.net + ' | ' + r.store + ' | ' + r.meals + ' | ' + life(r) + ' | ' + r.hp + '% |');
+}
 if (process.argv.includes('--write')) {
-  writeFileSync(join(HERE, 'risk-summary.json'), JSON.stringify({ generated: new Date().toISOString(), rows: list }) + '\n');
+  writeFileSync(join(HERE, 'risk-summary.json'), JSON.stringify({ generated: new Date().toISOString(), rows: list, climb }) + '\n');
   console.log('wrote risk-summary.json');
 }

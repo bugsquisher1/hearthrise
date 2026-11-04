@@ -14,6 +14,8 @@
 //   W4  the pull size says why a bigger pull matters
 //   S1  NOTHING REFUSES A LEVEL: the newest hr_hunt_gate body (2027-02-24-risk-no-level-block.sql) never compares a Level with the floor, and the data has
 //       no margin; hr_hunt_enter_for answers below_range from hr_hunt_below_range. The executed proof is that file's own self-check in the chain replay.
+//   S2  NOTHING IN THE FIGHT READS IT (Tyler 2026-11-04: "They are just simply harder"): no gap row in the data, no Level in damage.js or combat.js; hunt-core/damage.mjs
+//       same-blow-at-any-level plays it. The only reader of a unit's Level is the party's level share (xp-share.js), which Tyler is deciding on separately.
 //   G1  the ONE recommendation (src/shell/hunt-list.js recommendedHunt) prefers a ground whose
 //       groupFit suits the party; a party ground tells a lone hero "Best with a party of 2–4"
 //   G2  a ground with a party-only hall (minParty: the Rat King) is a party ground: a lone hero
@@ -43,7 +45,8 @@ async function run(base) {
   const one = HL.rangeWords(row, 39), near = HL.rangeWords(row, 34), far = HL.rangeWords(row, 28), at = HL.rangeWords(row, 40);
   ok('W1', typeof one === 'string' && one.startsWith('You\'re 1 Level under this ground. '), 'one Level under reads ' + JSON.stringify(one));
   ok('W1', near === 'You\'re 6 Levels under this ground. ' + HL.ABOVE_LEVEL_WORDS + ' ' + lost && /More XP and better loot/.test(near) && !/expect losses/.test(near), 'six Levels under reads ' + JSON.stringify(near));
-  ok('W1', typeof far === 'string' && far.startsWith('You\'re 12 Levels under this ground. ') && /far harder/.test(far) && /built for it/.test(far) && far.endsWith(lost), 'twelve Levels under reads ' + JSON.stringify(far));
+  ok('W1', typeof far === 'string' && far.startsWith('You\'re 12 Levels under this ground. ') && /far stronger than you/.test(far) && /much more on supplies, or to die/.test(far) && /More XP and better loot/.test(far) && far.endsWith(lost), 'twelve Levels under reads ' + JSON.stringify(far));
+  ok('W1', ![one, near, far].some((w) => /hit (you )?(far )?harder|\d+% harder/.test(w)), 'the warning claims a penalty: ' + near);
   ok('W1', at === null && HL.rangeWords(row, 70) === null && HL.rangeWords(row, null) === null, 'at / over the floor or with no level must say nothing');
   ok('W1', HL.fitWords(row, 34).tone === 'above' && HL.fitWords(row, 28).tone === 'far', 'the list line reads ' + JSON.stringify([HL.fitWords(row, 34), HL.fitWords(row, 28)]));
 
@@ -125,6 +128,9 @@ async function run(base) {
   const cs = read('src/session/character-session.js');
   ok('W3', cs.includes('ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }'), 'CharacterSession drops the server\'s below_range');
 
+  const blow = read('src/core/hunt/damage.js') + read('src/core/combat.js');
+  ok('S2', !/heroLv|underFloor/.test(blow), 'the fight reads a hero Level against the floor');
+  ok('S2', !/underFloorPm|underFloorAtkPm/.test(read('src/data/hunt-grounds.js') + read('src/data/hunt-tuning.js')), 'a level gap row is back in the data');
   const gate = read('supabase/migrations/2027-02-24-risk-no-level-block.sql');
   const body = gate.slice(gate.indexOf('create or replace function public.hr_hunt_gate'), gate.indexOf('revoke execute on function public.hr_hunt_gate'));
   ok('S1', body.length > 100 && !/band_min|combat_level|hr_level_of|below_range_refuse/.test(body) && /'unknown_activity'/.test(body) && /spawn_gate/.test(body),
@@ -145,8 +151,11 @@ const MUTANTS = [
   ['the warning words are dropped', 'src/shell/hunt-list.js', "  if (!Number.isInteger(level) || level >= r.band[0]) return null;\n  const gap", "  return null;\n  const gap"],
   ['a party ground offers itself alone again', 'src/shell/hunt-list.js', "  if (r.groupFit === 'party' && r.heroes > 1) {", '  if (false) {'],
   ['the Warrens forgets its solo break-even', 'src/data/hunt-grounds.js', '    soloFrom: 45,\n', ''],
-  ['far under reads as near (the words never say only a built hero lasts)', 'src/shell/hunt-list.js', "(gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)", 'ABOVE_LEVEL_WORDS'],
+  ['far under reads as near (the words never lean harder)', 'src/shell/hunt-list.js', "(gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)", 'ABOVE_LEVEL_WORDS'],
   ['the words forget what dying costs', 'src/shell/hunt-list.js', "    + ' If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';", "    + '';"],
+  ['the fight reads a hero Level again (S2)', 'src/core/hunt/damage.js', 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));', 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row) + (t.heroLv ? 0 : 0));'],
+  ['a gap row comes back in the data (S2)', 'src/data/hunt-tuning.js', '  partyShareRangePm: 667,', '  partyShareRangePm: 667,\n  underFloorAtkPm: 50,'],
+  ['the warning claims a penalty again', 'src/shell/hunt-list.js', "'Its monsters are stronger than you: expect to spend more on supplies, or to die. More XP and better loot.'", "'More XP and better loot, but its monsters hit harder.'"],
   ['a margin comes back in the data', 'src/data/hunt-sessions.js', '  bagLines: 10,\n', '  bagLines: 10,\n  belowRangeRefuse: 15,\n'],
   ['a lone hero walks in with no confirm press', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
   ['the pull size says nothing of why it matters', 'src/shell/windows/hunts.js', "' Bigger pulls pay more once your heroes can hold them. Kept for this ground.'", "' Kept for this ground.'"],

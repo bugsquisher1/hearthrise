@@ -88,7 +88,8 @@ export const AUTH_COPY = Object.freeze({
   signUpsClosed: "New accounts can't be made right now. Sign-ups are closed.",
   signUpFailed: "Your account couldn't be created. Try again.",
   resetSent: 'If that email has an account, a link to reset your password is on its way. It can land in spam.',
-  linkExpired: "That email link has expired or was already used. Try signing in. If you can't, press Forgot your password and we'll send a new one.",
+  linkExpired: "That email link has expired or was already used. Sign in below, and we'll offer a new one if you still need it. For a password reset, press Forgot your password.",
+  linkSent: 'A new link is on its way. It can land in spam.',
   passwordSet: 'Your new password is saved. You are signed in.',
   passwordFailed: 'That reset link has expired. Ask for a new one from the sign-in screen.',
   network: 'Could not reach the server. Check your connection and try again.',
@@ -262,7 +263,10 @@ export function createAuth(o) {
       if (!password) return fail(AUTH_COPY.signInFailed);
       try {
         const { data, error } = await auth.signInWithPassword({ email: e, password });
-        if (error) return fail(AUTH_COPY[copyFor(error, SIGN_IN_SAYS, 'signInFailed')]);
+        if (error) {
+          const key = copyFor(error, SIGN_IN_SAYS, 'signInFailed');
+          return { ok: false, message: AUTH_COPY[key], unconfirmed: key === 'notConfirmed' };
+        }
         session = data.session || null;
         return { ok: !!session, message: session ? '' : AUTH_COPY.signInFailed };
       } catch (err) { return fail(AUTH_COPY.network); }
@@ -278,6 +282,20 @@ export function createAuth(o) {
         /* An email that already has an account gets the same words as a new one (CODE_COPY). */
         const key = error ? copyFor(error, SIGN_UP_SAYS, 'signUpFailed') : 'signUpSent';
         return key === 'signUpSent' ? { ok: true, message: AUTH_COPY.signUpSent } : fail(AUTH_COPY[key]);
+      } catch (err) { return fail(AUTH_COPY.network); }
+    },
+
+    /* A CONFIRMATION LINK LASTS ONE HOUR (mailer_otp_exp, read off the live auth config 2026-09-05), so whoever opens their mail the next
+       morning has a dead link, and "open the link we sent you" went round in a circle (door panel 2026-11-04). Offered only after the
+       auth server said "not confirmed", which it says only to the right password; it answers the same for every other refusal. */
+    async resendConfirmation(email) {
+      const e = String(email || '').trim();
+      if (!EMAIL.test(e)) return fail(AUTH_COPY.badEmail);
+      try {
+        const { error } = await auth.resend({ type: 'signup', email: e, options: { emailRedirectTo: o.redirectTo } });
+        const key = error ? authErrorCopy(error) : null;
+        if (key === 'network' || key === 'rateLimited') return fail(AUTH_COPY[key]);
+        return { ok: true, message: AUTH_COPY.linkSent };
       } catch (err) { return fail(AUTH_COPY.network); }
     },
 

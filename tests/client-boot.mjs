@@ -415,6 +415,28 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       await dead.page.click('[data-auth-go="sign-in"]');
       const onSignIn = await dead.page.inputValue('form[data-auth="sign-in"] input[name=email]');
       if (onForgot !== 'stranger@example.test' || onSignIn !== 'stranger@example.test') fails.push('B-6 the typed email did not follow the screens: ' + JSON.stringify([onForgot, onSignIn]));
+      /* "Not confirmed" is not a circle: a confirmation link lasts an hour, so the screen offers a new one, and only then. */
+      const again = await dead.page.evaluate(async () => {
+        const { renderAuthScreen } = await import(location.origin + '/src/app/sign-in.js');
+        const box = document.createElement('div'); document.body.append(box);
+        const tick = () => new Promise((r) => setTimeout(r, 0));
+        const asked = [];
+        let answer = { ok: false, message: 'wrong password' };
+        renderAuthScreen(box, { signIn: async () => answer, resendConfirmation: async (e) => { asked.push(e); return { ok: true, message: 'on its way' }; } }, 'sign-in', {}, 'a@b.co');
+        const form = box.querySelector('form'), press = box.querySelector('[data-auth-resend]');
+        const shown = () => press.getClientRects().length > 0;
+        const out = { first: shown() };
+        form.dispatchEvent(new Event('submit', { cancelable: true })); await tick();
+        out.wrong = shown();
+        answer = { ok: false, unconfirmed: true, message: 'not confirmed' };
+        form.dispatchEvent(new Event('submit', { cancelable: true })); await tick();
+        out.unconfirmed = shown();
+        press.click(); await tick();
+        out.asked = asked; out.said = box.querySelector('.auth-message').textContent;
+        box.remove();
+        return out;
+      });
+      if (again.first || again.wrong || !again.unconfirmed || again.asked.join() !== 'a@b.co' || again.said !== 'on its way') fails.push('B-6 a new confirmation link: ' + JSON.stringify(again));
       await dead.ctx.close();
     }
 
@@ -956,6 +978,8 @@ const MUTANTS = [
   ['the notice page boots the app', 'index.html', '</body>', '<script type="module" src="src/app/boot.js?v=1"></script></body>'],
   ['sign-out leaves the session copies', 'src/net/auth.js', '      for (const k of store.keys()) if (k === cfg.authKey', '      for (const k of []) if (k === cfg.authKey'],
   ['the world pane never mounts the shell', 'src/app/world-pane.js', "  shell = mountShell(stage, {", "  shell = { onInset: () => () => {}, paint() {}, destroy() {} }; void ({"],
+  ['"not confirmed" offers no new link (B-6)', 'src/app/sign-in.js', 'if (resend) resend.hidden = !r.unconfirmed;', ''],
+  ['every refusal offers a new link (B-6)', 'src/app/sign-in.js', 'if (resend) resend.hidden = !r.unconfirmed;', 'if (resend) resend.hidden = false;'],
   ['the typed email is lost between the screens (B-6)', 'src/app/sign-in.js', "on, val('email'));", 'on);'],
   ['a dead email link says nothing (B-6)', 'src/app/boot.js', 'if (m) m.textContent = AUTH_COPY.linkExpired;', ''],
   ['a dead email link stays in the address (B-6)', 'src/app/boot.js', "    if (badLink) win.history.replaceState(null, '', win.location.pathname + win.location.search);\n", ''],

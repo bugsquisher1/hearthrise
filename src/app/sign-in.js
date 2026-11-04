@@ -55,6 +55,7 @@ export function renderAuthScreen(box, auth, mode, on, email) {
     + (s.lead ? '<p class="auth-lead">' + esc(s.lead) + '</p>' : '')
     + s.fields.map((f) => FIELD[f]).join('')
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
+    + (mode === 'sign-in' ? '<button type="button" class="auth-link" data-auth-resend hidden>Send me a new link</button>' : '')
     + '<button type="submit" class="hh-tool is-primary auth-submit">' + esc(s.submit) + '</button>'
     + (s.links.length ? '<p class="auth-links">' + s.links.map(([to, label]) => '<button type="button" class="auth-link" data-auth-go="' + esc(to) + '">' + esc(label) + '</button>').join('') + '</p>' : '')
     + '</form>';
@@ -65,9 +66,19 @@ export function renderAuthScreen(box, auth, mode, on, email) {
   const emailField = form.elements.namedItem('email');
   if (emailField && email) emailField.value = email;
 
-  form.addEventListener('click', (e) => {
+  const resend = form.querySelector('[data-auth-resend]');
+
+  form.addEventListener('click', async (e) => {
     const go = e.target.closest('[data-auth-go]');
     if (go) renderAuthScreen(box, auth, go.getAttribute('data-auth-go'), on, val('email'));
+    /* The auth server's own "not confirmed" put this press here (auth.js resendConfirmation). */
+    if (e.target.closest('[data-auth-resend]') && !resend.disabled) {
+      resend.disabled = true;
+      say('');
+      const r = await auth.resendConfirmation(val('email'));
+      resend.disabled = false;
+      say(r.message, r.ok);
+    }
   });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -81,6 +92,7 @@ export function renderAuthScreen(box, auth, mode, on, email) {
     else r = await auth.signIn(val('email'), val('password'));
     btn.disabled = false;
     say(r.message, r.ok);
+    if (resend) resend.hidden = !r.unconfirmed;
     /* Sent: the fields and their button stand aside, or the message pushes the way back off a phone's screen (phone panel 2026-11-01). */
     form.classList.toggle('is-sent', !!r.ok && mode === 'create');
     if (r.ok && (mode === 'sign-in' || mode === 'set-password')) on.signedIn();

@@ -41,6 +41,8 @@
 .hsum-name small { font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
 .hsum-name small:empty { display: none; }
 .hsum-n { flex: none; font-size: var(--t-small); font-weight: 700; color: var(--ink); }
+/* Sticks to the foot of the scrolling body while the card runs past it: its floor covers what scrolls under it, out to the body's edges. */
+.hsum-foot { position: sticky; bottom: -12px; z-index: 2; margin: 0 -12px; padding: 0 12px 12px; background: var(--bg-1); }
 .hsum-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 2px 4px; }
 .hsum-actions .hh-tool { min-height: 36px; }
 .hsum-actions .hh-tool.is-primary { min-height: 40px; }
@@ -66,6 +68,13 @@
 /* The play cap's popup (src/shell/windows/play-cap.js): the death popup's foot, and its one sentence at reading size. */
 .hplaycap-words { margin: 2px 2px 6px; font-size: var(--t-body); line-height: 1.45; color: var(--ink); }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* A phone's sheet has no height for a foot of two rows of 44 px presses over the numbers: there they come right under the reason, the numbers under them. */
+  .hsum-card.is-on { display: flex; flex-direction: column; }
+  .hsum-card > * { order: 3; }
+  .hsum-card > .hsum-head, .hsum-card > .hsum-reason { order: 0; }
+  .hsum-foot { position: static; order: 1; margin: 0 0 8px; padding: 0; background: none; }
+  .hsum-card > .hsum-stats { order: 2; }
+  .hsum-actions { margin-top: 0; }
   .hsum-actions .hh-tool, .hsum-actions .hh-tool.is-primary { min-height: 44px; flex: 1 1 30%; }
   .hsum-stats { gap: 8px 10px; padding: 8px 10px 10px; }
   .hsum-title { font-size: var(--t-lead); }

@@ -604,7 +604,7 @@
 .hs-win .hw-party > .hh-intent-msg:not(:empty) { position: static; }
 /* The Hunt summary's answer stands right under its presses, so it is in view with them. Stuck to the window's foot it lay on them, with the foot of the
    gold "Next:" plate showing under it: the half-filled bar the party panel read as a stuck progress line (2026-11-03). */
-.hs-win .hsum-card > .hh-intent-msg:not(:empty) { position: static; }
+.hs-win .hsum-foot > .hh-intent-msg:not(:empty) { position: static; }
 .hw-party-acts { flex-wrap: wrap; }
 .hw-party-next { margin: 8px 0 0; }
 .hw-party-class { margin: 4px 0 0; }

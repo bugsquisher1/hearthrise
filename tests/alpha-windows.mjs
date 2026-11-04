@@ -2415,6 +2415,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           s.env.hunt = Object.assign({}, s.env.hunt, { ended: false, session_id: '5d1c0f2e-0000-4000-8000-000000000066', session: Object.assign({}, s.env.hunt.session, { end_reason: null, ended_at: null, phase: 'hunting' }) });
           await pushEnvelope(page, s);
           s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: Object.assign({}, s.env.hunt.session, OVER) });
+          if (said.cut.length) fails.push('AW-66 under the summary\'s fold as it opens: ' + said.cut.join(', '));
+          if (Math.abs(said.gap) > 1) fails.push('AW-66 the numbers read on ' + said.gap + ' px under the summary\'s presses');
           await pushEnvelope(page, s);
           await page.waitForTimeout(400);
           const home = await page.evaluate((w) => { const m = document.querySelector(w + '.hh-intent-msg'); return m ? m.textContent : null; }, W66);
@@ -2425,6 +2427,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+          /* On a phone's sheet the presses come right under the reason and lie on none of the numbers. */
+          await page.setViewportSize({ width: 844, height: 390 });
+          await page.waitForTimeout(400);
+          const sheet = await page.evaluate((w) => {
+            const body = document.querySelector(w + '[data-hs-body]'), stats = document.querySelector(w + '.hsum-stats').getBoundingClientRect();
+            body.scrollTop = 0;
+            const br = body.getBoundingClientRect();
+            const on = Array.from(document.querySelectorAll(w + '.hsum-actions button')).filter((x) => !x.hidden && x.getClientRects().length).map((x) => x.getBoundingClientRect());
+            return { n: on.length, inReach: on.every((b) => b.bottom <= br.bottom + 1 && b.top >= br.top - 1), clear: on.every((b) => b.bottom <= stats.top + 1) };
+          }, W66);
+          if (!sheet.n || !sheet.inReach || !sheet.clear) fails.push('AW-66 the summary on a phone: ' + JSON.stringify(sheet));
     { // AW-67 nothing lies on the press in hand
       const W67 = '[data-hs-win="inventory"] ';
       const town = (e) => {

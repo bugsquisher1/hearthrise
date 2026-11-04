@@ -112,6 +112,9 @@ function startApp(win) {
   let slotBuying = false; // a hero-slot purchase is in flight: the button stays off until the answer
 
   const recovering = /type=recovery/.test(win.location.hash);
+  /* AN EMAIL LINK THAT DID NOT WORK (expired, used twice, or opened first by a mail scanner) comes back with its error in the
+     hash; supabase-js says nothing, and a stranger who pressed the link looked at a blank sign-in screen (door panel 2026-11-04). */
+  const badLink = /(?:^#|&)error(?:_code)?=/.test(win.location.hash);
 
   function clear() {
     paneSeq++;
@@ -378,9 +381,14 @@ function startApp(win) {
 
   auth.refresh().then(() => {
     timing.authReady(!recovering && !!auth.userId());
+    if (badLink) win.history.replaceState(null, '', win.location.pathname + win.location.search);
     if (recovering) showAuth('set-password');
     else if (auth.userId()) startAccount(true);
-    else showAuth('sign-in');
+    else {
+      showAuth('sign-in');
+      const m = badLink && root.querySelector('.auth-message');
+      if (m) m.textContent = AUTH_COPY.linkExpired;
+    }
   });
   return { auth, account: () => account };
 }

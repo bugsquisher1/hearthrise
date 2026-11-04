@@ -47,7 +47,8 @@
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
 //        localStorage or sessionStorage (auth key, sb-*, the tab id, the heroes it had open)
-//   B-6  a password-reset link (#type=recovery) opens the set-new-password screen
+//   B-6  a password-reset link (#type=recovery) opens the set-new-password screen; an email link that came back with an error (expired, used
+//        twice, opened first by a mail scanner) lands on sign-in and says what to do, and its error does not stay in the address
 //   B-7  A 403 hr_closed ANSWER SHOWS THE CLOSED NOTICE, NOT THE GAME, AND A NEXT STEP (an invitee's first screen, 2026-11-03): invite-only, signed
 //        up, their own id and nothing else of the account, Copy puts it on the clipboard (a refused clipboard says so and leaves it selected);
 //        Check again is off while it asks, says why on a no or on no answer, and once the server admits the account the page goes on to their
@@ -400,6 +401,14 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       await page.goto(base + '/play.html#access_token=x&type=recovery', { waitUntil: 'load' });
       if (!(await wait(page, () => document.querySelector('form[data-auth="set-password"]')))) fails.push('B-6 a reset link did not open the set-new-password screen');
       await ctx.close();
+      /* The link that did not work: what the auth server sends back for one expired, used twice, or opened first by a mail scanner. */
+      const dead = await fresh();
+      await dead.page.goto(base + '/play.html#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired', { waitUntil: 'load' });
+      await wait(dead.page, () => document.querySelector('form[data-auth="sign-in"]'));
+      const said = await dead.page.evaluate(() => ({ line: document.querySelector('.auth-message')?.textContent || '', hash: location.hash }));
+      if (!/expired or was already used/.test(said.line) || !/Forgot your password/.test(said.line)) fails.push('B-6 a dead email link lands on sign-in with ' + JSON.stringify(said.line));
+      if (said.hash) fails.push('B-6 a dead email link stays in the address: ' + JSON.stringify(said.hash));
+      await dead.ctx.close();
     }
 
     { // B-8
@@ -940,6 +949,8 @@ const MUTANTS = [
   ['the notice page boots the app', 'index.html', '</body>', '<script type="module" src="src/app/boot.js?v=1"></script></body>'],
   ['sign-out leaves the session copies', 'src/net/auth.js', '      for (const k of store.keys()) if (k === cfg.authKey', '      for (const k of []) if (k === cfg.authKey'],
   ['the world pane never mounts the shell', 'src/app/world-pane.js', "  shell = mountShell(stage, {", "  shell = { onInset: () => () => {}, paint() {}, destroy() {} }; void ({"],
+  ['a dead email link says nothing (B-6)', 'src/app/boot.js', 'if (m) m.textContent = AUTH_COPY.linkExpired;', ''],
+  ['a dead email link stays in the address (B-6)', 'src/app/boot.js', "    if (badLink) win.history.replaceState(null, '', win.location.pathname + win.location.search);\n", ''],
   ['the recovery link is ignored', 'src/app/boot.js', [["if (ev === 'recovery') showAuth('set-password');", "if (ev === 'nothing') showAuth('set-password');"],
     ['const recovering = /type=recovery/.test(win.location.hash);', 'const recovering = false;']]],
   ['the hunt panels never mount', 'src/data/hud-widgets.js', 'min: Object.freeze([320, 64]), opacity: 1, visible: true', 'min: Object.freeze([320, 64]), opacity: 1, visible: false'],

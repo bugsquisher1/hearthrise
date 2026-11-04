@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+- An email link that has expired or was already used now tells you so on the sign-in screen, and what to do next. The sign-up and reset messages mention spam.
+
 ## v0.2.85 — 2026-11-03 (Klappa's Club)
 
 **New weapon: Klappa's Club.** Reforge your Practice Club with 6 Bronze Bars and 3 Small Fangs and swing it from Level 5; it hits as hard as an Iron Warhammer. Sell spare gear keeps it. Selling it by hand warns you that nothing sells the Practice Club that makes another.

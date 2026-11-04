@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+- After you buy a hero slot, your characters stay on the screen and the game says the slot is yours at once, instead of a bare "Reading your characters…".
+
 ## v0.2.89 — 2026-11-04 (Still Here)
 
 **Friends see you while your tab is in the background.** A hidden tab stopped telling your friends you were online, so you dropped off their list after about a minute. It now keeps saying so.

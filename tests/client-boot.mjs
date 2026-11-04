@@ -141,8 +141,10 @@ async function stubServer(page, o) {
         await new Promise((res) => setTimeout(res, 500));
         o.purse -= o.ladder[body.p_slot_id]; o.goldV++;
         o.slots.push(body.p_slot_id);
+        o.slowReread = 1200;   // the re-read after a yes: slow enough to read the screen in between
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot_id: body.p_slot_id, hero_slots: o.slots }) });
       }
+      if (o.slowReread) await new Promise((res) => setTimeout(res, o.slowReread));
       const slot = name === 'hr_load' ? body.p_slot : body.slot;
       const slots = o.slots || [0, 1];
       const next = o.ladder ? Object.keys(o.ladder).map(Number).find((k) => !slots.includes(k)) : undefined;
@@ -886,6 +888,12 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         await page.click('[data-app="buy-slot"]');
         const b2 = await btn();
         if (!b2 || !b2.off || b2.text !== 'Buying…') fails.push('B-11 while the purchase is out the button reads ' + JSON.stringify(b2));
+        /* The yes is on screen at once, over the list, with the button still off: "Reading your characters…" alone for 2.5 s let a player press again (board 11-04). */
+        const told = await wait(page, () => /Hero slot bought/.test((document.querySelector('.auth-message') || {}).textContent || ''));
+        const between = await page.evaluate(() => ({ rows: document.querySelectorAll('.char-row').length, reading: /Reading your characters/.test(document.body.textContent),
+          off: !!(document.querySelector('[data-app="buy-slot"]') || {}).disabled }));
+        if (!told || between.rows !== 2 || between.reading || !between.off) fails.push('B-11 between the yes and the re-read: ' + JSON.stringify({ told: !!told, ...between }));
+        o.slowReread = 0;
         const reread = await wait(page, () => document.querySelectorAll('.char-row').length === 3 && document.querySelector('[data-app="create"][data-slot="2"]'));
         const sent = o.bought[0] || {};
         if (o.bought.length !== 1 || sent.p_slot_id !== 2 || sent.p_slot !== 0 || typeof sent.p_idem !== 'string' || Object.keys(sent).some((k) => /price|cost|gold/.test(k)))

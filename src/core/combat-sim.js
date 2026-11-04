@@ -103,7 +103,7 @@ function heroOf(m) {
 function syncUnit(u, m) {
   const snap = m.snapshot(m.state);
   u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def;
-  /* THE LEVEL, for the level gap (damage.js): a level gained mid-window counts from the next swing, never persisted, like `mit`. */
+  /* THE LEVEL, for the party's level share (xp-share.js) and nothing else: a level gained mid-window counts from the next kill, never persisted, like `mit`. */
   u.heroLv = snap.level;
   /* THE ARMOUR'S MITIGATION (ruling K7, mitigation.js): derived from the member's gear and Level at
      every boundary and never persisted, so a decoded world gets it back here before any blow. */

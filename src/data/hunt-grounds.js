@@ -494,14 +494,6 @@ export function partyPick(heroes) {
   return lead && Number.isInteger(lead.density) && lead.density > 0 ? lead.density : 0;
 }
 
-/** THE LEVEL GAP (hunt-tuning.js underFloorAtkPm): the permille of a monster's atk a hero of `level` meets on `ground`: 1000 in band or
-    above it, and for a unit whose Level the engine was not told (a bare fixture). Read per blow, so a Level gained counts at once. */
-export function underFloorPm(ground, level) {
-  const band = ground && HUNT_INDEX[ground.hunt] && HUNT_INDEX[ground.hunt].band;
-  if (!band || !Number.isInteger(level) || level >= band[0]) return 1000;
-  return 1000 + HUNT_TUNING.underFloorAtkPm * (band[0] - level);
-}
-
 /** THE LEVEL SHARE (hunt-tuning.js partyShareRangePm): the permille of its Level XP share a seat of `level` keeps on `ground` with `top` the party's highest living Level. 1000 at or
     over the floor, within the range of the top, and for a unit whose Level the engine was not told. Under both, it falls with the square of how far under the range it stands. */
 export function underFloorSharePm(ground, level, top) {

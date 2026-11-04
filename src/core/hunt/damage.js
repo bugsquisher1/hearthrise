@@ -37,7 +37,7 @@ import { shareKillXp } from './xp-share.js?v=0.2.87';
 import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.87';
 import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.87';
 import { shootsItem } from '../../data/hunt-roles.js?v=0.2.87';
-import { elementWithFloor, underFloorPm } from '../../data/hunt-grounds.js?v=0.2.87';
+import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.87';
 import { mitigate } from '../mitigation.js?v=0.2.87';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.87';
 
@@ -169,10 +169,8 @@ export function resolveAttacks(inst, sc) {
     if (u.side === 'mon') {
       if (cheb(u, t) > 1 || !atRest(u)) continue;
       const row = MONSTERS[u.kind];
-      /* THE LEVEL GAP: under the ground's floor the monster's atk rises for this hero, accuracy and blow (hunt-grounds.js underFloorPm). */
-      const gap = t.side === 'hero' ? underFloorPm(inst.ground, t.heroLv) : 1000;
-      const foe = gap === 1000 ? row : Object.assign({}, row, { atk: (row.atk * gap) / 1000 });
-      swing(inst, sc, u, t, monsterAccuracy(foe, t.def), monsterMaxHit(foe));
+      /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). */
+      swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));
       continue;
     }
     const row = roleOf(u);

@@ -19,7 +19,7 @@ since been executed.
 | World atlases (town, grounds, every creature, effects) | `assets/world/` | 12 sets | **live** (`src/render/creature-sprite.js`, `src/world/`) |
 | Pixel item icons | `assets/icons-bundle/pixel/items/` | 573 (one per ITEMS key) | **live** (`src/shell/widgets/bits.js`, `itemIconHtml`) |
 | Shop supply icons | `assets/icons-bundle/pixel/supplies/` | 25 | **live** |
-| Ability tiles | `assets/icons-bundle/pixel/abilities/` | 13 | **live** (`ABILITY_ART`) |
+| Ability tiles | `assets/icons-bundle/pixel/abilities/` | 16 | **live** (`ABILITY_ART`) |
 | UI frames and plates | `assets/ui/`, `assets/brand/` | 13, 6 | **live** |
 | Painted Hearthfire set, painted portraits, resources, buildings, backgrounds | `assets/icons-bundle/{hearthfire,painted,resources,buildings,medieval,backgrounds}/` | 488 + 148, about 28 MB | **no** (retired; `ITEM_ART_SET = 'pixel'`; never beside style-1 art, Tyler 10-18) |
 | Recraft raws, avatars, pilot output | `assets/items/`, `assets/avatars/`, `assets/art-pilot/` | 71, 22, 33; about 107 MB | **no** (only `tools/art-wave2-*` read `assets/items`; nothing reads `avatars`) |
@@ -28,9 +28,9 @@ So the smoke preflight lines "412 item icons wired, 19 withheld, 15 unresolved, 
 
 **What is really visible and wrong** (ranked; the costed plan is on the priority board, "2026-11-04 Art audit"):
 1. **One sprite, several names.** 11 monsters wear 5 sprites: Giant Rat = Drain Rat = Granary Rat, Slime = Sump Slime, Hive Wasp = Barn Wasp, Cistern Spider = Barn Spider, Glade Poacher = Turncoat (byte-identical idle frames; `art/review/art-audit-2026-11-04/same-sprite.png`). Four of Wickstead's five creatures are another ground's sprite.
-2. **Items wearing another item's picture.** 21 groups, 49 items on 21 pictures (the `KNOWN_TWINS` list in `tests/pixel-icons.mjs`): 45 of the 49 are reachable, and 24 new drawings give every reachable item its own (17 of them outside the Warrens, Level 32+). Worst: six shields on one picture (the start kit's Practice Shield, the Shop's Bronze-Rimmed Shield, the Rat King's rare Kingsgrate), three hatchets, three crossbows, the Rat King's Crown = Crown Shard, Coppercap's Cauldron drawn as a crown.
-3. **Three abilities show a grey glyph beside framed tiles:** Mend (every hero's heal), Rend, Protective Ward (Configure action, Spells and Runes tabs).
-4. **The 13 ability tiles are the one icon family off the world palette:** 1024 of 1024 pixels opaque and off-palette each, 29-60 colours, against the items' 420 opaque pixels, 13 colours and 0 off-palette. A coherent family (slate square, orange frame), a different language from the pixel items beside them on the bar.
+2. **Items wearing another item's picture.** 21 groups, 49 items on 21 pictures at the audit (the `KNOWN_TWINS` list in `tests/pixel-icons.mjs`): 45 of the 49 are reachable, and 24 new drawings give every reachable item its own (17 of them outside the Warrens, Level 32+). **Five drawn 2026-11-04; 44 items on 21 pictures, 19 drawings left.** Still worst: four shields on one picture, the Steel Hatchets and Willow Crossbow on the practice pair's, Coppercap's Cauldron drawn as a crown.
+3. **Fixed 2026-11-04:** Mend, Rend and Protective Ward showed a grey glyph beside framed tiles; all 16 abilities have a tile.
+4. **The ability tiles are the one icon family off the world palette, by decision (2026-11-04, `docs/ART_DIRECTION.md` section 7):** 1024 of 1024 pixels opaque and off-palette each on the 13 measured, 29-60 colours, against the items' 420 opaque pixels, 13 colours and 0 off-palette. A coherent family (slate square, orange frame), a different language from the pixel items beside them on the bar.
 5. **Every creature idles on one frame** (`idle 1f` for all 30), where `docs/ART_DIRECTION.md` section 6 asks for 4-6.
 
 ---
@@ -86,7 +86,7 @@ assets/
     │                 item set since 2026-10-14; see "Pixel item icons" below
     ├── pixel/supplies/  19 icons for the shop's basic supplies (salted food, thin drinks,
     │                 plain ammo), one per BASIC_SUPPLIES id; added 2026-10-21, see below
-    ├── pixel/abilities/  32x32 framed ability tiles (13), keyed by ability id; cleave added 2026-10-21
+    ├── pixel/abilities/  32x32 framed ability tiles (16), keyed by ability id; cleave added 2026-10-21; mend, rend, protective_ward 2026-11-04
     ├── medieval/     BlacksmithInstruments.png (anvil), Cog.png (iron_fitting,
     │                 added b224)
     └── backgrounds/  dungeon.jpg (combat/dungeon backdrop)
@@ -124,10 +124,12 @@ Drawn with the pixel scripts (no PixelLab credits spent), on the locked palette,
   art; each now has its own ash-and-rope training look with a red rag (`practice_shield`, `practice_crossbow` were already unique).
 - `pixel/abilities/cleave.png`: the set's own frame and slate, axe and swing arc. The ability tiles are NOT on the world
   palette (ported from the hunt sim, 1024 opaque px each); Cleave uses colours sampled from them so it matches its siblings.
-  `rend` (inactive) still shows a glyph.
 - Guard: `tests/pixel-icons.mjs` now also requires the supply folder (missing/orphan/size/palette/alpha/empty) and a
   `duplicate` rule (two ids with byte-identical icons) for items and supplies. One known twin remains and is listed in
   KNOWN_TWINS: `crown_shard` = `crown_of_the_fallen_king` (needs its own art).
+
+### Art batch 0 and the sample of five (2026-11-04, Art Director, 0 generations)
+Three tiles the set was missing and five items that wore another item's picture, drawn by script. The scripts are the source: `tools/world-art/ability-tiles.mjs` (`mend`, `rend`, `protective_ward`, in the family's own off-palette colours, the call is in `docs/ART_DIRECTION.md` section 7) and `tools/world-art/twin-icons.mjs` (`bronze_rimmed_shield`, `kingsgrate`, `iron_hatchets`, `oak_crossbow`, `crown_shard`, on `hr-world-56-v2`). `tests/pixel-icons.mjs` rule `drawn` requires each PNG to equal what its script draws. Sheets and in-game shots: `art/review/art-batch-0-2026-11-04/`.
 
 ### Longbow redraw (2026-10-24, Asset Director, player note a43)
 "String Longbow sprite looks more like a larger crossbow." The Crafting recipe "String Longbow" makes the item `longbow`, whose icon

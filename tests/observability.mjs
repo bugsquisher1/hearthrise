@@ -118,7 +118,8 @@ const until = async (fn, ms = 10000) => { const t = Date.now() + ms; while (Date
 
 async function page(browser, base, o) {
   /* A desktop Chrome's user agent and no webdriver flag: PostHog drops an automated browser as a bot. */
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 },
+  /* This page runs as the production origin, so it would register the real sw.js, and Playwright's routes never see a worker's fetches. */
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, serviceWorkers: 'block',
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36' });
   /* ...and no 'HeadlessChrome' brand: a newer headless Chromium announces it in userAgentData, which PostHog also reads. */
   await ctx.addInitScript(() => {

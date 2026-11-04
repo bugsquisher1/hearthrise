@@ -17,7 +17,7 @@
 //   cold            a browser that has never been here: form -> characters -> Play -> town
 //   return-expired  back after the max-age ran out (short here, so the bench is not ten minutes per sample)
 //   release         back after a one-line release: --release names how it is made (plain: what bump-version.sh does to every URL; built: a folder from
-//                   tools/load-bench-release.mjs). Bytes from the server's own log, which sees the worker's fetches too; TIMES with a worker in control are
+//                   node tools/build-site.mjs --out DIR --as-version X.Y.Z --one-line src/shell/windows/settings.js). Bytes from the server's own log, which sees the worker's fetches too; TIMES with a worker in control are
 //                   flattering on a throttled profile, because Chromium's page throttling does not reach a worker's own fetches.
 // PROFILES: desktop 40 ms / 20 Mbps; phone 150 ms / 1.6 Mbps + 4x CPU; 4g 100 ms / 9 Mbps (the return-load lane's line) + 4x CPU when named 4gslow.
 // --trace: one extra pass with Chrome's tracing on, reported apart (tracing slows a page): the main thread's own time by what it did, per phase.

@@ -5,8 +5,9 @@
 //
 //   node tools/retire-version-queries.mjs            the plan: what it would change, by kind; writes nothing
 //   node tools/retire-version-queries.mjs --write    rewrites this tree
-//   node tools/retire-version-queries.mjs --prove    in the OS temp folder: rewrites a copy of the client and builds it; every content-named file must come out
-//                                                    byte-identical to the build of this tree, which is the proof that ?v= no longer does anything for a player
+//   node tools/retire-version-queries.mjs --prove    in the OS temp folder: rewrites a copy of the client and builds it. The code that runs must come out byte-identical to the
+//                                                    build of this tree (a chunk's NAME still moves: esbuild's hash covers the source map, whose sources did change), and the edge
+//                                                    payload's sha256 must not move. That is the proof ?v= no longer does anything for a player.
 //
 // WHAT IT REWRITES
 //   src/**/*.js (not src/vendor)   every quoted specifier or path ending in ?v=X.Y.Z
@@ -17,6 +18,8 @@
 // plain-folder deploy has no cache-buster, so deploy-site.yml's one-step rollback is only clean BEFORE it.
 // mutant-anchors: none — --prove rewrites a copy in the OS temp folder and judges the build of it
 // ════════════════════════════════════════════════════════════════════════
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, normalize, relative, sep } from 'node:path';
@@ -71,12 +74,23 @@ if (argv.includes('--prove')) {
     const builtAt = '2026-11-04T00:00:00Z';
     const was = await buildSite({ out: join(dir, 'was'), builtAt });
     const now = await buildSite({ root: copy, out: join(dir, 'now'), builtAt });
-    const same = Object.keys(was.release.files).filter((k) => was.release.files[k] === now.release.files[k]);
-    const differ = [...new Set([...Object.keys(was.release.files), ...Object.keys(now.release.files)])].filter((k) => was.release.files[k] !== now.release.files[k]);
-    const pageSame = readFileSync(join(dir, 'was/play.html'), 'utf8') === readFileSync(join(dir, 'now/play.html'), 'utf8');
+    /* A chunk's text with every chunk name and the map link taken out, keyed by itself: two builds run the same code when the two sets match. */
+    const NAME = /\b(?:c|boot)-[A-Z0-9]{8}\.js/g;
+    const code_ = (d, release) => new Set(Object.keys(release.files).map((k) => { const t = readFileSync(join(d, k)); return /\/(c|boot)-[A-Z0-9]{8}\.js$/.test(k) ? 'chunk ' + createHash('sha256').update(t.toString('utf8').replace(/\/\/# sourceMappingURL=.*$/m, '').replace(NAME, 'CHUNK')).digest('hex') : k + ' ' + release.files[k]; }));
+    const a = code_(join(dir, 'was'), was.release), b = code_(join(dir, 'now'), now.release);
+    const differ = [...new Set([...a, ...b])].filter((k) => !a.has(k) || !b.has(k));
+    const page = (d) => readFileSync(join(d, 'play.html'), 'utf8').replace(NAME, 'CHUNK');
+    const pageSame = page(join(dir, 'was')) === page(join(dir, 'now'));
     console.log('rewrote ' + r.kinds.source + ' in source and ' + r.kinds.page + ' in pages, ' + r.files + ' files; source files still naming a version: ' + left.length + (left.length ? ' (' + left.slice(0, 3).map((f) => relative(copy, f).split(sep).join('/')).join(', ') + ')' : ''));
-    console.log(same.length + ' content-named files byte-identical, ' + differ.length + ' differ' + (differ.length ? ': ' + differ.slice(0, 6).join(', ') : '') + '; play.html ' + (pageSame ? 'identical' : 'differs'));
-    code = differ.length === 0 && pageSame ? 0 : 1;
+    console.log(a.size + ' built files, ' + differ.length + ' whose code or bytes differ' + (differ.length ? ': ' + differ.slice(0, 6).join(', ') : '') + '; play.html ' + (pageSame ? 'the same but for chunk names' : 'differs'));
+    /* The engine: the same payload from the rewritten tree. */
+    for (const d of ['supabase/functions', 'tools']) cpSync(join(ROOT, d), join(copy, d), { recursive: true });
+    cpSync(join(ROOT, 'tests/_is-main.mjs'), join(copy, 'tests/_is-main.mjs'));
+    cpSync(join(ROOT, 'supabase/config.toml'), join(copy, 'supabase/config.toml'));
+    const hashOf = (cwd) => spawnSync(process.execPath, ['tools/pack-edge.mjs', 'hr-accrue', '--hash'], { cwd, encoding: 'utf8' }).stdout.trim();
+    const engineWas = hashOf(ROOT), engineNow = hashOf(copy);
+    console.log('edge payload ' + engineWas.slice(0, 16) + (engineWas === engineNow && engineWas ? ' unchanged' : ' MOVED to ' + engineNow.slice(0, 16)));
+    code = differ.length === 0 && pageSame && left.length === 0 && engineWas && engineWas === engineNow ? 0 : 1;
     console.log(code ? 'retire --prove: RED' : 'retire --prove: the built site does not change when every ?v= is gone');
   } finally { try { rmSync(dir, { recursive: true, force: true, maxRetries: 3 }); } catch (e) { /* the OS tidies its own temp */ } }
   process.exit(code);

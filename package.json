@@ -2,7 +2,7 @@
   "name": "hearthrise",
   "version": "0.9.2-beta",
   "private": true,
-  "description": "Hearthrise — cozy idle homestead RPG. Static site, no build step; this manifest exists only so CI can install Playwright and run the in-game smoke suite headlessly.",
+  "description": "Hearthrise. Development serves plain source; a release is built by tools/build-site.mjs (esbuild, pinned). This manifest exists for that tool and for CI's Playwright.",
   "type": "module",
   "scripts": {
     "test": "node tests/run-smoke.mjs",

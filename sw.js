@@ -66,11 +66,13 @@ async function keep(cache, key, res) {
 
 /* WHAT A RELEASE DID NOT CHANGE IS NOT FETCHED AGAIN: a content-named file this browser already holds moves to this release's cache; the old
    cache, and whatever the new release no longer names, go at activation. The list is the build's, so an atlas only one hunting ground draws
-   moves too, though no page names it. */
-async function carryOver(cache) {
+   moves too, though no page names it. `first`: what the page's first paint loads that it does not name, for the fill below. */
+async function carryOver(cache, fillToo) {
   const res = await fetch(new URL('release-files.json?v=' + VERSION, self.location.href));
   if (!res.ok) return;
-  for (const name of (await res.json()).files) {
+  const list = await res.json();
+  for (const name of list.first) fillToo.add(new URL(name, self.location.href).href);
+  for (const name of list.files) {
     const url = new URL(name, self.location.href).href;
     const held = await caches.match(url, { ignoreVary: true });
     if (held) await cache.put(url, held);
@@ -94,7 +96,7 @@ async function fill() {
   if (!ofThisVersion) throw new Error('the page names no file at ' + VERSION);
   const cache = await openCache();
   await cache.put(RELEASE_KEY, new Response(res.headers.get('last-modified') || ''));
-  if (named) await carryOver(cache).catch(() => { /* each file's turn comes when a page asks */ });
+  if (named) await carryOver(cache, urls).catch(() => { /* each file's turn comes when a page asks */ });
   const todo = [...urls];
   await Promise.all(Array.from({ length: FILL_AT_ONCE }, async () => {
     while (todo.length) {

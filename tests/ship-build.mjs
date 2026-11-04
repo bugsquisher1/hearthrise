@@ -135,8 +135,8 @@ function sb2(out, fails, tableOf) {
     for (const m of text.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)["'](\.[^"']+)["']/g)) if (!existsSync(join(dirname(f), m[1]))) fails.push('SB-2 ' + rel + ' imports ' + m[1] + ', which the site does not hold');
     if (/\bimport\.meta\b/.test(text)) fails.push('SB-2 ' + rel + ' reads import.meta: a chunk does not live where its source did');
     if (/\?v=\d/.test(text)) fails.push('SB-2 ' + rel + ' names a file at a version: ' + /.{30}\?v=\d.{8}/.exec(text));
-    if (/const HASHED\s*=\s*null|\b\w+=null;function \w+\(\w+,\w+\)\{return \w+&&\w+\[\w+\]/.test(text)) fails.push('SB-2 ' + rel + ' holds src/site-files.js with no table');
-    for (const m of text.matchAll(/\bsrc\/[\w/.-]+\.js\b/g)) if (!allowed.has(m[0]) && !existsSync(join(out, m[0]))) fails.push('SB-2 ' + rel + ' names ' + m[0] + ', which the site does not hold');
+    /* A data table may name a source file in words ({origin:"src/legacy.js"}); only a path the code would load counts. */
+    for (const m of text.matchAll(/(?:\bimport\(|\bnew URL\(|\bfetch\(|\.src=|\bsiteFile\()\s*["'`](?:\.\/|\/)?(src\/[\w/.-]+\.js)\b/g)) if (!allowed.has(m[1]) && !existsSync(join(out, m[1]))) fails.push('SB-2 ' + rel + ' loads ' + m[1] + ', which the site does not hold');
     if (/nezapsylztqbbwuwembx/.test(text) && !/supabase\.co/.test(text)) fails.push('SB-2 CONTROL: a project name with no URL in ' + rel);
   }
   for (const f of walk(join(out, 'a')).filter((x) => x.endsWith('.css'))) {
@@ -144,6 +144,8 @@ function sb2(out, fails, tableOf) {
   }
   for (const [path, name] of Object.entries(tableOf)) if (!existsSync(join(out, name))) fails.push('SB-2 the table says ' + path + ' is ' + name + ', which the site does not hold');
   const map = JSON.parse(readFileSync(join(out, 'build-map.json'), 'utf8'));
+  const atlas = tableOf['assets/world/atlas-common.png'];
+  if (!atlas || !readFileSync(join(out, map.modules['src/site-files.js']), 'utf8').includes(atlas)) fails.push('SB-2 the chunk with src/site-files.js does not hold the table: the game would ask for plain paths');
   const preloaded = [...play.matchAll(/<link rel="modulepreload" href="([^"]+)"/g)].map((m) => m[1]);
   if (new Set(preloaded).size !== chunks.length) fails.push('SB-2 the page preloads ' + preloaded.length + ' of its ' + chunks.length + ' chunks');
   for (const must of ['src/app/boot.js', 'src/app/sign-in.js', 'src/world/world-boot.js', 'src/world/prewarm.js', 'src/shell/shell.js', 'src/data/items.js']) if (!map.modules[must]) fails.push('SB-2 build-map holds no ' + must);
@@ -272,6 +274,7 @@ async function sb9(b, fails) {
   const at = text.indexOf('A new version of Hearthrise is out');
   if (at < 0) { fails.push('SB-9 CONTROL: no banner words in ' + holder); return; }
   const before = text.slice(0, at).split('\n');
+  if (!existsSync(join(a.out, holder + '.map'))) { fails.push('SB-9 ' + holder + ' has no map'); return; }
   const sm = new SourceMap(JSON.parse(readFileSync(join(a.out, holder + '.map'), 'utf8')));
   const entry = sm.findEntry(before.length - 1, before[before.length - 1].length);
   if (entry.originalSource !== 'src/app/new-version.js') fails.push('SB-9 a position in ' + holder + ' maps to ' + entry.originalSource + ', not src/app/new-version.js');
@@ -366,7 +369,8 @@ async function sb5(b, browser, fails) {
   }
   const list = JSON.parse(readFileSync(join(next.out, 'releases.json'), 'utf8'));
   if (list.releases.length !== 2 || list.releases[0].version !== '9.9.4' || list.releases[1].version !== versionNow()) fails.push('SB-5 releases.json lists ' + list.releases.map((r) => r.version).join());
-  const renamed = [...hashedFiles(a.out).keys()].filter((k) => k.endsWith('.js') && !existsSync(join(hashedFilesRoot(b, 'one-line-only', next), k)));
+  /* the names this release no longer uses: only retention can still serve them */
+  const renamed = Object.keys(a.release.files).filter((k) => k.endsWith('.js') && !next.release.files[k]);
   const site = await pages(false);
   site.root = a.out;
   const ctx = await browser.newContext({ serviceWorkers: 'block' });
@@ -379,7 +383,7 @@ async function sb5(b, browser, fails) {
     /* the tab is open; the site is replaced */
     site.root = next.out;
     site.log.length = 0;
-    const changed = (await renamed).filter((k) => !/\/(posthog-js|sentry-|supabase-js|glyphs-|storage-)/.test(k));
+    const changed = renamed.filter((k) => !/\/(posthog-js|sentry-|supabase-js|glyphs-|storage-)/.test(k));
     if (!changed.length) fails.push('SB-5 CONTROL: the release renamed no chunk');
     const got = await page.evaluate(async ({ chunk, atlas }) => {
       const out = {};
@@ -392,9 +396,6 @@ async function sb5(b, browser, fails) {
     if (errors.length) fails.push('SB-5 page errors: ' + errors.slice(0, 2).join(' | '));
   } finally { await ctx.close(); await site.close(); }
 }
-/* The names a release without retention would have, so "what the release renamed" does not depend on the retention under test. */
-function hashedFilesRoot(b, name, next) { return next.out; }
-
 // ── SB-7: THE WORKER AND THE BUILT NAMES ────────────────────────────────
 async function sb7(b, browser, fails, workerText) {
   const a = await b.build('a');
@@ -502,22 +503,23 @@ async function checks({ edit, workerText, rules = ALL } = {}) {
 /* [name, the file, from, to, the one rule that must go red] */
 const MUTANTS = [
   ['two builds of one source differ', BUILDER, "const hashedName = (rel, buf) => { const ext = extname(rel); return OUT_HASHED + '/' + basename(rel, ext) + '-' + sha256(buf).slice(0, HASH_LEN) + ext; };", "let SEQ = Math.random().toString(36).slice(2, 8);\nconst hashedName = (rel, buf) => { const ext = extname(rel); SEQ += 'x'; return OUT_HASHED + '/' + basename(rel, ext) + '-' + SEQ + ext; };", 'SB-1'],
-  ['the page keeps its plain stylesheets', BUILDER, "if (done) return ''; done = true; return '<link rel=\"stylesheet\" href=\"' + css + '\">\\n';", "return arguments[0];", 'SB-2'],
+  ['the page names a platform script the site does not hold', BUILDER, "const PLAIN_FILES = ['CNAME', '.nojekyll', 'sw.js', 'src/build-info.js', ...PLAIN_SCRIPTS];", "const PLAIN_FILES = ['CNAME', '.nojekyll', 'sw.js', 'src/build-info.js'];", 'SB-2'],
   ['the table is not written into src/site-files.js', BUILDER, "text = text.replace(anchor, 'const HASHED = ' + JSON.stringify(Object.fromEntries(copier.table)) + ';');", "/* left as it is */", 'SB-2'],
   ['a ?v= import reaches a chunk', BUILDER, "(m) => copier.put(m.replace(VERSION_QUERY, ''))", '(m) => m', 'SB-2'],
   ['the build leaves BUILD in a chunk', BUILDER, "text = text.replace(from, 'export const BUILD = Object.freeze(JSON.parse(document.documentElement.dataset.build));');", "/* left as it is */", 'SB-3'],
   ['every module in one chunk', BUILDER, "for (const [name, test] of LAYERS) {", "for (const [name, test] of []) {", 'SB-3'],
-  ['the deploy keeps nothing of the last release', BUILDER, "if (o.retainFrom) ({ kept, carried } = await retain(out, o.retainFrom, current, o.fetch || fetch));", "/* nothing kept */", 'SB-5'],
+  ['the deploy keeps nothing of the last release', BUILDER, "if (o.retainFrom) ({ kept, carried, firstDeploy } = await retain(out, o.retainFrom, current, o.fetch || fetch));", "/* nothing kept */", 'SB-5'],
   ['a retained file is not checked', BUILDER, "if (sha256(buf) !== want) throw new Error('build-site: the deployed ' + rel + ' is not the file its release listed');", "/* trusted */", 'SB-6'],
   ['a site that cannot be read reads as a first deploy', BUILDER, "if (res.status === 404) return null;", "if (!res.ok) return null;", 'SB-6'],
   ['every release is kept for ever', BUILDER, "return older.filter((r, i) => i < min || Date.parse(r.builtAt) >= cutoff).slice(0, max);", "return older;", 'SB-6'],
   ['a first deploy drops the plain folder', BUILDER, "if (firstDeploy) for (const d of FIRST_DEPLOY_DIRS) cpSync(join(root, d), join(out, d), { recursive: true });", "/* dropped */", 'SB-6'],
-  ['maps say where this machine built them', BUILDER, "map.sources = map.sources.map((s) => posix(relative(root, resolve(dirname(f.path), s))));", "map.sources = map.sources.map((s) => resolve(dirname(f.path), s));", 'SB-9'],
+  ['maps say where this machine built them', BUILDER, "map.sources = map.sources.map((s) => (s.startsWith('hr-layer:') ? s : posix(relative(root, s.startsWith('file:') ? fileURLToPath(s) : resolve(dirname(f.path), s)))));", "map.sources = map.sources.map((s) => (s.startsWith('file:') ? fileURLToPath(s) : resolve(dirname(f.path), s)));", 'SB-9'],
   ['no source maps', BUILDER, "sourcemap: 'linked', sourcesContent: true,", "sourcemap: false,", 'SB-9'],
   ['the worker does not keep the built names', WORKER_FILE, 'const isKept = (url) => isNamed(url) || atVersion(url);', 'const isKept = (url) => atVersion(url);', 'SB-7'],
-  ['a release downloads again what the player holds', WORKER_FILE, 'if (named) await carryOver(cache).catch(', 'if (false) await carryOver(cache).catch(', 'SB-7'],
+  ['a release downloads again what the player holds', WORKER_FILE, 'if (named) await carryOver(cache, urls).catch(', 'if (false) await carryOver(cache, urls).catch(', 'SB-7'],
   ['a source map is kept', WORKER_FILE, " && !url.pathname.endsWith('.map');", ';', 'SB-7'],
   ['a built name is dated like a version', WORKER_FILE, 'if (!isNamed(new URL(res.url))) {', 'if (true) {', 'SB-7'],
+  ['the fill leaves out what the first paint loads', WORKER_FILE, 'for (const name of list.first) fillToo.add(new URL(name, self.location.href).href);', '', 'SB-7'],
 ];
 
 async function mutate() {

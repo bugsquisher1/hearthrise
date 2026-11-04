@@ -11,7 +11,7 @@
 // WHAT COMES OUT
 //   a/                  every file named by its content: chunks (+ .map), the page's CSS, the world's atlases, the vendored scripts
 //   play.html index.html  the pages, naming those files
-//   assets/ legal/ prototypes/hunt-sim/  plain paths, as today (the game's icons are asked for by path, never by version)
+//   assets/ legal/ prototypes/  plain paths, as today (the game's icons are asked for by path, never by version). What the repo's other folders held is no longer on the site; all of it stays public on GitHub
 //   sw.js, src/build-info.js, src/platform/{https-upgrade,sw-killswitch,load-shell}.js   plain paths: the worker, the file new-version.js asks about,
 //                       and the brake with its two neighbours, whose ?v= stays the page's way to say which release it is
 //   release-files.json  this release's content-named files (the worker carries over what it already holds)
@@ -35,6 +35,7 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../tests/_is-main.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const ROOT = normalize(join(HERE, '..'));
@@ -46,7 +47,7 @@ const KEEP_DAYS = 14, KEEP_MIN = 3, KEEP_MAX = 30, KEEP_MAPS = 3;
 /* What stays at its plain path. The three platform scripts keep their ?v= too: it is how the kill-switch and the loading shell read this page's release. */
 const PLAIN_SCRIPTS = ['src/platform/https-upgrade.js', 'src/platform/sw-killswitch.js', 'src/platform/load-shell.js'];
 const PLAIN_FILES = ['CNAME', '.nojekyll', 'sw.js', 'src/build-info.js', ...PLAIN_SCRIPTS];
-const PLAIN_DIRS = ['legal', 'assets/brand', 'assets/ui', 'assets/icons-bundle', 'prototypes/hunt-sim'];
+const PLAIN_DIRS = ['legal', 'assets/brand', 'assets/ui', 'assets/icons-bundle', 'prototypes'];
 const FIRST_DEPLOY_DIRS = ['src', 'assets/world'];
 /* The layers, slowest-changing data first: a module goes in the first layer whose test it passes. */
 const LAYERS = [['data', /^src\/data\//], ['core', /^src\/core\//], ['session', /^src\/(session|net)\//], ['world', /^src\/(world|hunt-view|render)\//], ['shell', /^src\/(shell|social)\//]];
@@ -158,7 +159,8 @@ async function buildChunks(root, out, copier, patch) {
     mkdirSync(dirname(file), { recursive: true });
     if (k.endsWith('.map')) {
       const map = JSON.parse(f.text);
-      map.sources = map.sources.map((s) => posix(relative(root, resolve(dirname(f.path), s))));
+      /* esbuild writes a file: URL when the output is on another drive */
+      map.sources = map.sources.map((s) => (s.startsWith('hr-layer:') ? s : posix(relative(root, s.startsWith('file:') ? fileURLToPath(s) : resolve(dirname(f.path), s)))));
       writeFileSync(file, JSON.stringify(map));
     } else writeFileSync(file, f.contents);
     names[k] = name;
@@ -217,6 +219,8 @@ async function buildPage(root, out, rel, copier, js, info, patch) {
   html = html.replace(/\b(src|href)="((?:assets|src)\/[^"?]+)(?:\?v=\d+\.\d+\.\d+)?"/g, (m, attr, path) => attr + '="' + (PLAIN_SCRIPTS.includes(path) ? path + '?v=' + info.version : copier.put(path)) + '"');
   writeFileSync(join(out, rel), html);
 }
+
+const cssOf = (out) => /<link rel="stylesheet" href="(a\/[^"]+)"/.exec(readFileSync(join(out, 'play.html'), 'utf8'))[1];
 
 function listRelease(out, version, builtAt) {
   const files = {}, maps = {};
@@ -310,7 +314,10 @@ export async function buildSite(o) {
   let kept = [], carried = 0, firstDeploy = false;
   if (o.retainFrom) ({ kept, carried, firstDeploy } = await retain(out, o.retainFrom, current, o.fetch || fetch));
   if (firstDeploy) for (const d of FIRST_DEPLOY_DIRS) cpSync(join(root, d), join(out, d), { recursive: true });
-  writeFileSync(join(out, 'release-files.json'), JSON.stringify({ version: current.version, files: Object.keys(current.files) }));
+  /* `first`: what the page's first paint loads that the page does not name (its stylesheet's images), so the worker's fill holds them before the first return */
+  const firstPaint = readFileSync(join(out, cssOf(out)), 'utf8');
+  const first = Object.keys(current.files).filter((k) => firstPaint.includes(basename(k)));
+  writeFileSync(join(out, 'release-files.json'), JSON.stringify({ version: current.version, files: Object.keys(current.files), first }));
   writeFileSync(join(out, 'releases.json'), JSON.stringify({ releases: [current, ...kept] }));
   writeFileSync(join(out, 'build-map.json'), JSON.stringify({ version: current.version, entry: js.entry, preload: js.preload, modules: js.buildMap, files: Object.fromEntries(copier.table) }));
   return { version: info.version, out, entry: js.entry, preload: js.preload, table: Object.fromEntries(copier.table), release: current, kept: kept.map((r) => r.version), carried, firstDeploy };
@@ -321,7 +328,7 @@ function commitTime(root) {
 }
 
 /* ── THE COMMAND ──────────────────────────────────────────────────────── */
-if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
   const opt = (n, d) => { const i = argv.indexOf('--' + n); return i >= 0 ? argv[i + 1] : d; };
   const t0 = Date.now();
@@ -340,6 +347,8 @@ if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(im
     const js = Object.keys(r.release.files).filter((p) => p.endsWith('.js'));
     console.log('built v' + r.version + ' in ' + (Date.now() - t0) + ' ms: ' + Object.keys(r.release.files).length + ' content-named files, ' + r.preload.length + ' chunks preloaded, ' + r.kept.length + ' older releases kept (' + r.carried + ' files carried)');
     console.log('entry ' + r.entry + ' ' + Math.round(bytes(r.entry) / 1024) + ' KB; all js ' + Math.round(js.reduce((a, p) => a + bytes(p), 0) / 1024) + ' KB raw');
+    /* the release run and the deploy of the same commit print the same line (tests/ship-build.mjs SB-1) */
+    console.log('site digest ' + sha256(JSON.stringify(Object.entries(r.release.files).sort())).slice(0, 16));
   } catch (e) {
     console.error(e.message || e);
     process.exitCode = 1;

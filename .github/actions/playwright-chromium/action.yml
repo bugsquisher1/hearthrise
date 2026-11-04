@@ -30,6 +30,12 @@
 name: Install Playwright + Chromium
 description: npm install, then npx playwright install --with-deps chromium with apt's .deb downloads cached.
 
+inputs:
+  browsers:
+    description: Which of Playwright's browsers to install. Another set keeps its own cache entries, so it never stands in for Chromium's exact hit.
+    required: false
+    default: chromium
+
 runs:
   using: composite
   steps:
@@ -40,9 +46,12 @@ runs:
     - name: apt .deb cache key
       id: key
       shell: bash
+      env:
+        BROWSERS: ${{ inputs.browsers }}
       run: |
         pw=$(node -p "JSON.parse(require('fs').readFileSync('node_modules/playwright-core/package.json','utf8')).version")
         prefix="pw-apt-debs-v1-${ImageOS:-noimage}-"
+        if [ "$BROWSERS" != chromium ]; then prefix="${prefix}${BROWSERS// /-}-"; fi
         echo "prefix=$prefix" >> "$GITHUB_OUTPUT"
         echo "key=${prefix}${ImageVersion:-noversion}-pw${pw}" >> "$GITHUB_OUTPUT"
 
@@ -54,9 +63,10 @@ runs:
         key: ${{ steps.key.outputs.key }}
         restore-keys: ${{ steps.key.outputs.prefix }}
 
-    - name: npx playwright install --with-deps chromium
+    - name: npx playwright install --with-deps ${{ inputs.browsers }}
       shell: bash
       env:
+        BROWSERS: ${{ inputs.browsers }}
         HIT: ${{ steps.restore.outputs.cache-hit }}
       run: |
         shopt -s nullglob
@@ -79,7 +89,8 @@ runs:
           if [ ${#seed[@]} -gt 0 ]; then sudo cp "${seed[@]}" /var/cache/apt/archives/; fi
         fi
         echo "apt archive seeded with ${#seed[@]} of ${#cached[@]} cached .deb file(s) (exact cache hit: '${HIT}')"
-        npx playwright install --with-deps chromium
+        # shellcheck disable=SC2086
+        npx playwright install --with-deps $BROWSERS
 
     # Cache upkeep never fails a job: the worst it can do is leave the next run to download.
     - name: Collect apt .debs

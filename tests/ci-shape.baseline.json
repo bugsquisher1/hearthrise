@@ -75,6 +75,8 @@
     "node tests/ship-build.mjs": "built-site",
     "node tools/mutant-gate.mjs node tests/ship-build.mjs --mutate": "built-site",
     "node tests/ship-build.mjs --suite": "built-site",
+    "node tests/ship-browsers.mjs": "built-browsers",
+    "node tools/mutant-gate.mjs node tests/ship-browsers.mjs --mutate": "built-browsers",
     "node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=11/11": "in-page-22",
     "node tests/auth-lock.mjs": "in-page-23",
     "node tools/mutant-gate.mjs node tests/auth-lock.mjs --mutate": "in-page-23",

@@ -41,6 +41,8 @@
     "test:intent-mismatch:selftest": "node tests/intent-mismatch.mjs --selftest",
     "test:cron-health": "node tests/cron-health.mjs",
     "test:cron-health:selftest": "node tests/cron-health.mjs --selftest",
+    "test:typecheck": "node tests/typecheck-ratchet.mjs",
+    "test:typecheck:selftest": "node tests/typecheck-ratchet.mjs --selftest",
     "test:restore-census": "node tests/restore-census.mjs",
     "test:restore-census:mutate": "node tests/restore-census.mjs --mutate",
     "test:restore-census:selftest": "node tests/restore-census.mjs --baseline-selftest",
@@ -49,7 +51,9 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",
     "@electric-sql/pglite-socket": "^0.2.8",
+    "oxlint": "1.91.0",
     "playwright": "^1.47.0",
-    "postgres": "3.4.5"
+    "postgres": "3.4.5",
+    "typescript": "6.0.3"
   }
 }

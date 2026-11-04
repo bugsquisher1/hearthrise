@@ -341,15 +341,23 @@ function rules(M) {
     ok('LV-A', r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict the armoured peer: ${bad.length} of ${r.verdicts.length} commits diverged`);
   }
 
-  { // LV-U: THE LEVEL GAP, VIEWED (Tyler 2026-11-02): heroes under the Glade's floor, the viewer and a peer whose browser row holds only frozen numbers: the
-    // server's harder blows are predicted swing for swing. The closed-browser half is first-week-bands level-gap (one 10 minute cut against 10 s settles).
-    const mis = [memberOf(M, 'a', 0, 'melee_dps', 12), memberOf(M, 'b', 1, 'tank', 12)];
-    for (const mi of mis) { mi.huntId = 'mosslight_glade'; mi.equipment = Object.assign({}, mi.equipment, { helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' }); }
-    let hits = 0;
-    const r = run(M, mis, 96000, { server: { hunt: 'mosslight_glade', id: 'i-live' }, onCommit: ({ c }) => { hits += c.tl.hunt_events.filter((e) => e.type === 'dmg' && e.t === mis[1].unitId).length; } });
-    const bad = r.verdicts.filter((x) => x.v !== 'match');
-    ok('LV-U', r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict blows under the floor: ${bad.length} of ${r.verdicts.length} commits diverged`);
-    ok('LV-U', hits > 0, 'the peer was never hit under the floor, so nothing was predicted');
+  { // LV-U: THE LEVEL SHARE, BOTH PATHS (lane/c-risk-ladder; hunt-grounds.js underFloorSharePm): a Level 12 viewer behind a Level 40 peer whose browser row holds only frozen numbers: the
+    // low seat's cut share is what the server pays, viewed and browser closed, and what the browser predicts.
+    const SPAN = 240000;
+    const heroes = () => { const mis = [memberOf(M, 'a', 0, 'melee_dps', 12), memberOf(M, 'b', 1, 'tank', 40)]; for (const mi of mis) mi.huntId = 'mosslight_glade'; return mis; };
+    const closedMis = heroes(), closedFrom = closedMis.map((m) => m.levelXp);
+    server(M, closedMis, { hunt: 'mosslight_glade' }).commit(T0 + SPAN);
+    const closedXp = closedMis.map((m, i) => m.levelXp - closedFrom[i]);
+    const viewedMis = heroes(), viewedFrom = viewedMis.map((m) => m.levelXp);
+    const r = run(M, viewedMis, SPAN, { server: { hunt: 'mosslight_glade', id: 'i-live' } });
+    const viewedXp = viewedMis.map((m, i) => m.levelXp - viewedFrom[i]);
+    const shown = {};
+    for (const e of r.fed.events) if (e.type === 'xp') shown[e.u] = (shown[e.u] || 0) + e.amount;
+    const shownXp = viewedMis.map((m) => shown[m.unitId] || 0);
+    console.log('  LV-U closed ' + closedXp + ', viewed ' + viewedXp + ', prediction ' + shownXp);
+    ok('LV-U', closedXp[1] > 0 && closedXp[0] > 0 && closedXp[0] < closedXp[1] * 0.3, 'the low seat earned ' + closedXp[0] + ' against the top seat\'s ' + closedXp[1] + ' with the browser closed');
+    ok('LV-U', viewedXp.join() === closedXp.join(), 'viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
+    ok('LV-U', shownXp.join() === closedXp.join(), 'the prediction shows ' + shownXp + ', the server pays ' + closedXp);
   }
 
   { // LV-K: THE LEADER CHOOSES (Tyler 2026-10-20): the peer leader's pick is the pull, on the server and in the browser.
@@ -658,8 +666,7 @@ function rules(M) {
       const plate = { body: 'bronze_platebody', pants: 'steel_platelegs', boots: 'bronze_boots' };
       return [
         row('eddie', 0, 3696348, { melee: 1212343, defense: 1166560, magic: 7056, ranged: 0, inner_flame: 76422 }, { weapon: 'steel_sword', shield: 'practice_shield', helmet: 'iron_helm', ...plate }, 'shield', true),
-        /* Level 32, the Warrens' floor (live he stood at 31: the level gap, Tyler 2026-11-04 UTC, is not this case's subject) */
-        row('fremulon', 1, 3500000, { melee: 965112, defense: 636093, magic: 6894, ranged: 0, inner_flame: 84294 }, { weapon: 'iron_sword', shield: 'practice_shield', helmet: 'steel_helm', ...plate }, 'shield', false),
+        row('fremulon', 1, 3370870, { melee: 965112, defense: 636093, magic: 6894, ranged: 0, inner_flame: 84294 }, { weapon: 'iron_sword', shield: 'practice_shield', helmet: 'steel_helm', ...plate }, 'shield', false),
         row('apollo', 2, 1509460, { melee: 4015, defense: 267, magic: 220560, ranged: 405, inner_flame: 26451 },
           { weapon: 'practice_wand', shield: 'practice_spellbook', helmet: 'leather_helmet', body: 'leather_body', boots: 'leather_boots' }, 'wand', false),
       ];
@@ -1284,7 +1291,7 @@ const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
   ['the engine shoots ammo under its skill (LV-SHOT-SKILL)', 'src/core/hunt/abilities.js', "function shotLocked(h, id) {\n", "function shotLocked(h, id) {\n  if (h) return false;\n", /^LV-SHOT-SKILL: browser closed/],
-  ["the peer's Level stays out of its frozen row, so the browser under-predicts the level gap (LV-U)", 'src/core/member.js', 'mit: snap.mit || NO_MITIGATION, level: snap.level }', 'mit: snap.mit || NO_MITIGATION }', /^LV-U: the viewer/],
+  ["the peer's Level stays out of its frozen row, so the browser predicts the low seat a full share (LV-U)", 'src/core/member.js', 'mit: snap.mit || NO_MITIGATION, level: snap.level }', 'mit: snap.mit || NO_MITIGATION }', /^LV-U: the prediction/],
   ['the party factor is not paid (LV-CLASS)', 'src/core/hunt/xp-share.js', '(raw * party * multOf(sc, h))', '(raw * 1000 * multOf(sc, h))', /^LV-CLASS: mixed/],
   ["the browser's prediction fights on a ground it cannot name (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
     '    const where = huntGroundOf(String(live.instance.hunt));\n',

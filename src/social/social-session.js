@@ -20,20 +20,20 @@
 //               rows), for the shell's one context menu
 //   want(tab)   ask the chat window to show a tab (a new whisper)
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.87';
-import { ChatStore } from './chat-store.js?v=0.2.87';
-import { WhisperStore } from './whispers.js?v=0.2.87';
-import { FriendStore } from './friends.js?v=0.2.87';
-import { BlockStore } from './blocks.js?v=0.2.87';
-import { inspectOf } from './inspect.js?v=0.2.87';
-import { PlayersOnline } from './players-online.js?v=0.2.87';
+import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.88';
+import { ChatStore } from './chat-store.js?v=0.2.88';
+import { WhisperStore } from './whispers.js?v=0.2.88';
+import { FriendStore } from './friends.js?v=0.2.88';
+import { BlockStore } from './blocks.js?v=0.2.88';
+import { inspectOf } from './inspect.js?v=0.2.88';
+import { PlayersOnline } from './players-online.js?v=0.2.88';
 
 export class SocialSession {
   /**
    * @param {object} o
    * @param {object} o.account    the AccountSession
    * @param {object} [o.realtime] createSocialRealtime(...) (src/social/realtime.js)
-   * @param {{setTimer?: Function, clearTimer?: Function, later?: Function}} [o.timers]  `later`: the chat's catch-up timer
+   * @param {{setTimer?: Function, clearTimer?: Function, later?: any, now?: () => number}} [o.timers]  `later`: the chat's catch-up timer
    */
   constructor(o) {
     this._account = o.account;
@@ -89,7 +89,10 @@ export class SocialSession {
     this._askedAt = this._nowMs();
     const slot = this._slot();
     let ans = null;
-    try { if (slot !== null) ans = await this._account.server.rpc('hr_social_poll', { p_slot: slot, p_slots: this.online.slots() }); } catch (e) { ans = null; }
+    /* Hidden, it names no character: the account stays online for its friends, but a hero nobody is watching is not stamped
+       watched, so the world tick folds its settles and pushes it no frames (character_presence, hr_frame_wanted). */
+    const slots = this._away ? [] : this.online.slots();
+    try { if (slot !== null) ans = await this._account.server.rpc('hr_social_poll', { p_slot: slot, p_slots: slots }); } catch (e) { ans = null; }
     const read = !!ans && this._applyRead(ans);
     return this.online.take(read ? ans.body.online : null);
   }

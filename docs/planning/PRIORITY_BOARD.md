@@ -66,6 +66,73 @@ A wide release that moved the server stays near 27; a client-only one is lower (
 **First-run pass, replayed over the 30 reds, projected.** The 9 reds whose every cause is a chore, the font or timing flip: 31% to 52%, with the default preflight alone. `--proofs` before pushing a set that moved a body, an engine or a catalogue flips 10 more: 75%. `--pages` flips 5 of the last 6: 86%. The 5 real bugs must stay red. The replay assumes each tool is run and catches what the logs say it would have; it models no new class.
 
 **One-time cost:** the first release carrying this lane re-proves every page guard's mutants, because their harness moved. That run is slow on purpose: it is the proof that no catch was lost.
+### 2026-11-04 No level penalty: the monsters are simply stronger (systems-engineer, lane/c-no-level-penalty): BUILT, engine deploy, no migration. **Tyler should read the party finding and the Warrens proposal**
+**Tyler, 2026-11-04:** "Tibia doesn't have a scaling penalty for higher level monsters.... They are just simply harder. That is the risk lol so either A. The player or party dies, or B. They have to spend more on supplies to stay alive. (Healing/more damage to kill/ etc) it's inherent in the game, not a penalty driven system..." This replaces the level gap in the 2026-11-03 "Rush if you dare" section below and the 11-02 x1.05 per Level before it: both are gone, not softened.
+
+**What moved.** `underFloorAtkPm` and `underFloorPm` are deleted. A monster's blow is its own stats against the hero's own stats. The warning says the monsters are stronger, expect to spend more on supplies or to die, more XP and better loot; the death card names no percentage. Enter stays allowed, with its one confirm.
+
+**The sweep, every rule that reads a hero's Level against a ground.** Removed: the level gap (`damage.js`). Kept, Tyler deciding: the party's level share (`xp-share.js`, `underFloorSharePm`). Words only: `hr_hunt_below_range`, `hr_hunt_party_warn`, the Hunts page, the advice. Nothing in loot, gold or drops reads a Level. **Not a gap, and it cuts the other way:** armor's absorb is `value / (value + k x Level)` capped at 60% (`mitigation.js`, ruling K7), so the same bronze plate absorbs 60% at Level 1 and 46% at Level 16. A low hero gets MORE from the same armor. Defense XP reads the monster's own level, so it pays more on harder ground.
+
+**Does the cost show up on its own?** The same hero and Level, on the ground in its range against a push (`node tools/balance-sim/risk-table.mjs`, real settle; average gear on store food; net is after the store bill; no cell here died):
+| Hero | Ground | Under | XP/h | Net g/h | Supplies g/h | Meals/h | Typical low HP |
+|---|---|---|---|---|---|---|---|
+| Alone, Level 10 | Wickstead | in range | 25.8k | +2.9k | 0 | 0 | 92% |
+| | Glade | 6 | 48.4k | -1.0k | 4.4k | 111 | 63% |
+| | Warrens | 22 | 69.2k | -48.8k | 51.2k | 289 | 37% |
+| Alone, Level 24 | Glade | in range | 59.5k | +3.8k | 330 | 8 | 83% |
+| | Warrens | 8 | 97.4k | -24.4k | 27.9k | 155 | 47% |
+| Four, Level 10 | Wickstead | in range | 33.1k | +2.7k | 261 | 19 | 90% |
+| | Glade | 6 | 63.6k | **+2.7k** | 765 | 31 | 63% |
+| | Warrens | 22 | 82.2k | -3.9k | 6.0k | 74 | 37% |
+| Four, Level 24 | Glade | in range | 84.9k | +4.7k | 122 | 3 | 83% |
+| | Warrens | 8 | 133k | +2.0k | 1.4k | 18 | 58% |
+**Alone, yes:** XP about doubles and the bill swings a hero from profit to a loss it can't carry for long. The sim has no purse: a real Level 10 with a few thousand gold is sent home by gold_out within minutes in the Warrens. That is Tyler's B, with no rule behind it.
+
+**Who dies now. Only the practice set: not one death in any of the 140 average or built cells played** (alone or in a four, down to a Level 7 in the Warrens, 25 under, 36% typical). The practice set alone dies in the Sewer 3 under in 34 min, the Glade 6 under in about 1.3 h and 15 under in 17 min, the Warrens 10 under in 2 h and 15 under in 14 min. Built, on crafted food, paid in meals instead: 246 of them an hour for a Level 10 in the Warrens against none in Wickstead (the table counts them; net doesn't, since crafted food costs its crafter). So A has become rare and B carries the risk. The sim's purse is bottomless, so a real hero's gold_out, not a death, is what ends most of these hunts.
+
+**Where a low hero sits safely for little extra cost.** (1) A mixed four on the Glade: Level 10, double Wickstead's XP at the same net gold, 504 g/h more on supplies. Level 13: net goes UP, +3.1k against +2.8k. (2) A mixed four on the Warrens 3-8 under: Level 29, 1.7x the XP for 1.7k less net, 630 g/h of supplies. (3) The first grounds, alone in three pieces of bronze: a Level 2 in the Sewer earns 34.6k XP/h against the Cellar's 7k, net +2.8k, 1,031 g/h against 930 at its floor. A Level 2 in Wickstead pays 58 g/h, against 14 at its floor. The monsters there hit too softly to matter.
+
+**No rule was added.** The one lever allowed is monsters' own stats, and they move in-range heroes too. **Glade and first grounds: no.** The Glade's atk x1.25 already failed its floor's profit on 11-02. The first grounds carry his first-hour rulings. **Warrens, a proposal, not built:** every monster's atk x1.25 (sim only, plan `riskwhat`, store food, average gear, 1 h x 2 seeds):
+| Warrens | Who | atk | Supplies g/h | Income over supplies | Typical low HP |
+|---|---|---|---|---|---|
+| Level 32, in range | four | today | 67 | +7,215% | 78% |
+| | four | x1.25 | 569 | +739% | **65%** |
+| | pair | today | 140 | +3,287% | 75% |
+| | pair | x1.25 | 2.3k | +103% | 59% |
+| Level 26, 6 under | four | today | 1.2k | +194% | 60% |
+| | four | x1.25 | 3.9k | **-14%** | 50% |
+| Level 17, 15 under | four | today | 2.7k | +16% | 51% |
+| | four | x1.25 | 6.4k | **-53%** | 43% |
+In range it stays over his +25-35% and a four stays in his 60-80% band (a pair dips to 59%); a pusher's bill grows two to three times and turns to a loss. Nobody died in these cells. It raises what a Warrens party pays today, Andy's included, and a monster data change is a re-measure of `level-curve`. His call. It doesn't touch (1) or (3). The Sewer doesn't move enough to help: x1.5 still leaves a four at +397% in range and +347% at 3 under.
+
+**Not moved, for him to know:** the armor curve above is why the danger is so flat under a floor. Evening it out would be a change to a hero's own stats rather than a penalty, but it's his K7 ruling, moves every in-range number, and isn't measured.
+### 2026-11-04 Type checking with no build step (systems-engineer, lane/b-type-check): BUILT, a ratchet and not a wall
+**What runs.** `node tests/typecheck-ratchet.mjs`, in `client-guards`, measured 37-73 s here with other lanes on the PC (no GitHub run yet): `tools/typecheck.mjs` (typescript 6.0.3 on the compiler API, through a host that strips `?v=`, so it works with or without the query) plus oxlint 1.91.0 (one package and a binary, 71 named bug-class rules, 0.4 s, also on the edit hook). Per file and error kind a count may only fall; a new file starts at zero; an import that does not resolve is always red; `--write` records a fall or a move and refuses a rise. Not typescript 7: it is the native port with no compiler host to give; once `?v=` is retired, 7's own `tsc` can do this alone. `tsconfig` stays out: an editor would red every `?v=` import.
+
+**First run, measured.** 495 errors in 108 of 401 files, lint at zero. By folder: shell 177, core 108, data 79, world 57, hunt-view 27, session 17, app 15, social 6, net 5, platform 4. By kind: TS2339 282, TS1005 36, TS2345 29, TS2304 25, TS2538 24.
+
+| What they are | Count | Fix |
+|---|---|---|
+| A JSDoc the compiler cannot read (`@returns { a, b }`) | 93 | comment only; 64 of them in `src/core`, where a comment moves the edge hash, so left |
+| An optional field on a union of frozen rows | 89 | a typedef on the table |
+| A stale JSDoc shape, or a field added by `Object.assign` | 89 | a JSDoc line |
+| A read on `x \|\| {}` or a built-up `{}` | 81 | one `@returns {Record<string, any>}` on the reader |
+| Inference narrower than the code (a literal, a first row, a no-op stub) | 76 | none needed |
+| Booleans or keys in arithmetic, an index the code knows | 56 | an idiom, leave |
+| Other | 11 | read, none real |
+
+**Real bugs: 4, one a player can hit, all fixed here, each with a test (the guard itself for 3 and 4).** (1) `CHAT_LIMITS.friendsPollAwayMs` never existed, so `x >= undefined` was always false: a page hidden past 15 s never polled again and read offline to its friends after 75 s while its hero hunted on. Now 55 s (inside the window on a 30 s or a throttled 60 s timer), and hidden it names no hero, so `character_presence` stays as it is today and the world tick still folds those settles: the fix costs one request a minute per hidden tab and nothing else. (2) `unclassifiedGrantIds()` threw on a name nothing defines; no live caller, `tests/catalogue-coherence.mjs` calls it now. (3) `skill-authority.js` published a name nothing defines; the module has no importer (dead, worth deleting). (4) `refusal-words.js` said `item_locked` twice; no player change. **Engine, reported, unchanged:** no bug. `src/core/combat.js` imports `MAX_COMBINED_DAMAGE_MULT` and its comment says it clamps; `MAX_TOTAL_DAMAGE_MULT` does (line 256), so the comment and the import are stale.
+
+**Strictness, each measured over the whole tree:**
+
+| Option | Adds | Read | Verdict |
+|---|---|---|---|
+| `noFallthroughCasesInSwitch`, `noImplicitThis`, `strictBindCallApply` | 0 | - | ON |
+| `noImplicitAny`, without its 10,044 "annotate this" errors | 149 | all, no bug | **ON: the find.** With it off a returned object literal in a `.js` file is open, so a wrong field on it reads `any`. Renaming the 18 fields session readers return that a window reads: caught 1 of 18 off, 11 of 18 on |
+| `strictNullChecks` | 230 | about 50, no bug: guards through closures and helpers it cannot follow | off |
+| `noImplicitReturns` 33, `noUnusedLocals` 15 (dead imports, listed), `noUnusedParameters` 80, `strictFunctionTypes` 2, `useUnknownInCatchVariables` 8 | | no bug | off |
+
+**Upkeep, measured:** the ratchet replayed over v0.2.81 to v0.2.87 (six releases): 3 rises, in 2 of the 6, all correct code and no bug (one JSDoc line each), so a false red about one release in three, and preflight shows it in under a minute. **It would have caught none of the 5 real bugs in the last 30 red runs** (assumed from their descriptions: reload, timing and layout, not names). Assumed, not measured: `npm install` in the 44 jobs pays about 40 MB more. A ceiling that fell stays high until someone runs `--write` (a note, never a red, on purpose: a forced re-pin is the chore class that cost 24 of the 79 causes). Known blind spot: 43% of 38,882 property reads have a receiver the checker can see; the rest are `any` (`ctx` 657, `cs` 378, row names). The next step that pays is `@param` on those two in the lane touching them, not more strictness.
 
 ### 2026-11-04 Weapon rungs and the Thicket (designer, lane/c-weapon-thicket): BUILT, measured on the real engine, no migration, the edge deploys. **One choice for Tyler below**
 **Weapons (balance 10-25 §8: +5-8% per meaningful upgrade).** The gap is neither clubs alone nor a whole class: it's the box-sweepers. Cleave and spells roll their own numbers and read no weapon power, so a rung reaches a hammer, hatchets or a wand through basic blows only. **Moved: Iron Warhammer 7/12 → 7/16, Steel Warhammer 9/19 → 9/23, Iron Hatchets 7/7 → 9/11, Steel Hatchets 12/11 → 14/14, Klappa's Club 3/12 → 3/16, so it still hits as hard as the Iron Warhammer.** Prices, sources and recipes don't move. Level XP an hour, one tier up, all else equal (`tools/balance-sim` cell runner, the Level's kit, 1 h x 2 seeds, same dice, 0 deaths):

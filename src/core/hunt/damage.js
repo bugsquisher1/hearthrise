@@ -24,22 +24,22 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.2.87';
-import { STATUSES } from '../../data/statuses.js?v=0.2.87';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.87';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.87';
-import { cheb } from './grid.js?v=0.2.87';
-import { atRest, unitById } from './movement.js?v=0.2.87';
-import { makeEvent } from './events.js?v=0.2.87';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.87';
-import { fallen, partySize } from './pull-cycle.js?v=0.2.87';
-import { shareKillXp } from './xp-share.js?v=0.2.87';
-import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.87';
-import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.87';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.87';
-import { elementWithFloor, underFloorPm } from '../../data/hunt-grounds.js?v=0.2.87';
-import { mitigate } from '../mitigation.js?v=0.2.87';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.87';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.88';
+import { STATUSES } from '../../data/statuses.js?v=0.2.88';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.88';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.88';
+import { cheb } from './grid.js?v=0.2.88';
+import { atRest, unitById } from './movement.js?v=0.2.88';
+import { makeEvent } from './events.js?v=0.2.88';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.88';
+import { fallen, partySize } from './pull-cycle.js?v=0.2.88';
+import { shareKillXp } from './xp-share.js?v=0.2.88';
+import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.88';
+import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.88';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.88';
+import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.88';
+import { mitigate } from '../mitigation.js?v=0.2.88';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.88';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -169,10 +169,8 @@ export function resolveAttacks(inst, sc) {
     if (u.side === 'mon') {
       if (cheb(u, t) > 1 || !atRest(u)) continue;
       const row = MONSTERS[u.kind];
-      /* THE LEVEL GAP: under the ground's floor the monster's atk rises for this hero, accuracy and blow (hunt-grounds.js underFloorPm). */
-      const gap = t.side === 'hero' ? underFloorPm(inst.ground, t.heroLv) : 1000;
-      const foe = gap === 1000 ? row : Object.assign({}, row, { atk: (row.atk * gap) / 1000 });
-      swing(inst, sc, u, t, monsterAccuracy(foe, t.def), monsterMaxHit(foe));
+      /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). */
+      swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));
       continue;
     }
     const row = roleOf(u);

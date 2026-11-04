@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+**A sharper world.** The picture now fits its frame exactly at every screen size and display scale, so the art no longer loses a row or column of pixels.
+
 ## v0.2.88 — 2026-11-04 (Simply Harder)
 
 **No hidden penalty for rushing.** A monster now hits every hero the same way, whatever your Level. A hunting ground above your Level is simply full of monsters stronger than you: expect to spend more on supplies, or to die, for more XP and better loot. The game still warns you and asks you to press once more.

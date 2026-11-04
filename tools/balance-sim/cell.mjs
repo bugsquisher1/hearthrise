@@ -274,7 +274,8 @@ export async function loadCellRunner(root) {
         const opts = {
           spanMs: span, secret: secretOf((cell.seedBase || 0) + seed, seg), windowMs: windowOf(cell), onWindow,
           equipment: (role, i) => kits[i],
-          bar: cell.bar ? () => barFor(cell.ground, cell.bar) : undefined,
+          /* `startBar`: the bar a hero who never touched it plays: START_BAR as shipped (Salted Shrimp, Thin Turnip Juice), not the ground's guide food */
+          bar: cell.startBar ? () => JSON.parse(JSON.stringify(START_BAR)) : cell.bar ? () => barFor(cell.ground, cell.bar) : undefined,
           bag: (role, i) => bagFor(cell.ground, cell.supply || 'store', kits[i]),
           start: cell.skillsBySeat || cell.startBySeat ? startFor : undefined,
           leaveTogether: party.length > 1 && cell.leaveTogether !== false,

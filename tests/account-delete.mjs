@@ -457,11 +457,12 @@ async function scenario(db, sql) {
     const down = await requestDeletion(fakeAccount({ rpc: { ok: false, status: 0, error: 'network' } }), 'good', 'DELETE');
     const keptYes = await keepAccount(fakeAccount({ rpc: { ok: true, status: 200, body: { ok: true, kept: true } } }));
     const keptDown = await keepAccount(fakeAccount({ rpc: { ok: false, status: 0, error: 'network' } }));
+    const keptGone = await keepAccount(fakeAccount({ rpc: { ok: true, status: 200, body: { ok: false, error: 'account_gone' } } }));
     arm('AD-CLIENT', ans.closed === true && ans.ok === false && link.leaving() && link.leaving().purgeAt === purgeAt && leavingOf(403, { code: 'hr_closed' }) === null && !isClosedAnswer(403, { code: 'hr_account_leaving' })
         && !wrong.ok && /password/.test(wrong.message) && /nothing was deleted/.test(wrong.message) && wrongCalls === 0
         && yes.ok === true && calls.some(([n, a]) => n === 'hr_account_delete_request' && a.p_confirm === DELETE_WORD && a.p_idem === 'k1') && calls.some(([n, a]) => n === 'noteLeaving' && a === purgeAt)
         && !noWord.ok && !staleWords.ok && /nothing was deleted/.test(staleWords.message) && !down.ok && /nothing was deleted/.test(down.message)
-        && keptYes.ok === true && !keptDown.ok && wordTyped(' delete ') && !wordTyped('deleted'),
+        && keptYes.ok === true && !keptDown.ok && !keptGone.ok && /already been deleted/.test(keptGone.message) && wordTyped(' delete ') && !wordTyped('deleted'),
       'the refusal reads as closed and keeps the date; a wrong password never reaches the game\'s server; every refusal says nothing was deleted',
       js({ ans, wrong, wrongCalls, yes, noWord, staleWords, down, keptYes, keptDown }));
     return red;

@@ -26,6 +26,7 @@ const SAY = Object.freeze({
   network: "The server didn't answer, so " + NOTHING + '. Check your connection and try again.',
   other: "That didn't go through, so " + NOTHING + '. Try again in a minute.',
   keep_network: "The server didn't answer, so your account is still set to be deleted. Check your connection and try again.",
+  account_gone: 'That account has already been deleted. It can no longer be brought back.',
 });
 
 /**

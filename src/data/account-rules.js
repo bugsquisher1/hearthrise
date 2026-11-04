@@ -16,3 +16,7 @@
 
 /** The shortest password the auth server takes (its password_min_length). */
 export const PASSWORD_MIN_LENGTH = 10;
+
+/** How long a deleted account can still be kept: public.hr_account_grace() (2027-02-25-account-delete.sql), which
+    decides; tests/account-delete.mjs fails if the two ever differ. The date a player reads is the server's. */
+export const ACCOUNT_GRACE_DAYS = 30;

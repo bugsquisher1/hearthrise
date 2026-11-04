@@ -397,6 +397,7 @@
    "verified against cron.job 2026-08-30."
   ],
   "expected": [
+   "hr-account-purge | */10 * * * * | select public.hr_account_purge_run()",
    "hr-alert-relay | * * * * * | select hr_ops.alert_run()",
    "hr-combat-xp-credit-prune | 33 4 * * * | select public.hr_combat_xp_credit_prune(interval '1 day')",
    "hr-cron-health | 7 * * * * | select public.hr_cron_health()",
@@ -598,6 +599,7 @@
   "hr_tick_enrolment": "AN ENROLMENT JOURNAL, NOT A LEDGER. One row per automatic tick enrolment or rollback, keyed per (user, slot) because enrolment is per character. It records who the server put under tick ownership and is the rollback key for those hr_tick_ownership rows - and hr_tick_ownership is itself exempt and restores EMPTY (not owned, the fail-safe). With both empty after a restore every character is accrue-owned and settles from its own player_state.accrued_to, which is restore_only and is the only record of what has been paid. Losing every row costs history, never value: no double pay and no gap is possible, because the watermark is the correctness mechanism.",
   "hr_tick_horizon_log": "A PARKING JOURNAL, NOT A LEDGER. One row per absence that reached its presence horizon under the armed tick, keyed per (user, slot, anchor). No settle reads it to decide a number; only the lag judge reads it, to tell a parked character (paid in full, waiting) from a stuck one. Losing every row costs history and makes the lag judge call parked characters stuck until they return - loud, never value.",
   "party_hunt_tally": "Display aggregate of player_ledger rows (per-hunt xp/gold/kills per member). It carries a user_id but no value of its own: the ledger, which is restore_only, is the record and every number here is a sum of its rows. Losing every row costs the Hunt card its running totals for in-flight hunts, never a coin, item, XP point or rank; the §2 backfill of 2026-10-15-party-hunt-view.sql regenerates it from a restored ledger.",
+  "hr_account_deletions": "A waiting deletion, keyed on user_id, one row per account. It holds no value a player earned: the row only says this account stops playing and goes at purge_at, and its loss undoes a request rather than taking anything.",
   "hr_access_allowlist": "Closed mode's admitted accounts. Player-scoped by user_id, but it holds no value a player earned: it is an operator's access list, and losing every row closes the game to the testers (fail-closed) until an operator re-adds them. Nothing a player owns, ranks or trades is derived from it.",
   "hr_lb_hidden": "Leaderboard moderation state (2027-02-12-leaderboard-heroes.sql): which accounts and heroes the boards leave out. It carries no player VALUE (a lost row takes nothing a player earned; the boards are derived), and the Coordinator re-adds a row with one insert. Same ruling as hr_access_allowlist.",
   "hunt_party_invites": "Ephemeral party invites (an hour at most, used up by accept / decline). Player-scoped by to_user / from_user, but they hold no value: losing every row costs pending invites only, and the parties themselves (hunt_parties, restore_only) are untouched.",
@@ -828,6 +830,15 @@
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE — the kill tasks each hero holds (place 1..3), the server-counted kills toward each, keep, done_at and why a done task waits (2026-12-23-tally-tasks.sql). kills moves ONLY inside the hunt settle (hr_tally_count); a paid task is deleted or, kept, taken again. Losing it loses every hero's count and any finished, unpaid task. A rebuild returns it EMPTY.",
    "replay": 0
+  },
+  "hr_account_deletion_log": {
+   "class": "operational",
+   "note": "requested / kept / purged, keyed on a random stand-in and never an account (2027-02-25-account-delete.sql): row counts by table, no id, no name. Losing it costs the history of deletions, never a player's value or anyone's right to be deleted."
+  },
+  "hr_account_deletions": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "Accounts set to be deleted (2027-02-25-account-delete.sql): a row is the whole state. A restore without it silently undoes every request: an account its owner asked to delete plays again and is never purged. Keep a backup's copy. A restore from before a purge brings the purged account back with it: re-run every deletion made since the backup, by hand, from the backup's date."
   },
   "hr_access_allowlist": {
    "class": "restore_only",

@@ -17,6 +17,11 @@
 // `closed: true` so the app shows the closed notice. The server decides; this
 // only reads its answer.
 //
+// AN ACCOUNT SET TO BE DELETED (2027-02-25-account-delete.sql) is refused the same
+// way with {"code":"hr_account_leaving"}, its `details` the instant it goes. It reads
+// as closed for every caller (nothing else may go on), and the link keeps the date
+// for the app's way back (leaving()): Keep my account or sign out, nothing else.
+//
 // The token is asked for on every call (auth.freshToken: refreshed first when it
 // is about to expire); no token, no request. A 401 renews the token once
 // (auth.renewToken) and retries that one call once; a session that cannot be
@@ -41,6 +46,7 @@ import { createIntentLedger } from './intent-ledger.js?v=0.2.87';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;
+export const LEAVING_CODE = 'hr_account_leaving';
 
 /** Is this answer the closed-game refusal? Pure. */
 export function isClosedAnswer(status, body) {
@@ -59,6 +65,12 @@ export async function readServed(url, doFetch) {
     const res = await (doFetch || ((...a) => globalThis.fetch(...a)))(url, { cache: 'no-store' });
     return res && res.ok ? await res.text() : null;
   } catch (e) { return null; }
+}
+
+/** The server's date for an account set to be deleted ({ purgeAt }: its ISO text), or null when this is not that answer. Pure. */
+export function leavingOf(status, body) {
+  if (status !== CLOSED_STATUS || !body || typeof body !== 'object' || body.code !== LEAVING_CODE) return null;
+  return { purgeAt: typeof body.details === 'string' ? body.details : null };
 }
 
 const KEEPALIVE_MAX_BYTES = 60000;
@@ -85,7 +97,8 @@ function looksStale(status, body) {
 export function createServerLink(o) {
   const base = String(o.url || '').replace(/\/+$/, '');
   const doFetch = o.fetch || ((...a) => globalThis.fetch(...a));
-  const send = (path, payload, jwt, keep) => {
+  let leaving = null;
+  const send =(path, payload, jwt, keep) => {
     const body = JSON.stringify(payload || {});
     return doFetch(base + path, {
       method: 'POST',
@@ -115,7 +128,9 @@ export function createServerLink(o) {
     if (o.watch) o.watch.answered(ask);
     let body = null;
     try { body = await res.json(); } catch (e) { body = null; }
-    const closed = isClosedAnswer(res.status, body);
+    const left = leavingOf(res.status, body);
+    if (left) leaving = left;
+    const closed = isClosedAnswer(res.status, body) || !!left;
     if (o.stale && !closed && looksStale(res.status, body)) { try { o.stale(); } catch (e) { /* the check reports itself */ } }
     return { ok: res.ok && !closed, status: res.status, body, closed, error: res.ok ? null : 'http_' + res.status };
   }
@@ -127,6 +142,10 @@ export function createServerLink(o) {
     accrue: (body) => post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body),
     report: (body) => post('/functions/v1/bug-report-bridge', body),
     intents: createIntentLedger(),
+    /** The server's word that this account is set to be deleted ({ purgeAt }), or null. */
+    leaving: () => leaving,
+    /** The server said so in an answer rather than a refusal (the request's own yes). */
+    noteLeaving: (purgeAt) => { leaving = { purgeAt: typeof purgeAt === 'string' ? purgeAt : null }; },
     /** Something an answer HELD looks like a newer server's (the live view: a monster this build does not know): `o.stale`. */
     stale: () => { if (o.stale) { try { o.stale(); } catch (e) { /* the check reports itself */ } } },
   });

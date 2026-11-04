@@ -40,6 +40,7 @@ import { HOTKEYS } from './hunt-hud.js?v=0.2.87';
 import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.87';
 import { HELP_NOTES } from './how-to-play.js?v=0.2.87';
 import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.87';
+import { ACCOUNT_GRACE_DAYS } from './account-rules.js?v=0.2.87';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -51,7 +52,7 @@ export const SETTING_CATEGORIES = Object.freeze([
   cat('combat_text', 'Combat text', 'What pops up over monsters and heroes.'),
   cat('chat_social', 'Chat & Social', 'Chat filters, blocked players and friend requests.'),
   cat('controls', 'Controls', 'Keys.'),
-  cat('account', 'Account', 'Your name, password and signing out.'),
+  cat('account', 'Account', 'Your account itself.'),
   cat('help', 'Help', 'How Hearthrise works, and how to tell the team when something goes wrong.'),
 ]);
 
@@ -118,7 +119,14 @@ const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 
   type: 'action', open: 'report',
 })];
 
-export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, LAYOUT_ROW, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
+/* ── Account: the way out, which opens its own window (src/shell/windows/account-delete.js) ── */
+const ACCOUNT_ROWS = [row({
+  id: 'account.delete', category: 'account', label: 'Delete account',
+  help: 'Delete your account and everything in it. You get ' + ACCOUNT_GRACE_DAYS + ' days to change your mind.',
+  type: 'action', open: 'account-delete',
+})];
+
+export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, LAYOUT_ROW, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...ACCOUNT_ROWS, ...HELP_ROWS]);
 
 /** Throws on the first broken row; the guard and the window both rely on it. */
 export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {

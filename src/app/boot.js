@@ -26,6 +26,10 @@
 // hr_closed); the first such answer replaces everything with the closed notice
 // (src/app/closed-notice.js: their account id to pass on, and Check again).
 //
+// AN ACCOUNT SET TO BE DELETED: the server refuses it everything but keeping it (403 hr_account_leaving); the first such
+// answer closes every hero and draws the way back (src/app/account-leaving.js: the server's date, Keep my account).
+// Delete account is on the characters screen and the closed notice too: an account with no hero has no Settings to reach.
+//
 // A NEW RELEASE (src/app/new-version.js): every screen, signed in or not, asks
 // which build the site serves; a different one raises one reload banner. An
 // answer that looks like a stale client's asks at once.
@@ -47,6 +51,9 @@ import { mountWorldPane } from './world-pane.js?v=0.2.87';
 import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.87';
 import { renderHeroCreate } from './hero-create.js?v=0.2.87';
 import { renderClosedNotice } from './closed-notice.js?v=0.2.87';
+import { renderAccountLeaving } from './account-leaving.js?v=0.2.87';
+import { mountDeleteForm } from '../shell/windows/account-delete.js?v=0.2.87';
+import { keepAccount } from '../session/account-leaving.js?v=0.2.87';
 import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.87';
 import { createAlertCenter } from '../shell/alerts.js?v=0.2.87';
 import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.87';
@@ -142,7 +149,23 @@ function startApp(win) {
     obs.screen('closed');
     root.className = 'app is-auth';
     const a = account;
+    const leaving = a.leaving;
+    if (leaving) {
+      a.standDown();
+      renderAccountLeaving(root, { purgeAt: leaving.purgeAt, win, keep: () => keepAccount(a) });
+      return;
+    }
     renderClosedNotice(root, { id: auth.userId(), discord: DISCORD, win, admission: () => a.admission() });
+  }
+
+  /* The form on a card (the window's own component), for an account that has no hero to open Settings from. */
+  function showDeleteAccount() {
+    clear();
+    obs.screen('delete-account');
+    root.className = 'app is-auth';
+    root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card is-delete"></div></main>';
+    const a = account;
+    mountDeleteForm(root.querySelector('.auth-card'), { account: a, titled: true, back: () => { if (a.closedGame) showClosed(); else showCharacters(); } });
   }
 
   /* The session ended under the game: close everything, then say so on the sign-in screen. */
@@ -234,7 +257,8 @@ function startApp(win) {
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'
       + '<div class="slot-offer-mount">' + slotOfferHtml(a.slotOffer, roster, { pending: slotBuying }) + '</div>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
-      + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
+      + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button>'
+      + '<button type="button" class="auth-link" data-app="delete-account">Delete account</button></p>';
     ringCharacters(a, root.querySelector('.auth-card'));
     timing.drawn('characters');
   }
@@ -360,6 +384,7 @@ function startApp(win) {
     const what = t.getAttribute('data-app');
     const slot = Number(t.getAttribute('data-slot'));
     if (what === 'sign-out') signOut();
+    else if (what === 'delete-account') showDeleteAccount();
     else if (what === 'characters') showCharacters();
     else if (what === 'play') play(slot);
     else if (what === 'show') goTo(slot, null);

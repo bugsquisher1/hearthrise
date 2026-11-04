@@ -289,6 +289,12 @@ export class AccountSession {
     if (ans && ans.closed && !this.closedGame) { this.closedGame = true; this._emit('closed-game'); }
   }
 
+  /** The server's word that this account is set to be deleted ({ purgeAt }), or null (boot.js showClosed reads it). */
+  get leaving() { return this.server && this.server.leaving ? this.server.leaving() : null; }
+
+  /** The server holds the request (src/session/account-leaving.js): every screen, the closed notice's too, gives way. */
+  noteLeaving(purgeAt) { this.server.noteLeaving(purgeAt); this.closedGame = false; this._noteClosed({ closed: true }); }
+
   /** One more look at the door (the closed notice's Check again: admission takes effect at once on the server). Moves nothing.
       'in' | 'closed' | 'unanswered': the server's word, and a failed read is not a no. */
   async admission() {
@@ -491,12 +497,17 @@ export class AccountSession {
     return true;
   }
 
-  /** Close every character, then forget the login everywhere on this device. */
-  async signOut() {
-    this._ending = true;   // the closes below are not what this tab had open; auth.signOut removes the record
+  /** Close every character and the social side; the login stays. Nothing asks the server after this (an account set to be deleted). */
+  standDown() {
+    this._ending = true;   // the closes below are not what this tab had open
     if (this._awayTimer !== null) { (this._timers.clearTimer || ((t) => clearTimeout(t)))(this._awayTimer); this._awayTimer = null; }
     for (const slot of Array.from(this._chars.keys())) this.close(slot);
     if (this.social) { this.social.destroy(); this.social = null; }
+  }
+
+  /** Close every character, then forget the login everywhere on this device. */
+  async signOut() {
+    this.standDown();   // auth.signOut removes the record of what this tab had open
     await this.auth.signOut();
     this._emit('signed-out');
     this._listeners.clear();

@@ -9,7 +9,7 @@
 //   Check again        admission takes effect at once on the server, so ONE read asks (AccountSession.admission,
 //                      the button off until it answers). In: the page reloads and signs back in from the stored
 //                      session, no second sign-in. Not yet, or no answer: the line says which.
-// Sign out stays on the card: its press is boot.js's (data-app).
+// Sign out and Delete account stay on the card: their presses are boot.js's (data-app).
 // ════════════════════════════════════════════════════════════════════════
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.87';
 import { AUTH_BRAND } from './sign-in.js?v=0.2.87';
@@ -49,6 +49,7 @@ export function renderClosedNotice(root, o) {
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
     + '<button type="button" class="hh-tool is-primary auth-submit" data-closed="check">' + CHECK.idle + '</button>'
     + '<p class="auth-links"><a class="auth-link" href="' + esc(o.discord) + '" rel="noopener">Join the Discord</a>'
+    + '<button type="button" class="auth-link" data-app="delete-account">Delete account</button>'
     + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';
   const card = root.querySelector('[data-closed-notice]');
   const line = card.querySelector('.auth-message');

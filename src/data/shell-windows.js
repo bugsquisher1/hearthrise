@@ -72,6 +72,8 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'death', label: 'You died', key: 'x', glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
   /* Tyler 2026-11-01: the play cap's refusal opens a centered popup (windows/play-cap.js). It has nothing to say until the server refuses a start, so no key. */
   Object.freeze({ id: 'play-cap', label: 'Too many heroes playing', key: null, glyph: 'uiWarn', width: 420, object: 'plain', launcher: false, modal: true }),
+  /* A player's own way out (Settings, Account): a centered window, a sheet on a phone. No key: nobody opens this by a slip of a finger. */
+  Object.freeze({ id: 'account-delete', label: 'Delete account', key: null, glyph: 'uiWarn', width: 460, object: 'plain', launcher: false, modal: true }),
   /* Tyler 2026-10-22: Chat opens floating at the bottom-left (never docked) and the player resizes it (kept in the residue). */
   Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', glyph: 'uiChat', width: 400, height: 280, home: 'bl', resizable: true, object: 'plain' }),
   /* The social side (2026-10-18): friends, and a read-only look at another player's worn gear

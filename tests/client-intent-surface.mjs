@@ -49,6 +49,8 @@ const CATCH = 'src/session/catch-up.js';
 export const CLIENT_RPCS = Object.freeze({
   hr_load: 'the full read of one character (CharacterSession.load)',
   hr_create_hero: 'make the hero in an owned slot with its name and four dye indices, all or nothing (AccountSession.create)',
+  hr_account_delete_request: 'ask to delete the signed-in account: a typed word and a key, never an id; the server reads who from its token, and a fresh password sign-in from the same signed token (src/session/account-leaving.js)',
+  hr_account_keep: 'cancel the signed-in account\'s waiting deletion: a key, never an id (src/session/account-leaving.js)',
   hr_buy_hero_slot: 'buy the next hero slot with one own hero\'s gold: the slot id, the paying hero and a key, never a price; the server prices, caps and debits (AccountSession.buySlot)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',

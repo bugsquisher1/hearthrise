@@ -22,6 +22,9 @@
 //   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x' });
 //   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);  await world.wait(480);  await world.wait(480, { away: true });
 //   await p.shot('after');  p.text();  p.errors;  p.offsite;  p.page /* raw Playwright */;  await p.reload();  await world.close();
+//   await world.cron('hr-account-purge');                // run a scheduled job's own command (the pg_cron shim runs nothing by itself)
+//   openWorld({ tail: 'file.sql' })                      // the chain up to that file from the cache, then that file at boot: a lane editing its own
+//                                                           newest migration doesn't replay 560 files per edit (its text still applies whole, §-check and all)
 //   The closed game: before world.play, await world.db.query("update public.hr_flags set enabled = true where key = 'closed_mode'"): a new account lands on the
 //   closed notice ([data-closed-notice]); insert its id into public.hr_access_allowlist (user_id, note) to admit it.
 //
@@ -118,10 +121,13 @@ function postgresShim(db) {
   return () => ({ begin: (fn) => db.transaction((tx) => fn(face(tx))) });
 }
 
-async function bootDatabase() {
-  const { bootReplay } = await import(pathToFileURL(join(ROOT, 'tests/schema-replay.mjs')).href);
+async function bootDatabase(tail) {
+  const { bootReplay, manifest } = await import(pathToFileURL(join(ROOT, 'tests/schema-replay.mjs')).href);
   const { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET, K_SECRET } = await import(pathToFileURL(join(ROOT, 'tests/world-tick-token-shims.mjs')).href);
-  const { db } = await bootReplay({ keepClosed: true });
+  const order = tail ? (await manifest()).order : null;
+  if (tail && order.indexOf(tail) < 1) throw new Error('local-world: tail ' + tail + ' is not in the apply order');
+  const { db } = await bootReplay(tail ? { keepClosed: true, upTo: order[order.indexOf(tail) - 1] } : { keepClosed: true });
+  if (tail) await db.exec('begin;\n' + (await readFile(join(ROOT, 'supabase/migrations', tail), 'utf8')).replace(/\r\n/g, '\n') + '\ncommit;');
   const open = (await readFile(join(ROOT, 'supabase/migrations', OPEN_FILE), 'utf8')).replace(/\r\n/g, '\n');
   await db.exec('begin;\n' + open + '\ncommit;');
   /* The betas play with every character premium (2026-12-17-beta-premium.sql); bootReplay turned it off for its guards. */
@@ -179,11 +185,14 @@ function createAuthShim({ db, issuer }) {
   let nextIp = 10;
   const userJson = (u) => ({ id: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, email_confirmed_at: u.at, confirmed_at: u.at,
     created_at: u.at, updated_at: u.at, app_metadata: { provider: 'email', providers: ['email'] }, user_metadata: {}, identities: [{ id: u.id, provider: 'email' }] });
-  async function session(u) {
+  /* The auth row is the account: a purge deletes it, and this email is then no account at all (GoTrue reads the same table). */
+  const alive = async (u) => !!u && (await db.query('select 1 from auth.users where id = $1', [u.id])).rows.length === 1;
+  /* `amr` as GoTrue signs it: when this session last proved its password; a refresh carries it on, never renews it. */
+  async function session(u, amr) {
     const now = Math.floor(Date.now() / 1000), exp = now + 3600;
-    const access = await issuer.sign({ iss: issuer.issuer, sub: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, iat: now, exp, session_id: randomUUID() });
+    const access = await issuer.sign({ iss: issuer.issuer, sub: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, iat: now, exp, session_id: randomUUID(), amr });
     const rt = randomUUID();
-    refresh.set(rt, u);
+    refresh.set(rt, { u, amr });
     return { access_token: access, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: rt, user: userJson(u) };
   }
   const refuse = (status, code, msg) => ({ status, body: { code: status, error_code: code, msg } });
@@ -196,7 +205,7 @@ function createAuthShim({ db, issuer }) {
       if (!email || String(body.password || '').length < 6) return refuse(422, 'weak_password', 'Password should be at least 6 characters.');
       const had = byEmail.get(email);
       /* an email that already has an account answers like a new one (GoTrue with confirmation on) */
-      if (had) return { status: 200, body: { ...userJson(had), id: randomUUID(), identities: [] } };
+      if (await alive(had)) return { status: 200, body: { ...userJson(had), id: randomUUID(), identities: [] } };
       const u = { id: randomUUID(), email, password: String(body.password), at: new Date().toISOString(), ip: '198.51.100.' + (nextIp++ % 250) };
       const ev = { user: { id: u.id, email, user_metadata: {}, app_metadata: {} }, metadata: { ip_address: u.ip } };
       const hook = (await db.query('select public.hr_signup_gate($1::jsonb) as r', [JSON.stringify(ev)])).rows[0].r;
@@ -208,14 +217,14 @@ function createAuthShim({ db, issuer }) {
     async token(grant, body) {
       if (grant === 'password') {
         const u = byEmail.get(String(body.email || '').trim().toLowerCase());
-        if (!u || u.password !== body.password) return refuse(400, 'invalid_credentials', 'Invalid login credentials');
-        return { status: 200, body: await session(u) };
+        if (!(await alive(u)) || u.password !== body.password) return refuse(400, 'invalid_credentials', 'Invalid login credentials');
+        return { status: 200, body: await session(u, [{ method: 'password', timestamp: Math.floor(Date.now() / 1000) }]) };
       }
       if (grant === 'refresh_token') {
-        const u = refresh.get(body.refresh_token);
-        if (!u) return refuse(400, 'refresh_token_not_found', 'Invalid Refresh Token: Refresh Token Not Found');
+        const held = refresh.get(body.refresh_token);
+        if (!held || !(await alive(held.u))) return refuse(400, 'refresh_token_not_found', 'Invalid Refresh Token: Refresh Token Not Found');
         refresh.delete(body.refresh_token);
-        return { status: 200, body: await session(u) };
+        return { status: 200, body: await session(held.u, held.amr) };
       }
       return refuse(400, 'unsupported_grant_type', 'unsupported grant');
     },
@@ -270,9 +279,12 @@ function createRest({ db, ipOf, verify }) {
       : call.row.ret === 'void' ? 'select ' + fn + ' as r' : 'select to_jsonb(' + fn + ') as r';
     try {
       return await db.transaction(async (tx) => {
+        /* the token's own claims and the routed path, as PostgREST sets them */
+        const claims = uid ? JSON.parse(Buffer.from(bearer.split('.')[1], 'base64url')) : { role };
         await tx.query(`select set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claims', $2, true),
-                               set_config('request.headers', $3, true), set_config('request.method', 'POST', true), set_config('role', $4, true)`,
-        [uid || '', JSON.stringify(uid ? { sub: uid, role } : { role }), JSON.stringify({ 'cf-connecting-ip': uid ? ipOf(uid) : '198.51.100.1' }), role]);
+                               set_config('request.headers', $3, true), set_config('request.method', 'POST', true), set_config('role', $4, true),
+                               set_config('request.path', $5, true)`,
+        [uid || '', JSON.stringify(claims), JSON.stringify({ 'cf-connecting-ip': uid ? ipOf(uid) : '198.51.100.1' }), role, '/rpc/' + name]);
         await tx.query('set local role ' + role);
         await tx.query('select public.hr_access_check()');   // the pre-request hook (pgrst.db_pre_request)
         const out = (await tx.query(sql, call.params)).rows[0];
@@ -399,7 +411,7 @@ async function serveStatic(res, urlPath, origin, held) {
 export async function openWorld(o = {}) {
   refuseProduction();
   const offsite = [], reports = [], held = o.liveFiles ? null : new Map();
-  const { db, tickSecret } = await bootDatabase();
+  const { db, tickSecret } = await bootDatabase(o.tail);
   let origin = '';
   const auth = { shim: null, issuer: null };
   let engine = null, rest = null, push = null, verifyJwtFn = null;
@@ -545,6 +557,8 @@ export async function openWorld(o = {}) {
             where p.active_kind in ('artisan', 'gather') and p.active_since is not null and p.accrued_to is not null and ${idle}`, [ms]);
           await tx.query(`update public.account_farm_plots set planted_at = planted_at - ${back},
             waterings = array(select w - ${back} from unnest(waterings) w)`, [ms]);
+          /* an account's 30 days run in town time too */
+          await tx.query(`update public.hr_account_deletions set requested_at = requested_at - ${back}, purge_at = purge_at - ${back}`, [ms]);
         }
         return open.length;
       });
@@ -552,6 +566,14 @@ export async function openWorld(o = {}) {
     },
     /** `minutes` pass for everyone: every open hunt as skip() moves it, and town time too (rest, crops, a bench job). */
     wait(minutes, how = {}) { return world.skip(minutes, { ...how, town: true }); },
+    /** Run one scheduled job's own command, as pg_cron would (its shim runs nothing). */
+    async cron(jobname) {
+      const job = (await db.query('select command from cron.job where jobname = $1', [jobname])).rows[0];
+      if (!job) throw new Error('local-world: no job named ' + jobname);
+      const answer = (await db.query(job.command)).rows[0];
+      await push.drain();
+      return answer ? Object.values(answer)[0] : null;
+    },
     play: (opts) => play(world, opts),
     async close() {
       if (ticker) clearInterval(ticker);

@@ -26,18 +26,18 @@
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf } from '../../session/item-sections.js?v=0.2.85';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.85';
-import { runIntent } from '../intent-words.js?v=0.2.85';
-import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.85';
-import { itemName } from '../widgets/bits.js?v=0.2.85';
-import { whole } from '../../render/format.js?v=0.2.85';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.85';
-import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.85';
-import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.85';
-import { renameSetup, deleteSetup } from '../../session/preset-intents.js?v=0.2.85';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.85';
-import { settleTownActivity } from '../../session/party-intents.js?v=0.2.85';
+import { presetsOf } from '../../session/item-sections.js?v=0.2.86';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.86';
+import { runIntent } from '../intent-words.js?v=0.2.86';
+import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.86';
+import { itemName } from '../widgets/bits.js?v=0.2.86';
+import { whole } from '../../render/format.js?v=0.2.86';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.86';
+import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.86';
+import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.86';
+import { renameSetup, deleteSetup } from '../../session/preset-intents.js?v=0.2.86';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.86';
+import { settleTownActivity } from '../../session/party-intents.js?v=0.2.86';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 const SCRATCH = new WeakMap();

@@ -30,6 +30,43 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-04 The release gate: what 30 reds were, a preflight, and where the minutes went (reliability, lane/r-release-gate): BUILT; the timing still needs a clean GitHub run
+**Measured, last 14 days of push runs on `release/*`:** 61 releases, 19 green on the first finished run (31%), 1.7 finished runs a release. Eight green runs read: 22-122 min, median 57. The gate is bimodal, not slow everywhere: 22 min with no proof to run (147 runner-minutes), 50-120 at 600-980 runner-minutes on GitHub's 20 slots.
+
+**Every red read from its log and the commit that fixed it** (`gh run view --log-failed`, 30 runs, 79 causes; one run often holds several):
+| Class | Causes | Runs | Examples |
+|---|---|---|---|
+| Real game bug | 5 | 5 | a closed summary lost to a reload (DP-4), Invite answering nothing (PH-12), a death filed under the settle's day on one path (BOTH-PATH), prewarm after sign-out (B-15), the Honor icon squeezing the phone row (PH-11) |
+| Forgotten baseline or pin: a chore | 24 | 16 | module-preload x4, comment ratchet x4, census, file over its cap, copy-lint, dead export, shard budget, patch chain, a twin job name that stopped the workflow loading |
+| Forgotten baseline or pin: a proof an intended change left behind | 39 | 19 | A-LOCK re-planted x4; settle mutants DEATH, FORFEIT, DENSITY, HOME-WHOLE, PARTY-LEAVE x2; AW-21, AW-27, AW-63; a mutant that threw instead of failing a rule x3 |
+| Test timing or machine flake | 3 | 3 | CW-7 measured during a slide, PB-REQ took the moment after the hide, OUTAGE on a CPU timer a fast runner beat |
+| Test disagrees with GitHub's environment | 8 | 7 | every one the font: AW-17, AW-62, PH-5, 7, 8, 11, 17, 22, 26, 27, 28, TW-11 |
+Later reds outside the 30 fit the same table: restore-census (pin), the perf window (timing), the Enter-anyway mutant and v0.2.87's alpha mutant (left behind). **One red run in six said anything about the game.**
+
+**Built.**
+- `tools/preflight.local.mjs`: read from smoke.yml as run-ci-local does; every plain client-guards command, the proofs of those jobs this diff touches, and census, rpc-resolution, apply-order, level curve and core-purity when their files moved. Measured: 71 commands, exit 0, 124 s at 3 at a time with the PC at 54% CPU; a planted forgotten preload: exit 1 with the guard's own fix line. On a busier machine it hit its 180 s limit at 45 of 72 and said so with exit 3, so the quick commands now go first. `--proofs` runs the touched proofs of every job with no browser, narrowed as GitHub narrows them, one at a time (9 proofs, 799 s, here); `--pages` adds the page guards. Its `--selftest` is registered in client-guards.
+- **One font on every machine** (`tests/_test-fonts.mjs`, `tests/test-fonts.mjs`, `tests/fixtures/fonts`, 587 KB): every page guard stubbed Google's sheet empty, so Windows drew Segoe UI and Georgia, GitHub DejaVu and Liberation. The same line at 14 px is 404 px in Segoe UI and 469.5 px in DejaVu. The web font's names now draw GitHub's own fallback everywhere; `text-rendering: geometricPrecision` makes the widths equal to the tenth (GitHub's own probe, rehearsal 41801603806: 469.5, 526.8, 378, 394.7 on both machines). Proof: with AW-17's old long hint planted, this Windows box goes red as run 41332990107 did (524 > 518; GitHub 524 > 516). 27 stubs replaced; TF-1 keeps it one place.
+- **A full green is a sweep** (`tools/lib/ci-history.mjs`): a job the last nightly did not prove ran in full on every push until the next nightly, however often it went green. A green on a release or next push since the sweep stopped covering it now proves it for 48 h; the newest red still blocks. Read against real history: all 14 jobs in that state go back to their diff, 31 API calls. No nightly ran on 11-03 at all.
+- **mutant-control follows the push's plan**; the nightly controls every guard. db-replay-7: 33.0 to 12.0 min on the same range (rehearsal, measured).
+- **alpha-server's body mutants plant in the live body**, so the A-LOCK re-plant (red on 4 of the 30) needs a person only when the line itself moves; each costs one snapshot restore, not a replay of the chain's tail. Lane S2 step: 23.7 to 8.7 min (measured; the scope differs, it ran in full on v0.2.86).
+- **Rule scope and stop at first on the costly page proofs:** phone-touch 2 of 132 mutants on v0.2.86's range, in-page-24 19.8 to 8.8 min (measured); death-popup 17.6 to 5.0 min (measured); alpha-windows `panelLeftovers` in its rule list, 230 mutants to 10 for an AW-63 edit; client-boot 4 of 61 for a B-15 edit (the 57 of v0.2.84's 70 min).
+- **Not yet on GitHub:** a rule edit in an imported guard is no harness (a two-line hunt-live edit ran all of perf-budget's mutants: three jobs at about 30 min), and a gated shard leans on the plain run instead of its own clean control (3-7 min on each of 17 jobs; the nightly still runs one per shard). Both have mutation proofs here.
+- Small: CI-SHAPE-1 reads a twin job name (41009307704, a red with no jobs); utc-midnight-replay's limit to its x2 (13.2 of 14 on a slow day; a cancelled job proves nothing).
+
+**Minutes, v0.2.86's range.**
+| | Wall | Runner-minutes | Standing |
+|---|---|---|---|
+| v0.2.86 as it ran (41787071357) | 59 | 732 | measured |
+| Rehearsal 41801603806, same range | 44.9 | 470 | measured, but v0.2.87 shared its 20 slots from minute 7; two font rules were red so the alpha shards stopped early; the edge guard red was v0.2.87's deploy |
+| With the two changes not yet on GitHub | 27 median, 24-32 | 336 | **projected**: those job times on 20 slots in random start order; the same model reads v0.2.86 at 56 against its real 59 |
+A wide release that moved the server stays near 27; a client-only one is lower (22 min measured with no proof at all, before mutant-control's 11 min came out). Slowest jobs now: db-replay-6 22.9, in-page-13 18.1, db-replay-10 17.8, economy-selftests 17.5.
+
+**Not done, with the number.** PGlite template across jobs: a cold replay is about 60 s, so 13 runner-minutes and 1 min of wall, only when the chain did not change, for a composite action in 13 jobs: not worth it yet. A plan job to skip idle shards: an idle shard takes under a minute, about 1 min of wall. Plain chain guards (utc-midnight, 7-8 min twice) could reuse a verdict by content hash across pushes (tools/verdict-cache.mjs does it locally): the next real cut, about 30 runner-minutes, but "plain runs always run" is a rule, so it is Tyler's.
+
+**First-run pass, replayed over the 30 reds, projected.** The 9 reds whose every cause is a chore, the font or timing flip: 31% to 52%, with the default preflight alone. `--proofs` before pushing a set that moved a body, an engine or a catalogue flips 10 more: 75%. `--pages` flips 5 of the last 6: 86%. The 5 real bugs must stay red. The replay assumes each tool is run and catches what the logs say it would have; it models no new class.
+
+**One-time cost:** the first release carrying this lane re-proves every page guard's mutants, because their harness moved. That run is slow on purpose: it is the proof that no catch was lost.
+
 ### 2026-11-04 Weapon rungs and the Thicket (designer, lane/c-weapon-thicket): BUILT, measured on the real engine, no migration, the edge deploys. **One choice for Tyler below**
 **Weapons (balance 10-25 §8: +5-8% per meaningful upgrade).** The gap is neither clubs alone nor a whole class: it's the box-sweepers. Cleave and spells roll their own numbers and read no weapon power, so a rung reaches a hammer, hatchets or a wand through basic blows only. **Moved: Iron Warhammer 7/12 → 7/16, Steel Warhammer 9/19 → 9/23, Iron Hatchets 7/7 → 9/11, Steel Hatchets 12/11 → 14/14, Klappa's Club 3/12 → 3/16, so it still hits as hard as the Iron Warhammer.** Prices, sources and recipes don't move. Level XP an hour, one tier up, all else equal (`tools/balance-sim` cell runner, the Level's kit, 1 h x 2 seeds, same dice, 0 deaths):
 | Rung | Glade 16, as built | Glade 16, pull 8 | Wickstead 15, pull 8 | Warrens 45, as built | Warrens 45, pull 8 |

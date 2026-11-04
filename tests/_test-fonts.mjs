@@ -2,7 +2,7 @@
 //
 // Every page guard stubbed Google's stylesheet with an empty body, so the page fell back to the machine's own fonts: Segoe UI
 // and Georgia on Windows, DejaVu Sans and Liberation Serif on GitHub. A lane's green on Windows said nothing of GitHub's,
-// and 8 of the last 30 red release runs were a rule or a mutant that differed only there (AW-17, AW-62, PH-5, PH-7, PH-8,
+// and 7 of the last 30 red release runs held a rule or a mutant that differed only there (AW-17, AW-62, PH-5, PH-7, PH-8,
 // PH-11, PH-17, PH-22, PH-26, PH-27, PH-28, TW-11; tests/test-fonts.mjs names the runs). So the web font's names now
 // resolve, on every machine, to GitHub's own fallback faces, carried in tests/fixtures/fonts: GitHub draws what it always
 // drew and Windows draws what GitHub draws. They are wide faces on purpose: the rules keep judging a player whose web font

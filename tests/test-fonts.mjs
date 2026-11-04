@@ -4,10 +4,9 @@
 //   node tests/test-fonts.mjs             the rules
 //   node tests/test-fonts.mjs --selftest  every planted defect must turn a rule RED
 //
-// THE CLASS (lane r-release-gate, 2026-11-04). The last 30 red release runs hold 8 whose only cause, or one cause, was a layout
+// THE CLASS (lane r-release-gate, 2026-11-04). The last 30 red release runs hold 7 whose only cause, or one cause, was a layout
 // rule or a mutant that read differently in GitHub's fallback font: 40629617155 PH-8, 41211692886 PH-11 PH-17,
-// 41226511232 PH-11, 41279086755 TW-11 PH-5 PH-22, 41332990107 AW-17, 41385560100 AW-62, 41742521577 PH-7 PH-26 PH-27 PH-28,
-// 41759029390 PH-7 PH-26. Each passed on the lane's own machine. tests/_test-fonts.mjs is the fix; these rules hold it:
+// 41279086755 TW-11 PH-5 PH-22, 41332990107 AW-17, 41385560100 AW-62, 41742521577 PH-7 PH-26 PH-27 PH-28, 41759029390 PH-7 PH-26. Each passed on the lane's own machine. tests/_test-fonts.mjs is the fix; these rules hold it:
 //
 //   TF-1  ONE PLACE. No page guard stubs Google's stylesheet itself: an empty stub is the machine's own fallback again.
 //   TF-2  THE FACES ANSWER. Every family and weight the game's tokens ask for loads from the fixture.

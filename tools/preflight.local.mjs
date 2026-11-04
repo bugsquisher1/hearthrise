@@ -26,8 +26,8 @@
 // a harness error, so the list cannot rot. A proof that plants into the tree (guard-anchors' solo) never runs here:
 // this machine is where the lanes work. Anything past a command's limit is said out loud as NOT JUDGED, never green.
 //
-// --proofs (a set that moved a body, an engine or a catalogue): 29 of the 39 left-behind proofs needed no browser; --pages reaches the
-// other 10, now that a page draws the same font here as on GitHub (tests/_test-fonts.mjs). Slow, so not the default.
+// --proofs (a set that moved a body, an engine or a catalogue): 30 of the 39 left-behind proofs needed no browser; --pages reaches the
+// other 9, now that a page draws the same font here as on GitHub (tests/_test-fonts.mjs). Slow, so not the default.
 //
 // Exit: 0 every command judged green · 1 a red · 2 a harness problem · 3 no red, but some commands not judged (GitHub will).
 // mutant-anchors: none — the proof plants into copies of the workflow text and a scratch runner, never a tree file
@@ -59,6 +59,11 @@ export const SLOW = new Map([
   ['node tests/names-selfcheck-collision.mjs', '106 s here (one replay per name); no red in the last 30 runs'],
   ['node tests/plot-tier-parity.mjs', '48-88 s (one replay); no red in the last 30 runs'],
 ]);
+
+/* Measured 13-120 s here, the rest under 10 s. They go last so a busy machine judges the most commands inside the limit: 124 s for all 71
+   at 54% CPU, but 45 of 72 at the limit on a busier one, when two of these ate a slot each. */
+export const LATE = new Set(['node tests/w0e-ammo-runecraft-prayer.mjs', 'node tests/selfcheck-no-global-dml.bypass.mjs', 'node tests/world-assets.mjs',
+  'node tests/world-town-home.mjs', 'node tests/parse-check.mjs', 'node tests/restore-census.mjs', 'node tests/rpc-resolution.mjs', 'node tests/level-curve.mjs']);
 
 /* From the jobs that replay the chain, when their inputs moved: each was a red in the last 30 runs. */
 const CHAIN = (f) => f.startsWith('supabase/') || f === 'tests/schema-apply-order.json';
@@ -394,8 +399,9 @@ async function main(argv) {
   }
   const jobs = Number(at('-j')) || Math.min(3, Math.max(1, Math.floor(availableParallelism() / 4)));
   const t0 = Date.now();
-  /* Longest known first would be nicer; the proofs go last, so a plain red reads first and is the cheap one to fix. */
-  const ordered = [...plan.run.filter((r) => !r.proof), ...plan.run.filter((r) => r.proof)];
+  /* The quick plain commands, then the slow ones, then the proofs: a plain red reads first and is the cheap one to fix. */
+  const rank = (r) => (r.proof ? 2 : LATE.has(r.cmd) ? 1 : 0);
+  const ordered = [...plan.run].sort((a, b) => rank(a) - rank(b));
   const results = await runAll(ordered, { jobs });
   const v = verdict(results);
   for (const r of v.red) {

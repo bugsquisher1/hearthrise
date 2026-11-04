@@ -12,7 +12,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 - The sign-in screens now link the Privacy Policy and the Terms of Service, and Create account says what pressing it means. Both pages were rewritten to say what Hearthrise really does today, including that your characters will be wiped before Steam Early Access.
 - New in Settings, under Help: "Share session recordings to help fix bugs". It is on by default. Turn it off and the game stops recording your screen at once.
-**What next is one goal.** The card now names the one thing worth doing next, with the press that does it, and More shows the rest. It tells you when your next hero is free or paid for, when more stamina is yours to buy, and which harder ground is your next step up. The Hunts list marks that ground too, opens on the harder ground you last hunted, and sends a party to Mosslight Glade from Level 16 and a lone hero to Coppercap Warrens from Level 45.
+**What next is one goal.** The card now names the one thing worth doing next, with the press that does it, and More shows the rest. It tells you when your next hero is free or paid for, when more stamina is yours to buy, and which harder ground is your next step up. The Hunts list marks that ground too and opens on the harder ground you last hunted.
 
 ## v0.2.88 — 2026-11-04 (Simply Harder)
 

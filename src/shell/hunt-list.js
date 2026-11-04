@@ -159,12 +159,9 @@ export function shareWords(r, party, myLevel) {
   return low.map((s) => s.name + (s.name === 'You' ? ' earn ' : ' earns ') + Math.max(1, Math.round(s.pm / 10)) + '% of a full share of Level XP here, so far under Level ' + top).join('. ') + '.';
 }
 
-/** Is this ground built for a group of `partySize` (1 = alone) at `level`? A 'both' ground always is, and a party ground is for a lone hero from the Level its row says alone pays
-    (hunt-grounds.js soloFrom): a lone Level 53 read "Mosslight Glade is the nearest below" while "alone it pays from Level 45" stood on the Warrens (review 2026-11-04). */
-export function fitsGroup(r, partySize, level) {
-  const alone = (Number(partySize) || 1) < 2;
-  if (alone && Number.isInteger(r.soloFrom) && Number.isInteger(level) && level >= r.soloFrom) return true;
-  return r.groupFit === 'both' || r.groupFit === (alone ? 'solo' : 'party');
+/** Is this ground built for a group of `partySize` (1 = alone)? A 'both' ground always is. */
+export function fitsGroup(r, partySize) {
+  return r.groupFit === 'both' || r.groupFit === ((Number(partySize) || 1) >= 2 ? 'party' : 'solo');
 }
 
 /* The party's levels in words: "Level 20", or "Levels 12 to 20" when they differ. */
@@ -188,13 +185,13 @@ export function recommendation(levels, partySize = 1, rows = huntRows()) {
   if (!lv.length) return { row: rows[0] || null, note: null };
   const lo = Math.min(...lv), hi = Math.max(...lv);
   const holds = (r, from, to) => r.band[0] <= from && to <= r.band[1];
-  const fit = rows.filter((r) => fitsGroup(r, partySize, lo));
+  const fit = rows.filter((r) => fitsGroup(r, partySize));
   const sure = best(fit.filter((r) => holds(r, lo, hi))) || best(fit.filter((r) => holds(r, lo, lo)));
   if (sure) return { row: sure, note: null };
   const alone = (Number(partySize) || 1) < 2;
   const below = fit.filter((r) => r.band[1] < lo).sort((x, y) => y.band[1] - x.band[1] || y.band[0] - x.band[0])[0];
   if (below) {
-    const party = alone ? best(rows.filter((r) => !fitsGroup(r, 1, lo) && holds(r, lo, lo))) : null;
+    const party = alone ? best(rows.filter((r) => !fitsGroup(r, 1) && holds(r, lo, lo))) : null;
     const note = 'No ground ' + (alone ? 'for one hero' : 'for your party') + ' fits ' + levelsWords(lo, hi) + ' yet. '
       + below.name + ' (Level ' + below.band[0] + ' to ' + below.band[1] + ') is the nearest below'
       + (party ? '; ' + party.name + ' fits your level with a party.' : '.');

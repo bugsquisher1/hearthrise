@@ -330,8 +330,7 @@ export const HUNT_GROUNDS = Object.freeze({
       box([3, 2, 17, 13], [10, 8], ['walking_vine', 'carrion_crow'], ['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    /* 'both' (played 2026-11-04): a pair at Levels 14 and 15 earned 71,074 Level XP/h here against 59,594 in the Sewer the advice named, and from Level 26 the advice had no party ground at all */
-    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'both',
+    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
     densityMax: Object.freeze([8, 8, 8, 8]),
     /* a solo hero may pull up to 6, a pair the full box (the Thicket's slider: the same solo-first shape) */
     density: density(6, 2, 8),

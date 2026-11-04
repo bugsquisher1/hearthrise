@@ -8,8 +8,15 @@
 // mutant-anchors: sw.js src/platform/sw-killswitch.js src/platform/load-shell.js
 // mutant-writes-tree: no — mutants are served by this file's own server, never written
 //
-// GitHub Pages sends max-age=600 with no way to change it, and every site file is immutable by its `?v=`. So sw.js keeps them, and only
-// those. Measured on live and on a local copy of Pages, before and after: see the commit that added this file.
+// GitHub Pages sends max-age=600 with no way to change it, and every site file is immutable by its `?v=` (tests/site-files-immutable.mjs). So
+// sw.js keeps them, and only those. MEASURED 2026-11-04 to the sign-in form, real Chrome, Tyler's PC with other lanes on it:
+//   live, no worker, back after 11 min  1.43 s with the PC free, 12.95 s and 62.3 s with it busy: 395 requests, each a disk read, a CDN round
+//                                       trip and a disk write; 112 of them whole files, as Pages' servers stamp one file's etag a second apart.
+//                                       (Playwright's headless shell on Windows: 4-21 s, mostly a WinHTTP proxy lookup per request, 4 at a time, p50
+//                                       queue 4.8 s; real Chrome makes no such lookup. Do not judge load times by that browser on this PC.)
+//   a local copy of Pages (h2, etags, those stamps), no worker -> worker: 0.95-1.25 -> 0.36-0.48 s; 4G 2.0 -> 0.55-0.6 s; the PC busy 11.4-12.2 ->
+//                                       0.54-0.71 s; 393 requests -> 6. 4x slower CPU + 4G 2.3 -> 2.1-2.4 s: there the page's own work is the load.
+//                                       A reload inside the ten minutes pays a little: 0.2 -> 0.25-0.34 s.
 //
 // The server here behaves as Pages does: a short max-age, etags, a Last-Modified per deploy, a page that names every file by version.
 // No Playwright routes anywhere: they turn the HTTP cache off and never see a worker's fetches. Other hosts do not resolve. The worker
@@ -128,7 +135,7 @@ async function until(page, fn, arg, ms = 30000) {
 const workerAt = (page, version) => until(page, async (v) => {
   const r = await navigator.serviceWorker.getRegistration();
   return !!(r && r.active && r.active.state === 'activated' && !r.installing && !r.waiting && r.active.scriptURL.endsWith('sw.js?v=' + v));
-}, version);
+}, version, 120000);
 const stateOf = (page) => page.evaluate(async () => {
   const keys = await caches.keys();
   const out = { keys, regs: (await navigator.serviceWorker.getRegistrations()).map((r) => (r.active || r.waiting || r.installing || {}).scriptURL || ''), controlled: !!navigator.serviceWorker.controller,
@@ -210,10 +217,13 @@ const RULES = {
       await s.visit(page);
       if (!(await workerAt(page, REAL))) return 'no worker (router ' + router + ')';
       const count = () => s.log.filter((r) => r.path === '/probe.js').length;
-      const twice = ([u, i]) => page.evaluate(async ([url, init]) => { await (await fetch(url, init)).text(); await (await fetch(url, init)).text(); }, [u, i]);
+      /* a pause between the two: time for a file kept by mistake to be there for the second one to find */
+      const twice = ([u, i]) => page.evaluate(async ([url, init]) => { await (await fetch(url, init)).text(); await new Promise((k) => setTimeout(k, 400)); await (await fetch(url, init)).text(); }, [u, i]);
       /* the control: at this version it is asked for once, then kept, so the two-of-two below are the worker standing aside */
       const here = '/probe.js?v=' + REAL;
-      await twice([here, {}]);
+      await page.evaluate(async (url) => { await (await fetch(url)).text(); }, here);
+      if (!(await until(page, (url) => caches.match(url).then((r) => !!r), here, 10000))) return 'the control (router ' + router + '): a versioned file was not kept';
+      await page.evaluate(async (url) => { await (await fetch(url)).text(); }, here);
       if (count() !== 1) return 'the control (router ' + router + '): a versioned file was asked for ' + count() + ' times, not once';
       const leaves = [['no version', '/probe.js?n=1', {}], ['another version', '/probe.js?v=1.1.1', {}], ['a POST', here, { method: 'POST' }],
         ['a fresh copy', here, { cache: 'no-store' }], ['part of a file', here, { headers: { Range: 'bytes=0-9' } }]];
@@ -224,7 +234,7 @@ const RULES = {
       }
       /* another host, at this version */
       const url = other.base + '/x.js?v=' + REAL;
-      await page.evaluate(async (u) => { await (await fetch(u)).text(); await (await fetch(u)).text(); }, url);
+      await twice([url, {}]);
       if (other.seen.length !== 2) return 'another host (router ' + router + ') was asked ' + other.seen.length + ' of 2 times';
       /* a page's HTML, even at the version */
       const docs = () => s.log.filter((r) => r.path === '/play.html' && r.dest === 'document' && r.q === 'v=' + REAL).length;
@@ -249,7 +259,7 @@ const RULES = {
     if (!(await s.visit(page))) return 'the new release never reached the form';
     if (!(await workerAt(page, NEXT))) return 'the new worker did not take over: ' + JSON.stringify((await stateOf(page)).regs);
     const flip = s.log.slice(from);
-    const oldAsked = flip.filter((r) => r.q === 'v=' + REAL);
+    const oldAsked = versioned(flip).filter((r) => r.q === 'v=' + REAL);
     if (oldAsked.length) return 'the new page asked for old files: ' + names(oldAsked);
     if (flip.filter((r) => r.path === '/play.html' && r.dest === 'document').length !== 1) return 'the flip reloaded the page';
     const tags = await page.evaluate(() => Array.from(document.querySelectorAll('script[src*="?v="], link[href*="?v="]')).map((t) => (t.src || t.href)));
@@ -502,7 +512,7 @@ const MUTANTS = [
   ['a fixed cache name (RL-2)', WORKER_FILE, "const CACHE = 'hearthrise-' + VERSION;", "const CACHE = 'hearthrise-1.0.0';"],
   ['the fill downloads every file again (RL-2)', WORKER_FILE, "await fetch(url, { cache: 'force-cache' })", "await fetch(url, { cache: 'reload' })"],
   ['the cache-first read is gone (RL-3)', WORKER_FILE, '    if (hit) return hit;\n', ''],
-  ['the router sends versioned files to the network too (RL-3)', WORKER_FILE, "{ not: { urlPattern: new URLPattern({ search: 'v=*' }) } }", "{ urlPattern: new URLPattern({ search: 'v=*' }) }"],
+  ['the router sends versioned files to the network too (RL-3)', WORKER_FILE, '{ not: { urlPattern: new URLPattern(MAYBE_KEPT) } }', '{ urlPattern: new URLPattern(MAYBE_KEPT) }'],
   ['the worker holds the brake (RL-3)', WORKER_FILE, ' && url.pathname !== BRAKE', ''],
   ['the page brakes its own worker on every load (RL-3)', KILL_FILE, 'if (!regs.every(ours)) {', 'if (regs.length) {'],
   ['the bar does not count what the worker answers (RL-3)', 'src/platform/load-shell.js', 'if (/\\.js(\\?|$)/.test(entries[i].name)) landed++;', 'if (/\\.js(\\?|$)/.test(entries[i].name) && !entries[i].workerStart) landed++;'],
@@ -519,10 +529,10 @@ const MUTANTS = [
   ['a stranger\'s worker survives (RL-7)', KILL_FILE, 'return allowed && !!w && OUR_WORKER.test(w.scriptURL);', 'return true;'],
   ['a stranger\'s cache survives (RL-7)', KILL_FILE, 'if (stale) {', 'if (false) {'],
   ['the brake does nothing (RL-8)', KILL_FILE, 'var allowed = WORKER_ON && location.origin === WORKER_ORIGIN;', 'var allowed = location.origin === WORKER_ORIGIN;'],
-  ['storage trouble blanks the page (RL-9)', WORKER_FILE, "catch (e) { cache = null; /* storage trouble: the network's turn */ }", 'catch (e) { throw e; }'],
+  ['storage trouble blanks the page (RL-9)', WORKER_FILE, "catch (e) { /* storage trouble: the network's turn */ }", 'catch (e) { throw e; }'],
   ['a storage that never answers blanks the page (RL-9)', WORKER_FILE, 'return Promise.race([asked, late]).finally(() => clearTimeout(timer));', 'return asked;'],
   ['an error status is kept (RL-9)', WORKER_FILE, "if (res.status !== 200 || res.type !== 'basic' || res.redirected) return;", "if (res.type !== 'basic' || res.redirected) return;"],
-  ['a file fetched past the cache is never kept (RL-9)', WORKER_FILE, 'if (cache) event.waitUntil(keep(cache, req, res.clone()).catch(() => {}));', ''],
+  ['a file fetched past the cache is never kept (RL-9)', WORKER_FILE, 'if (missing) event.waitUntil(keep(cache, req, res.clone()).catch(() => {}));', ''],
   ['the press does not start clean (RL-10)', 'src/platform/load-shell.js', "if (worker) win.location.search = (win.location.search ? win.location.search + '&' : '?') + 'reset-sw=1'; else win.location.reload();", 'win.location.reload();'],
   ['old bytes are kept (RL-11)', WORKER_FILE, '  if (wrote < (await releaseStamp(cache)) - DEPLOY_SPREAD_MS) return;\n', ''],
   ['a worker takes over with a page at another version (RL-12)', WORKER_FILE, "  if (!urls.size) throw new Error('the page names no file at ' + VERSION);\n", ''],

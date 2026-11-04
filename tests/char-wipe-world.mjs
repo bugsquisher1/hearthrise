@@ -90,6 +90,14 @@ async function main() {
       JSON.stringify({ ...held, residue: Object.keys(held.residue) }));
     await shot(page, 'veteran-before');
     const oldSession = (await sql(`select id from public.hunt_sessions where user_id = $1 and ended_at is null`, [me])).id;
+    /* A second tab of the same browser, which stays open through it all. The first one reloads the moment it's over: its record of what
+       it had open is intact, so that reload takes the path today's build takes (its hero doesn't load, the list is drawn). */
+    const tab2 = await page.context().newPage();
+    tab2.on('pageerror', (e) => p.errors.push('tab2 pageerror: ' + e.message));
+    await tab2.goto(world.url, { waitUntil: 'load' });
+    await tab2.waitForSelector('.char-row, .hs-launchers');
+    if (await tab2.$('[data-app="play"]')) await tab2.click('[data-app="play"]');
+    await tab2.waitForSelector('.hs-launchers');
 
     /* WW-2: closed, as production is; the allowlist as the five accounts are */
     await db.query(`insert into public.hr_access_allowlist (user_id, note) values ($1, 'char-wipe-world: played')`, [me]);
@@ -103,29 +111,30 @@ async function main() {
     step('WW-2 the procedure in order, with a hunt running and the page open: empty, two slots, the market back on', after.heroes === 0 && after.sessions === 0 && after.instances === 0 && after.listings === 0 && after.ledger === 0 && after.purses === 0 && after.board === 0 && after.market === true && after.sweep === 1 && after.slots.length === 2,
       JSON.stringify(after));
 
+    /* WW-5, first: the reload with the tab's own record still saying "hero 0, shown". */
+    const record = await page.evaluate(() => Object.keys(sessionStorage).map((k) => k + '=' + sessionStorage.getItem(k)).filter((s) => /"viewed":0/.test(s)).length);
+    await p.reload();
+    await page.waitForSelector('.char-row');
+    const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row')).map((r) => r.innerText.replace(/\s+/g, ' ').trim()));
+    await shot(page, 'characters-after');
+    const screenText = await p.text();
+    step('WW-5 the reload with the old "hero 0" record: the characters screen, two empty slots, nothing of Marlow, nothing said about it', record === 1 && rows.length === 2 && rows.every((r) => /Create hero/.test(r)) && !/Marlow/.test(screenText) && !SAYS_WHAT_HAPPENED.test(screenText), JSON.stringify({ record, rows, screenText: screenText.slice(0, 300) }));
+
     /* WW-3: the 10 s tick and every job */
     const answers = [];
     for (let i = 0; i < 3; i++) answers.push(...await world.tick());
-    const jobs = (await db.query(`select jobname from cron.job where jobname <> 'hr-alert-relay' order by jobname`)).rows.map((r) => r.jobname);
+    const jobs = (await db.query(`select jobname from cron.job order by jobname`)).rows.map((r) => r.jobname);
     const jobBad = [];
     for (const j of jobs) { try { await world.cron(j); } catch (e) { jobBad.push(j + ': ' + String(e.message).slice(0, 140)); } }
     const ghost = await sql(`select (select count(*)::int from public.player_state) heroes, (select count(*)::int from public.hunt_sessions) sessions, (select count(*)::int from public.hunt_instances) instances`);
     step('WW-3 the real tick and every scheduled job answer on the empty world; nothing came back', answers.every((a) => a.status === 200) && !jobBad.length && ghost.heroes === 0 && ghost.sessions === 0 && ghost.instances === 0, JSON.stringify({ answers: answers.slice(0, 3), jobBad, ghost }));
 
     /* WW-4: the tab that stayed open, once it has asked */
-    const reread = await page.evaluate(() => new Promise((res) => setTimeout(() => res(document.body.innerText.slice(0, 200)), 1500)));
-    await page.waitForSelector('.char-row, [data-app="create"]', { timeout: 90000 }).then(() => true, () => false).then((landed) => {
-      step('WW-4 a tab left open through it comes to the characters screen on its own', landed, reread);
-    });
-    await shot(page, 'stale-tab');
-
-    /* WW-5 */
-    await p.reload();
-    await page.waitForSelector('.char-row');
-    const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row')).map((r) => r.innerText.replace(/\s+/g, ' ').trim()));
-    await shot(page, 'characters-after');
-    const screenText = await p.text();
-    step('WW-5 the reload: the characters screen, two empty slots, nothing of Marlow, nothing said about it', rows.length === 2 && rows.every((r) => /Create hero/.test(r)) && !/Marlow/.test(screenText) && !SAYS_WHAT_HAPPENED.test(screenText), JSON.stringify({ rows, screenText: screenText.slice(0, 300) }));
+    const landed = await tab2.waitForSelector('.char-row, [data-app="create"]', { timeout: 90000 }).then(() => true, () => false);
+    const tabText = await tab2.evaluate(() => document.body.innerText.slice(0, 200));
+    await shot(tab2, 'stale-tab');
+    step('WW-4 a tab left open through it comes to the characters screen on its own', landed, tabText);
+    await tab2.close();
 
     /* WW-6: the control is a brand-new account on its first run through the same screens */
     await db.query(`update public.hr_flags set enabled = false where key = 'closed_mode'`);
@@ -153,8 +162,13 @@ async function main() {
     const residue = (await sql(`select client_state from public.player_state where user_id = $1 and slot = 0`, [me])).client_state;
     const flat = JSON.stringify(residue);
     const stale = flat.includes('old_card') || (residue.huntSummaries && residue.huntSummaries.length > 0) || flat.includes(oldSession) || /"s":"old"/.test(flat);
-    step('WW-7 the new hero\'s residue holds none of the old cards, summaries or stamps', !stale, flat.slice(0, 500));
-    /* A second page of the same browser, signed in from the same store, closes: what it could still say goes nowhere old. */
+    /* A brand-new account's hero and this one start level: the same purse, the same bag, the same gear, the same stamina's cap. */
+    const start = async (u) => (await db.query(`select (select gold::text from public.account_wallet where user_id = $1) gold,
+      (select coalesce(string_agg(item_id || ':' || qty, ',' order by item_id), '') from public.player_inventory where user_id = $1 and slot = 0) bag,
+      (select coalesce(string_agg(equip_slot || ':' || item_id, ',' order by equip_slot), '') from public.player_equipment where user_id = $1 and slot = 0) gear,
+      (select level_xp::text from public.player_state where user_id = $1 and slot = 0) xp`, [u])).rows[0];
+    const [startMine, startNew] = [await start(me), await start(newcomerId)];
+    step('WW-7 the new hero\'s residue holds none of the old cards, summaries or stamps, and it starts level with a brand-new account\'s', !stale && JSON.stringify(startMine) === JSON.stringify(startNew) && startMine.bag.length > 0, JSON.stringify({ flat: flat.slice(0, 300), startMine, startNew }));
     const levelAtStart = (await sql(`select level_xp::bigint xp, public.hr_level_of($1::uuid, 0) lv from public.player_state where user_id = $1 and slot = 0`, [me]));
 
     /* WW-8: the real engine */

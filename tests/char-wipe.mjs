@@ -5,6 +5,7 @@
 //
 //   node tests/char-wipe.mjs            the guard
 //   node tests/char-wipe.mjs --mutate   every planted defect must turn its arm red
+//   node tests/char-wipe.mjs --preflight-sql   read-only SQL for the Coordinator to run on live before step 1 of the procedure
 //
 // mutant-anchors: supabase/migrations/2027-02-25-character-wipe.sql
 //
@@ -239,7 +240,8 @@ async function scenario(db, wipeSql) {
     const staleEnter = await ask(A, `select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, gen_random_uuid())`, [hunt]);
     const ghosts = {};
     for (const t of ['player_state', 'hunt_sessions', 'hunt_instances', 'hunt_bag', 'player_ledger', 'player_inventory', 'account_wallet', 'character_names']) ghosts[t] = await one(`select count(*)::int from public.${t}`);
-    arm('CW-STALE', Object.values(ghosts).every((n) => n === 0) && staleLoad && staleLoad.ok !== true, 'a settle read before the wipe, and a stale tab\'s read, residue, leave and enter, leave no ghost row',
+    const said = (a) => (a && (a.error || a.raised)) || js(a);
+    arm('CW-STALE', Object.values(ghosts).every((n) => n === 0) && staleLoad && staleLoad.ok !== true, `a settle read before the wipe (${staleApply.e ? 'raised: ' + String(staleApply.e.message).slice(0, 70) : said(staleApply.r)}), and a stale tab's read (${said(staleLoad)}), residue (${said(stalePut)}), leave (${said(staleLeave)}) and enter (${said(staleEnter)}), leave no ghost row`,
       js({ ghosts, staleApply: staleApply.e ? String(staleApply.e.message).slice(0, 120) : staleApply.r, staleLoad, stalePut, staleLeave, staleEnter }));
     await db.query('delete from public.hr_rate_counters');
 
@@ -247,7 +249,6 @@ async function scenario(db, wipeSql) {
     const jobs = (await db.query('select jobname, command from cron.job order by jobname')).rows;
     const jobBad = [];
     for (const j of jobs) {
-      if (j.jobname === 'hr-alert-relay') continue;   // the relay posts through a Vault secret this replay doesn't hold; its own guard covers it
       const a = await attempt(() => db.exec(j.command));
       if (a.e) jobBad.push(j.jobname + ': ' + String(a.e.message).slice(0, 120));
     }
@@ -322,7 +323,20 @@ function plant(sql, edits) {
   return s;
 }
 
+/* READ-ONLY, for the Coordinator to run on live BEFORE step 1: a table the file doesn't know would stop it at step 3, after the market is already gone. */
+function preflightSql() {
+  const arr = (a) => 'array[' + a.map((x) => `'${x}'`).join(',') + ']';
+  return `-- char-wipe preflight, read-only. It must return no rows before step 1.
+select 'on no list' as what, c.relname as what_table, null::bigint as n from pg_class c
+ where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p') and not c.relispartition
+   and c.relname <> all (${arr([...listOf('wipe'), ...listOf('keep'), ...listOf('market'), ...listOf('no_player')])})
+union all select 'closed_mode off', 'hr_flags', 0 where not coalesce((select enabled from public.hr_flags where key = 'closed_mode'), false)
+union all select 'already wiped', 'hr_wipe_log', 1 where exists (select 1 from public.hr_wipe_log where wipe_key = 'character-wipe-2026-11')
+union all select 'market wipe already spent: its file would no-op with goods in escrow', 'hr_wipe_log', 1 where exists (select 1 from public.hr_wipe_log where wipe_key = 'market-first-wipe');`;
+}
+
 async function main() {
+  if (process.argv.includes('--preflight-sql')) { console.log(preflightSql()); return; }
   const m = await manifest();
   let db;
   try { ({ db } = await bootReplay({ keepClosed: true })); }

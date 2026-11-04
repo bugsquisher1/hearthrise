@@ -180,6 +180,9 @@ begin
   select count(*) into v_users from auth.users;
   select count(*) into v_allow from public.hr_access_allowlist;
 
+  -- A settle takes a party, then an instance, then a hero, then the purse: taken here in that order it finishes first and the next one waits,
+  -- rather than meeting this file halfway through the alphabet. A deadlock or a held lock fails the file whole, and it can be run again.
+  lock table public.hunt_parties, public.hunt_instances, public.hunt_sessions, public.player_state, public.account_wallet, public.account_bank, public.player_ledger in access exclusive mode;
   -- One statement; RESTRICT, so a kept table that still referenced a wiped one refuses rather than cascades. The ledger's guard is lifted for it alone.
   alter table public.player_ledger disable trigger hr_ledger_no_truncate;
   execute 'truncate table ' || (select string_agg(format('public.%I', x), ', ') from unnest(v_present) x) || ' continue identity restrict';
@@ -198,7 +201,11 @@ begin
   update public.hr_name_holds set user_id = null where user_id is not null;
   -- Frames and chat pushes queued for hidden heroes. No page can read one back; they would only age out in an hour.
   if to_regclass('realtime.messages') is not null then
-    execute 'delete from realtime.messages where private is true';
+    begin
+      execute 'delete from realtime.messages where private is true';
+    exception when insufficient_privilege then
+      raise notice 'character wipe: realtime.messages kept (no privilege here); its frames age out in an hour';
+    end;
   end if;
   -- The boards read the wiped tables through a materialized view.
   refresh materialized view public.leaderboard_ranked;

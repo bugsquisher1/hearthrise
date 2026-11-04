@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "package": "node tools/package.mjs",
+    "test": "node tests/policy.mjs",
     "prove:local": "node tests/prove-local.mjs",
     "prove:email": "node tests/prove-email.mjs",
     "prove:live": "node tests/prove-live-door.mjs",

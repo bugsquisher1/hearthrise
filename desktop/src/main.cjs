@@ -10,12 +10,12 @@
 // THE LOCKS. The page is remote, so it is treated as untrusted: sandboxed, context isolated, no Node, no webviews, no new
 // windows, no permissions but fullscreen and copy. A press that leaves the game opens in the player's own browser.
 //
-// ENVIRONMENT, for the proofs in desktop/tests/ only. A release build honours only HR_DESKTOP_URL's loopback case
-// (policy.cjs); the others just hide the window, move its data folder, or run the two experiments below.
+// ENVIRONMENT, for the proofs in desktop/tests/ only; a release build drops all of these. None can point the window at another
+// site (policy.cjs); they hide the window, move its data folder, or run the two experiments below.
 //   HR_DESKTOP_URL=http://127.0.0.1:PORT/play.html    play a local world (tools/qa/local-world.mjs) instead of the site
-//   HR_DESKTOP_HIDDEN=1                               never show the window, never take focus (Tyler's PC may be in use)
+//   HR_DESKTOP_HIDDEN=1                               never show the window, never take focus (the fullscreen proof)
 //   HR_DESKTOP_USER_DATA=DIR                          a throwaway profile
-//   HR_DESKTOP_PLACE=x,y                              show without activating, at a spot off every screen (the overlay proof)
+//   HR_DESKTOP_PLACE=x,y                              show without activating, at a spot off every screen (every other proof)
 //   HR_STEAM_APPID=480                                ask Steamworks for Valve's public test app
 //   HR_DESKTOP_BUNDLE=DIR                             EXPERIMENT: answer the game's origin from a built folder (tools/build-site.mjs)
 //   HR_DESKTOP_NO_INTEGER=1                           EXPERIMENT: leave the page at the display's fractional scale
@@ -47,17 +47,27 @@ let retryTimer = null;
 let integerZoom = 1;
 
 /* ── ONE COPY OF THE APP ──────────────────────────────────────────────── */
-if (!app.requestSingleInstanceLock()) {
-  app.quit();
-} else {
-  app.on('second-instance', (_e, argv) => {
-    if (!win) return;
-    if (!HIDDEN && !PLACE) { if (win.isMinimized()) win.restore(); win.focus(); }
-    const hash = tokenLinkFrom(argv);
-    if (hash) loadGame(hash);
-  });
-  app.whenReady().then(start);
+/* A refused lock can be a copy that is really running, or one that just died: after a crash or Steam's Stop the lock stands until the last
+   child process is gone (measured: a launch right after a force-kill quit by itself, and Play looked dead). So keep asking for a while,
+   unseen; a copy that is really running hears each ask and comes to the front. A link has been handed over by the first ask. */
+const LOCK_TRIES = tokenLinkFrom(process.argv) ? 1 : 30;
+async function takeLock() {
+  for (let i = 0; i < LOCK_TRIES; i++) {
+    if (i) await new Promise((r) => setTimeout(r, 1000));
+    if (app.requestSingleInstanceLock()) return true;
+  }
+  return false;
 }
+app.on('second-instance', (_e, argv) => {
+  if (!win) return;
+  if (!HIDDEN && !PLACE) { if (win.isMinimized()) win.restore(); win.focus(); }
+  const hash = tokenLinkFrom(argv);
+  if (hash) loadGame(hash);
+});
+takeLock().then((mine) => {
+  if (!mine) { app.quit(); return; }
+  app.whenReady().then(start);
+});
 
 /* ── THE WINDOW ───────────────────────────────────────────────────────── */
 const statePath = () => join(app.getPath('userData'), 'window-state.json');

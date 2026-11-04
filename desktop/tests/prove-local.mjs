@@ -93,7 +93,7 @@ try {
   a = await launch({ url: world.url, profile });
   await a.page.waitForSelector('.char-row, .hs-launchers, form[data-auth="sign-in"]');
   const kept = await a.page.evaluate(() => { try { return JSON.parse(localStorage.getItem('hr-auth')).refresh_token; } catch { return null; } });
-  r.step('hard kill 1.5 s after a rotation: the stored refresh token is the new one', kept === refreshed, kept === before ? 'the OLD one (the write was lost)' : 'gone');
+  r.step('hard kill 1.5 s after a rotation: the stored refresh token is the new one', kept === refreshed, kept === refreshed ? '' : kept === before ? 'the OLD one (the write was lost)' : 'gone');
   r.step('hard kill: still signed in', !(await a.page.$('form[data-auth="sign-in"]')));
   if (await a.page.$('[data-app="play"]')) await a.page.click('[data-app="play"]');
   await a.page.waitForSelector('[data-hs-act="leave"]');
@@ -116,7 +116,7 @@ try {
   await a.page.waitForSelector('.new-version [data-nv="reload"]', { timeout: 30000 });
   await a.page.unroute('**/src/build-info.js?n=*');
   await a.page.click('.new-version [data-nv="reload"]');
-  await a.page.waitForFunction(() => !document.querySelector('.new-version'), null, { timeout: 60000 });
+  await a.page.waitForFunction(() => !document.querySelector('.new-version'), null, { polling: 200 });
   await a.page.waitForSelector('[data-hs-act="leave"]');
   r.step('a new release: the banner shows, Reload reloads the window, the hunt is still there', true);
   r.note('pushes delivered over the app\'s socket', world.pushed());

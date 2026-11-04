@@ -2,10 +2,9 @@
 // desktop/tests/_harness.mjs — DRIVE THE REAL SHELL, HIDDEN, ONE AT A TIME.
 //
 // launch() starts Electron through Playwright with the window off every screen (HR_DESKTOP_PLACE): shown without activating, no
-// taskbar button, can't take focus, so Tyler's PC stays his. A window that was never shown (HR_DESKTOP_HIDDEN=1) gets no frames at
-// all: requestAnimationFrame never fires, so neither Playwright's visibility checks nor the World run in it. That mode is only for
-// the fullscreen step, which must not happen on a window the screen can see. Each launch has its own throwaway profile unless a
-// test passes one to reopen. Every off-machine request is listed and, on a local world, refused.
+// taskbar button, can't take focus, so Tyler's PC stays his. A window that was never shown (HR_DESKTOP_HIDDEN=1) is only for the
+// fullscreen step, which must not happen on a window a screen can see; it reads layout only. Each launch has its own throwaway
+// profile unless a test passes one to reopen. Every off-machine request is listed and, on a local world, refused.
 // mutant-anchors: none — a prototype's proof harness, not a repo guard
 // ════════════════════════════════════════════════════════════════════════
 import { createRequire } from 'node:module';

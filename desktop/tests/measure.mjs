@@ -4,7 +4,8 @@
 //
 //   node tests/measure.mjs                 one app launch and one installed-Chrome launch: start, town, hunt, memory, frame rate at 1280x800
 //   node tests/measure.mjs --restart       adds a second app launch on the same profile, process start to town
-//   node tests/measure.mjs --scales        adds a launch at each forced Windows scale: page ratio, the World's canvas, an icon's pixels
+//   node tests/measure.mjs --scales        adds a launch at forced Windows 125%, the shell's whole-number rule off then on: page ratio, the
+//                                          World's canvas, an icon's pixels (--scales-only: just those)
 //   HR_DESKTOP_EXE=path                    a packaged build instead of the repo's Electron
 //
 //   MEMORY  sum of the working set of every process, in town and in a hunt, settled for 20 s. The twin is the installed Chrome in
@@ -49,7 +50,9 @@ const email = 'measure@local-world.test';
 let browser = null;
 try {
   /* ── the app ── */
-  let a = await launch({ url: world.url, profile });
+  let a = null;
+  if (!process.argv.includes('--scales-only')) {
+  a = await launch({ url: world.url, profile });
   const start = await a.main(() => process.getCreationTime());
   await a.page.waitForFunction(() => !!document.querySelector('form[data-auth="sign-in"]'), null, { polling: 100 });
   r.note('app: process start -> sign-in form (ms)', Math.round(Date.now() - start));
@@ -123,12 +126,16 @@ try {
   r.note('Chrome memory (MB working set, all processes)', { town: bTown, hunt: bHunt, fpsTown: bFps, version: browser.version() });
   await browser.close();
   browser = null;
+  }
 
-  if (process.argv.includes('--scales')) {
-    for (const [scale, integer] of [['1.25', false], ['1.25', true], ['1.5', false], ['1.5', true]]) {
-      const c = await launch({ url: world.url, profile, args: ['--force-device-scale-factor=' + scale], env: integer ? {} : { HR_DESKTOP_NO_INTEGER: '1' } });
-      await atPlay(c.page);
-      await pressPlay(c.page);
+  if (process.argv.includes('--scales') || process.argv.includes('--scales-only')) {
+    let n = 0;
+    for (const [scale, integer] of [['1.25', false], ['1.25', true]]) {
+      const own = freshProfile('scale');
+      const c = await launch({ url: world.url, profile: own, args: ['--force-device-scale-factor=' + scale], env: integer ? {} : { HR_DESKTOP_NO_INTEGER: '1' } });
+      await signUpAndIn(c.page, 'scale' + (++n) + '@local-world.test');
+      await c.page.waitForSelector('[data-app="create"]');
+      await createHero(c.page, 'Scale' + 'abcd'[n]);
       await waitTownFrame(c.page);
       await c.page.waitForTimeout(1200);
       const l = await readLayout(c.page);
@@ -142,6 +149,7 @@ try {
       await c.shot(tag);
       r.note(tag, { dpr: l.dpr, inner: l.inner, canvas: l.canvas, mobile: l.mobile, icon, zoom: await c.main(() => globalThis.__hrShell.zoom()) });
       await c.close();
+      dropProfile(own);
     }
   }
 } catch (e) {

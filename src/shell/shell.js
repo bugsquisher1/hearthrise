@@ -67,7 +67,7 @@ const DISPLAY_TICK_MS = 250;
 /* How far a press on a window's head must travel before it is a drag (a click never floats a window). */
 const DRAG_SLOP_PX = 5;
 /* The widgets the coach card hangs under (launcher.js: the icon row in town, the hunt bar in a hunt). */
-const COACH_HOSTS = '[data-hs-widget="launchers"], [data-hs-widget="hunt-topbar"]', SHORT_ROOM = 112;
+const COACH_HOSTS = '[data-hs-widget="launchers"], [data-hs-widget="hunt-topbar"]', SHORT_ROOM = 112, NO_ROOM = 40;
 /* The DOM events a renderer may opt into with `.events` (click and change always reach `.act`). */
 const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout', 'focusin']);
@@ -301,6 +301,8 @@ export function mountShell(root, o) {
       const shared = alert && w.matches('.is-hunt-topbar') ? alert.getBoundingClientRect().top - 8 : floor;
       const room = Math.max(0, Math.floor(Math.min(floor, shared) - w.getBoundingClientRect().bottom));
       w.classList.toggle('is-short-room', !!alert && room < SHORT_ROOM);
+      /* not even its title fits: the away card is tall, and the title lay under it as a sliver (phone, QA 2026-11-04). The card waits till the alert closes. */
+      w.classList.toggle('is-no-room', !!alert && room < NO_ROOM);
       if (w.style.getPropertyValue('--coach-room') !== room + 'px') w.style.setProperty('--coach-room', room + 'px');
     }
   }

@@ -100,7 +100,7 @@ export function renderConfigureAction(ctx) {
     + '<div class="ca-move-phone">' + tool('up', 'Earlier') + tool('down', 'Later') + '</div>'
     + '</div></div></div>'
     + '<p class="hh-intent-msg ca-msg" role="status" aria-live="polite"></p>'
-    + '<div class="hc-foot ca-foot">' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
+    + '<div class="hc-foot ca-foot"><p class="ca-self hw-phone-only">Your hero uses this by itself. Here you choose when.</p>' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
     + '</div></div>';
 }
 

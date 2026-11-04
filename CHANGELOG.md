@@ -14,6 +14,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - Making juice now says "Making Turnip Juice", not "Cooking Turnip".
 - The answer to your last press leaves a window after half a minute, so an old "Put on 3 pieces." isn't still there when you come back.
 - Got it can no longer finish a card you haven't seen yet, so the coach doesn't skip a step.
+- On a phone: the Heroes button names the hero on screen when there's no room for a tab, What next has its More, the away card no longer sits on a sliver of the coach card, and Configure action says your hero uses a slot by itself. Its icons are sharp now.
 
 ## v0.2.89 — 2026-11-04 (Still Here)
 

@@ -55,7 +55,7 @@ export const PARTY_CLASS_XP = Object.freeze({
 /* WHAT THE PLAYER IS TOLD (designer 2026-11-02; blind party test 2026-11-01). The table above is a factor on an even share of a bigger pull, so "52% more" sat on a party
    that measured 19% more than its heroes alone. THIS row is the measured answer, in whole percent to the nearest 5: Level XP per hero at the default pull, against the
    same heroes alone as built, one row per ground in the table's shape (tools/balance-sim plan b1102p, real settle, 1 h x 2 seeds a cell, one mix a cell; the Thicket's one-class
-   cells are the mean of its shield, bow and wand parties after party-class-xp-line moved them under 1000; its four's -10 is the mean of all five weapons at the 1000 cell, 11-04, and a four of wands stands over it). It pays nothing;
+   cells are the mean of its shield, bow and wand parties after party-class-xp-line moved them under 1000; its four's -10 is the mean of all five weapons at the 1000 cell, 11-04, and reads only for a one-class four of mixed roles: see ONE_ROLE_VS_ALONE). It pays nothing;
    tests/hunt-core/first-week-bands.mjs vs-alone plays the full mix against it. Retune the table, re-measure this. */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 export const PARTY_VS_ALONE = Object.freeze({
@@ -65,6 +65,12 @@ export const PARTY_VS_ALONE = Object.freeze({
   mosslight_glade: said([-10, 5], [-15, 5, 15], [-10, 5, 10, 20]),
   millrace_sewer: said([-10, 15], [-15, 10, 20], [-20, 10, 10, 20]),
   coppercap_warrens: said([-5, 10], [-10, 5, 15], [-15, 5, 10, 20]),
+});
+
+/* A FOUR WHO ALL SHARE ONE ROLE READS ITS OWN LINE (designer 2026-11-04; CLAUDE.md §6). The Thicket's one-class four pays the even share, so its weapons no longer sit near one number, and a four of wands earns more than
+   alone. Whole percent to the nearest 5, against the same heroes alone (1 h x 2 seeds, Levels 5 and 10: shields -12, -15; hammers -11, -9; bows -9, -8; staffs -12, -11; wands +4, +5). first-week-bands vs-alone plays it. */
+const ONE_ROLE_VS_ALONE = Object.freeze({
+  meadowbrook_thicket: Object.freeze({ 4: Object.freeze({ tank: -15, melee_dps: -10, ranger: -10, mage: 5, healer: -10 }) }),
 });
 
 const CLASS_OF_ROLE = Object.freeze(Object.fromEntries(Object.entries(PARTY_CLASSES).flatMap(([c, r]) => r.roles.map((x) => [x, c]))));
@@ -91,7 +97,10 @@ export function partyVsAlone(groundId, roles) {
   if (roles.length < 2 || !Object.hasOwn(PARTY_VS_ALONE, groundId)) return null;
   const { classes } = partyClassXp(groundId, roles);
   const tab = PARTY_VS_ALONE[groundId];
-  const cells = tab[Math.min(roles.length, Math.max(...Object.keys(tab).map(Number)))];
+  const n = Math.min(roles.length, Math.max(...Object.keys(tab).map(Number)));
+  const oneRole = Object.hasOwn(ONE_ROLE_VS_ALONE, groundId) ? ONE_ROLE_VS_ALONE[groundId][n] : null;
+  if (oneRole && roles.every((r) => r === roles[0]) && Object.hasOwn(oneRole, roles[0])) return oneRole[roles[0]];
+  const cells = tab[n];
   return cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];
 }
 
@@ -101,6 +110,11 @@ export function validate(grounds) {
   for (const role of Object.keys(HUNT_ROLES)) if (!Object.hasOwn(CLASS_OF_ROLE, role)) out.push('role ' + role + ' has no party class');
   for (const [c, r] of Object.entries(PARTY_CLASSES)) for (const x of r.roles) if (!HUNT_ROLES[x]) out.push('class ' + c + ' names no role ' + x);
   const classCount = Object.keys(PARTY_CLASSES).length;
+  for (const [g, sizes] of Object.entries(ONE_ROLE_VS_ALONE)) for (const [n, row] of Object.entries(sizes)) for (const [role, v] of Object.entries(row)) {
+    if (!Object.hasOwn(PARTY_VS_ALONE, g)) out.push(g + ': ONE_ROLE_VS_ALONE names a ground with no measured line');
+    if (!HUNT_ROLES[role]) out.push(g + ' ' + n + ': ONE_ROLE_VS_ALONE names no role ' + role);
+    if (!Number.isInteger(v) || v % 5 !== 0) out.push(g + ' ' + n + ' ' + role + ': ONE_ROLE_VS_ALONE needs whole fives');
+  }
   for (const [g, tab] of Object.entries(PARTY_CLASS_XP)) {
     if (grounds && !grounds.includes(g)) out.push(g + ': names no ground');
     for (const n of [2, 3, 4]) {

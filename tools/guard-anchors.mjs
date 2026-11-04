@@ -306,7 +306,7 @@ function proofGuards(root) {
   return out;
 }
 
-function catalogue(root = ROOT, opts = {}) {
+export function catalogue(root = ROOT, opts = {}) {
   const registered = opts.registered || registeredProofArms(root);
   return proofGuards(root).map((g) => guardEntry(root, g, { ...opts, registered })).filter(Boolean);
 }

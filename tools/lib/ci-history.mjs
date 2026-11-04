@@ -19,6 +19,15 @@
 // next push it is measured from that commit. A job that went red has no such commit and
 // keeps the release's whole diff.
 //
+// A FULL GREEN IS A SWEEP (2026-11-04). A job the last nightly did not prove ran every proof
+// on EVERY push until the next nightly, even after it had gone green in full: v0.2.84
+// (41697486160) ran 14 jobs in full for that reason alone, and nightlies are late, dropped (none
+// on 11-03) or cut short (41497147816: 6 jobs cancelled at their own limits, 1 red). The policy is
+// what makes this safe to read back: from the moment the sweep stopped covering a job, every
+// release or next push ran that job in full, so its green there IS a sweep of that job at that
+// commit. The job goes back to its diff for 48 h, as after a nightly. A red still blocks: the
+// newest finished result decides, so a red job has no green to find until the push that fixes it.
+//
 // GitHub is read through one child process so the gate can stay synchronous, the token
 // stays out of argv, and a stalled API costs a bounded wait.
 // ════════════════════════════════════════════════════════════════════════
@@ -27,7 +36,9 @@ import { spawnSync } from 'node:child_process';
 export const STALE_MS = 48 * 3600 * 1000;
 export const WORKFLOW = '.github/workflows/smoke.yml';
 const LOOKBACK = 6;
-const GET = `const u = process.env.HR_GATE_URL, t = process.env.HR_GATE_TOKEN;
+/* Runs read for a full green, newest first. Most jobs stop at the first: the token's 1000 calls an hour are shared by every job. */
+const FULL_LOOKBACK = 8;
+const GET =`const u = process.env.HR_GATE_URL, t = process.env.HR_GATE_TOKEN;
 const h = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'hr-mutant-gate' };
 if (t) h.Authorization = 'Bearer ' + t;
 fetch(u, { headers: h, signal: AbortSignal.timeout(20000) }).then(async (r) => {
@@ -81,6 +92,36 @@ export function lastGreenRun({ job, ref, own, usable, get }) {
   return null;
 }
 
+/**
+ * The moment pushes began running this job in full: the sweep's own end when it did not prove
+ * the job, 48 h later when it did. Null when the history cannot say.
+ */
+export function fullSince(nightly, job) {
+  const at = nightly && Date.parse(nightly.at);
+  if (!Number.isFinite(at)) return null;
+  return new Date(nightly.jobs?.[job] === 'success' ? at + STALE_MS : at).toISOString();
+}
+
+/**
+ * The newest finished result of this job on a release or next push created after `since`, if green:
+ * { id, sha, at, branch }, or null. A red there means no proof, whatever came before it; a cancelled run
+ * says nothing either way. Main's push is no proof: it may have skipped its proofs on a release
+ * run's say-so. `get` is GitHub's answer, injectable for the selftest.
+ */
+export function lastFullGreen({ job, since, own, get }) {
+  if (!since) return null;
+  const q = `/actions/workflows/smoke.yml/runs?event=push&status=completed&created=${encodeURIComponent(`>${since}`)}&per_page=${FULL_LOOKBACK * 2}`;
+  const runs = (get(q).workflow_runs || [])
+    .filter((r) => (/^release\//.test(r.head_branch) || r.head_branch === 'next') && String(r.id) !== String(own) && Date.parse(r.created_at) > Date.parse(since))
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, FULL_LOOKBACK);
+  for (const run of runs) {
+    const seen = (get(`/actions/runs/${run.id}/jobs?per_page=100&filter=latest`).jobs || []).find((j) => j.name === job);
+    if (seen?.conclusion === 'success') return { id: run.id, sha: run.head_sha, at: run.created_at, branch: run.head_branch };
+    if (seen?.conclusion === 'failure') return null;
+  }
+  return null;
+}
+
 /** ghGet bound to this run's environment, for lastGreenRun. */
 export const githubReader = (env) => (path) => ghGet(path, env);
 
@@ -90,22 +131,34 @@ export const githubReader = (env) => (path) => ghGet(path, env);
  */
 export function readHistory(env) {
   if (env.HR_GATE_HISTORY) return JSON.parse(env.HR_GATE_HISTORY);
-  const out = { nightly: null, nightlyError: null, proved: null };
+  const out = { nightly: null, nightlyError: null, proved: null, fullGreen: null };
   try { out.nightly = readNightly(githubReader(env)); } catch (e) { out.nightlyError = e.message; }
   if (env.GITHUB_EVENT_NAME === 'push' && env.GITHUB_REF_NAME === 'main') {
     try { out.proved = readProved(env); } catch { /* not proved: the push's own diff decides */ }
   }
+  /* Only a job the sweep leaves in full asks: a proved, fresh job costs no calls. A failed read is no proof. */
+  if (env.GITHUB_EVENT_NAME === 'push' && out.nightly && !out.proved
+    && !(out.nightly.jobs?.[env.GITHUB_JOB] === 'success' && Date.now() - Date.parse(out.nightly.at) <= STALE_MS)) {
+    try {
+      out.fullGreen = lastFullGreen({ job: env.GITHUB_JOB, since: fullSince(out.nightly, env.GITHUB_JOB), own: env.GITHUB_RUN_ID, get: githubReader(env) });
+    } catch { /* no proof: the job stays full */ }
+  }
   return out;
 }
 
-/** { full, why } | { proved } | {} — what the history does to this job's plan. Pure. */
+/** { full, why } | { proved } | { sweptBy } | {} — what the history does to this job's plan. Pure. */
 export function historyPolicy(history, { job, event, ref, now }) {
   if (event === 'push' && ref === 'main' && history.proved) return { proved: history.proved };
   if (history.nightlyError) return { full: true, why: `the last nightly could not be read (${history.nightlyError}) — fail safe` };
   const n = history.nightly;
   if (!n) return { full: true, why: 'no nightly sweep on record — fail safe' };
-  if (!(now - Date.parse(n.at) <= STALE_MS)) return { full: true, why: `the last nightly (${n.id}, ${n.at}) is over 48 h old — fail safe` };
   const seen = n.jobs?.[job];
-  if (seen !== 'success') return { full: true, why: `the last nightly (${n.id}) did not prove job ${job} green (${seen || 'not in that sweep'}) — a red nightly blocks the next release until fixed` };
-  return {};
+  const stale = !(now - Date.parse(n.at) <= STALE_MS);
+  if (!stale && seen === 'success') return {};
+  /* A full green since the sweep stopped covering this job (lastFullGreen), itself under 48 h old. */
+  const g = history.fullGreen;
+  const since = fullSince(n, job);
+  if (g && since && Date.parse(g.at) > Date.parse(since) && now - Date.parse(g.at) <= STALE_MS) return { sweptBy: g };
+  if (stale) return { full: true, why: `the last nightly (${n.id}, ${n.at}) is over 48 h old — fail safe` };
+  return { full: true, why: `the last nightly (${n.id}) did not prove job ${job} green (${seen || 'not in that sweep'}) — a red nightly blocks the next release until fixed` };
 }

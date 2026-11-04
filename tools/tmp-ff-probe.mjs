@@ -1,5 +1,5 @@
-// TEMPORARY, proof branch only: why Playwright's Firefox reads "not controlled" on a second load. Removed with tmp-browsers-proof.yml.
-import { firefox } from 'playwright';
+// TEMPORARY, proof branch only: the runner's stock Firefox (geckodriver, no Playwright): does a navigation land under the worker? Removed with tmp-browsers-proof.yml.
+import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
@@ -13,7 +13,7 @@ let origin = '';
 const server = createServer((req, res) => {
   const [p] = (req.url || '/').split('?');
   const rel = decodeURIComponent(p).slice(1);
-  log.push(req.url + ' mode=' + req.headers['sec-fetch-mode'] + ' dest=' + req.headers['sec-fetch-dest'] + ' sw=' + (req.headers['service-worker'] || ''));
+  log.push(req.url);
   const f = normalize(join(root, rel));
   if (!existsSync(f) || !statSync(f).isFile()) { res.writeHead(404).end(); return; }
   let body = readFileSync(f);
@@ -24,44 +24,38 @@ const server = createServer((req, res) => {
 await new Promise((k) => server.listen(0, 'localhost', k));
 origin = 'http://localhost:' + server.address().port;
 
-const state = (page) => page.evaluate(async () => {
-  const regs = await navigator.serviceWorker.getRegistrations();
-  return { url: location.href, controller: navigator.serviceWorker.controller && navigator.serviceWorker.controller.scriptURL, regs: regs.map((r) => [r.scope, r.active && r.active.state, r.active && r.active.scriptURL]), caches: await caches.keys(), purged: sessionStorage.getItem('hr-sw-purged'),
-    timing: performance.getEntriesByType('resource').slice(0, 400).reduce((a, e) => { a.n++; if (e.workerStart > 0) a.viaWorker++; return a; }, { n: 0, viaWorker: 0 }) };
-});
-async function visit(page, label, how) {
+const PORT = 4455;
+const driver = spawn('geckodriver', ['--port', String(PORT)], { stdio: 'ignore' });
+driver.on('error', (e) => { console.log('no geckodriver', e.message); process.exit(0); });
+await new Promise((k) => setTimeout(k, 1500));
+const call = async (path, body) => {
+  const res = await fetch('http://127.0.0.1:' + PORT + path, { method: body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const j = await res.json();
+  if (j.value && j.value.error) throw new Error(j.value.error + ': ' + j.value.message);
+  return j.value;
+};
+const made = await call('/session', { capabilities: { alwaysMatch: { browserName: 'firefox', 'moz:firefoxOptions': { args: ['-headless'] } } } });
+console.log('stock browser', JSON.stringify({ name: made.capabilities.browserName, version: made.capabilities.browserVersion }));
+const sid = made.sessionId;
+const run = (script) => call('/session/' + sid + '/execute/sync', { script, args: [] });
+const runAsync = (script) => call('/session/' + sid + '/execute/async', { script, args: [] });
+const sleep = (ms) => new Promise((k) => setTimeout(k, ms));
+const STATE = `const done = arguments[arguments.length - 1]; (async () => { const regs = await navigator.serviceWorker.getRegistrations(); done(JSON.stringify({ url: location.href, secure: isSecureContext, controller: navigator.serviceWorker.controller && navigator.serviceWorker.controller.scriptURL, regs: regs.map((r) => [r.scope, r.active && r.active.state]), caches: await caches.keys(), resources: performance.getEntriesByType('resource').reduce((a, e) => { a.n++; if (e.workerStart > 0) a.viaWorker++; return a; }, { n: 0, viaWorker: 0 }) })); })().catch((e) => done('error ' + e.message));`;
+async function visit(label) {
   log.length = 0;
-  await how();
-  await page.waitForSelector('form[data-auth="sign-in"]', { timeout: 60000 }).catch((e) => console.log('no form', e.message.slice(0, 100)));
-  await new Promise((k) => setTimeout(k, 800));
-  const asked = log.filter((l) => l.startsWith('/a/'));
-  console.log(label, JSON.stringify(await state(page)), 'asked /a/:', asked.length, 'of', log.length, 'first:', log.slice(0, 2).join(' | '));
+  await call('/session/' + sid + '/url', { url: origin + '/play.html' });
+  for (let i = 0; i < 200; i++) { if (await run("return !!document.querySelector('form[data-auth=\"sign-in\"]')")) break; await sleep(150); }
+  await sleep(800);
+  console.log(label, await runAsync(STATE), 'asked /a/:', log.filter((l) => l.startsWith('/a/')).length, 'of', log.length, 'first:', log.slice(0, 2).join(' | '));
 }
-
-for (const variant of ['default', 'allow']) {
-  const browser = await firefox.launch({ headless: true });
-  const ctx = await browser.newContext(variant === 'allow' ? { serviceWorkers: 'allow' } : {});
-  const page = await ctx.newPage();
-  page.on('console', (m) => { if (/killswitch|worker/i.test(m.text())) console.log('  console', m.type(), m.text().slice(0, 200)); });
-  page.on('pageerror', (e) => console.log('  pageerror', e.message.slice(0, 200)));
-  console.log('--- ' + variant, await page.evaluate(() => navigator.userAgent).catch(() => ''));
-  await visit(page, 'first', () => page.goto(origin + '/play.html', { waitUntil: 'load' }));
-  for (let i = 0; i < 200; i++) { const s = await state(page); if (s.controller) break; await new Promise((k) => setTimeout(k, 150)); }
-  console.log('after wait', JSON.stringify(await state(page)));
-  await visit(page, 'A page.goto', () => page.goto(origin + '/play.html', { waitUntil: 'load' }));
-  await visit(page, 'A2 page.goto again', () => page.goto(origin + '/play.html', { waitUntil: 'load' }));
-  await visit(page, 'B location.href', () => Promise.all([page.waitForNavigation({ timeout: 60000 }).catch(() => {}), page.evaluate(() => { location.href = '/play.html'; })]));
-  await visit(page, 'C anchor click', () => Promise.all([page.waitForNavigation({ timeout: 60000 }).catch(() => {}), page.evaluate(() => { const a = document.createElement('a'); a.href = '/play.html'; document.body.append(a); a.click(); })]));
-  await visit(page, 'D reload', () => page.reload({ waitUntil: 'load' }));
-  const other = await ctx.newPage();
-  await visit(other, 'E new tab goto', () => other.goto(origin + '/play.html', { waitUntil: 'load' }));
-  const third = await ctx.newPage();
-  await third.goto(origin + '/src/build-info.js');
-  await visit(third, 'F from another page, location.href', () => Promise.all([third.waitForNavigation({ timeout: 60000 }).catch(() => {}), third.evaluate(() => { location.href = '/play.html'; })]));
-  /* the same kept file asked by a page that the worker controls? */
-  console.log('fetch in a controlled page?', JSON.stringify(await page.evaluate(async () => { const before = performance.getEntriesByType('resource').length; await fetch(document.querySelector('link[rel=stylesheet]').href); await new Promise((k) => setTimeout(k, 200)); const e = performance.getEntriesByType('resource').slice(before); return { controller: !!navigator.serviceWorker.controller, entries: e.map((x) => [x.name.split('/').pop(), x.workerStart]) }; })));
-  await browser.close();
-}
+await visit('first');
+for (let i = 0; i < 200; i++) { if (await run('return !!navigator.serviceWorker.controller')) break; await sleep(150); }
+console.log('after wait', await runAsync(STATE));
+await visit('second');
+await visit('third');
+await call('/session/' + sid, undefined).catch(() => {});
+await fetch('http://127.0.0.1:' + PORT + '/session/' + sid, { method: 'DELETE' }).catch(() => {});
+driver.kill();
 server.closeAllConnections();
 server.close();
 process.exit(0);

@@ -804,6 +804,24 @@ async function planRules(base) {
   const WATER = RUNES.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_water_rune', partner: 'chalked_water_rune' }]);
   const same = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('greater_mend', 'plain_water_rune'), stored('circle_of_renewal', 'plain_water_rune')], store: WATER } }));
   if (!same.startsWith('Runes: Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells of one family read ' + JSON.stringify(same));
+  /* AW-27 AN ANSWER LEAVES ON ITS OWN (QA 2026-11-04: "Put on 3 pieces." still stood when the window was reopened hours later), unless a newer one replaced it */
+  {
+    const { runIntent, ANSWER_STANDS_MS } = await imp('src/shell/intent-words.js');
+    const timers = [], real = globalThis.setTimeout, sc = { pending: false, msg: '' };
+    globalThis.setTimeout = (fn, ms) => { timers.push({ fn, ms }); return 0; };
+    try {
+      await runIntent(sc, () => {}, async () => ({ ok: true }), 'Equipping…', () => 'Put on 3 pieces.');
+      const first = timers.find((t) => t.ms === ANSWER_STANDS_MS), stood = sc.msg;
+      if (first) first.fn();
+      if (stood !== 'Put on 3 pieces.' || !first || sc.msg !== '') fails.push('AW-27 an answer stands ' + JSON.stringify({ stood, aged: !!first, after: sc.msg }));
+      timers.length = 0;
+      await runIntent(sc, () => {}, async () => ({ ok: true }), 'Selling…', () => 'Sold 2.');
+      const old = timers[0];
+      sc.msg = 'Sold 5.';
+      if (old) old.fn();
+      if (sc.msg !== 'Sold 5.') fails.push('AW-27 an old answer took the newer one with it: ' + JSON.stringify(sc.msg));
+    } finally { globalThis.setTimeout = real; }
+  }
   /* AW-20 A DRINK IS MADE, NOT COOKED (QA 2026-11-04: "Cooking Turnip: 0 cooked so far" over Turnip Juice); a dish still names what goes on the fire */
   {
     const { nowParts, doWords, workRow } = await imp('src/shell/town-work.js');

@@ -47,7 +47,11 @@
     again.type = 'button';
     again.className = 'boot-shell-again';
     again.textContent = 'Reload';
-    again.addEventListener('click', function () { win.location.reload(); });
+    /* With the worker in the way (sw.js) the press starts clean, in case a file it holds is the one that cannot load. */
+    again.addEventListener('click', function () {
+      var worker = win.navigator.serviceWorker && win.navigator.serviceWorker.controller;
+      if (worker) win.location.search = (win.location.search ? win.location.search + '&' : '?') + 'reset-sw=1'; else win.location.reload();
+    });
     shell.appendChild(again);
   }
 

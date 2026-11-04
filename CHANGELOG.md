@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+**Coming back is quick.** Returning after a break now reaches the sign-in screen about as fast as a reload, instead of taking the longest of any load in the game.
+
 ## v0.2.86 — 2026-11-04 (Rush If You Dare)
 
 **Gold means more.** A third hero now costs 50,000 gp, a fourth 200,000 and a fifth 800,000, so what to save for is a real choice. Harder grounds pay more: Coppercap's coin is up and the Rat King carries a little more, Wickstead and the Glade's poachers pay a little less, and Iron, Studded and Adept armor (helmets, bodies, legs, boots) sells for less at the shop. A stamina top-up costs more too, so an extra four hours is worth thinking about.

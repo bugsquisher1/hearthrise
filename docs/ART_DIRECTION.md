@@ -60,6 +60,7 @@ Every clip keeps the reference identity: no gear appearing or disappearing betwe
 - **Three icon languages exist today:** 32 px pixel items (`assets/icons-bundle/pixel/items`, 506, the active item set), painted 128/256 px art (`hearthfire/`, `painted/`), and white line glyphs (launchers, the doll's empty slots). Pixel is the target language for anything that is an object in the world; line glyphs stay for UI controls only.
 - A pixel icon renders at the screen's one density only (32 → 64 at ×2), never 57 or 49. Painted art never renders above its source size. One screen uses one language for the same kind of thing.
 - Measured on the 506 pixel items: all 32×32, every one dark-outlined, the mass fills 59–94% of the canvas (median 88%). **New icons fill 75–94%**; a flat item (a fish, a bar) is drawn on the diagonal so it does not read small.
+- **Ability tiles are their own family, off the world palette by decision (Art Director, 2026-11-04):** 32×32, a hot gold frame with white corner studs, a slate field lit from the top, one black-outlined emblem. They are spells on a bar, not objects in the world, so the palette law does not reach them. All 16 stay one family: a snap of the 13 to `hr-world-56-v2` was tried and read worse at the bar's size (the frame went patchy, every glow lost its top step). A new tile copies the family's frame (`tools/world-art/ability-tiles.mjs`); a bar is never half one and half the other.
 
 ## 8. Rarity and rewards (decided)
 | Rarity | Colour (world palette) | Rank pips | Reward presentation |

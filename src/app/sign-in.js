@@ -45,8 +45,10 @@ const SCREENS = Object.freeze({
  * @param {object} auth          createAuth(...)
  * @param {string} mode          'sign-in' | 'create' | 'forgot' | 'set-password'
  * @param {object} on            { signedIn(): void }
+ * @param {string} [email]       what the last screen's email field held: Forgot your password after a wrong
+ *                               password, or Back to sign in, never asks for it twice (door panel 2026-11-04)
  */
-export function renderAuthScreen(box, auth, mode, on) {
+export function renderAuthScreen(box, auth, mode, on, email) {
   const s = SCREENS[mode] || SCREENS['sign-in'];
   box.innerHTML = AUTH_BRAND + '<form class="auth-card" data-auth="' + esc(mode) + '" novalidate>'
     + '<h1 class="auth-title">' + esc(s.title) + '</h1>'
@@ -60,10 +62,12 @@ export function renderAuthScreen(box, auth, mode, on) {
   const msg = form.querySelector('.auth-message');
   const say = (text, good) => { msg.textContent = text || ''; msg.classList.toggle('is-good', !!good); };
   const val = (n) => { const el = form.elements.namedItem(n); return el ? el.value : ''; };
+  const emailField = form.elements.namedItem('email');
+  if (emailField && email) emailField.value = email;
 
   form.addEventListener('click', (e) => {
     const go = e.target.closest('[data-auth-go]');
-    if (go) renderAuthScreen(box, auth, go.getAttribute('data-auth-go'), on);
+    if (go) renderAuthScreen(box, auth, go.getAttribute('data-auth-go'), on, val('email'));
   });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

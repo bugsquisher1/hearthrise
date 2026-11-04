@@ -408,6 +408,13 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       const said = await dead.page.evaluate(() => ({ line: document.querySelector('.auth-message')?.textContent || '', hash: location.hash }));
       if (!/expired or was already used/.test(said.line) || !/Forgot your password/.test(said.line)) fails.push('B-6 a dead email link lands on sign-in with ' + JSON.stringify(said.line));
       if (said.hash) fails.push('B-6 a dead email link stays in the address: ' + JSON.stringify(said.hash));
+      /* The email typed once stays typed: a wrong password, then Forgot your password, never asks for it again. */
+      await dead.page.fill('input[name=email]', 'stranger@example.test');
+      await dead.page.click('[data-auth-go="forgot"]');
+      const onForgot = await dead.page.inputValue('form[data-auth="forgot"] input[name=email]');
+      await dead.page.click('[data-auth-go="sign-in"]');
+      const onSignIn = await dead.page.inputValue('form[data-auth="sign-in"] input[name=email]');
+      if (onForgot !== 'stranger@example.test' || onSignIn !== 'stranger@example.test') fails.push('B-6 the typed email did not follow the screens: ' + JSON.stringify([onForgot, onSignIn]));
       await dead.ctx.close();
     }
 
@@ -949,6 +956,7 @@ const MUTANTS = [
   ['the notice page boots the app', 'index.html', '</body>', '<script type="module" src="src/app/boot.js?v=1"></script></body>'],
   ['sign-out leaves the session copies', 'src/net/auth.js', '      for (const k of store.keys()) if (k === cfg.authKey', '      for (const k of []) if (k === cfg.authKey'],
   ['the world pane never mounts the shell', 'src/app/world-pane.js', "  shell = mountShell(stage, {", "  shell = { onInset: () => () => {}, paint() {}, destroy() {} }; void ({"],
+  ['the typed email is lost between the screens (B-6)', 'src/app/sign-in.js', "on, val('email'));", 'on);'],
   ['a dead email link says nothing (B-6)', 'src/app/boot.js', 'if (m) m.textContent = AUTH_COPY.linkExpired;', ''],
   ['a dead email link stays in the address (B-6)', 'src/app/boot.js', "    if (badLink) win.history.replaceState(null, '', win.location.pathname + win.location.search);\n", ''],
   ['the recovery link is ignored', 'src/app/boot.js', [["if (ev === 'recovery') showAuth('set-password');", "if (ev === 'nothing') showAuth('set-password');"],

@@ -8,6 +8,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## Unreleased
 
 - An email link that has expired or was already used now tells you so on the sign-in screen, and what to do next. The sign-up and reset messages mention spam.
+- The email you typed stays typed when you move between Sign in, Create an account and Forgot your password.
 
 ## v0.2.85 — 2026-11-03 (Klappa's Club)
 

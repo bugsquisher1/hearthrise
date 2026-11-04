@@ -969,7 +969,7 @@ const SAY = Object.freeze({
     if (!juice) return null;
     const ready = f.land && f.land.ready && f.land.ready.turnip > 0;
     return { text: (ready ? 'Harvest them on the Farm, then cook' : 'Cook your turnips into') + ' Turnip Juice: Gathering and crafting, Cooking, ' + juice.name
-      + ' (1 turnip makes ' + (juice.outputQty || 1) + '). Your own juice costs nothing to drink.' };
+      + ' (1 turnip makes ' + (juice.outputQty || 1) + '). Your own juice costs nothing to drink.', ...(ready ? {} : { anchor: 'crafting', ring: { skill: 'cooking', work: juice.id } }) };
   },
   juice_slot: (f) => {
     const n = f.carried && f.carried.turnip_juice;
@@ -1043,7 +1043,7 @@ export function cardFor(card, facts) {
     .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || '').replace('{spell}', said.spell || '').replace('{shot}', said.shot || ''));
   const textIn = said.textIn || card.inWindow || null;
   /* `said.anchor`: the words moved on to another surface (Klappa's Club: from the bench to the bag), so the ring goes with them */
-  return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
+  return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), ...(said.ring ? { ring: Object.freeze(said.ring) } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
 }
 
 /* ── AFTER THE GUIDE: WHAT NEXT ───────────────────────────────────────────

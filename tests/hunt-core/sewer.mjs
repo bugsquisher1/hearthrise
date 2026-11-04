@@ -825,6 +825,10 @@ const cases = {
     if (!juice || juice.id !== 'harvest_juice' || !juice.text.includes('1 turnip makes 3')) return 'the juice card reads ' + JSON.stringify(juice && juice.text);
     /* own juice in the bag: asked once a hunt has bought the store's drinks (a Mage's twenty minutes), never for a hero who
        hardly drinks (played 10-31: a sword hero drank one store juice in twelve hours and the card hid What next for days) */
+    if (juice.anchor !== 'farm') return 'crops ready and the juice card points at ' + juice.anchor;
+    /* Harvested: "Cook your turnips", so the ring goes to the bench's press; it stayed on the Farm, with nothing left to press there (door panel 2026-11-04) */
+    const cook = say(R({ ...after, home: { owned: true, next: null }, land: { ready: {} }, bag: { turnip: 3 } }));
+    if (!cook || cook.id !== 'harvest_juice' || !cook.text.startsWith('Cook your turnips') || cook.anchor !== 'crafting' || !cook.ring || cook.ring.skill !== 'cooking' || cook.ring.work !== 'press_turnip_juice') return 'the harvested juice card points at ' + JSON.stringify(cook && [cook.anchor, cook.ring, cook.text]);
     const storeJuice = (n) => [{ item: 'thin_turnip_juice', source: 'store', count: n }];
     const slotJ = say(R({ ...after, home: { owned: true, next: null }, bag: { turnip_juice: 6 }, carried: { turnip_juice: 6 }, supplies: storeJuice(12) }));
     if (!slotJ || slotJ.id !== 'juice_slot' || !slotJ.text.includes('My mana % below 30') || !slotJ.text.includes('before slot ' + (drink + 1))) return 'the juice slot card reads ' + JSON.stringify(slotJ && slotJ.text);

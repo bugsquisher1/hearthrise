@@ -95,6 +95,7 @@ function dead(env, row) {
   env.hunt.ended = true;
   env.hunt.session = Object.assign({}, env.hunt.session, { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
   env.death_log = [clone(row || ROW)];
+  env.state = Object.assign({}, env.state, { level_xp: 0 });
 }
 function scripted(died, row) {
   const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} } };

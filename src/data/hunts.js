@@ -11,8 +11,8 @@
 //     id      [a-z0-9_]; NEVER a monster id (the server pointer is
 //             active_kind='combat', active_id=<hunt id or monster id>)
 //     band    Level band (CORE_NUMBERS Q9); band[0] is the floor: under it the hunt
-//             warns, and refuses at SESSION_LIMITS.belowRangeRefuse Levels under;
-//             band[1] is advisory
+//             warns and its monsters hit harder (hunt-grounds.js underFloorPm), and
+//             nothing refuses a Level (Tyler 2026-11-04 UTC); band[1] is advisory
 //     spawns  positive integer weights; every monster must exist in
 //             src/data/monsters.js (the generator refuses unknown ids).
 //             UNEVEN ON PURPOSE (Tyler 10-18, the Huntera model): a common majority,

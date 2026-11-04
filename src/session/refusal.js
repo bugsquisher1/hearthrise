@@ -18,16 +18,6 @@ function countsOf(o) {
   return { have: n(o.have), need: o.need, bag: n(o.bag), storage: n(o.storage) };
 }
 
-const HUNT = /^[a-z0-9_]{1,64}$/;
-/* The floor a hunt refused under (hr_hunt_enter's activity_locked names band_min, refuse_under and combat_level, the
-   hero's Level: 2026-10-27-core-bodies.sql): { level, have, hunt } with `level` the lowest Level it lets in, or null. */
-function floorOf(os) {
-  const o = os.find((x) => x && typeof x === 'object' && Number.isSafeInteger(x.band_min) && Number.isSafeInteger(x.combat_level));
-  if (!o) return null;
-  const under = Number.isSafeInteger(o.refuse_under) && o.refuse_under >= 1 ? o.refuse_under : 1;
-  return { level: Math.max(1, o.band_min - under + 1), have: o.combat_level, hunt: typeof o.id === 'string' && HUNT.test(o.id) ? o.id : null };
-}
-
 /* The whole numbers a market refusal states (2027-01-12-market-account.sql's taxonomy), one level down or on the answer:
    src/shell/market-words.js says them. Null when it stated none. */
 const FIGURES = Object.freeze(['floor', 'ceiling', 'limit', 'used', 'cap', 'available', 'ask_each', 'have', 'need', 'min_level']);
@@ -37,7 +27,7 @@ function figuresOf(b, d) {
   return Object.keys(out).length ? out : null;
 }
 
-/** { ok:false, error, verb, slot, condition, field, item, counts, floor, reason, figures } from a refused answer { ok, body, error };
+/** { ok:false, error, verb, slot, condition, field, item, counts, reason, figures } from a refused answer { ok, body, error };
  *  `verb` is the engine's echo of the intent refused (its words may differ by verb: refusal-words.js REFUSAL_VERB_WORDS). */
 export function refusalOf(ans) {
   const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
@@ -49,7 +39,6 @@ export function refusalOf(ans) {
     slot: Number.isInteger(b.slot) ? b.slot : null, condition: Number.isInteger(b.condition) ? b.condition : null,
     field: typeof b.field === 'string' ? b.field.slice(0, 32) : null, item,
     counts: countsOf(named),
-    floor: floorOf([b, d, d.detail]),
     figures: figuresOf(b, d),
     reason: typeof b.reason === 'string' && /^[a-z_]{1,24}$/.test(b.reason) ? b.reason : null };
 }

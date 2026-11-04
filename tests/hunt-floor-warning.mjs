@@ -1,25 +1,19 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/hunt-floor-warning.mjs — A HUNT'S LEVEL FLOOR IS A WARNING (Tyler 2026-10-18).
+// tests/hunt-floor-warning.mjs — A HUNT'S LEVEL FLOOR IS ONLY A WARNING (Tyler 2026-11-04 UTC: any hero may walk into any ground).
 //
 //   node tests/hunt-floor-warning.mjs             the arms, on the real modules
 //   node tests/hunt-floor-warning.mjs --selftest  every planted defect must turn an arm red
 //
 // ARMS
-//   W1  rangeWords: under band[0] within SESSION_LIMITS.belowRangeRefuse says
-//       ABOVE_LEVEL_WORDS (first-week-bands.mjs proves them on the real engine); that many or more under
-//       says it is too far; at or over the floor, or with no level, says nothing
-//   W2  the Hunts window draws rangeWords on every line and never disables Enter
-//       on it (the server decides), and a successful enter that the server
-//       answered below_range repeats the warning
+//   W1  rangeWords: under band[0] says how many Levels under, what it pays, what it risks and what dying costs (first-week-bands.mjs
+//       proves the claims on the real engine); FAR under says only a built hero lasts; at or over the floor, or with no level, says nothing
+//   W2  the Hunts window draws rangeWords on every line and never disables Enter on it; the first press arms "Enter anyway" and sends
+//       nothing, the second goes (one confirm, never more); a successful enter that the server answered below_range repeats the warning
 //   W3  CharacterSession hands the server's below_range back to the window
 //   W4  the pull size says why a bigger pull matters
-//   S1  the margin is the DATA's: the forward hunt-sessions catalogue writes
-//       below_range_refuse = SESSION_LIMITS.belowRangeRefuse, and the gate file
-//       reads hr_hunt_limit('below_range_refuse') and names no number of its own;
-//       hr_hunt_enter_for answers below_range from hr_hunt_below_range. The
-//       executed proof is each file's own self-check in the chain replay
-//       (2026-10-25-hunt-floor-warning.sql §3, 2026-10-25-party-invites.sql §5).
+//   S1  NOTHING REFUSES A LEVEL: the newest hr_hunt_gate body (2027-02-24-risk-no-level-block.sql) never compares a Level with the floor, and the data has
+//       no margin; hr_hunt_enter_for answers below_range from hr_hunt_below_range. The executed proof is that file's own self-check in the chain replay.
 //   G1  the ONE recommendation (src/shell/hunt-list.js recommendedHunt) prefers a ground whose
 //       groupFit suits the party; a party ground tells a lone hero "Best with a party of 2–4"
 //   G2  a ground with a party-only hall (minParty: the Rat King) is a party ground: a lone hero
@@ -42,14 +36,16 @@ async function run(base) {
   const ok = (id, cond, msg) => { if (!cond) red.push(id + ': ' + msg); };
   const read = (p) => readFileSync(join(base, p), 'utf8').replace(/\r\n/g, '\n');
   const HL = await import(pathToFileURL(join(base, 'src/shell/hunt-list.js')).href + '?t=' + Math.random());
-  const { SESSION_LIMITS } = await import(pathToFileURL(join(base, 'src/data/hunt-sessions.js')).href + '?t=' + Math.random());
-  const m = SESSION_LIMITS.belowRangeRefuse;
-  ok('W1', Number.isInteger(m) && m === 15, 'SESSION_LIMITS.belowRangeRefuse is ' + m + ' (Tyler 10-18: 15)');
+  const { SESSION_LIMITS, DEATH_XP_LOSS } = await import(pathToFileURL(join(base, 'src/data/hunt-sessions.js')).href + '?t=' + Math.random());
+  ok('W1', !('belowRangeRefuse' in SESSION_LIMITS), 'the data still holds a refuse margin: ' + SESSION_LIMITS.belowRangeRefuse);
   const row = { band: [40, 60] };
-  const near = HL.rangeWords(row, 40 - m + 1), far = HL.rangeWords(row, 40 - m), at = HL.rangeWords(row, 40);
-  ok('W1', near === HL.ABOVE_LEVEL_WORDS && /above your level: more XP/.test(near) && !/expect losses/.test(near), 'one level inside the margin reads ' + JSON.stringify(near));
-  ok('W1', typeof far === 'string' && far !== near && /too far/.test(far), 'the margin itself reads ' + JSON.stringify(far));
+  const lost = 'If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
+  const one = HL.rangeWords(row, 39), near = HL.rangeWords(row, 34), far = HL.rangeWords(row, 28), at = HL.rangeWords(row, 40);
+  ok('W1', typeof one === 'string' && one.startsWith('You\'re 1 Level under this ground. '), 'one Level under reads ' + JSON.stringify(one));
+  ok('W1', near === 'You\'re 6 Levels under this ground. ' + HL.ABOVE_LEVEL_WORDS + ' ' + lost && /More XP and better loot/.test(near) && !/expect losses/.test(near), 'six Levels under reads ' + JSON.stringify(near));
+  ok('W1', typeof far === 'string' && far.startsWith('You\'re 12 Levels under this ground. ') && /far harder/.test(far) && /built for it/.test(far) && far.endsWith(lost), 'twelve Levels under reads ' + JSON.stringify(far));
   ok('W1', at === null && HL.rangeWords(row, 70) === null && HL.rangeWords(row, null) === null, 'at / over the floor or with no level must say nothing');
+  ok('W1', HL.fitWords(row, 34).tone === 'above' && HL.fitWords(row, 28).tone === 'far', 'the list line reads ' + JSON.stringify([HL.fitWords(row, 34), HL.fitWords(row, 28)]));
 
   /* G1 (coordinator 10-18): the one recommendation prefers a ground built for the group; a party ground
      stays listed and enterable and tells a lone hero it is best with a party. */
@@ -109,33 +105,30 @@ async function run(base) {
     const thin = HL2.huntRows().find((r) => r.hunt === 'meadowbrook_thicket');
     ok('G3', !!thin && thin.heroes === most, 'a ground of two start tiles names ' + (thin && thin.heroes) + ' heroes, and the server walks in ' + most);
   } finally { rmSync(two, { recursive: true, force: true }); }
-  /* The leader's warning (2027-02-18-party-truth.sql): only the OTHER seats under the floor; `far` lets the server's refusal speak. */
+  /* The leader's warning (2027-02-18-party-truth.sql): only the OTHER seats under the floor. */
   const glade = { band: [16, 31] };
   const seats = { me: 0, seats: [{ seat: 0, name: 'Wren', level: 5 }, { seat: 1, name: 'Sorrel', level: 9 }, { seat: 2, name: 'Bram', level: 20 }, { seat: 3, name: 'Null', level: null }] };
   const low = HL.seatsUnder(glade, seats);
-  ok('G3', low.under.map((s) => s.name).join() === 'Sorrel' && low.far === false, 'seatsUnder reads ' + JSON.stringify(low));
-  ok('G3', HL.seatsUnder(glade, { me: 0, seats: [{ seat: 1, name: 'Tiny', level: 1 }] }).far === true, 'a seat the server would refuse is not `far`');
+  ok('G3', low.under.map((s) => s.name).join() === 'Sorrel', 'seatsUnder reads ' + JSON.stringify(low));
   ok('G3', /^Sorrel \(Level 9\) is under this ground’s Level 16\./.test(HL.underWords(glade, low.under)) && HL.underWords(glade, []) === '', 'the warning reads ' + HL.underWords(glade, low.under));
   /* The Hunts window is the list (hunts.js) and the picked ground's page (hunt-detail.js, master-detail 2026-10-22). */
   const win = read('src/shell/windows/hunts.js') + read('src/shell/windows/hunt-detail.js');
   ok('G2', win.includes("recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)")
     && win.includes('<p class="hs-note hw-hunts-reco" hidden></p>') && win.includes('text(reco, advice);'), 'the Hunts window does not recommend by the party\'s levels or never says the note');
-  ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under)].filter(Boolean).join(' '));") && win.includes('<p class="hw-hunt-warn"></p>')
+  ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));") && win.includes('<p class="hw-hunt-warn"></p>')
     && win.includes("(groupWords(r, size) || heroWords(r)) + '.'"),
     'the Hunts line does not draw rangeWords');
   ok('W4', win.includes('Bigger pulls pay more once your heroes can hold them.'), 'the pull size no longer says why a bigger pull matters (first-week-bands.mjs bigger-pulls-words plays it)');
-  ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning (the server decides)');
+  ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning');
+  ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? 'Enter anyway' : 'Enter'"), 'a lone hero above its level walks in with no confirm press');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');
   const cs = read('src/session/character-session.js');
   ok('W3', cs.includes('ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }'), 'CharacterSession drops the server\'s below_range');
 
-  const cat = read('supabase/migrations/2026-10-25-hunt-sessions-catalogue.generated.sql');
-  ok('S1', cat.includes("('below_range_refuse', " + m + ')'), 'the catalogue does not write below_range_refuse = ' + m);
-  const gate = read('supabase/migrations/2026-10-25-hunt-floor-warning.sql');
+  const gate = read('supabase/migrations/2027-02-24-risk-no-level-block.sql');
   const body = gate.slice(gate.indexOf('create or replace function public.hr_hunt_gate'), gate.indexOf('revoke execute on function public.hr_hunt_gate'));
-  ok('S1', /v_refuse int := public\.hr_hunt_limit\('below_range_refuse'\);/.test(body) && /if v_min - v_cl >= coalesce\(v_refuse, 1\) then/.test(body),
-    'hr_hunt_gate does not refuse on the data margin');
-  ok('S1', !/\b15\b/.test(body), 'hr_hunt_gate names a number of its own');
+  ok('S1', body.length > 100 && !/band_min|combat_level|hr_level_of|below_range_refuse/.test(body) && /'unknown_activity'/.test(body) && /spawn_gate/.test(body),
+    'the newest hr_hunt_gate compares a Level with the floor, or lost its other two refusals');
   const pi = read('supabase/migrations/2026-10-25-party-invites.sql');
   ok('S1', pi.includes("'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt)") && pi.includes("'below_range', coalesce((v_r->>'below_range')::boolean, false)"),
     'hr_hunt_enter_for / hr_hunt_enter do not answer below_range');
@@ -149,18 +142,19 @@ const MUTANTS = [
   ['the gap is not said', 'src/shell/hunt-list.js', 'return { row: below, note };', 'return { row: below, note: null };'],
   ['a party is recommended by its own hero\'s level', 'src/shell/windows/hunts.js', 'recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)', 'recommendation(level, size, list)'],
   ['a party ground never says so', 'src/shell/hunt-list.js', "r.groupFit === 'party' && (Number(partySize) || 1) < 2 ?", 'false ?'],
-  ['the warning words are dropped', 'src/shell/hunt-list.js', "ABOVE_LEVEL_WORDS;\n}", "null;\n}"],
+  ['the warning words are dropped', 'src/shell/hunt-list.js', "  if (!Number.isInteger(level) || level >= r.band[0]) return null;\n  const gap", "  return null;\n  const gap"],
   ['a party ground offers itself alone again', 'src/shell/hunt-list.js', "  if (r.groupFit === 'party' && r.heroes > 1) {", '  if (false) {'],
   ['the Warrens forgets its solo break-even', 'src/data/hunt-grounds.js', '    soloFrom: 45,\n', ''],
-  ['the margin is ignored (everything under the floor is "too far")', 'src/shell/hunt-list.js', 'r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ?', 'true ?'],
-  ['the margin moved off Tyler\'s 15', 'src/data/hunt-sessions.js', 'belowRangeRefuse: 15,', 'belowRangeRefuse: 10,'],
+  ['far under reads as near (the words never say only a built hero lasts)', 'src/shell/hunt-list.js', "(gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)", 'ABOVE_LEVEL_WORDS'],
+  ['the words forget what dying costs', 'src/shell/hunt-list.js', "    + ' If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';", "    + '';"],
+  ['a margin comes back in the data', 'src/data/hunt-sessions.js', '  bagLines: 10,\n', '  bagLines: 10,\n  belowRangeRefuse: 15,\n'],
+  ['a lone hero walks in with no confirm press', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
   ['the pull size says nothing of why it matters', 'src/shell/windows/hunts.js', "' Bigger pulls pay more once your heroes can hold them. Kept for this ground.'", "' Kept for this ground.'"],
-  ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under)].filter(Boolean).join(' '));", ''],
+  ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));", ''],
   ['a ground names its start tiles, not the party the server allows (G3)', 'src/shell/hunt-list.js', 'heroes: PARTY.maxSize,', 'heroes: Math.min(g.start.length, PARTY.maxSize),'],
-  ['the leader warns even when the server will refuse the start (G3)', 'src/shell/hunt-list.js', 'far: under.some((s) => r.band[0] - s.level >= SESSION_LIMITS.belowRangeRefuse)', 'far: false'],
   ['the leader\'s warning names the leader too (G3)', 'src/shell/hunt-list.js', 's.seat !== party.me && Number.isInteger(s.level)', 'Number.isInteger(s.level)'],
   ['the session drops below_range', 'src/session/character-session.js', 'return { ok: true, belowRange: true };', 'return { ok: true };'],
-  ['the gate keeps the hard floor', 'supabase/migrations/2026-10-25-hunt-floor-warning.sql', 'if v_min - v_cl >= coalesce(v_refuse, 1) then', 'if v_cl < v_min then'],
+  ['the gate keeps a hard floor', 'supabase/migrations/2027-02-24-risk-no-level-block.sql', "  -- SECURITY C2: every spawn's OWN gate", "  if public.hr_level_of(p_user, p_slot) < 1 then perform 1; end if;\n  -- SECURITY C2: every spawn's OWN gate"],
   ['the enter answer loses its flag', 'supabase/migrations/2026-10-25-party-invites.sql', "'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt)", "'below_range', false"],
 ];
 
@@ -185,5 +179,5 @@ if (SELFTEST) {
 } else {
   const red = await run(ROOT);
   if (red.length) { console.error('hunt-floor-warning: ' + red.length + ' failing\n  ' + red.join('\n  ')); process.exit(1); }
-  console.log('hunt-floor-warning: the floor warns within ' + 15 + ' levels, the margin is the data\'s, the window and the session carry the server\'s flag');
+  console.log('hunt-floor-warning: the floor only warns, nothing refuses a Level, one confirm press, the window and the session carry the server\'s flag');
 }

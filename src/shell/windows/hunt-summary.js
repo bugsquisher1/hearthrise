@@ -199,9 +199,9 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, t) {
 function leadAgain(ctx, cs, sc, repaint, hunt) {
   const party = partyMembershipOf(cs);
   const row = huntRows().find((x) => x.hunt === hunt);
-  const low = row ? seatsUnder(row, party) : { under: [], far: false };
+  const low = row ? seatsUnder(row, party) : { under: [] };
   const warned = hunt + ':' + low.under.map((s) => s.seat).join();
-  if (low.under.length && !low.far && sc.warned !== warned) {
+  if (low.under.length && sc.warned !== warned) {
     runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
       () => underWords(row, low.under) + ' They have been told. Press Hunt again to go.', cs).then(() => { sc.warned = warned; repaint(); });
     return;

@@ -21,11 +21,10 @@
 //   SW-3 THE WORDS ARE THE SERVER'S NUMBERS (pure). A bench above the skill says
 //        "You need Cooking 40 to cook Raw Bear Meat. You have 11." from the
 //        catalogue and the server's level, both from the client's pre-check and
-//        from the engine's activity_locked; a hunt's activity_locked says the
-//        floor and the hero's Level from the refusal itself.
+//        from the engine's activity_locked.
 //   SW-4 ON SCREEN (play.html, stubbed server): the item menu's Cook all is off
-//        WITH its visible line; a Shop buy short of gold says how much more; a
-//        locked hunt's Enter answer names the Level. `--shots <dir>` saves each at
+//        WITH its visible line; a Shop buy short of gold says how much more.
+//        `--shots <dir>` saves each at
 //        1440×900 and 844×390.
 //
 //   node tests/say-why.mjs                   the rules
@@ -367,8 +366,6 @@ async function pure(base = ROOT) {
   const cs = { read: read(11, { raw_bear_meat: 2 }), edgeIntent: async () => refusalOf({ ok: false, body: { ok: false, error: 'activity_locked', kind: 'artisan', id: 'cook_bear_meat' } }) };
   await startWork(cs, workRow('artisan', buryRecipeOf('raw_bear_meat').recipe.id), (fn, busy, done) => runIntent(sc, () => {}, fn, busy, done, cs), () => {});
   if (sc.msg !== 'You need Cooking 40 to cook Raw Bear Meat. You have 11.') fails.push('SW-3 the engine\'s activity_locked on Cook all reads ' + JSON.stringify(sc.msg));
-  const hunt = refusalText(refusalOf({ ok: false, body: { ok: false, error: 'activity_locked', id: 'mosslight_glade', combat_level: 3, band_min: 16, refuse_under: 5 } }));
-  if (hunt !== 'You need Level 12 to enter Mosslight Glade. You are Level 3.') fails.push('SW-3 a locked hunt reads ' + JSON.stringify(hunt));
   const gate = refusalText(refusalOf({ ok: false, body: { ok: false, error: 'activity_locked', id: 'mosslight_glade', spawn_gate: true } }));
   if (!gate || /did not go through/.test(gate)) fails.push('SW-3 a spawn-gated hunt reads the fallback: ' + JSON.stringify(gate));
   return fails;
@@ -401,15 +398,12 @@ async function screens(overrides) {
       page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
       page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
       const s = { env: town(clone(BASE)), version: 1, enter: 0 };
-      const hard = Object.values((await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)).HUNT_INDEX).sort((a, b) => b.band[0] - a.band[0])[0];
       await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
       await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
       await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
         const name = r.request().url().split('?')[0].split('/').pop();
         const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
         if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
-        /* the server's own refusal, as hr_hunt_enter sends it (hr_reject's detail merged into the body) */
-        if (name === 'hr_hunt_enter') { s.enter++; return json({ ok: false, error: 'activity_locked', id: hard.id, combat_level: 1, band_min: hard.band[0], refuse_under: 5 }); }
         return json({ ok: true });
       });
       const shot = async (n) => { if (SHOTS) await page.screenshot({ path: join(ROOT, SHOTS, n + '-' + w + 'x' + h + '.png') }); };
@@ -477,18 +471,6 @@ async function screens(overrides) {
         });
         if (!row || !row.off || !/You need 350 gp more\./.test(row.small)) fails.push('SW-4 a Shop buy short of gold reads ' + JSON.stringify(row));
         await shot('shop-short');
-      }
-      /* (c) a hunt the server would refuse for the Level: Enter is off, and the line beside it names both Levels (no press is spent to learn it). */
-      if (!(await openWin('h', 'hunts'))) fails.push('SW-4 the Hunts window did not open');
-      else {
-        const pick = '[data-hs-win="hunts"] .hw-hunt[data-hunt="' + hard.id + '"]';
-        if (await page.$(pick)) { await page.click(pick); await page.waitForTimeout(200); }
-        const enter = '[data-hs-win="hunts"] .hw-hunt-enter';
-        const off = await page.evaluate((q) => { const b = document.querySelector(q); return !!b && b.disabled; }, enter);
-        const msg = await page.evaluate(() => document.querySelector('[data-hs-win="hunts"] .hw-enter-why').textContent);
-        const want = 'You need Level ' + (hard.band[0] - 14) + ' to enter ' + hard.name + '. You are Level 1.';
-        if (!off || msg !== want || s.enter !== 0) fails.push('SW-4 a locked hunt\'s Enter reads ' + JSON.stringify(msg) + ' (off ' + off + ', want ' + JSON.stringify(want) + ', ' + s.enter + ' enter(s) sent)');
-        await shot('hunt-locked');
       }
       if (errors.length) fails.push('SW-4 console errors at ' + w + '×' + h + ': ' + errors.slice(0, 3).join(' | ').slice(0, 300));
       await ctx.close();

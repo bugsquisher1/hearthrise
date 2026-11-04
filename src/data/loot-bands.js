@@ -74,10 +74,19 @@ export const PENDING_ROWS = Object.freeze([]);
    against the caps by tests/hunt-core/drop-tables.mjs. PROVISIONAL. */
 export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);
 export const VENDOR_GEAR_TYPES = Object.freeze(['weapon', 'armor', 'offhand', 'jewelry']);
+/* THE GLADE'S ARMOR SELLS UNDER THE WARRENS' (designer 2026-11-03, lane/c-gold-matters; Tyler the same day: harder monsters pay more).
+   Tier 2's helmet, body, legs and boots come about hourly in three weights on Wickstead, the Sewer and the Glade, and at 0.5 of book an Iron
+   Platebody sold for 200 g against a Steel one's 210 g: the flood of the hours when gold goes dead, and no reward for the harder ground. At 0.3
+   the plate line reads 90 / 120 / 210 and every piece still clears its lower-tier twin (drop-tables sale-ladder). Tier 2's weapons, shield,
+   jewels, gloves and belts keep the table: a player forges those to sell (tests/craft-wages.mjs W-FORGE) and the outfitter's belt and gloves
+   hold those twins' bids up. Tiers 1 and 3 keep it too, so the starter grounds keep their gold (Tyler 10-20) and the Warrens pay what they paid. */
+export const VENDOR_HOURLY_ARMOR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);
+export const VENDOR_HOURLY_ARMOR_T2_RATE = 0.3;
 
 /** The share of book value the trader pays for `item` if it is worn gear, else 1. */
 export function gearSaleRate(item) {
   if (!item || !VENDOR_GEAR_TYPES.includes(item.type)) return 1;
   const t = Math.max(1, Math.floor(Number(item.tier) || 1));
+  if (t === 2 && item.type === 'armor' && VENDOR_HOURLY_ARMOR_SLOTS.includes(item.slot)) return VENDOR_HOURLY_ARMOR_T2_RATE;
   return VENDOR_GEAR_RATES[Math.min(t, VENDOR_GEAR_RATES.length) - 1];
 }

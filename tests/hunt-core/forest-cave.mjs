@@ -20,6 +20,7 @@
 //                       seeds; prints the practice-sword-and-Thicket-leather graduate beside it (evidence)
 //   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party < the glade solo in its four plate pieces < the
 //                       Warrens' party, in net gold AND Level XP, and the glade in helm and body alone clears +25% over its bill (the H11 gap, 16-31)
+//   harder-pays-more    a kill's expected gold climbs with hp x attack, and the same hero at one Level earns more an hour on the ground above (Tyler 2026-11-03)
 //   wickstead-solo-floor  (Wickstead, lane b-greenhaven-6; staged, played on its fitted grid) a ladder-kit Melee alone at
 //                       its floor (L8) lives the hour on the six seeds, clears +25%, and nets and levels no worse than
 //                       the Thicket at the Thicket's floor; the start kit's hour is printed (evidence)
@@ -448,6 +449,45 @@ cases['glade-between'] = async (M) => {
   return bad.length ? bad.join('; ') : null;
 };
 
+/* HARDER PAYS MORE (Tyler 2026-11-03: harder monsters give better loot and more reward; nothing rewards staying on a weak ground; lane/c-gold-matters).
+   PER KILL, the rows: a monster's expected gold (its coin roll, every drop at its chance and the shop's bid), meaned over the open grounds' monsters in bands
+   of hp x attack, climbs band by band. PER HOUR, played: the same hero in the same kit at one Level earns more on the ground above, everything sold, the bill
+   paid. Expected values on the played kills, so a lucky hour reads the same. The Sewer is not on this list: a lone hero there is the known exception, on the board. */
+const HARDNESS_BANDS = Object.freeze([100, 500, 1500, 10000]);
+const CLIMB = Object.freeze([[13, ['tank'], 'meadowbrook_thicket', 'wickstead', false], [25, ['tank'], 'wickstead', GLADE, false], [45, ['tank'], GLADE, 'coppercap_warrens', true],
+  [41, ['tank', 'ranger', 'mage', 'healer'], GLADE, 'coppercap_warrens', true]]);
+cases['harder-pays-more'] = async (M) => {
+  const P = await playOf(M);
+  const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+  const { effectiveDropChance } = await imp('src/core/drops.js');
+  const bad = [], ids = new Set();
+  for (const g of Object.values(M.grounds.OPEN_GROUNDS)) for (const p of g.pockets) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
+  const bid = (d, y) => effectiveDropChance(d, { dropMult: 1, yieldMult: y }) * P.vendorPriceOf(P.ITEMS, d.id);
+  const coinOf = (m, y) => { let t = 0; for (let v = m.gp[0]; v <= m.gp[1]; v++) t += Math.round(v * y); return t / (m.gp[1] - m.gp[0] + 1); };
+  const kill = (m, y) => coinOf(m, y) + (m.drops || []).reduce((s, d) => s + bid(d, y), 0);
+  const sum = HARDNESS_BANDS.concat(Infinity).map(() => ({ n: 0, g: 0 }));
+  for (const id of ids) {
+    const m = M.MONSTERS[id], b = sum[HARDNESS_BANDS.concat(Infinity).findIndex((top) => m.hp * m.atk < top)];
+    b.n++; b.g += kill(m, 1);
+  }
+  const means = sum.map((b) => (b.n ? b.g / b.n : 0));
+  console.log('    a kill\'s gold by hp x attack, under ' + HARDNESS_BANDS.join(' / ') + ' / above: ' + means.map((v) => Math.round(v)).join(' -> '));
+  for (let i = 1; i < means.length; i++) if (!(means[i] > means[i - 1])) bad.push('a kill past hp x attack ' + HARDNESS_BANDS[i - 1] + ' pays ' + Math.round(means[i]) + ' g, not above ' + Math.round(means[i - 1]) + ' g below it');
+  const hour = (gid, L, roles, fullSet) => {
+    const x = P.run(gid, L, roles, { spanMs: 1800000, fullSet, secret: STARTER_SEEDS[0] });
+    const y = M.grounds.yieldPermille(roles.length) / 1000, h = x.playedMs / 3600000;
+    let g = 0;
+    for (const [id, k] of Object.entries(x.killsBy)) g += k * kill(M.MONSTERS[id], y);
+    return Math.round((g - x.totals.store) / roles.length / h);
+  };
+  for (const [L, roles, low, high, fullSet] of CLIMB) {
+    const a = hour(low, L, roles, fullSet), b = hour(high, L, roles, fullSet), who = roles.length > 1 ? 'a party of ' + roles.length : 'a lone ' + roles[0];
+    console.log('    ' + who + ' at L' + L + ', gold an hour, all sold: ' + low + ' ' + a + ' -> ' + high + ' ' + b);
+    if (!(b > a)) bad.push(who + ' at L' + L + ' earns ' + a + ' g/h on ' + low + ' and ' + b + ' g/h on ' + high + ': staying on the weaker ground pays');
+  }
+  return bad.length ? bad.join('; ') : null;
+};
+
 /* THE FARM GROUND (lane b-greenhaven-6, designer 2026-10-28): Wickstead is the second solo door for 8-18, beside the
    Thicket. Played at its floor (L8) on the real settle, alone, six seeds: the ladder-kit Melee lives the hour, clears +25%
    wherever its bill is a quarter of its income, and its median net gold and Level XP per hour are no worse than the
@@ -498,13 +538,13 @@ const mutants = [
   { name: 'the glade\'s sluicer and Rook hit four times as hard (atk 18 -> 72)', case: 'glade-solo-floor',
     edits: [['src/data/monsters.js', 'hp: 70, atk: 18, baseAcc: 0.8, def: 10, xp: 360,', 'hp: 70, atk: 72, baseAcc: 0.8, def: 10, xp: 360,'], ['src/data/monsters.js', 'hp: 78, atk: 18, baseAcc: 0.8, def: 11,', 'hp: 78, atk: 72, baseAcc: 0.8, def: 11,']] },
   { name: 'the glade\'s coin doubled (it out-earns the Warrens)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 12]', 'xp: 165, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 225, gp: [6, 18]', 'xp: 225, gp: [12, 36]'],
-      ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [28, 68]'],
-      ['src/data/monsters.js', 'xp: 520, gp: [16, 40]', 'xp: 520, gp: [32, 80]']] },
+    edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 11]', 'xp: 165, gp: [8, 22]'], ['src/data/monsters.js', 'xp: 225, gp: [5, 15]', 'xp: 225, gp: [10, 30]'],
+      ['src/data/monsters.js', 'xp: 260, gp: [4, 10]', 'xp: 260, gp: [8, 20]'], ['src/data/monsters.js', 'xp: 360, gp: [12, 30]', 'xp: 360, gp: [24, 60]'],
+      ['src/data/monsters.js', 'xp: 520, gp: [14, 36]', 'xp: 520, gp: [28, 72]']] },
   { name: 'the glade\'s coin halved (it pays under the Sewer\'s party)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 12]', 'xp: 165, gp: [2, 6]'], ['src/data/monsters.js', 'xp: 225, gp: [6, 18]', 'xp: 225, gp: [3, 9]'],
-      ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [2, 6]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [7, 17]'],
-      ['src/data/monsters.js', 'xp: 520, gp: [16, 40]', 'xp: 520, gp: [8, 20]']] },
+    edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 11]', 'xp: 165, gp: [2, 5]'], ['src/data/monsters.js', 'xp: 225, gp: [5, 15]', 'xp: 225, gp: [2, 7]'],
+      ['src/data/monsters.js', 'xp: 260, gp: [4, 10]', 'xp: 260, gp: [2, 5]'], ['src/data/monsters.js', 'xp: 360, gp: [12, 30]', 'xp: 360, gp: [6, 15]'],
+      ['src/data/monsters.js', 'xp: 520, gp: [14, 36]', 'xp: 520, gp: [7, 18]']] },
   { name: 'the glade\'s blows x1.25, the attack Tyler dropped (helm and body under +25%)', case: 'glade-between',
     edits: [['src/data/monsters.js', 'hp: 30, atk: 10, baseAcc: 0.8,', 'hp: 30, atk: 13, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 32, atk: 12, baseAcc: 0.8,', 'hp: 32, atk: 15, baseAcc: 0.8,'],
       ['src/data/monsters.js', 'hp: 35, atk: 9, baseAcc: 0.8,', 'hp: 35, atk: 11, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 70, atk: 18, baseAcc: 0.8,', 'hp: 70, atk: 23, baseAcc: 0.8,'],
@@ -512,8 +552,16 @@ const mutants = [
   { name: 'Wickstead\'s Turncoats and spiders hit six times as hard (atk 10 -> 60, 7 -> 42)', case: 'wickstead-solo-floor',
     edits: [['src/data/monsters.js', 'hp: 34, atk: 10, def: 3, xp: 240,', 'hp: 34, atk: 60, def: 3, xp: 240,'], ['src/data/monsters.js', 'hp: 30, atk: 7, def: 4, xp: 150,', 'hp: 30, atk: 42, def: 4, xp: 150,']] },
   { name: 'Wickstead\'s coin cut to a third (it pays under the Thicket)', case: 'wickstead-solo-floor',
-    edits: [['src/data/monsters.js', 'xp: 56, gp: [3, 7]', 'xp: 56, gp: [1, 2]'], ['src/data/monsters.js', 'xp: 150, gp: [5, 12]', 'xp: 150, gp: [2, 4]'],
-      ['src/data/monsters.js', 'xp: 240, gp: [10, 22]', 'xp: 240, gp: [3, 7]'], ['src/data/monsters.js', 'xp: 70, gp: [3, 7]', 'xp: 70, gp: [1, 2]']] },
+    edits: [['src/data/monsters.js', 'xp: 56, gp: [3, 6]', 'xp: 56, gp: [1, 2]'], ['src/data/monsters.js', 'xp: 150, gp: [4, 10]', 'xp: 150, gp: [2, 3]'],
+      ['src/data/monsters.js', 'xp: 240, gp: [8, 18]', 'xp: 240, gp: [3, 6]'], ['src/data/monsters.js', 'xp: 70, gp: [3, 6]', 'xp: 70, gp: [1, 2]']] },
+  { name: 'the Warrens\' coin halved (the Glade out-earns the harder ground)', case: 'harder-pays-more',
+    edits: [['src/data/monsters.js', 'xp: 924, gp: [13, 32]', 'xp: 924, gp: [6, 16]'], ['src/data/monsters.js', 'xp: 1122, gp: [15, 38]', 'xp: 1122, gp: [7, 19]'],
+      ['src/data/monsters.js', 'xp: 1452, gp: [18, 43]', 'xp: 1452, gp: [9, 21]'], ['src/data/monsters.js', 'xp: 2112, gp: [32, 74]', 'xp: 2112, gp: [16, 37]'],
+      ['src/data/monsters.js', 'xp: 7920, gp: [105, 236]', 'xp: 7920, gp: [52, 118]']] },
+  { name: 'the Thicket\'s den pays like the Sewer (staying in the wood pays more than Wickstead)', case: 'harder-pays-more',
+    edits: [['src/data/monsters.js', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [3, 5]', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [9, 15]']] },
+  { name: 'a whelp pays like a Chief (a kill stops climbing with the monster)', case: 'harder-pays-more',
+    edits: [['src/data/monsters.js', 'hp: 9, atk: 2, def: 0, xp: 28, gp: [1, 3]', 'hp: 9, atk: 2, def: 0, xp: 28, gp: [1500, 2500]']] },
   { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',
     edits: [['src/data/supply-basics.js', "  sell('copper_studs', 'gear', null, 120),", "  sell('copper_studs', 'gear', null, 120),\n  sell('leather_helmet', 'gear', null, 120),"]] },
   { name: 'the Shop stops selling gloves (no neutral first armour piece)', case: 'shop-outfits-defense',
@@ -527,10 +575,10 @@ const mutants = [
   { name: 'the Sewer coin back to its pre-x1.8 rows (the party nets under the Thicket)', case: 'first-grounds-net-chain',
     edits: [['src/data/monsters.js', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [4, 18]', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [2, 10]'],
       ['src/data/monsters.js', 'hp: 50, atk: 4, def: 0, xp: 141, gp: [4, 14]', 'hp: 50, atk: 4, def: 0, xp: 141, gp: [2, 8]'],
-      ['src/data/monsters.js', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [14, 38]', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [8, 21]'],
-      ['src/data/monsters.js', 'hp: 90, atk: 9, def: 6, xp: 704, gp: [36, 90]', 'hp: 90, atk: 9, def: 6, xp: 704, gp: [20, 50]'],
+      ['src/data/monsters.js', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [11, 29]', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [6, 16]'],
+      ['src/data/monsters.js', 'hp: 90, atk: 9, def: 6, xp: 704, gp: [28, 68]', 'hp: 90, atk: 9, def: 6, xp: 704, gp: [16, 38]'],
       ['src/data/monsters.js', 'hp: 55, atk: 7, def: 1, xp: 192, gp: [9, 25]', 'hp: 55, atk: 7, def: 1, xp: 192, gp: [5, 14]'],
-      ['src/data/monsters.js', 'hp: 600, atk: 14, def: 4, xp: 3840, gp: [119, 238]', 'hp: 600, atk: 14, def: 4, xp: 3840, gp: [66, 132]']] },
+      ['src/data/monsters.js', 'hp: 600, atk: 14, def: 4, xp: 3840, gp: [133, 267]', 'hp: 600, atk: 14, def: 4, xp: 3840, gp: [74, 148]']] },
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',

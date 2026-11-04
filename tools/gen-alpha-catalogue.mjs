@@ -46,7 +46,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE FIRST SHIELD (lane b-spell-roles, Tyler 2026-10-23: a basic shield at the Shop outfitter): 2026-11-22 is APPLIED
    history; the Bronze-Rimmed Shield joins the outfitter's gear rows (hr_shop_supply_offers) in ONE forward file, applied
    after 2027-01-13-items-catalogue.generated.sql (hr_items first): the same full delete+insert replace. */
-export const OUT_NAME = '2027-01-13-alpha-catalogue.generated.sql';
+/* GOLD MATTERS (lane/c-gold-matters, designer 2026-11-03): 2027-01-13 is APPLIED history; the stamina refill's first buy moves to 1,000 g + 250 g a Level
+   in this forward file, the same full delete+insert replace. No shop, seed or Blessing row moves. */
+export const OUT_NAME = '2027-02-24-gold-matters-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */

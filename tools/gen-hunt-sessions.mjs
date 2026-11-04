@@ -207,7 +207,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE CRAFT WAGE (lane/c-craft-economy, designer 2026-11-01): 2027-02-16-party-pull is the file before this one, and this one carries it;
    hr_hunt_vendor_value moves for gathered and refined goods, the same full replace. No kill bound, spawn or shape moves. */
 /* KLAPPA'S CLUB (lane/c-klappa-club, designer 2026-11-03): 2027-02-21-rulings is APPLIED history; hr_hunt_vendor_value gains the club's bid, the same full replace. No kill bound, spawn or shape moves. */
-export const OUT_NAME = '2027-02-23-klappa-hunt-sessions-catalogue.generated.sql';
+/* GOLD MATTERS (lane/c-gold-matters, designer 2026-11-03): 2027-02-23-klappa is APPLIED history; 19 monsters' coin moves hr_hunt_kill_bounds' gold_max (down on Wickstead, the Glade, the
+   Sewer's bat and spider; up on the Warrens and the Rat King) and tier 2's hourly armor moves hr_hunt_vendor_value, the same full replace. No spawn, limit or shape moves. */
+export const OUT_NAME = '2027-02-24-gold-matters-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -646,7 +648,13 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-craft-economy, designer 2026-11-01): hr_hunt_vendor_value, the shop's bid and the Weighhouse's floor,
+-- NEW IN THIS FILE (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
+-- the Glade and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and
+-- boots (src/data/loot-bands.js). No spawn or limit moves and the world's shape is unchanged (no world_shape_pending on either order). The bound's
+-- headroom is three times the catalogue's top roll, so the old engine's rolls pass the lowered rows and the new engine's the raised ones; apply this
+-- first, then the hr-accrue carrying the same rows at once, so a sale never pays the old bid against the new floor for longer than the deploy.
+--
+-- CARRIED FROM 2027-02-18 (lane/c-craft-economy, designer 2026-11-01): hr_hunt_vendor_value, the shop's bid and the Weighhouse's floor,
 -- falls for gathered and refined goods (src/data/items.js BULK_GOODS). No kill bound, spawn or limit moves, and the world's shape is
 -- unchanged (no world_shape_pending on either order). Four of the goods also drop in the Warrens and the Glade (Copper Ore, Coal, Iron
 -- Ore, Gold Ore); their loot sells for less, measured on the priority board. ORDER: after 2027-02-16-party-pull-hunt-sessions-catalogue

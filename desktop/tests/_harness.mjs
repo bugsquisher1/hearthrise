@@ -70,7 +70,7 @@ export async function launch(o = {}) {
   const block = o.block || (local ? (u) => u.host !== local && u.protocol !== 'data:' && u.protocol !== 'blob:' && u.protocol !== 'file:' : null);
   if (block) await context.route((u) => block(u), (r) => { offsite.push(r.request().url()); return r.abort(); });
   const page = await app.firstWindow({ timeout: 120000 });
-  page.setDefaultTimeout(180000);             // a busy machine: the steps wait, a dead end still fails
+  page.setDefaultTimeout(300000);             // a busy machine: the steps wait, a dead end still fails
   page.setDefaultNavigationTimeout(300000);
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -85,14 +85,22 @@ export async function launch(o = {}) {
     /** What Steam's Stop or a crash does: no goodbye, no flush. Returns once every process is gone: until then the single-instance
         lock still stands, and a new launch hands over to the dying one and quits. */
     async kill() {
-      const pids = (await this.metrics()).map((m) => m.pid);
+      const gone = new Promise((res) => app.process().once('exit', res));
       spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { encoding: 'utf8' });
-      for (let i = 0; i < 60; i++) {
-        const out = spawnSync('tasklist', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', maxBuffer: 1 << 24 }).stdout || '';
-        if (!pids.some((p) => out.includes('"' + p + '"'))) return;
-        await new Promise((r) => setTimeout(r, 500));
+      await gone;
+    },
+    /** A content size exactly, whatever the window's frame adds: a window off every screen takes setContentSize as its outer size. */
+    async setSize(w, h) {
+      for (let i = 0; i < 4; i++) {
+        await app.evaluate(({ }, s) => { const win = globalThis.__hrShell.win; const c = win.getContentBounds(), b = win.getBounds(); win.setBounds({ x: b.x, y: b.y, width: s[0] + b.width - c.width, height: s[1] + b.height - c.height }); }, [w, h]);
+        await page.waitForTimeout(400);
+        const [iw, ih] = await page.evaluate(() => [innerWidth, innerHeight]);
+        if (iw === w && ih === h) return;
+        await app.evaluate(({ }, d) => { const win = globalThis.__hrShell.win; const b = win.getBounds(); win.setBounds({ ...b, width: b.width + d[0], height: b.height + d[1] }); }, [w - iw, h - ih]);
+        await page.waitForTimeout(400);
+        const [jw, jh] = await page.evaluate(() => [innerWidth, innerHeight]);
+        if (jw === w && jh === h) return;
       }
-      throw new Error('the killed app is still running');
     },
   };
 }

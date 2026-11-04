@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // desktop/tests/prove-live-door.mjs — THE SHELL AGAINST THE LIVE SITE, UP TO THE SIGN-IN FORM. NO ACCOUNT, NOTHING TYPED.
 //
-//   node tests/prove-live-door.mjs [--bundle DIR]
+//   node tests/prove-live-door.mjs [--bundle DIR] [--offline-only]
 //
 // A real page load of https://hearthrise.net/play.html in the hidden shell: first launch (empty profile), second launch (the
 // same profile, HTTP cache warm), and with --bundle the same origin answered from a built folder (option B on the board).
@@ -10,12 +10,13 @@
 // Exit 0 green, 1 red, 2 harness.
 // mutant-anchors: none — a prototype's proof, not a repo guard
 // ════════════════════════════════════════════════════════════════════════
+import { createServer } from 'node:http';
 import { createReport, dropProfile, freshProfile, launch } from './_harness.mjs';
 
 const r = createReport('prove-live-door');
 const bundleAt = process.argv.includes('--bundle') ? process.argv[process.argv.indexOf('--bundle') + 1] : null;
 const telemetry = (u) => /posthog\.com|sentry\.io/.test(u.host);
-const RUNS = Number(process.env.HR_RUNS || 3);
+const RUNS = process.argv.includes('--offline-only') ? 0 : Number(process.env.HR_RUNS || 3);
 
 /** Process start to the sign-in form on screen, as the page itself clocks it, plus what it cost. */
 async function door(profile, env = {}) {
@@ -50,7 +51,10 @@ try {
       r.note('page facts', one.facts);
       r.step('live: the page has no Node and sees only the narrow shell object', one.facts.noNode === true && one.facts.shell && one.facts.shell.kind === 'desktop', one.facts.shell);
       r.step('live: no HTTP errors', one.bytes.statusBad.length === 0, one.bytes.statusBad.slice(0, 5));
-      r.step('live: no console errors', one.a.errors.length === 0, one.a.errors.slice(0, 5).join(' | ').slice(0, 400));
+      /* the refused telemetry reads as net::ERR_FAILED; any other line is the page's */
+      const own = one.a.errors.filter((e) => !/net::ERR_FAILED/.test(e));
+      r.step('live: no console errors beyond the refused telemetry', own.length === 0, own.slice(0, 5).join(' | ').slice(0, 400));
+      r.note('console lines from the refused telemetry', one.a.errors.length - own.length);
       r.note('requests on a first visit', one.bytes.requests);
       r.note('failed (beyond the refused telemetry)', one.a.failed.filter((f) => !/posthog|sentry/.test(f)).slice(0, 5));
     }
@@ -60,8 +64,10 @@ try {
     await two.a.close();
     dropProfile(profile);
   }
-  r.note('A, first launch, process start to sign-in form (ms)', { runs: first, median: median(first) });
-  r.note('A, later launch, process start to sign-in form (ms)', { runs: second, median: median(second) });
+  if (RUNS) {
+    r.note('A, first launch, process start to sign-in form (ms)', { runs: first, median: median(first) });
+    r.note('A, later launch, process start to sign-in form (ms)', { runs: second, median: median(second) });
+  }
 
   if (bundleAt) {
     const bundled = [];
@@ -83,19 +89,35 @@ try {
   const profile = freshProfile('offline');
   const a = await launch({ profile, block: telemetry });
   await a.page.waitForSelector('form[data-auth="sign-in"]');
+  /* A warm cache first: the page itself comes from disk, so the sign-in form shows (nothing is typed on the live site; a press there
+     answers with the game's own "Could not reach the server", AUTH_COPY.network). */
   await a.main(({ session }) => { session.defaultSession.enableNetworkEmulation({ offline: true }); globalThis.__hrShell.loadGame(); });
-  await a.page.waitForFunction(() => /offline\.html$/.test(location.pathname) || !!document.querySelector('form[data-auth="sign-in"]'), null, { timeout: 30000 }).catch(() => {});
-  await a.page.waitForTimeout(2500);
-  const off = await a.page.evaluate(() => ({ path: location.pathname, text: document.body.innerText.slice(0, 200) }));
-  r.note('with no network the window shows', off);
-  r.step('no network: the app\'s own page says why', /offline\.html$/.test(off.path) && /reach the server/.test(off.text), off);
-  await a.shot('live-offline');
+  await a.page.waitForFunction(() => !!document.querySelector('form[data-auth="sign-in"]'), null, { polling: 200 });
+  r.step('no network, cached page: the game itself still opens, from disk', true);
   await a.main(({ session }) => { session.defaultSession.disableNetworkEmulation(); });
-  await a.page.waitForURL(/hearthrise\.net\/play\.html/, { timeout: 30000 });
-  await a.page.waitForSelector('form[data-auth="sign-in"]');
-  r.step('network back: the window returns to the game on its own', true);
   await a.close();
   dropProfile(profile);
+
+  /* NOTHING TO LOAD: a first launch with the site unreachable. A closed loopback port, so the rest of the machine keeps its network. */
+  const holder = createServer();
+  await new Promise((res) => holder.listen(0, '127.0.0.1', res));
+  const port = holder.address().port;
+  await new Promise((res) => holder.close(res));
+  const profile2 = freshProfile('offline2');
+  const b = await launch({ url: 'http://127.0.0.1:' + port + '/play.html', profile: profile2 });
+  await b.page.waitForFunction(() => /offline\.html$/.test(location.pathname), null, { polling: 200, timeout: 120000 });
+  const off = await b.page.evaluate(() => ({ path: location.pathname, text: document.body.innerText.slice(0, 200) }));
+  r.note('with nothing to load the window shows', off);
+  r.step('no network, nothing cached: the app\'s own page says why', /reach the server/.test(off.text), off);
+  await b.shot('live-offline');
+  const back = createServer((req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(req.method === 'HEAD' ? undefined : '<!doctype html><title>back</title><p id="back">back</p>'); });
+  await new Promise((res) => back.listen(port, '127.0.0.1', res));
+  await b.page.waitForFunction(() => !!document.getElementById('back'), null, { polling: 200, timeout: 60000 });
+  r.step('the host answers again: the window returns to the game on its own', true);
+  back.closeAllConnections();
+  await new Promise((res) => back.close(res));
+  await b.close();
+  dropProfile(profile2);
 } catch (e) {
   r.step('the walk finished', false, String(e && e.stack || e).slice(0, 800));
 }

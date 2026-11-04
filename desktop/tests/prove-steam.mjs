@@ -8,9 +8,13 @@
 //                                              presented frame, overlay included; capturePage sees only the page)
 //   node tests/prove-steam.mjs --overlay --open  also asks the overlay to open its friends dialog. Off by default: with no overlay,
 //                                              Steam may answer in its own window, on the real screen.
+//   node tests/prove-steam.mjs --overlay --open --on-screen   THE LAST STEP, NOT RUN YET: the same with a real, focused window for about
+//                                              20 s. Off every screen the overlay hooks the swap chain but never draws (2026-11-04), so
+//                                              the pixels need a moment when a window popping up bothers nobody.
 //
-// Nothing shows on the real screen and no focus moves. No account name or Steam id is printed. No purchase, no partner account:
-// 480 is free to everyone. Needs a Steam client already running and signed in.
+// Without --on-screen, nothing shows on the real screen and no focus moves. No account name or Steam id is printed. No purchase, no
+// partner account: 480 is free to everyone. Needs a Steam client already running and signed in. Steam shows the signed-in player as
+// playing Spacewar while this runs. Steam's own logs/gameoverlay_renderer.txt says whether the hook took.
 // Exit 0 green, 1 red, 2 harness.
 // mutant-anchors: none — a prototype's proof, not a repo guard
 // ════════════════════════════════════════════════════════════════════════
@@ -41,8 +45,10 @@ async function fromOutside(name) {
 
 try {
   const env = { HR_STEAM_APPID: '480' };
-  if (wantOverlay) { env.HR_DESKTOP_HIDDEN = '0'; env.HR_DESKTOP_PLACE = '-20000,-20000'; }
+  /* Only for a moment nobody minds a window: the overlay answers a focused window on a real screen. Read the capture, or watch it. */
+  if (process.argv.includes('--on-screen')) env.HR_DESKTOP_PLACE = '';
   a = await launch({ profile, block: telemetry, env });
+  if (process.argv.includes('--on-screen')) await a.main(() => { globalThis.__hrShell.win.setFocusable(true); globalThis.__hrShell.win.show(); globalThis.__hrShell.win.focus(); });
   await a.page.waitForSelector('form[data-auth="sign-in"]', { timeout: 120000 });
   const s = await a.main(() => {
     const st = globalThis.__hrShell.steam;
@@ -81,7 +87,9 @@ try {
       await a.page.waitForTimeout(1500);
     }
   }
-  r.step('no console errors', a.errors.length === 0, a.errors.slice(0, 5).join(' | ').slice(0, 400));
+  /* the refused telemetry reads as net::ERR_FAILED; any other line is the page's */
+  const own = a.errors.filter((e) => !/net::ERR_FAILED/.test(e));
+  r.step('no console errors beyond the refused telemetry', own.length === 0, own.slice(0, 5).join(' | ').slice(0, 400));
   await a.close();
   a = null;
 } catch (e) {

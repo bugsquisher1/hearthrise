@@ -2,7 +2,8 @@
 // ════════════════════════════════════════════════════════════════════════
 // desktop/tests/prove-local.mjs — THE REAL GAME IN THE REAL SHELL, ON A LOCAL WORLD. NO PRODUCTION, NO SECRETS.
 //
-//   node tests/prove-local.mjs     (from desktop/; a machine's first run replays the chain, about 6 min)
+//   node tests/prove-local.mjs [--tail]    (from desktop/; a machine's first run replays the chain, about 6 min)
+//                                          --tail skips the reload and the closed-app steps: hard kill, sizes, banner, fullscreen
 //
 // A brand-new account from the real sign-in screen, a hero, a hunt, a reload, the app closed while the server keeps
 // hunting, the app reopened still signed in, a hard kill (Steam's Stop), then resize and fullscreen.
@@ -53,25 +54,27 @@ try {
   const xp1 = Number((await sql(`select level_xp::bigint as xp from public.player_state limit 1`)).xp);
   r.step('the hero fought on the server (a real settle)', xp1 > xp0, { xp0, xp1 });
 
-  await a.page.reload({ waitUntil: 'load' });
-  await a.page.waitForSelector('[data-hs-act="leave"]');
-  r.step('reload: the hunt comes back from the server', true);
-  await a.shot('04-after-reload');
+  if (!process.argv.includes('--tail')) {
+    await a.page.reload({ waitUntil: 'load' });
+    await a.page.waitForSelector('[data-hs-act="leave"]');
+    r.step('reload: the hunt comes back from the server', true);
+    await a.shot('04-after-reload');
 
-  await a.close();
-  a = null;
-  const xp2 = Number((await sql(`select level_xp::bigint as xp from public.player_state limit 1`)).xp);
-  await world.skip(10);
-  const xp3 = Number((await sql(`select level_xp::bigint as xp from public.player_state limit 1`)).xp);
-  r.step('app closed: the hunt keeps running on the server', xp3 > xp2 && !!(await sql(`select id from public.hunt_sessions where ended_at is null`)), { xp2, xp3 });
+    await a.close();
+    a = null;
+    const xp2 = Number((await sql(`select level_xp::bigint as xp from public.player_state limit 1`)).xp);
+    await world.skip(10);
+    const xp3 = Number((await sql(`select level_xp::bigint as xp from public.player_state limit 1`)).xp);
+    r.step('app closed: the hunt keeps running on the server', xp3 > xp2 && !!(await sql(`select id from public.hunt_sessions where ended_at is null`)), { xp2, xp3 });
 
-  a = await launch({ url: world.url, profile });
-  await a.page.waitForSelector('.char-row, .hs-launchers, form[data-auth="sign-in"]');
-  r.step('app restart: still signed in', !(await a.page.$('form[data-auth="sign-in"]')));
-  if (await a.page.$('[data-app="play"]')) await a.page.click('[data-app="play"]');
-  await a.page.waitForSelector('[data-hs-act="leave"]');
-  r.step('app restart: pressed Play, back in the same hunt', true);
-  await a.shot('05-after-restart');
+    a = await launch({ url: world.url, profile });
+    await a.page.waitForSelector('.char-row, .hs-launchers, form[data-auth="sign-in"]');
+    r.step('app restart: still signed in', !(await a.page.$('form[data-auth="sign-in"]')));
+    if (await a.page.$('[data-app="play"]')) await a.page.click('[data-app="play"]');
+    await a.page.waitForSelector('[data-hs-act="leave"]');
+    r.step('app restart: pressed Play, back in the same hunt', true);
+    await a.shot('05-after-restart');
+  }
 
   /* STEAM'S STOP: no goodbye. A session stored moments ago must still be there: the risk is a refresh token rotated on the server whose
      new value was still in Chromium's write-behind when the process died. So the app refreshes, and dies 1.5 s later. */
@@ -90,7 +93,7 @@ try {
   a = await launch({ url: world.url, profile });
   await a.page.waitForSelector('.char-row, .hs-launchers, form[data-auth="sign-in"]');
   const kept = await a.page.evaluate(() => { try { return JSON.parse(localStorage.getItem('hr-auth')).refresh_token; } catch { return null; } });
-  r.note('hard kill 1.5 s after a rotation: the stored refresh token is', kept === refreshed ? 'the new one' : kept === before ? 'the OLD one (the write was lost)' : 'gone');
+  r.step('hard kill 1.5 s after a rotation: the stored refresh token is the new one', kept === refreshed, kept === before ? 'the OLD one (the write was lost)' : 'gone');
   r.step('hard kill: still signed in', !(await a.page.$('form[data-auth="sign-in"]')));
   if (await a.page.$('[data-app="play"]')) await a.page.click('[data-app="play"]');
   await a.page.waitForSelector('[data-hs-act="leave"]');
@@ -98,8 +101,7 @@ try {
   /* SIZES. The Deck's first: it must take the desktop layout. */
   const sizes = [[1280, 800], [1280, 720], [1024, 640], [1920, 1080], [2560, 1440]];
   for (const [w, h] of sizes) {
-    await a.main(({ }, s) => { globalThis.__hrShell.win.setContentSize(s[0], s[1]); }, [w, h]);
-    await a.page.waitForFunction((s) => innerWidth === s[0] && innerHeight === s[1], [w, h], { timeout: 15000 }).catch(() => {});
+    await a.setSize(w, h);
     await a.page.waitForTimeout(500);
     const l = await readLayout(a.page);
     r.note('layout ' + w + 'x' + h, l);

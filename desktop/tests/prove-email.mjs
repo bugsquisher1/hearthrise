@@ -50,7 +50,10 @@ async function systemBrowser() {
   return ctx;
 }
 
+const SCHEME_ONLY = process.argv.includes('--scheme-only');   // just the experiment, on an account made through the shim
 try {
+  if (SCHEME_ONLY) await fetch(world.origin + '/auth/v1/signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'reset@local-world.test', password: NEW_PASSWORD }) });
+  if (!SCHEME_ONLY) {
   /* ── CONFIRM ── */
   a = await launch({ url: world.url, profile });
   let confirmed = false;
@@ -131,6 +134,8 @@ try {
   await page3.waitForFunction(() => /expired or was already used/.test(document.querySelector('.auth-message')?.textContent || ''));
   r.step('system browser: an expired link says so, and offers the way on', true);
   await browserC.close();
+  dropProfile(resetProfile);
+  }
 
   /* ── SCHEME (the experiment) ── */
   const schemeProfile = freshProfile('email4');
@@ -144,15 +149,14 @@ try {
   const second = spawn(ELECTRON_BIN, [DESKTOP, 'hearthrise://auth' + hash], { env, stdio: 'ignore' });
   const gone = await new Promise((res) => { const t = setTimeout(() => res(null), 60000); second.on('exit', (c) => { clearTimeout(t); res(c); }); });
   r.step('hearthrise:// second launch exits at once and hands the link over', gone !== null, gone);
-  await a.page.waitForFunction(() => /link=1/.test(location.href) || !document.querySelector('form[data-auth]'), null, { timeout: 30000 });
-  await a.page.waitForSelector('.char-row, [data-app="create"]');
+  await a.page.waitForFunction(() => /link=1/.test(location.href) || !document.querySelector('form[data-auth]'), null, { polling: 200 });
+  await a.page.waitForFunction(() => !!document.querySelector('.char-row, [data-app="create"]'), null, { polling: 200 });
   r.step('hearthrise:// the running app signs itself in from the link', true);
-  await a.page.waitForFunction(() => !/access_token/.test(location.href), null, { timeout: 15000 });
+  await a.page.waitForFunction(() => !/access_token/.test(location.href), null, { polling: 200 });
   r.step('hearthrise:// the token leaves the address', true);
   await a.close();
   a = null;
   dropProfile(schemeProfile);
-  dropProfile(resetProfile);
 } catch (e) {
   r.step('the walk finished', false, String(e && e.stack || e).slice(0, 800));
   if (a) await a.shot('zz-email-failed').catch(() => {});

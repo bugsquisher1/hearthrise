@@ -30,6 +30,83 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-04 The Steam shell: the real game runs as a desktop app (systems-engineer, lane/b-steam-shell): PROTOTYPE in `desktop/`, nothing ships. **Six things for Tyler below**
+`desktop/` is its own npm package: one Electron window that plays the real `play.html`, Steamworks, a "can't reach the server" page. No game file changed; the root `npm ci` and CI don't see it. Proofs in `desktop/tests/` drive it through Playwright with the window off every screen, so nothing popped up on Tyler's PC.
+
+**What worked, measured.** All on this PC, with other lanes running; the local world is `tools/qa/local-world.mjs` (real engine, real chain, auth shim, no production).
+| Question | Result | How sure |
+|---|---|---|
+| The real game in the window, local world | New account from the real screens, hero, town painted, Mill Cellar, the server settles, reload brings the hunt back, app closed and the hunt keeps earning (XP 1,540 → 2,956), reopen is still signed in and back in the hunt, the new-version banner's Reload works. No console errors, nothing left the machine, pushes arrive over the socket | Measured (`prove-local`) |
+| The live site in the window | `https://hearthrise.net/play.html` reaches the sign-in form: no HTTP errors, no console errors beyond the telemetry the proof refuses, no Node in the page. No account made, nothing typed | Measured (`prove-live-door`) |
+| Steamworks with test app 480 | Initializes with no purchase and no partner account, from the repo and from the packaged build. Needs a Steam client running and signed in; Tyler's was not running, so the lane started it silently and shut it down after, and for those minutes his friends could see him playing Spacewar | Measured (`prove-steam`) |
+| Steam overlay | Steam's own log: DLL in the process, "Hooking vtable for swap chain", "Creating D3D11 renderer", overlay UI started for game 480. With the window off every screen, asking for the friends dialog drew nothing | Hook measured. **Pixels not proven:** needs 20 s of a real focused window, `node tests/prove-steam.mjs --overlay --open --on-screen`, at a moment a window bothers nobody |
+| Size | 312.8 MB installed (en-US only), 104 MB to download (xz of the folder, a stand-in for SteamPipe). No installer: Steam installs a folder. Built site for option B adds 61 MB | Measured |
+| 1280x800, the Deck's size | MEASURE-LAYOUT | Measured |
+| Fullscreen | Page takes the whole 2560x1080 display, desktop layout, comes back. Layout only: on a window never shown, so no pixels read | Measured |
+| Hard kill (Steam's Stop, a crash) | Killed 1.5 s after a token refresh, the OLD refresh token was on disk: Chromium writes localStorage late, the server had retired it, so that player is signed out at the next refresh. Fixed in the shell: an auth answer flushes the store. MEASURE-KILL | Measured |
+| Cold start, memory, crisp scaling | MEASURE-NUMBERS | |
+| Exit, start on this PC | `quit` fires in 0.2-2 s, then the process lingers: 4 to 150 s. The barest possible Electron app does the same, a force-kill doesn't help, and headless Chrome took 38-53 s to close in the same hour. Starts swing too: live sign-in form in 2.2 s on one launch, 60+ s on the next; barest Electron 33-89 s to a blank page. Not our code. **Unknown cause, this PC under load is the suspect; every start and exit number here needs a re-run on a quiet PC.** Steam shows "running" until the process is gone, so this one matters if it follows us | Measured, unexplained |
+
+**Wrapper: Electron 45 + steamworks.js.** Tauri fails on the overlay and on one engine. Electron's Chromium is 156.0.8078.80, the same build as the installed Chrome today.
+| Need | Electron | Tauri |
+|---|---|---|
+| Steamworks | steamworks.js 0.4.0 runs on Electron 45 (measured). Last npm publish Aug 2024; `steamworks-ffi-node` 0.11.3 (Sep 2026) is the live fallback, with its own overlay path that draws frames into a native window | steamworks-rs exists, untested |
+| Overlay | Works by moving the GPU in-process (hook measured). Hacky, but it's the known path | WebView2 keeps its GPU in another process. Construct's team tried hard and concluded it isn't feasible (construct.net blog, Steam forum thread Dec 2024) |
+| Deck through Proton | Carries its own Chromium (assumed fine, never run) | WebView2 under Wine, or WebKit natively: a second engine we never test |
+| Size | 313 MB | About 10 MB (their claim). Saves nothing a Steam player notices |
+
+**How the client loads: always the live site, plus one local page for "can't reach the server" (option A).** Option B (ship `tools/build-site.mjs`'s output) was built and run: an Electron handler answers `https://hearthrise.net/*` from the folder, so the origin stays the same (it must: `hr-accrue` allows only https://hearthrise.net, www, the github.io and loopback, and `file://` or `app://` would be refused, and auth's redirect would miss `uri_allow_list`). It works. Reasons against it:
+- An old installed client is the main risk, and A removes it. §1 says no back-compat, and releases go out several times a day. Under B every release needs a SteamPipe build, and a player on an old build gets refused asks and a Reload banner whose reload serves the same old files.
+- B's gain is start time, and it's in the noise here: sign-in form on a first launch A 2.2-68 s, later launch A 30-63 s, B 13-23 s, on a PC swinging by a factor of 30. Live page: 397 requests. The worker on `lane/b-ship-build` closes most of that gap for later launches.
+- With A the Steam build changes only when the shell does: Valve reviews once, updates need no re-review, the release lane stays as it is.
+- Risks of A: the site host goes down (Supabase going down is the same outage). And **GitHub Pages' terms say it isn't "to run your online business" or commercial SaaS, with a soft 100 GB a month, so the site needs a real host before EA either way.** No Valve page I read forbids a client that loads its game remotely, and none blesses it. Offline: with a warm cache the page opens from disk and the press says "could not reach"; with nothing cached the app's own page says why and returns by itself (measured).
+
+**The email link.** A confirmation or reset link opens in the system browser, often on another device: a phone. So nothing that carries the session back to this PC can be the flow.
+| Case | Works today, no change anywhere (measured on the shim, its email part played by a second browser) | Small lane to make it good |
+|---|---|---|
+| Confirm | App says "check your email". Link opens the browser and confirms. Back in the app, the same Sign in press works | App retries the sign-in when its window regains focus, with the password still in the form, so coming back is enough. Link's page says "go back to Hearthrise" |
+| Reset | Link opens the game's own Choose a new password in the browser. Back in the app the new password works, the old one is refused | Same words. Better: a 6-digit code in the mail (`{{ .Token }}`, `verifyOtp`), typed in the app. Works from a phone, and a mail scanner can't burn it as it can a link (door panel 2026-11-04). Template change is Coordinator and Tyler |
+| Expired | The browser says so and offers the way on | None |
+- `uri_allow_list` needs no change: the window's origin is `https://hearthrise.net`, and a `?from=app` on the redirect still matches `https://hearthrise.net/**`.
+- Tried and rejected: `hearthrise://` works on this PC (a second launch hands over, the app signs in, the token leaves the address; measured). But a link read on a phone never arrives, the scheme is registered inside Proton's prefix on a Deck, it needs an allow-list change, and any web page could push someone's session into the app.
+- Later, Tyler's call: Sign in with Steam (ticket from `getAuthTicketForWebApi`, checked by the server against Steam's Web API) removes email for Steam players. A new server surface and an account-linking decision; it can't be tried until there's a real app id and a publisher key.
+
+**Everything left before a Steam Early Access build.** Sources: Steamworks docs read today.
+| Item | Who | Cost | Time / state |
+|---|---|---|---|
+| Partner account, tax, identity | **Tyler** | $100 per app, paid 10-14, comes back after $1,000 revenue | Valve's page says 15-30 days; his review was due about Nov 3-4. Is it through? No app id is known here |
+| Create the app, note the app id | **Tyler** | Free | Then one line in the shell |
+| **Free or paid.** Valve: the EA price "should be no higher than that offered on any other service or website". hearthrise.net is free, so paid on Steam means closing the web door | **Tyler** | | Needed before the store page review |
+| Anything sold in the Steam build goes through Steam Wallet (Valve: required) | **Tyler** decides; backend builds, Security reviews | Valve's share | Not started: server half, `MicroTxnAuthorizationResponse`, Crowns or premium |
+| Store copy | Designer writes, **Tyler** approves | | `marketing/STEAM_STORE_PAGE.md` says "cozy idle homestead", the `docs/steam-store-page` draft says 17 skills, clans and the Marrow King: both are the old game. Rewrite |
+| Store art: header 920x430, small 462x174, main 1232x706, vertical 748x896, 1920x1080 screenshots | Art director | Subscription art only, else **Tyler** per spend | Not started. Trailer optional |
+| Library art: capsule 600x900, hero 3840x1240, logo, header 920x430, icons 256 and 184 px, event cover 800x450 | Art director | Same | Not started |
+| Content survey: makes the age ratings; AI disclosure (PixelLab art is "pre-generated") | **Tyler** signs, designer drafts | Free | Must finish before review. Germany and Indonesia have their own pages I couldn't read today: check |
+| EULA, privacy, terms | **Tyler** + a lawyer | Get a quote | `legal/*.md` still say `[LEGAL ENTITY NAME]`, optional accounts and local saves, and forbid paid streaming. Must describe a required account, server progress, PostHog replays, Sentry, Google Fonts |
+| Which legal entity | **Tyler** | | Blocks the two rows above |
+| A real site host | Coordinator, **Tyler** per spend | To price | See above. Client still loads from the same domain |
+| Build and upload: SteamPipe, a builder account with Steam Guard, kept off the repo | Coordinator, systems | Free | Not started. Set "Enable Steam Overlay" |
+| Signing | **Tyler**, optional | Azure Artifact Signing $9.99 a month (Microsoft's page); not bought | I found no Valve requirement (assumed not needed): Steam downloads carry no web mark. Needed only for a build outside Steam |
+| Shell, release-ready: Electron fuses off (run-as-node, inspect args), asar integrity, `restartAppIfNecessary`, real icon, an Electron upgrade every few weeks for Chromium's security fixes | Systems | Free | Prototype stops short |
+| Game changes: Quit button (fullscreen has no X); the email words above; self-hosted fonts (Google's fail offline and are a privacy line); the shell's version in telemetry | Lane B | Free | Small |
+| Valve's reviewers must get in | Coordinator | | Open sign-ups or a review login in the notes |
+| Security's one full review, shell included (§3.7): preload, navigation lock, loopback override | Security | | Hard gate |
+| Deck, see below | | | |
+| **Valve's steps** | | | Store review typically 3-5 business days, submit at least 7 before you want it live. Coming Soon at least 2 weeks before release. Build review typically 3-5, plan 7, and the store page goes first. Once approved, updates need no new review. For mid-January: art and copy by about Dec 10, store submitted by Dec 18, Coming Soon live by Dec 31, build submitted by Jan 4. Valve's holiday hours unknown |
+| Steam Playtest (free, simplified review, keys work before the store page is public) | **Tyler** | Free | Worth using for the betas: the first real install on other people's PCs and Decks |
+
+**Steam Deck.** For a game with no controller support, Valve recommends a controller configuration that maps to mouse and keyboard. Its examples of Playable: picking a community config by hand, bringing up the keyboard by hand, using the touchscreen in a launcher. So Playable needs: (1) a default Steam Input config in Steamworks, trackpad as mouse, A and B as left and right click, no code; (2) nothing for text at Playable, and about 20 lines in the shell for `showFloatingGamepadTextInput` at Verified; (3) text at least 9 px at 1280x800 (MEASURE-TEXT); (4) 30 fps at 800p, unproven; (5) it has to run under Proton at all, never tried, or the badge is Unsupported. By default the touchscreen acts as a mouse click (Valve FAQ), so tooltips need the trackpad. Verified means every action reachable from a controller: a real design job, not for EA. Valve runs the review for free and gives a week to read the result. A Deck to test on is **Tyler's** buy, price not checked.
+
+**What could still be wrong.**
+- The overlay's pixels (above), and whether it freezes: older reports say it can open frozen, which is why it repaints every frame. In-process GPU also means a driver crash takes the app down.
+- Proton: never run. Chromium's sandbox under Wine may need `--no-sandbox`. Plan B is a native Linux depot; the binding has a Linux build, its overlay has an open issue (#195).
+- Valve could object to remote loading. Nothing says so; only the review answers it.
+- Real auth: the shim sends no mail and has no reuse detection. Real links, scanners and rate limits on retry-on-focus aren't exercised, and no real sign-in has run in the app.
+- The start and exit numbers (above).
+- Display scaling was forced by a switch, not real Windows 125%/150%. A real multi-monitor move is untested.
+
+**For Tyler, in one line each:** (1) is the Steam account through, and what's the app id; (2) free or paid, given the web rule; (3) legal entity and a lawyer; (4) a real host for the site before EA; (5) Deck hardware or rely on Valve's review; (6) say when 20 s of a visible window is fine, for the overlay's last proof.
+
 ### 2026-11-04 Weapon rungs and the Thicket (designer, lane/c-weapon-thicket): BUILT, measured on the real engine, no migration, the edge deploys. **One choice for Tyler below**
 **Weapons (balance 10-25 §8: +5-8% per meaningful upgrade).** The gap is neither clubs alone nor a whole class: it's the box-sweepers. Cleave and spells roll their own numbers and read no weapon power, so a rung reaches a hammer, hatchets or a wand through basic blows only. **Moved: Iron Warhammer 7/12 → 7/16, Steel Warhammer 9/19 → 9/23, Iron Hatchets 7/7 → 9/11, Steel Hatchets 12/11 → 14/14, Klappa's Club 3/12 → 3/16, so it still hits as hard as the Iron Warhammer.** Prices, sources and recipes don't move. Level XP an hour, one tier up, all else equal (`tools/balance-sim` cell runner, the Level's kit, 1 h x 2 seeds, same dice, 0 deaths):
 | Rung | Glade 16, as built | Glade 16, pull 8 | Wickstead 15, pull 8 | Warrens 45, as built | Warrens 45, pull 8 |

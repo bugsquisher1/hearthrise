@@ -137,8 +137,6 @@ function createWindow() {
   });
 
   win.once('ready-to-show', () => { if (PLACE) win.showInactive(); else if (!HIDDEN) win.show(); });
-  /* Chromium writes localStorage a few seconds late; Steam's Stop button does not wait. The session token lives there. */
-  win.on('blur', () => session.defaultSession.flushStorageData());
   win.on('close', saveState);
   win.on('closed', () => { win = null; if (retryTimer) clearInterval(retryTimer); });
 }
@@ -183,6 +181,12 @@ function start() {
   Menu.setApplicationMenu(null);
   app.userAgentFallback = app.userAgentFallback.replace(/ ?(Electron|hearthrise-desktop)\/\S+/g, '') + ' HearthriseDesktop/' + SHELL_VERSION;
   session.defaultSession.setPermissionRequestHandler((_wc, perm, answer) => answer(perm === 'fullscreen' || perm === 'clipboard-sanitized-write'));
+  /* Chromium writes localStorage a few seconds late; a crash or Steam's Stop does not wait, and the session lives there. Measured: killed
+     1.5 s after a token refresh the OLD refresh token was on disk, and the server has already retired it, so that player is signed out at
+     the next refresh. So the moment an auth answer arrives (supabase-js stores it right after), the store is written out. */
+  session.defaultSession.webRequest.onCompleted({ urls: ['*://*/auth/v1/token*', '*://*/auth/v1/verify*', '*://*/auth/v1/user*'] }, () => {
+    for (const ms of [300, 1000]) setTimeout(() => session.defaultSession.flushStorageData(), ms);
+  });
   ipcMain.on('hr-shell:retry', (e) => { if (e.senderFrame && e.senderFrame.url === OFFLINE_URL && win) loadGame(); });
   if (env.HR_DESKTOP_BUNDLE) serveBundle(env.HR_DESKTOP_BUNDLE);
   createWindow();

@@ -492,7 +492,7 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
       + ' | Rare item every ' + span(B.rare) + ' (' + B.rare.length + ' items; some Rare every ' + someRare.toFixed(1) + ' h)' + (B.pending.length ? ' + pending ' + B.pending.join(', ') : '') + (B.trophy.length ? ' | Trophy every ' + span(B.trophy) : '')
       + ' | coin ' + Math.round(E.coin) + ' commons ' + Math.round(E.commons) + ' gear ' + Math.round(E.gear) + ' (' + Math.round(100 * E.gear / E.coin) + '% of coin) other ' + Math.round(E.other)
       + ' | total ' + Math.round(B.total) + ' vs today ' + B.today + ' (' + pct((B.total / B.today - 1) * 100) + ')'
-      + ' | gear sells at ' + JSON.stringify(M.LB.VENDOR_GEAR_RATES) + ' of book by tier; this ground\'s caps hold up to ' + B.fmax.toFixed(2));
+      + ' | gear sells at ' + JSON.stringify(M.LB.VENDOR_GEAR_RATES) + ' of book by tier (tier 2\'s hourly armor ' + M.LB.VENDOR_HOURLY_ARMOR_T2_RATE + '); this ground\'s caps hold up to ' + B.fmax.toFixed(2));
   }
   for (const [gid, b] of Object.entries(freshB)) console.log('  fresh solo hero, ' + gid + ', ' + GEAR_HOURS + ' h: slots held ' + b.held + ' | reveals on the settle: ' + b.reveal);
   for (const [gid, b] of Object.entries(partyB)) console.log('  party of four, ' + gid + ', ' + GEAR_HOURS + ' h at the floor: Rare units ' + b);

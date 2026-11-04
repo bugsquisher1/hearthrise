@@ -628,7 +628,7 @@ export const DERIVED_PRICES = [
     "name": "Vendor sell-back price",
     "where": "src/screens/shop-counter.js vendorPrice() = supabase/functions/hr-accrue/catalogue.js vendorPriceOf()",
     "currency": "gold",
-    "formula": "v = gear (weapon/armor/offhand/jewelry) ? max(1, floor(book * VENDOR_GEAR_RATES[tier])) : book; min(ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, max(1, floor(SHOP_BUYBACK_RATE * cheapest shop unit price)))   (cap only if the shop sells it)",
+    "formula": "v = gear (weapon/armor/offhand/jewelry) ? max(1, floor(book * gearSaleRate(item))) : book; min(ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, max(1, floor(SHOP_BUYBACK_RATE * cheapest shop unit price)))   (cap only if the shop sells it)",
     "params": {
       "VENDOR_RAW_RATE": 0.2,
       "VENDOR_GEAR_RATES": [0.5, 0.5, 0.14],

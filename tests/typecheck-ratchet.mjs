@@ -204,33 +204,33 @@ async function proveFixture(fails) {
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
-/* The real files, planted in memory: a field a section reader stops returning, read by a window in another file. */
+/* The real files, planted in memory. Every plant is APPENDED, so no line of the game is an anchor here and no lane's edit can leave
+   this proof behind: a field read wrongly across two real modules with no JSDoc anywhere, a limit that does not exist, a name
+   nothing defines. Each is required by its code in its file, and nothing else in the tree may move. */
 const TREE_PLANTS = [
-  ['a renamed field a window reads, in another file, with no JSDoc anywhere', 'src/session/character-sections.js', 'moveSpeed: nat(c.move_speed)', 'moveSpeeed: nat(c.move_speed)', 'src/shell/windows/character/sheet.js', ['TS2551', 'TS2339']],
-  ['a chat limit misspelt', 'src/social/social-session.js', 'CHAT_LIMITS.friendsPollMs)', 'CHAT_LIMITS.friendsPollMz)', 'src/social/social-session.js', ['TS2551', 'TS2339']],
-  ['a name nothing defines in the shell', 'src/shell/hud.js', 'function changed(id) {', 'function changed(id) { notDefinedAnywhere(id);', 'src/shell/hud.js', ['TS2304']],
-  /* What this lane fixed, each back as it stood: a hidden page's limit gone, a publish naming nothing, a word said twice. */
-  ['the away limit gone again', 'src/data/chat-channels.js', 'friendsPollAwayMs: 55000,', '', 'src/social/social-session.js', ['TS2551', 'TS2339']],
-  ['a publish naming nothing again', 'src/data/skill-authority.js', '    combatXpSkills, gatherXpSkills,', '    ALWAYS_COMBAT_XP_SKILLS, combatXpSkills, gatherXpSkills,', 'src/data/skill-authority.js', ['TS18004']],
-  ['a refusal word said twice again', 'src/data/refusal-words.js', '  trade_too_large: MARKET_WORDS.trade_too_large,', '  trade_too_large: MARKET_WORDS.trade_too_large,\n  item_locked: MARKET_WORDS.item_locked,', 'src/data/refusal-words.js', ['TS1117']],
-  ['an authority default naming nothing again', 'src/data/item-authority.js', 'const dungeons = opts.dungeons || null;', "const dungeons = ('dungeons' in opts) ? opts.dungeons : _cacheDungeons;", 'src/data/item-authority.js', ['TS2304']],
+  ['a wrong field on what another real module returns, no JSDoc', {
+    'src/session/character-sections.js': '\nexport function plantedReader() { return { hp: 1 }; }\n',
+    'src/shell/hud.js': "\nimport { plantedReader } from '../session/character-sections.js';\nexport const plantedRead = plantedReader().hpp;\n",
+  }, 'src/shell/hud.js', ['TS2339', 'TS2551']],
+  ['a limit that does not exist', {
+    'src/social/social-session.js': "\nimport { CHAT_LIMITS as PLANTED } from '../data/chat-channels.js';\nexport const plantedLimit = PLANTED.friendsPollMz;\n",
+  }, 'src/social/social-session.js', ['TS2339', 'TS2551']],
+  ['a name nothing defines', { 'src/world/world-boot.js': '\nexport const plantedName = notDefinedAnywhere;\n' }, 'src/world/world-boot.js', ['TS2304']],
 ];
 
 async function proveTree(fails) {
   if (!existsSync(BASELINE)) { fails.push('no baseline to prove against'); return; }
   const base = JSON.parse(readFileSync(BASELINE, 'utf8')).files;
   const overlay = {};
-  for (const [label, file, from, to] of TREE_PLANTS) {
-    const text = readFileSync(join(ROOT, file), 'utf8');
-    if (text.split(from).length !== 2) { fails.push(`${label}: its anchor is not once in ${file}`); continue; }
-    overlay[file] = text.replace(from, to);
+  for (const [, plants] of TREE_PLANTS) {
+    for (const [file, text] of Object.entries(plants)) overlay[file] = readFileSync(join(ROOT, file), 'utf8') + text;
   }
   const t = await typecheck({ overlay });
   const v = judge({ now: countByFile([...t.diagnostics, ...lint().diagnostics]), base, files: t.files, lintFiles: MIN_FILES });
-  for (const [label, , , , at, codes] of TREE_PLANTS) {
+  for (const [label, , at, codes] of TREE_PLANTS) {
     if (!v.rises.some((r) => r.file === at && codes.includes(r.code))) fails.push(`${label}: no rise in ${at}, wanted ${codes.join(' or ')}`);
   }
-  const allowed = new Set(TREE_PLANTS.map((p) => p[4]));
+  const allowed = new Set(TREE_PLANTS.map((p) => p[2]));
   for (const r of v.rises) if (!allowed.has(r.file)) fails.push(`a plant moved a file it should not, or the baseline is stale: ${r.file} ${r.code} ${r.from} -> ${r.to}`);
   if (v.problems.length) fails.push('the planted tree: ' + v.problems.join('; '));
 }

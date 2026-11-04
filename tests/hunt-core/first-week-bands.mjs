@@ -115,7 +115,7 @@ cases['above-your-level-words'] = (R) => {
   const inFit = play(groundOf(fits.hunt), 'tank', L), inAbove = play(above.id, 'tank', L);
   if (!(inAbove.levelXpPerH > inFit.levelXpPerH)) return 'more XP: ' + inAbove.levelXpPerH + ' Level XP/h above the level, ' + inFit.levelXpPerH + ' on the ground that fits';
   if (!(inAbove.dmgPerMonsterSwing > inFit.dmgPerMonsterSwing)) return 'stronger: ' + inAbove.dmgPerMonsterSwing + ' a monster swing above the level, ' + inFit.dmgPerMonsterSwing + ' on the ground that fits';
-  if (!(inAbove.storePerH > inFit.storePerH * 3)) return 'more on supplies: ' + inAbove.storePerH + ' g/h on the store above the level, ' + inFit.storePerH + ' on the ground that fits';
+  if (!(inAbove.storePerH > 1000 && inAbove.storePerH > inFit.storePerH * 3)) return 'more on supplies: ' + inAbove.storePerH + ' g/h on the store above the level, ' + inFit.storePerH + ' on the ground that fits';
   const dies = play(above.id, 'sword', 2, STARTER);
   if (!dies.deaths) return 'or to die: a Level 2 sword in the practice set lived an hour in the Glade';
   return null;
@@ -141,13 +141,13 @@ cases['risk-ladder'] = (R) => {
   if (!(avg.levelXpPerH > fits.levelXpPerH * 1.5)) return 'pushing pays ' + avg.levelXpPerH + ' XP/h against ' + fits.levelXpPerH + ' on the ground that fits: the push is the fastest way up, or there is no reason to try';
   if (!(avg.storePerH > 1000 && avg.storePerH > fits.storePerH * 3)) return 'the push bills ' + avg.storePerH + ' g/h on the store against ' + fits.storePerH + ' on the ground that fits: harder monsters cost supplies, or nothing is at stake';
   if (!(avg.profitPerH < fits.profitPerH * 0.5)) return 'the push nets ' + avg.profitPerH + ' g/h against ' + fits.profitPerH + ': the waste hunt loses gold';
-  /* THE BUILD DECIDES: ten Levels under, the practice set dies and a built hero holds, eating far more of its own food than on the ground that fits. */
-  const [poor] = play('mosslight_glade', ['tank'], 6, { gear: STARTER }), [built] = play('mosslight_glade', ['tank'], 6, BUILT), [builtFits] = play('meadowbrook_thicket', ['tank'], 6, BUILT);
-  if (!poor.deaths) return 'ten Levels under the Glade the practice set held an hour (typical ' + poor.encMinHpPct.p50 + '%)';
+  /* THE BUILD DECIDES: fifteen Levels under, the practice set dies; ten under, a built hero holds, and eats far more of its own food than on the ground that fits. */
+  const [poor] = play('mosslight_glade', ['tank'], 1, { gear: STARTER }), [built] = play('mosslight_glade', ['tank'], 6, BUILT), [builtFits] = play('meadowbrook_thicket', ['tank'], 6, BUILT);
+  if (!(poor.deaths >= 3)) return 'fifteen Levels under the Glade the practice set died ' + poor.deaths + ' time(s) in an hour (typical ' + poor.encMinHpPct.p50 + '%)';
   if (built.deaths) return 'ten Levels under the Glade a built hero died ' + built.deaths + ' time(s): the build no longer changes the outcome';
-  if (!(built.eatsPerH.own > builtFits.eatsPerH.own * 3)) return 'a built hero ate ' + built.eatsPerH.own + ' of its own meals an hour above its level, ' + builtFits.eatsPerH.own + ' on the ground that fits';
+  if (!(built.eatsPerH.own >= 20 && built.eatsPerH.own > builtFits.eatsPerH.own * 3)) return 'a built hero ate ' + built.eatsPerH.own + ' of its own meals an hour above its level, ' + builtFits.eatsPerH.own + ' on the ground that fits';
   /* BOTH PATHS: the same hero dies on the same swings, watched or not. */
-  const [viewed] = play('mosslight_glade', ['tank'], 6, { gear: STARTER }, { windowMs: 10000 }), [closed] = play('mosslight_glade', ['tank'], 6, { gear: STARTER }, { windowMs: 600000 });
+  const [viewed] = play('mosslight_glade', ['tank'], 1, { gear: STARTER }, { windowMs: 10000 }), [closed] = play('mosslight_glade', ['tank'], 1, { gear: STARTER }, { windowMs: 600000 });
   for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (viewed[k] !== closed[k]) return k + ': viewed ' + viewed[k] + ', browser closed ' + closed[k];
   /* THE LEVEL SHARE, NOT A BLOCK: a Level 1 walks in behind three Level 37s and takes next to nothing; a party under the floor together is paid as one. */
   const [t37, , , low] = play('coppercap_warrens', ['tank', 'healer', 'mage', 'bow'], [37, 37, 37, 1], {}, { gearBySeat: [{}, {}, {}, STARTER] });

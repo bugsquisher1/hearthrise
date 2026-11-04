@@ -8,6 +8,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## Unreleased
 
 - After you buy a hero slot, your characters stay on the screen and the game says the slot is yours at once, instead of a bare "Reading your characters…".
+- Changing weapon on a bar you've edited no longer leaves the last weapon's moves crossed out: they come off and the new weapon's moves take their places. A setup still keeps its own bar.
+- Before you go no longer warns a club hero about the runes for a spell that weapon can't cast.
 
 ## v0.2.89 — 2026-11-04 (Still Here)
 

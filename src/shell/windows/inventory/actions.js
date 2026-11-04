@@ -31,7 +31,7 @@
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
 import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.89';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.89';
+import { assignToBar, barKind, barIndexOf, barKeyLabel, equipTidyingBar } from '../../bar-assign.js?v=0.2.89';
 import { runIntent } from '../../intent-words.js?v=0.2.89';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.89';
 import { gold } from '../../../render/format.js?v=0.2.89';
@@ -120,7 +120,7 @@ function wear(st, repaint, slot, id, at) {
   const said = id ? styleWords(st.eq, ops) : null;
   sc.wearing = { slots: [slot], items: id ? [id] : [] };
   return send(st, repaint, async () => {
-    try { return await st.cs.edgeIntent('equip', { equip: ops }); } finally { sc.wearing = null; }
+    try { return await equipTidyingBar(st.cs, ops); } finally { sc.wearing = null; }
   /* a new way to fight is said on the window's own line: the stack the press was on has left the bag */
   }, id ? 'Equipping…' : 'Taking it off…', said ? () => said : null, said ? null : at);
 }

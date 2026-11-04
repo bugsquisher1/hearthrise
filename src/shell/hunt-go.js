@@ -33,7 +33,7 @@ import { attackOrder, DEFAULT_ATTACK_ROW } from '../core/hunt/conditions.js?v=0.
 import { ammoPerShot } from '../core/ammo.js?v=0.2.89';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.89';
 import { ABILITIES } from '../data/abilities.js?v=0.2.89';
-import { storeOf, storeName } from './bar-draft.js?v=0.2.89';
+import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.89';
 import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.89';
 import { shortOf } from './item-lore.js?v=0.2.89';
 import { whole, gold } from '../render/format.js?v=0.2.89';
@@ -91,6 +91,8 @@ function slotSupply(sl, s, carried) {
       : { kind: c.kind, own: { id: a.id, n: Number.isInteger(sl.count) ? sl.count : have(a.id) }, store: null, off };
   }
   if (a.type === 'ability' && ABILITIES[a.id] && ABILITIES[a.id].rune) {
+    /* a move the worn weapon can't use never fires, so it spends nothing (a club hero warned about Flame Volley's runes, QA 2026-11-04) */
+    if (moveOffWeapon(s.discipline, a.id)) return null;
     /* a rune spell spends any tier of its family: count them all, say the family */
     const r = ABILITIES[a.id].rune, n = familyCount(r, carried);
     /* the store's rune of that family, the way to fix a slot that casts own runes only (starter bars, 2026-10-29) */

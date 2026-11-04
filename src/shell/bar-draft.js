@@ -26,6 +26,12 @@ export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const SCRATCH = new WeakMap();   // CharacterSession -> { open: index|null, draft, error, pending, msg }
 
+/** A move the worn weapon (`discipline`, the server's hunt_settings) can't use: the engine drops it (conditions.js heroSlots), so it never fires and spends nothing. */
+export function moveOffWeapon(discipline, abilityId) {
+  const r = ABILITIES[abilityId];
+  return !!r && !!discipline && !r.universal && !r.disciplines.includes(discipline);
+}
+
 /** This character's bar edit state (created empty on first use). */
 export function draftOf(cs) {
   let s = SCRATCH.get(cs);

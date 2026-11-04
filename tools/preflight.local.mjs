@@ -8,6 +8,7 @@
 //   node tools/preflight.local.mjs --times      also the 25 slowest commands
 //   node tools/preflight.local.mjs --proofs     instead: the proofs this diff touches in every job with no browser, narrowed
 //                                               as GitHub narrows them, one at a time (10-20 min, no Chrome)
+//   node tools/preflight.local.mjs --proofs --pages   the same with the page guards' proofs (one Chrome, a minute a mutant)
 //   node tools/preflight.local.mjs --selftest   the plan and the verdict, each proved by a planted mutant
 //
 // WHY (lane r-release-gate, 2026-11-04). Of the 79 causes behind the last 30 red release runs, 24 were a forgotten pin or
@@ -25,8 +26,8 @@
 // a harness error, so the list cannot rot. A proof that plants into the tree (guard-anchors' solo) never runs here:
 // this machine is where the lanes work. Anything past a command's limit is said out loud as NOT JUDGED, never green.
 //
-// --proofs (a set that moved a body, an engine or a catalogue): 29 of the 39 left-behind proofs needed no browser. Slow, so not the
-// default; GitHub remains the judge of the page proofs.
+// --proofs (a set that moved a body, an engine or a catalogue): 29 of the 39 left-behind proofs needed no browser; --pages reaches the
+// other 10, now that a page draws the same font here as on GitHub (tests/_test-fonts.mjs). Slow, so not the default.
 //
 // Exit: 0 every command judged green · 1 a red · 2 a harness problem · 3 no red, but some commands not judged (GitHub will).
 // mutant-anchors: none — the proof plants into copies of the workflow text and a scratch runner, never a tree file
@@ -77,7 +78,7 @@ const isSkipped = (name) => SKIP.some(([n]) => n === name);
  * The plan, from the workflow's text and a diff. Pure.
  * @returns {{ run: {cmd,why,proof,guard}[], left: {cmd,why}[], errors: string[] }}
  */
-export function buildPlan(text, { changed = [], selected = new Set(), solo = new Set(), slow = SLOW, extras = EXTRAS, job = CHEAP_JOB, smokeText = '' } = {}) {
+export function buildPlan(text, { changed = [], selected = new Set(), solo = new Set(), slow = SLOW, extras = EXTRAS, job = CHEAP_JOB, smokeText = '', skip = isSkipped } = {}) {
   const steps = flatSteps(parseWorkflow(text));
   const errors = [];
   const run = [];
@@ -85,7 +86,7 @@ export function buildPlan(text, { changed = [], selected = new Set(), solo = new
   const all = new Set(steps.flatMap((s) => s.run.map(unwrapGate)));
   for (const name of slow.keys()) if (!all.has(name)) errors.push(`SLOW names "${name}", which smoke.yml no longer runs`);
   const seen = new Set();
-  const cheap = steps.filter((s) => job.test(s.job) && !isSkipped(s.name));
+  const cheap = steps.filter((s) => job.test(s.job) && !skip(s.name));
   for (const s of cheap) {
     for (const cmd of s.run) {
       const inner = unwrapGate(cmd);
@@ -111,10 +112,11 @@ export function buildPlan(text, { changed = [], selected = new Set(), solo = new
 }
 
 /** --proofs: the touched proofs of every job that installs no browser, read from the workflow. Pure. */
-export function proofsPlan(text, { selected = new Set(), solo = new Set() } = {}) {
+export function proofsPlan(text, { selected = new Set(), solo = new Set(), pages = false } = {}) {
   const jobs = parseWorkflow(text);
   const browser = new Set(jobs.filter((j) => j.steps.some((s) => /playwright-chromium/.test(s.uses || ''))).map((j) => j.name));
-  const plan = buildPlan(text, { selected, solo, slow: new Map(), extras: [], job: { test: (name) => !browser.has(name) } });
+  /* (run-ci-local's skips are for a machine with no browser; with --pages only the installs stay out.) */
+  const plan = buildPlan(text, { selected, solo, slow: new Map(), extras: [], job: { test: (name) => pages || !browser.has(name) }, skip: pages ? (name) => /^Install /.test(name) : isSkipped });
   return { run: plan.run.filter((r) => r.proof), left: plan.left.filter((l) => PROOF_FLAG.test(l.cmd)), errors: plan.errors };
 }
 
@@ -215,8 +217,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 9
     steps:
+      - uses: ./.github/actions/playwright-chromium
       - name: Client boot (play.html, index.html)
-        run: node tests/page.mjs
+        run: |
+          node tests/page.mjs
+          node tools/mutant-gate.mjs node tests/page.mjs --mutate
 `;
 
 async function selftest() {
@@ -322,6 +327,8 @@ async function selftest() {
       [!n.some((c) => !PROOF_FLAG.test(c)), '--proofs runs no plain command'],
       [!n.includes('node tests/plants.mjs --selftest'), '--proofs never plants into the tree'],
       [!impl(FIXTURE, { selected: new Set() }).run.length, '--proofs on an untouched diff runs nothing'],
+      [!n.includes('node tests/page.mjs --mutate'), '--proofs leaves a job with a browser alone'],
+      [impl(FIXTURE, { selected: new Set(['tests/page.mjs']), pages: true }).run.some((r) => r.cmd === 'node tests/page.mjs --mutate'), '--proofs --pages reads it'],
     ];
   };
   for (const [c, m] of proofChecks(proofsPlan)) ok(c, m);
@@ -330,6 +337,8 @@ async function selftest() {
     ['--proofs runs plain commands', (t, o) => buildPlan(t, { ...o, slow: new Map(), extras: [], job: /./ })],
     ['--proofs plants', (t, o) => proofsPlan(t, { ...o, solo: new Set() })],
     ['--proofs runs whatever the diff', (t, o) => proofsPlan(t, { ...o, selected: { has: () => true } })],
+    ['--proofs reads the browser jobs too', (t, o) => proofsPlan(t, { ...o, pages: true })],
+    ['--pages does nothing', (t, o) => proofsPlan(t, { ...o, pages: false })],
   ]) {
     const missed = proofChecks(impl).every(([c]) => c);
     console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} --proofs mutant: ${label}`);
@@ -343,7 +352,7 @@ async function selftest() {
 /* One at a time, each narrowed by the same plan GitHub hands its guards (HR_MUTANT_SCOPE), each printed as it ends. */
 async function deepProofs(text, d, allProofs, read, solo, argv) {
   const selected = new Set(selectGuards(d.files, { base: d.sha, extraGuards: allProofs, regions: d.regions, read }).keys());
-  const plan = proofsPlan(text, { selected, solo });
+  const plan = proofsPlan(text, { selected, solo, pages: argv.includes('--pages') });
   console.log(`preflight --proofs: ${d.files.length} changed file(s) since ${d.sha.slice(0, 9)}; ${plan.run.length} proof(s) to run, ${plan.left.length} that plant into the tree stay on GitHub`);
   if (argv.includes('--list')) { for (const r of plan.run) console.log(`  run   ${r.cmd}`); for (const l of plan.left) console.log(`  left  ${l.cmd}`); return 0; }
   const dir = mkdtempSync(join(tmpdir(), 'hr-preflight-plan-'));

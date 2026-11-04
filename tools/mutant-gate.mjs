@@ -836,6 +836,35 @@ async function selftest() {
       if (missed) bad++;
       console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} fix-forward mutant: ${label}`);
     }
+    /* A guard imported for its harness: perf-budget imports hunt-live's HARNESS, not its rules. */
+    {
+      const live = readFileSync(join(ROOT, 'tests/hunt-live.mjs'), 'utf8').replace(/\r\n/g, '\n');
+      const ruleAt = live.indexOf('function rules(M) {');
+      const idLine = live.slice(ruleAt).split('\n').find((l) => /^\s*ok\('LV-[0-9A-Z]/.test(l));
+      const inRule = live.replace(idLine, `${idLine} void 0;`);
+      /* A line with no rule id near it: v0.2.86's edit of a fixture row inside rules(). */
+      const inRow = live.replace("  const key = (s) => s.u + ','", "  const key = (s) => '' + s.u + ','");
+      const inHarness = live.replace('async function load(base) {\n', 'async function load(base) {\n  void 0;\n');
+      const noHeader = live.replace('// mutant-rule-functions: rules\n', '');
+      const perf = (fn, base, head = live) => fn({ guard: 'tests/perf-budget.mjs', root: ROOT, changed: ['tests/hunt-live.mjs'], base: null, helperText: () => ({ head, base }) });
+      const checks = (fn) => [
+        [!!idLine && inRule !== live && inHarness !== live && inRow !== live, 'the fixture has a rule line, a row and a harness line to edit'],
+        [!perf(fn, inRule).all && perf(fn, inRule).keep.size === 0, 'an edit of a rule in an imported guard moves none of its importer\'s mutants'],
+        [!perf(fn, inRow).all && perf(fn, inRow).keep.size === 0, 'nor does an edit in a rule function that names no rule'],
+        [perf(fn, inHarness).all === true, 'an edit of what it exports runs every mutant'],
+        [perf(fn, noHeader, noHeader.replace(idLine, `${idLine} void 0;`)).all === true, 'an imported guard that lists no rule functions is harness'],
+        [perf(fn, null).all === true, 'a side that cannot be read is harness'],
+      ];
+      for (const [ok, label] of checks(scopeMutants)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} imported guard: ${label}`); }
+      for (const [label, fn] of [
+        ['any edit of an imported guard is harness', (o) => scopeMutants({ ...o, helperText: () => ({ head: o.helperText().head, base: null }) })],
+        ['no edit of an imported guard is harness', (o) => scopeMutants({ ...o, changed: [] })],
+      ]) {
+        const missed = checks(fn).every(([ok]) => ok);
+        if (missed) bad++;
+        console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} imported guard mutant: ${label}`);
+      }
+    }
     const baseChecks = (fn) => {
       let threw = false;
       try { fn('abc', 'abc'); } catch { threw = true; }

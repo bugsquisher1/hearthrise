@@ -11,8 +11,10 @@
 //
 //   TF-1  ONE PLACE. No page guard stubs Google's stylesheet itself: an empty stub is the machine's own fallback again.
 //   TF-2  THE FACES ANSWER. Every family and weight the game's tokens ask for loads from the fixture.
-//   TF-3  THE SAME WIDTH. A reference line in each face measures what it measures everywhere, within TOLERANCE. It prints
-//         the machine's own fallback beside it, so a log says how far apart the two machines would have been.
+//   TF-3  THE SAME WIDTH. A reference line in each face measures what it measures everywhere, within TOLERANCE: tight enough that
+//         Linux's hinted advances (473 px for 469.5) are red. It prints the machine's own fallback beside it, so a log says how
+//         far apart the two machines would have been. Measured on GitHub, rehearsal 41801603806: system-ui draws DejaVu Sans
+//         (469.5, 526.8), serif and Georgia draw Liberation Serif (378, 394.7); here Segoe UI is 404.2 and Georgia Bold 475.6.
 //
 // mutant-anchors: none — the proof plants into in-memory copies of the guards' text and into the stylesheet the page is served
 import { readFileSync, readdirSync } from 'node:fs';
@@ -27,7 +29,7 @@ const SELF = new Set(['_test-fonts.mjs', 'test-fonts.mjs']);
 const STUB = /\.route\(\s*['"`]https:\/\/fonts\.googleapis\.com/;
 const LINE = 'The hearth burns low: Offensive, Balanced, Defensive 1234567890';
 
-/** Reference widths in CSS px at 14 px, measured with the pin. Within TOLERANCE of these on Windows and on GitHub. */
+/** Reference widths in CSS px at 14 px, measured with the pin: the same to the tenth on Windows and on GitHub. */
 export const REFERENCE = {
   "400 14px 'Alegreya Sans'": 469.5,
   "700 14px 'Alegreya Sans'": 526.8,
@@ -35,7 +37,7 @@ export const REFERENCE = {
   "400 14px 'Cinzel'": 378,
   "700 14px 'Cinzel'": 394.7,
 };
-export const TOLERANCE = 0.025;
+export const TOLERANCE = 0.005;
 
 /** TF-1: which guard texts stub the sheet themselves. Pure. */
 export function stubbers(files) {
@@ -76,7 +78,7 @@ async function measure(pin = pinFonts) {
       for (const [family, weight] of faces) out.loaded[`${weight} ${family}`] = (await document.fonts.load(`${weight} 14px '${family}'`, line)).length;
       await document.fonts.ready;
       for (const font of fonts) out.widths[font] = width(font);
-      for (const font of fonts) out.machine[`${font} (geometricPrecision)`] = width(font, 'geometricPrecision');
+      for (const font of fonts) out.machine[`${font} (hinted, as Linux draws a web font)`] = width(font, 'auto');
       for (const font of machine) out.machine[font] = width(font);
       return out;
     }, { line: LINE, faces: FACES.map(([f, w]) => [f, w]), fonts: Object.keys(REFERENCE),
@@ -112,6 +114,7 @@ async function selftest() {
   const at = (k) => Object.fromEntries(Object.entries(REFERENCE).map(([f, w]) => [f, w * k]));
   expect(offWidths(at(1)).length === 0, 'TF-3 is green at the reference');
   expect(offWidths(at(1 + TOLERANCE / 2)).length === 0, 'TF-3 is green inside the tolerance');
+  expect(offWidths({ ...at(1), "400 14px 'Alegreya Sans'": 473 }).length === 1, 'TF-3 catches Linux\'s hinted width (473 for 469.5)');
   expect(offWidths(at(0.88)).length === Object.keys(REFERENCE).length, 'TF-3 catches Segoe UI\'s width (12% narrower)');
   expect(offWidths({}).length === Object.keys(REFERENCE).length, 'TF-3 catches a width that was never measured');
   /* The pin itself, on a real page: each planted fault shows in the rules' own readings. */

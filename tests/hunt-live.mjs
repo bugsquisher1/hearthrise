@@ -8,6 +8,8 @@
 //
 // mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
+// mutant-rule-functions: rules
+// mutant-runner-functions: mutate main
 //
 // Option B (Tyler 2026-10-19). The edge settles a hunt instance in commits of at
 // least 15 s (accrual.js accrueHunt); the browser runs the same engine live from

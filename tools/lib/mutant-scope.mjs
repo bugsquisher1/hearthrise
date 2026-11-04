@@ -10,7 +10,8 @@
 //   DEFINITION  a mutant added or edited in the guard's own MUTANTS list
 //   HARNESS     anything else in the guard file, or a tests/ helper or fixture it
 //               loads (tests/_client-harness.mjs, tests/fixtures/hunt-envelope.json,
-//               this file) -> EVERY mutant
+//               this file) -> EVERY mutant. A guard imported for its harness is no
+//               harness while the edit stays in its own rule functions (below).
 //
 // The list is the guard's `const MUTANTS = [ … ];` literal (an array of
 // [name, file, from, to] entries), read from the guard's source at HEAD and at the
@@ -176,6 +177,23 @@ export function classifyRuleEdit(baseRest, headRest, optIn = headRest) {
   return { ok: true, rules };
 }
 
+/* A GUARD IMPORTED FOR ITS HARNESS (2026-11-04). perf-budget and hunt-scene-live import hunt-live's HARNESS, so a two-line edit of a
+   rule inside hunt-live ran all of perf-budget's mutants: 90 of v0.2.86's runner-minutes, three jobs, 30 min each. A rule
+   function is not what an importer reads: a guard that lists its rule functions (mutant-rule-functions) and changed only
+   those is no harness to the guards that import it. Anything else it changed, or a side that cannot be read, still is. */
+function ruleEditOnly(file, { root, base, tip, helperText }) {
+  if (!/^tests\/[^_][^/]*\.mjs$/.test(file)) return false;
+  try {
+    const show = (rev) => execFileSync('git', ['show', `${rev}:${file}`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 1e8 });
+    const sides = helperText ? helperText(file) : { head: tip ? show(tip) : readFileSync(join(root, file), 'utf8'), base: base ? show(base) : null };
+    const head = splitMutants(sides.head); const was = sides.base && splitMutants(sides.base);
+    if (!head || !was) return false;
+    const edit = classifyRuleEdit(was.rest, head.rest, tip && !helperText ? readFileSync(join(root, file), 'utf8') : head.rest);
+    /* Which of ITS rules moved is its own mutants' question; the importer asks only that it stayed in a rule function. */
+    return edit.ok || /names no rule$/.test(edit.why);
+  } catch { return false; }
+}
+
 /** tests/<guard>.mutant-rules.json as name -> rule; empty when there is none (so every mutant runs). */
 function recordedRules(root, guard) {
   try { return JSON.parse(readFileSync(join(root, guard.replace(/\.mjs$/, '.mutant-rules.json')), 'utf8')); } catch { return {}; }
@@ -220,9 +238,10 @@ export function parseMutants(block) {
  * @param {Record<string,string[]>} [o.companion]  name -> further files a mutant patches
  * @param {Record<string,string>} [o.rules]  name -> first catching rule, injectable
  * @param {(f: string) => boolean} [o.strict]  server/combat files, injectable
+ * @param {(f: string) => { head: string, base: string|null }} [o.helperText]  a changed guard's two sides, injectable
  * @returns {{ all: true, why: string } | { all: false, keep: Set<string>, why: Map<string,string> }}
  */
-export function scopeMutants({ guard, root, changed, base = null, tip = null, headSource, baseSource, sources, companion = {}, rules, strict }) {
+export function scopeMutants({ guard, root, changed, base = null, tip = null, headSource, baseSource, sources, companion = {}, rules, strict, helperText }) {
   if (!Array.isArray(changed)) return { all: true, why: 'no gate scope — the full sweep' };
   let headText = headSource;
   if (headText === undefined && tip) {
@@ -237,7 +256,7 @@ export function scopeMutants({ guard, root, changed, base = null, tip = null, he
      strings, which name the files they patch — loads, directly or through an import. */
   const src = new Map(sources || guardSources(root));
   src.set(guard, stripComments(head.rest));
-  const helpers = changed.filter((f) => f !== guard && /^(tests|tools)\//.test(f));
+  const helpers = changed.filter((f) => f !== guard && /^(tests|tools)\//.test(f) && !ruleEditOnly(f, { root, base, tip, helperText }));
   const viaHelper = touchedBy(helpers, src).get(guard);
   if (viaHelper) return { all: true, why: `the harness moved: ${viaHelper}` };
 

@@ -20,10 +20,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Install Playwright + Firefox and WebKit
+      - name: Install Playwright + WebKit
         uses: ./.github/actions/playwright-chromium
         with:
-          browsers: firefox webkit
-      - name: Firefox probe
+          browsers: webkit
+      - name: The site in Firefox and WebKit
         if: ${{ !cancelled() }}
-        run: node tools/tmp-ff-probe.mjs
+        run: node tests/ship-browsers.mjs
+      - name: The planted defects, Firefox
+        if: ${{ !cancelled() }}
+        run: node tests/ship-browsers.mjs --mutate
+      - name: The planted defects, WebKit
+        if: ${{ !cancelled() }}
+        run: node tests/ship-browsers.mjs --mutate --browsers webkit

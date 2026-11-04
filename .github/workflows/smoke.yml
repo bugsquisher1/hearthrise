@@ -1422,7 +1422,7 @@ jobs:
           retention-days: 7
 
   # ── built-browsers ── THE SITE IN FIREFOX AND WEBKIT (2026-11-04): a tester plays in Firefox, a phone means Safari. Both the built site and the plain folder the rollback serves.
-  # Playwright's Linux builds of those engines: what this cannot prove is in tests/ship-browsers.mjs's header (real iOS, Windows Firefox). MEASURED on the branch-only proof run in the lane's report.
+  # The image's stock Firefox over geckodriver, and Playwright's WebKit: why, and what this cannot prove (real iOS, Windows Firefox), is in tests/ship-browsers.mjs's header.
   built-browsers:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -1438,10 +1438,10 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Install Playwright + Firefox and WebKit
+      - name: Install Playwright + WebKit
         uses: ./.github/actions/playwright-chromium
         with:
-          browsers: firefox webkit
+          browsers: webkit
 
       - name: The site in Firefox and WebKit
         if: ${{ !cancelled() }}

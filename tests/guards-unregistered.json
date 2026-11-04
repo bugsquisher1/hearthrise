@@ -39,6 +39,16 @@
         "runner": "by hand: node tests/away-recap-world.mjs --shots DIR"
       }
     },
+    "account-delete-world.mjs": {
+      "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: a brand-new account plays the real play.html and hr-accrue engine on the replayed chain, requests its own deletion, keeps it, requests again, 30 days pass, the job runs, sign-in is refused, the email signs up new. It needs Node 23.6+ (the engine is type-stripped; CI pins Node 20) and a browser, and replays the whole chain on a machine's first run, so it cannot be a CI step. CI guards the server without it, mutation-proven: tests/account-delete.mjs.",
+      "owner": "backend-architect",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/account-delete-world.mjs [--tail] --shots DIR"
+      }
+    },
     "honor-roll-world.mjs": {
       "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: two brand-new accounts play the real play.html and the real hr-accrue engine on the replayed chain and read the Roll of Honor. It needs Node 23.6+ (the engine is type-stripped; CI pins Node 20) and replays the whole chain on a machine's first run, so it cannot be a CI step. CI guards both halves without it: tests/leaderboard-server-source.mjs (the server, mutation-proven) and tests/honor-window.mjs (the window, mutation-proven).",
       "owner": "qa-engineer",

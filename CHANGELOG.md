@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+- You can now delete your account yourself, in Settings under Account or from the characters screen. It stops playing right away, you have 30 days to change your mind by signing in and pressing Keep my account, and after that everything in it is gone for good.
+
 ## v0.2.87 — 2026-11-04 (Upgrades You Can Feel)
 
 **Upgrades you can feel.** Iron and Steel Warhammers and Hatchets hit harder, so moving up to one now speeds up your hunts, and Klappa's Club still hits as hard as an Iron Warhammer. Four friends with the same weapon in Meadowbrook Thicket earn a little more Level XP.

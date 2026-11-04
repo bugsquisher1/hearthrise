@@ -3201,6 +3201,15 @@ jobs:
           node tests/market-wipe.mjs
           node tools/mutant-gate.mjs node tests/market-wipe.mjs --mutate
 
+      # A player's own account deletion (2027-02-25-account-delete.sql): request, Keep, the job's own command after 30
+      # days. After a purge no row of any relation in any schema holds the id as text; the ledger, both sides of a sale
+      # and the tick's config stand; someone else's account can't be reached. --mutate: 23 SQL mutants, one replay.
+      - name: Account delete — stops at once, 30 days to keep it, then nothing names them
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/account-delete.mjs
+          node tools/mutant-gate.mjs node tests/account-delete.mjs --mutate
+
       # Legacy keys (the JWT secret exposed 2026-11-01): the client ships a publishable key, hr-accrue reads no API
       # key, the bridge prefers the platform's publishable key, no tool or workflow holds a legacy key, and the real
       # driver on the replayed chain posts apikey alone. --selftest: 22 mutations, one replay.

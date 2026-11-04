@@ -30,6 +30,29 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-04 A player can delete their account (backend-architect, lane/c-account-delete): BUILT, played on the local world, staged. On the EA Security list
+**The gap:** Apple and Google require in-app deletion for mobile and the privacy policy promised a 30-day grace, and neither the client nor the server had any of it. Settings, Account, Delete account (and the characters screen and the closed notice: an account with no hero has no Settings to open) explains what goes, wants DELETE typed and the password.
+
+| What | At the request | During the 30 days | At the purge |
+|---|---|---|---|
+| Sign-in | Next call lands on the way back | Works, and shows only Keep my account or Sign out, with the server's date | Refused: "That email and password do not match an account." |
+| Open hunts | End at their last settled boundary, bag home, hero home, reads "You left the hunt" | No hero hunts: the gates refuse, and a job sweeps every 10 minutes | Hunt history deleted, unused worlds too |
+| Parties | Heroes leave, next seat leads, partners get a notice and hunt on | Not in any party | Rows deleted |
+| Town jobs, presence | Stop, heroes idle, gone from town and the play cap | Stamina rests as usual, up to its cap | Rows deleted |
+| Market listings | All back to Storage, journalled, fee stays burned | Can't list or buy | Gone with Storage |
+| Leaderboards | Hidden from the next refresh | Hidden | Gone |
+| Friends, blocks, chat lines, hero names | Unchanged, so Keep finds them | Others see an offline hero | Deleted, both directions. Names free up; a moderated name's hold stays |
+| Gold, bags, Storage, house, farm, skills | Unchanged | Unchanged | Deleted |
+| player_ledger, its rollup, market_sales | Unchanged | Unchanged | **Kept under a random stand-in id**, meta emptied, intent cut to its verb: another player's economy can't be rewritten by one player leaving (§1) |
+| beta_signup_log | Unchanged | Unchanged | Kept (append-only, 180 days) with IP, email domain and user gone |
+| Allowlist row | Stays, so Keep restores play | Stays | Gone by its foreign key. The email coming back is a new id, a stranger, and needs a new invite |
+
+**Who deletes from auth.users:** one owner-only function run by the job as `postgres`. No service-role key exists anywhere in this. **The re-check** is the password, read from the signed token's own `amr` by the server, because a session left open on a shared computer must not destroy an account and a client's word isn't evidence.
+
+**Policy sentence** (for lane/a-legal-truth): "You can delete your account in the game under Settings, Account. It stops playing at once, you can cancel for 30 days by signing in and choosing Keep my account, and after that everything tied to it is permanently removed, except that our records of in-game value movements stay with your account identifier replaced by a random one, so they can no longer be linked to you."
+
+**Known limits:** no email tells a player the 30 days are running out. Sentry and PostHog keep the account id until their own retention ends. A daily backup holds a purged account until it ages out. Not proved before the apply: that production's PostgREST reports `request.path` as `/rpc/...` (a spare account requesting and keeping is the first live check) and that `postgres` may delete from `auth.audit_log_entries` (if not, the purge still finishes and its log row says so).
+
 ### 2026-11-04 Weapon rungs and the Thicket (designer, lane/c-weapon-thicket): BUILT, measured on the real engine, no migration, the edge deploys. **One choice for Tyler below**
 **Weapons (balance 10-25 §8: +5-8% per meaningful upgrade).** The gap is neither clubs alone nor a whole class: it's the box-sweepers. Cleave and spells roll their own numbers and read no weapon power, so a rung reaches a hammer, hatchets or a wand through basic blows only. **Moved: Iron Warhammer 7/12 → 7/16, Steel Warhammer 9/19 → 9/23, Iron Hatchets 7/7 → 9/11, Steel Hatchets 12/11 → 14/14, Klappa's Club 3/12 → 3/16, so it still hits as hard as the Iron Warhammer.** Prices, sources and recipes don't move. Level XP an hour, one tier up, all else equal (`tools/balance-sim` cell runner, the Level's kit, 1 h x 2 seeds, same dice, 0 deaths):
 | Rung | Glade 16, as built | Glade 16, pull 8 | Wickstead 15, pull 8 | Warrens 45, as built | Warrens 45, pull 8 |

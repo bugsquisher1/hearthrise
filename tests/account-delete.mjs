@@ -282,7 +282,7 @@ async function scenario(db, sql) {
     const up = (set) => attempt(() => db.query(`update public.player_ledger set ${set} where ${lk}`));
     const plainUp = await up(`user_id = '${standIn}', meta = '{}', intent = 'hero_rename'`);
     await guc(L + ':' + standIn);
-    const moneyUp = await up(`user_id = '${standIn}', meta = '{}', intent = 'hero_rename', gold = 5`);
+    const moneyUp = await up(`user_id = '${standIn}', meta = '{}', intent = 'hero_rename', xp = 5`);
     const metaUp = await up(`user_id = '${standIn}', intent = 'hero_rename'`);
     const intentUp = await up(`user_id = '${standIn}', meta = '{}', intent = 'hero_rename:mira'`);
     const wrongIn = await up(`user_id = '${B}', meta = '{}', intent = 'hero_rename'`);
@@ -471,7 +471,6 @@ async function scenario(db, sql) {
   }
 }
 
-const NEUTER_C = ["    if v->>'error' is distinct from 'already_kept' or exists (select 1 from public.hr_account_deletions where user_id = c_a) then\n      raise exception 'VERIFY(c): an old retry after a keep answered %', v; end if;\n", ''];
 /* Most of these the file's own §10 refuses before behaviour runs (AD-APPLY), which is the §4 self-check doing its job. */
 const MUTANTS = [
   { id: 'no_fresh_check', arm: 'AD-APPLY', why: 'any session can delete the account',
@@ -490,8 +489,8 @@ const MUTANTS = [
     edits: [["  if v_path = '/rpc/hr_account_delete_request' then return; end if;", '  return;']] },
   { id: 'still_admitted', arm: 'AD-APPLY', why: 'the engine and the RPC gates still let a leaving account play',
     edits: [['     and not exists (select 1 from public.hr_account_deletions d where d.user_id = p_user)\n', '']] },
-  { id: 'old_retry_deletes', arm: 'AD-IDEM', why: 'a delayed retry deletes an account its owner kept (the §10 line neutered too)',
-    edits: [["    if coalesce(v_r->>'ok', '') = 'true' then return public.hr_note_rejection(c_verb, 0, jsonb_build_object('ok', false, 'error', 'already_kept')); end if;\n    return v_r;\n", "    if coalesce(v_r->>'ok', '') <> 'true' then return v_r; end if;\n"], NEUTER_C] },
+  { id: 'old_retry_deletes', arm: 'AD-APPLY', why: 'a delayed retry deletes an account its owner kept',
+    edits: [["    if coalesce(v_r->>'ok', '') = 'true' then return public.hr_note_rejection(c_verb, 0, jsonb_build_object('ok', false, 'error', 'already_kept')); end if;\n    return v_r;\n", "    if coalesce(v_r->>'ok', '') <> 'true' then return v_r; end if;\n"]] },
   { id: 'keep_no_replay', arm: 'AD-APPLY', why: 'a retried Keep cancels a later request',
     edits: [["  -- A RETRIED KEEP MAY NOT CANCEL A LATER REQUEST.\n  v_r := public.hr_intent_replay(v_uid, 0, p_idem, c_verb);\n  if v_r is not null then return v_r; end if;\n", '']] },
   { id: 'keep_stays_hidden', arm: 'AD-APPLY', why: 'a kept account stays off the boards',

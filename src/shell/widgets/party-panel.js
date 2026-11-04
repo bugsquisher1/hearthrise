@@ -205,7 +205,7 @@ export function renderPartyPanel() {
     '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol>' + holdHtml()
     + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>Leave party</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>Disband</button></div>'
-    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot" hidden>You each pay for your own supplies.</p>');
+    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot" hidden>You each pay your own supplies.</p>');
 }
 
 renderPartyPanel.patch = function patchPartyPanel(el, ctx) {

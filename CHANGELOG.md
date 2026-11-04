@@ -15,7 +15,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - Tutorial cards keep their numbers current: "You have 19 left" no longer sits over a bar that says 6.
 - "Turnips are ready" now points at Cooking once you have harvested, instead of back at the Farm.
 - The "You died" tutorial card writes big numbers with commas, like the popup above it.
-- "Costs are personal" is gone when you hunt alone, and a party reads "You each pay for your own supplies."
+- "Costs are personal" is gone when you hunt alone, and a party reads "You each pay your own supplies."
 - On a phone, the next Bless is no longer hidden behind "Blessing I is yours", and nothing reads on above the Shop's tabs. Each Shop tab opens at its top.
 - On a phone, a tutorial card's close button shows its cross, which used to sit over the card's words.
 

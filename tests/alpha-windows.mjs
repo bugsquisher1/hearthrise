@@ -55,6 +55,9 @@
 //         player's own scroll is not fought; the Shop's tabs stay whole at the top of a scrolled body; the All characters card's
 //         figure says what it is (optimizer panel: "Bag 19,369 gp" beside "Your gold 51.7k")
 //   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
+//   AW-71 THE SAME CARD KEEPS ITS BOX AND ITS WORDS FOLLOW THE SERVER (door panel 2026-11-04): "You have 19 left" stood over a bar reading 6 for a whole hunt
+//   AW-72 A RING STANDS CLEAR OF THE ANSWER LINE (door panel 2026-11-04, a phone's Services): the next Bless lay behind "Blessing I is yours."
+//   AW-73 ON A PHONE THE CARD'S CROSS IS DRAWN IN ITS BUTTON (door panel 2026-11-04): static, it lay over the words in the middle of every closable card
 //         and Dispatch loot stay off and the bag value reads a dash
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
 //         the whole bar restated and the item in that slot
@@ -2507,6 +2510,32 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             Object.assign(s.env.state, { active_kind: 'idle', active_id: null });
           }
         }
+        /* AW-71 THE SAME CARD KEEPS ITS BOX AND ITS WORDS FOLLOW THE SERVER (door panel 2026-11-04: "You have 19 left" over a bar reading 6, for the whole hunt). */
+        const coachNow = await page.evaluate(async () => {
+          const { placeCoach } = await import(location.origin + '/src/shell/launcher.js');
+          const box = document.createElement('div');
+          const card = (n) => '<p class="hs-pointer" data-coach="first_eat"><b>Your hero just ate</b> <span class="hs-coach-text">You have ' + n + ' left.</span></p>';
+          placeCoach(box, card(19));
+          const first = box.querySelector('.hs-pointer');
+          placeCoach(box, card(19));
+          placeCoach(box, card(6));
+          return { same: box.querySelector('.hs-pointer') === first, one: box.children.length === 1, words: first.querySelector('.hs-coach-text').textContent };
+        });
+        if (!coachNow.same || !coachNow.one || coachNow.words !== 'You have 6 left.') fails.push('AW-71 the same card over a new number reads ' + JSON.stringify(coachNow));
+        /* AW-72 A RING STANDS CLEAR OF THE ANSWER LINE (door panel 2026-11-04, a phone's Services: the next Bless behind "Blessing I is yours."). */
+        const clear = await page.evaluate(async () => {
+          const { revealInWindow } = await import(location.origin + '/src/shell/widgets/bits.js');
+          const win = document.createElement('div'); win.setAttribute('data-hs-win', 'x');
+          win.innerHTML = '<div class="box" style="overflow:auto;height:200px"><div style="height:150px"></div><button style="height:40px;display:block">Bless</button><div style="height:300px"></div>'
+            + '<p class="hh-intent-msg" style="position:sticky;bottom:0;margin:0;height:40px">Said.</p></div>';
+          document.body.append(win);
+          const b = win.querySelector('button');
+          revealInWindow(b);
+          const out = { press: Math.round(b.getBoundingClientRect().bottom), line: Math.round(win.querySelector('.hh-intent-msg').getBoundingClientRect().top) };
+          win.remove();
+          return out;
+        });
+        if (clear.press > clear.line) fails.push('AW-72 a ring landed under the answer line: ' + JSON.stringify(clear));
       };
       const sc = (side, id) => page.evaluate(([sd, i]) => { const li = document.querySelector('[data-hs-win="storage"] .hw-pockets[data-side="' + sd + '"] .hw-pocket[data-item="' + i + '"]'); return li ? (li.querySelector('.hw-count').textContent || '1') : null; }, [side, id]);
       if (!up) fails.push('AW-18 the town did not mount');

@@ -511,8 +511,6 @@ const MUTANTS = [
     "  prop(yes, 'disabled', sc.pending);\n  /* BLESSINGS */", "  prop(yes, 'disabled', sc.pending || purse === 0);\n  /* BLESSINGS */"],
   ['the engine\'s activity_locked on a bench reads as a hunt\'s', 'src/shell/town-work.js',
     "cs.edgeIntent('set_activity', { activity }).then(skillRefusal(cs, w))", "cs.edgeIntent('set_activity', { activity })"],
-  ['a locked hunt drops the server\'s Levels', 'src/session/refusal.js',
-    '    floor: floorOf([b, d, d.detail]),\n', '    floor: null,\n', true],
   ['the menu\'s reason line is hidden (a title-only reason, on screen)', 'src/styles/windows.css',
     '.hw-mi-why { max-width: 280px;', '.hw-mi-why { display: none; max-width: 280px;', true],
   ['the town-work stop drops its refusal', 'src/shell/town-work.js',

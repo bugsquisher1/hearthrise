@@ -406,6 +406,14 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'riskclimb') {
+    /* DOES THE PAY CLIMB WITH THE GROUND? The same built hero, one Level, every ground: alone at 10 and 24, a full mix at 24. */
+    const built = { supply: 'own', bar: { eatPct: 70 } };
+    for (const g of G) for (const [party, level] of [[['tank'], 10], [['tank'], 24], [PARTIES.four, 24]]) {
+      out.push({ ...cellOf({ ground: g.id, party, level, hours: H(1), seeds: 2, x: 'Climb', ...built }), windowMs: 120000 });
+    }
+    return out;
+  }
   if (name === 'riskleech') {
     /* WHAT THE GONE BLOCK LETS IN: a low hero sat behind three friends who hold the ground. Levels [friends x3, the low seat]; the low seat stands last, a bow or a mage, in the practice set or the Level's kit. */
     for (const [ground, friends, lows] of [['coppercap_warrens', 37, [1, 8, 18, 25]], ['mosslight_glade', 24, [1, 8]], ['meadowbrook_thicket', 12, [1]]]) {

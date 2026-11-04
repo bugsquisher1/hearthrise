@@ -59,7 +59,8 @@ function splitKillXp(xp, heroes, sc, ground) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
   const raw = xp / heroes.length;
-  const party = partyClassXp(ground ? ground.id : null, heroes.map((h) => h.role)).permille;
+  const groundId = ground ? ground.id : null;
+  const party = partyClassXp(groundId, heroes.map((h) => h.role)).permille;
   const top = heroes.reduce((m, h) => (Number.isInteger(h.heroLv) && h.heroLv > m ? h.heroLv : m), 0);
   for (const h of heroes) {
     const paid = (raw * party * multOf(sc, h)) / 1000;

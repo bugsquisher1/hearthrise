@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'">
+<title>Hearthrise</title>
+<!-- The one page the app carries with it: the game lives on the server, so with no connection there is nothing else to show.
+     Colours are the Charcoal & Gold values of src/styles/tokens.css: this page can't reach that file when the network is down. -->
+<style>
+  html, body { height: 100%; margin: 0; background: #0a0b0e; color: #e9e7e2; font: 16px/1.5 system-ui, sans-serif; }
+  main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; box-sizing: border-box; }
+  h1 { margin: 0; font-size: 24px; font-weight: 600; color: #c9a24a; letter-spacing: .06em; }
+  p { margin: 0; max-width: 32em; }
+  button { min-height: 44px; padding: 0 24px; border: 0; background: #c9a24a; color: #0a0b0e; font: 600 16px system-ui, sans-serif; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Hearthrise</h1>
+  <p>Can't reach the server. Check your connection. Your heroes keep playing on the server, and this window tries again on its own.</p>
+  <button type="button" id="again">Try again</button>
+</main>
+<script src="offline.js"></script>
+</body>
+</html>

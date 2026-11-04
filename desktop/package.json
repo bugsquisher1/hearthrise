@@ -1,0 +1,25 @@
+{
+  "name": "hearthrise-desktop",
+  "productName": "Hearthrise",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Steam shell around the real game. A prototype: nothing here ships to players yet. Its own package, so the root npm ci, CI and the game are untouched.",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "package": "node tools/package.mjs",
+    "prove:local": "node tests/prove-local.mjs",
+    "prove:email": "node tests/prove-email.mjs",
+    "prove:live": "node tests/prove-live-door.mjs",
+    "prove:steam": "node tests/prove-steam.mjs",
+    "measure": "node tests/measure.mjs"
+  },
+  "dependencies": {
+    "steamworks.js": "0.4.0"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "45.2.2",
+    "playwright": "1.62.1"
+  }
+}

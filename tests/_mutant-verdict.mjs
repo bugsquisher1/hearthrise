@@ -60,8 +60,15 @@ export function report(name, v, counts) {
 /** Exit code: 1 when a mutant escaped, else 2 when any arm was HARNESS, else 0. */
 export const exitOf = (counts) => (counts.escaped ? 1 : counts.harness ? 2 : 0);
 
+/* A GATED SHARD LEANS ON THE PLAIN RUN (2026-11-04). hunt-screen's and alpha-windows' plain runs (in-page-3, in-page-10) always run, and
+   a shard's clean control is the same rules at the same commit: 3 to 7 min on each of 17 jobs even with one mutant to prove
+   (rehearsal 41801603806: 11 min for 3 mutants), about 75 runner-minutes on a push and the reason one red read as six jobs.
+   The nightly hands over no scope, so it still runs one per shard. Only a gated (HR_MUTANT_SCOPE) --shard run skips. */
+export const skipsShardControl = (env = process.env, argv = process.argv) => !!env.HR_MUTANT_SCOPE && argv.some((a) => a.startsWith('--shard='));
+
 /** A clean control: green, or the printed reason it is RED (1) / HARNESS (2). */
-export async function cleanControl(run) {
+export async function cleanControl(run, { env = process.env, argv = process.argv } = {}) {
+  if (skipsShardControl(env, argv)) return { code: 0, line: '  clean control: the plain run in this workflow run is this shard\'s control (the nightly runs one per shard)' };
   let fails;
   try { fails = await run(); } catch (e) { return { code: 2, line: '  ✗ clean control HARNESS: ' + harnessFail('the run', e) }; }
   if (!fails.length) return { code: 0, line: '  ✓ clean control green' };
@@ -101,6 +108,16 @@ async function selftest(v = { judge, verdict, cleanControl }) {
   if (cc.code !== 2) fails.push(`a clean control that throws: code ${cc.code}, want 2 (HARNESS)`);
   const cg = await v.cleanControl(miniChecks());
   if (cg.code !== 0) fails.push(`a clean control with nothing red: code ${cg.code}, want 0`);
+  /* A red rule: only a gated --shard run leans on the plain run. A shard with no scope (the nightly), or a scope with no shard, judges for itself. */
+  const red = miniChecks({ ruleFails: true });
+  for (const [label, o, want] of [
+    ['a gated shard', { env: { HR_MUTANT_SCOPE: 'plan.json' }, argv: ['--shard=2/6'] }, 0],
+    ['the nightly\'s shard', { env: {}, argv: ['--shard=2/6'] }, 1],
+    ['a gated run with no shard', { env: { HR_MUTANT_SCOPE: 'plan.json' }, argv: [] }, 1],
+  ]) {
+    const got = (await v.cleanControl(red, o)).code;
+    if (got !== want) fails.push(`${label}: clean control code ${got}, want ${want}`);
+  }
   return fails;
 }
 
@@ -147,8 +164,13 @@ if (isMain(import.meta.url) && process.argv.includes('--selftest')) {
     judge: async (run) => { try { return anyFail(await run()); } catch (e) { return { kind: 'caught', rule: 'crash' }; } },
     cleanControl: async (run) => { try { return { code: (await run()).length ? 1 : 0 }; } catch { return { code: 1 }; } },
   });
+  /* the shard's skip must fail it both ways: every shard skips, or none does */
+  const always = await selftest({ judge, verdict, cleanControl: (run, o) => (o ? cleanControl(run, { env: { HR_MUTANT_SCOPE: 'x' }, argv: ['--shard=1/2'] }) : cleanControl(run)) });
+  const never = await selftest({ judge, verdict, cleanControl: (run) => cleanControl(run, { env: {}, argv: [] }) });
+  console.log(always.length ? '  caught  planted: every run skips its clean control' : '  MISSED  planted: every run skips its clean control');
+  console.log(never.length ? '  caught  planted: no gated shard leans on the plain run' : '  MISSED  planted: no gated shard leans on the plain run');
   console.log(old.length ? `  caught  planted: the old "any fail line is a catch" rule — ${old[0]}` : '  MISSED  planted: the old "any fail line is a catch" rule passed');
-  const bad = real.length + (old.length ? 0 : 1);
+  const bad = real.length + (old.length ? 0 : 1) + (always.length ? 0 : 1) + (never.length ? 0 : 1);
   console.log(bad ? `_mutant-verdict --selftest: ${bad} FAILED` : '_mutant-verdict --selftest: a throw before the rule, a thrown run, an unnamed fail and AW-x are HARNESS; a named rule is a catch; the old any-fail rule is caught');
   process.exit(bad ? 1 : 0);
 }

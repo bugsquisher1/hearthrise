@@ -883,8 +883,8 @@ const SAY = Object.freeze({
     if (!d || !Number.isInteger(d.xp) || !b || !Number.isInteger(b.freeUntil)) return null;
     const who = f.name || 'Your hero';
     const kept = d.saved && Number.isInteger(d.saved.level) && d.saved.level > 0
-      ? '; your Blessings saved ' + d.saved.level + ' more and are used up now' : '. Blessings would have saved most of it';
-    return { text: 'The hunt ended and ' + who + ' came home. You kept your loot and your Level. Dying cost ' + d.xp + ' Level XP' + kept
+      ? '; your Blessings saved ' + d.saved.level.toLocaleString('en-US') + ' more and are used up now' : '. Blessings would have saved most of it';
+    return { text: 'The hunt ended and ' + who + ' came home. You kept your loot and your Level. Dying cost ' + d.xp.toLocaleString('en-US') + ' Level XP' + kept
       + '. They\'re free until Level ' + b.freeUntil + ': open the Shop\'s Services tab and Bless ' + (d.saved ? 'again' : 'all ' + inWords(b.of)) + ' before you go back.' };
   },
   first_eat: (f) => {
@@ -968,6 +968,7 @@ const SAY = Object.freeze({
     const juice = (ARTISAN_RECIPES.cooking || []).find((r) => r.output === 'turnip_juice');
     if (!juice) return null;
     const ready = f.land && f.land.ready && f.land.ready.turnip > 0;
+    /* Harvested, the way is the bench: the ring stayed on the Farm, whose window then showed "Cook your turnips" over a field with nothing left to press (door panel 2026-11-04). */
     return { text: (ready ? 'Harvest them on the Farm, then cook' : 'Cook your turnips into') + ' Turnip Juice: Gathering and crafting, Cooking, ' + juice.name
       + ' (1 turnip makes ' + (juice.outputQty || 1) + '). Your own juice costs nothing to drink.', ...(ready ? {} : { anchor: 'crafting', ring: { skill: 'cooking', work: juice.id } }) };
   },

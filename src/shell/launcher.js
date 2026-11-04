@@ -6,20 +6,20 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.86';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.86';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.86';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.86';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.86';
-import { levelOf } from '../session/character-sections.js?v=0.2.86';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.86';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.86';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.86';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.86';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.86';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.86';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.86';
-import { trackOnce } from '../net/observability.js?v=0.2.86';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.87';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.87';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.87';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.87';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.87';
+import { levelOf } from '../session/character-sections.js?v=0.2.87';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.87';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.87';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.87';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.87';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.87';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.87';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.87';
+import { trackOnce } from '../net/observability.js?v=0.2.87';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -267,6 +267,21 @@ export function placeCoach(el, html) {
   const key = (/data-coach="([a-z0-9_:]+)"/.exec(html) || [])[1] || null;
   if (have && have.getAttribute('data-coach') !== key) have.remove();
   if (key && !(have && have.getAttribute('data-coach') === key)) el.insertAdjacentHTML('beforeend', html);
+  else if (key) sameCardWords(have, html);
+}
+
+/* The same card on screen keeps its box, and its words follow the server's numbers: "You have 19 left" stood over a bar
+   reading 6 for the whole hunt (door panel 2026-11-04). Only a changed card is read, so a display tick does no work. */
+const SAID = new WeakMap();
+function sameCardWords(have, html) {
+  if (SAID.get(have) === html) return;
+  SAID.set(have, html);
+  const was = have.querySelector(':scope > .hs-coach-text');
+  if (!was) return;   // folded to its title: no words to follow
+  const t = have.ownerDocument.createElement('template');
+  t.innerHTML = html;
+  const now = t.content.querySelector('.hs-pointer > .hs-coach-text');
+  if (now && was.textContent !== now.textContent) was.textContent = now.textContent;
 }
 
 /** The coach's fold, open, Got it and close presses, from wherever it is drawn (this row, the hunt top bar, a window).

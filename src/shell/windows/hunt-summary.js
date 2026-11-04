@@ -17,21 +17,21 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.86';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.86';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.86';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.86';
-import { runIntent } from '../intent-words.js?v=0.2.86';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.86';
-import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.86';
-import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.86';
-import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.86';
-import { observeSessions } from '../../session/character-session.js?v=0.2.86';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.86';
-import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.86';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.86';
-import { heldCard } from '../launcher.js?v=0.2.86';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.86';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.87';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.87';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.87';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.87';
+import { runIntent } from '../intent-words.js?v=0.2.87';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.87';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.87';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.87';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.87';
+import { observeSessions } from '../../session/character-session.js?v=0.2.87';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.87';
+import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.87';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.87';
+import { heldCard } from '../launcher.js?v=0.2.87';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.87';
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
 const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };
@@ -57,13 +57,15 @@ export function renderHuntSummary() {
     + '<section class="hsum-card">'
     + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p>'
     + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
-    + '<div class="hsum-actions">'
+    /* The presses and their answer stay in reach: the reason and the numbers pushed them under a 1366x768 window's fold, so a hunt that
+       ran out of stamina opened with no press in sight (door panel 2026-11-04). */
+    + '<div class="hsum-foot"><div class="hsum-actions">'
     /* while a tutorial card is up its next step is the main press here (board 2026-10-25 #5: "Hunt again" pulled the
        other way); then "Hunt again" is the main one again */
     + '<button type="button" class="hh-tool is-primary" data-hs-act="coach-next" hidden></button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">Hunt again</button>'
     + '<button type="button" class="hh-tool" data-hs-act="bag">Open bag</button></div>'
-    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
+    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-deaths">What happened</h4><ul class="hsum-falls hsum-deaths"></ul>'

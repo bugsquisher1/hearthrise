@@ -11,6 +11,22 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Faster on every device, and updates stay small.** The game now arrives in a handful of packed files instead of hundreds, so it opens much quicker on a slow phone, and a new version only downloads what changed rather than the whole game again.
 
+## v0.2.87 — 2026-11-04 (Upgrades You Can Feel)
+
+**Upgrades you can feel.** Iron and Steel Warhammers and Hatchets hit harder, so moving up to one now speeds up your hunts, and Klappa's Club still hits as hard as an Iron Warhammer. Four friends with the same weapon in Meadowbrook Thicket earn a little more Level XP.
+
+- An email link that has expired or was already used now tells you so on the sign-in screen, and what to do next. The sign-up and reset messages mention spam.
+- The email you typed stays typed when you move between Sign in, Create an account and Forgot your password.
+- If your confirmation link has expired, signing in now offers "Send me a new link" instead of sending you back to the dead one.
+- Pressing Fuel all no longer answers with "Already fueling, stop it first" on the stack you just lit.
+- The Hunt summary always shows Next, Hunt again and Open bag when it opens, even after a long reason like running out of stamina.
+- Tutorial cards keep their numbers current: "You have 19 left" no longer sits over a bar that says 6.
+- "Turnips are ready" now points at Cooking once you have harvested, instead of back at the Farm.
+- The "You died" tutorial card writes big numbers with commas, like the popup above it.
+- "Costs are personal" is gone when you hunt alone, and a party reads "You each pay your own supplies."
+- On a phone, the next Bless is no longer hidden behind "Blessing I is yours", and nothing reads on above the Shop's tabs. Each Shop tab opens at its top.
+- On a phone, a tutorial card's close button shows its cross, which used to sit over the card's words.
+
 ## v0.2.86 — 2026-11-04 (Rush If You Dare)
 
 **Gold means more.** A third hero now costs 50,000 gp, a fourth 200,000 and a fifth 800,000, so what to save for is a real choice. Harder grounds pay more: Coppercap's coin is up and the Rat King carries a little more, Wickstead and the Glade's poachers pay a little less, and Iron, Studded and Adept armor (helmets, bodies, legs, boots) sells for less at the shop. A stamina top-up costs more too, so an extra four hours is worth thinking about.

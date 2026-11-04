@@ -65,27 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.86';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.86';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.86';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.86';
-import { SKILLS_DEF } from './skills.js?v=0.2.86';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.86';
-import { tallyTask } from './tally-tasks.js?v=0.2.86';
-import { ITEMS } from './items.js?v=0.2.86';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.86';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.86';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.86';
-import { isShield } from './shields.js?v=0.2.86';
-import { deriveProfile } from '../core/member.js?v=0.2.86';
-import { ABILITIES } from './abilities.js?v=0.2.86';
-import { CONSUMABLES } from './consumables.js?v=0.2.86';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.86';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.86';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.86';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.86';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.86';
-import { regenPermille } from '../core/vitals.js?v=0.2.86';
+import { HUNT_INDEX } from './hunts.js?v=0.2.87';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.87';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.87';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.87';
+import { SKILLS_DEF } from './skills.js?v=0.2.87';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.87';
+import { tallyTask } from './tally-tasks.js?v=0.2.87';
+import { ITEMS } from './items.js?v=0.2.87';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.87';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.87';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.87';
+import { isShield } from './shields.js?v=0.2.87';
+import { deriveProfile } from '../core/member.js?v=0.2.87';
+import { ABILITIES } from './abilities.js?v=0.2.87';
+import { CONSUMABLES } from './consumables.js?v=0.2.87';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.87';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.87';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.87';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.87';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.87';
+import { regenPermille } from '../core/vitals.js?v=0.2.87';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -884,8 +884,8 @@ const SAY = Object.freeze({
     if (!d || !Number.isInteger(d.xp) || !b || !Number.isInteger(b.freeUntil)) return null;
     const who = f.name || 'Your hero';
     const kept = d.saved && Number.isInteger(d.saved.level) && d.saved.level > 0
-      ? '; your Blessings saved ' + d.saved.level + ' more and are used up now' : '. Blessings would have saved most of it';
-    return { text: 'The hunt ended and ' + who + ' came home. You kept your loot and your Level. Dying cost ' + d.xp + ' Level XP' + kept
+      ? '; your Blessings saved ' + d.saved.level.toLocaleString('en-US') + ' more and are used up now' : '. Blessings would have saved most of it';
+    return { text: 'The hunt ended and ' + who + ' came home. You kept your loot and your Level. Dying cost ' + d.xp.toLocaleString('en-US') + ' Level XP' + kept
       + '. They\'re free until Level ' + b.freeUntil + ': open the Shop\'s Services tab and Bless ' + (d.saved ? 'again' : 'all ' + inWords(b.of)) + ' before you go back.' };
   },
   first_eat: (f) => {
@@ -970,8 +970,9 @@ const SAY = Object.freeze({
     const juice = (ARTISAN_RECIPES.cooking || []).find((r) => r.output === 'turnip_juice');
     if (!juice) return null;
     const ready = f.land && f.land.ready && f.land.ready.turnip > 0;
+    /* Harvested, the way is the bench: the ring stayed on the Farm, whose window then showed "Cook your turnips" over a field with nothing left to press (door panel 2026-11-04). */
     return { text: (ready ? 'Harvest them on the Farm, then cook' : 'Cook your turnips into') + ' Turnip Juice: Gathering and crafting, Cooking, ' + juice.name
-      + ' (1 turnip makes ' + (juice.outputQty || 1) + '). Your own juice costs nothing to drink.' };
+      + ' (1 turnip makes ' + (juice.outputQty || 1) + '). Your own juice costs nothing to drink.', ...(ready ? {} : { anchor: 'crafting', ring: { skill: 'cooking', work: juice.id } }) };
   },
   juice_slot: (f) => {
     const n = f.carried && f.carried.turnip_juice;
@@ -1045,7 +1046,7 @@ export function cardFor(card, facts) {
     .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || '').replace('{spell}', said.spell || '').replace('{shot}', said.shot || ''));
   const textIn = said.textIn || card.inWindow || null;
   /* `said.anchor`: the words moved on to another surface (Klappa's Club: from the bench to the bag), so the ring goes with them */
-  return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
+  return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), ...(said.ring ? { ring: Object.freeze(said.ring) } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
 }
 
 /* ── AFTER THE GUIDE: WHAT NEXT ───────────────────────────────────────────

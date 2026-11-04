@@ -31,21 +31,21 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.86';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.86';
-import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.86';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.86';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.86';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.86';
-import { runIntent } from '../intent-words.js?v=0.2.86';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.86';
-import { short, whole } from '../../render/format.js?v=0.2.86';
-import { glyphSvg } from '../launcher.js?v=0.2.86';
-import { markPlayer } from '../context-menu.js?v=0.2.86';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.86';
-import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.86';
-import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.86';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.86';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.87';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.87';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.87';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.87';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.87';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.87';
+import { runIntent } from '../intent-words.js?v=0.2.87';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.87';
+import { short, whole } from '../../render/format.js?v=0.2.87';
+import { glyphSvg } from '../launcher.js?v=0.2.87';
+import { markPlayer } from '../context-menu.js?v=0.2.87';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.87';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.87';
+import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.87';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.87';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -205,7 +205,7 @@ export function renderPartyPanel() {
     '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol>' + holdHtml()
     + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>Leave party</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>Disband</button></div>'
-    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot">Costs are personal.</p>');
+    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot" hidden>You each pay your own supplies.</p>');
 }
 
 renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
@@ -213,6 +213,8 @@ renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
   const sc = scOf(el);
   const view = { leaderSeat: r.leaderSeat, selfSeat: r.selfSeat, canKick: r.inParty && r.isLeader, pending: sc.pending, roster: r };
   cls(el.querySelector('.hp-party'), 'is-empty', !r.members.length);
+  /* Said to a party only: a hero hunting alone read "Costs are personal." with nobody to share them with (door panel 2026-11-04). */
+  prop(el.querySelector('.hp-foot'), 'hidden', r.members.length < 2);
   rows(el.querySelector('.hp-members'), r.members, {
     key: (m) => m.seat,
     build: () => element(ctx.doc, memberHtml(ctx.glyphs)),

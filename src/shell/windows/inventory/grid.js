@@ -18,24 +18,24 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.86';
-import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.86';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.86';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.86';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.86';
-import { whole, gold } from '../../../render/format.js?v=0.2.86';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.86';
-import { glyphSvg } from '../../launcher.js?v=0.2.86';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.86';
-import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.86';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.86';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.86';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.86';
-import { buryParts, buryBlock, buryRecipeOf, namedBlock } from './bury.js?v=0.2.86';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.86';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.86';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.86';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.86';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.87';
+import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.87';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.87';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.87';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.87';
+import { whole, gold } from '../../../render/format.js?v=0.2.87';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.87';
+import { glyphSvg } from '../../launcher.js?v=0.2.87';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.87';
+import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.87';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.87';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.87';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.87';
+import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.87';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.87';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.87';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.87';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.87';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
@@ -151,7 +151,8 @@ export function patchTools(root, st, ctx) {
   const pb = pick.querySelector('[data-hs-act="primary"]');
   text(pb, prim ? prim[1] : '');
   cls(pb, 'is-on', !!prim);
-  const buryWhy = prim && prim[0] === 'bury' ? buryBlock(st.cs, buryRecipeOf(cur)) : prim && prim[0] === 'hearth' ? namedBlock(st.cs, cur) : '';
+  /* This very stack on the fire says nothing here: the job's own line below has its Stop, and "Already fueling... Stop it first." read as a refusal of the press that had just worked (door panel 2026-11-04). */
+  const buryWhy = prim && prim[0] === 'bury' ? (buryingOf(st.cs) === buryRecipeOf(cur) ? '' : buryBlock(st.cs, buryRecipeOf(cur))) : prim && prim[0] === 'hearth' ? namedBlock(st.cs, cur) : '';
   /* Equip the server's sections already refuse (a hunt running, a requirement unmet: gear-gate.js) is off, and says why. */
   const wearWhy = prim && prim[0] === 'equip' ? wearBlock(st.cs, cur) : '';
   /* ...and Eat at full HP (state.js eatBlock: the engine's already_full) */

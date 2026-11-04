@@ -14,8 +14,8 @@
 // rather than not at all; the next load tries again.
 // ════════════════════════════════════════════════════════════════════════
 
-import { BUILD } from '../build-info.js?v=0.2.86';
-import { siteFile } from '../site-files.js?v=0.2.86';
+import { BUILD } from '../build-info.js?v=0.2.87';
+import { siteFile } from '../site-files.js?v=0.2.87';
 
 const PENDING = new WeakMap();
 

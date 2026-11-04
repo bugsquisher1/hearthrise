@@ -1707,7 +1707,16 @@ async function rules(M) {
     for (const [name, err, key] of SIGN_IN) {
       const r = await rig(err).signIn('a@b.co', pw);
       if (r.ok || r.message !== C[key]) return 'sign-in ' + name + ' reads ' + JSON.stringify(r.message) + ', not ' + key;
+      if (!!r.unconfirmed !== (key === 'notConfirmed')) return 'sign-in ' + name + ' offers a new link: ' + r.unconfirmed;
     }
+    /* A dead confirmation link is not a circle (door panel 2026-11-04): a new one goes back to this page, and its answer tells no email apart. */
+    const resent = [];
+    const withResend = (err) => AU.createAuth({ client: { auth: { ...mk(null).auth, resend: async (x) => { resent.push(x); return { data: {}, error: err }; } } }, device: memStore(), tab: memStore(), redirectTo: 'https://x/' });
+    const sent = await withResend(null).resendConfirmation('a@b.co');
+    if (!sent.ok || sent.message !== C.linkSent || resent.length !== 1 || resent[0].type !== 'signup' || resent[0].email !== 'a@b.co' || resent[0].options.emailRedirectTo !== 'https://x/') return 'a new link reads ' + JSON.stringify([sent, resent]);
+    if ((await withResend({ code: 'over_email_send_rate_limit', status: 429, message: 'refused' }).resendConfirmation('a@b.co')).message !== C.rateLimited) return 'a limited new link does not say so';
+    if ((await withResend({ code: 'unexpected_failure', status: 400, message: 'refused' }).resendConfirmation('a@b.co')).message !== C.linkSent) return 'a refused new link tells the emails apart';
+    if ((await withResend(null).resendConfirmation('nope')).message !== C.badEmail) return 'a new link to no address was asked for';
     const NEW_PW = [
       ['weak_password, too short', weak(['length']), 'shortPassword'],
       ['weak_password, leaked', weak(['pwned']), 'leakedPassword'],
@@ -1923,7 +1932,10 @@ const MUTANTS = [
   ["a leaked password reads as a weak one","src/net/auth.js","[['length', 'shortPassword'], ['pwned', 'leakedPassword']]","[['length', 'shortPassword']]"],
   ["a 429 with no code reads as generic","src/net/auth.js","  if (error.status === 429) return 'rateLimited';\n",""],
   ["every sign-up refusal reads as generic","src/net/auth.js","const key = error ? copyFor(error, SIGN_UP_SAYS, 'signUpFailed') : 'signUpSent';","const key = error ? (/already (registered|exists)/i.test(String(error.message || '')) || error.code === 'user_already_exists' || error.code === 'email_exists' ? 'signUpSent' : 'signUpFailed') : 'signUpSent';"],
-  ["sign-in tells apart more than it may","src/net/auth.js","if (error) return fail(AUTH_COPY[copyFor(error, SIGN_IN_SAYS, 'signInFailed')]);","if (error) return fail(AUTH_COPY[authErrorCopy(error) || 'signInFailed']);"],
+  ["sign-in tells apart more than it may","src/net/auth.js","const key = copyFor(error, SIGN_IN_SAYS, 'signInFailed');","const key = authErrorCopy(error) || 'signInFailed';"],
+  ["a new link is offered on any refusal","src/net/auth.js","unconfirmed: key === 'notConfirmed' };","unconfirmed: true };"],
+  ["a refused resend reads as sent","src/net/auth.js","if (key === 'network' || key === 'rateLimited') return fail(AUTH_COPY[key]);",""],
+  ["a new link tells which emails exist","src/net/auth.js","if (key === 'network' || key === 'rateLimited') return fail(AUTH_COPY[key]);","if (error) return fail(AUTH_COPY[key || 'signInFailed']);"],
   ["a new password refusal reads as an expired link","src/net/auth.js","if (error) return fail(AUTH_COPY[copyFor(error, NEW_PASSWORD_SAYS, 'passwordFailed')]);","if (error) return fail(AUTH_COPY.passwordFailed);"],
   ["a short password goes to the auth server","src/net/auth.js","      if (String(password || '').length < PASSWORD_MIN_LENGTH) return fail(AUTH_COPY.shortPassword);\n      if (password !== confirm) return fail(AUTH_COPY.mismatch);\n      try {\n        const { error } = await auth.signUp(","      if (password !== confirm) return fail(AUTH_COPY.mismatch);\n      try {\n        const { error } = await auth.signUp("],
   ["the form does not say the rule","src/app/sign-in.js","\n    + '<p class=\"auth-lead\" id=\"auth-password-rule\">' + esc(AUTH_COPY.passwordRule) + '</p>',",","],

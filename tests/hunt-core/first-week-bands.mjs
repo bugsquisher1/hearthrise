@@ -23,6 +23,7 @@
 //   risk-ladder    THE RISK (Tyler 2026-11-04 UTC): in range is safe; under a floor an average hero dies and a built one holds and earns about double the ground that fits; a watched hunt
 //                  and a closed browser die alike; a Level 1 behind high friends earns next to nothing, and a party that pushes together is paid in full.
 //   vs-alone       the Party window's measured line against a full mix on two grounds.
+//   weapon-rungs   the hammer's and the hatchets' tier 2 and tier 3 each pay at least +5% Level XP an hour over the tier behind, on the first ground the rung is worn for.
 //   glade-harder   Tyler's harder monsters (accuracy 0.80), both paths: felt at the floor, no death, profit, pace, the top eases, a held pull pays.
 //   before-bonuses the analyzer's "before bonuses" is the even share, not what was paid.
 //   THE BARS (per hero): no death; coin + commons at least +25% over the store bill (Tyler 10-20, a minimum); Level XP
@@ -214,6 +215,17 @@ cases['vs-alone'] = (R) => {
   return null;
 };
 
+/* THE WEAPON LADDER (balance ruling 10-25 §8: a meaningful upgrade is +5-8% measured hunting performance). One tier up, everything else equal, on the first ground the rung is worn for, as built: Level XP an hour
+   at least +5%. Only where killing sets the pace: on the Thicket and Wickstead as built the walk does, and a 200/200 weapon moves XP only +1-4% there, so no row can answer and those grounds aren't asked. */
+cases['weapon-rungs'] = (R) => {
+  const xp = (g, L, s, gear) => R.runCell({ id: 'wr:' + [g, L, s, gear ? 'behind' : 'worn'].join(':'), ground: g, party: [s], level: L, hours: HOURS, seeds: 2, windowMs: 120000, ...(gear ? { gear } : {}) }).heroes[0].levelXpPerH;
+  for (const [g, L] of [['mosslight_glade', 16], ['coppercap_warrens', 45]]) for (const s of ['hammer', 'axes']) {
+    const behind = xp(g, L, s, { tierOffset: -1, only: 'weapon' }), worn = xp(g, L, s, null);
+    if (worn < 1.05 * behind) return s + ' at L' + L + ' in ' + g + ': the rung pays ' + worn + ' Level XP/h against ' + behind + ' one tier behind (+' + Math.round((worn / behind - 1) * 1000) / 10 + '%, the bar is +5%)';
+  }
+  return null;
+};
+
 /* HARDER MONSTERS (Tyler 2026-11-02: the Glade's accuracy 0.80 at its own attack), BOTH PATHS. The Glade's floor is felt by melee, nobody dies, the hunt still pays its +25%, XP holds the pace, the top of its band
    is easy again, a pull still pays once held, and a watched hunt (10 s settles) and a closed browser (10 min) walk the same swings. */
 cases['glade-harder'] = (R) => {
@@ -256,7 +268,13 @@ const mutants = [
   { name: 'the Level is read once and kept: a cut changes the swings', case: 'level-gap',
     edits: [['src/core/combat-sim.js', 'u.heroLv = snap.level;', 'u.heroLv = u.heroLv || snap.level;']] },
   { name: 'the Thicket pays the old 1.52 on its wider pull, and the window still says 20%', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [970, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [970, 1210, 1260, 1520])']] },
+    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1520])']] },
+  { name: 'the Iron Warhammer is back at 7/12: its upgrade pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:12},"]] },
+  { name: 'the Steel Warhammer is back at 9/19: over the Iron it pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 19, 28, 39, 52, 68],']] },
+  { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 18, 25, 33, 42], str: [4, 11, 14, 16, 22, 29, 38],', 'atk: [4, 7, 14, 18, 25, 33, 42], str: [4, 7, 14, 16, 22, 29, 38],']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',

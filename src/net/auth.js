@@ -65,8 +65,8 @@
 // Ending it there signs out the whole device.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.86';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.86';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.87';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.87';
 
 /** A token closer than this to its expiry is refreshed before it is sent. */
 export const TOKEN_MARGIN_MS = 60000;
@@ -82,12 +82,14 @@ export const AUTH_COPY = Object.freeze({
   mismatch: 'The two passwords do not match.',
   signInFailed: 'That email and password do not match an account.',
   notConfirmed: "Your email isn't confirmed yet. Open the link we sent you, then sign in.",
-  signUpSent: 'Check your email for a link to finish creating your account. If you already have an account, sign in instead.',
+  signUpSent: 'Check your email for a link to finish creating your account. It can land in spam. If you already have an account, sign in instead.',
   emailRefused: "That email address can't be used. Check it, or use a different one.",
   rateLimited: "There've been too many tries just now. Try again in a minute.",
   signUpsClosed: "New accounts can't be made right now. Sign-ups are closed.",
   signUpFailed: "Your account couldn't be created. Try again.",
-  resetSent:'If that email has an account, a link to reset your password is on its way.',
+  resetSent: 'If that email has an account, a link to reset your password is on its way. It can land in spam.',
+  linkExpired: "That email link has expired or was already used. Sign in below, and we'll offer a new one if you still need it. For a password reset, press Forgot your password.",
+  linkSent: 'A new link is on its way. It can land in spam.',
   passwordSet: 'Your new password is saved. You are signed in.',
   passwordFailed: 'That reset link has expired. Ask for a new one from the sign-in screen.',
   network: 'Could not reach the server. Check your connection and try again.',
@@ -261,7 +263,10 @@ export function createAuth(o) {
       if (!password) return fail(AUTH_COPY.signInFailed);
       try {
         const { data, error } = await auth.signInWithPassword({ email: e, password });
-        if (error) return fail(AUTH_COPY[copyFor(error, SIGN_IN_SAYS, 'signInFailed')]);
+        if (error) {
+          const key = copyFor(error, SIGN_IN_SAYS, 'signInFailed');
+          return { ok: false, message: AUTH_COPY[key], unconfirmed: key === 'notConfirmed' };
+        }
         session = data.session || null;
         return { ok: !!session, message: session ? '' : AUTH_COPY.signInFailed };
       } catch (err) { return fail(AUTH_COPY.network); }
@@ -277,6 +282,20 @@ export function createAuth(o) {
         /* An email that already has an account gets the same words as a new one (CODE_COPY). */
         const key = error ? copyFor(error, SIGN_UP_SAYS, 'signUpFailed') : 'signUpSent';
         return key === 'signUpSent' ? { ok: true, message: AUTH_COPY.signUpSent } : fail(AUTH_COPY[key]);
+      } catch (err) { return fail(AUTH_COPY.network); }
+    },
+
+    /* A CONFIRMATION LINK LASTS ONE HOUR (mailer_otp_exp, read off the live auth config 2026-09-05), so whoever opens their mail the next
+       morning has a dead link, and "open the link we sent you" went round in a circle (door panel 2026-11-04). Offered only after the
+       auth server said "not confirmed", which it says only to the right password; it answers the same for every other refusal. */
+    async resendConfirmation(email) {
+      const e = String(email || '').trim();
+      if (!EMAIL.test(e)) return fail(AUTH_COPY.badEmail);
+      try {
+        const { error } = await auth.resend({ type: 'signup', email: e, options: { emailRedirectTo: o.redirectTo } });
+        const key = error ? authErrorCopy(error) : null;
+        if (key === 'network' || key === 'rateLimited') return fail(AUTH_COPY[key]);
+        return { ok: true, message: AUTH_COPY.linkSent };
       } catch (err) { return fail(AUTH_COPY.network); }
     },
 

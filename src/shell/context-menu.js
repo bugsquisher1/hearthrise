@@ -17,11 +17,11 @@
 // at page level — a press on it never reaches the World; the click a long
 // press leaves behind is swallowed too.
 // ════════════════════════════════════════════════════════════════════════
-import { MENU_ENTRIES } from '../data/social-menu.js?v=0.2.86';
-import { refusalWords } from './intent-words.js?v=0.2.86';
-import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.86';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.86';
-import { attr } from '../render/paint.js?v=0.2.86';
+import { MENU_ENTRIES } from '../data/social-menu.js?v=0.2.87';
+import { refusalWords } from './intent-words.js?v=0.2.87';
+import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.87';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.87';
+import { attr } from '../render/paint.js?v=0.2.87';
 
 const LONG_PRESS_MS = 500;
 /* How long a finished action's answer stays on the menu before it closes. */

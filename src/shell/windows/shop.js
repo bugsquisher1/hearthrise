@@ -21,22 +21,22 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.86';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.86';
-import { whole, gold } from '../../render/format.js?v=0.2.86';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.86';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.86';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.86';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.86';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.86';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.86';
-import { toolLossWords } from '../town-work.js?v=0.2.86';
-import { runIntent } from '../intent-words.js?v=0.2.86';
-import { showTip, hideTip } from './item-tip.js?v=0.2.86';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.86';
-import { gearLocked } from '../gear-gate.js?v=0.2.86';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.86';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.86';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.87';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.87';
+import { whole, gold } from '../../render/format.js?v=0.2.87';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.87';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.87';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.87';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.87';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.87';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.87';
+import { toolLossWords } from '../town-work.js?v=0.2.87';
+import { runIntent } from '../intent-words.js?v=0.2.87';
+import { showTip, hideTip } from './item-tip.js?v=0.2.87';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.87';
+import { gearLocked } from '../gear-gate.js?v=0.2.87';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.87';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.87';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -224,7 +224,8 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
   }
   if (ev.type !== 'click') return false;
   if (sc.tab === 'services' && actServicesPane(ctx, body, action, ev, t)) return true;
-  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.msgAt = null; sc.wear = false; repaint(); return true; }
+  /* A tab opens at its top: the Buy list's scroll carried over and laid Sell all loot, ringed, behind the stuck tabs on a phone (door panel 2026-11-04). */
+  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.msgAt = null; sc.wear = false; body.scrollTop = 0; repaint(); return true; }
   if (action === 'buy') {
     const offer = t.getAttribute('data-offer');
     const o = shop ? shop.offers.find((x) => x.offer === offer) : null;

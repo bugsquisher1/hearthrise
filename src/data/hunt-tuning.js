@@ -50,10 +50,6 @@ export const HUNT_TUNING = Object.freeze({
      earlier than the last of them (2026-10-31-live-horizon.sql c_horizon_ms = liveSeeds x tickMs,
      pinned by tests/hunt-live.mjs LV-H). */
   liveSeeds: 16,
-  /* THE LEVEL GAP (Tyler 2026-11-02, his 10-18 "waste hunt" made true): a hero under a ground's floor takes every monster's blow at
-     atk x (1 + this permille x Levels under the floor), accuracy and blow both. In band nothing moves. hunt-grounds.js underFloorPm is
-     the one reader. Raised for the risk ruling (Tyler 2026-11-04 UTC: "dying should come if people take big risks", board 2026-11-03, tools/balance-sim plan risk). */
-  underFloorAtkPm: 200,
   /* THE LEVEL SHARE (Tyler 2026-11-04 UTC: nobody is blocked; lane/c-risk-ladder): a seat under the ground's floor AND under this permille of the party's top living Level
      earns a shrinking share of its Level XP (hunt-grounds.js underFloorSharePm, read at each kill). Measured: a Level 1 behind three Level 37s in the Warrens stood at full
      HP, took no blow and earned 190k XP/h. A party that all pushes together, or a low friend on a ground in its range, is untouched. */
@@ -66,7 +62,7 @@ export function validate() {
   const T = HUNT_TUNING;
   const posInt = (k, v) => { if (!Number.isInteger(v) || v <= 0) out.push(k + ' must be a positive integer, got ' + v); };
   for (const k of ['stepMs', 'pathNodeCap', 'blockedRepathMs', 'blockedAvoidRadius', 'trailLen',
-    'trailSpacing', 'followRepathMs', 'oocRegenPermillePerS', 'corpseMs', 'regroupMs', 'regroupRadius', 'worldMaxBytes', 'liveSeeds', 'underFloorAtkPm', 'partyShareRangePm']) posInt(k, T[k]);
+    'trailSpacing', 'followRepathMs', 'oocRegenPermillePerS', 'corpseMs', 'regroupMs', 'regroupRadius', 'worldMaxBytes', 'liveSeeds', 'partyShareRangePm']) posInt(k, T[k]);
   posInt('stepCost.straight', T.stepCost.straight);
   posInt('stepCost.diagonal', T.stepCost.diagonal);
   if (!Number.isInteger(T.leashMarginDefault) || T.leashMarginDefault < 0) out.push('leashMarginDefault must be an integer >= 0');

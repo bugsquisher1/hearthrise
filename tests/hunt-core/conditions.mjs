@@ -27,7 +27,7 @@
 //                     Knight and only under 80%; the Sorcerer casts at density 3+; cut into windows (the client closed,
 //                     the away path) the instance is byte-identical; kills and loot are tallied once
 //   solo-healer       a FRESH solo Healer (start kit, Apprentice Staff) on the REAL settle clears mill_cellar with no fall, then the Thicket's
-//                     first pocket at Level 5 (its first real ground, Tyler 10-21) and the Sewer's at its floor (under a floor the level gap bites, as ruled 11-02)
+//                     first pocket at Level 5 (its first real ground, Tyler 10-21) and the Sewer's at its floor (a party's first ground)
 //   sql-rows          the migration's catalogue rows equal the registry, the action ids and ROLE_RULES
 //
 //   node tests/hunt-core/conditions.mjs            cases + mutants
@@ -730,7 +730,7 @@ const cases = {
       const spawned = M.grounds.HUNT_GROUNDS.mill_cellar.pockets.reduce((a, p) => a + p.spawns.length, 0);
       if (ce.some((e) => e.type === 'wipe') || ce.some((e) => e.type === 'death')) return tag + ': a fresh solo healer died in the cellar';
       if (!ce.some((e) => e.type === 'pull' && e.pocket === 1) || ce.filter((e) => e.type === 'kill').length < spawned) return tag + ': the cellar was not cleared';
-      /* The Thicket is a fresh solo hero's first real ground (Tyler 10-21); the Sewer is a party's, and below a floor the level gap is meant to bite (Tyler 11-02): each is held at its own floor. */
+      /* The Thicket is a fresh solo hero's first real ground (Tyler 10-21); the Sewer is a party's: each is held at its own floor. */
       for (const [huntId, level] of [['meadowbrook_thicket', 5], ['millrace_sewer', 8]]) {
         const next = freshHealer(M, huntId, 10, seed, null, el, level);
         const second = next.events.filter((e) => e.type === 'pull').find((e) => e.pocket !== 0);
@@ -773,8 +773,7 @@ const cases = {
     return null;
   },
   'density-settle': (M) => {
-    /* at the floor: this case is the pick's clamp, and a Level 1 now dies inside the minute (Tyler 2026-11-04 UTC) */
-    const out = freshHealer(M, 'millrace_sewer', 1, 1, { density: 16 }, undefined, 8);
+    const out = freshHealer(M, 'millrace_sewer', 1, 1, { density: 16 });
     const w = M.worldstate.decode(JSON.parse(out.world));
     const max = M.grounds.HUNT_GROUNDS.millrace_sewer.densityMax[0];
     const born = M.grounds.HUNT_GROUNDS.millrace_sewer.pockets.map((_, p) => w.units.filter((u) => u.side === 'mon' && u.pocket === p).length);

@@ -40,14 +40,14 @@
 //     (each better at something), the slot is left and named in `choices`
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.87';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.87';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.87';
-import { loadoutOf } from '../core/member.js?v=0.2.87';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.87';
-import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.87';
-import { itemName } from './widgets/bits.js?v=0.2.87';
-import { reqHave } from './item-lore.js?v=0.2.87';
+import { ITEMS } from '../data/items.js?v=0.2.88';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.88';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.88';
+import { loadoutOf } from '../core/member.js?v=0.2.88';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.88';
+import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.88';
+import { itemName } from './widgets/bits.js?v=0.2.88';
+import { reqHave } from './item-lore.js?v=0.2.88';
 
 /* The off-hand and the quiver: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['shield', 'ammo']);

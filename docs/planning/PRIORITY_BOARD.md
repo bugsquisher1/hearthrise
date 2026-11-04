@@ -35,6 +35,47 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 **For Tyler.** Fill `[LEGAL ENTITY NAME]`, address, `[CONTACT EMAIL]` (no real mailbox is in the repo), governing law and venue. Decide: minimum age 13/16; recording opt-out versus opt-in before Early Access; one switch for all analytics, not only recordings; the 14-day notice promise (softened to "where we can"); whether to publish market fees (repo migrations set a 1% listing fee and a 4% cut, the Terms say no number) and confirm the live values; the streaming policy in EULA section 7; whether the EULA covers the web build; where a credits list lives (the old text named a Settings > Credits panel that does not exist); self-hosting the Google Fonts. Confirm in PostHog and Sentry: recordings kept 30 days, event and error retention. The delete-account lane decides whether `player_ledger` and its monthly rollup (no user foreign key) are deleted or anonymized; the policy states today's truth.
 **Verified / not.** Done: tests below. Assumed: nothing here was read against production, and no lawyer has read the pages.
 
+### 2026-11-04 No level penalty: the monsters are simply stronger (systems-engineer, lane/c-no-level-penalty): BUILT, engine deploy, no migration. **Tyler should read the party finding and the Warrens proposal**
+**Tyler, 2026-11-04:** "Tibia doesn't have a scaling penalty for higher level monsters.... They are just simply harder. That is the risk lol so either A. The player or party dies, or B. They have to spend more on supplies to stay alive. (Healing/more damage to kill/ etc) it's inherent in the game, not a penalty driven system..." This replaces the level gap in the 2026-11-03 "Rush if you dare" section below and the 11-02 x1.05 per Level before it: both are gone, not softened.
+
+**What moved.** `underFloorAtkPm` and `underFloorPm` are deleted. A monster's blow is its own stats against the hero's own stats. The warning says the monsters are stronger, expect to spend more on supplies or to die, more XP and better loot; the death card names no percentage. Enter stays allowed, with its one confirm.
+
+**The sweep, every rule that reads a hero's Level against a ground.** Removed: the level gap (`damage.js`). Kept, Tyler deciding: the party's level share (`xp-share.js`, `underFloorSharePm`). Words only: `hr_hunt_below_range`, `hr_hunt_party_warn`, the Hunts page, the advice. Nothing in loot, gold or drops reads a Level. **Not a gap, and it cuts the other way:** armor's absorb is `value / (value + k x Level)` capped at 60% (`mitigation.js`, ruling K7), so the same bronze plate absorbs 60% at Level 1 and 46% at Level 16. A low hero gets MORE from the same armor. Defense XP reads the monster's own level, so it pays more on harder ground.
+
+**Does the cost show up on its own?** The same hero and Level, on the ground in its range against a push (`node tools/balance-sim/risk-table.mjs`, real settle; average gear on store food; net is after the store bill; no cell here died):
+| Hero | Ground | Under | XP/h | Net g/h | Supplies g/h | Meals/h | Typical low HP |
+|---|---|---|---|---|---|---|---|
+| Alone, Level 10 | Wickstead | in range | 25.8k | +2.9k | 0 | 0 | 92% |
+| | Glade | 6 | 48.4k | -1.0k | 4.4k | 111 | 63% |
+| | Warrens | 22 | 69.2k | -48.8k | 51.2k | 289 | 37% |
+| Alone, Level 24 | Glade | in range | 59.5k | +3.8k | 330 | 8 | 83% |
+| | Warrens | 8 | 97.4k | -24.4k | 27.9k | 155 | 47% |
+| Four, Level 10 | Wickstead | in range | 33.1k | +2.7k | 261 | 19 | 90% |
+| | Glade | 6 | 63.6k | **+2.7k** | 765 | 31 | 63% |
+| | Warrens | 22 | 82.2k | -3.9k | 6.0k | 74 | 37% |
+| Four, Level 24 | Glade | in range | 84.9k | +4.7k | 122 | 3 | 83% |
+| | Warrens | 8 | 133k | +2.0k | 1.4k | 18 | 58% |
+**Alone, yes:** XP about doubles and the bill swings a hero from profit to a loss it can't carry for long. The sim has no purse: a real Level 10 with a few thousand gold is sent home by gold_out within minutes in the Warrens. That is Tyler's B, with no rule behind it.
+
+**Who dies now. Only the practice set: not one death in any of the 140 average or built cells played** (alone or in a four, down to a Level 7 in the Warrens, 25 under, 36% typical). The practice set alone dies in the Sewer 3 under in 34 min, the Glade 6 under in about 1.3 h and 15 under in 17 min, the Warrens 10 under in 2 h and 15 under in 14 min. Built, on crafted food, paid in meals instead: 246 of them an hour for a Level 10 in the Warrens against none in Wickstead (the table counts them; net doesn't, since crafted food costs its crafter). So A has become rare and B carries the risk. The sim's purse is bottomless, so a real hero's gold_out, not a death, is what ends most of these hunts.
+
+**Where a low hero sits safely for little extra cost.** (1) A mixed four on the Glade: Level 10, double Wickstead's XP at the same net gold, 504 g/h more on supplies. Level 13: net goes UP, +3.1k against +2.8k. (2) A mixed four on the Warrens 3-8 under: Level 29, 1.7x the XP for 1.7k less net, 630 g/h of supplies. (3) The first grounds, alone in three pieces of bronze: a Level 2 in the Sewer earns 34.6k XP/h against the Cellar's 7k, net +2.8k, 1,031 g/h against 930 at its floor. A Level 2 in Wickstead pays 58 g/h, against 14 at its floor. The monsters there hit too softly to matter.
+
+**No rule was added.** The one lever allowed is monsters' own stats, and they move in-range heroes too. **Glade and first grounds: no.** The Glade's atk x1.25 already failed its floor's profit on 11-02. The first grounds carry his first-hour rulings. **Warrens, a proposal, not built:** every monster's atk x1.25 (sim only, plan `riskwhat`, store food, average gear, 1 h x 2 seeds):
+| Warrens | Who | atk | Supplies g/h | Income over supplies | Typical low HP |
+|---|---|---|---|---|---|
+| Level 32, in range | four | today | 67 | +7,215% | 78% |
+| | four | x1.25 | 569 | +739% | **65%** |
+| | pair | today | 140 | +3,287% | 75% |
+| | pair | x1.25 | 2.3k | +103% | 59% |
+| Level 26, 6 under | four | today | 1.2k | +194% | 60% |
+| | four | x1.25 | 3.9k | **-14%** | 50% |
+| Level 17, 15 under | four | today | 2.7k | +16% | 51% |
+| | four | x1.25 | 6.4k | **-53%** | 43% |
+In range it stays over his +25-35% and a four stays in his 60-80% band (a pair dips to 59%); a pusher's bill grows two to three times and turns to a loss. Nobody died in these cells. It raises what a Warrens party pays today, Andy's included, and a monster data change is a re-measure of `level-curve`. His call. It doesn't touch (1) or (3). The Sewer doesn't move enough to help: x1.5 still leaves a four at +397% in range and +347% at 3 under.
+
+**Not moved, for him to know:** the armor curve above is why the danger is so flat under a floor. Evening it out would be a change to a hero's own stats rather than a penalty, but it's his K7 ruling, moves every in-range number, and isn't measured.
+
 ### 2026-11-04 Weapon rungs and the Thicket (designer, lane/c-weapon-thicket): BUILT, measured on the real engine, no migration, the edge deploys. **One choice for Tyler below**
 **Weapons (balance 10-25 §8: +5-8% per meaningful upgrade).** The gap is neither clubs alone nor a whole class: it's the box-sweepers. Cleave and spells roll their own numbers and read no weapon power, so a rung reaches a hammer, hatchets or a wand through basic blows only. **Moved: Iron Warhammer 7/12 → 7/16, Steel Warhammer 9/19 → 9/23, Iron Hatchets 7/7 → 9/11, Steel Hatchets 12/11 → 14/14, Klappa's Club 3/12 → 3/16, so it still hits as hard as the Iron Warhammer.** Prices, sources and recipes don't move. Level XP an hour, one tier up, all else equal (`tools/balance-sim` cell runner, the Level's kit, 1 h x 2 seeds, same dice, 0 deaths):
 | Rung | Glade 16, as built | Glade 16, pull 8 | Wickstead 15, pull 8 | Warrens 45, as built | Warrens 45, pull 8 |

@@ -113,6 +113,8 @@ export function check() {
     if (!(pclub.reqLv < kclub.reqLv && kclub.reqLv < iron.reqLv)) fails.push(`SG-7 worn at Level ${kclub.reqLv}: not between the Practice Club (${pclub.reqLv}) and the Iron Warhammer (${iron.reqLv})`);
     if (!(kclub.strB > pclub.strB && kclub.atkB >= pclub.atkB)) fails.push(`SG-7 no better than the Practice Club (${kclub.atkB}/${kclub.strB} against ${pclub.atkB}/${pclub.strB})`);
     if (!(kclub.strB <= iron.strB && kclub.atkB < iron.atkB)) fails.push(`SG-7 not under the Iron Warhammer at its own Level (${kclub.atkB}/${kclub.strB} against ${iron.atkB}/${iron.strB})`);
+    /* the coach's card says so (hunt-tutorial.js): it "hits as hard as an Iron Warhammer" */
+    if (kclub.strB !== iron.strB) fails.push(`SG-7 the coach says it hits as hard as an Iron Warhammer, and its damage is ${kclub.strB} against ${iron.strB}`);
     if (ins.practice_club !== 1 || reach.get('practice_club') !== 'start kit') fails.push('SG-7 the reforge does not spend the kit\'s one club: the row becomes a wage');
     /* req 1 keeps its loot from Sell all loot on the first trip home (bag-model.js madeInto: only what the bench can make NOW is kept) */
     if (r.req !== 1) fails.push(`SG-7 opens at Smithing ${r.req}: Sell all loot sells its fangs on the first trip home`);
@@ -192,6 +194,7 @@ function mutate() {
   run('Klappa\'s Club worn from Level 1', 'SG-7', () => setField('klappas_club', 'reqLv', 1));
   run('Klappa\'s Club as true as the Iron Warhammer', 'SG-7', () => setField('klappas_club', 'atkB', 7));
   run('Klappa\'s Club no harder than the Practice Club', 'SG-7', () => setField('klappas_club', 'strB', 7));
+  run('the Iron Warhammer rises and Klappa\'s Club stays behind (the coach\'s words lie)', 'SG-7', () => setField('iron_warhammer', 'strB', 20));
   run('its fangs off the Cellar\'s rats', 'SG-7', () => undrop('rat', 'small_fang'));
 
   let bad = 0;

@@ -231,7 +231,7 @@ export const ITEMS={
   practice_spellbook:{n:'Practice Spellbook',icon:'📕',v:0,type:'offhand',slot:'shield',offhand:'spellbook',discipline:'destruction',magicAtkB:1,magicStrB:2,defB:1,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_staff:{n:'Practice Staff',icon:'🔮',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,atkB:3,strB:5,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   /* Klappa's Club (Tyler 2026-11-03, the tribute to Andy; style-gear.js holds the reforge): the club hero's rung between the Practice Club and the Iron Warhammer. */
-  klappas_club:{n:'Klappa\'s Club',icon:'🏏',v:100,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:12,tier:1,rarity:'uncommon',reqSkill:'level',reqLv:5},
+  klappas_club:{n:'Klappa\'s Club',icon:'🏏',v:100,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:16,tier:1,rarity:'uncommon',reqSkill:'level',reqLv:5},
   iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
   steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
   rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},
@@ -241,7 +241,7 @@ export const ITEMS={
   shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:5,strB:3,rangeAtkB:5,rangeStrB:3},
   longbow:{n:'Longbow',icon:'🏹',v:135,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:9,strB:6,rangeAtkB:9,rangeStrB:6},
   stone_maul:{n:'Stone Maul',icon:'🔨',v:110,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:3,strB:7},
-  iron_warhammer:{n:'Iron Warhammer',icon:'🔨',v:145,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:7,strB:12},
+  iron_warhammer:{n:'Iron Warhammer',icon:'🔨',v:145,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:7,strB:16},
   iron_helm:{n:'Iron Helm',icon:'⛑️',v:150,type:'armor',slot:'helmet',defB:5},
   steel_helm:{n:'Steel Helm',icon:'⛑️',v:600,type:'armor',slot:'helmet',defB:10},
   iron_platebody:{n:'Iron Platebody',icon:'🦺',v:400,type:'armor',slot:'body',defB:12},

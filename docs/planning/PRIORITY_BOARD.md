@@ -70,6 +70,33 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 In range it stays over his +25-35% and a four stays in his 60-80% band (a pair dips to 59%); a pusher's bill grows two to three times and turns to a loss. Nobody died in these cells. It raises what a Warrens party pays today, Andy's included, and a monster data change is a re-measure of `level-curve`. His call. It doesn't touch (1) or (3). The Sewer doesn't move enough to help: x1.5 still leaves a four at +397% in range and +347% at 3 under.
 
 **Not moved, for him to know:** the armor curve above is why the danger is so flat under a floor. Evening it out would be a change to a hero's own stats rather than a penalty, but it's his K7 ruling, moves every in-range number, and isn't measured.
+### 2026-11-04 Type checking with no build step (systems-engineer, lane/b-type-check): BUILT, a ratchet and not a wall
+**What runs.** `node tests/typecheck-ratchet.mjs`, in `client-guards`, measured 37-73 s here with other lanes on the PC (no GitHub run yet): `tools/typecheck.mjs` (typescript 6.0.3 on the compiler API, through a host that strips `?v=`, so it works with or without the query) plus oxlint 1.91.0 (one package and a binary, 71 named bug-class rules, 0.4 s, also on the edit hook). Per file and error kind a count may only fall; a new file starts at zero; an import that does not resolve is always red; `--write` records a fall or a move and refuses a rise. Not typescript 7: it is the native port with no compiler host to give; once `?v=` is retired, 7's own `tsc` can do this alone. `tsconfig` stays out: an editor would red every `?v=` import.
+
+**First run, measured.** 495 errors in 108 of 401 files, lint at zero. By folder: shell 177, core 108, data 79, world 57, hunt-view 27, session 17, app 15, social 6, net 5, platform 4. By kind: TS2339 282, TS1005 36, TS2345 29, TS2304 25, TS2538 24.
+
+| What they are | Count | Fix |
+|---|---|---|
+| A JSDoc the compiler cannot read (`@returns { a, b }`) | 93 | comment only; 64 of them in `src/core`, where a comment moves the edge hash, so left |
+| An optional field on a union of frozen rows | 89 | a typedef on the table |
+| A stale JSDoc shape, or a field added by `Object.assign` | 89 | a JSDoc line |
+| A read on `x \|\| {}` or a built-up `{}` | 81 | one `@returns {Record<string, any>}` on the reader |
+| Inference narrower than the code (a literal, a first row, a no-op stub) | 76 | none needed |
+| Booleans or keys in arithmetic, an index the code knows | 56 | an idiom, leave |
+| Other | 11 | read, none real |
+
+**Real bugs: 4, one a player can hit, all fixed here, each with a test (the guard itself for 3 and 4).** (1) `CHAT_LIMITS.friendsPollAwayMs` never existed, so `x >= undefined` was always false: a page hidden past 15 s never polled again and read offline to its friends after 75 s while its hero hunted on. Now 55 s (inside the window on a 30 s or a throttled 60 s timer), and hidden it names no hero, so `character_presence` stays as it is today and the world tick still folds those settles: the fix costs one request a minute per hidden tab and nothing else. (2) `unclassifiedGrantIds()` threw on a name nothing defines; no live caller, `tests/catalogue-coherence.mjs` calls it now. (3) `skill-authority.js` published a name nothing defines; the module has no importer (dead, worth deleting). (4) `refusal-words.js` said `item_locked` twice; no player change. **Engine, reported, unchanged:** no bug. `src/core/combat.js` imports `MAX_COMBINED_DAMAGE_MULT` and its comment says it clamps; `MAX_TOTAL_DAMAGE_MULT` does (line 256), so the comment and the import are stale.
+
+**Strictness, each measured over the whole tree:**
+
+| Option | Adds | Read | Verdict |
+|---|---|---|---|
+| `noFallthroughCasesInSwitch`, `noImplicitThis`, `strictBindCallApply` | 0 | - | ON |
+| `noImplicitAny`, without its 10,044 "annotate this" errors | 149 | all, no bug | **ON: the find.** With it off a returned object literal in a `.js` file is open, so a wrong field on it reads `any`. Renaming the 18 fields session readers return that a window reads: caught 1 of 18 off, 11 of 18 on |
+| `strictNullChecks` | 230 | about 50, no bug: guards through closures and helpers it cannot follow | off |
+| `noImplicitReturns` 33, `noUnusedLocals` 15 (dead imports, listed), `noUnusedParameters` 80, `strictFunctionTypes` 2, `useUnknownInCatchVariables` 8 | | no bug | off |
+
+**Upkeep, measured:** the ratchet replayed over v0.2.81 to v0.2.87 (six releases): 3 rises, in 2 of the 6, all correct code and no bug (one JSDoc line each), so a false red about one release in three, and preflight shows it in under a minute. **It would have caught none of the 5 real bugs in the last 30 red runs** (assumed from their descriptions: reload, timing and layout, not names). Assumed, not measured: `npm install` in the 44 jobs pays about 40 MB more. A ceiling that fell stays high until someone runs `--write` (a note, never a red, on purpose: a forced re-pin is the chore class that cost 24 of the 79 causes). Known blind spot: 43% of 38,882 property reads have a receiver the checker can see; the rest are `any` (`ctx` 657, `cs` 378, row names). The next step that pays is `@param` on those two in the lane touching them, not more strictness.
 
 ### 2026-11-04 Weapon rungs and the Thicket (designer, lane/c-weapon-thicket): BUILT, measured on the real engine, no migration, the edge deploys. **One choice for Tyler below**
 **Weapons (balance 10-25 §8: +5-8% per meaningful upgrade).** The gap is neither clubs alone nor a whole class: it's the box-sweepers. Cleave and spells roll their own numbers and read no weapon power, so a rung reaches a hammer, hatchets or a wand through basic blows only. **Moved: Iron Warhammer 7/12 → 7/16, Steel Warhammer 9/19 → 9/23, Iron Hatchets 7/7 → 9/11, Steel Hatchets 12/11 → 14/14, Klappa's Club 3/12 → 3/16, so it still hits as hard as the Iron Warhammer.** Prices, sources and recipes don't move. Level XP an hour, one tier up, all else equal (`tools/balance-sim` cell runner, the Level's kit, 1 h x 2 seeds, same dice, 0 deaths):

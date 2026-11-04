@@ -141,7 +141,6 @@ export function unclassifiedSkills() {
 
 if (typeof window !== 'undefined') {
   window.HearthriseSkillAuthority = {
-    ALWAYS_COMBAT_XP_SKILLS,
     combatXpSkills, gatherXpSkills, payableArtisanSkills,
     buildSkillAuthority, skillAuthority, rebuildSkillAuthority,
     serverAccruedSkill, classifySkill, unclassifiedSkills,

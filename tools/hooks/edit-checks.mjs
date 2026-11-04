@@ -2,7 +2,7 @@
 // just edited, so a token, breakpoint or `?v=` mistake is caught on the edit, not on GitHub.
 //
 //   *.css under src/        → breakpoint-guard, token-single-source, css-literal-ratchet
-//   *.js / *.mjs under src/ → window-globals-exist + pack-edge versionQueryGuard (`?v=` rules)
+//   *.js / *.mjs under src/ → window-globals-exist + the bug-class lint + pack-edge versionQueryGuard (`?v=` rules)
 //   src/** and supabase/**  → mutant-anchors --for <file> (every mutant anchor on it still matches once)
 // Runs in the edited file's own checkout (a lane worktree or main). Silent when green; when red,
 // exits 2 with the guard's last lines so the session sees what to fix. Not a substitute for the
@@ -25,6 +25,8 @@ const runs = [];
 if (/^src\/.+\.css$/.test(rel)) runs.push(['tests/breakpoint-guard.mjs'], ['tests/token-single-source.mjs'], ['tests/css-literal-ratchet.mjs']);
 if (/^src\/.+\.m?js$/.test(rel)) {
   runs.push(['tests/window-globals-exist.mjs']);
+  /* a name nothing defines, a key said twice, a value compared with itself: under a second, and src/** carries none of them */
+  if (existsSync(join(root, 'tools', 'typecheck.mjs'))) runs.push(['tools/typecheck.mjs', '--lint-if-installed']);
   runs.push(['-e', "import('./tools/pack-edge.mjs').then(async (m) => { const p = await m.versionQueryGuard(); if (p.length) { console.error(p.join('\\n')); process.exit(1); } })"]);
 }
 /* a mutant whose anchor this edit moved (the 2026-10-22 class): only the anchors that patch this file */

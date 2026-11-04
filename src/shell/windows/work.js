@@ -23,21 +23,21 @@
 // (src/shell/town-ticker.js), as pending; the rows' numbers stay the server's.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.87';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.87';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.87';
-import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.87';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.87';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.87';
-import { whole } from '../../render/format.js?v=0.2.87';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.87';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.87';
-import { runIntent } from '../intent-words.js?v=0.2.87';
-import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.87';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine } from '../town-work.js?v=0.2.87';
-import { saleWords } from '../item-lore.js?v=0.2.87';
-import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.87';
-import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.87';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.88';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.88';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.88';
+import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.88';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.88';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.88';
+import { whole } from '../../render/format.js?v=0.2.88';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.88';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.88';
+import { runIntent } from '../intent-words.js?v=0.2.88';
+import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.88';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine } from '../town-work.js?v=0.2.88';
+import { saleWords } from '../item-lore.js?v=0.2.88';
+import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.88';
+import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.88';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;

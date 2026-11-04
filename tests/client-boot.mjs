@@ -423,15 +423,16 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
         const asked = [];
         let answer = { ok: false, message: 'wrong password' };
         renderAuthScreen(box, { signIn: async () => answer, resendConfirmation: async (e) => { asked.push(e); return { ok: true, message: 'on its way' }; } }, 'sign-in', {}, 'a@b.co');
-        const form = box.querySelector('form'), press = box.querySelector('[data-auth-resend]');
-        const shown = () => press.getClientRects().length > 0;
+        const form = box.querySelector('form'), press = () => box.querySelector('[data-auth-resend]');
+        const shown = () => !!press() && press().getClientRects().length > 0;
         const out = { first: shown() };
         form.dispatchEvent(new Event('submit', { cancelable: true })); await tick();
         out.wrong = shown();
         answer = { ok: false, unconfirmed: true, message: 'not confirmed' };
         form.dispatchEvent(new Event('submit', { cancelable: true })); await tick();
         out.unconfirmed = shown();
-        press.click(); await tick();
+        if (out.unconfirmed) press().click();
+        await tick();
         out.asked = asked; out.said = box.querySelector('.auth-message').textContent;
         box.remove();
         return out;
@@ -978,8 +979,8 @@ const MUTANTS = [
   ['the notice page boots the app', 'index.html', '</body>', '<script type="module" src="src/app/boot.js?v=1"></script></body>'],
   ['sign-out leaves the session copies', 'src/net/auth.js', '      for (const k of store.keys()) if (k === cfg.authKey', '      for (const k of []) if (k === cfg.authKey'],
   ['the world pane never mounts the shell', 'src/app/world-pane.js', "  shell = mountShell(stage, {", "  shell = { onInset: () => () => {}, paint() {}, destroy() {} }; void ({"],
-  ['"not confirmed" offers no new link (B-6)', 'src/app/sign-in.js', 'if (resend) resend.hidden = !r.unconfirmed;', ''],
-  ['every refusal offers a new link (B-6)', 'src/app/sign-in.js', 'if (resend) resend.hidden = !r.unconfirmed;', 'if (resend) resend.hidden = false;'],
+  ['"not confirmed" offers no new link (B-6)', 'src/app/sign-in.js', 'offerResend(!!r.unconfirmed);', ''],
+  ['every refusal offers a new link (B-6)', 'src/app/sign-in.js', 'offerResend(!!r.unconfirmed);', 'offerResend(true);'],
   ['the typed email is lost between the screens (B-6)', 'src/app/sign-in.js', "on, val('email'));", 'on);'],
   ['a dead email link says nothing (B-6)', 'src/app/boot.js', 'if (m) m.textContent = AUTH_COPY.linkExpired;', ''],
   ['a dead email link stays in the address (B-6)', 'src/app/boot.js', "    if (badLink) win.history.replaceState(null, '', win.location.pathname + win.location.search);\n", ''],

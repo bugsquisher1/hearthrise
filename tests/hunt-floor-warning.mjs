@@ -73,7 +73,7 @@ async function run(base) {
   const top = Math.max(...rows.map((r) => r.band[1]));
   for (let lv = 1; lv <= top; lv++) {
     const r = HL.recommendation(lv, 1, rows);
-    if (!r.row || !HL.fitsGroup(r.row, 1)) { ok('G2', false, 'a lone Level-' + lv + ' hero is recommended ' + (r.row && r.row.hunt)); break; }
+    if (!r.row || !HL.fitsGroup(r.row, 1, lv)) { ok('G2', false, 'a lone Level-' + lv + ' hero is recommended ' + (r.row && r.row.hunt)); break; }
     const inBand = r.row.band[0] <= lv && lv <= r.row.band[1];
     if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith('No ground for one hero fits Level ' + lv + ' yet. ' + r.row.name))) {
       ok('G2', false, 'a lone Level-' + lv + ' hero is sent to ' + r.row.hunt + ' [' + r.row.band + '] with the note ' + JSON.stringify(r.note)); break;
@@ -82,9 +82,12 @@ async function run(base) {
   }
   const duo = HL.recommendation([12, 20], 2, rows);
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
-  /* G4: where the advice stands until the pace is re-measured (level-curve reads it: a pair sent to the Glade and a lone 45 sent to the Warrens re-land together, 2026-11-04): the Warrens is a party's, and a pair's first ground is the Sewer. */
+  /* G4 (review 2026-11-04): alone pays from the Level the Warrens' row says, so the advice says so too; past its top the note names IT as the nearest below; a party's advice has a ground from 16 to 31 (played: a pair at 14 and 15 earned 71,074 XP/h in the Glade against the Sewer's 59,594). */
   const lone = (lv) => HL.recommendation(lv, 1, rows);
   ok('G4', lone(44).row.hunt === 'mosslight_glade' && /Coppercap Warrens fits your level with a party/.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
+  ok('G4', lone(45).row.hunt === 'coppercap_warrens' && lone(45).note === null, 'a lone Level 45 is sent to ' + lone(45).row.hunt + ', noting ' + lone(45).note);
+  ok('G4', lone(53).row.hunt === 'coppercap_warrens' && /Coppercap Warrens/.test(lone(53).note || ''), 'a lone Level 53 is sent to ' + lone(53).row.hunt + ', noting ' + lone(53).note);
+  for (const lv of [16, 20, 26, 31]) { const p = HL.recommendation([lv, lv], 2, rows); ok('G4', p.row.hunt === 'mosslight_glade' && p.note === null, 'a pair at Level ' + lv + ' is sent to ' + p.row.hunt + ', noting ' + p.note); }
   const sewerPair = HL.recommendation([12, 12], 2, rows);
   ok('G4', sewerPair.row.hunt === 'millrace_sewer', 'the first party ground moved: a pair at Level 12 is sent to ' + sewerPair.row.hunt);
   /* G5 (first principle, played 11-04): the window opens on the harder ground this hero last hunted and came home from; never on one that killed it, and never on one below the advice. */
@@ -163,9 +166,11 @@ async function run(base) {
 }
 
 const MUTANTS = [
-  ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize));', 'const fit = rows;'],
+  ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize, lo));', 'const fit = rows;'],
+  ['a lone hero past the Level alone pays is still sent back to the Glade', 'src/shell/hunt-list.js', 'if (alone && Number.isInteger(r.soloFrom) && Number.isInteger(level) && level >= r.soloFrom) return true;', ''],
   ['the window forgets the harder ground the hero chose', 'src/shell/hunt-list.js', 'return was && advised && was.band[0] > advised.band[0] ? was : advised;', 'return advised;'],
   ['the window re-opens on the ground that killed the hero', 'src/shell/hunt-list.js', "const was = last && last.endReason !== 'died' ? list.find((r) => r.hunt === last.huntId) : null;", 'const was = last ? list.find((r) => r.hunt === last.huntId) : null;'],
+  ['the Glade is back to one hero for the advice', 'src/data/hunt-grounds.js', "/* 'both' (played 2026-11-04): a pair at Levels 14 and 15 earned 71,074 Level XP/h here against 59,594 in the Sewer the advice named, and from Level 26 the advice had no party ground at all */\n    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'both',", "respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',"],
   ['a party-only hall leaves its ground solo (the Sewer)', 'src/shell/hunt-list.js', "groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,", 'groupFit: g.groupFit,'],
   ['the gap falls back to a party ground in band', 'src/shell/hunt-list.js', "    return { row: below, note };\n", ''],
   ['the gap is not said', 'src/shell/hunt-list.js', 'return { row: below, note };', 'return { row: below, note: null };'],

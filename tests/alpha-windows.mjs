@@ -2085,6 +2085,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (!up || !(await openWin(page, 'h', 'hunts'))) fails.push('AW-29 the Hunts window did not open');
       else {
         await page.click(W + '.hw-hunt[data-hunt="meadowbrook_thicket"]');
+        /* a Level 1 under the Thicket's floor: the first press arms "Enter anyway", the second goes */
+        await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
         await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
         for (let i = 0; i < 30 && !sent(s, 'hr_hunt_enter').length; i++) await page.waitForTimeout(100);
         const go = sent(s, 'hr_hunt_enter').map((c) => c.body.p_hunt);

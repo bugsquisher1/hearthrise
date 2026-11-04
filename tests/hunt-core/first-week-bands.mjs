@@ -240,7 +240,7 @@ const mutants = [
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
   { name: 'the Thicket pays the old 1.52 on its wider pull, and the window still says 20%', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1520])']] },
+    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1520])']] },
   { name: 'the Iron Warhammer is back at 7/12: its upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:12},"]] },
   { name: 'the Steel Warhammer is back at 9/19: over the Iron it pays under +5%', case: 'weapon-rungs',

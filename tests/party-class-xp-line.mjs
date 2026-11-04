@@ -22,7 +22,9 @@
 //   --wide       the designer's read: 30-minute cells, every size on more seeds (about 4x the guard)
 //   --seeds N    --workers N   --table every cell's ratio   --mixed the mixed parties too (10-25 §5)
 //
-// mutant-anchors: src/data/party-class-xp.js src/data/hunt-grounds.js
+// THE ONE NAMED EXCEPTION: EXCEPTION below, a four of wands in the Thicket at its default pull. Every other cell answers to 1.00.
+//
+// mutant-anchors: src/data/party-class-xp.js src/data/hunt-grounds.js src/core/hunt/xp-share.js
 import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -34,6 +36,10 @@ import { loadCellRunner } from '../tools/balance-sim/cell.mjs';
 import { runPool } from '../tools/balance-sim/pool.mjs';
 
 const BAR = 1.0;
+/* THE ONE NAMED EXCEPTION. Tyler 2026-11-02 ("same-weapon friends lose about 6-15%") beats his 2026-10-31 ("a same-class party never out-earns solo") where they conflict (CLAUDE.md §0; Coordinator 2026-11-04):
+   the Thicket's one-class four pays the even share, and a four of wands at its default pull stands 4-5% over solo (an hour's read; this guard's 15-minute cut reads about 1.02). It holds for that party, on that
+   ground and arm only, and only on the row that was ruled on (table cell 1000, pull 6): any other number voids it, and the party answers to 1.00 like every other cell. Its own bar is the accepted 5%. */
+const EXCEPTION = Object.freeze({ ground: 'meadowbrook_thicket', arm: 'pull', party: 'wands4', cell: 1000, pull: 6, bar: 1.05 });
 const WIDE = process.argv.includes('--wide');
 /* A party cell's hours, and a lone hero's as built: every party is judged against those, and they are the cheapest cells. */
 const HOURS = WIDE ? 0.5 : 0.25;
@@ -59,6 +65,19 @@ const { STYLES } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/gear
 
 const groundIds = Object.keys(G.HUNT_GROUNDS);
 const floorOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0];
+
+/** The rows a tree's bars are read from: this tree's, or a planted one's (a mutant's own numbers must void its own exception). */
+async function rowsOf(root) {
+  const { PARTY_CLASS_XP } = await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href + V);
+  const { HUNT_GROUNDS } = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href + V);
+  return { table: PARTY_CLASS_XP, grounds: HUNT_GROUNDS };
+}
+/** The bar a party's reading answers to: 1.00, unless it is the named exception on the very row that was ruled on. */
+function barOf(g, armId, name, rows) {
+  const E = EXCEPTION;
+  if (g !== E.ground || armId !== E.arm || name !== E.party) return BAR;
+  return rows.table[g][4][0] === E.cell && rows.grounds[g].partyPull[3] === E.pull ? E.bar : BAR;
+}
 
 const cellOf = (g, arm, seed, party, name) => ({
   id: [g, arm.id, seed, name].join(':'), ground: g, party, level: floorOf(g), hours: party.length === 1 && arm.density === null ? SOLO_HOURS : HOURS, seeds: 1, seedBase: seed,
@@ -142,24 +161,48 @@ const MUTANTS = [
       "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),"]] },
   { name: 'a pull far past the line on one row (the Cellar pair at the full box)', cells: [['mill_cellar', ['bow', 'bow']]],
     edits: [['src/data/hunt-grounds.js', 'partyPull: Object.freeze([0, 4, 5, 5])', 'partyPull: Object.freeze([0, 8, 8, 8])']] },
+  /* THE NAMED EXCEPTION STILL BITES: a bigger number voids it, it reaches no other cell, and its own bar is real. */
+  { name: 'the excepted cell one permille bigger: the exception is void, a four of wands answers to 1.00', cells: [['meadowbrook_thicket', LARGER.wands4]],
+    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [1001, 1210, 1260, 1300])']] },
+  { name: 'the excepted four at a wider pull (7): the exception is void', cells: [['meadowbrook_thicket', LARGER.wands4]],
+    edits: [['src/data/hunt-grounds.js', 'partyPull: Object.freeze([0, 4, 5, 6])', 'partyPull: Object.freeze([0, 4, 5, 7])']] },
+  { name: 'the exception never reaches the next cell: the Thicket\'s three of wands paid over the even share', cells: [['meadowbrook_thicket', LARGER.wands3]],
+    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [1030, 1180, 1310], [1000, 1210, 1260, 1300])']] },
+  { name: 'the exception never reaches another ground: Wickstead\'s four of wands paid over the even share', cells: [['wickstead', LARGER.wands4]],
+    edits: [['src/data/party-class-xp.js', 'wickstead: row([880, 1070], [970, 1160, 1220], [970, 1200, 1240, 1270])', 'wickstead: row([880, 1070], [970, 1160, 1220], [1150, 1200, 1240, 1270])']] },
+  { name: 'the row as ruled, and a four of wands past the exception\'s own 5% (a four\'s shares x1.1)', cells: [['meadowbrook_thicket', LARGER.wands4]],
+    edits: [['src/core/hunt/xp-share.js', 'const paid = (raw * party * multOf(sc, h)) / 1000;', 'const paid = (raw * party * (heroes.length === 4 ? 1.1 : 1) * multOf(sc, h)) / 1000;']] },
 ];
+
+/** What a named party on a ground is called in the plan (a mutant's cell reads the bar of that name). */
+const nameOf = (party) => (Object.entries({ ...DUOS, ...LARGER }).find(([, p]) => p.join() === party.join()) || [])[0];
 
 async function mutate() {
   let escaped = 0;
   const pull = ARMS[0];
+  /* THE CONTROL: on this tree the exception names the one party, on the row it was ruled on, and that party stands inside its bar. Every other name, ground and arm answers to 1.00. */
+  const here = await rowsOf(ROOT);
+  const others = [['meadowbrook_thicket', 'pull', 'shields4'], ['meadowbrook_thicket', 'pull', 'wands3'], ['meadowbrook_thicket', 'eight', 'wands4'], ['wickstead', 'pull', 'wands4']];
+  const leaked = others.filter(([g, a, n]) => barOf(g, a, n, here) !== BAR);
+  if (barOf(EXCEPTION.ground, EXCEPTION.arm, EXCEPTION.party, here) !== EXCEPTION.bar || leaked.length) { console.log('  ✗ CONTROL: the exception is off its row, or reaches ' + JSON.stringify(leaked)); escaped++; }
+  const Rh = await loadCellRunner(ROOT);
+  const wands = LARGER[EXCEPTION.party];
+  const reads = Rh.runCell(cellOf(EXCEPTION.ground, pull, 0, wands, 'x')).party.levelXpPerHeroPerH / Rh.runCell(cellOf(EXCEPTION.ground, pull, 0, [wands[0]], 'solo')).heroes[0].levelXpPerH;
+  if (!(reads <= EXCEPTION.bar)) { console.log('  ✗ CONTROL: the excepted party reads ' + reads.toFixed(3) + ' on this tree, over its own ' + EXCEPTION.bar); escaped++; }
   for (const mu of MUTANTS) {
     const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
     try {
       const R = await loadCellRunner(p.root);
+      const rows = await rowsOf(p.root);
       const seen = [];
       for (const [g, party] of mu.cells) {
         const solos = new Map();
         for (const w of new Set(party)) solos.set(w, R.runCell(cellOf(g, pull, 0, [w], 'solo-' + w)).heroes[0].levelXpPerH);
         const head = R.runCell(cellOf(g, pull, 0, party, 'x')).party.levelXpPerHeroPerH;
-        seen.push(head / meanOf(party.map((w) => solos.get(w))));
+        seen.push({ ratio: head / meanOf(party.map((w) => solos.get(w))), bar: barOf(g, pull.id, nameOf(party), rows) });
       }
-      const hit = seen.some((x) => x > BAR);
-      console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + mu.name + ' (' + seen.map((x) => x.toFixed(3)).join(', ') + ')');
+      const hit = seen.some((x) => x.ratio > x.bar);
+      console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + mu.name + ' (' + seen.map((x) => x.ratio.toFixed(3) + ' against ' + x.bar.toFixed(2)).join(', ') + ')');
       if (!hit) escaped++;
     } finally { p.done(); }
   }
@@ -196,7 +239,10 @@ async function main() {
     }
     const eight = same.filter((r) => r.armId === 'eight');
     console.log('  8 each against alone as built (read, not the bar): ' + eight.filter((r) => r.ratio > BAR).length + ' of ' + eight.length + ' cells over ' + BAR.toFixed(2));
-    const reds = same.filter((r) => (r.armId === 'pull' ? r.ratio : r.vsBest) > BAR);
+    const rows4 = await rowsOf(ROOT);
+    const reds = same.filter((r) => (r.armId === 'pull' ? r.ratio : r.vsBest) > barOf(r.g, r.armId, r.name, rows4));
+    const named = same.find((r) => r.g === EXCEPTION.ground && r.armId === EXCEPTION.arm && r.name === EXCEPTION.party);
+    if (named) console.log('  the named exception (Tyler 11-02 over 10-31): ' + named.party.join('+') + ' in ' + named.g + ' reads ' + named.ratio.toFixed(3) + ', its bar ' + barOf(named.g, named.armId, named.name, rows4).toFixed(2));
     for (const p of problems) console.log('  ✗ ' + p);
     for (const r of reds) console.log('  ✗ ' + cellWords(r));
     const ok = !reds.length && !problems.length;

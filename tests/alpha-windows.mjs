@@ -804,6 +804,16 @@ async function planRules(base) {
   const WATER = RUNES.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_water_rune', partner: 'chalked_water_rune' }]);
   const same = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('greater_mend', 'plain_water_rune'), stored('circle_of_renewal', 'plain_water_rune')], store: WATER } }));
   if (!same.startsWith('Runes: Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells of one family read ' + JSON.stringify(same));
+  /* AW-20 A DRINK IS MADE, NOT COOKED (QA 2026-11-04: "Cooking Turnip: 0 cooked so far" over Turnip Juice); a dish still names what goes on the fire */
+  {
+    const { nowParts, doWords, workRow } = await imp('src/shell/town-work.js');
+    const { lineText } = await imp('src/shell/town-ticker.js');
+    const benchLine = (id, inv) => lineText(nowParts({ read: (k) => (k === 'state' ? { active_kind: 'artisan', active_id: id } : k === 'inventory' ? inv : null) }));
+    const juice = benchLine('press_turnip_juice', { turnip: 4 });
+    if (!/^Making Turnip Juice/.test(juice) || /Cooking|cooked/.test(juice) || doWords(workRow('artisan', 'press_turnip_juice')) !== 'make Turnip Juice') fails.push('AW-20 pressing juice reads ' + JSON.stringify(juice));
+    const dish = benchLine('cook_shrimp', { shrimp: 4 });
+    if (!/^Cooking Raw Shrimp/.test(dish)) fails.push('AW-20 a dish reads ' + JSON.stringify(dish));
+  }
   /* AW-27 BEFORE YOU GO SAYS THE BLESSINGS (board 11-04: nothing said them before the risk), every number the server's */
   const blessed = (held, price) => say(sess({ blessings: { permille: [0, 320, 630, 950][held.length], free_until: 30, tiers: [1, 2, 3].map((tier) => ({ tier, permille: 320, price, held: held.includes(tier) })) } }));
   const noneFree = blessed([], 0), oneOn = blessed([1], 450), allOn = blessed([1, 2, 3], 450);

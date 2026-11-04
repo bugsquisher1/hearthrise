@@ -11,6 +11,8 @@
 // text-rendering: geometricPrecision is what makes the widths the SAME, not near. Linux hints a web font's advances (a 14 px line
 // measured 473 px against DejaVu's own 469.5, rehearsal 41801603806, and AW-17 and AW-62 went red on it); this rule draws
 // them unhinted, as Windows and every phone do: 469.5, 526.8, 378 and 394.7 px on both machines, GitHub's old fallback to the tenth.
+// On every element, not on :root: the browser's own sheet sets text-rendering: auto on button, input, select and textarea, so a rule on
+// :root stopped at each button and the analyzer's tabs stayed hinted: AW-62 red on v0.2.89 (41922216241), Dealt 2.5 px past its panel.
 //
 // A --shots run that wants the real faces does not call this, and loads Google's sheet as before.
 import { readFileSync } from 'node:fs';
@@ -28,7 +30,7 @@ export const FACES = [
 ];
 
 /** The stylesheet that stands where Google's did. */
-export const FONT_CSS = `:root{text-rendering:geometricPrecision}${FACES.map(([family, weight, file]) => `@font-face{font-family:'${family}';font-weight:${weight};font-display:block;src:url(${ORIGIN}${file}.ttf) format('truetype')}`).join('')}`;
+export const FONT_CSS = `*,*::before,*::after{text-rendering:geometricPrecision}${FACES.map(([family, weight, file]) => `@font-face{font-family:'${family}';font-weight:${weight};font-display:block;src:url(${ORIGIN}${file}.ttf) format('truetype')}`).join('')}`;
 
 const bytes = new Map();
 function fileOf(name) {

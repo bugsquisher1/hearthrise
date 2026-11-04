@@ -15,6 +15,10 @@
 //         far apart the two machines would have been. Measured on GitHub, rehearsal 41801603806: system-ui draws DejaVu Sans
 //         (469.5, 526.8), serif and Georgia draw Liberation Serif (378, 394.7); here Segoe UI is 404.2 and Georgia Bold 475.6.
 //
+//   TF-4  ON EVERY CONTROL. The browser's own sheet resets text-rendering on button, input, select and textarea, so a rule that stops at
+//         :root leaves them hinted on Linux and only there (AW-62 on v0.2.89, 41922216241). Each must compute geometricPrecision,
+//         which a Windows box can read too, and a button's label must measure the reference.
+//
 // mutant-anchors: none — the proof plants into in-memory copies of the guards' text and into the stylesheet the page is served
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -49,9 +53,11 @@ export function offWidths(measured, reference = REFERENCE, tolerance = TOLERANCE
     .map(([font, want]) => `${font} measures ${measured[font]}, the reference is ${want}`);
 }
 
-/** TF-2 and TF-3 over one reading. */
+/** TF-2, TF-3 and TF-4 over one reading. */
 function faults(m) {
-  return [...Object.entries(m.loaded).filter(([, n]) => n < 1).map(([face]) => `TF-2 ${face} did not load from the fixture`), ...offWidths(m.widths).map((x) => `TF-3 ${x}`)];
+  return [...Object.entries(m.loaded).filter(([, n]) => n < 1).map(([face]) => `TF-2 ${face} did not load from the fixture`), ...offWidths(m.widths).map((x) => `TF-3 ${x}`),
+    ...Object.entries(m.controls).filter(([, v]) => String(v).toLowerCase() !== 'geometricprecision').map(([tag, v]) => `TF-4 a ${tag} computes text-rendering ${v}: hinted on Linux`),
+    ...offWidths(m.button).map((x) => `TF-4 in a button, ${x}`)];
 }
 
 async function measure(pin = pinFonts) {
@@ -64,7 +70,7 @@ async function measure(pin = pinFonts) {
     await page.route('http://hr-test.invalid/**', (r) => r.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=x"></head><body></body></html>' }));
     await page.goto('http://hr-test.invalid/');
     return await page.evaluate(async ({ line, faces, fonts, machine }) => {
-      const out = { widths: {}, loaded: {}, machine: {} };
+      const out = { widths: {}, loaded: {}, machine: {}, controls: {}, button: {} };
       const width = (font, mode) => {
         const s = document.createElement('span');
         s.style.cssText = `position:absolute;white-space:nowrap;font:${font};${mode ? `text-rendering:${mode};` : ''}`;
@@ -77,6 +83,20 @@ async function measure(pin = pinFonts) {
       for (const [family, weight] of faces) out.loaded[`${weight} ${family}`] = (await document.fonts.load(`${weight} 14px '${family}'`, line)).length;
       await document.fonts.ready;
       for (const font of fonts) out.widths[font] = width(font);
+      for (const tag of ['button', 'input', 'select', 'textarea']) {
+        const c = document.createElement(tag);
+        document.body.append(c);
+        out.controls[tag] = getComputedStyle(c).textRendering;
+        c.remove();
+      }
+      for (const font of fonts) {
+        const b = document.createElement('button');
+        b.style.cssText = `position:absolute;white-space:nowrap;padding:0;border:0;font:${font};letter-spacing:normal`;
+        b.textContent = line;
+        document.body.append(b);
+        out.button[font] = Math.round(b.getBoundingClientRect().width * 10) / 10;
+        b.remove();
+      }
       for (const font of fonts) out.machine[`${font} (hinted, as Linux draws a web font)`] = width(font, 'auto');
       for (const font of machine) out.machine[font] = width(font);
       return out;
@@ -125,6 +145,9 @@ async function selftest() {
   expect(faults(await measure(sheet(''))).some((x) => x.startsWith('TF-2')), 'the empty stub (the machine\'s own fallback, here or on GitHub) is caught');
   expect(faults(await measure(sheet(FONT_CSS.replaceAll('dejavu-sans-400', 'liberation-serif-400')))).some((x) => x.startsWith('TF-3')), 'the wrong file behind a family is caught');
   expect(faults(await measure(sheet(FONT_CSS.replaceAll("'Cinzel'", "'Cinzle'")))).some((x) => x.startsWith('TF-2')), 'a family name the tokens do not ask for is caught');
+  expect(FONT_CSS.startsWith('*,*::before,*::after{text-rendering:geometricPrecision}'), 'the sheet still opens with the rule the next mutant moves');
+  expect(faults(await measure(sheet(FONT_CSS.replace('*,*::before,*::after{', ':root{')))).some((x) => x.startsWith('TF-4 a button')), 'the rule on :root alone (v0.2.89\'s AW-62) is caught, on any machine');
+  expect(faults(await measure(sheet(FONT_CSS.replace('*,*::before,*::after{text-rendering:geometricPrecision}', '')))).some((x) => x.startsWith('TF-4 a button')), 'no rule at all is caught');
   console.log(bad ? `test-fonts --selftest: ${bad} failed` : 'test-fonts --selftest: every planted defect caught');
   return bad ? 1 : 0;
 }

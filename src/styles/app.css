@@ -45,6 +45,29 @@
 .auth-card.is-sent .auth-lead { display: none; }
 .auth-pitch { display: none; max-width: 311px; margin: 0; font-size: var(--t-small); line-height: 1.35; color: var(--ink); text-align: center; }
 .auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }
+/* THE LEGAL LINE (src/app/sign-in.js): under the pitch, in the crest's column, which has room where the card has none on a phone.
+   The sign-up's is a sentence with two links in it; the sign-in's is the two links alone, pressed like any link here. */
+.auth-legal { max-width: 311px; margin: 8px 0 0; font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); text-align: center; }
+.auth-legal:not(.is-links) .auth-link { display: inline; min-height: 0; padding: 0; font-size: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.auth-legal.is-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 16px; }
+/* THE READER (src/app/legal-reader.js): the Privacy Policy or the Terms over the screen, the card's own frame and title band, the text scrolling inside it. */
+.auth-doc { position: fixed; inset: 0; z-index: 40; box-sizing: border-box; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg-0) 92%, transparent); }
+.auth-card.auth-doc-card { width: min(46rem, 100%); max-height: 100%; min-height: 0; }
+.auth-doc-head { justify-content: space-between; gap: 12px; }
+.auth-doc-name { margin: 0; font: inherit; letter-spacing: inherit; color: inherit; }
+.auth-doc-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 6px 4px 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
+.auth-doc-body:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.auth-doc-body h2, .auth-doc-body h3, .auth-doc-body h4 { margin: 1.1em 0 .35em; font-family: var(--f-display); font-weight: 700; line-height: 1.2; letter-spacing: .06em; color: var(--gold-2); }
+.auth-doc-body h2 { font-size: var(--t-lead); }
+.auth-doc-body h3, .auth-doc-body h4 { font-size: var(--t-body); }
+.auth-doc-body :first-child { margin-top: 0; }
+.auth-doc-body p, .auth-doc-body ul, .auth-doc-body blockquote { margin: 0 0 .7em; }
+.auth-doc-body ul { padding-left: 1.3em; }
+.auth-doc-body li { margin-bottom: .3em; }
+.auth-doc-body blockquote { padding: 4px 0 4px 12px; border-left: 3px solid var(--steel-rule); color: var(--ink-2); }
+.auth-doc-body strong { color: var(--ink); }
+.auth-doc-body a { color: var(--gold-2); }
+.auth-doc-body hr { border: 0; border-top: 2px solid var(--steel-sep); margin: 1em 0; }
 .auth-name {
   margin: 0;
   font-family: var(--f-display); font-weight: 700; font-size: var(--t-h2);

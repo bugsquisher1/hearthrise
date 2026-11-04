@@ -5,6 +5,11 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+- The sign-in screens now link the Privacy Policy and the Terms of Service, and Create account says what pressing it means. Both pages were rewritten to say what Hearthrise really does today, including that your characters will be wiped before Steam Early Access.
+- New in Settings, under Help: "Share session recordings to help fix bugs". It is on by default. Turn it off and the game stops recording your screen at once.
+
 ## v0.2.87 — 2026-11-04 (Upgrades You Can Feel)
 
 **Upgrades you can feel.** Iron and Steel Warhammers and Hatchets hit harder, so moving up to one now speeds up your hunts, and Klappa's Club still hits as hard as an Iron Warhammer. Four friends with the same weapon in Meadowbrook Thicket earn a little more Level XP.

@@ -204,6 +204,12 @@ function sanitizeTownZoom(v) {
   return isObj(v) && TOWN_ZOOM.steps.includes(v.z) && Number.isSafeInteger(v.at) && v.at >= 0 ? { z: v.z, at: v.at } : undefined;
 }
 
+/* The session-recording switch (src/session/replay-pref.js): { on, at }, the player's pick and when (the newest any open hero holds
+   is the pick), else no pick at all (the default, src/data/privacy.js). A privacy preference; the game reads it for nothing. */
+function sanitizeShareReplay(v) {
+  return isObj(v) && typeof v.on === 'boolean' && Number.isSafeInteger(v.at) && v.at >= 0 ? { on: v.on, at: v.at } : undefined;
+}
+
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
   hudLayout: sanitizeHudLayout,     // display preference: the HUD layout (show, fade, place, fold); gates and spends nothing
@@ -222,6 +228,7 @@ const SANITIZERS = Object.freeze({
   marketView: sanitizeMarketView,   // display preference: the market window's category, sort, delivery and source; the server still decides each press
   marketSeen: sanitizeMarketSeen,   // display state: the newest market sale already told (src/shell/market-watch.js); gates and spends nothing
   townZoom: sanitizeTownZoom,       // display preference: the viewer's town zoom, one for every hero (src/world/town-zoom.js); gates and spends nothing
+  shareReplay: sanitizeShareReplay, // display preference: whether the screen may be recorded, one for every hero (src/session/replay-pref.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

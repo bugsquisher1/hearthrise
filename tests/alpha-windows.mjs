@@ -49,15 +49,16 @@
 //         scrolled into reach, "Putting it away…" and the result or the refusal stand in view and off the stack pressed; no stack moves
 //         from under the hand; a hero out hunting is told why at the press, and the line goes once the hero is home
 //   AW-66 THE SUMMARY'S ANSWER IS THE PRESS'S (party panel 2026-11-03): at 1366x620, on a card tall enough to scroll, the line lies on no press (it
-//         stood on the gold "Next:" plate, whose foot read as a half-filled progress bar), and "Setting out." goes once the hunt it set out on is over
+//         stood on the gold "Next:" plate, whose foot read as a half-filled progress bar), "Setting out." goes once the hunt it set out on is over,
+//         and every press is in reach as the window opens (door panel 2026-11-04: a hunt out of stamina opened with none in sight)
 //   AW-67 NOTHING LIES ON THE PRESS IN HAND (newcomer panel 2026-11-03, 1366x768, the coach's line up): a stack in hand drops the last press's
 //         result; its Fuel all, and Stop while it fuels, take a real press at their middle, over the answer line and inside the column; the
 //         player's own scroll is not fought; the Shop's tabs stay whole at the top of a scrolled body; the All characters card's
 //         figure says what it is (optimizer panel: "Bag 19,369 gp" beside "Your gold 51.7k")
-//   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
 //   AW-71 THE SAME CARD KEEPS ITS BOX AND ITS WORDS FOLLOW THE SERVER (door panel 2026-11-04): "You have 19 left" stood over a bar reading 6 for a whole hunt
 //   AW-72 A RING STANDS CLEAR OF THE ANSWER LINE (door panel 2026-11-04, a phone's Services): the next Bless lay behind "Blessing I is yours."
 //   AW-73 ON A PHONE THE CARD'S CROSS IS DRAWN IN ITS BUTTON (door panel 2026-11-04): static, it lay over the words in the middle of every closable card
+//   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
 //         and Dispatch loot stay off and the bag value reads a dash
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
 //         the whole bar restated and the item in that slot
@@ -2407,26 +2408,25 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             /* It stands under every press, wherever the window is scrolled: stuck to the foot it lay on one, or over one still below the fold. */
             const on = Array.from(document.querySelectorAll(w + '.hsum-actions button')).filter((x) => !x.hidden && x.getClientRects().length)
               .filter((x) => r.top < x.getBoundingClientRect().bottom - 1).map((x) => x.textContent);
-            return { text: m.textContent, scrolls: body.scrollHeight - body.clientHeight, on };
+            /* ...and every press is in reach as the window opens, whatever the reason and the numbers above them weigh (door panel 2026-11-04). */
+            const br = body.getBoundingClientRect();
+            const cut = Array.from(document.querySelectorAll(w + '.hsum-actions button')).filter((x) => !x.hidden && x.getClientRects().length)
+              .filter((x) => { const b = x.getBoundingClientRect(); return b.bottom > br.bottom + 1 || b.top < br.top - 1; }).map((x) => x.textContent);
+            const foot = document.querySelector(w + '.hsum-foot').getBoundingClientRect();
+            return { text: m.textContent, scrolls: body.scrollHeight - body.clientHeight, on, cut, gap: Math.round(br.bottom - foot.bottom) };
           }, W66);
+          if (said.cut.length) fails.push('AW-66 under the summary\'s fold as it opens: ' + said.cut.join(', '));
+          if (Math.abs(said.gap) > 1) fails.push('AW-66 the numbers read on ' + said.gap + ' px under the summary\'s presses');
           if (!/^Setting out/.test(said.text)) fails.push('AW-66 CONTROL: Hunt again did not say it set out: ' + JSON.stringify(said));
           if (said.scrolls <= 0) fails.push('AW-66 CONTROL: the card does not scroll at this size, so the line has nothing to lie on');
           if (said.on.length) fails.push('AW-66 the summary\'s answer stands over ' + said.on.join(', '));
           s.env.hunt = Object.assign({}, s.env.hunt, { ended: false, session_id: '5d1c0f2e-0000-4000-8000-000000000066', session: Object.assign({}, s.env.hunt.session, { end_reason: null, ended_at: null, phase: 'hunting' }) });
           await pushEnvelope(page, s);
           s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: Object.assign({}, s.env.hunt.session, OVER) });
-          if (said.cut.length) fails.push('AW-66 under the summary\'s fold as it opens: ' + said.cut.join(', '));
-          if (Math.abs(said.gap) > 1) fails.push('AW-66 the numbers read on ' + said.gap + ' px under the summary\'s presses');
           await pushEnvelope(page, s);
           await page.waitForTimeout(400);
           const home = await page.evaluate((w) => { const m = document.querySelector(w + '.hh-intent-msg'); return m ? m.textContent : null; }, W66);
           if (/Setting out/.test(home || '')) fails.push('AW-66 the hero is home and the summary still says ' + JSON.stringify(home));
-        }
-      }
-      if (errors.length) fails.push('AW-66 console errors: ' + errors.slice(0, 2).join(' | '));
-      await ctx.close();
-    }
-
           /* On a phone's sheet the presses come right under the reason and lie on none of the numbers. */
           await page.setViewportSize({ width: 844, height: 390 });
           await page.waitForTimeout(400);
@@ -2438,6 +2438,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             return { n: on.length, inReach: on.every((b) => b.bottom <= br.bottom + 1 && b.top >= br.top - 1), clear: on.every((b) => b.bottom <= stats.top + 1) };
           }, W66);
           if (!sheet.n || !sheet.inReach || !sheet.clear) fails.push('AW-66 the summary on a phone: ' + JSON.stringify(sheet));
+        }
+      }
+      if (errors.length) fails.push('AW-66 console errors: ' + errors.slice(0, 2).join(' | '));
+      await ctx.close();
+    }
+
     { // AW-67 nothing lies on the press in hand
       const W67 = '[data-hs-win="inventory"] ';
       const town = (e) => {
@@ -2471,6 +2477,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await wait(page, (w) => document.querySelector(w + '.hw-burying.is-on'), W67, 4000);
         await page.waitForTimeout(400);
         const line = await page.evaluate((w) => document.querySelector(w + '.hh-intent-msg').textContent, W67);
+        /* The press that worked reads as one: the job's own line has the Stop, and no "Already fueling... Stop it first." sits over it. */
+        const onFire = await page.evaluate((w) => document.querySelector(w + '.hw-pick-why').textContent, W67);
+        if (onFire) fails.push('AW-67 the stack just put on the fire is refused in words: ' + JSON.stringify(onFire));
         const stop = await takes(page, W67 + '[data-hs-act="bury-stop"]');
         if (!stop.hit) fails.push('AW-67 Stop does not take a press while it fuels (line ' + JSON.stringify(line) + '): ' + JSON.stringify(stop));
         /* The player's own scroll stands: the next patch does not pull the column back. */
@@ -2486,49 +2495,21 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const b = document.querySelector('[data-hs-win="shop"] [data-hs-body]'), t = document.querySelector('[data-hs-win="shop"] .hw-tabs');
           b.scrollTop = 40;
           const br = b.getBoundingClientRect(), r = t.getBoundingClientRect();
-          return { scrolled: b.scrollTop, whole: r.top >= br.top - 1 && r.bottom <= br.bottom };
+          return { scrolled: b.scrollTop, whole: r.top >= br.top - 1 && r.bottom <= br.bottom, gap: Math.round(r.top - br.top) };
         });
         if (!tabs.scrolled) fails.push('AW-67 CONTROL: the Shop does not scroll at this size');
         if (!tabs.whole) fails.push('AW-67 the Shop\'s tabs are cut on a scrolled body: ' + JSON.stringify(tabs));
-        /* The card's figure is what the bag would fetch, never a purse (Tyler 10-23: one purse per account). */
-        await openWin(page, 'o', 'characters');
-        await page.waitForTimeout(250);
-        /* The press that worked reads as one: the job's own line has the Stop, and no "Already fueling... Stop it first." sits over it. */
-        const onFire = await page.evaluate((w) => document.querySelector(w + '.hw-pick-why').textContent, W67);
-        if (onFire) fails.push('AW-67 the stack just put on the fire is refused in words: ' + JSON.stringify(onFire));
-        const bagWords = await page.evaluate(() => (document.querySelector('.hw-char .hw-char-bag') || {}).textContent);
-        if (!/^Bag worth /.test(bagWords || '')) fails.push('AW-67 the All characters card reads ' + JSON.stringify(bagWords));
-      }
         if (tabs.gap > 1) fails.push('AW-67 the list reads on ' + tabs.gap + ' px above the Shop\'s stuck tabs');
         /* A tab opens at its top: a carried-over scroll laid its first press behind the stuck tabs. */
         await page.click('[data-hs-win="shop"] .hw-tab:first-child');
         await page.waitForTimeout(200);
         const topped = await page.evaluate(() => document.querySelector('[data-hs-win="shop"] [data-hs-body]').scrollTop);
         if (topped !== 0) fails.push('AW-67 the Shop\'s tab opened scrolled down by ' + topped);
-      if (errors.length) fails.push('AW-67 console errors: ' + errors.slice(0, 2).join(' | '));
-      await ctx.close();
-    }
-
-    { // AW-18 amounts in Storage; AW-19 bury — a stateful stub: the server's answer moves its own counts
-      const town = (e) => {
-        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
-        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
-        e.bank = { oak_logs: 12, iron_bar: 3, shrimp: 2 };
-        e.inventory = Object.assign({}, e.inventory, { raw_wolf_meat: 4, raw_bear_meat: 2, bronze_arrows: 12000 });
-      };
-      const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
-      const shift = (from, to, id, n) => { from[id] -= n; if (!from[id]) delete from[id]; to[id] = (to[id] || 0) + n; };
-      s.onCall = (name, b) => {
-        if (name === 'hr_bank_move' && s.reply.ok !== false) { if (b.p_dir === 'deposit') shift(s.env.inventory, s.env.bank, b.p_item, b.p_qty); else shift(s.env.bank, s.env.inventory, b.p_item, b.p_qty); }
-        if (name === 'hr-accrue' && b.verb === 'set_activity') {
-          if (b.activity.kind === 'artisan') Object.assign(s.env.state, { active_kind: 'artisan', active_id: b.activity.id });
-          else {
-            const inv = s.env.inventory;
-            if (s.env.state.active_id === 'fuel_bones') { s.env.skills.inner_flame.xp += 6 * (inv.bones || 0); delete inv.bones; }
-            if (s.env.state.active_id === 'cook_wolf_meat') { s.env.skills.cooking.xp += 100; inv.cooked_wolf_meat = inv.raw_wolf_meat - 1; inv.burnt_food = 1; delete inv.raw_wolf_meat; }
-            Object.assign(s.env.state, { active_kind: 'idle', active_id: null });
-          }
-        }
+        /* The card's figure is what the bag would fetch, never a purse (Tyler 10-23: one purse per account). */
+        await openWin(page, 'o', 'characters');
+        await page.waitForTimeout(250);
+        const bagWords = await page.evaluate(() => (document.querySelector('.hw-char .hw-char-bag') || {}).textContent);
+        if (!/^Bag worth /.test(bagWords || '')) fails.push('AW-67 the All characters card reads ' + JSON.stringify(bagWords));
         /* AW-71 THE SAME CARD KEEPS ITS BOX AND ITS WORDS FOLLOW THE SERVER (door panel 2026-11-04: "You have 19 left" over a bar reading 6, for the whole hunt). */
         const coachNow = await page.evaluate(async () => {
           const { placeCoach } = await import(location.origin + '/src/shell/launcher.js');
@@ -2555,6 +2536,31 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           return out;
         });
         if (clear.press > clear.line) fails.push('AW-72 a ring landed under the answer line: ' + JSON.stringify(clear));
+      }
+      if (errors.length) fails.push('AW-67 console errors: ' + errors.slice(0, 2).join(' | '));
+      await ctx.close();
+    }
+
+    { // AW-18 amounts in Storage; AW-19 bury — a stateful stub: the server's answer moves its own counts
+      const town = (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
+        e.bank = { oak_logs: 12, iron_bar: 3, shrimp: 2 };
+        e.inventory = Object.assign({}, e.inventory, { raw_wolf_meat: 4, raw_bear_meat: 2, bronze_arrows: 12000 });
+      };
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
+      const shift = (from, to, id, n) => { from[id] -= n; if (!from[id]) delete from[id]; to[id] = (to[id] || 0) + n; };
+      s.onCall = (name, b) => {
+        if (name === 'hr_bank_move' && s.reply.ok !== false) { if (b.p_dir === 'deposit') shift(s.env.inventory, s.env.bank, b.p_item, b.p_qty); else shift(s.env.bank, s.env.inventory, b.p_item, b.p_qty); }
+        if (name === 'hr-accrue' && b.verb === 'set_activity') {
+          if (b.activity.kind === 'artisan') Object.assign(s.env.state, { active_kind: 'artisan', active_id: b.activity.id });
+          else {
+            const inv = s.env.inventory;
+            if (s.env.state.active_id === 'fuel_bones') { s.env.skills.inner_flame.xp += 6 * (inv.bones || 0); delete inv.bones; }
+            if (s.env.state.active_id === 'cook_wolf_meat') { s.env.skills.cooking.xp += 100; inv.cooked_wolf_meat = inv.raw_wolf_meat - 1; inv.burnt_food = 1; delete inv.raw_wolf_meat; }
+            Object.assign(s.env.state, { active_kind: 'idle', active_id: null });
+          }
+        }
       };
       const sc = (side, id) => page.evaluate(([sd, i]) => { const li = document.querySelector('[data-hs-win="storage"] .hw-pockets[data-side="' + sd + '"] .hw-pocket[data-item="' + i + '"]'); return li ? (li.querySelector('.hw-count').textContent || '1') : null; }, [side, id]);
       if (!up) fails.push('AW-18 the town did not mount');
@@ -3059,6 +3065,16 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const ringed = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-coach-ring]')).map((e) => (e.getAttribute('data-hs-open') || e.getAttribute('data-hunt') || e.className) + (e.getClientRects().length ? '' : ':hidden')));
         const r0 = await ringed();
         if (r0.join() !== 'hunts') fails.push('AW-17b a fresh character\'s ring is on ' + JSON.stringify(r0) + ', wanted the Hunts icon');
+        /* AW-73 ON A PHONE THE CARD'S CROSS IS DRAWN IN ITS BUTTON (door panel 2026-11-04): static, it lay over the words in the middle of every closable card. */
+        const cross = await page.evaluate(() => {
+          const p = document.createElement('p'); p.className = 'hs-pointer has-close';
+          p.innerHTML = '<b>A card</b> <span class="hs-coach-text">words</span><button class="hs-coach-min"></button><button class="hs-coach-close"></button>';
+          document.querySelector('.hs-launchers').append(p);
+          const x = p.querySelector('.hs-coach-close'), out = { pos: getComputedStyle(x).position, width: x.getBoundingClientRect().width };
+          p.remove();
+          return out;
+        });
+        if (cross.pos === 'static' || cross.width !== 40) fails.push('AW-73 the phone card\'s cross: ' + JSON.stringify(cross));
         if (await openWin(page, 'h', 'hunts')) {
           await page.waitForTimeout(400);
           const r1 = await ringed();

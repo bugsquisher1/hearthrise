@@ -5,7 +5,9 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## Unreleased
+## v0.2.87 — 2026-11-04 (Upgrades You Can Feel)
+
+**Upgrades you can feel.** Iron and Steel Warhammers and Hatchets hit harder, so moving up to one now speeds up your hunts, and Klappa's Club still hits as hard as an Iron Warhammer. Four friends with the same weapon in Meadowbrook Thicket earn a little more Level XP.
 
 - An email link that has expired or was already used now tells you so on the sign-in screen, and what to do next. The sign-up and reset messages mention spam.
 - The email you typed stays typed when you move between Sign in, Create an account and Forgot your password.
@@ -18,10 +20,6 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - "Costs are personal" is gone when you hunt alone, and a party reads "You each pay your own supplies."
 - On a phone, the next Bless is no longer hidden behind "Blessing I is yours", and nothing reads on above the Shop's tabs. Each Shop tab opens at its top.
 - On a phone, a tutorial card's close button shows its cross, which used to sit over the card's words.
-
-## v0.2.86 — 2026-11-04 (Rush If You Dare)
-
-**Upgrades you can feel.** Iron and Steel Warhammers and Hatchets hit harder, so moving up to one now speeds up your hunts, and Klappa's Club still hits as hard as an Iron Warhammer. Four friends with the same weapon in Meadowbrook Thicket earn a little more Level XP.
 
 ## v0.2.86 — 2026-11-04 (Rush If You Dare)
 

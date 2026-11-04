@@ -773,7 +773,8 @@ const cases = {
     return null;
   },
   'density-settle': (M) => {
-    const out = freshHealer(M, 'millrace_sewer', 1, 1, { density: 16 });
+    /* at the floor: this case is the pick's clamp, and a Level 1 now dies inside the minute (Tyler 2026-11-04 UTC) */
+    const out = freshHealer(M, 'millrace_sewer', 1, 1, { density: 16 }, undefined, 8);
     const w = M.worldstate.decode(JSON.parse(out.world));
     const max = M.grounds.HUNT_GROUNDS.millrace_sewer.densityMax[0];
     const born = M.grounds.HUNT_GROUNDS.millrace_sewer.pockets.map((_, p) => w.units.filter((u) => u.side === 'mon' && u.pocket === p).length);

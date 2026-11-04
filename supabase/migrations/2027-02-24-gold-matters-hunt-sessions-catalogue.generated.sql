@@ -8,8 +8,8 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 34756b11d525835ac957c39846f47e2a0c2f0b27d17dec2dfecdcf1bb4ec1691
---   82 supplies, 128 hunts (named + training), 48 limits, 13 end reasons,
+--   digest: b124746327a91344c7ce161f13721d779910c5b8b8540193ba5eb4eb50a0f9a6
+--   82 supplies, 128 hunts (named + training), 47 limits, 13 end reasons,
 --   548 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
 --
@@ -18,6 +18,9 @@
 -- boots (src/data/loot-bands.js). No spawn or limit moves and the world's shape is unchanged (no world_shape_pending on either order). The bound's
 -- headroom is three times the catalogue's top roll, so the old engine's rolls pass the lowered rows and the new engine's the raised ones; apply this
 -- first, then the hr-accrue carrying the same rows at once, so a sale never pays the old bid against the new floor for longer than the deploy.
+--
+-- CARRIED FROM 2027-02-24-risk (lane/c-risk-ladder, 2026-11-03): hr_hunt_limits loses below_range_refuse. ORDER: AFTER 2027-02-24-risk-no-level-block.sql, whose gate never reads it; the old gate
+-- reads a missing limit as a hard floor at band[0]. No kill bound, spawn or other limit moves, and the world's shape is unchanged.
 --
 -- CARRIED FROM 2027-02-18 (lane/c-craft-economy, designer 2026-11-01): hr_hunt_vendor_value, the shop's bid and the Weighhouse's floor,
 -- falls for gathered and refined goods (src/data/items.js BULK_GOODS). No kill bound, spawn or limit moves, and the world's shape is
@@ -944,7 +947,6 @@ insert into public.hr_hunt_limits (key, value) values
   ('ability_ammo_max', 3),
   ('armour_slots', 6),
   ('bag_lines', 10),
-  ('below_range_refuse', 15),
   ('block_mult', 2),
   ('death_xp_base', 0),
   ('death_xp_permille', 20),
@@ -1588,7 +1590,7 @@ declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 82
      or (select count(*) from public.hr_hunt_travel) <> 128
-     or (select count(*) from public.hr_hunt_limits) <> 48
+     or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 13
      or (select count(*) from public.hr_hunt_vendor_value) <> 548
      or (select count(*) from public.hr_hunt_basic_supplies) <> 25

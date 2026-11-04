@@ -23,11 +23,6 @@ import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.85';
 export const SESSION_LIMITS = Object.freeze({
   hours: Object.freeze({ min: 1, max: 24, default: null }),
   bagLines: 10,
-  /* THE LEVEL FLOOR IS A WARNING (Tyler, 2026-10-18): a hunt's band[0] (src/data/hunts.js) is
-     advice. hr_hunt_enter_for admits a character under it and answers below_range: true (the
-     picker says the hunt is above your level); it refuses only a character this many combat
-     Levels or more under the floor (2026-10-25-hunt-floor-warning.sql). */
-  belowRangeRefuse: 15,
 });
 
 /* The `stamina_low` timeline event (master plan row 4, 2026-10-14: it replaces

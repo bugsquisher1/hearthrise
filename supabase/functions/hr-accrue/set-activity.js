@@ -279,9 +279,8 @@ export async function runSetActivity(o) {
      ⚠ `catalogueHas`, NOT `!MONSTERS[id]`. The id shape is /^[a-z0-9_]{1,64}$/,
        which matches `constructor` and `__proto__`; both are truthy on MONSTERS
        and both walked straight past the truthiness form of this check. */
-  /* A NAMED HUNT (lane C1, src/data/hunts.js) is a combat target too. Its
-     combat-level floor (band[0]) is NOT judged here: hr_apply refuses
-     `hunt_locked` against the SERVER combat level under the character lock. */
+  /* A NAMED HUNT (lane C1, src/data/hunts.js) is a combat target too. hr_apply
+     asks hr_hunt_gate under the character lock; no Level is refused (Tyler 2026-11-04 UTC). */
   if (decl.kind === 'combat' && !catalogueHas(MONSTERS, decl.id) && !huntFor(decl.id)) {
     return {
       status: 409,

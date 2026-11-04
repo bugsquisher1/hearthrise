@@ -70,6 +70,37 @@ A Steel Platebody now sells for 210 g against Iron's 120 g (was 200). **Two know
 **Rejected.** *Coin x0.5 to chase +25-35%:* that is a minimum, not a cap (10-20), and it can't be reached: the Sewer's party falls under the Thicket at about x0.93 and the Glade in helm and body goes under its bill at about x0.5. *Widening the roster's gold bands to cut deeper:* it would be loosening a guard to get a number; every row here sits inside its band. *Dearer food:* the Glade tank's floor has about 20% of room and the Sewer's crossbow none (+25%, the rule's own edge); the bill is near zero mid-band, so it hits new heroes and misses the rich. *Dearer Shop gear:* the whole Shop is 1,540 g; x3 is 90 minutes, and it hits the 500 g start. *Dearer deeds, chests, rooms:* the early wants that make hours 1-10 a choice, and the bench rooms moved on 11-01. *Blessings:* 1,900 g spent in 14 days, free under 30, a death every 50 h: no price moves that (look again if lane/c-risk-ladder raises deaths). *Tier 2 at 0.3 for everything:* forged weapons sell under their bars (`W-FORGE` red), and the belts and gloves under the outfitter's.
 
 **What could still be wrong.** Real players press the pull: live coin is 4,367 g/h against the sim's about 3,000, so every hour above may come about 1.4x sooner. Live supply stays about 10% of coin: on the mix real players hunt the coin barely moves, because the Warrens rose as Wickstead and the Glade fell (about +930% over the bill, not +940%). The profit rule was never the lever. The Sewer crossbow's floor sits exactly on +25%, so the next coin or bill move there trips `ranger-floor`. Refills have sat at zero since 10-23, with every hero premium and 12 h free, so this price may simply go unpaid. 200,000 for the fourth may discourage four-hero play: watch who stops at three. Nothing here sinks gold past about 210 h of a four: the bank ladder (38.8M, no client path) is the next lever, and that takes a client change. **Done:** rows, guards, staged files. **Measured:** the tables above. **Assumed:** that a wait of 10 h on a hero reads as a goal, not a wall; only tomorrow's players can say.
+### 2026-11-03 Rush if you dare: harder ground, more XP, real risk, never blocked (systems-engineer, lane/c-risk-ladder): BUILT, played on the local world, two files STAGED, engine deploy
+**Tyler, 2026-11-04 UTC:** "dying should come if people take big risks", "if someone wants to try and 'rush' exp then they should be able to try harder content to get there faster, but it comes with risk", "it's not that complicated". Mechanic only: no other game's names or text.
+
+**What moved.** (1) The 15-Level hard block is gone, for a hero and a party (`hr_hunt_gate`, `belowRangeRefuse`). (2) `underFloorAtkPm` 50 -> 200: a monster's atk x (1 + 0.2 per Level under the floor), accuracy and blow. In range nothing moves: those rows match today's run to the digit. 150 left the Glade's average hero alive at 6 under; 200 kills it in 13 min and a built hero still holds. (3) The warning on the ground's page, one confirm press ("Enter anyway", "Start anyway"), and a why on the death card. (4) **What the block was protecting:** a Level 1 behind three Level 37s in the Warrens stood at full HP, took no blow and earned 190k XP/h; today's block lets a Level 18 do the same. Closed through the share, not a block: a seat under BOTH the ground's floor and two thirds of its party's top living Level keeps (its Level / that) squared of its share (`underFloorSharePm`). Level 1: 39 XP/h. Level 8: 19k. Level 18: 100k. Level 25: full. A party that pushes together, or a low friend on a ground in its range, is paid in full. The party's page says it per seat.
+
+**Does the pay climb?** Yes, at every Level, and nothing cuts a pusher: no XP or drop rule reads a Level but the share above. The same built hero, Level XP an hour: Cellar, Thicket, Wickstead, Sewer, Glade, Warrens.
+| Hero | Cellar | Thicket | Wickstead | Sewer | Glade | Warrens |
+|---|---|---|---|---|---|---|
+| Alone, Level 10 | 7.4k | 21.7k | 25.2k | 35.2k | 47.0k | dies at once |
+| Alone, Level 24 | 7.7k | 25.3k | 30.3k | 45.8k | 59.8k | 94.2k, dies about hourly |
+| Four, Level 24 | 9.5k | 33.4k | 38.4k | 64.9k | 88.0k | 152k |
+XP per kill climbs too (27, 52, 56, 154, 165-520, 924-2,112), and the gear dropped (tier 1, 1-2, 2, 2, 2-3, 3). **Flag for lane/c-gold-matters, not moved here:** gold an hour at the floors is flat from the Sewer up (4.4k, 4.5k, 4.6k alone), so harder ground pays better XP and better pieces, not more coin.
+
+**The ladder** (`node tools/balance-sim/risk-table.mjs`, real settle, 2 h x 2 seeds alone, 1 h x 2 seeds for a four; whole table `tools/balance-sim/risk-summary.json`). POOR = practice set, no armor. AVERAGE = the Level's best helm, body and boots, store food. BUILT = every slot of the Level's best, crafted food, eating at 70%. g/h is net of the store bill; crafted food costs its crafter, not counted.
+| Ground (Level) | Under | Who | Poor | Average | Built |
+|---|---|---|---|---|---|
+| Glade (16) | in range | alone | held, -5.3k g/h | 55k XP/h, +3.1k, held | 56k, +4.5k, held |
+| Glade (13) | 3 | alone | dies in 2 min | 50k, -7.5k, dies in 4 h | 51k, +4.2k, held |
+| Glade (10) | 6 | alone | dies in 1 min | 46k, -16k, dies in 13 min | 49k, +3.9k, held |
+| Glade (6) | 10 | alone | dies at once | dies in 2 min | 48k, +3.8k, held |
+| Glade (6) | 10 | four | dies in 1 min | 51k, -2.4k, dies in 16 min | 65k, +3.3k, held |
+| Glade (1) | 15 | alone | dies at once | dies in 1 min | 47k, +3.9k, held |
+| Warrens (32) | in range | four | 122k, -0.8k, held | 185k, +4.6k, held | 200k, +5.1k, held |
+| Warrens (29) | 3 | four | dies in 10 min | 146k, -5.9k, held | 161k, +3.8k, held |
+| Warrens (26) | 6 | alone | dies at once | dies in 1 min | 104k, +3.4k, held |
+| Warrens (26) | 6 | four | dies in 1 min | 122k, -21k, dies in 18 min | 154k, +3.3k, held |
+| Warrens (22) | 10 | four | dies in 1 min | dies in 2 min | 142k, +3.0k, dies in 2 h |
+| Warrens (17) | 15 | four | dies in 1 min | dies in 1 min | 100k, +2.0k, dies in 6 min |
+The build decides the rung: at one Level and ground, poor is minutes, average a gamble, built the best XP in reach.
+
+**Known limits.** The first grounds stay soft under their floors: their blows are so small that a Level 2 in the Thicket or Wickstead holds at 85-90% for the same XP as a floor hero, three times the Cellar's. Left: it is the first hour, and there is little to fear there. BUILT at Level 1 in the Glade holds because the sim hands it the crafted food and all six tier 1 pieces a real Level 1 won't own. A Level 18 behind Level 37s still earns 100k at no risk, about twice the Glade: friends carrying a friend, costing them a share. Solo Hunt again from the summary asks no second confirm: they've already gone in once. A Level 1's 620% reads oddly on the card; it is true. Pull density has no new words: it keeps "Bigger pulls pay more once your heroes can hold them."
 
 ### 2026-11-03 The blind panel's small design problems on v0.2.83 (designer, lane/b-0284-return): BUILT, played on the local world, one catalogue migration staged
 Simulated players are evidence, not verdicts; each was checked against the rulings first. No new system, content, combat number or sink price.

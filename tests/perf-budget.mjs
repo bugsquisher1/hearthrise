@@ -175,6 +175,7 @@ const MUTANTS = [
     '    return this.online.take(read ? ans.body.online : null);', "    this._account.server.rpc('hr_players_online', { p_slots: this.online.slots() });\n    return this.online.take(read ? ans.body.online : null);", /^asks: .*apart/, 'scenario', 4],
   ['the social poll is sent twice as often (the total must see what no verb budget names)', 'src/social/social-session.js',
     "this._poll = set(() => { if (!this._away", "this._poll = set(() => { this.reread(); this.reread(); if (!this._away", /^asks: .*a minute/, 'scenario', 4],
+  ['the still town reads every 2 s, never settling to its idle read', 'src/data/town-presence.js', '  idlePollMs: 6000,', '  idlePollMs: 2000,', /^asks: .*still town/, 'scenario', 4],
   ['the page does not say goodbye (its heroes\' stamps stay where they were when it is hidden)', 'src/shell/alerts.js',
     'for (const cs of account.characters()) { stampAway(cs, true);', 'for (const cs of []) { stampAway(cs, true);', /^asks: .*on the way out/, 'scenario', 4],
   ['a hidden tab goes on asking (old-laptop player 10-31: 64 calls and 1.45 MB in 2 minutes hidden)', 'src/app/boot.js',
@@ -656,8 +657,10 @@ async function scenario(o) {
     await snap('end');
     /* PB-REQ: the still town long enough to count (a 4-minute run; the rate is a read every 6 s and a poll every 30 s) */
     if (o.minutes >= 4) await page.waitForTimeout(TOWN_TAIL_MS);
-    /* ...and the still town: from a little after the party's end (its summary and the first reads) to the end of the run */
-    const asks = { hunt: asksIn(asked, t0, hiddenAt), town: asksIn(asked, (srv.S.endedAt || t0 + D) + 20000, Date.now()), stampsLeaving, townOwed: o.minutes >= 4 };
+    /* ...and the still town: from a little after the party's end (its summary and the first reads) to the end of the run. A busy runner's walk back to town lands later
+       (run 41767547512: 20.4 a minute with hr-accrue and hr_town_move inside), so it opens after those; a client that keeps asking them leaves no window, and asksFails says so. */
+    const walked = asked.filter(([, n]) => n === 'hr-accrue' || n === 'hr_town_move').reduce((m, [t]) => Math.max(m, t), 0);
+    const asks = { hunt: asksIn(asked, t0, hiddenAt), town: asksIn(asked, Math.max((srv.S.endedAt || t0 + D) + 20000, walked + 2000), Date.now()), stampsLeaving, townOwed: o.minutes >= 4 };
     return Object.assign(analyse(out, w0, o, srv), { asks, townPaintsPerS, townWritesPerS, townRecalcPerS, townTip: tail.tip, away, caught, awayFor, hiddenFor: shownAt - hiddenAt, heapMb: h0 === null ? null : (h1 - h0) / 1048576,
       heapRawMb: h0 === null ? null : (h1raw - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt });
   } finally {

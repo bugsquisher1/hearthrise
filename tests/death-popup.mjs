@@ -78,6 +78,15 @@ async function pure(base) {
   if (!/^No Blessing was active\./.test(words(Object.assign({}, ROW, { saved: null })).saved)) fail(fails, 'DP-0 saved null does not say no Blessing was active');
   const unpriced = words(Object.assign({}, ROW, { xp: null, xp_lost: null }));
   if (unpriced.lost !== '') fail(fails, 'DP-0 an unpriced death states a cost: ' + JSON.stringify(unpriced.lost));
+  /* THE WHY (Tyler 2026-11-04 UTC: a death teaches): how far under the ground, what that did to every blow, what would have helped. The server's Level and row; an older hunt's row says nothing. */
+  const { charXpForLevel } = await import(pathToFileURL(join(base, 'src/core/xp.js')).href);
+  const whyAt = (level, session) => { const hunt = { session_id: session, hunt_id: ROW.hunt, ended: true, session: { end_reason: 'died' } };
+    const cs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [ROW] : k === 'state' ? { level_xp: charXpForLevel(level) } : k === 'hunt' ? hunt : null), record: { residue: {} } };
+    return deathWords(cs, { session: SESSION, row: deathLogOf(cs)[0] }).why; };
+  const under = whyAt(2, SESSION), floor = HUNT_INDEX[ROW.hunt].band[0];
+  if (under !== 'You were ' + (floor - 2) + ' Levels under this ground, so its monsters hit you ' + (floor - 2) * 20 + '% harder. Better armor, food eaten sooner, a healer or a few more Levels would help.') fail(fails, 'DP-0 a death under the floor reads ' + JSON.stringify(under));
+  if (whyAt(floor, SESSION) !== 'Better armor, food eaten sooner or a smaller pull would help.') fail(fails, 'DP-0 a death in range reads ' + JSON.stringify(whyAt(floor, SESSION)));
+  if (whyAt(2, 'an-older-hunt') !== '') fail(fails, 'DP-0 an older hunt\'s death guesses at its Level: ' + JSON.stringify(whyAt(2, 'an-older-hunt')));
   return fails;
 }
 function fail(list, msg) { list.push(msg); }
@@ -86,6 +95,7 @@ function dead(env, row) {
   env.hunt.ended = true;
   env.hunt.session = Object.assign({}, env.hunt.session, { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
   env.death_log = [clone(row || ROW)];
+  env.state = Object.assign({}, env.state, { level_xp: 0 });
 }
 function scripted(died, row) {
   const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} } };
@@ -139,7 +149,7 @@ const popRead = (page) => page.evaluate((q) => {
   const r = w.getBoundingClientRect();
   return { modal: w.classList.contains('is-modal'), cx: r.left + r.width / 2, cy: r.top + r.height / 2, vw: innerWidth, vh: innerHeight,
     inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
-    title: t('.hdeath-title'), killed: t('.hdeath-killed'), lost: t('.hdeath-lost'), saved: t('.hdeath-saved'), town: t('.hdeath-town'),
+    title: t('.hdeath-title'), killed: t('.hdeath-killed'), why: t('.hdeath-why'), lost: t('.hdeath-lost'), saved: t('.hdeath-saved'), town: t('.hdeath-town'),
     summary: !!document.querySelector('[data-hs-win="hunt-summary"]:not(.is-leaving)'),
     minPx: Math.min(...Array.from(w.querySelectorAll('.hdeath-card *')).filter((n) => n.childNodes.length && n.textContent.trim() && getComputedStyle(n).display !== 'none').map((n) => parseFloat(getComputedStyle(n).fontSize))) };
 }, POP);
@@ -181,6 +191,7 @@ async function pageRules(overrides, shots) {
           if (!r.modal || Math.abs(r.cx - r.vw / 2) > 40 || !r.inside) fails.push('DP-1 [' + tag + '] the popup is not a centred modal on screen: ' + JSON.stringify({ modal: r.modal, cx: r.cx, vw: r.vw, inside: r.inside }));
           words(r, fails, tag, 'DP-1');
           if (!(r.minPx >= 12)) fails.push('DP-1 [' + tag + '] popup text at ' + r.minPx + ' px (under 12)');
+          if (!/would help\.$/.test(r.why || '')) fails.push('DP-1 [' + tag + '] the card never says what would have helped: ' + JSON.stringify(r.why));
           if (r.summary) fails.push('DP-1 [' + tag + '] the hunt summary opened over the death popup');
           const side = await a.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-widget="alerts"] li')).map((li) => li.textContent).filter((t) => /died/.test(t)));
           if (side.length) fails.push('DP-1 [' + tag + '] the death also raised a side line: ' + side.join(' | '));
@@ -353,6 +364,7 @@ async function pageRules(overrides, shots) {
 }
 
 const PAGE_MUTANTS = [
+  ['a death teaches nothing: the card has no why', 'src/shell/death-popup.js', '    why: whyWords(cs, d),', "    why: '',"],
   ['a death opens no popup', 'src/shell/death-popup.js', "    ctx.wm.open('death');", '    void 0;'],
   ['the dismissal is not kept', 'src/shell/death-popup.js', '{ const s = showing; showing = null; dismissDeath(cs, s); }', '{ showing = null; }'],
   ['the cost is not the row\'s', 'src/shell/death-popup.js', "'Dying cost ' + xpWords(row.xpLost)", "'Dying cost ' + xpWords({ level: row.xp })"],

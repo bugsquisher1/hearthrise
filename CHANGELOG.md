@@ -9,6 +9,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Gold means more.** A third hero now costs 50,000 gp, a fourth 200,000 and a fifth 800,000, so what to save for is a real choice. Harder grounds pay more: Coppercap's coin is up and the Rat King carries a little more, Wickstead and the Glade's poachers pay a little less, and Iron, Studded and Adept armor (helmets, bodies, legs, boots) sells for less at the shop. A stamina top-up costs more too, so an extra four hours is worth thinking about.
 
+**Rush if you dare.** Any hero can walk into any hunting ground now. The further under its Level you are, the harder its monsters hit, and the better the XP and loot. The game tells you the risk, asks you to press once more, and a death names what killed you and why. Heroes far under both the ground and their party's top Level earn a much smaller share of XP.
+
 ## v0.2.85 — 2026-11-03 (Klappa's Club)
 
 **New weapon: Klappa's Club.** Reforge your Practice Club with 6 Bronze Bars and 3 Small Fangs and swing it from Level 5; it hits as hard as an Iron Warhammer. Sell spare gear keeps it. Selling it by hand warns you that nothing sells the Practice Club that makes another.

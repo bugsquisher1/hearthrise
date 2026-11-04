@@ -207,7 +207,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE CRAFT WAGE (lane/c-craft-economy, designer 2026-11-01): 2027-02-16-party-pull is the file before this one, and this one carries it;
    hr_hunt_vendor_value moves for gathered and refined goods, the same full replace. No kill bound, spawn or shape moves. */
 /* KLAPPA'S CLUB (lane/c-klappa-club, designer 2026-11-03): 2027-02-21-rulings is APPLIED history; hr_hunt_vendor_value gains the club's bid, the same full replace. No kill bound, spawn or shape moves. */
-/* GOLD MATTERS (lane/c-gold-matters, designer 2026-11-03): 2027-02-23-klappa is APPLIED history; 15 monsters' coin moves hr_hunt_kill_bounds' gold_max (down on Wickstead, the Glade's
+/* NOTHING REFUSES A LEVEL (lane/c-risk-ladder, Tyler 2026-11-04 UTC): 2027-02-23-klappa is APPLIED history; hr_hunt_limits loses below_range_refuse, the same full replace, applied AFTER
+   2027-02-24-risk-no-level-block.sql (the old gate reads a missing limit as a hard floor). No kill bound, spawn or shape moves. */
+/* GOLD MATTERS (lane/c-gold-matters, designer 2026-11-03): 2027-02-24-risk is the file before this one and this one carries it; 15 monsters' coin moves hr_hunt_kill_bounds' gold_max (down on Wickstead, the Glade's
    poachers, the Sewer's bat and spider; up on the Warrens and the Rat King) and tier 2's hourly armor moves hr_hunt_vendor_value, the same full replace. No spawn, limit or shape moves. */
 export const OUT_NAME = '2027-02-24-gold-matters-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
@@ -402,8 +404,6 @@ export function catalogueRows(src = {}) {
     density_min: DENSITY_PICK.min, density_max: DENSITY_PICK.max,
     gather_share_min: GATHER_SHARE.min, gather_share_max: GATHER_SHARE.max,
     party_max: S.partyMax,
-    /* The level floor is a warning: refused only this many levels under band[0] (Tyler 10-18). */
-    below_range_refuse: S.sessionLimits.belowRangeRefuse,
     /* The no-fight end's span (hr_hunt_settle_session proves a no_fight end against it). */
     no_fight_min: NO_FIGHT_END_MIN,
     max_concurrent: S.maxConcurrent,
@@ -446,9 +446,6 @@ export function catalogueRows(src = {}) {
     throw new Error(`STAMINA_MAX_MS ${JSON.stringify(st)} is not whole minutes with premium >= free > 0`);
   }
   if (!(lim.distance_min >= 1 && lim.distance_min <= lim.distance_max)) throw new Error(`HERO_DISTANCE ${JSON.stringify(S.distance)}`);
-  if (!(whole(lim.below_range_refuse) && lim.below_range_refuse >= 1 && lim.below_range_refuse <= 100)) {
-    throw new Error(`SESSION_LIMITS.belowRangeRefuse ${S.sessionLimits.belowRangeRefuse} is not 1..100`);
-  }
   if (!(whole(lim.party_max) && lim.party_max >= 1 && lim.party_max <= 5)) throw new Error(`PARTY.maxSize ${S.partyMax} is not 1..5`);
   if (!(whole(lim.max_concurrent) && lim.max_concurrent >= 1 && lim.max_concurrent <= S.maxSlot + 1)) {
     throw new Error(`maxConcurrentCharacters ${S.maxConcurrent} is not 1..${S.maxSlot + 1} (one per slot at most)`);
@@ -653,6 +650,9 @@ export function render(src) {
 -- boots (src/data/loot-bands.js). No spawn or limit moves and the world's shape is unchanged (no world_shape_pending on either order). The bound's
 -- headroom is three times the catalogue's top roll, so the old engine's rolls pass the lowered rows and the new engine's the raised ones; apply this
 -- first, then the hr-accrue carrying the same rows at once, so a sale never pays the old bid against the new floor for longer than the deploy.
+--
+-- CARRIED FROM 2027-02-24-risk (lane/c-risk-ladder, 2026-11-03): hr_hunt_limits loses below_range_refuse. ORDER: AFTER 2027-02-24-risk-no-level-block.sql, whose gate never reads it; the old gate
+-- reads a missing limit as a hard floor at band[0]. No kill bound, spawn or other limit moves, and the world's shape is unchanged.
 --
 -- CARRIED FROM 2027-02-18 (lane/c-craft-economy, designer 2026-11-01): hr_hunt_vendor_value, the shop's bid and the Weighhouse's floor,
 -- falls for gathered and refined goods (src/data/items.js BULK_GOODS). No kill bound, spawn or limit moves, and the world's shape is

@@ -425,6 +425,37 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'risk') {
+    /* THE RISK LADDER (Tyler 2026-11-04 UTC): a harder ground pays more and hits harder, and any hero may walk in. Every open ground at its floor and 3, 6, 10, 15 and 25 Levels under, three builds:
+       poor = the practice set, no armor; average = the Level's best helm, body and boots on store food; optimized = every slot of the Level's best on crafted food, eating early. Read by risk-table.mjs. */
+    const BUILDS = { poor: { gear: { starter: true } }, average: { gear: { armourSlots: ['helmet', 'body', 'boots'] } }, optimized: { supply: 'own', bar: { eatPct: 70 } } };
+    for (const g of G) for (const gap of [0, 3, 6, 10, 15, 25]) {
+      const level = g.band[0] - gap;
+      if (level < 1) continue;
+      for (const [x, b] of Object.entries(BUILDS)) {
+        out.push({ ...cellOf({ ground: g.id, party: ['tank'], level, hours: H(2), seeds: 2, x: 'R' + gap + x, ...b }), windowMs: 120000 });
+        out.push({ ...cellOf({ ground: g.id, party: PARTIES.four, level, hours: H(1), seeds: 2, x: 'R' + gap + x, ...b }), windowMs: 120000 });
+      }
+    }
+    return out;
+  }
+  if (name === 'riskclimb') {
+    /* DOES THE PAY CLIMB WITH THE GROUND? The same built hero, one Level, every ground: alone at 10 and 24, a full mix at 24. */
+    const built = { supply: 'own', bar: { eatPct: 70 } };
+    for (const g of G) for (const [party, level] of [[['tank'], 10], [['tank'], 24], [PARTIES.four, 24]]) {
+      out.push({ ...cellOf({ ground: g.id, party, level, hours: H(1), seeds: 2, x: 'Climb', ...built }), windowMs: 120000 });
+    }
+    return out;
+  }
+  if (name === 'riskleech') {
+    /* WHAT THE GONE BLOCK LETS IN: a low hero sat behind three friends who hold the ground. Levels [friends x3, the low seat]; the low seat stands last, a bow or a mage, in the practice set or the Level's kit. */
+    for (const [ground, friends, lows] of [['coppercap_warrens', 37, [1, 8, 18, 25]], ['mosslight_glade', 24, [1, 8]], ['meadowbrook_thicket', 12, [1]]]) {
+      for (const low of lows) for (const s of ['bow', 'mage']) for (const [x, gear] of [['start', { starter: true }], ['kit', {}]]) {
+        out.push({ ...cellOf({ ground, party: ['tank', 'healer', 'mage', s], level: [friends, friends, friends, low], hours: H(1), seeds: 2, x: 'Leech' + x }), gearBySeat: [{}, {}, {}, gear], windowMs: 120000 });
+      }
+    }
+    return out;
+  }
   if (name === 'career8') {
     /* the same lives at the full box (density 8: the "reasonably efficient" pick wherever it stays safe) */
     for (const s of ['tank', 'hammer', 'bow', 'mage']) out.push({ id: 'S1:career8:' + s + ':s0', kind: 'career', party: [s], startLevel: 1, targetLevel: 50, maxHours: 200, chunkH: 1, seed: 0, density: 8 });

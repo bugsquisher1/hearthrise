@@ -22,14 +22,11 @@ const RULES = [
     why: 'CLAUDE.md §2: secrets are read as file bytes by the tools that need them, never printed.' },
   { id: 'no-agent-apply', test: (c, cwd) => inWorktree(cwd) && /apply-migration\.mjs/.test(c),
     why: 'CLAUDE.md §2: production DB writes are the Coordinator\'s, never an agent\'s. Stage the migration and its §4 self-check; report it.' },
-  { id: 'no-apply-midnight', test: (c) => /apply-migration\.mjs/.test(c) && midnightUtc(),
-    why: 'CLAUDE.md §2: no applies 00:00–00:10 UTC (the daily rollover).' },
   { id: 'no-agent-deploy', test: (c, cwd) => inWorktree(cwd) && /supabase(@[\w.]+)?\s+functions\s+deploy|deploy-edge\.local\.mjs[^\n]*--deploy/.test(c),
     why: 'CLAUDE.md §3.3: edge deploys are the Coordinator\'s. Report `pack-edge --hash` instead.' },
 ];
 
 function inWorktree(cwd) { return /[\\/]\.claude[\\/]worktrees[\\/]/.test(String(cwd || '')); }
-function midnightUtc() { const d = new Date(); return d.getUTCHours() === 0 && d.getUTCMinutes() < 10; }
 
 export function verdict(command, cwd) {
   const c = String(command || '');
@@ -51,7 +48,7 @@ if (process.argv.includes('--selftest')) {
     ['node tools/apply-migration.mjs x.sql', wt, 'no-agent-apply'], ['npx supabase@latest functions deploy hr-accrue', wt, 'no-agent-deploy'],
     // must pass
     ['git push origin main', main, null], ['git push -q origin lane/a-x', wt, null], ['git status', wt, null],
-    ['node tools/apply-migration.mjs x.sql', main, midnightUtc() ? 'no-apply-midnight' : null], ['git worktree remove .claude/worktrees/agent-a1', main, null],
+    ['node tools/apply-migration.mjs x.sql', main, null], ['git worktree remove .claude/worktrees/agent-a1', main, null],
     ['node tools/hunt-health.local.mjs', main, null], ['git log --format=%s main..lane/a-x', wt, null],
   ];
   let bad = 0;

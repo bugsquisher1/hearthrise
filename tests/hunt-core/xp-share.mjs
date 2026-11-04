@@ -321,7 +321,7 @@ const mutants = [
   { name: 'the dead share the kill', case: 'share-split-by-living',
     edits: [['src/core/hunt/xp-share.js', "units.filter((u) => u.side === 'hero' && u.alive === true)", "units.filter((u) => u.side === 'hero')"]] },
   { name: 'the multiplier is ignored', case: 'each-hero-own-multiplier',
-    edits: [['src/core/hunt/xp-share.js', 'xp: Math.floor((raw * party * multOf(sc, h)) / 1000 + 1e-9)', 'xp: Math.floor((raw * party * (multOf(sc, h) ? 1 : 1)) / 1000 + 1e-9)']] },
+    edits: [['src/core/hunt/xp-share.js', 'const paid = (raw * party * multOf(sc, h)) / 1000;', 'const paid = (raw * party * (multOf(sc, h) ? 1 : 1)) / 1000;']] },
   /* THE PARTY FACTOR (Tyler 2026-10-31, src/data/party-class-xp.js) */
   { name: 'the party factor is not paid', case: 'party-class-every-cell',
     edits: [['src/core/hunt/xp-share.js', '(raw * party * multOf(sc, h))', '(raw * 1000 * multOf(sc, h))']] },

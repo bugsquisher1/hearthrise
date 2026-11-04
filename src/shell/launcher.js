@@ -276,10 +276,12 @@ const SAID = new WeakMap();
 function sameCardWords(have, html) {
   if (SAID.get(have) === html) return;
   SAID.set(have, html);
+  const was = have.querySelector(':scope > .hs-coach-text');
+  if (!was) return;   // folded to its title: no words to follow
   const t = have.ownerDocument.createElement('template');
   t.innerHTML = html;
-  const was = have.querySelector(':scope > .hs-coach-text'), now = t.content.querySelector('.hs-pointer > .hs-coach-text');
-  if (was && now && was.textContent !== now.textContent) was.textContent = now.textContent;
+  const now = t.content.querySelector('.hs-pointer > .hs-coach-text');
+  if (now && was.textContent !== now.textContent) was.textContent = now.textContent;
 }
 
 /** The coach's fold, open, Got it and close presses, from wherever it is drawn (this row, the hunt top bar, a window).

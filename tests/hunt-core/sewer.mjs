@@ -1191,7 +1191,7 @@ const cases = {
     let node = null, inserts = 0;
     const attrOf = (h, a) => (new RegExp(a + '="([^"]+)"').exec(h) || [])[1] || null;
     const bar = { querySelector: () => node, insertAdjacentHTML: (pos, h) => { inserts++;
-      node = { key: attrOf(h, 'data-coach'), getAttribute: (a) => attrOf(h, a), remove: () => { node = null; } }; } };
+      node = { key: attrOf(h, 'data-coach'), getAttribute: (a) => attrOf(h, a), querySelector: () => null, remove: () => { node = null; } }; } };
     placeCoach(bar, before); placeCoach(bar, before);
     placeCoach(bar, marked);
     if (inserts !== 2 || !node || !/:new$/.test(node.key)) return 'the hunt bar did not redraw the coach on a new card (' + inserts + ' draws, ' + (node && node.key) + ')';

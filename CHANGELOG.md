@@ -9,6 +9,15 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 - An email link that has expired or was already used now tells you so on the sign-in screen, and what to do next. The sign-up and reset messages mention spam.
 - The email you typed stays typed when you move between Sign in, Create an account and Forgot your password.
+- If your confirmation link has expired, signing in now offers "Send me a new link" instead of sending you back to the dead one.
+- Pressing Fuel all no longer answers with "Already fueling, stop it first" on the stack you just lit.
+- The Hunt summary always shows Next, Hunt again and Open bag when it opens, even after a long reason like running out of stamina.
+- Tutorial cards keep their numbers current: "You have 19 left" no longer sits over a bar that says 6.
+- "Turnips are ready" now points at Cooking once you have harvested, instead of back at the Farm.
+- The "You died" tutorial card writes big numbers with commas, like the popup above it.
+- "Costs are personal" is gone when you hunt alone, and a party reads "You each pay for your own supplies."
+- On a phone, the next Bless is no longer hidden behind "Blessing I is yours", and nothing reads on above the Shop's tabs. Each Shop tab opens at its top.
+- On a phone, a tutorial card's close button shows its cross, which used to sit over the card's words.
 
 ## v0.2.85 — 2026-11-03 (Klappa's Club)
 

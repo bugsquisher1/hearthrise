@@ -19,9 +19,9 @@
 //                  die. Each claim is played here against the ground that fits: a balance change that makes one false turns this red.
 //   bigger-pulls-words  the Hunts window's "Bigger pulls pay more once your heroes can hold them", played: a Level 18 hero in Wickstead at 8 each
 //                  against as built, and a fresh one who cannot hold them (it dips, and its food bill eats the gain).
-//   level-gap      under a floor the XP stays and the gold goes, and a watched hunt and a closed browser walk the same swings.
-//   risk-ladder    THE RISK (Tyler 2026-11-04 UTC): in range is safe; under a floor an average hero dies and a built one holds and earns about double the ground that fits; a watched hunt
-//                  and a closed browser die alike; a Level 1 behind high friends earns next to nothing, and a party that pushes together is paid in full.
+//   risk-ladder    THE RISK IS THE MONSTERS (Tyler 2026-11-04): in range is safe; on a harder ground a hero earns well over the ground that fits and its supply bill follows, an unready hero dies and
+//                  a built one holds, with no rule behind any of it (hunt-core/damage.mjs same-blow-at-any-level); a watched hunt and a closed browser die alike; a Level 1 behind high friends earns
+//                  next to nothing, and a party that pushes together is paid in full.
 //   vs-alone       the Party window's measured line against a full mix on two grounds.
 //   weapon-rungs   the hammer's and the hatchets' tier 2 and tier 3 each pay at least +5% Level XP an hour over the tier behind, on the first ground the rung is worn for.
 //   glade-harder   Tyler's harder monsters (accuracy 0.80), both paths: felt at the floor, no death, profit, pace, the top eases, a held pull pays.
@@ -104,21 +104,20 @@ if (PAIR) {
 /* the advice itself: the first day is three solo grounds then a party floor, or this guard plays nothing new */
 cases['first-day-grounds'] = () => (SOLO.length >= 2 && PAIR ? null : 'the Hunts window sends a lone hero to ' + SOLO.join(', ') + ' and a pair first to ' + PAIR);
 
-/* THE WORDS, PLAYED: a Level 11 sword and shield in the Glade against Wickstead, the ground that fits it; in its armor, then in the practice set */
+/* THE WORDS, PLAYED: a Level 11 sword and shield in the Glade against Wickstead, the ground that fits it, and a hero not ready for it */
 cases['above-your-level-words'] = (R) => {
   const words = HL.ABOVE_LEVEL_WORDS;
-  if (!/More XP/.test(words) || !/hit harder/.test(words) || !/spend more on food than you earn/.test(words) || !/or die/.test(words)) return 'the words claim something this case does not play: ' + words;
+  if (!/More XP/.test(words) || !/stronger than you/.test(words) || !/spend more on supplies/.test(words) || !/or to die/.test(words)) return 'the words claim something this case does not play: ' + words;
   const L = 11, fits = recommendedHunt([L], 1);
   const above = G.OPEN_GROUNDS.mosslight_glade;
   if (!String(HL.rangeWords(HL.huntRows().find((r) => r.hunt === above.hunt), L)).includes(words)) return 'a Level ' + L + ' hero is not warned on ' + above.hunt;
   const play = (ground, style, level, gear) => R.runCell({ id: 'words:' + ground + ':' + style + ':' + level, ground, party: [style], level, hours: 1, seeds: 1, ...(gear ? { gear } : {}) }).heroes[0];
-  const inFit = play(groundOf(fits.hunt), 'tank', L), inAbove = play(above.id, 'tank', L), bare = play(above.id, 'tank', L, STARTER);
+  const inFit = play(groundOf(fits.hunt), 'tank', L), inAbove = play(above.id, 'tank', L);
   if (!(inAbove.levelXpPerH > inFit.levelXpPerH)) return 'more XP: ' + inAbove.levelXpPerH + ' Level XP/h above the level, ' + inFit.levelXpPerH + ' on the ground that fits';
-  if (!(inAbove.dmgPerMonsterSwing > inFit.dmgPerMonsterSwing)) return 'harder hits: ' + inAbove.dmgPerMonsterSwing + ' a monster swing above the level, ' + inFit.dmgPerMonsterSwing + ' on the ground that fits';
-  if (!(bare.storePerH > bare.incomePerH)) return 'weak armor spends more than it earns: ' + bare.storePerH + ' g/h on the store against ' + bare.incomePerH + ' g/h earned';
-  if (inAbove.deaths) return 'armored, a hero is told only weak armor dies, and died ' + inAbove.deaths + ' time(s)';
+  if (!(inAbove.dmgPerMonsterSwing > inFit.dmgPerMonsterSwing)) return 'stronger: ' + inAbove.dmgPerMonsterSwing + ' a monster swing above the level, ' + inFit.dmgPerMonsterSwing + ' on the ground that fits';
+  if (!(inAbove.storePerH > inFit.storePerH * 3)) return 'more on supplies: ' + inAbove.storePerH + ' g/h on the store above the level, ' + inFit.storePerH + ' on the ground that fits';
   const dies = play(above.id, 'sword', 2, STARTER);
-  if (!dies.deaths) return 'or die: a Level 2 sword in the practice set lived an hour in the Glade';
+  if (!dies.deaths) return 'or to die: a Level 2 sword in the practice set lived an hour in the Glade';
   return null;
 };
 
@@ -129,45 +128,26 @@ cases['bigger-pulls-words'] = (R) => {
   if (!(fresh.profitPerH < big.profitPerH / 2)) return 'a fresh hero who cannot hold 8 nets ' + fresh.profitPerH + ' g/h against ' + big.profitPerH + ': the words say "once your heroes can hold them"';
   return null;
 };
-/* THE LEVEL GAP (Tyler 2026-11-02, his 10-18 "waste hunt"): under a floor the XP stays and the gold goes, BOTH PATHS. "Viewed" settles every 10 s, as a watched
-   hunt does; "browser closed" settles the same span in one 10-minute cut. The swings must match (TICK-1), because a Level gained counts from the next swing either way. */
-cases['level-gap'] = (R) => {
-  const glade = G.OPEN_GROUNDS.mosslight_glade;
-  for (const [L, pm] of [[7, 2800], [15, 1200], [16, 1000], [40, 1000], [undefined, 1000]]) if (G.underFloorPm(glade, L) !== pm) return 'underFloorPm at Level ' + L + ' reads ' + G.underFloorPm(glade, L) + ', not ' + pm;
-  const play = (ground, level, windowMs) => R.runCell({ id: 'gap:' + ground + ':' + level + ':' + windowMs, ground, party: ['tank'], level, hours: 1, seeds: 1, ...(windowMs ? { windowMs } : {}) }).heroes[0];
-  const viewed = play(glade.id, 7, 10000), closed = play(glade.id, 7, 600000);
-  for (const k of ['levelXpPerH', 'takenPerH', 'storePerH', 'coinPerH']) if (viewed[k] !== closed[k]) return k + ': viewed ' + viewed[k] + ', browser closed ' + closed[k];
-  /* THE BLOW ITSELF: in the same practice set, a landed blow at Level 7 is the gap's bigger than at the floor (accuracy aside: Defense moves that). */
-  const perLanded = (h) => h.dmgPerMonsterSwing / Math.max(0.01, (h.landedPct || 0) / 100);
-  const bare = (level) => R.runCell({ id: 'gapb:' + level, ground: glade.id, party: ['tank'], level, hours: 0.5, seeds: 1, gear: { starter: true } }).heroes[0];
-  const low = bare(7), floor = bare(16);
-  if (!(perLanded(low) > perLanded(floor) * 1.25)) return 'a landed blow at Level 7 averages ' + perLanded(low).toFixed(1) + ', at the floor ' + perLanded(floor).toFixed(1) + ': the gap is not in the blow';
-  const fits = play(G.OPEN_GROUNDS.meadowbrook_thicket.id, 7);
-  if (!(viewed.levelXpPerH > fits.levelXpPerH * 1.5)) return 'under the floor pays ' + viewed.levelXpPerH + ' XP/h against ' + fits.levelXpPerH + ': the ruling keeps the higher XP';
-  if (!(viewed.profitPerH < fits.profitPerH * 0.5)) return 'under the floor nets ' + viewed.profitPerH + ' g/h against ' + fits.profitPerH + ': the ruling says it loses gold';
-  return null;
-};
-
-/* THE RISK LADDER (Tyler 2026-11-04 UTC: "dying should come if people take big risks ... otherwise what is the point of the game?"). tools/balance-sim plan risk has the whole table; this holds its shape.
-   AVERAGE: the Level's helm, body and boots on store food. BUILT: every slot of the Level's best on crafted food, eating early. BOTH PATHS: a watched hunt (10 s settles) and a closed browser (10 min). */
+/* THE RISK IS THE MONSTERS (Tyler 2026-11-04: "either A. The player or party dies, or B. They have to spend more on supplies to stay alive ... it's inherent in the game, not a penalty driven system").
+   tools/balance-sim plans risk and riskclimb have the whole table; this holds its shape. AVERAGE: the Level's helm, body and boots on store food. BUILT: every slot of the Level's best on crafted food,
+   eating early. BOTH PATHS: a watched hunt (10 s settles) and a closed browser (10 min). */
 const AVERAGE = Object.freeze({ gear: { armourSlots: ['helmet', 'body', 'boots'] } }), BUILT = Object.freeze({ supply: 'own', bar: { eatPct: 70 } });
 cases['risk-ladder'] = (R) => {
   const play = (ground, party, level, build, o) => R.runCell({ id: 'risk:' + ground + ':' + party + ':' + level + ':' + JSON.stringify([build, o]), ground, party, level, hours: 1, seeds: 1, windowMs: 120000, ...build, ...(o || {}) }).heroes;
   /* IN RANGE IS SAFE: the top ground, a full mix on store food at its floor. */
   for (const h of play('coppercap_warrens', PARTIES.four, 32, AVERAGE)) if (h.deaths) return 'in range, the Warrens at 32 killed ' + h.style + ' ' + h.deaths + ' time(s)';
-  /* ONE STEP PAST: six Levels under the Glade, the average hero dies inside the hour; the built one holds and earns well over the ground that fits it. */
-  const [avg] = play('mosslight_glade', ['tank'], 10, AVERAGE), [built] = play('mosslight_glade', ['tank'], 10, BUILT), [fits] = play('wickstead', ['tank'], 10, BUILT);
-  if (!avg.deaths) return 'six Levels under the Glade an average hero held an hour (typical ' + avg.encMinHpPct.p50 + '%)';
-  if (built.deaths) return 'six Levels under the Glade a built hero died ' + built.deaths + ' time(s): the build no longer changes the outcome';
-  if (!(built.levelXpPerH > fits.levelXpPerH * 1.5)) return 'pushing pays ' + built.levelXpPerH + ' XP/h against ' + fits.levelXpPerH + ' on the ground that fits: the push is the fastest way up, or there is no reason to try';
-  /* THE GOLD IS THE OTHER PRICE: on store food the push costs more than it earns, where the ground that fits pays. */
-  if (!(avg.profitPerH < 0)) return 'the average push nets ' + avg.profitPerH + ' g/h: the waste hunt loses gold';
-  /* FAR PAST: ten Levels under, alone and average is minutes; a built party holds. */
-  const [far] = play('mosslight_glade', ['tank'], 6, AVERAGE);
-  if (!(far.deaths >= 3)) return 'ten Levels under the Glade an average hero died ' + far.deaths + ' time(s) in an hour: that is minutes, or there is no far past';
-  for (const h of play('mosslight_glade', PARTIES.four, 6, BUILT)) if (h.deaths) return 'ten Levels under the Glade a built party lost ' + h.style + ' ' + h.deaths + ' time(s)';
+  /* A PUSH PAYS AND THE BILL FOLLOWS, ON ITS OWN: a Level 10 alone, six Levels under the Glade, against Wickstead in its range. */
+  const [avg] = play('mosslight_glade', ['tank'], 10, AVERAGE), [fits] = play('wickstead', ['tank'], 10, AVERAGE);
+  if (!(avg.levelXpPerH > fits.levelXpPerH * 1.5)) return 'pushing pays ' + avg.levelXpPerH + ' XP/h against ' + fits.levelXpPerH + ' on the ground that fits: the push is the fastest way up, or there is no reason to try';
+  if (!(avg.storePerH > 1000 && avg.storePerH > fits.storePerH * 3)) return 'the push bills ' + avg.storePerH + ' g/h on the store against ' + fits.storePerH + ' on the ground that fits: harder monsters cost supplies, or nothing is at stake';
+  if (!(avg.profitPerH < fits.profitPerH * 0.5)) return 'the push nets ' + avg.profitPerH + ' g/h against ' + fits.profitPerH + ': the waste hunt loses gold';
+  /* THE BUILD DECIDES: ten Levels under, the practice set dies and a built hero holds, eating far more of its own food than on the ground that fits. */
+  const [poor] = play('mosslight_glade', ['tank'], 6, { gear: STARTER }), [built] = play('mosslight_glade', ['tank'], 6, BUILT), [builtFits] = play('meadowbrook_thicket', ['tank'], 6, BUILT);
+  if (!poor.deaths) return 'ten Levels under the Glade the practice set held an hour (typical ' + poor.encMinHpPct.p50 + '%)';
+  if (built.deaths) return 'ten Levels under the Glade a built hero died ' + built.deaths + ' time(s): the build no longer changes the outcome';
+  if (!(built.eatsPerH.own > builtFits.eatsPerH.own * 3)) return 'a built hero ate ' + built.eatsPerH.own + ' of its own meals an hour above its level, ' + builtFits.eatsPerH.own + ' on the ground that fits';
   /* BOTH PATHS: the same hero dies on the same swings, watched or not. */
-  const [viewed] = play('mosslight_glade', ['tank'], 10, AVERAGE, { windowMs: 10000 }), [closed] = play('mosslight_glade', ['tank'], 10, AVERAGE, { windowMs: 600000 });
+  const [viewed] = play('mosslight_glade', ['tank'], 6, { gear: STARTER }, { windowMs: 10000 }), [closed] = play('mosslight_glade', ['tank'], 6, { gear: STARTER }, { windowMs: 600000 });
   for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (viewed[k] !== closed[k]) return k + ': viewed ' + viewed[k] + ', browser closed ' + closed[k];
   /* THE LEVEL SHARE, NOT A BLOCK: a Level 1 walks in behind three Level 37s and takes next to nothing; a party under the floor together is paid as one. */
   const [t37, , , low] = play('coppercap_warrens', ['tank', 'healer', 'mage', 'bow'], [37, 37, 37, 1], {}, { gearBySeat: [{}, {}, {}, STARTER] });
@@ -256,17 +236,9 @@ const GLADE_SOFT = [['hp: 30, atk: 10, baseAcc: 0.8, def: 1, xp: 165', 'hp: 30, 
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
     edits: [['src/core/combat.js', 'const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;', 'const base = b.monsterBaseAccuracy;'], ...GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2')])] },
-  { name: 'the level gap never reaches the blow: under a floor costs no gold', case: 'level-gap',
-    edits: [['src/core/hunt/damage.js', "const gap = t.side === 'hero' ? underFloorPm(inst.ground, t.heroLv) : 1000;", 'const gap = 1000;']] },
-  { name: 'the level gap is a nudge again: past a floor is safe', case: 'risk-ladder', edits: [['src/data/hunt-tuning.js', 'underFloorAtkPm: 200,', 'underFloorAtkPm: 30,']] },
-  { name: 'the level gap is a wall: no build holds past a floor', case: 'risk-ladder', edits: [['src/data/hunt-tuning.js', 'underFloorAtkPm: 200,', 'underFloorAtkPm: 800,']] },
-  { name: 'in range bites too: the gap starts twenty Levels over the floor', case: 'risk-ladder',
-    edits: [['src/data/hunt-grounds.js', "if (!band || !Number.isInteger(level) || level >= band[0]) return 1000;\n  return 1000 + HUNT_TUNING.underFloorAtkPm * (band[0] - level);", "if (!band || !Number.isInteger(level) || level >= band[0] + 20) return 1000;\n  return 1000 + HUNT_TUNING.underFloorAtkPm * (band[0] + 20 - level);"]] },
   { name: 'the level share is gone: a Level 1 earns what its friends earn', case: 'risk-ladder', edits: [['src/core/hunt/xp-share.js', 'const seat = underFloorSharePm(ground, h.heroLv, top);', 'const seat = 1000;']] },
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
-  { name: 'the Level is read once and kept: a cut changes the swings', case: 'level-gap',
-    edits: [['src/core/combat-sim.js', 'u.heroLv = snap.level;', 'u.heroLv = u.heroLv || snap.level;']] },
   { name: 'the Thicket pays the old 1.52 on its wider pull, and the window still says 20%', case: 'vs-alone',
     edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1520])']] },
   { name: 'the Iron Warhammer is back at 7/12: its upgrade pays under +5%', case: 'weapon-rungs',
@@ -279,9 +251,11 @@ const mutants = [
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',
     edits: [['src/data/hunt-grounds.js', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = 1;']] },
-  { name: 'the Glade\'s crows and vines bite no harder than Wickstead\'s rats, and the words still say harder', case: 'above-your-level-words',
+  { name: 'the Glade\'s crows and vines bite no harder than Wickstead\'s rats, so a push costs nothing', case: 'risk-ladder',
     edits: GLADE_SOFT },
-  { name: 'store food at the Glade costs next to nothing, and the words still say weak armor loses gold', case: 'above-your-level-words',
+  { name: 'the Glade\'s crows and vines bite no harder than Wickstead\'s rats, and the words still say stronger', case: 'above-your-level-words',
+    edits: GLADE_SOFT },
+  { name: 'store food at the Glade costs next to nothing, and the words still say expect to spend more', case: 'above-your-level-words',
     edits: [['src/data/supply-basics.js', "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14)", "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 1)"],
       ['src/data/supply-basics.js', "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40)", "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 1)"]] },
   { name: 'the Cellar\'s rats, slimes and wasps armoured like a Coppercap foreman (def 0 -> 60): a fresh hero cannot clear it', case: 'solo-mill_cellar',

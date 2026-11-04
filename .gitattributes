@@ -39,3 +39,6 @@ index.html text eol=lf
 # The same for each agent's own log (one dated section per lane, appended at the tail); the
 # pattern above does not reach the agents/ subfolder, which is where v0.2.46's three conflicts came from (2026-10-25).
 .claude/coordination/agents/*.md merge=union
+
+# Test fonts are bytes: tests/** above would rewrite their line endings and corrupt them (tests/_test-fonts.mjs).
+tests/fixtures/fonts/*.ttf binary

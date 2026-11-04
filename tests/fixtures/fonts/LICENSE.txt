@@ -1,0 +1,7 @@
+Test fixtures only (tests/_test-fonts.mjs); never served to a player. Latin subsets, cut with fontTools' pyftsubset, metrics untouched.
+
+dejavu-sans-400.ttf, dejavu-sans-700.ttf: DejaVu Sans 2.37. Free licence, https://dejavu-fonts.github.io/License.html
+  (Bitstream Vera and Arev derivatives: copying, modifying and redistributing are allowed; the fonts may not be sold alone).
+
+liberation-serif-400.ttf, liberation-serif-700.ttf: Liberation Serif 2.1.5. SIL Open Font License 1.1,
+  https://github.com/liberationfonts/liberation-fonts/blob/main/LICENSE

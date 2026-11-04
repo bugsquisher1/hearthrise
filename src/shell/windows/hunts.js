@@ -18,8 +18,8 @@
 // the page in its place, with a way back.
 // Enter is ONE hr_hunt_enter; the server checks the band, the stamina and the
 // stock, and the hunt shows only from the re-read envelope. A hunt above the
-// character's level says so (ABOVE_LEVEL_WORDS); the floor is a warning, and
-// only the server refuses (Tyler 10-18: 15 or more levels under it).
+// character's level says what it risks (hunt-list.js rangeWords) and asks one
+// confirm press; nothing refuses a Level (Tyler 2026-11-04 UTC).
 //
 // IN A PARTY (PARTY_SPEC.md §1.5, Tyler 10-19) the ground is chosen HERE, at
 // Start: the leader's Enter reads "Start with party" and is ONE
@@ -53,7 +53,6 @@ import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2
 import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.85';
 import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.85';
 import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.85';
-import { SESSION_LIMITS } from '../../data/hunt-sessions.js?v=0.2.85';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.85';
 import { whole } from '../../render/format.js?v=0.2.85';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.85';
@@ -61,7 +60,7 @@ import { itemName } from '../widgets/bits.js?v=0.2.85';
 import { glyphSvg } from '../launcher.js?v=0.2.85';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.85';
 import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.85';
-import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, seatsUnder, underWords } from '../hunt-list.js?v=0.2.85';
+import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.85';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.85';
 import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.85';
 import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.85';
@@ -92,18 +91,14 @@ function levelOf(cs) {
 const groundOf = (hunt) => Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt) || null;
 
 /**
- * WHY THIS HERO'S ENTER IS OFF, or '' when it is live. A party member's belongs to its leader (the server refuses it: not_party_leader). A lone hero far under
- * the floor is one the server refuses (hr_hunt_admit), so the press is off at once: Coppercap at Level 13 read "too far below" over a live Enter. Only what
- * the server's Level and the shared limit already say; the server still decides. A leader's start names its own seats. Pure.
+ * WHY THIS HERO'S ENTER IS OFF, or '' when it is live: a party member's belongs to its leader (the server refuses it: not_party_leader). No Level ever turns it off. Pure.
  */
-export function enterOffWords(r, level, party) {
+export function enterOffWords(party) {
   if (party && !party.isLeader) return 'You\'re in ' + (party.leaderName || 'your leader') + '\'s party, and they pick the hunt. Leave the party to pick your own.';
-  if (party || !Number.isInteger(level) || r.band[0] - level < SESSION_LIMITS.belowRangeRefuse) return '';
-  /* the sentence the server's own refusal reads as (refusal.js activity_locked) */
-  return 'You need Level ' + (r.band[0] - SESSION_LIMITS.belowRangeRefuse + 1) + ' to enter ' + r.name + '. You are Level ' + level + '.';
+  return '';
 }
 
-/* What a leader's warning covered: this ground and these seats. Someone who sits down under the floor afterwards has not been told. */
+/* What a warning covered: this ground and these seats (none, for a hero alone or a leader who alone stands under it). Someone who sits down under the floor afterwards has not been told. */
 const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();
 
 /* The server's pick on this ground (`picks`: { [hunt]: n }, no key = 0, as built) as the ground would spawn it,
@@ -292,9 +287,9 @@ function patchPage(det, ctx, sc, v) {
   const { r, level, size, party, follower, now } = v;
   const cs = ctx.character;
   patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), repaint: () => ctx.refresh('hunts') });
-  /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse. A leader reads every seat's, its own and the others'. */
+  /* the floor is a warning (Tyler 2026-11-04 UTC): this hero's own gap, and a leader's every seat's too. The first press of Enter arms the one confirm (renderHunts.act). */
   const under = party && !follower ? seatsUnder(r, party).under : [];
-  text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under)].filter(Boolean).join(' '));
+  text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));
   /* While a hunt runs, its own page says what its hunt bag holds (in town, Before you go says what the bar spends). */
   const carried = now ? huntBagOf(cs) : null;
   text(det.querySelector('.hw-hunt-pack'), now && now.huntId === r.hunt && carried ? carriedWords(carried) : '');
@@ -313,11 +308,12 @@ function patchPage(det, ctx, sc, v) {
   });
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
-  text(enter, party && !follower ? (under.length && sc.warned === warnKey(r.hunt, under) ? 'Start anyway' : 'Start with party') : 'Enter');
+  const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
+  text(enter, party && !follower ? (armed ? 'Start anyway' : 'Start with party') : armed ? 'Enter anyway' : 'Enter');
   /* Enter and the pull step (Go as, Find a party and Bring are patchGo's: off for a member too). */
   for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-density button')) prop(b, 'disabled', sc.pending || !!now);
   /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
-  const off = now ? '' : enterOffWords(r, level, party);
+  const off = now ? '' : enterOffWords(party);
   if (off) prop(enter, 'disabled', true);
   text(det.querySelector('.hw-enter-why'), off);
   prop(det.querySelector('[data-hs-act="leave-party"]'), 'hidden', now || !follower);
@@ -403,13 +399,19 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     sc.pick = hunt;
     const lead = partyMembershipOf(cs);
     if (!lead.isLeader) return true;
-    /* A seat under this ground's floor hears it first: the first press tells them and arms "Start anyway", the second goes. A seat
-       so far under that the server would refuse the start skips this: that refusal names it (panel 2026-11-01, designer's list). */
+    /* A seat under this ground's floor hears it first: the first press tells them and arms "Start anyway", the second goes (panel 2026-11-01, designer's list).
+       A leader alone under it has already read the words on this page: the press only arms. */
     const row = huntRows().find((x) => x.hunt === hunt);
-    const low = row ? seatsUnder(row, lead) : { under: [], far: false };
-    if (low.under.length && !low.far && sc.warned !== warnKey(hunt, low.under)) {
+    const low = row ? seatsUnder(row, lead) : { under: [] };
+    if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {
       runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
         () => underWords(row, low.under) + ' They have been told. Press Start anyway to go.', cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
+      return true;
+    }
+    if (!low.under.length && row && rangeWords(row, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {
+      sc.warned = warnKey(hunt, []);
+      sc.msg = 'Press Start anyway to go.';
+      repaint();
       return true;
     }
     sc.warned = null;
@@ -419,6 +421,15 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   }
   if (action === 'enter') {
     sc.pick = hunt;
+    /* A ground above this hero asks once: the first press arms "Enter anyway" under the words that say what it risks, the second goes. */
+    const above = huntRows().find((x) => x.hunt === hunt);
+    if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {
+      sc.warned = warnKey(hunt, []);
+      sc.msg = 'Press Enter anyway to go.';
+      repaint();
+      return true;
+    }
+    sc.warned = null;
     /* What the hunt carries is the bag's own supplies, read after any setup change has landed. */
     runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset))), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs)
       .then(thenClose);

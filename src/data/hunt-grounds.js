@@ -496,6 +496,15 @@ export function underFloorPm(ground, level) {
   return 1000 + HUNT_TUNING.underFloorAtkPm * (band[0] - level);
 }
 
+/** THE LEVEL SHARE (hunt-tuning.js partyShareRangePm): the permille of its Level XP share a seat of `level` keeps on `ground` with `top` the party's highest living Level. 1000 at or
+    over the floor, within the range of the top, and for a unit whose Level the engine was not told. Under both, it falls with the square of how far under the range it stands. */
+export function underFloorSharePm(ground, level, top) {
+  const band = ground && HUNT_INDEX[ground.hunt] && HUNT_INDEX[ground.hunt].band;
+  if (!band || !Number.isInteger(level) || !Number.isInteger(top) || level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;
+  const ratio = (level * 1000) / (top * HUNT_TUNING.partyShareRangePm);
+  return Math.floor(1000 * ratio * ratio);
+}
+
 /** The HP scale (permille) for a pack in an instance of `partySize` heroes. */
 export function packScalePermille(partySize) {
   const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));

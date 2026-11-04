@@ -30,6 +30,59 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-04 The built site (systems-engineer, lane/b-ship-build): BUILT, proven on the branch, NOT deployed; one repo setting away
+**Tyler, 2026-11-04:** "if a build step benefits us we need to do it asap." **Verdict: a clear win, worker counted.** esbuild 0.28.2, one tool (`tools/build-site.mjs`), about 5 s, runs only for a release. Plain source stays what development, `tools/qa/local-world.mjs` and the page harnesses serve.
+
+**Measured** (real Chrome, new headless; a local Pages: h2, gzip, etags, 25 ms edge, +40 ms on a miss, 28% of misses answered whole; real engine on PGlite; median of 3 interleaved; other lanes on the PC). Desktop = 40 ms / 20 Mbps. Phone = 150 ms / 1.6 Mbps, 4x CPU.
+| To the first town frame (no typing) | today | today + worker | built | built + worker |
+|---|---|---|---|---|
+| First visit, desktop | 2.35 s | 2.37 s | 1.84 s | 1.55 s |
+| First visit, phone | 19.4 s | 21.2 s | 11.9 s | 12.0 s |
+| Back after the expiry, desktop | 1.38 s | 0.85 s | 1.20 s | 0.76 s |
+| Back after the expiry, phone | 12.6 s | 4.08 s | 8.70 s | 2.89 s |
+| After a one-line release, desktop | 2.26 s | 2.27 s | 1.15 s | 0.85 s (*) |
+| After a one-line release, phone | 18.9 s | 18.5 s | 5.95 s | 2.53 s (*) |
+| Bytes a one-line release re-downloads (server's log) | 3.1 MB | 3.1 MB | 0.64 MB | 0.18 MB |
+| First visit: requests / bytes | 426 / 3.35 MB | same | 76 / 2.10 MB | same |
+| Main thread to the town frame, phone, first visit | 4.32 s | 4.83 s | 2.64 s | 2.77 s |
+(*) Chrome's page throttling does not reach a worker's own fetches, so these two times flatter; the bytes are the server's. Sign-in form alone, the return-load lane's bench, n=3 first and n=6 return, today / worker / built / built + worker: 4G first 2.83 / 2.71 / 2.03 / 1.79 s, return 1.99 / 0.57 / 1.00 / 0.38 s; 4G + 4x CPU first 2.90 / 3.09 / 1.98 / 1.84 s, return 2.18 / 2.52 / 1.10 / 0.74 s (main thread 1.9 s to 0.49 s: where the worker alone had no gain, the bundle does).
+
+**What costs the time, ranked** (phone, first visit, today, 19.4 s; bytes at 200 KB/s):
+1. Modules: 378 requests, 1.41 MB, form at 10.6 s. Built: 37 requests, 448 KB, form at 4.1 s. PAID.
+2. The town's six sheets: 1.14 MB, 39.5 MB decoded, about 6 s; unchanged, now the biggest cost by far. They are already indexed PNG. Asset Director's call: lossless WebP or a smaller Havora sheet (565 KB alone). Not measured.
+3. First-frame work on the main thread: 0.43 s desktop, 2.2 s phone, about 35% script (world boot, map compile), unchanged by a bundle. The next CPU target; needs a profile.
+4. PostHog: 204 KB and 0.4 s of a phone's main thread, downloaded beside the sheets. PAID here: it now waits for them (`obs.after`), then idle; events queue. Phone first visit 13.1 s to 11.9 s with the next item.
+5. The tab icon: a 512 px, 280 KB file on every first visit, 1.4 s of a phone's line. PAID: 64 px, 8 KB. Full-size mark kept for sharing.
+6. Google Fonts 119 KB plus two more connections; the icon atlas (glyphs) 103 KB. Not touched. Self-hosting needs the font files downloaded: Tyler's or a lane's call.
+Old claims re-checked: "4 sequential hr_load, 1.19 s" is gone (slot 0, then the rest at once; 2 round trips, plus one read after Play, 13 KB a hero). "All 9 sheets on Play" is gone (6 of 12 for the town, the rest on entry); the 11 manifests are still read, 40 KB. The "12 s return" was mostly Playwright's headless shell on Windows.
+
+**Code-splitting, against the brief:** chunks follow how often things change (data, core, session, world, shell), not when a player needs them. Sign-in-first would need `src/net/observability.js`, which pulls 130 modules through `character-session.js`, split off and `boot.js` cut in two, for an estimated 2.5 s earlier on a phone's first form (not measured) and nothing for a signed-in player. Windows on demand: 48 modules, 14% of the source, and every press becomes async across 27 page runners. Neither is worth it now; a lane can pick up sign-in-first if phone sign-ups matter.
+
+**Deploy: an Actions Pages deploy, not a generated branch.** `.github/workflows/deploy-site.yml`. A generated branch needs a write token beside npm and grows a 950 MB repo; here the job that runs npm can only read and the job with the Pages token runs no npm. Push of main stays live; release/vX.Y.Z green stays the gate (same commit, same bytes: SB-1). Today's classic deploy: 199 to 837 s, last five, median 622 s (Pages API) over the whole 950 MB repo. Built: 60 MB; build 5 s measured, the rest ASSUMED 2 to 3 min until the first run.
+- **The switch (Coordinator, after a release carrying the workflow is on main; its gate job reads "legacy" and does nothing until then):** `gh api -X PUT repos/bugsquisher1/hearthrise/pages -f build_type=workflow`, then `gh workflow run deploy-site.yml --ref main`. Check `https://hearthrise.net/releases.json`, `tools/release-check.local.mjs`, then the play gate.
+- **One-step rollback:** `gh api -X PUT repos/bugsquisher1/hearthrise/pages -f build_type=legacy -f "source[branch]=main" -f "source[path]=/"`, then `gh api -X POST repos/bugsquisher1/hearthrise/pages/builds`. The custom domain does not move. Clean only while source still has `?v=`.
+- A host with real cache headers: not worth it. `immutable` adds nothing once the worker holds the files; brotli would save 126 KB of 2.1 MB on a first visit (chunks 439 to 379 KB, vendors and icons 389 to 323 KB), 0.6 s on the phone line. No spend, no account.
+- Off the public site after the switch: docs/, tests/, tools/, art/, mockups/, marketing/, supabase/, all still public on GitHub. The manual trick in `tests/run-sql-tests.mjs`'s comment (Postgres fetching migrations from hearthrise.net) needs raw.githubusercontent.com instead.
+
+**Things that bite, each answered and proven in `tests/ship-build.mjs`:** `?v=` resolves through the bundler (plugin). `src/core` untouched: empty diff, payload unchanged at 41f747c7. Old tabs: retained files by sha256 from the live `releases.json` (14 days, at least 3, at most 30; maps for 3), a first deploy also keeps the plain `src/` and atlases (SB-5, SB-6). Kill-switch: unchanged, stays at its plain path with its `?v=`. Cache name: still `hearthrise-<version>`, never fixed (§5); a new worker moves content-named files it already holds into the new cache, and whatever the release no longer names goes with the old one (SB-7). BUILD is read from `<html data-build>`, or every release would rename every chunk (SB-3). Source maps published beside chunks (SB-9); PostHog and Sentry run with the real SDKs over the built site (`tests/observability.mjs`, in `--suite`). Secret and supply-chain scans run over the output and bite on planted defects (SB-8). What ships is what was tested: `built-site` job, `node tests/ship-build.mjs --suite`: the boot suite, telemetry and a real play over `dist/`.
+
+**Not proven:** a real Actions deploy and its time; Sentry fetching the public maps (no real error yet: read the first one through the Sentry MCP); the CDN's behaviour on hashed names; Firefox and Safari (Playwright's Firefox does not launch on this PC). A Linux CI job with Playwright's Firefox and WebKit could prove the chunks load as modules, the JSON-module atlases (`with { type: 'json' }`: Firefox 138, Safari 17.2), the CSS, the worker's install and cache hits, zero page errors to the sign-in form and, stubbed, the World's canvas. It could not prove real Safari or iOS (eviction, worker lifetime, GPU), or Firefox on Windows. esbuild's target is `esnext`, so the syntax each browser sees is what it sees today. Known limit: esbuild's hash covers the source map, so a comment-only edit renames its chunk.
+
+**Phase 3, retiring `?v=`: PREPARED, not landed.** `node tools/retire-version-queries.mjs [--write|--prove]`: 1,679 in source, 402 in pages, 25 test anchors, 290 files. `--prove` exit 0: rewrites a copy, built code byte-identical, edge payload unchanged. Run it with no lane open, once real releases have run built; after it the plain-folder rollback has no cache-buster. By hand at the same seam:
+| File | Its catch today | After |
+|---|---|---|
+| `tests/cache-buster-guard.mjs` | STALE, DUPLICATE, MISSING `?v=` | Retired. `versionQueryGuard()` gains `src/` and the root pages: a `?v=` there is RED, and a stale or double-loaded module needs one to exist. Prove: its stale, duplicate, dynamic and html mutants each RED under the new rule. MISSING has no meaning left. |
+| `bump-version.sh` + `--check` + `--selftest` | writes 2,081 queries, 6 defects | version and date only; `--check` validates semver. Its defects move to the row above. |
+| `tests/module-preload.mjs` | MP-1..4 on the plain page | Block leaves play.html; SB-2 holds MP-1/3/4 for the built list. MP-2 has no meaning. |
+| `tests/site-files-immutable.mjs` | a `?v=` promise | KEPT narrows to `sw.js` and the three platform scripts; SB-1/SB-3 hold the rest by construction. |
+| `tools/pack-edge.mjs` | strip + reversibility | Strip stays until the guard holds, then goes with `--prove`'s same-hash check. |
+| `tests/https-upgrade.mjs`, `tests/platform-seam.mjs`, `tests/module-preload.mjs` readers | tag regexes require `?v=` | query optional. |
+| `tools/mutant-gate.mjs`, `tools/lib/guard-deps.mjs`, `tools/guard-anchors.mjs`, `tools/hooks/edit-checks.mjs`, `tools/lane-done.mjs`, `tools/assemble-release.local.mjs`, `tools/verdict-cache.mjs` | "a `?v=` bump is not a change" | harmless, then dropped; `lane-done` keeps `--check`. |
+| `src/site-files.js`, `BUILD.cache`, tests' `V = '?v=' + cache` | run-time cache-buster | the `version` argument and `BUILD.cache` go; the table stays. |
+| `src/platform/sw-killswitch.js`, `load-shell.js`, `sw.js` `atVersion` | read a page's release from `?v=` | unchanged: the build stamps those three tags. |
+| `.github/workflows/smoke.yml`, baseline | the steps above | drop retired steps; `tests/ci-shape.mjs --write`. |
+| CLAUDE.md §5, §7 | the three places that must agree | Coordinator's text: "The version lives in `src/build-info.js`. A release is built by `tools/build-site.mjs`: every file is named by its content. No query on any import under `src/**`; `versionQueryGuard()` enforces it. The worker's cache is named for the release; never a fixed name." |
+
 ### 2026-11-03 Gold matters (designer, lane/c-gold-matters): RULED, measured on the real engine, three files staged, the edge deploys with them
 **The ruling.** Gold's first job is the next hero, so the slots carry the first 20 hours: **50,000 / 200,000 / 800,000** (was 15,000 / 40,000 / 120,000), and the refill keeps asking after that: **1,000 + 250 a Level** (was 400 + 100). Coin can't do this work: the profit floors, the starter grounds' ruling, the roster's gold bands and Tyler's new line (harder monsters pay more, nothing rewards staying on a weak ground) leave it about 10% of room in the middle, so coin and sale prices only fix the ladder: **Wickstead about x0.89, the Glade's poachers (the ground x0.94), the Sewer's bat and spider x0.83 with its King x1.04 (a party x0.94, a lone hero x0.89), the Warrens x1.09, tier 2's helmet, body, legs and boots sell at 0.3 of book (was 0.5)**. The Cellar, the Thicket, tier 1 and tier 3 don't move. The gold card comes when the purse is a quarter of the next hero, not all of it, or it would have moved from hour 6 to hour 15.
 

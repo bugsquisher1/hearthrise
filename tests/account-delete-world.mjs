@@ -123,8 +123,29 @@ async function main() {
     const itemsOnServer = (await sql(`select count(*)::int as n from public.player_inventory where user_id = $1`, [me])).n;
     step('AW-5 Keep my account: back in the game, the bag whole, off the deletion list, back on the boards', waiting1 === 0 && hidden === 0 && pockets > 0 && itemsOnServer > 0, JSON.stringify({ waiting1, hidden, pockets, itemsOnServer }));
 
-    /* AW-6: the phone, from the characters screen */
+    /* AW-6a: the window on a phone is a sheet: Settings, Account, the press reachable */
     await page.setViewportSize({ width: 667, height: 375 });
+    await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hs-close')?.click());
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('[data-hs-win="settings"]');
+    await page.click('.st-tab[data-cat="account"]');
+    await page.click('[data-row="account.delete"] [data-hs-act="run"]');
+    await page.waitForSelector('[data-hs-win="account-delete"] .ad');
+    await shot(page, 'sheet-667');
+    const sheet = await page.evaluate(() => {
+      const el = document.querySelector('[data-hs-win="account-delete"]');
+      const go = el.querySelector('[data-ad="delete"]');
+      go.scrollIntoView({ block: 'nearest' });
+      const r = go.getBoundingClientRect(), w = el.getBoundingClientRect();
+      return { win: [Math.round(w.left), Math.round(w.top), Math.round(w.right), Math.round(w.bottom)], vw: innerWidth, vh: innerHeight, onScreen: r.bottom <= innerHeight + 1 && r.top >= -1, h: r.height,
+        small: Array.from(el.querySelectorAll('p, label, button, input')).filter((n) => parseFloat(getComputedStyle(n).fontSize) < 12).length };
+    });
+    await shot(page, 'sheet-667-foot');
+    await page.click('[data-hs-win="account-delete"] [data-ad="back"]');
+    const closed = await page.waitForFunction(() => !document.querySelector('[data-hs-win="account-delete"]'), null, { timeout: 15000 }).then(() => true, () => false);
+    step('AW-6a at 667x375 the window is a sheet inside the screen, its press reachable; Keep playing closes it', sheet.win[0] >= 0 && sheet.win[2] <= sheet.vw && sheet.onScreen && sheet.h >= 36 && sheet.small === 0 && closed, JSON.stringify({ sheet, closed }));
+
+    /* AW-6: the phone, from the characters screen */
     await page.evaluate(() => { const b = document.querySelector('[data-app="characters"]'); if (b) b.click(); });
     await p.reload();
     const atGame = await page.$('.hs-launchers');

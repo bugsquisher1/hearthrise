@@ -46,7 +46,7 @@ import { createIntentLedger } from './intent-ledger.js?v=0.2.87';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;
-export const LEAVING_CODE = 'hr_account_leaving';
+const LEAVING_CODE = 'hr_account_leaving';
 
 /** Is this answer the closed-game refusal? Pure. */
 export function isClosedAnswer(status, body) {

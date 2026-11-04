@@ -52,7 +52,7 @@ export const SETTING_CATEGORIES = Object.freeze([
   cat('combat_text', 'Combat text', 'What pops up over monsters and heroes.'),
   cat('chat_social', 'Chat & Social', 'Chat filters, blocked players and friend requests.'),
   cat('controls', 'Controls', 'Keys.'),
-  cat('account', 'Account', 'Your account itself.'),
+  cat('account', 'Account', 'Your account and everything in it.'),
   cat('help', 'Help', 'How Hearthrise works, and how to tell the team when something goes wrong.'),
 ]);
 

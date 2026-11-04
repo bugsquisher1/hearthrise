@@ -12,7 +12,7 @@ import { escapeHtml as esc } from '../utils/dom.js?v=0.2.87';
 const KEEP = Object.freeze({ idle: 'Keep my account', busy: 'Keeping it…' });
 
 /** The server's instant as a date a person reads ("March 4, 2027"), in the player's own time zone. Pure but for that zone. */
-export function leavingDate(iso) {
+function leavingDate(iso) {
   const t = Date.parse(String(iso || ''));
   return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
 }

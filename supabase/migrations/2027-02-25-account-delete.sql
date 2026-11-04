@@ -36,7 +36,7 @@
 --     friends, chat, names unchanged during grace, so a Keep finds them; the player can't send anything.
 --   at the purge (hr_account_purge)       every row removed, per hr_account_person_columns()
 --     auth.users           deleted, so sign-in fails, and its sessions and identities go by their foreign keys.
---     heroes, bag, gold, Storage, house, farm, skills, ledger of tally, presets: deleted (cascade + the sweep).
+--     heroes, bags, gold, Storage, house, farm, skills, setups, hunt history: deleted (its foreign keys, then the sweep).
 --     friends, blocks, friend asks, party notices, whispers both ways, whatever names them: deleted.
 --     chat lines           their own, their rare-find announcements, and party lines addressed to them: deleted.
 --     hero and display names: freed. A MODERATED name's hold stays with its owner cleared: it never returns to use.
@@ -206,17 +206,17 @@ begin
   if v_uid is null then return; end if;
   -- ACCOUNT-DELETE (2027-02-25-account-delete.sql): a leaving account reaches keeping itself and nothing else; any account may
   -- ask to leave, a closed-mode one too. PostgREST routes on this path, so naming it runs exactly that function. An unread path
-  -- reads as neither: refused.
-  v_path := regexp_replace(coalesce(current_setting('request.path', true), ''), '^/rest/v1', '');
+  -- reads as neither: refused. Every other caller's request stops at the first return below, and reads no path.
   select d.purge_at into v_purge from public.hr_account_deletions d where d.user_id = v_uid;
-  if found then
+  if v_purge is null and public.hr_admitted(v_uid) then return; end if;
+  v_path := regexp_replace(coalesce(current_setting('request.path', true), ''), '^/rest/v1', '');
+  if v_purge is not null then
     if v_path in ('/rpc/hr_account_keep', '/rpc/hr_account_delete_request') then return; end if;
     raise sqlstate 'PGRST' using
       message = jsonb_build_object('code', 'hr_account_leaving', 'message', 'This account is set to be deleted.',
                                    'details', to_char(v_purge at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), 'hint', null)::text,
       detail  = '{"status":403,"headers":{}}';
   end if;
-  if public.hr_admitted(v_uid) then return; end if;
   if v_path = '/rpc/hr_account_delete_request' then return; end if;
   raise sqlstate 'PGRST' using
     message = '{"code":"hr_closed","message":"Hearthrise is closed while we rebuild it.","details":null,"hint":null}',
@@ -487,7 +487,7 @@ begin
      set user_id = v_d.stand_in, meta = '{}'::jsonb, intent = split_part(l.intent, ':', 1),
          purse = case when coalesce(l.gold, 0) <> 0 and l.purse is null then 0 else l.purse end,
          gold_kind = case when coalesce(l.gold, 0) <> 0 and l.gold_kind is null then 'other' else l.gold_kind end
-    from batch b where l.at = b.at and l.id = b.id;
+    from batch b where l.user_id = p_user and l.at = b.at and l.id = b.id;
   get diagnostics v_n = row_count;
   if v_n >= c_batch then
     perform set_config('hr.account_purge', '', true);

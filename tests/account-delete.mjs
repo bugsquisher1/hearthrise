@@ -505,7 +505,7 @@ const MUTANTS = [
   { id: 'sale_deleted', arm: 'AD-APPLY', why: 'one player leaving rewrites another player\'s purchases',
     edits: [["    ('market_sales', 'seller_user_id', 'stand_in'),\n", '']] },
   { id: 'ledger_left', arm: 'AD-APPLY', why: 'the ledger still names them',
-    edits: [['    from batch b where l.at = b.at and l.id = b.id;\n', '    from batch b where l.at = b.at and l.id = b.id and false;\n']] },
+    edits: [['    from batch b where l.user_id = p_user and l.at = b.at and l.id = b.id;\n', '    from batch b where l.user_id = p_user and l.at = b.at and l.id = b.id and false;\n']] },
   { id: 'trigger_open', arm: 'AD-LOCK', why: 'the purge\'s setting opens the ledger to any write',
     edits: [["     and (to_jsonb(new) - array['user_id', 'meta', 'intent', 'purse', 'gold_kind']) = (to_jsonb(old) - array['user_id', 'meta', 'intent', 'purse', 'gold_kind'])\n", '']] },
   { id: 'signup_log_kept', arm: 'AD-APPLY', why: 'their IP stays in the abuse trail under their id',

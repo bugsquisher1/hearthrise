@@ -509,7 +509,7 @@ export function classifyItem(id) {
 export function unclassifiedGrantIds(opts) {
   opts = opts || {};
   const a = itemAuthority();
-  const dungeons = ('dungeons' in opts) ? opts.dungeons : _cacheDungeons;
+  const dungeons = opts.dungeons || null;   // itemAuthority()'s own default
   const universe = new Set();
   addAll(universe, combatDropIds());
   addAll(universe, gatherProductIds());

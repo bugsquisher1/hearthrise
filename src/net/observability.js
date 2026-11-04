@@ -67,6 +67,7 @@ const STALL_POLL_MS = 1000;  // how often a running live engine is looked at (st
 const HANG_PRINT = 'main-thread-hang';
 const HANG_READ_MS = 1000;   // the hang report waits this long for the frame that held the page to be reported
 const POSTHOG_IDLE_MAX_MS = 3000;   // PostHog's script waits for an idle moment after sign-in, at most this long
+const POSTHOG_ART_MAX_MS = 15000;   // ...and before that for the town's sheets (after()), at most this long
 
 /** What one page load may send to Sentry: each error a few times, and a ceiling over all of them. */
 export const SEND_LIMITS = Object.freeze({ perFingerprint: 5, perLoad: 25 });
@@ -78,7 +79,7 @@ const WEATHER = [
   /^Auto refresh tick failed with error\. This is likely a transient error\./,
 ];
 
-const NOOP = Object.freeze({ environment: 'dev', send: false, identify() {}, forget() {}, screen() {}, track() {}, once() {} });
+const NOOP = Object.freeze({ environment: 'dev', send: false, identify() {}, forget() {}, after() {}, screen() {}, track() {}, once() {} });
 let active = NOOP;
 
 /* Telemetry never breaks the game: every SDK call goes through here. */
@@ -347,8 +348,11 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
   };
   /* Its 200 KB script is fetched only once an account is known, when the page is next idle: the sign-in
      screen never pays for it (opt-review 2026-10-28: a quarter of a first visit's bytes), and nothing can be
-     sent before then anyway. Sentry stays first, above, so a boot error is still caught. */
+     sent before then anyway. Sentry stays first, above, so a boot error is still caught.
+     A SLOW LINE GETS THE TOWN FIRST (load bench 2026-11-04, 1.6 Mbps: PostHog came down beside the town's sheets, 1 s of the wait for the first frame, then 0.4 s of a
+     phone's main thread): if boot has said what the page is waiting on (after()) by the first idle moment, the script waits for that, then for idle again. Its events wait in the queue. */
   let phLoading = false;
+  let phGate = null;
   const loadPostHog = () => {
     if (phLoading) return;
     phLoading = true;
@@ -358,8 +362,11 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
       phSdk = P;
       safe(startPostHog);
     });
-    if (typeof win.requestIdleCallback === 'function') win.requestIdleCallback(go, { timeout: POSTHOG_IDLE_MAX_MS });
-    else win.setTimeout(go, 0);
+    const whenIdle = (then) => {
+      if (typeof win.requestIdleCallback === 'function') win.requestIdleCallback(then, { timeout: POSTHOG_IDLE_MAX_MS });
+      else win.setTimeout(then, 0);
+    };
+    whenIdle(() => { if (phGate) phGate.then(() => whenIdle(go)); else go(); });
   };
 
   /* An event with no account behind it has no distinct id to carry: it is not sent, and not held for
@@ -457,6 +464,10 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
       phUid = null;
       st.queue.length = 0;
       if (sentry) safe(() => sentry.setUser(null));
+    },
+    /** What the page's first frame is waiting on (the town's sheets): PostHog's script does not compete with it. */
+    after(p) {
+      phGate = Promise.race([Promise.resolve(p).catch(() => {}), new Promise((k) => win.setTimeout(k, POSTHOG_ART_MAX_MS))]);
     },
     /* Replay records the game screen only: never sign-in, the characters list (it names the email) or the closed notice. */
     screen(name) {

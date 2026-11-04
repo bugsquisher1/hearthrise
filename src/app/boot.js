@@ -175,7 +175,8 @@ function startApp(win) {
     /* the town's sheets likewise (src/world/prewarm.js): a cold Play after a release no longer waits for 2.5 MB */
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
-    import('../world/prewarm.js?v=0.2.86').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
+    /* ...and PostHog's script waits for them (src/net/observability.js): on a slow line the first frame comes first */
+    obs.after(import('../world/prewarm.js?v=0.2.86').then((m) => { const acc = account; return acc ? m.prewarmTown(win, { alive: () => account === acc }) : null; }, () => null));
     /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that */
     const tokenForCall = async () => { const t = await auth.freshToken(); timing.sending(); return t; };
     const server = createServerLink({ url: SUPABASE_CONFIG.url, publishableKey: SUPABASE_CONFIG.publishableKey, token: tokenForCall, renew: auth.renewToken, watch: connection,

@@ -4,7 +4,7 @@
 //
 //   node tests/ship-build.mjs           the rules, over builds made in the OS temp folder and a real Chromium over a local Pages
 //   node tests/ship-build.mjs --mutate  every planted defect must turn its rule RED
-//   node tests/ship-build.mjs --suite   builds dist/, then over it, one at a time: the in-page boot suite (tests/client-boot.mjs) and a play (tools/qa/local-world.mjs smoke --site)
+//   node tests/ship-build.mjs --suite   builds dist/, then over it, one at a time: the in-page boot suite (tests/client-boot.mjs), telemetry with the real SDKs (tests/observability.mjs) and a play (tools/qa/local-world.mjs smoke --site)
 //
 // mutant-anchors: tools/build-site.mjs sw.js
 // mutant-writes-tree: no — a build's mutant is an in-memory copy of tools/build-site.mjs, a worker's is served by this file's own server
@@ -549,6 +549,7 @@ async function suite() {
   console.log('built v' + built.version + ' into dist/: ' + Object.keys(built.release.files).length + ' content-named files');
   const steps = [
     ['the in-page boot suite', ['tests/client-boot.mjs'], { HR_SITE_ROOT: 'dist' }],
+    ['Sentry and PostHog, the real SDKs', ['tests/observability.mjs'], { HR_SITE_ROOT: 'dist' }],
     ['a play on the real engine', ['tools/qa/local-world.mjs', 'smoke', '--site', 'dist'], {}],
   ];
   let bad = 0;

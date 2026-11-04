@@ -45,7 +45,8 @@
 //         posts carries only that id, no $identify / $anon_distinct_id, no [PostHog.js] warning;
 //         and after a sign-out and a second sign-in in one load, on a fresh session)
 //   OB-12 PostHog's script is not fetched on the sign-in screen (206 KB, opt-review
-//         2026-10-28): only once the account id is known, on the next idle moment
+//         2026-10-28): only once the account id is known, on the next idle moment; and once boot says what the page's first frame is waiting on,
+//         only after that has landed (load bench 2026-11-04: on a slow line it came down beside the town's sheets), or after a long wait if it never does
 //   OB-13 where a new player gets stuck (2026-10-31): RAGE and DEAD clicks are on and ordinary
 //         clicks are not. (node) the SDK's options (autocapture for 'click' only, no pageviews or
 //         heatmaps, every text masked, every input masked) and its one gate (before_send): $autocapture
@@ -147,7 +148,8 @@ async function page(browser, base, o) {
     if (m.type() === 'warning' && /^\[PostHog\.js\]/.test(m.text())) seen.warns.push(m.text());
   });
   pg.on('pageerror', (e) => { if (!/obs-probe/.test(e.message)) seen.errors.push(e.message); });
-  pg.on('request', (r) => { if (/\/src\/vendor\/(sentry|posthog)/.test(r.url())) seen.scripts.push(r.url().replace(/^.*\/src\//, 'src/')); });
+  /* an SDK's own path; over the built site (HR_SITE_ROOT) the same file under its content name, read back as that path */
+  pg.on('request', (r) => { if (/\/(?:src\/vendor|a)\/(sentry|posthog)/.test(r.url())) seen.scripts.push(r.url().replace(/^.*\/(?:src\/vendor|a)\//, 'src/vendor/').replace(/-[0-9a-f]{10}\.js/, '.js')); });
   /* Registered first, so the stubs below (registered later) win where both match. Each forward
      is tracked: close() stops forwarding, then waits for every fetch in flight, so no fetch is
      ever cut by the context, the browser or the server closing under it. A fetch that fails
@@ -175,7 +177,7 @@ async function page(browser, base, o) {
     } finally { inflight.delete(f); }
     return r.fulfill({ response: res }).catch((e) => { if (!closing) seen.harness.push('route.fulfill: ' + String(e && e.message).split('\n')[0]); });
   });
-  await pg.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
+  await pg.route('**/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await pg.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await pg.route(SENTRY, (r) => { seen.sentry.push(r.request().postData() || ''); return r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }); });
   await pg.route(POSTHOG, (r) => {
@@ -684,6 +686,26 @@ async function nodeChecks(root) {
   if (ev('first_sale').length !== 2) fails.push('OB-14 a Dispatch loot that sold stacks was not a first sale: ' + JSON.stringify(ev('first_sale')));
   for (let i = 0; i < 1000; i++) obs.track('loop_probe', { i });
   if (events.length !== 400) fails.push('OB-14 EVENT_MAX is 400 named events per load, got ' + events.length);
+  /* Last, because this copy's observer stays on every CharacterSession in this process. */
+  /* OB-12: the first frame comes first. Another copy of the module for a page that has said what it waits on, on this same fake window. */
+  {
+    const gated = await import(pathToFileURL(join(ROOT, 'src/net/observability.js')).href + '?gated=1');
+    const w2 = Object.assign({}, win, { posthog: undefined, setTimeout: () => 0, document: Object.assign({}, win.document, { head: { appendChild(s) { if (/posthog/.test(s.src)) w2.posthog = sdk; else w2.Sentry = sentry; s.onload(); } } }) });
+    const o2 = gated.startObservability(w2);
+    const tick0 = () => new Promise((k) => setImmediate(k));
+    const runIdle = async () => { for (const fn of idleQ.splice(0)) fn(); await tick0(); };
+    let land = null;
+    o2.identify(UID);
+    o2.after(new Promise((k) => { land = k; }));
+    await runIdle();
+    if (w2.posthog) fails.push('OB-12 PostHog\'s script did not wait for the town\'s sheets');
+    land();
+    await tick0(); await tick0();
+    await runIdle();
+    if (!w2.posthog) fails.push('OB-12 PostHog\'s script did not load once the town\'s sheets had landed');
+    o2.forget();
+    inits.length = 0;
+  }
   return fails;
 }
 
@@ -732,7 +754,8 @@ const MUTANTS = [
   ['a correction goes out without what differed', 'src/net/observability.js', 'if (d) w.diverged(d);', ''],
   ['one error loops into Sentry', 'src/net/observability.js', 'if (n > limits.perFingerprint) { held++; return null; }', 'if (false) { held++; return null; }'],
   ['no ceiling per page load', 'src/net/observability.js', 'if (!hang && sent >= limits.perLoad)', 'if (false)'],
-  ['the PostHog script loads at boot, on the sign-in screen', 'src/net/observability.js', '    else win.setTimeout(go, 0);\n  };\n', '    else win.setTimeout(go, 0);\n  };\n  loadPostHog();\n'],
+  ['the PostHog script loads at boot, on the sign-in screen', 'src/net/observability.js', '    whenIdle(() => { if (phGate) phGate.then(() => whenIdle(go)); else go(); });\n  };\n', '    whenIdle(() => { if (phGate) phGate.then(() => whenIdle(go)); else go(); });\n  };\n  loadPostHog();\n'],
+  ['PostHog comes down beside the town\'s sheets', 'src/net/observability.js', 'if (phGate) phGate.then(() => whenIdle(go)); else go();', 'go();'],
   ['network weather is sent', 'src/net/observability.js', 'if (WEATHER.some((r) => r.test(headline(event)))) return null;', ''],
   ['a hang is never reported', 'src/net/diagnostics.js', 'if (late > DIAG.HANG_MS) for', 'if (false) for'],
   ['a hidden tab counts as a hang', 'src/net/diagnostics.js', 'if (!visible() || late < DIAG.JANK_MS', 'if (late < DIAG.JANK_MS'],

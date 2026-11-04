@@ -710,6 +710,29 @@ async function selftest() {
       if (missed) bad++;
       console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} history mutant: ${label}`);
     }
+    /* The whole read, as a push's first gated command makes it. */
+    {
+      const at = new Date(Date.now() - 3600e3).toISOString();
+      let asked = 0;
+      const answers = (nightlyJobs, green) => (path) => {
+        if (/runs\/7\/jobs/.test(path)) return { jobs: Object.entries(nightlyJobs).map(([name, conclusion]) => ({ name, conclusion })) };
+        if (/runs\/8\/jobs/.test(path)) { asked++; return { jobs: [{ name: 'red-job', conclusion: green }] }; }
+        if (/created=/.test(path)) return { workflow_runs: [{ id: 8, head_branch: 'release/v0.0.1', head_sha: 'a', created_at: new Date().toISOString() }] };
+        return { workflow_runs: [{ id: 7, event: 'schedule', conclusion: 'failure', updated_at: at }] };
+      };
+      const env = (job) => ({ GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.0.2', GITHUB_JOB: job, GITHUB_RUN_ID: '9' });
+      const good = readHistory(env('red-job'), answers({ 'red-job': 'failure', fine: 'success' }, 'success'));
+      const stillRed = readHistory(env('red-job'), answers({ 'red-job': 'failure', fine: 'success' }, 'failure'));
+      asked = 0;
+      const proved = readHistory(env('fine'), answers({ 'red-job': 'failure', fine: 'success' }, 'success'));
+      const broke = readHistory(env('red-job'), (p) => { if (/created=/.test(p)) throw new Error('HTTP 500'); return answers({ 'red-job': 'failure' }, 'success')(p); });
+      for (const [ok, label] of [
+        [(good.fullGreen || {}).id === 8 && historyPolicy(good, { job: 'red-job', event: 'push', ref: 'release/v0.0.2', now: Date.now() }).sweptBy, 'a push reads the full green of a job the sweep left red, and goes back to its diff'],
+        [stillRed.fullGreen === null && historyPolicy(stillRed, { job: 'red-job', event: 'push', ref: 'release/v0.0.2', now: Date.now() }).full === true, 'a job still red stays full'],
+        [asked === 0 && proved.fullGreen === null, 'a job the sweep proved asks GitHub nothing more'],
+        [broke.fullGreen === null && historyPolicy(broke, { job: 'red-job', event: 'push', ref: 'release/v0.0.2', now: Date.now() }).full === true, 'a read that fails is no proof'],
+      ]) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} the read: ${label}`); }
+    }
     /* The full green as GitHub answers it: newest finished result first, release and next only, after the sweep. */
     const fullRuns = [
       { id: 16, head_branch: 'release/v0.0.3', head_sha: 'p', created_at: '2026-11-02T09:00:00Z' },

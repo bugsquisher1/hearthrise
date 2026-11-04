@@ -129,10 +129,10 @@ export const githubReader = (env) => (path) => ghGet(path, env);
  * Everything the policy reads. HR_GATE_HISTORY (JSON) stands in for GitHub in the selftest.
  * A failed read never counts as good news: { nightlyError } goes full; no proof goes unproved.
  */
-export function readHistory(env) {
+export function readHistory(env, get = githubReader(env)) {
   if (env.HR_GATE_HISTORY) return JSON.parse(env.HR_GATE_HISTORY);
   const out = { nightly: null, nightlyError: null, proved: null, fullGreen: null };
-  try { out.nightly = readNightly(githubReader(env)); } catch (e) { out.nightlyError = e.message; }
+  try { out.nightly = readNightly(get); } catch (e) { out.nightlyError = e.message; }
   if (env.GITHUB_EVENT_NAME === 'push' && env.GITHUB_REF_NAME === 'main') {
     try { out.proved = readProved(env); } catch { /* not proved: the push's own diff decides */ }
   }
@@ -140,7 +140,7 @@ export function readHistory(env) {
   if (env.GITHUB_EVENT_NAME === 'push' && out.nightly && !out.proved
     && !(out.nightly.jobs?.[env.GITHUB_JOB] === 'success' && Date.now() - Date.parse(out.nightly.at) <= STALE_MS)) {
     try {
-      out.fullGreen = lastFullGreen({ job: env.GITHUB_JOB, since: fullSince(out.nightly, env.GITHUB_JOB), own: env.GITHUB_RUN_ID, get: githubReader(env) });
+      out.fullGreen = lastFullGreen({ job: env.GITHUB_JOB, since: fullSince(out.nightly, env.GITHUB_JOB), own: env.GITHUB_RUN_ID, get });
     } catch { /* no proof: the job stays full */ }
   }
   return out;

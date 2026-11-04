@@ -26,7 +26,7 @@
 import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.88';
 import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.88';
 import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.88';
-import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf } from './item-sections.js?v=0.2.88';
+import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.88';
 import { farmFieldOf } from './farm-sections.js?v=0.2.88';
 import { homeOf, chestsOf } from './home-sections.js?v=0.2.88';
 import { tallyOf } from './tally-sections.js?v=0.2.88';
@@ -173,7 +173,8 @@ export function pointerCardOf(cs, sh) {
   const skill = ROLE_SKILL[role];
   return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
     defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty,
-    gold: f.gold, slotCost: f.slotCost, slotsOwned: f.slotsOwned, home: f.home });
+    gold: f.gold, slotCost: f.slotCost, slotsOwned: f.slotsOwned, home: f.home,
+    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally });
 }
 
 /* The ACCOUNT's field as the server last said (2026-12-14-shared-farm: one field for every hero, and any hero may

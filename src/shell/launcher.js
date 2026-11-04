@@ -205,6 +205,8 @@ export function heldCard(ctx) {
    Got it in a window, the next card there stays folded to its tab until the window closes (renderLaunchers) or the tab is
    pressed (actCoach). Display only. */
 const RESTED = new WeakMap();
+/* The card whose other goals are showing, per character (display only): the row repaints from its html, so the open state can't live in the DOM alone. */
+const ALSO_OPEN = new WeakMap();
 
 /** The coach box for `card` (folded to its title, or open), the same wherever it is drawn. Open, its words are their
  *  own box (.hs-coach-text): on a phone a long card scrolls there, under its title and its dash (shell.css). `inWin`:
@@ -231,9 +233,15 @@ export function coachHtml(cs, card, inWin, rest) {
   /* A card that teaches and asks for nothing finishes on its Got it (residue `coach.read`, markCoachRead); it is
      offered only where this client can record the press, so it is never a button that does nothing. */
   const got = card.gotIt && coachReadOf(cs) ? ' <button type="button" class="hs-coach-got" data-hs-act="coach-got">Got it</button>' : '';
+  /* WHAT NEXT IS ONE GOAL: the others stay one press away, under More, and shut again with each new goal. */
+  const also = Array.isArray(card.also) && card.also.length ? card.also : null;
+  const open = !!also && ALSO_OPEN.get(cs) === card.id;
   return head + '<button type="button" class="hs-coach-min" data-hs-act="coach-min" aria-expanded="true" aria-label="Minimize '
     + esc(card.title) + '" title="Minimize"></button>' + close + '<b>' + esc(card.title) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>'
-    + (line ? '<button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="false" hidden>More</button>' : '') + got + '</p>';
+    + (line ? '<button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="false" hidden>More</button>' : '')
+    + (also ? ' <button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="' + open + '">' + (open ? 'Less' : 'More') + '</button><span class="hs-coach-also"' + (open ? '' : ' hidden') + '>'
+      + also.map((t) => '<span class="hs-coach-goal">' + esc(t) + '</span>').join('') + '</span>' : '')
+    + got + '</p>';
 }
 
 /** A window's one-line card offers More only when its words do not fit. Reads one element's width, writes only a change. */
@@ -282,6 +290,9 @@ function sameCardWords(have, html) {
   t.innerHTML = html;
   const now = t.content.querySelector('.hs-pointer > .hs-coach-text');
   if (now && was.textContent !== now.textContent) was.textContent = now.textContent;
+  /* the goals behind More follow the same numbers, open or shut */
+  const said = have.querySelectorAll(':scope > .hs-coach-also > .hs-coach-goal'), goals = t.content.querySelectorAll('.hs-pointer > .hs-coach-also > .hs-coach-goal');
+  if (said.length === goals.length) goals.forEach((g, i) => { if (said[i].textContent !== g.textContent) said[i].textContent = g.textContent; });
 }
 
 /** The coach's fold, open, Got it and close presses, from wherever it is drawn (this row, the hunt top bar, a window).
@@ -291,8 +302,14 @@ export function actCoach(ctx, el, action, ev) {
   if (ev.type !== 'click') return true;
   /* the whole card, or its one line again: this box only (a new card or a new opening starts as one line) */
   if (action === 'coach-more') {
-    const p = el.querySelector(':scope > .hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');
-    if (b) { const open = p.classList.toggle('is-line') === false; b.textContent = open ? 'Less' : 'More'; b.setAttribute('aria-expanded', String(open)); }
+    const p = el.querySelector('.hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');
+    const also = p && p.querySelector(':scope > .hs-coach-also');
+    if (b) {
+      const open = also ? (also.hidden = !also.hidden, !also.hidden) : p.classList.toggle('is-line') === false;
+      b.textContent = open ? 'Less' : 'More';
+      b.setAttribute('aria-expanded', String(open));
+      if (also && ctx.character) { if (open) ALSO_OPEN.set(ctx.character, p.getAttribute('data-tutorial')); else ALSO_OPEN.delete(ctx.character); }
+    }
     return true;
   }
   const cs = ctx.character;

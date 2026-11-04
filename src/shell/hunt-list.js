@@ -159,9 +159,12 @@ export function shareWords(r, party, myLevel) {
   return low.map((s) => s.name + (s.name === 'You' ? ' earn ' : ' earns ') + Math.max(1, Math.round(s.pm / 10)) + '% of a full share of Level XP here, so far under Level ' + top).join('. ') + '.';
 }
 
-/** Is this ground built for a group of `partySize` (1 = alone)? A 'both' ground always is. */
-export function fitsGroup(r, partySize) {
-  return r.groupFit === 'both' || r.groupFit === ((Number(partySize) || 1) >= 2 ? 'party' : 'solo');
+/** Is this ground built for a group of `partySize` (1 = alone) at `level`? A 'both' ground always is, and a party ground is for a lone hero from the Level its row says alone pays
+    (hunt-grounds.js soloFrom): a lone Level 53 read "Mosslight Glade is the nearest below" while "alone it pays from Level 45" stood on the Warrens (review 2026-11-04). */
+export function fitsGroup(r, partySize, level) {
+  const alone = (Number(partySize) || 1) < 2;
+  if (alone && Number.isInteger(r.soloFrom) && Number.isInteger(level) && level >= r.soloFrom) return true;
+  return r.groupFit === 'both' || r.groupFit === (alone ? 'solo' : 'party');
 }
 
 /* The party's levels in words: "Level 20", or "Levels 12 to 20" when they differ. */
@@ -185,13 +188,13 @@ export function recommendation(levels, partySize = 1, rows = huntRows()) {
   if (!lv.length) return { row: rows[0] || null, note: null };
   const lo = Math.min(...lv), hi = Math.max(...lv);
   const holds = (r, from, to) => r.band[0] <= from && to <= r.band[1];
-  const fit = rows.filter((r) => fitsGroup(r, partySize));
+  const fit = rows.filter((r) => fitsGroup(r, partySize, lo));
   const sure = best(fit.filter((r) => holds(r, lo, hi))) || best(fit.filter((r) => holds(r, lo, lo)));
   if (sure) return { row: sure, note: null };
   const alone = (Number(partySize) || 1) < 2;
   const below = fit.filter((r) => r.band[1] < lo).sort((x, y) => y.band[1] - x.band[1] || y.band[0] - x.band[0])[0];
   if (below) {
-    const party = alone ? best(rows.filter((r) => !fitsGroup(r, 1) && holds(r, lo, lo))) : null;
+    const party = alone ? best(rows.filter((r) => !fitsGroup(r, 1, lo) && holds(r, lo, lo))) : null;
     const note = 'No ground ' + (alone ? 'for one hero' : 'for your party') + ' fits ' + levelsWords(lo, hi) + ' yet. '
       + below.name + ' (Level ' + below.band[0] + ' to ' + below.band[1] + ') is the nearest below'
       + (party ? '; ' + party.name + ' fits your level with a party.' : '.');
@@ -203,6 +206,23 @@ export function recommendation(levels, partySize = 1, rows = huntRows()) {
 /** The recommended ground's row alone (see recommendation). */
 export function recommendedHunt(levels, partySize = 1, rows = huntRows()) {
   return recommendation(levels, partySize, rows).row;
+}
+
+/**
+ * THE LINE THE WINDOW OPENS ON, until a hand picks another: the advice's ground, or the harder ground this hero last hunted and came home from alive (first principle: a choice made once is
+ * remembered; played 11-04, every opening at Level 22 put the pick back on the Glade after 5.6 h in the Warrens). The confirm press on that page still stands (Tyler 2026-11-04). Pure.
+ * `last`: { huntId, endReason } of the hero's latest hunt, or null. Null when there is no row at all.
+ */
+export function openingPick(rec, list, last) {
+  const advised = rec && rec.row ? rec.row : list[0] || null;
+  const was = last && last.endReason !== 'died' ? list.find((r) => r.hunt === last.huntId) : null;
+  return was && advised && was.band[0] > advised.band[0] ? was : advised;
+}
+
+/** THE LIST'S TWO TAGS on one ground: "Fits your level" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure. */
+export function adviceTag(r, rec, step, party) {
+  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Fits your party' : 'Fits your level';
+  return step && step.hunt === r.hunt ? 'Next step up' : '';
 }
 
 /** A party ground seen by a lone hero: "Best with a party of 2–4"; else null. */

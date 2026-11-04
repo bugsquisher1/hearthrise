@@ -413,12 +413,15 @@ async function bagByTouch(page, tag, fails) {
 }
 
 /* ── PH-6 ── A high Level's "What next" (the Coordinator's 10-24 gate: a Level 29 mage at 844x390, the card ran down
-   over HP / XP / MP): the Defense line, five ripe turnips, the next ground, the next gear and the next Magic unlock. */
+   over HP / XP / MP). What next is one goal now, so what stands long is a deed that names its materials: every kind a step can name (the section's own cap, 16), a Level 29 mage who has walked the
+   grounds above her, with nothing ahead of it on the line. */
 function longCoach(env) {
-  env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(29) + 100 });
+  env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(29) + 100, gold: 5000 });
   env.hunt_settings = Object.assign({}, env.hunt_settings, { role: 'mage', discipline: 'staff' });
-  env.skills = { magic: { xp: 9000000, level: 44 }, defense: { xp: 0, level: 1 } };
-  env.farm_land = { cap: 6, plot_level: 1, deeds: 0, plots: [0, 1, 2, 3, 4].map((i) => ({ i, crop: 'turnip', ready: true })) };
+  env.skills = { magic: { xp: 9000000, level: 44 }, defense: { xp: 900, level: 5 } };
+  env.hunt_bests = { min_ms: 600000, grounds: { coppercap_warrens: { solo: { xp_h: 90000, balance_h: 100 }, party: null } } };
+  const materials = ['crow_quill', 'glowing_copper_fleck', 'mosslight_tendril', 'coppercaps_tallow', 'dented_copper_pot', 'skulkers_shiv', 'goblin_totem', 'foremans_lash', 'snare_wire', 'raw_bear_meat', 'raw_wolf_meat', 'magic_essence', 'cooked_shrimp', 'silk_thread', 'lamp_jelly', 'bone_chips'];
+  env.home = { tier: 1, rooms: [], tiers: [{ offer: 'home.stonecross', name: 'Stonecross Manor', tier: 2, need: 1, owned: false, gold: 1, items: Object.fromEntries(materials.map((id) => [id, 1500])) }] };
   /* the reactive cards a Level 29 hero has long since read (residue coach.read), and no better gear in its bag, so
      the coach is the long "What next" line, not "Your hero just ate" or "Wear what you found" */
   env.client_state = Object.assign({}, env.client_state, { coach: { read: ['first_eat', 'first_drink', 'fight_settings', 'storage', 'stamina_low'] } });

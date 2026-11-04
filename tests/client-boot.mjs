@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
+// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -504,8 +504,20 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           return legalHtml('# T\n\n<img src=x onerror=alert(1)> **b** [ok](https://a.example/x) [bad](javascript:alert(1))\n\n<!-- note -->\n\n* one\n* two', { dropTitle: true });
         });
         if (/<img|href="javascript|note/.test(drawn) || !/<strong>b<\/strong>/.test(drawn) || !/href="https:\/\/a\.example\/x"/.test(drawn) || !/<ul><li>one<\/li><li>two<\/li><\/ul>/.test(drawn)) fails.push('B-20 ' + tag + 'the reader drew: ' + drawn);
+        /* the one server link reads only the listed legal pages: any other path is refused with no request made */
+        const link = await page.evaluate(async () => {
+          const { readLegal } = await import(location.origin + '/src/session/server.js');
+          const asked = [];
+          const stub = async (u) => { asked.push(String(u)); return { ok: true, text: async () => 'page' }; };
+          const out = { ok: await readLegal('legal/PRIVACY_POLICY.md', location.href, stub), bad: [] };
+          for (const p of ['src/build-info.js', 'legal/../src/build-info.js', 'legal/PRIVACY_POLICY.md?x=1', 'https://evil.example/legal/PRIVACY_POLICY.md', '/legal/PRIVACY_POLICY.md', 'legal/EULA.md', '']) out.bad.push(await readLegal(p, location.href, stub));
+          out.asked = asked;
+          return out;
+        });
+        if (link.ok !== 'page' || link.bad.some((x) => x !== null) || link.asked.length !== 1 || !/\/legal\/PRIVACY_POLICY\.md$/.test(link.asked[0])) fails.push('B-20 ' + tag + 'the server link read a path outside its list, or refused one on it: ' + JSON.stringify(link));
         if (errors.length) fails.push('B-20 ' + tag + 'console errors: ' + errors.slice(0, 3).join(' | '));
         } catch (e) {
+          if (e === STOP) throw e;
           fails.push('B-20 ' + tag + 'stopped: ' + String(e && e.message).split('\n')[0]);
         } finally { await ctx.close().catch(() => {}); }
       }
@@ -1095,6 +1107,7 @@ const MUTANTS = [
   /* B-20: the Privacy Policy and the Terms from the sign-in screens */
   ['the sign-up says nothing of the Terms or the Privacy Policy (B-20)', 'src/app/sign-in.js', "(LEGAL_LINE[mode] || '')", "''"],
   ['the reader takes the form away, and what was typed with it (B-20)', 'src/app/legal-reader.js', '  box.appendChild(host);\n', "  box.innerHTML = '';\n  box.appendChild(host);\n"],
+  ['the server link reads any path it is given (B-20)', 'src/session/server.js', 'if (!LEGAL_PATHS.includes(path)) return null;', ''],
   ['the reader cannot be closed with Escape (B-20)', 'src/app/legal-reader.js', "if (e.key === 'Escape') { e.preventDefault(); shut(); return; }", ''],
   ['the reader does not give the focus back (B-20)', 'src/app/legal-reader.js', "if (opener && typeof opener.focus === 'function' && opener.isConnected) opener.focus();", ''],
   ['the reader shows the owner\'s notes to players (B-20)', 'src/app/legal-reader.js', ".replace(/<!--[\\s\\S]*?-->/g, '')", ''],

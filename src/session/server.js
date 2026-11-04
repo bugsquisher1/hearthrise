@@ -61,6 +61,24 @@ export async function readServed(url, doFetch) {
   } catch (e) { return null; }
 }
 
+/** The only files readLegal() will ask for: the pages players read from the sign-in screens (src/app/legal-reader.js). */
+export const LEGAL_PATHS = Object.freeze(['legal/PRIVACY_POLICY.md', 'legal/TERMS_OF_SERVICE.md']);
+
+/**
+ * The text of one legal page from the page's own origin and nothing else: `path` must be one of LEGAL_PATHS exactly
+ * (no other path, no URL, no query), else null with no request made. Revalidated, so a changed page shows. Never throws.
+ * @param {string} path
+ * @param {string} base  the page's address (location.href), which the path is read against
+ * @param {typeof fetch} [doFetch]
+ */
+export async function readLegal(path, base, doFetch) {
+  if (!LEGAL_PATHS.includes(path)) return null;
+  try {
+    const res = await (doFetch || ((...a) => globalThis.fetch(...a)))(new URL(path, base).href, { cache: 'no-cache' });
+    return res && res.ok ? await res.text() : null;
+  } catch (e) { return null; }
+}
+
 const KEEPALIVE_MAX_BYTES = 60000;
 
 const STALE_CODES = new Set(['PGRST202', '42883', 'unknown_verb', 'version_conflict']);

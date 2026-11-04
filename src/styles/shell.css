@@ -358,6 +358,8 @@
       linear-gradient(to bottom right, var(--gold-2) 50%, transparent 50%) no-repeat right 2px bottom 2px / 5px 6px;
   }
   .hs-pointer:not(.is-min) > .hs-coach-text::after { content: ''; display: block; height: 1lh; margin: -1lh -14px 0 0; background: var(--bg-2); }
+  /* A line of room is all a card has to spare: a wide fallback font takes Alegreya's size, so its words end where they do in Alegreya. */
+  .hs-pointer:not(.is-min) > .hs-coach-text { font-size-adjust: var(--f-ui-aspect); }
   /* A CARD ABOUT A SHEET STANDS BESIDE THE SHEET (phone panel v0.2.83: inside it, it took 60 px of the 166 a ground's page had,
      and cut its own words at a line and a half): where the town's card stands, in the World's half, so the sheet keeps its whole
      height and the words their room, and the card does not jump when a sheet opens. Its left is the sheet's own (min(400px, 48vw)

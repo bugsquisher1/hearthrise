@@ -316,6 +316,7 @@
   .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px; margin: 0; line-height: 1.3; }
   .hero-how-slots { display: none; }
   .hero-how-list { gap: 3px; line-height: 1.3; }
+  .hero-how-lead, .hero-how-list { font-size-adjust: var(--f-ui-aspect); }
   .hero-how-more:not([hidden]) { display: block; position: sticky; bottom: 0; margin: 2px 0 0; background: var(--bg-1); font-size: var(--t-micro); font-weight: 700; color: var(--gold-2); text-align: right; }
   /* Beside this card the crest leaves a 667 px phone 455 px: Enter town and How you fight ran off the right edge (played
      2026-10-31). The crest stays on sign-in; this step uses the room. */

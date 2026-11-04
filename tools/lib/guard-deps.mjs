@@ -18,7 +18,7 @@
 //   IMPORTS   a picked .mjs under tests/ or tools/ is itself a dependency: every
 //             file that IMPORTS it is picked too, transitively (a changed
 //             tests/_chrome.mjs re-proves every page guard that boots Chromium).
-//   MIGRATION a changed supabase/migrations/*.sql picks the two replay guards.
+//   MIGRATION a changed supabase/migrations/*.sql picks the two replay guards and the self-check guard (town-hp-whole was applied before GitHub read it).
 //   HUB       (opt-in, the CI gate only) a file named by more than `hubAt` guards —
 //             play.html is named by ~80 page guards — picks none of them by name; the
 //             gate re-proves only the guards whose MUTANTS anchor on a LINE the diff
@@ -104,7 +104,7 @@ export function touchedBy(changed, sources, { hubAt = Infinity, hubs = [] } = {}
     for (const [t, s] of sources) if (t !== h && re.test(s)) add(t, `imports ${basename(h)} (${pick.get(h)})`);
   }
   if (changed.some((f) => f.startsWith('supabase/migrations/') || CHAIN_REGISTRY.has(f))) {
-    for (const t of ['tests/schema-drift.mjs', 'tests/apply-order-honesty.mjs']) if (sources.has(t)) add(t, 'migration changed');
+    for (const t of ['tests/schema-drift.mjs', 'tests/apply-order-honesty.mjs', 'tests/selfcheck-no-global-dml.mjs']) if (sources.has(t)) add(t, 'migration changed');
   }
   return pick;
 }

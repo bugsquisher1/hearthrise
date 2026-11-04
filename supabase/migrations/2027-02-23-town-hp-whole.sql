@@ -81,7 +81,6 @@ declare
   c_a constant uuid := '000000d7-0000-4000-a000-00005e77c0a1';
   c_b constant uuid := '000000d7-0000-4000-a000-00005e77c0b2';
   v jsonb; v_hunt text; v_heavy text; v_pid uuid; v_sa uuid; v_bare int; v_worn int; v_sig text;
-  hp_of constant text := 'select hp from public.player_state where user_id = $1 and slot = 0';
   v_hp int;
 begin
   begin
@@ -103,7 +102,7 @@ begin
     insert into public.player_equipment (user_id, slot, equip_slot, item_id) values (c_a, 0, 'probe_armor', v_heavy);
     v_worn := (public.hr_vitals_of(c_a, 0) ->> 'max_hp')::int;
     if v_worn <= v_bare then raise exception 'town-hp-whole §2-harness: heavy armor did not raise the max (% -> %)', v_bare, v_worn; end if;
-    execute hp_of into v_hp using c_a;
+    select hp into v_hp from public.player_state where user_id = c_a and slot = 0;
     if v_hp <> v_worn then raise exception 'town-hp-whole §2(a): armor on: hp % of max %', v_hp, v_worn; end if;
     v := public.hr_state_of(c_a, 0);
     if (v->'state'->>'hp')::int <> v_worn or (v->'state'->>'max_hp')::int <> v_worn then
@@ -111,7 +110,7 @@ begin
 
     -- (b) IN TOWN, ARMOR OFF: down to the new max, never over it.
     delete from public.player_equipment where user_id = c_a and slot = 0 and equip_slot = 'probe_armor';
-    execute hp_of into v_hp using c_a;
+    select hp into v_hp from public.player_state where user_id = c_a and slot = 0;
     if v_hp <> v_bare then raise exception 'town-hp-whole §2(b): armor off: hp % of max %', v_hp, v_bare; end if;
 
     -- (c) THE FIRST WAY OUT, ALONE: armor on in town, then Enter: the hunt starts from the full new max.
@@ -120,25 +119,25 @@ begin
     v := public.hr_hunt_enter_for(c_a, 0, v_hunt, '[]'::jsonb, 0, null);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'town-hp-whole §2-harness: the enter refused: %', v; end if;
     v_sa := (v->>'session_id')::uuid;
-    execute hp_of into v_hp using c_a;
+    select hp into v_hp from public.player_state where user_id = c_a and slot = 0;
     if v_hp <> v_worn then raise exception 'town-hp-whole §2(c): a lone hero entered at % of %', v_hp, v_worn; end if;
 
     -- (d) IN A HUNT, GEAR WRITES LEAVE HP ALONE: the engine owns it until the hunt ends.
     update public.player_state set hp = 77 where user_id = c_a and slot = 0;
     delete from public.player_equipment where user_id = c_a and slot = 0 and equip_slot = 'probe_armor';
-    execute hp_of into v_hp using c_a;
+    select hp into v_hp from public.player_state where user_id = c_a and slot = 0;
     if v_hp <> 77 then raise exception 'town-hp-whole §2(d): a gear write healed a hero in a hunt to %', v_hp; end if;
     insert into public.player_equipment (user_id, slot, equip_slot, item_id) values (c_a, 0, 'probe_armor', v_heavy);
-    execute hp_of into v_hp using c_a;
+    select hp into v_hp from public.player_state where user_id = c_a and slot = 0;
     if v_hp <> 77 then raise exception 'town-hp-whole §2(d): armor on mid-hunt moved hp to %', v_hp; end if;
 
     -- (e) HOME AGAIN: the end writes full, and from there gear keeps it full.
     perform public.hr_hunt_close(v_sa, 'left', now(), true);
     update public.player_state set active_kind = 'idle', active_id = null where user_id = c_a and slot = 0;
-    execute hp_of into v_hp using c_a;
+    select hp into v_hp from public.player_state where user_id = c_a and slot = 0;
     if v_hp <> v_worn then raise exception 'town-hp-whole §2(e): home at % of %', v_hp, v_worn; end if;
     delete from public.player_equipment where user_id = c_a and slot = 0 and equip_slot = 'probe_armor';
-    execute hp_of into v_hp using c_a;
+    select hp into v_hp from public.player_state where user_id = c_a and slot = 0;
     if v_hp <> v_bare then raise exception 'town-hp-whole §2(e): home, then armor off: % of %', v_hp, v_bare; end if;
 
     -- (f) THE SECOND WAY OUT, THE PARTY'S START: a seat that put armor on in town starts from its own full max, the leader from its own.
@@ -154,9 +153,9 @@ begin
     if (select count(*) from public.hunt_sessions where instance_id = v_pid and ended_at is null) <> 2 then
       raise exception 'town-hp-whole §2-harness: the party start opened % seat(s), want 2',
         (select count(*) from public.hunt_sessions where instance_id = v_pid and ended_at is null); end if;
-    execute hp_of into v_hp using c_b;
+    select hp into v_hp from public.player_state where user_id = c_b and slot = 0;
     if v_hp <> v_worn then raise exception 'town-hp-whole §2(f): the armored seat started at % of %', v_hp, v_worn; end if;
-    execute hp_of into v_hp using c_a;
+    select hp into v_hp from public.player_state where user_id = c_a and slot = 0;
     if v_hp <> v_bare then raise exception 'town-hp-whole §2(f): the leader started at % of %', v_hp, v_bare; end if;
 
     raise exception 'town-hp-whole §2: ok' using errcode = 'P0001';

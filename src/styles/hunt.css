@@ -682,6 +682,7 @@ label.st-line { cursor: pointer; }
   /* no "Lv" over the number here, so nothing to ride up for: the stack sits on centre */
   .hb-medal-in { padding-bottom: 0; }
   .hb-lv { font-size: var(--t-lead); }
+  .hb-xp { font-size-adjust: var(--f-ui-aspect); }
   .hb-read { flex-direction: row; align-items: baseline; gap: 4px; line-height: 1.15; }
   .hb-read.is-hp, .hb-read.is-mana { align-items: baseline; justify-self: start; align-self: auto; }
   .hb-read-v { font-size: var(--t-micro); }
@@ -792,10 +793,11 @@ label.st-line { cursor: pointer; }
     align-items: center; column-gap: 2px; width: min(376px, calc(100vw - 232px)); max-height: min(calc(100vh - 219px), var(--hs-room, 100vh)); padding: 0 6px 4px; }
   .ha-analyzer .hh-panel-head, .ha-analyzer .hh-panel-body, .ha-analyzer .ha-main { display: contents; }
   .ha-analyzer .hh-panel-title { display: none; }
-  /* The tabs share row 1 with the fold and the close: all four fit (phone panel v0.2.83: Taken cut, Dealt behind the buttons);
-     under a wider font the strip pans sideways under the thumb and still never runs under the fold. */
+  /* The tabs share row 1 with the fold and the close: all four fit (phone panel v0.2.83: Taken cut, Dealt behind the buttons),
+     a wide fallback font too, brought down to Alegreya's size. Past that the strip pans under the thumb and still never runs under the fold. */
   .ha-analyzer .ha-tabs { grid-area: 1 / 1 / 2 / 2; min-width: 0; margin-bottom: 0; overflow-x: auto; scrollbar-width: none; }
   .ha-analyzer .ha-tabs .ha-tab { flex: none; }
+  .ha-analyzer .ha-tabs .ha-tab { font-size-adjust: var(--f-ui-aspect); }
   .ha-analyzer .hs-wfold { grid-area: 1 / 2; }
   /* Folded, the phone panel is its name, its plus and its close: one 44 px row under the hunt bar. */
   .is-folded > .ha-analyzer .hh-panel-title { display: block; grid-area: 1 / 1; align-self: center; }

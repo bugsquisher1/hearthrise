@@ -744,9 +744,11 @@ async function pageRules(overrides, shots) {
       }
       // CW-7: the chat's corner, its see-through plate, its grip and the size a reload keeps
       const closeAll = async () => { for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)')); i++) { await page.mouse.click(2, vp.height - 2); await page.keyboard.press('Escape'); await page.waitForTimeout(220); } };
-      const chatBox = () => page.evaluate(() => {
+      const chatBox = () => page.evaluate(async () => {
         const w = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)');
         if (!w) return null;
+        /* where it stands, not where it is on the way: a window slides 16 px in as it opens (hs-in), and a busy runner measured it mid-slide (run 41742521577) */
+        await Promise.all(w.getAnimations().map((a) => a.finished.catch(() => null)));
         const sh = document.querySelector('[data-hs-shell]').getBoundingClientRect(), r = w.getBoundingClientRect();
         const bg = getComputedStyle(w).backgroundColor, m = bg.match(/\/\s*([\d.]+)\)$/) || bg.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)/);
         const line = w.querySelector('.hc-log.is-talk.is-on .hc-line'), grip = w.querySelector('.hs-grip');

@@ -337,7 +337,15 @@ const cases = {
     const reader = { read: () => null, record: { residue: {} }, setResidue: () => {} };
     const html = coachHtml(reader, hunter, false);
     if (!/<span class="hs-coach-text">A third hero costs 50,000 gp, and you have 41,172 gp/.test(html) || !/data-hs-act="coach-more"/.test(html) || !/class="hs-coach-also" hidden/.test(html) || !html.includes('Nothing grows')) return 'the card draws ' + html;
-    if (typeof actCoach !== 'function') return 'no presses';
+    /* More works where What next stands (played 11-04: in town the card sits inside the row's <nav>, so a press on More reached nothing), and stays open through a repaint of that row */
+    const also = { hidden: true }, more = { textContent: 'More', setAttribute() {} };
+    const ptr = { getAttribute: () => hunter.id, classList: { toggle() { throw new Error('toggled the window line'); } }, querySelector: (q) => (q === ':scope > .hs-coach-more' ? more : q === ':scope > .hs-coach-also' ? also : null) };
+    const row = { querySelector: (q) => (q === '.hs-pointer' ? ptr : null) };
+    actCoach({ character: reader }, row, 'coach-more', { type: 'click' });
+    if (also.hidden || more.textContent !== 'Less') return 'More in the town row leaves the goals shut';
+    if (/class="hs-coach-also" hidden/.test(coachHtml(reader, hunter, false))) return 'a repaint of the row shuts the goals More opened';
+    actCoach({ character: reader }, row, 'coach-more', { type: 'click' });
+    if (!also.hidden || more.textContent !== 'More' || !/class="hs-coach-also" hidden/.test(coachHtml(reader, hunter, false))) return 'Less leaves the goals open';
     return null;
   },
   'sewer-on-the-map': (M) => {
@@ -1705,6 +1713,10 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', 'return purse !== null && slot && nth && !emptySlot(f) ? { purse, slot, nth } : null;', 'return purse !== null && slot && nth ? { purse, slot, nth } : null;']] },
   { name: 'the stamina line offers what the purse cannot pay', case: 'what-next-one-goal',
     edits: [['src/data/hunt-tutorial.js', 'if (!Number.isSafeInteger(f.gold) || f.gold < q.price) return null;\n', '']] },
+  { name: 'More reaches nothing in the town row (played 11-04)', case: 'what-next-one-goal',
+    edits: [['src/shell/launcher.js', "const p = el.querySelector('.hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');", "const p = el.querySelector(':scope > .hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');"]] },
+  { name: 'a repaint shuts the goals More opened', case: 'what-next-one-goal',
+    edits: [['src/shell/launcher.js', 'const open = !!also && ALSO_OPEN.get(cs) === card.id;', 'const open = false;']] },
   { name: 'the coach keeps its goals to itself', case: 'what-next-one-goal',
     edits: [['src/shell/launcher.js', "const also = Array.isArray(card.also) && card.also.length ? card.also : null;", "const also = null;"]] },
   { name: 'What next offers a slot the server is not selling', case: 'tutorial-reactive',

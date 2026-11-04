@@ -17,15 +17,17 @@
 // alert centre (alerts.js) reads the same id, so a seen death never comes back
 // as a side line. A party member's death stays an alert line.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.85';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.85';
-import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.85';
-import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.85';
-import { huntName } from '../session/party-sections.js?v=0.2.85';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.85';
-import { whole } from '../render/format.js?v=0.2.85';
-import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.85';
-import { monsterName } from './widgets/bits.js?v=0.2.85';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.86';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.86';
+import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.86';
+import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.86';
+import { huntName } from '../session/party-sections.js?v=0.2.86';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.86';
+import { HUNT_GROUNDS, underFloorPm } from '../data/hunt-grounds.js?v=0.2.86';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.86';
+import { whole } from '../render/format.js?v=0.2.86';
+import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.86';
+import { monsterName } from './widgets/bits.js?v=0.2.86';
 
 const seenOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -76,6 +78,19 @@ function dismissDeath(cs, session) {
   if (ok && typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});
 }
 
+/* WHY, SO A DEATH TEACHES (Tyler 2026-11-04 UTC: dying is the price of a big risk): how far under this ground the hero stood and what that did to every blow, then what would have helped.
+   The Level is the server's and a death never lowers it, so it is the Level the hero died at; a row from an older hunt, opened by the key, may have been outgrown and says nothing. */
+function whyWords(cs, d) {
+  const h = huntOf(cs), lv = levelOf(cs);
+  const band = d.row.hunt && HUNT_INDEX[d.row.hunt] && HUNT_INDEX[d.row.hunt].band;
+  if (!band || !lv || !h || h.sessionId !== d.session) return '';
+  const ground = Object.values(HUNT_GROUNDS).find((g) => g.hunt === d.row.hunt);
+  const pm = underFloorPm(ground, lv.level);
+  if (pm <= 1000) return 'Better armor, food eaten sooner or a smaller pull would help.';
+  const gap = band[0] - lv.level;
+  return 'You were ' + gap + (gap === 1 ? ' Level' : ' Levels') + ' under this ground, so its monsters hit you ' + Math.round((pm - 1000) / 10) + '% harder. Better armor, food eaten sooner, a healer or a few more Levels would help.';
+}
+
 const xpName = (k) => (k === 'level' ? 'Level' : (SKILLS_DEF[k] && SKILLS_DEF[k].name) || k);
 /* "1,200 Level XP, 40 Melee XP and 12 Defense XP", Level first. */
 const xpWords = (m) => {
@@ -85,7 +100,7 @@ const xpWords = (m) => {
 
 /**
  * The popup's words for one character's death (pure; every number is the server's row).
- * @returns {{title: string, killed: string, what: string, lost: string, saved: string, town: string}}
+ * @returns {{title: string, killed: string, what: string, why: string, lost: string, saved: string, town: string}}
  */
 export function deathWords(cs, d) {
   const who = nameOf(cs) || 'Your hero';
@@ -95,6 +110,7 @@ export function deathWords(cs, d) {
     title: row.hunt ? who + ' died in ' + huntName(row.hunt) : who + ' died',
     killed: row.monster ? 'Killed by ' + monsterName(row.monster) + '.' : '',
     what: story && story.deaths.length ? story.deaths[0] : '',
+    why: whyWords(cs, d),
     /* xp null: the server has not priced it (an older row); say nothing rather than guess. */
     lost: Object.keys(row.xpLost).length ? 'Dying cost ' + xpWords(row.xpLost) + '.' : row.xp === null ? '' : 'Dying cost no XP.',
     /* undefined: the server did not say whether a Blessing was used, so nothing is said about one. */

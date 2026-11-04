@@ -3,8 +3,8 @@
 // tools/gen-hunts.mjs — GENERATE THE SERVER HUNT CATALOGUE (lane C1).
 //
 // src/data/hunts.js is the single source of the named hunts. Postgres must know
-// two facts to enforce what only it can enforce: a hunt's combat-level floor
-// (hr_apply refuses `activity_locked` below band[0]) and its spawn set
+// two facts only it can read under the lock: a hunt's Level floor (hr_hunt_below_range's
+// warning; the gate refuses no Level, Tyler 2026-11-04 UTC) and its spawn set
 // (hr_apply's fight-carry void keeps a checkpoint only on one of THIS hunt's
 // monsters). Both are emitted here as `hr_hunts` / `hr_hunt_spawns`; nothing
 // else about a hunt (name, theme, art) goes to SQL.

@@ -392,6 +392,70 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'gold1103') {
+    /* LANE c-gold-matters (2026-11-03): what a new account earns, hour by hour, and what each ground's floor can bear.
+       C: lives from Level 1 (every style alone, a duo and a four: two heroes are free, four are the optimizer), x=F: every
+       style at every open ground's floor, middle and top in Level kit, 2 seeds, x=T: the thin kits at the floors (the practice
+       set a hero who never equips anything stands in), x=Q: the party grounds' parties, x=B: a pull held at 8 each. */
+    const life = { kind: 'career', startLevel: 1, targetLevel: 60, maxHours: 30, chunkH: 1, chunkByLevel: [[1, 0.25], [8, 0.5], [12, 1]], seed: 0 };
+    for (const s of ['tank', 'hammer', 'axes', 'bow', 'mage', 'healer']) out.push({ ...life, id: 'C:life:' + s, party: [s] });
+    out.push({ ...life, id: 'C:duo', party: PARTIES.duo, maxHours: 20 });
+    out.push({ ...life, id: 'C:four', party: PARTIES.four, maxHours: 20 });
+    const mid = (g) => Math.round((g.band[0] + g.band[1]) / 2);
+    for (const g of G) for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const L of uniq([g.band[0], mid(g), g.band[1]])) {
+      out.push(cellOf({ ground: g.id, party: [s], level: Math.max(1, L), hours: H(1), seeds: 2, x: 'F' }));
+    }
+    for (const g of G.filter((x) => x.band[0] <= 16)) for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) {
+      out.push(cellOf({ ground: g.id, party: [s], level: Math.max(1, g.band[0]), gear: { starter: true }, hours: H(1), seeds: 2, x: 'T' }));
+    }
+    for (const g of G.filter((x) => x.groupFit === 'party' || x.band[0] >= 8)) for (const party of [PARTIES.duo, PARTIES.four]) for (const L of uniq([g.band[0], mid(g), g.band[1]])) {
+      out.push(cellOf({ ground: g.id, party, level: L, hours: H(1), seeds: 2, x: 'Q' }));
+    }
+    for (const [ground, level] of [['wickstead', 13], ['mosslight_glade', 16], ['mosslight_glade', 24], ['coppercap_warrens', 45]]) for (const s of ['tank', 'hammer', 'mage']) {
+      out.push(cellOf({ ground, party: [s], level, density: 8, hours: H(1), seeds: 2, x: 'B' }));
+    }
+    return out;
+  }
+  if (name === 'gold1103l') {
+    /* THE LADDER AT ONE LEVEL (Tyler 2026-11-03: harder monsters pay more, nothing rewards staying on a weak ground): the same
+       hero, same kit, on every ground its Level could stand on, so a ground reads against the one below it at equal strength. */
+    for (const L of [5, 8, 10, 13, 16, 20, 25, 31, 40]) for (const g of G) {
+      if (L < g.band[0] - 12 || L > g.band[1] + 8) continue;
+      for (const s of ['tank', 'hammer', 'mage']) out.push(cellOf({ ground: g.id, party: [s], level: L, hours: H(1), seeds: 2, x: 'L' }));
+    }
+    return out;
+  }
+  if (name === 'risk') {
+    /* THE RISK LADDER (Tyler 2026-11-04 UTC): a harder ground pays more and hits harder, and any hero may walk in. Every open ground at its floor and 3, 6, 10, 15 and 25 Levels under, three builds:
+       poor = the practice set, no armor; average = the Level's best helm, body and boots on store food; optimized = every slot of the Level's best on crafted food, eating early. Read by risk-table.mjs. */
+    const BUILDS = { poor: { gear: { starter: true } }, average: { gear: { armourSlots: ['helmet', 'body', 'boots'] } }, optimized: { supply: 'own', bar: { eatPct: 70 } } };
+    for (const g of G) for (const gap of [0, 3, 6, 10, 15, 25]) {
+      const level = g.band[0] - gap;
+      if (level < 1) continue;
+      for (const [x, b] of Object.entries(BUILDS)) {
+        out.push({ ...cellOf({ ground: g.id, party: ['tank'], level, hours: H(2), seeds: 2, x: 'R' + gap + x, ...b }), windowMs: 120000 });
+        out.push({ ...cellOf({ ground: g.id, party: PARTIES.four, level, hours: H(1), seeds: 2, x: 'R' + gap + x, ...b }), windowMs: 120000 });
+      }
+    }
+    return out;
+  }
+  if (name === 'riskclimb') {
+    /* DOES THE PAY CLIMB WITH THE GROUND? The same built hero, one Level, every ground: alone at 10 and 24, a full mix at 24. */
+    const built = { supply: 'own', bar: { eatPct: 70 } };
+    for (const g of G) for (const [party, level] of [[['tank'], 10], [['tank'], 24], [PARTIES.four, 24]]) {
+      out.push({ ...cellOf({ ground: g.id, party, level, hours: H(1), seeds: 2, x: 'Climb', ...built }), windowMs: 120000 });
+    }
+    return out;
+  }
+  if (name === 'riskleech') {
+    /* WHAT THE GONE BLOCK LETS IN: a low hero sat behind three friends who hold the ground. Levels [friends x3, the low seat]; the low seat stands last, a bow or a mage, in the practice set or the Level's kit. */
+    for (const [ground, friends, lows] of [['coppercap_warrens', 37, [1, 8, 18, 25]], ['mosslight_glade', 24, [1, 8]], ['meadowbrook_thicket', 12, [1]]]) {
+      for (const low of lows) for (const s of ['bow', 'mage']) for (const [x, gear] of [['start', { starter: true }], ['kit', {}]]) {
+        out.push({ ...cellOf({ ground, party: ['tank', 'healer', 'mage', s], level: [friends, friends, friends, low], hours: H(1), seeds: 2, x: 'Leech' + x }), gearBySeat: [{}, {}, {}, gear], windowMs: 120000 });
+      }
+    }
+    return out;
+  }
   if (name === 'career8') {
     /* the same lives at the full box (density 8: the "reasonably efficient" pick wherever it stays safe) */
     for (const s of ['tank', 'hammer', 'bow', 'mage']) out.push({ id: 'S1:career8:' + s + ':s0', kind: 'career', party: [s], startLevel: 1, targetLevel: 50, maxHours: 200, chunkH: 1, seed: 0, density: 8 });

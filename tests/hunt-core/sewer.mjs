@@ -935,7 +935,10 @@ const cases = {
     const rich = (lv, gold, more, ...read) => ({ ...atL(lv, 'weighhouse', 'roll_of_honor', 'pull_goal', ...read), gold, slotCost: 15000, slotsOwned: 2, home: { owned: false, next: DEED }, chest: CHEST, ...more });
     const purse = say(rich(M.tut.ROLL_LEVEL, 15000));
     if (!purse || purse.id !== 'purse_goal' || purse.text !== 'You hold 15,000 gp: enough for a third hero (15,000 gp, press Characters). In the House: the Hearthside Homestead (400 gp, Copper Ore ×20, Normal Log ×30) and storage chests (the Millrace Crate, 1,500 gp, Normal Log ×40).' || !purse.gotIt || M.tut.coachWindow(purse) !== 'house') return 'with 15,000 gp the card reads ' + JSON.stringify(purse);
-    if ((say(rich(M.tut.ROLL_LEVEL, 14999)) || {}).id === 'purse_goal') return 'the gold card came under the next hero\'s price';
+    /* The hero is a saving goal now (lane/c-gold-matters): the card comes at the What next line's share of its price and says what is short, never "enough". */
+    if ((say(rich(M.tut.ROLL_LEVEL, 3749)) || {}).id === 'purse_goal') return 'the gold card came before the purse is a start on the next hero';
+    const saving = say(rich(M.tut.ROLL_LEVEL, 3750));
+    if (!saving || saving.id !== 'purse_goal' || !saving.text.startsWith('You hold 3,750 gp. A third hero costs 15,000 gp (press Characters). In the House: the Hearthside Homestead')) return 'saving for a hero the gold card reads ' + JSON.stringify(saving && saving.text);
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, {}, 'purse_goal')) || {}).id === 'purse_goal') return 'Got it does not pass the gold card';
     if ((say(rich(M.tut.ROLL_LEVEL, 99999, { slotCost: null, slotsOwned: 5 })) || {}).id === 'purse_goal') return 'with no hero on offer the gold card still offers one';
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, { huntId: 'mosslight_glade' })) || {}).id === 'purse_goal') return 'the gold card came up in a hunt';
@@ -1197,7 +1200,7 @@ const cases = {
     if (inserts !== 2 || !node || !/:new$/.test(node.key)) return 'the hunt bar did not redraw the coach on a new card (' + inserts + ' draws, ' + (node && node.key) + ')';
     press(cs, 'coach-open');
     const open = draw(cs);
-    if (open.includes('is-min') || open.includes('hs-coach-new') || !open.includes('Your hero goes after the rats, fights them')) return 'opened, the coach is not its full text: ' + open;
+    if (open.includes('is-min') || open.includes('hs-coach-new') || !open.includes('Your hero goes after the monsters, fights them')) return 'opened, the coach is not its full text: ' + open;
     press(cs, 'coach-min');
     if (draw(cs).includes('hs-coach-new')) return 'opening did not clear the mark';
     placeCoach(bar, draw(cs));
@@ -1580,9 +1583,9 @@ const mutants = [
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
   { name: 'the gold card stands ahead of Klappa\'s Club', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "  step('purse_goal', 'What your gold buys',\n    'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_pays_hero' }] }),\n", ''], ['src/data/hunt-tutorial.js', "  step('klappas_club', 'Klappa\\'s Club',\n", "  step('purse_goal', 'What your gold buys',\n    'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_pays_hero' }] }),\n" + "  step('klappas_club', 'Klappa\\'s Club',\n"]] },
+    edits: [['src/data/hunt-tutorial.js', "  step('purse_goal', 'What your gold buys',\n    'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n", ''], ['src/data/hunt-tutorial.js', "  step('klappas_club', 'Klappa\\'s Club',\n", "  step('purse_goal', 'What your gold buys',\n    'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n" + "  step('klappas_club', 'Klappa\\'s Club',\n"]] },
   { name: 'the gold card never comes', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost : null),", "false : null),"]] },
+    edits: [['src/data/hunt-tutorial.js', "Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),", "false : null),"]] },
   { name: 'Hunt together walls the coach again', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "'strip', orGotIt({ kind: 'partied' }), { reactive: true, gotIt: true, when:", "'strip', { kind: 'partied' }, { reactive: true, when:"]] },
   { name: 'Cash in says nothing of the party on a member\'s screen', case: 'tutorial-town-chain',

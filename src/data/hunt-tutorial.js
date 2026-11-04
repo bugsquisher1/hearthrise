@@ -65,27 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.85';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.85';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.85';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.85';
-import { SKILLS_DEF } from './skills.js?v=0.2.85';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.85';
-import { tallyTask } from './tally-tasks.js?v=0.2.85';
-import { ITEMS } from './items.js?v=0.2.85';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.85';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.85';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.85';
-import { isShield } from './shields.js?v=0.2.85';
-import { deriveProfile } from '../core/member.js?v=0.2.85';
-import { ABILITIES } from './abilities.js?v=0.2.85';
-import { CONSUMABLES } from './consumables.js?v=0.2.85';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.85';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.85';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.85';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.85';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.85';
-import { regenPermille } from '../core/vitals.js?v=0.2.85';
+import { HUNT_INDEX } from './hunts.js?v=0.2.86';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.86';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.86';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.86';
+import { SKILLS_DEF } from './skills.js?v=0.2.86';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.86';
+import { tallyTask } from './tally-tasks.js?v=0.2.86';
+import { ITEMS } from './items.js?v=0.2.86';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.86';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.86';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.86';
+import { isShield } from './shields.js?v=0.2.86';
+import { deriveProfile } from '../core/member.js?v=0.2.86';
+import { ABILITIES } from './abilities.js?v=0.2.86';
+import { CONSUMABLES } from './consumables.js?v=0.2.86';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.86';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.86';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.86';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.86';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.86';
+import { regenPermille } from '../core/vitals.js?v=0.2.86';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -230,7 +230,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'hunt_topbar', { kind: 'shot_ready' }, { when: [HUNTING, { kind: 'no_shot' }] }),
   /* ── B. The first hunt: the cards the server finishes on its own come first (AUTO_KINDS) ── */
   step('first_kill', 'Your hero fights on its own',
-    'You don\'t click to attack. Your hero goes after the rats, fights them, and picks the next one.',
+    'You don\'t click to attack. Your hero goes after the monsters, fights them, and picks the next one.',
     'world', { kind: 'kills', atLeast: 1 }, { knowledge: true }),
   /* Shown from the first kill until Level 2 lands, so it never names the Level (playtest 2026-10-29: "Level 2" sat
      over a bar that read Lv 1). */
@@ -400,12 +400,12 @@ export const HUNT_TUTORIAL = Object.freeze([
       when: [IN_TOWN, { kind: 'level_at', at: ITEMS.klappas_club.reqLv }, { kind: 'club_hand', item: 'practice_club', made: 'klappas_club' }],
       hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="klappas_club"]', '[data-hs-win="inventory"] .hw-pick[data-item="klappas_club"] [data-hs-act="primary"]'] }),
   /* GOLD WITH NOWHERE TO GO (designer's 10-31 pass ruled it a FIX; blind panel 11-03, hour 11, 15k banked: "nothing says what's next"): What next carries it in a line, but What next only
-     speaks with every window shut and no card up, and a return lands on the Hunt summary. So once the purse can pay for the next hero, one card names what exists at the server's
+     speaks with every window shut and no card up, and a return lands on the Hunt summary. So once the purse is a real start on the next hero, one card names what exists at the server's
      prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Club, one card at a time: the club has a job in it and a Level on it, and the gold
      keeps. */
   step('purse_goal', 'What your gold buys',
     'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',
-    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_pays_hero' }] }),
+    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),
   step('home', 'Build your home',
     'Your first house needs gold, ore and logs: start with logs in Gathering and crafting, Woodcutting.',
     'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),
@@ -620,7 +620,8 @@ const FACTS = Object.freeze({
   below_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel < b.freeUntil),
   at_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel >= b.freeUntil),
   /* the purse holds the price of the next hero slot the server offers; none on offer: never (unknown until the account's offer is read) */
-  purse_pays_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost : null),
+  /* The purse is a real start on the next hero (the What next line's own share): at 50,000 gp that is about hour 5, when gold first needs a plan (lane/c-gold-matters). */
+  purse_saving_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),
   /* more than one hero (the account's roster, from the shell) */
   one_hero: (p, f) => known(heroesOn(f), (h) => h.length === 1 && Number.isInteger(f.slotsOwned) && f.slotsOwned > 1),
   heroes: (p, f) => known(heroesOn(f), (h) => h.length >= p.atLeast),
@@ -934,7 +935,8 @@ const SAY = Object.freeze({
     const named = (r) => !!r && Array.isArray(r.items) && !r.items.some((x) => !name(x.id));
     const house = [named(f.home && f.home.next) ? 'the ' + f.home.next.name + ' (' + priced(f.home.next) + ')' : null,
       named(f.chest) ? 'storage chests (the ' + f.chest.name + ', ' + priced(f.chest) + ')' : null].filter(Boolean);
-    return { text: 'You hold ' + gp(f.gold) + ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' + (house.length ? ' In the House: ' + listed(house) + '.' : '') };
+    const hero = f.gold >= f.slotCost ? ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' : '. A ' + nth + ' hero costs ' + gp(f.slotCost) + ' (press Characters).';
+    return { text: 'You hold ' + gp(f.gold) + hero + (house.length ? ' In the House: ' + listed(house) + '.' : '') };
   },
   stitch_cloak: () => {
     const r = (ARTISAN_RECIPES.crafting || []).find((x) => x.output === 'graypelt_cloak');

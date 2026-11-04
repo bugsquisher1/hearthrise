@@ -10,15 +10,15 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.85';
-import { ITEMS } from '../data/items.js?v=0.2.85';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.85';
-import { skillsOf } from '../session/item-sections.js?v=0.2.85';
-import { levelOf } from '../session/character-sections.js?v=0.2.85';
-import { needOf, needWords } from './item-lore.js?v=0.2.85';
-import { whole } from '../render/format.js?v=0.2.85';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.85';
-import { marketRefusal } from './market-words.js?v=0.2.85';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.86';
+import { ITEMS } from '../data/items.js?v=0.2.86';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.86';
+import { skillsOf } from '../session/item-sections.js?v=0.2.86';
+import { levelOf } from '../session/character-sections.js?v=0.2.86';
+import { needOf, needWords } from './item-lore.js?v=0.2.86';
+import { whole } from '../render/format.js?v=0.2.86';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.86';
+import { marketRefusal } from './market-words.js?v=0.2.86';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -66,13 +66,6 @@ export function skillShortWords(skill, need, have, doing) {
   return 'You need ' + name + ' ' + need + (doing ? ' to ' + doing : '') + '.' + (Number.isInteger(have) ? ' You have ' + have + '.' : '');
 }
 
-/* "You need Level 16 to enter Wolf Den. You are Level 8." — hr_hunt_enter's activity_locked names the ground's floor and
-   the hero's Level (refusal.js floorOf); every number is the server's. */
-function floorWords(f) {
-  const h = f.hunt && HUNT_INDEX[f.hunt] ? HUNT_INDEX[f.hunt].name : 'that hunt';
-  return 'You need Level ' + f.level + ' to enter ' + h + '.' + (Number.isInteger(f.have) ? ' You are Level ' + f.have + '.' : '');
-}
-
 /* Why one seat held the party's start back, after its name. */
 const SEAT_WORDS = Object.freeze({
   away: 'is away', no_stamina: 'has no stamina left', hunt_open: 'is still hunting', activity_running: 'is busy in town',
@@ -98,7 +91,6 @@ export function refusalText(r, cs) {
   /* A name the rules refuse for what it says, not its length (hr_validate_display_name reserved / blocked). */
   if (r && r.error === 'bad_name' && (r.reason === 'reserved' || r.reason === 'blocked')) return refusalWords('bad_name_rule');
   if (r && r.error === 'member_hunting' && r.name) return r.name + ' is hunting. Invite them once that hunt ends.';
-  if (r && r.error === 'activity_locked' && r.floor) return floorWords(r.floor);
   /* A named fuel above the hero's Inner Flame (hr_hearth_burn sends both levels): "Den Knot needs Inner Flame 3. You have 1." */
   if (r && r.error === 'flame_too_low' && Number.isInteger(r.need)) {
     return (r.item && own(ITEMS, r.item) ? ITEMS[r.item].n : 'That fuel') + ' needs Inner Flame ' + r.need + '.' + (Number.isInteger(r.have) ? ' You have ' + r.have + '.' : '');

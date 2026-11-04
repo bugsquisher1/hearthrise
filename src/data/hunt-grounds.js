@@ -22,7 +22,7 @@
 //                 ground stays enterable alone, and says it is best with a party.
 //     soloFrom    (optional, a 'party' ground only) the Level from which a LONE hero breaks even
 //                 here, measured on the real settle; the Hunts card offers the ground alone
-//                 only from it ("A party of 2 to 4, or alone from Level 45"). Advice, like groupFit.
+//                 only from it ("Best with 2 to 4, and alone it pays from Level 45"). Advice, like groupFit.
 //     leashMargin tiles a pack may step past its room (LE-05/08); absent =
 //                 HUNT_TUNING.leashMarginDefault. Read ONLY via leashMarginOf.
 //     density     (optional) THE MONSTER-DENSITY SLIDER (Tyler 10-18): { solo, perHero,
@@ -119,6 +119,12 @@
 // tier 1-2, the Glade tier 2, the Warrens tier 3), the next tier, the made weapons and the
 // carriers' trophies as Rares (10-20 h per item); worn gear sells by tier so the hour's gear
 // stays under half its coin. The coin is final in the rows (DM-16).
+// THE RUNG ABOVE PAYS MORE (designer 2026-11-03, lane/c-gold-matters; Tyler the same day: harder monsters give more, nothing
+// rewards staying on a weak ground): Wickstead paid above the Sewer's party and the Glade's floor, a lone hero in the Sewer
+// out-earned the Warrens, and a party earned less in the Warrens than in the Glade. Wickstead's coin about x0.89 and the Glade's
+// about x0.94, the Sewer's bat and spider x0.83 and its King x1.04 (a party's coin about x0.94, a lone hero's x0.89), the Warrens
+// x1.09; the Cellar and the Thicket unchanged. Each stays inside its roster band (monster-classes.js). Floors, each ground's own table:
+// tests/hunt-core/drop-tables.mjs and forest-cave.mjs harder-pays-more.
 //
 // PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
 // is trivial for four heroes and lethal at the boss for one, so a pack's HP is
@@ -133,9 +139,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.85';
-import { HUNT_INDEX } from './hunts.js?v=0.2.85';
-import { MONSTERS } from './monsters.js?v=0.2.85';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.86';
+import { HUNT_INDEX } from './hunts.js?v=0.2.86';
+import { MONSTERS } from './monsters.js?v=0.2.86';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
@@ -494,6 +500,15 @@ export function underFloorPm(ground, level) {
   const band = ground && HUNT_INDEX[ground.hunt] && HUNT_INDEX[ground.hunt].band;
   if (!band || !Number.isInteger(level) || level >= band[0]) return 1000;
   return 1000 + HUNT_TUNING.underFloorAtkPm * (band[0] - level);
+}
+
+/** THE LEVEL SHARE (hunt-tuning.js partyShareRangePm): the permille of its Level XP share a seat of `level` keeps on `ground` with `top` the party's highest living Level. 1000 at or
+    over the floor, within the range of the top, and for a unit whose Level the engine was not told. Under both, it falls with the square of how far under the range it stands. */
+export function underFloorSharePm(ground, level, top) {
+  const band = ground && HUNT_INDEX[ground.hunt] && HUNT_INDEX[ground.hunt].band;
+  if (!band || !Number.isInteger(level) || !Number.isInteger(top) || level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;
+  const ratio = (level * 1000) / (top * HUNT_TUNING.partyShareRangePm);
+  return Math.floor(1000 * ratio * ratio);
 }
 
 /** The HP scale (permille) for a pack in an instance of `partySize` heroes. */

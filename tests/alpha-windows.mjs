@@ -722,9 +722,8 @@ async function panelLeftovers(base) {
   watch.destroy(); center.destroy();
   /* AW-63 the panels' round 3 (2026-11-01). */
   const { enterOffWords } = await imp('src/shell/windows/hunts.js');
-  const warrens = { name: 'Coppercap Warrens', band: [32, 50] };
-  if (enterOffWords(warrens, 13, null) !== 'You need Level 18 to enter Coppercap Warrens. You are Level 13.' || enterOffWords(warrens, 18, null) !== '' || enterOffWords(warrens, 13, { isLeader: true }) !== '' || enterOffWords(warrens, null, null) !== '') fails.push('AW-63 Enter off reads ' + enterOffWords(warrens, 13, null));
-  if (!/^You're in Mira's party/.test(enterOffWords(warrens, 40, { isLeader: false, leaderName: 'Mira' }))) fails.push('AW-63 a member\'s Enter reads ' + enterOffWords(warrens, 40, { isLeader: false, leaderName: 'Mira' }));
+  if (enterOffWords(null) !== '' || enterOffWords({ isLeader: true }) !== '') fails.push('AW-63 Enter off reads ' + enterOffWords(null));
+  if (!/^You're in Mira's party/.test(enterOffWords({ isLeader: false, leaderName: 'Mira' }))) fails.push('AW-63 a member\'s Enter reads ' + enterOffWords({ isLeader: false, leaderName: 'Mira' }));
   const { overBagWords } = await imp('src/shell/windows/inventory/index.js');
   if (overBagWords(99, 100) !== '' || !/Hunts still pick up loot/.test(overBagWords(114, 100))) fails.push('AW-63 a bag past its spaces says ' + overBagWords(114, 100));
   /* THE NEWCOMER'S PANEL (2026-11-01). */
@@ -2090,6 +2089,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (!up || !(await openWin(page, 'h', 'hunts'))) fails.push('AW-29 the Hunts window did not open');
       else {
         await page.click(W + '.hw-hunt[data-hunt="meadowbrook_thicket"]');
+        /* a Level 1 under the Thicket's floor: the first press arms "Enter anyway", the second goes */
+        await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
         await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
         for (let i = 0; i < 30 && !sent(s, 'hr_hunt_enter').length; i++) await page.waitForTimeout(100);
         const go = sent(s, 'hr_hunt_enter').map((c) => c.body.p_hunt);
@@ -3278,7 +3279,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             if (armed !== 'Sure?' || s.calls.slice(dk).some((c) => /disband/.test(c.name))) fails.push('AW-63 Disband\'s first press: ' + armed);
             await page.keyboard.press('y');
           }
-          /* AW-63 a lone hero far under a ground's floor: Enter off, and when it opens (Coppercap at Level 13: a live Enter under "too far below") */
+          /* AW-63 a lone hero far under a ground's floor (Tyler 2026-11-04 UTC: never blocked): Enter is live under the words, the first press arms "Enter anyway" and sends nothing */
           delete s.env.party;
           s.env.state = Object.assign({}, s.env.state, { level_xp: 0 });
           await pushEnvelope(page, s);
@@ -3286,8 +3287,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (await openWin(page, 'h', 'hunts')) {
             await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="coppercap_warrens"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunts\"] .hw-hunt[data-hunt=\"coppercap_warrens\"]'"));
             await page.waitForTimeout(200);
-            const far = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'), e = w.querySelector('.hw-hunt-enter'); return { off: e.disabled, why: w.querySelector('.hw-enter-why').textContent }; });
-            if (!far.off || far.why !== 'You need Level 18 to enter Coppercap Warrens. You are Level 1.') fails.push('AW-63 Coppercap far under its floor reads ' + JSON.stringify(far));
+            const far = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'), e = w.querySelector('.hw-hunt-enter'); return { off: e.disabled, why: w.querySelector('.hw-enter-why').textContent, warn: w.querySelector('.hw-hunt-warn').textContent, label: e.textContent }; });
+            if (far.off || far.why !== '' || far.label !== 'Enter' || !/^You're 31 Levels under this ground\. .*you lose 2% of your XP\.$/.test(far.warn)) fails.push('AW-63 Coppercap far under its floor reads ' + JSON.stringify(far));
+            const sentBefore = s.calls.filter((c) => c.name === 'hr_hunt_enter').length;
+            await page.click('[data-hs-win="hunts"] .hw-hunt-enter');
+            await page.waitForTimeout(200);
+            const armed = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'); return { label: w.querySelector('.hw-hunt-enter').textContent, said: w.querySelector('.hh-intent-msg').textContent }; });
+            if (armed.label !== 'Enter anyway' || armed.said !== 'Press Enter anyway to go.' || s.calls.filter((c) => c.name === 'hr_hunt_enter').length !== sentBefore) fails.push('AW-63 the first press of Enter under the floor reads ' + JSON.stringify(armed));
           }
         }
       }
@@ -3423,7 +3429,7 @@ const MUTANTS = [
   ['AW-62 the analyzer tab runs past the panel', 'src/styles/hunt.css', '.ha-tabs .ha-tab { margin-bottom: -2px; padding: 0 4px; }', '.ha-tabs .ha-tab { margin-bottom: -2px; }'],
   ['item truth: panel: a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],
   ['AW-62 the foot scrolls off', 'src/styles/windows.css', '.hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }\n', ''],
-  ['item truth: panel: Enter stays lit far under the floor', 'src/shell/windows/hunts.js', "  return 'You need Level ' + (r.band[0] - SESSION_LIMITS.belowRangeRefuse + 1) + ' to enter '", "  return '' && ' to enter '"],
+  ['AW-63 the first press of Enter under the floor walks straight in', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
   ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Your bag is full.", "  return false ? 'Your bag is full."],
   ['AW-63 Enter off has no reason beside it', 'src/shell/windows/hunts.js', "  text(det.querySelector('.hw-enter-why'), off);\n", ''],
   ['AW-63 a member has no way out at Enter', 'src/shell/windows/hunts.js', "  prop(det.querySelector('[data-hs-act=\"leave-party\"]'), 'hidden', now || !follower);\n", ''],
@@ -3575,7 +3581,7 @@ const MUTANTS = [
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
   ['AW-25 a Scarce piece reads as the ground\'s Rare (odds, not the band)', 'src/shell/hunt-ground-facts.js', 'd.ch < 1 && REVEAL_BANDS.includes(bandOf(d));', 'd.ch < 1 && d.ch <= 0.05;'],
   ['AW-25 every line says Fits your level', 'src/shell/windows/hunts.js', "fits === r.hunt ? (party ? 'Fits your party' : 'Fits your level') : ''", "(party ? 'Fits your party' : 'Fits your level')"],
-  ['AW-25 the band ignores the floor', 'src/shell/hunt-list.js', '  const warn = rangeWords(r, level);', '  const warn = null;'],
+  ['AW-25 the band ignores the floor', 'src/shell/hunt-list.js', "  if (rangeWords(r, level)) return r.band[0] - level < FAR_UNDER_LEVELS ?", "  if (false) return r.band[0] - level < FAR_UNDER_LEVELS ?"],
   ['AW-25 a ground with no best says nothing', 'src/shell/hunt-list.js', 'none: solo || party ? null :', 'none: true ? null :'],
   ['AW-25 the page shows the first ground, not the pick', 'src/shell/windows/hunts.js', '  const r = list.find((x) => x.hunt === sc.pick) || null;', '  const r = list[0] || null;'],
   ['AW-25 the creatures are never drawn', 'src/shell/windows/hunt-detail.js', '  const ok = drawCreature(c, ART, id, LINEUP_SPRITE);', '  const ok = false;'],

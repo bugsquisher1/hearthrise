@@ -28,13 +28,13 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, partyPullOf } from '../data/hunt-grounds.js?v=0.2.85';
-import { PARTY } from '../data/party.js?v=0.2.85';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.85';
-import { MONSTERS } from '../data/monsters.js?v=0.2.85';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.85';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.85';
-import { whole, gold } from '../render/format.js?v=0.2.85';
+import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.86';
+import { PARTY } from '../data/party.js?v=0.2.86';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.86';
+import { MONSTERS } from '../data/monsters.js?v=0.2.86';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.86';
+import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.86';
+import { whole, gold } from '../render/format.js?v=0.2.86';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -115,26 +115,30 @@ export function bandWords(r, level) {
   return Number.isInteger(level) ? band + ', you are ' + level : band;
 }
 
-/** Words on a hunt ABOVE the character's level, or null. The floor is a warning (Tyler 10-18):
-    under band[0] the server admits and warns; SESSION_LIMITS.belowRangeRefuse or more under, it refuses.
-    Display only: nothing reads it to gate a press, the server decides. */
+/** Words on a hunt ABOVE the character's level, or null. The floor is only ever a warning (Tyler 2026-11-04 UTC: "big risks should include warnings
+    but should allow the player to take them"): any hero may walk into any ground, and these words say what it is risking. Display only: the first
+    press of Enter arms "Enter anyway" (hunts.js), and that one confirm is all that stands between a hero and a ground. */
 /* True on the real engine, and pinned there (tests/hunt-core/first-week-bands.mjs above-your-level-words): a Level 11 sword and shield
    in Thicket armor earns 47,500 Level XP/h in the Glade against 25,800 at Wickstead, with no death; in the practice set it spends
    6,780 g/h on store food against 4,300 earned; a Level 2 sword alone dies. "Expect losses" alone was false for the armored hero. */
-export const ABOVE_LEVEL_WORDS = 'This hunt is above your level: more XP, but monsters hit harder. In weak armor you can spend more on food than you earn, or die.';
+export const ABOVE_LEVEL_WORDS = 'More XP and better loot, but its monsters hit harder. In weak armor you can spend more on food than you earn, or die.';
+/* FAR under a floor: past here only a hero built for it lasts (risk-table.mjs), and the list line says so. Display only: the engine's gap is one straight line (hunt-grounds.js underFloorPm). */
+const FAR_UNDER_LEVELS = 10;
+const FAR_WORDS = 'More XP and better loot, but its monsters hit far harder. Only a hero or party built for it lasts here.';
 export function rangeWords(r, level) {
   if (!Number.isInteger(level) || level >= r.band[0]) return null;
-  return r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ? 'You are too far below this hunt to enter it yet.' : ABOVE_LEVEL_WORDS;
+  const gap = r.band[0] - level;
+  return 'You\'re ' + gap + (gap === 1 ? ' Level' : ' Levels') + ' under this ground. ' + (gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)
+    + ' If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
 }
 
 /**
  * THE LEADER'S PICK, BEFORE IT GOES (panel 2026-11-01: a leader's Glade killed a Level 9 unasked; the floor stays a warning, Tyler
- * 10-18, and the pick the leader's, 10-20): the OTHER seats standing under this ground's floor, by the server's levels, and
- * whether any stands so far under that the server will refuse the start anyway (`far`: its refusal names them). Display only.
+ * 10-18, and the pick the leader's, 10-20): the OTHER seats standing under this ground's floor, by the server's levels. Display only.
  */
 export function seatsUnder(r, party) {
   const under = (party ? party.seats : []).filter((s) => s.seat !== party.me && Number.isInteger(s.level) && s.level < r.band[0]);
-  return { under, far: under.some((s) => r.band[0] - s.level >= SESSION_LIMITS.belowRangeRefuse) };
+  return { under };
 }
 
 /** "Sorrel (Level 9) and Oren (Level 12) are under this ground's Level 16." or '' for nobody. Pure. */
@@ -143,6 +147,17 @@ export function underWords(r, seats) {
   const names = seats.map((s) => s.name + ' (Level ' + s.level + ')');
   const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
   return list + (names.length > 1 ? ' are' : ' is') + ' under this ground’s Level ' + r.band[0] + '. It will hit them hard, and they could die.';
+}
+
+/** THE LEVEL SHARE IN WORDS (xp-share.js reads the same row): each seat, this hero included at `myLevel`, that keeps less than a full share of Level XP on this ground, or ''. Pure. */
+export function shareWords(r, party, myLevel) {
+  if (!party) return '';
+  const seats = party.seats.map((s) => ({ name: s.seat === party.me ? 'You' : s.name, level: s.seat === party.me ? myLevel : s.level })).filter((s) => Number.isInteger(s.level));
+  const top = Math.max(0, ...seats.map((s) => s.level));
+  const ground = Object.values(HUNT_GROUNDS).find((g) => g.hunt === r.hunt);
+  const low = seats.map((s) => ({ ...s, pm: underFloorSharePm(ground, s.level, top) })).filter((s) => s.pm < 1000);
+  if (!low.length) return '';
+  return low.map((s) => s.name + (s.name === 'You' ? ' earn ' : ' earns ') + Math.max(1, Math.round(s.pm / 10)) + '% of a full share of Level XP here, so far under Level ' + top).join('. ') + '.';
 }
 
 /** Is this ground built for a group of `partySize` (1 = alone)? A 'both' ground always is. */
@@ -227,24 +242,21 @@ export function bestLine(bests, hunt) {
 
 /**
  * Where the character's Level stands against a ground's band, for the list line: `words` and the
- * `tone` its token colour reads from. 'in' inside the band; 'above' under the floor (a warning, the
- * server admits it); 'far' SESSION_LIMITS.belowRangeRefuse or more under (the server refuses);
+ * `tone` its token colour reads from. 'in' inside the band; 'above' under the floor; 'far' FAR_UNDER_LEVELS or more under;
  * 'below' over the band's top (little XP). Null when the Level is not known. Display only.
  */
 export function fitWords(r, level) {
   if (!Number.isInteger(level)) return null;
-  /* Under the floor: rangeWords is the ONE reader of the refuse margin. */
-  const warn = rangeWords(r, level);
-  if (warn) return warn === ABOVE_LEVEL_WORDS ? { words: 'Above your level', tone: 'above' } : { words: 'Far above your level', tone: 'far' };
+  if (rangeWords(r, level)) return r.band[0] - level < FAR_UNDER_LEVELS ? { words: 'Above your level', tone: 'above' } : { words: 'Far above your level', tone: 'far' };
   return level > r.band[1] ? { words: 'Below your level', tone: 'below' } : { words: 'In your range', tone: 'in' };
 }
 
-/** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "A party of 2 to 4, or alone from Level 45"
+/** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "Best with 2 to 4, and alone it pays from Level 45"
     when its row measured a lone hero's break-even (hunt-grounds.js soloFrom), else "Best with 2 to 4, and a lone hero can
-    enter": no rule holds a lone hero out of it (the panel 2026-11-01 walked the Sewer alone at Level 10). */
+    enter": advice, no rule holds a lone hero out (the panel 2026-11-01 walked the Sewer alone at Level 10; Tyler 2026-11-04 UTC). */
 export function heroWords(r) {
   if (r.groupFit === 'party' && r.heroes > 1) {
-    return Number.isInteger(r.soloFrom) ? 'A party of 2 to ' + r.heroes + ', or alone from Level ' + r.soloFrom : 'Best with 2 to ' + r.heroes + ', and a lone hero can enter';
+    return Number.isInteger(r.soloFrom) ? 'Best with 2 to ' + r.heroes + ', and alone it pays from Level ' + r.soloFrom : 'Best with 2 to ' + r.heroes + ', and a lone hero can enter';
   }
   return r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';
 }

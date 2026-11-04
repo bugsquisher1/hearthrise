@@ -7,6 +7,9 @@
 // THE PARTY FACTOR (Tyler 2026-10-31: better only with different classes) is
 // src/data/party-class-xp.js, read from the living heroes at each kill, on the
 // ground in `inst`, never latched: a death or a leave changes the next kill.
+// THE LEVEL SHARE (hunt-grounds.js underFloorSharePm) is read the same way: a seat
+// far under both the ground's floor and its party's top Level keeps less of its
+// share, and the rest is nobody's (nothing is passed to the others).
 // The multiplier is read server-side and injected per hero as
 // `sc.xpMultOf(heroUnit)` (bestiary mastery, boosts, later modifiers); absent,
 // every hero's is 1 (XP-07, the bestiary-ready hook). "Raw" XP is the even share
@@ -26,10 +29,11 @@
 // Draws nothing. PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_XP } from '../../data/hunt-xp.js?v=0.2.85';
-import { partyClassXp } from '../../data/party-class-xp.js?v=0.2.85';
-import { skillLevelFromXp, charLevelFromXp } from '../xp.js?v=0.2.85';
-import { makeEvent } from './events.js?v=0.2.85';
+import { HUNT_XP } from '../../data/hunt-xp.js?v=0.2.86';
+import { partyClassXp } from '../../data/party-class-xp.js?v=0.2.86';
+import { underFloorSharePm } from '../../data/hunt-grounds.js?v=0.2.86';
+import { skillLevelFromXp, charLevelFromXp } from '../xp.js?v=0.2.86';
+import { makeEvent } from './events.js?v=0.2.86';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([]), world: Object.freeze([['xpGroup', 'json']]), pack: Object.freeze([]) });
 
@@ -48,15 +52,21 @@ const xpOf = (kill) => {
 };
 
 /**
- * THE SPLIT. `heroes` are the living heroes (objects with an integer `id` and a `role`), `groundId` the ground fought on.
+ * THE SPLIT. `heroes` are the living heroes (objects with an integer `id`, a `role` and, on a settled hunt, `heroLv`), `ground` the ground fought on.
  * Answers { [id]: { xp, raw } }; nobody alive is nobody paid.
  */
-function splitKillXp(xp, heroes, sc, groundId) {
+function splitKillXp(xp, heroes, sc, ground) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
   const raw = xp / heroes.length;
+  const groundId = ground ? ground.id : null;
   const party = partyClassXp(groundId, heroes.map((h) => h.role)).permille;
-  for (const h of heroes) out[h.id] = { xp: Math.floor((raw * party * multOf(sc, h)) / 1000 + 1e-9), raw: Math.floor(raw + 1e-9) };
+  const top = heroes.reduce((m, h) => (Number.isInteger(h.heroLv) && h.heroLv > m ? h.heroLv : m), 0);
+  for (const h of heroes) {
+    const paid = (raw * party * multOf(sc, h)) / 1000;
+    const seat = underFloorSharePm(ground, h.heroLv, top);
+    out[h.id] = { xp: Math.floor((seat === 1000 ? paid : (paid * seat) / 1000) + 1e-9), raw: Math.floor(raw + 1e-9) };
+  }
   return out;
 }
 
@@ -70,7 +80,7 @@ export function shareKillXp(inst, kill, sc) {
   const xp = xpOf(kill);
   const units = (inst && inst.world && inst.world.units) || [];
   const living = units.filter((u) => u.side === 'hero' && u.alive === true);
-  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground.id : null);
+  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null);
   const ids = Object.keys(paid);
   const answer = {};
   if (!ids.length) return answer;

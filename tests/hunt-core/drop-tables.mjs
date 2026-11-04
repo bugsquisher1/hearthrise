@@ -492,7 +492,7 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
       + ' | Rare item every ' + span(B.rare) + ' (' + B.rare.length + ' items; some Rare every ' + someRare.toFixed(1) + ' h)' + (B.pending.length ? ' + pending ' + B.pending.join(', ') : '') + (B.trophy.length ? ' | Trophy every ' + span(B.trophy) : '')
       + ' | coin ' + Math.round(E.coin) + ' commons ' + Math.round(E.commons) + ' gear ' + Math.round(E.gear) + ' (' + Math.round(100 * E.gear / E.coin) + '% of coin) other ' + Math.round(E.other)
       + ' | total ' + Math.round(B.total) + ' vs today ' + B.today + ' (' + pct((B.total / B.today - 1) * 100) + ')'
-      + ' | gear sells at ' + JSON.stringify(M.LB.VENDOR_GEAR_RATES) + ' of book by tier; this ground\'s caps hold up to ' + B.fmax.toFixed(2));
+      + ' | gear sells at ' + JSON.stringify(M.LB.VENDOR_GEAR_RATES) + ' of book by tier (tier 2\'s hourly armor ' + M.LB.VENDOR_HOURLY_ARMOR_T2_RATE + '); this ground\'s caps hold up to ' + B.fmax.toFixed(2));
   }
   for (const [gid, b] of Object.entries(freshB)) console.log('  fresh solo hero, ' + gid + ', ' + GEAR_HOURS + ' h: slots held ' + b.held + ' | reveals on the settle: ' + b.reveal);
   for (const [gid, b] of Object.entries(partyB)) console.log('  party of four, ' + gid + ', ' + GEAR_HOURS + ' h at the floor: Rare units ' + b);
@@ -689,7 +689,7 @@ const dataMutants = [
   { name: 'a row still parked for an item that exists (the Kingsgrate)', case: 'pending-rows', edit: (ms, M2) => {
     M2.LB = { ...M2.LB, PENDING_ROWS: [{ monster: 'rat_king', id: 'kingsgrate', ch: 0.017, band: 'rare', after: 'crown_shard' }] }; } },
   { name: 'Leather Boots back at 90 (outselling Studded Boots)', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.leather_boots = { ...M2.ITEMS.leather_boots, v: 90 }; } },
-  { name: 'Steel Boots cheaper than Iron Boots', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.steel_boots = { ...M2.ITEMS.steel_boots, v: 300 }; } },
+  { name: 'Steel Boots cheaper than Iron Boots', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.steel_boots = { ...M2.ITEMS.steel_boots, v: 200 }; } },
   /* build coverage */
   { name: 'the Dire Grays drop helmets, not bodies', case: 'build-coverage', edit: (ms) => {
     rowOf(ms, 'dire_gray', 'bronze_platebody').id = 'bronze_helm'; rowOf(ms, 'dire_gray', 'leather_body').id = 'leather_helmet'; rowOf(ms, 'dire_gray', 'apprentice_body').id = 'apprentice_helmet';

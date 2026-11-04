@@ -20,8 +20,8 @@
 //   Level 15 (Sewer floor):    20,000 + 7,500  = 27,500 g, about 8 hours of hunting.
 //   Level 32 (Warrens floor):  20,000 + 16,000 = 36,000 g, about 10-12 hours.
 //   Level 100:                 70,000 g.
-// For scale: the third hero slot is 15,000 g and the fourth 40,000 g, so a new
-// name costs about as much as a new hero. The Level term keeps it "a lot" as
+// For scale: the third hero slot is 50,000 g (designer 2026-11-03), so a new name
+// costs a good part of a new hero. The Level term keeps it "a lot" as
 // income grows; a flat price would be small change by Level 60.
 // One change per hero per server (UTC) day: the price already stops churn; the
 // day limit stops a name being passed back and forth between two of one

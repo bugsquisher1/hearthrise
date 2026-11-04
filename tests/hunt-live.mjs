@@ -656,7 +656,8 @@ function rules(M) {
       const plate = { body: 'bronze_platebody', pants: 'steel_platelegs', boots: 'bronze_boots' };
       return [
         row('eddie', 0, 3696348, { melee: 1212343, defense: 1166560, magic: 7056, ranged: 0, inner_flame: 76422 }, { weapon: 'steel_sword', shield: 'practice_shield', helmet: 'iron_helm', ...plate }, 'shield', true),
-        row('fremulon', 1, 3370870, { melee: 965112, defense: 636093, magic: 6894, ranged: 0, inner_flame: 84294 }, { weapon: 'iron_sword', shield: 'practice_shield', helmet: 'steel_helm', ...plate }, 'shield', false),
+        /* Level 32, the Warrens' floor (live he stood at 31: the level gap, Tyler 2026-11-04 UTC, is not this case's subject) */
+        row('fremulon', 1, 3500000, { melee: 965112, defense: 636093, magic: 6894, ranged: 0, inner_flame: 84294 }, { weapon: 'iron_sword', shield: 'practice_shield', helmet: 'steel_helm', ...plate }, 'shield', false),
         row('apollo', 2, 1509460, { melee: 4015, defense: 267, magic: 220560, ranged: 405, inner_flame: 26451 },
           { weapon: 'practice_wand', shield: 'practice_spellbook', helmet: 'leather_helmet', body: 'leather_body', boots: 'leather_boots' }, 'wand', false),
       ];

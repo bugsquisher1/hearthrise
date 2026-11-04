@@ -1,12 +1,37 @@
 # Hearthrise — Asset Manifest
 
-_Last updated: 2026-10-25 (World atlas registry regenerated: Hearth Square staged art, Art Director); 2026-10-19 (live-ground monster combat clips, Asset Director); 2026-10-15 (World atlas registry, Art Director); 2026-08-08 (asset-organization pass, build b216; asset
+_Last updated: 2026-11-04 (what ships and what a player sees, measured; Asset Director); 2026-10-25 (World atlas registry regenerated: Hearth Square staged art, Art Director); 2026-10-19 (live-ground monster combat clips, Asset Director); 2026-10-15 (World atlas registry, Art Director); 2026-08-08 (asset-organization pass, build b216; asset
 promotion pass, build b224)._
 
 The single reference for how Hearthrise's shipped assets are organized, what the
 art direction is, and where everything that isn't shipped went. Supersedes the
 old exploratory `ASSET_AUDIT.md` (May 2026), which described a plan that has
 since been executed.
+
+---
+
+## What ships and what a player sees (measured 2026-11-04, lane/a-art-audit)
+
+**Read this before the rest of the file.** Most of what follows was written when the painted Hearthfire set was the game's art. It is not any more. The rebuilt client draws only the layers marked "live" below (verified by walking 42 screen states on `tools/qa/local-world.mjs` at 1440x900, desktop only: in the first 29 every `<img>` came from `icons-bundle/pixel/` or `brand/`; across all 42, 0 emoji lines, 0 broken images, 0 asset 404s; the Hunts window drew the 29 creatures as built on the six grounds; the 30th, the Brook Bear, comes with bigger pulls and has its sprite too).
+
+| Layer | Path | Files | Drawn by the client? |
+|---|---|---|---|
+| World atlases (town, grounds, every creature, effects) | `assets/world/` | 12 sets | **live** (`src/render/creature-sprite.js`, `src/world/`) |
+| Pixel item icons | `assets/icons-bundle/pixel/items/` | 573 (one per ITEMS key) | **live** (`src/shell/widgets/bits.js`, `itemIconHtml`) |
+| Shop supply icons | `assets/icons-bundle/pixel/supplies/` | 25 | **live** |
+| Ability tiles | `assets/icons-bundle/pixel/abilities/` | 16 | **live** (`ABILITY_ART`) |
+| UI frames and plates | `assets/ui/`, `assets/brand/` | 13, 6 | **live** |
+| Painted Hearthfire set, painted portraits, resources, buildings, backgrounds | `assets/icons-bundle/{hearthfire,painted,resources,buildings,medieval,backgrounds}/` | 488 + 148, about 28 MB | **no** (retired; `ITEM_ART_SET = 'pixel'`; never beside style-1 art, Tyler 10-18) |
+| Recraft raws, avatars, pilot output | `assets/items/`, `assets/avatars/`, `assets/art-pilot/` | 71, 22, 33; about 107 MB | **no** (only `tools/art-wave2-*` read `assets/items`; nothing reads `avatars`) |
+
+So the smoke preflight lines "412 item icons wired, 19 withheld, 15 unresolved, 161 items still on old art/emoji" and "104 portraits wired, 36 awaiting the batch" describe the retired painted layer, not the game (the lines now say so). The live numbers: every one of the 573 items, 25 supplies and the 30 creatures of the six open grounds has live art; no emoji and no glyph stands in for an item anywhere a player goes. The 29 distinct painted filenames behind the withheld and unresolved counts (5 are on both lists) need no wiring: 15 name no live item, the other 14 are live items that already have a pixel icon, and a painted file would break the one-style rule.
+
+**What is really visible and wrong** (ranked; the costed plan is on the priority board, "2026-11-04 Art audit"):
+1. **One sprite, several names.** 11 monsters wear 5 sprites: Giant Rat = Drain Rat = Granary Rat, Slime = Sump Slime, Hive Wasp = Barn Wasp, Cistern Spider = Barn Spider, Glade Poacher = Turncoat (byte-identical idle frames; `art/review/art-audit-2026-11-04/same-sprite.png`). Four of Wickstead's five creatures are another ground's sprite.
+2. **Items wearing another item's picture.** 21 groups, 49 items on 21 pictures at the audit (the `KNOWN_TWINS` list in `tests/pixel-icons.mjs`): 45 of the 49 are reachable, and 24 new drawings give every reachable item its own (17 of them outside the Warrens, Level 32+). **Five drawn 2026-11-04; 44 items on 21 pictures, 19 drawings left.** Still worst: four shields on one picture, the Steel Hatchets and Willow Crossbow on the practice pair's, Coppercap's Cauldron drawn as a crown.
+3. **Fixed 2026-11-04:** Mend, Rend and Protective Ward showed a grey glyph beside framed tiles; all 16 abilities have a tile.
+4. **The ability tiles are the one icon family off the world palette, by decision (2026-11-04, `docs/ART_DIRECTION.md` section 7):** 1024 of 1024 pixels opaque and off-palette each on the 13 measured, 29-60 colours, against the items' 420 opaque pixels, 13 colours and 0 off-palette. A coherent family (slate square, orange frame), a different language from the pixel items beside them on the bar.
+5. **Every creature idles on one frame** (`idle 1f` for all 30), where `docs/ART_DIRECTION.md` section 6 asks for 4-6.
 
 ---
 
@@ -34,7 +59,7 @@ as separate art.
 
 ## Active asset structure (`assets/` — this is what ships)
 
-Only files actually referenced by the game live here. The tree was left in its
+**Stale since the client was rebuilt (2026-10-17): the tree below is the 2026-08 picture, and `src/legacy.js` is gone. The table at the top says what is live today.** Only files actually referenced by the game lived here then. The tree was left in its
 existing shape on purpose: `assets/icons-bundle/` is the single deployed icon
 root, and its paths are hard-wired in ~360 places in `src/legacy.js` plus the
 smoke test — renaming folders would break references for zero visual gain.
@@ -61,7 +86,7 @@ assets/
     │                 item set since 2026-10-14; see "Pixel item icons" below
     ├── pixel/supplies/  19 icons for the shop's basic supplies (salted food, thin drinks,
     │                 plain ammo), one per BASIC_SUPPLIES id; added 2026-10-21, see below
-    ├── pixel/abilities/  32x32 framed ability tiles (13), keyed by ability id; cleave added 2026-10-21
+    ├── pixel/abilities/  32x32 framed ability tiles (16), keyed by ability id; cleave added 2026-10-21; mend, rend, protective_ward 2026-11-04
     ├── medieval/     BlacksmithInstruments.png (anvil), Cog.png (iron_fitting,
     │                 added b224)
     └── backgrounds/  dungeon.jpg (combat/dungeon backdrop)
@@ -99,10 +124,12 @@ Drawn with the pixel scripts (no PixelLab credits spent), on the locked palette,
   art; each now has its own ash-and-rope training look with a red rag (`practice_shield`, `practice_crossbow` were already unique).
 - `pixel/abilities/cleave.png`: the set's own frame and slate, axe and swing arc. The ability tiles are NOT on the world
   palette (ported from the hunt sim, 1024 opaque px each); Cleave uses colours sampled from them so it matches its siblings.
-  `rend` (inactive) still shows a glyph.
 - Guard: `tests/pixel-icons.mjs` now also requires the supply folder (missing/orphan/size/palette/alpha/empty) and a
   `duplicate` rule (two ids with byte-identical icons) for items and supplies. One known twin remains and is listed in
   KNOWN_TWINS: `crown_shard` = `crown_of_the_fallen_king` (needs its own art).
+
+### Art batch 0 and the sample of five (2026-11-04, Art Director, 0 generations)
+Three tiles the set was missing and five items that wore another item's picture, drawn by script. The scripts are the source: `tools/world-art/ability-tiles.mjs` (`mend`, `rend`, `protective_ward`, in the family's own off-palette colours, the call is in `docs/ART_DIRECTION.md` section 7) and `tools/world-art/twin-icons.mjs` (`bronze_rimmed_shield`, `kingsgrate`, `iron_hatchets`, `oak_crossbow`, `crown_shard`, on `hr-world-56-v2`). `tests/pixel-icons.mjs` rule `drawn` requires each PNG to equal what its script draws. Sheets and in-game shots: `art/review/art-batch-0-2026-11-04/`.
 
 ### Longbow redraw (2026-10-24, Asset Director, player note a43)
 "String Longbow sprite looks more like a larger crossbow." The Crafting recipe "String Longbow" makes the item `longbow`, whose icon

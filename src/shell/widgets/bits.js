@@ -87,7 +87,7 @@ export function itemIconHtml(glyphs, id, fallback) {
 }
 
 /* A glyph for an ability with no pixel tile yet, and for the slot kinds that name no one item. */
-const ACTION_GLYPH = Object.freeze({ rend: 'uiBone', loaded: 'uiArrow' });
+const ACTION_GLYPH = Object.freeze({ loaded: 'uiArrow' });
 
 /** A bar action's 32 px icon: the ability's pixel tile, the item's pixel icon, else a glyph. */
 export function actionIconHtml(glyphs, action) {

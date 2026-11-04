@@ -339,12 +339,12 @@ export function wiredIconMap() {
 export const ITEM_ART_SET = 'pixel';
 export const PIXEL_DIR = 'assets/icons-bundle/pixel/items/';
 
-/* THE ABILITY ICONS: 32x32 pixel tiles, one per ability with art, under
-   assets/icons-bundle/pixel/abilities/<id>.png (ported from the hunt sim's set,
-   the same 32 px grid as the items). An ability without art shows its glyph. */
+/* THE ABILITY ICONS: 32x32 pixel tiles, one per ability, under assets/icons-bundle/pixel/abilities/<id>.png
+   (ported from the hunt sim's set, the same 32 px grid as the items; Mend, Rend and Protective Ward are drawn
+   in that family by tools/world-art/ability-tiles.mjs). A new ability with no tile is a tests/pixel-icons.mjs finding. */
 export const ABILITY_DIR = 'assets/icons-bundle/pixel/abilities/';
-export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_strike', 'cleave', 'hunters_mark', 'flame_volley', 'precision_shot',
-  'fireball', 'frost_lance', 'arcane_barrier', 'greater_mend', 'circle_of_renewal', 'green_sickness']);
+export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_strike', 'cleave', 'rend', 'hunters_mark', 'flame_volley', 'precision_shot',
+  'fireball', 'frost_lance', 'arcane_barrier', 'greater_mend', 'circle_of_renewal', 'green_sickness', 'protective_ward', 'mend']);
 
 /* THE SHOP'S BASIC SUPPLIES (salted food, thin drinks, plain ammo) are not items, so they are not under
    items/: one 32x32 pixel icon per row of src/data/supply-basics.js BASIC_SUPPLIES, <id>.png, same

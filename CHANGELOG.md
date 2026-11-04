@@ -13,6 +13,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## v0.2.88 — 2026-11-04 (Simply Harder)
 
 **No hidden penalty for rushing.** A monster now hits every hero the same way, whatever your Level. A hunting ground above your Level is simply full of monsters stronger than you: expect to spend more on supplies, or to die, for more XP and better loot. The game still warns you and asks you to press once more.
+- Mend, Rend and Protective Ward now have their own icons on your bar and in Configure action.
+- The Bronze-Rimmed Shield, the Kingsgrate, the Iron Hatchets, the Oak Crossbow and the Crown Shard each have their own picture, so you can tell a new find from your starting gear at a glance.
 
 ## v0.2.87 — 2026-11-04 (Upgrades You Can Feel)
 

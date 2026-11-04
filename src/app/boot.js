@@ -188,6 +188,7 @@ function startApp(win) {
     account.subscribe((why) => {
       if (why === 'closed-game') showClosed();
       else if (why === 'viewed' && strip) showPane();
+      else if (why === 'hero-gone') showCharacters();   // a tab left open while the server let that hero go: the list, not a dead game
     });
     account.setPageHidden(doc.hidden);   // opened behind another tab: visibilitychange has nothing to say yet
     alerts = createAlertCenter(account);

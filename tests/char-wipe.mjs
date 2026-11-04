@@ -75,8 +75,9 @@ async function scenario(db, wipeSql) {
   const ask = async (u, sql, params) => { const a = await as(u, () => one(sql, params)); return a.e ? { raised: String(a.e.message).slice(0, 200) } : a.r; };
   const apply = async (sql) => { const a = await attempt(() => db.exec(sql)); return a.e ? String(a.e.message).split('\n')[0] : null; };
   const must = async (name, sql) => { const e = await apply(sql); if (e) throw Object.assign(new Error(name + ': ' + e), { harness: true }); };
+  let COLORS = null;
   const hero = async (u, slot, name) => {
-    const r = await ask(u, `select public.hr_create_hero($1::int, $2, (select jsonb_build_object('head', min(d.idx), 'body', min(d.idx), 'legs', min(d.idx), 'feet', min(d.idx)) from public.hr_outfit_dyes d), $3::uuid)`, [slot, name, key()]);
+    const r = await ask(u, `select public.hr_create_hero($1::int, $2, $4::jsonb, $3::uuid)`, [slot, name, key(), COLORS]);
     if (!r || r.ok !== true) throw Object.assign(new Error(`hr_create_hero(${slot}, ${name}): ` + js(r)), { harness: true });
     return r;
   };
@@ -87,6 +88,8 @@ async function scenario(db, wipeSql) {
 
   await db.exec('begin');
   try {
+    const dye = await one('select min(idx) from public.hr_outfit_dyes');
+    COLORS = JSON.stringify({ head: dye, body: dye, legs: dye, feet: dye });
     const A = uid(1), B = uid(2), C = uid(3);
     await db.query('update public.hr_hunt_config set enabled = true where id');
     await must('market-on', SRC.on);
@@ -218,7 +221,7 @@ async function scenario(db, wipeSql) {
       friends: await one('select count(*)::int from public.friend_links where user_lo = $1 and user_hi = $2', [lo, hi]), blocks: await one('select count(*)::int from public.chat_blocks where blocker_id = $1', [A]),
       reports: await one('select count(*)::int from public.bug_reports where user_id = $1', [A]), hold: (await db.query(`select user_id from public.hr_name_holds where fold = public.hr_name_fold('Gutterbane')`)).rows[0],
       closed: await one(`select enabled from public.hr_flags where key = 'closed_mode'`) };
-    const social = await ask(A, 'select public.hr_social_state()');
+    const social = await ask(A, 'select public.hr_social_state(0)');
     arm('CW-KEPT', kept.allow === allowBefore && kept.users === usersBefore && kept.items === itemsBefore && kept.friends === 1 && kept.blocks === 1 && kept.reports === 1 && kept.hold && kept.hold.user_id === null && kept.closed === true
         && profile.display_name === null && profile.clan_id === null && cfgCursor.length === 1 && cfgCursor[0].cursor_user === null && shardCursor === 0 && social && !social.raised,
       'auth, allowlist, friends, blocks, reports, catalogues and the tick config stand; the profile is a fresh signup\'s; the friends list still reads', js({ kept, profile, cfgCursor, shardCursor, social }));
@@ -263,8 +266,8 @@ async function scenario(db, wipeSql) {
 
     /* CW-PLAY */
     const before2 = await one('select count(*)::int from public.player_state');
-    const again = await ask(B, `select public.hr_create_hero(0, 'Marlow', (select jsonb_build_object('head', min(d.idx), 'body', min(d.idx), 'legs', min(d.idx), 'feet', min(d.idx)) from public.hr_outfit_dyes d), $1::uuid)`, [key()]);
-    const pulled = await ask(A, `select public.hr_create_hero(0, 'Gutterbane', (select jsonb_build_object('head', min(d.idx), 'body', min(d.idx), 'legs', min(d.idx), 'feet', min(d.idx)) from public.hr_outfit_dyes d), $1::uuid)`, [key()]);
+    const again = await ask(B, `select public.hr_create_hero(0, 'Marlow', $2::jsonb, $1::uuid)`, [key(), COLORS]);
+    const pulled = await ask(A, `select public.hr_create_hero(0, 'Gutterbane', $2::jsonb, $1::uuid)`, [key(), COLORS]);
     await hero(A, 0, 'Sorrel');
     await db.query('update public.player_state set stamina_ms = 28800000, stamina_at = now() where user_id = $1', [A]);
     const lv = await one('select public.hr_level_of($1::uuid, 0)', [A]);

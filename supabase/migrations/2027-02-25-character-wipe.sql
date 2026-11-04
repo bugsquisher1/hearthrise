@@ -43,7 +43,8 @@
 --   NO CLIENT CHANGE MUST LAND FIRST. All residue is server-side (`player_state.client_state`: coach progress, seen deaths, summaries,
 --   away stamps, HUD), so it goes with the row. A device keeps only its sign-in and the tab's list of open heroes; a hero the server no
 --   longer holds doesn't load, and the characters screen is drawn (played: tests/char-wipe-world.mjs). A TAB LEFT OPEN through the wipe
---   sees no_character until it reloads; it can only ever put the residue fields it had pending.
+--   on a build before this lane's stands still until it reloads, and until then can put a pending residue field into a hero made in
+--   that slot elsewhere; the build with this lane's client half lets the hero go and draws the characters screen (session-core ACC-5).
 --
 -- ── THE ONE-SHOT FENCE ───────────────────────────────────────────────────────
 --   hr_wipe_log row 'character-wipe-2026-11', written in the same transaction. A re-apply is a NO-OP that says so. The next declared
@@ -111,6 +112,7 @@ declare
   v_hunt    text;
   v_item    text;
   v_ok      boolean;
+  v_colors  jsonb;
   t         text;
 begin
   -- THE FENCE FIRST: a re-apply answers before any precondition, so it stays a no-op with the market back on.
@@ -253,8 +255,9 @@ begin
     perform set_config('request.jwt.claim.sub', c_probe::text, true);
     perform set_config('request.jwt.claims', jsonb_build_object('sub', c_probe, 'role', 'authenticated')::text, true);
     if public.hr_hero_slots_of(c_probe) is distinct from v_slots then raise exception 'wipe k7: a new account owns %', public.hr_hero_slots_of(c_probe); end if;
+    select jsonb_build_object('head', min(d.idx), 'body', min(d.idx), 'legs', min(d.idx), 'feet', min(d.idx)) into v_colors from public.hr_outfit_dyes d;
     execute 'set local role authenticated';
-    v := public.hr_create_hero(0, 'Wipeprobe', (select jsonb_build_object('head', min(d.idx), 'body', min(d.idx), 'legs', min(d.idx), 'feet', min(d.idx)) from public.hr_outfit_dyes d), gen_random_uuid());
+    v := public.hr_create_hero(0, 'Wipeprobe', v_colors, gen_random_uuid());
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'wipe k7: hr_create_hero answered %', v; end if;
     v := public.hr_hunt_enter(0, v_hunt, '[]'::jsonb, 0, null, gen_random_uuid());
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'wipe k7: hr_hunt_enter answered %', v; end if;

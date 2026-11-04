@@ -22,6 +22,7 @@
 //   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x' });
 //   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);  await world.wait(480);  await world.wait(480, { away: true });
 //   await p.shot('after');  p.text();  p.errors;  p.offsite;  p.page /* raw Playwright */;  await p.reload();  await world.close();
+//   await world.cron('hr-account-purge');                // run a scheduled job's own command (the pg_cron shim runs nothing by itself)
 //   The closed game: before world.play, await world.db.query("update public.hr_flags set enabled = true where key = 'closed_mode'"): a new account lands on the
 //   closed notice ([data-closed-notice]); insert its id into public.hr_access_allowlist (user_id, note) to admit it.
 //
@@ -552,6 +553,14 @@ export async function openWorld(o = {}) {
     },
     /** `minutes` pass for everyone: every open hunt as skip() moves it, and town time too (rest, crops, a bench job). */
     wait(minutes, how = {}) { return world.skip(minutes, { ...how, town: true }); },
+    /** Run one scheduled job's own command, as pg_cron would (its shim runs nothing). */
+    async cron(jobname) {
+      const job = (await db.query('select command from cron.job where jobname = $1', [jobname])).rows[0];
+      if (!job) throw new Error('local-world: no job named ' + jobname);
+      const answer = (await db.query(job.command)).rows[0];
+      await push.drain();
+      return answer ? Object.values(answer)[0] : null;
+    },
     play: (opts) => play(world, opts),
     async close() {
       if (ticker) clearInterval(ticker);

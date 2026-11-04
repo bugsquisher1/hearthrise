@@ -69,6 +69,7 @@
 //   ACC-FARM the farm land is the account's: hero 0 plants and hero 1 (open beside it) sees the plot
 //          at once; hero 1 harvests it as itself (its slot) and hero 0 sees it gone
 //   ACC-3  the closed-game answer (403 hr_closed) is noticed, never retried as play
+//   ACC-5  a hero the server no longer holds closes in the tab; its pending residue reaches no later hero in that slot
 //   NET-1  the engine is asked in the database's region (forceFunctionRegion from SUPABASE_CONFIG)
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
 //   TAB-1  the tab id is stable within a tab and new for a new tab
@@ -1607,6 +1608,26 @@ async function rules(M) {
     const o = await acc.open(0);
     return (acc.closedGame && heard === 1 && r.length === 0 && !o.ok) || 'the closed game was not noticed';
   });
+  await t('ACC-5', async () => {
+    /* A hero the server no longer holds (a declared wipe, a tab left open through it): the tab lets it go, and what it had pending never reaches the next hero in that slot. */
+    const bySlot = { 0: env(1) };
+    const srv = fakeServer(bySlot);
+    const acc = mkAccount(srv);
+    const gone = []; acc.subscribe((w, d) => { if (w === 'hero-gone') gone.push(d); });
+    const firstRead = await acc.open(1);   // an empty slot's first read is _open's own answer, not a hero gone
+    if (firstRead.ok || gone.length) return 'an empty slot on its first read counted as a hero gone: ' + JSON.stringify([firstRead, gone]);
+    const o = await acc.open(0);
+    if (!o.ok) return 'the hero did not open';
+    o.session.setResidue('coach', { read: ['old_card'] });
+    delete bySlot[0];
+    await o.session.load();
+    const puts = srv.calls.filter((c) => c[0] === 'hr_put_client_state').length;
+    if (gone.length !== 1 || gone[0] !== 0 || acc.character(0)) return 'the tab kept a hero the server no longer holds: ' + JSON.stringify([gone, !!acc.character(0)]);
+    await o.session.flushResidue();
+    bySlot[0] = env(1);
+    const again = await acc.open(0);
+    return (again.ok && srv.calls.filter((c) => c[0] === 'hr_put_client_state').length === puts) || 'the old hero\'s pending residue went out after it was gone';
+  });
   await t('NET-1', async () => {
     const urls = [];
     const fetch = async (url) => { urls.push(url); return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
@@ -1879,6 +1900,8 @@ async function viewRules(base) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
+  ['a tab keeps playing a hero the server no longer holds', 'src/session/account-session.js', "if (why === 'empty' && s.record && this._chars.get(slot) === s) { this.close(slot); this._emit('hero-gone', slot); }", "if (false) { this.close(slot); this._emit('hero-gone', slot); }"],
+  ['a slot empty on its first read counts as a hero gone', 'src/session/account-session.js', "if (why === 'empty' && s.record && this._chars.get(slot) === s) {", "if (why === 'empty' && this._chars.get(slot) === s) {"],
   ['a reload reads each hero again over the roster\'s answer', 'src/session/account-session.js', 'await cs.load(read && read.ans.ok && age <= this.config.rosterReadFreshMs ? agedBy(read.ans.body, age) : null);', 'await cs.load();'],
   ['a character list left standing opens on its old answer', 'src/session/account-session.js', 'read && read.ans.ok && age <= this.config.rosterReadFreshMs ?', 'read && read.ans.ok ?'],
   ['a roster answer sets the server clock back by its age', 'src/session/account-session.js', '? agedBy(read.ans.body, age) : null', '? read.ans.body : null'],

@@ -884,8 +884,8 @@ const SAY = Object.freeze({
     if (!d || !Number.isInteger(d.xp) || !b || !Number.isInteger(b.freeUntil)) return null;
     const who = f.name || 'Your hero';
     const kept = d.saved && Number.isInteger(d.saved.level) && d.saved.level > 0
-      ? '; your Blessings saved ' + d.saved.level + ' more and are used up now' : '. Blessings would have saved most of it';
-    return { text: 'The hunt ended and ' + who + ' came home. You kept your loot and your Level. Dying cost ' + d.xp + ' Level XP' + kept
+      ? '; your Blessings saved ' + d.saved.level.toLocaleString('en-US') + ' more and are used up now' : '. Blessings would have saved most of it';
+    return { text: 'The hunt ended and ' + who + ' came home. You kept your loot and your Level. Dying cost ' + d.xp.toLocaleString('en-US') + ' Level XP' + kept
       + '. They\'re free until Level ' + b.freeUntil + ': open the Shop\'s Services tab and Bless ' + (d.saved ? 'again' : 'all ' + inWords(b.of)) + ' before you go back.' };
   },
   first_eat: (f) => {
@@ -970,8 +970,9 @@ const SAY = Object.freeze({
     const juice = (ARTISAN_RECIPES.cooking || []).find((r) => r.output === 'turnip_juice');
     if (!juice) return null;
     const ready = f.land && f.land.ready && f.land.ready.turnip > 0;
+    /* Harvested, the way is the bench: the ring stayed on the Farm, whose window then showed "Cook your turnips" over a field with nothing left to press (door panel 2026-11-04). */
     return { text: (ready ? 'Harvest them on the Farm, then cook' : 'Cook your turnips into') + ' Turnip Juice: Gathering and crafting, Cooking, ' + juice.name
-      + ' (1 turnip makes ' + (juice.outputQty || 1) + '). Your own juice costs nothing to drink.' };
+      + ' (1 turnip makes ' + (juice.outputQty || 1) + '). Your own juice costs nothing to drink.', ...(ready ? {} : { anchor: 'crafting', ring: { skill: 'cooking', work: juice.id } }) };
   },
   juice_slot: (f) => {
     const n = f.carried && f.carried.turnip_juice;
@@ -1045,7 +1046,7 @@ export function cardFor(card, facts) {
     .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || '').replace('{spell}', said.spell || '').replace('{shot}', said.shot || ''));
   const textIn = said.textIn || card.inWindow || null;
   /* `said.anchor`: the words moved on to another surface (Klappa's Club: from the bench to the bag), so the ring goes with them */
-  return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
+  return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), ...(said.ring ? { ring: Object.freeze(said.ring) } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
 }
 
 /* ── AFTER THE GUIDE: WHAT NEXT ───────────────────────────────────────────

@@ -342,7 +342,8 @@
   .hs-pointer:not(.is-min) > b { grid-area: 1 / 1; line-height: 1.2; }
   .hs-pointer:not(.is-min) > .hs-coach-got, .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-got { grid-area: 1 / 2; margin: 0; min-height: 40px; padding: 0 8px; }
   .hs-pointer:not(.is-min) > .hs-coach-min { position: static; grid-area: 1 / 3; width: 40px; height: 40px; }
-  .hs-pointer:not(.is-min) > .hs-coach-close { position: static; grid-area: 1 / 4; width: 40px; height: 40px; }
+  /* relative, not static: its cross is drawn from its own middle. Static, the cross lay over the words in the middle of the card, and the button was blank (door panel 2026-11-04). */
+  .hs-pointer:not(.is-min) > .hs-coach-close { position: relative; top: auto; right: auto; grid-area: 1 / 4; width: 40px; height: 40px; }
   /* Got it and the cross would say the same thing: one press for it, and the row's room for the title. */
   .hs-pointer:has(.hs-coach-got) > .hs-coach-close { display: none; }
   .hs-widget > .hs-pointer:not(.is-min), .hs-launchers > .hs-pointer:not(.is-min) { max-height: calc(var(--coach-room) - 20px); }

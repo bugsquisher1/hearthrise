@@ -1164,11 +1164,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (safe !== '' || shown !== 'The Rat King can hit for 75. At 30% you have 66 HP, so one hit can kill you before you eat.') {
           fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
         }
+        const footOn = () => page.evaluate(() => { const f = document.querySelector('.hp-foot'); return !!f && f.getClientRects().length > 0; });
+        const twoFoot = await footOn();
         /* Alone the King's hall is skipped (minParty 2): the biggest blow is a Cistern Spider's 48, under 66. */
         s.env.party.members = [s.env.party.members[0]];
         await pushEnvelope(page, s);
         const solo = await warn();
         if (solo !== '') fails.push('HS-23 a solo hero (who never meets the Rat King) was warned: "' + solo + '"');
+        /* Who pays for what is said to a party, never to a hero alone (door panel 2026-11-04: "Costs are personal." under one name). */
+        if (!twoFoot || (await footOn())) fails.push('HS-23 the party panel\'s supplies line: two heroes ' + twoFoot + ', one hero ' + (await footOn()));
       } else fails.push('HS-23 the screen did not mount on the Sewer');
       await ctx.close();
     }

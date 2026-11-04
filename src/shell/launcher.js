@@ -267,6 +267,21 @@ export function placeCoach(el, html) {
   const key = (/data-coach="([a-z0-9_:]+)"/.exec(html) || [])[1] || null;
   if (have && have.getAttribute('data-coach') !== key) have.remove();
   if (key && !(have && have.getAttribute('data-coach') === key)) el.insertAdjacentHTML('beforeend', html);
+  else if (key) sameCardWords(have, html);
+}
+
+/* The same card on screen keeps its box, and its words follow the server's numbers: "You have 19 left" stood over a bar
+   reading 6 for the whole hunt (door panel 2026-11-04). Only a changed card is read, so a display tick does no work. */
+const SAID = new WeakMap();
+function sameCardWords(have, html) {
+  if (SAID.get(have) === html) return;
+  SAID.set(have, html);
+  const was = have.querySelector(':scope > .hs-coach-text');
+  if (!was) return;   // folded to its title: no words to follow
+  const t = have.ownerDocument.createElement('template');
+  t.innerHTML = html;
+  const now = t.content.querySelector('.hs-pointer > .hs-coach-text');
+  if (now && was.textContent !== now.textContent) was.textContent = now.textContent;
 }
 
 /** The coach's fold, open, Got it and close presses, from wherever it is drawn (this row, the hunt top bar, a window).

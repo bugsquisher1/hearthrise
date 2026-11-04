@@ -57,13 +57,15 @@ export function renderHuntSummary() {
     + '<section class="hsum-card">'
     + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p>'
     + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
-    + '<div class="hsum-actions">'
+    /* The presses and their answer stay in reach: the reason and the numbers pushed them under a 1366x768 window's fold, so a hunt that
+       ran out of stamina opened with no press in sight (door panel 2026-11-04). */
+    + '<div class="hsum-foot"><div class="hsum-actions">'
     /* while a tutorial card is up its next step is the main press here (board 2026-10-25 #5: "Hunt again" pulled the
        other way); then "Hunt again" is the main one again */
     + '<button type="button" class="hh-tool is-primary" data-hs-act="coach-next" hidden></button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">Hunt again</button>'
     + '<button type="button" class="hh-tool" data-hs-act="bag">Open bag</button></div>'
-    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
+    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-deaths">What happened</h4><ul class="hsum-falls hsum-deaths"></ul>'

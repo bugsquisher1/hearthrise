@@ -17,14 +17,14 @@
 //                       from the store, 14 gp each"), ammo in the engine's own order (shotPlan). `c` is
 //                       what the hero can use NOW (item-sections.js carriedOf: the hunt bag in a hunt).
 //   beforeLines(cs, o)  "Before you go" (A #5): supplyWords, the stamina when it will end the hunt
-//                       soon, the gold when the store is paid from it, no weapon, and held tasks that do
-//                       not count on this ground. A line shows only when it informs, and never stops the press.
+//                       soon, the gold when the store is paid from it, no weapon, held tasks that do
+//                       not count on this ground, and the Blessings on. A line shows only when it informs, and never stops the press.
 //   freeHeroes(cs, all) "Bring your heroes" (B #3): this account's other open
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
 import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.89';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf } from '../session/item-sections.js?v=0.2.89';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.89';
 import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.89';
 import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.89';
 import { ITEMS } from '../data/items.js?v=0.2.89';
@@ -312,7 +312,18 @@ export function beforeLines(cs, o) {
     out.push(gp > 0 ? { id: 'gold', text: 'Gold: ' + gold(gp) + ' pays the store as you use it.', short: false }
       : { id: 'gold', text: 'No gold for the store: the hunt ends when your own supplies run out.', short: true });
   }
+  const bless = blessingWords(blessingsOf(cs));
+  if (bless) out.push({ id: 'blessings', text: bless, short: false });
   return out;
+}
+
+/* WHAT A DEATH WOULD COST, said before the risk is taken: the Blessings on, or the next one and its price. A heads-up, never a stop. All the server's. */
+function blessingWords(b) {
+  if (!b || !b.tiers.length) return '';
+  const on = b.tiers.filter((t) => t.held).length, next = b.tiers.find((t) => !t.held);
+  const cut = on ? 'A death takes ' + Math.round(b.permille / 10) + '% less XP. ' : '';
+  const more = !next ? '' : (on ? 'More' : 'A death takes less XP with them') + (next.price === 0 ? ': free for now' : ': the next is ' + gold(next.price)) + ', in the Shop\'s Services tab.';
+  return ('Blessings: ' + (on ? on + ' of ' + b.tiers.length + ' on. ' : 'none on. ') + cut + more).trim();
 }
 
 /** "Bring your heroes": this account's other open characters in no party, [{ slot, name }]. */

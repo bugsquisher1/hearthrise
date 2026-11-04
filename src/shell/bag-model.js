@@ -20,19 +20,19 @@
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
 //   isSpentMaterial(id)   does any recipe or House price spend this?
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.85';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.85';
-import { MONSTERS } from '../data/monsters.js?v=0.2.85';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.85';
-import { NAMED_FUELS } from '../data/hearth.js?v=0.2.85';
-import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.85';
-import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.85';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.85';
-import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.85';
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.85';
-import { recipeInputs } from '../core/artisan.js?v=0.2.85';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.85';
-import { itemName } from './widgets/bits.js?v=0.2.85';
+import { ITEMS } from '../data/items.js?v=0.2.86';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.86';
+import { MONSTERS } from '../data/monsters.js?v=0.2.86';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.86';
+import { NAMED_FUELS } from '../data/hearth.js?v=0.2.86';
+import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.86';
+import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.86';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.86';
+import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.86';
+import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.86';
+import { recipeInputs } from '../core/artisan.js?v=0.2.86';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.86';
+import { itemName } from './widgets/bits.js?v=0.2.86';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([

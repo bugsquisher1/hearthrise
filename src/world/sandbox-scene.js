@@ -19,12 +19,12 @@
 // The hero's TOWN PRESENCE is parked on the entry sign while it is inside
 // (world-boot.js): the sandbox never publishes a tile and never leaves town.
 // ════════════════════════════════════════════════════════════════════════
-import { SANDBOX } from '../data/world/sandbox.js?v=0.2.85';
-import { GRID_SETS } from '../data/world/atlas-sets.js?v=0.2.85';
-import { GRIDS } from '../data/world/art-budget.js?v=0.2.85';
-import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.85';
-import { pickFacing } from './core/facing.js?v=0.2.85';
-import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.85';
+import { SANDBOX } from '../data/world/sandbox.js?v=0.2.86';
+import { GRID_SETS } from '../data/world/atlas-sets.js?v=0.2.86';
+import { GRIDS } from '../data/world/art-budget.js?v=0.2.86';
+import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.86';
+import { pickFacing } from './core/facing.js?v=0.2.86';
+import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.86';
 
 /* A small seeded generator (mulberry32): the same map wanders the same way, so a test can replay it. */
 function seeded(text) {

@@ -20,17 +20,17 @@
 //                     pockets show it as pending; `items` and `qty`, which every
 //                     action reads, stay the server's.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.85';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.85';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf } from '../../bag-model.js?v=0.2.85';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.85';
-import { itemName } from '../../widgets/bits.js?v=0.2.85';
-import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.85';
-import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.85';
-import { tickOf } from '../../town-work.js?v=0.2.85';
-import { ITEMS } from '../../../data/items.js?v=0.2.85';
-import { REFUSAL_WORDS } from '../../../data/refusal-words.js?v=0.2.85';
-import { heroVitalsOf } from '../../../session/character-sections.js?v=0.2.85';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.86';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.86';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf } from '../../bag-model.js?v=0.2.86';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.86';
+import { itemName } from '../../widgets/bits.js?v=0.2.86';
+import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.86';
+import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.86';
+import { tickOf } from '../../town-work.js?v=0.2.86';
+import { ITEMS } from '../../../data/items.js?v=0.2.86';
+import { REFUSAL_WORDS } from '../../../data/refusal-words.js?v=0.2.86';
+import { heroVitalsOf } from '../../../session/character-sections.js?v=0.2.86';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));

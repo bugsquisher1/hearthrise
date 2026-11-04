@@ -449,7 +449,7 @@ export async function openWorld(o = {}) {
     if (p === 'signup') { const r = await auth.shim.signUp(body); return send(res, r.status, r.body); }
     if (p === 'token') { const r = await auth.shim.token(url.searchParams.get('grant_type'), body); return send(res, r.status, r.body); }
     if (p === 'logout') return send(res, 204, null);
-    if (p === 'recover') return send(res, 200, {});
+    if (p === 'recover' || p === 'resend') return send(res, 200, {});
     if (p === 'user') {
       const sub = await verifyJwtFn(String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')).catch(() => null);
       const u = sub && auth.shim.userOfToken(sub);

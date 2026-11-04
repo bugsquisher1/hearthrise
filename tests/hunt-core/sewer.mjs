@@ -807,6 +807,8 @@ const cases = {
     const d1 = died(deathEnv(9, { level: 190 }, false));
     if (d1.id !== 'first_death' || !d1.text.includes('Corliss came home') || !d1.text.includes('Dying cost 10 Level XP; your Blessings saved 190 more and are used up now.')
       || !d1.text.includes('free until Level ' + M.blessings.BLESSING_RULES.freeUntilLevel)) return 'the death card reads ' + JSON.stringify(d1.text);
+    /* its numbers read as the death popup's do (door panel 2026-11-04: "saved 15490 more" under "kept 15,490") */
+    if (!died(deathEnv(9, { level: 15490 }, false)).text.includes('saved 15,490 more')) return 'the death card\'s big number has no comma';
     const d0 = died(deathEnv(9, null, false));
     if (d0.id !== 'first_death' || !d0.text.includes('Blessings would have saved most of it') || !d0.text.includes('Bless all three')) return 'the death card with no Blessing reads ' + JSON.stringify(d0.text);
     if (died(deathEnv(9, null, true)).id === 'first_death') return 'blessed again, the death card is still up';
@@ -823,6 +825,10 @@ const cases = {
     if (!home || home.id !== 'home' || !home.text.includes('needs 400 gp, Normal Log ×30 and Copper Ore ×20. Normal Log so far: 3 of 30. Get more in Gathering and crafting, Woodcutting, Normal Tree.')) return 'the house card reads ' + JSON.stringify(home && home.text);
     const juice = say(R({ ...after, home: { owned: true, next: null }, land: { ready: { turnip: 2 } }, bag: {} }));
     if (!juice || juice.id !== 'harvest_juice' || !juice.text.includes('1 turnip makes 3')) return 'the juice card reads ' + JSON.stringify(juice && juice.text);
+    if (juice.anchor !== 'farm') return 'crops ready and the juice card points at ' + juice.anchor;
+    /* Harvested: "Cook your turnips", so the ring goes to the bench's press; it stayed on the Farm, with nothing left to press there (door panel 2026-11-04) */
+    const cook = say(R({ ...after, home: { owned: true, next: null }, land: { ready: {} }, bag: { turnip: 3 } }));
+    if (!cook || cook.id !== 'harvest_juice' || !cook.text.startsWith('Cook your turnips') || cook.anchor !== 'crafting' || !cook.ring || cook.ring.skill !== 'cooking' || cook.ring.work !== 'press_turnip_juice') return 'the harvested juice card points at ' + JSON.stringify(cook && [cook.anchor, cook.ring, cook.text]);
     /* own juice in the bag: asked once a hunt has bought the store's drinks (a Mage's twenty minutes), never for a hero who
        hardly drinks (played 10-31: a sword hero drank one store juice in twelve hours and the card hid What next for days) */
     const storeJuice = (n) => [{ item: 'thin_turnip_juice', source: 'store', count: n }];
@@ -1188,7 +1194,7 @@ const cases = {
     let node = null, inserts = 0;
     const attrOf = (h, a) => (new RegExp(a + '="([^"]+)"').exec(h) || [])[1] || null;
     const bar = { querySelector: () => node, insertAdjacentHTML: (pos, h) => { inserts++;
-      node = { key: attrOf(h, 'data-coach'), getAttribute: (a) => attrOf(h, a), remove: () => { node = null; } }; } };
+      node = { key: attrOf(h, 'data-coach'), getAttribute: (a) => attrOf(h, a), querySelector: () => null, remove: () => { node = null; } }; } };
     placeCoach(bar, before); placeCoach(bar, before);
     placeCoach(bar, marked);
     if (inserts !== 2 || !node || !/:new$/.test(node.key)) return 'the hunt bar did not redraw the coach on a new card (' + inserts + ' draws, ' + (node && node.key) + ')';

@@ -30,6 +30,39 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-04 Weapon rungs and the Thicket (designer, lane/c-weapon-thicket): BUILT, measured on the real engine, no migration, the edge deploys. **One choice for Tyler below**
+**Weapons (balance 10-25 §8: +5-8% per meaningful upgrade).** The gap is neither clubs alone nor a whole class: it's the box-sweepers. Cleave and spells roll their own numbers and read no weapon power, so a rung reaches a hammer, hatchets or a wand through basic blows only. **Moved: Iron Warhammer 7/12 → 7/16, Steel Warhammer 9/19 → 9/23, Iron Hatchets 7/7 → 9/11, Steel Hatchets 12/11 → 14/14, Klappa's Club 3/12 → 3/16, so it still hits as hard as the Iron Warhammer.** Prices, sources and recipes don't move. Level XP an hour, one tier up, all else equal (`tools/balance-sim` cell runner, the Level's kit, 1 h x 2 seeds, same dice, 0 deaths):
+| Rung | Glade 16, as built | Glade 16, pull 8 | Wickstead 15, pull 8 | Warrens 45, as built | Warrens 45, pull 8 |
+|---|---|---|---|---|---|
+| Practice Club → Iron Warhammer | +4.4 → **+5.7%** | +4.6 → **+8.5%** | +3.5 → **+4.7%** | | |
+| Iron → Steel Warhammer | | | | +8.3 → **+8.5%** | +7.8 → **+6.5%** |
+| Practice → Iron Hatchets | +1.0 → **+5.4%** | +2.4 → **+7.4%** | +4.3 → **+6.3%** | | |
+| Iron → Steel Hatchets | | | | +6.0 → **+5.4%** | +7.4 → **+6.2%** |
+| Not moved: Oak Wand + book | +4.3% | +5.1% | +1.7% | | |
+| Not moved: Willow Wand + book | | | | +5.2% | |
+| Not moved: Iron Sword (shield), Longbow, Oak Crossbow, Oak Staff | +8.5, +6.3, +5.3, +11.5% | +10.0, +7.9, +6.2, +12.0% | | | |
+| Not moved: Steel Sword (shield), Willow Longbow | | | | +6.5, +4.4% | |
+Klappa's Club stays between: over the Practice Club +2.7% (Thicket 5, pull 8), +3.3% (Thicket 10), +4.3% (Wickstead 15), +5.3 and +6.2% (Glade 16); the Iron Warhammer beats it on every one (+4.7, +4.6, +4.7, +5.7, +8.5%).
+
+**What no row can do:** on the Thicket and Wickstead as built the walk sets the pace, not the kill. A scratch 200/200 hammer moves Level XP +3.6% at Thicket 5 and +1.1% at Wickstead 15, and the real rungs +0-0.4%. Only harder monsters would change that, and that moves the Level curve. The wand stays at the floor rather than trading tiers: Oak 7/9 makes Glade +5.2% and takes Willow to +4.2%.
+
+**The Thicket's same-weapon fours (Tyler 11-02: lose about 6-15%; party gold stays below solo).** The pull can't close this. **Moved: only the one-weapon four's table cell, 970 → 995, Level XP only.** Pull stays `[0,4,5,6]`. Per head against the same heroes alone, Level 5 / Level 10, 1 h x 2 seeds, 0 deaths:
+| Four of | Before | **Now (995)** | Cell 1000, not built | Pull 7, not built |
+|---|---|---|---|---|
+| Shields | 0.81 / 0.80 | **0.83 / 0.81** | 0.88 / 0.86 | 0.89 / 0.87 |
+| Hammers | 0.83 / 0.84 | **0.85 / 0.86** | 0.89 / 0.91 | 0.92 / 0.93 |
+| Bows | 0.85 / 0.85 | **0.87 / 0.87** | 0.91 / 0.92 | 0.95 / 0.95 |
+| Staffs | 0.82 / 0.83 | **0.84 / 0.84** | 0.88 / 0.89 | 0.88 / 0.89 |
+| Wands | 0.97 / 0.97 | **0.99 / 0.99** | **1.04 / 1.05** | **1.14 / 1.15** |
+| Mixed four, XP | 1.20 / 1.21 | **1.20 / 1.21** | 1.20 / 1.21 | 1.30 / 1.31 |
+| Mixed four, coin | 0.96 / 0.98 | **0.96 / 0.98** | 0.96 / 0.98 | **1.04 / 1.05** |
+| Wand four, coin | 1.08 / 1.10 | **1.08 / 1.10** | 1.08 / 1.10 | **1.26 / 1.28** |
+Twos and threes were already in the band (worst, shields: 0.85, 0.87) and don't move. **Pull 7 is blocked twice:** mixed coin over solo (11-02) and wand fours over solo (10-31). **Cell 1000 is blocked once:** the share floors per kill (`xp-share.js`), so 995 to 1000 jumps a whelp from 6 to 7 and a wolf from 12 to 13, about +6%, and wand fours read 1.04-1.05 (`party-class-xp-line`'s own cut: 1.016-1.018, over its bar of 1.00; at 995, 0.964-0.966). Nothing lies between 995 and 1000.
+
+**For Tyler: cell 1000?** It lands shields, hammers, bows and staffs inside 6-15% with no gold moved, and it pays a wand-only four in the Thicket 4-5% over solo, against "a same-class party never out-earns solo". Designer's pick: yes, wand-only fours are rare and already over on coin; it needs his word and a named exception in the guard, so it isn't built. **As shipped, shields still lose 17-19%** and staffs 16; hammers and bows are in the band, and wands lose 1%. All of this reads against the same heroes alone, as the 11-02 table did: against a mixed four it can't hold, since a mixed four sits at 1.20 by ruling and one class can't pass 1.00.
+
+**Done:** rows, guards (`weapon-rungs`, three mutants; SG-7 holds the club's words). **Measured:** the tables above. **Assumed:** that real heroes' skills sit near their Level, as the sim's do. **Could still be wrong:** two seeds an hour read about ±1 point (the 11-03 12 h cells landed within 0.7), and the Iron Warhammer at Wickstead's pull 8 is a little under the bar. The hammer and hatchets already led their grounds and now lead by a little more, and role parity isn't ruled. `level-pace.json` wasn't re-measured; a rung only moves XP from Level 15 up, on these two lines. Tier 4 and up have no source, so Mithril's 14/28 is the next step to re-check when it gets one.
+
 ### 2026-11-03 Gold matters (designer, lane/c-gold-matters): RULED, measured on the real engine, three files staged, the edge deploys with them
 **The ruling.** Gold's first job is the next hero, so the slots carry the first 20 hours: **50,000 / 200,000 / 800,000** (was 15,000 / 40,000 / 120,000), and the refill keeps asking after that: **1,000 + 250 a Level** (was 400 + 100). Coin can't do this work: the profit floors, the starter grounds' ruling, the roster's gold bands and Tyler's new line (harder monsters pay more, nothing rewards staying on a weak ground) leave it about 10% of room in the middle, so coin and sale prices only fix the ladder: **Wickstead about x0.89, the Glade's poachers (the ground x0.94), the Sewer's bat and spider x0.83 with its King x1.04 (a party x0.94, a lone hero x0.89), the Warrens x1.09, tier 2's helmet, body, legs and boots sell at 0.3 of book (was 0.5)**. The Cellar, the Thicket, tier 1 and tier 3 don't move. The gold card comes when the purse is a quarter of the next hero, not all of it, or it would have moved from hour 6 to hour 15.
 

@@ -46,26 +46,26 @@
 // server's `leader_densities`) with no step, and the server refuses a member's
 // pick (hr_hunt_density_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.86';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.86';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.86';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.86';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.86';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.86';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.86';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.86';
-import { whole } from '../../render/format.js?v=0.2.86';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.86';
-import { itemName } from '../widgets/bits.js?v=0.2.86';
-import { glyphSvg } from '../launcher.js?v=0.2.86';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.86';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.86';
-import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.86';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.86';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.86';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.86';
-import { openFinderOn } from './party-finder.js?v=0.2.86';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.86';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.87';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.87';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.87';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.87';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.87';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.87';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.87';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.87';
+import { whole } from '../../render/format.js?v=0.2.87';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.87';
+import { itemName } from '../widgets/bits.js?v=0.2.87';
+import { glyphSvg } from '../launcher.js?v=0.2.87';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.87';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.87';
+import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.87';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.87';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.87';
+import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.87';
+import { openFinderOn } from './party-finder.js?v=0.2.87';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.87';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing

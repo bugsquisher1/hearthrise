@@ -5,17 +5,17 @@
 // derived from the id; a glyph when the id is not an item), an item's name, and
 // the frame every hunt panel sits in (title, minimise). Display only.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.2.86';
-import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.86';
-import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.86';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.86';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.86';
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.86';
-import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.86';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.86';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.86';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.86';
-import { text, style, attr } from '../../render/paint.js?v=0.2.86';
+import { ITEMS } from '../../data/items.js?v=0.2.87';
+import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.87';
+import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.87';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.87';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.87';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.87';
+import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.87';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.87';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.87';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.87';
+import { text, style, attr } from '../../render/paint.js?v=0.2.87';
 
 /** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing. (Here, under every panel part; the
     icon row re-exports it, src/shell/launcher.js, so a coach import of these parts is never a cycle.) */
@@ -126,7 +126,11 @@ export function revealInWindow(el) {
     if (oy !== 'auto' && oy !== 'scroll') continue;
     const r = el.getBoundingClientRect(), b = p.getBoundingClientRect();
     if (r.top < b.top) { p.scrollTop -= b.top - r.top + 8; return true; }
-    if (r.bottom > b.bottom) { p.scrollTop += r.bottom - b.bottom + 8; return true; }
+    /* The answer line stands stuck to the box's foot (windows.css): a press under it is no more in view than one under the fold. On a phone the next
+       Bless, ringed, lay behind "Blessing I is yours." (door panel 2026-11-04). */
+    const line = p.querySelector('.hh-intent-msg:not(:empty)');
+    const floor = line ? Math.min(b.bottom, line.getBoundingClientRect().top) : b.bottom;
+    if (r.bottom > floor) { p.scrollTop += r.bottom - floor + 8; return true; }
     return false;
   }
   return false;

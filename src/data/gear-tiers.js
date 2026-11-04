@@ -86,7 +86,8 @@ export const WEAPON_FAMILIES = [
      rung above it is too (designer 2026-10-22, the style ladder): no shield beside a crusher. */
   {
     key: 'warhammer', label: 'Warhammer', weaponType: 'hammer', skill: 'smithing', mat: 'bar', twoHanded: true,
-    atk: [3, 7, 9, 14, 19, 25, 32], str: [7, 12, 19, 28, 39, 52, 68],
+    /* tiers 2 and 3 pay the ruling's +5-8% (balance 10-25 §8; first-week-bands weapon-rungs): the box-sweepers kill with Cleave, so a rung reaches them through its basic blows alone */
+    atk: [3, 7, 9, 14, 19, 25, 32], str: [7, 16, 23, 28, 39, 52, 68],
     vmul: 110, lvOff: 8, bars: 3, planks: 2,
     names: ['Stone Maul', 'Iron Warhammer', 'Steel Warhammer', 'Mithril Warhammer', 'Rune Warhammer', 'Emberforged Warhammer', 'Dawnsteel Warhammer'],
     ids:   ['stone_maul', 'iron_warhammer', 'steel_warhammer', 'mithril_warhammer', 'rune_warhammer', 'ember_warhammer', 'dawn_warhammer'],
@@ -131,7 +132,8 @@ export const WEAPON_FAMILIES = [
      bow of its tier (the practice crossbow's 4/4 against the bow's 5/3). */
   {
     key: 'hatchets', label: 'Hatchets', weaponType: 'axe', skill: 'smithing', mat: 'bar', twoHanded: true,
-    atk: [4, 7, 12, 18, 25, 33, 42], str: [4, 7, 11, 16, 22, 29, 38],
+    /* tiers 2 and 3 as the warhammer's note above; the pair stays about even */
+    atk: [4, 9, 14, 18, 25, 33, 42], str: [4, 11, 14, 16, 22, 29, 38],
     vmul: 100,
     names: [null, 'Iron Hatchets', 'Steel Hatchets'],
     ids:   [null, 'iron_hatchets', 'steel_hatchets'],

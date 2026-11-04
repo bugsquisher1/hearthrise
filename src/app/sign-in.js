@@ -11,10 +11,10 @@
 // the form fields; `onSignedIn` is called once the account is signed in.
 // ════════════════════════════════════════════════════════════════════════
 
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.86';
-import { AUTH_COPY } from '../net/auth.js?v=0.2.86';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.86';
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.86';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.87';
+import { AUTH_COPY } from '../net/auth.js?v=0.2.87';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.87';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.87';
 
 const FIELD = {
   email: '<label class="auth-field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>',
@@ -26,7 +26,7 @@ const FIELD = {
 };
 
 /** The crest and the name over every account screen (painted art at its own 1:1 or exactly 1:2, never between). */
-export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.86" alt="" width="311" height="384">'
+export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.87" alt="" width="311" height="384">'
   + '<p class="auth-name">Hearthrise</p><p class="auth-pitch">Your heroes hunt, gather and craft, even while you\'re away.</p></header>';
 
 const SCREENS = Object.freeze({
@@ -45,8 +45,10 @@ const SCREENS = Object.freeze({
  * @param {object} auth          createAuth(...)
  * @param {string} mode          'sign-in' | 'create' | 'forgot' | 'set-password'
  * @param {object} on            { signedIn(): void }
+ * @param {string} [email]       what the last screen's email field held: Forgot your password after a wrong
+ *                               password, or Back to sign in, never asks for it twice (door panel 2026-11-04)
  */
-export function renderAuthScreen(box, auth, mode, on) {
+export function renderAuthScreen(box, auth, mode, on, email) {
   const s = SCREENS[mode] || SCREENS['sign-in'];
   box.innerHTML = AUTH_BRAND + '<form class="auth-card" data-auth="' + esc(mode) + '" novalidate>'
     + '<h1 class="auth-title">' + esc(s.title) + '</h1>'
@@ -60,10 +62,27 @@ export function renderAuthScreen(box, auth, mode, on) {
   const msg = form.querySelector('.auth-message');
   const say = (text, good) => { msg.textContent = text || ''; msg.classList.toggle('is-good', !!good); };
   const val = (n) => { const el = form.elements.namedItem(n); return el ? el.value : ''; };
+  const emailField = form.elements.namedItem('email');
+  if (emailField && email) emailField.value = email;
 
-  form.addEventListener('click', (e) => {
+  /* The press is here only while the auth server's own answer is "not confirmed" (auth.js resendConfirmation). */
+  const offerResend = (wanted) => {
+    const had = form.querySelector('[data-auth-resend]');
+    if (wanted && !had) msg.insertAdjacentHTML('afterend', '<button type="button" class="auth-link" data-auth-resend>Send me a new link</button>');
+    else if (!wanted && had) had.remove();
+  };
+
+  form.addEventListener('click', async (e) => {
     const go = e.target.closest('[data-auth-go]');
-    if (go) renderAuthScreen(box, auth, go.getAttribute('data-auth-go'), on);
+    if (go) renderAuthScreen(box, auth, go.getAttribute('data-auth-go'), on, val('email'));
+    const resend = e.target.closest('[data-auth-resend]');
+    if (resend && !resend.disabled) {
+      resend.disabled = true;
+      say('');
+      const r = await auth.resendConfirmation(val('email'));
+      resend.disabled = false;
+      say(r.message, r.ok);
+    }
   });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -77,6 +96,7 @@ export function renderAuthScreen(box, auth, mode, on) {
     else r = await auth.signIn(val('email'), val('password'));
     btn.disabled = false;
     say(r.message, r.ok);
+    offerResend(!!r.unconfirmed);
     /* Sent: the fields and their button stand aside, or the message pushes the way back off a phone's screen (phone panel 2026-11-01). */
     form.classList.toggle('is-sent', !!r.ok && mode === 'create');
     if (r.ok && (mode === 'sign-in' || mode === 'set-password')) on.signedIn();

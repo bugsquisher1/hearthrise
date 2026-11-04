@@ -687,13 +687,13 @@ export const MONSTERS = {
       { id: 'bronze_platebody', ch: .05, band: 'scarce' }, { id: 'leather_body', ch: .05, band: 'scarce' }, { id: 'apprentice_body', ch: .05, band: 'scarce' },
       { id: 'oak_wand', ch: .0036, band: 'rare' }, { id: 'oak_spellbook', ch: .0036, band: 'rare' }, { id: 'oak_staff', ch: .0036, band: 'rare' }] },
   culvert_bat: { name: 'Culvert Bat', icon: '🦇', tier: 1, level: 15, cls: 'vermin', family: 'Vermin', formation: true,
-    hp: 70, atk: 9, def: 1, xp: 288, gp: [11, 29], speed: 4400,
+    hp: 70, atk: 9, def: 1, xp: 288, gp: [12, 31], speed: 4400,
     drops: [{ id: 'bat_wing', ch: .7, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'culvert_bat_fang', ch: .08, band: 'uncommon' },
       { id: 'iron_helm', ch: .04, band: 'scarce' }, { id: 'studded_helmet', ch: .04, band: 'scarce' }, { id: 'adept_helmet', ch: .04, band: 'scarce' }] },
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): venomous, so poison is a resist, not an immunity. */
     elementResist: ['poison'], elementImmune: [],
-    hp: 90, atk: 9, def: 6, xp: 704, gp: [28, 68], speed: 3600,
+    hp: 90, atk: 9, def: 6, xp: 704, gp: [30, 74], speed: 3600,
     drops: [{ id: 'silk_thread', ch: .3, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'cistern_venom_gland', ch: .1, band: 'uncommon' }, { id: 'longbow', ch: .0055, band: 'rare' }, { id: 'oak_crossbow', ch: .0055, band: 'rare' }] },
   kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 55, atk: 7, def: 1, xp: 192, gp: [9, 25], speed: 3200,
@@ -704,7 +704,7 @@ export const MONSTERS = {
   rat_king: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elementResist: ['ember'],
-    hp: 600, atk: 14, def: 4, xp: 3840, gp: [133, 267], speed: 2800,
+    hp: 600, atk: 14, def: 4, xp: 3840, gp: [124, 247], speed: 2800,
     drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .017, band: 'rare' }, { id: 'rat_kings_knot', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .0015, band: 'trophy' }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
@@ -767,14 +767,14 @@ export const MONSTERS = {
       /* the first tier-3 belts (lane b-unsourced-items), Rares above the Shop's basic belt */
       { id: 'steel_belt', ch: .0027, band: 'rare' }, { id: 'boarhide_belt', ch: .0027, band: 'rare' }, { id: 'scholar_belt', ch: .0027, band: 'rare' }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 300, atk: 30, def: 22, xp: 2112, gp: [32, 74], speed: 3000,
+    hp: 300, atk: 30, def: 22, xp: 2112, gp: [31, 72], speed: 3000,
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'foremans_lash', ch: .08, band: 'uncommon' },
       { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' },
       { id: 'steel_hatchets', ch: .0124, band: 'rare' }] },
   chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elementResist: ['frost'],
-    hp: 1100, atk: 29, def: 28, xp: 7920, gp: [105, 236], speed: 2800,
+    hp: 1100, atk: 29, def: 28, xp: 7920, gp: [100, 227], speed: 2800,
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }, { id: 'war_crown', ch: .016, band: 'rare' },
       { id: 'willow_wand', ch: .0125, band: 'rare' }, { id: 'willow_spellbook', ch: .0125, band: 'rare' }, { id: 'willow_staff', ch: .0125, band: 'rare' },
@@ -786,22 +786,22 @@ export const MONSTERS = {
   carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 30, atk: 10, baseAcc: 0.8, def: 1, xp: 165, gp: [4, 11], speed: 4400,
+    hp: 30, atk: 10, baseAcc: 0.8, def: 1, xp: 165, gp: [4, 12], speed: 4400,
     drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0114, band: 'scarce' }, { id: 'studded_boots', ch: .0114, band: 'scarce' }, { id: 'adept_boots', ch: .0114, band: 'scarce' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
-    hp: 32, atk: 12, baseAcc: 0.8, def: 2, xp: 225, gp: [5, 15], speed: 3400,
+    hp: 32, atk: 12, baseAcc: 0.8, def: 2, xp: 225, gp: [4, 14], speed: 3400,
     drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'snare_wire', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .028, band: 'scarce' }, { id: 'studded_pants', ch: .028, band: 'scarce' }, { id: 'adept_pants', ch: .028, band: 'scarce' }, { id: 'longbow', ch: .028, band: 'scarce' }, { id: 'houndskin_cloak', ch: .0018, band: 'rare' }] },
   walking_vine: { name: 'Walking Vine', icon: '🌿', tier: 2, level: 22, cls: 'plant', family: 'Plant',
     /* the tank: slow and woody; a blade cuts it, an arrow sticks, fire takes it */
-    hp: 35, atk: 9, baseAcc: 0.8, def: 4, xp: 260, gp: [4, 10], speed: 2400,
+    hp: 35, atk: 9, baseAcc: 0.8, def: 4, xp: 260, gp: [4, 12], speed: 2400,
     drops: [{ id: 'magic_essence', ch: .25, band: 'common' }, { id: 'pithwood', ch: .5, band: 'common' }, { id: 'mosslight_tendril', ch: .08, band: 'uncommon' }, { id: 'iron_helm', ch: .019, band: 'scarce' }, { id: 'studded_helmet', ch: .019, band: 'scarce' }, { id: 'adept_helmet', ch: .019, band: 'scarce' },
       { id: 'mosslight_clump', ch: .0013, band: 'rare' }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): soaked from the spring run, so fire hisses off it. */
     elementResist: ['ember'],
-    hp: 70, atk: 18, baseAcc: 0.8, def: 10, xp: 360, gp: [12, 30], speed: 3000,
+    hp: 70, atk: 18, baseAcc: 0.8, def: 10, xp: 360, gp: [14, 34], speed: 3000,
     drops: [{ id: 'copper_ore', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'sluice_crust', ch: .08, band: 'uncommon' },
       { id: 'iron_platebody', ch: .05, band: 'scarce' }, { id: 'studded_body', ch: .05, band: 'scarce' }, { id: 'adept_body', ch: .05, band: 'scarce' }] },
   rook_poacher: { name: 'Rook the Poacher', icon: '🏹', tier: 3, level: 29, cls: 'human', family: 'Human',
@@ -812,7 +812,7 @@ export const MONSTERS = {
   brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
     /* the Meadowbrook's bruiser: the wet coat sheds frost, fire takes it. The Keep and Trophy Room ask for its Pelt (Andy's report), about an hour's errand, so the Claw, a pie's trophy, rides a Rare row (drop-tables big-pull). */
     elementWeak: 'ember', elementResist: ['frost'],
-    hp: 74, atk: 18, baseAcc: 0.8, def: 8, xp: 420, gp: [12, 32], speed: 3000,
+    hp: 74, atk: 18, baseAcc: 0.8, def: 8, xp: 420, gp: [14, 36], speed: 3000,
     drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_pelt', ch: .18, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }, { id: 'bear_claw', ch: .0033, band: 'rare' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
@@ -835,7 +835,7 @@ export const MONSTERS = {
   barn_spider: { name: 'Barn Spider', icon: '🕷️', tier: 2, level: 13, cls: 'vermin', family: 'Vermin',
     /* the tank: slow and webbed in; fire takes the web */
     elementWeak: 'ember',
-    hp: 30, atk: 7, def: 4, xp: 150, gp: [4, 10], speed: 2600,
+    hp: 30, atk: 7, def: 4, xp: 150, gp: [4, 12], speed: 2600,
     drops: [{ id: 'silk_thread', ch: .4, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'loft_web', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .0165, band: 'scarce' }, { id: 'studded_pants', ch: .0165, band: 'scarce' }, { id: 'adept_pants', ch: .0165, band: 'scarce' },
       { id: 'iron_gauntlets', ch: .0015, band: 'rare' }, { id: 'studded_gloves', ch: .0015, band: 'rare' }, { id: 'adept_gloves', ch: .0015, band: 'rare' }] },

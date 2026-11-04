@@ -121,9 +121,10 @@
 // stays under half its coin. The coin is final in the rows (DM-16).
 // THE RUNG ABOVE PAYS MORE (designer 2026-11-03, lane/c-gold-matters; Tyler the same day: harder monsters give more, nothing
 // rewards staying on a weak ground): Wickstead paid above the Sewer's party and the Glade's floor, a lone hero in the Sewer
-// out-earned the Warrens, and a party earned less in the Warrens than in the Glade. Wickstead's coin about x0.86 and the Glade's
-// about x0.89, the Sewer's bat and spider x0.77 and its King x1.12 (a party's coin about x0.95, a lone hero's x0.85), the Warrens
-// x1.10; the Cellar and the Thicket unchanged. Floors, each ground's own table: tests/hunt-core/drop-tables.mjs and forest-cave.mjs harder-pays-more.
+// out-earned the Warrens, and a party earned less in the Warrens than in the Glade. Wickstead's coin about x0.89 and the Glade's
+// about x0.94, the Sewer's bat and spider x0.83 and its King x1.04 (a party's coin about x0.94, a lone hero's x0.89), the Warrens
+// x1.09; the Cellar and the Thicket unchanged. Each stays inside its roster band (monster-classes.js). Floors, each ground's own table:
+// tests/hunt-core/drop-tables.mjs and forest-cave.mjs harder-pays-more.
 //
 // PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
 // is trivial for four heroes and lethal at the boss for one, so a pack's HP is

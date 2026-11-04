@@ -234,7 +234,7 @@ const mutants = [
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. */
   { name: 'the Sewer\'s Culvert Bats bite a third harder (atk 9 -> 12): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [11, 29], speed: 4400', 'hp: 70, atk: 12, def: 1, xp: 288, gp: [11, 29], speed: 4400']] },
+    edits: [['src/data/monsters.js', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [12, 31], speed: 4400', 'hp: 70, atk: 12, def: 1, xp: 288, gp: [12, 31], speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');

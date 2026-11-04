@@ -8,13 +8,13 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 784f8085cdb7d7a589eef986162aa29f7f52101d5cc1a7e8128b742f2d6be868
+--   digest: 34756b11d525835ac957c39846f47e2a0c2f0b27d17dec2dfecdcf1bb4ec1691
 --   82 supplies, 128 hunts (named + training), 48 limits, 13 end reasons,
 --   548 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
 --
 -- NEW IN THIS FILE (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
--- the Glade and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and
+-- the Glade's poachers and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and
 -- boots (src/data/loot-bands.js). No spawn or limit moves and the world's shape is unchanged (no world_shape_pending on either order). The bound's
 -- headroom is three times the catalogue's top roll, so the old engine's rolls pass the lowered rows and the new engine's the raised ones; apply this
 -- first, then the hr-accrue carrying the same rows at once, so a sale never pays the old bid against the new floor for longer than the deploy.
@@ -483,7 +483,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('ashwing', 656, 1913, '{"dragon_bones":1,"dragon_scale":1,"hell_ember":1,"ember_bar":1,"dragon_gem":1}'::jsonb),
   ('astrologer', 296, 956, '{"magic_essence":1,"ancient_rune":1,"rune_frag":1,"ruby":1,"yew_spellbook":1,"sorcerer_boots":1}'::jsonb),
   ('bandit_lord', 262, 930, '{"gold_ore":1,"gold_bar":1,"ruby":1,"captain_medal":1,"rune_gauntlets":1}'::jsonb),
-  ('barn_spider', 10, 195, '{"silk_thread":1,"dry_husk":1,"loft_web":1,"iron_platelegs":1,"studded_pants":1,"adept_pants":1,"iron_gauntlets":1,"studded_gloves":1,"adept_gloves":1}'::jsonb),
+  ('barn_spider', 12, 195, '{"silk_thread":1,"dry_husk":1,"loft_web":1,"iron_platelegs":1,"studded_pants":1,"adept_pants":1,"iron_gauntlets":1,"studded_gloves":1,"adept_gloves":1}'::jsonb),
   ('barn_wasp', 6, 90, '{"venom_sac":1,"dry_husk":1,"barn_wasp_sting":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"iron_belt":1,"studded_belt":1,"adept_belt":1}'::jsonb),
   ('barrow_king', 200, 828, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"barrowking_mantle":1}'::jsonb),
   ('barrow_knight', 104, 504, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"mithril_gauntlets":1}'::jsonb),
@@ -491,18 +491,18 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('bog_vine', 42, 209, '{"willow_log":1,"silk_thread":1,"moonbloom":1,"steel_gauntlets":1}'::jsonb),
   ('briarcoat_wolf', 5, 85, '{"wolf_pelt":1,"bones":1,"briar_burr":1,"bronze_platelegs":1,"leather_pants":1,"apprentice_pants":1}'::jsonb),
   ('broodmother', 572, 1728, '{"silk_thread":1,"spider_eye":1,"void_chitin":1,"swarm_heart":1,"shadow_thread":1,"chitinweave_cloak":1}'::jsonb),
-  ('brook_bear', 32, 531, '{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb),
+  ('brook_bear', 36, 531, '{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb),
   ('carnivorous_plant', 100, 465, '{"maple_log":1,"moonbloom":1,"goldenroot":1,"emberfruit":1}'::jsonb),
-  ('carrion_crow', 11, 210, '{"bone_chips":1,"crow_quill":1,"iron_boots":1,"studded_boots":1,"adept_boots":1}'::jsonb),
+  ('carrion_crow', 12, 210, '{"bone_chips":1,"crow_quill":1,"iron_boots":1,"studded_boots":1,"adept_boots":1}'::jsonb),
   ('carrion_swarm', 236, 857, '{"plague_ichor":1,"swarm_heart":1,"venom_sac":1}'::jsonb),
   ('cave_wyrm', 102, 515, '{"dragon_scale":1,"iron_ore":1,"mithril_ore":1,"coal":1,"snakeskin_gloves":1}'::jsonb),
   ('centipede', 40, 188, '{"void_chitin":1,"venom_sac":1,"iron_ore":1,"coal":1}'::jsonb),
   ('chained_demon', 254, 962, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"iron_fitting":1,"yew_staff":1}'::jsonb),
-  ('chief_coppercap', 236, 9570, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"coppercaps_tallow":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1,"willow_wand":1,"willow_spellbook":1,"willow_staff":1,"verdigris_cake":1,"coppercaps_cauldron":1}'::jsonb),
-  ('cistern_spider', 68, 839, '{"silk_thread":1,"dry_husk":1,"cistern_venom_gland":1,"longbow":1,"oak_crossbow":1}'::jsonb),
+  ('chief_coppercap', 227, 9570, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"coppercaps_tallow":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1,"willow_wand":1,"willow_spellbook":1,"willow_staff":1,"verdigris_cake":1,"coppercaps_cauldron":1}'::jsonb),
+  ('cistern_spider', 74, 839, '{"silk_thread":1,"dry_husk":1,"cistern_venom_gland":1,"longbow":1,"oak_crossbow":1}'::jsonb),
   ('clay_golem', 40, 217, '{"iron_ore":1,"iron_fitting":1,"coal":1,"steel_boots":1}'::jsonb),
   ('conjurer', 118, 477, '{"magic_essence":1,"hell_ember":1,"rune_frag":1,"maple_spellbook":1,"warlock_boots":1}'::jsonb),
-  ('culvert_bat', 29, 393, '{"bat_wing":1,"bones":1,"culvert_bat_fang":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1}'::jsonb),
+  ('culvert_bat', 31, 393, '{"bat_wing":1,"bones":1,"culvert_bat_fang":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1}'::jsonb),
   ('cutpurse', 6, 27, '{"rat_tail":1,"copper_ore":1,"bones":1,"apprentice_gloves":1}'::jsonb),
   ('cyclops', 246, 972, '{"troll_hide":1,"big_bones":1,"warlord_badge":1,"steel_bar":1,"rune_boots":1}'::jsonb),
   ('dark_wizard', 25, 97, '{"magic_essence":1,"rune_frag":1,"bones":1,"dark_sigil":1,"oak_wand":1,"oak_spellbook":1}'::jsonb),
@@ -529,7 +529,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('giant_bat', 12, 60, '{"bat_wing":1,"night_fang":1,"bones":1,"fang_studs":1}'::jsonb),
   ('giant_boar', 238, 943, '{"bear_pelt":1,"big_bones":1,"raw_bear_meat":1,"bear_claw":1,"wyvernhide_belt":1}'::jsonb),
   ('giant_spider', 98, 429, '{"silk_thread":1,"venom_sac":1,"spider_eye":1,"shadow_thread":1,"wraithglass_drops":1}'::jsonb),
-  ('glade_poacher', 15, 273, '{"wolf_pelt":1,"bones":1,"snare_wire":1,"iron_platelegs":1,"studded_pants":1,"adept_pants":1,"longbow":1,"houndskin_cloak":1}'::jsonb),
+  ('glade_poacher', 14, 273, '{"wolf_pelt":1,"bones":1,"snare_wire":1,"iron_platelegs":1,"studded_pants":1,"adept_pants":1,"longbow":1,"houndskin_cloak":1}'::jsonb),
   ('gnoll', 17, 83, '{"goblin_ear":1,"wolf_pelt":1,"bat_wing":1,"iron_ore":1,"willow_longbow":1}'::jsonb),
   ('gnoll_packlord', 40, 185, '{"bones":1,"goblin_ear":1,"wolf_pelt":1,"iron_ore":1,"packlord_band":1}'::jsonb),
   ('goblin', 8, 36, '{"goblin_ear":1,"bones":1,"bronze_sword":1,"goblin_totem":1}'::jsonb),
@@ -537,7 +537,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('goblin_digger', 43, 1812, '{"copper_ore":1,"coal":1,"bones":1,"goblin_ear":1,"dented_copper_pot":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1,"steel_warhammer":1,"steel_belt":1,"boarhide_belt":1,"scholar_belt":1}'::jsonb),
   ('goblin_scavenger', 32, 1149, '{"goblin_ear":1,"copper_ore":1,"bones":1,"glowing_copper_fleck":1,"steel_boots":1,"boarhide_boots":1,"scholar_boots":1,"steel_platelegs":1,"boarhide_pants":1,"scholar_pants":1,"steel_sword":1}'::jsonb),
   ('goblin_skulker', 38, 1377, '{"goblin_ear":1,"bones":1,"iron_ore":1,"skulkers_shiv":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"willow_longbow":1,"willow_crossbow":1,"steel_gauntlets":1,"boarhide_gloves":1,"scholar_gloves":1}'::jsonb),
-  ('goblin_sluicer', 30, 465, '{"copper_ore":1,"bones":1,"sluice_crust":1,"iron_platebody":1,"studded_body":1,"adept_body":1}'::jsonb),
+  ('goblin_sluicer', 34, 465, '{"copper_ore":1,"bones":1,"sluice_crust":1,"iron_platebody":1,"studded_body":1,"adept_body":1}'::jsonb),
   ('goblin_warlord', 100, 438, '{"brute_plate":1,"warlord_badge":1,"steel_helm":1,"warlords_torc":1}'::jsonb),
   ('granary_rat', 6, 79, '{"rat_tail":1,"bones":1,"granary_whisker":1,"bronze_boots":1,"leather_boots":1,"apprentice_boots":1}'::jsonb),
   ('grave_banshee', 286, 936, '{"wraith_veil":1,"grave_dust":1,"vamp_dust":1,"ancient_rune":1,"wraithsilk_shroud":1}'::jsonb),
@@ -548,7 +548,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('hellhound', 130, 513, '{"demon_shard":1,"hell_ember":1,"big_bones":1,"coal":1}'::jsonb),
   ('hive_wasp', 4, 48, '{"venom_sac":1,"silk_thread":1,"hive_wasp_stinger":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"queens_comb":1}'::jsonb),
   ('hobgoblin', 22, 89, '{"goblin_ear":1,"iron_ore":1,"iron_sword":1,"goblin_totem":1,"rat_stick":1}'::jsonb),
-  ('hobgoblin_foreman', 74, 2562, '{"big_bones":1,"iron_ore":1,"coal":1,"foremans_lash":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"steel_hatchets":1}'::jsonb),
+  ('hobgoblin_foreman', 72, 2562, '{"big_bones":1,"iron_ore":1,"coal":1,"foremans_lash":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"steel_hatchets":1}'::jsonb),
   ('ice_elemental', 100, 462, '{"frostfin":1,"magic_essence":1,"mithril_ore":1}'::jsonb),
   ('imp', 6, 25, '{"demon_shard":1,"coal":1,"rune_frag":1,"apprentice_boots":1}'::jsonb),
   ('iron_colossus', 544, 1852, '{"rune_bar":1,"mithril_bar":1,"keystone":1,"iron_fitting":1,"death_steel":1}'::jsonb),
@@ -574,7 +574,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('panther', 210, 828, '{"shadow_pelt":1,"razor_claw":1,"ruby":1,"raw_panther_meat":1,"panthers_eye_pendant":1}'::jsonb),
   ('plague_swarm', 82, 360, '{"plague_ichor":1,"venom_sac":1,"swarm_heart":1,"field_cookbook":1}'::jsonb),
   ('rat', 4, 41, '{"rat_tail":1,"small_fang":1,"wheat":1,"bones":1,"giant_rat_hide":1}'::jsonb),
-  ('rat_king', 267, 4740, '{"rat_tail":1,"bones":1,"knotted_tails":1,"crown_shard":1,"kingsgrate":1,"rat_kings_knot":1,"rat_kings_crown":1}'::jsonb),
+  ('rat_king', 247, 4740, '{"rat_tail":1,"bones":1,"knotted_tails":1,"crown_shard":1,"kingsgrate":1,"rat_kings_knot":1,"rat_kings_crown":1}'::jsonb),
   ('revenant', 512, 1707, '{"big_bones":1,"death_steel":1,"ancient_rune":1,"grave_dust":1,"ember_gauntlets":1}'::jsonb),
   ('rock_troll', 48, 226, '{"troll_hide":1,"iron_ore":1,"coal":1,"big_bones":1,"steel_belt":1}'::jsonb),
   ('rook_poacher', 36, 637, '{"raw_wolf_meat":1,"bones":1,"rooks_moss_charm":1,"rooks_whistle":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1}'::jsonb),
@@ -600,7 +600,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('vharek', 620, 1919, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"ember_bar":1,"hollow_sigil":1}'::jsonb),
   ('void_mote', 126, 482, '{"void_chitin":1,"magic_essence":1,"rune_frag":1,"void_censer":1}'::jsonb),
   ('void_parasite', 420, 1410, '{"void_chitin":1,"plague_ichor":1,"void_core":1,"archmage_boots":1}'::jsonb),
-  ('walking_vine', 10, 313, '{"magic_essence":1,"pithwood":1,"mosslight_tendril":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1,"mosslight_clump":1}'::jsonb),
+  ('walking_vine', 12, 313, '{"magic_essence":1,"pithwood":1,"mosslight_tendril":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1,"mosslight_clump":1}'::jsonb),
   ('war_king', 520, 1680, '{"captain_medal":1,"war_crown":1,"chief_blade":1}'::jsonb),
   ('warband_captain', 225, 885, '{"warlord_badge":1,"captain_medal":1,"rune_sword":1}'::jsonb),
   ('warlock', 60, 222, '{"magic_essence":1,"rune_frag":1,"cracked_spellstone":1,"willow_wand":1,"willow_spellbook":1,"scholar_gloves":1}'::jsonb),

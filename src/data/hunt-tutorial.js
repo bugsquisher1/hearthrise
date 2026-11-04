@@ -400,12 +400,12 @@ export const HUNT_TUTORIAL = Object.freeze([
       when: [IN_TOWN, { kind: 'level_at', at: ITEMS.klappas_club.reqLv }, { kind: 'club_hand', item: 'practice_club', made: 'klappas_club' }],
       hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="klappas_club"]', '[data-hs-win="inventory"] .hw-pick[data-item="klappas_club"] [data-hs-act="primary"]'] }),
   /* GOLD WITH NOWHERE TO GO (designer's 10-31 pass ruled it a FIX; blind panel 11-03, hour 11, 15k banked: "nothing says what's next"): What next carries it in a line, but What next only
-     speaks with every window shut and no card up, and a return lands on the Hunt summary. So once the purse can pay for the next hero, one card names what exists at the server's
+     speaks with every window shut and no card up, and a return lands on the Hunt summary. So once the purse is a real start on the next hero, one card names what exists at the server's
      prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Club, one card at a time: the club has a job in it and a Level on it, and the gold
      keeps. */
   step('purse_goal', 'What your gold buys',
     'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',
-    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_pays_hero' }] }),
+    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),
   step('home', 'Build your home',
     'Your first house needs gold, ore and logs: start with logs in Gathering and crafting, Woodcutting.',
     'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),
@@ -620,7 +620,8 @@ const FACTS = Object.freeze({
   below_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel < b.freeUntil),
   at_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel >= b.freeUntil),
   /* the purse holds the price of the next hero slot the server offers; none on offer: never (unknown until the account's offer is read) */
-  purse_pays_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost : null),
+  /* The purse is a real start on the next hero (the What next line's own share): at 50,000 gp that is about hour 5, when gold first needs a plan (lane/c-gold-matters). */
+  purse_saving_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),
   /* more than one hero (the account's roster, from the shell) */
   one_hero: (p, f) => known(heroesOn(f), (h) => h.length === 1 && Number.isInteger(f.slotsOwned) && f.slotsOwned > 1),
   heroes: (p, f) => known(heroesOn(f), (h) => h.length >= p.atLeast),
@@ -934,7 +935,8 @@ const SAY = Object.freeze({
     const named = (r) => !!r && Array.isArray(r.items) && !r.items.some((x) => !name(x.id));
     const house = [named(f.home && f.home.next) ? 'the ' + f.home.next.name + ' (' + priced(f.home.next) + ')' : null,
       named(f.chest) ? 'storage chests (the ' + f.chest.name + ', ' + priced(f.chest) + ')' : null].filter(Boolean);
-    return { text: 'You hold ' + gp(f.gold) + ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' + (house.length ? ' In the House: ' + listed(house) + '.' : '') };
+    const hero = f.gold >= f.slotCost ? ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' : '. A ' + nth + ' hero costs ' + gp(f.slotCost) + ' (press Characters).';
+    return { text: 'You hold ' + gp(f.gold) + hero + (house.length ? ' In the House: ' + listed(house) + '.' : '') };
   },
   stitch_cloak: () => {
     const r = (ARTISAN_RECIPES.crafting || []).find((x) => x.output === 'graypelt_cloak');

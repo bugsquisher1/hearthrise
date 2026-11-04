@@ -22,11 +22,11 @@
 // a tenth of what the 4 h earned at every Level, so it was never a question).
 // A refill is the one purchase that never runs out, so it is the place gold keeps
 // meaning something once the slots and the house are bought: it trades gold for
-// hunting time. Against gold a hero earns in those 4 h on the real engine, the
-// first buy of the day is about a third at Level 12 and 24 and about half to
-// two-thirds at Level 55; the sixth at Level 55 costs what the 4 h earn, so a
-// hero past that line is paying gold for XP alone, which is the decision. Still
-// far under the 1,712,500 + 5,250 a Level we scaled from, and never Crowns.
+// hunting time. Against the gold a hero earns in those 4 h on the real engine, the
+// first buy of the day is about a third at Level 13 and 25 and about half at Level
+// 45 to 55; by the sixth at Level 55 it can cost all the 4 h earn, so a hero past
+// that line is paying gold for XP alone, which is the decision. Still far under
+// the 1,712,500 + 5,250 a Level we scaled from, and never Crowns.
 //
 // THE PRICE, integer only (the server computes it; the client only shows it):
 //   restoredMin = min(maxMinPerBuy, capMin - currentMin)   (refused if <= 0)

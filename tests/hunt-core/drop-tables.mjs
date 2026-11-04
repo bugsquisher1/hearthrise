@@ -689,7 +689,7 @@ const dataMutants = [
   { name: 'a row still parked for an item that exists (the Kingsgrate)', case: 'pending-rows', edit: (ms, M2) => {
     M2.LB = { ...M2.LB, PENDING_ROWS: [{ monster: 'rat_king', id: 'kingsgrate', ch: 0.017, band: 'rare', after: 'crown_shard' }] }; } },
   { name: 'Leather Boots back at 90 (outselling Studded Boots)', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.leather_boots = { ...M2.ITEMS.leather_boots, v: 90 }; } },
-  { name: 'Steel Boots cheaper than Iron Boots', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.steel_boots = { ...M2.ITEMS.steel_boots, v: 300 }; } },
+  { name: 'Steel Boots cheaper than Iron Boots', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.steel_boots = { ...M2.ITEMS.steel_boots, v: 200 }; } },
   /* build coverage */
   { name: 'the Dire Grays drop helmets, not bodies', case: 'build-coverage', edit: (ms) => {
     rowOf(ms, 'dire_gray', 'bronze_platebody').id = 'bronze_helm'; rowOf(ms, 'dire_gray', 'leather_body').id = 'leather_helmet'; rowOf(ms, 'dire_gray', 'apprentice_body').id = 'apprentice_helmet';

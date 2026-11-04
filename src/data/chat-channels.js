@@ -35,6 +35,10 @@ export const CHAT_LIMITS = Object.freeze({
   linesPerTab: 200,      // kept in memory per tab; older lines drop off the top
   whisperTabsMax: 6,     // open conversations; the oldest quiet one closes first
   friendsPollMs: 30000,  // hr_social_state (also the presence stamp, floor 20 s server-side)
+  /* A hidden page's slower poll, only the stamp that keeps the account online for its friends (SocialSession.setAway). The server
+     reads "online" as seen inside 75 s (hr_social_state c_online), and a browser may hold a hidden page's timer to once a minute:
+     under 60 s so that minute's firing still asks, whichever cadence the page gets. */
+  friendsPollAwayMs: 55000,
   /* Private broadcast topics one client may join for chat at once (src/social/realtime.js): global,
      system and the zone are three, and the account's inbox (its whispers and its party's lines) is the
      fourth; the fifth is slack. Each join is one authorization and one socket subscription on Realtime,

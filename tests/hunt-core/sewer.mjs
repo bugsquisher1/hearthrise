@@ -293,6 +293,20 @@ function walkChain(M, T, extra) {
 /* What next as a player can read it: the card's goal and the ones behind its More. */
 const whatNext = (g) => (g ? [g.text, ...(g.also || [])].join(' ') : '');
 const cases = {
+  'return-with-no-stamp': async (M) => {
+    /* Played 2026-11-04: a hero left hunting with the tab killed seconds after Enter came back ten hours later to "Your hero just ate". No stamp, so no recap and no markBack, and the just-now cards spoke. */
+    const { backWithNoStamp } = await import(pathToFileURL(join(M.root, 'src/shell/away-recap.js')).href + V);
+    const make = (ms, stamp, ended) => { const e = { state: { level_xp: 5000 }, hunt: { session_id: 's1', hunt_id: 'meadowbrook_thicket', ended: !!ended, session: {}, hero: { hp_max: 170 }, pose: { units: [] } },
+      hunt_analyzer: { hunt_ms: ms, session: {}, hero: { kills: 5, xp: 10, gold: 1, loot: [], supplies: [] } } };
+      const writes = []; return { read: (k) => e[k], record: { residue: stamp ? { awaySeen: stamp } : {} }, setResidue: (k, v) => { writes.push([k, v]); return true; }, writes }; };
+    const old = make(36000000);
+    if (!backWithNoStamp(old) || old.writes.length !== 1 || old.writes[0][0] !== 'coach' || old.writes[0][1].back !== 's1') return 'a ten-hour hunt no stamp covers is not marked as a return: ' + JSON.stringify(old.writes);
+    if (backWithNoStamp(make(300000))) return 'a five-minute hunt read as a return, so a hero watching its first hunt loses the first-meal card';
+    if (backWithNoStamp(make(36000000, { s: 's1', at: 1 }))) return 'a hunt with a stamp is the recap\'s to mark, not this';
+    if (backWithNoStamp(make(36000000, null, true))) return 'an ended hunt was marked as a return';
+    if (!readFileSync(join(M.root, 'src/shell/alerts.js'), 'utf8').includes('else if (judged) backWithNoStamp(cs);')) return 'the alerts scan never asks';
+    return null;
+  },
   'what-next-one-goal': async (M) => {
     /* WHAT NEXT IS ONE GOAL (played 2026-11-04, Level 17: eight sentences, the Farm first and the third hero not named; blind 20-hour panel: "a five-sentence paragraph"). The walk-through, one lone sword
        and shield through the hours as played: at each stop the first goal is the one the card says, and the others wait behind More. Prices are the server's, passed in. */
@@ -1718,6 +1732,12 @@ const mutants = [
     edits: [['src/shell/launcher.js', "const p = el.querySelector('.hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');", "const p = el.querySelector(':scope > .hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');"]] },
   { name: 'a repaint shuts the goals More opened', case: 'what-next-one-goal',
     edits: [['src/shell/launcher.js', 'const open = !!also && ALSO_OPEN.get(cs) === card.id;', 'const open = false;']] },
+  { name: 'a return with no stamp keeps its old cards (played 11-04)', case: 'return-with-no-stamp',
+    edits: [['src/shell/alerts.js', ' else if (judged) backWithNoStamp(cs);', '']] },
+  { name: 'a young hunt reads as a return', case: 'return-with-no-stamp',
+    edits: [['src/shell/away-recap.js', ' || a.sessionMs < AWAY_MIN_MS) return false;', ') return false;']] },
+  { name: 'a stamped hunt is marked twice over', case: 'return-with-no-stamp',
+    edits: [['src/shell/away-recap.js', '(was && was.s === h.sessionId) || !a', '!a']] },
   { name: 'the coach keeps its goals to itself', case: 'what-next-one-goal',
     edits: [['src/shell/launcher.js', "const also = Array.isArray(card.also) && card.also.length ? card.also : null;", "const also = null;"]] },
   { name: 'What next offers a slot the server is not selling', case: 'tutorial-reactive',

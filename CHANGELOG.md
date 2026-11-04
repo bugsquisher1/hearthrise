@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+**A cloak for the Glade.** You can wear the Houndskin Cloak at Level 22 now, and stitch it at Crafting 5 from 12 Wolf Pelts and a Bear Pelt. Brook Bears only come to a pull of 3 or more at Mosslight Glade.
+
+**Equip upgrades gets you dressed.** An empty slot no longer waits for you to choose: it takes the armor weight you picked at Tamsin's, or the one you already wear, or the one that suits your weapon. You can still change any piece on the doll.
+
+**No old news on your way back.** Coming back to a long hunt no longer opens on "Your hero just ate".
+
 ## v0.2.89 — 2026-11-04 (Still Here)
 
 **Friends see you while your tab is in the background.** A hidden tab stopped telling your friends you were online, so you dropped off their list after about a minute. It now keeps saying so.

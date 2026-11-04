@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/load-bench.mjs — HOW LONG A PLAYER WAITS FOR THE FIRST PLAYABLE FRAME, AND ON WHAT. A manual measuring tool, not a CI guard.
 //
-//   node tools/load-bench.mjs local --site plain=DIR[,built=DIR] [--release plain=transform,built=DIR] [--runs 3] [--profiles desktop,phone] [--workers off,on] [--trace] [--out FILE]
+//   node tools/load-bench.mjs local --site plain=DIR[,built=DIR] [--release plain=transform,built=DIR] [--runs 3] [--profiles desktop,phone] [--workers off,on] [--scenarios cold,return-expired,release] [--trace] [--js-profile] [--out FILE]
 //   node tools/load-bench.mjs --table FILE...       reprint saved results
 //
 // Real Chrome (channel 'chrome', new headless), NEVER Playwright's headless shell: on Windows the shell queues a WinHTTP proxy lookup per request (p50 4.8 s),
@@ -21,6 +21,7 @@
 //                   flattering on a throttled profile, because Chromium's page throttling does not reach a worker's own fetches.
 // PROFILES: desktop 40 ms / 20 Mbps; phone 150 ms / 1.6 Mbps + 4x CPU; 4g 100 ms / 9 Mbps (the return-load lane's line) + 4x CPU when named 4gslow.
 // --trace: one extra pass with Chrome's tracing on, reported apart (tracing slows a page): the main thread's own time by what it did, per phase.
+// --js-profile: one extra cold pass with V8's sampling profiler on, reported apart: self time by function, per phase. Plain source names its functions; a built site names chunks.
 //
 // TEST CERTIFICATE: made at run time in the OS temp folder, never in the repo. Chrome is told its one key (an SPKI pin), because a browser that merely ignores a
 // certificate error does not use its disk cache, and the cache is what this measures.
@@ -319,6 +320,46 @@ async function traced(ctx, profile, url, account) {
   return { marks: m, phases };
 }
 
+/* Self time by function and by file, per phase, from V8's sampling profiler (1 ms): the part of a trace's script time a name can be put on. */
+function jsBy(profile, cuts, zeroUs) {
+  const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+  const phases = cuts.map((c) => ({ name: c.name, upTo: c.at, fn: new Map(), file: new Map(), total: 0 }));
+  let at = profile.startTime;
+  for (let i = 0; i < profile.samples.length; i++) {
+    at += profile.timeDeltas[i] || 0;
+    const dt = (profile.timeDeltas[i + 1] ?? 0) / 1000;
+    const ms = (at - zeroUs) / 1000;
+    const p = phases.find((x) => ms <= x.upTo);
+    if (!p) continue;
+    const c = byId.get(profile.samples[i]).callFrame;
+    if (c.functionName === '(idle)' || c.functionName === '(root)') continue;
+    const file = (c.url || '').split('?')[0].split('/').slice(-2).join('/') || '(native)';
+    const name = (c.functionName || '(anonymous)') + ' ' + file + (c.url ? ':' + c.lineNumber : '');
+    p.fn.set(name, (p.fn.get(name) || 0) + dt);
+    p.file.set(file, (p.file.get(file) || 0) + dt);
+    p.total += dt;
+  }
+  const top = (m, n) => Object.fromEntries([...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => [k, Math.round(v)]));
+  return phases.map((p) => ({ name: p.name, total: Math.round(p.total), fn: top(p.fn, 25), file: top(p.file, 12) }));
+}
+
+async function jsProfiled(ctx, profile, url, account) {
+  const opened = await openPage(ctx, profile);
+  await opened.cdp.send('Profiler.enable');
+  await opened.cdp.send('Profiler.setSamplingInterval', { interval: 1000 });
+  await opened.cdp.send('Profiler.start');
+  const r = await walk(opened, url, account, { settleMs: 200 });
+  const nowPage = await opened.page.evaluate(() => performance.now());
+  const { profile: prof } = await opened.cdp.send('Profiler.stop');
+  const m = r.marks;
+  const press = m.clicks.length ? m.clicks[m.clicks.length - 1] : null;
+  const cuts = [{ name: 'to first screen', at: m.signin ?? m.chars }, { name: 'to characters', at: m.chars }, { name: 'to Play', at: press ?? m.chars }, { name: 'to first town frame', at: m.frame }];
+  /* the profile's clock is its own: its last sample is taken about now; line the two up through the page's clock */
+  const phases = jsBy(prof, cuts, prof.endTime - nowPage * 1000);
+  await opened.page.close();
+  return { marks: m, phases };
+}
+
 // ── THE RELEASE: WHAT bump-version.sh MAKES OF A ONE-LINE CHANGE ─────────
 function plainRelease(root, label) {
   const version = /cache:\s*'(\d+\.\d+\.\d+)'/.exec(readFileSync(join(root, 'src/build-info.js'), 'utf8'))[1];
@@ -395,6 +436,8 @@ async function runLocal(o) {
   const profiles = String(o.profiles || 'desktop,phone').split(',');
   const workers = String(o.workers || 'off').split(',');
   const runs = Number(o.runs || 3);
+  const scenarios = new Set(String(o.scenarios || 'cold,return-expired,release').split(','));
+  const jsProfiles = [];
   const results = [];
   const traces = [];
   const clearBudgets = () => world.db.query(`delete from public.hr_rate_counters`).catch(() => {});
@@ -421,21 +464,25 @@ async function runLocal(o) {
             await bank('cold', cold);
             if (worker === 'on') { const ms = await waitWorker(p.page); console.log('   worker active after ' + ms + ' ms'); }
             await p.page.close();
-            await sleep((SHORT_TTL + 0.6) * 1000);
-            p = await openPage(b.ctx, profile);
-            mimic.state.log = [];
-            const again = await walk(p, url, account);
-            again.server = serverSum(mimic.state.log);
-            await bank('return-expired', again);
-            await p.page.close();
-            mimic.state.site = site.release;
-            await sleep((SHORT_TTL + 0.6) * 1000);
-            p = await openPage(b.ctx, profile);
-            mimic.state.log = [];
-            const released = await walk(p, url, account);
-            released.server = serverSum(mimic.state.log);
-            await bank('release', released);
-            await p.page.close();
+            if (scenarios.has('return-expired')) {
+              await sleep((SHORT_TTL + 0.6) * 1000);
+              p = await openPage(b.ctx, profile);
+              mimic.state.log = [];
+              const again = await walk(p, url, account);
+              again.server = serverSum(mimic.state.log);
+              await bank('return-expired', again);
+              await p.page.close();
+            }
+            if (scenarios.has('release')) {
+              mimic.state.site = site.release;
+              await sleep((SHORT_TTL + 0.6) * 1000);
+              p = await openPage(b.ctx, profile);
+              mimic.state.log = [];
+              const released = await walk(p, url, account);
+              released.server = serverSum(mimic.state.log);
+              await bank('release', released);
+              await p.page.close();
+            }
           } finally { await b.close(); }
           if (o.trace && run === 0) {
             mimic.flush();
@@ -451,13 +498,22 @@ async function runLocal(o) {
               await clearBudgets();
             } finally { await t.close(); }
           }
+          if (o['js-profile'] && run === 0) {
+            mimic.flush();
+            mimic.state.site = site.base;
+            const t = await browser(profile, certificate.spki);
+            try {
+              jsProfiles.push({ site: tag, profile: profileName, scenario: 'cold', ...await jsProfiled(t.ctx, profile, url, account) });
+              await clearBudgets();
+            } finally { await t.close(); }
+          }
         }
       }
     }
   }
   await mimic.close();
   await world.close();
-  return { results, traces };
+  return { results, traces, jsProfiles };
 }
 
 // ── THE TABLE ────────────────────────────────────────────────────────────
@@ -490,6 +546,18 @@ function table(results) {
   return out.join('\n');
 }
 
+function jsTable(list) {
+  const out = [];
+  for (const t of list || []) {
+    out.push(`JS ${t.site} | ${t.profile} | ${t.scenario}`);
+    for (const p of t.phases) {
+      out.push('   ' + p.name + ' ' + p.total + ' ms; by file: ' + Object.entries(p.file).map(([k, v]) => k + ' ' + v).join(', '));
+      out.push('      by function: ' + Object.entries(p.fn).map(([k, v]) => k + ' ' + v).join(', '));
+    }
+  }
+  return out.join('\n');
+}
+
 function traceTable(traces) {
   const out = [];
   for (const t of traces) {
@@ -506,11 +574,13 @@ if (o.table) {
   const all = files.map((f) => JSON.parse(readFileSync(f, 'utf8')));
   console.log(table(all.flatMap((x) => x.results || x)));
   console.log(traceTable(all.flatMap((x) => x.traces || [])));
+  console.log(jsTable(all.flatMap((x) => x.jsProfiles || [])));
   process.exit(0);
 }
 if (o._[0] !== 'local') { console.error('usage: node tools/load-bench.mjs local --site plain=DIR,built=DIR [--release built=DIR] [--runs N] [--profiles desktop,phone] [--workers off,on] [--trace] [--out FILE]'); process.exit(2); }
-const { results, traces } = await runLocal(o);
-if (o.out) writeFileSync(o.out, JSON.stringify({ results, traces }, null, 1));
+const { results, traces, jsProfiles } = await runLocal(o);
+if (o.out) writeFileSync(o.out, JSON.stringify({ results, traces, jsProfiles }, null, 1));
 console.log(table(results));
 console.log(traceTable(traces));
+console.log(jsTable(jsProfiles));
 process.exit(0);

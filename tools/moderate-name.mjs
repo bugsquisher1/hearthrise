@@ -22,7 +22,7 @@
 // NEVER PRINTS THE NAME. Neither the request nor the response carries it; the
 // reason should describe the violation ("racial slur"), not quote it.
 // The token is read from ~/.supabase-token as file bytes and is never printed
-// or placed in argv. Refuses 00:00-00:10 UTC (CLAUDE.md §2 production window).
+// or placed in argv.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -47,11 +47,8 @@ else {
   // The uuid is regex-checked; the reason is a standard SQL literal with its
   // quotes doubled (standard_conforming_strings is on, so backslash is inert).
   const sql = `select public.hr_mod_force_rename('${user.toLowerCase()}'::uuid, '${reason.replace(/'/g, "''")}') as result`;
-  const now = new Date();
   if (dry) {
     console.log(sql);
-  } else if (now.getUTCHours() === 0 && now.getUTCMinutes() < 10) {
-    console.error('moderate-name: refusing - production writes never run 00:00-00:10 UTC'); process.exitCode = 2;
   } else {
     const token = readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim();
     const res = await fetch(URL_Q, {

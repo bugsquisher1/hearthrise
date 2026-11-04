@@ -2499,6 +2499,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const bagWords = await page.evaluate(() => (document.querySelector('.hw-char .hw-char-bag') || {}).textContent);
         if (!/^Bag worth /.test(bagWords || '')) fails.push('AW-67 the All characters card reads ' + JSON.stringify(bagWords));
       }
+        if (tabs.gap > 1) fails.push('AW-67 the list reads on ' + tabs.gap + ' px above the Shop\'s stuck tabs');
+        /* A tab opens at its top: a carried-over scroll laid its first press behind the stuck tabs. */
+        await page.click('[data-hs-win="shop"] .hw-tab:first-child');
+        await page.waitForTimeout(200);
+        const topped = await page.evaluate(() => document.querySelector('[data-hs-win="shop"] [data-hs-body]').scrollTop);
+        if (topped !== 0) fails.push('AW-67 the Shop\'s tab opened scrolled down by ' + topped);
       if (errors.length) fails.push('AW-67 console errors: ' + errors.slice(0, 2).join(' | '));
       await ctx.close();
     }
@@ -3415,7 +3421,7 @@ const MUTANTS = [
   ['AW-67 the card reads as a purse', 'src/shell/windows/characters.js', "'Bag worth ' + gold(x.bagValue)", "'Bag ' + gold(x.bagValue)"],
   ['AW-67 the press in hand stays under the answer', 'src/shell/windows/inventory/index.js', '  if (over > 0) root.scrollTop += over + 4;\n', ''],
   ['AW-67 the column fights the player', 'src/shell/windows/inventory/index.js', '  if (st.sc.clearSig === sig) return;\n', ''],
-  ['AW-67 the Shop\'s tabs slice', 'src/styles/windows.css', '.hw-shop > .hw-tabs { position: sticky; top: 0; z-index: 1; background: var(--bg-1); }\n', ''],
+  ['AW-67 the Shop\'s tabs slice', 'src/styles/windows.css', '.hw-shop > .hw-tabs { position: sticky; top: -10px; margin-top: -10px; padding-top: 10px; z-index: 1; background: var(--bg-1); }\n', ''],
   ['AW-63 the answer covers Leave party', 'src/styles/windows.css', '.hs-win .hw-party > .hh-intent-msg:not(:empty) { position: static; }\n', ''],
   ['AW-63 Disband goes on one press', 'src/shell/widgets/party-panel.js', '    if (!sc.disbandArmed) {', '    if (false) {'],
   ['AW-63 an old answer stands after a seat came', 'src/shell/windows/party.js', "if (sc.msgSeats !== undefined && !sc.pending) sc.msg = '';", ''],

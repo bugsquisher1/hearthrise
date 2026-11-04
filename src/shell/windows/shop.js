@@ -224,7 +224,8 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
   }
   if (ev.type !== 'click') return false;
   if (sc.tab === 'services' && actServicesPane(ctx, body, action, ev, t)) return true;
-  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.msgAt = null; sc.wear = false; repaint(); return true; }
+  /* A tab opens at its top: the Buy list's scroll carried over and laid Sell all loot, ringed, behind the stuck tabs on a phone (door panel 2026-11-04). */
+  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.msgAt = null; sc.wear = false; body.scrollTop = 0; repaint(); return true; }
   if (action === 'buy') {
     const offer = t.getAttribute('data-offer');
     const o = shop ? shop.offers.find((x) => x.offer === offer) : null;

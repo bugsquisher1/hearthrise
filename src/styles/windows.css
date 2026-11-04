@@ -19,7 +19,8 @@
 /* ── Shared: tabs, the capacity line, ledgers, the primary action, confirmations ── */
 .hw-tabs { display: flex; gap: 2px; margin-bottom: 8px; border-bottom: 2px solid var(--steel-sep); }
 /* The Shop's tabs stay whole and in reach however far its body is scrolled (newcomer panel 2026-11-03: sliced under the coach card). */
-.hw-shop > .hw-tabs { position: sticky; top: 0; z-index: 1; background: var(--bg-1); }
+/* ...up to the body's edge: stuck below its padding, the row it had scrolled past read on above the tabs (door panel 2026-11-04). */
+.hw-shop > .hw-tabs { position: sticky; top: -10px; margin-top: -10px; padding-top: 10px; z-index: 1; background: var(--bg-1); }
 .hw-tab { margin-bottom: -2px; border: 0; background: none; padding: 4px 10px; min-height: 32px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); cursor: pointer; border-bottom: 2px solid transparent; }
 .hw-tab:hover { color: var(--ink); }
 .hw-tab[aria-selected="true"] { color: var(--gold-2); border-bottom-color: var(--gold); }
@@ -516,6 +517,7 @@
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hw-shop > .hw-tabs { top: -8px; margin-top: -8px; padding-top: 8px; }   /* the sheet's body padding */
   /* A Shop row on the half-wide sheet: the icon and name on one line, the count and the price under them (the name had 23 px and read "C…"). */
   .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }
   .hw-shop .hw-line-name { flex: 1 1 calc(100% - 52px); }

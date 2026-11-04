@@ -126,7 +126,11 @@ export function revealInWindow(el) {
     if (oy !== 'auto' && oy !== 'scroll') continue;
     const r = el.getBoundingClientRect(), b = p.getBoundingClientRect();
     if (r.top < b.top) { p.scrollTop -= b.top - r.top + 8; return true; }
-    if (r.bottom > b.bottom) { p.scrollTop += r.bottom - b.bottom + 8; return true; }
+    /* The answer line stands stuck to the box's foot (windows.css): a press under it is no more in view than one under the fold. On a phone the next
+       Bless, ringed, lay behind "Blessing I is yours." (door panel 2026-11-04). */
+    const line = p.querySelector('.hh-intent-msg:not(:empty)');
+    const floor = line ? Math.min(b.bottom, line.getBoundingClientRect().top) : b.bottom;
+    if (r.bottom > floor) { p.scrollTop += r.bottom - floor + 8; return true; }
     return false;
   }
   return false;

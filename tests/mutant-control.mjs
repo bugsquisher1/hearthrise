@@ -52,6 +52,15 @@ export const REGISTERED = [
   ['tests/progress-coalesce.mjs', '--mutate'],
 ];
 
+/* A PUSH CONTROLS WHAT IT PROVES (lane r-release-gate, 2026-11-04). This is the half of a mutation proof nobody ran, so it belongs
+   to the proof: 11.7 of db-replay-7's 18.5 min on a run that proved nothing (41327717372), the slowest plain step
+   in the workflow. It asks tools/mutant-gate.mjs for this job's plan: a guard the plan does not select has its real
+   proof skipped too, and the nightly controls every guard. A plan that cannot say is every control. */
+export function scopedControls(list, plan) {
+  if (!plan || plan.full || !plan.selected || typeof plan.selected !== 'object') return list;
+  return list.filter(([f]) => Object.hasOwn(plan.selected, f));
+}
+
 /* HOW MANY CONTROLS AT ONCE. Each control is a full PGlite chain replay. Four of
    them at once killed the 2-core / 7 GB hosted runner (db-replay-7 "runner has
    received a shutdown signal", exit 143, ~3 min in — runs 38114515222,
@@ -136,6 +145,23 @@ async function selftest() {
     if (!okay) bad += 1;
     console.log(`  ${okay ? '✓' : '✗'} pool, ${name} → ${n}`);
   }
+  /* The scope: only what the plan selects, every control when it cannot say. */
+  const LIST = [['tests/a.mjs', '--mutate'], ['tests/b.mjs', '--selftest']];
+  const scoped = (plan) => scopedControls(LIST, plan).map(([f]) => f).join();
+  const { decideMode } = await import('../tools/mutant-gate.mjs');
+  for (const [name, got, want] of [
+    ['no plan controls every guard', scoped(null), 'tests/a.mjs,tests/b.mjs'],
+    ['a plan selecting one guard controls that guard', scoped({ full: false, selected: { 'tests/b.mjs': 'x' } }), 'tests/b.mjs'],
+    ['a plan selecting nothing controls nothing (main, a proved commit)', scoped({ full: false, proved: { id: 1 }, selected: {} }), ''],
+    ['a full plan (the nightly) controls every guard', scoped({ full: true, selected: {} }), 'tests/a.mjs,tests/b.mjs'],
+    ['a plan with no selection controls every guard', scoped({ full: false }), 'tests/a.mjs,tests/b.mjs'],
+    ['a run outside GitHub is a full plan', scoped(decideMode({})), 'tests/a.mjs,tests/b.mjs'],
+    ['the nightly is a full plan', scoped(decideMode({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'schedule' })), 'tests/a.mjs,tests/b.mjs'],
+  ]) {
+    const okay = got === want;
+    if (!okay) bad += 1;
+    console.log(`  ${okay ? '✓' : '✗'} scope, ${name} → [${got}]`);
+  }
   /* And end to end through a spawned file, so the env switch is proven to reach it. */
   const fake = join(tmpdir(), `hr-mutant-control-fake-${process.pid}.mjs`);
   writeFileSync(fake, "console.log('[mutants] 1');\n"
@@ -163,8 +189,11 @@ if (isMain(import.meta.url)) {
     process.exit(0);
   }
   const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-  const set = only.length ? REGISTERED.filter(([f]) => only.some((o) => f.endsWith(o.replace(/\\/g, '/')))) : REGISTERED;
-  if (!set.length) { console.log('mutant-control: no registered guard matched'); process.exit(2); }
+  const named = only.length ? REGISTERED.filter(([f]) => only.some((o) => f.endsWith(o.replace(/\\/g, '/')))) : REGISTERED;
+  if (!named.length) { console.log('mutant-control: no registered guard matched'); process.exit(2); }
+  const { planFor } = await import('../tools/mutant-gate.mjs');
+  const set = scopedControls(named, planFor(process.env));
+  if (!set.length) { console.log(`mutant-control: this push proves none of the ${named.length} registered guards, so it controls none; the nightly controls them all`); process.exit(0); }
   /* The controls are independent processes (each plants into its own temp copy or
      into memory, never the tree), so locally they run controlPool() at a time;
      on CI one by one (404 s on db-replay-7, run 38076651907 — slow but alive;

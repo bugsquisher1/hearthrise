@@ -5,6 +5,7 @@
 //   node tools/preflight.local.mjs --base REF   against REF instead
 //   node tools/preflight.local.mjs --list       the plan, nothing run
 //   node tools/preflight.local.mjs -j N         N at a time (default 3: other lanes share this machine)
+//   node tools/preflight.local.mjs --times      also the 25 slowest commands
 //   node tools/preflight.local.mjs --selftest   the plan and the verdict, each proved by a planted mutant
 //
 // WHY (lane r-release-gate, 2026-11-04). Of the last 30 red release runs, 25 of the 76 causes were a guard that
@@ -21,7 +22,7 @@
 // a harness error, so the list cannot rot. A proof that plants into the tree (guard-anchors' solo) never runs here:
 // this machine is where the lanes work. Anything past a command's limit is said out loud as NOT JUDGED, never green.
 //
-// Exit: 0 all judged green · 1 a red or a command not judged · 2 a harness problem.
+// Exit: 0 every command judged green · 1 a red · 2 a harness problem · 3 no red, but some commands not judged (GitHub will).
 // mutant-anchors: none — the proof plants into copies of the workflow text and a scratch runner, never a tree file
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
@@ -37,9 +38,9 @@ import { catalogue, committedTexts } from './guard-anchors.mjs';
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
 const WORKFLOW = join(ROOT, '.github', 'workflows', 'smoke.yml');
 const CHEAP_JOB = /^client-guards(-\d+)?$/;
-/* Per command, and for the whole run: past these a command is NOT JUDGED (a red, so nobody reads silence as green). */
-const COMMAND_LIMIT_S = 170;
-const RUN_LIMIT_S = 240;
+/* Per command, and for the whole run: past these a command is NOT JUDGED, and the exit code says so. */
+const COMMAND_LIMIT_S = 120;
+const RUN_LIMIT_S = 180;
 
 /* The client-guards commands that stay on GitHub: inner command -> seconds measured there, why. */
 export const SLOW = new Map([
@@ -48,6 +49,8 @@ export const SLOW = new Map([
   ['node tests/world-town-home.mjs --selftest', '531 s (41697486160)'],
   ['node tests/selfcheck-no-global-dml.mjs --selftest', '126-288 s; its plain run is the one that reads the chain'],
   ['node tools/board-from-git.mjs --selftest', '81 s (41697486160), reads git history; a docs tool'],
+  ['node tests/names-selfcheck-collision.mjs', '106 s here (one replay per name); no red in the last 30 runs'],
+  ['node tests/plot-tier-parity.mjs', '48-88 s (one replay); no red in the last 30 runs'],
 ]);
 
 /* From the jobs that replay the chain, when their inputs moved: each was a red in the last 30 runs. */
@@ -136,11 +139,11 @@ export async function runAll(cmds, { jobs = 3, runLimitS = RUN_LIMIT_S, limitS =
   return results;
 }
 
-/** Green only when every command was judged and exited 0. Pure. */
+/** 0 only when every command was judged and exited 0; a red outranks the unjudged. Pure. */
 export function verdict(results) {
   const red = results.filter((r) => r.status !== 0 && !r.killed && !r.notRun);
   const unjudged = results.filter((r) => r.killed || r.notRun);
-  return { red, unjudged, green: results.length - red.length - unjudged.length, exit: red.length || unjudged.length ? 1 : 0 };
+  return { red, unjudged, green: results.length - red.length - unjudged.length, exit: red.length ? 1 : unjudged.length ? 3 : 0 };
 }
 
 function theDiff(base) {
@@ -264,16 +267,20 @@ async function selftest() {
     const v1 = await judge([green, red]);
     const v2 = await judge([green, hang], { limitS: 2 });
     const v3 = await judge([green, green, green], { jobs: 1, runLimitS: 0 });
+    const v4 = await judge([red, hang], { limitS: 2 });
     const checks = (v) => [
       [v(v0).exit === 0 && v(v0).green === 2, 'all green exits 0'],
       [v(v1).exit === 1 && v(v1).red.length === 1 && /the words a fix needs/.test(v(v1).red[0].out), 'a red exits 1 and keeps the words'],
-      [v(v2).exit === 1 && v(v2).unjudged.length === 1, 'a command past its limit is NOT JUDGED, never green'],
-      [v(v3).exit === 1 && v(v3).unjudged.length === 3, 'a command the run had no time for is NOT JUDGED, never green'],
+      [v(v2).exit === 3 && v(v2).unjudged.length === 1 && v(v2).green === 1, 'a command past its limit is NOT JUDGED, never green'],
+      [v(v3).exit === 3 && v(v3).unjudged.length === 3 && v(v3).green === 0, 'a command the run had no time for is NOT JUDGED, never green'],
+      [v(v4).exit === 1, 'a red outranks a command not judged'],
     ];
     for (const [c, m] of checks((x) => x)) ok(c, m);
     for (const [label, mut] of [
-      ['a red is green', (x) => ({ ...x, exit: x.unjudged.length ? 1 : 0 })],
+      ['a red is green', (x) => ({ ...x, exit: x.unjudged.length ? 3 : 0 })],
       ['a timeout is green', (x) => ({ ...x, exit: x.red.length ? 1 : 0 })],
+      ['a timeout counts in the green tally', (x) => ({ ...x, green: x.green + x.unjudged.length })],
+      ['the unjudged hide a red', (x) => ({ ...x, exit: x.unjudged.length ? 3 : x.exit })],
       ['the words are lost', (x) => ({ ...x, red: x.red.map((r) => ({ ...r, out: '' })) })],
     ]) {
       const missed = checks(mut).every(([c]) => c);
@@ -326,6 +333,7 @@ async function main(argv) {
   for (const r of v.unjudged) console.log(`\n  NOT JUDGED  ${r.cmd}  (${r.notRun ? 'the run ran out of time' : `over its limit at ${Math.round(r.seconds)} s`}; GitHub will judge it)`);
   const slowest = [...results].sort((a, b) => b.seconds - a.seconds).slice(0, 3).map((r) => `${r.cmd.replace(/^node /, '')} ${Math.round(r.seconds)} s`).join(', ');
   console.log(`\npreflight: ${v.green} green, ${v.red.length} red, ${v.unjudged.length} not judged, ${Math.round((Date.now() - t0) / 1000)} s (${jobs} at a time). Slowest: ${slowest}`);
+  if (argv.includes('--times')) for (const r of [...results].sort((a, b) => b.seconds - a.seconds).slice(0, 25)) console.log(`  ${String(Math.round(r.seconds)).padStart(4)} s  ${r.cmd}`);
   return v.exit;
 }
 

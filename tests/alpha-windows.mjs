@@ -183,6 +183,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, ruleOf, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { pinFonts } from './_test-fonts.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -236,7 +237,7 @@ function scripted() {
 
 async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await pinFonts(page);
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
@@ -3046,10 +3047,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (d) { const was = d.textContent; d.textContent = 'In town, fueling the Great Hearth with Bones'; label = d.scrollWidth - d.clientWidth; d.textContent = was; }
           return { stance, tabs, label, edge: panel ? panel.getBoundingClientRect().right : null };
         });
-        /* EVERY MACHINE READS THE WIDE FONT TOO: the page's web font is stubbed here, so a box measures its own fallback, and a green on Windows
-           (Segoe UI) said nothing of a Linux player's (run 41385560100: the job 9 px and the stance words 7 px over). Verdana or its Linux twin,
-           at the laptop's width and, for the bar's words, at a Steam Deck's 1280; then the fallback this box has. */
-        const wideFont = await page.addStyleTag({ content: ':root, body, body[data-theme] { --f-ui: Verdana, "DejaVu Sans", sans-serif !important; }' });
+        /* THE WIDE FONT, WHOLE: --f-ui with nothing after it to fall to (tests/_test-fonts.mjs draws it the same on every machine; run 41385560100:
+           the job 9 px and the stance words 7 px over), at the laptop's width and, for the bar's words, at a Steam Deck's 1280. */
+        const wideFont = await page.addStyleTag({ content: ":root, body, body[data-theme] { --f-ui: 'Alegreya Sans' !important; }" });
         const wide = await readChrome();
         await page.setViewportSize({ width: 1280, height: 800 });
         await page.waitForTimeout(150);
@@ -3079,7 +3079,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         for (const h of heads) if (h.w > 0 || h.band > 46 || h.ell === 'ellipsis') fails.push('AW-61 the ' + h.id + ' title clips: ' + JSON.stringify(h));
         /* the Shop on the phone (a sheet, half of 667): the name has its own line and is never cut; desktop keeps its one row */
         const shopNames = async (p, tag) => {
-          await p.addStyleTag({ content: ':root { --f-ui: Verdana, "DejaVu Sans", sans-serif !important; --f-display: Verdana, "DejaVu Sans", sans-serif !important; }' });
+          await p.addStyleTag({ content: ":root { --f-ui: 'Alegreya Sans' !important; --f-display: 'Alegreya Sans' !important; }" });
           if (!(await openWin(p, 'v', 'shop'))) { fails.push('AW-61 the Shop did not open at ' + tag); return; }
           await wait(p, () => document.querySelector('[data-hs-win="shop"] .hw-line-name b'), null, 3000);
           const names = await p.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="shop"] .hw-line-name b')).filter((b) => b.getClientRects().length).map((b) => ({ t: b.textContent, over: b.scrollWidth - b.clientWidth })));

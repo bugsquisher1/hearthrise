@@ -98,6 +98,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB, UID } from './_client-harness.mjs';
 import { roleForWeapon as ROLE_FOR_WEAPON } from '../src/data/hunt-roles.js';
+import { pinFonts } from './_test-fonts.mjs';
 /* the stations as the server catalogue reads them (the seed's rows, or the real town's STATIONS) */
 import { townStations, OUT_FILE as CATALOGUE } from '../tools/gen-town-stations.mjs';
 import { TOWN_NAME } from '../src/data/world/town/plan.js';
@@ -790,7 +791,7 @@ const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeo
 
 async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await pinFonts(page);
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
@@ -902,7 +903,7 @@ const STANDS = [ME(4, 11), ME(5, 11, { stand: 2 })];
    (hr_character_name). A hero's walker is its steered tile once it walked, else its stand. */
 async function stubTwo(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await pinFonts(page);
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');

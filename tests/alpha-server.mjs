@@ -466,12 +466,10 @@ export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
 const MUTANTS = [
-  /* hr_apply's LAST author is 2027-02-19-bench-tax.sql §4b (anchored edits of the installed text): the defect rides §4b as
-     one more edit of the body it executes. The anchor sits in that do-block, in no function body of the text, so the
-     mutant names its body (`fn`). */
-  { arm: 'A-LOCK', file: '2027-02-19-bench-tax.sql', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
-    find: '  end loop;\n  execute v_def;\n',
-    repl: '  end loop;\n  execute replace(v_def, $l$        if v_n < 0 and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$,\n    $l$        if false and coalesce(v_this_intent, \'\') ~ \'^vendor_sell(_many)?(:|$)\' and public.hr_item_locked(v_uid, v_slot, k) then$l$);\n' },
+  /* hr_apply is edited in place by anchored do-blocks, so this one names its body (`fn`) and has no file: plantLive reads it. */
+  { arm: 'A-LOCK', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
+    find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
+    repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
   /* hr_hunt_loot_rules is RESTATED last by 2027-01-23-loot-dispatch.sql (md5-pinned to its pre-image); hr_hunt_apply_member
      is restated last by 2027-01-31-inner-flame.sql (memberPlant): each mutant is planted in the body that runs. */
   { arm: 'A-LOOT-AWAY', why: 'the settle no longer runs the loot filter',
@@ -537,6 +535,30 @@ function enclosingFunction(text, at) {
     if (close < 0 || close > at) fn = m[1];
   }
   return fn;
+}
+
+/* THE BODY THAT RUNS, READ FROM THE DATABASE (lane r-release-gate, 2026-11-04). hr_apply's lock mutant was re-planted by hand
+   each time a later file restated hr_apply: red on 4 of the last 30 release runs (40650805179, 41192211861, 41226511232,
+   41332990107), with no game bug behind any. A mutant in a function body now reads that function's live text after the
+   whole chain and plants there, the way hunt-sessions-settle's DB_MUTANTS do: no later file can replay over it or trip on
+   its pin, and it costs one snapshot restore instead of a replay of the chain's tail. A mutant whose `find` is no longer in the
+   live body is RED, naming the function: the rule itself moved, and that needs a person. Only a mutant in no function
+   (a catalogue row, a top-level statement) still plants into its file. */
+/** The function a mutant's `find` sits in, by name, or null when it sits in no function. */
+export function plantedFunction(mu) {
+  if (mu.fn) return mu.fn;
+  const body = readFileSync(MIG(mu.file), 'utf8').replace(/\r\n/g, '\n');
+  const at = body.indexOf(mu.find);
+  return at < 0 ? null : enclosingFunction(body, at);
+}
+
+/** Plant into the live body of `fn` on this database: null when planted, else why not. */
+export async function plantLive(db, fn, find, repl) {
+  const { rows } = await db.query(`select pg_get_functiondef(p.oid) as def from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = $1`, [fn]);
+  const holders = rows.map((r) => String(r.def).replace(/\r\n/g, '\n')).filter((def) => def.split(find).length === 2);
+  if (holders.length !== 1) return `${fn}: ${holders.length} of ${rows.length} live bodies hold the anchor exactly once`;
+  await db.exec(holders[0].replace(find, () => repl));
+  return null;
 }
 
 /** Each mutant's file must be the chain's LAST author of the function its `find` sits in (mutate the caller). */
@@ -613,9 +635,12 @@ async function main() {
      be flagged, naming the LAST author: a patch is an author, and so is the restatement after it. */
   const patched = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);' }], { patches: true });
   if (!patched.some((s) => s.includes(MEMBER_LAST))) { console.error('✗ ANCHOR selftest: a plant in 12-15\'s pin-patched hr_hunt_apply_member was not flagged'); process.exit(1); }
-  const stale = staleAnchors(MUTANTS, { patches: true });
-  for (const s of stale) console.error('✗ ANCHOR ' + s);
-  let missed = stale.length;
+  /* ...and a find no live body holds is a refusal, never a quiet survivor. */
+  const { db: probeDb } = await bootReplay();
+  const noBody = await plantLive(probeDb, 'hr_apply', 'no live body holds this line', 'x');
+  await probeDb.close().catch(() => {});
+  if (!noBody) { console.error('✗ ANCHOR selftest: a find no live body holds was reported planted'); process.exit(1); }
+  let missed = 0;
   /* `--arm A,B`: only the mutants of those arms (a lane proving the arms its diff touches; the nightly runs all). */
   const armAt = process.argv.indexOf('--arm');
   const onlyArms = armAt > 0 ? String(process.argv[armAt + 1] || '').split(',') : null;
@@ -623,13 +648,20 @@ async function main() {
     if (onlyArms && !onlyArms.includes(mu.arm)) continue;
     let db;
     try {
-      /* A hook in a feature file is reached only through 2026-10-25-settle-hooks.sql (its caller, the
-         LAST S2 file), so every mutant replays the whole chain: stopping at the patched file would
-         leave the hook uncalled and the arm red for the wrong reason. */
-      const last = mu.file === S2_FILES[S2_FILES.length - 1];
-      ({ db } = await bootReplay({ patches: new Map([[mu.file, [selfCheckOff(mu.file), ...(mu.also || []), [mu.find, mu.repl]]]]),
-        upTo: last ? LAST_PATCHED : undefined,
-        fullChain: last ? undefined : 'the S2 hooks are called by 2026-10-25-settle-hooks.sql, which must run after the patched file for its arm to see the defect' }));
+      const fn = mu.also ? null : plantedFunction(mu);
+      if (fn) {
+        ({ db } = await bootReplay());
+        const refused = await plantLive(db, fn, mu.find, mu.repl);
+        if (refused) { console.error(`✗ ANCHOR ${mu.arm} (${mu.why}): ${refused}`); missed++; await db.close().catch(() => {}); continue; }
+      } else {
+        /* A hook in a feature file is reached only through 2026-10-25-settle-hooks.sql (its caller, the
+           LAST S2 file), so every mutant replays the whole chain: stopping at the patched file would
+           leave the hook uncalled and the arm red for the wrong reason. */
+        const last = mu.file === S2_FILES[S2_FILES.length - 1];
+        ({ db } = await bootReplay({ patches: new Map([[mu.file, [selfCheckOff(mu.file), ...(mu.also || []), [mu.find, mu.repl]]]]),
+          upTo: last ? LAST_PATCHED : undefined,
+          fullChain: last ? undefined : 'the S2 hooks are called by 2026-10-25-settle-hooks.sql, which must run after the patched file for its arm to see the defect' }));
+      }
     } catch (e) { console.error(`✗ HARNESS ${mu.arm} (${mu.why}): the patched chain would not boot: ${String(e.message).split('\n').slice(0, 2).join(' ')}`); missed++; continue; }
     await ctx.H.pinDice(db);
     const [r] = await runArms(db, ctx, [mu.arm]);

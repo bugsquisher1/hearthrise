@@ -147,15 +147,10 @@ function scripted(fixture, prep) {
   return s;
 }
 
-/* Verdana here, its Linux twin there: the web font's names, drawn wide. */
-const WIDE_FACES = ['Alegreya Sans', 'Alegreya Sans SC'].flatMap((n) => [[400, 'Verdana', 'DejaVu Sans'], [700, 'Verdana Bold', 'DejaVu Sans Bold']]
-  .map(([w, a, b]) => "@font-face{font-family:'" + n + "';font-weight:" + w + ";src:local('" + a + "'),local('" + b + "')}")).join('');
 async function stub(page, s, fonts) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-  /* Shots load the real faces (a judgement needs them); the rules run offline on a WIDE fallback, on every machine: a green on Windows (Segoe UI)
-     said nothing of GitHub's Linux font (run 41742521577: PH-26, 27, 28 red there, green here; AW-62 met it first, run 41385560100).
-     The two wide fonts still differ: DejaVu draws about 2% narrower, 5% on a %, so a mutant must miss by more than that (run 41759029390). */
-  if (!fonts) await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: WIDE_FACES }));
+  /* Shots load the real faces (a judgement needs them); the rules run offline on GitHub's own wide fallback, on every machine (tests/_test-fonts.mjs). */
+  if (!fonts) await pinFonts(page);
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');

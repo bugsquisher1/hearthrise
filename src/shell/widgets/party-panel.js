@@ -205,7 +205,7 @@ export function renderPartyPanel() {
     '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol>' + holdHtml()
     + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>Leave party</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>Disband</button></div>'
-    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot">Costs are personal.</p>');
+    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot" hidden>You each pay for your own supplies.</p>');
 }
 
 renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
@@ -213,6 +213,8 @@ renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
   const sc = scOf(el);
   const view = { leaderSeat: r.leaderSeat, selfSeat: r.selfSeat, canKick: r.inParty && r.isLeader, pending: sc.pending, roster: r };
   cls(el.querySelector('.hp-party'), 'is-empty', !r.members.length);
+  /* Said to a party only: a hero hunting alone read "Costs are personal." with nobody to share them with (door panel 2026-11-04). */
+  prop(el.querySelector('.hp-foot'), 'hidden', r.members.length < 2);
   rows(el.querySelector('.hp-members'), r.members, {
     key: (m) => m.seat,
     build: () => element(ctx.doc, memberHtml(ctx.glyphs)),

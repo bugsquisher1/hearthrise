@@ -804,6 +804,25 @@ async function planRules(base) {
   const WATER = RUNES.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_water_rune', partner: 'chalked_water_rune' }]);
   const same = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('greater_mend', 'plain_water_rune'), stored('circle_of_renewal', 'plain_water_rune')], store: WATER } }));
   if (!same.startsWith('Runes: Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells of one family read ' + JSON.stringify(same));
+  /* AW-27 A PICK KEEPS DETAILS ON THE PICK: the list moves under a pointer that has not (art audit 2026-11-04: pick Mend, read Power Strike); the pointer's next move counts again */
+  {
+    const { renderConfigureAction } = await imp('src/shell/windows/configure-action.js');
+    /* the instance the window itself imports (its scratch is per module instance) */
+    const { BUILD } = await imp('src/build-info.js');
+    const { openSlot } = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + '?v=' + BUILD.version);
+    const sec = { hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'power_strike', 0)], store: STORE } };
+    const cs = { read: (k) => sec[k] };
+    openSlot(cs, 0);
+    let paints = 0;
+    const ctx = { character: cs, refresh: () => { paints++; }, wm: { close() {} } };
+    const row = (id) => ({ getAttribute: (k) => ({ 'data-x': 'pick', 'data-type': 'ability', 'data-id': id })[k] ?? null });
+    renderConfigureAction.act(ctx, {}, 'cfg', { type: 'click', clientX: 300, clientY: 200 }, row('mend'));
+    const afterPick = paints;
+    renderConfigureAction.act(ctx, {}, 'cfg', { type: 'mouseover', clientX: 300, clientY: 200 }, row('power_strike'));
+    if (paints !== afterPick) fails.push('AW-27 the list moved under a still pointer and Details followed it');
+    renderConfigureAction.act(ctx, {}, 'cfg', { type: 'mouseover', clientX: 301, clientY: 200 }, row('power_strike'));
+    if (paints !== afterPick + 1) fails.push('AW-27 a moved pointer no longer compares a row after a pick');
+  }
   /* AW-27 AN ANSWER LEAVES ON ITS OWN (QA 2026-11-04: "Put on 3 pieces." still stood when the window was reopened hours later), unless a newer one replaced it */
   {
     const { runIntent, ANSWER_STANDS_MS } = await imp('src/shell/intent-words.js');

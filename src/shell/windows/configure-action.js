@@ -294,6 +294,10 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
   /* Hover or focus compares a row against the pick (display only). */
   if ((ev.type === 'mouseover' || ev.type === 'focusin') && action === 'cfg') {
     if (t.getAttribute('data-x') !== 'pick') return false;
+    /* A pick grows the sentence above the list, so the list moves under a pointer that has not: the browser's mouseover then names
+       a row nobody aimed at, and Details describes it (pick Mend, read Power Strike: art audit 2026-11-04). A row counts from the pointer's next move. */
+    if (ev.type === 'mouseover' && v.pickedAt && v.pickedAt.x === ev.clientX && v.pickedAt.y === ev.clientY) return false;
+    v.pickedAt = null;
     const next = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
     if (keyOf(v.hover) !== keyOf(next)) { v.hover = next; repaint(); }
     return false;
@@ -308,6 +312,7 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
     else if (x === 'pick') {
       d.action = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
       v.hover = null;
+      v.pickedAt = { x: ev.clientX, y: ev.clientY };
       LAST_TAB.set(cs, tabOf(d.action));
       const st = storeDefault(d.action, (settingsOf(cs) || {}).store);
       if (st) d.action.store = st;

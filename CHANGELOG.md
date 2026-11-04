@@ -13,6 +13,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - Before you go now says which Blessings you have on, what they save you on a death, and the price of the next.
 - Making juice now says "Making Turnip Juice", not "Cooking Turnip".
 - The answer to your last press leaves a window after half a minute, so an old "Put on 3 pieces." isn't still there when you come back.
+- Got it can no longer finish a card you haven't seen yet, so the coach doesn't skip a step.
 
 ## v0.2.89 — 2026-11-04 (Still Here)
 

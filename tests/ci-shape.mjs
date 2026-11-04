@@ -17,7 +17,8 @@
 // This repository has shipped a guard that asserted nothing twelve times. So
 // the split ships with the thing that would notice:
 //
-//   CI-SHAPE-1  the workflow parses, and into more than one job
+//   CI-SHAPE-1  the workflow parses, into more than one job, with no job name twice (GitHub refuses
+//               such a file before any job starts: run 41009307704, a red with no jobs at all)
 //   CI-SHAPE-2  every job declares timeout-minutes (a job with no budget can
 //               hang for six hours and bill the whole account for it)
 //   CI-SHAPE-3  every job checks out the repository
@@ -104,6 +105,8 @@ export function analyse({ workflowText, baseline, listText }) {
     fail('CI-SHAPE-1', `the workflow parsed to ${jobs.length} job(s); the matrix is the point — `
       + 'one job means the split has been undone and the wall clock is back to the sum.');
   }
+  const twice = jobs.map((j) => j.name).filter((n, i, all) => all.indexOf(n) !== i);
+  if (twice.length) fail('CI-SHAPE-1', `job name(s) ${[...new Set(twice)].join(', ')} appear twice: GitHub will not load the workflow at all.`);
 
   for (const j of jobs) {
     if (!Number.isFinite(j.timeoutMinutes)) {
@@ -307,6 +310,9 @@ async function selftest() {
   const JWT = 'node tests/edge-jwt-gate.mjs --strict';
 
   const arms = [
+    ['two jobs with one name, so GitHub refuses the file', 'CI-SHAPE-1', () => ({
+      workflowText: workflowText.replace(/^ {2}client-guards-2:$/m, '  client-guards:'), baseline, listText,
+    })],
     ['the matrix collapsed back to something unparseable', 'CI-SHAPE-1', () => ({
       workflowText: dropLine((l) => l === 'jobs:', 'the "jobs:" line'), baseline, listText,
     })],

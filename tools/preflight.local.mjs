@@ -6,13 +6,16 @@
 //   node tools/preflight.local.mjs --list       the plan, nothing run
 //   node tools/preflight.local.mjs -j N         N at a time (default 3: other lanes share this machine)
 //   node tools/preflight.local.mjs --times      also the 25 slowest commands
+//   node tools/preflight.local.mjs --proofs     instead: the proofs this diff touches in every job with no browser, narrowed
+//                                               as GitHub narrows them, one at a time (10-20 min, no Chrome)
 //   node tools/preflight.local.mjs --selftest   the plan and the verdict, each proved by a planted mutant
 //
-// WHY (lane r-release-gate, 2026-11-04). Of the last 30 red release runs, 25 of the 76 causes were a guard that
-// needs no browser and no chain: a forgotten `module-preload --write` (5), a comment ratchet (5), a file over its
-// line cap, a census pin, a spelling, a stale mutant anchor. Each cost a run of about an hour, and restore-census
-// failed four minutes into v0.2.86's while 43 other jobs ran on. This runs them on the Coordinator's machine in under
-// three minutes, before the push, and says what to do. It is not a gate: GitHub is (CLAUDE.md §3.3).
+// WHY (lane r-release-gate, 2026-11-04). Of the 79 causes behind the last 30 red release runs, 24 were a forgotten pin or
+// chore (module-preload --write x4, the comment ratchet x4, a census pin, a file over its line cap, a spelling, a stale anchor)
+// and 39 a proof an intended change left behind. Each cost a run of about an hour, and restore-census failed four minutes
+// into v0.2.86's while 43 other jobs ran on. This runs the first kind on the Coordinator's machine in under three minutes,
+// before the push, and says what to do; --proofs runs the second kind, where no browser is needed. It is not a gate:
+// GitHub is (CLAUDE.md §3.3).
 //
 // WHAT RUNS IS READ FROM smoke.yml, the way tests/run-ci-local.mjs does, so it cannot drift:
 //   every plain command of the client-guards jobs                  (the always-run half of a release's own run)
@@ -21,6 +24,9 @@
 // SLOW names what stays on GitHub, each with its measured seconds and why. A name that is no longer in smoke.yml is
 // a harness error, so the list cannot rot. A proof that plants into the tree (guard-anchors' solo) never runs here:
 // this machine is where the lanes work. Anything past a command's limit is said out loud as NOT JUDGED, never green.
+//
+// --proofs (a set that moved a body, an engine or a catalogue): 29 of the 39 left-behind proofs needed no browser. Slow, so not the
+// default; GitHub remains the judge of the page proofs.
 //
 // Exit: 0 every command judged green · 1 a red · 2 a harness problem · 3 no red, but some commands not judged (GitHub will).
 // mutant-anchors: none — the proof plants into copies of the workflow text and a scratch runner, never a tree file
@@ -61,6 +67,8 @@ export const EXTRAS = [
   ['node tests/rpc-resolution.mjs', (f) => CHAIN(f), 'a client RPC moved: --update-baseline in the same commit (41226511232)'],
   ['node tests/apply-order-honesty.mjs', (f) => CHAIN(f) || f === 'tests/live-hash-drift.baseline.json', 'every apply-order note agrees with the baseline'],
   ['bash bump-version.sh --check', () => true, 'the three version strings agree'],
+  ['node tests/level-curve.mjs', (f) => /^src\/data\/(monsters|hunts|core-model|level)/.test(f), 'a ground or a monster moved: the curve is re-measured (40772818413)'],
+  ['node tests/core-purity.mjs', (f) => f.startsWith('src/core/') || /^src\/data\/core-model/.test(f), 'run-smoke\'s curve anchors (40789905806)'],
 ];
 
 const isSkipped = (name) => SKIP.some(([n]) => n === name);
@@ -69,7 +77,7 @@ const isSkipped = (name) => SKIP.some(([n]) => n === name);
  * The plan, from the workflow's text and a diff. Pure.
  * @returns {{ run: {cmd,why,proof,guard}[], left: {cmd,why}[], errors: string[] }}
  */
-export function buildPlan(text, { changed = [], selected = new Set(), solo = new Set(), slow = SLOW, extras = EXTRAS, job = CHEAP_JOB } = {}) {
+export function buildPlan(text, { changed = [], selected = new Set(), solo = new Set(), slow = SLOW, extras = EXTRAS, job = CHEAP_JOB, smokeText = '' } = {}) {
   const steps = flatSteps(parseWorkflow(text));
   const errors = [];
   const run = [];
@@ -94,7 +102,7 @@ export function buildPlan(text, { changed = [], selected = new Set(), solo = new
     }
   }
   for (const [inner, when, why] of extras) {
-    if (!all.has(inner)) { errors.push(`EXTRAS names "${inner}", which smoke.yml no longer runs`); continue; }
+    if (!all.has(inner) && !smokeText.includes(`./${guardFileOf(inner).replace(/^tests\//, '')}`)) { errors.push(`EXTRAS names "${inner}", which smoke.yml no longer runs`); continue; }
     if (seen.has(inner) || !changed.some(when)) continue;
     seen.add(inner);
     run.push({ cmd: inner, why, proof: false, guard: guardFileOf(inner) });
@@ -102,8 +110,16 @@ export function buildPlan(text, { changed = [], selected = new Set(), solo = new
   return { run, left, errors };
 }
 
+/** --proofs: the touched proofs of every job that installs no browser, read from the workflow. Pure. */
+export function proofsPlan(text, { selected = new Set(), solo = new Set() } = {}) {
+  const jobs = parseWorkflow(text);
+  const browser = new Set(jobs.filter((j) => j.steps.some((s) => /playwright-chromium/.test(s.uses || ''))).map((j) => j.name));
+  const plan = buildPlan(text, { selected, solo, slow: new Map(), extras: [], job: { test: (name) => !browser.has(name) } });
+  return { run: plan.run.filter((r) => r.proof), left: plan.left.filter((l) => PROOF_FLAG.test(l.cmd)), errors: plan.errors };
+}
+
 /** Run one command; never throws. { status, seconds, out, killed }. */
-function runOne(cmd, { cwd = ROOT, limitS = COMMAND_LIMIT_S } = {}) {
+function runOne(cmd, { cwd = ROOT, limitS = COMMAND_LIMIT_S, env = {} } = {}) {
   return new Promise((done) => {
     const [file, ...args] = cmd.split(/\s+/);
     const started = Date.now();
@@ -111,7 +127,7 @@ function runOne(cmd, { cwd = ROOT, limitS = COMMAND_LIMIT_S } = {}) {
     const keep = (b) => { out = (out + b.toString()).slice(-4000); };
     let child;
     try {
-      child = spawn(file === 'node' ? process.execPath : file, args, { cwd, env: { ...process.env, HR_PREFLIGHT: '1' }, windowsHide: true });
+      child = spawn(file === 'node' ? process.execPath : file, args, { cwd, env: { ...process.env, ...env }, windowsHide: true });
     } catch (e) { done({ status: 2, seconds: 0, out: e.message, killed: false }); return; }
     let killed = false;
     const timer = setTimeout(() => { killed = true; child.kill(); }, limitS * 1000);
@@ -123,7 +139,7 @@ function runOne(cmd, { cwd = ROOT, limitS = COMMAND_LIMIT_S } = {}) {
 }
 
 /** The pool. Everything still unstarted past the run limit is NOT JUDGED. Returns one result per command, in order. */
-export async function runAll(cmds, { jobs = 3, runLimitS = RUN_LIMIT_S, limitS = COMMAND_LIMIT_S, cwd = ROOT, one = runOne } = {}) {
+export async function runAll(cmds, { jobs = 3, runLimitS = RUN_LIMIT_S, limitS = COMMAND_LIMIT_S, cwd = ROOT, one = runOne, env = {}, onDone = () => {} } = {}) {
   const results = new Array(cmds.length);
   const t0 = Date.now();
   let next = 0;
@@ -132,7 +148,8 @@ export async function runAll(cmds, { jobs = 3, runLimitS = RUN_LIMIT_S, limitS =
       const i = next++;
       const room = runLimitS - (Date.now() - t0) / 1000;
       if (room <= 0) { results[i] = { cmd: cmds[i].cmd, status: null, seconds: 0, out: '', notRun: true }; continue; }
-      results[i] = { cmd: cmds[i].cmd, ...(await one(cmds[i].cmd, { cwd, limitS: Math.min(limitS, room) })) };
+      results[i] = { cmd: cmds[i].cmd, ...(await one(cmds[i].cmd, { cwd, env, limitS: Math.min(limitS, room) })) };
+      onDone(results[i]);
     }
   };
   await Promise.all(Array.from({ length: Math.max(1, jobs) }, worker));
@@ -290,17 +307,61 @@ async function selftest() {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 
   /* The real workflow: SLOW and EXTRAS name real commands, and the plan holds the guards the last 30 reds needed. */
-  const real = buildPlan(readFileSync(WORKFLOW, 'utf8'), { changed: ['supabase/migrations/x.sql', 'src/data/items.js'] });
+  const real = buildPlan(readFileSync(WORKFLOW, 'utf8'), { changed: ['supabase/migrations/x.sql', 'src/data/items.js'], smokeText: readFileSync(join(ROOT, 'tests', 'run-smoke.mjs'), 'utf8') });
   ok(!real.errors.length, `SLOW and EXTRAS name commands smoke.yml runs (${real.errors.join('; ') || 'all of them'})`);
   for (const need of ['node tests/module-preload.mjs', 'node tests/comment-ratio-ratchet.mjs --report', 'node tests/client-module-size.mjs', 'node tests/mutant-anchors.mjs',
     'node tests/copy-lint.mjs --report', 'node tests/dead-exports.mjs', 'node tests/patch-chain-guard.mjs --report', 'bash bump-version.sh --check', 'node tests/restore-census.mjs']) {
     ok(names(real).includes(need), `the real plan runs ${need}`);
+  }
+  /* --proofs: every job with no browser, touched proofs only, none that plants into the tree. */
+  const proofChecks = (impl) => {
+    const p = impl(FIXTURE, { selected: new Set(['tests/census.mjs', 'tests/plain-b.mjs', 'tests/plants.mjs', 'tests/page.mjs']), solo: new Set(['tests/plants.mjs']) });
+    const n = p.run.map((r) => r.cmd);
+    return [
+      [n.includes('node tests/census.mjs --mutate') && n.includes('node tests/plain-b.mjs --mutate'), '--proofs reads every job with no browser'],
+      [!n.some((c) => !PROOF_FLAG.test(c)), '--proofs runs no plain command'],
+      [!n.includes('node tests/plants.mjs --selftest'), '--proofs never plants into the tree'],
+      [!impl(FIXTURE, { selected: new Set() }).run.length, '--proofs on an untouched diff runs nothing'],
+    ];
+  };
+  for (const [c, m] of proofChecks(proofsPlan)) ok(c, m);
+  for (const [label, impl] of [
+    ['--proofs reads client-guards alone', (t, o) => { const r = proofsPlan(t, o); return { ...r, run: r.run.filter((x) => /plain-[ab]/.test(x.cmd)) }; }],
+    ['--proofs runs plain commands', (t, o) => buildPlan(t, { ...o, slow: new Map(), extras: [], job: /./ })],
+    ['--proofs plants', (t, o) => proofsPlan(t, { ...o, solo: new Set() })],
+    ['--proofs runs whatever the diff', (t, o) => proofsPlan(t, { ...o, selected: { has: () => true } })],
+  ]) {
+    const missed = proofChecks(impl).every(([c]) => c);
+    console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} --proofs mutant: ${label}`);
+    if (missed) fails.push(`--proofs mutant missed: ${label}`);
   }
   console.log(fails.length ? `\n  preflight --selftest: ${fails.length} failed` : '\n  preflight --selftest: the plan is read from smoke.yml, a red and a timeout are red, every mutant caught');
   return fails.length ? 1 : 0;
 }
 
 // ── the CLI ────────────────────────────────────────────────────────────────
+/* One at a time, each narrowed by the same plan GitHub hands its guards (HR_MUTANT_SCOPE), each printed as it ends. */
+async function deepProofs(text, d, allProofs, read, solo, argv) {
+  const selected = new Set(selectGuards(d.files, { base: d.sha, extraGuards: allProofs, regions: d.regions, read }).keys());
+  const plan = proofsPlan(text, { selected, solo });
+  console.log(`preflight --proofs: ${d.files.length} changed file(s) since ${d.sha.slice(0, 9)}; ${plan.run.length} proof(s) to run, ${plan.left.length} that plant into the tree stay on GitHub`);
+  if (argv.includes('--list')) { for (const r of plan.run) console.log(`  run   ${r.cmd}`); for (const l of plan.left) console.log(`  left  ${l.cmd}`); return 0; }
+  const dir = mkdtempSync(join(tmpdir(), 'hr-preflight-plan-'));
+  const scope = join(dir, 'plan.json');
+  writeFileSync(scope, JSON.stringify({ full: false, base: d.sha, tip: d.head, changed: d.files, selected: Object.fromEntries([...selected].map((g) => [g, 'preflight --proofs'])) }));
+  try {
+    const t0 = Date.now();
+    const results = await runAll(plan.run, { jobs: 1, runLimitS: 45 * 60, limitS: 20 * 60, env: { HR_MUTANT_SCOPE: scope }, onDone: (r) => {
+      if (r.notRun) return;
+      console.log(`  ${r.killed ? 'NOT JUDGED' : r.status === 0 ? 'ok ' : 'RED'}  ${String(Math.round(r.seconds)).padStart(4)} s  ${r.cmd}`);
+      if (r.status !== 0 && !r.killed) console.log(r.out.trim().split('\n').slice(-10).map((l) => `       ${l.slice(0, 200)}`).join('\n'));
+    } });
+    const v = verdict(results);
+    console.log(`\npreflight --proofs: ${v.green} green, ${v.red.length} red, ${v.unjudged.length} not judged, ${Math.round((Date.now() - t0) / 1000)} s`);
+    return v.exit;
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
 async function main(argv) {
   if (argv.includes('--selftest')) return selftest();
   const at = (f) => (argv.includes(f) ? argv[argv.indexOf(f) + 1] : null);
@@ -311,7 +372,9 @@ async function main(argv) {
   const read = (rel) => committedTexts(ROOT, d.sha, rel, d.head);
   const selected = new Set(selectGuards(d.files, { base: d.sha, extraGuards: proofs, regions: d.regions, read }).keys());
   const solo = new Set(catalogue(ROOT).filter((e) => e.solo).map((e) => e.guard));
-  const plan = buildPlan(text, { changed: d.files, selected, solo });
+  const allProofs = flatSteps(parseWorkflow(text)).flatMap((s) => s.run).filter((c) => PROOF_FLAG.test(unwrapGate(c))).map(guardFileOf);
+  if (argv.includes('--proofs')) return deepProofs(text, d, allProofs, read, solo, argv);
+  const plan = buildPlan(text, { changed: d.files, selected, solo, smokeText: readFileSync(join(ROOT, 'tests', 'run-smoke.mjs'), 'utf8') });
   console.log(`preflight: ${d.files.length} changed file(s) since ${d.sha.slice(0, 9)} (${base}); ${plan.run.length} command(s), ${plan.run.filter((r) => r.proof).length} of them proofs this diff touches; ${plan.left.length} left for GitHub`);
   if (d.dirty) console.log('preflight: UNCOMMITTED changes here; GitHub judges the commit, not this tree');
   if (plan.errors.length) { for (const e of plan.errors) console.error(`  HARNESS  ${e}`); return 2; }

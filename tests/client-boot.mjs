@@ -77,6 +77,8 @@
 //        "You were signed out. Sign in again.", no session copy left, and the dead
 //        session sends no more than a handful of calls
 // ════════════════════════════════════════════════════════════════════════
+// mutant-rule-functions: checks
+// mutant-runner-functions: main
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
@@ -170,8 +172,11 @@ const until = async (page, fn, arg, ms = 60000) => {
 /* `leaving`: run B-17 and B-18 too. Together about 20 s a run: --mutate runs them for their own mutants and the clean control only, or
    36 mutants add 12 minutes to a 30-minute CI job (smoke.yml in-page, measured 14.2). `notice`: B-7's whole walk, the same way (with no flag, the notice's arrival only).
    `reloads`: B-19, the same way. */
-async function checks(overrides, leaving = true, notice = true, reloads = true) {
+/* A mutant needs ONE red rule: its run stops at the first. 61 mutants ran every rule, 57 of the 70 minutes v0.2.84's whole run took (41697486160). */
+const STOP = Symbol('first red');
+async function checks(overrides, leaving = true, notice = true, reloads = true, { stopAtFirst = false } = {}) {
   const fails = [];
+  if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -186,6 +191,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       return { ctx, page, errors };
     };
 
+    /* mutant-rules-start */
     { // N-1
       const { ctx, page, errors } = await fresh();
       await page.goto(base + '/', { waitUntil: 'load' });
@@ -904,6 +910,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
         await s.ctx.close();
       }
     }
+  } catch (e) {
+    if (e !== STOP) throw e;
   } finally {
     await browser.close();
     server.close();
@@ -1001,7 +1009,7 @@ async function main() {
     const missing = pairs.find(([a]) => !text.includes(a));
     if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     for (const [a, b] of pairs) text = text.replace(a, b);
-    const fails = await checks({ [file]: text }, /\(B-1[78]\)/.test(name), /\(B-7\)/.test(name), /\(B-19\)|cannot load/.test(name));
+    const fails = await checks({ [file]: text }, /\(B-1[78]\)/.test(name), /\(B-7\)/.test(name), /\(B-19\)|cannot load/.test(name), { stopAtFirst: true });
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

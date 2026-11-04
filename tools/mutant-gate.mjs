@@ -347,7 +347,8 @@ function explain(argv) {
 function rulesFrom(logPath) {
   const log = readFileSync(logPath, 'utf8').split('\n');
   const caught = new Map();
-  for (const l of log) { const m = /✓ (.*) — caught \(([^)]+)\)\s*$/.exec(l); if (m) caught.set(m[1], m[2]); }
+  /* The rule's id alone: phone-touch reads "PH-9 [844x390]", and a rule edit names PH-9. */
+  for (const l of log) { const m = /✓ (.*) — caught \(([^)]+)\)\s*$/.exec(l); if (m) caught.set(m[1], m[2].split(' ')[0]); }
   for (const [guard, src] of guardSources(ROOT)) {
     const raw = readFileSync(join(ROOT, guard), 'utf8');
     if (src === null || !/^\/\/ mutant-rule-functions:/m.test(raw)) continue;

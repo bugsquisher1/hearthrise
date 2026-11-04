@@ -59,7 +59,8 @@ import { spawnSync } from 'node:child_process';
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
 const PRODUCTION_REF = 'nezapsylztqbbwuwembx';
 const REFUSED = 3;
-const PASSWORD = 'local-world-password';   // a throwaway value for accounts that live and die with this process
+export const LOCAL_PASSWORD = 'local-world-password';
+const PASSWORD = LOCAL_PASSWORD;   // a throwaway value for accounts that live and die with this process
 const OPEN_FILE = '2027-02-10-playtest-open.sql';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon' };

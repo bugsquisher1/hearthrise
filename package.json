@@ -49,6 +49,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",
     "@electric-sql/pglite-socket": "^0.2.8",
+    "esbuild": "0.28.2",
     "playwright": "^1.47.0",
     "postgres": "3.4.5"
   }

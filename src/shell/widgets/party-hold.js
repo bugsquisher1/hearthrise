@@ -18,11 +18,11 @@
 //     when the pick is far weaker than the strongest tank (the engine's own
 //     floor, targeting.js underHoldFloor, over the server's max HP).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.88';
-import { underHoldFloor } from '../../core/hunt/targeting.js?v=0.2.88';
-import { setHoldSeat } from '../../session/party-intents.js?v=0.2.88';
-import { runIntent } from '../intent-words.js?v=0.2.88';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.88';
+import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.89';
+import { underHoldFloor } from '../../core/hunt/targeting.js?v=0.2.89';
+import { setHoldSeat } from '../../session/party-intents.js?v=0.2.89';
+import { runIntent } from '../intent-words.js?v=0.2.89';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.89';
 
 const isTank = (m) => !!(m.role && HUNT_ROLES[m.role] && HUNT_ROLES[m.role].tank);
 const FLOOR = Math.round(CHALLENGE.holderMinHpPm / 10) + '%';

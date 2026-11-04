@@ -2501,10 +2501,21 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!tabs.whole) fails.push('AW-67 the Shop\'s tabs are cut on a scrolled body: ' + JSON.stringify(tabs));
         if (tabs.gap > 1) fails.push('AW-67 the list reads on ' + tabs.gap + ' px above the Shop\'s stuck tabs');
         /* A tab opens at its top: a carried-over scroll laid its first press behind the stuck tabs. */
-        await page.click('[data-hs-win="shop"] .hw-tab:first-child');
-        await page.waitForTimeout(200);
-        const topped = await page.evaluate(() => document.querySelector('[data-hs-win="shop"] [data-hs-body]').scrollTop);
-        if (topped !== 0) fails.push('AW-67 the Shop\'s tab opened scrolled down by ' + topped);
+        /* the press itself, not Playwright's: its click scrolls the page to the tab first */
+        const topped = await page.evaluate(async () => {
+          const b = document.querySelector('[data-hs-win="shop"] [data-hs-body]');
+          /* this fixture's other tabs are short and would clamp a kept scroll to 0: a floor under them keeps it */
+          const floor = document.createElement('div'); floor.style.height = '1500px'; b.append(floor);
+          b.scrollTop = 40;
+          const was = b.scrollTop;
+          document.querySelector('[data-hs-win="shop"] .hw-tab:first-child').click();
+          await new Promise((r) => setTimeout(r, 200));
+          const now = b.scrollTop;
+          floor.remove();
+          return { was, now };
+        });
+        if (!topped.was) fails.push('AW-67 CONTROL: the Shop does not scroll before its tab is pressed');
+        if (topped.now !== 0) fails.push('AW-67 the Shop\'s tab opened scrolled down by ' + topped.now);
         /* The card's figure is what the bag would fetch, never a purse (Tyler 10-23: one purse per account). */
         await openWin(page, 'o', 'characters');
         await page.waitForTimeout(250);

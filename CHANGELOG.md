@@ -9,6 +9,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **No hidden penalty for rushing.** A monster now hits every hero the same way, whatever your Level. A hunting ground above your Level is simply full of monsters stronger than you: expect to spend more on supplies, or to die, for more XP and better loot. The game still warns you and asks you to press once more.
 
+**What next is one goal.** The card now names the one thing worth doing next, with the press that does it, and More shows the rest. It tells you when your next hero is free or paid for, when more stamina is yours to buy, and which harder ground is your next step up. The Hunts list marks that ground too, opens on the harder ground you last hunted, and sends a party to Mosslight Glade from Level 16 and a lone hero to Coppercap Warrens from Level 45.
+
 ## v0.2.87 — 2026-11-04 (Upgrades You Can Feel)
 
 **Upgrades you can feel.** Iron and Steel Warhammers and Hatchets hit harder, so moving up to one now speeds up your hunts, and Klappa's Club still hits as hard as an Iron Warhammer. Four friends with the same weapon in Meadowbrook Thicket earn a little more Level XP.

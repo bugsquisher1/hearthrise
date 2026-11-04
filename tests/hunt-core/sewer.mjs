@@ -290,7 +290,56 @@ function walkChain(M, T, extra) {
   return out;
 }
 
+/* What next as a player can read it: the card's goal and the ones behind its More. */
+const whatNext = (g) => (g ? [g.text, ...(g.also || [])].join(' ') : '');
 const cases = {
+  'what-next-one-goal': async (M) => {
+    /* WHAT NEXT IS ONE GOAL (played 2026-11-04, Level 17: eight sentences, the Farm first and the third hero not named; blind 20-hour panel: "a five-sentence paragraph"). The walk-through, one lone sword
+       and shield through the hours as played: at each stop the first goal is the one the card says, and the others wait behind More. Prices are the server's, passed in. */
+    const roster = (n) => Array.from({ length: n }, (_, i) => ({ slot: i, level: 10, name: 'H' + i, open: i === 0, hunting: false }));
+    const at = (charLevel, more) => M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 90, land: { planted: 0, ready: {} }, inParty: false, gold: 0, slotCost: 50000, slotsOwned: 2, roster: roster(2), visited: new Set(), staminaMs: 28800000, refill: null, tally: { held: 1 }, home: null, ...more });
+    const THICKET = 'meadowbrook_thicket', WICK = 'wickstead', GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens';
+    const walk = [
+      /* Level, the facts of the stop, what the card's one line must say */
+      ['one hero, a free slot', 10, { roster: roster(1), gold: 15000, visited: new Set([THICKET]) }, 'Your second hero is free: press Characters, then Create hero. It hunts while this one does.'],
+      ['two heroes, the Glade unwalked', 10, { gold: 15000, visited: new Set([THICKET, WICK]) }, 'Next step up: Mosslight Glade, built for Level 16. You can go now: more XP and better loot, a bigger food bill, and you could die. Press Hunts.'],
+      ['the Glade walked, 41k: the hero, never the Farmstead', 17, { gold: 41172, visited: new Set([THICKET, WICK, GLADE, WARRENS]), home: { owned: true, next: { name: 'Fieldworth Farmstead', gold: 2500, items: [{ id: 'normal_log', qty: 40 }] } } }, 'A third hero costs 50,000 gp, and you have 41,172 gp: another hero hunting while this one does.'],
+      ['the purse is there', 18, { gold: 50000, visited: new Set([THICKET, WICK, GLADE]) }, 'You can pay for a third hero (50,000 gp): press Characters. It hunts while this one does.'],
+      ['the Warrens fifteen Levels up, unwalked', 17, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Next step up: Coppercap Warrens, built for Level 32. You can go now: more XP and better loot, a bigger food bill, and you could die. Press Hunts.'],
+      ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'The Sewer fits your Level with a party. Right-click your other hero\'s tab (on a phone: Heroes, then Invite) and choose Invite to party.'],
+      ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Your stamina is nearly out. 4 more hours of hunting cost 6,000 gp: press the + beside your stamina.'],
+      ['no task held, past the Sewer', 27, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), tally: { held: 0, paid: 0, weight: true } }, 'Tamsin pays for kills, and in armor too: open her tally (Q) and take a task.'],
+      ['nothing to buy: the gear', 27, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), land: null }, 'Next gear at Level 28: Houndskin Cloak (cape).'],
+    ];
+    for (const [what, lv, more, want] of walk) {
+      const g = at(lv, more);
+      if (!g || g.text !== want) return what + ' (Level ' + lv + '): the card reads ' + JSON.stringify(g && g.text) + ', wanted ' + JSON.stringify(want);
+      if (!Array.isArray(g.also) || g.also.includes(g.text)) return what + ': the rest of the goals read ' + JSON.stringify(g.also);
+      if (!/^goal_[a-z0-9_]+$/.test(g.id)) return what + ': the id ' + g.id + ' is not a coach key';
+    }
+    /* the walk's every stop is doable with what the stop holds: each ground it names is a real, open, row; a press it names is a real window */
+    for (const hunt of [GLADE, WARRENS]) if (!M.HUNTS[hunt] || M.HUNTS[hunt].staged) return hunt + ' is named and not open';
+    /* the empty land, which led the card for a hunter, waits behind every goal with a press */
+    const hunter = at(17, { gold: 41172, visited: new Set([GLADE, WARRENS]) });
+    if (/Nothing grows/.test(hunter.text) || !hunter.also.some((t) => /Nothing grows/.test(t))) return 'empty land reads ' + JSON.stringify(hunter);
+    /* ready crops come ahead of the waiting goals, once there are some */
+    const ripe = at(17, { gold: 41172, visited: new Set([GLADE, WARRENS]), land: { planted: 2, ready: { turnip: 2 } } });
+    if (!/^2 Turnip plots are ready/.test(ripe.text)) return 'ready crops read ' + ripe.text;
+    /* a party hears the step for the party, and no pitch */
+    const inParty = at(11, { inParty: true, visited: new Set([THICKET]), gold: 0 });
+    if (!/^Next step up: Mosslight Glade, built for Level 16\. Your party can go now/.test(inParty.text) || [inParty.text, ...inParty.also].some((t) => /Invite/.test(t))) return 'in a party it reads ' + JSON.stringify(inParty);
+    /* a stamina quote the purse can't pay, or a hero with plenty left, says nothing */
+    const q = { available: true, price: 6000, restoreMs: 14400000 };
+    const tops = (more) => whatNext(at(20, { visited: new Set([GLADE, WARRENS]), refill: q, ...more })).includes('beside your stamina');
+    if (tops({ gold: 5999, staminaMs: 60000 }) || tops({ gold: 9000, staminaMs: 1800000 }) || tops({ gold: 9000, staminaMs: 60000, refill: { available: false, why: 'refill_limit', price: null, restoreMs: null } }) || !tops({ gold: 6000, staminaMs: 60000 })) return 'the stamina line speaks at the wrong time';
+    /* the card draws one goal and keeps the rest behind More; shut until pressed */
+    const { coachHtml, actCoach } = await import(pathToFileURL(join(M.root, 'src/shell/launcher.js')).href + V);
+    const reader = { read: () => null, record: { residue: {} }, setResidue: () => {} };
+    const html = coachHtml(reader, hunter, false);
+    if (!/<span class="hs-coach-text">A third hero costs 50,000 gp, and you have 41,172 gp/.test(html) || !/data-hs-act="coach-more"/.test(html) || !/class="hs-coach-also" hidden/.test(html) || !html.includes('Nothing grows')) return 'the card draws ' + html;
+    if (typeof actCoach !== 'function') return 'no presses';
+    return null;
+  },
   'sewer-on-the-map': (M) => {
     for (const g of Object.values(M.grounds.HUNT_GROUNDS)) {
       const m = maskOf(M, g.map);
@@ -901,16 +950,16 @@ const cases = {
     if ((say(R({ ...atClub, levelXp: M.xp.charXpForLevel(16), charLevel: 16 })) || {}).id === 'klappas_club') return 'the club card is up past the first day\'s grounds';
     /* What next names the rung and how it is made, for every role, below its Level (the line that said "Level 12: Grayjaw's Ruff") */
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
-      const g = M.tut.nextGoal({ charLevel: cloak.reqLv - 1, role, skillLevel: 5, defenseXp: 9, land: null, inParty: false });
-      if (!g || !g.text.includes('Next gear at Level ' + cloak.reqLv + ': ' + cloak.n) || !g.text.includes(cloak.n + ' is made in Crafting from Wolf Pelt ×' + stitch.inputs.wolf_pelt + '.')) return role + ': What next reads ' + JSON.stringify(g && g.text);
+      const g = whatNext(M.tut.nextGoal({ charLevel: cloak.reqLv - 1, role, skillLevel: 5, defenseXp: 9, land: null, inParty: false }));
+      if (!g.includes('Next gear at Level ' + cloak.reqLv + ': ' + cloak.n) || !g.includes(cloak.n + ' is made in Crafting from Wolf Pelt ×' + stitch.inputs.wolf_pelt + '.')) return role + ': What next reads ' + JSON.stringify(g);
     }
     /* a bench rung above 1 names its level (played 10-31: Level 12, Smithing 1, the shield's line said nothing of 15) */
     const shield = M.items.ITEMS.ironbound_shield;
     const forge = (M.recipes.ARTISAN_RECIPES.smithing || []).find((r) => r.output === 'ironbound_shield');
-    const g12 = M.tut.nextGoal({ charLevel: shield.reqLv - 3, role: 'tank', skillLevel: 12, defenseXp: 9, land: null, inParty: false });
-    if (!forge || !g12 || !g12.text.includes('Ironbound Shield is made at Smithing ' + forge.req + ' from Iron Bar ×')) return 'tank at Level ' + (shield.reqLv - 3) + ': What next reads ' + JSON.stringify(g12 && g12.text);
+    const g12 = whatNext(M.tut.nextGoal({ charLevel: shield.reqLv - 3, role: 'tank', skillLevel: 12, defenseXp: 9, land: null, inParty: false }));
+    if (!forge || !g12.includes('Ironbound Shield is made at Smithing ' + forge.req + ' from Iron Bar ×')) return 'tank at Level ' + (shield.reqLv - 3) + ': What next reads ' + JSON.stringify(g12);
     /* WHAT THE GOLD IS FOR (panel 2026-11-01: 22,355 gp and "no idea what I'm saving for"), at the server's price */
-    const goal = (charLevel, more) => (M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 9, land: null, inParty: false, ...more }) || { text: '' }).text;
+    const goal = (charLevel, more) => whatNext(M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 9, land: null, inParty: false, ...more }));
     if (!goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 }).includes('You can pay for a third hero (15,000 gp): press Characters. It hunts while this one does.')) return 'at 16,000 gp What next reads ' + goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 });
     if (!goal(8, { gold: 6000, slotCost: 15000, slotsOwned: 2 }).includes('A third hero costs 15,000 gp')) return 'at 6,000 gp What next names no price: ' + goal(8, { gold: 6000, slotCost: 15000, slotsOwned: 2 });
     if (/hero \(|hero costs/.test(goal(12, { gold: 16000, slotCost: null, slotsOwned: 5 }))) return 'with no slot for sale What next offers one';
@@ -1122,7 +1171,7 @@ const cases = {
     const { ITEMS } = await imp('src/data/items.js');
     const reach = reachableSources();
     const byName = new Map(Object.entries(ITEMS).map(([id, it]) => [it.n, id]));
-    const goal = (charLevel, role) => (M.tut.nextGoal({ charLevel, role, skillLevel: charLevel, defenseXp: 10, land: null }) || { text: '' }).text;
+    const goal = (charLevel, role) => whatNext(M.tut.nextGoal({ charLevel, role, skillLevel: charLevel, defenseXp: 10, land: null }));
     const tank = goal(12, 'tank');
     /* Wickstead (v0.2.63) makes the Bramble Blade reachable at 15 too, so it may stand between the two: the line names both */
     const tankGear = (/Next gear at Level 15: [^.]*/.exec(tank) || [''])[0];
@@ -1570,7 +1619,7 @@ const mutants = [
   { name: 'the what-next line never sees the land (no farm hint)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', 'land: landOf(cs),', 'land: null,']] },
   { name: 'ready crops on the land are never named', case: 'tutorial-launcher-card',
-    edits: [['src/data/hunt-tutorial.js', '} else if (land && land.ready) {', '} else if (false) {']] },
+    edits: [['src/data/hunt-tutorial.js', '  if (land && land.ready) {', '  if (false) {']] },
   { name: 'the coach stamps the Farm window\'s countdown clock', case: 'tutorial-launcher-card',
     edits: [['src/session/farm-sections.js', '  return parse(read(cs, \'farm_land\'));\n', '  return farmLandOf(cs, 0);\n']] },
   { name: 'nothing to aim at after the guide (no what-next line)', case: 'tutorial-launcher-card',
@@ -1643,7 +1692,21 @@ const mutants = [
   { name: 'the envelope never says which hunt the player came back to', case: 'tutorial-reactive',
     edits: [['src/session/tutorial-sections.js', "huntId: open ? open.huntId : null, sessionId: open ? open.sessionId : null,", "huntId: open ? open.huntId : null,"]] },
   { name: 'What next forgets the third hero', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "  const purse = purseLine(facts);\n  if (purse) { lines.push(purse.text); ids.push(...purse.ids); }\n", '']] },
+    edits: [['src/data/hunt-tutorial.js', 'if (offer && offer.purse >= offer.slot) {', 'if (false) {']] },
+  { name: 'What next is a paragraph again (panel 2026-11-03)', case: 'what-next-one-goal',
+    edits: [['src/data/hunt-tutorial.js', "text: lines[0], also: lines.slice(1) }", "text: lines.join(' '), also: [] }"]] },
+  { name: 'the deed speaks over the hero the purse is saving for (played 11-04)', case: 'what-next-one-goal',
+    edits: [['src/data/hunt-tutorial.js', "if (purse === null || (offer && purse >= offer.slot * SAVING_FROM)) return null;", "if (purse === null) return null;"]] },
+  { name: 'the next step up names a ground already hunted', case: 'what-next-one-goal',
+    edits: [['src/data/hunt-tutorial.js', 'if (step && !visited(step.hunt)) {', 'if (step) {']] },
+  { name: 'the next step up reaches past its dare', case: 'what-next-one-goal',
+    edits: [['src/data/hunt-tutorial.js', 'r.band[0] - level <= STEP_UP.mostUnder', 'r.band[0] - level <= 99']] },
+  { name: 'an empty slot is sold another slot', case: 'what-next-one-goal',
+    edits: [['src/data/hunt-tutorial.js', 'return purse !== null && slot && nth && !emptySlot(f) ? { purse, slot, nth } : null;', 'return purse !== null && slot && nth ? { purse, slot, nth } : null;']] },
+  { name: 'the stamina line offers what the purse cannot pay', case: 'what-next-one-goal',
+    edits: [['src/data/hunt-tutorial.js', 'if (!Number.isSafeInteger(f.gold) || f.gold < q.price) return null;\n', '']] },
+  { name: 'the coach keeps its goals to itself', case: 'what-next-one-goal',
+    edits: [['src/shell/launcher.js', "const also = Array.isArray(card.also) && card.also.length ? card.also : null;", "const also = null;"]] },
   { name: 'What next offers a slot the server is not selling', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "const slot = Number.isSafeInteger(f.slotCost) && f.slotCost > 0 ? f.slotCost : null;", "const slot = 15000;"]] },
   { name: 'More than one hero walls a hero who wants one', case: 'tutorial-reactive',
@@ -1677,7 +1740,7 @@ const mutants = [
   { name: 'the ring stays on the bench when the words have moved to the bag', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "...(said.anchor ? { anchor: said.anchor } : {}), ", '']] },
   { name: 'What next names the cloak but not how it is made', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', '    if (made) lines.push(made);\n', '']] },
+    edits: [['src/data/hunt-tutorial.js', "(made ? ' ' + made : '')", "''"]] },
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: CELLAR },", "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' },"]] },
   { name: 'the party-only Rat King card is back in the solo chain', case: 'tutorial-walk-through',

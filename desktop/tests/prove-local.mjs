@@ -88,7 +88,7 @@ try {
   });
   r.step('hard kill: a token rotation just happened', !!refreshed && refreshed !== before);
   await a.page.waitForTimeout(1500);
-  await a.kill();
+  r.note('hard kill: every process gone after (ms)', await a.kill());
   a = null;
   a = await launch({ url: world.url, profile });
   await a.page.waitForSelector('.char-row, .hs-launchers, form[data-auth="sign-in"]');

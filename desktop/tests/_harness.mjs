@@ -81,12 +81,20 @@ export async function launch(o = {}) {
     async metrics() { return app.evaluate(({ app: a }) => a.getAppMetrics().map((m) => ({ pid: m.pid, type: m.type, kb: m.memory.workingSetSize, cpu: m.cpu.percentCPUUsage }))); },
     async shot(name) { const file = join(SHOTS, name + '.png'); await page.screenshot({ path: file }); return file; },
     async close() { await app.close().catch(() => {}); },
-    /** What Steam's Stop or a crash does: no goodbye, no flush. Returns once every process is gone: until then the single-instance
-        lock still stands, and a new launch hands over to the dying one and quits. */
+    /** What Steam's Stop or a crash does: no goodbye, no flush. Returns once every process is gone: while a dying child holds the storage
+        database, a new launch can find it locked and come up with empty storage (measured once: signed out). Returns how long that took. */
     async kill() {
+      const t0 = Date.now();
+      const pids = (await app.evaluate(({ app: a }) => a.getAppMetrics().map((m) => m.pid)));
       const gone = new Promise((res) => app.process().once('exit', res));
       spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { encoding: 'utf8' });
       await gone;
+      for (let i = 0; i < 120; i++) {
+        const out = spawnSync('tasklist', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', maxBuffer: 1 << 24 }).stdout || '';
+        if (!pids.some((p) => out.includes('"' + p + '"'))) break;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      return Date.now() - t0;
     },
     /** A content size exactly, whatever the window's frame adds: a window off every screen takes setContentSize as its outer size. */
     async setSize(w, h) {

@@ -1,0 +1,84 @@
+# ============================================================
+# deploy-site: a push of main is live, as the built site (tools/build-site.mjs).
+#
+# OFF UNTIL ONE REPO SETTING SAYS SO. The gate job reads Settings > Pages > Source. While that is "Deploy from a branch" (build_type legacy, today's
+# plain-folder deploy of main) nothing here runs and the classic deploy serves the plain source. Set to "GitHub Actions" (build_type workflow), this deploys.
+# So the switch and the one-step rollback are the same setting:
+#   on:       gh api -X PUT repos/bugsquisher1/hearthrise/pages -f build_type=workflow
+#   rollback: gh api -X PUT repos/bugsquisher1/hearthrise/pages -f build_type=legacy -f "source[branch]=main" -f "source[path]=/"
+# The custom domain (hearthrise.net) is a repo setting and does not move with either.
+#
+# release/vX.Y.Z green stays the gate: main only ever moves to a commit whose release run passed, and the same commit builds the same bytes (tests/ship-build.mjs SB-1).
+#
+# LEAST PRIVILEGE (the reasoning in smoke.yml's permissions block, stronger here). The job that runs npm can read and nothing else. The job that holds the Pages
+# token runs no npm and checks nothing out: it only hands the finished artifact to GitHub. Pages' own actions are pinned by commit.
+#
+# THE OLD TABS: --retain-from reads the live site's releases.json and carries recent releases' files into this deploy, each checked against its sha256 (tests/ship-build.mjs SB-5, SB-6).
+# A site that cannot be read fails this deploy, and the site stays as it was.
+# ============================================================
+name: deploy-site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: read
+    outputs:
+      on: ${{ steps.setting.outputs.on }}
+    steps:
+      - id: setting
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          kind="$(gh api "repos/$REPO/pages" --jq .build_type)"
+          echo "Pages source: $kind"
+          if [ "$kind" = workflow ]; then echo "on=true" >> "$GITHUB_OUTPUT"; else echo "on=false" >> "$GITHUB_OUTPUT"; fi
+
+  build:
+    needs: gate
+    if: ${{ needs.gate.outputs.on == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install the pinned build tool, running no package's scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build, keeping recent releases' files for tabs still open
+        run: node tools/build-site.mjs --out dist --retain-from https://hearthrise.net
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

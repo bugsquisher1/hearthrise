@@ -28,12 +28,12 @@ import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-li
 import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.86';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.86';
 import { chance, listWords } from '../../render/format.js?v=0.2.86';
+import { BUILD } from '../../build-info.js?v=0.2.86';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
 const SPRITE_SCALE = 2;
 export const LINEUP_SPRITE = Object.freeze({ scale: SPRITE_SCALE, dir: PORTRAIT_DIR });
-const VERSION = new URL(import.meta.url).searchParams.get('v') || '';
 /* The creature art loaded so far (null until the first: the line shows names, the pictures follow), and the
    creatures already asked for. */
 let ART = null;
@@ -138,7 +138,7 @@ function wantArt(doc, ids, repaint) {
   const need = ids.filter((id) => !asked.has(id));
   if (!need.length) return;
   for (const id of need) asked.add(id);
-  creatureArt(doc, VERSION, need).then((a) => { ART = a; repaint(); }, () => { for (const id of need) asked.delete(id); });
+  creatureArt(doc, BUILD.cache, need).then((a) => { ART = a; repaint(); }, () => { for (const id of need) asked.delete(id); });
 }
 
 /** Write the ground's facts for row `r` into the page `det` (patched in place: only what changed is written). */

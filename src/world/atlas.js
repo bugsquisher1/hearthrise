@@ -20,10 +20,11 @@ import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.86';
 /* Each atlas image loads once per page (src/render/images.js): a remounted pane and the Character
    window's outfit preview reuse the decoded image instead of fetching it again. */
 import { heldImage } from '../render/images.js?v=0.2.86';
+import { siteFile } from '../site-files.js?v=0.2.86';
 
 /* A module specifier resolves against THIS module's URL, an image against the
    document: both are made absolute from the document so assets/ is the site's. */
-const urlOf = (o, path) => new URL(path + '?v=' + o.version, o.doc.baseURI).href;
+const urlOf = (o, path) => new URL(siteFile(path, o.version), o.doc.baseURI).href;
 
 /** One set's manifest (a JSON module: fetched once per page). @param {{doc: Document, version: string}} o */
 export function loadAtlasManifest(o, set) {

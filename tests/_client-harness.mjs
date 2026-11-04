@@ -5,17 +5,34 @@
 // Not a guard: tests/client-boot.mjs and tests/hunt-screen.mjs import it.
 //   serve(overrides)  a static server over the repo root; `overrides` maps a
 //                     repo-relative path to replacement text (a planted mutant)
+//   HR_SITE_ROOT=dist the same server over the built site (tools/build-site.mjs; smoke.yml built-site): what ships
+//                     is what the page runner judged. A runner names source files; siteGlob() and builtFile() say where the build put them.
+//                     A path the built site does not hold falls back to the source tree, for a runner's own direct
+//                     import of one module; tests/ship-build.mjs SB-2 proves no built file ever names such a path.
 //   SDK_STUB          the fake supabase-js (auth in the storage the client
 //                     hands it, channels a test can push frames into)
 //   UID               the stub user's id
 // mutant-anchors: none — a helper, not a guard
 // ════════════════════════════════════════════════════════════════════════
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
-import { extname, join, normalize, dirname } from 'node:path';
+import { extname, join, normalize, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
+export const SITE_ROOT = process.env.HR_SITE_ROOT ? normalize(resolve(ROOT, process.env.HR_SITE_ROOT)) : ROOT;
+const BUILT = SITE_ROOT === ROOT ? null : JSON.parse(readFileSync(join(SITE_ROOT, 'build-map.json'), 'utf8'));
+/** Where a source file went in the built site: a module's chunk, a hashed copy's name, or itself (plain source; a file kept at its path). A prefix names a versioned file. */
+export function builtFile(rel) {
+  if (!BUILT) return rel;
+  if (BUILT.modules[rel]) return BUILT.modules[rel];
+  if (BUILT.files[rel]) return BUILT.files[rel];
+  const prefixed = Object.keys(BUILT.files).find((k) => k.startsWith(rel));
+  return prefixed ? BUILT.files[prefixed] : rel;
+}
+/** A Playwright glob for a source file's requests, wherever the build put it. */
+export const siteGlob = (rel) => '**/' + builtFile(rel) + '*';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
 export const UID = '11111111-2222-3333-4444-555555555555';
@@ -28,11 +45,12 @@ export function serve(overrides, api) {
       try {
         if (api && await api(req, res)) return;
         const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
-        let f = normalize(join(ROOT, urlPath === '/' ? '/index.html' : urlPath));
-        if (!f.startsWith(ROOT)) { res.writeHead(403).end(); return; }
-        const info = await stat(f).catch(() => null);
+        let f = normalize(join(SITE_ROOT, urlPath === '/' ? '/index.html' : urlPath));
+        if (!f.startsWith(SITE_ROOT)) { res.writeHead(403).end(); return; }
+        let info = await stat(f).catch(() => null);
+        if (!info && SITE_ROOT !== ROOT) { f = normalize(join(ROOT, urlPath)); if (!f.startsWith(ROOT)) { res.writeHead(403).end(); return; } info = await stat(f).catch(() => null); }
         if (info && info.isDirectory()) f = join(f, 'index.html');
-        const rel = f.slice(ROOT.length + 1).split('\\').join('/');
+        const rel = (f.startsWith(SITE_ROOT) ? f.slice(SITE_ROOT.length + 1) : f.slice(ROOT.length + 1)).split('\\').join('/');
         const body = overrides && overrides[rel] !== undefined ? overrides[rel] : await readFile(f);
         res.writeHead(200, { 'Content-Type': MIME[extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' }).end(body);
       } catch { res.writeHead(404).end('not found'); }

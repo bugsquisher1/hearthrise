@@ -82,7 +82,7 @@ import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { ROOT, SITE_ROOT, UID, serve, SDK_STUB, siteGlob, builtFile } from './_client-harness.mjs';
 import { TOWN_NAME } from '../src/data/world/town/plan.js';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 /* Level 10's total on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
@@ -109,10 +109,10 @@ async function sheetsOf(mapId) {
 }
 const TOWN_SHEETS = await sheetsOf('town_common');
 const CELLAR_SHEETS = await sheetsOf('mill_cellar');
-const sheetOf = (url) => (/\/assets\/world\/atlas-([a-z0-9_]+)\.png/.exec(url) || [])[1] || null;
+const sheetOf = (url) => (/\/(?:assets\/world|a)\/atlas-([a-z0-9_]+?)(?:-[0-9a-f]{10})?\.png/.exec(url) || [])[1] || null;
 
 async function stubServer(page, o) {
-  await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
+  await page.route('**/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const url = r.request().url();
     const body = JSON.parse(r.request().postData() || '{}');
@@ -207,7 +207,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       const { ctx, page, errors } = await fresh();
       let free = null;
       const held = new Promise((r) => { free = r; });
-      await page.route('**/src/app/boot.js*', async (r) => { await held; return r.fallback(); });
+      await page.route(siteGlob('src/app/boot.js'), async (r) => { await held; return r.fallback(); });
       await page.goto(base + '/play.html', { waitUntil: 'commit' });
       const shown = await wait(page, () => { const s = document.querySelector('.boot-shell'), l = s && s.querySelector('.boot-shell-line'), i = s && s.querySelector('img');
         return s && l && /Loading Hearthrise/.test(l.textContent) && s.getBoundingClientRect().width > 0 && i && getComputedStyle(s).display !== 'none'
@@ -223,14 +223,14 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       await ctx.close();
       /* a module that cannot load says so (the wait never runs for ever), once the page's own second goes are spent (B-19) */
       const dead = await fresh();
-      await dead.page.route('**/src/app/boot.js*', (r) => r.abort());
+      await dead.page.route(siteGlob('src/app/boot.js'), (r) => r.abort());
       await dead.page.goto(base + '/play.html', { waitUntil: 'commit' });
       if (!(await until(dead.page, () => /could not finish loading/.test((document.querySelector('.boot-shell-line') || {}).textContent || '')))) fails.push('B-16 a module that could not load left the shell saying it is still loading');
       await dead.ctx.close();
     }
 
     if (reloads) { // B-19
-      const FAILS = (s) => '**/' + s + '*';
+      const FAILS = siteGlob;
       const answer503 = (r) => r.fulfill({ status: 503, contentType: 'text/plain', body: 'Service Unavailable' });
       /* The page's own document loads, counted off the wire. */
       const docsOf = (page) => { const seen = { n: 0 }; page.on('request', (q) => { if (q.isNavigationRequest() && q.frame() === page.mainFrame()) seen.n++; }); return seen; };
@@ -493,10 +493,12 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, answer) : answer));
         return true;
       };
-      const boot = await readFile(join(ROOT, 'src/net/supabase-bootstrap.js'), 'utf8');
-      const here = boot.replace("url: 'https://nezapsylztqbbwuwembx.supabase.co',", 'url: globalThis.location.origin,');
+      /* The project URL, wherever the site keeps that module (plain source: its own file; the built site: a chunk, minified). */
+      const holder = builtFile('src/net/supabase-bootstrap.js');
+      const boot = await readFile(join(SITE_ROOT, holder), 'utf8');
+      const here = boot.replace(/url: ?(['"])https:\/\/nezapsylztqbbwuwembx\.supabase\.co\1/, 'url:globalThis.location.origin');
       if (here === boot) fails.push('B-18 harness: the project URL in supabase-bootstrap.js moved');
-      const real = await serve(Object.assign({}, overrides, { 'src/net/supabase-bootstrap.js': here }), api);
+      const real = await serve(Object.assign({}, overrides, { [holder]: here }), api);
       const { ctx, page, errors } = await fresh();
       try {
         await page.goto('http://127.0.0.1:' + real.port + '/play.html', { waitUntil: 'load' });
@@ -538,7 +540,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       const added = CELLAR_SHEETS.sets.filter((s) => !TOWN_SHEETS.sets.includes(s));
       let release = null, asked = 0;
       const held = new Promise((r) => { release = r; });
-      await page.route('**/assets/world/atlas-*.png*', async (r) => {
+      await page.route('**/atlas-*.png*', async (r) => {
         if (added.includes(sheetOf(r.request().url()))) { asked++; await held; }
         return r.continue();
       });
@@ -573,7 +575,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       let release = null, asked = 0;
       const held = new Promise((r) => { release = r; });
       const back = TOWN_SHEETS.sets.filter((s) => !CELLAR_SHEETS.sets.includes(s));
-      await page.route('**/assets/world/atlas-*.png*', async (r) => {
+      await page.route('**/atlas-*.png*', async (r) => {
         if (back.includes(sheetOf(r.request().url()))) { asked++; await held; }
         return r.continue();
       });
@@ -812,7 +814,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       const sheets = [];
       let outAt = Infinity;
       page.on('request', (q) => { if (sheetOf(q.url())) sheets.push([Date.now(), sheetOf(q.url())]); });
-      await page.route('**/assets/world/atlas-*.json*', async (r) => { held++; await gate; return r.continue(); });
+      await page.route('**/atlas-*.json*', async (r) => { held++; await gate; return r.continue(); });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       await page.fill('input[name=email]', 'qa@example.test');

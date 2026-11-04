@@ -28,6 +28,7 @@ import { scratchOf } from './state.js?v=0.2.86';
 import { sheetHtml, patchSheet } from './sheet.js?v=0.2.86';
 import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.86';
 import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.86';
+import { BUILD } from '../../../build-info.js?v=0.2.86';
 
 const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['deaths', 'Deaths']]);
 const PORTRAIT_SCALE = 1;
@@ -36,8 +37,7 @@ const PORTRAIT_SCALE = 1;
 let ART = null;
 function wantArt(doc) {
   if (ART || !doc || !doc.baseURI) return;
-  /* The build's cache-buster is this module's own ?v= (bump-version.sh keeps every one equal). */
-  outfitArt(doc, new URL(import.meta.url).searchParams.get('v') || '').then((a) => { ART = a; }).catch(() => { /* the canvases stay blank */ });
+  outfitArt(doc, BUILD.cache).then((a) => { ART = a; }).catch(() => { /* the canvases stay blank */ });
 }
 
 /** The skeleton (built once per opening). */

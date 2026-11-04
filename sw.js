@@ -6,10 +6,10 @@
  * clock, a disk write, and for a quarter of them the whole file again, because Pages' servers stamp the same file a second apart. So a
  * semi-idle game's main moment hangs on the player's disk, CPU and line: the numbers and the proof are in tests/return-load.mjs.
  *
- * ONE RULE: a same-origin GET whose version query is THIS worker's version comes from the cache, else from the network and is then
- * kept. Everything else is not its business: page HTML, Google Fonts, Supabase, Sentry, PostHog, any other version. It never sees game
- * state, because it never answers for another host. The version is read from this file's own URL (no number in this text for a bump to
- * move), the cache is named after it, and a new release's page asks for a new worker, whose activation deletes the caches before it.
+ * ONE RULE: a same-origin GET whose version query is THIS worker's version, or whose name in the built site's a/ folder is made from its content, comes
+ * from the cache, else from the network and is then kept. Everything else is not its business: page HTML, Google Fonts, Supabase, Sentry, PostHog, any
+ * other version. It never sees game state, because it never answers for another host. The version is read from this file's own URL (no number in this
+ * text for a bump to move), the cache is named after it, and a new release's page asks for a new worker, whose activation deletes the caches before it.
  *
  * A FAILURE IS THE NETWORK'S TURN, NEVER A BLANK PAGE: a storage error or a storage that does not answer falls through to the network;
  * only a whole 200 from this site is ever kept.
@@ -32,12 +32,14 @@ const STORE_PATIENCE_MS = 8000;  // hung, not busy: on a busy disk the network p
 const DEPLOY_SPREAD_MS = 10 * 60 * 1000;
 
 /* WHICH FILES THIS WORKER MAY KEEP AND ANSWER: this function, and nothing else decides it (the fill, the fetch handler). MAYBE_KEPT is the same
-   rule for the browser's router, which only needs to be coarser: anything it lets through still has to pass isKept. A change of naming (hashed
-   file names, say) changes these two lines and the guard's RL-4. */
-const MAYBE_KEPT = { search: 'v=*' };
-function isKept(url) {
-  return url.origin === self.location.origin && url.searchParams.get('v') === VERSION && url.pathname !== BRAKE;
-}
+   rule for the browser's router, which only needs to be coarser: anything it lets through still has to pass isKept.
+   Two kinds of name are for good: a version query, and the built site's a/ folder (tools/build-site.mjs), where the name is made from the file's content.
+   A source map stays the network's: a person reads it, never a page. Plain source has no a/ folder, so there the second kind never comes up. */
+const NAMED_DIR = new URL('a/', self.location.href).pathname;
+const MAYBE_KEPT = [{ search: 'v=*' }, { pathname: NAMED_DIR + '*' }];
+const isNamed = (url) => url.origin === self.location.origin && url.pathname.startsWith(NAMED_DIR) && !url.pathname.endsWith('.map');
+const atVersion = (url) => url.origin === self.location.origin && url.searchParams.get('v') === VERSION && url.pathname !== BRAKE;
+const isKept = (url) => isNamed(url) || atVersion(url);
 
 /* One handle per run of this worker: after a wipe it can write nowhere a page can find, where asking again by name would bring the cache back. */
 let opened = null;
@@ -54,9 +56,25 @@ function releaseStamp(cache) {
 
 async function keep(cache, key, res) {
   if (res.status !== 200 || res.type !== 'basic' || res.redirected) return;
-  const wrote = Date.parse(res.headers.get('last-modified'));
-  if (wrote < (await releaseStamp(cache)) - DEPLOY_SPREAD_MS) return;
+  /* Old bytes under a content name cannot happen: it is the content's name. Under a version they can. */
+  if (!isNamed(new URL(res.url))) {
+    const wrote = Date.parse(res.headers.get('last-modified'));
+    if (wrote < (await releaseStamp(cache)) - DEPLOY_SPREAD_MS) return;
+  }
   await cache.put(key, res);
+}
+
+/* WHAT A RELEASE DID NOT CHANGE IS NOT FETCHED AGAIN: a content-named file this browser already holds moves to this release's cache; the old
+   cache, and whatever the new release no longer names, go at activation. The list is the build's, so an atlas only one hunting ground draws
+   moves too, though no page names it. */
+async function carryOver(cache) {
+  const res = await fetch(new URL('release-files.json?v=' + VERSION, self.location.href));
+  if (!res.ok) return;
+  for (const name of (await res.json()).files) {
+    const url = new URL(name, self.location.href).href;
+    const held = await caches.match(url, { ignoreVary: true });
+    if (held) await cache.put(url, held);
+  }
 }
 
 /* The files the page names, from the browser's own copies where it has them: the page that registered this worker has just loaded them,
@@ -65,14 +83,18 @@ async function fill() {
   const res = await fetch(HOME);
   if (!res.ok) throw new Error('the page did not answer: ' + res.status);
   const urls = new Set();
+  let ofThisVersion = 0, named = 0;
   for (const m of (await res.clone().text()).matchAll(/\b(?:href|src)="([^"]+)"/g)) {
     const url = new URL(m[1], HOME);
+    if (atVersion(url)) ofThisVersion++;
+    if (isNamed(url)) named++;
     if (isKept(url)) urls.add(url.href);
   }
   /* A CDN answered with a page at another version: not ready. This install fails; the next page load registers again. */
-  if (!urls.size) throw new Error('the page names no file at ' + VERSION);
+  if (!ofThisVersion) throw new Error('the page names no file at ' + VERSION);
   const cache = await openCache();
   await cache.put(RELEASE_KEY, new Response(res.headers.get('last-modified') || ''));
+  if (named) await carryOver(cache).catch(() => { /* each file's turn comes when a page asks */ });
   const todo = [...urls];
   await Promise.all(Array.from({ length: FILL_AT_ONCE }, async () => {
     while (todo.length) {
@@ -88,7 +110,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     /* Where the browser can (Chrome): what this worker never answers does not even wake it. Everywhere else the fetch handler's own test says the same. */
     try {
-      if (event.addRoutes) await event.addRoutes([{ condition: { not: { urlPattern: new URLPattern(MAYBE_KEPT) } }, source: 'network' }]);
+      if (event.addRoutes) await event.addRoutes([{ condition: { not: { or: MAYBE_KEPT.map((p) => ({ urlPattern: new URLPattern(p) })) } }, source: 'network' }]);
     } catch (e) { /* an older browser's router: the fetch handler answers */ }
     await fill();
     await self.skipWaiting();

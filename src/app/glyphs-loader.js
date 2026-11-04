@@ -15,8 +15,8 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { BUILD } from '../build-info.js?v=0.2.86';
+import { siteFile } from '../site-files.js?v=0.2.86';
 
-const ATLAS = new URL('../data/glyphs.js', import.meta.url).href + '?v=' + BUILD.cache;
 const PENDING = new WeakMap();
 
 /** The atlas on `win` (window.HR_GLYPHS): one <script> per page, a promise that settles when it has run or failed. */
@@ -27,7 +27,7 @@ export function loadGlyphs(win) {
   p = new Promise((done) => {
     const doc = win.document;
     const s = doc.createElement('script');
-    s.src = ATLAS;
+    s.src = siteFile('src/data/glyphs.js', BUILD.cache);
     s.async = true;
     s.onload = () => done(true);
     s.onerror = () => { PENDING.delete(win); done(false); };

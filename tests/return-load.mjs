@@ -512,7 +512,7 @@ const MUTANTS = [
   ['a fixed cache name (RL-2)', WORKER_FILE, "const CACHE = 'hearthrise-' + VERSION;", "const CACHE = 'hearthrise-1.0.0';"],
   ['the fill downloads every file again (RL-2)', WORKER_FILE, "await fetch(url, { cache: 'force-cache' })", "await fetch(url, { cache: 'reload' })"],
   ['the cache-first read is gone (RL-3)', WORKER_FILE, '    if (hit) return hit;\n', ''],
-  ['the router sends versioned files to the network too (RL-3)', WORKER_FILE, '{ not: { urlPattern: new URLPattern(MAYBE_KEPT) } }', '{ urlPattern: new URLPattern(MAYBE_KEPT) }'],
+  ['the router sends versioned files to the network too (RL-3)', WORKER_FILE, '{ not: { or: MAYBE_KEPT.map((p) => ({ urlPattern: new URLPattern(p) })) } }', '{ or: MAYBE_KEPT.map((p) => ({ urlPattern: new URLPattern(p) })) }'],
   ['the worker holds the brake (RL-3)', WORKER_FILE, ' && url.pathname !== BRAKE', ''],
   ['the page brakes its own worker on every load (RL-3)', KILL_FILE, 'if (!regs.every(ours)) {', 'if (regs.length) {'],
   ['the bar does not count what the worker answers (RL-3)', 'src/platform/load-shell.js', 'if (/\\.js(\\?|$)/.test(entries[i].name)) landed++;', 'if (/\\.js(\\?|$)/.test(entries[i].name) && !entries[i].workerStart) landed++;'],
@@ -520,7 +520,7 @@ const MUTANTS = [
   ['every version is kept (RL-4)', WORKER_FILE, "url.searchParams.get('v') === VERSION", "url.searchParams.has('v')"],
   ['a request for a fresh copy is answered from the cache (RL-4)', WORKER_FILE, "  if (req.cache === 'no-store' || req.cache === 'reload' || req.cache === 'no-cache') return;\n", ''],
   ['part of a file is answered from the cache (RL-4)', WORKER_FILE, " || req.headers.has('range')", ''],
-  ['another host is kept (RL-4)', WORKER_FILE, [["url.origin === self.location.origin && ", ''], [" || res.type !== 'basic'", '']]],
+  ['another host is kept (RL-4)', WORKER_FILE, [["const atVersion = (url) => url.origin === self.location.origin && ", 'const atVersion = (url) => '], [" || res.type !== 'basic'", '']]],
   ['the old cache stays (RL-5)', WORKER_FILE, "if (name !== CACHE && /^(hearthrise|hearthbound)-/.test(name)) await caches.delete(name);", ''],
   ['the new worker waits for every old tab (RL-5)', WORKER_FILE, '    await self.skipWaiting();\n', ''],
   ['every release goes through the brake (RL-5)', KILL_FILE, '!(allowed && OUR_CACHE.test(k))', 'k !== \'hearthrise-\' + BUILD'],
@@ -534,8 +534,8 @@ const MUTANTS = [
   ['an error status is kept (RL-9)', WORKER_FILE, "if (res.status !== 200 || res.type !== 'basic' || res.redirected) return;", "if (res.type !== 'basic' || res.redirected) return;"],
   ['a file fetched past the cache is never kept (RL-9)', WORKER_FILE, 'if (missing) event.waitUntil(keep(cache, req, res.clone()).catch(() => {}));', ''],
   ['the press does not start clean (RL-10)', 'src/platform/load-shell.js', "if (worker) win.location.search = (win.location.search ? win.location.search + '&' : '?') + 'reset-sw=1'; else win.location.reload();", 'win.location.reload();'],
-  ['old bytes are kept (RL-11)', WORKER_FILE, '  if (wrote < (await releaseStamp(cache)) - DEPLOY_SPREAD_MS) return;\n', ''],
-  ['a worker takes over with a page at another version (RL-12)', WORKER_FILE, "  if (!urls.size) throw new Error('the page names no file at ' + VERSION);\n", ''],
+  ['old bytes are kept (RL-11)', WORKER_FILE, '    if (wrote < (await releaseStamp(cache)) - DEPLOY_SPREAD_MS) return;\n', ''],
+  ['a worker takes over with a page at another version (RL-12)', WORKER_FILE, "  if (!ofThisVersion) throw new Error('the page names no file at ' + VERSION);\n", ''],
   ['the worker controls the whole site (RL-13)', KILL_FILE, ", { scope: 'play.html' }", ''],
 ];
 

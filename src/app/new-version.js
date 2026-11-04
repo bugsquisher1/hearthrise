@@ -67,7 +67,7 @@ async function purge(win) {
 export function mountNewVersion(win, o = {}) {
   const doc = win.document;
   const running = o.running || BUILD.version;
-  const url = o.url || new URL('../build-info.js', import.meta.url).href;
+  const url = o.url || new URL('src/build-info.js', doc.baseURI).href;   // at this path in plain source and in the built site
   const now = o.now || (() => Date.now());
   let el = null;
   let lastForced = -Infinity;

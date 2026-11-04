@@ -54,6 +54,7 @@ import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.
 import { levelOf } from '../session/character-sections.js?v=0.2.86';
 import { startDiagnostics } from './diagnostics.js?v=0.2.86';
 import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.86';
+import { siteFile } from '../site-files.js?v=0.2.86';
 
 const EARLY_MAX = 10;        // errors held while Sentry loads
 const QUEUE_MAX = 20;        // events held while PostHog loads
@@ -96,7 +97,7 @@ function environmentOf(loc, cfg) {
 function load(doc, scripts, done, i = 0) {
   if (i >= scripts.length) { safe(done); return; }
   const s = doc.createElement('script');
-  s.src = scripts[i].src;
+  s.src = siteFile(scripts[i].src);
   s.integrity = scripts[i].integrity;
   s.crossOrigin = 'anonymous';
   s.onload = () => load(doc, scripts, done, i + 1);

@@ -11,6 +11,7 @@
 //        fresh account -> hero -> Mill Cellar -> skip -> leave -> summary -> bag -> reload -> a 2nd hunt skipped past the 1st -> a town wait. Exit 0 green, 1 red, 2 harness, 3 refused.
 //        A machine's first run replays the whole chain (about 6 min; tests/pglite-template.mjs then caches it), so this is a
 //        manual tool, not a CI guard. HR_LOCAL_WORLD_TRACE=1 logs every call over 500 ms. HR_CHROME picks the browser (tests/_chrome.mjs).
+//        --site DIR plays the built site (tools/build-site.mjs) in place of plain source: smoke.yml built-site, what ships is what was played.
 //   node tools/qa/local-world.mjs serve [--port 8787] [--no-tick]    a world for any browser: http://127.0.0.1:8787/play.html
 //   node tools/qa/local-world.mjs skip 30 [--port 8787]              skip 30 minutes in a world that is serving
 //   node tools/qa/local-world.mjs wait 480 [--port 8787]             8 hours pass for everyone: hunts, and town too
@@ -49,7 +50,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { createServer } from 'node:http';
 import { createHash, randomUUID, webcrypto } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { registerHooks } from 'node:module';
 import { extname, join, normalize, dirname, resolve as resolvePath } from 'node:path';
@@ -64,7 +65,14 @@ const PASSWORD = LOCAL_PASSWORD;   // a throwaway value for accounts that live a
 const OPEN_FILE = '2027-02-10-playtest-open.sql';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon' };
-const SERVED = /^\/(play\.html$|src\/|assets\/|legal\/)/;
+const SERVED = /^\/(play\.html$|src\/|assets\/|legal\/|a\/)/;
+/* The files this world serves: plain source, or a built site (--site), where the client's project URL sits in a chunk. */
+const site = { root: ROOT, projectFile: 'src/net/supabase-bootstrap.js' };
+function useSite(dir) {
+  if (!dir) return;
+  site.root = normalize(resolvePath(dir));
+  site.projectFile = JSON.parse(readFileSync(join(site.root, 'build-map.json'), 'utf8')).modules['src/net/supabase-bootstrap.js'];
+}
 
 // ── THE REFUSAL ──────────────────────────────────────────────────────────
 /** Every environment entry that names the production project, as `NAME` only (a value may be a secret). */
@@ -366,9 +374,9 @@ function send(res, status, body, type = 'application/json') {
 /* The two files that name the outside world, rewritten as they are served; a moved anchor is a loud failure. */
 function rewriteServed(rel, text, origin) {
   const must = (from, to) => { if (!from.test(text)) throw new Error('local-world: ' + rel + ' moved, no anchor ' + from); text = text.replace(from, to); };
-  if (rel === 'src/net/supabase-bootstrap.js') {
-    must(/url: 'https:\/\/[a-z0-9]+\.supabase\.co'/, "url: '" + origin + "'");
-    must(/publishableKey: '[^']+'/, "publishableKey: 'local-world-publishable'");
+  if (rel === site.projectFile) {   // plain source's own file, or the chunk the build put it in (minified: no space, either quote)
+    must(/url: ?['"]https:\/\/[a-z0-9]+\.supabase\.co['"]/, "url:'" + origin + "'");
+    must(/publishableKey: ?['"][^'"]+['"]/, "publishableKey:'local-world-publishable'");
   }
   if (rel === 'play.html') {
     must(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/, '');
@@ -380,25 +388,26 @@ function rewriteServed(rel, text, origin) {
 
 /* A driven world reads each file once (a busy disk stalled a page load past 30 s on tiny files); `serve` re-reads, so an edit shows on reload. */
 async function serveStatic(res, urlPath, origin, held) {
-  const f = normalize(join(ROOT, urlPath));
-  const rel = f.slice(ROOT.length + 1).split('\\').join('/');
-  if (!f.startsWith(ROOT) || !SERVED.test('/' + rel)) return send(res, 404, 'not served', 'text/plain');
+  const f = normalize(join(site.root, urlPath));
+  const rel = f.slice(site.root.length + 1).split('\\').join('/');
+  if (!f.startsWith(site.root) || !SERVED.test('/' + rel)) return send(res, 404, 'not served', 'text/plain');
   const type = MIME[extname(f).toLowerCase()] || 'application/octet-stream';
   if (held && held.has(rel)) return send(res, 200, held.get(rel), type);
   const info = await stat(f).catch(() => null);
   if (!info || !info.isFile()) return send(res, 404, 'not found', 'text/plain');
-  const rewritten = rel === 'play.html' || rel === 'src/net/supabase-bootstrap.js';
+  const rewritten = rel === 'play.html' || rel === site.projectFile;
   const body = rewritten ? rewriteServed(rel, await readFile(f, 'utf8'), origin) : await readFile(f);
   if (held) held.set(rel, body);
   return send(res, 200, body, type);
 }
 
 /**
- * @param {{port?: number, tickMs?: number|false, liveFiles?: boolean}} [o]  tickMs: how often the world tick fires (default 10 s, false: only
- *   on skip); liveFiles: re-read client files on every request (serve), else each is read once
+ * @param {{port?: number, tickMs?: number|false, liveFiles?: boolean, site?: string}} [o]  tickMs: how often the world tick fires (default 10 s, false: only
+ *   on skip); liveFiles: re-read client files on every request (serve), else each is read once; site: a built site's folder in place of plain source
  */
 export async function openWorld(o = {}) {
   refuseProduction();
+  useSite(o.site);
   const offsite = [], reports = [], held = o.liveFiles ? null : new Map();
   const { db, tickSecret } = await bootDatabase();
   let origin = '';
@@ -665,10 +674,10 @@ async function play(world, { account, viewport = { width: 1280, height: 720 }, t
 const known = new Set();
 
 // ── THE SMOKE ────────────────────────────────────────────────────────────
-async function smoke({ shots, viewport, touch }) {
+async function smoke({ shots, viewport, touch, site: builtSite }) {
   const fails = [], t0 = Date.now();
   const step = (name, ok, got) => { console.log((ok ? '  ok   ' : '  RED  ') + name + (ok ? '' : ' -- ' + got) + '  (' + Math.round((Date.now() - t0) / 1000) + ' s)'); if (!ok) fails.push(name); };
-  const world = await openWorld({ tickMs: false });
+  const world = await openWorld({ tickMs: false, site: builtSite });
   step('world up: chain replayed and opened, engine loaded', true);
   try {
     const flag = (await world.db.query(`select enabled from public.hr_flags where key = 'closed_mode'`)).rows[0];
@@ -774,7 +783,7 @@ if (isMain(import.meta.url)) {
   const cmd = args[0];
   if (cmd === 'smoke') {
     const [w, h] = String(opt('--viewport') || '1280x720').split('x').map(Number);
-    const code = await smoke({ shots: opt('--shots') ? resolvePath(opt('--shots')) : null, viewport: { width: w, height: h }, touch: args.includes('--touch') });
+    const code = await smoke({ shots: opt('--shots') ? resolvePath(opt('--shots')) : null, viewport: { width: w, height: h }, site: opt('--site'), touch: args.includes('--touch') });
     process.exit(code);
   } else if (cmd === 'serve') {
     const world = await openWorld({ port: Number(opt('--port') || 8787), tickMs: args.includes('--no-tick') ? false : 10000, liveFiles: true });

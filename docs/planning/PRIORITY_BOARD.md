@@ -30,6 +30,32 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-04 What the wipe is held against (designer, lane/c-pre-wipe): THE LIST
+Read from this board, `DISCOVERIES.md`, rulings-of-record and 28 played hours (lane/c-hour-20). Delivery-only work (return load, build step, account delete) isn't on it, by Tyler's rule.
+| Item | Call | Size, owner | Why |
+|---|---|---|---|
+| Armor rule and the Warrens' stats | **must** | running, lane/c-armor-truth | A lone Level 18 in Iron earned 98.4k XP/h at -1.25k g/h. Measure on the default bar's 14 g shrimp: played 4,640 g/h of food, the risk table says 34,920 |
+| Thicket same-weapon cell | **must** | running, lane/c-thicket-1000 | Moves party XP in the first day |
+| Gear at Level 22-25 | **must** | building, this lane | No new piece by Level from 15 to 28: Houndskin Cloak, worn at 22, made from Glade drops |
+| First armor choice | **must** | small client, this lane next | Equip upgrades stays off until each slot is picked by hand or a weight is picked at Tamsin's. Marlow fought a night bare and Sorrel was still bare at hour 16. Three weight presses on that line, on her existing pick |
+| A weapon switch leaves the old moves struck; Before you go warns about a spell the worn weapon can't use | **must** | small client, lane/a-known-issues or next | Classless is the pitch, and every tester switches weapons (door panel P3) |
+| "Your hero just ate" on a return to a running hunt | **must** | small client | Played after a night: a 9-hour-old card is the first thing the return says |
+| Old answer in a reopened window ("Put on 3 pieces."); "Cooking Turnip: 0 cooked so far" | **must** | small client | Read as broken (door panel P4) |
+| Summary and away card lost when the first load is interrupted | **must** check, fix if real | client | Seen once, not ruled out. The overnight return is the hook, and a 12 s load invites a reload |
+| The bag at 1366x768: two rows beside a cut paper doll | **must** check | art-director | Reads as broken on a common laptop, if v0.2.89 still does it |
+| Confirmation link lasts one hour | **must** | Tyler's dashboard, already a yes | An invitee opening it next morning finds it dead |
+| Group advice (party to the Glade, lone hero to the Warrens from 45) | fine after | ready, lane/c-group-advice, wants the pace re-measure | Advice only: the push is on every list line and every ground stays open |
+| Bag space for gold; "already in your bag" line | fine after | client | Sinks and words, no progress lost by waiting |
+| Bestiary window (stages never shown); gold history (ruled 10-23, not built) | fine after | lane B, not small | Adding either later loses a tester nothing |
+| Imbuing; daily training weapon; daily login; pets; the Hearthrise buff; player trade | fine after | later by ruling | Hidden or absent, and nothing promises them |
+| Action bar builder window | fine after | mocks first | The bar works; this is how it's set up |
+| Crafted food has no consumer for a hunter | fine after | follows lane/c-armor-truth | Re-read once its numbers land. Dearer store food was rejected 11-03 |
+| Nothing to wear or walk past Level 30-32 (Hask's Ford) | fine after | held, Tyler's | About hour 41-47 on these rates, estimated. Watch who gets there |
+| Party edge cases: a seat with seconds of stamina, a kick reading "You left", Start during a leave, the off-tank's box slot | fine after | P3-P4 | A tester rarely meets them, and each ends cleanly |
+| Characters screen after Buy a hero slot says only "Reading your characters…" | fine after | client | Seen for at least 2.5 s on a busy local world. Re-check on live |
+| Party XP share for a seat far under its party | fine after, no change | ruled here: keep | Nothing to land. Friends carrying a friend pay for it in their own share |
+| Dearer store food; store arrow price; the four rung-1 copies; the 17 and 72 old rows | **cut** from this list | | Rejected, ruled, or no effect on play |
+
 ### 2026-11-04 The release gate: what 30 reds were, a preflight, and where the minutes went (reliability, lane/r-release-gate): BUILT; the timing still needs a clean GitHub run
 **Measured, last 14 days of push runs on `release/*`:** 61 releases, 19 green on the first finished run (31%), 1.7 finished runs a release. Eight green runs read: 22-122 min, median 57. The gate is bimodal, not slow everywhere: 22 min with no proof to run (147 runner-minutes), 50-120 at 600-980 runner-minutes on GitHub's 20 slots.
 

@@ -1291,7 +1291,7 @@ const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
   ['the engine shoots ammo under its skill (LV-SHOT-SKILL)', 'src/core/hunt/abilities.js', "function shotLocked(h, id) {\n", "function shotLocked(h, id) {\n  if (h) return false;\n", /^LV-SHOT-SKILL: browser closed/],
-  ["the peer's Level stays out of its frozen row, so the browser predicts the low seat a full share (LV-U)", 'src/core/member.js', 'mit: snap.mit || NO_MITIGATION, level: snap.level }', 'mit: snap.mit || NO_MITIGATION }', /^LV-U: the prediction/],
+  ["the peer's Level stays out of its frozen row, so the browser predicts the low seat a full share (LV-U)", 'src/core/member.js', 'armour: snap.armour || null, level: snap.level }', 'armour: snap.armour || null }', /^LV-U: the prediction/],
   ['the party factor is not paid (LV-CLASS)', 'src/core/hunt/xp-share.js', '(raw * party * multOf(sc, h))', '(raw * 1000 * multOf(sc, h))', /^LV-CLASS: mixed/],
   ["the browser's prediction fights on a ground it cannot name (LV-CLASS, viewed)", 'src/hunt-view/live-engine.js',
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
@@ -1351,8 +1351,8 @@ const MUTANTS = [
     'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
-  ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, mit: snap.mit || NO_MITIGATION, level: snap.level }, vs,', 'def: snap.def, level: snap.level }, vs,', /^LV-A/],
-  ['the settle never puts the armour on the hero (LV-A)', 'src/core/combat-sim.js', '  u.mit = snap.mit || null;', '  u.mit = null;', /^LV-A/],
+  ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, armour: snap.armour || null, level: snap.level }, vs,', 'def: snap.def, level: snap.level }, vs,', /^LV-A/],
+  ['the settle never puts the armour on the hero (LV-A)', 'src/core/combat-sim.js', '  u.armour = snap.armour || null;', '  u.armour = null;', /^LV-A/],
   ['the pull leader is back to role order (LV-PULL, bug #61)', 'src/core/hunt/pull-cycle.js', '  return holderTank(inst).id;\n', '  return byRole;\n', /^LV-PULL/],
   ['the "One tank holds" pick does not pull (LV-PULL)', 'src/core/hunt/pull-cycle.js', '  if (pick) return pick.id;\n', '  if (pick) return pickLeader(inst.world.units);\n', /^LV-PULL/],
   ['a world opened with a pick is pulled by role order its first lap (LV-PULL)', 'src/core/combat-sim.js',

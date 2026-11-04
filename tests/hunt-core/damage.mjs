@@ -37,6 +37,21 @@ const cases = {
     }
     return null;
   },
+  /* ARMOR READS WHO STRUCK (2026-11-04): the same plate takes less off a strong monster's blow and more off a weak one's, by the monster's own level, whatever the hero's. Dodge the same. */
+  'armour-reads-the-attacker': (M) => {
+    const inst = fight(M, []);
+    const through = (kind, armour) => { const t = H(M, 2, 12, 3, 'tank', { hp: 100000, maxHp: 100000 }); t.armour = armour; return M.damage.hurt(inst, t, 1000, E(M, 9, 0, 13, 3, 1, { kind }), null, null).dmg; };
+    const plate = { heavy: 18, medium: 0, light: 0 };
+    const weak = through('gray_whelp', plate), strong = through('hobgoblin_foreman', plate);
+    if (!(strong > weak * 1.3)) return 'through bronze plate a level 46 foreman lands ' + strong + ', a level 5 whelp ' + weak + ' of 1000: armor is not reading the attacker';
+    const want = M.mitigation.mitigate(1000, 1000, M.mitigation.mitigationOf(plate, M.MONSTERS.hobgoblin_foreman.level));
+    if (strong !== want) return 'the foreman lands ' + strong + ', the curve at its level says ' + want;
+    const leather = { heavy: 0, medium: 18, light: 0 };
+    if (!(M.mitigation.mitigationOf(leather, 46).dodgePm < M.mitigation.mitigationOf(leather, 5).dodgePm)) return 'dodge does not fall against a stronger attacker';
+    /* a status tick whose dealer has left the world has a level to read all the same */
+    const t = H(M, 2, 12, 3, 'tank', { hp: 1000, maxHp: 1000 }); t.armour = plate;
+    return M.damage.hurt(inst, t, 100, null, null, { id: 'bleed', dot: true }).dmg > 0 ? null : 'a status tick with no dealer dealt nothing';
+  },
   /* contract §1.5 (today's element profile): weak pays the weakness bonus, immune takes 0, neutral pays 1x. */
   'weak-resist-immune': (M) => {
     const weakId = Object.keys(M.MONSTERS).find((id) => M.MONSTERS[id].elementWeak && M.C.defenceReduction(M.MONSTERS[id]) === 0
@@ -111,10 +126,13 @@ const cases = {
   'armour-order': (M) => {
     const inst = fight(M, []);
     const mon = E(M, 9, 0, 13, 3, 1, { kind: 'rat' });
-    const hit = (mit, n) => { const t = H(M, 2, 12, 3, 'tank', { hp: 1000, maxHp: 1000 }); t.mit = mit; return M.damage.hurt(inst, t, n, mon, null, null).dmg; };
-    const got = hit({ dodgePm: 0, absorbPm: 500, ward: 3, keepPm: 0 }, 100);
+    const hit = (armour, n) => { const t = H(M, 2, 12, 3, 'tank', { hp: 1000, maxHp: 1000 }); t.armour = armour; return M.damage.hurt(inst, t, n, mon, null, null).dmg; };
+    const got = M.mitigation.mitigate(100, 1000, { dodgePm: 0, absorbPm: 500, ward: 3, keepPm: 0 });
     if (got !== 47) return 'absorb 500 + ward 3 on a 100 blow dealt ' + got + ', want 47 (absorb, then ward)';
-    if (hit({ dodgePm: 0, absorbPm: 0, ward: 50, keepPm: 0 }, 10) !== 1) return 'a blow the ward swallows still deals 1';
+    if (M.mitigation.mitigate(10, 1000, { dodgePm: 0, absorbPm: 0, ward: 50, keepPm: 0 }) !== 1) return 'a blow the ward swallows still deals 1';
+    /* the blow reaches that chain: plate on the hero takes its share off through hurt */
+    const worn = { heavy: 18, medium: 0, light: 0 };
+    if (hit(worn, 100) !== M.mitigation.mitigate(100, 1000, M.mitigation.mitigationOf(worn, M.MONSTERS.rat.level))) return 'plate through hurt dealt ' + hit(worn, 100);
     return hit(null, 100) === 100 ? null : 'an unarmoured hero took ' + hit(null, 100) + ' of 100';
   },
   /* THE TOTAL CAP (ruling K7, core-model.js ARMOUR_MITIGATION.capPm): dodge, absorb and ward together never take
@@ -129,7 +147,7 @@ const cases = {
     /* the profile the sheet shows honours it too: dodge and absorb together leave at least 1000 - cap */
     if ((1000 - huge.dodgePm) * (1000 - huge.absorbPm) < (1000 - cap) * 1000 - 1000) return 'the profile shows dodge ' + huge.dodgePm + ' + absorb ' + huge.absorbPm + ', past the cap ' + cap;
     for (const n of [10, 100, 1000]) {
-      const t = H(M, 2, 12, 3, 'tank', { hp: 100000, maxHp: 100000 }); t.mit = huge;
+      const t = H(M, 2, 12, 3, 'tank', { hp: 100000, maxHp: 100000 }); t.armour = { heavy: 100000, medium: 100000, light: 100000 };
       const landed = M.damage.hurt(inst, t, n, mon, null, null).dmg;
       /* the average blow that reaches HP, over dodged and landed blows alike */
       const expected = ((1000 - huge.dodgePm) * landed) / 1000;
@@ -153,7 +171,7 @@ const cases = {
       return 'a mixed set is not the sum of its pieces: ' + JSON.stringify([p, only('heavy'), only('medium'), only('light')]);
     }
     if (only('heavy').dodgePm || only('heavy').ward || only('medium').absorbPm || only('light').absorbPm) return 'a weight fed another line';
-    return mit.mitigationOf(v, 60).absorbPm < p.absorbPm ? null : 'the same plate at Level 60 absorbs no less than at 8';
+    return mit.mitigationOf(v, 60).absorbPm < p.absorbPm ? null : 'the same plate absorbs no less from a level 60 monster than from a level 8';
   },
   /* DODGE, the chain's first step (ruling K7): a blow at a hero with dodge misses outright (a `miss` event marked
      dodge, no damage) on its permille chance; a status tick is never dodged. */
@@ -161,20 +179,22 @@ const cases = {
     const inst = fight(M, []);
     const mon = E(M, 9, 0, 13, 3, 1, { kind: 'rat' });
     const t = H(M, 2, 12, 3, 'tank', { hp: 100, maxHp: 100 });
-    t.mit = { dodgePm: 1000, absorbPm: 0, ward: 0, keepPm: 1000 };
+    t.armour = { heavy: 0, medium: 100000, light: 0 };
     const sc = sc2(M, 3);
+    sc.rng = M.rng.rngFrom(() => 0);
     const r = M.damage.landHit(inst, sc, mon, t, 9, null, null);
     if (t.hp !== 100 || !sc.events.some((e) => e.type === 'miss' && e.t === 2 && e.dodge === true)) return 'a certain dodge landed: hp ' + t.hp + ' ' + JSON.stringify(sc.events);
     if (!r || r.dmg !== 0) return 'a dodge answered ' + JSON.stringify(r);
     M.damage.landHit(inst, sc, null, t, 4, null, { id: 'bleed', dot: true });
     if (t.hp !== 96) return 'a status tick was dodged: hp ' + t.hp;
-    /* the chance is permille: 300 dodges about three blows in ten */
+    /* the chance is permille: leather worth 34.2% against a rat turns aside about a third */
     const s2 = sc2(M, 7);
     const u = H(M, 3, 12, 4, 'tank', { hp: 1e9, maxHp: 1e9 });
-    u.mit = { dodgePm: 300, absorbPm: 0, ward: 0, keepPm: 0 };
+    u.armour = { heavy: 0, medium: 1, light: 0 };
+    const pm = M.mitigation.mitigationOf(u.armour, M.MONSTERS.rat.level).dodgePm;
     for (let i = 0; i < 400; i++) M.damage.landHit(inst, s2, mon, u, 1, null, null);
     const n = s2.events.filter((e) => e.type === 'miss' && e.dodge === true).length;
-    return n >= 90 && n <= 150 ? null : 'dodge 300 turned aside ' + n + ' of 400 blows';
+    return pm > 200 && Math.abs(n - (pm * 400) / 1000) <= 50 ? null : 'dodge ' + pm + ' turned aside ' + n + ' of 400 blows';
   },
   /* RO-19: ranged heroes shoot while moving; Melee only standing on a tile. */
   'ranged-fires-on-move': (M) => {
@@ -325,10 +345,11 @@ const cases = {
   },
 };
 
-/* NO LEVEL TERM IN A MONSTER'S BLOW: one foreman, one hero's stats, one ground, one dice stream, swung for a minute at each hero Level. */
+/* NO HERO LEVEL IN A MONSTER'S BLOW: one foreman, one hero's stats in all three armor weights, one ground, one dice stream, swung for a minute at each hero Level. */
 const blowsAtLevel = (M, heroLv) => {
   const k = H(M, 1, 12, 3, 'tank', { hp: 1000000, maxHp: 1000000, target: 2, def: 20 });
   k.heroLv = heroLv;
+  k.armour = { heavy: 21, medium: 11, light: 7 };
   const m = E(M, 2, 0, 13, 3, 1, { kind: 'hobgoblin_foreman', hp: 1000000, maxHp: 1000000 });
   const inst = inst2(M, world(M, [k, m], { phase: 'fight', leader: 1 }), groundRow({ hunt: 'coppercap_warrens' }));
   const sc = sc2(M, 7);
@@ -337,6 +358,10 @@ const blowsAtLevel = (M, heroLv) => {
 };
 
 const mutants = [
+  { name: 'armor reads the hero\'s Level again', case: 'same-blow-at-any-level',
+    edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? monsterLevelOf(MONSTERS[source.kind]) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
+  { name: 'armor ignores who struck: every blow reads level 1', case: 'armour-reads-the-attacker',
+    edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? monsterLevelOf(MONSTERS[source.kind]) : 1)", 'mitigationOf(target.armour, 1)']] },
   { name: 'a level term on the blow: a hero under the floor is hit twice as hard', case: 'same-blow-at-any-level',
     edits: [[D, 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));', 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row) * (t.heroLv < 32 ? 2 : 1));']] },
   { name: 'a level term on the to-hit roll: a hero under the floor is hit more often', case: 'same-blow-at-any-level',
@@ -353,7 +378,7 @@ const mutants = [
   { name: 'ward before absorb', case: 'armour-order', edits: [['src/core/mitigation.js',
     '  let x = raw - Math.floor((raw * (m.absorbPm || 0)) / 1000);\n  x = Math.floor((x * el) / 1000);\n  x -= Math.max(0, m.ward || 0);',
     '  let x = raw - Math.max(0, m.ward || 0);\n  x -= Math.floor((x * (m.absorbPm || 0)) / 1000);\n  x = Math.floor((x * el) / 1000);']] },
-  { name: 'a hero\'s armour is skipped', case: 'armour-order', edits: [[D, "n = target.side === 'hero' ? mitigate(n, el, target.mit) : Math.max(1, n);", 'n = Math.max(1, n);']] },
+  { name: 'a hero\'s armour is skipped', case: 'armour-order', edits: [[D, "n = target.side === 'hero' ? mitigate(n, el, armourVs(target, source)) : Math.max(1, n);", 'n = Math.max(1, n);']] },
   { name: 'a ward-swallowed blow deals 0', case: 'armour-order', edits: [['src/core/mitigation.js', '  return Math.max(1, floor, x);', '  return Math.max(0, floor, x);']] },
   { name: 'no keep floor', case: 'armour-cap', edits: [['src/core/mitigation.js', '  return Math.max(1, floor, x);', '  return Math.max(1, x);']] },
   { name: 'absorb ignores the dodge beside it', case: 'armour-cap', edits: [['src/core/mitigation.js', 'Math.min(1000 - keepPm, curve(M.absorb, nat(v.heavy), L))', 'curve(M.absorb, nat(v.heavy), L)']] },

@@ -456,6 +456,22 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'armorw') {
+    /* The monsters' own stats, sim only (worker.mjs whatIf): the Glade and the Warrens at atk x1, x1.25 and x1.5 on today's tree, in range and pushing, alone in every way to fight at the floor and a pair and a four. */
+    const THREE = { armourSlots: ['helmet', 'body', 'boots'] }, TWO = { armourSlots: ['helmet', 'body'] };
+    const VARIANTS = { startAvg: { gear: THREE, startBar: true }, avg: { gear: THREE }, two: { gear: TWO }, kit: {} };
+    const cell = (ground, party, level, x, b, m) => ({ ...cellOf({ ground, party, level, hours: H(1), seeds: 2, x, ...b }), windowMs: 120000, ...(m > 1 ? { whatIf: { monsters: { '*': { atk: '*' + m } } } } : {}) });
+    for (const m of [1, 1.25, 1.5]) for (const [ground, levels, floor] of [['mosslight_glade', [16, 24, 31, 13, 10, 6], 16], ['coppercap_warrens', [32, 41, 26, 17], 32]]) {
+      for (const level of levels) {
+        for (const b of ['startAvg', 'kit']) { const x = 'W' + m * 100 + b; out.push(cell(ground, ['tank'], level, x, VARIANTS[b], m)); out.push(cell(ground, PARTIES.four, level, x, VARIANTS[b], m)); out.push(cell(ground, PARTIES.duo, level, x, VARIANTS[b], m)); }
+        if (level === floor) {
+          for (const b of ['avg', 'two']) out.push(cell(ground, ['tank'], level, 'W' + m * 100 + b, VARIANTS[b], m));
+          for (const s of ['hammer', 'bow', 'mage', 'healer']) out.push(cell(ground, [s], level, 'W' + m * 100 + 'kit', VARIANTS.kit, m));
+        }
+      }
+    }
+    return out;
+  }
   if (name === 'armor') {
     /* WHAT ARMOR READS (2026-11-04): in range and pushing, alone and in a four, the first-hour grounds, on today's default food and the ground's guide food. x = A<build>, plus W125 when every Warrens monster's atk is x1.25
        (sim only). startPoor / startAvg play START_BAR as shipped; avg / kit the ground's guide food on the store; built every slot on crafted food, eating early. Read by risk-table.mjs --compare. */

@@ -118,11 +118,10 @@ export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', '
    mixed pieces blend by slot share; fixed damage order dodge, absorb, resistances, ward, HP; total
    mitigation cap"; numbers: Game Designer 2026-10-21, docs/planning/PRIORITY_BOARD.md Decisions).
    Each worn piece's armour value (its `defB`) feeds its OWN weight's line, so a mixed set splits by
-   what each slot wears, with no mixing penalty. Measured against the hero's own Level, so
-   armour of your tier keeps its worth as you climb and an old set fades. src/core/mitigation.js
-   derives the profile; it is never stored.
+   what each slot wears, with no mixing penalty. Measured against the ATTACKER's level (2026-11-04, Tyler's "just simply harder": stats against stats, no hero Level in a blow), so a
+   hard monster's blow gets through low armor more, a weak one's barely does, and an old set fades as the ground climbs. src/core/mitigation.js derives the profile; it is never stored.
      dodge.maxPm, dodge.k   medium: the chance a blow misses you entirely,
-                            maxPm x P / (P + k x Level), P = medium armour value
+                            maxPm x P / (P + k x the attacker's level), P = medium armour value
      absorb.maxPm, absorb.k heavy: the share of a landed blow the armour takes, same curve
      ward.perPointPm        light: a flat amount off every landed blow, P x perPointPm / 1000
                             (best against many small blows, little against one big one)

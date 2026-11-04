@@ -579,6 +579,8 @@ async function run(mutate) {
     const LB = await import('../src/data/loot-bands.js');
     ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14]',
       `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands) is [0.5, 0.5, 0.14]`);
+    ok(LB.VENDOR_HOURLY_ARMOR_T2_RATE === 0.3 && JSON.stringify(LB.VENDOR_HOURLY_ARMOR_SLOTS) === '["helmet","body","pants","boots"]',
+      `G1: tier 2's hourly armor sells at ${LB.VENDOR_HOURLY_ARMOR_T2_RATE} of book in ${JSON.stringify(LB.VENDOR_HOURLY_ARMOR_SLOTS)}; the ruling (designer 2026-11-03, lane/c-gold-matters) is 0.3 in helmet, body, pants, boots`);
     const { ITEMS } = await import('../src/data/items.js');
     /* THE RULING'S NUMBERS, per unit, as the server pays them. */
     const BUYBACK_EXPECT = {

@@ -58,19 +58,19 @@ export const SHOP_OFFERS = [
   {
     id: "character_slot.2", table: "character_slot",
     name: "Character slot 3",
-    cost: [{ kind: "currency", id: "gold", amount: 15000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 50000 }],
     grant: [{ kind: "unlock", id: "character_slot:2", amount: 1 }],
   },
   {
     id: "character_slot.3", table: "character_slot",
     name: "Character slot 4",
-    cost: [{ kind: "currency", id: "gold", amount: 40000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 200000 }],
     grant: [{ kind: "unlock", id: "character_slot:3", amount: 1 }],
   },
   {
     id: "character_slot.4", table: "character_slot",
     name: "Character slot 5",
-    cost: [{ kind: "currency", id: "gold", amount: 120000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 800000 }],
     grant: [{ kind: "unlock", id: "character_slot:4", amount: 1 }],
   },
   {
@@ -628,10 +628,11 @@ export const DERIVED_PRICES = [
     "name": "Vendor sell-back price",
     "where": "src/screens/shop-counter.js vendorPrice() = supabase/functions/hr-accrue/catalogue.js vendorPriceOf()",
     "currency": "gold",
-    "formula": "v = gear (weapon/armor/offhand/jewelry) ? max(1, floor(book * VENDOR_GEAR_RATES[tier])) : book; min(ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, max(1, floor(SHOP_BUYBACK_RATE * cheapest shop unit price)))   (cap only if the shop sells it)",
+    "formula": "v = gear (weapon/armor/offhand/jewelry) ? max(1, floor(book * gearSaleRate(item))) : book; min(ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, max(1, floor(SHOP_BUYBACK_RATE * cheapest shop unit price)))   (cap only if the shop sells it)",
     "params": {
       "VENDOR_RAW_RATE": 0.2,
       "VENDOR_GEAR_RATES": [0.5, 0.5, 0.14],
+      "VENDOR_HOURLY_ARMOR_T2_RATE": 0.3,
       "SHOP_BUYBACK_RATE": 0.5
     },
     "server_needs": "CLOSED — the edge prices every sale with vendorPriceOf from ITEMS and this catalogue (src/core/shop-buyback.js derives the cheapest unit price for both sides)."

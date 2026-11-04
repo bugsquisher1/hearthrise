@@ -16,13 +16,17 @@
 //   (1,712,500 + 5,250 x level) x (1 + (n - 1) x 2/15), floored,
 // buys 4 h, 6 a day, so a full day of six is exactly 8.0 x the base.
 // WE KEEP ITS SHAPE (a base plus a per-level term, the same linear +2/15 a
-// purchase, the same 4 h and 6 a day) and cut the gold about 4,000-fold.
-// Why so much lower: our economy rule is that common drops + gold about pay a
-// hunt's supplies, and profit comes from rares. Measured on the S1 engine, a
-// fresh melee hero earns about 1,500 g an hour (691 g coins + 793 g common
-// drops, mill_cellar fixture). A refill is time, not a supply, so it should
-// cost a fraction of the hour it buys, never a day's wage: at combat level 3
-// the first 4 h costs 700 g, under half an hour of that hero's income.
+// purchase, the same 4 h and 6 a day) and cut the gold about 1,700-fold.
+//
+// WHY THIS PRICE (designer 2026-11-03, lane/c-gold-matters, was 400 + 100 a Level:
+// a tenth of what the 4 h earned at every Level, so it was never a question).
+// A refill is the one purchase that never runs out, so it is the place gold keeps
+// meaning something once the slots and the house are bought: it trades gold for
+// hunting time. Against the gold a hero earns in those 4 h on the real engine, the
+// first buy of the day is about a third at Level 13 and 25 and about half at Level
+// 45 to 55; by the sixth at Level 55 it can cost all the 4 h earn, so a hero past
+// that line is paying gold for XP alone, which is the decision. Still far under
+// the 1,712,500 + 5,250 a Level we scaled from, and never Crowns.
 //
 // THE PRICE, integer only (the server computes it; the client only shows it):
 //   restoredMin = min(maxMinPerBuy, capMin - currentMin)   (refused if <= 0)
@@ -34,20 +38,20 @@
 //
 // WORKED EXAMPLES (combat levels stated):
 //   1. Free, combat 10, 0 h, 1st buy today: restores 4 h (cap 8 h).
-//      (400 + 1,000) x 15/15 x 240/240 = 1,400 g.
+//      (1,000 + 2,500) x 15/15 x 240/240 = 3,500 g.
 //   2. Free, combat 10, 6 h, 2nd buy today: restores 2 h (8 h cap - 6 h).
-//      ceil(1,400 x 17/15 x 120/240) = ceil(793.3) = 794 g. Counts as buy 2.
+//      ceil(3,500 x 17/15 x 120/240) = ceil(1,983.3) = 1,984 g. Counts as buy 2.
 //   3. Premium, combat 50, 5 h, 3rd buy today: restores 4 h (cap 12 h).
-//      (400 + 5,000) x 19/15 x 240/240 = 6,840 g.
+//      (1,000 + 12,500) x 19/15 x 240/240 = 17,100 g.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
 export const STAMINA_REFILL = Object.freeze({
   /* Gold of the first full refill of the day, before the level term. */
-  base: 400,
+  base: 1000,
   /* Gold per combat level on that price (Huntera: 5,250 on 1,712,500). */
-  perLevel: 100,
+  perLevel: 250,
   /* Most stamina one purchase restores, in whole minutes (4 h). */
   maxMinPerBuy: 240,
   /* Purchases per character per server day, partial ones included. */

@@ -303,6 +303,9 @@ function startApp(win) {
     timing.drawn('game');
     /* the account's other characters play too (in town for everyone), unviewed */
     if (account === a) await a.openOthers(others);
+    /* The game screen is reported only now, with every hero this page opens read: the player's choice about being recorded
+       lives in their residue (src/session/replay-pref.js), so recording waits until all of it has been seen. */
+    if (account === a) obs.screen('game');
     return true;
   }
 
@@ -312,7 +315,6 @@ function startApp(win) {
     if (!account) return;
     if (!strip) {
       clear();
-      obs.screen('game');
       root.className = 'app is-game';
       const nav = doc.createElement('nav');
       const main = doc.createElement('main');

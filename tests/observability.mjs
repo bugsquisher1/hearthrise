@@ -5,7 +5,7 @@
 //   node tests/observability.mjs           the checks
 //   node tests/observability.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/net/boot-timing.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js src/shell/launcher.js play.html
+// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/net/boot-timing.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js src/shell/launcher.js src/session/replay-pref.js play.html
 //
 // play.html in a real Chromium with the REAL vendored Sentry and PostHog SDKs,
 // supabase-js and the REST paths stubbed (tests/_client-harness.mjs). The page is
@@ -62,6 +62,13 @@
 //   OB-15 boot_timing (lane/a-boot-lock): ONE event for a load that signed back in from a stored session, none for a
 //         sign-in, with its marks in order, what it spent on the other tabs, the tab's visibility and how it was reached;
 //         numbers and fixed words only, keyed by the account id
+//   OB-16 THE PLAYER'S SWITCH (Settings > Help > "Share session recordings to help fix bugs"; src/session/replay-pref.js): OFF records
+//         NOTHING. (node, the real module and real CharacterSessions) a hero whose choice is off never starts the recorder; nothing is
+//         recorded before a hero has been read (unknown is not yes), then the default (on) starts it; the real Settings row stops it at
+//         once and starts it again; a hero opened after an off cannot undo it, a late hero holding a newer off stops it; leaving the game
+//         screen or signing out stops it; boot.js reports the game screen only after the account's other heroes have been read.
+//         (browser, the real SDK and the real Settings window) with the choice off and the game screen showing, the recorder is off and no
+//         recording is sent; ticking the switch starts it and unticking it stops it at once
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -195,7 +202,9 @@ async function page(browser, base, o) {
       v++;
       /* hr_load (the roster, the open) is idle and the join's hello hunts: this load SEES the hunt
          start; once left, every read is the ended hunt. */
-      const b = o.hunt && (name === 'hr-accrue' || o.left) ? huntBody(v, o.left) : envelope(v);
+      const b0 = o.hunt && (name === 'hr-accrue' || o.left) ? huntBody(v, o.left) : envelope(v);
+      /* o.residue: what the hero's client_state holds (the player's display choices, src/session/residue.js) */
+      const b = o.residue ? Object.assign({}, b0, { client_state: o.residue }) : b0;
       return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
     }
     return r.fulfill({ contentType: 'application/json', body: '{"ok":true}' });
@@ -451,6 +460,33 @@ async function browserChecks(overrides) {
       await close();
     }
 
+    { // OB-16: THE PLAYER'S SWITCH, with the real SDK and the real Settings window. A hero whose choice is OFF reaches the game screen and
+      // nothing records; pressing the switch in Settings starts the recording and pressing it again stops it, at once.
+      const { pg, seen, close } = await page(browser, 'http://127.0.0.1:' + port, { hunt: false, residue: { shareReplay: { on: false, at: 1 } } });
+      opened.push(seen);
+      await pg.goto('https://hearthrise.net/play.html', { waitUntil: 'load' });
+      if (!(await signIn(pg))) fails.push('OB-16 sign-in did not reach the characters screen');
+      await wait(pg, () => window.posthog && window.posthog.__loaded);
+      await pg.click('[data-app="play"][data-slot="0"]');
+      if (!(await wait(pg, () => document.querySelector('[data-hs-shell]')))) fails.push('OB-16 the game screen did not show');
+      await pg.waitForTimeout(2500);
+      const idle = await pg.evaluate(() => ({ rec: window.posthog.config.disable_session_recording, started: window.posthog.sessionRecordingStarted() }));
+      if (idle.rec !== true || idle.started) fails.push('OB-16 the choice is OFF and the game screen is showing, yet the recorder is on: ' + JSON.stringify(idle));
+      if (seen.events.some((e) => e && e.event === '$snapshot') || seen.posthog.some((p) => /^\/s\//.test(p))) fails.push('OB-16 the choice is OFF and a recording was sent');
+      await pg.keyboard.press('Escape');
+      const box = '[data-hs-win="settings"] input[data-sid="help.replay"]';
+      await wait(pg, () => document.querySelector('[data-hs-win="settings"] .st'));
+      await pg.click('[data-hs-win="settings"] .st-tab[data-cat="help"]');
+      if (!(await wait(pg, (s) => document.querySelector(s) && document.querySelector(s).checked === false, box))) fails.push('OB-16 Settings does not show the switch as off for a hero whose choice is off');
+      else {
+        await pg.check(box);
+        if (!(await wait(pg, () => window.posthog.config.disable_session_recording === false))) fails.push('OB-16 turning the switch on in Settings did not start the recording');
+        await pg.uncheck(box);
+        if (!(await wait(pg, () => window.posthog.config.disable_session_recording === true))) fails.push('OB-16 turning the switch off in Settings did not stop the recording at once');
+      }
+      await close();
+    }
+
     for (const [id, url] of [['OB-5', 'https://hearthrise.net/play.html?noanalytics=1'], ['OB-6', 'http://localhost:' + port + '/play.html']]) {
       const { pg, seen, close } = await page(browser, 'http://127.0.0.1:' + port, { hunt: false });
       opened.push(seen);
@@ -464,8 +500,7 @@ async function browserChecks(overrides) {
       await close();
     }
   } catch (e) {
-    fails.push('OB-0 the browser checks stopped: ' + String(e && e.message).split('\n')[0]);
-  } finally {
+    fails.push('OB-0 the browser checks stopped: ' + String(e && e.message).split('\n')[0]);  } finally {
     for (const s of opened) s.stop();
     await browser.close();
     server.close();
@@ -687,6 +722,84 @@ async function nodeChecks(root) {
   return fails;
 }
 
+/* OB-16 (node): THE PLAYER'S SWITCH. The real observability module and real CharacterSessions under a fake page whose PostHog counts
+   start and stop. Off records NOTHING (the recorder is never started), unknown records nothing, and the newest pick any open hero holds
+   is the one that counts, from the first hero and from a late one; the real Settings row stops it at once. */
+async function replayChecks(root) {
+  const fails = [];
+  const u = (p) => pathToFileURL(join(root, p)).href + V;
+  const CS = await import(u('src/session/character-session.js'));
+  const SM = await import(u('src/shell/settings-model.js'));
+  const { SETTINGS } = await import(u('src/data/settings.js'));
+  const row = SETTINGS.find((r) => r.id === 'help.replay');
+  const rig = async () => {
+    const OBS = await import(u('src/net/observability.js') + '&run=' + (++RUNS));
+    const calls = [];
+    const sdk = { init: () => sdk, capture() {}, identify() {}, reset() {}, startSessionRecording() { calls.push('start'); }, stopSessionRecording() { calls.push('stop'); } };
+    const sentry = { init() {}, setUser() {}, captureException() {}, captureMessage() {}, captureConsoleIntegration: () => ({ name: 'CaptureConsole' }) };
+    const idle = [];
+    const win = {
+      location: { hostname: 'hearthrise.net', search: '', href: 'https://hearthrise.net/play.html' },
+      performance: { now: () => 0 }, addEventListener() {}, removeEventListener() {}, setInterval: () => 1,
+      requestIdleCallback: (fn) => { idle.push(fn); return idle.length; },
+      document: { visibilityState: 'visible', createElement: () => ({}), head: { appendChild(s) { if (/posthog/.test(s.src)) win.posthog = sdk; else win.Sentry = sentry; s.onload(); } } },
+    };
+    const obs = OBS.startObservability(win);
+    obs.identify(UID);
+    for (const fn of idle.splice(0)) fn();
+    const heroes = [];
+    /* a hero read from the server: its residue is what the envelope's client_state holds */
+    const hero = async (slot, residue) => {
+      const cs = new CS.CharacterSession({ slot, uid: UID, server: { rpc: async () => ({ ok: true, body: Object.assign(envelope(1), residue ? { client_state: residue } : {}) }) }, setTimer: () => 0, clearTimer() {} });
+      heroes.push(cs);
+      await cs.load();
+      return cs;
+    };
+    return { obs, calls, hero, heroes, ctxOf: (character) => ({ character, peers: () => heroes, hud: { layoutOf: () => null, setVisible: () => true } }) };
+  };
+
+  /* off from the start: the game screen shows, a hero is read, and the recorder is never started */
+  { const r = await rig();
+    r.obs.screen('game');
+    await r.hero(0, { shareReplay: { on: false, at: 5 } });
+    await r.hero(1);
+    if (r.calls.includes('start')) fails.push('OB-16 the choice is OFF and the recorder was started: ' + r.calls.join()); }
+
+  /* unknown is not yes: nothing records before a hero has been read; then the default (on) starts it */
+  { const r = await rig();
+    r.obs.screen('game');
+    if (r.calls.length) fails.push('OB-16 the recorder was started before any hero was read: ' + r.calls.join());
+    await r.hero(0);
+    if (r.calls.join() !== 'start') fails.push('OB-16 a hero with no pick (the default is on) did not start the recording: ' + r.calls.join()); }
+
+  /* the real Settings row: off stops it at once, on starts it, a hero opened later cannot undo an off, a late hero with a newer off stops it */
+  { const r = await rig();
+    r.obs.screen('game');
+    const a = await r.hero(0);
+    const ctx = r.ctxOf(a);
+    if (!SM.write(ctx, row, false) || r.calls.join() !== 'start,stop') fails.push('OB-16 pressing the switch off did not stop the recording at once: ' + r.calls.join());
+    await r.hero(1);   // opened after: no pick of its own, so the newer off still counts
+    if (r.calls.join() !== 'start,stop') fails.push('OB-16 a hero opened after the press started the recording again: ' + r.calls.join());
+    if (!SM.write(ctx, row, true) || r.calls.join() !== 'start,stop,start') fails.push('OB-16 pressing the switch on did not start the recording: ' + r.calls.join());
+    await r.hero(2, { shareReplay: { on: false, at: 9e12 } });   // a hero closed during the press, holding a newer off
+    if (r.calls.join() !== 'start,stop,start,stop') fails.push('OB-16 a late hero holding a newer off did not stop the recording: ' + r.calls.join());
+    SM.write(ctx, row, true);
+    r.obs.screen('characters');
+    if (r.calls[r.calls.length - 1] !== 'stop') fails.push('OB-16 leaving the game screen did not stop the recording: ' + r.calls.join());
+    r.obs.screen('game');
+    r.obs.forget();
+    if (r.calls[r.calls.length - 1] !== 'stop') fails.push('OB-16 signing out did not stop the recording: ' + r.calls.join()); }
+
+  /* the game screen is reported only once every hero this page opens has been read (boot.js play()): their residue holds the choice */
+  const boot = await readFile(join(root, 'src/app/boot.js'), 'utf8');
+  const part = (a, b) => boot.slice(boot.indexOf(a), boot.indexOf(b));
+  const play = part('async function play(', 'async function showGame(');
+  const show = part('async function showGame(', 'async function showPane(');
+  if (!(play.includes('openOthers') && play.indexOf("obs.screen('game')") > play.indexOf('openOthers')) || show.includes("obs.screen('game')"))
+    fails.push('OB-16 boot.js reports the game screen before the account\'s other heroes have been read, so a hero closed during the press could be recorded');
+  return fails;
+}
+
 async function hashChecks(root) {
   const fails = [];
   const cfg = await readFile(join(root, 'src/net/observability-config.js'), 'utf8');
@@ -709,7 +822,7 @@ async function checks(overrides) {
     root = tmp;
   }
   try {
-    const early = [...await hashChecks(root), ...await nodeChecks(root)];
+    const early = [...await hashChecks(root), ...await nodeChecks(root), ...await replayChecks(root)];
     /* a planted defect the pinned hashes or the node arm already catch is caught: its browser run (about 100 s) would add nothing to the verdict */
     if (overrides && early.length) return early;
     return [...early, ...await browserChecks(overrides)];
@@ -782,6 +895,13 @@ const MUTANTS = [
   ['a refused ask counts as a step', 'src/net/observability.js', "const r = kind === 'end' && e.result && e.result.ok ? e.result : null;", "const r = kind === 'end' && e.result ? e.result : null;"],
   ['signup_done is never sent', 'src/app/boot.js', "if (roster.length && !rosterSlots.length) trackOnce('signup_done', {}, 'account');", ''],
   ['the coach\'s cards are never reported', 'src/shell/launcher.js', 'if (!had || had.card.id !== c.id) noteCard(cs, had ? had.card : null, c);', ''],
+  /* OB-16: the player's switch; each is caught by the node arm, so no browser run is spent on it */
+  ['the recorder ignores the player\'s switch', 'src/net/observability.js', ' && replayWanted(Array.from(watched.keys())) === true;', ';'],
+  ['an unread hero reads as yes, so a screen is recorded before the choice is known', 'src/net/observability.js', 'replayWanted(Array.from(watched.keys())) === true;', 'replayWanted(Array.from(watched.keys())) !== false;'],
+  ['a press of the switch does not stop the recorder', 'src/net/observability.js', '      syncRecording();\n      watchHunt(cs, w, now(), send);', '      watchHunt(cs, w, now(), send);'],
+  ['signing out leaves the recorder running', 'src/net/observability.js', 'safe(syncRecording);   // no account behind the screen any more: nothing records', ''],
+  ['an older recording pick beats a newer one', 'src/session/replay-pref.js', 'if (p && (!best || p.at > best.at)) best = p;', 'if (p && (!best || p.at < best.at)) best = p;'],
+  ['the game screen is reported before the other heroes are read', 'src/app/boot.js', "      clear();\n      root.className = 'app is-game';", "      clear();\n      obs.screen('game');\n      root.className = 'app is-game';"],
 ];
 
 async function main() {

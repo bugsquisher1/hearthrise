@@ -20,7 +20,7 @@
 //       is never recommended one; past every solo band the pick is the nearest solo ground below
 //       and the Hunts window says so plainly; a party is recommended by its seats' levels
 //   G2b a party ground's card never offers it alone below its measured break-even (designer
-//       2026-10-21, CONFLICTS item 2): the Warrens reads "A party of 2 to 4, or alone from Level 45"
+//       2026-10-21, CONFLICTS item 2): the Warrens reads "Best with 2 to 4, and alone it pays from Level 45"
 //       and no party ground reads "Alone or with up to"; a solo or both ground still does
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
@@ -79,7 +79,7 @@ async function run(base) {
   const duo = HL.recommendation([12, 20], 2, rows);
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
   const war = rows.find((r) => r.hunt === 'coppercap_warrens');
-  ok('G2', !!war && HL.heroWords(war) === 'A party of 2 to 4, or alone from Level 45', 'the Warrens card reads ' + JSON.stringify(war && HL.heroWords(war)));
+  ok('G2', !!war && HL.heroWords(war) === 'Best with 2 to 4, and alone it pays from Level 45', 'the Warrens card reads ' + JSON.stringify(war && HL.heroWords(war)));
   ok('G2', rows.filter((r) => r.groupFit === 'party').every((r) => !/^Alone/.test(HL.heroWords(r))), 'a party ground offers itself alone');
   const solo = rows.find((r) => r.groupFit !== 'party' && r.heroes > 1);
   ok('G2', !!solo && /^Alone or with up to \d more$/.test(HL.heroWords(solo)), 'a solo/both ground lost its offer: ' + (solo && HL.heroWords(solo)));

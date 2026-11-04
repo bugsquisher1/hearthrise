@@ -1191,7 +1191,7 @@ const cases = {
     if (inserts !== 2 || !node || !/:new$/.test(node.key)) return 'the hunt bar did not redraw the coach on a new card (' + inserts + ' draws, ' + (node && node.key) + ')';
     press(cs, 'coach-open');
     const open = draw(cs);
-    if (open.includes('is-min') || open.includes('hs-coach-new') || !open.includes('Your hero goes after the rats, fights them')) return 'opened, the coach is not its full text: ' + open;
+    if (open.includes('is-min') || open.includes('hs-coach-new') || !open.includes('Your hero goes after the monsters, fights them')) return 'opened, the coach is not its full text: ' + open;
     press(cs, 'coach-min');
     if (draw(cs).includes('hs-coach-new')) return 'opening did not clear the mark';
     placeCoach(bar, draw(cs));

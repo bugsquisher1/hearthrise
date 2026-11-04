@@ -251,12 +251,12 @@ export function fitWords(r, level) {
   return level > r.band[1] ? { words: 'Below your level', tone: 'below' } : { words: 'In your range', tone: 'in' };
 }
 
-/** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "A party of 2 to 4, or alone from Level 45"
+/** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "Best with 2 to 4, and alone it pays from Level 45"
     when its row measured a lone hero's break-even (hunt-grounds.js soloFrom), else "Best with 2 to 4, and a lone hero can
-    enter": no rule holds a lone hero out of it (the panel 2026-11-01 walked the Sewer alone at Level 10). */
+    enter": advice, no rule holds a lone hero out (the panel 2026-11-01 walked the Sewer alone at Level 10; Tyler 2026-11-04 UTC). */
 export function heroWords(r) {
   if (r.groupFit === 'party' && r.heroes > 1) {
-    return Number.isInteger(r.soloFrom) ? 'A party of 2 to ' + r.heroes + ', or alone from Level ' + r.soloFrom : 'Best with 2 to ' + r.heroes + ', and a lone hero can enter';
+    return Number.isInteger(r.soloFrom) ? 'Best with 2 to ' + r.heroes + ', and alone it pays from Level ' + r.soloFrom : 'Best with 2 to ' + r.heroes + ', and a lone hero can enter';
   }
   return r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';
 }

@@ -34,6 +34,7 @@
 //                  row, clear of the bar; a running hunt hides the row (Andy 2026-11-01: no way out of the house)
 //   DP-6 HERO SWITCH  the summary closed, or still up, when the viewed hero changes: on the way back the "Last hunt"
 //                  bar stays out of town and the summary stays shut (a switch remounts the shell)
+//   DP-8 OK STAYS ON SCREEN  at 667x375 with the longest why line the card scrolls, its answers do not (risk ruling, 2026-11-04 UTC).
 //   DP-7 AN END ALREADY SEEN IS OVER  (party panel 2026-11-03) "Pip left the hunt, so Kell came home too" stands over the hero on screen with
 //                  that hunt's summary, and goes when the summary is closed, with no new answer from the server
 // ════════════════════════════════════════════════════════════════════════
@@ -196,6 +197,15 @@ async function pageRules(overrides, shots) {
           const side = await a.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-widget="alerts"] li')).map((li) => li.textContent).filter((t) => /died/.test(t)));
           if (side.length) fails.push('DP-1 [' + tag + '] the death also raised a side line: ' + side.join(' | '));
           if (shots) await a.page.screenshot({ path: join(shots, 'death-popup-' + tag + '.png') });
+          /* DP-8 OK STAYS ON SCREEN: the smallest phone the game plays on, the longest why line (the card scrolls; its answers do not). */
+          if (vp.height < 500) {
+            await a.page.setViewportSize({ width: 667, height: 375 });
+            await a.page.evaluate((q) => { const put = (sel, t) => { const n = document.querySelector(q + ' ' + sel); n.textContent = t; n.classList.add('is-on'); }; put('.hdeath-why', 'You were 31 Levels under this ground, so its monsters hit you 620% harder. Better armor, food eaten sooner, a healer or a few more Levels would help.'); put('.hdeath-saved', "No Blessing was active. Blessings, in the Shop's Services tab, lower what dying costs, and they're free until Level 30."); }, POP);
+            await a.page.waitForTimeout(200);
+            const hit = await a.page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="death-ok"]').getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return { bottom: b.bottom, edge: document.querySelector(q + ' .hs-win-body').getBoundingClientRect().bottom, ok: !!e && !!e.closest('[data-hs-act="death-ok"]') }; }, POP);
+            if (!hit.ok || hit.bottom > hit.edge + 0.5) fails.push('DP-8 [667x375] OK runs past the card on a long card: ' + JSON.stringify(hit));
+            await a.page.setViewportSize(vp);
+          }
           /* A reload before OK: the popup comes back, with the same server cost. */
           await a.page.reload({ waitUntil: 'load' });
           if (!(await play(a.page)) || !(await popWaits(a.page))) fails.push('DP-1 [' + tag + '] a reload before OK lost the death popup');
@@ -364,6 +374,7 @@ async function pageRules(overrides, shots) {
 }
 
 const PAGE_MUTANTS = [
+  ['OK scrolls off a phone on a long card', 'src/styles/summary.css', 'position: sticky; bottom: -10px; z-index: 1; ', ''],
   ['a death teaches nothing: the card has no why', 'src/shell/death-popup.js', '    why: whyWords(cs, d),', "    why: '',"],
   ['a death opens no popup', 'src/shell/death-popup.js', "    ctx.wm.open('death');", '    void 0;'],
   ['the dismissal is not kept', 'src/shell/death-popup.js', '{ const s = showing; showing = null; dismissDeath(cs, s); }', '{ showing = null; }'],

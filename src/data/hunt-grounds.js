@@ -22,7 +22,7 @@
 //                 ground stays enterable alone, and says it is best with a party.
 //     soloFrom    (optional, a 'party' ground only) the Level from which a LONE hero breaks even
 //                 here, measured on the real settle; the Hunts card offers the ground alone
-//                 only from it ("A party of 2 to 4, or alone from Level 45"). Advice, like groupFit.
+//                 only from it ("Best with 2 to 4, and alone it pays from Level 45"). Advice, like groupFit.
 //     leashMargin tiles a pack may step past its room (LE-05/08); absent =
 //                 HUNT_TUNING.leashMarginDefault. Read ONLY via leashMarginOf.
 //     density     (optional) THE MONSTER-DENSITY SLIDER (Tyler 10-18): { solo, perHero,

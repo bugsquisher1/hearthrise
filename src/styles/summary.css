@@ -72,5 +72,6 @@
   .hdeath-title { font-size: var(--t-lead); margin-bottom: 4px; }
   .hdeath-line { font-size: var(--t-micro); margin-bottom: 4px; }
   .hdeath-cost { margin: 6px 0; padding: 6px 10px 1px; }
-  .hdeath-actions { margin: 8px -10px -10px; padding: 6px 10px 8px; }
+  /* A long card scrolls on a phone; its answers stay on screen (the why line pushed OK under the fold, 844x390). */
+  .hdeath-actions { position: sticky; bottom: -10px; z-index: 1; margin: 8px -10px -10px; padding: 6px 10px 8px; background: var(--bg-1); }
 }

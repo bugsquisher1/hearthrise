@@ -4788,7 +4788,14 @@ jobs:
           node tools/make-ui-steel-art.mjs --check
           node tools/mutant-gate.mjs node tools/make-ui-steel-art.mjs --selftest
 
-
+      # A WRONG FIELD OR NAME GOES RED, AND OLD DEBT BLOCKS NOBODY (lane b-type-check, 2026-11-04): one whole-program
+      # TypeScript check over src/** with no build step, one bug-class lint, per file and error kind against a baseline that
+      # may only fall. Measured 37-50 s here, with other lanes on the machine; the proof 165 s, only on a push that touches it.
+      - name: Type and bug-class ratchet
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/typecheck-ratchet.mjs
+          node tools/mutant-gate.mjs node tests/typecheck-ratchet.mjs --selftest
 
       - name: Presentation floor - one set of breakpoints
         if: ${{ !cancelled() }}

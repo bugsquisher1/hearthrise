@@ -8,6 +8,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## Unreleased
 
 - Leather Boots give a little less armor, so Studded Boots are a real upgrade.
+- Drain Rats, Briarcoat Wolves and Glade Poachers carry a little more coin.
 
 ## v0.2.90 — 2026-11-04 (Armor That Answers)
 

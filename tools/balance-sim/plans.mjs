@@ -538,12 +538,27 @@ export function buildPlan(name, axes, scale = 1) {
     const SPEEDS = { B3400: 3400, B3800: 3800, B4400: 4400 };
     for (const [x, sp] of [['B0', 0], ...Object.entries(SPEEDS)]) {
       const w = sp ? { monsters: Object.fromEntries(['glade_poacher', 'goblin_sluicer', 'brook_bear', 'rook_poacher', 'carrion_crow'].map((id) => [id, { speed: Math.max(sp, id === 'carrion_crow' ? 4400 : 0) }])) } : null;
-      for (const level of [1, 5, 10]) for (const s of ['bow', 'mage']) if (x !== 'B0' || s === 'bow' || level !== 0) out.push(run('mosslight_glade', [s], level, x + 'S', fresh, w));
+      for (const level of [1, 5, 10]) for (const s of ['bow', 'mage']) out.push(run('mosslight_glade', [s], level, x + 'S', fresh, w));
       /* the floors it must not move: every way to fight at 16 and 24 in the Level's kit, the lone tank in helm and body, a full mix */
       for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) out.push(run('mosslight_glade', [s], 16, x + 'F', {}, w, 2));
       out.push(run('mosslight_glade', ['tank'], 16, x + 'F', { gear: { armourSlots: ['helmet', 'body'] } }, w, 2));
       out.push(run('mosslight_glade', ['bow'], 24, x + 'F', {}, w, 2));
       out.push(run('mosslight_glade', PARTIES.four, 16, x + 'F', {}, w, 2));
+    }
+    return out;
+  }
+  if (name === 'bowspeed') {
+    /* WHICH OF THE GLADE'S ROWS: the speed sets, smallest first (sim only), the fresh bow and mage on the rush, every in-range floor beside them. */
+    const fresh = { gear: { starter: true }, startBar: true };
+    const run = (party, level, x, b, whatIf, seeds) => ({ ...cellOf({ ground: 'mosslight_glade', party, level, hours: H(2), seeds, x, ...b }), windowMs: 120000, ...(whatIf ? { whatIf } : {}) });
+    const speeds = (poacher, rook, sluicer, bear) => ({ monsters: { glade_poacher: { speed: poacher }, rook_poacher: { speed: rook }, goblin_sluicer: { speed: sluicer }, brook_bear: { speed: bear } } });
+    const SETS = { S0: null, S1: speeds(3800, 3800, 3000, 3000), S2: speeds(3800, 3800, 3400, 3400), S3: speeds(3600, 3600, 3600, 3600), S4: speeds(3800, 3800, 3800, 3000), S5: speeds(3800, 3800, 3800, 3800) };
+    for (const [x, w] of Object.entries(SETS)) {
+      for (const level of [1, 5, 10]) out.push(run(['bow'], level, x, fresh, w, 4));
+      for (const level of [1, 5]) out.push(run(['mage'], level, x, fresh, w, 4));
+      for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) out.push(run([s], 16, x + 'F', {}, w, 2));
+      out.push(run(['tank'], 16, x + 'F', { gear: { armourSlots: ['helmet', 'body'] } }, w, 2));
+      out.push(run(PARTIES.four, 16, x + 'F', {}, w, 2));
     }
     return out;
   }

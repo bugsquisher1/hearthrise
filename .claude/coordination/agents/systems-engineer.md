@@ -4504,3 +4504,7 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *A zero in a ladder can be fixed from either end.* Raising the upper rung pushed the next rung under the bar; lowering a hand-made outlier to its ladder value fixed it in one number.
 3. *Twelve seeds settle what one guard seed can't.* The crossbow floor was +24 under both armor rules; the guard was reading a coin that happened to land.
 4. *To say "no stats-only answer", list every stat you moved and what it did to the row that shares it.* The lone hero's floor bounds what the four can be charged.
+## 2026-11-05 · lane/c-armor-tiers (the v0.2.90 red, the crossbow pin, the Level 1 bow)
+1. *A rule that moves every bill needs every guard that reads a bill.* I ran `sewer` and `first-week-bands` on the armor rule; `forest-cave` read the same money from the other end and went red in the release. Grep the bars, not the file names.
+2. *A coin roll's low end is the cheap lever.* The generated kill bound reads only the top roll, so raising the low end moves the mean with no catalogue apply. Check with `gen-hunt-sessions --check`.
+3. *A scratch skip is not a tick.* A ten-minute `world.skip` pays coin only at the window's end, and a store use reads the purse mid-window; one-minute steps are closer. The real gold-out on a fresh hero is the 300 g gold floor, and the sim has no purse at all: only the page shows it.

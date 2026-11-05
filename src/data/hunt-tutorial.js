@@ -936,7 +936,7 @@ const SAY = Object.freeze({
     const house = [named(f.home && f.home.next) ? 'the ' + f.home.next.name + ' (' + priced(f.home.next) + ')' : null,
       named(f.chest) ? 'storage chests (the ' + f.chest.name + ', ' + priced(f.chest) + ')' : null].filter(Boolean);
     const hero = f.gold >= f.slotCost ? ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' : '. A ' + nth + ' hero costs ' + gp(f.slotCost) + ' (press Characters).';
-    const smith = f.temper ? ' At the smith: your ' + f.temper.piece + ', ' + gp(f.temper.gold) + ' a first rung (Shop, Services).' : '';
+    const smith = f.temper ? ' The smith can temper your ' + f.temper.piece + ': ' + gp(f.temper.gold) + ' for a first rung (Shop, Services).' : '';
     return { text: 'You hold ' + gp(f.gold) + hero + (house.length ? ' In the House: ' + listed(house) + '.' : '') + smith };
   },
   stitch_cloak: () => {

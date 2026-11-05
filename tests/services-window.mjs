@@ -166,6 +166,10 @@ async function checks(overrides) {
           if (!raw.includes('temper.blows.2.2')) fails.push('SV-7 the sale names another offer: ' + raw);
           if (/4000|"gold"|"price"/.test(raw)) fails.push('SV-7 a number crossed in the sale: ' + raw);
         }
+        /* the sheet says what the rungs do for what is worn now, from the same server rows */
+        await page.keyboard.press('c');
+        const sheet = await wait(page, () => /blows \+1%, damage taken -5%/.test((document.querySelector('[data-combat="temper"]') || {}).textContent || ''), null, 3000);
+        if (!sheet) fails.push('SV-7 the sheet reads ' + JSON.stringify(await page.evaluate(() => (document.querySelector('[data-combat="temper"]') || {}).textContent || null)));
       }
       await ctx.close();
     }
@@ -210,6 +214,7 @@ async function checks(overrides) {
 const MUTANTS = [
   ['Temper sends without a confirmation (SV-7)', 'src/shell/windows/temper-pane.js', "sc.ask = t.getAttribute('data-track');\n    sc.msg = '';", "sc.ask = t.getAttribute('data-track');\n    return actTemperPane(ctx, 'temper-yes', t, sc, repaint);\n    sc.msg = '';"],
   ['the sale carries a price (SV-7)', 'src/shell/windows/temper-pane.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('unlock_buy', { offer, gold: 8000 })"],
+  ['the sheet forgets the rungs (SV-7)', 'src/session/temper-sections.js', 'return r && (r.blows.nowPm > 0 || r.armor.nowPm > 0) ?', 'return r && false ?'],
   ['short of gold stays on (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short ||", "prop(btn, 'disabled', !offer ||"],
   ['the top of a ladder can be pressed (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short", "prop(btn, 'disabled', !!short"],
   ['the question opens out of sight (SV-7)', 'src/shell/windows/temper-pane.js', "    if (cf && cf.scrollIntoView) cf.scrollIntoView({ block: 'nearest' });\n", ''],

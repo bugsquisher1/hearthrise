@@ -34,11 +34,16 @@ import { temperFirstRungOf } from './temper-sections.js?v=0.2.97';
 import { partyMembershipOf } from './party-sections.js?v=0.2.97';
 import { wearsArmour } from '../core/vitals.js?v=0.2.97';
 import { ITEMS } from '../data/items.js?v=0.2.97';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.97';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
 const nat = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const qtyMap = (rows) => (Array.isArray(rows) ? Object.fromEntries(rows.map((r) => [r.id, r.qty])) : null);
+/* The bench skills are the catalogue's `artisan` rows, the list hr_market_eligible reads (hr_skills.cat): the best one's level as the
+   server sent it, or null when it sent none. */
+const BENCH = Object.keys(SKILLS_DEF).filter((id) => SKILLS_DEF[id].cat === 'artisan');
+const benchLevelOf = (sk) => { const lv = sk ? BENCH.filter((id) => sk[id]).map((id) => sk[id].level) : []; return lv.length ? Math.max(...lv) : null; };
 
 /* A slot as the coach reads it: the server's action, conditions and struck state ({ type, id, store, conditions,
    enabled, usable, count }), or null for an empty slot. */
@@ -125,6 +130,7 @@ export function tutorialFactsOf(cs, sh) {
   return {
     levelXp: lv.xp, charLevel: lv.level, self: Number.isInteger(cs && cs.slot) ? cs.slot : null, name: nameOf(cs),
     skillLevel: sk ? Math.max(1, ...Object.values(sk).map((r) => r.level)) : 1,
+    benchLevel: benchLevelOf(sk),
     skillXp: sk ? Object.fromEntries(Object.entries(sk).map(([k, r]) => [k, r.xp])) : null,
     huntId: open ? open.huntId : null, sessionId: open ? open.sessionId : null,
     endReason: h && h.ended ? h.endReason : null,

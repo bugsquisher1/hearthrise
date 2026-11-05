@@ -7,6 +7,8 @@
 // what it needs, what the hero holds and where to get it, and its button stays off until the envelope shows both. A press opens a
 // confirmation at the shown price; confirming sends ONE unlock_buy naming the offer and no number, and hr_unlock_buy prices it under
 // its own lock. A rung is permanent and not refundable, so it asks once; nothing changes on screen until the re-read envelope says so.
+// The answer takes the question's place, in the flow (.hw-temper-msg), never the tab's line stuck to the sheet's foot: on a phone that line lay over the
+// note saying where the next rung's material comes from, for the 30 s an answer stands (lane/c-temper-craft's play, 2026-11-05).
 // ════════════════════════════════════════════════════
 import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.97';
 import { goldOf } from '../../session/item-sections.js?v=0.2.97';
@@ -52,10 +54,11 @@ export function temperPaneHtml() {
     + '<p class="hs-note hw-temper-way"></p>'
     + '<div class="hw-confirm hw-temper-ask" role="alertdialog" aria-label="Confirm the tempering"><p class="hw-confirm-q"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="temper-yes"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="temper-no">Cancel</button></div></div>';
+    + '<button type="button" class="hh-tool" data-hs-act="temper-no">Cancel</button></div></div>'
+    + '<p class="hw-temper-msg" role="status" aria-live="polite"></p>';
 }
 
-/** Patch the section in place. `sc` is the Services tab's own scratch: one pending flag and one answer line for the tab. */
+/** Patch the section in place. `sc` is the Services tab's own scratch: one pending flag, one answer, and `msgAt` 'temper' when it is this section's. */
 export function patchTemperPane(root, ctx, sc) {
   const cs = ctx.character;
   const purse = goldOf(cs);
@@ -92,6 +95,7 @@ export function patchTemperPane(root, ctx, sc) {
     text(yes, 'Temper for ' + gold(asked.ladder.gold));
   }
   prop(yes, 'disabled', sc.pending);
+  text(root.querySelector('.hw-temper-msg'), sc.msgAt === 'temper' ? sc.msg : '');
 }
 
 /** The section's presses; true when handled. */
@@ -100,6 +104,7 @@ export function actTemperPane(ctx, action, t, sc, repaint) {
   if (action === 'temper-ask') {
     sc.ask = t.getAttribute('data-track');
     sc.msg = '';
+    sc.msgAt = 'temper';
     repaint();
     /* the question sits under the rows: on a short window it opens below the fold, and the press looks dead (played 11-04) */
     const cf = t.closest('.hw-services').querySelector('.hw-temper-ask');
@@ -115,6 +120,8 @@ export function actTemperPane(ctx, action, t, sc, repaint) {
     const offer = r.ladder.offer, piece = r.piece, rung = r.ladder.rung + 1;
     /* A refusal means this window held numbers the server no longer has (Storage is the account's, and another hero spends it): one bounded re-read, so the row and the answer agree. */
     const send = async () => { const r = await cs.edgeIntent('unlock_buy', { offer }); if (!r.ok && r.error !== 'closed') await cs.resync(); return r; };
+    /* the answer takes the question's place, where the press scrolled the sheet to */
+    sc.msgAt = 'temper';
     runIntent(sc, repaint, send, 'At the smith…', () => 'Your ' + piece + ' is at rung ' + rung + '.', cs);
     return true;
   }

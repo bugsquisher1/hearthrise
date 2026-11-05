@@ -91,6 +91,9 @@
 .hs-win .hh-intent-msg:where(:not(.ca-msg)) { margin-top: 6px; font-size: var(--t-small); color: var(--ink); }
 .hs-win .hh-intent-msg:not(:empty, .ca-msg) { position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }
 .is-pending .hh-intent-msg { color: var(--ink-2); }
+/* Tempering's answer takes its question's place, in the flow: stuck to a phone sheet's foot it lay over the note on where the material comes from. */
+.hw-temper-msg { margin: 6px 0 0; padding: 6px 10px; font-size: var(--t-small); color: var(--ink); }
+.hw-temper-msg:empty { display: none; }
 /* A sunk field (shell.css, Forged Steel), its magnifier inside. */
 .hw-search { flex: 1; display: flex; align-items: center; gap: 6px; padding-left: 8px; color: var(--ink-3); }
 .hw-search .hs-glyph { width: 16px; height: 16px; }

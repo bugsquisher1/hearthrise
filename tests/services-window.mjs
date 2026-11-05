@@ -30,6 +30,9 @@
 //         at the top reads Full, a row short of gold says how short, gear with no ladder says so, and all of them are off
 //   SV-8  ITS MATERIAL (Tyler 2026-11-05): a row says what the rung takes and what the hero holds, bag and Storage; short of it the button stays off and one
 //         line says where to get it; a refusal comes back in words, naming both sources, and the window re-reads
+//   SV-9  ON A PHONE THE ANSWER COVERS NOTHING (lane/c-temper-craft's play, 2026-11-05: "Your Iron armor is at rung 1." stood stuck to the sheet's foot over
+//         the note on where the next salts come from, for the 30 s an answer stands): at 844x390 the answer takes the question's place, in view as it
+//         lands, and lies over no line of the tab however the sheet is scrolled
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -63,6 +66,7 @@ async function stub(page, s) {
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (s.refuseSale && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) s.env = Object.assign(clone(s.env), { inventory: Object.assign({}, s.env.inventory, { temper_salts: 3 }) });
+    if (s.spendSalts && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) s.env = Object.assign(clone(s.env), { inventory: Object.assign({}, s.env.inventory, { temper_salts: 0 }), bank: {} });
     if (s.refuseSale && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) return r.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ ok: false, verb: 'unlock_buy', error: 'insufficient_item', stage: 'buy', detail: { ok: false, error: 'insufficient_item', item_id: 'temper_salts', have: 4, need: 20, bag: 3, storage: 1 } }) });
     if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
     if (RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, 400)); return json({ ok: true }); }
@@ -85,8 +89,8 @@ async function checks(overrides) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
-  const open = async (sections) => {
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const open = async (sections, phone) => {
+    const ctx = await browser.newContext(phone ? { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true } : { viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
     page.setDefaultTimeout(6000);
     const errors = [];
@@ -203,10 +207,45 @@ async function checks(overrides) {
         await page.waitForTimeout(100);
         await press(page, P + '[data-hs-act="temper-yes"]', 'SV-8');
         /* the answer shows only after the re-read has landed: read both in the one frame the words first appear */
-        const seen = await page.waitForFunction(() => { const m = document.querySelector('.hw-services > .hh-intent-msg'); const b = document.querySelector('.hw-temper [data-track="blows"]'); return m && /Not enough/.test(m.textContent) ? b.textContent : null; }, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => null);
+        const seen = await page.waitForFunction(() => { const m = document.querySelector('.hw-temper-msg'); const b = document.querySelector('.hw-temper [data-track="blows"]'); return m && /Not enough/.test(m.textContent) ? b.textContent : null; }, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => null);
         const said = !!seen;
-        if (!said || !/Not enough Tempering Salts: you have 3 in your bag and 1 in Storage, and it takes 20\./.test(await txt(page, '.hw-services > .hh-intent-msg') || '')) fails.push('SV-8 the refusal reads ' + JSON.stringify(await txt(page, '.hw-services > .hh-intent-msg')));
+        if (!said || !/Not enough Tempering Salts: you have 3 in your bag and 1 in Storage, and it takes 20\./.test(await txt(page, '.hw-temper-msg') || '')) fails.push('SV-8 the refusal reads ' + JSON.stringify(await txt(page, '.hw-temper-msg')));
         if (!/You hold 8 \(5 in Storage\)\./.test(seen || '')) fails.push('SV-8 a refused sale did not re-read the server: the row still reads ' + JSON.stringify(seen));
+      }
+      await ctx.close();
+    }
+    { // SV-9: a phone tempers its last salts; the answer stands in the flow and the note on where to get more stays readable
+      const { ctx, page, s, opened } = await open(Object.assign(clone(SECTIONS), clone(TEMPER)), true);
+      const P = '[data-hs-win="shop"] [data-pane="services"] ';
+      if (!opened) fails.push('SV-9 the Services tab did not open on a phone');
+      else {
+        s.spendSalts = true;
+        await press(page, P + '.hw-temper [data-track="blows"] button', 'SV-9');
+        await page.waitForTimeout(150);
+        await press(page, P + '[data-hs-act="temper-yes"]', 'SV-9');
+        const landed = await wait(page, () => /is at rung 2/.test(document.querySelector('.hw-services').textContent) && /Or buy them at the Weighhouse/.test(document.querySelector('.hw-temper-way').textContent), null, 6000);
+        /* the line that holds the answer, wherever the window put it, against every other line of the tab that shows */
+        const cover = () => page.evaluate(() => {
+          const lines = Array.from(document.querySelectorAll('.hw-services p, .hw-services li, .hw-services h3, .hw-services small')).filter((e) => e.getClientRects().length && e.textContent.trim());
+          const m = lines.find((e) => /is at rung 2/.test(e.textContent) && !e.querySelector('p, li'));
+          if (!m) return { none: true };
+          const a = m.getBoundingClientRect(), body = m.closest('.hs-win-body').getBoundingClientRect();
+          const under = lines.filter((e) => e !== m && !e.contains(m) && !m.contains(e)).filter((e) => { const b = e.getBoundingClientRect(); return b.bottom > a.top + 1 && b.top < a.bottom - 1 && b.right > a.left && b.left < a.right; });
+          return { inView: a.top >= body.top - 1 && a.bottom <= body.bottom + 1, under: under.map((e) => e.className + ': ' + e.textContent.slice(0, 50)) };
+        });
+        if (!landed) fails.push('SV-9 the answer or the note never came: ' + JSON.stringify(await txt(page, '.hw-temper-msg')));
+        else {
+          const now = await cover();
+          if (now.none || !now.inView) fails.push('SV-9 the answer landed out of sight on a phone: ' + JSON.stringify(now));
+          else if (now.under.length) fails.push('SV-9 the answer lies over ' + now.under.join(' | '));
+          /* a player reads up from the foot, the answer still standing: it never follows the sheet over the note */
+          for (const up of [40, 120]) {
+            await page.evaluate((px) => { const b = document.querySelector('[data-hs-win="shop"] .hs-win-body'); b.scrollTop = b.scrollHeight - b.clientHeight - px; }, up);
+            await page.waitForTimeout(80);
+            const read = await cover();
+            if (read.under && read.under.length) fails.push('SV-9 scrolled up ' + up + ' px, the answer lies over ' + read.under.join(' | '));
+          }
+        }
       }
       await ctx.close();
     }
@@ -259,6 +298,8 @@ const MUTANTS = [
   ['a refused sale never re-reads (SV-8)', 'src/shell/windows/temper-pane.js', "if (!r.ok && r.error !== 'closed') await cs.resync(); return r;", 'return r;'],
   ['short of gold stays on (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || itemsShort ||"],
   ['the top of a ladder can be pressed (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short ||", "prop(btn, 'disabled', !!short ||"],
+  ['the answer sticks to the sheet\'s foot again (SV-9)', 'src/styles/windows.css', '.hw-temper-msg { margin: 6px 0 0;', '.hw-temper-msg { position: sticky; bottom: 0; margin: 6px 0 0;'],
+  ['the tab\'s foot line says Tempering\'s answer too (SV-9)', 'src/shell/windows/services.js', "sc.msgAt === 'temper' ? '' : sc.msg", 'sc.msg'],
   ['the question opens out of sight (SV-7)', 'src/shell/windows/temper-pane.js', "    if (cf && cf.scrollIntoView) cf.scrollIntoView({ block: 'nearest' });\n", ''],
   ['the reader invents a ladder (SV-5)', 'src/session/temper-sections.js', "  if (!Array.isArray(s)) return null;\n", "  if (!Array.isArray(s)) return [{ track: 'blows', tier: 2, rung: 0, max: 5, offer: 'temper.blows.2.1', gold: 1 }];\n"],
   ['the confirm sends a price of its own', 'src/shell/windows/services.js', 'cs.buyStamina(q.price)', 'cs.buyStamina(q.price - 1)'],

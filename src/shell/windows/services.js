@@ -29,7 +29,7 @@ import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { confirm: false, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { confirm: false, pending: false, msg: '', msgAt: null }; SCRATCH.set(cs, s); } return s; };
 
 /** The tab's skeleton (built once per opening of the Shop, inside its pane). */
 export function servicesPaneHtml() {
@@ -99,7 +99,8 @@ export function patchServicesPane(body, ctx) {
     },
   });
   patchTemperPane(root, ctx, sc);
-  text(root.querySelector('.hh-intent-msg'), sc.msg);
+  /* the tab's line answers Stamina and Blessings; Tempering's answer stands in its own section (temper-pane.js) */
+  text(root.querySelector('.hh-intent-msg'), sc.msgAt === 'temper' ? '' : sc.msg);
   cls(root, 'is-pending', sc.pending);
 }
 
@@ -116,6 +117,7 @@ export function actServicesPane(ctx, body, action, ev, t) {
     const q = staminaRefillOf(cs);
     sc.confirm = false;
     if (!q || !q.available) { repaint(); return true; }
+    sc.msgAt = null;
     runIntent(sc, repaint, () => cs.buyStamina(q.price), 'Buying stamina…', () => 'Stamina restored.');
     return true;
   }
@@ -124,6 +126,7 @@ export function actServicesPane(ctx, body, action, ev, t) {
     const tier = Number(t.getAttribute('data-tier'));
     const row = b && b.tiers.find((x) => x.tier === tier);
     if (!row || row.held) return true;
+    sc.msgAt = null;
     runIntent(sc, repaint, () => cs.buyBlessing(tier, row.price), 'Blessing…', () => 'Blessing ' + ROMAN[tier] + ' is yours.');
     return true;
   }

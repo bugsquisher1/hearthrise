@@ -109,6 +109,8 @@ export function predictTown(o) {
   const win = creditWindow({ watermarkMs: fromMs, activeSinceMs: sinceMs, nowMs, capMs: horizonMs(stepMs) });
   if (win.capped) return null;
   const burnable = !gather && w.skill === 'cooking' && !!w.row.output && burnChance(w.row, levelOf(skills, 'cooking'), 0) > 0;
+  /* A ROLLED job's grade is the server's dice (src/data/jewelry.js): its product is unsure too, in no stack until the payout. */
+  const rolled = !gather && !!w.row.roll;
   const items = {};
   const stored = {};
   let unsure = 0;
@@ -116,7 +118,7 @@ export function predictTown(o) {
   /* The engine's own effects, on the scratch bag and supply (a bench's next action checks them, as on the server):
      an input leaves the bag first, then Storage (hr_materials_take's order). */
   const fx = {
-    addItem(id, n) { bag[id] = (bag[id] || 0) + n; supply[id] = (supply[id] || 0) + n; if (burnable && id === w.row.output) unsure++; else move(id, n); },
+    addItem(id, n) { bag[id] = (bag[id] || 0) + n; supply[id] = (supply[id] || 0) + n; if ((burnable && id === w.row.output) || rolled) unsure++; else move(id, n); },
     removeItem(id, n) {
       const take = Math.min(n, supply[id] || 0);
       const fromBag = Math.min(take, bag[id] || 0);

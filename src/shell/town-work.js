@@ -439,7 +439,9 @@ export function runParts(cs, w) {
   const parts = [];
   if (out && from) {
     const d = aheadQty(tick, out);
-    const made = Math.max(0, (bag[out] || 0) + d - from.made);
+    /* a rolled run: every grade it made counts (src/data/jewelry.js) */
+    const made = from.outs ? Object.entries(from.outs).reduce((a, [id, was]) => a + Math.max(0, (bag[id] || 0) - was), 0)
+      : Math.max(0, (bag[out] || 0) + d - from.made);
     const burnt = Math.max(0, (bag[BURNT] || 0) - from.burnt);
     parts.push({ key: 'made', text: whole(made) + ' ' + (w.skill === 'cooking' && !isDish(w) ? 'made' : DONE_WORD[w.skill] || 'made') + ' so far', ahead: d !== 0 });
     if (burnt > 0) parts.push({ key: 'burnt', text: whole(burnt) + ' burnt' });
@@ -448,7 +450,7 @@ export function runParts(cs, w) {
     parts.push({ key: 'bag', text: whole(s.qty) + ' in your bag', ahead: s.ahead !== 0 });
   }
   /* A dish that may burn: the actions done, not yet cooked or burnt (the payout says which). */
-  if (tick && tick.unsure > 0) parts.push({ key: 'fire', text: whole(tick.unsure) + ' more on the fire', ahead: true });
+  if (tick && tick.unsure > 0) parts.push({ key: 'fire', text: whole(tick.unsure) + (w.row.roll ? ' more at the bench, grade still to come' : ' more on the fire'), ahead: true });
   if (w.kind === 'artisan') {
     const first = Object.keys(recipeInputs(w.row))[0];
     if (first) {

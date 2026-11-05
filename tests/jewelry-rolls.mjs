@@ -11,13 +11,14 @@
 //       XP, and NO gold: a roll pays no bench tax. Each window rolls on its own server seed, so the same window rolls the same twice.
 //   J4  A JOB THAT DOESN'T ROLL DRAWS WHAT IT ALWAYS DREW: the plain Crafting rows leave the stream untouched.
 //   J6  THE END LINE SAYS WHAT THE DICE MADE: a watched run stops on "41 Banded Signet, 3 Fine (2 Keen, 1 Surge), 1 Hallmarked (...)".
+//   J7  THE BROWSER NEVER GUESSES A GRADE: the town ticker counts a rolled job's actions as unsure, in no stack, until the server pays.
 //   J5  THE MACHINERY IS SIZED BY FORMULA: each piece has a Fine row per perk, a Hallmarked row per pair, a Hallmark offer per
 //       (Fine, other perk), and the server's bench-tax rows hold no rolled job (tools/gen-bench-tax.mjs rowsOf).
 //
 //   node tests/jewelry-rolls.mjs            the guard
 //   node tests/jewelry-rolls.mjs --mutate   each claim driven red by a planted defect in a copy of the tree
 //
-// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/town-work.js
+// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/town-work.js src/shell/town-ticker.js
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -34,7 +35,7 @@ async function load(root) {
     XP: await imp('src/core/xp.js'), RC: await imp('src/data/recipes.js'), ITEMS: (await imp('src/data/items.js')).ITEMS,
     /* the edge's own modules, as the settle imports them (no ?v=: supabase/functions has none) */
     AC: await imp('supabase/functions/hr-accrue/accrual.js', ''), CAT: await imp('supabase/functions/hr-accrue/catalogue.js', ''),
-    BT: await imp('tools/gen-bench-tax.mjs', ''), TW: await imp('src/shell/town-work.js'),
+    BT: await imp('tools/gen-bench-tax.mjs', ''), TW: await imp('src/shell/town-work.js'), TT: await imp('src/shell/town-ticker.js'),
   };
 }
 
@@ -145,6 +146,17 @@ const claims = {
     const want = '41 Banded Signet, 3 Fine (2 Keen, 1 Surge), 1 Hallmarked (Keen and Follow-through)';
     return got === want ? null : 'a rolled run ends "' + got + '", not "' + want + '"';
   },
+  J7(M) {
+    /* THE BROWSER NEVER GUESSES A GRADE: the town ticker counts a rolled job's actions as unsure, in no stack, until the server pays. */
+    const row = M.RC.ARTISAN_RECIPES.crafting.find((r) => r.roll === 'gem');
+    const t0 = Date.UTC(2026, 10, 5, 12, 0, 0), at = new Date(t0).toISOString();
+    const tick = M.TT.predictTown({ w: { kind: 'artisan', id: row.id, skill: 'crafting', row },
+      state: { active_kind: 'artisan', active_id: row.id, accrued_to: at, active_since: at }, nowMs: t0 + 20000,
+      skills: { crafting: { xp: M.XP.skillXpForLevel('crafting', 30) } }, inventory: { banded_signet: 5, road_garnet: 5 }, equipment: {} });
+    if (!tick || !(tick.unsure > 0)) return '20 s of a gem roll predicted ' + JSON.stringify(tick);
+    const guessed = row.outcomes.concat([row.output]).filter((id) => (tick.items[id] || 0) > 0);
+    return guessed.length ? 'the ticker put a guessed grade in the bag: ' + guessed.join(', ') : null;
+  },
   J5(M) {
     for (const plain of Object.keys(M.J.JEWEL_PIECES)) {
       const n = M.J.perksFor(plain).length;
@@ -168,6 +180,7 @@ const MUTANTS = [
   { claim: 'J3', name: 'a roll makes a grade from another piece', edits: [['src/core/artisan.js', "  if (grade === 'plain') return { id: plain, grade, perks: [] };", "  if (grade === 'plain') return { id: 'ruby_signet', grade, perks: [] };"]] },
   { claim: 'J4', name: 'every Crafting job rolls a draw', edits: [['src/core/artisan.js', 'const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;', 'rng.next(); const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;']] },
   { claim: 'J6', name: 'the end line reads every grade as a plain piece', edits: [['src/shell/town-work.js', '    const it = JEWELRY_ITEMS[id];', '    const it = null;']] },
+  { claim: 'J7', name: 'the ticker predicts a rolled job\'s grade', edits: [['src/shell/town-ticker.js', '  const rolled = !gather && !!w.row.roll;', '  const rolled = false;']] },
   { claim: 'J5', name: 'a rolled job pays the bench tax', edits: [['src/data/bench-tax.js', 'export const benchTaxed = (recipe) => !!(recipe && recipe.output && !recipe.roll);', 'export const benchTaxed = (recipe) => !!(recipe && recipe.output);']] },
 ];
 

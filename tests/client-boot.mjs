@@ -1230,6 +1230,7 @@ const MUTANTS = [
   ['the town waits for all its sheets again (B-20)', 'src/world/world-boot.js', '    if (!viewSheets.opensOnView(id)) await sheets.ensure(sets);', '    await sheets.ensure(sets);'],
   ['the first view asks before the server names its stand (B-20)', 'src/world/view-sheets.js', 'if (!waited && town && !town.placeOn(now.id)) {', 'if (false) {'],
   ['the sheets behind the view are never asked for (B-20)', 'src/world/view-sheets.js', '    sheets.ensure(needs.get(id));\n', ''],
+  ['a frame asks for the sheets of the town start while the first view waits for its stand (B-20)', 'src/world/view-sheets.js', 'const held = (id, cast) => (opening ? opensOnView(id) : check(id, cast));', 'const held = check;'],
   ['a read that never answers holds the town shut (B-20)', 'src/world/view-sheets.js', 'await Promise.race([town.heard(), new Promise((done) => win.setTimeout(done, PLACE_WAIT_MS))]);', 'await new Promise(() => {});'],
   ['a frame naming a sheet on its way is drawn anyway (B-20)', 'src/world/view-sheets.js', 'return miss.length > 0;', 'return false;'],
   ['a failed sheet ends the town instead of drawing stubs (B-20)', 'src/world/atlas.js', "(e) => { console.warn('[world] atlas \"' + set + '\" did not load; its sprites draw as stubs', e && e.message); return false; })", '(e) => { throw e; })'],

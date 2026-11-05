@@ -22,6 +22,7 @@ const PLACE_WAIT_MS = 3000;
 export function createViewSheets(o) {
   const { win, sheets, needs, town, missing, wake } = o;
   const asked = new Set(), behind = new Set();
+  let opening = false;
   const opensOnView = (id) => id === SCENE_MAPS.town;
 
   function loadBehind(id) {
@@ -30,8 +31,8 @@ export function createViewSheets(o) {
     sheets.ensure(needs.get(id));
   }
 
-  /** Does this frame of `id` draw a sheet still on its way? It is asked for at once, and the last frame stays. */
-  function held(id, cast) {
+  /* Does this frame of `id` draw a sheet still on its way? It is asked for at once, and the last frame stays. */
+  function check(id, cast) {
     if (!opensOnView(id) || sheets.ready(needs.get(id))) return false;
     const miss = missing(cast);
     for (const set of miss) if (!asked.has(set)) { asked.add(set); sheets.ensure([set]).then(wake); }
@@ -46,17 +47,22 @@ export function createViewSheets(o) {
    * @param {() => ({id: string, cast: object}|null)} look  this frame's scene and draw state; null: not a scene that opens on its view
    */
   async function open(look) {
-    for (let waited = false; ; waited = true) {
-      const now = look();
-      if (!now) return;
-      if (!waited && town && !town.placeOn(now.id)) {
-        await Promise.race([town.heard(), new Promise((done) => win.setTimeout(done, PLACE_WAIT_MS))]);
-        continue;
+    opening = true;
+    try {
+      for (let waited = false; ; waited = true) {
+        const now = look();
+        if (!now) return;
+        if (!waited && town && !town.placeOn(now.id)) {
+          await Promise.race([town.heard(), new Promise((done) => win.setTimeout(done, PLACE_WAIT_MS))]);
+          continue;
+        }
+        if (!check(now.id, now.cast)) return;
+        await sheets.ensure(missing(now.cast));
       }
-      if (!held(now.id, now.cast)) return;
-      await sheets.ensure(missing(now.cast));
-    }
+    } finally { opening = false; }
   }
+  /** May this frame of `id` show? No frame of the town shows, or asks for a sheet on its own, while open() is at work (a zoom's or a tab's sync can run one). */
+  const held = (id, cast) => (opening ? opensOnView(id) : check(id, cast));
 
   return { opensOnView, held, open };
 }

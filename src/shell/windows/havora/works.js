@@ -98,10 +98,11 @@ export function worksHtml() {
     + '<p class="hw-cap hv-works-next"></p>'
     + '<div class="hv-works-give">'
     + '<div class="hv-works-gifts">' + row.gifts.map((g) => '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="works-give" data-amount="' + g + '">' + esc(giveWords(g)) + '</button>').join('')
+    /* why a gift is off stands right under the gifts, above the one the purse can pay (a line under the field was below a short window's fold) */
+    + '<p class="hw-why hv-works-why"></p>'
     + '<button type="button" class="hh-tool is-primary hv-buy hv-works-max" data-hs-act="works-max"></button></div>'
     + '<div class="hv-works-typed"><span class="hw-cap">Or give</span><input type="number" inputmode="numeric" class="hv-works-amount" aria-label="Gold to give" min="1" step="100"><span class="hw-cap">gp</span>'
     + '<button type="button" class="hh-tool" data-hs-act="works-typed">Give</button></div>'
-    + '<p class="hw-why hv-works-why"></p>'
     + '</div>'
     + '<p class="hw-cap hv-works-me"></p>'
     + '<h3 class="hv-works-head">The plaque</h3>'

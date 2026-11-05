@@ -66,7 +66,11 @@ async function stub(page, s) {
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (s.refuseSale && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) s.env = Object.assign(clone(s.env), { inventory: Object.assign({}, s.env.inventory, { temper_salts: 3 }) });
-    if (s.spendSalts && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) s.env = Object.assign(clone(s.env), { inventory: Object.assign({}, s.env.inventory, { temper_salts: 0 }), bank: {} });
+    /* SV-9: the sale spends the salts and the gold, and the smith takes a moment */
+    if (s.spendSalts && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) {
+      s.env = Object.assign(clone(s.env), { inventory: Object.assign({}, s.env.inventory, { temper_salts: 0 }), bank: {}, state: Object.assign({}, s.env.state, { gold: 1000, gold_v: 9 }) });
+      await new Promise((ok) => setTimeout(ok, 600));
+    }
     if (s.refuseSale && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) return r.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ ok: false, verb: 'unlock_buy', error: 'insufficient_item', stage: 'buy', detail: { ok: false, error: 'insufficient_item', item_id: 'temper_salts', have: 4, need: 20, bag: 3, storage: 1 } }) });
     if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
     if (RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, 400)); return json({ ok: true }); }
@@ -223,6 +227,8 @@ async function checks(overrides) {
         await press(page, P + '.hw-temper [data-track="blows"] button', 'SV-9');
         await page.waitForTimeout(150);
         await press(page, P + '[data-hs-act="temper-yes"]', 'SV-9');
+        /* while the smith works the player reads back up the sheet; the answer still lands where it is seen (played at 844x390: half of it stood under the foot) */
+        await page.evaluate(() => { document.querySelector('[data-hs-win="shop"] .hs-win-body').scrollTop = 0; });
         const landed = await wait(page, () => /is at rung 2/.test(document.querySelector('.hw-services').textContent) && /Or buy them at the Weighhouse/.test(document.querySelector('.hw-temper-way').textContent), null, 6000);
         /* the line that holds the answer, wherever the window put it, against every other line of the tab that shows */
         const cover = () => page.evaluate(() => {
@@ -300,6 +306,7 @@ const MUTANTS = [
   ['the top of a ladder can be pressed (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short ||", "prop(btn, 'disabled', !!short ||"],
   ['the answer sticks to the sheet\'s foot again (SV-9)', 'src/styles/windows.css', '.hw-temper-msg { margin: 6px 0 0;', '.hw-temper-msg { position: sticky; bottom: 0; margin: 6px 0 0;'],
   ['the tab\'s foot line says Tempering\'s answer too (SV-9)', 'src/shell/windows/services.js', "sc.msgAt === 'temper' ? '' : sc.msg", 'sc.msg'],
+  ['the answer lands out of sight on a short sheet (SV-9)', 'src/shell/windows/temper-pane.js', ".then(() => {\n      if (line && line.isConnected && line.textContent && line.scrollIntoView) line.scrollIntoView({ block: 'nearest' });\n    });", ';'],
   ['the question opens out of sight (SV-7)', 'src/shell/windows/temper-pane.js', "    if (cf && cf.scrollIntoView) cf.scrollIntoView({ block: 'nearest' });\n", ''],
   ['the reader invents a ladder (SV-5)', 'src/session/temper-sections.js', "  if (!Array.isArray(s)) return null;\n", "  if (!Array.isArray(s)) return [{ track: 'blows', tier: 2, rung: 0, max: 5, offer: 'temper.blows.2.1', gold: 1 }];\n"],
   ['the confirm sends a price of its own', 'src/shell/windows/services.js', 'cs.buyStamina(q.price)', 'cs.buyStamina(q.price - 1)'],

@@ -120,9 +120,13 @@ export function actTemperPane(ctx, action, t, sc, repaint) {
     const offer = r.ladder.offer, piece = r.piece, rung = r.ladder.rung + 1;
     /* A refusal means this window held numbers the server no longer has (Storage is the account's, and another hero spends it): one bounded re-read, so the row and the answer agree. */
     const send = async () => { const r = await cs.edgeIntent('unlock_buy', { offer }); if (!r.ok && r.error !== 'closed') await cs.resync(); return r; };
-    /* the answer takes the question's place, where the press scrolled the sheet to */
+    /* the answer takes the question's place; the re-read rows above it can grow (a short purse, where the next salts come from), so once it lands a short
+       sheet scrolls it back into view (played 2026-11-05 at 844x390: half of it stood under the sheet's foot) */
+    const line = t.closest('.hw-services') ? t.closest('.hw-services').querySelector('.hw-temper-msg') : null;
     sc.msgAt = 'temper';
-    runIntent(sc, repaint, send, 'At the smith…', () => 'Your ' + piece + ' is at rung ' + rung + '.', cs);
+    runIntent(sc, repaint, send, 'At the smith…', () => 'Your ' + piece + ' is at rung ' + rung + '.', cs).then(() => {
+      if (line && line.isConnected && line.textContent && line.scrollIntoView) line.scrollIntoView({ block: 'nearest' });
+    });
     return true;
   }
   return false;

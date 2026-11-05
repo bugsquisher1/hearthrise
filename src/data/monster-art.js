@@ -191,11 +191,9 @@ export function pendingArt() {
 /* THE HUNT WALK ART (2026-10-18): which PixelLab style-1 unit each hunt-ground monster
    is drawn with in the world pane, the key of `units` in
    prototypes/hunt-sim-assets/manifest.json (8 directions, a 6-frame walk; the Rat King
-   is the 64 px canvas with an 8-frame walk). Every monster a hunt-grounds.js pocket
-   spawns has a row (tests/hunt-core/sewer.mjs). Rows share a unit on purpose: a Drain
-   Rat and the cellar's Giant Rat are the same animal. */
+   is the 64 px canvas with an 8-frame walk). A monster with no row was ported straight
+   into a world atlas and needs its own walk there (tests/hunt-core/sewer.mjs). */
 export const HUNT_WALK_ART = Object.freeze({
-  rat: 'giant_rat', slime: 'slime',
-  drain_rat: 'giant_rat', sump_slime: 'slime', culvert_bat: 'giant_bat',
+  rat: 'giant_rat', slime: 'slime', culvert_bat: 'giant_bat',
   cistern_spider: 'venom_spider', kobold_tosher: 'kobold', rat_king: 'rat_king',
 });

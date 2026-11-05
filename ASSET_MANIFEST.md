@@ -131,6 +131,11 @@ Drawn with the pixel scripts (no PixelLab credits spent), on the locked palette,
 ### Art batch 0 and the sample of five (2026-11-04, Art Director, 0 generations)
 Three tiles the set was missing and five items that wore another item's picture, drawn by script. The scripts are the source: `tools/world-art/ability-tiles.mjs` (`mend`, `rend`, `protective_ward`, in the family's own off-palette colours, the call is in `docs/ART_DIRECTION.md` section 7) and `tools/world-art/twin-icons.mjs` (`bronze_rimmed_shield`, `kingsgrate`, `iron_hatchets`, `oak_crossbow`, `crown_shard`, on `hr-world-56-v2`). `tests/pixel-icons.mjs` rule `drawn` requires each PNG to equal what its script draws. Sheets and in-game shots: `art/review/art-batch-0-2026-11-04/`.
 
+### Art batch 1 (2026-11-04, lane a-art-batch-1, PixelLab subscription, Tyler's go, 283 generations)
+**Six creatures with art of their own**, each a Pro Flash object (8 rotations) + v3 walk (8), attack (8), a fall (s e n, west mirrored; the Turncoat's four drawn) and the corpse = the fall's last frame: `drain_rat` and `sump_slime` in `art/world/sewer` (their old home, the `hunt` atlas, is 2048x1808 of 2048 and they no longer share its pixels with `rat` and `slime`), `granary_rat`, `barn_wasp`, `barn_spider`, `turncoat` in `art/world/stead`. Request, seed, style image, dead-pose job and cost are in each sidecar's `pixellab` block. The rule `[twin]` in `tests/world-assets.mjs` now fails two live monsters on the same pixels: 30 creatures, 30 drawings.
+**Method, measured:** a canvas smaller than the frame sets the size (40 px gives a 34-38 px body, on the shipped rat's scale; 48 px gave a boar-sized rat); `port-pixellab.mjs unit --ramps` snaps to the creature's own ramps before the lock (the plain lock measured a dun rat onto the stone ramp, charcoal like the Giant Rat), `--lift 1` steps the Sewer pair's bodies up their ramps for the dark floor (body edge against the floor's median, `sewer_ground` at x0.56: Drain Rat 1.72-3.20, Sump Slime 2.27, against the rat's 1.62-2.22, the slime's 1.00-1.84, the bat's 1.28-1.62 and the spider's 1.14-1.28; the 3:1 of `docs/ART_DIRECTION.md` section 4 is still not met there); a v3 death alone leaves the creature standing, so the fall interpolates to one `edit_image_pro_flash` dead pose. 30 generations a creature.
+**Nineteen icons** (`assets/icons-bundle/pixel/items/`): two `create_1_direction_object` sheets (10 generations for 64 candidates, on `hr-world-56-v2`, `alpha_fang`, `crow_quill` and `practice_shield` as style images) and one `create_image_pro_flash` (`barn_wasp_sting`). **Left sharing, each with an item no hero can reach today:** `graypelt_cloak` = `woolen_cloak`, `skulkers_shiv` = `bronze_knife`, `rat_kings_crown` = `crown_of_the_fallen_king`, `torn_company_badge` = `warlord_badge`. Decision: **retain**; approval: Art Director's read pending. Shots: `art/review/art-batch-1-2026-11-04/`.
+
 ### Longbow redraw (2026-10-24, Asset Director, player note a43)
 "String Longbow sprite looks more like a larger crossbow." The Crafting recipe "String Longbow" makes the item `longbow`, whose icon
 `pixel/items/longbow.png` was a thick wooden limb over a grey stock: a crossbow silhouette. Redrawn by hand (free tooling, no
@@ -158,8 +163,8 @@ Their eleven KNOWN_TWINS entries are gone: the guard now enforces unique art. Wi
 ### Live-ground monster clips (2026-10-19) — the blow, the fall and the corpse
 Every monster on Mill Cellar, Millrace Sewer, Meadowbrook Thicket and Coppercap Warrens must be drawable through a whole
 kill: idle and walk in 8 facings, `attack`, `death` and the held `corpse` in s/e/n/w (`tests/world-assets.mjs` rule `[live]`, read
-from `HUNT_GROUNDS` and `HUNTS`, so a new spawn is covered the day it lands). The wolves and goblins carry drawn clips. The nine
-that had none (rat, slime, hive_wasp, drain_rat, sump_slime, culvert_bat, cistern_spider, kobold_tosher, rat_king) get
+from `HUNT_GROUNDS` and `HUNTS`, so a new spawn is covered the day it lands). The wolves and goblins carry drawn clips. The seven
+that have none (rat, slime, hive_wasp, culvert_bat, cistern_spider, kobold_tosher, rat_king) get
 `node tools/world-art/derive-combat.mjs` (`--check` for drift): their own idle pixels, moved by whole pixels, flipped, squashed or
 quarter-turned; nothing is borrowed or scaled up. These are a stand-in for drawn death clips, not a replacement:
 a PixelLab death/attack per creature (`docs/PIXELLAB_WORKFLOW.md`) supersedes a derived row when Tyler approves a spend.
@@ -197,7 +202,7 @@ landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for
 |---|---|---|---|---|---|---|---|
 | cistern_spider | hunt | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
 | culvert_bat | hunt | vermin_flier | 48×48 | idle 1@5, walk 6@12, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
-| drain_rat | hunt | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
+| drain_rat | sewer | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **replace**: own drawing, art batch 1 | create_object_pro_flash `6e991609` |
 | kobold_tosher | hunt | character | 64×64 | idle 1@5, walk 6@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
 | outfit_berserker | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
 | outfit_brute | hunt | character | 64×64 | idle 1@5, walk 6@7 | senwseswnenw | **retain** | hand / script |
@@ -210,7 +215,7 @@ landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for
 | rat | hunt | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
 | rat_king | hunt | beast | 64×64 | idle 1@5, walk 8@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
 | slime | hunt | vermin | 48×48 | idle 1@5, walk 6@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
-| sump_slime | hunt | vermin | 48×48 | idle 1@5, walk 6@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
+| sump_slime | sewer | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **replace**: own drawing, art batch 1 | create_object_pro_flash `1cd05f6c` |
 | fx_arcane_barrier | vfx | vfx | 37×37 | play 8@7 | s | **retain** | hand / script |
 | fx_cast_druid_motes | vfx | vfx | 24×12 | play 8@4 | s | **retain** | hand / script |
 | fx_cast_knight_shield_bash | vfx | vfx | 25×20 | play 8@16 | s | **retain** | hand / script |

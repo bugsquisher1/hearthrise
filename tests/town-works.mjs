@@ -814,7 +814,11 @@ const ARMS = {
     const room = await as(db, A, 'select public.hr_town_works_view(0)');
     const poor = await giftsOf(X, room, 500);
     if (poor.gifts.some((g) => !g.off) || poor.gifts.map((g) => g.why).join('|') !== 'You need 500 gp more.|You need 4,500 gp more.') out.push('with 500 gp the gifts read ' + JSON.stringify(poor.gifts));
-    if (poor.max.words !== 'Give the 500 gp you have' || poor.max.off || poor.max.hidden || poor.cap !== '500' || poor.why !== 'You have 500 gp. A gift can\'t be more than your purse.') out.push('with 500 gp the last button and its line read ' + JSON.stringify(poor));
+    /* the last button says the purse itself; a line more pushed the custom gift under a 1366x768 window's foot (chat-social CW-HAVORA measures it) */
+    if (poor.max.words !== 'Give the 500 gp you have' || poor.max.off || poor.max.hidden || poor.cap !== '500' || poor.why) out.push('with 500 gp the last button and its line read ' + JSON.stringify(poor));
+    /* where the last button gives what the project still needs, the purse under a gift says it on the line */
+    const near = await giftsOf(X, { ...room, left: 800, max_gift: 800 }, 900);
+    if (near.gifts[0].off !== true || near.max.words !== 'Give the 800 gp it still needs' || near.why !== 'You have 900 gp. A gift can\'t be more than your purse.') out.push('near the finish with 900 gp the window reads ' + JSON.stringify(near));
     if (poor.sent.join() !== '500') out.push('with 500 gp the last button sent ' + JSON.stringify(poor.sent));
     const flush = await giftsOf(X, room, 30000);
     if (flush.gifts.some((g) => g.off || g.why) || flush.max.words !== 'Give the 25,000 gp left today' || flush.why || flush.sent.join() !== '25000') out.push('with 30,000 gp the window reads ' + JSON.stringify(flush));

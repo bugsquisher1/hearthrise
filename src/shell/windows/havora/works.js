@@ -52,11 +52,13 @@ export function maxWords(w, purse = null) {
   return w.left < w.leftToday ? 'Give the ' + gold(w.maxGift) + ' it still needs' : 'Give the ' + gold(w.maxGift) + ' left today';
 }
 
-/** Why a gift is off for gold, under the buttons, before any press; '' when the purse covers them or isn't stated. Pure. */
+/** Why a gift is off for gold, under the buttons, before any press; '' when the purse covers them, isn't stated, or the last button already says it ("Give the
+    500 gp you have": a line more pushed the custom gift under a 1366x768 window's foot, v0.2.97 gate). Pure. */
 export function purseWords(w, purse, gifts) {
   if (!Number.isSafeInteger(purse) || !w || w.maxGift === 0) return '';
   const least = w.minGift || 1;
   if (purse < least) return purse ? 'You have ' + gold(purse) + ', and the smallest gift is ' + gold(least) + '.' : 'Your purse is empty.';
+  if (purse < w.maxGift) return '';
   return gifts.some((g) => g > purse) ? 'You have ' + gold(purse) + '. A gift can\'t be more than your purse.' : '';
 }
 

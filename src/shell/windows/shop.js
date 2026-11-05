@@ -21,22 +21,22 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.93';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.93';
-import { whole, gold } from '../../render/format.js?v=0.2.93';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.93';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.93';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.93';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.93';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.93';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.93';
-import { toolLossWords } from '../town-work.js?v=0.2.93';
-import { runIntent } from '../intent-words.js?v=0.2.93';
-import { showTip, hideTip } from './item-tip.js?v=0.2.93';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.93';
-import { gearLocked } from '../gear-gate.js?v=0.2.93';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.93';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.93';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.95';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.95';
+import { whole, gold } from '../../render/format.js?v=0.2.95';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.95';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.95';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.95';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.95';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.95';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.95';
+import { toolLossWords } from '../town-work.js?v=0.2.95';
+import { runIntent } from '../intent-words.js?v=0.2.95';
+import { showTip, hideTip } from './item-tip.js?v=0.2.95';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.95';
+import { gearLocked } from '../gear-gate.js?v=0.2.95';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.95';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.95';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);

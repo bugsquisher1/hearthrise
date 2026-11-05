@@ -39,15 +39,15 @@
 // real time says; a tab closed with no goodbye right after one reports the skipped stretch too. No real clock can do that: a stamp is
 // never older than the absence it reports plus the renewal below, and its time and its numbers are the same stamp's.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.93';
-import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.93';
-import { nameOf } from '../session/item-sections.js?v=0.2.93';
-import { huntName } from '../session/party-sections.js?v=0.2.93';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.93';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.93';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.93';
-import { whole } from '../render/format.js?v=0.2.93';
-import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.93';
+import { levelOf } from '../session/character-sections.js?v=0.2.95';
+import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.95';
+import { nameOf } from '../session/item-sections.js?v=0.2.95';
+import { huntName } from '../session/party-sections.js?v=0.2.95';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.95';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.95';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.95';
+import { whole } from '../render/format.js?v=0.2.95';
+import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.95';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;

@@ -9,9 +9,9 @@
 // per character); everything else is re-read from the record every frame.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.93';
-import { MONSTERS } from '../data/monsters.js?v=0.2.93';
-import { TITLE_WORDS } from '../data/titles.js?v=0.2.93';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.95';
+import { MONSTERS } from '../data/monsters.js?v=0.2.95';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.95';
 
 /**
  * @param {{data: object}|null} record   CharacterSession.record

@@ -9,8 +9,9 @@
 //                          every pocket is pulled in route order, the Rat King dies, nobody wipes
 //   tutorial-walk-through  each step is doable from the start kit plus the steps before it; one hero walks the whole
 //                          chain in order (the 2026-10-25 curriculum); no solo wall; no town section is a wall
-//   tutorial-bar-chain     every starting weapon on its real default bar: Your action bar, Spells need runes, Eat on
-//                          time (Configure action's own waste), Order matters; "Tell your hero when" regression
+//   tutorial-bar-chain     every starting weapon on its real default bar, and a bar set to Carried runes only: Your action bar,
+//                          Why it waits, Spells need runes, Eat on time (Configure action's own waste), Order matters; "Tell your hero when" regression
+//   why-it-waits           the card's words on each caster's real default bar, from the server's slots; passed by where nothing waits
 //   tutorial-town-chain    sell or keep, Blessings (the server's numbers), Tamsin's weight per role, paid, setups
 //   tutorial-reactive      ate, drank, a beating, more heroes, hunt together, upgrades, storage, stamina, a death,
 //                          paid Blessings, juice, a house, own runes: each on its own fact and worded from it
@@ -217,6 +218,18 @@ function tutKit(M, role, weapon, shield) {
     store: rows.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner || null, amount: b.heals || b.mana || 0, price: b.price })),
     storeRows: rows.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner || null, heals: b.heals || 0, mana: b.mana || 0, price: b.price })) };
 }
+/* THE PLAYER SET A RUNE SPELL TO CARRIED RUNES ONLY, carrying none: no default bar is struck (rule-subjects.js), so a struck slot is this.
+   Each id takes its own slot if the bar holds it, else goes in the first slot after the abilities; the server's struck state follows. */
+function carriedOnly(T, ids) {
+  const slots = T.slots.slice();
+  for (const id of ids) {
+    const row = { type: 'ability', id, store: null, conditions: [], enabled: true, usable: false, count: null };
+    const at = slots.findIndex((s) => s.type === 'ability' && s.id === id);
+    if (at >= 0) slots[at] = { ...slots[at], store: null, usable: false };
+    else slots.splice(slots.filter((s) => s.type === 'ability').length, 0, row);
+  }
+  return { ...T, slots };
+}
 /* The facts of that hero at Level L, in town, everything else fresh (`more` overrides). */
 function tutAt(M, T, L, more) {
   const lr = M.blessings.BLESSING_RULES;
@@ -248,6 +261,7 @@ function walkChain(M, T, extra) {
     first_level: () => L(2),
     plant_land: () => set({ skillXp: { ...f.skillXp, farming: 28 }, landPlanted: true }),
     bar_intro: () => { read('bar_intro'); L(3); },
+    why_it_waits: () => read('why_it_waits'),
     spell_runes: () => save(f.slots.map((s) => (s && s.type === 'ability' && s.usable === false
       ? { ...s, usable: true, store: (f.store.find((r) => r.partner === M.abilities.ABILITIES[s.id].rune) || {}).id } : s))),
     food_when: () => save(f.slots.map(at('cooked_shrimp', 45))),
@@ -619,16 +633,23 @@ const cases = {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const { wasteLine } = await imp('src/shell/action-table.js');
     const sets = { tank: ['practice_sword', 'practice_shield'], axes: ['practice_hatchets'], hammer: ['practice_club'], mage: ['practice_wand', 'practice_spellbook'],
-      bow: ['practice_bow'], crossbow: ['practice_crossbow'], healer: ['practice_staff'] };
-    for (const [set, [weapon, shield]] of Object.entries(sets)) {
-      const T = tutKit(M, null, weapon, shield);
+      bow: ['practice_bow'], crossbow: ['practice_crossbow'], healer: ['practice_staff'],
+      /* the player's own choice: Carried runes only, with none (no default bar is struck) */
+      'axes, Rend on Carried runes only': ['practice_hatchets', null, ['rend']], 'mage, Frost Lance on Carried runes only': ['practice_wand', 'practice_spellbook', ['frost_lance']] };
+    for (const [set, [weapon, shield, carriedRunes]] of Object.entries(sets)) {
+      const K = tutKit(M, null, weapon, shield);
+      const T = carriedRunes ? carriedOnly(K, carriedRunes) : K;
       const L3 = tutAt(M, T, 3, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']), skillXp: { farming: 28, cooking: 0, melee: 0 }, landPlanted: true, read: new Set() });
       const say = (f) => { const c = M.tut.currentCard(f); return c ? M.tut.cardFor(c, f) : null; };
       const intro = say(L3);
       if (!intro || intro.id !== 'bar_intro') return set + ': at Level 3 in the Cellar the card is ' + (intro && intro.id);
       if (!/^Your hero uses this bar by itself\. .* Slots? \d/.test(intro.text) || !intro.text.toLowerCase().includes(M.tut.slotWords(T.slots.map((s, i) => (s.type === 'ability' ? i : -1)).filter((i) => i >= 0))))
         return set + ': the bar card does not say which slots are the moves: ' + intro.text;
-      const read = { ...L3, read: new Set(['bar_intro']) };
+      /* a bar with a slot waiting on a count explains it next, on that slot; any other bar passes it by */
+      const waits = T.slots.findIndex((s) => s.type === 'ability' && s.usable !== false && s.conditions.some((k) => ['enemies_in_aoe', 'allies_below'].includes(k.metric) && k.op === 'gte' && k.value > 1));
+      const next = say({ ...L3, read: new Set(['bar_intro']) });
+      if (waits >= 0 ? !next || next.id !== 'why_it_waits' || next.barSlot !== waits : !!next && next.id === 'why_it_waits') return set + ': after Your action bar the card is ' + JSON.stringify(next && { id: next.id, barSlot: next.barSlot }) + ', the waiting slot is ' + waits;
+      const read = { ...L3, read: new Set(['bar_intro', 'why_it_waits']) };
       const struck = T.slots.findIndex((s) => s.type === 'ability' && s.usable === false);
       const card = say(read);
       if (struck >= 0) {
@@ -695,10 +716,10 @@ const cases = {
     }
     /* THROUGH THE REAL ENVELOPE (src/session/tutorial-sections.js): the server's struck state, stored bar and Got it reads */
     const tsb = await imp('src/session/tutorial-sections.js');
-    /* the kit's sword-and-shield hero has no struck spell (its Flame Strike names the store rune): it reads the bar, then
-       eats on time; the hatchets' Rend (no store rune by default) is the struck spell the rune card speaks of */
+    /* the kit's sword-and-shield hero has no struck spell: it reads the bar, then eats on time; a hatchet hero who
+       put Rend on Carried runes only, with none, is the struck spell the rune card speaks of */
     const tank = tutKit(M, 'tank');
-    const T = tutKit(M, null, 'practice_hatchets');
+    const T = carriedOnly(tutKit(M, null, 'practice_hatchets'), ['rend']);
     const env = (stored, usable, K = T, ground = 'mill_cellar') => ({ state: { level_xp: M.xp.charXpForLevel(3) }, skills: { farming: { xp: 28, level: 1 } },
       hunt: { session_id: 's', hunt_id: ground, ended: false, session: {}, hero: { hp_max: 170 }, pose: { units: [] } },
       hunt_settings: { preset: 0, role: K.role, discipline: K.discipline, stance: 'balanced', store: K.storeRows,
@@ -717,29 +738,45 @@ const cases = {
     return null;
   },
   'starter-bars': async (M) => {
-    /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars). A style's DEFAULT bar is what a hero sees
+    /* NO DEAD BUTTON (designer 2026-11-05, lane/d-caster-first-fights). A style's DEFAULT bar is what a hero sees
        until its first Save (after that the bar is the player's): the kit's sword and shield, or a weapon taken up from
-       the bag in minute one. Per style: the sword's sets show nothing struck and offer a rune spell ("A spell costs
-       runes"); the hammer has no rune spell to strike or offer; every other style's struck rune spells are each explained
-       by "Spells need runes" (that slot, its family's store rune at the server's price), one after another, and then the
-       chain goes on to "Eat on time". (Minute one, before the card: Hunts' Before you go names each one and its fix,
-       alpha-windows AW-27.) */
+       the bag in minute one. Per style: nothing is struck, ever. A weapon hero whose style has a rune spell is offered it
+       ("A spell costs runes"); the hammer has none to offer; a caster's spells are already on its bar. A player who then
+       sets rune spells to Carried runes only, with none, has each explained by "Spells need runes" (that slot, its family's
+       store rune at the server's price), one after another, and then the chain goes on to "Eat on time". (Before the
+       card: Hunts' Before you go names each one and its fix, alpha-windows AW-27.) */
     const sets = { tank: [M.kit.START_EQUIPMENT.weapon, M.kit.START_EQUIPMENT.shield], sword: ['practice_sword'], hammer: ['practice_club'],
-      axes: ['practice_hatchets'], bow: ['practice_bow'], crossbow: ['practice_crossbow'], mage: ['practice_wand', 'practice_spellbook'], healer: ['practice_staff'] };
-    const want = { tank: '-/first_spell', sword: '-/first_spell', hammer: '-/-', axes: 'rend/-', bow: 'flame_volley/-', crossbow: 'flame_volley/-',
-      mage: 'frost_lance+arcane_barrier/-', healer: 'circle_of_renewal+green_sickness/-' };
+      axes: ['practice_hatchets'], bow: ['practice_bow'], crossbow: ['practice_crossbow'], mage: ['practice_wand', 'practice_spellbook'], healer: ['practice_staff'],
+      'mage, Carried runes only': ['practice_wand', 'practice_spellbook', ['frost_lance', 'arcane_barrier']], 'healer, Carried runes only': ['practice_staff', null, ['circle_of_renewal', 'green_sickness']],
+      'axes, Carried runes only': ['practice_hatchets', null, ['rend']] };
+    const want = { tank: '-/first_spell', sword: '-/first_spell', hammer: '-/-', axes: '-/first_spell', bow: '-/first_spell', crossbow: '-/first_spell',
+      mage: '-/-', healer: '-/-', 'mage, Carried runes only': 'frost_lance+arcane_barrier/-', 'healer, Carried runes only': 'circle_of_renewal+green_sickness/-', 'axes, Carried runes only': 'rend/-' };
     const seen = [];
-    for (const [set, [weapon, shield]] of Object.entries(sets)) {
-      const K = tutKit(M, null, weapon, shield);
+    for (const [set, [weapon, shield, carriedRunes]] of Object.entries(sets)) {
+      const base = tutKit(M, null, weapon, shield);
+      const K = carriedRunes ? carriedOnly(base, carriedRunes) : base;
+      if (!carriedRunes && K.slots.some((s) => s.usable === false)) return set + ': the default bar holds a struck slot: ' + K.slots.filter((s) => s.usable === false).map((s) => s.id).join();
       const walk = walkChain(M, K);
       const ids = walk.map((s) => s.id);
       const struck = K.slots.map((s, i) => (s.type === 'ability' && s.usable === false ? i : -1)).filter((i) => i >= 0);
       const row = (struck.map((i) => K.slots[i].id).join('+') || '-') + '/' + (ids.includes('first_spell') ? 'first_spell' : '-');
       if (row !== want[set]) return set + ': struck/offer reads ' + row + ', the ruling is ' + want[set];
+      /* what the offer says of the spell it names: only what is true of that spell (Rend trains Melee, a Volley's trade holds on free arrows) */
+      const offered = walk.find((s) => s.id === 'first_spell');
+      if (offered) {
+        const a = Object.values(M.abilities.ABILITIES).find((x) => x.active && x.rune && x.disciplines.includes(K.discipline));
+        if (/trains Magic/.test(offered.card.text) !== a.magicXpMult > 0) return set + ': the offer of ' + a.n + ' says ' + JSON.stringify(offered.card.text) + ', and its magicXpMult is ' + a.magicXpMult;
+        const free = (carried) => (M.tut.cardFor(M.tut.currentCard({ ...offered.facts, carried }), { ...offered.facts, carried }) || {}).text || '';
+        if (a.id === 'flame_volley') {
+          if (!free({ ...offered.facts.carried }).includes('On free arrows at the Thicket it earns about 14% more Level XP and about 5% less gold.')) return set + ': the Volley offer carries no trade: ' + offered.card.text;
+          if (free({ steel_arrows: 40 }).includes('free arrows')) return set + ': the Volley offer promises its free-arrow trade to a hero with none: ' + free({ steel_arrows: 40 });
+        } else if (/free arrows/.test(offered.card.text)) return set + ': the free-arrow trade on ' + a.n + ': ' + offered.card.text;
+      }
       if (!struck.length) { if (ids.includes('spell_runes')) return set + ': nothing is struck, yet "Spells need runes" is up'; seen.push(set + ' ' + row); continue; }
       const first = walk.find((s) => s.id === 'spell_runes');
       if (!first) return set + ': a struck slot and no "Spells need runes"';
-      let f = first.facts;
+      /* (a slot fixed here may wait on a count: Why it waits, read, is not what this loop asks of the rune card) */
+      let f = { ...first.facts, read: new Set([...first.facts.read, 'why_it_waits']) };
       for (const i of struck) {
         const c = M.tut.currentCard(f), card = c && M.tut.cardFor(c, f);
         const st = K.store.find((r) => r.partner === M.abilities.ABILITIES[K.slots[i].id].rune);
@@ -755,6 +792,38 @@ const cases = {
     }
     console.log('    starter bars (struck/offer): ' + seen.join(' | '));
     return null;
+  },
+  /* WHY IT WAITS (designer 2026-11-05): the words are the server's slots', on the real default bars, Got it to finish, never asked twice. */
+  'why-it-waits': (M) => {
+    const up = (T, more) => { const f = tutAt(M, T, 3, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']), skillXp: { farming: 28, cooking: 0, melee: 0 }, landPlanted: true, read: new Set(['bar_intro']), ...more }); return { f, c: M.tut.currentCard(f) }; };
+    const mage = tutKit(M, null, 'practice_wand', 'practice_spellbook'), healer = tutKit(M, null, 'practice_staff');
+    const WORDS = { mage: 'Slot 1, Fireball, waits for 2 or more monsters. A lone monster gets slot 2, Frost Lance, which hits one target harder. Each cast buys its rune from the store, 1 gp. Press a slot to change when it fires.',
+      healer: 'Slot 2, Circle of Renewal, waits for 2 or more hurt heroes, so it only fires in a party. Slot 3, Green Sickness, casts while nobody needs healing and your mana is high. Press a slot to change when it fires.' };
+    for (const [set, T] of [['mage', mage], ['healer', healer]]) {
+      const { f, c } = up(T);
+      const card = c && M.tut.cardFor(c, f);
+      if (!card || card.id !== 'why_it_waits' || card.text !== WORDS[set]) return set + ': the card reads ' + JSON.stringify(card && { id: card.id, text: card.text });
+      if (!Number.isInteger(card.barSlot) || !T.slots[card.barSlot].conditions.some((k) => k.op === 'gte' && k.value === 2)) return set + ': the ring is on slot ' + card.barSlot;
+      const read = up(T, { read: new Set(['bar_intro', 'why_it_waits']) }).c;
+      if (read && read.id === 'why_it_waits') return set + ': Got it did not finish the card';
+      if (walkChain(M, T).map((x) => x.id).indexOf('why_it_waits') !== walkChain(M, T).map((x) => x.id).indexOf('bar_intro') + 1) return set + ': the card does not follow Your action bar: ' + walkChain(M, T).map((x) => x.id).join(' > ');
+    }
+    for (const [set, T] of [['tank', tutKit(M, 'tank')], ['axes', tutKit(M, null, 'practice_hatchets')], ['bow', tutKit(M, null, 'practice_bow')], ['hammer', tutKit(M, null, 'practice_club')]]) {
+      if (walkChain(M, T).some((x) => x.id === 'why_it_waits')) return set + ': nothing on its bar waits, yet the card came';
+    }
+    /* the words stay true of a bar the player changed: runes of their own, no second spell, a bigger number, a struck slot, the slot switched off */
+    const say = (T, more) => { const u = up(T, more); return u.c && u.c.id === 'why_it_waits' ? M.tut.cardFor(u.c, u.f).text : null; };
+    if (/from the store/.test(say(mage, { carried: { chalked_fire_rune: 30 } }))) return 'with Fire runes of its own the card says ' + say(mage, { carried: { chalked_fire_rune: 30 } });
+    const lone = { ...mage, slots: mage.slots.filter((s) => s.id !== 'frost_lance') };
+    if (!/^Slot 1, Fireball, waits for 2 or more monsters\. Until then your hero fights on without it\./.test(say(lone))) return 'with no second spell the card says ' + say(lone);
+    const three = { ...mage, slots: mage.slots.map((s) => (s.id === 'fireball' ? { ...s, conditions: [{ metric: 'enemies_in_aoe', op: 'gte', value: 3 }] } : s)) };
+    if (!/waits for 3 or more monsters\. Fewer monsters get slot 2, Frost Lance/.test(say(three))) return 'at 3 the card says ' + say(three);
+    if (say(carriedOnly(mage, ['fireball']))) return 'a struck slot is said to wait: ' + say(carriedOnly(mage, ['fireball']));
+    const off = { ...healer, slots: healer.slots.map((s) => (s.id === 'circle_of_renewal' ? { ...s, enabled: false } : s)) };
+    if (say(off)) return 'a slot switched off is said to wait: ' + say(off);
+    /* a second hero is not asked */
+    const vet = { roster: [{ slot: 0, level: 1, name: 'New', open: true, hunting: false }, { slot: 1, level: M.tut.KNOWN_LEVEL + 1, name: 'Old', open: false, hunting: false }], self: 0 };
+    return walkChain(M, mage, vet).some((x) => x.id === 'why_it_waits') ? 'a second hero is asked Why it waits' : null;
   },
   'tutorial-town-chain': async (M) => {
     /* THE FIRST RETURN, then the Thicket: sell what only pays coin (the Shop's own Sell all loot set, from the shell), decide
@@ -1074,8 +1143,8 @@ const cases = {
     const know = M.tut.HUNT_TUTORIAL.filter((r) => r.knowledge).map((r) => r.id);
     if (seen.some((id) => know.includes(id))) return 'a second hero meets ' + seen.filter((id) => know.includes(id)).join(', ');
     for (const id of ['food_when', 'bless', 'tamsins_task']) if (!seen.includes(id)) return 'a second hero never meets ' + id + ' (' + seen.join(' > ') + ')';
-    /* its runes: a hatchet hero's Rend is struck (no Rupture rune, no store rune by default), and a second hero is still told */
-    const axes = walkChain(M, tutKit(M, null, 'practice_hatchets'), vet).map((x) => x.id);
+    /* its runes: a hatchet hero who put Rend on Carried runes only, with none, is struck, and a second hero is still told */
+    const axes = walkChain(M, carriedOnly(tutKit(M, null, 'practice_hatchets'), ['rend']), vet).map((x) => x.id);
     if (!axes.includes('spell_runes')) return 'a second hatchet hero never meets spell_runes (' + axes.join(' > ') + ')';
     const first = walkChain(M, T, { roster: [{ slot: 0, level: 1, name: 'New', open: true, hunting: false }, { slot: 1, level: M.tut.KNOWN_LEVEL, name: 'Young', open: false, hunting: false }], self: 0 }).map((x) => x.id);
     if (!first.includes('first_kill') || !first.includes('styles')) return 'a hero whose only other hero is Level ' + M.tut.KNOWN_LEVEL + ' skips the lessons';
@@ -1842,6 +1911,25 @@ const mutants = [
   /* lane/b-tutorial-cards (the 2026-10-25 curriculum) */
   { name: 'REGRESSION "Tell your hero when" never showed: any stored food slot with a condition finishes the food lesson (a Save restates the kit\'s 60%)', case: 'tutorial-bar-chain',
     edits: [['src/data/hunt-tutorial.js', ' && hpBelow(s) !== null && hpBelow(s) !== START_FOOD_PCT) : null),', ' && hpBelow(s) !== null) : null),']] },
+  { name: 'Why it waits passes every bar by (a caster loses the lesson)', case: 'why-it-waits',
+    edits: [['src/data/hunt-tutorial.js', "  slot_waits: (p, f) => (Array.isArray(f.slots) ? waitingSlot(f) >= 0 : null),", "  slot_waits: () => false,"]] },
+  { name: 'Why it waits comes up on a bar where nothing waits', case: 'why-it-waits',
+    edits: [['src/data/hunt-tutorial.js', "  slot_waits: (p, f) => (Array.isArray(f.slots) ? waitingSlot(f) >= 0 : null),", "  slot_waits: () => true,"],
+      ['src/data/hunt-tutorial.js', "    const i = waitingSlot(f);\n    if (i < 0) return null;\n", "    const i = Math.max(waitingSlot(f), 0);\n"]] },
+  { name: 'Why it waits names a struck slot as waiting', case: 'why-it-waits',
+    edits: [['src/data/hunt-tutorial.js', "f.slots.findIndex((s) => on(s) && s.type === 'ability' && s.usable !== false && !!ABILITIES[s.id]\n", "f.slots.findIndex((s) => on(s) && s.type === 'ability' && !!ABILITIES[s.id]\n"]] },
+  { name: 'Why it waits says the store pays while the hero\'s own runes do', case: 'why-it-waits',
+    edits: [['src/data/hunt-tutorial.js', "const gp = s.store && !ownRune ? priceOf(f, s.store) : null;", "const gp = s.store ? priceOf(f, s.store) : null;"]] },
+  { name: 'Why it waits calls any second spell harder', case: 'why-it-waits',
+    edits: [['src/data/hunt-tutorial.js', "(hits(ABILITIES[f.slots[j].id]) > hits(a) ? ', which hits one target harder' : '')", "''"]] },
+  { name: 'Why it waits is asked of a second hero', case: 'why-it-waits',
+    edits: [['src/data/hunt-tutorial.js', "'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON, { kind: 'slot_waits' }] }),", "'action_bar', READ, { gotIt: true, when: [LESSON, { kind: 'slot_waits' }] }),"]] },
+  { name: 'the offer says Rend trains Magic', case: 'starter-bars',
+    edits: [['src/data/hunt-tutorial.js', "(a.magicXpMult > 0 ? ' and trains Magic' : '')", "' and trains Magic'"]] },
+  { name: 'the Volley offer promises its free-arrow trade to a hero on bought shots', case: 'starter-bars',
+    edits: [['src/data/hunt-tutorial.js', ": a.id === 'flame_volley' && freeShot ? VOLLEY_TRADE : '';", ": a.id === 'flame_volley' ? VOLLEY_TRADE : '';"]] },
+  { name: 'a default bar shows a struck slot again (the Mage\'s Frost Lance names no store rune)', case: 'starter-bars',
+    edits: [['src/data/rule-subjects.js', "const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune ?", "const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune && id !== 'frost_lance' ?"]] },
   { name: 'the rune card ignores the server\'s struck state (names a spell the store already feeds)', case: 'tutorial-bar-chain',
     edits: [['src/data/hunt-tutorial.js', "s.type === 'ability' && s.usable === false && !!ABILITIES[s.id]", "s.type === 'ability' && !!ABILITIES[s.id]"]] },
   { name: 'STARTER BARS: the sword-and-shield hero is never offered a rune spell (no rune lesson in its first hour)', case: 'starter-bars',

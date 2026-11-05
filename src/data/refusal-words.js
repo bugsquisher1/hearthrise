@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.93';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.95';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -84,7 +84,7 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
 export const REFUSAL_WORDS = Object.freeze({
   /* The Weighhouse: market-words.js says these with the server's numbers. */
   market_closed: MARKET_WORDS.market_closed,
-  market_locked: 'The Weighhouse only trades with heroes of a higher Level. Keep hunting.',
+  market_locked: 'The Weighhouse trades with heroes of a higher Level, or with a higher bench skill.',
   market_spend_daily_cap: MARKET_WORDS.market_spend_daily_cap,
   market_proceeds_daily_cap: MARKET_WORDS.market_proceeds_daily_cap,
   price_below_shop: 'That\'s less than the shop pays. Ask at least that, or sell it at the shop.',

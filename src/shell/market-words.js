@@ -6,8 +6,8 @@
 // or section gives. intent-words.js refusalText asks here first for a market verb; a code
 // not named here reads from src/data/refusal-words.js like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { whole, listWords } from '../render/format.js?v=0.2.93';
-import { depotOf, nameOf } from '../session/item-sections.js?v=0.2.93';
+import { whole, listWords } from '../render/format.js?v=0.2.95';
+import { depotOf, nameOf } from '../session/item-sections.js?v=0.2.95';
 
 /** Why the Weighhouse won't list a stack, by the server's `why` (hr_market_items: its one listable rule). The sentence is the rule, never a guess. */
 const NO_BUYER = 'the shop doesn\'t buy them, and the Weighhouse lists only what the shop buys, so they\'re for your own use';
@@ -37,6 +37,9 @@ export function keptWords(kept) {
 
 const MARKET_VERBS = new Set(['market_list', 'market_buy', 'market_cancel', 'market_browse', 'market_item', 'market_mine']);
 
+/** Who the Weighhouse trades with, in the server's numbers: a refusal's, or the rules row's in the window. */
+export const lockedWords = (minLevel, minSkill) => 'The Weighhouse trades with heroes of Level ' + whole(minLevel) + ', or with a bench skill at ' + whole(minSkill) + '.';
+
 /** The next UTC midnight as this player's clock reads it (display only): when the daily counts reset. */
 function resetWords() {
   const now = new Date();
@@ -61,7 +64,7 @@ const WORDS = Object.freeze({
   not_enough: (f) => (f.available === undefined ? 'There aren\'t that many left at that price.'
     : 'Only ' + whole(f.available) + (f.available === 1 ? ' is' : ' are') + ' left at that price.'),
   bag_full: (f, cs) => ((cs && nameOf(cs)) || 'Your hero') + '\'s bag is full. Send it to your storage instead.',
-  market_locked: (f) => 'The Weighhouse trades with heroes of Level ' + whole(f.min_level) + ' or higher. Reach it on any hero to buy and sell here.',
+  market_locked: (f) => (f.min_level === undefined || f.min_skill_level === undefined ? null : lockedWords(f.min_level, f.min_skill_level)),
 });
 
 /** The sentence for a refused market verb, or null when the general table says it. @param {object} r refusalOf's answer */

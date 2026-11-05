@@ -28,6 +28,8 @@
 //                     the away path) the instance is byte-identical; kills and loot are tallied once
 //   solo-healer       a FRESH solo Healer (start kit, Apprentice Staff) on the REAL settle clears mill_cellar with no fall, then the Thicket's
 //                     first pocket at Level 5 (its first real ground, Tyler 10-21) and the Sewer's at its floor (a party's first ground)
+//   starter-bar-fires       every worn set of the kit, on the real settle: no dead default slot, the first pull fires, a lone monster fires, every slot earns its place
+//   starter-bars-both-paths a new caster's bar, watched and with the browser closed: the same result
 //   sql-rows          the migration's catalogue rows equal the registry, the action ids and ROLE_RULES
 //
 //   node tests/hunt-core/conditions.mjs            cases + mutants
@@ -38,6 +40,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { loadCore, makeReport, ROOT, hero, mon, world, instOf, subStep, T0 } from './fixtures/h1.js';
 import { supplySession } from './fixtures/h4.js';
+import { loadPlay } from './fixtures/play-ground.mjs';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const MIGRATION = 'supabase/migrations/2026-10-25-action-conditions.sql';
@@ -49,10 +52,10 @@ const SLOT_MIGRATION = 'supabase/migrations/2027-01-13-slot-truth.sql';
 /* The metrics (Green Sickness's mark, the heal aimed at yourself) and the role rule sets (a rune spell's slot names its
    store rune) moved forward again: lane b-spell-content, Tyler 2026-10-23. */
 const CONTENT_MIGRATION = 'supabase/migrations/2027-01-13-spell-content.sql';
-/* The settings view that places the starter bar, at the chain's end (restated: a struck spell is one the engine would not cast): lane/c-carry-in, 2026-11-02. */
-const VIEW_MIGRATION = 'supabase/migrations/2027-02-21-hunt-carry-in.sql';
-/* The role rule sets once more (Flame Strike off the sword's sets: no dead button on the starter bar, playtest 2026-10-29). */
-const BAR_MIGRATION = 'supabase/migrations/2027-02-09-starter-bar-fires.sql';
+/* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
+const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
+/* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05). */
+const BAR_MIGRATION = 'supabase/migrations/2027-03-09-caster-starter-bars.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -73,6 +76,8 @@ async function load(root) {
   M.drops = await imp('src/core/drops.js');
   M.XP = await imp('src/core/xp.js');
   M.hf = await imp('src/core/hearthfind.js');
+  M.basics = await imp('src/data/supply-basics.js');
+  M.play = await loadPlay(root);
   return M;
 }
 
@@ -179,7 +184,9 @@ function freshParty(M, huntId, minutes, seed, optionsList, element, level) {
     const hero = M.heroSetup({ weaponType: M.roleWeaponOf(M.ITEMS.apprentice_staff), options: Object.assign({ role: 'healer' }, options || {}), bar: [], partyRoles: [],
       lead: !!(options && options.lead) });
     return { key: 'h' + (i || ''), user: 'u', slot: i, seat: i, unitId: null, sessionId: 's' + i, version: 1, huntId,
-      huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch',
+      huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch', supplySource: 'mine', goldFloor: 0, cover: {},
+        /* the store, as hr_hunt_member_read hands the settle: its default bar's runes are bought here (a Healer with no store could not cast a heal, and this case passed anyway) */
+        basics: Object.fromEntries(M.basics.BASIC_SUPPLIES.map((b) => [b.id, { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner }])),
         bag: { [food]: { loaded: M.kit.START_INVENTORY[food] } },
         staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
       skills: Object.assign({}, M.kit.START_SKILL_XP), levelXp: level ? M.XP.charXpForLevel(level) : 0, hp: M.kit.START_CURRENCY.hp, gold: M.kit.START_CURRENCY.gold,
@@ -188,6 +195,41 @@ function freshParty(M, huntId, minutes, seed, optionsList, element, level) {
   const secret = String(BigInt.asIntN(64, BigInt(seed) * 2654435761n + 1n));
   const out = M.acc.accrueHunt({ instance: { id: '00000000-0000-4000-8000-0000000000ae', nextSwingAtMs: from, world: null },
     window: { fromMs: from, toMs: to }, secret, ground, grid, items: M.ITEMS, monsters: M.MONSTERS, members });
+  return out;
+}
+
+/* ── A NEW HERO OF EVERY STYLE, AS THE KIT MAKES IT ──────────────────────── */
+/* Every worn set a new hero can stand in (start-kit.js STARTER_SETS: each weapon with the off-hand beside it), and the sword alone,
+   the shield taken off; a shooter's ammo loaded, as Equip loads it. A new row is covered by being a row. */
+function starterWorn(M) {
+  const sets = [];
+  for (const ids of Object.values(M.kit.STARTER_SETS)) {
+    const off = ids.find((id) => M.ITEMS[id].slot === 'shield');
+    for (const weapon of ids.filter((id) => M.ITEMS[id].slot === 'weapon')) sets.push(Object.assign({ weapon }, off ? { shield: off } : {}));
+  }
+  sets.push({ weapon: M.kit.START_EQUIPMENT.weapon });
+  return sets.map((worn) => {
+    const ammo = Object.keys(M.kit.START_INVENTORY).find((id) => M.roles.shootsItem(M.roles.roleForWeapon(M.roles.wornRoleKey(worn, M.ITEMS), null), M.ITEMS[id]));
+    return Object.assign(worn, ammo ? { ammo } : {});
+  });
+}
+/* The hunt's bag as Enter packs it (hunt-list.js packFor): every hunt supply in the kit. */
+const kitBag = (M) => Object.fromEntries(Object.entries(M.kit.START_INVENTORY).filter(([id]) => M.SUP.SUPPLIES[id]).map(([id, n]) => [id, { loaded: n }]));
+/* Why a default slot may never cast alone at the Thicket's floor. Add an ability here only with its reason. */
+const WAITS_FOR_OTHERS = Object.freeze({ challenge: 'nothing leaves a lone tank', circle_of_renewal: 'it needs two hurt heroes, and this hero is alone' });
+/* A new hero on the real settle: an empty stored bar, the kit's bag. Each cast of its own ability, by the first pull's clock. */
+function newHeroCasts(M, worn, huntId, L, ground, spanMs, secret) {
+  const setup = M.heroSetup({ weaponType: M.roles.wornRoleKey(worn, M.ITEMS), options: {}, bar: [], partyRoles: [] });
+  const out = { first: null, casts: {}, role: setup.role };
+  M.play.run(huntId, L, [setup.role], { spanMs, windowMs: 10000, secret, ground, equipment: () => Object.assign({}, worn), bag: () => kitBag(M), bar: () => [],
+    start: () => (L === 1 ? { levelXp: 0, skills: {} } : {}),
+    onWindow: (w) => { for (const e of w.events || []) {
+      if (e.type === 'pull' && out.pullAt === undefined) out.pullAt = e.atMs;
+      if (e.type === 'cast' && !M.AD.ABILITIES[e.ability].universal) {
+        out.casts[e.ability] = (out.casts[e.ability] || 0) + 1;
+        if (out.first === null) out.first = e;
+      }
+    } } });
   return out;
 }
 
@@ -742,12 +784,11 @@ const cases = {
     return null;
   },
   /* The SETTLE clamps an over-max pick (the stored 4) to the ground's solo max (the sewer's 2): its first pocket spawns twice. */
-  /* Tyler P1: the Healer's default rule set (an empty bar) heals first and attacks only when nobody needs healing.
-     (Its attack, Green Sickness, casts the hero's own Poison runes: the default names no store for it, rule-subjects.js.) */
+  /* Tyler P1: the Healer's default rule set (an empty bar) heals first and attacks only when nobody needs healing and it holds the mana (rule-subjects.js SICKNESS_WHEN). */
   'healer-default-rules': (M) => {
     const setup = M.heroSetup({ weaponType: M.roleWeaponOf(M.ITEMS.apprentice_staff), options: { role: 'healer' }, bar: [], partyRoles: [] });
-    const run = (allyHp) => {
-      const d = hero(M, 1, 6, 3, { role: 'healer', hp: 135, maxHp: 135, mana: 300, maxMana: 300 });
+    const run = (allyHp, mana) => {
+      const d = hero(M, 1, 6, 3, { role: 'healer', hp: 135, maxHp: 135, mana: mana ?? 300, maxMana: 300 });
       const k = hero(M, 2, 8, 3, { role: 'tank', hp: allyHp, maxHp: 100 });
       const ms = [[9, 3], [10, 3]].map(([x, y], i) => mon(M, 10 + i, 0, x, y, { target: 2, hp: 500, maxHp: 500 }));
       const inst = instOf(M, world(M, [d, k, ...ms]));
@@ -756,19 +797,61 @@ const cases = {
       M.abilities.castAbilities(inst, sc);
       return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability).join();
     };
-    const safe = run(95); const hurt = run(60);
+    const safe = run(95); const hurt = run(60); const spent = run(95, 150);
+    if (spent) return 'with the tank at 95% and half its mana the healer cast ' + spent + ': the mana goes to Greater Mend first';
     return safe === 'green_sickness' && hurt === 'greater_mend' ? null : 'with the tank at 95% the healer cast ' + (safe || 'nothing') + '; at 60% ' + (hurt || 'nothing');
   },
-  /* NO DEAD BUTTON ON THE STARTER BAR (playtest 2026-10-29 #9): a new hero wears the kit's sword and shield (and may drop
-     the shield: Melee damage), carries no rune, and its empty bar runs the role defaults. Every ability that bar shows
-     can fire from minute one: it spends no rune, or its slot names the store's. */
+  /* NO DEFAULT BAR HOLDS A SPELL IT CAN'T CAST, AND EVERY STYLE'S FIRST FIGHTS FIRE (designer 2026-11-05, lane/a-silent-triggers: a new
+     Mage cast nothing for five minutes on a lone monster, and a new Healer's defaults sat struck from minute one). The kit carries no rune
+     (Tyler 2026-10-23), so a caster's spells name their store runes and a weapon hero's rune spell is the player's choice ("A spell costs runes").
+     Over every worn set of the kit, on the real settle:
+     1. no dead slot: every default rune spell names a store row whose partner is its rune;
+     2. the first pull fires: a cast of the style's own ability within 5 s of the first pull, the Cellar as built;
+     3. a lone monster fires: the same within 30 s, on a Cellar copy with one monster a pocket;
+     4. every slot earns its place: in 30 minutes at the Thicket's floor each default ability slot casts, but for WAITS_FOR_OTHERS. */
   'starter-bar-fires': (M) => {
-    const eq = M.kit.START_EQUIPMENT;
     if (Object.keys(M.kit.START_INVENTORY).some((id) => /_rune$/.test(id))) return 'the start kit carries a rune: re-judge this case';
-    for (const worn of [eq, { weapon: eq.weapon }]) {
+    const cellar = M.grounds.HUNT_GROUNDS.mill_cellar;
+    const lone = Object.assign({}, cellar, { pockets: cellar.pockets.map((p) => Object.assign({}, p, { spawns: p.spawns.slice(0, 1) })) });
+    if (!lone.pockets.every((p) => p.spawns.length === 1)) return 'CONTROL: a pocket of the lone-monster Cellar holds no monster';
+    const floor = M.HUNTS.meadowbrook_thicket.band[0];
+    const SECRET = '-4611686018427387904';
+    for (const worn of starterWorn(M)) {
+      const name = worn.weapon + (worn.shield ? '+' + worn.shield : '');
       const setup = M.heroSetup({ weaponType: M.roles.wornRoleKey(worn, M.ITEMS), options: {}, bar: [], partyRoles: [] });
-      const dead = setup.slots.filter((r) => r.slot.action.type === 'ability' && M.AD.ABILITIES[r.slot.action.id].rune && !r.slot.action.store);
-      if (dead.length) return JSON.stringify(worn) + ': the starter bar shows ' + dead.map((r) => r.slot.action.id).join(', ') + ' struck (a rune spell, no rune held, no store rune)';
+      const abilities = setup.slots.filter((r) => r.slot.action.type === 'ability').map((r) => r.slot.action);
+      const dead = abilities.filter((a) => { const rune = M.AD.ABILITIES[a.id].rune; return rune && !M.basics.BASIC_SUPPLIES.some((b) => b.id === a.store && b.partner === rune); });
+      if (dead.length) return name + ': the starter bar holds ' + dead.map((a) => a.id).join(', ') + ' with no store rune of its family (a rune spell that cannot fire)';
+      const within = (ground, ms, tag) => {
+        const r = newHeroCasts(M, worn, 'mill_cellar', 1, ground, ms + 60000, SECRET);
+        if (r.pullAt === undefined) return name + ': no pull on ' + tag;
+        return r.first && r.first.atMs - r.pullAt <= ms ? null : name + ': on ' + tag + ' its first cast of its own ' + (r.first ? 'came ' + (r.first.atMs - r.pullAt) + ' ms' : 'never came in ' + ms + ' ms') + ' after the first pull, want ' + ms + ' ms at most';
+      };
+      const fires = within(cellar, 5000, 'the Cellar as built') || within(lone, 30000, 'a lone monster');
+      if (fires) return fires;
+      const earned = newHeroCasts(M, worn, 'meadowbrook_thicket', floor, null, 30 * 60000, SECRET);
+      const idle = abilities.filter((a) => !earned.casts[a.id] && !WAITS_FOR_OTHERS[a.id]).map((a) => a.id);
+      if (idle.length) return name + ': in 30 minutes at the Thicket\'s floor ' + idle.join(', ') + ' never cast (' + JSON.stringify(earned.casts) + ')';
+    }
+    return null;
+  },
+  /* BOTH PATHS (CLAUDE.md §4): a new caster's bar, watched (the 10 s settle the open client asks for) and with the browser closed (the world tick's long window):
+     one settle, one result: the same casts at the same moments, the same store bill, gold, XP and bag. A guard on the rows, so a bar that buys has its proof. */
+  'starter-bars-both-paths': (M) => {
+    const roleOf = (worn) => M.heroSetup({ weaponType: M.roles.wornRoleKey(worn, M.ITEMS), options: {}, bar: [], partyRoles: [] }).role;
+    const casters = starterWorn(M).filter((w) => ['mage', 'healer'].includes(roleOf(w)));
+    if (casters.length < 2) return 'CONTROL: ' + casters.length + ' caster sets in the kit';
+    for (const worn of casters) {
+      const play = (windowMs) => {
+        const casts = [];
+        const r = M.play.run('mill_cellar', 1, [roleOf(worn)], { spanMs: 10 * 60000, windowMs, secret: '42', equipment: () => Object.assign({}, worn), bag: () => kitBag(M), bar: () => [],
+          start: () => ({ levelXp: 0, skills: {} }), onWindow: (w) => { for (const e of w.events || []) if (e.type === 'cast') casts.push([e.atMs, e.ability, e.gold || 0]); } });
+        return { casts, sum: JSON.stringify([r.totals.buys, r.totals.coin, r.totals.levelXp, r.totals.xp, r.totals.kills, r.totals.falls, r.items, r.members]) };
+      };
+      const watched = play(10000), closed = play(600000);
+      if (watched.casts.length < 3 || !watched.casts.some((c) => M.AD.ABILITIES[c[1]].rune)) return worn.weapon + ': CONTROL: ' + watched.casts.length + ' casts in 10 minutes';
+      if (JSON.stringify(watched.casts) !== JSON.stringify(closed.casts)) return worn.weapon + ': the casts differ with the browser closed (' + watched.casts.length + ' watched, ' + closed.casts.length + ' closed)';
+      if (watched.sum !== closed.sum) return worn.weapon + ': watched ' + watched.sum.slice(0, 200) + ' but closed ' + closed.sum.slice(0, 200);
     }
     return null;
   },
@@ -878,7 +961,7 @@ const cases = {
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
     }
     /* THE STARTER BAR the server places for a new hero is the start kit's (src/data/start-kit.js START_BAR). */
-    /* the chain end's settings view (2027-02-21-hunt-carry-in.sql restates it, the 2026-11-07 placement block unchanged) */
+    /* the chain end's settings view (2027-03-08-rune-ladder-slots.sql restates it, the 2026-11-07 placement block unchanged) */
     const sb = /-- ⟦starter-bar⟧\n\s*v_def := v_def \|\| '([^\n]*)'::jsonb;\n\s*-- ⟦\/starter-bar⟧/.exec(roles);
     let bar = null;
     try { bar = sb ? JSON.parse(sb[1].replace(/''/g, "'")) : null; } catch { bar = null; }
@@ -908,6 +991,8 @@ function runShots(M, o) {
   return { shots, dmgPerShot, left: inst.heroes[1].hs.bag.iron_arrows.left };
 }
 
+/* A plant: a default row that names no store rune, whatever storeOf would say (a weapon hero's rune spell put back as it stood). */
+const NO_STORE_ROW = ['src/data/rule-subjects.js', "export const ROLE_RULES = Object.freeze({", "const NO_STORE = (id) => Object.freeze({ id: 'd_' + id, action: Object.freeze({ type: 'ability', id }), conditions: Object.freeze([]), join: 'and' });\nexport const ROLE_RULES = Object.freeze({"];
 const mutants = [
   { name: 'a lone hero takes the party\'s pull', case: 'party-pull', edits: [['src/data/hunt-grounds.js', 'return n > 1 && ground && Array.isArray(ground.partyPull) ? ground.partyPull[n - 1] : 0;', 'return ground && Array.isArray(ground.partyPull) ? ground.partyPull[Math.max(n, 2) - 1] : 0;']] },
   { name: 'a party with no pick stays as built', case: 'party-pull', edits: [['src/data/hunt-grounds.js', 'const p = Number.isInteger(pick) && pick > 0 ? pick : partyPullOf(ground, n);', 'const p = Number.isInteger(pick) && pick > 0 ? pick : 0;']] },
@@ -962,11 +1047,35 @@ const mutants = [
   { name: 'an attack slot ignores its conditions', case: 'party-acceptance', edits: [['src/core/hunt/damage.js', '  const got = shotPasses(inst, u, h, rows, (own) => (slot, cx) => {', '  const got = shotPasses(inst, u, h, rows.map((r) => ({ rule: r.rule, slot: Object.assign({}, r.slot, { conditions: [] }) })), (own) => (slot, cx) => {']] },
   { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),", "  unit: Object.freeze([['ruleWait', 'json']]),"]] },
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
-    edits: [['src/data/rule-subjects.js', "    slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),", '  ]),']] },
-  { name: 'the tank\'s default set holds Flame Strike again (struck from minute one)', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),"]] },
-  { name: 'a sword alone casts Flame Strike again (struck from minute one)', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('rend')]),", "  melee_dps: Object.freeze([slot('flame_strike'), slot('power_strike'), slot('cleave'), slot('rend')]),"]] },
+    edits: [['src/data/rule-subjects.js', ", slot('green_sickness', SICKNESS_WHEN)]),", ']),']] },
+  { name: 'the healer\'s attack spends the mana a heal needs', case: 'healer-default-rules',
+    edits: [['src/data/rule-subjects.js', "subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 78 }]);", "subject: 'lowest' }]);"]] },
+  { name: 'the tank\'s default set holds Flame Strike again, with no store rune (struck from minute one)', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), NO_STORE('flame_strike'), slot('power_strike')]),"], NO_STORE_ROW] },
+  { name: 'a sword alone casts Flame Strike again, with no store rune (struck from minute one)', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave')]),", "  melee_dps: Object.freeze([NO_STORE('flame_strike'), slot('power_strike'), slot('cleave')]),"], NO_STORE_ROW] },
+  { name: 'Rend comes back on the axes\' default set with no store rune', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave')]),", "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), NO_STORE('rend')]),"], NO_STORE_ROW] },
+  { name: 'Flame Volley comes back on the Ranger\'s default set with no store rune', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot')]),", "  ranger: Object.freeze([slot('hunters_mark'), NO_STORE('flame_volley'), slot('precision_shot')]),"], NO_STORE_ROW] },
+  { name: 'a cooldown is lost at a window cut (watched and closed part ways)', case: 'starter-bars-both-paths',
+    edits: [['src/core/hunt/abilities.js', "['lanes', 'json'], ['cds', 'json'],", "['lanes', 'json'],"]] },
+  { name: 'Frost Lance names no store rune (the Mage\'s slot 2 struck again)', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune ?", "const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune && id !== 'frost_lance' ?"]] },
+  { name: 'Green Sickness names no store rune (the Healer\'s slot 3 struck again)', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune ?", "const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune && id !== 'green_sickness' ?"]] },
+  { name: 'a default slot names another family\'s store rune', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "? BASIC_SUPPLIES.find((x) => x.partner === r.rune) : null; return b ? b.id : null; };", "? BASIC_SUPPLIES.find((x) => x.partner === r.rune) : null; return b ? 'plain_fire_rune' : null; };"]] },
+  { name: 'Frost Lance waits for two monsters (a new Mage fires nothing on a lone one)', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "slot('frost_lance', SPARE_MANA)", "slot('frost_lance', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"]] },
+  { name: 'Green Sickness waits for two monsters (a new Healer fires nothing on a lone one)', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"]] },
+  { name: 'Green Sickness waits for someone hurt (the old Healer: nothing until it hurts)', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'lt', value: 70, subject: 'lowest' }])"]] },
+  { name: 'Arcane Barrier can never fire (HP under 0%)', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "slot('arcane_barrier')", "slot('arcane_barrier', [{ metric: 'self_hp_pct', op: 'lt', value: 0 }])"]] },
+  { name: 'a new style holds a slot that waits for nobody and never fires', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), slot('power_strike', [{ metric: 'target_is_boss', op: 'eq', value: true }])]),"]] },
   { name: 'monsters do not fill the diagonal tiles of the box', case: 'full-box', edits: [['src/core/hunt/roles.js', '  if (dx && dy && (!walkable(inst.grid, tx + dx, ty) || !walkable(inst.grid, tx, ty + dy))) return false;', '  if (dx && dy) return false;']] },
   { name: 'the smallest pick sets the pull (the rule before Tyler 10-20)', case: 'density-pull',
     edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list.filter((h) => h.density > 0).sort((a, b) => a.density - b.density)[0]\n    || list"]] },

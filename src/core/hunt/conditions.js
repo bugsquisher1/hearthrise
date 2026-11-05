@@ -52,18 +52,18 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.93';
-import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.93';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.93';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.93';
-import { ITEMS } from '../../data/items.js?v=0.2.93';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.93';
-import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.93';
-import { cheb, dist2, los } from './grid.js?v=0.2.93';
-import { makeEvent } from './events.js?v=0.2.93';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.93';
-import { START_BAR } from '../../data/start-kit.js?v=0.2.93';
-import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.93';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.95';
+import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.95';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.95';
+import { SUPPLIES } from '../../data/supplies.js?v=0.2.95';
+import { ITEMS } from '../../data/items.js?v=0.2.95';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.95';
+import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.95';
+import { cheb, dist2, los } from './grid.js?v=0.2.95';
+import { makeEvent } from './events.js?v=0.2.95';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.95';
+import { START_BAR } from '../../data/start-kit.js?v=0.2.95';
+import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.95';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
@@ -139,12 +139,15 @@ export function attackItem(id) {
 }
 
 /** THE STORE RUNE A SPELL SLOT MAY NAME (`action.store`): a rune spell's slot opts into
-    buying its rune's store row once the carried runes are gone (designer 2026-10-21: a
-    default bar never buys one unseen). Nothing else carries one: a food or drink slot
-    names its ONE item. True when `store` fits the action. */
+    buying a store row of its family, of any tier, once the carried runes are gone (designer
+    2026-10-21: a default bar never buys one unseen; the rune ladder, Tyler 2026-11-05). A tier
+    above the hero's level is a place kept on the bar and waits (abilities.js runeFor). Nothing
+    else carries one: a food or drink slot names its ONE item. True when `store` fits the action. */
 function storeFits(type, id, store) {
   const b = typeof store === 'string' && Object.prototype.hasOwnProperty.call(BASIC_INDEX, store) ? BASIC_INDEX[store] : null;
-  return !!b && type === 'ability' && !!ABILITIES[id] && !!ABILITIES[id].rune && b.partner === ABILITIES[id].rune;
+  if (!b || type !== 'ability' || !ABILITIES[id] || !ABILITIES[id].rune) return false;
+  const family = ITEMS[ABILITIES[id].rune] && ITEMS[ABILITIES[id].rune].family;
+  return !!family && !!ITEMS[b.partner] && ITEMS[b.partner].family === family;
 }
 
 /** Why a condition is refused, or null. `stop` = in a stop rule (no slot to read). */

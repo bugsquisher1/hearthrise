@@ -67,7 +67,7 @@ async function main() {
     const seller = await world.play({ account: 'seller', viewport: { width: 1440, height: 900 }, shots: shots && join(shots, 'desktop') });
     await seller.createHero('Marlow');
     await openMarket(seller);
-    step('a fresh account is told why it can\'t trade', await waitWin(seller, /heroes of Level 10 or higher/), await winText(seller));
+    step('a fresh account is told why it can\'t trade', await waitWin(seller, /heroes of Level 10, or with a bench skill at 30/), await winText(seller));
     step('the empty market reads as an invitation', await waitWin(seller, /Nothing is for sale yet/), await winText(seller));
     await seller.shot('empty-and-locked');
 

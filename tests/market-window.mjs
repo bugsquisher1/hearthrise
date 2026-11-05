@@ -94,7 +94,12 @@ async function runTests({ M, I, G, C, F, R, T, base }) {
   ok('W5', /The listing fee is 8 gold/.test(say('insufficient_gold', { need: 8, have: 2 })), 'a list short of its fee');
   ok('W5', /You need 1,560 gold\. You have 1,200/.test(say('insufficient_gold', { need: 1560, have: 1200 }, 'market_buy')), 'a buy short of gold');
   ok('W5', /Only 2 are left at that price/.test(say('not_enough', { available: 2 }, 'market_buy')), 'not enough left');
-  ok('W5', /heroes of Level 10 or higher/.test(say('market_locked', { min_level: 10 })), 'the Level rule says its number');
+  ok('W5', say('market_locked', { min_level: 10, min_skill_level: 30 }) === 'The Weighhouse trades with heroes of Level 10, or with a bench skill at 30.', 'the rule says both numbers: ' + say('market_locked', { min_level: 10, min_skill_level: 30 }));
+  const lockedAnswer = F.refusalOf({ body: { ok: false, verb: 'market_buy', error: 'market_locked', min_level: 7, min_skill_level: 25 } });
+  ok('W5', /Level 7, or with a bench skill at 25\./.test(T.refusalText(lockedAnswer)), 'the numbers are the answer\'s own, off the wire: ' + T.refusalText(lockedAnswer));
+  ok('W5', /higher bench skill/.test(say('market_locked', null)) && !/Keep hunting|—/.test(say('market_locked', null)), 'an answer with no numbers invents none and doesn\'t send a crafter hunting: ' + say('market_locked', null));
+  const benchRules = M.rulesOf({ fee_bp: 100, cut_bp: 400, min_level: 7, min_skill_level: 25 });
+  ok('W5', benchRules.minLevel === 7 && benchRules.minSkillLevel === 25,'the window reads both numbers from the rules row: ' + JSON.stringify(benchRules));
   ok('W5', /can't be sold to other players/.test(say('not_tradeable', null)), 'the listable rule');
   ok('W5', /That's your own listing/.test(say('own_listing', null, 'market_buy')), 'own listing');
   const r = F.refusalOf({ body: { ok: false, verb: 'market_list', error: 'price_below_shop', detail: { floor: 142 } } });

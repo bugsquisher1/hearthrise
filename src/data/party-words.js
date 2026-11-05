@@ -6,7 +6,7 @@
 // `end_by_why`, a friend's low stamina its party view's `stamina_low_ms`. Nothing here gates or spends anything.
 // PURE ESM.
 // ════════════════════════════════════════════════════════════════════════
-import { END_REASON_COPY } from './hunt-sessions.js?v=0.2.93';
+import { END_REASON_COPY } from './hunt-sessions.js?v=0.2.95';
 
 /* A notice's line: {who} the other player's hero, {name} this hero, {ground} the ground a warning names ("Mosslight Glade, Level 16 and up"). */
 export const PARTY_NOTICE_WORDS = Object.freeze({

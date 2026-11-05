@@ -10,16 +10,16 @@
 // owns ownership and the worn look; the draft is display scratch until the
 // re-read envelope says what is worn.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, REGION_LABEL, DYE_COUNT } from '../../../data/outfits.js?v=0.2.93';
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.93';
-import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.93';
-import { outfitOf } from '../../../session/character-sections.js?v=0.2.93';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.93';
-import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.93';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.93';
-import { glyphSvg } from '../../launcher.js?v=0.2.93';
-import { hasMask } from '../../../render/outfit-sprite.js?v=0.2.93';
-import { runIntent } from '../../intent-words.js?v=0.2.93';
+import { OUTFIT_ROWS, OUTFIT_IDS, REGION_LABEL, DYE_COUNT } from '../../../data/outfits.js?v=0.2.95';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.95';
+import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.95';
+import { outfitOf } from '../../../session/character-sections.js?v=0.2.95';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.95';
+import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.95';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.95';
+import { glyphSvg } from '../../launcher.js?v=0.2.95';
+import { hasMask } from '../../../render/outfit-sprite.js?v=0.2.95';
+import { runIntent } from '../../intent-words.js?v=0.2.95';
 
 /* The turn order of the rotate button: clockwise from facing the viewer. */
 const TURN = Object.freeze(['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'].filter((d) => FACINGS.includes(d)));

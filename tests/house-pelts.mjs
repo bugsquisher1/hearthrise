@@ -33,7 +33,7 @@ import { isMain } from './_is-main.mjs';
 const OFFERS = '2027-02-16-house-pelts-unlock-offers.generated.sql';
 const BOUNDS = '2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql';
 /* The newest forward catalogue, applied after these two: a full replace that carries the bear's bound. */
-const CARRIES = '2027-02-28-temper-craft-hunt-sessions-catalogue.generated.sql';
+const CARRIES = '2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql';
 /* The newest forward price list, the same way: a full replace of OFFERS' rows. */
 const OFFERS_NOW = '2027-02-19-bench-prices-unlock-offers.generated.sql';
 const GLADE = 'mosslight_glade';

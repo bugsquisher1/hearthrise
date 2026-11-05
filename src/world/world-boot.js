@@ -335,7 +335,6 @@ export async function bootWorld(panel, opts) {
       props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })),
       /* the Great Hearth's effects this frame (hearth-burn.js), for a test or a look */
       hearth: { fx: (f.fx || []).map((e) => e.id), swap: f.ambientSwap || null, floats: (f.floats || []).map((x) => x.text) },
-      /* the Town Works' art this frame (town-works.js) */
       works: f.objectSwap || null };
   }
 

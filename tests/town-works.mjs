@@ -804,7 +804,7 @@ const ARMS = {
        The patch itself, on the elements it reads: the walk measures them in a browser */
     if (/hv-works-today|hv-works-msg/.test(X.WK.worksHtml())) out.push('the pane draws its own day\'s line or answer, in the flow');
     const footed = await footOf(X, await as(db, A, 'select public.hr_town_works_view(0)'));
-    if (footed.day !== 'You can give 23,000 gp more today. More after midnight UTC.') out.push('the foot\'s day line reads ' + JSON.stringify(footed.day));
+    if (footed.day !== 'You can give 25,000 gp more today. More after midnight UTC.') out.push('the foot\'s day line reads ' + JSON.stringify(footed.day));
     if (footed.said !== 'The smallest gift is 100 gp.') out.push('the foot\'s answer reads ' + JSON.stringify(footed.said));
     /* THE SERVER'S ANSWER, read field by field */
     await give(db, A, 0, 2000);

@@ -30,36 +30,46 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
-### 2026-11-05 Difficulty tiers, and no pull dial (designer, lane/c-difficulty-tiers; **Tyler's ruling, 2026-11-05**): BUILT on all five grounds past the Cellar, played on the local world, STAGED. **Numbers on the old fixture map: not final until `lane/c-armor-tiers`'s map fix is merged and the grid re-run.**
+### 2026-11-05 Difficulty tiers, and no pull dial (designer, lane/c-difficulty-tiers; **Tyler's ruling, 2026-11-05**): BUILT on all five grounds past the Cellar, played on the local world, STAGED. Measured on the server's map with the kiter fix (`lane/a-kiter-resets` 8f7837b49).
 **The ruling (Tyler 2026-11-05, "All of it sounds good"; in rulings of record).** One choice per ground, the party leader's in a party, remembered per ground: Normal, Dangerous or Deadly. The tier sets how many monsters come and how hard they hit. There is no other dial. Mill Cellar is Normal only. "Deadly", not "Hardcore": that word stays free for the game mode. It supersedes his 10-19 and 10-20 density rulings; kept from them: chosen with the hunt, remembered per ground, the leader chooses, members read it, a full box exists.
 
 **The rows.** Every number is that ground's, because Normal doesn't move and a low ground's only room is the gap between two Normals. Monster HP doesn't move: HP x1.5 cost a four 20% of its XP an hour (`lane/c-armor-tiers`) and a player reads nothing from it. Coin and drops a kill are the row's on every tier.
 | Ground | Normal | Dangerous: pull alone, 2, 3, 4; monster atk and Level; XP a kill | Deadly: the same | Full box of 8 |
 |---|---|---|---|---|
 | Mill Cellar | as built | none | none | No tier. First ground: a choice adds nothing to the first minutes |
-| Meadowbrook Thicket | as built | as built; x1.5; +5% | as built; x3; +10% | **None.** A pull of 3 at no extra XP already beats Wickstead for AoE (hammer 35k against 33.4k, mage 36.4k against 33.1k) |
-| Wickstead | as built | 3, 4, 4, 5; x1.5; +5% | 5, 8, 8, 8; x2; +10% | **Parties only.** Alone, 8 at no extra XP beats the Glade for a hammer (76.8k against 75.5k). Capped at 5 alone |
-| The Sewer | as built | as built alone, 5, 5, 6; x1.2; +5% | as built alone, 8, 8, 8; x1.75; +10% | **Parties only.** Alone, 4 at +10% beats the Glade for a hammer (1.06). Capped at as built alone |
+| Meadowbrook Thicket | as built | as built; x1.5; +5% | as built; x3; +10% | **None.** Alone, a pull of 3 at no extra XP already beats Wickstead (table below) |
+| Wickstead | as built | 3, 4, 4, 5; x1.5; +5% | 5, 8, 8, 8; x2; +10% | **Parties only.** Alone, 8 at no extra XP beats the Glade. Capped at 5 alone |
+| The Sewer | as built | as built alone, 5, 5, 6; x1.2; +5% | as built alone, 8, 8, 8; x1.75; +10% | **Parties only.** Alone, 4 at +10% beats the Glade. Capped at as built alone |
 | Mosslight Glade | as built | 4, 5, 5, 6; x1.2; +10% | 8, 8, 8, 8; x1.5; +20% | Every size, as sampled |
 | Coppercap Warrens | as built | 4, 5, 5, 6; x1.2; +10% | 8, 8, 8, 8; x1.5; +20% | Every size, as sampled. No ground above: the ladder has no rung to break |
-"As built" means the ground's own count, its party pull in a party. No ground lost a tier. The grid behind the caps: `tools/balance-sim` plan `tierrows`.
+"As built" means the ground's own count, its party pull in a party. **No ground lost a tier; three grounds lost a lone hero's bigger pull,** and these are the rows that took it (plan `tiercaps`; the grid that chose the rows: `tierrows`).
+| Ground | Alone, a refused row: pull, power, XP | Against | Worst XP / next Normal XP | Who |
+|---|---|---|---|---|
+| Sewer | 4 monsters, atk x1.75, +10% XP | Glade | 1.06 **beats** | hammer at 20: 81.7k against 77.2k |
+| Sewer | 8 monsters, atk x1.75, +10% XP | Glade | 1.4 **beats** | hammer at 20: 108k against 77.2k |
+| Thicket | 3 monsters, atk x2, no extra XP | Wickstead | 1.1 **beats** | mage at 8: 36.1k against 32.8k |
+| Thicket | 8 monsters, atk as built, no extra XP | Wickstead | 1.55 **beats** | mage at 8: 50.7k against 32.8k |
+| Wickstead | 8 monsters, atk x2, +10% XP | Glade | 1.11 **beats** | hammer at 20: 86k against 77.2k |
+| Wickstead | 8 monsters, atk x2, no extra XP | Glade | 1.02 **beats** | hammer at 20: 78.6k against 77.2k |
 
 **The ladder rule, proved on the real settle (plan `tierladder`).** At the Levels the game sends you up (`recommendedHunt`), per head, 12 ways to fight: every single-target and AoE style, a pair, a three, two fours. Plain is Level-appropriate gear; Tempered is the same with every rung of Blows and Armor bought, from Level 15. Standing guard: `tests/hunt-core/hunt-tiers.mjs` ladder, four ways on all five rungs.
 | Rung | Levels | Kit | Cells | Deadly XP / next Normal XP | Beats it | Out-earns it on gold, within 10% of its XP |
 |---|---|---|---|---|---|---|
 | Thicket to Wickstead | 8 and 12 | plain | 24 | 0.89 to 1 | none | 0 |
-| Thicket to Sewer | 8 and 12 | plain | 24 | 0.5 to 0.74 | none | 0 |
-| Wickstead to Glade | 16 and 20 | plain | 24 | 0.69 to 0.95 | none | 5 |
-| Wickstead to Glade | 16 and 20 | Tempered | 24 | 0.69 to 0.96 | none | 5 |
-| Sewer to Glade | 16 and 20 | plain | 24 | 0.77 to 0.98 | none | 9 |
-| Sewer to Glade | 16 and 20 | Tempered | 24 | 0.77 to 0.97 | none | 12 |
-| Glade to Warrens | 32 and 38 | plain | 24 | 0.75 to 0.97 | none | 5 |
-| Glade to Warrens | 32 and 38 | Tempered | 24 | 0.74 to 0.94 | none | 3 |
+| Thicket to Sewer | 8 and 12 | plain | 24 | 0.5 to 0.71 | none | 0 |
+| Wickstead to Glade | 16 and 20 | plain | 24 | 0.7 to 0.95 | none | 5 |
+| Wickstead to Glade | 16 and 20 | Tempered | 24 | 0.7 to 0.95 | none | 6 |
+| Sewer to Glade | 16 and 20 | plain | 24 | 0.76 to 0.97 | none | 9 |
+| Sewer to Glade | 16 and 20 | Tempered | 24 | 0.76 to 0.97 | none | 12 |
+| Glade to Warrens | 32 and 38 | plain | 24 | 0.74 to 0.96 | none | 7 |
+| Glade to Warrens | 32 and 38 | Tempered | 24 | 0.73 to 0.94 | none | 2 |
 **0 of 192 cells: a lower ground's Deadly beats the next ground's Normal on XP.** Gold is not the rule, and it does lean down: the last column counts cells where a lower Deadly nets more than the next Normal inside 10% of its XP. It isn't new: today's Sewer Normal already out-earns the Glade's at Level 16 (hammer +7.5k against +4.9k).
+
+**Normal, digit for digit.** 300 of 300 cells match before and after the tier engine (`tiers-table --same`, plan `tierpull`), through Tempering, the rows and the dial's removal. The map fix and the kiter fix then move Normal by their own lanes' design; `hunt-tiers` normal-is-the-ground holds it to the row from here on.
 
 **Purpose test (`DESIGN_STANDARDS` §4).** The problem: one monster row can't serve a lone tank and a healed four. The decision: how much risk this hero or party takes for how much XP, stats against stats, chosen once per ground and remembered. It plugs into the store (the bill is the price), armor (it reads the raised Level), Tamsin's kills, the bestiary and the gold sinks. Hour 100 and hour 1,000: past a ground's band the top tier is still work, and it gives Level 50+ somewhere to go. It removes a control.
 
-**Does one fixed count strand a way to fight? Not on the Glade and the Warrens** (plan `tierpull`, 56 cells, read before Tyler's ruling): median 105% of the best pull's XP/h, and no cell had a good pull and no good tier. **On the lower grounds a lone AoE hero does lose its big pull,** by the ladder rule, on purpose: a Thicket hammer at Level 8 read 49k at pull 8 with the dial and reads 30.6k on Deadly. AoE's home now starts at Wickstead Deadly, and it is a real one (see below). No creature or drop is stranded alone: the only creature a bigger pull brings is the Glade's Brook Bear, and Dangerous brings it to a lone hero.
+**Does one fixed count strand a way to fight? Not on the Glade and the Warrens** (plan `tierpull`, 56 cells, read before Tyler's ruling on the old map, not re-measured: it's decided): median 105% of the best pull's XP/h, and no cell had a good pull and no good tier. **On the lower grounds a lone AoE hero does lose its big pull,** by the ladder rule, on purpose: a Thicket hammer at Level 8 reads 49.8k at the dial's old full box and 30.6k on Deadly. AoE's home now starts at Wickstead Deadly, and it is a real one (see below). No creature or drop is stranded alone: the only creature a bigger pull brings is the Glade's Brook Bear, and Dangerous brings it to a lone hero.
 
 **The tiers, played** (per head per hour: Level XP, net gold after the store bill, typical low HP, time to a death; "held" = none in the cell. A floor reads four ways to fight; a Level under it and the top of its band read the two that bracket it. Every way to fight at every Level: `tools/balance-sim/tiers-summary.json`).
 | Ground, Level | Who | Normal | Dangerous | Deadly |
@@ -68,50 +78,67 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 | Thicket 2 | Healed four | 28k, +2.6k, 91%, held | 29.2k, +2.5k, 87%, held | 31.6k, +2.4k, 72%, held |
 | Thicket 5 | Sword + shield | 20.8k, +2.3k, 92%, held | 21.7k, +2.1k, 87%, held | 21.6k, -920, 77%, 8 min |
 | Thicket 5 | Hammer | 28.2k, +2.9k, 94%, held | 29.1k, +3k, 89%, held | 30.5k, +1.9k, 75%, held |
-| Thicket 5 | Mage | 27.9k, +2.6k, 99%, held | 29.1k, +2.8k, 97%, held | 30.3k, +2.7k, 91%, 2 h |
+| Thicket 5 | Mage | 28.2k, +2.8k, 99%, held | 29.3k, +2.9k, 97%, held | 30.7k, +2.4k, 89%, held |
 | Thicket 5 | Healed four | 27.9k, +2.4k, 92%, held | 29.6k, +2.5k, 87%, held | 31.7k, +2.3k, 72%, held |
 | Thicket 12 | Sword + shield | 22.4k, +2.6k, 95%, held | 23.1k, +2.4k, 90%, held | 24.4k, +1.1k, 80%, 2 h |
 | Thicket 12 | Healed four | 29.4k, +2.6k, 95%, held | 30.9k, +2.7k, 92%, held | 32.6k, +2.6k, 79%, held |
 | Wickstead 5 | Sword + shield | 24.5k, +2.6k, 91%, held | 32.1k, +2.8k, 74%, held | 33.3k, -2.4k, 52%, 24 min |
-| Wickstead 5 | Healed four | 33k, +2.7k, 90%, held | 39.5k, +3.3k, 80%, held | 51.8k, +3.7k, 65%, held |
+| Wickstead 5 | Healed four | 33k, +2.7k, 90%, held | 39.7k, +3.1k, 81%, held | 51.6k, +3.8k, 65%, held |
 | Wickstead 8 | Sword + shield | 25k, +2.8k, 93%, held | 32.6k, +2.9k, 77%, held | 34.8k, -1.5k, 54%, 40 min |
 | Wickstead 8 | Hammer | 33.4k, +3.6k, 93%, held | 53k, +5.3k, 79%, held | 66.9k, +3.3k, 67%, held |
-| Wickstead 8 | Mage | 33.1k, +3k, 99%, held | 48.8k, +4.2k, 92%, held | 61.1k, +5.1k, 79%, 2 h |
-| Wickstead 8 | Healed four | 33.5k, +2.7k, 92%, held | 40.3k, +3.5k, 82%, held | 52.4k, +3.9k, 65%, held |
+| Wickstead 8 | Mage | 32.8k, +3.1k, 98%, held | 49.5k, +4.4k, 90%, held | 62.2k, +5.3k, 79%, held |
+| Wickstead 8 | Healed four | 33.5k, +2.7k, 92%, held | 39.9k, +3.4k, 81%, held | 52.6k, +4k, 68%, held |
 | Wickstead 16 | Sword + shield | 28.8k, +3.3k, 98%, held | 38.9k, +4k, 91%, held | 44.5k, +4.4k, 78%, held |
-| Wickstead 16 | Healed four | 38.1k, +3.3k, 98%, held | 46.9k, +4k, 94%, held | 63.4k, +5.3k, 84%, held |
+| Wickstead 16 | Healed four | 38.1k, +3.3k, 98%, held | 47k, +3.9k, 93%, held | 63.6k, +5.3k, 83%, held |
 | Sewer 5 | Sword + shield | 32.8k, +2.5k, 73%, held | 35.1k, +1.8k, 62%, held | 27.4k, -2.2k, 46%, 4 min |
-| Sewer 5 | Healed four | 45.7k, +2.8k, 82%, held | 51.5k, +3.2k, 64%, held | 26.3k, +995, 33%, 6 min |
+| Sewer 5 | Healed four | 45.7k, +2.8k, 82%, held | 51.6k, +3.2k, 59%, held | 28.9k, +964, 32%, 7 min |
 | Sewer 8 | Sword + shield | 34.1k, +2.9k, 77%, held | 36.5k, +2k, 71%, held | 35.6k, -2.1k, 54%, 24 min |
 | Sewer 8 | Hammer | 60.9k, +5.3k, 77%, held | 63.3k, +4.7k, 74%, held | 61.6k, +1.7k, 52%, 5 min |
-| Sewer 8 | Mage | 48.3k, +3.5k, 80%, held | 50.6k, +3.2k, 73%, held | 44.9k, -532, 50%, 9 min |
-| Sewer 8 | Healed four | 46.5k, +3k, 84%, held | 53.2k, +3.3k, 64%, held | 33.8k, +1.1k, 35%, 9 min |
+| Sewer 8 | Mage | 48.7k, +3.5k, 79%, held | 49.9k, +2.7k, 71%, 2 h | 47.3k, -587, 46%, 11 min |
+| Sewer 8 | Healed four | 46.5k, +3k, 84%, held | 52.9k, +3.3k, 62%, held | 36.3k, +1.2k, 35%, 11 min |
 | Sewer 16 | Sword + shield | 41.9k, +4.8k, 91%, held | 43.6k, +4.4k, 88%, held | 45.8k, +3.5k, 78%, held |
-| Sewer 16 | Healed four | 61.1k, +4.2k, 92%, held | 72.4k, +5.2k, 80%, held | 76.8k, +5.1k, 64%, held |
-| Glade 10 | Sword + shield | 48k, -891, 69%, held | 58.6k, -15.6k, 46%, held | 11.2k, -32k, -2%, 0 min |
-| Glade 10 | Healed four | 65.4k, +3.1k, 66%, held | 78.2k, +1.1k, 37%, 8 h | 81.3k, -3.6k, 26%, 10 min |
-| Glade 16 | Sword + shield | 55.8k, +3.2k, 82%, held | 70.8k, -4k, 55%, held | 74.4k, -34k, 0%, 2 min |
-| Glade 16 | Hammer | 75.5k, +4.9k, 80%, held | 117.8k, +561, 59%, held | 134.2k, -29.4k, -2%, 1 min |
-| Glade 16 | Mage | 82k, +5k, 86%, held | 117.2k, +4.4k, 73%, held | 151.9k, -2.3k, 47%, 30 min |
-| Glade 16 | Healed four | 82.7k, +4.6k, 82%, held | 99.1k, +4.4k, 62%, held | 127.7k, +2.8k, 56%, held |
-| Glade 31 | Sword + shield | 68.4k, +4.8k, 94%, held | 92.5k, +6.5k, 85%, held | 114.5k, -1.5k, 55%, held |
-| Glade 31 | Healed four | 97.4k, +5.5k, 95%, held | 119.2k, +6k, 87%, held | 157.5k, +7k, 77%, held |
-| Warrens 26 | Sword + shield | 101.3k, -18.8k, 52%, held | 112.7k, -58.7k, 44%, held | 3.5k, -196.3k, -3%, 0 min |
-| Warrens 26 | Healed four | 155.3k, +3.1k, 66%, held | 185.2k, -7.9k, 34%, 8 h | 166.3k, -33.1k, 1%, 5 min |
-| Warrens 32 | Sword + shield | 129.7k, -761, 69%, held | 142.7k, -21.7k, 52%, held | 153.1k, -149.8k, 19%, 5 min |
-| Warrens 32 | Hammer | 199.9k, -2.5k, 62%, held | 243.7k, -37.2k, 50%, held | 165.8k, -188.3k, -4%, 1 min |
-| Warrens 32 | Mage | 218.8k, +5.6k, 82%, held | 257k, -1.9k, 56%, held | 215.7k, -68.7k, 56%, 17 min |
-| Warrens 32 | Healed four | 200.4k, +5.2k, 84%, held | 244.6k, +3.6k, 53%, held | 279.6k, -15.6k, 40%, 4 h |
-| Warrens 50 | Sword + shield | 164.2k, +5.6k, 94%, held | 188.6k, +6.7k, 90%, held | 213k, -28.9k, 51%, held |
-| Warrens 50 | Healed four | 229.3k, +5.7k, 97%, held | 280.9k, +7.3k, 88%, held | 327.4k, +6.6k, 64%, held |
+| Sewer 16 | Healed four | 61.1k, +4.2k, 92%, held | 72.4k, +5.3k, 76%, held | 76.7k, +5k, 63%, held |
+| Glade 10 | Sword + shield | 47.6k, -1k, 67%, held | 58.6k, -15.5k, 46%, held | 11.2k, -32k, -2%, 0 min |
+| Glade 10 | Healed four | 65.6k, +3.1k, 65%, held | 79.8k, +943, 37%, held | 79.4k, -3.5k, 24%, 8 min |
+| Glade 16 | Sword + shield | 55.2k, +3.3k, 81%, held | 70.8k, -4k, 55%, held | 74.4k, -33.9k, 0%, 2 min |
+| Glade 16 | Hammer | 77.1k, +5.2k, 81%, held | 117.8k, +657, 59%, held | 134.2k, -29.2k, -2%, 1 min |
+| Glade 16 | Mage | 83k, +5.2k, 89%, held | 116k, +5k, 73%, held | 157.7k, +104, 49%, 1 h |
+| Glade 16 | Healed four | 82.2k, +4.7k, 80%, held | 99.1k, +4.3k, 63%, held | 126.1k, +2.6k, 53%, held |
+| Glade 31 | Sword + shield | 67.5k, +4.9k, 94%, held | 92.5k, +6.5k, 85%, held | 114.5k, -1.4k, 55%, held |
+| Glade 31 | Healed four | 97.7k, +5.6k, 95%, held | 119.9k, +6.2k, 87%, held | 157k, +7.3k, 77%, held |
+| Warrens 26 | Sword + shield | 101.3k, -18.6k, 51%, held | 111.9k, -58.6k, 42%, held | 33.2k, -179k, -3%, 0 min |
+| Warrens 26 | Healed four | 153.9k, +3.4k, 66%, held | 185.2k, -8.3k, 34%, held | 172.8k, -32.2k, 6%, 6 min |
+| Warrens 32 | Sword + shield | 130.9k, -838, 71%, held | 142.7k, -21.7k, 51%, held | 153.8k, -137.9k, 19%, 5 min |
+| Warrens 32 | Hammer | 200.7k, -3.1k, 63%, held | 242.5k, -35.6k, 51%, held | 231.1k, -173.9k, -4%, 1 min |
+| Warrens 32 | Mage | 218.7k, +7.3k, 85%, held | 260.4k, +266, 63%, held | 299.9k, -65.1k, 27%, 4 min |
+| Warrens 32 | Healed four | 199.3k, +4.9k, 85%, held | 244.2k, +3.7k, 53%, held | 285.2k, -14.4k, 41%, held |
+| Warrens 50 | Sword + shield | 169k, +5.8k, 95%, held | 183.2k, +6.9k, 90%, held | 210.3k, -26.6k, 49%, held |
+| Warrens 50 | Healed four | 228.7k, +5.9k, 96%, held | 285.6k, +6.9k, 88%, held | 329.8k, +6.1k, 64%, held |
 So Normal stays what it is. Dangerous is a lone hero's step up from the middle of a band and a party's first hard mode. Deadly is what it says at a floor and pays near the top. **The Level 50 ceiling:** past 50 a four has somewhere to go.
+
+**The Warrens' Deadly against the pace contract.** `LEVEL_PACE.contract` is what a NEW ground's Normal must pay at its own Level. The curve is held on Normal, where the game recommends, so a tier doesn't move it: it moves the fastest hour. `lane/d-ground-pack` flagged this as its open number.
+| Who, Warrens at Level 50 | Normal | Deadly | Deadly / contract (199.8k) | A good place? |
+|---|---|---|---|---|
+| Sword + shield | 169k, +5.8k | 210.3k, -26.6k, held | 1.05 | no |
+| Sword | 175.4k, +6.6k | 226.2k, -78.9k, held | 1.13 | no |
+| Hammer | 235k, +8.5k | 333.8k, -72.3k, 2 h to a death | 1.67 | no |
+| Axes | 212.5k, +6.9k | 303k, -75.2k, held | 1.52 | no |
+| Bow | 171.8k, +5.6k | 211k, -12.3k, held | 1.06 | no |
+| Crossbow | 175.8k, +6.4k | 215.6k, -1.2k, held | 1.08 | no |
+| Mage | 247.3k, +9k | 360.1k, -2.4k, held | 1.80 | no |
+| Healer | 202k, +6.5k | 248.7k, +13, held | 1.24 | yes |
+| Pair | 199.2k, +5.8k | 264.3k, +4k, held | 1.32 | yes |
+| Three | 205.4k, +5.9k | 278.8k, +5k, held | 1.40 | yes |
+| Healed four | 228.7k, +5.9k | 329.8k, +6.1k, held | 1.65 | yes |
+| Four with no healer | 215.3k, +5.6k | 323.5k, +2.7k, held | 1.62 | yes |
+**The call: the Warrens' rows stand as Tyler ruled them.** No ground sits above them today, so no rung breaks and nothing ships wrong. The rushes are paid for: below zero or a death is the price, and a purse runs out. The one rush that's nearly free is a lone mage, by the table. For the next ground the ladder reads only good places, net above zero with no death in the cell, the same test the static read used. That leaves the four: the next ground has to meet the good-place cells above, or the brackets past 50 re-fit (`pace --fit-past`, no re-measure). 
 
 **Supply burn for `lane/d-gold-sinks`.** A hunt ends when the purse can't pay (gold_out), so the top numbers are a rate nobody holds for long.
 | Store bill per head per hour: Normal, Dangerous, Deadly | Thicket 5 | Thicket 12 | Wickstead 8 | Wickstead 16 | Sewer 8 | Sewer 16 | Glade 16 | Glade 31 | Warrens 32 | Warrens 50 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Sword + shield | 30, 224, 3.1k | 0, 35, 1.6k | 10, 750, 4.9k | 0, 7, 665 | 1.1k, 1.8k, 5.5k | 14, 182, 1.3k | 860, 8.9k, 38.6k | 0, 40, 8.7k | 5.6k, 26.9k, 154.8k | 0, 0, 35.6k |
-| Mage | 590, 626, 887 | 393, 385, 423 | 813, 972, 1.7k | 171, 807, 715 | 1.7k, 2.2k, 4.8k | 530, 652, 1.6k | 638, 3.6k, 11.7k | 170, 296, 1.3k | 2.8k, 10.6k, 75.8k | 278, 334, 17.1k |
-| Healed four | 250, 255, 451 | 183, 182, 232 | 267, 268, 635 | 198, 188, 157 | 292, 630, 1.7k | 109, 72, 589 | 153, 623, 3.1k | 76, 60, 83 | 54, 2.7k, 22.2k | 51, 65, 1.4k |
+| Sword + shield | 30, 224, 3.1k | 0, 35, 1.6k | 10, 750, 4.9k | 0, 7, 665 | 1.1k, 1.8k, 5.5k | 14, 182, 1.3k | 780, 8.9k, 38.6k | 0, 40, 8.7k | 5.6k, 26.7k, 142.5k | 0, 0, 34.7k |
+| Mage | 630, 624, 887 | 393, 386, 458 | 774, 1k, 1.6k | 165, 814, 729 | 1.8k, 2.6k, 5.3k | 565, 737, 1.6k | 628, 2.9k, 10.1k | 170, 279, 981 | 815, 8.9k, 75.1k | 264, 515, 14.2k |
+| Healed four | 250, 255, 451 | 183, 182, 232 | 267, 267, 620 | 198, 188, 158 | 292, 618, 1.8k | 109, 71, 552 | 156, 656, 3.4k | 76, 60, 76 | 53, 2.5k, 21.6k | 50, 65, 1.4k |
 
 **Same gold, in plain numbers.** A kill pays the row's coin and drops: guarded per kill (`hunt-tiers` harder-tier-costs). The hour's income still rises with kills. Rare *rates* don't move; rare rolls an hour rise with kills an hour.
 
@@ -130,9 +157,9 @@ So Normal stays what it is. Dangerous is a lone hero's step up from the middle o
 
 **Server (§1).** `hr_hunt_tier_set` (client intent, keyed, rate-gated, refused never clamped: `bad_tier`, `bad_hunt`, `not_leader`); `hunt_density.tier`; `hunt_instances.tier` frozen with the pull by the existing trigger at hunt start; `hr_hunt_instance_read` overlays `options.tier` and `options.density` on every member, so the engine and the kill bound read one frozen number; catalogue `hr_hunt_tiers`, ten rows. `hr_hunt_density_set`, `_view`, `_pick` and the `hunt_density` section go. One staged file, `2027-02-27-hunt-tiers.sql`, §6 self-check executes a real pick, enter, freeze and read. The engine reads the tier every swing and never stores it: **the world's shape doesn't move, no `world_shape_pending`.** No new player table: `hunt_density` and `hunt_instances` were already on the wipe's list; `hr_hunt_tiers` goes on its no-player list.
 
-**Measured:** every number above, real settle (`tools/balance-sim`), 2 seeds, 1 h a cell, Level-appropriate gear on store food, the fixture map as it stands, on v0.2.90 with Tempering. **Assumed:** that a 2-hour cell's "held" is a real absence of death; +5% to +20% as "slightly more" (Tyler may read it per hour); that nobody misses a pull under the as-built one.
+**Measured:** every number above, real settle (`tools/balance-sim`), 2 seeds, 1 h a cell, Level-appropriate gear on store food, on the server's map with `lane/a-kiter-resets` 8f7837b49. **Assumed:** that a 2-hour cell's "held" is a real absence of death; +5% to +20% as "slightly more" (Tyler may read it per hour); that nobody misses a pull under the as-built one.
 
-**Known limits.** (1) **A kiter's reset loop, already in the game at today's pull 8, now on Deadly:** a lone bow, crossbow or mage on the Warrens' first pocket re-pulls about every 3 s. Nothing dies of it; ranged has a good place on Normal and Dangerous. With Systems, not this lane. (2) The table `hunt_density` keeps its name and its `density` column is dead (always 0). Renaming it is a follow-up, not a player matter. (3) Personal bests are per ground, so they mix tiers. (4) **The fastest hour moves:** Deadly reads over today's full box at the same pull. The final pace re-measure has to read it.
+**Known limits.** (1) **Kiters on Deadly die a bit more than they did,** because the free reset is gone (`lane/a-kiter-resets`; the only resets left are leader deaths). At the Warrens' floor on Deadly, per head: bow 155.4k, -69.3k, 4 min to a death; crossbow 175k, -45.4k, 10 min to a death; mage 299.9k, -65.1k, 4 min to a death. That is what Deadly at a floor should read. (2) The table `hunt_density` keeps its name and its `density` column is dead (always 0). Renaming it is a follow-up, not a player matter. (3) Personal bests are per ground, so they mix tiers. (4) **The fastest hour moves:** Deadly reads over today's full box at the same pull. The final pace re-measure has to read it.
 
 ### 2026-11-05 Tempering: a gold sink that adds a little gear power (designer, lane/c-gear-upgrade): BUILT, played, STAGED: two files, then the edge, then the client
 **Tyler, 2026-11-04:** "we need to add some additional gold sinks before we raise the price. I'm thinking about some sort of upgrade system that slightly increases gear power or something."

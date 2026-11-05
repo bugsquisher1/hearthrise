@@ -591,6 +591,14 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'tiercaps') {
+    /* WHY A LONE HERO HAS NO BIGGER PULL ON THE CAPPED GROUNDS: the rows refused, alone, in the sim only (whatIf; never written to a data file). Read by tiers-table.mjs --caps against plan tierladder's Normals. x = C<pull alone>:<power>:<xp>. */
+    const REFUSED = [['meadowbrook_thicket', [8, 8, 8, 8], 1000, 1000, [8, 12]], ['meadowbrook_thicket', [3, 6, 6, 6], 2000, 1000, [8, 12]], ['wickstead', [8, 8, 8, 8], 2000, 1000, [16, 20]], ['wickstead', [8, 8, 8, 8], 2000, 1100, [16, 20]], ['millrace_sewer', [4, 8, 8, 8], 1750, 1100, [16, 20]], ['millrace_sewer', [8, 8, 8, 8], 1750, 1100, [16, 20]]];
+    for (const [ground, pull, powerPm, xpPm, levels] of REFUSED) for (const level of levels) for (const s of ['hammer', 'axes', 'bow', 'mage']) {
+      out.push({ ...cellOf({ ground, party: [s], level, density: pull[0], hours: H(1), seeds: 2, x: 'C' + pull[0] + ':' + powerPm + ':' + xpPm }), options: { tier: 'deadly' }, windowMs: 120000, whatIf: { tiers: { [ground]: { deadly: { id: 'deadly', pull, powerPm, xpPm } } } } });
+    }
+    return out;
+  }
   if (name === 'armortier') {
     /* BALANCE RULING §9 ON THE REAL SETTLE (a meaningful armor upgrade is 3-5% less actual incoming damage): each rung on its own ground, the whole set and the body one tier behind, three weights. Same dice. */
     for (const [ground, level] of [['wickstead', 16], ['millrace_sewer', 16], ['mosslight_glade', 16], ['mosslight_glade', 31], ['coppercap_warrens', 32]]) for (const s of ['tank', 'bow', 'mage']) {

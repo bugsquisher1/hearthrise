@@ -83,6 +83,27 @@ if (ladDir) {
   console.log('\n' + beaten + ' of ' + sum.reduce((t, r) => t + r.n, 0) + ' cells: a lower ground\'s Deadly beats the next ground\'s Normal on XP');
 }
 
+/* --caps CAPS,LADDER: plan tiercaps against plan tierladder's Normals. A row beats when a lone hero on it out-levels the next ground's Normal: that is why the ground is capped. */
+const capsDirs = arg('caps', null);
+if (capsDirs) {
+  const [capD, ladD] = capsDirs.split(',');
+  const upper = new Map(load(ladD).filter((c) => c.cell.x === 'Lnormal').map((c) => [[c.ground, c.cell.level, whoOf(c)].join('|'), readCell(c)]));
+  const rows = new Map();
+  for (const c of load(capD)) {
+    for (const [lower, up] of TIER_RUNGS) {
+      if (lower !== c.ground || (lower === 'meadowbrook_thicket' && up !== 'wickstead')) continue;
+      const u = upper.get([up, c.cell.level, whoOf(c)].join('|')), x = readCell(c);
+      if (!u) continue;
+      const [pull, power, xp] = c.cell.x.slice(1).split(':').map(Number);
+      const key = SHORT[lower] + ' | ' + pull + ' monsters, ' + (power === 1000 ? 'atk as built' : 'atk x' + power / 1000) + ', ' + (xp === 1000 ? 'no extra XP' : '+' + (xp / 10 - 100) + '% XP');
+      if (!rows.has(key)) rows.set(key, { up: SHORT[up], list: [] });
+      rows.get(key).list.push({ who: whoOf(c), level: c.cell.level, xp: x.xp, u: u.xp, ratio: round(x.xp / u.xp, 2) });
+    }
+  }
+  console.log('| Ground | Alone, a refused row: pull, power, XP | Against | Worst XP / next Normal XP | Who |\n|---|---|---|---|---|');
+  for (const [key, r] of [...rows].sort((a, b) => a[0].localeCompare(b[0]))) { const w = r.list.reduce((a, b) => (b.ratio > a.ratio ? b : a)); console.log('| ' + key + ' | ' + r.up + ' | ' + w.ratio + (w.ratio > 1 ? ' **beats**' : '') + ' | ' + w.who + ' at ' + w.level + ': ' + k(w.xp) + ' against ' + k(w.u) + ' |'); }
+}
+
 /* --final DIR: plan tierfinal, one row per ground, Level and who, each tier beside Normal. */
 const finalDir = arg('final', null);
 if (finalDir) {

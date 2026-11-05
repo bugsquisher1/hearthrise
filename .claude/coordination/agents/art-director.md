@@ -8,6 +8,11 @@ Tyler's named fix: "miss miss miss" over the hero becomes a spark. Lessons worth
   taking the float away would have taken the information with it. The log gained the line Tyler assumed was there.
 - **A new line inherits the old line's bug.** The log resolved names from the last pose, so its first test on real play read
   "Someone misses Someone" for a quarter of the lines. Timeline `kindOf` and the live view's `heroUnits` fix every line.
+- **Then look at the tab the words land in.** At the chat's default size the nine filters and the empty input left the Combat
+  log 0 px (1 line on a phone), and it opened on its oldest line. A rendered screenshot found it; 200 `.hc-line`s in the DOM did
+  not. The filters fold now, the empty input is gone from that tab, and red stays for what hurt: half a fresh hero's blows taken miss.
+- **`hunt-screen`'s shards are full:** five new mutants booked two shards past 18 min. The rule went to `chat-social`, whose stub
+  takes no server event while its live view joins, so it measures the room and the tones; the lines are `hunt-view-core` LOG-4.
 - **Quiet can mean invisible.** A stone-ramp scuff disappeared on the Mill Cellar's stone floor at real size, and only a full
   screenshot showed it. One step up to bone kept it quiet and made it exist.
 - **Freeze the real frame to read a 150 ms effect:** a scratch driver wraps `drawImage` to spot the sprite's atlas rect and holds

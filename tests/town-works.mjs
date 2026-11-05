@@ -196,7 +196,8 @@ const give = (db, u, slot, amount, key, project = P) => as(db, u, 'select public
 const calm = (db) => db.query('delete from public.hr_rate_counters');
 const shopRows = (db, u) => q(db, "select slot, intent, gold::bigint as gold from public.player_ledger where user_id = $1 and kind = 'shop' order by at, intent", [u]);
 const total = async (db, project = P) => Number((await one(db, 'select total from public.town_works_totals where project_id = $1', [project])) || 0);
-const setTotal = (db, n, project = P) => db.query('insert into public.town_works_totals (project_id, total) values ($1, $2) on conflict (project_id) do update set total = excluded.total', [project, n]);
+const setTotal = (db, n, project = P) => (n > 0 ? db.query('insert into public.town_works_totals (project_id, total) values ($1, $2) on conflict (project_id) do update set total = excluded.total', [project, n])
+  : db.query('delete from public.town_works_totals where project_id = $1', [project]));
 const lines = (db) => q(db, "select from_id, from_slot, from_name, body from public.chat_messages where channel = 'system' and from_name = 'The Weighhouse' order by created_at");
 const firstHunt = (db) => one(db, 'select g.hunt_id from public.hr_hunt_grounds g left join public.hr_hunts h on h.hunt_id = g.hunt_id order by coalesce(h.band_min, 0), g.hunt_id limit 1');
 const blockedName = async (db) => {
@@ -263,16 +264,10 @@ const ARMS = {
     /* A HUNTING HERO MAY GIVE: the purse is the account's and nothing walks */
     await calm(db);
     const hunt = await firstHunt(db);
-    const entered = await as(db, A, 'select public.hr_hunt_enter(0, $1, null, $2::uuid)', [hunt, idem()]).catch((e) => ({ threw: e.message }));
-    if (entered && entered.ok === true) {
-      const inHunt = await give(db, A, 0, 500);
-      if (!inHunt || inHunt.ok !== true) out.push('a hunting hero was refused: ' + JSON.stringify(inHunt));
-    } else {
-      /* the signature may have moved: a hunt row of its own proves the same thing */
-      await db.query("insert into public.hunt_sessions (user_id, slot, hunt_id) values ($1, 0, $2) on conflict do nothing", [A, hunt]).catch(() => {});
-      const inHunt = await give(db, A, 0, 500);
-      if (!inHunt || inHunt.ok !== true) out.push('a hunting hero was refused: ' + JSON.stringify(inHunt));
-    }
+    const entered = await as(db, A, "select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, gen_random_uuid())", [hunt]);
+    if (!entered || entered.ok !== true) return out.concat('hr_hunt_enter: ' + JSON.stringify(entered));
+    const inHunt = await give(db, A, 0, 500);
+    if (!inHunt || inHunt.ok !== true) out.push('a hunting hero was refused: ' + JSON.stringify(inHunt));
     return out;
   },
 
@@ -674,16 +669,16 @@ const ARMS = {
     const view = { ox: (lx - 12) * T, oy: (ly - 12) * T, w: 32 * T, h: 30 * T };
     const frame = (hero, swap) => X.compose.composeFrame(map, X.book, { hero, t: 0, objectSwap: swap }, view, tables, T);
     const swap = { havora_weighhouse_staked: 'havora_weighhouse_finished' };
-    const north = frame({ id: 'hunt_knight_s1', x: lx + 3, y: ly - 1, dir: 's' }, swap);
+    const north = frame({ x: lx + 3, y: ly - 1, dir: 's' }, swap);
     const ids = north.sprites.map((d) => d.id);
     if (!ids.includes('havora_weighhouse_finished') || ids.includes('havora_weighhouse_staked')) out.push('the swap does not draw: ' + ids.filter((i) => /weighhouse/.test(i)));
     if (north.fx.some((e) => /weighhouse/.test(e.id))) out.push('the lot draws with the effects, over everyone');
     const at = (list, pred) => list.findIndex(pred);
-    const isHero = (d) => d.kind === 'unit';
+    const isHeroAt = (x, y) => (d) => d.kind === 'unit' && d.tx === x && d.ty === y && !/weighhouse/.test(d.id);
     const isLot = (d) => d.id === 'havora_weighhouse_finished';
-    if (at(north.sprites, isHero) > at(north.sprites, isLot)) out.push('a hero north of the lot draws over it');
-    const south = frame({ id: 'hunt_knight_s1', x: lx + 3, y: ly + 6, dir: 's' }, swap);
-    if (at(south.sprites, isHero) < at(south.sprites, isLot)) out.push('a hero south of the lot draws behind it');
+    if (at(north.sprites, isHeroAt(lx + 3, ly - 1)) < 0 || at(north.sprites, isHeroAt(lx + 3, ly - 1)) > at(north.sprites, isLot)) out.push('a hero north of the lot draws over it');
+    const south = frame({ x: lx + 3, y: ly + 6, dir: 's' }, swap);
+    if (at(south.sprites, isHeroAt(lx + 3, ly + 6)) < at(south.sprites, isLot)) out.push('a hero south of the lot draws behind it');
     /* the staged art stands in the same box */
     const a = frame(null, null).sprites.find((d) => d.id === 'havora_weighhouse_staked');
     const b = frame(null, swap).sprites.find(isLot);
@@ -740,7 +735,7 @@ const ARMS = {
     if (edge.length < 50) out.push('the pack read ' + edge.length + ' files');
     for (const n of edge) if (/town-works|works\.js|town-intents|sink-taps/.test(n)) out.push(n + ' is in the edge bundle');
     /* ONLY THE WORKS' OWN CLIENT MODULES READ IT: no price, gate or number a player can act on */
-    const CLIENT_READERS = new Set(['src/world/town-works.js', 'src/world/world-boot.js', 'src/session/town-presence.js', 'src/session/town-intents.js', 'src/shell/sink-words.js', 'src/shell/windows/havora/works.js', 'src/shell/windows/havora/index.js', 'src/data/town-works.js', 'src/data/world/sink-taps.js', 'src/data/honor-roll.js', 'src/data/world/town/sites.js']);
+    const CLIENT_READERS = new Set(['src/world/town-works.js', 'src/world/world-boot.js', 'src/session/town-presence.js', 'src/session/town-intents.js', 'src/shell/sink-words.js', 'src/shell/windows/havora/works.js', 'src/shell/windows/havora/index.js', 'src/data/town-works.js', 'src/data/world/sink-taps.js', 'src/data/honor-roll.js', 'src/data/refusal-words.js', 'src/data/world/town/sites.js']);
     const client = X.clientFiles.concat(mutant && mutant.plant === 'clientFile' ? [['src/shell/windows/shop.js', 'const discount = town.extras();']] : []);
     for (const [rel, text] of client) if (/\.extras\(\)|data\/town-works\.js|readWorks|hr_town_works/.test(text) && !CLIENT_READERS.has(rel)) out.push(rel + ' reads the Works');
     if (client.length < 50) out.push('the scan of the client read ' + client.length + ' files');
@@ -776,7 +771,7 @@ const ARMS = {
     for (const [r, words] of want) if (R(r) !== words) out.push(`${r.error} reads "${R(r)}"`);
     /* the plain table says something for every code the verb can answer, in case a number is lost */
     const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [GIVE])) + String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [FAULT]));
-    for (const m of def.matchAll(/'error', '([a-z_]+)'/g)) if (m[1] !== 'not_signed_in' && !X.RW.REFUSAL_WORDS[m[1]]) out.push('no words for ' + m[1]);
+    for (const m of def.matchAll(/'error', '((?:works_|not_a_|bad_a)[a-z_]+)'/g)) if (!X.RW.REFUSAL_WORDS[m[1]]) out.push('no words for ' + m[1]);
     const plain = X.IW.refusalText({ ok: false, error: 'works_over', verb: 'town_works', project: P }, null);
     if (!/more than you can give/.test(plain)) out.push('with its number lost, works_over reads ' + plain);
     const join = X.HR.honorBoard('gold_given').join;

@@ -52,7 +52,8 @@ try {
   const textOf = (sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.textContent : null; }, sel);
   const waitText = (sel, re, ms = 30000) => page.waitForFunction(([s, r]) => { const e = document.querySelector(s); return !!e && new RegExp(r).test(e.textContent || ''); }, [sel, re.source], { timeout: ms }).then(() => true, () => false);
   const closeWindow = async (id) => { const b = await page.$(`[data-hs-win="${id}"] [data-hs-close]`); if (b) await b.click(); };
-  const setTotal = (n) => sql("insert into public.town_works_totals (project_id, total) values ('weighhouse', $1) on conflict (project_id) do update set total = excluded.total", [n]);
+  const setTotal = (n) => (n > 0 ? sql("insert into public.town_works_totals (project_id, total) values ('weighhouse', $1) on conflict (project_id) do update set total = excluded.total", [n])
+    : sql("delete from public.town_works_totals where project_id = 'weighhouse'"));
   const WIN = '[data-hs-win="havora"]';
   /* a real tap on tile (x, y), as the player's finger lands, through the World's own screen mapping */
   const tapTile = async (x, y) => {

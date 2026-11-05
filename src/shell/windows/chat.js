@@ -29,6 +29,7 @@ import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.90';
 import { isWhisperTab } from '../../social/whispers.js?v=0.2.90';
 import { linkLabel } from '../../social/chat-lines.js?v=0.2.90';
 import { combatHtml, patchCombat, actCombat } from './chat-combat.js?v=0.2.90';
+import { crierButtonHtml, crierBarHtml, patchCrier, actCrier } from './chat-crier.js?v=0.2.90';
 import { showTip, hideTip } from './item-tip.js?v=0.2.90';
 import { rarityOf } from '../bag-model.js?v=0.2.90';
 import { glyphSvg } from '../launcher.js?v=0.2.90';
@@ -59,7 +60,8 @@ export function renderChat() {
     + '<p class="hh-empty hc-none is-talk"></p></div>'
     + '<div class="hc-pane is-combat">' + combatHtml() + '</div>'
     + '<div class="hc-input"><input type="text" class="hc-field" data-hs-act="draft" maxlength="240" autocomplete="off" enterkeyhint="send" aria-label="Message">'
-    + '<button type="button" class="hh-tool hc-send" data-hs-act="send">Send</button></div>'
+    + crierButtonHtml() + '<button type="button" class="hh-tool hc-send" data-hs-act="send">Send</button></div>'
+    + crierBarHtml()
     + '<p class="hc-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -89,7 +91,7 @@ function lineEl(ctx, l) {
     + (l.fromId ? ' data-hs-player-id="' + esc(l.fromId) + '"' : '') + ' data-hs-player-name="' + esc(l.name) + '"'
     + (l.slot !== null ? ' data-hs-player-slot="' + esc(l.slot) + '"' : '') + '>' + esc(l.name) + '</button>';
   const title = l.title ? ' <span class="hc-title">' + esc(l.title) + '</span>' : '';
-  return element(ctx.doc, '<li class="hc-line"><time class="hc-time">' + esc(l.time) + '</time> ' + who + title + tag + ': <span class="hc-body">' + partsHtml(l.parts) + '</span></li>');
+  return element(ctx.doc, '<li class="hc-line' + (l.crier ? ' is-crier' : '') + '"><time class="hc-time">' + esc(l.time) + '</time> ' + who + title + tag + ': <span class="hc-body">' + partsHtml(l.parts) + '</span></li>');
 }
 
 /* A drawn line keeps its words; only the speaker's NAME follows the server's row (hr_chat_row / hr_whisper_row render
@@ -160,6 +162,7 @@ renderChat.patch = function patchChat(body, ctx) {
   patchCombat(body.querySelector('.hc-pane.is-combat'), ctx);
   if (!combat && social) patchTalk(body, ctx, social, st);
   patchInput(body, ctx, social, st);
+  patchCrier(body, ctx, !!social && tab === 'global');
 };
 
 function patchTalk(body, ctx, social, st) {
@@ -240,6 +243,7 @@ renderChat.act = function actChat(ctx, body, action, ev, t) {
     return type === 'click';
   }
   if (type !== 'click') return false;
+  if (actCrier(ctx, body, action, ev)) return true;
   if (action === 'tab') { st.tab = t.getAttribute('data-tab'); st.msg = ''; st.jump = true; renderChat.patch(body, ctx); return true; }
   if (action === 'close-tab' && social) { social.whispers.close(t.getAttribute('data-tab')); renderChat.patch(body, ctx); return true; }
   if (action === 'send') { doSend(ctx, body, st); return true; }

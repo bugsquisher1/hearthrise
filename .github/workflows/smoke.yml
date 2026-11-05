@@ -4937,14 +4937,20 @@ jobs:
           node tools/mutant-gate.mjs node tests/bench-tax.mjs --mutate
 
       # THE GOLD SINKS (Tyler 2026-11-04): every price is a row generated into hr_sink_rules; the shared seams (the title on a chat row and
-      # the town label, the hero's colors, the town read's extras) reach a stranger, a later lane's body survives a second apply.
-      - name: Gold sinks - the rules, the seams
+      # the town label, the hero's colors, the town read's extras) reach a stranger, a later lane's body survives a second apply. Hearth powders,
+      # rounds, the Crier and Gold Given: no XP, the climb per account, a refused show charges nothing; TS-NO-METER is the standing guard that
+      # no gold ever reaches the Hearthrise meter.
+      - name: Gold sinks - the rules, the seams, the town's shows, the Crier
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-gold-sinks.mjs --check
           node tools/mutant-gate.mjs node tools/gen-gold-sinks.mjs --selftest
           node tests/town-shows.mjs
           node tools/mutant-gate.mjs node tests/town-shows.mjs --selftest
+          node tests/town-crier.mjs
+          node tools/mutant-gate.mjs node tests/town-crier.mjs --selftest
+          node tools/world-art/hearth-flames.mjs --check
+          node tools/world-art/round-fireworks.mjs --check
 
       # THE HERO SINKS (Tyler 2026-11-04): setups free then bought (a saved setup is never blocked, a new number past the count is refused by every verb);
       # titles, where gold unlocks one only after the kills are earned. One key charges once, a forged price is quote_changed, per hero.

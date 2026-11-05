@@ -18,7 +18,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
-import { SINK_RULES } from '../src/data/gold-sinks.js';
+import { SINK_RULES, SHOW_FLAMES, ROUND_OFFER } from '../src/data/gold-sinks.js';
 import { ACTION_SET_LIMITS } from '../src/data/rule-subjects.js';
 import { FLAMES } from '../src/data/hearth.js';
 import { CHAT_LIMITS } from '../src/data/chat-channels.js';
@@ -69,6 +69,9 @@ export function problemsOf(rules, ctx = {}) {
     if (r.minLevel !== undefined && !whole(r.minLevel, 1, 10000)) out.push(`${id}: minLevel ${r.minLevel} is not a Level`);
     if (r.maxLetters !== undefined && !whole(r.maxLetters, 1, lineMax)) out.push(`${id}: ${r.maxLetters} letters is more than a chat line takes`);
   }
+  /* what the World and the window can draw is what the server may sell */
+  for (const offer of (rules.powder && rules.powder.offers) || []) if (!(ctx.showFlames || SHOW_FLAMES)[offer]) out.push(`powder: ${offer} has no flame to draw (SHOW_FLAMES)`);
+  if (rules.round && !(rules.round.offers || []).includes(ROUND_OFFER)) out.push(`round: its offer is not ${ROUND_OFFER}`);
   const setup = rules.setup_slot;
   if (setup) {
     const has = (setup.free === undefined ? 0 : setup.free) + (setup.prices || []).length;
@@ -165,6 +168,8 @@ function selftest() {
   bites('setups that outrun the limit', 'setup limit is 5', { ...R, setup_slot: { ...R.setup_slot, free: 3 } });
   bites('a named flame for sale', 'never for sale', { ...R, powder: { ...R.powder, offers: ['honey', 'borax'] } }, { flames: { honey: {} } });
   bites('an offer on two rows', 'on two rows', { ...R, round: { ...R.round, offers: ['borax'] } });
+  bites('a powder with no flame to draw', 'no flame to draw', { ...R, powder: { ...R.powder, offers: ['cinnabar', 'quicklime', 'saltpeter'] } });
+  bites('a round the client can not name', 'its offer is not', { ...R, round: { ...R.round, offers: ['toast'] } });
   bites('a show longer than its booking', "can't fit one show", { ...R, round: { ...R.round, bookS: 10 } });
   bites('a Crier line longer than chat takes', 'more than a chat line', { ...R, crier: { ...R.crier, maxLetters: 100000 } });
   /* Tyler may still say 3 free: the flip is one row, and it stays legal. */

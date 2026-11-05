@@ -124,6 +124,13 @@ async function scenario(db, wipeSql) {
     const sold = await one(`select public.hr_market_buy($1::uuid, 0, null, $2::uuid, $3::uuid, 1::bigint, $4::bigint, 'storage')`, [B, key(), listed.listed.listing_id, item.f]);
     if (!sold || sold.ok !== true) await db.query('update public.account_wallet set gold = 1000000 where user_id = $1', [B]);
     await claims(null);
+    /* the gold sinks' records: a powder, a round and a Crier line from a hero in town. They go with everything else. */
+    for (const [show, price] of [['cinnabar', 2000], ['round', 5000]]) {
+      const b = await ask(A, 'select public.hr_town_show(1, $1, $2::bigint, $3::uuid)', [show, price, key()]);
+      if (!b || b.ok !== true) throw Object.assign(new Error('hr_town_show: ' + js(b)), { harness: true });
+    }
+    const cried = await ask(A, 'select public.hr_crier_send(1, $1, 1000::bigint, $2::uuid)', ['selling rat tails', key()]);
+    if (!cried || cried.ok !== true) throw Object.assign(new Error('hr_crier_send: ' + js(cried)), { harness: true });
     const entered = await ask(A, `select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, gen_random_uuid())`, [hunt]);
     if (!entered || entered.ok !== true) throw Object.assign(new Error('hr_hunt_enter: ' + js(entered)), { harness: true });
     const inst = await one('select instance_id from public.hunt_sessions where user_id = $1 and ended_at is null', [A]);
@@ -173,6 +180,9 @@ async function scenario(db, wipeSql) {
     const sinkBad = [...SINK_GOES.filter((t) => !goes.has(t) || nobody.has(t) || stays.has(t)), ...SINK_NAMES_NOBODY.filter((t) => !nobody.has(t) || goes.has(t) || stays.has(t))];
     const sinkAbsent = [];
     for (const t of [...SINK_GOES, ...SINK_NAMES_NOBODY]) if (!(await one('select to_regclass($1) is not null', ['public.' + t]))) sinkAbsent.push(t);
+    /* what a sink left behind is real before the wipe runs, or the wipe's empties below prove nothing about it */
+    const sinkRows = (await one('select count(*)::int from public.town_shows where user_id = $1', [A])) + (await one('select count(*)::int from public.account_gold_given where user_id = $1', [A])) + (await one('select count(*)::int from public.chat_messages where crier and from_id = $1', [A]));
+    if (sinkRows < 4) throw Object.assign(new Error('the played account holds no sink rows: ' + sinkRows), { harness: true });
     arm('CW-SINKS', !sinkBad.length && !goes.has('hr_boss_calls') && !nobody.has('hr_boss_calls'),
       `${SINK_GOES.length} sink tables go, ${SINK_NAMES_NOBODY.length} name nobody, each on its list; ${sinkAbsent.length} of them don't exist yet (${sinkAbsent.join(', ') || 'none'}) and the wipe below skips those`,
       'a sink table is on the wrong list, or none: ' + sinkBad.join(', '));

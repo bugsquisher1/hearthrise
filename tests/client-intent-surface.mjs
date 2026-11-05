@@ -112,6 +112,10 @@ export const CLIENT_RPCS = Object.freeze({
   hr_farm_harvest_replant: 'harvest a ready plot and plant the same crop again, from an own seed or one bought at the listed Shop price (farm-intents.js harvestPlot)',
   hr_farm_upgrade_plot: 'buy the next plot tier the client expects; the server prices it, gold first then deeds (farm-intents.js upgradePlot)',
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): catalogue ids only; the server counts the kills, prices the reward and picks the piece. */
+  /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql): a catalogue id, the price the player saw and a fresh key; the server re-quotes and charges. */
+  hr_town_sinks_view: 'the Havora window\'s read of this account\'s quotes and last choices; a read, while the window is open (town-intents.js readSinks)',
+  hr_town_show: 'a Hearth powder or a round by catalogue id, at the price the player saw, with a fresh key; never an amount, a color or a time (town-intents.js)',
+  hr_crier_send: 'a paid line to Global, at the price the player saw, with a fresh key; the server names the sender and checks every word first (ChatStore.cry)',
   hr_tally_view: 'Tamsin\'s board for this hero: the tasks, what each pays and her pick now; a read (tally-intents.js tallyBoard)',
   hr_tally_accept: 'take a kill task by id at her board in town, with the armour weight the first time; no count, no price (tally-intents.js takeTask)',
   /* The Great Hearth (2027-01-31-inner-flame.sql): a slot, a catalogue id and a key; the XP, colour, time and clamps are the server's. */

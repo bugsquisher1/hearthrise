@@ -252,6 +252,29 @@ export class ChatStore {
     return { ok: true };
   }
 
+  /**
+   * Pay the Town Crier for this line, at the price the player saw. Resolves { ok, price, n, perDay } or { ok:false, error, verb: 'crier', ... } (the server's numbers).
+   * The line is shown from the server's answer, and the character is re-read so the purse changes only from the envelope.
+   */
+  async cry(text, links, price) {
+    const cs = this.character();
+    if (!cs) return { ok: false, error: 'no_character' };
+    const body = bodyOf(text, links);
+    if (!body) return { ok: false, error: 'empty' };
+    if (!Number.isSafeInteger(price)) return { ok: false, error: 'bad_quote' };
+    const ans = await askVia(this._account, 'crier_send', () => this._account.server.rpc('hr_crier_send', { p_slot: cs.slot, p_body: body, p_price: price, p_idem: globalThis.crypto.randomUUID() }));
+    const b = ans.body;
+    const int = (v) => (Number.isSafeInteger(v) ? v : null);
+    if (!ans.ok || !b || b.ok !== true) {
+      return { ok: false, error: (b && typeof b.error === 'string' && b.error) || ans.error || 'refused', verb: 'crier',
+        n: int(b && b.n), max: int(b && b.max), need: int(b && b.need), level: int(b && b.level), perDay: int(b && b.per_day), waitS: int(b && b.wait_s), price: int(b && b.price) };
+    }
+    this.draft = { text: '', links: [], rev: this.draft.rev + 1 };
+    if (b.line && this._take(b.line, false)) this._changed();
+    if (typeof cs.load === 'function') await cs.load();
+    return { ok: true, price: int(b.price), n: int(b.n), perDay: int(b.per_day) };
+  }
+
   /** A player was blocked: their lines leave every tab now. */
   hideFrom(userId) {
     let any = false;

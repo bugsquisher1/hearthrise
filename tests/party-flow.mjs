@@ -445,7 +445,12 @@ const ARMS = {
     const ceiling = Number(await one(db, `select least(coalesce(public.hr_hunt_limit('density_max'), 0)::int, coalesce((select max(m) from unnest(g.density_max) m), 0), 8)
                                            from public.hr_hunt_grounds g where g.hunt_id = $1`, [hunt]));
     if (!(ceiling >= 4)) return [...p, `HARNESS: the ground's density ceiling ${ceiling} is under 4`];
-    const pick = (n) => as(db, A, 'select public.hr_hunt_density_set(0, $1, $2::int, $3::uuid)', [hunt, n, idem()]);
+    /* The first pull is one tier's row and the restart's another's: a local catalogue row, each its own pull. */
+    const pick = async (n) => {
+      const tier = n === 3 ? 'dangerous' : 'deadly';
+      await db.query('insert into public.hr_ground_tiers (hunt_id, tier, pull, power_pm, xp_pm) values ($1, $2, array_fill($3::int, array[4]), 1000, 1000) on conflict (hunt_id, tier) do update set pull = excluded.pull', [hunt, tier, n]);
+      return as(db, A, 'select public.hr_hunt_tier_set(0, $1, $2, $3::uuid)', [hunt, tier, idem()]);
+    };
     const inst = async () => (await db.query('select density, refusals, hunt_id from public.hunt_instances where id = $1', [pid])).rows[0];
     const played = async () => {
       const r = await one(db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [A]);

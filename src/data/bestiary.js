@@ -59,7 +59,7 @@
 // PURE ESM. Data + pure derivation — no DOM, no window, no clock, no Math.random.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=0.2.93';
+import { MONSTERS } from './monsters.js?v=0.2.96';
 
 /**
  * The ladder, ASCENDING by `at`. One shared, frozen array: every monster points

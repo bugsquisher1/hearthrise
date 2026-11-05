@@ -9,16 +9,16 @@
 // and every ASK_MS. Every price, count and word about the queue is the server's; a stale price only earns quote_changed, and the answer is said and re-read.
 // Every control is off while an intent is in flight. Nothing here ever computes a price (CLAUDE.md §1, §6).
 // ════════════════════════════════════════════════════════════════════════
-import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.93';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.93';
-import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.93';
-import { TOWN_NAME } from '../../../data/world/town/plan.js?v=0.2.93';
-import { ITEMS } from '../../../data/items.js?v=0.2.93';
-import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.93';
-import { whole, gold } from '../../../render/format.js?v=0.2.93';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.93';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.93';
-import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js?v=0.2.93';
+import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.96';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.96';
+import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.96';
+import { TOWN_NAME } from '../../../data/world/town/plan.js?v=0.2.96';
+import { ITEMS } from '../../../data/items.js?v=0.2.96';
+import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.96';
+import { whole, gold } from '../../../render/format.js?v=0.2.96';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.96';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.96';
+import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js?v=0.2.96';
 
 const ASK_MS = 15000;
 const RETRY_MS = 5000;

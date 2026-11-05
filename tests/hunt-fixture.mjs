@@ -175,7 +175,7 @@ export function huntSpan(state, ctx, opts) {
        carries no mitigation (ruling K7, src/core/mitigation.js). */
     const bonus = ctx.bonus || (() => 0);
     const def = ctx.def ?? Math.floor((Number(levelsOf(st.skills || {}).defense) || 1)
-      + (Number((ctx.eq || {}).guardB) || 0) + (Number(bonus('defense')) || 0));
+      + (Number((ctx.eq || {}).guardB) || 0));
     return { acc: Math.round(r.accuracy * 1000), maxHit: Math.max(1, Math.floor(r.maxHit)), def };
   };
   /* A slot names ONE item (Tyler 2026-10-21; no "Any food"): a fixture fed `food` eats it from a slot of its own,

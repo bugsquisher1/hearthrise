@@ -27,7 +27,7 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
     windowMs (the settle's cut, default ten minutes: any cut walks the same swings, TICK-1; a short one lets onWindow read HP often),
     start ((role, seat, L) -> { levelXp?, skills? }: a hero's own Level XP and skill XP instead of "every combat skill at L",
     tools/balance-sim's career runs), leaveTogether (true: every hero's "Leave if anyone leaves the hunt or dies" box ticked,
-    the server's default), ground (a ground row played instead of the hunt's own: a what-if copy with other numbers) }.
+    the server's default), ground (a ground row played instead of the hunt's own: a what-if copy with other numbers), buffs (the server's buff rows) }.
     The answer's `members` is each hero's state at the end (levelXp, skills, gold, hp, ended). */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
 export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue']);
@@ -118,6 +118,8 @@ export async function loadPlay(root) {
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
     const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null,
       typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true));
+    /* opts.buffs: the server's timed buff rows for every hero, player_state.buffs as the settle reads them */
+    if (typeof opts.buffs === 'function') for (const m of members) m.buffs = opts.buffs(m);
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
     /* opts.temper: every hero's rungs, the map hr_perks_of's `temper` carries (src/core/temper.js) */

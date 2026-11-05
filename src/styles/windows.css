@@ -382,12 +382,14 @@
 /* Each pull: what the ground spawns at this pick, and the step beside it. */
 .hw-pull { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
 .hw-hunt-facts { flex: 1 1 auto; margin: 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
-.hw-density { display: none; align-items: center; }
-.hw-density.is-on { display: flex; }
-.hw-density .hh-seg { min-width: 36px; min-height: 36px; }
-.hw-density .hh-step-val { min-width: 64px; text-align: center; }
-.hw-density-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
-.hw-density-note:empty { display: none; }
+.hw-tiers { display: none; align-items: center; gap: 8px; }
+.hw-tiers.is-on { display: flex; }
+.hw-tiers .hh-seg { min-height: 36px; padding: 0 12px; }
+.hw-tiers .hh-seg[hidden] { display: none; }
+.hw-tiers .hh-segs:not(:has(.hh-seg:not([hidden]))) { display: none; }
+.hw-tier-read:empty { display: none; }
+.hw-tier-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hw-tier-note:empty { display: none; }
 .hw-hunt-pack { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
 /* Go as: the setups as lines, chosen the way a ground is (lifted, outlined in gold, the gold bar): the weapon's own
@@ -583,7 +585,7 @@
   .hw-hd-name { font-size: var(--t-h2); }
   /* A refusal gets the foot's width, on its own line over the press (panel 2026-11-01: one word per line in 45 px). */
   .hw-hd-foot { flex-wrap: wrap; padding: 6px 12px 8px; }
-  .hw-hd-foot .hh-intent-msg:not(:empty) { flex: 1 0 100%; }
+  .hw-hd-foot .hh-intent-msg:not(:empty), .hw-hd-foot .hw-enter-why:not(:empty) { flex: 1 0 100%; }
   .hw-pick.is-on { flex-wrap: wrap; }
   .hw-pick.is-on .hw-pick-name { flex: 1 1 80px; }
   .hw-upgrade-q { flex: 1 0 100%; }

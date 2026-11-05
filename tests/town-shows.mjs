@@ -65,7 +65,7 @@ const FLAME = 'public.hr_hearth_flame_of(text)';
 const PUSH = 'public.hr_town_show_push(text,timestamp with time zone,timestamp with time zone)';
 const ADD = 'public.hr_gold_given_add(uuid,integer,bigint)';
 /* in chain order: 2027-02-28-sink-price-plan.sql restates the seams' hr_sink_price */
-const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-02-28-sink-price-plan.sql'];
+const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-02-28-sink-price-plan.sql', '2027-03-07-gold-sinks-catalogue.generated.sql'];
 
 /* ── THE PLANTED DEFECTS ─────────────────────────────────────────────────────
    db: a live body edited inside the arm's transaction (fn, find, replace). ddl: a statement in it. sql: an edit of a migration's TEXT the
@@ -77,7 +77,7 @@ export const MUTANTS = {
     db: [PRICE, 'r.price_base + r.price_per_level * greatest(coalesce(p_level, 1), 1)', 'r.price_base + r.price_per_level'] },
   helper_open_to_clients: { arm: 'TS-PRICE', why: 'a client role can call a helper', ddl: `grant execute on function public.hr_title_of(uuid, integer) to authenticated` },
   rules_drift: { arm: 'TS-RULES', why: 'the table no longer says what the data file says', ddl: `update public.hr_sink_rules set prices = array[1, 2, 3]::bigint[] where sink_id = 'round'` },
-  setups_past_limit: { arm: 'TS-RULES', why: 'free + prices is more than a hero can hold', ddl: `update public.hr_sink_rules set free = 3 where sink_id = 'setup_slot'` },
+  setups_past_limit: { arm: 'TS-RULES', why: 'free + prices is more than a hero can hold', ddl: `update public.hr_sink_rules set free = 4 where sink_id = 'setup_slot'` },
   title_not_stamped: { arm: 'TS-TITLE', why: 'the trigger stops stamping the title',
     db: [NAME_TRIGGER, "  new.from_title := case when new.from_id is null then null\n                         else left(public.hr_title_of(new.from_id, coalesce(new.from_slot, 0)), 40) end;\n", ''] },
   title_from_client: { arm: 'TS-TITLE', why: 'a forged title survives the insert',
@@ -262,7 +262,7 @@ const ARMS = {
     const seen = [];
     for (let n = 0; n <= 5; n++) seen.push(await price('powder', n));
     if (seen.map((v) => (v === null ? 'null' : Number(v))).join() !== '2000,4000,6000,8000,10000,null') out.push(`the powder ladder reads ${seen}`);
-    if (Number(await price('setup_slot', 0)) !== 5000 || Number(await price('setup_slot', 2)) !== 40000 || (await price('setup_slot', 3)) !== null) out.push('the setup ladder reads wrong');
+    if (Number(await price('setup_slot', 0)) !== 15000 || Number(await price('setup_slot', 1)) !== 40000 || (await price('setup_slot', 2)) !== null) out.push('the setup ladder reads wrong');
     if (Number(await price('hero_colors', 0, 18)) !== 2400 || Number(await price('hero_colors', 0, 45)) !== 3750) out.push(`a Level price reads ${await price('hero_colors', 0, 18)} at 18`);
     if ((await price('no_such_sink', 0)) !== null) out.push('an unknown sink has a price');
     for (const fn of [PRICE, 'public.hr_sink_lock(uuid)', 'public.hr_title_of(uuid,integer)', 'public.hr_town_extras(text)', 'public.hr_town_shows_of(text)', CHAT_ROW, LOOK]) {

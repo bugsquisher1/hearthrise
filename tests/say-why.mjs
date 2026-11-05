@@ -183,6 +183,7 @@ const BUSY = /!?\(?\b(?:st\.|sc\.|s\.|o\.|a\.|party\.|st\.sc\.)*(?:pending|sendi
 export const REASONS = Object.freeze({
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
+    { cond: 'itemsShort', words: "'Needs ' + whole(n.need) + ' ' + n.name + '. You hold '", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },
   ],
   'src/shell/windows/havora/works.js': [
     { cond: 'off', words: 'a day from one account, and you', where: 'Give: off while a gift is in flight, before the first read, and when today\'s allowance is spent; the line under them says so in the designer\'s words' },
@@ -232,7 +233,7 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/hunts.js': [
     { cond: 'follower', words: "'Your party leader picks the hunt and starts it.", where: 'the page lead for a party member' },
-    { cond: 'densityStep(r, dn.now, -1, dn.max, size) === null', words: "'A pull is one pack: up to ' + dn.max", where: 'the density note states the bounds' },
+    { cond: '!tiersOf(groundOf(hunt).id).includes(want)', words: 'tierWords(r, tier, size)', where: 'a ground offers its tiers as buttons, and the note says what each does' },
     { cond: '!!now', words: 'carriedWords(carried)', where: 'a running hunt: the page says what it carries; the top bar has Leave' },
   ],
   'src/shell/windows/hunt-detail.js': [

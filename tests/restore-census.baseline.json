@@ -845,12 +845,12 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 347,
+   "replay": 350,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bench_tax_rates": {
    "class": "seeded",
-   "replay": 148,
+   "replay": 150,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
   },
   "hr_blessing_rule": {
@@ -1063,7 +1063,7 @@
   },
   "hr_hunt_basic_supplies": {
    "class": "seeded",
-   "replay": 25,
+   "replay": 49,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the store's per-use supplies (src/data/supply-basics.js). Rebuilt from repo, never restored."
   },
   "hr_hunt_condition_limits": {
@@ -1134,7 +1134,7 @@
   },
   "hr_hunt_role_rules": {
    "class": "seeded",
-   "replay": 14,
+   "replay": 12,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the role default rule sets the settings view projects (src/data/rule-subjects.js ROLE_RULES). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_roles": {
@@ -1183,9 +1183,14 @@
    "replay": 128,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): every hunt a session may be entered on: the 4 named hunts and the 94 non-boss, non-champion training monsters, with their walk time. An EMPTY rebuild refuses every enter (unknown_hunt, fail closed). Rebuilt from repo, never restored; nothing player-owned."
   },
+  "hr_ground_tiers": {
+   "class": "seeded",
+   "replay": 10,
+   "note": "Catalogue (2027-02-27-hunt-tiers.sql; tests/hunt-core/hunt-tiers.mjs holds it equal to src/data/hunt-tiers.js): the harder tiers each ground offers, each one's pull per party size, power and XP. A rebuild restores it; empty, every pick plays Normal and hr_hunt_tier_set refuses a harder tier (bad_tier)."
+  },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 548,
+   "replay": 550,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1225,7 +1230,7 @@
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 573,
+   "replay": 575,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {

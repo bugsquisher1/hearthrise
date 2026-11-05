@@ -69,7 +69,7 @@ export async function loadData(M) {
   const imp = (p) => import(pathToFileURL(join(M.root, p)).href + v);
   /* THE BAR'S SHELL (bar-draft, action-facts), when the tree holds it: the repo, or a mutant planted with `also: ['src']`. */
   const shell = existsSync(join(M.root, 'src/shell/bar-draft.js')) ? { draft: await imp('src/shell/bar-draft.js'), facts: await imp('src/shell/action-facts.js') } : null;
-  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js'), SB: await imp('src/data/supply-basics.js'), kit: await imp('src/data/start-kit.js'), XP: await imp('src/core/xp.js'), runes: await imp('src/data/runes.js'), SC: await imp('src/data/stonecraft.js'), shell };
+  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js'), HR: await imp('src/data/hunt-roles.js'), SB: await imp('src/data/supply-basics.js'), kit: await imp('src/data/start-kit.js'), XP: await imp('src/core/xp.js'), runes: await imp('src/data/runes.js'), SC: await imp('src/data/stonecraft.js'), shell };
 }
 
 /** fixtures/h1.js `suite`, with this lane's data modules on M (M.CD, M.AD). */

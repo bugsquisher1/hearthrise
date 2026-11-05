@@ -26,10 +26,12 @@
 //      partner's book value (a shot: at least BASIC_AMMO_PREMIUM x it, 1 since
 //      the designer's spell-release balance, 2026-10-23)
 //   B2 every crafted ARROW from tier 2 up has a shop version; a RUNE has one
-//      exactly when an active ability spends it (designer 2026-10-21: Plain
-//      Fire Rune; Tyler 10-15 "runes and ammo: carried first, then the store");
+//      exactly when an active ability spends its family (Tyler 10-15 "runes and
+//      ammo: carried first, then the store"; the rune ladder, 2026-11-05);
 //      no store row names a hunt tier (Tyler 2026-10-19: the player's slot picks
 //      the store item, never the hunt)
+//   B6 THE RUNE LADDER (Tyler 2026-11-05): every rune of a family a spell spends has exactly one store row, each row costs its tier's price in
+//      STORE_RUNE_PRICE, and a deeper tier never costs less than the one under it; NO_STORE_PARTNER lists no rune
 //   B5 every packed heal, drink and ammo line has a store row behind it, or is
 //      listed in supply-basics.js NO_STORE_PARTNER with its reason, never both
 //      (Tyler 2026-10-23: "like anything else the arrows should then be bought
@@ -64,7 +66,8 @@ import {
   SUPPLY_KINDS, COMBAT_BUFF_TYPES, IDLE_BUFF_TYPES, SUPPLY_ROWS, MANA_SUPPLY_ROWS, SUPPLIES, HEAL_ORDER,
   supplyKindOf, BAG_TARGET_HOURS, BAG_GUIDE_BY_HUNT, BAG_GUIDE_BY_TIER, bagGuideFor,
 } from '../src/data/supplies.js';
-import { BASIC_SUPPLIES, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM, NO_STORE_PARTNER } from '../src/data/supply-basics.js';
+import { BASIC_SUPPLIES, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM, NO_STORE_PARTNER, STORE_RUNE_PRICE } from '../src/data/supply-basics.js';
+import { isRune, runeTierOf } from '../src/data/runes.js';
 import { FOOD_HEAL_SCALE } from '../src/data/core-model.js';
 import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../src/data/drinks.js';
 import { TARGET_MODES, HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from '../src/data/rule-subjects.js';
@@ -222,6 +225,14 @@ function checkBasics(d, f) {
     if (partnered.has(id) && why !== null) f('B5', `'${id}' is listed as needing no store row, yet one stands behind it`);
   }
   for (const id of Object.keys(d.noPartner)) if (!d.rows.some((r) => r[1] === id)) f('B5', `NO_STORE_PARTNER lists '${id}', which is no packed supply`);
+  /* B6 THE RUNE LADDER: one row a rune, at its tier's price, and the ladder climbs. */
+  for (const id of d.runesSpent) {
+    const rows = d.basics.filter((b) => b.partner === id);
+    if (rows.length !== 1) f('B6', `rune '${id}' has ${rows.length} store rows, not one`);
+    else if (rows[0].price !== d.runePrices[runeTierOf(d.items[id]) - 1]) f('B6', `'${rows[0].id}' costs ${rows[0].price} g a cast, the ladder's tier ${runeTierOf(d.items[id])} says ${d.runePrices[runeTierOf(d.items[id]) - 1]}`);
+    if (own(d.noPartner, id)) f('B6', `NO_STORE_PARTNER lists the rune '${id}'`);
+  }
+  for (let i = 1; i < d.runePrices.length; i++) if (!(d.runePrices[i] >= d.runePrices[i - 1])) f('B6', `the ladder falls at tier ${i + 1}: ${d.runePrices.join(' / ')}`);
   for (const k of ['heal', 'mana']) {
     const key = k === 'heal' ? 'heals' : 'mana';
     const ladder = d.basics.filter((b) => b.kind === k).sort((a, b) => a[key] - b[key]);
@@ -350,7 +361,10 @@ const REAL = () => ({
   rows: SUPPLY_ROWS, items: ITEMS, drinks: DRINK_ITEMS, drinkRecipes: DRINK_RECIPES, basics: BASIC_SUPPLIES,
   combatBuffs: COMBAT_BUFF_TYPES, targets: TARGET_MODES, consumable: CONSUMABLE_RULES, supply: SUPPLY_SOURCE, onEmpty: ON_EMPTY,
   hunts: HUNTS, guides: BAG_GUIDE_BY_HUNT,
-  runesSpent: new Set(Object.values(ABILITIES).filter((a) => a.active && a.rune).map((a) => a.rune)),
+  /* every rune of a family an active spell spends (a slot may name any tier of it): the ability row keys the Chalked one */
+  runesSpent: new Set(Object.keys(ITEMS).filter((id) => isRune(ITEMS[id]) && runeTierOf(ITEMS[id])
+    && Object.values(ABILITIES).some((a) => a.active && a.rune && ITEMS[a.rune].family === ITEMS[id].family))),
+  runePrices: STORE_RUNE_PRICE,
   limits: SESSION_LIMITS, endOrder: END_ORDER, endCopy: END_REASON_COPY, checkValues: true, offers: SHOP_OFFERS,
   noPartner: NO_STORE_PARTNER,
 });
@@ -376,7 +390,12 @@ function selftest() {
     ['B5', 'a food listed as needing no store row while one stands behind it', (d) => { d.noPartner = { ...d.noPartner, cooked_trout: 'a stale reason that is long enough' }; }],
     ['B5', 'a reason for a line that is no supply', (d) => { d.noPartner = { ...d.noPartner, not_a_supply: 'a reason for an item nobody packs' }; }],
     ['B1', 'a store row behind the free rung', (d) => { d.basics = d.basics.concat([{ id: 'plain_bronze_arrows', kind: 'ammo', n: 'Plain Bronze Arrows', partner: 'bronze_arrows', price: 2 }]); }],
-    ['B2', 'a shop rune no ability spends', (d) => { d.basics = d.basics.concat([{ id: 'plain_scored_fire_rune', kind: 'ammo', n: 'Plain Scored Fire Rune', partner: 'scored_fire_rune', price: 24 }]); }],
+    ['B2', 'a shop rune no ability spends', (d) => { d.runesSpent = new Set([...d.runesSpent].filter((id) => !id.endsWith('_fire_rune'))); }],
+    ['B2', 'a deeper rune with no store row', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_graven_water_rune'); }],
+    ['B6', 'a deeper store rune off the ladder price', (d) => { withBasic(d, 'plain_etched_poison_rune', { price: 11 }); }],
+    ['B6', 'a second store row behind one rune', (d) => { d.basics = d.basics.concat([{ id: 'plain_scored_fire_rune_b', kind: 'ammo', n: 'Plain Scored Fire Rune', partner: 'scored_fire_rune', price: 8 }]); }],
+    ['B6', 'a ladder that falls', (d) => { d.runePrices = [1, 8, 10, 6, 24]; d.basics = d.basics.map((b) => (/^plain_carved_/.test(b.id) ? { ...b, price: 6 } : b)); }],
+    ['B6', 'a rune listed as needing no store row beside its row', (d) => { d.noPartner = { ...d.noPartner, scored_ice_rune: 'a stale reason that is long enough' }; }],
     ['B2', 'Flame Strike\'s rune with no store row (live 10-21: Flame Strike unusable)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_fire_rune'); }],
     ['B2', 'a store food served by hunt tier again', (d) => { withBasic(d, 'salted_shrimp', { tiers: [1] }); }],
     ['B4', 'the Counter sells Cooked Shrimp again (seed.cooked_shrimp, 50 g for 5: 1.25 g a point under the 2.3 g Salted Shrimp)', (d) => {

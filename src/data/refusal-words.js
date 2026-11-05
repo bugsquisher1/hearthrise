@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.93';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.96';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -84,7 +84,7 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
 export const REFUSAL_WORDS = Object.freeze({
   /* The Weighhouse: market-words.js says these with the server's numbers. */
   market_closed: MARKET_WORDS.market_closed,
-  market_locked: 'The Weighhouse only trades with heroes of a higher Level. Keep hunting.',
+  market_locked: 'The Weighhouse trades with heroes of a higher Level, or with a higher bench skill.',
   market_spend_daily_cap: MARKET_WORDS.market_spend_daily_cap,
   market_proceeds_daily_cap: MARKET_WORDS.market_proceeds_daily_cap,
   price_below_shop: 'That\'s less than the shop pays. Ask at least that, or sell it at the shop.',
@@ -280,9 +280,9 @@ export const REFUSAL_WORDS = Object.freeze({
   title_kills: 'That title takes more kills first. Gold can\'t skip kills.',
   title_owned: 'This hero already has that title.',
   title_not_owned: 'This hero hasn\'t claimed that title yet.',
-  /* The density pick per ground (hr_hunt_density_set, 2026-11-17-hunt-density-home.sql). */
+  /* The tier picked per ground (hr_hunt_tier_set). */
   bad_hunt: 'That hunt has no monsters to set a number for.',
-  bad_density: 'That is more monsters than this hunt allows.',
+  bad_tier: 'This hunt can\'t be hunted that way yet.',
   unknown_supply: 'One of the things packed is not a hunt supply.',
   bad_bag: 'The packed supplies were not valid, so nothing was sent.',
   too_many_lines: 'Too many kinds of supplies packed.',

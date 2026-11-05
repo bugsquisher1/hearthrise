@@ -29,52 +29,48 @@
 // size is the server's seat count; the picked ground's party rule (its row's
 // minParty pocket and boss) shows on its page.
 //
-// DENSITY is chosen with the hunt, before Enter (Tyler 10-18): how many monsters
-// each spawn holds (the engine's pack size, pull-cycle.js spawnPack), a −/+
-// stepper on the picked ground's page from "as built" up to the ground's most for
-// the party's size (hunt-grounds.js densityFor). A press moves the number AT ONCE,
-// marked "Saving..." (Tyler 10-20: the round trip per press was "incredibly
-// laggy"): presses inside DENSITY_SAVE_MS coalesce into ONE hr_hunt_density_set
-// carrying the last value, and the server's answer (the re-read hunt_density)
-// replaces the draft; a refusal shows the server's value again and why. Nothing
-// spends the draft (CLAUDE.md §6): Enter / Start with party first waits for the
-// save. The pick is the hero's own PER GROUND (rulings H4: remembered per hunt,
-// never part of a setup), so each page says the pull size the server spawns at
-// THAT ground's pick.
-// IN A PARTY THE LEADER CHOOSES (Tyler 2026-10-20): the leader's pick is the pull
-// for everyone; a member sees it read-only ("Set by <leader>: 7 each", the
-// server's `leader_densities`) with no step, and the server refuses a member's
-// pick (hr_hunt_density_set `not_leader`).
+// THE TIER is chosen with the hunt, before Enter (Tyler 2026-11-04; hunt-tiers.js): Normal, Dangerous or
+// Deadly, three buttons on the picked ground's page where it offers more than Normal. It sets how many monsters
+// a pull brings and how hard they hit; there is no other dial. A press moves the choice AT ONCE, marked
+// "Saving..." (Tyler 10-20: the round trip per press was "incredibly laggy"): presses inside TIER_SAVE_MS coalesce
+// into ONE hr_hunt_tier_set carrying the last value, and the server's answer (the re-read hunt_tier) replaces the
+// draft; a refusal shows the server's value again and why. Nothing spends the draft (CLAUDE.md §6): Enter / Start
+// with party first waits for the save. The pick is the hero's own PER GROUND (remembered per hunt, never part of a
+// setup), so each page says what THAT ground's pick spawns.
+// IN A PARTY THE LEADER CHOOSES (Tyler 2026-10-20): the leader's pick holds for everyone; a member sees it
+// read-only ("Set by <leader>: Dangerous", the server's `leader_tiers`) with no buttons, and the server refuses a
+// member's pick (hr_hunt_tier_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.93';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.93';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.93';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.93';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.93';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.93';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.93';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.93';
-import { whole } from '../../render/format.js?v=0.2.93';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.93';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.93';
-import { glyphSvg } from '../launcher.js?v=0.2.93';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.93';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.93';
-import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.93';
-import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.93';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.93';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.93';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.93';
-import { openFinderOn } from './party-finder.js?v=0.2.93';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.93';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.96';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.96';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.96';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.96';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.96';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.96';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.96';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.96';
+import { whole } from '../../render/format.js?v=0.2.96';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.96';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.96';
+import { glyphSvg } from '../launcher.js?v=0.2.96';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.96';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.96';
+import { TIER_IDS, TIER_NAME, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.96';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.96';
+import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.96';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.96';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.96';
+import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.96';
+import { openFinderOn } from './party-finder.js?v=0.2.96';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.96';
 
 const SCRATCH = new WeakMap();
-/* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
+/* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
    wait, `saving` the save in flight (its promise: Enter waits on it). `paged`: on a phone, the
    picked ground's page is open in place of the list. */
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, auto: false, pending: false, msg: '', draft: null, timer: null, saving: null, paged: false }; SCRATCH.set(cs, s); } return s; };
-/* How long the step waits for the next press before it saves (one intent for a run of presses). */
-const DENSITY_SAVE_MS = 300;
+/* How long a tier press waits for the next press before it saves (one intent for a run of presses). */
+const TIER_SAVE_MS = 300;
 
 /** Pick a hunt in this character's Hunts window (the World's door does, before it opens the window). */
 export function pickHunt(cs, hunt) {
@@ -102,37 +98,33 @@ export function enterOffWords(party) {
 /* What a warning covered: this ground and these seats (none, for a hero alone or a leader who alone stands under it). Someone who sits down under the floor afterwards has not been told. */
 const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();
 
-/* The server's pick on this ground (`picks`: { [hunt]: n }, no key = 0, as built) as the ground would spawn it,
-   and the most the ground allows for `size`; null = unknown (no section, or no ground). */
-function densityOf(picks, hunt, size) {
+/* The server's pick on this ground (`picks`: { [hunt]: tier }, no key = Normal), Normal if the ground no longer offers it; null = unknown (no section, or no ground). */
+function tierOf(picks, hunt) {
   const g = groundOf(hunt);
   if (!picks || !g) return null;
-  const pick = Number.isInteger(picks[hunt]) ? picks[hunt] : 0;
-  return { pick, now: densityFor(g, size, pick), max: densityFor(g, size, DENSITY_PICK.max) };
+  return g && tiersOf(g.id).includes(picks[hunt]) ? picks[hunt] : DEFAULT_TIER;
 }
 
-/* The density on screen: this ground's unsaved draft while there is one, else the server's (both clamped to
-   the ground). A party member's is its leader's (the party section's leader_densities), never its own. */
-function shownDensity(sc, picks, hunt, size, party) {
-  if (party && !party.isLeader) return densityOf(party.densities, hunt, size);
-  const dn = densityOf(picks, hunt, size);
-  if (!dn || !sc.draft || sc.draft.hunt !== hunt) return dn;
-  return { pick: sc.draft.n, now: densityFor(groundOf(hunt), size, sc.draft.n), max: dn.max };
+/* The tier on screen: this ground's unsaved draft while there is one, else the server's. A party member's is its leader's (the party section's leader_tiers), never its own. */
+function shownTier(sc, picks, hunt, party) {
+  if (party && !party.isLeader) return tierOf(party.tiers, hunt);
+  const t = tierOf(picks, hunt);
+  return t && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : t;
 }
 
 /**
- * SAVE THE DENSITY DRAFT NOW: ONE hr_hunt_density_set with its ground and value, queued behind any save in
+ * SAVE THE TIER DRAFT NOW: ONE hr_hunt_tier_set with its ground and value, queued behind any save in
  * flight. The answer clears the draft only if no later press replaced it; a refusal says why (the
  * server's value shows again). Answers the save's result ({ ok: true } when nothing was waiting).
  */
-function saveDensity(cs, sc, repaint) {
+function saveTier(cs, sc, repaint) {
   clearTimeout(sc.timer);
   sc.timer = null;
   const d = sc.draft;
   if (!d) return sc.saving || Promise.resolve({ ok: true });
   const p = (sc.saving || Promise.resolve()).then(async () => {
     let r;
-    try { r = await cs.setHuntDensity(d.hunt, d.n); } catch (e) { r = null; }
+    try { r = await cs.setHuntTier(d.hunt, d.tier); } catch (e) { r = null; }
     if (!r) r = { ok: false, error: 'network' };
     if (sc.draft === d) { sc.draft = null; sc.msg = r.ok ? '' : refusalText(r); }
     if (sc.saving === p) sc.saving = null;
@@ -143,10 +135,10 @@ function saveDensity(cs, sc, repaint) {
   return p;
 }
 
-/* Enter / Start with party never goes on an unsaved density: the draft is saved first, and a refused save refuses the start. */
-function afterDensity(cs, sc, repaint, go) {
+/* Enter / Start with party never goes on an unsaved tier: the draft is saved first, and a refused save refuses the start. */
+function afterTier(cs, sc, repaint, go) {
   if (!sc.draft && !sc.saving) return go();
-  return saveDensity(cs, sc, repaint).then((r) => (r && r.ok === false ? r : go()));
+  return saveTier(cs, sc, repaint).then((r) => (r && r.ok === false ? r : go()));
 }
 
 /* The setup Enter goes as: the one picked under Go as while the server still lists it, else the one in use. */
@@ -189,11 +181,10 @@ export function renderHunts(ctx) {
     /* The page scrolls in its own box and Enter stands below it (windows.css), never over the lineup or the drops. */
     + '<section class="hw-hunt-detail" aria-label="The picked hunt"><div class="hw-hd-page">' + detailHtml()
     + '<h4 class="hw-hd-h">The packs</h4><div class="hw-pull"><p class="hw-hunt-facts"></p>'
-    + '<span class="hw-density" role="group" aria-label="Monsters each pull">'
-    + '<span class="hh-step"><button type="button" class="hh-seg" data-hs-act="density" data-by="-1" aria-label="Fewer monsters">−</button>'
-    + '<output class="hh-step-val"></output>'
-    + '<button type="button" class="hh-seg" data-hs-act="density" data-by="1" aria-label="More monsters">+</button></span></span></div>'
-    + '<p class="hw-density-note"></p>'
+    + '<span class="hw-tiers" role="group" aria-label="How hard to hunt"><span class="hh-segs">'
+    + TIER_IDS.map((id) => '<button type="button" class="hh-seg" data-hs-act="tier" data-tier="' + id + '">' + TIER_NAME[id] + '</button>').join('')
+    + '</span><output class="hw-tier-read"></output></span></div>'
+    + '<p class="hw-tier-note"></p>'
     + '<p class="hw-hunt-pack"></p>' + goHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>Leave party</button>'
@@ -279,7 +270,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const det = root.querySelector('.hw-hunt-detail');
   prop(det, 'hidden', !r);
   if (r) patchPage(det, ctx, sc, { r, level, size, party, follower, now, bests });
-  /* An unsaved density is marked on the status line until the server answers. */
+  /* An unsaved tier is marked on the status line until the server answers. */
   const saving = !sc.pending && !!(sc.draft || sc.saving);
   cls(root, 'is-pending', sc.pending || saving);
   text(root.querySelector('.hh-intent-msg'), saving ? 'Saving…' : sc.msg);
@@ -313,37 +304,35 @@ function patchPage(det, ctx, sc, v) {
   attr(enter, 'data-hunt', r.hunt);
   const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
   text(enter, party && !follower ? (armed ? 'Start anyway' : 'Start with party') : armed ? 'Enter anyway' : 'Enter');
-  /* Enter and the pull step (Go as, Find a party and Bring are patchGo's: off for a member too). */
-  for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-density button')) prop(b, 'disabled', sc.pending || !!now);
+  /* Enter and the tier buttons (Go as, Find a party and Bring are patchGo's: off for a member too). */
+  for (const b of det.querySelectorAll('.hw-hd-foot button:not(.hw-hd-back), .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);
   /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
   const off = now ? '' : enterOffWords(party);
   if (off) prop(enter, 'disabled', true);
-  text(det.querySelector('.hw-enter-why'), off);
+  /* A HARDER HUNT SAYS SO AT THE PRESS: a pick kept from last time isn't on screen above a scrolled page. */
+  const pressing = huntTierOf(cs);
+  const choosing = now || off || follower ? '' : tierChoiceWords(r, shownTier(sc, pressing ? pressing.picks : null, r.hunt, party) || DEFAULT_TIER, size);
+  text(det.querySelector('.hw-enter-why'), off || choosing);
   prop(det.querySelector('[data-hs-act="leave-party"]'), 'hidden', now || !follower);
-  /* This hero's density pick per ground (hunt_density); null = the server sent none, no number shows. */
-  const dn = shownDensity(sc, huntDensityOf(cs), r.hunt, size, party);
-  /* The pull size the server spawns at the shown pick (this ground's own pick). */
-  text(det.querySelector('.hw-hunt-facts'), densityWords(r, dn ? dn.now : null));
-  cls(det.querySelector('.hw-density'), 'is-on', !!dn);
-  for (const b of det.querySelectorAll('.hw-density [data-by]')) { prop(b, 'hidden', follower); attr(b, 'data-hunt', r.hunt); }
-  if (!dn) text(det.querySelector('.hw-density-note'), '');
-  if (dn) {
-    const val = det.querySelector('.hw-density .hh-step-val');
-    const words = dn.now ? dn.now + ' each' : 'As built';
-    text(val, follower ? 'Set by ' + (party.leaderName || 'your leader') + ': ' + words : words);
-    attr(val, 'data-pending', String(!follower && !!(sc.draft || sc.saving)));
-    /* The size it clamps for, named: alone, or this party's seat count (the settle's clamp). */
-    /* No pick in a party, on a ground with a default pull (designer 2026-11-01): the number shown is that pull. */
-    const partyPull = size > 1 && !dn.pick && dn.now > 0 ? 'Your party\'s pull. ' : '';
-    text(det.querySelector('.hw-density-note'), follower ? partyPull + 'Your party leader sets how many monsters each pull brings.'
-      : partyPull + 'A pull is one pack: up to ' + dn.max
-      + (size === 1 ? ' when you hunt alone.' : ' for your party of ' + size + '. As the leader, your pick is the pull for everyone.')
-      /* Why a pick matters (panel 2026-11-01, PRIORITY_BOARD): as built a hero's power and a party's bodies barely show, since the walk sets the pace.
-         At 8 each a Wickstead hero of Level 18 kills 32% faster than a fresh one, and a party of four out-earns a lone hero per head. */
-      + ' Bigger pulls pay more once your heroes can hold them. Kept for this ground.');
-    prop(det.querySelector('[data-by="-1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, -1, dn.max, size) === null);
-    prop(det.querySelector('[data-by="1"]'), 'disabled', follower || sc.pending || !!now || densityStep(r, dn.now, 1, dn.max, size) === null);
+  /* This hero's tier picked per ground (hunt_tier); null = the server sent none, no choice shows. */
+  const tiers = huntTierOf(cs);
+  const tier = shownTier(sc, tiers ? tiers.picks : null, r.hunt, party);
+  /* The packs the server spawns on the shown tier (this ground's own pick). */
+  text(det.querySelector('.hw-hunt-facts'), packWords(r, tier ? tierPull(r, tier, size) : null));
+  const offered = tiersOf(groundOf(r.hunt).id);
+  /* A ground that offers only Normal has no choice to show. */
+  const choice = !!tier && offered.length > 1;
+  cls(det.querySelector('.hw-tiers'), 'is-on', choice);
+  for (const b of det.querySelectorAll('.hw-tiers [data-tier]')) {
+    const id = b.getAttribute('data-tier');
+    prop(b, 'hidden', follower || !offered.includes(id));
+    attr(b, 'data-hunt', r.hunt);
+    attr(b, 'aria-pressed', String(id === tier));
+    attr(b, 'data-pending', String(id === tier && !!(sc.draft || sc.saving)));
   }
+  text(det.querySelector('.hw-tier-read'), follower && tier ? 'Set by ' + (party.leaderName || 'your leader') + ': ' + TIER_NAME[tier] : '');
+  text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? 'Your party leader picks how hard the hunt is.'
+    : size > 1 ? 'The ground as it stands. As the leader, your pick holds for everyone, and it\'s kept for this ground.' : 'The ground as it stands. Your pick is kept for this ground.'));
 }
 
 renderHunts.act = function actHunts(ctx, body, action, ev, t) {
@@ -352,27 +341,25 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   const sc = scratchOf(cs);
   const hunt = t.getAttribute('data-hunt');
   const repaint = () => renderHunts.patch(body, ctx);
-  if (action === 'density') {
-    /* The number moves on the press; the save waits DENSITY_SAVE_MS for the next press (saveDensity). */
-    const picks = huntDensityOf(cs);
+  if (action === 'tier') {
+    /* The choice moves on the press; the save waits TIER_SAVE_MS for the next press (saveTier). */
+    const tiers = huntTierOf(cs);
     const party = partyMembershipOf(cs);
-    /* A member's density is its leader's: there is nothing to press (the server refuses it too). */
+    /* A member's tier is its leader's: there is nothing to press (the server refuses it too). */
     if (party && !party.isLeader) return true;
-    const size = party ? party.seats.length : 1;
-    const dn = shownDensity(sc, picks, hunt, size, party);
-    const row = huntRows().find((x) => x.hunt === hunt);
-    const n = dn && row ? densityStep(row, dn.now, Number(t.getAttribute('data-by')), dn.max, size) : null;
-    if (sc.pending || n === null) return true;
+    const want = t.getAttribute('data-tier');
+    const server = tierOf(tiers ? tiers.picks : null, hunt);
+    if (sc.pending || server === null || !tiersOf(groundOf(hunt).id).includes(want)) return true;
     sc.msg = '';
     /* Another ground's draft still waiting goes now (each ground keeps its own pick). */
-    if (sc.draft && sc.draft.hunt !== hunt) saveDensity(cs, sc, repaint);
+    if (sc.draft && sc.draft.hunt !== hunt) saveTier(cs, sc, repaint);
     clearTimeout(sc.timer);
     sc.timer = null;
     /* Back on the server's value with nothing in flight: nothing to save. */
-    if (densityFor(groundOf(hunt), size, n) === densityOf(picks, hunt, size).now && !sc.saving) sc.draft = null;
+    if (want === server && !sc.saving) sc.draft = null;
     else {
-      sc.draft = { hunt, n };
-      sc.timer = setTimeout(() => saveDensity(cs, sc, repaint), DENSITY_SAVE_MS);
+      sc.draft = { hunt, tier: want };
+      sc.timer = setTimeout(() => saveTier(cs, sc, repaint), TIER_SAVE_MS);
     }
     repaint();
     return true;
@@ -418,7 +405,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
       return true;
     }
     sc.warned = null;
-    runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt))), 'Gathering the party for ' + huntName(hunt) + '…',
+    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt))), 'Gathering the party for ' + huntName(hunt) + '…',
       () => 'Your party is on its way to ' + huntName(hunt) + '.', cs).then(thenClose);
     return true;
   }
@@ -434,7 +421,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     }
     sc.warned = null;
     /* What the hunt carries is the bag's own supplies, read after any setup change has landed. */
-    runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset))), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs)
+    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset))), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs)
       .then(thenClose);
     return true;
   }

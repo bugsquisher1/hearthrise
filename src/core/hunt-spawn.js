@@ -4,14 +4,14 @@
 // roll is src/core/hunt/pull-cycle.js (every pack spawns from its pocket's
 // rows): the C2 single-foe `pickSpawn` was retired with the single-foe swing
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.93';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.93';
-import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.93';
-import { disciplineAbilities } from '../data/abilities.js?v=0.2.93';
-import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.93';
-import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.93';
-import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.93';
-import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.93';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.96';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.96';
+import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.96';
+import { disciplineAbilities } from '../data/abilities.js?v=0.2.96';
+import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.96';
+import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.96';
+import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.96';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.96';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -52,6 +52,8 @@ export function heroSetup(o) {
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). In a
        party only the LEADER's counts (`lead`, the server's hr_hunt_instance_read `leads`; partyPick). */
     density: Number.isInteger(opt.density) ? opt.density : 0,
+    /* THE TIER (hunt-tiers.js): the one the server froze on the instance, overlaid on every member's options; an unknown id plays Normal (tierRowOf). */
+    tier: typeof opt.tier === 'string' ? opt.tier : null,
     lead: o.lead === true,
     /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat whose tank holds every lap, the leader's pick (only a
        leading hero carries it; combat-sim.js holdPick); null = the tanks take turns. */

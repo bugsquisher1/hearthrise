@@ -211,7 +211,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
    2027-02-24-risk-no-level-block.sql (the old gate reads a missing limit as a hard floor). No kill bound, spawn or shape moves. */
 /* GOLD MATTERS (lane/c-gold-matters, designer 2026-11-03): 2027-02-24-risk is the file before this one and this one carries it; 15 monsters' coin moves hr_hunt_kill_bounds' gold_max (down on Wickstead, the Glade's
    poachers, the Sewer's bat and spider; up on the Warrens and the Rat King) and tier 2's hourly armor moves hr_hunt_vendor_value, the same full replace. No spawn, limit or shape moves. */
-export const OUT_NAME = '2027-02-24-gold-matters-hunt-sessions-catalogue.generated.sql';
+/* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-28-temper-craft is the file before this one and this one carries it; the deeper store runes join hr_hunt_basic_supplies and the deeper runes' bids move in hr_hunt_vendor_value, the same full replace. No kill bound, spawn, limit or shape moves. */
+export const OUT_NAME = '2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -645,7 +646,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
+-- NEW IN THIS FILE (lane/c-rune-ladder, Tyler 2026-11-05: "let start with your calls"): hr_hunt_basic_supplies gains one store rune a
+-- family a tier above Plain (src/data/supply-basics.js STORE_RUNE_PRICE), and hr_hunt_vendor_value moves the deeper runes' bids to their new
+-- book (src/data/stonecraft.js RUNE_VALUE). Plain does not move and no bar is rewritten. No kill bound, spawn or limit moves and the world's
+-- shape is unchanged (no world_shape_pending on either order). The old engine never buys a new row: it casts a slot only on the store row
+-- partnering the family's Chalked rune. ORDER: after 2027-03-08-rune-ladder-items-catalogue.generated.sql, before
+-- 2027-03-08-rune-ladder-rune-spells.generated.sql and 2027-03-08-rune-ladder-slots.sql; the hr-accrue carrying the same rows deploys at once.
+--
+-- CARRIED FROM 2027-02-24-gold-matters (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
 -- the Glade's poachers and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and
 -- boots (src/data/loot-bands.js). No spawn or limit moves and the world's shape is unchanged (no world_shape_pending on either order). The bound's
 -- headroom is three times the catalogue's top roll, so the old engine's rolls pass the lowered rows and the new engine's the raised ones; apply this
@@ -1154,6 +1162,13 @@ ${r.drops.map((d) => `    (${sq(d.hunt)}, ${sq(d.item)}, ${d.need})`).join(',\n'
    order by 1 limit 1;
   if v_t is not null then
     raise exception 'the settle''s item bound is under what a monster of the ground drops: % (hunt item)', v_t; end if;` : '  -- (no ground ships: no drop to bound)'}
+  -- THE RUNE LADDER (2027-03-08): the items catalogue landed first, every rune of a store row is listed from its bid, and no store rune sells at or under what the shop pays for its rune.
+  if (select i.value from public.hr_items i where i.item_id = 'scored_fire_rune') is distinct from ${S_BOOK('scored_fire_rune')} then
+    raise exception 'apply 2027-03-08-rune-ladder-items-catalogue.generated.sql first: hr_items.scored_fire_rune is not ${S_BOOK('scored_fire_rune')}'; end if;
+  if exists (select 1 from public.hr_hunt_basic_supplies q join public.hr_hunt_vendor_value v on v.item_id = q.partner
+              join public.hr_hunt_supplies p on p.item_id = q.partner
+             where q.partner like '%_rune' and q.price <= v.unit) then
+    raise exception 'a store rune sells at or under the shop''s bid for its own rune'; end if;
   -- THE CRAFT WAGE (2027-02-18): the items catalogue landed first, and the Weighhouse reads the new floor; refined goods are bid at a
   -- fifth of book, and no item a ground can drop lost its bid (a stack the shop will not buy is a stack sell-all leaves in the bag).
   if (select i.value from public.hr_items i where i.item_id = 'iron_bar') is distinct from ${S_BOOK('iron_bar')} then

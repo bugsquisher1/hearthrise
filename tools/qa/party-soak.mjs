@@ -135,7 +135,7 @@ for (const [hunt, lv] of list) {
     await outfit(Number(lv));
     await purse(50000000);
     await fresh();
-    await rpc('hr_hunt_density_set', { p_slot: 0, p_hunt: hunt, p_density: density, p_idem: idem() });
+    await rpc('hr_hunt_tier_set', { p_slot: 0, p_hunt: hunt, p_tier: density >= 8 ? 'deadly' : density > 0 ? 'dangerous' : 'normal', p_idem: idem() });
     const before = await books();
     const ends = {};
     let at = new Date().toISOString();

@@ -18,17 +18,16 @@
 // rune", basic strength below crafted; applied per shot in combat.js
 // playerCombatRolls `ammoShare`) and costs at least BASIC_AMMO_PREMIUM x its
 // partner's book value per shot. A basic RUNE is the store's version of a rune an ability
-// spends (designer 2026-10-21: Plain Fire Rune, 8 g a cast, 2x the Fire Rune's
-// book; Tyler 10-15 "runes and ammo: carried first, then the store" replaces
-// the K10 no-basic-runes rule). The free rung (Bronze Arrows: designer 2026-10-31)
-// stays an ordinary packed item with no store row.
+// spends (Tyler 10-15 "runes and ammo: carried first, then the store" replaces the K10
+// no-basic-runes rule; every tier has one since the rune ladder, 2026-11-05, below).
+// The free rung (Bronze Arrows: designer 2026-10-31) stays an ordinary packed item with no store row.
 //
 // THE PLAYER PICKS THE ITEM (Tyler 2026-10-21, designer-confirmed): a bar slot
 // names ONE item. A store food or drink below is an item a slot can name, bought
 // per use; a crafted one comes from the hero's own stock only. The player builds
 // the fallback by slot order (Cooked Trout, then Salted Trout). A rune spell buys
-// its store rune only when its slot names it. The game never picks: there are no
-// per-hunt-tier store rows (the old `tiers` column is gone).
+// the store rune its slot names, of any tier of its family, and only that one. The game
+// never picks: there are no per-hunt-tier store rows (the old `tiers` column is gone).
 //
 // PRICES (designer 2026-10-18, the economy rule: gold + common drops pay the
 // supplies). A basic heal costs just above its cooked partner's book value a
@@ -54,8 +53,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { RUNE_TIERS, runeId } from './runes.js?v=0.2.93';
-import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.93';
+import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.96';
+import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.96';
 
 /* A basic heal or drink gives this share of its crafted partner (floored); a
    basic arrow gives this share of its partner's ammo bonus. */
@@ -73,6 +72,16 @@ export const BASIC_AMMO_PREMIUM = 1;
 const heal = (id, n, partner, heals, price) => Object.freeze({ id, kind: 'heal', n, partner, heals, price });
 const mana = (id, n, partner, restores, price) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price });
 const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, partner, price });
+
+/* THE RUNE LADDER (Tyler 2026-11-05, "let start with your calls"; designer, lane/d-crafted-jewelry, "Runes"). Gold a cast by rune
+   tier, Chalked's store partner to Graven's, one row of the catalogue per family per tier. Change a price here and regenerate.
+   PLAIN STAYS 1 G because of the first grounds, not because it is right (Tyler: "runes being 1 gold each is wildly cheap"): every
+   +1 g costs the Sewer floor party 119 g/h and it clears the Thicket by 5.5 (tests/hunt-core/forest-cave.mjs first-grounds-net-chain),
+   so Plain can move only with a coin change. Each deeper price stands above what a crafter can list at (tests/craft-wages.mjs W-RUNE).
+   A deeper rune is the player's own pick on a slot: no default bar names one, and nothing rewrites a saved bar. */
+export const STORE_RUNE_PRICE = Object.freeze([1, 8, 10, 16, 24]);
+const storeRune = (family, t) => shot(t.tier === 1 ? 'plain_' + family + '_rune' : 'plain_' + runeId(family, t.tier),
+  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : 'Plain ' + runeName(family, t.tier), runeId(family, t.tier), STORE_RUNE_PRICE[t.tier - 1]);
 
 /* id -> row. `price` is gold per use (per shot for ammo, per cast for a rune). */
 export const BASIC_SUPPLIES = Object.freeze([
@@ -98,15 +107,10 @@ export const BASIC_SUPPLIES = Object.freeze([
   shot('plain_rune_arrows', 'Plain Rune Arrows', 'rune_arrows', 6),
   shot('plain_emberhead_arrows', 'Plain Emberhead Arrows', 'emberhead_arrows', 9),
   shot('plain_dawnpoint_arrows', 'Plain Dawnpoint Arrows', 'dawnpoint_arrows', 12),
-  /* THE STORE RUNES (Tyler 2026-10-23): ONE a family, the basic power (version I at BASIC_EFFECT_SHARE), bought per
-     cast only when the spell's slot names it; partnered to the family's Chalked rune, priced BASIC_AMMO_PREMIUM x its
-     book value (stonecraft.js RUNE_VALUE, PROVISIONAL). */
-  shot('plain_earth_rune', 'Plain Earth Rune', 'chalked_earth_rune', 1),
-  shot('plain_water_rune', 'Plain Water Rune', 'chalked_water_rune', 1),
-  shot('plain_fire_rune', 'Plain Fire Rune', 'chalked_fire_rune', 1),
-  shot('plain_ice_rune', 'Plain Ice Rune', 'chalked_ice_rune', 1),
-  shot('plain_poison_rune', 'Plain Poison Rune', 'chalked_poison_rune', 1),
-  shot('plain_rupture_rune', 'Plain Rupture Rune', 'chalked_rupture_rune', 1),
+  /* THE STORE RUNES: one a family a tier, each the store's version of the crafted rune it partners. A cast on one lands that tier's
+     version at BASIC_EFFECT_SHARE and needs that tier's level in the spell's skill (src/core/hunt/abilities.js runeFor), bought per
+     cast only when the spell's slot names it. Priced STORE_RUNE_PRICE above. */
+  ...CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => storeRune(f, t))),
 ]);
 
 /** Null-prototype index by id. */
@@ -121,7 +125,6 @@ export const BASIC_INDEX = Object.freeze(BASIC_SUPPLIES.reduce((acc, b) => { acc
 const BY_SLOT = 'a food or drink slot names ONE item (Tyler 2026-10-21): when it runs out the next slot fires, and any store food or drink can stand there';
 const FREE_RUNG = 'the free tier-1 rung (ammoPerShot 0): a shot never spends it, so it never runs out';
 const HONE = 'a whetstone is melee\'s ceiling, not its swing (R5): when the last one wears the sword swings on unsharpened';
-const DEEPER_TIER = 'the store sells each family ONE basic rune, version I at the store\'s share (Tyler 2026-10-23): a deeper tier is bound at Runecrafting, never bought, and once it is gone the spell casts the next tier the hero carries, then the store\'s';
 export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null), {
   turnip_mash: BY_SLOT, cooked_herring: BY_SLOT, cooked_wolf_meat: BY_SLOT, cooked_panther_meat: BY_SLOT, cooked_pikeperch: BY_SLOT,
   cooked_copper_crab: BY_SLOT, wheat_bread: BY_SLOT, cooked_silverfin: BY_SLOT, baked_potato: BY_SLOT, cooked_goldgill: BY_SLOT,
@@ -129,8 +132,6 @@ export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null),
   bronze_arrows: FREE_RUNG,
   coarse_whetstone: HONE, copper_whetstone: HONE, iron_whetstone: HONE, steel_whetstone: HONE, mithril_whetstone: HONE,
   rune_whetstone: HONE, dawn_whetstone: HONE,
-  /* every rune above the Chalked tier of every crafted family (stonecraft.js CRAFTED_RUNE_FAMILIES) */
-  ...Object.fromEntries(CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.slice(1).map((t) => [runeId(f, t.tier), DEEPER_TIER]))),
 }));
 
 

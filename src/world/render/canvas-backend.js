@@ -89,7 +89,6 @@ export function createCanvasBackend(o) {
 
   /** The source to blit a draw-list entry from: its atlas image, or a stub box. */
   function source(d) {
-    /* a hero in its colors, when its look is baked; until then, or past the cap, as drawn (hero-dye.js) */
     if (d.dye && dyes) { const dyed = dyes.source(d.id, d.dye, d.sx, d.sy); if (dyed) return dyed; }
     if (d.set && images[d.set]) return { img: images[d.set], sx: d.sx, sy: d.sy };
     let s = stubs.get(d.w + 'x' + d.h);
@@ -429,12 +428,11 @@ export function createCanvasBackend(o) {
     s.add(fv.plan.dx); s.add(fv.plan.dy); s.add(fv.open.w); s.add(fv.open.h);
     s.add(list);
     for (const l of [list.decals, list.sprites, list.raised, list.fx]) for (const d of l) s.add(!!images[d.set]);
-    /* a look landing changes the picture, though no entry of the list moved */
     if (dyes) for (const d of list.sprites) if (d.dye) s.add(dyes.has(d.id, d.dye));
     return s.end();
   }
 
-  /* THE FRAME'S COLORS: every dyed unit it draws, then at most one bake. Before the paint decides, so a held frame still bakes what it waits for. */
+  /* THE FRAME'S COLORS (hero-dye.js): every dyed unit it draws, then at most one bake, before the paint decides: a held frame still bakes, and a look landing changes the picture. Not baked: drawn as the art is. */
   function wantDyes(list) {
     if (!dyes) return;
     for (const d of list.sprites) if (d.dye) dyes.want(d.id, d.dye, d.dyeOwn === true, book.sprite(d.id), images[d.set]);

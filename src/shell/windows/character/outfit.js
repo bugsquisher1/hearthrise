@@ -23,7 +23,7 @@ import { rows, text, cls, prop, attr, style, element } from '../../../render/pai
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.93';
 import { gold } from '../../../render/format.js?v=0.2.93';
 import { glyphSvg } from '../../launcher.js?v=0.2.93';
-import { runIntent } from '../../intent-words.js?v=0.2.93';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.93';
 
 /* The turn order of the rotate button: clockwise from facing the viewer. */
 const TURN = Object.freeze(['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'].filter((d) => FACINGS.includes(d)));
@@ -96,7 +96,9 @@ function askPrice(ctx, sc, repaint) {
   sc.priceAskedAt = now;
   readColorsPrice(ctx.account, ctx.character).catch(() => ({ ok: false })).then((r) => {
     sc.priceAsking = false;
-    if (r.ok) { sc.price = r.price; sc.priceAskedAt = 0; repaint(); }
+    if (r.ok) { sc.price = r.price; sc.priceAskedAt = 0; }
+    else if (!sc.pending) sc.msg = refusalText(r, ctx.character);
+    repaint();
   });
 }
 

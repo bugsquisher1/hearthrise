@@ -3,15 +3,15 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.93';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.93';
-import { LIB2_DESC } from './library2-items.js?v=0.2.93';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.93';
-import { CHAMPION_DESC } from './champions.js?v=0.2.93';
-import { DRINK_DESC } from './drinks.js?v=0.2.93';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.93';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.93';
-import { SHIELD_DESC } from './shields.js?v=0.2.93';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.94';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.94';
+import { LIB2_DESC } from './library2-items.js?v=0.2.94';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.94';
+import { CHAMPION_DESC } from './champions.js?v=0.2.94';
+import { DRINK_DESC } from './drinks.js?v=0.2.94';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.94';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.94';
+import { SHIELD_DESC } from './shields.js?v=0.2.94';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -149,7 +149,7 @@ export const ITEM_DESC = {
   'coal': 'Black coal, the fuel that feeds every smelting fire',
   'cooked_bear_meat': 'A fat-rich bear roast, deeply filling, the meal that ends a hard day',
   'cooked_copper_crab': 'Copper crab steamed in its own shell, briny and rich, a supper that sharpens every skill you practice',
-  'cooked_frostfin': 'A steaming frostfin supper: for six minutes, every blow that reaches you lands 5% lighter',
+  'cooked_frostfin': 'A steaming frostfin supper: for six minutes, every blow that reaches you lands a little lighter',
   'cooked_goldgill': 'Goldgill steak seared to a shine, a lucky supper that draws richer loot to your hunts',
   'cooked_herring': 'A small pan-cooked fish, plain but filling for the road ahead',
   'cooked_lobster': 'Cracked and buttered claw-meat, a proper meal that draws luck to your hunts',
@@ -264,8 +264,8 @@ export const ITEM_DESC = {
   'iron_belt': 'Iron-buckled girdle bracing the waist against a low blow',
   'iron_boots': 'Iron-shod boots, plain sure footing for a working soldier',
   'iron_fitting': 'A cast-iron bracket and bolt, worked metal for castle building',
-  'temper_salts': 'Bone ash and iron filings, what the smith needs to temper gear worn from Level 15. Mixed at the forge',
-  'fine_temper_salts': 'Big-bone ash and iron filings, ground fine, what the smith needs to temper gear worn from Level 30. Mixed at the forge',
+  'temper_salts': 'Bone ash and iron filings, what the smith needs to temper Iron, Studded and Adept gear. Mixed at the forge',
+  'fine_temper_salts': 'Big-bone ash and iron filings, ground fine, what the smith needs to temper Steel, Boarhide and Scholar gear. Mixed at the forge',
   'iron_gauntlets': 'Iron gauntlets that save the knuckles in a brawl',
   'iron_helm': 'Honest iron helm that turns a glancing strike aside',
   'iron_ore': 'Rough iron ore straight from the rock, smelted into iron bars',
@@ -336,7 +336,7 @@ export const ITEM_DESC = {
   'razor_claw': 'A wickedly sharp claw for honing blades and adorning trophies',
   'regent_helm': 'Crown of a fallen Hunt lord, hollow and warding, won by no solo hand',
   'riftmaw_husk': 'The husk the Riftmaw shed at its ruin, hollow and cold, kept as proof of the dive',
-  'river_chowder': 'A thick chowder of silverfin, potato and carrot: for five minutes, every blow that reaches you lands 3% lighter',
+  'river_chowder': 'A thick chowder of silverfin, potato and carrot: for five minutes, every blow that reaches you lands a little lighter',
   'roasted_carrot': 'A carrot fire-roasted sweet, a light snack that speeds your gathering hand',
   'roasted_pumpkin': 'Roasted gourd, caramelized and hearty, a feast that swells your field yields',
   'ruby': 'A deep-red ruby, a fine gem for rings, amulets and inlay',

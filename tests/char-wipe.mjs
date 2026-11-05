@@ -400,7 +400,8 @@ async function main() {
     }
     console.log('\nchar-wipe --mutate\n');
     let survived = 0;
-    for (const mu of MUTANTS) {
+    const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
+    for (const mu of MUTANTS.filter((x) => !only || x.id === only)) {
       let sql = SRC.wipe;
       try { if (!CONTROL) sql = plant(SRC.wipe, mu.edits); }
       catch (e) { console.error(`char-wipe: HARNESS — ${e.message}`); process.exit(2); }

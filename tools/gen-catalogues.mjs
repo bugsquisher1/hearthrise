@@ -103,7 +103,8 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE CRAFT WAGE (lane/c-craft-economy, designer 2026-11-01): 2027-02-08-unsourced-items-catalogue is APPLIED history; the gathered and
    refined goods' book values (hr_items.value, read by the market's ceiling) land in ONE forward file, the same full delete+insert replace. */
 /* KLAPPA'S CLUB (lane/c-klappa-club, designer 2026-11-03): 2027-02-21-rulings-items-catalogue is APPLIED history; the club's hr_items row, its Smithing recipe in hr_activities, ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-23-klappa-items-catalogue.generated.sql');
+/* THE GLADE'S RUNG (lane/c-pre-wipe, designer 2026-11-04): 2027-02-23-klappa-items-catalogue is APPLIED history; the Houndskin Cloak's Level and its Crafting recipe in hr_activities, ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-25-houndskin-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1254,7 +1255,8 @@ const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
 /* THE FIRST-HOUR RUNG (lane b-first-hour, 2026-10-28): 2027-01-31 is APPLIED history; stitch_graypelt_cloak's six Wolf Pelts. */
 /* THE UNSOURCED ITEMS (lane b-unsourced-items, 2026-10-28): 2027-02-05 is APPLIED history; the four new recipes' inputs. */
 /* KLAPPA'S CLUB (lane/c-klappa-club, 2026-11-03): 2027-02-18 is APPLIED history; the reforge's inputs. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-02-23-klappa-bench-inputs.generated.sql');
+/* THE GLADE'S RUNG (lane/c-pre-wipe, 2026-11-04): 2027-02-23-klappa is APPLIED history; the cloak's twelve pelts and a Bear Pelt. */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-02-25-houndskin-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

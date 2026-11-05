@@ -30,6 +30,120 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-05 Armor rungs, Levels 1-8, the crossbow floor, the Glade's four (systems-engineer, lane/c-armor-tiers): MEASURED on v0.2.90; one row changed; engine deploy, no migration
+**The first-ground ladder under the attacker-level armor rule (v0.2.90 release red, `forest-cave`).** Three coin rows, low end only, so the top roll and the kill bound stay and there is no catalogue apply: Briarcoat Wolf [2,5] to [3,5], Drain Rat [4,18] to [8,18], Glade Poacher [4,14] to [8,14]. Net per hero-hour at each floor, 6-seed median: Cellar 1829.5, Thicket 1809.5 to 1838, Sewer party 1795 to 1843.5, Glade four plate 1833 to 1908, Warrens 3704. Glade in helm and body, worst seed: +23% to over +25%. The crossbow Ranger at the Sewer floor: 12-seed mean +23.7% to +26.4% (+-0.9), and `drop-tables` ranger-floor now gates that mean, with the old Drain Rat row as its mutant.
+**The Level 1 bow on the Glade, played on the real page (fresh account, practice bow, Enter twice): real, NOT built yet.** 27:42, 184 kills, 24,080 Level XP, Level 1 to 7, 52k XP/h, gold 1,147 + loot 487 against 1,334 of supplies, no death. It stopped at the 300 g gold floor, never by danger; the sim has no purse, and this hero then sells and goes again. Why it holds, from the real settle's track: both. 68% of the time nothing stands within a blow of the bow, with 1.16 monsters within 7 tiles on average, because the kite walks away from everything slower than a hero (3,200) and only the crow (4,400) is sure to catch it; the blow itself is unchanged (27 a swing). The Sewer answers the same hero (10 deaths in 8 h, 1,761 swings/h), the Warrens too (319 deaths in 7 h).
+| Glade, sim only, real settle, 4 seeds x 2 h | Bow L1 net / bill / deaths | Bow L5 net / deaths | Mage L1 net | Bow L16 bill | Tank L16 helm + body | Four L16 net |
+|---|---|---|---|---|---|---|
+| As shipped | +1,449 / 2,425 / 1 | +1,666 / 0 | -953 | 450 | +66% | 4,668 |
+| **Both poachers 3,800 (two rows)** | **-71 / 3,961 / 5** | **-179 / 6** | -1,907 | 935 | +75% | 4,498 |
+| All four at 3,800 | -233 / 4,238 / 4 | -233 / 6 | -2,060 | 910 | +75% | 4,573 |
+| All four at 3,600 | -765 / 4,504 / 10 | +54 / 2 | -4,025, 44 deaths | 940 | +75% | 4,573 |
+Recommendation: Glade Poacher 3,400 to 3,800 and Rook Poacher 3,200 to 3,800, the Thicket whelp's own pace. Both rows live on the Glade alone. XP is untouched (55.5k/h): the rush keeps paying XP and loses its profit, which is the ruled cost. Ammo stays free (ruled), and Distance is the player's own setting, so neither is a lever. Plans: `bowrush`, `bowspeed` in `tools/balance-sim/plans.mjs`.
+**Armor rungs (balance ruling §9: "3-5% less actual incoming damage"), exact.** \`node tools/balance-sim/risk-table.mjs --rungs\`: damage reaching HP per monster swing aimed at the hero, over the ground's as-built mix, through the engine's own functions, each piece moved one tier from a full set of the rung below. The real settle agrees within 3 points on plate's whole set (Glade 16: 20.9% against 19.8%); on leather and cloth two hours is too few swings to read a piece. The unit that fits the ruling is the piece a player finds, so the bar reads the rung's mean piece. **Designer: that reading is mine, and a whole set moves 9-29%.**
+| Weight | Rung | Ground | Body | Legs | Helm | Boots | Gloves | Belt | Mean | Whole set |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Plate | 1 to 2 | Wickstead | 7.7 | 4.7 | 3.0 | 3.0 | 3.0 | 3.0 | **4.1** | 12.8 |
+| | | Sewer | 8.3 | 6.2 | 3.5 | 3.5 | 3.5 | 3.5 | **4.8** | 17.0 |
+| | | Glade | 8.8 | 6.1 | 3.9 | 3.9 | 3.9 | 3.9 | **5.1** | 19.8 |
+| | 2 to 3 | Glade | 5.8 | 4.5 | 3.7 | 2.1 | 1.5 | 2.1 | **3.3** | 9.4 |
+| | | Warrens | 7.6 | 5.7 | 4.1 | 2.5 | 1.7 | 2.5 | **4.0** | 17.8 |
+| Leather | 1 to 2 | Wickstead | 7.9 | 4.4 | 2.3 | 2.3 | 2.3 | 2.3 | **3.6** | 14.9 |
+| | | Sewer | 8.0 | 4.4 | 2.3 | 2.3 | 2.3 | 2.3 | **3.6** | 15.5 |
+| | | Glade | 8.2 | 4.5 | 2.4 | 2.4 | 2.4 | 2.4 | **3.7** | 16.0 |
+| | 2 to 3 | Glade | 5.2 | 4.3 | 3.3 | 2.3 | 1.2 | 2.3 | **3.1** | 13.0 |
+| | | Warrens | 5.5 | 4.5 | 3.5 | 2.4 | 1.2 | 2.4 | **3.3** | 14.4 |
+| Cloth | 1 to 2 | Wickstead | 11.8 | 8.9 | 8.9 | 0 | 0 | 0 | **4.9** | 17.8 |
+| | | Sewer | 11.8 | 8.4 | 8.4 | 0 | 0 | 0 | **4.8** | 20.2 |
+| | | Glade | 9.9 | 6.8 | 6.8 | 0 | 0 | 0 | **3.9** | 18.6 |
+| | 2 to 3 | Glade | 14.2 | 14.2 | 6.2 | 6.2 | 6.2 | 6.2 | **8.9** | 29.3 |
+| | | Warrens | 9.5 | 9.5 | 3.9 | 3.9 | 3.9 | 3.9 | **5.8** | 25.0 |
+**Built: Leather Boots defB 2 to 1, their ladder value.** The row was the one zero a player could fix for free: Studded Boots read 0% on every ground. Raising Studded instead pushed the next rung's mean under 3. Floor guard unchanged. Guard: \`first-week-bands armor-rungs\`.
+**Left, on purpose:** Adept boots, gloves and belt stand still at 0% armor. They still add magic. One cloth point is 7-9% on their grounds, over the band, and their rung's mean is in it. Cloth's second rung is over the band (5.8-8.9): its flat ward is worth more against bigger blows, and that step lands it level with leather on the Warrens (10 a swing against 9.9). Plate's second-rung gloves and boots read 1.5-2.5.
+
+**Levels 1-8, pushing on the shipped bar (real settle, 1 h x 2 seeds; the sim has no purse, so "500 g lasts" is the new hero's gold over its net).** Nothing added.
+| Move | Against | Result |
+|---|---|---|
+| **Free lunch:** Level 1 anywhere, Thicket, 4 under, practice set | Cellar | tank 20.6k XP/h, net +1.8k, 85% (Cellar 7.2k, +1.9k). Bow 24.6k, hammer 27.9k, mage 26.7k, healer 14.7k. No death |
+| **Free lunch:** Level 1, Wickstead, 7 under, practice set | Cellar | tank 24.0k, +1.9k, 76%. Bow 27.7k, hammer 33.1k, mage 30.1k. No death |
+| **Free lunch, the biggest:** a Level 1 bow, the Glade, 15 under, practice set | Cellar, Thicket | **55.5k XP/h, net +1.0k, held, 62%.** Level 5: 55.1k, +1.6k, 65%. A fresh hero owns the bow |
+| **Free lunch:** a four, Level 1, the Sewer, 7 under, practice set | Cellar four | 40.6k against 9.0k, +1.9k, 59%, held |
+| **Free lunch if bought:** alone, Level 1, three bronze pieces, the Sewer | Cellar | 32.7k, +1.7k, 61%, held |
+| **Costly, not deadly:** mage, Level 1, the Glade | Cellar | 45.8k, -1.4k, 500 g lasts 22 min, held. Healer 27.3k, -894, a death in 2 h |
+| **Trap:** alone, practice set, melee, the Glade at any Level 1-8 | | a death every 2-3 min, 500 g lasts 4-8 min. Bronze holds, but 500 g lasts 14-20 min |
+| **Trap:** alone, practice set, tank or hammer, the Sewer under 8 | | a death every 2-60 min, 500 g lasts 16-36 min (a Level 5 hammer nets +508 and dies every 4 min) |
+A four in the practice set on the Glade dies every 22-69 min at about break-even. The warning names all of these; a bow's free run is the one a blind optimizer will find first.
+
+**The crossbow floor, the real number.** Sewer 8, party of four, store shots: **+23.7% on the first six seeds, +23.7% on twelve, +-0.9 (sd 3.2), 4 of 12 at or over +25%.** The hero-Level curve it replaced reads +24.0% on the same twelve, +-0.8, 4 of 12. So armor moved nothing, and the floor was always about a point under the +25% minimum: the guard passes on its one seed. Reaching +25% takes 21 g/h off the bill or 26 g/h on the share. Designer's call.
+
+**The Glade's mixed four: no stats-only answer.** Sim only, Level 10 four against the lone tank in helm and body at the floor, who shares the row. Net g/h; the lone tank's reading is its income over its bill.
+| Monster stat | Four at Level 10, net | Four at Level 6, net | Lone tank at 16 |
+|---|---|---|---|
+| Today | +3.0k | +2.6k | +68% |
+| atk x1.1 | +2.6k | +2.4k | +33% |
+| atk x1.25 | +2.5k | +1.9k | **-25%** |
+| atk x2 | +237 | -962 | -72% |
+| atk x3 | -2.7k, dies every 12 min | -2.9k, every 7 min | -86%, every 3 min |
+| Level x2 (armor reads it) | +2.6k | +2.2k | +10% |
+| HP x1.5 | +1.8k at 51k XP/h | +1.3k | -18% |
+| HP x2 | +1.0k at 41k XP/h | +576 | -45% |
+| Pull 8 (the four's own pick, today 4) | +1.3k at 84k XP/h | +734 at 81k | not touched |
+The four needs atk x2 to break even at 6-10 under; the lone hero's floor is gone by x1.25 (the floor guard's own reading has about two points of room). The four splits one tank's bill over four earners, and the row can't tell them apart without a rule that reads the party. Watch real play.
+
+### 2026-11-04 What the wipe is held against (designer, lane/c-pre-wipe): THE LIST
+Read from this board, `DISCOVERIES.md`, rulings-of-record and 28 played hours (lane/c-hour-20). Delivery-only work (return load, build step, account delete) isn't on it, by Tyler's rule.
+| Item | Call | Size, owner | Why |
+|---|---|---|---|
+| Armor rule and the Warrens' stats | **must** | running, lane/c-armor-truth | A lone Level 18 in Iron earned 98.4k XP/h at -1.25k g/h. Measure on the default bar's 14 g shrimp: played 4,640 g/h of food, the risk table says 34,920 |
+| Thicket same-weapon cell | **must** | running, lane/c-thicket-1000 | Moves party XP in the first day |
+| Gear at Level 22-25 | **must** | BUILT, played, three files STAGED, edge moves | No new piece by Level from 15 to 28: Houndskin Cloak, worn at 22, made from Glade drops |
+| First armor choice | **must** | BUILT, played | Equip upgrades stayed off until each slot was picked by hand or a weight at Tamsin's. Marlow fought a night bare and Sorrel was still bare at hour 16. An empty slot now takes her pick, else the weight worn, else the one that suits the weapon |
+| A weapon switch leaves the old moves struck; Before you go warns about a spell the worn weapon can't use | **must** | small client, lane/a-known-issues or next | Classless is the pitch, and every tester switches weapons (door panel P3) |
+| "Your hero just ate" on a return to a running hunt | **must** | BUILT | It came from a hunt no stamp covers (a tab killed seconds after Enter): no recap, so no return mark. The first read of such a hunt, 10 minutes old or more, now marks it |
+| Old answer in a reopened window ("Put on 3 pieces."); "Cooking Turnip: 0 cooked so far" | **must** | small client | Read as broken (door panel P4) |
+| Summary and away card lost when the first load is interrupted | **must** check, fix if real | client | Seen once, not ruled out. The overnight return is the hook, and a 12 s load invites a reload |
+| The bag at 1366x768: two rows beside a cut paper doll | **must** check | art-director | Reads as broken on a common laptop, if v0.2.89 still does it |
+| Confirmation link lasts one hour | **must** | Tyler's dashboard, already a yes | An invitee opening it next morning finds it dead |
+| Group advice (party to the Glade, lone hero to the Warrens from 45) | fine after | ready, lane/c-group-advice, wants the pace re-measure | Advice only: every ground stays open |
+| Bag space for gold; "already in your bag" line | fine after | client | Sinks and words, no progress lost by waiting |
+| Bestiary window (stages never shown); gold history (ruled 10-23, not built) | fine after | lane B, not small | Adding either later loses a tester nothing |
+| Imbuing; daily training weapon; daily login; pets; the Hearthrise buff; player trade | fine after | later by ruling | Hidden or absent, and nothing promises them |
+| Action bar builder window | fine after | mocks first | The bar works; this is how it's set up |
+| Crafted food has no consumer for a hunter | fine after | follows lane/c-armor-truth | Re-read once its numbers land. Dearer store food was rejected 11-03 |
+| Nothing to wear or walk past Level 30-32 (Hask's Ford) | fine after | held, Tyler's | About hour 41-47 on these rates, estimated. Watch who gets there |
+| Party edge cases: a seat with seconds of stamina, a kick reading "You left", Start during a leave, the off-tank's box slot | fine after | P3-P4 | A tester rarely meets them, and each ends cleanly |
+| Characters screen after Buy a hero slot says only "Reading your characters…" | fine after | client | Seen for at least 2.5 s on a busy local world. Re-check on live |
+| Party XP share for a seat far under its party | fine after, no change | ruled here: keep | Nothing to land. Friends carrying a friend pay for it in their own share |
+| Dearer store food; store arrow price; the four rung-1 copies; the 17 and 72 old rows | **cut** from this list | | Rejected, ruled, or no effect on play |
+### 2026-11-04 Armor reads who struck (systems-engineer, lane/c-armor-truth): BUILT, engine deploy, no migration. Warrens x1.25 measured and refused
+**The problem.** Armor's absorb and dodge were `value / (value + k x hero Level)`, so the same bronze absorbed 60% at Level 1 and 46% at Level 16: a Level-keyed rule favoring the low hero, in a game where monsters are "just simply harder". **The rule now:** the level in that curve is the ATTACKER's (`mitigation.js`, `damage.js armourVs`). A blow reads the monster's stats against the hero's stats, with no hero Level anywhere in it. Ward (flat) is unchanged. A floor's monsters stand above its Level (Glade 16 meets levels 16-29), so at k 0.7 the Glade's floor fell to +19%: k is now 0.62 (absorb) and 0.4 (dodge).
+
+**Measured, real settle, 1 h x 2 seeds a cell.** "Default" is three pieces on the shipped bar's 14 g Salted Shrimp, "kit" the Level's six pieces on the ground's guide food. Each cell reads net g/h, supplies g/h, margin, typical low HP.
+| Cell | Today | Armor reads attacker (shipped) |
+|---|---|---|
+| Wickstead 8, alone, kit, in range | +2.8k, 10, 93% | +2.8k, 10, 93% |
+| Wickstead 8, four, kit, in range | +2.7k, 267, 93% | +2.7k, 267, 92% |
+| Glade 16, alone, default, in range | +3.4k, 644, +522%, 77% | +3.1k, 903, +343%, 77% |
+| Glade 16, alone, kit, in range | +3.3k, 660, +498%, 82% | +3.1k, 860, +359%, 82% |
+| Glade 16, four, kit, in range | +4.5k, 152, 82% | +4.5k, 153, 82% |
+| Warrens 32, four, kit, in range | +5.3k, 52, 85% | +5.2k, 54, 84% |
+| Glade 10 (6 under), alone, default | **+883**, 2.5k, 65% | **-299**, 3.7k, 60% |
+| Glade 10, alone, kit | +607, 2.7k, 73% | -953, 4.2k, 69% |
+| Glade 6 (10 under), alone, default | +635, 2.6k, 61% | -1.6k, 4.8k, 55% |
+| Glade 10, four, kit | +3.3k, 459, 69% | +3.0k, 686, 66% |
+| Glade 6, four, default | +2.8k, 766, 63% | +2.3k, 1.2k, 56% |
+| Warrens 26 (6 under), alone, default | -2.7k, held, 44% | -4.0k, dies in 1 h, 39% |
+| Warrens 17 (15 under), alone, default | -6.8k, dies in 2 h, 28% | -9.9k, dies in 4 min, 18% |
+| Warrens 26, four, kit | +3.6k, 384, 69% | +3.1k, 565, 66% |
+| Warrens 17, four, kit | +1.7k, 1.6k, 59% | +1.0k, 2.6k, 54% |
+Floor guard (`drop-tables`, its reference group's coin and commons over the store bill): Glade 16 +59% to +27%, Sewer 8 +135% to +73%, Thicket 5 +3,274% to +2,176%, Warrens 32 party still over +400% a seat. Level XP an hour doesn't move at a floor.
+
+**Warrens x1.25: refused.** It sat a four in his band (75%, 65% on default) and made pushing cost (four at 17: -3.6k), but the tank's own seat at the floor goes to **-47% and -43%** (`warrens-floor`, costs are personal), against his +25% minimum.
+
+**What it doesn't do.** A mixed four on the Glade still pushes for free: Level 10 nets +3.0k at 65k XP/h against Wickstead's +2.7k at 33k. Glade x1.25 wouldn't fix it (+2.3k, read at k 0.7) and fails his 11-02 floor the way it did then (a tank in helm and body at 16, guide food, +53% to -30%, also k 0.7). Monsters' stats can't reach a healed party without breaking the lone hero's floor. A four on the Warrens stays cheap too: 6 under costs about 1.7k net for 1.7x the XP. Wickstead and the first grounds barely move: their blows are small, and a fresh hero's practice set wears no armor, so its first hour is unchanged by construction (not re-played).
+
+**The Ranger's floor sits on the bar and always has.** The crossbow Ranger at the Sewer's floor reads +24.9% averaged over six seeds on today's rule, +25.3% on the guard's one seed; every combat change moves its one-seed reading by 3-5 points (20% to 28% across k 0.56-0.65). k 0.62 reads +26.5% and passes. That is the dice, not a margin: the designer should look at it.
+
 ### 2026-11-04 The release gate: what 30 reds were, a preflight, and where the minutes went (reliability, lane/r-release-gate): BUILT; the timing still needs a clean GitHub run
 **Measured, last 14 days of push runs on `release/*`:** 61 releases, 19 green on the first finished run (31%), 1.7 finished runs a release. Eight green runs read: 22-122 min, median 57. The gate is bimodal, not slow everywhere: 22 min with no proof to run (147 runner-minutes), 50-120 at 600-980 runner-minutes on GitHub's 20 slots.
 
@@ -70,6 +184,19 @@ A wide release that moved the server stays near 27; a client-only one is lower (
 **What changed.** `legal/*.md` described a different game (OAuth sign-in, local saves and cloud save, gems and a premium pack for money, a flat 1.5% market tax, Bind-on-Pickup). They now say what the repo does: email and password through Supabase, Resend mail, server-held progress, Sentry, PostHog events and session recording (on by default, Tyler 2026-11-04; masked inputs and chat; off in Settings > Help; `?noanalytics=1` per visit), the salted network hash behind the play cap, retention from the migrations, how to ask for deletion by hand, and the wipe. Notes for the owner and the lawyer sit in HTML comments beside each claim (the reader drops them). The sign-in and Create account screens link both pages (`src/app/legal-reader.js`, over the screen, no new page; `legal/` is already a plain dir on the built site, so `tools/build-site.mjs` needs nothing). The switch is a residue pick `shareReplay { on, at }` put into every open hero, newest wins (`src/session/replay-pref.js`); recording starts only after every hero the page opens has been read.
 **For Tyler.** Fill `[LEGAL ENTITY NAME]`, address, `[CONTACT EMAIL]` (no real mailbox is in the repo), governing law and venue. Decide: minimum age 13/16; recording opt-out versus opt-in before Early Access; one switch for all analytics, not only recordings; the 14-day notice promise (softened to "where we can"); whether to publish market fees (repo migrations set a 1% listing fee and a 4% cut, the Terms say no number) and confirm the live values; the streaming policy in EULA section 7; whether the EULA covers the web build; where a credits list lives (the old text named a Settings > Credits panel that does not exist); self-hosting the Google Fonts. Confirm in PostHog and Sentry: recordings kept 30 days, event and error retention. The delete-account lane decides whether `player_ledger` and its monthly rollup (no user foreign key) are deleted or anonymized; the policy states today's truth.
 **Verified / not.** Done: tests below. Assumed: nothing here was read against production, and no lawyer has read the pages.
+### 2026-11-04 The Glade's rung (designer, lane/c-pre-wipe): BUILT, played on the local world, three files STAGED, edge moves
+**The ruling.** The Houndskin Cloak wears at Level 22 (was 28), and it's also made: Crafting 1, Wolf Pelt ×12 and Bear Pelt ×1. It still drops from the Glade Poacher at 0.099% a kill. **Why not the proposal's Packlord's Band on Rook:** that ring is melee stats on a 15 h Rare, so it's a goal by luck and for one style. A cape suits every way to fight, the art exists, and the Bear Pelt asks for the one press Levels 10 to 30 turn on: a Brook Bear only comes to a pull of 3 or more. Book 680 of inputs against the cloak's 310, sold at 155 g, and a bench tax of about 23 g.
+
+**Walk-through** (grepped; last two rows pressed on the local world with Level, skill and stock set in its own database)
+| Step | Holds and can reach | Doable because |
+|---|---|---|
+| Level 5-15: pelts | Thicket and Wickstead wolves | Marlow held 491 Wolf Pelts by hour 28 |
+| Level 16: What next names the cloak and its recipe | The Glade's page says "Bigger pulls also bring the Brook Bear (3 or more a pull)" | One press of + on that page; Marlow's 34 min at pull 8 gave a Bear Pelt |
+| Press Start on Stitch Houndskin Cloak | 12 pelts, a Bear Pelt, gold for the bench | The server made one and took all 13 |
+| Equip at 21, then at 22 | The cloak in the bag | Refused at 21 ("Needs Level 22"), worn at 22 |
+
+**Staged, in this order, then deploy hr-accrue, then the client:** `2027-02-25-houndskin-items-catalogue`, `-bench-inputs`, `-bench-tax-rates` (all `.generated.sql`). No world shape, no character row. `level-curve` stays green (fingerprint `f4bebb011ee8915a`: it reads no loot or items). Census re-pinned: hr_activities 347, hr_bench_tax_rates 148. **Could still be wrong:** the bench shows 5.4 s and 23 XP a stitch against the data row's 3.4 s and 60 XP. Other rows scale the same way, and I didn't chase why. I first set Crafting 5, then dropped it: at that XP it was 35 more Graypelt Cloaks of grind. A hero wearing another weight keeps it: a heavy pick won't move a hero off Leather Boots, by design.
+
 ### 2026-11-04 The wall at hour 20 (designer, lane/c-hour-20): PLAYED on the local world on top of lane/c-no-level-penalty, client fixes BUILT, no migration, no edge deploy. **Tyler: one choice below**
 **Method.** The real `play.html` on `tools/qa/local-world.mjs serve`, real engine, 1440x900, sign-in screen up, page closed between stops, town time passing. **Marlow** (sword and shield, alone): 28 h hunted over four sittings. **Sorrel** (hammer) and **Brin** (staff), one account, a party from Level 12, 16 h each, then the third hero. Screens read at each stop; every number below is the game's own summary or analyzer.
 
@@ -138,6 +265,23 @@ Cut: nothing.
 **Done:** 1 to 5 above, tests below. #6 is out until its re-measure. **Verified by play:** What next and More on Marlow (screenshots read), the list's tags and the opening pick on Marlow and on the Sorrel and Brin party, all stops above. **Done, not played:** the top-up and Tamsin lines fire (guard only), #6 was never played. **Assumed:** the wall at 30-32. **Could still be wrong:** naming the step up moves more players onto the faster road: an earlier lane measured it as L25 at 29.5 h against the target 36 (before this tree's penalty removal; not re-measured). Fifteen Levels is my number: Level 17 is the first the Warrens is named. The bar's Salted Shrimp held for a shield hero; a wand at 15 under may not.
 
 **Handoffs.** Characters screen after Buy a hero slot (above; the slot was bought, the screen said nothing yet, and a player may press again). A hub read HP 0/415 and an empty action bar for a few seconds while a long skip's settle was still running, then read right: harness-only as far as I could tell, not chased. On a narrow list "Fits your level" wraps and the next line starts with its separator dot: art-director.
+### 2026-11-04 The character wipe (backend-architect, lane/c-char-wipe): AUTHORED, played on the local world, STAGED. Applies only on Tyler's word
+**The order, one file per call:** closed_mode on + a pre-wipe backup, `2027-02-14-market-off.sql`, `2027-02-20-market-wipe.sql`, `2027-02-25-character-wipe.sql`, `2027-02-20-market-wipe-resume.sql`, `2027-02-14-market-on.sql`. No edge deploy. No client change has to land first.
+
+| What | Decision |
+|---|---|
+| Heroes and everything keyed on one, the purse, Storage, house, land, bought slots | Go (94 tables, one TRUNCATE) |
+| Hero and display names | Free again; a name a moderator pulled stays pulled, with its owner cleared |
+| Open hunts, instances, worlds, leases | Dropped with no pay; the tick finds nothing due |
+| Parties, invites, notices, seekers, clans | Go |
+| Ledger and rollup | Go, with their guard back on and proved |
+| Chat lines, whispers, world notices, private frames | Go (they name heroes) |
+| Presence, town bodies, play cap claims, rate counters, refusals, intent journal, tick rows | Go |
+| Leaderboards | Refreshed empty; `hr_lb_hidden` stays |
+| Accounts, profiles (reset), allowlist, friends, blocks, bug reports, signup record | Stay |
+| Catalogues, config, baselines, operator logs | Stay, counted before and after |
+
+**Stale browsers:** all residue is server-side, so a reload is clean (played: same first card as a brand-new account). A tab left open on today's build stands still until reloaded; the next release's build goes to the characters screen by itself. Any new table stops the wipe by name until someone decides it.
 
 ### 2026-11-04 No level penalty: the monsters are simply stronger (systems-engineer, lane/c-no-level-penalty): BUILT, engine deploy, no migration. **Tyler should read the party finding and the Warrens proposal**
 **Tyler, 2026-11-04:** "Tibia doesn't have a scaling penalty for higher level monsters.... They are just simply harder. That is the risk lol so either A. The player or party dies, or B. They have to spend more on supplies to stay alive. (Healing/more damage to kill/ etc) it's inherent in the game, not a penalty driven system..." This replaces the level gap in the 2026-11-03 "Rush if you dare" section below and the 11-02 x1.05 per Level before it: both are gone, not softened.
@@ -287,11 +431,15 @@ Klappa's Club stays between: over the Practice Club +2.7% (Thicket 5, pull 8), +
 | Wand four, coin | 1.08 / 1.10 | **1.08 / 1.10** | 1.08 / 1.10 | **1.26 / 1.28** |
 Twos and threes were already in the band (worst, shields: 0.85, 0.87) and don't move. **Pull 7 is blocked twice:** mixed coin over solo (11-02) and wand fours over solo (10-31). **Cell 1000 is blocked once:** the share floors per kill (`xp-share.js`), so 995 to 1000 jumps a whelp from 6 to 7 and a wolf from 12 to 13, about +6%, and wand fours read 1.04-1.05 (`party-class-xp-line`'s own cut: 1.016-1.018, over its bar of 1.00; at 995, 0.964-0.966). Nothing lies between 995 and 1000.
 
+**BUILT 2026-11-04 (lane/c-thicket-1000, Coordinator by CLAUDE.md §0: 11-02 beats 10-31 where they conflict): the cell is 1000.** Wand fours at 4-5% over solo are the accepted cost and `party-class-xp-line`'s one named exception (that party, default pull, cell 1000, pull 6, bar 1.05). The Party window now reads a Thicket four of one role its own measured line (`ONE_ROLE_VS_ALONE`): wands about 5% more, shields about 15% less, hammers, bows and staffs about 10% less. Twos and threes of wands still read the row's about 10% less (measured -4, 0). The rest of this section is what was weighed.
+
 **For Tyler: cell 1000?** It lands shields, hammers, bows and staffs inside 6-15% with no gold moved, and it pays a wand-only four in the Thicket 4-5% over solo, against "a same-class party never out-earns solo". Designer's pick: yes, wand-only fours are rare and already over on coin; it needs his word and a named exception in the guard, so it isn't built. **As shipped, shields still lose 17-19%** and staffs 16; hammers and bows are in the band, and wands lose 1%. All of this reads against the same heroes alone, as the 11-02 table did: against a mixed four it can't hold, since a mixed four sits at 1.20 by ruling and one class can't pass 1.00.
 
 **Done:** rows, guards (`weapon-rungs`, three mutants; SG-7 holds the club's words). **Measured:** the tables above. **Assumed:** that real heroes' skills sit near their Level, as the sim's do. **Could still be wrong:** two seeds an hour read about ±1 point (the 11-03 12 h cells landed within 0.7), and the Iron Warhammer at Wickstead's pull 8 is a little under the bar. The hammer and hatchets already led their grounds and now lead by a little more, and role parity isn't ruled. `level-pace.json` wasn't re-measured; a rung only moves XP from Level 15 up, on these two lines. Tier 4 and up have no source, so Mithril's 14/28 is the next step to re-check when it gets one.
 
 ### 2026-11-03 Gold matters (designer, lane/c-gold-matters): RULED, measured on the real engine, three files staged, the edge deploys with them
+**The slot ladder below is overruled (Tyler, 2026-11-04):** "I think lower it; but we need to add some additional gold sinks before we raise the price." Your own party is the core of the game, so it shouldn't be gated behind a grind. Now **25,000 / 75,000 / 250,000** (lane/c-slots-lower). On the lives below a lone hero reaches the third at about hour 8-10, two heroes at about hour 5 (computed from the same runs, not played). The 50,000 tables and the "first real wait" below describe the ladder as it was; gold's long sink is open again until new sinks land. The gold card and What next speak at half the next hero: 12,500 gp, about hour 5, so the first house has the line until then, and 37,500 gp for the fourth.
+
 **The ruling.** Gold's first job is the next hero, so the slots carry the first 20 hours: **50,000 / 200,000 / 800,000** (was 15,000 / 40,000 / 120,000), and the refill keeps asking after that: **1,000 + 250 a Level** (was 400 + 100). Coin can't do this work: the profit floors, the starter grounds' ruling, the roster's gold bands and Tyler's new line (harder monsters pay more, nothing rewards staying on a weak ground) leave it about 10% of room in the middle, so coin and sale prices only fix the ladder: **Wickstead about x0.89, the Glade's poachers (the ground x0.94), the Sewer's bat and spider x0.83 with its King x1.04 (a party x0.94, a lone hero x0.89), the Warrens x1.09, tier 2's helmet, body, legs and boots sell at 0.3 of book (was 0.5)**. The Cellar, the Thicket, tier 1 and tier 3 don't move. The gold card comes when the purse is a quarter of the next hero, not all of it, or it would have moved from hour 6 to hour 15.
 
 **Before and after, one lone hero from Level 1, everything sold, real engine** (`tools/balance-sim` plan `gold1103`, seed 0, the six styles' range). Levels don't move: same dice.

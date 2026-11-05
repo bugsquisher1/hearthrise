@@ -65,27 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.89';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.89';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.89';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.89';
-import { SKILLS_DEF } from './skills.js?v=0.2.89';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.89';
-import { tallyTask } from './tally-tasks.js?v=0.2.89';
-import { ITEMS } from './items.js?v=0.2.89';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.89';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.89';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.89';
-import { isShield } from './shields.js?v=0.2.89';
-import { deriveProfile } from '../core/member.js?v=0.2.89';
-import { ABILITIES } from './abilities.js?v=0.2.89';
-import { CONSUMABLES } from './consumables.js?v=0.2.89';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.89';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.89';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.89';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.89';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.89';
-import { regenPermille } from '../core/vitals.js?v=0.2.89';
+import { HUNT_INDEX } from './hunts.js?v=0.2.90';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.90';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.90';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.90';
+import { SKILLS_DEF } from './skills.js?v=0.2.90';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.90';
+import { tallyTask } from './tally-tasks.js?v=0.2.90';
+import { ITEMS } from './items.js?v=0.2.90';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.90';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.90';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.90';
+import { isShield } from './shields.js?v=0.2.90';
+import { deriveProfile } from '../core/member.js?v=0.2.90';
+import { ABILITIES } from './abilities.js?v=0.2.90';
+import { CONSUMABLES } from './consumables.js?v=0.2.90';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.90';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.90';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.90';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.90';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.90';
+import { regenPermille } from '../core/vitals.js?v=0.2.90';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -620,7 +620,7 @@ const FACTS = Object.freeze({
   below_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel < b.freeUntil),
   at_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel >= b.freeUntil),
   /* the purse holds the price of the next hero slot the server offers; none on offer: never (unknown until the account's offer is read) */
-  /* The purse is a real start on the next hero (the What next line's own share): at 50,000 gp that is about hour 5, when gold first needs a plan (lane/c-gold-matters). */
+  /* The purse is a real start on the next hero (the What next line's own share): at 25,000 gp that is 12,500 gp, about hour 5, when gold first needs a plan; the first house speaks until then (lane/c-slots-lower). */
   purse_saving_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),
   /* more than one hero (the account's roster, from the shell) */
   one_hero: (p, f) => known(heroesOn(f), (h) => h.length === 1 && Number.isInteger(f.slotsOwned) && f.slotsOwned > 1),
@@ -1100,8 +1100,9 @@ function readyWords(ready) {
 }
 
 /* WHAT TO WANT, HOURS 5 TO 20 (panel 2026-11-01: 16-22k gold and "nothing to want"; designer's ruling, PRIORITY_BOARD 2026-11-01): the purse's
-   next buy on the What next line, at the server's price. Below this share of the next hero's price, it is too far off to be a goal. */
-const SAVING_FROM = 0.25;
+   next buy on the What next line, at the server's price. Below this share of the next hero's price, it is too far off to be a goal and the house's deeds speak instead.
+   A HALF (2026-11-04, the ladder at 25,000 / 75,000 / 250,000): the third speaks from 12,500 gp, about hour 5, the fourth from 37,500 gp, about 8-10 h after the third for a lone hero. */
+const SAVING_FROM = 0.5;
 const ORDINAL = Object.freeze(['', 'first', 'second', 'third', 'fourth', 'fifth']);
 const gp = (n) => n.toLocaleString('en-US') + ' gp';
 /* The hero slot on offer at the server's price, with the purse beside it, or null. No offer while a slot stands empty: that hero is free (freeHeroLine). */

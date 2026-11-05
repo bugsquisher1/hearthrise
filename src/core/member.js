@@ -13,23 +13,23 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.89';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.89';
-import { companionBonus } from './companion-perk.js?v=0.2.89';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.89';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.89';
-import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.89';
-import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.89';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.89';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.89';
-import { MONSTERS } from '../data/monsters.js?v=0.2.89';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.89';
-import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.89';
-import { isRune } from '../data/runes.js?v=0.2.89';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.89';
-import { STATUSES } from '../data/statuses.js?v=0.2.89';
-import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.89';
-import { LANE_OF } from './hunt/conditions.js?v=0.2.89';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.90';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.90';
+import { companionBonus } from './companion-perk.js?v=0.2.90';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.90';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.90';
+import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.90';
+import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.90';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.90';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.90';
+import { MONSTERS } from '../data/monsters.js?v=0.2.90';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.90';
+import { armourValues } from './mitigation.js?v=0.2.90';
+import { isRune } from '../data/runes.js?v=0.2.90';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.90';
+import { STATUSES } from '../data/statuses.js?v=0.2.90';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.90';
+import { LANE_OF } from './hunt/conditions.js?v=0.2.90';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -115,11 +115,9 @@ export function heroSnapshot(state, c) {
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq: c.eq, equipment: c.equipment, items: c.items, skills: state.skills,
     bonus: c.bonus, setBonus: c.setBonus, profile: c.profile });
   /* `def` is the monster's TO-HIT roll: the Defense skill, the gear outside the armour weights
-     (combat.js guardB: a shield, a cape) and a defence buff. `mit` is what the armour does to a
-     blow that lands (ruling K7, src/core/mitigation.js), at the hero's Level now. */
+     (combat.js guardB: a shield, a cape) and a defence buff. `armour` is what each weight wears; a blow prices it against its attacker (ruling K7, src/core/mitigation.js). */
   const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.guardB) || 0) + (Number(c.bonus('defense')) || 0));
-  const mit = mitigationFor(c.equipment, c.items, charLevelFromXp(state.levelXp));
-  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, mit, level: charLevelFromXp(state.levelXp) };
+  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp) };
 }
 
 /* THE SET A FIGHT IS PRICED BY (Tyler 2026-10-23: runes fuel SPELLS only, caster basics cost mana): the
@@ -444,7 +442,7 @@ export function frozenOf(side, kinds, atMs) {
   const session = {};
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
-    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def, mit: snap.mit || NO_MITIGATION, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
+    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }
 
@@ -461,7 +459,7 @@ export function frozenSide(row) {
     levelXp: 0, gold: 0, skills, stats: {}, buffs: [] };
   const hs = newHuntSession(Object.assign({}, f.session, { purse: Number.MAX_SAFE_INTEGER, cover: {}, staminaMs: null,
     tally: null, endedReason: null, endedAtMs: null }));
-  const snap = f.snap || { acc: 0, maxHit: 1, def: 0, mit: NO_MITIGATION };
+  const snap = f.snap || { acc: 0, maxHit: 1, def: 0, armour: null };
   const vs = f.vs || {};
   const shots = f.shots && typeof f.shots === 'object' ? f.shots : {};
   const rolled = (v) => ({ accuracy: v.accuracy, critChance: v.critChance, weak: { damageMult: v.damageMult } });

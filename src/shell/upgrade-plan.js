@@ -36,18 +36,21 @@
 //     the worn piece's own weight
 //   · never picks a piece the server's skills say the hero cannot wear yet
 //     (unknown skills read as "cannot", the safe side)
-//   · never breaks a tie for the player: when two pieces for one slot trade off
-//     (each better at something), the slot is left and named in `choices`
+//   · never breaks a tie on a worn slot for the player: when two pieces for one slot trade off
+//     (each better at something), the slot is left and named in `choices`. An EMPTY slot
+//     takes the weight preferredWeight names, so no hero stays bare (designer 2026-11-04)
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.89';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.89';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.89';
-import { loadoutOf } from '../core/member.js?v=0.2.89';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.89';
-import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.89';
-import { itemName } from './widgets/bits.js?v=0.2.89';
-import { reqHave } from './item-lore.js?v=0.2.89';
+import { ITEMS } from '../data/items.js?v=0.2.90';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.90';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.90';
+import { loadoutOf } from '../core/member.js?v=0.2.90';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.90';
+import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.90';
+import { itemName } from './widgets/bits.js?v=0.2.90';
+import { reqHave } from './item-lore.js?v=0.2.90';
+import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.90';
+import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.90';
 
 /* The off-hand and the quiver: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['shield', 'ammo']);
@@ -142,11 +145,22 @@ function bestFor(slot, worn, left, o) {
      Platebody and a Leather Body and wore neither). No choice made, or none of that weight: the tie stands. */
   if (o.prefer && front.some((c) => !same(c.after, front[0].after))) {
     const mine = front.filter((c) => weightOf(ITEMS[c.id]) === o.prefer);
+    /* A BARE SLOT NEVER WAITS (played 2026-11-04: a hero fought a night with nothing on, over 140 pieces in the bag): none of that weight here, the piece that guards most goes on. Every piece
+       in `front` is strictly better than bare, and it stays the player's to change on the doll. */
     if (mine.length) front = mine;
+    else if (!curIt) front = [front.reduce((a, c) => (c.after.def > a.after.def || (c.after.def === a.after.def && c.id < a.id) ? c : a))];
   }
   front.sort((a, b) => (a.id < b.id ? -1 : 1));
   if (front.some((c) => !same(c.after, front[0].after))) return { choice: front.map((c) => c.id) };
   return { id: front[0].id, before: now, after: front[0].after };
+}
+
+/**
+ * THE WEIGHT A TIE GOES TO: the one the player chose at Tamsin's, else the one the hero already wears most, else the one her board and her first card call right for the way it fights
+ * (hunt-tutorial.js WEIGHT_FOR_ROLE). So Equip upgrades never leaves a hero bare for want of a choice nobody asked for. Pure.
+ */
+export function preferredWeight(chosen, equipment, role) {
+  return chosen || wornWeightOf(equipment || {}) || WEIGHT_FOR_ROLE[role] || null;
 }
 
 /**

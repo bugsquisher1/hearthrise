@@ -39,15 +39,15 @@
 // real time says; a tab closed with no goodbye right after one reports the skipped stretch too. No real clock can do that: a stamp is
 // never older than the absence it reports plus the renewal below, and its time and its numbers are the same stamp's.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.89';
-import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.89';
-import { nameOf } from '../session/item-sections.js?v=0.2.89';
-import { huntName } from '../session/party-sections.js?v=0.2.89';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.89';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.89';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.89';
-import { whole } from '../render/format.js?v=0.2.89';
-import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.89';
+import { levelOf } from '../session/character-sections.js?v=0.2.90';
+import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.90';
+import { nameOf } from '../session/item-sections.js?v=0.2.90';
+import { huntName } from '../session/party-sections.js?v=0.2.90';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.90';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.90';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.90';
+import { whole } from '../render/format.js?v=0.2.90';
+import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.90';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -159,6 +159,16 @@ export function markBack(cs, session) {
   if (typeof session !== 'string' || typeof cs.setResidue !== 'function') return false;
   const r = (cs.record && cs.record.residue && cs.record.residue.coach) || {};
   return r.back === session ? false : cs.setResidue('coach', Object.assign({}, r, { back: session }));
+}
+
+/**
+ * A RETURN NO STAMP COVERS (played 2026-11-04: "Your hero just ate" over a hunt ten hours old, the first thing the return said): this page's first read of a hunt it never stamped (a tab killed
+ * seconds after Enter), already older than the shortest absence the line speaks of. There are no numbers to tell, but its just-now cards are old, so they stand aside as on any return.
+ */
+export function backWithNoStamp(cs) {
+  const h = huntOf(cs), was = stampOf(cs), a = analyzerOf(cs);
+  if (!h || h.ended || (was && was.s === h.sessionId) || !a || !Number.isFinite(a.sessionMs) || a.sessionMs < AWAY_MIN_MS) return false;
+  return markBack(cs, h.sessionId);
 }
 
 /**

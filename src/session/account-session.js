@@ -49,15 +49,15 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.89';
-import { CharacterSession } from './character-session.js?v=0.2.89';
-import { TownPresence } from './town-presence.js?v=0.2.89';
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.89';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.89';
-import { assignmentOf } from './party-sections.js?v=0.2.89';
-import { benchJobOver } from './bench-sections.js?v=0.2.89';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.89';
-import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.89';
+import { SESSION_CONFIG } from './config.js?v=0.2.90';
+import { CharacterSession } from './character-session.js?v=0.2.90';
+import { TownPresence } from './town-presence.js?v=0.2.90';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.90';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.90';
+import { assignmentOf } from './party-sections.js?v=0.2.90';
+import { benchJobOver } from './bench-sections.js?v=0.2.90';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.90';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.90';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
@@ -390,6 +390,9 @@ export class AccountSession {
     cs.subscribe((s) => this._noteStorage(s));
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
+    /* THE SERVER NO LONGER HOLDS A HERO THIS TAB WAS PLAYING: it closes here, and nothing it had pending reaches whatever hero stands in that slot
+       next (CharacterSession.close drops it). A first read's empty answer has no record yet, and _open itself answers that one. */
+    cs.subscribe((s, why) => { if (why === 'empty' && s.record && this._chars.get(slot) === s) { this.close(slot); this._emit('hero-gone', slot); } });
     this._emit('opening', slot);   // watchers (the alerts) hear the first load's events too
     /* THE ROSTER JUST READ THIS HERO (hr_load, whole): its answer is the first read, spent once, while it is seconds old (a list
        left standing reads again). The join's hello below still settles and re-reads, so nothing is older than it was. */

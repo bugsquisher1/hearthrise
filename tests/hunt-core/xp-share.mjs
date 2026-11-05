@@ -45,7 +45,7 @@ function away(M, fx, xpMultOf, awayFlag) {
 /* THE DESIGNER'S TABLE (2026-11-01): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
 const PARTY_TABLE = {
   mill_cellar: { 2: [1000, 1070], 3: [1000, 1120, 1180], 4: [1000, 1250, 1270, 1400] },
-  meadowbrook_thicket: { 2: [980, 1290], 3: [970, 1180, 1310], 4: [995, 1210, 1260, 1300] },
+  meadowbrook_thicket: { 2: [980, 1290], 3: [970, 1180, 1310], 4: [1000, 1210, 1260, 1300] },
   wickstead: { 2: [880, 1070], 3: [970, 1160, 1220], 4: [970, 1200, 1240, 1270] },
   mosslight_glade: { 2: [960, 1180], 3: [1000, 1300, 1400], 4: [1000, 1200, 1290, 1320] },
   millrace_sewer: { 2: [800, 1000], 3: [800, 1050, 1100], 4: [800, 1050, 1100, 1180] },

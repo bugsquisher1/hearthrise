@@ -14,15 +14,15 @@
 // Stats the engine does not have (leech, element protections, a character
 // XP bar) have no line at all.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.89';
-import { characterSheetOf, heroVitalsOf } from '../../../session/character-sections.js?v=0.2.89';
-import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.89';
-import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.89';
-import { roleIdOf } from '../../../session/party-sections.js?v=0.2.89';
-import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.89';
-import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.89';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.89';
-import { combatLedger } from '../skills.js?v=0.2.89';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.90';
+import { characterSheetOf, heroVitalsOf } from '../../../session/character-sections.js?v=0.2.90';
+import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.90';
+import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.90';
+import { roleIdOf } from '../../../session/party-sections.js?v=0.2.90';
+import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.90';
+import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.90';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.90';
+import { combatLedger } from '../skills.js?v=0.2.90';
 
 /* [key, label] of each number line; a line shows only when its value exists. */
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);
@@ -110,9 +110,9 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   line(root, '[data-combat="accuracy"]', c && c.accuracyPct !== null ? c.accuracyPct + '% against no armor' : null);
   line(root, '[data-combat="crit"]', c && c.critPct !== null ? c.critPct + '%' : null);
   line(root, '[data-combat="defence"]', c && c.defence !== null ? whole(c.defence) : null);
-  /* The armour's mitigation (ruling K7), the engine's numbers at this Level. */
-  line(root, '[data-combat="dodge"]', c && c.dodgePct !== null ? c.dodgePct + '% of blows' : null);
-  line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '% of each blow' : null);
+  /* The armour's mitigation (ruling K7), the engine's numbers against a monster of this Level: a stronger one gets through more. */
+  line(root, '[data-combat="dodge"]', c && c.dodgePct !== null ? c.dodgePct + '% of blows at your Level' : null);
+  line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '% of each blow at your Level' : null);
   line(root, '[data-combat="ward"]', c && c.ward !== null ? whole(c.ward) + ' off each blow' : null);
   const wait = root.querySelector('.hw-cs-wait');
   text(wait, !sh ? '' : c ? '' : 'Working out your combat numbers…');

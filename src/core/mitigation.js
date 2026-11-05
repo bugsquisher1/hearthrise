@@ -9,17 +9,19 @@
 //   ward     = floor(Pl x ward.perPointPm / 1000)                 Pl = light armour value
 //   keepPm   = the least permille of a LANDED blow that reaches past absorb and ward, so that
 //              (1000 - dodgePm) x keepPm / 1000 >= 1000 - capPm: the total cap over the chain.
-//   L = the hero's Level. Every number is src/data/core-model.js ARMOUR_MITIGATION.
+//   L = the ATTACKER's level (Tyler 2026-11-04, "just simply harder": stats against stats, no hero Level anywhere in a blow).
+//   A hard monster's blow gets through low armor more; a weak one's barely does. Every number is src/data/core-model.js ARMOUR_MITIGATION.
 //
 // The order a blow at a hero takes (src/core/hunt/damage.js landHit + hurt): dodge, absorb,
 // resistances, ward, then the spell shield and HP. DERIVED, NEVER STORED: the settle writes the
-// profile onto the hero's unit at every swing boundary (combat-sim.js syncUnit) from the same
-// gear and Level the server holds; the character sheet shows the same numbers.
+// armour VALUES onto the hero's unit at every swing boundary (combat-sim.js syncUnit) from the gear
+// the server holds, and each blow prices them against its own attacker (damage.js armourVs). The
+// character sheet shows the profile against a monster of the hero's own Level.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ARMOUR_WEIGHT, ARMOUR_MITIGATION } from '../data/core-model.js?v=0.2.89';
+import { ARMOUR_WEIGHT, ARMOUR_MITIGATION } from '../data/core-model.js?v=0.2.90';
 
 const nat = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
 
@@ -41,7 +43,7 @@ const curve = (row, p, level) => (p > 0 ? Math.floor((row.maxPm * p) / (p + row.
 export const NO_MITIGATION = Object.freeze({ dodgePm: 0, absorbPm: 0, ward: 0, keepPm: 0 });
 
 /**
- * The mitigation profile of a hero wearing `values` (armourValues) at Level `level`:
+ * The mitigation profile of armour `values` (armourValues) against an attacker of level `level`:
  * { dodgePm, absorbPm, ward, keepPm }. keepPm 0 = no floor needed (nothing to cap).
  */
 export function mitigationOf(values, level) {
@@ -58,7 +60,7 @@ export function mitigationOf(values, level) {
   return Object.freeze({ dodgePm, absorbPm, ward, keepPm });
 }
 
-/** The profile of `equipment` at Level `level` (the one call the settle and the sheet make). */
+/** The profile of `equipment` against an attacker of level `level`. */
 export function mitigationFor(equipment, items, level) {
   return mitigationOf(armourValues(equipment, items), level);
 }

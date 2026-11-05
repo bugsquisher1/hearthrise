@@ -16,20 +16,20 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.89';
-import { ABILITIES } from '../data/abilities.js?v=0.2.89';
-import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.89';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.89';
-import { STATUSES } from '../data/statuses.js?v=0.2.89';
-import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.89';
-import { ITEMS } from '../data/items.js?v=0.2.89';
-import { isRune } from '../data/supplies.js?v=0.2.89';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.89';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.89';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.89';
-import { shortOf } from './item-lore.js?v=0.2.89';
-import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.89';
-import { whole } from '../render/format.js?v=0.2.89';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.90';
+import { ABILITIES } from '../data/abilities.js?v=0.2.90';
+import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.90';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.90';
+import { STATUSES } from '../data/statuses.js?v=0.2.90';
+import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.90';
+import { ITEMS } from '../data/items.js?v=0.2.90';
+import { isRune } from '../data/supplies.js?v=0.2.90';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.90';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.90';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.90';
+import { shortOf } from './item-lore.js?v=0.2.90';
+import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.90';
+import { whole } from '../render/format.js?v=0.2.90';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));

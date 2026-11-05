@@ -30,25 +30,25 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.89';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.89';
-import { runIntent } from '../../intent-words.js?v=0.2.89';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.89';
-import { gold } from '../../../render/format.js?v=0.2.89';
-import { itemName } from '../../widgets/bits.js?v=0.2.89';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.89';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.89';
-import { offerForSale } from '../market/state.js?v=0.2.89';
-import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.89';
-import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.89';
-import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.89';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.89';
-import { askElsewhere } from './elsewhere.js?v=0.2.89';
-import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.89';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.89';
-import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.89';
-import { wearBlock } from '../../gear-gate.js?v=0.2.89';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.89';
+import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.90';
+import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.90';
+import { runIntent } from '../../intent-words.js?v=0.2.90';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.90';
+import { gold } from '../../../render/format.js?v=0.2.90';
+import { itemName } from '../../widgets/bits.js?v=0.2.90';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.90';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.90';
+import { offerForSale } from '../market/state.js?v=0.2.90';
+import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.90';
+import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.90';
+import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.90';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.90';
+import { askElsewhere } from './elsewhere.js?v=0.2.90';
+import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.90';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.90';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.90';
+import { wearBlock } from '../../gear-gate.js?v=0.2.90';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.90';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -106,6 +106,14 @@ function say(st, repaint, msg, at) {
 }
 
 
+/* The equip, then the bar it left moves behind on (bar-assign.js). The gear changed either way; a bar the server would not restate is the answer the window's line says. */
+async function equipAndTidy(cs, ops) {
+  const ans = await cs.edgeIntent('equip', { equip: ops });
+  if (!ans || !ans.ok) return ans;
+  const tidied = await tidyBarAfterSwap(cs, ops);
+  return tidied && !tidied.ok ? tidied : ans;
+}
+
 /** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent, unless the server's sections
     already say it would be refused (gear-gate.js: a hunt running, a requirement unmet), which is said instead. From
     the press until the server's envelope lands, the slot and the stack moving carry the pending mark (`sc.wearing`,
@@ -120,7 +128,7 @@ function wear(st, repaint, slot, id, at) {
   const said = id ? styleWords(st.eq, ops) : null;
   sc.wearing = { slots: [slot], items: id ? [id] : [] };
   return send(st, repaint, async () => {
-    try { return await st.cs.edgeIntent('equip', { equip: ops }); } finally { sc.wearing = null; }
+    try { return await equipAndTidy(st.cs, ops); } finally { sc.wearing = null; }
   /* a new way to fight is said on the window's own line: the stack the press was on has left the bag */
   }, id ? 'Equipping…' : 'Taking it off…', said ? () => said : null, said ? null : at);
 }

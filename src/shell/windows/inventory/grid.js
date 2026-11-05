@@ -18,24 +18,24 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.89';
-import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.89';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.89';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.89';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.89';
-import { whole, gold } from '../../../render/format.js?v=0.2.89';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.89';
-import { glyphSvg } from '../../launcher.js?v=0.2.89';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.89';
-import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.89';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.89';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.89';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.89';
-import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.89';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.89';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.89';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.89';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.89';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.90';
+import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.90';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.90';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.90';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.90';
+import { whole, gold } from '../../../render/format.js?v=0.2.90';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.90';
+import { glyphSvg } from '../../launcher.js?v=0.2.90';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.90';
+import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.90';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.90';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.90';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.90';
+import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.90';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.90';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.90';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.90';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.90';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
@@ -44,11 +44,11 @@ export const KEYS = '/ search · arrows move · Enter use · Space select · Del
 
 /** The toolbar across the window (tabs, search, sort, categories). */
 export function toolbarHtml(g) {
-  return '<div class="hw-tabs" role="tablist">'
+  return '<div class="hw-inv-head"><div class="hw-tabs" role="tablist">'
     + '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="bag" aria-selected="true">Bag</button>'
     + '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="hunt" aria-selected="false">This hunt</button></div>'
     + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Find an item" aria-label="Find an item" autocomplete="off"></span>'
-    + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
+    + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>';
 }
 

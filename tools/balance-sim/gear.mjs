@@ -9,7 +9,7 @@
 // ladder id, or a ladder row nobody can obtain at tier 1) falls back to the start kit's piece of the same family.
 //
 // `tierOffset` (-1 = one tier behind on that slot group) and `only` (which slot group the offset moves:
-// 'weapon' | 'armour' | 'body' | 'shield' | 'all') let a cell measure one upgrade step with everything else equal
+// 'weapon' | 'armour' | any one armour slot | 'shield' | 'all') let a cell measure one upgrade step with everything else equal
 // (the ruling's weapon and armour targets, §8-§9).
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -96,7 +96,7 @@ export async function loadGear(root) {
     if (opts.noArmour !== true) {
       const line = opts.line || S.line;
       for (const slot of opts.armourSlots || ARMOUR_SLOT_KEYS) {
-        const o = slot === 'body' ? off('body') || off('armour') : off('armour');
+        const o = off(slot) || off('armour');
         const id = pick(armourLadder(line, slot), L, o, null);
         if (id) set[slot] = id;
       }

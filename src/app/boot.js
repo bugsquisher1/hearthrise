@@ -35,36 +35,36 @@
 // retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.89';
-import { createBootTiming } from '../net/boot-timing.js?v=0.2.89';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.89';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.89';
-import { createServerLink } from '../session/server.js?v=0.2.89';
-import { AccountSession } from '../session/account-session.js?v=0.2.89';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.89';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.89';
-import { mountWorldPane } from './world-pane.js?v=0.2.89';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.89';
-import { renderHeroCreate } from './hero-create.js?v=0.2.89';
-import { renderClosedNotice } from './closed-notice.js?v=0.2.89';
-import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.89';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.89';
-import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.89';
-import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.89';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.89';
-import { SocialSession } from '../social/social-session.js?v=0.2.89';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.89';
-import { startObservability, track, trackOnce } from '../net/observability.js?v=0.2.89';
-import { loadGlyphs } from './glyphs-loader.js?v=0.2.89';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.89';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.89';
-import { mountOffWhy } from '../shell/off-why.js?v=0.2.89';
-import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.89';
-import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.89';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.89';
-import { mountNewVersion } from './new-version.js?v=0.2.89';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.89';
-import { coachFactsOf } from '../shell/launcher.js?v=0.2.89';
+import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.90';
+import { createBootTiming } from '../net/boot-timing.js?v=0.2.90';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.90';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.90';
+import { createServerLink } from '../session/server.js?v=0.2.90';
+import { AccountSession } from '../session/account-session.js?v=0.2.90';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.90';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.90';
+import { mountWorldPane } from './world-pane.js?v=0.2.90';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.90';
+import { renderHeroCreate } from './hero-create.js?v=0.2.90';
+import { renderClosedNotice } from './closed-notice.js?v=0.2.90';
+import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.90';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.90';
+import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.90';
+import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.90';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.90';
+import { SocialSession } from '../social/social-session.js?v=0.2.90';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.90';
+import { startObservability, track, trackOnce } from '../net/observability.js?v=0.2.90';
+import { loadGlyphs } from './glyphs-loader.js?v=0.2.90';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.90';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.90';
+import { mountOffWhy } from '../shell/off-why.js?v=0.2.90';
+import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.90';
+import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.90';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.90';
+import { mountNewVersion } from './new-version.js?v=0.2.90';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.90';
+import { coachFactsOf } from '../shell/launcher.js?v=0.2.90';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -178,7 +178,7 @@ function startApp(win) {
     /* the town's sheets likewise (src/world/prewarm.js): a cold Play after a release no longer waits for 2.5 MB */
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
-    import('../world/prewarm.js?v=0.2.89').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
+    import('../world/prewarm.js?v=0.2.90').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
     /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that */
     const tokenForCall = async () => { const t = await auth.freshToken(); timing.sending(); return t; };
     const server = createServerLink({ url: SUPABASE_CONFIG.url, publishableKey: SUPABASE_CONFIG.publishableKey, token: tokenForCall, renew: auth.renewToken, watch: connection,
@@ -188,6 +188,7 @@ function startApp(win) {
     account.subscribe((why) => {
       if (why === 'closed-game') showClosed();
       else if (why === 'viewed' && strip) showPane();
+      else if (why === 'hero-gone') showCharacters();   // a tab left open while the server let that hero go: the list, not a dead game
     });
     account.setPageHidden(doc.hidden);   // opened behind another tab: visibilitychange has nothing to say yet
     alerts = createAlertCenter(account);
@@ -200,17 +201,25 @@ function startApp(win) {
   }
 
   /* `was`: what this tab had open before a reload ({ slots, viewed }): once the roster is read, those heroes reopen and
-     the shown one is shown, with no list drawn; if the shown one does not load (the server no longer holds it), the list. */
-  async function showCharacters(note, was) {
-    clear();
-    obs.screen('characters');
-    root.className = 'app is-auth';
-    root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
-      + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
+     the shown one is shown, with no list drawn; if the shown one does not load (the server no longer holds it), the list.
+     `inPlace`: the list stays up while it is re-read and the note says the answer at once (a bought slot: the screen read
+     only "Reading your characters…" for 2.5 s, with no word that the gold had gone, and a player may press again). */
+  async function showCharacters(note, was, inPlace) {
+    if (inPlace) sayOnCard(note);
+    else {
+      clear();
+      obs.screen('characters');
+      root.className = 'app is-auth';
+      root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
+        + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
+    }
     const a = account;
+    const seq = paneSeq;
     const read = await a.roster();
     timing.read();
-    if (a !== account || a.closedGame) return;
+    if (inPlace) slotBuying = false;
+    /* a row stays pressable while the list re-reads: that press's screen wins */
+    if (a !== account || a.closedGame || seq !== paneSeq) return;
     roster = read;
     rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
     /* funnel: an account that got this far and has no hero yet is a new sign-up (telemetry only; the form itself has no account id to send under) */
@@ -255,17 +264,23 @@ function startApp(win) {
     if (m && account) m.innerHTML = slotOfferHtml(account.slotOffer, roster, { pending: slotBuying });
   }
 
+  /* The characters card's answer line. */
+  function sayOnCard(note) {
+    const m = root.querySelector('.auth-message');
+    if (m) { m.classList.add('is-good'); m.textContent = note; }
+  }
+
   /* ONE purchase from the account's gold (`actor`: the hero the journal names): the button is off until the
-     server answers; a yes re-reads the roster from the server. */
+     server answers and, on a yes, until the roster is re-read from the server. */
   async function buySlot(slotId, actor) {
     if (slotBuying || !account || !Number.isInteger(slotId) || !Number.isInteger(actor)) return;
     const a = account;
     slotBuying = true;
     drawSlotOffer();
     const r = await a.buySlot(slotId, actor);
+    if (a !== account || a.closedGame) { slotBuying = false; return; }
+    if (r.ok) { track('hero_slot_bought'); await showCharacters('Hero slot bought. Create your new hero in it.', null, true); return; }
     slotBuying = false;
-    if (a !== account || a.closedGame) return;
-    if (r.ok) { track('hero_slot_bought'); await showCharacters('Hero slot bought. Create your new hero in it.'); return; }
     drawSlotOffer();
     const m = root.querySelector('.auth-message');
     if (m) { m.classList.remove('is-good'); m.textContent = slotRefusalText(r); }

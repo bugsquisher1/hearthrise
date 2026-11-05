@@ -22,6 +22,7 @@
 //   risk-ladder    THE RISK IS THE MONSTERS (Tyler 2026-11-04): in range is safe; on a harder ground a hero earns well over the ground that fits and its supply bill follows, an unready hero dies and
 //                  a built one holds, with no rule behind any of it (hunt-core/damage.mjs same-blow-at-any-level); a watched hunt and a closed browser die alike; a Level 1 behind high friends earns
 //                  next to nothing, and a party that pushes together is paid in full.
+//   armor-rungs    balance ruling 2026-10-25 §9: every armor rung on its own ground, exact: each weight's mean piece takes 3-5% off what reaches HP, and only the cloth pieces named here stand still.
 //   vs-alone       the Party window's measured line against a full mix on two grounds.
 //   weapon-rungs   the hammer's and the hatchets' tier 2 and tier 3 each pay at least +5% Level XP an hour over the tier behind, on the first ground the rung is worn for.
 //   glade-harder   Tyler's harder monsters (accuracy 0.80), both paths: felt at the floor, no death, profit, pace, the top eases, a held pull pays.
@@ -146,20 +147,43 @@ cases['risk-ladder'] = (R) => {
   if (!(poor.deaths >= 3)) return 'fifteen Levels under the Glade the practice set died ' + poor.deaths + ' time(s) in an hour (typical ' + poor.encMinHpPct.p50 + '%)';
   if (built.deaths) return 'ten Levels under the Glade a built hero died ' + built.deaths + ' time(s): the build no longer changes the outcome';
   if (!(built.eatsPerH.own >= 20 && built.eatsPerH.own > builtFits.eatsPerH.own * 3)) return 'a built hero ate ' + built.eatsPerH.own + ' of its own meals an hour above its level, ' + builtFits.eatsPerH.own + ' on the ground that fits';
+  /* ARMOR READS WHO STRUCK, ON THE DEFAULT FOOD (2026-11-04; the hero who never touched its bar): three pieces of bronze pay at the Glade's floor and lose gold ten Levels under it; a curve on the hero's own Level paid there. BOTH PATHS. */
+  const SHRIMP = { gear: AVERAGE.gear, startBar: true };
+  const [pushed] = play('mosslight_glade', ['tank'], 6, SHRIMP), [floor] = play('mosslight_glade', ['tank'], 16, SHRIMP);
+  if (!(pushed.profitPerH < 0)) return 'ten Levels under the Glade on the default food nets ' + pushed.profitPerH + ' g/h: a push pays for itself';
+  if (!(floor.raw.income >= 1.25 * floor.raw.store)) return 'at the Glade\'s floor on the default food coin and commons are ' + floor.incomePerH + ' g/h against ' + floor.storePerH + ': under +25%';
+  const [armoredView] = play('mosslight_glade', ['tank'], 10, SHRIMP, { windowMs: 10000 }), [armoredClosed] = play('mosslight_glade', ['tank'], 10, SHRIMP, { windowMs: 600000 });
+  for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (armoredView[k] !== armoredClosed[k]) return 'armored, ' + k + ': viewed ' + armoredView[k] + ', browser closed ' + armoredClosed[k];
   /* BOTH PATHS: the same hero dies on the same swings, watched or not. */
   const [viewed] = play('mosslight_glade', ['tank'], 1, { gear: STARTER }, { windowMs: 10000 }), [closed] = play('mosslight_glade', ['tank'], 1, { gear: STARTER }, { windowMs: 600000 });
   for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (viewed[k] !== closed[k]) return k + ': viewed ' + viewed[k] + ', browser closed ' + closed[k];
   /* THE LEVEL SHARE, NOT A BLOCK: a Level 1 walks in behind three Level 37s and takes next to nothing; a party under the floor together is paid as one. */
-  const [t37, , , low] = play('coppercap_warrens', ['tank', 'healer', 'mage', 'bow'], [37, 37, 37, 1], {}, { gearBySeat: [{}, {}, {}, STARTER] });
-  if (!(low.levelXpPerH < t37.levelXpPerH * 0.05)) return 'a Level 1 behind three Level 37s earns ' + low.levelXpPerH + ' XP/h against their ' + t37.levelXpPerH;
+  const [t37, , , lone] = play('coppercap_warrens', ['tank', 'healer', 'mage', 'bow'], [37, 37, 37, 1], {}, { gearBySeat: [{}, {}, {}, STARTER] });
+  if (!(lone.levelXpPerH < t37.levelXpPerH * 0.05)) return 'a Level 1 behind three Level 37s earns ' + lone.levelXpPerH + ' XP/h against their ' + t37.levelXpPerH;
   const [, , , lowClosed] = play('coppercap_warrens', ['tank', 'healer', 'mage', 'bow'], [37, 37, 37, 1], {}, { gearBySeat: [{}, {}, {}, STARTER], windowMs: 600000 });
-  if (lowClosed.levelXpPerH !== low.levelXpPerH) return 'the low seat earns ' + low.levelXpPerH + ' XP/h viewed, ' + lowClosed.levelXpPerH + ' with the browser closed';
+  if (lowClosed.levelXpPerH !== lone.levelXpPerH) return 'the low seat earns ' + lone.levelXpPerH + ' XP/h viewed, ' + lowClosed.levelXpPerH + ' with the browser closed';
   const pushers = play('coppercap_warrens', ['tank', 'healer', 'mage', 'bow'], 29, BUILT);
   const most = Math.max(...pushers.map((h) => h.levelXpPerH));
   if (pushers.some((h) => h.deaths === 0 && Math.abs(h.levelXpPerH - most) > most * 0.02)) return 'a party that pushes together is paid unevenly: ' + pushers.map((h) => h.levelXpPerH).join(', ');
   const [, , , near] = play('coppercap_warrens', ['tank', 'healer', 'mage', 'bow'], [37, 37, 37, 25], {}, {});
   if (Math.abs(near.levelXpPerH - t37.levelXpPerH) > t37.levelXpPerH * 0.1) return 'a Level 25 with Level 37s is cut, inside the range: ' + near.levelXpPerH + ' XP/h against ' + t37.levelXpPerH;
   if (G.underFloorSharePm(G.OPEN_GROUNDS.coppercap_warrens, 1, 37) >= 10 || G.underFloorSharePm(G.OPEN_GROUNDS.mill_cellar, 1, 37) !== 1000) return 'the share reads ' + G.underFloorSharePm(G.OPEN_GROUNDS.coppercap_warrens, 1, 37) + ' on the Warrens, ' + G.underFloorSharePm(G.OPEN_GROUNDS.mill_cellar, 1, 37) + ' on a ground in range';
+  return null;
+};
+
+/* A MEANINGFUL ARMOR UPGRADE IS 3-5% LESS ACTUAL INCOMING DAMAGE (balance ruling 2026-10-25 §9). The unit is a piece a player finds, so the bar reads a rung's mean piece on its own ground. Plate's first rung on the Glade reads 5.1 and
+   stays under 5.5. Cloth is over the band on its second rung and stays: its flat ward is worth more against bigger blows, and that step lands it level with leather on its own ground (board 2026-11-05). */
+const RUNG_BAR = Object.freeze({ plate: [3, 5.5], leather: [3, 5.5], cloth: [3, 9.5] });
+const STANDS_STILL = Object.freeze(['cloth:1:boots', 'cloth:1:gloves', 'cloth:1:belt']);
+cases['armor-rungs'] = (R) => {
+  const rows = R.armorRungs();
+  if (rows.length !== 15) return 'the rungs read ' + rows.length + ' rows, not 15';
+  for (const r of rows) {
+    const tag = r.line + ' tier ' + r.from + ' to ' + r.to + ' on ' + r.ground;
+    if (r.mean < RUNG_BAR[r.line][0] || r.mean > RUNG_BAR[r.line][1]) return tag + ': the mean piece takes ' + r.mean + '% off, outside ' + RUNG_BAR[r.line].join('-') + '%';
+    if (!(r.set > r.mean * 2)) return tag + ': the whole set takes ' + r.set + '% off against a piece\'s ' + r.mean + '%';
+    for (const [slot, pct] of Object.entries(r.pieces)) if (!(pct > 0) && !STANDS_STILL.includes(r.line + ':' + r.from + ':' + slot)) return tag + ': the ' + slot + ' stops no more damage than the tier below';
+  }
   return null;
 };
 
@@ -191,6 +215,12 @@ cases['vs-alone'] = (R) => {
     const each = hs.reduce((s, h) => s + h.levelXpPerH, 0) / hs.length, alone = MIX.reduce((s, x) => s + lone(g, x, L), 0) / MIX.length;
     const got = Math.round((each / alone - 1) * 100), said = PCX.partyVsAlone(g, roles);
     if (Math.abs(got - said) > 10) return g + ': a full mix measures ' + got + '% against alone, and the Party window says ' + said + '%';
+  }
+  /* A THICKET FOUR OF ONE ROLE READS ITS OWN LINE (ONE_ROLE_VS_ALONE; CLAUDE.md §6), played on the two that sit furthest apart: a four of wands over solo, a four of shields under. */
+  for (const s of ['mage', 'tank']) {
+    const cell = (party) => R.runCell({ id: 'va1:' + party.length + ':' + s, ground: 'meadowbrook_thicket', party, level: 10, hours: HOURS, seeds: 2, windowMs: 120000 });
+    const got = Math.round((cell(Array(4).fill(s)).party.levelXpPerHeroPerH / cell([s]).heroes[0].levelXpPerH - 1) * 100), said = PCX.partyVsAlone('meadowbrook_thicket', Array(4).fill(s));
+    if (Math.abs(got - said) > 5) return 'a Thicket four of ' + s + ' measures ' + got + '% against alone, and the Party window says ' + said + '%';
   }
   return null;
 };
@@ -236,17 +266,24 @@ const GLADE_SOFT = [['hp: 30, atk: 10, baseAcc: 0.8, def: 1, xp: 165', 'hp: 30, 
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
     edits: [['src/core/combat.js', 'const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;', 'const base = b.monsterBaseAccuracy;'], ...GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2')])] },
+  { name: 'armor reads the hero\'s Level again: a push on the default food pays for itself', case: 'risk-ladder',
+    edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? monsterLevelOf(MONSTERS[source.kind]) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
+  { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/items.js', "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},", "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},"]] },
+  { name: 'leather is thin as cloth: its rungs stop being worth finding', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "{ key: 'leather', vmul: 0.70, defMul: 0.55,", "{ key: 'leather', vmul: 0.70, defMul: 0.25,"]] },
+  { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "def: [6, 12, 22, 34, 50, 68, 90], bars: 5,", "def: [6, 6, 22, 34, 50, 68, 90], bars: 5,"]] },
   { name: 'the level share is gone: a Level 1 earns what its friends earn', case: 'risk-ladder', edits: [['src/core/hunt/xp-share.js', 'const seat = underFloorSharePm(ground, h.heroLv, top);', 'const seat = 1000;']] },
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
   { name: 'the Thicket pays the old 1.52 on its wider pull, and the window still says 20%', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1520])']] },
+    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1520])']] },
   { name: 'the Iron Warhammer is back at 7/12: its upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:12},"]] },
   { name: 'the Steel Warhammer is back at 9/19: over the Iron it pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 19, 28, 39, 52, 68],']] },
   { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 18, 25, 33, 42], str: [4, 11, 14, 16, 22, 29, 38],', 'atk: [4, 7, 14, 18, 25, 33, 42], str: [4, 7, 14, 16, 22, 29, 38],']] },
+  { name: 'a Thicket four of one weapon is paid 0.85, and the window still tells a four of wands it earns more than alone', case: 'vs-alone',
+    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [850, 1210, 1260, 1300])']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',

@@ -88,7 +88,7 @@ declare
     'hr_hunt_abilities', 'hr_hunt_action_ids', 'hr_hunt_basic_supplies', 'hr_hunt_condition_limits', 'hr_hunt_condition_metrics', 'hr_hunt_config',
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
     'hr_hunt_resumable_kinds', 'hr_hunt_role_rules', 'hr_hunt_roles', 'hr_hunt_roster', 'hr_hunt_set_options', 'hr_hunt_shields', 'hr_hunt_spawns',
-    'hr_hunt_stances', 'hr_hunt_supplies', 'hr_hunt_target_modes', 'hr_hunt_travel', 'hr_hunt_vendor_value', 'hr_hunt_weapon_roles', 'hr_hunt_weapons',
+    'hr_hunt_stances', 'hr_hunt_supplies', 'hr_hunt_target_modes', 'hr_hunt_tiers', 'hr_hunt_travel', 'hr_hunt_vendor_value', 'hr_hunt_weapon_roles', 'hr_hunt_weapons',
     'hr_hunt_world_shape', 'hr_hunts', 'hr_item_buffs', 'hr_item_slots', 'hr_items', 'hr_ledger_config', 'hr_level_curve', 'hr_market_config',
     'hr_market_premium_items', 'hr_name_blocklist', 'hr_outfit_dyes', 'hr_outfits', 'hr_players_online_cache', 'hr_plot_tier', 'hr_premium_login_reward',
     'hr_qm_offers', 'hr_room_perks', 'hr_runes', 'hr_server_secrets', 'hr_settings', 'hr_shop_supply_offers', 'hr_skill_curve', 'hr_skills',

@@ -3,7 +3,7 @@
 -- one file, never inside begin/commit. Pre-EA (CLAUDE.md §2): applies on its passing §6; on the EA Security list (a new client verb, a client verb gone, a value bound's input moves).
 -- Design and measurements: docs/planning/PRIORITY_BOARD.md "2026-11-05 Difficulty tiers". BEFORE its client half. The engine half reads options.tier and plays Normal without it, so either order is safe.
 --
--- §1 hr_hunt_tiers NEW, the server's catalogue of a ground's harder tiers (src/data/hunt-tiers.js, tests/hunt-tiers.mjs holds the two equal). No foreign key: the hunt-sessions catalogue deletes and rewrites
+-- §1 hr_hunt_tiers NEW, the server's catalogue of a ground's harder tiers (src/data/hunt-tiers.js, tests/hunt-core/hunt-tiers.mjs holds the two equal). No foreign key: the hunt-sessions catalogue deletes and rewrites
 --    hr_hunt_grounds, and a cascade would silently take a ground's tiers with it. No row = that tier is not offered there. Normal is no row: the ground as it stands.
 --    hunt_density.tier NEW: the hero's pick per ground ('normal' until pressed). hunt_density.density no longer means anything: hr_hunt_enter_for still writes its 0, the column goes with that body's next restatement.
 --    hunt_instances.tier NEW: the tier the instance froze, beside hunt_instances.density, the pull it froze with it.
@@ -56,7 +56,7 @@ create table if not exists public.hr_hunt_tiers (
 alter table public.hr_hunt_tiers enable row level security;
 revoke all on public.hr_hunt_tiers from public, anon, authenticated, service_role;
 comment on table public.hr_hunt_tiers is
-  '2027-02-27-hunt-tiers.sql: the harder tiers a ground offers (src/data/hunt-tiers.js; tests/hunt-tiers.mjs holds the two equal). Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
+  '2027-02-27-hunt-tiers.sql: the harder tiers a ground offers (src/data/hunt-tiers.js; tests/hunt-core/hunt-tiers.mjs holds the two equal). Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
 delete from public.hr_hunt_tiers;
 insert into public.hr_hunt_tiers (hunt_id, tier, pull, power_pm, xp_pm) values
   ('mosslight_glade', 'dangerous', '{4,5,5,6}'::int[], 1200, 1100),

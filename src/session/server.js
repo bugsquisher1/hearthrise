@@ -36,8 +36,8 @@
 // does not know).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.95';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.95';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.96';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.96';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;

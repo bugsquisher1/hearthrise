@@ -61,6 +61,18 @@ const cases = {
     M.abilities.castAbilities(inst, sc);
     return JSON.stringify(casts(sc)) === '["power_strike","cleave"]' ? null : 'at ' + lane + ' ms the lane did not reopen: ' + JSON.stringify(casts(sc));
   },
+  /* Tyler 2026-11-05: "if a mage and healer are using the same mana ... they are gaining the same exp ratios". A caster's own spells and both basics pay one rate. */
+  'a-mage-and-a-healer-train-alike': (M) => {
+    const physical = ['shield', 'sword', 'dual_axe', 'club', 'ranged'];
+    const own = (d) => Object.values(M.AD.ABILITIES).filter((r) => r.disciplines.includes(d) && !r.disciplines.some((x) => physical.includes(x)));
+    const mage = own('destruction'), healer = own('restoration');
+    if (!mage.length || !healer.length) return 'no caster spells read: mage ' + mage.length + ', healer ' + healer.length;
+    const rates = new Set([...mage, ...healer].map((r) => r.magicXpMult));
+    rates.add(M.HR.HUNT_ROLES.mage.basic.magicXpMult);
+    rates.add(M.HR.HUNT_ROLES.healer.basic.magicXpMult);
+    return rates.size === 1 ? null : 'Magic XP rates differ: ' + [...mage, ...healer].map((r) => r.id + ' ' + r.magicXpMult).join(', ')
+      + ', mage basic ' + M.HR.HUNT_ROLES.mage.basic.magicXpMult + ', healer basic ' + M.HR.HUNT_ROLES.healer.basic.magicXpMult;
+  },
   'cd-set': (M) => {
     const { h, inst, sc } = melee(M, ['power_strike']);
     steps(inst, sc, cast(M), 60, 0);
@@ -623,6 +635,10 @@ const cases = {
 };
 
 const mutants = [
+  { name: 'a healer spell trains Magic at another rate', case: 'a-mage-and-a-healer-train-alike',
+    edits: [['src/data/abilities.js', 'heal: [40, 60], whenBelowPct: 70, magicXpMult: 1600,', 'heal: [40, 60], whenBelowPct: 70, magicXpMult: 1200,']] },
+  { name: "a healer's basic trains Magic at another rate", case: 'a-mage-and-a-healer-train-alike',
+    edits: [['src/data/hunt-roles.js', "peel: 180,\n    basic: Object.freeze({ mana: 1, magicXpMult: 1600 }) }),", "peel: 180,\n    basic: Object.freeze({ mana: 1, magicXpMult: 1200 }) }),"]] },
   { name: 'the Mark rides the offense lane (audit c16)', case: 'support-lane',
     edits: [['src/data/abilities.js', "disciplines: ['ranged'], lane: 'support',", "disciplines: ['ranged'], lane: 'offense',"]] },
   { name: 'Arcane Barrier back on the heal lane', case: 'support-lane',

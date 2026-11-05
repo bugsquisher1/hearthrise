@@ -1,0 +1,36 @@
+{
+  "id": "havora_weighhouse_staked",
+  "class": "lot",
+  "style": "s1",
+  "material": "native",
+  "source": "havora_weighhouse_staked.png",
+  "frame": [
+    256,
+    256
+  ],
+  "anchor_px": [
+    128,
+    255
+  ],
+  "footprint": [
+    8,
+    6
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "cut",
+    "from": "common/havora_grass_earth",
+    "map": "53d53262-74ed-4f7d-a8d0-61000b251901,91df925a-d1cb-4bcf-b440-d39cbb9b0e9e,4589f28b-7358-49ee-90f8-0501f0ca0683",
+    "cost": 0
+  },
+  "notes": "Town Works stage 0, 0 gp (plan x94-101 y55-60): trodden earth cut from the havora_grass_earth tiles, rope and stakes with the plot's corners cut and a board with the scale painted on it, drawn in the palette. tools/world-art/weighhouse-art.mjs, no generation."
+}

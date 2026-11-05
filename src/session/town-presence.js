@@ -46,6 +46,7 @@
 // the World walks the hero there from where it is (me(), display only).
 // ════════════════════════════════════════════════════════════════════════
 import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.96';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.96';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -72,6 +73,8 @@ export function walkerOf(w) {
     role: typeof w.role === 'string' && ROLE.test(w.role) ? w.role : null,
     title: typeof w.title === 'string' && TITLE.test(w.title) ? w.title : null,
     colors: colorsOf(w.colors),
+    /* the same four as the look's key: dye indices only (src/world/hero-dye.js draws them from the token sheet), null when none */
+    dye: dyeKeyOf(w.colors),
     /* the outfit its character chose (player_outfits via hr_town_view), or null: the role's then */
     outfit: w.outfit && typeof w.outfit === 'object' && typeof w.outfit.id === 'string' && OUTFIT.test(w.outfit.id) ? w.outfit.id : null,
     x: w.x, y: w.y, gx: w.gx, gy: w.gy, dir: w.dir,

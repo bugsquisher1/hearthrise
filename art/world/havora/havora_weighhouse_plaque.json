@@ -1,0 +1,36 @@
+{
+  "id": "havora_weighhouse_plaque",
+  "class": "fixture",
+  "style": "s1",
+  "material": "native",
+  "source": "havora_weighhouse_plaque.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "cut",
+    "from": "havora_weighhouse_finished",
+    "image": "e91449b6-0c23-43c1-aa89-de08c36fb97b",
+    "cost": 0
+  },
+  "notes": "The Town Works plaque (plan 103, 53): a gold board in a bronze frame, the top givers' names engraved, drawn in the palette, on a post and stone foot cut from the finished Weighhouse. tools/world-art/weighhouse-art.mjs, no generation."
+}

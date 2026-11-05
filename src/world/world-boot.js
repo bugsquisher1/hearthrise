@@ -50,7 +50,8 @@ import { createWalkScene } from './walk-scene.js?v=0.2.96';
 import { createTownZoom } from './town-zoom.js?v=0.2.96';
 import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.96';
 import { runAction } from './steer-local.js?v=0.2.96';
-import { heroSprite } from '../session/hero-look.js?v=0.2.96';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.96';
+import { heroDyeOf } from './hero-dye.js?v=0.2.96';
 import { keyBelongsToField } from '../utils/dom.js?v=0.2.96';
 import { homeOf } from '../session/home-sections.js?v=0.2.96';
 import { skillsOf } from '../session/item-sections.js?v=0.2.96';
@@ -164,7 +165,9 @@ export async function bootWorld(panel, opts) {
   /* A sprite no loaded atlas carries compiles as a one-tile stub, never a crash. */
   const tables = baseTables(book);
   const sheets = createSceneImages({ doc, version: BUILD.cache });
-  const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css, arrived: (set) => sheets.ready([set]) });
+  /* HEROES IN THEIR COLORS: the masks load on the first dyed hero in view, and at most 24 looks stay in memory (hero-dye.js) */
+  const dyes = heroDyeOf({ doc, version: BUILD.cache });
+  const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css, arrived: (set) => sheets.ready([set]), dyes });
   tokensChanged = () => backend.invalidate();
   const gridArt = createGridArt({ doc, version: BUILD.cache, tables, loadSet: loadAtlasSet });
   const artOf = (id) => gridArt.art(ROWS.get(id).grid);
@@ -301,7 +304,7 @@ export async function bootWorld(panel, opts) {
       const me = held && typeof town.me === 'function' ? town.me() : null;
       if (me && at && at[0] === me.x && at[1] === me.y && (me.x !== me.at[0] || me.y !== me.at[1])) walkStand = null;
       const mapSprites = (artOf(map.id) || { tables }).tables.sprites;
-      walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character) },
+      walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character), heroDye: () => heroDye(character) },
         sandboxExtras(map, mapSprites)));
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
@@ -313,9 +316,8 @@ export async function bootWorld(panel, opts) {
     const f = walk.frame(readEnv(map.kind), now);
     if (held && map.kind === 'town') {
       Object.assign(f, hearthState(map, f, now));
-      /* THE TOWN WORKS (town-works.js): an ambient row swapped by stage, the mechanism the Hearth's fire uses */
-      const works = townWorksSwap(map, town.extras());
-      if (works) f.ambientSwap = Object.assign({}, f.ambientSwap, works);
+      /* THE TOWN WORKS (town-works.js): a lot's art by the stage the server said */
+      f.objectSwap = townWorksSwap(map, town.extras());
       /* A ROUND'S FIREWORKS over Hearth Square (town-shows.js), from the server's answer */
       const round = showsView.frame(town.round(), now);
       if (round.length) f.fx = (f.fx || []).concat(round);
@@ -335,7 +337,8 @@ export async function bootWorld(panel, opts) {
       place: f.place,
       props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })),
       /* the Great Hearth's effects this frame (hearth-burn.js), for a test or a look */
-      hearth: { fx: (f.fx || []).map((e) => e.id), swap: f.ambientSwap || null, floats: (f.floats || []).map((x) => x.text) } };
+      hearth: { fx: (f.fx || []).map((e) => e.id), swap: f.ambientSwap || null, floats: (f.floats || []).map((x) => x.text) },
+      works: f.objectSwap || null };
   }
 
   /* ROUTE: which scene, and the HTML around it (title, picks, the unmapped-fight

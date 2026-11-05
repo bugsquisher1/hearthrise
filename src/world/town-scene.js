@@ -86,6 +86,8 @@ export function createTownCast(map, o) {
         const { anim, age } = walkClip(o.sprites[id], at, p.steer.restMs(now), pickFacing);
         units.push({
           id, x: onPixel(at.x), y: onPixel(at.y), dir: at.moving ? at.dir : p.dir, diag: at.moving ? at.diag : null, anim, age,
+          /* its own colors, as the server's walker named them (dye indices, src/world/hero-dye.js draws them) */
+          dye: p.w.dye,
           plate: { text: plateTextOf(p.w), kind: 'peer' },
           /* who this is, for the player menu: the server's account id and slot */
           ref: { player: { id: p.w.id, name: p.w.name, slot: p.w.slot } },

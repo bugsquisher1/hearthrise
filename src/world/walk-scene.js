@@ -41,9 +41,9 @@ const onPixelOf = (T) => (v) => Math.round(v * T) / T;
 
 /**
  * @param {object} map  compileMap() output (kind 'town' or 'home')
- * @param {{at?: [number, number]|null, sprites: object, openClasses: string[], maps: object, heroSprite?: () => string}} o
+ * @param {{at?: [number, number]|null, sprites: object, openClasses: string[], maps: object, heroSprite?: () => string, heroDye?: () => (string|null)}} o
  *   at: where the hero stood last on this map; maps: map rows by id (exits);
- *   heroSprite: the hero's outfit sprite id (src/session/hero-look.js), read every frame;
+ *   heroSprite: the hero's outfit sprite id (src/session/hero-look.js), read every frame; heroDye: its colors' key, the same;
  *   props: fixed props this scene adds to the map ([{id, x, y, ref, plate?}]: the sandbox signs,
  *   src/world/sandbox-scene.js), drawn like a home's furniture and never blocking a step;
  *   units(now): extra display-only units drawn with the scene's people (the sandbox's wanderer)
@@ -88,7 +88,7 @@ export function createWalkScene(map, o) {
       const heroId = (o.heroSprite && o.heroSprite()) || OUTFITS.knight;
       const { anim, age } = walkClip(o.sprites[heroId], at, steer.restMs(now), pickFacing);
       return {
-        hero: { id: heroId, x: hx, y: hy, dir: at.dir, diag: at.diag, anim, age },
+        hero: { id: heroId, dye: o.heroDye ? o.heroDye() : null, x: hx, y: hy, dir: at.dir, diag: at.diag, anim, age },
         camera: f ? { x: hx + (f[0] - hx) * CAMERA_LEAN, y: hy + (f[1] - hy) * CAMERA_LEAN } : null,
         units, bubbles: [], props: o.props && o.props.length ? props.concat(o.props) : props,
         mark: goal && goal.byTap ? { x: goal.x, y: goal.y } : null,

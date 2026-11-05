@@ -108,6 +108,10 @@ export function refusalText(r, cs) {
   if (r && r.error === 'setup_locked' && r.figures && Number.isInteger(r.figures.slots)) {
     return setupFullWords(r.figures.slots, Number.isInteger(r.figures.price) ? r.figures.price : null);
   }
+  /* A hero's colors past the row's cap (hr_hero_colors_set sends the number). */
+  if (r && r.error === 'colors_limit' && r.figures && Number.isInteger(r.figures.per_day)) {
+    return 'A hero can change colors ' + r.figures.per_day + ' times a day. More after midnight UTC.';
+  }
   /* A title short of its kills (hr_title_buy counts them): "Wolfer takes 5,000 wolves. Marlow has 3,214. Gold can't skip kills." */
   const title = r && typeof r.title === 'string' && own(TITLES, r.title) ? TITLES[r.title] : null;
   if (title && r.error === 'title_kills' && r.figures && Number.isInteger(r.figures.need) && Number.isInteger(r.figures.have)) {

@@ -21,13 +21,18 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD, HOW_YOU_FIGHT_SLOTS } from '../data/how-to-play.js?v=0.2.96';
-import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN } from '../data/outfits.js?v=0.2.96';
-import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.96';
+import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN, OUTFIT_ROWS } from '../data/outfits.js?v=0.2.96';
+import { OUTFITS, ROLE_OUTFIT } from '../data/hunt-outfits.js?v=0.2.96';
 import { refusalWords } from '../shell/intent-words.js?v=0.2.96';
+import { outfitArt, outfitMasks, drawOutfit } from '../render/outfit-sprite.js?v=0.2.96';
 import { focusOffTouch } from './sign-in.js?v=0.2.96';
 
-/* The preview's integer scale: 16 x 24 cells at 8 = 128 x 192 px. */
-export const PREVIEW_SCALE = 8;
+/* The preview's whole-number scale: a 64 px sprite at 3 = 192 px; the other outfits at 1. */
+export const PREVIEW_SCALE = 3;
+/* WHAT A NEW HERO WEARS: the start kit's sword and shield make it the tank, and the tank wears this (hero-look.js, tests/hero-colors.mjs holds the two equal). */
+export const START_OUTFIT = ROLE_OUTFIT.tank;
+/* The free outfits drawn small beside it: between them they show every color the first outfit doesn't, so no pick does nothing on screen. */
+export const OTHER_OUTFITS = Object.freeze(['berserker', 'ranger', 'sorcerer']);
 
 const NAME_REASON = Object.freeze({
   short: 'A name needs at least 3 letters.',
@@ -44,38 +49,20 @@ export function refusalText(r) {
   return refusalWords(r.reason);
 }
 
-/** '#rrggbb' -> [r, g, b], or null. Pure. */
-export function hexRgb(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
-  if (!m) return null;
-  const n = parseInt(m[1], 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+/**
+ * The picks as the renderer wants them: per BASE_REGIONS index, the dye token's colour. Pure.
+ * @param colors  { head, body, legs, feet } dye indices
+ * @param colorOf (tokenName) -> '#rrggbb'  (a --dye-N token's value)
+ */
+export function previewDyes(colors, colorOf) {
+  return BASE_REGIONS.map((g) => String(colorOf('dye-' + colors[g]) || '').trim() || null);
 }
 
-/**
- * The preview as cells: [{ x, y, rgb }] for every painted cell. Pure.
- * @param colors  { head, body, legs, feet } dye indices
- * @param colorOf (tokenName) -> '#rrggbb'  (a --dye-N or --hero-* token's value)
- */
-export function heroCells(colors, colorOf) {
-  const out = [];
-  const dye = {};
-  for (const g of BASE_REGIONS) dye[g] = hexRgb(colorOf('dye-' + colors[g]));
-  const fixed = {};
-  HERO_BASE_ROWS.forEach((row, y) => {
-    for (let x = 0; x < row.length; x++) {
-      const l = HERO_BASE_LEGEND[row[x]];
-      if (!l) continue;
-      let rgb;
-      if (l.token) rgb = fixed[l.token] || (fixed[l.token] = hexRgb(colorOf(l.token)));
-      else {
-        const base = dye[l.region];
-        rgb = base && l.shade ? base.map((c) => Math.floor(c * HERO_SHADE_PERMILLE / 1000)) : base;
-      }
-      if (rgb) out.push({ x, y, rgb });
-    }
-  });
-  return out;
+/** What the picks change on the outfit a new hero starts in, and that the rest show elsewhere. Pure. */
+export function startWords() {
+  const row = OUTFIT_ROWS[START_OUTFIT];
+  return 'You start in the ' + row.label + ': your colors change its ' + row.regions.map((g) => row.parts[g].toLowerCase()).join(' and ')
+    + '. The other outfits show the rest. Your colors stay with you on every outfit.';
 }
 
 /** The "How you fight" column: the rule, then one line per way to fight. Pure. */
@@ -104,16 +91,24 @@ function watchHowMore(card) {
   return () => { ro.disconnect(); body.removeEventListener('scroll', sync); };
 }
 
-/** Paint the preview into a canvas at PREVIEW_SCALE (whole cells, no smoothing). */
-function paintPreview(canvas, colors, colorOf) {
-  const ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
-  if (!ctx) return;
-  ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (const c of heroCells(colors, colorOf)) {
-    ctx.fillStyle = 'rgb(' + c.rgb.join(',') + ')';
-    ctx.fillRect(c.x * PREVIEW_SCALE, c.y * PREVIEW_SCALE, PREVIEW_SCALE, PREVIEW_SCALE);
+/* THE PREVIEW IS THE REAL HERO (newcomer panel 2026-11-01: a picked blue never showed): the outfit a new hero starts in and three others, each in the World's own
+   recolour, once the art and the masks have landed. Returns the repaint. Nothing it draws is authority. */
+function previewer(card, colors, colorOf) {
+  let art = null, masks = null;
+  const doc = card.ownerDocument;
+  const version = new URL(import.meta.url).searchParams.get('v') || '';
+  const big = card.querySelector('.hero-preview');
+  const repaint = () => {
+    if (!art) return;
+    const dyes = previewDyes(colors, colorOf);
+    drawOutfit(big, art, OUTFITS[START_OUTFIT], { dir: 's', scale: PREVIEW_SCALE, dyes, masks });
+    for (const c of card.querySelectorAll('[data-hero-outfit]')) drawOutfit(c, art, OUTFITS[c.getAttribute('data-hero-outfit')], { dir: 's', scale: 1, dyes, masks });
+  };
+  if (big) {
+    outfitArt(doc, version).then((a) => { art = a; repaint(); }).catch(() => { /* the canvases stay blank */ });
+    outfitMasks(doc, version).then((m) => { masks = m; repaint(); }).catch(() => { /* drawn as it is */ });
   }
+  return repaint;
 }
 
 /**
@@ -135,16 +130,19 @@ export function renderHeroCreate(card, o) {
     return h;
   };
   card.innerHTML = '<h1 class="auth-title">Create your hero</h1>'
+    /* a phone's step shows one thing at a time: its own layout of the same step (Tyler 2026-10-25), not a smaller desktop */
+    + (dyes ? '<button type="button" class="hh-tool hero-pick" aria-pressed="false">Pick colors</button>' : '')
     + '<div class="hero-body">'
-    + (dyes ? '<canvas class="hero-preview" width="' + HERO_BASE_W * PREVIEW_SCALE + '" height="' + HERO_BASE_H * PREVIEW_SCALE + '" role="img" aria-label="Your hero"></canvas>' : '')
+    + (dyes ? '<div class="hero-look"><canvas class="hero-preview" width="' + 64 * PREVIEW_SCALE + '" height="' + 64 * PREVIEW_SCALE + '" role="img" aria-label="Your hero"></canvas>'
+      + '<div class="hero-others">' + OTHER_OUTFITS.map((id) => '<canvas class="hero-other" data-hero-outfit="' + id + '" width="64" height="64" role="img" aria-label="Your hero in the ' + OUTFIT_ROWS[id].label + '"></canvas>').join('') + '</div>'
+      + '<p class="hero-note">' + startWords() + '</p></div>' : '')
     + '<div class="hero-form">'
     + '<label class="auth-field">Name<input type="text" class="hero-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="3 to 20 letters"></label>'
-    + (dyes ? BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('') : '')
+    + (dyes ? '<div class="hero-colors">' + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('') + '</div>' : '')
     + '</div>' + howYouFightHtml() + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
     + '<div class="auth-foot"><button type="button" class="auth-link hero-back">Back to your characters</button>'
     + '<button type="button" class="hh-tool is-primary auth-submit is-go hero-confirm">Enter town</button></div>';
-  const canvas = card.querySelector('.hero-preview');
   const input = card.querySelector('.hero-name');
   const msg = card.querySelector('.auth-message');
   const confirm = card.querySelector('.hero-confirm');
@@ -165,8 +163,7 @@ export function renderHeroCreate(card, o) {
     release();
     msg.textContent = 'Your hero is made, but town did not open. Press Enter town to try again.';
   }
-  const repaint = () => paintPreview(canvas, colors, o.colorOf);
-  repaint();
+  const repaint = previewer(card, colors, o.colorOf);
 
   async function submit() {
     if (busy || gone) return;
@@ -194,6 +191,13 @@ export function renderHeroCreate(card, o) {
       colors[g] = i;
       for (const b of card.querySelectorAll('[data-hero-region="' + g + '"]')) b.setAttribute('aria-pressed', String(b === sw));
       repaint();
+      return;
+    }
+    const pick = e.target.closest('.hero-pick');
+    if (pick) {
+      const on = card.classList.toggle('is-picking');
+      pick.setAttribute('aria-pressed', String(on));
+      pick.textContent = on ? 'How you fight' : 'Pick colors';
       return;
     }
     if (e.target.closest('.hero-confirm')) submit();

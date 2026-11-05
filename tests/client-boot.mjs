@@ -979,14 +979,14 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         fails.push('B-9 one hero and an empty owned slot list as ' + JSON.stringify(rows));
       else {
         await page.click('[data-app="create"][data-slot="1"]');
-        /* The creation step: a name and how you fight; nothing is sent before Enter town. The colors are hidden until the world draws them
-           (outfits.js HERO_DYES_SHOWN, newcomer panel 2026-11-01), and Enter town shows with no scrolling at a laptop's 1366x768. */
+        /* The creation step: a name and how you fight; nothing is sent before Enter town. The four color strips and the real hero show beside them
+           (outfits.js HERO_DYES_SHOWN, lane/c-hero-colors), and Enter town shows with no scrolling at a laptop's 1366x768. */
         await page.setViewportSize({ width: 1366, height: 768 });
         const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelector('.hero-how-list'));
         if (!step) fails.push('B-9 Create did not open the creation step (sent ' + JSON.stringify(o.created) + ')');
         else {
           const laptop = await page.evaluate(() => { const b = document.querySelector('.hero-confirm').getBoundingClientRect(); return { bottom: Math.round(b.bottom), H: innerHeight, doc: document.documentElement.scrollHeight, dyes: document.querySelectorAll('.hero-region, .hero-preview, .hero-note').length }; });
-          if (laptop.bottom > laptop.H || laptop.doc > laptop.H || laptop.dyes) fails.push('B-9 at 1366x768 the creation step reads ' + JSON.stringify(laptop));
+          if (laptop.bottom > laptop.H || laptop.doc > laptop.H || laptop.dyes !== 6) fails.push('B-9 at 1366x768 the creation step reads ' + JSON.stringify(laptop));
           /* On a 922x423 phone the five ways to fight show too (playtest 2026-10-29: the phone hid them), in a column
              that scrolls, and Enter town still fits the screen. */
           await page.setViewportSize({ width: 922, height: 423 });
@@ -1238,7 +1238,7 @@ const MUTANTS = [
   ['a sign-up sent keeps its fields', 'src/styles/app.css', '.auth-card.is-sent .auth-field, .auth-card.is-sent .auth-submit { display: none; }\n', ''],
   ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],
   ['Enter town runs under the fold at 1366x768', 'src/styles/app.css', '.auth:has(.auth-card.is-create) .auth-brand { display: none; }\n', ''],
-  ['the color strips are back while the world draws none', 'src/data/outfits.js', 'export const HERO_DYES_SHOWN = false;', 'export const HERO_DYES_SHOWN = true;'],
+  ['the color strips are gone though the world draws them', 'src/data/outfits.js', 'export const HERO_DYES_SHOWN = true;', 'export const HERO_DYES_SHOWN = false;'],
   ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "  return '';"],
   ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
   ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],

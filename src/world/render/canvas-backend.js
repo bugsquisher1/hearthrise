@@ -33,10 +33,10 @@ const HEAL_MS = 5000;
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
- *          css: (token: string) => string, arrived?: (set: string) => boolean}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing)
+ *          css: (token: string) => string, arrived?: (set: string) => boolean, dyes?: object}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing); dyes: heroes' colors (hero-dye.js createHeroDye)
  */
 export function createCanvasBackend(o) {
-  const { win, doc, css } = o;
+  const { win, doc, css, dyes } = o;
   let { book, images, tables } = o;
   const tone = (name) => css('--world-' + name);
   const layer = (opts) => { const c = doc.createElement('canvas'); return { c, g: c.getContext('2d', opts) }; };
@@ -89,6 +89,7 @@ export function createCanvasBackend(o) {
 
   /** The source to blit a draw-list entry from: its atlas image, or a stub box. */
   function source(d) {
+    if (d.dye && dyes) { const dyed = dyes.source(d.id, d.dye, d.sx, d.sy); if (dyed) return dyed; }
     if (d.set && images[d.set]) return { img: images[d.set], sx: d.sx, sy: d.sy };
     let s = stubs.get(d.w + 'x' + d.h);
     if (!s) {
@@ -427,7 +428,15 @@ export function createCanvasBackend(o) {
     s.add(fv.plan.dx); s.add(fv.plan.dy); s.add(fv.open.w); s.add(fv.open.h);
     s.add(list);
     for (const l of [list.decals, list.sprites, list.raised, list.fx]) for (const d of l) s.add(!!images[d.set]);
+    if (dyes) for (const d of list.sprites) if (d.dye) s.add(dyes.has(d.id, d.dye));
     return s.end();
+  }
+
+  /* THE FRAME'S COLORS (hero-dye.js): every dyed unit it draws, then at most one bake, before the paint decides: a held frame still bakes, and a look landing changes the picture. Not baked: drawn as the art is. */
+  function wantDyes(list) {
+    if (!dyes) return;
+    for (const d of list.sprites) if (d.dye) dyes.want(d.id, d.dye, d.dyeOwn === true, book.sprite(d.id), images[d.set]);
+    dyes.pump();
   }
 
   /* THE GROUND (void, chunks, decals) OF ONE VIEW. The camera moved: drawn straight onto the frame, as nothing can reuse
@@ -466,6 +475,7 @@ export function createCanvasBackend(o) {
     ground.fit(Math.max(CHUNK_KEEP, 2 * ring.length));
     if (!aheadId && !ground.whole(ring)) aheadId = later(bakeAhead);
     hold = false;
+    wantDyes(list);
     const changed = frameChanged(list, fv);
     frames++;
     last = list;

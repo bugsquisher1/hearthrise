@@ -68,7 +68,7 @@ export const HONOR_BOARDS = Object.freeze([
   Object.freeze({ id: 'gold_given', group: 'Town', label: 'Gold Given', reads: 'gold', glyph: 'uiCoinStack',
     why: 'Gold an account gave to Havora this UTC month. It starts again on the 1st.',
     empty: 'Nobody has given gold to Havora this month. The first gift takes first place.',
-    join: 'Throw a Hearth powder, stand a round or pay the Town Crier.' }),
+    join: 'Give to the Town Works, throw a Hearth powder, stand a round or pay the Town Crier.' }),
 ]);
 
 /** The row for a board id, or null. */

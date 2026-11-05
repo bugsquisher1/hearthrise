@@ -20,32 +20,35 @@
 // is the re-read envelope. A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
 import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.96';
-import { characterSheetOf } from '../../../session/character-sections.js?v=0.2.96';
+import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.96';
 import { heroSprite } from '../../../session/hero-look.js?v=0.2.96';
 import { attr, cls } from '../../../render/paint.js?v=0.2.96';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.96';
-import { outfitArt, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.96';
+import { outfitArt, outfitMasks, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.96';
 import { scratchOf } from './state.js?v=0.2.96';
 import { sheetHtml, patchSheet } from './sheet.js?v=0.2.96';
-import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.96';
+import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.96';
 import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.96';
 import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.96';
 
 const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['deaths', 'Deaths']]);
 const PORTRAIT_SCALE = 1;
 
-/* The hunt art set, once loaded (null until then; the canvases stay blank, never a stand-in). */
-let ART = null;
+/* The hunt art set, once loaded (null until then; the canvases stay blank, never a stand-in), and the color masks (null: the outfit draws as it is). */
+let ART = null, MASKS = null, masksAsked = false;
 function wantArt(doc) {
-  if (ART || !doc || !doc.baseURI) return;
+  if ((ART && masksAsked) || !doc || !doc.baseURI) return;
   /* The build's cache-buster is this module's own ?v= (bump-version.sh keeps every one equal). */
-  outfitArt(doc, new URL(import.meta.url).searchParams.get('v') || '').then((a) => { ART = a; }).catch(() => { /* the canvases stay blank */ });
+  const v = new URL(import.meta.url).searchParams.get('v') || '';
+  if (!ART) outfitArt(doc, v).then((a) => { ART = a; }).catch(() => { /* the canvases stay blank */ });
+  /* asked once a page: a failed fetch draws the outfit as it is and keeps the picker off, it doesn't ask again on every patch */
+  if (!masksAsked) { masksAsked = true; outfitMasks(doc, v).then((m) => { MASKS = m; }).catch(() => {}); }
 }
 
 /** The skeleton (built once per opening). */
 export function renderCharacter(ctx) {
   wantArt(ctx.doc);
-  if (ctx.character) { const sc = scratchOf(ctx.character); sc.opening = 'due'; sc.sheetAsked = null; }
+  if (ctx.character) { const sc = scratchOf(ctx.character); sc.opening = 'due'; sc.sheetAsked = null; sc.price = null; sc.priceAskedAt = 0; }
   return '<div class="hw-cs">'
     + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="cs-tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + esc(l) + '</button>').join('') + '</div>'
     + '<div class="hw-cs-pane" data-pane="sheet">' + sheetHtml() + '</div>'
@@ -70,9 +73,9 @@ function askSheet(cs, sc) {
 /* Draw `sprite` into a canvas once per (sprite, facing, dyes): the canvas keeps its signature. */
 function paintCanvas(canvas, sprite, dir, scale, dyes) {
   if (!ART || !canvas) return;
-  const sig = sprite + '|' + dir + '|' + scale + '|' + dyes.join(',');
+  const sig = sprite + '|' + dir + '|' + scale + '|' + dyes.join(',') + '|' + !!MASKS;
   if (canvas.getAttribute('data-sig') === sig) return;
-  if (drawOutfit(canvas, ART, sprite, { dir, scale, dyes })) attr(canvas, 'data-sig', sig);
+  if (drawOutfit(canvas, ART, sprite, { dir, scale, dyes, masks: MASKS })) attr(canvas, 'data-sig', sig);
 }
 
 renderCharacter.patch = function patchCharacter(body, ctx) {
@@ -83,11 +86,15 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   for (const b of root.querySelectorAll('.hw-tab[data-tab]')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.hw-cs-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
   askSheet(cs, sc);
-  if (sc.tab === 'sheet') patchSheet(body, ctx, (canvas) => paintCanvas(canvas, heroSprite(cs), 's', PORTRAIT_SCALE, []), sc.opening === 'done');
-  else if (sc.tab === 'outfit') {
+  if (sc.tab === 'sheet') {
+    const base = (outfitOf(cs) || {}).base || null;
+    patchSheet(body, ctx, (canvas) => paintCanvas(canvas, heroSprite(cs), 's', PORTRAIT_SCALE, dyesOf(base, ctx.doc)), sc.opening === 'done');
+  } else if (sc.tab === 'outfit') {
     const d = draftOf(cs, sc);
-    patchOutfit(body, ctx, sc, ART, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, []));
-    paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyesOf(d, ctx.doc));
+    /* every outfit in the grid and the big preview wear the colors being tried on: one set, across every outfit */
+    const dyes = dyesOf(colorsShown(cs, d), ctx.doc);
+    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, dyes), () => renderCharacter.patch(body, ctx));
+    paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyes);
   } else if (sc.tab === 'titles') patchTitles(body, ctx, sc);
   else patchDeaths(body, ctx, sc);
 };

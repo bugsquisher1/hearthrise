@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-05",
- "replay_ms": 5309,
+ "replay_ms": 6504,
  "counts": {
-  "tracked_names": 721,
-  "entries": 576
+  "tracked_names": 722,
+  "entries": 577
  },
  "functions": [
   {
@@ -9559,23 +9559,25 @@
    "name": "hr_perks_of",
    "tracked_by": [
     "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
     "2026-08-15-perk-channel.sql",
     "2026-08-16-artisan-progress-model.sql",
     "2026-08-20-companion-model.sql",
-    "2026-08-20-renown.sql"
+    "2026-08-20-renown.sql",
+    "2027-02-27-tempering.sql"
    ],
    "live": {
-    "md5": "abe004d3ba1bc85dcaa555659a8afd23",
-    "norm_len": 5999,
+    "md5": "0666b2472da4b24ee9139a4c9d4c8ea8",
+    "norm_len": 6650,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "abe004d3ba1bc85dcaa555659a8afd23",
-    "norm_len": 5999,
+    "md5": "0666b2472da4b24ee9139a4c9d4c8ea8",
+    "norm_len": 6650,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -11963,6 +11965,28 @@
    "replay": {
     "md5": "d6f2647bd4751bdb346f5e8f598ce6bd",
     "norm_len": 1530,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_temper_view(p_user uuid, p_slot integer)",
+   "name": "hr_temper_view",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-27-tempering.sql"
+   ],
+   "live": {
+    "md5": "a8ab953b443000d4f18a51f529fc0b4b",
+    "norm_len": 842,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a8ab953b443000d4f18a51f529fc0b4b",
+    "norm_len": 842,
     "source": "computed-from-replay"
    },
    "agree": true

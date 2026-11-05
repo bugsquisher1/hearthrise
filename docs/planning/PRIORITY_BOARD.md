@@ -40,7 +40,7 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 |---|---|---|
 | 1 | Two perks a piece at fixed strength, as separate rows. New World has more perks and ranges; that needs per-item identity (weeks, dupe risk) | Rows |
 | 2 | The Hallmark fee is the sink: 25,000 g at T2, 100,000 g at T3, plus a gem and Crafting 30 / 45 | Yes |
-| 3 | Rune ladder: new deeper store runes at 6 / 10 / 16 / 24 g. **Plain stays 1 g,** because every +1 g costs the Sewer floor party 119 g/h and it clears the Thicket by 5.5 | Ladder, Plain 1 g. If 1 g must go: 2 g plus about +3.4% Sewer income |
+| 3 | Rune ladder: new deeper store runes at 8 / 10 / 16 / 24 g (Scored raised from 6 on the re-measure). **Plain stays 1 g,** because every +1 g costs the Sewer floor party 119 g/h and it clears the Thicket by 5.5, unchanged on the server's map | Ladder, Plain 1 g. If 1 g must go: 2 g plus about +5% Sewer income (113.5 g/h on its 2,329) |
 | 4 | Paid re-roll: the only sink that never ends, and exactly your "random gold spend". Steam could read it as gambling through Crowns | Not without your word and the legal review |
 | 5 | Exempt rolled recipes from your 11-01 bench tax, so no gold moves on a roll | Yes |
 | 6 | "Crafted only": Shop keeps plain pieces at a premium, or truly crafted only | Keep the Shop. Strict means a fighter can sit at Level 15 with no ring |
@@ -73,27 +73,28 @@ Ranked additions: (1) `market_locked` fix; (2) per-row market ceiling; (3) rune 
 | Tier, Magic | Store g a cast (75% output) | Book today → new | Job yield today → new | Bench hour feeds, caster-hours at 270/h, today → new | Crafter can list at, wage |
 |---|---|---|---|---|---|
 | Chalked, 1 | **1 (unchanged)** | 0 | 45 | About 27 | Self-use |
-| Scored, 15 | New, 6 | 1 → 3 | 40 → 14 | 9.6 → 3.4 | 5 g, about 4,600 g/h |
+| Scored, 15 | New, 8 | 1 → 3 | 40 → 14 | 9.6 → 3.4 | 6 g, about 5,500 g/h |
 | Etched, 30 | New, 10 | 1 → 3 | 36 → 12 | 7.8 → 2.6 | 8 g, about 5,700 g/h |
 | Carved, 45 | New, 16 | 2 → 6 | 32 → 10 | 5.1 → 1.6 | 13 g, about 5,600 g/h |
 | Graven, 60 | New, 24 | 3 → 10 | 28 → 8 | 3.5 → 1.0 | 20 g, about 5,400 g/h |
 Crafted stays cheaper and stronger (100% against 75%), and a rune now books near its inputs. Those wages are at full demand, which is thin at 20 accounts.
 
-*Caster bills. Rune and income counts measured today on the fixture's grid (2 h x 2 seeds), bills at the new prices computed, so all **estimated**.*
+*Caster bills. Rune and income counts measured (2 h x 2 seeds), bills at the new prices computed, so all **estimated**. The pull 8 row is re-measured on the server's map (`lane/c-armor-tiers` 3dd0ef93b); the others are still the old map, recomputed at 8 g.*
 | Who, where | Runes/h | Today: bill, net | On the deeper store rune: XP/h, bill, net, margin |
 |---|---|---|---|
 | Mage, Cellar L4 | 149 | 302, +1,928 | Plain only, no change |
 | Mage, Thicket L10 | 201 | 453, +2,878 | Plain only, no change |
 | Healer, Sewer L8 party | 129 | 252, +2,899 | Plain only, no change |
-| Mage, Wickstead L15 | 177 | 212, +3,607 | Scored: +1.6%, 1,153, +2,755, +239%: not worth it yet |
-| Mage, Sewer L20 party | 208 | 326, +4,121 | Scored: +3.0%, 1,390, +3,129, +225% |
-| Mage, Glade L24 | 210 | 211, +5,802 | Scored: +4.8%, 1,327, +5,157, +389% |
-| Mage, Glade L24, pull 8 | 363 | 1,622, +8,458 | Scored: **+20.6%**, 3,474, +8,786, +253%: too good, the first thing to re-check |
+| Mage, Wickstead L15 | 177 | 212, +3,607 | Scored: +1.6%, 1,499, +2,409, +161%: not worth it yet |
+| Mage, Sewer L20 party | 208 | 326, +4,121 | Scored: +3.0%, 1,806, +2,713, +150% |
+| Mage, Glade L24 | 210 | 211, +5,802 | Scored: +4.8%, 1,747, +4,737, +271% |
+| Mage, Glade L24, pull 8 | 359-363 | 1,458, +9,108 | Scored: **+18.0%**, 3,984, +8,361, +210%. At 6 g it cost nothing net (+9,078) for +18% XP, which is why Scored is now 8 g: -747 g/h for +18% is a real trade |
 | Mage, Warrens L40 | 261 | 449, +7,530 | Etched: **+12.5%**, 2,848, +6,619, +232%: a real trade |
 - **Burn per caster-day, 12 h at Etched:** store about 31,000 g, 37% of a rich day. Bought from a crafter at 8 g, about 25,000 g moves and 1,250 g burns. Self-made, 0. **So the more crafters win, the less burns:** "fighters pay crafters" and "burn gold" pull against each other on consumables, and that's fine.
-- **Fairness:** a mage's floor isn't close: at least +225% on any deeper rune above. The tightest style stays a Ranger on store arrows, +32% to +39% (`supply-basics.js` comment, not re-run). A Ranger on free Bronze pays about nothing, melee pays food only when pressing the pull. Mage bills stay under a store-arrow Ranger's 1,800 g/h until Etched at the Warrens or Scored at pull 8. **No style falls under +25-35% in band.**
-- **Chain, measured on the real test:** Sewer floor party nets 1,843.5 at 1 g, 1,724.5 at 2 g, 1,605.5 at 3 g, against the Thicket's 1,838. So Plain can't move without a coin change.
-- **Re-measure on `lane/c-armor-tiers`' fixed grid:** `first-grounds-net-chain`; `ranger-floor`; mage and healer on Plain, Scored and Etched at the Glade (default and pull 8) and the Warrens; a party healer's output (one sample read +21% heals on Scored, too thin to quote).
+- **Fairness:** a mage's floor isn't close: at least +150% on any deeper rune above. The tightest style stays a Ranger on store arrows, +32% to +39% (`supply-basics.js` comment, not re-run). A Ranger on free Bronze pays about nothing, melee pays food only when pressing the pull. Mage bills stay at or under a store-arrow Ranger's 1,800 g/h until Etched at the Warrens or Scored at pull 8. **No style falls under +25-35% in band.**
+- **Chain, re-measured on the server's map (3dd0ef93b; open tiles 171, 1,217, 952, as the server's), the real test, 6 seeds:** Sewer floor party nets 1,843.5 at 1 g, 1,724.5 at 2 g, 1,605.5 at 3 g, against the Thicket's 1,838 and the Cellar's 1,829.5. **Unchanged to the digit from the old map:** a tank and this party don't walk the tiles that differ. So Plain can't move without a coin change.
+- **What this changes for pace:** a mage who binds its own Scored already casts at 100%, more than this store row's 75%, and the sim's mage runs on Plain. So a real caster is outrunning the measured pace by at least about 18% at pull 8. The store row opens that to non-crafters at a price; it doesn't create it. The final pace re-measure should name a deeper rune for the mage, or say why not.
+- **Still to re-measure on the server's map:** `ranger-floor`; the mage at the Glade default and on Etched at the Warrens; a party healer's output (one sample read +21% heals on Scored, too thin to quote). **Perk rows are not re-measured:** the jewelry sample isn't approved, so they get re-read only if it is.
 - **Size, separate from jewelry, and it can ship alone:** `stonecraft.js` (book, 4 yields), `supply-basics.js` (24 store rows; 8 for Fire and Water first), one line in `core/hunt/abilities.js` `runeFor` so a store row casts its own version, `conditions.js` `storeFits`, Configure action's rune list, 24 scripted icons, catalogue files, `supplies-catalogue`, `craft-wages`, `recipe-yield-guard`. **The edge moves** (those files are in the bundle), so one smoke, apply, deploy at once. About a lane-day. Yields and book alone, no engine line, about half a day. **Must land before the final pace re-measure.** Default bars keep Plain, so the sim's bars don't change unless a re-measure names a deeper rune.
 
 **`market_locked`: ships alone, now.** A hero who never hunts can't list or buy. One file from 2027-03-03: add `hr_market_config.min_skill_level` default 30; restate `hr_market_eligible`: any hero at `min_level` **or** any hero with Smithing, Crafting, Cooking or Runecrafting at that level; restate `hr_market_rules` with it. Client: `market/index.js` line 40 and `refusal-words.js`: "The Weighhouse trades with heroes of Level 10, or with a bench skill at 30." One test: a Crafting 30 hero lists, a Crafting 29 hero is refused. No edge. On the EA Security list (Threat #9): Crafting 30 is about 6.5 h of work, Level 10 about 10 h. About two hours.
@@ -146,7 +147,7 @@ Rows are built by formula from one table, as `bestiary.js` builds from the roste
 | **Second Wind** | 1% max HP back on each kill, green numbers | Melee on a big pull: pays in food, not XP | `damage.js` kill branch |
 | **Thrift** | 8% of casts and shots cost nothing: "free cast" | Wand, staff, bow on bought arrows | `payBasic`, `fire` |
 
-*Measured with stand-in hooks on a scratch copy of the Tempering build, Warrens L40, solo, 2 h x 2 seeds, XP/h against plain (±1 point). Fixture's grid, so re-measure on the fixed grid. Measured sizes: Keen 6%, Surge 6%, Follow-through 8%, Deflect 4%, Second Wind 1%, Thrift 8%. Damage-taken and bills move on few blows, so they're noisy.*
+*Measured with stand-in hooks on a scratch copy of the Tempering build, Warrens L40, solo, 2 h x 2 seeds, XP/h against plain (±1 point). Old map; re-read on the server's map only if the sample is approved. Measured sizes: Keen 6%, Surge 6%, Follow-through 8%, Deflect 4%, Second Wind 1%, Thrift 8%. Damage-taken and bills move on few blows, so they're noisy.*
 | | Tank | Hammer | Axes | Bow | Mage | Healer, solo |
 |---|---|---|---|---|---|---|
 | Plain vs none | +14.3% | +12.1% | +11.5% | +13.0% | +6.7% | +9.0% |
@@ -268,7 +269,7 @@ Non-combat sources, grepped: every rock to Mithril, every tree, fish, farm. Comb
 
 **Purpose test.** Problem: Crafting has no prized product, gold has no late use, and casters' runes are free to make. Decision: crafter, which job, burn a gem now or level first; fighter, which perks, buy now or wait. Plugs into Mining, Smithing, Crafting, Runecrafting, two grounds, the Weighhouse, the rare broadcast. **Hour 1,000:** jewelry only as good as the tier ladder, as before; runes keep selling. Keep.
 
-**Status.** **Verified by grep or probe:** the 24 rows; what the engine reads; no stat reaches spells or heals; `market_locked`; 100x book ceiling; the bench roll path; shop bids; `temper_salts` recipe and rungs in the read-only worktree; T3 salts absent there; store and rune rows. **Measured (fixture grid, stand-in rows and hooks on a scratch copy):** the XP tables above, every perk row; runes/h, incomes and deeper-rune XP (fixture grid, soon stale); `first-grounds-net-chain` at 1, 2, 3 g; 11-01 rates; armor lane's guard table. **Computed:** recipe wages (hatchets check 2,470 against 2,463 played), rune chain rates and wages, Hallmark prices in hours, chain gaps. **Estimated:** Surge at 10% and Follow-through at 6%, scaled; every behavior row; bills at new prices; +3.4% Sewer fix; build sizes; T3 salts time. **Not run:** parties; heals; perks at pull 8 (left running in the scratchpad at report time, not used); a never-hunted hero's coach; the feature itself.
+**Status.** **Verified by grep or probe:** the 24 rows; what the engine reads; no stat reaches spells or heals; `market_locked`; 100x book ceiling; the bench roll path; shop bids; `temper_salts` recipe and rungs in the read-only worktree; T3 salts absent there; store and rune rows. **Measured (fixture grid, stand-in rows and hooks on a scratch copy):** the XP tables above, every perk row; runes/h, incomes and deeper-rune XP (fixture grid, soon stale); `first-grounds-net-chain` at 1, 2, 3 g; 11-01 rates; armor lane's guard table. **Computed:** recipe wages (hatchets check 2,470 against 2,463 played), rune chain rates and wages, Hallmark prices in hours, chain gaps. **Estimated:** Surge at 10% and Follow-through at 6%, scaled; every behavior row; bills at new prices; +5% Sewer fix; build sizes; T3 salts time. **Not run:** parties; heals; perks at pull 8 (left running in the scratchpad at report time, not used); a never-hunted hero's coach; the feature itself.
 
 ### 2026-11-05 Armor rungs, Levels 1-8, the crossbow floor, the Glade's four (systems-engineer, lane/c-armor-tiers): MEASURED on v0.2.90; one row changed; engine deploy, no migration
 **The first-ground ladder under the attacker-level armor rule (v0.2.90 release red, `forest-cave`).** Three coin rows, low end only, so the top roll and the kill bound stay and there is no catalogue apply: Briarcoat Wolf [2,5] to [3,5], Drain Rat [4,18] to [8,18], Glade Poacher [4,14] to [8,14]. Net per hero-hour at each floor, 6-seed median: Cellar 1829.5, Thicket 1809.5 to 1838, Sewer party 1795 to 1843.5, Glade four plate 1833 to 1908, Warrens 3704. Glade in helm and body, worst seed: +23% to over +25%. The crossbow Ranger at the Sewer floor: 12-seed mean +23.7% to +26.4% (+-0.9), and `drop-tables` ranger-floor now gates that mean, with the old Drain Rat row as its mutant.

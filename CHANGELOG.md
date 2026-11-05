@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+- Crafters can use the Weighhouse now. A bench skill at 30 (Smithing, Crafting, Cooking or Runecrafting) opens it for your whole account, just as a hero at Level 10 does.
+
 ## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
 
 **Throw a pinch on the fire.** Hearth powders turn Havora's flame a new color for everyone in town, for 30 seconds, from 2,000 gp and up to five a day.

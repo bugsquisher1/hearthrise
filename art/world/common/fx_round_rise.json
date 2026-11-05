@@ -1,0 +1,31 @@
+{
+  "id": "fx_round_rise",
+  "class": "vfx",
+  "style": "s1",
+  "drawn": "tools/world-art/round-fireworks.mjs",
+  "material": "light",
+  "source": "fx_round_rise.png",
+  "frame": [
+    7,
+    26
+  ],
+  "anchor_px": [
+    3,
+    0
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5
+      }
+    }
+  ],
+  "notes": "THE ROUND: a shell climbing from the square, moved by src/world/town-shows.js. Drawn by tools/world-art/round-fireworks.mjs: hard pixels, palette colors, no generation."
+}

@@ -40,11 +40,22 @@ export const SHOW_FLAMES = Object.freeze({
 export const POWDER_CHUNK = 'fuel_powder';
 /** The catalogue id hr_town_show takes for a round. */
 export const ROUND_OFFER = 'round';
-/* THE ROUND, as the World draws it (src/world/town-shows.js): a burst every everyMs, each playing playMs (8 frames at 12 fps), over Hearth Square, where idle heroes
-   stand: within spreadTiles of the point southTiles south of the ambient `from` (the Hearth's firebox faces its square). */
+/* THE ROUND, as the World draws it (src/world/town-shows.js): one program, so two viewers of a round see one show. A shell climbs from the square for riseMs over riseTiles,
+   then bursts for at most playMs (tools/world-art/round-fireworks.mjs), and everything steps on beatMs, the rise's own frame rate, so a show adds at most 12 repaints of the town a second.
+   A row is [ms into the round, shell, tiles east of the ambient `from`, tiles south of it]: where it bursts, high over Hearth Square's west and middle, where the idle heroes stand and look.
+   A shell at the Hearth's own column is gone in a moment, so the fire keeps showing; the last five seconds are the finale. */
+const GOLD = 'fx_round_gold', CINDER = 'fx_round_cinder', FROST = 'fx_round_frost';
 export const ROUND_SHOW = Object.freeze({
-  from: 'hearth_fire', everyMs: 320, playMs: 667, spreadTiles: 4, southTiles: 4,
-  bursts: Object.freeze(['fx_round_gold', 'fx_round_cinder', 'fx_round_frost']),
+  from: 'hearth_fire', rise: 'fx_round_rise', riseMs: 416, riseTiles: 6, playMs: 1500, beatMs: 1000 / 12,
+  program: Object.freeze([
+    [700, GOLD, -6, -2], [1800, CINDER, 2, -1], [2600, FROST, -10, -3], [3800, CINDER, -1, -3], [4300, GOLD, -8, -1], [5600, FROST, 4, -1], [6500, CINDER, -3, -1], [7700, GOLD, -11, -1],
+    [8200, CINDER, 1, -4], [9500, FROST, -5, -4], [10400, CINDER, 3, -3], [11600, GOLD, -4, -1], [12100, FROST, -9, -4], [13400, CINDER, 0, -1], [14300, GOLD, -7, -1], [15500, CINDER, -2, -2],
+    [16000, FROST, -6, -2], [17300, CINDER, 2, -1], [18200, GOLD, -10, -3], [19400, FROST, -1, -3], [19900, CINDER, -8, -1], [21200, GOLD, 4, -1], [22100, CINDER, -3, -1], [23300, FROST, -11, -1],
+    [23800, CINDER, 1, -4], [25100, GOLD, -5, -4], [26000, FROST, 3, -3], [27200, CINDER, -4, -1], [27700, GOLD, -9, -4], [29000, CINDER, 0, -1], [29900, FROST, -7, -1], [31100, CINDER, -2, -2],
+    [31600, GOLD, -6, -2], [32900, FROST, 2, -1], [33800, CINDER, -10, -3], [35000, GOLD, -1, -3], [35500, CINDER, -8, -1], [36800, FROST, 4, -1], [37700, CINDER, -3, -1], [38400, GOLD, -11, -1],
+    [38800, FROST, 1, -4], [39300, CINDER, -5, -4], [39700, GOLD, 3, -3], [40200, CINDER, -4, -1], [40600, FROST, -9, -4], [41100, CINDER, 0, -1], [41500, GOLD, -7, -1], [42000, FROST, -2, -2],
+    [42600, GOLD, -6, -2],
+  ].map(Object.freeze)),
 });
 
 /** One row per sink, keyed by the server's sink id. */

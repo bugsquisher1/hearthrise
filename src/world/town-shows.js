@@ -28,7 +28,7 @@ export function createTownShows(map, o) {
       const { rise, riseMs, riseTiles, playMs, tickMs, program } = ROUND_SHOW;
       /* every shell steps on one tick: a frame the list didn't change is never painted again (render/frame-sig.js), however many are up */
       const t = Math.floor((now - round.startedAt) / tickMs) * tickMs;
-      for (const [at, id, dx, dy] of program) {
+      for (const [at, id, dx, dy] of /** @type {[number, string, number, number][]} */ (/** @type {unknown} */ (program))) {
         if (t < at - riseMs || t >= at + playMs) continue;
         if (t >= at) { if (has(id)) out.push({ id, age: t - at, lift: 0, x: fire.x + dx, y: fire.y + dy }); continue; }
         /* the climb, slowing as it nears the top; the head arrives where the burst opens */

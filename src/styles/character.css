@@ -45,7 +45,7 @@
 .hw-cs-btext { flex: none; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 
 /* ── The Outfit tab ── */
-.hw-cs-outfit { display: grid; grid-template-columns: 200px 1fr; gap: 12px; }
+.hw-cs-outfit { display: grid; grid-template-columns: 240px 1fr; gap: 12px; }
 .hw-of-stage { position: relative; width: 192px; height: 192px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-of-preview { display: block; width: 192px; height: 192px; }
 .hw-of-turn { position: absolute; right: 4px; bottom: 4px; }

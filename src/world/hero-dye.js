@@ -92,14 +92,26 @@ export function loadMasks(doc, version) {
 }
 
 /**
- * THE DYED LOOKS OF ONE WORLD PANE.
- * @param {{doc: Document, version: string, css: (token: string) => string, now?: () => number,
- *          masks?: () => Promise<{manifest: object, image: object}>, cap?: number}} o   masks: a test's own; cap: a test's own
+ * THE PAGE'S DYED LOOKS, ONE PER DOCUMENT: a World pane is remounted on every switch of the viewed character, and a look baked for it stays good.
+ * @param {{doc: Document, version: string}} o
+ */
+const PAGES = new WeakMap();
+export function heroDyeOf(o) {
+  let d = PAGES.get(o.doc);
+  if (!d) PAGES.set(o.doc, d = createHeroDye(o));
+  return d;
+}
+
+/**
+ * @param {{doc: Document, version: string, css?: (token: string) => string, now?: () => number,
+ *          masks?: () => Promise<{manifest: object, image: object}>, cap?: number}} o   css, now, masks, cap: a test's own
  */
 export function createHeroDye(o) {
   const now = o.now || (() => o.doc.defaultView.performance.now());
   const cap = o.cap || DYE_LOOKS;
   const getMasks = o.masks || (() => loadMasks(o.doc, o.version));
+  const css = o.css || ((t) => o.doc.defaultView.getComputedStyle(o.doc.documentElement).getPropertyValue(t));
+  const hexes = new Map();
   let masks = null, asked = false, failed = false;
   /* sprite id -> its source (below), or null when the art has no mask (the druid draws undyed, and costs nothing) */
   const sources = new Map();
@@ -110,7 +122,11 @@ export function createHeroDye(o) {
   let queue = [];
   const queued = new Set();
   const stats = { bakes: 0, evicted: 0, refused: 0, bakeMs: 0, bakeMaxMs: 0 };
-  const hexOf = (i) => { const v = String(o.css('--dye-' + i) || '').trim(); return /^#[0-9a-f]{6}$/i.test(v) ? v : null; };
+  /* A dye's colour, from its token: a walker's index that names no token is left as drawn. */
+  const hexOf = (i) => {
+    if (!hexes.has(i)) { const v = String(css('--dye-' + i) || '').trim(); hexes.set(i, /^#[0-9a-f]{6}$/i.test(v) ? v : null); }
+    return hexes.get(i);
+  };
   const out = { img: null, sx: 0, sy: 0 };
 
   /* AN OUTFIT'S SOURCE, once: its frames laid out in a compact sheet, their pixels and every masked pixel's offset and region. */

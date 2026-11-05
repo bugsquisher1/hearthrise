@@ -51,7 +51,7 @@ import { createTownZoom } from './town-zoom.js?v=0.2.92';
 import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.92';
 import { runAction } from './steer-local.js?v=0.2.92';
 import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.92';
-import { createHeroDye } from './hero-dye.js?v=0.2.92';
+import { heroDyeOf } from './hero-dye.js?v=0.2.92';
 import { keyBelongsToField } from '../utils/dom.js?v=0.2.92';
 import { homeOf } from '../session/home-sections.js?v=0.2.92';
 import { skillsOf } from '../session/item-sections.js?v=0.2.92';
@@ -166,7 +166,7 @@ export async function bootWorld(panel, opts) {
   const tables = baseTables(book);
   const sheets = createSceneImages({ doc, version: BUILD.cache });
   /* HEROES IN THEIR COLORS: the masks load on the first dyed hero in view, and at most 24 looks stay in memory (hero-dye.js) */
-  const dyes = createHeroDye({ doc, version: BUILD.cache, css });
+  const dyes = heroDyeOf({ doc, version: BUILD.cache });
   const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css, arrived: (set) => sheets.ready([set]), dyes });
   tokensChanged = () => backend.invalidate();
   const gridArt = createGridArt({ doc, version: BUILD.cache, tables, loadSet: loadAtlasSet });

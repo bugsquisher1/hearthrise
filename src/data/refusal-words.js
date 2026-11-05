@@ -269,6 +269,9 @@ export const REFUSAL_WORDS = Object.freeze({
   /* Setup slots and titles (2027-02-28-setup-slots.sql, 2027-02-28-titles.sql). With the server's numbers these read from intent-words.js refusalText. */
   setup_locked: 'This hero\'s setup slots are full. Delete one, or buy another.',
   setup_slots_max: 'This hero has every setup slot there is.',
+  /* A hero's colors (2027-03-05-hero-colors.sql). With the server's number the limit reads from intent-words.js refusalText. */
+  colors_same: 'Those are already this hero\'s colors. Nothing was charged.',
+  colors_limit: 'This hero has changed colors as often as a day allows. More after midnight UTC.',
   title_kills: 'That title takes more kills first. Gold can\'t skip kills.',
   title_owned: 'This hero already has that title.',
   title_not_owned: 'This hero hasn\'t claimed that title yet.',

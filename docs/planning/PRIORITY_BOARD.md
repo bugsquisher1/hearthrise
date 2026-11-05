@@ -58,6 +58,13 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 | 20 | 14-16, 64-76k | 124k, if Iron is on | 150k | 248k | 312k | 496k |
 | 50 | 27-31, 192-244k | 124k, plus 434k from Level 30 | 445k | 248k, then Steel from Level 30 | 863k | 496k + 1.74M |
 | 100 | 38-42, 433-546k | 558k | 972k | 1.12M | about 1.8M | 2.23M |
+**For lane/d-gold-sinks' budget (Tyler's "NEW GOLD SINKS", 11-04): these prices are provisional, and the final ones come from its table.** The most the ladder can take at each hour, as a share of everything earned to then, before any other spending. It's a one-time ladder, so this is a ceiling and not a rate:
+| Hour | Lone hero | Pair | Four |
+|---|---|---|---|
+| 10 | 0 | 0 | 0 |
+| 20 | 0 at Level 14; 124k, 163-186%, at Levels 15-16 | 248k, 165% | 496k, 159% |
+| 50 | 124k, 65%, at Level 27; 558k, about 230%, at Levels 30-31 | 248k, 56% | 2.23M, 258% |
+| 100 | 558k, 102-129% | 1.12M, 115% | 2.23M, about 124% (extrapolated) |
 The whole ladder is 558,000 a hero: 2.23M for a four, on top of the rest of the game's one-time ladders (about 2.9M at the new hero slots, the 3.6M measured 11-03 less their 700k cut). **A real sink:** at pull 8, Level 24, a maxed Armor track cuts the food bill about 130-320 g/h (hammer 7,954 to 7,634), so 62,000 gold never pays back as gold. It buys pace and safety.
 
 **Power, measured on the same dice** (2 h x 2 seeds, about ±1 point on XP; stand-ins until the hook exists: all monsters' HP x0.952 for +5% on every blow, whole points on the body piece for armor).
@@ -71,7 +78,7 @@ The whole ladder is 558,000 a hero: 2.23M for a four, on top of the rest of the 
 **The cap holds at Level 24 as built:** the most Blows gives is under every tier step, with the wand tied inside the dice (+2.0 to +2.2). At pull 8 it reaches +4.6% with no tier step measured there. At Level 40 on the Glade, above its band, the tier reads -0.6 to -4.1% and the walk sets the pace, so the staff's +1.8% passes its 0.6%. **Against the 10-25 ruling:** Blows stays under its +5%; Armor at -0.3 to -2.1% (Levels 24 and 40) stays under its 3-5%. **One armor tier behind takes 6-56% more damage today, far over that 3-5%:** `lane/c-armor-tiers` owns that. The cap is written as "under the tier step and under the ruling's floor", so a guard re-reads it after their numbers.
 **Rejected: tempering the weapon's own numbers.** +20% on them gives a wand +0.3% and a bow +0.7%, because spells and sweeps read no weapon. That would sell casters nothing.
 
-**Rulings.** Gear keeps fixed stats (10-14), and this sits on the hero. Imbuing stays later and per piece, with effects rather than plain power: no collision, but its budget must be measured on top. No bound gear: pieces still trade. Mechanics only, named our own. **Flag, Tyler's open conflict:** Crowns can buy gold from players, so tempering is one more thing Crowns reach at one remove.
+**Rulings.** Gear keeps fixed stats (10-14), and this sits on the hero. Imbuing stays later and per piece, with effects rather than plain power: no collision, but its budget must be measured on top. No bound gear: pieces still trade. Mechanics only, named our own. **Tyler's avoid list (11-04):** no random spend, since nothing is rolled; no repair or durability, since nothing wears; no bought rare drops, since drop chances don't move. **The nearest line is "gold-funded server XP buffs":** this is neither server-wide nor an XP rate, but Blows does earn a hero +1.8 to +4.6% XP/h by killing faster, as gear does. **Flag, Tyler's open conflict:** Crowns can buy gold from players, so tempering is one more thing Crowns reach at one remove, the same link that ruled the XP buff out. It's what he asked for ("slightly increases gear power"), so I'm building on it unless he says otherwise.
 
 **Server-owned, and mostly built already.** `hr_unlock_buy` is the money path: offer catalogue, rung order, GREATEST merge, per-day clamp, intent claim, settle-first, ledger. New rows in `hr_unlocks` and `hr_unlock_offers`, no new money RPC, already on the EA Security list. `hr_perks_of` gains one key and the settle reads it every window. Engine: the hero's unit carries it at each boundary, never persisted, so no world-shape change. Rung 0 draws nothing and stays byte-identical. Both paths tested: hunt viewed, browser closed.
 

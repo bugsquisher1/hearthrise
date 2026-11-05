@@ -995,7 +995,7 @@ const PURE_MUTANTS = [
   ['a town notice reads as a player line', 'src/social/chat-lines.js', "(row.channel === 'system' || (row.from_role === 'notice' && !Number.isInteger(row.from_level)))", "(row.channel === 'system')"],
   ['a player can write a notice', 'src/social/chat-lines.js', "(row.from_role === 'notice' && !Number.isInteger(row.from_level))", "(row.from_role === 'notice')"],
   ['a System row reads as a player line', 'src/social/chat-lines.js', "if (!whisper && (row.channel === 'system' || (row.from_role === 'notice' && !Number.isInteger(row.from_level)))) {", 'if (false) {'],
-  ['the notice drops the hero', 'src/social/chat-lines.js', "parts: [{ text: name + ' ' }].concat(partsOf(body, true))", 'parts: partsOf(body, true)'],
+  ['the notice drops the hero', 'src/social/chat-lines.js', "parts: [{ text: name + ' ' }, ...partsOf(body, true)]", 'parts: partsOf(body, true)'],
   ['the notice data row drifts from the migration', 'src/data/chat-channels.js', "rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 3 })", "rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 4 })"],
   ['a hidden page never stamps its presence (ON-3: the limit it reads, gone)', 'src/data/chat-channels.js', "  friendsPollAwayMs: 55000,\n", ''],
   ['a hidden page polls too slowly for the online window (ON-3)', 'src/data/chat-channels.js', "  friendsPollAwayMs: 55000,\n", "  friendsPollAwayMs: 90000,\n"],

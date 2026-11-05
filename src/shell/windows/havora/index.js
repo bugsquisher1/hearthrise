@@ -62,21 +62,22 @@ export function renderHavora(ctx) {
   if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.stale = true; sc.msg = ''; sc.pick = null; }
   const offers = SINK_RULES.powder.offers;
   return '<div class="hw-havora">'
-    + '<div class="hw-tabs" role="tablist">' + TABS.map((t, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + esc(t.id) + '" aria-selected="' + (i === 0) + '">' + esc(t.label) + '</button>').join('') + '</div>'
-    + '<p class="hw-cap"><span class="hv-gold"></span></p>'
+    /* the purse shares the tabs' row: a window's height is the first thing a short screen runs out of */
+    + '<div class="hv-top"><div class="hw-tabs" role="tablist">' + TABS.map((t, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + esc(t.id) + '" aria-selected="' + (i === 0) + '">' + esc(t.label) + '</button>').join('') + '</div>'
+    + '<span class="hv-gold"></span></div>'
     + '<section class="hw-pane hv-pane" data-pane="hearth">'
-    + '<p class="hv-lead">Throw a powder on the Great Hearth. Its color fills ' + esc(TOWN_NAME) + '\'s square for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone there sees who threw it.</p>'
+    + '<p class="hv-lead">Throw a powder on the Great Hearth. It burns that color for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone in ' + esc(TOWN_NAME) + ' sees who threw it.</p>'
     + '<div class="hv-powders" role="radiogroup" aria-label="Which powder">' + offers.map((id) => '<button type="button" role="radio" class="hv-powder is-' + esc(id) + '" data-hs-act="pick" data-show="' + esc(id) + '" aria-checked="false"><i class="hv-swatch" aria-hidden="true"></i>' + esc(SHOW_FLAMES[id].label) + '</button>').join('') + '</div>'
     + '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="powder"></button>'
-    + '<p class="hw-cap hv-count" data-of="powder"></p><p class="hw-cap hv-queue"></p>'
     + '</section>'
     + '<section class="hw-pane hv-pane" data-pane="round">'
     + '<p class="hv-lead">Stand a round at the Tavern. Fireworks go up over Hearth Square for ' + whole(SINK_RULES.round.seconds) + ' seconds, and the whole town hears who paid.</p>'
     + '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="round"></button>'
-    + '<p class="hw-cap hv-count" data-of="round"></p>'
     + '</section>'
     + (WORKS_TAB.shown ? '<section class="hw-pane hv-pane" data-pane="works">' + worksHtml() + '</section>' : '')
-    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
+    /* THE FOOT: what the server says of the day and its answer to a press, stuck to the window's foot, so a short window scrolls the pane under them and never cuts them off */
+    + '<div class="hv-foot"><p class="hw-cap hv-count" data-of="powder"></p><p class="hw-cap hv-count" data-of="round"></p><p class="hw-cap hv-queue"></p>'
+    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>';
 }
 
 renderHavora.patch = function patchHavora(body, ctx) {
@@ -101,9 +102,9 @@ renderHavora.patch = function patchHavora(body, ctx) {
   prop(buyPowder, 'disabled', sc.pending || pPrice === null);
   prop(buyRound, 'disabled', sc.pending || rPrice === null);
   for (const b of root.querySelectorAll('.hv-powder')) prop(b, 'disabled', sc.pending);
-  text(root.querySelector('.hv-count[data-of="powder"]'), s ? countLine(s.powder, 'powders') : '');
-  text(root.querySelector('.hv-count[data-of="round"]'), s ? countLine(s.round, 'rounds') : '');
-  text(root.querySelector('.hv-queue'), s ? queueLine(s) : '');
+  text(root.querySelector('.hv-count[data-of="powder"]'), s && sc.tab === 'hearth' ? countLine(s.powder, 'powders') : '');
+  text(root.querySelector('.hv-count[data-of="round"]'), s && sc.tab === 'round' ? countLine(s.round, 'rounds') : '');
+  text(root.querySelector('.hv-queue'), s && sc.tab === 'hearth' ? queueLine(s) : '');
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   if (WORKS_TAB.shown && sc.tab === WORKS_TAB.id) patchWorks(root.querySelector('[data-pane="works"]'), ctx);
   /* THE READ: once per opening, after a press, and every ASK_MS while open (a read, never the record). */

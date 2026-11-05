@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/chat-crier.js — THE TOWN CRIER, ON THE CHAT'S GLOBAL TAB.
 //
-// A button on the Global tab opens a small bar under the field: the line in the field goes out to everyone online, gold-barred, for the price the server
+// A button on the Global tab opens a small bar under the field: the line in the field goes out to everyone online, on a gold band under the Crier's mark, for the price the server
 // quotes (hr_town_sinks_view on opening and after each press). Cry it sends ONE hr_crier_send with the price the player saw; a press on the last line cries that
 // line again. Every number is the server's, and every refusal is the server's in the Crier's words (src/shell/sink-words.js). Display scratch only.
 // ════════════════════════════════════════════════════════════════════════
@@ -18,6 +18,11 @@ const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { open: false
 /** "Cry it: 1,000 gp". Pure. */
 export function cryWords(price) {
   return CRIER.cry + (Number.isSafeInteger(price) ? ': ' + gold(price) : '');
+}
+
+/** The mark at the head of a paid line (src/shell/windows/chat.js). */
+export function crierMarkHtml() {
+  return '<span class="hc-crier-mark">' + esc(CRIER.mark) + '</span>';
 }
 
 /** The button on the input's row (built once, with the chat's skeleton). */

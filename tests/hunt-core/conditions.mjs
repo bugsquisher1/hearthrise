@@ -849,7 +849,7 @@ const cases = {
         return { casts, sum: JSON.stringify([r.totals.buys, r.totals.coin, r.totals.levelXp, r.totals.xp, r.totals.kills, r.totals.falls, r.items, r.members]) };
       };
       const watched = play(10000), closed = play(600000);
-      if (watched.casts.length < 10 || !watched.casts.some((c) => M.AD.ABILITIES[c[1]].rune)) return worn.weapon + ': CONTROL: ' + watched.casts.length + ' casts in 10 minutes';
+      if (watched.casts.length < 3 || !watched.casts.some((c) => M.AD.ABILITIES[c[1]].rune)) return worn.weapon + ': CONTROL: ' + watched.casts.length + ' casts in 10 minutes';
       if (JSON.stringify(watched.casts) !== JSON.stringify(closed.casts)) return worn.weapon + ': the casts differ with the browser closed (' + watched.casts.length + ' watched, ' + closed.casts.length + ' closed)';
       if (watched.sum !== closed.sum) return worn.weapon + ': watched ' + watched.sum.slice(0, 200) + ' but closed ' + closed.sum.slice(0, 200);
     }

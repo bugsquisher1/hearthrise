@@ -3,7 +3,7 @@
 -- one file, never inside begin/commit. Pre-EA (CLAUDE.md §2): applies on its passing §6; on the EA Security list (a new client verb, a client verb gone, a value bound's input moves).
 -- Design and measurements: docs/planning/PRIORITY_BOARD.md "2026-11-05 Difficulty tiers". BEFORE its client half. The engine half reads options.tier and plays Normal without it, so either order is safe.
 --
--- §1 hr_hunt_tiers NEW, the server's catalogue of a ground's harder tiers (src/data/hunt-tiers.js, tests/hunt-core/hunt-tiers.mjs holds the two equal; the Cellar has no row: Normal only). No foreign key: the hunt-sessions catalogue deletes and rewrites
+-- §1 hr_ground_tiers NEW, the server's catalogue of a ground's harder tiers (src/data/hunt-tiers.js, tests/hunt-core/hunt-tiers.mjs holds the two equal; the Cellar has no row: Normal only). No foreign key: the hunt-sessions catalogue deletes and rewrites
 --    hr_hunt_grounds, and a cascade would silently take a ground's tiers with it. No row = that tier is not offered there. Normal is no row: the ground as it stands.
 --    hunt_density.tier NEW: the hero's pick per ground ('normal' until pressed). hunt_density.density no longer means anything: hr_hunt_enter_for still writes its 0, the column goes with that body's next restatement.
 --    hunt_instances.tier NEW: the tier the instance froze, beside hunt_instances.density, the pull it froze with it.
@@ -21,9 +21,9 @@
 -- the engine's own data, never a client value. A tier cannot come in through player_action_sets.options: hr_action_set_options refuses an unknown key (bad_option). The kill bound (hr_hunt_apply_member) grows only with the
 -- frozen pull, exactly as it did with the frozen density. Level XP is bounded by kills x the ground's largest xp_max (a boss's, far over any common kill at +20%). Gold and drops per kill don't move. COST: the section adds one
 -- PK-prefix scan and one open-session read per envelope; written plpgsql so its plan is cached (tests/settle-budget.mjs SB-3).
--- EDGE: the engine reads options.tier (src/core/hunt-spawn.js); the world's shape does not move (no world_shape_pending). RESIDUE: none. WIPE: hunt_density and hunt_instances are on the character wipe's list; no new player table; hr_hunt_tiers is on its no-player list.
+-- EDGE: the engine reads options.tier (src/core/hunt-spawn.js); the world's shape does not move (no world_shape_pending). RESIDUE: none. WIPE: hunt_density and hunt_instances are on the character wipe's list; no new player table; hr_ground_tiers is on its no-player list.
 -- REVERSIBLE: re-apply 2026-11-17-hunt-density-home.sql's intent, view and pick, 2027-02-10-party-instance-reset.sql's freeze, 2027-02-02-settle-cost.sql's read and 2027-02-18-party-truth.sql's party view; drop the columns, the table, the section and baseline rows.
--- ORDER: after 2027-02-26-slots-lower-hero-slots.sql; no object in common with 2027-02-27-tempering*.sql (hr_perks_of, hr_temper_view, the temper section and catalogue), so either side of them. No begin/commit.
+-- ORDER: after 2027-02-26-slots-lower-hero-slots.sql; no object in common with any file after it (tempering, gold sinks, setup slots, titles, sink prices, temper craft), so either side of them. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PINS: FAIL CLOSED IF ANOTHER FILE MOVED A BODY THIS FILE RESTATES ─────
@@ -45,7 +45,7 @@ begin
 end $mig$;
 
 -- ── §1 THE CATALOGUE AND THE COLUMNS ─────────────────────────────────────────
-create table if not exists public.hr_hunt_tiers (
+create table if not exists public.hr_ground_tiers (
   hunt_id  text not null check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
   tier     text not null check (tier in ('dangerous', 'deadly')),
   pull     int[] not null check (cardinality(pull) = 4 and 0 <= all (pull) and 16 >= all (pull)),
@@ -53,12 +53,12 @@ create table if not exists public.hr_hunt_tiers (
   xp_pm    int  not null check (xp_pm between 1000 and 2000),
   primary key (hunt_id, tier)
 );
-alter table public.hr_hunt_tiers enable row level security;
-revoke all on public.hr_hunt_tiers from public, anon, authenticated, service_role;
-comment on table public.hr_hunt_tiers is
+alter table public.hr_ground_tiers enable row level security;
+revoke all on public.hr_ground_tiers from public, anon, authenticated, service_role;
+comment on table public.hr_ground_tiers is
   '2027-02-27-hunt-tiers.sql: the harder tiers a ground offers (src/data/hunt-tiers.js; tests/hunt-core/hunt-tiers.mjs holds the two equal). Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
-delete from public.hr_hunt_tiers;
-insert into public.hr_hunt_tiers (hunt_id, tier, pull, power_pm, xp_pm) values
+delete from public.hr_ground_tiers;
+insert into public.hr_ground_tiers (hunt_id, tier, pull, power_pm, xp_pm) values
   ('meadowbrook_thicket', 'dangerous', '{0,0,0,0}'::int[], 1500, 1050),
   ('meadowbrook_thicket', 'deadly', '{0,0,0,0}'::int[], 3000, 1100),
   ('wickstead', 'dangerous', '{3,4,4,5}'::int[], 1500, 1050),
@@ -116,7 +116,7 @@ begin
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   if p_hunt is null or not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = p_hunt) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_hunt')); end if;
-  if p_tier is null or (p_tier <> 'normal' and not exists (select 1 from public.hr_hunt_tiers t where t.hunt_id = p_hunt and t.tier = p_tier)) then
+  if p_tier is null or (p_tier <> 'normal' and not exists (select 1 from public.hr_ground_tiers t where t.hunt_id = p_hunt and t.tier = p_tier)) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_tier')); end if;
   -- THE LEADER CHOOSES THE HUNT SETTINGS (Tyler 2026-10-20): in a party only the leader picks (the freeze reads its row).
   v_pid := public.hr_hunt_party_of(v_uid, p_slot);
@@ -148,7 +148,7 @@ begin
       left join public.hunt_parties p on p.id = i.id and p.closed_at is null
       join public.hunt_density d on d.user_id = coalesce(p.leader_user, p_user)
                                 and d.slot = coalesce(p.leader_slot, p_slot) and d.hunt_id = i.hunt_id
-      join public.hr_hunt_tiers t on t.hunt_id = i.hunt_id and t.tier = d.tier
+      join public.hr_ground_tiers t on t.hunt_id = i.hunt_id and t.tier = d.tier
      where i.id = p_instance), 'normal');
 end $$;
 revoke execute on function public.hr_hunt_tier_pick(uuid, uuid, int) from public, anon, authenticated, service_role;
@@ -169,7 +169,7 @@ begin
   v_size := greatest(1, least(4, (select count(*) from public.hunt_party_members m where m.party_id = new.instance_id)::int));
   update public.hunt_instances i
      set tier = v_tier,
-         density = coalesce((select t.pull[v_size] from public.hr_hunt_tiers t where t.hunt_id = i.hunt_id and t.tier = v_tier), 0)
+         density = coalesce((select t.pull[v_size] from public.hr_ground_tiers t where t.hunt_id = i.hunt_id and t.tier = v_tier), 0)
    where i.id = new.instance_id and i.density is null;
   return null;
 end $$;
@@ -425,14 +425,14 @@ declare
   c_plain constant text := 'mill_cellar';
 begin
   -- the catalogue is what hunt-tiers.js says, and every row's ground exists
-  if (select count(*) from public.hr_hunt_tiers) <> 10 then raise exception 'VERIFY(a): the catalogue holds % rows', (select count(*) from public.hr_hunt_tiers); end if;
-  if exists (select 1 from public.hr_hunt_tiers t where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = t.hunt_id)) then
+  if (select count(*) from public.hr_ground_tiers) <> 10 then raise exception 'VERIFY(a): the catalogue holds % rows', (select count(*) from public.hr_ground_tiers); end if;
+  if exists (select 1 from public.hr_ground_tiers t where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = t.hunt_id)) then
     raise exception 'VERIFY(a): a tier row names a ground the catalogue doesn''t hold'; end if;
   -- the verb is client-executable, what it reads and freezes is not, and the dial is gone
   if not has_function_privilege('authenticated', 'public.hr_hunt_tier_set(integer,text,text,uuid)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_hunt_tier_view(uuid,integer)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_hunt_tier_pick(uuid,uuid,integer)', 'execute')
-     or has_table_privilege('authenticated', 'public.hr_hunt_tiers', 'select')
+     or has_table_privilege('authenticated', 'public.hr_ground_tiers', 'select')
      or to_regprocedure('public.hr_hunt_density_set(integer,text,integer,uuid)') is not null
      or exists (select 1 from public.hr_state_sections where key = 'hunt_density') then
     raise exception 'VERIFY(b): a grant is wrong, or the dial is still here'; end if;
@@ -464,11 +464,11 @@ begin
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(e): entering answered %', v; end if;
     select h.instance_id into v_iid from public.hunt_sessions h where h.user_id = v_u and h.slot = 0 and h.ended_at is null;
     if (select tier from public.hunt_instances where id = v_iid) is distinct from 'deadly'
-       or (select density from public.hunt_instances where id = v_iid) is distinct from (select t.pull[1] from public.hr_hunt_tiers t where t.hunt_id = c_ground and t.tier = 'deadly') then
+       or (select density from public.hunt_instances where id = v_iid) is distinct from (select t.pull[1] from public.hr_ground_tiers t where t.hunt_id = c_ground and t.tier = 'deadly') then
       raise exception 'VERIFY(e): the instance froze % at %', (select tier from public.hunt_instances where id = v_iid), (select density from public.hunt_instances where id = v_iid); end if;
     v_read := public.hr_hunt_instance_read(v_u, 0);
     if v_read->'members'->0->'session'->'options'->>'tier' is distinct from 'deadly'
-       or (v_read->'members'->0->'session'->'options'->>'density')::int is distinct from (select t.pull[1] from public.hr_hunt_tiers t where t.hunt_id = c_ground and t.tier = 'deadly') then
+       or (v_read->'members'->0->'session'->'options'->>'density')::int is distinct from (select t.pull[1] from public.hr_ground_tiers t where t.hunt_id = c_ground and t.tier = 'deadly') then
       raise exception 'VERIFY(e): the engine reads options %', v_read->'members'->0->'session'->'options'; end if;
     if public.hr_state_of(v_u, 0)->'hunt_tier'->>'playing' is distinct from 'deadly' then
       raise exception 'VERIFY(e): the section reads %', public.hr_state_of(v_u, 0)->'hunt_tier'; end if;

@@ -2,7 +2,7 @@
 // (the settle the world tick runs, play-ground.mjs), deterministic on a commit. The rows are src/data/hunt-tiers.js; the blow, armor's read and the kill's XP are hunt-core/damage.mjs a-tier-is-the-monsters-stats; the server's half is tests/hunt-tiers-db.mjs.
 //
 //   rows                  Normal is the ground as it stands; each harder tier hits harder and pays more, its pull never falls; the Cellar is Normal only and every other open ground offers all three; the full box stays reachable; every pull fits its ground; no name is the post-launch game mode.
-//   catalogue             the server's rows (hr_hunt_tiers) are the data's, digit for digit.
+//   catalogue             the server's rows (hr_ground_tiers) are the data's, digit for digit.
 //   normal-is-the-ground  no tier, Normal, a word nobody offers and a tier the ground doesn't offer all play the same hunt, digit for digit.
 //   harder-tier-costs     Deadly against the same pull with no tier, one hero: a bigger bill, the row's XP a kill, the same gold and loot a kill.
 //   ladder                the rule that keeps people moving: a ground's top tier doesn't beat the next ground's Normal on XP at the Level that fits it, single target, AoE or a party.

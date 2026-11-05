@@ -64,7 +64,7 @@ if (ladDir) {
   const WAYS = ['tank', 'sword', 'hammer', 'axes', 'bow', 'crossbow', 'mage', 'healer', 'tank+healer', 'tank+healer+bow', 'tank+healer+bow+mage', 'tank+hammer+bow+mage'];
   const sum = [];
   console.log('| Rung | L | Kit | Who | Lower Normal | Lower Dangerous | Lower Deadly | Upper Normal | Deadly XP / upper XP | Dangerous XP / upper XP |\n|---|---|---|---|---|---|---|---|---|---|');
-  for (const [lower, upper, levels] of TIER_RUNGS) for (const [pre, kit] of [['L', 'plain'], ['LT', 'Tempered']]) {
+  for (const [lower, upper, levels] of TIER_RUNGS) for (const [pre, kit] of [['L', 'plain'], ['LT', 'Tempered'], ['LB', 'Dressed']]) {
     const row = { rung: SHORT[lower] + ' to ' + SHORT[upper], kit, levels: levels.join(' and '), n: 0, beats: [], lo: Infinity, hi: 0, netBeats: 0 };
     for (const level of levels) for (const who of WAYS) {
       const u = at(upper, level, who, pre + 'normal'), n = at(lower, level, who, pre + 'normal'), d = at(lower, level, who, pre + 'dangerous'), x = at(lower, level, who, pre + 'deadly');

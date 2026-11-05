@@ -30,7 +30,10 @@ export async function loadAxes(root) {
   const { tierRowOf } = await import(u('src/data/hunt-tiers.js'));
   const grounds = Object.values(G.OPEN_GROUNDS).map((g) => ({ id: g.id, band: HUNT_INDEX[g.hunt].band.slice(), groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
     soloFrom: g.soloFrom || null, densityMax: g.densityMax ? g.densityMax[0] : 8 })).sort((a, b) => a.band[0] - b.band[0]);
-  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level), tierRowOf };
+  const { ITEMS } = await import(u('src/data/items.js'));
+  /* Every cape and jewelry slot's best row a Level can wear. */
+  const dressOf = (L) => Object.fromEntries(['cape', 'necklace', 'ring', 'earrings'].map((slot) => [slot, Object.keys(ITEMS).filter((id) => ITEMS[id].slot === slot && (ITEMS[id].reqLv || 0) <= L).sort((a, b) => (ITEMS[b].reqLv || 0) - (ITEMS[a].reqLv || 0))[0]]).filter(([, id]) => id));
+  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level), tierRowOf, dressOf };
 }
 
 const uniq = (xs) => [...new Set(xs)].sort((a, b) => a - b);
@@ -49,7 +52,7 @@ export const TIER_RUNGS = Object.freeze([['meadowbrook_thicket', 'wickstead', [8
 /* One cell on a tier as written: its pull from the ground's own row, its size's entry. */
 const tierCell = (axes, o) => {
   const row = axes.tierRowOf(o.ground, o.tier), pull = row.pull[o.party.length - 1];
-  return { ...cellOf({ ground: o.ground, party: o.party, level: o.level, density: pull || null, hours: o.hours, seeds: o.seeds, x: o.x }), ...(o.tier === 'normal' ? {} : { options: { tier: o.tier } }), windowMs: 120000 };
+  return { ...cellOf({ ground: o.ground, party: o.party, level: o.level, density: pull || null, gear: o.gear, bar: o.bar, supply: o.supply, hours: o.hours, seeds: o.seeds, x: o.x }), ...(o.tier === 'normal' ? {} : { options: { tier: o.tier } }), windowMs: 120000 };
 };
 /**
  * The plans. `scale` multiplies hours (the smoke and estimate modes). Each answers [cells | careers].
@@ -619,6 +622,12 @@ export function buildPlan(name, axes, scale = 1) {
       out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'dangerous', hours: H(1), seeds: 2, x: x + 'dangerous' }), ...t });
       out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'deadly', hours: H(1), seeds: 2, x: x + 'deadly' }), ...t });
       out.push({ ...tierCell(axes, { ground: upper, party, level, tier: 'normal', hours: H(1), seeds: 2, x: x + 'normal' }), ...t });
+    }
+    /* DRESSED: the same rungs with every cape and jewelry slot's best at that Level, on crafted food eaten early: where a guard or food change would show. x = LB. */
+    for (const [lower, upper, levels] of TIER_RUNGS) for (const level of levels) for (const party of WHO) {
+      const kit = { gear: { also: axes.dressOf(level) }, supply: 'own', bar: { eatPct: 70 }, party, level, hours: H(1), seeds: 2 };
+      out.push(tierCell(axes, { ...kit, ground: lower, tier: 'deadly', x: 'LBdeadly' }));
+      out.push(tierCell(axes, { ...kit, ground: upper, tier: 'normal', x: 'LBnormal' }));
     }
     return [...new Map(out.map((c) => [c.id, c])).values()];
   }

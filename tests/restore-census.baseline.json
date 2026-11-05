@@ -1062,7 +1062,7 @@
   },
   "hr_hunt_basic_supplies": {
    "class": "seeded",
-   "replay": 25,
+   "replay": 49,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the store's per-use supplies (src/data/supply-basics.js). Rebuilt from repo, never restored."
   },
   "hr_hunt_condition_limits": {

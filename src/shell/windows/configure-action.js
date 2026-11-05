@@ -15,7 +15,7 @@
 //             (action-table.js tableOf); the picked row gold and pinned at the top
 //   detail    the hovered or focused row against the pick (signed differences, the
 //             waste at the slot's own threshold), where its uses come from, food's rule;
-//             a rune spell's choice: carried runes only, or the store rune at its price
+//             a rune spell's choice: carried runes only, or any store rune of its family, each at its price, mana and power
 //   foot      the status line (pending, the server's refusal in words), Empty slot,
 //             Cancel, Save
 // Nothing applies until Save; Save, Empty slot and a move each send ONE intent
@@ -180,7 +180,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const bag = carriedOf(cs);
   const v = viewOf(cs);
   const tab = v.tab || (d.action.id ? tabOf(d.action) : LAST_TAB.get(cs) || 'spells');
-  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: skillsOf(cs) });
+  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: skillsOf(cs), picked: d.action });
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
   text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));
@@ -253,8 +253,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-eff'), effectLine(shown));
   const f = shown ? factsOf(shown.action) : null;
   text(root.querySelector('.ca-req'), f && f.requires ? f.requires : '');
-  /* A rune spell's store choice: carried runes only, or its store rune at the server's price a cast. */
-  const runes = storeChoices(d.action, set.store);
+  /* A rune spell's store choice: carried runes only, or a store rune of its family at the server's price a cast. */
+  const runes = storeChoices(d.action, set.store, skillsOf(cs));
   cls(root.querySelector('.ca-runestore'), 'is-on', runes.length > 0);
   rows(root.querySelector('.ca-rs-list'), runes, {
     key: (c) => c.id || '-',

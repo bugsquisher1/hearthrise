@@ -5,6 +5,9 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+- The store now sells deeper runes for your spells, from 8 gp a cast for Scored up to 24 gp for Graven: pick one on a spell's slot in Configure action to cast that stronger version at Plain's three-quarter strength. Plain stays 1 gp, and your bar never changes unless you change it. Bound runes now make fewer to a job and sell for more, so a runecrafter can sell below the store.
 ## v0.2.94 — 2026-11-05 (A Smith Needs Salts)
 
 - Crafters can use the Weighhouse now. A bench skill at 30 (Smithing, Crafting, Cooking or Runecrafting) opens it for your whole account, just as a hero at Level 10 does.
@@ -12,6 +15,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **The Coal Seam.** A richer coal rock at Mining 30, and a rock's row now says about how much an hour brings, so you can see what a higher rock is worth.
 - Your action bar now says when a slot is waiting. Fireball is set to fire at 2 or more monsters, so on a lone monster its slot dims and shows "2+", and hovering it or pressing it tells you why. Circle of Renewal does the same when you're not in a party. What a slot does hasn't changed: to fire on one monster, remove its condition in Configure action.
+- A new Mage or Healer now casts from the very first fight: every starting spell buys its rune from the store for 1 gp a cast, and Frost Lance or Green Sickness fires even on a lone monster. A new card, "Why it waits", explains the slots that hold back. A new Ranger or axe hero no longer starts with a crossed-out spell: Flame Volley and Rend are offered with their price instead.
 - Every hero now gets three setups free; the fourth costs 15,000 gp and the fifth 40,000 gp. Heroes keep every setup they have saved.
 
 ## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
@@ -27,7 +31,6 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 **Gold Given.** A new monthly board ranks the accounts that have given the most to the town. It has no prize, and it resets every month.
 
 **More setups, and titles.** Every hero gets two action bar setups free and can buy three more. Titles are earned by kills and then claimed with gold, so a name beside your hero says what it has actually hunted.
-
 ## v0.2.92 — 2026-11-05 (Standing Your Ground)
 
 - A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.

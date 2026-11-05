@@ -66,46 +66,40 @@ export const ROLE_DEFAULTS = Object.freeze({
    unless the row names its own. The HEALER attacks only when nobody needs healing
    (Tyler P1, the solo healer): Green Sickness waits while any ally in reach is
    under 70%, so its mana goes to Greater Mend first; its basic attack never waits.
-   A role's CORE rune spell (STORE_CORE: the one its role cannot work without) names
-   its family's store rune (`action.store`, written on the slot like its trigger; Tyler
-   2026-10-23: with the spell unlocked and no rune in the bag, the game charges gold
-   per cast, like food and drink), so a new hero with no runes still casts it, its own
-   runes first. Every other default rune slot casts the hero's OWN runes only: a default
-   bar buys no supply the role does not need (designer 2026-10-21), and the player turns
-   the store on per slot in the Configure action (a new rune slot starts with it on).
-   MEASURED on the real settle (lane b-spell-content): with a store rune on every default
-   rune slot the Sewer party's runes and the drinks they cost took its net under the
-   Thicket's (forest-cave first-grounds-net-chain) and the Warrens floor tank under +25%.
+   NO DEFAULT BAR HOLDS A SPELL IT CAN'T CAST (designer 2026-11-05, lane/d-caster-first-fights; Tyler: a preconfigured
+   bar is fine for the tutorial and early game only). The kit carries no rune (Tyler 2026-10-23), so every default rune
+   slot names its family's PLAIN store rune, never a deeper one (`action.store`, written on the slot like its trigger; with the spell unlocked
+   and no rune in the bag, the game charges gold per cast), its own runes first. A caster's spells are its style, so
+   they stand on its bar; a weapon hero's rune spell (sword Flame Strike, axes Rend, bow Flame Volley) is the player's
+   choice, offered with its price by the tutorial's "A spell costs runes". A saved bar is never touched.
    The server projects these as the default bar (hr_hunt_role_rules, restated by
-   2027-01-13-spell-content.sql, pinned equal by tests/hunt-core/conditions.mjs). */
-const STORE_CORE = Object.freeze(['fireball', 'greater_mend']);
-const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune && STORE_CORE.includes(id) ? BASIC_SUPPLIES.find((x) => x.partner === r.rune) : null; return b ? b.id : null; };
+   2027-03-09-caster-starter-bars.sql, pinned equal by tests/hunt-core/conditions.mjs sql-rows and starter-bar-fires). */
+const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune ? BASIC_SUPPLIES.find((x) => x.partner === r.rune) : null; return b ? b.id : null; };
 const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id,
   action: Object.freeze(Object.assign({ type: 'ability', id }, storeOf(id) ? { store: storeOf(id) } : {})),
   conditions: Object.freeze((conditions || suggestedTrigger(ABILITIES[id])).map((c) => Object.freeze(c))), join: join || 'and' });
-/* SPARE MANA: the Mage's single-target Frost Lance casts only while it holds half its mana or more, so Fireball, its
-   core area spell, always has the mana it needs (measured: unconditioned, Frost Lance cast every 6 s and its drinks
-   took the floor Mage under its +25%, drop-tables caster-floor). */
-const SPARE_MANA = Object.freeze([{ metric: 'self_mana_pct', op: 'gte', value: 50 }]);
-/* NO DEAD BUTTON ON THE STARTER BAR (playtest 2026-10-29 #9, 10-24 #4): the sword's Flame Strike sat on every new
-   hero's bar struck "no Fire runes left" from minute one (the kit carries no rune, Tyler 2026-10-23). It is off the
-   sword's default sets; the player adds it from Configure action's Spells tab, store rune on (1 gp a cast), and
-   "Spells need runes" / "Make your own runes" teach it then. A struck slot never fires, so the measured hunts do not
-   move. The other door, a store rune on the default slot, was MEASURED (forest-cave and drop-tables, ladder kit,
-   6-seed medians, before -> after): net g/h Cellar 1,828 -> 1,425, Thicket 1,844 -> 1,472, Sewer party 2,024 -> 1,911,
-   Thicket Level XP/h 20.9k -> 24.1k, and drop-tables went red on 18 pace/value bands (Sewer gear every 0.7 h, Thicket
-   2,859 g per hero-hour): a balance change, the designer's to make. Pinned: tests/hunt-core/conditions.mjs
-   starter-bar-fires. */
+/* THE MANA GATES: a default store-fed spell behind a core one fires only at the top of a fight, so the core spell always
+   has its mana. Measured on the real settle, 6-seed medians, against first-grounds-net-chain and drop-tables (raise a gate before
+   touching a ground's coin if another row turns the chain red):
+   Frost Lance 70: at 50% it took Fireball's mana (Cellar net -24%, Fireball casts 163 -> 103 an hour); at 70% net -7%.
+   Green Sickness 78: with no gate its mana and runes cost the Sewer party about 150 g/h (1,687). From 70 to 80 the Sewer reads the same on 24 seeds (1,867, 1,857,
+   1,855, +-10, between the Thicket's 1,820 and the Glade's 1,876), but its guards read six: first-grounds-net-chain over the Thicket's 1,838 and glade-between under the
+   Glade's 1,855.5, a window of 17.5 g/h that neighboring gates land in and out of in no order (71 to 80 read 1,824 to 1,899.5; 80 read 1,881.5, 78 reads 1,847.5). So 78 is the
+   nearest gate that lands, not a fine tuning (CONFLICTS.md 2026-11-05). At 70 the Warrens' total-value was red (5,748 g against 5,735). Full mana at the top of a fight still fires it first. */
+const SPARE_MANA = Object.freeze([{ metric: 'self_mana_pct', op: 'gte', value: 70 }]);
+const SICKNESS_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 78 }]);
+/* OFF THE DEFAULT BARS, measured with their store runes on: Flame Volley (ranger-floor: a crossbow Ranger buying every shot
+   +3.3% over its bill at the Sewer floor, three shots a Volley; +30.1% without it) and Rend (weapon-rungs: axes at Level 45
+   read +4% from a rung; about +1% XP at the Thicket for 23 casts an hour). Sword Flame Strike likewise (playtest 2026-10-29
+   #9, CONFLICTS.md: net -20%, XP +15%). None is needed for a first pull: each style's free moves already fire. */
 export const ROLE_RULES = Object.freeze({
   tank: Object.freeze([slot('challenge'), slot('power_strike')]),
   /* One Melee damage set for every key that plays it (hunt-spawn heroSetup keeps the slots its discipline holds): a
-     sword alone casts Power Strike, two axes Power Strike, Cleave and Rend, a club or bare hands Power Strike and
-     Cleave (roadmap p15). */
-  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('rend')]),
-  ranger: Object.freeze([slot('hunters_mark'), slot('flame_volley'), slot('precision_shot')]),
+     sword alone casts Power Strike, two axes and a club or bare hands Power Strike and Cleave (roadmap p15). */
+  melee_dps: Object.freeze([slot('power_strike'), slot('cleave')]),
+  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot')]),
   mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier')]),
-  healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'),
-    slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),
+  healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'), slot('green_sickness', SICKNESS_WHEN)]),
 });
 
 /* An action set: up to `presets` per character, each a bar of up to `slots`

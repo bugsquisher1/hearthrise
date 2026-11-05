@@ -139,12 +139,15 @@ export function attackItem(id) {
 }
 
 /** THE STORE RUNE A SPELL SLOT MAY NAME (`action.store`): a rune spell's slot opts into
-    buying its rune's store row once the carried runes are gone (designer 2026-10-21: a
-    default bar never buys one unseen). Nothing else carries one: a food or drink slot
-    names its ONE item. True when `store` fits the action. */
+    buying a store row of its family, of any tier, once the carried runes are gone (designer
+    2026-10-21: a default bar never buys one unseen; the rune ladder, Tyler 2026-11-05). A tier
+    above the hero's level is a place kept on the bar and waits (abilities.js runeFor). Nothing
+    else carries one: a food or drink slot names its ONE item. True when `store` fits the action. */
 function storeFits(type, id, store) {
   const b = typeof store === 'string' && Object.prototype.hasOwnProperty.call(BASIC_INDEX, store) ? BASIC_INDEX[store] : null;
-  return !!b && type === 'ability' && !!ABILITIES[id] && !!ABILITIES[id].rune && b.partner === ABILITIES[id].rune;
+  if (!b || type !== 'ability' || !ABILITIES[id] || !ABILITIES[id].rune) return false;
+  const family = ITEMS[ABILITIES[id].rune] && ITEMS[ABILITIES[id].rune].family;
+  return !!family && !!ITEMS[b.partner] && ITEMS[b.partner].family === family;
 }
 
 /** Why a condition is refused, or null. `stop` = in a stop rule (no slot to read). */

@@ -28,7 +28,7 @@ import { ammoPerShot } from '../core/ammo.js?v=0.2.94';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.94';
 import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.94';
 import { shortOf } from './item-lore.js?v=0.2.94';
-import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.94';
+import { storeOf, storeWords, storeChoices, conditionWords } from './bar-draft.js?v=0.2.94';
 import { whole } from '../render/format.js?v=0.2.94';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -299,6 +299,10 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
     }
     if (sl.usable === false && sl.why === 'rune_level') {
       return { code: 'rune_level', text: 'Your ' + runeWords(r.rune, 2) + ' are a higher tier than your level can cast. Carry a lower tier, or pick the store’s rune for this slot.', glyph: 'uiLock', strike: true };
+    }
+    if (sl.usable === false && sl.why === 'store_level') {
+      const c = storeChoices(a, set && set.store, skills).find((x) => x.id === a.store);
+      return { code: 'store_level', text: (c ? c.name + ' needs ' + c.needs : 'The store rune on this slot is a higher tier than your level can cast') + '. This slot waits until then: pick a lower rune for it, or carry your own.', glyph: 'uiLock', strike: true };
     }
     if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
     if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: 'Needs ' + r.mana + ' mana, you have ' + Math.floor(hero.mana) + '.', glyph: 'uiPotion', strike: false };

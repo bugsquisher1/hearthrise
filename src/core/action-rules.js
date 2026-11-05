@@ -183,8 +183,9 @@ export function resolveLine(hs, want, store) {
   return storeLine(hs, want, store);
 }
 /** THE STORE HALF of resolveLine for an arrow or a rune: the store row the slot names (`store`, a
-    string; it must partner `want`), else (undefined) `want`'s plain partner. Asked when the carried
-    line cannot serve: empty, or (a spell) a rune whose version the hero has not unlocked. */
+    string; it must partner `want`: a rune spell passes the rune of the tier its slot names, abilities.js
+    runeFor), else (undefined) `want`'s plain partner. Asked when the carried line cannot serve: empty,
+    or (a spell) a rune whose version the hero has not unlocked. */
 export function storeLine(hs, want, store) {
   const shot = typeof store === 'string'
     ? (storeAllowed(hs) && basicOf(hs, store) && hs.basics[store].partner === want ? { id: store, price: hs.basics[store].price } : null)

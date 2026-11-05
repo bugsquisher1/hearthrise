@@ -306,6 +306,13 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('bar_intro', 'Your action bar',
     'Your hero uses this bar by itself. It tries the slots in order and uses the first one that\'s ready and whose conditions are all true.',
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON] }),
+  /* WHY IT WAITS (designer 2026-11-05, lane/d-caster-first-fights): a default bar no longer reaches "Spells need runes", so a caster
+     would lose the lesson about what a cast costs and why a slot waits. It sits on a real slot, the one the bar marks (src/shell/slot-waits.js).
+     A bar with no slot waiting on a count (a tank, a Ranger) passes it by. */
+  step('why_it_waits', 'Why it waits',
+    'A slot on your bar waits for its moment, and your hero fights on without it. Press a slot to change when it fires.',
+    'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON, { kind: 'slot_waits' }] }),
+  /* A slot the hero picked Carried runes only for, with none left: no default bar reaches it (every default rune spell names its store rune). */
   step('spell_runes', 'Spells need runes',
     'A spell on your bar has a line through it: every cast needs a rune, and you carry none.',
     'action_bar', orGotIt({ kind: 'rune_ready' }), { gotIt: true, when: [LESSON, { kind: 'rune_struck' }], hooks: ['[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]'] }),
@@ -316,10 +323,10 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('food_order', 'Your own food first',
     'A store food slot eats before your own food at some HP.',
     'action_bar', orGotIt({ kind: 'food_order' }), { gotIt: true, when: [LESSON, { kind: 'food_order_bad' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
-  /* A SPELL IS A CHOICE (designer 2026-10-29, lane/a-starter-bars): the kit's sword-and-shield bar holds no rune spell
-     (Flame Strike left its defaults: it sat struck from minute one), so the hero would meet neither "Spells need runes"
-     nor "Make your own runes" (Tyler 2026-10-25: the tutorial teaches spells and their runes). Here, in the Cellar, a
-     bar with no rune spell is offered one of its own style: what it adds, what each cast costs, and the store rune to
+  /* A SPELL IS A CHOICE (designer 2026-10-29, lane/a-starter-bars; 2026-11-05 for the bow and the axes): a weapon hero's default bar
+     holds no rune spell (Flame Strike, Flame Volley and Rend each measured against the first grounds, rule-subjects.js), so the hero
+     would meet neither "Spells need runes" nor "Make your own runes" (Tyler 2026-10-25: the tutorial teaches spells and their runes).
+     Here a bar with no rune spell is offered one of its own style: what it adds, what each cast costs, and the store rune to
      pick, on the real controls. Adding it or Got it finishes it; a hero who adds it with no rune met "Spells need runes". */
   step('first_spell', 'A spell costs runes',
     'Your bar has no spell that uses runes yet.',
@@ -464,6 +471,12 @@ function struckSpell(f) {
   return f.slots.findIndex((s) => on(s) && s.type === 'ability' && s.usable === false && !!ABILITIES[s.id] && ABILITIES[s.id].active
     && !!ABILITIES[s.id].rune && (!f.discipline || ABILITIES[s.id].disciplines.includes(f.discipline)));
 }
+/* A TEST ON A COUNT A SLOT WAITS FOR: 2 or more monsters in its area, or 2 or more heroes hurt (what the bar marks, src/shell/slot-waits.js MARKS), or null. */
+const countWait = (s) => (s && Array.isArray(s.conditions)
+  && s.conditions.find((c) => c && ['enemies_in_aoe', 'allies_below'].includes(c.metric) && c.op === 'gte' && Number.isInteger(c.value) && c.value > 1)) || null;
+/* The first slot that can fire but waits on such a count, or -1: on, not struck, of the worn weapon's discipline. */
+const waitingSlot = (f) => (Array.isArray(f.slots) ? f.slots.findIndex((s) => on(s) && s.type === 'ability' && s.usable !== false && !!ABILITIES[s.id]
+  && (!f.discipline || ABILITIES[s.id].disciplines.includes(f.discipline)) && !!countWait(s)) : -1);
 /* The first pair where a STORE food slot eats while the hero's own food would wait: it fires at a higher HP than an
    own food slot that still holds stock, or at the same HP from an earlier slot (the engine fires the first slot whose
    conditions pass, conditions.js pickSlot). { store, own } slot indices, or null. */
@@ -574,6 +587,7 @@ const FACTS = Object.freeze({
   /* the bar: what the server shows, what it stored, what it struck */
   rune_struck: (p, f) => (Array.isArray(f.slots) ? struckSpell(f) >= 0 : null),
   rune_ready: (p, f) => (Array.isArray(f.slots) ? struckSpell(f) < 0 : null),
+  slot_waits: (p, f) => (Array.isArray(f.slots) ? waitingSlot(f) >= 0 : null),
   rune_spell_none: (p, f) => (Array.isArray(f.slots) ? !f.slots.some(runeSpell) : null),
   rune_spell_on: (p, f) => (Array.isArray(f.slots) ? f.slots.some(runeSpell) : null),
   food_slot: (p, f) => (Array.isArray(f.slots) ? f.slots.some((s) => on(s) && ownFood(s) && hpBelow(s) !== null) : null),
@@ -769,6 +783,9 @@ const STANCE_WORDS = (() => {
   return 'Defensive takes ' + pc(d.taken) + ' less damage and deals ' + pc(d.dealt) + ' less; Offensive deals and takes ' + pc(o.dealt) + ' more.';
 })();
 
+/* MEASURED on the real settle (lane/c-caster-starter-bars: the Thicket at its floor on free Bronze Arrows, store rune on, at 2+, 2 h x 6 seeds, medians):
+   Level XP +13.6% bow, +13.2% crossbow; net gold -6.7% bow, -4.3% crossbow. Bought shots read far worse (ranger-floor +3.3%), so a hero on them is not told this. */
+const VOLLEY_TRADE = ' On free arrows at the Thicket it earns about 14% more Level XP and about 5% less gold.';
 const SAY = Object.freeze({
   load_shot: (f) => {
     /* the bag's first stack the weapon can loose: the card names and rings it (none: the Hunts page's Ammo line says the rest) */
@@ -786,6 +803,29 @@ const SAY = Object.freeze({
     if (!parts.length) return null;
     return { text: 'Your hero uses this bar by itself. It tries the slots in order and uses the first one that\'s ready and whose conditions are all true. '
       + uc(listed(parts)) + '.', barSlot: 0 };
+  },
+  why_it_waits: (f) => {
+    const i = waitingSlot(f);
+    if (i < 0) return null;
+    const s = f.slots[i], a = ABILITIES[s.id], c = countWait(s);
+    const named = (j) => slotWords([j]) + ', ' + ABILITIES[f.slots[j].id].n;
+    /* another slot that can fire and waits on no count, as this ability row or these conditions answer */
+    const other = (test) => slotOf(f, (x) => x !== s && x.type === 'ability' && x.usable !== false && !!ABILITIES[x.id] && !countWait(x) && test(x));
+    const tests = (x, metric) => Array.isArray(x.conditions) && x.conditions.some((k) => k && k.metric === metric && k.op === 'gte');
+    const press = ' Press a slot to change when it fires.';
+    if (c.metric === 'allies_below') {
+      const j = other((x) => tests(x, 'ally_hp_pct'));
+      return { text: uc(named(i)) + ', waits for ' + c.value + ' or more hurt heroes, so it only fires in a party.'
+        + (j >= 0 ? ' ' + uc(named(j)) + ', casts while nobody needs healing' + (tests(f.slots[j], 'self_mana_pct') ? ' and your mana is high' : '') + '.' : '') + press, barSlot: i };
+    }
+    const j = other((x) => ABILITIES[x.id].target === 'enemy');
+    const hits = (row) => (row.dmg ? row.dmg[1] : 0);
+    const next = j >= 0 ? (c.value === 2 ? 'A lone monster gets ' : 'Fewer monsters get ') + named(j) + (hits(ABILITIES[f.slots[j].id]) > hits(a) ? ', which hits one target harder' : '') + '.' : 'Until then your hero fights on without it.';
+    /* what a cast costs, while the store is what pays it */
+    const fam = a.rune && ITEMS[a.rune] ? ITEMS[a.rune].family : null;
+    const ownRune = !!f.carried && Object.keys(f.carried).some((id) => ITEMS[id] && ITEMS[id].family === fam && f.carried[id] > 0);
+    const gp = s.store && !ownRune ? priceOf(f, s.store) : null;
+    return { text: uc(named(i)) + ', waits for ' + c.value + ' or more monsters. ' + next + (gp !== null ? ' Each cast buys its rune from the store, ' + gp + ' gp.' : '') + press, barSlot: i };
   },
   spell_runes: (f) => {
     const i = struckSpell(f);
@@ -844,9 +884,12 @@ const SAY = Object.freeze({
     if (!a || !st || !name(st.id) || !fam || free < 0 || !Number.isInteger(st.price)) return null;
     /* measured on the real settle with the kit's sword and shield (lane/a-first-hour-leftovers, CONFLICTS.md
        2026-10-29): Flame Strike on the store rune earns ~15% more Level XP in the Thicket and nets ~20% less gold */
+    /* (the bow, lane/c-caster-starter-bars: VOLLEY_TRADE; each Volley looses 3 shots, so the numbers hold on the free arrows only) */
+    const freeShot = !!f.carried && Object.keys(f.carried).some((id) => f.carried[id] > 0 && shootsItem(f.role, ITEMS[id]) && !ITEMS[id].ammoPerShot);
     const trade = a.id === 'flame_strike' && f.role === 'tank'
-      ? ' On the first grounds it earns about 15% more Level XP and about a fifth less gold.' : '';
-    return { text: 'Your bar has no spell that uses runes yet. ' + a.n + ' casts on its own timer beside your moves and trains Magic, and every cast uses '
+      ? ' On the first grounds it earns about 15% more Level XP and about a fifth less gold.'
+      : a.id === 'flame_volley' && freeShot ? VOLLEY_TRADE : '';
+    return { text: 'Your bar has no spell that uses runes yet. ' + a.n + ' casts on its own timer beside your moves' + (a.magicXpMult > 0 ? ' and trains Magic' : '') + ', and every cast uses '
       + anA(fam.label) + ' rune. With none of your own, the store sells ' + name(st.id) + ' at ' + st.price + ' gp a cast.' + trade
       + ' To try it, press ' + slotWords([free]) + ', then Runes, ' + a.n + ', ' + name(st.id) + ', then Save.',
     barSlot: free, store: st.id, spell: a.id };

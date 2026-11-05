@@ -126,7 +126,7 @@ function slotOf(s) {
        a slot switched Off never fires, so it shows struck. */
     enabled: s.enabled !== false, ignore: list(s.ignore, (m) => str(m), 16),
     usable: s.usable !== false && s.enabled !== false, mana: int(s.mana), count: int(s.count),
-    /* WHY THE SERVER STRUCK IT (hr_hunt_settings_view): none_left (own stock gone) | store_off | rune_level (a spell's runes are all above the hero's level); null when it can fire. */
+    /* WHY THE SERVER STRUCK IT (hr_hunt_settings_view): none_left (own stock gone) | store_off | rune_level (a spell's runes are all above the hero's level) | store_level (the store rune the slot names is); null when it can fire. */
     why: str(s.why),
   };
 }
@@ -185,11 +185,12 @@ export function settingsOf(cs) {
     storedBar: Array.isArray(s.bar) ? s.bar.slice(0, 20).filter(isObj) : [],
     /* THE STORE the slots may buy from, as the SERVER prices it (hr_hunt_basic_supplies via
        hr_hunt_settings_view): every number the Configure action picker shows comes from here. */
-    store: list(s.store, storeRowOf, 64),
+    store: list(s.store, storeRowOf, STORE_ROWS_MAX),
   };
 }
 
-/* One store row: { id, kind, partner, amount (HP or mana a use; 0 for ammo), price (gold a use) }. */
+/* One store row: { id, kind, partner, amount (HP or mana a use; 0 for ammo), price (gold a use) }. The cap is a bound on a bad answer, well over the catalogue's rows (49 with the rune ladder): a row cut here would lose its price. */
+const STORE_ROWS_MAX = 256;
 function storeRowOf(b) {
   if (!isObj(b) || !str(b.id) || !['heal', 'mana', 'ammo'].includes(b.kind) || !(int(b.price) > 0)) return null;
   return { id: b.id, kind: b.kind, partner: str(b.partner), amount: b.kind === 'heal' ? int(b.heals) || 0 : b.kind === 'mana' ? int(b.mana) || 0 : 0, price: b.price };
@@ -274,7 +275,7 @@ function pricesOf(cs) {
   const shop = section(cs, 'shop');
   const bids = shop && isObj(shop.bids) ? shop.bids : {};
   const set = section(cs, 'hunt_settings');
-  const store = new Map(set ? list(set.store, storeRowOf, 64).map((b) => [b.id, b.price]) : []);
+  const store = new Map(set ? list(set.store, storeRowOf, STORE_ROWS_MAX).map((b) => [b.id, b.price]) : []);
   return { bid: (id) => int(bids[id]), store: (id) => (store.has(id) ? store.get(id) : null) };
 }
 

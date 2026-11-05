@@ -27,6 +27,9 @@
 //             Coal Seam's XP an hour sits between the rocks around it, so mining it costs a smith no Mining
 //   W-BENCH   a house bench is a long goal (Tyler 2026-11-01): each bench room's first rung costs at least a week's money, rungs climb,
 //             and the shop row and the ladder agree
+//   W-RUNE    the rune ladder (Tyler 2026-11-05): a job's runes sell to the shop for less than the book value of the blanks that went in, so a rune is
+//             no faucet (the hero's hour is W-CHAIN's, and a blank's bulk bid is W-STEP's: making anything pays more than selling the raw stack);
+//             and every deeper rune has a store row and bids under its price, so a crafter can list under the store
 //
 //   node tests/craft-wages.mjs            the shipped data
 //   node tests/craft-wages.mjs --mutate   each arm driven red by a planted defect on the live objects
@@ -45,6 +48,7 @@ import { pacedActionMs, pacedXp } from '../src/core/pacing.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { BENCH_TAX, BENCH_TAX_FREE_UNDER_MG } from '../src/data/bench-tax.js';
 import { feeMgOf } from '../src/core/bench-tax.js';
+import { isRune, runeTierOf } from '../src/data/runes.js';
 
 /* Every row: a resting hero gathers for free, so a second hero reaches Mining 60 in 29 h and 75 in 114 h of that one job (played: tools/qa/craft-economy.mjs --careers), inside one beta. */
 const MAX_REQ = 99;
@@ -175,6 +179,15 @@ export function check() {
     }
     if (wage >= best) fails.push(`W-TAX ${r.id}: free by the cheap goods line, it pays ${Math.round(wage)} g/h and the best taxed ${r.skill} row within 15 levels pays ${Math.round(best)} after its fee`);
   }
+  /* W-RUNE: every rune above the free rung, against what goes into a job and against the store row a crafter has to beat. */
+  for (const r of ARTISAN_RECIPES.runecrafting.filter((x) => isRune(ITEMS[x.output]) && runeTierOf(ITEMS[x.output]) > 1)) {
+    const made = bid(r.output) * (Number(r.outputQty) || 1);
+    const ins = Object.entries(recipeInputs(r)).reduce((s, [id, n]) => s + n * Number(ITEMS[id].v), 0);
+    if (made >= ins) fails.push(`W-RUNE ${r.id}: a job sells to the shop for ${made} g, its inputs book at ${ins} g: a faucet`);
+    const store = BASIC_SUPPLIES.find((b) => b.partner === r.output);
+    if (!store) fails.push(`W-RUNE ${r.output}: no store row, and every spendable rune has a store partner`);
+    else if (bid(r.output) >= store.price) fails.push(`W-RUNE ${r.output}: the shop bids ${bid(r.output)} g and the store sells ${store.n} at ${store.price} g: no crafter can list under the store`);
+  }
   /* W-COAL: the supply rung at Mining 1 is exempt from the XP seat on purpose (gathering.js, coal at any level); the seam above it is not. */
   const perHour = (n) => (3600000 / pacedActionMs(n.ms)) * ((Number(n.qty?.[0] ?? 1) + Number(n.qty?.[1] ?? 1)) / 2);
   const xpHour = (n) => (3600000 / pacedActionMs(n.ms)) * pacedXp('mining', n.xp);
@@ -224,7 +237,10 @@ function mutate() {
   run('the Iron Bar off the bulk list (the shop pays its whole book)', 'W-CHAIN', () => setField('iron_bar', 'raw', false));
   run('the Oak Plank off the bulk list', 'W-CHAIN', () => setField('oak_plank', 'raw', false));
   run('Cooked Herring back at 40', 'W-CHAIN', () => setField('cooked_herring', 'v', 40));
-  run('Scored Runes back at 2 g a rune', 'W-CHAIN', () => setField('scored_earth_rune', 'v', 2));
+  run('Scored Runes at 4 g a rune on the cut yield', 'W-CHAIN', () => setField('scored_earth_rune', 'v', 4));
+  run('Carved Runes bid past their inputs (a job a faucet)', 'W-RUNE', () => setField('carved_fire_rune', 'v', 9));
+  run('Graven Runes bid at their store price (no room to list under it)', 'W-RUNE', () => setField('graven_ice_rune', 'v', 24));
+  run('Etched Runes back at the old yield of 36 (a job a faucet)', 'W-RUNE', () => { const list = ARTISAN_RECIPES.runecrafting; const at = list.findIndex((x) => x.id === 'bind_etched_water_runes'); const was = list[at]; list[at] = { ...was, outputQty: 36 }; return () => { list[at] = was; }; });
   run('the Steel Axe back at book 900', 'W-CHAIN', () => setField('steel_axe', 'v', 900));
   run('Iron Hatchets back at two bars and a plank (a chain faster than the bench)', 'W-CHAIN', () => inputs('smithing', 'forge_iron_hatchets', { iron_bar: 2, normal_plank: 1 }));
   run('an Oak Plank that pays less than the log time it takes', 'W-STEP', () => setField('oak_plank', 'v', 5));

@@ -494,6 +494,42 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'armortier') {
+    /* BALANCE RULING §9 ON THE REAL SETTLE (a meaningful armor upgrade is 3-5% less actual incoming damage): each rung on its own ground, the whole set and the body one tier behind, three weights. Same dice. */
+    for (const [ground, level] of [['wickstead', 16], ['millrace_sewer', 16], ['mosslight_glade', 16], ['mosslight_glade', 31], ['coppercap_warrens', 32]]) for (const s of ['tank', 'bow', 'mage']) {
+      for (const [x, gear] of [['Tnew', {}], ['Tset', { tierOffset: -1, only: 'armour' }], ['Tbody', { tierOffset: -1, only: 'body' }], ['Thelmet', { tierOffset: -1, only: 'helmet' }]]) {
+        out.push({ ...cellOf({ ground, party: [s], level, gear, hours: H(2), seeds: 2, x }), windowMs: 120000 });
+      }
+    }
+    return out;
+  }
+  if (name === 'firsthour') {
+    /* LEVELS 1-8, WHERE A NEW HERO CAN WALK: every first ground at Levels 1, 3, 5, 8, on the shipped bar. Every way to fight alone in the practice set, the tank in three bronze pieces, a four in the practice set. */
+    const THREE = { armourSlots: ['helmet', 'body', 'boots'] };
+    for (const ground of ['mill_cellar', 'meadowbrook_thicket', 'wickstead', 'millrace_sewer', 'mosslight_glade']) for (const level of [1, 3, 5, 8]) {
+      for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) out.push({ ...cellOf({ ground, party: [s], level, gear: { starter: true }, startBar: true, hours: H(1), seeds: 2, x: 'Fpractice' }), startBar: true, windowMs: 120000 });
+      out.push({ ...cellOf({ ground, party: ['tank'], level, gear: THREE, startBar: true, hours: H(1), seeds: 2, x: 'Fbronze' }), startBar: true, windowMs: 120000 });
+      out.push({ ...cellOf({ ground, party: PARTIES.four, level, gear: { starter: true }, startBar: true, hours: H(1), seeds: 2, x: 'Fpractice' }), startBar: true, windowMs: 120000 });
+    }
+    return out;
+  }
+  if (name === 'gladefour') {
+    /* IS THERE A STATS-ONLY ANSWER TO THE GLADE'S MIXED FOUR? Sim only: every monster's atk or the pull, at the floor, in range and pushing, a four against the lone hero who has to live with the same row. */
+    const lone = { armourSlots: ['helmet', 'body'] };
+    const row = (party, level, gear, x, extra) => ({ ...cellOf({ ground: 'mosslight_glade', party, level, gear, hours: H(1), seeds: 2, x, ...(extra && extra.density ? { density: extra.density } : {}) }), windowMs: 120000, ...(extra && extra.m > 1 ? { whatIf: { monsters: { '*': { atk: '*' + extra.m } } } } : {}) });
+    for (const m of [1, 1.05, 1.1, 1.25, 1.5, 2, 3]) {
+      for (const L of [16, 24, 13, 10, 6]) out.push(row(PARTIES.four, L, {}, 'Gatk' + m * 100, { m }));
+      out.push(row(['tank'], 16, lone, 'Gatk' + m * 100, { m }));
+    }
+    for (const d of [4, 5, 6, 8]) for (const L of [16, 24, 13, 10, 6]) out.push(row(PARTIES.four, L, {}, 'Gpull' + d, { density: d }));
+    /* the monsters' other own stats: their level (armor reads it) and their HP (the fight lasts longer, the XP doesn't move) */
+    for (const [x, fields] of [['Glevel150', { level: '*1.5' }], ['Glevel200', { level: '*2' }], ['Ghp150', { hp: '*1.5' }], ['Ghp200', { hp: '*2' }]]) {
+      for (const [party, L, gear] of [[PARTIES.four, 16, {}], [PARTIES.four, 10, {}], [PARTIES.four, 6, {}], [['tank'], 16, lone]]) {
+        out.push({ ...row(party, L, gear, x), whatIf: { monsters: { '*': fields } } });
+      }
+    }
+    return out;
+  }
   if (name === 'riskleech') {
     /* WHAT THE GONE BLOCK LETS IN: a low hero sat behind three friends who hold the ground. Levels [friends x3, the low seat]; the low seat stands last, a bow or a mage, in the practice set or the Level's kit. */
     for (const [ground, friends, lows] of [['coppercap_warrens', 37, [1, 8, 18, 25]], ['mosslight_glade', 24, [1, 8]], ['meadowbrook_thicket', 12, [1]]]) {

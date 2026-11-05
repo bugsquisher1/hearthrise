@@ -8,6 +8,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## Unreleased
 
 **Etched runes cost 12 gold a cast,** up from 10, so the stronger spell is worth its price without making Scored runes pointless.
+
 ## v0.2.97 — 2026-11-05 (A Town That Grows)
 
 **Your hero's colors.** Pick four colors when you make a hero and everyone sees them, in town and in hunts, on every outfit. Trying on new colors in the Character window's Outfit tab is free; saving them costs gold, more at higher Levels.

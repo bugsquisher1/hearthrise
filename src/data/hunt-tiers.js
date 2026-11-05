@@ -26,11 +26,11 @@ const tier = (id, pull, powerPm, xpPm) => ({ id, pull, powerPm, xpPm });
 const NORMAL = Object.freeze(tier('normal', Object.freeze([0, 0, 0, 0]), 1000, 1000));
 
 export const GROUND_TIERS = {
-  /* No more monsters: the Thicket's Normal sits 14-19% under Wickstead's, so its room is the stats. A pull of 3 at no extra XP already reads 1.05-1.10 for AoE. */
+  /* No more monsters: the Thicket's Normal sits about 15% under Wickstead's, so its room is the stats. A pull of 3 at no extra XP already beats it for AoE. */
   meadowbrook_thicket: { dangerous: tier('dangerous', [0, 0, 0, 0], 1500, 1050), deadly: tier('deadly', [0, 0, 0, 0], 3000, 1100) },
-  /* A lone hero stops at 5: a full box at +10% reads 1.11 for a hammer against the Glade. A party keeps it, under by a fifth. */
+  /* A lone hero stops at 5: a full box beats the Glade for a hammer even at no extra XP. A party keeps it, under by a fifth. */
   wickstead: { dangerous: tier('dangerous', [3, 4, 4, 5], 1500, 1050), deadly: tier('deadly', [5, 8, 8, 8], 2000, 1100) },
-  /* A lone hero keeps the ground as it stands: a pull of 4 reads 1.06 for a hammer against the Glade. A party keeps the full box. */
+  /* A lone hero keeps the ground as it stands: a pull of 4 beats the Glade for a hammer. A party keeps the full box. */
   millrace_sewer: { dangerous: tier('dangerous', [0, 5, 5, 6], 1200, 1050), deadly: tier('deadly', [0, 8, 8, 8], 1750, 1100) },
   mosslight_glade: { dangerous: tier('dangerous', [4, 5, 5, 6], 1200, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1500, 1200) },
   coppercap_warrens: { dangerous: tier('dangerous', [4, 5, 5, 6], 1200, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1500, 1200) },

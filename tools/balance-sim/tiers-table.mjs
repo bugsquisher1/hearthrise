@@ -157,10 +157,15 @@ if (boardDir) {
   const say = (c) => (c ? k(c.xp) + ', ' + signed(c.net) + ', ' + Math.round(c.hp) + '%, ' + life(c) : '-');
   const NAME = { tank: 'Sword + shield', hammer: 'Hammer', mage: 'Mage', 'tank+healer+bow+mage': 'Healed four' };
   console.log('| Ground, Level | Who | Normal | Dangerous | Deadly |\n|---|---|---|---|---|');
-  for (const [ground, levels] of [['meadowbrook_thicket', [2, 5, 12]], ['wickstead', [5, 8, 16]], ['millrace_sewer', [5, 8, 16]], ['mosslight_glade', [10, 16, 31]], ['coppercap_warrens', [26, 32, 50]]]) for (const level of levels) for (const who of Object.keys(NAME)) {
+  const SHOWN = [['meadowbrook_thicket', [2, 5, 12]], ['wickstead', [5, 8, 16]], ['millrace_sewer', [5, 8, 16]], ['mosslight_glade', [10, 16, 31]], ['coppercap_warrens', [26, 32, 50]]];
+  for (const [ground, levels] of SHOWN) for (const level of levels) for (const who of Object.keys(NAME)) {
+    if (level !== levels[1] && who !== 'tank' && who !== 'tank+healer+bow+mage') continue;
     const r = rows.get([ground, level, who].join('|'));
     if (r) console.log('| ' + SHORT[ground] + ' ' + level + ' | ' + NAME[who] + ' | ' + say(r.normal) + ' | ' + say(r.dangerous) + ' | ' + say(r.deadly) + ' |');
   }
+  const bills = SHOWN.flatMap(([g, ls]) => [[g, ls[1]], [g, ls[2]]]);
+  console.log('\n| Store bill per head per hour: Normal, Dangerous, Deadly | ' + bills.map(([g, l]) => SHORT[g] + ' ' + l).join(' | ') + ' |\n|---|' + bills.map(() => '---').join('|') + '|');
+  for (const who of ['tank', 'mage', 'tank+healer+bow+mage']) console.log('| ' + NAME[who] + ' | ' + bills.map(([g, l]) => { const r = rows.get([g, l, who].join('|')); return r ? ['normal', 'dangerous', 'deadly'].map((t) => k(r[t].store)).join(', ') : '-'; }).join(' | ') + ' |');
   if (process.argv.includes('--write')) {
     const out = [...rows.values()].sort((a, b) => a.ground.localeCompare(b.ground) || a.level - b.level || a.who.localeCompare(b.who));
     writeFileSync(join(HERE, 'tiers-summary.json'), JSON.stringify({ generated: new Date().toISOString(), rows: out }) + '\n');

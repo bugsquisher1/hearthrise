@@ -115,7 +115,7 @@ export function tierWords(r, id, size = 1) {
 /** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: 8 monsters a pull, hitting 50% harder." '' on Normal. Pure. */
 export function tierChoiceWords(r, id, size = 1) {
   const t = tierRowOf(r.hunt, id);
-  return t.id === DEFAULT_TIER ? '' : TIER_NAME[t.id] + ': ' + tierHead(r, t, size) + '.';
+  return t.id === DEFAULT_TIER ? '' : TIER_NAME[t.id] + ': ' + tierHead(r, t, size).replace(/^The/, 'the') + '.';
 }
 
 /** The ground's level band in words, and where the character stands when its level is known. */

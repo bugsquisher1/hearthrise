@@ -19,6 +19,13 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - The Hunts window is wider, so the first row of who lives on a ground isn't cut off above Enter. A long line in the list no longer starts with a stray dot.
 - The bag shows a row more on a laptop screen: its tabs and search now share a line.
 - Reloading just as the game opens no longer loses your hunt summary or your "While you were away" card.
+**Friends with the same weapon.** Four friends with the same weapon in Meadowbrook Thicket now earn more Level XP.
+**A cloak for the Glade.** You can wear the Houndskin Cloak at Level 22 now, and stitch it in Crafting from 12 Wolf Pelts and a Bear Pelt. Brook Bears only come to a pull of 3 or more at Mosslight Glade.
+
+**Equip upgrades gets you dressed.** An empty slot no longer waits for you to choose: it takes the armor weight you picked at Tamsin's, or the one you already wear, or the one that suits your weapon. You can still change any piece on the doll.
+
+**No old news on your way back.** Coming back to a long hunt no longer opens on "Your hero just ate".
+**Armor works against the monster in front of you.** How much armor takes off a blow now depends on how strong the monster is, not on your Level. Weak monsters barely get through, and strong ones get through low armor more. The character sheet shows what your armor does against a monster of your Level.
 
 ## v0.2.89 — 2026-11-04 (Still Here)
 
@@ -28,6 +35,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - The sign-in screens now link the Privacy Policy and the Terms of Service, and Create account says what pressing it means. Both pages were rewritten to say what Hearthrise really does today, including that your characters will be wiped before Steam Early Access.
 - New in Settings, under Help: "Share session recordings to help fix bugs". It is on by default. Turn it off and the game stops recording your screen at once.
 **What next is one goal.** The card now names the one thing worth doing next, with the press that does it, and More shows the rest. It tells you when your next hero is free or paid for, when more stamina is yours to buy, and which harder ground is your next step up. The Hunts list marks that ground too and opens on the harder ground you last hunted.
+- A tab showing a hero the server no longer holds now goes to your characters screen instead of standing still.
 
 ## v0.2.88 — 2026-11-04 (Simply Harder)
 

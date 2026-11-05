@@ -52,7 +52,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_buy_hero_slot: 'buy the next hero slot with one own hero\'s gold: the slot id, the paying hero and a key, never a price; the server prices, caps and debits (AccountSession.buySlot)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
-  hr_hunt_density_set: 'the hero’s monster-density pick on one hunt ground, a ground id and a whole number; the server bounds it by that ground and refuses a party member (CharacterSession.setHuntDensity; 2026-11-17-hunt-density-home.sql)',
+  hr_hunt_tier_set: 'the hero’s tier on one hunt ground, a ground id and a tier word; the server checks that ground offers it and refuses a party member (CharacterSession.setHuntTier; 2027-02-27-hunt-tiers.sql)',
   hr_action_set_copy:'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */

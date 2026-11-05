@@ -272,9 +272,9 @@ export const REFUSAL_WORDS = Object.freeze({
   title_kills: 'That title takes more kills first. Gold can\'t skip kills.',
   title_owned: 'This hero already has that title.',
   title_not_owned: 'This hero hasn\'t claimed that title yet.',
-  /* The density pick per ground (hr_hunt_density_set, 2026-11-17-hunt-density-home.sql). */
+  /* The tier picked per ground (hr_hunt_tier_set). */
   bad_hunt: 'That hunt has no monsters to set a number for.',
-  bad_density: 'That is more monsters than this hunt allows.',
+  bad_tier: 'This hunt can\'t be hunted that way yet.',
   unknown_supply: 'One of the things packed is not a hunt supply.',
   bad_bag: 'The packed supplies were not valid, so nothing was sent.',
   too_many_lines: 'Too many kinds of supplies packed.',

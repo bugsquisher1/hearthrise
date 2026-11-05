@@ -25,6 +25,7 @@
 // ============================================================
 
 import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.95';
+import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.95';
 import { STATUSES } from '../../data/statuses.js?v=0.2.95';
 import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.95';
 import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.95';
@@ -70,9 +71,9 @@ function takenPmOf(u) {
 export const yieldOf = (m) => (Number.isInteger(m && m.yieldPm) && m.yieldPm > 0 ? m.yieldPm : 1000);
 const stanceOf = (u) => HUNT_STANCES[u && u.stance] || HUNT_STANCES[DEFAULT_STANCE];
 
-/* WHAT THE HERO'S ARMOUR DOES TO THIS BLOW (mitigation.js): its values against the attacker's own level. A status tick whose dealer has left the world has no level to read: 1. */
-const armourVs = (target, source) => (target.armour
-  ? mitigationOf(target.armour, source && source.side === 'mon' ? monsterLevelOf(MONSTERS[source.kind]) : 1) : NO_MITIGATION);
+/* WHAT THE HERO'S ARMOUR DOES TO THIS BLOW (mitigation.js): its values against the attacker's own level, the ground's tier on it (hunt-tiers.js). A status tick whose dealer has left the world has no level to read: 1. */
+const armourVs = (inst, target, source) => (target.armour
+  ? mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1) : NO_MITIGATION);
 
 /**
  * Apply `amount` from `source` to `target`; answers what landed:
@@ -95,7 +96,7 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   /* THE HERO'S ARMOUR, in the fixed order (dodge was rolled by landHit): absorb, resistances,
      ward, never past the total cap (src/core/mitigation.js), then the shield below and HP.
      Every landed blow deals at least 1. */
-  n = target.side === 'hero' ? mitigate(n, el, armourVs(target, source), target.armorPm, rng) : Math.max(1, n);
+  n = target.side === 'hero' ? mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng) : Math.max(1, n);
   /* TEMPERING: a hero's rung raises what lands on a monster, last, so +1% is +1% of the damage whatever the monster's defence (src/core/temper.js: the part of a point is one draw, made only by a hero with a rung). */
   if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
@@ -116,7 +117,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* DODGE, the chain's first step (ruling K7): a BLOW at a hero wearing medium armour misses
      outright on its dodge chance — one draw on the `s` stream, made only when the chance is above
      zero, so a hero with no medium armour draws nothing. A status tick is not a blow (`dot`). */
-  const dodgePm = target.side === 'hero' && !(ability && ability.dot) ? armourVs(target, source).dodgePm : 0;
+  const dodgePm = target.side === 'hero' && !(ability && ability.dot) ? armourVs(inst, target, source).dodgePm : 0;
   if (dodgePm > 0 && sc.rng.chance(dodgePm / 1000)) {
     sc.emit(makeEvent('miss', sc.atMs, { u: source ? source.id : null, t: target.id, dodge: true }));
     return { dmg: 0, absorbed: 0, killed: false, dodged: true };
@@ -140,7 +141,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);
-    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: Math.round((MONSTERS[target.kind].xp * yieldOf(target)) / 1000) }, sc);
+    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: Math.round((atTier(MONSTERS[target.kind], inst.tier).xp * yieldOf(target)) / 1000) }, sc);
   }
   return r;
 }
@@ -175,8 +176,8 @@ export function resolveAttacks(inst, sc) {
     if (!t || !t.alive) continue;
     if (u.side === 'mon') {
       if (cheb(u, t) > 1 || !atRest(u)) continue;
-      const row = MONSTERS[u.kind];
-      /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). */
+      const row = atTier(MONSTERS[u.kind], inst.tier);
+      /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). The tier the party picked is the monster's stats too (hunt-tiers.js). */
       swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));
       continue;
     }

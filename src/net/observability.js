@@ -50,7 +50,7 @@
 import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.95';
 import { BUILD } from '../build-info.js?v=0.2.95';
 import { observeSessions } from '../session/character-session.js?v=0.2.95';
-import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.2.95';
+import { partyOf, huntOf, huntTierOf } from '../session/hunt-sections.js?v=0.2.95';
 import { levelOf } from '../session/character-sections.js?v=0.2.95';
 import { replayWanted } from '../session/replay-pref.js?v=0.2.95';
 import { startDiagnostics } from './diagnostics.js?v=0.2.95';
@@ -241,10 +241,9 @@ function watchHunt(cs, w, now, send) {
   }
   if (open && s.id !== w.sid) {
     const party = partyOf(cs);
-    /* The hero's own pick on this ground (hunt_density; no key = 0, as built); null when the server sent none. */
-    const picks = huntDensityOf(cs);
-    send('hunt_started', { hunt: s.hunt, party_size: party ? party.members.length : 1,
-      density: picks ? (Number.isInteger(picks[s.hunt]) ? picks[s.hunt] : 0) : null });
+    /* The tier this hunt froze (hunt_tier); null when the server sent none. */
+    const tiers = huntTierOf(cs);
+    send('hunt_started', { hunt: s.hunt, party_size: party ? party.members.length : 1, tier: tiers ? tiers.playing : null });
     w.open = true; w.sid = s.id; w.reseeds = 0;
   }
 }

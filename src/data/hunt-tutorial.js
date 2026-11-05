@@ -436,9 +436,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'It ranks every hero in Havora. See where you stand, and who is ahead of you.',
     'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }),
   /* THE ONE DECISION OF LEVELS 10-30 (designer 2026-11-02, re-ruled with Tyler's harder monsters; a blind veteran found it by poking, +110% XP/h): it costs food now, and too big
-     can kill, so it is named once with its price. Words only: a "biggest pull held" readout waits on real picks in the beta. */
-  step('pull_goal', 'How big a pull can you hold?',
-    'On a hunt\'s page, + brings more monsters at once: more XP and more loot, a bigger food bill, and too many can kill you. Better armor and your Level let you hold more.',
+     can kill, so it is named once with its price. The tier is that decision since 2026-11-04 (hunt-tiers.js). */
+  step('pull_goal', 'How hard can you hunt?',
+    'Most hunts can be Dangerous or Deadly: the monsters hit harder, often more come at once, and every kill pays more XP. They cost more food, and they can kill you. Better armor and your Level let you hold them.',
     'hunt_picker', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: PULL_LEVEL, below: WANT_BELOW }] }),
 ]);
 

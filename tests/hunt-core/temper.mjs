@@ -277,7 +277,7 @@ const mutants = [
     edits: [[D, "if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);", ''],
       [D, '  let n = Math.max(0, Math.floor(amount));\n', "  let n = Math.max(0, Math.floor(amount));\n  if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);\n"]] },
   { name: 'a hero\'s Blows raises the blows at the hero', case: 'blows-raise-what-lands', edits: [[D, "if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);", 'if (target.blowsPm > 0) n = temperedAmount(n, target.blowsPm, rng);\n  if (source && source.blowsPm > 0) n = temperedAmount(n, source.blowsPm, rng);']] },
-  { name: 'hurt() never hands the rng to the chain, so Armor is lost', case: 'armor-lowers-what-reaches-the-hero', edits: [[D, 'mitigate(n, el, armourVs(target, source), target.armorPm, rng)', 'mitigate(n, el, armourVs(target, source))']] },
+  { name: 'hurt() never hands the rng to the chain, so Armor is lost', case: 'armor-lowers-what-reaches-the-hero', edits: [[D, 'mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng)', 'mitigate(n, el, armourVs(inst, target, source))']] },
   { name: 'Armor before the chain: ward makes it worth nothing or double', case: 'armor-lowers-what-reaches-the-hero',
     edits: [[MI, '  if (armorPm) x = temperedAmount(x, -armorPm, rng);\n', ''], [MI, '  let x = raw - Math.floor((raw * (m.absorbPm || 0)) / 1000);\n', '  let x = temperedAmount(raw, -(armorPm || 0), rng);\n  x = x - Math.floor((x * (m.absorbPm || 0)) / 1000);\n']] },
   { name: 'Armor after the cap', case: 'armor-never-passes-the-cap',

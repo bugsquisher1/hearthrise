@@ -17,7 +17,7 @@
 //   above-your-level-words  THE WORDS ON A GROUND ABOVE YOUR LEVEL ARE TRUE (panel 2026-11-01: "expect losses" sat on the best XP on the list):
 //                  hunt-list.js ABOVE_LEVEL_WORDS claims more XP, harder hits, and that weak armor can spend more on food than it earns or
 //                  die. Each claim is played here against the ground that fits: a balance change that makes one false turns this red.
-//   bigger-pulls-words  the Hunts window's "Bigger pulls pay more once your heroes can hold them", played: a Level 18 hero in Wickstead at 8 each
+//   bigger-pulls-words  a harder hunt's words and the coach's "How hard can you hunt?" (more monsters pay more once your heroes can hold them), played: a Level 18 hero in Wickstead at 8 each
 //                  against as built, and a fresh one who cannot hold them (it dips, and its food bill eats the gain).
 //   cape-cut       a Houndskin Cloak and a food's buff, played: each reaches the fight and moves damage taken as far as dice allow, the same swings viewed or with the browser closed
 //   risk-ladder    THE RISK IS THE MONSTERS (Tyler 2026-11-04): in range is safe; on a harder ground a hero earns well over the ground that fits and its supply bill follows, an unready hero dies and
@@ -286,7 +286,7 @@ const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
     edits: [['src/core/combat.js', 'const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;', 'const base = b.monsterBaseAccuracy;'], ...GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2')])] },
   { name: 'armor reads the hero\'s Level again: a push on the default food pays for itself', case: 'risk-ladder',
-    edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? monsterLevelOf(MONSTERS[source.kind]) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
+    edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
   { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/items.js', "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},", "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},"]] },
   { name: 'leather is thin as cloth: its rungs stop being worth finding', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "{ key: 'leather', vmul: 0.70, defMul: 0.55,", "{ key: 'leather', vmul: 0.70, defMul: 0.25,"]] },
   { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "def: [6, 12, 22, 34, 50, 68, 90], bars: 5,", "def: [6, 6, 22, 34, 50, 68, 90], bars: 5,"]] },

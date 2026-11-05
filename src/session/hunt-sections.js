@@ -22,6 +22,7 @@ import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.95';
 import { VITALS } from '../data/core-model.js?v=0.2.95';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.95';
 import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.95';
+import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.95';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -176,7 +177,7 @@ export function settingsOf(cs) {
     supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
     /* The gold the store never spends below (hunt_settings.gold_floor; null until hr_hunt_settings_view projects it). */
     goldFloor: int(s.gold_floor),
-    /* The gathering share (INERT until gathering lands). Density is no setting: huntDensityOf, per ground. */
+    /* The gathering share (INERT until gathering lands). How hard a hunt is, is no setting: huntTierOf, per ground. */
     gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
     stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 4), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),
     grounds: list(s.grounds, (g) => str(g), 32),
@@ -338,23 +339,26 @@ export function huntBestsOf(cs) {
 }
 
 /**
- * A DENSITY MAP as the server projects it ({ [hunt]: pick }, a whole number of monsters per pull, 0 = as
- * built), or null when it is not one. This hero's `hunt_density` and the party's `leader_densities`.
+ * A TIER MAP as the server projects it ({ [hunt]: tier id }, no key = Normal), or null when it is not one.
+ * This hero's `hunt_tier` picks and the party's `leader_tiers`.
  */
-export function densityMapOf(v) {
+export function tierMapOf(v) {
   if (!isObj(v)) return null;
   const out = {};
-  for (const [hunt, n] of Object.entries(v).slice(0, 256)) if (str(hunt) && int(n) !== null && n >= 0) out[hunt] = n;
+  for (const [hunt, t] of Object.entries(v).slice(0, 256)) if (str(hunt) && TIER_IDS.includes(t)) out[hunt] = t;
   return out;
 }
 
 /**
- * `hunt_density` (hr_hunt_density_view, 2026-11-17-hunt-density-home.sql): THIS hero's density pick on
- * each ground (rulings H4: chosen with the hunt, remembered per ground). A ground with no key is 0 (as
- * built); null = the server sent no section, and the picker shows no number.
+ * `hunt_tier` (hr_hunt_tier_view, hunt-tiers.js): THIS hero's tier picked on each ground (chosen with the hunt,
+ * remembered per ground) and the tier its running hunt froze. { picks, playing }; null = the server sent no section,
+ * and the picker shows no choice.
  */
-export function huntDensityOf(cs) {
-  return densityMapOf(section(cs, 'hunt_density'));
+export function huntTierOf(cs) {
+  const s = section(cs, 'hunt_tier');
+  if (!isObj(s)) return null;
+  const picks = tierMapOf(s.picks);
+  return picks ? { picks, playing: TIER_IDS.includes(s.playing) ? s.playing : null } : null;
 }
 
 /* THE PARTY'S VIEW. The server's figure sums its members' sessions, and every hero present is credited every kill

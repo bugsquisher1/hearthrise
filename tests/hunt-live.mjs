@@ -407,6 +407,23 @@ function rules(M) {
     ok('LV-U', shownXp.join() === closedXp.join(), 'the prediction shows ' + shownXp + ', the server pays ' + closedXp);
   }
 
+  { // LV-TIER: A HARDER HUNT, WATCHED (hunt-tiers.js; CLAUDE.md §6): the browser runs the same core on the frozen tier the leader's peer hero carries: every commit matches, and it's a harder fight than today's pull on the same dice.
+    const worn = { tank: { weapon: 'steel_sword', shield: 'coppercap_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' },
+      melee_dps: { weapon: 'steel_warhammer', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' } };
+    const two = (tier) => ['tank', 'melee_dps'].map((role, i) => {
+      const mi = memberOf(M, 't' + i, i, role, 60); mi.huntId = 'mosslight_glade'; mi.gold = 50000; mi.hp = 1e9; mi.equipment = worn[role];
+      mi.hero = Object.assign({}, mi.hero, { density: 8, lead: i === 1, ...(tier ? { tier } : {}) });
+      return mi;
+    });
+    const taken = (r, mis) => r.fed.events.filter((e) => e.type === 'dmg' && [mis[0].unitId, mis[1].unitId].includes(e.t)).reduce((s, e) => s + (e.amount || 0), 0);
+    const hard = two('deadly'), flat = two(null);
+    const a = run(M, hard, 48000, { server: { hunt: 'mosslight_glade' } }), b = run(M, flat, 48000, { server: { hunt: 'mosslight_glade' } });
+    const bad = a.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-TIER', a.verdicts.length >= 2 && bad.length === 0, `the viewer's browser did not predict the leader's Deadly: ${bad.length} of ${a.verdicts.length} commits diverged`);
+    ok('LV-TIER', taken(a, hard) > taken(b, flat), `Deadly took ${taken(a, hard)} HP in the browser's fight and today's pull ${taken(b, flat)}: the fight is not harder`);
+    console.log(`  LV-TIER Glade pair at the full box, 48 s: ${a.verdicts.length} commits, ${a.verdicts.length - bad.length} matched; HP taken ${taken(a, hard)} on Deadly, ${taken(b, flat)} at today's pull`);
+  }
+
   { // LV-K: THE LEADER CHOOSES (Tyler 2026-10-20): the peer leader's pick is the pull, on the server and in the browser.
     const pick = (mi, density, lead) => { mi.hero = Object.assign({}, mi.hero, { density, lead }); return mi; };
     const mis = [pick(memberOf(M, 'a', 0, 'tank', 6), 3, false), pick(memberOf(M, 'b', 1, 'melee_dps', 6), 7, true)];
@@ -1451,6 +1468,7 @@ const MUTANTS = [
     'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
+  ['the browser drops the tier of a peer (LV-TIER)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { tier: null }),', /^LV-TIER/],
   ["a peer's frozen numbers drop its Blows rung (LV-TEMPER)", 'src/core/member.js', '...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ', '', /^LV-TEMPER/],
   ["a peer's frozen numbers drop its Armor rung (LV-TEMPER)", 'src/core/member.js', '...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ', '', /^LV-TEMPER/],
   ['the settle never puts the Armor rung on the hero (LV-TEMPER)', 'src/core/combat-sim.js', '  if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;\n', '', /^LV-TEMPER/],

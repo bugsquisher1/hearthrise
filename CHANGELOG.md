@@ -9,6 +9,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Your hero's colors.** Pick four colors when you make a hero and everyone sees them, in town and in hunts, on every outfit. Trying on new colors in the Character window's Outfit tab is free; saving them costs gold, more at higher Levels.
 - **The Weighhouse goes up.** All of Havora can now give gold to raise the Weighhouse on the east bank, 100 gp to 25,000 gp a day from one account: tap its plaque on the high street, watch it climb through five stages, and the biggest givers go on the plaque.
+- Planting is quicker on the Farm. Pressing an empty plot brings the seed list into view with the seeds you can plant at the top, and after you plant, the list stays open on your next empty plot, so there's no more scrolling up and down. "Plant N empty plots" fills every empty plot with that seed in one press and tells you if it runs out of seeds partway.
+
 ## v0.2.96 — 2026-11-05 (Three Ways to Hunt)
 
 **Three ways to hunt.** Every hunting ground past the Mill Cellar can be hunted Normal, Dangerous or Deadly. Harder hunts hit harder and often bring more monsters at once, for more XP on every kill and the same gold and drops. It replaces the + and - on a hunt's page. Your pick is kept for each ground, and a party leader's pick holds for everyone.

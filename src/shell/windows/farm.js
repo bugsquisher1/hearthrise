@@ -11,9 +11,14 @@
 // the cap) is drawn after the others and goes once harvested. Under the field,
 // one line for the plot tier and its price, and the seed picker for the plot you
 // pressed.
-//   An empty plot      press it: pick a seed you hold (the crops you cannot plant
-//                      yet say why: the Farming level or the plot tier they need;
-//                      with no seed, where to buy one) → ONE hr_farm_plant.
+//   An empty plot      press it: pick a seed you hold (the crops you can plant list
+//                      first; the others say why: the Farming level or the plot tier
+//                      they need; with no seed, where to buy one) → ONE hr_farm_plant.
+//                      The picker then moves on to the server's next empty plot, where
+//                      it stands (Discord 0.2.95: "scrolling up and down to select new
+//                      plantable seeds over and over is tedious"). "Plant N empty
+//                      plots" sends ONE hr_farm_plant per empty plot, in order, and stops
+//                      at the first refusal with its words.
 //   A growing plot     Water (2 h at double speed) while the server says it may
 //                      be watered → ONE hr_farm_water.
 //   A ready plot       Harvest and replant (the designer's model: the same crop goes back in,
@@ -34,7 +39,7 @@ import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.96';
 import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.96';
 import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.96';
 import { CROPS } from '../../data/gathering.js?v=0.2.96';
-import { requiredPlotLevel, unlockedCrops } from '../../core/farm.js?v=0.2.96';
+import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.96';
 import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.96';
 import { whole, gold } from '../../render/format.js?v=0.2.96';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.96';
@@ -72,6 +77,17 @@ function left(ms) {
   if (m <= 1) return 'under a minute';
   const h = Math.floor(m / 60), r = m % 60;
   return h && r ? h + ' h ' + r + ' m' : h ? h + ' h' : r + ' m';
+}
+
+/** The server's empty plots inside the cap, in index order: the picker's next plot and "Plant N empty plots" read this one answer. */
+const emptyOf = (land) => emptyPlotIndices(Array.from({ length: land.cap }, (_, i) => land.plots.get(i) || null), land.cap);
+
+/** The empty plot after `at` on the RE-READ field (wrapping round), else null: where the picker goes after a plant. */
+function nextEmpty(cs, ctx, at) {
+  const land = farmLandOf(cs, typeof ctx.now === 'function' ? ctx.now() : 0);
+  const free = land ? emptyOf(land) : [];
+  const after = free.find((i) => i > at);
+  return after !== undefined ? after : free.length ? free[0] : null;
 }
 
 /** "1 more time", "3 more times". */
@@ -146,10 +162,11 @@ function patchPlot(li, i, st, now) {
   prop(act, 'disabled', !verb || st.sc.pending);
 }
 
-/* The seed picker for the pressed plot: every crop, plantable or saying why not. */
+/* The seed picker for the pressed plot: every crop, the plantable ones first, the others saying why not. It stays
+   drawn while a plant is in flight, so the window keeps its scroll until the picker moves to the next empty plot. */
 function patchSow(root, st, ctx) {
   const sow = root.querySelector('.hw-sow');
-  const on = st.sc.pick !== null && !st.land.plots.has(st.sc.pick) && st.sc.pick < st.land.cap;
+  const on = st.sc.pick !== null && st.sc.pick < st.land.cap && (st.sc.pending || !st.land.plots.has(st.sc.pick));
   cls(sow, 'is-on', on);
   if (!on) return;
   text(root.querySelector('.hw-sow-head'), 'Plant in plot ' + (st.sc.pick + 1));
@@ -160,16 +177,22 @@ function patchSow(root, st, ctx) {
     const why = st.farming === null ? 'Reading your Farming level…' : st.farming < c.req ? 'Needs Farming ' + c.req
       : !tier.has(id) ? 'Needs plot tier ' + requiredPlotLevel(id) : held < 1 ? 'No seeds' + (st.prices.has(c.seed) ? ': the Shop sells them at ' + gold(st.prices.get(c.seed)) : '') : '';
     return { id, c, held, why };
-  });
+  }).sort((a, b) => Number(!!a.why) - Number(!!b.why));
+  const free = emptyOf(st.land).length;
   rows(root.querySelector('.hw-seeds'), list, {
     key: (r) => r.id,
     build: (r) => element(ctx.doc, '<li class="hw-line" data-crop="' + esc(r.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, r.c.seed) + '</span>'
       + '<span class="hw-line-name"><b>' + esc(r.c.name) + '</b><small></small></span>'
-      + '<button type="button" class="hh-tool" data-hs-act="sow" data-crop="' + esc(r.id) + '">Plant</button></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="sow" data-crop="' + esc(r.id) + '">Plant</button>'
+      + '<button type="button" class="hh-tool hw-sow-all" data-hs-act="sowall" data-crop="' + esc(r.id) + '"></button></li>'),
     patch: (li, r) => {
       text(li.querySelector('small'), r.c.hours + ' h · ' + (r.why || whole(r.held) + (r.held === 1 ? ' seed' : ' seeds') + st.seedsWhere));
       cls(li, 'is-locked', !!r.why);
       prop(li.querySelector('button'), 'disabled', !!r.why || st.sc.pending);
+      const all = li.querySelector('.hw-sow-all');
+      text(all, 'Plant ' + free + ' empty plots');
+      cls(all, 'is-on', !r.why && free > 1);
+      prop(all, 'disabled', !!r.why || st.sc.pending);
     },
   });
   const none = !list.some((r) => !r.why);
@@ -250,6 +273,21 @@ function run(sc, repaint, send, busy, done) {
     .then((r) => { if (!r.ok) { sc.msg = farmWords(r); repaint(); } return r; });
 }
 
+/* "Plant N empty plots": ONE hr_farm_plant per plot of `order`, in order; the first refusal ends it and is handed back
+   (alone when nothing was planted, else as `stop` beside the count) for the window's one line. The picker follows it. */
+async function sowEach(ctx, sc, repaint, order, crop) {
+  let n = 0;
+  for (const at of order) {
+    sc.pick = at;
+    sc.msg = 'Planting ' + cropName(crop) + ' in plot ' + (at + 1) + '…';
+    repaint();
+    const r = await plantCrop(ctx.account, ctx.character, at, crop);
+    if (!r.ok) return n ? { ok: true, n, at, stop: r } : r;
+    n++;
+  }
+  return { ok: true, n };
+}
+
 renderFarm.act = function actFarm(ctx, body, action, ev, t) {
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
@@ -264,12 +302,24 @@ renderFarm.act = function actFarm(ctx, body, action, ev, t) {
     sc.pick = land.plots.has(plot) ? null : plot;
     sc.msg = '';
     repaint();
+    /* the picker sits under the field: bring it on screen rather than make the player scroll for it */
+    const sow = body.querySelector('.hw-sow.is-on');
+    if (sow && typeof sow.scrollIntoView === 'function') sow.scrollIntoView({ block: 'nearest' });
     return true;
   }
   if (action === 'sow' && sc.pick !== null) {
     const crop = t.getAttribute('data-crop');
     const at = sc.pick;
-    run(sc, repaint, () => plantCrop(ctx.account, cs, at, crop), 'Planting…', () => { sc.pick = null; return 'Planted ' + cropName(crop) + ' in plot ' + (at + 1) + '.'; });
+    run(sc, repaint, () => plantCrop(ctx.account, cs, at, crop), 'Planting…', () => { sc.pick = nextEmpty(cs, ctx, at); return 'Planted ' + cropName(crop) + ' in plot ' + (at + 1) + '.'; });
+    return true;
+  }
+  if (action === 'sowall' && sc.pick !== null) {
+    const crop = t.getAttribute('data-crop');
+    const order = emptyOf(land);   // the server's empty plots at the press, each tried once, in order
+    run(sc, repaint, () => sowEach(ctx, sc, repaint, order, crop), 'Planting…', (r) => {
+      sc.pick = nextEmpty(cs, ctx, -1);
+      return 'Planted ' + cropName(crop) + ' in ' + r.n + (r.n === 1 ? ' plot.' : ' plots.') + (r.stop ? ' Stopped at plot ' + (r.at + 1) + ': ' + farmWords(r.stop) : '');
+    });
     return true;
   }
   if (action === 'water') { run(sc, repaint, () => waterPlot(ctx.account, cs, plot), 'Watering…', () => 'Watered: it grows twice as fast for 2 hours.'); return true; }

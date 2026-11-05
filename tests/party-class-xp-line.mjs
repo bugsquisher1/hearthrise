@@ -153,7 +153,7 @@ const MUTANTS = [
   { name: 'Wickstead\'s same-class pair keeps the even share (no 0.88)', cells: [['wickstead', ['bow', 'bow']], ['wickstead', ['tank', 'tank']], ['wickstead', ['healer', 'healer']]],
     edits: [['src/data/party-class-xp.js', 'wickstead: row([880, 1070]', 'wickstead: row([1000, 1070]']] },
   { name: 'a one-class cell above the identity on one row (the Warrens)', cells: [['coppercap_warrens', ['bow', 'bow']]],
-    edits: [['src/data/party-class-xp.js', 'coppercap_warrens: row([1000, 1180]', 'coppercap_warrens: row([1500, 1180]']] },
+    edits: [['src/data/party-class-xp.js', 'coppercap_warrens: row([960, 1180]', 'coppercap_warrens: row([1500, 1180]']] },
   { name: 'every party reads its top cell, classes or no classes', cells: [['mosslight_glade', ['bow', 'bow']], ['wickstead', ['bow', 'bow']]],
     edits: [['src/data/party-class-xp.js', 'return { permille: cells[Math.min(Math.max(classes.length, 1), cells.length) - 1], classes };', 'return { permille: cells[cells.length - 1], classes };']] },
   { name: 'a shield Melee and a Melee count as two classes', cells: [['millrace_sewer', ['tank', 'axes']], ['meadowbrook_thicket', ['tank', 'axes']]],

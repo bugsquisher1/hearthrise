@@ -84,6 +84,12 @@ comment on table public.town_works_gifts is
 alter table public.town_works_gifts enable row level security;
 revoke all on table public.town_works_gifts from public, anon, authenticated, service_role;
 
+-- THE TOWN HAS NO HERO. Every chat row named a sender until now; hr_chat_name_authority, hr_chat_row and the client's lineOf have each carried a no-sender path all along, and a read's
+-- block filter passes a null. Only a System row may go without one, and no client role can insert a chat row at all.
+alter table public.chat_messages alter column from_id drop not null;
+alter table public.chat_messages drop constraint if exists chat_messages_sender_or_system;
+alter table public.chat_messages add constraint chat_messages_sender_or_system check (from_id is not null or channel = 'system');
+
 -- ── §2 THE HELPERS ───────────────────────────────────────────────────────────
 -- Which stage a total stands at: 0 at the start, the last index at the goal.
 create or replace function public.hr_town_works_stage(p_at bigint[], p_total bigint)

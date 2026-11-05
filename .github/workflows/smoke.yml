@@ -4951,6 +4951,11 @@ jobs:
           node tools/mutant-gate.mjs node tests/town-crier.mjs --selftest
           node tools/world-art/hearth-flames.mjs --check
           node tools/world-art/round-fireworks.mjs --check
+          # THE TOWN WORKS (Tyler 2026-11-04): the server gives gold and Havora raises the Weighhouse. TW-NO-BUFF is the standing guard that nothing in the engine, XP, drops or prices reads a project.
+          node tools/gen-town-works.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-town-works.mjs --selftest
+          node tests/town-works.mjs
+          node tools/mutant-gate.mjs node tests/town-works.mjs --selftest
 
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt

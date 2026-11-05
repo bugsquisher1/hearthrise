@@ -105,6 +105,281 @@ A four at the Warrens, Level 40: +2.6%. Both tracks at once add nothing to XP ov
 **Repeated decisions (first principle), flagged:** a four's whole ladder is 80 rungs and 160 presses, spread over hundreds of hours and each one a real spend, so I kept the question; a "temper all my heroes" press is the fix if players ask.
 
 **Done:** engine, catalogue, view, section, edge forward list, client, sheet, coach, guards. **Verified by playing** (local world, real client and engine, 2026-11-04; levels, gear and gold are local fixtures): Bronze's refusal, a rung bought, short of gold, the question in sight, a rung bought mid-hunt, 50 minutes hunted with the browser closed for part of it, reload, the sheet; screenshots read. **Assumed:** nobody has spent real gold on this, so how fast piles go and whether anyone feels 1% are unmeasured; hours past 50 for a four. **Could still be wrong:** rung 1 may feel like nothing on screen (a blow of 8 lands 9 one time in twelve): the row and sheet say it, the blows barely can. The deep-pocket line: rich players press the pull, so piles run about 1.4x sooner.
+### 2026-11-05 Ground Packs: a new hunting ground that doesn't touch the rest of the world (designer, lane/d-ground-pack): DESIGN ONLY. Nothing built, no generations, no sim run on the new rows
+**Tyler:** "we need a scalable way to build new hunting grounds. It seems like right now you're just doing it all from scratch but I think we need a system or module or something that allows us to quickly roll out new hunting grounds so we don't get caught behind on new content."
+
+**The call.** Build it, on the shape in the brief, with the weight moved. The folder and the number tool are the smaller savings. The time goes on three couplings: a new ground re-fits the Level curve for everybody, re-issues every catalogue whole, and turns guards red outside its lane. Cut those three and a ground should cost about 3 working hours (a target). Tags: **(M)** measured from git, a run or a tool's committed measure; **(C)** computed from the data tonight, read-only; **(A)** assumed.
+
+**What the commits change in the brief.**
+| The brief | What the diff says | So |
+|---|---|---|
+| 2 h to a working ground, then 7 h of re-fits and re-pins | 5 h 00 of those 7 h is a deliberate pause: P1 reports came in and the lane stopped at `9d80af261` per §3.2 (memory `overnight-2026-10-28`). 4 h 13 was working time (M) | Compare working time to working time. "Half a day against 9 h" would be a fake win |
+| The tool replaces hours of hand re-fits | The Ford's hand fitting was 34 min plus 15 min (M). The re-fits that cost more are the curve's | Worth building, and third on the list |
+| One folder per ground | Authoring rows took 25 min and never went red (M) | Keep it, as the home for per-ground test facts. It doesn't save the minutes |
+| About 20 test files name grounds by id | 69 test files name one. 18 have a hand list or a table keyed by ground, and so do 7 tools (C, regex). 14 guards actually moved for the Ford and Wickstead (M) | Same size of job; I sort by the 14 |
+| Difficulty tiers come automatically | True from the Glade up, false below it (the ladder fails, lane/c-difficulty-tiers). And the Warrens' Deadly may beat the next ground's Normal (section 4) | Default rows from Level 16, always checked, never assumed |
+
+#### 1. The touchpoint inventory, from the diffs
+**Where the Ford's time went (M, local stamps 10-28 to 10-29):**
+| Stretch | Stamps | Took | What |
+|---|---|---|---|
+| Spec to approved art | 20:11 to 21:42 | 1 h 31 | 230 subscription gens in the first pass (`9cf039427`), then a ground redrawn after a symmetric draft was rejected, 16 props, a re-seat (`0b196ba04`) |
+| Map and wiring | 21:42 to 22:07 | 25 min | `ef6102f53`: 26 files |
+| First fit | 22:07 to 22:41 | 34 min | Drop chances x1.55 to x1.8, coin, tier-4 sale rate, curve, census |
+| **Paused for P1s** | 22:41 to 03:41 | 5 h 00 | No lane commits. Git can't say whether sim runs for the next re-fit happened in here |
+| Re-date, regenerate, re-fit | 03:41 to 04:15 | 34 min | Another lane's walk-on fix moved the pace, so the curve went again and five files moved from 02-09 to 02-11 |
+| Reds | 04:15 to 05:24 | 1 h 09 | AW-25, gold-intents, copy-lint, the rest of the merge |
+| **Total** | | **9 h 13 elapsed, 4 h 13 working** | LANE DONE `cae21e257`. Not shippable: held, it needed two more merges that day (at least 31 min) and is now 21 releases behind |
+
+**A second sample, the one that shipped: Wickstead (M).** First commit 13:20 (its start isn't in git), LANE DONE 14:08, art 14:48 at **one generation**, with four creature sheets copied under new ids, release 14:51. Then six ground-caused reds and a curve re-fit, migration and new edge, closed at 20:01: 5 h 10 elapsed after release. So a ground that ships pays its bill after the lane says done. Reds cost about an hour each: a release run reads a median 57 min, and 63 of 79 red causes were forgotten pins (lane/r-release-gate).
+
+**The footprint (M):** the Ford is 36 non-art files and 5,118 added lines. 4,528 are generated SQL in 5 files, 473 are the pace snapshot, about 250 are written by hand. Of the 4,528 generated lines, 270 changed from the previous cut and only **39 rows are the Ford's own**: hr_items 6, hr_activities 5, hr_hunts 1, hr_hunt_spawns 4, hr_hunt_grounds 1, hr_hunt_ground_spawns 4, hr_hunt_kill_bounds 4, hr_hunt_roster 4, hr_hunt_travel 4, hr_hunt_vendor_value 5, bench input 1. Most of the rest are vendor values moved by one global rate, then the curve and file headers.
+
+**Sorted by what it costs:**
+| # | Touchpoint | Real paths | Cost (M unless tagged) | How often it broke (M) | In a pack |
+|---|---|---|---|---|---|
+| 1 | Level curve re-fit | `core-model.js` LEVEL_CURVE, `tools/balance-sim/level-pace.json`, a `*-level-curve.generated.sql`, `gen-level-curve.mjs` OUT_NAME, `core-purity` L10 anchor | 2-3 h on 4 workers a re-measure (`pace.mjs` header). Twice for the Ford, once for Wickstead, once for the boar and bear, once for the walk-on. A 45-60 ground moved Level 10's cost 0.7% | `level-curve` C1 and `core-purity` on every ground, and on any lane that moves the pace | Floor at or above the measured ceiling: no re-fit below the floor. Else a fit from the floor up only |
+| 2 | Whole-catalogue re-issue, date chase | `gen-catalogues.mjs` OUT + OUT_BENCH_INPUTS, `gen-hunts.mjs`, `gen-hunt-sessions.mjs`, `schema-apply-order.json` order + note per file | 5 files, 4,528 lines, by-hand edits in 4 generators, re-issued 3 times. A held ground rots: "12 releases behind" on this board 11-02, 21 today | Every rebase. `hunts-c1` red when OUT_NAME moved (v0.2.63) | One additive file of its own rows, about 120 lines (C). Packs commute, so a held one doesn't rot |
+| 3 | Guards that name grounds | `drop-tables` (TOTAL_TODAY, REFERENCE, GEAR_RUNS, a regex), `forest-cave` (NEW, BRIDGE, CLIMB, RESTAGE, a per-ground case), `alpha-windows` AW-25, `sewer` coach lines, `gold-intents` G1, `world-core`, `pixel-icons` AHEAD list, `copy-lint-names`, `module-preload`, `restore-census` | About 1 h 09 on the Ford, most of 5 h 10 on Wickstead | Every ground. Six reds on Wickstead, in CI, after release | Loops over packs; each pack's facts live in its own `checks` |
+| 4 | Loot, coin, value fits | `monsters.js` ch and gp, `loot-bands.js` VENDOR_GEAR_RATES, `monster-classes.js` FORMATION_BANDS, `drop-tables` pin | 49 min on the Ford across 3 passes. Scarce .009 to .014, .025 to .045; Rare .004 to .0072; coin down, then +3.5% | `drop-tables` and `forest-cave` after each merge; `gold-intents` pins the rate array | The tool solves them in one pass. Sale rates set ahead, once (Phase 0) |
+| 5 | Art | `art/world/march` (42 files), `assets/world/atlas-march` (560 KB PNG, 2 to 5x most sets), 5 icons, `atlas-sets.js` | 1 h 31, 230+ gens. Wickstead: 40 min, 1 gen | Never red. One quality redo | Region kit plus 1-2 signature pieces |
+| 6 | Rows in 14 data files | `hunts.js`, `hunt-grounds.js`, `maps/<id>.js` + `maps/index.js`, `monsters.js`, `monster-classes.js`, `imbuements.js`, `items.js`, `item-descriptions.js`, `slot-ladders.js`, `hearth.js`, `supplies.js`, `catalogue-coherence.js` (VENDOR_TRASH, AWAITING_ROSTER, UNREACHABLE, ceiling), `atlas-sets.js` | 25 min, about 250 lines | Only the coherence ceiling, as designed | One folder; the coherence lists written by `pack ship` |
+| 7 | Census and order | `restore-census.baseline.json` (10 tables, 3 re-pins), `schema-apply-order.json`, `apply-order-honesty` | Minutes, on every merge | Census red in the release gate's list | Census computed: base + pack rows. One order line per pack |
+| 8 | Rows the Ford never needed, added since | `party-class-xp.js` (two tables), `tally-tasks.js` + `gen-tally-tasks`, `hunt-tiers.js` + `hr_hunt_tiers`, the ladder, NAMED_FUELS + FLAMES + `hearth-flames.mjs` + `gen-hearth-catalogue` | Unmeasured (A): each is a play, not a typed row | New | Proposed by the tool, in the pack. **So the Ford's cost is a floor and rising** |
+| 9 | Apply and deploy | 5 files one at a time, edge deploy, live-hash | Coordinator's minutes. A freeze only if the world's shape moves, and the Ford's didn't | The 10-31 freeze came from a shape move | One file, then the edge, then the client (below) |
+
+**Scale check (M, C):** the chain is 566 migrations and 376,495 lines. 33 hunt-sessions catalogues hold 51,026 of them. Sixty grounds at today's 4,500 lines a ground add about 270,000 lines to every replay; at 120 lines, about 7,000.
+
+#### 2. The design
+**The shape (sketch, not built):**
+```
+src/data/grounds/index.js                  one import and one row per pack. Nothing globs.
+src/data/grounds/shape.js                  box(), gather(), pack(): no imports, so no cycle with monsters.js or hunts.js
+src/data/grounds/regions/barrow_march.js   naming voice (DESIGN_STANDARDS §2), lore root, kit list, creatures two grounds share
+src/data/grounds/the_slake/pack.js         everything below except the map
+src/data/grounds/the_slake/map.js          rows, objects, road in. Drawn by a designer.
+```
+`HUNTS`, `HUNT_GROUNDS`, `MONSTERS`, `WORLD_MAPS`, `ITEMS`, `IMBUE_ITEMS`, `NAMED_FUELS`, `TALLY_TASKS`, `PARTY_CLASS_XP` and `hr_hunt_tiers`'s source read the union, so no reader changes. A creature's `numbers` sit apart from its identity, so the tool writes only those.
+
+| Who writes it | What | Today's home |
+|---|---|---|
+| **Designer, by hand** | Name, theme, lore link, band, fit, region | `hunts.js` |
+| | Map rows, objects, the road in, pockets and the reason for each, route | `maps/<id>.js`, `hunt-grounds.js` |
+| | Each creature: name, role, body (kit sprite or new), level, weak and resist, speed, weight | `monsters.js` |
+| | Loot identity: which item on which creature in which band; imbuement items, text, the named fuel and its flame | `monsters.js`, `imbuements.js`, `item-descriptions.js`, `hearth.js` |
+| | What it wins (`wins`), who it's measured on (`reference`) | `drop-tables` REFERENCE; new |
+| **Tool proposes, designer accepts** | hp, atk, baseAcc, def, xp, gp, every ch | `monsters.js` |
+| | Tier rows, party-class row and its said row, Tally count and gold, the value pin | `hunt-tiers.js`, `party-class-xp.js`, `tally-tasks.js`, `drop-tables` |
+| **Derived, never typed** | Spawn weights (pockets' head-count, which the Ford's comment shows was done by hand), `map.spawns`, maskHash, bag guide (`BAG_GUIDE_BY_TIER` unless overridden), coherence lists, every catalogue row, census counts, the preload line | Many |
+
+**A pack adds; it never changes.** It can't move a global rate, another ground's row or the world's shape. The Ford's reshaping of the old Wight row and its T4 sale rate would each make it a world move, today's process. One allowed exception: `amends`, for the name and text of an item the pack newly sources (Barrow Stone), never a price.
+
+**The tool, `tools/pack.mjs new | propose | check | ship`, on `tools/balance-sim` (real settle).**
+1. **Seed the blow.** To-hit is flat: 0.50 (or the row's `baseAcc`) + 2 points per point of atk minus Defense plus worn guard, clamped 5-85% (`combat.js`). Guard from Level 30 is 13 with shipped pieces, Steelgrate 9 + Houndskin 4 (lane/c-armor-tiers). So I define **effective attack = atk + (baseAcc - 0.5) x 50**, and it must climb a point a Level. For commons at 25% or better against a floor shield hero: effective attack >= floor + 0.5 (C). A row's blow stays within 35% of floor HP (`blow-share`), so past that cap the tool moves `baseAcc`, not atk.
+2. **Play the floor.** 8 styles x 2 seeds x 1 h = 16 sim-hours, about 2 min on 4 workers (C, from the tools' 16-30 s a sim-hour).
+3. **Solve.** xp scales to the contract (`LEVEL_PACE.contract`). `ch` = the band's promise / that creature's kills an hour (Scarce about hourly per slot and weight, Rare 10-20 h). This is the Ford's 3 passes done as arithmetic. Coin comes last: at least +25% over the bill, total at most +25% over the pin, gear at most half of coin. The pin is what the game already pays that hero at that Level (the Ford's own ruling), frozen once.
+4. **Stop at 3 passes** and print whatever can't be met. It never quietly settles.
+5. **`check`:** 8 styles x floor, middle, top x 3 tiers x 2 seeds x 1 h = 144 sim-hours, about 10-18 min on 4 workers (C). It prints the board table, the ladder against the next ground and every guard below. Numbers land as a diff the designer commits. Nothing is written by itself.
+- **The grid:** lane/c-armor-tiers (`3dd0ef93b`) moved the fixture and the sim to `gridOfMap`, so the tool plays the server's map. The server's grid is materials only, so anything meant to block is drawn in the rows. `pack-lint` refuses a solid object on an open tile: the client drawing a barge heroes walk through would be a new bug.
+
+**Tiers.** A pack says `tiers: 'default'` (Dangerous 4, 5, 5, 6 x1.2 +10%; Deadly 8 x1.5 +20%) or gives rows. Default is allowed from Level 16; the Glade-to-Warrens sample held 0 of 16. Under that a ground states its own, as ruled. Mill Cellar stays Normal only. `check` refuses a default the ladder rejects. `hr_hunt_tiers` is already keyed by ground on that lane, so these are pack rows; only the data side (`HUNT_TIERS`) still reads one global row, and the lane's expansion to lower grounds has to change that anyway.
+
+**Guards become loops; none gets weaker.** The six grounds keep every pin as written; a pack's pin is computed once, then frozen in the pack. Each looped guard keeps one literal anchor, so a loop can't pass by reading the code it checks.
+| Guard | Today | Becomes |
+|---|---|---|
+| `forest-cave` | NEW, BRIDGE, CLIMB, RESTAGE, `wickstead-solo-floor` | Every pack: bridges from the map, one generic solo-floor case, climb from band order |
+| `drop-tables` | TOTAL_TODAY, REFERENCE, GEAR_RUNS, a regex | Pack `checks`; regex from ids |
+| `alpha-windows` AW-25, `hunt-floor-warning` G6 | Exact lists | Expected line built from band and fit; one literal row stays |
+| `xp-share`, `hunt-screen`, `party-class-xp-line`, `first-week-bands`, `sewer` coach lines | Keyed tables, named gear | A row per pack; the Level 15 line stays a literal |
+| `level-curve` C1 | One fingerprint over all grounds | Per ground: a pack at or above the ceiling extends the measure. C5 reads it against the contract |
+| `core-purity`, `gold-intents` G1 | Pins that move with each ground | Stay pins, and stop moving |
+| `restore-census` | Re-pin | Base + pack rows, computed |
+| `module-preload`, `pixel-icons`, `copy-lint-names` | Hand or --write | `pack ship` runs them |
+| `tools/balance-sim` plans, verdict-table, b1120, risk-table | Hand lists | `OPEN_GROUNDS` |
+| New, each with `--mutate` | | `pack-lint`, `pack-line` (replaces FORMATION_BANDS for pack rows, which only restate their own rows plus 10%), `pack-additive`, `pack-fold`, `pack-order`, `pack-distinct` |
+
+**How catalogue migrations shrink, and stay honest.** `pack ship` writes one file, `<date>-pack-<id>.generated.sql`: upserts of the pack's rows only, about 40 rows and a self-check, about 120 lines against 4,528 (C). The self-check asserts the pack's own rows, never whole-table counts: today's `if v_n <> 577` is what makes two lanes' files fight. So **packs commute**, and two grounds can be built at once. Whole generation stays the source: `pack-fold` replays the chain on `schema-drift` and proves the tables equal what the generators would emit whole, so a drifted row is a red (mutant: a kill bound changed in data with no pack row). Anything global remains a forward file, today's way, and it carries every open pack's rows. **The hazard this opens:** a whole file generated on a branch that hasn't merged an applied pack would delete that pack's rows, so a world move is generated on the merged set, and `--check` plus `pack-fold` both go red otherwise. A held ground lives on main as a `staged` pack, emitting no rows, so holding it costs nothing; lifting it is one `pack check` (10-18 min, C) and one file. A named fuel doesn't touch `hr_bench_inputs()` or any function body, so `live-hash-drift` doesn't move; an everyday fuel rung does. That's a reason to use named fuels.
+
+**Engine and catalogue, safe either way.** `catalogue-apply-freezes-old-engine` came from a world-shape move. A pack can't make one: `pack-additive` generates with and without the pack, and refuses if any row outside its ids moves or `hr_hunt_world_shape` differs.
+| Order | Other hunts | The new ground |
+|---|---|---|
+| Catalogue first, old edge | Settle as before, no `world_shape_pending` (shape unchanged) | Only a forged start reaches it; the old edge answers `no_ground` (`hunt-settle.js`) until the deploy. Nothing moves |
+| Edge first, old catalogue | Settle as before | The server refuses the start: no row |
+| Client | Always last (§3.3 C) | It lists from its own data |
+
+The usual order stays catalogue, edge, client, with `hunt-health` after the apply. `pack-order` proves both orders, viewed and browser closed, with a control hunt on another ground, on the shape of the existing test at `hunt-sessions-settle.mjs:3607`. **Assumed until that test exists.**
+
+**One kit per region, and how it fails safe.**
+- **The kit:** tile families (15 pro March tilesets exist), shared props (16 `hf_`, 16 `mu_`), base units.
+- **The per-ground set:** the ground paint, the signature pieces, re-poured units. `atlas-march` holds the Ford's painted ground, so a kit ground would download it for nothing: split it at import, 0 gens. Sets load per scene, so a kit never costs the town.
+- **Re-pour** (`repour` in `tools/world-art/hearth-flames.mjs`) is free and palette-locked. It has only been used on flames. **Risk:** scripted finishes on shipped creature sprites have been rejected before (`art-cleanup-pass-rejected`), so the art director reads one before the batch. If it fails, that body is about 50 gens (C, 230 gens / 4 creatures + ground + icons).
+
+**`pack-distinct`, the §10 guard.** Same-y fails the build. It is a floor; the look is judged by people.
+- **Layout:** walkable overlap against every ground, best of four mirror flips. Today's pairs read 8-72% (C, table in section 4). Fail at 70%, warn at 60%. The one pair over the line is Thicket and Wickstead at 72%, also the pair that fails the ladder 16 of 16, one sample.
+- **Bodies:** at most 3 of 4 creatures from the kit. Each reused body needs a re-pour and a different weak, resist or speed from its source: no re-skin with bigger numbers.
+- **Signature:** at least one prop no other ground places.
+- **Names:** no root repeated; the banned list.
+- **Axis:** `wins` is proved by the check table; no ground best on every axis against its neighbours.
+- **Still by hand:** a designer draws each layout, the art director reads each ground, and each ground is played. §9's sample-first holds: the Slake is the sample, and nothing expands until it's played and reviewed. One ground at a time after that.
+
+#### 3. The phased build
+Sizes are lane hours (A). At most 3-4 lanes at once. **Nothing here starts tonight:** `hunt-grounds.js`, the fixture and these tests are moving under lane/c-difficulty-tiers (62 files), lane/c-armor-tiers (LANE DONE, unmerged) and lane/c-boss-call.
+| Phase | What | Pays | Waits for, collides with | Size |
+|---|---|---|---|---|
+| **0 Foundations** | One world move: VENDOR_GEAR_RATES through tier 6 (T4 0.075, ruled 10-29), tier-4 Hatchets and Crossbow rows (`mithril_hatchets`, `maple_crossbow` don't exist, so those ways to fight stop at tier 3), the March art merged and split | The first T4 pack needs no global row. Ends the 100+ vendor rows the Ford moved | Rides the next whole catalogue cut. lane/c-temper-craft, lane/c-hero-sinks and lane/d-crafted-jewelry may touch items | 1-2 h + apply |
+| **1 The tool** | `tools/pack.mjs propose` + `check`, read-only, usable on old grounds | 49 min of hand fits to about 15 (A) | lane/c-armor-tiers merged (grid); lane/c-difficulty-tiers merged (`plans.mjs`, `worker.mjs`, tier rows). No guard or data edits, so nothing else collides | 3 h |
+| **2 Guards loop** | The table above, test-only | Six reds and most of 5 h 10 per shipped ground (M, one sample) | The six-ground tier expansion, lane/c-boss-call, the next release's test edits. Worst collider: runs when those land, in one sitting | 3-4 h |
+| **3 Curve decoupled** | Per-ground fingerprint, fit-from-floor, contract check | 2-3 h of compute, a curve file and the `core-purity` move per ground | Do it on the pace re-measure lane/c-difficulty-tiers and lane/c-armor-tiers already owe, so it's paid once | 2 h + one re-measure |
+| **4 Pack module, additive files** | `src/data/grounds`, the unions, `pack ship`, `pack-additive`, `pack-fold`, `pack-order`, the census | 4,528 lines to 120; no generator edits; holds stop rotting; two grounds can run at once | Phase 2. A quiet catalogue moment, since it changes three generators. Security is one review at the EA gate (§2), not per file | 5-6 h |
+| **5 The proof** | The Slake, section 4 | The measurement | Phases 0-4 | 3 h target |
+| **6 Finish** | Ford imported as a pack. The six grounds moved mechanically, proved by byte-identical catalogues. Old tables deleted: Tyler's 10-19 "never a parallel path" holds only once this lands | One home for every ground | Quiet moment; Ford's hold is Tyler's | 3 h |
+
+**Cost and payback (A):** Phases 0-4 are about 15 lane hours plus one re-measure. A shipped ground today is 4 h 13 + about 5 h of reds, about 9 h; target 3 h, so about 6 h saved a ground. It pays back on the third ground. The region needs five, and the post-launch target is 60.
+
+#### 4. The proof: The Slake
+Tyler: "Don't rebuild hasks ford, rebuild something similar or maybe a 'mutated' version of hasks ford or something."
+
+**The cousin:** same kit, same dead, opposite answers. Same band size, solo, four creature rows. Every id below was grepped on `release/v0.2.91` and is free or real (C); the `hf_` props and the three base bodies are real on the Ford's art lane, which Phase 0 merges.
+
+**Name: The Slake**, id `the_slake`. A slake is a north-country word for a river mudflat (Jarrow Slake on the Tyne). Short, real, not a mood word. Theme line: "The Meadowbrook drops its copper here, and the Banded Company's dead with it." If it doesn't land, the fallback is The Wrack.
+
+**Lore link, each step read from the data or the art brief:** the Warrens' copper hill feeds the springs of the Meadowbrook (`hunts.js`, the Glade's header), "the copper water makes the moss glow" (the Glade's theme), the brook leaves the wood at Wickstead, and the Ford's river is painted off the same water (art lane; no text says so yet, and the Slake's theme line would). Below the Ford the river slows and drops what it carries: copper silt and the company's dead. They lay in it for years and went green. Hask sold the crossing, so the supply barge never got back upstream. The Hearth still lays them to rest: Grave Dust burns at Inner Flame 46. Each named thing connects to a place the player has already hunted.
+
+**Layout: drawn tonight, linted (C).** The Ford is two banks and one crossing: shut it and only 499 of 871 tiles stay reachable. The Slake is three silt bars and two deep channels with **four** crossings: the route is a ring, and shutting any one crossing strands nothing. 1,373 open tiles (Ford 886), every one in an open 3x3, all reachable, every pull tile with a full box. `#` reeds and the barge's hull, `~` deep channel, `.` silt, `:` shallows. The road comes in from the north at x12-15, where the Ford's comes from the west.
+```
+############....############################################  0  the road in
+###########.......##########################################
+#########...........################.........###############
+########......................................##############
+#######..........................................###########
+#######..........................................###########     P0 the Tow Path (15,6)     P1 the Stake Nets (42,6)
+#######.......................###................###########
+########......................###.....................######
+#########.............................................######
+##########............................................######
+###########.....::::::.................::::::::.......######  10
+~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~
+~~~~~~########..::::::...######~~~~~~~~::::::::...#######~~~
+~~~~#########.........................................####~~
+~~~##########..........................................###~~
+~~###########..........................................###~~
+~~###########.................##..........................#~
+~~##########................########......................#~     P5 the Grounded Barge (20,19)     P2 the Greenbar (48,19)
+~~##########...............##########.....................#~  20
+~~##########...............##########....................##~
+~~###########.................#####.....................###~
+~~#############..........................................#~~
+~~##############.........................................#~~
+~~~#############.......::::::::::.............:::::::....#~~
+~~~~~###########.......::::::::::.............:::::::...##~~
+~~~~~~~~~~~~~~~~~~~~~~~::::::::::~~~~~~~~~~~~~:::::::~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~::::::::::~~~~~~~~~~~~~:::::::~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~::::::::::~~~~~~~~~~~~~:::::::~~~~~~~
+~~~~~~#####............::::::::::.............:::::::....###  30
+####.....................................................###
+###..............................................###......##
+###...........###.............##................#####.....##
+###..........#####...........####................###......##     P4 the Low Flats (9,34)     P3 the Mudlark Holes (40,34)
+####..........###.............##.........................###
+#####...................................................####
+#######.................................................####
+###########.........................########################
+############################################################
+```
+Route 0, 1, 2, 3, 4, 5: along the north bar, over the east shallows, down the Greenbar, over again, west along the flats, over the wide shallows to the Barge, back over the west shallows.
+
+**Walkable overlap (C), the `pack-distinct` sample, best of four flips, %:**
+| | Cellar | Sewer | Thicket | Wickstead | Glade | Warrens | Ford |
+|---|---|---|---|---|---|---|---|
+| **The Slake** | 10 | 43 | 55 | 58 | 56 | 38 | **39** |
+| Hask's Ford | 14 | 38 | 35 | 39 | 41 | 44 | - |
+Highest pair today: Thicket and Wickstead 72; next Wickstead and Glade 62. The Slake's map is drawn, but hasn't been played or walked by a route test.
+
+**Two signature pieces, new art:** **the Grounded Barge** (a hull about 10 x 5 tiles at the centre, in the rows, so it blocks a step and a shot) and **the Stake Nets** (fishers' stake lines across the north-east bar, the rotted nets hung with green harness; it's where the river's dead fetched up). The rest is the kit: `hf_pikes_fallen`, `hf_banded_shield`, `hf_helm_heap`, `mb_reeds`, re-poured where they sit on the green silt.
+
+**The rows: seeds for the tool, UNPLAYED.** Same dead, opposite answers. The Ford's Pikemen resist blades (a sword at 45 nets -3.6k g/h, a hammer +6.1k, M, that board section). The Slake's are the other way round, so the two grounds make a real choice: where do I take this weapon?
+| Row, weight | Body | Role and the mutation | L | hp | atk | baseAcc | def | xp | gp | speed | Loot: common; uncommon; scarce or rare |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **Greened Pikeman**, 12 | `banded_pikeman`, re-poured | Swarm. The crust turns a hammer, a blade finds the joints: `weaponWeak: 'sword', weaponResist: ['hammer']` (the shape the Orchard Boar already uses) | 52 | 170 | 42 | .80 | 20 | 1,500 | 20-46 | 3400 | `bones`, `grave_dust`; `green_rivet`; `mithril_sword`, `maple_wand` |
+| **Bargeman**, 6 | `fordsunk`, re-poured | Tank, the slowest thing on the flat. Where the Fordsunk's bloat swallows arrows, the crew's cracked hides take them: weak ranged | 55 | 240 | 38 | .80 | 26 | 1,850 | 22-50 | 2400 | `bones`, `coal` (the barge's forge cargo); `barge_nail`; `mithril_warhammer`, `maple_staff` |
+| **Mudlark**, 4 | **New**, small and crouched, a sack on its back | Skirmisher. River scavengers who picked the dead and died among them. Quick enough to catch a kiter, hits often and light: resists ranged, weak magic | 54 | 130 | 34 | .85 | 14 | 1,350 | 18-40 | 4400 | `bone_chips`, `copper_ore`; `mudlark_hook`; `maple_bow`, `maple_crossbow` |
+| **Color Sergeant**, 2 (rare) | `bannerman`, re-poured | Bruiser and rare carrier: the danger row, holds the Barge | 60 | 260 | 52 | .80 | 28 | 2,600 | 34-78 | 3000 | `big_bones`; `color_cord`; `mithril_hatchets`, `maple_spellbook`; Rare: `barge_pitch` |
+- **It's the T4 weapons' one home.** No T4 ladder weapon has a reachable source today (`AWAITING_ROSTER`, `UNREACHABLE`, and no forge recipe, C). The Ford is the armor's home, so the two don't overlap.
+- **Why these numbers (C):** XP seeds are the Ford's rows scaled about +12% to reach the contract at the middle of the band (L58 244k; the Ford measured about 217k there). To-hit against a shield hero: 27-58% at Level 50, 11-42% at 58, 5-28% at 65; bare of shield and cape 53-84% at 50. Blows 136-208, at most 32% of 650 HP. The Ford as built reads 5-22% at 45 and 5% at 60 (C), so guard swallows it. **The Ford's import needs its effective attack raised: numbers only, no art.**
+- **Flame:** `barge_pitch` is a NAMED_FUELS row (req about 30, 0.6 x floor; a burst) with a new `pitch` flame, "burns low and dull red", a free ramp in `hearth-flames.mjs`. "The Hearth's flame changes for the square" was Tyler's favorite part of this system. Lands after lane/c-hero-sinks, which also builds on colored fuels.
+- **Axis (a claim for the sim to prove):** the weapons, and the sword's and bow's best XP in band. Less coin than the Warrens at the same Level and no armor. Not best at everything.
+
+**The open number: the ladder (M, C).** The tier lane's rule is that a ground's Deadly stays under the next ground's Normal. On that board, the Warrens' Deadly at 50 reads 213k (lone sword), 342k (hammer, at -78.6k g/h) and 327k (a four), against a contract rate of 200k. Paying the contract, the Slake can't sit above a net-negative hammer rush. My lean: the ladder reads only "good places" (net above zero, no death in the cell), the tiers lane's own test, since Tyler's rule is that rushing pays XP at a cost. A four's 327k at +6.6k still has to be met. If it can't, the Slake pays above the contract and only the brackets past 50 re-fit (`--fit-past`, no re-measure). The sim decides, in `check`.
+
+**Walk-through: the build.** Each step uses only what earlier steps made, plus files that exist.
+| Step | Who does what | Holds from earlier steps | Doable because |
+|---|---|---|---|
+| B0 | Phases 0-4 merged | | The March art merged, T4 rates and two T4 rows in, `tools/pack.mjs` exists |
+| B1 | Designer: `pack new the_slake --region barrow_march`, draws `map.js`, writes rows and loot identity, no numbers | B0 | `pack-lint` runs. The ground starts `staged`, the Wickstead road (`STAGED_MAPS`), so it plays before it's painted |
+| B2 | `pack propose` | B1's rows, the server's grid | The sim plays a staged ground (`mapRowOf`). Numbers land as a diff |
+| B3 | `pack check` | B2's numbers, B0's tier rows | Board table, ladder, line, distinct. Reds name the row |
+| B4 | Art lane: ground painted from B1's rows on the kit's tilesets, Mudlark, barge and nets, icons, re-pours | B1's rows, B0's kit | About 60 gens (A); subscription approved this cycle, read the balance first |
+| B5 | `pack ship` opens it | B3 green, B4's sprites | Migration, index row, preload, coherence moves, order line. `world-assets` holds art to rows |
+| B6 | Designer plays it on the local world, art director reads it | B5 | `tools/qa/local-world.mjs`: real page, real engine, replayed chain |
+| B7 | Coordinator: one file, edge, `hunt-health`, client | B5 | The order table above |
+
+**Walk-through: the player.** A Level 50 hero back from the Warrens in the tier-3 set (`steel_sword`, `steel_platebody`, `coppercap_shield`, `houndskin_cloak`: all real).
+| Step | Does | Has from earlier steps | Doable? |
+|---|---|---|---|
+| 1 | Opens Hunts: "The Slake, Level 50-65, built for one hero" | Level 50, in range. At 53-55 Andy is too | Yes: `hunt-list.js` reads the row |
+| 2 | Picks Normal; Dangerous and Deadly on offer | Step 1 | Yes, once lane/c-difficulty-tiers is in |
+| 3 | Sets food, drink, ammo on the bar. No shop | Its Warrens setup; `salted_swordfish`, `thin_carrot_juice`, `plain_barbed_arrows`, `plain_fire_rune` | Yes, all real store rows. **First principle:** bars are saved setups, but nothing says which setup suits this ground: flagged |
+| 4 | Enter; first pull at the Tow Path (15,6) | Step 3 | Yes, full box linted |
+| 5 | First kills: coin, Bones, Grave Dust | Step 4 | Yes, all real rows |
+| 6 | About an hour in: first T4 weapon, Level 45, worn at once | Step 5's kills | Yes: `mithril_sword` reqLv 45, wearable at 50 |
+| 7 | Town: sells loot; a spare weapon brings its T4 share | Step 6 | Yes, Phase 0's rate |
+| 8 | Burns Grave Dust at the Hearth, or sells it | Step 5 | Yes at Inner Flame 46 (`fuel_grave_dust`). Under that the game says why |
+| 9 | About every 15 h: Barge Pitch, the square's fire turns dull red | Rare drop | Yes, with its pack rows and flame |
+| 10 | Tamsin's Tally | | **Not doable at first:** `gen-tally-tasks` refuses a ground with no Scarce armor, and the Slake has none. No row until the Ford lifts, then `piecesFrom: 'hasks_ford'`. Dead moment, flagged |
+| 11 | Wants T4 armor | | **Not here, and nowhere until the Ford lifts.** Flagged: it's the honest reason the Ford should follow straight after |
+
+**The scoreboard. This is how the comparison gets judged.**
+| Measure | Ford (M) | Wickstead (M) | The Slake, target (A) |
+|---|---|---|---|
+| Working time, spec to lane done | 4 h 13 | 1 h 28 from its first commit to art, start unknown | **3 h or less** |
+| Elapsed | 9 h 13, with 5 h paused | 14:51 release + 5 h 10 of reds | Half a day; any P1 pause reported apart |
+| Reds outside the lane, first release run | Never shipped; 8 test files edited in the lane | Six | **0** |
+| Generated SQL | 4,528 lines, 5 files | About 3,900 lines in the lane's 2 files, more after | **150 lines or less, 1 file** |
+| Generator edits by hand | 4 | 4 | **0** |
+| Files touched outside the folder, art aside | 36 | 21 in the lane | **3 or fewer** (index row, preload, order line) |
+| Level-curve migrations | 1, fitted twice | 1, after release | **0** |
+| Subscription generations | 230 + the redo | 1 + icons | **About 60** |
+| Re-issues while waiting | 3 | | **0** |
+| Fit passes by hand | 3 | Not measured | **1** |
+It counts as proved only if played, read by the art director and shipped. A miss gets reported as a miss, with where the hours went.
+
+#### 5. Where the 50-plus band goes
+**The honest timing (C, A):** the wipe resets Andy. At the ruled pace Level 50 is 168 hunting hours, two weeks at 12 h a day, so nobody hits this wall again until about two weeks after a wipe. A six-week Open Beta at 12 h a day is 504 h, about Level 90 on the targets. So the need is the region through about 110 by the end of Open Beta: five grounds, one every week or two.
+
+| Order | Ground | Band, fit | What it sources | Art | Left to do | Why here |
+|---|---|---|---|---|---|---|
+| Now | **The Warrens' Dangerous and Deadly** (lane/c-difficulty-tiers) | Past 50 | Risk, more XP, no gear | Done | Review, ship | Andy can use it first. Warrens 60: lone sword Deadly 232k at +5k, a four 352k against 241k on Normal (M). Doesn't give him gear |
+| 1 | **The Slake** | 50-65, solo | T4 weapons, off-hand, Grave Dust, named fuel | Kit + about 60 gens | Phases 0-4, then 3 h | Floor at the measured ceiling, so no Level under 50 moves. The proof |
+| 2 | **Hask's Ford, imported** | 45-60, solo | T4 armor, Keystone inputs, Colors | Done | Tyler's word lifts the hold. Effective attack raised, tier and party rows, re-fit from 45 up | Without it the Slake gives weapons and no armor. It's the first thing the pack's commuting lets us stop rebasing |
+| 3 | **Muster Barrows** | 55-75, party | Barrow Knight, Captain Hask's boss rows, **T5 armor (spec gap)** | Done (`aac5732b1`, 323 gens) | First party pack, first boss row | T5 opens at 60 and the spec gives it no home; Pyre Field at 70 is too late. Fix: T5 Scarce here |
+| 4 | **The Pyre Field** | 70-90, solo | Razor Claw, Pyre Ash, Wraith Veil, T6 at 75 | None | Ground, 3 creatures | The kit's second family (ash field) |
+| 5 | **Ebbe's Chantry** | 85-110, party | Chantry Rune, Bound Soul, Prior Ebbe | None | Ground, boss | The region's end, about when Open Beta ends |
+| Watch | A lone hero at 32-45 | | | | Nothing yet | Warrens at 32, a lone sword: 129.7k, -761 g/h, 69% HP, held (M). Thin, not empty, and **after a wipe every player meets it long before 50.** If testers stall here, a kit-built solo door jumps the queue |
+
+**If Andy can't wait:** the Slake can ship on Phase 1 alone at about the Ford's plumbing cost. That gets a ground out sooner and loses the measurement. I wouldn't: the tier lane gives him something this week, and the region needs the system either way.
+
+#### Purpose test (`DESIGN_STANDARDS` §4), on the system
+1. **Problem:** content can't keep up with players: Andy at 53-55 on a band ending at 50, and a held ground that decays. The studio-side form of a player's "there's nothing to do here."
+2. **Decision it gives the player:** indirect, and only if the guard holds: more grounds that disagree with each other, such as which ground for this weapon. Grounds that all pay the same would fail the purpose even at 3 h each, so `pack-distinct` and `wins` are part of the system.
+3. **Plugs into:** the real settle, the balance sim, the generators, the art pipeline, the tier and party tables, Tamsin, the Hearth. It replaces a path; it adds no parallel one once Phase 6 lands.
+4. **Tradeoff:** a day and a half of lanes spent on no player-visible change, and a tool that may pull grounds toward one numeric shape.
+5. **Hour 100, hour 1,000:** each new band opens content on schedule. At 60 grounds the client loads all the map rows at boot; lazy-load them around 20 grounds. Known, not urgent.
+6. **Depth or complexity:** it removes steps from our side and adds none to the player's. Its one new concept is the pack.
+
+**Done and verified (C, M):** the inventory from the Ford's and Wickstead's commits; catalogue row deltas by blob diff; the Slake's grid linted; to-hit and blow numbers from `combat.js`; every id grepped on v0.2.91. **Not verified:** nothing's been played. No Slake row has been through the sim; the fit, ladder, profit and pace numbers are unknown. **Assumed:** every phase size, every target on the scoreboard, the 60 gens, re-pour's look, commuting and the both-orders apply until `pack-fold` and `pack-order` exist.
+
 ### 2026-11-04 A phone's first town frame: it waits only for the sheets it draws (systems-engineer, lane/b-phone-load): BUILT, client only, no migration, no edge; numbers need the bundle (lane/b-ship-build)
 **Measured** (real Chrome, new headless; `tools/load-bench.mjs` from lane/b-ship-build, local Pages, real engine on PGlite; a throwaway bundled build of lane/b-ship-build with this lane's `src/` on it, because this lane sits on main and main has no bundle yet; interleaved, one browser; other lanes on the PC, CPU 30-70% through the final rounds). Phone = 150 ms / 1.6 Mbps, 4x CPU. First visit, no typing.
 | Phone, new hero in a quiet town (`hearth_square:1`), n=5 | before | after | + WebP (not landed) |

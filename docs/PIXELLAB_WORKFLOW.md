@@ -68,6 +68,14 @@ Batch estimate: about 30–90 generations, most of it R3. **Cost tracking:** the
 
 **Actuals (2026-10-15, lane `art-batch1`):** balance 8599 → 8559 generations (40). R1a accepted as a free edit (0); R3b/R3c 2 `edit_image` calls each (10 + 10 per monster). The edit kept every silhouette but drifted it 0–6 px and stopped short of 3.5:1 on its own, so each frame is re-aligned to the shipped mask by its best whole-pixel shift and its non-outline pixels value-lifted (×1.12 rat, ×1.15–1.25 slime) before the lock. R4 accepted as a free hand drawing (0). Evidence is in each sidecar's `pixellab` block.
 
+## 5b. What art batch 1 measured (2026-11-04, lane `a-art-batch-1`, 283 generations; `ASSET_MANIFEST.md`)
+- **A creature, 30 generations:** Pro Flash first frame 5 (`n_directions: 1`, so a bad look costs 5), rotations 1 (`first_frame_url`), v3 walk and attack 8 each, one `edit_image_pro_flash` dead pose 5, a fall of 3 facings 3. A v3 clip bills 1 a facing at 6 frames (and at 4). Read the frame before the rotations and the rotations before the clips.
+- **Size comes from the canvas:** a 48 px canvas drew a boar-sized rat. 40 px gives a 34-38 px body. A style image must fit the canvas: crop it to its opaque box.
+- **Hue:** the plain lock turned a dun rat charcoal. `port-pixellab.mjs unit --ramps` snaps to the creature's own ramps and declares `material: native`; `--lift 1` lifts a body for a dark floor.
+- **A v3 death alone leaves it standing.** Pass the dead pose as `end_frame_base64` (only base64 on `animate_object`: `encodeSheetPNG` keeps it near 1 KB, and PNG's CRCs refuse a slipped character).
+- **Re-roll on sight:** a north attack with a mouth on the rump, a south walk that turns away, a baked flash. Read every clip at x2 after the lock: `seen from behind` and `facing the viewer the whole time` fixed these for 1 generation each.
+- **Icons:** `create_1_direction_object` with `style_images` and the palette gives 64 on-palette 32 px candidates for 10 generations: pass `item_descriptions` several times each and pick. Beware a style image's own shape: `alpha_fang` as the style drew the next claw as its twin.
+
 ## 6. Planned after the first playable (counts only; no calls yet)
 | Batch | Calls | Tools |
 |---|---|---|

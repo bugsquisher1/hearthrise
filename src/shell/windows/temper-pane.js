@@ -30,14 +30,18 @@ function rowWords(t, r) {
     : 'Not tempered yet. First rung: ' + t.effect + ' ' + pct(r.nextPm) + ' ' + t.worse + '.');
 }
 
-/* What the next rung takes besides gold, what this hero holds, and, while it is short, where to get it. */
-function needWords(needs) {
-  return needs.map((n) => {
-    const held = 'You hold ' + whole(n.held) + (n.storage ? ' (' + whole(n.storage) + ' in Storage)' : '') + '.';
-    const way = !n.short || !n.smith ? '' : ' Smithing ' + n.smith.req + (n.smith.level < n.smith.req ? ' (yours is ' + n.smith.level + ')' : '')
-      + ' makes them from ' + n.smith.from.join(' and ') + ', or buy them at the Weighhouse.';
-    return 'Needs ' + whole(n.need) + ' ' + n.name + '. ' + held + way;
-  }).join(' ');
+/* What the next rung takes besides gold, and what this hero holds. */
+const needWords = (needs) => needs.map((n) => 'Needs ' + whole(n.need) + ' ' + n.name + '. You hold ' + whole(n.held) + (n.storage ? ' (' + whole(n.storage) + ' in Storage)' : '') + '.').join(' ');
+
+/* Where to get what either row is short of, said once under both: the two rows usually ask for the same thing. */
+function wayWords(rows) {
+  const said = new Map();
+  for (const r of rows) for (const n of r.needs) {
+    if (!n.short || !n.smith || said.has(n.id)) continue;
+    said.set(n.id, n.name + ': Smithing ' + n.smith.req + (n.smith.level < n.smith.req ? ' (yours is ' + n.smith.level + ')' : '') + ' makes them from ' + n.smith.from.join(' and ')
+      + ', and any of your heroes can use them from Storage. Or buy them at the Weighhouse.');
+  }
+  return [...said.values()].join(' ');
 }
 
 /** The section's skeleton, inside the Services tab. */
@@ -45,6 +49,7 @@ export function temperPaneHtml() {
   return '<h3 class="hs-sub">Tempering</h3>'
     + '<p class="hs-note">The smith works what this hero wears. A rung lasts and can\'t fail. Each tier of gear has its own five rungs, so new gear starts fresh and your old gear keeps its own.</p>'
     + '<ul class="hw-ledger hw-temper"></ul>'
+    + '<p class="hs-note hw-temper-way"></p>'
     + '<div class="hw-confirm hw-temper-ask" role="alertdialog" aria-label="Confirm the tempering"><p class="hw-confirm-q"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="temper-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="temper-no">Cancel</button></div></div>';
@@ -73,6 +78,7 @@ export function patchTemperPane(root, ctx, sc) {
       prop(btn, 'disabled', !offer || !!short || itemsShort || sc.pending || !!sc.ask);
     },
   });
+  text(root.querySelector('.hw-temper-way'), all ? wayWords([all.blows, all.armor]) : '');
   const asked = sc.ask ? row(sc.ask) : null;
   const can = !!asked && !!asked.ladder && !!asked.ladder.offer && !sc.pending && (purse === null || purse >= asked.ladder.gold) && !asked.needs.some((n) => n.short > 0);
   if (sc.ask && !can) sc.ask = null;
@@ -107,7 +113,9 @@ export function actTemperPane(ctx, action, t, sc, repaint) {
     sc.ask = null;
     if (!r || !r.ladder || !r.ladder.offer) { repaint(); return true; }
     const offer = r.ladder.offer, piece = r.piece, rung = r.ladder.rung + 1;
-    runIntent(sc, repaint, () => cs.edgeIntent('unlock_buy', { offer }), 'At the smith…', () => 'Your ' + piece + ' is at rung ' + rung + '.', cs);
+    /* A refusal means this window held numbers the server no longer has (Storage is the account's, and another hero spends it): one bounded re-read, so the row and the answer agree. */
+    const send = async () => { const r = await cs.edgeIntent('unlock_buy', { offer }); if (!r.ok && r.error !== 'closed') await cs.resync(); return r; };
+    runIntent(sc, repaint, send, 'At the smith…', () => 'Your ' + piece + ' is at rung ' + rung + '.', cs);
     return true;
   }
   return false;

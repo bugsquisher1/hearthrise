@@ -71,7 +71,7 @@ export const MUTANTS = {
       "  v_price := coalesce(case when public.hr_setups_of(v_uid, p_slot) < v_lim then public.hr_sink_price('setup_slot', v_bought) end, p_price);\n"] },
   free_hardcoded: { arm: 'SS-FLIP', why: 'the count stops reading the row',
     db: [OF, "  select r.free into v_free from public.hr_sink_rules r where r.sink_id = 'setup_slot';\n", '  v_free := 2;\n'] },
-  no_cap: { arm: 'SS-FLIP', why: 'the count runs past the hero\'s limit', db: [OF, 'return least(v_free + public.hr_setups_bought(p_user, p_slot), v_lim);', 'return v_free + public.hr_setups_bought(p_user, p_slot);'] },
+  no_cap: { arm: 'SS-PARITY', why: 'the verbs\' count runs past the hero\'s limit', db: [OF, 'return least(v_free + public.hr_setups_bought(p_user, p_slot), v_lim);', 'return v_free + public.hr_setups_bought(p_user, p_slot);'] },
   saved_blocked: { arm: 'SS-KEEP', why: 'a setup past the count is refused though the hero saved it',
     db: [LOCKED, "     or exists (select 1 from public.player_hunt_presets p where p.user_id = p_user and p.slot = p_slot and p.preset = p_preset)\n     or exists (select 1 from public.player_action_sets a where a.user_id = p_user and a.slot = p_slot and a.preset = p_preset) then", ' then'] },
   bar_not_kept: { arm: 'SS-KEEP', why: 'a bar with no setup past the count is refused', db: [LOCKED, "\n     or exists (select 1 from public.player_action_sets a where a.user_id = p_user and a.slot = p_slot and a.preset = p_preset) then", ' then'] },

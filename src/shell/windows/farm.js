@@ -16,7 +16,7 @@
 //                      they need; with no seed, where to buy one) → ONE hr_farm_plant.
 //                      The picker then moves on to the server's next empty plot, where
 //                      it stands (Discord 0.2.95: "scrolling up and down to select new
-//                      plantable seeds over and over is tedious"). "Plant in all N empty
+//                      plantable seeds over and over is tedious"). "Plant N empty
 //                      plots" sends ONE hr_farm_plant per empty plot, in order, and stops
 //                      at the first refusal with its words.
 //   A growing plot     Water (2 h at double speed) while the server says it may
@@ -79,7 +79,7 @@ function left(ms) {
   return h && r ? h + ' h ' + r + ' m' : h ? h + ' h' : r + ' m';
 }
 
-/** The server's empty plots inside the cap, in index order: the picker's next plot and "Plant in all" read this one answer. */
+/** The server's empty plots inside the cap, in index order: the picker's next plot and "Plant N empty plots" read this one answer. */
 const emptyOf = (land) => emptyPlotIndices(Array.from({ length: land.cap }, (_, i) => land.plots.get(i) || null), land.cap);
 
 /** The empty plot after `at` on the RE-READ field (wrapping round), else null: where the picker goes after a plant. */
@@ -190,7 +190,7 @@ function patchSow(root, st, ctx) {
       cls(li, 'is-locked', !!r.why);
       prop(li.querySelector('button'), 'disabled', !!r.why || st.sc.pending);
       const all = li.querySelector('.hw-sow-all');
-      text(all, 'Plant in all ' + free + ' empty plots');
+      text(all, 'Plant ' + free + ' empty plots');
       cls(all, 'is-on', !r.why && free > 1);
       prop(all, 'disabled', !!r.why || st.sc.pending);
     },
@@ -273,6 +273,21 @@ function run(sc, repaint, send, busy, done) {
     .then((r) => { if (!r.ok) { sc.msg = farmWords(r); repaint(); } return r; });
 }
 
+/* "Plant N empty plots": ONE hr_farm_plant per plot of `order`, in order; the first refusal ends it and is handed back
+   (alone when nothing was planted, else as `stop` beside the count) for the window's one line. The picker follows it. */
+async function sowEach(ctx, sc, repaint, order, crop) {
+  let n = 0;
+  for (const at of order) {
+    sc.pick = at;
+    sc.msg = 'Planting ' + cropName(crop) + ' in plot ' + (at + 1) + '…';
+    repaint();
+    const r = await plantCrop(ctx.account, ctx.character, at, crop);
+    if (!r.ok) return n ? { ok: true, n, at, stop: r } : r;
+    n++;
+  }
+  return { ok: true, n };
+}
+
 renderFarm.act = function actFarm(ctx, body, action, ev, t) {
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
@@ -301,18 +316,7 @@ renderFarm.act = function actFarm(ctx, body, action, ev, t) {
   if (action === 'sowall' && sc.pick !== null) {
     const crop = t.getAttribute('data-crop');
     const order = emptyOf(land);   // the server's empty plots at the press, each tried once, in order
-    run(sc, repaint, async () => {
-      let n = 0;
-      for (const at of order) {
-        sc.pick = at;
-        sc.msg = 'Planting ' + cropName(crop) + ' in plot ' + (at + 1) + '…';
-        repaint();
-        const r = await plantCrop(ctx.account, cs, at, crop);
-        if (!r.ok) return n ? { ok: true, n, at, stop: r } : r;
-        n++;
-      }
-      return { ok: true, n };
-    }, 'Planting…', (r) => {
+    run(sc, repaint, () => sowEach(ctx, sc, repaint, order, crop), 'Planting…', (r) => {
       sc.pick = nextEmpty(cs, ctx, -1);
       return 'Planted ' + cropName(crop) + ' in ' + r.n + (r.n === 1 ? ' plot.' : ' plots.') + (r.stop ? ' Stopped at plot ' + (r.at + 1) + ': ' + farmWords(r.stop) : '');
     });

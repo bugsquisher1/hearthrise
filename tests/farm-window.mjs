@@ -37,7 +37,7 @@
 //   FW-9  SOW WITHOUT SCROLLING (Discord 0.2.95: "Scrolling up and down to select new plantable
 //         seeds over and over is tedious"), at 922×423: pressing an empty plot brings the picker
 //         on screen; the crops you can plant list first; after a plant the picker stays drawn,
-//         moves to the server's next empty plot and the window keeps its scroll; "Plant in all
+//         moves to the server's next empty plot and the window keeps its scroll; "Plant
 //         N empty plots" sends ONE hr_farm_plant per empty plot in order, every control off
 //         meanwhile, and stops at the first refusal saying so
 // ════════════════════════════════════════════════════════════════════════
@@ -289,7 +289,7 @@ async function checks(overrides) {
         if (head !== 'Plant in plot 3' || gone || top1 !== top0) fails.push('FW-9 after a plant the picker reads ' + JSON.stringify(head) + ' (want "Plant in plot 3"), hid ' + gone + ' time(s), scroll ' + top0 + ' -> ' + top1);
         const all = W + '.hw-seeds li[data-crop="carrot"] [data-hs-act="sowall"]';
         const label = await txt(page, all);
-        if (label !== 'Plant in all 2 empty plots' || !(await shown(page, all))) fails.push('FW-9 the sweep reads ' + JSON.stringify(label));
+        if (label !== 'Plant 2 empty plots' || !(await shown(page, all))) fails.push('FW-9 the sweep reads ' + JSON.stringify(label));
         await press(page, all, 'FW-9');
         await page.waitForTimeout(60);
         if (!(await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-seeds button')].every((b) => b.disabled)))) fails.push('FW-9 a seed control stayed on while the sweep was in flight');

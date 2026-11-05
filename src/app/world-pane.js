@@ -18,10 +18,11 @@ import { logFor } from '../hunt-view/combat-log.js?v=0.2.92';
 import { pickHunt } from '../shell/windows/hunts.js?v=0.2.92';
 import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.92';
 import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.92';
+import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.92';
 import { connection, loadingWords } from '../net/connection.js?v=0.2.92';
 
 /* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
-const KEEPER_WINDOWS = new Set(TAP_WINDOWS);
+const KEEPER_WINDOWS = new Set([...TAP_WINDOWS, ...Object.values(SINK_TAPS).map((t) => t.window)]);
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -80,6 +81,8 @@ export async function mountWorldPane(host, character, o) {
     if (kind === 'entity') { const t = shell && worldTargetOf(detail); return !!t && shell.menu.open(t, { x: detail.x, y: detail.y }); }
     const to = shell && SHOWS[kind] ? SHOWS[kind](detail || {}) : null;
     if (!to) return false;
+    /* a station that opens its window on one tab (the Tavern on Round) */
+    if (detail && typeof detail.tab === 'string') { shell.wm.openTab(to, detail.tab); shell.refresh(to); return true; }
     if (shell.wm.isOpen(to)) shell.refresh(to); else shell.open(to);
     return true;
   }

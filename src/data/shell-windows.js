@@ -37,6 +37,8 @@
 // search inside Inventory and Storage, not a window of its own.
 // ════════════════════════════════════════════════════════════════════════
 
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.92';
+
 export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 960, object: 'plain' }),
   Object.freeze({ id: 'inventory', label: 'Inventory', key: 'b', glyph: 'navInventory', width: 560, object: 'satchel' }),
@@ -59,6 +61,9 @@ export const SHELL_WINDOWS = Object.freeze([
   /* Leaderboards (lane/b-leaderboards, 2026-10-31; named by Tyler 2026-11-01): Havora's heroes in order, one board at a
      time, every place and number the server's (src/data/honor-roll.js names the boards). */
   Object.freeze({ id: 'honor', label: 'Leaderboards', key: 'z', phoneIcon: false, glyph: 'uiTrophy', width: 440, object: 'book' }),
+  /* What gold buys in town (Tyler 2026-11-04; the designer's gold sinks section): Hearth powders, a round at the Tavern, later the Town Works. Every letter is taken and
+     WASD walks, so it has no shortcut; the Tavern on the map opens it on Round. Its label is the city's name, read from the one place it lives. */
+  Object.freeze({ id: 'havora', label: TOWN_NAME, key: null, noShortcut: true, phoneIcon: false, glyph: 'uiFlame', width: 420, object: 'ledger' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */

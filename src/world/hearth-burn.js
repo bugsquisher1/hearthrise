@@ -20,7 +20,11 @@
 // the plain fire (never a missing sprite).
 // PURE: no DOM, no window, no clock of its own (the caller passes `now`).
 // ════════════════════════════════════════════════════════════════════════
-import { FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.92';
+import { FLAMES as NAMED_FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.92';
+import { SHOW_FLAMES, POWDER_CHUNK } from '../data/gold-sinks.js?v=0.2.92';
+
+/* The named colors and the bought powders, one table to draw from. A bought flame stays out of src/data/hearth.js, which the edge bundles. */
+const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES });
 
 const CHUNK_OF_RECIPE = new Map(HEARTH_FUELS.map((f) => [fuelRecipeId(f.item), f.chunk]));
 const FLARE_MS = 700;        // the flare's 6 frames at 10 fps, and a beat for the sparks
@@ -35,7 +39,7 @@ function phaseOf(key, every) {
 /** The world chunk a fuel bench throws, by the server's pointer (`active_id`), or null when it is not a fuel. */
 const chunkOfRecipe = (id) => CHUNK_OF_RECIPE.get(id) || null;
 /** The world chunk a named fuel throws, or null. */
-const chunkOfNamed = (item) => (NAMED_FUELS[item] ? NAMED_FUELS[item].chunk : null);
+const chunkOfNamed = (item) => (NAMED_FUELS[item] ? NAMED_FUELS[item].chunk : SHOW_FLAMES[item] ? POWDER_CHUNK : null);
 
 /**
  * @param {object} map  compileMap() output (a town)

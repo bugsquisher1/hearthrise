@@ -15,7 +15,7 @@
 // XP bar) have no line at all.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.92';
-import { characterSheetOf, heroVitalsOf } from '../../../session/character-sections.js?v=0.2.92';
+import { characterSheetOf, heroVitalsOf, wornTitleOf } from '../../../session/character-sections.js?v=0.2.92';
 import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.92';
 import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.92';
 import { roleIdOf } from '../../../session/party-sections.js?v=0.2.92';
@@ -86,7 +86,8 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   const st = staminaOf(cs);
   const cap = bagCapOf(cs);
   drawPortrait(root.querySelector('.hw-cs-portrait'));
-  text(root.querySelector('.hw-cs-name'), nameOf(cs) || '');
+  const worn = wornTitleOf(cs);
+  text(root.querySelector('.hw-cs-name'), (nameOf(cs) || '') + (worn ? ' ' + worn : ''));
   const role = (c && c.role) || roleIdOf(cs);
   text(root.querySelector('.hw-cs-role'), role && HUNT_ROLES[role] ? HUNT_ROLES[role].label : '');
   /* Level, max HP and max mana: heroVitalsOf, the one reader the HUD draws them from (r09), so the

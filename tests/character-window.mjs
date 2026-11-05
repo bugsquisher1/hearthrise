@@ -7,7 +7,7 @@
 //   node tests/character-window.mjs --shots <dir>  also write the visual-gate screenshots
 //                                                  (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/widgets/vitals-hub.js src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
+// mutant-anchors: src/shell/widgets/vitals-hub.js src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/shell/windows/character/titles.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the three sections
@@ -15,7 +15,7 @@
 //   CW-D2 src/data/outfits.js validate() is clean (the server rows are GENERATED
 //         from it and the --dye-N tokens: tools/gen-outfits.mjs --check)
 //   CW-1  C opens the Character window from the key and the launcher, with zero
-//         console errors; its three tabs are Character, Outfit and Deaths
+//         console errors; its four tabs are Character, Outfit, Titles and Deaths
 //   CW-2  STATS ONLY FROM THE SERVER: the combat lines show exactly the
 //         section's numbers, and a new envelope replaces them on the same nodes
 //   CW-3  NOTHING THAT DOES NOT EXIST: each opening asks the engine ONCE and
@@ -32,6 +32,10 @@
 //   CW-8  THE TAB MATCHES THE HUD (r09: Level 4 on the tab, 11 on the HUD): the
 //         Character tab's Level, max health and max mana equal the vitals hub's,
 //         in a hunt, after a pushed frame that restates only `state`, and in town
+//   CW-9  THE TITLES TAB (Tyler 2026-11-04, 2027-02-28-titles.sql; every number from the data's rows): a locked row reads "Wolves: 3,214 of 5,000" with
+//         nothing to press; an earned one's "Claim for 3,000 gp" sends ONE hr_title_buy with the QUOTE and no count; Wear and Take off are ONE
+//         hr_title_wear; each changes only from the re-read; a short purse is off and says how much more; a refusal says the server's numbers;
+//         the sheet's header and the party-only note show
 //   CW-6  THE SKILLS: Gathering and crafting lists no combat skill; the combat
 //         ledger is the Character window's; an unlock line names each thing and
 //         its kind ("Bronze Axe (woodcutting tool)")
@@ -49,6 +53,7 @@ import { pinFonts } from './_test-fonts.mjs';
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
+const { TITLES } = await import(pathToFileURL(join(ROOT, 'src/data/titles.js')).href);
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
@@ -93,6 +98,7 @@ async function stub(page, s) {
       return json(Object.assign({ accrued: true }, s.next()));
     }
     if (name === 'hr_outfit_set') { await new Promise((ok) => setTimeout(ok, 300)); return json({ ok: true }); }
+    if (name === 'hr_title_buy' || name === 'hr_title_wear') { await new Promise((ok) => setTimeout(ok, 300)); return json(s.titleAnswer ? s.titleAnswer(name, body) : { ok: true }); }
     if (name === 'hr_put_client_state') { Object.assign(s.residue, body.p_patch || {}); return json({ ok: true }); }
     return json({ ok: true });
   });
@@ -175,7 +181,7 @@ async function checks(overrides, shots) {
         if (!(await openWin(page, 'c', 'character'))) fails.push('CW-1 the C key did not open the Character window');
         await waitCombat(page);
         const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-tab[data-tab]')).map((b) => b.textContent));
-        if (tabs.join('|') !== 'Character|Outfit|Deaths') fails.push('CW-1 the tabs are ' + tabs.join('|'));
+        if (tabs.join('|') !== 'Character|Outfit|Titles|Deaths') fails.push('CW-1 the tabs are ' + tabs.join('|'));
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
         const want = { Damage: '1–17', 'Hit chance': '74.5% against no armor', 'Critical chance': '4.5%', Defense: '23', Dodge: '12.5% of blows at your Level', Absorb: '31% of each blow at your Level', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
@@ -310,6 +316,89 @@ async function checks(overrides, shots) {
       if (errors.length) fails.push('CW-8 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
+    { // CW-9
+      const { ctx, page, errors, s, up } = await open();
+      const ids = Object.keys(TITLES);
+      const [earned, locked, claimable] = [ids[0], ids[1], ids[2]];
+      const party = ids.find((id) => TITLES[id].partyOnly);
+      const row = (id, o) => ({ id, words: TITLES[id].words, price: TITLES[id].price, kills: TITLES[id].kills, have: 0, held: false, worn: false, ...o });
+      s.env.state = Object.assign({}, s.env.state, { gold: 10000000, gold_v: 1 });
+      s.env.titles = { worn: null, rows: [row(earned, { have: TITLES[earned].kills + 7 }), row(locked, { have: 3214 }), row(claimable, { have: TITLES[claimable].kills }), row(party, { have: 3 })] };
+      s.env.name = 'Marlow';
+      const gp = (n) => n.toLocaleString('en-US') + ' gp';
+      /* an accepted press changes the record, as the server would */
+      s.titleAnswer = (name, b) => {
+        const rows = s.env.titles.rows;
+        if (name === 'hr_title_buy') rows.find((r) => r.id === b.p_title).held = true;
+        else for (const r of rows) r.worn = r.id === b.p_title;
+        s.env.titles.worn = name === 'hr_title_wear' ? b.p_title : s.env.titles.worn;
+        return { ok: true };
+      };
+      const read = () => page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-title')).map((li) => {
+        const b = li.querySelector('button');
+        return [b.getAttribute('data-title'), { name: li.querySelector('b').textContent, small: li.querySelector('small').textContent, press: b.getBoundingClientRect().width > 0 ? b.textContent : null, off: b.disabled }];
+      })));
+      const press = (id) => page.click('[data-hs-win="character"] [data-hs-act="title-go"][data-title="' + id + '"]');
+      const buys = () => s.calls.filter((c) => c.name === 'hr_title_buy');
+      const wears = () => s.calls.filter((c) => c.name === 'hr_title_wear');
+      if (up) {
+        await page.reload({ waitUntil: 'load' });
+        await wait(page, () => document.querySelector('.hs-launchers') || document.querySelector('[data-app="play"][data-slot="0"]'));
+        if (!(await page.$('.hs-launchers'))) await page.click('[data-app="play"][data-slot="0"]');
+        await wait(page, () => document.querySelector('.hs-launchers'));
+        if (!(await openWin(page, 'c', 'character'))) fails.push('CW-9 the window did not open');
+        await page.click('[data-hs-win="character"] .hw-tab[data-tab="titles"]');
+        await wait(page, () => document.querySelector('[data-hs-win="character"] .hw-title'));
+        let t = await read();
+        /* LOCKED: the count, and nothing to press */
+        const d = TITLES[locked];
+        if (!t[locked] || t[locked].small !== `${d.label}: 3,214 of ${d.kills.toLocaleString('en-US')}` || t[locked].press !== null) fails.push('CW-9 the locked row reads ' + JSON.stringify(t[locked]));
+        if (!t[party] || !/party/.test(t[party].small)) fails.push('CW-9 the party-only row does not say so: ' + JSON.stringify(t[party]));
+        /* EARNED: one claim, with the quote, and the row moves only from the re-read */
+        const e = TITLES[earned];
+        if (!t[earned] || t[earned].press !== `Claim for ${gp(e.price)}` || t[earned].off) fails.push('CW-9 the earned row reads ' + JSON.stringify(t[earned]));
+        await press(earned);
+        await page.waitForTimeout(100);
+        t = await read();
+        if (t[earned].press !== `Claim for ${gp(e.price)}` || !t[earned].off) fails.push('CW-9 while the claim is in flight: ' + JSON.stringify(t[earned]));
+        await page.waitForTimeout(900);
+        if (buys().length !== 1 || buys()[0].body.p_title !== earned || buys()[0].body.p_price !== e.price || buys()[0].body.p_slot !== 0 || !buys()[0].body.p_idem
+            || Object.keys(buys()[0].body).sort().join() !== 'p_idem,p_price,p_slot,p_title') fails.push('CW-9 Claim sent ' + JSON.stringify(buys().map((c) => c.body)));
+        t = await read();
+        if (t[earned].press !== 'Wear') fails.push('CW-9 after the re-read the claimed row reads ' + JSON.stringify(t[earned]));
+        /* WEAR, one intent; the sheet's header follows the server; TAKE OFF, null */
+        await press(earned);
+        await page.waitForTimeout(900);
+        if (wears().length !== 1 || wears()[0].body.p_title !== earned || wears()[0].body.p_slot !== 0) fails.push('CW-9 Wear sent ' + JSON.stringify(wears().map((c) => c.body)));
+        t = await read();
+        if (t[earned].press !== 'Take off') fails.push('CW-9 a worn row reads ' + JSON.stringify(t[earned]));
+        await shot(page, 'character-titles');
+        await page.click('[data-hs-win="character"] .hw-tab[data-tab="sheet"]');
+        await page.waitForTimeout(150);
+        const head = await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-cs-name').textContent);
+        if (head !== 'Marlow ' + e.words) fails.push('CW-9 the sheet\'s header reads ' + JSON.stringify(head));
+        await page.click('[data-hs-win="character"] .hw-tab[data-tab="titles"]');
+        await page.waitForTimeout(150);
+        await press(earned);
+        await page.waitForTimeout(900);
+        if (wears().length !== 2 || wears()[1].body.p_title !== null) fails.push('CW-9 Take off sent ' + JSON.stringify(wears().map((c) => c.body)));
+        /* A SHORT PURSE: off, and says how much more; A REFUSAL: the server's numbers in the design's words */
+        const c = TITLES[claimable];
+        s.env.state = Object.assign({}, s.env.state, { gold: c.price - 1, gold_v: 5 });
+        await push(page, s);
+        t = await read();
+        if (!t[claimable].off || !t[claimable].small.endsWith('You need 1 gp more.')) fails.push('CW-9 a short purse reads ' + JSON.stringify(t[claimable]));
+        s.env.state = Object.assign({}, s.env.state, { gold: 10000000, gold_v: 6 });
+        await push(page, s);
+        s.titleAnswer = () => ({ ok: false, error: 'title_kills', title: claimable, need: c.kills, have: c.kills - 1 });
+        await press(claimable);
+        await page.waitForTimeout(900);
+        const said = await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-cs-titles .hh-intent-msg').textContent);
+        if (said !== `${c.name} takes ${c.kills.toLocaleString('en-US')} ${c.noun}. Marlow has ${(c.kills - 1).toLocaleString('en-US')}. Gold can't skip kills.`) fails.push('CW-9 the refusal says ' + JSON.stringify(said));
+      } else fails.push('CW-9 the character did not open');
+      if (errors.length) fails.push('CW-9 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
     { // CW-3c: no combat number before this opening's ask has answered (a deploy may have moved the engine)
       const { ctx, page, s, up } = await open();
       s.sheetDelay = 2500;
@@ -396,6 +485,14 @@ const MUTANTS = [
   ['the tab reads the sheet section max HP again (r09)', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"hp\"]', hv.hpMax !== null ? whole(hv.hpMax) : null);", "line(root, '[data-vital=\"hp\"]', sh && sh.fresh !== undefined ? whole(cs.read('character_sheet').max_hp) : null);"],
   ['the tab reads the engine sheet max mana again (r09)', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', hv.manaMax !== null ? whole(hv.manaMax) : null);", "line(root, '[data-vital=\"mana\"]', c && c.role ? whole(cs.read('character_sheet').combat.max_mana) : hv.manaMax !== null ? whole(hv.manaMax) : null);"],
   ['a leech line the engine does not have', 'src/shell/windows/character/sheet.js', "const COMBAT = Object.freeze([['damage', 'Damage'],", "const COMBAT = Object.freeze([['leech', 'Life Leech'], ['damage', 'Damage'],"],
+  ['a locked title can be pressed', 'src/shell/windows/character/titles.js', "if (r.have < r.kills) return { small: count + (note ? ' · ' + note : ''), press: null, off: true };", "if (r.have < r.kills) return { small: count + (note ? ' · ' + note : ''), press: 'Claim', off: false };"],
+  ['a claim sends a price of its own', 'src/shell/windows/character/titles.js', 'buyTitle(ctx.account, cs, r.id, r.price)', 'buyTitle(ctx.account, cs, r.id, 1)'],
+  ['Take off wears it again', 'src/shell/windows/character/titles.js', 'wearTitle(ctx.account, cs, r.worn ? null : r.id)', 'wearTitle(ctx.account, cs, r.id)'],
+  ['a title stays pressable in flight', 'src/shell/windows/character/titles.js', "prop(b, 'disabled', sc.pending || w.off);", "prop(b, 'disabled', w.off);"],
+  ['a short purse can press Claim', 'src/shell/windows/character/titles.js', "off: short > 0 };", "off: false };"],
+  ['the party-only note is lost', 'src/shell/windows/character/titles.js', "note: d && d.partyOnly ? MIN_PARTY_NOTE : '',", "note: '',"],
+  ['a refusal does not name the hero', 'src/shell/windows/character/titles.js', "() => name + ' is yours. Press Wear to show it.', cs);", "() => name + ' is yours. Press Wear to show it.');"],
+  ['the sheet header drops the title', 'src/shell/windows/character/sheet.js', "(nameOf(cs) || '') + (worn ? ' ' + worn : '')", "(nameOf(cs) || '')"],
   ['the sheet is asked for every paint', 'src/shell/windows/character/index.js', "  if (!sh || sc.sheetAsking || v === null) return;\n  if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "  if (!sh) return;"],
   ['an opening never asks the engine', 'src/shell/windows/character/index.js', "if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "if (sh.fresh || sc.sheetAsked === v) return;"],
   ['the old sheet shows before the opening asked', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, []), sc.opening === 'done');", "PORTRAIT_SCALE, []), true);"],

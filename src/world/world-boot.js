@@ -55,6 +55,8 @@ import { keyBelongsToField } from '../utils/dom.js?v=0.2.92';
 import { homeOf } from '../session/home-sections.js?v=0.2.92';
 import { skillsOf } from '../session/item-sections.js?v=0.2.92';
 import { createHearthView } from './hearth-burn.js?v=0.2.92';
+import { townWorksSwap } from './town-works.js?v=0.2.92';
+import { createTownShows } from './town-shows.js?v=0.2.92';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -220,11 +222,11 @@ export async function bootWorld(panel, opts) {
   let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to
   const town = opts.town || null;
   const readEnv = createEnvReader(homeNow, town);
-  let hearthView = null, hearthMap = null;
+  let hearthView = null, hearthMap = null, showsView = null;
 
   /* THE GREAT HEARTH in a town frame, display only; the book's own sprites (an unloaded colour draws the plain fire) */
   function hearthState(map, f, now) {
-    if (hearthMap !== map) { hearthMap = map; hearthView = createHearthView(map, { sprites: book.sprites }); }
+    if (hearthMap !== map) { hearthMap = map; hearthView = createHearthView(map, { sprites: book.sprites }); showsView = createTownShows(map, { sprites: book.sprites }); }
     const s = character && typeof character.read === 'function' ? character.read('state') : null;
     const sk = character ? skillsOf(character) : null;
     return hearthView.frame({ place: f.place, units: f.units, walkers: town.walkers(), me: town.me(), hero: f.hero,
@@ -309,7 +311,15 @@ export async function bootWorld(panel, opts) {
       if (k && k !== walkStand) { walkStand = k; walk.goTo(town.me().at, now); }
     }
     const f = walk.frame(readEnv(map.kind), now);
-    if (held && map.kind === 'town') Object.assign(f, hearthState(map, f, now));
+    if (held && map.kind === 'town') {
+      Object.assign(f, hearthState(map, f, now));
+      /* THE TOWN WORKS (town-works.js): an ambient row swapped by stage, the mechanism the Hearth's fire uses */
+      const works = townWorksSwap(map, town.extras());
+      if (works) f.ambientSwap = Object.assign({}, f.ambientSwap, works);
+      /* A ROUND'S FIREWORKS over Hearth Square (town-shows.js), from the server's answer */
+      const round = showsView.frame(town.round(), now);
+      if (round.length) f.fx = (f.fx || []).concat(round);
+    }
     if (!held) notePos(G, map.id, f.hero.x, f.hero.y);
     presenceFor(town, map, f.place);
     lastWalk = f;
@@ -393,7 +403,8 @@ export async function bootWorld(panel, opts) {
     if (viewSheets.held(sc.map, cast)) return;   // a sheet this frame draws is on its way: the last frame stays on screen
     /* a new map's (or zoom's) first view bakes its ground a slice a frame first: the last frame stays meanwhile */
     if (!backend.ready(cast)) return;
-    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name, roofAlpha, t: now }, cast));
+    /* the hero's own label in town reads as a stranger's does: "Marlow the Wolfer" */
+    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name && G.playerTitle ? name + ' ' + G.playerTitle : name, roofAlpha, t: now }, cast));
     frames++;
   }
 
@@ -405,7 +416,7 @@ export async function bootWorld(panel, opts) {
     walk: () => true,
     hunt: (id) => emit('entrance', { hunt: id }),
     skill: (id) => emit('station', { skill: id }),
-    window: (id) => emit('keeper', { window: id }),
+    window: (id, tab) => emit('keeper', tab ? { window: id, tab } : { window: id }),
     room: (id) => emit('room', { room: id }),
     house: (id) => emit('house', { room: id }),
     scene(choice) { setChoice(view(), choice); if (running) step(0); return true; },

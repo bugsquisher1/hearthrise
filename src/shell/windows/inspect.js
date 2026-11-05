@@ -24,7 +24,7 @@ renderInspect.patch = function patchInspect(body, ctx) {
   const social = ctx.account && ctx.account.social;
   const v = social && social.inspected;
   const ready = !!(v && v.gear);
-  text(body.querySelector('.hi-who'), v ? v.name || 'A player' : 'Nobody yet');
+  text(body.querySelector('.hi-who'), v ? (v.name || 'A player') + (v.title ? ' ' + v.title : '') : 'Nobody yet');
   text(body.querySelector('.hi-line'), ready ? 'Level ' + (v.level === null ? '?' : v.level) + (v.role && HUNT_ROLES[v.role] ? ' · ' + HUNT_ROLES[v.role].label : '') : '');
   rows(body.querySelector('.hi-gear'), ready ? v.gear : [], {
     key: (g) => g.slot + ':' + g.item,

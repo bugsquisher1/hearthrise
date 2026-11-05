@@ -16,7 +16,7 @@ import { readBoard } from '../../session/honor-roll.js?v=0.2.92';
 import { nameOf } from '../../session/item-sections.js?v=0.2.92';
 import { HONOR_BOARDS, honorBoard, honorGroups } from '../../data/honor-roll.js?v=0.2.92';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.92';
-import { whole } from '../../render/format.js?v=0.2.92';
+import { whole, gold } from '../../render/format.js?v=0.2.92';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.92';
 import { glyphSvg } from '../widgets/bits.js?v=0.2.92';
 import { refusalText } from '../intent-words.js?v=0.2.92';
@@ -50,8 +50,10 @@ function freshWords(atMs, nowMs) {
 }
 
 /* The number on a line: "Level 8" with its XP under it, or "Total level 45". */
-const valueOf = (b, r) => (b.reads === 'total' ? 'Total level ' + whole(r.level) : 'Level ' + whole(r.level));
-const xpOf = (b, r) => (b.reads === 'total' ? '' : whole(r.score) + ' XP');
+const valueOf = (b, r) => (b.reads === 'gold' ? gold(r.score) : b.reads === 'total' ? 'Total level ' + whole(r.level) : 'Level ' + whole(r.level));
+const xpOf = (b, r) => (b.reads === 'total' || b.reads === 'gold' ? '' : whole(r.score) + ' XP');
+/* A board of accounts: one row each, shown as its lead hero, whichever hero is on screen. */
+const ofAccounts = (b) => b.reads === 'gold';
 
 function lineHtml() {
   return '<li class="hr-line"><span class="hr-place"></span><span class="hr-name"><b></b><small></small></span>'
@@ -59,14 +61,14 @@ function lineHtml() {
 }
 
 function patchLine(li, r, st) {
-  const viewed = r.mine && r.slot === st.slot;
+  const viewed = r.mine && (ofAccounts(st.b) || r.slot === st.slot);
   cls(li, 'is-first', r.place === 1);
   cls(li, 'is-mine', r.mine);
   cls(li, 'is-viewed', viewed);
   attr(li, 'aria-current', viewed ? 'true' : null);
   text(li.querySelector('.hr-place'), ordinal(r.place));
   text(li.querySelector('.hr-name b'), r.name);
-  text(li.querySelector('.hr-name small'), viewed ? 'Your hero' : r.mine ? 'Also yours' : '');
+  text(li.querySelector('.hr-name small'), ofAccounts(st.b) ? (r.mine ? 'Your account' : '') : viewed ? 'Your hero' : r.mine ? 'Also yours' : '');
   text(li.querySelector('.hr-val b'), valueOf(st.b, r));
   text(li.querySelector('.hr-val small'), xpOf(st.b, r));
 }
@@ -93,15 +95,17 @@ export function renderHonor(ctx) {
 
 /* Where the viewed hero stands: { line, next, near } in plain words, from the server's own rows. */
 function standing(b, roll, slot, heroName) {
-  const me = roll.mine.find((m) => m.slot === slot) || null;
-  if (!me) return { line: heroName + ' is not on this board yet. ' + b.join, next: '', near: [] };
+  const accounts = ofAccounts(b);
+  const me = (accounts ? roll.mine[0] : roll.mine.find((m) => m.slot === slot)) || null;
+  if (!me) return { line: (accounts ? 'Your account' : heroName) + ' is not on this board yet. ' + b.join, next: '', near: [] };
   const shared = roll.top.concat(me.near).some((r) => r.place === me.place && r.rank !== me.rank);
+  const who = accounts ? 'Your account, led by ' + me.name + ',' : me.name;
   const line = me.place === 1
-    ? me.name + (shared ? ' shares first place.' : ' holds first place.')
-    : me.name + (shared ? ' shares ' : ' stands ') + ordinal(me.place) + ' of ' + whole(roll.total) + '.';
+    ? who + (shared ? ' shares first place.' : ' holds first place.')
+    : who + (shared ? ' shares ' : ' stands ') + ordinal(me.place) + ' of ' + whole(roll.total) + '.';
   const up = me.near.filter((r) => r.place < me.place).sort((x, y) => y.rank - x.rank)[0];
   const gap = up ? up.score - me.score : 0;
-  const next = !up ? '' : b.reads === 'total'
+  const next = !up ? '' : accounts ? up.name + '\'s account, the next one up, is ' + gold(gap) + ' ahead.' : b.reads === 'total'
     ? up.name + ', the next hero up, is ' + whole(gap) + (gap === 1 ? ' level' : ' levels') + ' ahead.'
     : up.name + ', the next hero up, is ' + whole(gap) + ' XP ahead.';
   const inTop = roll.top.some((r) => r.rank === me.rank);
@@ -123,7 +127,8 @@ renderHonor.patch = function patchHonor(body, ctx) {
   text(root.querySelector('.hr-title'), b.label);
   text(root.querySelector('.hr-why'), b.why);
   const n = roll ? roll.total : null;
-  text(root.querySelector('.hr-count'), !n ? '' : n === 1 ? '1 hero on this board' : whole(n) + ' heroes on this board');   // an empty roll says so below
+  const unit = ofAccounts(b) ? ['account', 'accounts'] : ['hero', 'heroes'];
+  text(root.querySelector('.hr-count'), !n ? '' : n === 1 ? '1 ' + unit[0] + ' on this board' : whole(n) + ' ' + unit[1] + ' on this board');   // an empty roll says so below
   text(root.querySelector('.hr-fresh'), roll ? freshWords(roll.refreshedAt, Date.now()) : '');
   lineRows(root.querySelector('.hr-roll:not(.hr-near)'), roll ? roll.top : [], st, ctx.doc);
   const empty = root.querySelector('.hr-empty');
@@ -131,6 +136,7 @@ renderHonor.patch = function patchHonor(body, ctx) {
   text(empty, !roll ? (sc.asking ? 'Reading the board…' : sc.msg || 'Reading the board…') : b.empty);
   const you = roll ? standing(b, roll, cs.slot, nameOf(cs) || 'Your hero') : null;
   cls(root.querySelector('.hr-you'), 'is-on', !!you);
+  text(root.querySelector('.hr-you h3'), ofAccounts(b) ? 'Your account' : 'Your hero');
   text(root.querySelector('.hr-you-line'), you ? you.line : '');
   lineRows(root.querySelector('.hr-near'), you ? you.near : [], st, ctx.doc);
   text(root.querySelector('.hr-you-next'), you ? you.next : '');

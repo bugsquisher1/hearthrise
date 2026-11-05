@@ -30,6 +30,8 @@ import { GRIDS } from '../data/world/art-budget.js?v=0.2.92';
 const onPixelOf = (T) => (v) => Math.round(v * T) / T;
 /** The same report as before (the server re-sends a walker unchanged until it moves). */
 const sameSpot = (a, b) => a.x === b.x && a.y === b.y && a.gx === b.gx && a.gy === b.gy && a.dir === b.dir;
+/** A peer's plate, from what the server said: "Marlow the Wolfer · 18". */
+export const plateTextOf = (w) => w.name + (w.title ? ' ' + w.title : '') + (w.level !== null ? ' · ' + w.level : '');
 
 /**
  * The town's people, frame by frame, for ONE map. frame(walkers, now) → units.
@@ -84,7 +86,7 @@ export function createTownCast(map, o) {
         const { anim, age } = walkClip(o.sprites[id], at, p.steer.restMs(now), pickFacing);
         units.push({
           id, x: onPixel(at.x), y: onPixel(at.y), dir: at.moving ? at.dir : p.dir, diag: at.moving ? at.diag : null, anim, age,
-          plate: { text: p.w.name + (p.w.level !== null ? ' · ' + p.w.level : ''), kind: 'peer' },
+          plate: { text: plateTextOf(p.w), kind: 'peer' },
           /* who this is, for the player menu: the server's account id and slot */
           ref: { player: { id: p.w.id, name: p.w.name, slot: p.w.slot } },
         });

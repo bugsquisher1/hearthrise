@@ -170,6 +170,13 @@ export function presetsOf(cs) {
   return out;
 }
 
+/** `setup_slots`: how many setup numbers this hero may open and the next rung's price (null past the top), or null when the server sent none. */
+export function setupSlotsOf(cs) {
+  const s = read(cs, 'setup_slots');
+  if (!isObj(s) || count(s.count) === null || count(s.max) === null) return null;
+  return { count: s.count, max: s.max, price: count(s.price) };
+}
+
 /** `role`: the hunt role the server says the worn weapon gives, or null. */
 export function roleOf(cs) {
   const r = read(cs, 'role');

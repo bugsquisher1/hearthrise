@@ -69,7 +69,10 @@ async function checks(overrides) {
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error' && !/400|404/.test(m.text())) errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-    const s = { env: Object.assign(clone(BASE_ENV), sections), version: 1, calls: [], view, answer };
+    /* the fixture's hero hunts, in a party: this one stands in town, alone unless `sections` seat it */
+    const env = Object.assign(clone(BASE_ENV), { hunt: null, party: null, hunt_track: null, hunt_events: null, hunt_analyzer: null }, sections);
+    env.state = Object.assign({}, env.state, { active_kind: 'idle', active_id: null });
+    const s = { env, version: 1, calls: [], view, answer };
     await stub(page, s);
     await signInAndPlay(page, 'http://127.0.0.1:' + port);
     await page.click('[data-hs-open="hunts"]');
@@ -80,6 +83,7 @@ async function checks(overrides) {
   const sent = (s, n) => s.calls.filter((c) => c.name === n);
   const txt = (page, sel) => page.evaluate((q) => { const e = document.querySelector('.hw-hd-call ' + q); return e ? e.textContent : null; }, sel);
   const shown = (page, sel) => page.evaluate((q) => { const e = document.querySelector(q); return !!e && e.offsetParent !== null; }, sel);
+  const press = async (page, sel, rule) => { try { await page.click(sel, { timeout: 1500 }); return true; } catch { fails.push(rule + ' could not press ' + sel); return false; } };
   const off = (page) => page.evaluate(() => { const b = document.querySelector('.hw-call-press'); return b ? b.disabled : null; });
   try {
     /* BW-1 */
@@ -106,17 +110,17 @@ async function checks(overrides) {
       const { ctx, page, s, errors } = await open(PARTY(0), QUOTE({}));
       if (!/2 calls left today\./.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-2 the page reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
       if (await off(page) !== false) fails.push('BW-2 the leader\'s press is off');
-      await page.click('[data-hs-act="call-warn"]');
+      await press(page, '[data-hs-act="call-warn"]', 'BW-2');
       await page.waitForTimeout(150);
       if (sent(s, 'hr_boss_call').length) fails.push('BW-2 the first press charged');
       if (!await shown(page, '.hw-call-warn')) fails.push('BW-2 no warning');
       const warned = await txt(page, '.hw-call-warn') || '';
       if (!/a death ends the fight/.test(warned) || !/10,000 gp from your purse, win or lose/.test(warned) || !/no XP, no coin and no drops/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
-      await page.click('[data-hs-act="call-no"]');
+      await press(page, '[data-hs-act="call-no"]', 'BW-2');
       await page.waitForTimeout(150);
       if (await shown(page, '.hw-call-warn')) fails.push('BW-2 Not yet left the warning up');
-      await page.click('[data-hs-act="call-warn"]');
-      await page.click('[data-hs-act="call-go"]');
+      await press(page, '[data-hs-act="call-warn"]', 'BW-2');
+      await press(page, '[data-hs-act="call-go"]', 'BW-2');
       await page.waitForTimeout(500);
       const calls = sent(s, 'hr_boss_call');
       if (calls.length !== 1) fails.push('BW-2 ' + calls.length + ' calls went out');
@@ -128,14 +132,14 @@ async function checks(overrides) {
     {
       const moved = QUOTE({ price: 12000 });
       const { ctx, page, s } = await open(PARTY(0), QUOTE({}), (b) => (b.p_price === 12000 ? { ok: true, boss_call: moved } : { ok: false, error: 'quote_changed', boss_call: moved }));
-      await page.click('[data-hs-act="call-warn"]');
-      await page.click('[data-hs-act="call-go"]');
+      await press(page, '[data-hs-act="call-warn"]', 'BW-3');
+      await press(page, '[data-hs-act="call-go"]', 'BW-3');
       await page.waitForTimeout(500);
       const msg = await page.evaluate(() => (document.querySelector('.hw-hunts .hh-intent-msg') || {}).textContent || '');
       if (!/weren't charged/.test(msg)) fails.push('BW-3 the answer reads ' + JSON.stringify(msg));
       if (!/12,000 gp/.test(await txt(page, '.hw-call-press') || '')) fails.push('BW-3 the press still reads ' + JSON.stringify(await txt(page, '.hw-call-press')));
-      await page.click('[data-hs-act="call-warn"]');
-      await page.click('[data-hs-act="call-go"]');
+      await press(page, '[data-hs-act="call-warn"]', 'BW-3');
+      await press(page, '[data-hs-act="call-go"]', 'BW-3');
       await page.waitForTimeout(500);
       const calls = sent(s, 'hr_boss_call');
       if (calls.length !== 2 || calls[1].body.p_price !== 12000) fails.push('BW-3 the second press sent ' + JSON.stringify(calls.map((c) => c.body.p_price)));

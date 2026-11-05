@@ -451,16 +451,13 @@ export function monstersOn(ground, partySize) {
    a Healer alone can still clear a first room that is immune to her one element. */
 export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille: 500 });
 
-/* MONSTER DENSITY (Tyler 2026-10-18): a hero picks how many monsters a pull brings
-   (0 = the room as built). The server stores the pick inside DENSITY_PICK and the
-   settle CLAMPS it to the ground's `densityMax` for the party's size (a row's array,
-   one entry per party size 1..4). IN A PARTY THE LEADER CHOOSES (Tyler 2026-10-20:
-   "There should be a party leader that chooses the hunt settings"): the leader's
-   pick is the pull for every member, the others' picks have no say (partyPick).
-   EVERY ground's max is at least DENSITY_FULL_BOX (Tyler: "a full box", all 8 tiles
-   round the tank taken); a row may allow more. The values above 8 are ASSUMED.
-   A PARTY'S DEFAULT PULL (designer 2026-11-01: most players never press +, and a mixed party as built stayed under
-   solo): a row's `partyPull`, one entry per party size 1..4, is the pull of a party that picked none; absent = as built.
+/* MONSTER DENSITY: how many monsters a pull brings (0 = the room as built). THE DIAL IS GONE (lane/c-difficulty-tiers): the
+   tier a hero or its party's leader picks (hunt-tiers.js) sets it, and the server freezes that number at hunt start. The
+   settle still CLAMPS it to the ground's `densityMax` for the party's size (a row's array, one entry per party size 1..4).
+   A tool's pick (tools/balance-sim, the fixtures) comes in by the same road: the leader's alone counts (partyPick).
+   A top tier's DENSITY_FULL_BOX fits every ground (Tyler: "a full box", all 8 tiles round the tank taken); a row may allow more. The values above 8 are ASSUMED.
+   A PARTY'S DEFAULT PULL (designer 2026-11-01: a mixed party as built stayed under
+   solo): a row's `partyPull`, one entry per party size 1..4, is Normal's pull for a party; absent = as built.
    It follows the party standing, at the next spawn (designer 2026-11-01): a four dropping to three goes to three's pull,
    and a lone survivor goes back to as built. A lone hero's entry is 0 and never read: its pull never moves. */
 export const DENSITY_FULL_BOX = 8;

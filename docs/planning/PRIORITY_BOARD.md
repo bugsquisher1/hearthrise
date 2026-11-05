@@ -30,6 +30,146 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-05 A new caster's first fights (designer, lane/d-caster-first-fights): RULED, MEASURED on the real settle at origin/main d6ac940ad, played on the local world, nothing built. A Lane C row change plus one tutorial card
+**The problem (lane/a-silent-triggers, reproduced here).** A new Mage on a lone monster casts nothing for five minutes: 0 casts, basic attacks only. A new Healer casts 0 on a lone monster and one Greater Mend in its first five minutes on the Cellar as built. The game now says why the slots wait, and it's still the first thing that style does.
+
+**The ruling: the starter bars, slot by slot (`ROLE_RULES`, default bar only; a saved bar is never touched).** Bold is what changes. It leans on Tyler's "a preconfigured bar is fine for the tutorial and early game only".
+| Style | Slot | Spell | Store rune | Conditions |
+|---|---|---|---|---|
+| Mage | 1 | Fireball | Plain Fire Rune | monsters it would hit 2 or more |
+| Mage | 2 | Frost Lance | **Plain Ice Rune** | my mana **70%** or more (was 50%) |
+| Mage | 3 | Arcane Barrier | **Plain Earth Rune** | my HP under 85% |
+| Healer | 1 | Greater Mend | Plain Water Rune | lowest ally under 70% |
+| Healer | 2 | Circle of Renewal | **Plain Water Rune** | 2 or more allies under 80% |
+| Healer | 3 | Green Sickness | **Plain Poison Rune** | lowest ally 70% or more **and my mana 80% or more** |
+| Ranger | 1 | Hunter's Mark | none needed | none |
+| Ranger | 2 | Precision Shot | none needed | none |
+| Ranger | - | **Flame Volley leaves the default bar** | | "A spell costs runes" offers it instead, as it offers a sword hero Flame Strike |
+| Axes | - | **Rend leaves the default bar** | | Power Strike and Cleave stay; "A spell costs runes" offers Rend |
+| Melee, sword or club | - | unchanged | - | the reference: Power Strike on a lone monster at 1.6 s |
+
+The start bar's food and drink don't move: Cooked Shrimp, Salted Shrimp, Thin Turnip Juice follow the abilities.
+
+**The rule underneath: no default bar holds a spell it can't cast. A caster's spells are its style, so they're on the bar with their store runes. A weapon hero's rune spell (sword Flame Strike, axes Rend, bow Flame Volley) is offered by "A spell costs runes", with its price.** This replaces the 2026-10-21 line "a default bar buys no supply the role does not need" and the 2026-10-29 ruling that kept these slots struck (CONFLICTS.md). A slot the player adds already starts with its store rune on (`bar-draft.js storeDefault`), so the default bar was the one place a spell started with it off. It also ends a repeated decision. Today every new caster, on every hero, opens Configure action and turns the store on once per slot. First principle: that's one decision, made here, once.
+
+**Why slots 2 and 3 are struck.** A player-facing default: not a seed bug, not a rule. `STORE_CORE` in `src/data/rule-subjects.js` is `['fireball', 'greater_mend']`, so only those two default slots carry `action.store`. For every other rune spell `runeFor` in `src/core/hunt/abilities.js` answers `no_rune` and `hr_hunt_settings_view` sets `usable: false`. Tyler's 10-23 rule charges gold "when the slot names the spell", so the slot is legal and his rule is simply never reached. It stood for a measured reason that was only half right: a store rune on every default did take the Sewer under the Thicket, and Flame Volley still does harm (below), but nobody had measured the casters' own spells behind a mana gate.
+
+**Each spell's trigger.**
+| Spell | Decision | Why, measured |
+|---|---|---|
+| Fireball | stays at 2+ | On one target it's the worse spell: 7-12 for 25 mana every 8 s against Frost Lance's 12-18 for 20 mana every 6 s. At 1+ the Cellar Mage loses 10% XP and 33% net (7,217 XP/h, 1,165 g/h), the bill goes to 821 g/h and the purse falls to 327 g. So the bar teaches the difference: Fireball for two or more, Frost Lance for one |
+| Frost Lance | store on, mana 50% to 70% | At 50% it takes the mana Fireball needs: Cellar net falls 24%, Fireball casts fall from 163 to 103 an hour. At 70% it fires at the top of a fight and the Cellar net falls 7% |
+| Green Sickness | store on, plus mana 80% | The Sewer's chain breaker, and the party-wide damage debuff. Sewer net ungated 1,687, at 50% 1,776.5, at 70% 1,846, at 80% 1,889.5. At 70% the Warrens' `total-value` is red (5,748 g against a 5,735 g cap); at 80% it's green. Full mana at the top of a fight still fires it first |
+| Flame Volley | leaves the default bar | With its store rune, even gated at mana 50%, a crossbow Ranger buying every shot falls to +3.3% over its bill at the Sewer floor and +19.9% at the Warrens' (`ranger-floor`, +25% needed): a Volley looses 3 shots. Off the bar: +30.1% and +43.2%. A Ranger already fires on a lone monster, so it doesn't need it for the first pull. Taking it is now a real choice: on the bow's free arrows it's about +14% XP and -4% net at the Thicket (2 h x 2 seeds) |
+| Arcane Barrier | store on, HP under 85% | Costs nothing in a party (0 casts at the Sewer floor), 1-18 casts an hour alone. No death in any run |
+| Circle of Renewal | store on, 2+ stays | 0 casts alone and 0 at the Sewer floor. Store on makes it a marked wait with a reason, not a strike. It's the one default slot that waits for a party, and it says so |
+| Rend | leaves the default bar | With its store rune it casts 23 times an hour at the Thicket for about +1% XP, and at the Warrens it dilutes the weapon: axes at Level 45 read +4% from a rung, under `weapon-rungs`' +5%. It's struck today and a new axe hero doesn't need it: Power Strike and Cleave already fire on a lone monster |
+
+**Should the first spell need a rune?** Yes, from the store, at 1 g. The rune is the small part of a cast: 1 g against 2.8 g of mana for a Frost Lance, at the Thin Turnip Juice's 10 g for 72.
+| First-hour bill, g (runes + drinks + food) | Today | **Store, 1 g (ruled)** | Kit carries 25 of each family | No rune at all |
+|---|---|---|---|---|
+| Mage, Cellar | 498 | **569** | 519 | 385 |
+| Mage, Thicket | 864 | **1,082** | 1,082 (the stack is gone) | 789 |
+| Healer, Cellar | 5 | **55** | 28 | 0 |
+| Healer, Thicket | 143 | **232** | 232 | 150 |
+| Ranger, Cellar / Thicket | 95 / 265 | 95 / 265 | 95 / 265 | 95 / 265 |
+| Melee, Cellar / Thicket | 0 / 289 | 0 / 289 | 0 / 289 | 0 / 289 |
+
+The kit stack saves 27-51 g once, adds six rune stacks to every Melee's bag, and goes against the kit's recorded line (Tyler 2026-10-23: "the kit carries no rune", `start-kit.js`, CONFLICTS.md 10-29). No rune at all goes against his ruling that runes fuel spells and a missing rune charges gold. Neither is worth reopening. A new Mage's coin (736 g/h at the Cellar) still beats its bill (569), so the purse never falls under 494 g in that first hour: nobody watches their gold drain. The 1 g plain rune is the assumption, and the rune ladder proposal keeps it. The Sewer party spends 126 store runes per hero-hour, so a 2 g plain rune would put the chain below under by about 80 g/h.
+
+**Before and after (real settle, Cellar from Level 1, Thicket from Level 5 on the state the Cellar leaves, start kit, 2 h x 2 seeds, 0 deaths in all 80 hours).** The Ranger's and the axes' numbers don't move: their struck slots never fired.
+| Style, ground | Bar | Casts, first 5 min | Casts, 1 h | XP/h | Net g/h (bill) | Deaths | Mean TTK |
+|---|---|---|---|---|---|---|---|
+| Melee, Cellar | reference | Power Strike 27 | 282 | 7,252 | 1,970 (0) | 0 | 0.7 s |
+| Melee, Thicket | reference | Power Strike 34.5 | 418 | 21,360 | 2,225 (299) | 0 | 1.6 s |
+| Mage, Cellar | today | Fireball 15 | 163 | 8,022 | 1,748 (464) | 0 | 0.3 s |
+| Mage, Cellar | **new** | Fireball 11.5, Lance 5 | 129, 55, Barrier 1 | 7,823 | 1,627 (534) | 0 | 0.4 s |
+| Mage, Thicket | today | Fireball 21 | 239 | 26,861 | 2,428 (824) | 0 | 1.3 s |
+| Mage, Thicket | **new** | Fireball 21, Lance 4, Barrier 2 | 237, 38, 18 | 27,439 | 2,358 (1,007) | 0 | 1.1 s |
+| Healer, Cellar | today | Mend 0.5 | 5 | 6,243 | 1,636 (3) | 0 | 2.3 s |
+| Healer, Cellar | **new** | Sickness 3 | 53, Mend 2 | 6,498 | 1,632 (62) | 0 | 2.6 s |
+| Healer, Thicket | today | Mend 4.5 | 58 | 15,056 | 1,616 (122) | 0 | 5.8 s |
+| Healer, Thicket | **new** | Mend 4, Sickness 3.5 | 68, 14 | 16,000 | 1,641 (166) | 0 | 5.3 s |
+| Ranger, Cellar | both | Precision 24, Mark 16 | 241, 163 | 7,506 | 2,047 (70) | 0 | 0.4 s |
+| Ranger, Thicket | both | Precision 32, Mark 21 | 381, 241 | 24,785 | 2,658 (336) | 0 | 1.3 s |
+| Axes, Thicket | both | Strike 28, Cleave 23 | 333, 269 | 27,734 | 3,046 (320) | 0 | 0.5 s |
+
+| A lone monster, the first 5 minutes (a Cellar copy with one monster a pocket) | Today | New |
+|---|---|---|
+| Mage | 0 casts | Frost Lance 7, first at 0.5 s |
+| Healer | 0 casts | Green Sickness 5, first at 0.5 s |
+| Ranger | Precision 17, Mark 10 | same |
+| Melee | Power Strike 19, first at 1.6 s | same |
+
+Every hunt still clears the +25-35% rule by a wide margin. The tightest here is the Mage at the Thicket, +234% over its bill. Two seeds is thin for gold (a Cellar seed swings about 200 g/h), so read the small net moves as "about flat"; the XP and the casts are steadier. In the party guards the Sewer floor bills are Mage 874 g/h (+183%) and Healer 948 g/h (+161%).
+
+**The first-grounds net chain holds, and it's sturdier.** Six seeds, 1 h, the reference kit, as `first-grounds-net-chain` runs it. The same numbers on origin/lane/c-armor-tiers.
+| Ground | Today | New |
+|---|---|---|
+| Cellar, solo | 1,829.5 | 1,829.5 (tank, unchanged) |
+| Thicket, solo | 1,838 | 1,838 (tank, unchanged) |
+| Sewer floor, party of four | 1,843.5 | **1,881.5** (median bill 536 against 514, 0 falls, XP/h flat, all six seeds over 1,838) |
+
+The candidates on the way there, Sewer net: Lance alone 1,849.5; Volley alone 1,864; Sickness ungated alone 1,687; Lance + Volley 1,834.5 (red); all three with Sickness at 70% 1,806.5 (red); Volley gated at 50% 1,845.5-1,858, but `ranger-floor` stays red; Volley off and Sickness at 80%: 1,881.5. If another lane's row turns it red, raise a mana gate before touching the Sewer's coin (not measured).
+
+**What the player sees.** Played from the sign-in screen on the local world: sign up, name the hero, open the bag, Equip the wand and book (or the staff, or the bow), Hunts, Mill Cellar, Enter, 90 seconds. That's origin/main plus lane/a-silent-triggers, with the new rows restated in that in-memory database only. No console errors.
+| The analyzer at 90 s | Today | New |
+|---|---|---|
+| Mage | 12 kills. Fire x4, juice x1: 14 gp | 12 kills. Fire x4, Ice x3, juice x2: 27 gp |
+| Healer | 9 kills. Water x1: 1 gp | 9 kills. Poison x2: 2 gp |
+| Ranger | not played | 10 kills. Nothing bought: Mark and Precision Shot on free arrows |
+
+- **Mage.** Today two of its three spells wear a line through them, and Before you go opens with "Frost Lance and Arcane Barrier will not fire". Now all three are lit in town, and the mana bar works: 100 to 37 in the first minute, then a juice. It reads as a caster spending itself. The limit: Cellar monsters have 8-9 HP, so a spell is mostly overkill there, and the difference between the two spells shows on the bar's 2+ mark and in the words, not in the numbers.
+- **Healer.** "Green Sickness" floats over the hero in its first pull, the slot is lit, and Circle of Renewal wears its 2+ mark and says why. That beats nothing happening, but it's still quiet: staff blows, with two spells in 90 seconds. A solo Healer stays the slowest hero, 16,000 XP/h at the Thicket against Melee's 21,360. That's the party role and it isn't fixed here.
+- **Ranger.** Nothing struck, two moves firing from the first pull, the food one slot over.
+- Read the analyzer, not the bar's cooling glow: the glow missed casts in the first half minute. Mana and the analyzer follow the server's commits and can lag by up to 10 s.
+
+Screenshots: `C:\Users\tyler\AppData\Local\Temp\claude\12056c6ebafcfb27\656762ef-5d81-4d67-9730-c3aa4dc63d21\scratchpad\first-fights-shots\today\` and `C:\Users\tyler\AppData\Local\Temp\claude\12056c6ebafcfb27\656762ef-5d81-4d67-9730-c3aa4dc63d21\scratchpad\first-fights-shots\proposed-final\`, one folder a hero (`01-town-bar.png`, `02-before-you-go.png`, then the hunt).
+
+**The walk-through (each step from the start kit and the steps before it; every name grepped in `src/data/*`).**
+| Step | What the player holds and can reach | Why it's doable |
+|---|---|---|
+| 1. New hero in town | Sword and shield worn. Bag: Practice Wand, Practice Spellbook, Practice Staff, Practice Bow, Practice Crossbow, Practice Hatchets, Practice Club, 20 Cooked Shrimp, 10 Shrimp, 50 Bronze Arrows, 10 Coarse Whetstones, 8 Turnip Seeds. 500 g | `start-kit.js` |
+| 2. "Every weapon is a style": bag, press the wand, Equip; the book, Equip (or the staff, or the bow) | The pieces from step 1 | Played |
+| 3. The bar reads the rows above, nothing struck, in town | Step 2's weapon; the rows; store rows at 1 g | Played on the rows |
+| 4. Hunts, Mill Cellar, Enter | Level 1, Cellar band 1-8 | Played |
+| 5. Mage, first pull: two rats side by side. Fireball: 100 mana (needs 25), 500 g (needs 1) | Step 3's bar | Measured, 0.5 s |
+| 6. Mage, the monster left alone: Frost Lance: 75 mana is 70% or more, 1 g | The mana step 5 left | Measured, 3.1 s |
+| 5b. Healer, first pull: nobody hurt, 100 mana. Green Sickness: 20 mana, 1 g, however many monsters | Step 3's bar | Measured, 0.5 s |
+| 6b. Healer hurt under 70%: Greater Mend, 25 mana, 1 g | The mana the 80% gate kept | Measured |
+| 5c. Ranger, first pull: Hunter's Mark, then Precision Shot, Bronze Arrows free | Equip loaded the arrows | Measured, 0.5 s and 0.6 s |
+| 7. Card "Why it waits" (below), after "Your action bar", Got it | The server's slots | To build, pinned by the walk-through guard |
+| 8. Thicket: "A spell costs runes" offers a Ranger Flame Volley, an axe hero Rend, in the first empty slot | The bar has no rune spell; store row at 1 g | Fact `rune_spell_none` holds on the new row; the guard's `want` row |
+| 9. "Make your own runes", Level 7, unchanged | Any rune spell with no rune carried | Reads `rune_unowned`, unchanged |
+
+**The tutorial, and whether a step could be the fix.** It can't be the fix: a card comes after the first pull, and someone who only watches never presses it. It's the second half. "Spells need runes" stays, for a hero who picks Carried runes only and runs out, but no default bar reaches it now, so casters would lose the lesson about what a cast costs and why a slot waits. One new card, client only, sits where it sat: **"Why it waits"**, after `bar_intro`, in `LESSON`, Got it to finish, `knowledge`, words built from the server's slots. Mage: "Slot 1, Fireball, waits for 2 or more monsters. A lone monster gets slot 2, Frost Lance, which hits one target harder. Each cast buys its rune from the store, 1 gp. Press a slot to change when it fires." Healer: "Slot 2, Circle of Renewal, waits for 2 or more hurt heroes, so it only fires in a party. Slot 3, Green Sickness, casts while nobody needs healing and your mana is high." A Mage goes from two struck-slot cards to one, and Tyler's 10-25 line (conditions and runes, taught in combat, on the real control) is met on a real slot.
+
+**`starter-bar-fires`: what it should assert.** Today it reads two worn sets (sword and shield, sword alone) and asks only "no rune spell without a store rune", so a Mage's bar never reaches it. Rewrite it over the data, every worn set from `STARTER_SETS` plus the sword alone and the crossbow (a shooter's ammo loaded, as Equip loads it), so a new row is covered by being a row:
+1. **No dead slot.** On `heroSetup({ bar: [] })`, every ability with a rune names a store row whose `partner` is that rune.
+2. **The first pull fires.** On the real settle (`accrueHunt`, Level 1, the kit's bag, empty stored bar, the Cellar as built): a `cast` of one of the style's own abilities (not Mend) within 5 s of the first `pull`.
+3. **A lone monster fires.** The same on a Cellar copy with `spawns.slice(0, 1)` per pocket: a cast within 30 s. This is the line that's red today for the wand and the staff.
+4. **Every slot earns its place.** 30 minutes at the Thicket's floor: every default ability slot casts at least once, except a named list with its reason: `challenge` (nothing leaves a lone tank), `circle_of_renewal` (needs two heroes).
+5. **Rows and server agree.** `sql-rows` reads the new migration, and that migration's §3 checks every role for a rune spell with no store, not just the tank.
+
+Mutants, each red by its line: Frost Lance or Green Sickness without its store (1); Rend or Flame Volley back on a default row with no store (1); Frost Lance or Green Sickness gated on 2+ (3); Green Sickness gated on someone being hurt, the old Healer (3); Arcane Barrier at HP under 0 (4).
+
+**The build (Lane C, about 2-3 hours, an estimate).**
+| What | Where |
+|---|---|
+| The rows | `src/data/rule-subjects.js`: drop `STORE_CORE` (every default rune spell names its store rune), `SPARE_MANA` to 70, Green Sickness at 80, `flame_volley` off `ranger`, `rend` off `melee_dps`, the header comment |
+| The server's copy | New `supabase/migrations/<next>-caster-starter-bars.sql`: full replace of `hr_hunt_role_rules` (12 rows, was 14; 5 roles), §3 as above. No function, grant, table or player row moves, so `live-hash-drift` doesn't move. `tests/schema-apply-order.json` entry; `tests/restore-census.baseline.json` replay 14 to 12 in the lane |
+| The edge | Moves: `ROLE_RULES` rides the hr-accrue payload. Apply, deploy at once, then the client. Between the two the only difference is a slot the view shows live and the engine doesn't fire yet |
+| The kit | None. `START_BAR`, `START_INVENTORY`, `hr_start_kit` unmoved |
+| Comments that now lie | `src/core/hunt/abilities.js` header and `src/shell/bar-draft.js storeChoices` ("a default bar never buys a rune unseen") |
+| A word bug found by playing | `src/shell/hunt-go.js` Before you go: three spells' runes read "Plain Fire Rune..., then Plain Ice Rune..., then Plain Earth Rune": "then" is for a fallback, and these are three spells |
+| The guard | `tests/hunt-core/conditions.mjs`: `starter-bar-fires` above, `BAR_MIGRATION`, the `healer-default-rules` mutant anchor |
+| Pins that move on purpose (all red on a plant, each read) | `tests/hunt-core/sewer.mjs`: `starter-bars` `want` (no struck slot for any style; `axes`, `bow` and `crossbow` join `tank` and `sword` on `first_spell`), `tutorial-bar-chain` and `tutorial-second-hero` (their hatchet fixture becomes a player-chosen Carried runes only). `silent-triggers` `mana-threshold` once that lane is in (50 to 70) |
+| The card | `src/data/hunt-tutorial.js`: one row, one fact (`slot_waits`), one word builder, a `first_spell` trade line for the bow's Volley; a walk-through row in `sewer.mjs` |
+
+**On a plant of these rows (restored after, nothing committed):** `drop-tables` green; `first-week-bands` green but for `weapon-rungs`, which went green once Rend came off (those two full runs had Rend still on; taking it off only puts the axes back on today's numbers); `roles` green; `conditions` red only on `sql-rows` (the migration); `sewer` red only on the three pins above. `forest-cave` wasn't run as a file: the chain was played the way its case plays it and matched today's numbers exactly first. It must land before the Coordinator's final pace re-measure: Cellar and Thicket XP/h move Mage -2% / +2%, Healer +4% / +6%, Ranger and Melee 0.
+
+**Open: nothing for Tyler.** It's inside "a preconfigured bar is fine for the tutorial and early game only" and designer authority, and it changes no saved bar. The one thing worth telling him: a new Mage spends 569 g in its first hour, up from 498, for a second spell he can see.
+
 ### 2026-11-05 Tempering: a gold sink that adds a little gear power (designer, lane/c-gear-upgrade): BUILT, played, STAGED: two files, then the edge, then the client
 **Tyler, 2026-11-04:** "we need to add some additional gold sinks before we raise the price. I'm thinking about some sort of upgrade system that slightly increases gear power or something."
 

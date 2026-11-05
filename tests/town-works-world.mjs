@@ -88,6 +88,8 @@ try {
     const drawn = await worksArt(art);
     step(`WW-1 ${name} draws from the town read (${t} gp)`, drawn, JSON.stringify((await walkOf() || {}).works));
     await page.waitForTimeout(400);
+    const stubbed = await page.evaluate(() => window.__worldForTest.stats().stubbed);
+    step(`WW-1 ${name} draws no stub: its sheet has arrived`, !stubbed.some((id) => /weighhouse/.test(id)), JSON.stringify(stubbed));
     await p.shot('stage-' + name);
   }
   await setTotal(99000);

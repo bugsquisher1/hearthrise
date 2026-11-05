@@ -158,6 +158,9 @@ export class TownPresence {
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
   _changed() { for (const fn of Array.from(this._listeners)) { try { fn(); } catch (e) { console.error('[town] a listener failed', e); } } }
 
+  /** The read out now has settled (asks for nothing itself): a first view waits on it to learn where its hero stands. */
+  heard() { return this._reading ? this._reading.then(() => true, () => false) : Promise.resolve(false); }
+
   /** The town map on screen for this character, or null (home, hunt, pane closed): null leaves town. */
   show(map) {
     const m = typeof map === 'string' && MAP_ID.test(map) ? map : null;

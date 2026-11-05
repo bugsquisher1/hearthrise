@@ -27,8 +27,9 @@ export const STUB_SPRITE = Object.freeze({
 
 /** @param {{[set: string]: object}} manifests  set name → parsed manifest */
 export function createBook(manifests) {
-  const sprites = Object.create(null), terrains = Object.create(null), home = Object.create(null);
+  const sprites = Object.create(null), terrains = Object.create(null), home = Object.create(null), areas = Object.create(null);
   for (const [set, m] of Object.entries(manifests || {})) {
+    areas[set] = m.size ? m.size[0] * m.size[1] : 0;
     for (const [id, s] of Object.entries(m.sprites || {})) { sprites[id] = s; home[id] = set; }
     for (const [id, t] of Object.entries(m.terrain || {})) terrains[id] = Object.assign({ set }, t);
   }
@@ -38,6 +39,8 @@ export function createBook(manifests) {
   return {
     sprites, terrains, sprite,
     has: (id) => !!sprites[id],
+    /** How many pixels a set's sheet has: its weight, before any of it is fetched. */
+    area: (set) => areas[set] || 0,
     /** The facing a unit facing `dir` (cardinal) on a step `diag` (diagonal or null) is drawn in (core/facing.js). */
     facing(id, anim, dir, diag) { const s = sprites[id]; return s ? pickFacing(anim0(s, anim).dirs, dir || 's', diag) : dir || 's'; },
     frames(id, anim, dir) { const s = sprites[id]; return s ? clip(s, anim, dir || 's').length : 1; },

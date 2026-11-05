@@ -39,6 +39,7 @@ import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?
 import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.90';
 import { sceneSetsSliced } from './scene-sets.js?v=0.2.90';
 import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.90';
+import { createViewSheets } from './view-sheets.js?v=0.2.90';
 import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.90';
 import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.90';
 import { huntOfMap } from './hunt-maps.js?v=0.2.90';
@@ -161,7 +162,7 @@ export async function bootWorld(panel, opts) {
   /* A sprite no loaded atlas carries compiles as a one-tile stub, never a crash. */
   const tables = baseTables(book);
   const sheets = createSceneImages({ doc, version: BUILD.cache });
-  const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css });
+  const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css, arrived: (set) => sheets.ready([set]) });
   tokensChanged = () => backend.invalidate();
   const gridArt = createGridArt({ doc, version: BUILD.cache, tables, loadSet: loadAtlasSet });
   const artOf = (id) => gridArt.art(ROWS.get(id).grid);
@@ -184,9 +185,12 @@ export async function bootWorld(panel, opts) {
     if (!needs.has(id)) needs.set(id, grid && grid !== 'base' ? [] : pre || await sceneSetsSliced(mapOf(id), ROWS.get(id), book, tables, slices));
     return needs.get(id);
   };
-  /* A SCENE MADE READY: its sheets, those sheets loaded, its ground binned for the chunks (tests/perf-budget.mjs PB-HELD) */
+  /* THE TOWN OPENS ON ITS VIEW, its other sheets behind it (view-sheets.js) */
+  const viewSheets = createViewSheets({ win, sheets, needs, town: opts.town || null, missing: (cast) => backend.missing(cast), wake: () => { if (!running) sync(); } });
+  /* A SCENE MADE READY: its sheets (the town's, as its frames name them), those sheets loaded, its ground binned for the chunks (tests/perf-budget.mjs PB-HELD) */
   const prepareScene = async (id) => {
-    await sheets.ensure(await setsOf(id));
+    const sets = await setsOf(id);
+    if (!viewSheets.opensOnView(id)) await sheets.ensure(sets);
     if (gone) return;   // a sheet landing after the pane closed ends here; sync() checks again
     await backend.prepare(mapOf(id), artOf(id) || undefined, slices);
   };
@@ -195,8 +199,9 @@ export async function bootWorld(panel, opts) {
      while its own art loads, route below). */
   const first = readScene(view(), homeMapFor(homeNow().tier)).map;
   await prepareScene((await setsOf(first)).length ? first : SCENE_MAPS.town);
-  stage.querySelectorAll('.world-status').forEach((el) => el.remove());
   backend.mount(stage);
+  /* the loading line stays over the empty canvas until the first view's sheets are in (the end of this function) */
+  stage.querySelectorAll('.world-status').forEach((el) => stage.appendChild(el));
 
   let hunt = null, huntMap = null, lastHunt = null;
   /* the live hunt of `character`, while it hunts: ended here only when its hunt is over (S5) */
@@ -340,7 +345,7 @@ export async function bootWorld(panel, opts) {
       gridArt.ensure(grid).then((ok) => { if (!ok) setChoice(view(), 'town'); if (!running) sync(); });
       sc = { map: SCENE_MAPS.town, kind: 'town' };
     }
-    if (!needs.has(sc.map) || !sheets.ready(needs.get(sc.map)) || waiting.has(sc.map)) {
+    if (!needs.has(sc.map) || !(viewSheets.opensOnView(sc.map) || sheets.ready(needs.get(sc.map))) || waiting.has(sc.map)) {
       /* A SCENE NOT YET SHOWN (a ground entered, the town after a hunt): the frame showing stays until it is
          ready, then the scene switches whole: no stub boxes, and never one map's units on another. Each heavy
          step is a task of its own, never a frame's (tests/perf-budget.mjs PB-HELD): its ground (made once,
@@ -385,6 +390,7 @@ export async function bootWorld(panel, opts) {
     }
     const targets = roofTargets(map.buildings, heroBuilding(map.buildings, cast.hero));
     for (const id of Object.keys(targets)) roofAlpha[id] = id in roofAlpha ? stepAlpha(roofAlpha[id], targets[id], dt) : targets[id];
+    if (viewSheets.held(sc.map, cast)) return;   // a sheet this frame draws is on its way: the last frame stays on screen
     /* a new map's (or zoom's) first view bakes its ground a slice a frame first: the last frame stays meanwhile */
     if (!backend.ready(cast)) return;
     backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name, roofAlpha, t: now }, cast));
@@ -519,6 +525,15 @@ export async function bootWorld(panel, opts) {
   doc.addEventListener('keyup', onKeyUp);
   doc.addEventListener('focusin', onFocusIn);
   win.addEventListener('blur', letGo);   // a key let go in another window never sends its keyup here
+
+  /* THE PANE OPENS WITH ITS FIRST VIEW'S SHEETS IN */
+  await viewSheets.open(() => {
+    const sc = route();
+    if (!sc || !viewSheets.opensOnView(sc.map)) return null;
+    backend.setZoom(zoom.zoomOf(sc.kind));
+    return { id: sc.map, cast: walkState(view(), mapOf(sc.map), Date.now()) };
+  });
+  stage.querySelectorAll('.world-status').forEach((el) => el.remove());
 
   return {
     sync,

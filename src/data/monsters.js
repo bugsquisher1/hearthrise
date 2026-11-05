@@ -780,14 +780,11 @@ export const MONSTERS = {
       { id: 'willow_wand', ch: .0125, band: 'rare' }, { id: 'willow_spellbook', ch: .0125, band: 'rare' }, { id: 'willow_staff', ch: .0125, band: 'rare' },
       { id: 'verdigris_cake', ch: .0125, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .0013, band: 'trophy' }] },
 
-  /* ══ THE CALLED BOSSES (Call out, Tyler 2026-11-04; src/data/boss-calls.js): a stronger copy of a ground's boss, fought in one room a party pays to enter. A CALLED ROW
-     PAYS NOTHING, EVER: xp 0, gp [0, 0], no drops; yieldOf reads a yieldPm of 0 as FULL yield, so this is the only way to say it (tests/boss-call.mjs; gen-hunt-sessions refuses
-     anything else). Level and stats are its only dials: it reaches armor, to-hit and every other reader through the normal paths, no multiplier keyed on a hero's Level.
-     Its art is its boss's (monster-art.js HUNT_ART_ALIAS). Numbers measured on the real settle: tools/balance-sim/boss-call-table.mjs. The low `baseAcc` takes his to-hit off the 85% ceiling (combat.js), so a hero's Defense and shield count, and a party just short of ready has a chance, not none. ══ */
-  rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true, called: true,
+  /* ══ THE CALLED BOSSES (src/data/boss-calls.js): a stronger copy, in one room a party pays to enter. A CALLED ROW PAYS NOTHING: xp 0, gp [0, 0], no drops (yieldOf reads a yieldPm of 0 as FULL yield; tests/boss-call.mjs). Stats are the only dials, through the normal paths: measured on tools/balance-sim/boss-call-table.mjs. The low `baseAcc` takes his to-hit off the 85% ceiling, so Defense and a shield count. Art: monster-art.js HUNT_ART_ALIAS. ══ */
+  rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, boss: true,
     elementResist: ['ember'],
     hp: 5000, atk: 61, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [] },
-  chief_coppercap_called: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true, called: true,
+  chief_coppercap_called: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, boss: true,
     elementResist: ['frost'],
     hp: 8000, atk: 155, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800, drops: [] },
 

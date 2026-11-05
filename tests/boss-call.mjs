@@ -6,7 +6,7 @@
 //   node tests/boss-call.mjs            the guard
 //   node tests/boss-call.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/core/hunt/pull-cycle.js src/data/bestiary.js src/data/hunt-grounds.js
+// mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/data/bestiary.js src/data/hunt-grounds.js
 //
 //   BC-ROW     a called row is xp 0, gp [0, 0], no drops, no yield trick; it stands in its own room and nowhere else: no ground list, no roster, no Bestiary, no activity
 //   BC-TIER    a difficulty tier can't reach the room (when src/data/hunt-tiers.js is on the tree)
@@ -216,9 +216,9 @@ const MUTANTS = [
   { name: 'the kill never reaches the title', edits: [['src/core/hunt-rewards.js', "for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });", '']], want: /BC-PAY/ },
   { name: 'the kill ends nothing', edits: [['src/core/combat-sim.js', "for (const m of members) if (!m.left) m.hs.bossFelled = true;", '']], want: /BC-PAY|BC-FELLED/ },
   { name: 'the kill ends only the window it fell in', edits: [['src/core/combat-sim.js', "typeof m.hs.ruleStop === 'string' || m.hs.died === true || m.hs.bossFelled === true) {", "typeof m.hs.ruleStop === 'string' || m.hs.died === true) {"]], want: /BC-FELLED/ },
-  { name: 'a death leaves the unticked friend in the room', edits: [['src/core/combat-sim.js', 'if (called || (o.hero && o.hero.leaveTogether === true))', 'if (o.hero && o.hero.leaveTogether === true)']], want: /BC-DEATH/ },
+  { name: 'a death leaves the unticked friend in the room', edits: [['src/core/combat-sim.js', 'm.hero = Object.assign({}, m.hero, { leaveTogether: true });', '']], want: /BC-DEATH/ },
   { name: 'the limit never falls', edits: [['src/core/action-rules.js', 'boss_time: (hs, t) => at(hs.callEndsAtMs, t),', 'boss_time: () => false,']], want: /BC-TIME/ },
-  { name: 'the boss spawns at one hero\'s HP', edits: [['src/core/hunt/pull-cycle.js', 'const heroes = inst.scaleHeroes || partySize(inst);', 'const heroes = partySize(inst);']], want: /BC-HP/ },
+  { name: 'the boss spawns at one hero\'s HP', edits: [['src/core/combat-sim.js', 'if (call) scaleRoomFor(world, ctx.ground, standing.length);', '']], want: /BC-HP/ },
   { name: 'a called boss in the Bestiary', edits: [['src/data/bestiary.js', "if (!m || typeof m !== 'object' || m.called === true) continue;", "if (!m || typeof m !== 'object') continue;"]], want: /BC-ROW/ },
   { name: 'a room on the ground list', edits: [['src/data/hunt-grounds.js', 'export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS)', 'export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries({ ...HUNT_GROUNDS, ...CALLED_GROUNDS })']], want: /BC-ROW/ },
 ];

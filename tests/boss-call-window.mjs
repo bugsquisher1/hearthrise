@@ -5,7 +5,7 @@
 //   node tests/boss-call-window.mjs            the rules
 //   node tests/boss-call-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/boss-call-pane.js src/session/boss-intents.js src/shell/windows/hunts.js src/hunt-view/summary-model.js
+// mutant-anchors: src/shell/windows/boss-call-pane.js src/hunt-view/summary-model.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs).
 //   BW-1  THE SERVER'S WORDS: alone, the page says why and the press is off; a member reads the leader's line; a ground with no boss to call shows nothing
@@ -150,6 +150,7 @@ async function checks(overrides) {
       const { ctx, page, s } = await open(PARTY(0), null);
       await page.waitForTimeout(1500);
       if (await off(page) !== true) fails.push('BW-4 with no quote the press is on');
+      if (!/hasn't said yet/.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-4 off with no words: ' + JSON.stringify(await txt(page, '.hw-call-line')));
       if (sent(s, 'hr_boss_call_view').length > 1) fails.push('BW-4 asked ' + sent(s, 'hr_boss_call_view').length + ' times in a moment');
       await ctx.close();
     }

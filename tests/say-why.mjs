@@ -181,6 +181,9 @@ const BUSY = /!?\(?\b(?:st\.|sc\.|s\.|o\.|a\.|party\.|st\.sc\.)*(?:pending|sendi
  * why, which must be in the file. `where` names where they show. The report's table is this list.
  */
 export const REASONS = Object.freeze({
+  'src/shell/windows/boss-call-pane.js': [
+    { cond: '!open', words: 'BOSS_CALL_WORDS.noQuote', where: 'Call out: the line above the press reads the server\'s why (party of two, leader only, 3 a day), the hunt under way, or no answer yet' },
+  ],
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
   ],

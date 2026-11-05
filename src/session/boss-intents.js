@@ -1,10 +1,10 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/session/boss-intents.js — CALL OUT: THE READ AND THE PRESS (src/data/boss-calls.js; supabase/migrations/2027-03-02-boss-call.sql).
 //
-// Two asks, each naming this hero's slot, a catalogue id and, for the press, the price the player was shown:
-//   readCall(account, cs, call)         hr_boss_call_view: the server's quote while the ground's page is open
+// One ask, naming this hero's slot, a catalogue id and the price the player was shown:
 //   callOut(account, cs, call, price)   hr_boss_call: the leader pays the server's fee and the party enters the room,
 //                                       every member or none. A moved price answers quote_changed with the new quote.
+// (The read of the quote is src/session/boss-quote.js.)
 // Nothing here prices or gates anything. A press re-reads every one of this account's heroes in the party: the screen
 // shows only the server's answer. A refusal keeps the server's code and its quote.
 // ════════════════════════════════════════════════════════════════════════
@@ -12,24 +12,11 @@ import { askVia } from './intent-ledger.js?v=0.2.91';
 import { refusalOf } from './refusal.js?v=0.2.91';
 import { partyPeersOf, settleTownActivity } from './party-intents.js?v=0.2.91';
 import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.91';
+import { quoteOf } from './boss-quote.js?v=0.2.91';
 
 const VERB = 'boss_call';
 const newIdem = () => globalThis.crypto.randomUUID();
 const usable = (account, cs, call) => !!account && !!account.server && !!cs && cs.status !== 'closed' && Number.isInteger(cs.slot) && Object.hasOwn(BOSS_CALLS, call);
-
-/* A quote as the server sent it, bounded: whole numbers and a code, or null. */
-function quoteOf(q) {
-  if (!q || typeof q !== 'object' || !Number.isSafeInteger(q.price) || q.price < 1) return null;
-  return { price: q.price, available: q.available === true, why: typeof q.why === 'string' ? q.why.slice(0, 32) : null,
-    used: Number.isInteger(q.used) ? q.used : 0, perDay: Number.isInteger(q.per_day) ? q.per_day : 0, left: Number.isInteger(q.left) ? q.left : 0 };
-}
-
-/** The server's quote for `call`, or null with no answer (the press stays off until there is one). */
-export async function readCall(account, cs, call) {
-  if (!usable(account, cs, call)) return null;
-  const ans = await account.server.rpc('hr_boss_call_view', { p_slot: cs.slot, p_call: call });
-  return ans && ans.ok && ans.body && ans.body.ok === true ? quoteOf(ans.body.quote) : null;
-}
 
 /** ONE call at the price the player saw. @returns {Promise<{ok:true}|{ok:false, error:string, quote:object|null, seats?:Array}>} */
 export function callOut(account, cs, call, price) {

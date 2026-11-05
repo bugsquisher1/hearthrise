@@ -50,7 +50,7 @@ import { createRng } from './rng.js?v=0.2.91';
 import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.91';
 import { stepSwing } from './hunt/world-step.js?v=0.2.91';
 import { makeEvent, trackStep } from './hunt/events.js?v=0.2.91';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.91';
+import { newHuntWorld, joinHero, leaveHero, scaleRoomFor } from './hunt-spawn.js?v=0.2.91';
 import { pullLeader } from './hunt/pull-cycle.js?v=0.2.91';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.91';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.91';
@@ -151,13 +151,12 @@ function die(m, f, out) {
    instant (`own`), once (the first trigger names the reason). The flagged member ends at its own next
    boundary through END_ORDER. */
 const CASCADE = Object.freeze(['party_member_died', 'party_member_left']);
-function cascadeFrom(m, why, members, own, at, called) {
+function cascadeFrom(m, why, members, own, at) {
   if (!why || CASCADE.includes(why) || m.hs.kicked === true) return;
   for (const o of members) {
     if (o === m || o.left || o.hs.died || o.hs.partyEnd || (own && own.has(o))) continue;
     if (o.unitId === null && !(o.hs.nextSwingAtMs <= at)) continue;
-    /* A CALLED FIGHT IS ONE FIGHT (src/data/boss-calls.js): whatever ends one hero's ends everyone's, box or no box. */
-    if (called || (o.hero && o.hero.leaveTogether === true)) o.hs.partyEnd = why === 'died' ? 'died' : 'left';
+    if (o.hero && o.hero.leaveTogether === true) o.hs.partyEnd = why === 'died' ? 'died' : 'left';
   }
 }
 
@@ -201,11 +200,12 @@ export function simulateHuntInstance(inst, ctx) {
   let world = inst.world || null;
   /* A world made in this call: the leader's hold pick is in force from its first lap (not only from the next). */
   let fresh = false;
-  /* CALL OUT (src/data/boss-calls.js): the room's call, and its limit from the party's first swing, one instant for every member however the windows were cut. */
+  /* CALL OUT (src/data/boss-calls.js): the room's call, its limit from the party's first swing (one instant for every member however the windows were cut), and ONE FIGHT: whatever ends one
+     hero's ends everyone's, box ticked or not (the box is the hero's own word for a hunt, and this isn't one). */
   const call = ctx.ground && ctx.ground.call ? BOSS_CALLS[ctx.ground.call] : null;
   if (call) {
     const ends = Math.min(...members.map((m) => Number(m.hs.huntFromMs) || 0)) + BOSS_CALL_RULES.limitMs;
-    for (const m of members) m.hs.callEndsAtMs = ends;
+    for (const m of members) { m.hs.callEndsAtMs = ends; m.hero = Object.assign({}, m.hero, { leaveTogether: true }); }
   }
   /* NO WORLD, NO PLACED HERO: a unit id names a unit of a world that is gone (a stored world of
      another field list restarts: world-state decodeStored), so every member re-enters the fresh one. */
@@ -265,7 +265,7 @@ export function simulateHuntInstance(inst, ctx) {
       const why = endReasonAt(m.hs, atMs);
       if (why && !CASCADE.includes(why)) own.set(m, why);
     }
-    for (const [m, why] of own) cascadeFrom(m, why, members, own, atMs, !!call);
+    for (const [m, why] of own) cascadeFrom(m, why, members, own, atMs);
     // (1) Each member at this boundary: the end checks, then a paid interval.
     const here = [];
     for (const m of members) {
@@ -280,7 +280,9 @@ export function simulateHuntInstance(inst, ctx) {
              number), the same number every respawn reads below, never the first hero's pick alone. */
           const standing = members.filter((x) => !x.left);
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
-            { density: densityFor(ctx.ground, standing.length, picker(standing)), ...(call ? { scaleHeroes: standing.length } : {}) });
+            { density: densityFor(ctx.ground, standing.length, picker(standing)) });
+          /* The room's one spawn is for the party walking in, not the first hero through the door: he never comes back at their size. */
+          if (call) scaleRoomFor(world, ctx.ground, standing.length);
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
@@ -349,7 +351,7 @@ export function simulateHuntInstance(inst, ctx) {
         const o = out.get(m.key);
         if (!m.hs.died) o.deaths += 1;
         die(m, f, o);
-        cascadeFrom(m, 'died', members, null, m.hs.nextSwingAtMs, !!call);
+        cascadeFrom(m, 'died', members, null, m.hs.nextSwingAtMs);
       }
       for (const [id, m] of byUnit) {
         const u = world.units.find((x) => x.id === id);
@@ -376,7 +378,7 @@ export function simulateHuntInstance(inst, ctx) {
       stamped.set(m, endReasonAt(m.hs, m.hs.nextSwingAtMs) || 'gold_out');
     }
   }
-  for (const [m, why] of stamped) cascadeFrom(m, why, members, stamped, m.hs.nextSwingAtMs, !!call);
+  for (const [m, why] of stamped) cascadeFrom(m, why, members, stamped, m.hs.nextSwingAtMs);
   for (const m of members) {
     if (m.left || !(stamped.has(m) || m.hs.partyEnd)) continue;
     const next = m.hs.nextSwingAtMs;

@@ -139,7 +139,8 @@ import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.j
 import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
-import { OPEN_GROUNDS, CALLED_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
+import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
+import { CALLED_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -302,8 +303,8 @@ export function dropNeeds(grounds, monsters) {
 /** Every input, validated and normalised into sorted rows. Throws on any defect. */
 export function catalogueRows(src = {}) {
   const S = {
-    /* the OPEN hunts and grounds only: a staged one (hunts.js `staged`) is not served, so hr_hunt_enter refuses it. The called rooms are served to one verb, hr_boss_call. */
-    hunts: [...OPEN_HUNTS, ...CALLED_HUNTS], monsters: MONSTERS, items: ITEMS, supplies: SUPPLIES, buffTypes: COMBAT_BUFF_TYPES,
+    /* the OPEN hunts and grounds only: a staged one (hunts.js `staged`) is not served, so hr_hunt_enter refuses it. The called rooms join them below, served to one verb, hr_boss_call. */
+    hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS, supplies: SUPPLIES, buffTypes: COMBAT_BUFF_TYPES,
     setLimits: ACTION_SET_LIMITS, distance: HERO_DISTANCE,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER,
     staminaLow: STAMINA_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, stamina: STAMINA_MAX_MS,
@@ -313,11 +314,14 @@ export function catalogueRows(src = {}) {
     targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END,
     consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
-    grounds: { ...OPEN_GROUNDS, ...CALLED_GROUNDS }, calls: BOSS_CALLS, callRules: BOSS_CALL_RULES, worldMaxBytes: HUNT_TUNING.worldMaxBytes, partyMax: PARTY.maxSize,
+    grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, calledHunts: CALLED_HUNTS, calledGrounds: CALLED_GROUNDS, calls: BOSS_CALLS, callRules: BOSS_CALL_RULES, partyMax: PARTY.maxSize,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
     roles: HUNT_ROLES, roleKeys: ROLE_KEYS, shieldArm: SHIELD_ARM, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana, ...src,
   };
+  /* THE CALLED ROOMS (boss-calls.js) stand beside the open grounds in every row the settle reads; the roster below leaves them out. */
+  S.hunts = [...S.hunts, ...S.calledHunts];
+  S.grounds = { ...S.grounds, ...S.calledGrounds };
   /* THE STORE (Tyler 2026-10-14): each row is gold per use, never an item. */
   const basicSeen = new Set();
   const basics = [...S.basics].map((b) => {
@@ -1284,7 +1288,7 @@ function S_BID(id) { return vendorPriceOf(ITEMS, id); }
 function selftest() {
   catalogueRows();
   const clone = (o) => JSON.parse(JSON.stringify(o));
-  const S = { supplies: clone(SUPPLIES), hunts: clone([...HUNTS, ...CALLED_HUNTS]) };
+  const S = { supplies: clone(SUPPLIES), hunts: clone(HUNTS) };
   const fixtureGround = { g1: { id: 'g1', hunt: HUNTS[0].id, map: 'x', start: [[1, 1]], route: [0], respawnMs: 60000, pullDist: 2,
     pockets: [{ room: [0, 0, 4, 4], spawns: [{ monster: HUNTS[0].spawns[0].monster, x: 2, y: 2 }] }] } };
   const cases = {
@@ -1330,9 +1334,9 @@ function selftest() {
     'a called row with a yield of nothing': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, yieldPm: 0 } } }),
     'a paying row named as a called one': () => ({ monsters: { ...MONSTERS, rat_called: { ...MONSTERS.rat } } }),
     'a called row with an ordinary id': () => ({ monsters: { ...MONSTERS, rat_king_copy: { ...MONSTERS.rat_king_called } } }),
-    'a called room fielding a row that pays': () => ({ grounds: { ...OPEN_GROUNDS, ...CALLED_GROUNDS, millrace_sewer_called: { ...CALLED_GROUNDS.millrace_sewer_called,
+    'a called room fielding a row that pays': () => ({ calledGrounds: { ...CALLED_GROUNDS, millrace_sewer_called: { ...CALLED_GROUNDS.millrace_sewer_called,
       pockets: [{ room: [51, 17, 57, 29], spawns: [{ monster: 'rat_king', x: 55, y: 23 }] }] } } }),
-    'a normal ground fielding a called row': () => ({ grounds: { ...OPEN_GROUNDS, ...CALLED_GROUNDS, mill_cellar: { ...OPEN_GROUNDS.mill_cellar,
+    'a normal ground fielding a called row': () => ({ grounds: { ...OPEN_GROUNDS, mill_cellar: { ...OPEN_GROUNDS.mill_cellar,
       pockets: [{ room: [4, 5, 10, 10], spawns: [{ monster: 'rat_king_called', x: 7, y: 8 }] }, ...OPEN_GROUNDS.mill_cellar.pockets.slice(1)] } } }),
     'a call with no room': () => ({ calls: { ...BOSS_CALLS, ghost: { ...BOSS_CALLS.rat_king, id: 'ghost', hunt: 'nowhere_called' } } }),
     'a called hunt with no call': () => ({ calls: { rat_king: BOSS_CALLS.rat_king } }),
@@ -1341,7 +1345,7 @@ function selftest() {
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
   };
   /* The fixture ground itself must pass (the arm proves the ground path is live). */
-  catalogueRows({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer, coppercap_warrens: OPEN_GROUNDS.coppercap_warrens, ...CALLED_GROUNDS } });
+  catalogueRows({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer, coppercap_warrens: OPEN_GROUNDS.coppercap_warrens } });
   let bad = 0;
   for (const [name, mk] of Object.entries(cases)) {
     let threw = false;

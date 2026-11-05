@@ -52,6 +52,8 @@ export const BOSS_CALL_WORDS = Object.freeze({
   confirm: 'Call him out: {fee} gp',
   cancel: 'Not yet',
   left: Object.freeze({ one: '1 call left today.', other: '{n} calls left today.', none: 'No calls left today.' }),
+  hunting: 'Not while you\'re hunting. Come back to town first.',
+  noQuote: 'The server hasn\'t said yet whether he can be called.',
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). */
   refused: Object.freeze({
     call_party: '{Boss} wants a party of two or more.',

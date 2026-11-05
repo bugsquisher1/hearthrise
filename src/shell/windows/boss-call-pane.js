@@ -9,7 +9,8 @@
 import { text, prop, cls } from '../../render/paint.js?v=0.2.91';
 import { whole } from '../../render/format.js?v=0.2.91';
 import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround } from '../../data/boss-calls.js?v=0.2.91';
-import { readCall, callOut } from '../../session/boss-intents.js?v=0.2.91';
+import { callOut } from '../../session/boss-intents.js?v=0.2.91';
+import { readCall } from '../../session/boss-quote.js?v=0.2.91';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false }; SCRATCH.set(cs, s); } return s; };
@@ -62,8 +63,8 @@ export function patchCall(det, ctx, v) {
   }
   const q = sc.quote;
   const open = !!q && q.available && !v.now && !v.pending;
-  /* No quote yet: the press names him at the data's fee, off, until the server has said. */
-  text(box.querySelector('.hw-call-line'), !q ? '' : q.available ? leftWords(q) : (callRefusal({ error: q.why }, call) || ''));
+  /* No quote yet: the press names him at the data's fee, off, until the server has said; off, it always says why, beside it. */
+  text(box.querySelector('.hw-call-line'), v.now ? BOSS_CALL_WORDS.hunting : !q ? BOSS_CALL_WORDS.noQuote : q.available ? leftWords(q) : (callRefusal({ error: q.why }, call) || BOSS_CALL_WORDS.noQuote));
   const press = box.querySelector('.hw-call-press');
   text(press, callWords(BOSS_CALL_WORDS.press, call, q ? q.price : undefined));
   prop(press, 'disabled', !open);

@@ -35,7 +35,7 @@ const mapOf = (ladders) => Object.fromEntries(ladders.map((l) => [temperUnlockId
  * `ladder` null on gear with none (`below`: under the first ladder), `piece` null when it wears nothing of the kind. Null until the server has said.
  */
 export function temperRowsOf(cs) {
-  const ladders = temperOf(cs), eq = equipmentOf(cs);
+  const ladders = temperOf(cs), eq = /** @type {Record<string, string> | null} */ (equipmentOf(cs));
   if (!ladders || !eq) return null;
   const map = mapOf(ladders);
   const ladderOf = (track, tier) => ladders.find((l) => l.track === track && l.tier === tier) || null;

@@ -367,6 +367,18 @@ function rules(M) {
       const bad = got.r.verdicts.filter((x) => x.v !== 'match');
       ok('LV-TEMPER', got.r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict a party with ${why} rungs: ${bad.length} of ${got.r.verdicts.length} commits diverged`);
     }
+    /* A RUNG BOUGHT MID-HUNT: the next settle reads it, the browser's next start point carries it, and from there it predicts again. At most the one easing a purchase costs. */
+    {
+      const mis = mk(null);
+      let after = 0, off = 0;
+      const r = run(M, mis, 160000, { server: { hunt: 'millrace_sewer' }, onCommit: ({ t, v, E, srv }) => {
+        if (t - T0 === 48000) for (const m of mis) m.perks = { temper: { 'temper:blows:2': 5, 'temper:armor:2': 5 } };
+        if (t - T0 > 48000) { after++; if (v !== 'match') { off++; E.reseed(srv.live('a'), t); } }
+      } });
+      ok('LV-TEMPER', r.verdicts.length >= 9 && after >= 5, 'the mid-hunt fixture ran ' + after + ' commits after the purchase');
+      ok('LV-TEMPER', off <= 1, 'after a mid-hunt purchase ' + off + ' of ' + after + ' commits diverged: the browser never took the rung from its start point');
+      console.log('  LV-TEMPER a rung bought mid-hunt: ' + off + ' of ' + after + ' commits eased, then every one matched');
+    }
   }
 
   { // LV-U: THE LEVEL SHARE, BOTH PATHS (lane/c-risk-ladder; hunt-grounds.js underFloorSharePm): a Level 12 viewer behind a Level 40 peer whose browser row holds only frozen numbers: the

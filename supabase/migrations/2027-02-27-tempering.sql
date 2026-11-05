@@ -188,8 +188,11 @@ revoke execute on function public.hr_perks_of(uuid, int)
 grant execute on function public.hr_perks_of(uuid, int) to hr_engine;
 
 -- ── §2 THE WINDOW'S NUMBERS: each ladder, this hero's rung, the next rung at the server's price (none at the top) ──
+-- plpgsql, not sql: the settle reads every section, and a sql function is re-planned on every call (tests/settle-budget.mjs SB-3).
 create or replace function public.hr_temper_view(p_user uuid, p_slot int)
-returns jsonb language sql stable security definer set search_path = public, pg_catalog as $$
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $$
+declare v jsonb;
+begin
   select coalesce(jsonb_agg(jsonb_build_object(
            'track', split_part(u.unlock_id, ':', 2),
            'tier', split_part(u.unlock_id, ':', 3)::int,
@@ -197,13 +200,15 @@ returns jsonb language sql stable security definer set search_path = public, pg_
            'max', u.max_value,
            'offer', o.offer_id,
            'gold', o.gold) order by u.unlock_id), '[]'::jsonb)
+    into v
     from public.hr_unlocks u
     left join public.player_progress pp
       on pp.user_id = p_user and pp.slot = p_slot and pp.kind = u.progress_kind and pp.key = u.unlock_id and pp.period_key = ''
     left join public.hr_unlock_offers o
       on o.unlock_id = u.unlock_id and o.value = coalesce(pp.value, 0) + 1 and o.refusal is null
-   where u.namespace = 'temper'
-$$;
+   where u.namespace = 'temper';
+  return v;
+end $$;
 revoke all on function public.hr_temper_view(uuid, int) from public, anon, authenticated, service_role;
 do $$ begin
   if exists (select 1 from pg_roles where rolname = 'hr_engine') then

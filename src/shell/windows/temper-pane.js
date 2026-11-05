@@ -45,7 +45,7 @@ export function patchTemperPane(root, ctx, sc) {
   const purse = goldOf(cs);
   const all = temperRowsOf(cs);
   const row = (id) => (all ? all[id] : null);
-  rows(root.querySelector('.hw-temper'), all ? TRACKS : [], {
+  rows(root.querySelector('.hw-temper'), all ? [...TRACKS] : [], {
     key: (t) => t.id,
     build: (t) => element(ctx.doc, '<li class="hw-line" data-track="' + t.id + '"><span class="hw-line-name"><b></b><small></small></span>'
       + '<button type="button" class="hh-tool" data-hs-act="temper-ask" data-track="' + t.id + '"></button></li>'),

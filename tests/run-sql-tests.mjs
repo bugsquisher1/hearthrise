@@ -291,6 +291,8 @@ const ALSO_LINTED = [
      DEFINER RPC hr_companion_equip, so it is here for the derivation walk and
      the grant lints. */
   '2026-08-20-companion-model.sql',
+  /* Tempering: the CURRENT last toucher of hr_perks_of (HR_PERKS_OF_CHAIN link 5), lines added only. */
+  '2027-02-27-tempering.sql',
   /* SERVER-FARMING slice 1 — the hr_farm_plant / hr_farm_harvest RPC pair. Both
      are client-callable (authenticated) SECURITY DEFINER money RPCs, so PART
      1b-ii (A9) must see them and confirm each references a rate gate. It was

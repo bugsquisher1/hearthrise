@@ -764,6 +764,8 @@
 .hw-sow [data-hs-act="shop"] { display: none; }
 .hw-sow [data-hs-act="shop"].is-on { display: inline-block; }
 .hw-sow-none:empty { display: none; }
+.hw-sow-all { display: none; }
+.hw-sow-all.is-on { display: inline-block; }
 .hw-seeds .hw-line.is-locked .hw-line-name b { color: var(--ink-3); }
 .hw-farm.is-off .hw-tier, .hw-farm.is-off [data-hs-act="upgrade"] { display: none; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {

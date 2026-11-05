@@ -16,17 +16,17 @@
   "anims": [
     {
       "name": "idle",
-      "fps": 5,
+      "fps": 10,
       "loop": true,
       "dirs": {
-        "s": 1,
-        "e": 1,
-        "n": 1,
-        "w": 1,
-        "se": 1,
-        "sw": 1,
-        "ne": 1,
-        "nw": 1
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
       }
     },
     {
@@ -79,5 +79,11 @@
       }
     }
   ],
-  "notes": "Ported from prototypes/hunt-sim-assets/giant_bat (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels. attack, death and corpse derived from this unit's own idle frames by tools/world-art/derive-combat.mjs (whole-pixel shifts, quarter turns, flips; no drawn death exists)."
+  "notes": "Ported from prototypes/hunt-sim-assets/giant_bat (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels. attack, death and corpse derived from this unit's own idle frames by tools/world-art/derive-combat.mjs (whole-pixel shifts, quarter turns, flips; no drawn death exists). Its idle is its own flight clip with the still as frame 0 (port-pixellab.mjs idle --flight).",
+  "pixellab": {
+    "idle": {
+      "tool": "flight clip",
+      "cost": 0
+    }
+  }
 }

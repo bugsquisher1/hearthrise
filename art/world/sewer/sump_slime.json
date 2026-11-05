@@ -18,14 +18,14 @@
       "fps": 5,
       "loop": true,
       "dirs": {
-        "s": 1,
-        "e": 1,
-        "n": 1,
-        "w": 1,
-        "se": 1,
-        "sw": 1,
-        "ne": 1,
-        "nw": 1
+        "s": 4,
+        "e": 4,
+        "n": 4,
+        "w": 4,
+        "se": 4,
+        "sw": 4,
+        "ne": 4,
+        "nw": 4
       }
     },
     {
@@ -104,7 +104,65 @@
     "cost": 38,
     "west_fall": "east mirrored",
     "rerolled": "attack, all facings (the first baked a splash and lost its shape on the diagonals)",
-    "request": "low sagging sump slime: slate membrane skin (sump_membrane), yellow lamp jelly inside (lamp_jelly), a nail and a bone stuck in it"
+    "request": "low sagging sump slime: slate membrane skin (sump_membrane), yellow lamp jelly inside (lamp_jelly), a nail and a bone stuck in it",
+    "idle": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "bd2ac523-bede-4ee3-a5d8-abd097a71cb6",
+      "description": "sitting in place with its base flat on the floor and never lifting, only breathing: the whole slime slowly swells a little taller and settles back in a soft wobble, a calm seamless loop",
+      "picked": {
+        "s": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "e": [
+          0,
+          7,
+          8,
+          7
+        ],
+        "n": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "w": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "se": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "sw": [
+          0,
+          1,
+          7,
+          1
+        ],
+        "ne": [
+          0,
+          7,
+          8,
+          7
+        ],
+        "nw": [
+          0,
+          8,
+          7,
+          8
+        ]
+      }
+    }
   },
-  "notes": "Ported from PixelLab object 1cd05f6c-664b-4569-9a3c-b6a70103f8c3 (style 1, 40 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the shadow, steel, mithril, water, bronze, bone, gold, torch ramps before the lock (lock.mjs snapTo): its hue is its identity. Body lifted 1 ramp step(s) for its dark floor (lock.mjs liftBody)."
+  "notes": "Ported from PixelLab object 1cd05f6c-664b-4569-9a3c-b6a70103f8c3 (style 1, 40 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the shadow, steel, mithril, water, bronze, bone, gold, torch ramps before the lock (lock.mjs snapTo): its hue is its identity. Body lifted 1 ramp step(s) for its dark floor (lock.mjs liftBody). Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still."
 }

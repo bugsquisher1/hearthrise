@@ -72,6 +72,15 @@ const MAX_FX = 96, MAX_FLOATS = 64, MAX_KEYS = 4096, PRUNE_AT = 512;
 const OFFSETS = Object.freeze([[0, 0], [7, -4], [-7, -4], [0, -9]]);
 const NAME_DY = -14, BIG_DY = -18, LEVEL_DY = -30;
 
+/**
+ * A STANDING UNIT BREATHES: its idle clip turns on the clock, one frame edge for everyone on screen, so a hunt held still
+ * paints at the clip's rate however many stand in it (frame-sig.js holds every frame between two edges). Each unit starts the
+ * loop at its own frame, so a pack never breathes in step. A one-frame idle (a hero) is the same rect every turn and asks for no paint.
+ */
+function idleFrame(idle, now, u) {
+  return idle && idle.fps ? Math.floor((now * idle.fps) / 1000) + u : 0;
+}
+
 /** The facing of a heading: the cardinal (larger axis; east/west on a tie) and the diagonal, if any. */
 function facingOf(dx, dy) {
   const ax = Math.abs(dx), ay = Math.abs(dy);
@@ -375,7 +384,7 @@ export function createHuntScene(o) {
     const walk = clips.walk;
     const moving = p.moving && !under && !!walk;
     /* VW-11: the walk frame advances with distance walked, at the clip's fps when moving at the playback speed. */
-    const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;
+    const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : idleFrame(clips.idle, now, u);
     const anim = corpse ? corpse.anim : moving ? 'walk' : clips.idle ? 'idle' : walk ? 'walk' : 'idle';
     const r = recoil.get(u);
     /** @type {Record<string, any>} */

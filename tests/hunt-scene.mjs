@@ -477,11 +477,34 @@ async function rules(M) {
     ok('SC-12', on.mount.length === 0 && on.up.length === 1 && on.up[0].text === 'Level 5' && on.later.length === 1 && off.up.length === 0,
       'the Level rose 4 -> 5 on the server: mount ' + JSON.stringify(on.mount) + ', after ' + JSON.stringify(on.up) + ', a frame later ' + on.later.length + ', toggle off ' + JSON.stringify(off.up));
   }
+
+  { // SC-IDLE: a standing unit's idle turns on the clock, on one edge for everyone (a held hunt paints at the clip's rate, never once per unit), never in step
+    const clock = { t: C0 };
+    const cs = session(M, clock, [envelope(7, S0)]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const ms = 1000 / M.manifests.hunt.sprites.rat.anims.idle.fps;
+    const edge = Math.ceil(at(S0 - 500) / ms) * ms;
+    clock.t = edge;
+    const a = v.at(edge), mid = v.at(edge + ms / 2), next = v.at(edge + ms);
+    const rat = unitOf(a, 101), wasp = unitOf(a, 103);
+    ok('SC-IDLE', rat && wasp && rat.anim === 'idle' && wasp.anim === 'idle', 'the rat and the wasp must stand here, got ' + JSON.stringify([rat && rat.anim, wasp && wasp.anim]));
+    ok('SC-IDLE', unitOf(mid, 101).frame === rat.frame && unitOf(next, 101).frame === rat.frame + 1, 'the idle must turn once per frame of its clip: ' + JSON.stringify([rat.frame, unitOf(mid, 101).frame, unitOf(next, 101).frame]));
+    ok('SC-IDLE', unitOf(mid, 103).frame === wasp.frame && unitOf(next, 103).frame === wasp.frame + 1, 'every unit turns on the same edge: ' + JSON.stringify([wasp.frame, unitOf(mid, 103).frame, unitOf(next, 103).frame]));
+    ok('SC-IDLE', rat.frame !== wasp.frame, 'two units stood on the same frame of the loop: a pack breathing in step (' + rat.frame + ')');
+    const cells = new Set();
+    for (let k = 0; k < 4; k++) { const d = unitOf(v.at(edge + ms * (1 + k)), 101); const f = M.book.frame(d.id, d.anim, d.dir, d.frame); cells.add(f.sx + ',' + f.sy); }
+    const loop = new Set(M.manifests.hunt.sprites.rat.anims.idle.dirs[rat.dir].map(String));
+    ok('SC-IDLE', cells.size === loop.size && loop.size >= 3, 'four turns must draw the whole loop, and a loop is at least three drawings: ' + cells.size + ' cells of ' + loop.size);
+  }
   return fails;
 }
 
 const MUTANTS = [
-  ['the walk frame counts frames drawn', 'src/hunt-view/scene.js', 'const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;', 'globalThis.__n = (globalThis.__n || 0) + 1;\n    const frame = corpse ? corpse.frame : moving ? globalThis.__n % 6 : 0;'],
+  ['the walk frame counts frames drawn', 'src/hunt-view/scene.js', 'const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : idleFrame(clips.idle, now, u);', 'globalThis.__n = (globalThis.__n || 0) + 1;\n    const frame = corpse ? corpse.frame : moving ? globalThis.__n % 6 : idleFrame(clips.idle, now, u);'],
+  ['a standing unit is held on its first idle frame (SC-IDLE)', 'src/hunt-view/scene.js', ': idleFrame(clips.idle, now, u);', ': 0;'],
+  ['a pack breathes in step (SC-IDLE)', 'src/hunt-view/scene.js', 'Math.floor((now * idle.fps) / 1000) + u : 0;', 'Math.floor((now * idle.fps) / 1000) : 0;'],
+  ['each unit turns on an edge of its own, so a held hunt paints once per unit (SC-IDLE)', 'src/hunt-view/scene.js', 'Math.floor((now * idle.fps) / 1000) + u : 0;', 'Math.floor(((now + u * 37) * idle.fps) / 1000) + u : 0;'],
   ['the snapshot fells a monster before the screen reaches it (SC-13)', 'src/hunt-view/scene.js', ' && shownAt >= read.poseAtMs;', ';'],
   ['a monster killed mid-step stands up again', 'src/hunt-view/scene.js', '      if (p.moving && !gone && !serverDead(u)) { dead.delete(u);', '      if (p.moving && !serverDead(u)) { dead.delete(u);'],
   ['an event plays twice', 'src/hunt-view/scene.js', '    if (!ev || keys.has(ev.key)) return false;\n', '    if (!ev) return false;\n'],

@@ -744,8 +744,9 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const { ctx, page, errors } = await fresh({}, PHONE);
         let named = null;
         const naming = new Promise((k) => { named = k; });
-        await page.route('**/rpc/hr_town_view*', async (r) => { await naming; return r.fallback(); });
         await answerWith(page, TOWN_VIEWS.quiet);
+        /* registered last, so asked first: the read is held here, then falls through to its answer */
+        await page.route('**/rpc/hr_town_view*', async (r) => { await naming; return r.fallback(); });
         const gates = new Map(), asked = [];
         for (const s of late) { let open = null; const shut = new Promise((k) => { open = k; }); gates.set(s, { shut, open }); }
         await page.route('**/assets/world/atlas-*.png*', async (r) => {

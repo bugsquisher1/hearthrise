@@ -971,14 +971,23 @@ async function planRules(base) {
       || ops2(plan({ weapon: 'klappas_club' }, [['iron_warhammer']], lv1, 15)) !== '{"weapon":"iron_warhammer"}' || Object.keys(plan({ weapon: 'iron_warhammer' }, [['klappas_club']], lv1, 15).ops).length) fails.push('AW-21 the club\'s climb is broken');
   }
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
-     heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight chosen,
-     or none of that weight in the bag: the tie stands, the player's call. */
+     heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight known: the
+     tie stands. None of that weight in the bag for a BARE slot: the piece that guards most goes on (played 2026-11-04). */
   const found = [['bronze_platebody'], ['leather_body'], ['bronze_boots'], ['leather_boots']].map(([id]) => ({ id, qty: 1 }));
   const kit = { weapon: 'practice_sword', shield: 'practice_shield' };
   const tieOf = (prefer) => UP.upgradePlan({ equipment: kit, bag: found, skills: lv1, level: 5, prefer });
   const tieOps = ['', 'heavy', 'medium', 'light'].map((w) => ops2(tieOf(w || null)) + '/' + tieOf(w || null).choices.length).join(' | ');
-  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {}/2')
+  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {"body":"bronze_platebody","boots":"bronze_boots"}/0')
     fails.push('AW-21 the weight chosen at Tamsin\'s settles a tie as ' + tieOps);
+  /* NO HERO STAYS BARE FOR WANT OF A CHOICE (played 2026-11-04: Marlow fought a night in nothing over 140 pieces; Sorrel, a hammer, was bare at hour 16): her pick, else what the hero wears most, else its role's. */
+  const weightIs = [['medium', { weapon: 'practice_sword', body: 'bronze_platebody' }, 'tank', 'medium'], [null, { weapon: 'practice_sword', body: 'leather_body', boots: 'leather_boots' }, 'tank', 'medium'], [null, kit, 'melee_dps', 'heavy'], [null, kit, 'ranger', 'medium'], [null, kit, 'healer', 'light'], [null, kit, null, null]];
+  for (const [chosen, worn, role, want] of weightIs) if (UP.preferredWeight(chosen, worn, role) !== want) fails.push('AW-21 chosen ' + chosen + ', role ' + role + ' prefers ' + UP.preferredWeight(chosen, worn, role) + ', wanted ' + want);
+  /* the window reads it: a hammer hero, no pick at Tamsin's, with one of each helmet */
+  const { upgradeOf } = await imp('src/shell/widgets/upgrade-line.js');
+  const bare = { state: { level_xp: 200 }, inventory: { bronze_helm: 1, leather_helmet: 1 }, equipment: { weapon: 'practice_club' }, hunt_settings: { preset: 0, role: 'melee_dps', slots: [] }, skills: { melee: { xp: 0, level: 1 }, defense: { xp: 0, level: 1 } } };
+  if (upgradeOf({ read: (k) => bare[k] }).ops.helmet !== 'bronze_helm') fails.push('AW-21 a hammer hero with no pick would put on ' + JSON.stringify(upgradeOf({ read: (k) => bare[k] }).ops));
+  /* a worn slot's tie is still the player's: a heavy hero in Leather Boots isn't moved off them */
+  if (UP.upgradePlan({ equipment: { ...kit, boots: 'leather_boots' }, bag: [{ id: 'bronze_boots', qty: 1 }], skills: lv1, level: 5, prefer: 'heavy' }).ops.boots) fails.push('AW-21 Equip upgrades took off a piece of another weight');
   /* A TIER STEP (designer ruling 2026-10-31, played: Marlow, Level 16 in a full Bronze plate set, wore none of ten Iron
      Platebodies, since each one alone broke the set's +1% critical chance): the next tier of the worn weight goes on, and
      the line names the set bonus it ends. */
@@ -3493,6 +3502,9 @@ const MUTANTS = [
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
   ['plans: AW-21 Equip upgrades puts a shield on', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['shield', 'ammo']);", "const STYLE_SLOTS = new Set(['ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
+  ['plans: AW-21 a hero with no weight stays bare (played 2026-11-04)', 'src/shell/upgrade-plan.js', "return chosen || wornWeightOf(equipment || {}) || WEIGHT_FOR_ROLE[role] || null;", "return chosen || null;"],
+  ['plans: AW-21 a bare slot waits for a weight the bag doesn\'t hold', 'src/shell/upgrade-plan.js', "else if (!curIt) front = [front.reduce(", "else if (false) front = [front.reduce("],
+  ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
   ['plans: Hunt prep calls an empty food slot short', 'src/shell/hunt-go.js', "(spare ? '. ' + spare : ''), short: false });", "(spare ? '. ' + spare : ''), short: !usable });"],

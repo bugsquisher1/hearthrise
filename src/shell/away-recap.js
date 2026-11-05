@@ -162,6 +162,16 @@ export function markBack(cs, session) {
 }
 
 /**
+ * A RETURN NO STAMP COVERS (played 2026-11-04: "Your hero just ate" over a hunt ten hours old, the first thing the return said): this page's first read of a hunt it never stamped (a tab killed
+ * seconds after Enter), already older than the shortest absence the line speaks of. There are no numbers to tell, but its just-now cards are old, so they stand aside as on any return.
+ */
+export function backWithNoStamp(cs) {
+  const h = huntOf(cs), was = stampOf(cs), a = analyzerOf(cs);
+  if (!h || h.ended || (was && was.s === h.sessionId) || !a || !Number.isFinite(a.sessionMs) || a.sessionMs < AWAY_MIN_MS) return false;
+  return markBack(cs, h.sessionId);
+}
+
+/**
  * Renew the stamp when it is due: a hunt not stamped yet, one last stamp for a hunt seen ended, else by age (see the header).
  * @param {object} cs
  * @param {boolean} [leaving]  the page is being left: the stamp is now, unless the last one is under LEAVE_EVERY_MS old

@@ -836,12 +836,12 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 346,
+   "replay": 347,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bench_tax_rates": {
    "class": "seeded",
-   "replay": 147,
+   "replay": 148,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
   },
   "hr_blessing_rule": {

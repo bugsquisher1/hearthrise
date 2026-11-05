@@ -30,6 +30,32 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-04 What the wipe is held against (designer, lane/c-pre-wipe): THE LIST
+Read from this board, `DISCOVERIES.md`, rulings-of-record and 28 played hours (lane/c-hour-20). Delivery-only work (return load, build step, account delete) isn't on it, by Tyler's rule.
+| Item | Call | Size, owner | Why |
+|---|---|---|---|
+| Armor rule and the Warrens' stats | **must** | running, lane/c-armor-truth | A lone Level 18 in Iron earned 98.4k XP/h at -1.25k g/h. Measure on the default bar's 14 g shrimp: played 4,640 g/h of food, the risk table says 34,920 |
+| Thicket same-weapon cell | **must** | running, lane/c-thicket-1000 | Moves party XP in the first day |
+| Gear at Level 22-25 | **must** | BUILT, played, three files STAGED, edge moves | No new piece by Level from 15 to 28: Houndskin Cloak, worn at 22, made from Glade drops |
+| First armor choice | **must** | BUILT, played | Equip upgrades stayed off until each slot was picked by hand or a weight at Tamsin's. Marlow fought a night bare and Sorrel was still bare at hour 16. An empty slot now takes her pick, else the weight worn, else the one that suits the weapon |
+| A weapon switch leaves the old moves struck; Before you go warns about a spell the worn weapon can't use | **must** | small client, lane/a-known-issues or next | Classless is the pitch, and every tester switches weapons (door panel P3) |
+| "Your hero just ate" on a return to a running hunt | **must** | BUILT | It came from a hunt no stamp covers (a tab killed seconds after Enter): no recap, so no return mark. The first read of such a hunt, 10 minutes old or more, now marks it |
+| Old answer in a reopened window ("Put on 3 pieces."); "Cooking Turnip: 0 cooked so far" | **must** | small client | Read as broken (door panel P4) |
+| Summary and away card lost when the first load is interrupted | **must** check, fix if real | client | Seen once, not ruled out. The overnight return is the hook, and a 12 s load invites a reload |
+| The bag at 1366x768: two rows beside a cut paper doll | **must** check | art-director | Reads as broken on a common laptop, if v0.2.89 still does it |
+| Confirmation link lasts one hour | **must** | Tyler's dashboard, already a yes | An invitee opening it next morning finds it dead |
+| Group advice (party to the Glade, lone hero to the Warrens from 45) | fine after | ready, lane/c-group-advice, wants the pace re-measure | Advice only: every ground stays open |
+| Bag space for gold; "already in your bag" line | fine after | client | Sinks and words, no progress lost by waiting |
+| Bestiary window (stages never shown); gold history (ruled 10-23, not built) | fine after | lane B, not small | Adding either later loses a tester nothing |
+| Imbuing; daily training weapon; daily login; pets; the Hearthrise buff; player trade | fine after | later by ruling | Hidden or absent, and nothing promises them |
+| Action bar builder window | fine after | mocks first | The bar works; this is how it's set up |
+| Crafted food has no consumer for a hunter | fine after | follows lane/c-armor-truth | Re-read once its numbers land. Dearer store food was rejected 11-03 |
+| Nothing to wear or walk past Level 30-32 (Hask's Ford) | fine after | held, Tyler's | About hour 41-47 on these rates, estimated. Watch who gets there |
+| Party edge cases: a seat with seconds of stamina, a kick reading "You left", Start during a leave, the off-tank's box slot | fine after | P3-P4 | A tester rarely meets them, and each ends cleanly |
+| Characters screen after Buy a hero slot says only "Reading your characters…" | fine after | client | Seen for at least 2.5 s on a busy local world. Re-check on live |
+| Party XP share for a seat far under its party | fine after, no change | ruled here: keep | Nothing to land. Friends carrying a friend pay for it in their own share |
+| Dearer store food; store arrow price; the four rung-1 copies; the 17 and 72 old rows | **cut** from this list | | Rejected, ruled, or no effect on play |
+
 ### 2026-11-04 The release gate: what 30 reds were, a preflight, and where the minutes went (reliability, lane/r-release-gate): BUILT; the timing still needs a clean GitHub run
 **Measured, last 14 days of push runs on `release/*`:** 61 releases, 19 green on the first finished run (31%), 1.7 finished runs a release. Eight green runs read: 22-122 min, median 57. The gate is bimodal, not slow everywhere: 22 min with no proof to run (147 runner-minutes), 50-120 at 600-980 runner-minutes on GitHub's 20 slots.
 
@@ -70,6 +96,19 @@ A wide release that moved the server stays near 27; a client-only one is lower (
 **What changed.** `legal/*.md` described a different game (OAuth sign-in, local saves and cloud save, gems and a premium pack for money, a flat 1.5% market tax, Bind-on-Pickup). They now say what the repo does: email and password through Supabase, Resend mail, server-held progress, Sentry, PostHog events and session recording (on by default, Tyler 2026-11-04; masked inputs and chat; off in Settings > Help; `?noanalytics=1` per visit), the salted network hash behind the play cap, retention from the migrations, how to ask for deletion by hand, and the wipe. Notes for the owner and the lawyer sit in HTML comments beside each claim (the reader drops them). The sign-in and Create account screens link both pages (`src/app/legal-reader.js`, over the screen, no new page; `legal/` is already a plain dir on the built site, so `tools/build-site.mjs` needs nothing). The switch is a residue pick `shareReplay { on, at }` put into every open hero, newest wins (`src/session/replay-pref.js`); recording starts only after every hero the page opens has been read.
 **For Tyler.** Fill `[LEGAL ENTITY NAME]`, address, `[CONTACT EMAIL]` (no real mailbox is in the repo), governing law and venue. Decide: minimum age 13/16; recording opt-out versus opt-in before Early Access; one switch for all analytics, not only recordings; the 14-day notice promise (softened to "where we can"); whether to publish market fees (repo migrations set a 1% listing fee and a 4% cut, the Terms say no number) and confirm the live values; the streaming policy in EULA section 7; whether the EULA covers the web build; where a credits list lives (the old text named a Settings > Credits panel that does not exist); self-hosting the Google Fonts. Confirm in PostHog and Sentry: recordings kept 30 days, event and error retention. The delete-account lane decides whether `player_ledger` and its monthly rollup (no user foreign key) are deleted or anonymized; the policy states today's truth.
 **Verified / not.** Done: tests below. Assumed: nothing here was read against production, and no lawyer has read the pages.
+### 2026-11-04 The Glade's rung (designer, lane/c-pre-wipe): BUILT, played on the local world, three files STAGED, edge moves
+**The ruling.** The Houndskin Cloak wears at Level 22 (was 28), and it's also made: Crafting 1, Wolf Pelt ×12 and Bear Pelt ×1. It still drops from the Glade Poacher at 0.099% a kill. **Why not the proposal's Packlord's Band on Rook:** that ring is melee stats on a 15 h Rare, so it's a goal by luck and for one style. A cape suits every way to fight, the art exists, and the Bear Pelt asks for the one press Levels 10 to 30 turn on: a Brook Bear only comes to a pull of 3 or more. Book 680 of inputs against the cloak's 310, sold at 155 g, and a bench tax of about 23 g.
+
+**Walk-through** (grepped; last two rows pressed on the local world with Level, skill and stock set in its own database)
+| Step | Holds and can reach | Doable because |
+|---|---|---|
+| Level 5-15: pelts | Thicket and Wickstead wolves | Marlow held 491 Wolf Pelts by hour 28 |
+| Level 16: What next names the cloak and its recipe | The Glade's page says "Bigger pulls also bring the Brook Bear (3 or more a pull)" | One press of + on that page; Marlow's 34 min at pull 8 gave a Bear Pelt |
+| Press Start on Stitch Houndskin Cloak | 12 pelts, a Bear Pelt, gold for the bench | The server made one and took all 13 |
+| Equip at 21, then at 22 | The cloak in the bag | Refused at 21 ("Needs Level 22"), worn at 22 |
+
+**Staged, in this order, then deploy hr-accrue, then the client:** `2027-02-25-houndskin-items-catalogue`, `-bench-inputs`, `-bench-tax-rates` (all `.generated.sql`). No world shape, no character row. `level-curve` stays green (fingerprint `f4bebb011ee8915a`: it reads no loot or items). Census re-pinned: hr_activities 347, hr_bench_tax_rates 148. **Could still be wrong:** the bench shows 5.4 s and 23 XP a stitch against the data row's 3.4 s and 60 XP. Other rows scale the same way, and I didn't chase why. I first set Crafting 5, then dropped it: at that XP it was 35 more Graypelt Cloaks of grind. A hero wearing another weight keeps it: a heavy pick won't move a hero off Leather Boots, by design.
+
 ### 2026-11-04 The wall at hour 20 (designer, lane/c-hour-20): PLAYED on the local world on top of lane/c-no-level-penalty, client fixes BUILT, no migration, no edge deploy. **Tyler: one choice below**
 **Method.** The real `play.html` on `tools/qa/local-world.mjs serve`, real engine, 1440x900, sign-in screen up, page closed between stops, town time passing. **Marlow** (sword and shield, alone): 28 h hunted over four sittings. **Sorrel** (hammer) and **Brin** (staff), one account, a party from Level 12, 16 h each, then the third hero. Screens read at each stop; every number below is the game's own summary or analyzer.
 

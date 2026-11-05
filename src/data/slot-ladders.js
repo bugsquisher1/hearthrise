@@ -128,7 +128,7 @@ export const SLOT_ITEMS = {
      loot-bands.js) against six pelts' 210: stitching is never a gold faucet (style-gear.js's economy rule). */
   graypelt_cloak:  { n: 'Graypelt Cloak',  icon: '🦸', v: 150, type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common', reqSkill: 'level', reqLv: 8, defB: 2, critB: 0.005 },
   woolen_cloak:    { n: 'Woollen Cloak',   icon: '🦸', v: priced(240, 1), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 12, defB: 2 },
-  houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 28, defB: 4,  strB: 1 },
+  houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 22, defB: 4,  strB: 1 },
   trollhide_cape:  { n: 'Trollhide Cape',  icon: '🦸', v: priced(240, 4), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50, defB: 11, strB: 2 },
   shadowsilk_cape: { n: 'Shadowsilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 63, defB: 16, strB: 3 },
   dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'level', reqLv: 88, defB: 30, strB: 3, critB: 0.01 },
@@ -211,6 +211,9 @@ export const SLOT_RECIPES = {
     { id: 'fletch_dawnpoint_arrows', name: 'Fletch Dawnpoint Arrows ×50', icon: '🏹', inputs: { dawn_bar: 1, duskwood_plank: 1 },                 output: 'dawnpoint_arrows', outputQty: 50, xp: 820, req: 91, ms: 4400 },
     /* The first-hour rung (graypelt_cloak above): Crafting 1, so a hero who never crafted can stitch it the day it reaches Level 8. */
     { id: 'stitch_graypelt_cloak', name: 'Stitch Graypelt Cloak', icon: '🦸', inputs: { wolf_pelt: 6 }, output: 'graypelt_cloak', xp: 30, req: 1, ms: 3200 },
+    /* THE GLADE'S RUNG (designer 2026-11-04, played: nothing new to wear by Level from 15 to 28, and What next named one cape at 0.099% a kill). A cape every way to fight wears, at Level 22, made from what the Glade
+       drops: a Bear Pelt only comes to a pull of 3 or more, so the rung asks for the one press Levels 10 to 30 turn on, and Crafting 1, as the Graypelt does: at the bench's real XP, Crafting 5 was 35 more cloaks with no decision in them. Twelve pelts' 420 and the Bear's 260 of book stand over the cloak's 310: never a gold faucet. */
+    { id: 'stitch_houndskin_cloak', name: 'Stitch Houndskin Cloak', icon: '🦸', inputs: { wolf_pelt: 12, bear_pelt: 1 }, output: 'houndskin_cloak', xp: 60, req: 1, ms: 3400 },
   ],
 };
 
@@ -231,7 +234,7 @@ export const SLOT_DESC = {
   dragon_gem_earrings: 'The gemcutter\'s masterwork: a dragon\'s heart-gem split in two and hung where it can see everything you fight',
 
   woolen_cloak: 'Honest wool against honest weather — the first cloak that is warmer than a rumor',
-  houndskin_cloak: 'Hound-pelt lined with bat-leather, cut short so it never catches on a swing',
+  houndskin_cloak: 'A cape for any fighter, with more force behind a blade or a hammer. Wolf pelts backed with a Brook Bear\'s hide, cut short so it never catches on a swing',
   trollhide_cape: 'Troll hide over bear pelt, thick enough to blunt a blade and heavy enough to notice',
   shadowsilk_cape: 'Panther-shadow woven on a spider\'s loom — it hangs perfectly still even when you do not',
   dawnlit_mantle: 'Duskwood thread shot through with dawnsteel, so the hem catches first light before you do',

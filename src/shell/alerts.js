@@ -52,7 +52,7 @@ import { noShotWords } from './hunt-go.js?v=0.2.89';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.89';
 import { deathSeen } from './death-popup.js?v=0.2.89';
 import { summaryClosedFor } from '../hunt-view/summary-recorder.js?v=0.2.89';
-import { awayRecapOf, awayLineNow, awaySettled, stampAway, markBack } from './away-recap.js?v=0.2.89';
+import { awayRecapOf, awayLineNow, awaySettled, stampAway, markBack, backWithNoStamp } from './away-recap.js?v=0.2.89';
 import { benchStopRecapOf } from './bench-fee.js?v=0.2.89';
 import { workRow } from './town-work.js?v=0.2.89';
 import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.89';
@@ -234,7 +234,7 @@ export function createAlertCenter(account) {
     /* "While you were away" (away-recap.js): judged against the last-seen stamp BEFORE it is renewed. */
     const judged = returning.has(cs.slot);
     const away = judged ? awayRecapOf(cs) : null;
-    if (away) { now.push(away); markBack(cs, away.session); }
+    if (away) { now.push(away); markBack(cs, away.session); } else if (judged) backWithNoStamp(cs);
     /* A bench the server stopped for gold says so once, watched or not (the work bench tax: bench-fee.js). */
     const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
     if (broke) now.push(broke);

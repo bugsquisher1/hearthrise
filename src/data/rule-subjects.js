@@ -82,10 +82,10 @@ const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id,
    has its mana. Measured on the real settle, 6-seed medians, against first-grounds-net-chain and drop-tables (raise a gate before
    touching a ground's coin if another row turns the chain red):
    Frost Lance 70: at 50% it took Fireball's mana (Cellar net -24%, Fireball casts 163 -> 103 an hour); at 70% net -7%.
-   Green Sickness 78: the Sewer party's net falls as the gate falls (ungated 1,687, at 50% 1,776.5), and two guards hold it: first-grounds-net-chain
-   (over the Thicket's 1,838) and glade-between (under the Glade's 1,855.5). At 80% it reads 1,881.5, red on the Glade; at 70% the Warrens' total-value
-   is red (5,748 g against its 5,735 g cap). A window of 17.5 g/h, and six seeds swing about 25 g/h between neighboring gates (71 to 80 read 1,824 to
-   1,881.5 in no order), so 78 is the nearest gate that lands in it, not a fine tuning. Full mana at the top of a fight still fires it first. */
+   Green Sickness 78: with no gate its mana and runes cost the Sewer party about 150 g/h (1,687). From 70 to 80 the Sewer reads the same on 24 seeds (1,867, 1,857,
+   1,855, +-10, between the Thicket's 1,820 and the Glade's 1,876), but its guards read six: first-grounds-net-chain over the Thicket's 1,838 and glade-between under the
+   Glade's 1,855.5, a window of 17.5 g/h that neighboring gates land in and out of in no order (71 to 80 read 1,824 to 1,899.5; 80 read 1,881.5, 78 reads 1,847.5). So 78 is the
+   nearest gate that lands, not a fine tuning (CONFLICTS.md 2026-11-05). At 70 the Warrens' total-value was red (5,748 g against 5,735). Full mana at the top of a fight still fires it first. */
 const SPARE_MANA = Object.freeze([{ metric: 'self_mana_pct', op: 'gte', value: 70 }]);
 const SICKNESS_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 78 }]);
 /* OFF THE DEFAULT BARS, measured with their store runes on: Flame Volley (ranger-floor: a crossbow Ranger buying every shot

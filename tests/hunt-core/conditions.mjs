@@ -838,12 +838,13 @@ const cases = {
   /* BOTH PATHS (CLAUDE.md §4): a new caster's bar, watched (the 10 s settle the open client asks for) and with the browser closed (the world tick's long window):
      one settle, one result: the same casts at the same moments, the same store bill, gold, XP and bag. A guard on the rows, so a bar that buys has its proof. */
   'starter-bars-both-paths': (M) => {
-    for (const worn of starterWorn(M).filter((w) => M.AD.ABILITIES.fireball.disciplines.includes(M.roles.ROLE_KEYS[M.roles.wornRoleKey(w, M.ITEMS)].discipline)
-      || M.AD.ABILITIES.greater_mend.disciplines.includes(M.roles.ROLE_KEYS[M.roles.wornRoleKey(w, M.ITEMS)].discipline))) {
-      const setup = M.heroSetup({ weaponType: M.roles.wornRoleKey(worn, M.ITEMS), options: {}, bar: [], partyRoles: [] });
+    const roleOf = (worn) => M.heroSetup({ weaponType: M.roles.wornRoleKey(worn, M.ITEMS), options: {}, bar: [], partyRoles: [] }).role;
+    const casters = starterWorn(M).filter((w) => ['mage', 'healer'].includes(roleOf(w)));
+    if (casters.length < 2) return 'CONTROL: ' + casters.length + ' caster sets in the kit';
+    for (const worn of casters) {
       const play = (windowMs) => {
         const casts = [];
-        const r = M.play.run('mill_cellar', 1, [setup.role], { spanMs: 10 * 60000, windowMs, secret: '42', equipment: () => Object.assign({}, worn), bag: () => kitBag(M), bar: () => [],
+        const r = M.play.run('mill_cellar', 1, [roleOf(worn)], { spanMs: 10 * 60000, windowMs, secret: '42', equipment: () => Object.assign({}, worn), bag: () => kitBag(M), bar: () => [],
           start: () => ({ levelXp: 0, skills: {} }), onWindow: (w) => { for (const e of w.events || []) if (e.type === 'cast') casts.push([e.atMs, e.ability, e.gold || 0]); } });
         return { casts, sum: JSON.stringify([r.totals.buys, r.totals.coin, r.totals.levelXp, r.totals.xp, r.totals.kills, r.totals.falls, r.items, r.members]) };
       };
@@ -1057,6 +1058,8 @@ const mutants = [
     edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave')]),", "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), NO_STORE('rend')]),"], NO_STORE_ROW] },
   { name: 'Flame Volley comes back on the Ranger\'s default set with no store rune', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot')]),", "  ranger: Object.freeze([slot('hunters_mark'), NO_STORE('flame_volley'), slot('precision_shot')]),"], NO_STORE_ROW] },
+  { name: 'a cooldown is lost at a window cut (watched and closed part ways)', case: 'starter-bars-both-paths',
+    edits: [['src/core/hunt/abilities.js', "['lanes', 'json'], ['cds', 'json'],", "['lanes', 'json'],"]] },
   { name: 'Frost Lance names no store rune (the Mage\'s slot 2 struck again)', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune ?", "const storeOf = (id) => { const r = ABILITIES[id]; const b = r && r.rune && id !== 'frost_lance' ?"]] },
   { name: 'Green Sickness names no store rune (the Healer\'s slot 3 struck again)', case: 'starter-bar-fires',

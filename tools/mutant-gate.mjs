@@ -31,7 +31,8 @@
 //
 // THE HISTORY (tools/lib/ci-history.mjs). A job the last nightly did not prove green runs
 // every proof it holds until a sweep proves it; a nightly that cannot be read, or is over
-// 48 h old, makes every job full. Main's push skips the proofs a green release run already
+// 48 h old, makes every job full. A release or next push that went green in full is a sweep
+// of that job, so it goes back to its diff. Main's push skips the proofs a green release run already
 // ran on the very same commit; its plain runs still run. A job green at an earlier commit
 // of this release branch is measured from that commit, so a fix-forward re-proves the fix.
 //
@@ -66,7 +67,7 @@ import {
 } from './lib/guard-deps.mjs';
 import { scopedProofs, committedTexts, anchorLinesIn } from './guard-anchors.mjs';
 import { scopeMutants, splitMutants, parseMutants, classifyRuleEdit } from './lib/mutant-scope.mjs';
-import { readHistory, readNightly, historyPolicy, lastGreenRun, githubReader, STALE_MS, WORKFLOW as WORKFLOW_PATH } from './lib/ci-history.mjs';
+import { readHistory, readNightly, historyPolicy, lastGreenRun, lastFullGreen, githubReader, STALE_MS, WORKFLOW as WORKFLOW_PATH } from './lib/ci-history.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 
@@ -222,6 +223,7 @@ export function planFor(env, { extraGuards = [] } = {}) {
     /* The selftest's diff is hermetic unless it hands over a history; a rehearsal has no release to block. */
     const asks = !mode.rehearsal && (env.HR_MUTANT_GATE_FILES === undefined || env.HR_GATE_HISTORY);
     const policy = asks ? historyPolicy(readHistory(env), { job: env.GITHUB_JOB, event: env.GITHUB_EVENT_NAME, ref: env.GITHUB_REF_NAME, now: Date.now() }) : {};
+    if (policy.sweptBy) console.log(`mutant-gate: job ${env.GITHUB_JOB} went green in full in run ${policy.sweptBy.id} (${policy.sweptBy.branch}): back to its diff`);
     if (policy.full) plan = { full: true, why: policy.why };
     else if (policy.proved) plan = { full: false, proved: policy.proved, selected: {} };
     if (plan) {
@@ -345,7 +347,8 @@ function explain(argv) {
 function rulesFrom(logPath) {
   const log = readFileSync(logPath, 'utf8').split('\n');
   const caught = new Map();
-  for (const l of log) { const m = /✓ (.*) — caught \(([^)]+)\)\s*$/.exec(l); if (m) caught.set(m[1], m[2]); }
+  /* The rule's id alone: phone-touch reads "PH-9 [844x390]", and a rule edit names PH-9. */
+  for (const l of log) { const m = /✓ (.*) — caught \(([^)]+)\)\s*$/.exec(l); if (m) caught.set(m[1], m[2].split(' ')[0]); }
   for (const [guard, src] of guardSources(ROOT)) {
     const raw = readFileSync(join(ROOT, guard), 'utf8');
     if (src === null || !/^\/\/ mutant-rule-functions:/m.test(raw)) continue;
@@ -663,6 +666,9 @@ async function selftest() {
     const redIn = { at: '2026-11-02T01:00:00Z', id: 2, jobs: { perf: 'failure', edge: 'success' } };
     const ask = (fn, h, o = {}) => fn({ nightly: null, nightlyError: null, proved: null, ...h }, { job: 'perf', event: 'push', ref: 'release/v0.0.1', now, ...o });
     const proved = { id: 9, branch: 'release/v0.0.1' };
+    /* A sweep 54 h ago that proved perf: pushes ran perf in full from 11-02 06:00, its 48 h later. */
+    const old = { at: '2026-10-31T06:00:00Z', id: 3, jobs: { perf: 'success' } };
+    const since = (id) => ({ id, sha: 'a', branch: 'release/v0.0.1', at: '2026-11-02T07:00:00Z' });
     const histChecks = (fn) => [
       [!ask(fn, { nightly: green }).full && !ask(fn, { nightly: green }).proved, 'a green sweep leaves the push to its diff'],
       [ask(fn, { nightly: redIn }).full === true, 'a job the sweep left red runs every proof'],
@@ -677,6 +683,12 @@ async function selftest() {
       [!!ask(fn, { nightly: redIn, proved }, { ref: 'main' }).proved, 'main skips what a release run proved of this commit'],
       [!ask(fn, { nightly: green, proved }).proved, 'a release branch never skips on another run\'s say-so'],
       [!ask(fn, { nightly: green }, { ref: 'main' }).proved, 'main with no proving run keeps its own diff'],
+      [!ask(fn, { nightly: redIn, fullGreen: since(3) }).full, 'a job the sweep left red, green in full since, is back to its diff'],
+      [ask(fn, { nightly: redIn, fullGreen: { ...since(3), at: '2026-11-01T23:00:00Z' } }).full === true, 'a green from before that sweep proves nothing'],
+      [ask(fn, { nightly: old, fullGreen: since(3) }).full !== true && ask(fn, { nightly: old, fullGreen: null }).full === true, 'an old sweep: a full green since is the proof, and none means full'],
+      [ask(fn, { nightly: old, fullGreen: { ...since(3), at: '2026-11-02T02:00:00Z' } }).full === true, 'an old sweep that proved the job: a push inside its 48 h ran only its diff, so it is no proof'],
+      [ask(fn, { nightly: { ...old, jobs: {} }, fullGreen: { ...since(3), at: '2026-11-02T02:00:00Z' } }).full !== true, 'an old sweep that did not prove the job: every push since ran it in full'],
+      [ask(fn, { nightly: { ...old, jobs: {} }, fullGreen: { ...since(3), at: '2026-10-31T11:00:00Z' } }).full === true, 'a full green over 48 h old has gone stale too'],
     ];
     for (const [ok, label] of histChecks(historyPolicy)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} history: ${label}`); }
     const off = (from, to) => (h, o) => { const r = historyPolicy(h, o); return from(r, h) ? to : r; };
@@ -689,10 +701,79 @@ async function selftest() {
       ['no sweep counts as green', off((r) => /no nightly/.test(r.why || ''), {})],
       ['any branch may skip', (h, o) => historyPolicy(h, { ...o, ref: h.proved ? 'main' : o.ref })],
       ['main never skips', (h, o) => historyPolicy({ ...h, proved: null }, o)],
+      ['a full green is ignored', (h, o) => historyPolicy({ ...h, fullGreen: null }, o)],
+      ['a full green from before the sweep counts', (h, o) => historyPolicy({ ...h, fullGreen: h.fullGreen && { ...h.fullGreen, at: new Date(o.now - 60000).toISOString() } }, o)],
+      ['a full green counts however old', (h, o) => { const r = historyPolicy(h, o); return r.full && h.fullGreen && Date.parse(h.fullGreen.at) > Date.parse(h.nightly?.at) ? { sweptBy: h.fullGreen } : r; }],
+      ['a push inside the 48 h of a sweep that proved the job counts', (h, o) => historyPolicy(h.nightly ? { ...h, nightly: { ...h.nightly, jobs: {} } } : h, o)],
     ]) {
       const missed = histChecks(fn).every(([ok]) => ok);
       if (missed) bad++;
       console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} history mutant: ${label}`);
+    }
+    /* The whole read, as a push's first gated command makes it. */
+    {
+      const at = new Date(Date.now() - 3600e3).toISOString();
+      let asked = 0;
+      const answers = (nightlyJobs, green) => (path) => {
+        if (/runs\/7\/jobs/.test(path)) return { jobs: Object.entries(nightlyJobs).map(([name, conclusion]) => ({ name, conclusion })) };
+        if (/runs\/8\/jobs/.test(path)) { asked++; return { jobs: [{ name: 'red-job', conclusion: green }] }; }
+        if (/created=/.test(path)) return { workflow_runs: [{ id: 8, head_branch: 'release/v0.0.1', head_sha: 'a', created_at: new Date().toISOString() }] };
+        return { workflow_runs: [{ id: 7, event: 'schedule', conclusion: 'failure', updated_at: at }] };
+      };
+      const env = (job) => ({ GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.0.2', GITHUB_JOB: job, GITHUB_RUN_ID: '9' });
+      const good = readHistory(env('red-job'), answers({ 'red-job': 'failure', fine: 'success' }, 'success'));
+      const stillRed = readHistory(env('red-job'), answers({ 'red-job': 'failure', fine: 'success' }, 'failure'));
+      asked = 0;
+      const proved = readHistory(env('fine'), answers({ 'red-job': 'failure', fine: 'success' }, 'success'));
+      const broke = readHistory(env('red-job'), (p) => { if (/created=/.test(p)) throw new Error('HTTP 500'); return answers({ 'red-job': 'failure' }, 'success')(p); });
+      for (const [ok, label] of [
+        [(good.fullGreen || {}).id === 8 && historyPolicy(good, { job: 'red-job', event: 'push', ref: 'release/v0.0.2', now: Date.now() }).sweptBy, 'a push reads the full green of a job the sweep left red, and goes back to its diff'],
+        [stillRed.fullGreen === null && historyPolicy(stillRed, { job: 'red-job', event: 'push', ref: 'release/v0.0.2', now: Date.now() }).full === true, 'a job still red stays full'],
+        [asked === 0 && proved.fullGreen === null, 'a job the sweep proved asks GitHub nothing more'],
+        [broke.fullGreen === null && historyPolicy(broke, { job: 'red-job', event: 'push', ref: 'release/v0.0.2', now: Date.now() }).full === true, 'a read that fails is no proof'],
+      ]) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} the read: ${label}`); }
+    }
+    /* The full green as GitHub answers it: newest finished result first, release and next only, after the sweep. */
+    const fullRuns = [
+      { id: 16, head_branch: 'release/v0.0.3', head_sha: 'p', created_at: '2026-11-02T09:00:00Z' },
+      { id: 15, head_branch: 'main', head_sha: 'o', created_at: '2026-11-02T08:00:00Z' },
+      { id: 14, head_branch: 'release/v0.0.3', head_sha: 'n', created_at: '2026-11-02T07:00:00Z' },
+      { id: 13, head_branch: 'next', head_sha: 'm', created_at: '2026-11-02T06:00:00Z' },
+      { id: 12, head_branch: 'release/v0.0.2', head_sha: 'l', created_at: '2026-11-02T05:00:00Z' },
+      { id: 11, head_branch: 'release/v0.0.1', head_sha: 'k', created_at: '2026-11-01T05:00:00Z' },
+    ];
+    const FULL = { 16: { a: 'cancelled', b: 'failure', c: 'cancelled', d: 'cancelled' }, 15: { a: 'success', b: 'success', c: 'success', d: 'success' },
+      14: { a: 'success', b: 'success', c: 'cancelled', d: 'cancelled' }, 13: { c: 'success', d: 'cancelled' }, 12: { c: 'failure', d: 'cancelled' }, 11: { d: 'success' } };
+    const fullGet = (path) => {
+      const m = /runs\/(\d+)\/jobs/.exec(path);
+      if (m) return { jobs: Object.entries(FULL[m[1]] || {}).map(([name, conclusion]) => ({ name, conclusion })) };
+      return { workflow_runs: fullRuns };
+    };
+    const fullChecks = (fn) => {
+      const pick = (o) => fn({ job: 'a', since: '2026-11-02T01:00:00Z', own: 99, get: fullGet, ...o });
+      return [
+        [(pick() || {}).id === 14, 'a cancelled run is passed over, and the newest green on a release counts'],
+        [pick({ job: 'b' }) === null, 'a red newer than a green leaves no proof'],
+        [(pick({ job: 'c' }) || {}).id === 13, 'a next push counts, and an older red does not unprove it'],
+        [pick({ job: 'd' }) === null, 'a push from before the sweep is no proof'],
+        [(pick({ own: 14 }) || {}).id !== 14, 'this run itself never counts'],
+        [pick({ job: 'none' }) === null, 'a job no run holds has no proof'],
+        [pick({ since: null }) === null, 'no sweep to count from means no proof'],
+      ];
+    };
+    for (const [ok, label] of fullChecks(lastFullGreen)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} full green: ${label}`); }
+    for (const [label, fn] of [
+      ['a red job counts as green', (o) => lastFullGreen({ ...o, get: (p) => { const r = o.get(p); return r.jobs ? { jobs: r.jobs.map((j) => ({ ...j, conclusion: 'success' })) } : r; } })],
+      ['a cancelled job counts as green', (o) => lastFullGreen({ ...o, get: (p) => { const r = o.get(p); return r.jobs ? { jobs: r.jobs.map((j) => (j.conclusion === 'cancelled' ? { ...j, conclusion: 'success' } : j)) } : r; } })],
+      ['a red is passed over to an older green', (o) => lastFullGreen({ ...o, get: (p) => { const r = o.get(p); return r.jobs ? { jobs: r.jobs.filter((j) => j.conclusion !== 'failure') } : r; } })],
+      ['main\'s push counts', (o) => lastFullGreen({ ...o, get: (p) => { const r = o.get(p); return r.workflow_runs ? { workflow_runs: r.workflow_runs.map((x) => ({ ...x, head_branch: 'release/x' })) } : r; } })],
+      ['next is not read', (o) => lastFullGreen({ ...o, get: (p) => { const r = o.get(p); return r.workflow_runs ? { workflow_runs: r.workflow_runs.filter((x) => x.head_branch !== 'next') } : r; } })],
+      ['this run counts', (o) => lastFullGreen({ ...o, own: -1 })],
+      ['a push from before the sweep counts', (o) => lastFullGreen({ ...o, since: '2026-10-01T00:00:00Z' })],
+    ]) {
+      const missed = fullChecks(fn).every(([ok]) => ok);
+      if (missed) bad++;
+      console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} full green mutant: ${label}`);
     }
     /* The sweep as GitHub answers it, shaped like 41497147816: main's job list has no client-guards-2. */
     const sweep = (conclusion, jobs, more = []) => (path) => (/\/jobs\?/.test(path)
@@ -754,6 +835,35 @@ async function selftest() {
       const missed = greenChecks(fn).every(([ok]) => ok);
       if (missed) bad++;
       console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} fix-forward mutant: ${label}`);
+    }
+    /* A guard imported for its harness: perf-budget imports hunt-live's HARNESS, not its rules. */
+    {
+      const live = readFileSync(join(ROOT, 'tests/hunt-live.mjs'), 'utf8').replace(/\r\n/g, '\n');
+      const ruleAt = live.indexOf('function rules(M) {');
+      const idLine = live.slice(ruleAt).split('\n').find((l) => /^\s*ok\('LV-[0-9A-Z]/.test(l));
+      const inRule = live.replace(idLine, `${idLine} void 0;`);
+      /* A line with no rule id near it: v0.2.86's edit of a fixture row inside rules(). */
+      const inRow = live.replace("  const key = (s) => s.u + ','", "  const key = (s) => '' + s.u + ','");
+      const inHarness = live.replace('async function load(base) {\n', 'async function load(base) {\n  void 0;\n');
+      const noHeader = live.replace('// mutant-rule-functions: rules\n', '');
+      const perf = (fn, base, head = live) => fn({ guard: 'tests/perf-budget.mjs', root: ROOT, changed: ['tests/hunt-live.mjs'], base: null, helperText: () => ({ head, base }) });
+      const checks = (fn) => [
+        [!!idLine && inRule !== live && inHarness !== live && inRow !== live, 'the fixture has a rule line, a row and a harness line to edit'],
+        [!perf(fn, inRule).all && perf(fn, inRule).keep.size === 0, 'an edit of a rule in an imported guard moves none of its importer\'s mutants'],
+        [!perf(fn, inRow).all && perf(fn, inRow).keep.size === 0, 'nor does an edit in a rule function that names no rule'],
+        [perf(fn, inHarness).all === true, 'an edit of what it exports runs every mutant'],
+        [perf(fn, noHeader, noHeader.replace(idLine, `${idLine} void 0;`)).all === true, 'an imported guard that lists no rule functions is harness'],
+        [perf(fn, null).all === true, 'a side that cannot be read is harness'],
+      ];
+      for (const [ok, label] of checks(scopeMutants)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} imported guard: ${label}`); }
+      for (const [label, fn] of [
+        ['any edit of an imported guard is harness', (o) => scopeMutants({ ...o, helperText: () => ({ head: o.helperText().head, base: null }) })],
+        ['no edit of an imported guard is harness', (o) => scopeMutants({ ...o, changed: [] })],
+      ]) {
+        const missed = checks(fn).every(([ok]) => ok);
+        if (missed) bad++;
+        console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} imported guard mutant: ${label}`);
+      }
     }
     const baseChecks = (fn) => {
       let threw = false;
@@ -858,6 +968,13 @@ async function selftest() {
         const h = JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, jobs: { 'other-job': 'success' } } });
         const r = cli(['node', probe, '--mutate'], env('', { GITHUB_JOB: 'new-job', HR_GATE_HISTORY: h }));
         return r.status === 7 && /did not prove job new-job green \(not in that sweep\)/.test(r.stdout);
+      }],
+      ['a job the last nightly left red, green in full since, skips an untouched proof; with none it runs', () => {
+        const nightly = { at: new Date(Date.now() - 3600e3).toISOString(), id: 5, jobs: { 'red-job': 'failure' } };
+        const g = { id: 88, sha: 'a', branch: 'release/v0.0.1', at: new Date(Date.now() - 600e3).toISOString() };
+        const swept = cli(['node', probe, '--mutate'], env('', { GITHUB_JOB: 'red-job', HR_GATE_HISTORY: JSON.stringify({ nightly, fullGreen: g }) }));
+        const not = cli(['node', probe, '--mutate'], env('', { GITHUB_JOB: 'red-job', HR_GATE_HISTORY: JSON.stringify({ nightly }) }));
+        return swept.status === 0 && /went green in full in run 88/.test(swept.stdout) && /SKIP/.test(swept.stdout) && not.status === 7;
       }],
       ['main skips a proof a release run proved of this commit; its plain run still runs', () => {
         const h = JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, jobs: {} }, proved: { id: 77, branch: 'release/v0.0.1' } });

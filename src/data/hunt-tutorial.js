@@ -65,27 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.88';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.88';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.88';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.88';
-import { SKILLS_DEF } from './skills.js?v=0.2.88';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.88';
-import { tallyTask } from './tally-tasks.js?v=0.2.88';
-import { ITEMS } from './items.js?v=0.2.88';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.88';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.88';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.88';
-import { isShield } from './shields.js?v=0.2.88';
-import { deriveProfile } from '../core/member.js?v=0.2.88';
-import { ABILITIES } from './abilities.js?v=0.2.88';
-import { CONSUMABLES } from './consumables.js?v=0.2.88';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.88';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.88';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.88';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.88';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.88';
-import { regenPermille } from '../core/vitals.js?v=0.2.88';
+import { HUNT_INDEX } from './hunts.js?v=0.2.89';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.89';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.89';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.89';
+import { SKILLS_DEF } from './skills.js?v=0.2.89';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.89';
+import { tallyTask } from './tally-tasks.js?v=0.2.89';
+import { ITEMS } from './items.js?v=0.2.89';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.89';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.89';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.89';
+import { isShield } from './shields.js?v=0.2.89';
+import { deriveProfile } from '../core/member.js?v=0.2.89';
+import { ABILITIES } from './abilities.js?v=0.2.89';
+import { CONSUMABLES } from './consumables.js?v=0.2.89';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.89';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.89';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.89';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.89';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.89';
+import { regenPermille } from '../core/vitals.js?v=0.2.89';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -1104,25 +1104,64 @@ function readyWords(ready) {
 const SAVING_FROM = 0.25;
 const ORDINAL = Object.freeze(['', 'first', 'second', 'third', 'fourth', 'fifth']);
 const gp = (n) => n.toLocaleString('en-US') + ' gp';
-/* The next thing the purse buys: a hero slot at the server's price, else the house's next deed. { text, ids } or null. */
-function purseLine(f) {
+/* The hero slot on offer at the server's price, with the purse beside it, or null. No offer while a slot stands empty: that hero is free (freeHeroLine). */
+function heroOffer(f) {
   const purse = Number.isSafeInteger(f.gold) ? f.gold : null;
-  if (purse === null) return null;
   const slot = Number.isSafeInteger(f.slotCost) && f.slotCost > 0 ? f.slotCost : null;
   const nth = ORDINAL[(Number(f.slotsOwned) || 0) + 1];
-  if (slot && nth && purse >= slot) return { text: 'You can pay for a ' + nth + ' hero (' + gp(slot) + '): press Characters. It hunts while this one does.', ids: ['slot', String(slot)] };
+  return purse !== null && slot && nth && !emptySlot(f) ? { purse, slot, nth } : null;
+}
+/* A slot the player owns and has no hero in: how many heroes there are, or null (none empty, or the shell doesn't know). */
+function emptySlot(f) {
+  const heroes = Array.isArray(f.roster) ? f.roster.length : null;
+  return heroes !== null && Number.isInteger(f.slotsOwned) && f.slotsOwned > heroes ? heroes : null;
+}
+/* The hero already paid for: the best thing an empty slot can do, doubling what the account earns for no gold. */
+function freeHeroLine(f) {
+  const heroes = emptySlot(f);
+  return heroes === null || !ORDINAL[heroes + 1] ? null : 'Your ' + ORDINAL[heroes + 1] + ' hero is free: press Characters, then Create hero. It hunts while this one does.';
+}
+/* The house's next deed the purse covers, its materials said. Gold's first job is the next hero (lane/c-gold-matters): a deed speaks when no hero is on offer, or the hero is too far off to save for. */
+function deedLine(f, offer) {
+  const purse = Number.isSafeInteger(f.gold) ? f.gold : null;
+  if (purse === null || (offer && purse >= offer.slot * SAVING_FROM)) return null;
   const deed = f.home && f.home.next && Array.isArray(f.home.next.items) && !f.home.next.items.some((x) => !name(x.id)) ? f.home.next : null;
-  if (deed && purse >= deed.gold) {
-    return { text: 'You can pay for the ' + deed.name + ' (' + [gp(deed.gold), ...deed.items.map((x) => name(x.id) + ' ×' + x.qty)].join(', ') + '): open the House.', ids: ['deed', String(deed.gold)] };
-  }
-  if (slot && nth && purse >= slot * SAVING_FROM) return { text: 'A ' + nth + ' hero costs ' + gp(slot) + ': another hero hunting while this one does.', ids: ['saving', String(slot)] };
-  return null;
+  return deed && purse >= deed.gold ? 'You can pay for the ' + deed.name + ' (' + [gp(deed.gold), ...deed.items.map((x) => name(x.id) + ' ×' + x.qty)].join(', ') + '): open the House.' : null;
+}
+/* OUT OF STAMINA WITH GOLD IN HAND: the one purchase that never runs out, named at the moment it can be used, at the server's quote. The day's first costs about a third of what its hours earn
+   (stamina-refill.js), so it speaks ahead of saving. Nearly out: under half an hour. */
+const TOP_UP_UNDER_MS = 1800000;
+function topUpLine(f) {
+  const q = f.refill;
+  if (!q || q.available !== true || !Number.isSafeInteger(q.price) || !Number.isSafeInteger(q.restoreMs) || !Number.isFinite(f.staminaMs) || f.staminaMs >= TOP_UP_UNDER_MS) return null;
+  if (!Number.isSafeInteger(f.gold) || f.gold < q.price) return null;
+  return 'Your stamina is nearly out. ' + Math.round(q.restoreMs / 3600000) + ' more hours of hunting cost ' + gp(q.price) + ': press the + beside your stamina.';
 }
 
 /* How a hero who hunts alone makes a party (the go_below card's lesson, said on the What next line instead). */
 const PARTY_HOW = 'Invite a friend, or make a second hero: up to four of yours can hunt at once.';
+/* A hero with another hero of its own already needs only the press. */
+const PARTY_HOW_OWN = 'Right-click your other hero\'s tab (on a phone: Heroes, then Invite) and choose Invite to party.';
+const partyHow = (f) => (Array.isArray(f.roster) && f.roster.length > 1 ? PARTY_HOW_OWN : PARTY_HOW);
 /* A ground built for a party: a pocket of it needs one (hunt-grounds.js minParty). */
 const partyGround = (hunt) => Object.values(HUNT_GROUNDS).some((g) => g.hunt === hunt && g.pockets.some((p) => (p.minParty || 1) > 1));
+
+/* THE NEXT STEP UP (Tyler 2026-11-04: "if someone wants to try and 'rush' exp then they should be able to try harder content to get there faster, but it comes with risk"; played 11-04: a Level 12 in
+   Bronze earned 55,106 Level XP/h in the Glade at +3,042 g/h, while the list's "Fits your level" stood on Wickstead's 28,388 at +3,017 g/h). The lowest floor above the hero's Level, and at most this far
+   above it: past that it is a dare for a player to find, never advice. From the Thicket's Level on: the first hour keeps its lessons. Words only: nothing is refused or allowed by it. Pure.
+   `rows`: [{ band, groupFit }]. `alone`: on a tie of floors, the ground built for a lone hero; a party, the one built for a party. */
+const STEP_UP = Object.freeze({ fromLevel: HUNT_INDEX.meadowbrook_thicket.band[0], mostUnder: 15 });
+export function nextStepUp(rows, level, alone = true) {
+  if (!Number.isInteger(level) || level < STEP_UP.fromLevel) return null;
+  const above = (rows || []).filter((r) => r.band[0] > level && r.band[0] - level <= STEP_UP.mostUnder);
+  if (!above.length) return null;
+  const floor = Math.min(...above.map((r) => r.band[0]));
+  const here = above.filter((r) => r.band[0] === floor);
+  const wrong = alone ? 'party' : 'solo';
+  return here.find((r) => r.groupFit !== wrong) || here[0];
+}
+/* The ground's advice row as the Hunts list reads it. */
+const adviceRow = (hunt) => ({ hunt, band: HUNT_INDEX[hunt].band, groupFit: partyGround(hunt) ? 'party' : (Object.values(HUNT_GROUNDS).find((g) => g.hunt === hunt) || {}).groupFit });
 
 /* "Graypelt Cloak is made in Crafting from Wolf Pelt ×6.": the first gear piece worn at Level `lv` that a bench makes,
    that the next-gear words `said` name and the role wears; '' when none. Inputs as the home card writes them (name ×n).
@@ -1143,31 +1182,49 @@ function madeWords(lv, said, role) {
 }
 
 /**
- * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, land,
- * inParty } (skillLevel: the role's skill's level, or null when unknown; defenseXp: the server's Defense XP, or null when
- * unknown; land: the account's field, { planted: plots holding a crop, ready: { crop: ready plots } }, or null when the
- * server has not sent it; inParty: the hero sits in a party of 2+). Answers { id, title, text }; the id
- * changes whenever the text does (the hunt top bar redraws on a new id).
+ * WHAT NEXT IS ONE GOAL (played 2026-11-04, Level 17, about 41k: eight sentences, the Farm first, the third hero not named at all; blind 20-hour panel: "What next is a five-sentence paragraph"):
+ * every goal that holds, in order of what is worth doing first, the first of them the card's words and the rest behind its More. The order: what is wrong now (no armor), a hero already paid for, a
+ * hero the purse can pay, stamina the purse can buy, the next step up, a harvest, Tamsin's next hour, then what takes waiting: a deed, the saving, a party, the gear, the ground, the land, the skill.
+ * Or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, land, inParty, gold, slotCost, slotsOwned, home, roster, visited, staminaMs, refill, tally } (skillLevel: the
+ * role's skill's level, or null when unknown; defenseXp: the server's Defense XP, or null when unknown; land: the account's field, { planted: plots holding a crop, ready: { crop: ready plots } },
+ * or null when the server has not sent it; inParty: the hero sits in a party of 2+; roster: the account's heroes; visited: a Set of the grounds this hero has hunted; refill: the server's next
+ * stamina quote; tally: { held }). Answers { id, title, text, also }; the id names every goal, so it changes whenever a goal comes or goes (the hunt top bar redraws on a new id, and a number
+ * changing inside a goal follows in place: launcher.js sameCardWords).
  */
 export function nextGoal(facts) {
   if (!facts || !Number.isInteger(facts.charLevel)) return null;
   const lines = [];
   const ids = ['goal'];
+  const visited = (h) => facts.visited instanceof Set && facts.visited.has(h);
   /* Defense at 0 XP means no armour worn (Tyler 2026-10-18: it trains only in armour). The fresh-hero play hit 117
      kills like that; the Shop's gloves and belts are the cheapest armour (designer 2026-10-22, the outfitter). */
   if (facts.defenseXp === 0) {
     lines.push('Your Defense isn\'t training: it rises only while you wear armor. The Shop sells gloves and belts.');
     ids.push('armour');
   }
+  const free = freeHeroLine(facts);
+  if (free) { lines.push(free); ids.push('free_hero'); }
+  const offer = heroOffer(facts);
+  if (offer && offer.purse >= offer.slot) {
+    lines.push('You can pay for a ' + offer.nth + ' hero (' + gp(offer.slot) + '): press Characters. It hunts while this one does.');
+    ids.push('slot', String(offer.slot));
+  }
+  const topUp = topUpLine(facts);
+  if (topUp) { lines.push(topUp); ids.push('top_up'); }
+  /* THE NEXT STEP UP: until this hero has been there. The page's warning and its one confirm say the rest (Tyler 2026-11-04). */
+  const solo = facts.inParty !== true;
+  const step = nextStepUp(groundHunts().map(adviceRow), facts.charLevel, solo);
+  if (step && !visited(step.hunt)) {
+    lines.push('Next step up: ' + HUNT_INDEX[step.hunt].name + ', built for Level ' + step.band[0] + '. ' + (solo ? 'You can' : 'Your party can')
+      + ' go now: more XP and better loot, a bigger food bill, and you could die. Press Hunts.');
+    ids.push('step', step.hunt);
+  }
   /* The land is the ACCOUNT's (2026-12-14-shared-farm), so the line reads the field, never this hero's Farming XP
      (v0.2.35 gate: a 0-XP hero was told "nothing grows" over 5 ready turnips the others planted). Empty land asks
      for a seed (P1 2026-10-22: farming sat at zero; the kit holds 8 turnip seeds) until any hero plants; ready
      crops ask for the harvest (any hero may take it) until they are taken; a field that is only growing says nothing. */
   const land = facts.land;
-  if (land && land.planted === 0) {
-    lines.push('Nothing grows on your land: open the Farm (J) and plant a seed. Turnips are ready in ' + CROPS.turnip.hours + ' hours, sooner if watered.');
-    ids.push('farm');
-  } else if (land && land.ready) {
+  if (land && land.ready) {
     const ready = readyWords(land.ready);
     if (ready.words.length) {
       lines.push(listed(ready.words) + (ready.plots === 1 ? ' is' : ' are') + ' ready on your land: open the Farm (J) to harvest '
@@ -1175,21 +1232,23 @@ export function nextGoal(facts) {
       ids.push('harvest', ...ready.ids);
     }
   }
+  /* AN HOUR'S GOAL WITH A PRESS (played 11-04: 28 hours and no task after the wolves): nothing held, and she pays for the grounds this hero walks. */
+  if (facts.tally && facts.tally.held === 0) {
+    lines.push('Tamsin pays for kills, and in armor too: open her tally (Q) and take a task.');
+    ids.push('tally');
+  }
+  const deed = deedLine(facts, offer);
+  if (deed) { lines.push(deed); ids.push('deed', String(facts.home.next.gold)); }
+  if (offer && offer.purse < offer.slot && offer.purse >= offer.slot * SAVING_FROM) {
+    lines.push('A ' + offer.nth + ' hero costs ' + gp(offer.slot) + ', and you have ' + gp(offer.purse) + ': another hero hunting while this one does.');
+    ids.push('saving', String(offer.slot));
+  }
   /* THE PARTY PITCH (designer playtest 2026-10-24): the solo chain ends here, not behind a party card, so a hero with
      no party hears of the party ground its Level fits, and how to make a party: once, on whichever line names it. */
-  const solo = facts.inParty !== true;
   const fits = solo ? groundHunts().find((h) => partyGround(h) && HUNT_INDEX[h].band[0] <= facts.charLevel && facts.charLevel <= HUNT_INDEX[h].band[1]) : null;
   if (fits) {
-    lines.push(HUNT_INDEX[fits].name + ' fits your Level with a party. ' + PARTY_HOW);
+    lines.push(HUNT_INDEX[fits].name + ' fits your Level with a party. ' + partyHow(facts));
     ids.push('party', fits);
-  }
-  const next = groundHunts().find((h) => HUNT_INDEX[h].band[0] > facts.charLevel);
-  if (next) {
-    const party = partyGround(next);
-    /* The floor is a warning, not a lock (Tyler 2026-10-18), so the line names the Level it is built for. */
-    lines.push('Next ground: ' + HUNT_INDEX[next].name + ', for Level ' + HUNT_INDEX[next].band[0] + ' and up' + (party ? ', with a party.' : '.')
-      + (party && solo && !fits ? ' ' + PARTY_HOW : ''));
-    ids.push(next, String(HUNT_INDEX[next].band[0]), ...(party && solo && !fits ? ['solo'] : []));
   }
   /* THE NEXT GEAR, BY LEVEL (Tyler 2026-10-24): the lowest Level above the hero's that opens a piece a player can get
      (skill-unlocks.js: reachable only) and the role wears; with no role from the server yet, every such piece. */
@@ -1197,15 +1256,25 @@ export function nextGoal(facts) {
   const gear = nextUnlock(LEVEL_REQ, facts.charLevel, role ? (id) => wornByRole(id, role) : null);
   const gat = /^Next at level (\d+): /.exec(gear);
   if (gat) {
-    lines.push('Next gear at Level ' + gat[1] + ': ' + gear.slice(gat[0].length) + '.');
-    ids.push('gear', gat[1]);
     /* A piece that line names and a bench makes: where and from what (the Graypelt Cloak, lane/b-first-hour: a made
        piece no line said how to get was a goal with no way). The first such piece only. */
     const made = madeWords(Number(gat[1]), gear, role);
-    if (made) lines.push(made);
+    lines.push('Next gear at Level ' + gat[1] + ': ' + gear.slice(gat[0].length) + '.' + (made ? ' ' + made : ''));
+    ids.push('gear', gat[1]);
   }
-  const purse = purseLine(facts);
-  if (purse) { lines.push(purse.text); ids.push(...purse.ids); }
+  /* The ground ahead that nothing above has named and this hero has not walked. */
+  const next = groundHunts().find((h) => HUNT_INDEX[h].band[0] > facts.charLevel && !visited(h) && !(step && step.hunt === h));
+  if (next) {
+    const party = partyGround(next);
+    /* The floor is a warning, not a lock (Tyler 2026-10-18), so the line names the Level it is built for. */
+    lines.push('Next ground: ' + HUNT_INDEX[next].name + ', for Level ' + HUNT_INDEX[next].band[0] + ' and up' + (party ? ', with a party.' : '.')
+      + (party && solo && !fits ? ' ' + partyHow(facts) : ''));
+    ids.push(next, String(HUNT_INDEX[next].band[0]), ...(party && solo && !fits ? ['solo'] : []));
+  }
+  if (land && land.planted === 0) {
+    lines.push('Nothing grows on your land: open the Farm (J) and plant a seed. Turnips are ready in ' + CROPS.turnip.hours + ' hours, sooner if watered.');
+    ids.push('farm');
+  }
   const skill = ROLE_SKILL[facts.role];
   if (skill && Number.isInteger(facts.skillLevel)) {
     const u = nextUnlock(skill, facts.skillLevel);
@@ -1215,5 +1284,5 @@ export function nextGoal(facts) {
       ids.push(skill, at[1]);
     }
   }
-  return lines.length ? { id: ids.join('_'), title: 'What next', text: lines.join(' ') } : null;
+  return lines.length ? { id: ids.join('_'), title: 'What next', text: lines[0], also: lines.slice(1) } : null;
 }

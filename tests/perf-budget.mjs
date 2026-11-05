@@ -51,6 +51,7 @@ import { HARNESS as LIVE_H } from './hunt-live.mjs';
 import { LOG_MAX_LINES } from '../src/data/combat-text.js';
 import { STATIONS } from '../src/data/world/stations.js';
 import { scopedMutants, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
+import { pinFonts } from './_test-fonts.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope-live.json'), 'utf8'));
@@ -500,7 +501,7 @@ async function leakRule(extra) {
     page.on('pageerror', (e) => errors.push(e.message));
     await page.addInitScript(INIT);
     await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: srv.H.SDK_STUB }));
-    await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+    await pinFonts(page);
     await page.route('https://*.ingest.sentry.io/**', (r) => r.fulfill({ status: 204, body: '' }));
     await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
       const name = r.request().url().split('?')[0].split('/').pop();
@@ -561,7 +562,7 @@ async function scenario(o) {
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     await page.addInitScript(INIT);
     await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: srv.H.SDK_STUB }));
-    await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+    await pinFonts(page);
     await page.route('https://*.ingest.sentry.io/**', (r) => r.fulfill({ status: 204, body: '' }));
     await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
       const name = r.request().url().split('?')[0].split('/').pop();

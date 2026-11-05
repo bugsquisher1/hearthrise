@@ -37,6 +37,7 @@ import { readFile, readdir, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { pinFonts } from './_test-fonts.mjs';
 
 const ARGS = process.argv.slice(2);
 const SHOTS = ARGS.includes('--shots') ? ARGS[ARGS.indexOf('--shots') + 1] : null;
@@ -399,7 +400,7 @@ async function screens(overrides) {
       page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
       const s = { env: town(clone(BASE)), version: 1, enter: 0 };
       await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-      await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+      await pinFonts(page);
       await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
         const name = r.request().url().split('?')[0].split('/').pop();
         const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });

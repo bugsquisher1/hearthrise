@@ -82,6 +82,7 @@ import {
   ITEMS, SKILLS_DEF, SHOP_OFFERS, SHOP_LISTED_OFFER_IDS, ARTISAN_RECIPES, MONSTERS,
 } from '../src/data/catalogue-coherence.js';
 
+import { unclassifiedGrantIds } from '../src/data/item-authority.js';
 import { START_CURRENCY } from '../src/data/start-kit.js';
 import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
 
@@ -122,6 +123,9 @@ const EQUIP_TYPES = { weapon: 1, armor: 1, jewelry: 1, ammo: 1 };
 export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   const fails = [];
   const ids = Object.keys(ITEMS);
+  /* The grant universe's partition, called the way its own doc says (no argument): it read a name nothing defines until 2026-11-04. */
+  const limbo = unclassifiedGrantIds();
+  if (limbo.length) fails.push(`item-authority: ${limbo.length} granted id(s) neither ownable nor excluded: ${limbo.slice(0, 5).join(', ')}`);
   const src = itemSources();
   const uses = itemUses();
 

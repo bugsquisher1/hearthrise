@@ -46,26 +46,27 @@
 // server's `leader_densities`) with no step, and the server refuses a member's
 // pick (hr_hunt_density_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.88';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.88';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.88';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.88';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.88';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.88';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.88';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.88';
-import { whole } from '../../render/format.js?v=0.2.88';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.88';
-import { itemName } from '../widgets/bits.js?v=0.2.88';
-import { glyphSvg } from '../launcher.js?v=0.2.88';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.88';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.88';
-import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.88';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.88';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.88';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.88';
-import { openFinderOn } from './party-finder.js?v=0.2.88';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.88';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.89';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.89';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.89';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.89';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.89';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.89';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.89';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.89';
+import { whole } from '../../render/format.js?v=0.2.89';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.89';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.89';
+import { glyphSvg } from '../launcher.js?v=0.2.89';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.89';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.89';
+import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.89';
+import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.89';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.89';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.89';
+import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.89';
+import { openFinderOn } from './party-finder.js?v=0.2.89';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.89';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
@@ -181,7 +182,7 @@ function carriedWords(lines) {
 /** The skeleton (built once per opening): the notes, then the list beside the picked ground's page. A fresh opening
  *  forgets an Enter the player pressed in an earlier one (its close is spent or moot). */
 export function renderHunts(ctx) {
-  if (ctx && ctx.character) scratchOf(ctx.character).closeOnHunt = false;
+  if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.closeOnHunt = false; sc.shown = null; }
   return '<div class="hw-hunts">'
     + '<p class="hs-note hw-hunts-now"></p><p class="hs-note hw-hunts-reco" hidden></p>'
     + '<div class="hw-hunts-cols"><ul class="hw-hunt-list" role="listbox" aria-label="Hunts"></ul>'
@@ -233,7 +234,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const rec = recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list);
   /* Until the player picks a line by hand the pick FOLLOWS the advice (lane/b-first-hour: the Cellar, picked for a
      Level 1 hero, stayed picked at Level 5 for the rest of the session while the coach sent the hero to the Thicket). */
-  if ((!sc.pick || sc.auto) && list.length) { sc.pick = rec.row ? rec.row.hunt : list[0].hunt; sc.auto = true; }
+  if ((!sc.pick || sc.auto) && list.length) { sc.pick = openingPick(rec, list, h ? { huntId: h.huntId, endReason: h.ended ? h.endReason : null } : null).hunt; sc.auto = true; }
   /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
   const bests = huntBestsOf(cs);
   const tally = tallyOf(cs);
@@ -252,8 +253,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const advice = !now && !follower && rec.note ? rec.note : '';
   text(reco, advice);
   prop(reco, 'hidden', !advice);
-  /* "Fits your level" marks the recommendation's line only when its band truly holds the group (no note). */
-  const fits = rec.row && !rec.note ? rec.row.hunt : null;
+  /* The advice's two tags: the safe ground, and the harder one above it (the lowest Level in a party, who the warning is for). */
+  const step = nextStepUp(list, party ? Math.min(...party.seats.map((s) => (s.seat === party.me ? level : s.level)).filter(Number.isInteger)) : level, !party);
   rows(root.querySelector('.hw-hunt-list'), list, {
     key: (r) => r.hunt,
     build: (r) => element(ctx.doc, lineHtml(r, ctx.glyphs)),
@@ -265,12 +266,14 @@ renderHunts.patch = function patchHunts(body, ctx) {
       const band = li.querySelector('.hw-hunt-fit');
       text(band, fit ? fit.words : '');
       attr(band, 'data-tone', fit ? fit.tone : null);
-      text(li.querySelector('.hw-hunt-fits'), fits === r.hunt ? (party ? 'Fits your party' : 'Fits your level') : '');
+      text(li.querySelector('.hw-hunt-fits'), adviceTag(r, rec, step, !!party));
       text(li.querySelector('.hw-hunt-bestline'), bestLine(bests, r.hunt) || '');
       /* Tamsin's tallies held on this ground, the server's count ("Gray Wolves 112/200"). */
       text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(' · '));
     },
   });
+  /* The line the window opens on stands in view: it can be the last on the list (openingPick). */
+  if (sc.shown !== sc.pick) { sc.shown = sc.pick; revealInWindow(root.querySelector('.hw-hunt[data-hunt="' + sc.pick + '"]')); }
   const r = list.find((x) => x.hunt === sc.pick) || null;
   cls(root, 'is-paged', sc.paged && !!r);
   const det = root.querySelector('.hw-hunt-detail');

@@ -47,6 +47,29 @@ async function check(base) {
     const field = r.bind.store === 'float' ? 'combatText' : r.bind.store === 'hud' ? 'hudLayout' : r.bind.field;
     must(r.bind.store === 'none' || RESIDUE_FIELDS.includes(field), 'row ' + r.id + ' keeps a field that is not in RESIDUE_FIELDS: ' + field);
   }
+  /* THE SESSION-RECORDING SWITCH (2026-11-04): in Settings > Help by its exact words, ON until the player presses it (Tyler: recording stays on
+     for invitees), and one press goes to EVERY open hero, because the residue is per character and the choice is the player's: the newest
+     pick any open hero holds is what counts, so a hero that was closed for a press cannot put its older pick back. */
+  const { REPLAY } = await import(u('src/data/privacy.js'));
+  const sw = D.SETTINGS.find((r) => r.id === 'help.replay');
+  must(sw && sw.category === 'help' && sw.type === 'toggle' && sw.label === REPLAY.label && sw.label === 'Share session recordings to help fix bugs', 'replay switch: the row is missing from Help or its words changed');
+  must(sw && sw.default === true && REPLAY.defaultOn === true && sw.bind.store === 'replay' && RESIDUE_FIELDS.includes(sw.bind.field), 'replay switch: it must default on and keep its pick in an allowlisted residue field');
+  const heroOf = (residue) => { const h = { record: { residue }, puts: [], setResidue(f, v) { this.puts.push([f, v]); this.record = { residue: Object.assign({}, this.record.residue, { [f]: v }) }; return true; } }; return h; };
+  const a = heroOf({}), b = heroOf({});
+  const rctx = { character: a, peers: () => [a, b], hud: ctx.hud };
+  must(sw && M.read(rctx, sw) === true, 'replay switch: with no pick anywhere the switch must read on');
+  must(sw && M.write(rctx, sw, false) && M.read(rctx, sw) === false && a.puts.length === 1 && b.puts.length === 1 && a.puts[0][0] === 'shareReplay'
+    && a.puts[0][1].on === false && JSON.stringify(a.puts[0][1]) === JSON.stringify(b.puts[0][1]), 'replay switch: one press must put the same off pick into every open hero');
+  const was = a.puts[0][1].at;
+  must(sw && M.write(rctx, sw, true) && M.read(rctx, sw) === true && !!b.puts[1] && b.puts[1][1].on === true && b.puts[1][1].at > was, 'replay switch: a second press must be newer than the first, or the old one would win');
+  const old = heroOf({ shareReplay: { on: false, at: 5 } }), fresh = heroOf({ shareReplay: { on: true, at: 9 } });
+  must(sw && M.read({ character: old, peers: () => [old, fresh], hud: ctx.hud }, sw) === true && M.read({ character: fresh, peers: () => [fresh, old], hud: ctx.hud }, sw) === true, 'replay switch: the newest pick any open hero holds must win, whichever hero is viewed');
+  const { sanitizeResidueField } = await import(u('src/session/residue.js'));
+  must(JSON.stringify(sanitizeResidueField('shareReplay', { on: false, at: 7, x: 1 })) === '{"on":false,"at":7}', 'replay switch: a pick keeps only its answer and its stamp');
+  for (const junk of [true, 'off', null, {}, { on: 'no', at: 1 }, { on: true }, { on: true, at: -1 }, { on: true, at: 1.5 }]) must(sanitizeResidueField('shareReplay', junk) === undefined, 'replay switch: not a pick: ' + JSON.stringify(junk));
+  /* The Privacy Policy names the switch by its words and says it is on by default (the page players read must match the row). */
+  const policy = readFileSync(join(ROOT, 'legal/PRIVACY_POLICY.md'), 'utf8');
+  must(policy.includes('**' + REPLAY.label + '**') && /on by default/i.test(policy) && /Settings/.test(policy), 'replay switch: legal/PRIVACY_POLICY.md must name the switch by its exact words and say it is on by default');
   /* A server row sends its intent and keeps nothing in residue. */
   const sent = [];
   const srv = { id: 'x.server', category: 'gameplay', label: 'X', help: 'y', type: 'toggle', default: false, scope: 'server', intent: 'setThing', bind: { store: 'none' } };
@@ -79,6 +102,11 @@ const MUTANTS = [
   { name: 'search that ignores help text', file: 'src/shell/settings-model.js', from: "(r.label + ' ' + r.help)", to: 'r.label', want: 'search' },
   { name: 'Help forgets how the game works', file: 'src/data/settings.js', from: '[...HELP_NOTES.map(', to: '[...[].map(', want: 'help notes' },
   { name: 'empty categories shown', file: 'src/shell/settings-model.js', from: 'return cats.filter((c) => have.has(c.id));', to: 'return cats.slice();', want: 'would render empty' },
+  { name: 'the recording switch writes one hero only', file: 'src/shell/settings-model.js', from: 'setReplayWanted(peersOf(ctx), value,', to: 'setReplayWanted([ctx.character], value,', want: 'every open hero' },
+  { name: 'an older recording pick beats a newer one', file: 'src/session/replay-pref.js', from: 'if (p && (!best || p.at > best.at)) best = p;', to: 'if (p && (!best || p.at < best.at)) best = p;', want: 'newest pick' },
+  { name: 'a second press is not stamped after the first', file: 'src/session/replay-pref.js', from: 'was ? was.at + 1 : 0) };', to: 'was ? was.at : 0) };', want: 'second press' },
+  { name: 'recording defaults off', file: 'src/data/privacy.js', from: 'defaultOn: true,', to: 'defaultOn: false,', want: 'default on' },
+  { name: 'the recording row loses its words', file: 'src/data/privacy.js', from: "label: 'Share session recordings to help fix bugs'", to: "label: 'Share data'", want: 'its words changed' },
 ];
 
 if (process.argv.includes('--selftest')) {

@@ -5,17 +5,17 @@
 // derived from the id; a glyph when the id is not an item), an item's name, and
 // the frame every hunt panel sits in (title, minimise). Display only.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.2.88';
-import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.88';
-import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.88';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.88';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.88';
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.88';
-import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.88';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.88';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.88';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.88';
-import { text, style, attr } from '../../render/paint.js?v=0.2.88';
+import { ITEMS } from '../../data/items.js?v=0.2.89';
+import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.89';
+import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.89';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.89';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.89';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.89';
+import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.89';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.89';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.89';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.89';
+import { text, style, attr } from '../../render/paint.js?v=0.2.89';
 
 /** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing. (Here, under every panel part; the
     icon row re-exports it, src/shell/launcher.js, so a coach import of these parts is never a cycle.) */
@@ -87,7 +87,7 @@ export function itemIconHtml(glyphs, id, fallback) {
 }
 
 /* A glyph for an ability with no pixel tile yet, and for the slot kinds that name no one item. */
-const ACTION_GLYPH = Object.freeze({ rend: 'uiBone', loaded: 'uiArrow' });
+const ACTION_GLYPH = Object.freeze({ loaded: 'uiArrow' });
 
 /** A bar action's 32 px icon: the ability's pixel tile, the item's pixel icon, else a glyph. */
 export function actionIconHtml(glyphs, action) {

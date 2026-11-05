@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.88';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.89';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -83,7 +83,6 @@ export const REFUSAL_WORDS = Object.freeze({
   list_daily_cap: 'That\'s the most listings for one day. You can list again after the daily reset.',
   listing_too_large: MARKET_WORDS.listing_too_large,
   trade_too_large: MARKET_WORDS.trade_too_large,
-  item_locked: MARKET_WORDS.item_locked,
   /* The connection and the session. */
   rate_limited: 'Too many changes at once. Try again in a moment.',
   /* The Great Hearth (2027-01-31-inner-flame.sql hr_hearth_burn; intent-words.js adds the numbers it sent) */

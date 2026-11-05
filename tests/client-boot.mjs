@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
+// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -53,6 +53,11 @@
 //        up, their own id and nothing else of the account, Copy puts it on the clipboard (a refused clipboard says so and leaves it selected);
 //        Check again is off while it asks, says why on a no or on no answer, and once the server admits the account the page goes on to their
 //        characters with no second sign-in; Sign out works; every press fits at 1366x768 and on a landscape phone
+//   B-20 THE PRIVACY POLICY AND THE TERMS CAN BE READ FROM THE SIGN-IN SCREENS (2026-11-04), at 1366x768 and 667x375: the sign-in offers both;
+//        Create account says "By creating an account you agree to the Terms of Service and the Privacy Policy." with both as links, every word
+//        12 px or more and on the screen, without pushing Create account or Back off it; each opens OVER the screen (what was typed stays typed),
+//        shows its own page (the wipe, and for the Privacy Policy the recording switch and "on by default") with no note to the owner in it, fits
+//        the screen and scrolls, closes with Escape or Close and gives the focus back; the reader escapes everything and links only https
 //   B-8  a hunting character (tests/fixtures/hunt-envelope.json) mounts the hunt
 //        screen's panels (top bar, party, analyzer, bottom bar) with zero console
 //        errors; the rules of each panel are tests/hunt-screen.mjs
@@ -78,6 +83,8 @@
 //        "You were signed out. Sign in again.", no session copy left, and the dead
 //        session sends no more than a handful of calls
 // ════════════════════════════════════════════════════════════════════════
+// mutant-rule-functions: checks
+// mutant-runner-functions: main
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
@@ -86,6 +93,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { TOWN_NAME } from '../src/data/world/town/plan.js';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { pinFonts } from './_test-fonts.mjs';
 /* Level 10's total on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const LEVEL_10_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(10);
 
@@ -155,7 +163,7 @@ async function stubServer(page, o) {
     if (url.split('?')[0].endsWith('/functions/v1/hr-accrue')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(Object.assign({ accrued: true }, o.hunt ? Object.assign({}, HUNT, { version: 2 }) : envelope(body.slot, 2))) });
     return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
-  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await pinFonts(page);
 }
 
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
@@ -170,8 +178,11 @@ const until = async (page, fn, arg, ms = 60000) => {
 /* `leaving`: run B-17 and B-18 too. Together about 20 s a run: --mutate runs them for their own mutants and the clean control only, or
    36 mutants add 12 minutes to a 30-minute CI job (smoke.yml in-page, measured 14.2). `notice`: B-7's whole walk, the same way (with no flag, the notice's arrival only).
    `reloads`: B-19, the same way. */
-async function checks(overrides, leaving = true, notice = true, reloads = true) {
+/* A mutant needs ONE red rule: its run stops at the first. 61 mutants ran every rule, 57 of the 70 minutes v0.2.84's whole run took (41697486160). */
+const STOP = Symbol('first red');
+async function checks(overrides, leaving = true, notice = true, reloads = true, { stopAtFirst = false } = {}) {
   const fails = [];
+  if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -186,6 +197,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       return { ctx, page, errors };
     };
 
+    /* mutant-rules-start */
     { // N-1
       const { ctx, page, errors } = await fresh();
       await page.goto(base + '/', { waitUntil: 'load' });
@@ -439,6 +451,76 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
       });
       if (again.first || again.wrong || !again.unconfirmed || again.asked.join() !== 'a@b.co' || again.said !== 'on its way') fails.push('B-6 a new confirmation link: ' + JSON.stringify(again));
       await dead.ctx.close();
+    }
+
+    { // B-20 THE PRIVACY POLICY AND THE TERMS CAN BE READ FROM THE SIGN-IN SCREENS (2026-11-04: no screen linked them)
+      for (const [w, h] of [[1366, 768], [667, 375]]) {
+        const tag = '[' + w + 'x' + h + '] ';
+        const { ctx, page, errors } = await fresh({}, { width: w, height: h });
+        try {
+        await page.goto(base + '/play.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await wait(page, () => document.querySelector('form[data-auth="sign-in"]'), null, 60000);
+        const onSignIn = await page.evaluate(() => [...document.querySelectorAll('.auth-legal [data-auth-legal]')].map((b) => b.getAttribute('data-auth-legal')).join());
+        if (onSignIn !== 'privacy,terms') fails.push('B-20 ' + tag + 'the sign-in screen does not offer the Privacy Policy and the Terms: ' + JSON.stringify(onSignIn));
+        await page.click('[data-auth-go="create"]');
+        const sheet = await page.evaluate(() => {
+          const l = document.querySelector('.auth-legal');
+          const r = (e) => { const b = e.getBoundingClientRect(); return b.left >= 0 && b.top >= 0 && b.right <= innerWidth + 0.5 && b.bottom <= innerHeight + 0.5; };
+          return { text: l ? l.innerText.replace(/\s+/g, ' ').trim() : '', shown: !!l && l.getClientRects().length > 0, px: l ? parseFloat(getComputedStyle(l).fontSize) : 0,
+            links: l ? [...l.querySelectorAll('[data-auth-legal]')].map((b) => [b.getAttribute('data-auth-legal'), parseFloat(getComputedStyle(b).fontSize), r(b)]) : [],
+            submit: r(document.querySelector('.auth-submit')), back: r(document.querySelector('[data-auth-go="sign-in"]')), across: document.scrollingElement.scrollWidth - innerWidth };
+        });
+        if (sheet.text !== 'By creating an account you agree to the Terms of Service and the Privacy Policy.' || !sheet.shown) fails.push('B-20 ' + tag + 'Create account does not say what pressing it means: ' + JSON.stringify(sheet.text));
+        if (sheet.px < 12 || sheet.links.length !== 2 || sheet.links.some(([, px, on]) => px < 12 || !on)) fails.push('B-20 ' + tag + 'the legal line or its links are under 12 px or off the screen: ' + JSON.stringify([sheet.px, sheet.links]));
+        if (!sheet.submit || !sheet.back || sheet.across > 0) fails.push('B-20 ' + tag + 'the legal line pushed Create account or Back to sign in off the screen (' + sheet.across + ' px across)');
+        await page.fill('input[name=email]', 'new@example.test');
+        await page.fill('input[name=password]', 'not-a-real-password');
+        await page.fill('input[name=confirm]', 'not-a-real-password');
+        for (const [which, title, wants] of [['terms', 'Terms of Service', [/Gold, items and purchases/, /Testing and wipes/, /erased before Hearthrise opens on Steam Early Access/]],
+          ['privacy', 'Privacy Policy', [/Share session recordings to help fix bugs/, /on by default/, /Session recordings/, /erased before Hearthrise opens on Steam Early Access/]]]) {
+          if (!(await page.$('[data-auth-legal="' + which + '"]'))) { fails.push('B-20 ' + tag + 'there is no link to the ' + title + ' on the screen'); continue; }
+          await page.click('[data-auth-legal="' + which + '"]');
+          if (!(await wait(page, () => { const b = document.querySelector('.auth-doc-body'); return !!b && b.innerText.length > 200; }, null, 15000))) { fails.push('B-20 ' + tag + title + ' did not load'); continue; }
+          const doc = await page.evaluate(() => {
+            const card = document.querySelector('.auth-doc-card'), body = document.querySelector('.auth-doc-body'), close = document.querySelector('.auth-doc-close');
+            const b = card.getBoundingClientRect(), c = close.getBoundingClientRect();
+            return { title: document.querySelector('.auth-doc-name').textContent, text: body.innerText, px: parseFloat(getComputedStyle(body).fontSize), html: body.innerHTML,
+              fits: b.left >= 0 && b.top >= 0 && b.right <= innerWidth + 0.5 && b.bottom <= innerHeight + 0.5, close: c.top >= 0 && c.bottom <= innerHeight && c.left >= 0 && c.right <= innerWidth,
+              scrolls: body.scrollHeight > body.clientHeight, focus: document.activeElement === close, across: document.scrollingElement.scrollWidth - innerWidth };
+          });
+          if (doc.title !== title) fails.push('B-20 ' + tag + 'the reader says ' + JSON.stringify(doc.title) + ', want ' + title);
+          for (const re of wants) if (!re.test(doc.text)) fails.push('B-20 ' + tag + title + ' does not say ' + re);
+          if (/OWNER AND LAWYER|<!--|-->|\[LAUNCH DATE\]/.test(doc.text + doc.html)) fails.push('B-20 ' + tag + title + ' shows a note to the owner, or a launch-date placeholder, to players');
+          if (!doc.fits || !doc.close || doc.across > 0 || !doc.scrolls || doc.px < 12 || !doc.focus) fails.push('B-20 ' + tag + title + ' reader: ' + JSON.stringify({ fits: doc.fits, close: doc.close, across: doc.across, scrolls: doc.scrolls, px: doc.px, focus: doc.focus }));
+          const kept = await page.evaluate(() => ['email', 'password', 'confirm'].map((n) => (document.querySelector('input[name=' + n + ']') || {}).value).join('|'));
+          if (kept !== 'new@example.test|not-a-real-password|not-a-real-password') fails.push('B-20 ' + tag + 'opening ' + title + ' lost what was typed: ' + JSON.stringify(kept));
+          await (which === 'terms' ? page.keyboard.press('Escape') : page.click('.auth-doc-close', { timeout: 3000 }).catch(() => {}));
+          if (!(await wait(page, () => !document.querySelector('.auth-doc'), null, 3000))) fails.push('B-20 ' + tag + title + ' did not close');
+          else if (!(await page.evaluate((k) => document.activeElement && document.activeElement.getAttribute('data-auth-legal') === k, which))) fails.push('B-20 ' + tag + 'closing ' + title + ' did not give the focus back to its link');
+        }
+        /* the reader draws only what the rules allow: every character escaped, only https and mailto links, comments gone */
+        const drawn = await page.evaluate(async () => {
+          const { legalHtml } = await import(location.origin + '/src/app/legal-reader.js');
+          return legalHtml('# T\n\n<img src=x onerror=alert(1)> **b** [ok](https://a.example/x) [bad](javascript:alert(1))\n\n<!-- note -->\n\n* one\n* two', { dropTitle: true });
+        });
+        if (/<img|href="javascript|note/.test(drawn) || !/<strong>b<\/strong>/.test(drawn) || !/href="https:\/\/a\.example\/x"/.test(drawn) || !/<ul><li>one<\/li><li>two<\/li><\/ul>/.test(drawn)) fails.push('B-20 ' + tag + 'the reader drew: ' + drawn);
+        /* the one server link reads only the listed legal pages: any other path is refused with no request made */
+        const link = await page.evaluate(async () => {
+          const { readLegal } = await import(location.origin + '/src/session/server.js');
+          const asked = [];
+          const stub = async (u) => { asked.push(String(u)); return { ok: true, text: async () => 'page' }; };
+          const out = { ok: await readLegal('legal/PRIVACY_POLICY.md', location.href, stub), bad: [] };
+          for (const p of ['src/build-info.js', 'legal/../src/build-info.js', 'legal/PRIVACY_POLICY.md?x=1', 'https://evil.example/legal/PRIVACY_POLICY.md', '/legal/PRIVACY_POLICY.md', 'legal/EULA.md', '']) out.bad.push(await readLegal(p, location.href, stub));
+          out.asked = asked;
+          return out;
+        });
+        if (link.ok !== 'page' || link.bad.some((x) => x !== null) || link.asked.length !== 1 || !/\/legal\/PRIVACY_POLICY\.md$/.test(link.asked[0])) fails.push('B-20 ' + tag + 'the server link read a path outside its list, or refused one on it: ' + JSON.stringify(link));
+        if (errors.length) fails.push('B-20 ' + tag + 'console errors: ' + errors.slice(0, 3).join(' | '));
+        } catch (e) {
+          if (e === STOP) throw e;
+          fails.push('B-20 ' + tag + 'stopped: ' + String(e && e.message).split('\n')[0]);
+        } finally { await ctx.close().catch(() => {}); }
+      }
     }
 
     { // B-8
@@ -942,6 +1024,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true) 
         await s.ctx.close();
       }
     }
+  } catch (e) {
+    if (e !== STOP) throw e;
   } finally {
     await browser.close();
     server.close();
@@ -1020,6 +1104,15 @@ const MUTANTS = [
   ['a scene shows before its sheets arrive', 'src/world/world-boot.js', "could not be prepared', e));\n      }\n      return null;",
     "could not be prepared', e));\n      }"],
   ['a closed pane still draws a sheet that lands late', 'src/world/world-boot.js', '    if (gone) return;\n    if (panel', '    if (panel'],
+  /* B-20: the Privacy Policy and the Terms from the sign-in screens */
+  ['the sign-up says nothing of the Terms or the Privacy Policy (B-20)', 'src/app/sign-in.js', "(LEGAL_LINE[mode] || '')", "''"],
+  ['the reader takes the form away, and what was typed with it (B-20)', 'src/app/legal-reader.js', '  box.appendChild(host);\n', "  box.innerHTML = '';\n  box.appendChild(host);\n"],
+  ['the server link reads any path it is given (B-20)', 'src/session/server.js', 'if (!LEGAL_PATHS.includes(path)) return null;', ''],
+  ['the reader cannot be closed with Escape (B-20)', 'src/app/legal-reader.js', "if (e.key === 'Escape') { e.preventDefault(); shut(); return; }", ''],
+  ['the reader does not give the focus back (B-20)', 'src/app/legal-reader.js', "if (opener && typeof opener.focus === 'function' && opener.isConnected) opener.focus();", ''],
+  ['the reader shows the owner\'s notes to players (B-20)', 'src/app/legal-reader.js', ".replace(/<!--[\\s\\S]*?-->/g, '')", ''],
+  ['the reader is wider than a phone (B-20)', 'src/styles/app.css', '.auth-card.auth-doc-card { width: min(46rem, 100%);', '.auth-card.auth-doc-card { width: 46rem;'],
+  ['the reader\'s words are under 12 px (B-20)', 'src/styles/app.css', 'padding: 4px 6px 4px 0; font-size: var(--t-small);', 'padding: 4px 6px 4px 0; font-size: 11px;'],
 ];
 
 async function main() {
@@ -1044,7 +1137,7 @@ async function main() {
     const missing = pairs.find(([a]) => !text.includes(a));
     if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     for (const [a, b] of pairs) text = text.replace(a, b);
-    const fails = await checks({ [file]: text }, /\(B-1[78]\)/.test(name), /\(B-7\)/.test(name), /\(B-19\)|cannot load/.test(name));
+    const fails = await checks({ [file]: text }, /\(B-1[78]\)/.test(name), /\(B-7\)/.test(name), /\(B-19\)|cannot load/.test(name), { stopAtFirst: true });
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

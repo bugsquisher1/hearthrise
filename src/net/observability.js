@@ -47,13 +47,14 @@
 // Every event is bounded: EVENT_MAX named events per load, CLICK_MAX of each click kind (a loop cannot spend the quota).
 // ════════════════════════════════════════════════════════════════════════
 
-import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.88';
-import { BUILD } from '../build-info.js?v=0.2.88';
-import { observeSessions } from '../session/character-session.js?v=0.2.88';
-import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.2.88';
-import { levelOf } from '../session/character-sections.js?v=0.2.88';
-import { startDiagnostics } from './diagnostics.js?v=0.2.88';
-import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.88';
+import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.89';
+import { BUILD } from '../build-info.js?v=0.2.89';
+import { observeSessions } from '../session/character-session.js?v=0.2.89';
+import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.2.89';
+import { levelOf } from '../session/character-sections.js?v=0.2.89';
+import { replayWanted } from '../session/replay-pref.js?v=0.2.89';
+import { startDiagnostics } from './diagnostics.js?v=0.2.89';
+import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.89';
 
 const EARLY_MAX = 10;        // errors held while Sentry loads
 const QUEUE_MAX = 20;        // events held while PostHog loads
@@ -308,7 +309,7 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
   if (!env.send) return Object.assign({}, NOOP, { environment: env.environment });
   const doc = win.document;
   const now = () => (win.performance ? win.performance.now() : Date.now());
-  const st = { uid: null, game: false, screen: null, queue: [], stalls: 0, diffs: 0, hung: false, hang: null,
+  const st = { uid: null, game: false, recording: false, screen: null, queue: [], stalls: 0, diffs: 0, hung: false, hang: null,
     sent: 0, reseeds: 0, clicks: {}, onceKeys: new Set() };
   let sentry = null;
   let ph = null;       // the PostHog instance, started by the first account id
@@ -333,6 +334,19 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
     for (const e of early.splice(0)) safe(() => S.captureException(e));
     if (st.hang) safe(() => st.hang(S));
   });
+  const watched = new Map();
+  /* SESSION RECORDING IS THE PLAYER'S CHOICE (Settings: "Share session recordings to help fix bugs"; src/session/replay-pref.js).
+     It runs only while the game screen shows, with an account behind it and PostHog up, AND the open heroes say yes: the newest
+     pick any of them holds, else the default (src/data/privacy.js). Until a hero's record has been read nothing is known, and
+     nothing records. This is the ONE place that starts or stops it, asked again by every event that can change an input (a screen,
+     a hero's answer, a press of the switch), so an off applies at once and a late-arriving hero's newer pick still stops it. */
+  const syncRecording = () => {
+    if (!ph) return;
+    const want = st.game && !!st.uid && replayWanted(Array.from(watched.keys())) === true;
+    if (want === st.recording) return;
+    st.recording = want;
+    safe(() => (want ? ph.startSessionRecording() : ph.stopSessionRecording()));
+  };
   /* PostHog starts when its script is loaded AND the account id is known, whichever comes last, with
      that id as its distinct id (posthogOptions): no anonymous id is ever minted, sent or merged. A
      second sign-in in the same load re-seeds the same instance with the new id the same way. */
@@ -341,7 +355,8 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
     if (!ph) ph = phSdk.init(cfg.posthog.key, posthogOptions(cfg, win, st.uid, (event) => sdkGate(st, event))) || phSdk;
     else ph.reset({ bootstrap: { distinctID: st.uid, isIdentifiedID: true } });
     phUid = st.uid;
-    if (st.game) ph.startSessionRecording();
+    st.recording = false;   // a fresh start or a re-seed: whatever ran before is not running
+    syncRecording();
     for (const [n, p] of st.queue.splice(0)) safe(() => ph.capture(n, p));
   };
   /* Its 200 KB script is fetched only once an account is known, when the page is next idle: the sign-in
@@ -377,7 +392,6 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
     st.onceKeys.add(key);
     send(name, props);
   };
-  const watched = new Map();
   const ledgers = new WeakSet();
   /* first_sale / first_gear_equipped: the account's intent ledger (src/session/intent-ledger.js) says what the server confirmed.
      The ledger is the account's, shared by its heroes, so these two are per account. */
@@ -402,8 +416,10 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
       diverged: (d) => { if (st.diffs < DIFF_MAX) { st.diffs++; send('live_diverged', { version: BUILD.version, hunt: d.hunt, swing: d.swing, count: d.count, by: d.by, lines: d.lines, page_s: Math.round(now() / 1000) }); } } };
     watched.set(cs, w);
     watchLedger(cs.intents);
+    safe(syncRecording);   // a hero already read when it is first seen
     cs.subscribe((c, why) => safe(() => {
-      if (why === 'closed') { watched.delete(cs); return; }
+      if (why === 'closed') { watched.delete(cs); syncRecording(); return; }
+      syncRecording();
       watchHunt(cs, w, now(), send);
       watchLive(cs, w, why, now());
       watchFunnel(cs, w, once);
@@ -455,6 +471,7 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
       st.uid = null;
       phUid = null;
       st.queue.length = 0;
+      safe(syncRecording);   // no account behind the screen any more: nothing records
       if (sentry) safe(() => sentry.setUser(null));
     },
     /* Replay records the game screen only: never sign-in, the characters list (it names the email) or the closed notice. */
@@ -463,7 +480,7 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
       const game = name === 'game';
       if (game === st.game) return;
       st.game = game;
-      if (ph) safe(() => (game ? ph.startSessionRecording() : ph.stopSessionRecording()));
+      safe(syncRecording);
     },
     track: send,
     once,

@@ -512,8 +512,11 @@ async function monsterArtPreflight() {
       + '  ' + problems.join(NL + '  ') + NL);
     return 1;
   }
-  console.log(`Monster art preflight: ${art.SHIPPED.length} portraits wired, `
-    + `${art.pendingArt().length} awaiting the batch, 0 mismatches`);
+  /* The painted portrait set is RETIRED: the Hunts window draws each creature from the style-1 world atlases
+     (src/render/creature-sprite.js), never a portrait beside style-1 art (Tyler 10-18). These counts keep the old
+     manifest honest on disk; they are not what a player sees. */
+  console.log(`Monster art preflight: painted portrait set (retired, not drawn by the client): ${art.SHIPPED.length} wired, `
+    + `${art.pendingArt().length} never painted, 0 mismatches`);
   return 0;
 }
 
@@ -583,8 +586,10 @@ async function itemArtPreflight() {
   }
   const n = art.CATEGORIES.reduce((a, c) => a + (art.SHIPPED[c] || []).length, 0);
   const uncovered = Object.keys(ITEMS).filter((id) => !art.pathFor(id)).length;
-  console.log(`Item art preflight: ${n} item icons wired, ${art.REJECTED_WRONG_SUBJECT.length} withheld (wrong subject), `
-    + `${art.UNRESOLVED_FILES.length} unresolved filenames, ${uncovered} items still on old art/emoji, 0 mismatches`);
+  /* The painted Hearthfire set is RETIRED: ITEM_ART_SET = 'pixel' and every ITEMS key has a 32x32 pixel icon
+     (tests/pixel-icons.mjs), which is what bits.js draws. "Not in the painted set" is not "on old art/emoji". */
+  console.log(`Item art preflight: painted set (retired, not drawn by the client): ${n} icons wired, ${art.REJECTED_WRONG_SUBJECT.length} withheld (wrong subject), `
+    + `${art.UNRESOLVED_FILES.length} unresolved filenames, ${uncovered} items not in it (the pixel set, the live one, covers every item), 0 mismatches`);
   return 0;
 }
 

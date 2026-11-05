@@ -123,6 +123,10 @@
 .hs-coach-more { flex: none; min-height: 28px; padding: 0 6px; border: 0; background: none; color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); cursor: pointer; pointer-events: auto; }
 .hs-coach-more:hover { color: var(--ink); }
 .hs-coach-more:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+/* What next's other goals, behind More (launcher.js coachHtml): one to a line, under the goal the card names. */
+.hs-coach-also { display: block; }
+.hs-coach-also[hidden] { display: none; }
+.hs-coach-goal { display: block; margin-top: 6px; }
 /* The card says what to press on the Hunts window, so its own how-to line stands aside (a running hunt's line stays). */
 [data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now.is-hint { display: none; }
 /* THE COACH'S RING (launcher.js ringCoach and renderLaunchers): the one control the card names, ringed in gold,

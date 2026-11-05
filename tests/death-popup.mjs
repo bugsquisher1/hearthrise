@@ -44,6 +44,8 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { pinFonts } from './_test-fonts.mjs';
+import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/party-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -107,7 +109,7 @@ function scripted(died, row) {
 
 async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await pinFonts(page);
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
@@ -157,8 +159,11 @@ const popRead = (page) => page.evaluate((q) => {
 const seenOf = (s) => ((s.residue[0].alerts || {}).seen || []);
 const words = (r, fails, tag, rule) => { for (const k of Object.keys(WANT)) if (r[k] !== WANT[k]) fails.push(rule + ' [' + tag + '] ' + k + ' reads ' + JSON.stringify(r[k]) + ', want ' + JSON.stringify(WANT[k])); };
 
-async function pageRules(overrides, shots) {
+/* A mutant needs one red rule, and a push proves only the mutants its diff touches: 19 full runs were 17.6 min of v0.2.86 (41787071357). */
+const STOP = Symbol('first red');
+async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [];
+  if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -363,9 +368,12 @@ async function pageRules(overrides, shots) {
         }
         if (errors.length) fails.push('DP [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       } catch (e) {
+        if (e === STOP) throw e;
         fails.push('DP [' + tag + '] threw: ' + String(e && e.message).split('\n')[0]);
       }
     }
+  } catch (e) {
+    if (e !== STOP) throw e;
   } finally {
     await browser.close();
     server.close();
@@ -373,7 +381,7 @@ async function pageRules(overrides, shots) {
   return fails;
 }
 
-const PAGE_MUTANTS = [
+const MUTANTS = [
   ['OK scrolls off a phone on a long card', 'src/styles/summary.css', 'position: sticky; bottom: -10px; z-index: 1; ', ''],
   ['a death teaches nothing: the card has no why', 'src/shell/death-popup.js', '    why: whyWords(cs, d),', "    why: '',"],
   ['a death opens no popup', 'src/shell/death-popup.js', "    ctx.wm.open('death');", '    void 0;'],
@@ -405,16 +413,18 @@ async function main() {
     console.log(fails.length ? 'death-popup: ' + fails.length + ' rule(s) RED' : 'death-popup: opens once per death with the server\'s cost, viewed, after a reload and away; dismissal kept' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
+  const MINE = scopedMutants('tests/death-popup.mjs', MUTANTS);
+  if (!MINE.length) process.exit(0);
   const clean = [...await pure(ROOT), ...await pageRules(null, null)];
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
   const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
-  const chosen = PAGE_MUTANTS.filter((m) => !only || m[0].includes(only));
+  const chosen = MINE.filter((m) => !only || m[0].includes(only));
   for (const [name, file, from, to] of chosen) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    const fails = await pageRules({ [file]: text.replace(from, to) }, null);
+    const fails = await pageRules({ [file]: text.replace(from, to) }, null, { stopAtFirst: true });
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

@@ -2,8 +2,9 @@
 // src/app/sign-in.js — THE SIGN-IN SCREENS.
 //
 // renderAuthScreen(box, auth, mode) draws one of:
-//   'sign-in'       email + password; links to the other two
-//   'create'        email + password + confirm
+//   'sign-in'       email + password; links to the other two, and to the Privacy Policy and the Terms
+//   'create'        email + password + confirm; "By creating an account you agree to" the Terms and the Privacy Policy
+//                   (both open over the screen: src/app/legal-reader.js)
 //   'forgot'        email; sends the reset link
 //   'set-password'  new password + confirm (the reset link landed here)
 // and wires its form to src/net/auth.js. Every message shown is the auth
@@ -11,10 +12,11 @@
 // the form fields; `onSignedIn` is called once the account is signed in.
 // ════════════════════════════════════════════════════════════════════════
 
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.88';
-import { AUTH_COPY } from '../net/auth.js?v=0.2.88';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.88';
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.88';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.89';
+import { AUTH_COPY } from '../net/auth.js?v=0.2.89';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.89';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.89';
+import { LEGAL_DOCS, openLegal } from './legal-reader.js?v=0.2.89';
 
 const FIELD = {
   email: '<label class="auth-field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>',
@@ -26,8 +28,17 @@ const FIELD = {
 };
 
 /** The crest and the name over every account screen (painted art at its own 1:1 or exactly 1:2, never between). */
-export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.88" alt="" width="311" height="384">'
+export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.89" alt="" width="311" height="384">'
   + '<p class="auth-name">Hearthrise</p><p class="auth-pitch">Your heroes hunt, gather and craft, even while you\'re away.</p></header>';
+
+/* The two pages a player can read from here (legal-reader.js), as presses. */
+const legalLink = (which) => '<button type="button" class="auth-link" data-auth-legal="' + which + '">' + esc(LEGAL_DOCS[which].title) + '</button>';
+/* Under the pitch, where the crest's column has room (the card's own height is spent on a phone, app.css): the sign-up
+   says what pressing the button means; the sign-in just offers the pages, for everyone who joined before it did. */
+const LEGAL_LINE = Object.freeze({
+  create: '<p class="auth-legal">By creating an account you agree to the ' + legalLink('terms') + ' and the ' + legalLink('privacy') + '.</p>',
+  'sign-in': '<p class="auth-legal is-links">' + legalLink('privacy') + legalLink('terms') + '</p>',
+});
 
 const SCREENS = Object.freeze({
   'sign-in': { title: 'Sign in', fields: ['email', 'password'], submit: 'Sign in',
@@ -50,7 +61,7 @@ const SCREENS = Object.freeze({
  */
 export function renderAuthScreen(box, auth, mode, on, email) {
   const s = SCREENS[mode] || SCREENS['sign-in'];
-  box.innerHTML = AUTH_BRAND + '<form class="auth-card" data-auth="' + esc(mode) + '" novalidate>'
+  box.innerHTML = AUTH_BRAND.replace('</header>', (LEGAL_LINE[mode] || '') + '</header>') + '<form class="auth-card" data-auth="' + esc(mode) + '" novalidate>'
     + '<h1 class="auth-title">' + esc(s.title) + '</h1>'
     + (s.lead ? '<p class="auth-lead">' + esc(s.lead) + '</p>' : '')
     + s.fields.map((f) => FIELD[f]).join('')
@@ -64,6 +75,12 @@ export function renderAuthScreen(box, auth, mode, on, email) {
   const val = (n) => { const el = form.elements.namedItem(n); return el ? el.value : ''; };
   const emailField = form.elements.namedItem('email');
   if (emailField && email) emailField.value = email;
+  /* The pages open over this screen, never in place of it: what is typed here stays typed. */
+  const legal = box.querySelector('.auth-legal');
+  if (legal) legal.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-auth-legal]');
+    if (b) openLegal(box, b.getAttribute('data-auth-legal'), b);
+  });
 
   /* The press is here only while the auth server's own answer is "not confirmed" (auth.js resendConfirmation). */
   const offerResend = (wanted) => {

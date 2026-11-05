@@ -32,6 +32,7 @@ import { leaseBrowser } from './_chrome.mjs';
 import { ROOT, UID, serve } from './_client-harness.mjs';
 import { isMain } from './_is-main.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { pinFonts } from './_test-fonts.mjs';
 
 const KEY = 'hr-auth';
 const LOCK = 'lock:' + KEY;
@@ -102,7 +103,7 @@ async function checks(overrides) {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     const stub = project(o);
     await ctx.route(PROJECT, stub.route);
-    await ctx.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+    await pinFonts(ctx);
     await ctx.addInitScript(WATCH);
     const first = await ctx.newPage();
     await first.goto(base + '/index.html', { waitUntil: 'load' });

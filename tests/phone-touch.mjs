@@ -10,6 +10,8 @@
 //
 // mutant-anchors: src/shell/windows/hunts.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
 // mutant-writes-tree: no — page mutants are served overrides
+// mutant-rule-functions: configureFits analyzerToggles portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule rules
+// mutant-runner-functions: main
 //
 // QA's phone playtest (2026-10-24) scored mobile 4/10. play.html with supabase-js and the REST paths stubbed
 // (tests/_client-harness.mjs): tests/fixtures/hunt-envelope.json in a hunt, tests/fixtures/alpha-envelope.json
@@ -104,6 +106,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { RING_WORDS, RING_WORDS_WIDEST } from './_bar-probes.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { pinFonts } from './_test-fonts.mjs';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -147,15 +150,10 @@ function scripted(fixture, prep) {
   return s;
 }
 
-/* Verdana here, its Linux twin there: the web font's names, drawn wide. */
-const WIDE_FACES = ['Alegreya Sans', 'Alegreya Sans SC'].flatMap((n) => [[400, 'Verdana', 'DejaVu Sans'], [700, 'Verdana Bold', 'DejaVu Sans Bold']]
-  .map(([w, a, b]) => "@font-face{font-family:'" + n + "';font-weight:" + w + ";src:local('" + a + "'),local('" + b + "')}")).join('');
 async function stub(page, s, fonts) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-  /* Shots load the real faces (a judgement needs them); the rules run offline on a WIDE fallback, on every machine: a green on Windows (Segoe UI)
-     said nothing of GitHub's Linux font (run 41742521577: PH-26, 27, 28 red there, green here; AW-62 met it first, run 41385560100).
-     The two wide fonts still differ: DejaVu draws about 2% narrower, 5% on a %, so a mutant must miss by more than that (run 41759029390). */
-  if (!fonts) await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: WIDE_FACES }));
+  /* Shots load the real faces (a judgement needs them); the rules run offline on GitHub's own wide fallback, on every machine (tests/_test-fonts.mjs). */
+  if (!fonts) await pinFonts(page);
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
@@ -415,12 +413,15 @@ async function bagByTouch(page, tag, fails) {
 }
 
 /* ── PH-6 ── A high Level's "What next" (the Coordinator's 10-24 gate: a Level 29 mage at 844x390, the card ran down
-   over HP / XP / MP): the Defense line, five ripe turnips, the next ground, the next gear and the next Magic unlock. */
+   over HP / XP / MP). What next is one goal now, so what stands long is a deed that names its materials: every kind a step can name (the section's own cap, 16), a Level 29 mage who has walked the
+   grounds above her, with nothing ahead of it on the line. */
 function longCoach(env) {
-  env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(29) + 100 });
+  env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(29) + 100, gold: 5000 });
   env.hunt_settings = Object.assign({}, env.hunt_settings, { role: 'mage', discipline: 'staff' });
-  env.skills = { magic: { xp: 9000000, level: 44 }, defense: { xp: 0, level: 1 } };
-  env.farm_land = { cap: 6, plot_level: 1, deeds: 0, plots: [0, 1, 2, 3, 4].map((i) => ({ i, crop: 'turnip', ready: true })) };
+  env.skills = { magic: { xp: 9000000, level: 44 }, defense: { xp: 900, level: 5 } };
+  env.hunt_bests = { min_ms: 600000, grounds: { coppercap_warrens: { solo: { xp_h: 90000, balance_h: 100 }, party: null } } };
+  const materials = ['crow_quill', 'glowing_copper_fleck', 'mosslight_tendril', 'coppercaps_tallow', 'dented_copper_pot', 'skulkers_shiv', 'goblin_totem', 'foremans_lash', 'snare_wire', 'raw_bear_meat', 'raw_wolf_meat', 'magic_essence', 'cooked_shrimp', 'silk_thread', 'lamp_jelly', 'bone_chips'];
+  env.home = { tier: 1, rooms: [], tiers: [{ offer: 'home.stonecross', name: 'Stonecross Manor', tier: 2, need: 1, owned: false, gold: 1, items: Object.fromEntries(materials.map((id) => [id, 1500])) }] };
   /* the reactive cards a Level 29 hero has long since read (residue coach.read), and no better gear in its bag, so
      the coach is the long "What next" line, not "Your hero just ate" or "Wear what you found" */
   env.client_state = Object.assign({}, env.client_state, { coach: { read: ['first_eat', 'first_drink', 'fight_settings', 'storage', 'stamina_low'] } });

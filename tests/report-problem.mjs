@@ -27,6 +27,7 @@ import { launchOptions } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { pinFonts } from './_test-fonts.mjs';
 
 const BUILD_SRC = await readFile(join(ROOT, 'src/build-info.js'), 'utf8');
 const VERSION = /version:\s*'([^']+)'/.exec(BUILD_SRC)[1];
@@ -47,7 +48,7 @@ async function openGame(browser, port, viewport, io, fails, env = HUNT) {
   const pg = await ctx.newPage();
   pg.on('pageerror', (e) => io.errors.push(e.message));
   await pg.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-  await pg.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await pinFonts(pg);
   let v = 0;
   await pg.route('https://nezapsylztqbbwuwembx.supabase.co/**', (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();

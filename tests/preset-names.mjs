@@ -43,6 +43,7 @@ import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { pathToFileURL } from 'node:url';
+import { pinFonts } from './_test-fonts.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const { BAR_ANSWER_MS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-hud.js')).href);
@@ -67,7 +68,7 @@ function scripted() {
 
 async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await pinFonts(page);
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');

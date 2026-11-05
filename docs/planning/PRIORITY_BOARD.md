@@ -30,6 +30,115 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-04 The release gate: what 30 reds were, a preflight, and where the minutes went (reliability, lane/r-release-gate): BUILT; the timing still needs a clean GitHub run
+**Measured, last 14 days of push runs on `release/*`:** 61 releases, 19 green on the first finished run (31%), 1.7 finished runs a release. Eight green runs read: 22-122 min, median 57. The gate is bimodal, not slow everywhere: 22 min with no proof to run (147 runner-minutes), 50-120 at 600-980 runner-minutes on GitHub's 20 slots.
+
+**Every red read from its log and the commit that fixed it** (`gh run view --log-failed`, 30 runs, 79 causes; one run often holds several):
+| Class | Causes | Runs | Examples |
+|---|---|---|---|
+| Real game bug | 5 | 5 | a closed summary lost to a reload (DP-4), Invite answering nothing (PH-12), a death filed under the settle's day on one path (BOTH-PATH), prewarm after sign-out (B-15), the Honor icon squeezing the phone row (PH-11) |
+| Forgotten baseline or pin: a chore | 24 | 16 | module-preload x4, comment ratchet x4, census, file over its cap, copy-lint, dead export, shard budget, patch chain, a twin job name that stopped the workflow loading |
+| Forgotten baseline or pin: a proof an intended change left behind | 39 | 19 | A-LOCK re-planted x4; settle mutants DEATH, FORFEIT, DENSITY, HOME-WHOLE, PARTY-LEAVE x2; AW-21, AW-27, AW-63; a mutant that threw instead of failing a rule x3 |
+| Test timing or machine flake | 3 | 3 | CW-7 measured during a slide, PB-REQ took the moment after the hide, OUTAGE on a CPU timer a fast runner beat |
+| Test disagrees with GitHub's environment | 8 | 7 | every one the font: AW-17, AW-62, PH-5, 7, 8, 11, 17, 22, 26, 27, 28, TW-11 |
+Later reds outside the 30 fit the same table: restore-census (pin), the perf window (timing), the Enter-anyway mutant and v0.2.87's alpha mutant (left behind). **One red run in six said anything about the game.**
+
+**Built.**
+- `tools/preflight.local.mjs`: read from smoke.yml as run-ci-local does; every plain client-guards command, the proofs of those jobs this diff touches, and census, rpc-resolution, apply-order, level curve and core-purity when their files moved. Measured: 71 commands, exit 0, 124 s at 3 at a time with the PC at 54% CPU; a planted forgotten preload: exit 1 with the guard's own fix line. On a busier machine it hit its 180 s limit at 45 of 72 and said so with exit 3, so the quick commands now go first. `--proofs` runs the touched proofs of every job with no browser, narrowed as GitHub narrows them, one at a time (9 proofs, 799 s, here); `--pages` adds the page guards. Its `--selftest` is registered in client-guards.
+- **One font on every machine** (`tests/_test-fonts.mjs`, `tests/test-fonts.mjs`, `tests/fixtures/fonts`, 587 KB): every page guard stubbed Google's sheet empty, so Windows drew Segoe UI and Georgia, GitHub DejaVu and Liberation. The same line at 14 px is 404 px in Segoe UI and 469.5 px in DejaVu. The web font's names now draw GitHub's own fallback everywhere; `text-rendering: geometricPrecision` makes the widths equal to the tenth (GitHub's own probe, rehearsal 41801603806: 469.5, 526.8, 378, 394.7 on both machines). Proof: with AW-17's old long hint planted, this Windows box goes red as run 41332990107 did (524 > 518; GitHub 524 > 516). 27 stubs replaced; TF-1 keeps it one place.
+- **A full green is a sweep** (`tools/lib/ci-history.mjs`): a job the last nightly did not prove ran in full on every push until the next nightly, however often it went green. A green on a release or next push since the sweep stopped covering it now proves it for 48 h; the newest red still blocks. Read against real history: all 14 jobs in that state go back to their diff, 31 API calls. No nightly ran on 11-03 at all.
+- **mutant-control follows the push's plan**; the nightly controls every guard. db-replay-7: 33.0 to 12.0 min on the same range (rehearsal, measured).
+- **alpha-server's body mutants plant in the live body**, so the A-LOCK re-plant (red on 4 of the 30) needs a person only when the line itself moves; each costs one snapshot restore, not a replay of the chain's tail. Lane S2 step: 23.7 to 8.7 min (measured; the scope differs, it ran in full on v0.2.86).
+- **Rule scope and stop at first on the costly page proofs:** phone-touch 2 of 132 mutants on v0.2.86's range, in-page-24 19.8 to 8.8 min (measured); death-popup 17.6 to 5.0 min (measured); alpha-windows `panelLeftovers` in its rule list, 230 mutants to 10 for an AW-63 edit; client-boot 4 of 61 for a B-15 edit (the 57 of v0.2.84's 70 min).
+- **Not yet on GitHub:** a rule edit in an imported guard is no harness (a two-line hunt-live edit ran all of perf-budget's mutants: three jobs at about 30 min), and a gated shard leans on the plain run instead of its own clean control (3-7 min on each of 17 jobs; the nightly still runs one per shard). Both have mutation proofs here.
+- Small: CI-SHAPE-1 reads a twin job name (41009307704, a red with no jobs); utc-midnight-replay's limit to its x2 (13.2 of 14 on a slow day; a cancelled job proves nothing).
+
+**Minutes, v0.2.86's range.**
+| | Wall | Runner-minutes | Standing |
+|---|---|---|---|
+| v0.2.86 as it ran (41787071357) | 59 | 732 | measured |
+| Rehearsal 41801603806, same range | 44.9 | 470 | measured, but v0.2.87 shared its 20 slots from minute 7; two font rules were red so the alpha shards stopped early; the edge guard red was v0.2.87's deploy |
+| With the two changes not yet on GitHub | 27 median, 24-32 | 336 | **projected**: those job times on 20 slots in random start order; the same model reads v0.2.86 at 56 against its real 59 |
+A wide release that moved the server stays near 27; a client-only one is lower (22 min measured with no proof at all, before mutant-control's 11 min came out). Slowest jobs now: db-replay-6 22.9, in-page-13 18.1, db-replay-10 17.8, economy-selftests 17.5.
+
+**Not done, with the number.** PGlite template across jobs: a cold replay is about 60 s, so 13 runner-minutes and 1 min of wall, only when the chain did not change, for a composite action in 13 jobs: not worth it yet. A plan job to skip idle shards: an idle shard takes under a minute, about 1 min of wall. Plain chain guards (utc-midnight, 7-8 min twice) could reuse a verdict by content hash across pushes (tools/verdict-cache.mjs does it locally): the next real cut, about 30 runner-minutes, but "plain runs always run" is a rule, so it is Tyler's.
+
+**First-run pass, replayed over the 30 reds, projected.** The 9 reds whose every cause is a chore, the font or timing flip: 31% to 52%, with the default preflight alone. `--proofs` before pushing a set that moved a body, an engine or a catalogue flips 10 more: 75%. `--pages` flips 5 of the last 6: 86%. The 5 real bugs must stay red. The replay assumes each tool is run and catches what the logs say it would have; it models no new class.
+
+**One-time cost:** the first release carrying this lane re-proves every page guard's mutants, because their harness moved. That run is slow on purpose: it is the proof that no catch was lost.
+### 2026-11-04 Privacy Policy, Terms, EULA and the recording switch (lane/a-legal-truth): BUILT, no migration, no edge change. **A lawyer reads the three pages before Steam Early Access**
+**What changed.** `legal/*.md` described a different game (OAuth sign-in, local saves and cloud save, gems and a premium pack for money, a flat 1.5% market tax, Bind-on-Pickup). They now say what the repo does: email and password through Supabase, Resend mail, server-held progress, Sentry, PostHog events and session recording (on by default, Tyler 2026-11-04; masked inputs and chat; off in Settings > Help; `?noanalytics=1` per visit), the salted network hash behind the play cap, retention from the migrations, how to ask for deletion by hand, and the wipe. Notes for the owner and the lawyer sit in HTML comments beside each claim (the reader drops them). The sign-in and Create account screens link both pages (`src/app/legal-reader.js`, over the screen, no new page; `legal/` is already a plain dir on the built site, so `tools/build-site.mjs` needs nothing). The switch is a residue pick `shareReplay { on, at }` put into every open hero, newest wins (`src/session/replay-pref.js`); recording starts only after every hero the page opens has been read.
+**For Tyler.** Fill `[LEGAL ENTITY NAME]`, address, `[CONTACT EMAIL]` (no real mailbox is in the repo), governing law and venue. Decide: minimum age 13/16; recording opt-out versus opt-in before Early Access; one switch for all analytics, not only recordings; the 14-day notice promise (softened to "where we can"); whether to publish market fees (repo migrations set a 1% listing fee and a 4% cut, the Terms say no number) and confirm the live values; the streaming policy in EULA section 7; whether the EULA covers the web build; where a credits list lives (the old text named a Settings > Credits panel that does not exist); self-hosting the Google Fonts. Confirm in PostHog and Sentry: recordings kept 30 days, event and error retention. The delete-account lane decides whether `player_ledger` and its monthly rollup (no user foreign key) are deleted or anonymized; the policy states today's truth.
+**Verified / not.** Done: tests below. Assumed: nothing here was read against production, and no lawyer has read the pages.
+### 2026-11-04 The wall at hour 20 (designer, lane/c-hour-20): PLAYED on the local world on top of lane/c-no-level-penalty, client fixes BUILT, no migration, no edge deploy. **Tyler: one choice below**
+**Method.** The real `play.html` on `tools/qa/local-world.mjs serve`, real engine, 1440x900, sign-in screen up, page closed between stops, town time passing. **Marlow** (sword and shield, alone): 28 h hunted over four sittings. **Sorrel** (hammer) and **Brin** (staff), one account, a party from Level 12, 16 h each, then the third hero. Screens read at each stop; every number below is the game's own summary or analyzer.
+
+**Marlow's stops** (Level XP an hour and balance an hour are the game's)
+| Hunted | Level, purse | Where | XP/h | Balance/h | What the screen said | What I wanted, honestly |
+|---|---|---|---|---|---|---|
+| 10.4 h | 10, 15.7k | Thicket overnight | 23.1k | +2.6k | Stale "Your hero just ate", then the chain | To sell and dress. Fine: the return is a real hook |
+| 12.4 h | 11, 19.1k | Wickstead, the tag's pick | 28.4k | +3.0k | **Eight sentences** of What next: the Farm first | To know which of the eight. Then to try the ground the warning says pays more |
+| 12.9 h | 12 | **Glade, 5 under, in Bronze** | **55.1k** | **+3.0k** | "Fits your level" still on Wickstead | To stay. Twice the XP at the same gold, 656 g/h of food, no scare |
+| 21.3 h | 17, 41.2k | Glade overnight | 57.7k | +3.5k | "Next ground: Warrens 32. Next gear: 28. You can pay for the Farmstead." **The third hero isn't named: the 2,500 g deed beat it** | **This is the panel's wall, and it's real if you take the words at face value.** Where I'd have stopped |
+| 21.9 h | 18 | Glade, pull 8 | 78.4k | -1.4k | 7,400 g/h of food | A real price for +36%: a good choice |
+| 27.5 h | 22, 24.9k | **Warrens alone, 14 under, in Iron** | **98.4k** | **-1.25k** | "Far above your level" | To keep going: no death in 5.6 h (HP swings: the hub read 73%, 73%, and once 4%), and a full Steel set in the bag, worn at 30. The hero slipped from 41k to 25k: **third hero or rush is the first real choice gold has made** |
+Two heroes: Thicket 28.4k and 18.0k, 34k in the purse at 11.7 h each. Sewer duo at 12: 58.8k each, +4.3k. **Third hero bought at 16 h each (55k).** A pair at 14 and 15 in the Glade: **71.1k, +3.6k, against 61.0k, +4.0k in the Sewer the tag names**, and past 25 the advice had no party ground at all.
+
+**Where the wall is now.** Not a content wall at hour 20 any more, since the Warrens opened: **it's a words wall.** A player who believes the screen sits at 28k until 16 and 58k until 32, with one ground and one cape ahead; a player who pokes earns twice that from hour 12 and has Steel waiting at hour 28. **As built here, the screen says it.** The next wall is assumed, not played: Level 30-32 at about hour 41-47 by these rates: Steel on, Warrens in band, no gear past it (Mithril has no source), a flat 100k. That's Hask's Ford's job.
+
+**Too safe? The one thing to know.** The risk table says a lone Level 17 in the Warrens burns 34,920 g/h on food. **Played on the default bar: 4,640 g/h** (1,869 Salted Shrimp in 5.64 h). The table's "average" hero eats the Level's best store food at about 180 g; a real hero's bar buys Salted Shrimp at 14 g (72 HP), 331 meals an hour, and it held. So the bill that Tyler's B rests on is about an eighth of the table for anyone who leaves the bar alone. The monsters' own stats are the only lever (his ruling), and the 11-04 section's Warrens atk x1.25 is on his desk; this makes it weigh more. Sample: one sword and shield, one hunt of 5.6 h. A lone bow or wand was not played.
+
+**Ranked by how much of the wall each fixes, smallest first.**
+| # | Change | Size | State | Fixes |
+|---|---|---|---|---|
+| 1 | **What next is one goal**, with More for the rest, in order of what's worth doing first | client | BUILT | The eight sentences |
+| 2 | **Next step up** on the What next line and as a tag on the list: the lowest floor above your Level, within 15 Levels, until you've hunted it. "Fits your level" stays on the safe ground | client | BUILT | The tag that hid 2x the XP. No rule moved: words only, the warning and its one press stand |
+| 3 | **The hero first:** an empty slot says it's free; a deed no longer speaks over the hero the purse is saving for; the line shows how much you have | client | BUILT | "Level 17 with 70k, what's it for?" |
+| 4 | **Stamina with gold in hand:** under 30 minutes left, the server's top-up price and the press. Tamsin's next task, with nothing held | client | BUILT | Nothing pointed at either in 28 h |
+| 5 | **The window opens on the harder ground you last hunted**, and never on one that killed you | client | BUILT | Picking the same ground by hand each visit (first principle). The confirm stays |
+| 6 | **Advice for groups:** Glade row `solo` → `both`, so a party has a ground from 16 to 31; a lone hero is sent to the Warrens from the row's own 45 | data + client | **BACKED OUT 2026-11-04, re-lands after a pace re-measure:** `level-curve` C1 reads this advice, so the pace would stand on different data; the Coordinator runs the 2-3 h re-measure | A party told "Sewer" at 61k with the Glade at 71k; a lone 53 sent back to the Glade |
+| 7 | Warrens atk x1.25 | data | **Tyler's**, 11-04 section | Pushing costing what the words say |
+| 8 | **A rung at Level 22-25** (below) | catalogue | Proposal | The longest stretch without a piece |
+| 9 | **More bag for gold** (below) | client + Security at EA | Proposal | The chase after the third hero |
+
+**Walk-through: What next, one lone hero** (each line grepped in `src/data/*` and pressed on the local world, except as marked; `what-next-one-goal` holds the order)
+| Level, holds | The card says | Doable from what it holds |
+|---|---|---|
+| 10, one hero, 15k | Your second hero is free: press Characters, then Create hero | 2 slots from the start; Characters and Create hero pressed on Sorrel's account, bought and made Oren |
+| 10, two heroes, Thicket walked | Next step up: Mosslight Glade, built for Level 16. You can go now | Glade open, warning read, one confirm: played at 11 |
+| 17, Glade walked, 41k | A third hero costs 50,000 gp, and you have 41,172 gp | Purse is the server's. Paid at 55k on Sorrel's account |
+| 18, 50k | You can pay for a third hero (50,000 gp): press Characters | Same press |
+| 17, three heroes, Glade walked | Next step up: Coppercap Warrens, built for Level 32 | Played at 18 |
+| 20, 9k, 1 min of stamina | 4 more hours of hunting cost 6,000 gp: press the + | The bar's +, priced by the server's `stamina_refill`. **Line tested in the guard, not pressed in play** |
+| 27, no task | Tamsin pays for kills, and in armor too: open her tally (Q) | Her board read at 22; Glade and Warrens tasks on it |
+| 27, nothing else | Next gear at Level 28: Houndskin Cloak (cape) | Glade Poacher, 0.099% a kill. Marlow found one by hour 28 |
+
+**Keep / fix / cut, hours 10-25**
+| System | As played | Call |
+|---|---|---|
+| Ground choice | Harder pays 2x at the same gold from 5 under | KEEP the pay. FIXED the words. Warrens' stats are Tyler's |
+| What next | Eight sentences | FIXED. Phones show the one goal and no More: they have no room for the rest |
+| Heroes for gold | A real wait, then a real press | KEEP. After Buy the Characters screen read "Reading your characters…" with no answer on screen for at least 2.5 s (a busy local world): handoff, below |
+| Pull and push as gold's chase | 7.4k and 4.6k g/h of food, for +36% and about +65% XP | KEEP: this is what gold buys after the hero. It wants a price the player can see before pressing |
+| Top-ups | Unused since 10-23 | KEEP, now named at the moment |
+| Tamsin | Never taken after the wolves: nothing pointed back | KEEP, now named |
+| Gear, Level 15 to 28 | Nothing to wear by Level; Warrens drops all of Steel early | FIX: proposal below |
+| Farm | "Nothing grows" led the card for a hunter who never wanted it | KEEP, moved last. Plant press takes two steps: not played through |
+| Deeds | Spoke over the hero | KEEP, moved under saving |
+| Cooking, fishing | 0 meals cooked in 28 h, 1,253 Raw Wolf Meat, 14 g shrimp does the job | **Flag:** store food this cheap leaves them no consumer for a hunter. Not moved |
+Cut: nothing.
+
+**Proposals, smallest step first.**
+1. **For Tyler: Warrens atk x1.25?** Designer's pick: yes, with the bar's default food in the sim first. The 11-04 table is measured on food a real bar doesn't buy, so re-run its cells on Salted Shrimp before his yes is final. Costs one re-measure.
+2. **A rung at Level 22-25.** Smallest: a Rare row for Packlord's Band (Level 22, ring, already in the catalogue with art, in `UNREACHABLE.greenhaven`) on Rook the Poacher at .0038, as his helmets; catalogue regenerated, lane C. It's a 15 h Rare, so a goal by luck only. Better, and a real goal: one made piece from the Glade's own Pithwood and Crow Quills, as the Graypelt Cloak was for the Thicket: one item, one recipe, one catalogue file. **Needs Tyler's word as content.** Fixes: "the next gear is at 28".
+3. **Say what's already in the bag.** "Level 30 opens the Steel Platebody and 5 more in your bag." One line on the gear goal, client. Not built: it wants a look at how it reads with Steel Rare drops on a Glade-only hero.
+4. **More bag for gold.** The bank ladder (`gold-ladders.js`, 30 rungs, +20 stacks, 3,000 × 1.32^k, 38.8M) has a server path and no press. Marlow's bag was 84 of 100 at Level 22. One press in the bag window. Not a want until the bag fills, so it follows the bag card. Money surface: reviewed at EA as the rest are.
+5. **Hask's Ford** stays held for his word: it's what the wall after Level 32 needs, and I'd lift it when the first player reaches 30.
+
+**Done:** 1 to 5 above, tests below. #6 is out until its re-measure. **Verified by play:** What next and More on Marlow (screenshots read), the list's tags and the opening pick on Marlow and on the Sorrel and Brin party, all stops above. **Done, not played:** the top-up and Tamsin lines fire (guard only), #6 was never played. **Assumed:** the wall at 30-32. **Could still be wrong:** naming the step up moves more players onto the faster road: an earlier lane measured it as L25 at 29.5 h against the target 36 (before this tree's penalty removal; not re-measured). Fifteen Levels is my number: Level 17 is the first the Warrens is named. The bar's Salted Shrimp held for a shield hero; a wand at 15 under may not.
+
+**Handoffs.** Characters screen after Buy a hero slot (above; the slot was bought, the screen said nothing yet, and a player may press again). A hub read HP 0/415 and an empty action bar for a few seconds while a long skip's settle was still running, then read right: harness-only as far as I could tell, not chased. On a narrow list "Fits your level" wraps and the next line starts with its separator dot: art-director.
+
 ### 2026-11-04 No level penalty: the monsters are simply stronger (systems-engineer, lane/c-no-level-penalty): BUILT, engine deploy, no migration. **Tyler should read the party finding and the Warrens proposal**
 **Tyler, 2026-11-04:** "Tibia doesn't have a scaling penalty for higher level monsters.... They are just simply harder. That is the risk lol so either A. The player or party dies, or B. They have to spend more on supplies to stay alive. (Healing/more damage to kill/ etc) it's inherent in the game, not a penalty driven system..." This replaces the level gap in the 2026-11-03 "Rush if you dare" section below and the 11-02 x1.05 per Level before it: both are gone, not softened.
 
@@ -70,6 +179,84 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 In range it stays over his +25-35% and a four stays in his 60-80% band (a pair dips to 59%); a pusher's bill grows two to three times and turns to a loss. Nobody died in these cells. It raises what a Warrens party pays today, Andy's included, and a monster data change is a re-measure of `level-curve`. His call. It doesn't touch (1) or (3). The Sewer doesn't move enough to help: x1.5 still leaves a four at +397% in range and +347% at 3 under.
 
 **Not moved, for him to know:** the armor curve above is why the danger is so flat under a floor. Evening it out would be a change to a hero's own stats rather than a penalty, but it's his K7 ruling, moves every in-range number, and isn't measured.
+### 2026-11-04 Type checking with no build step (systems-engineer, lane/b-type-check): BUILT, a ratchet and not a wall
+**What runs.** `node tests/typecheck-ratchet.mjs`, in `client-guards`, measured 37-73 s here with other lanes on the PC (no GitHub run yet): `tools/typecheck.mjs` (typescript 6.0.3 on the compiler API, through a host that strips `?v=`, so it works with or without the query) plus oxlint 1.91.0 (one package and a binary, 71 named bug-class rules, 0.4 s, also on the edit hook). Per file and error kind a count may only fall; a new file starts at zero; an import that does not resolve is always red; `--write` records a fall or a move and refuses a rise. Not typescript 7: it is the native port with no compiler host to give; once `?v=` is retired, 7's own `tsc` can do this alone. `tsconfig` stays out: an editor would red every `?v=` import.
+
+**First run, measured.** 495 errors in 108 of 401 files, lint at zero. By folder: shell 177, core 108, data 79, world 57, hunt-view 27, session 17, app 15, social 6, net 5, platform 4. By kind: TS2339 282, TS1005 36, TS2345 29, TS2304 25, TS2538 24.
+
+| What they are | Count | Fix |
+|---|---|---|
+| A JSDoc the compiler cannot read (`@returns { a, b }`) | 93 | comment only; 64 of them in `src/core`, where a comment moves the edge hash, so left |
+| An optional field on a union of frozen rows | 89 | a typedef on the table |
+| A stale JSDoc shape, or a field added by `Object.assign` | 89 | a JSDoc line |
+| A read on `x \|\| {}` or a built-up `{}` | 81 | one `@returns {Record<string, any>}` on the reader |
+| Inference narrower than the code (a literal, a first row, a no-op stub) | 76 | none needed |
+| Booleans or keys in arithmetic, an index the code knows | 56 | an idiom, leave |
+| Other | 11 | read, none real |
+
+**Real bugs: 4, one a player can hit, all fixed here, each with a test (the guard itself for 3 and 4).** (1) `CHAT_LIMITS.friendsPollAwayMs` never existed, so `x >= undefined` was always false: a page hidden past 15 s never polled again and read offline to its friends after 75 s while its hero hunted on. Now 55 s (inside the window on a 30 s or a throttled 60 s timer), and hidden it names no hero, so `character_presence` stays as it is today and the world tick still folds those settles: the fix costs one request a minute per hidden tab and nothing else. (2) `unclassifiedGrantIds()` threw on a name nothing defines; no live caller, `tests/catalogue-coherence.mjs` calls it now. (3) `skill-authority.js` published a name nothing defines; the module has no importer (dead, worth deleting). (4) `refusal-words.js` said `item_locked` twice; no player change. **Engine, reported, unchanged:** no bug. `src/core/combat.js` imports `MAX_COMBINED_DAMAGE_MULT` and its comment says it clamps; `MAX_TOTAL_DAMAGE_MULT` does (line 256), so the comment and the import are stale.
+
+**Strictness, each measured over the whole tree:**
+
+| Option | Adds | Read | Verdict |
+|---|---|---|---|
+| `noFallthroughCasesInSwitch`, `noImplicitThis`, `strictBindCallApply` | 0 | - | ON |
+| `noImplicitAny`, without its 10,044 "annotate this" errors | 149 | all, no bug | **ON: the find.** With it off a returned object literal in a `.js` file is open, so a wrong field on it reads `any`. Renaming the 18 fields session readers return that a window reads: caught 1 of 18 off, 11 of 18 on |
+| `strictNullChecks` | 230 | about 50, no bug: guards through closures and helpers it cannot follow | off |
+| `noImplicitReturns` 33, `noUnusedLocals` 15 (dead imports, listed), `noUnusedParameters` 80, `strictFunctionTypes` 2, `useUnknownInCatchVariables` 8 | | no bug | off |
+
+**Upkeep, measured:** the ratchet replayed over v0.2.81 to v0.2.87 (six releases): 3 rises, in 2 of the 6, all correct code and no bug (one JSDoc line each), so a false red about one release in three, and preflight shows it in under a minute. **It would have caught none of the 5 real bugs in the last 30 red runs** (assumed from their descriptions: reload, timing and layout, not names). Assumed, not measured: `npm install` in the 44 jobs pays about 40 MB more. A ceiling that fell stays high until someone runs `--write` (a note, never a red, on purpose: a forced re-pin is the chore class that cost 24 of the 79 causes). Known blind spot: 43% of 38,882 property reads have a receiver the checker can see; the rest are `any` (`ctx` 657, `cs` 378, row names). The next step that pays is `@param` on those two in the lane touching them, not more strictness.
+### 2026-11-04 Art batch 0 and the sample of five (art-director, lane/a-art-batch-0): BUILT by pixel script, 0 generations, 0 spend, read at 1x in the real game. **Tyler: the creature sample below needs your word per spend**
+Batches 0 and 1 of the audit's plan below. Shots: `art/review/art-batch-0-2026-11-04/` (`before-after-icons.png`, `tiles-in-family.png`, `family-on-palette-rejected.png`, `bag-grid-x3.png`, and the real bag, bar, Configure action, Shop and Hunts at `desktop/` 1440x900 and `phone/` 844x390).
+| Piece | What it is now | Read at the player's size |
+|---|---|---|
+| Mend, Rend, Protective Ward | framed tiles in the family's own colours (`tools/world-art/ability-tiles.mjs`): a sewn leaf, three gashes, a gold-rimmed shield in a bubble | all 16 abilities are a tile in Configure action (32 px) and on the bar (64 px); the grey glyph is gone. A first Rend, three fat lenses, read as chillies at x2, so it was redrawn thin |
+| Bronze-Rimmed Shield | dark planks, a bright dented bronze rim and boss (`tools/world-art/twin-icons.mjs`) | beats the old twin: told from the Practice Shield at once at 1x, by rim color |
+| Kingsgrate | a barred iron buckler with three gold-tipped crown teeth, a bronze boss, rust and slime | beats it, and is the strongest of the five: the only shield in the bag that isn't a round. A rare finally looks like the Rat King's |
+| Iron Hatchets | bearded iron axe heads on wrapped hafts | beats it: real axes against the practice pair's pale fans |
+| Oak Crossbow | a thick iron prod, a loaded bolt, a stout oak stock | beats it: heavier at a glance. Its first bolt, two pixels wide, read as a candle and was cut to one |
+| Crown Shard | a snapped piece of the crown's ring: three gilt points, the dark lining and beads, raw iron at the break | beats it (it wore the whole crown): beside the crown it reads as a piece of it. Two earlier drafts were rejected: a grey spearhead, and a bright spike on a band that read as a fez |
+
+**The family call:** the 13 tiles stay off the palette and the 3 new ones match them. On the palette was tried two ways (`family-on-palette-rejected.png`): a straight snap makes the frame patchy red, and it isn't close; a frame re-graded by hand to torch, gold and bronze is calmer and nearer Charcoal & Gold, but `hr-world-56-v2` has no white, so every emblem loses its top step (Power Strike's core, the Barrier's glow), and that isn't clearly better. It's also a pass over shipped art, which Tyler rejected on 10-22. Written into `docs/ART_DIRECTION.md` section 7. If Tyler wants the calmer gold frame, it's a script away and costs nothing: all 16 at once, never half a bar.
+
+**Guard:** `tests/pixel-icons.mjs` now fails on any ability with no tile, and on a drawn icon that differs from its script (`drawn`, 12 planted defects). `KNOWN_TWINS` lost the pairs these five cleared; it's 44 items on 21 pictures now (49 before), 19 drawings left.
+
+**What the sample says about the rest:** hard-edged metal and wood draw well by script. The 19 left split: 7 hard pieces (3 shields, Steel Hatchets, Willow Crossbow, Dented Copper Pot, Coppercap's Cauldron) are the same job and I'd do them next at 0 credits. The 12 soft ones (whisker, sting, stinger, bristle, tusk, tooth, hide, ruff, web, tallow, lash, fleck) are untested by script: fur and sinew are where a rule-drawn icon can go stiff, so 3 of them come first as their own sample, and any that don't beat the near-item picture they wear stay on it or go to PixelLab (`create_image_pro_flash`, docs say 10-25 gens a call, per-icon cost not recorded). **Creatures need PixelLab, Tyler's call:** the sample of 2 (Drain Rat, Granary Rat) is assumed 20-60 gens, all 6 are 60-180 (the audit's assumption, not measured); `get_balance` first. I'd run the 2-rat sample: Cellar to Sewer to Wickstead is the same rat three times, and no icon fixes that.
+
+**Seen, not touched (this brief: no UI changes):** on the phone every Configure action icon draws at 28 px, 0.875x, against the whole-number rule (`src/styles/hunt.css` `.ca-ico`, measured on all 16 tiles); it needs 32 px and a fit check on the phone suite. The Hunts lineup is still cut at the bottom of its pane at 1440x900, so the Kingsgrate's row sits below the fold there (the audit's note). In Configure action, picking a spell grows the sentence above the list, so the list moves under the pointer and Details follows the hover to another row: pick Mend and it describes Power Strike (`desktop/05-configure-mend-picked.png`).
+
+**Done:** 3 tiles, 5 icons, the guard, the spec line. **Verified:** on the local world at 1440x900 and 844x390: every new image loaded, at 32 or 64 px except that phone list, 0 console errors. **Assumed:** that Tyler reads these as I do; nobody but me has seen them. **Could still be wrong:** the sample proves hard objects only, and the five were stocked into the bag by SQL on the local world's in-memory database to read them beside their twins, not found by playing (the Shop's Bronze-Rimmed Shield and the Sewer's rows are the real lists).
+
+### 2026-11-04 Art audit: what a player actually sees (asset-director, lane/a-art-audit): MEASURED on the local world, nothing generated, no spend. **Tyler: three costed batches below, none run**
+**The smoke's numbers describe a retired layer.** "161 items still on old art/emoji", "19 withheld", "15 unresolved", "36 awaiting the batch" count the painted Hearthfire/portrait manifests (`item-art.js` SHIPPED, `monster-art.js`), which the rebuilt client never draws (`ITEM_ART_SET = 'pixel'`; creatures come from the style-1 atlases). What a player meets: 573 of 573 items on a pixel icon, 25 of 25 shop supplies, 30 of 30 creatures on the six open grounds on live sprites with all five clips, 0 emoji and 0 glyph standing in for an item. Walked as a fresh hero at 1440x900 (42 states: town, 17 windows, all six Hunts pages, five hunts' views, the Cellar with loot, the bag, Configure action, Shop, a bench, Outfit): 0 emoji lines, 0 broken images, 0 asset 404s, clean console (one 409 from the engine call in the first walk, which skipped time; not an asset). Not walked: phone, the benches beyond Smithing, the Glade's hunt view, 1x zoom. The 29 painted filenames behind the withheld/unresolved counts need no wiring (15 name no live item; 14 are live items with a pixel icon already; painted art may not sit beside style-1). Smoke lines reworded to say so (`tests/run-smoke.mjs`, wording only).
+
+**Reachable today:** 326 of 573 items (`reachableSources()`, the six open grounds, the listed Shop, the start kit, benches from reachable inputs); 292 without the Warrens (Level 32+, past the first 20 hours). The other 247 are later tiers, premium or cut: not a problem.
+
+**What is really visible and wrong, ranked** (shots in `art/review/art-audit-2026-11-04/`):
+| # | Gap | Measured | Where a player meets it | To fix |
+|---|---|---|---|---|
+| 1 | One sprite under several names | 30 creatures on 24 pictures; byte-identical idle frames: Giant Rat = Drain Rat = Granary Rat, Slime = Sump Slime, Hive Wasp = Barn Wasp, Cistern Spider = Barn Spider, Glade Poacher = Turncoat (`same-sprite.png`) | Cellar to Sewer to Wickstead: the same rat three times; 4 of Wickstead's 5 creatures are another ground's | 6 new creatures (2 rats, slime, wasp, spider or its twin, Turncoat) |
+| 2 | Items wearing another item's picture | 21 groups, 49 items on 21 pictures (`KNOWN_TWINS`); 45 are reachable; 24 drawings clear every reachable twin, 17 of them outside the Warrens (`twins-*.png`) | Six shields on one picture: the start kit's Practice Shield, the Shop's Bronze-Rimmed Shield, the Rat King's rare Kingsgrate; 3 hatchets, 3 crossbows; Rat King's Crown = Crown Shard; Coppercap's Cauldron drawn as a crown; a Hive Wasp Stinger drawn as a sac | 24 icons (list below) |
+| 3 | Glyph beside framed tiles | Mend, Rend, Protective Ward have no tile (13 of 16 do) | Configure action, Spells and Runes tabs; Mend is every hero's heal (`configure-spells-glyphs.png`) | 3 tiles |
+| 4 | Ability tiles off the world palette | 13 of 13: 1024 of 1024 pixels opaque and off-palette, 29-60 colours (items: 420 opaque, 13 colours, 0 off) | The bar's first slots from minute one (`bar-slots-x3.png`) | Art Director's call: a coherent family, so I'd keep it and draw the 3 missing in its frame |
+| 5 | Idle is one frame | `idle 1f` on all 30 creatures; the bible (section 6) wants 4-6 | Every hunt | later, sample first |
+| 6 | Purpose-built screens (bible section 12) | Farm shows two empty dark squares, House is text only | Farm, House | designer and Art Director, not asset work |
+
+Also seen, not art: the Hunts page's lineup is cut at the bottom of its pane at 1440x900 (every creature's level line, and the Sewer's first row shows no names at all; `screens/21-hunt-millrace_sewer.png`). The dead weight: 148 + 488 painted files (about 28 MB) and `assets/items`, `assets/avatars`, `assets/art-pilot` (126 files, about 107 MB) are tracked and never fetched; archiving them also retires the two painted preflights, so it waits on Tyler's word.
+
+**The 24 icons, by exposure** (new picture needed; the first named keeps the old): Shields: Bronze-Rimmed (Shop), Kingsgrate (Rat King), Ironbound and Steelgrate and Coppercap (Smithing), keeping the Practice Shield's. Hatchets: Iron (Sewer drop), Steel (Warrens). Crossbows: Oak (Sewer), Willow (Warrens). Crown Shard. Coppercap's Cauldron (Warrens). Granary Rat Whisker, Barn Wasp Sting, Hive Wasp Stinger, Boar Bristle, Orchard Boar Tusk, Brook Bear Tooth, Giant Rat Hide, Grayjaw's Ruff, Loft Web. Warrens: Coppercap's Tallow, Dented Copper Pot, Glowing Copper Fleck, Foreman's Lash.
+
+**Generation plan, costed, NOT RUN** (section 10: a sample of about 5, played and read, then batches of 20 or fewer):
+| Batch | What | Tool | Credits | Gate |
+|---|---|---|---|---|
+| 0, free | 3 ability tiles (Mend, Rend, Protective Ward) | the pixel scripts, as Cleave was (`tools/world-art`) | 0 | none beyond `tests/pixel-icons.mjs` |
+| 1, sample | 5 icons: Bronze-Rimmed Shield, Kingsgrate, Iron Hatchets, Oak Crossbow, Crown Shard | free route first: the pixel scripts or `pixelart_workbench` (32 supply, drink and kit icons, 11 imbuement items and the Longbow were all drawn this way, 0 credits). If PixelLab: `create_image_pro_flash` 32x32 on `hr-world-56-v2` with a shipped icon as `style_image` (the Glade's six) | 0 free; PixelLab: docs say 10-25 gens per call, per-icon cost not recorded in the repo | Tyler reads the sample at x2 beside the old twins |
+| 2 | the other 12 icons outside the Warrens | same | same | one read, then `KNOWN_TWINS` shrinks |
+| 3 | the 7 Warrens icons | same | same | with batch 2 or after |
+| 4, sample | 2 creatures: Drain Rat, Granary Rat (the most-met repeat) | `create_object_pro_flash`, 8 directions, high top-down, `style_images` of the shipped rat; clips by `animate_object` v3 (`docs/PIXELLAB_WORKFLOW.md` section 1), or the free `tools/world-art/derive-combat.mjs` stand-in clips the Cellar's nine use | the docs' estimate is 5-10 gens a creature east-only (150-300 for ~30); the Glade's five used 8-facing walk and attack plus 4-facing death, which the repo never costed. **Assumed 10-30 gens a creature, 20-60 for the sample, 60-180 for all six.** Free pre-check: `get_balance` and `get_pro_flash_capabilities` | the world-assets guard, a side-by-side with the live rat, Tyler's word per spend |
+| 5 | 4 creatures: Sump Slime, Barn Wasp, Barn Spider (or Cistern), Turncoat (a character, `create_character` v3 with a reference) | as 4 | as 4 | as 4 |
+
+**Done:** the audit and the numbers above, the smoke wording, `ASSET_MANIFEST.md` (the live-versus-retired table). **Measured:** every count here, by script over the repo and by walking the local world. **Assumed:** the creature credit range (not in the repo); that a first-20-hours hero stops short of Level 32 (the 10-25 curve puts Level 25 at about 36 hours). **Could still be wrong:** a pixel icon can name the right item and still read badly at x1; I judged the 326 reachable at x4, not at the bag's 1x.
 
 ### 2026-11-04 Weapon rungs and the Thicket (designer, lane/c-weapon-thicket): BUILT, measured on the real engine, no migration, the edge deploys. **One choice for Tyler below**
 **Weapons (balance 10-25 §8: +5-8% per meaningful upgrade).** The gap is neither clubs alone nor a whole class: it's the box-sweepers. Cleave and spells roll their own numbers and read no weapon power, so a rung reaches a hammer, hatchets or a wand through basic blows only. **Moved: Iron Warhammer 7/12 → 7/16, Steel Warhammer 9/19 → 9/23, Iron Hatchets 7/7 → 9/11, Steel Hatchets 12/11 → 14/14, Klappa's Club 3/12 → 3/16, so it still hits as hard as the Iron Warhammer.** Prices, sources and recipes don't move. Level XP an hour, one tier up, all else equal (`tools/balance-sim` cell runner, the Level's kit, 1 h x 2 seeds, same dice, 0 deaths):

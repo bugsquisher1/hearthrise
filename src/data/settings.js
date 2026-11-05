@@ -22,6 +22,8 @@
 //                           `intent` (a CharacterSession method); never residue
 //   bind         where the value lives: { store: 'float', type, target }
 //                | { store: 'hud', id } | { store: 'residue', field }
+//                | { store: 'replay', field } (the session-recording switch: one pick for
+//                  every open hero, the newest wins; src/session/replay-pref.js)
 //                | { store: 'none' } (hotkeys, actions, notes)
 //   options      choice: [{ value, label }];  slider: { min, max, step, unit? } (the unit follows the value shown)
 //   key          hotkey rows: the key;  action rows: `run` names a
@@ -33,13 +35,14 @@
 // Categories are data too, in the order the window lists them. Gameplay,
 // Chat & Social and Account stay hidden until a feature registers a row there.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.88';
-import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.88';
-import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.88';
-import { HOTKEYS } from './hunt-hud.js?v=0.2.88';
-import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.88';
-import { HELP_NOTES } from './how-to-play.js?v=0.2.88';
-import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.88';
+import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.89';
+import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.89';
+import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.89';
+import { HOTKEYS } from './hunt-hud.js?v=0.2.89';
+import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.89';
+import { HELP_NOTES } from './how-to-play.js?v=0.2.89';
+import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.89';
+import { REPLAY } from './privacy.js?v=0.2.89';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -116,6 +119,12 @@ const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 
   id: 'help.report', category: 'help', label: 'Report a problem',
   help: 'Write what went wrong and it goes straight to the team, with your game details attached.',
   type: 'action', open: 'report',
+}), row({
+  /* THE SESSION-RECORDING SWITCH (src/data/privacy.js, src/session/replay-pref.js): the player's choice, kept for every hero. */
+  id: 'help.replay', category: 'help', label: REPLAY.label,
+  help: 'Sends the team a recording of your game screen so we can see what went wrong. Typed text and chat are hidden. Turn it off and nothing is recorded.',
+  type: 'toggle', default: REPLAY.defaultOn,
+  bind: Object.freeze({ store: 'replay', field: REPLAY.field }),
 })];
 
 export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, LAYOUT_ROW, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);

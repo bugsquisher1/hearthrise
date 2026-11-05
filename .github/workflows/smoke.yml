@@ -1412,6 +1412,13 @@ jobs:
 
       # supabase-js asks no other tab unless a refresh is due (src/net/auth-lock.js): a held
       # lock never delays the roster, one refresher across tabs, sign-out and a dead session hold.
+      # One font on every machine, or a green on Windows says nothing of this runner (tests/_test-fonts.mjs).
+      - name: Test fonts - the page guards draw GitHub's fallback on every machine
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/test-fonts.mjs
+          node tools/mutant-gate.mjs node tests/test-fonts.mjs --selftest
+
       - name: Auth lock (play.html)
         if: ${{ !cancelled() }}
         run: |
@@ -3819,7 +3826,9 @@ jobs:
   # Budget = measured x2 = 13.7 min, rounded up to 14.
   utc-midnight-replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    # Measured 13.2 of 14 on a slow-checkout day (41697486160), 9.3 median: x2 = 20, as the note above asks. A cancelled job
+    # proves nothing and runs in full on the next push (tools/lib/ci-history.mjs).
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -4788,7 +4797,14 @@ jobs:
           node tools/make-ui-steel-art.mjs --check
           node tools/mutant-gate.mjs node tools/make-ui-steel-art.mjs --selftest
 
-
+      # A WRONG FIELD OR NAME GOES RED, AND OLD DEBT BLOCKS NOBODY (lane b-type-check, 2026-11-04): one whole-program
+      # TypeScript check over src/** with no build step, one bug-class lint, per file and error kind against a baseline that
+      # may only fall. Measured 37-73 s here, with other lanes on the machine; the proof 102-165 s, only on a push that touches it.
+      - name: Type and bug-class ratchet
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/typecheck-ratchet.mjs
+          node tools/mutant-gate.mjs node tests/typecheck-ratchet.mjs --selftest
 
       - name: Presentation floor - one set of breakpoints
         if: ${{ !cancelled() }}
@@ -4999,6 +5015,11 @@ jobs:
       - name: Mutant gate — a push re-proves what its diff touches, the nightly everything
         run: |
           node tools/mutant-gate.mjs node tools/mutant-gate.mjs --selftest
+
+      # The Coordinator's preflight reads this file to choose what it runs; its plan and verdict stay proved.
+      - name: Preflight - the plan is read from this workflow, a red and a timeout are never green
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/preflight.local.mjs --selftest
 
 
 

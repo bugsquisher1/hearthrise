@@ -28,13 +28,13 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.88';
-import { PARTY } from '../data/party.js?v=0.2.88';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.88';
-import { MONSTERS } from '../data/monsters.js?v=0.2.88';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.88';
-import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.88';
-import { whole, gold } from '../render/format.js?v=0.2.88';
+import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.89';
+import { PARTY } from '../data/party.js?v=0.2.89';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.89';
+import { MONSTERS } from '../data/monsters.js?v=0.2.89';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.89';
+import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.89';
+import { whole, gold } from '../render/format.js?v=0.2.89';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -203,6 +203,23 @@ export function recommendation(levels, partySize = 1, rows = huntRows()) {
 /** The recommended ground's row alone (see recommendation). */
 export function recommendedHunt(levels, partySize = 1, rows = huntRows()) {
   return recommendation(levels, partySize, rows).row;
+}
+
+/**
+ * THE LINE THE WINDOW OPENS ON, until a hand picks another: the advice's ground, or the harder ground this hero last hunted and came home from alive (first principle: a choice made once is
+ * remembered; played 11-04, every opening at Level 22 put the pick back on the Glade after 5.6 h in the Warrens). The confirm press on that page still stands (Tyler 2026-11-04). Pure.
+ * `last`: { huntId, endReason } of the hero's latest hunt, or null. Null when there is no row at all.
+ */
+export function openingPick(rec, list, last) {
+  const advised = rec && rec.row ? rec.row : list[0] || null;
+  const was = last && last.endReason !== 'died' ? list.find((r) => r.hunt === last.huntId) : null;
+  return was && advised && was.band[0] > advised.band[0] ? was : advised;
+}
+
+/** THE LIST'S TWO TAGS on one ground: "Fits your level" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure. */
+export function adviceTag(r, rec, step, party) {
+  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Fits your party' : 'Fits your level';
+  return step && step.hunt === r.hunt ? 'Next step up' : '';
 }
 
 /** A party ground seen by a lone hero: "Best with a party of 2–4"; else null. */

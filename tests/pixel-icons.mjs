@@ -21,11 +21,13 @@
 //   duplicate two ids whose icon files are byte-identical: a different item wearing
 //             another's art (seven practice-kit weapons shared tier-1 art until 2026-10-21).
 //             KNOWN_TWINS lists the pairs still waiting for their own art.
-//   wiring    bits.js no longer sends a basic supply id to SUPPLY_DIR, or an ability in
-//             ABILITY_ART has no 32x32 tile
+//   wiring    bits.js no longer sends a basic supply id to SUPPLY_DIR, an ability in ABILITY_ART has no
+//             32x32 tile, or an ability has no tile at all (it would show a grey glyph beside framed
+//             tiles in Configure action, the art audit's gap 3)
 //   longbow   items/longbow.png is not what tools/world-art/longbow-icon.mjs draws: the old file was a
 //             thick limb over a grey stock and read as a crossbow (player note a43, 2026-10-24); the
 //             script is the source, so a hand edit or an old copy of the file is a finding
+//   drawn     the same for the icons tools/world-art/twin-icons.mjs and ability-tiles.mjs draw
 //
 // The SAME rules (missing, orphan, size, palette, alpha, empty) also hold for the shop's
 // basic supplies: one icon per row of src/data/supply-basics.js BASIC_SUPPLIES (salted
@@ -34,7 +36,7 @@
 // --selftest plants each defect into a copy of real shipped icons and requires it
 // to be caught BY ITS NAMED RULE; the clean copy must stay silent.
 //
-// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/supplies/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs
+// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/supplies/ assets/icons-bundle/pixel/abilities/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs tools/world-art/twin-icons.mjs tools/world-art/ability-tiles.mjs
 //
 // Exit: 0 green · 1 a finding or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -45,37 +47,36 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { decodePNG, encodePNG, createImage } from '../tools/world-art/png.mjs';
 import { inPalette } from '../tools/world-art/lock.mjs';
 import { drawGrid, toImage } from '../tools/world-art/longbow-icon.mjs';
+import { DRAW as TWIN_ICONS, toImage as twinImage } from '../tools/world-art/twin-icons.mjs';
+import { DRAW as ABILITY_TILES, toImage as tileImage } from '../tools/world-art/ability-tiles.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = 'assets/icons-bundle/pixel/items';
 const SUPPLY = 'assets/icons-bundle/pixel/supplies';
+const ABILITY = 'assets/icons-bundle/pixel/abilities';
 /** Pairs of items that still share one icon, waiting for art of their own (Art Director). A new pair is a finding. */
-const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
-  /* The style ladder's two new tier-2 weapons (lane c-style-gear) wear their practice pair's icon until the Asset
-     Director draws iron heads and an oak stock (no generated art in that lane). Mosslight Glade's items have their own
-     icons since lane b-mosslight-art. */
-  ['iron_hatchets', 'practice_hatchets'], ['oak_crossbow', 'practice_crossbow'],
+const KNOWN_TWINS = [
   /* Grayjaw's Ruff (the loot bands' Thicket sample, lane b-loot-bands) wears the Houndskin Cloak's fur cape until the
      Asset Director draws Grayjaw's gray neck ruff (no generated art in that lane). */
   ['grayjaws_ruff', 'houndskin_cloak'],
   /* The Graypelt Cloak (the first-hour rung, lane b-first-hour) wears the Woollen Cloak's icon (an unreachable cape, so
      the two never share a shelf) until the Asset Director draws a gray wolf-pelt cloak. */
   ['graypelt_cloak', 'woolen_cloak'],
-  /* The Warrens' two new tier-3 Rares (loot bands batch 4) wear their tier-2 rung's icon until steel heads and a willow stock are drawn. */
-  ['steel_hatchets', 'iron_hatchets'], ['steel_hatchets', 'practice_hatchets'], ['willow_crossbow', 'oak_crossbow'], ['willow_crossbow', 'practice_crossbow'],
+  /* The Warrens' two new tier-3 Rares (loot bands batch 4) wear the practice pair's icon until steel heads and a willow stock are drawn. */
+  ['steel_hatchets', 'practice_hatchets'], ['willow_crossbow', 'practice_crossbow'],
   /* The Cellar's and the Warrens' imbuement items and the two boss Trophies (loot bands phase C) wear a near item's
      icon until their own are drawn: a hide, a stinger, a copper fleck, a shiv, a pot, a lash, tallow, two crowns. */
   ['giant_rat_hide', 'wolf_pelt'], ['hive_wasp_stinger', 'venom_sac'], ['glowing_copper_fleck', 'copper_ore'], ['skulkers_shiv', 'bronze_knife'],
   ['dented_copper_pot', 'copper_bar'], ['foremans_lash', 'snare_wire'], ['coppercaps_tallow', 'slime_gel'],
-  ['rat_kings_crown', 'crown_of_the_fallen_king'], ['rat_kings_crown', 'crown_shard'], ['coppercaps_cauldron', 'war_crown'],
+  ['rat_kings_crown', 'crown_of_the_fallen_king'], ['coppercaps_cauldron', 'war_crown'],
   /* Wickstead's four imbuement items (lane b-greenhaven-6, staged; no art spend) wear a near item's icon until the Asset
      Director draws them: a rat's whisker, a wasp's sting, a wad of web, a torn badge. */
   ['granary_whisker', 'grayjaw_whisker'], ['barn_wasp_sting', 'culvert_bat_fang'], ['loft_web', 'silk_thread'], ['torn_company_badge', 'warlord_badge'],
   /* the Orchard Boar's and Brook Bear's three (lane b-unsourced-items): a bristle tuft, a tusk, a tooth, until drawn */
   ['boar_bristle', 'dire_hackle'], ['orchard_boar_tusk', 'alpha_fang'], ['brook_bear_tooth', 'small_fang'],
-  /* The five shields (src/data/shields.js, lane b-spell-roles) wear the Practice Shield's icon until the Asset Director
-     draws each: a bronze rim, iron bands on oak, the Rat King's drain grate, a copper cap on steel, a steel grate. */
-  ...['practice_shield', 'bronze_rimmed_shield', 'ironbound_shield', 'kingsgrate', 'coppercap_shield', 'steelgrate']
+  /* Three of the shields (src/data/shields.js, lane b-spell-roles) still wear the Practice Shield's icon until they are
+     drawn: iron bands on oak, a copper cap on steel, a steel grate. The Bronze-Rimmed and the Kingsgrate have their own. */
+  ...['practice_shield', 'ironbound_shield', 'coppercap_shield', 'steelgrate']
     .flatMap((a, i, l) => l.slice(i + 1).map((b) => [a, b]))];
 
 /** Byte-identical icon files under two ids, except the listed twins. */
@@ -135,6 +136,19 @@ export function checkLongbow(file) {
   return same ? [] : [{ rule: 'longbow', id: 'longbow', detail: 'longbow.png differs from what tools/world-art/longbow-icon.mjs draws (edit the script and rerun it, never the PNG)' }];
 }
 
+/** Icons a script draws (`draw`: id -> grid, `image`: grid -> image): `dir/<id>.png` must hold exactly those pixels. */
+export function checkDrawn(dir, draw, image) {
+  const out = [];
+  for (const [id, fn] of Object.entries(draw)) {
+    let img;
+    try { img = decodePNG(readFileSync(join(dir, id + '.png'))); } catch (e) { out.push({ rule: 'drawn', id, detail: 'not a decodable PNG: ' + e.message }); continue; }
+    const want = image(fn());
+    const same = img.width === want.width && img.height === want.height && Buffer.from(img.data).equals(Buffer.from(want.data));
+    if (!same) out.push({ rule: 'drawn', id, detail: id + '.png differs from what its script draws (edit the script and rerun it, never the PNG)' });
+  }
+  return out;
+}
+
 /** The one switch and its wiring, read from source. */
 export function checkSwitch(root) {
   const out = [];
@@ -143,13 +157,14 @@ export function checkSwitch(root) {
   return out;
 }
 
-/** The render seam and the ability art, from source: a supply id reaches its own folder, every ability with art has its file. */
-export async function checkWiring(root) {
+/** The render seam and the ability art, from source: a supply id reaches its own folder, every ability (`abilityIds`) has art, and all art has its file. */
+export async function checkWiring(root, abilityIds) {
   const out = [];
   const bits = readFileSync(join(root, 'src/shell/widgets/bits.js'), 'utf8');
   if (!/hasSupplyArt\(id\)[\s\S]{0,120}SUPPLY_DIR \+ id/.test(bits)) out.push({ rule: 'wiring', id: 'bits.js', detail: 'itemIconHtml no longer maps a basic supply id to SUPPLY_DIR (its icon would fall back to a chest glyph)' });
   const art = await import(pathToFileURL(join(root, 'src/data/item-art.js')).href);
   if (art.SUPPLY_DIR !== 'assets/icons-bundle/pixel/supplies/') out.push({ rule: 'wiring', id: 'item-art.js', detail: 'SUPPLY_DIR is not assets/icons-bundle/pixel/supplies/' });
+  for (const id of abilityIds) if (!art.ABILITY_ART.includes(id)) out.push({ rule: 'wiring', id, detail: 'this ability has no tile in ABILITY_ART: Configure action would show a grey glyph beside framed tiles' });
   for (const id of art.ABILITY_ART) {
     let img;
     try { img = decodePNG(readFileSync(join(root, art.ABILITY_DIR, id + '.png'))); } catch (e) { out.push({ rule: 'wiring', id, detail: 'ability art listed with no decodable ' + id + '.png' }); continue; }
@@ -221,13 +236,26 @@ async function selftest(ids) {
     mkdirSync(join(wroot, 'assets/icons-bundle/pixel/abilities'), { recursive: true });
     const { ABILITY_ART } = await import(pathToFileURL(join(ROOT, 'src/data/item-art.js')).href);
     for (const id of ABILITY_ART) copyFileSync(join(ROOT, 'assets/icons-bundle/pixel/abilities', id + '.png'), join(wroot, 'assets/icons-bundle/pixel/abilities', id + '.png'));
-    const clean2 = (await checkWiring(wroot)).length === 0;
+    const clean2 = (await checkWiring(wroot, ABILITY_ART)).length === 0;
+    const noArt = (await checkWiring(wroot, [...ABILITY_ART, 'an_untiled_ability'])).some((f) => f.rule === 'wiring' && f.id === 'an_untiled_ability');
     rmSync(join(wroot, 'assets/icons-bundle/pixel/abilities', ABILITY_ART[0] + '.png'));
-    const noTile = (await checkWiring(wroot)).some((f) => f.rule === 'wiring' && f.id === ABILITY_ART[0]);
+    const noTile = (await checkWiring(wroot, ABILITY_ART)).some((f) => f.rule === 'wiring' && f.id === ABILITY_ART[0]);
     writeFileSync(join(wroot, 'src/shell/widgets/bits.js'), readFileSync(join(wroot, 'src/shell/widgets/bits.js'), 'utf8').replace('SUPPLY_DIR + id', 'PIXEL_DIR + id'));
-    const noSeam = (await checkWiring(wroot)).some((f) => f.rule === 'wiring' && f.id === 'bits.js');
-    console.log(`  ${clean2 && noTile && noSeam ? 'caught ' : 'ESCAPED'} wiring`);
-    if (!(clean2 && noTile && noSeam)) escaped++; }
+    const noSeam = (await checkWiring(wroot, ABILITY_ART)).some((f) => f.rule === 'wiring' && f.id === 'bits.js');
+    console.log(`  ${clean2 && noArt && noTile && noSeam ? 'caught ' : 'ESCAPED'} wiring`);
+    if (!(clean2 && noArt && noTile && noSeam)) escaped++; }
+  // drawn: the shipped files are silent; a one-pixel edit to a script's icon and an old file under its name each trip it
+  { const clean4 = checkDrawn(real, TWIN_ICONS, twinImage).length === 0 && checkDrawn(join(ROOT, ABILITY), ABILITY_TILES, tileImage).length === 0;
+    const d = mkdtempSync(join(tmp, 'dr-')), id = Object.keys(TWIN_ICONS)[0];
+    for (const k of Object.keys(TWIN_ICONS)) copyFileSync(join(real, k + '.png'), join(d, k + '.png'));
+    rewrite(d, id, (img) => { const i = firstOpaque(img); img.data[i] = img.data[i] ^ 8; });
+    const onepx = checkDrawn(d, TWIN_ICONS, twinImage).some((f) => f.rule === 'drawn' && f.id === id);
+    copyFileSync(join(real, id + '.png'), join(d, id + '.png'));
+    const other = Object.keys(TWIN_ICONS)[1];
+    copyFileSync(join(real, 'practice_shield.png'), join(d, other + '.png'));
+    const swapped = checkDrawn(d, TWIN_ICONS, twinImage).some((f) => f.rule === 'drawn' && f.id === other);
+    console.log(`  ${clean4 && onepx && swapped ? 'caught ' : 'ESCAPED'} drawn`);
+    if (!(clean4 && onepx && swapped)) escaped++; }
   // longbow: the shipped file is silent; the old crossbow-looking art (a different image) and a one-pixel edit each trip it
   { const clean3 = checkLongbow(join(real, 'longbow.png')).length === 0;
     const d = mkdtempSync(join(tmp, 'lb-'));
@@ -247,13 +275,20 @@ async function selftest(ids) {
   console.log(`  ${sw ? 'caught ' : 'ESCAPED'} switch`);
   if (!sw) escaped++;
   rmSync(tmp, { recursive: true, force: true });
-  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 11 planted defects caught; clean control silent');
+  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 12 planted defects caught; clean control silent');
   process.exit(escaped ? 1 : 0);
+}
+
+async function loadAbilityIds() {
+  const { ABILITIES } = await import(pathToFileURL(join(ROOT, 'src/data/abilities.js')).href);
+  return Object.keys(ABILITIES);
 }
 
 const ids = await loadIds();
 const supplyIds = await loadSupplyIds();
+const abilityIds = await loadAbilityIds();
 if (process.argv.includes('--selftest')) await selftest(ids);
-const findings = [...checkIcons(join(ROOT, DIR), ids), ...checkDuplicates(join(ROOT, DIR), ids), ...checkSupplies(join(ROOT, SUPPLY), supplyIds), ...(await checkWiring(ROOT)), ...checkSwitch(ROOT), ...checkLongbow(join(ROOT, DIR, 'longbow.png'))];
+const findings = [...checkIcons(join(ROOT, DIR), ids), ...checkDuplicates(join(ROOT, DIR), ids), ...checkSupplies(join(ROOT, SUPPLY), supplyIds), ...(await checkWiring(ROOT, abilityIds)), ...checkSwitch(ROOT), ...checkLongbow(join(ROOT, DIR, 'longbow.png')),
+  ...checkDrawn(join(ROOT, DIR), TWIN_ICONS, twinImage), ...checkDrawn(join(ROOT, ABILITY), ABILITY_TILES, tileImage)];
 report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies`, findings);
 process.exit(findings.length ? 1 : 0);

@@ -45,6 +45,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { pinFonts } from './_test-fonts.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* TW-10's phone: the hunt screen's own fixture, whose action bar keeps HS-22's 100 px (alpha's runs 104 px at 844x390). */
@@ -70,7 +71,7 @@ const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeo
 
 async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await pinFonts(page);
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');

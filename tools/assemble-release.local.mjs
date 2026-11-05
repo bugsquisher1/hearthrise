@@ -51,4 +51,4 @@ console.log('Merged:\n' + (merged.length ? merged.map((m) => '  ✓ ' + m).join(
 if (refused.length) console.log('Refused:\n' + refused.map((r) => '  ✗ ' + r).join('\n'));
 console.log(`Diff vs main: ${changed.length} files${edge ? ' · touches the edge bundle (pack-edge --hash, one local in-page run, deploy before push)' : ''}${sql.length ? ` · migrations: ${sql.join(', ')}` : ''}`);
 if (tests.length) console.log('Tests touched (run these locally before pushing):\n' + tests.map((t) => '  node ' + t).join('\n'));
-console.log(bump ? 'Bumped. Next: date + CHANGELOG entry, commit, push release/v' + ver : 'Next: --bump when the set is final.');
+console.log(bump ? 'Bumped. Next: date + CHANGELOG entry, commit, node tools/preflight.local.mjs (under 3 min), push release/v' + ver : 'Next: --bump when the set is final.');

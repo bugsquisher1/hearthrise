@@ -38,6 +38,7 @@ async function run(base) {
   const ok = (id, cond, msg) => { if (!cond) red.push(id + ': ' + msg); };
   const read = (p) => readFileSync(join(base, p), 'utf8').replace(/\r\n/g, '\n');
   const HL = await import(pathToFileURL(join(base, 'src/shell/hunt-list.js')).href + '?t=' + Math.random());
+  const STEP = await import(pathToFileURL(join(base, 'src/data/hunt-tutorial.js')).href + '?t=' + Math.random());
   const { SESSION_LIMITS, DEATH_XP_LOSS } = await import(pathToFileURL(join(base, 'src/data/hunt-sessions.js')).href + '?t=' + Math.random());
   ok('W1', !('belowRangeRefuse' in SESSION_LIMITS), 'the data still holds a refuse margin: ' + SESSION_LIMITS.belowRangeRefuse);
   const row = { band: [40, 60] };
@@ -81,6 +82,26 @@ async function run(base) {
   }
   const duo = HL.recommendation([12, 20], 2, rows);
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
+  /* G4: where the advice stands until the pace is re-measured (level-curve reads it: a pair sent to the Glade and a lone 45 sent to the Warrens re-land together, 2026-11-04): the Warrens is a party's, and a pair's first ground is the Sewer. */
+  const lone = (lv) => HL.recommendation(lv, 1, rows);
+  ok('G4', lone(44).row.hunt === 'mosslight_glade' && /Coppercap Warrens fits your level with a party/.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
+  const sewerPair = HL.recommendation([12, 12], 2, rows);
+  ok('G4', sewerPair.row.hunt === 'millrace_sewer', 'the first party ground moved: a pair at Level 12 is sent to ' + sewerPair.row.hunt);
+  /* G5 (first principle, played 11-04): the window opens on the harder ground this hero last hunted and came home from; never on one that killed it, and never on one below the advice. */
+  const rec22 = HL.recommendation(22, 1, rows);
+  const open = (last) => HL.openingPick(rec22, rows, last).hunt;
+  ok('G5', open(null) === 'mosslight_glade', 'no hunt yet opens on ' + open(null));
+  ok('G5', open({ huntId: 'coppercap_warrens', endReason: 'left' }) === 'coppercap_warrens', 'a hero home from the Warrens opens on ' + open({ huntId: 'coppercap_warrens', endReason: 'left' }));
+  ok('G5', open({ huntId: 'coppercap_warrens', endReason: null }) === 'coppercap_warrens', 'a hero in the Warrens opens on ' + open({ huntId: 'coppercap_warrens', endReason: null }));
+  ok('G5', open({ huntId: 'coppercap_warrens', endReason: 'died' }) === 'mosslight_glade', 'a hero the Warrens killed opens on ' + open({ huntId: 'coppercap_warrens', endReason: 'died' }));
+  ok('G5', open({ huntId: 'wickstead', endReason: 'left' }) === 'mosslight_glade', 'a hero who has outgrown its last ground opens on ' + open({ huntId: 'wickstead', endReason: 'left' }));
+  /* G6: the list's two tags, on the advice and the ground above it; a note means the advice's band doesn't hold, so no Fits. */
+  const tagged = (lv) => { const rec = HL.recommendation(lv, 1, rows), step = STEP.nextStepUp(rows, lv, true); return rows.filter((r) => HL.adviceTag(r, rec, step, false)).map((r) => r.hunt + ':' + HL.adviceTag(r, rec, step, false)).join(); };
+  ok('G6', tagged(1) === 'mill_cellar:Fits your level', 'Level 1 reads ' + tagged(1));
+  ok('G6', tagged(11) === 'wickstead:Fits your level,mosslight_glade:Next step up', 'Level 11 reads ' + tagged(11));
+  ok('G6', tagged(17) === 'mosslight_glade:Fits your level,coppercap_warrens:Next step up', 'Level 17 reads ' + tagged(17));
+  ok('G6', tagged(16) === 'mosslight_glade:Fits your level', 'Level 16 (16 under the Warrens) reads ' + tagged(16));
+  ok('G6', tagged(35) === '', 'Level 35 alone, with a note and nothing above, reads ' + tagged(35));
   const war = rows.find((r) => r.hunt === 'coppercap_warrens');
   ok('G2', !!war && HL.heroWords(war) === 'Best with 2 to 4, and alone it pays from Level 45', 'the Warrens card reads ' + JSON.stringify(war && HL.heroWords(war)));
   ok('G2', rows.filter((r) => r.groupFit === 'party').every((r) => !/^Alone/.test(HL.heroWords(r))), 'a party ground offers itself alone');
@@ -143,6 +164,8 @@ async function run(base) {
 
 const MUTANTS = [
   ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize));', 'const fit = rows;'],
+  ['the window forgets the harder ground the hero chose', 'src/shell/hunt-list.js', 'return was && advised && was.band[0] > advised.band[0] ? was : advised;', 'return advised;'],
+  ['the window re-opens on the ground that killed the hero', 'src/shell/hunt-list.js', "const was = last && last.endReason !== 'died' ? list.find((r) => r.hunt === last.huntId) : null;", 'const was = last ? list.find((r) => r.hunt === last.huntId) : null;'],
   ['a party-only hall leaves its ground solo (the Sewer)', 'src/shell/hunt-list.js', "groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,", 'groupFit: g.groupFit,'],
   ['the gap falls back to a party ground in band', 'src/shell/hunt-list.js', "    return { row: below, note };\n", ''],
   ['the gap is not said', 'src/shell/hunt-list.js', 'return { row: below, note };', 'return { row: below, note: null };'],

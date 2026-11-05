@@ -60,6 +60,9 @@
 //         answer; a refused or malformed answer reads "— online", never the last number
 //   ON-2  [page] the counter reads the server's "3 online" at 12 px or more, on
 //         screen, overlapping no other widget; off by default on a phone
+//   ON-3  a page hidden past the grace keeps its account online for its friends: a slower poll, inside the server's online
+//         window on any timer the browser gives it, naming no hero (a hero nobody watches is not stamped watched); shown
+//         again it reads at once, naming them
 //   CW-1  [page] a pushed line renders time + name [level, role glyph] + body, the
 //         name coloured by role; a link shows the catalogue name in its rarity, IN the
 //         sentence (the body is inline text: no other screen's rule lays it out — the
@@ -105,6 +108,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { pinFonts } from './_test-fonts.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
@@ -423,6 +427,47 @@ async function pureRules(M) {
     soc.destroy();
     if (soc.online.count !== null) fail('ON-1 a destroyed session still shows a count');
   }
+
+  // ON-3: the poll a hidden page keeps. The server's "online" window, read from its own body.
+  {
+    const body = readFileSync(join(ROOT, 'supabase/migrations/2027-01-17-social-pass.sql'), 'utf8');
+    const windowMs = 1000 * Number((/c_online constant interval := interval '(\d+) seconds'/.exec(body) || [])[1]);
+    if (!(windowMs > 0)) fail('ON-3 could not read the server\'s online window');
+    let t = 0;
+    const read = { ok: true, friends: [], incoming: [], outgoing: [], blocks: [], online: 3 };
+    const { acct, calls, cs } = fakeAccount({ hr_social_poll: () => read });
+    acct.characters = () => [cs];
+    let poll = null;
+    const soc = new M.store.SocialSession({ account: acct, realtime: fakeRealtime(), timers: { setTimer: (fn) => { poll = fn; return 1; }, clearTimer: () => {}, now: () => t } });
+    const settle = async () => { for (let i = 0; i < 5; i++) await tick(); };
+    soc.start();
+    await settle();
+    soc.setAway(true);
+    /* Every cadence a hidden page's timer gets: the poll's own 30 s, and a browser's one firing a minute. */
+    for (const every of [M.chans.CHAT_LIMITS.friendsPollMs, 60000]) {
+      let last = t;
+      calls.length = 0;
+      const gaps = [];
+      for (let i = 0; i < 12; i++) {
+        t += every;
+        const before = calls.length;
+        poll();
+        await settle();
+        if (calls.length > before) { gaps.push(t - last); last = t; }
+      }
+      if (!gaps.length) fail('ON-3 a hidden page never stamped its presence, on a ' + every + ' ms timer: it reads offline to its friends');
+      else if (Math.max(...gaps) >= windowMs) fail('ON-3 a hidden page stamped ' + Math.max(...gaps) + ' ms apart on a ' + every + ' ms timer (the server reads online inside ' + windowMs + ' ms)');
+      if (every === M.chans.CHAT_LIMITS.friendsPollMs && gaps.length >= 12) fail('ON-3 a hidden page polled as often as a shown one');
+      const named = calls.filter((c) => c.name === 'hr_social_poll' && c.args.p_slots.length);
+      if (named.length) fail('ON-3 a hidden page stamped its heroes watched (' + JSON.stringify(named[0].args) + '): the world tick would not fold them');
+    }
+    /* Shown again it reads at once, naming its heroes. */
+    calls.length = 0;
+    soc.setAway(false);
+    await settle();
+    if (calls.length !== 1 || JSON.stringify(calls[0].args) !== '{"p_slot":0,"p_slots":[0]}') fail('ON-3 shown again it asked ' + JSON.stringify(calls.map((c) => c.args)));
+    soc.destroy();
+  }
   return fails;
 }
 
@@ -445,7 +490,7 @@ function env(seats = 2) {
 
 async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await pinFonts(page);
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
@@ -825,6 +870,9 @@ const PURE_MUTANTS = [
   ['a System row reads as a player line', 'src/social/chat-lines.js', "if (!whisper && row.channel === 'system') {", 'if (false) {'],
   ['the notice drops the hero', 'src/social/chat-lines.js', "parts: [{ text: name + ' ' }].concat(partsOf(body, true))", 'parts: partsOf(body, true)'],
   ['the notice data row drifts from the migration', 'src/data/chat-channels.js', "rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 3 })", "rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 4 })"],
+  ['a hidden page never stamps its presence (ON-3: the limit it reads, gone)', 'src/data/chat-channels.js', "  friendsPollAwayMs: 55000,\n", ''],
+  ['a hidden page polls too slowly for the online window (ON-3)', 'src/data/chat-channels.js', "  friendsPollAwayMs: 55000,\n", "  friendsPollAwayMs: 90000,\n"],
+  ['a hidden page stamps its heroes watched (ON-3)', 'src/social/social-session.js', "const slots = this._away ? [] : this.online.slots();", "const slots = this.online.slots();"],
   ['links are not capped', 'src/social/chat-lines.js', "if (n >= CHAT_LIMITS.linksMax || !ITEMS[id]) continue;", "if (!ITEMS[id]) continue;"],
   ['a hidden row is listed', 'src/shell/context-menu.js', "if (row.hidden || !row.targets.includes(target.kind)) continue;", "if (!row.targets.includes(target.kind)) continue;"],
   ['you can block yourself', 'src/social/social-session.js', "const other = (t) => t.kind === 'player' && !!t.id && !this.isSelf(t);", "const other = (t) => t.kind === 'player' && !!t.id;"],

@@ -1,0 +1,43 @@
+{
+ "emoji": [],
+ "glyphs": [
+  "cfg: Mend 15 6 s —",
+  "cfg: Rend 8 6 s 1 Rupture rune",
+  "cfg: Protective Ward 25 12 s 1 Earth rune",
+  "cfg:spells: Mend 15 6 s —",
+  "cfg:spells: Rend 8 6 s 1 Rupture rune",
+  "cfg:spells: Protective Ward 25 12 s 1 Earth rune",
+  "cfg:runes: Protective Ward 1 Earth rune 1 none",
+  "cfg:runes: Rend 1 Rupture rune 1 none",
+  "cfg:ammo: The loaded ammo — — — —",
+  "shop:Sell: The loaded ammo — — — —",
+  "shop:Services: The loaded ammo — — — —",
+  "bench:Smithing: The loaded ammo — — — —"
+ ],
+ "broken": [],
+ "notes": [
+  "cfg tabs: spells,runes,food,ammo",
+  "configure FAILED: elementHandle.click: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible",
+  "bench Cooking FAILED: page.click: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.hw-skill:has-text(\"Cooking\")')\u001b[22m\n\u001b[2m    - locator resolve",
+  "bench Crafting FAILED: page.click: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.hw-skill:has-text(\"Crafting\")')\u001b[22m\n",
+  "hunt mosslight_glade FAILED: page.click: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.hw-hunt-enter')\u001b[22m\n\u001b[2m    - locator resolved to <button di"
+ ],
+ "srcs": {
+  "cfg": 20,
+  "cfg:spells": 20,
+  "cfg:runes": 15,
+  "cfg:food": 43,
+  "cfg:ammo": 16,
+  "shop:Sell": 37,
+  "shop:Services": 37,
+  "bench:Smithing": 22,
+  "outfit": 7,
+  "hunt-view:meadowbrook_thicket": 7,
+  "hunt-view:coppercap_warrens": 7,
+  "hunt-view:millrace_sewer": 7,
+  "hunt-view:wickstead": 7
+ },
+ "net": [],
+ "consoleErrors": [],
+ "offsite": []
+}

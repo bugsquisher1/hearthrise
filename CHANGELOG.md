@@ -5,9 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.89 — 2026-11-04 (Still Here)
+
+**Friends see you while your tab is in the background.** A hidden tab stopped telling your friends you were online, so you dropped off their list after about a minute. It now keeps saying so.
+
+
+- The sign-in screens now link the Privacy Policy and the Terms of Service, and Create account says what pressing it means. Both pages were rewritten to say what Hearthrise really does today, including that your characters will be wiped before Steam Early Access.
+- New in Settings, under Help: "Share session recordings to help fix bugs". It is on by default. Turn it off and the game stops recording your screen at once.
+**What next is one goal.** The card now names the one thing worth doing next, with the press that does it, and More shows the rest. It tells you when your next hero is free or paid for, when more stamina is yours to buy, and which harder ground is your next step up. The Hunts list marks that ground too and opens on the harder ground you last hunted.
+
 ## v0.2.88 — 2026-11-04 (Simply Harder)
 
 **No hidden penalty for rushing.** A monster now hits every hero the same way, whatever your Level. A hunting ground above your Level is simply full of monsters stronger than you: expect to spend more on supplies, or to die, for more XP and better loot. The game still warns you and asks you to press once more.
+- Mend, Rend and Protective Ward now have their own icons on your bar and in Configure action.
+- The Bronze-Rimmed Shield, the Kingsgrate, the Iron Hatchets, the Oak Crossbow and the Crown Shard each have their own picture, so you can tell a new find from your starting gear at a glance.
 
 ## v0.2.87 — 2026-11-04 (Upgrades You Can Feel)
 

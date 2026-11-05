@@ -185,6 +185,9 @@ export const REASONS = Object.freeze({
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
     { cond: 'itemsShort', words: "'Needs ' + whole(n.need) + ' ' + n.name + '. You hold '", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },
   ],
+  'src/shell/windows/havora/works.js': [
+    { cond: 'off', words: 'a day from one account, and you', where: 'Give: off while a gift is in flight, before the first read, and when today\'s allowance is spent; the line under them says so in the designer\'s words' },
+  ],
   'src/shell/windows/market/browse.js': [
     { cond: '!plan.qty', words: "'You need ' + goldWords(-left) + ' more.'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },
     { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Forget it stay on; the window\'s line says why' },
@@ -260,7 +263,8 @@ export const REASONS = Object.freeze({
     { cond: 'can.entry.off', words: 'text(inv, can ? can.entry.label', where: 'the phone\'s Invite: an off entry reads its reason as its label ("Party full")' },
   ],
   'src/shell/windows/character/outfit.js': [
-    { cond: '!owned || !changed', words: "'Premium · not owned'", where: 'the outfit tile says not owned; Save needs a change' },
+    { cond: '!owned || (o.worn || null) === d.outfit', words: "'Premium · not owned'", where: 'the outfit tile says not owned; Wear needs another outfit' },
+    { cond: '!offer', words: "cls(save, 'is-on', offer)", where: 'with nothing to pay for the button isn\'t shown at all, and the line above the picker says what this outfit shows or why it has no colors' },
   ],
   'src/shell/windows/house.js': [
     { cond: '!on', words: "(you have '", where: 'each step\'s cost lines mark what is short, with your counts' },

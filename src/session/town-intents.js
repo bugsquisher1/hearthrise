@@ -1,16 +1,18 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/session/town-intents.js — WHAT GOLD BUYS IN HAVORA: THE WINDOW'S READ AND ITS TWO VERBS.
+// src/session/town-intents.js — WHAT GOLD BUYS IN HAVORA: THE WINDOW'S READS AND ITS VERBS.
 //
 //   readSinks(account, cs)              ONE hr_town_sinks_view while the window is open, never in the envelope: the server's quotes, the last
 //                                       powder this account threw, the powder still to burn and the named flame it burns behind, the Crier's quote.
 //   throwPowder(account, cs, show, price)   ONE hr_town_show on a powder: the hero walks to a fuel stand from the server's yes, never before.
 //   standRound(account, cs, price)      ONE hr_town_show on the round.
+//   readWorks(account, cs)              ONE hr_town_works_view while the Works tab is on show: the project, today's allowance, this account's place, the plaque.
+//   giveToWorks(account, cs, project, amount)  ONE hr_town_works_give: the gift is the one number the client names, and the server refuses it under its own clock.
 // A verb names the slot, a catalogue id, the price the player SAW and a fresh key: never a time, a color or an amount of anything. The server
 // re-quotes under its lock and answers quote_changed if the price moved (2027-02-27-town-shows.sql). On ok the character is RE-READ, so the purse changes
 // only from the envelope. Each ask goes in the account's intent ledger (askVia), so the pressed control waits.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.96';
-import { SHOW_FLAMES, ROUND_OFFER } from '../data/gold-sinks.js?v=0.2.96';
+import { askVia } from './intent-ledger.js?v=0.2.97';
+import { SHOW_FLAMES, ROUND_OFFER } from '../data/gold-sinks.js?v=0.2.97';
 
 const usable = (account, cs) => !!account && !!account.server && !!cs && cs.status !== 'closed' && Number.isInteger(cs.slot);
 const int = (v) => (Number.isSafeInteger(v) ? v : null);
@@ -80,4 +82,47 @@ export function throwPowder(account, cs, show, price) {
 export function standRound(account, cs, price) {
   if (!usable(account, cs) || !Number.isSafeInteger(price)) return Promise.resolve({ ok: false, error: 'bad_intent' });
   return buyShow(account, cs, ROUND_OFFER, price, 'town_round');
+}
+
+function plaqueOf(rows) {
+  if (!Array.isArray(rows)) return Object.freeze([]);
+  return Object.freeze(rows.filter((r) => isObj(r) && int(r.place) !== null && typeof r.name === 'string' && int(r.gold) !== null)
+    .map((r) => Object.freeze({ place: r.place, name: r.name, gold: r.gold, mine: r.mine === true })));
+}
+
+/** The Works' answer, checked field by field and frozen; null when it is not the server's shape. Pure. */
+export function parseWorks(b) {
+  if (!isObj(b) || b.ok !== true || !word(b.project) || int(b.total) === null || int(b.goal) === null || int(b.stage) === null || !Array.isArray(b.stage_at)) return null;
+  const stageAt = b.stage_at.map(int);
+  if (stageAt.some((v) => v === null)) return null;
+  return Object.freeze({ project: b.project, name: typeof b.name === 'string' ? b.name : '', total: b.total, goal: b.goal, left: int(b.left) || 0, stage: b.stage, stageAt: Object.freeze(stageAt),
+    finished: b.finished === true, minGift: int(b.min_gift), perDay: int(b.per_day), givenToday: int(b.given_today) || 0, leftToday: int(b.left_today) || 0, maxGift: int(b.max_gift) || 0,
+    lastGift: int(b.last_gift), gold: int(b.gold) || 0, place: int(b.place), plaque: plaqueOf(b.plaque) });
+}
+
+/** The Works tab's read: { ok: true, works } or { ok: false, error }. */
+export function readWorks(account, cs) {
+  if (!usable(account, cs)) return Promise.resolve({ ok: false, error: 'bad_intent' });
+  return askVia(cs, 'town_works_view', async () => {
+    const ans = await account.server.rpc('hr_town_works_view', { p_slot: cs.slot });
+    const b = isObj(ans && ans.body) ? ans.body : {};
+    const works = ans && ans.ok ? parseWorks(b) : null;
+    if (!works) return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused' };
+    return { ok: true, works };
+  });
+}
+
+/** Give to a project. The purse changes only from the envelope, re-read on the server's yes. */
+export function giveToWorks(account, cs, project, amount) {
+  if (!usable(account, cs) || !word(project) || !Number.isSafeInteger(amount) || amount < 1) return Promise.resolve({ ok: false, error: 'bad_intent' });
+  return askVia(cs, 'town_works', async () => {
+    const ans = await account.server.rpc('hr_town_works_give', { p_slot: cs.slot, p_project: project, p_amount: amount, p_idem: globalThis.crypto.randomUUID() });
+    const b = isObj(ans && ans.body) ? ans.body : {};
+    if (!(ans && ans.ok && b.ok === true)) {
+      return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb: 'town_works', project,
+        perDay: int(b.per_day), left: int(b.left), min: int(b.min) };
+    }
+    if (typeof cs.load === 'function') await cs.load();
+    return { ok: true, project, amount: int(b.amount), total: int(b.total), goal: int(b.goal), stage: int(b.stage) };
+  });
 }

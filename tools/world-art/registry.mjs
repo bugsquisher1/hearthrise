@@ -24,6 +24,8 @@ for (const id of ['great_hearth', 'hearth_fire', 'hearth_fire_verdigris', 'heart
 /* Hero outfit region masks (lane/c-hero-masks, 2026-11-05): data, never drawn; loaded on first need by the dye code. */
 for (const id of ['outfit_knight_mask', 'outfit_berserker_mask', 'outfit_brute_mask', 'outfit_ranger_mask', 'outfit_sorcerer_mask',
   'outfit_witch_mask', 'outfit_dawnward_mask']) D[id] = ['staged', 'region mask (dyes), tools/world-art/outfit-masks.mjs; HERO_DYES_SHOWN false'];
+/* Town Works (lane/c-town-works, 2026-11-04): the Weighhouse's five stages and its plaque, placed by the same branch's build half. */
+for (const id of ['havora_weighhouse_staked', 'havora_weighhouse_footings', 'havora_weighhouse_framed', 'havora_weighhouse_walled', 'havora_weighhouse_finished', 'havora_weighhouse_plaque']) D[id] = ['staged', 'on no map yet (Town Works, 2026-11-04)'];
 const rows = [];
 for (const set of SETS) {
   const man = JSON.parse(readFileSync(ROOT + 'assets/world/atlas-' + set + '.json'));

@@ -1,23 +1,24 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/havora/index.js — THE HAVORA WINDOW: WHAT GOLD BUYS IN TOWN.
 //
-// Two tabs today; Works joins them when its lane sets WORKS_TAB.shown (./works.js):
+// Three tabs:
 //   Hearth   a powder on the Great Hearth (the designer's gold sinks section). The window opens on the color this account threw last, from the server.
 //   Round    a round at the Tavern: fireworks over Hearth Square.
+//   Works    what the whole server is building (./works.js, which keeps its own reads and answers).
 // While it's open the window reads the server's quotes (hr_town_sinks_view: never in the envelope, so an idle hero costs no read), on opening, after each press
 // and every ASK_MS. Every price, count and word about the queue is the server's; a stale price only earns quote_changed, and the answer is said and re-read.
 // Every control is off while an intent is in flight. Nothing here ever computes a price (CLAUDE.md §1, §6).
 // ════════════════════════════════════════════════════════════════════════
-import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.96';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.96';
-import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.96';
-import { TOWN_NAME } from '../../../data/world/town/plan.js?v=0.2.96';
-import { ITEMS } from '../../../data/items.js?v=0.2.96';
-import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.96';
-import { whole, gold } from '../../../render/format.js?v=0.2.96';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.96';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.96';
-import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js?v=0.2.96';
+import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.97';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.97';
+import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.97';
+import { TOWN_NAME } from '../../../data/world/town/plan.js?v=0.2.97';
+import { ITEMS } from '../../../data/items.js?v=0.2.97';
+import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.97';
+import { whole, gold } from '../../../render/format.js?v=0.2.97';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.97';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.97';
+import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js?v=0.2.97';
 
 const ASK_MS = 15000;
 const RETRY_MS = 5000;
@@ -106,7 +107,8 @@ renderHavora.patch = function patchHavora(body, ctx) {
   text(root.querySelector('.hv-count[data-of="round"]'), s ? countLine(s.round, 'rounds') : '');
   for (const l of root.querySelectorAll('.hv-count')) cls(l, 'is-on', l.getAttribute('data-of') === sc.tab);
   text(root.querySelector('.hv-queue'), s && sc.tab === 'hearth' ? queueLine(s) : '');
-  text(root.querySelector('.hh-intent-msg'), sc.msg);
+  /* the answer to a press: the Works tab writes its own (./works.js) */
+  if (sc.tab !== WORKS_TAB.id) text(root.querySelector('.hh-intent-msg'), sc.msg);
   if (WORKS_TAB.shown && sc.tab === WORKS_TAB.id) patchWorks(root.querySelector('[data-pane="works"]'), ctx);
   /* THE READ: once per opening, after a press, and every ASK_MS while open (a read, never the record). */
   const due = sc.stale || ctx.now() - sc.askedAt >= ASK_MS;

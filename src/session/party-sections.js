@@ -31,12 +31,13 @@
 // the server's `role` is only the pick, kept when the weapon allows it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.96';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.96';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.96';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.96';
-import { huntOf, staminaOf, tierMapOf } from './hunt-sections.js?v=0.2.96';
-import { heroVitalsOf } from './character-sections.js?v=0.2.96';
+import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.97';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.97';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.97';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.97';
+import { huntOf, staminaOf, tierMapOf } from './hunt-sections.js?v=0.2.97';
+import { heroVitalsOf } from './character-sections.js?v=0.2.97';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.97';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -103,7 +104,8 @@ export function partyPeopleOf(cs) {
   if (!Array.isArray(v)) return out;
   for (const p of v.slice(0, 8)) {
     if (!isObj(p) || seatNo(p.seat) === null || typeof p.user !== 'string' || !UUID.test(p.user)) continue;
-    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name) });
+    /* dye: the hero's four colors as the look's key (2027-03-05-hero-colors.sql), or null: drawn as the art is */
+    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name), dye: dyeKeyOf(p.colors) });
   }
   return out;
 }

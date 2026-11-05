@@ -8,7 +8,7 @@
 //   node tests/titles.mjs --selftest  every planted defect must turn its arm red
 //   node tests/titles.mjs --mutate=<id>
 //
-// mutant-anchors: supabase/migrations/2027-02-28-titles.sql src/session/character-sections.js src/session/title-intents.js src/shell/intent-words.js src/social/inspect.js src/app/world-view.js
+// mutant-anchors: supabase/migrations/2027-02-28-titles.sql src/session/character-sections.js src/session/title-intents.js src/shell/intent-words.js src/social/inspect.js src/app/world-view.js supabase/migrations/2027-03-05-hero-colors.sql
 //
 // Every price and kill count is read from the row. The real chain replayed (PGlite), real client roles, the real client modules; production untouched:
 //   TT-RULES   hr_titles holds exactly the data file's rows, and every title's words survive the client's filters into a plate and a chat line
@@ -18,7 +18,8 @@
 //   TT-ONCE    a replayed key charges once; one claim is exactly one journal row of kind shop; a second claim is title_owned
 //   TT-WEAR    can't be worn if not held; wearing a second takes the first off; null takes it off; free; a replayed key moves nothing
 //   TT-HERO    held, worn and counted per hero, though the purse is the account's
-//   TT-SEAM    hr_title_of answers the catalogue's words: into the chat row, a stranger's read of the square and Inspect; a title dropped from the catalogue reads as none
+//   TT-SEAM    hr_title_of answers the catalogue's words: into the chat row, a stranger's read of the square and Inspect; a title dropped from the catalogue reads as none;
+//              a hero standing still shows a change of title to others in their next delta, and doesn't move for it
 //   TT-ZERO    a title at price 0 goes through the one path: legal in the data, the same verb, the kills still checked, no gold moved, one journal row
 //   TT-HUNT    a hunting hero may claim and wear, and the running hunt doesn't move
 //   TT-GRANT   the two verbs are the client's and baselined; no helper is; no client role reaches the table; the section is registered
@@ -40,6 +41,7 @@ const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const CATALOGUE = '2027-02-28-titles-catalogue.generated.sql';
 const FILE = '2027-02-28-titles.sql';
+const COLORS = '2027-03-05-hero-colors.sql';   // restates hr_title_wear: a second apply of this file is followed by that one's, as the chain orders them
 const BUY = 'public.hr_title_buy(integer,text,bigint,uuid)';
 const WEAR = 'public.hr_title_wear(integer,text,uuid)';
 const OF = 'public.hr_title_of(uuid,integer)';
@@ -62,6 +64,7 @@ export const MUTANTS = {
   owned_unchecked: { arm: 'TT-ONCE', why: 'a second claim reaches the charge',
     db: [BUY, "  if exists (select 1 from public.player_titles h where h.user_id = v_uid and h.slot = p_slot and h.title_id = p_title) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'title_owned', 'title', p_title)); end if;\n", ''] },
   wrong_kind: { arm: 'TT-ONCE', why: 'the journal row is not kind shop', db: [BUY, "jsonb_build_object('kind', 'shop', 'intent', v_verb,", "jsonb_build_object('kind', 'wallet', 'intent', v_verb,"] },
+  wear_not_news: { arm: 'TT-SEAM', why: 'a hero standing still keeps showing its old title until it next walks', db: [WEAR, '  perform public.hr_town_look_touch(v_uid, p_slot);\n', ''] },
   wear_unowned: { arm: 'TT-WEAR', why: 'a title not held can be worn',
     db: [WEAR, "    if not exists (select 1 from public.player_titles h where h.user_id = v_uid and h.slot = p_slot and h.title_id = p_title) then\n      return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'title_not_owned', 'title', p_title)); end if;\n", ''] },
   wear_keeps_first: { arm: 'TT-WEAR', why: 'wearing a second leaves the first on, and the index refuses',
@@ -329,6 +332,26 @@ const ARMS = {
     const read = await as(db, B, 'select public.hr_town_view(0, $1, null, null, null, null, null)', [THE_MAP]);
     const w = read && (read.walkers || []).find((x) => x.id === A);
     if (!w || w.title !== t.words) out.push('a stranger reads the walker ' + JSON.stringify(w));
+    /* A TITLE IS NEWS: the viewer stays where it stood, the hero stands still, and its next delta still says what the server holds */
+    if (w) {
+      const viewAt = (cursor) => as(db, B, 'select public.hr_town_view(0, $1, $2::int, $3::int, $4::bigint, $2::int, $3::int)', [THE_MAP, w.x, w.y, cursor]);
+      const whole = await viewAt(null);
+      await db.query(`update public.town_bodies set changed_at = now() - interval '1 minute', since = now() - interval '1 minute' where user_id = $1`, [A]);
+      const quiet = await viewAt(whole.cursor);
+      if ((quiet.walkers || []).some((x) => x.id === A)) out.push('CONTROL: a still hero was in the delta');
+      else {
+        const off = await wear(db, 0, null);
+        if (!off || off.ok !== true) out.push('taking it off answered ' + JSON.stringify(off));
+        const bare = ((await viewAt(whole.cursor)).walkers || []).find((x) => x.id === A);
+        if (!bare || bare.title !== null) out.push('after taking it off the next delta reads ' + JSON.stringify(bare && bare.title));
+        await db.query(`update public.town_bodies set changed_at = now() - interval '1 minute' where user_id = $1`, [A]);
+        const on = await wear(db, 0, t.title_id);
+        if (!on || on.ok !== true) out.push('wearing it again answered ' + JSON.stringify(on));
+        const dressed = ((await viewAt(whole.cursor)).walkers || []).find((x) => x.id === A);
+        if (!dressed || dressed.title !== t.words) out.push('after wearing it the next delta reads ' + JSON.stringify(dressed && dressed.title));
+        else if (dressed.x !== w.x || dressed.y !== w.y) out.push('wearing a title moved the hero');
+      }
+    }
     /* a title dropped from the catalogue reads as none: no orphan words, no crash */
     await db.query('delete from public.hr_titles where title_id = $1', [t.title_id]);
     if ((await one(db, `select public.hr_title_of($1::uuid, 0)`, [A])) !== null) out.push('a dropped title still shows');
@@ -436,6 +459,7 @@ const ARMS = {
     try {
       await db.exec(MIG(CATALOGUE));
       await db.exec(text);
+      await db.exec(MIG(COLORS));
     } catch (e) {
       out.push('the second apply refused: ' + String(e.message).split('\n')[0].slice(0, 180));
       await db.exec('rollback to savepoint again');

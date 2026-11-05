@@ -28,7 +28,7 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_FILE = '2026-10-25-outfits-catalogue.generated.sql';
+export const OUT_FILE = '2027-03-05-outfits-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /** The dye colours from the token sheet, index by index. */
@@ -55,7 +55,7 @@ export function buildSql(O, dyes, palette) {
 -- tokens of src/styles/tokens.css. Do not hand-edit:
 --   Any hand edit FAILS \`node tools/gen-outfits.mjs --check\`.
 -- The outfit catalogue (hr_outfits) and the dyes (hr_outfit_dyes) the Character
--- window's outfit save is checked against (2026-10-25-character-sheet.sql,
+-- window's outfit save and hr_hero_colors_set are checked against (2027-03-05-hero-colors.sql,
 -- which applies AFTER this file). Cosmetic: nothing here moves value.
 -- Rows are UPSERTED (player_outfits references hr_outfits); a removed row is
 -- deleted. No begin/commit (CLAUDE.md §2).

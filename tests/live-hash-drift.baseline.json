@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-05",
- "replay_ms": 5888,
+ "replay_ms": 7089,
  "counts": {
-  "tracked_names": 750,
-  "entries": 602
+  "tracked_names": 763,
+  "entries": 615
  },
  "functions": [
   {
@@ -1329,6 +1329,7 @@
    "sig": "hr_base_colors_problem(p_colors jsonb)",
    "name": "hr_base_colors_problem",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -3224,6 +3225,7 @@
    "sig": "hr_create_hero(p_slot integer, p_name text, p_colors jsonb, p_idem uuid)",
    "name": "hr_create_hero",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -4643,6 +4645,98 @@
    "replay": {
     "md5": "6c841b157520be382feef27d277fda3b",
     "norm_len": 1540,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hero_colors_price(p_user uuid, p_slot integer)",
+   "name": "hr_hero_colors_price",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-05-hero-colors.sql"
+   ],
+   "live": {
+    "md5": "d28d02912c81c35588c105e1136ba80d",
+    "norm_len": 285,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d28d02912c81c35588c105e1136ba80d",
+    "norm_len": 285,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hero_colors_saved_today(p_user uuid, p_slot integer)",
+   "name": "hr_hero_colors_saved_today",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-05-hero-colors.sql"
+   ],
+   "live": {
+    "md5": "06611bce6b214c5773c506d7176e24e6",
+    "norm_len": 420,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "06611bce6b214c5773c506d7176e24e6",
+    "norm_len": 420,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hero_colors_set(p_slot integer, p_colors jsonb, p_price bigint, p_idem uuid)",
+   "name": "hr_hero_colors_set",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-05-hero-colors.sql"
+   ],
+   "live": {
+    "md5": "7bf3959e6bf11e616290efa94db3a5b3",
+    "norm_len": 4410,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7bf3959e6bf11e616290efa94db3a5b3",
+    "norm_len": 4410,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hero_colors_view(p_slot integer)",
+   "name": "hr_hero_colors_view",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-05-hero-colors.sql"
+   ],
+   "live": {
+    "md5": "b13c71b0165a6298684bcd61f42d51de",
+    "norm_len": 1027,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b13c71b0165a6298684bcd61f42d51de",
+    "norm_len": 1027,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8752,17 +8846,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-10-25-character-sheet.sql"
+    "2026-10-25-character-sheet.sql",
+    "2027-03-05-hero-colors.sql"
    ],
    "live": {
-    "md5": "3b261fe4efc49f28df681742affc584f",
-    "norm_len": 3066,
+    "md5": "0a99bf08ecbd5b1f2997a35224e4d40c",
+    "norm_len": 2402,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3b261fe4efc49f28df681742affc584f",
-    "norm_len": 3066,
+    "md5": "0a99bf08ecbd5b1f2997a35224e4d40c",
+    "norm_len": 2402,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -11559,17 +11654,18 @@
    "touched_by": [
     "2026-10-25-social.sql",
     "2027-01-17-social-pass.sql",
-    "2027-02-10-settle-plan-cache.generated.sql"
+    "2027-02-10-settle-plan-cache.generated.sql",
+    "2027-03-05-hero-colors.sql"
    ],
    "live": {
-    "md5": "a66ee40f025ded8603deeb025a6f9493",
-    "norm_len": 738,
+    "md5": "e8ffd7ccec06a286c7e6c7f34ce481d4",
+    "norm_len": 940,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a66ee40f025ded8603deeb025a6f9493",
-    "norm_len": 738,
+    "md5": "e8ffd7ccec06a286c7e6c7f34ce481d4",
+    "norm_len": 940,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -12837,20 +12933,22 @@
    "sig": "hr_title_wear(p_slot integer, p_title text, p_idem uuid)",
    "name": "hr_title_wear",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-02-28-titles.sql"
+    "2027-02-28-titles.sql",
+    "2027-03-05-hero-colors.sql"
    ],
    "live": {
-    "md5": "2258ae04389aa237fbed453bb59db73f",
-    "norm_len": 2617,
+    "md5": "e0770ec4215bc622c98ab43d221e474c",
+    "norm_len": 2667,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2258ae04389aa237fbed453bb59db73f",
-    "norm_len": 2617,
+    "md5": "e0770ec4215bc622c98ab43d221e474c",
+    "norm_len": 2667,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -12955,17 +13053,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-27-gold-sinks-seams.sql"
+    "2027-02-27-gold-sinks-seams.sql",
+    "2027-03-04-town-works.sql"
    ],
    "live": {
-    "md5": "92a3d89a6f35c75798d09bbc3b181ae5",
-    "norm_len": 198,
+    "md5": "e905ad4c9f34410214d0077aff52ea7c",
+    "norm_len": 467,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "92a3d89a6f35c75798d09bbc3b181ae5",
-    "norm_len": 198,
+    "md5": "e905ad4c9f34410214d0077aff52ea7c",
+    "norm_len": 467,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -13149,6 +13248,29 @@
    "agree": true
   },
   {
+   "sig": "hr_town_look_touch(p_user uuid, p_slot integer)",
+   "name": "hr_town_look_touch",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-05-hero-colors.sql"
+   ],
+   "live": {
+    "md5": "34877f265b46e7a3a05ee37bab99ccbc",
+    "norm_len": 491,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "34877f265b46e7a3a05ee37bab99ccbc",
+    "norm_len": 491,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_town_me(p_user uuid, p_slot integer)",
    "name": "hr_town_me",
    "tracked_by": [
@@ -13260,6 +13382,28 @@
    "replay": {
     "md5": "4ad20f428da780560d0205aa77b158a3",
     "norm_len": 650,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_notice(p_from text, p_body text)",
+   "name": "hr_town_notice",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-04-town-works.sql"
+   ],
+   "live": {
+    "md5": "1551c86b90a1e4bb4769219513c9cfe3",
+    "norm_len": 746,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1551c86b90a1e4bb4769219513c9cfe3",
+    "norm_len": 746,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -13661,6 +13805,160 @@
    "replay": {
     "md5": "b127a34e6b662d122060e361a869b25b",
     "norm_len": 239,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_works_fault(p_min bigint, p_per_day bigint, p_left bigint, p_given bigint, p_amount bigint)",
+   "name": "hr_town_works_fault",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-04-town-works.sql"
+   ],
+   "live": {
+    "md5": "3d2dd13fa3a57c41e5d2c62386936c72",
+    "norm_len": 783,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "3d2dd13fa3a57c41e5d2c62386936c72",
+    "norm_len": 783,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_works_give(p_slot integer, p_project text, p_amount bigint, p_idem uuid)",
+   "name": "hr_town_works_give",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-04-town-works.sql"
+   ],
+   "live": {
+    "md5": "7a2945e24dc54d6dcd232746291e97c5",
+    "norm_len": 5890,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7a2945e24dc54d6dcd232746291e97c5",
+    "norm_len": 5890,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_works_given_today(p_user uuid)",
+   "name": "hr_town_works_given_today",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-04-town-works.sql"
+   ],
+   "live": {
+    "md5": "79255410d49954b0e47d82e91985f972",
+    "norm_len": 337,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "79255410d49954b0e47d82e91985f972",
+    "norm_len": 337,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_works_lead(p_user uuid, p_by bigint[])",
+   "name": "hr_town_works_lead",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-04-town-works.sql"
+   ],
+   "live": {
+    "md5": "8d56e0478683b54e7caada0049f9da13",
+    "norm_len": 460,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "8d56e0478683b54e7caada0049f9da13",
+    "norm_len": 460,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_works_plaque(p_project text, p_viewer uuid, p_top integer)",
+   "name": "hr_town_works_plaque",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-04-town-works.sql"
+   ],
+   "live": {
+    "md5": "9d7dfeac65e3c19af298bd8ad5f60a58",
+    "norm_len": 966,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "9d7dfeac65e3c19af298bd8ad5f60a58",
+    "norm_len": 966,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_works_stage(p_at bigint[], p_total bigint)",
+   "name": "hr_town_works_stage",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-04-town-works.sql"
+   ],
+   "live": {
+    "md5": "9e6ae7644447e8c9bd8a1a0500e458ea",
+    "norm_len": 281,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "9e6ae7644447e8c9bd8a1a0500e458ea",
+    "norm_len": 281,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_works_view(p_slot integer)",
+   "name": "hr_town_works_view",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-04-town-works.sql"
+   ],
+   "live": {
+    "md5": "dd647a1e46d8b3f7cfd1b636ca5465e0",
+    "norm_len": 3152,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "dd647a1e46d8b3f7cfd1b636ca5465e0",
+    "norm_len": 3152,
     "source": "computed-from-replay"
    },
    "agree": true

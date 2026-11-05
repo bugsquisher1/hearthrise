@@ -33,22 +33,22 @@
 // It authors no number: the record changes only from a server answer, and it sends of its own only the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.96';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.96';
-import { LiveLink } from './live-link.js?v=0.2.96';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.96';
-import { SESSION_CONFIG } from './config.js?v=0.2.96';
-import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.96';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.96';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.96';
-import { AskPacer } from './ask-pacer.js?v=0.2.96';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.96';
-import { ReadGate } from './read-gate.js?v=0.2.96';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.96';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.96';
-import { catchUpLink, newIdem } from './catch-up.js?v=0.2.96';
-import { pageAway } from './page-away.js?v=0.2.96';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.96';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.97';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.97';
+import { LiveLink } from './live-link.js?v=0.2.97';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.97';
+import { SESSION_CONFIG } from './config.js?v=0.2.97';
+import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.97';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.97';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.97';
+import { AskPacer } from './ask-pacer.js?v=0.2.97';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.97';
+import { ReadGate } from './read-gate.js?v=0.2.97';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.97';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.97';
+import { catchUpLink, newIdem } from './catch-up.js?v=0.2.97';
+import { pageAway } from './page-away.js?v=0.2.97';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.97';
 
 export const FRAME_EVENT = 'frame';
 
@@ -432,17 +432,12 @@ export class CharacterSession {
     return this._ask('hero_rename', () => this._server.rpc('hr_hero_rename', { p_slot: this.slot, p_name: n, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
-  /** Wear an outfit (or null: the role's own look) with a dye index per region. ONE intent (hr_outfit_set): the
-      server checks ownership, the regions and the dyes; the window shows the new look only from the re-read. */
-  async saveOutfit(outfit, colors) {
+  /** Wear an outfit (or null: the role's own look). ONE intent (hr_outfit_set): the server checks ownership; the window shows the
+      new look only from the re-read. Free, and it carries no color: a hero's colors are one set (hero-color-intents.js). */
+  async saveOutfit(outfit) {
     if (this._closed) return { ok: false, error: 'closed' };
     if (outfit !== null && !HUNT_ID.test(String(outfit))) return { ok: false, error: 'bad_intent' };
-    const c = {};
-    for (const [k, v] of Object.entries(colors && typeof colors === 'object' ? colors : {})) {
-      if (!/^[a-z]{1,16}$/.test(k) || !Number.isInteger(v) || v < 0 || v > 63) return { ok: false, error: 'bad_intent' };
-      c[k] = v;
-    }
-    return this._ask('outfit_set', () => this._server.rpc('hr_outfit_set', { p_slot: this.slot, p_outfit: outfit, p_colors: c, p_idem: newIdem() }));
+    return this._ask('outfit_set', () => this._server.rpc('hr_outfit_set', { p_slot: this.slot, p_outfit: outfit, p_colors: {}, p_idem: newIdem() }));
   }
 
   /** The party finder: open parties with a free seat, optionally on one hunt and only those with no member of a

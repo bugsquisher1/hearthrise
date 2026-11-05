@@ -425,6 +425,43 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'gu1104') {
+    /* THE GEAR UPGRADE'S EVIDENCE (Tyler 2026-11-04: "some sort of upgrade system that slightly increases gear power"; lane/c-gear-upgrade). C: what a lone hero, a pair and a four earn to hour 100, spending
+       nothing, the piles it must bite on. The rest, in the sim only (worker.mjs whatIf): the Level's kit with its weapon's fighting numbers or its armor value at +10% and +20%, against the same hero one tier
+       behind (gear.mjs tierOffset), on the same dice, so the most an upgrade gives reads against the step it must not pass. Armor adds whole points to the body piece (mitigation.js floors each piece). */
+    const life = { kind: 'career', startLevel: 1, targetLevel: 200, maxHours: 100, chunkH: 1, chunkByLevel: [[1, 0.25], [8, 0.5], [12, 1]], seed: 0 };
+    for (const s of ['tank', 'hammer', 'mage']) out.push({ ...life, id: 'C:life:' + s, party: [s] });
+    out.push({ ...life, id: 'C:duo', party: PARTIES.duo });
+    out.push({ ...life, id: 'C:four', party: PARTIES.four, maxHours: 50 });
+    const WEAPONS = { iron_sword: { atkB: 7, strB: 6 }, iron_warhammer: { atkB: 7, strB: 16 }, longbow: { atkB: 9, strB: 6, rangeAtkB: 9, rangeStrB: 6 }, oak_wand: { atkB: 7, strB: 8, magicAtkB: 7, magicStrB: 8 }, oak_staff: { atkB: 6, strB: 9, magicAtkB: 6, magicStrB: 9 },
+      steel_sword: { atkB: 12, strB: 10 }, steel_warhammer: { atkB: 9, strB: 23 }, willow_longbow: { atkB: 14, strB: 10, rangeAtkB: 14, rangeStrB: 10 }, willow_wand: { atkB: 12, strB: 13, magicAtkB: 12, magicStrB: 13 }, willow_staff: { atkB: 10, strB: 14, magicAtkB: 10, magicStrB: 14 } };
+    const weaponsAt = (m) => Object.fromEntries(Object.entries(WEAPONS).map(([id, f]) => [id, Object.fromEntries(Object.entries(f).map(([k, v]) => [k, Math.round(v * m * 100) / 100]))]));
+    const ARMOR = { 10: { iron_platebody: 16, studded_body: 9, adept_body: 5, steel_platebody: 29, boarhide_body: 16, scholar_body: 9 }, 20: { iron_platebody: 19, studded_body: 11, adept_body: 6, steel_platebody: 35, boarhide_body: 19, scholar_body: 11 } };
+    const armorAt = (pct) => Object.fromEntries(Object.entries(ARMOR[pct]).map(([id, defB]) => [id, { defB }]));
+    const VARIANTS = [['base', {}], ['W10', { whatIf: { items: weaponsAt(1.1) } }], ['W20', { whatIf: { items: weaponsAt(1.2) } }], ['A10', { whatIf: { items: armorAt(10) } }], ['A20', { whatIf: { items: armorAt(20) } }],
+      ['stepW', { gear: { tierOffset: -1, only: 'weapon' } }], ['stepA', { gear: { tierOffset: -1, only: 'armour' } }]];
+    for (const L of [24, 40]) for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const [x, o] of VARIANTS) {
+      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: L, hours: H(2), seeds: 2, x: 'P' + x, ...(o.gear ? { gear: o.gear } : {}) }), ...(o.whatIf ? { whatIf: o.whatIf } : {}) });
+    }
+    /* a bigger pull, where armor and the bill matter most, and a four on the party ground */
+    for (const s of ['tank', 'hammer', 'mage']) for (const [x, o] of VARIANTS.slice(0, 5)) {
+      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'B' + x }), ...(o.whatIf ? { whatIf: o.whatIf } : {}) });
+    }
+    for (const [x, o] of VARIANTS) {
+      out.push({ ...cellOf({ ground: 'coppercap_warrens', party: PARTIES.four, level: 40, hours: H(1), seeds: 2, x: 'Q' + x, ...(o.gear ? { gear: o.gear } : {}) }), windowMs: 120000, ...(o.whatIf ? { whatIf: o.whatIf } : {}) });
+    }
+    return out;
+  }
+  if (name === 'gu1104d') {
+    /* The second half (sim only): a hero's EVERY blow at +5% and +10%, spells and cleaves too, stood in for by the monsters' HP (a weapon's numbers never reach a spell: gu1104's W cells read 0 to +0.7% on a mage and a bow), and armor at about +5%. */
+    const DEALT = [['D5', { whatIf: { monsters: { '*': { hp: '*0.952' } } } }], ['D10', { whatIf: { monsters: { '*': { hp: '*0.909' } } } }]];
+    for (const L of [24, 40]) for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const [x, o] of DEALT) out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: L, hours: H(2), seeds: 2, x: 'P' + x }), whatIf: o.whatIf });
+    for (const s of ['tank', 'hammer', 'mage']) for (const [x, o] of DEALT) out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'B' + x }), whatIf: o.whatIf });
+    const A5 = { items: { iron_platebody: { defB: 14 }, studded_body: { defB: 8 }, steel_platebody: { defB: 25 }, boarhide_body: { defB: 14 } } };
+    for (const L of [24, 40]) for (const s of ['tank', 'hammer', 'bow']) out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: L, hours: H(2), seeds: 2, x: 'PA5' }), whatIf: A5 });
+    for (const s of ['tank', 'hammer']) out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'BA5' }), whatIf: A5 });
+    return out;
+  }
   if (name === 'risk') {
     /* THE RISK LADDER (Tyler 2026-11-04 UTC): a harder ground pays more and hits harder, and any hero may walk in. Every open ground at its floor and 3, 6, 10, 15 and 25 Levels under, three builds:
        poor = the practice set, no armor; average = the Level's best helm, body and boots on store food; optimized = every slot of the Level's best on crafted food, eating early. Read by risk-table.mjs. */

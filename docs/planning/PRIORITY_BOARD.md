@@ -30,6 +30,55 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-05 Tempering: a gold sink that adds a little gear power (designer, lane/c-gear-upgrade): DESIGN, measured on the real engine, nothing built
+**Tyler, 2026-11-04:** "we need to add some additional gold sinks before we raise the price. I'm thinking about some sort of upgrade system that slightly increases gear power or something."
+
+**The design.** At the town's smith (Shop, Services tab), a hero pays gold to temper what it wears. **Two tracks, Blows and Armor; five rungs a track; one ladder per gear tier.** A Blows rung adds 1% to every blow and spell of that tier's weapon, 5% at most. An Armor rung adds 1% to the armor value of that tier's pieces, 5% at most. Steel starts at rung 0, and Iron's rungs still count on Iron. Tier 1 has no ladder. Nothing is rolled, nothing fails, and nothing is lost on a death or a sale.
+
+| Shape | Verdict | Why |
+|---|---|---|
+| On the piece | No | Items are stacks by id (`player_inventory`, `player_equipment`) with no per-piece data. It needs a new item model through bag, Storage, Market and loot plans, plus a dupe review |
+| On a made copy (+1 rows) | No | About 230 catalogue rows differing only by +N, which DESIGN_STANDARDS §7 bans |
+| On each equip slot | No | Eleven presses with no real choice: a repeated decision |
+| **On the hero: track and tier** | **Yes** | One real choice (hit harder or last longer), no item changes, and gear still trades |
+
+**Why a new ladder per tier.** Power can't compound, so the chase stays alive: the next tier always wins, and gold is asked again at every tier. New tiers are new rows.
+
+**Failure.** None. A fail roll is a penalty rule (Tyler: risk comes from play). The price ladder drains the same gold knowably, and a failed press only teaches players to resent the smith.
+
+**Gold, measured** (`tools/balance-sim` plan `gu1104`, real settle, seed 0, advised grounds, everything sold, nothing spent; a four past hour 50 is extrapolated at its last 20 h).
+| Rung | 1 | 2 | 3 | 4 | 5 | A track | Both tracks, a hero |
+|---|---|---|---|---|---|---|---|
+| Iron (worn at 15) | 2,000 | 4,000 | 8,000 | 16,000 | 32,000 | 62,000 | **124,000** |
+| Steel (worn at 30) | 7,000 | 14,000 | 28,000 | 56,000 | 112,000 | 217,000 | **434,000** |
+
+| Hour | Lone hero: Level, earned | The ladder can take | Pair: earned | The ladder can take | Four: earned | The ladder can take |
+|---|---|---|---|---|---|---|
+| 10 | 10-11, 30-35k | **0**: no Iron yet | 64k | 0 | 138k | 0 (Level 13) |
+| 20 | 14-16, 64-76k | 124k, if Iron is on | 150k | 248k | 312k | 496k |
+| 50 | 27-31, 192-244k | 124k, plus 434k from Level 30 | 445k | 248k, then Steel from Level 30 | 863k | 496k + 1.74M |
+| 100 | 38-42, 433-546k | 558k | 972k | 1.12M | about 1.8M | 2.23M |
+The whole ladder is 558,000 a hero: 2.23M for a four, on top of the rest of the game's one-time ladders (about 2.9M at the new hero slots, the 3.6M measured 11-03 less their 700k cut). **A real sink:** at pull 8, Level 24, a maxed Armor track cuts the food bill about 130-320 g/h (hammer 7,954 to 7,634), so 62,000 gold never pays back as gold. It buys pace and safety.
+
+**Power, measured on the same dice** (2 h x 2 seeds, about ±1 point on XP; stand-ins until the hook exists: all monsters' HP x0.952 for +5% on every blow, whole points on the body piece for armor).
+| Level 24, Glade | Blows max, XP/h | At pull 8 | One weapon tier, XP/h | Armor about +5%, damage a swing | One armor tier |
+|---|---|---|---|---|---|
+| Sword + shield | +2.4% | +4.6% | +4.1% | -1.3% | -20% |
+| Hammer | +1.8% | +2.8% | +5.4% | -1.4% | -20% |
+| Bow | +3.6% | | +6.3% | -2.1% | -12% |
+| Wand | +2.0% | +4.1% | +2.2% | not measured | -18% |
+| Staff | +2.6% | | +6.4% | not measured | -13% |
+**The cap holds at Level 24 as built:** the most Blows gives is under every tier step, with the wand tied inside the dice (+2.0 to +2.2). At pull 8 it reaches +4.6% with no tier step measured there. At Level 40 on the Glade, above its band, the tier reads -0.6 to -4.1% and the walk sets the pace, so the staff's +1.8% passes its 0.6%. **Against the 10-25 ruling:** Blows stays under its +5%; Armor at -0.3 to -2.1% (Levels 24 and 40) stays under its 3-5%. **One armor tier behind takes 6-56% more damage today, far over that 3-5%:** `lane/c-armor-tiers` owns that. The cap is written as "under the tier step and under the ruling's floor", so a guard re-reads it after their numbers.
+**Rejected: tempering the weapon's own numbers.** +20% on them gives a wand +0.3% and a bow +0.7%, because spells and sweeps read no weapon. That would sell casters nothing.
+
+**Rulings.** Gear keeps fixed stats (10-14), and this sits on the hero. Imbuing stays later and per piece, with effects rather than plain power: no collision, but its budget must be measured on top. No bound gear: pieces still trade. Mechanics only, named our own. **Flag, Tyler's open conflict:** Crowns can buy gold from players, so tempering is one more thing Crowns reach at one remove.
+
+**Server-owned, and mostly built already.** `hr_unlock_buy` is the money path: offer catalogue, rung order, GREATEST merge, per-day clamp, intent claim, settle-first, ledger. New rows in `hr_unlocks` and `hr_unlock_offers`, no new money RPC, already on the EA Security list. `hr_perks_of` gains one key and the settle reads it every window. Engine: the hero's unit carries it at each boundary, never persisted, so no world-shape change. Rung 0 draws nothing and stays byte-identical. Both paths tested: hunt viewed, browser closed.
+
+**Landing.** Additive: no rung rows, no change, and gold already earned spends. It needs no second wipe. `paceFingerprint` doesn't read it, and the Level curve stays measured at rung 0.
+
+**Done:** this design and the measured tables. **Assumed:** hours past 50 for a four, cloth armor (its Ward floors, so it wants the real hook), healing with no measure yet. **Could still be wrong:** the stand-in for +5% isn't the hook; 1% on a blow of 20 needs a rounding draw to pay at all, and that's the first thing the build must prove. Prices are mine, sized to the piles above, and rich players press the pull, so real piles run about 1.4x sooner.
+
 ### 2026-11-04 What the wipe is held against (designer, lane/c-pre-wipe): THE LIST
 Read from this board, `DISCOVERIES.md`, rulings-of-record and 28 played hours (lane/c-hour-20). Delivery-only work (return load, build step, account delete) isn't on it, by Tyler's rule.
 | Item | Call | Size, owner | Why |

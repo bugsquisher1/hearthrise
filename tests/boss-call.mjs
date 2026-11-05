@@ -6,7 +6,7 @@
 //   node tests/boss-call.mjs            the guard
 //   node tests/boss-call.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/data/bestiary.js src/data/hunt-grounds.js
+// mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/data/bestiary.js src/data/hunt-grounds.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js supabase/functions/hr-accrue/accrual.js
 //
 //   BC-ROW     a called row is xp 0, gp [0, 0], no drops, no yield trick; it stands in its own room and nowhere else: no ground list, no roster, no Bestiary, no activity
 //   BC-TIER    a difficulty tier can't reach the room (when src/data/hunt-tiers.js is on the tree)
@@ -14,7 +14,10 @@
 //   BC-HP      the boss's one spawn is scaled for the party that walked in, not the first hero through the door
 //   BC-FELLED  the kill ends the fight for everyone, the same instant however the windows are cut (the hunt viewed, the browser closed)
 //   BC-DEATH   a death ends it for everyone, box ticked or not, and costs what a death costs
-//   BC-TIME    the limit ends a fight nobody can finish, for everyone, and no hunt is left open
+//   BC-TIME    the limit ends a fight nobody can finish, for everyone, and no hunt is left open, with his adds standing too
+//   BC-PHASE   (Tyler 2026-11-05: "phases") the two lines happen once each and at their HP, the adds come in full and go for whoever isn't the tank, Challenge takes them, the enrage raises his blows; the world's shape never moved
+//   BC-WAVE    a death in the add wave ends the fight for everyone, however the windows are cut: an add's kill pays nothing, and no hunt stays open
+//   BC-RECORD  the server's record of a fight: where he stood, read through a leader's death (a called room never resets), and what each hero's bar fired, the same however the windows are cut
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -31,6 +34,8 @@ const MINUTE = 60000;
 const ALLOWED = new Set(['accrued_to', 'hp', 'journal', 'progress', 'deaths']);
 
 /* The strong and the doomed, on the kits the rooms are tuned for: the fight's outcome is not the question here, its end and its pay are. */
+/* A shield makes the tank (Tyler 2026-10-23), and only a tank's bar can hold Challenge. */
+const SHIELDED = { weapon: 'bronze_sword', shield: 'practice_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' };
 const STRONG = { L: 70, kit: { weapon: 'steel_warhammer', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' } };
 
 async function loadAll(root) {
@@ -46,6 +51,7 @@ async function loadAll(root) {
     EM: (await import(u('src/data/monsters.js') + V)).MONSTERS,
     D: await import(u('src/core/hunt/damage.js') + V),
     XP: await import(u('src/core/xp.js') + V),
+    C: await import(u('src/core/combat.js') + V),
   };
 }
 
@@ -54,7 +60,7 @@ function fight(X, call, roles, o = {}) {
   const windows = [];
   const res = X.play.run(call.hunt, o.L || STRONG.L, roles, { ground: X.G.CALLED_GROUNDS[call.hunt], spanMs: X.B.BOSS_CALL_RULES.limitMs + 2 * MINUTE, windowMs: o.cut || 30000,
     secret: o.secret || '-4611686018427387904', leaveTogether: o.box !== false, ...(o.temper ? { temper: o.temper } : {}), ...(o.start ? { start: o.start } : {}), equipment: (role) => o.kit || (role === 'mage' ? { weapon: 'oak_wand' } : role === 'healer' ? { weapon: 'oak_staff' } : STRONG.kit),
-    onWindow: (w) => windows.push(w) });
+    ...(o.bar ? { bar: o.bar } : {}), onWindow: (w) => windows.push(w) });
   const members = windows.flatMap((w) => w.members);
   const ended = {};
   for (const m of members) if (m.hunt.ended) ended[m.key] = m.hunt.ended;
@@ -81,8 +87,17 @@ async function guard(X) {
   const calls = Object.values(B.BOSS_CALLS);
   const rows = Object.entries(M.MONSTERS).filter(([, m]) => m.called === true);
 
-  /* BC-ROW */
-  if (rows.length !== calls.length) bad.push('BC-ROW ' + rows.length + ' called rows for ' + calls.length + ' calls');
+  /* BC-ROW: a boss and his adds, and an add that pays is as red as a boss that does. */
+  const addIds = new Set(calls.flatMap((c) => G.CALLED_GROUNDS[c.hunt] ? G.CALLED_GROUNDS[c.hunt].pockets.flatMap((p) => p.adds || []).map((s) => s.monster) : []));
+  if (rows.length !== calls.length + addIds.size) bad.push('BC-ROW ' + rows.length + ' called rows for ' + calls.length + ' calls and ' + addIds.size + ' kinds of add');
+  for (const id of addIds) {
+    const a = M.MONSTERS[id];
+    if (!a || a.called !== true) bad.push('BC-ROW the add ' + id + ' is no called row: it pays');
+    else if (a.boss === true || a.add !== true) bad.push('BC-ROW the add ' + id + ' reads as a boss: "target is a boss" must tell them apart');
+    if (a && a.phases) bad.push('BC-ROW the add ' + id + ' has phases');
+  }
+  for (const [id, m] of Object.entries(M.MONSTERS)) if (m.phases && !calls.some((c) => c.monster === id)) bad.push('BC-ROW ' + id + ' has phases and is no called boss');
+  for (const c of calls) { const p = (M.MONSTERS[c.monster] || {}).phases; if (!p || !(p.addsPm > p.enragePm && p.enragePm > 0 && p.enrageAtkPm > 1000)) bad.push('BC-ROW ' + c.monster + ' has no two lines: ' + JSON.stringify(p)); }
   for (const [id, m] of rows) {
     if (m.xp !== 0) bad.push('BC-ROW ' + id + ' pays XP ' + m.xp);
     if (!(m.gp && m.gp[0] === 0 && m.gp[1] === 0)) bad.push('BC-ROW ' + id + ' pays coin ' + JSON.stringify(m.gp));
@@ -100,7 +115,8 @@ async function guard(X) {
     if (G.OPEN_GROUNDS[c.hunt]) bad.push('BC-ROW room ' + c.hunt + ' is an open ground');
     if (H.HUNTS.some((h) => h.id === c.hunt) || H.OPEN_HUNTS.some((h) => h.id === c.hunt)) bad.push('BC-ROW room ' + c.hunt + ' is on the hunt list');
     if (G.groundOfHunt(c.hunt) !== g) bad.push('BC-ROW the engine does not find room ' + c.hunt);
-    for (const p of g.pockets) for (const s of p.spawns) if (!(M.MONSTERS[s.monster] && M.MONSTERS[s.monster].called === true)) bad.push('BC-ROW room ' + c.hunt + ' fields ' + s.monster);
+    for (const p of g.pockets) for (const s of p.spawns.concat(p.adds || [])) if (!(M.MONSTERS[s.monster] && M.MONSTERS[s.monster].called === true)) bad.push('BC-ROW room ' + c.hunt + ' fields ' + s.monster);
+    if (!g.pockets.some((p) => (p.adds || []).length)) bad.push('BC-ROW room ' + c.hunt + ' has no adds');
     if (G.pullRows(g, 0, 8).length !== 1) bad.push('BC-ROW a pull of 8 brings ' + G.pullRows(g, 0, 8).length + ' to room ' + c.hunt);
   }
   const reach = G.reachableOf(G.OPEN_GROUNDS, H.HUNT_INDEX).monsters;
@@ -118,8 +134,13 @@ async function guard(X) {
 
   const king = B.BOSS_CALLS.rat_king, chief = B.BOSS_CALLS.chief_coppercap;
   /* BC-PAY: every path, on rows that make the kill certain and quick: the boss is real, his blows aren't what's measured. Then BC-FELLED's three cuts. */
-  const soft = (c, hp) => { for (const inst of [X.EM[c.monster], X.play.MONSTERS[c.monster]]) { inst.hp = hp; inst.atk = 1; inst.baseAcc = 0; } };
-  soft(king, 400); soft(chief, 400);
+  const addOf = (c) => G.CALLED_GROUNDS[c.hunt].pockets[0].adds[0].monster;
+  const bothRows = (id) => [X.EM[id], X.play.MONSTERS[id]];
+  const setRow = (id, o) => { for (const inst of bothRows(id)) Object.assign(inst, o); };
+  const soft = (c, hp) => { setRow(c.monster, { hp, atk: 1, baseAcc: 0 }); setRow(addOf(c), { hp: 60, atk: 1, baseAcc: 0 }); };
+  soft(king, 1600); soft(chief, 1600);
+  const kinds = (f) => { const out = {}; for (const w of f.windows) for (const [u, r] of Object.entries(w.units || {})) out[u] = r[0]; return out; };
+  const eventsOf = (f) => f.windows.flatMap((w) => w.events || []);
   const PATHS = [
     ['a lone seat', king, ['tank'], {}],
     ['a pair', king, ['tank', 'healer'], {}],
@@ -138,6 +159,8 @@ async function guard(X) {
       if (m.events && m.events.some((e) => e.type === 'rare_drop')) bad.push('BC-PAY ' + name + ': a rare drop');
     }
     if (kills !== roles.length) bad.push('BC-PAY ' + name + ': the title\'s counter moved ' + kills + ' times for ' + roles.length + ' heroes');
+    /* (A pair's tank stays on him and its healer heals: nobody there kills an add; the others read an add's kill.) */
+    if (name !== 'a pair') { const k = kinds(f); if (!eventsOf(f).some((e) => e.type === 'kill' && k[e.t] === addOf(c))) bad.push('BC-PAY ' + name + ': CONTROL: no add fell, so an add\'s pay was never read'); }
     for (const w of f.windows) for (const e of w.events || []) if (e.type === 'xp' || e.type === 'xp_group' || e.type === 'rare_roll') bad.push('BC-PAY ' + name + ': a ' + e.type + ' event');
     if (!Object.values(f.ended).every((e) => e.reason === 'boss_felled')) bad.push('BC-PAY ' + name + ': ended ' + JSON.stringify(f.ended));
   }
@@ -172,6 +195,120 @@ async function guard(X) {
     if (Object.keys(cuts[0].ended).length !== 2) bad.push('BC-FELLED ' + Object.keys(cuts[0].ended).length + ' of 2 ended');
   }
 
+  /* BC-PHASE: the world's shape, against the last catalogue APPLIED before this lane: neither line is a stored field. */
+  {
+    const shapeOf = (file) => Number((/insert into public\.hr_hunt_world_shape \(id, version, shape, fields\) values \(true, 1, (\d+),/.exec(readFileSync(join(REPO, 'supabase/migrations', file), 'utf8')) || [])[1]);
+    const applied = shapeOf('2027-02-24-gold-matters-hunt-sessions-catalogue.generated.sql');
+    const WS = await import(pathToFileURL(join(X.root, 'src/core/hunt/world-state.js')).href + V);
+    if (!(applied > 0) || WS.SHAPE !== applied) bad.push('BC-PHASE the world\'s shape moved: ' + WS.SHAPE + ', applied ' + applied + ' (a stored flag, or a new field)');
+    if (shapeOf('2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql') !== applied) bad.push('BC-PHASE this lane\'s catalogue writes another shape');
+  }
+  /* BC-PHASE: the lines, once each, at their HP; no Challenge on the bar, so every blow an add lands is its first aim. */
+  const NO_CHALLENGE = (role) => (role === 'tank' ? [{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and' }] : []);
+  setRow(king.monster, { hp: 3000, atk: 1, baseAcc: 0 });
+  {
+    const f = fight(X, king, ['tank', 'healer'], { bar: NO_CHALLENGE });
+    const k = kinds(f), ev = eventsOf(f), row = X.EM[king.monster];
+    const lines = ev.filter((e) => e.type === 'boss_phase');
+    if (lines.map((e) => e.phase).join() !== 'adds,enrage') bad.push('BC-PHASE the lines fell as ' + (lines.map((e) => e.phase).join() || 'nothing') + ', want adds then enrage, once each');
+    const book = Object.values(f.windows[0].units).find((u) => u[0] === king.monster);
+    const maxHp = book ? book[1] : 0;
+    let dealt = 0;
+    for (const e of ev) {
+      if (e.type === 'boss_phase') {
+        const pm = Math.floor(((maxHp - dealt) * 1000) / maxHp), line = e.phase === 'adds' ? row.phases.addsPm : row.phases.enragePm;
+        if (pm > line || pm < line - 150) bad.push('BC-PHASE ' + e.phase + ' fell at ' + pm + ' permille of him, the line is ' + line);
+      }
+      if (e.type === 'dmg' && k[e.t] === king.monster) dealt += e.amount;
+    }
+    const addUnits = Object.keys(k).filter((u) => k[u] === addOf(king));
+    const want = G.CALLED_GROUNDS[king.hunt].pockets[0].adds.length;
+    if (addUnits.length !== want) bad.push('BC-PHASE ' + addUnits.length + ' adds came, the wave is ' + want);
+    const blows = ev.filter((e) => (e.type === 'dmg' || e.type === 'miss') && k[e.u] === addOf(king));
+    if (!blows.length) bad.push('BC-PHASE CONTROL: no add swung');
+    for (const e of blows) if (k[e.t] !== 'healer') bad.push('BC-PHASE an add went for the ' + k[e.t] + ', with a healer standing');
+  }
+  /* ...and the tank's Challenge takes them. */
+  {
+    const f = fight(X, king, ['tank', 'healer'], { kit: SHIELDED });
+    const k = kinds(f), ev = eventsOf(f);
+    const at = (ev.find((e) => e.type === 'boss_phase' && e.phase === 'adds') || {}).atMs;
+    const took = ev.filter((e) => e.type === 'target' && k[e.u] === addOf(king) && k[e.t] === 'tank' && e.atMs >= at);
+    if (!ev.some((e) => e.type === 'challenge' && e.atMs >= at) || !took.length) bad.push('BC-PHASE the tank\'s Challenge took no add');
+  }
+  /* ...and the enrage raises his blows: his largest before the line stays under his row's, after it passes it. */
+  setRow(king.monster, { hp: 9000, atk: 10, baseAcc: 1, phases: { ...X.EM[king.monster].phases, enrageAtkPm: 3000 } });
+  {
+    const f = fight(X, king, ['tank', 'healer'], { bar: NO_CHALLENGE });
+    const k = kinds(f);
+    let on = false, before = 0, after = 0;
+    for (const e of eventsOf(f)) {
+      if (e.type === 'boss_phase' && e.phase === 'enrage') on = true;
+      if (e.type === 'dmg' && k[e.u] === king.monster) { if (on) after = Math.max(after, e.amount); else before = Math.max(before, e.amount); }
+    }
+    const plain = X.C.monsterMaxHit({ ...X.EM[king.monster], atk: 10 });
+    if (!before || before > plain) bad.push('BC-PHASE before the line his largest blow was ' + before + ', his row\'s is ' + plain);
+    if (!(after > plain)) bad.push('BC-PHASE in the enrage his largest blow was ' + after + ', his row\'s plain one is ' + plain);
+  }
+  setRow(king.monster, { phases: { ...X.EM[king.monster].phases, enrageAtkPm: 1400 } });
+
+  /* BC-WAVE: an add that kills: the healer falls with the wave up, the tank comes home with it, both paths. */
+  setRow(king.monster, { hp: 3000, atk: 1, baseAcc: 0 });
+  setRow(addOf(king), { hp: 100000, atk: 400, baseAcc: 1 });
+  {
+    const ways = [10000, 30000, 10 * MINUTE].map((cut) => fight(X, king, ['tank', 'healer'], { cut, bar: NO_CHALLENGE, L: 30, start: (role, i, L) => ({ levelXp: X.XP.charXpForLevel(L) + 2000 }) }));
+    const key = (f) => JSON.stringify(Object.entries(f.ended).sort());
+    for (const f of ways) {
+      if (key(f) !== key(ways[0])) bad.push('BC-WAVE the cuts disagree: ' + key(f) + ' against ' + key(ways[0]));
+      const reasons = Object.values(f.ended).map((e) => e.reason).sort().join();
+      if (reasons !== 'died,party_member_died') bad.push('BC-WAVE ended ' + (reasons || 'nothing') + ', want died and party_member_died');
+      for (const m of f.members) for (const p of paysOf(m.delta, king.monster)) bad.push('BC-WAVE ' + m.key + ' ' + p);
+      const log = f.members.flatMap((m) => m.summary.deathLog || []);
+      if (log.length !== 1 || log[0].monster !== addOf(king)) bad.push('BC-WAVE the death reads ' + JSON.stringify(log));
+    }
+  }
+
+  /* BC-RECORD: where he stood, read through the leader's death (a called room never heals him). */
+  setRow(addOf(king), { hp: 60, atk: 1, baseAcc: 0 });
+  setRow(king.monster, { hp: 3000, atk: 120, baseAcc: 1 });
+  const lastFight = (f, key) => { let out = null; for (const m of f.members) if (m.key === key && m.analyzer && m.analyzer.fight) out = m.analyzer.fight; return out; };
+  {
+    const f = fight(X, king, ['tank', 'healer'], { L: 30, start: (role, i, L) => ({ levelXp: X.XP.charXpForLevel(L) + 2000 }) });
+    const k = kinds(f), tank = f.members.find((m) => /^tank/.test(m.key)).key;
+    const book = Object.values(f.windows[0].units).find((u) => u[0] === king.monster);
+    const dealt = eventsOf(f).filter((e) => e.type === 'dmg' && k[e.t] === king.monster).reduce((a, e) => a + e.amount, 0);
+    const rec = lastFight(f, tank);
+    if (!dealt) bad.push('BC-RECORD CONTROL: nobody touched him before the tank fell');
+    if (!Object.values(f.ended).some((e) => e.reason === 'died')) bad.push('BC-RECORD CONTROL: the tank did not fall: ' + JSON.stringify(f.ended));
+    if (!rec || rec.boss_pm !== Math.floor(((book[1] - dealt) * 1000) / book[1])) bad.push('BC-RECORD the record says ' + JSON.stringify(rec) + ' with ' + dealt + ' of ' + book[1] + ' dealt: a reset healed him');
+  }
+  /* ...on a kill it reads nothing left, what fired is each hero's own, and any cut says the same. */
+  setRow(king.monster, { hp: 1600, atk: 1, baseAcc: 0 });
+  {
+    const ways = [10000, 30000, 10 * MINUTE].map((cut) => fight(X, king, ['tank', 'healer'], { cut, kit: SHIELDED }));
+    const fold = (f, key) => { const n = {}; for (const m of f.members) if (m.key === key && m.analyzer && m.analyzer.fight) for (const [a, c] of Object.entries(m.analyzer.fight.fired)) n[a] = (n[a] || 0) + c; return n; };
+    const norm = (o) => JSON.stringify(Object.entries(o).sort());
+    const f0 = ways[0], keys = [...new Set(f0.members.map((m) => m.key))];
+    for (const key of keys) {
+      const unit = f0.members.find((m) => m.key === key && Number.isInteger(m.summary.unitIdEver)).summary.unitIdEver;
+      const seen = {};
+      for (const e of eventsOf(f0)) if (e.u === unit && (e.type === 'cast' || e.type === 'eat' || e.type === 'drink')) { const a = e.type === 'cast' ? e.ability : e.type; seen[a] = (seen[a] || 0) + 1; }
+      if (norm(fold(f0, key)) !== norm(seen)) bad.push('BC-RECORD ' + key + ' fired ' + norm(seen) + ', the record says ' + norm(fold(f0, key)));
+      for (const f of ways) {
+        if (norm(fold(f, key)) !== norm(fold(f0, key))) bad.push('BC-RECORD the cuts disagree on what ' + key + ' fired');
+        const rec = lastFight(f, key);
+        if (!rec || rec.boss_pm !== 0) bad.push('BC-RECORD a felled boss reads ' + JSON.stringify(rec));
+      }
+    }
+    if (!keys.some((key) => (fold(f0, key).challenge || 0) > 0)) bad.push('BC-RECORD CONTROL: nothing fired Challenge');
+  }
+  /* A normal hunt's window carries no record. */
+  {
+    const seen = [];
+    X.play.run('mill_cellar', 6, ['tank'], { spanMs: 60000, windowMs: 30000, onWindow: (w) => { for (const m of w.members) seen.push(m); } });
+    if (!seen.length || seen.some((m) => m.analyzer && 'fight' in m.analyzer)) bad.push('BC-RECORD a normal hunt carries a record');
+  }
+
   /* BC-DEATH: a boss who kills at once. The box is unticked: on any other ground the friend hunts on; here the fight is over for both. */
   for (const inst of [X.EM[king.monster], X.play.MONSTERS[king.monster]]) { inst.hp = 1000000; inst.atk = 400; inst.baseAcc = 1; }
   {
@@ -186,6 +323,22 @@ async function guard(X) {
 
   /* BC-TIME: nobody can finish him and he can't finish anybody: the limit ends it for everyone, one swing after it falls at most, and nothing stays open. */
   for (const inst of [X.EM[king.monster], X.play.MONSTERS[king.monster]]) { inst.hp = 100000000; inst.atk = 1; inst.baseAcc = 0; }
+  /* (Measured: what a pair deals in ten minutes. A pair meets 700 permille of his row, so a row of 1.5 times that puts his first line well inside the limit and the kill past it, and his adds, who never die, stand when it falls.) */
+  {
+    const measure = fight(X, king, ['tank', 'healer']);
+    const k = kinds(measure);
+    const dealt = eventsOf(measure).filter((e) => e.type === 'dmg' && k[e.t] === king.monster).reduce((a, e) => a + e.amount, 0);
+    if (!dealt) bad.push('BC-TIME CONTROL: nothing was dealt in ten minutes');
+    setRow(king.monster, { hp: Math.floor((dealt * 1.5 * 1000) / 700) });
+    setRow(addOf(king), { hp: 10000000, atk: 1, baseAcc: 0 });
+    const f = fight(X, king, ['tank', 'healer']);
+    const kk = kinds(f);
+    const addsUp = eventsOf(f).some((e) => e.type === 'boss_phase' && e.phase === 'adds') && Object.values(kk).includes(addOf(king));
+    const ended = Object.values(f.ended);
+    if (!addsUp) bad.push('BC-TIME CONTROL: his adds never came before the limit');
+    if (ended.length !== 2 || !ended.every((e) => e.reason === 'boss_time')) bad.push('BC-TIME with the wave up, ended ' + JSON.stringify(f.ended));
+    setRow(king.monster, { hp: 100000000 });
+  }
   for (const cut of [10000, 10 * MINUTE]) {
     const f = fight(X, king, ['tank', 'healer'], { cut });
     const ended = Object.values(f.ended);
@@ -198,13 +351,14 @@ async function guard(X) {
 
 async function restoring(root, fn) {
   const X = await loadAll(root);
-  const keep = Object.values(X.B.BOSS_CALLS).map((c) => [c.monster, { ...X.EM[c.monster] }]);
+  const keep = Object.values(X.B.BOSS_CALLS).flatMap((c) => [c.monster, X.G.CALLED_GROUNDS[c.hunt] ? X.G.CALLED_GROUNDS[c.hunt].pockets[0].adds[0].monster : c.monster]).map((id) => [id, { ...X.EM[id] }]);
   try { return await fn(X); } finally {
     for (const [id, row] of keep) { Object.assign(X.EM[id], row); Object.assign(X.play.MONSTERS[id], row); delete X.EM[id].unused; }
   }
 }
 
-const ROW_KING = "hp: 5000, atk: 61, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [] },";
+const ROW_KING = "hp: 2200, atk: 50, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400 } },";
+const ROW_ADD = "hp: 300, atk: 42, baseAcc: -0.05, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },";
 const MUTANTS = [
   { name: 'a drop row planted on a called row', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('drops: []', "drops: [{ id: 'bones', ch: 1, band: 'common' }]")]], want: /BC-ROW/ },
   { name: 'XP planted on a called row', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('xp: 0', 'xp: 500')]], want: /BC-ROW/ },
@@ -220,6 +374,25 @@ const MUTANTS = [
   { name: 'the limit never falls', edits: [['src/core/action-rules.js', 'boss_time: (hs, t) => at(hs.callEndsAtMs, t),', 'boss_time: () => false,']], want: /BC-TIME/ },
   { name: 'the boss spawns at one hero\'s HP', edits: [['src/core/combat-sim.js', 'if (call) scaleRoomFor(world, ctx.ground, standing.length);', '']], want: /BC-HP/ },
   { name: 'a called boss in the Bestiary', edits: [['src/data/bestiary.js', "if (!m || typeof m !== 'object' || m.called === true) continue;", "if (!m || typeof m !== 'object') continue;"]], want: /BC-ROW/ },
+  /* THE ADDS PAY NOTHING EITHER (the brief's core rule: "any add that pays goes red"). */
+  { name: 'XP planted on an add', edits: [['src/data/monsters.js', ROW_ADD, ROW_ADD.replace('xp: 0', 'xp: 500')]], want: /BC-ROW/ },
+  { name: 'coin planted on an add', edits: [['src/data/monsters.js', ROW_ADD, ROW_ADD.replace('gp: [0, 0]', 'gp: [1, 5]')]], want: /BC-ROW/ },
+  { name: 'a drop planted on an add', edits: [['src/data/monsters.js', ROW_ADD, ROW_ADD.replace('drops: []', "drops: [{ id: 'bones', ch: 1, band: 'common' }]")]], want: /BC-ROW/ },
+  { name: 'a wave of the ground\'s paying rats', edits: [['src/data/hunt-grounds.js', "adds: addRows(['drain_rat_called', 56, 18],", "adds: addRows(['drain_rat', 56, 18],"]], want: /BC-ROW/ },
+  { name: 'an add\'s kill counts on the title\'s counter', edits: [['src/core/hunt-rewards.js', "if (t && t.side === 'mon' && t.kind === boss) {", "if (t && t.side === 'mon') {"]], want: /BC-PAY/ },
+  { name: 'an add reads as a boss', edits: [['src/data/monsters.js', "family: 'Vermin', formation: true, called: true, add: true,", "family: 'Vermin', formation: true, called: true, boss: true,"]], want: /BC-ROW/ },
+  /* THE LINES */
+  { name: 'a stored flag: the world\'s shape moves', edits: [['src/core/hunt/damage.js', "world: Object.freeze([['fightAt', 'int']]),", "world: Object.freeze([['fightAt', 'int'], ['bossLine', 'int']]),"]], want: /BC-PHASE/ },
+  { name: 'the wave comes on every blow under the line', edits: [['src/core/hunt/boss-phases.js', 'const crossed = (pm) => !atOrUnder(before, t.maxHp, pm) && atOrUnder(t.hp, t.maxHp, pm);', 'const crossed = (pm) => atOrUnder(t.hp, t.maxHp, pm);']], want: /BC-PHASE/ },
+  { name: 'the wave never comes', edits: [['src/core/hunt/boss-phases.js', 'spawnAdds(inst, t.pocket, sc);', '']], want: /BC-PHASE|BC-PAY|BC-WAVE/ },
+  { name: 'the first line is read at the wrong HP', edits: [['src/core/hunt/boss-phases.js', 'if (crossed(ph.addsPm)) {', 'if (crossed(ph.addsPm - 300)) {']], want: /BC-PHASE/ },
+  { name: 'the adds go for the one holding him', edits: [['src/core/hunt/pull-cycle.js', 'const on = off.length ? off : standing;', 'const on = standing;']], want: /BC-PHASE/ },
+  { name: 'the enrage raises nothing', edits: [['src/core/hunt/damage.js', 'const row = swingRow(u);', 'const row = MONSTERS[u.kind];']], want: /BC-PHASE/ },
+  { name: 'the enrage reads the row, not his HP', edits: [['src/core/hunt/boss-phases.js', 'if (!ph || !atOrUnder(u.hp, u.maxHp, ph.enragePm)) return row;', 'if (!ph) return row;']], want: /BC-PHASE/ },
+  { name: 'a leader\'s death heals him', edits: [['src/core/hunt/leash.js', "if (!pack || (inst.ground && inst.ground.call)) return;", 'if (!pack) return;']], want: /BC-RECORD/ },
+  { name: 'the record counts everyone\'s casts', edits: [['supabase/functions/hr-accrue/accrual.js', 'if (e.u !== unitId) continue;', '']], want: /BC-RECORD/ },
+  { name: 'the record forgets the food', edits: [['supabase/functions/hr-accrue/accrual.js', "e.type === 'cast' ? e.ability : e.type === 'eat' || e.type === 'drink' ? e.type : null", "e.type === 'cast' ? e.ability : null"]], want: /BC-RECORD/ },
+  { name: 'every hunt carries a record', edits: [['supabase/functions/hr-accrue/accrual.js', 'const fight = ground && ground.call ? fightOf(sim, unitId, BOSS_CALLS[ground.call]) : null;', "const fight = fightOf(sim, unitId, BOSS_CALLS[(ground && ground.call) || 'rat_king']);"]], want: /BC-RECORD/ },
   { name: 'a room on the ground list', edits: [['src/data/hunt-grounds.js', 'export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS)', 'export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries({ ...HUNT_GROUNDS, ...CALLED_GROUNDS })']], want: /BC-ROW/ },
 ];
 

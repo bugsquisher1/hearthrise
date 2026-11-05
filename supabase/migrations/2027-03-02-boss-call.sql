@@ -24,12 +24,14 @@
 --   `call_only`. The GUC hr.boss_call is set only by hr_boss_call, for its own transaction; no client role can set a GUC.
 -- hr_hunt_settle_session: proves the room's two ends and owes the limit. The kill can't be seen from here (a called kill journals nothing); like `rule`, it can only stop value. FOR THE EA REVIEW:
 --   a compromised engine could end a fight `boss_felled` and write the title's counter. What that buys is a title at price 0, with no value attached.
+-- hunt_session_tally.fight (hr_hunt_apply_member, hr_hunt_view): THE RECORD OF A FIGHT, display only (Tyler 2026-11-05: a losing line naming the phase). Where the boss stood as the last window closed and
+--   what this hero's bar fired (accrual.js fightOf). Only a called room's window may carry one (hr_boss_fight_ok); it stays null on every other hunt, so no other section grows by a byte.
 -- hr_bestiary_of: leaves a called row out, so the Bestiary, the charms and the trophies never count him. His counter, ev:kill_monster:<called row>, is the title's alone (hr_title_kills).
 -- hr_boss_call_felled (trigger): the prize's System line, once a fight, in the Hearth's shape: the name is stamped, the body the server's.
 -- hr_boss_call_closed (trigger): when the room empties, the party stands on the ground it pressed from. Never waits for the party row (FOR UPDATE SKIP LOCKED): a settle holds the characters,
 --   and every party verb takes the party row first. A row it skips is rewritten by the next Start.
 --
--- COST: one primary-key probe of a two-row catalogue per enter and per settle; a trigger whose WHEN reads only the row. No new player table (ledger rows are the count: the 3 a day never
+-- COST: one primary-key probe of a two-row catalogue per enter and per settle; one nullable jsonb column, read with the tally row hr_hunt_view already reads; a trigger whose WHEN reads only the row. No new player table (ledger rows are the count: the 3 a day never
 -- outlives retain_days). REVERSIBLE: restate the four touched bodies from their pre-images; drop the verb, view, quote, triggers. No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -413,11 +415,46 @@ begin
 end $$;
 revoke execute on function public.hr_boss_call_pays(jsonb, text) from public, anon, authenticated, service_role;
 
+-- THE RECORD OF A FIGHT: display only. Null on every other hunt.
+alter table public.hunt_session_tally add column if not exists fight jsonb;
+do $mig$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'hunt_session_tally_fight_ck' and conrelid = 'public.hunt_session_tally'::regclass) then
+    alter table public.hunt_session_tally add constraint hunt_session_tally_fight_ck
+      check (fight is null or (jsonb_typeof(fight) = 'object' and octet_length(fight::text) <= 2048));
+  end if;
+end $mig$;
+
+-- Is `p` what accrual.js fightOf says, on a room that has fights? { boss_pm: 0..1000, fired: { ability|eat|drink: n } }, and nothing else.
+create or replace function public.hr_boss_fight_ok(p jsonb, p_hunt text)
+returns boolean language plpgsql stable set search_path = public, pg_catalog as $$
+begin
+  if not exists (select 1 from public.hr_boss_calls c where c.hunt_id = p_hunt) then return false; end if;
+  if jsonb_typeof(p) <> 'object' or exists (select 1 from jsonb_object_keys(p) k where k not in ('boss_pm', 'fired')) then return false; end if;
+  if jsonb_typeof(p->'boss_pm') is distinct from 'number' or (p->>'boss_pm') !~ '^[0-9]{1,4}$' or (p->>'boss_pm')::int > 1000 then return false; end if;
+  return public.hr_hunt_tally_ok(jsonb_build_object('fired', coalesce(p->'fired', '{}'::jsonb)), array['fired']);
+end $$;
+revoke execute on function public.hr_boss_fight_ok(jsonb, text) from public, anon, authenticated, service_role;
+
 do $mig$
 declare v_def text; v_old text; v_new text; v_n int;
 begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), chr(13), '');
   if strpos(v_def, 'CALL-OUT') = 0 then
+    -- THE RECORD: only a called room's window may carry one, and it folds with the tally (the last window's boss, the sum of what fired).
+    v_old := $a$k not in ('dealt', 'taken', 'healed'))$a$;
+    v_new := $a$k not in ('dealt', 'taken', 'healed', 'fight'))
+          or (p_analyzer ? 'fight' and not public.hr_boss_fight_ok(p_analyzer->'fight', v_s.hunt_id)) -- CALL-OUT: one room's record$a$;
+    v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
+    if v_n <> 1 then raise exception 'hr_hunt_apply_member: the record''s check anchor matched % times (need 1): the body moved', v_n; end if;
+    v_def := replace(v_def, v_old, v_new);
+    v_old := $a$healed = public.hr_hunt_tally_add(t.healed, coalesce(p_analyzer->'healed', '{}'::jsonb))$a$;
+    v_new := v_old || $a$,
+           fight = case when p_analyzer ? 'fight' then jsonb_build_object('boss_pm', p_analyzer->'fight'->'boss_pm',
+             'fired', public.hr_jsonb_add(coalesce(t.fight->'fired', '{}'::jsonb), coalesce(p_analyzer->'fight'->'fired', '{}'::jsonb))) else t.fight end$a$;
+    v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
+    if v_n <> 1 then raise exception 'hr_hunt_apply_member: the record''s write anchor matched % times (need 1): the body moved', v_n; end if;
+    v_def := replace(v_def, v_old, v_new);
     v_old := $a$  -- (3) THE VALUE HALF: hr_apply, every row it writes stamped with the session.$a$;
     v_new := $a$  -- CALL-OUT (2027-03-02-boss-call.sql): A CALLED ROOM PAYS NOTHING, by any route: refused whole, before hr_apply writes a thing.
   if exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id and public.hr_boss_call_pays(p_delta, c.monster_id) is not null) then
@@ -426,6 +463,20 @@ begin
 $a$ || v_old;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
     if v_n <> 1 then raise exception 'hr_hunt_apply_member: CALL-OUT anchor matched % times (need 1): the body moved', v_n; end if;
+    execute replace(v_def, v_old, v_new);
+  end if;
+end $mig$;
+
+-- THE RECORD READS WITH THE TALLY (hr_hunt_view, one splice): a key only on a session that has one, so every other hunt's section stays as it was.
+do $mig$
+declare v_def text; v_old text; v_new text; v_n int;
+begin
+  v_def := replace(pg_get_functiondef('public.hr_hunt_view(uuid)'::regprocedure), chr(13), '');
+  if strpos(v_def, 'CALL-OUT') = 0 then
+    v_old := $a$'bought', t.bought, 'supply_gold', t.supply_gold)$a$;
+    v_new := v_old || $a$ || case when t.fight is null then '{}'::jsonb else jsonb_build_object('fight', t.fight) end -- CALL-OUT (2027-03-02-boss-call.sql)$a$;
+    v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
+    if v_n <> 1 then raise exception 'hr_hunt_view: CALL-OUT anchor matched % times (need 1): the body moved', v_n; end if;
     execute replace(v_def, v_old, v_new);
   end if;
 end $mig$;
@@ -598,6 +649,14 @@ begin
     if strpos((select prosrc from pg_proc where oid = v_s::regprocedure), 'CALL-OUT') = 0 then raise exception 'boss-call §6(a): % has no splice', v_s; end if;
   end loop;
   perform public.hr_assert_grant_hygiene(true);
+  -- (a2) THE RECORD: a room's own shape, nothing else, and on no other hunt.
+  if not public.hr_boss_fight_ok('{"boss_pm":230,"fired":{"fireball":0,"eat":3}}'::jsonb, 'millrace_sewer_called') then raise exception 'boss-call §6(a2): a clean record was refused'; end if;
+  foreach v_s in array array['{"boss_pm":1001,"fired":{}}', '{"boss_pm":-1,"fired":{}}', '{"boss_pm":"x"}', '{"boss_pm":5,"gold":9}', '{"boss_pm":5,"fired":{"eat":-1}}', '[]'] loop
+    if public.hr_boss_fight_ok(v_s::jsonb, 'millrace_sewer_called') then raise exception 'boss-call §6(a2): % passed', v_s; end if;
+  end loop;
+  if public.hr_boss_fight_ok('{"boss_pm":230,"fired":{}}'::jsonb, 'millrace_sewer') then raise exception 'boss-call §6(a2): a normal hunt may carry a record'; end if;
+  if has_function_privilege('authenticated', 'public.hr_boss_fight_ok(jsonb,text)', 'execute') then raise exception 'boss-call §6(a2): a client can execute the check'; end if;
+  if strpos((select prosrc from pg_proc where oid = 'public.hr_hunt_view(uuid)'::regprocedure), 'CALL-OUT') = 0 then raise exception 'boss-call §6(a2): hr_hunt_view has no splice'; end if;
   -- (b) the money line's reader: the clock and a death pass; every payout is named.
   if public.hr_boss_call_pays('{"accrued_to":"x","hp":1,"journal":{"meta":{"kills":0}},"deaths":[{}],"progress":[{"kind":"stat","key":"deaths"},{"kind":"stat","key":"ev:kill_monster:rat_king_called","period":"","add":1}]}'::jsonb, 'rat_king_called') is not null then
     raise exception 'boss-call §6(b): a clean window reads as paying'; end if;

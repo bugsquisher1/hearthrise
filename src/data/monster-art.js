@@ -199,4 +199,4 @@ export const HUNT_WALK_ART = Object.freeze({
 });
 
 /* A CALLED BOSS WEARS HIS OWN ART (Call out, src/data/boss-calls.js): a row with no sprite of its own draws as the row it copies. The scene's one reader (hunt-view/scene.js spriteOf). */
-export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief_coppercap_called: 'chief_coppercap' });
+export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief_coppercap_called: 'chief_coppercap', drain_rat_called: 'drain_rat', goblin_digger_called: 'goblin_digger' });

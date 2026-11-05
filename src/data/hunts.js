@@ -162,9 +162,9 @@ export const OPEN_HUNTS = Object.freeze(HUNTS.filter((h) => h.staged !== true));
    ordered by floor finds the ground first. `spawns` names the called row for the facts; gen-hunts writes hr_hunts but no hr_hunt_spawns for it (a boss is never a spawn). */
 export const CALLED_HUNTS = Object.freeze([
   Object.freeze({ id: 'millrace_sewer_called', name: 'The Rat King\'s Hall', theme: 'The rats have gone quiet. He knows you are here, and he has been waiting.', called: true,
-    band: Object.freeze([8, 25]), spawns: Object.freeze([Object.freeze({ monster: 'rat_king_called', w: 1 })]), family: 'Vermin', art: 'rat_king_called', travelS: 0, pull: 1, respawnMs: 600000 }),
+    band: Object.freeze([8, 25]), spawns: Object.freeze([Object.freeze({ monster: 'rat_king_called', w: 1 }), Object.freeze({ monster: 'drain_rat_called', w: 1 })]), family: 'Vermin', art: 'rat_king_called', travelS: 0, pull: 1, respawnMs: 600000 }),
   Object.freeze({ id: 'coppercap_warrens_called', name: 'Chief Coppercap\'s Hall', theme: 'The crew has cleared out and the cauldron is polished. He wants this one for himself.', called: true,
-    band: Object.freeze([32, 50]), spawns: Object.freeze([Object.freeze({ monster: 'chief_coppercap_called', w: 1 })]), family: 'Humanoid', art: 'chief_coppercap_called', travelS: 0, pull: 1, respawnMs: 600000 }),
+    band: Object.freeze([32, 50]), spawns: Object.freeze([Object.freeze({ monster: 'chief_coppercap_called', w: 1 }), Object.freeze({ monster: 'goblin_digger_called', w: 1 })]), family: 'Humanoid', art: 'chief_coppercap_called', travelS: 0, pull: 1, respawnMs: 600000 }),
 ]);
 
 /** The words a player reads for a spawn's rarity. */

@@ -124,6 +124,7 @@ import { memberSide, sharePurses, bonusFor, liveBuffHost } from '../../../src/co
    and the analyzer's tally of what each hero dealt, took and healed. */
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
 import { tallyEvents } from '../../../src/core/hunt/tally.js';
+import { BOSS_CALLS } from '../../../src/data/boss-calls.js';
 /* THE WORLD BOUND (hunt_instances.world <= worldMaxBytes UTF-8 bytes): the engine
    refuses a world past it before anything is proposed (accrueHunt). */
 import { HUNT_TUNING } from '../../../src/data/hunt-tuning.js';
@@ -1173,10 +1174,24 @@ const utf8Bytes = (text) => new TextEncoder().encode(text).length;
    dealt, took and healed, by ability / element / monster. Display stats the
    database stores with the session; every VALUE number of the analyzer comes
    from the ledger rows the settle journals, never from here. */
-function analyzerOf(sim, unitIds, unitId) {
+function analyzerOf(sim, unitIds, unitId, ground) {
   if (!Number.isInteger(unitId)) return null;
   const t = tallyEvents(sim.events, { heroes: unitIds, kinds: sim.kinds }).heroes[unitId];
-  return t ? { dealt: t.dealt, taken: t.taken, healed: t.healed } : null;
+  const fight = ground && ground.call ? fightOf(sim, unitId, BOSS_CALLS[ground.call]) : null;
+  return t || fight ? { ...(t ? { dealt: t.dealt, taken: t.taken, healed: t.healed } : {}), ...(fight ? { fight } : {}) } : null;
+}
+
+/* THE RECORD OF A CALLED FIGHT (Tyler 2026-11-05: a losing line naming the phase; hunt_session_tally.fight), display only: where the boss stood when this
+   window closed, in permille of his HP (a called room never heals him: leash.js resetPack), and what this hero's bar fired in it, by ability, plus `eat` and `drink`. */
+function fightOf(sim, unitId, call) {
+  const boss = sim.world ? sim.world.units.find((u) => u.kind === call.monster) : null;
+  const fired = {};
+  for (const e of sim.events) {
+    if (e.u !== unitId) continue;
+    const k = e.type === 'cast' ? e.ability : e.type === 'eat' || e.type === 'drink' ? e.type : null;
+    if (k) fired[k] = (fired[k] || 0) + 1;
+  }
+  return { boss_pm: boss ? Math.floor((boss.hp * 1000) / boss.maxHp) : 0, fired };
 }
 
 /**
@@ -1228,7 +1243,7 @@ export function accrueHunt(inp) {
     const hs = s.hs;
     if (hs.swingIndex === swingFrom.get(s.mi.key) && !hs.endedReason) continue;   // walked nothing: nothing to settle
     out.push({ key: s.mi.key, user: s.mi.user, slot: s.mi.slot, ...memberDelta(s, summary, fromMs, toMs, tickMs),
-      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });
+      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver, inp.ground) });
   }
   if (!out.length) return { accrued: false, reason: SKIP.NOTHING };
   const world = sim.world && sim.members && sides.some((s) => !s.hs.endedReason) ? encodeWorld(sim.world) : null;

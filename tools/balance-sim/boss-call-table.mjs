@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tools/balance-sim/boss-call-table.mjs — CALL OUT, MEASURED ON THE REAL SETTLE (Tyler 2026-11-04; src/data/boss-calls.js).
 //
-//   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 0.7 --lvl 25] [--cliff]
+//   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 0.7 --lvl 25 --rage 1400 --addhp 260 --addatk 30 --addacc 0.1] [--cliff] [--ship]
 //
 // Each cell plays the called room to its end through accrueHunt (tests/hunt-core/fixtures/play-ground.mjs, the settle
 // the world tick runs), a fresh hunt secret per seed, and reads how it ended: the kill, a death or the limit. It plays
@@ -11,6 +11,9 @@
 // is a real choice a player makes: bring a Healer and a tank, wear the ground's own tier, set the right food. "Careless"
 // is the same Level with the wrong answer: no Healer, no tank, the starter bar, or several Levels under.
 // Output: one line a cell: win rate, median time to kill, deaths per try, the food bill per head, the lowest typical HP.
+//
+// THE SHIP BAR (Tyler 2026-11-05: "phases"): same gear, about 30% with a bad bar and 85% with a good one; one gear tier behind on a good bar, about 40%. --ship plays only those rows.
+// BARS below says what each bar is, slot by slot: the party's kit and food are the same, only the bar and the Target setting change.
 import { pathToFileURL } from 'node:url';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,21 +61,64 @@ const starterBar = () => JSON.parse(JSON.stringify(START_BAR));
 const STORE_RUNE = { flame_strike: 'plain_fire_rune', flame_volley: 'plain_fire_rune', fireball: 'plain_fire_rune', frost_lance: 'plain_ice_rune', greater_mend: 'plain_water_rune',
   circle_of_renewal: 'plain_water_rune', arcane_barrier: 'plain_earth_rune', protective_ward: 'plain_earth_rune', green_sickness: 'plain_poison_rune', rend: 'plain_rupture_rune' };
 const slotOf = (id) => ({ action: { type: 'ability', id, ...(STORE_RUNE[id] ? { store: STORE_RUNE[id] } : {}) }, conditions: COND.suggestedConditions({ type: 'ability', id }), join: 'and' });
+/* A slot under conditions of its own (`when`), or the game's suggested ones. */
+const slotWith = (id, when) => (when ? { ...slotOf(id), conditions: when } : slotOf(id));
+const under_ = (metric, value, subject) => ({ metric, op: 'lt', value, ...(subject ? { subject } : {}) });
+const aoe = (n) => ({ metric: 'enemies_in_aoe', op: 'gte', value: n });
+/* THE TWO BARS. BAD answers neither question: the tank's Challenge is off his bar, nobody's slot hits more than one, the healer waits for 40% and has no party heal, everyone eats at 40% and stares at the boss.
+   GOOD answers both: Challenge first, an area slot on 2+ enemies, the damage on the weakest (the adds, then him), the healer early with a party heal, everyone eating at 75%. */
+const BARS = {
+  bad: { eat: 40, tmode: 'strongest', spells: {
+    tank: [['power_strike']], healer: [['greater_mend', [under_('ally_hp_pct', 40, 'lowest')]]], hammer: [['power_strike']], axes: [['power_strike']], mage: [['frost_lance']], bow: [['precision_shot']] } },
+  good: { eat: 75, tmode: 'weakest', spells: {
+    tank: [['challenge'], ['power_strike']],
+    healer: [['circle_of_renewal', [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_80' }]], ['greater_mend', [under_('ally_hp_pct', 85, 'lowest')]]],
+    hammer: [['cleave', [aoe(2)]], ['power_strike']], axes: [['cleave', [aoe(2)]], ['power_strike']], mage: [['fireball', [aoe(2)]], ['frost_lance']], bow: [['flame_volley', [aoe(2)]], ['precision_shot']] } },
+};
 const median = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 const round = (n, d = 0) => (n === null ? null : Math.round(n * 10 ** d) / 10 ** d);
+
+/* --trace: one fight, 10 s a line: what hit whom, who ate and cast, how far he has fallen. */
+const TRACE = process.argv.includes('--trace');
+const traceState = { boss: 0, units: {} };
+function traceWindow(o, roles) {
+  for (const [id, r] of Object.entries(o.units || {})) traceState.units[id] = r;
+  const name = (id) => { const r = traceState.units[id]; return r ? r[0] : String(id); };
+  const on = {}, by = {}, casts = {}, spawned = [];
+  let t0 = null;
+  for (const e of o.events || []) {
+    if (t0 === null) t0 = e.atMs;
+    const tk = name(e.t);
+    if (e.type === 'dmg' && /_called$/.test(tk)) { by[tk] = (by[tk] || 0) + e.amount; if (BOSS_MONSTERS.has(tk)) traceState.boss += e.amount; }
+    if (e.type === 'dmg' && /_called$/.test(name(e.u))) { const k = name(e.u).replace('_called', '') + '>' + tk; on[k] = (on[k] || 0) + e.amount; }
+    if (e.type === 'cast') casts[name(e.u) + ':' + e.ability] = (casts[name(e.u) + ':' + e.ability] || 0) + 1;
+    if (e.type === 'eat') casts[name(e.u) + ':eat'] = (casts[name(e.u) + ':eat'] || 0) + 1;
+    if (e.type === 'boss_phase') spawned.push(e.phase);
+    if (e.type === 'kill') spawned.push('KILL ' + tk);
+  }
+  const hp = o.members.map((p) => p.key + '=' + p.delta.hp).join(' ');
+  console.log('  ' + String(Math.round(((o.settledTo || 0) - Date.UTC(2026, 9, 18, 12, 0, 0)) / 1000)).padStart(4) + 's boss dmg ' + traceState.boss + ' | hp ' + hp + ' | onHeroes ' + JSON.stringify(on) + ' | onMons ' + JSON.stringify(by) + ' | ' + JSON.stringify(casts) + ' ' + spawned.join(','));
+}
+const BOSS_MONSTERS = new Set(Object.values(BOSS_CALLS).map((c) => c.monster));
 
 /** One try: { how: 'felled' | 'death' | 'time' | 'other', ms, deaths, store, hpMinPct }. */
 function tryOnce(call, c, seed) {
   const ground = G.CALLED_GROUNDS[call.hunt];
   const kits = c.party.map((s, i) => (c.gear ? c.gear(s, c.level, i) : gear.kitOf(s, c.level)));
   const roles = c.party.map((s) => STYLES[s].role);
-  const bar = (role, seat) => [...((c.spells && c.spells[c.party[seat]]) || []).map(slotOf), ...(c.starter ? starterBar() : guideBar(call.from, c.eatPct))];
-  let how = 'other', ms = 0, deaths = 0, store = 0, lowest = 100, dealt = 0, xp = 0, coin = 0, items = 0, lvl = 0;
+  const named = c.bar ? BARS[c.bar] : null;
+  const bar = (role, seat) => (named
+    ? [...(named.spells[c.party[seat]] || []).map(([id, when]) => slotWith(id, when)), ...guideBar(call.from, named.eat)]
+    : [...((c.spells && c.spells[c.party[seat]]) || []).map(slotOf), ...(c.starter ? starterBar() : guideBar(call.from, c.eatPct))]);
+  let how = 'other', ms = 0, deaths = 0, store = 0, lowest = 100, dealt = 0, xp = 0, coin = 0, items = 0, lvl = 0, phase = 'first', fell = null;
   const out = play.run(call.hunt, c.level, roles, {
-    ground, spanMs: BOSS_CALL_RULES.limitMs + 30000, windowMs: 30000, secret: secretOf(seed), equipment: (role, i) => kits[i],
+    ground, spanMs: BOSS_CALL_RULES.limitMs + 30000, windowMs: TRACE ? 10000 : 30000, secret: secretOf(seed), equipment: (role, i) => kits[i],
     bar, leaveTogether: true, ...(c.temper ? { temper: c.temper } : {}),
+    ...(named ? { options: (role) => (role === 'tank' || role === 'healer' ? {} : { target_mode: named.tmode }) } : {}),
     bag: (role, i) => (kits[i].ammo === 'bronze_arrows' ? { bronze_arrows: { loaded: 1 } } : {}),
     onWindow: (o) => {
+      if (TRACE) traceWindow(o, roles);
+      for (const e of o.events || []) if (e.type === 'boss_phase') phase = e.phase;
       for (const p of o.members) {
         if (p.hunt.ended) {
           const r = p.hunt.ended.reason;
@@ -81,6 +127,7 @@ function tryOnce(call, c, seed) {
           ms = Math.max(ms, Date.parse(p.hunt.ended.at) - Date.UTC(2026, 9, 18, 12, 0, 0));
         }
         deaths += (p.summary.deathLog || []).length;
+        for (const d of p.summary.deathLog || []) if (!fell) fell = phase + ' ' + (roles[Number(String(p.key).split(':').pop())] || p.key) + ' by ' + d.monster;
         xp += Object.values(p.delta.xp || {}).reduce((a, b) => a + b, 0);
         lvl += p.delta.level_xp || 0;
         coin += p.delta.gold || 0;
@@ -91,7 +138,7 @@ function tryOnce(call, c, seed) {
       for (const e of o.events || []) if (e.type === 'dmg' && !e.dot) dealt += 1;
     },
   });
-  return { how, ms: ms || out.playedMs, deaths, store: store / roles.length, lowest, paid: xp + lvl + coin + items };
+  return { how, ms: ms || out.playedMs, deaths, store: store / roles.length, lowest, paid: xp + lvl + coin + items, fell };
 }
 
 function cell(call, c, seeds) {
@@ -107,13 +154,24 @@ function cell(call, c, seeds) {
     medianKillS: won.length ? round(median(won.map((x) => x.ms)) / 1000) : null,
     medianEndS: round(median(t.map((x) => x.ms)) / 1000),
     foodPerHead: round(median(t.map((x) => x.store))), lowestHpPct: round(median(t.map((x) => x.lowest))),
+    fell: Object.entries(t.reduce((a, x) => { if (x.fell) a[x.fell] = (a[x.fell] || 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => n + ' ' + k).join('; '),
   };
 }
 
 /* THE CELLS: who walks in, and with what. `gear` absent = the style's best at its Level (gear.mjs); `starter` = the bar a hero who never touched it plays. */
 const under = (off) => (s, L) => gear.kitOf(s, L, { tierOffset: off, only: 'all' });
+const shipRows = (L) => [
+  ['Ship: good bar, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'good' }],
+  ['Ship: bar never touched, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'] }],
+  ['Ship: bad bar, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'bad' }],
+  ['Ship: good bar, one gear tier behind, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'good', gear: under(-1) }],
+  ['Ship: good bar, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'good' }],
+  ['Ship: bad bar, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'bad' }],
+  ['Ship: good bar, one gear tier behind, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'good', gear: under(-1) }],
+];
 const RUNS = {
   rat_king: [
+    ...shipRows(25),
     ['Optimized: tank + healer + 2 dps, L25', { level: 25, party: ['tank', 'healer', 'hammer', 'mage'] }],
     ['Optimized: tank + healer + bow, L25', { level: 25, party: ['tank', 'healer', 'bow'] }],
     ['Optimized: tank + healer, L25', { level: 25, party: ['tank', 'healer'] }],
@@ -138,6 +196,7 @@ const RUNS = {
     ['Bar: tank + healer, starter food, L25', { level: 25, party: ['tank', 'healer'], starter: true }],
   ],
   chief_coppercap: [
+    ...shipRows(45),
     ['Optimized: tank + healer + 2 dps, L45', { level: 45, party: ['tank', 'healer', 'hammer', 'mage'] }],
     ['Optimized: tank + healer + bow, L45', { level: 45, party: ['tank', 'healer', 'bow'] }],
     ['Optimized: tank + healer, L45', { level: 45, party: ['tank', 'healer'] }],
@@ -164,7 +223,8 @@ const RUNS = {
 
 const seeds = Number(arg('seeds', '12'));
 const only = arg('only', null);
-const hp = arg('hp', null), atk = arg('atk', null), lvl = arg('lvl', null), acc = arg('acc', null);
+const hp = arg('hp', null), atk = arg('atk', null), lvl = arg('lvl', null), acc = arg('acc', null), rage = arg('rage', null), addhp = arg('addhp', null), addatk = arg('addatk', null), addacc = arg('addacc', null);
+const addOf = (call, monsters) => monsters[G.CALLED_GROUNDS[call.hunt].pockets[0].adds[0].monster];
 const CLIFF = /Optimized|Under|gear tier|four dps, no tank|tank \+ dps, no healer/;
 const rows = [];
 for (const call of Object.values(BOSS_CALLS)) {
@@ -174,15 +234,24 @@ for (const call of Object.values(BOSS_CALLS)) {
     if (atk) inst.atk = Number(atk);
     if (lvl) inst.level = Number(lvl);
     if (acc) inst.baseAcc = Number(acc);
+    if (rage) inst.phases.enrageAtkPm = Number(rage);
+  }
+  for (const m of [addOf(call, ENGINE_MONSTERS), addOf(call, play.MONSTERS)]) {
+    if (addhp) m.hp = Number(addhp);
+    if (addatk) m.atk = Number(addatk);
+    if (addacc) m.baseAcc = Number(addacc);
   }
   const row = ENGINE_MONSTERS[call.monster];
   console.log('\n' + call.id + ' (HP ' + row.hp + ', atk ' + row.atk + ', Level ' + row.level + ', fee ' + call.fee + ')');
   console.log('win%  kill(s)  dead time  food/head  low HP%   party');
   for (const [label, c] of RUNS[call.id]) {
     if (process.argv.includes('--cliff') && !CLIFF.test(label)) continue;
+    if (process.argv.includes('--ship') && !/^Ship/.test(label)) continue;
+    if (TRACE && arg('trace', null) && !label.includes(arg('trace', ''))) continue;
+    if (TRACE) console.log(label);
     const r = cell(call, { label, ...c }, seeds);
     rows.push(r);
-    console.log(String(r.win).padStart(4) + '  ' + String(r.medianKillS ?? '-').padStart(6) + '  ' + String(r.deaths).padStart(4) + ' ' + String(r.time).padStart(4) + '  ' + String(r.foodPerHead).padStart(9) + '  ' + String(r.lowestHpPct).padStart(6) + '   ' + label);
+    console.log(String(r.win).padStart(4) + '  ' + String(r.medianKillS ?? '-').padStart(6) + '  ' + String(r.deaths).padStart(4) + ' ' + String(r.time).padStart(4) + '  ' + String(r.foodPerHead).padStart(9) + '  ' + String(r.lowestHpPct).padStart(6) + '   ' + label + (process.argv.includes('--why') && r.fell ? '   [' + r.fell + ']' : ''));
   }
 }
 const json = arg('json', null);

@@ -41,6 +41,7 @@ import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.93';
 import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.93';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.93';
 import { temperedAmount } from '../temper.js?v=0.2.93';
+import { swingRow, crossLines } from './boss-phases.js?v=0.2.93';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -126,6 +127,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
      added together and folded into the one multiplier hurt applies (`ability.mult`). */
   const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target);
   const base = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
+  const before = target.hp;
   const r = hurt(inst, target, amount, source, element,
     markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
@@ -136,6 +138,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
     sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
       ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}),
       ...(ability && ability.dot ? { dot: true } : {}) }));
+    if (target.side === 'mon') crossLines(inst, sc, target, before);
   }
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
@@ -175,7 +178,7 @@ export function resolveAttacks(inst, sc) {
     if (!t || !t.alive) continue;
     if (u.side === 'mon') {
       if (cheb(u, t) > 1 || !atRest(u)) continue;
-      const row = MONSTERS[u.kind];
+      const row = swingRow(u);
       /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). */
       swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));
       continue;

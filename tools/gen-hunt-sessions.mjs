@@ -258,6 +258,12 @@ export function groundRows(grounds, refs = {}) {
         if (!own(counts, s.monster)) counts[s.monster] = 1;   // a `spawns` row outside its `pack` (no box builds one)
         n++;
       }
+      /* A CALLED BOSS'S WAVE (pull-cycle.js spawnAdds): the ground's monsters too, and heads the bound counts. */
+      for (const s of p.adds || []) {
+        if (!own(monsters, s.monster)) throw new Error(`ground ${id} adds unknown monster ${s.monster}`);
+        counts[s.monster] = (counts[s.monster] || 0) + 1;
+        n++;
+      }
     }
     if (!n) throw new Error(`ground ${id} spawns nothing`);
     /* THE MOST A HERO MAY PICK here, per party size 1..PARTY_SCALE.maxHeroes (densityFor's clamp, the one
@@ -374,7 +380,7 @@ export function catalogueRows(src = {}) {
   for (const h of S.hunts) addTravel(h, false);
   for (const id of Object.keys(S.monsters).sort()) {
     const m = S.monsters[id];
-    if (m.boss || m.champion) continue;
+    if (m.boss || m.champion || m.called === true) continue;
     addTravel(trainingHunt(id, m), true);
   }
   travel.sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -620,7 +626,9 @@ function calledRows(S) {
     if (!(Array.isArray(m.gp) && m.gp[0] === 0 && m.gp[1] === 0)) throw new Error(`called row ${id} pays coin (${JSON.stringify(m.gp)}): a called row pays nothing`);
     if (!(Array.isArray(m.drops) && m.drops.length === 0)) throw new Error(`called row ${id} drops something: a called row pays nothing`);
     if (m.yieldPm !== undefined || m.dropBonus !== undefined) throw new Error(`called row ${id} carries a yield: damage.js yieldOf reads 0 as full yield`);
-    if (m.boss !== true) throw new Error(`called row ${id} is no boss: it would get a training row and a door of its own`);
+    if (m.boss !== true && m.add !== true) throw new Error(`called row ${id} is neither a boss nor his add`);
+    if (m.boss === true && m.add === true) throw new Error(`called row ${id} is both a boss and an add: "target is a boss" tells them apart`);
+    if (m.boss === true && !(m.phases && whole(m.phases.addsPm) && whole(m.phases.enragePm) && whole(m.phases.enrageAtkPm) && m.phases.addsPm > m.phases.enragePm && m.phases.enragePm > 0 && m.phases.addsPm < 1000 && m.phases.enrageAtkPm > 1000)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
   }
   /* The table's CHECK tells a called row by its id (hr_hunt_kill_bounds_xp_max_check): the id and the flag agree, both ways. */
   for (const id of Object.keys(S.monsters)) if (/_called$/.test(id) !== (S.monsters[id].called === true)) throw new Error(`monster ${id}: an id ends _called exactly when its row is called`);
@@ -636,8 +644,11 @@ function calledRows(S) {
     if (!(whole(c.fee) && c.fee >= 1 && c.fee <= 1000000000)) throw new Error(`call ${c.id} fee ${c.fee} is not whole gold in 1..1e9`);
     return { id: c.id, hunt: c.hunt, from: c.from, monster: c.monster, fee: c.fee };
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
+  for (const id of Object.keys(S.monsters)) if (S.monsters[id].phases && S.monsters[id].called !== true) throw new Error(`monster ${id} has phases and is no called row`);
   for (const g of Object.values(S.grounds)) {
-    const mons = g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns)).map((s) => s.monster);
+    if (g.call && !g.pockets.some((p) => (p.adds || []).length)) throw new Error(`called room ${g.id} has no adds`);
+    if (!g.call && g.pockets.some((p) => p.adds)) throw new Error(`ground ${g.id} has adds and is no called room`);
+    const mons = g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns, p.adds || [])).map((s) => s.monster);
     for (const id of mons) {
       if (g.call && !(S.monsters[id] && S.monsters[id].called === true)) throw new Error(`called room ${g.id} fields ${id}, which pays`);
       if (!g.call && S.monsters[id] && S.monsters[id].called === true) throw new Error(`ground ${g.id} fields the called row ${id}`);

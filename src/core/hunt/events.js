@@ -16,7 +16,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-export const EVENT_VERSION = 4;
+export const EVENT_VERSION = 5;
 
 /* type → its required fields. `u` acts, `t` is acted on (unit ids). */
 export const EVENT_TYPES = Object.freeze({
@@ -33,6 +33,8 @@ export const EVENT_TYPES = Object.freeze({
   pull: Object.freeze(['pocket']),
   respawn: Object.freeze(['pocket']),
   wipe: Object.freeze([]),
+  /* boss-phases.js: a called boss crossed a line (phase: adds | enrage) */
+  boss_phase: Object.freeze(['u', 'phase']),
   /* targeting.js */
   target: Object.freeze(['u', 't']),
   challenge: Object.freeze(['u']),

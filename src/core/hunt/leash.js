@@ -62,7 +62,8 @@ export function holderOutside(inst, pocket) {
  */
 export function resetPack(inst, pocket, sc) {
   const pack = inst.world.packs[pocket];
-  if (!pack) return;
+  /* A CALLED ROOM NEVER RESETS: a death ends the whole fight at its next boundary, and his HP only falls (boss-phases.js reads no flag, the fight's record reads where he stood). */
+  if (!pack || (inst.ground && inst.ground.call)) return;
   pack.aggro = false;
   pack.holder = null;
   for (const u of inst.world.units) {

@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 58f2411bcf4cbcaa6dd2a94ed5fdb2763f2266f1f9e275501cb45b485eb11c47
+--   digest: 15bcdf6be3d9bc9ec8512b1ff57f4a4d6608ff15d05cba2e43b47f58f2c379b1
 --   82 supplies, 130 hunts (named + training), 47 limits, 15 end reasons,
 --   548 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 8 hunt grounds
@@ -539,6 +539,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('draconia', 646, 1924, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"dragonrib_bow":1}'::jsonb),
   ('dragon', 700, 2030, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"marrow_cookbook":1}'::jsonb),
   ('drain_rat', 18, 222, '{"rat_tail":1,"bones":1,"rat_incisor":1,"bronze_platelegs":1,"leather_pants":1,"apprentice_pants":1}'::jsonb),
+  ('drain_rat_called', 0, 0, '{}'::jsonb),
   ('drake', 240, 923, '{"dragon_scale":1,"dragon_bones":1,"mithril_ore":1,"steel_bar":1,"yew_bow":1}'::jsonb),
   ('drowned_dead', 96, 441, '{"grave_dust":1,"big_bones":1,"lobster":1,"abyssal_pearl":1}'::jsonb),
   ('dryad', 232, 881, '{"yew_log":1,"moonbloom":1,"runewood_log":1,"goldenroot":1}'::jsonb),
@@ -561,6 +562,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('goblin', 8, 36, '{"goblin_ear":1,"bones":1,"bronze_sword":1,"goblin_totem":1}'::jsonb),
   ('goblin_brute', 42, 207, '{"goblin_ear":1,"brute_plate":1,"steel_sword":1,"goblin_totem":1}'::jsonb),
   ('goblin_digger', 43, 1812, '{"copper_ore":1,"coal":1,"bones":1,"goblin_ear":1,"dented_copper_pot":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1,"steel_warhammer":1,"steel_belt":1,"boarhide_belt":1,"scholar_belt":1}'::jsonb),
+  ('goblin_digger_called', 0, 0, '{}'::jsonb),
   ('goblin_scavenger', 32, 1149, '{"goblin_ear":1,"copper_ore":1,"bones":1,"glowing_copper_fleck":1,"steel_boots":1,"boarhide_boots":1,"scholar_boots":1,"steel_platelegs":1,"boarhide_pants":1,"scholar_pants":1,"steel_sword":1}'::jsonb),
   ('goblin_skulker', 38, 1377, '{"goblin_ear":1,"bones":1,"iron_ore":1,"skulkers_shiv":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"willow_longbow":1,"willow_crossbow":1,"steel_gauntlets":1,"boarhide_gloves":1,"scholar_gloves":1}'::jsonb),
   ('goblin_sluicer', 34, 465, '{"copper_ore":1,"bones":1,"sluice_crust":1,"iron_platebody":1,"studded_body":1,"adept_body":1}'::jsonb),
@@ -672,11 +674,11 @@ delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
   ('coppercap_warrens', 'coppercap_warrens', 6, 18, 90000, 4, '{8,8,8,8}'::int[]),
-  ('coppercap_warrens_called', 'coppercap_warrens_called', 1, 1, 600000, 4, '{8,8,8,8}'::int[]),
+  ('coppercap_warrens_called', 'coppercap_warrens_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
   ('meadowbrook_thicket', 'meadowbrook_thicket', 6, 49, 60000, 4, '{8,8,8,8}'::int[]),
   ('mill_cellar', 'mill_cellar', 2, 15, 32000, 4, '{8,8,8,8}'::int[]),
   ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4, '{8,8,10,12}'::int[]),
-  ('millrace_sewer_called', 'millrace_sewer_called', 1, 1, 600000, 4, '{8,8,8,8}'::int[]),
+  ('millrace_sewer_called', 'millrace_sewer_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
   ('mosslight_glade', 'mosslight_glade', 6, 37, 60000, 4, '{8,8,8,8}'::int[]),
   ('wickstead', 'wickstead', 6, 36, 60000, 4, '{8,8,8,8}'::int[]);
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
@@ -686,6 +688,7 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('coppercap_warrens', 'goblin_skulker', 13),
   ('coppercap_warrens', 'hobgoblin_foreman', 2),
   ('coppercap_warrens_called', 'chief_coppercap_called', 1),
+  ('coppercap_warrens_called', 'goblin_digger_called', 3),
   ('meadowbrook_thicket', 'briarcoat_wolf', 7),
   ('meadowbrook_thicket', 'dire_gray', 3),
   ('meadowbrook_thicket', 'gray_whelp', 20),
@@ -700,6 +703,7 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('millrace_sewer', 'kobold_tosher', 3),
   ('millrace_sewer', 'rat_king', 1),
   ('millrace_sewer', 'sump_slime', 3),
+  ('millrace_sewer_called', 'drain_rat_called', 3),
   ('millrace_sewer_called', 'rat_king_called', 1),
   ('mosslight_glade', 'brook_bear', 2),
   ('mosslight_glade', 'carrion_crow', 23),
@@ -1637,11 +1641,11 @@ begin
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
      or (select count(*) from public.hr_hunt_lanes) <> 4
      or (select count(*) from public.hr_hunt_set_options) <> 10
-     or (select count(*) from public.hr_hunt_kill_bounds) <> 142
+     or (select count(*) from public.hr_hunt_kill_bounds) <> 144
      or (select count(*) from public.hr_hunt_abilities) <> 16
      or (select count(*) from public.hr_hunt_grounds) <> 8
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
-     or (select count(*) from public.hr_hunt_ground_spawns) <> 32
+     or (select count(*) from public.hr_hunt_ground_spawns) <> 34
      or (select count(*) from public.hr_hunt_roster) <> 30
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
@@ -1661,7 +1665,7 @@ begin
     raise exception 'a hunt ground''s respawn_ms is not hunt-grounds.js respawnMs'; end if;
   -- THE KILL BOUND'S BASE covers a party's default pull: every ground's spawns, as generated, and each at least its pockets' largest pull.
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.pockets, g.spawns) not in
-               (('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 1), ('meadowbrook_thicket', 6, 49), ('mill_cellar', 2, 15), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 1), ('mosslight_glade', 6, 37), ('wickstead', 6, 36))) then
+               (('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 4), ('meadowbrook_thicket', 6, 49), ('mill_cellar', 2, 15), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 4), ('mosslight_glade', 6, 37), ('wickstead', 6, 36))) then
     raise exception 'a hunt ground''s spawns is not as-built plus its pockets at a party''s largest default pull'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"yieldPm":30,"stance":31,"acc":32,"maxHit":33,"def":34,"element":35,"swingLeftMs":36,"mana":37,"maxMana":38,"manaMilli":39,"regenPm":40,"lanes":41,"cds":42,"shield":43,"markPm":44,"markUntil":45,"statuses":46,"laneAt":47,"otHp":48,"otMana":49,"ruleHold":50,"ruleWait":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16}}'::jsonb

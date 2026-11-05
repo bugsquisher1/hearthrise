@@ -44,3 +44,4 @@ index.html text eol=lf
 tests/fixtures/fonts/*.ttf binary
 docs/planning/PRIORITY_BOARD.md merge=union
 CHANGELOG.md merge=union
+art/world/hunt-masks/*.json text eol=lf

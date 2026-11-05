@@ -36,7 +36,8 @@
 // atlas carries is the brown stub box, src/world/stub-atlas.js), idle and walk in all eight
 // facings, the blow (`attack`), the fall (`death`) and the held body (`corpse`) in the four
 // cardinals, every frame inside its atlas and not blank (rule [live], LIVE_CLIPS). A kill that
-// leaves a brown square or a standing monster is red here, not in a player's hunt.
+// leaves a brown square or a standing monster is red here, not in a player's hunt. Two live monsters
+// on the same pixels are red too (rule [twin]): a new name gets a new drawing.
 //
 // ONE STYLE (Tyler 2026-10-18, tools/world-art/style1.mjs): every sidecar of a set
 // the renderer loads is style 1 with a style-1 source, no retired pre-style-1 set
@@ -104,12 +105,11 @@ function style1Input(root = ROOT, over = {}) {
 // its one idle frame; a unit every listed clip in all four facings.
 const UNIT = ['s', 'e', 'n', 'w'], PROP = ['s'];
 const REQUIRED = {
-  // the Mill Cellar's three: rat and slime wear the Sewer's style-1 art, the hive wasp is its own
+  // the Mill Cellar's three
   rat: { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
   slime: { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
   hive_wasp: { set: 'mill', class: 'vermin_flier', anims: ['idle', 'walk'], dirs: FACINGS },
-  // Wickstead's rat, wasp and spider (lane b-wickstead-art, 2026-10-28): the shipped rat, hive wasp and cistern
-  // spider under their own rows, so the same clips as theirs (the live-ground contract checks the blow and fall)
+  // Wickstead's rat, wasp and spider, each its own drawing (the live-ground contract checks the blow and fall)
   granary_rat: { set: 'stead', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
   barn_wasp: { set: 'stead', class: 'vermin_flier', anims: ['idle', 'walk'], dirs: FACINGS },
   barn_spider: { set: 'stead', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
@@ -136,8 +136,10 @@ const REQUIRED = {
   ...Object.fromEntries(['outfit_knight', 'outfit_berserker', 'outfit_brute', 'outfit_ranger', 'outfit_sorcerer', 'outfit_witch', 'outfit_dawnward', 'outfit_druid']
     .map((id) => [id, { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS }])),
   rat_king: { set: 'hunt', class: 'beast', anims: ['idle', 'walk'], dirs: FACINGS },
-  // the Millrace Sewer's six (src/data/monsters.js: the sprite id is the monster id)
-  ...Object.fromEntries(['drain_rat', 'sump_slime', 'cistern_spider'].map((id) => [id, { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS }])),
+  // the Millrace Sewer's six (src/data/monsters.js: the sprite id is the monster id). The hunt atlas is at 2048x1808 of 2048,
+  // so the rat and the slime with art of their own live in the Sewer's set, loaded on that map only.
+  ...Object.fromEntries(['drain_rat', 'sump_slime'].map((id) => [id, { set: 'sewer', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS }])),
+  cistern_spider: { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
   culvert_bat: { set: 'hunt', class: 'vermin_flier', anims: ['idle', 'walk'], dirs: FACINGS },
   kobold_tosher: { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS },
   // the Meadowbrook Thicket's wolves and the Coppercap Warrens' goblins (2026-10-18): idle, walk and the
@@ -148,7 +150,7 @@ const REQUIRED = {
     /* Mosslight Glade's five (lane b-mosslight-art, 2026-10-22) */
     ['carrion_crow', 'glade', 'vermin_flier'], ['glade_poacher', 'glade', 'character'], ['walking_vine', 'glade', 'vermin'],
     ['goblin_sluicer', 'glade', 'vermin'], ['rook_poacher', 'glade', 'character'],
-    /* Wickstead's Turncoat (lane b-wickstead-art, 2026-10-28): the glade poacher under its own row */
+    /* Wickstead's Turncoat */
     ['turncoat', 'stead', 'character']]
     .map(([id, set, cls]) => [id, { set, class: cls, anims: ['idle', 'walk', 'attack'], dirs: FACINGS, also: { death: UNIT } }])),
   // their gather nodes (hunt-grounds.js GROUND_NODE_KINDS): a full and a spent sprite each
@@ -195,6 +197,21 @@ function liveFindings(monsters, sprites, atlasOf) {
         if (!opaque) out.push(`live: ${id} ${name}/${d}/${i} is a blank frame`);
       });
     }
+  }
+  return out;
+}
+
+/* One drawing under two names (art audit 2026-11-04: the same rat three times from the Cellar to Wickstead): two live monsters whose idle facings are the same pixels. */
+function twinFindings(monsters, sprites, atlasOf) {
+  const seen = new Map(), out = [];
+  for (const id of monsters.keys()) {
+    const got = sprites[id];
+    if (!got || !got.sprite.anims.idle) continue;
+    const [fw, fh] = got.sprite.frame, atlas = atlasOf(got.set);
+    if (!atlas) continue;
+    const key = CARDINALS.map((d) => { const [[x, y]] = got.sprite.anims.idle.dirs[d]; let s = ''; for (let r = 0; r < fh; r++) s += Buffer.from(atlas.data.subarray(((y + r) * atlas.width + x) * 4, ((y + r) * atlas.width + x + fw) * 4)).toString('latin1'); return s; }).join('|');
+    if (seen.has(key)) out.push(`twin: ${id} and ${seen.get(key)} are one drawing under two names`);
+    else seen.set(key, id);
   }
   return out;
 }
@@ -246,6 +263,7 @@ function guard() {
   }
   const atlasOf = (set) => (atlases.find((a) => a.manifest.set === set) || {}).atlas;
   for (const f of liveFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
+  for (const f of twinFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
   for (const [id, set] of Object.entries(REQUIRED_TERRAIN)) {
     const m = atlases.find((a) => a.manifest.set === set);
     if (!m || !m.manifest.terrain[id]) fails.push(`content: no terrain "${id}" in set ${set}`);
@@ -325,7 +343,7 @@ function selftest(atlases) {
     for (const { manifest: m, atlas } of atlases) for (const [id, s] of Object.entries(m.sprites)) if (s.class === cls && (!only || id === only)) return spriteFromAtlas(m, atlas, id);
     return null;
   };
-  const chest = find('box'), hero = find('character'), fx = find('vfx'), vermin = find('vermin', 'sump_slime') || find('vermin');
+  const chest = find('box'), hero = find('character'), fx = find('vfx'), vermin = find('vermin', 'slime') || find('vermin');
   if (!chest || !hero || !fx || !vermin) { console.error('world-assets --selftest: harness — needs a shipped box-class sprite, a character, a vermin and a vfx'); process.exit(2); }
   const ay = chest.anchor[1];
   const controls = [['clean chest', chest], ['clean hero', hero], ['clean vermin', vermin], ['clean effect (blank frames allowed)', mapFrames(fx, (img, f) => (f.i === 0 ? createImage(img.width, img.height) : img))],
@@ -402,7 +420,13 @@ function selftest(atlases) {
         if (!any) blank = [xx, yy]; }
       return { anims: { ...sp.anims, corpse: { ...sp.anims.corpse, dirs: { ...sp.anims.corpse.dirs, s: [blank || [x, y]] } } } }; }));
   liveCase('a spawn whose monster has no sprite at all (the brown stub)', 'brown stub', new Map([...monsters, ['ghost_rat', new Set(['mill_cellar'])]]), sprites);
-  const LIVE_MUTANTS = 7;
+  /* a monster wearing another's drawing: the shipped sprites stay silent, the planted twin is named */
+  const twinShipped = twinFindings(monsters, sprites, atlasOf);
+  if (twinShipped.length) { console.error('world-assets --selftest: harness — two live monsters already share a drawing: ' + twinShipped.join('; ')); process.exit(2); }
+  const planted = twinFindings(monsters, { ...sprites, drain_rat: sprites.rat }, atlasOf);
+  if (planted.some((f) => f.includes('drain_rat') && f.includes('rat'))) console.log('  ✓ the Drain Rat wearing the Giant Rat: caught by [twin]');
+  else { escaped++; console.log(`  ✗ the Drain Rat wearing the Giant Rat: NOT caught by [twin] (${planted.join('; ') || 'silent'})`); }
+  const LIVE_MUTANTS = 8;
 
   // The sheet encoding: the committed bytes pass, RGBA is red, and the encoder gives back every pixel, transparent ones
   // included, past 256 colours too (it falls back to RGBA there, so no sheet can lose a colour to a palette).

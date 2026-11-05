@@ -49,10 +49,10 @@ export const UNITS = Object.freeze({
      at their full 48 px art in the vermin classes. */
   druid: { id: 'outfit_druid', class: 'character', fit: { stretch: [27, 2] } },
   kobold: { id: 'kobold_tosher', class: 'character', fit: { stretch: [29, 3] } },
-  /* `also`: the Mill Cellar's rat and slime (src/data/hunts.js mill_cellar) wear the same style-1
-     art as the Sewer's: one look per creature family, no pre-style-1 critter left in the world. */
-  giant_rat: { id: 'drain_rat', class: 'vermin', also: ['rat'] },
-  slime: { id: 'sump_slime', class: 'vermin', also: ['slime'] },
+  /* the Mill Cellar's rat and slime (src/data/hunts.js mill_cellar). The Sewer's Drain Rat and Sump Slime
+     wore this art too until they got their own (art/world/sewer, tools/world-art/port-pixellab.mjs). */
+  giant_rat: { id: 'rat', class: 'vermin' },
+  slime: { id: 'slime', class: 'vermin' },
   venom_spider: { id: 'cistern_spider', class: 'vermin' },
   giant_bat: { id: 'culvert_bat', class: 'vermin_flier' },
 });
@@ -234,11 +234,9 @@ function main() {
     const r = portUnit(simId, manifest);
     if (r.error) { console.log('  ✗ ' + r.error); bad++; continue; }
     if (!report) {
-      for (const id of [r.sidecar.id].concat(UNITS[simId].also || [])) {
-        const sc = Object.assign({}, r.sidecar, { id, source: id + '.png' });
-        writeFileSync(join(ROOT, OUT, sc.source), encodePNG(r.sheet));
-        writeFileSync(join(ROOT, OUT, id + '.json'), JSON.stringify(sc, null, 2) + '\n');
-      }
+      const sc = Object.assign({}, r.sidecar, { source: r.sidecar.id + '.png' });
+      writeFileSync(join(ROOT, OUT, sc.source), encodePNG(r.sheet));
+      writeFileSync(join(ROOT, OUT, sc.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
     }
     console.log('  ✓ ' + simId + ' → ' + r.sidecar.id + ' (' + r.sidecar.class + ', ' + r.sheet.width + 'x' + r.sheet.height + ')');
   }

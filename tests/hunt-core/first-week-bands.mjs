@@ -19,7 +19,7 @@
 //                  die. Each claim is played here against the ground that fits: a balance change that makes one false turns this red.
 //   bigger-pulls-words  the Hunts window's "Bigger pulls pay more once your heroes can hold them", played: a Level 18 hero in Wickstead at 8 each
 //                  against as built, and a fresh one who cannot hold them (it dips, and its food bill eats the gain).
-//   cape-cut       a Houndskin Cloak, played: damage taken falls by its 7% and no more than dice allow, the same swings viewed or with the browser closed
+//   cape-cut       a Houndskin Cloak and a food's buff, played: each reaches the fight and moves damage taken as far as dice allow, the same swings viewed or with the browser closed
 //   risk-ladder    THE RISK IS THE MONSTERS (Tyler 2026-11-04): in range is safe; on a harder ground a hero earns well over the ground that fits and its supply bill follows, an unready hero dies and
 //                  a built one holds, with no rule behind any of it (hunt-core/damage.mjs same-blow-at-any-level); a watched hunt and a closed browser die alike; a Level 1 behind high friends earns
 //                  next to nothing, and a party that pushes together is paid in full.
@@ -185,6 +185,13 @@ cases['cape-cut'] = (R) => {
   if (!(cut > 0.04 && cut < 0.1)) return 'a Houndskin Cloak moved damage taken by ' + (cut * 100).toFixed(1) + '% at the Warrens, not its 7%';
   const viewed = play({ ...CAPED, seeds: 1, windowMs: 10000 }), closed = play({ ...CAPED, seeds: 1, windowMs: 600000 });
   for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (viewed[k] !== closed[k]) return 'caped, ' + k + ': viewed ' + viewed[k] + ', browser closed ' + closed[k];
+  /* A FOOD'S CUT REACHES THE FIGHT, the same hook. An hour's dice hide 3-5% (a hero with a cut draws differently, four seeds read -0.3% for a 5% buff), so reach is a buff they cannot hide, on a hero in no armor (in plate a 40% buff meets the 60% cap); the exact mean is temper.mjs's. Both paths on a real size. */
+  const buffed = (magnitude) => ({ buffs: [{ type: 'defense', magnitude, until: new Date(Date.UTC(2026, 9, 18, 13, 0, 0)).toISOString() }] });
+  const NAKED = { gear: { noArmour: true } };
+  const fedCut = 1 - play({ ...NAKED, ...buffed(40) }).takenPerH / play(NAKED).takenPerH;
+  if (!(fedCut > 0.25 && fedCut < 0.55)) return 'a 40% food moved damage taken by ' + (fedCut * 100).toFixed(1) + '% at the Warrens';
+  const fedViewed = play({ ...buffed(5), seeds: 1, windowMs: 10000 }), fedClosed = play({ ...buffed(5), seeds: 1, windowMs: 600000 });
+  for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (fedViewed[k] !== fedClosed[k]) return 'fed, ' + k + ': viewed ' + fedViewed[k] + ', browser closed ' + fedClosed[k];
   return null;
 };
 cases['armor-rungs'] = (R) => {
@@ -300,7 +307,8 @@ const mutants = [
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',
     edits: [['src/data/hunt-grounds.js', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = 1;']] },
-  { name: 'a cape reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/member.js', ' + (Number(c.eq.steadyPm) || 0)', '']] },
+  { name: 'a cape reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', 'nat(eq && eq.steadyPm) + ', '']] },
+  { name: 'a food reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', " + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);", ";"]] },
   { name: 'a cape guards again: damage taken falls by half', case: 'cape-cut', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 4,']] },
   { name: 'the unready hero is safe: a hero in no armor takes 60% less from every blow', case: 'risk-ladder', expect: 'fifteen Levels under',
     edits: [['src/core/mitigation.js', 'if (!dodgePm && !absorbPm && !ward) return NO_MITIGATION;', 'if (!dodgePm && !absorbPm && !ward) return Object.freeze({ dodgePm: 0, absorbPm: 600, ward: 0, keepPm: 0 });']] },

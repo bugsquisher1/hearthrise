@@ -158,6 +158,24 @@ const cases = {
     }
     return null;
   },
+  /* A food's buff is the same cut, sized like a cape's step, and never the to-hit roll: a +4 food was -40% at the Warrens. What the row pays, the words say. */
+  'a-food-cuts-and-never-guards': (M) => {
+    const { eq, setBonus, profile } = M.member.loadoutOf(IRON, M.ITEMS);
+    const snap = (bonus) => M.member.heroSnapshot({ skills: { melee: 0, defense: 0 }, levelXp: 0 }, { eq, equipment: IRON, items: M.ITEMS, bonus, setBonus, profile });
+    const pays = M.buffs.buffBonuses([{ type: 'defense', magnitude: 5, remainingMs: 60000 }], {});
+    if (pays.steady !== 0.05 || pays.defense) return 'a Defense-type food pays ' + JSON.stringify(pays);
+    const fed = snap((k) => pays[k] || 0), bare = snap(() => 0);
+    if (fed.armorPm !== 50) return 'a 5% food snaps to ' + fed.armorPm;
+    if (fed.def !== bare.def) return 'a food moved the to-hit roll: ' + fed.def + ' against ' + bare.def;
+    const rows = Object.entries(M.ITEMS).filter(([, it]) => it.buff && it.buff.type === 'defense');
+    if (rows.length < 2) return 'the cut foods are gone';
+    for (const [id, it] of rows) {
+      if (it.buff.magnitude < 3 || it.buff.magnitude > 7) return id + ' cuts ' + it.buff.magnitude + '%, outside a cape step';
+      const words = M.descriptions[id] || '';
+      if (!words.includes(it.buff.magnitude + '% lighter') || /guard/i.test(words)) return id + ' says: ' + words;
+    }
+    return null;
+  },
   'guard-is-a-shields-alone': (M) => {
     const bad = Object.keys(M.ITEMS).filter((id) => { const it = M.ITEMS[id]; if (!it.slot || it.slot === 'shield' || !(Number(it.defB) > 0)) return false;
       const v = M.mitigation.armourValues({ x: id }, M.ITEMS); return !(v.heavy || v.medium || v.light); });
@@ -258,7 +276,12 @@ const mutants = [
     edits: [[MI, '  if (armorPm) x = temperedAmount(x, -armorPm, rng);\n', ''], [MI, '  let x = raw - Math.floor((raw * (m.absorbPm || 0)) / 1000);\n', '  let x = temperedAmount(raw, -(armorPm || 0), rng);\n  x = x - Math.floor((x * (m.absorbPm || 0)) / 1000);\n']] },
   { name: 'Armor after the cap', case: 'armor-never-passes-the-cap',
     edits: [[MI, '  if (armorPm) x = temperedAmount(x, -armorPm, rng);\n', ''], [MI, '  return Math.max(1, floor, x);\n', '  return Math.max(1, armorPm ? temperedAmount(Math.max(floor, x), -armorPm, rng) : Math.max(floor, x));\n']] },
-  { name: 'a cape reads nothing on the hook', case: 'the-cape-shares-the-hook-and-the-cap', edits: [[MB, ' + (Number(c.eq.steadyPm) || 0)', '']] },
+  { name: 'a cape reads nothing on the hook', case: 'the-cape-shares-the-hook-and-the-cap', edits: [[MB, ' + steadyPmOf(c.eq, c.bonus)', '']] },
+  { name: 'a food pays the to-hit roll again', case: 'a-food-cuts-and-never-guards', edits: [[MB, " + (Number(c.eq.guardB) || 0));", " + (Number(c.eq.guardB) || 0) + (Number(c.bonus('steady')) || 0) * 80);"]] },
+  { name: 'a food reads nothing on the hook', case: 'a-food-cuts-and-never-guards', edits: [[MI, " + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);", ";"]] },
+  { name: 'the buff back on its old flat key', case: 'a-food-cuts-and-never-guards', edits: [['src/core/buffs.js', "defense: { label: 'Damage cut', bonusKey: 'steady', isPercent: true, glyph: 'uiShield' },", "defense: { label: 'Defense', bonusKey: 'defense', isPercent: false, isFlat: true, glyph: 'uiShield' },"]] },
+  { name: 'a Frostfin Supper past a cape step', case: 'a-food-cuts-and-never-guards', edits: [['src/data/items.js', "buff:{type:'defense', magnitude:5,", "buff:{type:'defense', magnitude:12,"]] },
+  { name: 'the words still promise guard', case: 'a-food-cuts-and-never-guards', edits: [['src/data/item-descriptions.js', "'A thick chowder of silverfin, potato and carrot: for five minutes, every blow that reaches you lands 3% lighter'", "'A thick chowder of silverfin, potato and carrot, a hearty pot that stiffens your guard'"]] },
   { name: 'a cut alone has no cap', case: 'the-cape-shares-the-hook-and-the-cap', edits: [[MI, 'const keep = m.keepPm || (armorPm ? 1000 - ARMOUR_MITIGATION.capPm : 0);', 'const keep = m.keepPm;']] },
   { name: 'a cape guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 4,']] },
   { name: 'a stud guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', "copper_studs:        { n: 'Copper Studs',", "copper_studs:        { defB: 1, n: 'Copper Studs',"]] },

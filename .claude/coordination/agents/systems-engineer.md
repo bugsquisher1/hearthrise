@@ -4520,3 +4520,6 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 1. *Lowering a bar needs a mutant on that very line.* A catch by an earlier line proves nothing about the new one, so the mutant names the line it must fail on (`expect`).
 2. *An existing hook beats a new one.* Tempering's last-step cut took a cape in one sum and one floor; the jewelry spec's Steady now needs one row field.
 3. *To show a player-visible limit, ask the server where the hero stands, then shoot the page.* One read found the hero inside a tree.
+## 2026-11-05 · lane/c-armor-tiers (the guard foods)
+1. *Size a rewire by what the data row is named in.* A new buff type would have touched the hunt catalogue. Keeping the type and moving what it pays touched one generated file with two numbers.
+2. *The scratchpad is shared with other lanes.* Another lane's `run-guards.mjs` replaced mine and ran my guard list as nonsense with exit 0. Name scratch tools for the lane and read the output, not the exit of the wrapper.

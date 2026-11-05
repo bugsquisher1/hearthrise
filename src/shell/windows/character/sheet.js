@@ -36,7 +36,7 @@ const COMBAT_TIPS = Object.freeze({
   dodge: 'Medium armor: the chance a blow misses you completely.',
   absorb: 'Heavy armor: the share of every blow that lands which your armor takes.',
   ward: 'Light armor: a flat amount taken off every blow that lands. Best against many small blows.',
-  steady: 'Your cape: a share taken off every blow that reaches you, last of all.',
+  steady: 'Your cape and some foods: a share taken off every blow that reaches you, last of all.',
   temper: 'What the smith has done for what you wear now. Shop, Services.',
 });
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);

@@ -26,6 +26,9 @@ import { temperedAmount } from './temper.js?v=0.2.91';
 
 const nat = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
 
+/** The cut a hero carries, permille: worn `steadyPm` (a cape) and a food's `steady` bonus. It joins Tempering on `mitigate`'s last step. */
+export const steadyPmOf = (eq, bonus) => nat(eq && eq.steadyPm) + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);
+
 /** The armour value each weight wears: { heavy, medium, light } (the sum of its pieces' defB). */
 export function armourValues(equipment, items) {
   const out = { heavy: 0, medium: 0, light: 0 };

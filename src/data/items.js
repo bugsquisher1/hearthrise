@@ -406,7 +406,7 @@ export const ITEMS={
     buff:{type:'gather_speed', magnitude:1, durationMs:120000}},
   frostfin:        {n:'Raw Frostfin', icon:'❄️', v:70, heals:216},
   cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:35, heals:456, foodTier:4, foodClass:'healing',
-    buff:{type:'defense', magnitude:4, durationMs:360000}},
+    buff:{type:'defense', magnitude:5, durationMs:360000}},
   /* ── "Reed & Tide" (game-designer ruling, 2026-09-13) ─────────────────
      The four fish that close the Trout(20)→Lobster(40) silence, their cooked
      forms, and the two multi-input dishes that give late cooking a reason to
@@ -431,7 +431,7 @@ export const ITEMS={
   cooked_goldgill:       {n:'Goldgill Steak', icon:'🍣', v:16, heals:276, foodTier:3, foodClass:'healing',
     buff:{type:'drop_rate', magnitude:2, durationMs:300000}},
   river_chowder:         {n:'River Chowder', icon:'🍲', v:380, heals:360, foodTier:3, foodClass:'healing',
-    buff:{type:'defense', magnitude:2, durationMs:300000}},
+    buff:{type:'defense', magnitude:3, durationMs:300000}},
   fishers_pie:           {n:"Fisher's Pie", icon:'🥧', v:520, heals:408, foodClass:'buff',
     buff:{type:'damage', magnitude:2, durationMs:600000}},
   /* Fishing (55 / 90) — swordfish also fills the old 40→76 dead zone.

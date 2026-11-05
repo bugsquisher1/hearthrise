@@ -372,7 +372,7 @@ export function monsterCombatRolls(monster, ctx) {
   const c = ctx || {};
   const eq = c.eq || {};
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
-  const playerDefense = levelOf(c.skills || {}, 'defense') + (eq.guardB || 0) + (bonus('defense') || 0);
+  const playerDefense = levelOf(c.skills || {}, 'defense') + (eq.guardB || 0);
   return { accuracy: monsterAccuracy(monster, playerDefense), maxHit: monsterMaxHit(monster) };
 }
 

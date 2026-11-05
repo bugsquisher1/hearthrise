@@ -67,7 +67,7 @@ function withSections(env, o = {}) {
     combat: o.fresh === false ? null : Object.assign(clone(COMBAT), o.combat || {}), computed_at: '2026-10-18T10:00:00Z' };
   if (o.dropMana && env.character_sheet.combat) delete env.character_sheet.combat.max_mana;
   if (o.dropMana && env.hunt && env.hunt.hero) delete env.hunt.hero.mana_max;
-  env.outfit = { worn: 'berserker', colors: {}, owned: ['knight', 'berserker', 'ranger', 'sorcerer', 'druid'] };
+  env.outfit = { worn: 'berserker', base: { head: 13, body: 5, legs: 3, feet: 0 }, colors_price: 1550, owned: ['knight', 'berserker', 'ranger', 'sorcerer', 'druid'] };
   env.death_log = [{ id: 901, at: '2026-10-18T09:30:00Z', hunt: 'mill_cellar', monster: 'rat_king', xp: 140, xp_lost: { level: 90, melee: 50 } },
     { id: 877, at: '2026-10-17T20:00:00Z', hunt: 'mill_cellar', monster: 'rat', xp: 0, xp_lost: null }];
   return env;
@@ -495,10 +495,10 @@ const MUTANTS = [
   ['the sheet header drops the title', 'src/shell/windows/character/sheet.js', "(nameOf(cs) || '') + (worn ? ' ' + worn : '')", "(nameOf(cs) || '')"],
   ['the sheet is asked for every paint', 'src/shell/windows/character/index.js', "  if (!sh || sc.sheetAsking || v === null) return;\n  if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "  if (!sh) return;"],
   ['an opening never asks the engine', 'src/shell/windows/character/index.js', "if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "if (sh.fresh || sc.sheetAsked === v) return;"],
-  ['the old sheet shows before the opening asked', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, []), sc.opening === 'done');", "PORTRAIT_SCALE, []), true);"],
-  ['Save sends the outfit twice', 'src/shell/windows/character/outfit.js', "runIntent(sc, repaint, () => cs.saveOutfit(d.outfit, d.colors), 'Saving…',", "cs.saveOutfit(d.outfit, d.colors); runIntent(sc, repaint, () => cs.saveOutfit(d.outfit, d.colors), 'Saving…',"],
+  ['the old sheet shows before the opening asked', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(base, ctx.doc)), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(base, ctx.doc)), true);"],
+  ['Save sends the outfit twice', 'src/shell/windows/character/outfit.js', "runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',", "cs.saveOutfit(d.outfit); runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',"],
   ['the worn mark follows the draft', 'src/shell/windows/character/outfit.js', "cls(b, 'is-worn', !!o && o.worn === id);", "cls(b, 'is-worn', id === d.outfit);"],
-  ['a premium outfit not owned can be saved', 'src/shell/windows/character/outfit.js', "sc.pending || !o || !owned || !changed(o, d)", "sc.pending || !o || !changed(o, d)"],
+  ['a premium outfit not owned can be saved', 'src/shell/windows/character/outfit.js', "sc.pending || !o || !owned || (o.worn || null) === d.outfit", "sc.pending || !o || (o.worn || null) === d.outfit"],
   ['the trade skills list the combat skills', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['the unlock line drops the kind', 'src/data/item-uses.js', "  if (it.type === 'tool' && it.toolSkill) return it.toolSkill + ' tool';", "  if (it.type === 'tool' && it.toolSkill) return '';"],
 ];

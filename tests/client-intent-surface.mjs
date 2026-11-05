@@ -99,6 +99,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_setup_slot_buy: 'buy this hero\'s next setup slot at the quoted price (preset-intents.js buySetupSlot; 2027-02-28-setup-slots.sql)',
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_title_wear: 'wear a title this hero holds, or null to take it off; moves no value (title-intents.js wearTitle)',
+  hr_hero_colors_set: 'this hero\'s four dye indices at the quoted price; never a color value (hero-color-intents.js saveHeroColors; 2027-03-05-hero-colors.sql)',
   hr_storage_chest_build: 'build the account’s next storage chest at the quoted price; the server gates, prices and debits it (home-intents.js buildChest)',
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
   hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
@@ -143,7 +144,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_town_view: 'who stands around this character in its town instance, only what changed since its cursor, and its own server stand, a read (TownPresence.read)',
   hr_town_here: 'an unviewed character is present in town, no tile: the server stands it on its stand (TownPresence.here)',
   hr_town_go: 'send this character’s body to a counter or back to its work: a station id only (TownPresence.go)',
-  hr_outfit_set: 'wear an owned outfit with a dye index per region; cosmetic, the server checks ownership (CharacterSession.saveOutfit)',
+  hr_outfit_set: 'wear an owned outfit; free and it carries no color, the server checks ownership (CharacterSession.saveOutfit)',
 });
 
 /* The Edge Functions the one link may call, each with what it is for. */

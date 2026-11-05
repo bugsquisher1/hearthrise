@@ -109,7 +109,7 @@ export const MUTANTS = {
   compose_drops: { arm: 'HC-DRAW', why: 'compose loses the key', js: ['src/world/core/compose.js', [['if (u.dye) { d.dye = u.dye; d.dyeOwn = isHero; }', '']]] },
   scene_drops: { arm: 'HC-DRAW', why: 'a hunt draws the party undyed', js: ['src/hunt-view/scene.js', [['grey, under, dye: dyeOf(u) };', 'grey, under };']]] },
   scene_own_only: { arm: 'HC-DRAW', why: 'a hunt draws only the hero you play in colors', js: ['src/hunt-view/scene.js', [['    return who ? who.dye : null;\n', '    return null;\n']]] },
-  seat_no_key: { arm: 'HC-DRAW', why: 'the party reader drops the colors', js: ['src/session/party-sections.js', [[', dye: dyeKeyOf(p.colors) });', ', dye: null });']]] },
+  seat_no_key: { arm: 'HC-PARTY', why: 'the party reader drops the colors', js: ['src/session/party-sections.js', [[', dye: dyeKeyOf(p.colors) });', ', dye: null });']]] },
   backend_undyed: { arm: 'HC-PAINT', why: 'the backend never draws a look', js: ['src/world/render/canvas-backend.js', [["if (d.dye && dyes) { const dyed = dyes.source(d.id, d.dye, d.sx, d.sy); if (dyed) return dyed; }", '']]] },
   backend_held: { arm: 'HC-PAINT', why: 'a look landing never repaints a held frame', js: ['src/world/render/canvas-backend.js', [['if (dyes) for (const d of list.sprites) if (d.dye) s.add(dyes.has(d.id, d.dye));', '']]] },
   backend_no_pump: { arm: 'HC-PAINT', why: 'nothing bakes while a frame is held', js: ['src/world/render/canvas-backend.js', [['    dyes.pump();\n', '']]] },

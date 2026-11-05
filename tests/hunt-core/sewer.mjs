@@ -1543,7 +1543,10 @@ const cases = {
     const atStyles = L.heldCard(gotCtx);
     if (!atStyles || atStyles.id !== 'styles') return 'after cooking, in town, the coach shows ' + (atStyles && atStyles.id) + ', want "Every weapon is a style"';
     if (L.ringPlan(atStyles, at('inventory'))[0] !== '[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]') return 'the styles card rings ' + L.ringPlan(atStyles, at('inventory'))[0];
-    L.actCoach(gotCtx, null, 'coach-got', { type: 'click' });
+    /* a press on a box still showing another card finishes nothing: the card it would finish was never read (a skipped step, QA 2026-11-04) */
+    L.actCoach(gotCtx, null, 'coach-got', { type: 'click', target: { closest: () => ({ getAttribute: () => 'plant_land' }) } });
+    if (g.puts.some(([f]) => f === 'coach')) return 'a Got it drawn on another card finished the held one: ' + JSON.stringify(g.puts);
+    L.actCoach(gotCtx, null, 'coach-got', { type: 'click', target: { closest: () => ({ getAttribute: () => 'styles' }) } });
     const put = g.puts.find(([f]) => f === 'coach');
     if (!put || !put[1].read.includes('styles')) return 'Got it wrote ' + JSON.stringify(g.puts) + ', want coach.read to hold styles';
     if ((L.heldCard(gotCtx) || {}).id === 'styles') return 'after Got it the styles card is still up';

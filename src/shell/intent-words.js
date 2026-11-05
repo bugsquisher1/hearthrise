@@ -150,5 +150,16 @@ export async function runIntent(sc, repaint, send, busy, done, cs) {
   sc.pending = false;
   sc.msg = r.ok ? (done ? done(r) : '') : playCapOf(r) ? '' : refusalText(r, cs);
   repaint();
+  answerAges(sc, repaint);
   return r;
+}
+
+/* AN ANSWER IS NEWS, NOT A FACT (QA 2026-11-04: "Put on 3 pieces." and "You stopped mining the Copper Rock." still stood when
+   the window was reopened hours later). The line leaves on its own unless something newer has replaced it. */
+export const ANSWER_STANDS_MS = 30000;
+function answerAges(sc, repaint) {
+  const said = sc.msg;
+  if (!said) return;
+  const t = setTimeout(() => { if (sc.msg === said && !sc.pending) { sc.msg = ''; repaint(); } }, ANSWER_STANDS_MS);
+  if (t && t.unref) t.unref();
 }

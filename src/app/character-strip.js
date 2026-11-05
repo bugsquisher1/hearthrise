@@ -34,7 +34,7 @@ export function stripTargetOf(e) {
    the sheet it opens holds Characters and Sign out (src/shell/windows/characters.js, playtest 2026-10-31). */
 const STRIP_HTML = '<ol class="char-tabs"></ol>'
   + '<span class="char-strip-tools">'
-  + '<button type="button" class="char-tool is-all" data-app="all" aria-label="All characters" title="Every character on one screen (O)"><span class="char-tool-wide">All characters</span><span class="char-tool-short">Heroes</span><span class="char-badge char-all-badge"></span></button>'
+  + '<button type="button" class="char-tool is-all" data-app="all" aria-label="All characters" title="Every character on one screen (O)"><span class="char-tool-now"></span><span class="char-tool-wide">All characters</span><span class="char-tool-short">Heroes</span><span class="char-badge char-all-badge"></span></button>'
   + '<button type="button" class="char-tool" data-app="characters">Characters</button>'
   + '<button type="button" class="char-tool" data-app="sign-out">Sign out</button></span>';
 
@@ -97,6 +97,8 @@ export function mountCharacterStrip(host, o) {
       build: () => element(doc, TAB_HTML),
       patch: (li, x) => patchTab(li, x, viewed, glyphs(), o.account.userId),
     });
+    const shown = all.find((x) => x.slot === viewed);
+    text(host.querySelector('.char-tool-now'), shown ? shown.name : '');
     const waiting = all.reduce((n, x) => n + x.alerts, 0);
     text(allBadge, waiting ? String(waiting) : '');
     cls(allBadge, 'is-on', waiting > 0);

@@ -201,17 +201,25 @@ function startApp(win) {
   }
 
   /* `was`: what this tab had open before a reload ({ slots, viewed }): once the roster is read, those heroes reopen and
-     the shown one is shown, with no list drawn; if the shown one does not load (the server no longer holds it), the list. */
-  async function showCharacters(note, was) {
-    clear();
-    obs.screen('characters');
-    root.className = 'app is-auth';
-    root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
-      + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
+     the shown one is shown, with no list drawn; if the shown one does not load (the server no longer holds it), the list.
+     `inPlace`: the list stays up while it is re-read and the note says the answer at once (a bought slot: the screen read
+     only "Reading your characters…" for 2.5 s, with no word that the gold had gone, and a player may press again). */
+  async function showCharacters(note, was, inPlace) {
+    if (inPlace) sayOnCard(note);
+    else {
+      clear();
+      obs.screen('characters');
+      root.className = 'app is-auth';
+      root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
+        + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
+    }
     const a = account;
+    const seq = paneSeq;
     const read = await a.roster();
     timing.read();
-    if (a !== account || a.closedGame) return;
+    if (inPlace) slotBuying = false;
+    /* a row stays pressable while the list re-reads: that press's screen wins */
+    if (a !== account || a.closedGame || seq !== paneSeq) return;
     roster = read;
     rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
     /* funnel: an account that got this far and has no hero yet is a new sign-up (telemetry only; the form itself has no account id to send under) */
@@ -256,17 +264,23 @@ function startApp(win) {
     if (m && account) m.innerHTML = slotOfferHtml(account.slotOffer, roster, { pending: slotBuying });
   }
 
+  /* The characters card's answer line. */
+  function sayOnCard(note) {
+    const m = root.querySelector('.auth-message');
+    if (m) { m.classList.add('is-good'); m.textContent = note; }
+  }
+
   /* ONE purchase from the account's gold (`actor`: the hero the journal names): the button is off until the
-     server answers; a yes re-reads the roster from the server. */
+     server answers and, on a yes, until the roster is re-read from the server. */
   async function buySlot(slotId, actor) {
     if (slotBuying || !account || !Number.isInteger(slotId) || !Number.isInteger(actor)) return;
     const a = account;
     slotBuying = true;
     drawSlotOffer();
     const r = await a.buySlot(slotId, actor);
+    if (a !== account || a.closedGame) { slotBuying = false; return; }
+    if (r.ok) { track('hero_slot_bought'); await showCharacters('Hero slot bought. Create your new hero in it.', null, true); return; }
     slotBuying = false;
-    if (a !== account || a.closedGame) return;
-    if (r.ok) { track('hero_slot_bought'); await showCharacters('Hero slot bought. Create your new hero in it.'); return; }
     drawSlotOffer();
     const m = root.querySelector('.auth-message');
     if (m) { m.classList.remove('is-good'); m.textContent = slotRefusalText(r); }

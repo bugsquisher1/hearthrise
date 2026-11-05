@@ -7,6 +7,18 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## Unreleased
 
+- After you buy a hero slot, your characters stay on the screen and the game says the slot is yours at once, instead of a bare "Reading your characters…".
+- Changing weapon on a bar you've edited no longer leaves the last weapon's moves crossed out: they come off and the new weapon's moves take their places. A setup still keeps its own bar.
+- Before you go no longer warns a club hero about the runes for a spell that weapon can't cast.
+- Before you go now says which Blessings you have on, what they save you on a death, and the price of the next.
+- Making juice now says "Making Turnip Juice", not "Cooking Turnip".
+- The answer to your last press leaves a window after half a minute, so an old "Put on 3 pieces." isn't still there when you come back.
+- Got it can no longer finish a card you haven't seen yet, so the coach doesn't skip a step.
+- On a phone: the Heroes button names the hero on screen when there's no room for a tab, What next has its More, the away card no longer sits on a sliver of the coach card, and Configure action says your hero uses a slot by itself. Its icons are sharp now.
+- In Configure action, picking a spell keeps Details on the spell you picked, instead of the row that slid under your pointer.
+- The Hunts window is wider, so the first row of who lives on a ground isn't cut off above Enter. A long line in the list no longer starts with a stray dot.
+- The bag shows a row more on a laptop screen: its tabs and search now share a line.
+- Reloading just as the game opens no longer loses your hunt summary or your "While you were away" card.
 **Friends with the same weapon.** Four friends with the same weapon in Meadowbrook Thicket now earn more Level XP.
 **A cloak for the Glade.** You can wear the Houndskin Cloak at Level 22 now, and stitch it in Crafting from 12 Wolf Pelts and a Bear Pelt. Brook Bears only come to a pull of 3 or more at Mosslight Glade.
 

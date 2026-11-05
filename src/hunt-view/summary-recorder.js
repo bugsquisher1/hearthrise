@@ -83,9 +83,23 @@ export function attach(cs) {
     const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { deaths: [] };
     const deaths = ex.deaths.map((f) => f.lines.join(' '));
     a.fresh = s.id;
+    a.recorded = { id: s.id, at: Date.now() };
     cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, analyzerOf(cs), deaths)));
   });
   return a;
+}
+
+/* How long a summary must have been up for its moment to count when the page is left. */
+const SUMMARY_READ_MS = 8000;
+
+/** The page is being left (not only hidden): a summary recorded this moment has not had its moment, so the next load opens it (played 2026-11-04: a reload 0.7 s
+    after Play, on a hunt that ended away, left no summary and no bar to find it by). A closed one is the player's and stays closed. Display state only. */
+export function forgetUnreadSummary(cs) {
+  const a = ATTACHED.get(cs);
+  const r = a && a.recorded;
+  if (!r || a.closed === r.id || Date.now() - r.at >= SUMMARY_READ_MS) return false;
+  a.recorded = null;
+  return cs.setResidue('huntSummaries', summariesOf(cs).filter((x) => x.id !== r.id));
 }
 
 /** True when this ended hunt's summary has had its moment, so the hunt bar stays out of town: it was recorded before this page loaded and won't open

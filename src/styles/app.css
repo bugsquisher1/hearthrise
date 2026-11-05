@@ -252,7 +252,7 @@
 .char-strip-tools { display: flex; align-items: stretch; flex: none; }
 .char-tool { font: inherit; font-size: 0.85rem; color: var(--ink-3); background: none; border: 0; padding: 0 0.6rem; cursor: pointer; }
 .char-tool:hover { color: var(--ink); }
-.char-tool-short, .char-tool .char-all-badge { display: none; }
+.char-tool-short, .char-tool-now, .char-tool .char-all-badge { display: none; }
 .game { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .game #panel-world { flex: 1; min-height: 0; padding: 8px; }
 /* THE STRIP ON A PHONE (phone playtest 2026-10-31: the tabs squashed to 12 px, and at 667 px the icon row lay over All
@@ -276,6 +276,11 @@
   .char-tab { height: 40px; min-width: var(--tap); max-width: 110px; padding: 0 6px; justify-content: center; }
   .char-tab:not(.is-shown) .char-tab-main, .char-tab-doing, .char-bars { display: none; }
   @container char-strip (max-width: 150px) { .char-tabs { display: none; } }
+  /* No room for a tab: the press to every hero names the one on screen, over its word (a player at 667 px could not see whose bar it was). */
+  @container char-strip (max-width: 150px) {
+    .char-tool-now { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 18px; color: var(--gold-2); }
+    .char-tool-short { display: block; line-height: 18px; font-weight: 400; }
+  }
 }
 /* The connection's one line (src/net/connection.js): solid, over everything, taking no press. */
 .conn-line { position: fixed; top: 56px; left: 50%; z-index: 70; transform: translateX(-50%); box-sizing: border-box; width: max-content; max-width: calc(100vw - 24px); margin: 0; padding: 2px 10px 2px 14px; pointer-events: none;

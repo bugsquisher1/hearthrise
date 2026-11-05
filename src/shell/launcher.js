@@ -316,7 +316,14 @@ export function actCoach(ctx, el, action, ev) {
   const card = cs && heldCard(ctx);
   if (!card || typeof cs.setResidue !== 'function') return true;
   if (action === 'coach-open') RESTED.delete(cs);
-  if (action === 'coach-got') { if (card.gotIt) { if (ctx.isPhone && ctx.isPhone() && coachWindow(card)) RESTED.set(cs, coachWindow(card)); markCoachRead(cs, card); } return true; }
+  if (action === 'coach-got') {
+    /* THE PRESS ANSWERS THE CARD IT WAS DRAWN ON: the box redraws on a paint or the display tick, so the next card may already be the held one
+       under a box still showing the last, and its Got it would finish a card nobody read (a skipped step, QA 2026-11-04). */
+    const on = ev.target && ev.target.closest ? ev.target.closest('.hs-pointer') : null;
+    if (on && on.getAttribute('data-tutorial') !== card.id) return true;
+    if (card.gotIt) { if (ctx.isPhone && ctx.isPhone() && coachWindow(card)) RESTED.set(cs, coachWindow(card)); markCoachRead(cs, card); }
+    return true;
+  }
   if (action === 'coach-close') { if (readable(card)) { markCoachRead(cs, card); return true; } action = 'coach-min'; }
   const doc = el.ownerDocument;
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);

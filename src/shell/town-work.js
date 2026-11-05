@@ -37,6 +37,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.89';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.89';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.89';
 import { ITEMS } from '../data/items.js?v=0.2.89';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.89';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.89';
@@ -94,6 +95,9 @@ export function workOf(cs) {
 
 /** The item a row makes, or null (a Hearth fuel makes nothing). */
 export function productOf(w) { return w.kind === 'gather' ? w.row.prod : (w.row.output || null); }
+
+/* A Cooking row that goes on the fire. A drink is pressed, brewed or steeped, so it is said as made ("Cooking Turnip: 0 cooked so far" over Turnip Juice, QA 2026-11-04). */
+const isDish = (w) => w.skill === 'cooking' && !DRINK_ITEMS[productOf(w)];
 
 /** How many of the product one action makes: "45" for a rune bind, 1 for most. Gathering's range is its low end. */
 export function yieldOf(w) {
@@ -170,8 +174,8 @@ function workWords(w) {
     return verb + w.row.name;
   }
   const out = productOf(w);
-  /* A dish names what goes on the fire ("cooking Raw Shrimp"), any other bench what it makes. */
-  if (out && w.skill === 'cooking') return 'cooking ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
+  /* A dish names what goes on the fire ("cooking Raw Shrimp"), a drink or any other bench what it makes. */
+  if (out && isDish(w)) return 'cooking ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'making ' + itemName(out);
   /* A fuel makes nothing: the Great Hearth burns it (src/data/hearth.js; every output-less row is a fuel) */
   return 'fueling the Great Hearth with ' + itemName(w.row.input);
@@ -181,7 +185,7 @@ function workWords(w) {
 export function doWords(w) {
   if (w.kind === 'gather') return (w.skill === 'woodcutting' ? 'chop the ' : w.skill === 'mining' ? 'mine the ' : 'fish at the ') + w.row.name;
   const out = productOf(w);
-  if (out && w.skill === 'cooking') return 'cook ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
+  if (out && isDish(w)) return 'cook ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'make ' + itemName(out);
   return 'burn ' + itemName(w.row.input) + ' in the Great Hearth';
 }
@@ -409,7 +413,7 @@ export function runParts(cs, w) {
     const d = aheadQty(tick, out);
     const made = Math.max(0, (bag[out] || 0) + d - from.made);
     const burnt = Math.max(0, (bag[BURNT] || 0) - from.burnt);
-    parts.push({ key: 'made', text: whole(made) + ' ' + (DONE_WORD[w.skill] || 'made') + ' so far', ahead: d !== 0 });
+    parts.push({ key: 'made', text: whole(made) + ' ' + (w.skill === 'cooking' && !isDish(w) ? 'made' : DONE_WORD[w.skill] || 'made') + ' so far', ahead: d !== 0 });
     if (burnt > 0) parts.push({ key: 'burnt', text: whole(burnt) + ' burnt' });
   } else if (out && w.kind === 'gather') {
     const s = shownQty(tick, out, bag[out] || 0);

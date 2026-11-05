@@ -19,7 +19,7 @@ import { CONSUMABLES } from '../data/consumables.js?v=0.2.89';
 import { attackItem } from '../core/hunt/conditions.js?v=0.2.89';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.89';
 import { kindOf } from './bag-model.js?v=0.2.89';
-import { startConditions } from './bar-draft.js?v=0.2.89';
+import { startConditions, moveOffWeapon } from './bar-draft.js?v=0.2.89';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 
@@ -72,6 +72,38 @@ export async function assignToBar(cs, id, at) {
     wire[Math.min(free, store)] = { action, conditions: conditions.map((c) => Object.assign({}, c)), join };
   }
   return cs.setHuntOptions(s.preset, { slots: wire });
+}
+
+/**
+ * THE BAR AFTER A WEAPON SWAP: the moves the worn weapon can't use come off, and the moves it can use step up into their places,
+ * or null when nothing is left behind. Bow to club on an edited bar left Hunter's Mark, Flame Volley and Precision Shot struck
+ * in slots 1-3 and Power Strike in 7 (QA 2026-11-04): an edited bar is stored whole, so the engine's defaults only find its gaps.
+ * Food, drink and ammo never move. Pure, over the server's settings (`set.discipline`).
+ */
+export function barAfterSwap(set) {
+  if (!set || !set.discipline) return null;
+  const wire = Array.from({ length: SLOTS }, (_, i) => wireSlot(set.slots[i]));
+  const isMove = (w) => !!w && w.action.type === 'ability';
+  const places = [];
+  for (let i = 0; i < SLOTS; i++) {
+    if (isMove(wire[i]) && moveOffWeapon(set.discipline, wire[i].action.id)) { wire[i] = null; places.push(i); }
+  }
+  if (!places.length) return null;
+  for (let i = 0; i < SLOTS && places.length; i++) {
+    if (isMove(wire[i]) && places[0] < i) { const to = places.shift(); wire[to] = wire[i]; wire[i] = null; places.push(i); places.sort((a, b) => a - b); }
+  }
+  return wire;
+}
+
+/** One equip intent; a yes that put a weapon or a shield in hand (the two set the discipline) restates the bar when the swap left moves behind (one more intent, read back from the server). */
+export async function equipTidyingBar(cs, ops) {
+  const ans = await cs.edgeIntent('equip', { equip: ops });
+  if (ans && ans.ok && (ops.weapon || ops.shield)) {
+    const s = settingsOf(cs);
+    const next = barAfterSwap(s);
+    if (next) await cs.setHuntOptions(s.preset, { slots: next });
+  }
+  return ans;
 }
 
 /* The first working store slot of the kind this own stack is, whose place it takes; -1 with none on the bar. (A store row is no bag item: barKind holds it off this path.) */

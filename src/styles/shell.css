@@ -325,6 +325,7 @@
   .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) > .hs-coach-text { max-height: calc(round(down, var(--coach-room) - 114px - .5lh, 1lh) + .5lh); }
   /* An alert under the card leaves it too little room (shell.js roomForCoach): the card keeps its title until it closes. */
   .hs-widget.is-short-room > .hs-pointer:not(.is-min) > :is(.hs-coach-text, .hs-coach-got) { display: none; }
+  .hs-widget.is-no-room > .hs-pointer { display: none; }
   /* While a leave counts down: what the wait is for, in one line under the hunt bar (hunt-topbar.js), the card aside. */
   .ht-why:not([hidden]) { display: block; position: absolute; top: 100%; right: 0; width: max-content; max-width: 100%; margin: 4px 0 0; padding: 2px 8px; background: var(--bg-2); font-size: var(--t-micro); color: var(--ink-2); }
   .hs-widget.is-hunt-topbar:has(.ht-why:not([hidden])) > .hs-pointer { display: none; }
@@ -372,7 +373,9 @@
      in town and the hunt bar in a hunt. A full-screen window (Configure action) has no World beside it: its card stays in it. */
   .hs-win-coach > .hs-pointer.is-line { gap: 0; white-space: normal; }
   .hs-win-coach > .hs-pointer.is-line > .hs-coach-text { overflow-y: auto; text-overflow: clip; }
-  .hs-coach-more { display: none; }
+  .hs-pointer.is-line > .hs-coach-more { display: none; }
+  /* What next's other goals on a phone: a press away, scrolled inside the card's room (QA 2026-11-04: the one goal had no More). */
+  .hs-coach-also { max-height: 96px; overflow-y: auto; }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
   .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh / 3 - 100px, 1lh) + .5lh); }
   .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 50px; left: calc(min(400px, 48vw) + 5px - 100vw); }

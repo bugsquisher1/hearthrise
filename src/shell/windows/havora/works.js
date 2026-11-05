@@ -8,12 +8,12 @@
 // charge. Every control is off while a gift is in flight. The field opens on the last gift, from the server (CLAUDE.md §1, §6). Display scratch per CharacterSession: nothing persists.
 // What the day leaves and the answer to a press stand in the window's foot (.hv-count[data-of="works"], .hh-intent-msg), so a short window never cuts them off: patchWorks writes both.
 // ════════════════════════════════════════════════════════════════════════
-import { readWorks, giveToWorks } from '../../../session/town-intents.js?v=0.2.96';
-import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.96';
-import { text, cls, attr, prop, style, rows, element } from '../../../render/paint.js?v=0.2.96';
-import { whole, gold } from '../../../render/format.js?v=0.2.96';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.96';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.96';
+import { readWorks, giveToWorks } from '../../../session/town-intents.js?v=0.2.97';
+import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.97';
+import { text, cls, attr, prop, style, rows, element } from '../../../render/paint.js?v=0.2.97';
+import { whole, gold } from '../../../render/format.js?v=0.2.97';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.97';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.97';
 
 const ASK_MS = 15000;
 const RETRY_MS = 5000;

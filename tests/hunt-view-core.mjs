@@ -49,6 +49,7 @@ async function load(base) {
     F: await u('src/hunt-view/float-prefs.js'),
     R: await u('src/session/residue.js'),
     L: await u('src/hunt-view/combat-log.js'),
+    CT: await u('src/data/combat-text.js'),
     CFG: await u('src/session/config.js'),
   };
 }
@@ -280,6 +281,17 @@ async function rules(M) {
     ok('LOG-2', turn && /^Andy takes the Crown Shard: everyone else in the party has won a rare/.test(turn.text), 'the rotation\'s turn reads ' + JSON.stringify(turn));
   }
 
+  { // LOG-4: a miss has no word on the screen any more, only a spark (hunt-vfx.js GLANCE_FX), so the log is where it says so (Tyler 2026-11-04).
+    const n = { name: (u) => ({ 1: 'Tyler', 101: 'Giant Rat' })[u] || 'Someone', isHero: (u) => u === 1 };
+    const at = M.L.lineOf({ key: 'm1', type: 'miss', atMs: 1, u: 101, t: 1 }, n);
+    ok('LOG-4', at && at.type === 'taken' && at.text === 'Giant Rat misses Tyler.', 'a monster\'s miss reads ' + JSON.stringify(at));
+    const out = M.L.lineOf({ key: 'm2', type: 'miss', atMs: 1, u: 1, t: 101 }, n);
+    ok('LOG-4', out && out.type === 'dealt' && out.text === 'Tyler misses Giant Rat.', 'a hero\'s miss reads ' + JSON.stringify(out));
+    const dodged = M.L.lineOf({ key: 'm3', type: 'miss', atMs: 1, u: 101, t: 1, dodge: true }, n);
+    ok('LOG-4', dodged && dodged.type === 'taken' && dodged.text === 'Tyler dodges Giant Rat’s blow.', 'a dodge reads ' + JSON.stringify(dodged));
+    ok('LOG-4', ['dealt', 'taken'].every((id) => M.CT.LOG_TYPES.find((r) => r.id === id).events.includes('miss')), 'the Dealt and Taken filters must read a miss');
+  }
+
   { // LOG-3: while the live prediction runs, a server answer's rare roll still reaches the log (the prediction
     // cannot draw it, live-engine.js), and nothing else of that answer does (one position source).
     const clock = { t: 500000 };
@@ -320,6 +332,9 @@ const MUTANTS = [
   ['an ok is not re-read', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }", '{ return { ok: true }; }'],
   ['a live viewer never sees the server\'s rare roll', 'src/session/character-session.js', 'body.hunt_events.filter((e) => e && SERVER_ONLY_EVENTS.includes(e.type)) : []', '[] : []'],
   ['a monster hit reads as dealt', 'src/hunt-view/combat-log.js', "return line(n.isHero(ev.u) ? 'dealt' : 'taken',", "return line('dealt',"],
+  ['the log says nothing of a miss (LOG-4)', 'src/hunt-view/combat-log.js', "    case 'miss': return ev.dodge === true", "    case 'miss_': return ev.dodge === true"],
+  ['a monster\'s miss reads as dealt (LOG-4)', 'src/hunt-view/combat-log.js', ": line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses '", ": line('dealt', a + ' misses '"],
+  ['a dodge reads as a plain miss (LOG-4)', 'src/hunt-view/combat-log.js', "return ev.dodge === true ? line('taken',", "return false ? line('taken',"],
 ];
 
 async function main() {

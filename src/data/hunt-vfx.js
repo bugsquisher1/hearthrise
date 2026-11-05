@@ -17,6 +17,7 @@
 //            by the attacker's role (a monster's bite is the `monster` row).
 // PROJECTILE what flies from the attacker before that hit lands: by ability, else by role.
 // CAST_FX    the effect on the caster of a `cast`: by ability, else by role.
+// GLANCE_FX  the spark of a blow that did no harm, in place of a word (Tyler 2026-11-04).
 //
 // A new effect is a row here plus its port; nothing else changes.
 // PURE ESM. Data only.
@@ -43,9 +44,19 @@ export const EVENT_FX = Object.freeze({
   rare_drop: row({ fx: 'fx_loot_sparkle', at: 'viewed', lift: CHEST }),
   rare_roll: null,   // a party's roll: its rare_drop (same instant, the winner) plays the sparkle; the roll is a log line
   ended: null, death: null, slot_dry: null, pack_reset: null, pull: null, respawn: null, wipe: null,
-  target: null, miss: null, immune: null, status_on: null, status_off: null,
+  miss: null,  // GLANCE_FX, below
+  target: null, immune: null, status_on: null, status_off: null,
   eat: null, drink: null, xp: null, xp_group: null, rule_stop: null, shot: null, rule_wait: null,
 });
+
+/* A BLOW THAT DID NO HARM (Tyler 2026-11-04: "the characters armor should 'spark' or something to show it missing,
+   vs the word being on the screen"): a spark on the side the blow came from, no word; the combat log says it in words.
+     hero, monster  the effect by who was struck (tools/world-art/glance-spark.mjs)
+     lift           how high on the unit, as a row above
+     reach          how far toward the attacker, in tiles: the edge of a body, so a full box of 8 rings the hero
+                    with sparks rather than stacking them on one pixel
+     gapMs          the least time between two on one unit: 8 monsters swing 4 times a second, and past this it is a flicker */
+export const GLANCE_FX = row({ hero: 'fx_glance_spark', monster: 'fx_glance_scuff', lift: CHEST, reach: 0.3, gapMs: 300 });
 
 /* The twinkle a kill that dropped loot leaves on the body (FX-06). */
 export const LOOT_FX = row({ fx: 'fx_loot_sparkle', at: 't', lift: 0.15 });
@@ -96,6 +107,8 @@ export function effectIds() {
   const add = (r) => { if (r && r.fx) out.add(r.fx); };
   Object.values(EVENT_FX).forEach(add);
   add(LOOT_FX);
+  out.add(GLANCE_FX.hero);
+  out.add(GLANCE_FX.monster);
   for (const t of [HIT_FX.ability, HIT_FX.element, HIT_FX.role, PROJECTILE.ability, PROJECTILE.role]) for (const v of Object.values(t)) if (v) out.add(v);
   Object.values(CAST_FX.ability).forEach(add);
   Object.values(CAST_FX.role).forEach(add);

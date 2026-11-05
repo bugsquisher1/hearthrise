@@ -47,6 +47,8 @@ export function lineOf(ev, n) {
       const how = ev.ability && ev.ability !== 'basic' ? ' with ' + abilityName(ev.ability) : '';
       return line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' hits ' + b + ' for ' + ev.amount + how + '.');
     }
+    /* The screen shows a miss as a spark and no word (hunt-vfx.js GLANCE_FX, Tyler 2026-11-04: "the combat log can still say blah blah missed you"). */
+    case 'miss': return ev.dodge === true ? line('taken', b + ' dodges ' + a + '’s blow.') : line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses ' + b + '.');
     case 'heal': return line('heal', ev.u === ev.t ? a + ' heals for ' + ev.amount + '.' : a + ' heals ' + b + ' for ' + ev.amount + '.');
     /* A kill's XP is LEVEL XP (xp-share.js); a skill's own level-up names the skill (Tyler 2026-10-22: say which XP). */
     case 'xp': return line('xp', a + ' gains ' + ev.amount + ' Level XP.');

@@ -212,7 +212,6 @@ export function createChoreo(map, o) {
       if (!quiet) {
         if (b.killed) floats.push({ at: fAt, text: String(b.foeDmg), kind: 'kill', t0: t });
         else if (b.foeDmg > 0) floats.push({ at: fAt, text: String(b.foeDmg), kind: b.crit ? 'crit' : 'hit', t0: t });
-        else if (b.miss) floats.push({ at: fAt, text: 'miss', kind: 'miss', t0: t });
         if (b.heroDmg > 0) floats.push({ at: hAt, text: '-' + b.heroDmg, kind: 'hurt', t0: t });
       }
       if (b.killed) { kill(b, t); return; }

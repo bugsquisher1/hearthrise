@@ -1,0 +1,36 @@
+{
+  "id": "havora_weighhouse_walled",
+  "class": "lot",
+  "style": "s1",
+  "material": "native",
+  "source": "havora_weighhouse_walled.png",
+  "frame": [
+    256,
+    256
+  ],
+  "anchor_px": [
+    128,
+    255
+  ],
+  "footprint": [
+    8,
+    6
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "cut",
+    "from": "havora_weighhouse_finished",
+    "image": "e91449b6-0c23-43c1-aa89-de08c36fb97b",
+    "cost": 0
+  },
+  "notes": "Town Works stage 3, 600,000 gp: walls up, the roof open to its rafters, doorway and windows still empty, slates and a ladder waiting. tools/world-art/weighhouse-art.mjs, no generation."
+}

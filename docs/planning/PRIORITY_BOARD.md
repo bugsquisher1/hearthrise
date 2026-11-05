@@ -30,7 +30,63 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
-### 2026-11-05 Tempering: a gold sink that adds a little gear power (designer, lane/c-gear-upgrade): BUILT, played, STAGED: two files, then the edge, then the client
+### 2026-11-05 Tempering takes crafted salts; the Coal Seam (designer, lane/c-temper-craft): BUILT, played, STAGED: six files, then the edge, then the client
+**Tyler, 2026-11-05:** "Let's also require some sort of crafting in order to temper gear." **Andy, via the Coordinator:** coal "has been a real slog and bottleneck for smithing".
+
+**The shape.** Each rung takes gold, as it does today, plus a crafted material of that gear tier, in one sale. Two items and two Smithing rows, sold by the same `hr_unlock_buy` statement the house uses for planks and bars. No rung's power moved, tier 1 still has no ladder, and the gold table is unchanged.
+| Tier | Material | Recipe, at the forge | Shop bid against what goes in | Market floor, ceiling | Public bench's fee |
+|---|---|---|---|---|---|
+| Iron, Level 15 | Tempering Salts | Smithing 15: 1 Iron Bar, 1 Bone Chips, 4.8 s | 7 g against 8 g | 7 g, 3,500 g | 1.05 g a mix |
+| Steel, Level 30 | Fine Tempering Salts | Smithing 30: 2 Iron Bars, 1 Big Bones, 5.8 s | 12 g against 13 g | 12 g, 6,000 g | 1.8 g a mix |
+**Why these inputs.** Bone Chips and Big Bones come from the ground each tier is worn on (the Glade's crows, the Warrens' foremen), so what a fighter brings home feeds what it wears. **Steel's tier takes no steel:** a Steel Bar eats 2 coal, so a full ladder would have been 1,240 coal, three hours at the Coal Rock, on Andy's bottleneck. **A full Iron and Steel ladder needs 0 coal.**
+
+**Q1, the time, one hero from the rock, no tool.** Rates are the paced rows, and the local world played them: 500 ore, 750 bars and 750 mixes an hour.
+| Rung | Gold, Iron | Salts | Work, Iron | Gold, Steel | Fine salts | Work, Steel |
+|---|---|---|---|---|---|---|
+| 1 | 2,000 | 10 | 2.8 min | 7,000 | 10 | 5.0 min |
+| 2 | 4,000 | 20 | 5.6 min | 14,000 | 20 | 9.9 min |
+| 3 | 8,000 | 40 | 11.2 min | 28,000 | 40 | 19.8 min |
+| 4 | 16,000 | 80 | 22.4 min | 56,000 | 80 | 39.7 min |
+| 5 | 32,000 | 160 | 44.8 min | 112,000 | 160 | 79.4 min |
+| A track | 62,000 | 310 | 1.45 h | 217,000 | 310 | 2.56 h |
+| Both tracks | 124,000 | 620 | **2.9 h** | 434,000 | 620 | **5.1 h** |
+That's 8% and 4% of the hours the gold takes to hunt (about 36 h and 124 h at the 3,100-4,200 g/h measured). **Drops come home with the gold, measured per hero per hour:** Glade 55-71 Bone Chips, so 620 is about 10 h; Warrens 9-10 Big Bones, so 620 is about 65 h, inside its 124 h. The Sewer gives 5 chips an hour and Wickstead and the Thicket none, so a Level 15 hero's first chips are at the Glade, which the coach already points to. **Does the skill come with the tier?** It doesn't come by itself: a fighter at Level 15 is at Smithing 1. It's cheap when asked for: Smithing 15 takes about an hour of a resting hero from nothing (computed 59 min on Copper Bars, Mining 15 on the way; `craft-economy --walk` played it at 1.5 h in quarter-hour steps), against hour 18-22 for Level 15. **The Iron ladder trains the next one:** finishing it leaves a hero at Smithing 32, Mining 29, so Steel's recipe is already open; finishing Steel, Smithing 42, Mining 38.
+
+**Q2, the rusher (Tyler's own case).** Gold alone doesn't temper now, and that's the ruling. With no sellers, today's reality, the button stays off and the window says what's needed and how. The way is about an hour of press-and-wait, once, on a hero that's resting anyway (every account owns two), then 2.8 minutes for the first rung. When someone sells, the Weighhouse is the way round it. One smith supplies the account: it deposits the salts, and any other hero's sale reads the bag, then Storage, with no transfer. Played: a Smithing 1 hero bought rungs from a sister hero's salts. Another account's hero can only sell through the Weighhouse (no trade system yet; Level 10, same-network refusal, 1% listing fee, 4% cut).
+
+**Q3, where it's taken from.** The hero's bag, then the account's Storage, decided whole before any write, the purse last. Mid-hunt is the same: the salts can't be packed (`unknown_supply`, tested), so a hunt's bag is neither a source nor touched. Played both: bought mid-hunt from Storage, the hunt's rows unchanged, and the next settle reads the rung.
+
+**Q4, the holes.** **The shop:** bulk goods at a fifth of book, under what goes in, so a mix sold back loses 1 g before the bench's fee; measured on the real sale, -1,537 g/h from stock. **Tradeable:** yes, on purpose. It's the fighter's way round the smith and a smith's first market of its own, and no-bound-gear is a ruling. Salts are consumed, so nothing piles up. **The bench tax** takes its share: played, 12 mixes cost 12 g. A whole hero's tax is about 1,200 g on Iron and 2,200 g on Steel, bars included, so the gold budget table doesn't move (`lane/d-gold-sinks`: add those two to its Tempering row, if it counts fees). **A forged client value:** the sale names an offer and no number, as before.
+
+**Built.** `hr_unlock_buy` patched at one anchor: `temper` joins `room` and `property` in `hr_materials_take`'s Storage rule (pinned on ccb6f35b). A §4 on a probe account: refused with nothing spent when either half is short, bag then Storage, the journal names both, the first rung to the last coin. **Services row:** what it needs, what you hold and how much is in Storage; one note under both rows says where to get it; the button stays off until the envelope shows both; a refusal says "Not enough Tempering Salts: you have 3 in your bag and 1 in Storage, and it takes 10." and re-reads. **Art:** two crocks drawn by rule in `twin-icons.mjs`, in palette, for the Asset Director to replace if it likes.
+
+**The coal slog, measured, and a fix in its own commit.** The Coordinator's 1,784 bars counts the Steel Bar's XP alone. A whole chain also pays the Iron Bar's, so it's 1,235 bars, 2,469 coal.
+| Smithing 30 to 45, one hero, no tool | Coal Rock, 409/h | **Coal Seam, 544/h (new)** | Rich Coal Seam, 678/h |
+|---|---|---|---|
+| Steel Bars alone | 12.1 h, 6.0 h of it coal (50%) | **10.6 h**, 4.5 h (43%) | 9.7 h, 3.6 h |
+| Bars to 35, then Steel Whetstones | 7.8 h, 5.0 h of it coal (64%) | **6.5 h**, 3.7 h (57%) | 5.8 h, 3.0 h |
+| Mining XP an hour while on it | 6,063 | **8,494** | 10,255 |
+**It's real.** Half to two thirds of the band is one rock, with the fewest pieces of any rock under Mining 45 and 22-39% less Mining XP than what's open beside it (Iron 7,800, Verdite 9,200, Gold 9,903), and the next rung is 11.7 hours of mining past Mining 30. **The fix: the Coal Seam, a data row at Mining 30**, where Steel first eats coal. 1-2 coal a swing, halfway from the Coal Rock to the Rich Seam, XP seated between Iron and Verdite. Played: an hour gives 551 coal and 8,494 XP. **Saves 1.3-1.5 h of the band**, and a smith on it stops losing Mining. **The faucet warning in `recipes.js` is stale:** it says coal is v:40 and 600 g/min. Coal bids 2 g since the craft wage, so the seam sells raw for 1,088 g/h, under W-RAW's 1,560. W-COAL holds it, with four mutants. **Not fixed:** it's still half the band. The rest is the recipe (2 coal a bar), and I'd leave that until players say.
+**Andy's question, "more resource or just more XP?":** both, and the window hid it. A new ore brings fewer pieces worth more: Copper 750 an hour, Iron 500, Mithril 281, Dawnstone 188; XP 6,143 to 13,016 an hour; gold at the shop 750 to 3,563 g/h. Only a second rung of the same ore brings more of it: Coal Seam 1.33x, Rich Coal 1.66x, Deep Verdite 2.04x, Deep Mithril 1.29x, Deep Ember 1.41x. The old row said "Coal · 13.3 s · 37 XP each" against the Coal Rock's "8.8 s · 14 XP each", so the richer rock looked slower. **Every rock's row now says "about 680 an hour".**
+
+**Purpose test.** Solves a gold-only ladder with no tie to the rest of the game. Decision: make it, buy it, or put a resting hero on it; and when salts are short, Blows or Armor. Plugs into Mining, Smithing, the Glade's and Warrens' drops, Storage and the Weighhouse. Tradeoff: a rusher pays an hour. Hour 1,000: a new tier is a new row. It's depth for one recipe per tier and no new path.
+
+**Walk-through, a fresh fighter with only what it holds** (names grepped; played unless marked):
+| Step | Holds, can reach | Doable because |
+|---|---|---|
+| 1. Level 15+, Iron worn, Smithing 1, Services | Gold | The row says Needs 10 Tempering Salts, You hold 0; the note names Smithing 15, Iron Bars, Bone Chips and the Weighhouse. Off |
+| 2. Mine `copper_rock`, smelt `smelt_copper` | Nothing needed | Both open at 1. Mining 16 and Smithing 15+ by `craft-economy --walk` |
+| 3. Mine `iron_rock`, smelt `smelt_iron` | Mining and Smithing 15 from step 2 | 10 bars, 2 minutes (played by `--walk`) |
+| 4. Bone Chips at the Glade | A Level 15 hero may walk in, warned; 16 is its floor | `carrion_crow` 0.5, 55-71 an hour measured |
+| 5. `mix_temper_salts`, Start | Bars in the bag, chips in Storage | Played: 12 made, both sources spent |
+| 6. Temper, confirm | 10 salts, 2,000 gp | Played. Gold and salts move together, one ledger row |
+| 7. Steel, `mix_fine_temper_salts` | Smithing 30, Big Bones from `hobgoblin_foreman` | Played from stock; Smithing 30 not reached by play, computed at 32 after the Iron ladder |
+
+**Done:** data, recipes, icons, six files, the client, the coach, the Coal Seam, guards. **Verified by playing** (local world; levels, stock and gold are local fixtures; Iron then Steel, 1440x900 and 922x423, screenshots read): the rusher's row, one short across bag and Storage, a stale window refused in words, the real bench job, a real deposit, a second hero buying from Storage, a rung mid-hunt, the mining rows. **Computed from real rows, not played end to end:** whole-ladder hours and where it leaves the skills. **Assumed:** market prices; nobody has listed salts, so whether smiths will, and at what, is unknown; a guess is 12-14 g a salt once wages meet hunting. **Could still be wrong:** 10 salts may feel like nothing and 160 like a chore: the qty is one row. A Level 15 hero at the Thicket holds no chips until it moves up. **First principle:** a four's whole set is 4,960 mixes, a press per batch, not per mix; "Make all" remembers nothing across heroes, so a smith hero is the answer.
+
+**Landing, in order, one file per call, after the two Tempering files:** `2027-02-28-temper-craft-items-catalogue`, `-bench-inputs`, `-bench-tax-rates`, `-hunt-sessions-catalogue`, `-catalogue`, then `2027-02-28-temper-craft.sql`; then `hr-accrue`; then the client. A v0.2.91 client between the apply and the client release is refused in words. **Wipe list:** nothing new; rungs bought gold-only on v0.2.91 go with the wipe. It has to land before it, per Tyler's ruling.
+
+### 2026-11-05 Tempering: a gold sink that adds a little gear power (designer, lane/c-gear-upgrade): SHIPPED gold-only in v0.2.91; its material is the section above
 **Tyler, 2026-11-04:** "we need to add some additional gold sinks before we raise the price. I'm thinking about some sort of upgrade system that slightly increases gear power or something."
 
 **The design.** At the town's smith (Shop, Services tab), a hero pays gold to temper what it wears. **Two tracks, Blows and Armor; five rungs a track; one ladder per gear tier.** A Blows rung adds 1% to every blow, spell and heal of that tier's weapon, 5% at most. An Armor rung takes 1% off the damage reaching the hero, after the armor chain and never past its cap, 5% at most; a mixed set reads each piece by its tier, weighted by the armor it wears. Steel starts at rung 0, and Iron's rungs still count on Iron. Tier 1 has no ladder. A failed roll is never made, and nothing is lost on a death or a sale.

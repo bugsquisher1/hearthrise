@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+**Tempering takes crafted salts.** Each rung now takes Tempering Salts as well as gold, or Fine Tempering Salts for gear worn from Level 30. Mix them at Smithing from Iron Bars and the Bone Chips or Big Bones your hunts bring home, or buy them at the Weighhouse. Any of your heroes can use them from Storage.
+
+**The Coal Seam.** A richer coal rock at Mining 30, and a rock's row now says about how much an hour brings, so you can see what a higher rock is worth.
+
 ## v0.2.91 — 2026-11-04 (The Smith Tempers)
 
 - A blow that misses your hero now strikes a small spark off it, on the side the blow came from, instead of floating "miss" over its head. Your own missed swings leave a small scuff on the monster. The combat log says who missed whom in words, and "Missed blows and immune hits" in Settings turns the sparks off.

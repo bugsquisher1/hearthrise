@@ -52,7 +52,8 @@ export function patchCall(det, ctx, v) {
   if (sc.key !== key) { sc.key = key; sc.quote = null; sc.at = 0; sc.warned = false; }
   sc.call = call;
   const now = Date.now();
-  if (!sc.asking && !v.now && (!sc.quote || now - sc.at > QUOTE_STANDS_MS)) {
+  /* One ask a minute, answered or not: a server that says nothing is not asked again on every repaint its own answer causes. */
+  if (!sc.asking && !v.now && now - sc.at > QUOTE_STANDS_MS) {
     sc.asking = true;
     sc.at = now;
     const asked = key;

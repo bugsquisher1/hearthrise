@@ -3,8 +3,8 @@
 --   (lane/c-boss-call, systems-engineer, 2026-11-05; Tyler approved it 2026-11-04; designer's verdict: PRIORITY_BOARD "The boss call").
 --
 -- STATUS: STAGED. Pre-EA: applies on its passing §6 (CLAUDE.md §2), one file via the Coordinator's apply tool, never inside begin/commit.
--- MONEY (a gold sink): ON THE EA SECURITY LIST (§3.7). ORDER: right after 2027-03-02-boss-call-hunts-catalogue.generated.sql and
--- 2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql (hr_hunts' rooms, hr_boss_calls, END_ORDER's two ends; §0 refuses otherwise).
+-- MONEY (a gold sink): ON THE EA SECURITY LIST (§3.7). ORDER: right after 2027-03-02-boss-call-hunts-catalogue.generated.sql, 2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql
+-- and 2027-03-02-boss-call-titles-catalogue.generated.sql (hr_hunts' rooms, hr_boss_calls, END_ORDER's two ends, the two titles; §0 refuses the first two).
 -- EDGE: the hr-accrue that plays the room (src/core/combat-sim.js, hunt-rewards.js). Either order is safe: no world shape moves, and the old engine never sees a room until the
 -- client half presses the verb. CLIENT: src/session/boss-intents.js, src/shell/windows/boss-call-pane.js, after this applies.
 --
@@ -22,12 +22,15 @@
 --   leader's key (a replay charges once). A refused start charges nothing; a purse that can't pay raises and rolls every seat back out.
 -- hr_hunt_admit: a called room has ONE door. Every other way in (hr_hunt_enter, hr_hunt_party_start, hr_hunt_restart, hr_hunt_change, a member's join, the ready line) asks this and answers
 --   `call_only`. The GUC hr.boss_call is set only by hr_boss_call, for its own transaction; no client role can set a GUC.
--- hr_hunt_settle_session: proves the room's two ends and owes the limit. The kill can't be seen from here (a called kill journals nothing); like `rule`, it can only stop value.
+-- hr_hunt_settle_session: proves the room's two ends and owes the limit. The kill can't be seen from here (a called kill journals nothing); like `rule`, it can only stop value. FOR THE EA REVIEW:
+--   a compromised engine could end a fight `boss_felled` and write the title's counter. What that buys is a title at price 0, with no value attached.
+-- hr_bestiary_of: leaves a called row out, so the Bestiary, the charms and the trophies never count him. His counter, ev:kill_monster:<called row>, is the title's alone (hr_title_kills).
+-- hr_boss_call_felled (trigger): the prize's System line, once a fight, in the Hearth's shape: the name is stamped, the body the server's.
 -- hr_boss_call_closed (trigger): when the room empties, the party stands on the ground it pressed from. Never waits for the party row (FOR UPDATE SKIP LOCKED): a settle holds the characters,
 --   and every party verb takes the party row first. A row it skips is rewritten by the next Start.
 --
 -- COST: one primary-key probe of a two-row catalogue per enter and per settle; a trigger whose WHEN reads only the row. No new player table (ledger rows are the count: the 3 a day never
--- outlives retain_days). REVERSIBLE: restate the three spliced bodies from their pre-images; drop the verb, view, quote, trigger. No begin/commit (CLAUDE.md §2).
+-- outlives retain_days). REVERSIBLE: restate the four spliced bodies from their pre-images; drop the verb, view, quote, triggers. No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────

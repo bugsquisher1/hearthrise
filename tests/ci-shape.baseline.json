@@ -453,6 +453,8 @@
     "node tools/mutant-gate.mjs node tests/boss-call.mjs --mutate": "client-guards",
     "node tests/boss-call-db.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/boss-call-db.mjs --mutate": "client-guards",
+    "node tests/boss-call-window.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate": "client-guards",
     "node tools/mutant-gate.mjs node tests/supplies-catalogue.mjs --selftest": "client-guards",
     "node tests/supplies-catalogue.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/refusal-words.mjs --mutate": "client-guards",

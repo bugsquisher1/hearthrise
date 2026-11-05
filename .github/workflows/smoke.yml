@@ -4976,6 +4976,8 @@ jobs:
           node tools/mutant-gate.mjs node tests/boss-call.mjs --mutate
           node tests/boss-call-db.mjs
           node tools/mutant-gate.mjs node tests/boss-call-db.mjs --mutate
+          node tests/boss-call-window.mjs
+          node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate
 
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt

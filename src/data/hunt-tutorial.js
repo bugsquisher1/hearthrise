@@ -620,7 +620,7 @@ const FACTS = Object.freeze({
   below_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel < b.freeUntil),
   at_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel >= b.freeUntil),
   /* the purse holds the price of the next hero slot the server offers; none on offer: never (unknown until the account's offer is read) */
-  /* The purse is a real start on the next hero (the What next line's own share): at 50,000 gp that is about hour 5, when gold first needs a plan (lane/c-gold-matters). */
+  /* The purse is a real start on the next hero (the What next line's own share): at 25,000 gp that is about hour 2-3, with the hero about 6 h off, when gold first needs a plan (lane/c-slots-lower). */
   purse_saving_hero: (p, f) => (Number.isSafeInteger(f.gold) && Number.isInteger(f.slotsOwned) ? Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),
   /* more than one hero (the account's roster, from the shell) */
   one_hero: (p, f) => known(heroesOn(f), (h) => h.length === 1 && Number.isInteger(f.slotsOwned) && f.slotsOwned > 1),

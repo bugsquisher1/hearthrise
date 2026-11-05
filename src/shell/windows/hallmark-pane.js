@@ -17,6 +17,7 @@ import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.96';
 import { gold, whole } from '../../render/format.js?v=0.2.96';
 import { itemName } from '../widgets/bits.js?v=0.2.96';
 import { runIntent } from '../intent-words.js?v=0.2.96';
+import { whereToGet } from '../item-lore.js?v=0.2.96';
 
 const keyOf = (o) => o.from + '>' + o.to;
 
@@ -24,7 +25,8 @@ const keyOf = (o) => o.from + '>' + o.to;
 function blockOf(cs, o, h, purse, lv) {
   if (lv !== null && lv < o.level) return 'Needs Crafting ' + o.level + '. Yours is ' + lv + '.';
   if (h.today >= h.perDay) return 'Your heroes made ' + whole(h.perDay) + ' Hallmarks today. More after midnight UTC.';
-  if (heldForHallmark(cs, o.gem).all < 1) return 'Needs a ' + itemName(o.gem) + '. The Turncoat on the Wickstead road carries them, or buy one at the Weighhouse.';
+  /* where the gem comes from, from the catalogue (item-lore.js whereToGet), so a new tier's gem says its own home */
+  if (heldForHallmark(cs, o.gem).all < 1) return 'Needs a ' + itemName(o.gem) + '. ' + (whereToGet(o.gem) ? whereToGet(o.gem) + '. ' : '') + 'Or buy one at the Weighhouse.';
   if (purse !== null && purse < o.gold) return 'You need ' + gold(o.gold - purse) + ' more.';
   return '';
 }

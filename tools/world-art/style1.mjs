@@ -66,7 +66,8 @@ export function reachableRefs(d) {
     }
     for (const h of m.hunts || []) {
       const hunt = d.huntIndex[h];
-      for (const s of (hunt && hunt.spawns) || []) spr(m.id + ' hunt ' + h + ' monster', s.monster);
+      /* a called boss wears his own art (monster-art.js HUNT_ART_ALIAS): the sprite his alias names must exist */
+      for (const s of (hunt && hunt.spawns) || []) spr(m.id + ' hunt ' + h + ' monster', (d.artAlias && d.artAlias[s.monster]) || s.monster);
       const g = d.grounds[h];
       for (const p of (g && g.pockets) || []) for (const s of p.spawns) spr(m.id + ' ground ' + h + ' pocket monster', s.monster);
     }

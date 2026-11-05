@@ -72,6 +72,7 @@ import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../src/data/world/house-layouts.js';
 import { OUTFITS } from '../src/data/hunt-outfits.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
+import { HUNT_ART_ALIAS } from '../src/data/monster-art.js';
 /* the OPEN grounds: a staged one (src/data/hunts.js `staged`) is drawn by nobody until its art lands (forest-cave.mjs staged-until-art) */
 import { OPEN_GROUNDS as HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 
@@ -97,7 +98,7 @@ function style1Input(root = ROOT, over = {}) {
     atlasSets, artSets: listSets(root), builtSets: built, sidecars, code: over.code || codeRefs(root),
     scripts: existsSync(join(root, 'tools/world-art')) ? readdirSync(join(root, 'tools/world-art')).map((f) => 'tools/world-art/' + f) : [],
     refs: reachableRefs({ maps: over.maps || WORLD_MAPS, layouts: ROOM_LAYOUTS, trophySprites: TROPHY_MOUNT_SPRITES, peerLooks: Object.values(OUTFITS),
-      crier: 'npc_crier', outfits: Object.values(OUTFITS), huntIndex: HUNT_INDEX, grounds: HUNT_GROUNDS }),
+      crier: 'npc_crier', outfits: Object.values(OUTFITS), huntIndex: HUNT_INDEX, grounds: HUNT_GROUNDS, artAlias: HUNT_ART_ALIAS }),
   };
 }
 

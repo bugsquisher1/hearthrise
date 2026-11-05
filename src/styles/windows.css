@@ -819,8 +819,9 @@
 .hv-works-typed { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; }
 .hv-works-typed input { flex: 1; min-width: 0; min-height: 36px; padding: 0 8px; color: var(--ink); background: var(--bg-0); border: 1px solid var(--steel-sep); font: inherit; font-variant-numeric: lining-nums tabular-nums; }
 .hv-works-typed input:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
-.hv-works-msg { margin: 6px 2px; color: var(--ink); }
+.hv-works-msg { margin: 6px 0 0; color: var(--ink); }
 .hv-works-msg:empty { display: none; }
+.hv-works-msg:not(:empty) { position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; background: var(--bg-0); box-shadow: var(--steel-well); border-left: 4px solid var(--gold); }
 .hv-works-head { margin: 10px 2px 0; font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); }
 .hv-works-plaque { margin: 4px 0 0; padding: 0; list-style: none; }
 .hv-works-plaque .hr-line { min-height: 32px; grid-template-columns: 32px minmax(0, 1fr) auto; }

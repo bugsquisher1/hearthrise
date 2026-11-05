@@ -40,6 +40,9 @@ try {
   const p = await world.play({ account: 'marlowworks', viewport: { width: 1366, height: 768 }, shots });
   await p.createHero('Marlow');
   const page = p.page;
+  /* a failed call, by name, for the console line that only says its status */
+  const failed = [];
+  page.on('response', async (r) => { if (r.status() >= 400) failed.push(r.status() + ' ' + r.url().replace(/^.*\/rpc\//, '') + ' ' + (await r.text().catch(() => '')).slice(0, 200)); });
   /* THE WORLD'S OWN HANDLE, for this walk only and with nothing shipped: the file is rewritten as it's served to this one browser, so a tap lands where the World says a tile is. */
   await page.evaluate(async () => { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map((r) => r.unregister())); });
   await page.route('**/src/world/world-boot.js*', async (route) => {
@@ -55,6 +58,12 @@ try {
   const setTotal = (n) => (n > 0 ? sql("insert into public.town_works_totals (project_id, total) values ('weighhouse', $1) on conflict (project_id) do update set total = excluded.total", [n])
     : sql("delete from public.town_works_totals where project_id = 'weighhouse'"));
   const WIN = '[data-hs-win="havora"]';
+  /* the coach's card is not what this walk is looking at */
+  const coachAway = async () => { const b = page.locator('button:has-text("Got it")').first(); if (await b.count()) await b.click().catch(() => {}); await page.waitForTimeout(250); };
+  const goTile = async (x, y) => {
+    await page.evaluate((to) => window.__worldForTest.walkTo(to), [x, y]);
+    return page.waitForFunction(([a, b]) => { const c = window.__worldForTest.stats().walk.cell; return c && c[0] === a && c[1] === b; }, [x, y], { timeout: 60000 }).then(() => true, () => false);
+  };
   /* a real tap on tile (x, y), as the player's finger lands, through the World's own screen mapping */
   const tapTile = async (x, y) => {
     const pt = await page.evaluate(([tx, ty]) => (window.__worldForTest ? window.__worldForTest.screenOf(tx, ty) : null), [x, y]);
@@ -80,25 +89,33 @@ try {
   step('WW-1 the World reports its frame', !!here, JSON.stringify(here));
   const canWalk = !!here;
   if (canWalk) {
-    await page.evaluate(() => window.__worldForTest.walkTo([120, 53]));
-    await page.waitForFunction(() => { const c = window.__worldForTest.stats().walk.cell; return c && c[0] === 120 && c[1] === 53; }, null, { timeout: 60000 }).catch(() => {});
+    await coachAway();
+    /* on the high street, east of the lot: the whole building stands in frame between the top bar and the action bar */
+    const there = await goTile(127, 57);
+    step('WW-1 the hero walks to the high street beside the lot', there, JSON.stringify((await walkOf() || {}).cell));
   }
   for (const [t, art, name] of stageArt) {
     await setTotal(t);
     const drawn = await worksArt(art);
     step(`WW-1 ${name} draws from the town read (${t} gp)`, drawn, JSON.stringify((await walkOf() || {}).works));
+    await coachAway();
     await page.waitForTimeout(400);
     const stubbed = await page.evaluate(() => window.__worldForTest.stats().stubbed);
     step(`WW-1 ${name} draws no stub: its sheet has arrived`, !stubbed.some((id) => /weighhouse/.test(id)), JSON.stringify(stubbed));
     await p.shot('stage-' + name);
   }
+  /* the same finished building at the player's other zoom, for its size against the town */
+  await page.click('[data-zoom="-1"]').catch(() => {});
+  await page.waitForTimeout(800);
+  await p.shot('stage-finished-zoom-1x');
+  await page.click('[data-zoom="1"]').catch(() => {});
+  await page.waitForTimeout(500);
   await setTotal(99000);
   await worksArt(null);
 
   // ── WW-2 ──
   const plaqueOpens = await (async () => {
-    await page.evaluate(() => window.__worldForTest.walkTo([128, 55]));
-    await page.waitForTimeout(3500);
+    await goTile(128, 55);
     await tapTile(127, 53);
     return waitText(WIN + ' .hv-works-stage', /Staked out: 99,000 of 1,000,000 gp/);
   })();
@@ -139,6 +156,9 @@ try {
   await page.click(WIN + ' [data-hs-act="works-typed"]');
   const overWords = await waitText(WIN + ' .hv-works-msg', /You can give 23,300 gp more today\./);
   step('WW-4 over today\'s cap says why and charges nothing', overWords && (await purse()) === purse4, JSON.stringify({ msg: await textOf(WIN + ' .hv-works-msg'), purse: await purse(), was: purse4 }));
+  /* on screen, not just in the page: at this size the window ends under the buttons */
+  const onScreen = await page.evaluate(([w, m]) => { const a = document.querySelector(w).getBoundingClientRect(), b = document.querySelector(m).getBoundingClientRect(); return b.height > 0 && b.top >= a.top && b.bottom <= a.bottom; }, [WIN, WIN + ' .hv-works-msg']);
+  step('WW-4 the answer is on screen, inside the window', onScreen, 'it is clipped');
   await page.waitForTimeout(300);
   await p.shot('works-over');
   const maxWords = await waitText(WIN + ' .hv-works-max', /Give the 23,300 gp left today/);
@@ -158,14 +178,14 @@ try {
   // ── WW-6 ── a hero on rows 53-54 stands behind stage 4; a hero south of the lot in front of it
   await setTotal(1000000);
   await worksArt('havora_weighhouse_finished');
-  await page.evaluate(() => window.__worldForTest.walkTo([122, 54]));
-  await page.waitForFunction(() => { const c = window.__worldForTest.stats().walk.cell; return c && c[0] === 122 && c[1] === 54; }, null, { timeout: 60000 }).catch(() => {});
+  await coachAway();
+  await goTile(122, 54);
   await page.waitForTimeout(600);
   const north = await walkOf();
   step('WW-6 a hero reaches row 54, behind stage 4', north && north.cell[1] === 54, JSON.stringify(north && north.cell));
   await p.shot('hero-behind-finished');
-  await page.evaluate(() => window.__worldForTest.walkTo([122, 61]));
-  await page.waitForFunction(() => { const c = window.__worldForTest.stats().walk.cell; return c && c[0] === 122 && c[1] === 61; }, null, { timeout: 60000 }).catch(() => {});
+  await coachAway();
+  await goTile(122, 61);
   await page.waitForTimeout(600);
   const south = await walkOf();
   step('WW-6 a hero reaches row 61, in front of stage 4', south && south.cell[1] === 61, JSON.stringify(south && south.cell));
@@ -185,12 +205,21 @@ try {
   const stays = await waitText(WIN + ' .hv-works-plaque', /Marlow/);
   step('WW-7 the window says it\'s finished, the plaque stays', doneWords && stays, await textOf(WIN));
   await page.waitForTimeout(300);
+  const doneLead = await waitText(WIN + ' .hv-works-lead', /Havora raised the Weighhouse/);
+  step('WW-7 the first words know it stands', doneLead, await textOf(WIN + ' .hv-works-lead'));
   await p.shot('works-finished');
+  /* the plaque, scrolled to */
+  await page.evaluate((s) => { const e = document.querySelector(s); if (e) e.scrollIntoView({ block: 'end' }); }, WIN + ' .hv-works-plaque');
+  await page.waitForTimeout(300);
+  await p.shot('works-plaque');
   const gaveLate = await page.evaluate((s) => { const e = document.querySelector(s); return !!e && !e.hidden; }, WIN + ' .hv-works-give');
   step('WW-7 nothing more can be given', !gaveLate && (await purse()) === purse7, JSON.stringify({ gaveLate, purse: await purse(), was: purse7 }));
 
   // ── WW-8 ──
-  step('WW-8 no console errors', p.errors.length === 0, p.errors.slice(0, 5).join(' | '));
+  /* the Market is off on this chain (2027-02-14-market-off.sql): its window opens, says so, and its read's 409 is the browser's console line for that one answer */
+  const known = failed.filter((f) => /market_closed/.test(f)).length;
+  const left = p.errors.filter((e) => !/status of 409/.test(e)).concat(p.errors.filter((e) => /status of 409/.test(e)).slice(known));
+  step('WW-8 no console errors', left.length === 0, left.slice(0, 5).join(' | ') + ' || ' + failed.join(' | '));
   step('WW-8 nothing left the machine', p.offsite.length === 0 && world.offsite.length === 0, [...p.offsite, ...world.offsite].slice(0, 5).join(' | '));
 } catch (e) {
   console.error('town-works-world: HARNESS ' + (e && e.stack || e));

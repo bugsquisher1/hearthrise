@@ -73,7 +73,7 @@ export const WORKS_TAB = Object.freeze({ id: 'works', label: 'Works', shown: tru
 /** The tab's contents, built once per opening. */
 export function worksHtml() {
   const row = rowOf(null);
-  return '<p class="hv-lead">' + esc(row.about) + '</p>'
+  return '<p class="hv-lead hv-works-lead">' + esc(row.about) + '</p>'
     + '<p class="hv-works-stage"></p>'
     + '<span class="hv-works-bar" aria-hidden="true"><span class="hv-works-fill"></span></span>'
     + '<p class="hw-cap hv-works-next"></p>'
@@ -84,10 +84,11 @@ export function worksHtml() {
     + '<button type="button" class="hh-tool" data-hs-act="works-typed">Give</button></div>'
     + '</div>'
     + '<p class="hw-cap hv-works-today"></p>'
-    + '<p class="hv-works-msg" role="status" aria-live="polite"></p>'
     + '<p class="hw-cap hv-works-me"></p>'
     + '<h3 class="hv-works-head">The plaque</h3>'
-    + '<ol class="hv-works-plaque"></ol>';
+    + '<ol class="hv-works-plaque"></ol>'
+    /* last in the pane and stuck to the window's foot, so an answer shows wherever the pane is scrolled to: a short window hides everything under the buttons */
+    + '<p class="hv-works-msg" role="status" aria-live="polite"></p>';
 }
 
 function plaqueRow(doc) {
@@ -109,6 +110,7 @@ export function patchWorks(pane, ctx) {
   if (sc.pane !== pane) { sc.pane = pane; sc.stale = true; sc.msg = ''; sc.filled = false; }
   const w = sc.works;
   const row = rowOf(w);
+  text(pane.querySelector('.hv-works-lead'), w && w.finished ? row.aboutDone : row.about);
   text(pane.querySelector('.hv-works-stage'), w ? stageWords(w, row) : '');
   style(pane.querySelector('.hv-works-fill'), 'width', w && w.goal > 0 ? Math.min(100, (w.total / w.goal) * 100).toFixed(1) + '%' : '0%');
   text(pane.querySelector('.hv-works-next'), w ? (w.finished ? row.name + ' is finished. Nothing else is being built right now.' : nextWords(w, row)) : '');

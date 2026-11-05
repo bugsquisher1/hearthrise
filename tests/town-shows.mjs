@@ -319,7 +319,8 @@ const ARMS = {
     await hero(db, B, 0, 'Tamsel');
     const before = await strangerSees(db, A, B);
     if (!before.read || before.read.ok !== true) return ['the town read answered ' + JSON.stringify(before.read)];
-    if (JSON.stringify(before.read.extras) !== '{}' || before.read.shows !== null) out.push(`the stubs read extras ${JSON.stringify(before.read.extras)}, shows ${JSON.stringify(before.read.shows)}`);
+    /* hr_town_extras' body is the Town Works' now (tests/town-works.mjs); nothing is burning, so the shows read null */
+    if (!before.read.extras || !before.read.extras.works || before.read.shows !== null) out.push(`the town read holds extras ${JSON.stringify(before.read.extras)}, shows ${JSON.stringify(before.read.shows)}`);
     for (const k of ['map', 'inst', 'cap', 'full', 'cursor', 'area', 'walkers', 'gone', 'me', 'hearth']) if (!(k in before.read)) out.push(`the town read lost ${k}`);
     await db.exec(`create or replace function public.hr_town_extras(p_map text) returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
       select jsonb_build_object('works', jsonb_build_object('map', p_map, 'stage', 2)) $fn$`);

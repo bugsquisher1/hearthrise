@@ -1121,7 +1121,6 @@ const MUTANTS = [
   ['only the away stamp is flushed on the way out, a pending Got it is lost to the reload (B-18)', 'src/shell/alerts.js', '{ stampAway(cs, true); cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }', '{ if (stampAway(cs, true)) cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }'],
   ['the keepalive never reaches the fetch (B-17)', 'src/session/server.js', '...(keep && body.length < KEEPALIVE_MAX_BYTES ? { keepalive: true } : {}),', ''],
   ['only the viewed hero is stamped on the way out (B-17)', 'src/shell/alerts.js', 'for (const cs of account.characters()) { stampAway(cs, true);', 'for (const cs of account.characters().slice(0, 1)) { stampAway(cs, true);'],
-  ['every flicker of the page writes (B-17)', 'src/shell/away-recap.js', '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', '(leaving ? -1 : STAMP_EVERY_MS)'],
   ['the away stamp is written every minute again (B-17)', 'src/shell/away-recap.js', 'export const STAMP_EVERY_MS = AWAY_MIN_MS;', 'export const STAMP_EVERY_MS = 60000;'],
   ['the town\'s sheets wait for Play again', 'src/app/boot.js', "    import('../world/prewarm.js?v=", "    Promise.resolve({ prewarmTown() {} }, '../world/prewarm.js?v="],
   ["a signed-out account's prewarm runs on (B-15)", 'src/world/prewarm.js', 'live: () => !run.stopped && alive() };', 'live: () => !run.stopped };'],

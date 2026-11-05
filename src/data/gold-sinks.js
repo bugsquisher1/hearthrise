@@ -41,12 +41,12 @@ export const POWDER_CHUNK = 'fuel_powder';
 /** The catalogue id hr_town_show takes for a round. */
 export const ROUND_OFFER = 'round';
 /* THE ROUND, as the World draws it (src/world/town-shows.js): one program, so two viewers of a round see one show. A shell climbs from the square for riseMs over riseTiles,
-   then bursts for at most playMs (tools/world-art/round-fireworks.mjs), and everything steps on tickMs, the rise's own frame rate, so a show adds at most 12 repaints of the town a second.
+   then bursts for at most playMs (tools/world-art/round-fireworks.mjs), and everything steps on beatMs, the rise's own frame rate, so a show adds at most 12 repaints of the town a second.
    A row is [ms into the round, shell, tiles east of the ambient `from`, tiles south of it]: where it bursts, high over Hearth Square's west and middle, where the idle heroes stand and look.
    A shell at the Hearth's own column is gone in a moment, so the fire keeps showing; the last five seconds are the finale. */
 const GOLD = 'fx_round_gold', CINDER = 'fx_round_cinder', FROST = 'fx_round_frost';
 export const ROUND_SHOW = Object.freeze({
-  from: 'hearth_fire', rise: 'fx_round_rise', riseMs: 416, riseTiles: 6, playMs: 1.5 * 1000, tickMs: 1000 / 12,
+  from: 'hearth_fire', rise: 'fx_round_rise', riseMs: 416, riseTiles: 6, playMs: 1500, beatMs: 1000 / 12,
   program: Object.freeze([
     [700, GOLD, -6, -2], [1800, CINDER, 2, -1], [2600, FROST, -10, -3], [3800, CINDER, -1, -3], [4300, GOLD, -8, -1], [5600, FROST, 4, -1], [6500, CINDER, -3, -1], [7700, GOLD, -11, -1],
     [8200, CINDER, 1, -4], [9500, FROST, -5, -4], [10400, CINDER, 3, -3], [11600, GOLD, -4, -1], [12100, FROST, -9, -4], [13400, CINDER, 0, -1], [14300, GOLD, -7, -1], [15500, CINDER, -2, -2],

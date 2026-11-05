@@ -848,17 +848,26 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
     }
 
     { // B-13 a sheet that lands after its pane was closed draws nothing and wakes no presence
+      /* THE ORDER IS FORCED (release/v0.2.96 run 42081767870: the mutant escaped on CI). The characters screen's prewarm can ask
+         for the Common's sheet before Play, so a sheet asked for never meant the World waited on it, and a close sent at once beat
+         the World's first town frame. The pane closes only once the World has drawn the town (its first walkers read, made in the
+         same step that asks for the sheets that frame draws: walkState, then view-sheets.js check); the sheets stay held until
+         after the close, and woke is read only once they have landed. Each step of that order is a harness control. */
       const o = { hunt: true };
       const { ctx, page, errors } = await fresh(o);
       let release = null, asked = 0;
       const held = new Promise((r) => { release = r; });
       const back = TOWN_SHEETS.sets.filter((s) => !CELLAR_SHEETS.sets.includes(s));
+      const askedSets = new Set(), landed = new Map(), lost = [];
       await page.route('**/assets/world/atlas-*.png*', async (r) => {
-        if (back.includes(sheetOf(r.request().url()))) { asked++; await held; }
+        const set = sheetOf(r.request().url());
+        if (back.includes(set)) { asked++; askedSets.add(set); await held; }
         return r.continue();
       });
       const town = [];
       page.on('request', (q) => { if (/\/rpc\/hr_town_view/.test(q.url())) town.push(Date.now()); });
+      page.on('requestfinished', (q) => { const set = sheetOf(q.url()); if (back.includes(set)) landed.set(set, Date.now()); });
+      page.on('requestfailed', (q) => { const set = sheetOf(q.url()); if (back.includes(set)) lost.push(set); });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       await page.fill('input[name=email]', 'qa@example.test');
@@ -868,17 +877,27 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.click('[data-app="play"][data-slot="0"]');
       const inCellar = await wait(page, () => /Mill Cellar/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''));
       o.hunt = false;
+      const sent = Date.now();
       await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: 20, env }, 'frame'), [UID, envelope(0, 20)]);
-      for (let i = 0; i < 60 && !asked; i++) await page.waitForTimeout(50);
+      let drawn = false;
+      for (let i = 0; i < 300 && !(drawn = town.some((t) => t >= sent)); i++) await page.waitForTimeout(50);
       await page.click('[data-app="characters"]');
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await page.waitForTimeout(300);
       const mark = Date.now();
+      const early = [...landed.keys()];   // nothing held can land before release(): one that did was never held
       release();
-      await page.waitForTimeout(2000);
+      const arrivedAll = () => askedSets.size > 0 && [...askedSets].every((s) => landed.get(s) >= mark);
+      for (let i = 0; i < 200 && !arrivedAll() && !lost.length; i++) await page.waitForTimeout(50);
+      const arrived = arrivedAll();
+      /* landed: its decode, the ensure() it settles and that ensure's wake are the page's next tasks */
+      for (let i = 0; i < 40 && !town.some((t) => t >= mark); i++) await page.waitForTimeout(50);
       const woke = town.filter((t) => t >= mark).length;
       if (!back.length) fails.push('B-13 harness: the Common adds no sheet to the cellar\'s (' + TOWN_SHEETS.sets.join() + ')');
       else if (!inCellar || !asked) fails.push('B-13 harness: the hero never hunted the cellar (' + inCellar + ') or the Common\'s sheet was never asked for (' + asked + ')');
+      else if (!drawn) fails.push('B-13 harness: the World never drew the Common after the hunt (no walkers read in 15 s): the pane would close before anything waits on its sheet');
+      else if (early.length) fails.push('B-13 harness: ' + early.join() + ' landed before the pane was closed: the late sheet was not held');
+      else if (lost.length || !arrived) fails.push('B-13 harness: the held sheet(s) ' + [...askedSets].join() + ' never landed after the close (failed: ' + (lost.join() || 'none') + ')');
       else if (woke) fails.push('B-13 a sheet landing after its pane was closed read the town\'s walkers ' + woke + ' time(s): the closed pane woke the presence');
       if (errors.length) fails.push('B-13 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();

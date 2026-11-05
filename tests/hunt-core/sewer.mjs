@@ -984,7 +984,14 @@ const cases = {
     /* WHAT THE GOLD IS FOR (panel 2026-11-01: 22,355 gp and "no idea what I'm saving for"), at the server's price */
     const goal = (charLevel, more) => whatNext(M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 9, land: null, inParty: false, ...more }));
     if (!goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 }).includes('You can pay for a third hero (15,000 gp): press Characters. It hunts while this one does.')) return 'at 16,000 gp What next reads ' + goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 });
-    if (!goal(8, { gold: 6000, slotCost: 15000, slotsOwned: 2 }).includes('A third hero costs 15,000 gp')) return 'at 6,000 gp What next names no price: ' + goal(8, { gold: 6000, slotCost: 15000, slotsOwned: 2 });
+    if (!goal(8, { gold: 8000, slotCost: 15000, slotsOwned: 2 }).includes('A third hero costs 15,000 gp')) return 'at 8,000 gp What next names no price: ' + goal(8, { gold: 8000, slotCost: 15000, slotsOwned: 2 });
+    /* THE SHARE AT THE REAL LADDER (lane/c-slots-lower): under half the next hero the house's deed speaks, from half the hero does, and the fourth reads the same way */
+    const cottage = { owned: true, next: { name: 'Cottage', gold: 8000, items: [{ id: 'normal_log', qty: 40 }] } };
+    const under = goal(8, { gold: 12499, slotCost: 25000, slotsOwned: 2, home: cottage }), half = goal(8, { gold: 12500, slotCost: 25000, slotsOwned: 2, home: cottage });
+    if (!under.includes('You can pay for the Cottage') || /hero costs/.test(under)) return 'at 12,499 gp of a 25,000 gp hero What next reads ' + under;
+    if (!half.includes('A third hero costs 25,000 gp, and you have 12,500 gp') || half.includes('You can pay for the Cottage')) return 'at 12,500 gp of a 25,000 gp hero What next reads ' + half;
+    if (/hero costs/.test(goal(20, { gold: 37499, slotCost: 75000, slotsOwned: 3 }))) return 'the fourth hero speaks under half its price';
+    if (!goal(20, { gold: 37500, slotCost: 75000, slotsOwned: 3 }).includes('A fourth hero costs 75,000 gp, and you have 37,500 gp')) return 'at 37,500 gp the fourth hero reads ' + goal(20, { gold: 37500, slotCost: 75000, slotsOwned: 3 });
     if (/hero \(|hero costs/.test(goal(12, { gold: 16000, slotCost: null, slotsOwned: 5 }))) return 'with no slot for sale What next offers one';
     if (/hero costs/.test(goal(5, { gold: 400, slotCost: 15000, slotsOwned: 2 }))) return 'at 400 gp the third hero is held up as a goal';
     if (!goal(20, { gold: 45000, slotCost: 40000, slotsOwned: 3 }).includes('a fourth hero (40,000 gp)')) return 'the fourth hero reads ' + goal(20, { gold: 45000, slotCost: 40000, slotsOwned: 3 });
@@ -1007,10 +1014,10 @@ const cases = {
     const rich = (lv, gold, more, ...read) => ({ ...atL(lv, 'weighhouse', 'roll_of_honor', 'pull_goal', ...read), gold, slotCost: 15000, slotsOwned: 2, home: { owned: false, next: DEED }, chest: CHEST, ...more });
     const purse = say(rich(M.tut.ROLL_LEVEL, 15000));
     if (!purse || purse.id !== 'purse_goal' || purse.text !== 'You hold 15,000 gp: enough for a third hero (15,000 gp, press Characters). In the House: the Hearthside Homestead (400 gp, Copper Ore ×20, Normal Log ×30) and storage chests (the Millrace Crate, 1,500 gp, Normal Log ×40).' || !purse.gotIt || M.tut.coachWindow(purse) !== 'house') return 'with 15,000 gp the card reads ' + JSON.stringify(purse);
-    /* The hero is a saving goal now (lane/c-gold-matters): the card comes at the What next line's share of its price and says what is short, never "enough". */
-    if ((say(rich(M.tut.ROLL_LEVEL, 3749)) || {}).id === 'purse_goal') return 'the gold card came before the purse is a start on the next hero';
-    const saving = say(rich(M.tut.ROLL_LEVEL, 3750));
-    if (!saving || saving.id !== 'purse_goal' || !saving.text.startsWith('You hold 3,750 gp. A third hero costs 15,000 gp (press Characters). In the House: the Hearthside Homestead')) return 'saving for a hero the gold card reads ' + JSON.stringify(saving && saving.text);
+    /* The hero is a saving goal now (lane/c-gold-matters): the card comes at the What next line's share of its price (a half) and says what is short, never "enough". */
+    if ((say(rich(M.tut.ROLL_LEVEL, 7499)) || {}).id === 'purse_goal') return 'the gold card came before the purse is a start on the next hero';
+    const saving = say(rich(M.tut.ROLL_LEVEL, 7500));
+    if (!saving || saving.id !== 'purse_goal' || !saving.text.startsWith('You hold 7,500 gp. A third hero costs 15,000 gp (press Characters). In the House: the Hearthside Homestead')) return 'saving for a hero the gold card reads ' + JSON.stringify(saving && saving.text);
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, {}, 'purse_goal')) || {}).id === 'purse_goal') return 'Got it does not pass the gold card';
     if ((say(rich(M.tut.ROLL_LEVEL, 99999, { slotCost: null, slotsOwned: 5 })) || {}).id === 'purse_goal') return 'with no hero on offer the gold card still offers one';
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, { huntId: 'mosslight_glade' })) || {}).id === 'purse_goal') return 'the gold card came up in a hunt';

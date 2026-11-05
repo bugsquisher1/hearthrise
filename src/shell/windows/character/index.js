@@ -47,7 +47,7 @@ function wantArt(doc) {
 /** The skeleton (built once per opening). */
 export function renderCharacter(ctx) {
   wantArt(ctx.doc);
-  if (ctx.character) { const sc = scratchOf(ctx.character); sc.opening = 'due'; sc.sheetAsked = null; }
+  if (ctx.character) { const sc = scratchOf(ctx.character); sc.opening = 'due'; sc.sheetAsked = null; sc.price = null; sc.priceAskedAt = 0; }
   return '<div class="hw-cs">'
     + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="cs-tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + esc(l) + '</button>').join('') + '</div>'
     + '<div class="hw-cs-pane" data-pane="sheet">' + sheetHtml() + '</div>'
@@ -92,7 +92,7 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
     const d = draftOf(cs, sc);
     /* every outfit in the grid and the big preview wear the colors being tried on: one set, across every outfit */
     const dyes = dyesOf(colorsShown(cs, d), ctx.doc);
-    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, dyes));
+    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, dyes), () => renderCharacter.patch(body, ctx));
     paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyes);
   } else if (sc.tab === 'titles') patchTitles(body, ctx, sc);
   else patchDeaths(body, ctx, sc);

@@ -18,7 +18,7 @@ import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.92';
 import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.92';
 import { outfitOf } from '../../../session/character-sections.js?v=0.2.92';
 import { heroSprite } from '../../../session/hero-look.js?v=0.2.92';
-import { saveHeroColors } from '../../../session/hero-color-intents.js?v=0.2.92';
+import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.92';
 import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.92';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.92';
 import { gold } from '../../../render/format.js?v=0.2.92';
@@ -87,8 +87,21 @@ function onlyHidden(row, base, colors) {
   return moved.length > 0 && !moved.some((g) => row.regions.includes(g));
 }
 
-/** Patch the Outfit tab. `masks` is the loaded mask set or null; `drawTile(canvas, id)` draws a grid face. */
-export function patchOutfit(body, ctx, sc, masks, drawTile) {
+/* The tab's one read: what a save costs. Once per opening of the tab and after each answer that moved it; a read that failed is tried again on a later patch, never in a loop. */
+const PRICE_RETRY_MS = 5000;
+function askPrice(ctx, sc, repaint) {
+  const now = Date.now();
+  if (sc.price !== null || sc.priceAsking || now - sc.priceAskedAt < PRICE_RETRY_MS) return;
+  sc.priceAsking = true;
+  sc.priceAskedAt = now;
+  readColorsPrice(ctx.account, ctx.character).catch(() => ({ ok: false })).then((r) => {
+    sc.priceAsking = false;
+    if (r.ok) { sc.price = r.price; sc.priceAskedAt = 0; repaint(); }
+  });
+}
+
+/** Patch the Outfit tab. `masks` is the loaded mask set or null; `drawTile(canvas, id)` draws a grid face; `repaint` patches again. */
+export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   const cs = ctx.character;
   const root = body.querySelector('.hw-cs-outfit');
   const o = outfitOf(cs);
@@ -135,13 +148,14 @@ export function patchOutfit(body, ctx, sc, masks, drawTile) {
   cls(root.querySelector('.hw-of-none'), 'is-on', !ids.length);
   prop(root.querySelector('[data-hs-act="of-owned"]'), 'checked', sc.ownedOnly);
   prop(root.querySelector('[data-hs-act="of-save"]'), 'disabled', sc.pending || !o || !owned || (o.worn || null) === d.outfit);
-  /* Save colors shows only when there is something to pay for, on an outfit that can show it, with the server's own number on it. */
-  const price = o ? o.colorsPrice : null;
-  const offer = changedColors && !!row && row.regions.length > 0 && price !== null;
+  /* Save colors shows only when there is something to pay for, on an outfit that can show it, with the server's own number on it. The number is this
+     window's read, never the envelope's: a settle prices nothing (tests/settle-budget.mjs), and a stale one only earns quote_changed, which re-reads it. */
+  askPrice(ctx, sc, repaint);
+  const offer = changedColors && !!row && row.regions.length > 0;
   const save = root.querySelector('[data-hs-act="of-colors"]');
   cls(save, 'is-on', offer);
-  text(save, offer ? 'Save colors: ' + gold(price) : '');
-  prop(save, 'disabled', sc.pending || !offer);
+  text(save, !offer ? '' : sc.price !== null ? 'Save colors: ' + gold(sc.price) : 'Asking the price…');
+  prop(save, 'disabled', sc.pending || !offer || sc.price === null);
   cls(root.querySelector('.hw-of-undo'), 'is-on', changedColors);
   prop(root.querySelector('.hw-of-undo'), 'disabled', sc.pending);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
@@ -180,9 +194,11 @@ export function actOutfit(ctx, sc, action, ev, t, repaint) {
   }
   if (action === 'of-colors') {
     const d = draftOf(cs, sc);
-    const o = outfitOf(cs);
-    if (!d.colors || !o || o.colorsPrice === null) return true;
-    runIntent(sc, repaint, () => saveHeroColors(ctx.account, cs, d.colors, o.colorsPrice), 'Saving…', () => { sc.draft = { outfit: d.outfit, colors: null }; return 'Saved. Everyone sees your new colors.'; }, cs);
+    if (!d.colors || sc.price === null) return true;
+    const price = sc.price;
+    /* every answer re-reads the price: a Level may have moved it, and a refusal may be the reason */
+    runIntent(sc, repaint, () => saveHeroColors(ctx.account, cs, d.colors, price).then((r) => { sc.price = null; sc.priceAskedAt = 0; return r; }), 'Saving…',
+      () => { sc.draft = { outfit: d.outfit, colors: null }; return 'Saved. Everyone sees your new colors.'; }, cs);
     return true;
   }
   return false;

@@ -67,7 +67,7 @@ function withSections(env, o = {}) {
     combat: o.fresh === false ? null : Object.assign(clone(COMBAT), o.combat || {}), computed_at: '2026-10-18T10:00:00Z' };
   if (o.dropMana && env.character_sheet.combat) delete env.character_sheet.combat.max_mana;
   if (o.dropMana && env.hunt && env.hunt.hero) delete env.hunt.hero.mana_max;
-  env.outfit = { worn: 'berserker', base: { head: 13, body: 5, legs: 3, feet: 0 }, colors_price: 1550, owned: ['knight', 'berserker', 'ranger', 'sorcerer', 'druid'] };
+  env.outfit = { worn: 'berserker', base: { head: 13, body: 5, legs: 3, feet: 0 }, owned: ['knight', 'berserker', 'ranger', 'sorcerer', 'druid'] };
   env.death_log = [{ id: 901, at: '2026-10-18T09:30:00Z', hunt: 'mill_cellar', monster: 'rat_king', xp: 140, xp_lost: { level: 90, melee: 50 } },
     { id: 877, at: '2026-10-17T20:00:00Z', hunt: 'mill_cellar', monster: 'rat', xp: 0, xp_lost: null }];
   return env;
@@ -98,6 +98,7 @@ async function stub(page, s) {
       return json(Object.assign({ accrued: true }, s.next()));
     }
     if (name === 'hr_outfit_set') { await new Promise((ok) => setTimeout(ok, 300)); return json({ ok: true }); }
+    if (name === 'hr_hero_colors_view') return json({ ok: true, price: 1550 });
     if (name === 'hr_title_buy' || name === 'hr_title_wear') { await new Promise((ok) => setTimeout(ok, 300)); return json(s.titleAnswer ? s.titleAnswer(name, body) : { ok: true }); }
     if (name === 'hr_put_client_state') { Object.assign(s.residue, body.p_patch || {}); return json({ ok: true }); }
     return json({ ok: true });

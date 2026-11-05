@@ -99,6 +99,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_setup_slot_buy: 'buy this hero\'s next setup slot at the quoted price (preset-intents.js buySetupSlot; 2027-02-28-setup-slots.sql)',
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_title_wear: 'wear a title this hero holds, or null to take it off; moves no value (title-intents.js wearTitle)',
+  hr_hero_colors_view: 'what a color save costs this hero right now; the read of the Outfit tab, moves nothing (hero-color-intents.js readColorsPrice)',
   hr_hero_colors_set: 'this hero\'s four dye indices at the quoted price; never a color value (hero-color-intents.js saveHeroColors; 2027-03-05-hero-colors.sql)',
   hr_storage_chest_build: 'build the account’s next storage chest at the quoted price; the server gates, prices and debits it (home-intents.js buildChest)',
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',

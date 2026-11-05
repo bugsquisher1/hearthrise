@@ -13,7 +13,7 @@
 //                     damage: { min, max }, accuracy_pct, crit_pct, defence, set,
 //                     dodge_pct, absorb_pct, ward (the armour's mitigation, ruling K7),
 //                     xp: { perks, buffs, combat } }
-//   outfit          { worn: id | null, base: { head, body, legs, feet } dye indices | {}, colors_price, owned: [id] }
+//   outfit          { worn: id | null, base: { head, body, legs, feet } dye indices | {}, owned: [id] }
 //   death_log       [{ id, at, hunt, session, monster, xp, xp_lost, saved }] newest first;
 //                   saved = what a Blessing kept, null when none was used
 //                   (2026-11-07-death-popup-blessing.sql)
@@ -133,14 +133,14 @@ export function heroVitalsOf(cs) {
 
 /* The section as read, per section the server sent: a hero's look asks every frame, and a new envelope is a new object. */
 const OUTFIT_READ = new WeakMap();
-/** `outfit`: { worn, base (the hero's four colors, dye indices, or null), colorsPrice (what a save costs, or null), owned: Set }, or null. */
+/** `outfit`: { worn, base (the hero's four colors, dye indices, or null), owned: Set }, or null. */
 export function outfitOf(cs) {
   const o = read(cs, 'outfit');
   if (!isObj(o)) return null;
   let r = OUTFIT_READ.get(o);
   if (!r) {
     const base = dyeKeyOf(o.base) ? { head: o.base.head, body: o.base.body, legs: o.base.legs, feet: o.base.feet } : null;
-    r = { worn: id(o.worn), base, colorsPrice: nat(o.colors_price), owned: new Set(Array.isArray(o.owned) ? o.owned.map(id).filter(Boolean) : []) };
+    r = { worn: id(o.worn), base, owned: new Set(Array.isArray(o.owned) ? o.owned.map(id).filter(Boolean) : []) };
     OUTFIT_READ.set(o, r);
   }
   return r;

@@ -11,7 +11,7 @@
 // mutant-anchors: supabase/migrations/2027-03-05-hero-colors.sql src/world/hero-dye.js src/session/hero-color-intents.js src/session/character-sections.js src/session/party-sections.js src/session/town-presence.js src/data/outfits.js src/shell/intent-words.js src/shell/windows/character/outfit.js src/world/core/compose.js src/world/town-scene.js src/world/walk-scene.js src/hunt-view/scene.js src/session/refusal.js
 //
 // EVERY NUMBER HERE IS READ FROM THE ROW. The real chain replayed (PGlite), real client roles, the real client modules; production untouched:
-//   HC-QUOTE   the section reads the row at the hero's Level; a stale or forged price is quote_changed; a price of nothing is bad_quote; a short purse is insufficient_gold; refused means not charged, colors unmoved
+//   HC-QUOTE   the window's read is the row at the hero's Level; a stale or forged price is quote_changed; a price of nothing is bad_quote; a short purse is insufficient_gold; refused means not charged, colors unmoved
 //   HC-ONCE    a replayed key charges once; one save is exactly one journal row of kind shop; the same key on other colors is intent_mismatch
 //   HC-FORGED  a forged index, region, color value or shape is refused before any charge; the free outfit verb takes no colors at all
 //   HC-SAME    colors_same, whichever way round the keys came and at any price, charges nothing
@@ -21,7 +21,8 @@
 //   HC-TOWN    another player sees the save in town from the server's own read, without the hero moving; a reload keeps it; a hero with none draws undyed
 //   HC-PARTY   every seat carries its hero's colors, null when none; the party's reader turns them into a look key
 //   HC-ART     hr_outfits.regions equal the data's, and each is exactly what that outfit's mask keys in the shipped atlas; the druid has no mask and says why
-//   HC-GRANT   the verb is the client's and baselined; no helper is
+//   HC-SETTLE  no section a settle builds prices anything: the envelope carries no price, and no section, seat or look reads hr_sink_price (tests/settle-budget.mjs counts the calls)
+//   HC-GRANT   the verb and its read are the client's and baselined; no helper is
 //   HC-AGAIN   a second apply is byte-identical
 //   HC-CLIENT  the reader, the button's number and the refusal's words, from the row; ONE intent with four indices and the QUOTE, never a color; a stale quote re-reads
 //   HC-DYE     the look cache: at most one bake a frame; the cap holds; a look on screen is never evicted, past the cap a hero draws undyed; the hero you play takes a place anyway;
@@ -42,9 +43,11 @@ const B = '000000c0-0000-4000-a000-0000901dc102';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const FILE = '2027-03-05-hero-colors.sql';
+const CATALOGUE = '2027-03-05-outfits-catalogue.generated.sql';
 const SET = 'public.hr_hero_colors_set(integer,jsonb,bigint,uuid)';
 const WEAR = 'public.hr_outfit_set(integer,text,jsonb,uuid)';
 const PRICE = 'public.hr_hero_colors_price(uuid,integer)';
+const READ = 'public.hr_hero_colors_view(integer)';
 const COUNT = 'public.hr_hero_colors_saved_today(uuid,integer)';
 const TOUCH = 'public.hr_town_look_touch(uuid,integer)';
 const VIEW = 'public.hr_outfit_view(uuid,integer)';
@@ -85,14 +88,16 @@ export const MUTANTS = {
   verb_open_to_anon: { arm: 'HC-GRANT', why: 'anon can save', ddl: `grant execute on function ${SET} to anon` },
   helper_open: { arm: 'HC-GRANT', why: 'a helper is the client\'s', ddl: `grant execute on function ${TOUCH} to authenticated` },
   no_baseline: { arm: 'HC-GRANT', why: 'the verb is not on the client baseline', ddl: "delete from public.hr_client_rpc_baseline where proname = 'hr_hero_colors_set'" },
-  repin_lost: { arm: 'HC-AGAIN', why: 'a second apply refuses because the pin forgot this file\'s own image', sql: [FILE, /('public\.hr_outfit_view\(uuid,integer\)', 'd35c8ca069025477d6a29f3aaf50cb21', ')[0-9a-f]{32}'/, '$100000000000000000000000000000000\''] },
+  repin_lost: { arm: 'HC-AGAIN', why: 'a second apply refuses because the pin forgot this file\'s own image', sql: [FILE, /('public\.hr_outfit_set\(integer,text,jsonb,uuid\)', '3b261fe4efc49f28df681742affc584f', ')[0-9a-f]{32}'/, '$100000000000000000000000000000000\''] },
   words_same_lost: { arm: 'HC-CLIENT', why: 'colors_same has no words', js: ['src/data/refusal-words.js', [["  colors_same: 'Those are already this hero\\'s colors. Nothing was charged.',\n", '']]] },
   words_limit_hardcoded: { arm: 'HC-CLIENT', why: 'the limit\'s words ignore the server\'s number', js: ['src/shell/intent-words.js', [["return 'A hero can change colors ' + r.figures.per_day + ' times a day. More after midnight UTC.';", "return 'A hero can change colors 10 times a day. More after midnight UTC.';"]]] },
   figures_dropped: { arm: 'HC-CLIENT', why: 'the session drops the limit\'s number', js: ['src/session/refusal.js', [["'slots', 'price', 'per_day']", "'slots', 'price']"]]] },
   press_own_price: { arm: 'HC-CLIENT', why: 'the press sends a price of its own', js: ['src/session/hero-color-intents.js', [['p_colors, p_price: price,', 'p_colors, p_price: 1,']]] },
   press_sends_color: { arm: 'HC-CLIENT', why: 'the press sends a color value', js: ['src/session/hero-color-intents.js', [['const p_colors = { head: colors.head, body: colors.body, legs: colors.legs, feet: colors.feet };', "const p_colors = { head: '#ff00ff', body: colors.body, legs: colors.legs, feet: colors.feet };"]]] },
   stale_not_reread: { arm: 'HC-CLIENT', why: 'a stale quote stays on the button', js: ['src/session/hero-color-intents.js', [["const RE_READS = Object.freeze(['quote_changed', 'colors_same']);", 'const RE_READS = Object.freeze([]);']]] },
-  reader_invents_price: { arm: 'HC-CLIENT', why: 'a section with no price reads as free', js: ['src/session/character-sections.js', [['colorsPrice: nat(o.colors_price),', 'colorsPrice: nat(o.colors_price) ?? 0,']]] },
+  reader_invents_price: { arm: 'HC-CLIENT', why: 'an answer with no price reads as a price', js: ['src/session/hero-color-intents.js', [['b.ok === true && Number.isSafeInteger(b.price) && b.price > 0) return', 'b.ok === true) return']]] },
+  price_in_section: { arm: 'HC-SETTLE', why: 'the envelope prices a save on every settle', db: [VIEW, "'owned', to_jsonb(v_owned)", "'owned', to_jsonb(v_owned), 'colors_price', public.hr_hero_colors_price(p_user, p_slot)"] },
+  read_open_to_anon: { arm: 'HC-GRANT', why: 'anon can read a hero\'s price', ddl: `grant execute on function ${READ} to anon` },
   key_half_set: { arm: 'HC-CLIENT', why: 'half a set of colors becomes a look', js: ['src/data/outfits.js', [['if (!Number.isInteger(v) || v < 0 || v >= DYE_COUNT) return null;', 'if (!Number.isInteger(v)) return head + \'.0.0.0\';']]] },
   knight_says_nothing: { arm: 'HC-CLIENT', why: 'the try-on doesn\'t say which parts change', js: ['src/shell/windows/character/outfit.js', [["return 'On this outfit your colors change: ' + parts + '. The rest stays as drawn.'", "return 'Pick your colors.'"]]] },
   druid_silent: { arm: 'HC-CLIENT', why: 'the druid\'s picker does nothing and says nothing', js: ['src/shell/windows/character/outfit.js', [['if (!row.regions.length) return row.plain;', "if (!row.regions.length) return '';"]]] },
@@ -137,7 +142,7 @@ async function hero(db, uid, slot, name, colors = C1) {
 }
 const purse = (db, uid = A) => one(db, 'select gold from public.account_wallet where user_id = $1', [uid]).then(Number);
 const base = (db, slot, uid = A) => one(db, 'select base_colors from public.player_outfits where user_id = $1 and slot = $2', [uid, slot]);
-const quote = (db, slot, uid = A) => one(db, 'select public.hr_state_of($1::uuid, $2::int)', [uid, slot]).then((e) => e.outfit.colors_price);
+const quote = (db, slot, uid = A) => as(db, uid, 'select public.hr_hero_colors_view($1::int)', [slot]).then((r) => r.price);
 const journal = (db, slot, uid = A) => q(db, `select kind, intent, gold from public.player_ledger where user_id = $1 and slot = $2 and split_part(intent, ':', 1) = 'hero_colors_set' order by id`, [uid, slot]);
 const rule = async (db) => { const r = (await q(db, `select price_base, price_per_level, per_day from public.hr_sink_rules where sink_id = 'hero_colors'`))[0]; return { base: Number(r.price_base), per: Number(r.price_per_level), perDay: Number(r.per_day) }; };
 const calm = (db) => db.query('delete from public.hr_rate_counters');
@@ -193,18 +198,18 @@ const ARMS = {
     const R = await rule(db);
     const level = Number(await one(db, 'select public.hr_level_of($1::uuid, 0)', [A]));
     const price = R.base + R.per * level;
-    if (Number(await quote(db, 0)) !== price) out.push(`the section quotes ${await quote(db, 0)}, the row at Level ${level} says ${price}`);
+    if (Number(await quote(db, 0)) !== price) out.push(`the read quotes ${await quote(db, 0)}, the row at Level ${level} says ${price}`);
     const was = await purse(db);
     for (const p of [price + 1, price - 1, 1]) {
       const r = await save(db, 0, C2, p);
-      if (!r || r.error !== 'quote_changed' || Number(r.outfit.colors_price) !== price) out.push(`a price of ${p} answered ` + JSON.stringify(r));
+      if (!r || r.error !== 'quote_changed' || Number(r.price) !== price) out.push(`a price of ${p} answered ` + JSON.stringify(r));
     }
     const zero = await save(db, 0, C2, 0);
     if (!zero || zero.error !== 'bad_quote') out.push('a price of nothing answered ' + JSON.stringify(zero));
     /* the row moved: what the button showed is stale */
     await db.query(`update public.hr_sink_rules set price_base = price_base + 500 where sink_id = 'hero_colors'`);
     const stale = await save(db, 0, C2, price);
-    if (!stale || stale.error !== 'quote_changed' || Number(stale.outfit.colors_price) !== price + 500) out.push('a moved row answered ' + JSON.stringify(stale));
+    if (!stale || stale.error !== 'quote_changed' || Number(stale.price) !== price + 500) out.push('a moved row answered ' + JSON.stringify(stale));
     await db.query(`update public.hr_sink_rules set price_base = price_base - 500 where sink_id = 'hero_colors'`);
     /* a short purse: hr_apply's own refusal */
     await db.query('update public.account_wallet set gold = $2 where user_id = $1', [A, price - 1]);
@@ -216,7 +221,7 @@ const ARMS = {
     await db.query('update public.player_state set level_xp = $2 where user_id = $1 and slot = 0', [A, 5000000]);
     const higher = Number(await one(db, 'select public.hr_level_of($1::uuid, 0)', [A]));
     if (higher === level) out.push('CONTROL: the Level did not move');
-    if (Number(await quote(db, 0)) !== R.base + R.per * higher) out.push(`at Level ${higher} the section quotes ${await quote(db, 0)}`);
+    if (Number(await quote(db, 0)) !== R.base + R.per * higher) out.push(`at Level ${higher} the read quotes ${await quote(db, 0)}`);
     return out;
   },
 
@@ -457,11 +462,29 @@ const ARMS = {
     return out;
   },
 
+  'HC-SETTLE': async (db) => {
+    const out = [];
+    await hero(db, A, 0, 'Marlow');
+    const env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [A]);
+    if (JSON.stringify(env).includes('colors_price') || (env.outfit && 'price' in env.outfit)) out.push('the envelope carries a price');
+    /* every section's function, the seats and the look: a settle or a town read builds these. None may price anything, directly or through the helper. */
+    const fns = (await q(db, 'select fn from public.hr_state_sections')).map((r) => r.fn).concat(['hr_town_look', 'hr_social_party_view', 'hr_outfit_owned']);
+    for (const fn of new Set(fns)) {
+      for (const r of await q(db, "select p.prosrc from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = $1", [fn])) {
+        if (/hr_hero_colors_(price|saved_today|view)/.test(r.prosrc)) out.push(fn + ' reads the colors quote on the settle path');
+      }
+    }
+    return out;
+  },
+
   'HC-GRANT': async (db) => {
     const out = [];
     const can = (role, fn) => one(db, 'select has_function_privilege($1, $2, $3)', [role, fn, 'execute']);
     if (!await can('authenticated', SET)) out.push('a player cannot save');
     if (await can('anon', SET)) out.push('anon can save');
+    if (!await can('authenticated', READ)) out.push('a player cannot read the price');
+    if (await can('anon', READ)) out.push('anon can read the price');
+    if (!(await one(db, "select count(*)::int from public.hr_client_rpc_baseline where proname = 'hr_hero_colors_view' and grantee = 'authenticated'"))) out.push('the read is not on the client baseline');
     for (const f of [PRICE, COUNT, TOUCH, VIEW, SEATS]) for (const role of ['anon', 'authenticated']) if (await can(role, f)) out.push(`${role} reaches ${f}`);
     if (!(await one(db, `select count(*)::int from public.hr_client_rpc_baseline where proname = 'hr_hero_colors_set' and grantee = 'authenticated'`))) out.push('the verb is not on the client baseline');
     return out;
@@ -471,15 +494,17 @@ const ARMS = {
     const out = [];
     const text = mutant && mutant.sql ? plantSql(MIG(FILE), mutant.sql) : MIG(FILE);
     const inventory = async () => (await q(db, `select p.oid::regprocedure::text fn, md5(pg_get_functiondef(p.oid)) m from pg_proc p
-      where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and p.proname in ('hr_hero_colors_price', 'hr_hero_colors_saved_today', 'hr_town_look_touch', 'hr_hero_colors_set', 'hr_outfit_view', 'hr_outfit_set', 'hr_social_party_view') order by 1`)).map((r) => r.fn + ':' + r.m).join('\n');
-    const was = await inventory();
+      where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and p.proname in ('hr_hero_colors_price', 'hr_hero_colors_view', 'hr_hero_colors_saved_today', 'hr_town_look_touch', 'hr_hero_colors_set', 'hr_outfit_set', 'hr_social_party_view') order by 1`)).map((r) => r.fn + ':' + r.m).join('\n');
+    const rows = () => q(db, 'select outfit_id, regions, premium, sort from public.hr_outfits order by outfit_id').then(JSON.stringify);
+    const was = await inventory(), rowsWere = await rows();
     await db.exec('savepoint again');
-    try { await db.exec(text); } catch (e) {
+    try { await db.exec(MIG(CATALOGUE)); await db.exec(text); } catch (e) {
       out.push('the second apply refused: ' + String(e.message).split('\n')[0].slice(0, 180));
       await db.exec('rollback to savepoint again');
       return out;
     }
     if ((await inventory()) !== was) out.push('a second apply moved a body');
+    if ((await rows()) !== rowsWere) out.push('a second apply moved a catalogue row');
     return out;
   },
 
@@ -489,10 +514,10 @@ const ARMS = {
     const gp = (n) => n.toLocaleString('en-US') + ' gp';
     /* THE READER: what the server sent, or nothing */
     const cs0 = (sec) => ({ read: (k) => (k === 'outfit' ? sec : undefined) });
-    const good = X.CS.outfitOf(cs0({ worn: 'knight', owned: ['knight'], base: C2, colors_price: 2400 }));
-    if (!good || good.colorsPrice !== 2400 || !same(good.base, C2) || !good.owned.has('knight')) out.push('the reader reads ' + JSON.stringify(good));
+    const good = X.CS.outfitOf(cs0({ worn: 'knight', owned: ['knight'], base: C2 }));
+    if (!good || !same(good.base, C2) || !good.owned.has('knight')) out.push('the reader reads ' + JSON.stringify(good));
     const none = X.CS.outfitOf(cs0({ worn: null, owned: [], base: {} }));
-    if (!none || none.base !== null || none.colorsPrice !== null) out.push('a section with no colors or price reads ' + JSON.stringify(none));
+    if (!none || none.base !== null) out.push('a section with no colors reads ' + JSON.stringify(none));
     if (X.OF.dyeKeyOf({ head: 1 }) !== null || X.OF.dyeKeyOf({ ...C1, head: X.OF.DYE_COUNT }) !== null || X.OF.dyeKeyOf({ ...C1, head: '#fff' }) !== null || X.OF.dyeKeyOf(null) !== null) out.push('dyeKeyOf passes junk');
     if (X.OF.dyeKeyOf(C1) !== '1.2.3.4') out.push('dyeKeyOf reads ' + X.OF.dyeKeyOf(C1));
     /* THE WORDS, the design's, with the server's number */
@@ -515,6 +540,15 @@ const ARMS = {
     /* the picks shown on the small outfits together show every region */
     const shownRegions = new Set([X.HC.START_OUTFIT, ...X.HC.OTHER_OUTFITS].flatMap((id) => X.OF.OUTFIT_ROWS[id].regions));
     for (const g of X.OF.BASE_REGIONS) if (!shownRegions.has(g)) out.push(`no outfit in the creation step shows ${g}`);
+    /* THE WINDOW'S READ: the server's number, or nothing; never a default */
+    const reads = [{ ok: true, body: { ok: true, price: 2400 } }, { ok: true, body: { ok: true } }, { ok: true, body: { ok: false, error: 'rate_limited' } }];
+    const reader = { server: { rpc: async (name, body) => { if (name !== 'hr_hero_colors_view' || body.p_slot !== 2) out.push('the read sent ' + name + ' ' + JSON.stringify(body)); return reads.shift(); } } };
+    const r1 = await X.HI.readColorsPrice(reader, { slot: 2 });
+    if (!r1.ok || r1.price !== 2400) out.push('the read reads ' + JSON.stringify(r1));
+    const r2 = await X.HI.readColorsPrice(reader, { slot: 2 });
+    if (r2.ok) out.push('an answer with no price reads ' + JSON.stringify(r2));
+    const r3 = await X.HI.readColorsPrice(reader, { slot: 2 });
+    if (r3.ok || r3.error !== 'rate_limited') out.push('a refused read reads ' + JSON.stringify(r3));
     /* ONE INTENT WITH THE QUOTE, FOUR INDICES, NO COLOR; a stale quote re-reads, so the next press is priced right */
     const calls = [];
     let loads = 0;

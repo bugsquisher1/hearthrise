@@ -8,10 +8,10 @@
 // saturation, so the shading stays (dyeRamp, recolourPixels). Two sets that differ only in a region this outfit doesn't show are the
 // same look (a knight has no legs to dye), so they share a sheet.
 //
-// THE COST, AND ITS BOUNDS (Tyler ranks performance first; numbers measured in tests/hero-colors.mjs's report and the lane's perf pass):
-//   memory   a sheet holds an outfit's frames and nothing else: 56 x 64 x 64 x 4 bytes = 0.92 MB. At most DYE_LOOKS sheets exist.
-//            Each outfit in use keeps its source pixels once more (0.92 MB, at most 7): a bake then copies them rather than reading a canvas back.
-//   time     at most ONE bake per frame (pump). A look not ready draws undyed for that frame, never a stub and never a wait.
+// THE COST, AND ITS BOUNDS (Tyler ranks performance first; measured on the real game, lane/c-hero-colors' perf pass):
+//   memory   a sheet holds an outfit's frames and nothing else: 56 x 64 x 64 x 4 bytes = 0.92 MB, 21 MB at the cap. Each outfit in use keeps its source pixels once more
+//            (0.92 MB, at most 7: 6.4 MB), so a bake copies them rather than reading a canvas back. The masks' image is 6.9 MB decoded.
+//   time     at most ONE bake per frame (pump): about 1.2 ms, at worst 2.3 ms, on a desktop core. A look not ready draws undyed for that frame, never a stub and never a wait.
 //   first load  nothing: the masks load on the first dyed hero in view (MASK_SET is not in ATLAS_SETS), and only then.
 // THE CAP IS AN LRU THAT NEVER FIGHTS THE SCREEN: only a look not drawn for STALE_MS may be evicted. With DYE_LOOKS on screen a 25th look
 // draws undyed rather than evict one someone is looking at (evicting per frame would re-bake forever). The hero you play is the one exception: yours
@@ -186,11 +186,26 @@ export function createHeroDye(o) {
     return k;
   }
 
+  let scratchCtx = null;
+  const scratchContext = () => {
+    if (!scratchCtx) { const c = o.doc.createElement('canvas'); c.width = c.height = 1; scratchCtx = c.getContext('2d'); }
+    return scratchCtx;
+  };
+  const canvasOf = (img) => {
+    const c = o.doc.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    c.getContext('2d').putImageData(img, 0, 0);
+    return c;
+  };
+  const free = (l) => { if (l.img && l.img.close) l.img.close(); else if (l.img) l.img.width = 0; l.img = null; };
+
   function bake(s, id, key, own, k) {
     const t0 = now();
     const parts = key.split('.');
     const ramps = BASE_REGIONS.map((_, i) => { const hex = s.shows.has(i) ? hexOf(Number(parts[i])) : null; return hex ? dyeRamp(hex) : null; });
-    const data = new Uint8ClampedArray(s.px);
+    const img = scratchContext().createImageData(s.W, s.H);
+    const data = img.data;
+    data.set(s.px);
     for (let n = 0; n < s.offs.length; n++) {
       const ramp = ramps[s.regs[n]];
       if (!ramp) continue;
@@ -198,12 +213,14 @@ export function createHeroDye(o) {
       const v = Math.max(data[i], data[i + 1], data[i + 2]) * 3;
       data[i] = ramp[v]; data[i + 1] = ramp[v + 1]; data[i + 2] = ramp[v + 2];
     }
-    const canvas = o.doc.createElement('canvas');
-    canvas.width = s.W; canvas.height = s.H;
-    const img = canvas.getContext('2d').createImageData(s.W, s.H);
-    img.data.set(data);
-    canvas.getContext('2d').putImageData(img, 0, 0);
-    looks.set(k, { canvas, at: now(), own, id, key });
+    const look = { img: null, w: s.W, h: s.H, at: now(), own, id, key };
+    looks.set(k, look);
+    /* A BITMAP WHERE THE BROWSER HAS ONE: one immutable copy, no canvas or context behind it, freed the moment it is closed, and the cheapest thing to draw from. */
+    const win = o.doc.defaultView;
+    if (win && typeof win.createImageBitmap === 'function') {
+      win.createImageBitmap(img).then((b) => { if (looks.get(k) === look) look.img = b; else b.close(); },
+        () => { if (looks.get(k) === look) look.img = canvasOf(img); });
+    } else look.img = canvasOf(img);
     const ms = now() - t0;
     stats.bakes++; stats.bakeMs += ms; stats.bakeMaxMs = Math.max(stats.bakeMaxMs, ms);
   }
@@ -219,7 +236,7 @@ export function createHeroDye(o) {
     }
     const gone = oldest || (own ? forced : null);
     if (!gone) { stats.refused++; return false; }
-    looks.get(gone).canvas.width = 0;
+    free(looks.get(gone));
     looks.delete(gone);
     stats.evicted++;
     return true;
@@ -260,28 +277,29 @@ export function createHeroDye(o) {
     /** Is this look ready to draw? (A paint's signature reads it: a look landing changes the picture.) */
     has(id, key) {
       const s = sources.get(id);
-      return !!s && looks.has(lookKey(id, s, key));
+      const l = s ? looks.get(lookKey(id, s, key)) : null;
+      return !!l && !!l.img;
     },
     /** Where to blit this frame from, or null when the look isn't baked: draw undyed. The answer is reused: read it at once. */
     source(id, key, sx, sy) {
       const s = sources.get(id);
       if (!s) return null;
       const l = looks.get(lookKey(id, s, key));
-      const c = l && s.cells.get(sx * 65536 + sy);
+      const c = l && l.img && s.cells.get(sx * 65536 + sy);
       if (!c) return null;
-      out.img = l.canvas; out.sx = c[0]; out.sy = c[1];
+      out.img = l.img; out.sx = c[0]; out.sy = c[1];
       return out;
     },
     /** A test's and the perf pass's view of the cost. */
     stats: () => {
       let bytes = 0;
-      for (const l of looks.values()) bytes += l.canvas.width * l.canvas.height * 4;
+      for (const l of looks.values()) bytes += l.w * l.h * 4;
       let srcBytes = 0;
       for (const s of sources.values()) if (s) srcBytes += s.px.length + s.offs.byteLength + s.regs.byteLength;
       return { looks: looks.size, queued: queue.length, sheetBytes: bytes, sourceBytes: srcBytes, ...stats };
     },
     destroy() {
-      for (const l of looks.values()) l.canvas.width = 0;
+      for (const l of looks.values()) free(l);
       looks.clear(); sources.clear(); keyOf.clear(); queue = []; queued.clear();
     },
   };

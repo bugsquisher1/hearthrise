@@ -841,12 +841,22 @@ async function pureRules(M, base) {
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
       [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: about 5% more Level XP each than hunting alone in Wickstead.'],
       [[null, 'tank'], 'wickstead', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Wickstead.'],
+      /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6): a four of wands earns more than alone, and the window says so. */
+      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 5% more Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      /* one class of two roles reads the ground's row, and another ground's wands keep theirs */
+      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Meadowbrook Thicket.'],
+      [['mage', 'mage', 'mage', 'mage'], 'wickstead', 'Your party has 1 of 4 classes: about 15% less Level XP each than hunting alone in Wickstead.'],
     ]) {
       if (L(roles, hunt) !== want + end) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
     }
     const all = ['tank', 'ranger', 'mage', 'healer'];
     for (const [g, row] of Object.entries(M.PCX.PARTY_VS_ALONE)) for (const [n, cells] of Object.entries(row)) cells.forEach((vs, i) => {
-      const roles = Array.from({ length: Number(n) }, (_, s) => all[Math.min(s, i)]);
+      /* the row's one-class cell is read by one class of two roles: a four of one role may read its own line (pinned above) */
+      const roles = Array.from({ length: Number(n) }, (_, s) => (i === 0 && s % 2 ? 'melee_dps' : all[Math.min(s, i)]));
       const pay = vs > 0 ? 'about ' + vs + '% more Level XP each than hunting alone in ' : vs < 0 ? 'about ' + -vs + '% less Level XP each than hunting alone in ' : 'about the same Level XP each as hunting alone in ';
       const hunt = Object.values(HUNT_GROUNDS).find((x) => x.id === g).hunt;
       if (!L(roles, hunt).includes((i + 1) + ' of 4 classes: ' + pay)) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + vs);

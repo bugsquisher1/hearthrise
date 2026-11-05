@@ -43,9 +43,9 @@ const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obje
 /* ground id → its row (designer's final table, 2026-11-01). */
 export const PARTY_CLASS_XP = Object.freeze({
   mill_cellar: row([1000, 1070], [1000, 1120, 1180], [1000, 1250, 1270, 1400]),
-  /* A one-weapon four at 995 is the most the rulings allow (Tyler 11-02: same-weapon friends lose about 6-15%; 10-31: one class never beats solo). The share floors per kill, so the cell moves in
-     steps: 1000 lands every weapon in the band, and wand fours at 1.04 over solo. A pull of 7: shields -11 to -13%, mixed coin 1.04-1.05, wand fours 1.14 (board, 2026-11-04 Weapon rungs and the Thicket). */
-  meadowbrook_thicket: row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1300]),
+  /* A one-weapon four pays the even share: Tyler 11-02 (same-weapon friends lose about 6-15%) beats 10-31 (one class never beats solo) where they conflict (CLAUDE.md §0; Coordinator 2026-11-04). The share floors per
+     kill, so the cell moves in steps: 995 left shields at -17 to -19%, 1000 lands them at -12 to -15%, and a four of wands 4-5% over solo, the accepted cost and party-class-xp-line's one named exception. A pull of 7: mixed coin 1.04-1.05, over solo. */
+  meadowbrook_thicket: row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300]),
   wickstead: row([880, 1070], [970, 1160, 1220], [970, 1200, 1240, 1270]),
   mosslight_glade: row([960, 1180], [1000, 1300, 1400], [1000, 1200, 1290, 1320]),
   millrace_sewer: row([800, 1000], [800, 1050, 1100], [800, 1050, 1100, 1180]),
@@ -55,16 +55,22 @@ export const PARTY_CLASS_XP = Object.freeze({
 /* WHAT THE PLAYER IS TOLD (designer 2026-11-02; blind party test 2026-11-01). The table above is a factor on an even share of a bigger pull, so "52% more" sat on a party
    that measured 19% more than its heroes alone. THIS row is the measured answer, in whole percent to the nearest 5: Level XP per hero at the default pull, against the
    same heroes alone as built, one row per ground in the table's shape (tools/balance-sim plan b1102p, real settle, 1 h x 2 seeds a cell, one mix a cell; the Thicket's one-class
-   cells are the mean of its shield, bow and wand parties after party-class-xp-line moved them under 1000; its four's -15 is the mean of all five weapons since the 995 cell, 11-04). It pays nothing;
+   cells are the mean of its shield, bow and wand parties after party-class-xp-line moved them under 1000; its four's -10 is the mean of all five weapons at the 1000 cell, 11-04, and reads only for a one-class four of mixed roles: see ONE_ROLE_VS_ALONE). It pays nothing;
    tests/hunt-core/first-week-bands.mjs vs-alone plays the full mix against it. Retune the table, re-measure this. */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 export const PARTY_VS_ALONE = Object.freeze({
   mill_cellar: said([-5, 10], [-5, 5, 15], [-20, 5, 5, 25]),
-  meadowbrook_thicket: said([-10, 10], [-10, 5, 20], [-15, 0, 5, 20]),
+  meadowbrook_thicket: said([-10, 10], [-10, 5, 20], [-10, 0, 5, 20]),
   wickstead: said([-10, 5], [-10, 5, 10], [-15, 5, 5, 20]),
   mosslight_glade: said([-10, 5], [-15, 5, 15], [-10, 5, 10, 20]),
   millrace_sewer: said([-10, 15], [-15, 10, 20], [-20, 10, 10, 20]),
   coppercap_warrens: said([-5, 10], [-10, 5, 15], [-15, 5, 10, 20]),
+});
+
+/* A FOUR WHO ALL SHARE ONE ROLE READS ITS OWN LINE (designer 2026-11-04; CLAUDE.md §6). The Thicket's one-class four pays the even share, so its weapons no longer sit near one number, and a four of wands earns more than
+   alone. Whole percent to the nearest 5, against the same heroes alone (1 h x 2 seeds, Levels 5 and 10: shields -12, -15; hammers -11, -9; bows -9, -8; staffs -12, -11; wands +4, +5). first-week-bands vs-alone plays it. */
+const ONE_ROLE_VS_ALONE = Object.freeze({
+  meadowbrook_thicket: Object.freeze({ 4: Object.freeze({ tank: -15, melee_dps: -10, ranger: -10, mage: 5, healer: -10 }) }),
 });
 
 const CLASS_OF_ROLE = Object.freeze(Object.fromEntries(Object.entries(PARTY_CLASSES).flatMap(([c, r]) => r.roles.map((x) => [x, c]))));
@@ -91,7 +97,10 @@ export function partyVsAlone(groundId, roles) {
   if (roles.length < 2 || !Object.hasOwn(PARTY_VS_ALONE, groundId)) return null;
   const { classes } = partyClassXp(groundId, roles);
   const tab = PARTY_VS_ALONE[groundId];
-  const cells = tab[Math.min(roles.length, Math.max(...Object.keys(tab).map(Number)))];
+  const n = Math.min(roles.length, Math.max(...Object.keys(tab).map(Number)));
+  const oneRole = Object.hasOwn(ONE_ROLE_VS_ALONE, groundId) ? ONE_ROLE_VS_ALONE[groundId][n] : null;
+  if (oneRole && roles.every((r) => r === roles[0]) && Object.hasOwn(oneRole, roles[0])) return oneRole[roles[0]];
+  const cells = tab[n];
   return cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];
 }
 
@@ -101,6 +110,11 @@ export function validate(grounds) {
   for (const role of Object.keys(HUNT_ROLES)) if (!Object.hasOwn(CLASS_OF_ROLE, role)) out.push('role ' + role + ' has no party class');
   for (const [c, r] of Object.entries(PARTY_CLASSES)) for (const x of r.roles) if (!HUNT_ROLES[x]) out.push('class ' + c + ' names no role ' + x);
   const classCount = Object.keys(PARTY_CLASSES).length;
+  for (const [g, sizes] of Object.entries(ONE_ROLE_VS_ALONE)) for (const [n, row] of Object.entries(sizes)) for (const [role, v] of Object.entries(row)) {
+    if (!Object.hasOwn(PARTY_VS_ALONE, g)) out.push(g + ': ONE_ROLE_VS_ALONE names a ground with no measured line');
+    if (!HUNT_ROLES[role]) out.push(g + ' ' + n + ': ONE_ROLE_VS_ALONE names no role ' + role);
+    if (!Number.isInteger(v) || v % 5 !== 0) out.push(g + ' ' + n + ' ' + role + ': ONE_ROLE_VS_ALONE needs whole fives');
+  }
   for (const [g, tab] of Object.entries(PARTY_CLASS_XP)) {
     if (grounds && !grounds.includes(g)) out.push(g + ': names no ground');
     for (const n of [2, 3, 4]) {

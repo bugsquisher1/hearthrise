@@ -192,6 +192,12 @@ cases['vs-alone'] = (R) => {
     const got = Math.round((each / alone - 1) * 100), said = PCX.partyVsAlone(g, roles);
     if (Math.abs(got - said) > 10) return g + ': a full mix measures ' + got + '% against alone, and the Party window says ' + said + '%';
   }
+  /* A THICKET FOUR OF ONE ROLE READS ITS OWN LINE (ONE_ROLE_VS_ALONE; CLAUDE.md §6), played on the two that sit furthest apart: a four of wands over solo, a four of shields under. */
+  for (const s of ['mage', 'tank']) {
+    const cell = (party) => R.runCell({ id: 'va1:' + party.length + ':' + s, ground: 'meadowbrook_thicket', party, level: 10, hours: HOURS, seeds: 2, windowMs: 120000 });
+    const got = Math.round((cell(Array(4).fill(s)).party.levelXpPerHeroPerH / cell([s]).heroes[0].levelXpPerH - 1) * 100), said = PCX.partyVsAlone('meadowbrook_thicket', Array(4).fill(s));
+    if (Math.abs(got - said) > 5) return 'a Thicket four of ' + s + ' measures ' + got + '% against alone, and the Party window says ' + said + '%';
+  }
   return null;
 };
 
@@ -240,13 +246,15 @@ const mutants = [
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
   { name: 'the Thicket pays the old 1.52 on its wider pull, and the window still says 20%', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [995, 1210, 1260, 1520])']] },
+    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1520])']] },
   { name: 'the Iron Warhammer is back at 7/12: its upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:12},"]] },
   { name: 'the Steel Warhammer is back at 9/19: over the Iron it pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 19, 28, 39, 52, 68],']] },
   { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 18, 25, 33, 42], str: [4, 11, 14, 16, 22, 29, 38],', 'atk: [4, 7, 14, 18, 25, 33, 42], str: [4, 7, 14, 16, 22, 29, 38],']] },
+  { name: 'a Thicket four of one weapon is paid 0.85, and the window still tells a four of wands it earns more than alone', case: 'vs-alone',
+    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [850, 1210, 1260, 1300])']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',

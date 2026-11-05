@@ -15,7 +15,7 @@
 --                        ROLE_RULES (pinned by tests/hunt-core/conditions.mjs
 --                        sql-rows; 14 -> 12 rows, 5 roles):
 --     every default rune slot names its family's store rune;
---     Frost Lance's mana gate 50% -> 70%; Green Sickness also needs mana 80%;
+--     Frost Lance's mana gate 50% -> 70%; Green Sickness also needs mana 78%;
 --     d_flame_volley leaves the Ranger's set and d_rend the Melee damage set:
 --     "A spell costs runes" offers each, as it offers a sword hero Flame Strike.
 -- No function body, grant, signature, table or player row moves. A stored bar is
@@ -49,7 +49,7 @@ insert into public.hr_hunt_role_rules (role, ord, slot) values
 -- ⟦role-rules⟧
   ('healer', 0, '{"id":"d_greater_mend","action":{"type":"ability","id":"greater_mend","store":"plain_water_rune"},"conditions":[{"metric":"ally_hp_pct","op":"lt","value":70,"subject":"lowest"}],"join":"and"}'::jsonb),
   ('healer', 1, '{"id":"d_circle_of_renewal","action":{"type":"ability","id":"circle_of_renewal","store":"plain_water_rune"},"conditions":[{"metric":"allies_below","op":"gte","value":2,"subject":"under_80"}],"join":"and"}'::jsonb),
-  ('healer', 2, '{"id":"d_green_sickness","action":{"type":"ability","id":"green_sickness","store":"plain_poison_rune"},"conditions":[{"metric":"ally_hp_pct","op":"gte","value":70,"subject":"lowest"},{"metric":"self_mana_pct","op":"gte","value":80}],"join":"and"}'::jsonb),
+  ('healer', 2, '{"id":"d_green_sickness","action":{"type":"ability","id":"green_sickness","store":"plain_poison_rune"},"conditions":[{"metric":"ally_hp_pct","op":"gte","value":70,"subject":"lowest"},{"metric":"self_mana_pct","op":"gte","value":78}],"join":"and"}'::jsonb),
   ('mage', 0, '{"id":"d_fireball","action":{"type":"ability","id":"fireball","store":"plain_fire_rune"},"conditions":[{"metric":"enemies_in_aoe","op":"gte","value":2}],"join":"and"}'::jsonb),
   ('mage', 1, '{"id":"d_frost_lance","action":{"type":"ability","id":"frost_lance","store":"plain_ice_rune"},"conditions":[{"metric":"self_mana_pct","op":"gte","value":70}],"join":"and"}'::jsonb),
   ('mage', 2, '{"id":"d_arcane_barrier","action":{"type":"ability","id":"arcane_barrier","store":"plain_earth_rune"},"conditions":[{"metric":"self_hp_pct","op":"lt","value":85}],"join":"and"}'::jsonb),
@@ -92,5 +92,5 @@ begin
   if not exists (select 1 from public.hr_hunt_role_rules where role = 'mage' and slot->'action'->>'id' = 'frost_lance'
        and slot->'conditions' @> '[{"metric":"self_mana_pct","op":"gte","value":70}]'::jsonb) then raise exception 'VERIFY(e): Frost Lance lost its mana gate'; end if;
   if not exists (select 1 from public.hr_hunt_role_rules where role = 'healer' and slot->'action'->>'id' = 'green_sickness'
-       and slot->'conditions' @> '[{"metric":"self_mana_pct","op":"gte","value":80},{"metric":"ally_hp_pct","op":"gte","value":70}]'::jsonb) then raise exception 'VERIFY(e): Green Sickness lost its gates'; end if;
+       and slot->'conditions' @> '[{"metric":"self_mana_pct","op":"gte","value":78},{"metric":"ally_hp_pct","op":"gte","value":70}]'::jsonb) then raise exception 'VERIFY(e): Green Sickness lost its gates'; end if;
 end $$;

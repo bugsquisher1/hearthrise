@@ -28,6 +28,8 @@
 //                     the away path) the instance is byte-identical; kills and loot are tallied once
 //   solo-healer       a FRESH solo Healer (start kit, Apprentice Staff) on the REAL settle clears mill_cellar with no fall, then the Thicket's
 //                     first pocket at Level 5 (its first real ground, Tyler 10-21) and the Sewer's at its floor (a party's first ground)
+//   starter-bar-fires       every worn set of the kit, on the real settle: no dead default slot, the first pull fires, a lone monster fires, every slot earns its place
+//   starter-bars-both-paths a new caster's bar, watched and with the browser closed: the same result
 //   sql-rows          the migration's catalogue rows equal the registry, the action ids and ROLE_RULES
 //
 //   node tests/hunt-core/conditions.mjs            cases + mutants
@@ -182,7 +184,9 @@ function freshParty(M, huntId, minutes, seed, optionsList, element, level) {
     const hero = M.heroSetup({ weaponType: M.roleWeaponOf(M.ITEMS.apprentice_staff), options: Object.assign({ role: 'healer' }, options || {}), bar: [], partyRoles: [],
       lead: !!(options && options.lead) });
     return { key: 'h' + (i || ''), user: 'u', slot: i, seat: i, unitId: null, sessionId: 's' + i, version: 1, huntId,
-      huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch',
+      huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch', supplySource: 'mine', goldFloor: 0, cover: {},
+        /* the store, as hr_hunt_member_read hands the settle: its default bar's runes are bought here (a Healer with no store could not cast a heal, and this case passed anyway) */
+        basics: Object.fromEntries(M.basics.BASIC_SUPPLIES.map((b) => [b.id, { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner }])),
         bag: { [food]: { loaded: M.kit.START_INVENTORY[food] } },
         staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
       skills: Object.assign({}, M.kit.START_SKILL_XP), levelXp: level ? M.XP.charXpForLevel(level) : 0, hp: M.kit.START_CURRENCY.hp, gold: M.kit.START_CURRENCY.gold,
@@ -831,6 +835,25 @@ const cases = {
     }
     return null;
   },
+  /* BOTH PATHS (CLAUDE.md §4): a new caster's bar, watched (the 10 s settle the open client asks for) and with the browser closed (the world tick's long window):
+     one settle, one result: the same casts at the same moments, the same store bill, gold, XP and bag. A guard on the rows, so a bar that buys has its proof. */
+  'starter-bars-both-paths': (M) => {
+    for (const worn of starterWorn(M).filter((w) => M.AD.ABILITIES.fireball.disciplines.includes(M.roles.ROLE_KEYS[M.roles.wornRoleKey(w, M.ITEMS)].discipline)
+      || M.AD.ABILITIES.greater_mend.disciplines.includes(M.roles.ROLE_KEYS[M.roles.wornRoleKey(w, M.ITEMS)].discipline))) {
+      const setup = M.heroSetup({ weaponType: M.roles.wornRoleKey(worn, M.ITEMS), options: {}, bar: [], partyRoles: [] });
+      const play = (windowMs) => {
+        const casts = [];
+        const r = M.play.run('mill_cellar', 1, [setup.role], { spanMs: 10 * 60000, windowMs, secret: '42', equipment: () => Object.assign({}, worn), bag: () => kitBag(M), bar: () => [],
+          start: () => ({ levelXp: 0, skills: {} }), onWindow: (w) => { for (const e of w.events || []) if (e.type === 'cast') casts.push([e.atMs, e.ability, e.gold || 0]); } });
+        return { casts, sum: JSON.stringify([r.totals.buys, r.totals.coin, r.totals.levelXp, r.totals.xp, r.totals.kills, r.totals.falls, r.items, r.members]) };
+      };
+      const watched = play(10000), closed = play(600000);
+      if (watched.casts.length < 10 || !watched.casts.some((c) => M.AD.ABILITIES[c[1]].rune)) return worn.weapon + ': CONTROL: ' + watched.casts.length + ' casts in 10 minutes';
+      if (JSON.stringify(watched.casts) !== JSON.stringify(closed.casts)) return worn.weapon + ': the casts differ with the browser closed (' + watched.casts.length + ' watched, ' + closed.casts.length + ' closed)';
+      if (watched.sum !== closed.sum) return worn.weapon + ': watched ' + watched.sum.slice(0, 200) + ' but closed ' + closed.sum.slice(0, 200);
+    }
+    return null;
+  },
   'density-settle': (M) => {
     const out = freshHealer(M, 'millrace_sewer', 1, 1, { density: 16 });
     const w = M.worldstate.decode(JSON.parse(out.world));
@@ -1025,7 +1048,7 @@ const mutants = [
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', ", slot('green_sickness', SICKNESS_WHEN)]),", ']),']] },
   { name: 'the healer\'s attack spends the mana a heal needs', case: 'healer-default-rules',
-    edits: [['src/data/rule-subjects.js', "subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 80 }]);", "subject: 'lowest' }]);"]] },
+    edits: [['src/data/rule-subjects.js', "subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 78 }]);", "subject: 'lowest' }]);"]] },
   { name: 'the tank\'s default set holds Flame Strike again, with no store rune (struck from minute one)', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), NO_STORE('flame_strike'), slot('power_strike')]),"], NO_STORE_ROW] },
   { name: 'a sword alone casts Flame Strike again, with no store rune (struck from minute one)', case: 'starter-bar-fires',

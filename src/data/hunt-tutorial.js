@@ -811,7 +811,7 @@ const SAY = Object.freeze({
     const named = (j) => slotWords([j]) + ', ' + ABILITIES[f.slots[j].id].n;
     /* another slot that can fire and waits on no count, as this ability row or these conditions answer */
     const other = (test) => slotOf(f, (x) => x !== s && x.type === 'ability' && x.usable !== false && !!ABILITIES[x.id] && !countWait(x) && test(x));
-    const tests = (x, metric) => x.conditions.some((k) => k && k.metric === metric && k.op === 'gte');
+    const tests = (x, metric) => Array.isArray(x.conditions) && x.conditions.some((k) => k && k.metric === metric && k.op === 'gte');
     const press = ' Press a slot to change when it fires.';
     if (c.metric === 'allies_below') {
       const j = other((x) => tests(x, 'ally_hp_pct'));

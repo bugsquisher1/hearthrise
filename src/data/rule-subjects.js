@@ -82,10 +82,12 @@ const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id,
    has its mana. Measured on the real settle, 6-seed medians, against first-grounds-net-chain and drop-tables (raise a gate before
    touching a ground's coin if another row turns the chain red):
    Frost Lance 70: at 50% it took Fireball's mana (Cellar net -24%, Fireball casts 163 -> 103 an hour); at 70% net -7%.
-   Green Sickness 80: the Sewer party's net ungated 1,687, at 50% 1,776.5, at 70% 1,846, at 80% 1,889.5; at 70% the Warrens'
-   total-value is red (5,748 g against its 5,735 g cap). Full mana at the top of a fight still fires it first. */
+   Green Sickness 78: the Sewer party's net falls as the gate falls (ungated 1,687, at 50% 1,776.5), and two guards hold it: first-grounds-net-chain
+   (over the Thicket's 1,838) and glade-between (under the Glade's 1,855.5). At 80% it reads 1,881.5, red on the Glade; at 70% the Warrens' total-value
+   is red (5,748 g against its 5,735 g cap). A window of 17.5 g/h, and six seeds swing about 25 g/h between neighboring gates (71 to 80 read 1,824 to
+   1,881.5 in no order), so 78 is the nearest gate that lands in it, not a fine tuning. Full mana at the top of a fight still fires it first. */
 const SPARE_MANA = Object.freeze([{ metric: 'self_mana_pct', op: 'gte', value: 70 }]);
-const SICKNESS_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 80 }]);
+const SICKNESS_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }, { metric: 'self_mana_pct', op: 'gte', value: 78 }]);
 /* OFF THE DEFAULT BARS, measured with their store runes on: Flame Volley (ranger-floor: a crossbow Ranger buying every shot
    +3.3% over its bill at the Sewer floor, three shots a Volley; +30.1% without it) and Rend (weapon-rungs: axes at Level 45
    read +4% from a rung; about +1% XP at the Thicket for 23 casts an hour). Sword Flame Strike likewise (playtest 2026-10-29

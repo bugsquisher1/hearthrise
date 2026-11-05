@@ -124,9 +124,9 @@ export function storeName(id) {
 }
 
 /**
- * A RUNE SPELL'S STORE CHOICE (designer 2026-10-21: a default bar never buys a rune
- * unseen): "Carried runes only" (`id` null) or the rune's store row at the server's
- * price a cast. [] for every other action (a food or drink slot names its one item).
+ * A RUNE SPELL'S STORE CHOICE (designer 2026-11-05: every default rune slot starts with its
+ * store rune on, shown, and the player can change it): "Carried runes only" (`id` null) or the
+ * rune's store row at the server's price a cast. [] for every other action (a food or drink slot names its one item).
  */
 export function storeChoices(a, rows) {
   if (!a || !Array.isArray(rows)) return [];

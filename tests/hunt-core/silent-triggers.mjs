@@ -6,7 +6,7 @@
 //   lone-hero           a Healer's Circle of Renewal, alone and hurt: 0 casts, and the slot says so with no fight behind it (in town too).
 //                       In a duo, both hurt, it fires and says nothing.
 //   monsters-apart      two monsters in reach but too far apart: 0 casts, and the words don't claim there's only one.
-//   mana-threshold      the Mage's Frost Lance under 50% mana: 0 casts, words only: the slot isn't marked.
+//   mana-threshold      the Mage's Frost Lance under 70% mana: 0 casts, words only: the slot isn't marked.
 //   every-suggestion    THE CLASS, from the data: every ability on its own suggested conditions, in the ordinary fights: the engine's
 //                       cast and the words never disagree. It fires and says nothing, or it doesn't and says why. A new row is covered by being a row.
 //   suggestions-readable every suggested and default condition names a metric the engine can read, and every metric x operator has words.
@@ -134,10 +134,10 @@ const cases = {
     const sl = slotOf('frost_lance', bar[1].conditions);
     const f = fight(M, 'mage', [sl], { mons: [[13, 3]], mana: 200, maxMana: 500 });
     const said = M.W.waitReason(sl, 1, f.test());
-    if (!said || !said.rest || said.need || said.text !== 'Waiting until my mana is at or above 50%.') return 'Frost Lance under 50% mana reads ' + JSON.stringify(said);
-    if (casts(M, f, 100).frost_lance) return 'CONTROL: Frost Lance fired under 50% mana';
+    if (!said || !said.rest || said.need || said.text !== 'Waiting until my mana is at or above 70%.') return 'Frost Lance under 70% mana reads ' + JSON.stringify(said);
+    if (casts(M, f, 100).frost_lance) return 'CONTROL: Frost Lance fired under 70% mana';
     const full = fight(M, 'mage', [sl], { mons: [[13, 3]], mana: 400, maxMana: 500 });
-    if (M.W.waitReason(sl, 1, full.test()) !== null || !casts(M, full, 100).frost_lance) return 'Frost Lance over 50% mana does not simply fire';
+    if (M.W.waitReason(sl, 1, full.test()) !== null || !casts(M, full, 100).frost_lance) return 'Frost Lance over 70% mana does not simply fire';
     /* A count that isn't an "at least" (the player's own test) reads as it is, words only: never "2 or more". */
     const exact = slotOf('fireball', [{ metric: 'enemies_in_aoe', op: 'eq', value: 2 }]);
     const reads = M.W.waitReason(exact, 1, fight(M, 'mage', [exact], { mons: [[13, 3]] }).test());

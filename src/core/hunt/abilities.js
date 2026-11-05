@@ -11,8 +11,8 @@
 //   the hero has the mana (AB-12), its rune and its shots (the item its attack
 //   slots loose: castShotOf) resolve — own line
 //   first, then the store (AB-05/06, src/core/action-rules.js resolveLine; a
-//   RUNE is bought only when the slot names the store rune, `action.store`, so
-//   a default bar never buys one unseen — designer 2026-10-21; a basic shot
+//   RUNE is bought only when the slot names the store rune, `action.store`, which
+//   the bar shows and the player can change — designer 2026-11-05; a basic shot
 //   never buys one, shotLine),
 //   and its target rule finds a target (AB-03). A slot the purse cannot pay
 //   waits and the next one is tried; it never ends the hunt by itself.

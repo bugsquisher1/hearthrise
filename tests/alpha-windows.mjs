@@ -804,6 +804,13 @@ async function planRules(base) {
   const WATER = RUNES.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_water_rune', partner: 'chalked_water_rune' }]);
   const same = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('greater_mend', 'plain_water_rune'), stored('circle_of_renewal', 'plain_water_rune')], store: WATER } }));
   if (!same.startsWith('Runes: Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells of one family read ' + JSON.stringify(same));
+  /* AW-27 THREE SPELLS ARE THREE SPENDS, NOT A FALLBACK (played 2026-11-05, a new Mage: "Plain Fire Rune..., then Plain Ice Rune..., then Plain Earth Rune"): "then" stays inside one spell's own runes and its store rune */
+  const trio = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_fire_rune'), stored('frost_lance', 'plain_ice_rune'), stored('arcane_barrier', 'plain_earth_rune')], store: RUNES } }));
+  if (!trio.startsWith('Runes: Plain Fire Rune, Plain Ice Rune and Plain Earth Rune from the store, 1 gp a cast |')) fails.push('AW-27 three store spells read ' + JSON.stringify(trio));
+  const ownThenTwo = say(sess({ inventory: { chalked_fire_rune: 9 }, hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_fire_rune'), stored('frost_lance', 'plain_ice_rune')], store: RUNES } }));
+  if (!ownThenTwo.startsWith('Runes: 9 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast; Plain Ice Rune from the store, 1 gp a cast |')) fails.push('AW-27 own runes beside a store spell read ' + JSON.stringify(ownThenTwo));
+  const sameFamilyOwn = say(sess({ inventory: { chalked_water_rune: 9 }, hunt_settings: { preset: 0, presets: [], slots: [stored('greater_mend', 'plain_water_rune'), stored('circle_of_renewal', 'plain_water_rune')], store: WATER } }));
+  if (!sameFamilyOwn.startsWith('Runes: 9 Water runes of yours, then Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells on one family\'s own runes read ' + JSON.stringify(sameFamilyOwn));
   /* AW-27 A SUMMARY RECORDED THIS MOMENT HAS NOT HAD ITS MOMENT: left at once, the next load opens it (played 2026-11-04: a reload 0.7 s after Play left no summary and no bar) */
   {
     const R = await imp('src/hunt-view/summary-recorder.js');

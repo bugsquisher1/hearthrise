@@ -181,6 +181,8 @@ export const MUTANTS = {
   show_in_one_place: { arm: 'TS-SHOW', why: 'every shell bursts on one spot', js: ['src/world/town-shows.js', [['x: fire.x + dx, y: fire.y + dy }); continue; }', 'x: fire.x, y: fire.y + dy }); continue; }']]] },
   show_every_frame: { arm: 'TS-SHOW', why: 'a shell moves on every frame, so a show repaints the town at the screen\'s rate', js: ['src/world/town-shows.js', [['const t = Math.floor((now - round.startedAt) / beatMs) * beatMs;', 'const t = now - round.startedAt;']]] },
   hearth_claims_the_square: { arm: 'TS-WINDOW', why: 'the Hearth tab promises a color the square never shows', js: ['src/shell/windows/havora/index.js', [["It burns that color for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone in ' + esc(TOWN_NAME) + ' sees", "Its color fills ' + esc(TOWN_NAME) + '\\'s square for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone there sees"]]] },
+  powder_over_purse_on: { arm: 'TS-WINDOW', why: 'a powder the purse can\'t pay stays live and is refused after the press', js: ['src/shell/windows/havora/index.js', [["prop(buyPowder, 'disabled', sc.pending || pPrice === null || pShort > 0);", "prop(buyPowder, 'disabled', sc.pending || pPrice === null);"]]] },
+  round_short_unsaid: { arm: 'TS-WINDOW', why: 'nothing under the round says why it is off', js: ['src/shell/windows/havora/index.js', [["  text(root.querySelector('.hv-why[data-of=\"round\"]'), needWords(rShort));\n", '']]] },
   foot_in_the_pane: { arm: 'TS-WINDOW', why: 'the answer to a press sits outside the foot, under the fold of a short window', js: ['src/shell/windows/havora/index.js', [["    + '<p class=\"hh-intent-msg\" role=\"status\" aria-live=\"polite\"></p></div></div>';", "    + '</div><p class=\"hh-intent-msg\" role=\"status\" aria-live=\"polite\"></p></div>';"]]] },
 };
 
@@ -201,6 +203,22 @@ async function hero(db, uid, slot, name) {
   const r = await as(db, uid, 'select public.hr_create_hero($1::int, $2, $3::jsonb, $4::uuid)', [slot, name, JSON.stringify({ head: dye, body: dye, legs: dye, feet: dye }), idem()]);
   if (!r || r.ok !== true) throw Object.assign(new Error(`hr_create_hero(${slot}, ${name}): ` + JSON.stringify(r)), { harness: true });
   await db.query('update public.player_state set stamina_ms = 28800000, stamina_at = now() where user_id = $1 and slot = $2', [uid, slot]);
+}
+/* renderHavora.patch over plain elements, the server's sinks read and the envelope's purse (`state.gold`): each buy button and the line under it. */
+async function buysOf(X, view, purse) {
+  const els = new Map();
+  const fake = () => { const at = {}; return { textContent: '', disabled: false, hidden: false, at, style: { getPropertyValue: () => '', setProperty() {}, removeProperty() {} },
+    getAttribute: (k) => (k in at ? at[k] : null), setAttribute: (k, v) => { at[k] = String(v); }, hasAttribute: (k) => k in at, removeAttribute: (k) => { delete at[k]; }, classList: { contains: () => false, toggle() {} } }; };
+  const el = (s) => { if (!els.has(s)) els.set(s, fake()); return els.get(s); };
+  const root = { querySelector: el, querySelectorAll: () => [] };
+  const body = { querySelector: (s) => (s === '.hw-havora' ? root : el(s)) };
+  const cs = { slot: 0, status: 'open', load: async () => {}, read: (k) => (k === 'state' && purse !== null ? { gold: purse, gold_v: 1 } : undefined) };
+  const ctx = { character: cs, account: { server: { rpc: async () => ({ ok: true, body: view }) } }, now: () => 1000, refresh: () => {} };
+  X.HW.renderHavora.patch(body, ctx);
+  await new Promise((r) => setTimeout(r, 20));
+  X.HW.renderHavora.patch(body, ctx);
+  const one = (act, of) => { const b = el('[data-hs-act="' + act + '"]'); return { off: b.disabled, why: b.getAttribute('data-off-why'), line: el('.hv-why[data-of="' + of + '"]').textContent }; };
+  return { powder: one('powder', 'hearth'), round: one('round', 'round') };
 }
 /* A stranger's read of the square, with `whose` standing in it. */
 async function strangerSees(db, whose, viewer) {
@@ -765,6 +783,13 @@ const ARMS = {
     const s = X.TI.parseSinks(view);
     if (!s || s.powder.price !== 2000 || s.round.price !== 5000 || s.powder.perDay !== 5 || !s.crier || s.crier.price !== 1000 || s.crier.minLevel !== 10) out.push('the window parses ' + JSON.stringify(s));
     if (X.TI.parseSinks({ ok: true }) !== null) out.push('a broken answer parsed');
+    /* A PRICE THE PURSE CAN'T PAY IS OFF BEFORE THE PRESS, AND SAYS BY HOW MUCH (v0.2.97 gate, the Works tab's class: "Throw Cinnabar: 2,000 gp" live on a 500 gp purse).
+       The real patch over plain elements, the envelope's purse against the server's quote; with no purse stated the server judges. */
+    const poor = await buysOf(X, view, 500), flush = await buysOf(X, view, 9000), unsaid = await buysOf(X, view, null);
+    if (!poor.powder.off || poor.powder.why !== 'You need 1,500 gp more.' || poor.powder.line !== 'You need 1,500 gp more.') out.push('with 500 gp the powder reads ' + JSON.stringify(poor.powder));
+    if (!poor.round.off || poor.round.line !== 'You need 4,500 gp more.') out.push('with 500 gp the round reads ' + JSON.stringify(poor.round));
+    if (flush.powder.off || flush.round.off || flush.powder.line || flush.round.line || flush.powder.why !== null) out.push('with 9,000 gp the buys read ' + JSON.stringify(flush));
+    if (unsaid.powder.off || unsaid.round.off) out.push('with no purse stated a buy is off: ' + JSON.stringify(unsaid));
     /* THE TAVERN OPENS ITS ROUND TAB */
     const row = X.ST.SINK_TAPS.havora_tavern;
     const act = row ? X.SL.tapAction({ id: 'town', exits: [] }, { tile: [62, 20], hits: [{ id: 'havora_tavern', tx: 62, ty: 20, ref: null }] }, { opens: X.ST.SINK_TAPS, maps: {} }) : null;

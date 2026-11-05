@@ -11,12 +11,14 @@
 // TRYING ON IS FREE AND TELLS THE TRUTH: the preview is the World's own recolour, the
 // picker offers only the parts this outfit's art can show, by their names ("Plume",
 // "Waist cloth"), and the druid's picker says why it has none. Everything here is display
-// scratch until the re-read envelope says what is worn and what the colors are.
+// scratch until the re-read envelope says what is worn and what the colors are. A price the purse can't pay leaves Save colors off with
+// the line under it saying how much more (the house style; v0.2.97 gate: 1,550 gp live on a 400 gp purse, refused only after the press).
 // ════════════════════════════════════════════════════════════════════════
 import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.97';
 import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.97';
 import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.97';
 import { outfitOf } from '../../../session/character-sections.js?v=0.2.97';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.97';
 import { heroSprite } from '../../../session/hero-look.js?v=0.2.97';
 import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.97';
 import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.97';
@@ -40,6 +42,7 @@ export function outfitHtml(g) {
     + '<div class="hw-of-save"><button type="button" class="hh-tool" data-hs-act="of-save">Wear this outfit</button>'
     + '<button type="button" class="hw-primary hw-of-colors" data-hs-act="of-colors"></button>'
     + '<button type="button" class="hh-tool hw-of-undo" data-hs-act="of-undo">Undo colors</button>'
+    + '<p class="hw-why hw-of-why"></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>'
     + '<div class="hw-of-right"><div class="hw-of-tools"><label class="hw-search">' + glyphSvg(g, 'uiSearch')
     + '<input type="search" data-hs-act="of-search" placeholder="Search outfits" aria-label="Search outfits"></label>'
@@ -157,7 +160,12 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   const save = root.querySelector('[data-hs-act="of-colors"]');
   cls(save, 'is-on', offer);
   text(save, !offer ? '' : sc.price !== null ? 'Save colors: ' + gold(sc.price) : 'Asking the price…');
-  prop(save, 'disabled', sc.pending || !offer || sc.price === null);
+  /* the envelope's purse against the server's quote: short, the button stays off and says by how much */
+  const purse = goldOf(cs);
+  const short = offer && sc.price !== null && Number.isSafeInteger(purse) && purse < sc.price ? sc.price - purse : 0;
+  prop(save, 'disabled', sc.pending || !offer || sc.price === null || short > 0);
+  attr(save, 'data-off-why', short ? 'You need ' + gold(short) + ' more.' : null);
+  text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more.' : '');
   cls(root.querySelector('.hw-of-undo'), 'is-on', changedColors);
   prop(root.querySelector('.hw-of-undo'), 'disabled', sc.pending);
   text(root.querySelector('.hh-intent-msg'), sc.msg);

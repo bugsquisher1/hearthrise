@@ -7,7 +7,8 @@
 //   Works    what the whole server is building (./works.js, which keeps its own reads and answers).
 // While it's open the window reads the server's quotes (hr_town_sinks_view: never in the envelope, so an idle hero costs no read), on opening, after each press
 // and every ASK_MS. Every price, count and word about the queue is the server's; a stale price only earns quote_changed, and the answer is said and re-read.
-// Every control is off while an intent is in flight. Nothing here ever computes a price (CLAUDE.md §1, §6).
+// Every control is off while an intent is in flight. Nothing here ever computes a price (CLAUDE.md §1, §6). A price the purse can't pay is off before the press and the
+// line under it says by how much: the purse is the envelope's, the price the server's read, and the server still judges (v0.2.97 gate, the Works tab's same class).
 // ════════════════════════════════════════════════════════════════════════
 import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.97';
 import { goldOf } from '../../../session/item-sections.js?v=0.2.97';
@@ -42,6 +43,10 @@ const pickedOf = (sc) => {
 export function throwWords(show, price) {
   return 'Throw ' + SHOW_FLAMES[show].label + (Number.isSafeInteger(price) ? ': ' + gold(price) : '');
 }
+/** What the purse the envelope states is short of a price: 0 when it covers it, or when either isn't known (the server judges). Pure. */
+export const shortOf = (price, purse) => (Number.isSafeInteger(price) && Number.isSafeInteger(purse) && purse < price ? price - purse : 0);
+const needWords = (short) => (short ? 'You need ' + gold(short) + ' more.' : '');
+
 /** "Stand a round: 5,000 gp". Pure. */
 export function roundWords(price) {
   return 'Stand a round' + (Number.isSafeInteger(price) ? ': ' + gold(price) : '');
@@ -69,10 +74,13 @@ export function renderHavora(ctx) {
     + '<section class="hw-pane hv-pane" data-pane="hearth">'
     + '<p class="hv-lead">Throw a powder on the Great Hearth. It burns that color for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone in ' + esc(TOWN_NAME) + ' sees who threw it.</p>'
     + '<div class="hv-powders" role="radiogroup" aria-label="Which powder">' + offers.map((id) => '<button type="button" role="radio" class="hv-powder is-' + esc(id) + '" data-hs-act="pick" data-show="' + esc(id) + '" aria-checked="false"><i class="hv-swatch" aria-hidden="true"></i>' + esc(SHOW_FLAMES[id].label) + '</button>').join('') + '</div>'
+    /* why the buy is off stands over it: under it, a phone sheet's foot lay on the line */
+    + '<p class="hw-why hv-why" data-of="hearth"></p>'
     + '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="powder"></button>'
     + '</section>'
     + '<section class="hw-pane hv-pane" data-pane="round">'
     + '<p class="hv-lead">Stand a round at the Tavern. Fireworks go up over Hearth Square for ' + whole(SINK_RULES.round.seconds) + ' seconds, and the whole town hears who paid.</p>'
+    + '<p class="hw-why hv-why" data-of="round"></p>'
     + '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="round"></button>'
     + '</section>'
     + (WORKS_TAB.shown ? '<section class="hw-pane hv-pane" data-pane="works">' + worksHtml() + '</section>' : '')
@@ -100,8 +108,13 @@ renderHavora.patch = function patchHavora(body, ctx) {
   const pPrice = s ? s.powder.price : null, rPrice = s ? s.round.price : null;
   text(buyPowder, s && pPrice === null ? 'No more powders today' : throwWords(picked, pPrice));
   text(buyRound, s && rPrice === null ? 'No more rounds today' : roundWords(rPrice));
-  prop(buyPowder, 'disabled', sc.pending || pPrice === null);
-  prop(buyRound, 'disabled', sc.pending || rPrice === null);
+  const pShort = shortOf(pPrice, purse), rShort = shortOf(rPrice, purse);
+  prop(buyPowder, 'disabled', sc.pending || pPrice === null || pShort > 0);
+  prop(buyRound, 'disabled', sc.pending || rPrice === null || rShort > 0);
+  attr(buyPowder, 'data-off-why', needWords(pShort) || null);
+  attr(buyRound, 'data-off-why', needWords(rShort) || null);
+  text(root.querySelector('.hv-why[data-of="hearth"]'), needWords(pShort));
+  text(root.querySelector('.hv-why[data-of="round"]'), needWords(rShort));
   for (const b of root.querySelectorAll('.hv-powder')) prop(b, 'disabled', sc.pending);
   text(root.querySelector('.hv-count[data-of="hearth"]'), s ? countLine(s.powder, 'powders') : '');
   text(root.querySelector('.hv-count[data-of="round"]'), s ? countLine(s.round, 'rounds') : '');

@@ -355,7 +355,7 @@ export function renderLaunchers(ctx) {
     const on = open.has(r.id);
     const key = keyLabel(r.key);
     return '<button type="button" class="hs-launch' + (on ? ' is-open' : '') + '" data-hs-open="' + esc(r.id) + '"'
-      + ' aria-pressed="' + on + '" aria-label="' + esc(r.label) + ' (' + esc(key) + ')"'
+      + ' aria-pressed="' + on + '" aria-label="' + esc(r.label) + (key ? ' (' + esc(key) + ')' : '') + '"'
       + ' data-tip="' + esc(r.label) + '" data-key="' + esc(key) + '"' + (ring === r.id ? ' data-coach-ring=""' : '') + '>'
       + glyphSvg(ctx.glyphs, r.glyph) + '</button>';
   });

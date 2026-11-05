@@ -273,7 +273,7 @@ export function tapAction(map, pick, o) {
     /* one station's prop (the shop's counter, not the storage's: the same sprite) before the sprite's own row */
     const opens = (o.sites && o.sites[map.id + ':' + hit.tx + ',' + hit.ty]) || o.opens[hit.id];
     if (opens && opens.open === 'skill') return { kind: 'skill', skill: opens.skill };
-    if (opens && opens.open === 'window') return { kind: 'window', window: opens.window };
+    if (opens && opens.open === 'window') return opens.tab ? { kind: 'window', window: opens.window, tab: opens.tab } : { kind: 'window', window: opens.window };
   }
   const ex = exitAt(pick.tile[0], pick.tile[1]);
   return (ex && exitAction(ex, o.maps)) || { kind: 'walk', to: pick.tile };
@@ -291,7 +291,7 @@ export function runAction(act, nav) {
   if (act.kind === 'walk') return nav.walk(act.to);
   if (act.kind === 'hunt') return nav.hunt(act.hunt);
   if (act.kind === 'skill') return nav.skill(act.skill);
-  if (act.kind === 'window') return nav.window(act.window);
+  if (act.kind === 'window') return nav.window(act.window, act.tab);
   if (act.kind === 'room') return nav.room(act.room);
   if (act.kind === 'house') return nav.house(act.room);
   if (act.kind === 'scene') return nav.scene(act.choice);

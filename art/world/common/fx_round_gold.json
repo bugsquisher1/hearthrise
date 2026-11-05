@@ -1,0 +1,35 @@
+{
+  "id": "fx_round_gold",
+  "class": "vfx",
+  "style": "s1",
+  "material": "light",
+  "source": "fx_round_gold.png",
+  "frame": [
+    64,
+    64
+  ],
+  "anchor_px": [
+    31,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "script",
+    "script": "tools/world-art/round-fireworks.mjs",
+    "cost": "0"
+  },
+  "notes": "THE ROUND: one firework over Hearth Square, gold ramp. Drawn by tools/world-art/round-fireworks.mjs; no generation."
+}

@@ -25,8 +25,33 @@
 // BOUGHT FLAMES STAY OUT OF src/data/hearth.js: recipes.js pulls that file into the hr-accrue bundle, so a row there moves the
 // edge hash. This file reaches no edge import.
 //
-// PURE ESM DATA. No imports, no functions, no DOM. Node and Deno both.
+// PURE ESM DATA. No imports, no DOM. Node and Deno both.
 // ════════════════════════════════════════════════════════════════════════
+
+/* THE POWDERS, as the World and the window show them. Three colors of their own, drawn by tools/world-art/hearth-flames.mjs (its RAMPS): the five named
+   colors are never for sale. A bought flame is 30 s against a named fuel's 60-90, with no burst and no item link. */
+const flame = (id, label, words) => Object.freeze({ fire: 'hearth_fire_' + id, flare: 'hearth_flare_' + id, sparks: 'hearth_burn_sparks_' + id, label, words });
+export const SHOW_FLAMES = Object.freeze({
+  cinnabar: flame('cinnabar', 'Cinnabar', 'burns red'),
+  quicklime: flame('quicklime', 'Quicklime', 'burns white'),
+  borax: flame('borax', 'Borax', 'burns green'),
+});
+/** The pinch a hero throws on the fire (tools/world-art/round-fireworks.mjs). */
+export const POWDER_CHUNK = 'fuel_powder';
+/** The catalogue id hr_town_show takes for a round. */
+export const ROUND_OFFER = 'round';
+/* THE ROUND, as the World draws it (src/world/town-shows.js): a burst every everyMs, each playing playMs (8 frames at 12 fps), over Hearth Square, where idle heroes
+   stand: within spreadTiles of the point southTiles south of the ambient `from` (the Hearth's firebox faces its square). */
+export const ROUND_SHOW = Object.freeze({
+  from: 'hearth_fire', everyMs: 320, playMs: 667, spreadTiles: 4, southTiles: 4,
+  bursts: Object.freeze(['fx_round_gold', 'fx_round_cinder', 'fx_round_frost']),
+});
+
+/* WHAT A TAP ON THE MAP OPENS for these sinks, TAP_OPENS-shaped. It lives here and not in src/data/world/stations.js, which the edge bundles: this lane moves no edge hash. */
+export const SINK_TAPS = Object.freeze({
+  /* the Tavern: stand a round (the Havora window on its Round tab) */
+  havora_tavern: Object.freeze({ open: 'window', window: 'havora', tab: 'round' }),
+});
 
 /** One row per sink, keyed by the server's sink id. */
 export const SINK_RULES = Object.freeze({

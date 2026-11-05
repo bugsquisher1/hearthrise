@@ -613,6 +613,8 @@
   "town_bodies": "A display placement, not progress: which town stand each character's body holds, placed by the server from its activity pointer (2027-01-28-town-stands.sql). Every present hero is placed again on its next keepalive or read, and a worker on its next activity change. Losing every row costs nobody anything a player earned.",
   "town_moves": "Transient notes that an activity pointer changed, deleted by the next town read once applied. No value: losing them leaves a body where it stood until its next change.",
   "town_seen": "Unlogged keepalive stamps (a parked hero is present), never read after 30 s. Losing every row costs nobody anything.",
+  "town_shows": "The gold sinks' show journal (2027-02-27-town-shows.sql): which powder or round plays and until when. Player-scoped by user_id, but it holds no value: the gold and the journal are hr_apply's ledger row in the same transaction. Lost, a show still to play is simply not drawn.",
+  "account_gold_given": "The Gold Given board's counter (2027-02-27-gold-given.sql): gold each hero gave to the town this UTC month. Player-scoped by user_id, but it holds no value and has no prize: it ranks, and it starts again every month. Lost, the month's standing starts over.",
   "hearth_flames": "The Great Hearth's flame journal (2027-01-31-inner-flame.sql): which named fuel colours the square and until when, and the per-day burn count. Player-scoped by user_id, but it holds no value: the fuel debit, the Inner Flame XP and the journal row live in player_inventory, player_skills and player_ledger. Losing every row returns the square to plain fire and re-opens one day of the burn clamp early; nobody loses or gains a fuel, an XP point or a rank."
  },
  "tables": {
@@ -784,6 +786,16 @@
    "class": "restore_only",
    "wiped_at_cutover": true,
    "note": "The RETIRED client-authored blob: gold, inventory, every skill's XP, equipment, farm. One row left in production. server-authority.md §2a-iv is explicit — 'Starting state is FRESH. game_saves.snapshot is never read' — so a post-cutover restore has NO reason to bring it back, and reading it would launder the forged values the audit found. This is the single table whose value flipped from critical to worthless the moment the cutover completed, and the cutover has now completed."
+  },
+  "town_shows": {
+   "class": "operational",
+   "replay": 0,
+   "note": "2027-02-27-town-shows.sql, ships EMPTY. One row per bought Hearth powder or round (map, user, slot, show, price, starts_at/ends_at), written ONLY by hr_town_show (SECURITY DEFINER) in the same transaction as its player_ledger row (kind shop, intent town_show:<show>:<price>) and moved only by hr_town_show_push under the Hearth's key; RLS on, every privilege revoked. Rows over 30 days old are pruned on each purchase. NEVER read by a meter (tests/town-shows.mjs TS-NO-METER). Empty after a restore: a show still to play is not drawn, and the day's price still reads the ledger."
+  },
+  "account_gold_given": {
+   "class": "operational",
+   "replay": 0,
+   "note": "2027-02-27-gold-given.sql, ships EMPTY. Gold each hero gave to the town per UTC month, written ONLY by hr_gold_given_add in the transaction of a town verb's charge; read only by leaderboard_ranked's gold_given board; RLS on, every privilege revoked. It holds no value and no prize. Empty after a restore: this month's standing starts over."
   },
   "hearth_flames": {
    "class": "operational",
@@ -986,7 +998,7 @@
   },
   "hr_flags": {
    "class": "operator_tunable",
-   "replay": 4,
+   "replay": 5,
    "wiped_at_cutover": false,
    "note": "THE SERVER FEATURE FLAGS (created 2026-09-13-town-presence.sql; the chain had no flag table before it — every arm switch was a `constant boolean := true` inside a function body, i.e. a migration and an apply window to change). One row per flag: key, enabled, note, updated_at. PUBLIC READ, no write policy and no write grant to any role including service_role, so the only writer is the owner. A rebuild seeds every flag at its SHIPPED DEFAULT, which for town_presence is OFF — fail-safe by construction: a restore-free rebuild closes a live surface rather than opening one. What is lost is the OPERATOR'S CURRENT CHOICE (a feature an operator had switched on comes back off) and the `note`/`updated_at` audit of when it was flipped. Cheap to re-assert: one UPDATE per flag. operator_tunable rather than seeded because the row's VALUE is an operations decision, not content. ⚠ live_value RECORDS town_presence = FALSE, AND THAT IS THE LIVE TRUTH TODAY (Security F2, 2026-09-13): production has the flag OFF, because 2026-09-13-town-presence-on.sql is STAGED. An earlier revision of this entry recorded TRUE - the state the apply will land in - which is the same class of mistake apply-order-honesty exists to catch: a deployment record that describes a future. A CHAIN REBUILD does produce TRUE (the ON file is in `order`), so the repo and production diverge on this one row until the Coordinator applies it - that is a KNOWN, NAMED window, not drift, and `expected_after` records what to move it to and how. Re-measure with `node tests/restore-census.mjs --live-sql` + --live-compare per lane C after the flip, and again if an operator ever uses the one-statement kill switch (2026-09-13-town-presence-off.sql). Only `key` and `enabled` are compared - the projection is built from the keys recorded here - so `note` and `updated_at` drift freely and cannot make this check permanently red.",
    "live_value": {

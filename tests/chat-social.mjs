@@ -176,6 +176,11 @@ async function pureRules(M) {
     if (!n || n.system !== true || n.fromId !== OTHER || n.level !== null || n.role !== null || words !== 'Mira found <bronze_sword> in ' + HUNT_INDEX.mill_cellar.name + '.')
       fail('WN-1 a world notice reads ' + JSON.stringify(n && { system: n.system, words, level: n.level }));
     if (M.lines.tabOfChannel('system', ZONE, PARTY) !== 'system') fail('WN-1 a System row is not on the System tab');
+    /* A town notice in Local (a powder on the Hearth): one sentence too, on its own channel; a player's line never reads as one, because hr_chat_send always stamps a Level */
+    const tn = lineOf(row({ channel: 'local:town', from_name: 'Mira', from_level: null, from_weapon: null, from_role: 'notice', body: 'threw Cinnabar on the Great Hearth.' }));
+    if (!tn || tn.system !== true || tn.channel !== 'local:town' || tn.parts.map((x) => x.text).join('') !== 'Mira threw Cinnabar on the Great Hearth.') fail('WN-1 a town notice reads ' + JSON.stringify(tn && { system: tn.system, channel: tn.channel, parts: tn.parts }));
+    const spoof = lineOf(row({ channel: 'local:town', from_level: 12, from_role: 'notice', body: 'threw Cinnabar on the Great Hearth.' }));
+    if (!spoof || spoof.system) fail('WN-1 a player\'s line with the notice\'s role reads as a notice');
     const said = lineOf(row({ body: 'meet in [[hunt:mill_cellar]]' }));
     if (!said || said.system || said.parts.map((x) => x.text || '').join('') !== 'meet in [[hunt:mill_cellar]]') fail('WN-1 a player\'s hunt marker became ' + JSON.stringify(said && said.parts));
     /* RB-1: the data row is the migration's seeded row (src/data is the one source). */
@@ -502,6 +507,14 @@ async function stub(page, s) {
     if (name === 'hr_load') return json(Object.assign(env(s.seats), kept(), { version: ++s.version }));
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, env(s.seats), kept(), { version: ++s.version }));
     if (name === 'hr_chat_recent') return json({ ok: true, zone: ZONE, party: null, lines: s.recent || [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
+    if (name === 'hr_town_sinks_view') return json({ ok: true, hunting: false, level: 12, powder: { n: 0, per_day: 5, price: 2000, seconds: 30, book_s: 300, booked_s: 0, last: null }, round: { n: 0, per_day: 3, price: 5000, seconds: 45, book_s: 180, booked_s: 0, last: null },
+      crier: { n: s.cried || 0, per_day: 5, price: (s.cried || 0) ? 2000 : 1000, min_level: 10, max_letters: 120, gap_s: 30, wait_s: 0, on: true, last_line: s.lastCry || null } });
+    if (name === 'hr_crier_send') {
+      (s.cries = s.cries || []).push(body);
+      if (/www\./.test(body.p_body)) return json({ ok: false, error: 'crier_link' });
+      s.cried = (s.cried || 0) + 1; s.lastCry = body.p_body;
+      return json({ ok: true, price: body.p_price, n: s.cried, per_day: 5, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, crier: true }) });
+    }
     if (name === 'hr_chat_send') return json({ ok: true, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, from_weapon: 'staff', from_role: 'healer' }) });
     if (name === 'hr_social_state' || name === 'hr_social_poll') return json(Object.assign({ online: 3 }, s.social || { ok: true, friends: [], incoming: [], outgoing: [], blocks: [] }));
     if (name === 'hr_friend_request' && s.ask) return json(s.ask);
@@ -627,6 +640,28 @@ async function pageRules(overrides, shots) {
       const hhmm = await page.evaluate(() => { const d = new Date(Date.UTC(2026, 9, 18, 9, 5)); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); });
       if (!line || line.time !== hhmm || line.name !== 'Bramble' || line.title !== 'the Wolfer' || !/is-tank/.test(line.cls) || !/\[34/.test(line.tag || '') || !line.glyph
         || line.link !== '[Bronze Sword]' || !line.last || line.body !== 'inline') fails.push('CW-1 [' + tag + '] the line reads ' + JSON.stringify(line));
+      // CW-CRIER: the Town Crier on the Global tab: the server's price on the button, a refusal in the Crier's words, a paid line with its gold bar
+      const crierBtn = await page.$('[data-hs-win="chat"] .hc-crier-open');
+      if (!crierBtn || !(await crierBtn.isVisible())) fails.push('CW-CRIER [' + tag + '] no Town Crier button on Global');
+      else {
+        await crierBtn.click();
+        if (!await wait(page, () => /Cry it: 1,000 gp/.test((document.querySelector('[data-hs-win="chat"] .hc-cry') || {}).textContent || ''))) fails.push('CW-CRIER [' + tag + '] the button does not read the server\'s price');
+        await page.fill('.hc-field', 'see www.example.test');
+        await page.click('[data-hs-win="chat"] .hc-cry');
+        if (!await wait(page, () => /won't shout web addresses/.test((document.querySelector('[data-hs-win="chat"] .hc-crier-msg') || {}).textContent || ''))) fails.push('CW-CRIER [' + tag + '] a refused line says nothing');
+        if ((await page.$$('[data-hs-win="chat"] .hc-line.is-crier')).length) fails.push('CW-CRIER [' + tag + '] a refused line was drawn');
+        await page.fill('.hc-field', 'selling rat tails');
+        await page.click('[data-hs-win="chat"] .hc-cry');
+        if (!await wait(page, () => Array.from(document.querySelectorAll('[data-hs-win="chat"] .hc-line.is-crier')).some((l) => /selling rat tails/.test(l.textContent)))) fails.push('CW-CRIER [' + tag + '] a paid line has no gold bar');
+        const sent = s.cries || [];
+        if (sent.length !== 2 || sent[1].p_price !== 1000 || sent[1].p_body !== 'selling rat tails' || sent[1].p_idem === sent[0].p_idem || !sent[1].p_idem) fails.push('CW-CRIER [' + tag + '] the rpc was ' + JSON.stringify(sent));
+        if (!await wait(page, () => /Cry it: 2,000 gp/.test((document.querySelector('[data-hs-win="chat"] .hc-cry') || {}).textContent || ''))) fails.push('CW-CRIER [' + tag + '] the button did not re-read the next price');
+        if (!await wait(page, () => /Again: selling rat tails/.test((document.querySelector('[data-hs-win="chat"] .hc-again') || {}).textContent || ''))) fails.push('CW-CRIER [' + tag + '] the last line is not one press away');
+        /* the bar never eats the log: the paid line itself stays on screen with the bar open */
+        const seen = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="chat"] .hc-log.is-on'); return l ? l.getBoundingClientRect().height : 0; });
+        if (seen < 44) fails.push('CW-CRIER [' + tag + '] with the bar open the log is ' + seen + ' px tall');
+        await crierBtn.click();
+      }
       // CW-2
       await page.evaluate(() => window.__hub.send('chat:local:mill_cellar', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f002', channel: 'local:mill_cellar',
         from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'shield', from_role: null,
@@ -635,6 +670,7 @@ async function pageRules(overrides, shots) {
       if (!dot) fails.push('CW-2 [' + tag + '] no unread dot on Local');
       await page.click('[data-hs-win="chat"] [data-tab="local"]');
       await page.waitForTimeout(400);
+      if (await page.evaluate(() => { const b = document.querySelector('[data-hs-win="chat"] .hc-crier-open'); return !!b && !b.hidden; })) fails.push('CW-CRIER [' + tag + '] the Town Crier button shows off Global');
       if (await page.evaluate(() => document.querySelector('[data-hs-win="chat"] [data-tab="local"]').classList.contains('is-unread'))) fails.push('CW-2 [' + tag + '] the dot stayed on the tab on screen');
       const place = await page.evaluate(() => document.querySelector('.hc-field').placeholder);
       if (!/here/.test(place)) fails.push('CW-2 [' + tag + '] Local\'s field says "' + place + '"');
@@ -868,7 +904,9 @@ const PURE_MUTANTS = [
   ['a block leaves the lines up', 'src/social/blocks.js', "    if (on === true && who) this._onBlocked(who.id);\n", ''],
   ['an unknown id becomes a link', 'src/social/chat-lines.js', "else out.push(ITEMS[m[2]] ? { item: m[2] } : { text: m[2].replace(/_/g, ' ') });", "else out.push({ item: m[2] });"],
   ['a player\'s hunt marker names the hunt', 'src/social/chat-lines.js', "    if (m[1] === 'hunt' && !notice) continue;\n", ''],
-  ['a System row reads as a player line', 'src/social/chat-lines.js', "if (!whisper && row.channel === 'system') {", 'if (false) {'],
+  ['a town notice reads as a player line', 'src/social/chat-lines.js', "(row.channel === 'system' || (row.from_role === 'notice' && !Number.isInteger(row.from_level)))", "(row.channel === 'system')"],
+  ['a player can write a notice', 'src/social/chat-lines.js', "(row.from_role === 'notice' && !Number.isInteger(row.from_level))", "(row.from_role === 'notice')"],
+  ['a System row reads as a player line', 'src/social/chat-lines.js', "if (!whisper && (row.channel === 'system' || (row.from_role === 'notice' && !Number.isInteger(row.from_level)))) {", 'if (false) {'],
   ['the notice drops the hero', 'src/social/chat-lines.js', "parts: [{ text: name + ' ' }].concat(partsOf(body, true))", 'parts: partsOf(body, true)'],
   ['the notice data row drifts from the migration', 'src/data/chat-channels.js', "rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 3 })", "rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 4 })"],
   ['a hidden page never stamps its presence (ON-3: the limit it reads, gone)', 'src/data/chat-channels.js', "  friendsPollAwayMs: 55000,\n", ''],
@@ -900,6 +938,10 @@ const PURE_MUTANTS = [
   ['a re-read keeps lines the server no longer returns', 'src/social/chat-store.js', "const keep = tab === 'system' ? this.lines(tab).filter((l) => l.system) : [];", 'const keep = this.lines(tab);'],
 ];
 const PAGE_MUTANTS = [
+  ['the Crier sends a client price', 'src/shell/windows/chat-crier.js', "const r = await social.chat.cry(words, links, s.quote.price);", "const r = await social.chat.cry(words, links, 1);"],
+  ['a paid line draws plain', 'src/shell/windows/chat.js', "'<li class=\"hc-line' + (l.crier ? ' is-crier' : '') + '\">", "'<li class=\"hc-line\">"],
+  ['the Crier shows off Global', 'src/shell/windows/chat-crier.js', "prop(btn, 'hidden', !global);", "prop(btn, 'hidden', false);"],
+  ['the Crier never re-reads', 'src/shell/windows/chat-crier.js', "  s.pending = false;\n  s.stale = true;\n", "  s.pending = false;\n"],
   ['a chat line never draws the title', 'src/shell/windows/chat.js', "const title = l.title ? ' <span class=\"hc-title\">' + esc(l.title) + '</span>' : '';", "const title = '';"],
   ['the bag\'s repaint closes every menu', 'src/shell/windows/inventory/index.js', 'closeFloatMenu(ctx.doc, st.sc.menuOwner || null);', 'closeFloatMenu(ctx.doc);'],
   ['the chat docks on the right', 'src/data/shell-windows.js', "height: 280, home: 'bl', resizable: true,", "height: 280, resizable: true,"],

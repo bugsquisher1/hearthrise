@@ -494,7 +494,7 @@ const ARMS = {
     const out = [];
     const text = mutant && mutant.sql ? plantSql(MIG(FILE), mutant.sql) : MIG(FILE);
     const inventory = async () => (await q(db, `select p.oid::regprocedure::text fn, md5(pg_get_functiondef(p.oid)) m from pg_proc p
-      where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and p.proname in ('hr_hero_colors_price', 'hr_hero_colors_view', 'hr_hero_colors_saved_today', 'hr_town_look_touch', 'hr_hero_colors_set', 'hr_outfit_set', 'hr_social_party_view') order by 1`)).map((r) => r.fn + ':' + r.m).join('\n');
+      where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and p.proname in ('hr_hero_colors_price', 'hr_hero_colors_view', 'hr_hero_colors_saved_today', 'hr_town_look_touch', 'hr_hero_colors_set', 'hr_outfit_set', 'hr_title_wear', 'hr_social_party_view') order by 1`)).map((r) => r.fn + ':' + r.m).join('\n');
     const rows = () => q(db, 'select outfit_id, regions, premium, sort from public.hr_outfits order by outfit_id').then(JSON.stringify);
     const was = await inventory(), rowsWere = await rows();
     await db.exec('savepoint again');

@@ -21,6 +21,7 @@
 --                                           still would keep its old look for everyone until it next walked. Skip-locked: it never waits on a town read.
 --   hr_outfit_set                           RESTATED: the free verb takes no colors at all (or a forged call could recolor for free), and touches the look.
 --                                           The `colors` key the projections still carry is {} from here on; no client reads it (hr_outfit_view, hr_town_look: untouched).
+--   hr_title_wear                           RESTATED: touches the look. A hero standing still showed its new title to no one until it next walked (the same gap as colors).
 --   hr_social_party_view                    RESTATED: each seat + its hero's colors, so everyone in a hunt draws everyone in theirs.
 -- hr_create_hero is untouched: colors at creation are free (its own §3), a named hero's second call is already_created. hr_town_look (the seams) already carries them.
 -- WIPE: player_outfits is in the character wipe's list; a day's count is the ledger's and goes with it.
@@ -36,7 +37,7 @@
 -- ── COST ────────────────────────────────────────────────────────────────────
 -- An idle hero pays nothing: the price is the window's read. hr_social_party_view: one primary key per seat inside its one statement (at most 4), no new call. The verb: a day's rows of one hero's ledger.
 --
--- REVERSIBILITY: re-apply the pre-images (2026-10-25-character-sheet.sql's hr_outfit_set; 2027-02-10-settle-plan-cache.generated.sql's hr_social_party_view);
+-- REVERSIBILITY: re-apply the pre-images (2026-10-25-character-sheet.sql's hr_outfit_set; 2027-02-28-titles.sql's hr_title_wear; 2027-02-10-settle-plan-cache.generated.sql's hr_social_party_view);
 -- drop the verb, the read, their baseline rows and the helpers. Saved colors are inert without a client.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -55,6 +56,7 @@ begin
   -- each restated body is EXACTLY its pre-image (the replayed chain, measured 2026-11-05) or this file's own (a second apply)
   for v_r in select * from (values
     ('public.hr_outfit_set(integer,text,jsonb,uuid)', '3b261fe4efc49f28df681742affc584f', '0a99bf08ecbd5b1f2997a35224e4d40c'),
+    ('public.hr_title_wear(integer,text,uuid)', '2258ae04389aa237fbed453bb59db73f', 'e0770ec4215bc622c98ab43d221e474c'),
     ('public.hr_social_party_view(uuid,integer)', 'a66ee40f025ded8603deeb025a6f9493', 'e8ffd7ccec06a286c7e6c7f34ce481d4')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
@@ -198,6 +200,45 @@ begin
     values (v_uid, p_idem, p_slot, c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
   return v_r;
 end $$;
+
+-- ── §4b A WORN TITLE IS THE SAME NEWS ───────────────────────────────────────
+-- 2027-02-28-titles.sql's body, plus the one line: the plate others read moves now, not when this hero next walks.
+create or replace function public.hr_title_wear(p_slot int, p_title text, p_idem uuid)
+returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
+declare
+  c_verb constant text := 'title_wear';
+  v_uid uuid := auth.uid(); v_r jsonb; v_verb text;
+begin
+  if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
+  if p_slot is null or p_slot < 0 or p_slot > 5 then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
+  if p_idem is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_idem')); end if;
+  if p_title is not null and p_title !~ '^[a-z0-9_]{1,32}$' then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'unknown_title')); end if;
+  v_verb := c_verb || ':' || coalesce(p_title, '-');
+  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
+  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
+  if not public.hr_rpc_gate('outfit') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  perform public.hr_hunt_lock(v_uid, p_slot);
+  if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
+  if p_title is not null then
+    if not exists (select 1 from public.hr_titles t where t.title_id = p_title) then
+      return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'unknown_title')); end if;
+    if not exists (select 1 from public.player_titles h where h.user_id = v_uid and h.slot = p_slot and h.title_id = p_title) then
+      return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'title_not_owned', 'title', p_title)); end if;
+  end if;
+  -- Off first: the one-worn index holds between the two statements.
+  update public.player_titles h set worn = false where h.user_id = v_uid and h.slot = p_slot and h.worn and h.title_id is distinct from p_title;
+  if p_title is not null then
+    update public.player_titles h set worn = true where h.user_id = v_uid and h.slot = p_slot and h.title_id = p_title and not h.worn;
+  end if;
+  perform public.hr_town_look_touch(v_uid, p_slot);
+  v_r := jsonb_build_object('ok', true, 'worn', p_title, 'titles', public.hr_titles_view(v_uid, p_slot));
+  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
+    values (v_uid, p_idem, p_slot, v_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
+  return v_r;
+end $fn$;
 
 -- ── §5 EVERY SEAT CARRIES ITS HERO'S COLORS, AND THE CLIENT SURFACE ──────────
 -- The plan-cached form 2027-02-10-settle-plan-cache.generated.sql gave it, kept: the one line added reads one primary key per seat, an index a client draws with.
@@ -349,6 +390,11 @@ begin
   foreach f in array array['public.hr_hero_colors_set(integer,jsonb,bigint,uuid)', 'public.hr_hero_colors_view(integer)'] loop
     if has_function_privilege('anon', f, 'execute') or not has_function_privilege('authenticated', f, 'execute') then
       raise exception 'hero-colors §6(j): % grants are wrong', f; end if;
+  end loop;
+  -- (k) EVERY VERB THAT MOVES WHAT OTHERS READ OF A STANDING HERO SAYS SO (the delta itself: tests/hero-colors.mjs HC-TOWN, tests/titles.mjs TT-SEAM).
+  foreach f in array array['public.hr_hero_colors_set(integer,jsonb,bigint,uuid)', 'public.hr_outfit_set(integer,text,jsonb,uuid)', 'public.hr_title_wear(integer,text,uuid)'] loop
+    if strpos((select prosrc from pg_proc where oid = f::regprocedure), 'hr_town_look_touch(v_uid, p_slot)') = 0 then
+      raise exception 'hero-colors §6(k): % does not touch the look', f; end if;
   end loop;
   perform public.hr_assert_grant_hygiene(true);
   raise notice 'hero-colors: free at creation, one key charges once, a forged color or price charges nothing, the cap is per hero, the colors follow the hero; all green';

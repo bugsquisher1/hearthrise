@@ -200,6 +200,9 @@ const BASE_RECIPES = {
        hardener: bone ash for case-hardening is real metallurgy, and it gives
        the 45-60% drop from Weak Skeleton / Skeleton its first ever use. */
     {id:'smith_iron_fitting', name:'Iron Fitting', icon:'🔩', inputs:{iron_bar:3, copper_bar:2, bone_chips:2}, output:'iron_fitting', xp:210, req:25, ms:4200},
+    /* TEMPERING'S MATERIAL (src/data/temper.js): Bone Chips are the hardener here too, so the Glade's crows feed the gear worn at the Glade. Smithing 15, where
+       its Iron Bar opens (the self-supply rule above). Seated on the bar's own xp a second, never a new best. */
+    {id:'mix_temper_salts', name:'Mix Tempering Salts', icon:'🧂', inputs:{iron_bar:1, bone_chips:1}, output:'temper_salts', xp:30, req:15, ms:3000},
     /* WHETSTONES — melee's ammo, moved here from the cut Stonemason bench
        (designer ruling, demolition 2026-10-14). xp, ms and the batch of 10 are
        unchanged; reqs and inputs are the ruling's (UNVERIFIED until a sim run). */
@@ -321,6 +324,7 @@ export const ARTISAN_CATEGORIES = {
     { key: 'smelting',   label: 'Smelting' },
     { key: 'tools',      label: 'Tools' },
     { key: 'whetstones', label: 'Whetstones' },
+    { key: 'tempering',  label: 'Tempering' },
     { key: 'weapons',    label: 'Weapons & Shields' },
     { key: 'armour',     label: 'Armor' },
     { key: 'castle',     label: 'Building Materials' },
@@ -368,6 +372,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (type === 'tool') return 'tools';          // axes + pickaxes
     if (/_bar$/.test(outId)) return 'smelting';   // ore → bar
     if (type === 'ammo') return 'whetstones';     // strB stones, ammo slot
+    if (out && out.tag === 'temper') return 'tempering';   // the smith's salts (src/data/temper.js)
     if (type === 'weapon' || type === 'offhand') return 'weapons';   // the style ladder: hatchets, the club; the shields
     if (type === 'armor') return 'armour';        // the Bronze Gauntlets (lane b-unsourced-items)
     if (isCastleGood(out)) return 'castle';       // Iron Fitting

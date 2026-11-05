@@ -264,6 +264,7 @@ export const ITEM_DESC = {
   'iron_belt': 'Iron-buckled girdle bracing the waist against a low blow',
   'iron_boots': 'Iron-shod boots, plain sure footing for a working soldier',
   'iron_fitting': 'A cast-iron bracket and bolt, worked metal for castle building',
+  'temper_salts': 'Bone ash and iron filings, what the smith needs to temper gear worn from Level 15. Mixed at the forge',
   'iron_gauntlets': 'Iron gauntlets that save the knuckles in a brawl',
   'iron_helm': 'Honest iron helm that turns a glancing strike aside',
   'iron_ore': 'Rough iron ore straight from the rock, smelted into iron bars',

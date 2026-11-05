@@ -9,7 +9,7 @@
 //
 // A new gear tier is a new row in TEMPER_TIERS. Bookkeeping only: the magnitude is read by src/core/temper.js, and
 // Postgres gets the prices through tools/gen-temper.mjs into hr_unlocks and hr_unlock_offers, sold by hr_unlock_buy.
-// PROVISIONAL PRICES: lane/d-gold-sinks owns the total gold budget, and its table sets the final numbers.
+// The gold is lane/d-gold-sinks' final table.
 //
 // PURE ESM, no imports, no I/O. Node, Deno and the browser read it verbatim.
 // ============================================================================
@@ -24,6 +24,12 @@ export const TEMPER_TIERS = Object.freeze({
   3: Object.freeze([7000, 14000, 28000, 56000, 112000]),
 });
 
+/* WHAT EACH RUNG ALSO TAKES (Tyler 2026-11-05: "require some sort of crafting in order to temper gear"): a crafted material of that tier, bought with the gold in one sale
+   (hr_unlock_buy, from the hero's bag and then the account's Storage). Each rung asks about 8% of the hours its gold takes to earn (PRIORITY_BOARD 2026-11-05). */
+export const TEMPER_MATERIALS = Object.freeze({
+  2: Object.freeze({ item: 'temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
+});
+
 export const temperUnlockId = (track, tier) => 'temper:' + track + ':' + tier;
 export const temperOfferId = (track, tier, rung) => 'temper.' + track + '.' + tier + '.' + rung;
 
@@ -35,10 +41,12 @@ export const TEMPER_UNLOCKS = Object.freeze(TEMPER_TRACKS.flatMap((track) => tie
   rungs: Object.freeze(Array.from({ length: TEMPER_RUNGS }, (_, i) => i + 1)),
 }))));
 
+const itemsOf = (tier, i) => (TEMPER_MATERIALS[tier] ? Object.freeze({ [TEMPER_MATERIALS[tier].item]: TEMPER_MATERIALS[tier].qty[i] }) : Object.freeze({}));
+
 /** The hr_unlock_offers rows, exactly its columns: the price of every rung. */
 export const TEMPER_OFFERS = Object.freeze(TEMPER_TRACKS.flatMap((track) => tiers.flatMap((tier) => TEMPER_TIERS[tier].map((gold, i) => Object.freeze({
   offer_id: temperOfferId(track, tier, i + 1), table_name: 'temper', name: 'Temper ' + track + ', tier ' + tier + ', rung ' + (i + 1),
-  unlock_id: temperUnlockId(track, tier), value: i + 1, gold, items: Object.freeze({}), req_property_tier: 0,
+  unlock_id: temperUnlockId(track, tier), value: i + 1, gold, items: itemsOf(tier, i), req_property_tier: 0,
 })))));
 
 /** The offer-id set the Edge may forward to hr_unlock_buy (supabase/functions/hr-accrue/gold-ladder-catalogue.js). */

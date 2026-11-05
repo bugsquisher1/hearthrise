@@ -249,7 +249,34 @@ function crownShard() {
   return outlined(g);
 }
 
-export const DRAW = Object.freeze({ bronze_rimmed_shield: bronzeRimmedShield, kingsgrate, iron_hatchets: ironHatchets, oak_crossbow: oakCrossbow, crown_shard: crownShard });
+/* A squat crock heaped with salts ("bone ash and iron filings", item-descriptions.js): the pot in `ramp`, a lit rim, the heap in two tones with filings' flecks. */
+function saltCrock(ramp, heapLo, heapHi, fleck) {
+  const g = blank();
+  const cx = 15.5;
+  for (let y = 13; y <= 28; y++) {                                         // the belly, widest low, lit from the upper left
+    const t = (y - 21) / 8;
+    const half = Math.round(10.4 * Math.sqrt(Math.max(0, 1 - t * t * 0.62)));
+    for (let x = Math.ceil(cx - half); x <= Math.floor(cx + half); x++) {
+      const lit = (-(x - cx) / Math.max(half, 1)) * 0.75 - t * 0.45;
+      g[y][x] = ramp[lit > 0.5 ? 3 : lit > 0.05 ? 2 : lit > -0.5 ? 1 : 0];
+    }
+  }
+  for (let x = 7; x <= 24; x++) { g[11][x] = x < 16 ? ramp[3] : ramp[2]; g[12][x] = x < 12 ? ramp[2] : ramp[1]; g[13][x] = ramp[0]; }   // the rim, and its shadow on the belly
+  for (let y = 3; y <= 10; y++) {                                          // the heap
+    const t = (10.5 - y) / 7.6;
+    const half = Math.round(8.2 * Math.sqrt(Math.max(0, 1 - t * t)));
+    for (let x = Math.ceil(cx - half); x <= Math.floor(cx + half); x++) {
+      const lit = (-(x - cx) / Math.max(half, 1)) * 0.7 + t * 0.6;
+      g[y][x] = lit > 0.2 ? heapHi : heapLo;
+    }
+  }
+  for (const [x, y] of [[12, 6], [17, 5], [14, 9], [19, 8], [10, 9], [16, 8]]) put(g, x, y, fleck);
+  for (const [x, y] of [[11, 18], [12, 19], [11, 20]]) put(g, x, y, ramp[3]);   // a glint on the belly
+  return outlined(g);
+}
+const temperSalts = () => saltCrock([EARTH[1], EARTH[2], EARTH[3], EARTH[4]], BONE, BONE_HI, IRON[1]);
+
+export const DRAW = Object.freeze({ temper_salts: temperSalts, bronze_rimmed_shield: bronzeRimmedShield, kingsgrate, iron_hatchets: ironHatchets, oak_crossbow: oakCrossbow, crown_shard: crownShard });
 
 /** A grid (hex or null per pixel) as a binary-alpha 32x32 image. */
 export function toImage(g) {

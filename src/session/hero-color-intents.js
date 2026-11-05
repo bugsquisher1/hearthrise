@@ -1,15 +1,15 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/session/hero-color-intents.js — SAVING A HERO'S FOUR COLORS (2027-03-05-hero-colors.sql).
 //
-// ONE intent naming only this character's slot, four dye INDICES and the QUOTE the `outfit` section showed (never a color, never a price of
+// ONE intent naming only this character's slot, four dye INDICES and the QUOTE this window read (never a color, never a price of
 // its own). The server checks the indices against hr_outfit_dyes, re-quotes under its lock and refuses quote_changed if the price moved. On ok, and
 // whenever the screen must have been behind the server (quote_changed, colors_same), the character is RE-READ: a saved color shows only from the envelope.
 //   readColorsPrice(account, cs)                ONE hr_hero_colors_view while the Outfit tab is open, never in the envelope: an idle hero costs no read, and a settle never prices anything
 //   saveHeroColors(account, cs, colors, price)  hr_hero_colors_set
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.92';
-import { refusalOf } from './refusal.js?v=0.2.92';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.92';
+import { askVia } from './intent-ledger.js?v=0.2.93';
+import { refusalOf } from './refusal.js?v=0.2.93';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.93';
 
 const RE_READS = Object.freeze(['quote_changed', 'colors_same']);
 

@@ -97,6 +97,7 @@ const REPAIR_AFTER_WIPE = [
   '2026-09-18-retired-iap-catalogue-removal.sql',      // seeds nothing: removes the two retired entitlement:* rows b505 stopped generating. After a wipe + regen its targets are absent and it is a guarded no-op, but it WRITES hr_unlocks, so it is listed.
   '2026-10-23-demolition-unlocks.generated.sql',       // APPLIED demolition regen: SCOPED upsert of the derived ids + delete of the 20 retired ones (bounty, cosmetic, dungeon_run, gear scrolls); never touches companion rows.
   '2026-10-26-unlocks-slot-starter.generated.sql',     // the same SCOPED upsert without character_slot:1 (slot 1 is a starter, never sold); deletes the same 20 retired ids, keeps every other row.
+  '2027-02-27-tempering-catalogue.generated.sql',      // Tempering's four ladders, SCOPED upsert by id; deletes nothing
 ];
 
 /** The seventeen ids the 2026-08-23 refill destroyed, pinned BY VALUE (b493:

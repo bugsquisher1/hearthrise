@@ -35,14 +35,14 @@
 // Categories are data too, in the order the window lists them. Gameplay,
 // Chat & Social and Account stay hidden until a feature registers a row there.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.90';
-import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.90';
-import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.90';
-import { HOTKEYS } from './hunt-hud.js?v=0.2.90';
-import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.90';
-import { HELP_NOTES } from './how-to-play.js?v=0.2.90';
-import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.90';
-import { REPLAY } from './privacy.js?v=0.2.90';
+import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.91';
+import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.91';
+import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.91';
+import { HOTKEYS } from './hunt-hud.js?v=0.2.91';
+import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.91';
+import { HELP_NOTES } from './how-to-play.js?v=0.2.91';
+import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.91';
+import { REPLAY } from './privacy.js?v=0.2.91';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);

@@ -37,18 +37,18 @@
 //      Switched back to a hero, the monsters killed meanwhile stood (at their last drawn
 //      HP, or at 0: an empty bar) until a restart felled them anew (e-20261021-mobs, Andy #65).
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.90';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.90';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.90';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.90';
-import { floatShown } from './float-prefs.js?v=0.2.90';
-import { heroSprite } from '../session/hero-look.js?v=0.2.90';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.90';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.90';
-import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.90';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.90';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.90';
-import { levelOf } from '../session/character-sections.js?v=0.2.90';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.91';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.91';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.91';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.91';
+import { floatShown } from './float-prefs.js?v=0.2.91';
+import { heroSprite } from '../session/hero-look.js?v=0.2.91';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.91';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.91';
+import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.91';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.91';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.91';
+import { levelOf } from '../session/character-sections.js?v=0.2.91';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -160,7 +160,8 @@ export function createHuntScene(o) {
   let fx = [], floats = [];
   const flash = new Map(), dead = new Map(), swing = new Map(), bleed = new Map(), cycle = new Map(), target = new Map(), risen = new Map();
   const lie = new Map();   // S6: unit -> { dir, diag }, the facing a unit fell with
-  const perUnit = [flash, dead, swing, bleed, cycle, target, risen, lie];
+  const glanced = new Map();   // unit -> the instant its last glance shows (GLANCE_FX.gapMs apart)
+  const perUnit = [flash, dead, swing, bleed, cycle, target, risen, lie, glanced];
   /* S7: the client instant of the last frame drawn and the units it drew standing */
   let drawnAt = null;
   const standing = new Set();
@@ -235,6 +236,21 @@ export function createHuntScene(o) {
     return land;
   }
 
+  /* A BLOW THAT DID NO HARM: a spark at the struck unit's edge, on the side the blow came from, and no word. It follows
+     the unit, and its toggle is the one the word had. A blow inside gapMs of the last spark on that unit shows none. */
+  function glance(ev, start) {
+    swing.set(ev.u, { t: ev.t, at: start });
+    if (!read.shown('miss', isBoss(ev.t))) return;
+    const last = glanced.get(ev.t);
+    if (last !== undefined && Math.abs(start - last) < GLANCE_FX.gapMs) return;
+    const a = fixed(ev.u, start), b = fixed(ev.t, start);
+    if (!b) return;
+    glanced.set(ev.t, start);
+    const dx = a ? a.x - b.x : 0, dy = a ? a.y - b.y : 0, d = Math.hypot(dx, dy) || 1;
+    addFx(isHero(ev.t) ? GLANCE_FX.hero : GLANCE_FX.monster, start,
+      { follow: ev.t, ox: (dx / d) * GLANCE_FX.reach, oy: (dy / d) * GLANCE_FX.reach }, GLANCE_FX.lift);
+  }
+
   /** One timeline event (each key once). `now` is the caller's clock, used only before the first batch. */
   function onEvent(ev, now) {
     if (!ev || keys.has(ev.key)) return false;
@@ -244,9 +260,11 @@ export function createHuntScene(o) {
     const start = tl.clientAt(ev.atMs) ?? now;
     const num = (u, n, land) => addFloat(u, isHero(u) ? 'taken' : 'dealt', String(n), isHero(u) ? 'hurt' : 'hit', land);
     switch (ev.type) {
-      case 'dmg': num(ev.t, ev.amount, hit(ev, start)); break;
+      /* every landed blow on a monster deals at least 1, so a 0 is a hero whose barrier took all of it: no harm, no number */
+      case 'dmg': if (ev.amount === 0 && isHero(ev.t)) glance(ev, start); else num(ev.t, ev.amount, hit(ev, start)); break;
       case 'status_tick': if (Number.isFinite(ev.amount)) { num(ev.t, ev.amount, start); flash.set(ev.t, start); } break;
-      case 'miss': case 'immune': addFloat(ev.t, 'miss', ev.type === 'immune' ? 'immune' : ev.dodge === true ? 'dodge' : 'miss', 'miss', start); swing.set(ev.u, { t: ev.t, at: start }); break;
+      case 'miss': glance(ev, start); break;
+      case 'immune': addFloat(ev.t, 'miss', 'immune', 'miss', start); swing.set(ev.u, { t: ev.t, at: start }); break;
       case 'heal': addFloat(ev.t, 'heal', '+' + ev.amount, 'heal', start); break;
       case 'cast': {
         const r = CAST_FX.ability[ev.ability] || CAST_FX.role[roleOf(ev.u)];
@@ -479,7 +497,7 @@ export function createHuntScene(o) {
         continue;
       }
       const p = where(e);
-      if (p) effects.push({ id: e.id, x: p.x, y: p.y, age, lift: e.lift, on: e.on });
+      if (p) effects.push({ id: e.id, x: p.x + (e.ox || 0), y: p.y + (e.oy || 0), age, lift: e.lift, on: e.on });
     }
     const shown = floats.filter((e) => now >= e.start).map((e) => ({ text: e.text, kind: e.kind, x: e.x, y: e.y, dx: e.dx, dy: e.dy, age: now - e.start, life: e.life, big: e.big }));
     return { hero, units, floats: shown, fx: effects };

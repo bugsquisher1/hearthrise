@@ -14,7 +14,7 @@
 //                      commit (envelope.js E2): it replaces the record like a load, never asks the engine
 //   setResidue(f, v)   a display preference: the residue changes at once, one hr_put_client_state per burst
 //   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the new settings arrive only in the re-read
-//   setHuntDensity(h, n) the density pick on one ground (hr_hunt_density_set), re-read
+//   setHuntTier(h, t)    the tier picked on one ground (hr_hunt_tier_set), re-read
 //   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
 //   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read (every hero shows it: bankOf); refused: resync()
@@ -33,22 +33,22 @@
 // It authors no number: the record changes only from a server answer, and it sends of its own only the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.93';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.93';
-import { LiveLink } from './live-link.js?v=0.2.93';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.93';
-import { SESSION_CONFIG } from './config.js?v=0.2.93';
-import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.93';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.93';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.93';
-import { AskPacer } from './ask-pacer.js?v=0.2.93';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.93';
-import { ReadGate } from './read-gate.js?v=0.2.93';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.93';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.93';
-import { catchUpLink, newIdem } from './catch-up.js?v=0.2.93';
-import { pageAway } from './page-away.js?v=0.2.93';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.93';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.96';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.96';
+import { LiveLink } from './live-link.js?v=0.2.96';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.96';
+import { SESSION_CONFIG } from './config.js?v=0.2.96';
+import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.96';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.96';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.96';
+import { AskPacer } from './ask-pacer.js?v=0.2.96';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.96';
+import { ReadGate } from './read-gate.js?v=0.2.96';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.96';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.96';
+import { catchUpLink, newIdem } from './catch-up.js?v=0.2.96';
+import { pageAway } from './page-away.js?v=0.2.96';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.96';
 
 export const FRAME_EVENT = 'frame';
 
@@ -257,11 +257,11 @@ export class CharacterSession {
     });
   }
 
-  /** The density pick on one ground (hr_hunt_density_set; rulings H4: per hero and ground, never a setup): bounded
-      by that ground, refused to a party member, shown only from the re-read; a running hunt keeps its frozen one. */
-  async setHuntDensity(hunt, density) {
-    if (this._closed || !HUNT_ID.test(String(hunt)) || !Number.isInteger(density) || density < 0) return { ok: false, error: 'bad_intent' };
-    return this._ask('hunt_density_set', () => this._server.rpc('hr_hunt_density_set', { p_slot: this.slot, p_hunt: hunt, p_density: density, p_idem: newIdem() }));
+  /** The tier picked on one ground (hr_hunt_tier_set; hunt-tiers.js: per hero and ground, never a setup): the server checks the ground
+      offers it and refuses a party member; shown only from the re-read; a running hunt keeps its frozen one. */
+  async setHuntTier(hunt, tier) {
+    if (this._closed || !HUNT_ID.test(String(hunt)) || typeof tier !== 'string') return { ok: false, error: 'bad_intent' };
+    return this._ask('hunt_tier_set', () => this._server.rpc('hr_hunt_tier_set', { p_slot: this.slot, p_hunt: hunt, p_tier: tier, p_idem: newIdem() }));
   }
 
   /** Go hunting (hr_hunt_enter): this character alone (a party of one), or its party's ground when it is in one.

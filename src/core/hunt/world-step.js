@@ -24,19 +24,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.93';
-import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.93';
-import { makeUnit } from './world-state.js?v=0.2.93';
-import { holderOutside, resetPack } from './leash.js?v=0.2.93';
-import { chooseTargets } from './targeting.js?v=0.2.93';
-import { positionHeroes } from './roles.js?v=0.2.93';
-import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.93';
-import { resolveAttacks } from './damage.js?v=0.2.93';
-import { castAbilities } from './abilities.js?v=0.2.93';
-import { tickStatuses } from './status.js?v=0.2.93';
-import { consume } from './consumables.js?v=0.2.93';
-import { flushXpGroup } from './xp-share.js?v=0.2.93';
-import { checkStopRules } from './conditions.js?v=0.2.93';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.96';
+import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.96';
+import { makeUnit } from './world-state.js?v=0.2.96';
+import { holderOutside, resetPack } from './leash.js?v=0.2.96';
+import { chooseTargets } from './targeting.js?v=0.2.96';
+import { positionHeroes } from './roles.js?v=0.2.96';
+import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.96';
+import { resolveAttacks } from './damage.js?v=0.2.96';
+import { castAbilities } from './abilities.js?v=0.2.96';
+import { tickStatuses } from './status.js?v=0.2.96';
+import { consume } from './consumables.js?v=0.2.96';
+import { flushXpGroup } from './xp-share.js?v=0.2.96';
+import { checkStopRules } from './conditions.js?v=0.2.96';
 
 /** How many sub-steps one swing of `swingMs` is; refuses a swing that is not a whole number of them. */
 export function substepsOf(swingMs) {
@@ -67,8 +67,9 @@ function stepWorld(world, swingCtx, track, events) {
   if (!swingCtx.ground || !swingCtx.grid) throw new Error('world-step: a world needs its ground row and grid');
   const n = substepsOf(swingCtx.swingMs);
   /* `heroes`: the per-hero settings, bar and supply session the settle injects (spec §2 world-step).
+     tier: the hunt's hunt-tiers.js row, the settle's read of its frozen pick (null = Normal); never persisted, so the world's shape doesn't move.
      makeUnit: how pull-cycle.js spawns a pack with every persisted field (it may not import world-state). */
-  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, heroes: swingCtx.heroes || null, makeUnit };
+  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, heroes: swingCtx.heroes || null, tier: swingCtx.tier || null, makeUnit };
   const atMs = Number(swingCtx.atMs);
   if (!Number.isInteger(atMs)) throw new Error('world-step: atMs must be an integer');
   /* xpMultOf: the per-hero XP multiplier hook (xp-share.js; server-read, absent = 1). */

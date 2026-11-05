@@ -39,23 +39,22 @@
 export const CHAMPION_ITEMS = {
   tusker_charm: {
     n: "Tusker's Charm", icon: '📿', v: 140, type: 'jewelry', slot: 'necklace',
-    atkB: 2, strB: 1, defB: 1, rarity: 'uncommon', tier: 1, reqSkill: 'level', reqLv: 8,
+    atkB: 2, strB: 1, rarity: 'uncommon', tier: 1, reqSkill: 'level', reqLv: 8,
   },
   packlord_band: {
     n: "Packlord's Band", icon: '💍', v: 420, type: 'jewelry', slot: 'ring',
     atkB: 3, strB: 3, critB: 0.005, rarity: 'rare', tier: 2, reqSkill: 'level', reqLv: 22,
   },
   mirewort_drops: {
-    n: 'Mirewort Drops', icon: '💎', v: 800, type: 'jewelry', slot: 'earrings',
-    defB: 3, critB: 0.015, magicAtkB: 3, rarity: 'rare', tier: 3, reqSkill: 'level', reqLv: 38,
+    n: 'Mirewort Drops', icon: '💎', v: 800, type: 'jewelry', slot: 'earrings', critB: 0.015, magicAtkB: 3, rarity: 'rare', tier: 3, reqSkill: 'level', reqLv: 38,
   },
   barrowking_mantle: {
     n: "Barrow-King's Mantle", icon: '🦸', v: 1700, type: 'armor', slot: 'cape',
-    defB: 12, strB: 3, rarity: 'epic', tier: 4, reqSkill: 'level', reqLv: 52,
+    steadyPm: 150, strB: 3, rarity: 'epic', tier: 4, reqSkill: 'level', reqLv: 52,
   },
   jarls_rimetorc: {
     n: "Jarl's Rimetorc", icon: '📿', v: 3300, type: 'jewelry', slot: 'necklace',
-    atkB: 7, strB: 6, defB: 3, rarity: 'legendary', tier: 5, reqSkill: 'level', reqLv: 66,
+    atkB: 7, strB: 6, rarity: 'legendary', tier: 5, reqSkill: 'level', reqLv: 66,
   },
 };
 

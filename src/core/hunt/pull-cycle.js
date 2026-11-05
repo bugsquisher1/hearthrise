@@ -22,19 +22,20 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.93';
-import { VITALS } from '../../data/core-model.js?v=0.2.93';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.93';
-import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.93';
-import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.93';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.93';
-import { monsterMaxHit } from '../combat.js?v=0.2.93';
-import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.93';
-import { inArea, resetPack } from './leash.js?v=0.2.93';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.93';
-import { makeEvent, trackStep } from './events.js?v=0.2.93';
-import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.93';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.93';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.96';
+import { VITALS } from '../../data/core-model.js?v=0.2.96';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.96';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.96';
+import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.96';
+import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.96';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.96';
+import { monsterMaxHit } from '../combat.js?v=0.2.96';
+import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.96';
+import { inArea, resetPack } from './leash.js?v=0.2.96';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.96';
+import { makeEvent, trackStep } from './events.js?v=0.2.96';
+import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.96';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.96';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -64,10 +65,10 @@ export const partySize = (inst) => inst.world.units.filter((u) => u.side === 'he
  * largest monsterMaxHit (combat.js, the one the engine swings with) of every monster that party can
  * meet: a walked ground's route for that size (hunt-grounds.js monstersOn: a `minParty` pocket counts
  * only for a party big enough) plus the hunt's weighted spawns. Before mitigation: a catalogue fact.
- * { monster, name, hit } or null for an unknown hunt. The Configure action heal warning and the
+ * On `tier` (a hunt-tiers.js row), that tier's blows. { monster, name, hit } or null for an unknown hunt. The Configure action heal warning and the
  * blow-share guard (tests/hunt-core/hunt-data.mjs) both read THIS, never a copy.
  */
-export function biggestBlowOn(huntId, size) {
+export function biggestBlowOn(huntId, size, tier) {
   const h = HUNT_INDEX[huntId];
   if (!h) return null;
   const ids = new Set(h.spawns.map((s) => s.monster));
@@ -75,7 +76,7 @@ export function biggestBlowOn(huntId, size) {
   let best = null;
   for (const id of [...ids].sort()) {
     const row = MONSTERS[id];
-    const hit = row ? monsterMaxHit(row) : 0;
+    const hit = row ? monsterMaxHit(atTier(row, tier)) : 0;
     if (row && (!best || hit > best.hit)) best = { monster: id, name: row.name, hit };
   }
   return best;

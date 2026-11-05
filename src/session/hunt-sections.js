@@ -18,10 +18,11 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.93';
-import { VITALS } from '../data/core-model.js?v=0.2.93';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.93';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.93';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.96';
+import { VITALS } from '../data/core-model.js?v=0.2.96';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.96';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.96';
+import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.96';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -126,7 +127,7 @@ function slotOf(s) {
        a slot switched Off never fires, so it shows struck. */
     enabled: s.enabled !== false, ignore: list(s.ignore, (m) => str(m), 16),
     usable: s.usable !== false && s.enabled !== false, mana: int(s.mana), count: int(s.count),
-    /* WHY THE SERVER STRUCK IT (hr_hunt_settings_view): none_left (own stock gone) | store_off | rune_level (a spell's runes are all above the hero's level); null when it can fire. */
+    /* WHY THE SERVER STRUCK IT (hr_hunt_settings_view): none_left (own stock gone) | store_off | rune_level (a spell's runes are all above the hero's level) | store_level (the store rune the slot names is); null when it can fire. */
     why: str(s.why),
   };
 }
@@ -176,7 +177,7 @@ export function settingsOf(cs) {
     supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
     /* The gold the store never spends below (hunt_settings.gold_floor; null until hr_hunt_settings_view projects it). */
     goldFloor: int(s.gold_floor),
-    /* The gathering share (INERT until gathering lands). Density is no setting: huntDensityOf, per ground. */
+    /* The gathering share (INERT until gathering lands). How hard a hunt is, is no setting: huntTierOf, per ground. */
     gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
     stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 4), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),
     grounds: list(s.grounds, (g) => str(g), 32),
@@ -185,11 +186,12 @@ export function settingsOf(cs) {
     storedBar: Array.isArray(s.bar) ? s.bar.slice(0, 20).filter(isObj) : [],
     /* THE STORE the slots may buy from, as the SERVER prices it (hr_hunt_basic_supplies via
        hr_hunt_settings_view): every number the Configure action picker shows comes from here. */
-    store: list(s.store, storeRowOf, 64),
+    store: list(s.store, storeRowOf, STORE_ROWS_MAX),
   };
 }
 
-/* One store row: { id, kind, partner, amount (HP or mana a use; 0 for ammo), price (gold a use) }. */
+/* One store row: { id, kind, partner, amount (HP or mana a use; 0 for ammo), price (gold a use) }. The cap is a bound on a bad answer, well over the catalogue's rows (49 with the rune ladder): a row cut here would lose its price. */
+const STORE_ROWS_MAX = 256;
 function storeRowOf(b) {
   if (!isObj(b) || !str(b.id) || !['heal', 'mana', 'ammo'].includes(b.kind) || !(int(b.price) > 0)) return null;
   return { id: b.id, kind: b.kind, partner: str(b.partner), amount: b.kind === 'heal' ? int(b.heals) || 0 : b.kind === 'mana' ? int(b.mana) || 0 : 0, price: b.price };
@@ -274,7 +276,7 @@ function pricesOf(cs) {
   const shop = section(cs, 'shop');
   const bids = shop && isObj(shop.bids) ? shop.bids : {};
   const set = section(cs, 'hunt_settings');
-  const store = new Map(set ? list(set.store, storeRowOf, 64).map((b) => [b.id, b.price]) : []);
+  const store = new Map(set ? list(set.store, storeRowOf, STORE_ROWS_MAX).map((b) => [b.id, b.price]) : []);
   return { bid: (id) => int(bids[id]), store: (id) => (store.has(id) ? store.get(id) : null) };
 }
 
@@ -337,23 +339,26 @@ export function huntBestsOf(cs) {
 }
 
 /**
- * A DENSITY MAP as the server projects it ({ [hunt]: pick }, a whole number of monsters per pull, 0 = as
- * built), or null when it is not one. This hero's `hunt_density` and the party's `leader_densities`.
+ * A TIER MAP as the server projects it ({ [hunt]: tier id }, no key = Normal), or null when it is not one.
+ * This hero's `hunt_tier` picks and the party's `leader_tiers`.
  */
-export function densityMapOf(v) {
+export function tierMapOf(v) {
   if (!isObj(v)) return null;
   const out = {};
-  for (const [hunt, n] of Object.entries(v).slice(0, 256)) if (str(hunt) && int(n) !== null && n >= 0) out[hunt] = n;
+  for (const [hunt, t] of Object.entries(v).slice(0, 256)) if (str(hunt) && TIER_IDS.includes(t)) out[hunt] = t;
   return out;
 }
 
 /**
- * `hunt_density` (hr_hunt_density_view, 2026-11-17-hunt-density-home.sql): THIS hero's density pick on
- * each ground (rulings H4: chosen with the hunt, remembered per ground). A ground with no key is 0 (as
- * built); null = the server sent no section, and the picker shows no number.
+ * `hunt_tier` (hr_hunt_tier_view, hunt-tiers.js): THIS hero's tier picked on each ground (chosen with the hunt,
+ * remembered per ground) and the tier its running hunt froze. { picks, playing }; null = the server sent no section,
+ * and the picker shows no choice.
  */
-export function huntDensityOf(cs) {
-  return densityMapOf(section(cs, 'hunt_density'));
+export function huntTierOf(cs) {
+  const s = section(cs, 'hunt_tier');
+  if (!isObj(s)) return null;
+  const picks = tierMapOf(s.picks);
+  return picks ? { picks, playing: TIER_IDS.includes(s.playing) ? s.playing : null } : null;
 }
 
 /* THE PARTY'S VIEW. The server's figure sums its members' sessions, and every hero present is credited every kill

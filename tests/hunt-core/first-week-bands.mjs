@@ -17,8 +17,9 @@
 //   above-your-level-words  THE WORDS ON A GROUND ABOVE YOUR LEVEL ARE TRUE (panel 2026-11-01: "expect losses" sat on the best XP on the list):
 //                  hunt-list.js ABOVE_LEVEL_WORDS claims more XP, harder hits, and that weak armor can spend more on food than it earns or
 //                  die. Each claim is played here against the ground that fits: a balance change that makes one false turns this red.
-//   bigger-pulls-words  the Hunts window's "Bigger pulls pay more once your heroes can hold them", played: a Level 18 hero in Wickstead at 8 each
+//   bigger-pulls-words  a harder hunt's words and the coach's "How hard can you hunt?" (more monsters pay more once your heroes can hold them), played: a Level 18 hero in Wickstead at 8 each
 //                  against as built, and a fresh one who cannot hold them (it dips, and its food bill eats the gain).
+//   cape-cut       a Houndskin Cloak and a food's buff, played: each reaches the fight and moves damage taken as far as dice allow, the same swings viewed or with the browser closed
 //   risk-ladder    THE RISK IS THE MONSTERS (Tyler 2026-11-04): in range is safe; on a harder ground a hero earns well over the ground that fits and its supply bill follows, an unready hero dies and
 //                  a built one holds, with no rule behind any of it (hunt-core/damage.mjs same-blow-at-any-level); a watched hunt and a closed browser die alike; a Level 1 behind high friends earns
 //                  next to nothing, and a party that pushes together is paid in full.
@@ -143,9 +144,9 @@ cases['risk-ladder'] = (R) => {
   if (!(avg.storePerH > 1000 && avg.storePerH > fits.storePerH * 3)) return 'the push bills ' + avg.storePerH + ' g/h on the store against ' + fits.storePerH + ' on the ground that fits: harder monsters cost supplies, or nothing is at stake';
   if (!(avg.profitPerH < fits.profitPerH * 0.5)) return 'the push nets ' + avg.profitPerH + ' g/h against ' + fits.profitPerH + ': the waste hunt loses gold';
   /* THE BUILD DECIDES: fifteen Levels under, the practice set dies; ten under, a built hero holds, and eats far more of its own food than on the ground that fits. */
-  /* "Dies" (re-derived 2026-11-05 from the rule, with the fixture on the server's map): at least once an hour on the mean of four dice. The old "3 in one seed's hour" was a number read off the fixture's old map; here eight seeds read 2 2 2 6 4 6 0 6, so one seed is a coin. */
-  const [poor] = play('mosslight_glade', ['tank'], 1, { gear: STARTER }, { seeds: 4 }), [built] = play('mosslight_glade', ['tank'], 6, BUILT), [builtFits] = play('meadowbrook_thicket', ['tank'], 6, BUILT);
-  if (!(poor.deaths >= poor.hours)) return 'fifteen Levels under the Glade the practice set died ' + poor.deaths + ' time(s) in ' + poor.hours + ' h (typical ' + poor.encMinHpPct.p50 + '%)';
+  /* "Dies" (re-derived 2026-11-05 from the rule, with the fixture on the server's map): at least twice an hour on the mean of eight dice. The old "3 in one seed's hour" was a number read off the fixture's old map; here one seed reads anywhere from 0 to 6, so one seed is a coin. These eight read 3.0 an hour, twelve 2.5, eight others 3.5. */
+  const [poor] = play('mosslight_glade', ['tank'], 1, { gear: STARTER }, { seeds: 8 }), [built] = play('mosslight_glade', ['tank'], 6, BUILT), [builtFits] = play('meadowbrook_thicket', ['tank'], 6, BUILT);
+  if (!(poor.deaths >= 2 * poor.hours)) return 'fifteen Levels under the Glade the practice set died ' + poor.deaths + ' time(s) in ' + poor.hours + ' h (typical ' + poor.encMinHpPct.p50 + '%)';
   if (built.deaths) return 'ten Levels under the Glade a built hero died ' + built.deaths + ' time(s): the build no longer changes the outcome';
   if (!(built.eatsPerH.own >= 20 && built.eatsPerH.own > builtFits.eatsPerH.own * 3)) return 'a built hero ate ' + built.eatsPerH.own + ' of its own meals an hour above its level, ' + builtFits.eatsPerH.own + ' on the ground that fits';
   /* ARMOR READS WHO STRUCK, ON THE DEFAULT FOOD (2026-11-04; the hero who never touched its bar): three pieces of bronze pay at the Glade's floor and lose gold ten Levels under it; a curve on the hero's own Level paid there. BOTH PATHS. */
@@ -176,6 +177,23 @@ cases['risk-ladder'] = (R) => {
    stays under 5.5. Cloth is over the band on its second rung and stays: its flat ward is worth more against bigger blows, and that step lands it level with leather on its own ground (board 2026-11-05). */
 const RUNG_BAR = Object.freeze({ plate: [3, 5.5], leather: [3, 5.5], cloth: [3, 9.5] });
 const STANDS_STILL = Object.freeze(['cloth:1:boots', 'cloth:1:gloves', 'cloth:1:belt']);
+cases['cape-cut'] = (R) => {
+  const play = (o) => R.runCell({ id: 'cape:' + JSON.stringify(o), ground: 'coppercap_warrens', party: ['tank'], level: 40, hours: 1, seeds: 4, windowMs: 120000, ...o }).heroes[0];
+  const CAPED = { gear: { also: { cape: 'houndskin_cloak' } } };
+  const bare = play({}), caped = play(CAPED);
+  const cut = 1 - caped.takenPerH / bare.takenPerH;
+  if (!(cut > 0.04 && cut < 0.1)) return 'a Houndskin Cloak moved damage taken by ' + (cut * 100).toFixed(1) + '% at the Warrens, not its 7%';
+  const viewed = play({ ...CAPED, seeds: 1, windowMs: 10000 }), closed = play({ ...CAPED, seeds: 1, windowMs: 600000 });
+  for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (viewed[k] !== closed[k]) return 'caped, ' + k + ': viewed ' + viewed[k] + ', browser closed ' + closed[k];
+  /* A FOOD'S CUT REACHES THE FIGHT, the same hook. An hour's dice hide 3-5% (a hero with a cut draws differently, four seeds read -0.3% for a 5% buff), so reach is a buff they cannot hide, on a hero in no armor (in plate a 40% buff meets the 60% cap); the exact mean is temper.mjs's. Both paths on a real size. */
+  const buffed = (magnitude) => ({ buffs: [{ type: 'defense', magnitude, until: new Date(Date.UTC(2026, 9, 18, 13, 0, 0)).toISOString() }] });
+  const NAKED = { gear: { noArmour: true } };
+  const fedCut = 1 - play({ ...NAKED, ...buffed(40) }).takenPerH / play(NAKED).takenPerH;
+  if (!(fedCut > 0.25 && fedCut < 0.55)) return 'a 40% food moved damage taken by ' + (fedCut * 100).toFixed(1) + '% at the Warrens';
+  const fedViewed = play({ ...buffed(5), seeds: 1, windowMs: 10000 }), fedClosed = play({ ...buffed(5), seeds: 1, windowMs: 600000 });
+  for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (fedViewed[k] !== fedClosed[k]) return 'fed, ' + k + ': viewed ' + fedViewed[k] + ', browser closed ' + fedClosed[k];
+  return null;
+};
 cases['armor-rungs'] = (R) => {
   const rows = R.armorRungs();
   if (rows.length !== 15) return 'the rungs read ' + rows.length + ' rows, not 15';
@@ -268,7 +286,7 @@ const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
     edits: [['src/core/combat.js', 'const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;', 'const base = b.monsterBaseAccuracy;'], ...GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2')])] },
   { name: 'armor reads the hero\'s Level again: a push on the default food pays for itself', case: 'risk-ladder',
-    edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? monsterLevelOf(MONSTERS[source.kind]) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
+    edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
   { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/items.js', "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},", "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},"]] },
   { name: 'leather is thin as cloth: its rungs stop being worth finding', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "{ key: 'leather', vmul: 0.70, defMul: 0.55,", "{ key: 'leather', vmul: 0.70, defMul: 0.25,"]] },
   { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "def: [6, 12, 22, 34, 50, 68, 90], bars: 5,", "def: [6, 6, 22, 34, 50, 68, 90], bars: 5,"]] },
@@ -289,6 +307,13 @@ const mutants = [
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',
     edits: [['src/data/hunt-grounds.js', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;', 'const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = 1;']] },
+  { name: 'a cape reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', 'nat(eq && eq.steadyPm) + ', '']] },
+  { name: 'a food reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', " + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);", ";"]] },
+  { name: 'a cape guards again: damage taken falls by half', case: 'cape-cut', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 4,']] },
+  { name: 'the unready hero is safe: a hero in no armor takes 60% less from every blow', case: 'risk-ladder', expect: 'fifteen Levels under',
+    edits: [['src/core/mitigation.js', 'if (!dodgePm && !absorbPm && !ward) return NO_MITIGATION;', 'if (!dodgePm && !absorbPm && !ward) return Object.freeze({ dodgePm: 0, absorbPm: 600, ward: 0, keepPm: 0 });']] },
+  { name: 'the unready hero is nearly safe: a hero in no armor takes 25% less, still dying now and then', case: 'risk-ladder', expect: 'fifteen Levels under',
+    edits: [['src/core/mitigation.js', 'if (!dodgePm && !absorbPm && !ward) return NO_MITIGATION;', 'if (!dodgePm && !absorbPm && !ward) return Object.freeze({ dodgePm: 0, absorbPm: 250, ward: 0, keepPm: 0 });']] },
   { name: 'the Glade\'s crows and vines bite no harder than Wickstead\'s rats, so a push costs nothing', case: 'risk-ladder',
     edits: GLADE_SOFT },
   { name: 'the Glade\'s crows and vines bite no harder than Wickstead\'s rats, and the words still say stronger', case: 'above-your-level-words',
@@ -331,6 +356,7 @@ for (const mu of PICKED) {
     const home = PLAY;
     try { PLAY = await loadPlay(p.root); why = cases[mu.case](await loadCellRunner(p.root)); } catch (e) { why = 'threw ' + e.message; } finally { PLAY = home; }
     R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    if (why && mu.expect) R.ok(why.startsWith(mu.expect), 'mutant "' + mu.name + '" was caught by the wrong line: ' + why.slice(0, 160));
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
   } finally { p.done(); }
 }

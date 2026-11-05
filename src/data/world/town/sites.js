@@ -58,6 +58,9 @@ export const SCENERY = Object.freeze([
   /* the cook yard's stores, the training yard's rack, the farm's crates */
   ['sack_pile', 74, 31], ['barrel_planter', 58, 31], ['weapon_rack', 78, 63], ['turnip_crate', 19, 82],
   ['well', 99, 40], ['signpost', 9, 47],
+  /* THE TOWN WORKS (src/data/town-works.js): the Weighhouse's lot on the east bank, here at stage 0 and blocking from stage 0, so a stage never moves
+     what a hero can walk; src/world/town-works.js draws the stage's art in its place, every stage in this frame. Its plaque stands on the high street. */
+  ['havora_weighhouse_staked', 94, 55], ['havora_weighhouse_plaque', 103, 53],
   /* THE EAST QUAY (lane/a-havora-dock 2026-10-26): the estates' yard between P14 and P15, a lane of beaten earth from
      the road down to the end of P13's dock, cargo where the dock meets the lane */
   ['crates', 133, 82], ['barrels', 133, 83], ['sack_stack', 138, 74], ['cart_wheel', 139, 74], ['barrels', 157, 79], ['crates', 157, 74],

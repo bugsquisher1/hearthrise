@@ -19,7 +19,7 @@
 //   TS-TOWN    replacing ONLY hr_town_extras / hr_town_shows_of reaches the town read as `extras` / `shows`; the read keeps what it had
 //   TS-AGAIN   a second apply of all five files is byte-identical and never overwrites a body a later lane put in a stub
 //   TS-CLIENT  the walker keeps a title and colors and refuses junk; the plate reads "Marlow the Wolfer · 18"; a chat line carries the
-//              title and draws it; the Works stubs stay hidden
+//              title and draws it
 //   TS-XP      a bought powder pays zero Inner Flame XP by any path: no xp key in the verb, no item to burn, no recipe, no named row
 //   TS-NAMED   a named fuel never waits behind a bought powder; it answers first in the square; the paused powder still burns every second it paid for
 //   TS-CLIMB   two heroes on one account share one ladder, in order, each paying the next price; the lock order is hero, sink key, the count, the charge, the town's key
@@ -34,7 +34,7 @@
 //   TS-NO-METER THE STANDING GUARD: nothing but the named functions reads town_shows or the purchase journal: gold into the Hearthrise meter is a paid XP buff (avoid list)
 //   TS-EDGE    bought flames stay out of src/data/hearth.js, and src/data/gold-sinks.js is in no edge bundle, so this lane moves no edge hash
 //   TS-WORDS   every refusal says why in the designer's sentence, with the server's numbers
-//   TS-WINDOW  the Havora window's buttons read the server's quote; its tabs hide Works; the Tavern opens its Round tab; a bought flame swaps the fire's art and a round bursts;
+//   TS-WINDOW  the Havora window's buttons read the server's quote; its tabs name Works; the Tavern opens its Round tab; a bought flame swaps the fire's art and a round bursts;
 //              the Hearth tab says what a powder does, and the day's line and the answer stand in the window's foot (tests/chat-social.mjs CW-HAVORA measures the foot in a browser)
 //   TS-SHOW    a round is a show for its whole length: shells climb from the square and burst high over it, in many places, never dark for long, never crowding the square;
 //              each shell is large, mostly air and no mirrored stamp, and every shell steps on one tick so a show can't repaint the town every frame
@@ -65,7 +65,7 @@ const FLAME = 'public.hr_hearth_flame_of(text)';
 const PUSH = 'public.hr_town_show_push(text,timestamp with time zone,timestamp with time zone)';
 const ADD = 'public.hr_gold_given_add(uuid,integer,bigint)';
 /* in chain order: 2027-02-28-sink-price-plan.sql restates the seams' hr_sink_price */
-const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-02-28-sink-price-plan.sql'];
+const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-02-28-sink-price-plan.sql', '2027-03-07-gold-sinks-catalogue.generated.sql'];
 
 /* ── THE PLANTED DEFECTS ─────────────────────────────────────────────────────
    db: a live body edited inside the arm's transaction (fn, find, replace). ddl: a statement in it. sql: an edit of a migration's TEXT the
@@ -77,7 +77,7 @@ export const MUTANTS = {
     db: [PRICE, 'r.price_base + r.price_per_level * greatest(coalesce(p_level, 1), 1)', 'r.price_base + r.price_per_level'] },
   helper_open_to_clients: { arm: 'TS-PRICE', why: 'a client role can call a helper', ddl: `grant execute on function public.hr_title_of(uuid, integer) to authenticated` },
   rules_drift: { arm: 'TS-RULES', why: 'the table no longer says what the data file says', ddl: `update public.hr_sink_rules set prices = array[1, 2, 3]::bigint[] where sink_id = 'round'` },
-  setups_past_limit: { arm: 'TS-RULES', why: 'free + prices is more than a hero can hold', ddl: `update public.hr_sink_rules set free = 3 where sink_id = 'setup_slot'` },
+  setups_past_limit: { arm: 'TS-RULES', why: 'free + prices is more than a hero can hold', ddl: `update public.hr_sink_rules set free = 4 where sink_id = 'setup_slot'` },
   title_not_stamped: { arm: 'TS-TITLE', why: 'the trigger stops stamping the title',
     db: [NAME_TRIGGER, "  new.from_title := case when new.from_id is null then null\n                         else left(public.hr_title_of(new.from_id, coalesce(new.from_slot, 0)), 40) end;\n", ''] },
   title_from_client: { arm: 'TS-TITLE', why: 'a forged title survives the insert',
@@ -102,8 +102,6 @@ export const MUTANTS = {
     js: ['src/social/chat-lines.js', [["    title: !whisper && typeof row.from_title === 'string' && TITLE.test(row.from_title) ? row.from_title : null,", '    title: null,']]] },
   extras_merged: { arm: 'TS-CLIENT', why: 'an answer with no extras keeps the last ones',
     js: ['src/session/town-presence.js', [["    this._extras = b.extras && typeof b.extras === 'object' && !Array.isArray(b.extras) ? b.extras : null;", "    this._extras = b.extras && typeof b.extras === 'object' && !Array.isArray(b.extras) ? b.extras : this._extras;"]]] },
-  works_shown: { arm: 'TS-CLIENT', why: 'the Works tab shows before its lane lands',
-    js: ['src/shell/windows/havora/works.js', [["shown: false", 'shown: true']]] },
   /* A BOUGHT POWDER PAYS NO XP */
   powder_pays_xp: { arm: 'TS-XP', why: 'a powder pays Inner Flame XP',
     db: [SHOW, "             'gold', -v_price,\n", "             'gold', -v_price, 'xp', jsonb_build_object('inner_flame', 500),\n"] },
@@ -264,7 +262,7 @@ const ARMS = {
     const seen = [];
     for (let n = 0; n <= 5; n++) seen.push(await price('powder', n));
     if (seen.map((v) => (v === null ? 'null' : Number(v))).join() !== '2000,4000,6000,8000,10000,null') out.push(`the powder ladder reads ${seen}`);
-    if (Number(await price('setup_slot', 0)) !== 5000 || Number(await price('setup_slot', 2)) !== 40000 || (await price('setup_slot', 3)) !== null) out.push('the setup ladder reads wrong');
+    if (Number(await price('setup_slot', 0)) !== 15000 || Number(await price('setup_slot', 1)) !== 40000 || (await price('setup_slot', 2)) !== null) out.push('the setup ladder reads wrong');
     if (Number(await price('hero_colors', 0, 18)) !== 2400 || Number(await price('hero_colors', 0, 45)) !== 3750) out.push(`a Level price reads ${await price('hero_colors', 0, 18)} at 18`);
     if ((await price('no_such_sink', 0)) !== null) out.push('an unknown sink has a price');
     for (const fn of [PRICE, 'public.hr_sink_lock(uuid)', 'public.hr_title_of(uuid,integer)', 'public.hr_town_extras(text)', 'public.hr_town_shows_of(text)', CHAT_ROW, LOOK]) {
@@ -331,7 +329,8 @@ const ARMS = {
     await hero(db, B, 0, 'Tamsel');
     const before = await strangerSees(db, A, B);
     if (!before.read || before.read.ok !== true) return ['the town read answered ' + JSON.stringify(before.read)];
-    if (JSON.stringify(before.read.extras) !== '{}' || before.read.shows !== null) out.push(`the stubs read extras ${JSON.stringify(before.read.extras)}, shows ${JSON.stringify(before.read.shows)}`);
+    /* hr_town_extras' body is the Town Works' now (tests/town-works.mjs); nothing is burning, so the shows read null */
+    if (!before.read.extras || !before.read.extras.works || before.read.shows !== null) out.push(`the town read holds extras ${JSON.stringify(before.read.extras)}, shows ${JSON.stringify(before.read.shows)}`);
     for (const k of ['map', 'inst', 'cap', 'full', 'cursor', 'area', 'walkers', 'gone', 'me', 'hearth']) if (!(k in before.read)) out.push(`the town read lost ${k}`);
     await db.exec(`create or replace function public.hr_town_extras(p_map text) returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
       select jsonb_build_object('works', jsonb_build_object('map', p_map, 'stage', 2)) $fn$`);
@@ -751,15 +750,14 @@ const ARMS = {
     if (X.HW.throwWords('cinnabar', 2000) !== 'Throw Cinnabar: 2,000 gp') out.push('the powder\'s button reads ' + X.HW.throwWords('cinnabar', 2000));
     if (X.HW.roundWords(5000) !== 'Stand a round: 5,000 gp') out.push('the round\'s button reads ' + X.HW.roundWords(5000));
     const html = X.HW.renderHavora({});
-    if (/data-tab="works"|data-pane="works"/.test(html)) out.push('the window shows Works before its lane lands');
-    for (const id of ['hearth', 'round']) if (!html.includes('data-tab="' + id + '"')) out.push('the window has no ' + id + ' tab');
+    for (const id of ['hearth', 'round', 'works']) if (!html.includes('data-tab="' + id + '"')) out.push('the window has no ' + id + ' tab');
     /* ONLY THE FLAME CHANGES COLOR, so the Hearth tab says so, with the rules row's own seconds */
     const lead = (/data-pane="hearth"><p class="hv-lead">([^<]*)</.exec(html) || [])[1] || '';
     if (/fills|square/i.test(lead)) out.push('the Hearth tab promises the square a color: ' + lead);
     if (!lead.includes('burns that color for ' + X.GS.SINK_RULES.powder.seconds + ' seconds') || !lead.includes('everyone in Havora sees who threw it')) out.push('the Hearth tab reads: ' + lead);
     /* THE DAY'S LINE AND THE ANSWER STAND IN THE FOOT, one line per tab: a short window scrolls the pane under them */
     const foot = (/<div class="hv-foot">(.*)<\/div><\/div>$/.exec(html) || [])[1] || '';
-    for (const id of ['hearth', 'round']) if (!foot.includes('hv-count" data-of="' + id + '"')) out.push('the foot has no line for ' + id + ': ' + foot);
+    for (const id of ['hearth', 'round', 'works']) if (!foot.includes('hv-count" data-of="' + id + '"')) out.push('the foot has no line for ' + id + ': ' + foot);
     if (!foot.includes('hh-intent-msg')) out.push('the answer to a press is not in the foot: ' + foot);
     /* THE SERVER'S ANSWER, read field by field */
     await hero(db, A, 0, 'Marlow');
@@ -892,8 +890,6 @@ const ARMS = {
     if (tp.extras() !== null) out.push('an answer with no extras kept the last ones');
     tp.destroy();
 
-    if (X.WK.WORKS_TAB.shown !== false || X.WK.worksHtml() !== '' || X.WK.patchWorks({}, {}) !== undefined || X.WK.actWorks({}, {}, 'tab', {}, {}) !== false) out.push('the Works tab is not hidden');
-    if (X.TW.townWorksSwap({}, { works: { stage: 4 } }) !== null) out.push('the map draws Works before its lane lands');
     return out;
   },
 };
@@ -933,8 +929,6 @@ async function loadReaders(root) {
     TP: await import(u('src/session/town-presence.js')),
     TS: await import(u('src/world/town-scene.js')),
     CL: await import(u('src/social/chat-lines.js')),
-    WK: await import(u('src/shell/windows/havora/works.js')),
-    TW: await import(u('src/world/town-works.js')),
   };
 }
 

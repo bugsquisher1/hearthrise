@@ -34,16 +34,17 @@
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.93';
-import { memberSide, frozenSide } from '../core/member.js?v=0.2.93';
-import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.93';
-import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.93';
-import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.93';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.93';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.93';
-import { stepCost } from '../core/hunt/grid.js?v=0.2.93';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.93';
-import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.93';
+import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.96';
+import { memberSide, frozenSide } from '../core/member.js?v=0.2.96';
+import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.96';
+import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.96';
+import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.96';
+import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.96';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.96';
+import { stepCost } from '../core/hunt/grid.js?v=0.2.96';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.96';
+import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.96';
+import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js?v=0.2.96';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -137,12 +138,31 @@ export function tankTurnsOf(world) {
  * monster of `world` is on it, so its Challenge has nothing to take (the engine's own challengeable, the
  * reach the auto-cast and the bar slot share). False with nothing engaged, or for a hero that is no tank.
  */
-function holdsPackOf(world, unit) {
+export function holdsPackOf(world, unit) {
   const inst = { world };
   const u = world && Array.isArray(world.units) ? world.units.find((x) => x.id === unit) : null;
   if (!u || !u.alive || !roleOf(u) || !roleOf(u).tank) return false;
   const on = engaged(inst);
   return on.length > 0 && on.every((m) => m.target === unit) && challengeable(inst, u).length === 0;
+}
+
+/**
+ * THE ENGINE'S OWN TEST OF A BAR SLOT (display only; SAY WHY, Tyler 2026-10-25: a slot that isn't firing says which of its
+ * conditions holds it back). For `member`'s hero in `world`, a function slot -> { pass, mask, ignored }: conditions.js testSlot,
+ * the one test the settle walks, so the words can't disagree with the fight. It writes nothing to the world, so asking can never
+ * move the prediction's hash. Null while the hero is down or no monster is engaged: between pulls every attack waits, and that
+ * is not this slot's doing.
+ */
+export function slotTesterOf(world, grid, member, items) {
+  const u = world && Array.isArray(world.units) ? world.units.find((x) => x.id === member.unitId) : null;
+  const inst = { world, grid };
+  if (!u || !u.alive || !engaged(inst).length) return null;
+  const h = { hs: member.hs, range: member.hero.range, ammo: member.hero.ammo, items };
+  const target = world.units.find((x) => x.id === u.target) || null;
+  return (slot) => {
+    const t = testSlot(inst, u, h, slot);
+    return { pass: t.pass, mask: t.mask, ignored: aimsAtMonsters(slot) && ignores(slot, target) };
+  };
 }
 
 /**
@@ -332,6 +352,11 @@ export function createLiveEngine(o) {
     tankTurns: () => (st && st.world && !st.ended ? tankTurnsOf(st.world) : null),
     /** Does tank `unit` hold every engaged monster in the world this prediction runs (holdsPackOf)? False when none runs. */
     holdsPack: (unit) => !!st && !!st.world && !st.ended && holdsPackOf(st.world, unit),
+    /** The engine's test of a bar slot for hero `unit`, in the world this prediction runs (slotTesterOf). Null when none runs. */
+    slotTester(unit) {
+      const side = st && st.world && !st.ended ? st.sides.find((x) => x.member.unitId === unit) : null;
+      return side ? slotTesterOf(st.world, st.where.grid, side.member, items) : null;
+    },
     /** The server instant of the next swing boundary (null when not running). */
     nextAt: () => (st ? st.next : null),
     /**

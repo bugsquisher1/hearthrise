@@ -129,7 +129,7 @@ export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', '
      capPm                  THE TOTAL CAP: dodge, absorb and ward together never take more than
                             this permille of the damage coming at you
    The to-hit roll before the chain reads the Defense skill and the defence of gear outside the
-   armour weights (a shield, a cape): combat.js equipmentStats guardB. */
+   armour weights (a shield): combat.js equipmentStats guardB. */
 export const ARMOUR_MITIGATION = Object.freeze({
   dodge: Object.freeze({ maxPm: 650, k: 0.4 }),
   absorb: Object.freeze({ maxPm: 750, k: 0.62 }),

@@ -121,11 +121,13 @@ function dist(m, a, b, closed) {
   return null;
 }
 
-/* The head-count of a walked hunt's packs (density 4 where it has the slider), bosses out. */
+/* A pocket's rows at a pull: a box's (pullRows), or a pocket with no pack as built. */
+const packAt = (M, g, i, n) => (g.pockets[i].pack ? M.grounds.pullRows(g, i, n) : g.pockets[i].spawns.slice());
+/* The head-count of a walked hunt's packs (a pull of 4 where it has a box), bosses out. */
 function headCount(M, g) {
   const n = {};
   g.pockets.forEach((p, i) => {
-    for (const s of M.grounds.packAt(g, i, g.density ? MID_DENSITY : 99)) n[s.monster] = (n[s.monster] || 0) + 1;
+    for (const s of packAt(M, g, i, MID_DENSITY)) n[s.monster] = (n[s.monster] || 0) + 1;
   });
   return n;
 }
@@ -138,7 +140,7 @@ const cases = {
       const m = maskOf(M, g.map);
       if (!m) return id + ': no world map';
       for (const [i, p] of g.pockets.entries()) {
-        for (const s of M.grounds.packAt(g, i, 8)) {
+        for (const s of packAt(M, g, i, 8)) {
           if (!m.open(s.x, s.y)) return id + ' pocket ' + i + ': ' + s.monster + ' at ' + s.x + ',' + s.y + ' is not open floor';
           if (!m.row.spawns.some(([x, y]) => x === s.x && y === s.y)) return id + ' pocket ' + i + ': pack tile ' + s.x + ',' + s.y + ' is missing from the map spawns';
         }
@@ -202,13 +204,9 @@ const cases = {
   'density-full-box': (M) => {
     for (const id of NEW) {
       const g = M.grounds.HUNT_GROUNDS[id];
-      if (!g.density || g.density.max < 8) return id + ': the density slider tops out below the full box of 8';
-      const caps = [1, 2, 3, 4].slice(0, g.start.length).map((n) => M.grounds.densityCapFor(g, n));
-      if (caps.some((c, i) => i && c < caps[i - 1])) return id + ': a bigger party gets a lower cap ' + caps.join(',');
-      if (caps[caps.length - 1] !== 8) return id + ': a full party cannot pull the full box (caps ' + caps.join(',') + ')';
       for (const [i] of g.pockets.entries()) {
-        if (M.grounds.packAt(g, i, 8).length !== 8) return id + ' pocket ' + i + ': no full box';
-        if (M.grounds.packAt(g, i, 1).length !== 1) return id + ' pocket ' + i + ': density 1 is not a single foe';
+        if (packAt(M, g, i, 8).length !== 8) return id + ' pocket ' + i + ': no full box';
+        if (packAt(M, g, i, 1).length !== 1) return id + ' pocket ' + i + ': a pull of 1 is not a single foe';
       }
     }
     return M.grounds.validate().length ? 'hunt-grounds: ' + M.grounds.validate().join('; ') : null;
@@ -303,7 +301,7 @@ const cases = {
     for (const id of NEW) {
       if (M.hunts.HUNT_INDEX[id].staged === true) continue;   // staged: no art yet, held by staged-until-art
       const g = M.grounds.HUNT_GROUNDS[id];
-      const kinds = new Set(g.pockets.flatMap((p, i) => M.grounds.packAt(g, i, 8).map((s) => s.monster)));
+      const kinds = new Set(g.pockets.flatMap((p, i) => packAt(M, g, i, 8).map((s) => s.monster)));
       for (const k of kinds) {
         const s = spr[k];
         if (!s) return id + ': ' + k + ' has no sprite in a loaded atlas';
@@ -609,7 +607,7 @@ const mutants = [
     edits: [['src/data/world/maps/coppercap_warrens.js', "'#######...#####################################~~~~=~~~~~~##',\n    '#######...#####################################~~~~=~~~~~~##',\n    '#######...#####################################~~~~=~~~~~~##',",
       "'#######...#####################################~~~==~~~~~~##',\n    '#######...#####################################~~~==~~~~~~##',\n    '#######...#####################################~~~==~~~~~~##',"]] },
   { name: 'the full box cut to six', case: 'density-full-box',
-    edits: [['src/data/hunt-grounds.js', 'density: density(4, 2, 8),', 'density: density(4, 2, 6),']] },
+    edits: [['src/data/hunt-grounds.js', 'export const FULL_BOX = 8;', 'export const FULL_BOX = 6;']] },
   { name: 'a weight that lies about the packs', case: 'spawn-mix',
     edits: [['src/data/hunts.js', "{ monster: 'gray_wolf', w: 10, rarity: 'common' }", "{ monster: 'gray_wolf', w: 5, rarity: 'common' }"]] },
   { name: 'a rare spawn as common as the commons', case: 'spawn-mix',

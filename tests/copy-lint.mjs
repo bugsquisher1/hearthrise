@@ -129,7 +129,7 @@ export function stringLiterals(src) {
 /* Plural item names: the LAST word of a catalogue name is a plural-only noun. */
 const PLURAL_HEADS = new Set(['Gloves', 'Boots', 'Studs', 'Gauntlets', 'Greaves', 'Chaps', 'Vambraces',
   'Slippers', 'Arrows', 'Platelegs', 'Earrings', 'Irons', 'Bones', 'Drops', 'Shears', 'Tongs', 'Leggings',
-  'Bracers', 'Runes', 'Seeds', 'Chips', 'Trousers', 'Sabatons']);
+  'Bracers', 'Runes', 'Seeds', 'Chips', 'Trousers', 'Sabatons', 'Salts']);
 export function isPluralName(name) {
   const last = String(name || '').trim().split(/\s+/).pop();
   return PLURAL_HEADS.has(last);

@@ -15,28 +15,29 @@
 //             (action-table.js tableOf); the picked row gold and pinned at the top
 //   detail    the hovered or focused row against the pick (signed differences, the
 //             waste at the slot's own threshold), where its uses come from, food's rule;
-//             a rune spell's choice: carried runes only, or the store rune at its price
+//             a rune spell's choice: carried runes only, or any store rune of its family, each at its price, mana and power
 //   foot      the status line (pending, the server's refusal in words), Empty slot,
 //             Cancel, Save
 // Nothing applies until Save; Save, Empty slot and a move each send ONE intent
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.93';
-import { STATUSES } from '../../data/statuses.js?v=0.2.93';
-import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.93';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.93';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.93';
-import { carriedOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.93';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.93';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.93';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.93';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.93';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, reasonOf } from '../action-facts.js?v=0.2.93';
-import { glyphSvg } from '../launcher.js?v=0.2.93';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.93';
-import { carryRows, carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.93';
-import { whole } from '../../render/format.js?v=0.2.93';
+import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.96';
+import { STATUSES } from '../../data/statuses.js?v=0.2.96';
+import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.96';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.96';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.96';
+import { carriedOf, skillsOf } from '../../session/item-sections.js?v=0.2.96';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.96';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.96';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.96';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.96';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning } from '../action-facts.js?v=0.2.96';
+import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.96';
+import { glyphSvg } from '../launcher.js?v=0.2.96';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.96';
+import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.96';
+import { whole } from '../../render/format.js?v=0.2.96';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -179,15 +180,14 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const bag = carriedOf(cs);
   const v = viewOf(cs);
   const tab = v.tab || (d.action.id ? tabOf(d.action) : LAST_TAB.get(cs) || 'spells');
-  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: skillsOf(cs) });
+  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: skillsOf(cs), picked: d.action });
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
   text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));
   /* Why this slot's action will not fire, as the bar's tooltip says it: a phone has no hover and a press on a slot opens
      this window, so the words are here, first (shown on a phone only, hunt.css). */
   const saved = set.slots[s.open];
-  const hunt = huntOf(cs);
-  const fireWhy = saved && !saved.empty ? reasonOf(saved, set, bag, hunt && !hunt.ended ? hunt.hero : null, (equipmentOf(cs) || {}).ammo, skillsOf(cs), carryRows(cs)) : null;
+  const fireWhy = saved && !saved.empty ? slotWhy(saved, whyFacts(cs)) : null;
   text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');
   /* CARRY IN: the most of this action's supply the bag holds while the hunt runs (every tier of a rune spell's family). */
   const carry = d.action.id ? (carryFor(cs, d.action) || [])[0] || null : null;
@@ -213,7 +213,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   /* The heal warning: the hero's hunt (running, else the last one) at the party's size, the server's max HP. */
   const h = huntOf(cs), p = partyOf(cs);
   const blow = h && h.huntId ? biggestBlowOn(h.huntId, p ? p.members.length : 1) : null;
-  const warn = healWarning(d, set, blow, vitalsOf(cs).hpMax);
+  /* ...and what the slot's conditions will mean in a fight (slot-waits.js): a player setting it up reads it here, in town too. */
+  const warn = [healWarning(d, set, blow, vitalsOf(cs).hpMax), setupNote(d, p ? p.members.length : 1)].filter(Boolean).join(' ');
   text(root.querySelector('.ca-warn'), warn);
   /* On a phone the sentence's warning is one line with an ellipsis; the detail pane says it whole. */
   text(root.querySelector('.ca-d-warn'), warn);
@@ -252,8 +253,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-eff'), effectLine(shown));
   const f = shown ? factsOf(shown.action) : null;
   text(root.querySelector('.ca-req'), f && f.requires ? f.requires : '');
-  /* A rune spell's store choice: carried runes only, or its store rune at the server's price a cast. */
-  const runes = storeChoices(d.action, set.store);
+  /* A rune spell's store choice: carried runes only, or a store rune of its family at the server's price a cast. */
+  const runes = storeChoices(d.action, set.store, skillsOf(cs));
   cls(root.querySelector('.ca-runestore'), 'is-on', runes.length > 0);
   rows(root.querySelector('.ca-rs-list'), runes, {
     key: (c) => c.id || '-',

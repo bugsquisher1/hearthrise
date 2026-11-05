@@ -22,10 +22,10 @@
 //                   its progress are read off it on the shared curve (src/core/xp.js, the
 //                   curve hr_char_level uses), never counted in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.93';
-import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.93';
-import { TITLE_WORDS } from '../data/titles.js?v=0.2.93';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.93';
+import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.96';
+import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.96';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.96';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.96';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -47,7 +47,7 @@ function combatOf(c) {
     role: id(c.role), weaponType: id(c.weapon_type), moveSpeed: nat(c.move_speed),
     damage: nat(d.min) !== null && nat(d.max) !== null ? { min: d.min, max: d.max } : null,
     accuracyPct: num(c.accuracy_pct), critPct: num(c.crit_pct), defence: int(c.defence), regenPct: num(c.regen_pct),
-    dodgePct: num(c.dodge_pct), absorbPct: num(c.absorb_pct), ward: nat(c.ward),
+    dodgePct: num(c.dodge_pct), absorbPct: num(c.absorb_pct), ward: nat(c.ward), steadyPct: num(c.steady_pct),
     xp: { perks: num(x.perks), buffs: num(x.buffs), combat: num(x.combat) },
   };
 }

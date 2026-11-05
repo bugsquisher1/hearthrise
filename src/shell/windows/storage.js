@@ -27,23 +27,23 @@
 // Storage has room and sells every stack planned "Sell"; off with its reason (a
 // hunt, nothing planned), and its line is the server's answer.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bankOf, depotOf, shopOf } from '../../session/item-sections.js?v=0.2.93';
-import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.93';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.93';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.93';
-import { whole } from '../../render/format.js?v=0.2.93';
-import { glyphSvg } from '../launcher.js?v=0.2.93';
-import { itemName } from '../widgets/bits.js?v=0.2.93';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.93';
-import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.93';
-import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.93';
-import { runIntent } from '../intent-words.js?v=0.2.93';
-import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.93';
-import { showTip, hideTip } from './item-tip.js?v=0.2.93';
-import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.93';
-import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.93';
-import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.93';
-import { toolLossWords } from '../town-work.js?v=0.2.93';
+import { bagOf, bankOf, depotOf, shopOf } from '../../session/item-sections.js?v=0.2.96';
+import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.96';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.96';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.96';
+import { whole } from '../../render/format.js?v=0.2.96';
+import { glyphSvg } from '../launcher.js?v=0.2.96';
+import { itemName } from '../widgets/bits.js?v=0.2.96';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.96';
+import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.96';
+import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.96';
+import { runIntent } from '../intent-words.js?v=0.2.96';
+import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.96';
+import { showTip, hideTip } from './item-tip.js?v=0.2.96';
+import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.96';
+import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.96';
+import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.96';
+import { toolLossWords } from '../town-work.js?v=0.2.96';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };

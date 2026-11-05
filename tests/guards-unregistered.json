@@ -59,6 +59,16 @@
         "runner": "by hand: node tests/hero-colors-world.mjs --shots DIR"
       }
     },
+    "town-works-world.mjs": {
+      "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: a browser plays the real play.html on the replayed chain: a fresh account taps the plaque, gives, raises the Weighhouse through every stage in the real renderer and finds the plaque, the System lines and Gold Given. The rules are mutation-proven in CI by tests/town-works.mjs.",
+      "owner": "systems-engineer",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/town-works-world.mjs --shots DIR"
+      }
+    },
     "town-shows-race.mjs": {
       "reason": "NOT A CI STEP: GitHub has no PostgreSQL 17 binaries. Real backends pinned open by a gate: two heroes pressing together, the last booking on the Hearth, the Crier's 30 s, a named fuel against a powder. PGlite is one backend, so tests/town-shows.mjs proves the order and the rollback and this proves the race.",
       "owner": "backend-architect",

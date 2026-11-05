@@ -52,7 +52,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_buy_hero_slot: 'buy the next hero slot with one own hero\'s gold: the slot id, the paying hero and a key, never a price; the server prices, caps and debits (AccountSession.buySlot)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
-  hr_hunt_density_set: 'the hero’s monster-density pick on one hunt ground, a ground id and a whole number; the server bounds it by that ground and refuses a party member (CharacterSession.setHuntDensity; 2026-11-17-hunt-density-home.sql)',
+  hr_hunt_tier_set: 'the hero’s tier on one hunt ground, a ground id and a tier word; the server checks that ground offers it and refuses a party member (CharacterSession.setHuntTier; 2027-02-27-hunt-tiers.sql)',
   hr_action_set_copy:'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
@@ -117,6 +117,9 @@ export const CLIENT_RPCS = Object.freeze({
   /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql): a catalogue id, the price the player saw and a fresh key; the server re-quotes and charges. */
   hr_town_sinks_view: 'the Havora window\'s read of this account\'s quotes and last choices; a read, while the window is open (town-intents.js readSinks)',
   hr_town_show: 'a Hearth powder or a round by catalogue id, at the price the player saw, with a fresh key; never an amount, a color or a time (town-intents.js)',
+  /* The Town Works (2027-03-04-town-works.sql): the gift is the one number; the server refuses it under its own clock, before any charge. */
+  hr_town_works_view: 'the Works tab\'s read of the project, today\'s allowance, this account\'s place and the plaque; a read, while the tab is on show (town-intents.js readWorks)',
+  hr_town_works_give: 'a gift to a Town Works project: a catalogue id, the amount the player chose and a fresh key; never a total, a stage or a time (town-intents.js giveToWorks)',
   hr_crier_send: 'a paid line to Global, at the price the player saw, with a fresh key; the server names the sender and checks every word first (ChatStore.cry)',
   hr_tally_view: 'Tamsin\'s board for this hero: the tasks, what each pays and her pick now; a read (tally-intents.js tallyBoard)',
   hr_tally_accept: 'take a kill task by id at her board in town, with the armour weight the first time; no count, no price (tally-intents.js takeTask)',

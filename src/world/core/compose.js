@@ -33,11 +33,11 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.93';
-import { heroBuilding } from './roofs.js?v=0.2.93';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.93';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.93';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.93';
+import { ySort } from './zsort.js?v=0.2.96';
+import { heroBuilding } from './roofs.js?v=0.2.96';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.96';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.96';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.96';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -322,7 +322,7 @@ function standingOf(map, book, tables, T) {
  * @param {object} map       compileMap() output
  * @param {object} book      createBook()
  * @param {{hero: {x:number,y:number}|null, name?: string, roofAlpha?: object, t?: number,
- *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null}} state
+ *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null}} state
  *                           hero in tile coords (fractional while moving); t = ms clock for idle clips
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
  * @param {{materials: object}} tables
@@ -409,7 +409,9 @@ export function composeFrame(map, book, state, view, tables, T) {
   for (let i = 0, b = standing.boxes; i < map.objects.length; i++) {
     if (!near(b[4 * i], b[4 * i + 1], b[4 * i + 2], b[4 * i + 3])) continue;
     const o = map.objects[i];
-    place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+    /* state.objectSwap draws another sprite in a placed object's place ({ havora_weighhouse_staked: 'havora_weighhouse_framed' }: a Town Works stage, src/world/town-works.js).
+       The tiles it blocks are the object's own, and a sprite swapped in shares its frame and anchor (tests/town-works.mjs), so the box above still holds. */
+    place((state.objectSwap && state.objectSwap[o.id]) || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
   }
 
   const plates = [], bars = [], floats = [], bubbles = [], badges = [], effects = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));

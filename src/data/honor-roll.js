@@ -32,8 +32,8 @@
 //   leaves the game; and it counts only sinks with a daily cap, carries no prize and resets monthly. It ranks accounts, each shown as its lead hero.
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from './skills.js?v=0.2.93';
-import { SKILL_GUIDE } from './skill-guide.js?v=0.2.93';
+import { SKILLS_DEF } from './skills.js?v=0.2.96';
+import { SKILL_GUIDE } from './skill-guide.js?v=0.2.96';
 
 /* A skill board: its name from SKILLS_DEF, where it is trained from SKILL_GUIDE (one wording, the Skills window's). */
 const skill = (id, group) => Object.freeze({
@@ -68,7 +68,7 @@ export const HONOR_BOARDS = Object.freeze([
   Object.freeze({ id: 'gold_given', group: 'Town', label: 'Gold Given', reads: 'gold', glyph: 'uiCoinStack',
     why: 'Gold an account gave to Havora this UTC month. It starts again on the 1st.',
     empty: 'Nobody has given gold to Havora this month. The first gift takes first place.',
-    join: 'Throw a Hearth powder, stand a round or pay the Town Crier.' }),
+    join: 'Give to the Town Works, throw a Hearth powder, stand a round or pay the Town Crier.' }),
 ]);
 
 /** The row for a board id, or null. */

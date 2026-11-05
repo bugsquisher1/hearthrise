@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-11-03",
- "digest": "3f775ee9d50aad45ddd32da4e156c9085e07ab94df5e9d759df43504b5e03363",
+ "generated": "2026-11-05",
+ "digest": "40fb6004e3a5bf84b358d0f6d1c1a3e0cb05e1c3aaaa923c447ae2bd8b73bdcc",
  "counts": {
   "relations": 244,
-  "functions": 591,
+  "functions": 592,
   "policies": 115,
   "indexes": 345,
   "triggers": 62,
@@ -783,6 +783,7 @@
    "hr_tally_section(p_user uuid, p_slot integer)",
    "hr_tally_set(p_slot integer, p_task text, p_keep boolean, p_weight text, p_order text[], p_idem uuid)",
    "hr_tally_view(p_slot integer)",
+   "hr_temper_view(p_user uuid, p_slot integer)",
    "hr_tick_admit(p_armed boolean, p_accrued_to timestamp with time zone, p_mark timestamp with time zone)",
    "hr_tick_auth_header(p_bucket bigint, p_body_sha text)",
    "hr_tick_body_sha256(p_body text)",

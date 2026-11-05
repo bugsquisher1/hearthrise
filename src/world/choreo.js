@@ -23,8 +23,8 @@
 //   · knocked out, the hero lies down and no floats are drawn.
 // PURE: no DOM, no window, no G, no randomness but its own seeded draw.
 // ════════════════════════════════════════════════════════════════════════
-import { walkable } from './core/path.js?v=0.2.90';
-import { diagonalOf } from './core/facing.js?v=0.2.90';
+import { walkable } from './core/path.js?v=0.2.91';
+import { diagonalOf } from './core/facing.js?v=0.2.91';
 
 export const WINDUP_MS = 400;
 export const FAST_TICK_MS = 1200;
@@ -212,7 +212,6 @@ export function createChoreo(map, o) {
       if (!quiet) {
         if (b.killed) floats.push({ at: fAt, text: String(b.foeDmg), kind: 'kill', t0: t });
         else if (b.foeDmg > 0) floats.push({ at: fAt, text: String(b.foeDmg), kind: b.crit ? 'crit' : 'hit', t0: t });
-        else if (b.miss) floats.push({ at: fAt, text: 'miss', kind: 'miss', t0: t });
         if (b.heroDmg > 0) floats.push({ at: hAt, text: '-' + b.heroDmg, kind: 'hurt', t0: t });
       }
       if (b.killed) { kill(b, t); return; }

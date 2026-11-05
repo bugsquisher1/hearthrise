@@ -12,10 +12,10 @@
 // Names: heroes from the `party` section, monsters from the hunt pose's unit
 // kinds (src/session/hunt-sections.js). An unknown unit reads "Someone".
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.90';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.90';
-import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.90';
-import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.90';
+import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.91';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.91';
+import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.91';
+import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.91';
 
 const LOGS = new WeakMap();
 
@@ -24,12 +24,20 @@ function namer(cs) {
   const p = partyOf(cs);
   const heroes = new Map(p ? p.members.map((m) => [m.unit, m.name]) : []);
   if (h && h.hero.unit !== null && h.hero.name) heroes.set(h.hero.unit, h.hero.name);
+  /* A unit newer than the last pose read "Someone" ("Someone misses Someone", the first seconds of every hunt and each new
+     pack): the live view knows its heroes before the snapshot does (scene.js readHunt), the timeline every monster it has walked. */
+  const live = cs.live && typeof cs.live.heroUnits === 'function' ? cs.live.heroUnits() : [];
+  for (const x of live) {
+    const m = p && x.unit !== null && !heroes.has(x.unit) ? p.members.find((y) => y.seat === x.seat) : null;
+    if (m) heroes.set(x.unit, m.name);
+  }
   const units = h ? h.units : new Map();
   return {
     name(u) {
       if (heroes.has(u)) return heroes.get(u);
-      const x = units.get(u);
-      return x && (x.name || (x.kind && monsterName(x.kind))) || 'Someone';
+      const x = units.get(u) || {};
+      const kind = x.kind || cs.timeline.kindOf(u);
+      return x.name || (kind && monsterName(kind)) || 'Someone';
     },
     isHero: (u) => heroes.has(u) || (units.get(u) || {}).side === 'hero',
   };
@@ -37,7 +45,7 @@ function namer(cs) {
 
 /**
  * One event as a line, or null when it is not a log line.
- * @returns {{key: string, type: string, units: number[], text: string}|null}
+ * @returns {{key: string, type: string, units: number[], text: string, quiet?: boolean}|null}  `quiet`: nothing happened to anyone (a miss), so it wears no cost color
  */
 export function lineOf(ev, n) {
   const a = n.name(ev.u), b = n.name(ev.t);
@@ -47,6 +55,8 @@ export function lineOf(ev, n) {
       const how = ev.ability && ev.ability !== 'basic' ? ' with ' + abilityName(ev.ability) : '';
       return line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' hits ' + b + ' for ' + ev.amount + how + '.');
     }
+    /* The screen shows a miss as a spark and no word (hunt-vfx.js GLANCE_FX, Tyler 2026-11-04: "the combat log can still say blah blah missed you"). */
+    case 'miss': return Object.assign(ev.dodge === true ? line('taken', b + ' dodges ' + a + '’s blow.') : line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses ' + b + '.'), { quiet: true });
     case 'heal': return line('heal', ev.u === ev.t ? a + ' heals for ' + ev.amount + '.' : a + ' heals ' + b + ' for ' + ev.amount + '.');
     /* A kill's XP is LEVEL XP (xp-share.js); a skill's own level-up names the skill (Tyler 2026-10-22: say which XP). */
     case 'xp': return line('xp', a + ' gains ' + ev.amount + ' Level XP.');

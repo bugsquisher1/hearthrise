@@ -9,8 +9,9 @@
 // per character); everything else is re-read from the record every frame.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.92';
-import { MONSTERS } from '../data/monsters.js?v=0.2.92';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.93';
+import { MONSTERS } from '../data/monsters.js?v=0.2.93';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.93';
 
 /**
  * @param {{data: object}|null} record   CharacterSession.record
@@ -19,7 +20,7 @@ import { MONSTERS } from '../data/monsters.js?v=0.2.92';
 export function worldViewOf(record, scratch) {
   const d = (record && record.data) || {};
   const st = d.state && typeof d.state === 'object' ? d.state : {};
-  const view = { _world: scratch, activeMonster: null, _huntId: null, _huntAnalyzer: null, playerName: null };
+  const view = { _world: scratch, activeMonster: null, _huntId: null, _huntAnalyzer: null, playerName: null, playerTitle: null };
   if (st.active_kind === 'combat' && typeof st.active_id === 'string') {
     const hunt = HUNT_INDEX[st.active_id];
     if (hunt) {
@@ -33,5 +34,8 @@ export function worldViewOf(record, scratch) {
   if (a && typeof a === 'object' && !Array.isArray(a)) view._huntAnalyzer = a;
   const name = typeof d.name === 'string' ? d.name : (typeof st.name === 'string' ? st.name : null);
   view.playerName = name;
+  const titles = d.titles && Array.isArray(d.titles.rows) ? d.titles.rows : [];
+  const worn = titles.find((r) => r && r.worn === true);
+  view.playerTitle = worn && typeof worn.words === 'string' && TITLE_WORDS.test(worn.words) ? worn.words : null;
   return view;
 }

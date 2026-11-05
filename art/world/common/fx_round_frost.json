@@ -1,0 +1,31 @@
+{
+  "id": "fx_round_frost",
+  "class": "vfx",
+  "style": "s1",
+  "drawn": "tools/world-art/round-fireworks.mjs",
+  "material": "light",
+  "source": "fx_round_frost.png",
+  "frame": [
+    140,
+    132
+  ],
+  "anchor_px": [
+    70,
+    62
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 14
+      }
+    }
+  ],
+  "notes": "THE ROUND: one shell over Hearth Square, a tilted ring of frost stars, with comets thrown past it. Drawn by tools/world-art/round-fireworks.mjs: hard pixels, palette colors, no generation."
+}

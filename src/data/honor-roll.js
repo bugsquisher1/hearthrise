@@ -7,7 +7,7 @@
 //   id      the server's board id ('level', 'total_level', 'skill:<skill id>')
 //   group   the picker's heading the board sits under
 //   label   the board's name; a skill row takes its name from SKILLS_DEF
-//   reads   what the value means: 'level' (Level N, by XP), 'total' (Total level N)
+//   reads   what the value means: 'level' (Level N, by XP), 'total' (Total level N), 'gold' (N gp, one row per ACCOUNT)
 //   glyph   a window.HR_GLYPHS key for the board's heading
 //   why     one line: where the number comes from (a skill's is SKILL_GUIDE's `where`)
 //   empty   the board with no hero on it yet: an honest line that invites the first
@@ -28,10 +28,12 @@
 //   clan_power   cut on the server: clans have no client in the rebuild.
 //   renown, bosses   no server source (hr_lb_unsourced): never offered.
 //   stonemason, bountyHunter   no such skill in the catalogue: nobody can rank.
+// GOLD GIVEN (Tyler 2026-11-04; 2027-02-27-gold-given.sql) answers the wealth board's three cuts: it reads a counter, never the purse; it only rises as gold
+//   leaves the game; and it counts only sinks with a daily cap, carries no prize and resets monthly. It ranks accounts, each shown as its lead hero.
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from './skills.js?v=0.2.92';
-import { SKILL_GUIDE } from './skill-guide.js?v=0.2.92';
+import { SKILLS_DEF } from './skills.js?v=0.2.93';
+import { SKILL_GUIDE } from './skill-guide.js?v=0.2.93';
 
 /* A skill board: its name from SKILLS_DEF, where it is trained from SKILL_GUIDE (one wording, the Skills window's). */
 const skill = (id, group) => Object.freeze({
@@ -63,6 +65,10 @@ export const HONOR_BOARDS = Object.freeze([
   skill('crafting', 'Crafting'),
   skill('smithing', 'Crafting'),
   skill('runecrafting', 'Crafting'),
+  Object.freeze({ id: 'gold_given', group: 'Town', label: 'Gold Given', reads: 'gold', glyph: 'uiCoinStack',
+    why: 'Gold an account gave to Havora this UTC month. It starts again on the 1st.',
+    empty: 'Nobody has given gold to Havora this month. The first gift takes first place.',
+    join: 'Throw a Hearth powder, stand a round or pay the Town Crier.' }),
 ]);
 
 /** The row for a board id, or null. */

@@ -8,6 +8,21 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## Unreleased
 
 - Your action bar now says when a slot is waiting. Fireball is set to fire at 2 or more monsters, so on a lone monster its slot dims and shows "2+", and hovering it or pressing it tells you why. Circle of Renewal does the same when you're not in a party. What a slot does hasn't changed: to fire on one monster, remove its condition in Configure action.
+- Every hero now gets three setups free; the fourth costs 15,000 gp and the fifth 40,000 gp. Heroes keep every setup they have saved.
+
+## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
+
+- A round's fireworks now climb and burst high over Hearth Square for the whole 45 seconds, and a Town Crier's line stands out in Global on its own gold band.
+
+**Throw a pinch on the fire.** Hearth powders turn Havora's flame a new color for everyone in town, for 30 seconds, from 2,000 gp and up to five a day.
+
+**Stand a round.** Buy the town a round and everyone in Havora sees the fireworks, from 5,000 gp and up to three a day.
+
+**The Town Crier.** From Level 10 you can pay to have one line called out to the whole server, from 1,000 gp and up to five a day.
+
+**Gold Given.** A new monthly board ranks the accounts that have given the most to the town. It has no prize, and it resets every month.
+
+**More setups, and titles.** Every hero gets two action bar setups free and can buy three more. Titles are earned by kills and then claimed with gold, so a name beside your hero says what it has actually hunted.
 
 ## v0.2.92 — 2026-11-05 (Standing Your Ground)
 

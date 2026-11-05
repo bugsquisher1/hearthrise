@@ -37,6 +37,7 @@ import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.92';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.92';
 import { huntOf, staminaOf, densityMapOf } from './hunt-sections.js?v=0.2.92';
 import { heroVitalsOf } from './character-sections.js?v=0.2.92';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.92';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -103,7 +104,8 @@ export function partyPeopleOf(cs) {
   if (!Array.isArray(v)) return out;
   for (const p of v.slice(0, 8)) {
     if (!isObj(p) || seatNo(p.seat) === null || typeof p.user !== 'string' || !UUID.test(p.user)) continue;
-    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name) });
+    /* dye: the hero's four colors as the look's key (2027-03-05-hero-colors.sql), or null: drawn as the art is */
+    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name), dye: dyeKeyOf(p.colors) });
   }
   return out;
 }

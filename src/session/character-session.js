@@ -432,17 +432,12 @@ export class CharacterSession {
     return this._ask('hero_rename', () => this._server.rpc('hr_hero_rename', { p_slot: this.slot, p_name: n, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
-  /** Wear an outfit (or null: the role's own look) with a dye index per region. ONE intent (hr_outfit_set): the
-      server checks ownership, the regions and the dyes; the window shows the new look only from the re-read. */
-  async saveOutfit(outfit, colors) {
+  /** Wear an outfit (or null: the role's own look). ONE intent (hr_outfit_set): the server checks ownership; the window shows the
+      new look only from the re-read. Free, and it carries no color: a hero's colors are one set (hero-color-intents.js). */
+  async saveOutfit(outfit) {
     if (this._closed) return { ok: false, error: 'closed' };
     if (outfit !== null && !HUNT_ID.test(String(outfit))) return { ok: false, error: 'bad_intent' };
-    const c = {};
-    for (const [k, v] of Object.entries(colors && typeof colors === 'object' ? colors : {})) {
-      if (!/^[a-z]{1,16}$/.test(k) || !Number.isInteger(v) || v < 0 || v > 63) return { ok: false, error: 'bad_intent' };
-      c[k] = v;
-    }
-    return this._ask('outfit_set', () => this._server.rpc('hr_outfit_set', { p_slot: this.slot, p_outfit: outfit, p_colors: c, p_idem: newIdem() }));
+    return this._ask('outfit_set', () => this._server.rpc('hr_outfit_set', { p_slot: this.slot, p_outfit: outfit, p_colors: {}, p_idem: newIdem() }));
   }
 
   /** The party finder: open parties with a free seat, optionally on one hunt and only those with no member of a

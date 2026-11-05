@@ -42,7 +42,7 @@ import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.92';
 import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.92';
 import { partyPeopleOf } from '../session/party-sections.js?v=0.2.92';
 import { floatShown } from './float-prefs.js?v=0.2.92';
-import { heroSprite } from '../session/hero-look.js?v=0.2.92';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.92';
 import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.92';
 import { STUB_SPRITE } from '../world/core/book.js?v=0.2.92';
 import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.92';
@@ -139,6 +139,8 @@ export function readHunt(cs, peers) {
     self: p ? p.members.find((m) => m.seat === p.selfSeat) || null : null,
     /* the viewed hero's look: the ONE source the town draws it with too (chosen outfit, else role) */
     look: heroSprite(cs),
+    /* ...and its colors, the same section's (hero-look.js) */
+    dye: heroDye(cs),
     /* the viewed hero's Level as the server's envelope says it (the level-up moment watches it rise) */
     level: (levelOf(cs) || {}).level ?? null,
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
@@ -183,6 +185,13 @@ export function createHuntScene(o) {
     if (u === read.viewed && read.look) return read.look;
     if (isHero(u)) { const m = read.heroes.get(u); return (m && m.look) || outfitSprite(m && m.outfit, m && m.role); }
     return (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
+  };
+  /* A hero's colors: the viewed hero's own section, everyone else's seat (the server's party_people), so a party draws each other as each is. A monster has none. */
+  const dyeOf = (u) => {
+    if (u === read.viewed) return read.dye;
+    const m = read.heroes.get(u);
+    const who = m ? read.people.get(m.seat) : null;
+    return who ? who.dye : null;
   };
   const unnamed = new Set();
   /* How long a one-shot effect plays (its frames at its fps); a loop shows for its row's lifeMs. */
@@ -319,7 +328,7 @@ export function createHuntScene(o) {
     const walking = left > 0 && !!walk;
     const { dir, diag } = facingOf(0, 1);
     const name = read.huntName || 'the hunt';
-    return { id, unit: read.viewed !== null ? read.viewed : -1, x: e.x, y: e.y, dir, diag, alpha: 1, grey: 0, under: false,
+    return { id, unit: read.viewed !== null ? read.viewed : -1, x: e.x, y: e.y, dir, diag, alpha: 1, grey: 0, under: false, dye: read.dye,
       anim: walking ? 'walk' : sp.anims && sp.anims.idle ? 'idle' : 'walk',
       frame: walking ? Math.floor((now / 1000) * walk.fps) : 0,
       plate: { text: left > 0 ? 'Walking to ' + name + ' · ' + Math.ceil(left / 1000) + ' s' : (m && m.name) || 'Hero', kind: 'self' } };
@@ -379,7 +388,7 @@ export function createHuntScene(o) {
     const anim = corpse ? corpse.anim : moving ? 'walk' : clips.idle ? 'idle' : walk ? 'walk' : 'idle';
     const r = recoil.get(u);
     /** @type {Record<string, any>} */
-    const out = { id, unit: u, x, y, anim, dir, diag, frame, alpha, grey, under };
+    const out = { id, unit: u, x, y, anim, dir, diag, frame, alpha, grey, under, dye: dyeOf(u) };
     if (!under && r && now >= r.at && now - r.at < SCENE_TIMING.recoilMs) out.recoil = [r.dx, r.dy];
     if (!under) {
       /* Every bar is the HP AT THE INSTANT SHOWN (timeline.js T6: heroes too, so it moves live), the snapshot's only as a fallback. */

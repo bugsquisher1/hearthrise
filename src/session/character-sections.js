@@ -13,7 +13,7 @@
 //                     damage: { min, max }, accuracy_pct, crit_pct, defence, set,
 //                     dodge_pct, absorb_pct, ward (the armour's mitigation, ruling K7),
 //                     xp: { perks, buffs, combat } }
-//   outfit          { worn: id | null, colors: { region: dye index }, owned: [id] }
+//   outfit          { worn: id | null, base: { head, body, legs, feet } dye indices | {}, colors_price, owned: [id] }
 //   death_log       [{ id, at, hunt, session, monster, xp, xp_lost, saved }] newest first;
 //                   saved = what a Blessing kept, null when none was used
 //                   (2026-11-07-death-popup-blessing.sql)
@@ -25,6 +25,7 @@
 import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.92';
 import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.92';
 import { TITLE_WORDS } from '../data/titles.js?v=0.2.92';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.92';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -130,13 +131,19 @@ export function heroVitalsOf(cs) {
   return Object.assign(out, { hp, hpMax, mana: manaMax, manaMax });
 }
 
-/** `outfit`: { worn, colors, owned: Set }, or null. */
+/* The section as read, per section the server sent: a hero's look asks every frame, and a new envelope is a new object. */
+const OUTFIT_READ = new WeakMap();
+/** `outfit`: { worn, base (the hero's four colors, dye indices, or null), colorsPrice (what a save costs, or null), owned: Set }, or null. */
 export function outfitOf(cs) {
   const o = read(cs, 'outfit');
   if (!isObj(o)) return null;
-  const colors = {};
-  if (isObj(o.colors)) for (const [k, v] of Object.entries(o.colors)) if (/^[a-z]{1,16}$/.test(k) && nat(v) !== null) colors[k] = v;
-  return { worn: id(o.worn), colors, owned: new Set(Array.isArray(o.owned) ? o.owned.map(id).filter(Boolean) : []) };
+  let r = OUTFIT_READ.get(o);
+  if (!r) {
+    const base = dyeKeyOf(o.base) ? { head: o.base.head, body: o.base.body, legs: o.base.legs, feet: o.base.feet } : null;
+    r = { worn: id(o.worn), base, colorsPrice: nat(o.colors_price), owned: new Set(Array.isArray(o.owned) ? o.owned.map(id).filter(Boolean) : []) };
+    OUTFIT_READ.set(o, r);
+  }
+  return r;
 }
 
 const SESSION = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

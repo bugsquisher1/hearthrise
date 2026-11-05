@@ -428,7 +428,7 @@ export function composeFrame(map, book, state, view, tables, T) {
   }
   /* A unit: { id, x, y, anim, dir, diag, age (ms into the clip) | frame (the clip frame itself, a
      walk chosen by distance), alpha, grey (0..1 toward its corpse tone), recoil ([dx, dy] art px), under (drawn
-     beneath the standing: a corpse), plate:{text,kind,alpha?}, bar, barKind, mana, badge, target }.
+     beneath the standing: a corpse), plate:{text,kind,alpha?}, bar, barKind, mana, badge, target, dye }.
      dir is the cardinal; diag the diagonal of a diagonal step, drawn when the clip has it (core/facing.js). */
   function unit(u, isHero) {
     const anim = u.anim || 'idle';
@@ -436,6 +436,8 @@ export function composeFrame(map, book, state, view, tables, T) {
     const i = Number.isInteger(u.frame) ? u.frame : clipFrame(book, u.id, anim, dir, u.age == null ? state.t || 0 : u.age);
     const d = place(u.id, u.x, u.y, { anim, dir, i, kind: 'unit', alpha: u.alpha, ref: u.ref, bias: u.under ? -UNDER : 0, shadow: u.under ? false : undefined });
     if (u.grey) d.grey = Math.max(0, Math.min(1, u.grey));
+    /* its colors, dye indices the server sent ("head.body.legs.feet"; the backend draws them, hero-dye.js). The hero you play is first in line for a sheet. */
+    if (u.dye) { d.dye = u.dye; d.dyeOwn = isHero; }
     const { cx, foot, top } = head(d);
     /* After head(): a recoil moves the art alone, so a full box's blows never shake a name, a bar or the lamp. */
     if (u.recoil) { d.x += u.recoil[0]; d.y += u.recoil[1]; }

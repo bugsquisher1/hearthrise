@@ -63,6 +63,17 @@ export const DYE_COUNT = 16;
 /* A region mask's colours: region BASE_REGIONS[i] is painted MASK_COLOURS[i] in the mask art, whatever the outfit. */
 export const MASK_COLOURS = Object.freeze([[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0]]);
 
+/**
+ * A hero's four colors as the look's key, "head.body.legs.feet", or null when the server sent no whole set of dye indices (drawn undyed, never guessed). Pure.
+ * @param {*} c  { head, body, legs, feet }
+ */
+export function dyeKeyOf(c) {
+  if (!c || typeof c !== 'object') return null;
+  const { head, body, legs, feet } = c;
+  for (const v of [head, body, legs, feet]) if (!Number.isInteger(v) || v < 0 || v >= DYE_COUNT) return null;
+  return head + '.' + body + '.' + legs + '.' + feet;
+}
+
 /** The outfit ids in display order. */
 export const OUTFIT_IDS = Object.freeze(Object.keys(OUTFIT_ROWS));
 

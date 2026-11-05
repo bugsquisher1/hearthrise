@@ -14,6 +14,13 @@ import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.92';
 import { partyOf } from './hunt-sections.js?v=0.2.92';
 import { roleOf } from './item-sections.js?v=0.2.92';
 import { outfitOf } from './character-sections.js?v=0.2.92';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.92';
+
+/** This character's four colors as the look's key (the `outfit` section, the server's), or null: drawn as the art is. */
+export function heroDye(cs) {
+  const o = cs ? outfitOf(cs) : null;
+  return o ? dyeKeyOf(o.base) : null;
+}
 
 /** The sprite id of this character's hero: the hunt's outfit sprite, failing safe to the knight's. */
 export function heroSprite(cs) {

@@ -1006,7 +1006,7 @@ const PAGE_MUTANTS = [
     "    if (type === 'keydown' && ev.key === 'Escape') { t.blur(); return true; }\n    if (type === 'keydown') { t.value += ev.key; ev.preventDefault(); return true; }\n    return false;"],
   ['Esc keeps the focus', 'src/shell/windows/chat.js', "ev.key === 'Escape') { t.blur(); return true; }", "ev.key === 'Escape') { return true; }"],
   ['a party member is not stamped', 'src/hunt-view/scene.js', "        out.ref = { player: { id: who ? who.id : null, name: (who && who.name) || m.name, slot: who ? who.slot : null } };", "        void who;"],
-  ['the server ids are not read', 'src/session/party-sections.js', "    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name) });", "    void p;"],
+  ['the server ids are not read', 'src/session/party-sections.js', "    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name), dye: dyeKeyOf(p.colors) });", "    void p;"],
   ['the World names nothing on a right-click', 'src/world/world-boot.js', "if (pick) emit('entity', { hits: pick.hits, x, y }); }", "void pick; }"],
   ['the counter does not read the server\'s count', 'src/shell/widgets/online.js', '  const s = ctx.account && ctx.account.social;', '  const s = ctx.account;'],
   ['the chat stands over the widgets above its column (CW-8)', 'src/shell/shell.js', 'const tops = homes.length ? Array.from(', 'const tops = false ? Array.from('],

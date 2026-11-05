@@ -34,7 +34,6 @@
     "src/data/catalogue-coherence.js": {"TS2339":6},
     "src/data/condition-metrics.js": {"TS2339":8},
     "src/data/gear-tiers.js": {"TS2339":6},
-    "src/data/hero-base.js": {"TS2339":3},
     "src/data/hunt-roles.js": {"TS2339":6,"TS2345":1},
     "src/data/hunt-tutorial.js": {"TS2339":16,"TS2551":1},
     "src/data/hunts.js": {"TS2339":1},

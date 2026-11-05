@@ -24,7 +24,7 @@ import { MONSTERS } from '../src/data/monsters.js';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* Once this file is APPLIED it is history: a new row moves OUT_FILE to a forward file, like every generated catalogue. */
 /* 2027-02-28 carries the sample of five. The two prizes of Call out (lane/c-boss-call) land in this forward file, the same full replace, whichever order the two lanes apply in. */
-export const OUT_FILE = '2027-03-02-boss-call-titles-catalogue.generated.sql';
+export const OUT_FILE = '2027-03-12-boss-call-titles-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 const PRICE_MAX = 1000000000;

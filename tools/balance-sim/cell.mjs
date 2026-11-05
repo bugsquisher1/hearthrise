@@ -279,6 +279,7 @@ export async function loadCellRunner(root) {
           /* `startBar`: the bar a hero who never touched it plays: START_BAR as shipped (Salted Shrimp, Thin Turnip Juice), not the ground's guide food */
           bar: cell.startBar ? () => JSON.parse(JSON.stringify(START_BAR)) : cell.bar ? () => barFor(cell.ground, cell.bar) : undefined,
           bag: (role, i) => bagFor(cell.ground, cell.supply || 'store', kits[i]),
+          buffs: cell.buffs ? () => cell.buffs : undefined,
           start: cell.skillsBySeat || cell.startBySeat ? startFor : undefined,
           leaveTogether: party.length > 1 && cell.leaveTogether !== false,
           options: cell.options ? (role, i) => (Array.isArray(cell.options) ? cell.options[i] : cell.options) : undefined,

@@ -52,22 +52,30 @@ function secondTankDefense(P, quiet) {
    8 s cooldown the pack was free 2 s in every 8 and the Healer's peel drew it.
    RE-DERIVED 2026-11-05, the fixture on the server's map: the old bar counted the `target` event, zero read off the old map. Here a straggler
    that walks in after the Challenge is unheld, so the peel can draw it, 0-3 times an hour at density 8, and the Challenge has it back inside the
-   same 100 ms step: six seeds, 6 h, 36,648 monster swings, none at a non-tank. The rule allows the switch and protects the party from the swing. */
+   same 100 ms step: six seeds, 6 h, 36,648 monster swings, none at a non-tank. The rule allows the switch and protects the party from the swing.
+   A PEEL IS DICE, AND WITH NONE THE CASE PROVES NOTHING (lane/c-caster-party-line, run 42043301135): the caster bars moved it off the fixture's one seed, a Challenge that took nothing back had nothing to take, and the mutant
+   below escaped. So the case plays seeds until a peel really happens, the ones it is known on first (3 of 7 seeds in 30 min, at 4 min on two of them, 2026-11-05), and no peel is a CONTROL red, never a green. */
 const DENSITY = Number(process.env.PD_DENSITY || 8);
+const PEEL_SEEDS = Object.freeze(['-987654321987', '7777777777777', '42', ...Array.from({ length: 13 }, (_, i) => String(BigInt(i + 1) * 982451653n))]);
 function loneTankHolds(P, quiet) {
   const roles = ['tank', 'ranger', 'mage', 'healer'];
-  let off = 0, switches = 0, swings = 0, reached = 0;
-  const x = P.run('millrace_sewer', 15, roles, { spanMs: 600000, density: DENSITY, onWindow: (out, members) => {
-    const ids = new Map(out.members.map((p) => [p.hunt.unit_id, members.find((m) => m.key === p.key)]));
-    const nonTank = new Set([...ids].filter(([, m]) => m && m.hero.role !== 'tank').map(([id]) => id));
-    for (const e of out.events || []) {
-      if (e.type === 'target') { switches++; if (nonTank.has(e.t)) off++; }
-      /* the control: monsters swing at heroes all run long (the events are the window's, not empty) */
-      if ((e.type === 'dmg' || e.type === 'miss') && ids.has(e.t) && !ids.has(e.u)) { swings++; if (nonTank.has(e.t)) reached++; }
-    }
-  } });
+  let off = 0, switches = 0, swings = 0, reached = 0, played = 0, x = null;
+  for (const secret of PEEL_SEEDS) {
+    played++;
+    x = P.run('millrace_sewer', 15, roles, { spanMs: 600000, density: DENSITY, secret, onWindow: (out, members) => {
+      const ids = new Map(out.members.map((p) => [p.hunt.unit_id, members.find((m) => m.key === p.key)]));
+      const nonTank = new Set([...ids].filter(([, m]) => m && m.hero.role !== 'tank').map(([id]) => id));
+      for (const e of out.events || []) {
+        if (e.type === 'target') { switches++; if (nonTank.has(e.t)) off++; }
+        /* the control: monsters swing at heroes all run long (the events are the window's, not empty) */
+        if ((e.type === 'dmg' || e.type === 'miss') && ids.has(e.t) && !ids.has(e.u)) { swings++; if (nonTank.has(e.t)) reached++; }
+      }
+    } });
+    if (off) break;
+  }
   if (!quiet) console.log('  lone-tank-holds: Sewer, tank + ranger + mage + healer at L15, 10 min, browser closed: ' + swings + ' monster swings at heroes, ' + reached + ' at a non-tank, ' + switches + ' target switch(es), ' + off + ' onto a non-tank, ' + x.kills + ' kills/h, falls ' + x.falls);
   if (!(x.kills > 0) || swings < 50) return 'CONTROL: the party killed ' + x.kills + '/h and took ' + swings + ' swings (no fight to measure)';
+  if (!off) return 'CONTROL: no peel in ' + played + ' seeds of 10 min, so nothing tested the Challenge taking one back: add seeds to PEEL_SEEDS';
   return reached === 0 ? null : reached + ' monster swing(s) reached a hero that is not the tank';
 }
 

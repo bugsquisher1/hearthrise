@@ -1,10 +1,10 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/session/boss-quote.js — THE SERVER'S QUOTE FOR CALL OUT (src/data/boss-calls.js; supabase/migrations/2027-03-02-boss-call.sql).
+// src/session/boss-quote.js — THE SERVER'S QUOTE FOR CALL OUT (src/data/boss-calls.js; supabase/migrations/2027-03-12-boss-call.sql).
 //
 // A read, not an intent: hr_boss_call_view while the ground's page is open. A server that won't say answers null, and the
 // page then keeps the press off and says so. Nothing here prices or gates anything.
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.93';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.96';
 
 /** A quote as the server sent it, bounded: whole numbers and a code, or null. */
 export function quoteOf(q) {

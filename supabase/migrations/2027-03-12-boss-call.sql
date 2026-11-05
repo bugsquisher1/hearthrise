@@ -1,10 +1,10 @@
 -- ════════════════════════════════════════════════════════════════════════
--- 2027-03-02-boss-call.sql — CALL OUT: A PARTY PAYS TO FIGHT A STRONGER COPY OF A GROUND'S BOSS, FOR NOTHING BUT THE FIGHT
+-- 2027-03-12-boss-call.sql — CALL OUT: A PARTY PAYS TO FIGHT A STRONGER COPY OF A GROUND'S BOSS, FOR NOTHING BUT THE FIGHT
 --   (lane/c-boss-call, systems-engineer, 2026-11-05; Tyler approved it 2026-11-04; designer's verdict: PRIORITY_BOARD "The boss call").
 --
 -- STATUS: STAGED. Pre-EA: applies on its passing §6 (CLAUDE.md §2), one file via the Coordinator's apply tool, never inside begin/commit.
--- MONEY (a gold sink): ON THE EA SECURITY LIST (§3.7). ORDER: right after 2027-03-02-boss-call-hunts-catalogue.generated.sql, 2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql
--- and 2027-03-02-boss-call-titles-catalogue.generated.sql (hr_hunts' rooms, hr_boss_calls, END_ORDER's two ends, the two titles; §0 refuses the first two).
+-- MONEY (a gold sink): ON THE EA SECURITY LIST (§3.7). ORDER: right after 2027-03-12-boss-call-hunts-catalogue.generated.sql, 2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql
+-- and 2027-03-12-boss-call-titles-catalogue.generated.sql (hr_hunts' rooms, hr_boss_calls, END_ORDER's two ends, the two titles; §0 refuses the first two).
 -- EDGE: the hr-accrue that plays the room (src/core/combat-sim.js, hunt-rewards.js). Either order is safe: no world shape moves, and the old engine never sees a room until the
 -- client half presses the verb. CLIENT: src/session/boss-intents.js, src/shell/windows/boss-call-pane.js, after this applies.
 --
@@ -41,9 +41,9 @@ begin
   if to_regclass('public.hr_boss_calls') is null or not exists (select 1 from public.hr_boss_calls)
      or not exists (select 1 from public.hr_hunt_end_reasons where reason = 'boss_felled')
      or not exists (select 1 from public.hr_hunt_end_reasons where reason = 'boss_time') then
-    raise exception 'PRECONDITION: apply 2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql first (hr_boss_calls, END_ORDER''s two ends)'; end if;
+    raise exception 'PRECONDITION: apply 2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql first (hr_boss_calls, END_ORDER''s two ends)'; end if;
   if exists (select 1 from public.hr_boss_calls c where not exists (select 1 from public.hr_hunts h where h.hunt_id = c.hunt_id)) then
-    raise exception 'PRECONDITION: apply 2027-03-02-boss-call-hunts-catalogue.generated.sql first (a room is not in hr_hunts)'; end if;
+    raise exception 'PRECONDITION: apply 2027-03-12-boss-call-hunts-catalogue.generated.sql first (a room is not in hr_hunts)'; end if;
 end $mig$;
 
 -- ── §1 THE ONE DOOR (hr_hunt_admit, one splice; a second apply finds the post image) ─
@@ -53,7 +53,7 @@ begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_admit(uuid,integer,text)'::regprocedure), chr(13), '');
   if strpos(v_def, 'CALL-OUT') = 0 then
     v_old := $a$  select training into v_training from public.hr_hunt_travel where hunt_id = p_hunt;$a$;
-    v_new := $a$  -- CALL-OUT (2027-03-02-boss-call.sql): a called room has one door, hr_boss_call, which names the room for its own transaction.
+    v_new := $a$  -- CALL-OUT (2027-03-12-boss-call.sql): a called room has one door, hr_boss_call, which names the room for its own transaction.
   if exists (select 1 from public.hr_boss_calls c where c.hunt_id = p_hunt)
      and current_setting('hr.boss_call', true) is distinct from p_hunt then
     return jsonb_build_object('ok', false, 'error', 'call_only', 'hunt', p_hunt); end if;
@@ -240,7 +240,7 @@ begin
                            and not exists (select 1 from public.player_ledger l
                                             where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from
                                               and jsonb_typeof(l.meta->'kills') = 'number' and (l.meta->>'kills')::numeric > 0)
-      -- CALL-OUT (2027-03-02-boss-call.sql): the room's ends, on a room only. The kill journals nothing to read (a called kill counts no kills), so, like `rule`, it can only stop value.
+      -- CALL-OUT (2027-03-12-boss-call.sql): the room's ends, on a room only. The kill journals nothing to read (a called kill counts no kills), so, like `rule`, it can only stop value.
       when 'boss_felled' then exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id)
       when 'boss_time' then exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id
                                       and v_end_at >= v_s.hunt_from + make_interval(secs => c.limit_ms / 1000.0) - c_skew)
@@ -456,7 +456,7 @@ begin
     if v_n <> 1 then raise exception 'hr_hunt_apply_member: the record''s write anchor matched % times (need 1): the body moved', v_n; end if;
     v_def := replace(v_def, v_old, v_new);
     v_old := $a$  -- (3) THE VALUE HALF: hr_apply, every row it writes stamped with the session.$a$;
-    v_new := $a$  -- CALL-OUT (2027-03-02-boss-call.sql): A CALLED ROOM PAYS NOTHING, by any route: refused whole, before hr_apply writes a thing.
+    v_new := $a$  -- CALL-OUT (2027-03-12-boss-call.sql): A CALLED ROOM PAYS NOTHING, by any route: refused whole, before hr_apply writes a thing.
   if exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id and public.hr_boss_call_pays(p_delta, c.monster_id) is not null) then
     perform public.hr_reject('called_pays', jsonb_build_object('hunt', v_s.hunt_id)); end if;
 
@@ -474,7 +474,7 @@ begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_view(uuid)'::regprocedure), chr(13), '');
   if strpos(v_def, 'CALL-OUT') = 0 then
     v_old := $a$'bought', t.bought, 'supply_gold', t.supply_gold)$a$;
-    v_new := v_old || $a$ || case when t.fight is null then '{}'::jsonb else jsonb_build_object('fight', t.fight) end -- CALL-OUT (2027-03-02-boss-call.sql)$a$;
+    v_new := v_old || $a$ || case when t.fight is null then '{}'::jsonb else jsonb_build_object('fight', t.fight) end -- CALL-OUT (2027-03-12-boss-call.sql)$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
     if v_n <> 1 then raise exception 'hr_hunt_view: CALL-OUT anchor matched % times (need 1): the body moved', v_n; end if;
     execute replace(v_def, v_old, v_new);
@@ -490,7 +490,7 @@ begin
   if strpos(v_def, 'CALL-OUT') = 0 then
     v_old := $a$     and pp.key like 'ev:kill_monster:%'$a$;
     v_new := v_old || $a$
-     and pp.key not like '%\_called' -- CALL-OUT (2027-03-02-boss-call.sql): a called boss is no Bestiary entry$a$;
+     and pp.key not like '%\_called' -- CALL-OUT (2027-03-12-boss-call.sql): a called boss is no Bestiary entry$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
     if v_n <> 1 then raise exception 'hr_bestiary_of: CALL-OUT anchor matched % times (need 1): the body moved', v_n; end if;
     execute replace(v_def, v_old, v_new);
@@ -588,9 +588,9 @@ grant  execute on function public.hr_boss_call(int, text, bigint, uuid) to authe
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_boss_call', 'hr_boss_call_view');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_boss_call', 'p_slot integer, p_call text, p_price bigint, p_idem uuid', 'authenticated',
-   'added 2027-03-02 (lane/c-boss-call): MONEY (a gold sink) - the party leader pays the server''s fee and the party enters the called room; refuses quote_changed; 3 a UTC day an account'),
+   'added 2027-03-12 (lane/c-boss-call): MONEY (a gold sink) - the party leader pays the server''s fee and the party enters the called room; refuses quote_changed; 3 a UTC day an account'),
   ('hr_boss_call_view', 'p_slot integer, p_call text', 'authenticated',
-   'added 2027-03-02 (lane/c-boss-call): read - the call as the server prices it, for the ground''s page while it is open');
+   'added 2027-03-12 (lane/c-boss-call): read - the call as the server prices it, for the ground''s page while it is open');
 
 -- ── §5 THE PARTY'S GROUND AFTER THE ROOM ─────────────────────────────────────
 create or replace function public.hr_boss_call_closed()

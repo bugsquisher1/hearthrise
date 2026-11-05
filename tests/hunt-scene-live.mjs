@@ -1486,7 +1486,7 @@ const MUTANTS = [
   ['a joining view keeps units the snapshot no longer lists (LV-27)', 'src/session/live-link.js', "    if (!this.joining() || !pose || typeof pose !== 'object' || !Array.isArray(pose.units)) return;", '    return;', /^LV-27: .* with no sprite/],
   ['a pushed frame asks the engine again (LV-26)', 'src/session/character-session.js', '    return f.env !== null && this._take(f.env, FRAME_EVENT);', '    return f.env !== null && this._take(f.env, FRAME_EVENT) && (this.hello(), true);', /^LV-26/],
   ['a pushed frame is read again in full (LV-26)', 'src/session/character-session.js', '    return f.env !== null && this._take(f.env, FRAME_EVENT);', '    return f.env !== null && this._take(f.env, FRAME_EVENT) && (this.load(), true);', /^LV-26/],
-  ['the Challenge slot never reads Holding (LV-22, bug #61)', 'src/shell/widgets/action-bar.js', '  const holding = holdsPackNow(cs, hero);', '  const holding = false;', /^LV-22/],
+  ['the Challenge slot never reads Holding (LV-22, bug #61)', 'src/shell/slot-waits.js', "    holding: !!hero && !!live && typeof live.holdsPack === 'function' && live.holdsPack(hero.unit),", '    holding: false,', /^LV-22/],
   ['a tank with a monster off it reads as holding (LV-22)', 'src/hunt-view/live-engine.js',
     '  return on.length > 0 && on.every((m) => m.target === unit) && challengeable(inst, u).length === 0;', '  return on.length > 0;', /^LV-22/],
   ['a read carries no clock (LV-0)', 'src/session/character-session.js', '      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());\n    }\n    const h = this.read', '    }\n    const h = this.read', /^LV-0/],

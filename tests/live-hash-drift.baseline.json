@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-05",
- "replay_ms": 51128,
+ "replay_ms": 5888,
  "counts": {
-  "tracked_names": 746,
-  "entries": 601
+  "tracked_names": 750,
+  "entries": 602
  },
  "functions": [
   {
@@ -1383,17 +1383,18 @@
     "2027-02-08-unsourced-bench-inputs.generated.sql",
     "2027-02-18-craft-economy-bench-inputs.generated.sql",
     "2027-02-23-klappa-bench-inputs.generated.sql",
-    "2027-02-25-houndskin-bench-inputs.generated.sql"
+    "2027-02-25-houndskin-bench-inputs.generated.sql",
+    "2027-02-28-temper-craft-bench-inputs.generated.sql"
    ],
    "live": {
-    "md5": "17eb206db0e5c3e7d136c311574cce16",
-    "norm_len": 7452,
+    "md5": "2f7ae906a53e26cd073447debef8b24c",
+    "norm_len": 7554,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "17eb206db0e5c3e7d136c311574cce16",
-    "norm_len": 7452,
+    "md5": "2f7ae906a53e26cd073447debef8b24c",
+    "norm_len": 7554,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5304,86 +5305,18 @@
    "touched_by": [
     "2026-11-16-hunt-density-bounds.sql",
     "2026-11-17-hunt-density-home.sql",
-    "2027-02-10-party-instance-reset.sql"
+    "2027-02-10-party-instance-reset.sql",
+    "2027-02-27-hunt-tiers.sql"
    ],
    "live": {
-    "md5": "b64edca5916a820eb6c0ba970fa09269",
-    "norm_len": 769,
+    "md5": "47359da9146dfac326fdb6006c6fe6e0",
+    "norm_len": 1069,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b64edca5916a820eb6c0ba970fa09269",
-    "norm_len": 769,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_hunt_density_pick(p_instance uuid, p_user uuid, p_slot integer)",
-   "name": "hr_hunt_density_pick",
-   "tracked_by": [
-    "pin",
-    "restate"
-   ],
-   "touched_by": [
-    "2026-11-16-hunt-density-bounds.sql",
-    "2026-11-17-hunt-density-home.sql"
-   ],
-   "live": {
-    "md5": "654e5fbff999cae4db7371f90cb71caf",
-    "norm_len": 833,
-    "measured": "2026-11-05",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "654e5fbff999cae4db7371f90cb71caf",
-    "norm_len": 833,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_hunt_density_set(p_slot integer, p_hunt text, p_density integer, p_idem uuid)",
-   "name": "hr_hunt_density_set",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-11-17-hunt-density-home.sql"
-   ],
-   "live": {
-    "md5": "e9f7524f8b9eda19e0f3441502f4687b",
-    "norm_len": 2810,
-    "measured": "2026-11-05",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "e9f7524f8b9eda19e0f3441502f4687b",
-    "norm_len": 2810,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_hunt_density_view(p_user uuid, p_slot integer)",
-   "name": "hr_hunt_density_view",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-11-17-hunt-density-home.sql",
-    "2027-02-10-settle-plan-cache.generated.sql"
-   ],
-   "live": {
-    "md5": "8cdef005d66dfb0992b2350e158b8dee",
-    "norm_len": 662,
-    "measured": "2026-11-05",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "8cdef005d66dfb0992b2350e158b8dee",
-    "norm_len": 662,
+    "md5": "47359da9146dfac326fdb6006c6fe6e0",
+    "norm_len": 1069,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5627,17 +5560,18 @@
     "2026-12-08-party-hold.sql",
     "2026-12-11-hunt-deploy-no-forfeit.sql",
     "2026-12-18-party-leave-together.sql",
-    "2027-02-02-settle-cost.sql"
+    "2027-02-02-settle-cost.sql",
+    "2027-02-27-hunt-tiers.sql"
    ],
    "live": {
-    "md5": "bd7149cb924e768b3b2427a4fd252e14",
-    "norm_len": 4164,
+    "md5": "c2294c624d856c0e5f6a00e270473b21",
+    "norm_len": 4368,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bd7149cb924e768b3b2427a4fd252e14",
-    "norm_len": 4164,
+    "md5": "c2294c624d856c0e5f6a00e270473b21",
+    "norm_len": 4368,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6297,17 +6231,18 @@
     "2026-12-08-party-hold.sql",
     "2026-12-18-party-leave-together.sql",
     "2027-01-25-town-defaults.sql",
-    "2027-02-18-party-truth.sql"
+    "2027-02-18-party-truth.sql",
+    "2027-02-27-hunt-tiers.sql"
    ],
    "live": {
-    "md5": "0efddc2a09ec27338bb423de546f246a",
-    "norm_len": 9407,
+    "md5": "7bcaacf2d28450fafcbb5f4e599c48a2",
+    "norm_len": 9408,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0efddc2a09ec27338bb423de546f246a",
-    "norm_len": 9407,
+    "md5": "7bcaacf2d28450fafcbb5f4e599c48a2",
+    "norm_len": 9408,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6669,20 +6604,22 @@
    "sig": "hr_hunt_rune_spells()",
    "name": "hr_hunt_rune_spells",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-02-21-rune-spells.generated.sql"
+    "2027-02-21-rune-spells.generated.sql",
+    "2027-03-08-rune-ladder-rune-spells.generated.sql"
    ],
    "live": {
-    "md5": "ff2026991841700be7a431edaee942e9",
-    "norm_len": 1762,
+    "md5": "94104b7e97cee4bcb5510d713f1e432a",
+    "norm_len": 3222,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ff2026991841700be7a431edaee942e9",
-    "norm_len": 1762,
+    "md5": "94104b7e97cee4bcb5510d713f1e432a",
+    "norm_len": 3222,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6691,6 +6628,7 @@
    "sig": "hr_hunt_rune_state(p_user uuid, p_slot integer, p_session uuid, p_ability text)",
    "name": "hr_hunt_rune_state",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -6705,6 +6643,29 @@
    "replay": {
     "md5": "3248ad68ef8cfe4b75695ea16b203f7d",
     "norm_len": 1038,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_rune_store_state(p_user uuid, p_slot integer, p_ability text, p_store text)",
+   "name": "hr_hunt_rune_store_state",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-08-rune-ladder-slots.sql"
+   ],
+   "live": {
+    "md5": "5d6b07dce11166a848ee9f995d408582",
+    "norm_len": 774,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "5d6b07dce11166a848ee9f995d408582",
+    "norm_len": 774,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6801,17 +6762,18 @@
     "2026-11-17-hunt-density-home.sql",
     "2027-01-13-spell-roles.sql",
     "2027-01-25-town-defaults.sql",
-    "2027-02-21-hunt-carry-in.sql"
+    "2027-02-21-hunt-carry-in.sql",
+    "2027-03-08-rune-ladder-slots.sql"
    ],
    "live": {
-    "md5": "87677b80058b01bf909a441651b064ea",
-    "norm_len": 11277,
+    "md5": "6a1c82f1be477f7899f019bd14f462b4",
+    "norm_len": 11795,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "87677b80058b01bf909a441651b064ea",
-    "norm_len": 11277,
+    "md5": "6a1c82f1be477f7899f019bd14f462b4",
+    "norm_len": 11795,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6953,17 +6915,18 @@
    "touched_by": [
     "2026-10-25-action-conditions.sql",
     "2026-11-07-store-by-slot.sql",
-    "2027-01-13-slot-truth.sql"
+    "2027-01-13-slot-truth.sql",
+    "2027-03-08-rune-ladder-slots.sql"
    ],
    "live": {
-    "md5": "80eb1a65bdc5bb99977e6d3542989cb2",
-    "norm_len": 5441,
+    "md5": "3cc75530e89e0caa1a44450e6d479a84",
+    "norm_len": 5653,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "80eb1a65bdc5bb99977e6d3542989cb2",
-    "norm_len": 5441,
+    "md5": "3cc75530e89e0caa1a44450e6d479a84",
+    "norm_len": 5653,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7129,6 +7092,75 @@
    "replay": {
     "md5": "450400d0f37ef36c28097e1edde91348",
     "norm_len": 953,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_tier_pick(p_instance uuid, p_user uuid, p_slot integer)",
+   "name": "hr_hunt_tier_pick",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-27-hunt-tiers.sql"
+   ],
+   "live": {
+    "md5": "f456c264e7db77304846e56be404a683",
+    "norm_len": 776,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f456c264e7db77304846e56be404a683",
+    "norm_len": 776,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_tier_set(p_slot integer, p_hunt text, p_tier text, p_idem uuid)",
+   "name": "hr_hunt_tier_set",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-27-hunt-tiers.sql"
+   ],
+   "live": {
+    "md5": "e027f1ea19db2a2cc02f25e6340e1187",
+    "norm_len": 2675,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e027f1ea19db2a2cc02f25e6340e1187",
+    "norm_len": 2675,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_tier_view(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_tier_view",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-02-27-hunt-tiers.sql"
+   ],
+   "live": {
+    "md5": "d79821c0de80921cb5817124de46c5be",
+    "norm_len": 701,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d79821c0de80921cb5817124de46c5be",
+    "norm_len": 701,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8089,17 +8121,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-13-market-eligibility.sql"
+    "2027-02-13-market-eligibility.sql",
+    "2027-03-03-market-bench-gate.sql"
    ],
    "live": {
-    "md5": "056beb6114283331e59a30ffa51dd8cc",
-    "norm_len": 355,
+    "md5": "92022f3c66a2c92ed05ef85920c41d5c",
+    "norm_len": 604,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "056beb6114283331e59a30ffa51dd8cc",
-    "norm_len": 355,
+    "md5": "92022f3c66a2c92ed05ef85920c41d5c",
+    "norm_len": 604,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8208,17 +8241,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-13-market-eligibility.sql"
+    "2027-02-13-market-eligibility.sql",
+    "2027-03-03-market-bench-gate.sql"
    ],
    "live": {
-    "md5": "cbf89da79caca1933c3d2b8dc2bea571",
-    "norm_len": 382,
+    "md5": "5bce1ab8099cf6713139812748535eca",
+    "norm_len": 424,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "cbf89da79caca1933c3d2b8dc2bea571",
-    "norm_len": 382,
+    "md5": "5bce1ab8099cf6713139812748535eca",
+    "norm_len": 424,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8298,22 +8332,24 @@
    "sig": "hr_market_rules()",
    "name": "hr_market_rules",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2027-01-12-market-account.sql",
-    "2027-02-13-market-eligibility.sql"
+    "2027-02-13-market-eligibility.sql",
+    "2027-03-03-market-bench-gate.sql"
    ],
    "live": {
-    "md5": "8e667ce8b858309d9b7be59667245bc3",
-    "norm_len": 605,
+    "md5": "e14739cd1221852a134b55cc91f8310f",
+    "norm_len": 643,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "8e667ce8b858309d9b7be59667245bc3",
-    "norm_len": 605,
+    "md5": "e14739cd1221852a134b55cc91f8310f",
+    "norm_len": 643,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8326,17 +8362,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-13-market-eligibility.sql"
+    "2027-02-13-market-eligibility.sql",
+    "2027-03-03-market-bench-gate.sql"
    ],
    "live": {
-    "md5": "95c3791a94cc512e358048fa18c535c7",
-    "norm_len": 385,
+    "md5": "f7d402c686dae0bec69e0b76ec405518",
+    "norm_len": 427,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "95c3791a94cc512e358048fa18c535c7",
-    "norm_len": 385,
+    "md5": "f7d402c686dae0bec69e0b76ec405518",
+    "norm_len": 427,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -11327,6 +11364,7 @@
    "sig": "hr_skill_xp_for_level(p_skill text, p_level integer)",
    "name": "hr_skill_xp_for_level",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -12249,17 +12287,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-27-tempering.sql"
+    "2027-02-27-tempering.sql",
+    "2027-02-28-temper-craft.sql"
    ],
    "live": {
-    "md5": "a8ab953b443000d4f18a51f529fc0b4b",
-    "norm_len": 842,
+    "md5": "8e6c5e795488b62af71fe535075d4de0",
+    "norm_len": 860,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a8ab953b443000d4f18a51f529fc0b4b",
-    "norm_len": 842,
+    "md5": "8e6c5e795488b62af71fe535075d4de0",
+    "norm_len": 860,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -13781,17 +13820,18 @@
     "2026-09-28-settle-before-mutate.sql",
     "2026-11-29-house-home.sql",
     "2026-12-15-account-gold.sql",
-    "2027-01-10-house-from-storage.sql"
+    "2027-01-10-house-from-storage.sql",
+    "2027-02-28-temper-craft.sql"
    ],
    "live": {
-    "md5": "ccb6f35bdd42c88051e4420791d58900",
-    "norm_len": 21954,
+    "md5": "05f188f2878b0bf692fc81ff4e6d65fc",
+    "norm_len": 21964,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ccb6f35bdd42c88051e4420791d58900",
-    "norm_len": 21954,
+    "md5": "05f188f2878b0bf692fc81ff4e6d65fc",
+    "norm_len": 21964,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -47,14 +47,14 @@
 // Every event is bounded: EVENT_MAX named events per load, CLICK_MAX of each click kind (a loop cannot spend the quota).
 // ════════════════════════════════════════════════════════════════════════
 
-import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.93';
-import { BUILD } from '../build-info.js?v=0.2.93';
-import { observeSessions } from '../session/character-session.js?v=0.2.93';
-import { partyOf, huntOf, huntDensityOf } from '../session/hunt-sections.js?v=0.2.93';
-import { levelOf } from '../session/character-sections.js?v=0.2.93';
-import { replayWanted } from '../session/replay-pref.js?v=0.2.93';
-import { startDiagnostics } from './diagnostics.js?v=0.2.93';
-import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.93';
+import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.96';
+import { BUILD } from '../build-info.js?v=0.2.96';
+import { observeSessions } from '../session/character-session.js?v=0.2.96';
+import { partyOf, huntOf, huntTierOf } from '../session/hunt-sections.js?v=0.2.96';
+import { levelOf } from '../session/character-sections.js?v=0.2.96';
+import { replayWanted } from '../session/replay-pref.js?v=0.2.96';
+import { startDiagnostics } from './diagnostics.js?v=0.2.96';
+import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.96';
 
 const EARLY_MAX = 10;        // errors held while Sentry loads
 const QUEUE_MAX = 20;        // events held while PostHog loads
@@ -241,10 +241,9 @@ function watchHunt(cs, w, now, send) {
   }
   if (open && s.id !== w.sid) {
     const party = partyOf(cs);
-    /* The hero's own pick on this ground (hunt_density; no key = 0, as built); null when the server sent none. */
-    const picks = huntDensityOf(cs);
-    send('hunt_started', { hunt: s.hunt, party_size: party ? party.members.length : 1,
-      density: picks ? (Number.isInteger(picks[s.hunt]) ? picks[s.hunt] : 0) : null });
+    /* The tier this hunt froze (hunt_tier); null when the server sent none. */
+    const tiers = huntTierOf(cs);
+    send('hunt_started', { hunt: s.hunt, party_size: party ? party.members.length : 1, tier: tiers ? tiers.playing : null });
     w.open = true; w.sid = s.id; w.reseeds = 0;
   }
 }

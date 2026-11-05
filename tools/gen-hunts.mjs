@@ -40,7 +40,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2027-02-06 is APPLIED history. The Orchard Boar (Wickstead) and the Brook Bear (Mosslight Glade) join the spawn mixes
    (lane b-unsourced-items, 2026-10-28) in this forward file. */
 /* 2027-02-08 is APPLIED history. The called rooms (Call out, lane/c-boss-call) join hr_hunts in this forward file, with no spawn row: hunts.js CALLED_HUNTS. */
-export const OUT_NAME = '2027-03-02-boss-call-hunts-catalogue.generated.sql';
+export const OUT_NAME = '2027-03-12-boss-call-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

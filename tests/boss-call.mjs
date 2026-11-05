@@ -122,7 +122,7 @@ async function guard(X) {
   const reach = G.reachableOf(G.OPEN_GROUNDS, H.HUNT_INDEX).monsters;
   for (const [id] of rows) if (reach.includes(id)) bad.push('BC-ROW ' + id + ' is on the reachable roster');
   for (const g of Object.values(G.HUNT_GROUNDS)) for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns)) if (M.MONSTERS[s.monster] && M.MONSTERS[s.monster].called === true) bad.push('BC-ROW ground ' + g.id + ' fields ' + s.monster);
-  const sql = readFileSync(join(X.root === REPO ? REPO : REPO, 'supabase/migrations/2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql'), 'utf8');
+  const sql = readFileSync(join(X.root === REPO ? REPO : REPO, 'supabase/migrations/2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql'), 'utf8');
   for (const [id] of rows) {
     if (!sql.includes(`('${id}', 0, 0, '{}'::jsonb)`)) bad.push('BC-ROW the catalogue\'s kill bound of ' + id + ' is not nothing');
     if (new RegExp(`delete from public.hr_hunt_roster;[\\s\\S]*?\\('${id}'\\)[\\s\\S]*?delete from public.hr_hunt_weapons`).test(sql)) bad.push('BC-ROW ' + id + ' is in hr_hunt_roster');
@@ -201,7 +201,7 @@ async function guard(X) {
     const applied = shapeOf('2027-02-24-gold-matters-hunt-sessions-catalogue.generated.sql');
     const WS = await import(pathToFileURL(join(X.root, 'src/core/hunt/world-state.js')).href + V);
     if (!(applied > 0) || WS.SHAPE !== applied) bad.push('BC-PHASE the world\'s shape moved: ' + WS.SHAPE + ', applied ' + applied + ' (a stored flag, or a new field)');
-    if (shapeOf('2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql') !== applied) bad.push('BC-PHASE this lane\'s catalogue writes another shape');
+    if (shapeOf('2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql') !== applied) bad.push('BC-PHASE this lane\'s catalogue writes another shape');
   }
   /* BC-PHASE: the lines, once each, at their HP; no Challenge on the bar, so every blow an add lands is its first aim. */
   const NO_CHALLENGE = (role) => (role === 'tank' ? [{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and' }] : []);

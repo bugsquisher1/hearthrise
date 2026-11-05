@@ -44,19 +44,20 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.93';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.93';
-import { createRng } from './rng.js?v=0.2.93';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.93';
-import { stepSwing } from './hunt/world-step.js?v=0.2.93';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.93';
-import { newHuntWorld, joinHero, leaveHero, scaleRoomFor } from './hunt-spawn.js?v=0.2.93';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.93';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.93';
-import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.93';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.96';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.96';
+import { createRng } from './rng.js?v=0.2.96';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.96';
+import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.96';
+import { stepSwing } from './hunt/world-step.js?v=0.2.96';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.96';
+import { newHuntWorld, joinHero, leaveHero, scaleRoomFor } from './hunt-spawn.js?v=0.2.96';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.96';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.96';
+import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.96';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.93';
+export { stepSwing } from './hunt/world-step.js?v=0.2.96';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -77,6 +78,10 @@ function seedOf(ctx, domain, index) {
 /* The pull's pick of these members: the party leader's (hunt-grounds.js partyPick). The SAME call on
    the server's settle and the browser's live view (a peer's `hero` carries `lead`, member.js FROZEN_KEYS). */
 const picker = (ms) => partyPick(ms.map((x) => ({ density: x.hero.density, lead: x.hero.lead === true, seat: x.seat })));
+
+/* THE HUNT'S TIER: the party leader's hero's, else the first standing hero's. The server freezes one on the instance and overlays it on every member (hr_hunt_instance_read `options.tier`). The SAME call on
+   the server's settle and the browser's live view (a peer's `hero` carries `tier`). */
+const tierPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return (lead && lead.hero.tier) || DEFAULT_TIER; };
 
 /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat the party leader's hero names (hunt-spawn.js heroSetup `hold`,
    the server's hunt_parties.hold_seat) as that member's unit, or null (the tanks take turns; that seat is not in
@@ -336,13 +341,16 @@ export function simulateHuntInstance(inst, ctx) {
          in a world just made (every member that enters with it has joined by now). */
       world.holdNext = holdPick(members.filter((m) => !m.left && m.unitId !== null));
       if (fresh) { world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false; }
+      /* THE TIER (hunt-tiers.js): read every swing, like the hold pick, and never stored on the world. */
+      const { ground } = ctx;
+      const tier = tierRowOf(ground.id, tierPick(members.filter((m) => !m.left && m.unitId !== null)));
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
-        ground: ctx.ground, grid: ctx.grid, heroes, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
+        ground, grid: ctx.grid, heroes, tier, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
       seen(r.events);
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
-      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, hearthfind: ctx.hearthfind, call,
+      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, tier, hearthfind: ctx.hearthfind, call,
         emit: (e) => worldEvents.push(e) });
       /* THE CALLED BOSS IS DOWN: everyone still in the fight ends `boss_felled` at their next boundary. */
       if (call && r.events.some((e) => e.type === 'kill' && kinds[e.t] === call.monster)) for (const m of members) if (!m.left) m.hs.bossFelled = true;

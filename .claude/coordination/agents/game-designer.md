@@ -808,3 +808,6 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Sell all loot keeps a drop only if a recipe the hero can make NOW spends it (bag-model `madeInto`). A recipe above level 1 that names a Cellar drop loses the drop on the first trip home.
 - `Equip upgrades` never touches the hands (`STYLE_SLOTS`), and the bench spends the bag, not the worn set: a reforge of a worn weapon leaves the hero empty-handed unless the words say so.
 - Balance sim: two instances of `ITEMS` (bare and `?v=`); a what-if on one alone changes nothing. Patch both, or edit the row.
+- Tiers (2026-11-05): a low ground's room is the gap between two Normals. Where it's under 20%, a bigger pull breaks the ladder at any XP, so the row moves stats only (Thicket). Read the rule per way to fight: AoE fails first, a fixed count hides it.
+- `tools/balance-sim` holds its workers above 85% CPU (`--cpu`), so a 648-cell plan runs 3 to 80 cells a minute with other lanes up. Cell `ms` against wall time says which. It also resumes by id: a re-measure needs a new out dir.
+- A mutant that makes every word play Deadly leaves base and word equal, so a digits-only compare can't catch it. Assert the pure lookup too (`tierRowOf`).

@@ -11,16 +11,18 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.93';
-import { STATUSES } from '../data/statuses.js?v=0.2.93';
-import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.93';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.93';
-import { isRune } from '../data/supplies.js?v=0.2.93';
-import { ITEMS } from '../data/items.js?v=0.2.93';
-import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.93';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.93';
-import { ABILITIES } from '../data/abilities.js?v=0.2.93';
-import { refusalWords } from './intent-words.js?v=0.2.93';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.96';
+import { STATUSES } from '../data/statuses.js?v=0.2.96';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.96';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.96';
+import { isRune } from '../data/supplies.js?v=0.2.96';
+import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.96';
+import { ITEMS } from '../data/items.js?v=0.2.96';
+import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.96';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.96';
+import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.96';
+import { refusalWords } from './intent-words.js?v=0.2.96';
+import { skillName } from './widgets/bits.js?v=0.2.96';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -124,24 +126,39 @@ export function storeName(id) {
 }
 
 /**
- * A RUNE SPELL'S STORE CHOICE (designer 2026-10-21: a default bar never buys a rune
- * unseen): "Carried runes only" (`id` null) or the rune's store row at the server's
- * price a cast. [] for every other action (a food or drink slot names its one item).
+ * A RUNE SPELL'S STORE CHOICE (designer 2026-11-05: every default rune slot starts with its store rune on, shown, and the player can change it; the rune ladder, Tyler
+ * 2026-11-05): "Carried runes only" (`id` null), then every store row of the spell's family, Plain first, at the
+ * server's price a cast. Each row is what the player compares: `mana` a cast, `times` the power against Plain's
+ * at the hero's own level (`skills`, the server's; null until it has said), `needs` the level its version takes and
+ * `short` when the hero is under it (the engine's rule, abilities.js runeFor: it waits, it never casts a cheaper one).
+ * [] for every other action (a food or drink slot names its one item).
  */
-export function storeChoices(a, rows) {
+export function storeChoices(a, rows, skills) {
   if (!a || !Array.isArray(rows)) return [];
-  const rune = a.type === 'ability' && ABILITIES[a.id] ? ABILITIES[a.id].rune : null;
-  if (!rune) return [];
-  const list = rows.filter((r) => r.partner === rune).map((r) => ({ id: r.id, name: storeName(r.id), price: r.price }));
-  return list.length ? [{ id: null, name: 'Carried runes only', price: null }].concat(list) : [];
+  const spell = a.type === 'ability' ? ABILITIES[a.id] : null;
+  const family = spell && spell.rune && ITEMS[spell.rune] ? ITEMS[spell.rune].family : null;
+  if (!family) return [];
+  const skill = abilitySkill(spell);
+  const have = skills && skills[skill] && Number.isInteger(skills[skill].level) ? skills[skill].level : null;
+  const list = rows.filter((r) => ITEMS[r.partner] && ITEMS[r.partner].family === family && runeTierOf(ITEMS[r.partner]))
+    .map((r) => {
+      const tier = runeTierOf(ITEMS[r.partner]);
+      return { id: r.id, name: storeName(r.id), price: r.price, tier, mana: versionOf(spell, tier).mana,
+        times: have === null ? null : outputPm(spell, tier, have) / outputPm(spell, 1, have),
+        needs: skillName(skill) + ' ' + versionLevel(tier), short: have !== null && have < versionLevel(tier) };
+    }).sort((x, y) => x.tier - y.tier);
+  return list.length ? [{ id: null, name: 'Carried runes only', price: null, tier: 0, mana: 0, times: null, needs: '', short: false }].concat(list) : [];
 }
 
-/** A rune choice in words: "Plain Fire Rune · 8 g a cast". */
+/** A rune choice in words: "Plain Scored Fire Rune · 8 g a cast · 30 mana · 1.6x the power", or what it waits for. */
 export function storeChoiceWords(c) {
-  return c.price === null ? c.name : c.name + ' · ' + c.price + ' g a cast';
+  if (c.price === null) return c.name;
+  const power = c.tier > 1 && c.times !== null ? ' · ' + (Math.round(c.times * 10) / 10) + 'x the power' : '';
+  return c.name + ' · ' + c.price + ' g a cast · ' + c.mana + ' mana' + (c.short ? ' · needs ' + c.needs : power);
 }
 
-/** The store choice a freshly picked rune spell starts with: its rune's store row (shown, changeable), else none. */
+/** The store choice a freshly picked rune spell starts with: Plain, its family's cheapest row (shown, changeable), else
+    none. Never a deeper tier: that is the player's own pick (Tyler 2026-10-21, the game never decides which supply is best). */
 export function storeDefault(a, rows) {
   const c = storeChoices(a, rows);
   return c.length > 1 ? c[1].id : null;

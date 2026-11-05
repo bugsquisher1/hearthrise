@@ -52,7 +52,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_buy_hero_slot: 'buy the next hero slot with one own hero\'s gold: the slot id, the paying hero and a key, never a price; the server prices, caps and debits (AccountSession.buySlot)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
-  hr_hunt_density_set: 'the hero’s monster-density pick on one hunt ground, a ground id and a whole number; the server bounds it by that ground and refuses a party member (CharacterSession.setHuntDensity; 2026-11-17-hunt-density-home.sql)',
+  hr_hunt_tier_set: 'the hero’s tier on one hunt ground, a ground id and a tier word; the server checks that ground offers it and refuses a party member (CharacterSession.setHuntTier; 2027-02-27-hunt-tiers.sql)',
   hr_action_set_copy:'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
@@ -89,7 +89,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_disband: 'the leader closes its party in town (party-intents.js disbandParty)',
   hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
   hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
-  /* Call out (2027-03-02-boss-call.sql): a slot, a catalogue id and the price shown; the fee, the count and the party are the server's. */
+  /* Call out (2027-03-12-boss-call.sql): a slot, a catalogue id and the price shown; the fee, the count and the party are the server's. */
   hr_boss_call: 'the party leader pays the server\'s fee and the party enters the called room, every member or none; a stale price is quote_changed (boss-intents.js callOut)',
   hr_boss_call_view: 'the call as the server prices it, read while the ground\'s page is open (boss-quote.js readCall)',
   hr_hunt_party_warn: 'the leader, before Start, tells the seats under a ground; a catalogue ground only, display notices, no value (party-intents.js warnPartyGround)',

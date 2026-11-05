@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/session/boss-intents.js — CALL OUT: THE READ AND THE PRESS (src/data/boss-calls.js; supabase/migrations/2027-03-02-boss-call.sql).
+// src/session/boss-intents.js — CALL OUT: THE READ AND THE PRESS (src/data/boss-calls.js; supabase/migrations/2027-03-12-boss-call.sql).
 //
 // One ask, naming this hero's slot, a catalogue id and the price the player was shown:
 //   callOut(account, cs, call, price)   hr_boss_call: the leader pays the server's fee and the party enters the room,
@@ -8,11 +8,11 @@
 // Nothing here prices or gates anything. A press re-reads every one of this account's heroes in the party: the screen
 // shows only the server's answer. A refusal keeps the server's code and its quote.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.93';
-import { refusalOf } from './refusal.js?v=0.2.93';
-import { partyPeersOf, settleTownActivity } from './party-intents.js?v=0.2.93';
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.93';
-import { quoteOf } from './boss-quote.js?v=0.2.93';
+import { askVia } from './intent-ledger.js?v=0.2.96';
+import { refusalOf } from './refusal.js?v=0.2.96';
+import { partyPeersOf, settleTownActivity } from './party-intents.js?v=0.2.96';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.96';
+import { quoteOf } from './boss-quote.js?v=0.2.96';
 
 const VERB = 'boss_call';
 const newIdem = () => globalThis.crypto.randomUUID();

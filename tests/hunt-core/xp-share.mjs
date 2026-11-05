@@ -49,7 +49,7 @@ const PARTY_TABLE = {
   wickstead: { 2: [880, 1070], 3: [970, 1160, 1220], 4: [970, 1200, 1240, 1270] },
   mosslight_glade: { 2: [960, 1180], 3: [1000, 1300, 1400], 4: [1000, 1200, 1290, 1320] },
   millrace_sewer: { 2: [800, 1000], 3: [800, 1050, 1100], 4: [800, 1050, 1100, 1180] },
-  coppercap_warrens: { 2: [1000, 1180], 3: [1000, 1200, 1280], 4: [1000, 1200, 1260, 1360] },
+  coppercap_warrens: { 2: [960, 1180], 3: [970, 1200, 1280], 4: [980, 1200, 1260, 1360] },
 };
 /* A kill big enough that every cell lands whole (no floor hides a cell), divisible by 2, 3, 4 and 5. */
 const BIG = 600000;
@@ -362,7 +362,7 @@ const mutants = [
   { name: 'Defense ignores the attacker level', case: 'xp-routes',
     edits: [['src/core/hunt-rewards.js', '(lv * COMBAT_XP.defenseXpPerLevelPermille / 1000)', '(COMBAT_XP.defenseXpPerLevelPermille / 1000)']] },
   { name: 'a dodge pays a shield block', case: 'defense-dodge-and-dot',
-    edits: [['src/core/hunt-rewards.js', "defenseXp(aimed, unitOf(ev.u), ev.dodge !== true, ctx.monsters)", "defenseXp(aimed, unitOf(ev.u), true, ctx.monsters)"]] },
+    edits: [['src/core/hunt-rewards.js', "defenseXp(aimed, unitOf(ev.u), ev.dodge !== true, ctx)", "defenseXp(aimed, unitOf(ev.u), true, ctx)"]] },
   { name: 'a status tick trains Defense', case: 'defense-dodge-and-dot',
     edits: [['src/core/hunt-rewards.js', "const hit = ev.dot === true ? null : members.get(ev.t);", "const hit = members.get(ev.t);"]] },
   { name: 'Magic XP drifts off 1.5', case: 'magic-xp-from-mana',

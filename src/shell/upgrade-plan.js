@@ -41,16 +41,16 @@
 //     takes the weight preferredWeight names, so no hero stays bare (designer 2026-11-04)
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.93';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.93';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.93';
-import { loadoutOf } from '../core/member.js?v=0.2.93';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.93';
-import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.93';
-import { itemName } from './widgets/bits.js?v=0.2.93';
-import { reqHave } from './item-lore.js?v=0.2.93';
-import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.93';
-import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.93';
+import { ITEMS } from '../data/items.js?v=0.2.96';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.96';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.96';
+import { loadoutOf } from '../core/member.js?v=0.2.96';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.96';
+import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.96';
+import { itemName } from './widgets/bits.js?v=0.2.96';
+import { reqHave } from './item-lore.js?v=0.2.96';
+import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.96';
+import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.96';
 
 /* The off-hand and the quiver: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['shield', 'ammo']);
@@ -83,14 +83,14 @@ function numbersOf(worn, level, set = true) {
     dmg += num(it[profile.strengthBonusField]);
   }
   const w = armourWeights(worn, ITEMS);
-  return { acc, dmg, def: num(eq.defB), crit: num(eq.critB) + (set && setBonus ? num(setBonus.critB) : 0),
+  return { acc, dmg, def: num(eq.defB), steady: num(eq.steadyPm), crit: num(eq.critB) + (set && setBonus ? num(setBonus.critB) : 0),
     hp: maxHpFor(level, w.heavy), mana: maxManaFor(level, w.light), style: profile.accuracySkill };
 }
 
 /* A worn armour piece, and in the bag one of its weight from a higher material tier. */
 const tierStep = (it, cur) => !!cur && it.type === 'armor' && cur.type === 'armor' && num(it.tier) > num(cur.tier);
 
-const DIMS = Object.freeze(['acc', 'dmg', 'def', 'crit', 'hp', 'mana']);
+const DIMS = Object.freeze(['acc', 'dmg', 'def', 'steady', 'crit', 'hp', 'mana']);
 function dominates(a, b) {
   let more = false;
   for (const k of DIMS) { if (a[k] < b[k] - EPS) return false; if (a[k] > b[k] + EPS) more = true; }
@@ -102,12 +102,12 @@ const STYLE_WORDS = Object.freeze({ melee: 'Melee', ranged: 'Ranged', magic: 'Ma
 /* What one pick adds, in words, in reading order: [{ label, text }]. */
 function gainsOf(before, after) {
   const style = STYLE_WORDS[after.style] || 'Melee';
-  const label = { acc: style + ' accuracy', dmg: style + ' damage', def: 'Defense', crit: 'critical chance', hp: 'health', mana: 'mana' };
+  const label = { acc: style + ' accuracy', dmg: style + ' damage', def: 'Defense', steady: 'damage taken', crit: 'critical chance', hp: 'health', mana: 'mana' };
   const out = [];
   for (const k of DIMS) {
     const d = after[k] - before[k];
     if (d < EPS) continue;
-    out.push({ label: label[k], text: '+' + (k === 'crit' ? (Math.round(d * 1000) / 10) + '%' : Math.round(d)) + ' ' + label[k] });
+    out.push({ label: label[k], text: (k === 'steady' ? '-' + d / 10 + '%' : '+' + (k === 'crit' ? (Math.round(d * 1000) / 10) + '%' : Math.round(d))) + ' ' + label[k] });
   }
   return out;
 }

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/boss-call-db.mjs — CALL OUT ON THE REPLAYED CHAIN WITH THE SHIPPED EDGE (supabase/migrations/2027-03-02-boss-call.sql; the engine's half is tests/boss-call.mjs).
+// tests/boss-call-db.mjs — CALL OUT ON THE REPLAYED CHAIN WITH THE SHIPPED EDGE (supabase/migrations/2027-03-12-boss-call.sql; the engine's half is tests/boss-call.mjs).
 //
 //   node tests/boss-call-db.mjs            the guard
 //   node tests/boss-call-db.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: supabase/migrations/2027-03-02-boss-call.sql
+// mutant-anchors: supabase/migrations/2027-03-12-boss-call.sql
 //
 //   BD-WORDS   every refusal: a party of one, a member, a stale price, an unknown call, each in its code, each charging nothing and opening nothing
 //   BD-CHARGE  the leader pays the server's price, one ledger row kind shop; the member pays nothing; a replayed key charges once and answers the same
@@ -392,7 +392,7 @@ ARMS.again = async (boot) => {
     calls: await q(db, 'select * from public.hr_boss_calls order by call_id'), titles: await q(db, 'select * from public.hr_titles order by title_id'), hunts: await q(db, 'select * from public.hr_hunts order by hunt_id'),
     bounds: await q(db, 'select * from public.hr_hunt_kill_bounds order by monster_id') });
   const before = await read();
-  for (const f of ['2027-03-02-boss-call-hunts-catalogue.generated.sql', '2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql', '2027-03-02-boss-call-titles-catalogue.generated.sql', '2027-03-02-boss-call.sql']) {
+  for (const f of ['2027-03-12-boss-call-hunts-catalogue.generated.sql', '2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql', '2027-03-12-boss-call-titles-catalogue.generated.sql', '2027-03-12-boss-call.sql']) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase/migrations', f), 'utf8')); } catch (e) { bad.push('BD-AGAIN ' + f + ' refused a second apply: ' + String(e.message).split('\n')[0].slice(0, 200)); return bad; }
   }
   if ((await read()) !== before) bad.push('BD-AGAIN a second apply moved something');

@@ -24,8 +24,8 @@ import { FLAMES } from '../src/data/hearth.js';
 import { CHAT_LIMITS } from '../src/data/chat-channels.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* Once this file is APPLIED it is history: a new number moves OUT_FILE to a forward file, like every generated catalogue. */
-export const OUT_FILE = '2027-02-27-gold-sinks-catalogue.generated.sql';
+/* 2027-02-27-gold-sinks-catalogue.generated.sql is APPLIED history (2 free setups). This forward file re-issues the whole table (3 free, Tyler 2026-11-05); the next number moves OUT_FILE again. */
+export const OUT_FILE = '2027-03-07-gold-sinks-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 const NEEDED = ['powder', 'round', 'crier', 'setup_slot', 'hero_colors'];
@@ -136,6 +136,10 @@ begin
   if v is not null then raise exception 'gold-sinks-catalogue §4: the ladder of % does not climb', v; end if;
   if (select free + cardinality(prices) from public.hr_sink_rules where sink_id = 'setup_slot') is distinct from public.hr_hunt_limit('presets') then
     raise exception 'gold-sinks-catalogue §4: setup_slot''s free + prices is not hr_hunt_limit(presets)'; end if;
+  if (select free from public.hr_sink_rules where sink_id = 'setup_slot') is distinct from ${rules.setup_slot.free} then
+    raise exception 'gold-sinks-catalogue §4: setup_slot is not ${rules.setup_slot.free} free'; end if;
+  if (select prices from public.hr_sink_rules where sink_id = 'setup_slot') is distinct from ${bigs(rules.setup_slot.prices)} then
+    raise exception 'gold-sinks-catalogue §4: setup_slot''s prices are not the row in src/data/gold-sinks.js'; end if;
   select o into v from public.hr_sink_rules r cross join lateral unnest(r.offers) o
    where o in (select n.flame from public.hr_hearth_named n) limit 1;
   if v is not null then raise exception 'gold-sinks-catalogue §4: % is a named flame, and those are never for sale', v; end if;
@@ -165,16 +169,16 @@ function selftest() {
   bites('a day cap that is not the climb', 'one number', { ...R, powder: { ...R.powder, perDay: 6 } });
   bites('two prices on one row', 'exactly one', { ...R, hero_colors: { ...R.hero_colors, prices: [100] } });
   bites('no price at all', 'exactly one', { ...R, hero_colors: { scope: 'hero', offers: [] } });
-  bites('setups that outrun the limit', 'setup limit is 5', { ...R, setup_slot: { ...R.setup_slot, free: 3 } });
+  bites('setups that outrun the limit', 'setup limit is 5', { ...R, setup_slot: { ...R.setup_slot, free: 4 } });
   bites('a named flame for sale', 'never for sale', { ...R, powder: { ...R.powder, offers: ['honey', 'borax'] } }, { flames: { honey: {} } });
   bites('an offer on two rows', 'on two rows', { ...R, round: { ...R.round, offers: ['borax'] } });
   bites('a powder with no flame to draw', 'no flame to draw', { ...R, powder: { ...R.powder, offers: ['cinnabar', 'quicklime', 'saltpeter'] } });
   bites('a round the client can not name', 'its offer is not', { ...R, round: { ...R.round, offers: ['toast'] } });
   bites('a show longer than its booking', "can't fit one show", { ...R, round: { ...R.round, bookS: 10 } });
   bites('a Crier line longer than chat takes', 'more than a chat line', { ...R, crier: { ...R.crier, maxLetters: 100000 } });
-  /* Tyler may still say 3 free: the flip is one row, and it stays legal. */
-  const three = problemsOf({ ...R, setup_slot: { ...R.setup_slot, free: 3, prices: [15000, 40000] } });
-  console.log(`  ${three.length ? 'MISSED' : 'CAUGHT'} three free setups are one legal row`);
+  /* Tyler may flip the free count again: it is one row, and it stays legal. */
+  const three = problemsOf({ ...R, setup_slot: { ...R.setup_slot, free: 2, prices: [5000, 15000, 40000] } });
+  console.log(`  ${three.length ? 'MISSED' : 'CAUGHT'} two free setups are one legal row`);
   if (three.length) bad++;
   if (bad) { console.error(`gen-gold-sinks --selftest: ${bad} refusal(s) did not bite`); process.exit(1); }
   console.log('gen-gold-sinks --selftest: every refusal bites');

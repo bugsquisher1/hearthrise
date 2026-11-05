@@ -38,7 +38,7 @@ const A = '000000c0-0000-4000-a000-0000901d7c01';
 const B = '000000c0-0000-4000-a000-0000901d7c02';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
-const CATALOGUE = '2027-03-02-boss-call-titles-catalogue.generated.sql';
+const CATALOGUE = '2027-03-12-boss-call-titles-catalogue.generated.sql';
 const FILE = '2027-02-28-titles.sql';
 const BUY = 'public.hr_title_buy(integer,text,bigint,uuid)';
 const WEAR = 'public.hr_title_wear(integer,text,uuid)';

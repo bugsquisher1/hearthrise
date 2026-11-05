@@ -184,6 +184,13 @@ export const REASONS = Object.freeze({
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
   ],
+  'src/shell/windows/chat-crier.js': [
+    { cond: 'q.price === null', words: 'CRIER.done', where: 'past the day\'s ladder the button itself says the Crier is done; before the first read the line under it says it\'s asking' },
+  ],
+  'src/shell/windows/havora/index.js': [
+    { cond: 'pPrice === null', words: 'No more powders today', where: 'past the day\'s ladder the button itself says so, and the line under it says when more come' },
+    { cond: 'rPrice === null', words: 'No more rounds today', where: 'past the day\'s ladder the button itself says so, and the line under it says when more come' },
+  ],
   'src/shell/windows/havora/works.js': [
     { cond: 'off', words: 'a day from one account, and you', where: 'Give: off while a gift is in flight, before the first read, and when today\'s allowance is spent; the line under them says so in the designer\'s words' },
   ],

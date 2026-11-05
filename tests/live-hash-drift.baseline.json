@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-05",
- "replay_ms": 4694,
+ "replay_ms": 51128,
  "counts": {
   "tracked_names": 746,
   "entries": 601
@@ -11069,17 +11069,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-28-setup-slots.sql"
+    "2027-02-28-setup-slots.sql",
+    "2027-02-28-sink-price-plan.sql"
    ],
    "live": {
-    "md5": "158bfe1a0ab93347a3b95717b4bce7de",
-    "norm_len": 697,
+    "md5": "b7a8ed034b203a10f3e498f5942c0e05",
+    "norm_len": 841,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "158bfe1a0ab93347a3b95717b4bce7de",
-    "norm_len": 697,
+    "md5": "b7a8ed034b203a10f3e498f5942c0e05",
+    "norm_len": 841,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -11258,17 +11259,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-27-gold-sinks-seams.sql"
+    "2027-02-27-gold-sinks-seams.sql",
+    "2027-02-28-sink-price-plan.sql"
    ],
    "live": {
-    "md5": "d153f6419d2395a6206d125d525cc77a",
-    "norm_len": 465,
+    "md5": "e3ef0da5eff81c31ba01fe42f3089d58",
+    "norm_len": 650,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d153f6419d2395a6206d125d525cc77a",
-    "norm_len": 465,
+    "md5": "e3ef0da5eff81c31ba01fe42f3089d58",
+    "norm_len": 650,
     "source": "computed-from-replay"
    },
    "agree": true

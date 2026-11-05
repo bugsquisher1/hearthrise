@@ -34,7 +34,10 @@
 //   TS-NO-METER THE STANDING GUARD: nothing but the named functions reads town_shows or the purchase journal: gold into the Hearthrise meter is a paid XP buff (avoid list)
 //   TS-EDGE    bought flames stay out of src/data/hearth.js, and src/data/gold-sinks.js is in no edge bundle, so this lane moves no edge hash
 //   TS-WORDS   every refusal says why in the designer's sentence, with the server's numbers
-//   TS-WINDOW  the Havora window's buttons read the server's quote; its tabs hide Works; the Tavern opens its Round tab; a bought flame swaps the fire's art and a round bursts
+//   TS-WINDOW  the Havora window's buttons read the server's quote; its tabs hide Works; the Tavern opens its Round tab; a bought flame swaps the fire's art and a round bursts;
+//              the Hearth tab says what a powder does, and the day's line and the answer stand in the window's foot (tests/chat-social.mjs CW-HAVORA measures the foot in a browser)
+//   TS-SHOW    a round is a show for its whole length: shells climb from the square and burst high over it, in many places, never dark for long, never crowding the square;
+//              each shell is large, mostly air and no mirrored stamp, and every shell steps on one tick so a show can't repaint the town every frame
 // TRUE CONCURRENCY: PGlite is one backend, so TS-CLIMB and TS-REFUSE prove the order and the rollback; tests/town-shows-race.mjs runs both on real PostgreSQL 17 backends.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, mkdtempSync, rmSync, writeFileSync, cpSync } from 'node:fs';
@@ -61,7 +64,8 @@ const BURN = 'public.hr_hearth_burn(integer,text,uuid)';
 const FLAME = 'public.hr_hearth_flame_of(text)';
 const PUSH = 'public.hr_town_show_push(text,timestamp with time zone,timestamp with time zone)';
 const ADD = 'public.hr_gold_given_add(uuid,integer,bigint)';
-const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql'];
+/* in chain order: 2027-02-28-sink-price-plan.sql restates the seams' hr_sink_price */
+const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-02-28-sink-price-plan.sql'];
 
 /* ── THE PLANTED DEFECTS ─────────────────────────────────────────────────────
    db: a live body edited inside the arm's transaction (fn, find, replace). ddl: a statement in it. sql: an edit of a migration's TEXT the
@@ -174,6 +178,12 @@ export const MUTANTS = {
     js: ['src/world/hearth-burn.js', [["const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES });", "const FLAMES = NAMED_FLAMES;"]]] },
   round_never_bursts: { arm: 'TS-WINDOW', why: 'a round draws nothing',
     js: ['src/world/town-shows.js', [["      if (!fire || !round || now < round.startedAt || now >= round.endsAt) return [];", "      return [];"]]] },
+  show_on_the_floor: { arm: 'TS-SHOW', why: 'a shell bursts where it was fired from, on the floor', js: ['src/data/gold-sinks.js', [['riseMs: 416, riseTiles: 6,', 'riseMs: 416, riseTiles: 0,']]] },
+  show_is_a_moment: { arm: 'TS-SHOW', why: 'a paid round is over in a few seconds', js: ['src/data/gold-sinks.js', [['  ].map(Object.freeze)),\n});\n\n/** One row per sink', '  ].slice(0, 6).map(Object.freeze)),\n});\n\n/** One row per sink']]] },
+  show_in_one_place: { arm: 'TS-SHOW', why: 'every shell bursts on one spot', js: ['src/world/town-shows.js', [['x: fire.x + dx, y: fire.y + dy }); continue; }', 'x: fire.x, y: fire.y + dy }); continue; }']]] },
+  show_every_frame: { arm: 'TS-SHOW', why: 'a shell moves on every frame, so a show repaints the town at the screen\'s rate', js: ['src/world/town-shows.js', [['const t = Math.floor((now - round.startedAt) / tickMs) * tickMs;', 'const t = now - round.startedAt;']]] },
+  hearth_claims_the_square: { arm: 'TS-WINDOW', why: 'the Hearth tab promises a color the square never shows', js: ['src/shell/windows/havora/index.js', [["It burns that color for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone in ' + esc(TOWN_NAME) + ' sees", "Its color fills ' + esc(TOWN_NAME) + '\\'s square for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone there sees"]]] },
+  foot_in_the_pane: { arm: 'TS-WINDOW', why: 'the answer to a press sits outside the foot, under the fold of a short window', js: ['src/shell/windows/havora/index.js', [["    + '<p class=\"hh-intent-msg\" role=\"status\" aria-live=\"polite\"></p></div></div>';", "    + '</div><p class=\"hh-intent-msg\" role=\"status\" aria-live=\"polite\"></p></div>';"]]] },
 };
 
 const q = async (db, sql, params) => (await db.query(sql, params)).rows;
@@ -743,6 +753,14 @@ const ARMS = {
     const html = X.HW.renderHavora({});
     if (/data-tab="works"|data-pane="works"/.test(html)) out.push('the window shows Works before its lane lands');
     for (const id of ['hearth', 'round']) if (!html.includes('data-tab="' + id + '"')) out.push('the window has no ' + id + ' tab');
+    /* ONLY THE FLAME CHANGES COLOR, so the Hearth tab says so, with the rules row's own seconds */
+    const lead = (/data-pane="hearth"><p class="hv-lead">([^<]*)</.exec(html) || [])[1] || '';
+    if (/fills|square/i.test(lead)) out.push('the Hearth tab promises the square a color: ' + lead);
+    if (!lead.includes('burns that color for ' + X.GS.SINK_RULES.powder.seconds + ' seconds') || !lead.includes('everyone in Havora sees who threw it')) out.push('the Hearth tab reads: ' + lead);
+    /* THE DAY'S LINE AND THE ANSWER STAND IN THE FOOT, one line per tab: a short window scrolls the pane under them */
+    const foot = (/<div class="hv-foot">(.*)<\/div><\/div>$/.exec(html) || [])[1] || '';
+    for (const id of ['hearth', 'round']) if (!foot.includes('hv-count" data-of="' + id + '"')) out.push('the foot has no line for ' + id + ': ' + foot);
+    if (!foot.includes('hh-intent-msg')) out.push('the answer to a press is not in the foot: ' + foot);
     /* THE SERVER'S ANSWER, read field by field */
     await hero(db, A, 0, 'Marlow');
     const view = await as(db, A, 'select public.hr_town_sinks_view(0)');
@@ -755,8 +773,7 @@ const ARMS = {
     if (!act || act.kind !== 'window' || act.window !== 'havora' || act.tab !== 'round') out.push('a tap on the Tavern acts ' + JSON.stringify(act));
     /* A BOUGHT FLAME SWAPS THE FIRE'S ART, FROM THE TOWN'S ANSWER ALONE */
     const map = { T: 32, ambient: [{ id: 'hearth_fire', x: 50, y: 50, lift: 0 }] };
-    /* over the square, never the firebox's far side: the burst stays within the square's reach of the fire, south of it */
-    const sprites = { hearth_fire: {}, hearth_fire_cinnabar: {}, hearth_flare_cinnabar: {}, hearth_burn_sparks_cinnabar: {}, fx_round_gold: {}, fx_round_cinder: {}, fx_round_frost: {} };
+    const sprites = { hearth_fire: {}, hearth_fire_cinnabar: {}, hearth_flare_cinnabar: {}, hearth_burn_sparks_cinnabar: {}, fx_round_gold: {}, fx_round_cinder: {}, fx_round_frost: {}, fx_round_rise: {} };
     const hv = X.HB.createHearthView(map, { sprites });
     const fr = hv.frame({ place: {}, units: [], walkers: [], me: null, active: null, burn: null, flame: { flame: 'cinnabar', startedAt: 1000 }, xp: null, hero: { x: 1, y: 1 } }, 1100);
     if (!fr.ambientSwap || fr.ambientSwap.hearth_fire !== 'hearth_fire_cinnabar') out.push('a bought flame leaves the fire ' + JSON.stringify(fr.ambientSwap));
@@ -765,7 +782,6 @@ const ARMS = {
     const round = { startedAt: 1000, endsAt: 46000 };
     const f1 = shows.frame(round, 5000), f2 = shows.frame(round, 5000);
     if (!f1.length || JSON.stringify(f1) !== JSON.stringify(f2) || !f1.every((e) => /^fx_round_/.test(e.id))) out.push('a round draws ' + JSON.stringify(f1));
-    if (f1.some((e) => e.y < 50 || e.y > 58 || e.x < 46 || e.x > 54)) out.push('a burst is off the square: ' + JSON.stringify(f1));
     if (shows.frame(round, 46000).length || shows.frame(null, 5000).length) out.push('a round draws past its end');
     /* A ROUND ON THE TOWN'S ANSWER, ON THE LOCAL CLOCK */
     let answer = { ok: true, status: 200, body: { ok: true, walkers: [], gone: [], shows: { round: { by: 'Marlow', from_ms: 900, until_ms: 45900, now_ms: 1000 } } } };
@@ -780,6 +796,65 @@ const ARMS = {
     await tp.read();
     if (tp.round() !== null) out.push('an answer with no round kept the last one');
     tp.destroy();
+    return out;
+  },
+
+  'TS-SHOW': async (db, X) => {
+    const out = [];
+    const S = X.GS.ROUND_SHOW;
+    const FIRE = { id: S.from, x: 50, y: 50, lift: 0 };
+    const ids = [...new Set(S.program.map((r) => r[1]))];
+    const shows = X.TSH.createTownShows({ T: 32, ambient: [FIRE] }, { sprites: Object.fromEntries([S.rise, ...ids].map((id) => [id, {}])) });
+    const len = X.GS.SINK_RULES.round.seconds * 1000;
+    const round = { startedAt: 1000, endsAt: 1000 + len };
+    /* WALKED AT 50 ms FROM START TO END: a real show for its whole length, never crowding the square */
+    let dark = 0, longest = 0, most = 0, lastUp = -1;
+    const places = new Set();
+    for (let t = 0; t < len; t += 50) {
+      const f = shows.frame(round, 1000 + t);
+      most = Math.max(most, f.length);
+      const up = f.filter((e) => e.id !== S.rise);
+      for (const e of up) places.add(e.x + ',' + e.y);
+      if (up.length) { dark = 0; lastUp = t; } else if (t > 1200) { dark += 50; longest = Math.max(longest, dark); }
+    }
+    if (longest > 1000) out.push('the show goes dark for ' + longest + ' ms');
+    if (len - lastUp > 3000 + 50) out.push('the show ends ' + (len - lastUp) + ' ms before the round does');
+    if (S.program.some(([at]) => at + S.playMs > len)) out.push('a shell is cut off by the round\'s end');
+    if (places.size < 12) out.push('the show bursts in only ' + places.size + ' places');
+    if (most > 6) out.push(most + ' shells up at once crowd the square');
+    /* EVERY SHELL CLIMBS FROM THE SQUARE AND BURSTS HIGH OVER IT, north of its launch and of the fire's own row */
+    const [first] = S.program;
+    const tickAfter = (ms) => Math.ceil(ms / S.tickMs) * S.tickMs + 1;
+    const climbing = shows.frame(round, 1000 + tickAfter(first[0] - S.riseMs)).find((e) => e.id === S.rise);
+    const burst = shows.frame(round, 1000 + tickAfter(first[0])).find((e) => e.id === first[1]);
+    if (!climbing || !burst || climbing.y - burst.y < 4 || S.riseTiles < 5) out.push('a shell climbs ' + (climbing && burst ? climbing.y - burst.y : '?') + ' tiles from the square to its burst');
+    if (burst && (burst.x !== FIRE.x + first[2] || burst.y !== FIRE.y + first[3])) out.push('the first shell bursts at ' + JSON.stringify(burst));
+    if (S.program.some((r) => r[3] >= 0)) out.push('a row bursts on the floor, south of the fire');
+    /* A SHELL NEVER LANDS ON THE LAST ONE */
+    for (let i = 1; i < S.program.length; i++) {
+      const [a, , ax, ay] = S.program[i - 1], [b, , bx, by] = S.program[i];
+      if (b - a < S.playMs && Math.hypot(bx - ax, by - ay) < 4) out.push('rows at ' + a + ' and ' + b + ' burst on each other');
+    }
+    /* ONE TICK, HOWEVER MANY ARE UP: the frame is the same list until the tick turns */
+    const onTick = Math.ceil(first[0] / S.tickMs) * S.tickMs;
+    if (JSON.stringify(shows.frame(round, 1000 + onTick + 1)) !== JSON.stringify(shows.frame(round, 1000 + onTick + 1 + S.tickMs / 2))) out.push('a shell moves between ticks');
+    /* THE ART: large, mostly air so a hero or the Hearth reads through it, and no mirrored stamp */
+    const A = await import(pathToFileURL(join(ROOT, 'tools/world-art/round-fireworks.mjs')).href);
+    for (const id of ids) {
+      const name = id.replace('fx_round_', '');
+      if (A.coverOf(name) > 0.15) out.push(id + ' hides ' + Math.round(A.coverOf(name) * 100) + '% of its box at its fullest');
+      const frames = A.shellFrames(name);
+      if (frames.length * 100 < S.playMs * 0.8 || frames.length * 100 > S.playMs) out.push(id + ' plays ' + frames.length * 100 + ' ms against playMs ' + S.playMs);
+      const set = (f, x, y) => x >= 0 && y >= 0 && x < f.w && y < f.h && f.rank[y * f.w + x] !== 0;
+      let wide = 0, mirrored = 0, n = 0;
+      for (const f of frames) {
+        let lo = f.w, hi = -1;
+        for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) if (set(f, x, y)) { lo = Math.min(lo, x); hi = Math.max(hi, x); n++; if (set(f, f.w - 1 - x, y)) mirrored++; }
+        wide = Math.max(wide, hi - lo + 1);
+      }
+      if (wide < 110) out.push(id + ' is only ' + wide + ' art px across at its widest');
+      if (mirrored / n > 0.5) out.push(id + ' is a mirrored stamp: ' + Math.round(mirrored / n * 100) + '% of its pixels have a twin');
+    }
     return out;
   },
 

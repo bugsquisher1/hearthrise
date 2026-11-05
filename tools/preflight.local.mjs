@@ -72,6 +72,11 @@ export const EXTRAS = [
     'a catalogue or a table moved: tonight\'s 48-row pin, 4 min into the run'],
   ['node tests/rpc-resolution.mjs', (f) => CHAIN(f), 'a client RPC moved: --update-baseline in the same commit (41226511232)'],
   ['node tests/apply-order-honesty.mjs', (f) => CHAIN(f) || f === 'tests/live-hash-drift.baseline.json', 'every apply-order note agrees with the baseline'],
+  /* v0.2.91 and v0.2.93 (2026-11-05): a new envelope section went red on two of these after 25 min of a run, and a sink's price on the third. */
+  ['node tests/envelope-contract.mjs', (f) => CHAIN(f) || f.startsWith('src/session/'), 'the client reads a section with no contract (41973095820)'],
+  ['node tests/no-client-copy-of-projection.mjs --execute', (f) => CHAIN(f), 'a new projection key: re-pin it (41973095820)'],
+  ['node tests/settle-budget.mjs', (f) => CHAIN(f) || f.startsWith('src/core/'), 'a SQL function in the settle path, or a settle over budget'],
+  ['node tests/say-why.mjs', (f) => f.startsWith('src/shell/') || f.startsWith('src/app/'), 'a control off for a rule with no reason on screen (41973095820)'],
   ['bash bump-version.sh --check', () => true, 'the three version strings agree'],
   ['node tests/level-curve.mjs', (f) => /^src\/data\/(monsters|hunts|core-model|level)/.test(f), 'a ground or a monster moved: the curve is re-measured (40772818413)'],
   ['node tests/core-purity.mjs', (f) => f.startsWith('src/core/') || /^src\/data\/core-model/.test(f), 'run-smoke\'s curve anchors (40789905806)'],

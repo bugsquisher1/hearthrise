@@ -15,6 +15,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
 
+- A round's fireworks now climb and burst high over Hearth Square for the whole 45 seconds, and a Town Crier's line stands out in Global on its own gold band.
+
 **Throw a pinch on the fire.** Hearth powders turn Havora's flame a new color for everyone in town, for 30 seconds, from 2,000 gp and up to five a day.
 
 **Stand a round.** Buy the town a round and everyone in Havora sees the fireworks, from 5,000 gp and up to three a day.

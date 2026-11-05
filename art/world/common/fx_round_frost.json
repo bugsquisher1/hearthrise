@@ -2,15 +2,16 @@
   "id": "fx_round_frost",
   "class": "vfx",
   "style": "s1",
+  "drawn": "tools/world-art/round-fireworks.mjs",
   "material": "light",
   "source": "fx_round_frost.png",
   "frame": [
-    64,
-    64
+    140,
+    132
   ],
   "anchor_px": [
-    31,
-    31
+    70,
+    62
   ],
   "footprint": [
     1,
@@ -19,29 +20,12 @@
   "anims": [
     {
       "name": "play",
-      "fps": 12,
+      "fps": 10,
       "loop": false,
       "dirs": {
-        "s": 8
+        "s": 14
       }
     }
   ],
-  "pixellab": {
-    "tool": "vfx_workbench",
-    "effect": "30bc46ec-668c-4d88-b4df-34c8a5f83a15",
-    "image": "b2885207-e777-4c10-8c6c-8e3f9267a226",
-    "parts": [
-      "cooling_sparks",
-      "ember_rise"
-    ],
-    "cost": 0,
-    "colours": [
-      "#8e1f1f",
-      "#c23a2a",
-      "#f2a03a",
-      "#ffd36a"
-    ],
-    "derived": "tools/world-art/round-fireworks.mjs: hearth_burn_sparks mirrored four ways, re-poured onto the frost ramp; no generation"
-  },
-  "notes": "THE ROUND: one firework over Hearth Square. The Hearth's own sparks thrown every way at once, on the frost ramp."
+  "notes": "THE ROUND: one shell over Hearth Square, a tilted ring of frost stars, with comets thrown past it. Drawn by tools/world-art/round-fireworks.mjs: hard pixels, palette colors, no generation."
 }

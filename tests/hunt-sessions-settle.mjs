@@ -2197,7 +2197,7 @@ const DB_ARMS = {
   },
   'RUNE-LADDER-IDEM': async (db) => inTx(db, async () => {
     const FILES = ['2027-03-08-rune-ladder-items-catalogue.generated.sql', '2027-03-08-rune-ladder-bench-tax-rates.generated.sql',
-      '2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql', '2027-03-08-rune-ladder-rune-spells.generated.sql', '2027-03-08-rune-ladder-slots.sql'];
+      '2027-03-11-etched-12g-hunt-sessions-catalogue.generated.sql', '2027-03-08-rune-ladder-rune-spells.generated.sql', '2027-03-08-rune-ladder-slots.sql'];
     const FNS = ['public.hr_hunt_slot_check(jsonb)', 'public.hr_hunt_settings_view(uuid,integer)', 'public.hr_hunt_rune_store_state(uuid,integer,text,text)', 'public.hr_hunt_rune_spells()'];
     const image = async () => {
       const out = {};

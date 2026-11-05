@@ -68,6 +68,8 @@
 //         browser closed) and in the browser's prediction (viewed), every commit matching.
 //   LV-SHOT-SKILL a slot's ammo the hero's skill can't use yet (Mithril Arrows, Ranged 45, at Ranged 42): viewed and closed, neither
 //             shot nor spent, the next slot flies, every commit matches (the settle half: tests/hunt-core/ranger-bar.mjs under-skill)
+//   LV-WAITS  a slot's words read the engine's own test of the prediction's world (src/shell/slot-waits.js): held on a lone monster, free on two,
+//             nothing to judge between pulls, and asked on every tick no commit moves
 //   LV-RANGER A RANGER'S BAR (Andy 2026-10-23, Fremulon): a bow with NO ammo worn, a Copper Whetstone
 //         slot ahead of its arrows: it shoots only its arrows (never the whetstone) and Precision Shot
 //         casts on them, on the server's commits (browser closed) and in the prediction (viewed).
@@ -1255,6 +1257,27 @@ function rules(M) {
     ok('LV-$', JSON.stringify(dry(closedEvs)) === JSON.stringify(['cooked_shrimp,salted_trout,2']), 'the server\'s run-out event read ' + JSON.stringify(dry(closedEvs)) + ', want slot 2 (Salted Trout) taking over');
     ok('LV-$', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
   }
+  { /* LV-WAITS a slot says why it isn't firing from the engine's own test of the world the prediction runs (slot-waits.js), asked on every tick */
+    const mi = memberOf(M, 'a', 0, 'mage', 1);
+    mi.equipment = { weapon: 'practice_wand', shield: 'practice_spellbook' };
+    mi.huntSession = Object.assign({}, mi.huntSession, { bag: { chalked_fire_rune: { loaded: 200, left: 200 }, cooked_shrimp: { loaded: 30, left: 30, essential: true } } });
+    const fire ={ action: { type: 'ability', id: 'fireball' }, conditions: [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }], join: 'and' };
+    mi.hero = M.SPAWN.heroSetup({ weaponType: 'wand', options: {}, partyRoles: ['mage'], bar: [fire] });
+    const said = { held: 0, free: 0, idle: 0 };
+    const r = run(M, [mi], 96000, { onTick: ({ E }) => {
+      const test = E.slotTester(E.selfUnit());
+      if (!test) { said.idle++; return; }
+      if (test(fire).pass) said.free++; else said.held++;
+    } });
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    const casts = r.fed.events.filter((e) => e.type === 'cast' && e.ability === 'fireball').length;
+    console.log('  LV-WAITS: over 96 s of a Mage\'s prediction the slot read held ' + said.held + ', free ' + said.free + ', nothing engaged ' + said.idle + ' ticks; Fireball cast ' + casts + ' times; ' + bad.length + ' of ' + r.verdicts.length + ' commits off');
+    ok('LV-WAITS', said.held > 0, 'CONTROL: the prediction never read Fireball as held back: ' + JSON.stringify(said));
+    ok('LV-WAITS', said.free > 0 && casts > 0, 'CONTROL: Fireball never had its two monsters: ' + JSON.stringify(said) + ', ' + casts + ' casts');
+    ok('LV-WAITS', said.idle > 0, 'nothing engaged never read as nothing to judge (between pulls): ' + JSON.stringify(said));
+    ok('LV-WAITS', r.verdicts.length > 0 && bad.length === 0, bad.length + ' commit(s) did not match with the slot asked every tick: asking moved the prediction');
+    ok('LV-WAITS', r.E.slotTester(987654) === null, 'a unit nobody plays has a tester');
+  }
   { /* LV-RANGER a Ranger's bar, viewed and with the browser closed (Andy 2026-10-23, Fremulon) */
     const mi = memberOf(M, 'a', 0, 'ranger', 10);
     /* Melee 15 meets the Copper Whetstone's own requirement. At Level 10's Melee the skill gate (abilities.js shotLocked) passes it over first, which hid whether a bow may shoot it: this rule is the weapon's (damage.js pickShot). */
@@ -1381,6 +1404,8 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  ['the prediction never answers why a slot waits (LV-WAITS)', 'src/hunt-view/live-engine.js', 'return side ? slotTesterOf(st.world, st.where.grid, side.member, items) : null;', 'return null;', /^LV-WAITS: CONTROL: the prediction never read/],
+  ['asking why a slot waits moves the prediction (LV-WAITS)', 'src/hunt-view/live-engine.js', '    const t = testSlot(inst, u, h, slot);\n', '    const t = testSlot(inst, u, h, slot);\n    u.mana -= 1;\n', /^LV-WAITS: \d+ commit/],
   ['the engine shoots ammo under its skill (LV-SHOT-SKILL)', 'src/core/hunt/abilities.js', "function shotLocked(h, id) {\n", "function shotLocked(h, id) {\n  if (h) return false;\n", /^LV-SHOT-SKILL: browser closed/],
   ["the peer's Level stays out of its frozen row, so the browser predicts the low seat a full share (LV-U)", 'src/core/member.js', 'armour: snap.armour || null, level: snap.level }', 'armour: snap.armour || null }', /^LV-U: the prediction/],
   ['the party factor is not paid (LV-CLASS)', 'src/core/hunt/xp-share.js', '(raw * party * multOf(sc, h))', '(raw * 1000 * multOf(sc, h))', /^LV-CLASS: mixed/],

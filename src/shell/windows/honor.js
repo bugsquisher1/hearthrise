@@ -12,14 +12,14 @@
 // Every number is the server's: places (shared on a tie), levels, scores, the count and the
 // stamp. The window adds nothing up and ranks nobody (CLAUDE.md §1, §6).
 // ════════════════════════════════════════════════════════════════════════
-import { readBoard } from '../../session/honor-roll.js?v=0.2.94';
-import { nameOf } from '../../session/item-sections.js?v=0.2.94';
-import { HONOR_BOARDS, honorBoard, honorGroups } from '../../data/honor-roll.js?v=0.2.94';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.94';
-import { whole, gold } from '../../render/format.js?v=0.2.94';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.94';
-import { glyphSvg } from '../widgets/bits.js?v=0.2.94';
-import { refusalText } from '../intent-words.js?v=0.2.94';
+import { readBoard } from '../../session/honor-roll.js?v=0.2.95';
+import { nameOf } from '../../session/item-sections.js?v=0.2.95';
+import { HONOR_BOARDS, honorBoard, honorGroups } from '../../data/honor-roll.js?v=0.2.95';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.95';
+import { whole, gold } from '../../render/format.js?v=0.2.95';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.95';
+import { glyphSvg } from '../widgets/bits.js?v=0.2.95';
+import { refusalText } from '../intent-words.js?v=0.2.95';
 
 /** Asked again while the window stays open, and after a read that did not land (ms of the shell's clock). */
 const REASK_MS = 120000;

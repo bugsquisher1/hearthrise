@@ -33,22 +33,22 @@
 // It authors no number: the record changes only from a server answer, and it sends of its own only the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.94';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.94';
-import { LiveLink } from './live-link.js?v=0.2.94';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.94';
-import { SESSION_CONFIG } from './config.js?v=0.2.94';
-import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.94';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.94';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.94';
-import { AskPacer } from './ask-pacer.js?v=0.2.94';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.94';
-import { ReadGate } from './read-gate.js?v=0.2.94';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.94';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.94';
-import { catchUpLink, newIdem } from './catch-up.js?v=0.2.94';
-import { pageAway } from './page-away.js?v=0.2.94';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.94';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.95';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.95';
+import { LiveLink } from './live-link.js?v=0.2.95';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.95';
+import { SESSION_CONFIG } from './config.js?v=0.2.95';
+import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.95';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.95';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.95';
+import { AskPacer } from './ask-pacer.js?v=0.2.95';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.95';
+import { ReadGate } from './read-gate.js?v=0.2.95';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.95';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.95';
+import { catchUpLink, newIdem } from './catch-up.js?v=0.2.95';
+import { pageAway } from './page-away.js?v=0.2.95';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.95';
 
 export const FRAME_EVENT = 'frame';
 

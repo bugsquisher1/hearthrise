@@ -5,7 +5,7 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## Unreleased
+## v0.2.95 — 2026-11-05 (First Spells)
 
 - The store now sells deeper runes for your spells, from 8 gp a cast for Scored up to 24 gp for Graven: pick one on a spell's slot in Configure action to cast that stronger version at Plain's three-quarter strength. Plain stays 1 gp, and your bar never changes unless you change it. Bound runes now make fewer to a job and sell for more, so a runecrafter can sell below the store.
 ## v0.2.94 — 2026-11-05 (A Smith Needs Salts)

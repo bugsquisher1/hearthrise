@@ -21,8 +21,8 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ARMOUR_WEIGHT, ARMOUR_MITIGATION } from '../data/core-model.js?v=0.2.94';
-import { temperedAmount } from './temper.js?v=0.2.94';
+import { ARMOUR_WEIGHT, ARMOUR_MITIGATION } from '../data/core-model.js?v=0.2.95';
+import { temperedAmount } from './temper.js?v=0.2.95';
 
 const nat = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
 

@@ -47,8 +47,8 @@ begin
   -- each restated body is EXACTLY its live image (tests/live-hash-drift.baseline.json, measured 2026-11-05) or this file's own (a second apply)
   for v_r in select * from (values
     ('public.hr_hunt_preset_save(integer,integer,text,uuid)', 'e43e8613e0aaa3c0a352bab198e278a8', '355b2fc5d944fd41bb22f6a9bc57253e'),
-    ('public.hr_action_set_put(integer,integer,text,jsonb,uuid)', 'c738b19ee67986f79cbbccbc68e835e4', '1c2aae0b02a820540f7b30445230c538'),
-    ('public.hr_action_set_options(integer,integer,jsonb,uuid)', '29d33ecb4c29c7a354a5a00fd3a9c73b', '3b0fac2ad05fa9708b50d5240daa9de4'),
+    ('public.hr_action_set_put(integer,integer,text,jsonb,uuid)', 'c738b19ee67986f79cbbccbc68e835e4', 'b6cb50cb6289e10280189929351d37c8'),
+    ('public.hr_action_set_options(integer,integer,jsonb,uuid)', '29d33ecb4c29c7a354a5a00fd3a9c73b', '2020b9b3f01607b72a3874e788ff2191'),
     ('public.hr_action_set_rename(integer,integer,text,uuid)', '7a3771a03b7a39e82a95d87c1759dfb7', '64f9dd795659b90496376fa2bb154e7b'),
     ('public.hr_action_set_copy(integer,integer,uuid)', 'f1f349d0e3eebcd4441019d8056dc57c', '328c317077f7bd6f0b5718f701dd9ba4')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
@@ -225,6 +225,7 @@ declare
   v_r    jsonb;
   v_s    public.hunt_sessions%rowtype;
   v_name text;
+  v_lock jsonb;
 begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_slot is null or p_slot < 0 or p_slot > 5 then
@@ -246,8 +247,8 @@ begin
   if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
   -- SETUP-SLOTS (2027-02-28-setup-slots.sql): a bar on a new number past the count would make that number free to save.
-  if public.hr_setup_locked(v_uid, p_slot, p_preset) is not null then
-    return public.hr_note_rejection(c_verb, p_slot, public.hr_setup_locked(v_uid, p_slot, p_preset)); end if;
+  v_lock := public.hr_setup_locked(v_uid, p_slot, p_preset);
+  if v_lock is not null then return public.hr_note_rejection(c_verb, p_slot, v_lock); end if;
   -- An edit to the bar a hunt is running lands from the next swing boundary.
   if v_s.id is not null and v_s.preset = p_preset and public.hr_hunt_gap_ms(v_s) > c_slack_ms then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'settle_first',
@@ -275,6 +276,7 @@ declare
   v_set  jsonb := '{}'::jsonb;
   v_del  text[] := '{}';
   v_bar  jsonb := null;
+  v_lock jsonb;
 begin
   -- DENSITY-HOME (2026-11-17-hunt-density-home.sql): density is no option (hunt_density, hr_hunt_density_set);
   -- a `density` key is refused as bad_option by the catalogue like any unknown key.
@@ -336,8 +338,8 @@ begin
   if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
   -- SETUP-SLOTS (2027-02-28-setup-slots.sql): a bar on a new number past the count would make that number free to save.
-  if public.hr_setup_locked(v_uid, p_slot, p_preset) is not null then
-    return public.hr_note_rejection(c_verb, p_slot, public.hr_setup_locked(v_uid, p_slot, p_preset)); end if;
+  v_lock := public.hr_setup_locked(v_uid, p_slot, p_preset);
+  if v_lock is not null then return public.hr_note_rejection(c_verb, p_slot, v_lock); end if;
   if v_s.id is not null and v_s.preset = p_preset and public.hr_hunt_gap_ms(v_s) > c_slack_ms then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'settle_first',
       'unsettled_ms', public.hr_hunt_gap_ms(v_s))); end if;
@@ -532,12 +534,12 @@ begin
       raise exception 'setup-slots §6(g): a copy opened a number past the count'; end if;
     if not exists (select 1 from public.player_action_sets a where a.user_id = v_u and a.slot = 1 and a.preset = v_lim - 1) then
       raise exception 'setup-slots §6(g): a copy took the bar from a saved setup'; end if;
-    -- (h) moving the row is one row, and every number follows it.
+    -- (h) a kept setup deleted: its number is new again, and past the count it is refused.
     update public.player_hunt_active set action_set = 0 where user_id = v_u and slot = 1;
     v := public.hr_hunt_preset_delete(1, v_lim - 1, gen_random_uuid());
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'setup-slots §6(h): the delete answered %', v; end if;
     v := public.hr_hunt_preset_save(1, v_lim - 1, 'Again', gen_random_uuid());
-    if v->>'error' is distinct from 'setup_locked' and v_free < v_lim then raise exception 'setup-slots §6(h): a deleted number past the count answered %', v; end if;
+    if v->>'error' is distinct from 'setup_locked' then raise exception 'setup-slots §6(h): a deleted number past the count answered %', v; end if;
     raise exception using errcode = 'HR933', message = 'setup-slots §6 complete - rolling back';
   exception when sqlstate 'HR933' then
     null;

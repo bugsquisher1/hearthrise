@@ -500,6 +500,8 @@
 /* ── The shop and hunt prep ── */
 .hw-qty { width: 64px; }
 .hw-add { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.hw-slot-buy { margin-top: 8px; }
+.hw-slot-buy[hidden], .hw-title .hh-tool[hidden] { display: none; }
 .hw-add .hh-select { flex: 1; min-width: 0; }
 .hw-add .hw-preset-name { flex: 1; width: auto; }
 .hw-ready { margin: 0 0 6px; padding: 0; list-style: none; }

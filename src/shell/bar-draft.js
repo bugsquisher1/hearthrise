@@ -147,7 +147,7 @@ export function storeChoices(a, rows, skills) {
         times: have === null ? null : outputPm(spell, tier, have) / outputPm(spell, 1, have),
         needs: skillName(skill) + ' ' + versionLevel(tier), short: have !== null && have < versionLevel(tier) };
     }).sort((x, y) => x.tier - y.tier);
-  return list.length ? [{ id: null, name: 'Carried runes only', price: null }].concat(list) : [];
+  return list.length ? [{ id: null, name: 'Carried runes only', price: null, tier: 0, mana: 0, times: null, needs: '', short: false }].concat(list) : [];
 }
 
 /** A rune choice in words: "Plain Scored Fire Rune · 8 g a cast · 30 mana · 1.6x the power", or what it waits for. */

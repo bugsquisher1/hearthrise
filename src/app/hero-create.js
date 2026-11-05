@@ -130,15 +130,15 @@ export function renderHeroCreate(card, o) {
     return h;
   };
   card.innerHTML = '<h1 class="auth-title">Create your hero</h1>'
+    /* a phone's step shows one thing at a time: its own layout of the same step (Tyler 2026-10-25), not a smaller desktop */
+    + (dyes ? '<button type="button" class="hh-tool hero-pick" aria-pressed="false">Pick colors</button>' : '')
     + '<div class="hero-body">'
     + (dyes ? '<div class="hero-look"><canvas class="hero-preview" width="' + 64 * PREVIEW_SCALE + '" height="' + 64 * PREVIEW_SCALE + '" role="img" aria-label="Your hero"></canvas>'
       + '<div class="hero-others">' + OTHER_OUTFITS.map((id) => '<canvas class="hero-other" data-hero-outfit="' + id + '" width="64" height="64" role="img" aria-label="Your hero in the ' + OUTFIT_ROWS[id].label + '"></canvas>').join('') + '</div>'
       + '<p class="hero-note">' + startWords() + '</p></div>' : '')
     + '<div class="hero-form">'
     + '<label class="auth-field">Name<input type="text" class="hero-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="3 to 20 letters"></label>'
-    + (dyes ? '<div class="hero-colors">' + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('') + '</div>'
-      /* a phone's step shows one thing at a time: its own layout of the same step (Tyler 2026-10-25), not a smaller desktop */
-      + '<button type="button" class="hh-tool hero-pick" aria-pressed="false">Pick colors</button>' : '')
+    + (dyes ? '<div class="hero-colors">' + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('') + '</div>' : '')
     + '</div>' + howYouFightHtml() + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
     + '<div class="auth-foot"><button type="button" class="auth-link hero-back">Back to your characters</button>'

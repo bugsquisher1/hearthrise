@@ -358,14 +358,14 @@
   .auth:has(.auth-card.is-create) { gap: 0; padding: 2px 4px; }
   /* A phone's step shows one thing at a time: How you fight first, as it always has; Pick colors swaps it for the hero and its strips. */
   .hero-look, .hero-colors { display: none; }
-  .hero-pick { display: block; align-self: flex-start; margin-top: 74px; }
+  .auth-card.is-create { position: relative; }
+  .hero-pick { display: block; position: absolute; top: 8px; right: 16px; }
   .auth-card.is-picking .hero-how { display: none; }
   .auth-card.is-picking .hero-look { display: flex; width: 128px; }
   .auth-card.is-picking .hero-preview { width: 128px; height: 128px; }
   .auth-card.is-picking .hero-others, .auth-card.is-picking .hero-note { display: none; }
   .auth-card.is-picking .hero-form { width: auto; }
   .auth-card.is-picking .hero-colors { display: flex; gap: 2px; }
-  .auth-card.is-picking .hero-pick { margin-top: 0; }
 }
 
 /* THE LOADING SHELL (play.html .boot-shell; src/platform/load-shell.js): the crest, one line and a thin bar, in the middle

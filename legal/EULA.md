@@ -2,7 +2,7 @@
 
 **Last updated:** November 4, 2026
 
-This End User License Agreement ("EULA") is a legal contract between you and [LEGAL ENTITY NAME] ("the Developer", "we", "us") for the use of the Hearthrise game software, including all components, updates, and online services (collectively, the "Software").
+This End User License Agreement ("EULA") is a legal contract between you and the developer of Hearthrise ("the Developer", "we", "us") for the use of the Hearthrise game software, including all components, updates, and online services (collectively, the "Software").
 
 > **Draft:** This page was written by the developer and has not been reviewed by a lawyer. A lawyer should read it before Steam Early Access, with an eye to your jurisdiction and the distribution agreements of any store the game is sold through.
 
@@ -61,15 +61,13 @@ Hearthrise is in testing. Your characters, and everything they own and have done
 
 You may stream, record, and post non-commercial gameplay videos and screenshots of Hearthrise without prior permission. You may monetize gameplay videos through standard ad networks (YouTube AdSense, Twitch subscriptions, Patreon) provided that:
 
-* You credit "Hearthrise by [LEGAL ENTITY NAME]" in the description.
+* You credit "Hearthrise" in the description.
 * You do not present the content as official, endorsed, or affiliated with the Developer.
 * You do not include exploit guides, cheat instructions, or Software binaries (paid or unpaid).
 
-For brand partnerships, sponsored content, esports tournaments with prize pools, or merchandise referencing Hearthrise, contact [CONTACT EMAIL] for written permission.
+For brand partnerships, sponsored content, esports tournaments with prize pools, or merchandise referencing Hearthrise, message a moderator on Discord for written permission.
 
 <!-- DECISION: section 7 (what streamers and video makers may do, and the "credit Hearthrise by" line) is the old draft's, unchanged. It is a business policy, not a fact about the game. -->
-
-
 
 ## 8. Player feedback
 
@@ -89,9 +87,9 @@ To the maximum extent permitted by law, the Developer's total cumulative liabili
 
 ## 12. Governing law
 
-This EULA is governed by the laws of [STATE / COUNTRY], without regard to its conflict-of-laws principles. Disputes shall be resolved in the courts of [JURISDICTION], subject to mandatory consumer-protection rights you may have under your local law.
+The governing law and courts for this EULA will be named here before Steam Early Access. Any mandatory consumer-protection rights you have under your local law apply. <!-- OWNER: no legal name, address, mailbox or governing law yet (Tyler 2026-11-04). Fill these before Steam Early Access, with the lawyer. -->
 
 ## 13. Contact
 
-* **Support, business and legal:** [CONTACT EMAIL]
+* **Support, business and legal:** message a moderator on Discord.
 * **Our Discord server:** [https://discord.gg/eJrUSUJM3M](https://discord.gg/eJrUSUJM3M)

@@ -18,17 +18,11 @@
 
 ## 1. Who we are
 
-Hearthrise is made and run by [LEGAL ENTITY NAME] ("we", "us"), a [STATE / COUNTRY] [entity type, for example LLC or sole proprietorship]. Our address:
+Hearthrise is an invite-only test, made and run by its developer ("we", "us"). We will name the person or company responsible, with a postal address, on this page before Steam Early Access. <!-- OWNER: no legal name, address, mailbox or governing law yet (Tyler 2026-11-04). Fill these before Steam Early Access, with the lawyer. -->
 
-[STREET ADDRESS]
+Privacy questions: message a moderator in [our Discord server](https://discord.gg/eJrUSUJM3M).
 
-[CITY, STATE, ZIP]
-
-[COUNTRY]
-
-Privacy questions: **[CONTACT EMAIL]**. You can also message a moderator in [our Discord server](https://discord.gg/eJrUSUJM3M).
-
-If you are in the European Economic Area, we are the data controller for the information described here. We have not appointed an EU representative; if you would rather talk to one, write to the address above and we will point your request to the right place.
+If you are in the European Economic Area, we are the data controller for the information described here. We have not appointed an EU representative; if you would rather talk to one, message a moderator and we will point your request to the right place.
 
 <!-- LAWYER: the old draft's contact details were all placeholders (privacy@[DOMAIN].com). No real mailbox is named anywhere in the repo, so [CONTACT EMAIL] is a placeholder for Tyler to fill in. The EU-representative sentence came from the old draft and is unchecked. -->
 
@@ -139,7 +133,7 @@ Depending on where you live, you may have the right to:
 * **Withdraw consent** for anything you agreed to, such as session recordings (use the switch in section 3).
 * **Complain** to your local data-protection authority.
 
-**To ask for any of this,** write to [CONTACT EMAIL] from the email address on your account, or message a moderator on Discord. We may ask you to prove the account is yours. We will answer within 30 days.
+**To ask for any of this,** message a moderator on Discord. We may ask you to prove the account is yours. We will answer within 30 days.
 
 **Deleting your account.** There is no Delete account button yet. Until there is, ask us and we will delete your account by hand. That removes your sign-in and the characters, items, gold, friends, whispers and settings tied to it. Three things do not go with it automatically today: the money ledger and its monthly totals, problem reports you sent (they stay, but are no longer linked to your account), and chat lines, which disappear on the 60-day schedule above. If you ask, we will also delete the session recordings we can find under your account ID.
 
@@ -165,5 +159,5 @@ When this policy changes in a way that matters, we will post it in our Discord s
 
 ## 13. Contact
 
-* **Privacy questions and requests:** [CONTACT EMAIL]
+* **Privacy questions and requests:** message a moderator on Discord.
 * **Our Discord server:** [https://discord.gg/eJrUSUJM3M](https://discord.gg/eJrUSUJM3M)

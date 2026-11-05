@@ -4,7 +4,7 @@
 
 **In effect:** from November 4, 2026, for the invite-only test of Hearthrise on the web. A new date goes here when the Steam release opens.
 
-These Terms of Service ("Terms") govern your access to and use of Hearthrise, a video game made and run by [LEGAL ENTITY NAME] ("the Developer", "we", "us"). By creating an account or playing Hearthrise, you agree to these Terms and to our Privacy Policy. If you do not agree, do not play.
+These Terms of Service ("Terms") govern your access to and use of Hearthrise, a video game made and run by its developer ("the Developer", "we", "us"). By creating an account or playing Hearthrise, you agree to these Terms and to our Privacy Policy. If you do not agree, do not play.
 
 > **Draft:** This page describes how Hearthrise works today. It was written by the developer and has not been reviewed by a lawyer. A lawyer should read it before Steam Early Access, with an eye to your jurisdiction's contract and consumer-protection law and the terms of any store the game is sold through (for example the Steam Subscriber Agreement).
 
@@ -130,15 +130,15 @@ We may update these Terms. When a change matters, we will post it in our Discord
 
 ## 15. Governing law and disputes
 
-These Terms are governed by the laws of [STATE / COUNTRY], without regard to its conflict-of-laws rules. Any dispute about these Terms or Hearthrise will be decided in the state or federal courts in [JURISDICTION], and you agree to their personal jurisdiction.
+The governing law and courts for these Terms will be named here before Steam Early Access. <!-- OWNER: no legal name, address, mailbox or governing law yet (Tyler 2026-11-04). Fill these before Steam Early Access, with the lawyer. -->
 
 If you are a consumer in the EU, the UK or another place with mandatory consumer-protection rights, this does not take those rights away, and you may bring a claim in your local courts under your local laws.
 
-We ask you to write to [CONTACT EMAIL] first to try to settle a dispute informally.
+We ask you to message a moderator on Discord first to try to settle a dispute informally.
 
 <!-- DECISION: governing law and venue are Tyler's and the lawyer's. -->
 
 ## 16. Contact
 
-* **Support and legal notices:** [CONTACT EMAIL]
+* **Support and legal notices:** message a moderator on Discord.
 * **Our Discord server:** [https://discord.gg/eJrUSUJM3M](https://discord.gg/eJrUSUJM3M)

@@ -30,6 +30,35 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-04 Armor reads who struck (systems-engineer, lane/c-armor-truth): BUILT, engine deploy, no migration. Warrens x1.25 measured and refused
+**The problem.** Armor's absorb and dodge were `value / (value + k x hero Level)`, so the same bronze absorbed 60% at Level 1 and 46% at Level 16: a Level-keyed rule favoring the low hero, in a game where monsters are "just simply harder". **The rule now:** the level in that curve is the ATTACKER's (`mitigation.js`, `damage.js armourVs`). A blow reads the monster's stats against the hero's stats, with no hero Level anywhere in it. Ward (flat) is unchanged. A floor's monsters stand above its Level (Glade 16 meets levels 16-29), so at k 0.7 the Glade's floor fell to +19%: k is now 0.62 (absorb) and 0.4 (dodge).
+
+**Measured, real settle, 1 h x 2 seeds a cell.** "Default" is three pieces on the shipped bar's 14 g Salted Shrimp, "kit" the Level's six pieces on the ground's guide food. Each cell reads net g/h, supplies g/h, margin, typical low HP.
+| Cell | Today | Armor reads attacker (shipped) |
+|---|---|---|
+| Wickstead 8, alone, kit, in range | +2.8k, 10, 93% | +2.8k, 10, 93% |
+| Wickstead 8, four, kit, in range | +2.7k, 267, 93% | +2.7k, 267, 92% |
+| Glade 16, alone, default, in range | +3.4k, 644, +522%, 77% | +3.1k, 903, +343%, 77% |
+| Glade 16, alone, kit, in range | +3.3k, 660, +498%, 82% | +3.1k, 860, +359%, 82% |
+| Glade 16, four, kit, in range | +4.5k, 152, 82% | +4.5k, 153, 82% |
+| Warrens 32, four, kit, in range | +5.3k, 52, 85% | +5.2k, 54, 84% |
+| Glade 10 (6 under), alone, default | **+883**, 2.5k, 65% | **-299**, 3.7k, 60% |
+| Glade 10, alone, kit | +607, 2.7k, 73% | -953, 4.2k, 69% |
+| Glade 6 (10 under), alone, default | +635, 2.6k, 61% | -1.6k, 4.8k, 55% |
+| Glade 10, four, kit | +3.3k, 459, 69% | +3.0k, 686, 66% |
+| Glade 6, four, default | +2.8k, 766, 63% | +2.3k, 1.2k, 56% |
+| Warrens 26 (6 under), alone, default | -2.7k, held, 44% | -4.0k, dies in 1 h, 39% |
+| Warrens 17 (15 under), alone, default | -6.8k, dies in 2 h, 28% | -9.9k, dies in 4 min, 18% |
+| Warrens 26, four, kit | +3.6k, 384, 69% | +3.1k, 565, 66% |
+| Warrens 17, four, kit | +1.7k, 1.6k, 59% | +1.0k, 2.6k, 54% |
+Floor guard (`drop-tables`, its reference group's coin and commons over the store bill): Glade 16 +59% to +27%, Sewer 8 +135% to about +77%, Warrens 32 party still over +400% a seat. Level XP an hour doesn't move at a floor.
+
+**Warrens x1.25: refused.** It sat a four in his band (72%, 65% on default) and made pushing cost (four at 17: -3.6k), but the tank's own seat at the floor goes to **-47% and -43%** (`warrens-floor`, costs are personal), against his +25% minimum.
+
+**What it doesn't do.** A mixed four on the Glade still pushes for free: Level 10 nets +3.0k at 65k XP/h against Wickstead's +2.7k at 33k. Glade x1.25 wouldn't fix it (+2.3k) and fails his 11-02 floor the way it did then (a tank in helm and body at 16, guide food, +53% to -30%). Monsters' stats can't reach a healed party without breaking the lone hero's floor. A four on the Warrens stays cheap too: 6 under costs about 1.7k net for 1.7x the XP. Wickstead and the first grounds barely move: their blows are small, and a fresh hero's practice set wears no armor, so its first hour is unchanged by construction (not re-played).
+
+**The Ranger's floor sits on the bar and always has.** The crossbow Ranger at the Sewer's floor reads +24.9% averaged over six seeds on today's rule, +25.3% on the guard's one seed; every combat change moves its one-seed reading by 3-5 points (20% to 28% across k 0.56-0.65). k 0.62 reads +26.5% and passes. That is the dice, not a margin: the designer should look at it.
+
 ### 2026-11-04 The release gate: what 30 reds were, a preflight, and where the minutes went (reliability, lane/r-release-gate): BUILT; the timing still needs a clean GitHub run
 **Measured, last 14 days of push runs on `release/*`:** 61 releases, 19 green on the first finished run (31%), 1.7 finished runs a release. Eight green runs read: 22-122 min, median 57. The gate is bimodal, not slow everywhere: 22 min with no proof to run (147 runner-minutes), 50-120 at 600-980 runner-minutes on GitHub's 20 slots.
 

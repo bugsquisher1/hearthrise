@@ -119,7 +119,8 @@ export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', '
    mitigation cap"; numbers: Game Designer 2026-10-21, docs/planning/PRIORITY_BOARD.md Decisions).
    Each worn piece's armour value (its `defB`) feeds its OWN weight's line, so a mixed set splits by
    what each slot wears, with no mixing penalty. Measured against the ATTACKER's level (2026-11-04, Tyler's "just simply harder": stats against stats, no hero Level in a blow), so a
-   hard monster's blow gets through low armor more, a weak one's barely does, and an old set fades as the ground climbs. src/core/mitigation.js derives the profile; it is never stored.
+   hard monster's blow gets through low armor more, a weak one's barely does, and an old set fades as the ground climbs. A floor's monsters stand above its Level, so the k fell from 0.7 and 0.45 to hold the +25% floors
+   (tests/hunt-core/drop-tables.mjs; board 2026-11-04). src/core/mitigation.js derives the profile; it is never stored.
      dodge.maxPm, dodge.k   medium: the chance a blow misses you entirely,
                             maxPm x P / (P + k x the attacker's level), P = medium armour value
      absorb.maxPm, absorb.k heavy: the share of a landed blow the armour takes, same curve
@@ -130,8 +131,8 @@ export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', '
    The to-hit roll before the chain reads the Defense skill and the defence of gear outside the
    armour weights (a shield, a cape): combat.js equipmentStats guardB. */
 export const ARMOUR_MITIGATION = Object.freeze({
-  dodge: Object.freeze({ maxPm: 650, k: 0.45 }),
-  absorb: Object.freeze({ maxPm: 750, k: 0.7 }),
+  dodge: Object.freeze({ maxPm: 650, k: 0.4 }),
+  absorb: Object.freeze({ maxPm: 750, k: 0.62 }),
   ward: Object.freeze({ perPointPm: 1500 }),
   capPm: 600,
 });

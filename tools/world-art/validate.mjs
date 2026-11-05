@@ -22,6 +22,7 @@
 // the grid's class table and T, and every pixel tolerance times its scale k, so a sprite
 // drawn on the 64 px grid is held to exactly the base rules at twice the size.
 import { TOLERANCE, WANG_KEYS, ATLAS_MAX, GRIDS } from '../../src/data/world/art-budget.js';
+import { MASK_COLOURS } from '../../src/data/outfits.js';
 import { inPalette } from './lock.mjs';
 import { measureFrame, countBelow, contactSpans, isoCorner } from './measure.mjs';
 
@@ -169,6 +170,38 @@ export function validateTerrain(t, grid = GRIDS.base) {
       colourFindings(t.id, f, out);
     });
   }
+  return out;
+}
+
+/* A REGION MASK (a sprite of a mask set, src/data/world/atlas-sets.js MASK_SETS) is never drawn, so the scale and
+   floor budget does not apply; it is held to the keys instead. Its manifest's palette is MASK_PALETTE.
+     mask-name    the id is not <sprite>_mask        frame   frames differ in size, or are not the class frame
+     alpha        partial alpha                      mask-colour  an opaque pixel that is not exactly a region key
+     empty        every frame is blank (one frame may be: a region-free facing) */
+export const MASK_PALETTE = 'region-keys';
+const KEYS = new Set(MASK_COLOURS.map(([r, g, b]) => (r << 16) | (g << 8) | b));
+export function validateMask(sp, grid = GRIDS.base) {
+  const out = [], id = sp.id;
+  if (!/^[a-z0-9_]+_mask$/.test(id)) out.push({ rule: 'mask-name', id, detail: 'a mask sprite is named <sprite>_mask' });
+  if (!sp.frames.length) return out.concat([{ rule: 'empty', id, detail: 'no frames' }]);
+  const cls = grid.classes[sp.class] || {};
+  const [fw, fh] = [sp.frames[0].img.width, sp.frames[0].img.height];
+  if (cls.frame && (fw !== cls.frame[0] || fh !== cls.frame[1])) out.push({ rule: 'frame', id, detail: `frame ${fw}x${fh}, class ${sp.class} is ${cls.frame.join('x')}` });
+  let lit = 0;
+  for (const f of sp.frames) {
+    if (f.img.width !== fw || f.img.height !== fh) out.push({ rule: 'frame', id, detail: `${label(f)} is ${f.img.width}x${f.img.height}, not ${fw}x${fh}` });
+    const d = f.img.data;
+    let partial = 0, off = 0, firstOff = null;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] !== 0 && d[i + 3] !== 255) partial++;
+      if (!d[i + 3]) continue;
+      lit++;
+      if (!KEYS.has((d[i] << 16) | (d[i + 1] << 8) | d[i + 2])) { off++; if (!firstOff) firstOff = [(i / 4) % f.img.width, Math.floor(i / 4 / f.img.width), d[i], d[i + 1], d[i + 2]]; }
+    }
+    if (partial) out.push({ rule: 'alpha', id, detail: `${label(f)}: ${partial} partially transparent pixels` });
+    if (off) out.push({ rule: 'mask-colour', id, detail: `${label(f)}: ${off} pixels that are no region key (first rgb ${firstOff.slice(2).join(',')} at ${firstOff[0]},${firstOff[1]})` });
+  }
+  if (!lit) out.push({ rule: 'empty', id, detail: 'every frame is blank' });
   return out;
 }
 

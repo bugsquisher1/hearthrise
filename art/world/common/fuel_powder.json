@@ -1,0 +1,38 @@
+{
+  "id": "fuel_powder",
+  "class": "loot",
+  "style": "s1",
+  "material": "native",
+  "source": "fuel_powder.png",
+  "frame": [
+    12,
+    14
+  ],
+  "anchor_px": [
+    6,
+    13
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "9a68274e-ee8a-472b-9cda-912b7368383b",
+    "candidate": 30,
+    "cost": "10 for the 64-candidate call",
+    "style": "common/woodpile",
+    "derived": "tools/world-art/round-fireworks.mjs: fuel_coal re-poured pale; no generation"
+  },
+  "notes": "THE BURN, for a bought powder: the pinch a hero throws on the Great Hearth. fuel_coal's chunk poured pale; the powder's color is the fire's."
+}

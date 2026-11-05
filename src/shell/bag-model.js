@@ -20,19 +20,19 @@
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
 //   isSpentMaterial(id)   does any recipe or House price spend this?
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.91';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.91';
-import { MONSTERS } from '../data/monsters.js?v=0.2.91';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.91';
-import { NAMED_FUELS } from '../data/hearth.js?v=0.2.91';
-import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.91';
-import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.91';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.91';
-import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.91';
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.91';
-import { recipeInputs } from '../core/artisan.js?v=0.2.91';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.91';
-import { itemName } from './widgets/bits.js?v=0.2.91';
+import { ITEMS } from '../data/items.js?v=0.2.93';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.93';
+import { MONSTERS } from '../data/monsters.js?v=0.2.93';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.93';
+import { NAMED_FUELS } from '../data/hearth.js?v=0.2.93';
+import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.93';
+import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.93';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.93';
+import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.93';
+import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.93';
+import { recipeInputs } from '../core/artisan.js?v=0.2.93';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.93';
+import { itemName } from './widgets/bits.js?v=0.2.93';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([
@@ -366,11 +366,12 @@ const STATS = Object.freeze([
   ['atkB', 'Melee accuracy'], ['strB', 'Melee damage'], ['defB', 'Defense'],
   ['rangeAtkB', 'Ranged accuracy'], ['rangeStrB', 'Ranged damage'],
   ['magicAtkB', 'Magic accuracy'], ['magicStrB', 'Magic damage'],
-  ['critB', 'Critical chance', 'pct'],
+  ['critB', 'Critical chance', 'pct'], ['steadyPm', 'Damage taken', 'cut'],
 ]);
 
 const statValue = (it, k) => (it && Number.isFinite(it[k]) ? it[k] : 0);
 const pctWords = (v) => (Math.round(v * 1000) / 10) + '%';
+const cutWords = (v) => Math.abs(v) / 10 + '%';
 
 /** An item's stats as [{ key, label, value, text }] (non-zero only). */
 export function statLines(id) {
@@ -379,7 +380,7 @@ export function statLines(id) {
   for (const [k, label, kind] of STATS) {
     const v = statValue(it, k);
     if (!v) continue;
-    out.push({ key: k, label, value: v, text: (v > 0 ? '+' : '') + (kind === 'pct' ? pctWords(v) : v) });
+    out.push({ key: k, label, value: v, text: kind === 'cut' ? '−' + cutWords(v) : (v > 0 ? '+' : '') + (kind === 'pct' ? pctWords(v) : v) });
   }
   return out;
 }
@@ -391,7 +392,7 @@ export function compare(id, worn) {
   for (const [k, label, kind] of STATS) {
     const d = statValue(a, k) - statValue(b, k);
     if (Math.abs(d) < 1e-9) continue;
-    out.push({ label, delta: d, text: (d > 0 ? '+' : '−') + (kind === 'pct' ? pctWords(Math.abs(d)) : Math.abs(d)) });
+    out.push({ label, delta: d, text: kind === 'cut' ? (d > 0 ? '−' : '+') + cutWords(d) : (d > 0 ? '+' : '−') + (kind === 'pct' ? pctWords(Math.abs(d)) : Math.abs(d)) });
   }
   return out;
 }

@@ -24,7 +24,13 @@ import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit } from './png.mjs';
 import { T, CLASSES, FACINGS } from '../../src/data/world/art-budget.js';
 import { ROOT, ART_DIR } from './build.mjs';
+import { snapTo, liftBody } from './lock.mjs';
+import { RAMPS } from './palette.mjs';
+import { plant } from './port-hunt-sim.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
+
+/* a ground unit's frame may stand this far above its anchor at most (validate.mjs [feet] allows 4; a lunge can leave one higher) */
+const SEAT_PX = 3;
 
 /** Every --key value (repeatable keys collect into arrays). */
 function args(argv) {
@@ -224,12 +230,17 @@ function main() {
       console.log('  ✓ ' + o.set + '/' + id + ' (' + klass + ', ' + sc.frame.join('x') + ')');
     });
   } else if (cmd === 'unit') {
-    /* --dir DIR --class C --object OBJ_ID [--hover N]: an 8-direction Pro Flash object (a monster
-       or an NPC). DIR holds its rotations as <facing>.png (south, east, …, the PixelLab names)
+    /* --dir DIR --class C --object OBJ_ID [--hover N] [--ramps a,b,c] [--lift N] [--meta FILE] [--hit N]: an 8-direction Pro Flash
+       object (a monster or an NPC). DIR holds its rotations as <facing>.png (south, east, …, the PixelLab names)
        and, when it walks, walk/<facing>/<i>.png (attack/ and death/ the same way: the blow, the fall,
        and a one-frame corpse from the fall's end). idle is the rotation, walk the clip. Each clip
        facing is moved by whole pixels so its lowest foot stands on the class anchor (a flier's
-       hovers `hover` px above it), exactly as port-hunt-sim.mjs seats the sim's units. */
+       hovers `hover` px above it), exactly as port-hunt-sim.mjs seats the sim's units; the corpse keeps
+       the fall's seat, so the last frame and the held body are the same pixels. A lone frame a lunge or a long
+       leg tip leaves more than SEAT_PX above the anchor is planted on it (port-hunt-sim.mjs plant, ground units).
+       --ramps snaps every frame to those palette ramps and declares `material: native` (lock.mjs snapTo:
+       a creature whose hue is its identity); --lift N then steps its body N up its ramps (a dark floor). --meta merges a JSON file into the sidecar's pixellab block
+       (the request, the groups, the cost). --hit declares the blow's impact frame. */
     const cls = CLASSES[o.class];
     if (!cls || !cls.frame) throw new Error(o.id + ': ' + o.class + ' is not a unit class');
     const [fw, fh] = cls.frame, [ax, ay] = cls.anchor;
@@ -252,26 +263,31 @@ function main() {
     const facingsOf = (a) => FACINGS.filter((d) => a.frames[d] && a.frames[d].length);
     const cols = Math.max(...anims.map((a) => Math.max(...facingsOf(a).map((d) => a.frames[d].length))));
     const sheet = createImage(cols * fw, anims.reduce((n, a) => n + facingsOf(a).length, 0) * fh);
-    let r = 0;
+    const ramps = o.ramps ? o.ramps.split(',') : null;
+    if (ramps) for (const n of ramps) if (!RAMPS[n]) throw new Error(o.id + ': no ramp ' + n + ' in art/world/palette.json');
+    const colours = ramps && ramps.flatMap((n) => RAMPS[n]);
+    const load = (f) => { const img = decodePNG(readFileSync(f)); const snapped = colours ? snapTo(img, colours) : img; return colours && o.lift ? liftBody(snapped, Number(o.lift)) : snapped; };
+    let r = 0, canvas = 0;
     for (const a of anims) for (const d of facingsOf(a)) {
-      const imgs = a.frames[d].map((f) => decodePNG(readFileSync(f)));
-      const lowest = Math.max(...imgs.map(lowestRow));
+      const imgs = a.frames[d].map(load);
+      canvas = Math.max(canvas, imgs[0].width);
+      const lowest = Math.max(...(a.name === 'corpse' ? death.frames[d].map(load) : imgs).map(lowestRow));
       /* a flier falls from its hover to the floor: its fall and corpse rest on the anchor row like every body */
       const dy = (flier && a.name !== 'death' && a.name !== 'corpse' ? ay - hover : ay) - lowest, dx = ax - Math.floor(imgs[0].width / 2);
       imgs.forEach((img, i) => {
         const frame = createImage(fw, fh);
         blit(frame, img, 0, 0, img.width, img.height, dx, dy, true);
-        blit(sheet, frame, 0, 0, fw, fh, i * fw, r * fh);
+        blit(sheet, cls.contact === 'unit' ? plant(frame, ay, a.name === 'idle' ? 1 : SEAT_PX) : frame, 0, 0, fw, fh, i * fw, r * fh);
       });
       r++;
     }
     writeFileSync(join(dir, o.id + '.png'), encodePNG(sheet));
     const sc = {
-      id: o.id, class: o.class, style: 's1', material: o.material || 'unit', source: o.id + '.png', anchor_px: [ax, ay], footprint: [1, 1],
+      id: o.id, class: o.class, style: 's1', material: ramps ? 'native' : (o.material || 'unit'), source: o.id + '.png', anchor_px: [ax, ay], footprint: [1, 1],
       ...(flier ? { hover_px: hover } : {}),
-      anims: anims.map((a) => ({ name: a.name, fps: a.fps, loop: a.loop, dirs: Object.fromEntries(facingsOf(a).map((d) => [d, a.frames[d].length])) })),
-      pixellab: { tool: 'create_object_pro_flash', object: o.object, n_directions: 8, ...(o.name ? { name: o.name } : {}) },
-      notes: 'Ported from PixelLab object ' + o.object + ' (style 1, 48 px canvas, 8 rotations' + (anims.length > 1 ? ' and a v3 walk' : '') + ') by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels.',
+      anims: anims.map((a) => ({ name: a.name, fps: a.fps, loop: a.loop, ...(a.name === 'attack' && o.hit ? { hit: Number(o.hit) } : {}), dirs: Object.fromEntries(facingsOf(a).map((d) => [d, a.frames[d].length])) })),
+      pixellab: { tool: 'create_object_pro_flash', object: o.object, n_directions: 8, ...(o.name ? { name: o.name } : {}), ...(o.meta ? JSON.parse(readFileSync(o.meta, 'utf8')) : {}) },
+      notes: 'Ported from PixelLab object ' + o.object + ' (style 1, ' + canvas + ' px canvas, 8 rotations' + (anims.length > 1 ? ' and a v3 walk' : '') + ') by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels.' + (ramps ? ' Snapped to the ' + ramps.join(', ') + ' ramps before the lock (lock.mjs snapTo): its hue is its identity.' : '') + (o.lift ? ' Body lifted ' + o.lift + ' ramp step(s) for its dark floor (lock.mjs liftBody).' : '') + (o.note ? ' ' + o.note : ''),
     };
     writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
     console.log('  ✓ ' + o.set + '/' + o.id + ' (' + o.class + ', ' + anims.map((a) => a.name).join('+') + ')');

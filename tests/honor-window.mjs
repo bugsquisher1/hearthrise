@@ -50,6 +50,9 @@ const LEVEL = { ok: true, board: 'level', available: true, refreshed_at: AT(3), 
 const TOP25 = Array.from({ length: 25 }, (_, i) => row(i + 1, i + 1, 'Hero' + String.fromCharCode(65 + i), 200 - i, 200 - i));
 const TOTAL = { ok: true, board: 'total_level', available: true, refreshed_at: AT(0), total: 40, top: TOP25,
   mine: [Object.assign(row(27, 27, 'Tyler', 170, 170, 0), { near: [row(26, 26, 'Corwin', 174, 174), row(27, 27, 'Tyler', 170, 170, 0), row(28, 28, 'Dunstan', 168, 168)] })] };
+/* A board of ACCOUNTS (2027-02-27-gold-given.sql): the account's row is its lead hero's slot, whichever hero is on screen; the fixture's viewed hero is slot 0, its lead hero slot 1. */
+const GOLD = { ok: true, board: 'gold_given', available: true, refreshed_at: AT(1), total: 2, top: [row(1, 1, 'Osric', 0, 12000), row(2, 2, 'Wennet', 0, 9000, 1)],
+  mine: [Object.assign(row(2, 2, 'Wennet', 0, 9000, 1), { near: [row(1, 1, 'Osric', 0, 12000), row(2, 2, 'Wennet', 0, 9000, 1)] })] };
 const FISHING = { ok: true, board: 'skill:fishing', available: true, refreshed_at: AT(1), total: 0, top: [], mine: [] };
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
@@ -100,7 +103,7 @@ async function checks(overrides, shots) {
   const data = dataSrc === undefined ? await import(pathToFileURL(join(ROOT, 'src/data/honor-roll.js')).href)
     : await import('data:text/javascript,' + encodeURIComponent(dataSrc.replace(/from '\.\//g, "from '" + pathToFileURL(join(ROOT, 'src/data')).href + '/')));
   const { SKILLS_DEF } = await import(pathToFileURL(join(ROOT, 'src/data/skills.js')).href);
-  const sourced = new Set(['level', 'total_level', ...Object.keys(SKILLS_DEF).map((k) => 'skill:' + k)]);
+  const sourced = new Set(['level', 'total_level', 'gold_given', ...Object.keys(SKILLS_DEF).map((k) => 'skill:' + k)]);
   const ids = data.HONOR_BOARDS.map((b) => b.id);
   const stray = ids.filter((id) => !sourced.has(id));
   if (stray.length) fails.push('HP-7 the window offers boards no hero can be ranked on: ' + stray.join(', '));
@@ -116,7 +119,7 @@ async function checks(overrides, shots) {
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
     const s = { env: Object.assign(clone(BASE_ENV), clone(TOWN)), version: 1, calls: [], refuse: false,
-      boards: { level: clone(LEVEL), total_level: clone(TOTAL), 'skill:fishing': clone(FISHING) } };
+      boards: { level: clone(LEVEL), total_level: clone(TOTAL), 'skill:fishing': clone(FISHING), gold_given: clone(GOLD) } };
     await stub(page, s);
     const up = await signInAndPlay(page, 'http://127.0.0.1:' + port);
     return { ctx, page, errors, s, up };
@@ -168,6 +171,13 @@ async function checks(overrides, shots) {
         || f.you !== 'Tyler is not on this board yet. Train Fishing to earn a place: fish at a fishing spot.') fails.push('HP-4 the empty board reads ' + JSON.stringify(f));
       await page.waitForTimeout(1200);
       if (reads(s).length !== n0 + 1) fails.push('HP-2 the window kept asking while open (' + (reads(s).length - n0) + ' reads in 1.2 s)');
+      /* GOLD GIVEN: gold words, an account's row whichever hero is viewed, and the words say account */
+      if (!(await pick(page, 'gold_given'))) fails.push('HP-GOLD Gold Given never drew');
+      const g = await readRoll(page);
+      if (g.lines.map((l) => l.place + ' ' + l.name + ' ' + l.value + ' ' + l.tag + (l.viewed ? '*' : '')).join(', ') !== '1st Osric 12,000 gp , 2nd Wennet 9,000 gp Your account*') fails.push('HP-GOLD the roll reads ' + JSON.stringify(g.lines));
+      if (g.count !== '2 accounts on this board') fails.push('HP-GOLD the count reads ' + g.count);
+      if (g.you !== 'Your account, led by Wennet, stands 2nd of 2.' || g.next !== 'Osric\'s account, the next one up, is 3,000 gp ahead.') fails.push('HP-GOLD the standing reads ' + JSON.stringify([g.you, g.next]));
+      if (await page.evaluate(() => document.querySelector('[data-hs-win="honor"] .hr-you h3').textContent) !== 'Your account') fails.push('HP-GOLD the section is not named for the account');
       if (errors.length) fails.push('HP-1 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -216,7 +226,9 @@ async function checks(overrides, shots) {
 
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
-  ['every own hero reads as the viewed one', 'src/shell/windows/honor.js', '  const viewed = r.mine && r.slot === st.slot;', '  const viewed = r.mine;'],
+  ['every own hero reads as the viewed one', 'src/shell/windows/honor.js', '  const viewed = r.mine && (ofAccounts(st.b) || r.slot === st.slot);', '  const viewed = r.mine;'],
+  ['a board of accounts reads as a board of heroes', 'src/shell/windows/honor.js', "const ofAccounts = (b) => b.reads === 'gold';", 'const ofAccounts = () => false;'],
+  ['gold reads as a Level', 'src/shell/windows/honor.js', "const valueOf = (b, r) => (b.reads === 'gold' ? gold(r.score) : b.reads === 'total'", "const valueOf = (b, r) => (b.reads === 'total'"],
   ['the place is the row\'s position, not the server\'s (a tie reads 2nd, 3rd)', 'src/shell/windows/honor.js',
     "  text(li.querySelector('.hr-place'), ordinal(r.place));", "  text(li.querySelector('.hr-place'), ordinal(r.rank));"],
   ['the window asks on every tick', 'src/shell/windows/honor.js', '  const due = sc.stale || ctx.now() - sc.askedAt >= REASK_MS;', '  const due = true;'],

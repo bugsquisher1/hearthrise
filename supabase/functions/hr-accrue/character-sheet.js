@@ -35,7 +35,7 @@ import { ITEMS } from '../../../src/data/items.js';
 import { HUNT_ROLES, roleForWeapon, wornRoleKey } from '../../../src/data/hunt-roles.js';
 import { playerCombatRolls } from '../../../src/core/combat.js';
 import { vitalsOf } from '../../../src/core/vitals.js';
-import { mitigationOf } from '../../../src/core/mitigation.js';
+import { mitigationOf, steadyPmOf } from '../../../src/core/mitigation.js';
 import { buffQueueFromServer } from '../../../src/core/buffs.js';
 import { xpMultiplierParts } from '../../../src/core/progression.js';
 import { heroSnapshot, loadoutOf, bonusFor, liveBuffHost, combatWorn } from '../../../src/core/member.js';
@@ -115,6 +115,7 @@ export function characterSheetOf(env, perks, nowMs) {
     dodge_pct: round(mit.dodgePm / 10, 1),
     absorb_pct: round(mit.absorbPm / 10, 1),
     ward: mit.ward,
+    steady_pct: round(steadyPmOf(eq, bonus) / 10, 1),
     set: setBonus ? { tier: setBonus.tier, pieces: setBonus.pieces } : null,
     xp: { perks: round(lasting.all, 4), buffs: round(now.all - lasting.all, 4), combat: round(now.combat, 4) },
   };

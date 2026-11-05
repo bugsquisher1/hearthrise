@@ -28,6 +28,8 @@
 //   SV-7  TEMPERING AT THE SERVER'S PRICE: two rows for what this hero wears, in the server's numbers; a press only asks, at
 //         that price, and the question is on screen; confirming sends ONE unlock_buy naming the offer and NO number; a row
 //         at the top reads Full, a row short of gold says how short, gear with no ladder says so, and all of them are off
+//   SV-8  ITS MATERIAL (Tyler 2026-11-05): a row says what the rung takes and what the hero holds, bag and Storage; short of it the button stays off and one
+//         line says where to get it; a refusal comes back in words, naming both sources, and the window re-reads
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -46,9 +48,10 @@ const SECTIONS = {
 };
 const RPCS = ['hr_stamina_refill', 'hr_blessing_buy'];
 /* Tempering, as hr_temper_view states it: Blows rung 1 at a price the fixture's 5,200 gp can pay, Armor at the top, and the next tier's ladders never begun. */
-const TEMPER = { equipment: { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' }, temper: [
-  { track: 'armor', tier: 2, rung: 5, max: 5, offer: null, gold: null }, { track: 'armor', tier: 3, rung: 0, max: 5, offer: 'temper.armor.3.1', gold: 7000 },
-  { track: 'blows', tier: 2, rung: 1, max: 5, offer: 'temper.blows.2.2', gold: 4000 }, { track: 'blows', tier: 3, rung: 0, max: 5, offer: 'temper.blows.3.1', gold: 7000 }] };
+const TEMPER = { equipment: { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' },
+  inventory: Object.assign({}, BASE_ENV.inventory, { temper_salts: 15 }), bank: { temper_salts: 5 }, temper: [
+  { track: 'armor', tier: 2, rung: 5, max: 5, offer: null, gold: null, items: null }, { track: 'armor', tier: 3, rung: 0, max: 5, offer: 'temper.armor.3.1', gold: 7000, items: { fine_temper_salts: 10 } },
+  { track: 'blows', tier: 2, rung: 1, max: 5, offer: 'temper.blows.2.2', gold: 4000, items: { temper_salts: 20 } }, { track: 'blows', tier: 3, rung: 0, max: 5, offer: 'temper.blows.3.1', gold: 7000, items: { fine_temper_salts: 10 } }] };
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 async function stub(page, s) {
@@ -61,6 +64,7 @@ async function stub(page, s) {
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
     if (RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, 400)); return json({ ok: true }); }
+    if (s.refuseSale && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) return r.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ ok: false, verb: 'unlock_buy', error: 'insufficient_item', stage: 'buy', detail: { ok: false, error: 'insufficient_item', item_id: 'temper_salts', have: 4, need: 20, bag: 3, storage: 1 } }) });
     return json({ ok: true });
   });
 }
@@ -147,6 +151,8 @@ async function checks(overrides) {
       else {
         const blows = await txt(page, '.hw-temper [data-track="blows"]'), armor = await txt(page, '.hw-temper [data-track="armor"]');
         if (!/Iron Sword/.test(blows || '') || !/Rung 1 of 5/.test(blows || '') || !/1% harder/.test(blows || '') || !/Next rung 2%/.test(blows || '')) fails.push('SV-7 the Blows row reads ' + JSON.stringify(blows));
+        if (!/Needs 20 Tempering Salts\. You hold 20 \(5 in Storage\)\./.test(blows || '')) fails.push('SV-8 the Blows row does not say what it takes and what the hero holds: ' + JSON.stringify(blows));
+        if ((await txt(page, '.hw-temper-way')) !== '') fails.push('SV-8 a hero who holds enough is told where to get it');
         if (!/Rung 5 of 5/.test(armor || '') || !/5% softer/.test(armor || '') || !/Full/.test(armor || '')) fails.push('SV-7 the Armor row reads ' + JSON.stringify(armor));
         if (!(await off(page, '.hw-temper [data-track="armor"] button'))) fails.push('SV-7 a full ladder can still be pressed');
         const before = s.calls.length;
@@ -154,7 +160,7 @@ async function checks(overrides) {
         await press(page, P + '.hw-temper [data-track="blows"] button', 'SV-7');
         await page.waitForTimeout(150);
         if (sales().length) fails.push('SV-7 Temper sent a sale before the confirmation');
-        if (!/rung 2 for 4,000/.test(await txt(page, '.hw-temper-ask .hw-confirm-q') || '')) fails.push('SV-7 the question does not state the rung and price: ' + await txt(page, '.hw-temper-ask .hw-confirm-q'));
+        if (!/rung 2 for 4,000 gp and 20 Tempering Salts/.test(await txt(page, '.hw-temper-ask .hw-confirm-q') || '')) fails.push('SV-7 the question does not state the rung, the gold and the material: ' + await txt(page, '.hw-temper-ask .hw-confirm-q'));
         const seen = await page.evaluate((q) => { const e = document.querySelector(q); const r = e.getBoundingClientRect(); const w = e.closest('[data-hs-win]').getBoundingClientRect(); return r.height > 0 && r.top >= w.top && r.bottom <= w.bottom; }, P + '.hw-temper-ask');
         if (!seen) fails.push('SV-7 the question opened out of sight: the press looks dead');
         await press(page, P + '[data-hs-act="temper-yes"]', 'SV-7');
@@ -164,7 +170,7 @@ async function checks(overrides) {
         else {
           const raw = JSON.stringify(buys[0].body);
           if (!raw.includes('temper.blows.2.2')) fails.push('SV-7 the sale names another offer: ' + raw);
-          if (/4000|"gold"|"price"/.test(raw)) fails.push('SV-7 a number crossed in the sale: ' + raw);
+          if (/4000|"gold"|"price"|"items"|"qty"/.test(raw)) fails.push('SV-7 a number crossed in the sale: ' + raw);
         }
         /* the sheet says what the rungs do for what is worn now, from the same server rows */
         await page.keyboard.press('c');
@@ -173,9 +179,39 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    { // SV-8: short of the material the button is off with gold in hand, one line says where to get it, and it is said once
+      const short = clone(TEMPER);
+      short.inventory.temper_salts = 3; short.bank.temper_salts = 1;
+      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), short));
+      if (!opened) fails.push('SV-8 the Services tab did not open short of material');
+      else {
+        const b = await txt(page, '.hw-temper [data-track="blows"]');
+        if (!/You hold 4 \(1 in Storage\)\./.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-8 short of material reads ' + JSON.stringify(b));
+        const way = await txt(page, '.hw-temper-way');
+        if (!/Tempering Salts: Smithing 15 \(yours is \d+\) makes them from Iron Bars and Bone Chips/.test(way || '') || !/Or buy them at the Weighhouse\./.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
+      }
+      await ctx.close();
+    }
+    { // SV-8: a stale window: the server refuses in words, and the window re-reads
+      const { ctx, page, s, opened } = await open(Object.assign(clone(SECTIONS), clone(TEMPER)));
+      const P = '[data-hs-win="shop"] [data-pane="services"] ';
+      if (!opened) fails.push('SV-8 the Services tab did not open for the refusal');
+      else {
+        s.refuseSale = true;
+        const reads = () => s.calls.filter((c) => c.name === 'hr_load').length;
+        const before = reads();
+        await press(page, P + '.hw-temper [data-track="blows"] button', 'SV-8');
+        await page.waitForTimeout(100);
+        await press(page, P + '[data-hs-act="temper-yes"]', 'SV-8');
+        const said = await wait(page, () => /Not enough/.test((document.querySelector('.hw-services > .hh-intent-msg') || {}).textContent || ''), null, 4000);
+        if (!said || !/Not enough Tempering Salts: you have 3 in your bag and 1 in Storage, and it takes 20\./.test(await txt(page, '.hw-services > .hh-intent-msg') || '')) fails.push('SV-8 the refusal reads ' + JSON.stringify(await txt(page, '.hw-services > .hh-intent-msg')));
+        if (!(reads() > before)) fails.push('SV-8 a refused sale did not re-read the server');
+      }
+      await ctx.close();
+    }
     { // SV-7: short of gold says how short, and the button is off
       const short = clone(TEMPER);
-      short.temper = short.temper.map((l) => (l.track === 'blows' && l.tier === 2 ? { ...l, rung: 3, offer: 'temper.blows.2.4', gold: 16000 } : l));
+      short.temper = short.temper.map((l) => (l.track === 'blows' && l.tier === 2 ? { ...l, rung: 3, offer: 'temper.blows.2.4', gold: 16000, items: { temper_salts: 20 } } : l));
       const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), short));
       if (!opened) fails.push('SV-7 the Services tab did not open short of gold');
       else {
@@ -215,8 +251,13 @@ const MUTANTS = [
   ['Temper sends without a confirmation (SV-7)', 'src/shell/windows/temper-pane.js', "sc.ask = t.getAttribute('data-track');\n    sc.msg = '';", "sc.ask = t.getAttribute('data-track');\n    return actTemperPane(ctx, 'temper-yes', t, sc, repaint);\n    sc.msg = '';"],
   ['the sale carries a price (SV-7)', 'src/shell/windows/temper-pane.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('unlock_buy', { offer, gold: 8000 })"],
   ['the sheet forgets the rungs (SV-7)', 'src/session/temper-sections.js', 'return r && (r.blows.nowPm > 0 || r.armor.nowPm > 0) ?', 'return r && false ?'],
-  ['short of gold stays on (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short ||", "prop(btn, 'disabled', !offer ||"],
-  ['the top of a ladder can be pressed (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short", "prop(btn, 'disabled', !!short"],
+  ['short of material stays on (SV-8)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || !!short ||"],
+  ['Storage is not counted (SV-8)', 'src/session/temper-sections.js', 'const storage = row ? row.qty : 0;', 'const storage = 0;'],
+  ['the row hides what it takes (SV-8)', 'src/shell/windows/temper-pane.js', "      text(li.querySelector('.hw-temper-need'), needWords(r.needs));\n", ''],
+  ['the way is not said (SV-8)', 'src/shell/windows/temper-pane.js', "  text(root.querySelector('.hw-temper-way'), all ? wayWords([all.blows, all.armor]) : '');\n", ''],
+  ['a refused sale never re-reads (SV-8)', 'src/shell/windows/temper-pane.js', "if (!r.ok && r.error !== 'closed') await cs.resync(); return r;", 'return r;'],
+  ['short of gold stays on (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || itemsShort ||"],
+  ['the top of a ladder can be pressed (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short ||", "prop(btn, 'disabled', !!short ||"],
   ['the question opens out of sight (SV-7)', 'src/shell/windows/temper-pane.js', "    if (cf && cf.scrollIntoView) cf.scrollIntoView({ block: 'nearest' });\n", ''],
   ['the reader invents a ladder (SV-5)', 'src/session/temper-sections.js', "  if (!Array.isArray(s)) return null;\n", "  if (!Array.isArray(s)) return [{ track: 'blows', tier: 2, rung: 0, max: 5, offer: 'temper.blows.2.1', gold: 1 }];\n"],
   ['the confirm sends a price of its own', 'src/shell/windows/services.js', 'cs.buyStamina(q.price)', 'cs.buyStamina(q.price - 1)'],

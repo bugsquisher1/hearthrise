@@ -168,14 +168,14 @@ const cases = {
   'the-coach-names-the-smith': (M) => {
     const { nextGoal, cardFor } = M.tutorial;
     const said = (gold, temper) => JSON.stringify(nextGoal({ charLevel: 20, gold, temper, inParty: false, visited: new Set() }));
-    const rung = { piece: 'Iron Sword', gold: 2000 };
-    if (!said(4000, rung).includes('temper your Iron Sword for 2,000 gp')) return 'twice the price in hand says ' + said(4000, rung);
+    const rung = { piece: 'Iron Sword', gold: 2000, needs: '10 Tempering Salts' };
+    if (!said(4000, rung).includes('temper your Iron Sword for 2,000 gp and 10 Tempering Salts')) return 'twice the price in hand says ' + said(4000, rung);
     if (said(3999, rung).includes('temper your')) return 'under twice the price the coach still names the smith';
     if (said(99999, null).includes('temper your')) return 'with no first rung to buy the coach still names the smith';
     const facts = { gold: 30000, slotCost: 25000, slotsOwned: 2, temper: rung, home: { owned: true }, chest: null };
     const card = M.tutorial.HUNT_TUTORIAL.find((c) => c.id === 'purse_goal');
     const with_ = cardFor(card, facts), without = cardFor(card, { ...facts, temper: null });
-    if (!with_.text.includes('The smith can temper your Iron Sword: 2,000 gp for a first rung')) return 'the gold card reads ' + with_.text;
+    if (!with_.text.includes('The smith can temper your Iron Sword: 2,000 gp and 10 Tempering Salts for a first rung')) return 'the gold card reads ' + with_.text;
     if (without.text.includes('smith')) return 'with no first rung the gold card names the smith: ' + without.text;
     return null;
   },
@@ -190,6 +190,12 @@ const cases = {
       for (let i = 1; i < prices.length; i++) if (!(prices[i] > prices[i - 1])) return 'tier ' + tier + ' rung ' + (i + 1) + ' is no dearer';
     }
     if (TEMPER_TIERS[1]) return 'tier 1 has a ladder: the first hours are not to be touched';
+    /* Every rung takes its tier's crafted material, climbing with its gold (Tyler 2026-11-05; the data's rules are tests/temper-buy.mjs TB-MATERIAL). Tier 1 has no ladder, so none. */
+    const { TEMPER_MATERIALS } = M.temperData;
+    for (const o of TEMPER_OFFERS) {
+      const tier = Number(o.unlock_id.split(':')[2]), m = TEMPER_MATERIALS[tier];
+      if (!m || Object.keys(o.items).join() !== m.item || o.items[m.item] !== m.qty[o.value - 1]) return o.offer_id + ' takes ' + JSON.stringify(o.items);
+    }
     if (M.temperData.TEMPER_RUNG_PM * TEMPER_RUNGS > 50) return 'a full ladder is past the ruling\'s 5%: ' + M.temperData.TEMPER_RUNG_PM * TEMPER_RUNGS + ' pm';
     return null;
   },
@@ -219,6 +225,7 @@ const mutants = [
   { name: 'a rung-0 hero carries a zero, so its snapshot changed', case: 'the-snapshot-carries-only-a-rung', edits: [[MB, '...(blowsPm ? { blowsPm } : {})', 'blowsPm']] },
   { name: 'the coach spends the food money', case: 'the-coach-names-the-smith', edits: [['src/data/hunt-tutorial.js', 'f.gold < r.gold * 2) return null;', 'f.gold < r.gold) return null;']] },
   { name: 'the gold card never names the smith', case: 'the-coach-names-the-smith', edits: [['src/data/hunt-tutorial.js', "listed(house) + '.' : '') + smith };", "listed(house) + '.' : '') };"]] },
+  { name: 'a rung takes no material', case: 'the-table-is-the-sale', edits: [['src/data/temper.js', 'gold, items: itemsOf(tier, i), req_property_tier: 0,', 'gold, items: Object.freeze({}), req_property_tier: 0,']] },
   { name: 'a full ladder is 10%, past the ruling', case: 'the-table-is-the-sale', edits: [['src/data/temper.js', 'export const TEMPER_RUNG_PM = 10;', 'export const TEMPER_RUNG_PM = 20;']] },
 ];
 

@@ -275,8 +275,9 @@ function saltCrock(ramp, heapLo, heapHi, fleck) {
   return outlined(g);
 }
 const temperSalts = () => saltCrock([EARTH[1], EARTH[2], EARTH[3], EARTH[4]], BONE, BONE_HI, IRON[1]);
+const fineTemperSalts = () => saltCrock(IRON, BONE_HI, STEEL_HI, IRON[3]);
 
-export const DRAW = Object.freeze({ temper_salts: temperSalts, bronze_rimmed_shield: bronzeRimmedShield, kingsgrate, iron_hatchets: ironHatchets, oak_crossbow: oakCrossbow, crown_shard: crownShard });
+export const DRAW = Object.freeze({ temper_salts: temperSalts, fine_temper_salts: fineTemperSalts, bronze_rimmed_shield: bronzeRimmedShield, kingsgrate, iron_hatchets: ironHatchets, oak_crossbow: oakCrossbow, crown_shard: crownShard });
 
 /** A grid (hex or null per pixel) as a binary-alpha 32x32 image. */
 export function toImage(g) {

@@ -25,9 +25,11 @@ export const TEMPER_TIERS = Object.freeze({
 });
 
 /* WHAT EACH RUNG ALSO TAKES (Tyler 2026-11-05: "require some sort of crafting in order to temper gear"): a crafted material of that tier, bought with the gold in one sale
-   (hr_unlock_buy, from the hero's bag and then the account's Storage). Each rung asks about 8% of the hours its gold takes to earn (PRIORITY_BOARD 2026-11-05). */
+   (hr_unlock_buy, from the hero's bag and then the account's Storage). A whole tier takes 3 to 5 hours of a resting hero's work, under a tenth of the hours its gold takes to
+   earn, and no coal (the measured table, PRIORITY_BOARD 2026-11-05). */
 export const TEMPER_MATERIALS = Object.freeze({
   2: Object.freeze({ item: 'temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
+  3: Object.freeze({ item: 'fine_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
 });
 
 export const temperUnlockId = (track, tier) => 'temper:' + track + ':' + tier;

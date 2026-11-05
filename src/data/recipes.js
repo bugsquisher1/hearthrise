@@ -203,6 +203,9 @@ const BASE_RECIPES = {
     /* TEMPERING'S MATERIAL (src/data/temper.js): Bone Chips are the hardener here too, so the Glade's crows feed the gear worn at the Glade. Smithing 15, where
        its Iron Bar opens (the self-supply rule above). Seated on the bar's own xp a second, never a new best. */
     {id:'mix_temper_salts', name:'Mix Tempering Salts', icon:'🧂', inputs:{iron_bar:1, bone_chips:1}, output:'temper_salts', xp:30, req:15, ms:3000},
+    /* Steel's tier takes no steel, ON PURPOSE (Andy: coal "has been a real slog and bottleneck for smithing"; board 2026-11-05): a Steel Bar eats 2 coal, 620 of these
+       would be 1,240 coal, three hours at the Coal Rock, stacked on the band that is already half coal. Two Iron Bars and the Warrens' Big Bones ask for no coal at all. */
+    {id:'mix_fine_temper_salts', name:'Mix Fine Tempering Salts', icon:'🧂', inputs:{iron_bar:2, big_bones:1}, output:'fine_temper_salts', xp:70, req:30, ms:3600},
     /* WHETSTONES — melee's ammo, moved here from the cut Stonemason bench
        (designer ruling, demolition 2026-10-14). xp, ms and the batch of 10 are
        unchanged; reqs and inputs are the ruling's (UNVERIFIED until a sim run). */

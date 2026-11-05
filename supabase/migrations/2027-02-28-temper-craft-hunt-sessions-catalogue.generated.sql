@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: ce5321a23df01c87241401c5d2900ff192a8917607cd7926270ae042c0fbcb7f
+--   digest: d81ed80b8c64a5acf76b04c69c432921dd336be382676e5a6ed852704637c4cf
 --   82 supplies, 128 hunts (named + training), 47 limits, 13 end reasons,
---   549 vendor values, 25 store supplies paid per use, 5 target modes,
+--   550 vendor values, 25 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
 --
 -- NEW IN THIS FILE (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
@@ -1232,6 +1232,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('fang_studs', 65),
   ('fangdart_recurve', 1008),
   ('field_ration', 90),
+  ('fine_temper_salts', 12),
   ('fishers_pie', 520),
   ('flux_salt', 3),
   ('foremans_lash', 18),
@@ -1593,7 +1594,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 128
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 13
-     or (select count(*) from public.hr_hunt_vendor_value) <> 549
+     or (select count(*) from public.hr_hunt_vendor_value) <> 550
      or (select count(*) from public.hr_hunt_basic_supplies) <> 25
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

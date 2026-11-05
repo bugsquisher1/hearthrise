@@ -643,9 +643,10 @@ export const ITEMS={
   keystone:     {n:'Keystone',     icon:'🧱', v:3000, tier:5, tag:'castle'},
 
   /* TEMPERING'S MATERIAL (Tyler 2026-11-05: "require some sort of crafting in order to temper gear"; src/data/temper.js). Bulk goods: the shop
-     bids a fifth of book, under what its Iron Bar and Bone Chips bid (7 g to 8 g), so a mix sold back to the shop loses money. Tradeable: the Weighhouse is the
+     bids a fifth of book, under what goes into it (7 g against 8 g, 12 g against 13 g), so a mix sold back to the shop loses money. Tradeable: the Weighhouse is the
      fighter's way to them, and a smith's market. */
   temper_salts: {n:'Tempering Salts', icon:'🧂', v:35, tag:'temper'},
+  fine_temper_salts: {n:'Fine Tempering Salts', icon:'🧂', v:60, tag:'temper'},
 
   /* ══════════════════════════════════════════════════════════════════
      b223 — THE HUNT: SIGNATURE MATERIALS + THE HUNT-FORGED KIT
@@ -908,7 +909,7 @@ const RAW_DROPS = [
 const BULK_GOODS = [
   'copper_bar', 'bronze_bar', 'iron_bar', 'gold_bar', 'steel_bar', 'verdite_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar',
   'normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank',
-  'rune_blank', 'timber_beam', 'iron_fitting', 'keystone', 'temper_salts',
+  'rune_blank', 'timber_beam', 'iron_fitting', 'keystone', 'temper_salts', 'fine_temper_salts',
   'bronze_axe', 'iron_axe', 'steel_axe', 'mithril_axe', 'rune_axe', 'ember_axe', 'dawn_axe',
   'bronze_pickaxe', 'iron_pickaxe', 'steel_pickaxe', 'mithril_pickaxe', 'rune_pickaxe', 'ember_pickaxe', 'dawn_pickaxe',
 ];

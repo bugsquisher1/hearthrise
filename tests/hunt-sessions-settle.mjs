@@ -127,6 +127,7 @@
 //              reads it usable, the engine buys exactly that row, the ledger's price is the view's and Configure action's, the debit is qty x price, browser
 //              closed and viewed write the same rows. Under the tier's level it reads store_level, casts nothing and buys nothing, never Plain. Another
 //              family's row is refused bad_store. A saved Plain slot reads, keeps its rule id and spends as before.
+//   RUNE-LADDER-IDEM  a second apply of the five 2027-03-08-rune-ladder files, in order, self-checks included, is byte-identical: bodies, grants, the store's rows, the bids.
 //   NO-FIGHT   a hero who can't fight goes home (designer 10-31): a bare bow with the store shut ends no_fight at its hunt
 //              start + the limit's minutes, a town-side automatic end, nothing bought, browser closed and viewed; the
 //              database refuses that end before the minutes and with a kill in its window.
@@ -2192,6 +2193,24 @@ const DB_ARMS = {
     await version('Flame Strike, Melee 1, Magic 20, Scored Fire', { ...BLADE, skillsXp: xpAt('magic', 20) }, 'scored_fire_rune', 'rune_level');
     return problems;
   },
+  'RUNE-LADDER-IDEM': async (db) => inTx(db, async () => {
+    const FILES = ['2027-03-08-rune-ladder-items-catalogue.generated.sql', '2027-03-08-rune-ladder-bench-tax-rates.generated.sql',
+      '2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql', '2027-03-08-rune-ladder-rune-spells.generated.sql', '2027-03-08-rune-ladder-slots.sql'];
+    const FNS = ['public.hr_hunt_slot_check(jsonb)', 'public.hr_hunt_settings_view(uuid,integer)', 'public.hr_hunt_rune_store_state(uuid,integer,text,text)', 'public.hr_hunt_rune_spells()'];
+    const image = async () => {
+      const out = {};
+      for (const fn of FNS) out[fn] = await one(db, `select jsonb_build_object('def', md5(replace(pg_get_functiondef($1::regprocedure), chr(13), '')), 'acl', (select proacl::text from pg_proc where oid = $1::regprocedure))`, [fn]);
+      for (const t of ['hr_hunt_basic_supplies', 'hr_hunt_vendor_value', 'hr_items', 'hr_activities', 'hr_bench_tax_rates']) out[t] = await one(db, `select md5(coalesce(string_agg(x::text, '|' order by x::text), '')) from public.${t} x`);
+      return out;
+    };
+    const before = await image();
+    for (const f of FILES) {
+      try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n')); }
+      catch (e) { return [`the second apply of ${f} RAISED: ${String(e.message).split('\n')[0]}`]; }
+    }
+    const after = await image();
+    return canon(after) === canon(before) ? [] : [`a second apply moved ${firstDiff(canon(before), canon(after))}`];
+  }),
   /* THE RUNE LADDER (Tyler 2026-11-05). One bar slot naming one store rune, the hero carrying none, every tier; both doors; the price read three ways. */
   'RUNE-LADDER': async (db, M) => {
     const problems = [];

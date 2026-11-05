@@ -88,9 +88,8 @@ export function tableOf(tab, ctx) {
       const p = a.rune ? partnerRow(c.store, a.rune) : null;
       const named = c.picked && c.picked.id === a.id && c.picked.store ? (c.store || []).find((r) => r.id === c.picked.store) : null;
       const pays = named || p;
-      /* `per` sorts the list (the family's cheapest cast, so a pick never moves its row); `price` is what this slot would pay. */
       return { action: { type: 'ability', id: a.id }, kind: runes ? 'runes' : 'spells', name: abilityName(a.id), store: false,
-        amount: a.mana, price: pays ? pays.price : null, per: p ? p.price : null, carry: a.rune ? familyCount(a.rune, c.bag) : null,
+        amount: a.mana, price: pays ? pays.price : null, per: pays ? pays.price : null, carry: a.rune ? familyCount(a.rune, c.bag) : null,
         cooldown: secs(a.cdMs) + ' s', rune: a.rune ? '1 ' + runeWords(a.rune, 1) : '—', unpriced: false, none: false,
         locked: !disc || !(a.universal || a.disciplines.includes(disc)) };
     });
@@ -135,7 +134,7 @@ export function cellsOf(r) {
   const dash = (v) => (v === null || v === undefined ? '—' : v);
   const carry = r.carry === 'store' ? 'store' : r.carry === null ? '—' : r.carry > 0 ? '×' + r.carry : 'none';
   if (r.kind === 'spells') return [String(r.amount), r.cooldown, r.rune, ''];
-  if (r.kind === 'runes') return [r.rune, '', r.price === null ? '—' : String(r.price), carry];
+  if (r.kind === 'runes') return [r.rune, '', r.per === null ? '—' : String(r.per), carry];
   if (r.kind === 'ammo') return [r.amount ? '+' + r.amount : '—', dash(r.price), r.per === null ? '—' : String(r.per), carry];
   return [dash(r.amount), dash(r.price), r.per === null ? '—' : fixed(r.per), carry];
 }

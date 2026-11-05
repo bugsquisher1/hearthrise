@@ -9,7 +9,8 @@
 //   R1  two heroes on one account press together at the SAME price (gate: the purse): one pays it, the other is told the next. Without hr:sink:<uid> both pay the first price
 //   R2  two heroes press together, the second at the next price (gate: the purse): the first pays the first price, the second pays the next
 //   R3  two accounts race for the Hearth's last booking (gate: the Hearth's key): one is booked, the other is refused show_busy and every trace of its charge rolls back
-//   R4  a named fuel and a powder at once, both orders, on one account (the deadlock the lock order rules out): both land; the named fuel didn't wait; the powder keeps every second
+//   R4  a named fuel and a powder at once, both orders, on one account: both land, no deadlock; the powder keeps every second. FOUND BY THIS RACE: hr_hearth_burn held the Hearth's
+//       key over its hr_apply, so the burn waited on a row the powder held while the powder waited on the key (2027-02-27-town-shows.sql §7 moves the key after the charge)
 //   R5  two accounts race for the Crier's 30 s (gate: the Crier's key): one line; the other refused crier_busy and charged nothing
 //   R6  one key pressed twice at once: one charge, one row, one line
 // NOT A CI STEP: GitHub has no PostgreSQL 17 binaries (tests/guards-unregistered.json). Never touches production or the machine's own PostgreSQL service: it starts tools/pg-replay.mjs's
@@ -36,14 +37,21 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let serial = 0;
 const newUser = () => '000000c0-0000-4000-a000-0000901e' + String(++serial).padStart(4, '0');
 
+/* THE RATE BUCKET'S ROW ALSO SERIALIZES ONE VERB ACROSS HEROES (hr_rate_ok's upsert holds it to commit), by accident, not by contract: a bucket can be moved or dropped. So the
+   sink key's own proof takes the bucket out with it, and a control proves the key alone holds the race. */
+const RATE = "  if not public.hr_rate_ok(v_uid, 'town_show', v_rule.per_minute, interval '1 minute') then\n    return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;\n";
+const CONTROLS = {
+  the_key_alone: { race: 'R1', why: 'with no rate bucket in the way, hr:sink:<uid> alone holds the climb', fn: SHOW, find: RATE, repl: '' },
+  the_key_alone_next_price: { race: 'R2', why: 'with no rate bucket in the way, hr:sink:<uid> alone pays the next price', fn: SHOW, find: RATE, repl: '' },
+};
 const MUTANTS = {
-  sink_lock_gone: { race: 'R1', why: 'two heroes both read the count before either pays', fn: SHOW, find: '  perform public.hr_sink_lock(v_uid);\n', repl: '' },
+  sink_lock_gone: { race: 'R1', why: 'two heroes both read the count before either pays', fn: SHOW, find: RATE, repl: '', find2: '  perform public.hr_sink_lock(v_uid);\n', repl2: '' },
   recheck_gone: { race: 'R3', why: 'the queue is never read again under the Hearth\'s key, so both are booked past the cap', fn: SHOW,
     find: "    if v_free > now() + make_interval(secs => v_rule.book_s) then raise exception using errcode = 'HR938', message = 'show_busy'; end if;\n", repl: '' },
   crier_recheck_gone: { race: 'R5', why: 'the gap is never read again under the Crier\'s key, so two lines go out', fn: CRY,
     find: "    if v_wait > 0 then raise exception using errcode = 'HR939', message = 'crier_busy'; end if;\n", repl: '' },
-  burn_takes_key_after_purse: { race: 'R4', why: 'the Hearth\'s burn holds its key while it waits on a purse, against a powder holding the purse and waiting on the key', fn: BURN,
-    find: "           'items', jsonb_build_object(p_item, -1),\n", repl: "           'gold', -1, 'items', jsonb_build_object(p_item, -1),\n" },
+  burn_holds_the_key: { race: 'R4', why: 'the burn holds the Hearth\'s key over its charge, against a powder holding its row and waiting on the key', fn: BURN,
+    find: "    -- THE BURN: the item and the XP, journalled, exactly once on this key\n", repl: "    perform pg_advisory_xact_lock(hashtextextended('hr:hearth:' || v_map, 0));\n" },
 };
 
 async function world(plant) {
@@ -52,7 +60,12 @@ async function world(plant) {
   if (plant) {
     const def = String((await db.query('select pg_get_functiondef($1::regprocedure) d', [plant.fn])).rows[0].d).split(String.fromCharCode(13)).join('');
     if (def.split(plant.find).length !== 2) throw Object.assign(new Error('mutant anchor not found once: ' + plant.find.slice(0, 80)), { harness: true });
-    await db.exec(def.replace(plant.find, () => plant.repl));
+    let body = def.replace(plant.find, () => plant.repl);
+    if (plant.find2) {
+      if (body.split(plant.find2).length !== 2) throw Object.assign(new Error('mutant anchor not found once: ' + plant.find2.slice(0, 80)), { harness: true });
+      body = body.replace(plant.find2, () => plant.repl2);
+    }
+    await db.exec(body);
   }
   const conns = [];
   const open = async () => { const c = await attachPg(name); c.pid = (await c.query('select pg_backend_pid() as p')).rows[0].p; conns.push(c); return c; };
@@ -200,7 +213,7 @@ const RACES = {
       const settled = await Promise.race([Promise.allSettled([p1, p2]), sleep(30000).then(() => null)]);
       if (!settled) { out.push(first + ' first: the two never finished'); continue; }
       const [a1, a2] = settled;
-      const dead = settled.filter((s) => s.status === 'rejected').map((s) => String(s.reason && s.reason.message).slice(0, 120));
+      const dead = settled.filter((s) => s.status === 'rejected').map((s) => String(s.reason && s.reason.message).slice(0, 120) + ' | ' + String(s.reason && s.reason.detail).slice(0, 400) + ' | ' + String(s.reason && s.reason.where).slice(0, 500));
       if (dead.length) { out.push(first + ' first: ' + dead.join('; ')); continue; }
       const [rp, rn] = first === 'powder' ? [a1.value, a2.value] : [a2.value, a1.value];
       if (rp.ok !== true || rn.ok !== true) out.push(first + ' first: ' + JSON.stringify({ rp, rn }));
@@ -244,7 +257,7 @@ const RACES = {
     await blocked(w, w.B, p1);
     await open(w);
     const [r0, r1] = await Promise.all([p0, p1]);
-    if (r0.ok !== true || r1.ok === false && r1.error !== 'quote_changed') out.push('one key twice answered ' + JSON.stringify([r0, r1]));
+    if (r0.ok !== true || r1.ok !== true) out.push('one key twice answered ' + JSON.stringify([r0, r1]));
     if ((await purse(w, u)) !== 998000) out.push('one key twice left the purse at ' + (await purse(w, u)));
     if ((await shopRows(w, u)).length !== 1) out.push('one key twice journalled ' + JSON.stringify(await shopRows(w, u)));
     if (Number((await w.db.query('select count(*) n from public.town_shows where user_id = $1', [u])).rows[0].n) !== 1) out.push('one key twice booked twice');
@@ -268,6 +281,14 @@ async function main() {
     process.exit(red ? 1 : 0);
   }
   let missed = 0;
+  for (const [id, m] of Object.entries(CONTROLS)) {
+    if (ONLY.length && !ONLY.includes(id)) continue;
+    const w = await world(m);
+    let p;
+    try { p = await RACES[m.race](w); } catch (e) { if (e.harness) throw e; p = ['threw: ' + String(e && e.message).slice(0, 200)]; } finally { await w.close(); }
+    if (p.length) { console.error(`✗ the control ${id} went RED: ${p.join('; ').slice(0, 300)}`); missed++; }
+    else console.log(`✓ control ${id}: ${m.why}`);
+  }
   for (const [id, m] of Object.entries(MUTANTS)) {
     if (ONLY.length && !ONLY.includes(id)) continue;
     const w = await world(m);

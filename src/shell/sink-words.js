@@ -11,7 +11,7 @@ const SHOW_NOUN = Object.freeze({ town_powder: 'powders', town_round: 'rounds' }
 
 /**
  * The sentence for a refused sink, or null when it isn't one or has nothing of its own to say.
- * @param {{error?: string, verb?: string, perDay?: number|null, waitS?: number|null, bookedS?: number|null, n?: number|null, need?: number|null, level?: number|null, price?: number|null}} r
+ * @param {{error?: string, verb?: string, perDay?: number|null, waitS?: number|null, bookedS?: number|null, n?: number|null, max?: number|null, need?: number|null, level?: number|null, price?: number|null}} r
  * @param {string|null} heroName
  */
 export function sinkRefusal(r, heroName) {

@@ -20,7 +20,7 @@
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
 import { TAP_OPENS, SITE_OPENS } from '../data/world/stations.js?v=0.2.90';
-import { SINK_TAPS } from '../data/gold-sinks.js?v=0.2.90';
+import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.90';
 
 /* what a tap opens: the stations' rows and the sinks' (which stay out of stations.js: the edge bundles it) */
 const OPENS = Object.freeze({ ...TAP_OPENS, ...SINK_TAPS });

@@ -18,11 +18,11 @@ import { logFor } from '../hunt-view/combat-log.js?v=0.2.90';
 import { pickHunt } from '../shell/windows/hunts.js?v=0.2.90';
 import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.90';
 import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.90';
-import { SINK_TAPS } from '../data/gold-sinks.js?v=0.2.90';
+import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.90';
 import { connection, loadingWords } from '../net/connection.js?v=0.2.90';
 
 /* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
-const KEEPER_WINDOWS = new Set(TAP_WINDOWS.concat(Object.values(SINK_TAPS).map((t) => t.window)));
+const KEEPER_WINDOWS = new Set([...TAP_WINDOWS, ...Object.values(SINK_TAPS).map((t) => t.window)]);
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'

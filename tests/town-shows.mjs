@@ -111,8 +111,12 @@ export const MUTANTS = {
   bought_answers_first: { arm: 'TS-NAMED', why: 'the square shows a powder over a named flame',
     db: [FLAME, "      where f.map_id = p_map and f.starts_at <= now() and f.ends_at > now()\n", "      where f.map_id = p_map and f.starts_at <= now() and f.ends_at > now() and not exists (select 1 from public.town_shows x where x.map_id = p_map and x.starts_at <= now() and x.ends_at > now())\n"] },
   named_waits: { arm: 'TS-NAMED', why: 'a named fuel queues behind bought powders',
-    db: [BURN, "  v_start := greatest(now(), coalesce((select max(f.ends_at) from public.hearth_flames f where f.map_id = v_map), now()));",
-      "  v_start := greatest(now(), coalesce((select max(f.ends_at) from public.hearth_flames f where f.map_id = v_map), now()), coalesce((select max(s.ends_at) from public.town_shows s where s.map_id = v_map), now()));"] },
+    db: [BURN, "    perform pg_advisory_xact_lock(hashtextextended('hr:hearth:' || v_map, 0));\n    v_start := greatest(now(), coalesce((select max(f.ends_at) from public.hearth_flames f where f.map_id = v_map), now()));",
+      "    perform pg_advisory_xact_lock(hashtextextended('hr:hearth:' || v_map, 0));\n    v_start := greatest(now(), coalesce((select max(f.ends_at) from public.hearth_flames f where f.map_id = v_map), now()), coalesce((select max(s.ends_at) from public.town_shows s where s.map_id = v_map), now()));"] },
+  burn_key_first: { arm: 'TS-NAMED', why: 'the Hearth\'s key is held over the charge, which deadlocks against a powder on the same account',
+    db: [BURN, "    -- THE BURN: the item and the XP, journalled, exactly once on this key\n", "    perform pg_advisory_xact_lock(hashtextextended('hr:hearth:' || v_map, 0));\n"] },
+  burn_race_charges: { arm: 'TS-NAMED', why: 'a burn that lost the queue race keeps the item and the XP',
+    db: [BURN, "raise exception using errcode = 'HR942', message = 'hearth_busy'; end if;", "return jsonb_build_object('ok', false, 'error', 'hearth_busy', 'wait_s', 1); end if;"] },
   /* THE CLIMB */
   sink_lock_gone: { arm: 'TS-CLIMB', why: 'two heroes pressing together both read the same count',
     db: [SHOW, "  perform public.hr_sink_lock(v_uid);\n", ''] },
@@ -133,7 +137,8 @@ export const MUTANTS = {
   /* THE JOURNAL */
   wrong_kind: { arm: 'TS-LEDGER', why: 'a purchase journals under another kind', db: [SHOW, "'journal', jsonb_build_object('kind', 'shop', 'intent', v_verb,", "'journal', jsonb_build_object('kind', 'quest', 'intent', v_verb,"] },
   no_replay: { arm: 'TS-LEDGER', why: 'a retried key is not answered from the journal, and hr_apply is reached with a stale read',
-    db: [SHOW, "  if v_r is not null then return public.hr_note_rejection('town_show', p_slot, v_r); end if;\n", "  if false then return null; end if;\n"] },
+    db: [SHOW, "  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);\n  if v_r is not null then return public.hr_note_rejection('town_show', p_slot, v_r); end if;\n  -- THE CATALOGUE", "  -- THE CATALOGUE",
+      "  -- A SECOND PRESS OF ONE KEY that waited on that lock answers the first one's decision\n  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);\n  if v_r is not null then return public.hr_note_rejection('town_show', p_slot, v_r); end if;\n", ''] },
   /* HUNTING */
   hunting_allowed: { arm: 'TS-HUNT', why: 'a hero out hunting throws a powder',
     db: [SHOW, "  if v_hunt is not null then\n", "  if false then\n"] },
@@ -164,7 +169,7 @@ export const MUTANTS = {
   button_has_no_price: { arm: 'TS-WINDOW', why: 'the button hides the server\'s price',
     js: ['src/shell/windows/havora/index.js', [["return 'Throw ' + SHOW_FLAMES[show].label + (Number.isSafeInteger(price) ? ': ' + gold(price) : '');", "return 'Throw ' + SHOW_FLAMES[show].label;"]]] },
   tavern_is_a_prop: { arm: 'TS-WINDOW', why: 'a tap on the Tavern opens nothing',
-    js: ['src/data/gold-sinks.js', [["  havora_tavern: Object.freeze({ open: 'window', window: 'havora', tab: 'round' }),\n", '']]] },
+    js: ['src/data/world/sink-taps.js', [["  havora_tavern: Object.freeze({ open: 'window', window: 'havora', tab: 'round' }),\n", '']]] },
   bought_flame_plain: { arm: 'TS-WINDOW', why: 'a bought flame draws the plain fire',
     js: ['src/world/hearth-burn.js', [["const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES });", "const FLAMES = NAMED_FLAMES;"]]] },
   round_never_bursts: { arm: 'TS-WINDOW', why: 'a round draws nothing',
@@ -416,6 +421,22 @@ const ARMS = {
     if (!n2 || n2.ok !== true) return ['the second named fuel was refused: ' + JSON.stringify(n2)];
     if (Number(n2.flame.from_ms) !== Number(n1.flame.until_ms)) out.push('the second named fuel waited for a powder too: from ' + n2.flame.from_ms + ', the first ends ' + n1.flame.until_ms);
     if ((await visible()) !== 30) out.push('after two named fuels the powder shows for ' + (await visible()) + ' s of its 30');
+    /* THE BURN'S OWN LOCK ORDER: hr_apply, then the Hearth's key, as the powder's */
+    const burnSrc = await one(db, 'select prosrc from pg_proc where oid = $1::regprocedure', [BURN]);
+    if (burnSrc.indexOf('pg_advisory_xact_lock') < burnSrc.indexOf('v_a := public.hr_apply(')) out.push('hr_hearth_burn holds the Hearth\'s key over its charge');
+    /* A BURN THAT LOSES THE QUEUE RACE MOVES NOTHING: the queue fills while its charge waits on the key */
+    await calm(db);
+    const xpBefore = await skillXp(db, B, 0);
+    const knots = Number(await one(db, "select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'den_knot'", [B]));
+    await db.exec(`create or replace function public.hr__zz_flame() returns trigger language plpgsql as $f$ begin
+        insert into public.hearth_flames (map_id, item_id, flame, user_id, slot, starts_at, ends_at) values ('${THE_MAP}', 'zz', 'honey', '${A}', 0, now(), now() + interval '2 hours');
+        return new; end $f$;
+      create trigger hr__zz_flame before insert on public.player_ledger for each row execute function public.hr__zz_flame();`);
+    const lost = await as(db, B, 'select public.hr_hearth_burn(0, $1, $2::uuid)', ['den_knot', idem()]);
+    await db.exec('drop trigger hr__zz_flame on public.player_ledger; drop function public.hr__zz_flame()');
+    if (lost.error !== 'hearth_busy') out.push('a burn that lost the race answered ' + JSON.stringify(lost));
+    if (String(await skillXp(db, B, 0)) !== String(xpBefore)) out.push('a burn that lost the race paid XP');
+    if (Number(await one(db, "select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'den_knot'", [B])) !== knots) out.push('a burn that lost the race took the fuel');
     /* TIME PASSES (both named flames are done): the powder is back, with the 20 s it hadn't burned */
     await db.query('update public.hearth_flames set starts_at = starts_at - interval \'120 seconds\', ends_at = ends_at - interval \'120 seconds\'');
     await db.query("update public.town_shows set starts_at = starts_at - interval '120 seconds', ends_at = ends_at - interval '120 seconds'");
@@ -691,7 +712,7 @@ const ARMS = {
     const out = [];
     const names = [...X.edgeFiles].concat(mutant && mutant.plant === 'edgeFile' ? ['vendor/data/gold-sinks.js'] : []);
     if (names.length < 50) out.push('the pack read ' + names.length + ' files');
-    for (const n of names) if (/gold-sinks|town-shows|town-intents|sink-words|havora/.test(n)) out.push(n + ' is in the edge bundle');
+    for (const n of names) if (/gold-sinks|sink-taps|town-shows|town-intents|sink-words|havora/.test(n)) out.push(n + ' is in the edge bundle');
     for (const offer of ['cinnabar', 'quicklime', 'borax']) {
       if (X.HD.FLAMES[offer]) out.push(offer + ' is in src/data/hearth.js, which the edge bundles');
       if (!X.GS.SHOW_FLAMES[offer]) out.push(offer + ' has no flame in src/data/gold-sinks.js');
@@ -729,8 +750,8 @@ const ARMS = {
     if (!s || s.powder.price !== 2000 || s.round.price !== 5000 || s.powder.perDay !== 5 || !s.crier || s.crier.price !== 1000 || s.crier.minLevel !== 10) out.push('the window parses ' + JSON.stringify(s));
     if (X.TI.parseSinks({ ok: true }) !== null) out.push('a broken answer parsed');
     /* THE TAVERN OPENS ITS ROUND TAB */
-    const row = X.GS.SINK_TAPS.havora_tavern;
-    const act = row ? X.SL.tapAction({ id: 'town', exits: [] }, { tile: [62, 20], hits: [{ id: 'havora_tavern', tx: 62, ty: 20, ref: null }] }, { opens: X.GS.SINK_TAPS, maps: {} }) : null;
+    const row = X.ST.SINK_TAPS.havora_tavern;
+    const act = row ? X.SL.tapAction({ id: 'town', exits: [] }, { tile: [62, 20], hits: [{ id: 'havora_tavern', tx: 62, ty: 20, ref: null }] }, { opens: X.ST.SINK_TAPS, maps: {} }) : null;
     if (!act || act.kind !== 'window' || act.window !== 'havora' || act.tab !== 'round') out.push('a tap on the Tavern acts ' + JSON.stringify(act));
     /* A BOUGHT FLAME SWAPS THE FIRE'S ART, FROM THE TOWN'S ANSWER ALONE */
     const map = { T: 32, ambient: [{ id: 'hearth_fire', x: 50, y: 50, lift: 0 }] };
@@ -823,6 +844,7 @@ async function loadReaders(root) {
   const u = (p) => pathToFileURL(join(root, p)).href + '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   return {
     GS: await import(u('src/data/gold-sinks.js')),
+    ST: await import(u('src/data/world/sink-taps.js')),
     HD: await import(u('src/data/hearth.js')),
     IW: await import(u('src/shell/intent-words.js')),
     HW: await import(u('src/shell/windows/havora/index.js')),
@@ -846,10 +868,13 @@ async function runArm(db, X, id, mutant) {
   await db.query('begin');
   try {
     if (mutant && mutant.db) {
-      const [fn, find, repl] = mutant.db;
-      const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [fn])).split(String.fromCharCode(13)).join('');
-      if (def.split(find).length !== 2) throw Object.assign(new Error(`mutant anchor not found once in ${fn}: ${find.slice(0, 80)}`), { harness: true });
-      await db.exec(def.replace(find, () => repl));
+      const [fn, ...pairs] = mutant.db;
+      let def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [fn])).split(String.fromCharCode(13)).join('');
+      for (let i = 0; i < pairs.length; i += 2) {
+        if (def.split(pairs[i]).length !== 2) throw Object.assign(new Error(`mutant anchor not found once in ${fn}: ${pairs[i].slice(0, 80)}`), { harness: true });
+        def = def.replace(pairs[i], () => pairs[i + 1]);
+      }
+      await db.exec(def);
     }
     if (mutant && mutant.ddl) await db.exec(mutant.ddl);
     /* the board's view with its month filter gone (hr_lb_row goes with a dropped view: its own text brings it back) */

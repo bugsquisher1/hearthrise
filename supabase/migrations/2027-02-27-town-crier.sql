@@ -127,6 +127,9 @@ begin
     return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   -- THE HERO: its lock, its row, its Level
   perform public.hr_hunt_lock(v_uid, p_slot);
+  -- A SECOND PRESS OF ONE KEY that waited on that lock answers the first one's decision
+  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
+  if v_r is not null then return public.hr_note_rejection('crier', p_slot, v_r); end if;
   select version into v_ver from public.player_state where user_id = v_uid and slot = p_slot;
   if v_ver is null then return public.hr_note_rejection('crier', p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
   v_lv := public.hr_level_of(v_uid, p_slot);

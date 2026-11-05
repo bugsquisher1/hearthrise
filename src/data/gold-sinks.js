@@ -47,12 +47,6 @@ export const ROUND_SHOW = Object.freeze({
   bursts: Object.freeze(['fx_round_gold', 'fx_round_cinder', 'fx_round_frost']),
 });
 
-/* WHAT A TAP ON THE MAP OPENS for these sinks, TAP_OPENS-shaped. It lives here and not in src/data/world/stations.js, which the edge bundles: this lane moves no edge hash. */
-export const SINK_TAPS = Object.freeze({
-  /* the Tavern: stand a round (the Havora window on its Round tab) */
-  havora_tavern: Object.freeze({ open: 'window', window: 'havora', tab: 'round' }),
-});
-
 /** One row per sink, keyed by the server's sink id. */
 export const SINK_RULES = Object.freeze({
   powder: Object.freeze({

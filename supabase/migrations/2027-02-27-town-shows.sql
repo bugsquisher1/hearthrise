@@ -16,6 +16,7 @@
 -- hr_town_sinks_view(p_slot): the Havora window's read, while it's open, never in the envelope: every quote, the last powder, this account's powder and the
 --   named flame it burns behind, the Crier's quote and last line.
 -- hr_town_show_push(p_map, p_from, p_until): a named fuel pauses bought flames under the Hearth's key. Owner only. Its one caller is hr_hearth_burn.
+--   hr_hearth_burn's own contract doesn't move: the same refusals, one journal row, the item and the XP; a burn that loses the queue race now answers hearth_busy and moves nothing.
 -- hr_town_shows_of(p_map): the round burning now, the body of the seam's stub. hr_hearth_flame_of(p_map): a named flame first, else a bought one.
 --
 -- ── WHAT MUST STAY TRUE ──────────────────────────────────────────────────────
@@ -27,8 +28,8 @@
 -- EACH ACCOUNT ONE LADDER: the count reads the ledger by user_id across heroes, after hr:sink:<uid>, or two heroes pressing together both pay the first price.
 -- NOBODY PAYS FOR A REFUSED SHOW: the queue is read before the charge, and again under the town's key after it. A queue that filled in between RAISES inside the
 --   charge's block and rolls back whole: purse, journal, intent, row and line.
--- LOCK ORDER: hero, hr:sink:<uid>, hr_apply (the purse), then the town's key, so one account's settle can't hold the Hearth. hr_hearth_burn takes the Hearth's key before
---   its own hr_apply, and stays safe because that delta has no gold: it never takes a purse while holding the key.
+-- LOCK ORDER: hero, hr:sink:<uid>, hr_apply (the purse), then the town's key, so one account's settle can't hold the Hearth. hr_hearth_burn HELD THAT KEY OVER ITS hr_apply: on real
+--   backends a burn deadlocked against the same account's powder (tests/town-shows-race.mjs R4), so §7 moves its key after its charge too, with the same read-again and rollback.
 -- A QUIET HERO pays and shows with no name and no line, as a named fuel does today.
 -- MODERATION: the lines hold no player text: only the server's sentence and the stamped hero name.
 --
@@ -53,7 +54,7 @@ begin
   -- each restated body is EXACTLY its live image (tests/live-hash-drift.baseline.json, measured 2026-11-05), or this file's own (a second apply)
   for v_r in select * from (values
     ('public.hr_hearth_flame_of(text)', '499845440c7bfa6ea401669c9a14d5db', '6c841b157520be382feef27d277fda3b'),
-    ('public.hr_hearth_burn(integer,text,uuid)', '2b2da8b5cc4a5b5cc4141b1b53a36036', '7870d6a187f14f51bcbbe9720baf42ba'),
+    ('public.hr_hearth_burn(integer,text,uuid)', '2b2da8b5cc4a5b5cc4141b1b53a36036', '9e9070575ccacf50749d1c1819cdec6d'),
     -- the stub's image from 2027-02-27-gold-sinks-seams.sql
     ('public.hr_town_shows_of(text)', 'eddcb66db47765278bbec67417887c0d', '4c45955b31af7216c5072ba92d57bb14')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
@@ -198,6 +199,9 @@ begin
     return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   -- THE HERO: its lock, its row, its open hunt (the shows are in town)
   perform public.hr_hunt_lock(v_uid, p_slot);
+  -- A SECOND PRESS OF ONE KEY that waited on that lock answers the first one's decision
+  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
+  if v_r is not null then return public.hr_note_rejection('town_show', p_slot, v_r); end if;
   select version into v_ver from public.player_state where user_id = v_uid and slot = p_slot;
   if v_ver is null then return public.hr_note_rejection('town_show', p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
   select h.hunt_id into v_hunt from public.hunt_sessions h where h.user_id = v_uid and h.slot = p_slot and h.ended_at is null;
@@ -294,7 +298,7 @@ begin
     'crier', public.hr_town_crier_quote(v_uid));
 end $fn$;
 
--- ── §7 hr_hearth_burn RESTATED WHOLE (§0 pins its image): + one line, the push ──
+-- ── §7 hr_hearth_burn RESTATED WHOLE (§0 pins its image): + the push; the Hearth's key moved after the charge (the lock order, above) ──
 create or replace function public.hr_hearth_burn(p_slot int, p_item text, p_idem uuid)
 returns jsonb language plpgsql volatile security definer set search_path = public, pg_catalog as $fn$
 declare
@@ -351,34 +355,43 @@ begin
    where f.user_id = v_uid and f.slot = p_slot and f.created_at >= public.hr_utc_day_start(now());
   if v_n >= v_rule.per_day then
     return public.hr_note_rejection('hearth_burn', p_slot, jsonb_build_object('ok', false, 'error', 'hearth_limit', 'per_day', v_rule.per_day)); end if;
-  -- THE TOWN'S HEARTH: one burn at a time per town; a colour queues behind the last one, up to queue_s ahead
-  perform pg_advisory_xact_lock(hashtextextended('hr:hearth:' || v_map, 0));
+  -- THE TOWN'S HEARTH, READ BEFORE THE BURN so the usual refusal moves nothing: one burn at a time per town; a colour queues behind the last one, up to queue_s ahead
   v_start := greatest(now(), coalesce((select max(f.ends_at) from public.hearth_flames f where f.map_id = v_map), now()));
   if v_start > now() + make_interval(secs => v_rule.queue_s) then
     return public.hr_note_rejection('hearth_burn', p_slot, jsonb_build_object('ok', false, 'error', 'hearth_busy',
       'wait_s', ceil(extract(epoch from (v_start - now())) - v_rule.queue_s)::int)); end if;
-  v_end := v_start + make_interval(secs => v_fuel.secs);
-  -- THE BURN: the item and the XP, journalled, exactly once on this key
-  v_a := public.hr_apply(v_uid, p_slot, v_ver, p_idem, jsonb_build_object(
-           'items', jsonb_build_object(p_item, -1),
-           'xp', jsonb_build_object('inner_flame', v_fuel.xp),
-           'journal', jsonb_build_object('kind', 'craft', 'intent', v_verb,
-                                         'meta', jsonb_build_object('reason', 'hearth_named', 'flame', v_fuel.flame, 'secs', v_fuel.secs,
-                                                                    'from', v_start, 'map', v_map))));
-  if coalesce(v_a->>'ok', 'false') <> 'true' then
-    return public.hr_note_rejection('hearth_burn', p_slot, v_a || jsonb_build_object('ok', false)); end if;
-  -- THE SQUARE: a system line naming the burner (never a quiet hero), then the colour
-  select coalesce(ps.presence_quiet, false) into v_quiet from public.player_state ps where ps.user_id = v_uid and ps.slot = p_slot;
-  if not v_quiet then
-    v_msg := gen_random_uuid();
-    -- from_name is stamped by hr_chat_name_authority (the character's name); the placeholder never shows
-    insert into public.chat_messages (id, channel, from_id, from_name, from_slot, body)
-    values (v_msg, 'system', v_uid, 'Adventurer', p_slot, 'fed the Great Hearth a [[item:' || p_item || ']].');
-  end if;
-  insert into public.hearth_flames (map_id, item_id, flame, user_id, slot, starts_at, ends_at, message_id)
-  values (v_map, p_item, v_fuel.flame, v_uid, p_slot, v_start, v_end, v_msg);
-  -- A NAMED FUEL NEVER WAITS: bought flames move out of its way, each still burning for every second paid for
-  perform public.hr_town_show_push(v_map, v_start, v_end);
+  begin
+    -- THE BURN: the item and the XP, journalled, exactly once on this key
+    v_a := public.hr_apply(v_uid, p_slot, v_ver, p_idem, jsonb_build_object(
+             'items', jsonb_build_object(p_item, -1),
+             'xp', jsonb_build_object('inner_flame', v_fuel.xp),
+             'journal', jsonb_build_object('kind', 'craft', 'intent', v_verb,
+                                           'meta', jsonb_build_object('reason', 'hearth_named', 'flame', v_fuel.flame, 'secs', v_fuel.secs,
+                                                                      'from', v_start, 'map', v_map))));
+    if coalesce(v_a->>'ok', 'false') <> 'true' then
+      return public.hr_note_rejection('hearth_burn', p_slot, v_a || jsonb_build_object('ok', false)); end if;
+    -- THE HEARTH'S KEY, LAST, as hr_town_show takes it: held over hr_apply it deadlocked a burn against the same account's powder (tests/town-shows-race.mjs R4).
+    -- A queue that filled while this waited raises and rolls the burn back whole: the item and the XP stay where they were.
+    perform pg_advisory_xact_lock(hashtextextended('hr:hearth:' || v_map, 0));
+    v_start := greatest(now(), coalesce((select max(f.ends_at) from public.hearth_flames f where f.map_id = v_map), now()));
+    if v_start > now() + make_interval(secs => v_rule.queue_s) then raise exception using errcode = 'HR942', message = 'hearth_busy'; end if;
+    v_end := v_start + make_interval(secs => v_fuel.secs);
+    -- THE SQUARE: a system line naming the burner (never a quiet hero), then the colour
+    select coalesce(ps.presence_quiet, false) into v_quiet from public.player_state ps where ps.user_id = v_uid and ps.slot = p_slot;
+    if not v_quiet then
+      v_msg := gen_random_uuid();
+      -- from_name is stamped by hr_chat_name_authority (the character's name); the placeholder never shows
+      insert into public.chat_messages (id, channel, from_id, from_name, from_slot, body)
+      values (v_msg, 'system', v_uid, 'Adventurer', p_slot, 'fed the Great Hearth a [[item:' || p_item || ']].');
+    end if;
+    insert into public.hearth_flames (map_id, item_id, flame, user_id, slot, starts_at, ends_at, message_id)
+    values (v_map, p_item, v_fuel.flame, v_uid, p_slot, v_start, v_end, v_msg);
+    -- A NAMED FUEL NEVER WAITS: bought flames move out of its way, each still burning for every second paid for
+    perform public.hr_town_show_push(v_map, v_start, v_end);
+  exception when sqlstate 'HR942' then
+    return public.hr_note_rejection('hearth_burn', p_slot, jsonb_build_object('ok', false, 'error', 'hearth_busy',
+      'wait_s', greatest(1, ceil(extract(epoch from (v_start - now())) - v_rule.queue_s))::int));
+  end;
   -- THE HERO WALKS TO THE FIRE: a free fuel stand (display presence; no output waits on it)
   if public.hr_flag_on('town_presence') then
     insert into public.town_seen as ts (user_id, slot, seen_at) values (v_uid, p_slot, now())

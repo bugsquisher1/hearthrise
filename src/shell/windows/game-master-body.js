@@ -14,28 +14,29 @@ import { gmBan, gmGrantGold, gmGrantItem, gmGrantLevel, gmHero, gmMute, gmOnline
 
 const MUTE_MINUTES = Object.freeze([[15, '15 minutes'], [60, '1 hour'], [1440, '1 day'], [10080, '1 week']]);
 const STATES = new WeakMap();
-const stateOf = (el) => { if (!STATES.has(el)) STATES.set(el, { heroes: null, hero: null, busy: false, confirm: null, said: '' }); return STATES.get(el); };
+/* Per account, not per open: closing the window keeps who was being looked at. */
+const stateOf = (ctx) => { if (!STATES.has(ctx.account)) STATES.set(ctx.account, { heroes: null, hero: null, busy: false, confirm: null, said: '' }); return STATES.get(ctx.account); };
 
 const SKELETON = '<section class="gm-part"><h3 class="hs-sub">Who\'s playing</h3>'
   + '<button type="button" class="hh-tool" data-hs-act="gm-online">Refresh</button>'
   + '<ul class="gm-list"></ul><p class="hh-empty gm-none">Press Refresh to see who\'s playing.</p></section>'
-  + '<section class="gm-part"><h3 class="hs-sub">One hero</h3><div class="gm-row"><input class="gm-find" type="text" maxlength="20" aria-label="A hero\'s name" placeholder="A hero\'s name" data-hs-act="gm-type">'
+  + '<section class="gm-part"><h3 class="hs-sub">One hero</h3><div class="gm-row"><input class="hh-num gm-field gm-find" type="text" maxlength="20" aria-label="A hero\'s name" placeholder="A hero\'s name">'
   + '<button type="button" class="hh-tool" data-hs-act="gm-look">Look</button></div>'
   + '<div class="gm-hero" hidden><p class="gm-facts"></p><ul class="gm-more"></ul>'
-  + '<input class="gm-why" type="text" maxlength="200" aria-label="Why" placeholder="Why? A few words, kept in the log" data-hs-act="gm-type">'
+  + '<input class="hh-num gm-field gm-why" type="text" maxlength="200" aria-label="Why" placeholder="Why? A few words, kept in the log">'
   + '<div class="gm-row"><button type="button" class="hh-tool" data-hs-act="gm-stop">Stop</button>'
-  + '<select class="gm-minutes" aria-label="For how long">' + MUTE_MINUTES.map(([m, w]) => '<option value="' + m + '">' + w + '</option>').join('') + '</select>'
+  + '<select class="hh-select gm-minutes" aria-label="For how long">' + MUTE_MINUTES.map(([m, w]) => '<option value="' + m + '">' + w + '</option>').join('') + '</select>'
   + '<button type="button" class="hh-tool" data-hs-act="gm-mute">Mute</button><button type="button" class="hh-tool" data-hs-act="gm-unmute">Unmute</button>'
   + '<button type="button" class="hh-tool" data-hs-act="gm-ban">Ban</button><button type="button" class="hh-tool" data-hs-act="gm-unban">Unban</button></div>'
   + '<div class="gm-confirm" hidden><p class="gm-ask"></p><div class="gm-row"><button type="button" class="hh-tool is-primary" data-hs-act="gm-yes"></button>'
   + '<button type="button" class="hh-tool" data-hs-act="gm-no">Cancel</button></div></div></div></section>'
-  + '<section class="gm-part"><h3 class="hs-sub">Say to everyone</h3><div class="gm-row"><input class="gm-say" type="text" maxlength="240" aria-label="A line to everyone" placeholder="Everyone reads this as the Game Master" data-hs-act="gm-type">'
+  + '<section class="gm-part"><h3 class="hs-sub">Say to everyone</h3><div class="gm-row"><input class="hh-num gm-field gm-say" type="text" maxlength="240" aria-label="A line to everyone" placeholder="Everyone reads this as the Game Master">'
   + '<button type="button" class="hh-tool" data-hs-act="gm-say">Say</button></div></section>'
   + '<section class="gm-part"><h3 class="hs-sub">This test hero</h3><p class="hs-note">Only this account can be given anything, and it can\'t trade, use the market or reach a leaderboard. The hero must be idle.</p>'
-  + '<input class="gm-grant-why" type="text" maxlength="200" aria-label="Why" placeholder="Why? A few words, kept in the log" data-hs-act="gm-type">'
-  + '<div class="gm-row"><input class="gm-gold" type="number" min="1" aria-label="Gold" placeholder="Gold"><button type="button" class="hh-tool" data-hs-act="gm-give-gold">Give gold</button></div>'
-  + '<div class="gm-row"><input class="gm-item" type="text" maxlength="64" aria-label="Item id" placeholder="Item id"><input class="gm-qty" type="number" min="1" aria-label="How many" placeholder="How many"><button type="button" class="hh-tool" data-hs-act="gm-give-item">Give item</button></div>'
-  + '<div class="gm-row"><input class="gm-level" type="number" min="2" aria-label="Level" placeholder="Level"><button type="button" class="hh-tool" data-hs-act="gm-give-level">Raise Level</button></div></section>'
+  + '<input class="hh-num gm-field gm-grant-why" type="text" maxlength="200" aria-label="Why" placeholder="Why? A few words, kept in the log">'
+  + '<div class="gm-row"><input class="hh-num gm-field gm-gold" type="number" min="1" aria-label="Gold" placeholder="Gold"><button type="button" class="hh-tool" data-hs-act="gm-give-gold">Give gold</button></div>'
+  + '<div class="gm-row"><input class="hh-num gm-field gm-item" type="text" maxlength="64" aria-label="Item id" placeholder="Item id"><input class="hh-num gm-field gm-qty" type="number" min="1" aria-label="How many" placeholder="How many"><button type="button" class="hh-tool" data-hs-act="gm-give-item">Give item</button></div>'
+  + '<div class="gm-row"><input class="hh-num gm-field gm-level" type="number" min="2" aria-label="Level" placeholder="Level"><button type="button" class="hh-tool" data-hs-act="gm-give-level">Raise Level</button></div></section>'
   + '<p class="gm-said" role="status" aria-live="polite"></p>';
 
 const where = (h) => {
@@ -64,7 +65,7 @@ export function patchBody(el, ctx) {
   const root = el.querySelector('[data-gm-root]');
   if (!root) return;
   if (!root.firstChild) root.innerHTML = SKELETON;
-  const st = stateOf(el);
+  const st = stateOf(ctx);
   rows(root.querySelector('.gm-list'), st.heroes || [], {
     key: (h) => h.id + ':' + h.slot,
     build: (h) => element(ctx.doc, '<li><button type="button" class="hh-tool gm-pick" data-hs-act="gm-pick" data-id="' + esc(h.id) + '" data-slot="' + esc(h.slot) + '"></button></li>'),
@@ -93,7 +94,7 @@ export function patchBody(el, ctx) {
 
 /* One ask at a time: its buttons stay off until the server answers. */
 async function asking(ctx, el, run) {
-  const st = stateOf(el);
+  const st = stateOf(ctx);
   if (st.busy) return;
   st.busy = true; st.said = '';
   patchBody(el, ctx);
@@ -134,8 +135,8 @@ const whole = (input) => { const n = Number(input.value); return Number.isSafeIn
 
 /** One press. `t` is the pressed control. */
 export function actBody(ctx, el, action, ev, t) {
-  if (action === 'gm-type' || ev.type !== 'click') return false;
-  const st = stateOf(el);
+  if (ev.type !== 'click') return false;
+  const st = stateOf(ctx);
   const root = el.querySelector('[data-gm-root]');
   const cs = ctx.character, account = ctx.account;
   const grantWhy = () => root.querySelector('.gm-grant-why').value;

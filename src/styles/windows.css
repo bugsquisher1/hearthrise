@@ -52,8 +52,8 @@
 /* The Game Master window (windows/game-master-body.js): plain rows under Forged Steel section heads. */
 .gm-part { margin-bottom: 12px; }
 .gm-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; }
-.gm-row input, .gm-why, .gm-grant-why { min-width: 0; flex: 1 1 8em; }
-.gm-why, .gm-grant-why { display: block; width: 100%; margin: 4px 0; box-sizing: border-box; }
+.gm-field { flex: 1 1 8em; min-width: 0; width: auto; box-sizing: border-box; }
+.gm-why, .gm-grant-why { display: block; width: 100%; margin: 4px 0; }
 .gm-list, .gm-more { margin: 4px 0; padding: 0; list-style: none; max-height: 16em; overflow-y: auto; }
 .gm-pick { width: 100%; text-align: left; }
 .gm-facts { margin: 4px 0; color: var(--ink); }

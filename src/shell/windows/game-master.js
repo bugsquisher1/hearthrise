@@ -8,19 +8,19 @@
 // ════════════════════════════════════════════════════════════════════════
 import { gmOf } from '../../session/character-sections.js?v=0.2.90';
 
+/* Not a literal import(): play.html's preload block (tests/module-preload.mjs) names every literal one, and everyone's page would fetch this. */
+const BODY_URL = new URL('./game-master-body.js?v=0.2.90', import.meta.url).href;
 let body = null;
 let loading = null;
 
 function load(repaint) {
-  if (!loading) loading = import('./game-master-body.js?v=0.2.90').then((m) => { body = m; repaint(); });
+  if (!loading) loading = import(BODY_URL).then((m) => { body = m; repaint(); });
   return loading;
 }
 
 export function renderGameMaster() {
   return '<div class="gm" data-gm-root></div>';
 }
-
-renderGameMaster.events = ['input'];
 
 renderGameMaster.patch = function patchGameMaster(el, ctx) {
   if (!gmOf(ctx.character)) return;

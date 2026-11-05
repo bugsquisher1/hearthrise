@@ -131,6 +131,7 @@ async function world(db) {
     if (!r || r.ok !== true) throw harness(`hr_create_hero(${name}): ${js(r)}`);
   };
   await hero(GM, 0, 'Warden');
+  await hero(GM, 1, 'Wardenbo');
   for (const [u, base] of [[A, 'Marlow'], [B, 'Tamsel'], [C, 'Sorrel'], [D, 'Wrenna']]) { await hero(u, 0, base); await hero(u, 1, base + 'bo'); }
   const hunt = await k.one(`select g.hunt_id from public.hr_hunt_grounds g left join public.hr_hunts h on h.hunt_id = g.hunt_id order by coalesce(h.band_min, 0), g.hunt_id limit 1`);
   const node = await k.one(`select activity_id from public.hr_activities where kind = 'gather' and coalesce(req_lv, 1) <= 1 order by activity_id limit 1`);
@@ -310,9 +311,9 @@ const ARMS = {
     const after = await go(B, 1);
     if (after.status !== 200) say('the seat stayed taken after the stop: ' + js(after.body).slice(0, 200));
     /* The account's own four hold for the walled account. */
-    await k.db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value) select $1, 0, 'flag', 'character_slot:' || s, '', 1 from generate_series(1, 4) s on conflict do nothing`, [GM]);
+    await k.db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value) select $1, 0, 'flag', 'character_slot:' || s, '', 1 from generate_series(2, 4) s on conflict do nothing`, [GM]);
     const dye = await k.one('select min(idx) from public.hr_outfit_dyes');
-    for (let s = 1; s <= 4; s++) {
+    for (let s = 2; s <= 4; s++) {
       const c = await k.call(GM, 'select public.hr_create_hero($1::int, $2, $3::jsonb, $4::uuid)', [s, 'Warden ' + 'abcd'[s - 1] + 'x', js({ head: dye, body: dye, legs: dye, feet: dye }), key()]);
       if (!c || c.ok !== true) throw harness('a walled hero: ' + js(c));
     }
@@ -608,6 +609,8 @@ const ARMS = {
     if (!join || !(join.raised === 'gm_walled' || join.ok === false)) say('a walled hero joined a real party: ' + js(join).slice(0, 200));
     if (await k.one('select count(*)::int from public.hunt_party_members where party_id = $1 and user_id = $2', [real, GM])) say('a walled hero sits in a real party');
     const mine = await k.one('select public.hr_party_open($1::uuid, 0)', [GM]);
+    const own = await k.row('select public.hr_party_seat_into($1::uuid, $2::uuid, 1)', [mine, GM]);
+    if (own && own.raised) say('the wall refused a walled hero its own party: ' + js(own));
     const in2 = await k.row('select public.hr_party_seat_into($1::uuid, $2::uuid, 1)', [mine, A]);
     if (!in2 || in2.raised !== 'gm_walled') say('a real hero took a walled party\'s seat: ' + js(in2));
     const listed = await k.row('update public.hunt_parties set listed = true where id = $1 returning 1', [mine]);

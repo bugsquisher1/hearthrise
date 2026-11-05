@@ -169,14 +169,14 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   unlock_buy: ['offer'],
   /* the Weighhouse (market lane 2; hr-accrue market.js): one `market` object per ask, its subfields pinned below;
      src/session/market-intents.js sends them for the market window (lane 4) */
-  /* the Game Master's stop (hr-accrue gm-stop.js): refused to everyone without the server-written row */
-  gm_stop: ['gm'],
   market_list: ['market'],
   market_cancel: ['market'],
   market_buy: ['market'],
   market_browse: ['market'],
   market_item: ['market'],
   market_mine: [],
+  /* the Game Master's stop (hr-accrue gm-stop.js): refused to everyone without the server-written row */
+  gm_stop: ['gm'],
 });
 
 /* The `market` object's subfields per verb (edge-intents.js MARKET_FIELDS = hr-accrue request.js readMarket). */

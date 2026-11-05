@@ -3218,6 +3218,14 @@ jobs:
           node tests/char-wipe.mjs
           node tools/mutant-gate.mjs node tests/char-wipe.mjs --mutate
 
+      # The Game Master tools (2027-03-05-gm-tools.sql): every power refuses a stranger, every shared surface refuses a forged
+      # call from the walled account, by the door and by the row. --mutate: one mutant per power and per wall, the file's §9 dropped.
+      - name: Game Master tools — the powers refuse strangers, the wall holds
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/gm-tools.mjs
+          node tools/mutant-gate.mjs node tests/gm-tools.mjs --mutate
+
       # Legacy keys (the JWT secret exposed 2026-11-01): the client ships a publishable key, hr-accrue reads no API
       # key, the bridge prefers the platform's publishable key, no tool or workflow holds a legacy key, and the real
       # driver on the replayed chain posts apikey alone. --selftest: 22 mutations, one replay.

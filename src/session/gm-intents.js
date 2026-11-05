@@ -20,15 +20,15 @@ const key = () => globalThis.crypto.randomUUID();
 /* The server's answer: { ok:true, ...body }, or the refusal the window reads as words. */
 const answer = (ans) => (ans && ans.ok && ans.body && ans.body.ok === true ? ans.body : refusalOf(ans || {}));
 
-const ask = async (account, verb, rpc, args) => answer(await askVia(account, verb, () => account.server.rpc(rpc, args)));
+const ask = async (account, verb, send) => answer(await askVia(account, verb, send));
 
-export const gmOnline = (account) => ask(account, 'gm_online', 'hr_gm_online', {});
-export const gmHero = (account, target, slot) => ask(account, 'gm_hero', 'hr_gm_hero', { p_target: target, p_slot: Number.isInteger(slot) ? slot : null });
-export const gmMute = (account, target, minutes, reason) => ask(account, 'gm_mute', 'hr_gm_mute', { p_target: target, p_minutes: minutes, p_reason: reason, p_idem: key() });
-export const gmUnmute = (account, target, reason) => ask(account, 'gm_unmute', 'hr_gm_unmute', { p_target: target, p_reason: reason, p_idem: key() });
-export const gmBan = (account, target, reason) => ask(account, 'gm_ban', 'hr_gm_ban', { p_target: target, p_reason: reason, p_idem: key() });
-export const gmUnban = (account, target, reason) => ask(account, 'gm_unban', 'hr_gm_unban', { p_target: target, p_reason: reason, p_idem: key() });
-export const gmSay = (account, body) => ask(account, 'gm_say', 'hr_gm_say', { p_body: body, p_idem: key() });
+export const gmOnline = (account) => ask(account, 'gm_online', () => account.server.rpc('hr_gm_online', {}));
+export const gmHero = (account, target, slot) => ask(account, 'gm_hero', () => account.server.rpc('hr_gm_hero', { p_target: target, p_slot: Number.isInteger(slot) ? slot : null }));
+export const gmMute = (account, target, minutes, reason) => ask(account, 'gm_mute', () => account.server.rpc('hr_gm_mute', { p_target: target, p_minutes: minutes, p_reason: reason, p_idem: key() }));
+export const gmUnmute = (account, target, reason) => ask(account, 'gm_unmute', () => account.server.rpc('hr_gm_unmute', { p_target: target, p_reason: reason, p_idem: key() }));
+export const gmBan = (account, target, reason) => ask(account, 'gm_ban', () => account.server.rpc('hr_gm_ban', { p_target: target, p_reason: reason, p_idem: key() }));
+export const gmUnban = (account, target, reason) => ask(account, 'gm_unban', () => account.server.rpc('hr_gm_unban', { p_target: target, p_reason: reason, p_idem: key() }));
+export const gmSay = (account, body) => ask(account, 'gm_say', () => account.server.rpc('hr_gm_say', { p_body: body, p_idem: key() }));
 
 /** The stop: a read through the engine, so no envelope lands on the hero this session views. */
 export async function gmStop(cs, target, slot, reason) {
@@ -42,6 +42,6 @@ async function granted(account, r) {
   }
   return r;
 }
-export const gmGrantGold = async (account, cs, amount, reason) => granted(account, await ask(account, 'gm_grant_gold', 'hr_gm_grant_gold', { p_slot: cs.slot, p_amount: amount, p_reason: reason, p_idem: key() }));
-export const gmGrantItem = async (account, cs, item, qty, reason) => granted(account, await ask(account, 'gm_grant_item', 'hr_gm_grant_item', { p_slot: cs.slot, p_item: item, p_qty: qty, p_reason: reason, p_idem: key() }));
-export const gmGrantLevel = async (account, cs, level, reason) => granted(account, await ask(account, 'gm_grant_level', 'hr_gm_grant_level', { p_slot: cs.slot, p_level: level, p_reason: reason, p_idem: key() }));
+export const gmGrantGold = async (account, cs, amount, reason) => granted(account, await ask(account, 'gm_grant_gold', () => account.server.rpc('hr_gm_grant_gold', { p_slot: cs.slot, p_amount: amount, p_reason: reason, p_idem: key() })));
+export const gmGrantItem = async (account, cs, item, qty, reason) => granted(account, await ask(account, 'gm_grant_item', () => account.server.rpc('hr_gm_grant_item', { p_slot: cs.slot, p_item: item, p_qty: qty, p_reason: reason, p_idem: key() })));
+export const gmGrantLevel = async (account, cs, level, reason) => granted(account, await ask(account, 'gm_grant_level', () => account.server.rpc('hr_gm_grant_level', { p_slot: cs.slot, p_level: level, p_reason: reason, p_idem: key() })));

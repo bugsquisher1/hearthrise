@@ -161,24 +161,29 @@ insert into public.hr_gm_wall_allow (rpc, why) values
 on conflict (rpc) do update set why = excluded.why;
 
 -- ── §2 THE ONE QUESTION ─────────────────────────────────────────────────────────────────────────────────────────────────
+-- PL/pgSQL on purpose: these sit on the settle's read (hr_hunt_member_state), per member per window. PostgreSQL 17 replans a non-inlined SQL
+-- function's statement on every call (tools/pg-replay.mjs's header, measured 1 ms and up); a PL/pgSQL statement is planned once per backend.
 create or replace function public.hr_gm_walled(p_user uuid)
-returns boolean language sql stable security definer set search_path = public, pg_catalog as $fn$
-  select exists (select 1 from public.hr_gm_accounts g where g.user_id = p_user)
-$fn$;
+returns boolean language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
+begin
+  return exists (select 1 from public.hr_gm_accounts g where g.user_id = p_user);
+end $fn$;
 
 -- The state section: true on a walled account's envelope, else null. The window's only reason to load.
 create or replace function public.hr_gm_section(p_user uuid, p_slot int)
-returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
-  select case when public.hr_gm_walled(p_user) then to_jsonb(true) end
-$fn$;
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
+begin
+  return case when exists (select 1 from public.hr_gm_accounts g where g.user_id = p_user) then to_jsonb(true) end;
+end $fn$;
 insert into public.hr_state_sections (key, fn, note) values
   ('gm', 'hr_gm_section', '2027-03-05-gm-tools.sql: this account is the Game Master (the window loads; the engine rolls no Hearthfind)')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 create or replace function public.hr_chat_muted_until(p_user uuid)
-returns timestamptz language sql stable security definer set search_path = public, pg_catalog as $fn$
-  select m.until from public.hr_chat_mutes m where m.user_id = p_user and m.until > now()
-$fn$;
+returns timestamptz language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
+begin
+  return (select m.until from public.hr_chat_mutes m where m.user_id = p_user and m.until > now());
+end $fn$;
 
 -- A short reason as the log keeps it: cleaned like a chat line, 3..200 characters, else null.
 create or replace function public.hr_gm_reason(p_reason text)

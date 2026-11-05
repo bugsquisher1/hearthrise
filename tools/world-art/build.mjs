@@ -26,18 +26,23 @@
 // drawn on (src/data/world/art-budget.js GRIDS); no file is the base grid. The grid's T, class
 // table, shadow rule and measuring bands build and validate the set, and the manifest records
 // its T. Files starting with `_` are set settings, never sidecars.
+// A MASK SET (src/data/world/atlas-sets.js MASK_SETS: region masks for the dyes) is built the same way except that its
+// frames are region keys: alpha is cut, colours are kept exactly (never graded or palette-snapped), each sprite is held
+// to validateMask instead of the scale budget, its manifest's palette is MASK_PALETTE and it carries no shadow.
 //
 // Exit 0 green · 1 a finding or drift · 2 harness error.
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodePNG, encodeSheetPNG, crop, pixelHash } from './png.mjs';
+import { decodePNG, encodeSheetPNG, crop, pixelHash, createImage } from './png.mjs';
 import { lock } from './lock.mjs';
 import { measureFrame, contactSpans } from './measure.mjs';
-import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames } from './validate.mjs';
+import { validateSprite, validateMask, validateTerrain, validateAtlasSize, referenceFrames, MASK_PALETTE } from './validate.mjs';
 import { pack } from './pack.mjs';
 import { FACINGS, MANIFEST_VERSION, atlasPaths, gridOf } from '../../src/data/world/art-budget.js';
 import { PALETTE_ID } from './palette.mjs';
+import { ALPHA_CUT } from '../../src/data/world/palette.js';
+import { MASK_SETS } from '../../src/data/world/atlas-sets.js';
 import { isMain as isEntryModule } from '../../tests/_is-main.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -64,8 +69,15 @@ export function readSidecars(root, set) {
     .map((f) => ({ file: `${ART_DIR}/${set}/${f}`, ...JSON.parse(readFileSync(join(dir, f), 'utf8')) }));
 }
 
-/** Slice and lock a sprite's frames from its source sheet. */
-export function framesOf(sc, sheet, grid = gridOf()) {
+/** A mask frame as built: alpha cut at ALPHA_CUT, every colour kept exactly (a region key is not a palette colour). */
+export function keyFrame(img) {
+  const out = createImage(img.width, img.height);
+  for (let i = 0; i < img.data.length; i += 4) if (img.data[i + 3] >= ALPHA_CUT) { out.data.set(img.data.subarray(i, i + 3), i); out.data[i + 3] = 255; }
+  return out;
+}
+
+/** Slice and lock a sprite's frames from its source sheet (`prep` replaces the lock: keyFrame for a mask set). */
+export function framesOf(sc, sheet, grid = gridOf(), prep = (img) => lock(img, sc.material)) {
   const cls = grid.classes[sc.class] || {};
   const [fw, fh] = sc.frame || cls.frame || [sheet.width, sheet.height];
   const frames = [];
@@ -76,7 +88,7 @@ export function framesOf(sc, sheet, grid = gridOf()) {
       const n = a.dirs[d];
       if (!n) continue;
       if ((row + 1) * fh > sheet.height || n * fw > sheet.width) problems.push({ rule: 'source', id: sc.id, detail: `${a.name}/${d}: row ${row} x ${n} frames of ${fw}x${fh} does not fit the ${sheet.width}x${sheet.height} source` });
-      else for (let i = 0; i < n; i++) frames.push({ anim: a.name, dir: d, i, img: lock(crop(sheet, i * fw, row * fh, fw, fh), sc.material) });
+      else for (let i = 0; i < n; i++) frames.push({ anim: a.name, dir: d, i, img: prep(crop(sheet, i * fw, row * fh, fw, fh)) });
       row++;
     }
   }
@@ -115,6 +127,7 @@ function contactOf(sc, m, k = 1) {
 export function buildSet(root, set) {
   const findings = [];
   const grid = setGrid(root, set), T = grid.T;
+  const masks = !!MASK_SETS[set];
   const sprites = [], terrains = [];
   for (const sc of readSidecars(root, set)) {
     const src = join(root, ART_DIR, set, sc.source || '');
@@ -127,10 +140,10 @@ export function buildSet(root, set) {
       terrains.push({ sc, tiles });
       continue;
     }
-    const { frames, problems, frame } = framesOf(sc, sheet, grid);
+    const { frames, problems, frame } = framesOf(sc, sheet, grid, masks ? keyFrame : undefined);
     findings.push(...problems);
     const sp = spriteOf(sc, frames);
-    findings.push(...validateSprite(sp, grid));
+    findings.push(...(masks ? validateMask(sp, grid) : validateSprite(sp, grid)));
     sprites.push({ sc, sp, frame });
   }
   const all = [];
@@ -141,7 +154,7 @@ export function buildSet(root, set) {
   findings.push(...validateAtlasSize(set, packed.width, packed.height));
 
   const manifest = {
-    version: MANIFEST_VERSION, set, palette: PALETTE_ID, T,
+    version: MANIFEST_VERSION, set, palette: masks ? MASK_PALETTE : PALETTE_ID, T,
     image: atlasPaths(set).image.split('/').pop(), size: [packed.width, packed.height], pixels: pixelHash(packed.image),
     sprites: {}, terrain: {},
   };
@@ -158,7 +171,7 @@ export function buildSet(root, set) {
     manifest.sprites[sc.id] = {
       class: sc.class, layer: cls.layer || 'prop', frame, anchor: sc.anchor_px, footprint: sp.footprint,
       overhang: sp.overhang, hover: sp.hover, height: median(ms.map((m) => m.mass.h)),
-      contact: contactOf(sc, ms[0], grid.scale), shadow: cls.contact ? shadowOf(sc, cls, refs, grid) : null,
+      contact: contactOf(sc, ms[0], grid.scale), shadow: cls.contact && !masks ? shadowOf(sc, cls, refs, grid) : null,
       ...(sc.blend === 'add' ? { blend: 'add' } : {}), anims,
     };
   }

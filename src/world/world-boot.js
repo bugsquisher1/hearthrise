@@ -186,7 +186,7 @@ export async function bootWorld(panel, opts) {
     return needs.get(id);
   };
   /* THE TOWN OPENS ON ITS VIEW, its other sheets behind it (view-sheets.js) */
-  const viewSheets = createViewSheets({ win, sheets, needs, town: opts.town || null, missing: (cast) => backend.missing(cast), gone: () => gone, wake: () => { if (!running) sync(); } });
+  const viewSheets = createViewSheets({ win, sheets, needs, town: opts.town || null, missing: (cast) => backend.missing(cast), wake: () => { if (!running) sync(); } });
   /* A SCENE MADE READY: its sheets (the town's, as its frames name them), those sheets loaded, its ground binned for the chunks (tests/perf-budget.mjs PB-HELD) */
   const prepareScene = async (id) => {
     const sets = await setsOf(id);

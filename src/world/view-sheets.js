@@ -3,7 +3,8 @@
 //
 // Phone, first visit (11-04): Play waited 6.5 s for the town's six sheets, and a first view at the hearth draws two of them.
 // A town frame shows once every sheet IT draws has arrived (backend.missing), so its pixels are the ones a frame with every
-// sheet paints. The others come behind it one at a time, in scene-sets.js's order, and a view that reaches one before it lands
+// sheet paints. The others are asked for as it opens, all at once (one at a time cost the last one 1.5 s of round trips on a phone's line and
+// gained the first frame nothing), and a view that reaches one before it lands
 // keeps its last frame until it does: never a stub. A failed sheet counts as arrived and draws stubs, as it always has.
 // Only the town: a ground's monsters walk in from sheets no view names yet, so a ground still opens whole.
 // Proof: tests/client-boot.mjs B-20.
@@ -15,18 +16,18 @@ const PLACE_WAIT_MS = 3000;
 
 /**
  * @param {{win: Window, sheets: {ready: (sets: string[]) => boolean, ensure: (sets: string[]) => Promise<boolean>}, needs: Map<string, string[]>,
- *   town: object|null, missing: (cast: object) => string[], gone: () => boolean, wake: () => void}} o
- *   needs: map id -> its scene's sheets, in the order to fetch them; missing: what a frame draws that has not arrived; wake: draw now if no loop runs
+ *   town: object|null, missing: (cast: object) => string[], wake: () => void}} o
+ *   needs: map id -> its scene's sheets; missing: what a frame draws that has not arrived; wake: draw now if no loop runs
  */
 export function createViewSheets(o) {
-  const { win, sheets, needs, town, missing, gone, wake } = o;
+  const { win, sheets, needs, town, missing, wake } = o;
   const asked = new Set(), behind = new Set();
   const opensOnView = (id) => id === SCENE_MAPS.town;
 
-  async function loadBehind(id) {
+  function loadBehind(id) {
     if (behind.has(id)) return;
     behind.add(id);
-    for (const set of needs.get(id)) { if (gone()) return; await sheets.ensure([set]); }
+    sheets.ensure(needs.get(id));
   }
 
   /** Does this frame of `id` draw a sheet still on its way? It is asked for at once, and the last frame stays. */

@@ -18,7 +18,7 @@
 //            every piece of furniture, its signposts and the trophy mounts; in
 //            the Common the sandbox's entry sign.
 // tests/world-core.mjs (family A) proves it covers what each shipped scene draws, and no more.
-// THE ORDER is the order to fetch them in (fetchOrder): the town opens on its view and the rest come behind it (world-boot.js).
+// THE ORDER is the order to fetch them in (fetchOrder): the prewarm takes them one at a time, while a hero is picked (prewarm.js).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
 import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.89';

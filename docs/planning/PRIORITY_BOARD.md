@@ -30,7 +30,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
-### 2026-11-05 Difficulty tiers, and no pull dial (designer, lane/c-difficulty-tiers; **Tyler's ruling, 2026-11-05**): BUILT on all five grounds past the Cellar, played on the local world, STAGED. Measured on the server's map with the kiter fix (`lane/a-kiter-resets` 8f7837b49).
+### 2026-11-05 Difficulty tiers, and no pull dial (designer, lane/c-difficulty-tiers; **Tyler's ruling, 2026-11-05**): BUILT on all five grounds past the Cellar, played on the local world, STAGED. Measured on the server's map, with the kiter fix, to-hit guard off capes and jewelry and the capped food cut (`lane/c-temper-craft` f6ecefff5, `set/v0.2.93` f7790934c).
 **The ruling (Tyler 2026-11-05, "All of it sounds good"; in rulings of record).** One choice per ground, the party leader's in a party, remembered per ground: Normal, Dangerous or Deadly. The tier sets how many monsters come and how hard they hit. There is no other dial. Mill Cellar is Normal only. "Deadly", not "Hardcore": that word stays free for the game mode. It supersedes his 10-19 and 10-20 density rulings; kept from them: chosen with the hunt, remembered per ground, the leader chooses, members read it, a full box exists.
 
 **The rows.** Every number is that ground's, because Normal doesn't move and a low ground's only room is the gap between two Normals. Monster HP doesn't move: HP x1.5 cost a four 20% of its XP an hour (`lane/c-armor-tiers`) and a player reads nothing from it. Coin and drops a kill are the row's on every tier.
@@ -52,18 +52,23 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 | Wickstead | 8 monsters, atk x2, +10% XP | Glade | 1.11 **beats** | hammer at 20: 86k against 77.2k |
 | Wickstead | 8 monsters, atk x2, no extra XP | Glade | 1.02 **beats** | hammer at 20: 78.6k against 77.2k |
 
-**The ladder rule, proved on the real settle (plan `tierladder`).** At the Levels the game sends you up (`recommendedHunt`), per head, 12 ways to fight: every single-target and AoE style, a pair, a three, two fours. Plain is Level-appropriate gear; Tempered is the same with every rung of Blows and Armor bought, from Level 15. Standing guard: `tests/hunt-core/hunt-tiers.mjs` ladder, four ways on all five rungs.
+**The ladder rule, proved on the real settle (plan `tierladder`).** At the Levels the game sends you up (`recommendedHunt`), per head, 12 ways to fight: every single-target and AoE style, a pair, a three, two fours. Plain is Level-appropriate gear; Tempered is the same with every rung of Blows and Armor bought, from Level 15; Dressed adds every cape and jewelry slot's best on crafted food eaten early. Plain and Tempered read digit for digit the same after to-hit guard left capes and jewelry, because that kit wears neither. Standing guard: `tests/hunt-core/hunt-tiers.mjs` ladder, four ways on all five rungs.
 | Rung | Levels | Kit | Cells | Deadly XP / next Normal XP | Beats it | Out-earns it on gold, within 10% of its XP |
 |---|---|---|---|---|---|---|
 | Thicket to Wickstead | 8 and 12 | plain | 24 | 0.89 to 1 | none | 0 |
+| Thicket to Wickstead | 8 and 12 | Dressed | 24 | 0.91 to 1 | none | 0 |
 | Thicket to Sewer | 8 and 12 | plain | 24 | 0.5 to 0.71 | none | 0 |
+| Thicket to Sewer | 8 and 12 | Dressed | 24 | 0.49 to 0.73 | none | 0 |
 | Wickstead to Glade | 16 and 20 | plain | 24 | 0.7 to 0.95 | none | 5 |
 | Wickstead to Glade | 16 and 20 | Tempered | 24 | 0.7 to 0.95 | none | 6 |
+| Wickstead to Glade | 16 and 20 | Dressed | 24 | 0.7 to 0.95 | none | 5 |
 | Sewer to Glade | 16 and 20 | plain | 24 | 0.76 to 0.97 | none | 9 |
 | Sewer to Glade | 16 and 20 | Tempered | 24 | 0.76 to 0.97 | none | 12 |
+| Sewer to Glade | 16 and 20 | Dressed | 24 | 0.76 to 0.97 | none | 12 |
 | Glade to Warrens | 32 and 38 | plain | 24 | 0.74 to 0.96 | none | 7 |
 | Glade to Warrens | 32 and 38 | Tempered | 24 | 0.73 to 0.94 | none | 2 |
-**0 of 192 cells: a lower ground's Deadly beats the next ground's Normal on XP.** Gold is not the rule, and it does lean down: the last column counts cells where a lower Deadly nets more than the next Normal inside 10% of its XP. It isn't new: today's Sewer Normal already out-earns the Glade's at Level 16 (hammer +7.5k against +4.9k).
+| Glade to Warrens | 32 and 38 | Dressed | 24 | 0.73 to 0.92 | none | 3 |
+**0 of 312 cells: a lower ground's Deadly beats the next ground's Normal on XP.** The tightest cell is a pair on Thicket Deadly: the same XP to within 0.5% as Wickstead's Normal, for less gold and at lower HP, so it holds with no margin. If it ever flips, Thicket Deadly's XP comes down. Gold is not the rule, and it does lean down: the last column counts cells where a lower Deadly nets more than the next Normal inside 10% of its XP. It isn't new: today's Sewer Normal already out-earns the Glade's at Level 16 (hammer +7.5k against +4.9k).
 
 **Normal, digit for digit.** 300 of 300 cells match before and after the tier engine (`tiers-table --same`, plan `tierpull`), through Tempering, the rows and the dial's removal. The map fix and the kiter fix then move Normal by their own lanes' design; `hunt-tiers` normal-is-the-ground holds it to the row from here on.
 
@@ -155,9 +160,9 @@ So Normal stays what it is. Dangerous is a lone hero's step up from the middle o
 | 6. Come back to that ground | The pick is remembered per ground, never asked again | `hunt-tiers-db`, "the pick survives" |
 | 7. A party | The leader's pick holds for all; a member's own picks wait for its next solo hunt | `hunt-tiers-db`, a four; `party-flow` |
 
-**Server (§1).** `hr_hunt_tier_set` (client intent, keyed, rate-gated, refused never clamped: `bad_tier`, `bad_hunt`, `not_leader`); `hunt_density.tier`; `hunt_instances.tier` frozen with the pull by the existing trigger at hunt start; `hr_hunt_instance_read` overlays `options.tier` and `options.density` on every member, so the engine and the kill bound read one frozen number; catalogue `hr_hunt_tiers`, ten rows. `hr_hunt_density_set`, `_view`, `_pick` and the `hunt_density` section go. One staged file, `2027-02-27-hunt-tiers.sql`, §6 self-check executes a real pick, enter, freeze and read. The engine reads the tier every swing and never stores it: **the world's shape doesn't move, no `world_shape_pending`.** No new player table: `hunt_density` and `hunt_instances` were already on the wipe's list; `hr_hunt_tiers` goes on its no-player list.
+**Server (§1).** `hr_hunt_tier_set` (client intent, keyed, rate-gated, refused never clamped: `bad_tier`, `bad_hunt`, `not_leader`); `hunt_density.tier`; `hunt_instances.tier` frozen with the pull by the existing trigger at hunt start; `hr_hunt_instance_read` overlays `options.tier` and `options.density` on every member, so the engine and the kill bound read one frozen number; catalogue `hr_ground_tiers`, ten rows. `hr_hunt_density_set`, `_view`, `_pick` and the `hunt_density` section go. One staged file, `2027-02-27-hunt-tiers.sql`, §6 self-check executes a real pick, enter, freeze and read. The engine reads the tier every swing and never stores it: **the world's shape doesn't move, no `world_shape_pending`.** No new player table: `hunt_density` and `hunt_instances` were already on the wipe's list; `hr_ground_tiers` goes on its no-player list.
 
-**Measured:** every number above, real settle (`tools/balance-sim`), 2 seeds, 1 h a cell, Level-appropriate gear on store food, on the server's map with `lane/a-kiter-resets` 8f7837b49. **Assumed:** that a 2-hour cell's "held" is a real absence of death; +5% to +20% as "slightly more" (Tyler may read it per hour); that nobody misses a pull under the as-built one.
+**Measured:** every number above, real settle (`tools/balance-sim`), 2 seeds, 1 h a cell, Level-appropriate gear on store food, on the server's map, on `lane/c-temper-craft` f6ecefff5 and `set/v0.2.93` f7790934c. **Assumed:** that a 2-hour cell's "held" is a real absence of death; +5% to +20% as "slightly more" (Tyler may read it per hour); that nobody misses a pull under the as-built one.
 
 **Known limits.** (1) **Kiters on Deadly die a bit more than they did,** because the free reset is gone (`lane/a-kiter-resets`; the only resets left are leader deaths). At the Warrens' floor on Deadly, per head: bow 155.4k, -69.3k, 4 min to a death; crossbow 175k, -45.4k, 10 min to a death; mage 299.9k, -65.1k, 4 min to a death. That is what Deadly at a floor should read. (2) The table `hunt_density` keeps its name and its `density` column is dead (always 0). Renaming it is a follow-up, not a player matter. (3) Personal bests are per ground, so they mix tiers. (4) **The fastest hour moves:** Deadly reads over today's full box at the same pull. The final pace re-measure has to read it.
 
@@ -333,7 +338,7 @@ A four at the Warrens, Level 40: +2.6%. Both tracks at once add nothing to XP ov
 | 5 | Art | `art/world/march` (42 files), `assets/world/atlas-march` (560 KB PNG, 2 to 5x most sets), 5 icons, `atlas-sets.js` | 1 h 31, 230+ gens. Wickstead: 40 min, 1 gen | Never red. One quality redo | Region kit plus 1-2 signature pieces |
 | 6 | Rows in 14 data files | `hunts.js`, `hunt-grounds.js`, `maps/<id>.js` + `maps/index.js`, `monsters.js`, `monster-classes.js`, `imbuements.js`, `items.js`, `item-descriptions.js`, `slot-ladders.js`, `hearth.js`, `supplies.js`, `catalogue-coherence.js` (VENDOR_TRASH, AWAITING_ROSTER, UNREACHABLE, ceiling), `atlas-sets.js` | 25 min, about 250 lines | Only the coherence ceiling, as designed | One folder; the coherence lists written by `pack ship` |
 | 7 | Census and order | `restore-census.baseline.json` (10 tables, 3 re-pins), `schema-apply-order.json`, `apply-order-honesty` | Minutes, on every merge | Census red in the release gate's list | Census computed: base + pack rows. One order line per pack |
-| 8 | Rows the Ford never needed, added since | `party-class-xp.js` (two tables), `tally-tasks.js` + `gen-tally-tasks`, `hunt-tiers.js` + `hr_hunt_tiers`, the ladder, NAMED_FUELS + FLAMES + `hearth-flames.mjs` + `gen-hearth-catalogue` | Unmeasured (A): each is a play, not a typed row | New | Proposed by the tool, in the pack. **So the Ford's cost is a floor and rising** |
+| 8 | Rows the Ford never needed, added since | `party-class-xp.js` (two tables), `tally-tasks.js` + `gen-tally-tasks`, `hunt-tiers.js` + `hr_ground_tiers`, the ladder, NAMED_FUELS + FLAMES + `hearth-flames.mjs` + `gen-hearth-catalogue` | Unmeasured (A): each is a play, not a typed row | New | Proposed by the tool, in the pack. **So the Ford's cost is a floor and rising** |
 | 9 | Apply and deploy | 5 files one at a time, edge deploy, live-hash | Coordinator's minutes. A freeze only if the world's shape moves, and the Ford's didn't | The 10-31 freeze came from a shape move | One file, then the edge, then the client (below) |
 
 **Scale check (M, C):** the chain is 566 migrations and 376,495 lines. 33 hunt-sessions catalogues hold 51,026 of them. Sixty grounds at today's 4,500 lines a ground add about 270,000 lines to every replay; at 120 lines, about 7,000.
@@ -347,7 +352,7 @@ src/data/grounds/regions/barrow_march.js   naming voice (DESIGN_STANDARDS §2), 
 src/data/grounds/the_slake/pack.js         everything below except the map
 src/data/grounds/the_slake/map.js          rows, objects, road in. Drawn by a designer.
 ```
-`HUNTS`, `HUNT_GROUNDS`, `MONSTERS`, `WORLD_MAPS`, `ITEMS`, `IMBUE_ITEMS`, `NAMED_FUELS`, `TALLY_TASKS`, `PARTY_CLASS_XP` and `hr_hunt_tiers`'s source read the union, so no reader changes. A creature's `numbers` sit apart from its identity, so the tool writes only those.
+`HUNTS`, `HUNT_GROUNDS`, `MONSTERS`, `WORLD_MAPS`, `ITEMS`, `IMBUE_ITEMS`, `NAMED_FUELS`, `TALLY_TASKS`, `PARTY_CLASS_XP` and `hr_ground_tiers`'s source read the union, so no reader changes. A creature's `numbers` sit apart from its identity, so the tool writes only those.
 
 | Who writes it | What | Today's home |
 |---|---|---|
@@ -370,7 +375,7 @@ src/data/grounds/the_slake/map.js          rows, objects, road in. Drawn by a de
 5. **`check`:** 8 styles x floor, middle, top x 3 tiers x 2 seeds x 1 h = 144 sim-hours, about 10-18 min on 4 workers (C). It prints the board table, the ladder against the next ground and every guard below. Numbers land as a diff the designer commits. Nothing is written by itself.
 - **The grid:** lane/c-armor-tiers (`3dd0ef93b`) moved the fixture and the sim to `gridOfMap`, so the tool plays the server's map. The server's grid is materials only, so anything meant to block is drawn in the rows. `pack-lint` refuses a solid object on an open tile: the client drawing a barge heroes walk through would be a new bug.
 
-**Tiers.** A pack says `tiers: 'default'` (Dangerous 4, 5, 5, 6 x1.2 +10%; Deadly 8 x1.5 +20%) or gives rows. Default is allowed from Level 16; the Glade-to-Warrens sample held 0 of 16. Under that a ground states its own, as ruled. Mill Cellar stays Normal only. `check` refuses a default the ladder rejects. `hr_hunt_tiers` is already keyed by ground on that lane, so these are pack rows; only the data side (`HUNT_TIERS`) still reads one global row, and the lane's expansion to lower grounds has to change that anyway.
+**Tiers.** A pack says `tiers: 'default'` (Dangerous 4, 5, 5, 6 x1.2 +10%; Deadly 8 x1.5 +20%) or gives rows. Default is allowed from Level 16; the Glade-to-Warrens sample held 0 of 16. Under that a ground states its own, as ruled. Mill Cellar stays Normal only. `check` refuses a default the ladder rejects. `hr_ground_tiers` is already keyed by ground on that lane, so these are pack rows; only the data side (`HUNT_TIERS`) still reads one global row, and the lane's expansion to lower grounds has to change that anyway.
 
 **Guards become loops; none gets weaker.** The six grounds keep every pin as written; a pack's pin is computed once, then frozen in the pack. Each looped guard keeps one literal anchor, so a loop can't pass by reading the code it checks.
 | Guard | Today | Becomes |

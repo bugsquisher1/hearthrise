@@ -18,14 +18,14 @@
       "fps": 5,
       "loop": true,
       "dirs": {
-        "s": 1,
-        "e": 1,
-        "n": 1,
-        "w": 1,
-        "se": 1,
-        "sw": 1,
-        "ne": 1,
-        "nw": 1
+        "s": 4,
+        "e": 4,
+        "n": 4,
+        "w": 4,
+        "se": 4,
+        "sw": 4,
+        "ne": 4,
+        "nw": 4
       }
     },
     {
@@ -85,7 +85,65 @@
     "tool": "create_object_pro_flash",
     "object": "6cbec90d-34bd-4056-a4c0-546a98637161",
     "n_directions": 8,
-    "name": "S1 Old Grayjaw"
+    "name": "S1 Old Grayjaw",
+    "idle": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "29f6c7b1-8faf-4639-9ef4-645918dcee34",
+      "description": "frozen in place and alert, all four paws planted and never lifting, only breathing: the chest slowly swells and settles, the ears twitch and the tail sways a little, a calm seamless loop",
+      "picked": {
+        "s": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "e": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "n": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "w": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "se": [
+          0,
+          2,
+          1,
+          2
+        ],
+        "sw": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "ne": [
+          0,
+          7,
+          1,
+          7
+        ],
+        "nw": [
+          0,
+          1,
+          8,
+          1
+        ]
+      }
+    }
   },
-  "notes": "Ported from PixelLab object 6cbec90d-34bd-4056-a4c0-546a98637161 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels."
+  "notes": "Ported from PixelLab object 6cbec90d-34bd-4056-a4c0-546a98637161 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still."
 }

@@ -480,18 +480,22 @@ async function rules(M) {
 
   { // SC-IDLE: a standing unit's idle turns on the clock, on one edge for everyone (a held hunt paints at the clip's rate, never once per unit), never in step
     const clock = { t: C0 };
-    const cs = session(M, clock, [envelope(7, S0)]);
+    /* a second rat beside the first: the pack this rule is about */
+    const e = envelope(7, S0);
+    e.hunt.pose.units.push({ u: 102, side: 'monster', kind: 'rat', x: 16, y: 9, hp: 30, hp_max: 30 });
+    e.hunt_track.push({ u: 102, x: 16, y: 9, atMs: S0 - 1000 });
+    const cs = session(M, clock, [e]);
     await cs.load();
     const v = viewer(M, cs);
     const ms = 1000 / M.manifests.hunt.sprites.rat.anims.idle.fps;
     const edge = Math.ceil(at(S0 - 500) / ms) * ms;
     clock.t = edge;
     const a = v.at(edge), mid = v.at(edge + ms / 2), next = v.at(edge + ms);
-    const rat = unitOf(a, 101), wasp = unitOf(a, 103);
-    ok('SC-IDLE', rat && wasp && rat.anim === 'idle' && wasp.anim === 'idle', 'the rat and the wasp must stand here, got ' + JSON.stringify([rat && rat.anim, wasp && wasp.anim]));
+    const rat = unitOf(a, 101), other = unitOf(a, 102);
+    ok('SC-IDLE', rat && other && rat.anim === 'idle' && other.anim === 'idle', 'both rats must stand here, got ' + JSON.stringify([rat && rat.anim, other && other.anim]));
     ok('SC-IDLE', unitOf(mid, 101).frame === rat.frame && unitOf(next, 101).frame === rat.frame + 1, 'the idle must turn once per frame of its clip: ' + JSON.stringify([rat.frame, unitOf(mid, 101).frame, unitOf(next, 101).frame]));
-    ok('SC-IDLE', unitOf(mid, 103).frame === wasp.frame && unitOf(next, 103).frame === wasp.frame + 1, 'every unit turns on the same edge: ' + JSON.stringify([wasp.frame, unitOf(mid, 103).frame, unitOf(next, 103).frame]));
-    ok('SC-IDLE', rat.frame !== wasp.frame, 'two units stood on the same frame of the loop: a pack breathing in step (' + rat.frame + ')');
+    ok('SC-IDLE', unitOf(mid, 102).frame === other.frame && unitOf(next, 102).frame === other.frame + 1, 'every unit turns on the same edge: ' + JSON.stringify([other.frame, unitOf(mid, 102).frame, unitOf(next, 102).frame]));
+    ok('SC-IDLE', rat.frame !== other.frame, 'two units stood on the same frame of the loop: a pack breathing in step (' + rat.frame + ')');
     const cells = new Set();
     for (let k = 0; k < 4; k++) { const d = unitOf(v.at(edge + ms * (1 + k)), 101); const f = M.book.frame(d.id, d.anim, d.dir, d.frame); cells.add(f.sx + ',' + f.sy); }
     const loop = new Set(M.manifests.hunt.sprites.rat.anims.idle.dirs[rat.dir].map(String));

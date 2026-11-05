@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-sewer.png",
   "size": [1024,884],
-  "pixels": "9dc0a138f01a1c08c7c1df0f4a39a5c71e17c61f6f48f4809620e44600114f31",
+  "pixels": "46aa4a38391de6dc976d79c4e75c3213e85eeb08343b790aec932181d36b9c7b",
   "sprites": {
     "barrel_stack": {
       "class": "bulky",

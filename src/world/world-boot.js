@@ -393,7 +393,8 @@ export async function bootWorld(panel, opts) {
     for (const id of Object.keys(targets)) roofAlpha[id] = id in roofAlpha ? stepAlpha(roofAlpha[id], targets[id], dt) : targets[id];
     /* a new map's (or zoom's) first view bakes its ground a slice a frame first: the last frame stays meanwhile */
     if (!backend.ready(cast)) return;
-    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name, roofAlpha, t: now }, cast));
+    /* the hero's own label in town reads as a stranger's does: "Marlow the Wolfer" */
+    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name && G.playerTitle ? name + ' ' + G.playerTitle : name, roofAlpha, t: now }, cast));
     frames++;
   }
 

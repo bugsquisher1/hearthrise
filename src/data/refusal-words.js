@@ -243,6 +243,12 @@ export const REFUSAL_WORDS = Object.freeze({
   /* Naming, saving and removing a setup (2026-11-15-preset-names.sql). */
   bad_preset_name: 'Names are 1 to 24 characters, and some words are not allowed.',
   setup_in_use: 'That setup is in use. Put another one on first.',
+  /* Setup slots and titles (2027-02-28-setup-slots.sql, 2027-02-28-titles.sql). With the server's numbers these read from intent-words.js refusalText. */
+  setup_locked: 'This hero\'s setup slots are full. Delete one, or buy another.',
+  setup_slots_max: 'This hero has every setup slot there is.',
+  title_kills: 'That title takes more kills first. Gold can\'t skip kills.',
+  title_owned: 'This hero already has that title.',
+  title_not_owned: 'This hero hasn\'t claimed that title yet.',
   /* The density pick per ground (hr_hunt_density_set, 2026-11-17-hunt-density-home.sql). */
   bad_hunt: 'That hunt has no monsters to set a number for.',
   bad_density: 'That is more monsters than this hunt allows.',

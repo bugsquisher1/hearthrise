@@ -5,9 +5,10 @@
 // items. The server answers the WORN items only (player_equipment) with the
 // name, level and weapon — never a bag or a bank — and refuses across a block.
 // Read-only: nothing here is kept in any record.
-//   → { ok: true, view: { id, name, slot, level, role, gear: [{ slot, item }] } } | { ok: false, error }
+//   → { ok: true, view: { id, name, title, slot, level, role, gear: [{ slot, item }] } } | { ok: false, error }
 // ════════════════════════════════════════════════════════════════════════
 import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.90';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.90';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -19,6 +20,8 @@ function inspectView(b) {
   return {
     id: b.id,
     name: typeof b.name === 'string' && b.name.trim() ? b.name.trim().slice(0, 24) : 'Adventurer',
+    /* the title the hero wears: a catalogue's words (hr_title_of), and refused here if it ever isn't plain words */
+    title: typeof b.title === 'string' && TITLE_WORDS.test(b.title) ? b.title : null,
     slot: Number.isInteger(b.slot) ? b.slot : null,
     level: Number.isInteger(b.level) ? b.level : null,
     role: weapon ? roleForWeapon(weapon, typeof b.role === 'string' ? b.role : null) : null,

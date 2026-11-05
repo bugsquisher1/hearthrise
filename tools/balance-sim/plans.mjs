@@ -462,6 +462,22 @@ export function buildPlan(name, axes, scale = 1) {
     for (const s of ['tank', 'hammer']) out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'BA5' }), whatIf: A5 });
     return out;
   }
+  if (name === 'gu1105') {
+    /* TEMPERING ON ITS REAL HOOK (src/core/temper.js, on the settle; replaces gu1104's stand-ins): a whole ladder of Blows, of Armor, and both, against rung 0 and one tier behind, same dice. */
+    const FULL = { blows: { 'temper:blows:2': 5, 'temper:blows:3': 5 }, armor: { 'temper:armor:2': 5, 'temper:armor:3': 5 } };
+    const VARIANTS = [['base', {}], ['Bmax', { temper: FULL.blows }], ['Amax', { temper: FULL.armor }], ['Both', { temper: { ...FULL.blows, ...FULL.armor } }]];
+    const STEPS = [['stepW', { gear: { tierOffset: -1, only: 'weapon' } }], ['stepA', { gear: { tierOffset: -1, only: 'armour' } }]];
+    for (const [ground, L] of [['mosslight_glade', 24], ['coppercap_warrens', 38]]) for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const [x, o] of [...VARIANTS, ...STEPS]) {
+      out.push({ ...cellOf({ ground, party: [s], level: L, hours: H(2), seeds: 2, x: 'P' + x, ...(o.gear ? { gear: o.gear } : {}) }), ...(o.temper ? { temper: o.temper } : {}) });
+    }
+    for (const s of ['tank', 'hammer', 'mage']) for (const [x, o] of VARIANTS) {
+      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'B' + x }), ...(o.temper ? { temper: o.temper } : {}) });
+    }
+    for (const [x, o] of VARIANTS) {
+      out.push({ ...cellOf({ ground: 'coppercap_warrens', party: PARTIES.four, level: 40, hours: H(1), seeds: 2, x: 'Q' + x }), windowMs: 120000, ...(o.temper ? { temper: o.temper } : {}) });
+    }
+    return out;
+  }
   if (name === 'risk') {
     /* THE RISK LADDER (Tyler 2026-11-04 UTC): a harder ground pays more and hits harder, and any hero may walk in. Every open ground at its floor and 3, 6, 10, 15 and 25 Levels under, three builds:
        poor = the practice set, no armor; average = the Level's best helm, body and boots on store food; optimized = every slot of the Level's best on crafted food, eating early. Read by risk-table.mjs. */

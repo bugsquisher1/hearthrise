@@ -936,7 +936,8 @@ const SAY = Object.freeze({
     const house = [named(f.home && f.home.next) ? 'the ' + f.home.next.name + ' (' + priced(f.home.next) + ')' : null,
       named(f.chest) ? 'storage chests (the ' + f.chest.name + ', ' + priced(f.chest) + ')' : null].filter(Boolean);
     const hero = f.gold >= f.slotCost ? ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' : '. A ' + nth + ' hero costs ' + gp(f.slotCost) + ' (press Characters).';
-    return { text: 'You hold ' + gp(f.gold) + hero + (house.length ? ' In the House: ' + listed(house) + '.' : '') };
+    const smith = f.temper ? ' At the smith: your ' + f.temper.piece + ', ' + gp(f.temper.gold) + ' a first rung (Shop, Services).' : '';
+    return { text: 'You hold ' + gp(f.gold) + hero + (house.length ? ' In the House: ' + listed(house) + '.' : '') + smith };
   },
   stitch_cloak: () => {
     const r = (ARTISAN_RECIPES.crafting || []).find((x) => x.output === 'graypelt_cloak');
@@ -1129,6 +1130,12 @@ function deedLine(f, offer) {
   const deed = f.home && f.home.next && Array.isArray(f.home.next.items) && !f.home.next.items.some((x) => !name(x.id)) ? f.home.next : null;
   return deed && purse >= deed.gold ? 'You can pay for the ' + deed.name + ' (' + [gp(deed.gold), ...deed.items.map((x) => name(x.id) + ' ×' + x.qty)].join(', ') + '): open the House.' : null;
 }
+/* THE SMITH'S FIRST RUNG (Tempering, src/data/temper.js): named once a hero has twice its price in hand, so it never eats the food money, and only on a ladder this hero has not begun: after that it knows the way. */
+function temperLine(f) {
+  const r = f.temper;
+  if (!r || !Number.isSafeInteger(r.gold) || !Number.isSafeInteger(f.gold) || f.gold < r.gold * 2) return null;
+  return 'The smith can temper your ' + r.piece + ' for ' + gp(r.gold) + ', a small gain that lasts: open the Shop\'s Services (R).';
+}
 /* OUT OF STAMINA WITH GOLD IN HAND: the one purchase that never runs out, named at the moment it can be used, at the server's quote. The day's first costs about a third of what its hours earn
    (stamina-refill.js), so it speaks ahead of saving. Nearly out: under half an hour. */
 const TOP_UP_UNDER_MS = 1800000;
@@ -1240,6 +1247,8 @@ export function nextGoal(facts) {
   }
   const deed = deedLine(facts, offer);
   if (deed) { lines.push(deed); ids.push('deed', String(facts.home.next.gold)); }
+  const smith = temperLine(facts);
+  if (smith) { lines.push(smith); ids.push('temper', String(facts.temper.gold)); }
   if (offer && offer.purse < offer.slot && offer.purse >= offer.slot * SAVING_FROM) {
     lines.push('A ' + offer.nth + ' hero costs ' + gp(offer.slot) + ', and you have ' + gp(offer.purse) + ': another hero hunting while this one does.');
     ids.push('saving', String(offer.slot));

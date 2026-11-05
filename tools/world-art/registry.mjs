@@ -4,9 +4,9 @@
 //   node tools/world-art/registry.mjs > table.md
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { ATLAS_SETS } from '../../src/data/world/atlas-sets.js';
+import { ATLAS_SETS, MASK_SETS } from '../../src/data/world/atlas-sets.js';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const SETS = ATLAS_SETS;
+const SETS = ATLAS_SETS.concat(Object.keys(MASK_SETS));
 // Decisions (Art Director). Default: retain. The 2026-10-15 rows were for the pre-style-1 sets, retired
 // 2026-10-18 (tools/world-art/style1.mjs); every shipped asset is style 1 and starts at retain.
 const D = {};
@@ -21,6 +21,9 @@ for (const id of ['great_hearth', 'hearth_fire', 'hearth_fire_verdigris', 'heart
   'square_decal_chips_a', 'square_decal_chips_b', 'square_decal_tuft_a', 'square_decal_tuft_b', 'square_general_store',
   'square_depot', 'square_bank', 'square_barracks', 'square_market_stall', 'mine_mouth', 'ore_copper_rock',
   'westwood_ash', 'fishing_pier', 'rune_block', 'westwood_yew', 'ore_coal_rock']) D[id] = ['staged', 'on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending'];
+/* Hero outfit region masks (lane/c-hero-masks, 2026-11-05): data, never drawn; loaded on first need by the dye code. */
+for (const id of ['outfit_knight_mask', 'outfit_berserker_mask', 'outfit_brute_mask', 'outfit_ranger_mask', 'outfit_sorcerer_mask',
+  'outfit_witch_mask', 'outfit_dawnward_mask']) D[id] = ['staged', 'region mask (dyes), tools/world-art/outfit-masks.mjs; HERO_DYES_SHOWN false'];
 const rows = [];
 for (const set of SETS) {
   const man = JSON.parse(readFileSync(ROOT + 'assets/world/atlas-' + set + '.json'));

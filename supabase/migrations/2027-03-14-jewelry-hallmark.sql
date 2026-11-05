@@ -98,17 +98,22 @@ end $$;
 -- plpgsql, not sql: the settle reads every section, and a sql function is re-planned on every call (tests/settle-budget.mjs SB-3).
 create or replace function public.hr_hallmark_view(p_user uuid, p_slot int)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $$
-declare v jsonb; v_limit int;
+declare v jsonb; v_limit int; v_today int;
 begin
   select r.day_limit into v_limit from public.hr_hallmark_rule r where r.id;
   if v_limit is null then return null; end if;
+  /* The account's count today, hr_sink_bought_today's own read inlined here: that one is LANGUAGE sql with a SET clause, so the
+     planner re-plans it on every call, and the settle reads this section every window (tests/settle-budget.mjs SB-3). */
+  select count(*)::int into v_today from public.player_ledger l
+   where l.user_id = p_user and l.slot = any (array[0, 1, 2, 3, 4, 5]) and l.at >= public.hr_utc_day_start(now()) and l.kind = 'shop'
+     and split_part(l.intent, ':', 1) = 'hallmark';
   select coalesce(jsonb_agg(jsonb_build_object('from', o.from_item, 'to', o.to_item, 'perk', o.perk, 'gem', o.gem, 'gold', o.gold, 'level', o.level)
            order by o.from_item, o.to_item), '[]'::jsonb)
     into v
     from public.hr_hallmark_offers o
    where exists (select 1 from public.player_inventory i where i.user_id = p_user and i.slot = p_slot and i.item_id = o.from_item)
       or exists (select 1 from public.account_bank b where b.user_id = p_user and b.item_id = o.from_item);
-  return jsonb_build_object('offers', v, 'today', public.hr_sink_bought_today(p_user, 'hallmark'), 'per_day', v_limit);
+  return jsonb_build_object('offers', v, 'today', v_today, 'per_day', v_limit);
 end $$;
 revoke all on function public.hr_hallmark_view(uuid, int) from public, anon, authenticated, service_role;
 do $$ begin

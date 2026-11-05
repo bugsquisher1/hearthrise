@@ -62,6 +62,7 @@ async function stub(page, s) {
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
+    if (s.refuseSale && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) s.env = Object.assign(clone(s.env), { inventory: Object.assign({}, s.env.inventory, { temper_salts: 3 }) });
     if (s.refuseSale && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) return r.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ ok: false, verb: 'unlock_buy', error: 'insufficient_item', stage: 'buy', detail: { ok: false, error: 'insufficient_item', item_id: 'temper_salts', have: 4, need: 20, bag: 3, storage: 1 } }) });
     if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
     if (RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, 400)); return json({ ok: true }); }
@@ -198,14 +199,14 @@ async function checks(overrides) {
       if (!opened) fails.push('SV-8 the Services tab did not open for the refusal');
       else {
         s.refuseSale = true;
-        const reads = () => s.calls.filter((c) => c.name === 'hr_load').length;
-        const before = reads();
         await press(page, P + '.hw-temper [data-track="blows"] button', 'SV-8');
         await page.waitForTimeout(100);
         await press(page, P + '[data-hs-act="temper-yes"]', 'SV-8');
-        const said = await wait(page, () => /Not enough/.test((document.querySelector('.hw-services > .hh-intent-msg') || {}).textContent || ''), null, 4000);
+        /* the answer shows only after the re-read has landed: read both in the one frame the words first appear */
+        const seen = await page.waitForFunction(() => { const m = document.querySelector('.hw-services > .hh-intent-msg'); const b = document.querySelector('.hw-temper [data-track="blows"]'); return m && /Not enough/.test(m.textContent) ? b.textContent : null; }, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => null);
+        const said = !!seen;
         if (!said || !/Not enough Tempering Salts: you have 3 in your bag and 1 in Storage, and it takes 20\./.test(await txt(page, '.hw-services > .hh-intent-msg') || '')) fails.push('SV-8 the refusal reads ' + JSON.stringify(await txt(page, '.hw-services > .hh-intent-msg')));
-        if (!(reads() > before)) fails.push('SV-8 a refused sale did not re-read the server');
+        if (!/You hold 8 \(5 in Storage\)\./.test(seen || '')) fails.push('SV-8 a refused sale did not re-read the server: the row still reads ' + JSON.stringify(seen));
       }
       await ctx.close();
     }

@@ -81,8 +81,8 @@ function slotSupply(sl, s, carried) {
   const have = (id) => (carried.find((r) => r.id === id) || {}).qty || 0;
   const st = storeOf(a, s.store);
   const store = st && st.price !== null ? { name: st.name, price: st.price, each: a.type === 'ability' ? 'a cast' : 'each' } : null;
-  /* A slot the server struck because the store is off for this hero buys nothing. */
-  const off = sl.why === 'store_off';
+  /* A slot the server struck because the store is off for this hero buys nothing, nor does one naming a store rune above its level. */
+  const off = sl.why === 'store_off' || sl.why === 'store_level';
   if (a.type === 'consume') {
     const c = CONSUMABLES[a.id];
     if (!c || !KIND_WORDS[c.kind]) return null;

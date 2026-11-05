@@ -67,7 +67,7 @@ export const ROLE_DEFAULTS = Object.freeze({
    (Tyler P1, the solo healer): Green Sickness waits while any ally in reach is
    under 70%, so its mana goes to Greater Mend first; its basic attack never waits.
    A role's CORE rune spell (STORE_CORE: the one its role cannot work without) names
-   its family's store rune (`action.store`, written on the slot like its trigger; Tyler
+   its family's PLAIN store rune, never a deeper one (`action.store`, written on the slot like its trigger; Tyler
    2026-10-23: with the spell unlocked and no rune in the bag, the game charges gold
    per cast, like food and drink), so a new hero with no runes still casts it, its own
    runes first. Every other default rune slot casts the hero's OWN runes only: a default

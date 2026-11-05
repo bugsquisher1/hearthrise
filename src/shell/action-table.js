@@ -144,7 +144,7 @@ export function sentenceOf(action, store) {
     if (!a || !a.rune) return { verb: 'Cast', item: abilityName(action.id), note: '' };
     const p = action.store ? (store || []).find((r) => r.id === action.store) : null;
     return { verb: 'Cast', item: abilityName(action.id),
-      note: '(uses 1 ' + runeWords(a.rune, 1) + (p ? ', ' + p.price + ' g a cast from the store once yours are gone)' : ', carried runes only)') };
+      note: '(uses 1 ' + runeWords(a.rune, 1) + (p ? '; once yours are gone, ' + itemName(p.id) + ' from the store at ' + p.price + ' g a cast)' : ', carried runes only)') };
   }
   /* WHICH ARROWS FIRE (Andy #63; src/core/hunt/conditions.js attackOrder, the engine's one order): what you carry
      first, the worn ammo ahead of the bar's other ammo unless a slot has conditions, the store last. */

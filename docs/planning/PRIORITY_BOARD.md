@@ -30,6 +30,39 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-05 Game Master tools (backend-architect, lane/c-gm-tools): DESIGN, on the EA Security list (§3.7)
+**Tyler:** "some admin tools kind of like a game master character like tibia has specifically for me", and a walled-off test hero that can be given gold and levels but can't trade, use the market or appear on leaderboards.
+**Shape.** One separate GM account. Purse and Storage are per account, so a walled hero on his real account would leak; one whole walled account closes that. Tyler signs it up on the normal page; `tools/gm-allow.mjs` writes one migration (id + a note, no email). One row, `hr_gm_accounts`, is both the powers and the wall: there is no power without the wall. No client role writes it. It refuses an account that already has heroes and cannot be deleted while heroes stand, so a real hero can never become grantable and a granted hero can never walk out.
+**The authority.** `auth.uid()` against that table, first line of every `hr_gm_*`, before any argument is read. Anyone else hears one answer, `{ok:false, error:'refused'}`, whatever they sent; no information. The window is loaded only when the server's `gm` section says so; the RPCs are the authority.
+**Powers.**
+| Verb | What it does | Path |
+|---|---|---|
+| `hr_gm_online`, `hr_gm_hero` | who plays (name, Level, ground or job); one hero as `tools/char-state.local.mjs` reads it. Never email, IP or the play network hash | read |
+| `gm_stop` (engine verb) | stops a hero. A job: `runSetActivity` idle with the hero as subject, the player's own collect-then-switch, so it keeps what it earned. A hunt: the statement `hr_hunt_leave` runs (`hr_hunt_leave_pending`), so the settle ends it at the same horizon | the player's own path |
+| `hr_gm_mute`, `_unmute` | mutes the account's chat for a set time. `hr_chat_send` and `hr_whisper_send` answer `muted`; a trigger on both tables is the second lock | server |
+| `hr_gm_ban`, `_unban` | `hr_bans`, read by `hr_admitted`, so every door refuses at once (REST, engine, realtime). `hr_access_check` answers `hr_banned` and the page shows a plain notice. Open hunts leave; the boards hide the account | server |
+| `hr_gm_say` | one line on the system channel, cleaned and masked like any line, stamped Game Master; once per 30 s, 20 a day | server |
+| `hr_gm_grant_gold`, `_item`, `_level` | the caller's OWN account only: no account argument exists. Clamped per call and per day from `player_ledger`; every grant in the ledger and the log | server |
+**The log.** `hr_gm_log`, append-only (trigger, no grant): who, what, target, reason, outcome, when, refused too. A short reason is required on stop, mute, ban and grant. An outsider's refused call is logged at most 10 a minute, so nobody can fill the disk. The log's key doubles as the idempotency key.
+**The wall: two locks.** (1) THE DOOR, default-deny: `hr_access_check` refuses a walled account any request not on `hr_gm_wall_allow`. A surface nobody thought of, or one written next month, is refused until someone decides. (2) THE ROW: `hr_gm_wall_guard` on every shared table refuses the row itself, whatever path wrote it (the engine does not pass the door). Town Works, Gold Given and the Crier land after this; the door refuses them from birth, and `tests/gm-tools.mjs` goes red when their tables exist without the row lock.
+| Shared surface | Door | Row lock (either side walled) | Test |
+|---|---|---|---|
+| Market: list, buy, receive (engine verbs) | engine, no door | `market_listings`, `market_sales` answer `gm_walled` | GM-W-MARKET |
+| Chat: global, local, party | refused | `chat_messages` | GM-W-CHAT |
+| Whispers, both directions | refused | `chat_whispers` | GM-W-WHISPER |
+| Friends, both directions | refused | `friend_requests`, `friend_links` | GM-W-FRIEND |
+| Party with a real hero: invite, join, list, seek | refused (own heroes allowed) | `hunt_party_invites`, `hunt_party_members`, `hunt_parties.listed`, `party_seekers` | GM-W-PARTY |
+| Great Hearth (a colour and a line for everyone) | refused | `hearth_flames` | GM-W-HEARTH |
+| Rare-find line, finds feed, Nth-ever counter | no client path | a server line is dropped silently (a settle must not fail); the engine rolls no Hearthfind for a walled hero | GM-W-FINDS |
+| Leaderboards | reads only | `hr_lb_hidden` row written with the GM row | GM-W-BOARDS |
+| Clans, Discord gift, direct table writes | refused | `clan_members`, `hr_discord_gift_claims` | GM-W-DOOR |
+| Trade or gift | none exists | Storage and purse are the account's; market above | GM-W-CROSS |
+| Town Works, Gold Given, Crier, shows (`lane/c-town-works`, `lane/c-town-shows`) | refused from birth | guard red until the tables carry it | GM-W-FUTURE |
+**In town.** A walled hero's plate reads `GM Name · Level` in gold; the text is the cue, the color repeats it (ART_DIRECTION: color is never the only cue; Charcoal & Gold, no new hue). The server stamps it on the body's `look`, never the client. Its player menu offers only Inspect. "Game Master" and "GM" go on the name blocklist.
+**The caps.** A GM hero counts on the account's own four: that is what bounds its server cost. It does not count on the four-per-network cap: walled output cannot reach anyone, so that cap has nothing to protect there, and a test hero must never be what blocks a real check (the pain that started this). The QA account stays fully capped.
+**The wipe.** `hr_gm_accounts`, `hr_gm_log`, `hr_bans`, `hr_chat_mutes` stay (a character wipe doesn't forgive a ban). Walled heroes follow the wipe like every hero.
+**Not built, not listed:** a log viewer, pulling a banned account's listings, skill XP grants, heal or reset of anyone. Every real character stays untouched (§2).
+
 ### 2026-11-05 Armor rungs, Levels 1-8, the crossbow floor, the Glade's four (systems-engineer, lane/c-armor-tiers): MEASURED on v0.2.90; one row changed; engine deploy, no migration
 **The first-ground ladder under the attacker-level armor rule (v0.2.90 release red, `forest-cave`).** Three coin rows, low end only, so the top roll and the kill bound stay and there is no catalogue apply: Briarcoat Wolf [2,5] to [3,5], Drain Rat [4,18] to [8,18], Glade Poacher [4,14] to [8,14]. Net per hero-hour at each floor, 6-seed median: Cellar 1829.5, Thicket 1809.5 to 1838, Sewer party 1795 to 1843.5, Glade four plate 1833 to 1908, Warrens 3704. Glade in helm and body, worst seed: +23% to over +25%. The crossbow Ranger at the Sewer floor: 12-seed mean +23.7% to +26.4% (+-0.9), and `drop-tables` ranger-floor now gates that mean, with the old Drain Rat row as its mutant.
 **The Level 1 bow on the Glade, played on the real page (fresh account, practice bow, Enter twice): real, NOT built yet.** 27:42, 184 kills, 24,080 Level XP, Level 1 to 7, 52k XP/h, gold 1,147 + loot 487 against 1,334 of supplies, no death. It stopped at the 300 g gold floor, never by danger; the sim has no purse, and this hero then sells and goes again. Why it holds, from the real settle's track: both. 68% of the time nothing stands within a blow of the bow, with 1.16 monsters within 7 tiles on average, because the kite walks away from everything slower than a hero (3,200) and only the crow (4,400) is sure to catch it; the blow itself is unchanged (27 a swing). The Sewer answers the same hero (10 deaths in 8 h, 1,761 swings/h), the Warrens too (319 deaths in 7 h).

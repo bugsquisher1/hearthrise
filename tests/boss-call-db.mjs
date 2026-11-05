@@ -237,8 +237,12 @@ async function bothDoors(door, boot) {
     for (const [i, r] of sk1.entries()) if (sk0[i] && Number(r.xp) > Number(sk0[i].xp)) bad.push(`BD-PAID ${door} ${job.name}: ${r.skill_id} rose`);
     const inv1 = await q(db, `select user_id, item_id, qty from public.player_inventory where user_id = any($1::uuid[]) and slot = 0 and item_id <> 'cooked_shrimp' order by user_id, item_id`, [uids]);
     if (JSON.stringify(inv1) !== JSON.stringify(inv0)) bad.push(`BD-PAID ${door} ${job.name}: the bag moved: ${JSON.stringify(inv1).slice(0, 160)}`);
-    const moved = await one(db, `select coalesce(sum(gold) filter (where gold > 0), 0) from public.player_ledger where user_id = any($1::uuid[]) and kind <> 'hunt'`, [uids]);
-    if (Number(moved) !== 0 && job.level !== 60) bad.push(`BD-PAID ${door} ${job.name}: ${moved} gold came in`);
+    /* the purse: what it held, less the fee (the leader's), less the store's bill (journalled per hero, supply_buy): not a coin came in */
+    for (const [i, uid] of uids.entries()) {
+      const bill = Number(await one(db, `select coalesce(sum(-gold), 0) from public.player_ledger where user_id = $1 and kind = 'hunt' and intent = 'supply_buy'`, [uid]));
+      const want = 200000 - (i === 0 ? FEE : 0) - bill;
+      if (await purse(db, uid) !== want) bad.push(`BD-PAID ${door} ${job.name}: seat ${i}'s purse reads ${await purse(db, uid)}, want ${want}`);
+    }
     if (Number(await one(db, `select count(*) from public.hunt_session_events e join public.hunt_sessions h on h.id = e.session_id where h.instance_id = $1 and e.type in ('rare_drop', 'level_up')`, [pid]))) bad.push(`BD-PAID ${door} ${job.name}: a rare or level event`);
     for (const uid of uids) {
       if (Number(await one(db, 'select count(*) from public.hr_bestiary_of($1::uuid, 0) b where b.monster_id = $2', [uid, KING.monster]))) bad.push(`BD-PAID ${door} ${job.name}: a Bestiary row`);

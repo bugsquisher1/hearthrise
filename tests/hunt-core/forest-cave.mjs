@@ -20,6 +20,7 @@
 //                       seeds; prints the practice-sword-and-Thicket-leather graduate beside it (evidence)
 //   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party < the glade solo in its four plate pieces < the
 //                       Warrens' party, in net gold AND Level XP, and the glade in helm and body alone clears +25% over its bill (the H11 gap, 16-31)
+//   glade-rush-pays     a brand-new bow on the glade, six seeds pooled, nets no gold on this fixture's map: a rush pays XP for its food bill
 //   harder-pays-more    a kill's expected gold climbs with hp x attack, and the same hero at one Level earns more an hour on the ground above (Tyler 2026-11-03)
 //   wickstead-solo-floor  (Wickstead, lane b-greenhaven-6; staged, played on its fitted grid) a ladder-kit Melee alone at
 //                       its floor (L8) lives the hour on the six seeds, clears +25%, and nets and levels no worse than
@@ -449,6 +450,22 @@ cases['glade-between'] = async (M) => {
   return bad.length ? bad.join('; ') : null;
 };
 
+/* THE RUSH PAYS (Tyler 2026-11-04: a rush is allowed and it carries risk; 10-18: below range is higher XP, gold loss, more deaths). A brand-new hero's practice bow and shipped bar on
+   the Glade, fifteen Levels under it. Measured 2026-11-05 on THIS FIXTURE'S MAP: poachers at 3,400 / 3,200 net +622 g/h on a 2,504 g/h bill with no death in six hours; at 3,800 / 3,800 they net
+   -1,055 g/h on 4,150 g/h with three deaths; the Rook's row alone is the mover. ⚠ The fixture's grid carries object footprints the server's does not (src/core/hunt-ground.js): on the server's
+   own grid the same hero pays about 3,100-3,500 g/h with either speed, so this case holds the fixture's reading, not the live bill. */
+cases['glade-rush-pays'] = async (M) => {
+  const P = await playOf(M);
+  let income = 0, store = 0, played = 0, falls = 0, xp = 0;
+  for (const secret of STARTER_SEEDS) {
+    const x = P.run(GLADE, 1, ['ranger'], { spanMs: 3600000, secret, equipment: { weapon: 'practice_bow', ammo: 'bronze_arrows' }, bar: () => JSON.parse(JSON.stringify(M.kit.START_BAR)) });
+    income += x.totals.coin + x.totals.commons; store += x.totals.store; played += x.playedMs; falls += x.totals.falls; xp += x.totals.levelXp;
+  }
+  const h = played / 3600000, net = Math.round((income - store) / h);
+  console.log('    a fresh bow on the glade, ' + STARTER_SEEDS.length + ' seeds pooled: ' + h.toFixed(1) + ' h played, Level XP ' + Math.round(xp / h) + '/h, bill ' + Math.round(store / h) + ' g/h, net ' + net + ' g/h, ' + falls + ' death(s)');
+  return net > 0 ? 'a fresh bow on the glade nets +' + net + ' g/h on a ' + Math.round(store / h) + ' g/h bill with ' + falls + ' death(s) in ' + h.toFixed(1) + ' h: a rush with no price' : null;
+};
+
 /* HARDER PAYS MORE (Tyler 2026-11-03: harder monsters give better loot and more reward; nothing rewards staying on a weak ground; lane/c-gold-matters).
    PER KILL, the rows: a monster's expected gold (its coin roll, every drop at its chance and the shop's bid), meaned over the open grounds' monsters in bands
    of hp x attack, climbs band by band. PER HOUR, played: the same hero in the same kit at one Level earns more on the ground above, everything sold, the bill
@@ -545,6 +562,10 @@ const mutants = [
     edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 12]', 'xp: 165, gp: [2, 6]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 14]', 'xp: 225, gp: [4, 7]'],
       ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [2, 6]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [7, 17]'],
       ['src/data/monsters.js', 'xp: 520, gp: [14, 36]', 'xp: 520, gp: [7, 18]']] },
+  { name: 'both poachers back at 3,400 and 3,200: a kiting bow outwalks them', case: 'glade-rush-pays',
+    edits: [['src/data/monsters.js', 'xp: 225, gp: [8, 14], speed: 3800', 'xp: 225, gp: [8, 14], speed: 3400'], ['src/data/monsters.js', 'xp: 520, gp: [14, 36], speed: 3800', 'xp: 520, gp: [14, 36], speed: 3200']] },
+  { name: 'Rook the Poacher alone back at 3,200', case: 'glade-rush-pays',
+    edits: [['src/data/monsters.js', 'xp: 520, gp: [14, 36], speed: 3800', 'xp: 520, gp: [14, 36], speed: 3200']] },
   { name: 'the glade\'s blows x1.25, the attack Tyler dropped (helm and body under +25%)', case: 'glade-between',
     edits: [['src/data/monsters.js', 'hp: 30, atk: 10, baseAcc: 0.8,', 'hp: 30, atk: 13, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 32, atk: 12, baseAcc: 0.8,', 'hp: 32, atk: 15, baseAcc: 0.8,'],
       ['src/data/monsters.js', 'hp: 35, atk: 9, baseAcc: 0.8,', 'hp: 35, atk: 11, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 70, atk: 18, baseAcc: 0.8,', 'hp: 70, atk: 23, baseAcc: 0.8,'],

@@ -27,8 +27,9 @@ and drift guards bind the copies. Never keep a second hand-written copy of game 
   rows; the catalogue-coherence guard decides what is reachable.
 
 ### 0. Hunts — data
-`src/data/hunts.js` (grounds: level floor, monster family and spawn weights,
-density steps), `src/data/hunt-grounds.js` (pockets, route), `src/data/hunt-sessions.js`
+`src/data/hunts.js` (grounds: level floor, monster family and spawn weights),
+`src/data/hunt-grounds.js` (pockets, route), `src/data/hunt-tiers.js` (Normal, Dangerous, Deadly: pull, power, XP;
+its rows and `hr_hunt_tiers` are held equal by `tests/hunt-core/hunt-tiers.mjs`), `src/data/hunt-sessions.js`
 and `hunt-tuning.js` (engine values), `src/data/monsters.js` (stats and drops).
 Regenerate with `node tools/gen-hunts.mjs` and `node tools/gen-hunt-sessions.mjs`.
 

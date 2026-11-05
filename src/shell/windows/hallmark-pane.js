@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════
-// src/shell/windows/hallmark-pane.js — THE HALLMARK STEP, UNDER CRAFTING'S ROWS IN THE WORK WINDOW (src/data/jewelry.js; Tyler 2026-11-05:
+// src/shell/windows/hallmark-pane.js — THE HALLMARK STEP, ABOVE CRAFTING'S ROWS IN THE WORK WINDOW (src/data/jewelry.js; Tyler 2026-11-05:
 // the Hallmark fee is the gold sink, nothing is rolled there and there is no re-roll).
 //
 // One row per choice this hero can make NOW: each Fine piece it holds (bag or Storage) and each second perk the catalogue pairs it with.
@@ -38,7 +38,7 @@ function holdWords(cs, id) {
 /** The section's skeleton, under the skill's rows. */
 export function hallmarkPaneHtml() {
   return '<section class="hw-hallmark"><h3 class="hs-sub">Hallmark</h3>'
-    + '<p class="hs-note">Set a gem in a Fine piece and choose its second perk. Nothing is rolled here and it can\'t fail; it costs gold and the gem.</p>'
+    + '<p class="hs-note hw-hallmark-how">Set a gem in a Fine piece and choose its second perk. Nothing is rolled here and it can\'t fail; it costs gold and the gem.</p>'
     + '<p class="hs-note hw-hallmark-day"></p>'
     + '<ul class="hw-ledger hw-hallmark-rows"></ul><p class="hh-empty hw-hallmark-none"></p>'
     + '<div class="hw-confirm hw-hallmark-ask" role="alertdialog" aria-label="Confirm the Hallmark"><p class="hw-confirm-q"></p>'
@@ -69,11 +69,14 @@ export function patchHallmarkPane(root, ctx, sc) {
       prop(btn, 'disabled', !!why || sc.pending || !!sc.hallmark);
     },
   });
-  text(root.querySelector('.hw-hallmark-day'), h ? 'Hallmarks today across your heroes: ' + whole(h.today) + ' of ' + whole(h.perDay) + '.' : '');
+  /* With no Fine piece the section is one line (the rows below are the way to one); the rest shows once there is something to choose. */
+  prop(root.querySelector('.hw-hallmark-how'), 'hidden', !offers.length);
+  prop(root.querySelector('.hw-hallmark-day'), 'hidden', !offers.length);
+  text(root.querySelector('.hw-hallmark-day'), h ?'Hallmarks today across your heroes: ' + whole(h.today) + ' of ' + whole(h.perDay) + '.' : '');
   const none = root.querySelector('.hw-hallmark-none');
   cls(none, 'is-on', !offers.length);
   text(none, !h ? 'The Hallmark step loads from the server.' : offers.length ? ''
-    : 'You hold no Fine piece to Hallmark. A Fine piece can come from Make Banded Signet, or from setting a Road Garnet in a plain one.');
+    : 'Hold a Fine piece to choose its second perk here. Make Banded Signet can roll one; setting a Road Garnet in a plain one always does.');
   const asked = sc.hallmark ? offers.find((o) => keyOf(o) === sc.hallmark) : null;
   if (sc.hallmark && (!asked || !!blockOf(cs, asked, h, purse, lv) || sc.pending)) sc.hallmark = null;
   const cf = root.querySelector('.hw-hallmark-ask');

@@ -107,9 +107,9 @@ const mutants = [
   { name: 'the settle never puts Follow-through on the unit', case: 'perks-show', edits: [['src/core/combat-sim.js', '  if (snap.followPm) u.followPm = snap.followPm; else if (u.followPm) delete u.followPm;\n', '']] },
   { name: 'Keen never reaches the crit chance', case: 'perks-show', edits: [['src/core/combat.js', 'const keen = eq.jewel && eq.jewel.keen ? eq.jewel.keen / 1000 : 0;', 'const keen = 0;']] },
   { name: 'Surge never lands', case: 'perks-show', edits: [['src/core/hunt/abilities.js', 'return u.surgePm > 0 && !!(row.dmg || row.heal || row.shield) && sc.rng.chance(u.surgePm / 1000);', 'return false;']] },
-  { name: 'a perk counts once per piece, so two rings stack', case: 'once-per-hero', edits: [['src/core/combat.js', "if (pm > 0 && (!out || !(out[k] >= pm))) { out = out || {}; out[k] = pm; }", "if (pm > 0) { out = out || {}; out[k] = (out[k] || 0) + pm; }"]] },
+  { name: 'a perk counts once per piece, so two rings stack', case: 'once-per-hero', edits: [['src/core/combat.js', "if (pm > 0 && !(out[k] >= pm)) { out[k] = pm; any = true; }", "if (pm > 0) { out[k] = (out[k] || 0) + pm; any = true; }"]] },
   { name: 'Follow-through draws from the wall clock, so two cuts disagree', case: 'both-paths', edits: [['src/core/hunt/damage.js', 'if (next && sc.rng.chance(u.followPm / 1000))', 'if (next && Math.random() < u.followPm / 1000)']] },
-  { name: 'a plain ring carries an empty perk map', case: 'plain-draws-nothing', edits: [['src/core/combat.js', '  if (jewel) s.jewel = jewel;', '  s.jewel = jewel || {};']] },
+  { name: 'a plain ring carries an empty perk map', case: 'plain-draws-nothing', edits: [['src/core/combat.js', '  if (jewel) Object.assign(s, { jewel });', '  Object.assign(s, { jewel: jewel || {} });']] },
 ];
 
 const R = makeReport('hunt-core/jewelry-play');

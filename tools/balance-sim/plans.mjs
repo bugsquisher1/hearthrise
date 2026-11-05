@@ -675,6 +675,19 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'jewelry') {
+    /* CRAFTED JEWELRY (lane/c-jewelry-sample, src/data/jewelry.js): two plain Banded Signets against the sample's Hallmarked pairs on the
+       same dice, every way to fight at the Glade's middle. Blows wear Keen + Follow-through twice (a perk counts once); casts wear Surge on both. */
+    const RINGS = {
+      Pplain: { ring1: 'banded_signet', ring2: 'banded_signet' },
+      Hblows: { ring1: 'banded_signet_keen_follow', ring2: 'banded_signet_keen_follow' },
+      Hcasts: { ring1: 'banded_signet_surge_follow', ring2: 'banded_signet_keen_surge' },
+    };
+    for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const [x, also] of Object.entries(RINGS)) {
+      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, gear: { also }, hours: H(2), seeds: 4, x }), windowMs: 120000 });
+    }
+    return out;
+  }
   if (name === 'capes') {
     /* A CAPE AND STUDS, before and after guard came off them (2026-11-05): every way to fight, at the Glade's middle and at the Warrens, with no cape, with the rows as they were (whatIf), and as they are. */
     const DRESSED = { cape: 'houndskin_cloak', earrings: 'copper_studs' };

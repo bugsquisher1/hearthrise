@@ -178,7 +178,7 @@ export function equipmentStats(equipment, items) {
   s.bane = baneIndex(equipment, items);
   /* CRAFTED JEWELRY'S PERKS (src/data/jewelry.js): present only on a hero that wears one, so every other hero's stats are what they were. */
   const jewel = jewelPerksOf(equipment, items);
-  if (jewel) s.jewel = jewel;
+  if (jewel) Object.assign(s, { jewel });
   return s;
 }
 
@@ -187,16 +187,18 @@ export function equipmentStats(equipment, items) {
  * rule): two rings of Keen play the larger Keen, never the sum, so a perk can't be stacked past its row's number.
  */
 export function jewelPerksOf(equipment, items) {
-  let out = null;
+  /** @type {Record<string, number>} */
+  const out = {};
+  let any = false;
   for (const id of Object.values(equipment || {})) {
     const p = id && items && items[id] ? items[id].jewelPerks : null;
     if (!p) continue;
     for (const k of Object.keys(p)) {
       const pm = Math.floor(Number(p[k]) || 0);
-      if (pm > 0 && (!out || !(out[k] >= pm))) { out = out || {}; out[k] = pm; }
+      if (pm > 0 && !(out[k] >= pm)) { out[k] = pm; any = true; }
     }
   }
-  return out;
+  return any ? out : null;
 }
 
 /* Wave 5c / b283: a SET is 5+ pieces of the same material tier AND the same

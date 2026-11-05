@@ -158,7 +158,7 @@ export function renderWork() {
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ All skills</button>'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
-    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p><ul class="hw-ledger hw-work-rows"></ul>' + hallmarkPaneHtml() + '</section>'
+    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>' + hallmarkPaneHtml() + '<ul class="hw-ledger hw-work-rows"></ul></section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -218,7 +218,7 @@ renderWork.patch = function patchWork(body, ctx) {
       patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv),
     });
   }
-  /* The Hallmark step belongs to Crafting (src/data/jewelry.js JEWEL_SKILL): shown under its rows only. */
+  /* The Hallmark step belongs to Crafting (src/data/jewelry.js JEWEL_SKILL): above its rows, one line until the hero holds a Fine piece. */
   const hall = view.querySelector('.hw-hallmark');
   prop(hall, 'hidden', skill !== 'crafting');
   if (skill === 'crafting') patchHallmarkPane(hall, ctx, sc);

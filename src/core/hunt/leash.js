@@ -8,8 +8,8 @@
 // grow.
 //
 // `leashAllows` is imported ONLY by movement.js, which calls it for every
-// monster path plan and every monster step (tests/hunt-core/leash.mjs greps
-// for that and plants a bypass that must go red).
+// path plan and every step (tests/hunt-core/leash.mjs greps for that and plants
+// a bypass that must go red).
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
@@ -26,13 +26,22 @@ export function inArea(inst, pocket, x, y) {
   return x >= r[0] - m && y >= r[1] - m && x <= r[2] + m && y <= r[3] + m;
 }
 
+/* The pocket of the pack `hero` holds in a fight, or -1 (a world with no phase is a walker world its caller drives). */
+const heldPocket = (inst, hero) => (inst.world.phase === 'fight' ? inst.world.packs.findIndex((p) => p.aggro && p.holder === hero.id) : -1);
+
 /**
- * May `unit` stand on (x, y)? Heroes go anywhere walkable; a monster only
- * inside its own pack's area. A monster with no known pocket may not move at
- * all (fail closed: a leash that cannot be read holds).
+ * May `unit` stand on (x, y)? A monster only inside its own pack's area; a
+ * monster with no known pocket may not move at all (fail closed: a leash that
+ * cannot be read holds). A hero holding a pack in a fight only inside that pack's
+ * area: its walk, not just where the walk ends, or a retreat round the pack steps
+ * out and resets it (Tyler 10-17: kiters never kite outside the area). Any other
+ * hero goes anywhere walkable.
  */
 export function leashAllows(inst, unit, x, y) {
-  if (unit.side !== 'mon') return true;
+  if (unit.side !== 'mon') {
+    const held = heldPocket(inst, unit);
+    return held < 0 || inArea(inst, held, x, y);
+  }
   if (!Number.isInteger(unit.pocket)) return false;
   return inArea(inst, unit.pocket, x, y);
 }

@@ -115,6 +115,7 @@ export function characterSheetOf(env, perks, nowMs) {
     dodge_pct: round(mit.dodgePm / 10, 1),
     absorb_pct: round(mit.absorbPm / 10, 1),
     ward: mit.ward,
+    steady_pct: round((eq.steadyPm || 0) / 10, 1),
     set: setBonus ? { tier: setBonus.tier, pieces: setBonus.pieces } : null,
     xp: { perks: round(lasting.all, 4), buffs: round(now.all - lasting.all, 4), combat: round(now.combat, 4) },
   };

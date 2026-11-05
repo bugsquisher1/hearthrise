@@ -4516,3 +4516,7 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 ## 2026-11-05 · lane/c-armor-tiers (the sim plays the server's map)
 1. *One builder, and test what the run played, not a helper.* The check reads the grid the fixture's `run` answers, so a bypass inside `run` goes red too.
 2. *A number read off a wrong map is not a bar.* "3 deaths in a seed's hour" was a reading; the rule is "the unready hero dies". Say which is which when it moves.
+## 2026-11-05 · lane/c-armor-tiers (guard off capes)
+1. *Lowering a bar needs a mutant on that very line.* A catch by an earlier line proves nothing about the new one, so the mutant names the line it must fail on (`expect`).
+2. *An existing hook beats a new one.* Tempering's last-step cut took a cape in one sum and one floor; the jewelry spec's Steady now needs one row field.
+3. *To show a player-visible limit, ask the server where the hero stands, then shoot the page.* One read found the hero inside a tree.

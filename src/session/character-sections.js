@@ -44,7 +44,7 @@ function combatOf(c) {
     role: id(c.role), weaponType: id(c.weapon_type), moveSpeed: nat(c.move_speed),
     damage: nat(d.min) !== null && nat(d.max) !== null ? { min: d.min, max: d.max } : null,
     accuracyPct: num(c.accuracy_pct), critPct: num(c.crit_pct), defence: int(c.defence), regenPct: num(c.regen_pct),
-    dodgePct: num(c.dodge_pct), absorbPct: num(c.absorb_pct), ward: nat(c.ward),
+    dodgePct: num(c.dodge_pct), absorbPct: num(c.absorb_pct), ward: nat(c.ward), steadyPct: num(c.steady_pct),
     xp: { perks: num(x.perks), buffs: num(x.buffs), combat: num(x.combat) },
   };
 }

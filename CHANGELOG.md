@@ -8,6 +8,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## Unreleased
 
 - Carrion Crows carry a little more coin.
+- Capes no longer make monsters miss. A cape now takes a share off every blow that reaches you: 3% for a Graypelt Cloak, 7% for a Houndskin Cloak. Earrings, necklaces and rings no longer add Defense; only a shield does that outside armor.
 ## v0.2.91 — 2026-11-04 (The Smith Tempers)
 
 - A blow that misses your hero now strikes a small spark off it, on the side the blow came from, instead of floating "miss" over its head. Your own missed swings leave a small scuff on the monster. The combat log says who missed whom in words, and "Missed blows and immune hits" in Settings turns the sparks off.

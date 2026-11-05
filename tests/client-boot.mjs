@@ -786,15 +786,17 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         let open = null, hits = 0;
         const shut = new Promise((k) => { open = k; });
         await page.route('**/assets/world/atlas-havora.png*', async (r) => { hits++; await shut; return r.continue(); });
-        await page.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window); window.__rafs = 0; window.requestAnimationFrame = (cb) => { window.__rafs++; return raf(cb); }; });
+        await page.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window); window.__rafs = 0; window.__rafBy = {}; window.requestAnimationFrame = (cb) => { window.__rafs++; const by = (new Error().stack.split('\n')[2] || '').trim().split('/').pop(); window.__rafBy[by] = (window.__rafBy[by] || 0) + 1; return raf(cb); }; });
         await toPlay(page);
         for (let k = 0; k < 400 && !hits; k++) await page.waitForTimeout(25);
         /* the wait costs the main thread nothing: its other sheets land while it is held, and no frame loop starts for frames that cannot show */
         await page.waitForTimeout(500);
+        /* counted over a plain timer: Playwright's own waitForFunction polls on animation frames */
         const rafs0 = await page.evaluate(() => window.__rafs);
-        const early = await opened(page, 1500);
+        await page.waitForTimeout(1000);
         const spun = (await page.evaluate(() => window.__rafs)) - rafs0;
-        if (spun > 20) fails.push('B-21 while the first view waited on its sheet the page asked for ' + spun + ' animation frames in 1.5 s: the frame loop runs for frames that cannot show');
+        if (spun > 10) fails.push('B-21 while the first view waited on its sheet the page asked for ' + spun + ' animation frames in 1 s: the frame loop runs for frames that cannot show: ' + JSON.stringify(await page.evaluate(() => window.__rafBy)));
+        const early = await opened(page, 500);
         open();
         const later = await opened(page, 15000);
         if (!hits) fails.push('B-21 a view on the Havora sheet never asked for it');

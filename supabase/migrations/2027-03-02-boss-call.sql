@@ -237,7 +237,7 @@ declare
   c_a constant uuid := '000000d6-0000-4000-a000-00007f0c0a01';   -- the leader
   c_b constant uuid := '000000d6-0000-4000-a000-00007f0c0a02';   -- a seated member
   k   constant text := '000000d6-0000-4000-b000-0000';
-  v jsonb; v_pid uuid; v_s text; v_fee bigint; v_hunt text; v_from text; v_gold bigint; v_n int; v_day timestamptz;
+  v jsonb; v_pid uuid; v_s text; v_fee bigint; v_hunt text; v_from text;
 begin
   -- (a) the shape: a signed-in client asks, nobody else; hygiene STRICT is green; every splice is in.
   foreach v_s in array array['public.hr_boss_call(integer,text,bigint,uuid)', 'public.hr_boss_call_view(integer,text)'] loop
@@ -310,11 +310,7 @@ begin
     perform set_config('request.jwt.claim.sub', c_a::text, true);
     v := public.hr_hunt_party_start(0, v_hunt, (k || '00000b07')::uuid);
     if v->>'error' is distinct from 'not_ready' then raise exception 'boss-call §6(g): a free second Start answered %', v; end if;
-    -- (h) THE LIMIT: 3 a UTC day across this account's heroes; yesterday's rows don't count; a purse that can't pay rolls the seats back out.
-    insert into public.player_ledger (user_id, slot, kind, intent, gold, meta) select c_a, 0, 'shop', 'boss_call:rat_king:' || v_fee, 0, '{"reason":"§6 probe"}'::jsonb from generate_series(1, 2);
-    v := public.hr_boss_call(0, 'rat_king', v_fee, (k || '00000b08')::uuid);
-    if v->>'error' is distinct from 'call_limit' then raise exception 'boss-call §6(h): the fourth call answered %', v; end if;
-    update public.player_ledger set at = public.hr_utc_day_start(now()) - interval '1 second' where user_id = c_a and kind = 'shop' and intent like 'boss\_call:%';
+    -- (h) A PURSE THAT CAN'T PAY: refused, charged nothing, every seat rolled back out, the door shut behind it.
     perform set_config('request.jwt.claim.sub', '', true);
     update public.account_wallet set gold = v_fee - 1 where user_id = c_a;
     perform set_config('request.jwt.claim.sub', c_a::text, true);
@@ -322,6 +318,15 @@ begin
     if v->>'error' is distinct from 'insufficient_gold' then raise exception 'boss-call §6(h): a short purse answered %', v; end if;
     if exists (select 1 from public.hunt_sessions where instance_id = v_pid and ended_at is null) or current_setting('hr.boss_call', true) <> '' then
       raise exception 'boss-call §6(h): a short purse left a hero in the room, or the door open'; end if;
+    if (select gold from public.account_wallet where user_id = c_a) <> v_fee - 1 then raise exception 'boss-call §6(h): a refused call charged'; end if;
+    -- (i) THE LIMIT, 3 a UTC day: yesterday's rows don't count, today's do, on any of this account's heroes.
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at)
+      select c_a, 0, 'shop', 'boss_call:rat_king:' || v_fee, 0, '{"reason":"§6 probe"}'::jsonb, public.hr_utc_day_start(now()) - interval '1 second' from generate_series(1, 5);
+    if (public.hr_boss_call_quote(c_a, 0, 'rat_king')->>'used')::int <> 1 then raise exception 'boss-call §6(i): yesterday counted'; end if;
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, meta)
+      select c_a, 1, 'shop', 'boss_call:rat_king:' || v_fee, 0, '{"reason":"§6 probe"}'::jsonb from generate_series(1, 2);
+    v := public.hr_boss_call(0, 'rat_king', v_fee, (k || '00000b0a')::uuid);
+    if v->>'error' is distinct from 'call_limit' then raise exception 'boss-call §6(i): the fourth call answered %', v; end if;
     raise exception using errcode = 'HRL21', message = 'boss-call §6 complete - rolling back';
   exception when sqlstate 'HRL21' then null;
   end;

@@ -618,6 +618,8 @@ function calledRows(S) {
     if (m.yieldPm !== undefined || m.dropBonus !== undefined) throw new Error(`called row ${id} carries a yield: damage.js yieldOf reads 0 as full yield`);
     if (m.boss !== true) throw new Error(`called row ${id} is no boss: it would get a training row and a door of its own`);
   }
+  /* The table's CHECK tells a called row by its id (hr_hunt_kill_bounds_xp_max_check): the id and the flag agree, both ways. */
+  for (const id of Object.keys(S.monsters)) if (/_called$/.test(id) !== (S.monsters[id].called === true)) throw new Error(`monster ${id}: an id ends _called exactly when its row is called`);
   const rows = Object.values(S.calls).map((c) => {
     const h = S.hunts.find((x) => x.id === c.hunt);
     const g = Object.values(S.grounds).find((x) => x.hunt === c.hunt);
@@ -1024,6 +1026,10 @@ alter table public.hr_hunt_weapon_roles add constraint hr_hunt_weapon_roles_with
 create table if not exists public.hr_hunt_shields (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$')
 );
+-- CALL OUT, THE MONEY LINE AS A CHECK: a normal monster's XP bound stays at least 1 (a 0 refuses every kill of it), and a called row's whole bound is nothing. The id tells them apart (calledRows holds id and flag equal).
+alter table public.hr_hunt_kill_bounds drop constraint if exists hr_hunt_kill_bounds_xp_max_check;
+alter table public.hr_hunt_kill_bounds add constraint hr_hunt_kill_bounds_xp_max_check
+  check ((monster_id !~ '_called$' and xp_max >= 1) or (monster_id ~ '_called$' and xp_max = 0 and gold_max = 0 and drops = '{}'::jsonb));
 -- CALL OUT (boss-calls.js): which rooms, what fee. Read by hr_hunt_admit, hr_boss_call and the settle's proof of the room's ends.
 create table if not exists public.hr_boss_calls (
   call_id    text   primary key check (call_id ~ '^[a-z0-9_]{1,64}$'),
@@ -1322,6 +1328,8 @@ function selftest() {
     'a called row that pays coin': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, gp: [0, 1] } } }),
     'a called row that drops': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, drops: [{ id: 'bones', ch: 1, band: 'common' }] } } }),
     'a called row with a yield of nothing': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, yieldPm: 0 } } }),
+    'a paying row named as a called one': () => ({ monsters: { ...MONSTERS, rat_called: { ...MONSTERS.rat } } }),
+    'a called row with an ordinary id': () => ({ monsters: { ...MONSTERS, rat_king_copy: { ...MONSTERS.rat_king_called } } }),
     'a called room fielding a row that pays': () => ({ grounds: { ...OPEN_GROUNDS, ...CALLED_GROUNDS, millrace_sewer_called: { ...CALLED_GROUNDS.millrace_sewer_called,
       pockets: [{ room: [51, 17, 57, 29], spawns: [{ monster: 'rat_king', x: 55, y: 23 }] }] } } }),
     'a normal ground fielding a called row': () => ({ grounds: { ...OPEN_GROUNDS, ...CALLED_GROUNDS, mill_cellar: { ...OPEN_GROUNDS.mill_cellar,

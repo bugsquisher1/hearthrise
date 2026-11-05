@@ -342,6 +342,10 @@ alter table public.hr_hunt_weapon_roles add constraint hr_hunt_weapon_roles_with
 create table if not exists public.hr_hunt_shields (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$')
 );
+-- CALL OUT, THE MONEY LINE AS A CHECK: a normal monster's XP bound stays at least 1 (a 0 refuses every kill of it), and a called row's whole bound is nothing. The id tells them apart (calledRows holds id and flag equal).
+alter table public.hr_hunt_kill_bounds drop constraint if exists hr_hunt_kill_bounds_xp_max_check;
+alter table public.hr_hunt_kill_bounds add constraint hr_hunt_kill_bounds_xp_max_check
+  check ((monster_id !~ '_called$' and xp_max >= 1) or (monster_id ~ '_called$' and xp_max = 0 and gold_max = 0 and drops = '{}'::jsonb));
 -- CALL OUT (boss-calls.js): which rooms, what fee. Read by hr_hunt_admit, hr_boss_call and the settle's proof of the room's ends.
 create table if not exists public.hr_boss_calls (
   call_id    text   primary key check (call_id ~ '^[a-z0-9_]{1,64}$'),

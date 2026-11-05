@@ -90,7 +90,7 @@ renderHavora.patch = function patchHavora(body, ctx) {
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.hv-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
   const purse = goldOf(cs);
-  text(root.querySelector('.hv-gold'), purse === null ? '' : 'Your purse: ' + gold(purse));
+  text(root.querySelector('.hv-gold'), purse === null ? '' : 'Purse: ' + gold(purse));
   const s = sc.sinks;
   const picked = pickedOf(sc);
   for (const b of root.querySelectorAll('.hv-powder')) attr(b, 'aria-checked', String(b.getAttribute('data-show') === picked));

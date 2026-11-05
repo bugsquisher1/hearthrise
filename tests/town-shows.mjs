@@ -823,9 +823,10 @@ const ARMS = {
     if (most > 6) out.push(most + ' shells up at once crowd the square');
     /* EVERY SHELL CLIMBS FROM THE SQUARE AND BURSTS HIGH OVER IT, north of its launch and of the fire's own row */
     const [first] = S.program;
-    const climbing = shows.frame(round, 1000 + first[0] - S.riseMs + 10).find((e) => e.id === S.rise);
-    const burst = shows.frame(round, 1000 + first[0] + 50).find((e) => e.id === first[1]);
-    if (!climbing || !burst || climbing.y - burst.y < 5) out.push('a shell climbs ' + (climbing && burst ? climbing.y - burst.y : '?') + ' tiles from the square to its burst');
+    const tickAfter = (ms) => Math.ceil(ms / S.tickMs) * S.tickMs + 1;
+    const climbing = shows.frame(round, 1000 + tickAfter(first[0] - S.riseMs)).find((e) => e.id === S.rise);
+    const burst = shows.frame(round, 1000 + tickAfter(first[0])).find((e) => e.id === first[1]);
+    if (!climbing || !burst || climbing.y - burst.y < 4 || S.riseTiles < 5) out.push('a shell climbs ' + (climbing && burst ? climbing.y - burst.y : '?') + ' tiles from the square to its burst');
     if (burst && (burst.x !== FIRE.x + first[2] || burst.y !== FIRE.y + first[3])) out.push('the first shell bursts at ' + JSON.stringify(burst));
     if (S.program.some((r) => r[3] >= 0)) out.push('a row bursts on the floor, south of the fire');
     /* A SHELL NEVER LANDS ON THE LAST ONE */

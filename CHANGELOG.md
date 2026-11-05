@@ -7,6 +7,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## Unreleased
 
+- A blow that misses your hero now strikes a small spark off it, on the side the blow came from, instead of floating "miss" over its head. Your own missed swings leave a small scuff on the monster. The combat log says who missed whom in words, and "Missed blows and immune hits" in Settings turns the sparks off.
+- The chat's Combat tab now shows its lines at the window's normal size, follows the newest one and names everyone in them. Its filters fold away under "Filter lines".
 **The smith tempers your gear.** On the Shop's Services tab (R), a hero wearing gear from Level 15 up can pay gold for a little more from it. Each rung of Blows makes your blows and heals land 1% harder; each rung of Armor lets 1% less damage reach you; five rungs of each. Every tier of gear has its own rungs. It can't fail, nothing wears out, and your hero keeps it through a death.
 
 ## v0.2.90 — 2026-11-04 (Armor That Answers)

@@ -95,6 +95,7 @@ function style1Input(root = ROOT, over = {}) {
   for (const set of listSets(root)) sidecars[set] = readSidecars(root, set);
   return {
     atlasSets, artSets: listSets(root), builtSets: built, sidecars, code: over.code || codeRefs(root),
+    scripts: existsSync(join(root, 'tools/world-art')) ? readdirSync(join(root, 'tools/world-art')).map((f) => 'tools/world-art/' + f) : [],
     refs: reachableRefs({ maps: over.maps || WORLD_MAPS, layouts: ROOM_LAYOUTS, trophySprites: TROPHY_MOUNT_SPRITES, peerLooks: Object.values(OUTFITS),
       crier: 'npc_crier', outfits: Object.values(OUTFITS), huntIndex: HUNT_INDEX, grounds: HUNT_GROUNDS }),
   };
@@ -363,6 +364,10 @@ function selftest(atlases) {
     return sc; };
   { const inp = style1Input(); oldSidecar(inp); s1('a pre-style-1 sidecar (no style mark) in a loaded set', 's1-source', inp); }
   { const inp = style1Input(); const set = inp.atlasSets[0]; inp.sidecars[set] = inp.sidecars[set].map((sc, i) => (i ? sc : Object.assign({}, sc, { style: 's1', pixellab: undefined, notes: 'hand' }))); s1('a style mark with no style-1 source', 's1-source', inp); }
+  /* a drawing script passes an effect only, and only a script that is really here */
+  const planted = (o) => { const inp = style1Input(); const set = inp.atlasSets[0]; inp.sidecars[set] = inp.sidecars[set].concat([Object.assign({ id: 'planted', style: 's1', source: 'planted.png' }, o)]); return inp; };
+  s1('an effect naming a drawing script that is not in the tree', 's1-source', planted({ class: 'vfx', drawn: 'tools/world-art/no-such-script.mjs' }));
+  s1('a world sprite claiming a drawing script', 's1-source', planted({ class: 'barrel', drawn: 'tools/world-art/glance-spark.mjs' }));
   { const maps = WORLD_MAPS.map((m) => (m.id === 'mill_cellar' ? Object.assign({}, m, { objects: m.objects.concat([{ id: 'barrel_old', x: 10, y: 6 }]) }) : m));
     s1('an old sprite id placed on a reachable map', 's1-ref', style1Input(ROOT, { maps })); }
   { const maps = WORLD_MAPS.map((m) => (m.id === 'town_common' ? Object.assign({}, m, { ground: 'town_ground' }) : m)); s1('a map on the old town ground', 's1-ref', style1Input(ROOT, { maps })); }

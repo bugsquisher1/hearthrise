@@ -272,6 +272,10 @@ export const REFUSAL_WORDS = Object.freeze({
   title_kills: 'That title takes more kills first. Gold can\'t skip kills.',
   title_owned: 'This hero already has that title.',
   title_not_owned: 'This hero hasn\'t claimed that title yet.',
+  /* The Hallmark step (2027-03-14-jewelry-hallmark.sql). With the server's numbers these read from intent-words.js refusalText. */
+  hallmark_level: 'A Hallmark takes a higher Crafting level.',
+  hallmark_limit: 'Your heroes made 10 Hallmarks today. More after midnight UTC.',
+  unknown_hallmark: 'That piece can\'t be Hallmarked that way. Pick another perk.',
   /* The tier picked per ground (hr_hunt_tier_set). */
   bad_hunt: 'That hunt has no monsters to set a number for.',
   bad_tier: 'This hunt can\'t be hunted that way yet.',

@@ -16,6 +16,8 @@ import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords } from '../i
 import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.96';
 import { planWords } from '../loot-dispatch.js?v=0.2.96';
 import { pieceWords } from '../../data/armour-weights.js?v=0.2.96';
+import { ITEMS } from '../../data/items.js?v=0.2.96';
+import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.96';
 
 const GAP = 10;
 
@@ -33,6 +35,10 @@ function tipHtml(id, o) {
   if (fl) h += '<i class="hw-tip-flavour">' + esc(fl) + '</i>';
   const stats = statLines(id);
   if (stats.length) h += '<dl class="hw-tip-stats">' + stats.map((s) => '<dt>' + esc(s.label) + '</dt><dd>' + esc(s.text) + '</dd>').join('') + '</dl>';
+  /* A crafted piece's perks (src/data/jewelry.js), each in what a player sees; each counts once on a hero, however many pieces carry it. */
+  const perks = ITEMS[id] && ITEMS[id].jewelPerks ? Object.entries(ITEMS[id].jewelPerks) : [];
+  if (perks.length) h += '<dl class="hw-tip-stats hw-tip-perks">' + perks.map(([p, pm]) => '<dt>' + esc(JEWEL_PERKS[p] ? JEWEL_PERKS[p].name : p) + '</dt><dd>' + esc(perkWords(p, pm)) + '</dd>').join('') + '</dl>'
+    + '<p class="hw-tip-line"><small>Perks</small>Each perk counts once, however many pieces you wear with it.</p>';
   if (stats.length && opt.worn !== undefined) {
     if (opt.worn === id) h += '<p class="hw-tip-cmp">You are wearing this.</p>';
     else {

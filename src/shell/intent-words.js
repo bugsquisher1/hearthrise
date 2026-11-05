@@ -114,6 +114,13 @@ export function refusalText(r, cs) {
     return title.name + ' takes ' + whole(r.figures.need) + ' ' + title.noun + '. ' + ((cs && nameOf(cs)) || 'This hero') + ' has ' + whole(r.figures.have) + '. Gold can\'t skip kills.';
   }
   if (title && r.error === 'title_owned' && cs && nameOf(cs)) return nameOf(cs) + ' already has that title.';
+  /* The Hallmark step under its Crafting level, or past the account's day (hr_hallmark sends the numbers). */
+  if (r && r.error === 'hallmark_level' && r.figures && Number.isInteger(r.figures.need) && Number.isInteger(r.figures.have)) {
+    return 'A Hallmark takes Crafting ' + r.figures.need + '. ' + ((cs && nameOf(cs)) || 'This hero') + ' has ' + r.figures.have + '.';
+  }
+  if (r && r.error === 'hallmark_limit' && r.figures && Number.isInteger(r.figures.limit)) {
+    return 'Your heroes made ' + r.figures.limit + ' Hallmarks today. More after midnight UTC.';
+  }
   /* A town action above the server's skill level: town-work.js names the skill, both levels and the action. */
   if (r && r.error === 'level_too_low' && r.skill && Number.isInteger(r.skill.need)) return skillShortWords(r.skill.id, r.skill.need, r.skill.have, r.skill.doing);
   if (r && (r.error === 'requirement_not_met' || r.error === 'level_too_low') && r.item) {

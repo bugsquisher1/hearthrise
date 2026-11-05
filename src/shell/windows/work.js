@@ -38,6 +38,8 @@ import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf,
 import { saleWords } from '../item-lore.js?v=0.2.96';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.96';
 import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.96';
+import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.96';
+import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.96';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
@@ -81,13 +83,24 @@ function recipeWords(w) {
   const ins = Object.entries(recipeInputs(w.row)).map(([id, n]) => whole(n) + ' ' + itemName(id)).join(' + ');
   const out = productOf(w);
   const n = yieldOf(w);
+  /* A ROLLED job (src/data/jewelry.js) names the grades it can make; its odds line says how likely each is. */
+  if (out && w.row.roll === 'gem') return ins + ' → a Fine or Hallmarked ' + itemName(out);
   return out ? ins + ' → ' + (n > 1 ? whole(n) + ' ' : '') + itemName(out) : ins;
+}
+
+/* A rolled job's odds at the server's Crafting level, BEFORE the roll (Tyler 2026-11-05, call 6). No gold moves on a roll. */
+function oddsWords(cs, w) {
+  const o = rollOddsOf(cs, w.row);
+  if (!o) return '';
+  const perks = o.perks.length > 1 ? o.perks.slice(0, -1).join(', ') + ' or ' + o.perks[o.perks.length - 1] : o.perks.join('');
+  return 'At your Crafting ' + o.level + ': ' + (o.plain ? 'Fine ' + o.fine + ', Hallmarked ' + o.hallmarked + ', otherwise plain'
+    : 'Hallmarked ' + o.hallmarked + ', otherwise Fine') + '. Perks: ' + perks + '. No bench fee on a roll.';
 }
 
 function rowHtml(g, w) {
   const icon = productOf(w) || Object.keys(recipeInputs(w.row))[0];
   return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '"><span class="hw-ico">' + itemIconHtml(g, icon) + '</span>'
-    + '<span class="hw-line-name"><b>' + esc(w.row.name) + '</b><small class="hw-work-what"></small><small class="hw-work-fee"></small><small class="hw-work-why"></small>'
+    + '<span class="hw-line-name"><b>' + esc(w.row.name) + '</b><small class="hw-work-what"></small><small class="hw-work-odds"></small><small class="hw-work-fee"></small><small class="hw-work-why"></small>'
     /* "Make N" (a bench row only), under the row's words: how many the next Start makes; the server stops the bench there. */
     + (w.kind === 'artisan' ? '<span class="hh-segs hw-work-n" role="group" aria-label="How many to make">'
       + BENCH_COUNTS.map((n) => '<button type="button" class="hh-seg" data-hs-act="work-n" data-id="' + esc(w.id) + '" data-n="' + n + '">'
@@ -110,6 +123,9 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const pick = gather ? 'all' : countOf(sc, w);
   /* The bench's count reads what it draws on: the server's bag + Storage (heldOf), the server's own order. */
   const runs = gather ? 0 : affordable(cs, w, runsOf(w.row, heldOf(cs)));
+  const odds = li.querySelector('.hw-work-odds'), oddsSaid = gather ? '' : oddsWords(cs, w);
+  text(odds, oddsSaid);
+  prop(odds, 'hidden', !oddsSaid);
   /* What the public bench takes, before the press (bench-fee.js): the whole sentence on the pointer, the number on the row. */
   const fee = li.querySelector('.hw-work-fee');
   text(fee, feeRowWords(cs, w));
@@ -142,7 +158,7 @@ export function renderWork() {
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ All skills</button>'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
-    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p><ul class="hw-ledger hw-work-rows"></ul></section>'
+    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p><ul class="hw-ledger hw-work-rows"></ul>' + hallmarkPaneHtml() + '</section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -202,6 +218,10 @@ renderWork.patch = function patchWork(body, ctx) {
       patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv),
     });
   }
+  /* The Hallmark step belongs to Crafting (src/data/jewelry.js JEWEL_SKILL): shown under its rows only. */
+  const hall = view.querySelector('.hw-hallmark');
+  prop(hall, 'hidden', skill !== 'crafting');
+  if (skill === 'crafting') patchHallmarkPane(hall, ctx, sc);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   cls(root, 'is-pending', sc.pending);
 };
@@ -220,6 +240,7 @@ renderWork.act = function actWork(ctx, body, action, ev, t) {
   if (action === 'open-skill') { sc.skill = t.getAttribute('data-skill'); sc.msg = ''; repaint(); return true; }
   if (action === 'work-back') { sc.skill = null; sc.msg = ''; repaint(); return true; }
   if (action === 'work-stop') { if (workOf(cs)) stopWork(cs, send); return true; }
+  if (action.indexOf('hallmark-') === 0) return actHallmarkPane(ctx, action, t, sc, repaint);
   if (action === 'work-n') {
     const id = t.getAttribute('data-id');
     const raw = t.getAttribute('data-n');

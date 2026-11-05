@@ -35,6 +35,7 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { CROPS } from '../src/data/gathering.js';
 import { STAMINA_REFILL, validate as validateRefill } from '../src/data/stamina-refill.js';
 import { BLESSING_RULES, BLESSING_TIERS, validate as validateBlessings } from '../src/data/blessings.js';
+import { JEWEL_PIECES, JEWEL_SHOP_PRICE, JEWEL_SHOP_PREMIUM } from '../src/data/jewelry.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,7 +49,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    after 2027-01-13-items-catalogue.generated.sql (hr_items first): the same full delete+insert replace. */
 /* GOLD MATTERS (lane/c-gold-matters, designer 2026-11-03): 2027-01-13 is APPLIED history; the stamina refill's first buy moves to 1,000 g + 250 g a Level
    in this forward file, the same full delete+insert replace. No shop, seed or Blessing row moves. */
-export const OUT_NAME = '2027-02-24-gold-matters-alpha-catalogue.generated.sql';
+/* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05, call 5): 2027-02-24 is APPLIED history; the plain Banded Signet joins the outfitter at
+   its premium (src/data/jewelry.js JEWEL_SHOP_PRICE) in this forward file, the same full delete+insert replace. No other row moves. */
+export const OUT_NAME = '2027-03-14-jewelry-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
@@ -79,6 +82,15 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
       const it = items[o.item];
       if (it.type !== 'tool' || it.toolTier !== 1 || o.basic !== null) throw new Error(`tool offer ${o.item} is not a tier-1 gathering tool with no basic`);
       if (o.price !== SHOP_PREMIUM * Number(it.v)) throw new Error(`tool offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
+      return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
+    }
+    if (o.kind === 'gear' && own(JEWEL_SHOP_PRICE, o.item)) {
+      /* PLAIN CRAFTED JEWELRY STAYS IN THE SHOP AT A PREMIUM (Tyler 2026-11-05, call 5): a crafted piece's plain row, at its own price and at least
+         JEWEL_SHOP_PREMIUM x its book, so the Shop never undercuts the crafter and buy-then-sell always loses. The one door past tier 1. */
+      const it = items[o.item];
+      if (!JEWEL_PIECES[o.item] || it.jewelGrade || o.basic !== null) throw new Error(`gear offer ${o.item} is not a plain crafted jewelry piece with no basic`);
+      if (o.price !== JEWEL_SHOP_PRICE[o.item] || o.price < JEWEL_SHOP_PREMIUM * Number(it.v)) throw new Error(`gear offer ${o.item} at ${o.price} g is not its premium (${JEWEL_SHOP_PRICE[o.item]} g, at least ${JEWEL_SHOP_PREMIUM} x its book ${it.v})`);
+      if (it.bop || !(Number(it.v) > 0)) throw new Error(`gear offer ${o.item} is bound or has no book value`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
     if (o.kind === 'gear') {
@@ -264,6 +276,8 @@ function gearCases(base) {
     ['gear that is a field-salvage find', g({ item: 'apprentice_gloves', offer: 'supply.apprentice_gloves', price: v('apprentice_gloves') })],
     ['gear under the premium', g({ price: v(base[at].item) - 1 })],
     ['gear with a basic', g({ basic: 'salted_shrimp' })],
+    ['a crafted ring under its premium', g({ item: 'banded_signet', offer: 'supply.banded_signet', price: JEWEL_SHOP_PRICE.banded_signet - 1 })],
+    ['a Fine ring in the Shop', g({ item: 'banded_signet_keen', offer: 'supply.banded_signet_keen', price: JEWEL_SHOP_PRICE.banded_signet })],
   ];
 }
 

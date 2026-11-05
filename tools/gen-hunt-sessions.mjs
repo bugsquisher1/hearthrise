@@ -212,7 +212,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* GOLD MATTERS (lane/c-gold-matters, designer 2026-11-03): 2027-02-24-risk is the file before this one and this one carries it; 15 monsters' coin moves hr_hunt_kill_bounds' gold_max (down on Wickstead, the Glade's
    poachers, the Sewer's bat and spider; up on the Warrens and the Rat King) and tier 2's hourly armor moves hr_hunt_vendor_value, the same full replace. No spawn, limit or shape moves. */
 /* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-28-temper-craft is the file before this one and this one carries it; the deeper store runes join hr_hunt_basic_supplies and the deeper runes' bids move in hr_hunt_vendor_value, the same full replace. No kill bound, spawn, limit or shape moves. */
-export const OUT_NAME = '2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql';
+/* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05): 2027-03-08-rune-ladder is APPLIED history; the Turncoat's rare Banded Signet becomes a Road Garnet
+   (hr_hunt_drop_rows, hr_hunt_kill_bounds) and hr_hunt_vendor_value gains the garnet's and the graded rings' bids, the same full replace. No spawn, limit or shape moves. */
+export const OUT_NAME = '2027-03-14-jewelry-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

@@ -48,7 +48,8 @@ export function rowsOf() {
   const out = [];
   for (const skill of Object.keys(BENCH_TAX).sort()) {
     for (const r of ARTISAN_RECIPES[skill]) {
-      if (!r.id || !r.output || seen.has(r.id)) continue;
+      /* A ROLLED job pays no tax (Tyler 2026-11-05, call 5: no gold moves on a roll; src/data/jewelry.js): no row, so no fee. */
+      if (!r.id || !r.output || r.roll || seen.has(r.id)) continue;
       seen.add(r.id);
       out.push({ recipe: r.id, skill, output: r.output, qty: Math.max(1, Number(r.outputQty) || 1) });
     }

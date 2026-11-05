@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
+// mutant-anchors: supabase/migrations/2027-02-27-hunt-tiers.sql supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
 // mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -83,6 +83,8 @@ const RESET = '2027-02-10-party-instance-reset.sql';
 const NUDGE = '2027-02-11-party-nudge.sql';
 /* 2027-02-18-party-truth.sql restates the seat, join, decline, kick, disband, leave, sweep and finder bodies last: their mutants plant there. */
 const TRUTH = '2027-02-18-party-truth.sql';
+/* 2027-02-27-hunt-tiers.sql restates hr_hunt_party_view last (the tier replaces the density): its mutants plant there. */
+const TIERS = '2027-02-27-hunt-tiers.sql';
 /* 2027-02-20-party-leader-starts.sql restates hr_hunt_enter last: only the leader starts. */
 const LEAD = '2027-02-20-party-leader-starts.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
@@ -846,7 +848,7 @@ MUTANTS.push(
 
 /* The party says what the server knows (2027-02-18-party-truth.sql, blind panel 2026-11-01). */
 MUTANTS.push(
-  { arm: 'PF-ROLE', file: TRUTH, why: 'the view reads a fixed weapon, not what is worn',
+  { arm: 'PF-ROLE', file: TIERS, why: 'the view reads a fixed weapon, not what is worn',
     find: "    select m.user_id, m.slot, m.seat::int as seat, public.hr_hunt_weapon_of(m.user_id, m.slot) as weapon, h.id as sid,",
     repl: "    select m.user_id, m.slot, m.seat::int as seat, 'shield'::text as weapon, h.id as sid," },
   { arm: 'PF-ROLE', file: TRUTH, why: 'the finder lists a fixed weapon',
@@ -892,7 +894,7 @@ MUTANTS.push(
     find: "      perform public.hr_party_notice(v_m.user_id, v_m.slot, 'ground_warn', v_uid, p_slot, p_hunt);\n", repl: '' },
   { arm: 'PF-END-WHY', file: TRUTH, why: 'a cascaded hero is named as the cause',
     find: "         and o.end_reason <> all (array['party_member_died', 'party_member_left'])\n", repl: '' },
-  { arm: 'PF-END-WHY', file: TRUTH, why: 'a seat\'s whole stamina pool is shown',
+  { arm: 'PF-END-WHY', file: TIERS, why: 'a seat\'s whole stamina pool is shown',
     find: 'and ps.stamina_at is not null and ps.stamina_ms <= 900000 then', repl: 'and ps.stamina_at is not null then' },
 );
 

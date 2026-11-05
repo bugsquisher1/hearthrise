@@ -8,15 +8,26 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 15bcdf6be3d9bc9ec8512b1ff57f4a4d6608ff15d05cba2e43b47f58f2c379b1
+--   digest: d4681e33ad999c5dba5e14f21d89b8e95ca79bfd159855f235059fc2e98d175d
 --   82 supplies, 130 hunts (named + training), 47 limits, 15 end reasons,
---   548 vendor values, 25 store supplies paid per use, 5 target modes,
+--   550 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 8 hunt grounds
+--
+-- NEW IN THIS FILE (lane/c-rune-ladder, Tyler 2026-11-05: "let start with your calls"): hr_hunt_basic_supplies gains one store rune a
+-- family a tier above Plain (src/data/supply-basics.js STORE_RUNE_PRICE), and hr_hunt_vendor_value moves the deeper runes' bids to their new
+-- book (src/data/stonecraft.js RUNE_VALUE). Plain does not move and no bar is rewritten. No kill bound, spawn or limit moves and the world's
+-- shape is unchanged (no world_shape_pending on either order). The old engine never buys a new row: it casts a slot only on the store row
+-- partnering the family's Chalked rune. ORDER: after 2027-03-08-rune-ladder-items-catalogue.generated.sql, before
+-- 2027-03-08-rune-ladder-rune-spells.generated.sql and 2027-03-08-rune-ladder-slots.sql; the hr-accrue carrying the same rows deploys at once.
+--
+-- NEW IN THIS FILE (lane/c-etched-12g, Tyler 2026-11-05: at 10 g Etched read +39% XP for only -429 g/h): every family's Etched store rune costs 12 g, up from 10
+-- (STORE_RUNE_PRICE). Nothing else moves; the world's shape is unchanged (no world_shape_pending on either order). ORDER: after 2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql
+-- (it carries that file), then the hr-accrue carrying the same price deploys at once.
 --
 -- NEW IN THIS FILE (lane/c-boss-call, Tyler 2026-11-04, src/data/boss-calls.js): the two called rooms in hr_hunt_grounds, hr_hunt_ground_spawns and hr_hunt_travel; their two called rows in
 -- hr_hunt_kill_bounds, every bound 0 (a called row pays nothing); END_ORDER's boss_felled and boss_time (hr_hunt_end_reasons, hunt_sessions.end_reason's CHECK); hr_boss_calls. hr_hunt_roster does not
 -- move: the Bestiary never counts a called row. The world's shape is unchanged (no world_shape_pending on either order), and nobody can reach a room until 2027-03-12-boss-call.sql. ORDER: after
--- 2027-03-12-boss-call-hunts-catalogue.generated.sql (every ground hunt is in hr_hunts), right before 2027-03-12-boss-call.sql.
+-- 2027-03-11-etched-12g-hunt-sessions-catalogue.generated.sql (it carries that file) and 2027-03-12-boss-call-hunts-catalogue.generated.sql (every ground hunt is in hr_hunts), right before 2027-03-12-boss-call.sql.
 --
 -- CARRIED FROM 2027-02-24-gold-matters (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
 -- the Glade's poachers and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and
@@ -455,10 +466,28 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
 delete from public.hr_hunt_basic_supplies;
 insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price) values
   ('plain_barbed_arrows', 'ammo', 'barbed_arrows', 0, 0, 1),
+  ('plain_carved_earth_rune', 'ammo', 'carved_earth_rune', 0, 0, 16),
+  ('plain_carved_fire_rune', 'ammo', 'carved_fire_rune', 0, 0, 16),
+  ('plain_carved_ice_rune', 'ammo', 'carved_ice_rune', 0, 0, 16),
+  ('plain_carved_poison_rune', 'ammo', 'carved_poison_rune', 0, 0, 16),
+  ('plain_carved_rupture_rune', 'ammo', 'carved_rupture_rune', 0, 0, 16),
+  ('plain_carved_water_rune', 'ammo', 'carved_water_rune', 0, 0, 16),
   ('plain_dawnpoint_arrows', 'ammo', 'dawnpoint_arrows', 0, 0, 12),
   ('plain_earth_rune', 'ammo', 'chalked_earth_rune', 0, 0, 1),
   ('plain_emberhead_arrows', 'ammo', 'emberhead_arrows', 0, 0, 9),
+  ('plain_etched_earth_rune', 'ammo', 'etched_earth_rune', 0, 0, 12),
+  ('plain_etched_fire_rune', 'ammo', 'etched_fire_rune', 0, 0, 12),
+  ('plain_etched_ice_rune', 'ammo', 'etched_ice_rune', 0, 0, 12),
+  ('plain_etched_poison_rune', 'ammo', 'etched_poison_rune', 0, 0, 12),
+  ('plain_etched_rupture_rune', 'ammo', 'etched_rupture_rune', 0, 0, 12),
+  ('plain_etched_water_rune', 'ammo', 'etched_water_rune', 0, 0, 12),
   ('plain_fire_rune', 'ammo', 'chalked_fire_rune', 0, 0, 1),
+  ('plain_graven_earth_rune', 'ammo', 'graven_earth_rune', 0, 0, 24),
+  ('plain_graven_fire_rune', 'ammo', 'graven_fire_rune', 0, 0, 24),
+  ('plain_graven_ice_rune', 'ammo', 'graven_ice_rune', 0, 0, 24),
+  ('plain_graven_poison_rune', 'ammo', 'graven_poison_rune', 0, 0, 24),
+  ('plain_graven_rupture_rune', 'ammo', 'graven_rupture_rune', 0, 0, 24),
+  ('plain_graven_water_rune', 'ammo', 'graven_water_rune', 0, 0, 24),
   ('plain_ice_rune', 'ammo', 'chalked_ice_rune', 0, 0, 1),
   ('plain_iron_arrows', 'ammo', 'iron_arrows', 0, 0, 1),
   ('plain_iron_bolts', 'ammo', 'iron_bolts', 0, 0, 1),
@@ -466,6 +495,12 @@ insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana,
   ('plain_poison_rune', 'ammo', 'chalked_poison_rune', 0, 0, 1),
   ('plain_rune_arrows', 'ammo', 'rune_arrows', 0, 0, 6),
   ('plain_rupture_rune', 'ammo', 'chalked_rupture_rune', 0, 0, 1),
+  ('plain_scored_earth_rune', 'ammo', 'scored_earth_rune', 0, 0, 8),
+  ('plain_scored_fire_rune', 'ammo', 'scored_fire_rune', 0, 0, 8),
+  ('plain_scored_ice_rune', 'ammo', 'scored_ice_rune', 0, 0, 8),
+  ('plain_scored_poison_rune', 'ammo', 'scored_poison_rune', 0, 0, 8),
+  ('plain_scored_rupture_rune', 'ammo', 'scored_rupture_rune', 0, 0, 8),
+  ('plain_scored_water_rune', 'ammo', 'scored_water_rune', 0, 0, 8),
   ('plain_steel_arrows', 'ammo', 'steel_arrows', 0, 0, 1),
   ('plain_water_rune', 'ammo', 'chalked_water_rune', 0, 0, 1),
   ('salted_lobster', 'heal', 'cooked_lobster', 216, 0, 180),
@@ -1145,12 +1180,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('carrot_juice', 11),
   ('carrot_seed', 5),
   ('carrot_stew', 200),
-  ('carved_earth_rune', 2),
-  ('carved_fire_rune', 2),
-  ('carved_ice_rune', 2),
-  ('carved_poison_rune', 2),
-  ('carved_rupture_rune', 2),
-  ('carved_water_rune', 2),
+  ('carved_earth_rune', 6),
+  ('carved_fire_rune', 6),
+  ('carved_ice_rune', 6),
+  ('carved_poison_rune', 6),
+  ('carved_rupture_rune', 6),
+  ('carved_water_rune', 6),
   ('chief_blade', 450),
   ('chitin_belt', 117),
   ('chitin_body', 441),
@@ -1259,15 +1294,16 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('emberfruit_seed', 150),
   ('emberhead_arrows', 4),
   ('emberstone_ore', 11),
-  ('etched_earth_rune', 1),
-  ('etched_fire_rune', 1),
-  ('etched_ice_rune', 1),
-  ('etched_poison_rune', 1),
-  ('etched_rupture_rune', 1),
-  ('etched_water_rune', 1),
+  ('etched_earth_rune', 3),
+  ('etched_fire_rune', 3),
+  ('etched_ice_rune', 3),
+  ('etched_poison_rune', 3),
+  ('etched_rupture_rune', 3),
+  ('etched_water_rune', 3),
   ('fang_studs', 65),
   ('fangdart_recurve', 1008),
   ('field_ration', 90),
+  ('fine_temper_salts', 12),
   ('fishers_pie', 520),
   ('flux_salt', 3),
   ('foremans_lash', 18),
@@ -1287,12 +1323,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('goldgill', 4),
   ('granary_whisker', 3),
   ('grave_dust', 19),
-  ('graven_earth_rune', 3),
-  ('graven_fire_rune', 3),
-  ('graven_ice_rune', 3),
-  ('graven_poison_rune', 3),
-  ('graven_rupture_rune', 3),
-  ('graven_water_rune', 3),
+  ('graven_earth_rune', 10),
+  ('graven_fire_rune', 10),
+  ('graven_ice_rune', 10),
+  ('graven_poison_rune', 10),
+  ('graven_rupture_rune', 10),
+  ('graven_water_rune', 10),
   ('gray_dewclaw', 3),
   ('grayjaw_whisker', 6),
   ('grayjaws_ruff', 155),
@@ -1453,12 +1489,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('scholar_gloves', 34),
   ('scholar_helmet', 58),
   ('scholar_pants', 107),
-  ('scored_earth_rune', 1),
-  ('scored_fire_rune', 1),
-  ('scored_ice_rune', 1),
-  ('scored_poison_rune', 1),
-  ('scored_rupture_rune', 1),
-  ('scored_water_rune', 1),
+  ('scored_earth_rune', 3),
+  ('scored_fire_rune', 3),
+  ('scored_ice_rune', 3),
+  ('scored_poison_rune', 3),
+  ('scored_rupture_rune', 3),
+  ('scored_water_rune', 3),
   ('shadow_pelt', 96),
   ('shadow_thread', 64),
   ('shadowsilk_cape', 1512),
@@ -1519,6 +1555,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('sump_membrane', 4),
   ('swarm_heart', 650),
   ('swordfish', 8),
+  ('temper_salts', 7),
   ('timber_beam', 46),
   ('tomato', 18),
   ('tomato_juice', 30),
@@ -1632,8 +1669,8 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 130
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 15
-     or (select count(*) from public.hr_hunt_vendor_value) <> 548
-     or (select count(*) from public.hr_hunt_basic_supplies) <> 25
+     or (select count(*) from public.hr_hunt_vendor_value) <> 550
+     or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
      or exists (select 1 from public.hr_hunt_travel where tier is not null)
@@ -1914,6 +1951,13 @@ begin
    order by 1 limit 1;
   if v_t is not null then
     raise exception 'the settle''s item bound is under what a monster of the ground drops: % (hunt item)', v_t; end if;
+  -- THE RUNE LADDER (2027-03-08): the items catalogue landed first, every rune of a store row is listed from its bid, and no store rune sells at or under what the shop pays for its rune.
+  if (select i.value from public.hr_items i where i.item_id = 'scored_fire_rune') is distinct from 3 then
+    raise exception 'apply 2027-03-08-rune-ladder-items-catalogue.generated.sql first: hr_items.scored_fire_rune is not 3'; end if;
+  if exists (select 1 from public.hr_hunt_basic_supplies q join public.hr_hunt_vendor_value v on v.item_id = q.partner
+              join public.hr_hunt_supplies p on p.item_id = q.partner
+             where q.partner like '%_rune' and q.price <= v.unit) then
+    raise exception 'a store rune sells at or under the shop''s bid for its own rune'; end if;
   -- THE CRAFT WAGE (2027-02-18): the items catalogue landed first, and the Weighhouse reads the new floor; refined goods are bid at a
   -- fifth of book, and no item a ground can drop lost its bid (a stack the shop will not buy is a stack sell-all leaves in the bag).
   if (select i.value from public.hr_items i where i.item_id = 'iron_bar') is distinct from 30 then

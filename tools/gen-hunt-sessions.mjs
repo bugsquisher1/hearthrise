@@ -216,7 +216,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* GOLD MATTERS (lane/c-gold-matters, designer 2026-11-03): 2027-02-24-risk is the file before this one and this one carries it; 15 monsters' coin moves hr_hunt_kill_bounds' gold_max (down on Wickstead, the Glade's
    poachers, the Sewer's bat and spider; up on the Warrens and the Rat King) and tier 2's hourly armor moves hr_hunt_vendor_value, the same full replace. No spawn, limit or shape moves. */
 /* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-28-temper-craft is the file before this one and this one carries it; the deeper store runes join hr_hunt_basic_supplies and the deeper runes' bids move in hr_hunt_vendor_value, the same full replace. No kill bound, spawn, limit or shape moves. */
-/* CALL OUT (lane/c-boss-call, Tyler 2026-11-04): the file before this one is APPLIED history or staged ahead of it, and this one carries it; the two called rooms (grounds, spawn rows, travel), their called monsters (kill bounds of nothing),
+/* ETCHED 12 G (lane/c-etched-12g, Tyler 2026-11-05): 2027-03-08-rune-ladder is APPLIED history; the Etched store rune's price is 12 g (was 10), the same full replace. No kill bound, spawn, limit or shape moves. */
+/* CALL OUT (lane/c-boss-call, Tyler 2026-11-04): 2027-03-11-etched-12g is the file before this one (staged ahead of it, v0.2.98) and this one carries it; the two called rooms (grounds, spawn rows, travel), their called monsters (kill bounds of nothing),
    END_ORDER's boss_felled and boss_time and the new hr_boss_calls land in this forward file, the same full replace, applied right before 2027-03-12-boss-call.sql. No world shape moves. */
 export const OUT_NAME = '2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
@@ -720,10 +721,14 @@ export function render(src) {
 -- partnering the family's Chalked rune. ORDER: after 2027-03-08-rune-ladder-items-catalogue.generated.sql, before
 -- 2027-03-08-rune-ladder-rune-spells.generated.sql and 2027-03-08-rune-ladder-slots.sql; the hr-accrue carrying the same rows deploys at once.
 --
+-- NEW IN THIS FILE (lane/c-etched-12g, Tyler 2026-11-05: at 10 g Etched read +39% XP for only -429 g/h): every family's Etched store rune costs 12 g, up from 10
+-- (STORE_RUNE_PRICE). Nothing else moves; the world's shape is unchanged (no world_shape_pending on either order). ORDER: after 2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql
+-- (it carries that file), then the hr-accrue carrying the same price deploys at once.
+--
 -- NEW IN THIS FILE (lane/c-boss-call, Tyler 2026-11-04, src/data/boss-calls.js): the two called rooms in hr_hunt_grounds, hr_hunt_ground_spawns and hr_hunt_travel; their two called rows in
 -- hr_hunt_kill_bounds, every bound 0 (a called row pays nothing); END_ORDER's boss_felled and boss_time (hr_hunt_end_reasons, hunt_sessions.end_reason's CHECK); hr_boss_calls. hr_hunt_roster does not
 -- move: the Bestiary never counts a called row. The world's shape is unchanged (no world_shape_pending on either order), and nobody can reach a room until 2027-03-12-boss-call.sql. ORDER: after
--- 2027-03-12-boss-call-hunts-catalogue.generated.sql (every ground hunt is in hr_hunts), right before 2027-03-12-boss-call.sql.
+-- 2027-03-11-etched-12g-hunt-sessions-catalogue.generated.sql (it carries that file) and 2027-03-12-boss-call-hunts-catalogue.generated.sql (every ground hunt is in hr_hunts), right before 2027-03-12-boss-call.sql.
 --
 -- CARRIED FROM 2027-02-24-gold-matters (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
 -- the Glade's poachers and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and

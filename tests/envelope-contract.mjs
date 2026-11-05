@@ -112,10 +112,6 @@ function contract(R, cs, body, tl) {
   // hunt_tier (the hunt picker's pick per ground and the tier the running hunt froze, 2027-02-27-hunt-tiers.sql): the hero's own Dangerous on its ground
   const dm = R.HS.huntTierOf(cs);
   need('hunt_tier', !!dm && dm.picks.mill_cellar === 'dangerous' && dm.playing === 'dangerous', 'huntTierOf yields ' + JSON.stringify(dm) + ' from ' + JSON.stringify(body.hunt_tier));
-  // temper (the smith's ladders, 2027-02-27-tempering.sql): every ladder comes through the reader, a fresh hero's on its first rung's offer
-  const tm = R.TM.temperOf(cs);
-  need('temper', Array.isArray(body.temper) && body.temper.length > 0 && !!tm && tm.length === body.temper.length && tm.every((l) => l.rung === 0 && l.max === 5 && typeof l.offer === 'string' && Number.isInteger(l.gold)),
-    'temperOf yields ' + JSON.stringify(tm) + ' from ' + JSON.stringify(body.temper));
   // party (the hunt panel's and the party window's readers, one shape)
   const p = R.HS.partyOf(cs);
   need('party', !!p && p.members.length === 2, 'partyOf yields ' + (p ? p.members.length : 'no') + ' members: ' + JSON.stringify(body.party).slice(0, 240));
@@ -165,6 +161,10 @@ function contract(R, cs, body, tl) {
   // This hero is hunting: the section sends no rooms and no fees to a hunter (settle cost), only the carry; a town hero's rooms: tests/bench-tax.mjs T-HOUSE.
   need('bench_tax', R.BT.benchTaxOf(cs) !== null && Number.isInteger(body.bench_tax && body.bench_tax.carry_mg) && R.BT.benchTaxOf(cs).carry === body.bench_tax.carry_mg,
     'benchTaxOf reads ' + JSON.stringify(body.bench_tax).slice(0, 160));
+  // Tempering (2027-02-27-tempering.sql): each ladder's rung and the next rung's price, the smith's window
+  const tp = R.TP.temperOf(cs);
+  need('temper', Array.isArray(tp) && tp.length === 4 && tp.every((l) => l.rung === 0 && l.max === 5 && typeof l.offer === 'string' && Number.isInteger(l.gold) && l.gold > 0),
+    'temperOf yields ' + JSON.stringify(tp) + ' from ' + JSON.stringify(body.temper).slice(0, 160));
   // the ACCOUNT storage's space (2026-11-28-storage-chests.sql): used / cap and the next chest, the Storage window's line
   const dp = R.IS.depotOf(cs);
   need('depot', !!dp && dp.cap >= 1 && dp.used >= 0 && (dp.next === null || (dp.next.stacks >= 1 && dp.next.name.length > 0)),
@@ -314,7 +314,7 @@ async function readers(root) {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
-    TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TM: await import(u('src/session/temper-sections.js')),
+    TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')),
   };
@@ -395,7 +395,6 @@ const DB_MUTANTS = [
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'discipline', v_disc,", "'disc', v_disc,"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'slots', v_slots,", "'slot_list', v_slots,"],
   ['hunt_tier', 'public.hr_hunt_tier_view(uuid,integer)', "'playing', (select i.tier", "'playing_now', (select i.tier"],
-  ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0)", "'rungs', coalesce(pp.value, 0)"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_tiers', coalesce", "'leader_tier', coalesce"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', (select ps.party_leave_together", "'leave_togther', (select ps.party_leave_together"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],
@@ -429,6 +428,7 @@ const DB_MUTANTS = [
   ['tally', 'public.hr_tally_count(uuid,integer,uuid,jsonb)', "coalesce((p_meta->'km'->>v_r.monster_id)::bigint, 0)", '0::bigint'],
   ['skill_inputs', 'public.hr_skill_inputs_view(uuid,integer)', "jsonb_build_object('from', jsonb_build_array('bag', 'storage'))", "jsonb_build_object('sources', jsonb_build_array('bag', 'storage'))"],
   ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
+  ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0),", "'level', coalesce(pp.value, 0),"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

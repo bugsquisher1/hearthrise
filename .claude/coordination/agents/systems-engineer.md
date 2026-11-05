@@ -4516,3 +4516,8 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 ## 2026-11-05 · lane/c-armor-tiers (the sim plays the server's map)
 1. *One builder, and test what the run played, not a helper.* The check reads the grid the fixture's `run` answers, so a bypass inside `run` goes red too.
 2. *A number read off a wrong map is not a bar.* "3 deaths in a seed's hour" was a reading; the rule is "the unready hero dies". Say which is which when it moves.
+## 2026-11-05 · lane/a-kiter-resets (the holder's walk stays in its pack area)
+1. *A filter on where a walk ends is not a filter on the walk.* Every retreat tile was inside the area and the A* to it was not: a blocked re-plan round the pack stepped one tile out, and that one tile healed the whole pack. Put the rule where every plan and step already asks (leashAllows), not on the caller.
+2. *Re-measure a bug on the server's map before sizing it.* "XP down to 44%" (821 resets an hour, L60 mage) was the fixture's old map; on the engine's grid the same cell loses 5-6%. The fix cures both, and the report says which number is real.
+3. *The same dice answer "normal play unchanged".* 42 of 58 cells digit for digit: every default pull at the Glade and the Warrens, every melee cell, the shield four. Only kiters at big pulls move.
+4. *A red on your branch may not be yours: run it on the tree without your change before touching anything.* temper-play's blows-pay went red the moment the server's map met v0.2.91, same digits with and without this fix. It read a coin on a saturated cell (the mage out-clears the respawn), so the guard moved to where only the hero bounds it, with both mutants still caught.

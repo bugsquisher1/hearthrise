@@ -8,7 +8,14 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## Unreleased
 
 **Three ways to hunt.** Every hunting ground past the Mill Cellar can be hunted Normal, Dangerous or Deadly. Harder hunts hit harder and often bring more monsters at once, for more XP on every kill and the same gold and drops. It replaces the + and - on a hunt's page. Your pick is kept for each ground, and a party leader's pick holds for everyone.
+- A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.
+
+## v0.2.91 — 2026-11-04 (The Smith Tempers)
+
+- A blow that misses your hero now strikes a small spark off it, on the side the blow came from, instead of floating "miss" over its head. Your own missed swings leave a small scuff on the monster. The combat log says who missed whom in words, and "Missed blows and immune hits" in Settings turns the sparks off.
+- The chat's Combat tab now shows its lines at the window's normal size, follows the newest one and names everyone in them. Its filters fold away under "Filter lines".
 **The smith tempers your gear.** On the Shop's Services tab (R), a hero wearing gear from Level 15 up can pay gold for a little more from it. Each rung of Blows makes your blows and heals land 1% harder; each rung of Armor lets 1% less damage reach you; five rungs of each. Every tier of gear has its own rungs. It can't fail, nothing wears out, and your hero keeps it through a death.
+- On a slow connection the town opens sooner. The game now waits only for the art around your hero, and the rest of the town loads behind it.
 - Carrion Crows carry a little more coin.
 
 ## v0.2.90 — 2026-11-04 (Armor That Answers)

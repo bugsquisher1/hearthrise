@@ -12,8 +12,8 @@
 // a hero blocks monsters. A blocked unit waits, then re-plans round the
 // blocker (MV-05).
 //
-// THE LEASH: every monster plan and every monster step asks
-// leash.leashAllows. This file is its only importer.
+// THE LEASH: every plan and every step asks leash.leashAllows (a monster and
+// the hero holding a pack). This file is its only importer.
 //
 // Also here, because they are claims on tiles: the leader's trail and
 // follow-the-leader (MV-08/09), and the SPOT a hero claims to stand on in a
@@ -25,10 +25,10 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.90';
-import { walkable, astar, bfsTo, bfsWithin, cheb, stepCost, tileKey } from './grid.js?v=0.2.90';
-import { leashAllows, inArea } from './leash.js?v=0.2.90';
-import { trackStep } from './events.js?v=0.2.90';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.91';
+import { walkable, astar, bfsTo, bfsWithin, cheb, stepCost, tileKey } from './grid.js?v=0.2.91';
+import { leashAllows, inArea } from './leash.js?v=0.2.91';
+import { trackStep } from './events.js?v=0.2.91';
 
 /* What this module keeps on the persisted world (world-state.js encodes it). */
 export const PERSISTED = Object.freeze({

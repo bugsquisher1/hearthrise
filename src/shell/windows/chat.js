@@ -22,19 +22,19 @@
 // keyBelongsToField (src/utils/dom.js), which the World and the window keys
 // read too — so W types while the field has focus and walks once it is left.
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.90';
-import { refusalWords } from '../intent-words.js?v=0.2.90';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.90';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.90';
-import { isWhisperTab } from '../../social/whispers.js?v=0.2.90';
-import { linkLabel } from '../../social/chat-lines.js?v=0.2.90';
-import { combatHtml, patchCombat, actCombat } from './chat-combat.js?v=0.2.90';
-import { showTip, hideTip } from './item-tip.js?v=0.2.90';
-import { rarityOf } from '../bag-model.js?v=0.2.90';
-import { glyphSvg } from '../launcher.js?v=0.2.90';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.90';
-import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.90';
-import { playerTargetOf } from '../context-menu.js?v=0.2.90';
+import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.91';
+import { refusalWords } from '../intent-words.js?v=0.2.91';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.91';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.91';
+import { isWhisperTab } from '../../social/whispers.js?v=0.2.91';
+import { linkLabel } from '../../social/chat-lines.js?v=0.2.91';
+import { combatHtml, patchCombat, actCombat, keepPinned, isPinned } from './chat-combat.js?v=0.2.91';
+import { showTip, hideTip } from './item-tip.js?v=0.2.91';
+import { rarityOf } from '../bag-model.js?v=0.2.91';
+import { glyphSvg } from '../launcher.js?v=0.2.91';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.91';
+import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.91';
+import { playerTargetOf } from '../context-menu.js?v=0.2.91';
 
 const STATE = new WeakMap();
 const ROW = Object.freeze(Object.fromEntries(CHAT_TABS.map((t) => [t.id, t])));
@@ -115,25 +115,6 @@ function logOf(body, tab) {
   return list;
 }
 
-/* A LOG AT ITS FOOT STAYS AT ITS FOOT when its box changes size (2026-10-24: Chat opened at 1440x900 on its
-   oldest lines — the lines were written before the window had its height, then the dock capped it). Only the
-   player lets go of the foot, by scrolling UP; a box that shrank under a pinned log is pinned again, and reaching
-   the foot again pins it. */
-const PINNED = new WeakMap();
-const atFoot = (list) => list.scrollTop + list.clientHeight >= list.scrollHeight - 4;
-function keepPinned(list) {
-  PINNED.set(list, true);
-  let last = 0;
-  list.addEventListener('scroll', () => {
-    const top = list.scrollTop;
-    if (atFoot(list)) PINNED.set(list, true);
-    else if (top < last) PINNED.set(list, false);
-    last = top;
-  }, { passive: true });
-  const RO = list.ownerDocument.defaultView && list.ownerDocument.defaultView.ResizeObserver;
-  if (typeof RO === 'function') new RO(() => { if (PINNED.get(list)) list.scrollTop = list.scrollHeight; }).observe(list);
-}
-
 renderChat.patch = function patchChat(body, ctx) {
   const st = stateOf(body);
   const social = socialOf(ctx);
@@ -168,7 +149,7 @@ function patchTalk(body, ctx, social, st) {
   for (const el of body.querySelectorAll('.hc-log.is-talk')) cls(el, 'is-on', el.getAttribute('data-log') === tab);
   const list = logOf(body, tab);
   cls(list, 'is-on', true);
-  const atBottom = PINNED.get(list) || atFoot(list);
+  const atBottom = isPinned(list);
   const before = list.childElementCount;
   rows(list, lines, { key: (l) => l.id, build: (l) => lineEl(ctx, l), patch: patchName });
   const added = list.childElementCount > before;

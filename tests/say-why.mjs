@@ -182,7 +182,7 @@ const BUSY = /!?\(?\b(?:st\.|sc\.|s\.|o\.|a\.|party\.|st\.sc\.)*(?:pending|sendi
  */
 export const REASONS = Object.freeze({
   'src/shell/windows/temper-pane.js': [
-    { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: off at the top rung (the button says Full), with no rungs (No rungs), or short of gold (the row\'s line says how much)' },
+    { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
   ],
   'src/shell/windows/market/browse.js': [
     { cond: '!plan.qty', words: "'You need ' + goldWords(-left) + ' more.'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },

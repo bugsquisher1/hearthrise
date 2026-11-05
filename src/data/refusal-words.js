@@ -85,7 +85,6 @@ export const REFUSAL_WORDS = Object.freeze({
   /* The Game Master's wall and his tools (2027-03-13-gm-tools.sql). */
   gm_walled: 'The Game Master\'s account stays apart from other players, so that can\'t be done.',
   muted: 'The Game Master has muted you for now. You can still read chat.',
-  refused: 'That is for the Game Master.',
   needs_reason: 'Write a few words saying why first.',
   nothing_to_stop: 'That hero isn\'t doing anything to stop.',
   hero_busy: 'Stop this hero first: it can\'t be given anything while it hunts or works.',

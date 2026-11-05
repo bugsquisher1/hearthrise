@@ -250,7 +250,7 @@ async function guard(X) {
     if (!before || before > plain) bad.push('BC-PHASE before the line his largest blow was ' + before + ', his row\'s is ' + plain);
     if (!(after > plain)) bad.push('BC-PHASE in the enrage his largest blow was ' + after + ', his row\'s plain one is ' + plain);
   }
-  setRow(king.monster, { phases: { ...X.EM[king.monster].phases, enrageAtkPm: 1400 } });
+  setRow(king.monster, { phases: { ...X.EM[king.monster].phases, enrageAtkPm: 1600 } });
 
   /* BC-WAVE: an add that kills: the healer falls with the wave up, the tank comes home with it, both paths. */
   setRow(king.monster, { hp: 3000, atk: 1, baseAcc: 0 });
@@ -359,8 +359,8 @@ async function restoring(root, fn) {
   }
 }
 
-const ROW_KING = "hp: 2200, atk: 50, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400 } },";
-const ROW_ADD = "hp: 300, atk: 42, baseAcc: -0.05, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },";
+const ROW_KING = "hp: 2000, atk: 42, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1600 } },";
+const ROW_ADD = "hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },";
 const MUTANTS = [
   { name: 'a drop row planted on a called row', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('drops: []', "drops: [{ id: 'bones', ch: 1, band: 'common' }]")]], want: /BC-ROW/ },
   { name: 'XP planted on a called row', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('xp: 0', 'xp: 500')]], want: /BC-ROW/ },

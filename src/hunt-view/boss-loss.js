@@ -11,10 +11,8 @@ import { MONSTERS } from '../data/monsters.js?v=0.2.93';
 import { BOSS_CALL_WORDS, callOfHunt } from '../data/boss-calls.js?v=0.2.93';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
-/* What a kind of slot counts: its abilities' ids by what they do (abilities.js target, heal). */
-const idsWhere = (test) => Object.values(ABILITIES).filter(test).map((r) => r.id);
-const AREA = idsWhere((r) => r.target === 'area' || r.target === 'cleave');
-const HEALS = idsWhere((r) => !!r.heal);
+/* Every ability that heals (abilities.js `heal`). */
+const HEALS = Object.values(ABILITIES).filter((r) => !!r.heal).map((r) => r.id);
 
 const sum = (fired, ids) => ids.reduce((n, id) => n + (Number.isInteger(fired[id]) ? fired[id] : 0), 0);
 const times = (n) => (n === 1 ? '1 time' : n + ' times');
@@ -26,11 +24,10 @@ export function phaseAt(monster, bossPm) {
   return bossPm <= ph.enragePm ? 'enrage' : bossPm <= ph.addsPm ? 'adds' : 'first';
 }
 
-/* The one fact this hero's bar can be asked about, in this part of the fight. */
+/* The one fact this hero's bar can be asked about, in this part of the fight: what the table says decides it (tools/balance-sim/boss-call-table.mjs, the "good bar but" rows; an area slot moved nothing, so the line doesn't ask about one). */
 function factFor(phase, role, fired) {
   const W = BOSS_CALL_WORDS.loss.fact;
   if (phase === 'adds' && role === 'tank') return W.challenge.replace('{times}', times(sum(fired, ['challenge'])));
-  if (phase === 'adds') return W.area.replace('{times}', times(sum(fired, AREA)));
   if (role === 'healer') return W.heals.replace('{times}', times(sum(fired, HEALS)));
   return W.ate.replace('{times}', times(sum(fired, ['eat'])));
 }

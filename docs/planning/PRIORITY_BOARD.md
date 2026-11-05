@@ -30,32 +30,39 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
-### 2026-11-05 Call out: a paid fight that can't pay (systems-engineer, lane/c-boss-call): BUILT, played on the local world, STAGED. **The fight is an exam you pass before it starts; read the verdict**
-**Tyler, 2026-11-04:** approved the proof version from the gold sinks design. A party presses Call out on the Sewer's or the Warrens' page, reads the warning, confirms, and fights a stronger copy of the boss in his own hall. The leader pays 10,000 or 30,000 gp, 3 calls a UTC day an account. It ends on the kill, on a death, or after 10 minutes. The prize is a title at price 0, "the Grate Thief" or "the Cauldron Thief", and one System line.
+### 2026-11-05 Call out: a paid fight that can't pay, now with phases (systems-engineer, lane/c-boss-call): BUILT, played on the local world, STAGED. **Meets the ship bar except one gear tier behind (23-30%, target 40%); the add wave only bites at the King. Read the verdict**
+**Tyler:** approved the proof version from the gold sinks design on 2026-11-04, and "phases" on 2026-11-05 (adds at 50%, an enrage at 25%, a real boss bar, a losing line naming the phase; ship bar same gear about 30% with a bad bar and 85% with a good one, one gear tier behind on a good bar about 40%; otherwise cut, no third phase). A party presses Call out on the Sewer's or the Warrens' page, reads the warning, confirms, and fights a stronger copy of the boss in his own hall. The leader pays 10,000 or 30,000 gp, 3 calls a UTC day an account. It ends on the kill, on a death, or after 10 minutes. The prize is a title at price 0, "the Grate Thief" or "the Cauldron Thief", and one System line.
 
-**It can't pay, three ways.** A called row is `xp: 0, gp: [0, 0], drops: []`, and gen-hunt-sessions refuses anything else. The engine has one door for a called swing (`hunt-rewards.js calledSwing`): no skill XP, no Defense XP, no Magic XP, no coin, no drop, no die drawn. The settle refuses a window on a room whose delta holds anything off an allowlist (`called_pays`), so a new payout route fails closed. Tests: `tests/boss-call.mjs`, `tests/boss-call-db.mjs`.
+**It can't pay, three ways, adds included.** A called row is `xp: 0, gp: [0, 0], drops: []`, and gen-hunt-sessions refuses anything else, for his adds as for him. The engine has one door for a called swing (`hunt-rewards.js calledSwing`): no skill XP, no Defense XP, no Magic XP, no coin, no drop, no die drawn; an add's kill reaches no counter. The settle refuses a window on a room whose delta holds anything off an allowlist (`called_pays`), so a new payout route fails closed. Tests: `tests/boss-call.mjs`, `tests/boss-call-db.mjs`.
 
-**The numbers (real settle, 30 seeds a cell; win rate, median kill).** Each row's stats are the only dials: Rat King HP 5,000, attack 61, base to-hit 0.1; Chief HP 8,000, attack 155, base to-hit -1.3. The design's x2.5 HP and x1.5 attack were far too soft: at those a Level 25 party with no healer won every try (2 seeds, a first look).
-| Party | Rat King | Chief Coppercap |
+**The phases, no stored flag.** A called room never heals him (`leash.js resetPack`), so his HP only falls: the wave is read from the blow that crosses 50%, the enrage from his HP at each swing (`src/core/hunt/boss-phases.js`). World shape unchanged (BC-PHASE holds it against the last applied catalogue). The wave is 3 rows on the pocket (`adds`), through the pack's own unit path, each aimed at a hero who isn't holding him.
+
+**The ship bar (real settle, 30 seeds a cell, win %; tank + healer + hammer + mage at Level 25 and 45).** The rows: King HP 2,000, attack 42, base to-hit 0.1, enrage x1.6, adds HP 300, attack 66, base to-hit -0.6; Chief HP 3,500, attack 127, base to-hit -1.3, enrage x1.4, adds HP 500, attack 127, base to-hit -1.45.
+| Same party | Target | Rat King (win, median kill) | Chief Coppercap |
+|---|---|---|---|
+| Good bar | about 85 | 83%, 92 s | 87%, 128 s |
+| Bad bar | about 30 | 27%, 74 s | 30%, 90 s |
+| Good bar, one gear tier behind | about 40 | **23%**, 124 s | **30%**, 148 s |
+| Bar never touched (role defaults, eat at 60%) | none set | 67%, 88 s | 73%, 102 s |
+| Pair (tank + healer): good / bad / good, a tier behind | none set | 80 / 3 / 20 | 87 / 33 / 33 |
+| Over-leveled (31 / 55) / under-leveled (18 / 36), bar untouched | none set | 100 / 7 | 93 / 27 |
+| Four dps, no tank, no healer | none set | 23% | **50%** |
+
+**The bars.** GOOD: tank Challenge then Power Strike; healer Circle of Renewal when 2 or more are under 80%, then Greater Mend on the lowest under 85%; hammer Cleave at 2+ enemies then Power Strike; mage Fireball at 2+ then Frost Lance; damage dealers on Lowest HP; everyone eats at 75%. BAD: tank Power Strike only (no Challenge); healer Greater Mend under 40% only; hammer Power Strike; mage Frost Lance; damage dealers on Strongest; everyone eats at 40%. Same gear, same food.
+
+**Does each question bite?** The good bar with one answer taken away, four heroes, win % against 83 and 87 (30 seeds a cell, so a gap under about 15 is noise):
+| Taken away | Rat King | Chief |
 |---|---|---|
-| In band, tank, healer, 2 dps | 100%, 186 s | 97%, 202 s |
-| In band, tank, healer, bow | 100%, 238 s | 97%, 236 s |
-| In band, tank and healer | 97%, 320 s | 87%, 304 s |
-| Over, tank, healer, 2 dps (Level 31 / 55) | 100%, 138 s | 100%, 180 s |
-| Under, tank, healer, 2 dps (Level 18 / 36) | 70%, 214 s | 80%, 222 s |
-| One gear tier behind, tank, healer, 2 dps | 27%, 248 s | 17%, 242 s |
-| One gear tier behind, tank and healer | 7%, 440 s | 3%, 362 s |
-| No healer, tank and dps | 0% | 17%, 294 s |
-| No tank or healer, four dps | 0% | 0% |
-| In band, no tank, healer and 2 dps | 87%, 172 s | 43%, 218 s |
-| Tank and healer on the starter's food | 97%, 320 s | 0% |
-| Tank and healer, every Tempering rung | not measured | 100%, 288 s |
+| Challenge | 63 (-20) | 100 (+13) |
+| Eating early (everyone at 40%) | 77 (-6) | 60 (-27) |
+| The healer's early and party heals | 70 (-13) | 83 (-4) |
+| The area slots | 93 (+10) | 87 (0) |
+| Lowest HP (damage stays on him) | 90 (+7) | 97 (+10) |
+**So the area slot is no question on either boss, and at the Chief the wave isn't one: he's better left to it.** Spreading the adds across four heroes beats stacking them on the tank unless their blows are big enough to punish soft armor, and blows that big take the gear-behind row to near zero (King at adds attack 75: Challenge -45, but a tier behind 0%; Chief at attack 160: Challenge -40, eating -47, but a tier behind 13%, and the pair's good bar under its bad bar). That's the trade, and the rows above sit on the ship bar's side of it, because the ship bar is the cut test. The losing line only asks about what moved: Challenge, food, heals. **A row is the dial: the designer may prefer the biting Chief (HP 3,200, attack 110, enrage x1.6, adds attack 160, to-hit -2.0: 87 / 20 / 13).**
 
-**Softening the cliff (data only).** The first rows put a prepared party one gear tier behind at 0-3%. Two dials moved it to 7-27% on the King and 3-17% on the Chief: a shorter fight, so a party just under the line can win the race, and a low base to-hit, which takes the boss off the 85% ceiling so a hero's Defense and shield count. **The cliff is still there, and it's inherent at these stats:** it's healing against damage over a long fight, so the average decides. Rat King attack 60 to 67, nothing else moved: tank and healer 97% to 43%, a gear tier behind with 2 dps 40% to 0%.
+**Is it fun?** Better, and it reads. Played from a real call, the fight now has a shape: a real bar with two marks, "Adds!" over him and three rats running at the healer, Challenge pulling them, the bar stalling while they die, then the bar going red with "He is enraged" and the last quarter a race. A lost fight says "Fell in the enrage at 8%: your heals fired 50 times" and what answers it, which is the first thing this fight has said about why. **Limits:** it's over in 1.5-2.5 minutes. Nothing is pressed during it, as everywhere (Tyler 2026-10-16). The untouched bar wins two times in three, so this punishes a wrong bar more than it rewards a clever one. The line's numbers are a whole fight's, not the phase's. Four dps at the Chief is a coin flip, which isn't "a careless party dies". No human has played it.
 
-**Does preparing matter?** Yes, before the press: a healer is the difference between 0% and 97%, gear tier is next, and at the Chief so are food and Tempering. On the bar: Frost Lance kills 13% faster than no spell; Fireball never fires, because its suggested trigger wants two targets and the room has one, so a mage who leaves it on gets nothing and isn't told. Ward and Challenge are worth little in band, and only matter near the line. **After the press there's nothing to do.** No phases, nothing to answer, one small health bar like any monster's. It's a real exam and a dull fight to watch for 3-5 minutes. **If this is to be the climax, it needs something mid-fight: a second phase or adds, a boss bar.** That's new mechanics, not numbers, so it wasn't built here.
-
-**Server.** `hr_boss_call` (one charge, kind `shop`, all seats or none), `hr_boss_call_view` (read while the page is open, never in the envelope), `hr_boss_calls`, splices into `hr_hunt_admit` (`call_only` on every other door), `hr_hunt_settle_session`, `hr_hunt_apply_member` and `hr_bestiary_of`, two triggers on `hunt_sessions`. No new player table. Order: hunts catalogue, hunt-sessions catalogue, titles catalogue, then `2027-03-02-boss-call.sql`. On the EA Security list.
+**Server.** `hr_boss_call` (one charge, kind `shop`, all seats or none), `hr_boss_call_view` (read while the page is open, never in the envelope), `hr_boss_calls`, `hunt_session_tally.fight` (the fight's record: where he stood and what fired, display only, null on every other hunt, read through `hr_hunt_view`), splices into `hr_hunt_admit` (`call_only` on every other door), `hr_hunt_settle_session`, `hr_hunt_apply_member`, `hr_hunt_view` and `hr_bestiary_of`, two triggers on `hunt_sessions`. No new player table. Order: hunts catalogue, hunt-sessions catalogue, titles catalogue, then `2027-03-02-boss-call.sql`. On the EA Security list.
 
 **For `lane/c-difficulty-tiers`:** a tier can't reach a room: `tierRowOf` reads the ground's id, which isn't on `TIERED_GROUNDS`, and `hr_hunt_tiers` holds no row for it. The merge touches one line of `combat-sim.js` (the `rewardSwing` context: keep both `tier` and `call`) and a few of `hunts.js`. `tests/boss-call.mjs` BC-TIER starts checking the day `hunt-tiers.js` lands. This lane adds no reader of density.
 

@@ -7,7 +7,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## Unreleased
 
-**Call out a boss.** A party can pay to fight a far stronger Rat King (10,000 gp) or Chief Coppercap (30,000 gp), up to 3 calls a day. It pays no XP, coin or drops; bring him down and you earn a title and your name in System chat.
+**Call out a boss.** A party can pay to fight a far stronger Rat King (10,000 gp) or Chief Coppercap (30,000 gp), up to 3 calls a day. At half his health his adds come for whoever isn't your tank, and at a quarter he rages, so your action bar decides it. It pays no XP, coin or drops: bring him down and you earn a title and your name in System chat. Lose, and the game says where you lost it and what to change.
 
 ## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
 

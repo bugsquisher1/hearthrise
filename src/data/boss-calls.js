@@ -63,10 +63,10 @@ export const BOSS_CALL_WORDS = Object.freeze({
   loss: Object.freeze({
     fell: Object.freeze({ first: 'Fell before his adds came, at {pct}%', adds: 'Fell in the add wave at {pct}%', enrage: 'Fell in the enrage at {pct}%' }),
     time: Object.freeze({ first: 'Time ran out before his adds came, at {pct}%', adds: 'Time ran out in the add wave at {pct}%', enrage: 'Time ran out in the enrage at {pct}%' }),
-    fact: Object.freeze({ challenge: 'your Challenge fired {times}', area: 'your area slot fired {times}', heals: 'your heals fired {times}', ate: 'you ate {times}' }),
+    fact: Object.freeze({ challenge: 'your Challenge fired {times}', heals: 'your heals fired {times}', ate: 'you ate {times}' }),
     answer: Object.freeze({
       first: 'His plain blows beat your healing: bring a healer, eat earlier, or come back a gear tier up.',
-      adds: 'His adds go for whoever isn\'t your tank: keep Challenge on the tank\'s bar, put an area spell on 2 or more enemies, and set your damage dealers to Lowest HP so the adds fall first.',
+      adds: 'His adds go for whoever isn\'t your tank: keep Challenge on the tank\'s bar so they come to him, and heal him early while they do.',
       enrage: 'Under a quarter of his health he hits far harder: eat earlier on every bar, and set your healer to heal sooner.',
     }),
   }),

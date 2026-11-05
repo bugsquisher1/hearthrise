@@ -182,7 +182,7 @@ async function checks(overrides) {
         const line = (reason, boss_pm, fired, role, hunt = room) => L.lossLine({ hunt, reason, fight: { boss_pm, fired }, role });
         const lines = {
           enrageTank: line('died', 230, { eat: 6, challenge: 2 }, 'tank'), enrageHealer: line('party_member_died', 230, { greater_mend: 9, circle_of_renewal: 3, eat: 1 }, 'healer'),
-          addsMage: line('died', 410, { fireball: 0, frost_lance: 4 }, 'mage'), addsMage2: line('died', 410, { fireball: 2, green_sickness: 1 }, 'mage'), addsTank: line('party_member_died', 410, { challenge: 1 }, 'tank'),
+          addsMage: line('died', 410, { fireball: 0, frost_lance: 4 }, 'mage'), addsHealer: line('died', 410, { greater_mend: 2, eat: 9 }, 'healer'), addsTank: line('party_member_died', 410, { challenge: 1 }, 'tank'),
           first: line('died', 800, { eat: 1 }, 'melee_dps'), time: line('boss_time', 230, { eat: 1 }, 'tank'), floor: line('died', 3, { eat: 1 }, 'tank'),
           won: line('boss_felled', 0, { eat: 1 }, 'tank'), left: line('left', 230, { eat: 1 }, 'tank'), normal: line('died', 230, { eat: 1 }, 'tank', 'millrace_sewer'),
           none: L.lossLine({ hunt: room, reason: 'died', fight: null, role: 'tank' }),
@@ -208,8 +208,8 @@ async function checks(overrides) {
       const want = (rule, name, re) => { if (!re.test(l[name] || '')) fails.push(rule + ' ' + name + ' reads ' + JSON.stringify(l[name])); };
       want('BW-6', 'enrageTank', /^Fell in the enrage at 23%: you ate 6 times\. .*eat earlier/);
       want('BW-6', 'enrageHealer', /^Fell in the enrage at 23%: your heals fired 12 times\./);
-      want('BW-6', 'addsMage', /^Fell in the add wave at 41%: your area slot fired 0 times\. .*area spell/);
-      want('BW-6', 'addsMage2', /your area slot fired 3 times\./);
+      want('BW-6', 'addsMage', /^Fell in the add wave at 41%: you ate 0 times\. .*Challenge/);
+      want('BW-6', 'addsHealer', /^Fell in the add wave at 41%: your heals fired 2 times\./);
       want('BW-6', 'addsTank', /^Fell in the add wave at 41%: your Challenge fired 1 time\. /);
       want('BW-6', 'first', /^Fell before his adds came, at 80%: you ate 1 time\. /);
       want('BW-6', 'time', /^Time ran out in the enrage at 23%: /);
@@ -242,7 +242,7 @@ const MUTANTS = [
   { name: 'every repaint asks again', file: 'src/shell/windows/boss-call-pane.js', from: 'if (!sc.asking && !v.now && now - sc.at > QUOTE_STANDS_MS) {', to: 'if (!sc.asking && !v.now && (!sc.quote || now - sc.at > QUOTE_STANDS_MS)) {', want: /BW-4/ },
   { name: 'a won fight gets a losing line', file: 'src/hunt-view/boss-loss.js', from: '|| !LOST.includes(o.reason)) return null;', to: ') return null;', want: /BW-6/ },
   { name: 'the line reads the wrong phase', file: 'src/hunt-view/boss-loss.js', from: "return bossPm <= ph.enragePm ? 'enrage' : bossPm <= ph.addsPm ? 'adds' : 'first';", to: "return bossPm <= ph.addsPm ? 'adds' : 'first';", want: /BW-6/ },
-  { name: 'the tank is asked about his area slot', file: 'src/hunt-view/boss-loss.js', from: "if (phase === 'adds' && role === 'tank') return", to: "if (phase === 'adds' && role === 'nobody') return", want: /BW-6/ },
+  { name: 'the tank is asked about his food', file: 'src/hunt-view/boss-loss.js', from: "if (phase === 'adds' && role === 'tank') return", to: "if (phase === 'adds' && role === 'nobody') return", want: /BW-6/ },
   { name: 'a mark in the wrong place', file: 'src/shell/widgets/boss-bar.js', from: "'left', (ph.enragePm / 10) + '%'", to: "'left', (ph.addsPm / 10) + '%'", want: /BW-7/ },
   { name: 'the bar reads the snapshot, not the instant shown', file: 'src/shell/widgets/boss-bar.js', from: 'const hp = played ? played.hp : x.hp, max = played ? played.maxHp : x.hpMax;', to: 'const hp = x.hp, max = x.hpMax;', want: /BW-7/ },
   { name: 'the bar stands on every hunt', file: 'src/shell/widgets/boss-bar.js', from: "cls(el, 'is-quiet', !ph);", to: "cls(el, 'is-quiet', false);", want: /BW-7/ },

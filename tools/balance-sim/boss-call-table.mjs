@@ -75,6 +75,13 @@ const BARS = {
     healer: [['circle_of_renewal', [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_80' }]], ['greater_mend', [under_('ally_hp_pct', 85, 'lowest')]]],
     hammer: [['cleave', [aoe(2)]], ['power_strike']], axes: [['cleave', [aoe(2)]], ['power_strike']], mage: [['fireball', [aoe(2)]], ['frost_lance']], bow: [['flame_volley', [aoe(2)]], ['precision_shot']] } },
 };
+/* DOES EACH QUESTION BITE? The good bar with one answer taken away. */
+const without = (spells) => ({ ...BARS.good, spells: { ...BARS.good.spells, ...spells } });
+BARS.noChallenge = without({ tank: [['power_strike']] });
+BARS.noArea = without({ hammer: [['power_strike']], mage: [['frost_lance']] });
+BARS.noTarget = { ...BARS.good, tmode: 'strongest' };
+BARS.eatsLate = { ...BARS.good, eat: 40 };
+BARS.healsLate = without({ healer: [['greater_mend', [under_('ally_hp_pct', 40, 'lowest')]]] });
 const median = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 const round = (n, d = 0) => (n === null ? null : Math.round(n * 10 ** d) / 10 ** d);
 
@@ -168,6 +175,8 @@ const shipRows = (L) => [
   ['Ship: good bar, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'good' }],
   ['Ship: bad bar, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'bad' }],
   ['Ship: good bar, one gear tier behind, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'good', gear: under(-1) }],
+  ...[['noChallenge', 'no Challenge on the tank'], ['noArea', 'no area slot'], ['noTarget', 'damage stays on him'], ['eatsLate', 'everyone eats at 40%'], ['healsLate', 'the healer waits for 40%, no party heal']]
+    .map(([bar, words]) => ['Ship: good bar but ' + words + ', tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar }]),
 ];
 const RUNS = {
   rat_king: [

@@ -49,6 +49,16 @@
         "runner": "by hand: node tests/char-wipe-world.mjs --shots DIR"
       }
     },
+    "gm-tools-world.mjs": {
+      "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: the Game Master window played on the real play.html and hr-accrue engine on the replayed chain, beside a real player's page. It needs Node 23.6+ (the engine is type-stripped; CI pins Node 20) and a browser, and replays the whole chain on a machine's first run, so it cannot be a CI step. CI guards the server without it, mutation-proven: tests/gm-tools.mjs.",
+      "owner": "backend-architect",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/gm-tools-world.mjs --shots DIR"
+      }
+    },
     "honor-roll-world.mjs": {
       "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: two brand-new accounts play the real play.html and the real hr-accrue engine on the replayed chain and read the Roll of Honor. It needs Node 23.6+ (the engine is type-stripped; CI pins Node 20) and replays the whole chain on a machine's first run, so it cannot be a CI step. CI guards both halves without it: tests/leaderboard-server-source.mjs (the server, mutation-proven) and tests/honor-window.mjs (the window, mutation-proven).",
       "owner": "qa-engineer",

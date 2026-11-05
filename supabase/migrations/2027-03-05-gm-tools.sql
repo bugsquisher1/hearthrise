@@ -25,9 +25,9 @@
 -- (actor, idem) is the intent key: a replay answers the stored result and moves nothing.
 --
 -- ── EXPLOIT SURFACE DELTA ───────────────────────────────────────────────────────────────────────────────────────────────
--- +13 client RPCs, each refusing everyone but a row only a migration writes. +2 engine functions. Three tables gain a client read of the
--- caller's OWN row, one column (the invoker-rights hook reads them). Refused outsiders are logged at most 10 a minute. Every other
--- change makes something stricter.
+-- +10 client RPCs, each refusing everyone but a row only a migration writes. +2 engine functions. Two tables gain a client read of the
+-- caller's OWN row, one column (the invoker-rights hook reads them), and the door's list is readable (RPC names the client already ships).
+-- Refused outsiders are logged at most 10 a minute. Every other change makes something stricter.
 --
 -- ── COST ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 -- Per REST request, every player: two more primary-key probes (hr_bans in hr_admitted, hr_gm_accounts in the hook). Per chat line: two.
@@ -766,7 +766,7 @@ begin
     'refusals', coalesce((select jsonb_agg(jsonb_build_object('intent', r.intent, 'code', r.code, 'n', r.n) order by r.last_at desc)
                             from (select * from public.hr_rejections j where j.user_id = v_u and j.slot = v_s and j.day = current_date order by j.last_at desc limit 5) r), '[]'::jsonb),
     'ledger', coalesce((select jsonb_agg(jsonb_build_object('at', r.at, 'kind', r.kind, 'intent', r.intent, 'gold', r.gold, 'item', r.item_id, 'qty', r.qty) order by r.id desc)
-                          from (select * from public.player_ledger l where l.user_id = v_u and l.slot = v_s order by l.id desc limit 5) r), '[]'::jsonb)
+                          from (select * from public.player_ledger l where l.user_id = v_u and l.slot = v_s and l.at >= now() - interval '7 days' order by l.id desc limit 5) r), '[]'::jsonb)
   )));
 end $fn$;
 

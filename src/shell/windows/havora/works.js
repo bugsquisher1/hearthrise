@@ -80,8 +80,8 @@ export function worksHtml() {
     + '<div class="hv-works-give">'
     + '<div class="hv-works-gifts">' + row.gifts.map((g) => '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="works-give" data-amount="' + g + '">' + esc(giveWords(g)) + '</button>').join('')
     + '<button type="button" class="hh-tool is-primary hv-buy hv-works-max" data-hs-act="works-max"></button></div>'
-    + '<label class="hv-works-typed"><span class="hw-cap">Or give</span><input type="number" inputmode="numeric" class="hv-works-amount" aria-label="Gold to give" min="1" step="100"><span class="hw-cap">gp</span>'
-    + '<button type="button" class="hh-tool" data-hs-act="works-typed">Give</button></label>'
+    + '<div class="hv-works-typed"><span class="hw-cap">Or give</span><input type="number" inputmode="numeric" class="hv-works-amount" aria-label="Gold to give" min="1" step="100"><span class="hw-cap">gp</span>'
+    + '<button type="button" class="hh-tool" data-hs-act="works-typed">Give</button></div>'
     + '</div>'
     + '<p class="hw-cap hv-works-today"></p>'
     + '<p class="hv-works-msg" role="status" aria-live="polite"></p>'
@@ -113,11 +113,13 @@ export function patchWorks(pane, ctx) {
   style(pane.querySelector('.hv-works-fill'), 'width', w && w.goal > 0 ? Math.min(100, (w.total / w.goal) * 100).toFixed(1) + '%' : '0%');
   text(pane.querySelector('.hv-works-next'), w ? (w.finished ? row.name + ' is finished. Nothing else is being built right now.' : nextWords(w, row)) : '');
   const give = pane.querySelector('.hv-works-give');
-  if (give) give.hidden = !!(w && w.finished);
+  prop(give, 'hidden', !!(w && w.finished));
   const off = sc.pending || !w || w.maxGift === 0;
   for (const b of pane.querySelectorAll('[data-hs-act="works-give"], [data-hs-act="works-typed"]')) prop(b, 'disabled', off);
   const max = pane.querySelector('.hv-works-max');
-  if (max) { max.hidden = !w || w.maxGift === 0; text(max, w && w.maxGift ? maxWords(w) : ''); prop(max, 'disabled', off); }
+  prop(max, 'hidden', !w || w.maxGift === 0);
+  text(max, w && w.maxGift ? maxWords(w) : '');
+  prop(max, 'disabled', off);
   const field = pane.querySelector('.hv-works-amount');
   if (field) {
     prop(field, 'disabled', off);

@@ -19,6 +19,7 @@
 //   CW-SINKS    every table the gold sink lanes add is on the list the design says, in one edit; a name with no table yet is skipped
 //   CW-APPLY    the procedure in order: 39+ relations named the account before; after, only the rows meant to stay do, read as text from
 //               every row of every relation in every schema; every wiped table is empty, for everyone
+//   CW-WORKS    the Town Works' totals and plaque are cleared and the Weighhouse reads stage 0, with its project row still there to fund
 //   CW-KEPT     auth, the allowlist, friends, blocks, bug reports, signup log, catalogues and config all stand; the profile is a fresh signup's
 //   CW-SLOTS    a bought slot goes: the account owns the catalogue's starters and no more
 //   CW-STALE    a settle computed before the wipe, a stale tab's residue and verbs: refused, no ghost row
@@ -129,6 +130,10 @@ async function scenario(db, wipeSql) {
       const b = await ask(A, 'select public.hr_town_show(1, $1, $2::bigint, $3::uuid)', [show, price, key()]);
       if (!b || b.ok !== true) throw Object.assign(new Error('hr_town_show: ' + js(b)), { harness: true });
     }
+    /* THE TOWN WORKS: a gift, and the project near a stage so the System line and the plaque are real rows the wipe must clear */
+    await db.query("insert into public.town_works_totals (project_id, total) values ('weighhouse', 99000)");
+    const gave = await ask(A, 'select public.hr_town_works_give(1, $1, 1000::bigint, $2::uuid)', ['weighhouse', key()]);
+    if (!gave || gave.ok !== true || gave.stage !== 1) throw Object.assign(new Error('hr_town_works_give: ' + js(gave)), { harness: true });
     const cried = await ask(A, 'select public.hr_crier_send(1, $1, 1000::bigint, $2::uuid)', ['selling rat tails', key()]);
     if (!cried || cried.ok !== true) throw Object.assign(new Error('hr_crier_send: ' + js(cried)), { harness: true });
     const entered = await ask(A, `select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, gen_random_uuid())`, [hunt]);
@@ -183,6 +188,8 @@ async function scenario(db, wipeSql) {
     /* what a sink left behind is real before the wipe runs, or the wipe's empties below prove nothing about it */
     const sinkRows = (await one('select count(*)::int from public.town_shows where user_id = $1', [A])) + (await one('select count(*)::int from public.account_gold_given where user_id = $1', [A])) + (await one('select count(*)::int from public.chat_messages where crier and from_id = $1', [A]));
     if (sinkRows < 4) throw Object.assign(new Error('the played account holds no sink rows: ' + sinkRows), { harness: true });
+    const worksRows = (await one('select count(*)::int from public.town_works_totals')) + (await one('select count(*)::int from public.town_works_gifts where user_id = $1', [A]));
+    if (worksRows !== 2) throw Object.assign(new Error('the Works hold no rows to wipe: ' + worksRows), { harness: true });
     arm('CW-SINKS', !sinkBad.length && !goes.has('hr_boss_calls') && !nobody.has('hr_boss_calls'),
       `${SINK_GOES.length} sink tables go, ${SINK_NAMES_NOBODY.length} name nobody, each on its list; ${sinkAbsent.length} of them don't exist yet (${sinkAbsent.join(', ') || 'none'}) and the wipe below skips those`,
       'a sink table is on the wrong list, or none: ' + sinkBad.join(', '));
@@ -236,6 +243,13 @@ async function scenario(db, wipeSql) {
     arm('CW-APPLY', before.hits.length >= 25 && after.read > 200 && !leftBehind.length && !notEmpty.length && !!log && log.removed.player_state >= 4,
       `${before.hits.length} relations named the account before; ${after.read} read after and only ${after.hits.length} do, each meant to; all ${WIPE.size} wiped tables are empty for everyone; the journal counted ${log && log.removed.player_state} heroes`,
       js({ before: before.hits.length, leftBehind, notEmpty, log }));
+
+    /* CW-WORKS: the building goes back to stakes and the plaque is bare, but the project itself is still there to fund (a beta that inherits a finished Weighhouse loses the one goal the whole server shares) */
+    const worksAfter = { totals: await one('select count(*)::int from public.town_works_totals'), gifts: await one('select count(*)::int from public.town_works_gifts'),
+      project: await one("select count(*)::int from public.hr_town_works where project_id = 'weighhouse'"), extras: await one("select public.hr_town_extras('town_common')"),
+      plaque: await one("select public.hr_town_works_plaque('weighhouse', null, 10)") };
+    arm('CW-WORKS', worksAfter.totals === 0 && worksAfter.gifts === 0 && worksAfter.project === 1 && worksAfter.extras.works.weighhouse === 0 && worksAfter.plaque.length === 0,
+      'the totals and the plaque are cleared, the Weighhouse reads stage 0, the project row stays', js(worksAfter));
 
     /* CW-KEPT */
     const profile = (await db.query('select display_name, clan_id, name_state, must_rename from public.profiles where id = $1', [A])).rows[0];
@@ -321,6 +335,7 @@ async function scenario(db, wipeSql) {
 /* Most of these the file's own §2 refuses before behaviour runs, which is the §4 self-check doing its job: CW-APPLY-SELF. */
 const MUTANTS = [
   { id: 'sink_table_unlisted', arm: 'CW-SINKS', why: 'a sink table leaves the wipe list', edits: [["'account_gold_given', 'player_titles', 'town_shows',", "'player_titles', 'town_shows',"]] },
+  { id: 'works_total_kept', arm: 'CW-WORKS', why: 'a finished Weighhouse survives the wipe', edits: [["'town_works_gifts', 'town_works_totals',", "'town_works_gifts',"], ["'hr_lb_hidden', 'hr_name_holds',", "'town_works_totals', 'hr_lb_hidden', 'hr_name_holds',"]] },
   { id: 'sink_catalogue_wiped', arm: 'CW-SINKS', why: 'the wipe truncates the prices', edits: [["'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works'];", "'hr_account_deletion_log', 'hr_titles', 'hr_town_works'];"], ["'account_gold_given', 'player_titles',", "'hr_sink_rules', 'account_gold_given', 'player_titles',"]] },
   { id: 'wipe_needs_every_table', arm: 'CW-APPLY-SELF', why: 'a listed table that does not exist yet stops the wipe', edits: [["    if to_regclass('public.' || t) is not null then\n      v_present := v_present || t;", "    if true then\n      v_present := v_present || t;"]] },
   { id: 'kept_count_needs_every_table', arm: 'CW-APPLY-SELF', why: 'a no-player table that does not exist yet stops the wipe', edits: [["    if to_regclass('public.' || t) is not null then\n      execute format('select count(*) from public.%I', t) into v_n;\n      v_kept", "    if true then\n      execute format('select count(*) from public.%I', t) into v_n;\n      v_kept"]] },

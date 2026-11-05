@@ -111,7 +111,7 @@ export const MUTANTS = {
   loses_shading: { arm: 'HC-DYE', why: 'a dyed pixel loses its value', js: ['src/world/hero-dye.js', [['const [r, g, b] = hsv(h, s, (v / 255) * (0.4 + 0.6 * dv));', 'const [r, g, b] = hsv(h, s, dv);']]] },
   walker_no_dye: { arm: 'HC-DRAW', why: 'a stranger draws undyed', js: ['src/world/town-scene.js', [['          dye: p.w.dye,\n', '']]] },
   hero_no_dye: { arm: 'HC-DRAW', why: 'the hero you play draws undyed in town', js: ['src/world/walk-scene.js', [['dye: o.heroDye ? o.heroDye() : null, ', '']]] },
-  compose_drops: { arm: 'HC-DRAW', why: 'compose loses the key', js: ['src/world/core/compose.js', [['if (u.dye) { d.dye = u.dye; d.dyeOwn = isHero; }', '']]] },
+  compose_drops: { arm: 'HC-DRAW', why: 'compose loses the key', js: ['src/world/core/compose.js', [['if (u.dye) Object.assign(d, { dye: u.dye, dyeOwn: isHero });', '']]] },
   scene_drops: { arm: 'HC-DRAW', why: 'a hunt draws the party undyed', js: ['src/hunt-view/scene.js', [['grey, under, dye: dyeOf(u) };', 'grey, under };']]] },
   scene_own_only: { arm: 'HC-DRAW', why: 'a hunt draws only the hero you play in colors', js: ['src/hunt-view/scene.js', [['    return who ? who.dye : null;\n', '    return null;\n']]] },
   seat_no_key: { arm: 'HC-PARTY', why: 'the party reader drops the colors', js: ['src/session/party-sections.js', [[', dye: dyeKeyOf(p.colors) });', ', dye: null });']]] },

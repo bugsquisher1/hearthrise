@@ -41,7 +41,7 @@ const onPixelOf = (T) => (v) => Math.round(v * T) / T;
 
 /**
  * @param {object} map  compileMap() output (kind 'town' or 'home')
- * @param {{at?: [number, number]|null, sprites: object, openClasses: string[], maps: object, heroSprite?: () => string}} o
+ * @param {{at?: [number, number]|null, sprites: object, openClasses: string[], maps: object, heroSprite?: () => string, heroDye?: () => (string|null)}} o
  *   at: where the hero stood last on this map; maps: map rows by id (exits);
  *   heroSprite: the hero's outfit sprite id (src/session/hero-look.js), read every frame; heroDye: its colors' key, the same;
  *   props: fixed props this scene adds to the map ([{id, x, y, ref, plate?}]: the sandbox signs,

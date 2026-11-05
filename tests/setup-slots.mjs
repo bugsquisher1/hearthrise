@@ -99,7 +99,7 @@ export const MUTANTS = {
   words_two: { arm: 'SS-CLIENT', why: 'the button hardcodes the third slot',
     js: ['src/shell/setup-words.js', [["return 'Buy ' + aNew(count + 1) + ' setup: ' + gold(price);", "return 'Buy a third setup: ' + gold(price);"]]] },
   words_full_lost: { arm: 'SS-CLIENT', why: 'the refusal drops its price', js: ['src/shell/intent-words.js', [["return setupFullWords(r.figures.slots, Number.isInteger(r.figures.price) ? r.figures.price : null);", 'return setupFullWords(r.figures.slots, null);']]] },
-  figures_dropped: { arm: 'SS-CLIENT', why: 'the session drops the refusal\'s numbers', js: ['src/session/refusal.js', [["'min_level', 'slots', 'price']", "'min_level']"]]] },
+  figures_dropped: { arm: 'SS-CLIENT', why: 'the session drops the refusal\'s numbers', js: ['src/session/refusal.js', [["'min_level', 'slots', 'price', 'per_day']", "'min_level', 'per_day']"]]] },
   reader_invents: { arm: 'SS-CLIENT', why: 'a section with no count reads as the limit', js: ['src/session/item-sections.js', [["if (!isObj(s) || count(s.count) === null || count(s.max) === null) return null;", "if (!isObj(s)) return { count: 5, max: 5, price: null };"]]] },
   buy_own_price: { arm: 'SS-CLIENT', why: 'the press sends a price of its own', js: ['src/session/preset-intents.js', [["p_slot: cs.slot, p_price: price, p_idem: newIdem()", 'p_slot: cs.slot, p_price: 1, p_idem: newIdem()']]] },
   stale_not_reread: { arm: 'SS-CLIENT', why: 'a stale quote stays on the button', js: ['src/session/preset-intents.js', [["if (r.error === 'quote_changed' && cs.status !== 'closed') await cs.load();", '']]] },

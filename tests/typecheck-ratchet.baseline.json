@@ -1,6 +1,6 @@
 {
   "note": "Ceilings, not targets: per file and error kind, counts may only fall. Written by node tests/typecheck-ratchet.mjs --write, which refuses a rise. Regenerate, never hand-merge.",
-  "total": 481,
+  "total": 476,
   "files": {
     "src/app/boot.js": {"TS2367":1,"TS2554":5},
     "src/app/hero-create.js": {"TS1005":3,"TS2304":2,"TS2353":1},
@@ -105,8 +105,8 @@
     "src/world/render/canvas-backend.js": {"TS2362":1,"TS2363":1},
     "src/world/sandbox-scene.js": {"TS2345":2},
     "src/world/scene-sets.js": {"TS2339":1,"TS2345":2},
-    "src/world/steer-local.js": {"TS2322":3,"TS2339":1},
-    "src/world/walk-scene.js": {"TS2339":5,"TS2367":1},
+    "src/world/steer-local.js": {"TS2322":2,"TS2339":1},
+    "src/world/walk-scene.js": {"TS2339":5},
     "src/world/world-boot.js": {"TS2339":6,"TS2345":3}
   }
 }

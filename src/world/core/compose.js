@@ -437,7 +437,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     const d = place(u.id, u.x, u.y, { anim, dir, i, kind: 'unit', alpha: u.alpha, ref: u.ref, bias: u.under ? -UNDER : 0, shadow: u.under ? false : undefined });
     if (u.grey) d.grey = Math.max(0, Math.min(1, u.grey));
     /* its colors, dye indices the server sent ("head.body.legs.feet"; the backend draws them, hero-dye.js). The hero you play is first in line for a sheet. */
-    if (u.dye) { d.dye = u.dye; d.dyeOwn = isHero; }
+    if (u.dye) Object.assign(d, { dye: u.dye, dyeOwn: isHero });
     const { cx, foot, top } = head(d);
     /* After head(): a recoil moves the art alone, so a full box's blows never shake a name, a bar or the lamp. */
     if (u.recoil) { d.x += u.recoil[0]; d.y += u.recoil[1]; }

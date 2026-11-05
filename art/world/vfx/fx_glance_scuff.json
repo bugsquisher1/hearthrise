@@ -1,0 +1,31 @@
+{
+  "id": "fx_glance_scuff",
+  "class": "vfx",
+  "style": "s1",
+  "drawn": "tools/world-art/glance-spark.mjs",
+  "material": "light",
+  "source": "fx_glance_scuff.png",
+  "frame": [
+    7,
+    7
+  ],
+  "anchor_px": [
+    3,
+    3
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 20,
+      "loop": false,
+      "dirs": {
+        "s": 3
+      }
+    }
+  ],
+  "notes": "A blow that did no harm. Drawn by tools/world-art/glance-spark.mjs: hard pixels, palette colours, no generation."
+}

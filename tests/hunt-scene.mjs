@@ -47,6 +47,10 @@
 //   SC-12 THE LEVEL-UP MOMENT: "Level N" rises over the viewed hero once when the
 //         server's Level goes up, never on a mount or reload, and not when its
 //         Combat text toggle is off (designer 2026-10-22)
+//   SC-14 A BLOW THAT DID NO HARM IS A SPARK, NOT A WORD (Tyler 2026-11-04): a miss, a dodge and a barrier's 0 on a
+//         hero draw the spark on the side the blow came from, a hero's miss the scuff on the monster, and none of them
+//         a float; one shows at a time on a unit under a full box's blows; 150 ms and gone; its toggle hides it;
+//         `immune` stays a word (the log's line for it all: tests/hunt-view-core.mjs LOG-4)
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -357,6 +361,56 @@ async function rules(M) {
     ok('SC-7', !fl.some((x) => x.kind === 'hit'), 'damage dealt is switched off but floated: ' + JSON.stringify(fl));
   }
 
+  { // SC-14: a blow that did no harm: the tank stands at 13,9 from S0 + 24, the rat at 14,9 (due east)
+    const glances = () => {
+      const body = envelope(7, S0);
+      body.hunt_events = [
+        { id: 'g:1', type: 'miss', atMs: S0 + 400, u: 101, t: 1 },
+        { id: 'g:2', type: 'miss', atMs: S0 + 800, u: 101, t: 1, dodge: true },
+        { id: 'g:3', type: 'miss', atMs: S0 + 900, u: 103, t: 1 },        // inside the gap: the next of a full box's blows
+        { id: 'g:4', type: 'miss', atMs: S0 + 1000, u: 1, t: 101 },       // the tank's own swing
+        { id: 'g:5', type: 'dmg', atMs: S0 + 1300, u: 101, t: 1, amount: 0, ability: 'basic', element: null },   // a barrier took all of it
+        { id: 'g:6', type: 'immune', atMs: S0 + 1400, u: 1, t: 103 },
+      ];
+      return body;
+    };
+    const named = (f, id) => f.fx.filter((e) => e.id === id);
+    const clock = { t: C0 };
+    const cs = session(M, clock, [glances()]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const a = v.at(at(S0 + 410));
+    const spark = named(a, 'fx_glance_spark'), tank = unitOf(a, 1);
+    ok('SC-14', spark.length === 1, 'a miss on a hero must draw the one spark, got ' + JSON.stringify(a.fx.map((e) => e.id)));
+    ok('SC-14', !a.floats.length, 'a miss on a hero floats nothing, got ' + JSON.stringify(a.floats));
+    ok('SC-14', spark[0] && tank && Math.abs(spark[0].x - tank.x - M.X.GLANCE_FX.reach) < 1e-9 && spark[0].y === tank.y && spark[0].on === tank.id && spark[0].lift === M.X.GLANCE_FX.lift,
+      'the spark sits at the chest on the side the blow came from (the rat is due east), got ' + JSON.stringify(spark[0]) + ' on ' + JSON.stringify(tank && [tank.x, tank.y]));
+    const painted = M.K.composeFrame(M.map, M.book, Object.assign({ t: at(S0 + 410), roofAlpha: {} }, a), { ox: 0, oy: 0, w: M.map.w * 32, h: M.map.h * 32 }, M.tables, 32).fx.find((e) => e.id === 'fx_glance_spark');
+    ok('SC-14', painted && painted.set === 'vfx' && painted.w === 9 && painted.blend === 'over' && painted.cx === Math.round((13 + M.X.GLANCE_FX.reach + 0.5) * 32),
+      'the canvas paints it from the vfx atlas, hard-edged (never additive), at the body\'s edge: ' + JSON.stringify(painted));
+    ok('SC-14', !named(v.at(at(S0 + 400 + 160)), 'fx_glance_spark').length, 'a spark is gone within 150 ms: it is a fatigue budget (ART_DIRECTION §11)');
+    const dodge = v.at(at(S0 + 810));
+    ok('SC-14', named(dodge, 'fx_glance_spark').length === 1 && !dodge.floats.length, 'a dodge is the same spark, no word: ' + JSON.stringify([dodge.fx.map((e) => e.id), dodge.floats]));
+    const busy = v.at(at(S0 + 910));
+    ok('SC-14', named(busy, 'fx_glance_spark').length === 1 && named(busy, 'fx_glance_spark')[0].age >= 100, 'a blow inside the gap shows no second spark on that hero: ' + JSON.stringify(busy.fx));
+    const swing = v.at(at(S0 + 1010));
+    ok('SC-14', named(swing, 'fx_glance_scuff').length === 1 && !named(swing, 'fx_glance_spark').length && !swing.floats.length,
+      'a hero\'s own miss is the scuff on the monster, no word: ' + JSON.stringify([swing.fx.map((e) => e.id), swing.floats]));
+    const barrier = v.at(at(S0 + 1310));
+    ok('SC-14', named(barrier, 'fx_glance_spark').length === 1 && !barrier.floats.length && !unitOf(barrier, 1).flash,
+      'a blow a barrier took whole is a spark, no 0 and no flash: ' + JSON.stringify([barrier.fx.map((e) => e.id), barrier.floats]));
+    const imm = v.at(at(S0 + 1410));
+    ok('SC-14', imm.floats.some((x) => x.text === 'immune'), '`immune` stays a word: it says change your element, got ' + JSON.stringify(imm.floats));
+
+    const off = { t: C0 };
+    const quiet = session(M, off, [glances()]);
+    await quiet.load();
+    quiet.setResidue('combatText', M.F.withFloat(quiet, 'miss', 'regular', false));
+    const q = viewer(M, quiet);
+    const hidden = [410, 810, 1010, 1310].flatMap((ms) => q.at(at(S0 + ms)).fx.map((e) => e.id));
+    ok('SC-14', !hidden.some((id) => /glance/.test(id)), 'the toggle hides the spark as it hid the word, got ' + JSON.stringify(hidden));
+  }
+
   { // SC-11: the rat starts a step 50 ms before the blow that kills it
     const clock = { t: C0 };
     const body = envelope(7, S0);
@@ -433,6 +487,16 @@ const MUTANTS = [
   ['a Level rise plays no moment', 'src/hunt-view/scene.js', '    if (p) floats.push({ text: \'Level \' + lv,', '    if (false) floats.push({ text: \'Level \' + lv,'],
   ['a mount plays a level-up it never saw', 'src/hunt-view/scene.js', 'const up = lastLevel !== null && lv > lastLevel;', 'const up = lv > (lastLevel || 0);'],
   ['the level-up ignores its toggle', 'src/hunt-view/scene.js', "!read.shown('level', false)", 'false'],
+  ['a miss floats its word again (SC-14)', 'src/hunt-view/scene.js', "      case 'miss': glance(ev, start); break;", "      case 'miss': addFloat(ev.t, 'miss', 'miss', 'miss', start); glance(ev, start); break;"],
+  ['a miss draws nothing (SC-14)', 'src/hunt-view/scene.js', "      case 'miss': glance(ev, start); break;", "      case 'miss': break;"],
+  ['the spark ignores its toggle (SC-14)', 'src/hunt-view/scene.js', "    if (!read.shown('miss', isBoss(ev.t))) return;\n", ''],
+  ['a full box sparks on every blow (SC-14)', 'src/hunt-view/scene.js', '    if (last !== undefined && Math.abs(start - last) < GLANCE_FX.gapMs) return;\n', ''],
+  ['every spark lands on one pixel (SC-14)', 'src/hunt-view/scene.js', '{ follow: ev.t, ox: (dx / d) * GLANCE_FX.reach, oy: (dy / d) * GLANCE_FX.reach }', '{ follow: ev.t }'],
+  ['the offset is dropped when the frame reads it (SC-14)', 'src/hunt-view/scene.js', 'x: p.x + (e.ox || 0), y: p.y + (e.oy || 0), age', 'x: p.x, y: p.y, age'],
+  ['a monster wears the hero\'s spark (SC-14)', 'src/hunt-view/scene.js', 'isHero(ev.t) ? GLANCE_FX.hero : GLANCE_FX.monster', 'GLANCE_FX.hero'],
+  ['a barrier floats a 0 (SC-14)', 'src/hunt-view/scene.js', 'if (ev.amount === 0 && isHero(ev.t)) glance(ev, start); else num(', 'num('],
+  ['immune loses its word (SC-14)', 'src/hunt-view/scene.js', "      case 'immune': addFloat(ev.t, 'miss', 'immune', 'miss', start); swing", "      case 'immune': swing"],
+  ['the spark names art the atlas lacks (SC-5)', 'src/data/hunt-vfx.js', "hero: 'fx_glance_spark'", "hero: 'fx_glance_sparks'"],
 ];
 
 async function main() {

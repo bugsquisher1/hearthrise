@@ -8,12 +8,16 @@
 //   prepare   bins a map in slices (compose.js sliced), kept per map until the backend drops it;
 //   bake      bakes the listed chunks until a deadline, a chunk half-baked kept and resumed later;
 //   get       the chunk a frame draws, finishing whatever is left of it in place.
+// A chunk baked while one of its sheets is on its way (art.arrived; the town opens on its view) has a hole where those tiles go. A frame
+// shows it only when the hole is off screen (setsIn, per tile), and it is baked again once the sheet lands (stale).
 // A chunk is drawn only once whole, and its calls run in the same order however it is sliced, so
 // the pixels are the one-go bake's (tests/world-core.mjs W5).
 // ════════════════════════════════════════════════════════════════════════
 import { takeGround, groundOfSliced, sliced } from '../core/compose.js?v=0.2.91';
 
-const NONE = Object.freeze({ voids: [], tones: [], tiles: [] });
+const NONE = Object.freeze({ voids: [], tones: [], tiles: [], sets: [] });
+/** @type {(set: string) => boolean} */
+const EVERY_SHEET = () => true;
 const EMPTY = () => ({ cells: new Map(), names: [] });
 /* paint calls between two looks at the clock */
 const CHECK_EVERY = 16;
@@ -47,7 +51,12 @@ function* binSteps(gr, T, CHUNK) {
   for (const t of gr.voids) { into('voids', t, t.x, t.y); if (++n % BIN_STEP === 0) yield; }
   for (const t of gr.tones) { into('tones', t, toneName(t.m, t.alt), t.x, t.y); if (++n % BIN_STEP === 0) yield; }
   for (const t of gr.tiles) { into('tiles', t, name(t.set), t.sx, t.sy, t.x, t.y); if (++n % BIN_STEP === 0) yield; }
-  for (const b of cells.values()) for (const kind of ['voids', 'tones', 'tiles']) b[kind] = Int32Array.from(b[kind]);
+  for (const b of cells.values()) {
+    const sets = new Set();
+    for (let i = 0; i < b.tiles.length; i += 5) sets.add(b.tiles[i]);
+    b.sets = Array.from(sets);
+    for (const kind of ['voids', 'tones', 'tiles']) b[kind] = Int32Array.from(b[kind]);
+  }
   return { cells, names };
 }
 
@@ -58,9 +67,10 @@ export function createGroundChunks(o) {
   const { doc, tone, now } = o;
   /* the bins are KEPT per map, so the town shown again after a hunt never re-makes its ground inside a frame */
   const BINS = new WeakMap();   // map → { book, bins }
-  let binned = EMPTY(), images = {}, T = 32, CHUNK = 512, keep = 24;
+  let binned = EMPTY(), images = {}, arrived = EVERY_SHEET, T = 32, CHUNK = 512, keep = 24;
   let chunks = new Map();   // key → a whole chunk (LRU: oldest first)
   let jobs = new Map();     // key → a chunk half-baked
+  const holed = new Set();  // keys of the chunks baked with a sheet still on its way
 
   function binsFor(m, a) {
     const kept = BINS.get(m);
@@ -85,13 +95,17 @@ export function createGroundChunks(o) {
       }));
   }
 
+  const binOf = (key) => binned.cells.get(key) || NONE;
+  const complete = (key) => binOf(key).sets.every((i) => arrived(binned.names[i]));
+  const stale = (key) => holed.has(key) && complete(key);
+
   function start(key, cx, cy) {
     const c = doc.createElement('canvas');
     c.width = CHUNK; c.height = CHUNK;
     const g = c.getContext('2d');
     g.imageSmoothingEnabled = false;
     /* placeholder tones (a town ahead of its ground art): one token per material and parity, read once per chunk */
-    return { c, g, own: binned.cells.get(key) || NONE, x0: cx * CHUNK, y0: cy * CHUNK, phase: 0, i: 0, tones: new Map() };
+    return { c, g, own: binOf(key), holed: !complete(key), x0: cx * CHUNK, y0: cy * CHUNK, phase: 0, i: 0, tones: new Map() };
   }
   /* a job's paint calls, in order, until `until` (now()); true once the chunk is whole */
   function run(j, until) {
@@ -122,56 +136,72 @@ export function createGroundChunks(o) {
     return true;
   }
   function store(key, c) {
-    if (chunks.size >= keep) { const k = chunks.keys().next().value; release(chunks.get(k)); chunks.delete(k); }
+    if (chunks.size >= keep) forget(chunks.keys().next().value);
     chunks.set(key, c);
   }
+  function forget(key) { release(chunks.get(key)); chunks.delete(key); holed.delete(key); }
+  function finish(key, j) { jobs.delete(key); store(key, j.c); if (j.holed) holed.add(key); return j.c; }
   /* A chunk let go gives its pixels back at once (~1 MB each): left to the collector, a pane's worth of them came due as one
      long pause inside a later frame (tests/perf-budget.mjs, 166-318 ms after a hero switch once the old panes were let go). */
   function release(c) { c.width = 0; c.height = 0; }
   function drop() {
     for (const c of chunks.values()) release(c);
     for (const j of jobs.values()) release(j.c);
-    chunks = new Map(); jobs = new Map();
+    chunks = new Map(); jobs = new Map(); holed.clear();
   }
 
   return {
-    /** Draw map `m`'s ground from now on, with `art` ({book, tables, images}); every chunk is baked again. */
+    /** Draw map `m`'s ground from now on, with `art` ({book, tables, images, arrived?}); every chunk is baked again. */
     use(m, art) {
       T = m.T || 32; CHUNK = 16 * T;
       binned = binsFor(m, art);
       images = art.images || {};
+      arrived = art.arrived || EVERY_SHEET;
       drop();
     },
     /** Bin map `m` ahead of its first frame: at once, or in slices (`sl`, compose.js sliced) → a promise. */
     prepare(m, art, sl) { return sl ? binsSliced(m, art, sl) : binsFor(m, art); },
     /** Chunks kept (LRU), at least `n`. */
     fit(n) { keep = n; },
+    /** The sheets the ground under `view` is drawn from, tile by tile (`list`: the chunks under it): a chunk's hole may be off screen. */
+    setsIn(list, view) {
+      const out = new Set();
+      for (const [cx, cy] of list) {
+        const { tiles } = binOf(chunkKey(cx, cy));
+        for (let i = 0; i < tiles.length; i += 5) {
+          const x = tiles[i + 3], y = tiles[i + 4];
+          if (x < view.ox + view.w && x + T > view.ox && y < view.oy + view.h && y + T > view.oy) out.add(binned.names[tiles[i]]);
+        }
+      }
+      return out;
+    },
+    /** A chunk was baked with a hole and its sheet has landed since. */
+    stale() { for (const k of holed) if (complete(k)) return true; return false; },
     /** Whether every [cx, cy] of `list` is baked whole. */
-    whole(list) { return list.every(([cx, cy]) => chunks.has(chunkKey(cx, cy))); },
+    whole(list) { return list.every(([cx, cy]) => { const k = chunkKey(cx, cy); return chunks.has(k) && !stale(k); }); },
     /** The whole chunk (cx, cy) for a frame: kept, or baked (the rest of it) here. */
     get(cx, cy) {
       const key = chunkKey(cx, cy);
-      let c = chunks.get(key);
+      if (stale(key)) forget(key);
+      const c = chunks.get(key);
       if (c) { chunks.delete(key); chunks.set(key, c); return c; }
       const j = jobs.get(key) || start(key, cx, cy);
       run(j, Infinity);
-      jobs.delete(key);
-      store(key, j.c);
-      return j.c;
+      return finish(key, j);
     },
-    /** Bake every [cx, cy] of `list` not yet whole until now() reaches `until`: true once all of them are. */
-    bake(list, until) {
+    /** Bake every [cx, cy] of `list` not yet whole until now() reaches `until`: true once all of them are. `ahead`: off screen, so leave a chunk with a sheet still on its way. */
+    bake(list, until, ahead) {
       for (const [cx, cy] of list) {
         const key = chunkKey(cx, cy);
-        if (chunks.has(key)) continue;
+        if (stale(key)) forget(key);
+        if (chunks.has(key) || (ahead && !complete(key))) continue;
         let j = jobs.get(key);
         if (!j) jobs.set(key, j = start(key, cx, cy));
         if (!run(j, until)) return false;
-        jobs.delete(key);
-        store(key, j.c);
+        finish(key, j);
       }
       return true;
     },
-    clear() { drop(); binned = EMPTY(); images = {}; },
+    clear() { drop(); binned = EMPTY(); images = {}; arrived = EVERY_SHEET; },
   };
 }

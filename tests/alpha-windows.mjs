@@ -801,6 +801,12 @@ async function planRules(base) {
   const stored = (id, store) => ({ action: { type: 'ability', id, store }, conditions: [], join: 'and', usable: true, count: 0 });
   const mix = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_fire_rune'), slot('ability', 'frost_lance', 0)], store: RUNES } }));
   if (!mix.startsWith('Runes: Plain Fire Rune from the store, 1 gp a cast. Frost Lance will not fire. To cast it, press its slot and pick Plain Ice Rune (1 gp a cast)')) fails.push('AW-27 a live spell beside a struck one reads ' + JSON.stringify(mix));
+  /* the rune ladder: a named deeper rune is said at its own price; one above the level is no promise: the spell will not fire, and the fix is the family's Plain */
+  const SCORED_ROW = { ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_scored_fire_rune', partner: 'scored_fire_rune', price: 8 };
+  const deep = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_scored_fire_rune')], store: RUNES.concat([SCORED_ROW]) } }));
+  if (!deep.startsWith('Runes: Plain Scored Fire Rune from the store, 8 gp a cast |')) fails.push('AW-27 a deeper store rune reads ' + JSON.stringify(deep));
+  const short = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [{ ...stored('fireball', 'plain_scored_fire_rune'), usable: false, why: 'store_level' }], store: RUNES.concat([SCORED_ROW]) } }));
+  if (!short.startsWith('Runes: no Fire runes of yours. Fireball will not fire. To cast it, press its slot and pick Plain Fire Rune (1 gp a cast)')) fails.push('AW-27 a store rune above the level reads ' + JSON.stringify(short));
   const WATER = RUNES.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_water_rune', partner: 'chalked_water_rune' }]);
   const same = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('greater_mend', 'plain_water_rune'), stored('circle_of_renewal', 'plain_water_rune')], store: WATER } }));
   if (!same.startsWith('Runes: Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells of one family read ' + JSON.stringify(same));
@@ -1163,6 +1169,10 @@ async function planRules(base) {
     /* RUNE-TRUTH (2027-02-21-hunt-carry-in.sql): the server struck a spell whose runes are all above the hero's level: the slot says that, not "the server says". */
     const locked = reasonOf({ ...spell, usable: false, why: 'rune_level' }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'graven_fire_rune', qty: 2 }], null, null, null, null);
     if (!locked || locked.code !== 'rune_level' || !locked.strike || !/^Your Fire runes are a higher tier than your level can cast\./.test(locked.text)) fails.push('AW-65 a spell whose runes are above the level reads ' + JSON.stringify(locked));
+    /* THE RUNE LADDER (2027-03-08-rune-ladder-slots.sql): a store rune above the hero's level says which rune and what it needs, not "the server says". */
+    const SCORED = STORE.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_scored_fire_rune', partner: 'scored_fire_rune', price: 8 }]);
+    const over = reasonOf({ ...spell, action: { ...spell.action, store: 'plain_scored_fire_rune' }, usable: false, why: 'store_level' }, { slots: bar, store: SCORED, discipline: 'destruction', supplySource: 'mine', onEmpty: 'switch' }, [], null, null, { magic: { xp: 1, level: 14 } }, null);
+    if (!over || over.code !== 'store_level' || !over.strike || !/^Plain Scored Fire Rune needs Magic 15\. This slot waits until then/.test(over.text)) fails.push('AW-65 a store rune above the level reads ' + JSON.stringify(over));
     /* ...and a slot the server calls ready is not struck by the browser, whatever the backpack says (the hunt bag holds its runes). */
     const ready = reasonOf({ ...spell, usable: true }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'chalked_fire_rune', qty: 2 }], null, null, null, []);
     if (ready) fails.push('AW-65 a spell with runes in the hunt bag and none in the backpack reads ' + JSON.stringify(ready));
@@ -3619,6 +3629,8 @@ const MUTANTS = [
   ['plans: AW-65 a shot waiting for its level is carried in with no word of the wait', 'src/shell/carry-in.js', "  return need ? need.text + ': it can’t be shot until then.' : null;", '  return null;'],
   ['plans: AW-65 a waiting shot offers the carry as what makes it fire', 'src/shell/action-facts.js', "  const shot = shotProblem(a, set && set.role, skills);", "  const shot = (pack || []).some((r) => r.id === a.id) ? '' : shotProblem(a, set && set.role, skills);"],
   ['plans: AW-65 a spell whose runes are above the level says only that the server refused', 'src/shell/action-facts.js', "    if (sl.usable === false && sl.why === 'rune_level') {", '    if (false) {'],
+  ['plans: AW-65 a store rune above the level says only that the server refused', 'src/shell/action-facts.js', "    if (sl.usable === false && sl.why === 'store_level') {", '    if (false) {'],
+  ['plans: AW-27 a store rune above the level is promised as what casts', 'src/shell/hunt-go.js', "  const off = sl.why === 'store_off' || sl.why === 'store_level';", "  const off = sl.why === 'store_off';"],
   ['plans: AW-64 a worn slot with none left is not said', 'src/shell/hunt-go.js', 'const parts = (dry ? [dry] : [])', 'const parts = []'],
   ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '')", "''"],
   ['plans: AW-64 a whetstone reads as a spare arrow', 'src/shell/hunt-go.js', ': carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot', ': carried.filter((r) => r.qty > 0 && ammoPerShot'],

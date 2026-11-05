@@ -202,6 +202,15 @@ const cases = {
     Object.assign(foreignHs.basics, shelf());
     const past = M.conditions.heroSlots([{ action: { type: 'ability', id: 'flame_strike', store: 'plain_scored_fire_rune' }, conditions: [], join: 'and' }], null)
       .map((r) => ({ ...r, slot: { ...r.slot, action: { ...r.slot.action, store: 'plain_scored_ice_rune' } } }));
+    /* the Runes tab's row, pinned or listed, states what the slot it is open on would pay, every tier; another spell's row stays on its Plain */
+    for (const t of M.runes.RUNE_TIERS) {
+      const id = t.tier === 1 ? 'plain_fire_rune' : 'plain_' + M.runes.runeId('fire', t.tier);
+      const table = SHELL.table.tableOf('runes', { store: M.SB.BASIC_SUPPLIES, bag: [], picked: { type: 'ability', id: 'flame_strike', store: id } });
+      const row = SHELL.table.rowIn(table, { type: 'ability', id: 'flame_strike' }), other = SHELL.table.rowIn(table, { type: 'ability', id: 'rend' });
+      if (row.price !== M.SB.BASIC_INDEX[id].price || SHELL.table.cellsOf(row)[2] !== String(M.SB.BASIC_INDEX[id].price)) return 'the Runes tab reads ' + JSON.stringify(SHELL.table.cellsOf(row)) + ' for a slot naming ' + id;
+      if (other.price !== M.SB.BASIC_INDEX.plain_rupture_rune.price) return 'naming ' + id + ' moved another spell\'s price: ' + JSON.stringify(other);
+      if (SHELL.table.sentenceOf({ type: 'ability', id: 'flame_strike', store: id }, M.SB.BASIC_SUPPLIES).note.indexOf(M.SB.BASIC_INDEX[id].n + ' from the store at ' + M.SB.BASIC_INDEX[id].price + ' g a cast') < 0) return 'the sentence does not name ' + id + ' at its price';
+    }
     const foreign = melee(M, [], { mana: 500, maxMana: 500 }, { hs: foreignHs, skills: skills(60), slots: past });
     M.abilities.castAbilities(foreign.inst, foreign.sc);
     if (casts(foreign.sc).length || foreignHs.purse !== 1000) return 'a Fire spell cast on an Ice store rune: ' + JSON.stringify([casts(foreign.sc), foreignHs.purse]);

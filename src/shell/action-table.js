@@ -74,7 +74,8 @@ const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0)
 /**
  * The runs a tab shows: [{ kind, label, cols, rows }], plus `empty` (why there is
  * nothing to pick) when no run has a row. `ctx` = { discipline, role (the server's, hunt_settings), bag (the server's
- * inventory rows), store (the server's store rows: settingsOf(cs).store) }.
+ * inventory rows), store (the server's store rows: settingsOf(cs).store), picked (the slot's action: the spell it holds shows
+ * the price of the store rune it names, never Plain's) }.
  */
 export function tableOf(tab, ctx) {
   const c = ctx || {};
@@ -85,8 +86,11 @@ export function tableOf(tab, ctx) {
        per cast): one the weapon cannot cast is still listed and can be picked, LOCKED (art spec §5, §8). */
     const rows = Object.values(ABILITIES).filter((a) => a.active && (!runes || a.rune)).map((a) => {
       const p = a.rune ? partnerRow(c.store, a.rune) : null;
+      const named = c.picked && c.picked.id === a.id && c.picked.store ? (c.store || []).find((r) => r.id === c.picked.store) : null;
+      const pays = named || p;
+      /* `per` sorts the list (the family's cheapest cast, so a pick never moves its row); `price` is what this slot would pay. */
       return { action: { type: 'ability', id: a.id }, kind: runes ? 'runes' : 'spells', name: abilityName(a.id), store: false,
-        amount: a.mana, price: p ? p.price : null, per: p ? p.price : null, carry: a.rune ? familyCount(a.rune, c.bag) : null,
+        amount: a.mana, price: pays ? pays.price : null, per: p ? p.price : null, carry: a.rune ? familyCount(a.rune, c.bag) : null,
         cooldown: secs(a.cdMs) + ' s', rune: a.rune ? '1 ' + runeWords(a.rune, 1) : '—', unpriced: false, none: false,
         locked: !disc || !(a.universal || a.disciplines.includes(disc)) };
     });
@@ -131,7 +135,7 @@ export function cellsOf(r) {
   const dash = (v) => (v === null || v === undefined ? '—' : v);
   const carry = r.carry === 'store' ? 'store' : r.carry === null ? '—' : r.carry > 0 ? '×' + r.carry : 'none';
   if (r.kind === 'spells') return [String(r.amount), r.cooldown, r.rune, ''];
-  if (r.kind === 'runes') return [r.rune, '', r.per === null ? '—' : String(r.per), carry];
+  if (r.kind === 'runes') return [r.rune, '', r.price === null ? '—' : String(r.price), carry];
   if (r.kind === 'ammo') return [r.amount ? '+' + r.amount : '—', dash(r.price), r.per === null ? '—' : String(r.per), carry];
   return [dash(r.amount), dash(r.price), r.per === null ? '—' : fixed(r.per), carry];
 }

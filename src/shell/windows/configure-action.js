@@ -179,7 +179,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const bag = carriedOf(cs);
   const v = viewOf(cs);
   const tab = v.tab || (d.action.id ? tabOf(d.action) : LAST_TAB.get(cs) || 'spells');
-  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: skillsOf(cs) });
+  const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: skillsOf(cs), picked: d.action });
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
   text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));

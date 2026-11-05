@@ -354,6 +354,19 @@ create or replace trigger hr_chat_zgm_gate before insert on public.chat_messages
 create or replace trigger hr_whisper_zgm_gate before insert on public.chat_whispers for each row execute function public.hr_whisper_zgm_gate();
 create or replace trigger hr_gm_look_stamp before insert or update of look on public.town_bodies for each row execute function public.hr_gm_look_stamp();
 
+-- THE SINK LANES' SHARED TABLES (lane/c-town-shows). Whichever lands first: this file locks a table already here; a table landed after it reddens
+-- tests/gm-tools.mjs GM-W-FUTURE until it carries the lock (and the door refuses its verbs meanwhile). Gold Given is written from inside a purchase,
+-- so a walled purchase is left off the board, quietly; a show is a press on a shared surface, so it is refused.
+do $mig$
+begin
+  if to_regclass('public.account_gold_given') is not null then
+    create or replace trigger hr_gm_wall before insert on public.account_gold_given for each row execute function public.hr_gm_wall_quiet();
+  end if;
+  if to_regclass('public.town_shows') is not null then
+    create or replace trigger hr_gm_wall before insert on public.town_shows for each row execute function public.hr_gm_wall_guard('user_id');
+  end if;
+end $mig$;
+
 -- ── §4 THE DOOR ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 create or replace function public.hr_admitted(p_user uuid)
  returns boolean

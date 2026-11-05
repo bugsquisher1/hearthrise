@@ -15,7 +15,7 @@ import { gmBan, gmGrantGold, gmGrantItem, gmGrantLevel, gmHero, gmMute, gmOnline
 const MUTE_MINUTES = Object.freeze([[15, '15 minutes'], [60, '1 hour'], [1440, '1 day'], [10080, '1 week']]);
 const STATES = new WeakMap();
 /* Per account, not per open: closing the window keeps who was being looked at. */
-const stateOf = (ctx) => { if (!STATES.has(ctx.account)) STATES.set(ctx.account, { heroes: null, hero: null, busy: false, confirm: null, said: '' }); return STATES.get(ctx.account); };
+const stateOf = (ctx) => { if (!STATES.has(ctx.account)) STATES.set(ctx.account, { heroes: null, hero: null, pending: false, confirm: null, said: '' }); return STATES.get(ctx.account); };
 
 const SKELETON = '<section class="gm-part"><h3 class="hs-sub">Who\'s playing</h3>'
   + '<button type="button" class="hh-tool" data-hs-act="gm-online">Refresh</button>'
@@ -78,27 +78,23 @@ export function patchBody(el, ctx) {
   if (h) {
     text(root.querySelector('.gm-facts'), factsOf(h));
     rows(root.querySelector('.gm-more'), moreOf(h), { key: (l, i) => i, build: () => element(ctx.doc, '<li></li>'), patch: (li, l) => text(li, l) });
-    const stoppable = !!(h.hunt || h.job);
-    prop(root.querySelector('[data-hs-act="gm-stop"]'), 'disabled', st.busy || !stoppable);
-    prop(root.querySelector('[data-hs-act="gm-mute"]'), 'disabled', st.busy || h.gm);
-    prop(root.querySelector('[data-hs-act="gm-unmute"]'), 'disabled', st.busy || !h.muted_until);
-    prop(root.querySelector('[data-hs-act="gm-ban"]'), 'disabled', st.busy || h.gm || h.banned);
-    prop(root.querySelector('[data-hs-act="gm-unban"]'), 'disabled', st.busy || !h.banned);
+    /* Off only while a press is out: the server decides the rest and the line says why. */
+    for (const a of ['gm-stop', 'gm-mute', 'gm-unmute', 'gm-ban', 'gm-unban']) prop(root.querySelector('[data-hs-act="' + a + '"]'), 'disabled', st.pending);
   }
   const c = st.confirm;
   attr(root.querySelector('.gm-confirm'), 'hidden', c ? null : '');
-  if (c) { text(root.querySelector('.gm-ask'), c.ask); text(root.querySelector('[data-hs-act="gm-yes"]'), c.yes); prop(root.querySelector('[data-hs-act="gm-yes"]'), 'disabled', st.busy); }
-  for (const a of ['gm-online', 'gm-look', 'gm-say', 'gm-give-gold', 'gm-give-item', 'gm-give-level']) prop(root.querySelector('[data-hs-act="' + a + '"]'), 'disabled', st.busy);
+  if (c) { text(root.querySelector('.gm-ask'), c.ask); text(root.querySelector('[data-hs-act="gm-yes"]'), c.yes); prop(root.querySelector('[data-hs-act="gm-yes"]'), 'disabled', st.pending); }
+  for (const a of ['gm-online', 'gm-look', 'gm-say', 'gm-give-gold', 'gm-give-item', 'gm-give-level']) prop(root.querySelector('[data-hs-act="' + a + '"]'), 'disabled', st.pending);
   text(root.querySelector('.gm-said'), st.said);
 }
 
 /* One ask at a time: its buttons stay off until the server answers. */
 async function asking(ctx, el, run) {
   const st = stateOf(ctx);
-  if (st.busy) return;
-  st.busy = true; st.said = '';
+  if (st.pending) return;
+  st.pending = true; st.said = '';
   patchBody(el, ctx);
-  try { await run(st); } finally { st.busy = false; if (el.isConnected) patchBody(el, ctx); }
+  try { await run(st); } finally { st.pending = false; if (el.isConnected) patchBody(el, ctx); }
 }
 const said = (st, r, done, cs) => { st.said = r && r.ok ? done : refusalText(r || { error: 'network' }, cs); };
 
@@ -106,6 +102,14 @@ async function readHero(ctx, st, target, slot) {
   const r = await gmHero(ctx.account, target, slot);
   if (r.ok) st.hero = r.hero; else { st.hero = null; said(st, r, '', ctx.character); }
   return r;
+}
+
+/* After an act, the list a Refresh already drew says what the server says now. */
+async function reread(ctx, st, h) {
+  await readHero(ctx, st, h.id, h.slot);
+  if (!st.heroes) return;
+  const r = await gmOnline(ctx.account);
+  if (r.ok) st.heroes = r.heroes;
 }
 
 const CONFIRMS = Object.freeze({
@@ -128,7 +132,7 @@ async function runConfirmed(ctx, el, root, c, st) {
     /* A town job needs the engine: each one the server named stops by the player's own path. */
     if (r && r.ok) for (const j of r.jobs || []) await gmStop(cs, h.id, j.slot, why);
   }
-  await readHero(ctx, st, h.id, h.slot);
+  await reread(ctx, st, h);
 }
 
 const whole = (input) => { const n = Number(input.value); return Number.isSafeInteger(n) ? n : 0; };
@@ -148,8 +152,8 @@ export function actBody(ctx, el, action, ev, t) {
     'gm-online': async (s) => { const r = await gmOnline(account); if (r.ok) s.heroes = r.heroes; else said(s, r, '', cs); },
     'gm-look': (s) => readHero(ctx, s, root.querySelector('.gm-find').value.trim(), null),
     'gm-pick': (s) => readHero(ctx, s, t.getAttribute('data-id'), Number(t.getAttribute('data-slot'))),
-    'gm-unmute': async (s) => { const h = s.hero; said(s, await gmUnmute(account, h.id, root.querySelector('.gm-why').value), h.name + ' can chat again.', cs); await readHero(ctx, s, h.id, h.slot); },
-    'gm-unban': async (s) => { const h = s.hero; said(s, await gmUnban(account, h.id, root.querySelector('.gm-why').value), h.name + '\'s account can play again.', cs); await readHero(ctx, s, h.id, h.slot); },
+    'gm-unmute': async (s) => { const h = s.hero; said(s, await gmUnmute(account, h.id, root.querySelector('.gm-why').value), h.name + ' can chat again.', cs); await reread(ctx, s, h); },
+    'gm-unban': async (s) => { const h = s.hero; said(s, await gmUnban(account, h.id, root.querySelector('.gm-why').value), h.name + '\'s account can play again.', cs); await reread(ctx, s, h); },
     'gm-say': async (s) => { const box = root.querySelector('.gm-say'); const r = await gmSay(account, box.value); said(s, r, 'Said.', cs); if (r.ok) box.value = ''; },
     'gm-give-gold': async (s) => said(s, await gmGrantGold(account, cs, whole(root.querySelector('.gm-gold')), grantWhy()), 'Gold given.', cs),
     'gm-give-item': async (s) => said(s, await gmGrantItem(account, cs, root.querySelector('.gm-item').value.trim(), whole(root.querySelector('.gm-qty')), grantWhy()), 'Item given.', cs),

@@ -6,7 +6,7 @@
 //   A manual guard, like tests/char-wipe-world.mjs (a machine's first run replays the whole chain). The forged calls are tests/gm-tools.mjs.
 //
 //   GW-1  a brand-new account made GM (the tool's migration) gets the icon and the window; a player gets neither, and its page holds no window code
-//   GW-2  Who's playing names the player on its job; Look reads the hero; every act's button is off until it applies
+//   GW-2  Who's playing names the player on its job; Look reads the hero
 //   GW-3  Stop asks once more with the hero's name; the job stops, what it earned is in the player's bag, and the player's own page says idle
 //   GW-4  Say: the player's chat reads "Game Master: ..."
 //   GW-5  Mute: the player's chat box says why, in words; Unmute lifts it
@@ -50,7 +50,19 @@ async function main() {
     const gmId = (await sql(`select id from auth.users where email like 'warden@%'`)).id;
     const pId = (await sql(`select id from auth.users where email like 'marlow@%'`)).id;
     await db.exec(gmSql(gmId, 'Game Master (played)', 'world.sql'));
+    /* GW-7's evidence: what the player's own town read says about the GM's body, and a picture of both at the Hearth. */
+    let stamped = null;
+    p.page.on('response', async (r) => {
+      if (!/rpc\/hr_town_view/.test(r.url())) return;
+      const b = await r.json().catch(() => null);
+      const w = b && Array.isArray(b.walkers) ? b.walkers.find((x) => x.name === 'Warden') : null;
+      if (w) stamped = { gm: w.gm === true, name: w.name };
+    });
     await gm.createHero('Warden');
+    await p.page.waitForFunction(() => true);
+    for (let i = 0; i < 40 && !stamped; i++) await p.page.waitForTimeout(500);
+    await p.page.waitForTimeout(1500);
+    await shot(p.page, 'player-sees-gm-in-town');
     await gm.page.waitForSelector('[data-hs-open="game-master"]', { timeout: 30000 });
     await gm.page.click('[data-hs-open="game-master"]');
     await gm.page.waitForSelector(WIN + ' .gm-part');
@@ -77,8 +89,7 @@ async function main() {
     await gm.page.waitForFunction((w) => /Marlow/.test((document.querySelector(w + ' .gm-facts') || {}).textContent || ''), WIN);
     await shot(gm.page, 'gm-hero');
     const facts = await gm.page.evaluate((w) => document.querySelector(w + ' .gm-facts').textContent, WIN);
-    const offWhenIdle = await gm.page.evaluate((w) => document.querySelector(w + ' [data-hs-act="gm-unmute"]').disabled && document.querySelector(w + ' [data-hs-act="gm-unban"]').disabled, WIN);
-    step('GW-2 Who\'s playing names the player on its job; Look reads the hero; nothing to lift reads off', listed.some((t) => /Marlow/.test(t) && /Gathering|Crafting/.test(t)) && /Level 1/.test(facts) && /Gathering|Crafting/.test(facts) && offWhenIdle, JSON.stringify({ listed, facts, offWhenIdle }));
+    step('GW-2 Who\'s playing names the player on its job; Look reads the hero', listed.some((t) => /Marlow/.test(t) && /Gathering|Crafting/.test(t)) && /Level 1/.test(facts) && /Gathering|Crafting/.test(facts), JSON.stringify({ listed, facts }));
 
     /* GW-3: time passes on the job, then the stop. */
     await db.query(`update public.player_state set active_since = now() - interval '20 minutes', accrued_to = now() - interval '20 minutes' where user_id = $1 and slot = 0`, [pId]);
@@ -174,8 +185,7 @@ async function main() {
     /* GW-7: both in town. The plate is a canvas mark, read from the cast the world draws. */
     await gm.page.click('[data-hs-open="game-master"]').catch(() => {});
     const look = await sql(`select look from public.town_bodies where user_id = $1 and slot = 0`, [gmId]);
-    await shot(p.page, 'player-sees-gm-in-town');
-    step('GW-7 the server stamps the GM\'s body in town, so the player\'s town draws the gold plate', look && look.look && look.look.gm === true, JSON.stringify(look));
+    step('GW-7 the server stamps the GM\'s body, and the player\'s own town read carries the stamp (the plate: world-town-home T, and the picture)', look && look.look && look.look.gm === true && stamped && stamped.gm === true, JSON.stringify({ look, stamped }));
 
     /* GW-8 */
     await gm.page.click('[data-hs-open="game-master"]').catch(() => {});
@@ -209,6 +219,7 @@ async function main() {
     const named = await ph.page.waitForSelector('.hw-icon-names [data-hs-open="game-master"]', { timeout: 15000 }).catch(() => null);
     if (named) { await named.click(); opened = true; }
     await ph.page.waitForSelector(WIN + ' .gm-part', { timeout: 15000 }).catch(() => { opened = false; });
+    await ph.page.waitForTimeout(600);   // the sheet's slide
     await shot(ph.page, 'gm-sheet-922x423');
     const reach = await ph.page.evaluate((w) => { const s = document.querySelector(w); if (!s) return null; const parts = [...s.querySelectorAll('.gm-part')]; return { parts: parts.length, wide: s.getBoundingClientRect().width <= innerWidth, heads: parts.map((x) => x.querySelector('.hs-sub').textContent) }; }, WIN);
     await ph.page.evaluate((w) => { const l = document.querySelector(w + ' .gm-part:last-of-type'); if (l) l.scrollIntoView(); }, WIN);

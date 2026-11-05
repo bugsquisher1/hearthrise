@@ -786,10 +786,10 @@ export const MONSTERS = {
      Its art is its boss's (monster-art.js HUNT_ART_ALIAS). Numbers measured on the real settle: tools/balance-sim plan bosscall. ══ */
   rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true, called: true,
     elementResist: ['ember'],
-    hp: 6000, atk: 61, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [] },
+    hp: 5000, atk: 61, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [] },
   chief_coppercap_called: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true, called: true,
     elementResist: ['frost'],
-    hp: 10000, atk: 150, def: 28, xp: 0, gp: [0, 0], speed: 2800, drops: [] },
+    hp: 8000, atk: 155, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800, drops: [] },
 
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their

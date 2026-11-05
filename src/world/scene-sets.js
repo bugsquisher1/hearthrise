@@ -23,6 +23,7 @@
 import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.90';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.90';
 import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.90';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.90';
 import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.90';
 import { effectIds } from '../data/hunt-vfx.js?v=0.2.90';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.90';
@@ -32,7 +33,7 @@ import { furnish } from './home-scene.js?v=0.2.90';
 /** The monsters (and gather-node art) of every ground drawn on map `row` and every hunt it renders. */
 function groundIds(row, ids) {
   const hunts = new Set(row.hunts || []);
-  for (const h of hunts) for (const s of (HUNT_INDEX[h] || {}).spawns || []) ids.add(s.monster);
+  for (const h of hunts) for (const s of (HUNT_INDEX[h] || {}).spawns || []) ids.add(HUNT_ART_ALIAS[s.monster] || s.monster);
   for (const g of Object.values(HUNT_GROUNDS)) {
     if (g.map !== row.id && !hunts.has(g.hunt)) continue;
     for (const p of g.pockets) for (const s of [...p.spawns, ...(p.pack || [])]) ids.add(s.monster);

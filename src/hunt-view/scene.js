@@ -45,13 +45,14 @@ import { floatShown } from './float-prefs.js?v=0.2.90';
 import { heroSprite } from '../session/hero-look.js?v=0.2.90';
 import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.90';
 import { STUB_SPRITE } from '../world/core/book.js?v=0.2.90';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.90';
+import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.90';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.90';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.90';
 import { levelOf } from '../session/character-sections.js?v=0.2.90';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
-  const g = huntId ? Object.values(HUNT_GROUNDS).find((r) => r.hunt === huntId) : null;
+  const g = huntId ? groundOfHunt(huntId) : null;
   const t = g && g.start && g.start[0];
   return t ? { x: t[0], y: t[1], moving: false, d: 0, hx: 0, hy: 1 } : null;
 }
@@ -181,7 +182,9 @@ export function createHuntScene(o) {
   const spriteOf = (u) => {
     if (u === read.viewed && read.look) return read.look;
     if (isHero(u)) { const m = read.heroes.get(u); return (m && m.look) || outfitSprite(m && m.outfit, m && m.role); }
-    return (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
+    const kind = (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
+    /* A called boss wears his own art (monster-art.js): the one place a kind becomes a sprite. */
+    return (kind && HUNT_ART_ALIAS[kind]) || kind;
   };
   const unnamed = new Set();
   /* How long a one-shot effect plays (its frames at its fps); a loop shows for its row's lifeMs. */

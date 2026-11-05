@@ -23,6 +23,10 @@ import { whole, gold, clock } from '../../render/format.js?v=0.2.90';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.90';
 import { runIntent } from '../intent-words.js?v=0.2.90';
 import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.90';
+import { callOfHunt } from '../../data/boss-calls.js?v=0.2.90';
+
+/* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), and an old hunt that kept no settings. */
+const againOffWords = (cur) => (callOfHunt(cur.hunt) ? 'he comes when he is called, from the ground\'s page.' : 'this hunt did not keep its settings.');
 import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.90';
 import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.90';
 import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.90';
@@ -139,9 +143,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const route = again ? againRoute(partyMembershipOf(cs), again.hunt) : null;
     const go = root.querySelector('[data-hs-act="again"]');
     prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
-    attr(go, 'title', huntOpen ? 'A hunt is already running.' : !again ? 'This hunt did not keep its settings.' : route.why || 'Same ground, action set and limits, with what your bag holds now.');
+    attr(go, 'title', huntOpen ? 'A hunt is already running.' : !again ? againOffWords(cur) : route.why || 'Same ground, action set and limits, with what your bag holds now.');
     /* Hunt again off says why on the line under it, not only in a title (say-why). */
-    againWhy = huntOpen ? 'Hunt again is off: a hunt is already running.' : !again ? 'Hunt again is off: this hunt did not keep its settings.' : route.why ? 'Hunt again is off. ' + route.why : '';
+    againWhy = huntOpen ? 'Hunt again is off: a hunt is already running.' : !again ? 'Hunt again is off: ' + againOffWords(cur) : route.why ? 'Hunt again is off. ' + route.why : '';
     const card = huntOpen ? null : nextStepOf(ctx);
     const next = root.querySelector('[data-hs-act="coach-next"]');
     prop(next, 'hidden', !card);

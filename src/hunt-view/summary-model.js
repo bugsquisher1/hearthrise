@@ -18,6 +18,7 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
+import { callOfHunt } from '../data/boss-calls.js?v=0.2.90';
 import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.90';
 import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.90';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.90';
@@ -159,7 +160,8 @@ export function withSummary(list, summary) {
  * @returns {{hunt: string, bag: {item: string, qty: number, essential?: boolean}[], preset: number, hours: number|null}|null}
  */
 export function huntAgainOf(summary) {
-  if (!summary || !summary.hunt || summary.preset === null) return null;
+  /* A called room has one door, its paid press on the ground's page (src/data/boss-calls.js): no free way back. */
+  if (!summary || !summary.hunt || summary.preset === null || callOfHunt(summary.hunt)) return null;
   return {
     hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,
     bag: summary.bag.map(([item, qty, ess]) => (ess ? { item, qty, essential: true } : { item, qty })),

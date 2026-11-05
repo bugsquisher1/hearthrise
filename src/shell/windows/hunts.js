@@ -67,6 +67,8 @@ import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.90';
 import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.90';
 import { openFinderOn } from './party-finder.js?v=0.2.90';
 import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.90';
+import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.90';
+import { callFromGround } from '../../data/boss-calls.js?v=0.2.90';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
@@ -194,7 +196,7 @@ export function renderHunts(ctx) {
     + '<output class="hh-step-val"></output>'
     + '<button type="button" class="hh-seg" data-hs-act="density" data-by="1" aria-label="More monsters">+</button></span></span></div>'
     + '<p class="hw-density-note"></p>'
-    + '<p class="hw-hunt-pack"></p>' + goHtml() + '</div>'
+    + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>Leave party</button>'
     /* The phone's way back (windows.css): beside Enter, in reach however far down the page has been read. */
@@ -309,6 +311,7 @@ function patchPage(det, ctx, sc, v) {
       bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
     } : null,
   });
+  patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
   const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
@@ -397,6 +400,14 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   }
   /* An Enter the server took closes this window once its hunt section shows the hunt (patchHunts). */
   const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };
+  /* Call out: its section's presses, run as the setup Go as chose; its refusals read the designer's words. */
+  const called = callFromGround(sc.pick);
+  if (actCall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
+    const said = r && !r.ok && called ? callRefusal(r, called) : null;
+    if (said) { sc.msg = said; repaint(); }
+    thenClose(r);
+    return r;
+  }))) return true;
   if (action === 'leave-party') { leaveOrDisband(ctx, cs, sc, repaint, 'leave'); return true; }
   if (action === 'enter' && partyMembershipOf(cs)) {
     sc.pick = hunt;

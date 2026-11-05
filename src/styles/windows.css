@@ -423,6 +423,12 @@
 .hw-bring-none:empty { display: none; }
 /* The one primary at the page's foot, below its scroller (never over the page); the server's answer beside it.
    Solid at any window opacity: it is the press that matters most. Enter goes somewhere: a dark arrow follows it. */
+/* Call out on a ground's page (boss-call-pane.js): the press, then its warning in the confirmation's well. */
+.hw-hd-call[hidden] { display: none; }
+.hw-call-line { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-call-line:empty { display: none; }
+.hw-call-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.hw-call-press[hidden] { display: none; }
 .hw-hd-foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .hw-hd-foot .hh-intent-msg { flex: 1; min-width: 0; margin: 0; }
 .hw-enter-why { flex: 1; min-width: 0; margin: 0; font-size: var(--t-small); color: var(--ink); }

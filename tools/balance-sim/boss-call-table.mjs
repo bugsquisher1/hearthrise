@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // tools/balance-sim/boss-call-table.mjs — CALL OUT, MEASURED ON THE REAL SETTLE (Tyler 2026-11-04; src/data/boss-calls.js).
 //
-//   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21] [--monster id]
+//   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 0.7 --lvl 25] [--cliff]
 //
 // Each cell plays the called room to its end through accrueHunt (tests/hunt-core/fixtures/play-ground.mjs, the settle
 // the world tick runs), a fresh hunt secret per seed, and reads how it ended: the kill, a death or the limit. It plays
-// the room as data ships it; --hp and --atk try another row on the same dice (scratch, nothing is written).
+// the room as data ships it; --hp, --atk, --acc and --lvl try another row on the same dice (scratch, nothing is written). --cliff plays only the rows that read the cliff.
 //
 // THE TARGET (Tyler's RISK AND DEATH ruling): an optimized party can survive it; a careless one dies. "Optimized" here
 // is a real choice a player makes: bring a Healer and a tank, wear the ground's own tier, set the right food. "Careless"
@@ -125,6 +125,7 @@ const RUNS = {
     ['Careless: two dps, L25', { level: 25, party: ['hammer', 'mage'] }],
     ['Careless: four dps, starter bar, L25', { level: 25, party: ['hammer', 'axes', 'bow', 'mage'], starter: true }],
     ['Careless: tank + healer, one gear tier behind, L25', { level: 25, party: ['tank', 'healer'], gear: under(-1) }],
+    ['Careless: tank + healer + 2 dps, one gear tier behind, L25', { level: 25, party: ['tank', 'healer', 'hammer', 'mage'], gear: under(-1) }],
     /* THE ACTION BAR: the same party, one thing changed. Is preparing a real decision? */
     ['Bar: tank + healer + mage, no spells, L25', { level: 25, party: ['tank', 'healer', 'mage'] }],
     ['Bar: + Greater Mend, L25', { level: 25, party: ['tank', 'healer', 'mage'], spells: { healer: ['greater_mend'] } }],
@@ -148,6 +149,7 @@ const RUNS = {
     ['Careless: two dps, L45', { level: 45, party: ['hammer', 'mage'] }],
     ['Careless: four dps, starter bar, L45', { level: 45, party: ['hammer', 'axes', 'bow', 'mage'], starter: true }],
     ['Careless: tank + healer, one gear tier behind, L45', { level: 45, party: ['tank', 'healer'], gear: under(-1) }],
+    ['Careless: tank + healer + 2 dps, one gear tier behind, L45', { level: 45, party: ['tank', 'healer', 'hammer', 'mage'], gear: under(-1) }],
     ['Bar: tank + healer + mage, no spells, L45', { level: 45, party: ['tank', 'healer', 'mage'] }],
     ['Bar: + Greater Mend, L45', { level: 45, party: ['tank', 'healer', 'mage'], spells: { healer: ['greater_mend'] } }],
     ['Bar: + Greater Mend, Frost Lance (he resists), L45', { level: 45, party: ['tank', 'healer', 'mage'], spells: { healer: ['greater_mend'], mage: ['frost_lance'] } }],
@@ -162,7 +164,8 @@ const RUNS = {
 
 const seeds = Number(arg('seeds', '12'));
 const only = arg('only', null);
-const hp = arg('hp', null), atk = arg('atk', null), lvl = arg('lvl', null);
+const hp = arg('hp', null), atk = arg('atk', null), lvl = arg('lvl', null), acc = arg('acc', null);
+const CLIFF = /Optimized|Under|gear tier|four dps, no tank|tank \+ dps, no healer/;
 const rows = [];
 for (const call of Object.values(BOSS_CALLS)) {
   if (only && !call.id.includes(only)) continue;
@@ -170,11 +173,13 @@ for (const call of Object.values(BOSS_CALLS)) {
     if (hp) inst.hp = Number(hp);
     if (atk) inst.atk = Number(atk);
     if (lvl) inst.level = Number(lvl);
+    if (acc) inst.baseAcc = Number(acc);
   }
   const row = ENGINE_MONSTERS[call.monster];
   console.log('\n' + call.id + ' (HP ' + row.hp + ', atk ' + row.atk + ', Level ' + row.level + ', fee ' + call.fee + ')');
   console.log('win%  kill(s)  dead time  food/head  low HP%   party');
   for (const [label, c] of RUNS[call.id]) {
+    if (process.argv.includes('--cliff') && !CLIFF.test(label)) continue;
     const r = cell(call, { label, ...c }, seeds);
     rows.push(r);
     console.log(String(r.win).padStart(4) + '  ' + String(r.medianKillS ?? '-').padStart(6) + '  ' + String(r.deaths).padStart(4) + ' ' + String(r.time).padStart(4) + '  ' + String(r.foodPerHead).padStart(9) + '  ' + String(r.lowestHpPct).padStart(6) + '   ' + label);

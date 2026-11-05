@@ -16,6 +16,7 @@
 //   BD-BOTH    the kill, a death and the limit, each with the browser closed (the tick) and the hunt viewed (index.ts's settle): the same end on the same instant, no hunt left open
 //   BD-PAID    after each: no XP, no coin but the fee and the store's bill, no loot, no kill in the tally, no Bestiary row, the Bestiary's total unmoved, the party on its ground
 //   BD-PRIZE   the kill reaches the title's counter for each hero present; price 0, once; one System line a fight; nothing without the kill
+//   BD-RECORD  each hero's session keeps the fight's record (hunt_session_tally.fight, read through hr_hunt_view): where he stood at the end, what that hero's bar fired, the same through both doors; a forged record is refused; every other hunt's section has no such key
 //   BD-AGAIN   every file of the lane applied a second time moves nothing: the schema's inventory, every spliced body and the catalogue rows, byte for byte
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -30,13 +31,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const ADD_ID = 'drain_rat_called';
 const EM = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href + V)).MONSTERS;
 const PM = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href)).MONSTERS;
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const { one, q } = H;
 const KING = BOSS_CALLS.rat_king;
 const FEE = KING.fee;
-const UIDS = Array.from({ length: 8 }, (_, i) => '00000000-0000-4000-8000-0000000bc0' + String(i + 10));
+const UIDS = Array.from({ length: 10 }, (_, i) => '00000000-0000-4000-8000-0000000bc0' + String(i + 10));
 const WINDOW = 90000;
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
 const STAFF = Object.freeze({ helmet: 'scholar_helmet', body: 'scholar_body', pants: 'scholar_pants', boots: 'scholar_boots', weapon: 'willow_staff' });
@@ -196,7 +198,10 @@ async function fightToEnd(db, M, door, uids, party, anchorMs) {
 const JOBS = [
   { name: 'the kill', want: ['boss_felled'], level: 60, uids: [0, 1], row: null },
   { name: 'a death', want: ['died', 'party_member_died'], level: 2, uids: [2, 3], gear: [{}, {}], row: null },
-  { name: 'the limit', want: ['boss_time'], level: 60, uids: [4, 5], row: { hp: 100000000, atk: 1, baseAcc: 0 } },
+  { name: 'the limit', want: ['boss_time'], level: 60, uids: [4, 5], row: { hp: 100000000, atk: 1, baseAcc: 0 }, stood: [999, 1000], manyWindows: true },
+  /* THE PHASES: a death with the wave up, and the limit with the wave up (a row that takes 1 a blow, so his first line falls inside ten minutes and his last HP doesn't). */
+  { name: 'a death in the add wave', want: ['died', 'party_member_died'], level: 60, uids: [6, 7], row: { hp: 2000, atk: 1, baseAcc: 0 }, add: { hp: 100000, atk: 800, baseAcc: 3 }, stood: [1, 500] },
+  { name: 'the limit with the wave up', want: ['boss_time'], level: 60, uids: [8, 9], row: { hp: 410, atk: 1, baseAcc: 0, def: 100000 }, add: { hp: 10000000, atk: 1, baseAcc: 0 }, stood: [1, 500] },
 ];
 
 async function bothDoors(door, boot) {
@@ -207,7 +212,9 @@ async function bothDoors(door, boot) {
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const ends = {};
   const row = EM[KING.monster];
-  const keep = { hp: row.hp, atk: row.atk, baseAcc: row.baseAcc };
+  const keep = { hp: row.hp, atk: row.atk, baseAcc: row.baseAcc, def: row.def };
+  const ADD = EM[ADD_ID];
+  const keepAdd = { hp: ADD.hp, atk: ADD.atk, baseAcc: ADD.baseAcc };
   for (const job of JOBS) {
     const uids = job.uids.map((i) => UIDS[i]);
     const anchorMs = Date.UTC(2026, 9, 25, 12, 0, 0);
@@ -221,13 +228,28 @@ async function bothDoors(door, boot) {
     if (await one(db, 'select hunt_id from public.hunt_parties where id = $1', [pid]) !== KING.hunt) bad.push(`BD-BOTH ${door} ${job.name}: the party is not on the room`);
     await backdate(db, pid, anchorMs);
     if (job.row) for (const inst of [row, PM[KING.monster]]) Object.assign(inst, job.row);
+    if (job.add) for (const inst of [ADD, PM[ADD_ID]]) Object.assign(inst, job.add);
     let got;
-    try { got = await fightToEnd(db, M, door, uids, pid, anchorMs); } finally { for (const inst of [row, PM[KING.monster]]) Object.assign(inst, keep); }
+    try { got = await fightToEnd(db, M, door, uids, pid, anchorMs); } finally {
+      for (const inst of [row, PM[KING.monster]]) Object.assign(inst, keep);
+      for (const inst of [ADD, PM[ADD_ID]]) Object.assign(inst, keepAdd);
+    }
     if (await openIn(db, pid)) bad.push(`BD-BOTH ${door} ${job.name}: ${await openIn(db, pid)} heroes still in the room`);
     const reasons = [...new Set(got.map((g) => g.end_reason))].sort();
     if (reasons.join() !== job.want.join()) bad.push(`BD-BOTH ${door} ${job.name}: ended ${reasons.join()}, want ${job.want.join()}`);
-    ends[job.name] = got.map((g) => g.end_reason + '@' + new Date(g.ended_at).toISOString());
-    if (job.name === 'the limit' && !got.every((g) => new Date(g.ended_at).getTime() === anchorMs + BOSS_CALL_RULES.limitMs)) bad.push(`BD-BOTH ${door} the limit ended at ${got.map((g) => g.ended_at)}`);
+    /* BD-RECORD: each hero's, and the view says what the row says. */
+    const recs = await q(db, `select t.fight, public.hr_hunt_view(h.id)->'tally'->'fight' as seen from public.hunt_sessions h join public.hunt_session_tally t on t.session_id = h.id where h.instance_id = $1 order by h.seat`, [pid]);
+    if (recs.length !== uids.length) bad.push(`BD-RECORD ${door} ${job.name}: ${recs.length} sessions`);
+    const [lo, hi] = job.stood || (job.name === 'the kill' ? [0, 0] : [1, 1000]);
+    for (const r of recs) {
+      if (!r.fight) { bad.push(`BD-RECORD ${door} ${job.name}: no record`); continue; }
+      if (JSON.stringify(r.seen) !== JSON.stringify(r.fight)) bad.push(`BD-RECORD ${door} ${job.name}: the view reads ${JSON.stringify(r.seen)}, the row ${JSON.stringify(r.fight)}`);
+      if (!(r.fight.boss_pm >= lo && r.fight.boss_pm <= hi)) bad.push(`BD-RECORD ${door} ${job.name}: he stood at ${r.fight.boss_pm}, want ${lo}..${hi}`);
+    }
+    /* What fired is the sum of the windows, not the last one: Power Strike every 6 s over ten minutes is many times what one window of ${WINDOW} ms can hold. */
+    if (job.manyWindows && !recs.some((r) => r.fight && Number(r.fight.fired.power_strike) > 2 * (WINDOW / 6000))) bad.push(`BD-RECORD ${door} ${job.name}: ten minutes fired ${JSON.stringify(recs.map((r) => r.fight && r.fight.fired))}: only the last window kept`);
+    ends[job.name] = got.map((g) => g.end_reason + '@' + new Date(g.ended_at).toISOString()).concat(recs.map((r) => JSON.stringify(r.fight)));
+    if (job.want[0] === 'boss_time' && !got.every((g) => new Date(g.ended_at).getTime() === anchorMs + BOSS_CALL_RULES.limitMs)) bad.push(`BD-BOTH ${door} the limit ended at ${got.map((g) => g.ended_at)}`);
     /* BD-PAID */
     for (const g of got) {
       if (Number(g.coins) !== 0 || Number(g.kills) !== 0 || Object.keys(g.loot || {}).length || Object.entries(g.xp || {}).some(([, n]) => Number(n) > 0)) bad.push(`BD-PAID ${door} ${job.name}: the tally reads ${JSON.stringify({ c: g.coins, k: g.kills, l: g.loot, x: g.xp })}`);
@@ -296,6 +318,24 @@ async function forged(boot) {
     await db.query('update public.hunt_instances set refusals = 0 where id = $1', [pid]);
     await db.query('update public.hunt_sessions set refusals = 0 where instance_id = $1', [pid]);
   }
+  /* A forged record: the settle's bad_analyzer, whole. */
+  for (const [name, f] of [['past the top', { boss_pm: 1001, fired: {} }], ['a stray key', { boss_pm: 5, fired: {}, gold: 9 }], ['a negative count', { boss_pm: 5, fired: { eat: -1 } }], ['not a number', { boss_pm: 'x', fired: {} }]]) {
+    const plan = await M.HS.readHuntSettle({ exec, user: uids[0], slot: 0, atMs: anchorMs + WINDOW }, 'tick');
+    if (plan.answer) { bad.push('BD-RECORD harness: ' + plan.answer.reason); break; }
+    const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+    p.commit.members[0].analyzer.fight = f;
+    const res = await M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
+    if (!res || res.ok === true || !JSON.stringify(res).includes('bad_analyzer')) bad.push('BD-RECORD a record ' + name + ' answered ' + JSON.stringify(res).slice(0, 200));
+    await db.query('update public.hunt_instances set refusals = 0 where id = $1', [pid]);
+    await db.query('update public.hunt_sessions set refusals = 0 where instance_id = $1', [pid]);
+  }
+  /* A record on any other hunt is refused, and a session with none has no such key: every other hunt's section stays as it was. */
+  if (await one(db, `select public.hr_boss_fight_ok('{"boss_pm":5,"fired":{}}'::jsonb, 'millrace_sewer')`)) bad.push('BD-RECORD a normal hunt may carry a record');
+  {
+    const sid = await one(db, 'select id from public.hunt_sessions where instance_id = $1 limit 1', [pid]);
+    await db.query('update public.hunt_session_tally set fight = null where session_id = $1', [sid]);
+    if (await one(db, `select public.hr_hunt_view($1::uuid)->'tally' ? 'fight'`, [sid])) bad.push('BD-RECORD a session with no record shows a fight key');
+  }
   /* A clean window still lands: the refusals above were the plants, not the room. */
   const plan = await M.HS.readHuntSettle({ exec, user: uids[0], slot: 0, atMs: anchorMs + WINDOW }, 'tick');
   if (plan.answer) return [...bad, 'BD-FORGED the clean window answered ' + plan.answer.reason];
@@ -316,9 +356,16 @@ const ARMS = {
   },
 };
 
-const FN = { admit: 'public.hr_hunt_admit(uuid,integer,text)', apply: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', verb: 'public.hr_boss_call(integer,text,bigint,uuid)', quote: 'public.hr_boss_call_quote(uuid,integer,text)',
+const FN = { view: 'public.hr_hunt_view(uuid)', admit: 'public.hr_hunt_admit(uuid,integer,text)', apply: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', verb: 'public.hr_boss_call(integer,text,bigint,uuid)', quote: 'public.hr_boss_call_quote(uuid,integer,text)',
   settle: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', best: 'public.hr_bestiary_of(uuid,integer)', closed: 'public.hr_boss_call_closed()', felled: 'public.hr_boss_call_felled()' };
 const MUTANTS = [
+  { name: 'the settle takes a forged record', fn: FN.apply, find: "(p_analyzer ? 'fight' and not public.hr_boss_fight_ok(p_analyzer->'fight', v_s.hunt_id))", repl: 'false', arm: 'forged', want: /BD-RECORD/ },
+  { name: 'the record is never written', fn: FN.apply, find: "fight = case when p_analyzer ? 'fight' then", repl: 'fight = case when false then', arm: 'doors', want: /BD-RECORD/ },
+  { name: 'the record keeps the first window\'s boss', fn: FN.apply, find: "jsonb_build_object('boss_pm', p_analyzer->'fight'->'boss_pm',", repl: "jsonb_build_object('boss_pm', coalesce(t.fight->'boss_pm', p_analyzer->'fight'->'boss_pm'),", arm: 'doors', want: /BD-RECORD/ },
+  { name: 'what fired is only the last window', fn: FN.apply, find: "public.hr_jsonb_add(coalesce(t.fight->'fired', '{}'::jsonb), coalesce(p_analyzer->'fight'->'fired', '{}'::jsonb))", repl: "coalesce(p_analyzer->'fight'->'fired', '{}'::jsonb)", arm: 'doors', want: /BD-RECORD/ },
+  { name: 'the view never shows it', fn: FN.view, find: "|| case when t.fight is null then '{}'::jsonb else jsonb_build_object('fight', t.fight) end", repl: '', arm: 'doors', want: /BD-RECORD/ },
+  { name: 'every session shows a fight key', fn: FN.view, find: "case when t.fight is null then '{}'::jsonb else", repl: "case when false then '{}'::jsonb else", arm: 'forged', want: /BD-RECORD/ },
+  { name: 'a normal hunt may carry a record', fn: 'public.hr_boss_fight_ok(jsonb,text)', find: "if not exists (select 1 from public.hr_boss_calls c where c.hunt_id = p_hunt) then return false; end if;", repl: '', arm: 'forged', want: /BD-RECORD/ },
   { name: 'every door opens the room', fn: FN.admit, find: "and current_setting('hr.boss_call', true) is distinct from p_hunt then", repl: 'and false then', arm: 'verb', want: /BD-DOOR/ },
   { name: 'a stale price is taken', fn: FN.verb, find: "if (v_q->>'price')::bigint <> p_price then", repl: 'if false then', arm: 'verb', want: /BD-WORDS/ },
   { name: 'the verb charges the client\'s number', fn: FN.verb, find: "'gold', -p_price,", repl: "'gold', -least(p_price, 1),", arm: 'verb', want: /BD-CHARGE/ },

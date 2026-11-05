@@ -48,6 +48,16 @@
 .hs-tally { display: flex; flex-direction: column; gap: 4px; max-height: var(--hs-room, none); padding: 4px 6px; background: var(--hud-fill);
   border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; }
 .hs-widget.is-tally.is-quiet { display: none; }
+.hs-widget.is-boss-bar.is-quiet { display: none; }
+.hs-boss { display: flex; flex-direction: column; gap: 4px; width: min(420px, 100%); padding: 4px 8px; background: var(--hud-fill); color: var(--ink); font-size: 13px; }
+.hs-boss-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.hs-boss-name { color: var(--gold-2); }
+.hs-boss-state { color: var(--ink-2); }
+.hs-boss.is-raging .hs-boss-state, .hs-boss.is-wave .hs-boss-state { color: var(--gold-2); font-weight: 700; }
+.hs-boss-track { position: relative; height: 12px; background: var(--red-bg); }
+.hs-boss-fill { position: absolute; inset: 0 auto 0 0; background: var(--gold); }
+.hs-boss.is-raging .hs-boss-fill { background: var(--red); }
+.hs-boss-mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); }
 .hs-tally-head { display: flex; align-items: flex-start; gap: 4px; }
 .hs-tally-open { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .hs-tally-head .hs-wfold { width: 22px; height: 22px; margin: -2px -2px 0 0; }

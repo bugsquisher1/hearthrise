@@ -11,6 +11,7 @@
 // from those events. It authors no number: it reads the server's sections.
 // ════════════════════════════════════════════════════════════════════════
 import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.93';
+import { roleIdOf } from '../session/party-sections.js?v=0.2.93';
 import { monsterName } from '../shell/widgets/bits.js?v=0.2.93';
 import { explainDeaths } from './death-explain.js?v=0.2.93';
 import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.93';
@@ -84,7 +85,7 @@ export function attach(cs) {
     const deaths = ex.deaths.map((f) => f.lines.join(' '));
     a.fresh = s.id;
     a.recorded = { id: s.id, at: Date.now() };
-    cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, analyzerOf(cs), deaths)));
+    cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, analyzerOf(cs), deaths, roleIdOf(cs))));
   });
   return a;
 }

@@ -10,6 +10,7 @@
 import { renderLaunchers } from './launcher.js?v=0.2.93';
 import { renderHudSettings } from './hud.js?v=0.2.93';
 import { renderHuntTopbar } from './widgets/hunt-topbar.js?v=0.2.93';
+import { renderBossBar } from './widgets/boss-bar.js?v=0.2.93';
 import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.93';
 import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.93';
 import { renderActionBar } from './widgets/action-bar.js?v=0.2.93';
@@ -74,6 +75,7 @@ export const WIDGET_RENDERERS = Object.freeze({
   launchers: renderLaunchers,
   alerts: renderAlerts,
   'hunt-topbar': renderHuntTopbar,
+  'boss-bar': renderBossBar,
   party: renderPartyPanel,
   analyzer: renderAnalyzer,
   'action-bar': renderActionBar,

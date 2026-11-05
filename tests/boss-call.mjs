@@ -282,10 +282,11 @@ async function guard(X) {
     if (!Object.values(f.ended).some((e) => e.reason === 'died')) bad.push('BC-RECORD CONTROL: the tank did not fall: ' + JSON.stringify(f.ended));
     if (!rec || rec.boss_pm !== Math.floor(((book[1] - dealt) * 1000) / book[1])) bad.push('BC-RECORD the record says ' + JSON.stringify(rec) + ' with ' + dealt + ' of ' + book[1] + ' dealt: a reset healed him');
   }
-  /* ...on a kill it reads nothing left, what fired is each hero's own, and any cut says the same. */
-  setRow(king.monster, { hp: 1600, atk: 1, baseAcc: 0 });
+  /* ...on a kill it reads nothing left, what fired is each hero's own, and any cut says the same. (He hits hard enough that someone eats.) */
+  setRow(king.monster, { hp: 1600, atk: 30, baseAcc: 3 });
   {
-    const ways = [10000, 30000, 10 * MINUTE].map((cut) => fight(X, king, ['tank', 'healer'], { cut, kit: SHIELDED }));
+    const FOOD = () => [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 90 }], join: 'and' }];
+    const ways = [10000, 30000, 10 * MINUTE].map((cut) => fight(X, king, ['tank', 'healer'], { cut, kit: SHIELDED, bar: FOOD }));
     const fold = (f, key) => { const n = {}; for (const m of f.members) if (m.key === key && m.analyzer && m.analyzer.fight) for (const [a, c] of Object.entries(m.analyzer.fight.fired)) n[a] = (n[a] || 0) + c; return n; };
     const norm = (o) => JSON.stringify(Object.entries(o).sort());
     const f0 = ways[0], keys = [...new Set(f0.members.map((m) => m.key))];
@@ -301,6 +302,7 @@ async function guard(X) {
       }
     }
     if (!keys.some((key) => (fold(f0, key).challenge || 0) > 0)) bad.push('BC-RECORD CONTROL: nothing fired Challenge');
+    if (!keys.some((key) => (fold(f0, key).eat || 0) > 0)) bad.push('BC-RECORD nobody ate, or the record forgot the food: ' + JSON.stringify(keys.map((key) => fold(f0, key))));
   }
   /* A normal hunt's window carries no record. */
   {

@@ -13,6 +13,7 @@
 // kinds (src/session/hunt-sections.js). An unknown unit reads "Someone".
 // ════════════════════════════════════════════════════════════════════════
 import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.93';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.93';
 import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.93';
 import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.93';
 import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.93';
@@ -63,6 +64,8 @@ export function lineOf(ev, n) {
     case 'level': return line('xp', a + ' reaches ' + (ev.skill === 'level' ? 'Level ' : skillName(ev.skill) + ' level ') + ev.level + '.');
     case 'eat': case 'drink':
       return line('supply', a + (ev.type === 'eat' ? ' eats ' : ' drinks ') + itemName(ev.item) + (ev.source === 'store' ? ', bought from the store.' : ' from the bag.'));
+    /* A called boss crossed a line (boss-phases.js): the bar and the world say so too. */
+    case 'boss_phase': return line('status', a + ' ' + BOSS_CALL_WORDS.log[ev.phase]);
     case 'status_on': return line('status', b + ' is ' + (ev.status === 'bleed' ? 'bleeding' : 'affected by ' + ev.status) + '.');
     case 'status_off': return line('status', b + (ev.status === 'bleed' ? ' stops bleeding.' : ' is free of ' + ev.status + '.'));
     case 'death': return line('death', (n.isHero(ev.u) ? a : 'Your hero') + ' was killed by ' + monsterName(ev.monster) + '.');

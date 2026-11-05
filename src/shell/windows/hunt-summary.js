@@ -59,7 +59,7 @@ export function renderHuntSummary() {
     + '<p class="hs-note hsum-none">No hunts have ended yet. When one does, what it came to lands here.</p>'
     + '<section class="hsum-live"><h3 class="hw-ledger-head is-on">Just now</h3><ul class="hsum-falls hsum-live-falls"></ul></section>'
     + '<section class="hsum-card">'
-    + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p>'
+    + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p><p class="hsum-loss" hidden></p>'
     + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
     /* The presses and their answer stay in reach: the reason and the numbers pushed them under a 1366x768 window's fold, so a hunt that
        ran out of stamina opened with no press in sight (door panel 2026-11-04). */
@@ -126,6 +126,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     text(root.querySelector('.hsum-when'), cur.at ? dayTime(cur.at) : '');
     const st = cur === list[0] && !huntOpen ? staminaOf(cs) : null;
     text(root.querySelector('.hsum-reason'), reasonWords(cur, nameOf(cs), st ? st.msLeft : null));
+    /* A lost called fight: where it was lost and what answers it (hunt-view/boss-loss.js). */
+    text(root.querySelector('.hsum-loss'), cur.loss || '');
+    prop(root.querySelector('.hsum-loss'), 'hidden', !cur.loss);
     for (const [k, , fmt, onlySent] of STATS) {
       const dd = root.querySelector('[data-stat="' + k + '"]');
       text(dd, fmt(cur[k]));

@@ -47,6 +47,7 @@ import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.93';
 import { STUB_SPRITE } from '../world/core/book.js?v=0.2.93';
 import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.93';
 import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.93';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.93';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.93';
 import { levelOf } from '../session/character-sections.js?v=0.2.93';
 
@@ -294,6 +295,7 @@ export function createHuntScene(o) {
         }
         break;
       }
+      case 'boss_phase': { const p = fixed(ev.u, start); if (p) floats.push({ text: BOSS_CALL_WORDS.shout[ev.phase], kind: 'hurt', x: p.x, y: p.y, dx: 0, dy: LEVEL_DY, start, life: SCENE_TIMING.levelMs, big: true }); break; }
       case 'eat': case 'drink': addFloat(ev.u, 'supply', itemName(ev.item), 'supply', start); break;
       case 'rare_drop': { const who = Number.isInteger(ev.u) ? ev.u : read.viewed; if (who !== null) addFloat(who, 'loot', itemName(ev.item), 'loot', start, true); break; }
       case 'status_on': if (ev.status === 'bleed') bleed.set(ev.t, Number.isInteger(ev.stacks) ? ev.stacks : (bleed.get(ev.t) || 0) + 1); break;

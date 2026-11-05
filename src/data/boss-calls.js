@@ -46,7 +46,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
   press: 'Call out {boss}: {fee} gp',
   warnTitle: 'Call out {boss}?',
   warn: Object.freeze([
-    '{Boss} hits harder here than on the ground, and takes far longer to bring down. Expect a big food bill, and a death ends the fight for the whole party.',
+    '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank. At a quarter he rages and hits harder still. A death ends the fight for the whole party.',
     'You pay {fee} gp from your purse, win or lose. There is no XP, no coin and no drops in this room, only the fight. It ends after {minutes} minutes.',
   ]),
   confirm: 'Call him out: {fee} gp',
@@ -54,6 +54,22 @@ export const BOSS_CALL_WORDS = Object.freeze({
   left: Object.freeze({ one: '1 call left today.', other: '{n} calls left today.', none: 'No calls left today.' }),
   hunting: 'Not while you\'re hunting. Come back to town first.',
   noQuote: 'The server hasn\'t said yet whether he can be called.',
+  /* The boss bar (src/shell/widgets/boss-bar.js) past each line, the same words the world calls out (hunt-view/scene.js). */
+  bar: Object.freeze({ adds: 'His adds are coming', enrage: 'He is enraged' }),
+  /* The combat log's line, after his name (src/hunt-view/combat-log.js), and what the world calls out over him (src/hunt-view/scene.js). */
+  log: Object.freeze({ adds: 'calls his adds. They go for whoever isn\'t your tank.', enrage: 'is enraged, and hits far harder.' }),
+  shout: Object.freeze({ adds: 'Adds!', enrage: 'Enraged!' }),
+  /* THE LOSING LINE (src/hunt-view/boss-loss.js): where it was lost, what this hero's bar did there, what answers it. {pct} his HP at the end; {times} the server's count. */
+  loss: Object.freeze({
+    fell: Object.freeze({ first: 'Fell before his adds came, at {pct}%', adds: 'Fell in the add wave at {pct}%', enrage: 'Fell in the enrage at {pct}%' }),
+    time: Object.freeze({ first: 'Time ran out before his adds came, at {pct}%', adds: 'Time ran out in the add wave at {pct}%', enrage: 'Time ran out in the enrage at {pct}%' }),
+    fact: Object.freeze({ challenge: 'your Challenge fired {times}', area: 'your area slot fired {times}', heals: 'your heals fired {times}', ate: 'you ate {times}' }),
+    answer: Object.freeze({
+      first: 'His plain blows beat your healing: bring a healer, eat earlier, or come back a gear tier up.',
+      adds: 'His adds go for whoever isn\'t your tank: keep Challenge on the tank\'s bar, put an area spell on 2 or more enemies, and set your damage dealers to Lowest HP so the adds fall first.',
+      enrage: 'Under a quarter of his health he hits far harder: eat earlier on every bar, and set your healer to heal sooner.',
+    }),
+  }),
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). */
   refused: Object.freeze({
     call_party: '{Boss} wants a party of two or more.',

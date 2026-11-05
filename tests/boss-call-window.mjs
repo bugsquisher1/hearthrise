@@ -5,7 +5,7 @@
 //   node tests/boss-call-window.mjs            the rules
 //   node tests/boss-call-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/boss-call-pane.js src/hunt-view/summary-model.js
+// mutant-anchors: src/shell/windows/boss-call-pane.js src/hunt-view/summary-model.js src/hunt-view/boss-loss.js src/shell/widgets/boss-bar.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs).
 //   BW-1  THE SERVER'S WORDS: alone, the page says why and the press is off; a member reads the leader's line; a ground with no boss to call shows nothing
@@ -13,6 +13,8 @@
 //   BW-3  A MOVED PRICE: quote_changed shows the server's new price and the words say nothing was charged; the next press carries the new price
 //   BW-4  NO ANSWER, NO PRESS, NO HAMMER: a server that won't quote leaves the press off and is not asked again on the repaint its own answer causes
 //   BW-5  NO FREE WAY BACK: Hunt again has nothing to send from a called room, and says why; a normal hunt's still does; both ends have their words
+//   BW-6  THE LOSING LINE: names the phase and his HP from the server's record, this hero's own count, and what answers it; a won fight, a walk-out and a normal hunt have none; it survives the residue's bounds
+//   BW-7  THE BOSS BAR: his name, a mark on each line where the row puts it, his HP at the instant shown, what each line brought; quiet on any other hunt, and once the fight is over
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -115,7 +117,7 @@ async function checks(overrides) {
       if (sent(s, 'hr_boss_call').length) fails.push('BW-2 the first press charged');
       if (!await shown(page, '.hw-call-warn')) fails.push('BW-2 no warning');
       const warned = await txt(page, '.hw-call-warn') || '';
-      if (!/a death ends the fight/.test(warned) || !/10,000 gp from your purse, win or lose/.test(warned) || !/no XP, no coin and no drops/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
+      if (!/A death ends the fight/.test(warned) || !/10,000 gp from your purse, win or lose/.test(warned) || !/no XP, no coin and no drops/.test(warned) || !/At half his health his adds come/.test(warned) || !/At a quarter he rages/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
       await press(page, '[data-hs-act="call-no"]', 'BW-2');
       await page.waitForTimeout(150);
       if (await shown(page, '.hw-call-warn')) fails.push('BW-2 Not yet left the warning up');
@@ -168,6 +170,63 @@ async function checks(overrides) {
       if (r.felled === 'The hunt ended.' || r.time === 'The hunt ended.') fails.push('BW-5 an end has no words: ' + JSON.stringify(r));
       await ctx.close();
     }
+    /* BW-6, BW-7: the modules as this page serves them. */
+    {
+      const { ctx, page } = await open({}, QUOTE({ available: false, why: 'call_party' }));
+      const r = await page.evaluate(async () => {
+        const hrefOf = (name) => new URL(Array.from(document.querySelectorAll('link[rel="modulepreload"]'), (l) => l.href).find((h) => h.includes(name)));
+        const L = await import(hrefOf('/boss-loss.js').href);
+        const S = await import(hrefOf('/summary-model.js').href);
+        const B = await import(hrefOf('/boss-bar.js').href);
+        const room = 'millrace_sewer_called';
+        const line = (reason, boss_pm, fired, role, hunt = room) => L.lossLine({ hunt, reason, fight: { boss_pm, fired }, role });
+        const lines = {
+          enrageTank: line('died', 230, { eat: 6, challenge: 2 }, 'tank'), enrageHealer: line('party_member_died', 230, { greater_mend: 9, circle_of_renewal: 3, eat: 1 }, 'healer'),
+          addsMage: line('died', 410, { fireball: 0, frost_lance: 4 }, 'mage'), addsMage2: line('died', 410, { fireball: 2, green_sickness: 1 }, 'mage'), addsTank: line('party_member_died', 410, { challenge: 1 }, 'tank'),
+          first: line('died', 800, { eat: 1 }, 'melee_dps'), time: line('boss_time', 230, { eat: 1 }, 'tank'), floor: line('died', 3, { eat: 1 }, 'tank'),
+          won: line('boss_felled', 0, { eat: 1 }, 'tank'), left: line('left', 230, { eat: 1 }, 'tank'), normal: line('died', 230, { eat: 1 }, 'tank', 'millrace_sewer'),
+          none: L.lossLine({ hunt: room, reason: 'died', fight: null, role: 'tank' }),
+        };
+        const sess = { read: (k) => (k === 'hunt' ? { session_id: 'sid', ended: true, session: { id: 'sid', hunt_id: room, end_reason: 'died', ended_at: '2026-11-05T10:00:00Z', tally: { deaths: 1, fight: { boss_pm: 230, fired: { eat: 6 } } } } } : null) };
+        const ended = S.endedSessionOf(sess);
+        const built = S.buildSummary(ended, null, [], 'tank');
+        const kept = S.sanitizeSummaries([built])[0];
+        const bar = (hunt, hp, over, played) => {
+          const el = document.createElement('div');
+          el.innerHTML = B.renderBossBar();
+          const cs = { read: (k) => (k === 'hunt' ? { session_id: 's', hunt_id: hunt, ended: !!over, pose: { units: [{ u: 5, kind: 'rat_king_called', side: 'monster', boss: true, name: 'Rat King', hp, hp_max: 1000 }] } } : null),
+            timeline: { hpAt: () => played || null }, now: () => 0 };
+          B.renderBossBar.patch(el, { character: cs });
+          const q = (s) => el.querySelector(s);
+          return { quiet: el.classList.contains('is-quiet'), name: q('.hs-boss-name').textContent, state: q('.hs-boss-state').textContent, fill: q('.hs-boss-fill').style.width,
+            adds: q('.hs-boss-mark.is-adds').style.left, enrage: q('.hs-boss-mark.is-enrage').style.left, wave: q('.hs-boss').classList.contains('is-wave'), raging: q('.hs-boss').classList.contains('is-raging') };
+        };
+        return { lines, ended: ended && ended.fight, loss: built.loss, kept: kept && kept.loss,
+          bars: { full: bar(room, 1000), half: bar(room, 500), quarter: bar(room, 240), played: bar(room, 1000, false, { hp: 240, maxHp: 1000 }), normal: bar('millrace_sewer', 1000), over: bar(room, 240, true) } };
+      });
+      const l = r.lines;
+      const want = (rule, name, re) => { if (!re.test(l[name] || '')) fails.push(rule + ' ' + name + ' reads ' + JSON.stringify(l[name])); };
+      want('BW-6', 'enrageTank', /^Fell in the enrage at 23%: you ate 6 times\. .*eat earlier/);
+      want('BW-6', 'enrageHealer', /^Fell in the enrage at 23%: your heals fired 12 times\./);
+      want('BW-6', 'addsMage', /^Fell in the add wave at 41%: your area slot fired 0 times\. .*area spell/);
+      want('BW-6', 'addsMage2', /your area slot fired 3 times\./);
+      want('BW-6', 'addsTank', /^Fell in the add wave at 41%: your Challenge fired 1 time\. /);
+      want('BW-6', 'first', /^Fell before his adds came, at 80%: you ate 1 time\. /);
+      want('BW-6', 'time', /^Time ran out in the enrage at 23%: /);
+      want('BW-6', 'floor', /at 1%:/);
+      for (const n of ['won', 'left', 'normal', 'none']) if (l[n] !== null) fails.push('BW-6 ' + n + ' has a line: ' + l[n]);
+      if (!r.ended || r.ended.boss_pm !== 230) fails.push('BW-6 the ended session lost the record: ' + JSON.stringify(r.ended));
+      if (!/^Fell in the enrage at 23%: you ate 6 times/.test(r.loss || '')) fails.push('BW-6 the summary reads ' + JSON.stringify(r.loss));
+      if (r.kept !== r.loss) fails.push('BW-6 the residue\'s bounds lost the line: ' + JSON.stringify(r.kept));
+      const b = r.bars;
+      if (b.full.quiet || b.full.name !== 'The Rat King' || b.full.adds !== '50%' || b.full.enrage !== '25%' || b.full.fill !== '100%' || b.full.wave || b.full.raging) fails.push('BW-7 at full he reads ' + JSON.stringify(b.full));
+      if (!b.half.wave || b.half.raging || !/adds/.test(b.half.state)) fails.push('BW-7 at the first line he reads ' + JSON.stringify(b.half));
+      if (b.quarter.wave || !b.quarter.raging || !/enraged/.test(b.quarter.state) || b.quarter.fill !== '24%') fails.push('BW-7 under the second line he reads ' + JSON.stringify(b.quarter));
+      if (!b.played.raging || b.played.fill !== '24%') fails.push('BW-7 the bar does not read the instant shown: ' + JSON.stringify(b.played));
+      if (!b.normal.quiet) fails.push('BW-7 a normal hunt has a boss bar');
+      if (!b.over.quiet) fails.push('BW-7 a finished fight still has a boss bar');
+      await ctx.close();
+    }
   } finally {
     await browser.close();
     server.close();
@@ -181,6 +240,12 @@ const MUTANTS = [
   { name: 'the press is on with no quote', file: 'src/shell/windows/boss-call-pane.js', from: 'const open = !!q && q.available && !v.now && !v.pending;', to: 'const open = !v.now && !v.pending;', want: /BW-1|BW-4/ },
   { name: 'a moved price is not read back', file: 'src/shell/windows/boss-call-pane.js', from: '.then((r) => { if (r && r.quote) sc.quote = r.quote; else sc.at = 0; repaint(); });', to: '.then(() => { repaint(); });', want: /BW-3/ },
   { name: 'every repaint asks again', file: 'src/shell/windows/boss-call-pane.js', from: 'if (!sc.asking && !v.now && now - sc.at > QUOTE_STANDS_MS) {', to: 'if (!sc.asking && !v.now && (!sc.quote || now - sc.at > QUOTE_STANDS_MS)) {', want: /BW-4/ },
+  { name: 'a won fight gets a losing line', file: 'src/hunt-view/boss-loss.js', from: '|| !LOST.includes(o.reason)) return null;', to: ') return null;', want: /BW-6/ },
+  { name: 'the line reads the wrong phase', file: 'src/hunt-view/boss-loss.js', from: "return bossPm <= ph.enragePm ? 'enrage' : bossPm <= ph.addsPm ? 'adds' : 'first';", to: "return bossPm <= ph.addsPm ? 'adds' : 'first';", want: /BW-6/ },
+  { name: 'the tank is asked about his area slot', file: 'src/hunt-view/boss-loss.js', from: "if (phase === 'adds' && role === 'tank') return", to: "if (phase === 'adds' && role === 'nobody') return", want: /BW-6/ },
+  { name: 'a mark in the wrong place', file: 'src/shell/widgets/boss-bar.js', from: "'left', (ph.enragePm / 10) + '%'", to: "'left', (ph.addsPm / 10) + '%'", want: /BW-7/ },
+  { name: 'the bar reads the snapshot, not the instant shown', file: 'src/shell/widgets/boss-bar.js', from: 'const hp = played ? played.hp : x.hp, max = played ? played.maxHp : x.hpMax;', to: 'const hp = x.hp, max = x.hpMax;', want: /BW-7/ },
+  { name: 'the bar stands on every hunt', file: 'src/shell/widgets/boss-bar.js', from: "cls(el, 'is-quiet', !ph);", to: "cls(el, 'is-quiet', false);", want: /BW-7/ },
   { name: 'a free way back from the room', file: 'src/hunt-view/summary-model.js', from: ' || callOfHunt(summary.hunt)) return null;', to: ') return null;', want: /BW-5/ },
 ];
 

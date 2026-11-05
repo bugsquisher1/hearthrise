@@ -19,6 +19,7 @@
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
 import { callOfHunt } from '../data/boss-calls.js?v=0.2.93';
+import { lossLine } from './boss-loss.js?v=0.2.93';
 import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.93';
 import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.93';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.93';
@@ -113,6 +114,8 @@ export function endedSessionOf(cs) {
     enteredMs: ms(s.entered_at), endedMs: ms(s.ended_at), bag,
     tally: isObj(s.tally) ? s.tally : null,
     died: int(isObj(s.tally) ? s.tally.deaths : null),
+    /* A called fight's record, the server's (hunt_session_tally.fight): the losing line reads it. */
+    fight: isObj(s.tally) && isObj(s.tally.fight) ? s.tally.fight : null,
   };
 }
 
@@ -121,8 +124,9 @@ export function endedSessionOf(cs) {
  * @param {object} s         endedSessionOf(cs)
  * @param {object|null} an   analyzerOf(cs) (hunt-sections.js) or null
  * @param {string[]} deaths  the death explanations' headlines (death-explain.js)
+ * @param {string|null} [role]  this hero's role, for a called fight's losing line
  */
-export function buildSummary(s, an, deaths) {
+export function buildSummary(s, an, deaths, role) {
   const hero = an && an.hero;
   const ph = hero && hero.perHour ? hero.perHour : null;
   const t = s.tally || {};
@@ -146,6 +150,7 @@ export function buildSummary(s, an, deaths) {
     balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawLevelXp : null,
     died: s.died, loot, supplies,
     preset: s.preset, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
+    loss: lossLine({ hunt: s.hunt, reason: s.reason, fight: s.fight || null, role: role || null }),
   });
 }
 

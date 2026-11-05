@@ -16,7 +16,7 @@
 //         envelope the walking hero keeps its place and its walk frame, and a
 //         running effect keeps its age (it is not re-started at 0, nor doubled)
 //   SC-2  AN EVENT ID PLAYS ONCE: restated batches and a second delivery of the
-//         same event add no effect, float or flash
+//         same event add no effect, float or recoil
 //   SC-3  INTERPOLATION STAYS WITHIN THE TRACK: every drawn unit stands on the
 //         segment between the two steps around the instant shown, never past the
 //         last step, and holds the last tile once the track ends
@@ -27,7 +27,7 @@
 //         atlas, every outfit walks in all eight facings in the hunt atlas, every
 //         ranged role's basic attack has a shipped bolt and every role a basic hit
 //   SC-6  THE FRAME DRAWS IT: hunt-set sprites (never a stub) with the diagonal
-//         frame of a diagonal step, vfx-set effects, the hit target flashed, a
+//         frame of a diagonal step, vfx-set effects, a
 //         corpse playing its death clip then lying as its corpse frame beneath the standing,
 //         HP bars only when not full, a wand's and a staff's basic attack
 //         drawn as its own bolt flying to the target, then its hit
@@ -51,6 +51,8 @@
 //         hero draw the spark on the side the blow came from, a hero's miss the scuff on the monster, and none of them
 //         a float; one shows at a time on a unit under a full box's blows; 150 ms and gone; its toggle hides it;
 //         `immune` stays a word (the log's line for it all: tests/hunt-view-core.mjs LOG-4)
+//   SC-15 A HIT MOVES THE SPRITE, IT NEVER REPAINTS IT (ART_DIRECTION §2, §11): the struck unit's draw entry is the entry it has once
+//         the hit has passed, 1 art px away from the blow; its name, bar and everything else stand
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -276,7 +278,6 @@ async function rules(M) {
     ok('SC-7', ratAlive && !ratAlive.badge, 'a regular monster shows no bleed badge by default');
     const g = v.at(at(S0 - 350 + 220 + 40));        // 40 ms after the ranger's bolt lands on the rat
     const ratHit = g.units.find((d) => d.unit === 101);
-    ok('SC-6', ratHit && ratHit.flash === true, 'the rat must flash as the bolt lands, got ' + JSON.stringify(ratHit && ratHit.flash));
     ok('SC-7', g.floats.some((x) => x.text === '6' && x.kind === 'hit'), 'the dealt number must float when the bolt lands: ' + JSON.stringify(g.floats));
     const mid = at(S0 + 174);
     const f = v.at(mid);
@@ -397,8 +398,8 @@ async function rules(M) {
     ok('SC-14', named(swing, 'fx_glance_scuff').length === 1 && !named(swing, 'fx_glance_spark').length && !swing.floats.length,
       'a hero\'s own miss is the scuff on the monster, no word: ' + JSON.stringify([swing.fx.map((e) => e.id), swing.floats]));
     const barrier = v.at(at(S0 + 1310));
-    ok('SC-14', named(barrier, 'fx_glance_spark').length === 1 && !barrier.floats.length && !unitOf(barrier, 1).flash,
-      'a blow a barrier took whole is a spark, no 0 and no flash: ' + JSON.stringify([barrier.fx.map((e) => e.id), barrier.floats]));
+    ok('SC-14', named(barrier, 'fx_glance_spark').length === 1 && !barrier.floats.length && !unitOf(barrier, 1).recoil,
+      'a blow a barrier took whole is a spark, no 0 and no recoil: ' + JSON.stringify([barrier.fx.map((e) => e.id), barrier.floats]));
     const imm = v.at(at(S0 + 1410));
     ok('SC-14', imm.floats.some((x) => x.text === 'immune'), '`immune` stays a word: it says change your element, got ' + JSON.stringify(imm.floats));
 
@@ -409,6 +410,23 @@ async function rules(M) {
     const q = viewer(M, quiet);
     const hidden = [410, 810, 1010, 1310].flatMap((ms) => q.at(at(S0 + ms)).fx.map((e) => e.id));
     ok('SC-14', !hidden.some((id) => /glance/.test(id)), 'the toggle hides the spark as it hid the word, got ' + JSON.stringify(hidden));
+  }
+
+  { // SC-15: the ranger on 8,9 shoots the rat on 14,9, so it gives east
+    const clock = { t: C0 };
+    const cs = session(M, clock, [envelope(7, S0)]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const view = { ox: 0, oy: 0, w: M.map.w * 32, h: M.map.h * 32 };
+    const list = (s) => M.K.composeFrame(M.map, M.book, Object.assign({ t: at(s), roofAlpha: {} }, v.at(at(s))), view, M.tables, 32);
+    const rat = (l) => l.sprites.find((d) => d.id === 'rat' && d.tx === 14 && d.ty === 9);
+    const landed = S0 - 350 + M.X.PROJECTILE.flightMs;
+    const struck = list(landed + 40), passed = list(landed + M.S.SCENE_TIMING.recoilMs + 10);
+    const a = rat(struck), b = rat(passed);
+    ok('SC-15', a && b && a.x === b.x + 1 && a.y === b.y, 'the struck rat stands 1 art px east of its spot, got ' + JSON.stringify([a && [a.x, a.y], b && [b.x, b.y]]));
+    ok('SC-15', a && b && JSON.stringify({ ...a, x: 0 }) === JSON.stringify({ ...b, x: 0 }), 'a hit changes no frame, tone or alpha of the sprite: ' + JSON.stringify([a, b]));
+    const cx = b && b.x + M.book.sprite('rat').anchor[0];
+    ok('SC-15', struck.bars.some((x) => x.x === cx) && passed.bars.some((x) => x.x === cx), 'a recoil leaves the bar where it stands: ' + JSON.stringify([cx, struck.bars, passed.bars]));
   }
 
   { // SC-11: the rat starts a step 50 ms before the blow that kills it
@@ -474,7 +492,10 @@ const MUTANTS = [
   ["a wand's basic hit shows nothing", 'src/data/hunt-vfx.js', "mage: 'fx_wand_bolt_impact'", 'mage: null'],
   ["a staff's bolt is missing", 'src/data/hunt-vfx.js', "healer: 'fx_staff_bolt' }", 'healer: null }'],
   ['the diagonal is dropped', 'src/hunt-view/scene.js', 'const diag = ax && ay && ', 'const diag = false && '],
-  ['no flash on a hit', 'src/hunt-view/scene.js', '    flash.set(ev.t, land);\n', ''],
+  ['no recoil on a hit (SC-15)', 'src/hunt-view/scene.js', '    if (a && b) recoil.set(ev.t, ', '    if (false) recoil.set(ev.t, '],
+  ['a recoil goes toward the blow (SC-15)', 'src/hunt-view/scene.js', 'dx: Math.round((b.x - a.x) / d)', 'dx: Math.round((a.x - b.x) / d)'],
+  ['a hit tints the sprite again (SC-15)', 'src/world/core/compose.js', 'if (u.recoil) { ', 'if (u.recoil) { d.grey = 0.7; '],
+  ['a recoil shakes the name and the bar too (SC-15)', 'src/world/core/compose.js', 'const d = place(u.id, u.x, u.y, {', 'const d = place(u.id, u.x + (u.recoil ? u.recoil[0] / 32 : 0), u.y, {'],
   ['a corpse stands among the living', 'src/world/core/compose.js', "bias: u.under ? -UNDER : 0,", 'bias: 0,'],
   ['the bleed badge ignores the toggle', 'src/hunt-view/scene.js', "(hero || read.shown('bleed_badge', isBoss(u)))", '(true)'],
   ['a float ignores its toggle', 'src/hunt-view/scene.js', '    if (!read.shown(type, isBoss(u))) return;\n', ''],

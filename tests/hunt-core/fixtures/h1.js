@@ -53,8 +53,8 @@ export async function loadCore(root) {
  */
 export function plant(edits, also = []) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-core-'));
-  /* `also`: more trees a planted run needs (the real settle: supabase/functions/hr-accrue, src/world/core and the
-     world atlases' JSON, play-ground.mjs PLAY_TREES); images are never copied. */
+  /* `also`: more trees a planted run needs (the real settle: supabase/functions/hr-accrue,
+     play-ground.mjs PLAY_TREES); images are never copied. */
   for (const d of ['src/core', 'src/data', ...also]) cpSync(join(ROOT, d), join(root, d), { recursive: true, filter: (f) => !/\.(png|webp)$/i.test(f) });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {

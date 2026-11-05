@@ -16,14 +16,13 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.91';
-import { composeFrame } from '../core/compose.js?v=0.2.91';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.91';
-import { createFrameSig } from './frame-sig.js?v=0.2.91';
-import { paintStub } from '../stub-atlas.js?v=0.2.91';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.92';
+import { composeFrame } from '../core/compose.js?v=0.2.92';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.92';
+import { createFrameSig } from './frame-sig.js?v=0.2.92';
+import { paintStub } from '../stub-atlas.js?v=0.2.92';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
-const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
 const WARM_MS = 8;       // a new map's first view: ground baked per frame while the last frame stays
 const AHEAD_MS = 6;      // the chunks just off screen: baked per idle slice, so walking onto one bakes nothing
@@ -107,14 +106,12 @@ export function createCanvasBackend(o) {
     g.drawImage(s.img, s.sx, s.sy, d.w, d.h, d.x - view.ox, d.y - view.oy, d.w, d.h);
   }
 
-  /* THE TWO UNIT VARIANTS of an atlas, built once per set on first use: `flash`, the
-     silhouette in --world-flash (a hit), and `corpse`, each pixel's lightness laid onto
-     the --world-corpse-0..4 ramp (VW-05). Both are palette colours from tokens, so the
-     art never leaves the palette; neither is ever smoothed. */
+  /* THE CORPSE VARIANT of an atlas, built once per set on first use: each pixel's lightness laid onto
+     the --world-corpse-0..4 ramp (VW-05). Palette colours from tokens, so the
+     art never leaves the palette; never smoothed. */
   const variants = new Map();
-  function variant(set, kind) {
-    const key = set + ':' + kind;
-    if (variants.has(key)) return variants.get(key);
+  function corpseOf(set) {
+    if (variants.has(set)) return variants.get(set);
     const img = images[set];
     let c = null;
     if (img) {
@@ -123,24 +120,18 @@ export function createCanvasBackend(o) {
       const v = c.getContext('2d');
       v.imageSmoothingEnabled = false;
       v.drawImage(img, 0, 0);
-      if (kind === 'flash') {
-        v.globalCompositeOperation = 'source-in';
-        v.fillStyle = tone('flash');
-        v.fillRect(0, 0, c.width, c.height);
-      } else {
-        const ramp = [0, 1, 2, 3, 4].map((i) => rgbOf(tone('corpse-' + i)));
-        const px = v.getImageData(0, 0, c.width, c.height);
-        const a = px.data;
-        for (let i = 0; i < a.length; i += 4) {
-          if (!a[i + 3]) continue;
-          const L = (a[i] * 299 + a[i + 1] * 587 + a[i + 2] * 114) / 255000;
-          const r = ramp[Math.min(ramp.length - 1, Math.floor(L * ramp.length))];
-          a[i] = r[0]; a[i + 1] = r[1]; a[i + 2] = r[2];
-        }
-        v.putImageData(px, 0, 0);
+      const ramp = [0, 1, 2, 3, 4].map((i) => rgbOf(tone('corpse-' + i)));
+      const px = v.getImageData(0, 0, c.width, c.height);
+      const a = px.data;
+      for (let i = 0; i < a.length; i += 4) {
+        if (!a[i + 3]) continue;
+        const L = (a[i] * 299 + a[i + 1] * 587 + a[i + 2] * 114) / 255000;
+        const r = ramp[Math.min(ramp.length - 1, Math.floor(L * ramp.length))];
+        a[i] = r[0]; a[i + 1] = r[1]; a[i + 2] = r[2];
       }
+      v.putImageData(px, 0, 0);
     }
-    variants.set(key, c);
+    variants.set(set, c);
     return c;
   }
   /* A token's colour as [r, g, b]: the browser parses it, so any CSS colour form works. */
@@ -154,18 +145,11 @@ export function createCanvasBackend(o) {
     return [d[0], d[1], d[2]];
   }
 
-  /* A unit: its colour frame, crossfaded to its corpse tone by `grey`, or its hit flash. */
+  /* A unit: its colour frame, crossfaded to its corpse tone by `grey`. */
   function blitUnit(g, d, view) {
     const base = d.alpha == null ? 1 : d.alpha;
-    const alt = d.set ? (d.flash ? variant(d.set, 'flash') : variant(d.set, 'corpse')) : null;
+    const alt = d.set ? corpseOf(d.set) : null;
     if (!alt) { g.globalAlpha = base; blit(g, d, view); return; }
-    if (d.flash) {
-      /* the frame, then its silhouette over it: bright, with the shape still readable */
-      g.globalAlpha = base; blit(g, d, view);
-      g.globalAlpha = base * FLASH_ALPHA;
-      g.drawImage(alt, d.sx, d.sy, d.w, d.h, d.x - view.ox, d.y - view.oy, d.w, d.h);
-      return;
-    }
     if (d.grey < 1) { g.globalAlpha = base * (1 - d.grey); blit(g, d, view); }
     g.globalAlpha = base * d.grey;
     g.drawImage(alt, d.sx, d.sy, d.w, d.h, d.x - view.ox, d.y - view.oy, d.w, d.h);
@@ -503,7 +487,7 @@ export function createCanvasBackend(o) {
     groundLayer(g, list.decals, view);
     shadows(g, list, view);
     for (const d of list.sprites) {
-      if (d.kind === 'unit' && (d.flash || d.grey)) blitUnit(g, d, view);
+      if (d.kind === 'unit' && d.grey) blitUnit(g, d, view);
       else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }
     }
     g.globalAlpha = 1;

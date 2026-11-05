@@ -160,8 +160,8 @@ const MUTANTS = [
     'const changed = frameChanged(list, fv);', 'const changed = (frameChanged(list, fv), true);', /^PB-IDLE/, 'pix'],
   ['a frame held although a unit\'s bar, float, effect or name moved (only the sprites compared)', 'src/world/render/canvas-backend.js',
     '    s.add(list);\n', '    s.add(list.sprites);\n', /^PB-PIX/, 'pix'],
-  ['a frame held although a hit flash or a corpse tone changed (their fields left out of the walk)', 'src/world/render/frame-sig.js',
-    "      if (k === UNDRAWN) { put(!!v[k]); continue; }\n", "      if (k === UNDRAWN || k === 'flash' || k === 'grey') continue;\n", /^PB-PIX/, 'pix'],
+  ['a frame held although a corpse tone changed (its field left out of the walk)', 'src/world/render/frame-sig.js',
+    "      if (k === UNDRAWN) { put(!!v[k]); continue; }\n", "      if (k === UNDRAWN || k === 'grey') continue;\n", /^PB-PIX/, 'pix'],
   ['the ground composed again on every paint of a camera that stands', 'src/world/render/canvas-backend.js',
     'if (s.end()) { floorGood = false;', 'if ((s.end(), true)) { floorGood = false;', /^PB-IDLE/, 'pix'],
   ['a town frame shown without the sheets of its ground (only its sprites named)', 'src/world/render/canvas-backend.js',
@@ -402,7 +402,8 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
   const px = (id) => { const c = document.querySelector('#' + id + ' canvas'); return c.getContext('2d').getImageData(0, 0, c.width, c.height).data; };
   const out = { frames: 0, differ: [], kept: 0 };
   let hx = 20, hy = 18, rx = 14, t = 0;
-  const fxId = Object.keys(book.sprites).find((k) => book.sprites[k].anims && book.sprites[k].anims.play);
+  /* sorted: the book's order is the order its manifests arrived in, so without this a slow runner's effect was a Common sprite whose sheet the ground draws anyway (v0.2.92 perf-3) */
+  const fxId = Object.keys(book.sprites).sort().find((k) => book.sprites[k].anims && book.sprites[k].anims.play);
   /* the hero stands and only one thing in the frame moves: every kind of thing a frame draws (a held frame must not miss it) */
   const only = (i) => {
     const s = {};
@@ -411,7 +412,7 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
     if (i >= 230 && i < 245) s.fx = [{ id: fxId, x: 21, y: 18, age: (i - 230) * 40, lift: 0.5 }];
     if (i >= 245 && i < 260) s.plate = { text: i < 252 ? 'Ada' : 'Bram', kind: 'peer' };
     if (i >= 260 && i < 275) s.alpha = (275 - i) / 15;
-    if (i >= 275 && i < 290) s.flash = i % 2 === 0;
+    if (i >= 275 && i < 290) s.recoil = [i % 2, 0];
     if (i >= 290 && i < 300) s.grey = (i - 290) / 10;
     return s;
   };
@@ -424,7 +425,7 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
     if (i === 195) { hx = 20; hy = 18; }
     const o = only(i);
     return { hero: { x: hx, y: hy, anim: (i >= 40 && i < 80) || (i > 150 && i < 190) ? 'walk' : 'idle', dir: 'e' }, floats: o.floats, fx: o.fx,
-      units: [{ id: 'drain_rat', x: rx, y: 19, anim: i >= 100 && i < 140 ? 'walk' : 'idle', dir: 'e', bar: o.bar, plate: o.plate, alpha: o.alpha, flash: o.flash, grey: o.grey }, { id: 'drain_rat', x: 23, y: 17, anim: 'idle', dir: 's' }], t };
+      units: [{ id: 'drain_rat', x: rx, y: 19, anim: i >= 100 && i < 140 ? 'walk' : 'idle', dir: 'e', bar: o.bar, plate: o.plate, alpha: o.alpha, recoil: o.recoil, grey: o.grey }, { id: 'drain_rat', x: 23, y: 17, anim: 'idle', dir: 's' }], t };
   };
   for (let i = 0; i < 300; i++) {
     const state = framesAt(i);
@@ -475,12 +476,14 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
   const pixC = () => px('c'), pixD = () => px('d');
   const differs = () => { const p = pixC(), q = pixD(); let n = 0; for (let k = 0; k < p.length; k++) if (p[k] !== q[k]) n++; return n; };
   const stands = STATIONS.flatMap((s) => (s.stands || []).filter((_, i) => i % 9 === 0));
-  out.view = { frames: 0, differ: [], lacking: 0, least: Infinity, stale: null };
+  out.view = { frames: 0, differ: [], lacking: 0, least: Infinity, stale: null, fxAlone: 0 };
   for (const [x, y] of stands) {
     for (const k of Object.keys(some)) delete some[k];
     onView.setMap(townMap); allOf.setMap(townMap);
     const st = standIn(x, y);
     const miss = onView.missing(st);
+    /* the effect alone names its sheet here: nothing else in this frame would have fetched it */
+    if (!onView.missing(Object.assign({}, st, { fx: [] })).includes(book.frame(fxId).set)) out.view.fxAlone++;
     for (const s of miss) some[s] = images[s];
     if (onView.missing(st).length) { out.view.differ.push([x, y, 'named more once it had what it named']); continue; }
     settle(onView, st); settle(allOf, st);
@@ -577,6 +580,7 @@ async function pixelRule(browser, extra) {
     const w = r.view;
     if (w.differ.length) f.push(`PB-VIEW a town frame with only the sheets it named painted other pixels than a frame with every sheet at ${w.differ.length} of ${w.frames} stands (first: ${JSON.stringify(w.differ[0])})`);
     if (!(w.frames >= 20 && w.lacking > 0)) f.push(`PB-VIEW harness: ${w.frames} frames, ${w.lacking} with a sheet left out: the rule proved nothing`);
+    if (!(w.fxAlone > 0)) f.push(`PB-VIEW harness: in none of ${w.frames} frames is the effect the only thing naming its sheet: its mutant would prove nothing, pick an effect from another sheet`);
     if (w.planted.differ.length) f.push(`PB-VIEW a falling shadow from a sheet nothing else named painted other pixels at ${w.planted.differ.length} of ${w.planted.frames} frames (first: ${JSON.stringify(w.planted.differ[0])})`);
     if (!(w.planted.casts > 0)) f.push(`PB-VIEW harness: of ${w.planted.frames} planted frames ${w.planted.casts} drew a cast shadow: the plant proved nothing`);
     if (!w.stale) f.push('PB-VIEW harness: no stand has an absent sheet just off screen inside its own chunk');

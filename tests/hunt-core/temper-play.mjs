@@ -42,7 +42,7 @@ function play(P, ground, L, roles, o = {}) {
   let dealt = 0, blows = 0;
   const ids = new Set(), events = [];
   const r = P.run(ground, L, roles, { spanMs: o.spanMs || HOUR, secret: o.secret || SEEDS[0], windowMs: o.windowMs || 600000,
-    ...(o.temper ? { temper: o.temper } : {}), equipment: (role) => P.kit(role, o.tier || 2),
+    ...(o.temper ? { temper: o.temper } : {}), ...(o.ground ? { ground: o.ground } : {}), equipment: (role) => P.kit(role, o.tier || 2),
     onWindow: (out) => {
       for (const p of out.members) if (p.hunt && p.hunt.unit_id) ids.add(p.hunt.unit_id);
       for (const e of out.events || []) { events.push(e); if (e.type === 'dmg' && ids.has(e.u) && !ids.has(e.t)) { dealt += e.amount; blows++; } }
@@ -75,9 +75,12 @@ const cases = {
     }
     return null;
   },
-  'blows-pay': (P) => {
+  /* Packs back at once: at the Glade's own 60 s this mage out-clears the respawn (about 650 kills an hour at any rung), so the hour's damage is the
+     ground's and two seeds read a coin on it (lost on the server's map, 26,442 to 26,565, while six seeds pay +0.8%). The ladder is read where only the hero bounds it. */
+  'blows-pay': (P, X) => {
+    const ground = { ...X.G.HUNT_GROUNDS[GLADE], respawnMs: 5000 };
     for (const role of ['tank', 'ranger', 'mage', 'healer']) {
-      const base = across((secret) => play(P, GLADE, 24, [role], { secret })), full = across((secret) => play(P, GLADE, 24, [role], { secret, temper: BLOWS }));
+      const base = across((secret) => play(P, GLADE, 24, [role], { secret, ground })), full = across((secret) => play(P, GLADE, 24, [role], { secret, ground, temper: BLOWS }));
       if (!(full.dealt > base.dealt) || !(full.dealt / full.blows > (base.dealt / base.blows) * 1.015)) return role + ': a full ladder deals ' + full.dealt + ' over ' + full.blows + ' blows, rung 0 ' + base.dealt + ' over ' + base.blows;
       if (full.falls > base.falls) return role + ': a full ladder fell more (' + full.falls + ' against ' + base.falls + ')';
     }

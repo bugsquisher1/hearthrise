@@ -123,6 +123,10 @@
 //              at Enter read ready and are spent (the false strike); runes left in the backpack mid-hunt read struck and are
 //              not, until carried in; a tier above the hero's level in the SPELL'S skill is rune_level and casts nothing; a
 //              higher tier it has unlocked casts. Browser closed and hunt viewed write the same rows.
+//   RUNE-LADDER  the rune ladder (Tyler 2026-11-05; 2027-03-08-rune-ladder-slots.sql): a slot naming a store rune of any tier, no carried rune: the server
+//              reads it usable, the engine buys exactly that row, the ledger's price is the view's and Configure action's, the debit is qty x price, browser
+//              closed and viewed write the same rows. Under the tier's level it reads store_level, casts nothing and buys nothing, never Plain. Another
+//              family's row is refused bad_store. A saved Plain slot reads, keeps its rule id and spends as before.
 //   NO-FIGHT   a hero who can't fight goes home (designer 10-31): a bare bow with the store shut ends no_fight at its hunt
 //              start + the limit's minutes, a town-side automatic end, nothing bought, browser closed and viewed; the
 //              database refuses that end before the minutes and with a kill in its window.
@@ -290,6 +294,7 @@ async function loadEdge(root) {
     ENV: await import(pathToFileURL(join(ROOT, 'src', 'session', 'envelope.js')).href),
     CD: await import(u('src/data/consumables.js')),
     SB: await import(u('src/data/supply-basics.js')),
+    RUNES: await import(u('src/data/runes.js')),
     TUN: await import(u('src/data/hunt-tuning.js')),
     AR: await import(u('src/core/action-rules.js')),
     CS: await import(u('src/core/combat-sim.js')),
@@ -2063,8 +2068,13 @@ const DB_ARMS = {
         'state', md5(replace(pg_get_functiondef('public.hr_hunt_rune_state(uuid,integer,uuid,text)'::regprocedure), chr(13), '')),
         'state_acl', (select proacl::text from pg_proc where oid = 'public.hr_hunt_rune_state(uuid,integer,uuid,text)'::regprocedure),
         'baseline', (select jsonb_agg(to_jsonb(b) order by b.grantee) from public.hr_client_rpc_baseline b where b.proname = 'hr_hunt_restock'))`);
+    /* The view moved on (2027-03-08-rune-ladder-slots.sql): this file's §0 accepts only its own two images, so its own image goes back first, inside this rolled-back transaction. */
+    const carryIn = readFileSync(join(ROOT, 'supabase', 'migrations', '2027-02-21-hunt-carry-in.sql'), 'utf8').replace(/\r\n/g, '\n');
+    const from = carryIn.indexOf('create or replace function public.hr_hunt_settings_view(p_user uuid, p_slot int)');
+    await db.exec(carryIn.slice(from, carryIn.indexOf('end $$;', from) + 'end $$;'.length));
+    await db.exec('revoke execute on function public.hr_hunt_settings_view(uuid, int) from public, anon, authenticated, service_role');
     const before = await image();
-    try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', '2027-02-21-hunt-carry-in.sql'), 'utf8').replace(/\r\n/g, '\n')); }
+    try { await db.exec(carryIn); }
     catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
     const after = await image();
     if (!before || !before.baseline) return [`CONTROL: the replay holds no hr_hunt_restock baseline row: ${JSON.stringify(before)}`];
@@ -2180,6 +2190,98 @@ const DB_ARMS = {
       kit: { practice_sword: 1 }, beforeEnter: () => admin(db, UID, { equip: { weapon: 'practice_sword', shield: null, ammo: null } }) };
     await version('Flame Strike, Melee 20, Magic 1, Scored Fire', { ...BLADE, skillsXp: xpAt('melee', 20) }, 'scored_fire_rune', 'casts');
     await version('Flame Strike, Melee 1, Magic 20, Scored Fire', { ...BLADE, skillsXp: xpAt('magic', 20) }, 'scored_fire_rune', 'rune_level');
+    return problems;
+  },
+  /* THE RUNE LADDER (Tyler 2026-11-05). One bar slot naming one store rune, the hero carrying none, every tier; both doors; the price read three ways. */
+  'RUNE-LADDER': async (db, M) => {
+    const problems = [];
+    const FROM = Date.UTC(2026, 9, 29, 12, 0, 0);
+    const pinNow = (ms) => db.query(`select set_config('hr.test_now', $1, true)`, [new Date(ms).toISOString()]);
+    const exec = makeExec(db);
+    const { storeChoices } = await import(pathToFileURL(join(ROOT, 'src', 'shell', 'bar-draft.js')).href);
+    const CUTS = { closed: [30000, 60000, 90000, 120000], viewed: [17345, 41111, 77777, 120000] };
+    const doors = { closed: { mode: 'tick' }, viewed: { mode: 'settle', bucket: null, project: true, live: true } };
+    const slot = (store) => ({ action: { type: 'ability', id: 'fireball', store }, conditions: [], join: 'and' });
+    const view = () => one(db, 'select public.hr_hunt_settings_view($1::uuid, 0) v', [UID]);
+    const said = (x) => JSON.stringify({ usable: x && x.usable, why: x && x.why });
+    const buys = (sid) => q(db, "select meta->'items' as items, (meta->>'gold')::bigint as gold from public.player_ledger where session_id = $1 and intent = 'supply_buy'", [sid]);
+    const settle = async (path, h) => {
+      for (const t of CUTS[path]) {
+        await pinNow(h.from + t);
+        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: h.from + t, ...(path === 'closed' ? { ...doors.closed, session: h.sid } : doors.viewed) });
+        if (r && r.outcome === 'none' && r.reason === 'no_hunt') return true;
+        if (!r || r.outcome !== 'paid') { problems.push(`${path}: the window to +${t} ms answered ${r && r.outcome}/${r && r.reason} ${JSON.stringify(r && r.body).slice(0, 200)}`); return false; }
+      }
+      return true;
+    };
+    const mage = (level, store) => ({ fromMs: FROM, gold: 100000, level, inv: { practice_wand: 1 }, bag: [],
+      options: { supply_source: 'mine', on_empty: 'switch', gold_floor: 0, slots: [slot(store)] },
+      beforeEnter: () => admin(db, UID, { equip: { weapon: 'practice_wand', shield: null, ammo: null } }) });
+    const storeId = (tier) => (tier === 1 ? 'plain_fire_rune' : 'plain_' + M.RUNES.runeId('fire', tier));
+
+    /* (1) EVERY TIER, AT ITS OWN LEVEL: read usable, buy only that row, charge the catalogue's price per cast; closed and viewed agree. */
+    for (const t of M.RUNES.RUNE_TIERS) {
+      const id = storeId(t.tier);
+      const price = M.SB.BASIC_INDEX[id] && M.SB.BASIC_INDEX[id].price;
+      const seen = {};
+      await inTx(db, async () => {
+        await pinNow(FROM);
+        const h = await hunter(db, M, mage(t.level, id));
+        await db.query('savepoint ladder');
+        for (const path of Object.keys(doors)) {
+          const v = await view();
+          const row = (v.store || []).find((r) => r.id === id);
+          if (!row || row.price !== price) problems.push(`${id}: the view states ${JSON.stringify(row)}, the catalogue ${price}`);
+          if (v.slots[0].action.store !== id || v.slots[0].usable !== true || v.slots[0].why) problems.push(`${id} at level ${t.level}: ${path}: the slot reads ${said(v.slots[0])} naming ${v.slots[0].action.store}`);
+          const shown = storeChoices({ type: 'ability', id: 'fireball' }, v.store, { magic: { level: t.level } }).find((c) => c.id === id);
+          if (!shown || shown.price !== price || shown.short) problems.push(`${id}: Configure action shows ${JSON.stringify(shown)}, the server charges ${price}`);
+          if (await settle(path, h)) {
+            const rows = await buys(h.sid);
+            let uses = 0, gold = 0;
+            for (const r of rows) {
+              gold += Number(r.gold);
+              for (const [k, it] of Object.entries(r.items || {})) {
+                if (k !== id) problems.push(`${id}: ${path}: the hunt bought ${k}, a row its slot never named`);
+                else { uses += Number(it.qty); if (Number(it.price) !== price) problems.push(`${id}: ${path}: the ledger's price is ${it.price}, the view said ${price}`); }
+              }
+            }
+            if (!(uses > 0)) problems.push(`${id}: ${path}: the slot read usable and the engine bought nothing`);
+            if (gold !== uses * price) problems.push(`${id}: ${path}: ${uses} casts debited ${gold} g at ${price} g a cast`);
+            seen[path] = await snapshot(db, h.sid);
+          }
+          await db.query('rollback to savepoint ladder');
+        }
+      });
+      if (seen.closed && seen.viewed && canon(seen.closed) !== canon(seen.viewed)) problems.push(`${id}: browser closed vs viewed wrote different rows ${firstDiff(canon(seen.closed), canon(seen.viewed))}`);
+    }
+
+    /* (2) ONE LEVEL SHORT: struck in words, nothing cast, nothing bought, never a cheaper rune; closed and viewed. */
+    await inTx(db, async () => {
+      await pinNow(FROM);
+      const h = await hunter(db, M, mage(14, 'plain_scored_fire_rune'));
+      await db.query('savepoint short');
+      for (const path of Object.keys(doors)) {
+        const v = await view();
+        if (v.slots[0].usable !== false || v.slots[0].why !== 'store_level') problems.push(`Magic 14 naming Scored: ${path}: reads ${said(v.slots[0])}`);
+        if (await settle(path, h)) {
+          const rows = await buys(h.sid);
+          if (rows.length) problems.push(`Magic 14 naming Scored: ${path}: bought ${JSON.stringify(rows.map((r) => r.items))}`);
+        }
+        await db.query('rollback to savepoint short');
+      }
+    });
+
+    /* (3) WHAT A SLOT MAY NAME: another family's row, any tier of it, an unknown row and a spell with no rune are refused; a saved Plain slot's rule id does not move. */
+    await inTx(db, async () => {
+      for (const [ability, store] of [['fireball', 'plain_ice_rune'], ['fireball', 'plain_scored_ice_rune'], ['fireball', 'plain_nothing_rune'], ['fireball', 'salted_shrimp'], ['challenge', 'plain_fire_rune']]) {
+        const r = await one(db, 'select public.hr_hunt_slot_check($1::jsonb) v', [JSON.stringify({ action: { type: 'ability', id: ability, store }, conditions: [], join: 'and' })]);
+        if (!r || r.error !== 'bad_store') problems.push(`${ability} naming ${store} answered ${JSON.stringify(r)}`);
+      }
+      const content = { action: { id: 'fireball', type: 'ability', store: 'plain_fire_rune' }, conditions: [], join: 'and' };
+      const plain = await one(db, 'select public.hr_hunt_slot_check($1::jsonb) v', [JSON.stringify(content)]);
+      const want = await one(db, "select 'r' || substr(md5($1::jsonb::text), 1, 8) as id", [JSON.stringify(content)]);
+      if (!plain || plain.ok !== true || plain.slot.id !== want) problems.push(`a saved Plain slot's rule id moved: ${JSON.stringify(plain)} vs ${want}`);
+    });
     return problems;
   },
   'NO-FIGHT': async (db, M) => inTx(db, async () => {
@@ -4180,7 +4282,24 @@ const DB_MUTANTS = [
   { arm: 'RUNE-TRUTH', name: '[rune-truth] only the family\'s Chalked rune counts', fn: 'public.hr_hunt_rune_state(uuid,integer,uuid,text)',
     find: "and b.qty_left > 0 and v_row->'runes' ? b.item_id", replace: "and b.qty_left > 0 and b.item_id like 'chalked_%'" },
   { arm: 'RUNE-TRUTH', name: '[rune-truth] the view says nothing of a rune above the level', fn: 'public.hr_hunt_settings_view(uuid,integer)',
-    find: "'why', case when v_can is false and v_rune = 'locked' then 'rune_level' end", replace: "'why', null::text" },
+    find: "when v_can is false and v_rune = 'locked' then 'rune_level' end", replace: "when false then 'rune_level' end" },
+  /* THE RUNE LADDER (2027-03-08-rune-ladder-slots.sql): each server rule goes red on its own defect; the engine's are tests/hunt-core/abilities.mjs's. */
+  { arm: 'RUNE-LADDER', name: '[rune ladder] a store rune above the level reads ready (the false promise)', fn: 'public.hr_hunt_rune_store_state(uuid,integer,text,text)',
+    find: "case when coalesce(v_lv, 1) >= v_min then 'ready' else 'locked' end", replace: "'ready'" },
+  { arm: 'RUNE-LADDER', name: '[rune ladder] the view says nothing of a store rune above the level', fn: 'public.hr_hunt_settings_view(uuid,integer)',
+    find: "when v_can is false and v_store = 'locked' then 'store_level' ", replace: "when false then 'store_level' " },
+  { arm: 'RUNE-LADDER', name: '[rune ladder] the view strikes a deeper store rune (the old partner rule)', fn: 'public.hr_hunt_rune_store_state(uuid,integer,text,text)',
+    find: "if v_min <= 1 then return 'ready'; end if;", replace: "if v_min > 1 then return 'none'; end if; return 'ready';" },
+  { arm: 'RUNE-LADDER', name: '[rune ladder] a slot may name any catalogue row', fn: 'public.hr_hunt_slot_check(jsonb)',
+    find: "or not coalesce(public.hr_hunt_rune_spells()->v_id->'store' ? v_store, false)", replace: "" },
+  { arm: 'RUNE-LADDER', name: '[rune ladder] a slot may name a row of no price', fn: 'public.hr_hunt_slot_check(jsonb)',
+    find: "if v_store is null or v_type <> 'ability' or not coalesce(public.hr_hunt_rune_spells()->v_id->'store' ? v_store, false)", replace: "if false" },
+  { arm: 'RUNE-LADDER', name: '[rune ladder] the settle charges a store rune at another row\'s price', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
+    find: "select q.price, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;", replace: "select q.price + 1, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;" },
+  { arm: 'RUNE-LADDER', name: '[rune ladder] the engine casts a store rune with no level gate', file: 'src/core/hunt/abilities.js',
+    from: "  if (version && lv < versionLevel(version)) return { why: 'level', short: false };\n", to: "" },
+  { arm: 'RUNE-LADDER', name: '[rune ladder] the engine charges every store rune Plain (the row named is not the row bought)', file: 'src/core/hunt/abilities.js',
+    from: "  const s = version ? storeLine(h.hs, b.partner, store) : { why: 'none' };", to: "  const s = version ? storeLine(h.hs, row.rune, 'plain_fire_rune') : { why: 'none' };" },
   /* A FULL BAG NEVER STOPS A HUNT (2027-02-11-hunt-loot-past-bag-cap.sql): the settle is fused again. */
   { arm: 'BAG-CAP', name: '[bag cap] a hunt\'s settle is refused bank_full at a full bag', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
     find: "if coalesce(current_setting('hr.hunt_session', true), '') = '' and v_stacks > v_st.bank_cap and v_stacks > v_stacks_before then",

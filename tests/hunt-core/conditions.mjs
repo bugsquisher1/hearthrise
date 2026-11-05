@@ -49,8 +49,8 @@ const SLOT_MIGRATION = 'supabase/migrations/2027-01-13-slot-truth.sql';
 /* The metrics (Green Sickness's mark, the heal aimed at yourself) and the role rule sets (a rune spell's slot names its
    store rune) moved forward again: lane b-spell-content, Tyler 2026-10-23. */
 const CONTENT_MIGRATION = 'supabase/migrations/2027-01-13-spell-content.sql';
-/* The settings view that places the starter bar, at the chain's end (restated: a struck spell is one the engine would not cast): lane/c-carry-in, 2026-11-02. */
-const VIEW_MIGRATION = 'supabase/migrations/2027-02-21-hunt-carry-in.sql';
+/* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
+const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (Flame Strike off the sword's sets: no dead button on the starter bar, playtest 2026-10-29). */
 const BAR_MIGRATION = 'supabase/migrations/2027-02-09-starter-bar-fires.sql';
 
@@ -878,7 +878,7 @@ const cases = {
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
     }
     /* THE STARTER BAR the server places for a new hero is the start kit's (src/data/start-kit.js START_BAR). */
-    /* the chain end's settings view (2027-02-21-hunt-carry-in.sql restates it, the 2026-11-07 placement block unchanged) */
+    /* the chain end's settings view (2027-03-08-rune-ladder-slots.sql restates it, the 2026-11-07 placement block unchanged) */
     const sb = /-- ⟦starter-bar⟧\n\s*v_def := v_def \|\| '([^\n]*)'::jsonb;\n\s*-- ⟦\/starter-bar⟧/.exec(roles);
     let bar = null;
     try { bar = sb ? JSON.parse(sb[1].replace(/''/g, "'")) : null; } catch { bar = null; }

@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+- Every hero now gets three setups free; the fourth costs 15,000 gp and the fifth 40,000 gp. Heroes keep every setup they have saved.
+
 ## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
 
 - A round's fireworks now climb and burst high over Hearth Square for the whole 45 seconds, and a Town Crier's line stands out in Global on its own gold band.

@@ -74,7 +74,7 @@ export const SINK_RULES = Object.freeze({
   }),
   setup_slot: Object.freeze({
     scope: 'hero', offers: Object.freeze([]),
-    free: 2, prices: Object.freeze([5000, 15000, 40000]),
+    free: 3, prices: Object.freeze([15000, 40000]),
   }),
   hero_colors: Object.freeze({
     scope: 'hero', offers: Object.freeze([]),

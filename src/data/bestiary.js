@@ -180,7 +180,8 @@ export function buildBestiary(monsters) {
   if (!monsters || typeof monsters !== 'object') return Object.freeze(out);
   for (const id of Object.keys(monsters)) {
     const m = monsters[id];
-    if (!m || typeof m !== 'object') continue;
+    /* A called boss is no entry: the Bestiary never counts him (Call out, src/data/boss-calls.js). */
+    if (!m || typeof m !== 'object' || m.called === true) continue;
     out[id] = Object.freeze({
       id,
       name: String(m.name || id),

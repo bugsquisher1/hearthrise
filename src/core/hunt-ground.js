@@ -22,7 +22,7 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.90';
+import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.90';
 import { mapRowOf } from '../data/world/maps/index.js?v=0.2.90';
 import { MATERIALS } from '../data/world/terrain.js?v=0.2.90';
 import { makeGrid } from './hunt/grid.js?v=0.2.90';
@@ -40,7 +40,7 @@ export function gridOfMap(mapId) {
 
 /** The ground a hunt is fought on, with its grid: { ground, grid }, or null. */
 export function huntGroundOf(huntId) {
-  const ground = Object.values(HUNT_GROUNDS).find((g) => g.hunt === huntId) || null;
+  const ground = groundOfHunt(huntId);
   if (!ground) return null;
   const grid = gridOfMap(ground.map);
   return grid ? { ground, grid } : null;

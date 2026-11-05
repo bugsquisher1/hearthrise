@@ -157,11 +157,21 @@ export const HUNTS = Object.freeze([
 /** The hunts a player can see and enter: every row not `staged`. */
 export const OPEN_HUNTS = Object.freeze(HUNTS.filter((h) => h.staged !== true));
 
+/* THE CALLED ROOMS (Call out, Tyler 2026-11-04; src/data/boss-calls.js): one room each, reached by one verb, hr_boss_call, and never listed: not in HUNTS, so no picker,
+   advice line, tally task or spawn table reads them; only HUNT_INDEX below names them, for the top bar and the end card. The band is the ground's, so a server read
+   ordered by floor finds the ground first. `spawns` names the called row for the facts; gen-hunts writes hr_hunts but no hr_hunt_spawns for it (a boss is never a spawn). */
+export const CALLED_HUNTS = Object.freeze([
+  Object.freeze({ id: 'millrace_sewer_called', name: 'The Rat King\'s Hall', theme: 'The rats have gone quiet. He knows you are here, and he has been waiting.', called: true,
+    band: [8, 25], spawns: Object.freeze([Object.freeze({ monster: 'rat_king_called', w: 1 })]), family: 'Vermin', art: 'rat_king_called', travelS: 0, pull: 1, respawnMs: 600000 }),
+  Object.freeze({ id: 'coppercap_warrens_called', name: 'Chief Coppercap\'s Hall', theme: 'The crew has cleared out and the cauldron is polished. He wants this one for himself.', called: true,
+    band: [32, 50], spawns: Object.freeze([Object.freeze({ monster: 'chief_coppercap_called', w: 1 })]), family: 'Humanoid', art: 'chief_coppercap_called', travelS: 0, pull: 1, respawnMs: 600000 }),
+]);
+
 /** The words a player reads for a spawn's rarity. */
 export const RARITY_LABEL = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare' });
 
 /** Null-prototype index by id: `HUNT_INDEX['constructor']` is undefined. */
-export const HUNT_INDEX = Object.freeze(HUNTS.reduce((acc, h) => { acc[h.id] = h; return acc; },
+export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },
   Object.create(null)));
 
 /* A single-monster fight's walk, by the foe's tier: 0 for every tier until the

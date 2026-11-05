@@ -106,7 +106,8 @@ export function newHuntWorld(ground, grid, party, o) {
     density: o && Number.isInteger(o.density) ? o.density
       : densityFor(ground, party.length, partyPick(party.map((h, i) => ({ density: h.density, lead: h.lead === true, seat: i })))) });
   world.units = units;
-  const inst = { world, ground, grid, occ: null, makeUnit };
+  /* `o.scaleHeroes`: the party the first packs' HP is scaled for, when more walk in behind the first hero (a called room's one spawn, combat-sim.js: its boss never comes back at the party's size). */
+  const inst = { world, ground, grid, occ: null, makeUnit, scaleHeroes: o && Number.isInteger(o.scaleHeroes) ? o.scaleHeroes : null };
   for (let p = 0; p < ground.pockets.length; p++) spawnPack(inst, p, null);
   return world;
 }

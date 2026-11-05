@@ -194,8 +194,11 @@ export function pendingArt() {
    is the 64 px canvas with an 8-frame walk). Every monster a hunt-grounds.js pocket
    spawns has a row (tests/hunt-core/sewer.mjs). Rows share a unit on purpose: a Drain
    Rat and the cellar's Giant Rat are the same animal. */
+/* A CALLED BOSS WEARS HIS OWN ART (Call out, src/data/boss-calls.js): a row with no sprite of its own draws as the row it copies. The scene's one reader (hunt-view/scene.js spriteOf). */
+export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief_coppercap_called: 'chief_coppercap' });
+
 export const HUNT_WALK_ART = Object.freeze({
   rat: 'giant_rat', slime: 'slime',
   drain_rat: 'giant_rat', sump_slime: 'slime', culvert_bat: 'giant_bat',
-  cistern_spider: 'venom_spider', kobold_tosher: 'kobold', rat_king: 'rat_king',
+  cistern_spider: 'venom_spider', kobold_tosher: 'kobold', rat_king: 'rat_king', rat_king_called: 'rat_king',
 });

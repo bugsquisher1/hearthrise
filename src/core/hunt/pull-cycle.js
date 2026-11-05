@@ -94,7 +94,7 @@ export function biggestBlowOn(huntId, size) {
  */
 export function spawnPack(inst, p, sc) {
   const w = inst.world;
-  const heroes = partySize(inst);
+  const heroes = inst.scaleHeroes || partySize(inst);
   occupancy(inst);
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
   for (const s of pullRows(inst.ground, p, w.density)) {

@@ -53,6 +53,7 @@ import { makeEvent, trackStep } from './hunt/events.js?v=0.2.90';
 import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.90';
 import { pullLeader } from './hunt/pull-cycle.js?v=0.2.90';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.90';
+import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.90';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
 export { stepSwing } from './hunt/world-step.js?v=0.2.90';
@@ -150,12 +151,13 @@ function die(m, f, out) {
    instant (`own`), once (the first trigger names the reason). The flagged member ends at its own next
    boundary through END_ORDER. */
 const CASCADE = Object.freeze(['party_member_died', 'party_member_left']);
-function cascadeFrom(m, why, members, own, at) {
+function cascadeFrom(m, why, members, own, at, called) {
   if (!why || CASCADE.includes(why) || m.hs.kicked === true) return;
   for (const o of members) {
     if (o === m || o.left || o.hs.died || o.hs.partyEnd || (own && own.has(o))) continue;
     if (o.unitId === null && !(o.hs.nextSwingAtMs <= at)) continue;
-    if (o.hero && o.hero.leaveTogether === true) o.hs.partyEnd = why === 'died' ? 'died' : 'left';
+    /* A CALLED FIGHT IS ONE FIGHT (src/data/boss-calls.js): whatever ends one hero's ends everyone's, box or no box. */
+    if (called || (o.hero && o.hero.leaveTogether === true)) o.hs.partyEnd = why === 'died' ? 'died' : 'left';
   }
 }
 
@@ -198,6 +200,12 @@ export function simulateHuntInstance(inst, ctx) {
   let world = inst.world || null;
   /* A world made in this call: the leader's hold pick is in force from its first lap (not only from the next). */
   let fresh = false;
+  /* CALL OUT (src/data/boss-calls.js): the room's call, and its limit from the party's first swing, one instant for every member however the windows were cut. */
+  const call = ctx.ground && ctx.ground.call ? BOSS_CALLS[ctx.ground.call] : null;
+  if (call) {
+    const ends = Math.min(...members.map((m) => Number(m.hs.huntFromMs) || 0)) + BOSS_CALL_RULES.limitMs;
+    for (const m of members) m.hs.callEndsAtMs = ends;
+  }
   /* NO WORLD, NO PLACED HERO: a unit id names a unit of a world that is gone (a stored world of
      another field list restarts: world-state decodeStored), so every member re-enters the fresh one. */
   if (!world) for (const m of members) m.unitId = null;
@@ -256,7 +264,7 @@ export function simulateHuntInstance(inst, ctx) {
       const why = endReasonAt(m.hs, atMs);
       if (why && !CASCADE.includes(why)) own.set(m, why);
     }
-    for (const [m, why] of own) cascadeFrom(m, why, members, own, atMs);
+    for (const [m, why] of own) cascadeFrom(m, why, members, own, atMs, !!call);
     // (1) Each member at this boundary: the end checks, then a paid interval.
     const here = [];
     for (const m of members) {
@@ -271,7 +279,7 @@ export function simulateHuntInstance(inst, ctx) {
              number), the same number every respawn reads below, never the first hero's pick alone. */
           const standing = members.filter((x) => !x.left);
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
-            { density: densityFor(ctx.ground, standing.length, picker(standing)) });
+            { density: densityFor(ctx.ground, standing.length, picker(standing)), ...(call ? { scaleHeroes: standing.length } : {}) });
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
@@ -331,14 +339,16 @@ export function simulateHuntInstance(inst, ctx) {
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
-      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, hearthfind: ctx.hearthfind,
+      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, hearthfind: ctx.hearthfind, call,
         emit: (e) => worldEvents.push(e) });
+      /* THE CALLED BOSS IS DOWN: everyone still in the fight ends `boss_felled` at their next boundary. */
+      if (call && r.events.some((e) => e.type === 'kill' && kinds[e.t] === call.monster)) for (const m of members) if (!m.left) m.hs.bossFelled = true;
       for (const f of deaths) {
         const m = byUnit.get(f.unit);
         const o = out.get(m.key);
         if (!m.hs.died) o.deaths += 1;
         die(m, f, o);
-        cascadeFrom(m, 'died', members, null, m.hs.nextSwingAtMs);
+        cascadeFrom(m, 'died', members, null, m.hs.nextSwingAtMs, !!call);
       }
       for (const [id, m] of byUnit) {
         const u = world.units.find((x) => x.id === id);
@@ -361,11 +371,11 @@ export function simulateHuntInstance(inst, ctx) {
   const stamped = new Map();
   for (const m of members) {
     if (m.left || m.unitId === null) continue;
-    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || m.hs.died === true) {
+    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || m.hs.died === true || m.hs.bossFelled === true) {
       stamped.set(m, endReasonAt(m.hs, m.hs.nextSwingAtMs) || 'gold_out');
     }
   }
-  for (const [m, why] of stamped) cascadeFrom(m, why, members, stamped, m.hs.nextSwingAtMs);
+  for (const [m, why] of stamped) cascadeFrom(m, why, members, stamped, m.hs.nextSwingAtMs, !!call);
   for (const m of members) {
     if (m.left || !(stamped.has(m) || m.hs.partyEnd)) continue;
     const next = m.hs.nextSwingAtMs;

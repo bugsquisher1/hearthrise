@@ -125,18 +125,31 @@ function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs, monId) {
   resolveHearthfind(lead.state, 'monster', kind, roll);
 }
 
+/* A CALLED FIGHT PAYS NOTHING (Tyler 2026-11-04; src/data/boss-calls.js): no XP on any route, no coin, no drop, no kill counter, no Hearthfind, no die drawn. One door, so a route
+   added above can't reach it: a hero's death is the only thing its events still answer. hr_hunt_apply_member refuses a window that says otherwise (tests/boss-call.mjs). */
+function calledSwing(members, events, unitOf) {
+  const deaths = [];
+  for (const ev of events) {
+    if (ev.type !== 'kill' || !members.has(ev.t)) continue;
+    const k = unitOf(ev.u);
+    deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });
+  }
+  return deaths;
+}
+
 /**
  * Pay one swing. `members` maps a hero unit id to its member:
  *   { state, hs, fx, family (the weapon family), armoured, shield, bonus(key),
  *     weakness(monsterRow) → { dropMult } }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
  * `ctx` = { rng (the swing's `r` stream), monsters?, hearthfind? (the indexed table; the catalogue's when absent),
- *   emit?(event) (the instance's world events: a party's `rare_roll`) }.
+ *   emit?(event) (the instance's world events: a party's `rare_roll`), call? (the room's boss call: it pays nothing) }.
  * Answers the swing's deaths: [{ unit, atMs, monster }], in event order.
  */
 export function rewardSwing(members, events, world, ctx) {
   const unitOf = (id) => world.units.find((u) => u.id === id) || null;
   const presentIds = () => world.units.filter((u) => u.side === 'hero' && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
+  if (ctx.call) return calledSwing(members, events, unitOf);
   const deaths = [];
   for (const ev of events) {
     switch (ev.type) {

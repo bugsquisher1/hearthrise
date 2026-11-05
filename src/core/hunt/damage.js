@@ -95,9 +95,9 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   /* THE HERO'S ARMOUR, in the fixed order (dodge was rolled by landHit): absorb, resistances,
      ward, never past the total cap (src/core/mitigation.js), then the shield below and HP.
      Every landed blow deals at least 1. */
-  n = target.side === 'hero' ? mitigate(n, el, armourVs(target, source)) : Math.max(1, n);
+  n = target.side === 'hero' ? mitigate(n, el, armourVs(target, source), target.armorPm, rng) : Math.max(1, n);
   /* TEMPERING: a hero's rung raises what lands on a monster, last, so +1% is +1% of the damage whatever the monster's defence (src/core/temper.js: the part of a point is one draw, made only by a hero with a rung). */
-  if (source && source.temperPm > 0 && target.side === 'mon') n = temperedAmount(n, source.temperPm, rng);
+  if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
   const dmg = Math.min(target.hp, n - absorbed);

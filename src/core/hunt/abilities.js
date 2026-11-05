@@ -284,7 +284,8 @@ export function firstUsable(inst, hero, sc, only) {
 /* Heal `t` by up to `n`, capped at its missing HP (AB-09). */
 function healOne(u, t, n, sc) {
   /* TEMPERING raises a heal as it raises a blow (src/core/temper.js). */
-  const got = Math.max(0, Math.min(temperedAmount(n, u.temperPm, sc.rng), int(t.maxHp) - int(t.hp)));
+  n = temperedAmount(n, u.blowsPm, sc.rng);
+  const got = Math.max(0, Math.min(n, int(t.maxHp) - int(t.hp)));
   t.hp = int(t.hp) + got;
   sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got }));
 }

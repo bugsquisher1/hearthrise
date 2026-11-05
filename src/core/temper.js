@@ -3,12 +3,16 @@
 //
 // `temper` is the server's: hr_perks_of's `temper` map, { 'temper:blows:2': 3, ... }. Absent or empty, every function
 // here answers "nothing", DRAWS NOTHING and hands back what it was given, so a hero at rung 0 fights byte for byte as
-// before (tests/temper.mjs TP-ZERO). The magnitude is never the row's number: a rung is clamped to the ladder.
+// before (tests/hunt-core/temper.mjs). The magnitude is never the row's number: a rung is clamped to the ladder.
 //
-// THE ROUNDING. Blows land as whole HP. A flat `floor(n x 1.01)` pays nothing on any blow under 100, and most of a Level
-// 24's blows are under 100, so rung 1 would be gold for nothing. So the part of a point a blow earns is one draw: +1%
-// on a blow of 20 lands 21 one time in five. The mean is exact on any blow (TP-ROUND). The draw is the hunt's own seeded
-// stream, made only by a hero with a rung, so the server and the browser land the same blow.
+// THE TWO TRACKS, each in what a player feels: Blows raises what lands on a monster (a spell's, a bleed's and a heal's
+// too); Armor lowers what reaches the hero, after the armor chain and never past its total cap, the unit the balance
+// ruling measures armor in ("less actual incoming damage"). Tempering armor POINTS paid nothing: a rung moved plate and
+// leather 0.3% on the curve, and a full cloth set's ward floored to the same whole point for three rungs out of five.
+//
+// THE ROUNDING. Blows land as whole HP, and a flat `floor(n x 1.01)` pays nothing on any blow under 100, so the part of a
+// point is one draw: +1% on a blow of 20 lands 21 one time in five. The mean is exact on any blow. The draw is the hunt's
+// own seeded stream, made only by a hero with a rung, so the server and the browser land the same blow.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================================
@@ -23,38 +27,35 @@ export function temperRung(temper, track, tier) {
   return Number.isFinite(n) && n > 0 ? Math.min(n, TEMPER_RUNGS) : 0;
 }
 
-/** The permille every blow, spell and heal of this hero gains: its WEAPON's tier's Blows rung. 0 with none. */
+/** The permille this hero's blows and heals gain: its WEAPON's tier's Blows rung. 0 with none. */
 export function blowsPmOf(equipment, items, temper) {
-  const it = equipment && equipment.weapon && items ? items[equipment.weapon] : null;
+  const it = temper && equipment && equipment.weapon && items ? items[equipment.weapon] : null;
   return it ? temperRung(temper, 'blows', it.tier) * TEMPER_RUNG_PM : 0;
 }
 
 /**
- * `values` (mitigation.js armourValues: what each weight wears) with each worn piece's own tier's Armor rung on top: a
- * mixed set reads each piece by its tier. The same object when no rung applies. Fractions stay: the armor curve reads them.
+ * The permille every blow at this hero loses: each worn armor piece's own tier's Armor rung, weighted by the armor the
+ * piece wears. So a mixed set reads piece by piece, and moving one piece up a tier costs that piece's share of the rung,
+ * never the whole ladder. A shield or a cape is not armor here (mitigation.js armourValues reads the same pieces).
  */
-export function temperedArmour(values, equipment, items, temper) {
-  if (!temper || !equipment || !items) return values;
-  let out = values;
+export function armorPmOf(equipment, items, temper) {
+  if (!temper || !equipment || !items) return 0;
+  let worn = 0, rungs = 0;
   for (const id of Object.values(equipment)) {
     const it = id ? items[id] : null;
-    const w = it && it.slot ? ARMOUR_WEIGHT[it.armourClass] : null;
-    const rung = w ? temperRung(temper, 'armor', it.tier) : 0;
-    if (!rung) continue;
-    if (out === values) out = Object.assign({}, values);
-    out[w] += (Math.floor(Number(it.defB) || 0) * rung * TEMPER_RUNG_PM) / 1000;
+    const def = it && it.slot && ARMOUR_WEIGHT[it.armourClass] ? Math.floor(Number(it.defB) || 0) : 0;
+    if (def > 0) { worn += def; rungs += def * temperRung(temper, 'armor', it.tier); }
   }
-  return out;
+  return worn > 0 ? Math.floor((rungs * TEMPER_RUNG_PM) / worn) : 0;
 }
 
 /**
- * `amount` raised by `pm` permille, in whole points. The part of a point is one draw from `rng`, made only when there is
- * a part, so its mean is exact. A miss stays a miss, and with no rung nothing is drawn.
+ * `amount` moved by `pm` permille (a blow up, a blow at a hero down), in whole points. The part of a point is one draw
+ * from `rng`, made only when there is a part, so the mean is exact. No rung, or nothing to move: `amount`, nothing drawn.
  */
 export function temperedAmount(amount, pm, rng) {
-  if (!(pm > 0) || !(amount > 0)) return amount;
-  const whole = Math.floor(amount);
-  const milli = whole * pm;
+  if (!pm || !(amount > 0)) return amount;
+  const milli = Math.floor(amount) * (1000 + pm);
   const part = milli % 1000;
-  return whole + Math.floor(milli / 1000) + (part > 0 && rng.chance(part / 1000) ? 1 : 0);
+  return Math.floor(milli / 1000) + (part > 0 && rng.chance(part / 1000) ? 1 : 0);
 }

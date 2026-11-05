@@ -15,7 +15,7 @@
 // ============================================================================
 
 export const TEMPER_RUNGS = 5;
-/* What a rung adds, in permille of what the track scales: 1% a rung, 5% at most. */
+/* What a rung is worth, in permille: 1% harder blows and heals, or 1% less damage reaching the hero. 5% at most. */
 export const TEMPER_RUNG_PM = 10;
 export const TEMPER_TRACKS = Object.freeze(['blows', 'armor']);
 /* The gold of each rung, by gear tier (gear-tiers.js: Iron, Studded and Adept are tier 2, worn at Level 15; Steel, Boarhide and Scholar tier 3, at Level 30). */

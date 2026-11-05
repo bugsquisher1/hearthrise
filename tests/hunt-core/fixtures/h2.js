@@ -20,6 +20,8 @@ async function loadCore2(root) {
   M.sessions = await imp('src/data/hunt-sessions.js');
   M.hg = await imp('src/core/hunt-ground.js');
   M.mitigation = await imp('src/core/mitigation.js');
+  M.temper = await imp('src/core/temper.js');
+  M.temperData = await imp('src/data/temper.js');
   return M;
 }
 

@@ -87,7 +87,7 @@ export function characterSheetOf(env, perks, nowMs) {
   const buffs = buffQueueFromServer(Array.isArray(env.buffs) ? env.buffs : [], nowMs);
   const perkState = perks && perks.ok === true ? perks : null;
   const bonus = bonusFor(perkState, liveBuffHost(() => buffs));
-  const snap = heroSnapshot({ skills, levelXp }, { eq, equipment, items: ITEMS, bonus, setBonus, profile, temper: perkState && perkState.temper ? perkState.temper : null });
+  const snap = heroSnapshot({ skills, levelXp }, { eq, equipment, items: ITEMS, bonus, setBonus, profile });
   const mit = mitigationOf(snap.armour, snap.level);
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq, equipment, items: ITEMS, skills, bonus, setBonus, profile });
   const role = roleForWeapon(wornRoleKey(equipment, ITEMS), null);

@@ -5,7 +5,7 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## Unreleased
+## v0.2.92 — 2026-11-05 (Standing Your Ground)
 
 - A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.
 - A hit no longer turns your hero or a monster into a pale blur for a moment. Whoever takes the blow now jolts back a little, so you can always see their armor and face, and the spark of a blow that missed.

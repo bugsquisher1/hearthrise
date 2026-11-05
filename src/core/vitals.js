@@ -15,9 +15,9 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS, FLAME_REGEN } from '../data/core-model.js?v=0.2.91';
-import { charLevelFromXp, levelOf } from './xp.js?v=0.2.91';
-import { isShield } from '../data/shields.js?v=0.2.91';
+import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS, FLAME_REGEN } from '../data/core-model.js?v=0.2.92';
+import { charLevelFromXp, levelOf } from './xp.js?v=0.2.92';
+import { isShield } from '../data/shields.js?v=0.2.92';
 
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
 

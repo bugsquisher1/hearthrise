@@ -67,7 +67,7 @@ const DISPLAY_TICK_MS = 250;
 /* How far a press on a window's head must travel before it is a drag (a click never floats a window). */
 const DRAG_SLOP_PX = 5;
 /* The widgets the coach card hangs under (launcher.js: the icon row in town, the hunt bar in a hunt). */
-const COACH_HOSTS = '[data-hs-widget="launchers"], [data-hs-widget="hunt-topbar"]', SHORT_ROOM = 112, NO_ROOM = 40;
+const COACH_HOSTS = '[data-hs-widget="launchers"], [data-hs-widget="hunt-topbar"]', SHORT_ROOM = 112, NO_ROOM = 60;
 /* The DOM events a renderer may opt into with `.events` (click and change always reach `.act`). */
 const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout', 'focusin']);

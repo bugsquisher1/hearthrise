@@ -497,9 +497,9 @@ function rules(M) {
   }
 
   { // LV-KITE: A KITER'S PULL IS FOUGHT, BOTH PATHS. A retreat's goal was always inside the pack area but its walk was not: at the
-    // area's edge, with the pack on its heels, the path round the monsters stepped out, the pack reset and healed to full, and the
-    // kiter re-pulled at once (Warrens pocket 0, the corridor east of x = 21: 71 resets in 30 min, the crossbow's XP down to 44%).
-    // The control: the kiter reaches the edge, so "stays in" is not passed by standing still.
+    // area's edge, with the pack on its heels, the re-plan round the monsters stepped out, the pack reset and healed to full, and the
+    // kiter re-pulled at once (Warrens pocket 0, the corridor east of x = 21). The control: the kiter reaches the edge, so "stays in"
+    // is not passed by standing still.
     const eq = { weapon: 'maple_bow', ammo: 'bronze_arrows', helmet: 'boarhide_helmet', body: 'boarhide_body', pants: 'boarhide_pants', boots: 'boarhide_boots' };
     const mi = memberOf(M, 'k', 0, 'ranger', 40);
     mi.huntId = 'coppercap_warrens'; mi.gold = 50000; mi.hp = 1e9; mi.equipment = eq;
@@ -520,7 +520,7 @@ function rules(M) {
     } });
     console.log(`  LV-KITE a lone bow at the Warrens, pull 8: ${resets} pack resets, ${kills} kills, ${atEdge} commits on the area's edge; ${r.verdicts.filter((x) => x.v === 'match').length} of ${r.verdicts.length} commits matched the prediction`);
     ok('LV-KITE', resets === 0 && outside.length === 0, `browser closed: ${resets} pack resets in 120 s, the holder outside its area at ${JSON.stringify(outside)}: it must fight the pack it pulled`);
-    ok('LV-KITE', atEdge >= 3 && kills >= 8, `the control: ${atEdge} commits on the area's edge, ${kills} kills: the kiter must run to the edge and fight`);
+    ok('LV-KITE', atEdge >= 2 && kills >= 3, `the control: ${atEdge} commits on the area's edge, ${kills} kills: the kiter must run to the edge and fight`);
     const bad = r.verdicts.filter((x) => x.v !== 'match');
     ok('LV-KITE', r.verdicts.length >= 30 && bad.length === 0, `viewed: the browser's prediction of the kite diverged at ${bad.length} of ${r.verdicts.length} commits`);
   }

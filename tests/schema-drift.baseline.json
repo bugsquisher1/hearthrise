@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-05",
- "digest": "674ace0d3fd03c46bbaa6624c6305066ee21d5a2d1427e318d22f678d650bb10",
+ "digest": "94fa6ec69509c56145073e96966adef3b9954bcc1a7897f5cf182b2604e90cd9",
  "counts": {
   "relations": 250,
-  "functions": 616,
+  "functions": 617,
   "policies": 115,
   "indexes": 358,
   "triggers": 62,
@@ -568,6 +568,7 @@
    "hr_hunt_roster_sharded(p_prefix text, p_body_max integer, p_lease_ms integer)",
    "hr_hunt_rune_spells()",
    "hr_hunt_rune_state(p_user uuid, p_slot integer, p_session uuid, p_ability text)",
+   "hr_hunt_rune_store_state(p_user uuid, p_slot integer, p_ability text, p_store text)",
    "hr_hunt_saved_bag(p_user uuid, p_slot integer)",
    "hr_hunt_section_view(p_user uuid, p_slot integer)",
    "hr_hunt_set_preset(p_slot integer, p_preset integer, p_idem uuid)",

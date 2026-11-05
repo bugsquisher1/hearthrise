@@ -318,6 +318,15 @@ const ARMS = {
     await refused(1, 'works_small', 'min', 100);
     await refused(25001, 'works_over', 'left', 25000);
     for (const bad of [0, -5000, 2000000000]) await refused(bad, 'bad_amount');
+    /* BEFORE ANY CHARGE: the rule answers first, so an empty purse still hears why the gift itself is wrong, not that it can't pay */
+    await rich(db, A, 0);
+    await calm(db);
+    const broke = await give(db, A, 0, 99);
+    if (!broke || broke.error !== 'works_small') out.push('99 gp from an empty purse answered ' + JSON.stringify(broke));
+    const poor = await give(db, A, 0, 100);
+    if (!poor || poor.error !== 'insufficient_gold') out.push('a fair gift from an empty purse answered ' + JSON.stringify(poor));
+    if ((await total(db)) !== 0 || (await shopRows(db, A)).length) out.push('a gift nobody could pay for moved the total or the journal');
+    await rich(db, A);
     const none = await give(db, A, 0, 500, idem(), 'no_such_works');
     if (!none || none.error !== 'not_a_project') out.push('an unknown project answered ' + JSON.stringify(none));
     await unmoved('an unknown project');

@@ -1174,11 +1174,10 @@ const utf8Bytes = (text) => new TextEncoder().encode(text).length;
    dealt, took and healed, by ability / element / monster. Display stats the
    database stores with the session; every VALUE number of the analyzer comes
    from the ledger rows the settle journals, never from here. */
-function analyzerOf(sim, unitIds, unitId, ground) {
+function analyzerOf(sim, unitIds, unitId) {
   if (!Number.isInteger(unitId)) return null;
   const t = tallyEvents(sim.events, { heroes: unitIds, kinds: sim.kinds }).heroes[unitId];
-  const fight = ground && ground.call ? fightOf(sim, unitId, BOSS_CALLS[ground.call]) : null;
-  return t || fight ? { ...(t ? { dealt: t.dealt, taken: t.taken, healed: t.healed } : {}), ...(fight ? { fight } : {}) } : null;
+  return t ? { dealt: t.dealt, taken: t.taken, healed: t.healed } : null;
 }
 
 /* THE RECORD OF A CALLED FIGHT (Tyler 2026-11-05: a losing line naming the phase; hunt_session_tally.fight), display only: where the boss stood when this
@@ -1243,7 +1242,11 @@ export function accrueHunt(inp) {
     const hs = s.hs;
     if (hs.swingIndex === swingFrom.get(s.mi.key) && !hs.endedReason) continue;   // walked nothing: nothing to settle
     out.push({ key: s.mi.key, user: s.mi.user, slot: s.mi.slot, ...memberDelta(s, summary, fromMs, toMs, tickMs),
-      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver, inp.ground) });
+      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });
+    if (inp.ground.call && Number.isInteger(summary.unitIdEver)) {
+      const row = out[out.length - 1];
+      row.analyzer = { ...(row.analyzer || {}), fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call]) };
+    }
   }
   if (!out.length) return { accrued: false, reason: SKIP.NOTHING };
   const world = sim.world && sim.members && sides.some((s) => !s.hs.endedReason) ? encodeWorld(sim.world) : null;

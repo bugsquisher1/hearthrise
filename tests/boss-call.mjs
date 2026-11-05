@@ -394,7 +394,7 @@ const MUTANTS = [
   { name: 'a leader\'s death heals him', edits: [['src/core/hunt/leash.js', "if (!pack || (inst.ground && inst.ground.call)) return;", 'if (!pack) return;']], want: /BC-RECORD/ },
   { name: 'the record counts everyone\'s casts', edits: [['supabase/functions/hr-accrue/accrual.js', 'if (e.u !== unitId) continue;', '']], want: /BC-RECORD/ },
   { name: 'the record forgets the food', edits: [['supabase/functions/hr-accrue/accrual.js', "e.type === 'cast' ? e.ability : e.type === 'eat' || e.type === 'drink' ? e.type : null", "e.type === 'cast' ? e.ability : null"]], want: /BC-RECORD/ },
-  { name: 'every hunt carries a record', edits: [['supabase/functions/hr-accrue/accrual.js', 'const fight = ground && ground.call ? fightOf(sim, unitId, BOSS_CALLS[ground.call]) : null;', "const fight = fightOf(sim, unitId, BOSS_CALLS[(ground && ground.call) || 'rat_king']);"]], want: /BC-RECORD/ },
+  { name: 'every hunt carries a record', edits: [['supabase/functions/hr-accrue/accrual.js', 'fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call]) };', "fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call || 'rat_king']) };"], ['supabase/functions/hr-accrue/accrual.js', 'if (inp.ground.call && Number.isInteger(summary.unitIdEver)) {', 'if (Number.isInteger(summary.unitIdEver)) {']], want: /BC-RECORD/ },
   { name: 'a room on the ground list', edits: [['src/data/hunt-grounds.js', 'export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS)', 'export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries({ ...HUNT_GROUNDS, ...CALLED_GROUNDS })']], want: /BC-ROW/ },
 ];
 

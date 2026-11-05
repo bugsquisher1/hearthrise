@@ -471,7 +471,8 @@ export function monstersOn(ground, partySize) {
   const out = new Set();
   for (const i of routeFor(ground, partySize)) {
     const pk = ground.pockets[i];
-    for (const s of (pk.pack || pk.spawns).concat(pk.spawns, pk.adds || [])) out.add(s.monster);
+    for (const s of (pk.pack || pk.spawns).concat(pk.spawns)) out.add(s.monster);
+    for (const s of pk.adds || []) out.add(s.monster);
   }
   return out;
 }

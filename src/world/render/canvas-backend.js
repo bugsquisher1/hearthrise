@@ -563,7 +563,6 @@ export function createCanvasBackend(o) {
       const list = composeFrame(map, book, state, view, tables, T);
       const sets = ground.setsIn(chunksOf(view, 0), view);
       for (const l of [list.decals, list.sprites, list.raised, list.fx || []]) for (const d of l) if (d.set) sets.add(d.set);
-      for (const sh of list.shadows) if (sh.sprite && sh.sprite.set) sets.add(sh.sprite.set);
       return Array.from(sets).filter((s) => !o.arrived(s));
     },
     /** May the next sync draw? A new map's (or zoom's) view first bakes its ground, WARM_MS a frame; the frame after draws. So does a view over a chunk its sheet just filled. */

@@ -366,11 +366,12 @@ const STATS = Object.freeze([
   ['atkB', 'Melee accuracy'], ['strB', 'Melee damage'], ['defB', 'Defense'],
   ['rangeAtkB', 'Ranged accuracy'], ['rangeStrB', 'Ranged damage'],
   ['magicAtkB', 'Magic accuracy'], ['magicStrB', 'Magic damage'],
-  ['critB', 'Critical chance', 'pct'],
+  ['critB', 'Critical chance', 'pct'], ['steadyPm', 'Damage taken', 'cut'],
 ]);
 
 const statValue = (it, k) => (it && Number.isFinite(it[k]) ? it[k] : 0);
 const pctWords = (v) => (Math.round(v * 1000) / 10) + '%';
+const cutWords = (v) => Math.abs(v) / 10 + '%';
 
 /** An item's stats as [{ key, label, value, text }] (non-zero only). */
 export function statLines(id) {
@@ -379,7 +380,7 @@ export function statLines(id) {
   for (const [k, label, kind] of STATS) {
     const v = statValue(it, k);
     if (!v) continue;
-    out.push({ key: k, label, value: v, text: (v > 0 ? '+' : '') + (kind === 'pct' ? pctWords(v) : v) });
+    out.push({ key: k, label, value: v, text: kind === 'cut' ? '−' + cutWords(v) : (v > 0 ? '+' : '') + (kind === 'pct' ? pctWords(v) : v) });
   }
   return out;
 }
@@ -391,7 +392,7 @@ export function compare(id, worn) {
   for (const [k, label, kind] of STATS) {
     const d = statValue(a, k) - statValue(b, k);
     if (Math.abs(d) < 1e-9) continue;
-    out.push({ label, delta: d, text: (d > 0 ? '+' : '−') + (kind === 'pct' ? pctWords(Math.abs(d)) : Math.abs(d)) });
+    out.push({ label, delta: d, text: kind === 'cut' ? (d > 0 ? '−' : '+') + cutWords(d) : (d > 0 ? '+' : '−') + (kind === 'pct' ? pctWords(Math.abs(d)) : Math.abs(d)) });
   }
   return out;
 }

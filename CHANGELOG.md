@@ -7,8 +7,12 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## Unreleased
 
+**Tempering takes crafted salts.** Each rung now takes Tempering Salts as well as gold, or Fine Tempering Salts for gear worn from Level 30. Mix them at Smithing from Iron Bars and the Bone Chips or Big Bones your hunts bring home, or buy them at the Weighhouse. Any of your heroes can use them from Storage.
+
+**The Coal Seam.** A richer coal rock at Mining 30, and a rock's row now says about how much an hour brings, so you can see what a higher rock is worth.
 - Your action bar now says when a slot is waiting. Fireball is set to fire at 2 or more monsters, so on a lone monster its slot dims and shows "2+", and hovering it or pressing it tells you why. Circle of Renewal does the same when you're not in a party. What a slot does hasn't changed: to fire on one monster, remove its condition in Configure action.
 - A new Mage or Healer now casts from the very first fight: every starting spell buys its rune from the store for 1 gp a cast, and Frost Lance or Green Sickness fires even on a lone monster. A new card, "Why it waits", explains the slots that hold back. A new Ranger or axe hero no longer starts with a crossed-out spell: Flame Volley and Rend are offered with their price instead.
+- Every hero now gets three setups free; the fourth costs 15,000 gp and the fifth 40,000 gp. Heroes keep every setup they have saved.
 
 ## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
 
@@ -28,6 +32,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.
 - A hit no longer turns your hero or a monster into a pale blur for a moment. Whoever takes the blow now jolts back a little, so you can always see their armor and face, and the spark of a blow that missed.
 
+- Carrion Crows carry a little more coin.
+- Capes no longer make monsters miss. A cape now takes a share off every blow that reaches you: 3% for a Graypelt Cloak, 7% for a Houndskin Cloak. Earrings, necklaces and rings no longer add Defense; only a shield does that outside armor. Frostfin Supper and River Chowder now take 5% and 3% off every blow for a few minutes.
 ## v0.2.91 — 2026-11-04 (The Smith Tempers)
 
 - A blow that misses your hero now strikes a small spark off it, on the side the blow came from, instead of floating "miss" over its head. Your own missed swings leave a small scuff on the monster. The combat log says who missed whom in words, and "Missed blows and immune hits" in Settings turns the sparks off.

@@ -28,14 +28,15 @@ import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.93';
 /* [key, label] of each number line; a line shows only when its value exists. */
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);
 const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], ['crit', 'Critical chance'], ['defence', 'Defense'],
-  ['dodge', 'Dodge'], ['absorb', 'Absorb'], ['ward', 'Ward'], ['temper', 'Tempered']]);
+  ['dodge', 'Dodge'], ['absorb', 'Absorb'], ['ward', 'Ward'], ['steady', 'Damage cut'], ['temper', 'Tempered']]);
 /* What each armour line means, for its tooltip (ruling K7: Heavy = Absorb, Medium = Dodge, Light = Ward;
    a blow meets them in that order: dodge, absorb, resistances, ward, then health). */
 const COMBAT_TIPS = Object.freeze({
-  defence: 'Your Defense skill, shield and cape make monsters miss more often.',
+  defence: 'Your Defense skill and shield make monsters miss more often.',
   dodge: 'Medium armor: the chance a blow misses you completely.',
   absorb: 'Heavy armor: the share of every blow that lands which your armor takes.',
   ward: 'Light armor: a flat amount taken off every blow that lands. Best against many small blows.',
+  steady: 'Your cape and some foods: a share taken off every blow that reaches you, last of all.',
   temper: 'What the smith has done for what you wear now. Shop, Services.',
 });
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
@@ -117,6 +118,7 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   line(root, '[data-combat="dodge"]', c && c.dodgePct !== null ? c.dodgePct + '% of blows at your Level' : null);
   line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '% of each blow at your Level' : null);
   line(root, '[data-combat="ward"]', c && c.ward !== null ? whole(c.ward) + ' off each blow' : null);
+  line(root, '[data-combat="steady"]', c && c.steadyPct ? c.steadyPct + '% off each blow' : null);
   /* Tempering: the server's rungs through the fight's own rule, over the server's worn set (src/session/temper-sections.js). */
   const tempered = temperNowOf(cs);
   line(root, '[data-combat="temper"]', tempered ? [tempered.blowsPm ? 'blows +' + tempered.blowsPm / 10 + '%' : '', tempered.armorPm ? 'damage taken -' + tempered.armorPm / 10 + '%' : ''].filter(Boolean).join(', ') : null);

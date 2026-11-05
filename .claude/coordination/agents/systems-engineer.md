@@ -4524,6 +4524,13 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 ## 2026-11-05 · lane/c-armor-tiers (the sim plays the server's map)
 1. *One builder, and test what the run played, not a helper.* The check reads the grid the fixture's `run` answers, so a bypass inside `run` goes red too.
 2. *A number read off a wrong map is not a bar.* "3 deaths in a seed's hour" was a reading; the rule is "the unready hero dies". Say which is which when it moves.
+## 2026-11-05 · lane/c-armor-tiers (guard off capes)
+1. *Lowering a bar needs a mutant on that very line.* A catch by an earlier line proves nothing about the new one, so the mutant names the line it must fail on (`expect`).
+2. *An existing hook beats a new one.* Tempering's last-step cut took a cape in one sum and one floor; the jewelry spec's Steady now needs one row field.
+3. *To show a player-visible limit, ask the server where the hero stands, then shoot the page.* One read found the hero inside a tree.
+## 2026-11-05 · lane/c-armor-tiers (the guard foods)
+1. *Size a rewire by what the data row is named in.* A new buff type would have touched the hunt catalogue. Keeping the type and moving what it pays touched one generated file with two numbers.
+2. *The scratchpad is shared with other lanes.* Another lane's `run-guards.mjs` replaced mine and ran my guard list as nonsense with exit 0. Name scratch tools for the lane and read the output, not the exit of the wrapper.
 ## 2026-11-05 · lane/a-kiter-resets (the holder's walk stays in its pack area)
 1. *A filter on where a walk ends is not a filter on the walk.* Every retreat tile was inside the area and the A* to it was not: a blocked re-plan round the pack stepped one tile out, and that one tile healed the whole pack. Put the rule where every plan and step already asks (leashAllows), not on the caller.
 2. *Re-measure a bug on the server's map before sizing it.* "XP down to 44%" (821 resets an hour, L60 mage) was the fixture's old map; on the engine's grid the same cell loses 5-6%. The fix cures both, and the report says which number is real.

@@ -3,14 +3,15 @@
 // that slightly increases gear power"; src/data/temper.js is the design).
 //
 // Two rows, for what this hero wears NOW: Blows (its weapon's ladder) and Armor (the ladder of the armor it wears most). Every
-// number is the server's (src/session/temper-sections.js). A press opens a confirmation at the shown price; confirming sends
-// ONE unlock_buy naming the offer and no number, and hr_unlock_buy prices it under its own lock. A rung is permanent and
-// not refundable, so it asks once; nothing changes on screen until the re-read envelope says so.
+// number is the server's (src/session/temper-sections.js). A rung takes gold and crafted material (Tyler 2026-11-05): the row says
+// what it needs, what the hero holds and where to get it, and its button stays off until the envelope shows both. A press opens a
+// confirmation at the shown price; confirming sends ONE unlock_buy naming the offer and no number, and hr_unlock_buy prices it under
+// its own lock. A rung is permanent and not refundable, so it asks once; nothing changes on screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════
 import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.93';
 import { goldOf } from '../../session/item-sections.js?v=0.2.93';
 import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.93';
-import { gold } from '../../render/format.js?v=0.2.93';
+import { gold, whole } from '../../render/format.js?v=0.2.93';
 import { runIntent } from '../intent-words.js?v=0.2.93';
 
 const TRACKS = Object.freeze([
@@ -29,11 +30,26 @@ function rowWords(t, r) {
     : 'Not tempered yet. First rung: ' + t.effect + ' ' + pct(r.nextPm) + ' ' + t.worse + '.');
 }
 
+/* What the next rung takes besides gold, and what this hero holds. */
+const needWords = (needs) => needs.map((n) => 'Needs ' + whole(n.need) + ' ' + n.name + '. You hold ' + whole(n.held) + (n.storage ? ' (' + whole(n.storage) + ' in Storage)' : '') + '.').join(' ');
+
+/* Where to get what either row is short of, said once under both: the two rows usually ask for the same thing. */
+function wayWords(rows) {
+  const said = new Map();
+  for (const r of rows) for (const n of r.needs) {
+    if (!n.short || !n.smith || said.has(n.id)) continue;
+    said.set(n.id, n.name + ': Smithing ' + n.smith.req + (n.smith.level < n.smith.req ? ' (yours is ' + n.smith.level + ')' : '') + ' makes them from ' + n.smith.from.join(' and ')
+      + ', and any of your heroes can use them from Storage. Or buy them at the Weighhouse.');
+  }
+  return [...said.values()].join(' ');
+}
+
 /** The section's skeleton, inside the Services tab. */
 export function temperPaneHtml() {
   return '<h3 class="hs-sub">Tempering</h3>'
     + '<p class="hs-note">The smith works what this hero wears. A rung lasts and can\'t fail. Each tier of gear has its own five rungs, so new gear starts fresh and your old gear keeps its own.</p>'
     + '<ul class="hw-ledger hw-temper"></ul>'
+    + '<p class="hs-note hw-temper-way"></p>'
     + '<div class="hw-confirm hw-temper-ask" role="alertdialog" aria-label="Confirm the tempering"><p class="hw-confirm-q"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="temper-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="temper-no">Cancel</button></div></div>';
@@ -47,28 +63,32 @@ export function patchTemperPane(root, ctx, sc) {
   const row = (id) => (all ? all[id] : null);
   rows(root.querySelector('.hw-temper'), all ? [...TRACKS] : [], {
     key: (t) => t.id,
-    build: (t) => element(ctx.doc, '<li class="hw-line" data-track="' + t.id + '"><span class="hw-line-name"><b></b><small></small></span>'
+    build: (t) => element(ctx.doc, '<li class="hw-line" data-track="' + t.id + '"><span class="hw-line-name"><b></b><small class="hw-temper-now"></small><small class="hw-temper-need"></small></span>'
       + '<button type="button" class="hh-tool" data-hs-act="temper-ask" data-track="' + t.id + '"></button></li>'),
     patch: (li, t) => {
       const r = row(t.id);
       const offer = r.ladder ? r.ladder.offer : null;
       const short = offer && purse !== null && purse < r.ladder.gold ? r.ladder.gold - purse : 0;
+      const itemsShort = r.needs.some((n) => n.short > 0);
       text(li.querySelector('b'), t.label + (r.piece ? ' · ' + r.piece : ''));
-      text(li.querySelector('small'), rowWords(t, r) + (short ? ' You need ' + gold(short) + ' more.' : ''));
+      text(li.querySelector('.hw-temper-now'), rowWords(t, r) + (short ? ' You need ' + gold(short) + ' more.' : ''));
+      text(li.querySelector('.hw-temper-need'), needWords(r.needs));
       const btn = li.querySelector('button');
       text(btn, offer ? 'Temper · ' + gold(r.ladder.gold) : r.ladder ? 'Full' : 'No rungs');
-      prop(btn, 'disabled', !offer || !!short || sc.pending || !!sc.ask);
+      prop(btn, 'disabled', !offer || !!short || itemsShort || sc.pending || !!sc.ask);
     },
   });
+  text(root.querySelector('.hw-temper-way'), all ? wayWords([all.blows, all.armor]) : '');
   const asked = sc.ask ? row(sc.ask) : null;
-  const can = !!asked && !!asked.ladder && !!asked.ladder.offer && !sc.pending && (purse === null || purse >= asked.ladder.gold);
+  const can = !!asked && !!asked.ladder && !!asked.ladder.offer && !sc.pending && (purse === null || purse >= asked.ladder.gold) && !asked.needs.some((n) => n.short > 0);
   if (sc.ask && !can) sc.ask = null;
   const cf = root.querySelector('.hw-temper-ask');
   const yes = cf.querySelector('[data-hs-act="temper-yes"]');
   cls(cf, 'is-on', !!sc.ask);
   cls(yes, 'is-on', !!sc.ask);
   if (sc.ask) {
-    text(cf.querySelector('.hw-confirm-q'), 'Temper your ' + asked.piece + ' to rung ' + (asked.ladder.rung + 1) + ' for ' + gold(asked.ladder.gold) + '? It stays on this hero, and can\'t be sold back.');
+    const also = asked.needs.map((n) => ' and ' + whole(n.need) + ' ' + n.name).join('');
+    text(cf.querySelector('.hw-confirm-q'), 'Temper your ' + asked.piece + ' to rung ' + (asked.ladder.rung + 1) + ' for ' + gold(asked.ladder.gold) + also + '? It stays on this hero, and can\'t be sold back.');
     text(yes, 'Temper for ' + gold(asked.ladder.gold));
   }
   prop(yes, 'disabled', sc.pending);
@@ -93,7 +113,9 @@ export function actTemperPane(ctx, action, t, sc, repaint) {
     sc.ask = null;
     if (!r || !r.ladder || !r.ladder.offer) { repaint(); return true; }
     const offer = r.ladder.offer, piece = r.piece, rung = r.ladder.rung + 1;
-    runIntent(sc, repaint, () => cs.edgeIntent('unlock_buy', { offer }), 'At the smith…', () => 'Your ' + piece + ' is at rung ' + rung + '.', cs);
+    /* A refusal means this window held numbers the server no longer has (Storage is the account's, and another hero spends it): one bounded re-read, so the row and the answer agree. */
+    const send = async () => { const r = await cs.edgeIntent('unlock_buy', { offer }); if (!r.ok && r.error !== 'closed') await cs.resync(); return r; };
+    runIntent(sc, repaint, send, 'At the smith…', () => 'Your ' + piece + ' is at rung ' + rung + '.', cs);
     return true;
   }
   return false;

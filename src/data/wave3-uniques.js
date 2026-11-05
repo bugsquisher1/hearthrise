@@ -16,8 +16,8 @@ export const WAVE3_ITEMS = {
   fangdart_recurve: {n:'Fangdart Recurve',icon:'🏹',v:7200,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:15,rangeStrB:10,critB:0.04,rarity:'rare',tier:3,reqSkill:'level',reqLv:36},
   alphaheart_longbow: {n:'Alphaheart Longbow',icon:'🏹',v:10000,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:24,rangeStrB:18,critB:0.05,rarity:'epic',tier:4,reqSkill:'level',reqLv:50},
   nightstalker_pelt: {n:'Nightstalker\'s Pelt',icon:'🛡️',v:12400,type:'armor',slot:'body',armourClass:'leather',defB:18,rangeAtkB:8,rangeStrB:6,critB:0.02,rarity:'unique',tier:5,reqSkill:'level',reqLv:62},
-  warband_bulwark: {n:'Warband Bulwark',icon:'🛡️',v:7000,type:'armor',slot:'cape',defB:14,strB:3,rarity:'rare',tier:3,reqSkill:'level',reqLv:35},
-  chitinweave_cloak: {n:'Chitinweave Cloak',icon:'🧥',v:15200,type:'armor',slot:'cape',defB:8,critB:0.02,rarity:'epic',tier:6,reqSkill:'level',reqLv:76},
+  warband_bulwark: {n:'Warband Bulwark',icon:'🛡️',v:7000,type:'armor',slot:'cape',steadyPm: 110,strB:3,rarity:'rare',tier:3,reqSkill:'level',reqLv:35},
+  chitinweave_cloak: {n:'Chitinweave Cloak',icon:'🧥',v:15200,type:'armor',slot:'cape',steadyPm: 220,critB:0.02,rarity:'epic',tier:6,reqSkill:'level',reqLv:76},
 };
 
 export const WAVE3_DESC = {

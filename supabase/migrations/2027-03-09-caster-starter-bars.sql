@@ -28,7 +28,8 @@
 -- gold; nothing here takes a value from a client or crosses to another player.
 --
 -- ── ORDER ───────────────────────────────────────────────────────────────────
--- After 2027-02-28-sink-price-plan.sql.
+-- Last in the apply order; it reads only hr_hunt_role_rules, hr_hunt_abilities, the store rows
+-- and hr_hunt_slot_check, so nothing staged beside it depends on it.
 -- EDGE: hr-accrue carries the same ROLE_RULES (src/data/rule-subjects.js rides the
 -- payload): apply this file, deploy at once, then the client. Between the two the
 -- only difference is a slot the view shows live that the engine doesn't fire yet.

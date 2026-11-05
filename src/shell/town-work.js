@@ -164,6 +164,12 @@ export function benchSpentAtMs(cs) {
   return from + runs * actionMs(cs, w) + SLACK_MS;
 }
 
+/** About how many pieces an hour of this node brings at `ms` a swing, to the nearest ten: a higher rung swings slower and may bring more, so seconds alone misread it (Andy 2026-11-05). */
+export function perHourOf(w, ms) {
+  const q = w.row.qty, each = q ? (Number(q[0]) + Number(q[1])) / 2 : 1;
+  return Math.round((3600000 / ms) * each / 10) * 10;
+}
+
 /** XP one action pays at the pacing dial, whole (the server floors the same way). */
 export function xpEach(w) { return Math.floor(pacedXp(w.skill, w.row.xp)); }
 

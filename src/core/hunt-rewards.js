@@ -50,6 +50,7 @@ import { makeEvent } from './hunt/events.js?v=0.2.90';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
+
 /* THE DEFENSE XP of one monster blow aimed at member `m` (landed or turned aside):
    only while the hero wears armour; scaled by the attacker's level; a shield's
    block (a miss on a shield-holder) pays blockMult times more. */
@@ -125,14 +126,20 @@ function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs, monId) {
   resolveHearthfind(lead.state, 'monster', kind, roll);
 }
 
-/* A CALLED FIGHT PAYS NOTHING (Tyler 2026-11-04; src/data/boss-calls.js): no XP on any route, no coin, no drop, no kill counter, no Hearthfind, no die drawn. One door, so a route
-   added above can't reach it: a hero's death is the only thing its events still answer. hr_hunt_apply_member refuses a window that says otherwise (tests/boss-call.mjs). */
-function calledSwing(members, events, unitOf) {
+/* A CALLED FIGHT PAYS NOTHING (Tyler 2026-11-04; src/data/boss-calls.js): no XP on any route, no coin, no drop, no Hearthfind, no die drawn, and of the kill counters only the boss's own
+   `ev:kill_monster:<called row>`, the one number his title reads (the Bestiary's read leaves it out, and no kill is journalled, so a tally can't see it). One door, so a route added above
+   can't reach it. hr_hunt_apply_member refuses a window that says otherwise (tests/boss-call.mjs). */
+function calledSwing(members, events, unitOf, boss) {
   const deaths = [];
   for (const ev of events) {
-    if (ev.type !== 'kill' || !members.has(ev.t)) continue;
-    const k = unitOf(ev.u);
-    deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });
+    if (ev.type !== 'kill') continue;
+    const t = unitOf(ev.t);
+    if (t && t.side === 'mon' && t.kind === boss) {
+      for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });
+    } else if (members.has(ev.t)) {
+      const k = unitOf(ev.u);
+      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });
+    }
   }
   return deaths;
 }
@@ -149,7 +156,7 @@ function calledSwing(members, events, unitOf) {
 export function rewardSwing(members, events, world, ctx) {
   const unitOf = (id) => world.units.find((u) => u.id === id) || null;
   const presentIds = () => world.units.filter((u) => u.side === 'hero' && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
-  if (ctx.call) return calledSwing(members, events, unitOf);
+  if (ctx.call) return calledSwing(members, events, unitOf, ctx.call.monster);
   const deaths = [];
   for (const ev of events) {
     switch (ev.type) {

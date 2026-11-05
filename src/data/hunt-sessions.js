@@ -236,7 +236,7 @@ export const END_REASON_COPY = Object.freeze({
   /* `{name}` the character, `{ground}` the hunt's name, both from the server. */
   died: Object.freeze({ one: '{name} died in {ground} and returned to town.' }),
   /* CALL OUT (src/data/boss-calls.js): the kill and the limit. A death is `died` / `party_member_died`, as anywhere. */
-  boss_felled: Object.freeze({ one: 'He is down. {name} walked out of {ground}.' }),
+  boss_felled: Object.freeze({ one: 'He is down. {name} walked out of {ground}. There is a title to claim on the Character window, under Titles.' }),
   boss_time: Object.freeze({ one: 'Ten minutes, and he still stands. {name} came home from {ground}.' }),
   /* LEAVE TOGETHER (Tyler 2026-10-22): `{member}` the party member whose hunt ended first (the server's
      hunt.session.end_by; "A party member" when it cannot say), `{name}` this hero. */

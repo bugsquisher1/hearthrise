@@ -47,4 +47,13 @@ export const TITLES = Object.freeze({
     name: 'Potbreaker', words: 'the Potbreaker', price: 40000, kills: 10000,
     monsters: Object.freeze(['goblin_scavenger', 'goblin_digger', 'goblin_skulker', 'hobgoblin_foreman']), label: 'Goblins', noun: 'goblins',
   }),
+  /* THE PRIZES OF CALL OUT (src/data/boss-calls.js; Tyler 2026-11-04), price 0: the same whatever the dice say, and nothing tradeable. The King's crown is hammered from drain grates; the Chief wears his cauldron. */
+  grate_thief: Object.freeze({
+    name: 'Grate Thief', words: 'the Grate Thief', price: 0, kills: 1,
+    monsters: Object.freeze(['rat_king_called']), label: 'Rat King called out and felled', noun: 'Rat King called out and felled',
+  }),
+  cauldron_thief: Object.freeze({
+    name: 'Cauldron Thief', words: 'the Cauldron Thief', price: 0, kills: 1,
+    monsters: Object.freeze(['chief_coppercap_called']), label: 'Chief Coppercap called out and felled', noun: 'Chief Coppercap called out and felled',
+  }),
 });

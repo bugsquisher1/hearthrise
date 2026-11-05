@@ -85,9 +85,9 @@ $a$ || v_old;
 end $mig$;
 
 -- ── §3 THE MONEY LINE (hr_boss_call_pays + hr_hunt_apply_member, one splice) ──
--- What a window on a called room may say, and nothing else: the clock, the hero's HP, its journal row with no kill, a death, and the two stats a death writes. An allowlist, so a new payout
--- route is refused until someone decides it belongs here. Answers the first thing it found, or null.
-create or replace function public.hr_boss_call_pays(p_delta jsonb)
+-- What a window on a called room may say, and nothing else: the clock, the hero's HP, its journal row with no kill, a death, the stats a death writes, and one kill of the room's own called row
+-- (the counter his title reads). An allowlist, so a new payout route is refused until someone decides it belongs here. Answers the first thing it found, or null.
+create or replace function public.hr_boss_call_pays(p_delta jsonb, p_monster text)
 returns text language plpgsql immutable set search_path = public, pg_catalog as $$
 declare v_k text; v_op jsonb;
 begin
@@ -95,11 +95,13 @@ begin
   if v_k is not null then return v_k; end if;
   if coalesce((p_delta->'journal'->'meta'->>'kills')::numeric, 0) <> 0 or (p_delta->'journal'->'meta') ? 'km' then return 'kills'; end if;
   for v_op in select value from jsonb_array_elements(case when jsonb_typeof(p_delta->'progress') = 'array' then p_delta->'progress' else '[]'::jsonb end) loop
-    if v_op->>'kind' is distinct from 'stat' or v_op->>'key' is distinct from 'deaths' then return 'progress:' || coalesce(left(v_op->>'key', 48), '?'); end if;
+    continue when v_op->>'kind' = 'stat' and v_op->>'key' = 'deaths';
+    continue when v_op->>'kind' = 'stat' and v_op->>'key' = 'ev:kill_monster:' || p_monster and v_op->>'period' = '' and v_op->>'add' = '1';
+    return 'progress:' || coalesce(left(v_op->>'key', 48), '?');
   end loop;
   return null;
 end $$;
-revoke execute on function public.hr_boss_call_pays(jsonb) from public, anon, authenticated, service_role;
+revoke execute on function public.hr_boss_call_pays(jsonb, text) from public, anon, authenticated, service_role;
 
 do $mig$
 declare v_def text; v_old text; v_new text; v_n int;
@@ -108,12 +110,28 @@ begin
   if strpos(v_def, 'CALL-OUT') = 0 then
     v_old := $a$  -- (3) THE VALUE HALF: hr_apply, every row it writes stamped with the session.$a$;
     v_new := $a$  -- CALL-OUT (2027-03-02-boss-call.sql): A CALLED ROOM PAYS NOTHING, by any route: refused whole, before hr_apply writes a thing.
-  if exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id) and public.hr_boss_call_pays(p_delta) is not null then
-    perform public.hr_reject('called_pays', jsonb_build_object('hunt', v_s.hunt_id, 'what', public.hr_boss_call_pays(p_delta))); end if;
+  if exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id and public.hr_boss_call_pays(p_delta, c.monster_id) is not null) then
+    perform public.hr_reject('called_pays', jsonb_build_object('hunt', v_s.hunt_id)); end if;
 
 $a$ || v_old;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
     if v_n <> 1 then raise exception 'hr_hunt_apply_member: CALL-OUT anchor matched % times (need 1): the body moved', v_n; end if;
+    execute replace(v_def, v_old, v_new);
+  end if;
+end $mig$;
+
+-- THE BESTIARY NEVER COUNTS HIM (hr_bestiary_of, one splice): its sweep feeds the Bestiary, the charms and the trophies. His counter is the title's alone (hr_title_kills reads the key by name),
+-- and hr_renown_of already joins hr_activities, which holds no called row.
+do $mig$
+declare v_def text; v_old text; v_new text; v_n int;
+begin
+  v_def := replace(pg_get_functiondef('public.hr_bestiary_of(uuid,integer)'::regprocedure), chr(13), '');
+  if strpos(v_def, 'CALL-OUT') = 0 then
+    v_old := $a$     and pp.key like 'ev:kill_monster:%'$a$;
+    v_new := v_old || $a$
+     and pp.key not like '%\_called' -- CALL-OUT (2027-03-02-boss-call.sql): a called boss is no Bestiary entry$a$;
+    v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
+    if v_n <> 1 then raise exception 'hr_bestiary_of: CALL-OUT anchor matched % times (need 1): the body moved', v_n; end if;
     execute replace(v_def, v_old, v_new);
   end if;
 end $mig$;
@@ -225,6 +243,25 @@ begin
    where p.id = (select q.id from public.hunt_parties q where q.id = new.instance_id and q.hunt_id = new.hunt_id for update skip locked);
   return null;
 end $$;
+
+-- THE SYSTEM LINE: once a fight, on the first hero its close finds still standing and named (never a quiet hero), in the Hearth's shape: from_name is stamped by hr_chat_name_authority, the body is the server's.
+create or replace function public.hr_boss_call_felled()
+returns trigger language plpgsql security definer set search_path = public, pg_catalog as $$
+declare v_call public.hr_boss_calls%rowtype;
+begin
+  select * into v_call from public.hr_boss_calls c where c.hunt_id = new.hunt_id;
+  if not found or coalesce((select ps.presence_quiet from public.player_state ps where ps.user_id = new.user_id and ps.slot = new.slot), false)
+     or exists (select 1 from public.hunt_sessions h where h.instance_id = new.instance_id and h.id <> new.id and h.end_reason = 'boss_felled' and h.ended_at = new.ended_at) then return null; end if;
+  insert into public.chat_messages (channel, from_id, from_name, from_slot, body)
+    values ('system', new.user_id, 'Adventurer', new.slot,
+            'and party called out ' || case v_call.call_id when 'rat_king' then 'the Rat King' when 'chief_coppercap' then 'Chief Coppercap' else 'a boss' end || ' and brought him down.');
+  return null;
+end $$;
+revoke execute on function public.hr_boss_call_felled() from public, anon, authenticated, service_role;
+drop trigger if exists hr_boss_call_felled on public.hunt_sessions;
+create trigger hr_boss_call_felled after update of ended_at on public.hunt_sessions
+  for each row when (old.ended_at is null and new.end_reason = 'boss_felled' and right(new.hunt_id, 7) = '_called')
+  execute function public.hr_boss_call_felled();
 revoke execute on function public.hr_boss_call_closed() from public, anon, authenticated, service_role;
 drop trigger if exists hr_boss_call_closed on public.hunt_sessions;
 create trigger hr_boss_call_closed after update of ended_at on public.hunt_sessions
@@ -244,19 +281,20 @@ begin
     if has_function_privilege('anon', v_s, 'execute') or has_function_privilege('service_role', v_s, 'execute') or not has_function_privilege('authenticated', v_s, 'execute') then
       raise exception 'boss-call §6(a): the grants on % are wrong', v_s; end if;
   end loop;
-  foreach v_s in array array['public.hr_boss_call_quote(uuid,integer,text)', 'public.hr_boss_call_pays(jsonb)', 'public.hr_boss_call_closed()'] loop
+  foreach v_s in array array['public.hr_boss_call_quote(uuid,integer,text)', 'public.hr_boss_call_pays(jsonb,text)', 'public.hr_boss_call_closed()', 'public.hr_boss_call_felled()'] loop
     if has_function_privilege('authenticated', v_s, 'execute') or has_function_privilege('anon', v_s, 'execute') then raise exception 'boss-call §6(a): a client can execute %', v_s; end if;
   end loop;
-  foreach v_s in array array['public.hr_hunt_admit(uuid,integer,text)', 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'] loop
+  foreach v_s in array array['public.hr_hunt_admit(uuid,integer,text)', 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'public.hr_bestiary_of(uuid,integer)'] loop
     if strpos((select prosrc from pg_proc where oid = v_s::regprocedure), 'CALL-OUT') = 0 then raise exception 'boss-call §6(a): % has no splice', v_s; end if;
   end loop;
   perform public.hr_assert_grant_hygiene(true);
   -- (b) the money line's reader: the clock and a death pass; every payout is named.
-  if public.hr_boss_call_pays('{"accrued_to":"x","hp":1,"journal":{"meta":{"kills":0}},"deaths":[{}],"progress":[{"kind":"stat","key":"deaths"}]}'::jsonb) is not null then
+  if public.hr_boss_call_pays('{"accrued_to":"x","hp":1,"journal":{"meta":{"kills":0}},"deaths":[{}],"progress":[{"kind":"stat","key":"deaths"},{"kind":"stat","key":"ev:kill_monster:rat_king_called","period":"","add":1}]}'::jsonb, 'rat_king_called') is not null then
     raise exception 'boss-call §6(b): a clean window reads as paying'; end if;
   foreach v_s in array array['{"gold":1}', '{"items":{"bones":1}}', '{"xp":{"melee":1}}', '{"level_xp":1}', '{"hearthfind":{}}', '{"journal":{"meta":{"kills":1}}}',
-                             '{"progress":[{"kind":"stat","key":"kills"}]}', '{"xp_frac":{"melee":0.5}}'] loop
-    if public.hr_boss_call_pays(v_s::jsonb) is null then raise exception 'boss-call §6(b): % passed the money line', v_s; end if;
+                             '{"progress":[{"kind":"stat","key":"kills"}]}', '{"xp_frac":{"melee":0.5}}',
+                             '{"progress":[{"kind":"stat","key":"ev:kill_monster:rat_king","period":"","add":1}]}', '{"progress":[{"kind":"stat","key":"ev:kill_monster:rat_king_called","period":"","add":2}]}'] loop
+    if public.hr_boss_call_pays(v_s::jsonb, 'rat_king_called') is null then raise exception 'boss-call §6(b): % passed the money line', v_s; end if;
   end loop;
 
   begin
@@ -307,6 +345,9 @@ begin
     perform set_config('request.jwt.claim.sub', '', true);
     perform public.hr_hunt_close(h.id, 'boss_felled', now(), true) from public.hunt_sessions h where h.instance_id = v_pid and h.ended_at is null;
     if (select p.hunt_id from public.hunt_parties p where p.id = v_pid) is distinct from v_from then raise exception 'boss-call §6(g): the party stands on %', (select p.hunt_id from public.hunt_parties p where p.id = v_pid); end if;
+    -- (g2) ONE SYSTEM LINE for the fight, however many heroes it sent home.
+    if (select count(*) from public.chat_messages m where m.channel = 'system' and m.from_id in (c_a, c_b) and m.body like '%called out the Rat King%') <> 1 then
+      raise exception 'boss-call §6(g2): the fight posted % System lines', (select count(*) from public.chat_messages m where m.channel = 'system' and m.from_id in (c_a, c_b) and m.body like '%called out the Rat King%'); end if;
     perform set_config('request.jwt.claim.sub', c_a::text, true);
     v := public.hr_hunt_party_start(0, v_hunt, (k || '00000b07')::uuid);
     if v->>'error' is distinct from 'not_ready' then raise exception 'boss-call §6(g): a free second Start answered %', v; end if;

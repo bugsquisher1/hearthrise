@@ -5,7 +5,7 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## Unreleased
+## v0.2.94 — 2026-11-05 (A Smith Needs Salts)
 
 - Crafters can use the Weighhouse now. A bench skill at 30 (Smithing, Crafting, Cooking or Runecrafting) opens it for your whole account, just as a hero at Level 10 does.
 **Tempering takes crafted salts.** Each rung now takes Tempering Salts as well as gold, or Fine Tempering Salts for gear worn from Level 30. Mix them at Smithing from Iron Bars and the Bone Chips or Big Bones your hunts bring home, or buy them at the Weighhouse. Any of your heroes can use them from Storage.

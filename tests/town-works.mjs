@@ -156,6 +156,8 @@ export const MUTANTS = {
   drop_reads_extras: { arm: 'TW-NO-BUFF', why: 'a drop rate reads the map\'s stage', ddl: `create function public.hr_works_drop_boost(p_map text) returns jsonb language sql stable as $f$ select public.hr_town_extras(p_map) $f$` },
   trigger_on_totals: { arm: 'TW-NO-BUFF', why: 'a trigger on the totals feeds something else',
     ddl: `create function public.hr__zz_noop() returns trigger language plpgsql as $f$ begin return new; end $f$; create trigger zz_noop after update on public.town_works_totals for each row execute function public.hr__zz_noop()` },
+  trigger_wears_the_wall: { arm: 'TW-NO-BUFF', why: "a meter on the totals hides under the Game Master wall's name",
+    ddl: `create function public.hr__zz_noop() returns trigger language plpgsql as $f$ begin return new; end $f$; create or replace trigger hr_gm_wall before insert on public.town_works_totals for each row execute function public.hr__zz_noop()` },
   engine_names_works: { arm: 'TW-NO-BUFF', why: 'an engine file reads a project', plant: 'engineFile' },
   works_in_edge: { arm: 'TW-NO-BUFF', why: 'the project\'s data reaches the edge bundle', plant: 'edgeFile' },
   client_price_reads_extras: { arm: 'TW-NO-BUFF', why: 'a client module outside the Works reads the map\'s extras', plant: 'clientFile' },
@@ -736,8 +738,12 @@ const ARMS = {
     }
     const views = await q(db, "select c.relname, pg_get_viewdef(c.oid) d from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('v', 'm')");
     for (const v of views) if (/\b(town_works_totals|town_works_gifts|hr_town_works|hr_town_extras)\b/.test(v.d)) out.push('the view ' + v.relname + ' reads a project');
-    /* hr_gm_wall (lane/c-gm-tools) refuses a walled hero's insert and reads no total, so it may hang here; nothing else may */
-    for (const t of ['town_works_totals', 'town_works_gifts']) if (Number(await one(db, "select count(*) from pg_trigger where tgrelid = $1::regclass and not tgisinternal and tgname <> 'hr_gm_wall'", ['public.' + t]))) out.push('a trigger hangs off ' + t);
+    /* hr_gm_wall (2027-03-13-gm-tools.sql) refuses a walled hero's insert and reads no total, so it may hang here, running one of the wall's two guards; nothing else may */
+    for (const t of ['town_works_totals', 'town_works_gifts']) {
+      const hung = await q(db, `select g.tgname, g.tgfoid::regprocedure::text as fn, g.tgfoid in (to_regprocedure('public.hr_gm_wall_guard()'), to_regprocedure('public.hr_gm_wall_session()')) as wall
+                                 from pg_trigger g where g.tgrelid = $1::regclass and not g.tgisinternal`, ['public.' + t]);
+      for (const g of hung) if (!(g.tgname === 'hr_gm_wall' && g.wall === true)) out.push(`a trigger hangs off ${t}: ${g.tgname} runs ${g.fn}`);
+    }
     /* AND NO ENGINE FILE NAMES IT */
     const works = /\btown_works|hr_town_works|town-works|TOWN_WORKS|\.extras\(\)|hr_town_extras/;
     const engine = X.engineFiles.concat(mutant && mutant.plant === 'engineFile' ? [['src/core/planted.js', "const r = rpc('hr_town_works_view');"]] : []);

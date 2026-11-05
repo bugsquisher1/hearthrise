@@ -161,6 +161,8 @@ export const MUTANTS = {
   meter_view: { arm: 'TS-NO-METER', why: 'a view feeds gold into a meter', ddl: 'create view public.hr_hearthrise_fuel as select map_id, count(*) n from public.town_shows group by 1' },
   meter_reads_journal: { arm: 'TS-NO-METER', why: 'a meter counts purchases off the ledger', ddl: "create function public.hr_hearthrise_paid() returns bigint language sql stable as $f$ select count(*) from public.player_ledger where intent like 'town_show:%' $f$" },
   meter_reads_flame: { arm: 'TS-NO-METER', why: 'a meter reads the flame the square burns, which includes bought ones', ddl: "create function public.hr_hearthrise_lit(p_map text) returns boolean language sql stable as $f$ select public.hr_hearth_flame_of(p_map) is not null $f$" },
+  meter_trigger: { arm: 'TS-NO-METER', why: 'a trigger counts each show into a meter', ddl: "create function public.hr_hearthrise_tick() returns trigger language plpgsql as $f$ begin perform pg_notify('hearthrise', new.map_id); return new; end $f$; create trigger hr_hearthrise_tick after insert on public.town_shows for each row execute function public.hr_hearthrise_tick()" },
+  meter_wears_the_wall: { arm: 'TS-NO-METER', why: 'a meter hides under the Game Master wall\'s name', ddl: "create function public.hr_hearthrise_tick() returns trigger language plpgsql as $f$ begin perform pg_notify('hearthrise', new.map_id); return new; end $f$; create or replace trigger hr_gm_wall before insert on public.town_shows for each row execute function public.hr_hearthrise_tick()" },
   /* THE EDGE */
   flame_in_hearth_data: { arm: 'TS-EDGE', why: 'a bought flame lands in src/data/hearth.js, which the edge bundles',
     js: ['src/data/hearth.js', [["  fire: flame('hearth_fire', 'hearth_flare', 'hearth_burn_sparks', 'burns'),\n", "  fire: flame('hearth_fire', 'hearth_flare', 'hearth_burn_sparks', 'burns'),\n  cinnabar: flame('hearth_fire_cinnabar', 'hearth_flare_cinnabar', 'hearth_burn_sparks_cinnabar', 'burns red'),\n"]]] },
@@ -710,7 +712,11 @@ const ARMS = {
       if (/\btown_shows\b/.test(v.d)) out.push('the view ' + v.relname + ' reads town_shows');
       if (/\baccount_gold_given\b/.test(v.d) && v.relname !== 'leaderboard_ranked') out.push('the view ' + v.relname + ' reads the Gold Given counter');
     }
-    if (Number(await one(db, "select count(*) from pg_trigger where tgrelid = 'public.town_shows'::regclass and not tgisinternal"))) out.push('a trigger hangs off town_shows');
+    /* ONE TRIGGER IS ARGUED: the Game Master's wall (2027-03-13-gm-tools.sql), hr_gm_wall running hr_gm_wall_guard, a refusal that counts nothing. Any other is a meter until argued here. */
+    for (const t of await q(db, `select g.tgname, g.tgfoid::regprocedure::text as fn, g.tgfoid = to_regprocedure('public.hr_gm_wall_guard()') as wall
+                                   from pg_trigger g where g.tgrelid = 'public.town_shows'::regclass and not g.tgisinternal`)) {
+      if (!(t.tgname === 'hr_gm_wall' && t.wall === true)) out.push(`a trigger hangs off town_shows: ${t.tgname} runs ${t.fn}`);
+    }
     /* AND NO ENGINE FILE NAMES IT */
     for (const [rel, text] of X.engineFiles) if (/\btown_shows\b|hr_town_show\b|town_show:/.test(text)) out.push(rel + ' names the shows');
     if (!X.engineFiles.length) out.push('the scan of the engine read no file');

@@ -37,6 +37,7 @@
 //   GM-W-BOARDS   a walled hero at any Level is on no board; a real one at less is
 //   GM-W-OTHER    clans and the Discord gift, by row
 //   GM-W-CROSS    a grant reaches no other purse; Storage and the bag have no path across accounts
+//   GM-W-WORKS    a Town Works gift: the door, then both row locks (the plaque's by its person, the total's by the session); nothing is charged
 //   GM-W-FUTURE   a shared table landed by a later lane carries the row lock (the door already refuses its verbs)
 //   GM-WIPE       the wipe's lists say who stays
 //   GM-TOOL       tools/gm-allow.mjs: its migration makes a fresh account the GM, twice over the same; refuses an account with a hero; a typo admits nobody
@@ -204,7 +205,8 @@ const ARMS = {
   'GM-DOOR': async (W, say) => {
     const { k } = W;
     const deny = ['hr_chat_send', 'hr_whisper_send', 'hr_friend_request', 'hr_friend_answer', 'hr_friend_remove', 'hr_block_set', 'hr_hunt_party_invite', 'hr_hunt_party_invite_player',
-      'hr_hunt_party_join', 'hr_hunt_party_list', 'hr_party_seek', 'hr_hearth_burn', 'hr_claim_discord_gift', 'hr_companion_grant', 'hr_buy_gem_unlock', 'hr_nothing_decided_yet'];
+      'hr_hunt_party_join', 'hr_hunt_party_list', 'hr_party_seek', 'hr_hearth_burn', 'hr_claim_discord_gift', 'hr_companion_grant', 'hr_buy_gem_unlock',
+      'hr_town_works_give', 'hr_town_show', 'hr_crier_send', 'hr_nothing_decided_yet'];
     for (const n of deny) {
       const r = await k.call(GM, 'select public.hr_server_now()', [], { path: '/rpc/' + n, door: true });
       if (!r || r.raised !== 'hr_gm_walled') say(`the door let the walled account reach ${n}: ${js(r)}`);
@@ -348,6 +350,10 @@ const ARMS = {
     if (!wd || wd.raised !== 'muted') say('a whisper reached past the mute: ' + js(wd));
     const sys = await k.row(`insert into public.chat_messages (channel, from_id, from_name, from_slot, body) values ('system', $1, 'x', 0, 'found something') returning 1`, [D]);
     if (sys !== 1) say('a server line about a muted hero failed: ' + js(sys));
+    const notice = await k.row(`insert into public.chat_messages (channel, from_id, from_name, from_slot, from_role, body) values ('local:town', $1, 'x', 0, 'notice', 'threw Cinnabar on the Great Hearth.') returning 1`, [D]);
+    if (notice !== 1) say("a town notice about a muted hero failed, so his paid powder can't land: " + js(notice));
+    const posing = await k.row(`insert into public.chat_messages (channel, from_id, from_name, from_slot, from_role, from_level, body) values ('local:town', $1, 'x', 0, 'notice', 5, 'words as a notice') returning 1`, [D]);
+    if (!posing || posing.raised !== 'muted') say('a line with a Level passed the mute as a notice: ' + js(posing));
     if (await k.one('select public.hr_chat_muted_until($1)', [A])) say('someone else reads as muted');
     const bad = await k.call(GM, 'select public.hr_gm_mute($1::uuid, 0, $2, $3::uuid)', [D, 'a zero mute', key()]);
     if (!bad || bad.error !== 'bad_minutes') say('a zero mute answered ' + js(bad));
@@ -706,6 +712,39 @@ const ARMS = {
     if (crossers.length) say('a client verb moves a purse and names a target: ' + js(crossers));
     await k.fresh();
   },
+  'GM-W-WORKS': async (W, say) => {
+    const { k } = W;
+    const p = await k.one('select project_id from public.hr_town_works order by ord limit 1');
+    const min = await k.one('select min_gift from public.hr_town_works where project_id = $1', [p]);
+    if (!p || !min) throw harness('no Town Works project in the catalogue');
+    await k.db.query(`insert into public.account_wallet (user_id, gold) values ($1, 100000) on conflict (user_id) do update set gold = public.account_wallet.gold + 100000`, [GM]);
+    const before = await gold(k, GM);
+    const give = 'select public.hr_town_works_give(0, $1, $2::bigint, $3::uuid)';
+    const door = await k.call(GM, give, [p, min, key()], { door: true });
+    if (!door || door.raised !== 'hr_gm_walled') say('the door let a Works gift through: ' + js(door).slice(0, 200));
+    const r = await k.past(GM, give, [p, min, key()]);
+    if (!r || r.raised !== 'gm_walled') say('a walled hero gave to the Town Works: ' + js(r).slice(0, 200));
+    if (await gold(k, GM) !== before) say('the refused gift took the gold');
+    if (await k.one('select count(*)::int from public.town_works_gifts where user_id = $1', [GM])) say('a walled gift stands on the plaque');
+    if (await k.one('select count(*)::int from public.town_works_totals')) say("a walled gift moved the town's total");
+    if (await k.one('select count(*)::int from public.account_gold_given where user_id = $1', [GM])) say('a walled gift counted as Gold Given');
+    /* EACH LOCK ALONE, whatever path writes the row: the plaque's by its person, the total's by the session (a real or sessionless writer passes). */
+    const write = async (sub, sql, params) => {
+      await k.db.exec('begin');
+      try {
+        await k.db.query(`select set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claims', $2, true)`, [sub || '', sub ? js({ sub, role: 'authenticated' }) : '']);
+        await k.db.query(sql, params);
+        return 'written';
+      } catch (e) { return String(e.message).split('\n')[0]; } finally { await k.db.exec('rollback'); }
+    };
+    const gift = `insert into public.town_works_gifts (project_id, user_id, gold, by_slot, day, day_gold, last_gift) values ($1, $2, 1, array[1,0,0,0,0,0]::bigint[], current_date, 1, 1)`;
+    const total = 'insert into public.town_works_totals (project_id, total) values ($1, 1)';
+    if (!/gm_walled/.test(await write(null, gift, [p, GM]))) say("a walled account's row reached the plaque by another path");
+    if (await write(null, gift, [p, A]) !== 'written') say("the plaque's lock refused a real account");
+    if (!/gm_walled/.test(await write(GM, total, [p]))) say("a walled session moved the town's total by another path");
+    for (const [who, sub] of [['a real session', A], ['a sessionless writer', null]]) if (await write(sub, total, [p]) !== 'written') say(`the total's lock refused ${who}`);
+    await k.fresh();
+  },
   'GM-W-FUTURE': async (W, say) => {
     const { k } = W;
     for (const t of ['account_gold_given', 'town_works_gifts', 'town_works_totals', 'town_shows']) {
@@ -766,7 +805,9 @@ const MUTANTS = [
   { id: 'stop_needs_no_reason', arm: 'GM-STOP-JOB', why: 'a stop without a reason', edits: [["  if v_reason is null then return public.hr_gm_close(p_gm, 'stop', p_user, p_slot, null, p_idem, jsonb_build_object('ok', false, 'error', 'needs_reason')); end if;\n", '']] },
   { id: 'hunt_skips_player_path', arm: 'GM-STOP-HUNT', why: 'the player\'s verb and the GM\'s no longer share a statement', edits: [['  v_s := public.hr_hunt_leave_pending(v_uid, p_slot);\n', '  v_s := public.hr_hunt_lock(v_uid, p_slot);\n']] },
   { id: 'walled_has_network', arm: 'GM-CAP', why: 'a walled hero fills a real network', edits: [["  if public.hr_gm_walled(p_uid) then return null; end if;   -- GM-TOOLS (2027-03-13-gm-tools.sql)\n  if auth.uid() is not distinct from p_uid then", '  if auth.uid() is not distinct from p_uid then'], ["  if public.hr_gm_walled(p_uid) then return null; end if;   -- GM-TOOLS (2027-03-13-gm-tools.sql)\n  if p_uid is null or auth.uid()", '  if p_uid is null or auth.uid()']] },
-  { id: 'mute_says_nothing', arm: 'GM-MUTE', why: 'hr_chat_send ignores a mute and its row lock is gone', edits: [["  if new.channel <> 'system' and public.hr_chat_muted_until(new.from_id) is not null then\n    perform public.hr_reject('muted');\n  end if;\n", ''], ["  if v_until is not null then return jsonb_build_object('ok', false, 'error', 'muted', 'until', v_until); end if;\n  if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;\n  if p_kind", "  if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;\n  if p_kind"]] },
+  { id: 'mute_says_nothing', arm: 'GM-MUTE', why: 'hr_chat_send ignores a mute and its row lock is gone', edits: [["  if new.channel <> 'system' and not (new.from_role is not distinct from 'notice' and new.from_level is null)\n     and public.hr_chat_muted_until(new.from_id) is not null then\n    perform public.hr_reject('muted');\n  end if;\n", ''], ["  if v_until is not null then return jsonb_build_object('ok', false, 'error', 'muted', 'until', v_until); end if;\n  if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;\n  if p_kind", "  if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;\n  if p_kind"]] },
+  { id: 'mute_silences_the_town', arm: 'GM-MUTE', why: "a mute refuses the server's notice, so a muted hero's powder fails", edits: [["  if new.channel <> 'system' and not (new.from_role is not distinct from 'notice' and new.from_level is null)\n", "  if new.channel <> 'system'\n"]] },
+  { id: 'notice_any_line', arm: 'GM-MUTE', why: 'any line that says notice passes a mute', edits: [["not (new.from_role is not distinct from 'notice' and new.from_level is null)", "not (new.from_role is not distinct from 'notice')"]] },
   { id: 'whisper_mute_off', arm: 'GM-MUTE', why: 'a whisper passes a mute\'s row lock', edits: [["  if public.hr_chat_muted_until(new.from_id) is not null then perform public.hr_reject('muted'); end if;\n", '']] },
   { id: 'ban_not_read', arm: 'GM-BAN', why: 'hr_admitted does not read a ban', edits: [['     and not exists (select 1 from public.hr_bans b where b.user_id = p_user)\n', '']] },
   { id: 'ban_keeps_boards', arm: 'GM-BAN', why: 'a banned account stays ranked', edits: [["  insert into public.hr_lb_hidden (user_id, slot, reason, note)\n    select p_target, null, 'banned', 'Banned by the Game Master'\n     where not exists (select 1 from public.hr_lb_hidden h where h.user_id = p_target and h.slot is null);\n", '']] },
@@ -796,7 +837,12 @@ const MUTANTS = [
   { id: 'board_ranks', arm: 'GM-W-BOARDS', why: 'the boards rank the Game Master', edits: [["  insert into public.hr_lb_hidden (user_id, slot, reason, note)\n    select new.user_id, null, 'test', 'Game Master account'\n     where not exists (select 1 from public.hr_lb_hidden h where h.user_id = new.user_id and h.slot is null);\n", '']] },
   { id: 'clan_row', arm: 'GM-W-OTHER', why: 'a walled hero joins a clan', edits: [[WALL('clan_members', "'user_id'"), '']] },
   { id: 'gift_row', arm: 'GM-W-OTHER', why: 'a walled hero claims a gift', edits: [[WALL('hr_discord_gift_claims', "'user_id'"), '']] },
-  { id: 'future_table_unlocked', arm: 'GM-W-FUTURE', why: 'a shared table landed with no row lock', edits: [], plant: 'create table public.town_works_gifts (user_id uuid)' },
+  { id: 'works_plaque_row', arm: 'GM-W-WORKS', why: 'a walled account ranks on the Works plaque', edits: [[WALL('town_works_gifts', "'user_id'"), '']] },
+  { id: 'works_total_row', arm: 'GM-W-WORKS', why: "a walled session moves the town's total", edits: [['create or replace trigger hr_gm_wall before insert on public.town_works_totals for each row execute function public.hr_gm_wall_session();\n', '']] },
+  { id: 'works_total_reads_nobody', arm: 'GM-W-WORKS', why: "the total's lock reads no session", edits: [["  if public.hr_gm_walled(auth.uid()) then perform public.hr_reject('gm_walled'); end if;\n", '']] },
+  { id: 'works_both_rows', arm: 'GM-W-WORKS', why: 'a walled gift goes through and charges', edits: [[WALL('town_works_gifts', "'user_id'"), ''], ['create or replace trigger hr_gm_wall before insert on public.town_works_totals for each row execute function public.hr_gm_wall_session();\n', '']] },
+  { id: 'future_table_unlocked', arm: 'GM-W-FUTURE', why: 'a shared table landed with no row lock', edits: [[WALL('town_works_gifts', "'user_id'"), '']] },
+  { id: 'shows_unlocked', arm: 'GM-W-FUTURE', why: 'the shows table carries no row lock', edits: [[WALL('town_shows', "'user_id'"), '']] },
 ];
 
 const dropSelfCheck = (sql) => {

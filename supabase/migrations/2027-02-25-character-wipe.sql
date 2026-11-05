@@ -90,7 +90,7 @@ declare
     'hr_activities', 'hr_bench_tax_rates', 'hr_blessing_rule', 'hr_blessing_tiers', 'hr_bounty_board_monsters', 'hr_bounty_monsters',
     'hr_castle_buildings', 'hr_castle_items', 'hr_castle_tiers', 'hr_catalogue_meta', 'hr_character_sheet_engine', 'hr_chat_config',
     'hr_client_rpc_baseline', 'hr_client_write_baseline', 'hr_companion_grants', 'hr_crop_plot_tier', 'hr_crops', 'hr_db_samples', 'hr_depot_config',
-    'hr_dungeon_loot', 'hr_dungeons', 'hr_equip_slots', 'hr_farm_yield_perk', 'hr_feast_foods', 'hr_flags', 'hr_gem_unlocks',
+    'hr_dungeon_loot', 'hr_dungeons', 'hr_equip_slots', 'hr_farm_yield_perk', 'hr_feast_foods', 'hr_flags', 'hr_gem_unlocks', 'hr_gm_wall_allow',
     'hr_ground_tiers', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
     'hr_hunt_abilities', 'hr_hunt_action_ids', 'hr_hunt_basic_supplies', 'hr_hunt_condition_limits', 'hr_hunt_condition_metrics', 'hr_hunt_config',
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
@@ -103,7 +103,7 @@ declare
     'hr_tally_config', 'hr_tally_materials', 'hr_tally_pieces', 'hr_tally_tasks', 'hr_tick_cohort', 'hr_tick_cron_log',
     'hr_town_maps', 'hr_town_stands', 'hr_town_station_hosts', 'hr_town_stations', 'hr_traits', 'hr_unlock_offers', 'hr_unlocks', 'hr_wipe_log',
     'hr_world_notice_rules', 'hr_xp_table', 'hunt_world_shape_move', 'leaderboard_meta', 'maintenance_alerts', 'maintenance_log',
-    'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works', 'hr_gm_wall_allow'];
+    'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

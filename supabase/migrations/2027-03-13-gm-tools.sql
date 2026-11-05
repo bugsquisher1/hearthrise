@@ -44,16 +44,19 @@ begin
   if to_regclass('public.hr_lb_hidden') is null or to_regclass('public.hr_access_allowlist') is null
      or to_regclass('public.character_names') is null or to_regclass('public.hr_rejections') is null then
     raise exception 'PRECONDITION: the boards'' hidden list, the allowlist, the names or the refusal journal is absent'; end if;
+  if to_regclass('public.account_gold_given') is null or to_regclass('public.town_shows') is null
+     or to_regclass('public.town_works_gifts') is null or to_regclass('public.town_works_totals') is null then
+    raise exception 'PRECONDITION: Gold Given, the shows or the Town Works tables are absent: this file orders after them'; end if;
   for v_r in select * from (values
-    ('public.hr_access_check()', 'f272a1de5dd20c1f65467a3b205ca2c1', '67c2ce9fff695ddc443ca2dbb131d999'),
-    ('public.hr_admitted(uuid)', 'ec1d3f7be2565cb903a06fcb44591db8', '611b4a5d34b0fe4cebbfe7d9a3e3221e'),
+    ('public.hr_access_check()', 'f272a1de5dd20c1f65467a3b205ca2c1', 'beee27d37742fb9717933c7a03f5833e'),
+    ('public.hr_admitted(uuid)', 'ec1d3f7be2565cb903a06fcb44591db8', 'aadfb4d79184c1162f6bbdd8916f6938'),
     ('public.hr_hunt_leave(integer,uuid)', '3f6444929e66e94f8466d5059d9716ad', 'c43e031e107e90fba07d821714f86121'),
-    ('public.hr_chat_send(integer,text,text)', 'b93f11e5a5b3df6d46be40fce7ed9129', 'b29e38537f5f2bda81686573e7be659d'),
-    ('public.hr_whisper_send(integer,text,text)', 'bc8ffff1602be02c21909fe0dd5077dd', 'd7156f6faed96272978df3defd72fd77'),
-    ('public.hr_play_net_of(uuid)', '04bcd1888e8cd8036a3b61f863676aa2', '2ee60b2cb3bd39bbb930da3f2e99b5a4'),
-    ('public.hr_play_net_note(uuid)', '8869b0d9bd153f1ab6a56075b72d36be', '29cbb5a276da72e97536f55d406c8820'),
-    ('public.hr_hunt_member_state(uuid,integer)', 'c7ef9f64c1e7d78b187c186e0b81f1c8', 'dbf76435dbcc51ce93798fad7dfc1ebd'),
-    ('public.hr_validate_display_name(text)', '7f58e189f607cefa87ddbdbcc6443991', '0713882732efee683e1990e883357c1a')) t(fn, pre, post) loop
+    ('public.hr_chat_send(integer,text,text)', 'b93f11e5a5b3df6d46be40fce7ed9129', '64918b47c6c4e1cba1b3c89158c84901'),
+    ('public.hr_whisper_send(integer,text,text)', 'bc8ffff1602be02c21909fe0dd5077dd', '8743d1fd30917c4379d494a002cad24c'),
+    ('public.hr_play_net_of(uuid)', '04bcd1888e8cd8036a3b61f863676aa2', '1ba56944573180162024fda15f205e69'),
+    ('public.hr_play_net_note(uuid)', '8869b0d9bd153f1ab6a56075b72d36be', '4e876d549ee2153e046781d6462ba8e7'),
+    ('public.hr_hunt_member_state(uuid,integer)', 'c7ef9f64c1e7d78b187c186e0b81f1c8', '8013ea3daeb4af94ce651786fbcdb663'),
+    ('public.hr_validate_display_name(text)', '7f58e189f607cefa87ddbdbcc6443991', 'e5ac1fef987de29b793c16374dfa1234')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
       raise exception 'PIN: % is neither its pre-image (%) nor this file''s image (%): md5 % - another file moved it, re-derive', v_r.fn, v_r.pre, v_r.post, v_md5;
@@ -143,7 +146,7 @@ insert into public.hr_gm_wall_allow (rpc, why) values
   ('hr_farm_harvest', 'its own land'), ('hr_farm_harvest_clear', 'its own land'), ('hr_farm_harvest_replant', 'its own land'),
   ('hr_farm_plant', 'its own land'), ('hr_farm_upgrade_plot', 'its own land'), ('hr_farm_water', 'its own land'),
   ('hr_hunt_enter', 'its own hunt'), ('hr_hunt_leave', 'its own hunt'), ('hr_hunt_change', 'its own hunt'), ('hr_hunt_restart', 'its own hunt'),
-  ('hr_hunt_restock', 'its own hunt'), ('hr_hunt_analyzer', 'a read'), ('hr_hunt_density_set', 'its own hunt'), ('hr_hunt_set_preset', 'its own hunt'),
+  ('hr_hunt_restock', 'its own hunt'), ('hr_hunt_analyzer', 'a read'), ('hr_hunt_tier_set', 'its own hunt'), ('hr_hunt_set_preset', 'its own hunt'),
   ('hr_hunt_preset_apply', 'its own bar'), ('hr_hunt_preset_delete', 'its own bar'), ('hr_hunt_preset_rename', 'its own bar'),
   ('hr_hunt_preset_save', 'its own bar'), ('hr_mark_seen', 'its own hunt'), ('hr_tally_accept', 'its own hero'), ('hr_tally_collect', 'its own hero'),
   ('hr_tally_drop', 'its own hero'), ('hr_tally_set', 'its own hero'), ('hr_tally_view', 'a read'),
@@ -240,6 +243,14 @@ begin
   return new;
 end $fn$;
 
+-- A shared table that names no person (town_works_totals): the lock reads the session writing it. A server path with no session passes.
+create or replace function public.hr_gm_wall_session()
+returns trigger language plpgsql security definer set search_path = public, pg_catalog as $fn$
+begin
+  if public.hr_gm_walled(auth.uid()) then perform public.hr_reject('gm_walled'); end if;
+  return new;
+end $fn$;
+
 -- A party holds walled heroes or real ones, never both: an invite across the wall, a seat beside the other side.
 create or replace function public.hr_gm_party_guard()
 returns trigger language plpgsql security definer set search_path = public, pg_catalog as $fn$
@@ -281,7 +292,10 @@ begin
     new.from_slot := null; new.from_name := 'Game Master'; new.from_role := 'game_master'; new.from_level := null; new.from_weapon := null;
     return new;
   end if;
-  if new.channel <> 'system' and public.hr_chat_muted_until(new.from_id) is not null then
+  -- A town notice (a powder on the Hearth, 2027-02-27-town-shows.sql) is the server's sentence in Local: from_role 'notice' and no Level, which no
+  -- player's line lacks. A mute silences the player's words, not the server's line about him.
+  if new.channel <> 'system' and not (new.from_role is not distinct from 'notice' and new.from_level is null)
+     and public.hr_chat_muted_until(new.from_id) is not null then
     perform public.hr_reject('muted');
   end if;
   return new;
@@ -354,18 +368,14 @@ create or replace trigger hr_chat_zgm_gate before insert on public.chat_messages
 create or replace trigger hr_whisper_zgm_gate before insert on public.chat_whispers for each row execute function public.hr_whisper_zgm_gate();
 create or replace trigger hr_gm_look_stamp before insert or update of look on public.town_bodies for each row execute function public.hr_gm_look_stamp();
 
--- THE SINK LANES' SHARED TABLES (lane/c-town-shows). Whichever lands first: this file locks a table already here; a table landed after it reddens
+-- THE SINK LANES' SHARED TABLES (lane/c-town-shows, lane/c-town-works-code), all ahead of this file (§0). A table a later lane lands reddens
 -- tests/gm-tools.mjs GM-W-FUTURE until it carries the lock (and the door refuses its verbs meanwhile). Gold Given is written from inside a purchase,
--- so a walled purchase is left off the board, quietly; a show is a press on a shared surface, so it is refused.
-do $mig$
-begin
-  if to_regclass('public.account_gold_given') is not null then
-    create or replace trigger hr_gm_wall before insert on public.account_gold_given for each row execute function public.hr_gm_wall_quiet();
-  end if;
-  if to_regclass('public.town_shows') is not null then
-    create or replace trigger hr_gm_wall before insert on public.town_shows for each row execute function public.hr_gm_wall_guard('user_id');
-  end if;
-end $mig$;
+-- so a walled purchase is left off the board, quietly. A show and a Works gift are presses on a shared surface, so they are refused: the gift
+-- rolls back whole, charge included. The Works' total names no person, so its lock reads the session (hr_town_works_give, its one writer).
+create or replace trigger hr_gm_wall before insert on public.account_gold_given for each row execute function public.hr_gm_wall_quiet();
+create or replace trigger hr_gm_wall before insert on public.town_shows for each row execute function public.hr_gm_wall_guard('user_id');
+create or replace trigger hr_gm_wall before insert on public.town_works_gifts for each row execute function public.hr_gm_wall_guard('user_id');
+create or replace trigger hr_gm_wall before insert on public.town_works_totals for each row execute function public.hr_gm_wall_session();
 
 -- ── §4 THE DOOR ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 create or replace function public.hr_admitted(p_user uuid)
@@ -1875,7 +1885,7 @@ begin
   foreach f in array array[
       'public.hr_gm_walled(uuid)', 'public.hr_gm_section(uuid,integer)', 'public.hr_chat_muted_until(uuid)', 'public.hr_gm_reason(text)',
       'public.hr_gm_open(uuid,text,uuid,integer,text,uuid)', 'public.hr_gm_close(uuid,text,uuid,integer,text,uuid,jsonb)',
-      'public.hr_gm_wall_guard()', 'public.hr_gm_party_guard()', 'public.hr_gm_wall_quiet()', 'public.hr_chat_zgm_gate()', 'public.hr_whisper_zgm_gate()',
+      'public.hr_gm_wall_guard()', 'public.hr_gm_wall_session()', 'public.hr_gm_party_guard()', 'public.hr_gm_wall_quiet()', 'public.hr_chat_zgm_gate()', 'public.hr_whisper_zgm_gate()',
       'public.hr_gm_look_stamp()', 'public.hr_gm_account_guard()', 'public.hr_gm_account_hide()', 'public.hr_gm_log_immutable()',
       'public.hr_hunt_leave_pending(uuid,integer)', 'public.hr_gm_hero_idle(uuid,integer)',
       'public.hr_gm_online()', 'public.hr_gm_hero(text,integer)', 'public.hr_gm_mute(uuid,integer,text,uuid)', 'public.hr_gm_unmute(uuid,text,uuid)',
@@ -1912,6 +1922,7 @@ revoke execute on function public.hr_gm_reason(text) from public;
 revoke execute on function public.hr_gm_open(uuid, text, uuid, integer, text, uuid) from public;
 revoke execute on function public.hr_gm_close(uuid, text, uuid, integer, text, uuid, jsonb) from public;
 revoke execute on function public.hr_gm_wall_guard() from public;
+revoke execute on function public.hr_gm_wall_session() from public;
 revoke execute on function public.hr_gm_party_guard() from public;
 revoke execute on function public.hr_gm_wall_quiet() from public;
 revoke execute on function public.hr_chat_zgm_gate() from public;
@@ -1946,16 +1957,16 @@ grant execute on function public.hr_gm_grant_level(integer, integer, text, uuid)
 
 delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname like 'hr\_gm\_%';
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
-  ('hr_gm_online', '', 'authenticated', 'added 2027-03-05 (gm-tools): who plays; refuses anyone but a walled GM account'),
-  ('hr_gm_hero', 'p_target text, p_slot integer', 'authenticated', 'added 2027-03-05 (gm-tools): one hero, no email, address or network hash; refuses anyone but a walled GM account'),
-  ('hr_gm_mute', 'p_target uuid, p_minutes integer, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-05 (gm-tools): mutes an account''s chat; refuses anyone but a walled GM account; journalled'),
-  ('hr_gm_unmute', 'p_target uuid, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-05 (gm-tools): lifts a mute; refuses anyone but a walled GM account; journalled'),
-  ('hr_gm_ban', 'p_target uuid, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-05 (gm-tools): bans an account through hr_admitted; refuses anyone but a walled GM account; journalled'),
-  ('hr_gm_unban', 'p_target uuid, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-05 (gm-tools): lifts a ban; refuses anyone but a walled GM account; journalled'),
-  ('hr_gm_say', 'p_body text, p_idem uuid', 'authenticated', 'added 2027-03-05 (gm-tools): one server-wide line, stamped Game Master; refuses anyone but a walled GM account; journalled'),
-  ('hr_gm_grant_gold', 'p_slot integer, p_amount bigint, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-05 (gm-tools): MONEY, the caller''s own walled account only (no account argument); clamped; refuses everyone else'),
-  ('hr_gm_grant_item', 'p_slot integer, p_item text, p_qty bigint, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-05 (gm-tools): MONEY, the caller''s own walled account only (no account argument); clamped; refuses everyone else'),
-  ('hr_gm_grant_level', 'p_slot integer, p_level integer, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-05 (gm-tools): XP, the caller''s own walled account only (no account argument); raise-only, clamped; refuses everyone else');
+  ('hr_gm_online', '', 'authenticated', 'added 2027-03-13 (gm-tools): who plays; refuses anyone but a walled GM account'),
+  ('hr_gm_hero', 'p_target text, p_slot integer', 'authenticated', 'added 2027-03-13 (gm-tools): one hero, no email, address or network hash; refuses anyone but a walled GM account'),
+  ('hr_gm_mute', 'p_target uuid, p_minutes integer, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-13 (gm-tools): mutes an account''s chat; refuses anyone but a walled GM account; journalled'),
+  ('hr_gm_unmute', 'p_target uuid, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-13 (gm-tools): lifts a mute; refuses anyone but a walled GM account; journalled'),
+  ('hr_gm_ban', 'p_target uuid, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-13 (gm-tools): bans an account through hr_admitted; refuses anyone but a walled GM account; journalled'),
+  ('hr_gm_unban', 'p_target uuid, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-13 (gm-tools): lifts a ban; refuses anyone but a walled GM account; journalled'),
+  ('hr_gm_say', 'p_body text, p_idem uuid', 'authenticated', 'added 2027-03-13 (gm-tools): one server-wide line, stamped Game Master; refuses anyone but a walled GM account; journalled'),
+  ('hr_gm_grant_gold', 'p_slot integer, p_amount bigint, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-13 (gm-tools): MONEY, the caller''s own walled account only (no account argument); clamped; refuses everyone else'),
+  ('hr_gm_grant_item', 'p_slot integer, p_item text, p_qty bigint, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-13 (gm-tools): MONEY, the caller''s own walled account only (no account argument); clamped; refuses everyone else'),
+  ('hr_gm_grant_level', 'p_slot integer, p_level integer, p_reason text, p_idem uuid', 'authenticated', 'added 2027-03-13 (gm-tools): XP, the caller''s own walled account only (no account argument); raise-only, clamped; refuses everyone else');
 
 -- ── §9 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ─────────────────────────────────────────────────────
 do $mig$
@@ -1967,7 +1978,7 @@ declare
     'hr_gm_grant_item(integer,text,bigint,text,uuid)', 'hr_gm_grant_level(integer,integer,text,uuid)'];
   c_deny constant text[] := array['hr_chat_send', 'hr_whisper_send', 'hr_friend_request', 'hr_friend_answer', 'hr_friend_remove', 'hr_block_set',
     'hr_hunt_party_invite', 'hr_hunt_party_invite_player', 'hr_hunt_party_join', 'hr_hunt_party_list', 'hr_party_seek', 'hr_hearth_burn',
-    'hr_claim_discord_gift', 'hr_companion_grant', 'hr_buy_gem_unlock'];
+    'hr_claim_discord_gift', 'hr_companion_grant', 'hr_buy_gem_unlock', 'hr_town_works_give', 'hr_town_show', 'hr_crier_send'];
   c_auth constant text[] := array['hr_gm_walled(uuid)', 'hr_gm_open(uuid,text,uuid,integer,text,uuid)', 'hr_gm_close(uuid,text,uuid,integer,text,uuid,jsonb)',
     'hr_gm_stop_gate(uuid,uuid,integer,text,uuid)', 'hr_gm_stop_result(uuid,uuid,integer,text)', 'hr_hunt_leave_pending(uuid,integer)'];
   t text; v jsonb; v_n int; v_err text; v_ok boolean; v_before bigint; v_colors jsonb;

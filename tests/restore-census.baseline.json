@@ -550,7 +550,8 @@
   "hero_tally",
   "hero_tally_claims",
   "hero_tally_given",
-  "hero_tally_tasks"
+  "hero_tally_tasks",
+  "town_works_gifts"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",

@@ -80,6 +80,8 @@ export const GREENERY = Object.freeze([
   ['oak', 62, 55],
   ['pine', 9, 56],
   ['pine', 18, 59],
+  /* off the Weighhouse's lot (plan 98, 58), to the grass at its corner: this window of green still has its tree */
+  ['oak', 103, 62],
   ['oak', 33, 59],
   ['pine', 25, 59],
   ['oak', 40, 59],

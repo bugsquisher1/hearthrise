@@ -19,7 +19,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
-import { BENCH_TAX, BENCH_TAX_ROOMS, BENCH_TAX_UNTAXED, BENCH_TAX_FREE_UNDER_MG } from '../src/data/bench-tax.js';
+import { BENCH_TAX, BENCH_TAX_ROOMS, BENCH_TAX_UNTAXED, BENCH_TAX_FREE_UNDER_MG, benchTaxed } from '../src/data/bench-tax.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ROOM_RUNGS } from '../src/data/homestead-tiers.js';
 
@@ -48,8 +48,8 @@ export function rowsOf() {
   const out = [];
   for (const skill of Object.keys(BENCH_TAX).sort()) {
     for (const r of ARTISAN_RECIPES[skill]) {
-      /* A ROLLED job pays no tax (Tyler 2026-11-05, call 5: no gold moves on a roll; src/data/jewelry.js): no row, so no fee. */
-      if (!r.id || !r.output || r.roll || seen.has(r.id)) continue;
+      /* A ROLLED job pays no tax (bench-tax.js benchTaxed): no row, so no fee. */
+      if (!r.id || !benchTaxed(r) || seen.has(r.id)) continue;
       seen.add(r.id);
       out.push({ recipe: r.id, skill, output: r.output, qty: Math.max(1, Number(r.outputQty) || 1) });
     }

@@ -16,7 +16,7 @@
 //   node tests/jewelry-rolls.mjs            the guard
 //   node tests/jewelry-rolls.mjs --mutate   each claim driven red by a planted defect in a copy of the tree
 //
-// mutant-anchors: src/core/artisan.js src/data/jewelry.js tools/gen-bench-tax.mjs
+// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -159,7 +159,7 @@ const MUTANTS = [
   { claim: 'J3', name: 'the roll reads the wall clock, so the same window rolls twice', edits: [['src/core/artisan.js', 'const u = rng.next() * ODDS_SCALE;', 'const u = Math.random() * ODDS_SCALE;']] },
   { claim: 'J3', name: 'a roll makes a grade from another piece', edits: [['src/core/artisan.js', "  if (grade === 'plain') return { id: plain, grade, perks: [] };", "  if (grade === 'plain') return { id: 'ruby_signet', grade, perks: [] };"]] },
   { claim: 'J4', name: 'every Crafting job rolls a draw', edits: [['src/core/artisan.js', 'const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;', 'rng.next(); const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;']] },
-  { claim: 'J5', name: 'a rolled job pays the bench tax', edits: [['tools/gen-bench-tax.mjs', 'if (!r.id || !r.output || r.roll || seen.has(r.id)) continue;', 'if (!r.id || !r.output || seen.has(r.id)) continue;']] },
+  { claim: 'J5', name: 'a rolled job pays the bench tax', edits: [['src/data/bench-tax.js', 'export const benchTaxed = (recipe) => !!(recipe && recipe.output && !recipe.roll);', 'export const benchTaxed = (recipe) => !!(recipe && recipe.output);']] },
 ];
 
 async function run(M) {

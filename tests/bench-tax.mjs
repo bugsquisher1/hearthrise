@@ -31,7 +31,7 @@ import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT, LAST_PATCHED } from './schema-replay.mjs';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ITEMS } from '../src/data/items.js';
-import { BENCH_TAX, BENCH_TAX_FREE_UNDER_MG } from '../src/data/bench-tax.js';
+import { BENCH_TAX, BENCH_TAX_FREE_UNDER_MG, benchTaxed } from '../src/data/bench-tax.js';
 import { recipeInputs } from '../src/core/artisan.js';
 import { feeMgOf, taxFor, payCraft, canPayNext, craftsCovered } from '../src/core/bench-tax.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
@@ -288,7 +288,7 @@ async function arms(db, tick, setActivity, opts) {
     if (seen.has(rec.id)) continue;
     seen.add(rec.id);
     n++;
-    const mine = skill in BENCH_TAX && rec.output ? feeOf(skill, rec) : 0;
+    const mine = skill in BENCH_TAX && benchTaxed(rec) ? feeOf(skill, rec) : 0;
     const theirs = rec.id in server ? server[rec.id] : 0;
     if (mine !== theirs) off.push(`${rec.id}: data ${mine}, server ${theirs}`);
     /* The designer's bound: no single craft's whole gold exceeds what the job's output sells for. */

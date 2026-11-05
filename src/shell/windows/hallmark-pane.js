@@ -29,13 +29,13 @@ function blockOf(cs, o, h, purse, lv) {
   return '';
 }
 
-/* "You hold 1 (1 in Storage)." */
+/* "you hold 2, 1 in Storage" */
 function holdWords(cs, id) {
   const n = heldForHallmark(cs, id);
-  return 'You hold ' + whole(n.all) + (n.storage ? ' (' + whole(n.storage) + ' in Storage)' : '') + '.';
+  return 'you hold ' + whole(n.all) + (n.storage ? ', ' + whole(n.storage) + ' in Storage' : '');
 }
 
-/** The section's skeleton, under the skill's rows. */
+/** The section's skeleton, above the skill's rows. */
 export function hallmarkPaneHtml() {
   return '<section class="hw-hallmark"><h3 class="hs-sub">Hallmark</h3>'
     + '<p class="hs-note hw-hallmark-how">Set a gem in a Fine piece and choose its second perk. Nothing is rolled here and it can\'t fail; it costs gold and the gem.</p>'
@@ -61,9 +61,10 @@ export function patchHallmarkPane(root, ctx, sc) {
     patch: (li, o) => {
       const why = blockOf(cs, o, h, purse, lv);
       const it = ITEMS[o.to];
-      text(li.querySelector('b'), itemName(o.from) + ' + ' + (JEWEL_PERKS[o.perk] ? JEWEL_PERKS[o.perk].name : o.perk));
-      text(li.querySelector('.hw-hallmark-what'), 'Makes ' + itemName(o.to) + '. ' + (it && it.jewelPerks ? 'Adds: ' + perkWords(o.perk, it.jewelPerks[o.perk] || 0) + '.' : ''));
-      text(li.querySelector('.hw-hallmark-need'), why || ('Takes 1 ' + itemName(o.from) + ' (' + holdWords(cs, o.from).replace(/\.$/, '') + ') and 1 ' + itemName(o.gem) + ' (' + holdWords(cs, o.gem).replace(/\.$/, '') + '), at Crafting ' + o.level + '.'));
+      /* The choice is the perk: lead with it; the piece it goes on and what it does sit under it. */
+      text(li.querySelector('b'), 'Add ' + (JEWEL_PERKS[o.perk] ? JEWEL_PERKS[o.perk].name : o.perk));
+      text(li.querySelector('.hw-hallmark-what'), 'Your ' + itemName(o.from) + (it && it.jewelPerks ? ' gains: ' + perkWords(o.perk, it.jewelPerks[o.perk] || 0) + '.' : '.'));
+      text(li.querySelector('.hw-hallmark-need'), why || ('Uses it and 1 ' + itemName(o.gem) + ' (' + holdWords(cs, o.gem) + ').'));
       const btn = li.querySelector('button');
       text(btn, 'Hallmark · ' + gold(o.gold));
       prop(btn, 'disabled', !!why || sc.pending || !!sc.hallmark);

@@ -29,6 +29,10 @@ export const BENCH_TAX_ROOMS = Object.freeze({
   runecrafting: Object.freeze({ room: 'library', rung: 1 }),
 });
 
+/** Does a public bench charge this job? Every job with an output, except a ROLLED one (src/data/jewelry.js; Tyler 2026-11-05, call 5:
+    no gold moves on a roll). tools/gen-bench-tax.mjs writes rows only for these, and no row is no fee. */
+export const benchTaxed = (recipe) => !!(recipe && recipe.output && !recipe.roll);
+
 /** Bench skills the public bench never charges, each with why. Every bench skill is here or in BENCH_TAX. */
 export const BENCH_TAX_UNTAXED = Object.freeze({ inner_flame: 'the Great Hearth is a public fire, not a bench (designer 2026-11-01)' });
 

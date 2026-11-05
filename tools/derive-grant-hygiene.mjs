@@ -395,6 +395,14 @@ export const LINKS = [
     target: '2027-02-10-settle-reads.sql',
     patchIds: ['settle_reads'],
   },
+  /* Link 23 (lane/c-gm-tools, 2026-11-05) — THE GAME MASTER'S STOP. 2027-03-05-gm-tools.sql adds the engine's two
+     questions for `gm_stop`. Two entries at the HEAD of c_engine_allow, an INSERTION, so its declared-removals list in
+     tests/run-sql-tests.mjs PART 1f-ii is EMPTY. Its base is link 22's TARGET. It is the new last toucher. */
+  {
+    base: '2027-02-10-settle-reads.sql',
+    target: '2027-03-05-gm-tools.sql',
+    patchIds: ['gm_stop'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -428,6 +436,24 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'gm_stop',
+    name: 'the c_engine_allow array head (link 23)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2027-03-05 — THE GAME MASTER'S STOP (lane/c-gm-tools) ───────
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list.
+    --
+    -- SELF-VALIDATING: p_gm is the engine's VERIFIED subject, and both refuse unless
+    -- it holds a row of hr_gm_accounts, which only a migration writes. The gate ends a
+    -- hunt by the statement hr_hunt_leave runs and journals; it moves no value. The
+    -- result journals one row. A town job's stop is then the player's own
+    -- runSetActivity on that hero: collect, then switch.
+    'hr_gm_stop_gate(uuid,uuid,integer,text,uuid)',
+    'hr_gm_stop_result(uuid,uuid,integer,text)',
+`,
+    where: 'after',
+  },
   {
     id: 'settle_reads',
     name: 'the c_engine_allow array head (link 22)',

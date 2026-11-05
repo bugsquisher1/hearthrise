@@ -272,8 +272,8 @@ function createRest({ db, ipOf, verify }) {
     try {
       return await db.transaction(async (tx) => {
         await tx.query(`select set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claims', $2, true),
-                               set_config('request.headers', $3, true), set_config('request.method', 'POST', true), set_config('role', $4, true)`,
-        [uid || '', JSON.stringify(uid ? { sub: uid, role } : { role }), JSON.stringify({ 'cf-connecting-ip': uid ? ipOf(uid) : '198.51.100.1' }), role]);
+                               set_config('request.headers', $3, true), set_config('request.method', 'POST', true), set_config('role', $4, true), set_config('request.path', $5, true)`,
+        [uid || '', JSON.stringify(uid ? { sub: uid, role } : { role }), JSON.stringify({ 'cf-connecting-ip': uid ? ipOf(uid) : '198.51.100.1' }), role, '/rpc/' + name]);
         await tx.query('set local role ' + role);
         await tx.query('select public.hr_access_check()');   // the pre-request hook (pgrst.db_pre_request)
         const out = (await tx.query(sql, call.params)).rows[0];

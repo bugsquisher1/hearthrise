@@ -89,6 +89,11 @@ export function lineOf(row, o = {}) {
   const weapon = str(row.from_weapon, 32);
   const name = str(row.from_name, 24) || 'Adventurer';
   const fromId = typeof row.from_id === 'string' && UUID.test(row.from_id) ? row.from_id : null;
+  /* The Game Master's line (2027-03-05-gm-tools.sql hr_gm_say): no client writes this channel, so the server's role stamp is the mark. */
+  if (!whisper && row.channel === 'system' && row.from_role === 'game_master') {
+    return { id: row.id, channel: 'system', at, time: clockOf(at, o.tz), fromId: null, name: 'Game Master', level: null, role: null,
+      slot: null, parts: [{ text: 'Game Master: ' }].concat(partsOf(body, true)), toId: null, toName: null, system: true };
+  }
   /* A System row is the server's notice: one sentence, the hero's name first, no level or role tag. */
   if (!whisper && row.channel === 'system') {
     return { id: row.id, channel: 'system', at, time: clockOf(at, o.tz), fromId, name, level: null, role: null,

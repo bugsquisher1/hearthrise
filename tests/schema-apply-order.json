@@ -609,9 +609,11 @@
     "2027-02-25-houndskin-items-catalogue.generated.sql",
     "2027-02-25-houndskin-bench-inputs.generated.sql",
     "2027-02-25-houndskin-bench-tax-rates.generated.sql",
-    "2027-02-26-slots-lower-hero-slots.sql"
+    "2027-02-26-slots-lower-hero-slots.sql",
+    "2027-03-05-gm-tools.sql"
   ],
   "_order_notes": {
+    "2027-03-05-gm-tools.sql": "STAGED, NOT APPLIED (lane/c-gm-tools, backend-architect, 2026-11-05; Tyler: admin tools like a Tibia game master, and a walled test hero). Pre-EA: applies on its §9, ON THE EA SECURITY LIST. ORDER: last, then edge deploy (gm_stop + the Hearthfind gate), then the client. Nobody is a GM until tools/gm-allow.mjs writes one row. After apply: live-hash-drift --live --write. VERIFY after apply: the GM account signs in (the door reads request.path, fail closed for that account only).",
     "2027-02-26-slots-lower-hero-slots.sql": "APPLIED 2026-11-05 02:25 UTC (lane/c-slots-lower, designer, 2026-11-04; Tyler the same day: lower it, your own party is the core of the game; pre-EA: applies on its self-check). hr_hero_slots: 50,000 / 200,000 / 800,000 -> 25,000 / 75,000 / 250,000, a pinned update with its own self-check; no function body, no grant. Any order after 2027-02-24-gold-matters-hero-slots.sql. The hr-accrue payload hash moves because src/data/shops.js is in the bundle (no engine behaviour moves): one redeploy, in either order.",
     "2027-02-24-gold-matters-hunt-sessions-catalogue.generated.sql": "APPLIED 2026-11-04 06:23 UTC, hr-accrue deployed right after (lane/c-gold-matters, designer, 2026-11-03; pre-EA: applies on its self-check). 15 monsters' coin moves hr_hunt_kill_bounds.gold_max and tier 2's hourly armor moves hr_hunt_vendor_value. No spawn or limit moves; hr_hunt_world_shape unchanged, so it cannot pause a hunt. ORDER: right after 2027-02-24-risk-hunt-sessions-catalogue.generated.sql (this full replace carries its removal of below_range_refuse), then the hr-accrue carrying the same rows at once. The Warrens' and the Rat King's bound widens, so this goes before that deploy; the lowered rows keep three times their top roll as headroom, so the old engine passes meanwhile.",
     "2027-02-24-gold-matters-alpha-catalogue.generated.sql": "APPLIED 2026-11-04 06:23 UTC (lane/c-gold-matters, 2026-11-03). hr_stamina_refill_rule: 400 + 100 a Level -> 1,000 + 250 a Level; the shop, seed and Blessing rows are carried unchanged. No edge. Any order after 2027-01-13-alpha-catalogue.generated.sql.",

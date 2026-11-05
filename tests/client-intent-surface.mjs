@@ -48,6 +48,17 @@ const CATCH = 'src/session/catch-up.js';
 /* The client's whole RPC surface, each with what it is for. */
 export const CLIENT_RPCS = Object.freeze({
   hr_load: 'the full read of one character (CharacterSession.load)',
+  /* THE GAME MASTER (2027-03-05-gm-tools.sql; src/session/gm-intents.js, loaded only once the server says `gm`): each refuses everyone without the server-written row. */
+  hr_gm_online: 'who is online or playing; names, ground or job, Level',
+  hr_gm_hero: 'one hero as the server holds it, by a name or an account id and slot',
+  hr_gm_mute: 'mute an account\'s chat for a set time, with a reason',
+  hr_gm_unmute: 'lift a mute, with a reason',
+  hr_gm_ban: 'ban an account, with a reason; hr_admitted reads it',
+  hr_gm_unban: 'lift a ban, with a reason',
+  hr_gm_say: 'one server-wide line, stamped Game Master by the server',
+  hr_gm_grant_gold: 'gold to the caller\'s own walled account, clamped; the slot and a reason, never an account',
+  hr_gm_grant_item: 'an item to the caller\'s own walled account, clamped; the slot and a reason, never an account',
+  hr_gm_grant_level: 'a Level to the caller\'s own walled account, raise-only; the slot and a reason, never an account',
   hr_create_hero: 'make the hero in an owned slot with its name and four dye indices, all or nothing (AccountSession.create)',
   hr_buy_hero_slot: 'buy the next hero slot with one own hero\'s gold: the slot id, the paying hero and a key, never a price; the server prices, caps and debits (AccountSession.buySlot)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
@@ -158,6 +169,8 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   unlock_buy: ['offer'],
   /* the Weighhouse (market lane 2; hr-accrue market.js): one `market` object per ask, its subfields pinned below;
      src/session/market-intents.js sends them for the market window (lane 4) */
+  /* the Game Master's stop (hr-accrue gm-stop.js): refused to everyone without the server-written row */
+  gm_stop: ['gm'],
   market_list: ['market'],
   market_cancel: ['market'],
   market_buy: ['market'],

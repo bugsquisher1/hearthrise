@@ -51,7 +51,7 @@ export function worldTargetOf(pick) {
   for (const h of pick.hits) {
     const p = h && h.ref && h.ref.player;
     if (p && typeof p.name === 'string' && p.name) {
-      return { kind: 'player', id: typeof p.id === 'string' && UUID.test(p.id) ? p.id : null, name: p.name.slice(0, 24), slot: Number.isInteger(p.slot) ? p.slot : null };
+      return { kind: 'player', id: typeof p.id === 'string' && UUID.test(p.id) ? p.id : null, name: p.name.slice(0, 24), slot: Number.isInteger(p.slot) ? p.slot : null, gm: p.gm === true };
     }
     const mon = h && h.ref && typeof h.ref.monster === 'string' ? h.ref.monster : h && h.id;
     if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };

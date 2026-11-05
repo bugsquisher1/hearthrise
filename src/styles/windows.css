@@ -49,6 +49,19 @@
 .hw-shop .hw-line-name b { white-space: normal; line-height: 1.15; }
 .hw-shop .hw-line-name small { font-size: clamp(var(--t-micro), var(--t-micro) + (100vw - 1024px) / 170, var(--t-small)); }
 /* The one primary: the gold plate (shell.css, Forged Steel). Here only when it shows. */
+/* The Game Master window (windows/game-master-body.js): plain rows under Forged Steel section heads. */
+.gm-part { margin-bottom: 12px; }
+.gm-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; }
+.gm-row input, .gm-why, .gm-grant-why { min-width: 0; flex: 1 1 8em; }
+.gm-why, .gm-grant-why { display: block; width: 100%; margin: 4px 0; box-sizing: border-box; }
+.gm-list, .gm-more { margin: 4px 0; padding: 0; list-style: none; max-height: 16em; overflow-y: auto; }
+.gm-pick { width: 100%; text-align: left; }
+.gm-facts { margin: 4px 0; color: var(--ink); }
+.gm-more { color: var(--ink-2); font-size: var(--t-micro); }
+.gm-confirm { margin-top: 6px; }
+.gm-ask { margin: 4px 0; color: var(--gold-2); }
+.gm-said { min-height: 1.4em; margin: 0; color: var(--gold-2); }
+.gm-none.is-on { display: block; }
 .hw-primary { display: none; white-space: nowrap; cursor: pointer; }
 .hw-primary.is-on { display: inline-block; }
 .hw-primary:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }

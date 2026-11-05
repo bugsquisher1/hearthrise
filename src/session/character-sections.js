@@ -62,6 +62,9 @@ export function characterSheetOf(cs) {
   };
 }
 
+/** The server says this account is the Game Master (2027-03-05-gm-tools.sql's `gm` section). Fails safe to false. */
+export function gmOf(cs) { return read(cs, 'gm') === true; }
+
 /** The Level, from the server's `state.level_xp`: { xp, level, into, need } (need = XP across this Level), or null. */
 export function levelOf(cs) {
   const st = read(cs, 'state');

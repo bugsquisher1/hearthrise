@@ -67,6 +67,8 @@ export function walkerOf(w) {
     x: w.x, y: w.y, gx: w.gx, gy: w.gy, dir: w.dir,
     /* the station its stand is at and whether it works there (its pose: lane L3) */
     station: typeof w.station === 'string' && STATION.test(w.station) ? w.station : null, work: w.work === true,
+    /* the server's stamp on a Game Master's body (2027-03-05-gm-tools.sql hr_gm_look_stamp) */
+    gm: w.gm === true,
   });
 }
 

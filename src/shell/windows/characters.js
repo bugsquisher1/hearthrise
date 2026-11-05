@@ -26,6 +26,7 @@ import { huntName } from '../../session/party-sections.js?v=0.2.90';
 import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.90';
 import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.90';
 import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.90';
+import { gmOf } from '../../session/character-sections.js?v=0.2.90';
 import { runIntent } from '../intent-words.js?v=0.2.90';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.90';
 import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.90';
@@ -45,7 +46,7 @@ const RENAME_WHY = Object.freeze({ hunt_open: ' is hunting. Rename once the hunt
    phoneIcon: they have no other press here); and Characters and Sign out, which no longer fit beside the row. */
 const iconNames = (ctx, rows) => rows.map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
   + glyphSvg(ctx.glyphs, r.glyph) + '<span>' + esc(r.label) + '</span></button></li>').join('');
-const iconRows = (ctx) => ctx.wm.rows().filter((r) => r.launcher !== false);
+const iconRows = (ctx) => ctx.wm.rows().filter((r) => r.launcher !== false && (r.gm !== true || gmOf(ctx.character)));
 const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">What the icons open</h3><ul class="hw-icon-names">'
   + iconNames(ctx, iconRows(ctx).filter((r) => r.phoneIcon !== false)) + '</ul></div>';
 /* "Also here" is the sheet's first row: these have no icon on a phone, so a long scroll hid them (panel 2026-11-01: ~700 px down). */

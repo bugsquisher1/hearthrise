@@ -53,6 +53,8 @@ export function entriesFor(target, providers) {
   const out = [];
   for (const row of MENU_ENTRIES) {
     if (row.hidden || !row.targets.includes(target.kind)) continue;
+    /* The Game Master stands apart (2027-03-05-gm-tools.sql): the server refuses the rest, so they aren't offered. */
+    if (target.gm === true && row.id !== 'inspect') continue;
     const e = providers && providers[row.provider] && providers[row.provider][row.id];
     if (!e || typeof e.run !== 'function') continue;
     let on = false;

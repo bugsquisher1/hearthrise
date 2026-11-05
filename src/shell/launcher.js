@@ -11,7 +11,7 @@ import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.90';
 import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.90';
 import { tallyOf } from '../session/tally-sections.js?v=0.2.90';
 import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.90';
-import { levelOf } from '../session/character-sections.js?v=0.2.90';
+import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.90';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.90';
 import { COACH_READ_MAX } from '../session/residue.js?v=0.2.90';
 import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.90';
@@ -341,7 +341,7 @@ export function actCoach(ctx, el, action, ev) {
 /* The rows the icon row shows on this screen: a phone holds fewer (src/data/shell-windows.js phoneIcon). */
 function launcherRows(ctx) {
   const phone = typeof ctx.isPhone === 'function' && ctx.isPhone();
-  return ctx.wm.rows().filter((r) => r.launcher !== false && !(phone && r.phoneIcon === false));
+  return ctx.wm.rows().filter((r) => r.launcher !== false && !(phone && r.phoneIcon === false) && (r.gm !== true || gmOf(ctx.character)));
 }
 
 /** The `launchers` widget body: one button per window row that has a launcher. The coach's ring is drawn here when
@@ -355,7 +355,7 @@ export function renderLaunchers(ctx) {
     const on = open.has(r.id);
     const key = keyLabel(r.key);
     return '<button type="button" class="hs-launch' + (on ? ' is-open' : '') + '" data-hs-open="' + esc(r.id) + '"'
-      + ' aria-pressed="' + on + '" aria-label="' + esc(r.label) + ' (' + esc(key) + ')"'
+      + ' aria-pressed="' + on + '" aria-label="' + esc(r.label) + (key ? ' (' + esc(key) + ')' : '') + '"'
       + ' data-tip="' + esc(r.label) + '" data-key="' + esc(key) + '"' + (ring === r.id ? ' data-coach-ring=""' : '') + '>'
       + glyphSvg(ctx.glyphs, r.glyph) + '</button>';
   });

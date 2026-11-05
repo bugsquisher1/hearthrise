@@ -23,7 +23,9 @@
 --   STAYS (c_keep): auth.*, profiles (reset to a fresh signup's shape), hr_access_allowlist (untouched: closed mode still decides who
 --     plays), friend_links, friend_requests, chat_blocks (a player's social choices), bug_reports (the team's triage), beta_invites and
 --     beta_signup_log (the signup record), hr_lb_hidden (who the boards leave out), hr_tick_config and hr_tick_shard_cursor (their
---     cursors nulled), hr_name_holds (owner cleared: a name a moderator pulled stays pulled; every other name is free again).
+--     cursors nulled), hr_name_holds (owner cleared: a name a moderator pulled stays pulled; every other name is free again),
+--     hr_gm_accounts and hr_gm_log (the Game Master and his journal; his walled heroes follow the wipe like anyone's), hr_bans and hr_chat_mutes
+--     (a character wipe doesn't forgive a ban).
 --   MUST ALREADY BE EMPTY (c_market): market_listings is the escrow, so its own file empties it first; this file refuses otherwise.
 --   NAMES NO PLAYER (c_no_player): catalogues, config, baselines, operator logs. Counted before and after.
 --   ALSO: every row of leaderboard_ranked (a refresh), private frames in realtime.messages (no page can read them back).
@@ -77,7 +79,8 @@ declare
   -- hr_account_deletions is lane/c-account-delete's, if it lands first: a waiting deletion belongs to the account, which stays.
   c_keep constant text[] := array[
     'beta_invites', 'beta_signup_log', 'bug_reports', 'chat_blocks', 'friend_links', 'friend_requests', 'profiles', 'hr_access_allowlist',
-    'hr_lb_hidden', 'hr_name_holds', 'hr_tick_config', 'hr_tick_shard_cursor', 'hr_account_deletions'];
+    'hr_lb_hidden', 'hr_name_holds', 'hr_tick_config', 'hr_tick_shard_cursor', 'hr_account_deletions',
+    'hr_gm_accounts', 'hr_gm_log', 'hr_bans', 'hr_chat_mutes'];
   c_market constant text[] := array['market_listings', 'market_sales', 'market_item_daily'];
   c_no_player constant text[] := array[
     'hr_activities', 'hr_bench_tax_rates', 'hr_blessing_rule', 'hr_blessing_tiers', 'hr_bounty_board_monsters', 'hr_bounty_monsters',
@@ -96,7 +99,7 @@ declare
     'hr_tally_config', 'hr_tally_materials', 'hr_tally_pieces', 'hr_tally_tasks', 'hr_tick_cohort', 'hr_tick_cron_log',
     'hr_town_maps', 'hr_town_stands', 'hr_town_station_hosts', 'hr_town_stations', 'hr_traits', 'hr_unlock_offers', 'hr_unlocks', 'hr_wipe_log',
     'hr_world_notice_rules', 'hr_xp_table', 'hunt_world_shape_move', 'leaderboard_meta', 'maintenance_alerts', 'maintenance_log',
-    'hr_account_deletion_log'];
+    'hr_account_deletion_log', 'hr_gm_wall_allow'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

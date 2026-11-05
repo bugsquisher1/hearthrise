@@ -141,7 +141,9 @@ export const VERBS = Object.freeze(
        RPC: three writes and three reads. Each reads only the `market` object (readMarket); the
        verbs stay separate for the dispatch-table reason — a body field that changes WHAT the verb
        does is a typo away from a different intent. */
-    'market_list', 'market_cancel', 'market_buy', 'market_browse', 'market_item', 'market_mine']);
+    'market_list', 'market_cancel', 'market_buy', 'market_browse', 'market_item', 'market_mine',
+    /* THE GAME MASTER'S STOP (2027-03-05-gm-tools.sql; ./gm-stop.js). The gate refuses everyone but a row only a migration writes. */
+    'gm_stop']);
 export const DEFAULT_VERB = 'accrue';
 
 /* THE BODY CAP (Security, reopen review 2026-10-19). A player intent is read through the ONE bounded
@@ -243,7 +245,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty',
-    'equip', 'auto', 'trophy', 'lines', 'market'],
+    'equip', 'auto', 'trophy', 'lines', 'market', 'gmStop'],
 );
 
 /** The `market` object's own vocabulary (readMarket), exported so a test reads it instead of restating it. */
@@ -323,6 +325,25 @@ export function parseIntent(body) {
   out.trophy = readTrophy(body);
   out.lines = readLines(body);
   out.market = readMarket(body);
+  out.gmStop = readGmStop(body);
+  return out;
+}
+
+/**
+ * THE GAME MASTER'S STOP: `gm: { target, slot, reason }`. Which hero, and why, for the journal. Each field is its validated value
+ * or null; nothing here is trusted: hr_gm_stop_gate refuses a stranger before reading any of it and cleans the reason itself.
+ * @returns a null-prototype object, or `null` when `gm` is absent or not a plain object.
+ */
+export function readGmStop(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'gm')) return null;
+  const g = body.gm;
+  if (!g || typeof g !== 'object' || Array.isArray(g)) return null;
+  const t = typeof g.target === 'string' && g.target.length === 36 ? g.target.toLowerCase() : null;
+  const out = Object.create(null);
+  out.target = t !== null && UUID_RE.test(t) ? t : null;
+  out.slot = Number.isInteger(g.slot) && g.slot >= 0 && g.slot <= MAX_SLOT ? g.slot : null;
+  out.reason = typeof g.reason === 'string' ? g.reason.slice(0, 240) : null;
   return out;
 }
 

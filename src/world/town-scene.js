@@ -84,9 +84,10 @@ export function createTownCast(map, o) {
         const { anim, age } = walkClip(o.sprites[id], at, p.steer.restMs(now), pickFacing);
         units.push({
           id, x: onPixel(at.x), y: onPixel(at.y), dir: at.moving ? at.dir : p.dir, diag: at.moving ? at.diag : null, anim, age,
-          plate: { text: p.w.name + (p.w.level !== null ? ' · ' + p.w.level : ''), kind: 'peer' },
+          /* A Game Master's plate: the words are the cue, the gold repeats it (ART_DIRECTION: color is never the only cue). */
+          plate: { text: (p.w.gm ? 'GM ' : '') + p.w.name + (p.w.level !== null ? ' · ' + p.w.level : ''), kind: p.w.gm ? 'gm' : 'peer' },
           /* who this is, for the player menu: the server's account id and slot */
-          ref: { player: { id: p.w.id, name: p.w.name, slot: p.w.slot } },
+          ref: { player: { id: p.w.id, name: p.w.name, slot: p.w.slot, gm: p.w.gm === true } },
         });
       }
       return units;

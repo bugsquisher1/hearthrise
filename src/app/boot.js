@@ -46,7 +46,7 @@ import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.90';
 import { mountWorldPane } from './world-pane.js?v=0.2.90';
 import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.90';
 import { renderHeroCreate } from './hero-create.js?v=0.2.90';
-import { renderClosedNotice } from './closed-notice.js?v=0.2.90';
+import { renderBannedNotice, renderClosedNotice } from './closed-notice.js?v=0.2.90';
 import { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.90';
 import { createAlertCenter } from '../shell/alerts.js?v=0.2.90';
 import { mountMarketWatch } from '../shell/market-watch.js?v=0.2.90';
@@ -142,6 +142,7 @@ function startApp(win) {
     obs.screen('closed');
     root.className = 'app is-auth';
     const a = account;
+    if (a.server.banned()) { renderBannedNotice(root, { discord: DISCORD }); return; }
     renderClosedNotice(root, { id: auth.userId(), discord: DISCORD, win, admission: () => a.admission() });
   }
 

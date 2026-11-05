@@ -764,6 +764,7 @@ body[data-theme="hearthlight"] {
   /* the town and the home (src/world/{town,home}-scene.js): other players
      (dimmer when away), room signposts, the crier's bubble, the walk mark */
   --world-plate-peer:    #a6e39a;
+  --world-plate-gm:      #f2c84b;
   --world-plate-away:    #8fa489;
   --world-plate-sign:    #e8d6a8;
   --world-bubble-bg:     #f3ead6;

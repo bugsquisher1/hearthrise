@@ -613,7 +613,7 @@ const mutants = [
   { name: '[spell-content] the sickness mark never wears off', case: 'sickness-marks-what-it-hits',
     edits: [['src/core/hunt/status.js', '      st.left -= sc.dtMs;\n      const row = statusRow(st.s);\n', '      const row = statusRow(st.s);\n      if (row.tick) st.left -= sc.dtMs;\n']] },
   { name: 'the mark is drawn but adds nothing', case: 'mark-adds-damage',
-    edits: [['src/core/hunt/damage.js', '    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability);', '    ability);']] },
+    edits: [['src/core/hunt/damage.js', '    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability, sc.rng);', '    ability, sc.rng);']] },
   { name: 'the mark never wears off', case: 'mark-adds-damage',
     edits: [['src/core/hunt/damage.js', ' && target.markUntil > sc.atMs ?', ' ?']] },
   { name: 'bleed lands at level 0 whatever the caster', case: 'bleed-scales-with-caster-skill',

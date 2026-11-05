@@ -8,7 +8,7 @@
 //   node tests/chat-social.mjs --mutate --only=FR-2   just the mutants whose name holds that text
 //   node tests/chat-social.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/styles/hunt.css src/styles/app.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/shell/windows/block-list.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js src/shell/shell.js src/shell/hud.js
+// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/styles/hunt.css src/styles/app.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/chat-combat.js src/shell/windows/friends.js src/shell/windows/block-list.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js src/shell/shell.js src/shell/hud.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The server half of every rule (the sender's name, level and role stamped by
@@ -55,6 +55,8 @@
 //         name on a line already held, and the conversation's label follows it
 //   CW-10 [page] a chat line already drawn takes the server's current name at the
 //         next read (hr_chat_row renders it), its menu target too
+//   CW-11 [page] THE COMBAT TAB'S LINES COME FIRST: at the window's default size and on a phone the log has
+//         room for 4 lines, a miss wears no cost color, its filters are folded and say what is off
 //   ON-1  PLAYERS ONLINE (tracker r16): the count comes with hr_social_poll's answer, ONE
 //         request a poll naming the account's open character slots, replaced by each
 //         answer; a refused or malformed answer reads "— online", never the last number
@@ -525,6 +527,52 @@ async function stub(page, s) {
   });
 }
 
+/* CW-11 THE COMBAT TAB'S LINES COME FIRST (Tyler 2026-11-04 sent a miss's words to the log, and at the window's default size the
+   nine filters and the empty input left it 0 px, on a phone one line): the log has room for at least 4 lines, a miss wears no cost
+   color, and a filter folded away says it is off. The lines themselves are hunt-view-core LOG-4: a live view takes no server event here. */
+async function combatTab(browser, base, vp) {
+  const fails = [], tag = vp.width + 'x' + vp.height;
+  const ctx = await browser.newContext({ viewport: vp });
+  const page = await ctx.newPage();
+  try {
+    const s = { calls: [], version: 1 };
+    await stub(page, s);
+    await page.goto(base + '/play.html', { waitUntil: 'load' });
+    await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+    await page.fill('input[name=email]', 'qa@example.test');
+    await page.fill('input[name=password]', 'not-a-real-password');
+    await page.click('.auth-submit');
+    await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+    await page.click('[data-app="play"][data-slot="0"]');
+    await wait(page, () => document.querySelector('[data-hs-shell]'));
+    for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)')); i++) { await page.mouse.click(2, vp.height - 2); await page.keyboard.press('Escape'); await page.waitForTimeout(200); }
+    await page.mouse.click(2, vp.height - 2);
+    await page.keyboard.press('Enter');
+    if (!await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving) .ha-tab[data-tab="combat"]'), null, 3000)) { fails.push('CW-11 [' + tag + '] the chat did not open'); return fails; }
+    await page.click('[data-hs-win="chat"]:not(.is-leaving) .ha-tab[data-tab="combat"]');
+    await page.waitForTimeout(250);
+    const box = () => page.evaluate(() => {
+      const w = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)');
+      const l = w.querySelector('.hc-log.is-combat');
+      /* a line of each kind, measured in the real list and gone before the next paint */
+      const probe = (c) => { const e = document.createElement('li'); e.className = 'hc-line ' + c; e.textContent = 'Giant Rat misses Tyler.'; l.appendChild(e); const v = { color: getComputedStyle(e).color, h: e.offsetHeight }; e.remove(); return v; };
+      const quiet = probe('is-taken is-quiet'), hurt = probe('is-taken');
+      return { h: w.querySelector('.hc-pane.is-combat').clientHeight - w.querySelector('.hc-filters').offsetHeight, line: hurt.h, tones: [quiet.color, hurt.color],
+        input: w.querySelector('.hc-input').checkVisibility(), types: w.querySelector('.hc-types').checkVisibility(), said: w.querySelector('.hc-more summary').textContent };
+    });
+    const b = await box();
+    if (!(b.line > 0 && b.h >= b.line * 4)) fails.push('CW-11 [' + tag + '] the Combat tab must show at least 4 lines: ' + JSON.stringify(b));
+    if (b.input || b.types || b.said !== 'Filter lines') { fails.push('CW-11 [' + tag + '] the Combat tab holds no input, its filters folded: ' + JSON.stringify(b)); return fails; }
+    if (b.tones[0] === b.tones[1]) fails.push('CW-11 [' + tag + '] a miss must not wear the color of damage taken: ' + JSON.stringify(b));
+    await page.click('[data-hs-win="chat"]:not(.is-leaving) .hc-more summary');
+    await page.click('[data-hs-win="chat"]:not(.is-leaving) input[data-type="xp"]');
+    if (!await wait(page, () => /\(1 off\)$/.test(document.querySelector('.hc-more summary').textContent), null, 3000)) fails.push('CW-11 [' + tag + '] a filter that is off must say so on the fold: ' + JSON.stringify(await box()));
+    const open = await box();
+    if (!open.types) fails.push('CW-11 [' + tag + '] pressed, the filters must open: ' + JSON.stringify(open));
+    return fails;
+  } finally { await ctx.close(); }
+}
+
 /* CW-8 at 1440x900: a party of four (its panel 448 px tall, top-left), the chat open at home. The chat overlaps
    no World widget, the panel is wholly on screen, and the panel's foot and last seat are what a press there hits. */
 async function fullParty(browser, base, shots) {
@@ -885,6 +933,7 @@ async function pageRules(overrides, shots) {
       await ctx.close();
     }
     fails.push(...await fullParty(browser, base, shots));   // CW-8
+    for (const vp of [{ width: 1440, height: 900 }, { width: 844, height: 390 }]) fails.push(...await combatTab(browser, base, vp));   // CW-11
   } finally {
     await browser.close();
     server.close();
@@ -943,6 +992,10 @@ const PAGE_MUTANTS = [
   ['the Crier shows off Global', 'src/shell/windows/chat-crier.js', "prop(btn, 'hidden', !global);", "prop(btn, 'hidden', false);"],
   ['the Crier never re-reads', 'src/shell/windows/chat-crier.js', "  s.pending = false;\n  s.stale = true;\n", "  s.pending = false;\n"],
   ['a chat line never draws the title', 'src/shell/windows/chat.js', "const title = l.title ? ' <span class=\"hc-title\">' + esc(l.title) + '</span>' : '';", "const title = '';"],
+  ['the input takes the Combat log\'s room back (CW-11)', 'src/styles/hunt.css', '.hc-pane.is-combat.is-on ~ .hc-input, .hc-pane.is-combat.is-on ~ .hc-msg:empty { display: none; }\n', ''],
+  ['the filters stand open over the log (CW-11)', 'src/shell/windows/chat-combat.js', '<details class="hc-more">', '<details class="hc-more" open>'],
+  ['a miss shows in the red of damage taken (CW-11)', 'src/styles/hunt.css', '.hc-line.is-quiet { color: var(--ink-3); }\n', ''],
+  ['a filter folded away does not say it is off (CW-11)', 'src/shell/windows/chat-combat.js', "prefs.off.size ? 'Filter lines (' + prefs.off.size + ' off)' : 'Filter lines'", "'Filter lines'"],
   ['the bag\'s repaint closes every menu', 'src/shell/windows/inventory/index.js', 'closeFloatMenu(ctx.doc, st.sc.menuOwner || null);', 'closeFloatMenu(ctx.doc);'],
   ['the chat docks on the right', 'src/data/shell-windows.js', "height: 280, home: 'bl', resizable: true,", "height: 280, resizable: true,"],
   ['the chat is opaque', 'src/styles/hunt.css', '.hs-win[data-hs-win="chat"] { background: var(--chat-bg); }', '.hs-win[data-hs-win="chat"] { background: var(--modal-bg); }'],

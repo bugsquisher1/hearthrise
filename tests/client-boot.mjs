@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
+// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/view-sheets.js src/world/atlas.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -36,6 +36,9 @@
 //   B-14 THE TOWN'S SHEETS COME WITH THE ACCOUNT (perf lane 10-29: a cold Play waited 1.56 s
 //        for them): none on the sign-in screen, the town's own sets on the characters screen
 //        before any Play (src/world/prewarm.js), and the World never fetches one again
+//   B-21 THE TOWN OPENS ON ITS VIEW (phone, first visit: Play waited 6.5 s for six sheets, the view drew two): with the other sheets held the
+//        town opens and is painted, asks for nothing the view does not draw until the server has named its stand, then asks for all the others;
+//        a view that draws a held sheet waits for it; a failed sheet and a read that never answers do not hold it shut. Its pixels: PB-VIEW
 //   B-15 A SESSION THAT ENDS WHILE THE TOWN PREWARM RUNS STOPS IT (v0.2.71 merge; run 41045835796: 6 sheets):
 //        signed out with the atlas manifests still held, the page asks for no sheet afterwards
 //   B-17 "WHILE YOU WERE AWAY" IS WRITTEN ON THE WAY OUT (beta cost 11-01: a put a minute per hero): a hunt on screen with a young
@@ -114,10 +117,42 @@ async function sheetsOf(mapId) {
   const book = bookm.createBook(manifests);
   const tables = { materials: ter.MATERIALS, sprites: new Proxy(book.sprites, { get: (t, k) => t[k] || bookm.STUB_SPRITE }), openClasses: ter.OPEN_CLASSES, lights: ter.LIGHTS };
   const row = WORLD_MAPS.find((m) => m.id === mapId);
-  return { sets: ss.sceneSets(mapc.compileMap(row, tables), row, book, tables), all: ATLAS_SETS };
+  const order = ss.sceneSets(mapc.compileMap(row, tables), row, book, tables);
+  return { sets: order.slice().sort(), order, all: ATLAS_SETS };
 }
 const TOWN_SHEETS = await sheetsOf('town_common');
 const CELLAR_SHEETS = await sheetsOf('mill_cellar');
+
+/* Two stands for B-20, from what the shipped map draws around them: the hearth's first (the stand a new hero takes in a quiet town) with its
+   sheets read over a little more than a phone's 422x195, so no camera detail can add one, and a stand whose small view is sure to draw the Havora sheet. */
+async function townStands() {
+  const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
+  const [{ ATLAS_SETS }, { WORLD_MAPS }, bookm, mapc, ter, comp, { STATIONS }] = await Promise.all(['src/data/world/atlas-sets.js', 'src/data/world/maps/index.js',
+    'src/world/core/book.js', 'src/world/core/map-compile.js', 'src/data/world/terrain.js', 'src/world/core/compose.js', 'src/data/world/stations.js'].map(imp));
+  const manifests = {};
+  for (const s of ATLAS_SETS) manifests[s] = JSON.parse(await readFile(join(ROOT, 'assets/world/atlas-' + s + '.json'), 'utf8'));
+  const book = bookm.createBook(manifests);
+  const tables = { materials: ter.MATERIALS, sprites: new Proxy(book.sprites, { get: (t, k) => t[k] || bookm.STUB_SPRITE }), openClasses: ter.OPEN_CLASSES, lights: ter.LIGHTS };
+  const map = mapc.compileMap(WORLD_MAPS.find((m) => m.id === 'town_common'), tables);
+  const T = map.T || 32, ground = comp.groundOf(map, book, tables, T).tiles;
+  const drawn = (x, y, w, h) => {
+    const view = { ox: Math.max(0, Math.min(map.w * T - w, Math.round(x * T - w / 2))), oy: Math.max(0, Math.min(map.h * T - h, Math.round(y * T - h / 2))), w, h };
+    const f = comp.composeFrame(map, book, { hero: { x, y } }, view, tables, T);
+    const out = new Set([book.frame('outfit_knight').set]);
+    const meets = (d) => d.x < view.ox + w && d.x + d.w > view.ox && d.y < view.oy + h && d.y + d.h > view.oy;
+    for (const l of [f.decals, f.sprites, f.raised]) for (const d of l) if (d.set && meets(d)) out.add(d.set);
+    for (const sh of f.shadows) if (sh.type === 'cast') out.add(sh.sprite.set);
+    for (const t of ground) if (t.x < view.ox + w && t.x + T > view.ox && t.y < view.oy + h && t.y + T > view.oy) out.add(t.set);
+    return Array.from(out);
+  };
+  const idle = STATIONS.find((s) => s.kind === 'idle');
+  const stand = (s, i) => ({ station: s.id, no: i + 1, x: s.stands[i][0], y: s.stands[i][1] });
+  const quiet = Object.assign(stand(idle, 0), { drawn: drawn(idle.stands[0][0], idle.stands[0][1], 440, 210) });
+  let onHavora = null;
+  for (const s of STATIONS) { for (let i = 0; i < (s.stands || []).length && !onHavora; i++) if (drawn(s.stands[i][0], s.stands[i][1], 120, 80).includes('havora')) onHavora = stand(s, i); if (onHavora) break; }
+  return { quiet, onHavora };
+}
+const TOWN_VIEWS = await townStands();
 const sheetOf = (url) => (/\/assets\/world\/atlas-([a-z0-9_]+)\.png/.exec(url) || [])[1] || null;
 
 async function stubServer(page, o) {
@@ -709,6 +744,109 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await ctx.close();
     }
 
+    { // B-21 the town opens on its view: a phone's first frame waits only for the sheets that view draws; the rest come behind it
+      const PHONE = { width: 844, height: 390 };
+      const answerWith = (page, stand) => page.route('**/rpc/hr_town_view*', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, map: 'town_common', inst: 1, cap: 120, full: true, cursor: Date.now(),
+        area: [0, 0, 255, 255], walkers: [], gone: [], me: { map: 'town_common', inst: 1, station: stand.station, stand: stand.no, x: stand.x, y: stand.y, gx: stand.x, gy: stand.y, dir: 's', at: [stand.x, stand.y], work: false, since_ms: 1 } }) }));
+      const toPlay = async (page) => {
+        await page.goto(base + '/play.html', { waitUntil: 'load' });
+        await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+        await page.fill('input[name=email]', 'qa@example.test');
+        await page.fill('input[name=password]', 'not-a-real-password');
+        await page.click('.auth-submit');
+        await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+        await page.click('[data-app="play"][data-slot="0"]');
+      };
+      const opened = (page, ms) => wait(page, () => document.querySelector('.hs-launchers') && document.querySelector('#panel-world canvas.world-canvas') && !document.querySelector('.world-status'), null, ms);
+      const late = TOWN_SHEETS.order.filter((s) => !TOWN_VIEWS.quiet.drawn.includes(s));
+      if (!late.includes('havora')) fails.push('B-21 harness: the first hearth stand now draws the Havora sheet (' + TOWN_VIEWS.quiet.drawn.join() + '): pick another stand');
+
+      { // the first view opens with its other sheets held, asks for none of them on the town's start while the server has yet to name its stand, and asks for them all as it opens
+        const { ctx, page, errors } = await fresh({}, PHONE);
+        let named = null;
+        const naming = new Promise((k) => { named = k; });
+        await answerWith(page, TOWN_VIEWS.quiet);
+        /* registered last, so asked first: the read is held here, then falls through to its answer */
+        await page.route('**/rpc/hr_town_view*', async (r) => { await naming; return r.fallback(); });
+        const gates = new Map(), asked = [];
+        for (const s of late) { let open = null; const shut = new Promise((k) => { open = k; }); gates.set(s, { shut, open }); }
+        await page.route('**/assets/world/atlas-*.png*', async (r) => {
+          const s = sheetOf(r.request().url());
+          asked.push(s);
+          if (gates.has(s)) await gates.get(s).shut;
+          return r.continue();
+        });
+        await toPlay(page);
+        /* the town's start draws the Havora sheet: nothing may ask for it on a stand the server has not named (the prewarm is held at the first late sheet) */
+        await page.waitForTimeout(1000);
+        /* a phone back from another app mid-wait: the page runs a frame, and that frame asks for nothing either */
+        await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+        await page.waitForTimeout(500);
+        if (asked.includes('havora')) fails.push('B-21 the Havora sheet was asked for before the server named the stand: ' + asked.join());
+        named();
+        const open = await opened(page, 15000);
+        if (!open) fails.push('B-21 with ' + late.join() + ' held the town never opened on its view (asked: ' + asked.join() + ')');
+        else {
+          /* its ground bakes a slice a frame first (the last frame stays), so the picture comes within a moment of the bar */
+          const painted = await wait(page, () => { const c = document.querySelector('canvas.world-canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; const seen = new Set();
+            for (let i = 0; i < d.length; i += 4000) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]); return seen.size >= 8; }, null, 8000);
+          if (!painted) fails.push('B-21 the town opened and painted nothing with ' + late.join() + ' held');
+          for (const s of TOWN_VIEWS.quiet.drawn) if (!asked.includes(s)) fails.push('B-21 the first view drew from ' + s + ' without asking for it');
+          for (let k = 0; k < 300 && !late.every((s) => asked.includes(s)); k++) await page.waitForTimeout(25);
+          const never = late.filter((s) => !asked.includes(s));
+          if (never.length) fails.push('B-21 behind the first view the page never asked for ' + never.join() + ' (asked: ' + asked.join() + ')');
+        }
+        for (const g of gates.values()) g.open();
+        if (errors.length) fails.push('B-21 console errors: ' + errors.slice(0, 3).join(' | '));
+        await ctx.close();
+      }
+
+      { // a first view that DOES draw the held sheet waits for it: never a stub
+        const { ctx, page, errors } = await fresh({}, PHONE);
+        await answerWith(page, TOWN_VIEWS.onHavora);
+        let open = null, hits = 0;
+        const shut = new Promise((k) => { open = k; });
+        await page.route('**/assets/world/atlas-havora.png*', async (r) => { hits++; await shut; return r.continue(); });
+        await page.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window); window.__rafs = 0; window.__rafBy = {}; window.requestAnimationFrame = (cb) => { window.__rafs++; const by = (new Error().stack.split('\n')[2] || '').trim().split('/').pop(); window.__rafBy[by] = (window.__rafBy[by] || 0) + 1; return raf(cb); }; });
+        await toPlay(page);
+        for (let k = 0; k < 400 && !hits; k++) await page.waitForTimeout(25);
+        /* the wait costs the main thread nothing: its other sheets land while it is held, and no frame loop starts for frames that cannot show */
+        await page.waitForTimeout(500);
+        /* counted over a plain timer: Playwright's own waitForFunction polls on animation frames */
+        const rafs0 = await page.evaluate(() => window.__rafs);
+        await page.waitForTimeout(1000);
+        const spun = (await page.evaluate(() => window.__rafs)) - rafs0;
+        if (spun > 10) fails.push('B-21 while the first view waited on its sheet the page asked for ' + spun + ' animation frames in 1 s: the frame loop runs for frames that cannot show: ' + JSON.stringify(await page.evaluate(() => window.__rafBy)));
+        const early = await opened(page, 500);
+        open();
+        const later = await opened(page, 15000);
+        if (!hits) fails.push('B-21 a view on the Havora sheet never asked for it');
+        else if (early) fails.push('B-21 a first view that draws the Havora sheet opened before it arrived');
+        else if (!later) fails.push('B-21 a first view never opened once its sheet arrived');
+        if (errors.length) fails.push('B-21 console errors: ' + errors.slice(0, 3).join(' | '));
+        await ctx.close();
+      }
+
+      { // a sheet that fails is not waited for (it draws stubs, as it always has)
+        const { ctx, page, errors } = await fresh({}, PHONE);
+        await answerWith(page, TOWN_VIEWS.quiet);
+        await page.route('**/assets/world/atlas-common.png*', (r) => r.abort());
+        await toPlay(page);
+        if (!(await opened(page, 15000))) fails.push('B-21 a first-view sheet that failed held the town shut: ' + await page.evaluate(() => (document.querySelector('.world-status') || {}).textContent || 'no line'));
+        const bad = errors.filter((e) => !/Failed to load resource|ERR_FAILED/.test(e));
+        if (bad.length) fails.push('B-21 console errors: ' + bad.slice(0, 3).join(' | '));
+        await ctx.close();
+      }
+
+      { // the server never says where the hero stands: the town still opens, on its start, as a frame would
+        const { ctx, page } = await fresh({}, PHONE);
+        await page.route('**/rpc/hr_town_view*', () => new Promise(() => {}));
+        await toPlay(page);
+        if (!(await opened(page, 20000))) fails.push('B-21 a read that never answers held the town shut');
+        await ctx.close();
+      }
+    }
+
     { // B-13 a sheet that lands after its pane was closed draws nothing and wakes no presence
       const o = { hunt: true };
       const { ctx, page, errors } = await fresh(o);
@@ -1125,8 +1263,16 @@ const MUTANTS = [
   ['the town\'s sheets wait for Play again', 'src/app/boot.js', "    import('../world/prewarm.js?v=", "    Promise.resolve({ prewarmTown() {} }, '../world/prewarm.js?v="],
   ["a signed-out account's prewarm runs on (B-15)", 'src/world/prewarm.js', 'live: () => !run.stopped && alive() };', 'live: () => !run.stopped };'],
   ['the World fetches a prewarmed sheet again', 'src/render/images.js', '  let ready = HELD.get(url);\n  if (ready) return ready;', '  let ready = null;'],
-  ['the World downloads every sheet on Play', 'src/world/world-boot.js', '    await sheets.ensure(await setsOf(id));',
+  ['the World downloads every sheet on Play', 'src/world/world-boot.js', '    const sets = await setsOf(id);\n    if (!viewSheets.opensOnView(id)) await sheets.ensure(sets);',
     '    await setsOf(id);\n    await sheets.ensure(Array.from(new Set(Object.keys(book.sprites).map((sid) => book.frame(sid).set))));'],
+  ['the town waits for all its sheets again (B-21)', 'src/world/world-boot.js', '    if (!viewSheets.opensOnView(id)) await sheets.ensure(sets);', '    await sheets.ensure(sets);'],
+  ['the first view asks before the server names its stand (B-21)', 'src/world/view-sheets.js', 'if (!waited && town && !town.placeOn(now.id)) {', 'if (false) {'],
+  ['the sheets behind the view are never asked for (B-21)', 'src/world/view-sheets.js', '    sheets.ensure(needs.get(id));\n', ''],
+  ['a frame asks for the sheets of the town start while the first view waits for its stand (B-21)', 'src/world/view-sheets.js', 'const held = (id, cast) => (opening ? opensOnView(id) : check(id, cast));', 'const held = check;'],
+  ['the frame loop runs while the first view waits (B-21)', 'src/world/view-sheets.js', 'sheets.ensure([set]).then(() => { if (!opening) wake(); });', 'sheets.ensure([set]).then(wake);'],
+  ['a read that never answers holds the town shut (B-21)', 'src/world/view-sheets.js', 'await Promise.race([town.heard(), new Promise((done) => win.setTimeout(done, PLACE_WAIT_MS))]);', 'await new Promise(() => {});'],
+  ['a frame naming a sheet on its way is drawn anyway (B-21)', 'src/world/view-sheets.js', 'return miss.length > 0;', 'return false;'],
+  ['a failed sheet ends the town instead of drawing stubs (B-21)', 'src/world/atlas.js', "(e) => { console.warn('[world] atlas \"' + set + '\" did not load; its sprites draw as stubs', e && e.message); return false; })", '(e) => { throw e; })'],
   ['a scene shows before its sheets arrive', 'src/world/world-boot.js', "could not be prepared', e));\n      }\n      return null;",
     "could not be prepared', e));\n      }"],
   ['a closed pane still draws a sheet that lands late', 'src/world/world-boot.js', '    if (gone) return;\n    if (panel', '    if (panel'],

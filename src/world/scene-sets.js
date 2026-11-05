@@ -18,16 +18,27 @@
 //            every piece of furniture, its signposts and the trophy mounts; in
 //            the Common the sandbox's entry sign.
 // tests/world-core.mjs (family A) proves it covers what each shipped scene draws, and no more.
+// THE ORDER is the order to fetch them in (fetchOrder): the prewarm takes them one at a time, while a hero is picked (prewarm.js).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.90';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.90';
-import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.90';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.90';
-import { effectIds } from '../data/hunt-vfx.js?v=0.2.90';
-import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.90';
-import { SANDBOX } from '../data/world/sandbox.js?v=0.2.90';
-import { furnish } from './home-scene.js?v=0.2.90';
+import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.91';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.91';
+import { HUNT_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.91';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.91';
+import { effectIds } from '../data/hunt-vfx.js?v=0.2.91';
+import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.91';
+import { SANDBOX } from '../data/world/sandbox.js?v=0.2.91';
+import { furnish } from './home-scene.js?v=0.2.91';
+
+/* WHAT TO FETCH FIRST (phone, first visit: about 6 s for the town's six sheets): what nearly every first view draws, the hero's own
+   sheet and the one most of the ground comes from, then small before big, so the heaviest is the last thing anything waits for. */
+function fetchOrder(sets, groundTiles, book) {
+  const heroes = new Set(Object.values(OUTFITS).map((id) => book.frame(id).set));
+  let ground = null;
+  for (const [s, n] of groundTiles) if (ground === null || n > groundTiles.get(ground)) ground = s;
+  const rank = (s) => (heroes.has(s) ? 0 : s === ground ? 1 : 2);
+  return Array.from(sets).sort((a, b) => rank(a) - rank(b) || book.area(a) - book.area(b) || (a < b ? -1 : a > b ? 1 : 0));
+}
 
 /** The monsters (and gather-node art) of every ground drawn on map `row` and every hunt it renders. */
 function groundIds(row, ids) {
@@ -58,7 +69,7 @@ function actorIds(row) {
 }
 
 /**
- * The sets a scene on `map` (compileMap output of row `row`, base grid) draws from: a sorted array.
+ * The sets a scene on `map` (compileMap output of row `row`, base grid) draws from, in the order to fetch them (fetchOrder).
  * @param {object} map
  * @param {object} row  the map's row (src/data/world/maps)
  * @param {object} book  createBook() over every manifest (the sprite → set index)
@@ -87,7 +98,8 @@ function* sceneSetsSteps(map, row, book, tables) {
   const T = map.T || 32;
   const whole = { ox: 0, oy: 0, w: map.w * T, h: map.h * T };
   /* the ground's sheets are its tiles' (every terrain lookup that draws is a tile): the one shared ground, not a second pass */
-  for (const t of groundOf(map, book, tables, T).tiles) note(t.set);
+  const groundTiles = new Map();
+  for (const t of groundOf(map, book, tables, T).tiles) { note(t.set); groundTiles.set(t.set, (groundTiles.get(t.set) || 0) + 1); }
   yield;
   composeFrame(map, rec, { hero: null }, whole, tables, T);
   yield;
@@ -98,5 +110,5 @@ function* sceneSetsSteps(map, row, book, tables) {
     yield;
   }
   for (const id of actorIds(row)) note(book.frame(id).set);
-  return Array.from(sets).sort();
+  return fetchOrder(sets, groundTiles, book);
 }

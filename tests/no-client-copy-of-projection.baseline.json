@@ -56,6 +56,7 @@
       "stamina_refill",
       "state",
       "tally",
+      "temper",
       "total_level",
       "traits",
       "unlocked_recipes",
@@ -94,5 +95,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-01"
+  "generatedAt": "2026-11-05"
 }

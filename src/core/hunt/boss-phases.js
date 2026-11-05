@@ -20,10 +20,9 @@ import { spawnAdds } from './pull-cycle.js?v=0.2.96';
 
 const atOrUnder = (hp, maxHp, pm) => hp * 1000 <= maxHp * pm;
 
-/** The row monster `u` swings with: his own, or, a called boss under his enrage line, the same row at his raised attack. */
-export function swingRow(u) {
-  const row = MONSTERS[u.kind];
-  const ph = row && row.phases;
+/** The row monster `u` swings with, from `row` (his own at the party's tier): that row, or, a called boss under his enrage line, it at his raised attack. */
+export function swingRow(u, row) {
+  const ph = (MONSTERS[u.kind] || {}).phases;
   if (!ph || !atOrUnder(u.hp, u.maxHp, ph.enragePm)) return row;
   return Object.assign({}, row, { atk: Math.floor((row.atk * ph.enrageAtkPm) / 1000) });
 }

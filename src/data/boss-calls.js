@@ -36,6 +36,9 @@ export const BOSS_CALLS = Object.freeze({
 
 const rows = Object.values(BOSS_CALLS);
 
+/** Do a called boss's adds shield him (his monsters.js row's `phases.guardPm`, core/hunt/boss-phases.js)? The words read it, never a second flag. */
+export const isGuarded = (row) => !!(row && row.phases && Number.isInteger(row.phases.guardPm) && row.phases.guardPm < 1000);
+
 /** The call whose room is hunt `huntId`, or null. */
 export function callOfHunt(huntId) { return rows.find((c) => c.hunt === huntId) || null; }
 /** The call pressed from ground `huntId`'s page, or null. */
@@ -46,18 +49,20 @@ export const BOSS_CALL_WORDS = Object.freeze({
   press: 'Call out {boss}: {fee} gp',
   warnTitle: 'Call out {boss}?',
   warn: Object.freeze([
-    '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank, and they shield him until they fall. At a quarter he rages and hits harder still. A death ends the fight for the whole party.',
+    '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter he rages and hits harder still. A death ends the fight for the whole party.',
     'You pay {fee} gp from your purse, win or lose. There is no XP, no coin and no drops in this room, only the fight. It ends after {minutes} minutes.',
   ]),
+  /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */
+  warnGuard: ' They shield him until they fall.',
   confirm: 'Call him out: {fee} gp',
   cancel: 'Not yet',
   left: Object.freeze({ one: '1 call left today.', other: '{n} calls left today.', none: 'No calls left today.' }),
   hunting: 'Not while you\'re hunting. Come back to town first.',
   noQuote: 'The server hasn\'t said yet whether he can be called.',
   /* The boss bar (src/shell/widgets/boss-bar.js) past each line, the same words the world calls out (hunt-view/scene.js). */
-  bar: Object.freeze({ adds: 'His adds shield him', enrage: 'He is enraged' }),
+  bar: Object.freeze({ adds: 'His adds are coming', guarded: 'His adds shield him', enrage: 'He is enraged' }),
   /* The combat log's line, after his name (src/hunt-view/combat-log.js), and what the world calls out over him (src/hunt-view/scene.js). */
-  log: Object.freeze({ adds: 'calls his adds. They go for whoever isn\'t your tank and shield him while they stand.', enrage: 'is enraged, and hits far harder.' }),
+  log: Object.freeze({ adds: 'calls his adds. They go for whoever isn\'t your tank.', guarded: 'calls his adds. They go for whoever isn\'t your tank and shield him while they stand.', enrage: 'is enraged, and hits far harder.' }),
   shout: Object.freeze({ adds: 'Adds!', enrage: 'Enraged!' }),
   /* THE LOSING LINE (src/hunt-view/boss-loss.js): where it was lost, what this hero's bar did there, what answers it. {pct} his HP at the end; {times} the server's count. */
   loss: Object.freeze({
@@ -66,7 +71,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
     fact: Object.freeze({ challenge: 'your Challenge fired {times}', heals: 'your heals fired {times}', area: 'your area slots fired {times}', ate: 'you ate {times}' }),
     answer: Object.freeze({
       first: 'His plain blows beat your healing: bring a healer, eat earlier, or come back a gear tier up.',
-      adds: 'His adds shield him and go for whoever isn\'t your tank: Challenge brings them to your tank, an area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
+      adds: 'His adds go for whoever isn\'t your tank: Challenge brings them to your tank, an area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
       enrage: 'Under a quarter of his health he hits far harder: eat earlier on every bar, and set your healer to heal sooner.',
     }),
   }),

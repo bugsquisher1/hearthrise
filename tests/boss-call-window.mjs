@@ -178,6 +178,8 @@ async function checks(overrides) {
         const L = await import(hrefOf('/boss-loss.js').href);
         const S = await import(hrefOf('/summary-model.js').href);
         const B = await import(hrefOf('/boss-bar.js').href);
+        const P = await import(hrefOf('/boss-call-pane.js').href);
+        const BC = await import(hrefOf('/boss-calls.js').href);
         const room = 'millrace_sewer_called';
         const line = (reason, boss_pm, fired, role, hunt = room) => L.lossLine({ hunt, reason, fight: { boss_pm, fired }, role });
         const lines = {
@@ -191,10 +193,10 @@ async function checks(overrides) {
         const ended = S.endedSessionOf(sess);
         const built = S.buildSummary(ended, null, [], 'tank');
         const kept = S.sanitizeSummaries([built])[0];
-        const bar = (hunt, hp, over, played) => {
+        const bar = (hunt, hp, over, played, kind = 'rat_king_called') => {
           const el = document.createElement('div');
           el.innerHTML = B.renderBossBar();
-          const cs = { read: (k) => (k === 'hunt' ? { session_id: 's', hunt_id: hunt, ended: !!over, pose: { units: [{ u: 5, kind: 'rat_king_called', side: 'monster', boss: true, name: 'Rat King', hp, hp_max: 1000 }] } } : null),
+          const cs = { read: (k) => (k === 'hunt' ? { session_id: 's', hunt_id: hunt, ended: !!over, pose: { units: [{ u: 5, kind, side: 'monster', boss: true, name: 'Rat King', hp, hp_max: 1000 }] } } : null),
             timeline: { hpAt: () => played || null }, now: () => 0 };
           B.renderBossBar.patch(el, { character: cs });
           const q = (s) => el.querySelector(s);
@@ -202,7 +204,8 @@ async function checks(overrides) {
             adds: q('.hs-boss-mark.is-adds').style.left, enrage: q('.hs-boss-mark.is-enrage').style.left, wave: q('.hs-boss').classList.contains('is-wave'), raging: q('.hs-boss').classList.contains('is-raging') };
         };
         return { lines, ended: ended && ended.fight, loss: built.loss, kept: kept && kept.loss,
-          bars: { full: bar(room, 1000), half: bar(room, 500), quarter: bar(room, 240), played: bar(room, 1000, false, { hp: 240, maxHp: 1000 }), normal: bar('millrace_sewer', 1000), over: bar(room, 240, true) } };
+          bars: { full: bar(room, 1000), half: bar(room, 500), quarter: bar(room, 240), played: bar(room, 1000, false, { hp: 240, maxHp: 1000 }), normal: bar('millrace_sewer', 1000), over: bar(room, 240, true), chief: bar('coppercap_warrens_called', 500, false, null, 'chief_coppercap_called') },
+          warn: { king: P.callWords(BC.BOSS_CALL_WORDS.warn[0], BC.BOSS_CALLS.rat_king), chief: P.callWords(BC.BOSS_CALL_WORDS.warn[0], BC.BOSS_CALLS.chief_coppercap) } };
       });
       const l = r.lines;
       const want = (rule, name, re) => { if (!re.test(l[name] || '')) fails.push(rule + ' ' + name + ' reads ' + JSON.stringify(l[name])); };
@@ -220,7 +223,10 @@ async function checks(overrides) {
       if (r.kept !== r.loss) fails.push('BW-6 the residue\'s bounds lost the line: ' + JSON.stringify(r.kept));
       const b = r.bars;
       if (b.full.quiet || b.full.name !== 'The Rat King' || b.full.adds !== '50%' || b.full.enrage !== '25%' || b.full.fill !== '100%' || b.full.wave || b.full.raging) fails.push('BW-7 at full he reads ' + JSON.stringify(b.full));
-      if (!b.half.wave || b.half.raging || !/adds/.test(b.half.state)) fails.push('BW-7 at the first line he reads ' + JSON.stringify(b.half));
+      if (!b.half.wave || b.half.raging || b.half.state !== 'His adds are coming') fails.push('BW-7 at the first line he reads ' + JSON.stringify(b.half));
+      /* A boss whose adds shield him says so, on the bar and in the warning; one whose adds don't, never (boss-calls.js isGuarded). */
+      if (!b.chief.wave || b.chief.state !== 'His adds shield him') fails.push('BW-7 the Chief at his first line reads ' + JSON.stringify(b.chief));
+      if (!/They shield him until they fall. At a quarter/.test(r.warn.chief) || /shield/.test(r.warn.king) || /{guard}/.test(r.warn.king + r.warn.chief)) fails.push('BW-7 the warnings read ' + JSON.stringify(r.warn));
       if (b.quarter.wave || !b.quarter.raging || !/enraged/.test(b.quarter.state) || b.quarter.fill !== '24%') fails.push('BW-7 under the second line he reads ' + JSON.stringify(b.quarter));
       if (!b.played.raging || b.played.fill !== '24%') fails.push('BW-7 the bar does not read the instant shown: ' + JSON.stringify(b.played));
       if (!b.normal.quiet) fails.push('BW-7 a normal hunt has a boss bar');

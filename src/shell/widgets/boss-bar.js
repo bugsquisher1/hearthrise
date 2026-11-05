@@ -5,7 +5,7 @@
 // his two lines. Past a line it says what that line brought. Display only: nothing reads it. Quiet on any other hunt, so
 // the widget takes no room. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { callOfHunt, BOSS_CALL_WORDS } from '../../data/boss-calls.js?v=0.2.96';
+import { callOfHunt, BOSS_CALL_WORDS, isGuarded } from '../../data/boss-calls.js?v=0.2.96';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.96';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.96';
 import { text, cls, style } from '../../render/paint.js?v=0.2.96';
@@ -37,7 +37,7 @@ renderBossBar.patch = function patchBossBar(el, ctx) {
   const now = pm === null ? 1000 : pm;
   const raging = now <= ph.enragePm, wave = now <= ph.addsPm;
   text(el.querySelector('.hs-boss-name'), call.Boss);
-  text(el.querySelector('.hs-boss-state'), raging ? BOSS_CALL_WORDS.bar.enrage : wave ? BOSS_CALL_WORDS.bar.adds : Math.ceil(now / 10) + '%');
+  text(el.querySelector('.hs-boss-state'), raging ? BOSS_CALL_WORDS.bar.enrage : wave ? BOSS_CALL_WORDS.bar[isGuarded(MONSTERS[call.monster]) ? 'guarded' : 'adds'] : Math.ceil(now / 10) + '%');
   const box = el.querySelector('.hs-boss');
   cls(box, 'is-wave', wave && !raging);
   cls(box, 'is-raging', raging);

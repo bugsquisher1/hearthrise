@@ -92,6 +92,8 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   let n = Math.max(0, Math.floor(amount));
   if (target.side === 'mon') n = Math.floor((n * el) / 1000) - defenceReduction(MONSTERS[target.kind]);
   if (ability && Number.isInteger(ability.mult)) n = Math.floor((n * ability.mult) / 1000);
+  /* A CALLED BOSS BEHIND HIS ADDS takes his guard's share of every blow (boss-phases.js); any other monster all of it. */
+  if (target.side === 'mon') n = Math.floor((n * guardPmOf(inst, target)) / 1000);
   n = Math.floor((n * stanceOf(source).dealt) / 1000);
   n = Math.floor((n * stanceOf(target).taken) / 1000);
   /* THE HERO'S ARMOUR, in the fixed order (dodge was rolled by landHit): absorb, resistances,
@@ -128,12 +130,9 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
      added together and folded into the one multiplier hurt applies (`ability.mult`). */
   const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target);
   const base = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
-  /* A CALLED BOSS BEHIND HIS ADDS takes guardPm of the blow (boss-phases.js), folded into the same multiplier, last. */
-  const guardPm = guardPmOf(inst, target);
-  const marked = Math.floor((base * (1000 + markPm)) / 1000);
   const before = target.hp;
   const r = hurt(inst, target, amount, source, element,
-    markPm || guardPm !== 1000 ? Object.assign({}, ability, { mult: guardPm === 1000 ? marked : Math.floor((marked * guardPm) / 1000) }) : ability, sc.rng);
+    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u, t: target.id }));
@@ -182,9 +181,11 @@ export function resolveAttacks(inst, sc) {
     if (!t || !t.alive) continue;
     if (u.side === 'mon') {
       if (cheb(u, t) > 1 || !atRest(u)) continue;
-      const row = atTier(swingRow(u), inst.tier);
-      /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). The tier the party picked is the monster's stats too (hunt-tiers.js); a called boss under his enrage line swings his raised row (boss-phases.js). */
-      swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));
+      const row = atTier(MONSTERS[u.kind], inst.tier);
+      /* A called boss under his enrage line swings that row raised (boss-phases.js). */
+      const blowRow = swingRow(u, row);
+      /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). The tier the party picked is the monster's stats too (hunt-tiers.js). */
+      swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));
       continue;
     }
     const row = roleOf(u);

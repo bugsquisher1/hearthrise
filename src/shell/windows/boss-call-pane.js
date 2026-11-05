@@ -8,7 +8,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { text, prop, cls } from '../../render/paint.js?v=0.2.96';
 import { whole } from '../../render/format.js?v=0.2.96';
-import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround } from '../../data/boss-calls.js?v=0.2.96';
+import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.96';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.96';
 import { callOut } from '../../session/boss-intents.js?v=0.2.96';
 import { readCall } from '../../session/boss-quote.js?v=0.2.96';
 
@@ -17,10 +18,10 @@ const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null,
 /* A quote is read again on a new ground or a new party, or once this old: the day's count may have moved on another hero. */
 const QUOTE_STANDS_MS = 60000;
 
-/** {Boss}, {boss}, {fee} and {minutes} in one of the table's lines. */
+/** {Boss}, {boss}, {fee}, {minutes} and {guard} (his adds shield him, or nothing) in one of the table's lines. */
 export function callWords(line, call, price) {
   return line.replace('{Boss}', call.Boss).replace('{boss}', call.boss).replace('{fee}', whole(price === undefined ? call.fee : price))
-    .replace('{minutes}', String(BOSS_CALL_RULES.limitMs / 60000));
+    .replace('{minutes}', String(BOSS_CALL_RULES.limitMs / 60000)).replace('{guard}', isGuarded(MONSTERS[call.monster]) ? BOSS_CALL_WORDS.warnGuard : '');
 }
 const leftWords = (q) => {
   const w = BOSS_CALL_WORDS.left;

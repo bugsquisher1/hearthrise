@@ -789,11 +789,12 @@ export const MONSTERS = {
     hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },
   chief_coppercap_called: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, boss: true,
     elementResist: ['frost'],
-    hp: 3500, atk: 127, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400 } },
-  /* His adds, the Warrens' own diggers: called too, no boss, as the King's. */
-  goblin_digger_called: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, add: true,
+    hp: 3500, atk: 130, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
+  /* His adds, the Warrens' own diggers: called too, no boss, as the King's. His crew, under him: lower Level, softer, surer blows. While one stands he takes 80% of a blow
+     (`guardPm`, boss-phases.js): burning him through them lost to the careless four (53% before), and Target on Lowest HP is the add wave's answer (board, 2026-11-05). */
+  goblin_digger_called: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, add: true,
     weaponWeak: 'hammer', weaponResist: ['sword'],
-    hp: 500, atk: 127, baseAcc: -1.45, def: 20, xp: 0, gp: [0, 0], speed: 2600, drops: [] },
+    hp: 300, atk: 70, baseAcc: 0.2, def: 20, xp: 0, gp: [0, 0], speed: 2600, drops: [] },
 
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their

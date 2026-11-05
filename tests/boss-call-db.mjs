@@ -16,11 +16,12 @@
 //   BD-BOTH    the kill, a death and the limit, each with the browser closed (the tick) and the hunt viewed (index.ts's settle): the same end on the same instant, no hunt left open
 //   BD-PAID    after each: no XP, no coin but the fee and the store's bill, no loot, no kill in the tally, no Bestiary row, the Bestiary's total unmoved, the party on its ground
 //   BD-PRIZE   the kill reaches the title's counter for each hero present; price 0, once; one System line a fight; nothing without the kill
+//   BD-AGAIN   every file of the lane applied a second time moves nothing: the schema's inventory, every spliced body and the catalogue rows, byte for byte
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { isMain } from './_is-main.mjs';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, inventory } from './schema-replay.mjs';
 import { setGold } from './_gold.mjs';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../src/data/boss-calls.js';
 import { readFileSync } from 'node:fs';
@@ -331,8 +332,25 @@ const MUTANTS = [
   { name: 'the Bestiary counts him', fn: FN.best, find: "and pp.key not like '%\\_called'", repl: '', arm: 'doors', want: /BD-PAID/ },
   { name: 'the party stays on the room', fn: FN.closed, find: 'update public.hunt_parties p set hunt_id = v_from', repl: 'update public.hunt_parties p set hunt_id = p.hunt_id', arm: 'doors', want: /BD-PAID/ },
   { name: 'every hero posts a System line', fn: FN.felled, find: "and h.end_reason = 'boss_felled' and h.ended_at = new.ended_at", repl: 'and false', arm: 'doors', want: /BD-PRIZE/ },
+  { name: 'a second apply splices again', fn: FN.closed, find: 'declare v_from text;', repl: 'declare v_from text; -- a body the second apply will move back', arm: 'again', want: /BD-AGAIN/ },
   { name: 'the limit is not owed', fn: FN.settle, find: 'or exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id and v_to > v_s.hunt_from + make_interval(secs => c.limit_ms / 1000.0) + c_skew) then', repl: 'then', arm: 'owed', want: /BD-OWED/ },
 ];
+
+/* BD-AGAIN: the four files again, on the whole chain. */
+ARMS.again = async (boot) => {
+  const bad = [];
+  const { db } = await boot();
+  const read = async () => JSON.stringify({ inv: await inventory(db),
+    bodies: await q(db, `select p.proname, md5(p.prosrc) as m from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('hr_hunt_admit', 'hr_hunt_settle_session', 'hr_hunt_apply_member', 'hr_bestiary_of', 'hr_boss_call', 'hr_boss_call_view', 'hr_boss_call_quote', 'hr_boss_call_pays', 'hr_boss_call_closed', 'hr_boss_call_felled') order by 1`),
+    calls: await q(db, 'select * from public.hr_boss_calls order by call_id'), titles: await q(db, 'select * from public.hr_titles order by title_id'), hunts: await q(db, 'select * from public.hr_hunts order by hunt_id'),
+    bounds: await q(db, 'select * from public.hr_hunt_kill_bounds order by monster_id') });
+  const before = await read();
+  for (const f of ['2027-03-02-boss-call-hunts-catalogue.generated.sql', '2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql', '2027-03-02-boss-call-titles-catalogue.generated.sql', '2027-03-02-boss-call.sql']) {
+    try { await db.exec(readFileSync(join(ROOT, 'supabase/migrations', f), 'utf8')); } catch (e) { bad.push('BD-AGAIN ' + f + ' refused a second apply: ' + String(e.message).split('\n')[0].slice(0, 200)); return bad; }
+  }
+  if ((await read()) !== before) bad.push('BD-AGAIN a second apply moved something');
+  return bad;
+};
 
 /* The limit, as the settle owes it: a window past it with no end is refused, whatever the engine proposed. */
 ARMS.owed = async (boot) => {

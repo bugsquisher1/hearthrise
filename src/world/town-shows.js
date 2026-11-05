@@ -25,9 +25,9 @@ export function createTownShows(map, o) {
     frame(round, now) {
       if (!fire || !round || now < round.startedAt || now >= round.endsAt) return [];
       const out = [];
-      const { rise, riseMs, riseTiles, playMs, tickMs, program } = ROUND_SHOW;
+      const { rise, riseMs, riseTiles, playMs, beatMs, program } = ROUND_SHOW;
       /* every shell steps on one tick: a frame the list didn't change is never painted again (render/frame-sig.js), however many are up */
-      const t = Math.floor((now - round.startedAt) / tickMs) * tickMs;
+      const t = Math.floor((now - round.startedAt) / beatMs) * beatMs;
       for (const [at, id, dx, dy] of /** @type {[number, string, number, number][]} */ (/** @type {unknown} */ (program))) {
         if (t < at - riseMs || t >= at + playMs) continue;
         if (t >= at) { if (has(id)) out.push({ id, age: t - at, lift: 0, x: fire.x + dx, y: fire.y + dy }); continue; }

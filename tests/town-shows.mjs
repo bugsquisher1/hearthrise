@@ -181,7 +181,7 @@ export const MUTANTS = {
   show_on_the_floor: { arm: 'TS-SHOW', why: 'a shell bursts where it was fired from, on the floor', js: ['src/data/gold-sinks.js', [['riseMs: 416, riseTiles: 6,', 'riseMs: 416, riseTiles: 0,']]] },
   show_is_a_moment: { arm: 'TS-SHOW', why: 'a paid round is over in a few seconds', js: ['src/data/gold-sinks.js', [['  ].map(Object.freeze)),\n});\n\n/** One row per sink', '  ].slice(0, 6).map(Object.freeze)),\n});\n\n/** One row per sink']]] },
   show_in_one_place: { arm: 'TS-SHOW', why: 'every shell bursts on one spot', js: ['src/world/town-shows.js', [['x: fire.x + dx, y: fire.y + dy }); continue; }', 'x: fire.x, y: fire.y + dy }); continue; }']]] },
-  show_every_frame: { arm: 'TS-SHOW', why: 'a shell moves on every frame, so a show repaints the town at the screen\'s rate', js: ['src/world/town-shows.js', [['const t = Math.floor((now - round.startedAt) / tickMs) * tickMs;', 'const t = now - round.startedAt;']]] },
+  show_every_frame: { arm: 'TS-SHOW', why: 'a shell moves on every frame, so a show repaints the town at the screen\'s rate', js: ['src/world/town-shows.js', [['const t = Math.floor((now - round.startedAt) / beatMs) * beatMs;', 'const t = now - round.startedAt;']]] },
   hearth_claims_the_square: { arm: 'TS-WINDOW', why: 'the Hearth tab promises a color the square never shows', js: ['src/shell/windows/havora/index.js', [["It burns that color for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone in ' + esc(TOWN_NAME) + ' sees", "Its color fills ' + esc(TOWN_NAME) + '\\'s square for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone there sees"]]] },
   foot_in_the_pane: { arm: 'TS-WINDOW', why: 'the answer to a press sits outside the foot, under the fold of a short window', js: ['src/shell/windows/havora/index.js', [["    + '<p class=\"hh-intent-msg\" role=\"status\" aria-live=\"polite\"></p></div></div>';", "    + '</div><p class=\"hh-intent-msg\" role=\"status\" aria-live=\"polite\"></p></div>';"]]] },
 };
@@ -824,7 +824,7 @@ const ARMS = {
     if (most > 6) out.push(most + ' shells up at once crowd the square');
     /* EVERY SHELL CLIMBS FROM THE SQUARE AND BURSTS HIGH OVER IT, north of its launch and of the fire's own row */
     const [first] = S.program;
-    const tickAfter = (ms) => Math.ceil(ms / S.tickMs) * S.tickMs + 1;
+    const tickAfter = (ms) => Math.ceil(ms / S.beatMs) * S.beatMs + 1;
     const climbing = shows.frame(round, 1000 + tickAfter(first[0] - S.riseMs)).find((e) => e.id === S.rise);
     const burst = shows.frame(round, 1000 + tickAfter(first[0])).find((e) => e.id === first[1]);
     if (!climbing || !burst || climbing.y - burst.y < 4 || S.riseTiles < 5) out.push('a shell climbs ' + (climbing && burst ? climbing.y - burst.y : '?') + ' tiles from the square to its burst');
@@ -836,8 +836,8 @@ const ARMS = {
       if (b - a < S.playMs && Math.hypot(bx - ax, by - ay) < 4) out.push('rows at ' + a + ' and ' + b + ' burst on each other');
     }
     /* ONE TICK, HOWEVER MANY ARE UP: the frame is the same list until the tick turns */
-    const onTick = Math.ceil(first[0] / S.tickMs) * S.tickMs;
-    if (JSON.stringify(shows.frame(round, 1000 + onTick + 1)) !== JSON.stringify(shows.frame(round, 1000 + onTick + 1 + S.tickMs / 2))) out.push('a shell moves between ticks');
+    const onTick = Math.ceil(first[0] / S.beatMs) * S.beatMs;
+    if (JSON.stringify(shows.frame(round, 1000 + onTick + 1)) !== JSON.stringify(shows.frame(round, 1000 + onTick + 1 + S.beatMs / 2))) out.push('a shell moves between ticks');
     /* THE ART: large, mostly air so a hero or the Hearth reads through it, and no mirrored stamp */
     const A = await import(pathToFileURL(join(ROOT, 'tools/world-art/round-fireworks.mjs')).href);
     for (const id of ids) {

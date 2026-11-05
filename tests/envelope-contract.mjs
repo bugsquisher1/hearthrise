@@ -416,7 +416,7 @@ const DB_MUTANTS = [
   ['shop', 'public.hr_shop_view(uuid,integer)', "'offers', coalesce(", "'offer_list', coalesce("],
   ['hunt_presets', 'public.hr_hunt_presets_view(uuid,integer)', "'action_set', p.action_set,", "'set', p.action_set,"],
   ['role', 'public.hr_role_view(uuid,integer)', "'weapon', w.weapon_type)", "'weapon_type', w.weapon_type)"],
-  ['setup_slots', 'public.hr_setup_slots_view(uuid,integer)', "jsonb_build_object('count', v_count,", "jsonb_build_object('slots', v_count,"],
+  ['setup_slots', 'public.hr_setup_slots_view(uuid,integer)', "jsonb_build_object('count', least(r.free + b.n,", "jsonb_build_object('slots', least(r.free + b.n,"],
   ['titles', 'public.hr_titles_view(uuid,integer)', "'rows', coalesce(jsonb_agg(", "'list', coalesce(jsonb_agg("],
   ['titles', 'public.hr_titles_view(uuid,integer)', "'have', public.hr_title_kills(", "'count', public.hr_title_kills("],
   ['party_invites', 'public.hr_party_invites_view(uuid,integer)', "'from', public.hr_character_name(", "'sender', public.hr_character_name("],

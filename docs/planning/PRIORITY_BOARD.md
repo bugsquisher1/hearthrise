@@ -30,14 +30,14 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
-### 2026-11-05 Difficulty tiers, and no pull dial (designer, lane/c-difficulty-tiers; **Tyler's ruling, 2026-11-05**): BUILT on all five grounds past the Cellar, played on the local world, STAGED. Measured on the server's map, with the kiter fix, to-hit guard off capes and jewelry and the capped food cut (`lane/c-temper-craft` f6ecefff5, `set/v0.2.93` f7790934c).
+### 2026-11-05 Difficulty tiers, and no pull dial (designer, lane/c-difficulty-tiers; **Tyler's ruling, 2026-11-05**): BUILT on all five grounds past the Cellar, played on the local world, STAGED. The ladder is measured on `release/v0.2.95` (caster bars, runes, capes, foods). **The played and bills tables below are from before v0.2.95: mage and healer rows moved a little, and Thicket Deadly reads +10% there, +8% now; the final pace re-measure re-reads them.**
 **The ruling (Tyler 2026-11-05, "All of it sounds good"; in rulings of record).** One choice per ground, the party leader's in a party, remembered per ground: Normal, Dangerous or Deadly. The tier sets how many monsters come and how hard they hit. There is no other dial. Mill Cellar is Normal only. "Deadly", not "Hardcore": that word stays free for the game mode. It supersedes his 10-19 and 10-20 density rulings; kept from them: chosen with the hunt, remembered per ground, the leader chooses, members read it, a full box exists.
 
 **The rows.** Every number is that ground's, because Normal doesn't move and a low ground's only room is the gap between two Normals. Monster HP doesn't move: HP x1.5 cost a four 20% of its XP an hour (`lane/c-armor-tiers`) and a player reads nothing from it. Coin and drops a kill are the row's on every tier.
 | Ground | Normal | Dangerous: pull alone, 2, 3, 4; monster atk and Level; XP a kill | Deadly: the same | Full box of 8 |
 |---|---|---|---|---|
 | Mill Cellar | as built | none | none | No tier. First ground: a choice adds nothing to the first minutes |
-| Meadowbrook Thicket | as built | as built; x1.5; +5% | as built; x3; +10% | **None.** Alone, a pull of 3 at no extra XP already beats Wickstead (table below) |
+| Meadowbrook Thicket | as built | as built; x1.5; +5% | as built; x3; +8% | **None.** Alone, a pull of 3 at no extra XP already beats Wickstead (table below) |
 | Wickstead | as built | 3, 4, 4, 5; x1.5; +5% | 5, 8, 8, 8; x2; +10% | **Parties only.** Alone, 8 at no extra XP beats the Glade. Capped at 5 alone |
 | The Sewer | as built | as built alone, 5, 5, 6; x1.2; +5% | as built alone, 8, 8, 8; x1.75; +10% | **Parties only.** Alone, 4 at +10% beats the Glade. Capped at as built alone |
 | Mosslight Glade | as built | 4, 5, 5, 6; x1.2; +10% | 8, 8, 8, 8; x1.5; +20% | Every size, as sampled |
@@ -47,28 +47,28 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 |---|---|---|---|---|
 | Sewer | 4 monsters, atk x1.75, +10% XP | Glade | 1.06 **beats** | hammer at 20: 81.7k against 77.2k |
 | Sewer | 8 monsters, atk x1.75, +10% XP | Glade | 1.4 **beats** | hammer at 20: 108k against 77.2k |
-| Thicket | 3 monsters, atk x2, no extra XP | Wickstead | 1.1 **beats** | mage at 8: 36.1k against 32.8k |
-| Thicket | 8 monsters, atk as built, no extra XP | Wickstead | 1.55 **beats** | mage at 8: 50.7k against 32.8k |
+| Thicket | 3 monsters, atk x2, no extra XP | Wickstead | 1.09 **beats** | mage at 8: 36.1k against 33k |
+| Thicket | 8 monsters, atk as built, no extra XP | Wickstead | 1.54 **beats** | mage at 8: 50.7k against 33k |
 | Wickstead | 8 monsters, atk x2, +10% XP | Glade | 1.11 **beats** | hammer at 20: 86k against 77.2k |
 | Wickstead | 8 monsters, atk x2, no extra XP | Glade | 1.02 **beats** | hammer at 20: 78.6k against 77.2k |
 
 **The ladder rule, proved on the real settle (plan `tierladder`).** At the Levels the game sends you up (`recommendedHunt`), per head, 12 ways to fight: every single-target and AoE style, a pair, a three, two fours. Plain is Level-appropriate gear; Tempered is the same with every rung of Blows and Armor bought, from Level 15; Dressed adds every cape and jewelry slot's best on crafted food eaten early. Plain and Tempered read digit for digit the same after to-hit guard left capes and jewelry, because that kit wears neither. Standing guard: `tests/hunt-core/hunt-tiers.mjs` ladder, four ways on all five rungs.
 | Rung | Levels | Kit | Cells | Deadly XP / next Normal XP | Beats it | Out-earns it on gold, within 10% of its XP |
 |---|---|---|---|---|---|---|
-| Thicket to Wickstead | 8 and 12 | plain | 24 | 0.89 to 1 | none | 0 |
-| Thicket to Wickstead | 8 and 12 | Dressed | 24 | 0.91 to 1 | none | 0 |
-| Thicket to Sewer | 8 and 12 | plain | 24 | 0.5 to 0.71 | none | 0 |
-| Thicket to Sewer | 8 and 12 | Dressed | 24 | 0.49 to 0.73 | none | 0 |
+| Thicket to Wickstead | 8 and 12 | plain | 24 | 0.88 to 0.98 | none | 0 |
+| Thicket to Wickstead | 8 and 12 | Dressed | 24 | 0.89 to 0.98 | none | 0 |
+| Thicket to Sewer | 8 and 12 | plain | 24 | 0.49 to 0.72 | none | 0 |
+| Thicket to Sewer | 8 and 12 | Dressed | 24 | 0.48 to 0.73 | none | 0 |
 | Wickstead to Glade | 16 and 20 | plain | 24 | 0.7 to 0.95 | none | 5 |
-| Wickstead to Glade | 16 and 20 | Tempered | 24 | 0.7 to 0.95 | none | 6 |
-| Wickstead to Glade | 16 and 20 | Dressed | 24 | 0.7 to 0.95 | none | 5 |
-| Sewer to Glade | 16 and 20 | plain | 24 | 0.76 to 0.97 | none | 9 |
-| Sewer to Glade | 16 and 20 | Tempered | 24 | 0.76 to 0.97 | none | 12 |
-| Sewer to Glade | 16 and 20 | Dressed | 24 | 0.76 to 0.97 | none | 12 |
-| Glade to Warrens | 32 and 38 | plain | 24 | 0.74 to 0.96 | none | 7 |
-| Glade to Warrens | 32 and 38 | Tempered | 24 | 0.73 to 0.94 | none | 2 |
+| Wickstead to Glade | 16 and 20 | Tempered | 24 | 0.69 to 0.95 | none | 6 |
+| Wickstead to Glade | 16 and 20 | Dressed | 24 | 0.71 to 0.95 | none | 5 |
+| Sewer to Glade | 16 and 20 | plain | 24 | 0.76 to 0.97 | none | 8 |
+| Sewer to Glade | 16 and 20 | Tempered | 24 | 0.76 to 0.98 | none | 11 |
+| Sewer to Glade | 16 and 20 | Dressed | 24 | 0.76 to 0.97 | none | 11 |
+| Glade to Warrens | 32 and 38 | plain | 24 | 0.73 to 0.96 | none | 7 |
+| Glade to Warrens | 32 and 38 | Tempered | 24 | 0.7 to 0.94 | none | 2 |
 | Glade to Warrens | 32 and 38 | Dressed | 24 | 0.73 to 0.92 | none | 3 |
-**0 of 312 cells: a lower ground's Deadly beats the next ground's Normal on XP.** The tightest cell is a pair on Thicket Deadly: the same XP to within 0.5% as Wickstead's Normal, for less gold and at lower HP, so it holds with no margin. If it ever flips, Thicket Deadly's XP comes down. Gold is not the rule, and it does lean down: the last column counts cells where a lower Deadly nets more than the next Normal inside 10% of its XP. It isn't new: today's Sewer Normal already out-earns the Glade's at Level 16 (hammer +7.5k against +4.9k).
+**0 of 312 cells: a lower ground's Deadly beats the next ground's Normal on XP.** Thicket Deadly pays +8%, not +10%: at +10% caster bars and runes lifted a healed three past Wickstead's Normal (1.003 at Level 12), and the row came down rather than the rule. Gold is not the rule, and it does lean down: the last column counts cells where a lower Deadly nets more than the next Normal inside 10% of its XP. It isn't new: today's Sewer Normal already out-earns the Glade's at Level 16 (hammer +7.5k against +4.9k).
 
 **Normal, digit for digit.** 300 of 300 cells match before and after the tier engine (`tiers-table --same`, plan `tierpull`), through Tempering, the rows and the dial's removal. The map fix and the kiter fix then move Normal by their own lanes' design; `hunt-tiers` normal-is-the-ground holds it to the row from here on.
 
@@ -162,7 +162,7 @@ So Normal stays what it is. Dangerous is a lone hero's step up from the middle o
 
 **Server (§1).** `hr_hunt_tier_set` (client intent, keyed, rate-gated, refused never clamped: `bad_tier`, `bad_hunt`, `not_leader`); `hunt_density.tier`; `hunt_instances.tier` frozen with the pull by the existing trigger at hunt start; `hr_hunt_instance_read` overlays `options.tier` and `options.density` on every member, so the engine and the kill bound read one frozen number; catalogue `hr_ground_tiers`, ten rows. `hr_hunt_density_set`, `_view`, `_pick` and the `hunt_density` section go. One staged file, `2027-02-27-hunt-tiers.sql`, §6 self-check executes a real pick, enter, freeze and read. The engine reads the tier every swing and never stores it: **the world's shape doesn't move, no `world_shape_pending`.** No new player table: `hunt_density` and `hunt_instances` were already on the wipe's list; `hr_ground_tiers` goes on its no-player list.
 
-**Measured:** every number above, real settle (`tools/balance-sim`), 2 seeds, 1 h a cell, Level-appropriate gear on store food, on the server's map, on `lane/c-temper-craft` f6ecefff5 and `set/v0.2.93` f7790934c. **Assumed:** that a 2-hour cell's "held" is a real absence of death; +5% to +20% as "slightly more" (Tyler may read it per hour); that nobody misses a pull under the as-built one.
+**Measured:** every number above, real settle (`tools/balance-sim`), 2 seeds, 1 h a cell, Level-appropriate gear on store food, the ladder on `release/v0.2.95` 5b46c16fd, the played tables on `set/v0.2.93` f7790934c. **Assumed:** that a 2-hour cell's "held" is a real absence of death; +5% to +20% as "slightly more" (Tyler may read it per hour); that nobody misses a pull under the as-built one.
 
 **Known limits.** (1) **Kiters on Deadly die a bit more than they did,** because the free reset is gone (`lane/a-kiter-resets`; the only resets left are leader deaths). At the Warrens' floor on Deadly, per head: bow 155.4k, -69.3k, 4 min to a death; crossbow 175k, -45.4k, 10 min to a death; mage 299.9k, -65.1k, 4 min to a death. That is what Deadly at a floor should read. (2) The table `hunt_density` keeps its name and its `density` column is dead (always 0). Renaming it is a follow-up, not a player matter. (3) Personal bests are per ground, so they mix tiers. (4) **The fastest hour moves:** Deadly reads over today's full box at the same pull. The final pace re-measure has to read it.
 

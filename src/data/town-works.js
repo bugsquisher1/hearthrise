@@ -9,6 +9,7 @@
 //
 // THE ROW (one per project, keyed by the server's project id):
 //   name       how the town says it: the first words of its stage lines, and of its refusals
+//   about      the Works tab's first words
 //   map        the town it stands in
 //   minGift    the smallest gift (a gift that exactly finishes the project may be smaller, or the last few coins could never be given)
 //   perDay     how much one ACCOUNT may give in a UTC day, across all its heroes
@@ -25,7 +26,8 @@ const stage = (at, art, label, line) => Object.freeze({ at, art, label, line });
 
 export const TOWN_WORKS = Object.freeze({
   weighhouse: Object.freeze({
-    name: 'The Weighhouse', map: 'town_common', minGift: 100, perDay: 25000, perMinute: 20,
+    name: 'The Weighhouse', about: 'Havora is raising the Weighhouse on the east bank. Every gift goes toward the building, and the biggest givers go on its plaque.',
+    map: 'town_common', minGift: 100, perDay: 25000, perMinute: 20,
     gifts: Object.freeze([1000, 5000]), plaqueTop: 10,
     stages: Object.freeze([
       stage(0, 'havora_weighhouse_staked', 'Staked out', null),

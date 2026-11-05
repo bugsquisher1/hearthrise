@@ -809,6 +809,21 @@
 .hv-powder.is-quicklime .hv-swatch { background: var(--powder-quicklime); }
 .hv-powder.is-borax .hv-swatch { background: var(--powder-borax); }
 .hv-buy { display: block; width: 100%; min-height: 40px; margin-bottom: 8px; }
+/* The Works tab: where the build stands, what to give, the plaque (src/shell/windows/havora/works.js) */
+.hv-works-stage { margin: 0 2px 4px; font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hv-works-bar { position: relative; display: block; height: 8px; margin: 0 2px 4px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hv-works-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--gold-3); }
+.hv-works-gifts { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+.hv-works-gifts .hv-buy { flex: 1 1 140px; width: auto; margin: 0; }
+.hv-works-typed { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; }
+.hv-works-typed input { flex: 1; min-width: 0; min-height: 36px; padding: 0 8px; color: var(--ink); background: var(--bg-0); border: 1px solid var(--steel-sep); font: inherit; font-variant-numeric: lining-nums tabular-nums; }
+.hv-works-typed input:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hv-works-msg { margin: 6px 2px; color: var(--ink); }
+.hv-works-msg:empty { display: none; }
+.hv-works-head { margin: 10px 2px 0; font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); }
+.hv-works-plaque { margin: 4px 0 0; padding: 0; list-style: none; }
+.hv-works-plaque .hr-line { min-height: 32px; grid-template-columns: 32px minmax(0, 1fr) auto; }
+.hv-works-plaque .is-mine .hr-name b { color: var(--gold-2); }
 .hr-pick { display: flex; align-items: center; gap: 8px; margin: 0 2px 10px; font-family: var(--f-label); font-weight: 700;
   font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hr-pick .hh-select { flex: 1; min-width: 0; }

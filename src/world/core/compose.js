@@ -409,7 +409,9 @@ export function composeFrame(map, book, state, view, tables, T) {
   for (let i = 0, b = standing.boxes; i < map.objects.length; i++) {
     if (!near(b[4 * i], b[4 * i + 1], b[4 * i + 2], b[4 * i + 3])) continue;
     const o = map.objects[i];
-    place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+    /* state.objectSwap draws another sprite in a placed object's place ({ havora_weighhouse_staked: 'havora_weighhouse_framed' }: a Town Works stage, src/world/town-works.js).
+       The tiles it blocks are the object's own, and a sprite swapped in shares its frame and anchor (tests/town-works.mjs), so the box above still holds. */
+    place((state.objectSwap && state.objectSwap[o.id]) || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
   }
 
   const plates = [], bars = [], floats = [], bubbles = [], badges = [], effects = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));

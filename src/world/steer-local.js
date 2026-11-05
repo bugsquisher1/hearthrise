@@ -272,6 +272,8 @@ export function tapAction(map, pick, o) {
     if (viaExit) return viaExit;
     /* one station's prop (the shop's counter, not the storage's: the same sprite) before the sprite's own row */
     const opens = (o.sites && o.sites[map.id + ':' + hit.tx + ',' + hit.ty]) || o.opens[hit.id];
+    /* a sprite taller than its art takes the tap only on its own tiles (src/data/world/sink-taps.js) */
+    if (opens && opens.lot && !(pick.tile[0] >= hit.tx && pick.tile[0] < hit.tx + opens.lot[0] && pick.tile[1] >= hit.ty && pick.tile[1] < hit.ty + opens.lot[1])) continue;
     if (opens && opens.open === 'skill') return { kind: 'skill', skill: opens.skill };
     if (opens && opens.open === 'window') return { kind: 'window', window: opens.window, tab: opens.tab };
   }

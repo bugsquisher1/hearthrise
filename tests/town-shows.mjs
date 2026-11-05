@@ -19,7 +19,7 @@
 //   TS-TOWN    replacing ONLY hr_town_extras / hr_town_shows_of reaches the town read as `extras` / `shows`; the read keeps what it had
 //   TS-AGAIN   a second apply of all five files is byte-identical and never overwrites a body a later lane put in a stub
 //   TS-CLIENT  the walker keeps a title and colors and refuses junk; the plate reads "Marlow the Wolfer · 18"; a chat line carries the
-//              title and draws it; the Works stubs stay hidden
+//              title and draws it
 //   TS-XP      a bought powder pays zero Inner Flame XP by any path: no xp key in the verb, no item to burn, no recipe, no named row
 //   TS-NAMED   a named fuel never waits behind a bought powder; it answers first in the square; the paused powder still burns every second it paid for
 //   TS-CLIMB   two heroes on one account share one ladder, in order, each paying the next price; the lock order is hero, sink key, the count, the charge, the town's key
@@ -34,7 +34,7 @@
 //   TS-NO-METER THE STANDING GUARD: nothing but the named functions reads town_shows or the purchase journal: gold into the Hearthrise meter is a paid XP buff (avoid list)
 //   TS-EDGE    bought flames stay out of src/data/hearth.js, and src/data/gold-sinks.js is in no edge bundle, so this lane moves no edge hash
 //   TS-WORDS   every refusal says why in the designer's sentence, with the server's numbers
-//   TS-WINDOW  the Havora window's buttons read the server's quote; its tabs hide Works; the Tavern opens its Round tab; a bought flame swaps the fire's art and a round bursts
+//   TS-WINDOW  the Havora window's buttons read the server's quote; its tabs name Works; the Tavern opens its Round tab; a bought flame swaps the fire's art and a round bursts
 // TRUE CONCURRENCY: PGlite is one backend, so TS-CLIMB and TS-REFUSE prove the order and the rollback; tests/town-shows-race.mjs runs both on real PostgreSQL 17 backends.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, mkdtempSync, rmSync, writeFileSync, cpSync } from 'node:fs';
@@ -98,8 +98,6 @@ export const MUTANTS = {
     js: ['src/social/chat-lines.js', [["    title: !whisper && typeof row.from_title === 'string' && TITLE.test(row.from_title) ? row.from_title : null,", '    title: null,']]] },
   extras_merged: { arm: 'TS-CLIENT', why: 'an answer with no extras keeps the last ones',
     js: ['src/session/town-presence.js', [["    this._extras = b.extras && typeof b.extras === 'object' && !Array.isArray(b.extras) ? b.extras : null;", "    this._extras = b.extras && typeof b.extras === 'object' && !Array.isArray(b.extras) ? b.extras : this._extras;"]]] },
-  works_shown: { arm: 'TS-CLIENT', why: 'the Works tab shows before its lane lands',
-    js: ['src/shell/windows/havora/works.js', [["shown: false", 'shown: true']]] },
   /* A BOUGHT POWDER PAYS NO XP */
   powder_pays_xp: { arm: 'TS-XP', why: 'a powder pays Inner Flame XP',
     db: [SHOW, "             'gold', -v_price,\n", "             'gold', -v_price, 'xp', jsonb_build_object('inner_flame', 500),\n"] },
@@ -741,8 +739,7 @@ const ARMS = {
     if (X.HW.throwWords('cinnabar', 2000) !== 'Throw Cinnabar: 2,000 gp') out.push('the powder\'s button reads ' + X.HW.throwWords('cinnabar', 2000));
     if (X.HW.roundWords(5000) !== 'Stand a round: 5,000 gp') out.push('the round\'s button reads ' + X.HW.roundWords(5000));
     const html = X.HW.renderHavora({});
-    if (/data-tab="works"|data-pane="works"/.test(html)) out.push('the window shows Works before its lane lands');
-    for (const id of ['hearth', 'round']) if (!html.includes('data-tab="' + id + '"')) out.push('the window has no ' + id + ' tab');
+    for (const id of ['hearth', 'round', 'works']) if (!html.includes('data-tab="' + id + '"')) out.push('the window has no ' + id + ' tab');
     /* THE SERVER'S ANSWER, read field by field */
     await hero(db, A, 0, 'Marlow');
     const view = await as(db, A, 'select public.hr_town_sinks_view(0)');
@@ -817,8 +814,6 @@ const ARMS = {
     if (tp.extras() !== null) out.push('an answer with no extras kept the last ones');
     tp.destroy();
 
-    if (X.WK.WORKS_TAB.shown !== false || X.WK.worksHtml() !== '' || X.WK.patchWorks({}, {}) !== undefined || X.WK.actWorks({}, {}, 'tab', {}, {}) !== false) out.push('the Works tab is not hidden');
-    if (X.TW.townWorksSwap({}, { works: { stage: 4 } }) !== null) out.push('the map draws Works before its lane lands');
     return out;
   },
 };
@@ -858,8 +853,6 @@ async function loadReaders(root) {
     TP: await import(u('src/session/town-presence.js')),
     TS: await import(u('src/world/town-scene.js')),
     CL: await import(u('src/social/chat-lines.js')),
-    WK: await import(u('src/shell/windows/havora/works.js')),
-    TW: await import(u('src/world/town-works.js')),
   };
 }
 

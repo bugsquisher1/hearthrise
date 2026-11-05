@@ -308,9 +308,8 @@ export async function bootWorld(panel, opts) {
     const f = walk.frame(readEnv(map.kind), now);
     if (held && map.kind === 'town') {
       Object.assign(f, hearthState(map, f, now));
-      /* THE TOWN WORKS (town-works.js): an ambient row swapped by stage, the mechanism the Hearth's fire uses */
-      const works = townWorksSwap(map, town.extras());
-      if (works) f.ambientSwap = Object.assign({}, f.ambientSwap, works);
+      /* THE TOWN WORKS (town-works.js): a lot's art by the stage the server said */
+      f.objectSwap = townWorksSwap(map, town.extras());
       /* A ROUND'S FIREWORKS over Hearth Square (town-shows.js), from the server's answer */
       const round = showsView.frame(town.round(), now);
       if (round.length) f.fx = (f.fx || []).concat(round);
@@ -330,7 +329,9 @@ export async function bootWorld(panel, opts) {
       place: f.place,
       props: f.props.map((p) => ({ id: p.id, x: p.x, y: p.y, ref: p.ref })),
       /* the Great Hearth's effects this frame (hearth-burn.js), for a test or a look */
-      hearth: { fx: (f.fx || []).map((e) => e.id), swap: f.ambientSwap || null, floats: (f.floats || []).map((x) => x.text) } };
+      hearth: { fx: (f.fx || []).map((e) => e.id), swap: f.ambientSwap || null, floats: (f.floats || []).map((x) => x.text) },
+      /* the Town Works' art this frame (town-works.js) */
+      works: f.objectSwap || null };
   }
 
   /* ROUTE: which scene, and the HTML around it (title, picks, the unmapped-fight

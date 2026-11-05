@@ -1350,6 +1350,16 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const wrong = await why(0);
         if (!/^Your weapon can’t use this\. Needs /.test(wrong.text) || !wrong.off || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
         await sweep('the healer bar');
+        /* A SLOT THIS PARTY CAN'T FIRE (lane/a-silent-triggers): wanting more hurt heroes than the party holds never holds. Not struck: it says
+           so, and the slot shows what it wants where an item shows its count (slot-waits.js), ahead of the mana it is also short of. */
+        S.slots[9] = { action: { type: 'ability', id: 'mend' }, conditions: [{ metric: 'allies_below', op: 'gte', value: 3, subject: 'under_80' }], join: 'and', usable: true };
+        await pushEnvelope(page, s);
+        await page.waitForTimeout(300);
+        const short = await why(9);
+        const need = await page.evaluate(() => document.querySelector('.hb-slot[data-slot="9"] .hb-count').textContent);
+        if (short.text !== 'Waiting: needs 3 or more heroes under 80% health, and your party has 2.' || short.off || !short.wait || !short.glyph || need !== '3+') fails.push('HS-20 the group heal this party can\'t fire reads ' + JSON.stringify(short) + ', its corner ' + JSON.stringify(need));
+        await sweep('the bar with a slot waiting on a party');
+        delete S.slots[9];
         delete S.role; delete S.discipline;
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
@@ -1908,7 +1918,7 @@ const MUTANTS = [
       '  const slots = s ? Array.from({ length: SLOTS }, (_, i) => (el.__plan ? (el.__plan[i] ? Object.assign({ usable: true }, el.__plan[i]) : null) : s.slots[i]) || { empty: true }) : [];']]],
   ['the hub prints the server’s per-minute mana regen as /s', 'src/shell/widgets/vitals-hub.js', "regen(hero.manaPerS) : ''", "regen(hero.manaPerS * 60) : ''"],
   ['the hub prints regen with two decimals', 'src/shell/widgets/vitals-hub.js', "'+' + r.toFixed(1)", "'+' + r.toFixed(2)"],
-  ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = why ? glyphSvg(ctx.glyphs, why.glyph) : '';", "g.innerHTML = why && !why.strike ? glyphSvg(ctx.glyphs, why.glyph) : '';"],
+  ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = seen ? glyphSvg(ctx.glyphs, seen.glyph) : '';", "g.innerHTML = seen && !seen.strike ? glyphSvg(ctx.glyphs, seen.glyph) : '';"],
   ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
   ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') { const c = valueOf(s, key, cs); return c === null ? null : { chase: !c }; }", "  if (key === 'chase') return null;"],
   /* Tyler 10-25: the bar is configurable IN TOWN from the server's projected picks; the client fills nothing (HS-27). */

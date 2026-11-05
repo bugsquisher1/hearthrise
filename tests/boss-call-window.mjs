@@ -208,7 +208,7 @@ async function checks(overrides) {
       const want = (rule, name, re) => { if (!re.test(l[name] || '')) fails.push(rule + ' ' + name + ' reads ' + JSON.stringify(l[name])); };
       want('BW-6', 'enrageTank', /^Fell in the enrage at 23%: you ate 6 times\. .*eat earlier/);
       want('BW-6', 'enrageHealer', /^Fell in the enrage at 23%: your heals fired 12 times\./);
-      want('BW-6', 'addsMage', /^Fell in the add wave at 41%: you ate 0 times\. .*Challenge/);
+      want('BW-6', 'addsMage', /^Fell in the add wave at 41%: your area slots fired 0 times\. .*Cleave or Fireball/);
       want('BW-6', 'addsHealer', /^Fell in the add wave at 41%: your heals fired 2 times\./);
       want('BW-6', 'addsTank', /^Fell in the add wave at 41%: your Challenge fired 1 time\. /);
       want('BW-6', 'first', /^Fell before his adds came, at 80%: you ate 1 time\. /);

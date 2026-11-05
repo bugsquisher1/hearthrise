@@ -42,7 +42,7 @@ import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.96';
 import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.96';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.96';
 import { temperedAmount } from '../temper.js?v=0.2.96';
-import { swingRow, crossLines } from './boss-phases.js?v=0.2.96';
+import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.96';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -128,9 +128,12 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
      added together and folded into the one multiplier hurt applies (`ability.mult`). */
   const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target);
   const base = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
+  /* A CALLED BOSS BEHIND HIS ADDS takes guardPm of the blow (boss-phases.js), folded into the same multiplier, last. */
+  const guardPm = guardPmOf(inst, target);
+  const marked = Math.floor((base * (1000 + markPm)) / 1000);
   const before = target.hp;
   const r = hurt(inst, target, amount, source, element,
-    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability, sc.rng);
+    markPm || guardPm !== 1000 ? Object.assign({}, ability, { mult: guardPm === 1000 ? marked : Math.floor((marked * guardPm) / 1000) }) : ability, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u, t: target.id }));

@@ -16,6 +16,7 @@
 //   BC-DEATH   a death ends it for everyone, box ticked or not, and costs what a death costs
 //   BC-TIME    the limit ends a fight nobody can finish, for everyone, and no hunt is left open, with his adds standing too
 //   BC-PHASE   (Tyler 2026-11-05: "phases") the two lines happen once each and at their HP, the adds come in full and go for whoever isn't the tank, Challenge takes them, the enrage raises his blows; the world's shape never moved
+//   BC-GUARD   while one of his adds stands he takes only his guard's share of a blow, all of it once they're down; a ground's own monster never hides
 //   BC-WAVE    a death in the add wave ends the fight for everyone, however the windows are cut: an add's kill pays nothing, and no hunt stays open
 //   BC-RECORD  the server's record of a fight: where he stood, read through a leader's death (a called room never resets), and what each hero's bar fired, the same however the windows are cut
 //
@@ -50,6 +51,7 @@ async function loadAll(root) {
     /* the engine's own instances (src/core imports with ?v=): the rows the fight reads */
     EM: (await import(u('src/data/monsters.js') + V)).MONSTERS,
     D: await import(u('src/core/hunt/damage.js') + V),
+    P: await import(u('src/core/hunt/boss-phases.js') + V),
     XP: await import(u('src/core/xp.js') + V),
     C: await import(u('src/core/combat.js') + V),
   };
@@ -228,6 +230,21 @@ async function guard(X) {
     if (!blows.length) bad.push('BC-PHASE CONTROL: no add swung');
     for (const e of blows) if (k[e.t] !== 'healer') bad.push('BC-PHASE an add went for the ' + k[e.t] + ', with a healer standing');
   }
+  /* BC-GUARD: while one of his adds stands he takes guardPm of a blow, all of it once none does, and a ground's own monster always all of it. One blow through the engine's
+     own door (damage.js landHit), on every called boss. */
+  for (const c of calls) {
+    const row = X.EM[c.monster], guard = (row.phases || {}).guardPm;
+    if (!(Number.isInteger(guard) && guard > 0 && guard < 1000)) { bad.push('BC-GUARD ' + c.monster + ' has no guard: ' + guard); continue; }
+    const blow = (addUp, kind) => {
+      const boss = { id: 2, side: 'mon', kind, pocket: 0, alive: true, hp: 1000000, maxHp: 1000000, x: 5, y: 5, statuses: [] };
+      const add = { id: 3, side: 'mon', kind: addOf(c), pocket: 0, alive: addUp, hp: addUp ? 100 : 0, maxHp: 100, x: 6, y: 5, statuses: [] };
+      const inst = { world: { units: [boss, add], packs: [{}] }, ground: G.CALLED_GROUNDS[c.hunt], heroes: {} };
+      return X.D.landHit(inst, { atMs: 0, emit: () => {}, rng: null }, null, boss, 100000, null, null).dmg;
+    };
+    const open = blow(false, c.monster), held = blow(true, c.monster);
+    if (!(open > 0) || Math.abs(held - Math.floor((open * guard) / 1000)) > 1) bad.push('BC-GUARD ' + c.monster + ' took ' + held + ' behind his adds and ' + open + ' without, his guard is ' + guard);
+    if (blow(true, c.of) !== blow(false, c.of)) bad.push('BC-GUARD ' + c.of + ' on his own ground hides behind a standing add');
+  }
   /* ...and the tank's Challenge takes them. */
   {
     const f = fight(X, king, ['tank', 'healer'], { kit: SHIELDED });
@@ -389,7 +406,10 @@ const MUTANTS = [
   { name: 'the wave never comes', edits: [['src/core/hunt/boss-phases.js', 'spawnAdds(inst, t.pocket, sc);', '']], want: /BC-PHASE|BC-PAY|BC-WAVE/ },
   { name: 'the first line is read at the wrong HP', edits: [['src/core/hunt/boss-phases.js', 'if (crossed(ph.addsPm)) {', 'if (crossed(ph.addsPm - 300)) {']], want: /BC-PHASE/ },
   { name: 'the adds go for the one holding him', edits: [['src/core/hunt/pull-cycle.js', 'const on = off.length ? off : standing;', 'const on = standing;']], want: /BC-PHASE/ },
-  { name: 'the enrage raises nothing', edits: [['src/core/hunt/damage.js', 'const row = swingRow(u);', 'const row = MONSTERS[u.kind];']], want: /BC-PHASE/ },
+  { name: 'the enrage raises nothing', edits: [['src/core/hunt/damage.js', 'const row = atTier(swingRow(u), inst.tier);', 'const row = atTier(MONSTERS[u.kind], inst.tier);']], want: /BC-PHASE/ },
+  { name: 'his adds shield him from nothing', edits: [['src/core/hunt/damage.js', 'const guardPm = guardPmOf(inst, target);', 'const guardPm = 1000;']], want: /BC-GUARD/ },
+  { name: 'a fallen add still shields him', edits: [['src/core/hunt/boss-phases.js', 'inst.world.units.some((u) => u.alive && u.side', 'inst.world.units.some((u) => u.side']], want: /BC-GUARD/ },
+  { name: 'every monster hides behind an add', edits: [['src/core/hunt/boss-phases.js', "if (!ph || !Number.isInteger(ph.guardPm)) return 1000;", "if (!ph || !Number.isInteger(ph.guardPm)) return t.side === 'mon' && inst.world.units.some((u) => u.alive && (MONSTERS[u.kind] || {}).add === true) ? 500 : 1000;"]], want: /BC-GUARD/ },
   { name: 'the enrage reads the row, not his HP', edits: [['src/core/hunt/boss-phases.js', 'if (!ph || !atOrUnder(u.hp, u.maxHp, ph.enragePm)) return row;', 'if (!ph) return row;']], want: /BC-PHASE/ },
   { name: 'a leader\'s death heals him', edits: [['src/core/hunt/leash.js', "if (!pack || (inst.ground && inst.ground.call)) return;", 'if (!pack) return;']], want: /BC-RECORD/ },
   { name: 'the record counts everyone\'s casts', edits: [['supabase/functions/hr-accrue/accrual.js', 'if (e.u !== unitId) continue;', '']], want: /BC-RECORD/ },

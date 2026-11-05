@@ -11,8 +11,9 @@ import { MONSTERS } from '../data/monsters.js?v=0.2.96';
 import { BOSS_CALL_WORDS, callOfHunt } from '../data/boss-calls.js?v=0.2.96';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
-/* Every ability that heals (abilities.js `heal`). */
+/* Every ability that heals (abilities.js `heal`), and every one that hits a crowd (an area cast or a Cleave). */
 const HEALS = Object.values(ABILITIES).filter((r) => !!r.heal).map((r) => r.id);
+const AREAS = Object.values(ABILITIES).filter((r) => r.target === 'area' || r.target === 'cleave').map((r) => r.id);
 
 const sum = (fired, ids) => ids.reduce((n, id) => n + (Number.isInteger(fired[id]) ? fired[id] : 0), 0);
 const times = (n) => (n === 1 ? '1 time' : n + ' times');
@@ -24,11 +25,13 @@ export function phaseAt(monster, bossPm) {
   return bossPm <= ph.enragePm ? 'enrage' : bossPm <= ph.addsPm ? 'adds' : 'first';
 }
 
-/* The one fact this hero's bar can be asked about, in this part of the fight: what the table says decides it (tools/balance-sim/boss-call-table.mjs, the "good bar but" rows; an area slot moved nothing, so the line doesn't ask about one). */
+/* The one fact this hero's bar can be asked about, in this part of the fight: what the table says decides it (tools/balance-sim/boss-call-table.mjs, the "good bar but"
+   rows). In the add wave a tank is asked about Challenge and a damage dealer about its area slots (Tyler's own example: "your area slot fired 0 times"). */
 function factFor(phase, role, fired) {
   const W = BOSS_CALL_WORDS.loss.fact;
   if (phase === 'adds' && role === 'tank') return W.challenge.replace('{times}', times(sum(fired, ['challenge'])));
   if (role === 'healer') return W.heals.replace('{times}', times(sum(fired, HEALS)));
+  if (phase === 'adds') return W.area.replace('{times}', times(sum(fired, AREAS)));
   return W.ate.replace('{times}', times(sum(fired, ['eat'])));
 }
 

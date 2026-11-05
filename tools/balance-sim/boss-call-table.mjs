@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tools/balance-sim/boss-call-table.mjs — CALL OUT, MEASURED ON THE REAL SETTLE (Tyler 2026-11-04; src/data/boss-calls.js).
 //
-//   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 0.7 --lvl 25 --rage 1400 --addhp 260 --addatk 30 --addacc 0.1] [--cliff] [--ship]
+//   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 0.7 --lvl 25 --rage 1400 --addhp 260 --addatk 30 --addacc 0.1 --addlvl 40 --adds 5 --guard 500] [--cliff] [--ship] [--focus] [--rows REGEX] [--stats]
 //
 // Each cell plays the called room to its end through accrueHunt (tests/hunt-core/fixtures/play-ground.mjs, the settle
 // the world tick runs), a fresh hunt secret per seed, and reads how it ended: the kill, a death or the limit. It plays
@@ -66,22 +66,28 @@ const slotWith = (id, when) => (when ? { ...slotOf(id), conditions: when } : slo
 const under_ = (metric, value, subject) => ({ metric, op: 'lt', value, ...(subject ? { subject } : {}) });
 const aoe = (n) => ({ metric: 'enemies_in_aoe', op: 'gte', value: n });
 /* THE TWO BARS. BAD answers neither question: the tank's Challenge is off his bar, nobody's slot hits more than one, the healer waits for 40% and has no party heal, everyone eats at 40% and stares at the boss.
-   GOOD answers both: Challenge first, an area slot on 2+ enemies, the damage on the weakest (the adds, then him), the healer early with a party heal, everyone eating at 75%. */
+   GOOD answers both: Challenge first, an area slot on a crowd, the damage on the weakest (the adds, then him), the healer early with a party heal, everyone eating at 75%, and the
+   Mage's spell the boss doesn't resist (the King resists fire: Frost Lance, Fireball only on 3 or more; the Chief resists frost: Fireball every cast). A role's list may be per call. */
 const BARS = {
   bad: { eat: 40, tmode: 'strongest', spells: {
     tank: [['power_strike']], healer: [['greater_mend', [under_('ally_hp_pct', 40, 'lowest')]]], hammer: [['power_strike']], axes: [['power_strike']], mage: [['frost_lance']], bow: [['precision_shot']] } },
   good: { eat: 75, tmode: 'weakest', spells: {
     tank: [['challenge'], ['power_strike']],
     healer: [['circle_of_renewal', [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_80' }]], ['greater_mend', [under_('ally_hp_pct', 85, 'lowest')]]],
-    hammer: [['cleave', [aoe(2)]], ['power_strike']], axes: [['cleave', [aoe(2)]], ['power_strike']], mage: [['fireball', [aoe(2)]], ['frost_lance']], bow: [['flame_volley', [aoe(2)]], ['precision_shot']] } },
+    hammer: [['cleave', []], ['power_strike']], axes: [['cleave', []], ['power_strike']],
+    mage: { rat_king: [['fireball', [aoe(3)]], ['frost_lance']], chief_coppercap: [['fireball', []]] }, bow: [['flame_volley', [aoe(2)]], ['precision_shot']] } },
 };
-/* DOES EACH QUESTION BITE? The good bar with one answer taken away. */
+/* DOES EACH QUESTION BITE? The good bar with one answer taken away. At the Chief the Mage keeps Fireball, his one spell he doesn't resist, so "no area slot" there is the hammer's Cleave. */
 const without = (spells) => ({ ...BARS.good, spells: { ...BARS.good.spells, ...spells } });
 BARS.noChallenge = without({ tank: [['power_strike']] });
-BARS.noArea = without({ hammer: [['power_strike']], mage: [['frost_lance']] });
+BARS.noArea = without({ hammer: [['power_strike']], mage: { rat_king: [['frost_lance']], chief_coppercap: [['fireball', []]] } });
 BARS.noTarget = { ...BARS.good, tmode: 'strongest' };
 BARS.eatsLate = { ...BARS.good, eat: 40 };
 BARS.healsLate = without({ healer: [['greater_mend', [under_('ally_hp_pct', 40, 'lowest')]]] });
+/* Both answers to where the adds go taken away: no Challenge, and the damage stays on him. */
+BARS.noPeel = { ...BARS.noChallenge, tmode: 'strongest' };
+/* A role's slots on a bar, for this call (a list, or a list per call id). */
+const spellsOf = (named, style, callId) => { const v = named.spells[style]; return (Array.isArray(v) ? v : v && v[callId]) || []; };
 const median = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 const round = (n, d = 0) => (n === null ? null : Math.round(n * 10 ** d) / 10 ** d);
 
@@ -106,18 +112,29 @@ function traceWindow(o, roles) {
   const hp = o.members.map((p) => p.key + '=' + p.delta.hp).join(' ');
   console.log('  ' + String(Math.round(((o.settledTo || 0) - Date.UTC(2026, 9, 18, 12, 0, 0)) / 1000)).padStart(4) + 's boss dmg ' + traceState.boss + ' | hp ' + hp + ' | onHeroes ' + JSON.stringify(on) + ' | onMons ' + JSON.stringify(by) + ' | ' + JSON.stringify(casts) + ' ' + spawned.join(','));
 }
+/* The room the fight is played in: the shipped row, or --adds N's what-if copy. */
+function groundOf(call) {
+  const g = G.CALLED_GROUNDS[call.hunt];
+  const n = Number(arg('adds', '0'));
+  if (!n) return g;
+  const rows = g.pockets[0].adds;
+  return { ...g, pockets: [{ ...g.pockets[0], adds: Array.from({ length: n }, (_, i) => rows[i % rows.length]) }] };
+}
 const BOSS_MONSTERS = new Set(Object.values(BOSS_CALLS).map((c) => c.monster));
 
 /** One try: { how: 'felled' | 'death' | 'time' | 'other', ms, deaths, store, hpMinPct }. */
 function tryOnce(call, c, seed) {
-  const ground = G.CALLED_GROUNDS[call.hunt];
+  const ground = groundOf(call);
   const kits = c.party.map((s, i) => (c.gear ? c.gear(s, c.level, i) : gear.kitOf(s, c.level)));
   const roles = c.party.map((s) => STYLES[s].role);
   const named = c.bar ? BARS[c.bar] : null;
   const bar = (role, seat) => (named
-    ? [...(named.spells[c.party[seat]] || []).map(([id, when]) => slotWith(id, when)), ...guideBar(call.from, named.eat)]
+    ? [...spellsOf(named, c.party[seat], call.id).map(([id, when]) => slotWith(id, when)), ...guideBar(call.from, named.eat)]
     : [...((c.spells && c.spells[c.party[seat]]) || []).map(slotOf), ...(c.starter ? starterBar() : guideBar(call.from, c.eatPct))]);
   let how = 'other', ms = 0, deaths = 0, store = 0, lowest = 100, dealt = 0, xp = 0, coin = 0, items = 0, lvl = 0, phase = 'first', fell = null;
+  /* --stats: who hit whom (blows, landed, damage), what each role cast, how long each phase stood */
+  const units = {}, blows = {}, casts = {}, at = {};
+  const nameOf = (id) => (units[id] ? units[id][0] : String(id)).replace('_called', '');
   const out = play.run(call.hunt, c.level, roles, {
     ground, spanMs: BOSS_CALL_RULES.limitMs + 30000, windowMs: TRACE ? 10000 : 30000, secret: secretOf(seed), equipment: (role, i) => kits[i],
     bar, leaveTogether: true, ...(c.temper ? { temper: c.temper } : {}),
@@ -125,6 +142,16 @@ function tryOnce(call, c, seed) {
     bag: (role, i) => (kits[i].ammo === 'bronze_arrows' ? { bronze_arrows: { loaded: 1 } } : {}),
     onWindow: (o) => {
       if (TRACE) traceWindow(o, roles);
+      for (const [id, r] of Object.entries(o.units || {})) units[id] = r;
+      for (const e of o.events || []) {
+        if ((e.type === 'dmg' || e.type === 'miss') && !e.dot && /_called$/.test(units[e.u] ? units[e.u][0] : '')) {
+          const k = nameOf(e.u) + '>' + nameOf(e.t); const b = blows[k] || (blows[k] = [0, 0, 0]);
+          b[0] += 1; if (e.type === 'dmg') { b[1] += 1; b[2] += e.amount; }
+        }
+        if (e.type === 'cast') casts[nameOf(e.u) + ':' + e.ability] = (casts[nameOf(e.u) + ':' + e.ability] || 0) + 1;
+        if (e.type === 'boss_phase' && !(e.phase in at)) at[e.phase] = e.atMs;
+        if (e.type === 'kill' && BOSS_MONSTERS.has(units[e.t] ? units[e.t][0] : '')) at.kill = e.atMs;
+      }
       for (const e of o.events || []) if (e.type === 'boss_phase') phase = e.phase;
       for (const p of o.members) {
         if (p.hunt.ended) {
@@ -145,7 +172,22 @@ function tryOnce(call, c, seed) {
       for (const e of o.events || []) if (e.type === 'dmg' && !e.dot) dealt += 1;
     },
   });
-  return { how, ms: ms || out.playedMs, deaths, store: store / roles.length, lowest, paid: xp + lvl + coin + items, fell };
+  const end = at.kill || (Date.UTC(2026, 9, 18, 12, 0, 0) + (ms || out.playedMs));
+  const phaseS = { adds: at.adds ? ((at.enrage || end) - at.adds) / 1000 : null, enrage: at.enrage ? (end - at.enrage) / 1000 : null };
+  return { how, ms: ms || out.playedMs, deaths, store: store / roles.length, lowest, paid: xp + lvl + coin + items, fell, blows, casts, phaseS };
+}
+
+/* --stats: blows per try (landed %, damage per try) for each attacker>target, casts per try, the phases' median seconds. */
+function statsOf(t) {
+  const n = t.length, b = {}, c = {};
+  for (const x of t) {
+    for (const [k, v] of Object.entries(x.blows)) { const a = b[k] || (b[k] = [0, 0, 0]); a[0] += v[0]; a[1] += v[1]; a[2] += v[2]; }
+    for (const [k, v] of Object.entries(x.casts)) c[k] = (c[k] || 0) + v;
+  }
+  const blowWords = Object.entries(b).sort((x, y) => y[1][2] - x[1][2]).map(([k, v]) => k + ' ' + Math.round(v[0] / n) + 'x ' + Math.round((100 * v[1]) / Math.max(1, v[0])) + '% ' + Math.round(v[2] / n) + 'dmg');
+  const castWords = Object.entries(c).sort().map(([k, v]) => k + ' ' + round(v / n, 1));
+  const ph = (k) => round(median(t.map((x) => x.phaseS[k]).filter((v) => v !== null)));
+  return 'adds ' + ph('adds') + 's, enrage ' + ph('enrage') + 's | ' + blowWords.join('; ') + ' | ' + castWords.join(' ');
 }
 
 function cell(call, c, seeds) {
@@ -161,6 +203,7 @@ function cell(call, c, seeds) {
     medianKillS: won.length ? round(median(won.map((x) => x.ms)) / 1000) : null,
     medianEndS: round(median(t.map((x) => x.ms)) / 1000),
     foodPerHead: round(median(t.map((x) => x.store))), lowestHpPct: round(median(t.map((x) => x.lowest))),
+    stats: statsOf(t),
     fell: Object.entries(t.reduce((a, x) => { if (x.fell) a[x.fell] = (a[x.fell] || 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => n + ' ' + k).join('; '),
   };
 }
@@ -175,7 +218,7 @@ const shipRows = (L) => [
   ['Ship: good bar, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'good' }],
   ['Ship: bad bar, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'bad' }],
   ['Ship: good bar, one gear tier behind, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'good', gear: under(-1) }],
-  ...[['noChallenge', 'no Challenge on the tank'], ['noArea', 'no area slot'], ['noTarget', 'damage stays on him'], ['eatsLate', 'everyone eats at 40%'], ['healsLate', 'the healer waits for 40%, no party heal']]
+  ...[['noChallenge', 'no Challenge on the tank'], ['noArea', 'no area slot'], ['noTarget', 'damage stays on him'], ['noPeel', 'no Challenge and damage stays on him'], ['eatsLate', 'everyone eats at 40%'], ['healsLate', 'the healer waits for 40%, no party heal']]
     .map(([bar, words]) => ['Ship: good bar but ' + words + ', tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar }]),
 ];
 const RUNS = {
@@ -234,6 +277,9 @@ const seeds = Number(arg('seeds', '12'));
 const only = arg('only', null);
 const hp = arg('hp', null), atk = arg('atk', null), lvl = arg('lvl', null), acc = arg('acc', null), rage = arg('rage', null), addhp = arg('addhp', null), addatk = arg('addatk', null), addacc = arg('addacc', null);
 const addOf = (call, monsters) => monsters[G.CALLED_GROUNDS[call.hunt].pockets[0].adds[0].monster];
+/* --adds N: a what-if wave of N, the room's own rows round again (a second row on a spot takes the next free tile, pull-cycle.js placeRow). */
+const addsN = arg('adds', null), addlvl = arg('addlvl', null);
+const FOCUS = /^Ship: (good bar|bad bar|good bar, one gear tier behind|good bar but no Challenge on the tank|good bar but no area slot), tank \+ healer \+ 2 dps|^Careless: four dps, no tank/;
 const CLIFF = /Optimized|Under|gear tier|four dps, no tank|tank \+ dps, no healer/;
 const rows = [];
 for (const call of Object.values(BOSS_CALLS)) {
@@ -244,11 +290,13 @@ for (const call of Object.values(BOSS_CALLS)) {
     if (lvl) inst.level = Number(lvl);
     if (acc) inst.baseAcc = Number(acc);
     if (rage) inst.phases.enrageAtkPm = Number(rage);
+    if (arg('guard', null)) inst.phases.guardPm = Number(arg('guard', null));
   }
   for (const m of [addOf(call, ENGINE_MONSTERS), addOf(call, play.MONSTERS)]) {
     if (addhp) m.hp = Number(addhp);
     if (addatk) m.atk = Number(addatk);
     if (addacc) m.baseAcc = Number(addacc);
+    if (addlvl) m.level = Number(addlvl);
   }
   const row = ENGINE_MONSTERS[call.monster];
   console.log('\n' + call.id + ' (HP ' + row.hp + ', atk ' + row.atk + ', Level ' + row.level + ', fee ' + call.fee + ')');
@@ -256,11 +304,13 @@ for (const call of Object.values(BOSS_CALLS)) {
   for (const [label, c] of RUNS[call.id]) {
     if (process.argv.includes('--cliff') && !CLIFF.test(label)) continue;
     if (process.argv.includes('--ship') && !/^Ship/.test(label)) continue;
+    if (process.argv.includes('--focus') && !FOCUS.test(label)) continue;
+    if (arg('rows', null) && !new RegExp(arg('rows', '')).test(label)) continue;
     if (TRACE && arg('trace', null) && !label.includes(arg('trace', ''))) continue;
     if (TRACE) console.log(label);
     const r = cell(call, { label, ...c }, seeds);
     rows.push(r);
-    console.log(String(r.win).padStart(4) + '  ' + String(r.medianKillS ?? '-').padStart(6) + '  ' + String(r.deaths).padStart(4) + ' ' + String(r.time).padStart(4) + '  ' + String(r.foodPerHead).padStart(9) + '  ' + String(r.lowestHpPct).padStart(6) + '   ' + label + (process.argv.includes('--why') && r.fell ? '   [' + r.fell + ']' : ''));
+    console.log(String(r.win).padStart(4) + '  ' + String(r.medianKillS ?? '-').padStart(6) + '  ' + String(r.deaths).padStart(4) + ' ' + String(r.time).padStart(4) + '  ' + String(r.foodPerHead).padStart(9) + '  ' + String(r.lowestHpPct).padStart(6) + '   ' + label + (process.argv.includes('--why') && r.fell ? '   [' + r.fell + ']' : '') + (process.argv.includes('--stats') ? '\n        ' + r.stats : ''));
   }
 }
 const json = arg('json', null);

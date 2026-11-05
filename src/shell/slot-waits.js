@@ -28,8 +28,8 @@ const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 /* The tests that mark a slot, and the glyph each marks it with. */
 const MARKS = Object.freeze({ enemies_in_aoe: 'uiTarget', allies_below: 'uiPeople' });
 
-/* The least a count test wants ("at or above 2" and "above 1" both want 2); null for any other test. */
-const needOf = (c) => (c.op === 'gte' || c.op === 'eq' ? c.value : c.op === 'gt' ? c.value + 1 : null);
+/* The least an "at least" count test wants ("at or above 2" and "above 1" both want 2); null for any other test. */
+const atLeast = (c) => (c.op === 'gte' ? c.value : c.op === 'gt' ? c.value + 1 : null);
 /* The most a count can read: the party's heroes, or the tiles the slot's action covers (conditions.js footprintOf). */
 function topOf(c, slot, party) {
   if (c.metric === 'allies_below') return party;
@@ -40,7 +40,7 @@ function topOf(c, slot, party) {
 function canHold(c, slot, party) {
   const m = METRIC.get(c.metric);
   if (m && m.value === 'pct') return !((c.op === 'lt' && c.value <= 0) || (c.op === 'gt' && c.value >= 100));
-  const top = topOf(c, slot, party), need = needOf(c);
+  const top = topOf(c, slot, party), need = c.op === 'eq' ? c.value : atLeast(c);
   return top === null || need === null || need <= top;
 }
 
@@ -48,10 +48,10 @@ const heroesWord = (c, n) => (n === 1 ? 'a hero' : n + ' or more heroes') + ' un
 const monstersWord = (n) => (n === 1 ? 'a monster' : n + ' or more monsters') + ' in its area';
 
 function neverWords(c, slot, party) {
-  const need = needOf(c);
-  if (c.metric === 'allies_below') return 'Waiting: needs ' + heroesWord(c, need) + (party > 1 ? ', and your party has ' + party + '.' : ', and you’re not in a party.');
-  if (c.metric === 'enemies_in_aoe') return 'Waiting: this reaches ' + (topOf(c, slot, party) === 1 ? 'one monster' : topOf(c, slot, party) + ' monsters') + ' at most, so it never gets to ' + need + '. Change this condition to let it fire.';
-  return 'This can’t fire: ' + conditionWords(c) + ' never happens. Change this condition to let it fire.';
+  const need = atLeast(c), top = topOf(c, slot, party);
+  if (need !== null && c.metric === 'allies_below') return 'Waiting: needs ' + heroesWord(c, need) + (party > 1 ? ', and your party has ' + party + '.' : ', and you’re not in a party.');
+  if (need !== null && c.metric === 'enemies_in_aoe') return 'Waiting: this reaches ' + (top === 1 ? 'one monster' : top + ' monsters') + ' at most, so it never gets to ' + need + '. Change this condition to let it fire.';
+  return 'This can’t fire: “' + conditionWords(c) + '” never happens. Change this condition to let it fire.';
 }
 
 /**
@@ -62,17 +62,17 @@ function neverWords(c, slot, party) {
 export function waitReason(sl, party, test) {
   if (!sl || sl.empty || !Array.isArray(sl.conditions)) return null;
   const conds = sl.conditions;
-  const mark =(code, text, c) => ({ code, text, glyph: MARKS[c.metric] || 'uiWarn', strike: false, ...(needOf(c) !== null && MARKS[c.metric] ? { need: needOf(c) + (c.op === 'eq' ? '' : '+') } : {}) });
+  const mark = (code, text, c) => ({ code, text, glyph: MARKS[c.metric] || 'uiWarn', strike: false, ...(atLeast(c) !== null && MARKS[c.metric] ? { need: atLeast(c) + '+' } : {}) });
   const never = conds.find((c) => !canHold(c, sl, party));
   if (never) return mark('never_' + never.metric, neverWords(never, sl, party), never);
   const t = test ? test(sl) : null;
   if (!t || t.pass) return null;
   if (t.ignored) return { code: 'ignored', text: 'Waiting: this slot ignores the monster you’re fighting.', glyph: 'uiTarget', strike: false };
   const failing = conds.filter((c, i) => !(t.mask & (1 << i)));
-  const c = failing.find((x) => MARKS[x.metric] && needOf(x) !== null) || failing[0];
+  const c = failing.find((x) => MARKS[x.metric] && atLeast(x) !== null) || failing[0];
   if (!c) return null;
-  if (MARKS[c.metric] && needOf(c) !== null) {
-    const words = c.metric === 'allies_below' ? heroesWord(c, needOf(c)) : monstersWord(needOf(c));
+  if (MARKS[c.metric] && atLeast(c) !== null) {
+    const words = c.metric === 'allies_below' ? heroesWord(c, atLeast(c)) : monstersWord(atLeast(c));
     return mark('wait_' + c.metric, 'Waiting: needs ' + words + '. Until then your hero fights on without it.', c);
   }
   return { code: 'wait_until', text: 'Waiting until ' + conditionWords(c) + '.', glyph: 'uiHourglass', strike: false, quiet: true, rest: true };
@@ -83,7 +83,7 @@ export function setupNote(d, party) {
   if (!d || !d.action || !d.action.id) return '';
   for (const c of d.conditions) {
     if (!canHold(c, d, party)) return neverWords(c, d, party);
-    const need = c.metric === 'enemies_in_aoe' ? needOf(c) : null;
+    const need = c.metric === 'enemies_in_aoe' ? atLeast(c) : null;
     if (need === 2) return 'On a lone monster this slot waits and your hero fights on without it. To use it on one, remove this condition.';
     if (need > 2) return 'With fewer than ' + need + ' monsters in its area this slot waits and your hero fights on without it.';
   }

@@ -1350,14 +1350,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const wrong = await why(0);
         if (!/^Your weapon can’t use this\. Needs /.test(wrong.text) || !wrong.off || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
         await sweep('the healer bar');
-        /* A SLOT NO FIGHT CAN FIRE, ALONE (lane/a-silent-triggers): a lone hero's "2 or more hurt" never holds. Not struck: it says so, and
-           the slot shows what it wants where an item shows its count (slot-waits.js). Read in town terms: no live world behind this stub. */
-        S.slots[9] = { action: { type: 'ability', id: 'mend' }, conditions: [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_80' }], join: 'and', usable: true };
+        /* A SLOT THIS PARTY CAN'T FIRE (lane/a-silent-triggers): wanting more hurt heroes than the party holds never holds. Not struck: it says
+           so, and the slot shows what it wants where an item shows its count (slot-waits.js), ahead of the mana it is also short of. */
+        S.slots[9] = { action: { type: 'ability', id: 'mend' }, conditions: [{ metric: 'allies_below', op: 'gte', value: 3, subject: 'under_80' }], join: 'and', usable: true };
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
-        const alone = await why(9);
+        const short = await why(9);
         const need = await page.evaluate(() => document.querySelector('.hb-slot[data-slot="9"] .hb-count').textContent);
-        if (alone.text !== 'Waiting: needs 2 or more heroes under 80% health, and you’re not in a party.' || alone.off || !alone.wait || !alone.glyph || need !== '2+') fails.push('HS-20 the lone hero\'s group heal reads ' + JSON.stringify(alone) + ', its corner ' + JSON.stringify(need));
+        if (short.text !== 'Waiting: needs 3 or more heroes under 80% health, and your party has 2.' || short.off || !short.wait || !short.glyph || need !== '3+') fails.push('HS-20 the group heal this party can\'t fire reads ' + JSON.stringify(short) + ', its corner ' + JSON.stringify(need));
         await sweep('the bar with a slot waiting on a party');
         delete S.slots[9];
         delete S.role; delete S.discipline;

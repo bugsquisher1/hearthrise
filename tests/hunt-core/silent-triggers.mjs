@@ -137,7 +137,11 @@ const cases = {
     if (!said || !said.rest || said.need || said.text !== 'Waiting until my mana is at or above 50%.') return 'Frost Lance under 50% mana reads ' + JSON.stringify(said);
     if (casts(M, f, 100).frost_lance) return 'CONTROL: Frost Lance fired under 50% mana';
     const full = fight(M, 'mage', [sl], { mons: [[13, 3]], mana: 400, maxMana: 500 });
-    return M.W.waitReason(sl, 1, full.test()) === null && casts(M, full, 100).frost_lance ? null : 'Frost Lance over 50% mana does not simply fire';
+    if (M.W.waitReason(sl, 1, full.test()) !== null || !casts(M, full, 100).frost_lance) return 'Frost Lance over 50% mana does not simply fire';
+    /* A count that isn't an "at least" (the player's own test) reads as it is, words only: never "2 or more". */
+    const exact = slotOf('fireball', [{ metric: 'enemies_in_aoe', op: 'eq', value: 2 }]);
+    const reads = M.W.waitReason(exact, 1, fight(M, 'mage', [exact], { mons: [[13, 3]] }).test());
+    return reads && reads.rest && reads.text === 'Waiting until the number of monsters it would hit is 2.' ? null : 'exactly 2 reads ' + JSON.stringify(reads);
   },
   'every-suggestion': (M) => {
     const bad = [];
@@ -209,7 +213,7 @@ const cases = {
     const fire = suggested(M, 'fireball');
     const lone = fight(M, 'mage', [fire], { mons: [[13, 3]] }).test();
     /* An empty slot has nothing to test: asking the engine threw on every frame of a fight (played on the local world), and the bar stopped patching. */
-    if (M.W.slotWhy({ empty: true }, facts({ test: lone })) !== null) return 'an empty slot has a reason';
+    try { if (M.W.slotWhy({ empty: true }, facts({ test: lone })) !== null) return 'an empty slot has a reason'; } catch (e) { return 'an empty slot stops the bar: ' + e.message; }
     if (M.W.slotWhy(fire, facts({ test: lone })).code !== 'wait_enemies_in_aoe') return 'the lone monster\'s wait is not the answer';
     if (!M.W.slotWhy(fire, facts({ test: lone, bag: [] })).strike) return 'no rune is a strike: it must beat the wait';
     if (M.W.slotWhy(fire, facts({ test: lone, hero: { mana: 5 } })).code !== 'wait_enemies_in_aoe') return 'mana beat the marked wait';
@@ -241,7 +245,9 @@ const MUTANTS = [
   { name: 'the engine\'s test is never asked', case: 'every-suggestion',
     edits: [['src/shell/slot-waits.js', '  const t = test ? test(sl) : null;\n', '  const t = null;\n']] },
   { name: 'the area wait asks for one more monster than the slot does', case: 'lone-monster',
-    edits: [['src/shell/slot-waits.js', "const needOf = (c) => (c.op === 'gte' || c.op === 'eq' ? c.value : c.op === 'gt' ? c.value + 1 : null);", "const needOf = (c) => (c.op === 'gte' || c.op === 'eq' ? c.value + 1 : c.op === 'gt' ? c.value + 1 : null);"]] },
+    edits: [['src/shell/slot-waits.js', "const atLeast = (c) => (c.op === 'gte' ? c.value : c.op === 'gt' ? c.value + 1 : null);", "const atLeast = (c) => (c.op === 'gte' ? c.value + 1 : c.op === 'gt' ? c.value + 1 : null);"]] },
+  { name: 'a test for exactly 2 reads as "2 or more"', case: 'mana-threshold',
+    edits: [['src/shell/slot-waits.js', "const atLeast = (c) => (c.op === 'gte' ? c.value : c.op === 'gt' ? c.value + 1 : null);", "const atLeast = (c) => (c.op === 'gte' || c.op === 'eq' ? c.value : c.op === 'gt' ? c.value + 1 : null);"]] },
   { name: 'a lone hero is not told (the ceiling is gone)', case: 'lone-hero',
     edits: [['src/shell/slot-waits.js', "  if (c.metric === 'allies_below') return party;\n", '']] },
   { name: 'a wait the player can read marks the slot', case: 'mana-threshold',

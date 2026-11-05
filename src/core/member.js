@@ -30,6 +30,7 @@ import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.90';
 import { STATUSES } from '../data/statuses.js?v=0.2.90';
 import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.90';
 import { LANE_OF } from './hunt/conditions.js?v=0.2.90';
+import { blowsPmOf, temperedArmour } from './temper.js?v=0.2.90';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -117,7 +118,9 @@ export function heroSnapshot(state, c) {
   /* `def` is the monster's TO-HIT roll: the Defense skill, the gear outside the armour weights
      (combat.js guardB: a shield, a cape) and a defence buff. `armour` is what each weight wears; a blow prices it against its attacker (ruling K7, src/core/mitigation.js). */
   const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.guardB) || 0) + (Number(c.bonus('defense')) || 0));
-  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp) };
+  /* TEMPERING (src/core/temper.js): only a hero with a rung carries `temperPm`, so a rung-0 hero's snapshot is what it always was. */
+  const temperPm = blowsPmOf(c.equipment, c.items, c.temper);
+  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: temperedArmour(armourValues(c.equipment, c.items), c.equipment, c.items, c.temper), level: charLevelFromXp(state.levelXp), ...(temperPm ? { temperPm } : {}) };
 }
 
 /* THE SET A FIGHT IS PRICED BY (Tyler 2026-10-23: runes fuel SPELLS only, caster basics cost mana): the
@@ -246,7 +249,7 @@ export function memberSide(mi, ctx) {
     },
   };
   const h = mi.hero || {};
-  const snapCtx = { eq, equipment, items, bonus, setBonus, profile };
+  const snapCtx = { eq, equipment, items, bonus, setBonus, profile, temper: mi.perks && mi.perks.temper ? mi.perks.temper : null };
   /* THE HONE (src/core/ammo.js honeOf, lane c-work-fixes 2026-10-22): a whetstone is worn by this
      hero's swing clock (honeWornAt over the persisted swing index) from the hunt's own stock, and it
      pays its bonus only while the hunt still carries one: a spent or unpacked stone is the bare
@@ -442,7 +445,7 @@ export function frozenOf(side, kinds, atMs) {
   const session = {};
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
-    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
+    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level, ...(snap.temperPm ? { temperPm: snap.temperPm } : {}) }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }
 

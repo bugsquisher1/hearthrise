@@ -131,6 +131,8 @@ export async function loadPlay(root) {
       typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true));
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
+    /* opts.temper: every hero's rungs, the map hr_perks_of's `temper` carries (src/core/temper.js) */
+    if (opts.temper) for (const m of members) m.perks = { temper: opts.temper };
     /* common vs rare by the hunt's own drop rows: a loot-band row (src/data/loot-bands.js) is a common in the common and
        uncommon bands; an old-model drop at 5% or more anywhere here is a common, unless it is a trophy worth 100 g or more
        (a boss's chase item: the Crown Shard, the Alpha Fang), which is upside */

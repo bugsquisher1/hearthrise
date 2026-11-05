@@ -24,6 +24,8 @@
 import { ARMOUR_WEIGHT, ARMOUR_MITIGATION } from '../data/core-model.js?v=0.2.90';
 
 const nat = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
+/* A weight's value on the curve: whole points, or with a tempered part (src/core/temper.js temperedArmour). */
+const amt = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : 0; };
 
 /** The armour value each weight wears: { heavy, medium, light } (the sum of its pieces' defB). */
 export function armourValues(equipment, items) {
@@ -52,10 +54,10 @@ export function mitigationOf(values, level) {
   const L = Math.max(1, nat(level));
   const cap = M.capPm;
   /* Dodge alone can never pass the cap; absorb is then held so the two together cannot. */
-  const dodgePm = Math.min(cap, curve(M.dodge, nat(v.medium), L));
+  const dodgePm = Math.min(cap, curve(M.dodge, amt(v.medium), L));
   const keepPm = dodgePm >= 1000 ? 1000 : Math.min(1000, Math.ceil(((1000 - cap) * 1000) / (1000 - dodgePm)));
-  const absorbPm = Math.min(1000 - keepPm, curve(M.absorb, nat(v.heavy), L));
-  const ward = Math.floor((nat(v.light) * M.ward.perPointPm) / 1000);
+  const absorbPm = Math.min(1000 - keepPm, curve(M.absorb, amt(v.heavy), L));
+  const ward = Math.floor((amt(v.light) * M.ward.perPointPm) / 1000);
   if (!dodgePm && !absorbPm && !ward) return NO_MITIGATION;
   return Object.freeze({ dodgePm, absorbPm, ward, keepPm });
 }

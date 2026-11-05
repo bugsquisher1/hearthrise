@@ -4974,6 +4974,12 @@ jobs:
           node tests/titles.mjs
           node tools/mutant-gate.mjs node tests/titles.mjs --selftest
 
+      - name: Gold sinks - hero colors
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hero-colors.mjs
+          node tools/mutant-gate.mjs node tests/hero-colors.mjs --selftest
+
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt
       # has a walk and a sensible bag, and every end reason has plain copy.

@@ -72,6 +72,7 @@ led as (
          count(*) filter (where l.kind = 'shop'   and l.intent like 'unlock_buy:room.%')   as rooms,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'setup\\_slot\\_buy:%')  as setup_slots,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'title\\_buy:%')       as titles,
+         count(*) filter (where l.kind = 'shop'   and l.intent like 'hero\\_colors\\_set:%') as hero_colors,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'town_show:%' and l.intent not like 'town_show:round:%') as powders,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'town_show:round:%')   as rounds,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'crier:%')             as cries,
@@ -95,10 +96,11 @@ pet as (select (updated_at at time zone 'UTC')::date as day,
            and updated_at >= now() - interval '8 days' group by 1)
 select d.day, coalesce(plants,0) plants, coalesce(waters,0) waters, coalesce(harvests,0) harvests, coalesce(fights,0) fights, coalesce(deaths,0) deaths,
        coalesce(gathers,0) gathers, coalesce(crafts,0) crafts, coalesce(buys,0) buys, coalesce(rooms,0) rooms,
-       coalesce(setup_slots,0) setup_slots, coalesce(titles,0) titles,
+       coalesce(setup_slots,0) setup_slots, coalesce(titles,0) titles, coalesce(hero_colors,0) hero_colors,
        coalesce(powders,0) powders, coalesce(rounds,0) rounds, coalesce(cries,0) cries,
        to_regprocedure('public.hr_town_show(integer,text,bigint,uuid)') is not null as sinks_live,
        to_regprocedure('public.hr_setup_slot_buy(integer,bigint,uuid)') is not null as hero_sinks_live,
+       to_regprocedure('public.hr_hero_colors_set(integer,jsonb,bigint,uuid)') is not null as colors_live,
        coalesce(pets_xp,0) pets_xp, coalesce(pet_xp,0) pet_xp,
        coalesce(listings,0) listings, coalesce(sales,0) sales, coalesce(refused,0) refused, coalesce(users,0) users
 from days d left join led using (day) left join mk using (day) left join ms using (day) left join rf using (day)
@@ -830,14 +832,14 @@ if (selftestMode) {
     // looks broken to anyone who checks its exit code, and looks fine to anyone
     // who only reads the table. Fall off the end instead.
   } else {
-    const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','buys','rooms','setup_slots','titles','powders','rounds','cries','pets_xp','pet_xp','listings','sales','refused','users'];
+    const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','buys','rooms','setup_slots','titles','hero_colors','powders','rounds','cries','pets_xp','pet_xp','listings','sales','refused','users'];
     console.log(cols.map((c) => String(c).padStart(c === 'day' ? 10 : 8)).join(' '));
     for (const row of rows) console.log(cols.map((c) => String(row[c] ?? '').padStart(c === 'day' ? 10 : 8)).join(' '));
     // The zero-watch: a feature at zero for two days is a P1 by definition (CLAUDE.md §3.4).
     // Only LIVE features are watched. pets_xp (S-PX-2's column) is shown but not watched while
     // the pets are hidden with no work planned (Tyler 2026-10-24); it rejoins when they return.
     // The gold sinks are watched from the day their verb is on the server: until then they read zero, and that's no P1.
-    const watched = ['plants','fights','gathers','buys'].concat(rows[0] && rows[0].sinks_live ? ['powders','rounds','cries'] : [], rows[0] && rows[0].hero_sinks_live ? ['setup_slots','titles'] : []);
+    const watched = ['plants','fights','gathers','buys'].concat(rows[0] && rows[0].sinks_live ? ['powders','rounds','cries'] : [], rows[0] && rows[0].hero_sinks_live ? ['setup_slots','titles'] : [], rows[0] && rows[0].colors_live ? ['hero_colors'] : []);
     const zeroTwoDays = watched.filter((c) => rows.slice(0, 2).every((row) => Number(row[c]) === 0));
     if (rows.length >= 2 && zeroTwoDays.length) console.log(`\nP1 by definition — zero for two days: ${zeroTwoDays.join(', ')}`);
   }

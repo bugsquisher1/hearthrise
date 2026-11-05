@@ -445,6 +445,8 @@
     "node tools/mutant-gate.mjs node tools/gen-title-catalogue.mjs --selftest": "client-guards",
     "node tests/titles.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/titles.mjs --selftest": "client-guards",
+    "node tests/hero-colors.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/hero-colors.mjs --selftest": "client-guards",
     "node tests/town-crier.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/town-crier.mjs --selftest": "client-guards",
     "node tools/world-art/hearth-flames.mjs --check": "client-guards",

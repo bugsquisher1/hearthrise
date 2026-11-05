@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-05",
- "digest": "e5ac3cc3c70238e5320e3e378a0393484e58fc4f669dac73b07c0b1d162189ac",
+ "digest": "9a53ef5e2f6bd0fe9eca6727b213fbd70fb23379f8b4aec3e8135baaebc0cc94",
  "counts": {
   "relations": 250,
-  "functions": 620,
+  "functions": 621,
   "policies": 115,
   "indexes": 358,
   "triggers": 62,
@@ -486,6 +486,7 @@
    "hr_hero_colors_price(p_user uuid, p_slot integer)",
    "hr_hero_colors_saved_today(p_user uuid, p_slot integer)",
    "hr_hero_colors_set(p_slot integer, p_colors jsonb, p_price bigint, p_idem uuid)",
+   "hr_hero_colors_view(p_slot integer)",
    "hr_hero_rename(p_slot integer, p_name text, p_price bigint, p_idem uuid)",
    "hr_hero_rename_quote(p_user uuid, p_slot integer)",
    "hr_hero_slots_of(p_user uuid)",

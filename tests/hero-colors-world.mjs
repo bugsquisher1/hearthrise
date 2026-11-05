@@ -81,7 +81,9 @@ try {
   step('CW-3 creation cost nothing', spent === 0, spent);
   const version = await page.evaluate(() => (document.querySelector('link[href*="src/world/hero-dye.js"]') || { href: '' }).href.split('v=')[1] || '');
   const stats = (p) => p.evaluate(async (v) => { const D = await import(location.origin + '/src/world/hero-dye.js?v=' + v); return D.heroDyeOf({ doc: document, version: v }).stats(); }, version);
-  await page.waitForFunction(async (v) => { const D = await import(location.origin + '/src/world/hero-dye.js?v=' + v); return D.heroDyeOf({ doc: document, version: v }).stats().looks >= 1; }, version, { timeout: 15000 }).catch(() => null);
+  /* the looks on this page, polled from here: a page-side wait can't await the module's import */
+  const untilLooks = async (p, n, ms = 20000) => { const end = Date.now() + ms; let st = await stats(p); while (st.looks < n && Date.now() < end) { await p.waitForTimeout(250); st = await stats(p); } return st; };
+  await untilLooks(page, 1);
   const st0 = await stats(page);
   step('CW-3 the hero draws from a baked sheet', st0.looks >= 1, JSON.stringify(st0));
   if (shots) await a.shot('town-own');
@@ -139,8 +141,7 @@ try {
   /* ── CW-6 ── */
   const b = await world.play({ account: 'tamsel', viewport: { width: 1440, height: 900 }, shots });
   await b.createHero('Tamsel');
-  await b.page.waitForFunction(async (v) => { const D = await import(location.origin + '/src/world/hero-dye.js?v=' + v); return D.heroDyeOf({ doc: document, version: v }).stats().looks >= 2; }, version, { timeout: 20000 }).catch(() => null);
-  const bSt = await stats(b.page);
+  const bSt = await untilLooks(b.page, 2);
   step('CW-6 a second account bakes Marlow\'s look as well as its own', bSt.looks >= 2, JSON.stringify(bSt));
   if (shots) await b.shot('town-second-account');
   await page.click('[data-hs-act="of-pick"][data-outfit="sorcerer"]').catch(() => null);
@@ -149,11 +150,10 @@ try {
   const price2 = (await btn()).words;
   await page.click('[data-hs-act="of-colors"]');
   await page.waitForFunction(() => /Saved/.test(document.querySelector('.hw-cs-outfit .hh-intent-msg').textContent), null, { timeout: 15000 });
-  const bodyBefore = (await sql('select x, y, station_id, stand_no from public.town_bodies where user_id = $1', [uid]))[0];
-  await b.page.waitForFunction(async (v) => { const D = await import(location.origin + '/src/world/hero-dye.js?v=' + v); return D.heroDyeOf({ doc: document, version: v }).stats().looks >= 3; }, version, { timeout: 20000 }).catch(() => null);
-  const bSt2 = await stats(b.page);
+  const bodyBefore = (await sql('select map_id, station_id, stand_no, since, from_x, from_y from public.town_bodies where user_id = $1', [uid]))[0];
+  const bSt2 = await untilLooks(b.page, 3);
   step('CW-6 the second account bakes the new look from its next delta, the hero standing still', bSt2.looks >= 3, JSON.stringify(bSt2) + ' ' + price2);
-  const bodyAfter = (await sql('select x, y, station_id, stand_no from public.town_bodies where user_id = $1', [uid]))[0];
+  const bodyAfter = (await sql('select map_id, station_id, stand_no, since, from_x, from_y from public.town_bodies where user_id = $1', [uid]))[0];
   step('CW-6 saving a color moved no one', JSON.stringify(bodyBefore) === JSON.stringify(bodyAfter), JSON.stringify([bodyBefore, bodyAfter]));
   if (shots) await b.shot('town-second-account-after');
   await b.close();

@@ -1070,7 +1070,7 @@ const PURE_MUTANTS = [
   ['closing a character keeps its body in town', 'src/session/account-session.js', 'if (town) { this._towns.delete(slot); town.destroy(); }', 'void town;'],
   ['a hero back from a hunt still counts as hunting', 'src/session/account-session.js', "busy: () => huntOpenIn(cs.read('hunt')),", "busy: () => !!cs.read('hunt'),"],
   ['an ended hunt section is an open hunt', 'src/session/account-session.js', " && h.ended !== true;\n}", ';\n}'],
-  ['a walker\'s role is the retired action-set pick (live v0.2.31: every peer in plate)', 'supabase/migrations/2027-01-28-town-stands.sql',
+  ['a walker\'s role is the retired action-set pick (live v0.2.31: every peer in plate)', 'supabase/migrations/2027-02-27-gold-sinks-seams.sql',
     "'role', public.hr_role_view(p_user, p_slot)->>'id',", "'role', public.hr_chat_role_pick(p_user, p_slot),"],
   ['a walker\'s chosen outfit is dropped', 'src/session/town-presence.js', 'OUTFIT.test(w.outfit.id) ? w.outfit.id : null', 'OUTFIT.test(w.outfit.id) ? null : null'],
 ];
@@ -1090,7 +1090,7 @@ function copySrc() {
   const tmp = mkdtempSync(join(tmpdir(), 'hr-town-'));
   cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (p) => !/[\\/]vendor[\\/]?/.test(p.slice(ROOT.length)) });
   mkdirSync(join(tmp, 'supabase/migrations'), { recursive: true });
-  for (const f of ['2026-10-25-town-walk.sql', '2026-12-10-town-walker-role.sql', '2027-01-26-town-stations.generated.sql', '2027-01-28-town-stands.sql', CATALOGUE])
+  for (const f of ['2026-10-25-town-walk.sql', '2026-12-10-town-walker-role.sql', '2027-01-26-town-stations.generated.sql', '2027-01-28-town-stands.sql', '2027-02-27-gold-sinks-seams.sql', CATALOGUE])
     cpSync(join(ROOT, 'supabase/migrations', f), join(tmp, 'supabase/migrations', f));
   return tmp;
 }

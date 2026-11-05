@@ -11,6 +11,7 @@ import { CHAMPION_ITEMS } from './champions.js?v=0.2.96';
 import { DRINK_ITEMS } from './drinks.js?v=0.2.96';
 import { IMBUE_ITEMS } from './imbuements.js?v=0.2.96';
 import { SHIELD_ITEMS } from './shields.js?v=0.2.96';
+import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.96';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -26,6 +27,9 @@ export const ITEMS={
      earrings (0), cape (holes at 5 of 7 tiers) and jewelry (no capstone).
      New ids only. See src/data/slot-ladders.js for the stat rationale. */
   ...SLOT_ITEMS,
+  /* CRAFTED JEWELRY (src/data/jewelry.js): each Fine and Hallmarked grade of a crafted piece, its own row, built from the plain
+     piece above it. New ids only. */
+  ...JEWELRY_ITEMS,
 
   /* b356: the approved review-book catalogue (Library 2 — every surviving
      ITEM-NEW-* card and every ITEM-PLAN-* group). New ids only; spread here
@@ -98,6 +102,9 @@ export const ITEMS={
   lich_soul:{n:'Lich Soul',icon:'☠️',v:800},magic_essence:{n:'Magic Essence',icon:'✨',v:50},
   rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Ancient Rune',icon:'🔮',v:300},
   dragon_gem:{n:'Dragon Gem',icon:'💎',v:2000},ruby:{n:'Ruby',icon:'❤️',v:400},
+  /* THE T2 JEWEL'S GEM (src/data/jewelry.js JEWEL_TIERS): robbed on the Thicket road, so Wickstead's Turncoat carries it, the one
+     rare that replaced his Banded Signet. A gem roll and the Hallmark step spend it; raw, so the shop pays a fifth. */
+  road_garnet:{n:'Road Garnet',icon:'🔴',v:200},
   rat_tail:{n:'Rat Tail',icon:'🐀',v:6},
   /* The Rat King's shard (15%, ~3 an hour for a full party): sold, the sewer's profit. */
   crown_shard:{n:'Crown Shard',icon:'👑',v:150},small_fang:{n:'Small Fang',icon:'🦷',v:15},
@@ -894,6 +901,8 @@ const RAW_DROPS = [
   'bear_pelt', 'bear_claw', 'dire_fang', 'shadow_pelt', 'razor_claw',
   'shadow_thread', 'void_chitin', 'death_steel', 'brute_plate',
   'raw_wolf_meat', 'raw_panther_meat', 'raw_bear_meat',
+  /* a gem a monster carries for the jeweler (src/data/jewelry.js) */
+  'road_garnet',
 ];
 
 /* BULK GOODS (designer 2026-11-01, lane/c-craft-economy; the measured table is on the priority board). A shop buys a

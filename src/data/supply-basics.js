@@ -55,6 +55,7 @@
 
 import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.96';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.96';
+import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.96';
 
 /* A basic heal or drink gives this share of its crafted partner (floored); a
    basic arrow gives this share of its partner's ammo bonus. */
@@ -223,6 +224,9 @@ export const SUPPLY_SHOP_OFFERS = Object.freeze([
   sell('copper_ring', 'gear', null, 240),
   sell('hunter_necklace', 'gear', null, 360),
   sell('bronze_rimmed_shield', 'gear', null, 140),
+  /* PLAIN JEWELRY STAYS IN THE SHOP, AT A PREMIUM (Tyler 2026-11-05, call 5): a fighter is never blocked, and a crafter can sell the
+     plain piece for anything under this and still beat the Shop (src/data/jewelry.js JEWEL_SHOP_PRICE; tests/catalogue-coherence.mjs C6). */
+  sell('banded_signet', 'gear', null, JEWEL_SHOP_PRICE.banded_signet),
   /* The seed counter, in crop order (src/data/gathering.js CROPS). */
   sell('turnip_seed', 'seed', null, 5),
   sell('carrot_seed', 'seed', null, 10),

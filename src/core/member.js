@@ -120,8 +120,12 @@ export function heroSnapshot(state, c) {
   const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.guardB) || 0));
   /* TEMPERING (src/core/temper.js): only a hero with a rung carries these, so a rung-0 hero's snapshot is what it always was. */
   const blowsPm = blowsPmOf(c.equipment, c.items, c.temper), armorPm = armorPmOf(c.equipment, c.items, c.temper) + steadyPmOf(c.eq, c.bonus);
+  /* CRAFTED JEWELRY (src/data/jewelry.js), the same way: Follow-through and Surge ride the unit as numbers, only on a hero that wears them
+     (Keen is already in the rolls' crit chance). */
+  const jewel = (c.eq && c.eq.jewel) || null;
+  const followPm = jewel && jewel.follow > 0 ? jewel.follow : 0, surgePm = jewel && jewel.surge > 0 ? jewel.surge : 0;
   return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp),
-    ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}) };
+    ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}) };
 }
 
 /* THE SET A FIGHT IS PRICED BY (Tyler 2026-10-23: runes fuel SPELLS only, caster basics cost mana): the
@@ -415,6 +419,9 @@ function shotItemsOf(hero) {
   return Array.from(out).sort();
 }
 
+/* A peer's jewelry perks, as numbers like its rungs (combat-sim.js syncUnit), so the browser lands its blows and casts as the server does. */
+const jewelSnap = (snap) => ({ ...(snap.followPm ? { followPm: snap.followPm } : {}), ...(snap.surgePm ? { surgePm: snap.surgePm } : {}) });
+
 /** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds`. */
 export function frozenOf(side, kinds, atMs) {
   const m = side.member;
@@ -446,7 +453,7 @@ export function frozenOf(side, kinds, atMs) {
   const session = {};
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
-    snap: { ...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
+    snap: { ...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ...jewelSnap(snap), acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }
 

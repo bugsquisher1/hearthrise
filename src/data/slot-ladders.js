@@ -142,7 +142,9 @@ export const SLOT_ITEMS = {
   /* ══ RING — the hybrid, and remember BOTH ring slots take one ═══════════
      Every number here is doubled in practice (ring1 + ring2), which is why the
      ring rungs are roughly half the necklace's.                             */
-  banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, atkB: 2, strB: 2 },
+  /* CRAFTED NOW (src/data/jewelry.js, the designer's spec 2026-11-05): plain pieces read for EVERY style, +2 +2, since a bow or a
+     wand drew nothing from a ring that paid melee only. Its Fine and Hallmarked rows copy this row. */
+  banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, atkB: 2, strB: 2, rangeAtkB: 2, rangeStrB: 2, magicAtkB: 2, magicStrB: 2 },
   ruby_signet:       { n: 'Ruby Signet',       icon: '💍', v: priced(200, 5), type: 'jewelry', slot: 'ring', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 52, atkB: 4, strB: 4, critB: 0.01 },
   /* The second scroll the code has been waiting for: `spellstone_diagram` →
      `spellstone_ring`, same b145 note, same three steps. Magic-flavoured

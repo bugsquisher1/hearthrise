@@ -135,7 +135,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   else {
     if (target.side === 'mon') inst.world.fightAt = sc.atMs;
     sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
-      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}),
+      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
       ...(ability && ability.dot ? { dot: true } : {}) }));
   }
   if (r.killed) {
@@ -163,7 +163,20 @@ function roll(inst, sc, u, t, accuracy, maxHit, critChance) {
   if (amount <= 0) { sc.emit(makeEvent('miss', sc.atMs, { u: u.id, t: t.id })); return null; }
   const crit = critChance > 0 && rollCrit(sc.rng, critChance);
   if (crit) amount = applyCrit(amount, COMBAT_BALANCE.critMult);
-  return landHit(inst, sc, u, t, amount, u.side === 'hero' ? u.element : null, null, crit);
+  const r = landHit(inst, sc, u, t, amount, u.side === 'hero' ? u.element : null, null, crit);
+  followThrough(inst, sc, u, t, amount, crit);
+  return r;
+}
+
+/* FOLLOW-THROUGH (src/data/jewelry.js): a hero's basic blow that landed also lands, `followPm` permille of the time, on ONE more
+   monster beside its target (the lowest id), the same blow: two numbers. One draw, made only by a hero that wears the perk and
+   only when such a monster stands there, so every other blow draws what it drew before. It never follows through again. */
+const FOLLOW_TAG = Object.freeze({ id: 'basic', follow: true });
+function followThrough(inst, sc, u, t, amount, crit) {
+  if (!(u.followPm > 0) || u.side !== 'hero' || t.side !== 'mon') return;
+  let next = null;
+  for (const m of engaged(inst)) if (m !== t && m.alive && cheb(m, t) <= 1 && (!next || m.id < next.id)) next = m;
+  if (next && sc.rng.chance(u.followPm / 1000)) landHit(inst, sc, u, next, amount, u.element, FOLLOW_TAG, crit);
 }
 
 /** Attack hook: every living unit whose swing is due swings, in id order. */

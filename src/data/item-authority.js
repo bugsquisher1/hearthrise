@@ -49,6 +49,7 @@
 
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.96';
 import { ARTISAN_RECIPES } from './recipes.js?v=0.2.96';
+import { recipeOutcomes } from './jewelry.js?v=0.2.96';
 import { MONSTERS } from './monsters.js?v=0.2.96';
 import { BOSSES } from './bosses.js?v=0.2.96';
 import { ITEMS } from './items.js?v=0.2.96';
@@ -320,11 +321,11 @@ export function combatDropIds() {
   return s;
 }
 
-/** The output ids of one artisan lane. Rows with `output:null` (Inner Flame's fuels) add none. */
+/** The output ids of one artisan lane, every grade a rolled job can make included (jewelry.js recipeOutcomes). Rows with `output:null` (Inner Flame's fuels) add none. */
 export function artisanOutputIds(skill) {
   const s = new Set();
   const rows = (ARTISAN_RECIPES || {})[skill];
-  if (Array.isArray(rows)) for (const r of rows) if (r && r.output) s.add(r.output);
+  if (Array.isArray(rows)) for (const r of rows) for (const id of recipeOutcomes(r)) s.add(id);
   return s;
 }
 

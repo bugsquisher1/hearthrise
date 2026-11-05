@@ -23,6 +23,7 @@ import { DRINK_RECIPES } from './drinks.js?v=0.2.96';
 import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.96';
 import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.96';
 import { SHIELD_RECIPES } from './shields.js?v=0.2.96';
+import { JEWELRY_RECIPES } from './jewelry.js?v=0.2.96';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -297,7 +298,8 @@ export const ARTISAN_RECIPES = {
   /* The style ladder's made rungs (designer 2026-10-22, style-gear.js): each style's tier-2 weapon and the cloth line;
      the made shields (shields.js, Tyler 2026-10-23). */
   smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES)),
-  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, STYLE_GEAR_RECIPES.crafting)),
+  /* Crafted jewelry's rolled jobs (src/data/jewelry.js): a piece from the metal, and a gem set in a plain piece. */
+  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, STYLE_GEAR_RECIPES.crafting, JEWELRY_RECIPES)),
   inner_flame: byReq(BASE_RECIPES.inner_flame),
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };
@@ -337,6 +339,7 @@ export const ARTISAN_CATEGORIES = {
     { key: 'ammunition', label: 'Ammunition' },
     { key: 'weapons',    label: 'Weapons' },
     { key: 'armour',     label: 'Armor' },
+    { key: 'jewelry',    label: 'Jewelry' },
     { key: 'castle',     label: 'Building Materials' },
   ],
   cooking: [
@@ -387,6 +390,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (type === 'ammo') return 'ammunition';
     if (type === 'weapon' || type === 'offhand') return 'weapons';   // wand, spellbook, staff, bows
     if (type === 'armor') return 'armour';        // the cloth line
+    if (type === 'jewelry') return 'jewelry';     // the rolled pieces and their gem rolls (jewelry.js)
     if (isCastleGood(out)) return 'castle';       // Timber Beam, Keystone
     return null;
   }

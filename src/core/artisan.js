@@ -27,6 +27,7 @@
 // ============================================================
 
 import { advanceToolCarry } from './tools.js?v=0.2.96';
+import { rollOdds, perksFor, jewelId, ODDS_SCALE } from '../data/jewelry.js?v=0.2.96';
 
 /* ── Burn (open-fire cooking) ─────────────────────────────────────────
    Values unchanged from b225 / b227. Documented at length in
@@ -68,6 +69,23 @@ export function burnXp(recipe) {
   const xp = (recipe && Number(recipe.xp)) || 0;
   if (xp <= 0) return 0;
   return Math.max(1, Math.round(xp * BURN_XP_SHARE));
+}
+
+/* ── THE JEWEL ROLL (src/data/jewelry.js) ─────────────────────────────
+   Which grade a rolled job made, on the bench's own seeded stream: ONE draw for the grade at the hero's level in the
+   job's skill (rollOdds), then one per perk, uniformly from the perks the piece can roll (perksFor), the second from
+   those left. A job with no `roll` never reaches here, so it draws exactly what it drew before. The server's settle and
+   any preview run this one function on the same seed; only the server's lands in a bag. */
+export function rollJewel(recipe, level, rng) {
+  const plain = recipe.output;
+  const odds = rollOdds(recipe.roll, level);
+  const u = rng.next() * ODDS_SCALE;
+  const grade = u < odds.hallmarked ? 'hallmarked' : u < odds.hallmarked + odds.fine ? 'fine' : 'plain';
+  if (grade === 'plain') return { id: plain, grade, perks: [] };
+  const pool = perksFor(plain).slice();
+  const perks = [pool.splice(rng.int(0, pool.length - 1), 1)[0]];
+  if (grade === 'hallmarked') perks.push(pool[rng.int(0, pool.length - 1)]);
+  return { id: jewelId(plain, perks), grade, perks };
 }
 
 /* ── Recipe shape helpers ─────────────────────────────────────────────
@@ -143,6 +161,7 @@ export const BENCH_COUNTERS = {
  *   cookingLevel, noBurn,          // burn inputs; cooking only
  *   bonus(key),                    // craftSave, yield_<skill>
  *   toolCarry, toolDouble, toolXpB,
+ *   skillLevel,                    // the hero's level in the bench's skill: a rolled job's odds (rollJewel)
  *   rng
  * }
  * @returns {
@@ -231,6 +250,10 @@ export function resolveArtisanAction(recipe, ctx) {
 
   let qty = (recipe.outputQty || 1) + extraYield;
 
+  /* ── 3b. THE JEWEL ROLL: a rolled job's grade (rollJewel), drawn after every other roll so no other job's stream moves. */
+  const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;
+  if (rolled) events.push({ type: 'jewel_roll', recipe: recipe.id, id: rolled.id, grade: rolled.grade });
+
   /* ── 4. the artisan tool double — a DETERMINISTIC fractional carry, never
      an RNG roll, so the away replay is byte-identical run to run. */
   let toolDoubles = 0;
@@ -246,7 +269,7 @@ export function resolveArtisanAction(recipe, ctx) {
   const stats = bench ? Object.assign({}, bench.stats) : {};
   if (toolDoubles > 0) stats.toolDoubles = (stats.toolDoubles || 0) + toolDoubles;
 
-  const produced = recipe.output ? { id: recipe.output, qty } : null;
+  const produced = recipe.output ? { id: rolled ? rolled.id : recipe.output, qty } : null;
   if (produced) events.push({ type: 'produce', id: produced.id, qty: produced.qty });
 
   return {

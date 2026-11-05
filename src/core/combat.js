@@ -176,7 +176,27 @@ export function equipmentStats(equipment, items) {
     if (slot === 'weapon' && it.weaponType) s.weaponType = it.weaponType;
   });
   s.bane = baneIndex(equipment, items);
+  /* CRAFTED JEWELRY'S PERKS (src/data/jewelry.js): present only on a hero that wears one, so every other hero's stats are what they were. */
+  const jewel = jewelPerksOf(equipment, items);
+  if (jewel) s.jewel = jewel;
   return s;
+}
+
+/**
+ * The jewelry perks a worn set plays, { perk: permille }, or null with none. EACH PERK COUNTS ONCE PER HERO (the designer's
+ * rule): two rings of Keen play the larger Keen, never the sum, so a perk can't be stacked past its row's number.
+ */
+export function jewelPerksOf(equipment, items) {
+  let out = null;
+  for (const id of Object.values(equipment || {})) {
+    const p = id && items && items[id] ? items[id].jewelPerks : null;
+    if (!p) continue;
+    for (const k of Object.keys(p)) {
+      const pm = Math.floor(Number(p[k]) || 0);
+      if (pm > 0 && (!out || !(out[k] >= pm))) { out = out || {}; out[k] = pm; }
+    }
+  }
+  return out;
 }
 
 /* Wave 5c / b283: a SET is 5+ pieces of the same material tier AND the same
@@ -357,7 +377,9 @@ export function playerCombatRolls(monster, ctx) {
 
   const critBuff = bonus('crit') || 0;
   const set = (c.setBonus !== undefined) ? c.setBonus : armorSetBonus(c.equipment, items);
-  const critChance = clamp((eq.critB || 0) + critBuff + (set ? set.critB : 0), 0, COMBAT_BALANCE.critCap);
+  /* KEEN (src/data/jewelry.js): more critical basic blows. Only a basic blow reads critChance (damage.js roll); a spell never crits. */
+  const keen = eq.jewel && eq.jewel.keen ? eq.jewel.keen / 1000 : 0;
+  const critChance = clamp((eq.critB || 0) + critBuff + (set ? set.critB : 0) + keen, 0, COMBAT_BALANCE.critCap);
 
   return { accuracy, maxHit, critChance, weak, profile };
 }

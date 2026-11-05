@@ -42,6 +42,7 @@ import { EFFECT_KINDS } from './item-effects.js?v=0.2.96';
 import { MONSTERS } from './monsters.js?v=0.2.96';
 import { NAMED_FUELS } from './hearth.js?v=0.2.96';
 import { TEMPER_OFFERS } from './temper.js?v=0.2.96';
+import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.96';
 import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.96';
 import { HUNT_INDEX } from './hunts.js?v=0.2.96';
 import {
@@ -265,9 +266,10 @@ export function reachableSources(opts = {}) {
     for (const k of Object.keys(CROPS)) if (m.has(CROPS[k].seed)) grew = put(CROPS[k].prod, 'harvested') || grew;
     for (const skill of Object.keys(ARTISAN_RECIPES)) {
       for (const r of ARTISAN_RECIPES[skill] || []) {
-        if (!r || !r.output || m.has(r.output)) continue;
+        const outs = recipeOutcomes(r).filter((id) => !m.has(id));
+        if (!outs.length) continue;
         const need = Object.keys(recipeInputs(r)).concat(r.gated ? [r.gated] : []);
-        if (need.every((id) => m.has(id))) grew = put(r.output, 'made by ' + skill) || grew;
+        if (need.every((id) => m.has(id))) for (const id of outs) grew = put(id, 'made by ' + skill) || grew;
       }
     }
   }
@@ -343,6 +345,8 @@ export function itemUses() {
     for (const c of (o && o.cost) || []) if (c && c.kind === 'item') push(m, c.id, 'pays for ' + o.id);
   }
   for (const o of TEMPER_OFFERS) Object.keys(o.items).forEach((id) => push(m, id, 'pays for a Tempering rung'));
+  /* the Hallmark step (src/data/jewelry.js, hr_hallmark): a Fine piece and its tier's gem make the Hallmarked row */
+  for (const o of HALLMARK_OFFERS) { push(m, o.from, 'Hallmarked at the jeweler'); push(m, o.gem, 'pays for a Hallmark'); }
   addSet(m, seedIds(), 'planted');
   addSet(m, HEARTHFIND_ITEMS, 'a Hearthfind set piece');
   for (const id of VENDOR_TRASH) push(m, id, 'vendor trash');

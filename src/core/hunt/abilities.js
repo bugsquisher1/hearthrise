@@ -44,6 +44,7 @@ import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } fro
 import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.96';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.96';
 import { temperedAmount } from '../temper.js?v=0.2.96';
+import { SURGE_MULT_PM } from '../../data/jewelry.js?v=0.2.96';
 import { cheb, dist2, los } from './grid.js?v=0.2.96';
 import { makeEvent } from './events.js?v=0.2.96';
 import { landHit } from './damage.js?v=0.2.96';
@@ -287,12 +288,12 @@ export function firstUsable(inst, hero, sc, only) {
 }
 
 /* Heal `t` by up to `n`, capped at its missing HP (AB-09). */
-function healOne(u, t, n, sc) {
+function healOne(u, t, n, sc, surge) {
   /* TEMPERING raises a heal as it raises a blow (src/core/temper.js). */
   n = temperedAmount(n, u.blowsPm, sc.rng);
   const got = Math.max(0, Math.min(n, int(t.maxHp) - int(t.hp)));
   t.hp = int(t.hp) + got;
-  sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got }));
+  sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got, ...(surge ? { crit: true } : {}) }));
 }
 const roll = (sc, r) => sc.rng.int(r[0], r[1]);
 
@@ -304,6 +305,8 @@ function effect(inst, u, row, t, sc, v) {
   const pm = v && Number.isInteger(v.pm) && v.pm >= 0 ? v.pm : 1000;
   const scaled = (n) => (pm === 1000 ? n : Math.floor((n * pm) / 1000));
   const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
+  /* A Surge (fire, surged) shows on its numbers with the crit mark. */
+  const sg = !!(v && v.surge);
   /* The row's status on `m` after a hit (applyStatus refuses a look-alike) and its source: the unit, the caster's
      level in the row's scalesWith skill (Tyler 10-16: bleed scales slowly with Melee) and the version's rune tier.
      A marking status (Green Sickness) reads neither. */
@@ -321,34 +324,34 @@ function effect(inst, u, row, t, sc, v) {
       break;
     case 'enemy':
       for (let i = 0; i < (row.hits || 1); i++) {
-        landHit(inst, sc, u, t, roll(sc, row.dmg), el, hitTag);
+        landHit(inst, sc, u, t, roll(sc, row.dmg), el, hitTag, sg);
         afflict(t);
       }
       break;
     case 'area':
       for (const m of engaged(inst).filter((o) => cheb(o, t) <= 1).sort((a, b) => a.id - b.id)) {
-        landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag);
+        landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag, sg);
         afflict(m);
       }
       break;
     case 'cleave': {
       const hits = [t, ...engaged(inst).filter((m) => m !== t && cheb(m, u) <= 1).sort((a, b) => a.id - b.id)].slice(0, row.maxHits);
-      for (const m of hits) landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag);
+      for (const m of hits) landHit(inst, sc, u, m, roll(sc, row.dmg), el, hitTag, sg);
       break;
     }
     case 'self':
-      if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc); break; }
+      if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc, sg); break; }
       u.shield = scaled(row.shield);
       sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: u.id, amount: u.shield }));
       break;
     case 'ally':
-      if (row.heal) { healOne(u, t, scaled(roll(sc, row.heal)), sc); break; }
+      if (row.heal) { healOne(u, t, scaled(roll(sc, row.heal)), sc, sg); break; }
       t.shield = scaled(row.shield);
       sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: t.id, amount: t.shield }));
       break;
     case 'party':
       for (const a of living(inst, 'hero').sort((x, y) => x.id - y.id)) {
-        if (a === u || dist2(a, u) <= row.radius * row.radius) healOne(u, a, scaled(roll(sc, row.heal)), sc);
+        if (a === u || dist2(a, u) <= row.radius * row.radius) healOne(u, a, scaled(roll(sc, row.heal)), sc, sg);
       }
       break;
     default: break;
@@ -381,8 +384,15 @@ export function fire(inst, u, pick, sc) {
     ...(rune ? { supply: rune, version, power: pm } : {}),
     ...(refund > 0 ? { refund } : {}),
     ...(typeof pick.rule === 'string' ? { rule: pick.rule, rule_label: pick.label, pass: pick.mask } : {}) }));
-  effect(inst, u, row, pick.target, sc, { version, pm });
+  effect(inst, u, row, pick.target, sc, surged(u, row, sc) ? { version, pm: Math.floor((pm * SURGE_MULT_PM) / 1000), surge: true } : { version, pm });
   return true;
+}
+
+/* SURGE (src/data/jewelry.js): `surgePm` permille of a hero's casts that land numbers (a hit, a heal, a shield) land them
+   SURGE_MULT_PM as hard, shown with the crit mark. One draw a cast, made only by a hero that wears the perk and only for a
+   row with numbers (a taunt or a mark draws nothing), so every other cast draws what it drew before. */
+function surged(u, row, sc) {
+  return u.surgePm > 0 && !!(row.dmg || row.heal || row.shield) && sc.rng.chance(u.surgePm / 1000);
 }
 
 /** Mana regenerates ABILITY_RULES.manaRegenPctPerMin of max a minute, in milli-mana (AB-13), times

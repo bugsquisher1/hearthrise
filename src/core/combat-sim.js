@@ -115,6 +115,9 @@ function syncUnit(u, m) {
   /* TEMPERING, the same: at every boundary from the server's rungs, never persisted, absent at rung 0 (damage.js hurt, abilities.js healOne). */
   if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;
   if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;
+  /* CRAFTED JEWELRY'S PERKS, the same: never persisted, absent on a hero that wears none (damage.js roll, abilities.js fire). */
+  if (snap.followPm) u.followPm = snap.followPm; else if (u.followPm) delete u.followPm;
+  if (snap.surgePm) u.surgePm = snap.surgePm; else if (u.surgePm) delete u.surgePm;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
   u.maxMana = Math.max(u.maxMana || 0, m.state.playerMaxMana || 0);
   u.regenPm = m.state.regenPm;

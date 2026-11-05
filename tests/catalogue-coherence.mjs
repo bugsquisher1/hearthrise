@@ -25,7 +25,10 @@
 //   C5  every engine-coded source/use/consumer row still points at code that
 //       names it (a row cannot outlive the code it describes);
 //   C6  the Local Shop sells STARTER gear only (no tier >= 2 equippable for gold
-//       — top-10 #2: the first upgrade a player wears is one they made);
+//       — top-10 #2: the first upgrade a player wears is one they made), on the
+//       legacy equip table AND the outfitter's rows; the one exception is a plain
+//       crafted jewelry piece at a premium (Tyler 2026-11-05, call 5: at least
+//       JEWEL_SHOP_PREMIUM x its book, so it never undercuts the crafter);
 //   C7  the Collection Log's denominator is obtainableItemIds(), and that set is
 //       the whole catalogue;
 //   C8  armour climbs (2026-10-21: iron plate gave LESS max HP than bronze, its
@@ -83,6 +86,7 @@ import {
 } from '../src/data/catalogue-coherence.js';
 
 import { unclassifiedGrantIds } from '../src/data/item-authority.js';
+import { JEWEL_PIECES, JEWEL_SHOP_PREMIUM } from '../src/data/jewelry.js';
 import { START_CURRENCY } from '../src/data/start-kit.js';
 import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
 
@@ -173,9 +177,12 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   // C6 — the Local Shop is a starter counter.
   const loud = [];
   for (const o of SHOP_OFFERS) {
-    if (!o || o.table !== 'equip') continue;
+    if (!o || (o.table !== 'equip' && o.table !== 'supply')) continue;
+    const gold = ((o.cost || []).find((c) => c && c.kind === 'currency' && c.id === 'gold') || {}).amount || 0;
     for (const g of o.grant || []) {
       const it = ITEMS[g.id] || {};
+      /* plain crafted jewelry at a premium (src/data/jewelry.js JEWEL_SHOP_PRICE): the Shop never undercuts the crafter */
+      if (o.table === 'supply' && JEWEL_PIECES[g.id] && gold >= JEWEL_SHOP_PREMIUM * (Number(it.v) || 0)) continue;
       if (EQUIP_TYPES[it.type] && Number(it.tier) >= 2) loud.push(`${o.id} (tier ${it.tier})`);
       if (EQUIP_TYPES[it.type] && Number(it.reqLv) > 1) loud.push(`${o.id} (req ${it.reqSkill} ${it.reqLv})`);
     }
@@ -439,6 +446,17 @@ function mutate() {
     SHOP_OFFERS.push({ id: 'equip.iron_platebody', table: 'equip', cost: [{ kind: 'currency', id: 'gold', amount: 800 }],
       grant: [{ kind: 'item', id: 'iron_platebody', amount: 1 }], repeatable: true });
     return { restore: () => { SHOP_OFFERS.pop(); } };
+  });
+  run('the outfitter sells Iron plate', 'C6', () => {
+    SHOP_OFFERS.push({ id: 'supply.iron_platebody', table: 'supply', cost: [{ kind: 'currency', id: 'gold', amount: 80000 }],
+      grant: [{ kind: 'item', id: 'iron_platebody', amount: 1 }], repeatable: true });
+    return { restore: () => { SHOP_OFFERS.pop(); } };
+  });
+  run('the Shop sells the crafted ring at its book price, undercutting the crafter', 'C6', () => {
+    const o = SHOP_OFFERS.find((x) => x && x.id === 'supply.banded_signet');
+    const c = o.cost[0], was = c.amount;
+    c.amount = ITEMS.banded_signet.v;
+    return { restore: () => { c.amount = was; } };
   });
   run('an item nobody can obtain', 'C7', () => {
     ITEMS.__c7_probe = { name: 'Probe', type: 'material' };

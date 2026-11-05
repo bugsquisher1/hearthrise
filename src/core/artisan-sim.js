@@ -67,6 +67,7 @@ import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.96';
 import { sliceSpan } from './skill-sim.js?v=0.2.96';
 import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=0.2.96';
 import { levelOf } from './xp.js?v=0.2.96';
+import { recipeOutcomes } from '../data/jewelry.js?v=0.2.96';
 import { canPayNext, payCraft } from './bench-tax.js?v=0.2.96';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
@@ -135,7 +136,9 @@ export function bagFullFor(state, recipe, skill, ctx) {
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
   const burns = c.burns !== false && skill === 'cooking'
     && burnChance(recipe, levelOf(state && state.skills, 'cooking'), bonus('noBurn') || 0) > 0;
-  const opens = !held(recipe.output) ? recipe.output : (burns && !held(BURNT_ITEM) ? BURNT_ITEM : null);
+  /* A ROLLED job may make any grade of its piece (src/data/jewelry.js recipeOutcomes), so it needs room for the first it doesn't hold. */
+  const opens = recipe.roll ? (recipeOutcomes(recipe).find((id) => !held(id)) || null)
+    : !held(recipe.output) ? recipe.output : (burns && !held(BURNT_ITEM) ? BURNT_ITEM : null);
   if (opens === null) return null;
   let stacks = 0;
   for (const id in bag) if ((Number(bag[id]) || 0) > 0) stacks++;
@@ -253,6 +256,8 @@ export function resolveArtisanTick(state, recipe, ctx) {
        expressions of one number is how a bonus comes to apply live and not
        away (the `res.xpAmount` lesson from skill-sim.js, applied to burn). */
     cookingLevel: levelOf(state.skills, 'cooking'),
+    /* A rolled job's odds read the bench's skill level, from state, the same way (src/data/jewelry.js). */
+    skillLevel: levelOf(state.skills, skill),
     noBurn: bonus('noBurn') || 0,
     bonus,
     toolCarry: state.toolCarry,

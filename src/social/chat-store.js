@@ -23,11 +23,11 @@
 // System lines are the server's notices (channel 'system') and the account's
 // alerts (src/shell/alerts.js: rare drops, knock-outs, low supplies, ended hunts).
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.91';
-import { lineOf, systemLine, tabOfChannel, bodyOf, linkLabel } from './chat-lines.js?v=0.2.91';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.91';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.91';
-import { askVia } from '../session/intent-ledger.js?v=0.2.91';
+import { CHAT_TABS, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.93';
+import { lineOf, systemLine, tabOfChannel, bodyOf, linkLabel } from './chat-lines.js?v=0.2.93';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.93';
+import { partyMembershipOf } from '../session/party-sections.js?v=0.2.93';
+import { askVia } from '../session/intent-ledger.js?v=0.2.93';
 
 const SERVER_TABS = Object.freeze(['global', 'local', 'party', 'system']);
 const SEND_KIND = Object.freeze(Object.fromEntries(CHAT_TABS.filter((t) => t.send).map((t) => [t.id, t.send])));
@@ -250,6 +250,29 @@ export class ChatStore {
     this.draft = { text: '', links: [], rev: this.draft.rev + 1 };
     if (this._take(b.line, false)) this._changed();
     return { ok: true };
+  }
+
+  /**
+   * Pay the Town Crier for this line, at the price the player saw. Resolves { ok, price, n, perDay } or { ok:false, error, verb: 'crier', ... } (the server's numbers).
+   * The line is shown from the server's answer, and the character is re-read so the purse changes only from the envelope.
+   */
+  async cry(text, links, price) {
+    const cs = this.character();
+    if (!cs) return { ok: false, error: 'no_character' };
+    const body = bodyOf(text, links);
+    if (!body) return { ok: false, error: 'empty' };
+    if (!Number.isSafeInteger(price)) return { ok: false, error: 'bad_quote' };
+    const ans = await askVia(this._account, 'crier_send', () => this._account.server.rpc('hr_crier_send', { p_slot: cs.slot, p_body: body, p_price: price, p_idem: globalThis.crypto.randomUUID() }));
+    const b = ans.body;
+    const int = (v) => (Number.isSafeInteger(v) ? v : null);
+    if (!ans.ok || !b || b.ok !== true) {
+      return { ok: false, error: (b && typeof b.error === 'string' && b.error) || ans.error || 'refused', verb: 'crier',
+        n: int(b && b.n), max: int(b && b.max), need: int(b && b.need), level: int(b && b.level), perDay: int(b && b.per_day), waitS: int(b && b.wait_s), price: int(b && b.price) };
+    }
+    this.draft = { text: '', links: [], rev: this.draft.rev + 1 };
+    if (b.line && this._take(b.line, false)) this._changed();
+    if (typeof cs.load === 'function') await cs.load();
+    return { ok: true, price: int(b.price), n: int(b.n), perDay: int(b.per_day) };
   }
 
   /** A player was blocked: their lines leave every tab now. */

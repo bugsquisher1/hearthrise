@@ -12,3 +12,5 @@ const P = JSON.parse(readFileSync(FILE, 'utf8'));
 export const PALETTE_ID = P.id;
 /** Every colour, in ramp order. */
 export const PALETTE = Object.freeze(Object.values(P.ramps).flat());
+/** The material ramps by name, dark to light. */
+export const RAMPS = Object.freeze(P.ramps);

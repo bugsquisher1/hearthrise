@@ -31,8 +31,8 @@
 // The Characters window's (2026-12-04-hero-rename.sql):
 //   rename         { price, level, per_day, today, available, why }  what a new name costs, and whether it may
 // ════════════════════════════════════════════════════════════════════════
-import { huntBagOf } from './hunt-sections.js?v=0.2.91';
-import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.91';
+import { huntBagOf } from './hunt-sections.js?v=0.2.93';
+import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.93';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -168,6 +168,13 @@ export function presetsOf(cs) {
     out.push({ preset: r.preset, name: r.name, actionSet: Number.isInteger(r.action_set) ? r.action_set : null, gear });
   }
   return out;
+}
+
+/** `setup_slots`: how many setup numbers this hero may open and the next rung's price (null past the top), or null when the server sent none. */
+export function setupSlotsOf(cs) {
+  const s = read(cs, 'setup_slots');
+  if (!isObj(s) || count(s.count) === null || count(s.max) === null) return null;
+  return { count: s.count, max: s.max, price: count(s.price) };
 }
 
 /** `role`: the hunt role the server says the worn weapon gives, or null. */

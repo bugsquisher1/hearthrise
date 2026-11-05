@@ -17,12 +17,14 @@
 //   death_log       [{ id, at, hunt, session, monster, xp, xp_lost, saved }] newest first;
 //                   saved = what a Blessing kept, null when none was used
 //                   (2026-11-07-death-popup-blessing.sql)
+//   titles          { worn, rows: [{ id, words, price, kills, have, held, worn }] } (2027-02-28-titles.sql)
 //   state.level_xp  the character's Level XP (kills only, CORE_MODEL.md §1): the Level and
 //                   its progress are read off it on the shared curve (src/core/xp.js, the
 //                   curve hr_char_level uses), never counted in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.91';
-import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.91';
+import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.93';
+import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.93';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.93';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -60,6 +62,25 @@ export function characterSheetOf(cs) {
     fresh: s.fresh === true,
     combat: s.fresh === true ? combatOf(s.combat) : null,
   };
+}
+
+/** `titles` (2027-02-28-titles.sql): every title with the server's price, the kills it takes and this hero's own count, or null. A row with words the client refuses is not drawn. */
+export function titlesOf(cs) {
+  const t = read(cs, 'titles');
+  if (!isObj(t) || !Array.isArray(t.rows)) return null;
+  const rows = [];
+  for (const r of t.rows.slice(0, 500)) {
+    if (!isObj(r) || !id(r.id) || typeof r.words !== 'string' || !TITLE_WORDS.test(r.words) || nat(r.price) === null || nat(r.kills) === null || nat(r.have) === null) continue;
+    rows.push({ id: r.id, words: r.words, price: r.price, kills: r.kills, have: r.have, held: r.held === true, worn: r.worn === true });
+  }
+  return { rows };
+}
+
+/** The words of the title this hero wears ("the Wolfer"), or null. */
+export function wornTitleOf(cs) {
+  const t = titlesOf(cs);
+  const r = t && t.rows.find((x) => x.worn);
+  return r ? r.words : null;
 }
 
 /** The Level, from the server's `state.level_xp`: { xp, level, into, need } (need = XP across this Level), or null. */

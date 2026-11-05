@@ -30,6 +30,10 @@ export const RAMPS = Object.freeze({
   amber: ['#553a26', '#7a4f26', '#a8743a', '#f2a03a', '#f2a03a'],                     // Den Knot: deep amber resin (no red edge, no yellow core)
   marsh: ['#1a2c44', '#2b4a6a', '#5c6c7a', '#4fa8e8', '#a8e4ff', '#c4ccd2'],          // Rat King's Knot: marsh-gas blue
   mosslight: ['#3d6234', '#4f7a80', '#86b4b4', '#c8e6e0', '#a8e4ff'],                 // Mosslight Clump: cold blue-green glow
+  /* BOUGHT POWDERS (src/data/gold-sinks.js SHOW_FLAMES; the designer's gold sinks section). Three colors of their own: the named ones are never for sale. */
+  cinnabar: ['#3e1216', '#5e1a1f', '#8e1f1f', '#c23a2a', '#f2a03a'],                  // Cinnabar: red
+  quicklime: ['#6a6865', '#8a867d', '#c9bfa0', '#e6dcbc', '#c4ccd2'],                 // Quicklime: white
+  borax: ['#2c4a2c', '#3d6234', '#557a3e', '#73944c', '#7ccf4a'],                     // Borax: green
 });
 const hex = (d, i) => '#' + [d[i], d[i + 1], d[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('');
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));

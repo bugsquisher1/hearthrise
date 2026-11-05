@@ -7,10 +7,10 @@
 // worth at the server's bids, whether it is ready to hunt, its party, and how
 // many alerts wait for it. Nothing here is a number of the client's own.
 // ════════════════════════════════════════════════════════════════════════
-import { nameOf, bagOf, shopOf } from '../session/item-sections.js?v=0.2.91';
-import { assignmentOf, vitalsOf, roleIdOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.91';
-import { bagValue } from './bag-model.js?v=0.2.91';
-import { readinessOf } from './readiness.js?v=0.2.91';
+import { nameOf, bagOf, shopOf } from '../session/item-sections.js?v=0.2.93';
+import { assignmentOf, vitalsOf, roleIdOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.93';
+import { bagValue } from './bag-model.js?v=0.2.93';
+import { readinessOf } from './readiness.js?v=0.2.93';
 
 /**
  * @param {object} cs        a CharacterSession

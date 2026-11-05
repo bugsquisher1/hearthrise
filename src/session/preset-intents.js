@@ -10,11 +10,12 @@
 //   renameSetup(account, cs, preset, name)     hr_hunt_preset_rename
 //   deleteSetup(account, cs, preset)           hr_hunt_preset_delete
 //   renameActionSet(account, cs, preset, name) hr_action_set_rename (the bar's plaque)
+//   buySetupSlot(account, cs, price)           hr_setup_slot_buy, at the price the `setup_slots` section quoted (2027-02-28-setup-slots.sql)
 // A setup owns the action set of its own number (designer ruling 2026-10-22), so
 // both names are one name on the server: either verb renames both.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.91';
-import { ACTION_SET_LIMITS } from '../data/rule-subjects.js?v=0.2.91';
+import { askVia } from './intent-ledger.js?v=0.2.93';
+import { ACTION_SET_LIMITS } from '../data/rule-subjects.js?v=0.2.93';
 
 /* Setups saved before the one-model rule (numbers 5 to 7) can still be renamed or deleted. */
 const MAX_SETUP = 7;
@@ -51,6 +52,14 @@ export function renameSetup(account, cs, preset, name) {
 export function deleteSetup(account, cs, preset) {
   if (!okPreset(preset, MAX_SETUP)) return Promise.resolve({ ok: false, error: 'bad_intent' });
   return ask(account, cs, 'hunt_preset_delete', (server) => server.rpc('hr_hunt_preset_delete', { p_slot: cs.slot, p_preset: preset, p_idem: newIdem() }));
+}
+
+/** Buy this hero's next setup slot at the server's quote. The server re-quotes under its lock and answers quote_changed if the
+    price moved; that answer re-reads too, so the button shows the new price before the next press. */
+export function buySetupSlot(account, cs, price) {
+  if (!Number.isSafeInteger(price) || price < 1) return Promise.resolve({ ok: false, error: 'bad_intent' });
+  return ask(account, cs, 'setup_slot_buy', (server) => server.rpc('hr_setup_slot_buy', { p_slot: cs.slot, p_price: price, p_idem: newIdem() }))
+    .then(async (r) => { if (r.error === 'quote_changed' && cs.status !== 'closed') await cs.load(); return r; });
 }
 
 /** Name the action set the bar shows. */

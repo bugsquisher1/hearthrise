@@ -331,9 +331,10 @@ export function simulateHuntInstance(inst, ctx) {
       world.holdNext = holdPick(members.filter((m) => !m.left && m.unitId !== null));
       if (fresh) { world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false; }
       /* THE TIER (hunt-tiers.js): read every swing, like the hold pick, and never stored on the world. */
-      const tier = tierRowOf(ctx.ground.id, tierPick(members.filter((m) => !m.left && m.unitId !== null)));
+      const { ground } = ctx;
+      const tier = tierRowOf(ground.id, tierPick(members.filter((m) => !m.left && m.unitId !== null)));
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
-        ground: ctx.ground, grid: ctx.grid, heroes, tier, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
+        ground, grid: ctx.grid, heroes, tier, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
       seen(r.events);
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);

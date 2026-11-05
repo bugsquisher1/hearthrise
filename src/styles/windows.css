@@ -585,7 +585,7 @@
   .hw-hd-name { font-size: var(--t-h2); }
   /* A refusal gets the foot's width, on its own line over the press (panel 2026-11-01: one word per line in 45 px). */
   .hw-hd-foot { flex-wrap: wrap; padding: 6px 12px 8px; }
-  .hw-hd-foot .hh-intent-msg:not(:empty) { flex: 1 0 100%; }
+  .hw-hd-foot .hh-intent-msg:not(:empty), .hw-hd-foot .hw-enter-why:not(:empty) { flex: 1 0 100%; }
   .hw-pick.is-on { flex-wrap: wrap; }
   .hw-pick.is-on .hw-pick-name { flex: 1 1 80px; }
   .hw-upgrade-q { flex: 1 0 100%; }

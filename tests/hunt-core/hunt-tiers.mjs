@@ -123,7 +123,7 @@ const mutants = [
   { name: 'the data and the catalogue part: Deadly hits harder in the data only', case: 'catalogue', edits: [[D, GLADE_ROW, GLADE_ROW.replace('1500, 1200', '1600, 1200')]] },
   { name: 'the Glade loses its full box', case: 'rows', edits: [[D, GLADE_ROW, GLADE_ROW.replace('[8, 8, 8, 8]', '[6, 6, 6, 6]')]] },
   { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[D, "  meadowbrook_thicket: {", "  mill_cellar: { dangerous: tier('dangerous', [0, 0, 0, 0], 1500, 1050), deadly: tier('deadly', [0, 0, 0, 0], 2500, 1100) },\n  meadowbrook_thicket: {"]] },
-  { name: 'the settle reads no tier at all', case: 'harder-tier-costs', edits: [['src/core/combat-sim.js', "const tier = tierRowOf(ctx.ground.id, tierPick(members.filter((m) => !m.left && m.unitId !== null)));", "const tier = null;"]] },
+  { name: 'the settle reads no tier at all', case: 'harder-tier-costs', edits: [['src/core/combat-sim.js', "const tier = tierRowOf(ground.id, tierPick(members.filter((m) => !m.left && m.unitId !== null)));", "const tier = null;"]] },
   { name: 'a tier pays more gold a kill', case: 'harder-tier-costs', edits: [['src/core/hunt-rewards.js', "const y = yieldPm / 1000;", "const y = (yieldPm / 1000) * (ctx.tier ? ctx.tier.xpPm / 1000 : 1);"]] },
   { name: 'a word nobody offers plays a harder tier', case: 'normal-is-the-ground', edits: [[D, "return (rows && Object.prototype.hasOwnProperty.call(rows, id) && rows[id]) || NORMAL;", "return (rows && (rows[id] || rows.deadly)) || NORMAL;"]] },
   { name: 'the Glade pays double XP on Deadly: nobody moves on to the Warrens', case: 'ladder', edits: [[D, GLADE_ROW, GLADE_ROW.replace('1500, 1200', '1500, 2400')]] },

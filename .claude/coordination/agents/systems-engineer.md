@@ -4508,3 +4508,8 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 1. *A rule that moves every bill needs every guard that reads a bill.* I ran `sewer` and `first-week-bands` on the armor rule; `forest-cave` read the same money from the other end and went red in the release. Grep the bars, not the file names.
 2. *A coin roll's low end is the cheap lever.* The generated kill bound reads only the top roll, so raising the low end moves the mean with no catalogue apply. Check with `gen-hunt-sessions --check`.
 3. *A scratch skip is not a tick.* A ten-minute `world.skip` pays coin only at the window's end, and a store use reads the purse mid-window; one-minute steps are closer. The real gold-out on a fresh hero is the 300 g gold floor, and the sim has no purse at all: only the page shows it.
+## 2026-11-05 · lane/c-armor-tiers (the poacher rows, and the map the fixture plays)
+1. *When the page disagrees with the sim, stop and find the difference before believing either.* The sim said bill +63%; the page said +9%. Four hypotheses died (settle window, options, kill mix, dice) before the two grid builders turned up. The sim's map has object footprints the server's does not.
+2. *`opts.monsters` in the fixture does not reach a monster's speed*: pull-cycle imports the rows itself, so identical arms read as "no effect". Six identical lines is a broken arm, not a result. Plant the row in a tree copy.
+3. *Check a single row before calling a pair right.* The Rook moved everything on the fixture; the Glade Poacher moved nothing on either map.
+4. *A flat to-hit point is worth what the chance already is.* A guard point at a 9% chance to land is 22% of it. Rung bars in percent cannot be met by integer points there.

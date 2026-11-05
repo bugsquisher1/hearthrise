@@ -388,6 +388,34 @@ function rules(M) {
     }
   }
 
+  { // LV-JEWEL: CRAFTED JEWELRY'S PERKS, BOTH PATHS (src/data/jewelry.js): a viewer in two Hallmarked Keen + Follow-through rings and a peer tank in
+    // Surge + Follow-through and Keen + Surge, at the Sewer. BROWSER CLOSED: the server's commits land the extra crits and the second numbers. VIEWED:
+    // the viewer's browser, which holds the peer only as frozen numbers (its followPm and surgePm ride the snapshot), predicts every commit.
+    const mk = (rings) => {
+      const mis = [memberOf(M, 'a', 0, 'melee_dps', 20), memberOf(M, 'b', 1, 'tank', 20)];
+      mis[0].equipment = { weapon: 'iron_sword', body: 'iron_platebody', ...(rings ? { ring1: 'banded_signet_keen_follow', ring2: 'banded_signet_keen_follow' } : {}) };
+      mis[1].equipment = { weapon: 'iron_sword', shield: 'practice_shield', body: 'iron_platebody', helmet: 'iron_helm',
+        ...(rings ? { ring1: 'banded_signet_surge_follow', ring2: 'banded_signet_keen_surge' } : {}) };
+      for (const m of mis) m.huntId = 'millrace_sewer';
+      return mis;
+    };
+    const fought = (rings) => {
+      const mis = mk(rings), seen = [];
+      let follows = 0;
+      const r = run(M, mis, 240000, { server: { hunt: 'millrace_sewer' }, onCommit: ({ c }) => {
+        for (const e of c.tl.hunt_events) { if (e.type === 'dmg' || e.type === 'heal') seen.push(e.type + e.u + e.t + e.amount); if (e.type === 'dmg' && e.follow === true) follows++; }
+      } });
+      return { r, seen: seen.join(), follows };
+    };
+    const plain = fought(false), worn = fought(true);
+    console.log('  LV-JEWEL server: ' + plain.seen.split(',').length + ' numbers plain, ' + worn.seen.split(',').length + ' in the rings, ' + worn.follows + ' follow-throughs; '
+      + worn.r.verdicts.filter((x) => x.v === 'match').length + ' of ' + worn.r.verdicts.length + ' commits matched the prediction');
+    ok('LV-JEWEL', plain.seen.length > 0 && plain.follows === 0, 'the fixture has no fight, or plain rings followed through (' + plain.follows + ')');
+    ok('LV-JEWEL', worn.seen !== plain.seen && worn.follows > 0, 'the rings changed nothing on the server (' + worn.follows + ' follow-throughs)');
+    const bad = worn.r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-JEWEL', worn.r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict a party in Hallmarked rings: ${bad.length} of ${worn.r.verdicts.length} commits diverged`);
+  }
+
   { // LV-U: THE LEVEL SHARE, BOTH PATHS (lane/c-risk-ladder; hunt-grounds.js underFloorSharePm): a Level 12 viewer behind a Level 40 peer whose browser row holds only frozen numbers: the
     // low seat's cut share is what the server pays, viewed and browser closed, and what the browser predicts.
     const SPAN = 240000;
@@ -1473,6 +1501,8 @@ const MUTANTS = [
   ["a peer's frozen numbers drop its Armor rung (LV-TEMPER)", 'src/core/member.js', '...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ', '', /^LV-TEMPER/],
   ['the settle never puts the Armor rung on the hero (LV-TEMPER)', 'src/core/combat-sim.js', '  if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;\n', '', /^LV-TEMPER/],
   ['the settle never puts the Blows rung on the hero (LV-TEMPER)', 'src/core/combat-sim.js', '  if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;\n', '', /^LV-TEMPER/],
+  ["a peer's frozen numbers drop its jewelry perks (LV-JEWEL)", 'src/core/member.js', '...jewelSnap(snap), ', '', /^LV-JEWEL/],
+  ['the settle never puts Follow-through on the hero (LV-JEWEL)', 'src/core/combat-sim.js', '  if (snap.followPm) u.followPm = snap.followPm; else if (u.followPm) delete u.followPm;\n', '', /^LV-JEWEL/],
   ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, armour: snap.armour || null, level: snap.level }, vs,', 'def: snap.def, level: snap.level }, vs,', /^LV-A/],
   ['the settle never puts the armour on the hero (LV-A)', 'src/core/combat-sim.js', '  u.armour = snap.armour || null;', '  u.armour = null;', /^LV-A/],
   ['the pull leader is back to role order (LV-PULL, bug #61)', 'src/core/hunt/pull-cycle.js', '  return holderTank(inst).id;\n', '  return byRole;\n', /^LV-PULL/],

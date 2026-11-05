@@ -35,13 +35,14 @@ const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titl
 const PORTRAIT_SCALE = 1;
 
 /* The hunt art set, once loaded (null until then; the canvases stay blank, never a stand-in), and the color masks (null: the outfit draws as it is). */
-let ART = null, MASKS = null;
+let ART = null, MASKS = null, masksAsked = false;
 function wantArt(doc) {
-  if ((ART && MASKS) || !doc || !doc.baseURI) return;
+  if ((ART && masksAsked) || !doc || !doc.baseURI) return;
   /* The build's cache-buster is this module's own ?v= (bump-version.sh keeps every one equal). */
   const v = new URL(import.meta.url).searchParams.get('v') || '';
   if (!ART) outfitArt(doc, v).then((a) => { ART = a; }).catch(() => { /* the canvases stay blank */ });
-  if (!MASKS) outfitMasks(doc, v).then((m) => { MASKS = m; }).catch(() => { /* drawn as it is; the picker stays off */ });
+  /* asked once a page: a failed fetch draws the outfit as it is and keeps the picker off, it doesn't ask again on every patch */
+  if (!masksAsked) { masksAsked = true; outfitMasks(doc, v).then((m) => { MASKS = m; }).catch(() => {}); }
 }
 
 /** The skeleton (built once per opening). */

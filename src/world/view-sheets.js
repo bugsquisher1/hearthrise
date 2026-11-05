@@ -7,7 +7,7 @@
 // gained the first frame nothing), and a view that reaches one before it lands
 // keeps its last frame until it does: never a stub. A failed sheet counts as arrived and draws stubs, as it always has.
 // Only the town: a ground's monsters walk in from sheets no view names yet, so a ground still opens whole.
-// Proof: tests/client-boot.mjs B-20.
+// Proof: tests/client-boot.mjs B-21; its pixels, tests/perf-budget.mjs PB-VIEW.
 // ════════════════════════════════════════════════════════════════════════
 import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.89';
 

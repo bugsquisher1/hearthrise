@@ -389,10 +389,10 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
 <div id="d" style="position:absolute;left:0;top:1260px;width:844px;height:390px"></div>
 <script type="module">
   const q = location.search;
-  const [{ createCanvasBackend: A }, { createCanvasBackend: B }, { loadAtlases }, { compileMap }, { WORLD_MAPS, SCENE_MAPS }, TER, { STUB_SPRITE }, { BUILD }, { STATIONS }] = await Promise.all([
+  const [{ createCanvasBackend: A }, { createCanvasBackend: B }, { loadAtlases }, { compileMap }, { WORLD_MAPS, SCENE_MAPS }, TER, { STUB_SPRITE }, { BUILD }, { STATIONS }, { groundOf, composeFrame }] = await Promise.all([
     import('/src/world/render/canvas-backend.js' + q), import('/src/world/render/canvas-backend.redraw.js' + q), import('/src/world/atlas.js' + q),
     import('/src/world/core/map-compile.js' + q), import('/src/data/world/maps/index.js' + q), import('/src/data/world/terrain.js' + q),
-    import('/src/world/core/book.js' + q), import('/src/build-info.js' + q), import('/src/data/world/stations.js' + q)]);
+    import('/src/world/core/book.js' + q), import('/src/build-info.js' + q), import('/src/data/world/stations.js' + q), import('/src/world/core/compose.js' + q)]);
   const { book, images } = await loadAtlases({ doc: document, version: BUILD.cache });
   const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
   const tables = { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: TER.LIGHTS };
@@ -466,6 +466,7 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
      given only the sheets its frame names (backend.missing), one given all of them; every pixel of every frame must agree, at a sample of every stand in town. */
   const townRow = WORLD_MAPS.find((m) => m.id === SCENE_MAPS.town);
   const townMap = compileMap(townRow, tables);
+  const townTiles = groundOf(townMap, book, tables, 32).tiles.slice();
   const some = {};
   const onView = A({ win: window, doc: document, book, images: some, tables, css, arrived: (s) => s in some });
   const allOf = A({ win: window, doc: document, book, images, tables, css });
@@ -499,21 +500,50 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
     for (const s of onView.missing(st)) some[s] = images[s];
     const absent = Object.keys(images).filter((s) => !(s in some));
     settle(onView, st);
-    let onto = null, sheet = null;
-    /* the nearest step, inside the chunks this view already baked, that draws an absent sheet from the ground */
-    for (let dx = 1; dx <= 12 && !onto; dx++) for (const [ax, ay] of [[dx, 0], [-dx, 0], [0, dx], [0, -dx]]) {
-      const next = standIn(x + ax, y + ay);
-      const need = onView.missing(next);
-      const hit = need.find((s) => absent.includes(s));
-      if (hit && Math.floor((x + ax) / 16) === Math.floor(x / 16) && Math.floor((y + ay) / 16) === Math.floor(y / 16)) { onto = next; sheet = need; break; }
-    }
+    /* a ground tile from an absent sheet, in the chunk under the hero: baked already, with a hole where that tile goes */
+    const cx = Math.floor(x * 32 / 512), cy = Math.floor(y * 32 / 512);
+    const tile = townTiles.find((g) => absent.includes(g.set) && Math.floor(g.x / 512) === cx && Math.floor(g.y / 512) === cy);
+    const onto = tile ? standIn(tile.x / 32, tile.y / 32) : null;
     if (!onto) continue;
+    const sheet = onView.missing(onto);
+    if (!sheet.includes(tile.set)) continue;
     for (const s of sheet) some[s] = images[s];
     settle(onView, onto); settle(allOf, onto);
     out.view.stale = { at: [x, y], to: [onto.hero.x, onto.hero.y], sheets: sheet, bytes: differs() };
     break;
   }
+  /* WHAT THE SHIPPED MAP RARELY REACHES: a wall's cap, or a shadow falling past its own sprite, from a sheet nothing else in the frame names. The same map, with those
+     sprites filed in sheets of their own (the same art), so each is the only thing in the frame that can name its sheet. */
+  const filed = (id, set) => { const s = book.sprites[id]; return !s ? set : /_cap(_[a-z]+)?$/.test(id) ? set + '~cap' : s.shadow && s.shadow.kind === 'cast' ? set + '~cast' : set; };
+  const plantBook = Object.assign({}, book, { frame(id, ...r) { const f = book.frame(id, ...r); return Object.assign({}, f, { set: filed(id, f.set) }); } });
+  const plantAll = {};
+  for (const s of Object.keys(images)) { plantAll[s] = images[s]; plantAll[s + '~cap'] = images[s]; plantAll[s + '~cast'] = images[s]; }
+  const plantSome = {};
+  const onPlant = A({ win: window, doc: document, book: plantBook, images: plantSome, tables, css, arrived: (s) => s in plantSome });
+  const allPlant = A({ win: window, doc: document, book: plantBook, images: plantAll, tables, css });
+  const cOf = (b, id) => { const el = document.getElementById(id); el.querySelectorAll('canvas').forEach((c) => c.remove()); b.mount(el); b.setZoom(2); };
   onView.destroy(); allOf.destroy();
+  cOf(onPlant, 'c'); cOf(allPlant, 'd');
+  out.view.planted = { frames: 0, differ: [], caps: 0, casts: 0 };
+  const plantFrame = (m, x, y) => {
+    for (const k of Object.keys(plantSome)) delete plantSome[k];
+    onPlant.setMap(m); allPlant.setMap(m);
+    const st = standIn(x, y);
+    const miss = onPlant.missing(st);
+    for (const s of miss) plantSome[s] = plantAll[s];
+    settle(onPlant, st); settle(allPlant, st);
+    const n = differs();
+    if (n) out.view.planted.differ.push([m.id, x, y, n, miss.join('+')]);
+    out.view.planted.frames++;
+    if (miss.some((s) => s.endsWith('~cap'))) out.view.planted.caps++;
+    if (miss.some((s) => s.endsWith('~cast'))) out.view.planted.casts++;
+  };
+  for (const [x, y] of stands.filter((_, i) => i % 2 === 0)) plantFrame(townMap, x, y);
+  /* the town has no walls of its own today; the first base-grid map that does, hero beside its caps */
+  const whole = (m) => ({ ox: 0, oy: 0, w: m.w * 32, h: m.h * 32 });
+  const walled = WORLD_MAPS.filter((r) => !r.grid || r.grid === 'base').map((r) => compileMap(r, tables)).find((m) => composeFrame(m, book, { hero: null }, whole(m), tables, 32).raised.length);
+  if (walled) { const caps = composeFrame(walled, book, { hero: null }, whole(walled), tables, 32).raised; for (let i = 0; i < caps.length; i += Math.max(1, Math.floor(caps.length / 8))) plantFrame(walled, caps[i].tx, caps[i].ty); }
+  onPlant.destroy(); allPlant.destroy();
   window.__pix = out;
 </script></body></html>`;
 
@@ -553,6 +583,8 @@ async function pixelRule(browser, extra) {
     const w = r.view;
     if (w.differ.length) f.push(`PB-VIEW a town frame with only the sheets it named painted other pixels than a frame with every sheet at ${w.differ.length} of ${w.frames} stands (first: ${JSON.stringify(w.differ[0])})`);
     if (!(w.frames >= 20 && w.lacking > 0)) f.push(`PB-VIEW harness: ${w.frames} frames, ${w.lacking} with a sheet left out: the rule proved nothing`);
+    if (w.planted.differ.length) f.push(`PB-VIEW a wall's cap or a falling shadow from a sheet nothing else named painted other pixels at ${w.planted.differ.length} of ${w.planted.frames} frames (first: ${JSON.stringify(w.planted.differ[0])})`);
+    if (!(w.planted.caps > 0 && w.planted.casts > 0)) f.push(`PB-VIEW harness: of ${w.planted.frames} planted frames ${w.planted.caps} drew a cap and ${w.planted.casts} a cast shadow: the plant proved nothing`);
     if (!w.stale) f.push('PB-VIEW harness: no stand has an absent sheet just off screen inside its own chunk');
     else if (w.stale.bytes) f.push(`PB-VIEW a chunk baked with a hole kept it after its sheet landed: ${w.stale.bytes} bytes differ at ${JSON.stringify(w.stale.to)}`);
     return f;

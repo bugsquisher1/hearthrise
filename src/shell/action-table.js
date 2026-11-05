@@ -16,14 +16,14 @@
 //   sourceLine(row, ctx)  where its uses come from
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.89';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.89';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.89';
-import { ITEMS } from '../data/items.js?v=0.2.89';
-import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.89';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.89';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.89';
-import { shortOf } from './item-lore.js?v=0.2.89';
+import { ABILITIES } from '../data/abilities.js?v=0.2.90';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.90';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.90';
+import { ITEMS } from '../data/items.js?v=0.2.90';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.90';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.90';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.90';
+import { shortOf } from './item-lore.js?v=0.2.90';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));

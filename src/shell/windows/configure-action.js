@@ -22,21 +22,21 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.89';
-import { STATUSES } from '../../data/statuses.js?v=0.2.89';
-import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.89';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.89';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.89';
-import { carriedOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.89';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.89';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.89';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.89';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.89';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, reasonOf } from '../action-facts.js?v=0.2.89';
-import { glyphSvg } from '../launcher.js?v=0.2.89';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.89';
-import { carryRows, carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.89';
-import { whole } from '../../render/format.js?v=0.2.89';
+import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.90';
+import { STATUSES } from '../../data/statuses.js?v=0.2.90';
+import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.90';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.90';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.90';
+import { carriedOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.90';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.90';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.90';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.90';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.90';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, reasonOf } from '../action-facts.js?v=0.2.90';
+import { glyphSvg } from '../launcher.js?v=0.2.90';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.90';
+import { carryRows, carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.90';
+import { whole } from '../../render/format.js?v=0.2.90';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');

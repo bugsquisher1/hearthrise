@@ -6,20 +6,20 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.89';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.89';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.89';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.89';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.89';
-import { levelOf } from '../session/character-sections.js?v=0.2.89';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.89';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.89';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.89';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.89';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.89';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.89';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.89';
-import { trackOnce } from '../net/observability.js?v=0.2.89';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.90';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.90';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.90';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.90';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.90';
+import { levelOf } from '../session/character-sections.js?v=0.2.90';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.90';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.90';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.90';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.90';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.90';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.90';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.90';
+import { trackOnce } from '../net/observability.js?v=0.2.90';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {

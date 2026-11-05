@@ -12,7 +12,7 @@
 // (authLockFor, src/net/auth-lock.js): a session that still lasts waits on no other tab.
 // ════════════════════════════════════════════════════════════════════════
 
-import { createAuthLock } from './auth-lock.js?v=0.2.89';
+import { createAuthLock } from './auth-lock.js?v=0.2.90';
 
 export const SUPABASE_CONFIG = Object.freeze({
   url: 'https://nezapsylztqbbwuwembx.supabase.co',

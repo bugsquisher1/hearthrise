@@ -112,6 +112,9 @@ function syncUnit(u, m) {
   u.heroLv = snap.level;
   /* THE ARMOUR (ruling K7, mitigation.js): the member's gear values at every boundary, never persisted, so a decoded world gets them back here before any blow; each blow prices them against its attacker. */
   u.armour = snap.armour || null;
+  /* TEMPERING, the same: at every boundary from the server's rungs, never persisted, absent at rung 0 (damage.js hurt, abilities.js healOne). */
+  if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;
+  if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
   u.maxMana = Math.max(u.maxMana || 0, m.state.playerMaxMana || 0);
   u.regenPm = m.state.regenPm;

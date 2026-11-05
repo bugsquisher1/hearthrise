@@ -146,7 +146,7 @@ export const REFUSAL_WORDS = Object.freeze({
   nothing_to_dispatch: 'Nothing in your bag has a Deposit or Sell plan.',
   start_kit: 'The shop does not buy back your starting kit. You can still deposit it in Storage.',
   /* The House window (2026-11-29-house-home.sql, hr_unlock_buy) and the storage chests (hr_storage_chest_build). */
-  already_owned: 'Your house already has that.',
+  already_owned: 'You already have that.',
   prereq_property_tier: 'Your house is too small for that yet. Buy the next home first.',
   prereq_item: 'That needs a plan you do not carry.',
   unlock_daily_cap: 'That is enough building for today. Try again tomorrow.',

@@ -22,6 +22,7 @@
 // ============================================================
 
 import { ARMOUR_WEIGHT, ARMOUR_MITIGATION } from '../data/core-model.js?v=0.2.90';
+import { temperedAmount } from './temper.js?v=0.2.90';
 
 const nat = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
 
@@ -67,14 +68,16 @@ export function mitigationFor(equipment, items, level) {
 
 /**
  * A LANDED blow of `n` through absorb, the resistance permille `el` and ward, never below the
- * profile's keep floor (the total cap) nor below 1. Answers what reaches the shield and HP.
+ * profile's keep floor (the total cap) nor below 1. Answers what reaches the shield and HP. `armorPm` is the wearer's
+ * Tempering (src/core/temper.js), the chain's last step, so it can never pass the cap; none, and `rng` is not touched.
  */
-export function mitigate(n, el, mit) {
+export function mitigate(n, el, mit, armorPm, rng) {
   const raw = Math.max(0, Math.floor(n));
   const m = mit || NO_MITIGATION;
   let x = raw - Math.floor((raw * (m.absorbPm || 0)) / 1000);
   x = Math.floor((x * el) / 1000);
   x -= Math.max(0, m.ward || 0);
+  if (armorPm) x = temperedAmount(x, -armorPm, rng);
   const floor = m.keepPm ? Math.floor((Math.floor((raw * el) / 1000) * m.keepPm) / 1000) : 0;
   return Math.max(1, floor, x);
 }

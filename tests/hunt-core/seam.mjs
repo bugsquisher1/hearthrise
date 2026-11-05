@@ -8,7 +8,7 @@ const SEAM = {
   targeting: { pickTargets: 3, chooseTargets: 2 },
   roles: { positionHeroes: 2 },
   'pull-cycle': { respawnPacks: 2, runPhase: 2, clearCorpses: 2 },
-  damage: { hurt: 6, resolveAttacks: 2 },
+  damage: { hurt: 7, resolveAttacks: 2 },
   /* firstUsable's 4th, `only` (lane b-spell-roles: between pulls only the heal and shield slots are walked) */
   abilities: { firstUsable: 4, castAbilities: 2 },
   status: { applyStatus: 5, tickStatuses: 2 },

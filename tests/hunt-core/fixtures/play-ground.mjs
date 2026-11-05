@@ -6,7 +6,6 @@
 // bought from the store per use: store gold out is the whole supply bill. Prints per hour and per hero: Level
 // XP (kills only), combat skill XP, coin, commons (drops at 5% or more, at the vendor's bid), rares, store gold and the net.
 // Today's engine spawns each pocket's `spawns` (the default pull); a deeper density is not playable yet.
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -31,7 +30,7 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
     the server's default), ground (a ground row played instead of the hunt's own: a what-if copy with other numbers) }.
     The answer's `members` is each hero's state at the end (levelXp, skills, gold, hp, ended). */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
-export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue', 'src/world/core', 'assets/world']);
+export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue']);
 
 export async function loadPlay(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
@@ -39,24 +38,14 @@ export async function loadPlay(root) {
   const CAT = await import(u('supabase/functions/hr-accrue/catalogue.js'));
   const SPAWN = await import(u('src/core/hunt-spawn.js'));
   const { wornRoleKey } = await import(u('src/data/hunt-roles.js'));
-  const GRID = await import(u('src/core/hunt/grid.js'));
   const XP = await import(u('src/core/xp.js'));
   const SB = await import(u('src/data/supply-basics.js'));
   const G = await import(u('src/data/hunt-grounds.js'));
-  const MAPS = await import(u('src/data/world/maps/index.js'));
-  const TER = await import(u('src/data/world/terrain.js'));
-  const MC = await import(u('src/world/core/map-compile.js'));
-  const SETS = await import(u('src/data/world/atlas-sets.js'));
   const { MONSTERS } = await import(u('src/data/monsters.js'));
   const { ITEMS } = await import(u('src/data/items.js'));
-  const sprites = {};
-  for (const s of SETS.ATLAS_SETS) Object.assign(sprites, JSON.parse(readFileSync(join(root, 'assets/world/atlas-' + s + '.json'), 'utf8')).sprites);
-  const gridOf = (mapId) => {
-    const row = MAPS.mapRowOf(mapId);   // a staged map plays too (hunts.js `staged`: fitted before its art lands)
-    const map = MC.compileMap(row, { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: {} });
-    const solid = (x, y) => { const m = TER.MATERIALS[map.ground[y * map.w + x]]; return !!(m && m.solid && !m.flat); };
-    return GRID.makeGrid(map.w, map.h, (x, y) => map.mask[y * map.w + x] === 0, solid);
-  };
+  /* THE SERVER'S MAP, from the one builder the edge settle calls. Until 2026-11-05 this fixture built its own grid from the client's compiled collision mask, object
+     footprints the server does not have, and every kiting number it read was on another map (forest-cave sim-plays-the-server-map holds this). */
+  const { gridOfMap } = await import(u('src/core/hunt-ground.js'));
   const basics = {};
   for (const b of SB.BASIC_SUPPLIES) basics[b.id] = { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner };
   /* THE STORE: every catalogue row; the bar's slots pick the row a use buys (Tyler 2026-10-21: a slot names ONE
@@ -125,7 +114,7 @@ export async function loadPlay(root) {
   };
   const run = (huntId, L, roles, opts = {}) => {
     const span = opts.spanMs || SPAN, secret = opts.secret || SECRET, monsters = opts.monsters || MONSTERS;
-    const ground = opts.ground || G.HUNT_GROUNDS[huntId], grid = gridOf(ground.map);
+    const ground = opts.ground || G.HUNT_GROUNDS[huntId], grid = gridOfMap(ground.map);
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
     const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null,
       typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true));
@@ -193,7 +182,7 @@ export async function loadPlay(root) {
     const per = 3600000 / span / roles.length;
     const r = (n) => Math.round(n * per);
     const income = r(T.coin + T.commons), store = r(T.store);
-    return { spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, heroRares, rareRolls, killsBy, heroes: members.map((m) => m.key),
+    return { grid, spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, heroRares, rareRolls, killsBy, heroes: members.map((m) => m.key),
       members: members.map((m) => ({ key: m.key, levelXp: m.levelXp, skills: { ...m.skills }, gold: m.gold, hp: m.hp, ended: m.ended || null })),
       kills: Math.round(T.kills * 3600000 / span), falls: T.falls, xp: r(T.xp), levelXp: r(T.levelXp), coin: r(T.coin), commons: r(T.commons), rares: r(T.rares), store, income,
       margin: store ? Math.round((income / store - 1) * 100) + '%' : 'no store spend', net: income + r(T.rares) - store, ended: T.ended };

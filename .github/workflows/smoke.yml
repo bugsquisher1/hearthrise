@@ -4936,6 +4936,16 @@ jobs:
           node tests/bench-tax.mjs
           node tools/mutant-gate.mjs node tests/bench-tax.mjs --mutate
 
+      # THE GOLD SINKS (Tyler 2026-11-04): every price is a row generated into hr_sink_rules; the shared seams (the title on a chat row and
+      # the town label, the hero's colors, the town read's extras) reach a stranger, a later lane's body survives a second apply.
+      - name: Gold sinks - the rules, the seams
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-gold-sinks.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-gold-sinks.mjs --selftest
+          node tests/town-shows.mjs
+          node tools/mutant-gate.mjs node tests/town-shows.mjs --selftest
+
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt
       # has a walk and a sensible bag, and every end reason has plain copy.

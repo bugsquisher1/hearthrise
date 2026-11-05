@@ -18,7 +18,7 @@
 //                  in it moves: readDue): the people in this
 //                  character's town instance and around its view (the `area`
 //                  the server answers), as the server names them (id, slot, name,
-//                  level, role, outfit, tiles, facing, station, work), and `me`,
+//                  level, role, title, colors, outfit, tiles, facing, station, work), and `me`,
 //                  this character's own stand. With the last answer's `cursor`
 //                  it answers only what CHANGED (upserted here) and who is
 //                  `gone` (dropped here); a `full` answer REPLACES the list (one
@@ -52,6 +52,14 @@ const MAP_ID = /^[a-z0-9_]{1,40}$/;
 const STATION = /^[a-z0-9_]{1,40}$/;
 const ROLE = /^[a-z_]{1,32}$/;
 const OUTFIT = /^[a-z0-9_]{1,32}$/;
+/* a catalogue's words (hr_title_of): "the Wolfer". Never a player's text, and refused here if it ever isn't plain words */
+const TITLE = /^[A-Za-z][A-Za-z' -]{0,39}$/;
+const REGIONS = ['head', 'body', 'legs', 'feet'];
+/** The hero's own four colors as the server sent them (dye indexes), validated, or null. Pure. */
+function colorsOf(c) {
+  if (!c || typeof c !== 'object' || !REGIONS.every((r) => Number.isInteger(c[r]) && c[r] >= 0 && c[r] <= 999)) return null;
+  return Object.freeze({ head: c.head, body: c.body, legs: c.legs, feet: c.feet });
+}
 const tile = (v) => Number.isInteger(v) && v >= 0 && v <= 255;
 
 /** One walker as the server sent it, validated, or null. Pure. */
@@ -62,6 +70,8 @@ export function walkerOf(w) {
     id: w.id.toLowerCase(), slot: Number.isInteger(w.slot) ? w.slot : null, name: w.name.slice(0, 24),
     level: Number.isInteger(w.level) && w.level >= 0 ? w.level : null,
     role: typeof w.role === 'string' && ROLE.test(w.role) ? w.role : null,
+    title: typeof w.title === 'string' && TITLE.test(w.title) ? w.title : null,
+    colors: colorsOf(w.colors),
     /* the outfit its character chose (player_outfits via hr_town_view), or null: the role's then */
     outfit: w.outfit && typeof w.outfit === 'object' && typeof w.outfit.id === 'string' && OUTFIT.test(w.outfit.id) ? w.outfit.id : null,
     x: w.x, y: w.y, gx: w.gx, gy: w.gy, dir: w.dir,
@@ -139,6 +149,7 @@ export class TownPresence {
     this._reading = null; this._next = null;   // the read in flight, and the one asked while it is out
     this._me = null;          // this character's own stand, as the server last said
     this._hearth = null;      // the named flame the Great Hearth burns, as the last town answer said (local clock)
+    this._extras = null;      // what hr_town_extras added to the last town answer (the Town Works)
     this._burn = null;        // this character's last named burn the server accepted ({item, at}: the throw the World plays)
     this._sent = null;        // the last place the server took
     this._sentAt = -Infinity;
@@ -170,7 +181,7 @@ export class TownPresence {
     this._parked = false;
     this._map = m;
     this._quiet = 0; this._heard = null;
-    this._known = new Map(); this._walkers = []; this._readAt = null; this._cursor = null; this._readCenter = null; this._want = null; this._hearth = null;
+    this._known = new Map(); this._walkers = []; this._readAt = null; this._cursor = null; this._readCenter = null; this._want = null; this._hearth = null; this._extras = null;
     if (this._timer !== null) { this._clear(this._timer); this._timer = null; }
     if (m) {
       this._timer = this._set(() => this._tick(), this.limits.pollMs);
@@ -331,7 +342,7 @@ export class TownPresence {
     let heard = this._hearth ? this._hearth.flame : '';
     let walking = false;
     for (const w of list) {
-      heard += '|' + keyOf(w) + ':' + w.x + ',' + w.y + ',' + w.gx + ',' + w.gy + ',' + w.dir + ',' + w.station + ',' + w.work + ',' + w.outfit;
+      heard += '|' + keyOf(w) + ':' + w.x + ',' + w.y + ',' + w.gx + ',' + w.gy + ',' + w.dir + ',' + w.station + ',' + w.work + ',' + w.outfit + ',' + w.title + ',' + (w.colors ? w.colors.head + '.' + w.colors.body + '.' + w.colors.legs + '.' + w.colors.feet : '');
       if (w.x !== w.gx || w.y !== w.gy) walking = true;
     }
     this._quiet = walking || heard !== this._heard ? 0 : this._quiet + 1;
@@ -360,9 +371,11 @@ export class TownPresence {
     if (map !== this._map || this._dead) return false;
     const b = ans && ans.body;
     if (!ans || !ans.ok || !b || b.ok !== true) return false;
-    if (b.off) { this._known = new Map(); this._walkers = []; this._hearth = null; this._readAt = this._now(); this._changed(); return true; }
+    if (b.off) { this._known = new Map(); this._walkers = []; this._hearth = null; this._extras = null; this._readAt = this._now(); this._changed(); return true; }
     /* the Great Hearth's named flame, REPLACED by every answer (absent: none burns) */
     this._hearth = hearthOf(b.hearth, this._now());
+    /* hr_town_extras, REPLACED by every answer: its one reader is src/world/town-works.js */
+    this._extras = b.extras && typeof b.extras === 'object' && !Array.isArray(b.extras) ? b.extras : null;
     /* A WHOLE ANSWER REPLACES THE LIST; a delta upserts what changed and drops who is gone (never merged upward) */
     if (b.full === true || whole) { this._known = new Map(); this._fullAt = now; }
     for (const g of Array.isArray(b.gone) ? b.gone : []) if (g && typeof g.id === 'string') this._known.delete(g.id.toLowerCase() + ':' + g.slot);
@@ -407,6 +420,9 @@ export class TownPresence {
     const h = this._hearth;
     return h && this._map && this._now() < h.endsAt ? h : null;
   }
+
+  /** What hr_town_extras added to the last town answer, or null. Display only: nothing here can be spent. */
+  extras() { return this._map ? this._extras : null; }
 
   /** The town map this presence is on, or null. */
   map() { return this._map; }

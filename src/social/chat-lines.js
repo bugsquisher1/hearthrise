@@ -25,6 +25,7 @@ import { HUNT_INDEX } from '../data/hunts.js?v=0.2.90';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHANNEL = /^(global|trade|system|local:[a-z0-9_]{1,64}|party:[0-9a-f-]{36})$/;
 const LINK = /\[\[(item|hunt):([a-z0-9_]{1,64})\]\]/g;
+const TITLE = /^[A-Za-z][A-Za-z' -]{0,39}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const str = (v, max) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
 const int = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null);
@@ -101,6 +102,8 @@ export function lineOf(row, o = {}) {
     time: clockOf(at, o.tz),
     fromId,
     name,
+    /* the title the hero wore when it spoke: a catalogue's words (hr_title_of), stamped by the server */
+    title: !whisper && typeof row.from_title === 'string' && TITLE.test(row.from_title) ? row.from_title : null,
     level: int(row.from_level, 0, 10000),
     role: weapon ? roleForWeapon(weapon, str(row.from_role, 32)) : null,
     slot: int(row.from_slot, 0, 32),

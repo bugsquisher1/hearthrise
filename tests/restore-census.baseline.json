@@ -839,6 +839,11 @@
    "replay": 347,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
+  "hr_sink_rules": {
+   "class": "seeded",
+   "replay": 5,
+   "note": "Generated catalogue (2027-02-27-gold-sinks-catalogue.generated.sql from src/data/gold-sinks.js): one row per gold sink: prices, climbs, caps, seconds. Empty, every sink verb has no price and refuses; nothing is charged. Rebuilt from repo, never restored."
+  },
   "hr_bench_tax_rates": {
    "class": "seeded",
    "replay": 148,

@@ -611,7 +611,7 @@ async function pageRules(overrides, shots) {
       // CW-1
       /* The server's broadcast of a stored line (2026-12-26-chat-broadcast.sql): topic chat:global, event line. */
       const n = await page.evaluate(() => window.__hub.send('chat:global', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f001', channel: 'global',
-        from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'shield', from_role: 'healer',
+        from_id: 'aaaaaaaa-0000-4000-8000-0000000000b1', from_name: 'Bramble', from_slot: 0, from_level: 34, from_weapon: 'shield', from_role: 'healer', from_title: 'the Wolfer',
         body: 'look [[item:bronze_sword]]', created_at: new Date(Date.UTC(2026, 9, 18, 9, 5)).toISOString() } }, 'line'));
       if (n !== 1) fails.push('CW-1 [' + tag + '] the page did not listen to Global (' + n + ' handlers took the line)');
       await page.waitForTimeout(400);
@@ -619,12 +619,13 @@ async function pageRules(overrides, shots) {
         const li = document.querySelector('[data-hs-win="chat"] .hc-log.is-talk.is-on li[data-key="00000000-0000-4000-8000-00000000f001"]');
         if (!li) return null;
         return { time: li.querySelector('.hc-time').textContent, name: li.querySelector('.hc-name').textContent, cls: li.querySelector('.hc-name').className,
+          title: li.querySelector('.hc-title') && li.querySelector('.hc-title').textContent,
           tag: li.querySelector('.hc-tag') && li.querySelector('.hc-tag').textContent, glyph: !!li.querySelector('.hc-role svg'),
           link: li.querySelector('.hc-link') && li.querySelector('.hc-link').textContent, last: li === li.parentElement.lastElementChild,
           body: getComputedStyle(li.querySelector('.hc-body')).display };
       });
       const hhmm = await page.evaluate(() => { const d = new Date(Date.UTC(2026, 9, 18, 9, 5)); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); });
-      if (!line || line.time !== hhmm || line.name !== 'Bramble' || !/is-tank/.test(line.cls) || !/\[34/.test(line.tag || '') || !line.glyph
+      if (!line || line.time !== hhmm || line.name !== 'Bramble' || line.title !== 'the Wolfer' || !/is-tank/.test(line.cls) || !/\[34/.test(line.tag || '') || !line.glyph
         || line.link !== '[Bronze Sword]' || !line.last || line.body !== 'inline') fails.push('CW-1 [' + tag + '] the line reads ' + JSON.stringify(line));
       // CW-2
       await page.evaluate(() => window.__hub.send('chat:local:mill_cellar', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f002', channel: 'local:mill_cellar',
@@ -899,6 +900,7 @@ const PURE_MUTANTS = [
   ['a re-read keeps lines the server no longer returns', 'src/social/chat-store.js', "const keep = tab === 'system' ? this.lines(tab).filter((l) => l.system) : [];", 'const keep = this.lines(tab);'],
 ];
 const PAGE_MUTANTS = [
+  ['a chat line never draws the title', 'src/shell/windows/chat.js', "const title = l.title ? ' <span class=\"hc-title\">' + esc(l.title) + '</span>' : '';", "const title = '';"],
   ['the bag\'s repaint closes every menu', 'src/shell/windows/inventory/index.js', 'closeFloatMenu(ctx.doc, st.sc.menuOwner || null);', 'closeFloatMenu(ctx.doc);'],
   ['the chat docks on the right', 'src/data/shell-windows.js', "height: 280, home: 'bl', resizable: true,", "height: 280, resizable: true,"],
   ['the chat is opaque', 'src/styles/hunt.css', '.hs-win[data-hs-win="chat"] { background: var(--chat-bg); }', '.hs-win[data-hs-win="chat"] { background: var(--modal-bg); }'],

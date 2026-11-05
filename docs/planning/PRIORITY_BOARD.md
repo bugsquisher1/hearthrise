@@ -57,7 +57,7 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 | Leaderboards | reads only | `hr_lb_hidden` row written with the GM row | GM-W-BOARDS |
 | Clans, Discord gift, direct table writes | refused | `clan_members`, `hr_discord_gift_claims` | GM-W-DOOR |
 | Trade or gift | none exists | Storage and purse are the account's; market above | GM-W-CROSS |
-| Town Works, Gold Given, Crier, shows (`lane/c-town-works`, `lane/c-town-shows`) | refused from birth | guard red until the tables carry it | GM-W-FUTURE |
+| Town Works, Gold Given, Crier, shows (`lane/c-town-works`, `lane/c-town-shows`) | refused from birth | the file locks `town_shows` and `account_gold_given` if they land first (Gold Given quietly: it is written inside a purchase); the Crier meets the chat lock; the guard goes red on any that land after with no lock | GM-W-FUTURE |
 **In town.** A walled hero's plate reads `GM Name · Level` in gold; the text is the cue, the color repeats it (ART_DIRECTION: color is never the only cue; Charcoal & Gold, no new hue). The server stamps it on the body's `look`, never the client. Its player menu offers only Inspect. "Game Master" and "GM" go on the name blocklist.
 **The caps.** A GM hero counts on the account's own four: that is what bounds its server cost. It does not count on the four-per-network cap: walled output cannot reach anyone, so that cap has nothing to protect there, and a test hero must never be what blocks a real check (the pain that started this). The QA account stays fully capped.
 **The wipe.** `hr_gm_accounts`, `hr_gm_log`, `hr_bans`, `hr_chat_mutes` stay (a character wipe doesn't forgive a ban). Walled heroes follow the wipe like every hero.

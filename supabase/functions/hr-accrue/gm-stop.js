@@ -16,7 +16,6 @@
 // ============================================================================
 
 import { runSetActivity } from './set-activity.js';
-import { INTENT_ERRORS } from './intents.js';
 
 export const GM_GATE_SQL = 'select public.hr_gm_stop_gate($1::uuid, $2::uuid, $3::int, $4::text, $5::uuid) as res';
 export const GM_RESULT_SQL = 'select public.hr_gm_stop_result($1::uuid, $2::uuid, $3::int, $4::text)';
@@ -53,7 +52,7 @@ export async function runGmStop(o) {
     exec, user: stop.target, slot: stop.slot, intentId, activity: { kind: 'idle', id: null }, readSql: GM_READ_SQL,
   });
   const done = out.status === 200 && out.body && out.body.ok === true;
-  const error = done ? null : ((out.body && out.body.error) || INTENT_ERRORS.APPLY_FAILED || 'apply_failed');
+  const error = done ? null : ((out.body && out.body.error) || 'apply_failed');
   await exec(GM_RESULT_SQL, [gm, stop.target, stop.slot, error]);
   if (!done) return { status: out.status === 200 ? 409 : out.status, body: { ok: false, error } };
   return { status: 200, body: { ok: true, verb: 'gm_stop', kind: 'job', job: g.job, job_id: g.job_id,

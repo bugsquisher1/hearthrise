@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-05",
- "replay_ms": 8029,
+ "replay_ms": 4852,
  "counts": {
-  "tracked_names": 746,
-  "entries": 601
+  "tracked_names": 747,
+  "entries": 602
  },
  "functions": [
   {
@@ -6670,20 +6670,22 @@
    "sig": "hr_hunt_rune_spells()",
    "name": "hr_hunt_rune_spells",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-02-21-rune-spells.generated.sql"
+    "2027-02-21-rune-spells.generated.sql",
+    "2027-03-08-rune-ladder-rune-spells.generated.sql"
    ],
    "live": {
-    "md5": "ff2026991841700be7a431edaee942e9",
-    "norm_len": 1762,
+    "md5": "94104b7e97cee4bcb5510d713f1e432a",
+    "norm_len": 3222,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ff2026991841700be7a431edaee942e9",
-    "norm_len": 1762,
+    "md5": "94104b7e97cee4bcb5510d713f1e432a",
+    "norm_len": 3222,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6692,6 +6694,7 @@
    "sig": "hr_hunt_rune_state(p_user uuid, p_slot integer, p_session uuid, p_ability text)",
    "name": "hr_hunt_rune_state",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -6706,6 +6709,29 @@
    "replay": {
     "md5": "3248ad68ef8cfe4b75695ea16b203f7d",
     "norm_len": 1038,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_rune_store_state(p_user uuid, p_slot integer, p_ability text, p_store text)",
+   "name": "hr_hunt_rune_store_state",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-08-rune-ladder-slots.sql"
+   ],
+   "live": {
+    "md5": "5d6b07dce11166a848ee9f995d408582",
+    "norm_len": 774,
+    "measured": "2026-11-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "5d6b07dce11166a848ee9f995d408582",
+    "norm_len": 774,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6802,17 +6828,18 @@
     "2026-11-17-hunt-density-home.sql",
     "2027-01-13-spell-roles.sql",
     "2027-01-25-town-defaults.sql",
-    "2027-02-21-hunt-carry-in.sql"
+    "2027-02-21-hunt-carry-in.sql",
+    "2027-03-08-rune-ladder-slots.sql"
    ],
    "live": {
-    "md5": "87677b80058b01bf909a441651b064ea",
-    "norm_len": 11277,
+    "md5": "6a1c82f1be477f7899f019bd14f462b4",
+    "norm_len": 11795,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "87677b80058b01bf909a441651b064ea",
-    "norm_len": 11277,
+    "md5": "6a1c82f1be477f7899f019bd14f462b4",
+    "norm_len": 11795,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6954,17 +6981,18 @@
    "touched_by": [
     "2026-10-25-action-conditions.sql",
     "2026-11-07-store-by-slot.sql",
-    "2027-01-13-slot-truth.sql"
+    "2027-01-13-slot-truth.sql",
+    "2027-03-08-rune-ladder-slots.sql"
    ],
    "live": {
-    "md5": "80eb1a65bdc5bb99977e6d3542989cb2",
-    "norm_len": 5441,
+    "md5": "3cc75530e89e0caa1a44450e6d479a84",
+    "norm_len": 5653,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "80eb1a65bdc5bb99977e6d3542989cb2",
-    "norm_len": 5441,
+    "md5": "3cc75530e89e0caa1a44450e6d479a84",
+    "norm_len": 5653,
     "source": "computed-from-replay"
    },
    "agree": true

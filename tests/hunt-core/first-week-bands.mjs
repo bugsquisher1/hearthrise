@@ -17,7 +17,7 @@
 //   above-your-level-words  THE WORDS ON A GROUND ABOVE YOUR LEVEL ARE TRUE (panel 2026-11-01: "expect losses" sat on the best XP on the list):
 //                  hunt-list.js ABOVE_LEVEL_WORDS claims more XP, harder hits, and that weak armor can spend more on food than it earns or
 //                  die. Each claim is played here against the ground that fits: a balance change that makes one false turns this red.
-//   bigger-pulls-words  the Hunts window's "Bigger pulls pay more once your heroes can hold them", played: a Level 18 hero in Wickstead at 8 each
+//   bigger-pulls-words  a harder hunt's words and the coach's "How hard can you hunt?" (more monsters pay more once your heroes can hold them), played: a Level 18 hero in Wickstead at 8 each
 //                  against as built, and a fresh one who cannot hold them (it dips, and its food bill eats the gain).
 //   risk-ladder    THE RISK IS THE MONSTERS (Tyler 2026-11-04): in range is safe; on a harder ground a hero earns well over the ground that fits and its supply bill follows, an unready hero dies and
 //                  a built one holds, with no rule behind any of it (hunt-core/damage.mjs same-blow-at-any-level); a watched hunt and a closed browser die alike; a Level 1 behind high friends earns
@@ -250,7 +250,7 @@ const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
     edits: [['src/core/combat.js', 'const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;', 'const base = b.monsterBaseAccuracy;'], ...GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2')])] },
   { name: 'armor reads the hero\'s Level again: a push on the default food pays for itself', case: 'risk-ladder',
-    edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? monsterLevelOf(MONSTERS[source.kind]) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
+    edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
   { name: 'the level share is gone: a Level 1 earns what its friends earn', case: 'risk-ladder', edits: [['src/core/hunt/xp-share.js', 'const seat = underFloorSharePm(ground, h.heroLv, top);', 'const seat = 1000;']] },
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },

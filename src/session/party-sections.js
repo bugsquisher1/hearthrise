@@ -11,7 +11,7 @@
 //             members: [{ unit, seat, hunting, name, level, weapon, role_pick, hp, hp_max, mana,
 //                         mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro,
 //                         away, seat_ms, outfit }], leader_densities }   (away / seat_ms: 2026-10-28-party-flow.sql;
-//             leader_densities: the leader's density pick per ground, 2026-11-17-hunt-density-home.sql; outfit
+//             leader_tiers: the leader's tier picked per ground, hunt-tiers.js; outfit
 //             { id, colors } or null: 2026-11-04-party-outfits.sql, read by hunt-sections.js memberOf)
 //           hold_seat: who holds the pack (Tyler 2026-10-22): a tank's seat (One tank holds) or null (Take turns),
 //             hunt_parties.hold_seat, set only by the leader's hr_party_hold_set (lane/c-hunt-screens-server)
@@ -35,7 +35,7 @@ import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.90';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.90';
 import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.90';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.90';
-import { huntOf, staminaOf, densityMapOf } from './hunt-sections.js?v=0.2.90';
+import { huntOf, staminaOf, tierMapOf } from './hunt-sections.js?v=0.2.90';
 import { heroVitalsOf } from './character-sections.js?v=0.2.90';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -78,9 +78,9 @@ export function partyMembershipOf(cs) {
     id: p.id, hunt: typeof p.hunt === 'string' && HUNT.test(p.hunt) ? p.hunt : null, max,
     leader: seatNo(p.leader_seat), me, seats,
     isLeader: seatNo(p.leader_seat) === me,
-    /* THE LEADER CHOOSES THE HUNT SETTINGS (Tyler 2026-10-20): its density pick per ground is the party's
-       pull there, shown read-only to the others ({ [hunt]: pick }, no key = 0); null when the server did not say. */
-    densities: densityMapOf(p.leader_densities),
+    /* THE LEADER CHOOSES THE HUNT SETTINGS (Tyler 2026-10-20): its tier picked per ground is the party's there,
+       shown read-only to the others ({ [hunt]: tier }, no key = Normal); null when the server did not say. */
+    tiers: tierMapOf(p.leader_tiers),
     leaderName: (seats.find((s) => s.seat === seatNo(p.leader_seat)) || {}).name || null,
     /* WHO HOLDS THE PACK: the seat the leader picked to hold every lap, or null (the tanks take turns). */
     holdSeat: seatNo(p.hold_seat),

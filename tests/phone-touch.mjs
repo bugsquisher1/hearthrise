@@ -1778,7 +1778,7 @@ const MUTANTS = [
   ['PH-25 the sheet starts under the place\'s row', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]) .hs-win:not(.is-modal) { top: calc(-1 * (var(--tap) + 6px)); }\n', ''],
   ['PH-25 the stage still clips the sheet\'s head', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal)) .world-stage { overflow: visible; }\n', ''],
   ['PH-25 the way back scrolls off with the page', 'src/shell/windows/hunts.js', "    + '<button type=\"button\" class=\"hh-tool hw-hd-back\" data-hs-act=\"back\">Back to the list</button>'\n", "    + ''\n"],
-  ['PH-25 mid-hunt the way back is off', 'src/shell/windows/hunts.js', ".hw-hd-foot button:not(.hw-hd-back), .hw-density button", ".hw-hd-foot button, .hw-density button"],
+  ['PH-25 mid-hunt the way back is off', 'src/shell/windows/hunts.js', ".hw-hd-foot button:not(.hw-hd-back), .hw-tiers button", ".hw-hd-foot button, .hw-tiers button"],
   ['PH-26 the switch\'s span widens the fold and the close', 'src/styles/hunt.css', '  .ha-analyzer .ha-scope { grid-area: 2 / 1 / 3 / -1; justify-self: end; margin-bottom: 0; }\n', '  .ha-analyzer .ha-scope { grid-area: 2 / 2 / 3 / 4; justify-self: end; margin-bottom: 0; }\n'],
   ['PH-26 the panel is too narrow for its tabs', 'src/styles/hunt.css', 'column-gap: 2px; width: min(376px, calc(100vw - 232px));', 'column-gap: 2px; width: 300px;'],
   ['PH-26 a hero alone keeps the switch', 'src/styles/hunt.css', '  .ha-analyzer.is-alone .ha-scope { display: none; }\n', ''],

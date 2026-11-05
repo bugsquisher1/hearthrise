@@ -494,6 +494,46 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'tierpull') {
+    /* THE PULL WITH NO TIER (lane/c-difficulty-tiers, Tyler 2026-11-04: "what if we consider not having a dial for amount of mobs?"): today's rows, the Glade and the Warrens, every way to fight, what each pull pays in range.
+       Read by tiers-table.mjs --pull. x=P. */
+    for (const [ground, levels] of [['mosslight_glade', [16, 24, 31]], ['coppercap_warrens', [32, 41, 50]]]) for (const level of levels) for (const density of [null, 4, 5, 6, 8]) {
+      for (const s of SOLO_STYLES) out.push({ ...cellOf({ ground, party: [s], level, density, hours: H(1), seeds: 2, x: 'P' }), windowMs: 120000 });
+      for (const party of [PARTIES.four, PARTIES.four_dps]) out.push({ ...cellOf({ ground, party, level, density, hours: H(1), seeds: 2, x: 'P' }), windowMs: 120000 });
+    }
+    return out;
+  }
+  if (name === 'tiercand') {
+    /* THE TIER'S NUMBERS, in the sim only (worker.mjs whatIf on hunt-tiers.js; never written to a data file): a harder tier's pull and power at the floor, the middle, the top and pushing. x = T<tier><pull>p<power>. Normal is plan tierpull's default. */
+    const COMBOS = [['dangerous', 4, 1200], ['dangerous', 5, 1100], ['dangerous', 5, 1200], ['dangerous', 5, 1300], ['deadly', 6, 1500], ['deadly', 8, 1300], ['deadly', 8, 1500], ['deadly', 8, 1750]];
+    for (const [ground, levels] of [['mosslight_glade', [16, 24, 31, 10]], ['coppercap_warrens', [32, 41, 50, 26]]]) for (const level of levels) for (const [tier, density, powerPm] of COMBOS) {
+      const cell = (party) => ({ ...cellOf({ ground, party, level, density, hours: H(1), seeds: 2, x: 'T' + tier + density + 'p' + powerPm }), options: { tier }, windowMs: 120000, whatIf: { tiers: { [tier]: { powerPm } } } });
+      for (const s of ['tank', 'sword', 'hammer', 'bow', 'mage', 'healer']) out.push(cell([s]));
+      for (const party of [PARTIES.four, PARTIES.four_dps]) out.push(cell(party));
+    }
+    return out;
+  }
+  if (name === 'tierfinal') {
+    /* THE RECOMMENDED TIERS (src/data/hunt-tiers.js as written), the Glade and the Warrens: Normal, Dangerous and Deadly, in range, pushing and over the ground, every way to fight, alone, a pair, a three, two fours. x = F<tier>. */
+    const WHO = [['tank'], ['sword'], ['hammer'], ['axes'], ['bow'], ['crossbow'], ['mage'], ['healer'], PARTIES.duo, PARTIES.trio, PARTIES.four, PARTIES.four_dps];
+    const PULL = { normal: () => null, dangerous: (n) => [4, 5, 5, 6][n - 1], deadly: () => 8 };
+    for (const [ground, levels] of [['mosslight_glade', [16, 24, 31, 40, 10, 6]], ['coppercap_warrens', [32, 41, 50, 60, 26, 20]]]) for (const level of levels) for (const party of WHO) for (const tier of ['normal', 'dangerous', 'deadly']) {
+      out.push({ ...cellOf({ ground, party, level, density: PULL[tier](party.length), hours: H(1), seeds: 2, x: 'F' + tier }), ...(tier === 'normal' ? {} : { options: { tier } }), windowMs: 120000 });
+    }
+    return out;
+  }
+  if (name === 'tierladder') {
+    /* THE LADDER RULE (lane/c-difficulty-tiers): a ground's Deadly must not beat Normal of the next ground up at the Level that fits it, or nobody moves on. Each rung at the upper ground's floor and a little past it, the lower ground on Normal and Deadly, the upper on Normal. Sim only (whatIf tierGrounds); read by tiers-table.mjs --ladder. */
+    const RUNGS = [['mill_cellar', 'meadowbrook_thicket', [5, 8]], ['meadowbrook_thicket', 'wickstead', [8, 12]], ['meadowbrook_thicket', 'millrace_sewer', [8, 12]], ['wickstead', 'mosslight_glade', [16, 20]], ['millrace_sewer', 'mosslight_glade', [16, 20]], ['mosslight_glade', 'coppercap_warrens', [32, 38]]];
+    for (const [lower, upper, levels] of RUNGS) for (const level of levels) for (const party of [['tank'], ['sword'], ['hammer'], ['bow'], ['mage'], ['healer'], PARTIES.four, PARTIES.four_dps]) {
+      const whatIf = { tierGrounds: [lower] };
+      out.push({ ...cellOf({ ground: lower, party, level, hours: H(1), seeds: 2, x: 'Lnormal' }), windowMs: 120000 });
+      out.push({ ...cellOf({ ground: lower, party, level, density: party.length > 1 ? 6 : 4, hours: H(1), seeds: 2, x: 'Ldangerous' }), options: { tier: 'dangerous' }, windowMs: 120000, whatIf });
+      out.push({ ...cellOf({ ground: lower, party, level, density: 8, hours: H(1), seeds: 2, x: 'Ldeadly' }), options: { tier: 'deadly' }, windowMs: 120000, whatIf });
+      out.push({ ...cellOf({ ground: upper, party, level, hours: H(1), seeds: 2, x: 'Lnormal' }), windowMs: 120000 });
+    }
+    return [...new Map(out.map((c) => [c.id, c])).values()];
+  }
   if (name === 'riskleech') {
     /* WHAT THE GONE BLOCK LETS IN: a low hero sat behind three friends who hold the ground. Levels [friends x3, the low seat]; the low seat stands last, a bow or a mage, in the practice set or the Level's kit. */
     for (const [ground, friends, lows] of [['coppercap_warrens', 37, [1, 8, 18, 25]], ['mosslight_glade', 24, [1, 8]], ['meadowbrook_thicket', 12, [1]]]) {

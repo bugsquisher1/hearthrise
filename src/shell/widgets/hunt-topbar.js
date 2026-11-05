@@ -10,7 +10,8 @@
 // "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.90';
-import { huntOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.90';
+import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.90';
+import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.90';
 import { text, prop, attr } from '../../render/paint.js?v=0.2.90';
 import { clock } from '../../render/format.js?v=0.2.90';
 import { track } from '../../net/observability.js?v=0.2.90';
@@ -56,7 +57,10 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   /* Over, the hero stands in town: the plaque names the hunt as the LAST one, never as where the hero is (core-loop
      play 2026-10-30: Corliss in Havora read "Wickstead · Summary"). */
   const gname = ground ? ground.name : h ? 'Hunting' : '';
-  text(el.querySelector('.ht-ground'), h && h.ended && ground ? 'Last hunt: ' + gname : gname);
+  /* The harder tier this hunt froze, in the same plain word as the picker (Normal says nothing: it is the ground as it stands). */
+  const tiers = h && !h.ended ? huntTierOf(ctx.character) : null;
+  const hard = tiers && tiers.playing && tiers.playing !== DEFAULT_TIER ? ' · ' + TIER_NAME[tiers.playing] : '';
+  text(el.querySelector('.ht-ground'), h && h.ended && ground ? 'Last hunt: ' + gname : gname + hard);
   const ms = sessionClockMs(a, serverNowOf(ctx.character));
   text(el.querySelector('.ht-clock'), ms === null ? '' : clock(ms));
   const leave = el.querySelector('.is-leave');

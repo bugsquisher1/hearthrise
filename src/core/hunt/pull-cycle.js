@@ -25,6 +25,7 @@
 import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.90';
 import { VITALS } from '../../data/core-model.js?v=0.2.90';
 import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.90';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.90';
 import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.90';
 import { HUNT_GROUNDS, packHpFor, yieldPermille, routeFor, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.90';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.90';
@@ -64,10 +65,10 @@ export const partySize = (inst) => inst.world.units.filter((u) => u.side === 'he
  * largest monsterMaxHit (combat.js, the one the engine swings with) of every monster that party can
  * meet: a walked ground's route for that size (hunt-grounds.js monstersOn: a `minParty` pocket counts
  * only for a party big enough) plus the hunt's weighted spawns. Before mitigation: a catalogue fact.
- * { monster, name, hit } or null for an unknown hunt. The Configure action heal warning and the
+ * On `tier` (a hunt-tiers.js row), that tier's blows. { monster, name, hit } or null for an unknown hunt. The Configure action heal warning and the
  * blow-share guard (tests/hunt-core/hunt-data.mjs) both read THIS, never a copy.
  */
-export function biggestBlowOn(huntId, size) {
+export function biggestBlowOn(huntId, size, tier) {
   const h = HUNT_INDEX[huntId];
   if (!h) return null;
   const ids = new Set(h.spawns.map((s) => s.monster));
@@ -75,7 +76,7 @@ export function biggestBlowOn(huntId, size) {
   let best = null;
   for (const id of [...ids].sort()) {
     const row = MONSTERS[id];
-    const hit = row ? monsterMaxHit(row) : 0;
+    const hit = row ? monsterMaxHit(atTier(row, tier)) : 0;
     if (row && (!best || hit > best.hit)) best = { monster: id, name: row.name, hit };
   }
   return best;

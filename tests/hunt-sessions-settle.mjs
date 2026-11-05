@@ -1518,11 +1518,13 @@ async function character(db, M, uid, o) {
     const r = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify(o.options), idem()]);
     if (!r || r.ok !== true) throw new Error('options refused: ' + JSON.stringify(r));
   }
-  /* The density pick on the hunter's ground (hunt_density, 2026-11-17-hunt-density-home.sql: per ground, never a setup). */
-  if (o.density != null) {
+  /* The tier picked on the hunter's ground (hunt_density.tier, 2027-02-27-hunt-tiers.sql: per ground, never a setup). The Cellar offers none in the data, so the arm writes its own catalogue row: `o.density` is that row's pull, `o.tier` its name. */
+  if (o.density != null || o.tier) {
+    const t = o.tier || { id: 'deadly', pull: o.density };
+    await db.query("insert into public.hr_hunt_tiers (hunt_id, tier, pull, power_pm, xp_pm) values ('mill_cellar', $1, array_fill($2::int, array[4]), 1000, 1000) on conflict (hunt_id, tier) do update set pull = excluded.pull", [t.id, t.pull]);
     await asUser(db, uid);
-    const r = await one(db, `select public.hr_hunt_density_set(0, 'mill_cellar', $1::int, $2::uuid)`, [o.density, idem()]);
-    if (!r || r.ok !== true) throw new Error('density refused: ' + JSON.stringify(r));
+    const r = await one(db, `select public.hr_hunt_tier_set(0, 'mill_cellar', $1, $2::uuid)`, [t.id, idem()]);
+    if (!r || r.ok !== true) throw new Error('tier refused: ' + JSON.stringify(r));
   }
   if (o.premium) await db.query(`select public.hr_premium_grant($1, 0, now() + interval '30 days', 's1 probe')`, [uid]);
   if (o.lastActivity) {
@@ -3420,7 +3422,7 @@ const DB_ARMS = {
       for (const [variant, door] of [['frozen', 'tick'], ['frozen', 'settle'], ['opened before the freeze', 'tick'], ['opened before the freeze', 'settle']]) {
         if (variant === 'frozen') {
           /* A pick changed after Enter (or a stale key on an action-set row) moves neither the bound nor what the engine plays. */
-          await db.query(`update public.hunt_density set density = 1 where user_id = $1 and slot = 0`, [UID]);
+          await db.query(`update public.hunt_density set tier = 'normal' where user_id = $1 and slot = 0`, [UID]);
           await staleKey(1);
           const first = await settleTo(db, M, h.from + 60000);
           const w = await one(db, 'select world from public.hunt_instances where id = $1', [h.inst]);
@@ -4231,9 +4233,9 @@ const DB_MUTANTS = [
     find: '  v_kmax := v_pass * (greatest(v_win, 0) / v_ground.respawn_ms + 2);',
     replace: '  v_kmax := v_ground.spawns::bigint * (greatest(v_win, 0) / v_ground.respawn_ms + 2);' },
   { arm: 'DENSITY', name: '[#57] the engine plays today\'s action-set density, not the frozen one', fn: 'public.hr_hunt_instance_read(uuid,integer)',
-    find: "|| jsonb_build_object('density', v_i.density)) end,", replace: "|| '{}'::jsonb) end," },
+    find: "|| jsonb_build_object('density', v_i.density, 'tier', coalesce(v_i.tier, 'normal'))) end,", replace: "|| '{}'::jsonb) end," },
   { arm: 'DENSITY', name: '[#57] the density is never frozen at hunt start', fn: 'public.hr_hunt_density_freeze()',
-    find: '   where id = new.instance_id and density is null;', replace: '   where false;' },
+    find: '   where i.id = new.instance_id and i.density is null;', replace: '   where false;' },
   { arm: 'FORFEIT', name: '[#57] a refused window is never forfeited (the hero is trapped)', fn: SR,
     find: '  if v_n >= c_forfeit_after then', replace: '  if false then' },
   /* (the instance twin of the seat's below: caught by the world-code leg, kills_over, and the instance's own, bad_world_swing) */

@@ -52,6 +52,8 @@ export function heroSetup(o) {
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). In a
        party only the LEADER's counts (`lead`, the server's hr_hunt_instance_read `leads`; partyPick). */
     density: Number.isInteger(opt.density) ? opt.density : 0,
+    /* THE TIER (hunt-tiers.js): the one the server froze on the instance, overlaid on every member's options; an unknown id plays Normal (tierRowOf). */
+    tier: typeof opt.tier === 'string' ? opt.tier : null,
     lead: o.lead === true,
     /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat whose tank holds every lap, the leader's pick (only a
        leading hero carries it; combat-sim.js holdPick); null = the tanks take turns. */

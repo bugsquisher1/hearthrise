@@ -14,12 +14,14 @@ const ENG = {
   monsters: [(await import(pathToFileURL(join(root, 'src/data/monsters.js')).href + v)).MONSTERS, (await import(pathToFileURL(join(root, 'src/data/monsters.js')).href)).MONSTERS],
   items: [(await import(pathToFileURL(join(root, 'src/data/items.js')).href + v)).ITEMS, (await import(pathToFileURL(join(root, 'src/data/items.js')).href)).ITEMS],
   combat: [(await import(pathToFileURL(join(root, 'src/core/combat.js')).href + v)).COMBAT_BALANCE],
+  tiers: [(await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v)).HUNT_TIERS],
+  tierGrounds: [(await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v)).TIERED_GROUNDS],
 };
 /* THE GAME'S OWN HUNT ADVICE (the Hunts window's default pick): a career hunts where the game tells it to */
 const { recommendedHunt } = await import(pathToFileURL(join(root, 'src/shell/hunt-list.js')).href + v);
 const recommend = (levels, n) => recommendedHunt(levels, n).hunt;
 
-/* A WHAT-IF: { monsters: { id | '*': { field: value | '*x' multiplier } }, items: { id: { field: value } },
+/* A WHAT-IF: { monsters: { id | '*': { field: value | '*x' multiplier } }, items: { id: { field: value } }, tiers: { id: { field: value } },
    combat: { field: value } } on every engine instance; answers the undo list. Scratch only: never written to disk. */
 function applyWhatIf(w) {
   const undo = [];
@@ -29,6 +31,8 @@ function applyWhatIf(w) {
   };
   for (const [table, rows] of Object.entries(w || {})) {
     for (const inst of ENG[table] || []) {
+      /* tierGrounds: [ground ids] that offer the harder tiers for this job */
+      if (table === 'tierGrounds') { const had = inst.slice(); inst.push(...rows); undo.push([{ set k(_) { inst.length = 0; inst.push(...had); } }, 'k', true, null]); continue; }
       if (table === 'combat') { for (const [k, val] of Object.entries(rows)) set(inst, k, val); continue; }
       for (const [id, fields] of Object.entries(rows)) {
         const ids = id === '*' ? Object.keys(inst) : [id];

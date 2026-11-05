@@ -52,6 +52,39 @@ const cases = {
     const t = H(M, 2, 12, 3, 'tank', { hp: 1000, maxHp: 1000 }); t.armour = plate;
     return M.damage.hurt(inst, t, 100, null, null, { id: 'bleed', dot: true }).dmg > 0 ? null : 'a status tick with no dealer dealt nothing';
   },
+  /* A TIER IS THE MONSTER'S OWN STATS (hunt-tiers.js, Tyler 2026-11-04): on a harder tier the same monster's blow reads a higher atk, armor reads its higher Level and its kill pays more Level XP. No hero Level anywhere; Normal is the row to the digit. Both paths: this hook is the one a watched hunt and a closed browser both step through. */
+  'a-tier-is-the-monsters-stats': (M) => {
+    const T = { id: 'deadly', powerPm: 1500, xpPm: 1200 };
+    const row = M.MONSTERS.hobgoblin_foreman;
+    const plate = { heavy: 18, medium: 0, light: 0 };
+    const through = (tier) => { const inst = fight(M, []); inst.tier = tier; const t = H(M, 2, 12, 3, 'tank', { hp: 100000, maxHp: 100000 }); t.armour = plate; return M.damage.hurt(inst, t, 1000, E(M, 9, 0, 13, 3, 1, { kind: 'hobgoblin_foreman' }), null, null).dmg; };
+    const want = M.mitigation.mitigate(1000, 1000, M.mitigation.mitigationOf(plate, Math.round((row.level * T.powerPm) / 1000)));
+    if (through(T) !== want || !(want > through(null))) return 'through plate a Deadly foreman lands ' + through(T) + ' of 1000, the curve at its raised level says ' + want + ', Normal ' + through(null);
+    /* the blow: the same dice, a higher atk: it lands at least as often and past Normal's biggest blow, and never past the tier's */
+    const swings = (tier, lv) => blowsAtLevel(M, lv === undefined ? 32 : lv, tier);
+    const top = (bs) => Math.max(0, ...bs.filter((b) => b.startsWith('dmg:')).map((b) => Number(b.split(/[:@]/)[1])));
+    const hits = (bs) => bs.filter((b) => b.startsWith('dmg:')).length;
+    const plain = swings(null), hard = swings(T);
+    if (swings({ id: 'normal', powerPm: 1000, xpPm: 1000 }).join() !== plain.join()) return 'Normal is not the row: ' + swings({ id: 'normal', powerPm: 1000, xpPm: 1000 }).slice(0, 4).join();
+    if (!(top(hard) > top(plain)) || hits(hard) < hits(plain)) return 'on Deadly the foreman tops out at ' + top(hard) + ' and lands ' + hits(hard) + '; on Normal ' + top(plain) + ' and ' + hits(plain);
+    /* in no armor, past anything his row can land */
+    const bare = blowsAtLevel(M, 32, T, true);
+    if (!(top(bare) > M.C.monsterMaxHit(row)) || top(bare) > M.C.monsterMaxHit({ ...row, atk: row.atk * 1.5 })) return 'on Deadly, in no armor, the foreman tops out at ' + top(bare) + '; his row\'s biggest blow is ' + M.C.monsterMaxHit(row);
+    for (const lv of [1, 16, 60]) if (swings(T, lv).join() !== hard.join()) return 'a Level ' + lv + ' hero is struck differently on Deadly: a tier reads no hero';
+    /* the kill: the row's XP on the tier, its coin and drops aren't this file's (hunt-tiers.mjs harder-tier-costs) */
+    const killXp = (tier) => {
+      const k = H(M, 1, 12, 3, 'tank', { hp: 1000, maxHp: 1000, target: 2 });
+      const m = E(M, 2, 0, 13, 3, 1, { kind: 'goblin_scavenger', hp: 5, maxHp: 5 });
+      const inst = inst2(M, world(M, [k, m], { phase: 'fight', leader: 1 }), groundRow({ hunt: 'coppercap_warrens' }));
+      inst.tier = tier;
+      const sc = sc2(M, 7);
+      M.damage.landHit(inst, sc, k, m, 1000, null, null, false);
+      return sc.events.filter((e) => e.type === 'xp').reduce((s, e) => s + e.amount, 0);
+    };
+    const xp = M.MONSTERS.goblin_scavenger.xp;
+    if (killXp(null) !== xp) return 'a Normal kill pays ' + killXp(null) + ', the row says ' + xp;
+    return killXp(T) === Math.round((xp * T.xpPm) / 1000) ? null : 'a Deadly kill pays ' + killXp(T) + ', the tier says ' + Math.round((xp * T.xpPm) / 1000);
+  },
   /* contract §1.5 (today's element profile): weak pays the weakness bonus, immune takes 0, neutral pays 1x. */
   'weak-resist-immune': (M) => {
     const weakId = Object.keys(M.MONSTERS).find((id) => M.MONSTERS[id].elementWeak && M.C.defenceReduction(M.MONSTERS[id]) === 0
@@ -346,22 +379,27 @@ const cases = {
 };
 
 /* NO HERO LEVEL IN A MONSTER'S BLOW: one foreman, one hero's stats in all three armor weights, one ground, one dice stream, swung for a minute at each hero Level. */
-const blowsAtLevel = (M, heroLv) => {
+const blowsAtLevel = (M, heroLv, tier, bare) => {
   const k = H(M, 1, 12, 3, 'tank', { hp: 1000000, maxHp: 1000000, target: 2, def: 20 });
   k.heroLv = heroLv;
-  k.armour = { heavy: 21, medium: 11, light: 7 };
+  k.armour = bare ? null : { heavy: 21, medium: 11, light: 7 };
   const m = E(M, 2, 0, 13, 3, 1, { kind: 'hobgoblin_foreman', hp: 1000000, maxHp: 1000000 });
   const inst = inst2(M, world(M, [k, m], { phase: 'fight', leader: 1 }), groundRow({ hunt: 'coppercap_warrens' }));
+  if (tier) inst.tier = tier;
   const sc = sc2(M, 7);
   for (let i = 0; i < 600; i++) { M.movement.occupancy(inst); M.damage.resolveAttacks(inst, sc); sc.atMs += 100; }
   return sc.events.filter((e) => e.u === 2 && (e.type === 'dmg' || e.type === 'miss')).map((e) => e.type + ':' + (e.amount || 0) + '@' + e.atMs);
 };
 
 const mutants = [
+  { name: 'a tier does not raise the blow', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'const row = atTier(MONSTERS[u.kind], inst.tier);', 'const row = MONSTERS[u.kind];']] },
+  { name: 'armor ignores the tier', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier)', 'monsterLevelOf(MONSTERS[source.kind])']] },
+  { name: 'a kill pays no tier XP', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'atTier(MONSTERS[target.kind], inst.tier).xp', 'MONSTERS[target.kind].xp']] },
+  { name: 'a tier reads the hero: Deadly is gentler on a low Level', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'const row = atTier(MONSTERS[u.kind], inst.tier);', 'const row = atTier(MONSTERS[u.kind], (t.heroLv || 32) < 16 ? null : inst.tier);']] },
   { name: 'armor reads the hero\'s Level again', case: 'same-blow-at-any-level',
-    edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? monsterLevelOf(MONSTERS[source.kind]) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
+    edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
   { name: 'armor ignores who struck: every blow reads level 1', case: 'armour-reads-the-attacker',
-    edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? monsterLevelOf(MONSTERS[source.kind]) : 1)", 'mitigationOf(target.armour, 1)']] },
+    edits: [[D, "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1)", 'mitigationOf(target.armour, 1)']] },
   { name: 'a level term on the blow: a hero under the floor is hit twice as hard', case: 'same-blow-at-any-level',
     edits: [[D, 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));', 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row) * (t.heroLv < 32 ? 2 : 1));']] },
   { name: 'a level term on the to-hit roll: a hero under the floor is hit more often', case: 'same-blow-at-any-level',

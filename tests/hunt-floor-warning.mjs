@@ -142,7 +142,7 @@ async function run(base) {
   ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));") && win.includes('<p class="hw-hunt-warn"></p>')
     && win.includes("(groupWords(r, size) || heroWords(r)) + '.'"),
     'the Hunts line does not draw rangeWords');
-  ok('W4', win.includes('Bigger pulls pay more once your heroes can hold them.'), 'the pull size no longer says why a bigger pull matters (first-week-bands.mjs bigger-pulls-words plays it)');
+  ok('W4', read('src/shell/hunt-list.js').includes('Expect a bigger food bill, and it can kill you.') && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a bigger pull costs (first-week-bands.mjs bigger-pulls-words plays it)');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning');
   ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? 'Enter anyway' : 'Enter'"), 'a lone hero above its level walks in with no confirm press');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');
@@ -181,7 +181,7 @@ const MUTANTS = [
   ['the warning claims a penalty again', 'src/shell/hunt-list.js', "'Its monsters are stronger than you: expect to spend more on supplies, or to die. More XP and better loot.'", "'More XP and better loot, but its monsters hit harder.'"],
   ['a margin comes back in the data', 'src/data/hunt-sessions.js', '  bagLines: 10,\n', '  bagLines: 10,\n  belowRangeRefuse: 15,\n'],
   ['a lone hero walks in with no confirm press', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
-  ['the pull size says nothing of why it matters', 'src/shell/windows/hunts.js', "' Bigger pulls pay more once your heroes can hold them. Kept for this ground.'", "' Kept for this ground.'"],
+  ['the tier says nothing of what it costs', 'src/shell/hunt-list.js', "' more Level XP a kill, the same gold and drops. Expect a bigger food bill, and it can kill you.'", "' more Level XP a kill, the same gold and drops.'"],
   ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));", ''],
   ['a ground names its start tiles, not the party the server allows (G3)', 'src/shell/hunt-list.js', 'heroes: PARTY.maxSize,', 'heroes: Math.min(g.start.length, PARTY.maxSize),'],
   ['the leader\'s warning names the leader too (G3)', 'src/shell/hunt-list.js', 's.seat !== party.me && Number.isInteger(s.level)', 'Number.isInteger(s.level)'],

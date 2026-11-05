@@ -428,25 +428,15 @@ async function huntsPure(imp) {
   const fails = [];
   const { residentsOf, scarceSetOf, raresOf, wornWeightOf, bigPullOf } = await imp('src/shell/hunt-ground-facts.js');
   const { MONSTERS } = await imp('src/data/monsters.js');
-  const { huntRows, fitWords, bestLine, bestWords, densityStep } = await imp('src/shell/hunt-list.js');
+  const { huntRows, fitWords, bestLine, bestWords, tierPull, tierWords } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
   const STORE = FIXTURE.hunt_settings.store;
-  /* MORE MONSTERS IS NEVER FEWER (blind playtest 2026-10-31: + on "As built (2 to 3)" went down to "1 each", - was off):
-     "As built" stands among the picks at its packs' size, both ways; a built size equal to a pick takes its place. */
-  const walk = (r, from, by, max) => { const out = []; for (let n = densityStep(r, from, by, max); n !== null; n = densityStep(r, n, by, max)) out.push(n); return out.join(); };
-  const uneven = { packMin: 2, packMax: 3 }, even = { packMin: 3, packMax: 3 };
-  if (walk(uneven, 0, 1, 5) !== '3,4,5') fails.push('AW-25 + from As built (2 to 3) walks ' + walk(uneven, 0, 1, 5));
-  if (walk(uneven, 0, -1, 5) !== '2,1') fails.push('AW-25 - from As built (2 to 3) walks ' + walk(uneven, 0, -1, 5));
-  if (walk(uneven, 1, 1, 5) !== '2,0,3,4,5') fails.push('AW-25 + from 1 each walks ' + walk(uneven, 1, 1, 5));
-  if (walk(uneven, 5, -1, 5) !== '4,3,0,2,1') fails.push('AW-25 - from 5 each walks ' + walk(uneven, 5, -1, 5));
-  if (walk(even, 0, 1, 5) !== '4,5' || walk(even, 5, -1, 5) !== '4,0,2,1') fails.push('AW-25 packs of 3 walk up ' + walk(even, 0, 1, 5) + ' and down ' + walk(even, 5, -1, 5) + ' (As built stands for 3 each)');
-  /* A PARTY'S DEFAULT PULL (designer 2026-11-01): no pick spawns 4 each for a Thicket pair, so 0 stands at 4 and no press jumps; a lone hero's is the room as built. */
+  /* THE PULL EACH TIER BRINGS: Normal is the ground as it stands (as built alone, 0; a party's own pull), the harder tiers their row's number for the group's size. */
   const pulled = { packMin: 3, packMax: 3, partyPull: [0, 4, 5, 6] };
-  const walkP = (from, by, party) => { const out = []; for (let n = densityStep(pulled, from, by, 8, party); n !== null; n = densityStep(pulled, n, by, 8, party)) out.push(n); return out.join(); };
-  if (walkP(4, 1, 2) !== '5,6,7,8' || walkP(0, 1, 2) !== '5,6,7,8') fails.push('AW-25 + from a pair\'s pull of 4 walks ' + walkP(4, 1, 2) + ' / ' + walkP(0, 1, 2));
-  if (walkP(4, -1, 2) !== '3,2,1' || walkP(8, -1, 2) !== '7,6,5,0,3,2,1') fails.push('AW-25 - round a pair\'s pull of 4 walks ' + walkP(4, -1, 2) + ' / ' + walkP(8, -1, 2));
-  if (walkP(6, -1, 4) !== '5,4,3,2,1') fails.push('AW-25 - from a four\'s pull of 6 walks ' + walkP(6, -1, 4));
-  if (walkP(0, 1, 1) !== '4,5,6,7,8') fails.push('AW-25 a lone hero moved off the room as built: ' + walkP(0, 1, 1));
+  if (tierPull(pulled, 'normal', 1) !== 0) fails.push('AW-25 a lone hero moved off the room as built: ' + tierPull(pulled, 'normal', 1));
+  if (tierPull(pulled, 'normal', 2) !== 4 || tierPull(pulled, 'normal', 4) !== 6) fails.push('AW-25 a party on Normal does not read its own pull: ' + tierPull(pulled, 'normal', 2) + ' / ' + tierPull(pulled, 'normal', 4));
+  if (tierPull(pulled, 'dangerous', 1) !== 4 || tierPull(pulled, 'dangerous', 4) !== 6 || tierPull(pulled, 'deadly', 1) !== 8 || tierPull(pulled, 'deadly', 4) !== 8) fails.push('AW-25 a harder tier does not read its row');
+  if (tierWords(pulled, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(pulled, 'normal', 1));
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
   const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();
   if (cellar !== 'rat:common:2,slime:uncommon:2,hive_wasp:uncommon:4') fails.push('AW-25 the Mill Cellar lives as ' + cellar);

@@ -67,7 +67,7 @@ export const PARTY_VS_ALONE = Object.freeze({
   wickstead: said([-10, 5], [-10, 5, 10], [-15, 5, 5, 20]),
   mosslight_glade: said([-10, 5], [-15, 5, 15], [-10, 5, 10, 20]),
   millrace_sewer: said([-10, 15], [-15, 10, 20], [-20, 10, 10, 20]),
-  coppercap_warrens: said([-5, 10], [-10, 5, 15], [-15, 5, 10, 20]),
+  coppercap_warrens: said([-10, 10], [-15, 5, 15], [-15, 5, 10, 20]),
 });
 
 /* A FOUR WHO ALL SHARE ONE ROLE READS ITS OWN LINE (designer 2026-11-04; CLAUDE.md §6). The Thicket's one-class four pays the even share, so its weapons no longer sit near one number, and a four of wands earns more than

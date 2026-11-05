@@ -156,7 +156,7 @@ async function stubServer(page, o) {
             gold_v: o.purse !== undefined ? (o.lag && o.lag[slot] ? o.lag[slot].v : o.goldV) : 0, level_xp: LEVEL_10_XP },
           /* B-9h: a hero the server holds in an open hunt ({ slot: hunt id }) */
           ...(o.hunting && o.hunting[slot] ? { hunt: { session_id: '5d1c0f2e-0000-4000-8000-00000000000' + slot, hunt_id: o.hunting[slot], ended: false } } : {}),
-          ...(o.stamped ? { client_state: { awaySeen: { s: '5d1c0f2e-0000-4000-8000-00000000000' + slot, at: Date.parse('2026-10-17T00:00:00Z') - 5 * 60000, xp: LEVEL_10_XP } } } : {}) })
+          ...(o.stamped ? { client_state: { awaySeen: { s: '5d1c0f2e-0000-4000-8000-00000000000' + slot, at: Date.parse('2026-10-17T00:00:00Z') - (o.stampedMin || 5) * 60000, xp: LEVEL_10_XP } } } : {}) })
           : { ok: false, error: 'no_character', hero_slots: slots };
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
       }
@@ -583,6 +583,25 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       if (stamps(a.o).length !== 2) fails.push('B-17 a page flickering in and out of view wrote ' + stamps(a.o).length + ' stamps, not its first 2');
       if (a.errors.length) fails.push('B-17 console errors: ' + a.errors.slice(0, 3).join(' | '));
       await a.ctx.close();
+
+      /* A RELOAD ON THE HEELS OF A RETURN KEEPS THE AWAY CARD (played 2026-11-04: reloaded 0.6 s and 2 s after Play, the next load said nothing): left within its reading time, the
+         card is still owed: no stamp moves and its id is not filed as seen. Past the reading time it counts as read. */
+      const owed = { heroes: { 0: 'Tester' }, hunting: { 0: 'mill_cellar' }, created: [], puts: [], stamped: true, stampedMin: 60, slots: [0] };
+      const r = await fresh(owed);
+      await r.page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(r.page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await r.page.fill('input[name=email]', 'qa@example.test');
+      await r.page.fill('input[name=password]', 'not-a-real-password');
+      await r.page.click('.auth-submit');
+      await wait(r.page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+      await r.page.click('[data-app="play"][data-slot="0"]');
+      if (!(await wait(r.page, () => /While you were away/.test((document.querySelector('.hw-alert') || {}).textContent || '')))) fails.push('B-17 CONTROL: no away card on the return');
+      await r.page.reload({ waitUntil: 'load' });
+      await r.page.waitForTimeout(500);
+      const lost = owed.puts.filter((p) => p.p_patch && (Number.isFinite(p.p_patch.awaySeen && p.p_patch.awaySeen.at) && p.p_patch.awaySeen.at !== Date.parse('2026-10-17T00:00:00Z') - 60 * 60000
+        || (p.p_patch.alerts && (p.p_patch.alerts.seen || []).some((id) => /^away:/.test(id)))));
+      if (lost.length) fails.push('B-17 a reload seconds after the return used the away card up: ' + JSON.stringify(lost.map((p) => p.p_patch)).slice(0, 400));
+      await r.ctx.close();
 
       const b = await opened(true);
       /* closed with no visibilitychange seen (the event order a browser owes nobody): pagehide alone. The event, not a real

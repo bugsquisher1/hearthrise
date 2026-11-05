@@ -51,8 +51,8 @@ import { itemName } from './widgets/bits.js?v=0.2.89';
 import { noShotWords } from './hunt-go.js?v=0.2.89';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.89';
 import { deathSeen } from './death-popup.js?v=0.2.89';
-import { summaryClosedFor } from '../hunt-view/summary-recorder.js?v=0.2.89';
-import { awayRecapOf, awayLineNow, awaySettled, stampAway, markBack } from './away-recap.js?v=0.2.89';
+import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.89';
+import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack } from './away-recap.js?v=0.2.89';
 import { benchStopRecapOf } from './bench-fee.js?v=0.2.89';
 import { workRow } from './town-work.js?v=0.2.89';
 import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.89';
@@ -68,6 +68,8 @@ const residueOf = (cs) => {
 const who = (cs) => nameOf(cs) || 'Character ' + (cs.slot + 1);
 /* The lines a new hunt retires once its session is open (the last hunt's end, death and low supply). */
 const RETIRE = new Set(['ended', 'death', 'low']);
+/* How long the away card must have been up to count as read when the page is left. */
+const AWAY_READ_MS = 8000;
 
 /** Which kinds this character shows (every kind unless its residue switched it off). */
 export function alertShown(cs, kind) {
@@ -203,6 +205,20 @@ export function createAlertCenter(account) {
   let n = 0;
 
   const changed = () => { for (const fn of Array.from(listeners)) { try { fn(); } catch (e) { console.error('[alerts] a listener failed', e); } } };
+  /* A RELOAD DURING A SLOW FIRST LOAD ATE THE AWAY CARD (played 2026-11-04: reloaded 0.6 s and 2 s after Play, the next load said nothing). The card isn't read
+     until it has been up AWAY_READ_MS, and a hero not judged yet has told nothing: leaving then keeps the absence for the next load. Display state only. */
+  const youngAway = new Map();
+  let hiding = false;
+  const cardYoung = (cs) => { const y = youngAway.get(cs.slot); return !!y && Date.now() - y.at < AWAY_READ_MS; };
+  function cardUnread(cs) {
+    if (returning.has(cs.slot)) return true;
+    if (hiding || !cardYoung(cs)) return false;
+    const y = youngAway.get(cs.slot);
+    cs.setResidue('alerts', { off: Array.isArray(y.off) ? y.off : [], seen: Array.isArray(y.seen) ? y.seen : [] });
+    return true;
+  }
+  /* No stamp over a card still being read, on screen or on the way out (a page only hidden may flicker back, so it stamps as ever); every other stamp is away-recap.js's own. */
+  const stampAway = (cs, leaving) => ((leaving ? cardUnread(cs) : cardYoung(cs)) ? false : stampNow(cs, leaving));
   const seenOf = (slot) => { let s = seen.get(slot); if (!s) { s = new Set(); seen.set(slot, s); } return s; };
 
   function fire(cs, c) {
@@ -238,6 +254,8 @@ export function createAlertCenter(account) {
     /* A bench the server stopped for gold says so once, watched or not (the work bench tax: bench-fee.js). */
     const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
     if (broke) now.push(broke);
+    /* Before it fires: firing writes the residue, and the listeners' scan runs inside that write. */
+    if (away && !seenOf(cs.slot).has(away.id)) youngAway.set(cs.slot, { at: Date.now(), seen: residueOf(cs).seen, off: residueOf(cs).off });
     for (const c of now) any = fire(cs, c) || any;
     /* A town job's return waits for the settle that pays it; the stamp waits with it. */
     if (judged && awaySettled(cs)) returning.delete(cs.slot);
@@ -318,6 +336,8 @@ export function createAlertCenter(account) {
     /** The page is being left (src/app/boot.js): every open hero's last-seen stamp and whatever residue still sits in the debounce (a Got it, a
         closed summary, a moved window) go now, on a fetch that outlives the page. `hidden`: only hidden, it may yet flicker back (flushResidue). */
     leaving({ hidden = false } = {}) {
+      hiding = hidden;
+      if (!hidden) for (const cs of account.characters()) forgetUnreadSummary(cs);
       for (const cs of account.characters()) { stampAway(cs, true); cs.flushResidue({ keepalive: true, hidden }).catch(() => {}); }
       for (const cs of account.characters()) returning.add(cs.slot);
     },

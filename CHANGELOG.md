@@ -18,6 +18,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - In Configure action, picking a spell keeps Details on the spell you picked, instead of the row that slid under your pointer.
 - The Hunts window is wider, so the first row of who lives on a ground isn't cut off above Enter. A long line in the list no longer starts with a stray dot.
 - The bag shows a row more on a laptop screen: its tabs and search now share a line.
+- Reloading just as the game opens no longer loses your hunt summary or your "While you were away" card.
 
 ## v0.2.89 — 2026-11-04 (Still Here)
 

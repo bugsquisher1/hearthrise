@@ -804,6 +804,20 @@ async function planRules(base) {
   const WATER = RUNES.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_water_rune', partner: 'chalked_water_rune' }]);
   const same = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('greater_mend', 'plain_water_rune'), stored('circle_of_renewal', 'plain_water_rune')], store: WATER } }));
   if (!same.startsWith('Runes: Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells of one family read ' + JSON.stringify(same));
+  /* AW-27 A SUMMARY RECORDED THIS MOMENT HAS NOT HAD ITS MOMENT: left at once, the next load opens it (played 2026-11-04: a reload 0.7 s after Play left no summary and no bar) */
+  {
+    const R = await imp('src/hunt-view/summary-recorder.js');
+    const env = JSON.parse(JSON.stringify(FIXTURE));
+    env.hunt.ended = true;
+    env.hunt.session = Object.assign({}, env.hunt.session, { end_reason: 'stamina', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
+    let heard = null;
+    const cs = { record: { residue: {} }, read: (k) => env[k], timeline: { subscribe() {} }, subscribe(f) { heard = f; }, setResidue(k, v) { cs.record.residue[k] = v; return true; } };
+    R.attach(cs);
+    heard();
+    const had = R.summariesOf(cs).length;
+    R.forgetUnreadSummary(cs);
+    if (had !== 1 || R.summariesOf(cs).length !== 0) fails.push('AW-27 a summary left at once reads ' + JSON.stringify([had, R.summariesOf(cs).length]));
+  }
   /* AW-27 A PICK KEEPS DETAILS ON THE PICK: the list moves under a pointer that has not (art audit 2026-11-04: pick Mend, read Power Strike); the pointer's next move counts again */
   {
     const { renderConfigureAction } = await imp('src/shell/windows/configure-action.js');

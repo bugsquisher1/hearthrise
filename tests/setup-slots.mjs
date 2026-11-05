@@ -8,7 +8,7 @@
 //   node tests/setup-slots.mjs --selftest  every planted defect must turn its arm red
 //   node tests/setup-slots.mjs --mutate=<id>
 //
-// mutant-anchors: supabase/migrations/2027-02-28-setup-slots.sql src/shell/setup-words.js src/session/preset-intents.js src/session/item-sections.js src/session/refusal.js src/shell/intent-words.js
+// mutant-anchors: supabase/migrations/2027-02-28-setup-slots.sql supabase/migrations/2027-02-28-sink-price-plan.sql src/shell/setup-words.js src/session/preset-intents.js src/session/item-sections.js src/session/refusal.js src/shell/intent-words.js
 //
 // EVERY NUMBER HERE IS READ FROM THE ROW. Tyler may say 3 free with one row, and SS-FLIP proves all of it moves with that row.
 // The real chain replayed (PGlite), real client roles, the real client modules; production untouched:
@@ -24,7 +24,8 @@
 //   SS-FLIP    one row moved (one more free, one rung fewer): every number follows it, and a hero who already bought keeps what it paid for
 //   SS-WRITERS every function that can write a new setup number asks hr_setup_locked: a new writer can't slip in free
 //   SS-GRANT   the verb is the client's and baselined; no helper is; the section is registered
-//   SS-AGAIN   a second apply is byte-identical
+//   SS-AGAIN   a second apply is byte-identical (in chain order: 2027-02-28-sink-price-plan.sql restates this file's section)
+//   SS-PARITY  EVERY ENVELOPE BUILDS THE SECTION, 5.33 A WATCHED SETTLE: it calls no helper, and it tells the same truth as the verbs' helpers at every rung, past the top and on a moved row
 //   SS-CLIENT  the reader, the button and the refusal's words, from the row's numbers; ONE intent with the QUOTE; a stale quote re-reads
 // TRUE CONCURRENCY is unverified here (PGlite is one backend); two presses on one hero are ordered by hr_hunt_lock (the migration's header).
 // ════════════════════════════════════════════════════════════════════════
@@ -39,6 +40,7 @@ const A = '000000c0-0000-4000-a000-0000901d7b01';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const FILE = '2027-02-28-setup-slots.sql';
+const PLAN = '2027-02-28-sink-price-plan.sql';
 const BUY = 'public.hr_setup_slot_buy(integer,bigint,uuid)';
 const LOCKED = 'public.hr_setup_locked(uuid,integer,integer)';
 const OF = 'public.hr_setups_of(uuid,integer)';
@@ -89,6 +91,10 @@ export const MUTANTS = {
   no_section: { arm: 'SS-RULE', why: 'the section is not registered', ddl: `delete from public.hr_state_sections where key = 'setup_slots'` },
   new_writer: { arm: 'SS-WRITERS', why: 'a new verb writes a setup number and never asks',
     ddl: `create function public.hr_zz_writer(p_user uuid, p_slot int, p_n int) returns void language sql as $fn$ insert into public.player_action_sets (user_id, slot, preset, name, slots, options) values (p_user, p_slot, p_n, 'x', '[]'::jsonb, '{}'::jsonb) $fn$` },
+  section_wrong_rung: { arm: 'SS-PARITY', why: 'the section quotes the rung after the verb\'s', db: [VIEW, "'price', r.prices[b.n + 1])", "'price', r.prices[b.n + 2])"] },
+  section_no_cap: { arm: 'SS-PARITY', why: 'the section\'s count runs past the limit', db: [VIEW, "'count', least(r.free + b.n, r.free + cardinality(r.prices)),", "'count', r.free + b.n,"] },
+  section_all_heroes: { arm: 'SS-PARITY', why: 'the section reads the rung across the account', db: [VIEW, "where p.user_id = p_user and p.slot = p_slot and p.kind = 'stat'", "where p.user_id = p_user and p.kind = 'stat' and p.slot <> p_slot"] },
+  section_calls_helper: { arm: 'SS-PARITY', why: 'the section reads through the price helper again, on every settle', db: [VIEW, "'price', r.prices[b.n + 1])", "'price', public.hr_sink_price('setup_slot', b.n))"] },
   repin_lost: { arm: 'SS-AGAIN', why: 'a second apply refuses because the pin forgot this file\'s own image', sql: [FILE, /('public\.hr_action_set_copy\(integer,integer,uuid\)', 'f1f349d0e3eebcd4441019d8056dc57c', ')[0-9a-f]{32}'/, '$100000000000000000000000000000000\''] },
   words_two: { arm: 'SS-CLIENT', why: 'the button hardcodes the third slot',
     js: ['src/shell/setup-words.js', [["return 'Buy ' + aNew(count + 1) + ' setup: ' + gold(price);", "return 'Buy a third setup: ' + gold(price);"]]] },
@@ -432,12 +438,44 @@ const ARMS = {
         'hr_hunt_preset_save', 'hr_action_set_put', 'hr_action_set_options', 'hr_action_set_rename', 'hr_action_set_copy') order by 1`)).map((r) => r.fn + ':' + r.m).join('\n');
     const was = await inventory();
     await db.exec('savepoint again');
-    try { await db.exec(text); } catch (e) {
+    try { await db.exec(text); await db.exec(MIG(PLAN)); } catch (e) {
       out.push('the second apply refused: ' + String(e.message).split('\n')[0].slice(0, 180));
       await db.exec('rollback to savepoint again');
       return out;
     }
     if ((await inventory()) !== was) out.push('a second apply moved a body');
+    return out;
+  },
+
+  'SS-PARITY': async (db) => {
+    const out = [];
+    const body = await one(db, `select prosrc from pg_proc where oid = $1::regprocedure`, [VIEW]);
+    if (/hr_sink_price\s*\(|hr_setups_of\s*\(|hr_setups_bought\s*\(|hr_hunt_limit\s*\(/.test(body)) out.push('the section calls a helper, on every settle');
+    const lang = await one(db, `select l.lanname from pg_proc p join pg_language l on l.oid = p.prolang where p.oid = 'public.hr_sink_price(text,integer,integer)'::regprocedure`);
+    if (lang !== 'plpgsql') out.push('hr_sink_price is ' + lang + ': PostgreSQL 17 re-plans it per call');
+    await hero(db, 0, 'Marlow');
+    await hero(db, 1, 'Tamsel');
+    const check = async (label) => {
+      const R = await rule(db), lim = await limit(db);
+      for (let n = 0; n <= R.prices.length + 2; n++) {
+        await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at) values ($1, 0, 'stat', 'setup_slots_bought', '', $2, now())
+          on conflict (user_id, slot, kind, key, period_key) do update set value = excluded.value`, [A, n]);
+        const s = await section(db, 0);
+        const count = Number(await one(db, 'select public.hr_setups_of($1::uuid, 0)', [A]));
+        const quote = count < lim ? await one(db, `select public.hr_sink_price('setup_slot', $1::int)`, [n]) : null;
+        if (s.count !== count || s.bought !== n || s.max !== lim || s.free !== R.free || (s.price === null ? null : Number(s.price)) !== (quote === null ? null : Number(quote))) {
+          out.push(`${label}, rung ${n}: the section reads ${JSON.stringify(s)}, the verbs ${count} and ${quote}`);
+        }
+      }
+    };
+    await check('as shipped');
+    /* the other hero's rung stays the other hero's */
+    const other = await section(db, 1);
+    if (other.bought !== 0) out.push('the other hero reads ' + JSON.stringify(other));
+    /* one row moved: one more free, one rung fewer */
+    const R0 = await rule(db);
+    await db.query(`update public.hr_sink_rules set free = $1, prices = $2::bigint[] where sink_id = 'setup_slot'`, [R0.free + 1, R0.prices.slice(1)]);
+    await check('the row moved');
     return out;
   },
 

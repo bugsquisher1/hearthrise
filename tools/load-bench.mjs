@@ -4,6 +4,7 @@
 //
 //   node tools/load-bench.mjs local --site plain=DIR[,built=DIR] [--release plain=transform,built=DIR] [--runs 3] [--profiles desktop,phone] [--workers off,on] [--scenarios cold,return-expired,release] [--trace] [--js-profile] [--out FILE]
 //   node tools/load-bench.mjs --table FILE...       reprint saved results
+//   --settle MS  how long a walk stays after its first frame (default 2000): long enough, and a town's last sheet is timed too
 //   --stand N   the hero takes the hearth's stand N, as a busier town would give it (the server's lowest free one: a quiet town gives 1). The local world only.
 //
 // Real Chrome (channel 'chrome', new headless), NEVER Playwright's headless shell: on Windows the shell queues a WinHTTP proxy lookup per request (p50 4.8 s),
@@ -466,7 +467,7 @@ async function runLocal(o) {
           try {
             let p = await openPage(b.ctx, profile);
             mimic.state.log = [];
-            const cold = await walk(p, url, account);
+            const cold = await walk(p, url, account, { settleMs: Number(o.settle || 2000) });
             cold.server = serverSum(mimic.state.log);
             await bank('cold', cold);
             if (worker === 'on') { const ms = await waitWorker(p.page); console.log('   worker active after ' + ms + ' ms'); }

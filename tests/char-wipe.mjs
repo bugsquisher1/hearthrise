@@ -224,9 +224,13 @@ async function scenario(db, wipeSql) {
     }
     arm('CW-UNKNOWN', !unknownBad.length, 'a table on no list, or a no-player table that names one, stops the wipe by name', unknownBad.join('; '));
 
+    /* A LISTED TABLE THAT DOES NOT EXIST YET (a lane not landed) is skipped, never fatal. Planted here for each list the file counts, so the
+       mutants that drop the skip are seen whatever the chain holds (release/v0.2.97: the Works tables landed, none was absent, one survived). */
+    const absent = { wiped: await plantAbsent(db, one, attempt, listOf('wipe', wipeSql), wipeSql), kept: await plantAbsent(db, one, attempt, [...listOf('keep', wipeSql), ...listOf('no_player', wipeSql)], wipeSql) };
+
     /* THE WIPE (the market's half already ran, above, in its place in the order) */
     const eWipe = await apply(wipeSql);
-    arm('CW-APPLY-SELF', eWipe === null, 'the file applied: its §2 proved the wipe and a probe through hero creation and every tick job', 'the file refused: ' + eWipe);
+    arm('CW-APPLY-SELF', eWipe === null, `the file applied with listed tables absent (wiped: ${absent.wiped}; kept: ${absent.kept}): its §2 proved the wipe and a probe through hero creation and every tick job`, 'the file refused: ' + eWipe);
     if (eWipe) return red;
 
     /* CW-APPLY */
@@ -330,6 +334,22 @@ async function scenario(db, wipeSql) {
   } finally {
     await db.exec('rollback').catch(() => {});
   }
+}
+
+/* One table on `names` that does not exist when the wipe applies: one already absent on this chain, or else the first that nothing this run
+   executes names (a function body, a job, a file it applies, this guard), dropped inside the scenario's transaction (RESTRICT: a view, key or
+   policy on it refuses, and the next is tried). Returns it, said how. */
+const SELF_SRC = await readFile(new URL(import.meta.url), 'utf8');
+async function plantAbsent(db, one, attempt, names, wipeSql) {
+  const gone = (await db.query(`select t from unnest($1::text[]) t where to_regclass('public.' || t) is null`, [names])).rows.map((r) => r.t);
+  if (gone.length) return gone[0] + ' (not landed)';
+  const body = wipeSql.replace(/c_[a-z_]+ constant text\[\] := array\[[\s\S]*?\];/g, '');
+  const ran = [SRC.on, SRC.off, SRC.mWipe, SRC.resume, body, SELF_SRC].join('\n');
+  const free = (await db.query(`select t from unnest($1::text[]) with ordinality u(t, i)
+     where not exists (select 1 from pg_proc p where p.prosrc ~ ('\\m' || t || '\\M')) and not exists (select 1 from cron.job j where j.command ~ ('\\m' || t || '\\M'))
+     order by i`, [names])).rows.map((r) => r.t).filter((t) => !new RegExp('\\b' + t + '\\b').test(ran));
+  for (const t of free) if (!(await attempt(() => db.exec(`drop table public.${t}`))).e && (await one('select to_regclass($1) is null', ['public.' + t]))) return t + ' (dropped here)';
+  throw Object.assign(new Error('no listed table can be planted absent: every one is named by a function, a job or a file this guard runs (' + names.length + ' tried)'), { harness: true });
 }
 
 /* Most of these the file's own §2 refuses before behaviour runs, which is the §4 self-check doing its job: CW-APPLY-SELF. */

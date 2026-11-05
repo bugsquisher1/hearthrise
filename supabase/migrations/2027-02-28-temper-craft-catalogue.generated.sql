@@ -75,6 +75,11 @@ begin
    where o.source = 'gen-temper'
      and (u.namespace <> 'temper' or u.merge <> 'max' or u.progress_kind <> 'unlock' or not (o.value = any (u.rungs)) or o.value > u.max_value or o.gold <= 0);
   if v_bad is not null then raise exception 'VERIFY: Tempering rungs off their ladder: %', v_bad; end if;
+  /* Every rung takes a positive count of a material hr_items holds: a rung with none is gold alone, and a name it doesn't hold is a sale nobody can make. */
+  select string_agg(o.offer_id, ', ') into v_bad from public.hr_unlock_offers o
+   where o.source = 'gen-temper' and (o.items = '{}'::jsonb or exists (select 1 from jsonb_each_text(o.items) t
+     where t.value::bigint <= 0 or not exists (select 1 from public.hr_items i where i.item_id = t.key)));
+  if v_bad is not null then raise exception 'VERIFY: Tempering rungs with no material hr_items holds: %', v_bad; end if;
   /* The tables' grants are unchanged: a client write here would be a client-authored price. */
   select count(*) into v_n from information_schema.role_table_grants
    where table_schema = 'public' and table_name = 'hr_unlock_offers'

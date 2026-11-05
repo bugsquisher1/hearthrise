@@ -20,7 +20,7 @@
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ═════════════════════════════════════════════════════════════════
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, ROOT, LAST_PATCHED } from './schema-replay.mjs';
 import { readFileSync, cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -236,7 +236,7 @@ async function main() {
     fails.length = 0;
     let caught = false, why = '';
     try {
-      const { db } = await bootReplay(CONTROL ? {} : { patches: new Map([[file, edits]]), fullChain: 'the guard reads the sale as the chain leaves it: the newest files restate what this one patched, and their §4 is meant to catch it' });
+      const { db } = await bootReplay(CONTROL ? {} : { patches: new Map([[file, edits]]), upTo: LAST_PATCHED });
       await play(db);
       await idem(db);
       caught = fails.length > 0; why = fails[0] || '';

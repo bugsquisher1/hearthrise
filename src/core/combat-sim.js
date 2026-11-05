@@ -44,18 +44,18 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.90';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.90';
-import { createRng } from './rng.js?v=0.2.90';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.90';
-import { stepSwing } from './hunt/world-step.js?v=0.2.90';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.90';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.90';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.90';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.90';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.91';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.91';
+import { createRng } from './rng.js?v=0.2.91';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.91';
+import { stepSwing } from './hunt/world-step.js?v=0.2.91';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.91';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.91';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.91';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.91';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.90';
+export { stepSwing } from './hunt/world-step.js?v=0.2.91';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -107,6 +107,9 @@ function syncUnit(u, m) {
   u.heroLv = snap.level;
   /* THE ARMOUR (ruling K7, mitigation.js): the member's gear values at every boundary, never persisted, so a decoded world gets them back here before any blow; each blow prices them against its attacker. */
   u.armour = snap.armour || null;
+  /* TEMPERING, the same: at every boundary from the server's rungs, never persisted, absent at rung 0 (damage.js hurt, abilities.js healOne). */
+  if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;
+  if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
   u.maxMana = Math.max(u.maxMana || 0, m.state.playerMaxMana || 0);
   u.regenPm = m.state.regenPm;

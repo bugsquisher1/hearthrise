@@ -1894,6 +1894,16 @@ begin
 end $grants$;
 -- The one line per file tests/run-sql-tests.mjs reads for each function the do block above covers by name.
 revoke execute on function public.hr_hunt_leave_pending(uuid, integer) from public;
+-- The restated bodies keep their grants (CREATE OR REPLACE); none was ever reachable by PUBLIC, and these say so in this file too.
+revoke execute on function public.hr_access_check() from public;
+revoke execute on function public.hr_admitted(uuid) from public;
+revoke execute on function public.hr_hunt_leave(integer, uuid) from public;
+revoke execute on function public.hr_chat_send(integer, text, text) from public;
+revoke execute on function public.hr_whisper_send(integer, text, text) from public;
+revoke execute on function public.hr_play_net_of(uuid) from public;
+revoke execute on function public.hr_play_net_note(uuid) from public;
+revoke execute on function public.hr_hunt_member_state(uuid, integer) from public;
+revoke execute on function public.hr_validate_display_name(text) from public;
 revoke execute on function public.hr_gm_hero_idle(uuid, integer) from public;
 revoke execute on function public.hr_gm_walled(uuid) from public;
 revoke execute on function public.hr_gm_section(uuid, integer) from public;

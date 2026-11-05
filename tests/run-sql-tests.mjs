@@ -291,6 +291,8 @@ const ALSO_LINTED = [
      DEFINER RPC hr_companion_equip, so it is here for the derivation walk and
      the grant lints. */
   '2026-08-20-companion-model.sql',
+  /* Tempering: the CURRENT last toucher of hr_perks_of (HR_PERKS_OF_CHAIN link 5), lines added only. */
+  '2027-02-27-tempering.sql',
   /* SERVER-FARMING slice 1 — the hr_farm_plant / hr_farm_harvest RPC pair. Both
      are client-callable (authenticated) SECURITY DEFINER money RPCs, so PART
      1b-ii (A9) must see them and confirm each references a rate gate. It was
@@ -858,6 +860,9 @@ const HR_PERKS_OF_CHAIN = [
   // the sources.companions census line (blocked → derived), its sole declared
   // removal below.
   '2026-08-20-companion-model.sql',
+  // FIFTH link: Tempering (2027-02-27-tempering.sql). A superset of the companion body: the rungs' read, the `temper`
+  // field and its census line, inserted. Insertions only, so nothing is declared removed.
+  '2027-02-27-tempering.sql',
 ];
 
 // ── THE hr_assert_grant_hygiene DERIVATION CHAIN ─────────────────────────
@@ -1119,6 +1124,17 @@ const code = new Map([...sources].map(([f, sql]) => [f, stripComments(sql)]));
 // weakening the anon rule for everybody.)
 const CLIENT_CALLABLE = new Map([
   ['hr_load', ['authenticated']],
+  /* THE GAME MASTER (2027-03-05-gm-tools.sql): each refuses everyone without the row only a migration writes. */
+  ['hr_gm_online', ['authenticated']],
+  ['hr_gm_hero', ['authenticated']],
+  ['hr_gm_mute', ['authenticated']],
+  ['hr_gm_unmute', ['authenticated']],
+  ['hr_gm_ban', ['authenticated']],
+  ['hr_gm_unban', ['authenticated']],
+  ['hr_gm_say', ['authenticated']],
+  ['hr_gm_grant_gold', ['authenticated']],
+  ['hr_gm_grant_item', ['authenticated']],
+  ['hr_gm_grant_level', ['authenticated']],
   ['hr_create_character', ['authenticated']],
   // Both lose their `authenticated` grant in
   // 2026-08-11-authenticated-surface-lockdown.sql §2 (Group 1) and keep only

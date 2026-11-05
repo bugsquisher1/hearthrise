@@ -9,7 +9,7 @@
 //   node tests/perf-budget.mjs --mutate        every planted defect must turn the budget RED
 //   node tests/perf-budget.mjs --mutate --shard=K/N   the Kth of N shards, balanced by each mutant's scenario length
 //
-// mutant-anchors: src/social/social-session.js src/shell/away-recap.js src/shell/alerts.js src/world/render/frame-sig.js src/shell/widgets/action-bar.js src/app/boot.js src/session/page-away.js src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
+// mutant-anchors: src/social/social-session.js src/shell/away-recap.js src/shell/alerts.js src/world/render/frame-sig.js src/world/render/ground-chunks.js src/shell/widgets/action-bar.js src/app/boot.js src/session/page-away.js src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
 // mutant-writes-tree: no — probes and mutants are served from memory (tests/_client-harness.mjs serve overrides)
 //
 // THE SCENARIO (Andy, Firefox, live v0.2.23: "the page is slowing down", "the analyser seems to have slowed
@@ -40,6 +40,8 @@
 //   let go         PB-LEAK: DOM nodes and listeners after a forced GC, per hero switch and per bag open in a hunt
 //   the ground     PB-HELD (main run 40417203016): every map's ground (compose.js groundOf; the town's is 22k dual
 //                  tiles) is made once, in a task of its own: never inside a frame, never twice for one map
+//   the town's view PB-VIEW: a town frame that names no missing sheet paints what a frame with every sheet paints, at a sample of every stand, and a chunk baked with
+//                  a hole off screen is baked again once its sheet lands (src/world/view-sheets.js)
 //   what held it   each frame the page held over 50 ms is printed with its Long Animation Frame (entry point,
 //                  script ms, forced layout, render) and the probes' clocks inside it, so a red names its cause
 // ════════════════════════════════════════════════════════════════════════
@@ -146,8 +148,8 @@ const MUTANTS = [
   ['the world sheets handed to the canvas as <img> (its first draw prepares a whole sheet inside the frame: v0.2.50, run 40321779709)', 'src/render/images.js',
     "  const bitmap = !!win && typeof win.createImageBitmap === 'function';", '  const bitmap = false;', /^sheets/],
   ['the town derived inside the frame that enters it (main run 40417203016: a 117 ms frame back from the hunt)', 'src/world/world-boot.js',
-    '    if (!needs.has(sc.map) || !sheets.ready(needs.get(sc.map)) || waiting.has(sc.map)) {',
-    '    backend.prepare(mapOf(sc.map), artOf(sc.map) || undefined);\n    if (!needs.has(sc.map) || !sheets.ready(needs.get(sc.map)) || waiting.has(sc.map)) {', /^ground/, 'scenario', 4],
+    '    if (!needs.has(sc.map) || !(viewSheets.opensOnView(sc.map) || sheets.ready(needs.get(sc.map))) || waiting.has(sc.map)) {',
+    '    backend.prepare(mapOf(sc.map), artOf(sc.map) || undefined);\n    if (!needs.has(sc.map) || !(viewSheets.opensOnView(sc.map) || sheets.ready(needs.get(sc.map))) || waiting.has(sc.map)) {', /^ground/, 'scenario', 4],
   ['the renderer makes the ground again instead of taking the one its sheets were read from', 'src/world/core/compose.js',
     '  const g = groundOf(map, book, tables, T);\n  GROUNDS.get(map).delete(book);', '  if (GROUNDS.has(map)) GROUNDS.get(map).delete(book);\n  const g = groundOf(map, book, tables, T);\n  GROUNDS.get(map).delete(book);', /^ground/, 'scenario', 4],
   ['the World reads its tokens off the live style on every draw (4.7 s of a 4-minute phone profile at 4x CPU)', 'src/world/world-boot.js',
@@ -162,6 +164,16 @@ const MUTANTS = [
     "      if (k === UNDRAWN) { put(!!v[k]); continue; }\n", "      if (k === UNDRAWN || k === 'flash' || k === 'grey') continue;\n", /^PB-PIX/, 'pix'],
   ['the ground composed again on every paint of a camera that stands', 'src/world/render/canvas-backend.js',
     'if (s.end()) { floorGood = false;', 'if ((s.end(), true)) { floorGood = false;', /^PB-IDLE/, 'pix'],
+  ['a town frame shown without the sheets of its ground (only its sprites named)', 'src/world/render/canvas-backend.js',
+    'const sets = ground.setsIn(chunksOf(view, 0), seen);', 'const sets = new Set();', /^PB-VIEW/, 'pix'],
+  ['a town frame shown without the sheets of what stands in it', 'src/world/render/canvas-backend.js',
+    'for (const l of [list.decals, list.sprites, list.raised]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);', 'for (const l of [list.decals, list.raised]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);', /^PB-VIEW/, 'pix'],
+  ['a town frame shown without the sheet of an effect in it', 'src/world/render/canvas-backend.js',
+    '      for (const d of list.fx || []) if (d.set) sets.add(d.set);\n', '', /^PB-VIEW/, 'pix'],
+  ['a town frame shown without the sheet whose shadow falls on it', 'src/world/render/canvas-backend.js',
+    "      for (const sh of /** @type {any[]} */ (list.shadows)) if (sh.type === 'cast' && sh.sprite.set) sets.add(sh.sprite.set);\n", '', /^PB-VIEW/, 'pix'],
+  ['a chunk baked with a hole is kept for ever', 'src/world/render/ground-chunks.js',
+    'const stale = (key) => holed.has(key) && complete(key);', 'const stale = () => false;', /^PB-VIEW/, 'pix'],
   ['the ground kept although the camera moved', 'src/world/render/canvas-backend.js',
     '    s.add(view.ox); s.add(view.oy); s.add(view.w); s.add(view.h);\n    s.add(decals);\n', '    s.add(view.w); s.add(view.h);\n    s.add(decals);\n', /^PB-PIX/, 'pix'],
   ['the real town repainted every frame', 'src/world/render/canvas-backend.js',
@@ -371,12 +383,14 @@ async function makeServer(second = 'melee_dps') {
 const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/styles/tokens.css"><style>#a canvas,#b canvas{position:absolute;inset:0;width:100%;height:100%}</style></head>
 <body style="margin:0"><div id="a" style="position:absolute;left:0;top:0;width:720px;height:420px"></div>
 <div id="b" style="position:absolute;left:0;top:430px;width:720px;height:420px"></div>
+<div id="c" style="position:absolute;left:0;top:860px;width:844px;height:390px"></div>
+<div id="d" style="position:absolute;left:0;top:1260px;width:844px;height:390px"></div>
 <script type="module">
   const q = location.search;
-  const [{ createCanvasBackend: A }, { createCanvasBackend: B }, { loadAtlases }, { compileMap }, { WORLD_MAPS }, TER, { STUB_SPRITE }, { BUILD }] = await Promise.all([
+  const [{ createCanvasBackend: A }, { createCanvasBackend: B }, { loadAtlases }, { compileMap }, { WORLD_MAPS, SCENE_MAPS }, TER, { STUB_SPRITE }, { BUILD }, { STATIONS }, { groundOf }] = await Promise.all([
     import('/src/world/render/canvas-backend.js' + q), import('/src/world/render/canvas-backend.redraw.js' + q), import('/src/world/atlas.js' + q),
     import('/src/world/core/map-compile.js' + q), import('/src/data/world/maps/index.js' + q), import('/src/data/world/terrain.js' + q),
-    import('/src/world/core/book.js' + q), import('/src/build-info.js' + q)]);
+    import('/src/world/core/book.js' + q), import('/src/build-info.js' + q), import('/src/data/world/stations.js' + q), import('/src/world/core/compose.js' + q)]);
   const { book, images } = await loadAtlases({ doc: document, version: BUILD.cache });
   const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
   const tables = { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: TER.LIGHTS };
@@ -446,6 +460,84 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
   a.sync(named({ player: { id: 'new' } }));
   const hit = nameAt ? a.pick((nameAt.l + nameAt.r) / 2, (nameAt.t + nameAt.b) / 2) : null;
   out.idle.nameRef = hit && hit.hits[0] && hit.hits[0].ref && hit.hits[0].ref.player ? hit.hits[0].ref.player.id : null;
+  /* PB-VIEW: A TOWN FRAME THAT NAMES NO MISSING SHEET IS THE FRAME EVERY SHEET PAINTS (src/world/view-sheets.js). Two backends on the town at a phone's size, one
+     given only the sheets its frame names (backend.missing), one given all of them; every pixel of every frame must agree, at a sample of every stand in town. */
+  const townRow = WORLD_MAPS.find((m) => m.id === SCENE_MAPS.town);
+  const townMap = compileMap(townRow, tables);
+  const townTiles = groundOf(townMap, book, tables, 32).tiles.slice();
+  const some = {};
+  const onView = A({ win: window, doc: document, book, images: some, tables, css, arrived: (s) => s in some });
+  const allOf = A({ win: window, doc: document, book, images, tables, css });
+  onView.mount(document.getElementById('c')); allOf.mount(document.getElementById('d'));
+  onView.setZoom(2); allOf.setZoom(2);
+  const standIn = (x, y) => ({ hero: { id: 'outfit_knight', x, y, anim: 'idle', dir: 's' }, units: [{ id: 'npc_crier', x: x + 2, y, anim: 'idle', dir: 's' }], fx: [{ id: fxId, x: x + 1, y, age: 0, lift: 0.5 }], t: 5000 });
+  const settle = (b, st) => { for (let i = 0; i < 2000 && !b.ready(st); i++); b.sync(st); };
+  const pixC = () => px('c'), pixD = () => px('d');
+  const differs = () => { const p = pixC(), q = pixD(); let n = 0; for (let k = 0; k < p.length; k++) if (p[k] !== q[k]) n++; return n; };
+  const stands = STATIONS.flatMap((s) => (s.stands || []).filter((_, i) => i % 9 === 0));
+  out.view = { frames: 0, differ: [], lacking: 0, least: Infinity, stale: null };
+  for (const [x, y] of stands) {
+    for (const k of Object.keys(some)) delete some[k];
+    onView.setMap(townMap); allOf.setMap(townMap);
+    const st = standIn(x, y);
+    const miss = onView.missing(st);
+    for (const s of miss) some[s] = images[s];
+    if (onView.missing(st).length) { out.view.differ.push([x, y, 'named more once it had what it named']); continue; }
+    settle(onView, st); settle(allOf, st);
+    const n = differs();
+    if (n) out.view.differ.push([x, y, n, miss.join('+')]);
+    out.view.frames++;
+    if (miss.length < Object.keys(images).length) out.view.lacking++;
+    out.view.least = Math.min(out.view.least, miss.length);
+  }
+  /* A CHUNK BAKED WITH A HOLE IS BAKED AGAIN ONCE ITS SHEET LANDS: a view with a sheet's tiles just off screen, the sheet lands, the view moves onto them */
+  for (const [x, y] of stands) {
+    for (const k of Object.keys(some)) delete some[k];
+    onView.setMap(townMap); allOf.setMap(townMap);
+    const st = standIn(x, y);
+    for (const s of onView.missing(st)) some[s] = images[s];
+    const absent = Object.keys(images).filter((s) => !(s in some));
+    settle(onView, st);
+    /* a ground tile from an absent sheet, in the chunk under the hero: baked already, with a hole where that tile goes */
+    const cx = Math.floor(x * 32 / 512), cy = Math.floor(y * 32 / 512);
+    const tile = townTiles.find((g) => absent.includes(g.set) && Math.floor(g.x / 512) === cx && Math.floor(g.y / 512) === cy);
+    const onto = tile ? standIn(tile.x / 32, tile.y / 32) : null;
+    if (!onto) continue;
+    const sheet = onView.missing(onto);
+    if (!sheet.includes(tile.set)) continue;
+    for (const s of sheet) some[s] = images[s];
+    settle(onView, onto); settle(allOf, onto);
+    out.view.stale = { at: [x, y], to: [onto.hero.x, onto.hero.y], sheets: sheet, bytes: differs() };
+    break;
+  }
+  /* WHAT THE SHIPPED MAP RARELY REACHES: a shadow falling past its own sprite, from a sheet nothing else in the frame names. The same map, with those sprites filed
+     each in a sheet of its own (the same art), so it is the only thing in the frame that can name that sheet. (No shipped map draws list.raised, so that line has no proof.) */
+  const filed = (id, set) => { const s = book.sprites[id]; return s && s.shadow && s.shadow.kind === 'cast' ? set + '~cast~' + id : set; };
+  const plantBook = Object.assign({}, book, { frame(id, ...r) { const f = book.frame(id, ...r); return Object.assign({}, f, { set: filed(id, f.set) }); } });
+  const plantAll = {};
+  for (const s of Object.keys(images)) plantAll[s] = images[s];
+  for (const id of Object.keys(book.sprites)) { const set = book.frame(id).set, f = filed(id, set); if (f !== set) plantAll[f] = images[set]; }
+  const plantSome = {};
+  const onPlant = A({ win: window, doc: document, book: plantBook, images: plantSome, tables, css, arrived: (s) => s in plantSome });
+  const allPlant = A({ win: window, doc: document, book: plantBook, images: plantAll, tables, css });
+  const cOf = (b, id) => { const el = document.getElementById(id); el.querySelectorAll('canvas').forEach((c) => c.remove()); b.mount(el); b.setZoom(2); };
+  onView.destroy(); allOf.destroy();
+  cOf(onPlant, 'c'); cOf(allPlant, 'd');
+  out.view.planted = { frames: 0, differ: [], casts: 0 };
+  const plantFrame = (m, x, y) => {
+    for (const k of Object.keys(plantSome)) delete plantSome[k];
+    onPlant.setMap(m); allPlant.setMap(m);
+    const st = standIn(x, y);
+    const miss = onPlant.missing(st);
+    for (const s of miss) plantSome[s] = plantAll[s];
+    settle(onPlant, st); settle(allPlant, st);
+    const n = differs();
+    if (n) out.view.planted.differ.push([m.id, x, y, n, miss.join('+')]);
+    out.view.planted.frames++;
+    if (miss.some((s) => s.includes('~cast~'))) out.view.planted.casts++;
+  };
+  for (const [x, y] of stands.filter((_, i) => i % 2 === 0)) plantFrame(townMap, x, y);
+  onPlant.destroy(); allPlant.destroy();
   window.__pix = out;
 </script></body></html>`;
 
@@ -470,6 +562,7 @@ async function pixelRule(browser, extra) {
     await page.waitForFunction(() => window.__pix || null, null, { timeout: 60000 }).catch(() => null);
     const r = await page.evaluate(() => window.__pix || null);
     if (!r) return ['PB-PIX the page never finished: ' + errs.join(' | ')];
+    console.log(`  PB-VIEW ${browser}: ${JSON.stringify(r.view)}`);
     console.log(`  PB-PIX ${browser}: ${r.frames} frames, masks drawn ${r.kept.shadow} shadow / ${r.kept.light} light, kept ${r.kept.kept}; ${r.differ.length} frame(s) differ`);
     console.log(`  PB-IDLE ${browser}: ${JSON.stringify(r.idle)}`);
     const f = [];
@@ -481,6 +574,13 @@ async function pixelRule(browser, extra) {
     if (!(d.clock > 0 && d.clock <= BUDGET.idlePaintsIn10s)) f.push(`PB-IDLE a still scene with its clips running painted ${d.clock} frames in 10 s (budget 1..${BUDGET.idlePaintsIn10s}: only when a clip's frame turns)`);
     if (!(d.floorKept > 0 && d.floorMade <= 1)) f.push(`PB-IDLE the ground of a camera that stands was composed ${d.floorMade} time(s), kept ${d.floorKept}: it is rebuilt every paint`);
     if (d.nameRef !== 'new') f.push(`PB-IDLE a press on a name in a held frame found ${d.nameRef}: not this frame's record`);
+    const w = r.view;
+    if (w.differ.length) f.push(`PB-VIEW a town frame with only the sheets it named painted other pixels than a frame with every sheet at ${w.differ.length} of ${w.frames} stands (first: ${JSON.stringify(w.differ[0])})`);
+    if (!(w.frames >= 20 && w.lacking > 0)) f.push(`PB-VIEW harness: ${w.frames} frames, ${w.lacking} with a sheet left out: the rule proved nothing`);
+    if (w.planted.differ.length) f.push(`PB-VIEW a falling shadow from a sheet nothing else named painted other pixels at ${w.planted.differ.length} of ${w.planted.frames} frames (first: ${JSON.stringify(w.planted.differ[0])})`);
+    if (!(w.planted.casts > 0)) f.push(`PB-VIEW harness: of ${w.planted.frames} planted frames ${w.planted.casts} drew a cast shadow: the plant proved nothing`);
+    if (!w.stale) f.push('PB-VIEW harness: no stand has an absent sheet just off screen inside its own chunk');
+    else if (w.stale.bytes) f.push(`PB-VIEW a chunk baked with a hole kept it after its sheet landed: ${w.stale.bytes} bytes differ at ${JSON.stringify(w.stale.to)}`);
     return f;
   } finally { await b.close(); server.close(); }
 }

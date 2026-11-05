@@ -558,8 +558,11 @@ async function run(mutate) {
        union the SQL sellable set is measured against. */
     const { COMPANION_OFFERS } = await import(
       pathToFileURL(join(ROOT, 'src', 'data', 'companion-unlocks.js')).href);
+    /* A FOURTH, forwarded with the gold ladders: Tempering's rungs (src/data/temper.js). Same rule. */
+    const { TEMPER_OFFERS } = await import(
+      pathToFileURL(join(ROOT, 'src', 'data', 'temper.js')).href);
     const edgeById = Object.create(null);
-    for (const r of [...GOLD_LADDER_OFFERS, ...COMPANION_OFFERS]) {
+    for (const r of [...GOLD_LADDER_OFFERS, ...COMPANION_OFFERS, ...TEMPER_OFFERS]) {
       edgeById[r.offer_id] = { gold: r.gold, value: r.value, unlockId: r.unlock_id };
     }
     for (const id of Object.keys(cat.UNLOCK_OFFERS)) edgeById[id] = cat.UNLOCK_OFFERS[id];

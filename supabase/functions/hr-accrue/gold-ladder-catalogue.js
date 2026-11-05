@@ -21,14 +21,17 @@
 // answer unambiguous.
 //
 // PURE ESM. No I/O, no Deno, no globals.
+//
+// TEMPERING's rungs (src/data/temper.js, 2027-02-27) are forwarded the same way: by name, no price.
 // ============================================================================
 
 import { GOLD_LADDER_OFFER_IDS } from '../../../src/data/gold-ladders.js';
+import { TEMPER_OFFER_IDS } from '../../../src/data/temper.js';
 
 /** Set membership is safe against the `constructor` id shape that a bare object
     lookup admits (unlock-buy.js review C6): Set.prototype.has consults no
     prototype chain. */
-const IDS = new Set(GOLD_LADDER_OFFER_IDS);
+const IDS = new Set([...GOLD_LADDER_OFFER_IDS, ...TEMPER_OFFER_IDS]);
 
 /** True iff `offerId` is a gold-ladder offer this build forwards to
     hr_unlock_buy. The RPC still re-validates existence, price, rung order, the

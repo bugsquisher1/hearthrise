@@ -46,12 +46,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, manifest, ROOT } from './schema-replay.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const FILE = '2027-03-05-gm-tools.sql';
-const PREV = '2027-02-26-slots-lower-hero-slots.sql';
 const MIG = join(ROOT, 'supabase', 'migrations', FILE);
 const WIPE = join(ROOT, 'supabase', 'migrations', '2027-02-25-character-wipe.sql');
 const lf = (s) => s.replace(/\r\n/g, '\n');
@@ -829,6 +828,9 @@ async function runArms(W, ids) {
 
 async function main() {
   const src = lf(await readFile(MIG, 'utf8'));
+  /* The chain as it stands just before this file, whatever lands ahead of it. */
+  const order = (await manifest()).order;
+  const PREV = order[order.indexOf(FILE) - 1];
   if (!MUTATE) {
     const { db } = await bootReplay({ upTo: PREV });
     try {

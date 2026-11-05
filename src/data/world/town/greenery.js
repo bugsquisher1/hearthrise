@@ -79,7 +79,6 @@ export const GREENERY = Object.freeze([
   ['pine', 2, 54],
   ['oak', 62, 55],
   ['pine', 9, 56],
-  ['oak', 98, 58],
   ['pine', 18, 59],
   ['oak', 33, 59],
   ['pine', 25, 59],

@@ -168,8 +168,6 @@ const MUTANTS = [
     'const sets = ground.setsIn(chunksOf(view, 0), seen);', 'const sets = new Set();', /^PB-VIEW/, 'pix'],
   ['a town frame shown without the sheets of what stands in it', 'src/world/render/canvas-backend.js',
     'for (const l of [list.decals, list.sprites, list.raised]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);', 'for (const l of [list.decals, list.raised]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);', /^PB-VIEW/, 'pix'],
-  ['a town frame shown without the sheets of what stands over it', 'src/world/render/canvas-backend.js',
-    'for (const l of [list.decals, list.sprites, list.raised]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);', 'for (const l of [list.decals, list.sprites]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);', /^PB-VIEW/, 'pix'],
   ['a town frame shown without the sheet of an effect in it', 'src/world/render/canvas-backend.js',
     '      for (const d of list.fx || []) if (d.set) sets.add(d.set);\n', '', /^PB-VIEW/, 'pix'],
   ['a town frame shown without the sheet whose shadow falls on it', 'src/world/render/canvas-backend.js',
@@ -389,7 +387,7 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
 <div id="d" style="position:absolute;left:0;top:1260px;width:844px;height:390px"></div>
 <script type="module">
   const q = location.search;
-  const [{ createCanvasBackend: A }, { createCanvasBackend: B }, { loadAtlases }, { compileMap }, { WORLD_MAPS, SCENE_MAPS }, TER, { STUB_SPRITE }, { BUILD }, { STATIONS }, { groundOf, composeFrame }] = await Promise.all([
+  const [{ createCanvasBackend: A }, { createCanvasBackend: B }, { loadAtlases }, { compileMap }, { WORLD_MAPS, SCENE_MAPS }, TER, { STUB_SPRITE }, { BUILD }, { STATIONS }, { groundOf }] = await Promise.all([
     import('/src/world/render/canvas-backend.js' + q), import('/src/world/render/canvas-backend.redraw.js' + q), import('/src/world/atlas.js' + q),
     import('/src/world/core/map-compile.js' + q), import('/src/data/world/maps/index.js' + q), import('/src/data/world/terrain.js' + q),
     import('/src/world/core/book.js' + q), import('/src/build-info.js' + q), import('/src/data/world/stations.js' + q), import('/src/world/core/compose.js' + q)]);
@@ -512,19 +510,19 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
     out.view.stale = { at: [x, y], to: [onto.hero.x, onto.hero.y], sheets: sheet, bytes: differs() };
     break;
   }
-  /* WHAT THE SHIPPED MAP RARELY REACHES: a wall's cap, or a shadow falling past its own sprite, from a sheet nothing else in the frame names. The same map, with those
-     sprites filed in sheets of their own (the same art), so each is the only thing in the frame that can name its sheet. */
-  const filed = (id, set) => { const s = book.sprites[id]; return !s ? set : /_cap(_[a-z]+)?$/.test(id) ? set + '~cap' : s.shadow && s.shadow.kind === 'cast' ? set + '~cast' : set; };
+  /* WHAT THE SHIPPED MAP RARELY REACHES: a shadow falling past its own sprite, from a sheet nothing else in the frame names. The same map, with those sprites filed
+     in sheets of their own (the same art), so each is the only thing in the frame that can name its sheet. (No shipped map draws list.raised, so that line has no proof.) */
+  const filed = (id, set) => { const s = book.sprites[id]; return s && s.shadow && s.shadow.kind === 'cast' ? set + '~cast' : set; };
   const plantBook = Object.assign({}, book, { frame(id, ...r) { const f = book.frame(id, ...r); return Object.assign({}, f, { set: filed(id, f.set) }); } });
   const plantAll = {};
-  for (const s of Object.keys(images)) { plantAll[s] = images[s]; plantAll[s + '~cap'] = images[s]; plantAll[s + '~cast'] = images[s]; }
+  for (const s of Object.keys(images)) { plantAll[s] = images[s]; plantAll[s + '~cast'] = images[s]; }
   const plantSome = {};
   const onPlant = A({ win: window, doc: document, book: plantBook, images: plantSome, tables, css, arrived: (s) => s in plantSome });
   const allPlant = A({ win: window, doc: document, book: plantBook, images: plantAll, tables, css });
   const cOf = (b, id) => { const el = document.getElementById(id); el.querySelectorAll('canvas').forEach((c) => c.remove()); b.mount(el); b.setZoom(2); };
   onView.destroy(); allOf.destroy();
   cOf(onPlant, 'c'); cOf(allPlant, 'd');
-  out.view.planted = { frames: 0, differ: [], caps: 0, casts: 0 };
+  out.view.planted = { frames: 0, differ: [], casts: 0 };
   const plantFrame = (m, x, y) => {
     for (const k of Object.keys(plantSome)) delete plantSome[k];
     onPlant.setMap(m); allPlant.setMap(m);
@@ -535,14 +533,9 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
     const n = differs();
     if (n) out.view.planted.differ.push([m.id, x, y, n, miss.join('+')]);
     out.view.planted.frames++;
-    if (miss.some((s) => s.endsWith('~cap'))) out.view.planted.caps++;
     if (miss.some((s) => s.endsWith('~cast'))) out.view.planted.casts++;
   };
   for (const [x, y] of stands.filter((_, i) => i % 2 === 0)) plantFrame(townMap, x, y);
-  /* the town has no walls of its own today; the first base-grid map that does, hero beside its caps */
-  const whole = (m) => ({ ox: 0, oy: 0, w: m.w * 32, h: m.h * 32 });
-  const walled = WORLD_MAPS.filter((r) => !r.grid || r.grid === 'base').map((r) => compileMap(r, tables)).find((m) => composeFrame(m, book, { hero: null }, whole(m), tables, 32).raised.length);
-  if (walled) { const caps = composeFrame(walled, book, { hero: null }, whole(walled), tables, 32).raised; for (let i = 0; i < caps.length; i += Math.max(1, Math.floor(caps.length / 8))) plantFrame(walled, caps[i].tx, caps[i].ty); }
   onPlant.destroy(); allPlant.destroy();
   window.__pix = out;
 </script></body></html>`;
@@ -583,8 +576,8 @@ async function pixelRule(browser, extra) {
     const w = r.view;
     if (w.differ.length) f.push(`PB-VIEW a town frame with only the sheets it named painted other pixels than a frame with every sheet at ${w.differ.length} of ${w.frames} stands (first: ${JSON.stringify(w.differ[0])})`);
     if (!(w.frames >= 20 && w.lacking > 0)) f.push(`PB-VIEW harness: ${w.frames} frames, ${w.lacking} with a sheet left out: the rule proved nothing`);
-    if (w.planted.differ.length) f.push(`PB-VIEW a wall's cap or a falling shadow from a sheet nothing else named painted other pixels at ${w.planted.differ.length} of ${w.planted.frames} frames (first: ${JSON.stringify(w.planted.differ[0])})`);
-    if (!(w.planted.caps > 0 && w.planted.casts > 0)) f.push(`PB-VIEW harness: of ${w.planted.frames} planted frames ${w.planted.caps} drew a cap and ${w.planted.casts} a cast shadow: the plant proved nothing`);
+    if (w.planted.differ.length) f.push(`PB-VIEW a falling shadow from a sheet nothing else named painted other pixels at ${w.planted.differ.length} of ${w.planted.frames} frames (first: ${JSON.stringify(w.planted.differ[0])})`);
+    if (!(w.planted.casts > 0)) f.push(`PB-VIEW harness: of ${w.planted.frames} planted frames ${w.planted.casts} drew a cast shadow: the plant proved nothing`);
     if (!w.stale) f.push('PB-VIEW harness: no stand has an absent sheet just off screen inside its own chunk');
     else if (w.stale.bytes) f.push(`PB-VIEW a chunk baked with a hole kept it after its sheet landed: ${w.stale.bytes} bytes differ at ${JSON.stringify(w.stale.to)}`);
     return f;

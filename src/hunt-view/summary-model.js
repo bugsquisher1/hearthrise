@@ -29,6 +29,7 @@ export { sanitizeSummaries };
 /** Why a hunt ended, as a sentence (one per END_ORDER name; a guard in tests/hunt-summary.mjs keeps them equal). */
 export const END_WORDS = Object.freeze({
   died: 'Your hero died and returned to town.',
+  boss_felled: 'He is down. There is a title to claim on the Character window, under Titles.',
   party_member_died: 'A party member fell, so your hero came home too.',
   party_member_left: 'A party member left the hunt, so your hero came home too.',
   heals_out: 'You ran out of healing supplies.',
@@ -37,6 +38,7 @@ export const END_WORDS = Object.freeze({
   rule: 'One of your stop rules was met, so you headed home.',
   stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\'t hunting.',
   hours: 'The hunt reached its time limit.',
+  boss_time: 'Ten minutes, and he still stands. Your party came home.',
   left: 'You left the hunt.',
   changed: 'You moved on to another hunt.',
   no_fight: END_REASON_COPY.no_fight.one,

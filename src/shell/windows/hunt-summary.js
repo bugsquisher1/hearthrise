@@ -129,7 +129,8 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     for (const [k, , fmt, onlySent] of STATS) {
       const dd = root.querySelector('[data-stat="' + k + '"]');
       text(dd, fmt(cur[k]));
-      prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));
+      /* A called boss counts no kill (src/data/boss-calls.js): the reason line says he's down, and "Monsters 0" would say he isn't. */
+      prop(dd.parentNode, 'hidden', (!!onlySent && (cur[k] === null || cur[k] === undefined)) || (k === 'kills' && !!callOfHunt(cur.hunt)));
     }
     const loot = cur.loot.map(([it, n]) => ({ it, n }));
     cls(root.querySelector('.hsum-h-loot'), 'is-on', loot.length > 0);

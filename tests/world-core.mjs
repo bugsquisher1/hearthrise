@@ -716,7 +716,7 @@ const MUTANTS = [
   ['W6', 'the cull drops art that reaches into the view from its west edge', 'src/world/core/compose.js', [['if (!near(b[4 * i], b[4 * i + 1], b[4 * i + 2], b[4 * i + 3])) continue;', 'if (!near(b[4 * i], b[4 * i + 1], 0, b[4 * i + 3])) continue;']]],
   ['W5', 'a pane let go leaves its canvases to the collector', 'src/world/render/canvas-backend.js', [['if (c) { c.width = 0; c.height = 0; }', 'if (c) { }']]],
   ['W5', 'a chunk let go keeps its pixels', 'src/world/render/ground-chunks.js', [['  function release(c) { c.width = 0; c.height = 0; }', '  function release(c) { }']]],
-  ['W5', 'a new map drawn before its view\'s ground is baked', 'src/world/render/canvas-backend.js', [['      if (!hold || !map || !canvas) return true;', '      return true;']]],
+  ['W5', 'a new map drawn before its view\'s ground is baked', 'src/world/render/canvas-backend.js', [['      if ((!hold && !ground.stale()) || !map || !canvas) return true;', '      return true;']]],
   ['W2', 'a hole corner (cliff) leaves its dual tile undrawn', 'src/world/core/compose.js', [['for (let i = 0; i < 4; i++) if (c[i] < 0) c[i] = most;', 'if (c.some((m) => m < 0)) continue;']]],
   ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [['(m !== lo && !pairM[m * K + lo] && pairM[m * K + up])', '(m !== lo)']]],
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],
@@ -725,7 +725,7 @@ const MUTANTS = [
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],
   ['A1', 'the scene sheets forget the heroes', 'src/world/scene-sets.js', [['  const ids = new Set(Object.values(OUTFITS));', '  const ids = new Set();']]],
   ['A1', 'the scene sheets forget the hunt effects', 'src/world/scene-sets.js', [['    for (const id of effectIds()) ids.add(id);\n', '']]],
-  ['A1', 'the scene sheets forget the home\'s furniture', 'src/world/scene-sets.js', [['  const layout = ROOM_LAYOUTS[row.id];', '  const layout = null;']]],  ['A2', 'every scene loads every sheet', 'src/world/scene-sets.js', [['  return Array.from(sets).sort();', '  for (const id of Object.keys(book.sprites)) note(book.frame(id).set);\n  return Array.from(sets).sort();']]],
+  ['A1', 'the scene sheets forget the home\'s furniture', 'src/world/scene-sets.js', [['  const layout = ROOM_LAYOUTS[row.id];', '  const layout = null;']]],  ['A2', 'every scene loads every sheet', 'src/world/scene-sets.js', [['  return fetchOrder(sets, groundTiles, book);', '  for (const id of Object.keys(book.sprites)) note(book.frame(id).set);\n  return fetchOrder(sets, groundTiles, book);']]],
   ['G3', 'sprites drawn over the roofs', 'src/world/render/canvas-backend.js', [
     ['    for (const d of list.sprites) {\n      if (d.kind === \'unit\' && (d.flash || d.grey)) blitUnit(g, d, view);\n      else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }\n    }\n', ''],
     ['    g.globalAlpha = 1;\n    light(g, list, view, fv);', '    for (const d of list.sprites) blit(g, d, view);\n    g.globalAlpha = 1;\n    light(g, list, view, fv);']]],

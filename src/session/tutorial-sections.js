@@ -23,16 +23,17 @@
 //   back        string           the hunt the player came back to after an absence (residue `coach.back`, away-recap.js)
 //   slotCost    number           the next hero slot's price (AccountSession.slotOffer, the server's), absent when none is for sale
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.90';
-import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.90';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.90';
-import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.90';
-import { farmFieldOf } from './farm-sections.js?v=0.2.90';
-import { homeOf, chestsOf } from './home-sections.js?v=0.2.90';
-import { tallyOf } from './tally-sections.js?v=0.2.90';
-import { partyMembershipOf } from './party-sections.js?v=0.2.90';
-import { wearsArmour } from '../core/vitals.js?v=0.2.90';
-import { ITEMS } from '../data/items.js?v=0.2.90';
+import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.91';
+import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.91';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.91';
+import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.91';
+import { farmFieldOf } from './farm-sections.js?v=0.2.91';
+import { homeOf, chestsOf } from './home-sections.js?v=0.2.91';
+import { tallyOf } from './tally-sections.js?v=0.2.91';
+import { temperFirstRungOf } from './temper-sections.js?v=0.2.91';
+import { partyMembershipOf } from './party-sections.js?v=0.2.91';
+import { wearsArmour } from '../core/vitals.js?v=0.2.91';
+import { ITEMS } from '../data/items.js?v=0.2.91';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -153,6 +154,7 @@ export function tutorialFactsOf(cs, sh) {
     home: homeFacts(cs), gold: goldOf(cs), chest: chestFact(cs),
     staminaMs: stamina ? stamina.msLeft : null,
     tally: tally ? { held: tally.held.length, paid: tally.recent.length, weight: !!tally.weight } : null,
+    temper: temperFirstRungOf(cs),
     inParty: !!party && party.seats.length >= 2,
     partied: !!bests && Object.values(bests.grounds).some((g) => !!g.party),
     ...shellFacts(sh),
@@ -174,7 +176,7 @@ export function pointerCardOf(cs, sh) {
   return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
     defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty,
     gold: f.gold, slotCost: f.slotCost, slotsOwned: f.slotsOwned, home: f.home,
-    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally });
+    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally, temper: f.temper });
 }
 
 /* The ACCOUNT's field as the server last said (2026-12-14-shared-farm: one field for every hero, and any hero may

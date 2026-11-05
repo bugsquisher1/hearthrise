@@ -3,7 +3,7 @@
 //
 // Tyler 2026-10-25 ("Lets move services to the 'shop' menu"): no window of its own any more; the Shop
 // (shop.js) shows this pane as its third tab, and R opens the Shop on it (src/data/shell-windows.js tabKeys).
-// Two services the town sells, every number the SERVER's:
+// Three services the town sells, every number the SERVER's (Tempering, the smith's rungs, is temper-pane.js):
 //   Stamina    the next refill as the server prices it (`stamina_refill`): how
 //              long it restores, its gold, and which purchase of today it is.
 //              Buy opens a confirmation with that price; one press sends ONE
@@ -18,13 +18,14 @@
 // Every control is off while an intent is in flight; nothing changes on
 // screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.90';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.90';
-import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.90';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.90';
-import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.90';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.90';
-import { runIntent } from '../intent-words.js?v=0.2.90';
+import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.91';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.91';
+import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.91';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.91';
+import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.91';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.91';
+import { runIntent } from '../intent-words.js?v=0.2.91';
+import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js?v=0.2.91';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();
@@ -42,6 +43,7 @@ export function servicesPaneHtml() {
     + '<h3 class="hs-sub">Blessings</h3>'
     + '<p class="hs-note hw-bless-note"></p>'
     + '<ul class="hw-ledger hw-bless"></ul>'
+    + temperPaneHtml()
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -96,6 +98,7 @@ export function patchServicesPane(body, ctx) {
       prop(btn, 'disabled', t.held || !next || next.tier !== t.tier || sc.pending || (purse !== null && purse < t.price));
     },
   });
+  patchTemperPane(root, ctx, sc);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   cls(root, 'is-pending', sc.pending);
 }
@@ -106,6 +109,7 @@ export function actServicesPane(ctx, body, action, ev, t) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => patchServicesPane(body, ctx);
+  if (actTemperPane(ctx, action, t, sc, repaint)) return true;
   if (action === 'stam-ask') { const q = staminaRefillOf(cs); if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }
   if (action === 'stam-no') { sc.confirm = false; repaint(); return true; }
   if (action === 'stam-yes' && sc.confirm) {

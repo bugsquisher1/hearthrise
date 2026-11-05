@@ -17,21 +17,21 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.90';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.90';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.90';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.90';
-import { runIntent } from '../intent-words.js?v=0.2.90';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.90';
-import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.90';
-import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.90';
-import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.90';
-import { observeSessions } from '../../session/character-session.js?v=0.2.90';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.90';
-import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.90';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.90';
-import { heldCard } from '../launcher.js?v=0.2.90';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.90';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.91';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.91';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.91';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.91';
+import { runIntent } from '../intent-words.js?v=0.2.91';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.91';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.91';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.91';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.91';
+import { observeSessions } from '../../session/character-session.js?v=0.2.91';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.91';
+import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.91';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.91';
+import { heldCard } from '../launcher.js?v=0.2.91';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.91';
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
 const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };

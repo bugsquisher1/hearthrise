@@ -4936,6 +4936,16 @@ jobs:
           node tests/bench-tax.mjs
           node tools/mutant-gate.mjs node tests/bench-tax.mjs --mutate
 
+      # TEMPERING (Tyler 2026-11-04, lane/c-gear-upgrade): the sale of a rung on the replayed chain with the shipped edge.
+      # The fight's half (tests/hunt-core/temper*.mjs) runs in the hunt-core step, the browser's in hunt-live and services-window.
+      - name: Tempering - the catalogue and the sale, per hero, at the server's price
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-temper.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-temper.mjs --selftest
+          node tests/temper-buy.mjs
+          node tools/mutant-gate.mjs node tests/temper-buy.mjs --mutate
+
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt
       # has a walk and a sensible bag, and every end reason has plain copy.

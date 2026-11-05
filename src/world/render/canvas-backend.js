@@ -16,11 +16,11 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.90';
-import { composeFrame } from '../core/compose.js?v=0.2.90';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.90';
-import { createFrameSig } from './frame-sig.js?v=0.2.90';
-import { paintStub } from '../stub-atlas.js?v=0.2.90';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.91';
+import { composeFrame } from '../core/compose.js?v=0.2.91';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.91';
+import { createFrameSig } from './frame-sig.js?v=0.2.91';
+import { paintStub } from '../stub-atlas.js?v=0.2.91';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
@@ -34,7 +34,7 @@ const HEAL_MS = 5000;
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
- *          css: (token: string) => string}} o   css('--world-void') → the token's value
+ *          css: (token: string) => string, arrived?: (set: string) => boolean}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing)
  */
 export function createCanvasBackend(o) {
   const { win, doc, css } = o;
@@ -431,7 +431,7 @@ export function createCanvasBackend(o) {
   const unlater = (id) => (win.cancelIdleCallback ? win.cancelIdleCallback(id) : win.clearTimeout(id));
   function bakeAhead() {
     aheadId = 0;
-    if (map && !ground.bake(ring, win.performance.now() + AHEAD_MS)) aheadId = later(bakeAhead);
+    if (map && !ground.bake(ring, win.performance.now() + AHEAD_MS, true)) aheadId = later(bakeAhead);
   }
 
   /* Does this frame draw anything the canvas does not already show? Everything a paint reads: the list (walked whole),
@@ -549,7 +549,8 @@ export function createCanvasBackend(o) {
       if (art) ({ book, images, tables } = art); else ({ book, images, tables } = o);
       T = m.T || 32; CHUNK = 16 * T;
       dirty = true;
-      ground.use(m, { book, tables, images });
+      /* another grid's art is whole before it shows; only this art's sheets can still be on their way */
+      ground.use(m, { book, tables, images, arrived: art ? null : o.arrived });
       hold = true;
       last = null;
       repaint(); floorSig.forget(); floorGood = false;
@@ -557,9 +558,25 @@ export function createCanvasBackend(o) {
     },
     /** Bin map `m`'s ground ahead of its first frame: at once, or in slices (`sl`, compose.js sliced) → a promise. */
     prepare(m, art, sl) { return ground.prepare(m, art || o, sl); },
-    /** May the next sync draw? A new map's (or zoom's) view first bakes its ground, WARM_MS a frame; the frame after draws. */
+    /** The sheets frame `state` would draw that have not arrived (o.arrived): none, and its pixels are the ones a frame with every sheet paints. */
+    missing(state) {
+      if (!map || !canvas || !o.arrived) return [];
+      if (dirty) measure();
+      const { view, plan } = viewOf(state, win.performance.now());
+      const list = composeFrame(map, book, state, view, tables, T);
+      /* what the canvas shows of this view: the rest is overscan, and compose's margin past it */
+      const seen = { ox: view.ox - plan.dx / z, oy: view.oy - plan.dy / z, w: W / z, h: H / z };
+      const meets = (d) => d.x < seen.ox + seen.w && d.x + d.w > seen.ox && d.y < seen.oy + seen.h && d.y + d.h > seen.oy;
+      const sets = ground.setsIn(chunksOf(view, 0), seen);
+      for (const l of [list.decals, list.sprites, list.raised]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);
+      /* an effect may be turned and a shadow falls past its sprite: named whatever their box says */
+      for (const d of list.fx || []) if (d.set) sets.add(d.set);
+      for (const sh of /** @type {any[]} */ (list.shadows)) if (sh.type === 'cast' && sh.sprite.set) sets.add(sh.sprite.set);
+      return Array.from(sets).filter((s) => !o.arrived(s));
+    },
+    /** May the next sync draw? A new map's (or zoom's) view first bakes its ground, WARM_MS a frame; the frame after draws. So does a view over a chunk its sheet just filled. */
     ready(state) {
-      if (!hold || !map || !canvas) return true;
+      if ((!hold && !ground.stale()) || !map || !canvas) return true;
       if (dirty) measure();
       const t0 = win.performance.now();
       const shown = chunksOf(viewOf(state, t0).view, 0);

@@ -284,7 +284,7 @@ async function rules(M) {
   { // LOG-4: a miss has no word on the screen any more, only a spark (hunt-vfx.js GLANCE_FX), so the log is where it says so (Tyler 2026-11-04).
     const n = { name: (u) => ({ 1: 'Tyler', 101: 'Giant Rat' })[u] || 'Someone', isHero: (u) => u === 1 };
     const at = M.L.lineOf({ key: 'm1', type: 'miss', atMs: 1, u: 101, t: 1 }, n);
-    ok('LOG-4', at && at.type === 'taken' && at.text === 'Giant Rat misses Tyler.', 'a monster\'s miss reads ' + JSON.stringify(at));
+    ok('LOG-4', at && at.type === 'taken' && at.text === 'Giant Rat misses Tyler.' && at.quiet === true, 'a monster\'s miss reads quietly: ' + JSON.stringify(at));
     const out = M.L.lineOf({ key: 'm2', type: 'miss', atMs: 1, u: 1, t: 101 }, n);
     ok('LOG-4', out && out.type === 'dealt' && out.text === 'Tyler misses Giant Rat.', 'a hero\'s miss reads ' + JSON.stringify(out));
     const dodged = M.L.lineOf({ key: 'm3', type: 'miss', atMs: 1, u: 101, t: 1, dodge: true }, n);
@@ -349,9 +349,10 @@ const MUTANTS = [
   ['an ok is not re-read', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }", '{ return { ok: true }; }'],
   ['a live viewer never sees the server\'s rare roll', 'src/session/character-session.js', 'body.hunt_events.filter((e) => e && SERVER_ONLY_EVENTS.includes(e.type)) : []', '[] : []'],
   ['a monster hit reads as dealt', 'src/hunt-view/combat-log.js', "return line(n.isHero(ev.u) ? 'dealt' : 'taken',", "return line('dealt',"],
-  ['the log says nothing of a miss (LOG-4)', 'src/hunt-view/combat-log.js', "    case 'miss': return ev.dodge === true", "    case 'miss_': return ev.dodge === true"],
+  ['the log says nothing of a miss (LOG-4)', 'src/hunt-view/combat-log.js', "    case 'miss': return Object.assign(", "    case 'miss_': return Object.assign("],
   ['a monster\'s miss reads as dealt (LOG-4)', 'src/hunt-view/combat-log.js', ": line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses '", ": line('dealt', a + ' misses '"],
-  ['a dodge reads as a plain miss (LOG-4)', 'src/hunt-view/combat-log.js', "return ev.dodge === true ? line('taken',", "return false ? line('taken',"],
+  ['a dodge reads as a plain miss (LOG-4)', 'src/hunt-view/combat-log.js', "Object.assign(ev.dodge === true ? line('taken',", "Object.assign(false ? line('taken',"],
+  ['a miss wears the red of damage taken (LOG-4)', 'src/hunt-view/combat-log.js', "a + ' misses ' + b + '.'), { quiet: true });", "a + ' misses ' + b + '.'), {});"],
   ['a monster newer than the pose reads Someone (LOG-5)', 'src/hunt-view/combat-log.js', 'const kind = x.kind || cs.timeline.kindOf(u);', 'const kind = x.kind;'],
   ['a hero only the live view knows reads Someone (LOG-5)', 'src/hunt-view/combat-log.js', '    if (m) heroes.set(x.unit, m.name);\n', ''],
 ];

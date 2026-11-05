@@ -45,7 +45,7 @@ function namer(cs) {
 
 /**
  * One event as a line, or null when it is not a log line.
- * @returns {{key: string, type: string, units: number[], text: string}|null}
+ * @returns {{key: string, type: string, units: number[], text: string, quiet?: boolean}|null}  `quiet`: nothing happened to anyone (a miss), so it wears no cost color
  */
 export function lineOf(ev, n) {
   const a = n.name(ev.u), b = n.name(ev.t);
@@ -56,7 +56,7 @@ export function lineOf(ev, n) {
       return line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' hits ' + b + ' for ' + ev.amount + how + '.');
     }
     /* The screen shows a miss as a spark and no word (hunt-vfx.js GLANCE_FX, Tyler 2026-11-04: "the combat log can still say blah blah missed you"). */
-    case 'miss': return ev.dodge === true ? line('taken', b + ' dodges ' + a + '’s blow.') : line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses ' + b + '.');
+    case 'miss': return Object.assign(ev.dodge === true ? line('taken', b + ' dodges ' + a + '’s blow.') : line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses ' + b + '.'), { quiet: true });
     case 'heal': return line('heal', ev.u === ev.t ? a + ' heals for ' + ev.amount + '.' : a + ' heals ' + b + ' for ' + ev.amount + '.');
     /* A kill's XP is LEVEL XP (xp-share.js); a skill's own level-up names the skill (Tyler 2026-10-22: say which XP). */
     case 'xp': return line('xp', a + ' gains ' + ev.amount + ' Level XP.');

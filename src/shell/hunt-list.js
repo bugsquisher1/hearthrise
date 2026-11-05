@@ -10,6 +10,7 @@
 //                        server spawns on the shown tier; the room as built only at 0
 //   tierPull(row, tier, size)  how many monsters a pull brings on a tier for this group
 //   tierWords(row, tier, size)  what a tier does, in numbers from its row and the ground's biggest blow
+//   tierChoiceWords(row, tier, size)  the same choice in one line, beside Enter
 //   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
 //   recommendation(levels, size)  the Hunts window's default pick for this hero
 //                        or this party's levels, and a plain note when no ground
@@ -28,7 +29,7 @@
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.90';
-import { HUNT_TIERS, DEFAULT_TIER, pullOfTier } from '../data/hunt-tiers.js?v=0.2.90';
+import { DEFAULT_TIER, TIER_NAME, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.90';
 import { biggestBlowOn } from '../core/hunt/pull-cycle.js?v=0.2.90';
 import { PARTY } from '../data/party.js?v=0.2.90';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.90';
@@ -91,20 +92,30 @@ export function packWords(r, n) {
 
 /** How many monsters a pull brings on tier `id` for a group of `size` (0 = the room as built: Normal alone). The tier's row, else the ground's own party pull. Pure. */
 export function tierPull(r, id, size = 1) {
-  return pullOfTier(HUNT_TIERS[id] || HUNT_TIERS[DEFAULT_TIER], size) || partyPullOf(r, size);
+  return pullOfTier(tierRowOf(r.hunt, id), size) || partyPullOf(r, size);
 }
 
 const PCT = (pm) => Math.round(pm / 10 - 100) + '%';
+/* What's different, the words both lines open on: the monsters a pull, and how much harder they hit. */
+const HARDER = (pm) => (pm === 2000 ? 'twice as hard' : pm > 2000 ? pm / 1000 + ' times as hard' : PCT(pm) + ' harder');
+const tierHead = (r, t, size) => { const n = pullOfTier(t, size); return (n ? n + ' monsters a pull' : 'The same monsters') + ', hitting ' + HARDER(t.powerPm); };
+
 /**
  * WHAT A TIER DOES, the page's words: its numbers from its row (hunt-tiers.js), and the biggest blow the ground can land on it, before armor (pull-cycle.js biggestBlowOn).
  * Normal says nothing: it is the ground as the page describes it. The risk is a real number, never a mood (Tyler 2026-11-04: a warned choice). Pure.
  */
 export function tierWords(r, id, size = 1) {
-  const t = HUNT_TIERS[id];
-  if (!t || id === DEFAULT_TIER) return '';
+  const t = tierRowOf(r.hunt, id);
+  if (t.id === DEFAULT_TIER) return '';
   const blow = biggestBlowOn(r.hunt, size, t), was = biggestBlowOn(r.hunt, size);
-  return pullOfTier(t, size) + ' monsters a pull, hitting ' + PCT(t.powerPm) + ' harder' + (blow ? ': the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + '. '
-    + PCT(t.xpPm) + ' more Level XP a kill, the same gold and drops. Expect a bigger food bill, and it can kill you.';
+  return tierHead(r, t, size) + (blow ? ': the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + '. '
+    + 'Each kill pays ' + PCT(t.xpPm) + ' more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die: the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
+}
+
+/** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: 8 monsters a pull, hitting 50% harder." '' on Normal. Pure. */
+export function tierChoiceWords(r, id, size = 1) {
+  const t = tierRowOf(r.hunt, id);
+  return t.id === DEFAULT_TIER ? '' : TIER_NAME[t.id] + ': ' + tierHead(r, t, size) + '.';
 }
 
 /** The ground's level band in words, and where the character stands when its level is known. */

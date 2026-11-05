@@ -7,7 +7,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## Unreleased
 
-**Three ways to hunt.** Mosslight Glade and Coppercap Warrens can be hunted Normal, Dangerous or Deadly. Harder hunts bring more monsters at once and they hit harder, for more XP on every kill and the same gold and drops. It replaces the + and - on a hunt's page. Your pick is kept for each ground, and a party leader's pick holds for everyone.
+**Three ways to hunt.** Every hunting ground past the Mill Cellar can be hunted Normal, Dangerous or Deadly. Harder hunts hit harder and often bring more monsters at once, for more XP on every kill and the same gold and drops. It replaces the + and - on a hunt's page. Your pick is kept for each ground, and a party leader's pick holds for everyone.
 **The smith tempers your gear.** On the Shop's Services tab (R), a hero wearing gear from Level 15 up can pay gold for a little more from it. Each rung of Blows makes your blows and heals land 1% harder; each rung of Armor lets 1% less damage reach you; five rungs of each. Every tier of gear has its own rungs. It can't fail, nothing wears out, and your hero keeps it through a death.
 
 ## v0.2.90 — 2026-11-04 (Armor That Answers)

@@ -27,9 +27,10 @@ export async function loadAxes(root) {
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const { MATERIAL_TIERS } = await import(u('src/data/gear-tiers.js'));
+  const { tierRowOf } = await import(u('src/data/hunt-tiers.js'));
   const grounds = Object.values(G.OPEN_GROUNDS).map((g) => ({ id: g.id, band: HUNT_INDEX[g.hunt].band.slice(), groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
     soloFrom: g.soloFrom || null, densityMax: g.densityMax ? g.densityMax[0] : 8 })).sort((a, b) => a.band[0] - b.band[0]);
-  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level) };
+  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level), tierRowOf };
 }
 
 const uniq = (xs) => [...new Set(xs)].sort((a, b) => a - b);
@@ -38,6 +39,18 @@ const inBand = (band) => uniq([band[0], Math.round((band[0] + band[1]) / 2), ban
 const tag = (o) => Object.entries(o).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => k + '=' + (Array.isArray(v) ? v.join('+') : typeof v === 'object' ? JSON.stringify(v) : v)).join(',');
 const cellOf = (o) => ({ id: tag({ g: o.ground, p: o.party, L: o.level, d: o.density, gear: o.gear, bar: o.bar, sup: o.supply, h: o.hours, s: o.seeds, seg: o.segmentH, x: o.x }), ...o });
 
+/* The Levels the tier plans play each ground at: in range, past it, and pushing. */
+export const TIER_LEVELS = Object.freeze({
+  meadowbrook_thicket: [5, 8, 12, 15, 2], wickstead: [8, 13, 16, 18, 20, 5], millrace_sewer: [8, 16, 20, 25, 5],
+  mosslight_glade: [16, 24, 31, 40, 10, 6], coppercap_warrens: [32, 41, 50, 60, 26, 20],
+});
+/* The ladder's rungs, by the game's own advice (recommendedHunt) and its Level bands: [lower, upper, Levels at and past the upper's floor]. */
+export const TIER_RUNGS = Object.freeze([['meadowbrook_thicket', 'wickstead', [8, 12]], ['meadowbrook_thicket', 'millrace_sewer', [8, 12]], ['wickstead', 'mosslight_glade', [16, 20]], ['millrace_sewer', 'mosslight_glade', [16, 20]], ['mosslight_glade', 'coppercap_warrens', [32, 38]]]);
+/* One cell on a tier as written: its pull from the ground's own row, its size's entry. */
+const tierCell = (axes, o) => {
+  const row = axes.tierRowOf(o.ground, o.tier), pull = row.pull[o.party.length - 1];
+  return { ...cellOf({ ground: o.ground, party: o.party, level: o.level, density: pull || null, hours: o.hours, seeds: o.seeds, x: o.x }), ...(o.tier === 'normal' ? {} : { options: { tier: o.tier } }), windowMs: 120000 };
+};
 /**
  * The plans. `scale` multiplies hours (the smoke and estimate modes). Each answers [cells | careers].
  */
@@ -556,31 +569,25 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
-  if (name === 'tiercand') {
-    /* THE TIER'S NUMBERS, in the sim only (worker.mjs whatIf on hunt-tiers.js; never written to a data file): a harder tier's pull and power at the floor, the middle, the top and pushing. x = T<tier><pull>p<power>. Normal is plan tierpull's default. */
-    const COMBOS = [['dangerous', 4, 1200], ['dangerous', 5, 1100], ['dangerous', 5, 1200], ['dangerous', 5, 1300], ['deadly', 6, 1500], ['deadly', 8, 1300], ['deadly', 8, 1500], ['deadly', 8, 1750]];
-    for (const [ground, levels] of [['mosslight_glade', [16, 24, 31, 10]], ['coppercap_warrens', [32, 41, 50, 26]]]) for (const level of levels) for (const [tier, density, powerPm] of COMBOS) {
-      const cell = (party) => ({ ...cellOf({ ground, party, level, density, hours: H(1), seeds: 2, x: 'T' + tier + density + 'p' + powerPm }), options: { tier }, windowMs: 120000, whatIf: { tiers: { [tier]: { powerPm } } } });
-      for (const s of ['tank', 'sword', 'hammer', 'bow', 'mage', 'healer']) out.push(cell([s]));
-      for (const party of [PARTIES.four, PARTIES.four_dps]) out.push(cell(party));
-    }
-    return out;
-  }
   if (name === 'tierfinal') {
-    /* THE RECOMMENDED TIERS (src/data/hunt-tiers.js as written), the Glade and the Warrens: Normal, Dangerous and Deadly, in range, pushing and over the ground, every way to fight, alone, a pair, a three, two fours. x = F<tier>. */
+    /* THE TIERS AS WRITTEN (src/data/hunt-tiers.js): every ground that offers them, in range, pushing and past the ground, every way to fight, alone, a pair, a three, two fours. x = F<tier>. A cell's pull is its row's. */
     const WHO = [['tank'], ['sword'], ['hammer'], ['axes'], ['bow'], ['crossbow'], ['mage'], ['healer'], PARTIES.duo, PARTIES.trio, PARTIES.four, PARTIES.four_dps];
-    const PULL = { normal: () => null, dangerous: (n) => [4, 5, 5, 6][n - 1], deadly: () => 8 };
-    for (const [ground, levels] of [['mosslight_glade', [16, 24, 31, 40, 10, 6]], ['coppercap_warrens', [32, 41, 50, 60, 26, 20]]]) for (const level of levels) for (const party of WHO) for (const tier of ['normal', 'dangerous', 'deadly']) {
-      out.push({ ...cellOf({ ground, party, level, density: PULL[tier](party.length), hours: H(1), seeds: 2, x: 'F' + tier }), ...(tier === 'normal' ? {} : { options: { tier } }), windowMs: 120000 });
+    for (const [ground, levels] of Object.entries(TIER_LEVELS)) for (const level of levels) for (const party of WHO) for (const tier of ['normal', 'dangerous', 'deadly']) {
+      out.push(tierCell(axes, { ground, party, level, tier, hours: H(1), seeds: 2, x: 'F' + tier }));
     }
     return out;
   }
-  if (name === 'tierlow') {
-    /* WHAT A LOWER GROUND'S TOP TIER CAN BE (the expansion's question, sim only): a smaller full tier and less XP on the three grounds whose Deadly beats the next Normal at the sample's numbers. x = W<pull>x<xpPm>. Read with tiers-table.mjs --cand beside plan tierladder's Lnormal. */
-    for (const [ground, levels] of [['meadowbrook_thicket', [8, 12]], ['wickstead', [16, 20]], ['millrace_sewer', [16, 20]]]) for (const level of levels) for (const party of [['tank'], ['hammer'], ['bow'], ['mage'], ['healer'], PARTIES.four]) {
-      for (const [density, xpPm] of [[4, 1100], [5, 1100], [6, 1100], [8, 1100], [8, 1000]]) {
-        out.push({ ...cellOf({ ground, party, level, density, hours: H(1), seeds: 2, x: 'W' + density + 'x' + xpPm }), options: { tier: 'deadly' }, windowMs: 120000, whatIf: { tiers: { deadly: { xpPm } }, tierGrounds: [ground] } });
-      }
+  if (name === 'tierrows') {
+    /* THE LOWER GROUNDS' ROWS, IN THE SIM ONLY (whatIf on hunt-tiers.js; never written to a data file): pull, power and XP on the three grounds the sample's numbers don't fit. x = R<tier>:<pull>:<power>:<xp>. */
+    const WHO = [['tank'], ['hammer'], ['bow'], ['mage'], ['healer'], PARTIES.duo, PARTIES.four, PARTIES.four_dps];
+    const CANDS = {
+      meadowbrook_thicket: [['dangerous', [0, 0, 0, 0], 1250, 1050], ['dangerous', [0, 0, 0, 0], 1500, 1050], ['deadly', [0, 0, 0, 0], 2000, 1100], ['deadly', [0, 0, 0, 0], 2500, 1100], ['deadly', [0, 0, 0, 0], 3000, 1100], ['deadly', [3, 6, 6, 6], 2000, 1000]],
+      wickstead: [['dangerous', [3, 4, 4, 5], 1200, 1050], ['dangerous', [3, 4, 4, 5], 1500, 1050], ['deadly', [5, 8, 8, 8], 1500, 1100], ['deadly', [5, 8, 8, 8], 2000, 1100], ['deadly', [4, 8, 8, 8], 2000, 1100]],
+      millrace_sewer: [['dangerous', [0, 5, 5, 6], 1200, 1050], ['dangerous', [0, 5, 5, 6], 1500, 1050], ['deadly', [0, 8, 8, 8], 1500, 1100], ['deadly', [0, 8, 8, 8], 2000, 1100]],
+    };
+    for (const [ground, rows] of Object.entries(CANDS)) for (const level of { meadowbrook_thicket: [5, 8, 12], wickstead: [8, 16, 20], millrace_sewer: [8, 16, 20] }[ground]) for (const [tier, pull, powerPm, xpPm] of rows) for (const party of WHO) {
+      const density = pull[party.length - 1];
+      out.push({ ...cellOf({ ground, party, level, density: density || null, hours: H(1), seeds: 2, x: 'R' + tier + ':' + pull.join('') + ':' + powerPm + ':' + xpPm }), options: { tier }, windowMs: 120000, whatIf: { tiers: { [ground]: { [tier]: { id: tier, pull, powerPm, xpPm } } } } });
     }
     return out;
   }
@@ -594,14 +601,16 @@ export function buildPlan(name, axes, scale = 1) {
     return out;
   }
   if (name === 'tierladder') {
-    /* THE LADDER RULE (lane/c-difficulty-tiers): a ground's Deadly must not beat Normal of the next ground up at the Level that fits it, or nobody moves on. Each rung at the upper ground's floor and a little past it, the lower ground on Normal and Deadly, the upper on Normal. Sim only (whatIf tierGrounds); read by tiers-table.mjs --ladder. */
-    const RUNGS = [['mill_cellar', 'meadowbrook_thicket', [5, 8]], ['meadowbrook_thicket', 'wickstead', [8, 12]], ['meadowbrook_thicket', 'millrace_sewer', [8, 12]], ['wickstead', 'mosslight_glade', [16, 20]], ['millrace_sewer', 'mosslight_glade', [16, 20]], ['mosslight_glade', 'coppercap_warrens', [32, 38]]];
-    for (const [lower, upper, levels] of RUNGS) for (const level of levels) for (const party of [['tank'], ['sword'], ['hammer'], ['bow'], ['mage'], ['healer'], PARTIES.four, PARTIES.four_dps]) {
-      const whatIf = { tierGrounds: [lower] };
-      out.push({ ...cellOf({ ground: lower, party, level, hours: H(1), seeds: 2, x: 'Lnormal' }), windowMs: 120000 });
-      out.push({ ...cellOf({ ground: lower, party, level, density: party.length > 1 ? 6 : 4, hours: H(1), seeds: 2, x: 'Ldangerous' }), options: { tier: 'dangerous' }, windowMs: 120000, whatIf });
-      out.push({ ...cellOf({ ground: lower, party, level, density: 8, hours: H(1), seeds: 2, x: 'Ldeadly' }), options: { tier: 'deadly' }, windowMs: 120000, whatIf });
-      out.push({ ...cellOf({ ground: upper, party, level, hours: H(1), seeds: 2, x: 'Lnormal' }), windowMs: 120000 });
+    /* THE LADDER RULE (src/data/hunt-tiers.js): a ground's top tier must not beat the next ground's Normal at the Level that fits it, or nobody moves on. Each rung at the upper ground's floor and past it, the rows as written, the Tempered kit beside the plain one (x = L<tier>, LT<tier>: every rung of both tracks, tier 1 has none). Read by tiers-table.mjs --ladder. */
+    const WHO = [['tank'], ['sword'], ['hammer'], ['axes'], ['bow'], ['crossbow'], ['mage'], ['healer'], PARTIES.duo, PARTIES.trio, PARTIES.four, PARTIES.four_dps];
+    const FULL = { 'temper:blows:2': 5, 'temper:blows:3': 5, 'temper:armor:2': 5, 'temper:armor:3': 5 };
+    for (const [lower, upper, levels] of TIER_RUNGS) for (const level of levels) for (const party of WHO) for (const [x, temper] of [['L', null], ['LT', level >= 15 ? FULL : null]]) {
+      if (x === 'LT' && !temper) continue;
+      const t = temper ? { temper } : {};
+      out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'normal', hours: H(1), seeds: 2, x: x + 'normal' }), ...t });
+      out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'dangerous', hours: H(1), seeds: 2, x: x + 'dangerous' }), ...t });
+      out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'deadly', hours: H(1), seeds: 2, x: x + 'deadly' }), ...t });
+      out.push({ ...tierCell(axes, { ground: upper, party, level, tier: 'normal', hours: H(1), seeds: 2, x: x + 'normal' }), ...t });
     }
     return [...new Map(out.map((c) => [c.id, c])).values()];
   }

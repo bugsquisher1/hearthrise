@@ -56,7 +56,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.90';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.90';
 import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.90';
 import { TIER_IDS, TIER_NAME, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.90';
-import { huntRows, packWords, tierPull, tierWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.90';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.90';
 import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.90';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.90';
 import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.90';
@@ -309,7 +309,10 @@ function patchPage(det, ctx, sc, v) {
   /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
   const off = now ? '' : enterOffWords(party);
   if (off) prop(enter, 'disabled', true);
-  text(det.querySelector('.hw-enter-why'), off);
+  /* A HARDER HUNT SAYS SO AT THE PRESS: a pick kept from last time isn't on screen above a scrolled page. */
+  const pressing = huntTierOf(cs);
+  const choosing = now || off || follower ? '' : tierChoiceWords(r, shownTier(sc, pressing ? pressing.picks : null, r.hunt, party) || DEFAULT_TIER, size);
+  text(det.querySelector('.hw-enter-why'), off || choosing);
   prop(det.querySelector('[data-hs-act="leave-party"]'), 'hidden', now || !follower);
   /* This hero's tier picked per ground (hunt_tier); null = the server sent none, no choice shows. */
   const tiers = huntTierOf(cs);

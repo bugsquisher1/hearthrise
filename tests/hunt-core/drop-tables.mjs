@@ -124,6 +124,7 @@ async function load(root) {
     ITEMS: (await imp(root, 'src/data/items.js')).ITEMS,
     HUNTS: (await imp(root, 'src/data/hunts.js')).HUNT_INDEX,
     G: await imp(root, 'src/data/hunt-grounds.js'),
+    TIERS: await imp(root, 'src/data/hunt-tiers.js'),
     IMB: await imp(root, 'src/data/imbuements.js'),
     LB: await imp(root, 'src/data/loot-bands.js'),
     WEIGHT: (await imp(root, 'src/data/core-model.js')).ARMOUR_WEIGHT,
@@ -514,7 +515,8 @@ function bigPull(M, P, monsters, R, print) {
     const fill = bigPullMonsters(M, ground).filter((id) => (monsters[id].drops || []).some((d) => d.band === 'rare' || d.id === 'bear_pelt'));
     if (!fill.length) continue;
     const floor = M.HUNTS[ground.hunt].band[0];
-    const cap = M.G.densityCapFor(ground, 1);
+    /* THE PULLS A LONE HERO REALLY PLAYS: the tiers' own rows (hunt-tiers.js). */
+    const cap = M.TIERS.pullOfTier(M.TIERS.tierRowOf(gid, 'dangerous'), 1);
     for (const id of fill) {
       const first = Math.min(...ground.pockets.map((p) => (p.pack || []).findIndex((s) => s.monster === id)).filter((i) => i >= 0)) + 1;
       for (const density of [...new Set([first, cap])]) {

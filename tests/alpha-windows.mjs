@@ -428,15 +428,19 @@ async function huntsPure(imp) {
   const fails = [];
   const { residentsOf, scarceSetOf, raresOf, wornWeightOf, bigPullOf } = await imp('src/shell/hunt-ground-facts.js');
   const { MONSTERS } = await imp('src/data/monsters.js');
-  const { huntRows, fitWords, bestLine, bestWords, tierPull, tierWords } = await imp('src/shell/hunt-list.js');
+  const { huntRows, fitWords, bestLine, bestWords, tierPull, tierWords, tierChoiceWords } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
   const STORE = FIXTURE.hunt_settings.store;
-  /* THE PULL EACH TIER BRINGS: Normal is the ground as it stands (as built alone, 0; a party's own pull), the harder tiers their row's number for the group's size. */
-  const pulled = { packMin: 3, packMax: 3, partyPull: [0, 4, 5, 6] };
-  if (tierPull(pulled, 'normal', 1) !== 0) fails.push('AW-25 a lone hero moved off the room as built: ' + tierPull(pulled, 'normal', 1));
-  if (tierPull(pulled, 'normal', 2) !== 4 || tierPull(pulled, 'normal', 4) !== 6) fails.push('AW-25 a party on Normal does not read its own pull: ' + tierPull(pulled, 'normal', 2) + ' / ' + tierPull(pulled, 'normal', 4));
-  if (tierPull(pulled, 'dangerous', 1) !== 4 || tierPull(pulled, 'dangerous', 4) !== 6 || tierPull(pulled, 'deadly', 1) !== 8 || tierPull(pulled, 'deadly', 4) !== 8) fails.push('AW-25 a harder tier does not read its row');
-  if (tierWords(pulled, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(pulled, 'normal', 1));
+  /* THE PULL EACH TIER BRINGS: Normal is the ground as it stands (as built alone, 0; a party's own pull), a harder tier its own row's number for the group's size, and a row of 0 the ground as it stands too. */
+  const rowOf = (hunt) => huntRows().find((x) => x.hunt === hunt);
+  const glade = rowOf('mosslight_glade'), thicket = rowOf('meadowbrook_thicket');
+  if (tierPull(glade, 'normal', 1) !== 0) fails.push('AW-25 a lone hero moved off the room as built: ' + tierPull(glade, 'normal', 1));
+  if (tierPull(glade, 'normal', 2) !== 3 || tierPull(glade, 'normal', 4) !== 4) fails.push('AW-25 a party on Normal does not read its own pull: ' + tierPull(glade, 'normal', 2) + ' / ' + tierPull(glade, 'normal', 4));
+  if (tierPull(glade, 'dangerous', 1) !== 4 || tierPull(glade, 'dangerous', 4) !== 6 || tierPull(glade, 'deadly', 1) !== 8 || tierPull(glade, 'deadly', 4) !== 8) fails.push('AW-25 a harder tier does not read its row');
+  if (tierPull(thicket, 'deadly', 1) !== 0 || tierPull(thicket, 'deadly', 4) !== 6) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicket, 'deadly', 1) + ' / ' + tierPull(thicket, 'deadly', 4));
+  if (tierWords(glade, 'normal', 1) !== '' || tierChoiceWords(glade, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(glade, 'normal', 1));
+  if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, hitting 50% harder.') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
+  if (tierChoiceWords(thicket, 'deadly', 1) !== 'Deadly: The same monsters, hitting 3 times as hard.') fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicket, 'deadly', 1));
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
   const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();
   if (cellar !== 'rat:common:2,slime:uncommon:2,hive_wasp:uncommon:4') fails.push('AW-25 the Mill Cellar lives as ' + cellar);
@@ -3524,7 +3528,7 @@ const MUTANTS = [
   ['AW-62 the foot scrolls off', 'src/styles/windows.css', '.hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }\n', ''],
   ['AW-63 the first press of Enter under the floor walks straight in', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
   ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Your bag is full.", "  return false ? 'Your bag is full."],
-  ['AW-63 Enter off has no reason beside it', 'src/shell/windows/hunts.js', "  text(det.querySelector('.hw-enter-why'), off);\n", ''],
+  ['AW-63 Enter off has no reason beside it', 'src/shell/windows/hunts.js', "  text(det.querySelector('.hw-enter-why'), off || choosing);\n", ''],
   ['AW-63 a member has no way out at Enter', 'src/shell/windows/hunts.js', "  prop(det.querySelector('[data-hs-act=\"leave-party\"]'), 'hidden', now || !follower);\n", ''],
   ['AW-65 the answer stays behind a scrolled bag', 'src/styles/windows.css', '.hs-win .hh-intent-msg:not(:empty, .ca-msg) { position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }', '.hs-win .hh-intent-msg:not(:empty, .ca-msg) { padding: 6px 10px; }'],
   ['AW-65 a result lies on the stack pressed', 'src/shell/press-ack.js', '    clearOfAnswer(p.el);\n', '    if (p.refused) clearOfAnswer(p.el);\n'],

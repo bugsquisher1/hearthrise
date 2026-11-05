@@ -1589,7 +1589,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const dRead = () => page.evaluate(() => {
         const on = document.querySelector('.hw-hunt-detail .hw-tiers .hh-seg[aria-pressed="true"]');
         return { v: on && on.getAttribute('data-tier'), pending: on && on.getAttribute('data-pending'), msg: document.querySelector('.hw-hunts .hh-intent-msg').textContent,
-          facts: document.querySelector('.hw-hunt-detail .hw-hunt-facts').textContent, note: document.querySelector('.hw-hunt-detail .hw-tier-note').textContent };
+          facts: document.querySelector('.hw-hunt-detail .hw-hunt-facts').textContent, note: document.querySelector('.hw-hunt-detail .hw-tier-note').textContent, press: document.querySelector('.hw-hunt-detail .hw-enter-why').textContent };
       });
       /* The pick is PER GROUND: the picked ground's page reads its own pick, every other ground's page its own
          (master-detail: each other ground is picked in turn, its page read, then the first is picked again). */
@@ -1611,7 +1611,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (d0.v !== 'dangerous') fails.push('HS-8 the tier does not show the server’s Dangerous: ' + d0.v);
       if (!/ packs? of 4[ ,]/.test(d0.facts)) fails.push('HS-8 the facts line does not say the pull on the server’s Dangerous: ' + d0.facts);
       /* The note names the risk with real numbers: a lone hero's pull, the power, the biggest blow on the tier against Normal's, the XP. */
-      if (!/4 monsters a pull, hitting 20% harder: the biggest blow here is \d+, not \d+\. 10% more Level XP a kill, the same gold and drops/.test(d0.note)) fails.push('HS-8 the tier note reads: ' + d0.note);
+      if (!/4 monsters a pull, hitting 20% harder: the biggest blow here is \d+, not \d+\. Each kill pays 10% more Level XP, with the same gold and drops\. Expect a bigger food bill, and you can die: the hunt ends and you lose 2% of your XP\./.test(d0.note)) fails.push('HS-8 the tier note reads: ' + d0.note);
+      /* A pick kept from last time is said at the press: the line beside Enter. */
+      if (d0.press !== 'Dangerous: 4 monsters a pull, hitting 20% harder.') fails.push('HS-8 the line beside Enter reads: ' + d0.press);
       /* the save answers Dangerous (not the Deadly asked, s.onTier): what shows afterwards is the server's. The answer
          is held while the unsaved draft is read, so a slow box cannot let it land first. */
       s.holdTier = true;
@@ -1886,6 +1888,7 @@ const MUTANTS = [
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
   ['the tier note drops its numbers', 'src/shell/hunt-list.js', " + (blow ? ': the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + ", " + "],
   ['a party member picks its own tier', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return tierOf(party.tiers, hunt);\n", ''],
+  ['Enter says nothing of the harder hunt', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-enter-why'), off || choosing);", "text(det.querySelector('.hw-enter-why'), off);"],
   ['a party member keeps the tier buttons', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower || !offered.includes(id));", "prop(b, 'hidden', !offered.includes(id));"],
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', "      if (a.action.type === b.action.type && a.action.id === b.action.id) {", "      if (false) {"],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],

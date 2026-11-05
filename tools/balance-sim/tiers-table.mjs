@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { round } from './stats.mjs';
+import { TIER_RUNGS } from './plans.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const arg =(k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d; };
@@ -53,25 +54,33 @@ if (candDir) {
   for (const r of list) console.log('| ' + (SHORT[r.ground] || r.ground) + ' | ' + r.level + ' | ' + r.who + ' | ' + shown.map((x) => { const c = r.by[x]; return c ? k(c.xp) + ', ' + signed(c.net) + ', ' + Math.round(c.hp) + '%, ' + life(c) : '-'; }).join(' | ') + ' |');
 }
 
-/* --ladder DIR: plan tierladder. At the Level that fits the upper ground: the lower ground's Normal and Deadly against the upper's Normal, per head. A rung holds when the lower Deadly doesn't beat the upper Normal on XP. */
+/* --ladder DIR: plan tierladder. At the Level that fits the upper ground: the lower ground's Normal and top tiers against the upper's Normal, per head, plain kit and every rung of Tempering. A rung holds when the lower top tier doesn't beat the upper Normal on XP. */
 const ladDir = arg('ladder', null);
 if (ladDir) {
   const cells = load(ladDir);
-  const RUNGS = [['mill_cellar', 'meadowbrook_thicket', [5, 8]], ['meadowbrook_thicket', 'wickstead', [8, 12]], ['meadowbrook_thicket', 'millrace_sewer', [8, 12]], ['wickstead', 'mosslight_glade', [16, 20]], ['millrace_sewer', 'mosslight_glade', [16, 20]], ['mosslight_glade', 'coppercap_warrens', [32, 38]]];
-  const at = (ground, level, who, x) => { const c = cells.find((y) => y.ground === ground && y.cell.level === level && whoOf(y) === who && y.cell.x === x); return c ? readCell(c) : null; };
+  const index = new Map(cells.map((c) => [[c.ground, c.cell.level, whoOf(c), c.cell.x].join('|'), c]));
+  const at = (ground, level, who, x) => { const c = index.get([ground, level, who, x].join('|')); return c ? readCell(c) : null; };
   const say = (c) => (c ? k(c.xp) + ', ' + signed(c.net) + ', ' + Math.round(c.hp) + '%, ' + life(c) : '-');
-  let beats = 0, total = 0;
-  console.log('| Rung | L | Who | Lower Normal | Lower Dangerous | Lower Deadly | Upper Normal | Deadly XP / upper XP |\n|---|---|---|---|---|---|---|---|');
-  for (const [lower, upper, levels] of RUNGS) for (const level of levels) {
-    const whos = [...new Set(cells.filter((c) => c.ground === lower && c.cell.level === level).map(whoOf))];
-    for (const who of whos) {
-      const a = at(lower, level, who, 'Lnormal'), d = at(lower, level, who, 'Ldangerous'), x = at(lower, level, who, 'Ldeadly'), u = at(upper, level, who, 'Lnormal');
-      const ratio = x && u && u.xp ? round(x.xp / u.xp, 2) : null;
-      if (ratio !== null) { total++; if (ratio > 1) beats++; }
-      console.log('| ' + SHORT[lower] + ' to ' + SHORT[upper] + ' | ' + level + ' | ' + who + ' | ' + say(a) + ' | ' + say(d) + ' | ' + say(x) + ' | ' + say(u) + ' | ' + ratio + (ratio > 1 ? ' **beats**' : '') + ' |');
+  const WAYS = ['tank', 'sword', 'hammer', 'axes', 'bow', 'crossbow', 'mage', 'healer', 'tank+healer', 'tank+healer+bow', 'tank+healer+bow+mage', 'tank+hammer+bow+mage'];
+  const sum = [];
+  console.log('| Rung | L | Kit | Who | Lower Normal | Lower Dangerous | Lower Deadly | Upper Normal | Deadly XP / upper XP | Dangerous XP / upper XP |\n|---|---|---|---|---|---|---|---|---|---|');
+  for (const [lower, upper, levels] of TIER_RUNGS) for (const [pre, kit] of [['L', 'plain'], ['LT', 'Tempered']]) {
+    const row = { rung: SHORT[lower] + ' to ' + SHORT[upper], kit, levels: levels.join(' and '), n: 0, beats: [], lo: Infinity, hi: 0, netBeats: 0 };
+    for (const level of levels) for (const who of WAYS) {
+      const u = at(upper, level, who, pre + 'normal'), n = at(lower, level, who, pre + 'normal'), d = at(lower, level, who, pre + 'dangerous'), x = at(lower, level, who, pre + 'deadly');
+      if (!u || !x) continue;
+      const ratio = round(x.xp / u.xp, 2), r2 = d ? round(d.xp / u.xp, 2) : null;
+      row.n++; row.lo = Math.min(row.lo, ratio); row.hi = Math.max(row.hi, ratio);
+      if (x.xp > u.xp) row.beats.push(who + ' ' + level + ' ' + ratio);
+      if (x.net > u.net && x.xp > u.xp * 0.9) row.netBeats++;
+      console.log('| ' + row.rung + ' | ' + level + ' | ' + kit + ' | ' + who + ' | ' + say(n) + ' | ' + say(d) + ' | ' + say(x) + ' | ' + say(u) + ' | ' + ratio + (ratio > 1 ? ' **beats**' : '') + ' | ' + r2 + ' |');
     }
+    if (row.n) sum.push(row);
   }
-  console.log('\n' + beats + ' of ' + total + ' cells: the lower Deadly beats the upper Normal on XP');
+  console.log('\n| Rung | Levels | Kit | Cells | Deadly XP / next Normal XP | Beats it |\n|---|---|---|---|---|---|');
+  for (const r of sum) console.log('| ' + r.rung + ' | ' + r.levels + ' | ' + r.kit + ' | ' + r.n + ' | ' + r.lo + ' to ' + r.hi + ' | ' + (r.beats.length ? r.beats.join(', ') : 'none') + ' |');
+  const beaten = sum.reduce((t, r) => t + r.beats.length, 0);
+  console.log('\n' + beaten + ' of ' + sum.reduce((t, r) => t + r.n, 0) + ' cells: a lower ground\'s Deadly beats the next ground\'s Normal on XP');
 }
 
 /* --final DIR: plan tierfinal, one row per ground, Level and who, each tier beside Normal. */
@@ -148,7 +157,7 @@ if (boardDir) {
   const say = (c) => (c ? k(c.xp) + ', ' + signed(c.net) + ', ' + Math.round(c.hp) + '%, ' + life(c) : '-');
   const NAME = { tank: 'Sword + shield', hammer: 'Hammer', mage: 'Mage', 'tank+healer+bow+mage': 'Healed four' };
   console.log('| Ground, Level | Who | Normal | Dangerous | Deadly |\n|---|---|---|---|---|');
-  for (const [ground, levels] of [['mosslight_glade', [10, 16, 24, 31, 40]], ['coppercap_warrens', [26, 32, 41, 50, 60]]]) for (const level of levels) for (const who of Object.keys(NAME)) {
+  for (const [ground, levels] of [['meadowbrook_thicket', [2, 5, 12]], ['wickstead', [5, 8, 16]], ['millrace_sewer', [5, 8, 16]], ['mosslight_glade', [10, 16, 31]], ['coppercap_warrens', [26, 32, 50]]]) for (const level of levels) for (const who of Object.keys(NAME)) {
     const r = rows.get([ground, level, who].join('|'));
     if (r) console.log('| ' + SHORT[ground] + ' ' + level + ' | ' + NAME[who] + ' | ' + say(r.normal) + ' | ' + say(r.dangerous) + ' | ' + say(r.deadly) + ' |');
   }

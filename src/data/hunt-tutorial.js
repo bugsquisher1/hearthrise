@@ -431,7 +431,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* THE ONE DECISION OF LEVELS 10-30 (designer 2026-11-02, re-ruled with Tyler's harder monsters; a blind veteran found it by poking, +110% XP/h): it costs food now, and too big
      can kill, so it is named once with its price. The tier is that decision since 2026-11-04 (hunt-tiers.js). */
   step('pull_goal', 'How hard can you hunt?',
-    'Some hunts can be Dangerous or Deadly: more monsters at once, hitting harder, for more XP and more loot an hour. They cost more food, and they can kill you. Better armor and your Level let you hold them.',
+    'Most hunts can be Dangerous or Deadly: the monsters hit harder, often more come at once, and every kill pays more XP. They cost more food, and they can kill you. Better armor and your Level let you hold them.',
     'hunt_picker', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: PULL_LEVEL, below: WANT_BELOW }] }),
 ]);
 

@@ -1,18 +1,18 @@
 -- ════════════════════════════════════════════════════════════════════════
--- 2027-02-27-hunt-tiers.sql — THREE WAYS TO HUNT A GROUND, AND NO DIAL (Tyler 2026-11-04, lane/c-difficulty-tiers, game-designer). STAGED: tools/apply-migration.mjs,
+-- 2027-02-27-hunt-tiers.sql — THREE WAYS TO HUNT A GROUND, AND NO DIAL (Tyler 2026-11-05: "All of it sounds good"; lane/c-difficulty-tiers, game-designer). STAGED: tools/apply-migration.mjs,
 -- one file, never inside begin/commit. Pre-EA (CLAUDE.md §2): applies on its passing §6; on the EA Security list (a new client verb, a client verb gone, a value bound's input moves).
 -- Design and measurements: docs/planning/PRIORITY_BOARD.md "2026-11-05 Difficulty tiers". BEFORE its client half. The engine half reads options.tier and plays Normal without it, so either order is safe.
 --
--- §1 hr_hunt_tiers NEW, the server's catalogue of a ground's harder tiers (src/data/hunt-tiers.js, tests/hunt-core/hunt-tiers.mjs holds the two equal). No foreign key: the hunt-sessions catalogue deletes and rewrites
+-- §1 hr_hunt_tiers NEW, the server's catalogue of a ground's harder tiers (src/data/hunt-tiers.js, tests/hunt-core/hunt-tiers.mjs holds the two equal; the Cellar has no row: Normal only). No foreign key: the hunt-sessions catalogue deletes and rewrites
 --    hr_hunt_grounds, and a cascade would silently take a ground's tiers with it. No row = that tier is not offered there. Normal is no row: the ground as it stands.
 --    hunt_density.tier NEW: the hero's pick per ground ('normal' until pressed). hunt_density.density no longer means anything: hr_hunt_enter_for still writes its 0, the column goes with that body's next restatement.
 --    hunt_instances.tier NEW: the tier the instance froze, beside hunt_instances.density, the pull it froze with it.
 -- §2 hr_hunt_tier_view(user, slot) NEW, internal: { picks: { <hunt>: tier } (no key = Normal), playing: tier | null } of one character: the `hunt_tier` section and the party's leader picks.
 --    hr_hunt_tier_set(p_slot, p_hunt, p_tier, p_idem) NEW client intent: the caller's own row only (auth.uid()), keyed, rate-gated ('hunt'); refuses an unknown ground (bad_hunt), a tier that ground
 --    doesn't offer (bad_tier: refused, never clamped), a member of a party it doesn't lead (not_leader), no character.
--- §3 hr_hunt_density_set DROPPED: THE DIAL IS GONE (lane/c-difficulty-tiers, Tyler's lean 2026-11-04 "It's just static maybe?"; this overturns his 10-19 and 10-20 density rulings). hr_hunt_density_view and
+-- §3 hr_hunt_density_set DROPPED: THE DIAL IS GONE (Tyler 2026-11-05: one choice per ground, the tier sets the pull; rulings of record). hr_hunt_density_view and
 --    hr_hunt_density_pick dropped with it; the `hunt_density` section goes. hr_hunt_tier_pick(instance, user, slot) NEW: the leader's tier on the instance's ground (a solo hero's own), Normal when the catalogue
---    doesn't offer it. hr_hunt_density_freeze RESTATED: the instance's first session writes its tier and that tier's pull; nothing writes them again. A party's restart nulls density (2027-02-10-party-instance-reset.sql), so its
+--    doesn't offer it. hr_hunt_density_freeze RESTATED: the instance's first session writes its tier and that tier's pull for the seats it opens with (a row's 0 is the ground as it stands); nothing writes them again. A party's restart nulls density (2027-02-10-party-instance-reset.sql), so its
 --    next hunt freezes both afresh. hr_hunt_instance_read RESTATED: every member plays the frozen tier (options.tier) and pull (options.density).
 -- §4 hr_hunt_party_view RESTATED: `leader_tiers` replaces `leader_densities`.
 -- §5 the `hunt_tier` section and the client baseline.
@@ -21,9 +21,9 @@
 -- the engine's own data, never a client value. A tier cannot come in through player_action_sets.options: hr_action_set_options refuses an unknown key (bad_option). The kill bound (hr_hunt_apply_member) grows only with the
 -- frozen pull, exactly as it did with the frozen density. Level XP is bounded by kills x the ground's largest xp_max (a boss's, far over any common kill at +20%). Gold and drops per kill don't move. COST: the section adds one
 -- PK-prefix scan and one open-session read per envelope; written plpgsql so its plan is cached (tests/settle-budget.mjs SB-3).
--- EDGE: the engine reads options.tier (src/core/hunt-spawn.js); the world's shape does not move (no world_shape_pending). RESIDUE: none. WIPE: hunt_density and hunt_instances are on the character wipe's list; no new player table.
+-- EDGE: the engine reads options.tier (src/core/hunt-spawn.js); the world's shape does not move (no world_shape_pending). RESIDUE: none. WIPE: hunt_density and hunt_instances are on the character wipe's list; no new player table; hr_hunt_tiers is on its no-player list.
 -- REVERSIBLE: re-apply 2026-11-17-hunt-density-home.sql's intent, view and pick, 2027-02-10-party-instance-reset.sql's freeze, 2027-02-02-settle-cost.sql's read and 2027-02-18-party-truth.sql's party view; drop the columns, the table, the section and baseline rows.
--- ORDER: after 2027-02-26-slots-lower-hero-slots.sql, no object in common. No begin/commit.
+-- ORDER: after 2027-02-26-slots-lower-hero-slots.sql; no object in common with 2027-02-27-tempering*.sql (hr_perks_of, hr_temper_view, the temper section and catalogue), so either side of them. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PINS: FAIL CLOSED IF ANOTHER FILE MOVED A BODY THIS FILE RESTATES ─────
@@ -48,7 +48,7 @@ end $mig$;
 create table if not exists public.hr_hunt_tiers (
   hunt_id  text not null check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
   tier     text not null check (tier in ('dangerous', 'deadly')),
-  pull     int[] not null check (cardinality(pull) = 4 and 1 <= all (pull) and 16 >= all (pull)),
+  pull     int[] not null check (cardinality(pull) = 4 and 0 <= all (pull) and 16 >= all (pull)),
   power_pm int  not null check (power_pm between 1000 and 4000),
   xp_pm    int  not null check (xp_pm between 1000 and 2000),
   primary key (hunt_id, tier)
@@ -59,6 +59,12 @@ comment on table public.hr_hunt_tiers is
   '2027-02-27-hunt-tiers.sql: the harder tiers a ground offers (src/data/hunt-tiers.js; tests/hunt-core/hunt-tiers.mjs holds the two equal). Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
 delete from public.hr_hunt_tiers;
 insert into public.hr_hunt_tiers (hunt_id, tier, pull, power_pm, xp_pm) values
+  ('meadowbrook_thicket', 'dangerous', '{0,0,0,0}'::int[], 1500, 1050),
+  ('meadowbrook_thicket', 'deadly', '{0,0,0,0}'::int[], 3000, 1100),
+  ('wickstead', 'dangerous', '{3,4,4,5}'::int[], 1500, 1050),
+  ('wickstead', 'deadly', '{5,8,8,8}'::int[], 2000, 1100),
+  ('millrace_sewer', 'dangerous', '{0,5,5,6}'::int[], 1200, 1050),
+  ('millrace_sewer', 'deadly', '{0,8,8,8}'::int[], 1750, 1100),
   ('mosslight_glade', 'dangerous', '{4,5,5,6}'::int[], 1200, 1100),
   ('mosslight_glade', 'deadly', '{8,8,8,8}'::int[], 1500, 1200),
   ('coppercap_warrens', 'dangerous', '{4,5,5,6}'::int[], 1200, 1100),
@@ -419,7 +425,7 @@ declare
   c_plain constant text := 'mill_cellar';
 begin
   -- the catalogue is what hunt-tiers.js says, and every row's ground exists
-  if (select count(*) from public.hr_hunt_tiers) <> 4 then raise exception 'VERIFY(a): the catalogue holds % rows', (select count(*) from public.hr_hunt_tiers); end if;
+  if (select count(*) from public.hr_hunt_tiers) <> 10 then raise exception 'VERIFY(a): the catalogue holds % rows', (select count(*) from public.hr_hunt_tiers); end if;
   if exists (select 1 from public.hr_hunt_tiers t where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = t.hunt_id)) then
     raise exception 'VERIFY(a): a tier row names a ground the catalogue doesn''t hold'; end if;
   -- the verb is client-executable, what it reads and freezes is not, and the dial is gone

@@ -9,6 +9,7 @@
 //        anchor: the instance froze the tier and its pull, every window lands inside the kill bound, the two doors store the same world and pay the same Level XP.
 //   HT-2 A FOUR: a mixed party on the Warrens on Dangerous: the leader's pick is everyone's, the four's pull from the row, every window lands; a member's pick is refused (not_leader) and its row plays nothing.
 //   HT-3 THE PICK SURVIVES: the section reads the pick and the tier the hunt froze after a reload (a fresh hr_state_of); a pick mid-hunt moves neither the instance nor the engine's read, and plays from the next hunt.
+//   HT-5 THE GROUND AS IT STANDS: a hero on a tier whose row brings no more monsters (the Thicket's Deadly) freezes its tier at pull 0, and the world stands at the ground's own pull, inside the kill bound.
 //   HT-4 REFUSED, NEVER CLAMPED: a word nobody offers, a tier the ground doesn't offer and an unknown ground, each in words; a tier never comes in through the action set's options (bad_option).
 //
 // The mutants are SQL patched into the booted replay; their anchors are FILE's text.
@@ -16,12 +17,12 @@ import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { decodeStored } from '../src/core/hunt/world-state.js';
-import { HUNT_TIERS, pullOfTier } from '../src/data/hunt-tiers.js';
+import { tierRowOf, pullOfTier } from '../src/data/hunt-tiers.js';
 
 const FILE = '2027-02-27-hunt-tiers.sql';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
 const WINDOWS = 3;
-const GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens';
+const GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens', THICKET = 'meadowbrook_thicket';
 /* A hero who holds a full box for the guard's minutes: this measures the server's path, not the balance. */
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
 const idem = () => crypto.randomUUID();
@@ -44,7 +45,7 @@ async function bothPaths(boot) {
   const closed = await door((await boot()).db, 'fire');
   const viewedDb = (await boot()).db;
   const viewed = await door(viewedDb, 'viewed');
-  const pull = pullOfTier(HUNT_TIERS.deadly, 1);
+  const pull = pullOfTier(tierRowOf(GLADE, 'deadly'), 1);
   for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) {
     if (r.tier !== 'deadly' || r.density !== pull) problems.push('HT-1 ' + name + ': the instance froze ' + r.tier + ' at ' + r.density + ', want deadly at ' + pull);
     const w = r.world ? decodeStored(JSON.parse(r.world)) : null;
@@ -95,7 +96,7 @@ async function aFour(boot) {
   let landed = 0;
   try { await run.warm(); landed++; for (let w = 2; w <= WINDOWS + 1; w++) { await run.step(w); landed++; } } catch (e) { problems.push('HT-2 window ' + (landed + 1) + ' did not land: ' + String(e && e.message).slice(0, 300)); }
   const row = (await db.query('select id, tier, density, world::text as world from public.hunt_instances where hunt_id = $1 order by created_at desc limit 1', [WARRENS])).rows[0];
-  const pull = pullOfTier(HUNT_TIERS.dangerous, 4);
+  const pull = pullOfTier(tierRowOf(WARRENS, 'dangerous'), 4);
   if (!row || row.tier !== 'dangerous' || row.density !== pull) problems.push('HT-2 the party froze ' + (row && row.tier) + ' at ' + (row && row.density) + ', want dangerous at ' + pull);
   const w = row && row.world ? decodeStored(JSON.parse(row.world)) : null;
   if (!w || w.density !== pull) problems.push('HT-2 the party\'s world stands at ' + (w && w.density) + ', want ' + pull);
@@ -111,6 +112,20 @@ async function aFour(boot) {
   const read = await one(db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [member.user_id]);
   const ids = ((read && read.members) || []).map((m) => m.session.options.tier + ':' + m.session.options.density);
   if (ids.length !== 4 || ids.some((x) => x !== 'dangerous:' + pull)) problems.push('HT-2 every member should play the leader\'s pick: ' + ids.join());
+  return problems;
+}
+
+async function asItStands(boot) {
+  const problems = [];
+  const { db } = await boot();
+  const run = await prepare({ heroes: 1, windows: WINDOWS, hunt: THICKET, door: 'fire', db, level: 60, tier: 'deadly', anchorMs: ANCHOR, gear: GEAR });
+  let landed = 0;
+  try { await run.warm(); landed++; for (let w = 2; w <= WINDOWS + 1; w++) { await run.step(w); landed++; } } catch (e) { problems.push('HT-5 window ' + (landed + 1) + ' did not land: ' + String(e && e.message).slice(0, 300)); }
+  const row = (await db.query('select tier, density, world::text as world from public.hunt_instances where hunt_id = $1 order by created_at desc limit 1', [THICKET])).rows[0];
+  const pull = pullOfTier(tierRowOf(THICKET, 'deadly'), 1);
+  if (!row || row.tier !== 'deadly' || row.density !== pull) problems.push('HT-5 the Thicket froze ' + (row && row.tier) + ' at ' + (row && row.density) + ', want deadly at ' + pull);
+  const w = row && row.world ? decodeStored(JSON.parse(row.world)) : null;
+  if (!w || w.density !== pull) problems.push('HT-5 the world stands at ' + (w && w.density) + ', want ' + pull);
   return problems;
 }
 
@@ -145,9 +160,9 @@ async function main() {
     return;
   }
   const boot = () => bootReplay();
-  const problems = [...await bothPaths(boot), ...await aFour(boot)];
+  const problems = [...await bothPaths(boot), ...await aFour(boot), ...await asItStands(boot)];
   for (const p of problems) console.log('FAIL  ' + p);
-  console.log(problems.length ? 'hunt-tiers-db: ' + problems.length + ' FAILED' : 'hunt-tiers-db: green (both paths, a four, the pick survives, refused not clamped)');
+  console.log(problems.length ? 'hunt-tiers-db: ' + problems.length + ' FAILED' : 'hunt-tiers-db: green (both paths, a four, the pick survives, refused not clamped, a row with no more monsters)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

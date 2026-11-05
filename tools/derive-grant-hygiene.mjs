@@ -395,12 +395,12 @@ export const LINKS = [
     target: '2027-02-10-settle-reads.sql',
     patchIds: ['settle_reads'],
   },
-  /* Link 23 (lane/c-gm-tools, 2026-11-05) — THE GAME MASTER'S STOP. 2027-03-05-gm-tools.sql adds the engine's two
+  /* Link 23 (lane/c-gm-tools, 2026-11-05) — THE GAME MASTER'S STOP. 2027-03-13-gm-tools.sql adds the engine's two
      questions for `gm_stop`. Two entries at the HEAD of c_engine_allow, an INSERTION, so its declared-removals list in
      tests/run-sql-tests.mjs PART 1f-ii is EMPTY. Its base is link 22's TARGET. It is the new last toucher. */
   {
     base: '2027-02-10-settle-reads.sql',
-    target: '2027-03-05-gm-tools.sql',
+    target: '2027-03-13-gm-tools.sql',
     patchIds: ['gm_stop'],
   },
 ];

@@ -542,6 +542,7 @@
   "player_hunt_active",
   "character_names",
   "player_blessings",
+  "player_titles",
   "hunt_bests",
   "hunt_density",
   "account_bank",
@@ -550,7 +551,8 @@
   "hero_tally",
   "hero_tally_claims",
   "hero_tally_given",
-  "hero_tally_tasks"
+  "hero_tally_tasks",
+  "town_works_gifts"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",
@@ -613,10 +615,9 @@
   "town_bodies": "A display placement, not progress: which town stand each character's body holds, placed by the server from its activity pointer (2027-01-28-town-stands.sql). Every present hero is placed again on its next keepalive or read, and a worker on its next activity change. Losing every row costs nobody anything a player earned.",
   "town_moves": "Transient notes that an activity pointer changed, deleted by the next town read once applied. No value: losing them leaves a body where it stood until its next change.",
   "town_seen": "Unlogged keepalive stamps (a parked hero is present), never read after 30 s. Losing every row costs nobody anything.",
-  "hearth_flames": "The Great Hearth's flame journal (2027-01-31-inner-flame.sql): which named fuel colours the square and until when, and the per-day burn count. Player-scoped by user_id, but it holds no value: the fuel debit, the Inner Flame XP and the journal row live in player_inventory, player_skills and player_ledger. Losing every row returns the square to plain fire and re-opens one day of the burn clamp early; nobody loses or gains a fuel, an XP point or a rank.",
-  "hr_gm_accounts": "Who the Game Master is (2027-03-05-gm-tools.sql): one row a migration writes per GM account, no value. A rebuild creates it empty and the account's own file (tools/gm-allow.mjs) re-adds it by a join on auth.users.",
-  "hr_bans": "Moderation state (2027-03-05-gm-tools.sql): which accounts are banned, no value. Losing it lifts every ban, which a restore must carry but costs no player anything.",
-  "hr_chat_mutes": "Moderation state (2027-03-05-gm-tools.sql): which accounts are muted until when, no value. Every row expires by itself."
+  "town_shows": "The gold sinks' show journal (2027-02-27-town-shows.sql): which powder or round plays and until when. Player-scoped by user_id, but it holds no value: the gold and the journal are hr_apply's ledger row in the same transaction. Lost, a show still to play is simply not drawn.",
+  "account_gold_given": "The Gold Given board's counter (2027-02-27-gold-given.sql): gold each hero gave to the town this UTC month. Player-scoped by user_id, but it holds no value and has no prize: it ranks, and it starts again every month. Lost, the month's standing starts over.",
+  "hearth_flames": "The Great Hearth's flame journal (2027-01-31-inner-flame.sql): which named fuel colours the square and until when, and the per-day burn count. Player-scoped by user_id, but it holds no value: the fuel debit, the Inner Flame XP and the journal row live in player_inventory, player_skills and player_ledger. Losing every row returns the square to plain fire and re-opens one day of the burn clamp early; nobody loses or gains a fuel, an XP point or a rank."
  },
  "tables": {
   "account_bank": {
@@ -641,6 +642,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE (a budget of grants). The once-per-ACCOUNT key of every gem credit (rank:<id>, milestone:<id>, start_kit, raid:<week>, goal:<id>:<period>, apply:<intent>), 2026-10-19-account-wallet.sql. Losing it RE-MINTS: every permanent gem reward the account already took becomes claimable again on another hero. Periodic keys expire and are pruned by the account's next credit; permanent keys are kept for life."
+  },
+  "account_gold_given": {
+   "class": "operational",
+   "replay": 0,
+   "note": "2027-02-27-gold-given.sql, ships EMPTY. Gold each hero gave to the town per UTC month, written ONLY by hr_gold_given_add in the transaction of a town verb's charge; read only by leaderboard_ranked's gold_given board; RLS on, every privilege revoked. It holds no value and no prize. Empty after a restore: this month's standing starts over."
   },
   "account_play_net": {
    "class": "operational",
@@ -839,17 +845,12 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 347,
+   "replay": 350,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
-  },
-  "hr_bans": {
-   "class": "restore_only",
-   "wiped_at_cutover": false,
-   "note": "Banned accounts, read by hr_admitted (2027-03-05-gm-tools.sql). Only a backup has the rows; a restore without them lifts every ban. The reason is in hr_gm_log."
   },
   "hr_bench_tax_rates": {
    "class": "seeded",
-   "replay": 148,
+   "replay": 150,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
   },
   "hr_blessing_rule": {
@@ -917,11 +918,6 @@
     "_source": "the AUTHORED DEFAULT, measured on the replay: the table is STAGED (2026-11-19-chat-stream-safe.sql) and not yet on production. history_epoch is deliberately NOT projected: it is seeded at apply time and moved forward by the operator, so it differs from any replay by construction. Re-measure with --live-sql after the apply."
    },
    "note": "THE CHAT HISTORY WINDOW (2026-11-19-chat-stream-safe.sql), a singleton seeded on conflict do nothing: history_epoch (no chat or whisper line written before it is ever read; forward-only, never in the future, by trigger) and history_hours (how far back a reader sees, 24). A rebuild re-seeds the epoch at the REBUILD time, hiding every older line: the safe direction (chat is stream-safe, nothing is lost but history that the 60-day trim deletes anyway). No player value, no secret: readable by every role (the RLS floor runs with the reader rights), writable by the owner only."
-  },
-  "hr_chat_mutes": {
-   "class": "restore_only",
-   "wiped_at_cutover": false,
-   "note": "Muted accounts and until when (2027-03-05-gm-tools.sql). Only a backup has the rows; every one expires by itself."
   },
   "hr_client_rpc_baseline": {
    "class": "seeded",
@@ -994,7 +990,7 @@
   },
   "hr_flags": {
    "class": "operator_tunable",
-   "replay": 4,
+   "replay": 5,
    "wiped_at_cutover": false,
    "note": "THE SERVER FEATURE FLAGS (created 2026-09-13-town-presence.sql; the chain had no flag table before it — every arm switch was a `constant boolean := true` inside a function body, i.e. a migration and an apply window to change). One row per flag: key, enabled, note, updated_at. PUBLIC READ, no write policy and no write grant to any role including service_role, so the only writer is the owner. A rebuild seeds every flag at its SHIPPED DEFAULT, which for town_presence is OFF — fail-safe by construction: a restore-free rebuild closes a live surface rather than opening one. What is lost is the OPERATOR'S CURRENT CHOICE (a feature an operator had switched on comes back off) and the `note`/`updated_at` audit of when it was flipped. Cheap to re-assert: one UPDATE per flag. operator_tunable rather than seeded because the row's VALUE is an operations decision, not content. ⚠ live_value RECORDS town_presence = FALSE, AND THAT IS THE LIVE TRUTH TODAY (Security F2, 2026-09-13): production has the flag OFF, because 2026-09-13-town-presence-on.sql is STAGED. An earlier revision of this entry recorded TRUE - the state the apply will land in - which is the same class of mistake apply-order-honesty exists to catch: a deployment record that describes a future. A CHAIN REBUILD does produce TRUE (the ON file is in `order`), so the repo and production diverge on this one row until the Coordinator applies it - that is a KNOWN, NAMED window, not drift, and `expected_after` records what to move it to and how. Re-measure with `node tests/restore-census.mjs --live-sql` + --live-compare per lane C after the flip, and again if an operator ever uses the one-statement kill switch (2026-09-13-town-presence-off.sql). Only `key` and `enabled` are compared - the projection is built from the keys recorded here - so `note` and `updated_at` drift freely and cannot make this check permanently red.",
    "live_value": {
@@ -1020,20 +1016,10 @@
    "replay": 10,
    "note": "Generated GEM PRICE catalogue (2026-09-14-gem-unlocks-catalogue.generated.sql, tools/gen-catalogues.mjs --check) holding unlock_id -> namespace, offer_id, name, cost_gems and `free`, for the 9 gem-priced theme/cosmetic offers plus the one FREE row (theme:default). Derived from src/data/shops.js SHOP_OFFERS, which tools/gen-shops.mjs derives from `const HOUSE_THEMES=[` (src/legacy.js) and `const cosmetics=[` (src/render/shop.js). public.hr_buy_gem_unlock reads the PRICE from here under the character lock — the caller sends an id and an idempotency key and no number at all. Holds NOTHING per player: which unlock a character owns is a kind='flag' row in player_progress, and that row is restore_only like every other player value. So a rebuild is the whole truth here and a restore must NOT carry this table — but it must not come back EMPTY either, and the two ways it can be wrong are different: empty of PRICED rows and every purchase answers unknown_unlock (a dead shop, loud, the buy migration's section 0 refuses to install against it); empty of the FREE row and every character silently loses ownership of the STARTING theme, because setTheme gates on ownsGemUnlock and the projection is where ownership comes from — a silent un-equip rather than an outage. Both are asserted by the generated file's own self-check (theme:default present AND free, nothing else free, every priced row backed by a flag-shaped hr_unlocks row)."
   },
-  "hr_gm_accounts": {
-   "class": "restore_only",
-   "wiped_at_cutover": false,
-   "note": "The Game Master account (2027-03-05-gm-tools.sql): one row is both its powers and its wall. Written only by a migration (tools/gm-allow.mjs), seeded by a join on auth.users, so a rebuild creates it empty and only a backup or that file brings it back. Until then nobody is a GM."
-  },
-  "hr_gm_log": {
-   "class": "restore_only",
-   "wiped_at_cutover": false,
-   "note": "The Game Master's append-only journal, refused calls too (2027-03-05-gm-tools.sql). Only a backup has the rows: what a stop, a mute, a ban or a grant was for."
-  },
-  "hr_gm_wall_allow": {
+  "hr_ground_tiers": {
    "class": "seeded",
-   "replay": 88,
-   "note": "The RPCs a walled account may reach (2027-03-05-gm-tools.sql): a default-deny list, seeded whole by that file. A rebuild restores it exactly."
+   "replay": 10,
+   "note": "Catalogue (2027-02-27-hunt-tiers.sql; tests/hunt-core/hunt-tiers.mjs holds it equal to src/data/hunt-tiers.js): the harder tiers each ground offers, each one's pull per party size, power and XP. A rebuild restores it; empty, every pick plays Normal and hr_hunt_tier_set refuses a harder tier (bad_tier)."
   },
   "hr_hearth_named": {
    "class": "seeded",
@@ -1082,7 +1068,7 @@
   },
   "hr_hunt_basic_supplies": {
    "class": "seeded",
-   "replay": 25,
+   "replay": 49,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the store's per-use supplies (src/data/supply-basics.js). Rebuilt from repo, never restored."
   },
   "hr_hunt_condition_limits": {
@@ -1153,7 +1139,7 @@
   },
   "hr_hunt_role_rules": {
    "class": "seeded",
-   "replay": 14,
+   "replay": 12,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the role default rule sets the settings view projects (src/data/rule-subjects.js ROLE_RULES). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_roles": {
@@ -1204,7 +1190,7 @@
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 548,
+   "replay": 550,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1244,7 +1230,7 @@
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 573,
+   "replay": 575,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -1385,6 +1371,11 @@
    "replay": 36,
    "note": "Generated catalogue (2026-10-25-alpha-catalogue.generated.sql, tools/gen-alpha-catalogue.mjs --check from src/data/supply-basics.js): the shop's packable supplies and their prices. Rebuilt from repo, never restored."
   },
+  "hr_sink_rules": {
+   "class": "seeded",
+   "replay": 5,
+   "note": "Generated catalogue (2027-02-27-gold-sinks-catalogue.generated.sql from src/data/gold-sinks.js): one row per gold sink: prices, climbs, caps, seconds. Empty, every sink verb has no price and refuses; nothing is charged. Rebuilt from repo, never restored."
+  },
   "hr_skill_curve": {
    "class": "seeded",
    "replay": 476,
@@ -1422,7 +1413,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 34,
+   "replay": 35,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {
@@ -1521,6 +1512,11 @@
    "wiped_at_cutover": false,
    "note": "THE WORLD TICK ROSTER CURSOR, ONE ROW PER SHARD - created 2026-10-11-world-tick-shards.sql, ships EMPTY. Where the next fire resumes when a shard's due set exceeds batch_limit (the keyset that used to be three columns on hr_tick_config). Written only by hr_tick_cron_run (SECURITY DEFINER, owner-only). No player value: who is due is read from player_state.accrued_to and hr_tick_ownership every fire, and the fence decides every payment. Coming back EMPTY costs one pass from the start of each shard's roster (every character is still served, furthest-behind first). RLS enabled AND forced, zero policies, zero grants."
   },
+  "hr_titles": {
+   "class": "seeded",
+   "replay": 5,
+   "note": "Generated catalogue (2027-02-28-titles-catalogue.generated.sql from src/data/titles.js): one row per title: words, price, kills, monsters. Empty, no title can be claimed and a worn one reads as none; nothing is charged. Rebuilt from repo, never restored."
+  },
   "hr_town_maps": {
    "class": "seeded",
    "replay": 1,
@@ -1540,6 +1536,11 @@
    "class": "seeded",
    "replay": 20,
    "note": "Generated catalogue (tools/gen-town-stations.mjs; today 2027-01-30-havora-yards.generated.sql, Havora 192x116): each town map's stations (role, the tile its stands face, order). Replaced whole per map by the generator. Rebuilt from repo, never restored."
+  },
+  "hr_town_works": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (2027-03-04-town-works-catalogue.generated.sql from src/data/town-works.js): one row per Town Works project: map, smallest gift, day's cap, stages and their lines. Empty, the Works have nothing to give to and the verb refuses; nothing is charged. Rebuilt from repo, never a player's."
   },
   "hr_traits": {
    "class": "seeded",
@@ -1788,6 +1789,11 @@
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE — gold, gems, hearth_tokens, hp, the activity pointer, accrued_to, version. 35 rows / 376 kB. THE row every write locks. Since the cutover this table has no second copy anywhere in the world: there is no client blob to fall back on, by design (server-authority.md §2a-iv)."
   },
+  "player_titles": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE (2027-02-28-titles.sql) - the titles a hero claimed with gold (paid column) and the one it wears. Losing a row loses gold a player spent and a title its kills earned; restoring it without the ledger is safe (a title is held once)."
+  },
   "player_workers": {
    "class": "restore_only",
    "wiped_at_cutover": false,
@@ -1824,11 +1830,26 @@
    "class": "operational",
    "note": "2027-01-28-town-stands.sql, ships EMPTY, UNLOGGED. A parked hero's keepalive (hr_town_here, no tile) and a viewer's read, server-stamped; read within 30 s. An empty table shows idle parked heroes gone for at most one keepalive."
   },
+  "town_shows": {
+   "class": "operational",
+   "replay": 0,
+   "note": "2027-02-27-town-shows.sql, ships EMPTY. One row per bought Hearth powder or round (map, user, slot, show, price, starts_at/ends_at), written ONLY by hr_town_show (SECURITY DEFINER) in the same transaction as its player_ledger row (kind shop, intent town_show:<show>:<price>) and moved only by hr_town_show_push under the Hearth's key; RLS on, every privilege revoked. Rows over 30 days old are pruned on each purchase. NEVER read by a meter (tests/town-shows.mjs TS-NO-METER). Empty after a restore: a show still to play is not drawn, and the day's price still reads the ledger."
+  },
   "town_snapshot": {
    "class": "regenerated",
    "replay": 0,
    "wiped_at_cutover": false,
    "note": "THE TOWN PRESENCE CACHE (created 2026-09-13-town-presence.sql): ONE row per zone — zone_id, built_at and a jsonb payload of the live peer list and the crier feed — rewritten in place by the hr-town-refresh cron job every 25 s. Deliberately NOT a history table: the previous snapshot has no value, and keeping it is how a ~15 KB payload every 25 s becomes gigabytes a year. NOTHING is lost if it comes back empty: the next cron tick rebuilds it in full from player_state + profiles + world_finds, and until then hr_town_of answers an empty plaza with stale_s = null, which is honest rather than wrong. Reachable by NO client role (no grant and no RLS policy at all) — a readable cache would be the rate gate and the allowlist projection bypassed in one SELECT. Holds NO player value and NO authoritative number: every field in it is a projection of a row that lives somewhere else. REPLAY ROW COUNT 0 -> 1 SINCE 2026-09-13-town-presence-on.sql: that file calls hr_town_refresh() once after flipping the flag, so the plaza is live at the instant the flag is rather than at the next 25-second cron tick, and a rebuild therefore lands with one row. It is the ONE effect that file deliberately does not roll back (its probe characters are discarded by an HR812 sentinel, and its §3(d) asserts the surviving row names no probe). The row still carries no player value: a rebuild that came back without it is repaired by the next cron tick."
+  },
+  "town_works_gifts": {
+   "class": "restore_only",
+   "wiped_at_cutover": true,
+   "note": "PLAYER VALUE, SHARED. Per account, per Town Works project: gold given, what each hero gave, today's count, the last gift (2027-03-04-town-works.sql). Written only by hr_town_works_give in the transaction of its charge. It's what the plaque is made of; the ledger prunes at retain_days, so it can't be rebuilt from there. Lost, every name comes off the plaque and today's cap starts again, though the gold stays spent. Wiped with the rest: it names heroes the wipe deletes."
+  },
+  "town_works_totals": {
+   "class": "restore_only",
+   "wiped_at_cutover": true,
+   "note": "SHARED VALUE. One row per Town Works project that has a gift: its total and when it finished (2027-03-04-town-works.sql). Written only by hr_town_works_give under the project's key. Lost, the Weighhouse goes back to its stakes and a server's gold is forgotten; town_works_gifts can only partly rebuild it, as a deleted account's gifts leave the plaque and stay in the building. No row reads as 0, so the wipe's truncate needs no reseed."
   },
   "world_finds": {
    "class": "restore_only",

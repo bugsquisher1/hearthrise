@@ -13,24 +13,24 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.91';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.91';
-import { companionBonus } from './companion-perk.js?v=0.2.91';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.91';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.91';
-import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.91';
-import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.91';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.91';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.91';
-import { MONSTERS } from '../data/monsters.js?v=0.2.91';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.91';
-import { armourValues } from './mitigation.js?v=0.2.91';
-import { isRune } from '../data/runes.js?v=0.2.91';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.91';
-import { STATUSES } from '../data/statuses.js?v=0.2.91';
-import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.91';
-import { LANE_OF } from './hunt/conditions.js?v=0.2.91';
-import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.91';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.97';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.97';
+import { companionBonus } from './companion-perk.js?v=0.2.97';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.97';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.97';
+import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.97';
+import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.97';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.97';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.97';
+import { MONSTERS } from '../data/monsters.js?v=0.2.97';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.97';
+import { armourValues, steadyPmOf } from './mitigation.js?v=0.2.97';
+import { isRune } from '../data/runes.js?v=0.2.97';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.97';
+import { STATUSES } from '../data/statuses.js?v=0.2.97';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.97';
+import { LANE_OF } from './hunt/conditions.js?v=0.2.97';
+import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.97';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -115,11 +115,11 @@ const NEUTRAL_FOE = Object.freeze({});
 export function heroSnapshot(state, c) {
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq: c.eq, equipment: c.equipment, items: c.items, skills: state.skills,
     bonus: c.bonus, setBonus: c.setBonus, profile: c.profile });
-  /* `def` is the monster's TO-HIT roll: the Defense skill, the gear outside the armour weights
-     (combat.js guardB: a shield, a cape) and a defence buff. `armour` is what each weight wears; a blow prices it against its attacker (ruling K7, src/core/mitigation.js). */
-  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.guardB) || 0) + (Number(c.bonus('defense')) || 0));
+  /* `def` is the monster's TO-HIT roll: the Defense skill and the gear outside the armour weights
+     (combat.js guardB: a shield). `armour` is what each weight wears; a blow prices it against its attacker (ruling K7, src/core/mitigation.js). */
+  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.guardB) || 0));
   /* TEMPERING (src/core/temper.js): only a hero with a rung carries these, so a rung-0 hero's snapshot is what it always was. */
-  const blowsPm = blowsPmOf(c.equipment, c.items, c.temper), armorPm = armorPmOf(c.equipment, c.items, c.temper);
+  const blowsPm = blowsPmOf(c.equipment, c.items, c.temper), armorPm = armorPmOf(c.equipment, c.items, c.temper) + steadyPmOf(c.eq, c.bonus);
   return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp),
     ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}) };
 }
@@ -325,7 +325,7 @@ export function memberSide(mi, ctx) {
       },
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
-        slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, lead: h.lead === true,
+        slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, tier: h.tier || null, lead: h.lead === true,
         hold: Number.isInteger(h.hold) ? h.hold : null,
         leaveTogether: h.leaveTogether === true,
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null },

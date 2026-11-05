@@ -124,6 +124,7 @@ async function load(root) {
     ITEMS: (await imp(root, 'src/data/items.js')).ITEMS,
     HUNTS: (await imp(root, 'src/data/hunts.js')).HUNT_INDEX,
     G: await imp(root, 'src/data/hunt-grounds.js'),
+    TIERS: await imp(root, 'src/data/hunt-tiers.js'),
     IMB: await imp(root, 'src/data/imbuements.js'),
     LB: await imp(root, 'src/data/loot-bands.js'),
     WEIGHT: (await imp(root, 'src/data/core-model.js')).ARMOUR_WEIGHT,
@@ -514,7 +515,8 @@ function bigPull(M, P, monsters, R, print) {
     const fill = bigPullMonsters(M, ground).filter((id) => (monsters[id].drops || []).some((d) => d.band === 'rare' || d.id === 'bear_pelt'));
     if (!fill.length) continue;
     const floor = M.HUNTS[ground.hunt].band[0];
-    const cap = M.G.densityCapFor(ground, 1);
+    /* THE PULLS A LONE HERO REALLY PLAYS: the tiers' own rows (hunt-tiers.js). */
+    const cap = M.TIERS.pullOfTier(M.TIERS.tierRowOf(gid, 'dangerous'), 1);
     for (const id of fill) {
       const first = Math.min(...ground.pockets.map((p) => (p.pack || []).findIndex((s) => s.monster === id)).filter((i) => i >= 0)) + 1;
       for (const density of [...new Set([first, cap])]) {
@@ -789,7 +791,8 @@ const warrensMutants = [
 const rangerMutants = [
   { name: 'the store Iron Bolt back at 2 g a shot', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/supply-basics.js', "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 1),", "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),"]] },
   /* the mean is the guard: at this old row the fixture's one seed still read over +25%, the twelve read +23.7% */
-  { name: 'the Drain Rat\'s coin back at [4, 18]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [8, 18]', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [4, 18]']] },
+  /* (the casters' store-fed spells lift this floor to +29.7%, so the plant is the row's pre-x1.8 coin, not [4, 18]: the bar doesn't move, lane/c-caster-starter-bars) */
+  { name: 'the Drain Rat\'s coin back at its pre-x1.8 [2, 10]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [8, 18]', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [2, 10]']] },
 ];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',

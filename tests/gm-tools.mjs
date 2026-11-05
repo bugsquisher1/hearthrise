@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/gm-tools.mjs — THE GAME MASTER'S POWERS REFUSE EVERYONE ELSE, AND HIS WALL HOLDS AGAINST A FORGED CALL
-//   (supabase/migrations/2027-03-05-gm-tools.sql; tools/gm-allow.mjs; docs/planning/PRIORITY_BOARD.md "2026-11-05 Game Master tools").
+//   (supabase/migrations/2027-03-13-gm-tools.sql; tools/gm-allow.mjs; docs/planning/PRIORITY_BOARD.md "2026-11-05 Game Master tools").
 //
 //   node tests/gm-tools.mjs            the guard, on the replayed chain
 //   node tests/gm-tools.mjs --mutate   each planted defect must turn its own arm red
 //
-// mutant-anchors: supabase/migrations/2027-03-05-gm-tools.sql
+// mutant-anchors: supabase/migrations/2027-03-13-gm-tools.sql
 //
 // Every call runs as PostgREST runs it: the JWT subject, the request path, `set role authenticated`. The real engine verb
 // (hr-accrue gm-stop.js, set-activity.js) runs as hr_engine. A "forged" call is a real RPC with arguments the client chose. "Past the
@@ -50,7 +50,7 @@ import { bootReplay, manifest, ROOT } from './schema-replay.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
-const FILE = '2027-03-05-gm-tools.sql';
+const FILE = '2027-03-13-gm-tools.sql';
 const MIG = join(ROOT, 'supabase', 'migrations', FILE);
 const WIPE = join(ROOT, 'supabase', 'migrations', '2027-02-25-character-wipe.sql');
 const lf = (s) => s.replace(/\r\n/g, '\n');
@@ -765,7 +765,7 @@ const MUTANTS = [
   { id: 'stop_skips_log', arm: 'GM-STOP-JOB', why: 'a stop leaves no journal row', edits: [["  return public.hr_gm_close(p_gm, 'stop', p_user, p_slot, v_reason, p_idem, jsonb_build_object('ok', true, 'kind', 'job', 'job', v_kind, 'job_id', v_id));", "  return jsonb_build_object('ok', true, 'kind', 'job', 'job', v_kind, 'job_id', v_id);"]] },
   { id: 'stop_needs_no_reason', arm: 'GM-STOP-JOB', why: 'a stop without a reason', edits: [["  if v_reason is null then return public.hr_gm_close(p_gm, 'stop', p_user, p_slot, null, p_idem, jsonb_build_object('ok', false, 'error', 'needs_reason')); end if;\n", '']] },
   { id: 'hunt_skips_player_path', arm: 'GM-STOP-HUNT', why: 'the player\'s verb and the GM\'s no longer share a statement', edits: [['  v_s := public.hr_hunt_leave_pending(v_uid, p_slot);\n', '  v_s := public.hr_hunt_lock(v_uid, p_slot);\n']] },
-  { id: 'walled_has_network', arm: 'GM-CAP', why: 'a walled hero fills a real network', edits: [["  if public.hr_gm_walled(p_uid) then return null; end if;   -- GM-TOOLS (2027-03-05-gm-tools.sql)\n  if auth.uid() is not distinct from p_uid then", '  if auth.uid() is not distinct from p_uid then'], ["  if public.hr_gm_walled(p_uid) then return null; end if;   -- GM-TOOLS (2027-03-05-gm-tools.sql)\n  if p_uid is null or auth.uid()", '  if p_uid is null or auth.uid()']] },
+  { id: 'walled_has_network', arm: 'GM-CAP', why: 'a walled hero fills a real network', edits: [["  if public.hr_gm_walled(p_uid) then return null; end if;   -- GM-TOOLS (2027-03-13-gm-tools.sql)\n  if auth.uid() is not distinct from p_uid then", '  if auth.uid() is not distinct from p_uid then'], ["  if public.hr_gm_walled(p_uid) then return null; end if;   -- GM-TOOLS (2027-03-13-gm-tools.sql)\n  if p_uid is null or auth.uid()", '  if p_uid is null or auth.uid()']] },
   { id: 'mute_says_nothing', arm: 'GM-MUTE', why: 'hr_chat_send ignores a mute and its row lock is gone', edits: [["  if new.channel <> 'system' and public.hr_chat_muted_until(new.from_id) is not null then\n    perform public.hr_reject('muted');\n  end if;\n", ''], ["  if v_until is not null then return jsonb_build_object('ok', false, 'error', 'muted', 'until', v_until); end if;\n  if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;\n  if p_kind", "  if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;\n  if p_kind"]] },
   { id: 'whisper_mute_off', arm: 'GM-MUTE', why: 'a whisper passes a mute\'s row lock', edits: [["  if public.hr_chat_muted_until(new.from_id) is not null then perform public.hr_reject('muted'); end if;\n", '']] },
   { id: 'ban_not_read', arm: 'GM-BAN', why: 'hr_admitted does not read a ban', edits: [['     and not exists (select 1 from public.hr_bans b where b.user_id = p_user)\n', '']] },

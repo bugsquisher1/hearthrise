@@ -39,6 +39,46 @@
         "runner": "by hand: node tests/away-recap-world.mjs --shots DIR"
       }
     },
+    "town-shows-world.mjs": {
+      "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: a browser plays the real play.html on the replayed chain: a fresh account throws a powder, stands a round, cries a line and finds itself on Gold Given. The rules are mutation-proven in CI by tests/town-shows.mjs and tests/town-crier.mjs.",
+      "owner": "backend-architect",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/town-shows-world.mjs --shots DIR"
+      }
+    },
+    "hero-colors-world.mjs": {
+      "reason": "a manual walk of the real game on tools/qa/local-world.mjs: creation, the Outfit tab, a paid save, a second account seeing it, a reload, a stale price, the cap, a hunting hero. Slow by nature; the rules are mutation-proven in CI by tests/hero-colors.mjs.",
+      "owner": "systems-engineer",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/hero-colors-world.mjs --shots DIR"
+      }
+    },
+    "town-works-world.mjs": {
+      "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: a browser plays the real play.html on the replayed chain: a fresh account taps the plaque, gives, raises the Weighhouse through every stage in the real renderer and finds the plaque, the System lines and Gold Given. The rules are mutation-proven in CI by tests/town-works.mjs.",
+      "owner": "systems-engineer",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/town-works-world.mjs --shots DIR"
+      }
+    },
+    "town-shows-race.mjs": {
+      "reason": "NOT A CI STEP: GitHub has no PostgreSQL 17 binaries. Real backends pinned open by a gate: two heroes pressing together, the last booking on the Hearth, the Crier's 30 s, a named fuel against a powder. PGlite is one backend, so tests/town-shows.mjs proves the order and the rollback and this proves the race.",
+      "owner": "backend-architect",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "runner": "by hand: HR_PG_PORT=<free port> HR_PG_DATA=<scratch dir> node tests/town-shows-race.mjs [--mutate]"
+      }
+    },
     "char-wipe-world.mjs": {
       "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: a browser plays the real play.html and hr-accrue engine on the replayed chain, the whole wipe procedure runs under it with a hunt open, and it reloads into the first-time flow. It needs Node 23.6+ (the engine is type-stripped; CI pins Node 20) and a browser, and replays the whole chain on a machine's first run, so it cannot be a CI step. CI guards the server without it, mutation-proven: tests/char-wipe.mjs; the tab that stays open: tests/session-core.mjs ACC-5.",
       "owner": "backend-architect",

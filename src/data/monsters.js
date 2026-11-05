@@ -63,8 +63,8 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.91';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.91';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.97';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.97';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -786,7 +786,7 @@ export const MONSTERS = {
   carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 30, atk: 10, baseAcc: 0.8, def: 1, xp: 165, gp: [4, 12], speed: 4400,
+    hp: 30, atk: 10, baseAcc: 0.8, def: 1, xp: 165, gp: [5, 12], speed: 4400,
     drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0114, band: 'scarce' }, { id: 'studded_boots', ch: .0114, band: 'scarce' }, { id: 'adept_boots', ch: .0114, band: 'scarce' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */

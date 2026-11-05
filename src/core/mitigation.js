@@ -21,10 +21,13 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ARMOUR_WEIGHT, ARMOUR_MITIGATION } from '../data/core-model.js?v=0.2.91';
-import { temperedAmount } from './temper.js?v=0.2.91';
+import { ARMOUR_WEIGHT, ARMOUR_MITIGATION } from '../data/core-model.js?v=0.2.97';
+import { temperedAmount } from './temper.js?v=0.2.97';
 
 const nat = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
+
+/** The cut a hero carries, permille: worn `steadyPm` (a cape) and a food's `steady` bonus. It joins Tempering on `mitigate`'s last step. */
+export const steadyPmOf = (eq, bonus) => nat(eq && eq.steadyPm) + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);
 
 /** The armour value each weight wears: { heavy, medium, light } (the sum of its pieces' defB). */
 export function armourValues(equipment, items) {
@@ -69,7 +72,7 @@ export function mitigationFor(equipment, items, level) {
 /**
  * A LANDED blow of `n` through absorb, the resistance permille `el` and ward, never below the
  * profile's keep floor (the total cap) nor below 1. Answers what reaches the shield and HP. `armorPm` is the wearer's
- * Tempering (src/core/temper.js), the chain's last step, so it can never pass the cap; none, and `rng` is not touched.
+ * Tempering (src/core/temper.js) and worn `steadyPm` together, the chain's last step, so it can never pass the cap; none, and `rng` is not touched.
  */
 export function mitigate(n, el, mit, armorPm, rng) {
   const raw = Math.max(0, Math.floor(n));
@@ -78,6 +81,7 @@ export function mitigate(n, el, mit, armorPm, rng) {
   x = Math.floor((x * el) / 1000);
   x -= Math.max(0, m.ward || 0);
   if (armorPm) x = temperedAmount(x, -armorPm, rng);
-  const floor = m.keepPm ? Math.floor((Math.floor((raw * el) / 1000) * m.keepPm) / 1000) : 0;
+  const keep = m.keepPm || (armorPm ? 1000 - ARMOUR_MITIGATION.capPm : 0);
+  const floor = keep ? Math.floor((Math.floor((raw * el) / 1000) * keep) / 1000) : 0;
   return Math.max(1, floor, x);
 }

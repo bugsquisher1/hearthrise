@@ -2,7 +2,7 @@
 // src/session/gm-intents.js — THE GAME MASTER'S ASKS, SESSION SIDE (no UI).
 //
 // The Game Master window calls these. Every one is refused by the server unless this account holds the row only a migration
-// writes (2027-03-05-gm-tools.sql); nothing here decides anything, and this file is loaded only after the server said `gm`.
+// writes (2027-03-13-gm-tools.sql); nothing here decides anything, and this file is loaded only after the server said `gm`.
 //   gmOnline(account)                         who is online or playing
 //   gmHero(account, target, slot)             one hero: a name, or an account id with a slot
 //   gmStop(cs, target, slot, reason)          the engine's verb: a job by the player's own stop, a hunt by its own leave
@@ -12,8 +12,8 @@
 // A new key per press: a lost answer leaves nothing in flight the server would double, and a repeat of a stop or a mute is harmless.
 // A grant re-reads the account's open heroes: the purse is theirs too.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.91';
-import { refusalOf } from './refusal.js?v=0.2.91';
+import { askVia } from './intent-ledger.js?v=0.2.97';
+import { refusalOf } from './refusal.js?v=0.2.97';
 
 const key = () => globalThis.crypto.randomUUID();
 

@@ -13,16 +13,19 @@
 //                     damage: { min, max }, accuracy_pct, crit_pct, defence, set,
 //                     dodge_pct, absorb_pct, ward (the armour's mitigation, ruling K7),
 //                     xp: { perks, buffs, combat } }
-//   outfit          { worn: id | null, colors: { region: dye index }, owned: [id] }
+//   outfit          { worn: id | null, base: { head, body, legs, feet } dye indices | {}, owned: [id] }
 //   death_log       [{ id, at, hunt, session, monster, xp, xp_lost, saved }] newest first;
 //                   saved = what a Blessing kept, null when none was used
 //                   (2026-11-07-death-popup-blessing.sql)
+//   titles          { worn, rows: [{ id, words, price, kills, have, held, worn }] } (2027-02-28-titles.sql)
 //   state.level_xp  the character's Level XP (kills only, CORE_MODEL.md §1): the Level and
 //                   its progress are read off it on the shared curve (src/core/xp.js, the
 //                   curve hr_char_level uses), never counted in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.91';
-import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.91';
+import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.97';
+import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.97';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.97';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.97';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -44,7 +47,7 @@ function combatOf(c) {
     role: id(c.role), weaponType: id(c.weapon_type), moveSpeed: nat(c.move_speed),
     damage: nat(d.min) !== null && nat(d.max) !== null ? { min: d.min, max: d.max } : null,
     accuracyPct: num(c.accuracy_pct), critPct: num(c.crit_pct), defence: int(c.defence), regenPct: num(c.regen_pct),
-    dodgePct: num(c.dodge_pct), absorbPct: num(c.absorb_pct), ward: nat(c.ward),
+    dodgePct: num(c.dodge_pct), absorbPct: num(c.absorb_pct), ward: nat(c.ward), steadyPct: num(c.steady_pct),
     xp: { perks: num(x.perks), buffs: num(x.buffs), combat: num(x.combat) },
   };
 }
@@ -62,8 +65,26 @@ export function characterSheetOf(cs) {
   };
 }
 
-/** The server says this account is the Game Master (2027-03-05-gm-tools.sql's `gm` section). Fails safe to false. */
+/** The server says this account is the Game Master (2027-03-13-gm-tools.sql's `gm` section). Fails safe to false. */
 export function gmOf(cs) { return read(cs, 'gm') === true; }
+/** `titles` (2027-02-28-titles.sql): every title with the server's price, the kills it takes and this hero's own count, or null. A row with words the client refuses is not drawn. */
+export function titlesOf(cs) {
+  const t = read(cs, 'titles');
+  if (!isObj(t) || !Array.isArray(t.rows)) return null;
+  const rows = [];
+  for (const r of t.rows.slice(0, 500)) {
+    if (!isObj(r) || !id(r.id) || typeof r.words !== 'string' || !TITLE_WORDS.test(r.words) || nat(r.price) === null || nat(r.kills) === null || nat(r.have) === null) continue;
+    rows.push({ id: r.id, words: r.words, price: r.price, kills: r.kills, have: r.have, held: r.held === true, worn: r.worn === true });
+  }
+  return { rows };
+}
+
+/** The words of the title this hero wears ("the Wolfer"), or null. */
+export function wornTitleOf(cs) {
+  const t = titlesOf(cs);
+  const r = t && t.rows.find((x) => x.worn);
+  return r ? r.words : null;
+}
 
 /** The Level, from the server's `state.level_xp`: { xp, level, into, need } (need = XP across this Level), or null. */
 export function levelOf(cs) {
@@ -112,13 +133,19 @@ export function heroVitalsOf(cs) {
   return Object.assign(out, { hp, hpMax, mana: manaMax, manaMax });
 }
 
-/** `outfit`: { worn, colors, owned: Set }, or null. */
+/* The section as read, per section the server sent: a hero's look asks every frame, and a new envelope is a new object. */
+const OUTFIT_READ = new WeakMap();
+/** `outfit`: { worn, base (the hero's four colors, dye indices, or null), owned: Set }, or null. */
 export function outfitOf(cs) {
   const o = read(cs, 'outfit');
   if (!isObj(o)) return null;
-  const colors = {};
-  if (isObj(o.colors)) for (const [k, v] of Object.entries(o.colors)) if (/^[a-z]{1,16}$/.test(k) && nat(v) !== null) colors[k] = v;
-  return { worn: id(o.worn), colors, owned: new Set(Array.isArray(o.owned) ? o.owned.map(id).filter(Boolean) : []) };
+  let r = OUTFIT_READ.get(o);
+  if (!r) {
+    const base = dyeKeyOf(o.base) ? { head: o.base.head, body: o.base.body, legs: o.base.legs, feet: o.base.feet } : null;
+    r = { worn: id(o.worn), base, owned: new Set(Array.isArray(o.owned) ? o.owned.map(id).filter(Boolean) : []) };
+    OUTFIT_READ.set(o, r);
+  }
+  return r;
 }
 
 const SESSION = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

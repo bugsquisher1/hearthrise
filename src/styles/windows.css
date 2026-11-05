@@ -395,12 +395,14 @@
 /* Each pull: what the ground spawns at this pick, and the step beside it. */
 .hw-pull { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
 .hw-hunt-facts { flex: 1 1 auto; margin: 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
-.hw-density { display: none; align-items: center; }
-.hw-density.is-on { display: flex; }
-.hw-density .hh-seg { min-width: 36px; min-height: 36px; }
-.hw-density .hh-step-val { min-width: 64px; text-align: center; }
-.hw-density-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
-.hw-density-note:empty { display: none; }
+.hw-tiers { display: none; align-items: center; gap: 8px; }
+.hw-tiers.is-on { display: flex; }
+.hw-tiers .hh-seg { min-height: 36px; padding: 0 12px; }
+.hw-tiers .hh-seg[hidden] { display: none; }
+.hw-tiers .hh-segs:not(:has(.hh-seg:not([hidden]))) { display: none; }
+.hw-tier-read:empty { display: none; }
+.hw-tier-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hw-tier-note:empty { display: none; }
 .hw-hunt-pack { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
 /* Go as: the setups as lines, chosen the way a ground is (lifted, outlined in gold, the gold bar): the weapon's own
@@ -513,6 +515,8 @@
 /* ── The shop and hunt prep ── */
 .hw-qty { width: 64px; }
 .hw-add { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.hw-slot-buy { margin-top: 8px; }
+.hw-slot-buy[hidden], .hw-title .hh-tool[hidden] { display: none; }
 .hw-add .hh-select { flex: 1; min-width: 0; }
 .hw-add .hw-preset-name { flex: 1; width: auto; }
 .hw-ready { margin: 0 0 6px; padding: 0; list-style: none; }
@@ -528,7 +532,7 @@
 .hw-setup.is-arming .hw-del { color: var(--red); }
 .hw-setup.is-arming [data-hs-act="save-over"], .hw-setup.is-arming .hw-use { display: none; }
 /* The setup the hero is on: "In use" in gold, and no Delete (its place kept so the rows line up). */
-.hw-setup.is-current small { color: var(--gold-2); }
+.hw-setup.is-current small, .hw-title.is-current small { color: var(--gold-2); }
 .hw-setup.is-current .hw-del { visibility: hidden; }
 .hw-town-only { display: none; }
 .hw-town-only.is-on { display: block; }
@@ -594,7 +598,7 @@
   .hw-hd-name { font-size: var(--t-h2); }
   /* A refusal gets the foot's width, on its own line over the press (panel 2026-11-01: one word per line in 45 px). */
   .hw-hd-foot { flex-wrap: wrap; padding: 6px 12px 8px; }
-  .hw-hd-foot .hh-intent-msg:not(:empty) { flex: 1 0 100%; }
+  .hw-hd-foot .hh-intent-msg:not(:empty), .hw-hd-foot .hw-enter-why:not(:empty) { flex: 1 0 100%; }
   .hw-pick.is-on { flex-wrap: wrap; }
   .hw-pick.is-on .hw-pick-name { flex: 1 1 80px; }
   .hw-upgrade-q { flex: 1 0 100%; }
@@ -773,6 +777,8 @@
 .hw-sow [data-hs-act="shop"] { display: none; }
 .hw-sow [data-hs-act="shop"].is-on { display: inline-block; }
 .hw-sow-none:empty { display: none; }
+.hw-sow-all { display: none; }
+.hw-sow-all.is-on { display: inline-block; }
 .hw-seeds .hw-line.is-locked .hw-line-name b { color: var(--ink-3); }
 .hw-farm.is-off .hw-tier, .hw-farm.is-off [data-hs-act="upgrade"] { display: none; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
@@ -810,6 +816,42 @@
 }
 /* ── The Roll of Honor (src/shell/windows/honor.js): a town's roll, not a table. A place, a hero's name and the
    number that earned it, on ruled lines; first place in gold; the viewed hero marked by a gold rule at its edge. ── */
+/* THE HAVORA WINDOW: what gold buys in town. A pick of three powders, the one action under it, what the server says of the day, stuck to the window's foot. */
+.hv-top { display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: 8px; margin-bottom: 8px; border-bottom: 2px solid var(--steel-sep); }
+.hv-top .hw-tabs { margin-bottom: -2px; border-bottom: 0; }
+.hv-gold { margin-left: auto; padding: 0 2px 6px; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+/* flush with the window's foot: over the body's 12 px of bottom padding, or the pane's next line shows in that strip under it */
+.hv-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 6px 0 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
+.hv-foot .hw-cap { margin-bottom: 4px; }
+.hv-count:not(.is-on) { display: none; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hv-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
+}
+.hv-lead { margin: 0 2px 10px; color: var(--ink-2); }
+.hv-powders { display: flex; gap: 6px; margin: 0 0 10px; }
+.hv-powder { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 36px; padding: 0 6px; border: 1px solid var(--steel-sep); background: var(--bg-0); color: var(--ink); font-family: var(--f-label); font-weight: 700; cursor: pointer; }
+.hv-powder:hover { color: var(--gold-2); }
+.hv-powder[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; color: var(--gold-2); }
+.hv-powder:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hv-swatch { flex: none; width: 12px; height: 12px; }
+.hv-powder.is-cinnabar .hv-swatch { background: var(--powder-cinnabar); }
+.hv-powder.is-quicklime .hv-swatch { background: var(--powder-quicklime); }
+.hv-powder.is-borax .hv-swatch { background: var(--powder-borax); }
+.hv-buy { display: block; width: 100%; min-height: 40px; margin-bottom: 8px; }
+/* The Works tab: where the build stands, what to give, the plaque (src/shell/windows/havora/works.js) */
+.hv-works-stage { margin: 0 2px 4px; font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hv-works-bar { position: relative; display: block; height: 8px; margin: 0 2px 4px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hv-works-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--gold-3); }
+.hv-works-gifts { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+.hv-works-gifts .hv-buy { flex: 1 1 140px; width: auto; margin: 0; }
+.hv-works-gifts .hv-buy[hidden] { display: none; }
+.hv-works-typed { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; }
+.hv-works-typed input { flex: 1; min-width: 0; min-height: 36px; padding: 0 8px; color: var(--ink); background: var(--bg-0); border: 1px solid var(--steel-sep); font: inherit; font-variant-numeric: lining-nums tabular-nums; }
+.hv-works-typed input:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hv-works-head { margin: 10px 2px 0; font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); }
+.hv-works-plaque { margin: 4px 0 0; padding: 0; list-style: none; }
+.hv-works-plaque .hr-line { min-height: 32px; grid-template-columns: 32px minmax(0, 1fr) auto; }
+.hv-works-plaque .is-mine .hr-name b { color: var(--gold-2); }
 .hr-pick { display: flex; align-items: center; gap: 8px; margin: 0 2px 10px; font-family: var(--f-label); font-weight: 700;
   font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hr-pick .hh-select { flex: 1; min-width: 0; }

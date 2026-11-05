@@ -10,7 +10,8 @@
 //   [s1-retired]  a retired pre-style-1 set (hero, cellar, town, home) is loaded, or its art or
 //                 atlas is still in the tree
 //   [s1-orphan]   an art/world/<set> or assets/world atlas the renderer does not load (old art
-//                 parked where a later row could load it again)
+//                 parked where a later row could load it again); a region-mask set (atlas-sets.js
+//                 MASK_SETS) counts as loaded while the set it masks is: the dye code loads it on need
 //   [s1-source]   a sidecar of a loaded set that is not style 1, or names no style-1 source
 //   [s1-ref]      something a player can reach names a sprite or terrain no loaded set carries
 //                 (it would draw as a stub, or as whatever old art is put back under that id)
@@ -85,15 +86,16 @@ export function reachableRefs(d) {
 /** Atlas sets a source file names: atlasPaths('<set>') and literal atlas-<set>.json/.png paths. */
 export function codeSets(src) {
   const out = new Set();
-  for (const m of src.matchAll(/atlasPaths\(\s*['"]([a-z0-9_]+)['"]\s*\)/g)) out.add(m[1]);
-  for (const m of src.matchAll(/atlas-([a-z0-9_]+)\.(?:json|png)/g)) out.add(m[1]);
+  for (const m of src.matchAll(/atlasPaths\(\s*['"]([a-z0-9_-]+)['"]\s*\)/g)) out.add(m[1]);
+  for (const m of src.matchAll(/atlas-([a-z0-9_-]+)\.(?:json|png)/g)) out.add(m[1]);
   return [...out];
 }
 
 /**
- * @param {{atlasSets: string[], artSets: string[], builtSets: string[],
+ * @param {{atlasSets: string[], artSets: string[], builtSets: string[], maskSets?: {[set: string]: string},
  *          sidecars: {[set: string]: object[]}, refs: object[], code?: {file: string, sets: string[]}[], scripts?: string[]}} d
  *   atlasSets: ATLAS_SETS (what the renderer loads); artSets: art/world/* dirs; builtSets: assets/world atlas names;
+ *   maskSets: MASK_SETS (mask set -> the set it masks);
  *   scripts: the tools/world-art/* files in the tree, the only thing a sidecar's `drawn` may name
  * @returns {{rule: string, detail: string}[]}
  */
@@ -105,8 +107,10 @@ export function style1Findings(d) {
     if (d.artSets.includes(s)) bad('s1-retired', 'art/world/' + s + ' (retired pre-style-1 art) is still in the tree');
     if (d.builtSets.includes(s)) bad('s1-retired', 'assets/world/atlas-' + s + ' (retired pre-style-1 atlas) is still in the tree');
   }
-  for (const s of d.artSets) if (!d.atlasSets.includes(s) && !RETIRED_SETS.includes(s)) bad('s1-orphan', 'art/world/' + s + ' is not a set the renderer loads (src/data/world/atlas-sets.js)');
-  for (const s of d.builtSets) if (!d.atlasSets.includes(s) && !RETIRED_SETS.includes(s)) bad('s1-orphan', 'assets/world/atlas-' + s + ' is not a set the renderer loads');
+  const masks = d.maskSets || {};
+  const loads = (s) => d.atlasSets.includes(s) || (!!masks[s] && d.atlasSets.includes(masks[s]));
+  for (const s of d.artSets) if (!loads(s) && !RETIRED_SETS.includes(s)) bad('s1-orphan', 'art/world/' + s + ' is not a set the renderer loads (src/data/world/atlas-sets.js)');
+  for (const s of d.builtSets) if (!loads(s) && !RETIRED_SETS.includes(s)) bad('s1-orphan', 'assets/world/atlas-' + s + ' is not a set the renderer loads');
   const sprites = new Map(), terrains = new Map();
   for (const set of d.atlasSets) {
     for (const sc of d.sidecars[set] || []) {
@@ -114,7 +118,7 @@ export function style1Findings(d) {
       (sc.class === 'terrain' ? terrains : sprites).set(sc.id, set);
     }
   }
-  for (const c of d.code || []) for (const s of c.sets) if (!d.atlasSets.includes(s)) bad('s1-code', c.file + ' names atlas set "' + s + '", which the renderer does not load');
+  for (const c of d.code || []) for (const s of c.sets) if (!loads(s)) bad('s1-code', c.file + ' names atlas set "' + s + '", which the renderer does not load');
   for (const r of d.refs) {
     const have = r.kind === 'terrain' ? terrains : sprites;
     if (!r.id || !have.has(r.id)) bad('s1-ref', r.what + ' names ' + r.kind + ' "' + r.id + '", which no loaded style-1 set carries');

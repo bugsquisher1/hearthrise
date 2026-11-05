@@ -177,7 +177,7 @@ function check(M) {
     ok('T', dressed.length === 1 && dressed[0].id === 'outfit_witch', 'a walker whose character chose the witch outfit must wear it, got ' + dressed.map((u) => u.id).join(','));
     ok('T', !!wren && wren.plate.text === 'Wren · 12' && u0.some((u) => u.plate.text === 'Ilsa') && wren.plate.kind === 'peer', 'a plate is the name and the level: ' + u0.map((u) => u.plate.text).join(' / '));
     ok('T', !!wren && wren.ref.player.name === 'Wren' && wren.ref.player.slot === 0, 'a peer is stamped with the server\'s id, name and slot for the player menu');
-    /* the Game Master (2027-03-05-gm-tools.sql): the server's stamp, drawn as words and gold; nobody else's plate carries them */
+    /* the Game Master (2027-03-13-gm-tools.sql): the server's stamp, drawn as words and gold; nobody else's plate carries them */
     const gmBody = M.town.createTownCast(town, { sprites: M.book.sprites }).frame([WALKER({ id: A, name: 'Warden', level: 40, role: 'tank', gm: true, x: 5, y: 9, gx: 5, gy: 9 })], t0);
     ok('T', gmBody.length === 1 && gmBody[0].plate.text === 'GM Warden · 40' && gmBody[0].plate.kind === 'gm' && gmBody[0].ref.player.gm === true, 'a stamped body reads GM in gold, got ' + JSON.stringify(gmBody.map((u) => [u.plate, u.ref])));
     ok('T', !!wren && !wren.ref.player.gm && !/^GM /.test(wren.plate.text), 'an unstamped body carries no mark');

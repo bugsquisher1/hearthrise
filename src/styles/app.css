@@ -303,8 +303,15 @@
 /* The step fits the screen it opens on: the crest is on the screens before it (newcomer panel 2026-11-01: Enter town at y=985 at 1366x768). */
 .auth:has(.auth-card.is-create) .auth-brand { display: none; }
 .hero-body { display: flex; gap: 18px; align-items: flex-start; }
-.hero-preview { flex: none; width: 128px; height: 192px; padding: 8px 8px 12px; image-rendering: pixelated;
+/* The real hero in the colors being picked: the outfit it starts in, large, and three more on the same ground, so every pick shows on something. */
+.hero-look { flex: none; width: 192px; display: flex; flex-direction: column; gap: 4px; }
+.hero-preview { display: block; width: 192px; height: 192px; image-rendering: pixelated;
   background: url('../../assets/ui/ground-shadow.png') 50% calc(100% - 8px) / 96px 20px no-repeat, var(--bg-2); box-shadow: var(--steel-well); }
+.hero-others { display: flex; justify-content: space-between; }
+.hero-other { display: block; width: 64px; height: 64px; image-rendering: pixelated; background: var(--bg-2); box-shadow: var(--steel-well); }
+.hero-note { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hero-colors { display: flex; flex-direction: column; gap: 8px; }
+.hero-pick { display: none; }
 .hero-form { flex: none; min-width: 16rem; display: flex; flex-direction: column; gap: 8px; }
 .hero-region { margin: 0; padding: 0; border: 0; min-width: 0; }
 .hero-region legend { padding: 0 0 3px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-2); }
@@ -349,6 +356,16 @@
   /* Beside this card the crest leaves a 667 px phone 455 px: Enter town and How you fight ran off the right edge (played
      2026-10-31). The crest stays on sign-in; this step uses the room. */
   .auth:has(.auth-card.is-create) { gap: 0; padding: 2px 4px; }
+  /* A phone's step shows one thing at a time: How you fight first, as it always has; Pick colors swaps it for the hero and its strips. */
+  .hero-look, .hero-colors { display: none; }
+  .auth-card.is-create { position: relative; }
+  .hero-pick { display: block; position: absolute; top: 8px; right: 16px; }
+  .auth-card.is-picking .hero-how { display: none; }
+  .auth-card.is-picking .hero-look { display: flex; width: 128px; }
+  .auth-card.is-picking .hero-preview { width: 128px; height: 128px; }
+  .auth-card.is-picking .hero-others, .auth-card.is-picking .hero-note { display: none; }
+  .auth-card.is-picking .hero-form { width: auto; }
+  .auth-card.is-picking .hero-colors { display: flex; gap: 2px; }
 }
 
 /* THE LOADING SHELL (play.html .boot-shell; src/platform/load-shell.js): the crest, one line and a thin bar, in the middle

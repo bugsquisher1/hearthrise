@@ -6,11 +6,11 @@
 // new ground is a data row and shows up here with nothing else to edit.
 //   huntRows()          [{ hunt, name, theme, band, heroes, packs, packMin,
 //                          packMax, respawnS, boss }] in band order
-//   densityWords(row, n)  "6 packs of 7 · back in 60 s": the pull size the
-//                        server spawns at density `n` (the pick clamped to the
-//                        ground); the room as built only at 0
-//   densityStep(row, now, by, max, party)  the pick one press of the step reaches: picks in
-//                        order of size, no pick standing among them (a party's default pull, or the room as built)
+//   packWords(row, n)   "6 packs of 7 · back in 60 s": the pull size the
+//                        server spawns on the shown tier; the room as built only at 0
+//   tierPull(row, tier, size)  how many monsters a pull brings on a tier for this group
+//   tierWords(row, tier, size)  what a tier does, in numbers from its row and the ground's biggest blow
+//   tierChoiceWords(row, tier, size)  the same choice in one line, beside Enter
 //   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
 //   recommendation(levels, size)  the Hunts window's default pick for this hero
 //                        or this party's levels, and a plain note when no ground
@@ -28,13 +28,15 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.91';
-import { PARTY } from '../data/party.js?v=0.2.91';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.91';
-import { MONSTERS } from '../data/monsters.js?v=0.2.91';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.91';
-import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.91';
-import { whole, gold } from '../render/format.js?v=0.2.91';
+import { HUNT_GROUNDS, partyPullOf, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.97';
+import { DEFAULT_TIER, TIER_NAME, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.97';
+import { biggestBlowOn } from '../core/hunt/pull-cycle.js?v=0.2.97';
+import { PARTY } from '../data/party.js?v=0.2.97';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.97';
+import { MONSTERS } from '../data/monsters.js?v=0.2.97';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.97';
+import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.97';
+import { whole, gold } from '../render/format.js?v=0.2.97';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -78,10 +80,9 @@ export function huntRows() {
 
 /**
  * How crowded a ground is, in words: its packs, their size, the boss, the respawn. `n` is the
- * density the server spawns this ground at (hunt-grounds.js densityFor of the pick: every pack
- * holds n; in a party the leader's pick), 0 or unknown = the room as built.
+ * pull the server spawns this ground at on the shown tier (every pack holds n), 0 or unknown = the room as built.
  */
-export function densityWords(r, n) {
+export function packWords(r, n) {
   const built = r.packMin === r.packMax ? String(r.packMin) : r.packMin + ' to ' + r.packMax;
   const picked = Number.isInteger(n) && n > 0;
   const packs = r.packs + (r.packs === 1 ? ' pack' : ' packs');
@@ -89,24 +90,32 @@ export function densityWords(r, n) {
   return packs + size + (r.boss ? ', a boss' : '') + ' · back in ' + r.respawnS + ' s';
 }
 
+/** How many monsters a pull brings on tier `id` for a group of `size` (0 = the room as built: Normal alone). The tier's row, else the ground's own party pull. Pure. */
+export function tierPull(r, id, size = 1) {
+  return pullOfTier(tierRowOf(r.hunt, id), size) || partyPullOf(r, size);
+}
+
+const PCT = (pm) => Math.round(pm / 10 - 100) + '%';
+/* What's different, the words both lines open on: the monsters a pull, and how much harder they hit. */
+const HARDER = (pm) => (pm === 2000 ? 'twice as hard' : pm > 2000 ? pm / 1000 + ' times as hard' : PCT(pm) + ' harder');
+const tierHead = (r, t, size) => { const n = pullOfTier(t, size); return (n ? n + ' monsters a pull' : 'The same monsters') + ', hitting ' + HARDER(t.powerPm); };
+
 /**
- * THE PICK ONE PRESS REACHES. "As built" (0) is a room, not a number: it stands where its packs' size stands among the
- * picks, so "More monsters" never brings fewer (blind playtest 2026-10-31: + on "As built (2 to 3)" went to "1 each",
- * and − was off). `by`: 1 or -1; `max`: the most this group may pick. Null at either end. A built size equal to a pick
- * takes that pick's place going up and going down, so no press does nothing on screen. IN A PARTY OF `party` HEROES a
- * ground's default pull (`r.partyPull`) is what no pick spawns, so 0 stands at that size, or a press would jump. Pure.
+ * WHAT A TIER DOES, the page's words: its numbers from its row (hunt-tiers.js), and the biggest blow the ground can land on it, before armor (pull-cycle.js biggestBlowOn).
+ * Normal says nothing: it is the ground as the page describes it. The risk is a real number, never a mood (Tyler 2026-11-04: a warned choice). Pure.
  */
-export function densityStep(r, now, by, max, party = 1) {
-  const pull = partyPullOf(r, party);
-  const size = (n) => (n > 0 ? n : pull > 0 ? pull : (r.packMin + r.packMax) / 2);
-  let best = null;
-  for (let n = 0; n <= max; n++) {
-    const d = (size(n) - size(now)) * by;
-    if (d <= 0) continue;
-    const had = best === null ? Infinity : (size(best) - size(now)) * by;
-    if (d < had || (d === had && n === 0)) best = n;
-  }
-  return best;
+export function tierWords(r, id, size = 1) {
+  const t = tierRowOf(r.hunt, id);
+  if (t.id === DEFAULT_TIER) return '';
+  const blow = biggestBlowOn(r.hunt, size, t), was = biggestBlowOn(r.hunt, size);
+  return tierHead(r, t, size) + (blow ? ': the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + '. '
+    + 'Each kill pays ' + PCT(t.xpPm) + ' more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die: the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
+}
+
+/** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: 8 monsters a pull, hitting 50% harder." '' on Normal. Pure. */
+export function tierChoiceWords(r, id, size = 1) {
+  const t = tierRowOf(r.hunt, id);
+  return t.id === DEFAULT_TIER ? '' : TIER_NAME[t.id] + ': ' + tierHead(r, t, size).replace(/^The/, 'the') + '.';
 }
 
 /** The ground's level band in words, and where the character stands when its level is known. */

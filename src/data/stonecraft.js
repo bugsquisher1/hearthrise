@@ -61,7 +61,7 @@
 // be removed.
 // ══════════════════════════════════════════════════════════════════════════
 
-import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.91';
+import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.97';
 
 /* ── R7: ONE STAT CURVE ACROSS THE AMMO LADDERS ───────────────────────
    `2 / 3 / 5 / 8 / 11 / 14 / 18` at tiers 1-7, because arrows and whetstones
@@ -91,14 +91,13 @@ const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legenda
    tier-N rune casts version N of its family's spells (src/data/abilities.js `versions`). The rows carry no
    strength: nothing reads a rune in the ammo slot (src/core/member.js combatWorn), and a basic attack never
    spends one (src/core/hunt/abilities.js shotLine); `ammoPerShot: 1` is the one rune a CAST spends.
-   VALUES are book value by tier (PROVISIONAL, the designer re-tunes in the balance phase). The CHALKED rune
-   books at 0, like every free first rung (W0, Security #1): the store's basic rune (supply-basics.js, one a
-   family) costs 1 g a cast, and BASIC_AMMO_PREMIUM x 0 holds it. MEASURED on the real settle (lane
-   b-spell-content): at 2 g a cast (Chalked at 1) the Sewer floor party's runes took its net under the
-   Thicket's (tests/hunt-core/forest-cave.mjs first-grounds-net-chain).
+   VALUES are book value by tier (the rune ladder, Tyler 2026-11-05, designer's table: book tripled, the yields below cut to about a
+   third, so a rune is worth about what it is made from and a crafter can list under the store). The CHALKED rune books at 0, like
+   every free first rung (W0, Security #1): its store partner costs 1 g a cast. MEASURED on the real settle (lane b-spell-content): at
+   2 g a cast the Sewer floor party's runes took its net under the Thicket's (tests/hunt-core/forest-cave.mjs first-grounds-net-chain).
    Air is a family with no rows: it is hidden until a spell spends it (Tyler 10-23), and an item with no
    source and no use is not authored (tests/catalogue-coherence.mjs C1, the W0 rule). */
-const RUNE_VALUE = [0, 1, 1, 2, 3];
+const RUNE_VALUE = [0, 3, 3, 6, 10];
 const RUNE_GLYPH = Object.freeze({ fire: '🔥', earth: '🌍', water: '💧', ice: '❄️', poison: '🧪', rupture: '🩸' });
 /* The families bound into family x tier rows: every family a spell spends (none is hidden). The sample was the
    Fire family; the others followed in batches of 20 rows or fewer (DESIGN_STANDARDS §9). */
@@ -115,10 +114,10 @@ const RUNE_ROWS = Object.fromEntries(CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_T
    rung here (the note above). */
 const BIND = Object.freeze([
   { blanks: 6, qty: 45, xp: 12, ms: 3400 },
-  { blanks: 18, qty: 40, xp: 60, ms: 3500 },
-  { blanks: 20, qty: 36, xp: 185, ms: 3600 },
-  { blanks: 28, qty: 32, xp: 500, ms: 3800 },
-  { blanks: 36, qty: 28, xp: 940, ms: 4000 },
+  { blanks: 18, qty: 13, xp: 60, ms: 3500 },
+  { blanks: 20, qty: 12, xp: 185, ms: 3600 },
+  { blanks: 28, qty: 10, xp: 500, ms: 3800 },
+  { blanks: 36, qty: 8, xp: 940, ms: 4000 },
 ]);
 const bindRecipe = (family, t) => {
   const b = BIND[t.tier - 1];

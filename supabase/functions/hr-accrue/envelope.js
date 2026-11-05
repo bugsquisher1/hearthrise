@@ -262,7 +262,7 @@ export function engineInputsFromEnvelope(env, nowMs) {
        allowlists the `hearthfind` delta key, so an edge deployed BEFORE the
        migration is inert rather than 409-ing `unknown_delta_key` and costing a
        player their night. The switch is the ENVELOPE, never a deploy flag. */
-    /* THE WALL (2027-03-05-gm-tools.sql): a walled hero rolls no find, so the server's Nth-ever counters count only real heroes. */
+    /* THE WALL (2027-03-13-gm-tools.sql): a walled hero rolls no find, so the server's Nth-ever counters count only real heroes. */
     hearthfindReady: st.hearthfind_ready === true && e.gm !== true,
   };
 }

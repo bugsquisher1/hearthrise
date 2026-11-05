@@ -25,14 +25,9 @@
 //                 only from it ("Best with 2 to 4, and alone it pays from Level 45"). Advice, like groupFit.
 //     leashMargin tiles a pack may step past its room (LE-05/08); absent =
 //                 HUNT_TUNING.leashMarginDefault. Read ONLY via leashMarginOf.
-//     density     (optional) THE MONSTER-DENSITY SLIDER (Tyler 10-18): { solo, perHero,
-//                 max }. The level IS the pull size. A party of n may pick 1..min(max,
-//                 solo + perHero x (n - 1)) (densityCapFor); max is always FULL_BOX = 8,
-//                 all 8 tiles round the tank (Tyler 10-18, over KIT §4b's "5 or fewer").
-//                 Each pocket then carries `pull` (the tank's tile: 3x3 clear of walls and
-//                 props) and `pack` (8 rows in join order on the ring round it); its pack
-//                 at level L is pack[0..L) (packAt), and `spawns` = the head of `pack` is
-//                 today's pack (the default level). Party size still scales pack HP.
+//     pull, pack  (optional, a `box` pocket) `pull` is the tank's tile (3x3 clear of walls and props), `pack` 8 rows in join
+//                 order on the ring round it, so every pull fits a full box: all 8 tiles round the tank (Tyler 10-18). `spawns` =
+//                 the head of `pack` is the pocket as built. A tier's pull (hunt-tiers.js) reads them through pullRows. Party size still scales pack HP.
 //     gather      (optional) THE GATHER SLIDER (Tyler 10-18): { refKillMs, shares, nodes }.
 //                 INERT DATA until the hunt-gathering engine lands (HUNT_GATHERING_SPEC).
 //                 shares: the slider's steps, permille of the hunt spent on a node between
@@ -139,25 +134,22 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.91';
-import { HUNT_INDEX } from './hunts.js?v=0.2.91';
-import { MONSTERS } from './monsters.js?v=0.2.91';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.97';
+import { HUNT_INDEX } from './hunts.js?v=0.2.97';
+import { MONSTERS } from './monsters.js?v=0.2.97';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
 
-/* THE DENSITY SLIDER (Tyler 10-18): the level IS the pull size, 1..max, and every ground's max is
-   at least 8, a full box: all 8 tiles round the tank (Tyler 10-18). A walked pocket is a `box`: its
-   `pull` tile (3x3 clear, no wall or prop: tests/hunt-core/forest-cave.mjs) and its `pack`, 8 rows
-   in join order, standing on the ring round the pull tile (N, E, S, W, then the corners).
-   `spawns` is the first `base` of them, today's pack. Read only through packAt / densityCapFor. */
+/* A BOX: every walked pocket can field a full box of 8, all 8 tiles round the tank (Tyler 10-18). Its `pull` tile is 3x3 clear, no wall or
+   prop (tests/hunt-core/forest-cave.mjs), and its `pack` is 8 rows in join order on the ring round that tile (N, E, S, W, then the corners).
+   `spawns` is the first `base` of them, the pocket as built. Read only through pullRows. */
 export const FULL_BOX = 8;
 const RING = Object.freeze([[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [-1, 1], [-1, -1]]);
 const box = (room, pull, base, more) => {
   const pack = base.concat(more).map((monster, i) => Object.freeze({ monster, x: pull[0] + RING[i][0], y: pull[1] + RING[i][1] }));
   return Object.freeze({ room: Object.freeze(room), pull: Object.freeze(pull), spawns: Object.freeze(pack.slice(0, base.length)), pack: Object.freeze(pack) });
 };
-const density = (solo, perHero, max) => Object.freeze({ solo, perHero, max });
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a
    src/data/gathering.js TREES/ROCKS id (its req, xp, ms and product are read from there, never copied);
@@ -198,7 +190,7 @@ export const HUNT_GROUNDS = Object.freeze({
        measured floor pay (L1 solo 1,829.5 g/h, was 1,828.5; 30 s would be 1,930, over the Thicket's: forest-cave
        first-grounds-net-chain) and the first Levels' pace. */
     respawnMs: 32000, pullDist: 1.5, partyScale: true, groupFit: 'both',
-    /* the tutorial room allows the full box and no more: its lesson is the pull */
+    /* the full box and no more. Normal only (hunt-tiers.js), so no tier asks for it */
     densityMax: Object.freeze([8, 8, 8, 8]),
     partyPull: Object.freeze([0, 4, 5, 5]),
   }),
@@ -242,12 +234,7 @@ export const HUNT_GROUNDS = Object.freeze({
     /* 'both' (designer 2026-11-02, lane/b-rulings-1102): a new party was held in the Cellar until the Sewer's floor at 8, Level 8 at
        5.4 h against 2.0-2.7 h alone. Advice only; a pair and a four go on to the Sewer at 8. */
     groupFit: 'both',
-    /* integration v0.2.1: the engine's density (densityFor) reads densityMax, which every ground
-       holds at the full box at least (the action engine ruling); the slider caps below are the
-       designer's and wait on densityCapFor being wired (CONFLICTS.md 2026-10-18 density). */
     densityMax: Object.freeze([8, 8, 8, 8]),
-    /* a solo hero may pull up to 6, a pair the full box */
-    density: density(6, 2, 8),
     /* Tyler 2026-11-02: widen the Thicket's party pull so same-weapon friends lose less (was [0, 3, 3, 4]: 0.69-0.84 per head). */
     partyPull: Object.freeze([0, 4, 5, 6]),
     gather: gather(9000, [
@@ -290,12 +277,7 @@ export const HUNT_GROUNDS = Object.freeze({
        (-78%; it was -38% before armour weights, at a 5% to-hit), at 40 still -2% median, at 45 eats no
        store food at all. Goblins of lv 34-52 out-hit a lone hero under 45; the ground is a party's. */
     soloFrom: 45,
-    /* integration v0.2.1: the engine's density (densityFor) reads densityMax, which every ground
-       holds at the full box at least (the action engine ruling); the slider caps below are the
-       designer's and wait on densityCapFor being wired (CONFLICTS.md 2026-10-18 density). */
     densityMax: Object.freeze([8, 8, 8, 8]),
-    /* a solo hero up to 4, a pair 6, three or four the full box */
-    density: density(4, 2, 8),
     gather: gather(12000, [
       /* P0 the Spoil Heap: what the scavengers missed */
       ['copper_rock', 4, 9, 0], ['copper_rock', 16, 13, 0], ['copper_rock', 3, 11, 0],
@@ -332,8 +314,6 @@ export const HUNT_GROUNDS = Object.freeze({
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
     densityMax: Object.freeze([8, 8, 8, 8]),
-    /* a solo hero may pull up to 6, a pair the full box (the Thicket's slider: the same solo-first shape) */
-    density: density(6, 2, 8),
     partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the Crow Field: pines by the trail */
@@ -369,8 +349,6 @@ export const HUNT_GROUNDS = Object.freeze({
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
     densityMax: Object.freeze([8, 8, 8, 8]),
-    /* a solo hero may pull up to 6, a pair the full box (the Thicket's slider: the same solo-first shape) */
-    density: density(6, 2, 8),
     partyPull: Object.freeze([0, 3, 3, 4]),
     gather: gather(9000, [
       /* P0 the Rick Yard: the hedge pines */
@@ -451,16 +429,13 @@ export function monstersOn(ground, partySize) {
    a Healer alone can still clear a first room that is immune to her one element. */
 export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille: 500 });
 
-/* MONSTER DENSITY (Tyler 2026-10-18): a hero picks how many monsters a pull brings
-   (0 = the room as built). The server stores the pick inside DENSITY_PICK and the
-   settle CLAMPS it to the ground's `densityMax` for the party's size (a row's array,
-   one entry per party size 1..4). IN A PARTY THE LEADER CHOOSES (Tyler 2026-10-20:
-   "There should be a party leader that chooses the hunt settings"): the leader's
-   pick is the pull for every member, the others' picks have no say (partyPick).
-   EVERY ground's max is at least DENSITY_FULL_BOX (Tyler: "a full box", all 8 tiles
-   round the tank taken); a row may allow more. The values above 8 are ASSUMED.
-   A PARTY'S DEFAULT PULL (designer 2026-11-01: most players never press +, and a mixed party as built stayed under
-   solo): a row's `partyPull`, one entry per party size 1..4, is the pull of a party that picked none; absent = as built.
+/* MONSTER DENSITY: how many monsters a pull brings (0 = the room as built). THE DIAL IS GONE (lane/c-difficulty-tiers): the
+   tier a hero or its party's leader picks (hunt-tiers.js) sets it, and the server freezes that number at hunt start. The
+   settle still CLAMPS it to the ground's `densityMax` for the party's size (a row's array, one entry per party size 1..4).
+   A tool's pick (tools/balance-sim, the fixtures) comes in by the same road: the leader's alone counts (partyPick).
+   A top tier's DENSITY_FULL_BOX fits every ground (Tyler: "a full box", all 8 tiles round the tank taken); a row may allow more. The values above 8 are ASSUMED.
+   A PARTY'S DEFAULT PULL (designer 2026-11-01: a mixed party as built stayed under
+   solo): a row's `partyPull`, one entry per party size 1..4, is Normal's pull for a party; absent = as built.
    It follows the party standing, at the next spawn (designer 2026-11-01): a four dropping to three goes to three's pull,
    and a lone survivor goes back to as built. A lone hero's entry is 0 and never read: its pull never moves. */
 export const DENSITY_FULL_BOX = 8;
@@ -523,23 +498,6 @@ export function scaledHp(row, partySize) {
 /** The element value (permille) a hero's blow lands at, after the solo Healer floor. */
 export function elementWithFloor(permille, role, partySize) {
   return role === SOLO_HEALER_FLOOR.role && partySize === 1 ? Math.max(permille, SOLO_HEALER_FLOOR.elementPermille) : permille;
-}
-
-/** The highest density level a party of `partySize` may pick on `ground` (1 on a ground with no slider). */
-export function densityCapFor(ground, partySize) {
-  const d = ground && ground.density;
-  if (!d) return 1;
-  const n = Math.max(1, Math.floor(Number(partySize) || 1));
-  return Math.max(1, Math.min(d.max, d.solo + d.perHero * (n - 1)));
-}
-
-/** Pocket `p`'s pack at density `level` (the pull size, clamped to 1..max): the first `level` rows of its `pack`.
-    A pocket with no `pack` (a ground with no slider) is its `spawns` whatever the level. */
-export function packAt(ground, p, level) {
-  const pk = ground.pockets[p];
-  const d = ground.density;
-  if (!d || !pk.pack) return pk.spawns.slice();
-  return pullRows(ground, p, Math.max(1, Math.min(d.max, Math.floor(Number(level) || 1))));
 }
 
 const isBoss = (s) => !!(MONSTERS[s.monster] && MONSTERS[s.monster].boss === true);
@@ -639,24 +597,19 @@ export function validateGround(row, refs) {
   if (row.leashMargin !== undefined && !(Number.isInteger(row.leashMargin) && row.leashMargin >= 0 && row.leashMargin <= 8)) {
     bad('leashMargin must be an integer 0..8');
   }
-  const d = row.density;
-  if (d !== undefined) {
-    /* Tyler 10-18: every ground's max is the full box of 8 (all 8 tiles round the tank) */
-    if (d.max !== FULL_BOX || !(Number.isInteger(d.solo) && d.solo >= 1 && d.solo <= d.max)
-      || !(Number.isInteger(d.perHero) && d.perHero >= 0)) bad('density needs 1 <= solo <= max, max ' + FULL_BOX + ' (the full box), perHero >= 0');
-    (row.pockets || []).forEach((pk, i) => {
-      const pack = pk.pack || [];
-      if (pack.length !== d.max) bad('pocket ' + i + ' pack holds ' + pack.length + ', not the full ' + d.max);
-      if (!isTile(pk.pull) || !inRect(pk.room, pk.pull[0], pk.pull[1])) bad('pocket ' + i + ' pull tile is not inside its room');
-      pk.spawns.forEach((s, k) => {
-        if (!pack[k] || pack[k].monster !== s.monster || pack[k].x !== s.x || pack[k].y !== s.y) bad('pocket ' + i + ' spawns are not the head of its pack');
-      });
-      for (const e of pack) {
-        if (!monsters[e.monster]) bad('pocket ' + i + ' pack holds unknown monster ' + e.monster);
-        else if (Math.max(Math.abs(e.x - pk.pull[0]), Math.abs(e.y - pk.pull[1])) !== 1) bad('pocket ' + i + ' pack ' + e.monster + ' is not on the ring round the pull tile');
-      }
+  /* A box pocket fields the full box: 8 rows on the ring round its pull tile, its as-built spawns their head. */
+  (row.pockets || []).forEach((pk, i) => {
+    if (!pk || pk.pack === undefined) return;
+    if (pk.pack.length !== FULL_BOX) bad('pocket ' + i + ' pack holds ' + pk.pack.length + ', not the full ' + FULL_BOX);
+    if (!isTile(pk.pull) || !inRect(pk.room, pk.pull[0], pk.pull[1])) bad('pocket ' + i + ' pull tile is not inside its room');
+    pk.spawns.forEach((s, k) => {
+      if (!pk.pack[k] || pk.pack[k].monster !== s.monster || pk.pack[k].x !== s.x || pk.pack[k].y !== s.y) bad('pocket ' + i + ' spawns are not the head of its pack');
     });
-  }
+    for (const e of pk.pack) {
+      if (!monsters[e.monster]) bad('pocket ' + i + ' pack holds unknown monster ' + e.monster);
+      else if (Math.max(Math.abs(e.x - pk.pull[0]), Math.abs(e.y - pk.pull[1])) !== 1) bad('pocket ' + i + ' pack ' + e.monster + ' is not on the ring round the pull tile');
+    }
+  });
   const g = row.gather;
   if (g !== undefined) {
     if (!(Number.isInteger(g.refKillMs) && g.refKillMs > 0)) bad('gather.refKillMs must be a positive integer');

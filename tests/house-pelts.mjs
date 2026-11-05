@@ -33,7 +33,7 @@ import { isMain } from './_is-main.mjs';
 const OFFERS = '2027-02-16-house-pelts-unlock-offers.generated.sql';
 const BOUNDS = '2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql';
 /* The newest forward catalogue, applied after these two: a full replace that carries the bear's bound. */
-const CARRIES = '2027-02-24-gold-matters-hunt-sessions-catalogue.generated.sql';
+const CARRIES = '2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql';
 /* The newest forward price list, the same way: a full replace of OFFERS' rows. */
 const OFFERS_NOW = '2027-02-19-bench-prices-unlock-offers.generated.sql';
 const GLADE = 'mosslight_glade';
@@ -59,8 +59,9 @@ async function gladeHunter(db, H, M, uid) {
   await db.query('update public.hr_hunt_config set enabled = true where id');
   await asUser(db, uid);
   await calm(db);
-  const d = await one(db, 'select public.hr_hunt_density_set(0, $1, 3, $2::uuid)', [GLADE, idem()]);
-  if (!d || d.ok !== true) throw new Error('density refused: ' + JSON.stringify(d));
+  /* The bear comes to a harder hunt alone (hunt-tiers.js). */
+  const d = await one(db, "select public.hr_hunt_tier_set(0, $1, 'dangerous', $2::uuid)", [GLADE, idem()]);
+  if (!d || d.ok !== true) throw new Error('tier refused: ' + JSON.stringify(d));
   const e = await one(db, "select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, $2::uuid)", [GLADE, idem()]);
   if (!e || e.ok !== true) throw new Error('enter refused: ' + JSON.stringify(e));
   await asUser(db, '');
@@ -258,7 +259,7 @@ async function wordsFails(root) {
   const glade = G.HUNT_GROUNDS[GLADE];
   const at = (n) => glade.pockets.some((_, p) => G.pullRows(glade, p, n).some((s) => s.monster === 'brook_bear'));
   if (at(2) || !at(3)) out.push('CONTROL: the engine brings the bear at pull 2 ' + at(2) + ', at pull 3 ' + at(3) + ': the words below state 3');
-  const told = /The Brook Bear only comes to a pull of 3 or more at Mosslight Glade/;
+  const told = /The Brook Bear only comes to a party or a harder hunt at Mosslight Glade/;
   const src = sourcesOf('bear_pelt').join('. ');
   if (!told.test(src)) out.push('the tip\'s Comes from reads: ' + src);
   const step = { gold: 40000, items: [{ id: 'bear_pelt', qty: 5 }, { id: 'oak_log', qty: 1 }] };
@@ -267,7 +268,7 @@ async function wordsFails(root) {
   const heldLine = costLines(step, 50000, [{ id: 'bear_pelt', qty: 5 }], []).lines.find((l) => l.key === 'bear_pelt');
   if (heldLine.where) out.push('the House tells a hero holding the pelts where to get them: ' + heldLine.where);
   const page = F.bigPullLine(GLADE);
-  if (!/Brook Bear \(3 or more a pull\)/.test(page) || !/Bear Pelt/.test(page)) out.push('the Glade\'s page reads: ' + page);
+  if (!/A party or a harder hunt also brings the Brook Bear/.test(page) || !/Bear Pelt/.test(page)) out.push('the Glade\'s page reads: ' + page);
   if (F.raresOf(GLADE).every((x) => x.id !== 'bear_claw')) out.push('the Glade\'s Rare list leaves out the Bear Claw');
   if (/pull/.test(F.dropWhereWords('wolf_pelt'))) out.push('an as-built creature\'s item is told to pull more: ' + F.dropWhereWords('wolf_pelt'));
   /* PANEL 2026-11-01: the source line names creatures on open grounds and the ground, for every monster material. */
@@ -296,13 +297,13 @@ async function wordsFails(root) {
 const WORD_TREES = ['src/shell', 'src/render', 'src/session', 'src/utils', 'src/net', 'src/platform', 'src/app', 'src/social', 'src/world', 'src/hunt-view'];
 const WORD_MUTANTS = [
   { name: 'the source lists every catalogue creature again', edits: [['src/shell/hunt-ground-facts.js', "return 'Dropped by ' + listWords(first.names) + ' at '", "return 'Dropped by ' + listWords(Object.values(MONSTERS).filter((m) => (m.drops || []).some((d) => d && d.id === item)).map((m) => m.name), 99) + ' at '"]] },
-  { name: 'the tip drops the pull', edits: [['src/shell/hunt-ground-facts.js', "return 'The ' + MONSTERS[best.id].name + ' only comes to a pull of '", "return '' && ' only comes to a pull of '"]] },
+  { name: 'the tip drops the harder hunt', edits: [['src/shell/hunt-ground-facts.js', "return 'The ' + MONSTERS[best.id].name + ' only comes to a party or a harder hunt at '", "return '' && ' only comes to a party or a harder hunt at '"]] },
   { name: 'the House\'s short line drops the source', edits: [['src/shell/windows/house.js', "const where = short ? whereToGet(it.id) : '';", "const where = '';"]] },
   { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const where = short ? whereToGet(it.id) : '';", 'const where = whereToGet(it.id);']] },
   { name: 'the source names no ground', edits: [['src/shell/hunt-ground-facts.js', "' at ' + groundName(first.g) + (more.length", "(more.length"]] },
   { name: 'a material with no drop on Materials: gear-only Drops again', edits: [['src/shell/hunt-ground-facts.js', "!isSpentMaterial(d.id)) continue;", "true) continue;"]] },
   { name: 'Materials lists a pure sell item', edits: [['src/shell/hunt-ground-facts.js', "|| isRare(d) || !isSpentMaterial(d.id)) continue;", "|| isRare(d)) continue;"]] },
-  { name: 'the page names no bear', edits: [['src/shell/hunt-ground-facts.js', "return said.length ? 'Bigger pulls also bring '", "return said.length > 9 ? 'Bigger pulls also bring '"]] },
+  { name: 'the page names no bear', edits: [['src/shell/hunt-ground-facts.js', "return said.length ? 'A party or a harder hunt also brings '", "return said.length > 9 ? 'A party or a harder hunt also brings '"]] },
   { name: 'the bear moves back a row: a pull of 3 no longer brings it', edits: [
     ['src/data/hunt-grounds.js', "['brook_bear', 'walking_vine', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']", "['walking_vine', 'brook_bear', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']"],
     ['src/data/hunt-grounds.js', "['brook_bear', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']", "['walking_vine', 'brook_bear', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']"]] },

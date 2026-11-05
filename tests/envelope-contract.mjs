@@ -88,7 +88,7 @@ function contract(R, cs, body, tl) {
     /* role + discipline: the Configure window locks a spell by the server's discipline (2027-01-13-spell-roles.sql) */
     const m = missing(s, ['preset', 'role', 'discipline', 'targetMode', 'stance', 'distance', 'chase', 'supplySource', 'onEmpty', 'gatherShare']);
     need('hunt_settings', !m.length && Array.isArray(s.slots) && s.slots.length > 0 && s.presets.length > 0, 'settingsOf misses ' + m.join(', ') + (s.slots.length ? '' : ' slots') + (s.presets.length ? '' : ' presets'));
-    /* The action engine (2026-10-25): every slot in the wire shape, the gathering share marked inert; density is no setting (hunt_density). */
+    /* The action engine (2026-10-25): every slot in the wire shape, the gathering share marked inert; density is no setting (hunt_tier). */
     need('hunt_settings', s.slots.every((x) => x.empty || (x.action && Array.isArray(x.conditions) && (x.join === 'and' || x.join === 'or')))
       && s.slots.some((x) => !x.empty && x.action.type === 'consume') && !('density' in s) && !('density' in body.hunt_settings) && s.gatherInert === true && s.stopRules.length === 1,
       'settingsOf slots / density / gather / stop rules: ' + JSON.stringify({ density: s.density, inert: s.gatherInert, stops: s.stopRules, slots: s.slots.slice(0, 3) }).slice(0, 300));
@@ -109,9 +109,9 @@ function contract(R, cs, body, tl) {
   const mc = hb && hb.grounds.mill_cellar;
   need('hunt_bests', !!hb && hb.minMs === 600000 && !!mc && !!mc.solo && mc.solo.xpH === 2000 && mc.solo.balanceH === 200 && mc.party === null,
     'huntBestsOf yields ' + JSON.stringify(hb) + ' from ' + JSON.stringify(body.hunt_bests));
-  // hunt_density (the hunt picker's pick per ground, 2026-11-17-hunt-density-home.sql): the hero's own 2 on its ground
-  const dm = R.HS.huntDensityOf(cs);
-  need('hunt_density', !!dm && dm.mill_cellar === 2, 'huntDensityOf yields ' + JSON.stringify(dm) + ' from ' + JSON.stringify(body.hunt_density));
+  // hunt_tier (the hunt picker's pick per ground and the tier the running hunt froze, 2027-02-27-hunt-tiers.sql): the hero's own Dangerous on its ground
+  const dm = R.HS.huntTierOf(cs);
+  need('hunt_tier', !!dm && dm.picks.mill_cellar === 'dangerous' && dm.playing === 'dangerous', 'huntTierOf yields ' + JSON.stringify(dm) + ' from ' + JSON.stringify(body.hunt_tier));
   // party (the hunt panel's and the party window's readers, one shape)
   const p = R.HS.partyOf(cs);
   need('party', !!p && p.members.length === 2, 'partyOf yields ' + (p ? p.members.length : 'no') + ' members: ' + JSON.stringify(body.party).slice(0, 240));
@@ -121,8 +121,8 @@ function contract(R, cs, body, tl) {
   }
   const pm = R.PS.partyMembershipOf(cs);
   /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): the viewer's own box, on by default (player_state.party_leave_together) */
-  need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !!pm.densities && pm.densities.mill_cellar === 2 && pm.leaveTogether === true,
-    'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader, densities: pm.densities, leaveTogether: pm.leaveTogether }));
+  need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !!pm.tiers && pm.tiers.mill_cellar === 'dangerous' && pm.leaveTogether === true,
+    'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader, tiers: pm.tiers, leaveTogether: pm.leaveTogether }));
   // party_people: the player menu's targets, one per seat of the real party, with the server's account ids (2026-10-25-social.sql)
   const pp = R.PS.partyPeopleOf(cs);
   need('party_people', Array.isArray(body.party_people) && pp.size === body.party_people.length && !!pm && pp.size === pm.seats.length
@@ -204,7 +204,7 @@ function contract(R, cs, body, tl) {
   const sr = R.IS.staminaRefillOf(cs);
   need('stamina_refill', !!sr && isNum(sr.n) && isNum(sr.perDay) && (sr.available ? isNum(sr.price) && isNum(sr.restoreMs) : typeof sr.why === 'string'),
     'staminaRefillOf yields ' + JSON.stringify(sr) + ' from ' + JSON.stringify(body.stamina_refill));
-  /* The Game Master's section (2027-03-05-gm-tools.sql): the key stands on every envelope, and a real hero reads false. */
+  /* The Game Master's section (2027-03-13-gm-tools.sql): the key stands on every envelope, and a real hero reads false. */
   need('gm', 'gm' in body && body.gm === null && R.CS.gmOf(cs) === false, 'gmOf yields ' + JSON.stringify(R.CS.gmOf(cs)) + ' from ' + JSON.stringify(body.gm));
   /* the Characters window's Rename (2026-12-04-hero-rename.sql): what a new name costs this hero now */
   const rn = R.IS.renameOf(cs);
@@ -249,6 +249,12 @@ function sheetContract(R, cs, body) {
   need('character_sheet', !!sh && sh.fresh && !!c && !!c.damage && c.damage.max >= 1 && c.defence !== null && c.accuracyPct !== null
     && c.critPct !== null && !!c.role,
     'after the sheet verb characterSheetOf yields ' + JSON.stringify(sh) + ' from ' + JSON.stringify(body.character_sheet));
+  const ss = R.IS.setupSlotsOf(cs);
+  need('setup_slots', !!ss && isNum(ss.count) && isNum(ss.max) && ss.count <= ss.max && (ss.price === null || isNum(ss.price)),
+    'setupSlotsOf yields ' + JSON.stringify(ss) + ' from ' + JSON.stringify(body.setup_slots));
+  const tt = R.CS.titlesOf(cs);
+  need('titles', !!tt && tt.rows.length > 0 && tt.rows.every((r) => isNum(r.price) && isNum(r.kills) && isNum(r.have)),
+    'titlesOf yields ' + JSON.stringify(tt) + ' from ' + JSON.stringify(body.titles));
   const dl = R.CS.deathLogOf(cs);
   need('death_log', !!dl && dl.length === 1 && dl[0].monster === 'rat' && dl[0].xp === 5 && !!dl[0].hunt,
     'deathLogOf yields ' + JSON.stringify(dl) + ' from ' + JSON.stringify(body.death_log));
@@ -258,12 +264,12 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'temper', 'gm']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'gm']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
-  tool: 'bronze_axe', preset: 2, presetName: 'Contract set' });
+  tool: 'bronze_axe', preset: 0, presetName: 'Contract set' });   // number 0 is open at any free count (hr_setup_locked)
 async function seedS2(db, M, H) {
   const ok = async (uid, sql, params) => {
     await db.query("select set_config('request.jwt.claim.sub', $1, true)", [uid]);
@@ -324,7 +330,7 @@ async function readers(root) {
 
 /* The real body: a premium two-hero party, six minutes settled, then ONE player-door settle. */
 async function realBody(db, M, H) {
-  const P = { ...H.STRONG, premium: true, density: 2, options: { gather_share: 10,
+  const P = { ...H.STRONG, premium: true, tier: { id: 'dangerous', pull: 2 }, options: { gather_share: 10,
     stop_rules: [{ conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 1 }], join: 'and', forMs: 60000 }] } };
   /* The named setup is saved in TOWN, before the hunt opens: hr_hunt_preset_save refuses an open hunt (hunt_open). */
   const h = await H.hunter(db, M, { party: [{ ...P }, { ...P }], beforeEnter: async () => {
@@ -396,8 +402,8 @@ const DB_MUTANTS = [
   /* (food_pct / drink_pct are no reader's since the eat-at / drink-at options retired: the discipline is) */
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'discipline', v_disc,", "'disc', v_disc,"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'slots', v_slots,", "'slot_list', v_slots,"],
-  ['hunt_density', 'public.hr_hunt_density_view(uuid,integer)', 'jsonb_object_agg(d.hunt_id, d.density order by d.hunt_id)', 'jsonb_object_agg(d.hunt_id, d.density::text order by d.hunt_id)'],
-  ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_densities', coalesce", "'leader_density', coalesce"],
+  ['hunt_tier', 'public.hr_hunt_tier_view(uuid,integer)', "'playing', (select i.tier", "'playing_now', (select i.tier"],
+  ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_tiers', coalesce", "'leader_tier', coalesce"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', (select ps.party_leave_together", "'leave_togther', (select ps.party_leave_together"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],
   ['hunt_analyzer', 'public.hr_hunt_analyzer_of(uuid,integer,uuid)', "'hunt_ms', floor(", "'huntms', floor("],
@@ -412,6 +418,9 @@ const DB_MUTANTS = [
   ['shop', 'public.hr_shop_view(uuid,integer)', "'offers', coalesce(", "'offer_list', coalesce("],
   ['hunt_presets', 'public.hr_hunt_presets_view(uuid,integer)', "'action_set', p.action_set,", "'set', p.action_set,"],
   ['role', 'public.hr_role_view(uuid,integer)', "'weapon', w.weapon_type)", "'weapon_type', w.weapon_type)"],
+  ['setup_slots', 'public.hr_setup_slots_view(uuid,integer)', "jsonb_build_object('count', least(r.free + b.n,", "jsonb_build_object('slots', least(r.free + b.n,"],
+  ['titles', 'public.hr_titles_view(uuid,integer)', "'rows', coalesce(jsonb_agg(", "'list', coalesce(jsonb_agg("],
+  ['titles', 'public.hr_titles_view(uuid,integer)', "'have', public.hr_title_kills(", "'count', public.hr_title_kills("],
   ['party_invites', 'public.hr_party_invites_view(uuid,integer)', "'from', public.hr_character_name(", "'sender', public.hr_character_name("],
   ['party_notices', 'public.hr_party_notices_view(uuid,integer)', "'who', left(public.hr_character_name(", "'actor', left(public.hr_character_name("],
   ['stamina_refill', 'public.hr_stamina_refill_quote(uuid,integer)', "'restore_ms', v_min * 60000,", "'restore', v_min * 60000,"],

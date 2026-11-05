@@ -27,7 +27,7 @@
 // PURE ESM. Data, and the one reader of it (the engine and the party window both).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.91';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.97';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */
@@ -49,7 +49,10 @@ export const PARTY_CLASS_XP = Object.freeze({
   wickstead: row([880, 1070], [970, 1160, 1220], [970, 1200, 1240, 1270]),
   mosslight_glade: row([960, 1180], [1000, 1300, 1400], [1000, 1200, 1290, 1320]),
   millrace_sewer: row([800, 1000], [800, 1050, 1100], [800, 1050, 1100, 1180]),
-  coppercap_warrens: row([1000, 1180], [1000, 1200, 1280], [1000, 1200, 1260, 1360]),
+  /* One class under the even share (Tyler 2026-10-31, "only better if there are different classes"; lane/c-caster-party-line). With Green Sickness on the Healer's default bar a pair at 8 each read 1.033 against
+     one alone and a four 1.005: the debuff stays up far longer in a one-class party, as Greater Mend's load splits (a head's casts an hour, alone 84 and 256, in a pair 144 and 168). Mana gates can't hold it (at 95% the
+     pair reads 0.987 and the four still 1.009, and each gate rerolls the first grounds' net chain); the cell can, and it moves no gold, no mixed party and no other ground. */
+  coppercap_warrens: row([960, 1180], [970, 1200, 1280], [980, 1200, 1260, 1360]),
 });
 
 /* WHAT THE PLAYER IS TOLD (designer 2026-11-02; blind party test 2026-11-01). The table above is a factor on an even share of a bigger pull, so "52% more" sat on a party
@@ -64,7 +67,7 @@ export const PARTY_VS_ALONE = Object.freeze({
   wickstead: said([-10, 5], [-10, 5, 10], [-15, 5, 5, 20]),
   mosslight_glade: said([-10, 5], [-15, 5, 15], [-10, 5, 10, 20]),
   millrace_sewer: said([-10, 15], [-15, 10, 20], [-20, 10, 10, 20]),
-  coppercap_warrens: said([-5, 10], [-10, 5, 15], [-15, 5, 10, 20]),
+  coppercap_warrens: said([-10, 10], [-15, 5, 15], [-15, 5, 10, 20]),
 });
 
 /* A FOUR WHO ALL SHARE ONE ROLE READS ITS OWN LINE (designer 2026-11-04; CLAUDE.md §6). The Thicket's one-class four pays the even share, so its weapons no longer sit near one number, and a four of wands earns more than

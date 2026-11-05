@@ -62,9 +62,201 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 **The caps.** A GM hero counts on the account's own four: that is what bounds its server cost. It does not count on the four-per-network cap: walled output cannot reach anyone, so that cap has nothing to protect there, and a test hero must never be what blocks a real check (the pain that started this). The QA account stays fully capped.
 **The wipe.** `hr_gm_accounts`, `hr_gm_log`, `hr_bans`, `hr_chat_mutes` stay (a character wipe doesn't forgive a ban). Walled heroes follow the wipe like every hero.
 **Not built, not listed:** a log viewer, pulling a banned account's listings, skill XP grants, heal or reset of anyone. Every real character stays untouched (§2).
-**To turn it on:** apply `2027-03-05-gm-tools.sql`, deploy hr-accrue, ship the client. Tyler signs up a NEW account on the normal page and makes no hero on it; `node tools/gm-allow.mjs add <id> --note "Tyler's Game Master"` writes one migration, the Coordinator applies it, and he reloads and makes his test hero. A private verb a later lane adds is refused to him until it gets one row in `hr_gm_wall_allow`: that is the wall failing safe.
+**To turn it on:** apply `2027-03-13-gm-tools.sql`, deploy hr-accrue, ship the client. Tyler signs up a NEW account on the normal page and makes no hero on it; `node tools/gm-allow.mjs add <id> --note "Tyler's Game Master"` writes one migration, the Coordinator applies it, and he reloads and makes his test hero. A private verb a later lane adds is refused to him until it gets one row in `hr_gm_wall_allow`: that is the wall failing safe.
+### 2026-11-05 Difficulty tiers, and no pull dial (designer, lane/c-difficulty-tiers; **Tyler's ruling, 2026-11-05**): BUILT on all five grounds past the Cellar, played on the local world, STAGED. The ladder is measured on `release/v0.2.95` (caster bars, runes, capes, foods). **The played and bills tables below are from before v0.2.95: mage and healer rows moved a little, and Thicket Deadly reads +10% there, +8% now; the final pace re-measure re-reads them.**
+**The ruling (Tyler 2026-11-05, "All of it sounds good"; in rulings of record).** One choice per ground, the party leader's in a party, remembered per ground: Normal, Dangerous or Deadly. The tier sets how many monsters come and how hard they hit. There is no other dial. Mill Cellar is Normal only. "Deadly", not "Hardcore": that word stays free for the game mode. It supersedes his 10-19 and 10-20 density rulings; kept from them: chosen with the hunt, remembered per ground, the leader chooses, members read it, a full box exists.
+
+**The rows.** Every number is that ground's, because Normal doesn't move and a low ground's only room is the gap between two Normals. Monster HP doesn't move: HP x1.5 cost a four 20% of its XP an hour (`lane/c-armor-tiers`) and a player reads nothing from it. Coin and drops a kill are the row's on every tier.
+| Ground | Normal | Dangerous: pull alone, 2, 3, 4; monster atk and Level; XP a kill | Deadly: the same | Full box of 8 |
+|---|---|---|---|---|
+| Mill Cellar | as built | none | none | No tier. First ground: a choice adds nothing to the first minutes |
+| Meadowbrook Thicket | as built | as built; x1.5; +5% | as built; x3; +8% | **None.** Alone, a pull of 3 at no extra XP already beats Wickstead (table below) |
+| Wickstead | as built | 3, 4, 4, 5; x1.5; +5% | 5, 8, 8, 8; x2; +10% | **Parties only.** Alone, 8 at no extra XP beats the Glade. Capped at 5 alone |
+| The Sewer | as built | as built alone, 5, 5, 6; x1.2; +5% | as built alone, 8, 8, 8; x1.75; +10% | **Parties only.** Alone, 4 at +10% beats the Glade. Capped at as built alone |
+| Mosslight Glade | as built | 4, 5, 5, 6; x1.2; +10% | 8, 8, 8, 8; x1.5; +20% | Every size, as sampled |
+| Coppercap Warrens | as built | 4, 5, 5, 6; x1.2; +10% | 8, 8, 8, 8; x1.5; +20% | Every size, as sampled. No ground above: the ladder has no rung to break |
+"As built" means the ground's own count, its party pull in a party. **No ground lost a tier; three grounds lost a lone hero's bigger pull,** and these are the rows that took it (plan `tiercaps`; the grid that chose the rows: `tierrows`).
+| Ground | Alone, a refused row: pull, power, XP | Against | Worst XP / next Normal XP | Who |
+|---|---|---|---|---|
+| Sewer | 4 monsters, atk x1.75, +10% XP | Glade | 1.06 **beats** | hammer at 20: 81.7k against 77.2k |
+| Sewer | 8 monsters, atk x1.75, +10% XP | Glade | 1.4 **beats** | hammer at 20: 108k against 77.2k |
+| Thicket | 3 monsters, atk x2, no extra XP | Wickstead | 1.09 **beats** | mage at 8: 36.1k against 33k |
+| Thicket | 8 monsters, atk as built, no extra XP | Wickstead | 1.54 **beats** | mage at 8: 50.7k against 33k |
+| Wickstead | 8 monsters, atk x2, +10% XP | Glade | 1.11 **beats** | hammer at 20: 86k against 77.2k |
+| Wickstead | 8 monsters, atk x2, no extra XP | Glade | 1.02 **beats** | hammer at 20: 78.6k against 77.2k |
+
+**The ladder rule, proved on the real settle (plan `tierladder`).** At the Levels the game sends you up (`recommendedHunt`), per head, 12 ways to fight: every single-target and AoE style, a pair, a three, two fours. Plain is Level-appropriate gear; Tempered is the same with every rung of Blows and Armor bought, from Level 15; Dressed adds every cape and jewelry slot's best on crafted food eaten early. Plain and Tempered read digit for digit the same after to-hit guard left capes and jewelry, because that kit wears neither. Standing guard: `tests/hunt-core/hunt-tiers.mjs` ladder, four ways on all five rungs.
+| Rung | Levels | Kit | Cells | Deadly XP / next Normal XP | Beats it | Out-earns it on gold, within 10% of its XP |
+|---|---|---|---|---|---|---|
+| Thicket to Wickstead | 8 and 12 | plain | 24 | 0.88 to 0.98 | none | 0 |
+| Thicket to Wickstead | 8 and 12 | Dressed | 24 | 0.89 to 0.98 | none | 0 |
+| Thicket to Sewer | 8 and 12 | plain | 24 | 0.49 to 0.72 | none | 0 |
+| Thicket to Sewer | 8 and 12 | Dressed | 24 | 0.48 to 0.73 | none | 0 |
+| Wickstead to Glade | 16 and 20 | plain | 24 | 0.7 to 0.95 | none | 5 |
+| Wickstead to Glade | 16 and 20 | Tempered | 24 | 0.69 to 0.95 | none | 6 |
+| Wickstead to Glade | 16 and 20 | Dressed | 24 | 0.71 to 0.95 | none | 5 |
+| Sewer to Glade | 16 and 20 | plain | 24 | 0.76 to 0.97 | none | 8 |
+| Sewer to Glade | 16 and 20 | Tempered | 24 | 0.76 to 0.98 | none | 11 |
+| Sewer to Glade | 16 and 20 | Dressed | 24 | 0.76 to 0.97 | none | 11 |
+| Glade to Warrens | 32 and 38 | plain | 24 | 0.73 to 0.96 | none | 7 |
+| Glade to Warrens | 32 and 38 | Tempered | 24 | 0.7 to 0.94 | none | 2 |
+| Glade to Warrens | 32 and 38 | Dressed | 24 | 0.73 to 0.92 | none | 3 |
+**0 of 312 cells: a lower ground's Deadly beats the next ground's Normal on XP.** Thicket Deadly pays +8%, not +10%: at +10% caster bars and runes lifted a healed three past Wickstead's Normal (1.003 at Level 12), and the row came down rather than the rule. Gold is not the rule, and it does lean down: the last column counts cells where a lower Deadly nets more than the next Normal inside 10% of its XP. It isn't new: today's Sewer Normal already out-earns the Glade's at Level 16 (hammer +7.5k against +4.9k).
+
+**Normal, digit for digit.** 300 of 300 cells match before and after the tier engine (`tiers-table --same`, plan `tierpull`), through Tempering, the rows and the dial's removal. The map fix and the kiter fix then move Normal by their own lanes' design; `hunt-tiers` normal-is-the-ground holds it to the row from here on.
+
+**Purpose test (`DESIGN_STANDARDS` §4).** The problem: one monster row can't serve a lone tank and a healed four. The decision: how much risk this hero or party takes for how much XP, stats against stats, chosen once per ground and remembered. It plugs into the store (the bill is the price), armor (it reads the raised Level), Tamsin's kills, the bestiary and the gold sinks. Hour 100 and hour 1,000: past a ground's band the top tier is still work, and it gives Level 50+ somewhere to go. It removes a control.
+
+**Does one fixed count strand a way to fight? Not on the Glade and the Warrens** (plan `tierpull`, 56 cells, read before Tyler's ruling on the old map, not re-measured: it's decided): median 105% of the best pull's XP/h, and no cell had a good pull and no good tier. **On the lower grounds a lone AoE hero does lose its big pull,** by the ladder rule, on purpose: a Thicket hammer at Level 8 reads 49.8k at the dial's old full box and 30.6k on Deadly. AoE's home now starts at Wickstead Deadly, and it is a real one (see below). No creature or drop is stranded alone: the only creature a bigger pull brings is the Glade's Brook Bear, and Dangerous brings it to a lone hero.
+
+**The tiers, played** (per head per hour: Level XP, net gold after the store bill, typical low HP, time to a death; "held" = none in the cell. A floor reads four ways to fight; a Level under it and the top of its band read the two that bracket it. Every way to fight at every Level: `tools/balance-sim/tiers-summary.json`).
+| Ground, Level | Who | Normal | Dangerous | Deadly |
+|---|---|---|---|---|
+| Thicket 2 | Sword + shield | 20.9k, +2.5k, 92%, held | 21.7k, +2.1k, 87%, held | 20.6k, -991, 76%, 5 min |
+| Thicket 2 | Healed four | 28k, +2.6k, 91%, held | 29.2k, +2.5k, 87%, held | 31.6k, +2.4k, 72%, held |
+| Thicket 5 | Sword + shield | 20.8k, +2.3k, 92%, held | 21.7k, +2.1k, 87%, held | 21.6k, -920, 77%, 8 min |
+| Thicket 5 | Hammer | 28.2k, +2.9k, 94%, held | 29.1k, +3k, 89%, held | 30.5k, +1.9k, 75%, held |
+| Thicket 5 | Mage | 28.2k, +2.8k, 99%, held | 29.3k, +2.9k, 97%, held | 30.7k, +2.4k, 89%, held |
+| Thicket 5 | Healed four | 27.9k, +2.4k, 92%, held | 29.6k, +2.5k, 87%, held | 31.7k, +2.3k, 72%, held |
+| Thicket 12 | Sword + shield | 22.4k, +2.6k, 95%, held | 23.1k, +2.4k, 90%, held | 24.4k, +1.1k, 80%, 2 h |
+| Thicket 12 | Healed four | 29.4k, +2.6k, 95%, held | 30.9k, +2.7k, 92%, held | 32.6k, +2.6k, 79%, held |
+| Wickstead 5 | Sword + shield | 24.5k, +2.6k, 91%, held | 32.1k, +2.8k, 74%, held | 33.3k, -2.4k, 52%, 24 min |
+| Wickstead 5 | Healed four | 33k, +2.7k, 90%, held | 39.7k, +3.1k, 81%, held | 51.6k, +3.8k, 65%, held |
+| Wickstead 8 | Sword + shield | 25k, +2.8k, 93%, held | 32.6k, +2.9k, 77%, held | 34.8k, -1.5k, 54%, 40 min |
+| Wickstead 8 | Hammer | 33.4k, +3.6k, 93%, held | 53k, +5.3k, 79%, held | 66.9k, +3.3k, 67%, held |
+| Wickstead 8 | Mage | 32.8k, +3.1k, 98%, held | 49.5k, +4.4k, 90%, held | 62.2k, +5.3k, 79%, held |
+| Wickstead 8 | Healed four | 33.5k, +2.7k, 92%, held | 39.9k, +3.4k, 81%, held | 52.6k, +4k, 68%, held |
+| Wickstead 16 | Sword + shield | 28.8k, +3.3k, 98%, held | 38.9k, +4k, 91%, held | 44.5k, +4.4k, 78%, held |
+| Wickstead 16 | Healed four | 38.1k, +3.3k, 98%, held | 47k, +3.9k, 93%, held | 63.6k, +5.3k, 83%, held |
+| Sewer 5 | Sword + shield | 32.8k, +2.5k, 73%, held | 35.1k, +1.8k, 62%, held | 27.4k, -2.2k, 46%, 4 min |
+| Sewer 5 | Healed four | 45.7k, +2.8k, 82%, held | 51.6k, +3.2k, 59%, held | 28.9k, +964, 32%, 7 min |
+| Sewer 8 | Sword + shield | 34.1k, +2.9k, 77%, held | 36.5k, +2k, 71%, held | 35.6k, -2.1k, 54%, 24 min |
+| Sewer 8 | Hammer | 60.9k, +5.3k, 77%, held | 63.3k, +4.7k, 74%, held | 61.6k, +1.7k, 52%, 5 min |
+| Sewer 8 | Mage | 48.7k, +3.5k, 79%, held | 49.9k, +2.7k, 71%, 2 h | 47.3k, -587, 46%, 11 min |
+| Sewer 8 | Healed four | 46.5k, +3k, 84%, held | 52.9k, +3.3k, 62%, held | 36.3k, +1.2k, 35%, 11 min |
+| Sewer 16 | Sword + shield | 41.9k, +4.8k, 91%, held | 43.6k, +4.4k, 88%, held | 45.8k, +3.5k, 78%, held |
+| Sewer 16 | Healed four | 61.1k, +4.2k, 92%, held | 72.4k, +5.3k, 76%, held | 76.7k, +5k, 63%, held |
+| Glade 10 | Sword + shield | 47.6k, -1k, 67%, held | 58.6k, -15.5k, 46%, held | 11.2k, -32k, -2%, 0 min |
+| Glade 10 | Healed four | 65.6k, +3.1k, 65%, held | 79.8k, +943, 37%, held | 79.4k, -3.5k, 24%, 8 min |
+| Glade 16 | Sword + shield | 55.2k, +3.3k, 81%, held | 70.8k, -4k, 55%, held | 74.4k, -33.9k, 0%, 2 min |
+| Glade 16 | Hammer | 77.1k, +5.2k, 81%, held | 117.8k, +657, 59%, held | 134.2k, -29.2k, -2%, 1 min |
+| Glade 16 | Mage | 83k, +5.2k, 89%, held | 116k, +5k, 73%, held | 157.7k, +104, 49%, 1 h |
+| Glade 16 | Healed four | 82.2k, +4.7k, 80%, held | 99.1k, +4.3k, 63%, held | 126.1k, +2.6k, 53%, held |
+| Glade 31 | Sword + shield | 67.5k, +4.9k, 94%, held | 92.5k, +6.5k, 85%, held | 114.5k, -1.4k, 55%, held |
+| Glade 31 | Healed four | 97.7k, +5.6k, 95%, held | 119.9k, +6.2k, 87%, held | 157k, +7.3k, 77%, held |
+| Warrens 26 | Sword + shield | 101.3k, -18.6k, 51%, held | 111.9k, -58.6k, 42%, held | 33.2k, -179k, -3%, 0 min |
+| Warrens 26 | Healed four | 153.9k, +3.4k, 66%, held | 185.2k, -8.3k, 34%, held | 172.8k, -32.2k, 6%, 6 min |
+| Warrens 32 | Sword + shield | 130.9k, -838, 71%, held | 142.7k, -21.7k, 51%, held | 153.8k, -137.9k, 19%, 5 min |
+| Warrens 32 | Hammer | 200.7k, -3.1k, 63%, held | 242.5k, -35.6k, 51%, held | 231.1k, -173.9k, -4%, 1 min |
+| Warrens 32 | Mage | 218.7k, +7.3k, 85%, held | 260.4k, +266, 63%, held | 299.9k, -65.1k, 27%, 4 min |
+| Warrens 32 | Healed four | 199.3k, +4.9k, 85%, held | 244.2k, +3.7k, 53%, held | 285.2k, -14.4k, 41%, held |
+| Warrens 50 | Sword + shield | 169k, +5.8k, 95%, held | 183.2k, +6.9k, 90%, held | 210.3k, -26.6k, 49%, held |
+| Warrens 50 | Healed four | 228.7k, +5.9k, 96%, held | 285.6k, +6.9k, 88%, held | 329.8k, +6.1k, 64%, held |
+So Normal stays what it is. Dangerous is a lone hero's step up from the middle of a band and a party's first hard mode. Deadly is what it says at a floor and pays near the top. **The Level 50 ceiling:** past 50 a four has somewhere to go.
+
+**The Warrens' Deadly against the pace contract.** `LEVEL_PACE.contract` is what a NEW ground's Normal must pay at its own Level. The curve is held on Normal, where the game recommends, so a tier doesn't move it: it moves the fastest hour. `lane/d-ground-pack` flagged this as its open number.
+| Who, Warrens at Level 50 | Normal | Deadly | Deadly / contract (199.8k) | A good place? |
+|---|---|---|---|---|
+| Sword + shield | 169k, +5.8k | 210.3k, -26.6k, held | 1.05 | no |
+| Sword | 175.4k, +6.6k | 226.2k, -78.9k, held | 1.13 | no |
+| Hammer | 235k, +8.5k | 333.8k, -72.3k, 2 h to a death | 1.67 | no |
+| Axes | 212.5k, +6.9k | 303k, -75.2k, held | 1.52 | no |
+| Bow | 171.8k, +5.6k | 211k, -12.3k, held | 1.06 | no |
+| Crossbow | 175.8k, +6.4k | 215.6k, -1.2k, held | 1.08 | no |
+| Mage | 247.3k, +9k | 360.1k, -2.4k, held | 1.80 | no |
+| Healer | 202k, +6.5k | 248.7k, +13, held | 1.24 | yes |
+| Pair | 199.2k, +5.8k | 264.3k, +4k, held | 1.32 | yes |
+| Three | 205.4k, +5.9k | 278.8k, +5k, held | 1.40 | yes |
+| Healed four | 228.7k, +5.9k | 329.8k, +6.1k, held | 1.65 | yes |
+| Four with no healer | 215.3k, +5.6k | 323.5k, +2.7k, held | 1.62 | yes |
+**The call: the Warrens' rows stand as Tyler ruled them.** No ground sits above them today, so no rung breaks and nothing ships wrong. The rushes are paid for: below zero or a death is the price, and a purse runs out. The one rush that's nearly free is a lone mage, by the table. For the next ground the ladder reads only good places, net above zero with no death in the cell, the same test the static read used. That leaves the four: the next ground has to meet the good-place cells above, or the brackets past 50 re-fit (`pace --fit-past`, no re-measure). 
+
+**Supply burn for `lane/d-gold-sinks`.** A hunt ends when the purse can't pay (gold_out), so the top numbers are a rate nobody holds for long.
+| Store bill per head per hour: Normal, Dangerous, Deadly | Thicket 5 | Thicket 12 | Wickstead 8 | Wickstead 16 | Sewer 8 | Sewer 16 | Glade 16 | Glade 31 | Warrens 32 | Warrens 50 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Sword + shield | 30, 224, 3.1k | 0, 35, 1.6k | 10, 750, 4.9k | 0, 7, 665 | 1.1k, 1.8k, 5.5k | 14, 182, 1.3k | 780, 8.9k, 38.6k | 0, 40, 8.7k | 5.6k, 26.7k, 142.5k | 0, 0, 34.7k |
+| Mage | 630, 624, 887 | 393, 386, 458 | 774, 1k, 1.6k | 165, 814, 729 | 1.8k, 2.6k, 5.3k | 565, 737, 1.6k | 628, 2.9k, 10.1k | 170, 279, 981 | 815, 8.9k, 75.1k | 264, 515, 14.2k |
+| Healed four | 250, 255, 451 | 183, 182, 232 | 267, 267, 620 | 198, 188, 158 | 292, 618, 1.8k | 109, 71, 552 | 156, 656, 3.4k | 76, 60, 76 | 53, 2.5k, 21.6k | 50, 65, 1.4k |
+
+**Same gold, in plain numbers.** A kill pays the row's coin and drops: guarded per kill (`hunt-tiers` harder-tier-costs). The hour's income still rises with kills. Rare *rates* don't move; rare rolls an hour rise with kills an hour.
+
+**What the picker tells a player before they commit (played, desktop and 922x423, leader and member).** Three buttons on the ground's page under "The packs"; master-detail untouched. On a harder tier the page says, from the row and the engine's own numbers: "8 monsters a pull, hitting 50% harder: the biggest blow here is 108, not 72. Each kill pays 20% more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die: the hunt ends and you lose 2% of your XP." Where a tier brings no more monsters it says so: "The same monsters, hitting 3 times as hard: the biggest blow here is 162, not 54." The line beside the start button repeats what's being chosen, so it's on screen at the press: "Deadly: 8 monsters a pull, hitting 50% harder." Normal says nothing. A member reads "Set by Marlow: Deadly" and the same words, no buttons, and the server refuses it (`not_leader`). The top bar reads "Mosslight Glade · Deadly". The coach's "How hard can you hunt?" at Level 10 names the tiers and the price.
+
+**Walk-through, as a new player (first principle: nothing here repeats).**
+| Step | What the player has from the steps before | Proof |
+|---|---|---|
+| 1. Level 1, Hunts, Mill Cellar | A new hero and the starter kit. No tier buttons, Normal only | `hunt-tiers` rows; played on the local world |
+| 2. Level 5, Meadowbrook Thicket | The game's own advice opens it. Normal lit, no pick needed | `recommendedHunt`; hunt-screen HS-8 |
+| 3. Level 10, the coach names the tiers | Grounds with tiers already open | `hunt-tutorial.js` `pull_goal`, `PULL_LEVEL` 10 |
+| 4. Press Dangerous | The note and the line beside the start button change at once; the pick saves itself, once | hunt-screen HS-8; `hr_hunt_tier_set` |
+| 5. Start | Tier and pull freeze on the instance; the top bar says it, viewed or browser closed | `hunt-tiers-db` HT-1..5; hunt-live LV-TIER |
+| 6. Come back to that ground | The pick is remembered per ground, never asked again | `hunt-tiers-db`, "the pick survives" |
+| 7. A party | The leader's pick holds for all; a member's own picks wait for its next solo hunt | `hunt-tiers-db`, a four; `party-flow` |
+
+**Server (§1).** `hr_hunt_tier_set` (client intent, keyed, rate-gated, refused never clamped: `bad_tier`, `bad_hunt`, `not_leader`); `hunt_density.tier`; `hunt_instances.tier` frozen with the pull by the existing trigger at hunt start; `hr_hunt_instance_read` overlays `options.tier` and `options.density` on every member, so the engine and the kill bound read one frozen number; catalogue `hr_ground_tiers`, ten rows. `hr_hunt_density_set`, `_view`, `_pick` and the `hunt_density` section go. One staged file, `2027-02-27-hunt-tiers.sql`, §6 self-check executes a real pick, enter, freeze and read. The engine reads the tier every swing and never stores it: **the world's shape doesn't move, no `world_shape_pending`.** No new player table: `hunt_density` and `hunt_instances` were already on the wipe's list; `hr_ground_tiers` goes on its no-player list.
+
+**Measured:** every number above, real settle (`tools/balance-sim`), 2 seeds, 1 h a cell, Level-appropriate gear on store food, the ladder on `release/v0.2.95` 5b46c16fd, the played tables on `set/v0.2.93` f7790934c. **Assumed:** that a 2-hour cell's "held" is a real absence of death; +5% to +20% as "slightly more" (Tyler may read it per hour); that nobody misses a pull under the as-built one.
+
+**Known limits.** (1) **Kiters on Deadly die a bit more than they did,** because the free reset is gone (`lane/a-kiter-resets`; the only resets left are leader deaths). At the Warrens' floor on Deadly, per head: bow 155.4k, -69.3k, 4 min to a death; crossbow 175k, -45.4k, 10 min to a death; mage 299.9k, -65.1k, 4 min to a death. That is what Deadly at a floor should read. (2) The table `hunt_density` keeps its name and its `density` column is dead (always 0). Renaming it is a follow-up, not a player matter. (3) Personal bests are per ground, so they mix tiers. (4) **The fastest hour moves:** Deadly reads over today's full box at the same pull. The final pace re-measure has to read it.
 
 ### 2026-11-05 Tempering: a gold sink that adds a little gear power (designer, lane/c-gear-upgrade): BUILT, played, STAGED: two files, then the edge, then the client
+### 2026-11-05 Tempering takes crafted salts; the Coal Seam (designer, lane/c-temper-craft): BUILT, played, STAGED: six files, then the edge, then the client
+**Tyler, 2026-11-05:** "Let's also require some sort of crafting in order to temper gear." **Andy, via the Coordinator:** coal "has been a real slog and bottleneck for smithing".
+
+**The shape.** Each rung takes gold, as it does today, plus a crafted material of that gear tier, in one sale. Two items and two Smithing rows, sold by the same `hr_unlock_buy` statement the house uses for planks and bars. No rung's power moved, tier 1 still has no ladder, and the gold table is unchanged.
+| Tier | Material | Recipe, at the forge | Shop bid against what goes in | Market floor, ceiling | Public bench's fee |
+|---|---|---|---|---|---|
+| Iron, Level 15 | Tempering Salts | Smithing 15: 1 Iron Bar, 1 Bone Chips, 4.8 s | 7 g against 8 g | 7 g, 3,500 g | 1.05 g a mix |
+| Steel, Level 30 | Fine Tempering Salts | Smithing 30: 2 Iron Bars, 1 Big Bones, 5.8 s | 12 g against 13 g | 12 g, 6,000 g | 1.8 g a mix |
+**Why these inputs.** Bone Chips and Big Bones come from the ground each tier is worn on (the Glade's crows, the Warrens' foremen), so what a fighter brings home feeds what it wears. **Steel's tier takes no steel:** a Steel Bar eats 2 coal, so a full ladder would have been 1,240 coal, three hours at the Coal Rock, on Andy's bottleneck. **A full Iron and Steel ladder needs 0 coal.**
+
+**Q1, the time, one hero from the rock, no tool.** Rates are the paced rows, and the local world played them: 500 ore, 750 bars and 750 mixes an hour.
+| Rung | Gold, Iron | Salts | Work, Iron | Gold, Steel | Fine salts | Work, Steel |
+|---|---|---|---|---|---|---|
+| 1 | 2,000 | 10 | 2.8 min | 7,000 | 10 | 5.0 min |
+| 2 | 4,000 | 20 | 5.6 min | 14,000 | 20 | 9.9 min |
+| 3 | 8,000 | 40 | 11.2 min | 28,000 | 40 | 19.8 min |
+| 4 | 16,000 | 80 | 22.4 min | 56,000 | 80 | 39.7 min |
+| 5 | 32,000 | 160 | 44.8 min | 112,000 | 160 | 79.4 min |
+| A track | 62,000 | 310 | 1.45 h | 217,000 | 310 | 2.56 h |
+| Both tracks | 124,000 | 620 | **2.9 h** | 434,000 | 620 | **5.1 h** |
+That's 8% and 4% of the hours the gold takes to hunt (about 36 h and 124 h at the 3,100-4,200 g/h measured). **Drops come home with the gold, measured per hero per hour:** Glade 55-71 Bone Chips, so 620 is about 10 h; Warrens 9-10 Big Bones, so 620 is about 65 h, inside its 124 h. The Sewer gives 5 chips an hour and Wickstead and the Thicket none, so a Level 15 hero's first chips are at the Glade, which the coach already points to. **Does the skill come with the tier?** It doesn't come by itself: a fighter at Level 15 is at Smithing 1. It's cheap when asked for: Smithing 15 takes about an hour of a resting hero from nothing (computed 59 min on Copper Bars, Mining 15 on the way; `craft-economy --walk` played it at 1.5 h in quarter-hour steps), against hour 18-22 for Level 15. **The Iron ladder trains the next one:** finishing it leaves a hero at Smithing 32, Mining 29, so Steel's recipe is already open; finishing Steel, Smithing 42, Mining 38.
+
+**Q2, the rusher (Tyler's own case).** Gold alone doesn't temper now, and that's the ruling. With no sellers, today's reality, the button stays off and the window says what's needed and how. The way is about an hour of press-and-wait, once, on a hero that's resting anyway (every account owns two), then 2.8 minutes for the first rung. When someone sells, the Weighhouse is the way round it. One smith supplies the account: it deposits the salts, and any other hero's sale reads the bag, then Storage, with no transfer. Played: a Smithing 1 hero bought rungs from a sister hero's salts. Another account's hero can only sell through the Weighhouse (no trade system yet; Level 10, same-network refusal, 1% listing fee, 4% cut).
+
+**Q3, where it's taken from.** The hero's bag, then the account's Storage, decided whole before any write, the purse last. Mid-hunt is the same: the salts can't be packed (`unknown_supply`, tested), so a hunt's bag is neither a source nor touched. Played both: bought mid-hunt from Storage, the hunt's rows unchanged, and the next settle reads the rung.
+
+**Q4, the holes.** **The shop:** bulk goods at a fifth of book, under what goes in, so a mix sold back loses 1 g before the bench's fee; measured on the real sale, -1,537 g/h from stock. **Tradeable:** yes, on purpose. It's the fighter's way round the smith and a smith's first market of its own, and no-bound-gear is a ruling. Salts are consumed, so nothing piles up. **The bench tax** takes its share: played, 12 mixes cost 12 g. A whole hero's tax is about 1,200 g on Iron and 2,200 g on Steel, bars included, so the gold budget table doesn't move (`lane/d-gold-sinks`: add those two to its Tempering row, if it counts fees). **A forged client value:** the sale names an offer and no number, as before.
+
+**Built.** `hr_unlock_buy` patched at one anchor: `temper` joins `room` and `property` in `hr_materials_take`'s Storage rule (pinned on ccb6f35b). A §4 on a probe account: refused with nothing spent when either half is short, bag then Storage, the journal names both, the first rung to the last coin. **Services row:** what it needs, what you hold and how much is in Storage; one note under both rows says where to get it; the button stays off until the envelope shows both; a refusal says "Not enough Tempering Salts: you have 3 in your bag and 1 in Storage, and it takes 10." and re-reads. **Art:** two crocks drawn by rule in `twin-icons.mjs`, in palette, for the Asset Director to replace if it likes.
+
+**The coal slog, measured, and a fix in its own commit.** The Coordinator's 1,784 bars counts the Steel Bar's XP alone. A whole chain also pays the Iron Bar's, so it's 1,235 bars, 2,469 coal.
+| Smithing 30 to 45, one hero, no tool | Coal Rock, 409/h | **Coal Seam, 544/h (new)** | Rich Coal Seam, 678/h |
+|---|---|---|---|
+| Steel Bars alone | 12.1 h, 6.0 h of it coal (50%) | **10.6 h**, 4.5 h (43%) | 9.7 h, 3.6 h |
+| Bars to 35, then Steel Whetstones | 7.8 h, 5.0 h of it coal (64%) | **6.5 h**, 3.7 h (57%) | 5.8 h, 3.0 h |
+| Mining XP an hour while on it | 6,063 | **8,494** | 10,255 |
+**It's real.** Half to two thirds of the band is one rock, with the fewest pieces of any rock under Mining 45 and 22-39% less Mining XP than what's open beside it (Iron 7,800, Verdite 9,200, Gold 9,903), and the next rung is 11.7 hours of mining past Mining 30. **The fix: the Coal Seam, a data row at Mining 30**, where Steel first eats coal. 1-2 coal a swing, halfway from the Coal Rock to the Rich Seam, XP seated between Iron and Verdite. Played: an hour gives 551 coal and 8,494 XP. **Saves 1.3-1.5 h of the band**, and a smith on it stops losing Mining. **The faucet warning in `recipes.js` is stale:** it says coal is v:40 and 600 g/min. Coal bids 2 g since the craft wage, so the seam sells raw for 1,088 g/h, under W-RAW's 1,560. W-COAL holds it, with four mutants. **Not fixed:** it's still half the band. The rest is the recipe (2 coal a bar), and I'd leave that until players say.
+**Andy's question, "more resource or just more XP?":** both, and the window hid it. A new ore brings fewer pieces worth more: Copper 750 an hour, Iron 500, Mithril 281, Dawnstone 188; XP 6,143 to 13,016 an hour; gold at the shop 750 to 3,563 g/h. Only a second rung of the same ore brings more of it: Coal Seam 1.33x, Rich Coal 1.66x, Deep Verdite 2.04x, Deep Mithril 1.29x, Deep Ember 1.41x. The old row said "Coal · 13.3 s · 37 XP each" against the Coal Rock's "8.8 s · 14 XP each", so the richer rock looked slower. **Every rock's row now says "about 680 an hour".**
+
+**Purpose test.** Solves a gold-only ladder with no tie to the rest of the game. Decision: make it, buy it, or put a resting hero on it; and when salts are short, Blows or Armor. Plugs into Mining, Smithing, the Glade's and Warrens' drops, Storage and the Weighhouse. Tradeoff: a rusher pays an hour. Hour 1,000: a new tier is a new row. It's depth for one recipe per tier and no new path.
+
+**Walk-through, a fresh fighter with only what it holds** (names grepped; played unless marked):
+| Step | Holds, can reach | Doable because |
+|---|---|---|
+| 1. Level 15+, Iron worn, Smithing 1, Services | Gold | The row says Needs 10 Tempering Salts, You hold 0; the note names Smithing 15, Iron Bars, Bone Chips and the Weighhouse. Off |
+| 2. Mine `copper_rock`, smelt `smelt_copper` | Nothing needed | Both open at 1. Mining 16 and Smithing 15+ by `craft-economy --walk` |
+| 3. Mine `iron_rock`, smelt `smelt_iron` | Mining and Smithing 15 from step 2 | 10 bars, 2 minutes (played by `--walk`) |
+| 4. Bone Chips at the Glade | A Level 15 hero may walk in, warned; 16 is its floor | `carrion_crow` 0.5, 55-71 an hour measured |
+| 5. `mix_temper_salts`, Start | Bars in the bag, chips in Storage | Played: 12 made, both sources spent |
+| 6. Temper, confirm | 10 salts, 2,000 gp | Played. Gold and salts move together, one ledger row |
+| 7. Steel, `mix_fine_temper_salts` | Smithing 30, Big Bones from `hobgoblin_foreman` | Played from stock; Smithing 30 not reached by play, computed at 32 after the Iron ladder |
+
+**Done:** data, recipes, icons, six files, the client, the coach, the Coal Seam, guards. **Verified by playing** (local world; levels, stock and gold are local fixtures; Iron then Steel, 1440x900 and 922x423, screenshots read): the rusher's row, one short across bag and Storage, a stale window refused in words, the real bench job, a real deposit, a second hero buying from Storage, a rung mid-hunt, the mining rows. **Computed from real rows, not played end to end:** whole-ladder hours and where it leaves the skills. **Assumed:** market prices; nobody has listed salts, so whether smiths will, and at what, is unknown; a guess is 12-14 g a salt once wages meet hunting. **Could still be wrong:** 10 salts may feel like nothing and 160 like a chore: the qty is one row. A Level 15 hero at the Thicket holds no chips until it moves up. **First principle:** a four's whole set is 4,960 mixes, a press per batch, not per mix; "Make all" remembers nothing across heroes, so a smith hero is the answer.
+
+**Landing, in order, one file per call, after the two Tempering files:** `2027-02-28-temper-craft-items-catalogue`, `-bench-inputs`, `-bench-tax-rates`, `-hunt-sessions-catalogue`, `-catalogue`, then `2027-02-28-temper-craft.sql`; then `hr-accrue`; then the client. A v0.2.91 client between the apply and the client release is refused in words. **Wipe list:** nothing new; rungs bought gold-only on v0.2.91 go with the wipe. It has to land before it, per Tyler's ruling.
+
+### 2026-11-05 Tempering: a gold sink that adds a little gear power (designer, lane/c-gear-upgrade): SHIPPED gold-only in v0.2.91; its material is the section above
 **Tyler, 2026-11-04:** "we need to add some additional gold sinks before we raise the price. I'm thinking about some sort of upgrade system that slightly increases gear power or something."
 
 **The design.** At the town's smith (Shop, Services tab), a hero pays gold to temper what it wears. **Two tracks, Blows and Armor; five rungs a track; one ladder per gear tier.** A Blows rung adds 1% to every blow, spell and heal of that tier's weapon, 5% at most. An Armor rung takes 1% off the damage reaching the hero, after the armor chain and never past its cap, 5% at most; a mixed set reads each piece by its tier, weighted by the armor it wears. Steel starts at rung 0, and Iron's rungs still count on Iron. Tier 1 has no ladder. A failed roll is never made, and nothing is lost on a death or a sale.
@@ -139,6 +331,281 @@ A four at the Warrens, Level 40: +2.6%. Both tracks at once add nothing to XP ov
 **Repeated decisions (first principle), flagged:** a four's whole ladder is 80 rungs and 160 presses, spread over hundreds of hours and each one a real spend, so I kept the question; a "temper all my heroes" press is the fix if players ask.
 
 **Done:** engine, catalogue, view, section, edge forward list, client, sheet, coach, guards. **Verified by playing** (local world, real client and engine, 2026-11-04; levels, gear and gold are local fixtures): Bronze's refusal, a rung bought, short of gold, the question in sight, a rung bought mid-hunt, 50 minutes hunted with the browser closed for part of it, reload, the sheet; screenshots read. **Assumed:** nobody has spent real gold on this, so how fast piles go and whether anyone feels 1% are unmeasured; hours past 50 for a four. **Could still be wrong:** rung 1 may feel like nothing on screen (a blow of 8 lands 9 one time in twelve): the row and sheet say it, the blows barely can. The deep-pocket line: rich players press the pull, so piles run about 1.4x sooner.
+### 2026-11-05 Ground Packs: a new hunting ground that doesn't touch the rest of the world (designer, lane/d-ground-pack): DESIGN ONLY. Nothing built, no generations, no sim run on the new rows
+**Tyler:** "we need a scalable way to build new hunting grounds. It seems like right now you're just doing it all from scratch but I think we need a system or module or something that allows us to quickly roll out new hunting grounds so we don't get caught behind on new content."
+
+**The call.** Build it, on the shape in the brief, with the weight moved. The folder and the number tool are the smaller savings. The time goes on three couplings: a new ground re-fits the Level curve for everybody, re-issues every catalogue whole, and turns guards red outside its lane. Cut those three and a ground should cost about 3 working hours (a target). Tags: **(M)** measured from git, a run or a tool's committed measure; **(C)** computed from the data tonight, read-only; **(A)** assumed.
+
+**What the commits change in the brief.**
+| The brief | What the diff says | So |
+|---|---|---|
+| 2 h to a working ground, then 7 h of re-fits and re-pins | 5 h 00 of those 7 h is a deliberate pause: P1 reports came in and the lane stopped at `9d80af261` per §3.2 (memory `overnight-2026-10-28`). 4 h 13 was working time (M) | Compare working time to working time. "Half a day against 9 h" would be a fake win |
+| The tool replaces hours of hand re-fits | The Ford's hand fitting was 34 min plus 15 min (M). The re-fits that cost more are the curve's | Worth building, and third on the list |
+| One folder per ground | Authoring rows took 25 min and never went red (M) | Keep it, as the home for per-ground test facts. It doesn't save the minutes |
+| About 20 test files name grounds by id | 69 test files name one. 18 have a hand list or a table keyed by ground, and so do 7 tools (C, regex). 14 guards actually moved for the Ford and Wickstead (M) | Same size of job; I sort by the 14 |
+| Difficulty tiers come automatically | True from the Glade up, false below it (the ladder fails, lane/c-difficulty-tiers). And the Warrens' Deadly may beat the next ground's Normal (section 4) | Default rows from Level 16, always checked, never assumed |
+
+#### 1. The touchpoint inventory, from the diffs
+**Where the Ford's time went (M, local stamps 10-28 to 10-29):**
+| Stretch | Stamps | Took | What |
+|---|---|---|---|
+| Spec to approved art | 20:11 to 21:42 | 1 h 31 | 230 subscription gens in the first pass (`9cf039427`), then a ground redrawn after a symmetric draft was rejected, 16 props, a re-seat (`0b196ba04`) |
+| Map and wiring | 21:42 to 22:07 | 25 min | `ef6102f53`: 26 files |
+| First fit | 22:07 to 22:41 | 34 min | Drop chances x1.55 to x1.8, coin, tier-4 sale rate, curve, census |
+| **Paused for P1s** | 22:41 to 03:41 | 5 h 00 | No lane commits. Git can't say whether sim runs for the next re-fit happened in here |
+| Re-date, regenerate, re-fit | 03:41 to 04:15 | 34 min | Another lane's walk-on fix moved the pace, so the curve went again and five files moved from 02-09 to 02-11 |
+| Reds | 04:15 to 05:24 | 1 h 09 | AW-25, gold-intents, copy-lint, the rest of the merge |
+| **Total** | | **9 h 13 elapsed, 4 h 13 working** | LANE DONE `cae21e257`. Not shippable: held, it needed two more merges that day (at least 31 min) and is now 21 releases behind |
+
+**A second sample, the one that shipped: Wickstead (M).** First commit 13:20 (its start isn't in git), LANE DONE 14:08, art 14:48 at **one generation**, with four creature sheets copied under new ids, release 14:51. Then six ground-caused reds and a curve re-fit, migration and new edge, closed at 20:01: 5 h 10 elapsed after release. So a ground that ships pays its bill after the lane says done. Reds cost about an hour each: a release run reads a median 57 min, and 63 of 79 red causes were forgotten pins (lane/r-release-gate).
+
+**The footprint (M):** the Ford is 36 non-art files and 5,118 added lines. 4,528 are generated SQL in 5 files, 473 are the pace snapshot, about 250 are written by hand. Of the 4,528 generated lines, 270 changed from the previous cut and only **39 rows are the Ford's own**: hr_items 6, hr_activities 5, hr_hunts 1, hr_hunt_spawns 4, hr_hunt_grounds 1, hr_hunt_ground_spawns 4, hr_hunt_kill_bounds 4, hr_hunt_roster 4, hr_hunt_travel 4, hr_hunt_vendor_value 5, bench input 1. Most of the rest are vendor values moved by one global rate, then the curve and file headers.
+
+**Sorted by what it costs:**
+| # | Touchpoint | Real paths | Cost (M unless tagged) | How often it broke (M) | In a pack |
+|---|---|---|---|---|---|
+| 1 | Level curve re-fit | `core-model.js` LEVEL_CURVE, `tools/balance-sim/level-pace.json`, a `*-level-curve.generated.sql`, `gen-level-curve.mjs` OUT_NAME, `core-purity` L10 anchor | 2-3 h on 4 workers a re-measure (`pace.mjs` header). Twice for the Ford, once for Wickstead, once for the boar and bear, once for the walk-on. A 45-60 ground moved Level 10's cost 0.7% | `level-curve` C1 and `core-purity` on every ground, and on any lane that moves the pace | Floor at or above the measured ceiling: no re-fit below the floor. Else a fit from the floor up only |
+| 2 | Whole-catalogue re-issue, date chase | `gen-catalogues.mjs` OUT + OUT_BENCH_INPUTS, `gen-hunts.mjs`, `gen-hunt-sessions.mjs`, `schema-apply-order.json` order + note per file | 5 files, 4,528 lines, by-hand edits in 4 generators, re-issued 3 times. A held ground rots: "12 releases behind" on this board 11-02, 21 today | Every rebase. `hunts-c1` red when OUT_NAME moved (v0.2.63) | One additive file of its own rows, about 120 lines (C). Packs commute, so a held one doesn't rot |
+| 3 | Guards that name grounds | `drop-tables` (TOTAL_TODAY, REFERENCE, GEAR_RUNS, a regex), `forest-cave` (NEW, BRIDGE, CLIMB, RESTAGE, a per-ground case), `alpha-windows` AW-25, `sewer` coach lines, `gold-intents` G1, `world-core`, `pixel-icons` AHEAD list, `copy-lint-names`, `module-preload`, `restore-census` | About 1 h 09 on the Ford, most of 5 h 10 on Wickstead | Every ground. Six reds on Wickstead, in CI, after release | Loops over packs; each pack's facts live in its own `checks` |
+| 4 | Loot, coin, value fits | `monsters.js` ch and gp, `loot-bands.js` VENDOR_GEAR_RATES, `monster-classes.js` FORMATION_BANDS, `drop-tables` pin | 49 min on the Ford across 3 passes. Scarce .009 to .014, .025 to .045; Rare .004 to .0072; coin down, then +3.5% | `drop-tables` and `forest-cave` after each merge; `gold-intents` pins the rate array | The tool solves them in one pass. Sale rates set ahead, once (Phase 0) |
+| 5 | Art | `art/world/march` (42 files), `assets/world/atlas-march` (560 KB PNG, 2 to 5x most sets), 5 icons, `atlas-sets.js` | 1 h 31, 230+ gens. Wickstead: 40 min, 1 gen | Never red. One quality redo | Region kit plus 1-2 signature pieces |
+| 6 | Rows in 14 data files | `hunts.js`, `hunt-grounds.js`, `maps/<id>.js` + `maps/index.js`, `monsters.js`, `monster-classes.js`, `imbuements.js`, `items.js`, `item-descriptions.js`, `slot-ladders.js`, `hearth.js`, `supplies.js`, `catalogue-coherence.js` (VENDOR_TRASH, AWAITING_ROSTER, UNREACHABLE, ceiling), `atlas-sets.js` | 25 min, about 250 lines | Only the coherence ceiling, as designed | One folder; the coherence lists written by `pack ship` |
+| 7 | Census and order | `restore-census.baseline.json` (10 tables, 3 re-pins), `schema-apply-order.json`, `apply-order-honesty` | Minutes, on every merge | Census red in the release gate's list | Census computed: base + pack rows. One order line per pack |
+| 8 | Rows the Ford never needed, added since | `party-class-xp.js` (two tables), `tally-tasks.js` + `gen-tally-tasks`, `hunt-tiers.js` + `hr_ground_tiers`, the ladder, NAMED_FUELS + FLAMES + `hearth-flames.mjs` + `gen-hearth-catalogue` | Unmeasured (A): each is a play, not a typed row | New | Proposed by the tool, in the pack. **So the Ford's cost is a floor and rising** |
+| 9 | Apply and deploy | 5 files one at a time, edge deploy, live-hash | Coordinator's minutes. A freeze only if the world's shape moves, and the Ford's didn't | The 10-31 freeze came from a shape move | One file, then the edge, then the client (below) |
+
+**Scale check (M, C):** the chain is 566 migrations and 376,495 lines. 33 hunt-sessions catalogues hold 51,026 of them. Sixty grounds at today's 4,500 lines a ground add about 270,000 lines to every replay; at 120 lines, about 7,000.
+
+#### 2. The design
+**The shape (sketch, not built):**
+```
+src/data/grounds/index.js                  one import and one row per pack. Nothing globs.
+src/data/grounds/shape.js                  box(), gather(), pack(): no imports, so no cycle with monsters.js or hunts.js
+src/data/grounds/regions/barrow_march.js   naming voice (DESIGN_STANDARDS §2), lore root, kit list, creatures two grounds share
+src/data/grounds/the_slake/pack.js         everything below except the map
+src/data/grounds/the_slake/map.js          rows, objects, road in. Drawn by a designer.
+```
+`HUNTS`, `HUNT_GROUNDS`, `MONSTERS`, `WORLD_MAPS`, `ITEMS`, `IMBUE_ITEMS`, `NAMED_FUELS`, `TALLY_TASKS`, `PARTY_CLASS_XP` and `hr_ground_tiers`'s source read the union, so no reader changes. A creature's `numbers` sit apart from its identity, so the tool writes only those.
+
+| Who writes it | What | Today's home |
+|---|---|---|
+| **Designer, by hand** | Name, theme, lore link, band, fit, region | `hunts.js` |
+| | Map rows, objects, the road in, pockets and the reason for each, route | `maps/<id>.js`, `hunt-grounds.js` |
+| | Each creature: name, role, body (kit sprite or new), level, weak and resist, speed, weight | `monsters.js` |
+| | Loot identity: which item on which creature in which band; imbuement items, text, the named fuel and its flame | `monsters.js`, `imbuements.js`, `item-descriptions.js`, `hearth.js` |
+| | What it wins (`wins`), who it's measured on (`reference`) | `drop-tables` REFERENCE; new |
+| **Tool proposes, designer accepts** | hp, atk, baseAcc, def, xp, gp, every ch | `monsters.js` |
+| | Tier rows, party-class row and its said row, Tally count and gold, the value pin | `hunt-tiers.js`, `party-class-xp.js`, `tally-tasks.js`, `drop-tables` |
+| **Derived, never typed** | Spawn weights (pockets' head-count, which the Ford's comment shows was done by hand), `map.spawns`, maskHash, bag guide (`BAG_GUIDE_BY_TIER` unless overridden), coherence lists, every catalogue row, census counts, the preload line | Many |
+
+**A pack adds; it never changes.** It can't move a global rate, another ground's row or the world's shape. The Ford's reshaping of the old Wight row and its T4 sale rate would each make it a world move, today's process. One allowed exception: `amends`, for the name and text of an item the pack newly sources (Barrow Stone), never a price.
+
+**The tool, `tools/pack.mjs new | propose | check | ship`, on `tools/balance-sim` (real settle).**
+1. **Seed the blow.** To-hit is flat: 0.50 (or the row's `baseAcc`) + 2 points per point of atk minus Defense plus worn guard, clamped 5-85% (`combat.js`). Guard from Level 30 is 13 with shipped pieces, Steelgrate 9 + Houndskin 4 (lane/c-armor-tiers). So I define **effective attack = atk + (baseAcc - 0.5) x 50**, and it must climb a point a Level. For commons at 25% or better against a floor shield hero: effective attack >= floor + 0.5 (C). A row's blow stays within 35% of floor HP (`blow-share`), so past that cap the tool moves `baseAcc`, not atk.
+2. **Play the floor.** 8 styles x 2 seeds x 1 h = 16 sim-hours, about 2 min on 4 workers (C, from the tools' 16-30 s a sim-hour).
+3. **Solve.** xp scales to the contract (`LEVEL_PACE.contract`). `ch` = the band's promise / that creature's kills an hour (Scarce about hourly per slot and weight, Rare 10-20 h). This is the Ford's 3 passes done as arithmetic. Coin comes last: at least +25% over the bill, total at most +25% over the pin, gear at most half of coin. The pin is what the game already pays that hero at that Level (the Ford's own ruling), frozen once.
+4. **Stop at 3 passes** and print whatever can't be met. It never quietly settles.
+5. **`check`:** 8 styles x floor, middle, top x 3 tiers x 2 seeds x 1 h = 144 sim-hours, about 10-18 min on 4 workers (C). It prints the board table, the ladder against the next ground and every guard below. Numbers land as a diff the designer commits. Nothing is written by itself.
+- **The grid:** lane/c-armor-tiers (`3dd0ef93b`) moved the fixture and the sim to `gridOfMap`, so the tool plays the server's map. The server's grid is materials only, so anything meant to block is drawn in the rows. `pack-lint` refuses a solid object on an open tile: the client drawing a barge heroes walk through would be a new bug.
+
+**Tiers.** A pack says `tiers: 'default'` (Dangerous 4, 5, 5, 6 x1.2 +10%; Deadly 8 x1.5 +20%) or gives rows. Default is allowed from Level 16; the Glade-to-Warrens sample held 0 of 16. Under that a ground states its own, as ruled. Mill Cellar stays Normal only. `check` refuses a default the ladder rejects. `hr_ground_tiers` is already keyed by ground on that lane, so these are pack rows; only the data side (`HUNT_TIERS`) still reads one global row, and the lane's expansion to lower grounds has to change that anyway.
+
+**Guards become loops; none gets weaker.** The six grounds keep every pin as written; a pack's pin is computed once, then frozen in the pack. Each looped guard keeps one literal anchor, so a loop can't pass by reading the code it checks.
+| Guard | Today | Becomes |
+|---|---|---|
+| `forest-cave` | NEW, BRIDGE, CLIMB, RESTAGE, `wickstead-solo-floor` | Every pack: bridges from the map, one generic solo-floor case, climb from band order |
+| `drop-tables` | TOTAL_TODAY, REFERENCE, GEAR_RUNS, a regex | Pack `checks`; regex from ids |
+| `alpha-windows` AW-25, `hunt-floor-warning` G6 | Exact lists | Expected line built from band and fit; one literal row stays |
+| `xp-share`, `hunt-screen`, `party-class-xp-line`, `first-week-bands`, `sewer` coach lines | Keyed tables, named gear | A row per pack; the Level 15 line stays a literal |
+| `level-curve` C1 | One fingerprint over all grounds | Per ground: a pack at or above the ceiling extends the measure. C5 reads it against the contract |
+| `core-purity`, `gold-intents` G1 | Pins that move with each ground | Stay pins, and stop moving |
+| `restore-census` | Re-pin | Base + pack rows, computed |
+| `module-preload`, `pixel-icons`, `copy-lint-names` | Hand or --write | `pack ship` runs them |
+| `tools/balance-sim` plans, verdict-table, b1120, risk-table | Hand lists | `OPEN_GROUNDS` |
+| New, each with `--mutate` | | `pack-lint`, `pack-line` (replaces FORMATION_BANDS for pack rows, which only restate their own rows plus 10%), `pack-additive`, `pack-fold`, `pack-order`, `pack-distinct` |
+
+**How catalogue migrations shrink, and stay honest.** `pack ship` writes one file, `<date>-pack-<id>.generated.sql`: upserts of the pack's rows only, about 40 rows and a self-check, about 120 lines against 4,528 (C). The self-check asserts the pack's own rows, never whole-table counts: today's `if v_n <> 577` is what makes two lanes' files fight. So **packs commute**, and two grounds can be built at once. Whole generation stays the source: `pack-fold` replays the chain on `schema-drift` and proves the tables equal what the generators would emit whole, so a drifted row is a red (mutant: a kill bound changed in data with no pack row). Anything global remains a forward file, today's way, and it carries every open pack's rows. **The hazard this opens:** a whole file generated on a branch that hasn't merged an applied pack would delete that pack's rows, so a world move is generated on the merged set, and `--check` plus `pack-fold` both go red otherwise. A held ground lives on main as a `staged` pack, emitting no rows, so holding it costs nothing; lifting it is one `pack check` (10-18 min, C) and one file. A named fuel doesn't touch `hr_bench_inputs()` or any function body, so `live-hash-drift` doesn't move; an everyday fuel rung does. That's a reason to use named fuels.
+
+**Engine and catalogue, safe either way.** `catalogue-apply-freezes-old-engine` came from a world-shape move. A pack can't make one: `pack-additive` generates with and without the pack, and refuses if any row outside its ids moves or `hr_hunt_world_shape` differs.
+| Order | Other hunts | The new ground |
+|---|---|---|
+| Catalogue first, old edge | Settle as before, no `world_shape_pending` (shape unchanged) | Only a forged start reaches it; the old edge answers `no_ground` (`hunt-settle.js`) until the deploy. Nothing moves |
+| Edge first, old catalogue | Settle as before | The server refuses the start: no row |
+| Client | Always last (§3.3 C) | It lists from its own data |
+
+The usual order stays catalogue, edge, client, with `hunt-health` after the apply. `pack-order` proves both orders, viewed and browser closed, with a control hunt on another ground, on the shape of the existing test at `hunt-sessions-settle.mjs:3607`. **Assumed until that test exists.**
+
+**One kit per region, and how it fails safe.**
+- **The kit:** tile families (15 pro March tilesets exist), shared props (16 `hf_`, 16 `mu_`), base units.
+- **The per-ground set:** the ground paint, the signature pieces, re-poured units. `atlas-march` holds the Ford's painted ground, so a kit ground would download it for nothing: split it at import, 0 gens. Sets load per scene, so a kit never costs the town.
+- **Re-pour** (`repour` in `tools/world-art/hearth-flames.mjs`) is free and palette-locked. It has only been used on flames. **Risk:** scripted finishes on shipped creature sprites have been rejected before (`art-cleanup-pass-rejected`), so the art director reads one before the batch. If it fails, that body is about 50 gens (C, 230 gens / 4 creatures + ground + icons).
+
+**`pack-distinct`, the §10 guard.** Same-y fails the build. It is a floor; the look is judged by people.
+- **Layout:** walkable overlap against every ground, best of four mirror flips. Today's pairs read 8-72% (C, table in section 4). Fail at 70%, warn at 60%. The one pair over the line is Thicket and Wickstead at 72%, also the pair that fails the ladder 16 of 16, one sample.
+- **Bodies:** at most 3 of 4 creatures from the kit. Each reused body needs a re-pour and a different weak, resist or speed from its source: no re-skin with bigger numbers.
+- **Signature:** at least one prop no other ground places.
+- **Names:** no root repeated; the banned list.
+- **Axis:** `wins` is proved by the check table; no ground best on every axis against its neighbours.
+- **Still by hand:** a designer draws each layout, the art director reads each ground, and each ground is played. §9's sample-first holds: the Slake is the sample, and nothing expands until it's played and reviewed. One ground at a time after that.
+
+#### 3. The phased build
+Sizes are lane hours (A). At most 3-4 lanes at once. **Nothing here starts tonight:** `hunt-grounds.js`, the fixture and these tests are moving under lane/c-difficulty-tiers (62 files), lane/c-armor-tiers (LANE DONE, unmerged) and lane/c-boss-call.
+| Phase | What | Pays | Waits for, collides with | Size |
+|---|---|---|---|---|
+| **0 Foundations** | One world move: VENDOR_GEAR_RATES through tier 6 (T4 0.075, ruled 10-29), tier-4 Hatchets and Crossbow rows (`mithril_hatchets`, `maple_crossbow` don't exist, so those ways to fight stop at tier 3), the March art merged and split | The first T4 pack needs no global row. Ends the 100+ vendor rows the Ford moved | Rides the next whole catalogue cut. lane/c-temper-craft, lane/c-hero-sinks and lane/d-crafted-jewelry may touch items | 1-2 h + apply |
+| **1 The tool** | `tools/pack.mjs propose` + `check`, read-only, usable on old grounds | 49 min of hand fits to about 15 (A) | lane/c-armor-tiers merged (grid); lane/c-difficulty-tiers merged (`plans.mjs`, `worker.mjs`, tier rows). No guard or data edits, so nothing else collides | 3 h |
+| **2 Guards loop** | The table above, test-only | Six reds and most of 5 h 10 per shipped ground (M, one sample) | The six-ground tier expansion, lane/c-boss-call, the next release's test edits. Worst collider: runs when those land, in one sitting | 3-4 h |
+| **3 Curve decoupled** | Per-ground fingerprint, fit-from-floor, contract check | 2-3 h of compute, a curve file and the `core-purity` move per ground | Do it on the pace re-measure lane/c-difficulty-tiers and lane/c-armor-tiers already owe, so it's paid once | 2 h + one re-measure |
+| **4 Pack module, additive files** | `src/data/grounds`, the unions, `pack ship`, `pack-additive`, `pack-fold`, `pack-order`, the census | 4,528 lines to 120; no generator edits; holds stop rotting; two grounds can run at once | Phase 2. A quiet catalogue moment, since it changes three generators. Security is one review at the EA gate (§2), not per file | 5-6 h |
+| **5 The proof** | The Slake, section 4 | The measurement | Phases 0-4 | 3 h target |
+| **6 Finish** | Ford imported as a pack. The six grounds moved mechanically, proved by byte-identical catalogues. Old tables deleted: Tyler's 10-19 "never a parallel path" holds only once this lands | One home for every ground | Quiet moment; Ford's hold is Tyler's | 3 h |
+
+**Cost and payback (A):** Phases 0-4 are about 15 lane hours plus one re-measure. A shipped ground today is 4 h 13 + about 5 h of reds, about 9 h; target 3 h, so about 6 h saved a ground. It pays back on the third ground. The region needs five, and the post-launch target is 60.
+
+#### 4. The proof: The Slake
+Tyler: "Don't rebuild hasks ford, rebuild something similar or maybe a 'mutated' version of hasks ford or something."
+
+**The cousin:** same kit, same dead, opposite answers. Same band size, solo, four creature rows. Every id below was grepped on `release/v0.2.91` and is free or real (C); the `hf_` props and the three base bodies are real on the Ford's art lane, which Phase 0 merges.
+
+**Name: The Slake**, id `the_slake`. A slake is a north-country word for a river mudflat (Jarrow Slake on the Tyne). Short, real, not a mood word. Theme line: "The Meadowbrook drops its copper here, and the Banded Company's dead with it." If it doesn't land, the fallback is The Wrack.
+
+**Lore link, each step read from the data or the art brief:** the Warrens' copper hill feeds the springs of the Meadowbrook (`hunts.js`, the Glade's header), "the copper water makes the moss glow" (the Glade's theme), the brook leaves the wood at Wickstead, and the Ford's river is painted off the same water (art lane; no text says so yet, and the Slake's theme line would). Below the Ford the river slows and drops what it carries: copper silt and the company's dead. They lay in it for years and went green. Hask sold the crossing, so the supply barge never got back upstream. The Hearth still lays them to rest: Grave Dust burns at Inner Flame 46. Each named thing connects to a place the player has already hunted.
+
+**Layout: drawn tonight, linted (C).** The Ford is two banks and one crossing: shut it and only 499 of 871 tiles stay reachable. The Slake is three silt bars and two deep channels with **four** crossings: the route is a ring, and shutting any one crossing strands nothing. 1,373 open tiles (Ford 886), every one in an open 3x3, all reachable, every pull tile with a full box. `#` reeds and the barge's hull, `~` deep channel, `.` silt, `:` shallows. The road comes in from the north at x12-15, where the Ford's comes from the west.
+```
+############....############################################  0  the road in
+###########.......##########################################
+#########...........################.........###############
+########......................................##############
+#######..........................................###########
+#######..........................................###########     P0 the Tow Path (15,6)     P1 the Stake Nets (42,6)
+#######.......................###................###########
+########......................###.....................######
+#########.............................................######
+##########............................................######
+###########.....::::::.................::::::::.......######  10
+~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~
+~~~~~~########..::::::...######~~~~~~~~::::::::...#######~~~
+~~~~#########.........................................####~~
+~~~##########..........................................###~~
+~~###########..........................................###~~
+~~###########.................##..........................#~
+~~##########................########......................#~     P5 the Grounded Barge (20,19)     P2 the Greenbar (48,19)
+~~##########...............##########.....................#~  20
+~~##########...............##########....................##~
+~~###########.................#####.....................###~
+~~#############..........................................#~~
+~~##############.........................................#~~
+~~~#############.......::::::::::.............:::::::....#~~
+~~~~~###########.......::::::::::.............:::::::...##~~
+~~~~~~~~~~~~~~~~~~~~~~~::::::::::~~~~~~~~~~~~~:::::::~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~::::::::::~~~~~~~~~~~~~:::::::~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~::::::::::~~~~~~~~~~~~~:::::::~~~~~~~
+~~~~~~#####............::::::::::.............:::::::....###  30
+####.....................................................###
+###..............................................###......##
+###...........###.............##................#####.....##
+###..........#####...........####................###......##     P4 the Low Flats (9,34)     P3 the Mudlark Holes (40,34)
+####..........###.............##.........................###
+#####...................................................####
+#######.................................................####
+###########.........................########################
+############################################################
+```
+Route 0, 1, 2, 3, 4, 5: along the north bar, over the east shallows, down the Greenbar, over again, west along the flats, over the wide shallows to the Barge, back over the west shallows.
+
+**Walkable overlap (C), the `pack-distinct` sample, best of four flips, %:**
+| | Cellar | Sewer | Thicket | Wickstead | Glade | Warrens | Ford |
+|---|---|---|---|---|---|---|---|
+| **The Slake** | 10 | 43 | 55 | 58 | 56 | 38 | **39** |
+| Hask's Ford | 14 | 38 | 35 | 39 | 41 | 44 | - |
+Highest pair today: Thicket and Wickstead 72; next Wickstead and Glade 62. The Slake's map is drawn, but hasn't been played or walked by a route test.
+
+**Two signature pieces, new art:** **the Grounded Barge** (a hull about 10 x 5 tiles at the centre, in the rows, so it blocks a step and a shot) and **the Stake Nets** (fishers' stake lines across the north-east bar, the rotted nets hung with green harness; it's where the river's dead fetched up). The rest is the kit: `hf_pikes_fallen`, `hf_banded_shield`, `hf_helm_heap`, `mb_reeds`, re-poured where they sit on the green silt.
+
+**The rows: seeds for the tool, UNPLAYED.** Same dead, opposite answers. The Ford's Pikemen resist blades (a sword at 45 nets -3.6k g/h, a hammer +6.1k, M, that board section). The Slake's are the other way round, so the two grounds make a real choice: where do I take this weapon?
+| Row, weight | Body | Role and the mutation | L | hp | atk | baseAcc | def | xp | gp | speed | Loot: common; uncommon; scarce or rare |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **Greened Pikeman**, 12 | `banded_pikeman`, re-poured | Swarm. The crust turns a hammer, a blade finds the joints: `weaponWeak: 'sword', weaponResist: ['hammer']` (the shape the Orchard Boar already uses) | 52 | 170 | 42 | .80 | 20 | 1,500 | 20-46 | 3400 | `bones`, `grave_dust`; `green_rivet`; `mithril_sword`, `maple_wand` |
+| **Bargeman**, 6 | `fordsunk`, re-poured | Tank, the slowest thing on the flat. Where the Fordsunk's bloat swallows arrows, the crew's cracked hides take them: weak ranged | 55 | 240 | 38 | .80 | 26 | 1,850 | 22-50 | 2400 | `bones`, `coal` (the barge's forge cargo); `barge_nail`; `mithril_warhammer`, `maple_staff` |
+| **Mudlark**, 4 | **New**, small and crouched, a sack on its back | Skirmisher. River scavengers who picked the dead and died among them. Quick enough to catch a kiter, hits often and light: resists ranged, weak magic | 54 | 130 | 34 | .85 | 14 | 1,350 | 18-40 | 4400 | `bone_chips`, `copper_ore`; `mudlark_hook`; `maple_bow`, `maple_crossbow` |
+| **Color Sergeant**, 2 (rare) | `bannerman`, re-poured | Bruiser and rare carrier: the danger row, holds the Barge | 60 | 260 | 52 | .80 | 28 | 2,600 | 34-78 | 3000 | `big_bones`; `color_cord`; `mithril_hatchets`, `maple_spellbook`; Rare: `barge_pitch` |
+- **It's the T4 weapons' one home.** No T4 ladder weapon has a reachable source today (`AWAITING_ROSTER`, `UNREACHABLE`, and no forge recipe, C). The Ford is the armor's home, so the two don't overlap.
+- **Why these numbers (C):** XP seeds are the Ford's rows scaled about +12% to reach the contract at the middle of the band (L58 244k; the Ford measured about 217k there). To-hit against a shield hero: 27-58% at Level 50, 11-42% at 58, 5-28% at 65; bare of shield and cape 53-84% at 50. Blows 136-208, at most 32% of 650 HP. The Ford as built reads 5-22% at 45 and 5% at 60 (C), so guard swallows it. **The Ford's import needs its effective attack raised: numbers only, no art.**
+- **Flame:** `barge_pitch` is a NAMED_FUELS row (req about 30, 0.6 x floor; a burst) with a new `pitch` flame, "burns low and dull red", a free ramp in `hearth-flames.mjs`. "The Hearth's flame changes for the square" was Tyler's favorite part of this system. Lands after lane/c-hero-sinks, which also builds on colored fuels.
+- **Axis (a claim for the sim to prove):** the weapons, and the sword's and bow's best XP in band. Less coin than the Warrens at the same Level and no armor. Not best at everything.
+
+**The open number: the ladder (M, C).** The tier lane's rule is that a ground's Deadly stays under the next ground's Normal. On that board, the Warrens' Deadly at 50 reads 213k (lone sword), 342k (hammer, at -78.6k g/h) and 327k (a four), against a contract rate of 200k. Paying the contract, the Slake can't sit above a net-negative hammer rush. My lean: the ladder reads only "good places" (net above zero, no death in the cell), the tiers lane's own test, since Tyler's rule is that rushing pays XP at a cost. A four's 327k at +6.6k still has to be met. If it can't, the Slake pays above the contract and only the brackets past 50 re-fit (`--fit-past`, no re-measure). The sim decides, in `check`.
+
+**Walk-through: the build.** Each step uses only what earlier steps made, plus files that exist.
+| Step | Who does what | Holds from earlier steps | Doable because |
+|---|---|---|---|
+| B0 | Phases 0-4 merged | | The March art merged, T4 rates and two T4 rows in, `tools/pack.mjs` exists |
+| B1 | Designer: `pack new the_slake --region barrow_march`, draws `map.js`, writes rows and loot identity, no numbers | B0 | `pack-lint` runs. The ground starts `staged`, the Wickstead road (`STAGED_MAPS`), so it plays before it's painted |
+| B2 | `pack propose` | B1's rows, the server's grid | The sim plays a staged ground (`mapRowOf`). Numbers land as a diff |
+| B3 | `pack check` | B2's numbers, B0's tier rows | Board table, ladder, line, distinct. Reds name the row |
+| B4 | Art lane: ground painted from B1's rows on the kit's tilesets, Mudlark, barge and nets, icons, re-pours | B1's rows, B0's kit | About 60 gens (A); subscription approved this cycle, read the balance first |
+| B5 | `pack ship` opens it | B3 green, B4's sprites | Migration, index row, preload, coherence moves, order line. `world-assets` holds art to rows |
+| B6 | Designer plays it on the local world, art director reads it | B5 | `tools/qa/local-world.mjs`: real page, real engine, replayed chain |
+| B7 | Coordinator: one file, edge, `hunt-health`, client | B5 | The order table above |
+
+**Walk-through: the player.** A Level 50 hero back from the Warrens in the tier-3 set (`steel_sword`, `steel_platebody`, `coppercap_shield`, `houndskin_cloak`: all real).
+| Step | Does | Has from earlier steps | Doable? |
+|---|---|---|---|
+| 1 | Opens Hunts: "The Slake, Level 50-65, built for one hero" | Level 50, in range. At 53-55 Andy is too | Yes: `hunt-list.js` reads the row |
+| 2 | Picks Normal; Dangerous and Deadly on offer | Step 1 | Yes, once lane/c-difficulty-tiers is in |
+| 3 | Sets food, drink, ammo on the bar. No shop | Its Warrens setup; `salted_swordfish`, `thin_carrot_juice`, `plain_barbed_arrows`, `plain_fire_rune` | Yes, all real store rows. **First principle:** bars are saved setups, but nothing says which setup suits this ground: flagged |
+| 4 | Enter; first pull at the Tow Path (15,6) | Step 3 | Yes, full box linted |
+| 5 | First kills: coin, Bones, Grave Dust | Step 4 | Yes, all real rows |
+| 6 | About an hour in: first T4 weapon, Level 45, worn at once | Step 5's kills | Yes: `mithril_sword` reqLv 45, wearable at 50 |
+| 7 | Town: sells loot; a spare weapon brings its T4 share | Step 6 | Yes, Phase 0's rate |
+| 8 | Burns Grave Dust at the Hearth, or sells it | Step 5 | Yes at Inner Flame 46 (`fuel_grave_dust`). Under that the game says why |
+| 9 | About every 15 h: Barge Pitch, the square's fire turns dull red | Rare drop | Yes, with its pack rows and flame |
+| 10 | Tamsin's Tally | | **Not doable at first:** `gen-tally-tasks` refuses a ground with no Scarce armor, and the Slake has none. No row until the Ford lifts, then `piecesFrom: 'hasks_ford'`. Dead moment, flagged |
+| 11 | Wants T4 armor | | **Not here, and nowhere until the Ford lifts.** Flagged: it's the honest reason the Ford should follow straight after |
+
+**The scoreboard. This is how the comparison gets judged.**
+| Measure | Ford (M) | Wickstead (M) | The Slake, target (A) |
+|---|---|---|---|
+| Working time, spec to lane done | 4 h 13 | 1 h 28 from its first commit to art, start unknown | **3 h or less** |
+| Elapsed | 9 h 13, with 5 h paused | 14:51 release + 5 h 10 of reds | Half a day; any P1 pause reported apart |
+| Reds outside the lane, first release run | Never shipped; 8 test files edited in the lane | Six | **0** |
+| Generated SQL | 4,528 lines, 5 files | About 3,900 lines in the lane's 2 files, more after | **150 lines or less, 1 file** |
+| Generator edits by hand | 4 | 4 | **0** |
+| Files touched outside the folder, art aside | 36 | 21 in the lane | **3 or fewer** (index row, preload, order line) |
+| Level-curve migrations | 1, fitted twice | 1, after release | **0** |
+| Subscription generations | 230 + the redo | 1 + icons | **About 60** |
+| Re-issues while waiting | 3 | | **0** |
+| Fit passes by hand | 3 | Not measured | **1** |
+It counts as proved only if played, read by the art director and shipped. A miss gets reported as a miss, with where the hours went.
+
+#### 5. Where the 50-plus band goes
+**The honest timing (C, A):** the wipe resets Andy. At the ruled pace Level 50 is 168 hunting hours, two weeks at 12 h a day, so nobody hits this wall again until about two weeks after a wipe. A six-week Open Beta at 12 h a day is 504 h, about Level 90 on the targets. So the need is the region through about 110 by the end of Open Beta: five grounds, one every week or two.
+
+| Order | Ground | Band, fit | What it sources | Art | Left to do | Why here |
+|---|---|---|---|---|---|---|
+| Now | **The Warrens' Dangerous and Deadly** (lane/c-difficulty-tiers) | Past 50 | Risk, more XP, no gear | Done | Review, ship | Andy can use it first. Warrens 60: lone sword Deadly 232k at +5k, a four 352k against 241k on Normal (M). Doesn't give him gear |
+| 1 | **The Slake** | 50-65, solo | T4 weapons, off-hand, Grave Dust, named fuel | Kit + about 60 gens | Phases 0-4, then 3 h | Floor at the measured ceiling, so no Level under 50 moves. The proof |
+| 2 | **Hask's Ford, imported** | 45-60, solo | T4 armor, Keystone inputs, Colors | Done | Tyler's word lifts the hold. Effective attack raised, tier and party rows, re-fit from 45 up | Without it the Slake gives weapons and no armor. It's the first thing the pack's commuting lets us stop rebasing |
+| 3 | **Muster Barrows** | 55-75, party | Barrow Knight, Captain Hask's boss rows, **T5 armor (spec gap)** | Done (`aac5732b1`, 323 gens) | First party pack, first boss row | T5 opens at 60 and the spec gives it no home; Pyre Field at 70 is too late. Fix: T5 Scarce here |
+| 4 | **The Pyre Field** | 70-90, solo | Razor Claw, Pyre Ash, Wraith Veil, T6 at 75 | None | Ground, 3 creatures | The kit's second family (ash field) |
+| 5 | **Ebbe's Chantry** | 85-110, party | Chantry Rune, Bound Soul, Prior Ebbe | None | Ground, boss | The region's end, about when Open Beta ends |
+| Watch | A lone hero at 32-45 | | | | Nothing yet | Warrens at 32, a lone sword: 129.7k, -761 g/h, 69% HP, held (M). Thin, not empty, and **after a wipe every player meets it long before 50.** If testers stall here, a kit-built solo door jumps the queue |
+
+**If Andy can't wait:** the Slake can ship on Phase 1 alone at about the Ford's plumbing cost. That gets a ground out sooner and loses the measurement. I wouldn't: the tier lane gives him something this week, and the region needs the system either way.
+
+#### Purpose test (`DESIGN_STANDARDS` §4), on the system
+1. **Problem:** content can't keep up with players: Andy at 53-55 on a band ending at 50, and a held ground that decays. The studio-side form of a player's "there's nothing to do here."
+2. **Decision it gives the player:** indirect, and only if the guard holds: more grounds that disagree with each other, such as which ground for this weapon. Grounds that all pay the same would fail the purpose even at 3 h each, so `pack-distinct` and `wins` are part of the system.
+3. **Plugs into:** the real settle, the balance sim, the generators, the art pipeline, the tier and party tables, Tamsin, the Hearth. It replaces a path; it adds no parallel one once Phase 6 lands.
+4. **Tradeoff:** a day and a half of lanes spent on no player-visible change, and a tool that may pull grounds toward one numeric shape.
+5. **Hour 100, hour 1,000:** each new band opens content on schedule. At 60 grounds the client loads all the map rows at boot; lazy-load them around 20 grounds. Known, not urgent.
+6. **Depth or complexity:** it removes steps from our side and adds none to the player's. Its one new concept is the pack.
+
+**Done and verified (C, M):** the inventory from the Ford's and Wickstead's commits; catalogue row deltas by blob diff; the Slake's grid linted; to-hit and blow numbers from `combat.js`; every id grepped on v0.2.91. **Not verified:** nothing's been played. No Slake row has been through the sim; the fit, ladder, profit and pace numbers are unknown. **Assumed:** every phase size, every target on the scoreboard, the 60 gens, re-pour's look, commuting and the both-orders apply until `pack-fold` and `pack-order` exist.
+
 ### 2026-11-04 A phone's first town frame: it waits only for the sheets it draws (systems-engineer, lane/b-phone-load): BUILT, client only, no migration, no edge; numbers need the bundle (lane/b-ship-build)
 **Measured** (real Chrome, new headless; `tools/load-bench.mjs` from lane/b-ship-build, local Pages, real engine on PGlite; a throwaway bundled build of lane/b-ship-build with this lane's `src/` on it, because this lane sits on main and main has no bundle yet; interleaved, one browser; other lanes on the PC, CPU 30-70% through the final rounds). Phone = 150 ms / 1.6 Mbps, 4x CPU. First visit, no typing.
 | Phone, new hero in a quiet town (`hearth_square:1`), n=5 | before | after | + WebP (not landed) |
@@ -168,16 +635,288 @@ A four at the Warrens, Level 40: +2.6%. Both tracks at once add nothing to XP ov
 - **Next win, not built, COMPUTED:** the `hunt` sheet is about 62% monsters the town never draws (about 145 KB of what every first view waits for), and the 23 stands above want only one lot, the bridge or a few tiles from Havora's 578 KB. Both are moves between sets, sprite pixels unchanged: the Asset Director's call.
 
 **What could still be wrong:** no real phone was used; 4x CPU and a throttled line are Chrome's model of one. A hero who walks onto a sheet still on its way sees the frame hold for up to about 3 s (B-21 covers the first view; the walk is not played in the bench). `list.raised` in `missing` has no proof: no shipped map draws that list. The CPU budget and the frames at 4x CPU from the brief are not done. The bundled numbers are on lane/b-ship-build's v0.2.87 base; main is ahead.
+### 2026-11-04 Crafted jewelry (designer, lane/d-crafted-jewelry): DESIGN, revised for crafting identity, nothing built. **Tyler: seven decisions first**
+**Revised 2026-11-05 on Tyler's answer (what changed: perks replace crit-only rolls; a fixed gold step is the sink; two perks a piece; a per-row market ceiling; runes join as the repeat customer. The earlier "not a sink, simplify" verdict is gone. Every number is labeled; perks and runes were measured on a scratch copy with stand-in hooks).** Tyler: "I want to give crafting some identity across the board." "Crafting should be a decent gold sink to upgrade items / sell to other players... combat players... will be willing to pay top coin on the market to crafters who are making amazing jewelry, and that jewelry should have an RNG aspect (not necessarily gambling) but a 'chance' at certain perks to roll. Kind of like new world does it." Mechanic only, §10.
+
+**Verdict: build it, with one correction to the pitch.** Fighters paying crafters top coin works, but a sale only moves gold. What burns gold is a fixed-price step, so the design has one. Crafters roll perks with materials; a Hallmark step adds a chosen second perk for a large gold fee; crafters sell the result. Runes, not jewelry, are the repeat customer.
+
+**Decisions for Tyler, first.**
+| # | Decision | My pick |
+|---|---|---|
+| 1 | Two perks a piece at fixed strength, as separate rows. New World has more perks and ranges; that needs per-item identity (weeks, dupe risk) | Rows |
+| 2 | The Hallmark fee is the sink: 25,000 g at T2, 100,000 g at T3, plus a gem and Crafting 30 / 45 | Yes |
+| 3 | Rune ladder: new deeper store runes at 8 / 10 / 16 / 24 g (Scored raised from 6 on the re-measure). **Plain stays 1 g,** because every +1 g costs the Sewer floor party 119 g/h and it clears the Thicket by 5.5, unchanged on the server's map | Ladder, Plain 1 g. If 1 g must go: 2 g plus about +5% Sewer income (113.5 g/h on its 2,329) |
+| 4 | Paid re-roll: the only sink that never ends, and exactly your "random gold spend". Steam could read it as gambling through Crowns | Not without your word and the legal review |
+| 5 | Exempt rolled recipes from your 11-01 bench tax, so no gold moves on a roll | Yes |
+| 6 | "Crafted only": Shop keeps plain pieces at a premium, or truly crafted only | Keep the Shop. Strict means a fighter can sit at Level 15 with no ring |
+| 7 | Land before the wipe? Runes before the final pace re-measure; `market_locked` now; the jewelry sample can follow the wipe with no second wipe | That order |
+
+**What burns gold (estimated behavior, computed prices; income 60k / 85k / 220k a day).**
+| Burned per day | Hunter | Rich | Four heroes | Assumed |
+|---|---|---|---|---|
+| Market cut, 1% + 4%, on perk pieces | 200 | 1,500 | 5,000 | A 20k piece per 5 days / a 150k piece per 5 days / about 500k traded per 5 days |
+| **Sales alone: not a sink** | **0.3%** | **1.8%** | **2.3%** | |
+| Hallmark fee | 5,000 | 13,300 | 50,000 | T2 set 100k over 20 days / T3 set 400k over 30 / 2M over 40 |
+| Shop plain pieces | 860 | 1,600 | 6,000 | One-time |
+| **All: "decent", about Tempering's size while open** | **6,060, 10%** | **16,400, 19%** | **61,000, 28%** | Tempering: 6,200 / 14,500 / 55,800 |
+- **One 150,000 g T3 two-perk ring:** 100,000 g fee and 7,500 g cut burn; the crafter keeps about 42,500 g less the gem. So most of the top coin burns, and the crafter still earns about 6 h of hunting.
+- **Bench tax:** 400-600 g/h per bench hero, pennies. Inputs burn nothing: rock is free and a bought gem is a transfer.
+- **Demand still ends once a hero is dressed.** Nothing may wear out. What reopens it: a new tier, a new hero, a second set for a second style (a setup holds its own gear). What truly repeats is what gets used up: runes, food, arrows, and later Imbuing, already ruled per piece with expiry and with monster items waiting. **I'd add nothing new now.**
+- **A bench still mints,** the same as any other bench; jewelry adds no new faucet, because every grade keeps the plain piece's shop bid.
+
+**Across the board: keep it to this.** One rule: a crafter's fixed step takes gold plus a crafted input, and a crafter's consumables sell by the hour.
+| Skill | Prized product | Repeat customer | What burns gold | Time and coal |
+|---|---|---|---|---|
+| Smithing | Forged weapon rungs, shields, Tempering Salts | None real: salts once per ladder, whetstones self-use | Tempering 124k / 434k a hero | Steel Bar 35 s whole chain, 17.6 s of it coal: **Andy is right.** Coal 409/h, Rich Coal 678/h at Mining 52, mostly more XP above that. T2 salts: `iron_bar` + `bone_chips`, 620 a hero, about 2.9 h plus 620 drops. **T3 salts aren't in `lane/c-temper-craft` yet: please send the list.** A steel version is about 6 h and 1,240 coal (estimated) |
+| Crafting | Perk jewelry; bows, wands, cloaks | Arrows and bolts for a Ranger off the free rung (about 1,800 shots/h, 8 g for 50 crafted against 1 g a shot) | Hallmark fee, market cut, store arrows | T2 piece 170 s, T3 76-147 s |
+| Runecrafting | Deep runes, stronger spells | **Casters, 150-350 runes/h (measured)** | The store price | Below |
+| Cooking | None yet | Anyone pressing the pull (7,400 g/h of food as played); nothing in band | Store food, the biggest burn in the game | Flagged 11-04: 14 g shrimp leaves no in-band consumer. Not moved |
+| Gathering | None | Every bench | Nothing | Rates on the 11-01 table |
+Ranked additions: (1) `market_locked` fix; (2) per-row market ceiling; (3) rune ladder; (4) jewelry sample; (5) "Goldsmith" once Titles exist. Nothing else. **Materials don't overlap:** salts use iron and Bone Chips; jewelry uses bars and two new gems.
+
+**Runes (a proposal; Tyler's "wildly cheap" is a comment, not a ruling).** Yes, they're the repeat customer. But today one bench hour makes 2,600 Scored runes, about 10 caster-hours, so a caster's free rest time supplies itself and no business exists. So the ladder moves **yield and book together**, holding the 11-01 shop wage, and adds store rows that are opt-in on a slot.
+| Tier, Magic | Store g a cast (75% output) | Book today → new | Job yield today → new | Bench hour feeds, caster-hours at 270/h, today → new | Crafter can list at, wage |
+|---|---|---|---|---|---|
+| Chalked, 1 | **1 (unchanged)** | 0 | 45 | About 27 | Self-use |
+| Scored, 15 | New, 8 | 1 → 3 | 40 → 14 | 9.6 → 3.4 | 6 g, about 5,500 g/h |
+| Etched, 30 | New, 10 | 1 → 3 | 36 → 12 | 7.8 → 2.6 | 8 g, about 5,700 g/h |
+| Carved, 45 | New, 16 | 2 → 6 | 32 → 10 | 5.1 → 1.6 | 13 g, about 5,600 g/h |
+| Graven, 60 | New, 24 | 3 → 10 | 28 → 8 | 3.5 → 1.0 | 20 g, about 5,400 g/h |
+Crafted stays cheaper and stronger (100% against 75%), and a rune now books near its inputs. Those wages are at full demand, which is thin at 20 accounts.
+
+*Caster bills. Rune and income counts measured (2 h x 2 seeds), bills at the new prices computed, so all **estimated**. The pull 8 row is re-measured on the server's map (`lane/c-armor-tiers` 3dd0ef93b); the others are still the old map, recomputed at 8 g.*
+| Who, where | Runes/h | Today: bill, net | On the deeper store rune: XP/h, bill, net, margin |
+|---|---|---|---|
+| Mage, Cellar L4 | 149 | 302, +1,928 | Plain only, no change |
+| Mage, Thicket L10 | 201 | 453, +2,878 | Plain only, no change |
+| Healer, Sewer L8 party | 129 | 252, +2,899 | Plain only, no change |
+| Mage, Wickstead L15 | 177 | 212, +3,607 | Scored: +1.6%, 1,499, +2,409, +161%: not worth it yet |
+| Mage, Sewer L20 party | 208 | 326, +4,121 | Scored: +3.0%, 1,806, +2,713, +150% |
+| Mage, Glade L24 | 210 | 211, +5,802 | Scored: +4.8%, 1,747, +4,737, +271% |
+| Mage, Glade L24, pull 8 | 359-363 | 1,458, +9,108 | Scored: **+18.0%**, 3,984, +8,361, +210%. At 6 g it cost nothing net (+9,078) for +18% XP, which is why Scored is now 8 g: -747 g/h for +18% is a real trade |
+| Mage, Warrens L40 | 261 | 449, +7,530 | Etched: **+12.5%**, 2,848, +6,619, +232%: a real trade |
+- **Burn per caster-day, 12 h at Etched:** store about 31,000 g, 37% of a rich day. Bought from a crafter at 8 g, about 25,000 g moves and 1,250 g burns. Self-made, 0. **So the more crafters win, the less burns:** "fighters pay crafters" and "burn gold" pull against each other on consumables, and that's fine.
+- **Fairness:** a mage's floor isn't close: at least +150% on any deeper rune above. The tightest style stays a Ranger on store arrows, +32% to +39% (`supply-basics.js` comment, not re-run). A Ranger on free Bronze pays about nothing, melee pays food only when pressing the pull. Mage bills stay at or under a store-arrow Ranger's 1,800 g/h until Etched at the Warrens or Scored at pull 8. **No style falls under +25-35% in band.**
+- **Chain, re-measured on the server's map (3dd0ef93b; open tiles 171, 1,217, 952, as the server's), the real test, 6 seeds:** Sewer floor party nets 1,843.5 at 1 g, 1,724.5 at 2 g, 1,605.5 at 3 g, against the Thicket's 1,838 and the Cellar's 1,829.5. **Unchanged to the digit from the old map:** a tank and this party don't walk the tiles that differ. So Plain can't move without a coin change.
+- **What this changes for pace:** a mage who binds its own Scored already casts at 100%, more than this store row's 75%, and the sim's mage runs on Plain. So a real caster is outrunning the measured pace by at least about 18% at pull 8. The store row opens that to non-crafters at a price; it doesn't create it. The final pace re-measure should name a deeper rune for the mage, or say why not.
+- **Still to re-measure on the server's map:** `ranger-floor`; the mage at the Glade default and on Etched at the Warrens; a party healer's output (one sample read +21% heals on Scored, too thin to quote). **Perk rows are not re-measured:** the jewelry sample isn't approved, so they get re-read only if it is.
+- **Size, separate from jewelry, and it can ship alone:** `stonecraft.js` (book, 4 yields), `supply-basics.js` (24 store rows; 8 for Fire and Water first), one line in `core/hunt/abilities.js` `runeFor` so a store row casts its own version, `conditions.js` `storeFits`, Configure action's rune list, 24 scripted icons, catalogue files, `supplies-catalogue`, `craft-wages`, `recipe-yield-guard`. **The edge moves** (those files are in the bundle), so one smoke, apply, deploy at once. About a lane-day. Yields and book alone, no engine line, about half a day. **Must land before the final pace re-measure.** Default bars keep Plain, so the sim's bars don't change unless a re-measure names a deeper rune.
+
+**`market_locked`: ships alone, now.** A hero who never hunts can't list or buy. One file from 2027-03-03: add `hr_market_config.min_skill_level` default 30; restate `hr_market_eligible`: any hero at `min_level` **or** any hero with Smithing, Crafting, Cooking or Runecrafting at that level; restate `hr_market_rules` with it. Client: `market/index.js` line 40 and `refusal-words.js`: "The Weighhouse trades with heroes of Level 10, or with a bench skill at 30." One test: a Crafting 30 hero lists, a Crafting 29 hero is refused. No edge. On the EA Security list (Threat #9): Crafting 30 is about 6.5 h of work, Level 10 about 10 h. About two hours.
+
+**Armor alignment.** No jewelry carries to-hit guard, per `lane/c-armor-tiers`: not plain, not Copper Studs. Its table agrees: one guard point is 12-16% at the Warrens. Deflect replaces my Steady, and sits under the armor chain's cap. The XP rows below don't change without guard; the plain rows' damage-taken numbers are withdrawn until re-measured.
+
+**1. The jewelry inventory: all 24 rows on v0.2.90.** Only six can be had today: three in the Shop and three on Wickstead's Turncoat.
+| Item | Slot, worn at | Source today | Becomes |
+|---|---|---|---|
+| Copper Ring | Ring, 1 | Shop 240 g | **Keep in the Shop.** Also craftable, plain only. Stats for every style |
+| Hunter Necklace | Necklace, 1 | Shop 360 g | Same |
+| Copper Studs | Earrings, 1 | Shop 120 g | Same |
+| Banded Signet | Ring, 15 | Turncoat Rare .003 (also off-roster Kobold) | **Convert:** T2 plain, crafted; Shop at a premium |
+| Wolfbone Torc | Necklace, 15 | Turncoat Rare .003 (also off-roster Small Wolf) | **Convert and rename "Twisted Torc":** it's iron now, so a crafter can make it from the rock. Id stays |
+| Fang Studs | Earrings, 15 | Turncoat Rare .003 (also off-roster Giant Bat) | **Convert and rename "Bronze Studs".** Id stays |
+| Gold Ring | Ring, 30 | None (`AWAITING_ROSTER`) | **Make craftable:** T3 plain. Leaves the list |
+| Gold Amulet | Necklace, 30 | None (`AWAITING_ROSTER`) | Same |
+| Spider-Eye Studs | Earrings, 34 | None (`AWAITING_ROSTER`) | **Stays parked.** New row Gold Studs takes the T3 earrings slot |
+| Tusker's Charm, Packlord's Band, Mirewort Drops | Necklace 8, ring 22, earrings 38 | Champions off the roster (`UNREACHABLE.greenhaven`) | **Stay parked.** When a ground opens with these monsters, the row becomes a gem. A guard enforces it |
+| Spidersilk Choker | Necklace, 34 | Off-roster Venom Spider | Same |
+| Panther's Eye Pendant, Wraithglass Drops, Warlord's Torc, Jarl's Rimetorc | Necklace 68, earrings 50, necklace 52, necklace 66 | Off-roster monsters (`UNREACHABLE.later`) | Same |
+| Hollow Sigil Ring, Ruby Signet, Spellstone Ring, Dawnforged Signet, Rubyfire Studs, Dragon Gem Earrings, Dawnbound Amulet | Later tiers, 35 to 86 | None (`AWAITING_ROSTER`) | **Stay parked** until those tiers open. Then they become that tier's crafted rows, or get cut |
+The rows live in `src/data/items.js`, `slot-ladders.js`, `champions.js` and `wave3-uniques.js`; the Shop's three in `shops.js`; the drop rows in `monsters.js`. No starter item is jewelry (`START_EQUIPMENT`, `STARTER_SETS`). **The cut is one guard, `jewelry-sources`:** no reachable monster's drop row may name a ring, necklace or earrings item. **"Crafted only" does not include the Shop's three starter pieces (decided):** they're how a Level 1 hero gets a ring.
+
+**2. Which skill: Crafting.** No new skill. A jewelry skill fails the purpose test: it would be a second bench with no new decision, and it would split a skill that has no prized product yet. Metal comes from Mining and Smithing, so the rock-to-ring chain already crosses three skills, as DESIGN_STANDARDS asks.
+
+**How far rows go, and what per-item costs.**
+| Model | Rows, 2 tiers (pool of 4 a slot) | Pool of 6 a slot |
+|---|---|---|
+| One perk a piece | 30 | 42 |
+| **Up to two perks (decided)** | **66** | 132 |
+| Up to three | 90 | 252 |
+Rows are built by formula from one table, as `bestiary.js` builds from the roster, never typed, and each new tier adds 33. Icons are composited. The market needs a perk filter. **True per-item identity touches:** `player_inventory`, `account_bank`, `player_equipment`, `hunt_bag`, `player_hunt_presets.gear`, `player_item_rules`, `market_listings`, `market_sales`, `market_item_daily`, `hr_apply`'s item delta, `hr_materials_take`, `hr_market_list` and `_buy`, `vendor-sell.js`, `shop-buy.js`, `equip.js`, `member.js` and `combat.js` stat reads, `character-sheet.js`, and bag, Storage, market, Inspect, item tips, loot rules and Equip upgrades. **Dupe risk:** today every move is qty arithmetic on one write path; identity needs ownership moves on bag, Storage, escrow, equip, sale and vendor paths, each with retries. Estimated weeks, plus Security. **Decided: rows, up to two perks, fixed strength.** No stat ranges and no third perk. If that isn't what Tyler meant by "kind of like New World", per-item is the only other answer.
+
+**The roll, materials only.** The player picks the job; the dice pick the perks from that slot's pool. Plain has none, Fine has one, Hallmarked has two.
+| Roll at Crafting | 15 | 30 | 60 | 99 |
+|---|---|---|---|---|
+| Base recipe (metal only): Fine | 5.0% | 6.5% | 9.5% | 12% |
+| Base recipe: Hallmarked | 0 | 0.04% | 0.07% | 0.10% |
+| Gem roll (plain + gem): Hallmarked, else Fine | 10% | 13% | 19% | 25% |
+**The Hallmark step, fixed, gold allowed:** one Fine piece + one gem + the fee, at Crafting 30 (T2) or 45 (T3), adds the second perk **you choose**, no dice. A new RPC on the stamina-refill pattern, kind `shop`, no bench time. That's where gold sits; no gold moves on a roll, and there's no re-roll. Base Hallmarked at Crafting 30 is about 119 h of whole-chain work, the extra-rare band. A roll draws on the bench's existing seeded stream (`resolveArtisanAction`, the burn's path); only graded rows draw; the client never rolls. `hr_apply` bounds credits to that recipe's outcomes. A rolled Hallmarked gets the rare alert, `share-card.js` and a System line (`hr_world_notice_rules`, 3 a hero a day). Bulk report: "Made 44 Banded Signets: 41 plain, 3 fine (2 Keen, 1 Surge)."
+
+**The perks: behavior you can see, each counting once per hero.** Rejected on the avoid list: XP %, drop rate. Rejected as a faucet: gold find. T3 numbers; T2 about two thirds.
+| Perk | What you see | Helps most | Hook |
+|---|---|---|---|
+| **Keen** | +6% crit on basic blows | Sword, tank, axes, bow | None |
+| **Surge** | 10% of spells, abilities and heals land 1.5x, with the crit number | Axes, tank, **healer: the only thing that reaches heals** | `abilities.js` `effect` |
+| **Follow-through** | A basic blow also lands 6% on one more monster beside it: two numbers | Every damage style; better the bigger the pull, so it sells pressing the pull | `damage.js` `roll` |
+| **Deflect** | 4% of blows at you are turned aside, shown as a dodge | **Tank**, then anyone who eats | `damage.js` `landHit`, the existing dodge draw |
+| **Second Wind** | 1% max HP back on each kill, green numbers | Melee on a big pull: pays in food, not XP | `damage.js` kill branch |
+| **Thrift** | 8% of casts and shots cost nothing: "free cast" | Wand, staff, bow on bought arrows | `payBasic`, `fire` |
+
+*Measured with stand-in hooks on a scratch copy of the Tempering build, Warrens L40, solo, 2 h x 2 seeds, XP/h against plain (±1 point). Old map; re-read on the server's map only if the sample is approved. Measured sizes: Keen 6%, Surge 6%, Follow-through 8%, Deflect 4%, Second Wind 1%, Thrift 8%. Damage-taken and bills move on few blows, so they're noisy.*
+| | Tank | Hammer | Axes | Bow | Mage | Healer, solo |
+|---|---|---|---|---|---|---|
+| Plain vs none | +14.3% | +12.1% | +11.5% | +13.0% | +6.7% | +9.0% |
+| Keen | +2.5% | +1.3% | +1.5% | +1.9% | +0.7% | +2.9% |
+| Surge | +1.9% | +0.1% | +1.3% | +0.9% | -0.2% | +1.2% |
+| Follow-through | +3.1% | +2.6% | +2.2% | +2.8% | +4.4% | +4.2% |
+| Deflect | +1.6% | -0.7% | +0.5% | 0.0% | -1.7% | +0.4% |
+| Second Wind | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Thrift | +0.7% | +0.1% | +0.7% | +1.0% | -0.6% | +0.5% |
+| **All six** | **+4.4%** | **+3.3%** | **+5.1%** | **+6.1%** | **+5.8%** | **+7.8%** |
+| Store bill, plain → Deflect | 45 → 45 | 1,170 → 900 | 1,575 → 1,125 | 900 → 630 | 516 → 357 | |
+| Store bill, plain → Second Wind | 45 → 45 | 1,170 → 1,080 | 1,575 → 1,395 | 900 → 855 | | |
+- **Follow-through was the clear favorite at 8% (+2.2% to +4.4%), and one right answer for everyone is a bad perk,** so I've cut it to 6% and raised Surge to 10%. Those two sizes aren't measured, only scaled. Surge is a healer's perk more than a damage perk: +6% on heals at the measured size is +3% of output (party healing not run).
+- **Second Wind and Deflect pay in gold, not XP,** which is why a tank or a hammer on a big pull would want them: less food, more pull. So every style has something: damage styles Follow-through and Keen; tank Deflect and Second Wind; casters Thrift and Surge.
+- **By style:** tank Deflect, Second Wind, Follow-through. Sword and axes Keen, Follow-through. Hammer Follow-through, Keen. Bow and crossbow Follow-through, Keen, Thrift. Wand Follow-through, Thrift, Surge. Staff Surge, Thrift, Deflect. **Pools:** ring Keen, Surge, Follow-through, Thrift; necklace Surge, Thrift, Second Wind, Deflect; earrings Keen, Follow-through, Second Wind, Deflect.
+- **Honest limit:** flat numbers are small, so "amazing" is what the player sees, not a big XP jump. A leaderboard chaser pays because it's the last few percent: +3% XP/h on 12 h is about 0.36 h a day, so a 150k ring pays back in about 60 days of a rich hero's gold (computed).
+
+**Bench tax:** rolled recipes are exempt (decision 5), inputs raised to hold the wage; every fixed-result job keeps the tax.
+
+**Plain pieces read for every style** (`atkB`, `rangeAtkB`, `magicAtkB`, and so on), since today's rows give a bow or wand nothing. Stats: T1 Copper Ring +1 accuracy +1 damage, Hunter Necklace +2 accuracy, Copper Studs 0.5% crit. T2 Banded Signet +2 +2, Twisted Torc +3 accuracy, Bronze Studs 1% crit. T3 Gold Ring +3 +3, Gold Amulet +4 accuracy, Gold Studs +2 damage 1.5% crit.
+
+*What sells for what.* Every grade of a piece has **the same book value**, so the same `gearSaleRate` and shop bid. A Hallmarked ring sells to the Shop for what a plain one does: **it can't be a faucet**, and `vendorPriceOf` doesn't change. But 100x book would cap a T3 ring at 60,000, so a per-row ceiling lifts asks and leaves bids alone (see 11). Floor is the bid.
+
+*Recipes, as starting values. `tests/craft-wages.mjs` has the last word.* Computed from paced rates: ore 4.8 s, bronze bar 13.76 s whole chain, iron 12 s, gold 17.6 s, at the 11-01 target of four fifths of hunting.
+| Piece (Crafting) | Inputs | Shop bid | Before tax, g/h | After 15% tax | Target |
+|---|---|---|---|---|---|
+| Copper Ring (1) | 15 Copper Bars | 60 | 1,603 | 1,363 | 1,622 |
+| Hunter Necklace (2) | 23 Copper Bars | 90 | 1,589 | 1,351 | 1,622 |
+| Copper Studs (1) | 8 Copper Bars | 30 | 1,467 | 1,247 | 1,622 |
+| Banded Signet (15) | 12 Bronze Bars | 130 | 2,744 | 2,332 | 2,845 |
+| Twisted Torc (18) | 14 Iron Bars | 130 | 2,698 | 2,294 | 2,845 |
+| Bronze Studs (15) | 6 Bronze Bars | 65 | 2,669 | 2,268 | 2,845 |
+| Gold Ring (30) | 4 Gold Bars | 84 | 3,971 | 3,375 | about 4,000 |
+| Gold Amulet (33) | 8 Gold Bars | 154 | 3,783 | 3,215 | about 4,000 |
+| Gold Studs (30) | 2 Gold Bars | 42 | 3,691 | 3,138 | about 4,000 |
+The method holds: computed the same way, Iron Hatchets come to 2,470 g/h, and they played at 2,463. XP rows are set so the chain trains at the bench's going rate: T1 120, T2 420, T3 300 book, so 3,440 XP/h at T2 and 5,527 at T3. Each gem roll takes one plain piece and one gem. Rolled recipes pay no bench tax under decision 5; the wages above then need inputs up 15%.
+
+**4. The power budget.** Measured on the real settle with stand-in rows, solo, 2 h x 2 seeds, XP about ±1 point; sim kits hold no jewelry, so pace and risk tables don't read any of this.
+| XP/h | Tank | Hammer | Bow | Mage | Healer |
+|---|---|---|---|---|---|
+| Today's best T2, Glade L24, vs none | +8.3% | +4.0% | +0.1% | -0.2% | +0.4% |
+| New plain T2, Glade L24, vs none | +8.0% | +4.2% | +4.0% | +1.6% | +5.0% |
+| New plain T3, Warrens L40, vs none | +14.6% | +12.0% | +12.1% | +6.8% | +9.3% |
+| Crit +15%, Warrens L40, vs plain | +4.6% | +3.5% | +5.6% | +4.9% | +5.6% |
+| Crit +9%, Glade L24 pull 8, vs plain | +2.0% | +0.2% | +0.9% | +0.4% | +2.6% |
+**Ceiling: one weapon tier, +5-8% measured.** All six perks at once, the most anyone can wear, measured +3.3% to +7.8% XP/h at the Warrens. Add Tempering's +1.8-4.6% and it's about +5-10%, at the top of what I'd allow. A real set reads three or four perks, so less. **Holds, for now; re-measure on the fixed grid.** The Glade at pull 8 is the other cell to read: Follow-through should grow there. The profit floor doesn't move: it's coins and commons over the bill, and kills only get faster.
+
+**5. Rare gems: two rows, one per tier.**
+| Gem | Home | Row | Book, shop bid | Use |
+|---|---|---|---|---|
+| **Road Garnet** (robbed on the Thicket road) | Turncoat, Wickstead, already "the jewellery's carrier" | Rare, .002 | 200, 40 | T2 gem roll and Hallmark |
+| **Seam Jasper** (cut from the copper hill's seams) | Goblin Digger, the Warrens | Rare, .0027, the rate of its belts | 500, 100 | T3 gem roll and Hallmark |
+- **Pace:** Turncoat is about 45 kills/h (2 of 24 at 540 kills/h), so .002 is about one per 11 h. Digger copies a row already tuned there. `tests/hunt-core/drop-tables.mjs` holds both to 10-20 h.
+- **Caps:** at Wickstead, three rows worth 650 book become one worth 200, so value falls. At the Warrens it's about one 500-book gem per 15 h, about +35 book/h against about 8k coin, about +0.5%, far under the +25% cap. Gems aren't gear, so the 50% gear cap can't be hit.
+- **Rules kept:** no new carrier. Each gem has one home a player can learn. ≤ 2 armor slots + a weapon per monster is untouched. The party rare roll and the rare broadcast already apply to any `band: 'rare'` row. The rare moment survives: a gem is still "I found one".
+- **Source and use (`catalogue-coherence`):** source the drop row, use the gem rolls and the Hallmark step. Marked `raw` so the shop pays a fifth.
+- **Value check on Wickstead:** Rare income falls about 39 g/h of 3,500 (about -1.1%), outside the floor.
+
+**6. A pure crafter's first 20 hours: walked against real data.** A hero who never hunts. Times marked "played" are the 11-01 walk; the rest are computed from `pacing.js` and the XP table. PACE is 0.39 XP and 1.6x time. The jewelry rows don't exist yet.
+| Hour | Holds, from the steps before | Step | Reaches it because |
+|---|---|---|---|
+| 0 | 500 g | Copper Rock, `copper_ore`, no tool | Mining 1, town edge |
+| 0.5 | 374 ore, Mining 16 (played) | Smelt Copper Bars | `smelt_copper` at Smithing 1 |
+| 1.5 | 561 bars, Smithing 17 (played) | Copper Ring, Crafting 1, 15 bars | 37 rings, about Crafting 12 |
+| About 2.5 | About 3,000 g after tax, Crafting 15 at 52 rings | Bronze Bars; **first roll**, Banded Signet | Smithing 1, Crafting 15 |
+| About 6.5 | About 12,000 g, Crafting 30 at 3,450 XP/h (3.2 h) | Hallmarked now possible, 0.04% | Odds table |
+| About 15 | About 32,000 g, Mining 45 and Smithing 25 | Gold Rock, Gold Bars, Gold Ring | "Mining 45 at 8 h" (11-01), at about 60% mining time in the chain |
+| 20 | **About 45,000-50,000 g**, Crafting about 47, estimated | Selling Plain to the Shop | Against a hunter's 58-76k at hour 20: about 65-80%, as the 11-01 rule intends |
+Non-combat sources, grepped: every rock to Mithril, every tree, fish, farm. Combat only: gems, pelts, silk, `bat_wing`, `slime_gel`.
+
+**Where a pure crafter breaks, worst first.**
+1. **The Weighhouse is locked for good.** `market_locked`: no hero at Level 10. **Fix in this lane:** any hero at Level 10 **or** any bench skill at 30, hours of real work either way (Crafting 30 is about 6.5 h here; Level 10 took about 10 h in play). It's one config row plus `hr_market_eligible`, and it goes on the EA Security list because Threat #9 is about fresh accounts funneling their 500 g. Without it the whole idea is dead.
+2. **Few buyers.** About 20 accounts x 3 heroes x 4 pieces is about 240 pieces per tier, ever, and one crafter makes 21 T2 rings an hour. Most of a crafter's work goes to the Shop at the floor. Fine and Hallmarked are the only real trade.
+3. **Gems are a hunter's.** On a thin market a pure crafter may never see one. Hallmarked is still reachable at the bench, by luck at about 119 h a piece. That's why base recipes can roll it at all.
+4. **The coach keeps asking for the Cellar.** The hero loses nothing, but What next is noise for this player. Not played.
+5. **They can't wear what they make.** Gear reads hero Level only. That's allowed, and it's the point: a Level 1 jeweler can make a Level 30 ring.
+
+**What actually makes a dedicated crafter special? Honestly: time and a name.** Crafting 99 is 13.0M XP (computed at T3's about 5,500 XP/h chain rate):
+| Who | Hours a day on the chain | Crafting 60 | Crafting 99 |
+|---|---|---|---|
+| A fighter's hero, resting at the bench | 12 | 4 days | About 200 days |
+| A dedicated hero | 24 | 2 days | About 100 days |
+| Four heroes feeding one bench | 4 x 24 | Under a day | About 25 days |
+- The odds gap is small: a gem roll's Hallmarked is 19% at 60 and 25% at 99. **So at equal levels there's no edge, and that's by design.**
+- A full-time account's real edge is about four times the jobs, so about four times the rolls, at the cost of a seat that could earn hunting gold.
+- **Also theirs:** the name on every Hallmarked broadcast, the Crafting board (exists), and a "Goldsmith" row once Titles can read `craft_roll` counters.
+- **Rejected: better odds for a hero who stays under Level 10.** It's the only rule that would really reward "solely crafting", but it punishes leveling, and every account would just keep one Level 1 hero. His no-penalty ruling on monsters leans the same way.
+
+**7. A fighter who never crafts.**
+| When | Holds | Gets a ring how | If nobody sells |
+|---|---|---|---|
+| Hour 1 | 1,900-2,900 g earned | Shop T1: 240 + 240 + 360 + 120 = 960 g for all four | Same |
+| **Hour 10** | 15.7k played | **Shop T1, or the market.** T2 isn't wearable until Level 15 | **Same: the Shop always has it** |
+| Hour 18-22, Level 15 | 40-60k | Market, undercutting the Shop; or Shop plain T2 at **3,000 g** a piece, 12,000 g a set (3 h at Level 18) | Shop. Never blocked |
+| Level 30 | 100k+ | Market; or Shop plain T3 at **12,000 g** a piece, 48,000 g a set (7 h at Level 45) | Shop |
+| Any | | Fine and Hallmarked: market only | Goes without. Plain is enough for every in-band ground: the risk table holds no jewelry at all |
+- **Gear pace ruling:** "about one piece per hour per slot per armor weight" is armor, and today's jewelry is a 10-20 h Rare. A piece at the Shop any time you have the gold is faster.
+- **The premium is on purpose:** a crafter can sell plain at anything from the 130 g floor to 3,000 g and still beat the Shop. `vendor-shop-arbitrage` holds: buy at 3,000, sell at 130.
+- **Or the free way:** the second hero is free, and a hero's rest time is free. About two hours of its rest gets Crafting 15. "Never crafts" is a choice, not a wall.
+
+**8. Budget.** See "What burns gold" at the top.
+
+**9. Size.** Final about 95 rows: 66 item rows at T2 and T3 (8 existing), 2 gems, 15 recipes, 6 Shop rows, about 6 perk rows. Built by formula; §10's sample rule still applies.
+**The first sample, T2 ring only:** Banded Signet (plain), Keen, Follow-through, Keen + Follow-through (4 items), Road Garnet, base recipe, gem roll, Hallmark step at 25,000 g: **about 8 rows.** Odds as in the roll table. Play it on `tools/qa/local-world.mjs`: 200 rings on a never-hunted hero, the report, the reveal, a Hallmark press, a sale between two accounts, a return with the page closed.
+
+**10. Art: 0 generations.** A perk's stone is a palette-locked pip over the plain icon; Hallmarked adds a gold band and mark. Scripted, as `rune-icons.mjs` and art batch 0 did. No PixelLab, so no new yes.
+
+**11. Build.**
+| Part | Size | Edge | Stands alone? |
+|---|---|---|---|
+| `market_locked` fix | About 2 h | No | **Yes, ship now** |
+| Rune ladder | About a lane-day (half without new store rows) | **Yes** | **Yes; before the final pace re-measure** |
+| Per-row market ceiling | About 2 h: generated `hr_market_ceilings` (`c_no_player`), `hr_market_items` view restated: greatest of `ceiling_min`, 100x book, the row's ceiling. T2 100k / 300k, T3 300k / 1M. Daily 2M spend and proceeds caps stay, which bound the funnel. EA Security list | No | Yes |
+| **Jewelry sample** | About 2-3 lane-days: `src/data/jewelry.js`, `items.js`, `recipes.js`, `monsters.js`, `artisan.js`, `damage.js` (one hook), `accrual.js`, `hr_apply` one anchored edit, `hr_hallmark` RPC, `skills.js`, `work.js`, `alerts.js`, `item-tip.js`; `tests/jewelry-rolls.mjs` with bench viewed and browser closed, the hook with hunt viewed and browser closed | **Yes:** smoke, apply the hunt catalogue, deploy at once | **Yes.** Needs the ceiling row, and no other lane. Armor-tiers only re-measures it |
+| Full set | About a week more, est. Combat hooks are spaced by the engine rule | Yes | After the sample's reviewed |
+**New tables:** `hr_market_ceilings` only (`c_no_player`). Add it to `2027-02-25-character-wipe.sql`'s list. **Wipe delay if all of it must land first:** about a week. Runes and `market_locked` alone: about a day. The ids stay, so jewelry can follow the wipe with no second wipe.
+
+**Steam.** Rolls spend materials only, odds are on the card, and there's no re-roll. Materials can be bought with gold, and Crowns can buy gold, so craft rolls go in the review Crowns already require. I don't claim this is legally fine. Hallmarked power reachable through Crowns is the open conflict Tempering already flagged.
+
+**Purpose test.** Problem: Crafting has no prized product, gold has no late use, and casters' runes are free to make. Decision: crafter, which job, burn a gem now or level first; fighter, which perks, buy now or wait. Plugs into Mining, Smithing, Crafting, Runecrafting, two grounds, the Weighhouse, the rare broadcast. **Hour 1,000:** jewelry only as good as the tier ladder, as before; runes keep selling. Keep.
+
+**Status.** **Verified by grep or probe:** the 24 rows; what the engine reads; no stat reaches spells or heals; `market_locked`; 100x book ceiling; the bench roll path; shop bids; `temper_salts` recipe and rungs in the read-only worktree; T3 salts absent there; store and rune rows. **Measured (fixture grid, stand-in rows and hooks on a scratch copy):** the XP tables above, every perk row; runes/h, incomes and deeper-rune XP (fixture grid, soon stale); `first-grounds-net-chain` at 1, 2, 3 g; 11-01 rates; armor lane's guard table. **Computed:** recipe wages (hatchets check 2,470 against 2,463 played), rune chain rates and wages, Hallmark prices in hours, chain gaps. **Estimated:** Surge at 10% and Follow-through at 6%, scaled; every behavior row; bills at new prices; +5% Sewer fix; build sizes; T3 salts time. **Not run:** parties; heals; perks at pull 8 (left running in the scratchpad at report time, not used); a never-hunted hero's coach; the feature itself.
+
 ### 2026-11-05 Armor rungs, Levels 1-8, the crossbow floor, the Glade's four (systems-engineer, lane/c-armor-tiers): MEASURED on v0.2.90; one row changed; engine deploy, no migration
 **The first-ground ladder under the attacker-level armor rule (v0.2.90 release red, `forest-cave`).** Three coin rows, low end only, so the top roll and the kill bound stay and there is no catalogue apply: Briarcoat Wolf [2,5] to [3,5], Drain Rat [4,18] to [8,18], Glade Poacher [4,14] to [8,14]. Net per hero-hour at each floor, 6-seed median: Cellar 1829.5, Thicket 1809.5 to 1838, Sewer party 1795 to 1843.5, Glade four plate 1833 to 1908, Warrens 3704. Glade in helm and body, worst seed: +23% to over +25%. The crossbow Ranger at the Sewer floor: 12-seed mean +23.7% to +26.4% (+-0.9), and `drop-tables` ranger-floor now gates that mean, with the old Drain Rat row as its mutant.
-**The Level 1 bow on the Glade, played on the real page (fresh account, practice bow, Enter twice): real, NOT built yet.** 27:42, 184 kills, 24,080 Level XP, Level 1 to 7, 52k XP/h, gold 1,147 + loot 487 against 1,334 of supplies, no death. It stopped at the 300 g gold floor, never by danger; the sim has no purse, and this hero then sells and goes again. Why it holds, from the real settle's track: both. 68% of the time nothing stands within a blow of the bow, with 1.16 monsters within 7 tiles on average, because the kite walks away from everything slower than a hero (3,200) and only the crow (4,400) is sure to catch it; the blow itself is unchanged (27 a swing). The Sewer answers the same hero (10 deaths in 8 h, 1,761 swings/h), the Warrens too (319 deaths in 7 h).
-| Glade, sim only, real settle, 4 seeds x 2 h | Bow L1 net / bill / deaths | Bow L5 net / deaths | Mage L1 net | Bow L16 bill | Tank L16 helm + body | Four L16 net |
-|---|---|---|---|---|---|---|
-| As shipped | +1,449 / 2,425 / 1 | +1,666 / 0 | -953 | 450 | +66% | 4,668 |
-| **Both poachers 3,800 (two rows)** | **-71 / 3,961 / 5** | **-179 / 6** | -1,907 | 935 | +75% | 4,498 |
-| All four at 3,800 | -233 / 4,238 / 4 | -233 / 6 | -2,060 | 910 | +75% | 4,573 |
-| All four at 3,600 | -765 / 4,504 / 10 | +54 / 2 | -4,025, 44 deaths | 940 | +75% | 4,573 |
-Recommendation: Glade Poacher 3,400 to 3,800 and Rook Poacher 3,200 to 3,800, the Thicket whelp's own pace. Both rows live on the Glade alone. XP is untouched (55.5k/h): the rush keeps paying XP and loses its profit, which is the ruled cost. Ammo stays free (ruled), and Distance is the player's own setting, so neither is a lever. Plans: `bowrush`, `bowspeed` in `tools/balance-sim/plans.mjs`.
+**Capes and jewelry: to-hit guard off, a damage cut on (built; engine deploy, then the client; no catalogue).** Guard is a shield's alone: 13 capes and 14 pieces of jewelry lost `defB`, and the jewelry keeps its other stats. A cape carries `steadyPm`, the jewelry spec's linear Steady, on Tempering's own hook: the chain's last step, summed with the Armor rung, never past the 60% total cap, armored or not (`mitigation.js`). Values: Traveler 1.5%, tier 1 Graypelt and Woolen 3%, Grayjaw's Ruff 5%, tier 2 Houndskin 7%, Alpha 9%, tier 3 Warband 11%, tier 4 Trollhide and Barrowking 15%, tier 5 18.5%, tier 6 22%, tier 7 25.5%, tier 8 28.5%. Each tier lets through 95-97% of the tier below, the armor rung's step (`temper.mjs` `a-cape-steps-like-armor`). The Character window has a Damage cut line and the item tip reads "Damage taken". Shields are untouched, so the fixture's floors do not move: its kits wear no cape.
+| Per hour, 4 seeds x 2 h, no deaths anywhere | No cape: taken / bill / net | Houndskin + Copper Studs, as they were | As they are |
+|---|---|---|---|
+| Glade 24, sword and shield | 10,996 / 25 / 4,476 | 8,699 / 5 / 4,241 | 10,363 / 5 / 4,397 |
+| Glade 24, hammer | 12,333 / 0 / 5,490 | 10,085 / 0 / 5,744 | 11,530 / 10 / 5,631 |
+| Glade 24, bow | 5,787 / 70 / 5,557 | 4,504 / 40 / 5,385 | 5,299 / 20 / 5,434 |
+| Glade 24, wand | 2,786 / 213 / 5,895 | 2,273 / 215 / 5,998 | 2,565 / 206 / 5,848 |
+| Warrens 40, sword and shield | 6,826 / 45 / 5,378 | 3,690 / 0 / 5,334 | 6,510 / 0 / 5,440 |
+| Warrens 40, hammer | 15,254 / 1,463 / 6,145 | 8,627 / 203 / 7,639 | 14,583 / 878 / 6,531 |
+| Warrens 40, bow | 4,127 / 743 / 5,055 | 2,301 / 248 / 5,413 | 4,115 / 878 / 4,695 |
+| Warrens 40, wand | 2,665 / 293 / 7,802 | 1,300 / 267 / 7,790 | 2,417 / 292 / 7,868 |
+Net carries about 300 g/h of loot dice at these seeds, and the bow's Warrens bill about 150 g/h. **Houndskin still pays, at the Level it comes in (Glade 22, helm and body, 4 seeds x 2 h):** damage taken -5.5 to -8.5% against no cape, bill saved 30-88 g/h. The recipe's inputs sell for 136 g and the cloak for 155 g, so it pays before it is worn, and the inputs come back in 1.5-4.5 h of bill alone. Against the Graypelt the exact step is -4.1% and +1 Melee damage, for -0.5% crit, so Equip upgrades offers it as a choice for a hero in Graypelt, as it did before. **The server walks through what the client draws:** a bow on the Warrens steps onto a drawn object on 8.3% of its tile moves (868 an hour at its floor), on the Glade 4.6%, on the Thicket 2%; a sword hero under 1%. Monsters 0-3.6%.
+
+**The two guard foods go on the same cut.** Frostfin Supper +4 guard for six minutes becomes 5% off every blow; River Chowder +2 for five minutes becomes 3%. Their buff keeps its `defense` type, so `hr_hunt_supplies` and the hunt catalogue do not move; the buff now pays the `steady` key, `steadyPmOf` adds it to the cape's on Tempering's hook, and the to-hit roll reads only the Defense skill and a shield. One generated file re-runs, `2026-09-13-item-buffs-catalogue.generated.sql` (two magnitudes). Who makes them: River Chowder is Cooking 52 from 2 Silverfin (Fishing 32), 2 Potato and 1 Carrot; Frostfin Supper is Cooking 70 from Raw Frostfin (Fishing 66). A buff is eaten from the bag, not by the hunt bar. Inert, for the record: Badger (`defB` 2) and Tortoise (`defB` 10) carry guard no engine path reads; `companion-perk.js` leaves every companion combat stat unprojected, seven rows in all, and no window shows them, so no tip claims it today.
+
+**The balance fixture and the server play different maps.** `tests/hunt-core/fixtures/play-ground.mjs` builds its grid from the compiled collision mask, object footprints included; the engine builds it from materials alone (`src/core/hunt-ground.js`, its own open item). Walkable tiles, fixture against server: Glade 1,109 / 1,143, Warrens 929 / 981, Thicket 1,166 / 1,217, Wickstead 1,255 / 1,282, Cellar 157 / 171, Sewer 945 / 952. `drop-tables`, `forest-cave`, `first-week-bands`, `sewer` and `tools/balance-sim` all read the fixture's map. Pointed at the engine's grid, the fixture agrees with the page (Level 1 bow on the Glade, per hour: taken 20,100-22,300 against the page's 20,100-20,500; Rook 25% of it on both), and on its own map it does not (16,000-17,100, Rook 14%). Anything path-sensitive, kiting above all, is misread. **Fixed 2026-11-05: the fixture and `tools/balance-sim` now play `gridOfMap`, the one builder the edge settle calls, and `forest-cave` `sim-plays-the-server-map` holds it tile for tile on every ground (walking and sight, two mutants).** What it exposed: the Glade at its floor nets 1,796.5 g/h, under the Sewer party's 1,843.5, and one helm-and-body seed just under +25%; the bars stand, so the Carrion Crow's coin low end goes 4 to 5 (top roll unchanged, so no catalogue): Glade 1,855.5, worst helm-and-body seed +26.8%. `first-week-bands` `risk-ladder` read "the practice set dies" as 3 deaths in one seed's hour, a number read off the old map; eight seeds on the server's map read 2 2 2 6 4 6 0 6 (mean 3.5), so the bar is re-derived from the rule: at least one death an hour on the mean of four dice. `party-defense` `lone-tank-holds` counted a monster turning on a non-tank at all, zero read off the old map; the ruling says monsters can switch and the tank takes them back. Here the Healer's peel draws a straggler 0-3 times an hour at density 8 and the Challenge has it back inside the same step (six seeds, 6 h, 36,648 swings, none at a non-tank), so the bar is now the swing that reaches a non-tank, with a new mutant where the Challenge takes nothing back. The server's object footprints stay an open item (`src/core/hunt-ground.js`): the server still walks through what the client draws.
+
+**The Level 1 bow on the Glade, played on the real page (fresh account, practice bow, Enter twice).** It is not a free run on the server, and the two poacher rows do not change that; the +1,449 g/h to -71 g/h I reported came from the fixture's map.
+| Real page, fresh hero | Poachers 3,400 / 3,200 (shipped) | Poachers 3,800 / 3,800 |
+|---|---|---|
+| 500 g purse, how each hunt ended | gold floor at 12:56, 18:00, 27:42, 35:38; one death at about 10 min | gold floor at about 11:00, 16:58, 19:33, 19:37, 24:28, 27:43, 30:06, 32:03; no death |
+| Example | 27:42, 184 kills, 24,080 XP, Level 7, balance +300 g | 27:43, 187 kills, 24,386 XP, Level 7, balance +479 g |
+| An hour past the floor (5 runs each, purse raised in the local database) | bill 3,064 g/h, balance +915 g/h, 54-56k XP/h | bill 3,338 g/h, balance +484 g/h, 54-56k XP/h |
+Against the same hero's in-band hour on the server's grid (4 seeds, coin and commons): Thicket bill 305 g/h, net +1,921 g/h, 23.9k XP/h; Glade bill 3,301 g/h, net -263 g/h, 54.7k XP/h. So the rush trades its profit for about 31k XP/h on a bill eleven times the size, which is the ruled price. Coin alone does not cover that bill, so the purse runs down and the hunt ends itself within about half an hour, a few hundred gold up once all the loot sells. Deaths stay rare. The Sewer answers the same hero harder (bill 4,590 g/h, net -1,614 g/h, 3 deaths in 1.9 h). **Poacher rows: built, measured, reverted.** On `forest-cave` they break two ruled bars on the fixture's map (Glade in helm and body +12% and +17% on two seeds; the Glade nets 1,698 g/h, under the Sewer party's 1,843.5). On the server's grid the bow's bill barely moves (+9%, with two deaths in 5 h against none in 6 h), a wand hero at 16 pays 31% more (1,447 to 1,900 g/h, net 1,779 to 1,419), a four-plate Melee does not move (net 1,801 to 1,837). The Rook's row is the one that moves the fixture; the Glade Poacher's does nothing on either map.
+
+**Guard outside armor, what ships (Level 40 Melee, steel plate, the Warrens, the server's grid, 4 seeds x 1 h, no deaths anywhere).** A guard point takes 2 points off a monster's chance to land, flat, so its worth depends on how low that chance already is; the Warrens hit at atk 22-30 against Defense 40.
+| Worn | Taken/h | Against | Bill g/h | Net g/h |
+|---|---|---|---|---|
+| No shield, no cape | 18,149 | | 4,770 | -651 |
+| Ironbound (guard 5) | 9,347 | -48% from none | 630 | 3,032 |
+| Coppercap (7) | 7,161 | -23% from Ironbound | 180 | 3,528 |
+| Steelgrate (9, attack -5) | 5,539 | -23% from Coppercap | 90 | 3,680 |
+| Coppercap + Traveler Cape (1) | 5,984 | -16% from no cape | 45 | 3,700 |
+| Coppercap + Graypelt (2) | 5,603 | -22% | 90 | 3,711 |
+| Coppercap + Houndskin (4) | 4,332 | -40% | 45 | 3,713 |
+| No shield + Houndskin (4) | 11,053 | -39% from none | 1,575 | 2,560 |
+| Coppercap, iron plate (one whole armor tier down) | 8,718 | steel is -18% | 675 | 3,033 |
+Wand: Oak book -19%, Willow book -23%, Houndskin on top -38%. No deeper ground is open; a stand-in with the Warrens' attack x1.5 (no rows changed) reads Coppercap -34% from none, Houndskin -24% on top, a whole plate tier -18%. The designer's 36-49% for +4 stands on shipped pieces. Against the armor rungs (3-5% a piece, a whole tier 18% here) one guard point is 12-16%, so a Graypelt Cloak from 6 wolf pelts out-does a whole tier of plate. Shields stay (ruled: the shield makes the tank; the lever is monster damage). Open for the designer: capes and any jewelry should not carry to-hit guard at these sizes; integer guard cannot express a 3-5% step at this depth. Unsourced rows wait with the same problem: Warband Bulwark 14, Barrowking Mantle 12, Trollhide Cape 11.
+
 **Armor rungs (balance ruling §9: "3-5% less actual incoming damage"), exact.** \`node tools/balance-sim/risk-table.mjs --rungs\`: damage reaching HP per monster swing aimed at the hero, over the ground's as-built mix, through the engine's own functions, each piece moved one tier from a full set of the rung below. The real settle agrees within 3 points on plate's whole set (Glade 16: 20.9% against 19.8%); on leather and cloth two hours is too few swings to read a piece. The unit that fits the ruling is the piece a player finds, so the bar reads the rung's mean piece. **Designer: that reading is mine, and a whole set moves 9-29%.**
 | Weight | Rung | Ground | Body | Legs | Helm | Boots | Gloves | Belt | Mean | Whole set |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -281,6 +1020,193 @@ Floor guard (`drop-tables`, its reference group's coin and commons over the stor
 **What it doesn't do.** A mixed four on the Glade still pushes for free: Level 10 nets +3.0k at 65k XP/h against Wickstead's +2.7k at 33k. Glade x1.25 wouldn't fix it (+2.3k, read at k 0.7) and fails his 11-02 floor the way it did then (a tank in helm and body at 16, guide food, +53% to -30%, also k 0.7). Monsters' stats can't reach a healed party without breaking the lone hero's floor. A four on the Warrens stays cheap too: 6 under costs about 1.7k net for 1.7x the XP. Wickstead and the first grounds barely move: their blows are small, and a fresh hero's practice set wears no armor, so its first hour is unchanged by construction (not re-played).
 
 **The Ranger's floor sits on the bar and always has.** The crossbow Ranger at the Sewer's floor reads +24.9% averaged over six seeds on today's rule, +25.3% on the guard's one seed; every combat change moves its one-seed reading by 3-5 points (20% to 28% across k 0.56-0.65). k 0.62 reads +26.5% and passes. That is the dice, not a margin: the designer should look at it.
+### 2026-11-04 Gold sinks (designer, lane/d-gold-sinks): DESIGN, read against origin/release/v0.2.90, nothing built. **Tyler: three calls at the end**
+**Tyler, 2026-11-04:** "I want all of those that you said other than the avoid ones." Prices are data rows he can overrule (`src/data/gold-sinks.js`, generated into `hr_sink_rules`). This lane also owns the total gold budget, so Tempering is the tenth row here.
+
+**Where it came out.** Eight of the nine are specified below and need no further ruling. The ninth, the boss call, can't be what was pitched: paying for an extra kill on a normal table is "buying more rare drops". The smallest honest version is at the end of this section, and it's Tyler's call. **Do they bite?** While the one-time ladders are open, yes: an estimated 24-52% of a day's gold with Tempering. Once those are bought, no: 4-19%. These are status purchases that need an audience, so they won't drain a server of 20 accounts. What bites today is the pull bill, 7,400 g/h as played, and that's already in the game.
+
+**Rules every row follows.**
+- **Nothing is rolled.** Every price is a server quote, every purchase gives a known thing. No random spends, no XP, no drop chance, no durability, no power.
+- **Four heroes, one purse.** What others see is per ACCOUNT, or a four-hero account gets four ladders for its name in chat: powders, rounds, Crier, Town Works. What a hero earns or wears is per HERO: titles, colors, setup slots, Tempering. A boss call is paid once by the party leader.
+- **First hours untaxed.** No sink appears in `hunt-tutorial.js` or What next. Only the world and the windows point at them, and the third hero stays gold's first job.
+- **First principle, what each remembers.** The last powder color, the last gift amount, the last Crier line (one press to cry it again), the worn title, a hero's colors across every outfit. Nothing is picked twice by hand.
+- **Say why.** Every refusal is below with its words. Each says when the player wasn't charged.
+
+**1a. The sinks, the player's side.** Hours are hunting at the named Level, at the rates under the burn table.
+| Sink | Price and climb | Caps and resets | Button | Refusal words |
+|---|---|---|---|---|
+| **Hearth powders**: Cinnabar (red), Quicklime (white), Borax (green) | 2,000 gp, then +2,000 each: 2k, 4k, 6k, 8k, 10k. The first is 30 min at Level 18. All five are 30,000, 7.5 h at 18, 4.3 h at 45 | Account: 5 a UTC day. Town: each burns 30 s, booked at most 5 min ahead | `Throw Cinnabar: 2,000 gp` | `show_limit` "Havora takes 5 powders a day from one account. More after midnight UTC." `show_busy` "The Hearth's powders are booked for the next {n} minutes. You weren't charged." `hunting` the existing words |
+| **Town Works: the Weighhouse** | The player's choice, 100 to 25,000 gp. 25,000 is 6 h at 18, 3.6 h at 45, 1.4 h of a four | Account: 25,000 a UTC day. Project: 1,000,000, four stages | `Give 1,000 gp`, `Give 5,000 gp`, `Give the {n} gp left today`, and a number field | `works_limit` "Havora takes 25,000 gp a day from one account, and you've given yours. More after midnight UTC." `works_over` "You can give {n} gp more today." `works_short` "The Weighhouse only needs {n} gp more." `works_small` "The smallest gift is 100 gp." `works_done` "The Weighhouse is finished. Nothing else is being built right now." |
+| **Town Crier** | 1,000, 2,000, 4,000, 8,000, 16,000 gp: 31,000 a day. The first is 15 min at 18 | Account: 5 a UTC day. Server: one line every 30 s. Level 10 and up. 120 letters | `Cry it: 1,000 gp` | `crier_level` "The Crier takes words from Level 10 heroes and up. {name} is Level {n}." `crier_word` "The Crier won't shout that word. Change it. You weren't charged." `crier_link` "The Crier won't shout web addresses. You weren't charged." `crier_long` "The Crier shouts 120 letters at most. That's {n}." `crier_limit` "The Crier takes 5 lines a day from one account. More after midnight UTC." `crier_busy` "The Crier is shouting someone else's line. Try again in {n} seconds. You weren't charged." `crier_off` "The Crier is off duty right now. You weren't charged." |
+| **Titles**, sample of five | 1,500 to 40,000 gp, table below. Each once | Hero: one worn, free to swap. No reset | `Claim for 3,000 gp`, then `Wear`, `Take off`. A locked row reads `Wolves: 3,214 of 5,000` | `title_kills` "Wolfer takes 5,000 wolves. {name} has 3,214. Gold can't skip kills." `title_owned` "{name} already has that title." |
+| **Gold Given** board | Spends nothing | Counts one UTC month, resets on the 1st | None: a board in Leaderboards, group `Town` | `empty` "Nobody has given gold to Havora this month. The first gift takes first place." `join` "Give to the Town Works, throw a Hearth powder, stand a round or pay the Town Crier." |
+| **Hero colors** | Free at creation. After that 1,500 gp + 50 a Level a save: 2,400 at 18 (36 min), 3,750 at 45 (32 min). Trying on is free | Hero: 10 saves a UTC day | `Save colors: 2,400 gp` | `colors_same` "Those are already this hero's colors. Nothing was charged." `colors_limit` "A hero can change colors 10 times a day. More after midnight UTC." |
+| **Setup slots** | 2 free. Third 5,000 gp (75 min at 18), fourth 15,000 (3.75 h), fifth 40,000 (10 h at 18, 5.7 h at 45). 60,000 a hero | Hero: 5 at most, today's limit. No reset | `Buy a third setup: 5,000 gp` | `setup_locked` "This hero's 2 setup slots are full. Delete one, or buy a third for 5,000 gp." |
+| **Stand a round** | 5,000 gp (75 min at 18), 10,000, 20,000: 35,000 a day | Account: 3 a UTC day. Town: a 45 s show, booked at most 3 min ahead | `Stand a round: 5,000 gp` | `show_limit` "Havora takes 3 rounds a day from one account. More after midnight UTC." `show_busy` "Someone's round is still going. Try again in {n} seconds. You weren't charged." |
+| **Call out** (smallest version, Tyler's call) | Rat King 10,000 gp (2 h at 25), Chief Coppercap 30,000 (4.3 h at 45), each try | Leader: 3 calls a UTC day | `Call out the Rat King: 10,000 gp`, then the warning and one confirm press | `call_party` "The Rat King wants a party of two or more." `call_leader` "Only your party's leader can call him out." `call_limit` "You've called 3 times today. More after midnight UTC." |
+| **Tempering** (lane/c-gear-upgrade, its board section at c1139a23c and `src/data/temper.js`) | **Its published prices are kept as this budget's final table.** Iron 2k, 4k, 8k, 16k, 32k. Steel 7k, 14k, 28k, 56k, 112k. Per track, per hero: 558,000 a hero | One-time ladders, hero | Its lane's | Its lane's |
+
+Chat lines, all written by the server, name stamped by `hr_chat_name_authority`: powder (Local, town) "{name} threw Cinnabar on the Great Hearth."; round (System) "{name} stood a round at the Tavern."; Works stage (System, from Havora) "The Weighhouse has its frame."; Crier (Global, highlighted) the player's line. A hero who chose quiet presence pays and shows with no name and no line, as a named fuel does today.
+
+**1b. The sinks, the builder's side.**
+| Sink | Server | Client | Art | Depends on |
+|---|---|---|---|---|
+| Hearth powders | `hr_sink_rules` rows; table `town_shows`; `hr_town_show(p_slot, p_show, p_price, p_idem)`; `hr_town_sinks_view(p_slot)`; `hr_town_show_push`; `hr_hearth_flame_of` and `hr_town_view` restated; one line added to `hr_hearth_burn` | `src/shell/windows/havora/` Hearth tab; `src/session/town-intents.js`; `src/world/town-shows.js`; `hearth-burn.js` merges `SHOW_FLAMES` | 9 sprites by `tools/world-art/hearth-flames.mjs` (three new RAMPS, 0 generations); one 16 px `fuel_powder` by script | Nothing |
+| Town Works | `hr_town_works`, `town_works_totals`, `town_works_gifts`; `hr_town_works_give(p_slot, p_project, p_amount, p_idem)`; `hr_town_works_view(p_slot)`; `hr_town_extras` body | `havora/works.js`; `src/data/town-works.js`; `sites.js` lot and plaque; `greenery.js` loses one oak; `src/world/town-works.js` | Stage 0 and 1 from existing props; stage 4 PixelLab subscription (estimate 6-12 generations); stages 2 and 3 cut from stage 4 by `pixelart_workbench` (free); plaque, one 32 px sprite by script | Gold Given helper |
+| Town Crier | `hr_crier_send(p_slot, p_body, p_price, p_idem)`; `chat_messages.crier`; `hr_chat_row` restated; flag `town_crier` in `hr_flags` | `src/data/chat-channels.js` `CRIER`; `src/social/chat-store.js`; `src/shell/windows/chat.js`: a `Town Crier` button on the Global tab, a gold-barred line (Art Director reads it) | None | Nothing |
+| Titles | `hr_titles`, `player_titles`; `hr_title_buy(p_slot, p_title, p_price, p_idem)`; `hr_title_wear(p_slot, p_title, p_idem)` (null takes it off); `hr_title_of` body; section `titles` | `src/data/titles.js`; `tools/gen-title-catalogue.mjs`; `src/shell/windows/character/titles.js`, a tab; Inspect | None | `hr_title_of` stub, `from_title`, town label |
+| Gold Given | `account_gold_given`; `hr_gold_given_add` (not client callable); `hr_lb_boards()` and `leaderboard_ranked` restated | `src/data/honor-roll.js` row, `reads: 'gold'`; `src/shell/windows/honor.js` value words | None | Nothing |
+| Hero colors | `hr_hero_colors_set(p_slot, p_colors, p_price, p_idem)` over `player_outfits.base_colors`; `hr_town_look` carries `colors` from lane 1; `hr_outfits.regions` all head, body, legs, feet | `HERO_DYES_SHOWN` true; `outfit-sprite.js`; `character/outfit.js`; `src/world/hero-dye.js`, new; `hunt-view/scene.js` | 448 mask frames by script, below | Masks |
+| Setup slots | `hr_setup_slot_buy(p_slot, p_price, p_idem)`; rung in `player_progress`; `hr_setups_of`; section `setup_slots`; preset verbs refuse a new setup at or past the count | `hunt-prep.js`, `preset-intents.js` | None | Nothing |
+| Stand a round | `hr_sink_rules` row, `hr_town_show`, `town_shows`: **the powders' mechanism** | Havora Round tab; `TAP_OPENS.havora_tavern`; `town-shows.js` | One 64 x 64, 8-frame burst by script or `vfx_workbench` (free), 3 recolors | Powders |
+| Call out | `hr_boss_calls`; `hr_boss_call(p_slot, p_call, p_price, p_idem)` wrapping the enter path; two ground and monster rows; end reason `boss_felled` | `hunt-detail.js`; `src/session/boss-intents.js` | None: `monster-art.js` aliases | Titles, armor re-measure |
+
+**The server pattern.** Every verb is `2026-10-25-stamina-refill.sql` in shape: a quote from the server catalogue on the server clock; the verb takes a slot, a catalogue id, the price the player saw and a key; `hr_intent_replay`; a rate bucket; `hr_hunt_lock`; re-quote, `quote_changed` if it moved; ONE `hr_apply {gold: -price}` journalled kind `shop` (already in `c_ledger_kinds`, so no `hr_apply` edit), intent `<verb>:<id>:<price>`; then the shared write; a §4 self-check; a baseline row; "on the EA Security list" in the header. Three differences. **(1)** A per-account count reads the ledger by `user_id` across slots and takes advisory `hr:sink:<uid>` first, or two heroes pressing together both pay the first price. **(2)** Lock order is hero, sink key, `hr_apply` (the purse), then the town key, so one account's settle can't hold the town's Hearth. A queue that filled in between raises and rolls back: nobody pays for a refused show. **(3)** `player_ledger` prunes at `retain_days`, so nothing ranked sums it; `account_gold_given` is the counter. The Havora window reads `hr_town_sinks_view` while it's open, not in the envelope, so an idle hero costs no extra read; a stale price only earns `quote_changed`, and every press re-reads it. That read also returns the last powder, gift and Crier line from the server, so the window opens on what the player chose last. `hr_town_view` gains one indexed probe per read.
+
+**Hearth powders and the round: one mechanism, two offers (merged, my call).** They answer the same purpose test, so one verb, one table, one rule table. The offers stay separate because the Hearth and the fireworks are different places to look.
+- **No Inner Flame XP.** The delta has no `xp` key and no item is burned, so no path can pay it. Buying at the fire instead of holding an item also means nothing to stock, trade or use to dodge the limit.
+- **Doesn't cheapen a named fuel.** Three colors of their own, and the five named colors are never for sale. 30 s against 60-90. No burst, no item link, and the line goes to Local, not System.
+- **A named fuel never waits.** Bought rows live in `town_shows`, and `hr_hearth_burn`'s queue and its per-hero count read only `hearth_flames`, so they can't see them. `hr_hearth_flame_of` answers a named flame first. One added line, `hr_town_show_push(map, start, end)`, pauses a bought flame under the Hearth key, so its buyer still gets every second paid for and sees "Your powder burns after the Rat King's Knot."
+- **Traps.** The Hearthrise event must never read `town_shows`: gold into that meter is the gold-funded XP buff on the avoid list. The lane adds a guard. Bought flames stay out of `src/data/hearth.js`, which `recipes.js` pulls into the hr-accrue bundle, so a row there would move the edge hash. Ramps use only palette colors: Cinnabar `#3e1216 #5e1a1f #8e1f1f #c23a2a #f2a03a`, Quicklime `#6a6865 #8a867d #c9bfa0 #e6dcbc #c4ccd2`, Borax `#2c4a2c #3d6234 #557a3e #73944c #7ccf4a`. The Art Director checks each against verdigris and mosslight side by side.
+- **Text and limits.** Powder and round lines hold no player text: only the server's sentence and the stamped hero name, so moderation is the name's own (`hr_name_blocked` at creation, `hr_name_holds`, the word filter on every chat insert). `hr_town_show` has its own bucket, 10 a minute.
+- **The Tavern exists:** `DISTRICTS.tavern` "The Tavern", `havora_tavern` on P07 at plan (62, 20). No rename. Fireworks draw over Hearth Square, where idle heroes stand. A tap on the Tavern opens the Round tab.
+
+**Town Works: raise the Weighhouse.** The Market's window is titled "The Weighhouse", and no such building stands in Havora (grepped `src/data/world`). The blueprint's `market_hall` stood where the Great Hearth stands now. A weighhouse on the river bank is where goods would come in. Effect: visual only, no buff.
+| Stage | Total given | What Havora sees | Art |
+|---|---|---|---|
+| 0 Staked out | 0 | Rope and stakes on the lot, a sign | Script |
+| 1 Footings | 100,000 | Stone footing, timber and sacks stacked | Existing `crates`, `sack_stack`, `cart_wheel`, `woodpile` |
+| 2 Framed | 300,000 | The timber frame | Cut from stage 4 |
+| 3 Walled | 600,000 | Walls and roof beams | Cut from stage 4 |
+| 4 Finished | 1,000,000 | Slate roof, the great scale on the gable, the plaque in gold | PixelLab subscription |
+- **The lot:** plan (94, 55), footprint 8 x 6, x94-101 y55-60: grass on the east bank (`~` ends at x93), off every way and stand. One `oak` at (98, 58) comes out of `greenery.js`. **Plaque** at plan (103, 53), inside the first frame at 1366 x 768 (computed: 21 x 12 tiles round the first stand). Tapping it opens Havora on Works. The footprint blocks from stage 0, so walkability never changes with the stage; the mask hash moves once, and `gen-town-stations --check` re-runs. Art is an ambient row swapped by stage, the mechanism `hearth-burn.js` already uses for the fire. **One thing to check in the build:** stage 4 stands taller than its lot, so a hero on rows 52-54 must draw behind it.
+- **The one client number:** the gift. The server refuses anything outside 100, what's left today and what's left on the project, under its own clock, before the charge. Only `hr_town_works_give` writes the totals, one journal row per gift, intent `town_works:<project>:<amount>`.
+- **The total:** a million is about 17 days of one hunter's whole income. With 20 accounts giving an estimated 3,000-10,000 a day it finishes in 5-17 days, inside a beta. All 20 at the cap: 2 days. No account can do it alone in under 40 days. For Open Beta the total is one row, raised before that wipe.
+- **The plaque:** top 10 accounts by gold given, each shown as its lead hero's name. The window also shows your own place and total. Every number comes from `town_works_gifts`, hidden names and hidden accounts as on the boards.
+- **When it's finished:** a System line, the building stands until the next wipe, a tap on it opens the Market window (a door, no power, the Market stays open everywhere else), the plaque stays. The next project is one row. None is committed; the Harbor Light is my candidate.
+- **The wipe clears totals and plaque.** They're made of gold the wipe deletes and name heroes who no longer exist, and a beta that inherits a finished Weighhouse loses the one goal the whole server shares.
+
+**Town Crier: what's checked, measured on the live chain.** A line runs through the same gates as chat, and pays only after all of them.
+- **Existing, reused:** `hr_chat_clean`, `hr_chat_body_fault` (it refuses bad item links), `chat:burst` 5 per 10 s and `chat:send` 20 a minute (the Crier counts against both), `hr_chat_word_filter` on write and `hr_chat_mask` on read, `chat_blocks` on read and `chat-store.js` on push, `hr_chat_name_authority` for the name. No client role can insert a chat row (self-checked in `2026-10-25-chat-channels.sql`), so `crier = true` can't be forged.
+- **New and stricter:** 120 letters, at most one item link. A web address is refused. A word the mask would change is refused before the charge: masked stars aren't what anyone paid for. Level 10, so a throwaway account can't shout. A `crier` bucket of 3 a minute. Server-wide one line per 30 s.
+- **No chat mute exists anywhere** (grepped). The only stop for an abusive line is a block, one player at a time. This adds a paid megaphone with no off switch per person, so the `town_crier` flag is the server-wide stop, and **a per-account mute goes on the EA Security list**.
+- **Honest guess:** Global is free, and with 20 accounts nobody talks over you. Expect almost no use before Open Beta.
+
+**Titles, the sample of five (§10 row limit: 20; expand only after this is played).** Beside the name in the town label and in chat: "Marlow the Wolfer". Also the Character sheet header and Inspect. Not on boards or hunt bars, and not the party panel in this round, which would mean restating a hot body. The title is a catalogue id, never text a player typed, so nothing needs moderating. Counters are `player_progress` `ev:kill_monster:<id>`, per hero, and every hero present gets the kill (`hunt-rewards.js` `countKill`).
+| Title | Counts | Kills | Time to earn | Price | Gold time |
+|---|---|---|---|---|---|
+| Ratcatcher | `rat`, `drain_rat`, `granary_rat` | 2,500 | 8-9 h (Wickstead 501-579 kills/h, 13 of 24 are rats; measured kills, computed share) | 1,500 | 35 min at 10 |
+| Wolfer | `gray_wolf`, `gray_whelp`, `briarcoat_wolf`, `dire_gray`, `grayjaw` | 5,000 | 8.3-9.3 h (Thicket 540-606 kills/h, measured) | 3,000 | 1.1 h at 10 |
+| Gamekeeper | `glade_poacher`, `rook_poacher` | 2,500 | About 26 h (about 97 a hour, from 48.5 bears/h measured at pull 3) | 10,000 | 2.5 h at 18 |
+| Knotcutter | `rat_king` | 250 | 42-83 h in a party (3-6 a hour, from the Rare band's promise, not measured) | 25,000 | 5 h at 25 |
+| Potbreaker | `goblin_scavenger`, `goblin_digger`, `goblin_skulker`, `hobgoblin_foreman` | 10,000 | 20-33 h (**estimated**, no Warrens kills/h on file) | 40,000 | 5.7 h at 45 |
+Each name is a trade or a thing from that creature: a wolfer hunted wolves, a gamekeeper catches poachers, the King is a knot of tails, the goblins wear stolen pots. The Wolfer lands about hour 9, a good first one. **Known limit:** a low hero carried through the Warrens still counts kills, as the bestiary does. That costs its time, so I'm leaving it.
+
+**Gold Given: the three reasons the wealth board was cut, answered.**
+| Reason (`honor-roll.js`) | Answer |
+|---|---|
+| The purse is the account's, one purse and many heroes | Tyler ruled it ranks accounts. It reads a counter, never the purse. The row shows the account's **lead hero**: whichever gave most this month, lowest slot on a tie, through `hr_character_name`, "Name hidden" and `hr_lb_hidden` as on every board |
+| It rewards hoarding against the game's sinks | The opposite: it only rises as gold leaves the game |
+| Gold is the one ranked value another account can hand you | **Still partly true, and this is the bad part.** Crowns buy gold from players, so real money can reach this board at one remove. Three limits: no prize of any kind; it counts only sinks with a daily cap, so nobody climbs faster than 121,000 gp a day (96,000 once the Works finishes), however much gold they hold; and it resets monthly. A patient player at the cap ties a whale at the cap |
+**What counts:** gold given to the town: Works, powders, rounds, the Crier. The name says the rule. Not supplies, slots, houses, refills, bench tax or Tempering; and not titles or colors, which are for yourself. **Reset:** the 1st of the UTC month, so a new player has a real shot at a board. Only verbs write the counter, through `hr_gold_given_add`, in the same transaction as the charge. The board shows within 5 minutes, the existing refresh, and the window says so.
+
+**Hero colors: one simplification.** Today `player_outfits` holds `colors` per worn outfit and `base_colors` for the standard hero. Keep one set: `base_colors`, head, body, legs, feet (Tyler 10-15, and `MASK_COLOURS` has exactly four). A hero's colors follow it across every outfit, so swapping outfits never re-charges or asks twice. The witch's hat, robe and trim become head, body, feet.
+- **Masks: 8 outfits x 56 frames = 448 frames, 0 generations planned, 0 paid credits.** A mask must line up with its frame to the pixel, which a generator won't do. Script it the way `hearth-flames.mjs` re-pours the fire: `tools/world-art/outfit-masks.mjs`, region by height from the frame's anchor plus a per-outfit table of which colors are cloth (skin, weapons and shields stay out).
+- **Measured:** the sheets hold 49 to 236 colors, and the top 32 cover 87-100% of the pixels. A false-color sample shows hat, robe and trim split cleanly by hue on the witch and don't on the sorcerer, so height is needed. **Not proven on a walk cycle.** Sample the knight first. Fallback: touch up by hand in `pixelart_workbench`, which is free. Masks go in their own `hunt-masks` atlas, loaded on first need, so first load doesn't grow.
+- **PixelLab:** I couldn't read the subscription balance from this lane. Colors don't need it; the Weighhouse does. **The PixelLab tools fall back to paid credits when the subscription runs out, so the art lane reads the balance before each batch and stops at zero.** Going past that needs Tyler's yes.
+- **The real cost is the world.** `src/world` doesn't draw dyes today; only the Character window does. A dyed look is one 384 x 1024 sheet in memory, 1.6 MB. `hero-dye.js` keeps an LRU of 24 looks, 38 MB at worst; anyone past that draws undyed. Performance is a pillar, so the lane measures it with `pane-probe.js` before shipping. Dyes are last in their lane for this reason.
+
+**Setup slots: this one needs challenging.** A hero has **5 free today** (`ACTION_SET_LIMITS.presets`, `hr_hunt_limit('presets')`, `player_action_sets` 0..4), so "a free couple" takes away something free, and it charges rent on the first principle's own feature. Every hero starts with six weapon sets, and the tutorial says to save a setup "so you can come back to it after trying another style". It's also the smallest sink here. I've built it as ruled, because 2 does get through the tutorial (walk-through below), but **I'd give 3 free**. It's one row. The limit stays 5, so no table, engine or edge change. The rung is stored with GREATEST in `player_progress` and read per hero. Every verb that takes a setup number refuses a new number at or past the count. It lands before the wipe in any case, because giving testers less after a wipe reads as a nerf.
+
+**The boss call: verdict.** **As pitched it can't ship.** A Rat King kill rolls 4.65% of a Rare or trophy, so paying for kills is buying rare chance, against the avoid list and the 10-20 h Rare pace. It's also not hard to make it a gold sink: his kill is worth about 215 gp in coin and book value, so any real fee is a net sink, and the fee alone fixes nothing. The trouble is the chance. And a paid try at a random prize is the gambling worry.
+**Stripped, spawned into a running hunt: not fun.** An extra monster that pays nothing, in a fight the player can't touch.
+**The smallest version worth building:** a separate one-room fight, a **proof**, not a farm.
+- A press on the ground's page, warned with one confirm per the 11-04 risk ruling. A party enters one room and meets a stronger copy of the boss, `rat_king_called`, HP and attack multiplied (to tune on the sim after `lane/c-armor-tiers`; estimate HP x2.5, attack x1.5).
+- **The row has `xp: 0`, `gp: [0, 0]`, `drops: []`.** It can't pay XP, coin or a rare, because it has nothing to pay. No yield trick: `yieldOf` reads `yieldPm: 0` as full yield.
+- **The prize:** a title through the normal title table, one kill of the called row, price 0: "the Grate Thief" (the King's crown is hammered from drain grates) and "the Cauldron Thief" (the Chief wears his). Same price whatever the dice say, nothing tradeable, plus a System line through the rare-drop notice path. Dice decide a fight, not a payout, so I don't read this as gambling. That's a design opinion, not legal advice; it goes in the Steam/legal review the Crowns ruling already requires.
+- **Rules:** bestiary and tally don't count it; `gen-hunt-sessions` excludes it from `hr_hunt_roster`; a death costs what a death costs; supplies and stamina run as usual. The fight ends on `boss_felled`, on a death, or after 10 minutes.
+- **Is it fun?** It's the one climax the game has, and the first place Tyler's "if they think their character or party is optimized" gets an exam. A streamer would run it. A party plays it a few evenings per boss, then never again. **As a sink it's nothing:** about 120,000 gp an account, ever. **My recommendation: not before this wipe.** It adds rows and takes nothing from anyone, so it needs no second wipe. Build it last, after the armor re-measure. If capacity forces one cut, cut this one.
+
+**2. Burn per player-day: all ten against income.** **The rows are ESTIMATES of behavior; no player has ever seen these.** Income and prices are measured or computed. Income: **day one**, first 10 h hunted, 26,437-34,998 g (measured, `gold1103`). **Hunter**, 12 h, 60k (the 11-01 table; Tempering's hours 20-50 give 51-67k). **Rich**, lone Level 45, 12 h at 5.7-8.7k g/h, 85k (measured expected gold; real players press the pull and may run 1.4x). **Four heroes**, 18.4k g/h together, 220k (measured to hour 50). Rates used for hours above: Level 10 at 2.6k g/h, 18 at 4k, 25 at 5k, 45 at 7k.
+| Sink | Day one | Hunter | Rich | Four heroes | Assumed use (hunter / rich / four) |
+|---|---|---|---|---|---|
+| Hearth powders | 0 | 700 | 2,000 | 6,000 | One per 3 days / one a day / two a day |
+| Town Works | 0 | 3,000 | 10,000 | 25,000 | The cap at the top end |
+| Town Crier | 0 | 500 | 1,000 | 1,000 | One per 2 days / one a day / one a day |
+| Titles | 0 | 1,500 | 2,200 | 8,000 | One-time. 14,500 over 10 days / 65,000 over 30 / 318,000 over 40 |
+| Gold Given | 0 | 0 | 0 | 0 | Spends nothing |
+| Hero colors | 0 | 350 | 550 | 1,700 | One a week, a hero |
+| Setup slots | 0 | 1,400 | 2,900 | 8,000 | One-time. 20,000 over 14 days / 40,000 over 14 / 240,000 over 30 |
+| Stand a round | 0 | 700 | 2,500 | 5,000 | One a week / one per 2 days / one a day |
+| Call out | 0 | 0 | 3,000 | 4,000 | One-time. Three tries over 30 days |
+| **The nine** | **0** | **8,150, 14%** | **24,150, 28%** | **58,700, 27%** | |
+| Tempering, published prices | 0 (no Iron until 15) | 6,200 | 14,500 | 55,800 | Iron 124k over 20 days / Steel 434k over 30 / 2.23M over 40 |
+| **All ten** | **0** | **14,350, 24%** | **38,650, 45%** | **114,500, 52%** | |
+| Once one-time ladders are bought | 0 | 5,250, 9% | 16,050, 19% | 38,700, 18% | Powders, Works, Crier, colors, rounds |
+| And once the Works finishes | 0 | 2,250, 4% | 6,050, 7% | 13,700, 6% | Until a next project |
+| Income | about 30,000 | 60,000 | 85,000 | 220,000 | |
+**The most an account can burn a day on what repeats (computed): 121,000 gp:** 30,000 powders, 25,000 Works, 31,000 Crier, 35,000 rounds. That's 202% of a hunter's day, 142% of a rich hero's, 55% of a four's. A show-off can burn everything; a four can't.
+**One-time, all of it (computed):** a four 5.81M (2.9M house and slots, 2.23M Tempering, 318k titles, 240k setups, 120k calls), about 26 days at 220k. A lone hero 3.72M, about 44 days at 85k.
+**Do they bite?** Tempering does most of it. Without it the nine take an estimated 14-28%, and they fade to 4-7% once there's nothing left to build. **The evidence says expect less:** Blessings took 1,900 g in 14 days, and refills have sat at zero since 10-23. Players skip optional services. What bites is the choice already in the game: the pull, 7,400 g/h as played at Level 18, 89,000 g over 12 h, and six refills at Level 45, 98,000 g. **So don't raise hero slots because these exist.** Raise them when the ledger shows people paying. Every lane adds its intents to `tools/vitals.mjs`, so a sink at zero for two days gets flagged. Tempering's prices stand. They're the one row that buys power, it's already a long ladder, and the first three Iron rungs are 14,000 gp.
+
+**3. Walk-through against real data.** Each player holds only what the steps before gave them. Every name was grepped in `src/data` or the migrations on v0.2.90. Purses are the played lives in the hour-20 section.
+| Sink | Stage | Holds, and from where | Path | Doable? |
+|---|---|---|---|---|
+| Hearth powders | Level 10 | 15.7k at 10.4 h, Marlow | Back at the arrival yard; Havora icon (phone: Also here); Hearth tab; Throw; the hero walks to a `hearth` stand (`hr_town_place`, as a burn does) | Yes. A hunting hero is refused first, in town words |
+| Town Works | Level 17 | 41.2k at 21.3 h | High street east; plaque at (103, 53), cobble, free tile (probed); tap opens Works; Give | Yes. Lot and tile checked against ground, scenery, greenery and stands; the oak moves |
+| Town Crier | Level 10 | 15.7k; Level 10-11 at hour 10 (measured) | Chat, `CHAT_TABS.global`; type; `Town Crier`; `Cry it` | Yes at 10. At 9 the words say why |
+| Wolfer | Hour 9-10 | 5,000 wolves from 540-606 kills/h; 15.7k | Character (C), Titles; Claim; Wear; seen in town and chat | Yes |
+| Knotcutter | Level 12 on | Second hero free, 2 starter slots; Sewer duo played at 12; `minParty: 2` on the King's pocket | 42-83 h, then Character, Titles | Yes, by party only. Alone you skip his hall (`MIN_PARTY_NOTE`), so the row says so |
+| Gold Given | After a gift | The counter, written with the charge | Leaderboards (Z), group Town | Yes, within 5 minutes |
+| Hero colors | Creation, then any | `hr_create_hero` takes colors; the step is behind `HERO_DYES_SHOWN` | Creation, free; later Character, Outfit, try on, Save | Only once masks ship. The flag stays false until then, so the old step never returns half-built |
+| Setups, tutorial | Hour 1-2 | No setups saved | `save_setup` asks `setup_saved`, one setup, when in town with a saved bar and the Thicket walked: `free` = 0, under 2 | **Yes.** One step, one slot; no other tutorial step names setups |
+| Setups, more | Hour 5 | 12-17k | Second free. Third refused with the price; `Buy a third setup` in Hunt prep | Yes |
+| Stand a round | Hour 3-5 | 6.7-16.8k | Tavern tap (`havora_tavern`), or the icon; Round | Yes, against saving for the hero, as it should be |
+| Call out | Level 25-ish | A party; `rat_king`'s room in `millrace_sewer` | Hunts, The Sewer, Call out, warning, confirm | Unbuilt; numbers need the sim |
+| Tempering | Level 15 | Iron worn at hour 18-22 | Shop, Services | Its lane walks it |
+
+**4. The build: three lanes plus the boss, in order.** Capacity is 1-2 at a time. Every lane branches from `origin/release/v0.2.90` and merges `origin/main` once that lands; today's main is too old. Migration dates from 2027-02-27, entries at the end of `tests/schema-apply-order.json`. No §2 line moves. Works, Crier, Gold Given and rounds are shared surfaces: server clamps, one journal row per write, no client number reaches another player. All go on the EA Security list.
+| Order | Lane | Sinks | Runs | Files | Edge |
+|---|---|---|---|---|---|
+| 1 | `lane/c-town-shows` | Powders, round, Crier, Gold Given; the shared plumbing | **Cloud** (script art, `local-world`, no secrets) | `2027-02-27-gold-sinks-catalogue.generated.sql`, `2027-02-27-town-shows.sql`, `2027-02-27-town-crier.sql`, `2027-02-27-gold-given.sql`; `2027-02-25-character-wipe.sql`, `tests/char-wipe.mjs`; `src/data/gold-sinks.js`, `chat-channels.js`, `honor-roll.js`, `shell-windows.js`, `world/stations.js`; `src/session/town-intents.js`, `town-presence.js`; `src/world/town-shows.js`, `town-works.js` (stub), `hearth-burn.js`, `town-scene.js`, `world-boot.js`; `src/social/chat-store.js`; `src/shell/renderers.js`, `window-manager.js`, `windows/havora/` (with a hidden `works.js` stub), `windows/chat.js`, `windows/honor.js`; `tools/gen-gold-sinks.mjs`, `world-art/hearth-flames.mjs`, `registry.mjs`, `round-fireworks.mjs`, `vitals.mjs`; `art/world/common/*`; `tests/town-shows.mjs`, `town-crier.mjs`, `chat-social.mjs` | None |
+| 1, alongside | `lane/c-hero-sinks` | Setup slots, then titles, then colors | **Cloud** for setups and titles; local for colors (masks, Art Director, perf) | `2027-02-28-setup-slots.sql`, `2027-02-28-titles.sql`, `2027-02-28-titles-catalogue.generated.sql`, `2027-02-28-hero-colors.sql`; `src/data/titles.js`, `outfits.js`; `src/session/preset-intents.js`, `character-sections.js`, `character-session.js`; `src/shell/windows/hunt-prep.js`, `character/index.js`, `character/titles.js`, `character/outfit.js`, `inspect.js`; `src/app/hero-create.js`; `src/render/outfit-sprite.js`; `src/world/hero-dye.js`; `src/hunt-view/scene.js`; `tools/gen-title-catalogue.mjs`, `world-art/outfit-masks.mjs`; `art/world/hunt-masks/*`; `tests/setup-slots.mjs`, `titles.mjs`, `hero-colors.mjs`, `character-window.mjs`, `hero-creation.mjs` | None |
+| 2 | `lane/c-town-works` | The Weighhouse | Art local, for PixelLab and the Art Director; the server half can be cloud | `2027-03-01-town-works.sql`, `2027-03-01-works-town-stations.generated.sql`; `src/data/town-works.js`; `src/data/world/town/sites.js`, `greenery.js`; `src/world/town-works.js`; `src/shell/windows/havora/works.js`; `tools/gen-town-works.mjs`; `art/world/havora/works_*`; `tests/town-works.mjs`, `town-stations.mjs` | None |
+| 3, last | `lane/c-boss-call` | Call out, **only on Tyler's word** | Local: edge deploy, one local `run-smoke`, the hunt-viewed and browser-closed tests | `2027-03-02-boss-call.sql`, `2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql`; `src/data/monsters.js`, `hunts.js`, `hunt-grounds.js`, `monster-art.js`, `hunt-sessions.js`, `catalogue-coherence.js`, `titles.js`; `src/core/hunt/*`; `src/session/boss-intents.js`; `src/shell/windows/hunt-detail.js`; `tools/gen-hunt-sessions.mjs`; `tests/boss-call.mjs`, `hunt-core/drop-tables.mjs` | **Yes.** Comes after `lane/c-armor-tiers` and the pace re-measure, since it reads their numbers |
+**Why that order.** Town-shows opens four sinks at once and lays the plumbing. Setups are the one change that takes something away, so they must beat the wipe. The Works is the biggest show, but it adds rows and waits on art, so it can follow the wipe with no second wipe. So can titles, colors and the boss. **If the wipe has to be soon, the must-land list is town-shows and setups.** That's a call for the Coordinator, against Tyler's "every planned change before a wipe".
+**How the lanes stay apart.** Lane 1 ships the seams so the others never touch its files: `hr_town_extras` (lane 2 replaces only the body), `hr_title_of` returning null with `from_title` on chat rows and `title` in `hr_town_look` and the town label (lane hero-sinks replaces only the body), `colors` in `hr_town_look`, and hidden stubs for `havora/works.js` and `world/town-works.js`. Lane 1 also adds **all** new table names to the wipe's lists in one edit; the file skips tables that don't exist yet. **Four registries can't be split:** `tests/schema-apply-order.json`, `src/data/refusal-words.js`, `tests/restore-census.baseline.json`, and the CI shape files. The second lane to land merges the first. The Havora window has no shortcut: every letter is taken and WASD walks, so `window-manager.js` gets a `noShortcut: true` for a launcher row with `key: null`, with `phoneIcon: false` (the phone row is full). Its label reads `TOWN_NAME`, the one place the city's name lives.
+
+**Every new table, and the wipe.** `2027-02-25-character-wipe.sql` refuses an unlisted table by name.
+| Table | Lane | Holds | Wipe list |
+|---|---|---|---|
+| `hr_sink_rules` | 1 | Prices, climbs, caps, seconds | `c_no_player` |
+| `town_shows` | 1 | Each bought flame or round, who and when | `c_wipe` |
+| `account_gold_given` | 1 | Per account, hero and month | `c_wipe` |
+| `hr_titles` | hero-sinks | Title rows | `c_no_player` |
+| `player_titles` | hero-sinks | Held and worn | `c_wipe` |
+| `hr_town_works` | 2 | Projects and stage totals | `c_no_player` |
+| `town_works_totals` | 2 | A project's total and finish time. No row reads as 0, so the wipe's truncate needs no reseed | `c_wipe` |
+| `town_works_gifts` | 2 | Per account, per project; today's count | `c_wipe` |
+| `hr_boss_calls` | boss | Which rows, what fee | `c_no_player` |
+New columns ride tables already wiped: `chat_messages.crier` and `from_title`. Colors use `player_outfits.base_colors`, already there.
+
+**Purpose test (§10).**
+| Sink | Player problem | Decision | Plugs into | Hour 1,000 | Call |
+|---|---|---|---|---|---|
+| Powders, round | Gold can't say "look at me" where people stand | When to spend, and on what | Hearth Square, the board | Yes, if there's a crowd | Keep, merged |
+| Town Works | A shared world with no shared goal | Give, or buy my next rung | Map, Market, plaque, board | Each project is one row | Keep: the best of the nine |
+| Crier | Reaching everyone, for trades and parties | Is this line worth the climb? | Chat, Market, party finder | Yes, at scale | Keep, cheap to build |
+| Titles | Long kill counts are invisible; bestiary stages aren't shown | Which to wear; which creature next | Bestiary counters, town, chat | Yes, as rows grow | Keep |
+| Gold Given | Rich players have no public way to give | Compete this month? | The four sinks | Yes, it resets | Keep, with the Crowns flag |
+| Colors | Every hero of a style looks alike; a picked blue never showed | Your look | Outfits, the hidden creation step | Yes | Keep, last |
+| Setup slots | More loadouts | Which styles to keep | Hunt prep | Mostly gone by then | Weak, see above |
+| Call out | No climax, no exam for a built party | Are we ready? | Risk ruling, Tempering, titles | No | Weak as a sink, Tyler's call |
+
+**Done:** this design. **Verified, by grep and small read-only probes on v0.2.90:** 5 setups today; the Tavern; no Weighhouse building; no chat mute; chat limits and masking; `countKill` for every present hero; `yieldOf`'s 0 trap; lot and plaque tiles against ground, scenery, greenery and stands; 56 frames x 8 outfits; color counts; Tempering's rows in `src/data/temper.js`; a Rat King kill at about 215 gp of coin and book value, Chief Coppercap's about 480, and 4.65% and 6.73% of a Rare or trophy. **Measured earlier, quoted:** incomes, kills/h at Cellar, Thicket, Wickstead, played purses. **Computed:** totals, ceilings, hours from those rates. **Estimated:** every behavior row in the burn table; Warrens kills/h; King kills/h; the Weighhouse's generation count; called-boss multipliers; how fast 20 accounts fund it; 38 MB for dyes. **Not checked:** PixelLab's subscription balance. **Could still be wrong:** a million may be far off once real players give; the height-band masks may fail on walk frames; stage art's draw order against heroes on the high street.
+
+**For Tyler, three calls.**
+1. **The boss call.** Build the proof version last, or cut it. **I'd build it after the wipe, and I'd cut it first if capacity is short.** As pitched it buys rare chance, and it can't ship.
+2. **Setup slots.** 2 free as you said, or **3 free, which I'd do**: it's one row, and it stops charging for the feature your first principle asks for.
+3. **Gold Given and Crowns.** Real money can reach this board at one remove, capped by the daily limits. I'd keep it, since there's no prize and it resets monthly. Your rule for the wealth board was stricter, so you may want it gone.
 
 ### 2026-11-04 The release gate: what 30 reds were, a preflight, and where the minutes went (reliability, lane/r-release-gate): BUILT; the timing still needs a clean GitHub run
 **Measured, last 14 days of push runs on `release/*`:** 61 releases, 19 green on the first finished run (31%), 1.7 finished runs a release. Eight green runs read: 22-122 min, median 57. The gate is bimodal, not slow everywhere: 22 min with no proof to run (147 runner-minutes), 50-120 at 600-980 runner-minutes on GitHub's 20 slots.

@@ -12,14 +12,15 @@
 // in gold, outlined in shadow, in the bottom-right corner. Only palette colours are
 // written, with binary alpha, so the output stays inside the locked palette.
 //
-// THE STORE'S RUNE (supply-basics.js, one a family) is the Chalked tablet in plain stone: every
+// THE STORE'S RUNES (supply-basics.js, one a family a tier) are the Chalked tablet in plain stone: every
 // colour mapped by its lightness onto the shadow and stone ramps, so the basic rune reads as the
-// crafted one without its colour. Written only when the family has none (plain_fire_rune.png was
-// drawn by hand before this tool and is kept).
+// crafted one without its colour; a deeper one carries its tier's numeral (the rune ladder, 2026-11-05,
+// no generations). The Chalked partner is written only when the family has none (plain_fire_rune.png
+// was drawn by hand before this tool and is kept).
 // The Ice and Poison Chalked tablets were recoloured once from the old Chaos and Death Rune tablets
 // (frost and venom ramps on the mark); every other Chalked tablet is its family's old rune icon.
 //
-//   node tools/world-art/rune-icons.mjs           write the deeper tiers (and any missing store rune) of every crafted family
+//   node tools/world-art/rune-icons.mjs           write the deeper tiers and their store runes (and any missing Plain) of every crafted family
 //   node tools/world-art/rune-icons.mjs --check   exit 1 when a written tier icon differs from a fresh one
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -97,6 +98,12 @@ async function main() {
       const png = encodePNG(stamp(base, t.tier));
       if (check) { if (!existsSync(file) || !readFileSync(file).equals(png)) { console.error('stale: ' + runeId(f, t.tier) + '.png'); stale++; } }
       else { writeFileSync(file, png); console.log('wrote ' + runeId(f, t.tier) + '.png'); }
+      const deep = BASIC_SUPPLIES.find((b) => b.partner === runeId(f, t.tier));
+      if (!deep) continue;
+      const deepFile = join(ROOT, 'assets', 'icons-bundle', 'pixel', 'supplies', deep.id + '.png');
+      const deepPng = encodePNG(stamp(plain(base), t.tier));
+      if (check) { if (!existsSync(deepFile) || !readFileSync(deepFile).equals(deepPng)) { console.error('stale: supplies/' + deep.id + '.png'); stale++; } }
+      else { writeFileSync(deepFile, deepPng); console.log('wrote supplies/' + deep.id + '.png'); }
     }
   }
   if (check) { console.log(stale ? 'rune-icons --check: ' + stale + ' stale' : 'rune-icons --check: every tier icon is fresh'); process.exit(stale ? 1 : 0); }

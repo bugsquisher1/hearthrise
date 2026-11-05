@@ -142,7 +142,7 @@ export const VERBS = Object.freeze(
        verbs stay separate for the dispatch-table reason — a body field that changes WHAT the verb
        does is a typo away from a different intent. */
     'market_list', 'market_cancel', 'market_buy', 'market_browse', 'market_item', 'market_mine',
-    /* THE GAME MASTER'S STOP (2027-03-05-gm-tools.sql; ./gm-stop.js). The gate refuses everyone but a row only a migration writes. */
+    /* THE GAME MASTER'S STOP (2027-03-13-gm-tools.sql; ./gm-stop.js). The gate refuses everyone but a row only a migration writes. */
     'gm_stop']);
 export const DEFAULT_VERB = 'accrue';
 

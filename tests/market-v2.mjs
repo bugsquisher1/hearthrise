@@ -25,7 +25,7 @@
 //                          row, receipt or read; the counterparty only in market_sales)
 //   P2 same-account buy . M9 (any hero of the seller's account: own_listing)
 //   P3 listable ......... M5 (kit, premium, the bond, value-0, untradeable; drift vs src/data)
-//   #9 eligibility ...... M5b (a fresh account lists and buys nothing; cancel and reads stay open)
+//   #9 eligibility ...... M5b (a fresh account lists and buys nothing; cancel and reads stay open), M5c (the bench route)
 //   P4 town work ........ M29 (a craft delta after the listing: insufficient_item)
 //   P5 settle-first ..... M28 (bag verbs only; a hunting hero is not stalled)
 //   P6 packed supplies .. M30 (a hunt's bag is unreachable from list and Storage)
@@ -323,7 +323,8 @@ async function run(mutate) {
   /* A mutant's replay stops at the file it patches, so a later file's rule may not be in this database yet. */
   const hasLevelRule = (await q("select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_market_config' and column_name = 'min_level'")).length > 0;
   const hasBondList = (await one("select to_regclass('public.hr_market_premium_items') is not null as x")).x === true;
-  if (!mutate && !(hasLevelRule && hasBondList)) { const e = new Error('fixture: the whole chain ran and the Level rule or the bond list is missing'); e.harness = true; throw e; }
+  const hasBenchRule = (await q("select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_market_config' and column_name = 'min_skill_level'")).length > 0;
+  if (!mutate && !(hasLevelRule && hasBondList && hasBenchRule)) { const e = new Error('fixture: the whole chain ran and the Level rule, the bench rule or the bond list is missing'); e.harness = true; throw e; }
   /* The fixture's heroes are fresh, and the Level rule is M5b's: everything else trades at Level 1. */
   await cfg(hasLevelRule ? 'enabled = true, min_level = 1' : 'enabled = true');
 
@@ -581,6 +582,75 @@ async function run(mutate) {
     } finally {
       await cfg('min_level = 1');
       await q('update public.player_state set level_xp = 0 where user_id = $1 and slot = 1', [A]);
+    }
+  });
+
+  // ══ M5c · THE BENCH ROUTE (2027-03-03-market-bench-gate.sql): a hero who never hunts trades; only a bench skill counts ══
+  if (hasBenchRule) await leg(async () => {
+    const xpAt = (u, s, skill, level, less = 0) => q(`insert into public.player_skills (user_id, slot, skill_id, xp)
+        values ($1::uuid, $2::int, $3::text, public.hr_skill_xp_for_level($3::text, $4::int) - $5::int)
+        on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [u, s, skill, level, less]);
+    const eligible = async (u) => (await one('select public.hr_market_eligible($1::uuid) e', [u])).e;
+    const text = (s) => JSON.stringify(s, (k, v) => (typeof v === 'bigint' ? String(v) : v));
+    /* The whole leg rolls back: it moves skills, Levels and the config, and no later leg should inherit one of them. */
+    await db.exec('begin');
+    try {
+      await stock();
+      const open = await list({ user: A, item: ITEM, qty: 2, ask: ASK });
+      ok(open && open.ok === true, `M5c-CONTROL: the fixture listing refused ${brief(open)}`);
+      const id = open.listed.listing_id;
+      await q(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 5)
+               on conflict (user_id, slot, item_id) do update set qty = 5`, [C, ITEM]);
+      await cfg('min_level = 10, min_skill_level = 30');
+
+      /* Crafting 29, one XP short: refused on both verbs, naming both numbers, with nothing moved. */
+      await xpAt(C, 0, 'crafting', 30, 1);
+      const s0 = await snap();
+      const l29 = await list({ user: C, item: ITEM, qty: 1, ask: ASK });
+      ok(l29 && l29.error === 'market_locked' && l29.min_level === 10 && l29.min_skill_level === 30, `M5c: Crafting 29 listed, or the words lose a number: ${brief(l29)}`);
+      const b29 = await buy({ user: C, listing: id, qty: 1, max: ASK });
+      ok(b29 && b29.error === 'market_locked' && b29.min_level === 10 && b29.min_skill_level === 30, `M5c: Crafting 29 bought, or the words lose a number: ${brief(b29)}`);
+      ok(text(await snap()) === text(s0), 'M5c: a refused list or buy moved gold or goods');
+      const m29 = await mine(C);
+      ok(m29 && m29.locked === true && m29.rules.min_level === 10 && m29.rules.min_skill_level === 30, `M5c: mine does not tell the window: ${brief(m29)}`);
+
+      /* Crafting 30 on a hero who has never hunted: lists and buys, and the window says so. */
+      await xpAt(C, 0, 'crafting', 30);
+      const never = Number((await one('select public.hr_level_of($1::uuid, 0) l', [C])).l);
+      ok(never < 10, `M5c-CONTROL: the crafter is Level ${never}, so this proves nothing about the bench`);
+      ok((await mine(C)).locked === false, 'M5c: mine says locked at Crafting 30');
+      const l30 = await list({ user: C, item: ITEM, qty: 1, ask: ASK });
+      ok(l30 && l30.ok === true, `M5c: a Crafting 30 hero could not list: ${brief(l30)}`);
+      const b30 = await buy({ user: C, listing: id, qty: 1, max: ASK });
+      ok(b30 && b30.ok === true, `M5c: a Crafting 30 hero could not buy: ${brief(b30)}`);
+
+      /* Any hero of the account, as the Level rule: the crafter in slot 1 opens the fighter in slot 0. */
+      await xpAt(A, 1, 'crafting', 30);
+      const crew = await list({ user: A, slot: 0, item: ITEM, qty: 1, ask: ASK });
+      ok(crew && crew.ok === true, `M5c: another hero's bench skill did not open the account: ${brief(crew)}`);
+
+      /* Only the bench: every other skill in the catalogue at 99 opens nothing, each of the four opens at exactly 30. */
+      const skills = await q('select skill_id, cat from public.hr_skills order by skill_id');
+      const bench = skills.filter((s) => s.cat === 'artisan').map((s) => s.skill_id);
+      ok(text(bench) === text(['cooking', 'crafting', 'runecrafting', 'smithing']), `M5c: a new bench skill widens Threat #9, so decide it: ${text(bench)}`);
+      for (const s of skills.filter((r) => r.cat !== 'artisan')) await xpAt(B, 0, s.skill_id, 99);
+      ok(await eligible(B) === false, 'M5c: a gathering or combat skill at 99 opened the market');
+      for (const skill of bench) {
+        await xpAt(B, 0, skill, 30, 1);
+        ok(await eligible(B) === false, `M5c: ${skill} 29 opened the market`);
+        await xpAt(B, 0, skill, 30);
+        ok(await eligible(B) === true, `M5c: ${skill} 30 did not open the market`);
+        await q('update public.player_skills set xp = 0 where user_id = $1 and slot = 0 and skill_id = $2', [B, skill]);
+      }
+
+      /* A Level 10 hero with no bench skill still passes. */
+      await q("update public.player_skills set xp = 0 where user_id = $1 and skill_id = 'crafting'", [C]);
+      ok(await eligible(C) === false, 'M5c-CONTROL: the crafter is still open with no bench skill');
+      await q('update public.player_state set level_xp = public.hr_char_xp_for_level(10) where user_id = $1 and slot = 0', [C]);
+      const l10 = await list({ user: C, item: ITEM, qty: 1, ask: ASK });
+      ok(l10 && l10.ok === true, `M5c: a Level 10 hero was refused: ${brief(l10)}`);
+    } finally {
+      await db.exec('rollback');
     }
   });
 

@@ -1,0 +1,41 @@
+{
+  "id": "havora_weighhouse_finished",
+  "class": "lot",
+  "style": "s1",
+  "material": "native",
+  "source": "havora_weighhouse_finished.png",
+  "frame": [
+    256,
+    256
+  ],
+  "anchor_px": [
+    128,
+    255
+  ],
+  "footprint": [
+    8,
+    6
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "e91449b6-0c23-43c1-aa89-de08c36fb97b",
+    "seed": 1855,
+    "size": [
+      256,
+      256
+    ],
+    "cost": 10,
+    "style": "havora/havora_harbor_office"
+  },
+  "notes": "Town Works stage 4, 1,000,000 gp: the Weighhouse. Stone ground floor, half-timbered upper floor, slate roof, the great scale on the gable, a hoist arm, the plaque in gold. PixelLab image locked as stone; plaque and pans repainted in the gold and bronze ramps by tools/world-art/weighhouse-art.mjs. Rises 61 px above its footprint."
+}

@@ -12,16 +12,17 @@
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldViewOf } from './world-view.js?v=0.2.91';
-import { mountShell } from '../shell/shell.js?v=0.2.91';
-import { logFor } from '../hunt-view/combat-log.js?v=0.2.91';
-import { pickHunt } from '../shell/windows/hunts.js?v=0.2.91';
-import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.91';
-import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.91';
-import { connection, loadingWords } from '../net/connection.js?v=0.2.91';
+import { worldViewOf } from './world-view.js?v=0.2.97';
+import { mountShell } from '../shell/shell.js?v=0.2.97';
+import { logFor } from '../hunt-view/combat-log.js?v=0.2.97';
+import { pickHunt } from '../shell/windows/hunts.js?v=0.2.97';
+import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.97';
+import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.97';
+import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.97';
+import { connection, loadingWords } from '../net/connection.js?v=0.2.97';
 
 /* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
-const KEEPER_WINDOWS = new Set(TAP_WINDOWS);
+const KEEPER_WINDOWS = new Set([...TAP_WINDOWS, ...Object.values(SINK_TAPS).map((t) => t.window)]);
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -80,6 +81,8 @@ export async function mountWorldPane(host, character, o) {
     if (kind === 'entity') { const t = shell && worldTargetOf(detail); return !!t && shell.menu.open(t, { x: detail.x, y: detail.y }); }
     const to = shell && SHOWS[kind] ? SHOWS[kind](detail || {}) : null;
     if (!to) return false;
+    /* a station that opens its window on one tab (the Tavern on Round) */
+    if (detail && typeof detail.tab === 'string') { shell.wm.openTab(to, detail.tab); shell.refresh(to); return true; }
     if (shell.wm.isOpen(to)) shell.refresh(to); else shell.open(to);
     return true;
   }
@@ -98,7 +101,7 @@ export async function mountWorldPane(host, character, o) {
   let runtime = null;
   let reloading = false;   // the World's module did not load and the page is about to try again by itself (src/platform/load-shell.js)
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=0.2.91').catch((e) => {
+    const { bootWorld } = await import('../world/world-boot.js?v=0.2.97').catch((e) => {
       const win = doc.defaultView;
       reloading = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();
       throw e;

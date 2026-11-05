@@ -49,7 +49,7 @@ const LABELS = [
 const labelOf = (sql) => (LABELS.find(([k]) => k(sql)) || [null, 'tick: ' + sql.replace(/\s+/g, ' ').trim().slice(0, 50)])[1];
 
 export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer', windowMs = 90000, door = 'fire', db: given,
-  upTo, edgeRoot, pg = false, helloState = null, anchorMs = null } = {}) {
+  upTo, edgeRoot, pg = false, helloState = null, anchorMs = null, level = 20, tier = null, gear = null } = {}) {
   if (!['fire', 'player', 'pieces', 'viewed'].includes(door)) throw new Error('door is fire | player | pieces | viewed');
   if (pg && upTo) throw new Error('--pg replays this tree\'s whole chain; --upto is PGlite only');
   const H = (await import('../tests/hunt-sessions-settle.mjs')).HARNESS;
@@ -70,10 +70,15 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
      runs in its own, as on production. */
   await db.query('begin');
 
-  /* THE PARTY: `heroes` characters (one account each, the settle test's fixture), Level 20, a bag of food, gold. */
+  /* THE PARTY: `heroes` characters (one account each, the settle test's fixture), Level 20 unless told, a bag of food, gold. `tier`: the leader's pick on the ground, `gear`: { equip slot: item } worn by every hero (tests/hunt-tiers-db.mjs). */
   const uids = H.UIDS.slice(0, heroes);
-  const kit = { level: 20, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
-  for (const uid of uids) await H.character(db, M, uid, kit);
+  const kit = { level, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
+  for (const uid of uids) {
+    await H.character(db, M, uid, kit);
+    for (const [slot, item] of Object.entries(gear || {})) {
+      await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, slot, item]);
+    }
+  }
   if (heroes > 1) {
     for (let i = 1; i < heroes; i++) {
       await asUser(uids[i]);
@@ -92,6 +97,11 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
       const j = await one(db, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [party, idem()]);
       if (!j || j.ok !== true) throw new Error('join refused: ' + JSON.stringify(j));
     }
+  }
+  if (tier) {
+    await asUser(uids[0]);
+    const p = await one(db, 'select public.hr_hunt_tier_set(0, $1, $2, $3::uuid)', [hunt, tier, idem()]);
+    if (!p || p.ok !== true) throw new Error('tier refused: ' + JSON.stringify(p));
   }
   const sids = [];
   for (const uid of uids) {

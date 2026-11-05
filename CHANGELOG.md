@@ -5,12 +5,58 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.97 — 2026-11-05 (A Town That Grows)
+
+**Your hero's colors.** Pick four colors when you make a hero and everyone sees them, in town and in hunts, on every outfit. Trying on new colors in the Character window's Outfit tab is free; saving them costs gold, more at higher Levels.
+- **The Weighhouse goes up.** All of Havora can now give gold to raise the Weighhouse on the east bank, 100 gp to 25,000 gp a day from one account: tap its plaque on the high street, watch it climb through five stages, and the biggest givers go on the plaque.
+- Planting is quicker on the Farm. Pressing an empty plot brings the seed list into view with the seeds you can plant at the top, and after you plant, the list stays open on your next empty plot, so there's no more scrolling up and down. "Plant N empty plots" fills every empty plot with that seed in one press and tells you if it runs out of seeds partway.
+
+## v0.2.96 — 2026-11-05 (Three Ways to Hunt)
+
+**Three ways to hunt.** Every hunting ground past the Mill Cellar can be hunted Normal, Dangerous or Deadly. Harder hunts hit harder and often bring more monsters at once, for more XP on every kill and the same gold and drops. It replaces the + and - on a hunt's page. Your pick is kept for each ground, and a party leader's pick holds for everyone.
+
+## v0.2.95 — 2026-11-05 (First Spells)
+
+- A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.
+- A new Mage or Healer now casts from the very first fight: every starting spell buys its rune from the store for 1 gp a cast, and Frost Lance or Green Sickness fires even on a lone monster. A new card, "Why it waits", explains the slots that hold back. A new Ranger or axe hero no longer starts with a crossed-out spell: Flame Volley and Rend are offered with their price instead.
+- The store now sells deeper runes for your spells, from 8 gp a cast for Scored up to 24 gp for Graven: pick one on a spell's slot in Configure action to cast that stronger version at Plain's three-quarter strength. Plain stays 1 gp, and your bar never changes unless you change it. Bound runes now make fewer to a job and sell for more, so a runecrafter can sell below the store.
+## v0.2.94 — 2026-11-05 (A Smith Needs Salts)
+
+- Crafters can use the Weighhouse now. A bench skill at 30 (Smithing, Crafting, Cooking or Runecrafting) opens it for your whole account, just as a hero at Level 10 does.
+**Tempering takes crafted salts.** Each rung now takes Tempering Salts as well as gold, or Fine Tempering Salts for gear worn from Level 30. Mix them at Smithing from Iron Bars and the Bone Chips or Big Bones your hunts bring home, or buy them at the Weighhouse. Any of your heroes can use them from Storage.
+
+**The Coal Seam.** A richer coal rock at Mining 30, and a rock's row now says about how much an hour brings, so you can see what a higher rock is worth.
+- Your action bar now says when a slot is waiting. Fireball is set to fire at 2 or more monsters, so on a lone monster its slot dims and shows "2+", and hovering it or pressing it tells you why. Circle of Renewal does the same when you're not in a party. What a slot does hasn't changed: to fire on one monster, remove its condition in Configure action.
+- Every hero now gets three setups free; the fourth costs 15,000 gp and the fifth 40,000 gp. Heroes keep every setup they have saved.
+
+## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
+
+- A round's fireworks now climb and burst high over Hearth Square for the whole 45 seconds, and a Town Crier's line stands out in Global on its own gold band.
+
+**Throw a pinch on the fire.** Hearth powders turn Havora's flame a new color for everyone in town, for 30 seconds, from 2,000 gp and up to five a day.
+
+**Stand a round.** Buy the town a round and everyone in Havora sees the fireworks, from 5,000 gp and up to three a day.
+
+**The Town Crier.** From Level 10 you can pay to have one line called out to the whole server, from 1,000 gp and up to five a day.
+
+**Gold Given.** A new monthly board ranks the accounts that have given the most to the town. It has no prize, and it resets every month.
+
+**More setups, and titles.** Every hero gets two action bar setups free and can buy three more. Titles are earned by kills and then claimed with gold, so a name beside your hero says what it has actually hunted.
+## v0.2.92 — 2026-11-05 (Standing Your Ground)
+
+- A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.
+- A hit no longer turns your hero or a monster into a pale blur for a moment. Whoever takes the blow now jolts back a little, so you can always see their armor and face, and the spark of a blow that missed.
+
+- Carrion Crows carry a little more coin.
+- Capes no longer make monsters miss. A cape now takes a share off every blow that reaches you: 3% for a Graypelt Cloak, 7% for a Houndskin Cloak. Earrings, necklaces and rings no longer add Defense; only a shield does that outside armor. Frostfin Supper and River Chowder now take 5% and 3% off every blow for a few minutes.
 ## v0.2.91 — 2026-11-04 (The Smith Tempers)
 
 - A blow that misses your hero now strikes a small spark off it, on the side the blow came from, instead of floating "miss" over its head. Your own missed swings leave a small scuff on the monster. The combat log says who missed whom in words, and "Missed blows and immune hits" in Settings turns the sparks off.
 - The chat's Combat tab now shows its lines at the window's normal size, follows the newest one and names everyone in them. Its filters fold away under "Filter lines".
 **The smith tempers your gear.** On the Shop's Services tab (R), a hero wearing gear from Level 15 up can pay gold for a little more from it. Each rung of Blows makes your blows and heals land 1% harder; each rung of Armor lets 1% less damage reach you; five rungs of each. Every tier of gear has its own rungs. It can't fail, nothing wears out, and your hero keeps it through a death.
 - On a slow connection the town opens sooner. The game now waits only for the art around your hero, and the rest of the town loads behind it.
+- Carrion Crows carry a little more coin.
+- The Drain Rat, Sump Slime, Granary Rat, Barn Wasp, Barn Spider and Turncoat each have a look of their own now, and 19 items that borrowed another item's picture have their own icons.
 
 ## v0.2.90 — 2026-11-04 (Armor That Answers)
 

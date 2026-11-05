@@ -48,7 +48,7 @@ const CATCH = 'src/session/catch-up.js';
 /* The client's whole RPC surface, each with what it is for. */
 export const CLIENT_RPCS = Object.freeze({
   hr_load: 'the full read of one character (CharacterSession.load)',
-  /* THE GAME MASTER (2027-03-05-gm-tools.sql; src/session/gm-intents.js, loaded only once the server says `gm`): each refuses everyone without the server-written row. */
+  /* THE GAME MASTER (2027-03-13-gm-tools.sql; src/session/gm-intents.js, loaded only once the server says `gm`): each refuses everyone without the server-written row. */
   hr_gm_online: 'who is online or playing; names, ground or job, Level',
   hr_gm_hero: 'one hero as the server holds it, by a name or an account id and slot',
   hr_gm_mute: 'mute an account\'s chat for a set time, with a reason',
@@ -63,7 +63,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_buy_hero_slot: 'buy the next hero slot with one own hero\'s gold: the slot id, the paying hero and a key, never a price; the server prices, caps and debits (AccountSession.buySlot)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
-  hr_hunt_density_set: 'the hero’s monster-density pick on one hunt ground, a ground id and a whole number; the server bounds it by that ground and refuses a party member (CharacterSession.setHuntDensity; 2026-11-17-hunt-density-home.sql)',
+  hr_hunt_tier_set: 'the hero’s tier on one hunt ground, a ground id and a tier word; the server checks that ground offers it and refuses a party member (CharacterSession.setHuntTier; 2027-02-27-hunt-tiers.sql)',
   hr_action_set_copy:'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
@@ -106,6 +106,12 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
+  /* The gold sinks (Tyler 2026-11-04): a slot, a catalogue id and the QUOTE the player saw; the server counts, prices and refuses quote_changed. */
+  hr_setup_slot_buy: 'buy this hero\'s next setup slot at the quoted price (preset-intents.js buySetupSlot; 2027-02-28-setup-slots.sql)',
+  hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
+  hr_title_wear: 'wear a title this hero holds, or null to take it off; moves no value (title-intents.js wearTitle)',
+  hr_hero_colors_view: 'what a color save costs this hero right now; the read of the Outfit tab, moves nothing (hero-color-intents.js readColorsPrice)',
+  hr_hero_colors_set: 'this hero\'s four dye indices at the quoted price; never a color value (hero-color-intents.js saveHeroColors; 2027-03-05-hero-colors.sql)',
   hr_storage_chest_build: 'build the account’s next storage chest at the quoted price; the server gates, prices and debits it (home-intents.js buildChest)',
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
   hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
@@ -119,6 +125,13 @@ export const CLIENT_RPCS = Object.freeze({
   hr_farm_harvest_replant: 'harvest a ready plot and plant the same crop again, from an own seed or one bought at the listed Shop price (farm-intents.js harvestPlot)',
   hr_farm_upgrade_plot: 'buy the next plot tier the client expects; the server prices it, gold first then deeds (farm-intents.js upgradePlot)',
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): catalogue ids only; the server counts the kills, prices the reward and picks the piece. */
+  /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql): a catalogue id, the price the player saw and a fresh key; the server re-quotes and charges. */
+  hr_town_sinks_view: 'the Havora window\'s read of this account\'s quotes and last choices; a read, while the window is open (town-intents.js readSinks)',
+  hr_town_show: 'a Hearth powder or a round by catalogue id, at the price the player saw, with a fresh key; never an amount, a color or a time (town-intents.js)',
+  /* The Town Works (2027-03-04-town-works.sql): the gift is the one number; the server refuses it under its own clock, before any charge. */
+  hr_town_works_view: 'the Works tab\'s read of the project, today\'s allowance, this account\'s place and the plaque; a read, while the tab is on show (town-intents.js readWorks)',
+  hr_town_works_give: 'a gift to a Town Works project: a catalogue id, the amount the player chose and a fresh key; never a total, a stage or a time (town-intents.js giveToWorks)',
+  hr_crier_send: 'a paid line to Global, at the price the player saw, with a fresh key; the server names the sender and checks every word first (ChatStore.cry)',
   hr_tally_view: 'Tamsin\'s board for this hero: the tasks, what each pays and her pick now; a read (tally-intents.js tallyBoard)',
   hr_tally_accept: 'take a kill task by id at her board in town, with the armour weight the first time; no count, no price (tally-intents.js takeTask)',
   /* The Great Hearth (2027-01-31-inner-flame.sql): a slot, a catalogue id and a key; the XP, colour, time and clamps are the server's. */
@@ -146,7 +159,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_town_view: 'who stands around this character in its town instance, only what changed since its cursor, and its own server stand, a read (TownPresence.read)',
   hr_town_here: 'an unviewed character is present in town, no tile: the server stands it on its stand (TownPresence.here)',
   hr_town_go: 'send this character’s body to a counter or back to its work: a station id only (TownPresence.go)',
-  hr_outfit_set: 'wear an owned outfit with a dye index per region; cosmetic, the server checks ownership (CharacterSession.saveOutfit)',
+  hr_outfit_set: 'wear an owned outfit; free and it carries no color, the server checks ownership (CharacterSession.saveOutfit)',
 });
 
 /* The Edge Functions the one link may call, each with what it is for. */

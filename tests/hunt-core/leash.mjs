@@ -89,6 +89,21 @@ const cases = {
     if (a.x !== 15 || a.y !== 3 || b.x !== 16 || b.y !== 4) return 'the pack did not walk home: ' + JSON.stringify([[a.x, a.y], [b.x, b.y]]);
     return null;
   },
+  /* Tyler 10-17, kiters never kite outside the area: in a fight the hero holding the pack may not plan a tile out of its
+     area; another hero still may (a follower walks in from outside), and so may a holder when no fight is on. */
+  'only-the-holder-is-leashed-in-a-fight': (M) => {
+    const lead = hero(M, 1, 10, 3); const other = hero(M, 2, 10, 4);
+    const w = world(M, [lead, other, mon(M, 3, 0, 12, 3, { target: 1 })], { leader: 1, phase: 'fight', packs: [{ aggro: true, holder: 1 }, { aggro: false, holder: null }, { aggro: false, holder: null }] });
+    const inst = instOf(M, w);
+    M.movement.occupancy(inst);
+    M.movement.setGoal(inst, lead, 3, 3);
+    if (lead.path.length) return 'the holder planned out of its area: ' + JSON.stringify(lead.path);
+    M.movement.setGoal(inst, other, 3, 3);
+    if (!other.path.length) return 'a hero who does not hold the pack lost its way out';
+    w.phase = 'travel';
+    M.movement.setGoal(inst, lead, 3, 4);
+    return lead.path.length ? null : 'out of a fight the holder lost its way out';
+  },
   /* RO-13 / spec §3.1 #9: every kite / spot candidate lies inside the pack area (a hard filter). */
   'kite-stays-in-area': (M) => {
     const h = hero(M, 1, 9, 3);
@@ -121,6 +136,10 @@ const mutants = [
     edits: [['src/core/hunt/world-step.js', 'if (holderOutside(inst, p)) resetPack(inst, p, sc);', 'if (false) resetPack(inst, p, sc);']] },
   { name: 'the reset does not heal', case: 'holder-leaves-area-pack-resets-and-heals',
     edits: [['src/core/hunt/leash.js', '    u.hp = u.maxHp;\n', '']] },
+  { name: 'every hero in a fight is leashed, not only its holder', case: 'only-the-holder-is-leashed-in-a-fight',
+    edits: [['src/core/hunt/leash.js', 'p.aggro && p.holder === hero.id)', 'p.aggro)']] },
+  { name: 'the holder is leashed when no fight is on', case: 'only-the-holder-is-leashed-in-a-fight',
+    edits: [['src/core/hunt/leash.js', "(inst.world.phase === 'fight' ? ", '(inst.world.phase !== \'\' ? ']] },
   { name: 'kite tiles may leave the area (soft penalty only)', case: 'kite-stays-in-area',
     edits: [[MV, '    && inArea(inst, pocket, x, y) && !spotTaken(inst, hero, x, y);', '    && !spotTaken(inst, hero, x, y);']] },
 ];

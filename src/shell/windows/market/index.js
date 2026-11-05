@@ -11,16 +11,17 @@
 // Anonymous: no seller or buyer name reaches this window; the server's reads hold listing
 // ids only. Every number is the server's and every control is off until it has answered.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.91';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.91';
-import { whole } from '../../../render/format.js?v=0.2.91';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.91';
-import { MARKET_TABS } from '../../market-model.js?v=0.2.91';
-import { hideTip } from '../item-tip.js?v=0.2.91';
-import { marketScratch, rereadAll, readMine, readItem } from './state.js?v=0.2.91';
-import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.91';
-import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.91';
-import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.91';
+import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.97';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.97';
+import { whole } from '../../../render/format.js?v=0.2.97';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.97';
+import { MARKET_TABS } from '../../market-model.js?v=0.2.97';
+import { lockedWords } from '../../market-words.js?v=0.2.97';
+import { hideTip } from '../item-tip.js?v=0.2.97';
+import { marketScratch, rereadAll, readMine, readItem } from './state.js?v=0.2.97';
+import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.97';
+import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.97';
+import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.97';
 
 /** The skeleton (built once per opening). An opening reads the server again. */
 export function renderMarket(ctx) {
@@ -37,7 +38,7 @@ export function renderMarket(ctx) {
 /* What stands between this account and a trade, in the server's own terms ('' = nothing). */
 function blockWords(sc) {
   if (sc.closed) return 'The Weighhouse isn\'t trading right now. Your listings are safe, and you can still take them back.';
-  if (sc.locked && sc.rules && sc.rules.minLevel) return 'The Weighhouse trades with heroes of Level ' + whole(sc.rules.minLevel) + ' or higher. Reach it on any hero to buy and sell here. Until then, have a look around.';
+  if (sc.locked && sc.rules && sc.rules.minLevel) return lockedWords(sc.rules.minLevel, sc.rules.minSkillLevel) + ' Until then, have a look around.';
   return '';
 }
 

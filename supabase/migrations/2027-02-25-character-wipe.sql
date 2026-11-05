@@ -16,10 +16,13 @@
 --   Then, 30 s later, read: select count(*) from public.player_state;   (players may have started again: heroes they made are theirs)
 --
 -- ── WHAT GOES, WHAT STAYS ────────────────────────────────────────────────────
---   GOES (c_wipe, 94 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
+--   GOES (c_wipe, 99 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
 --     hunts and their instances, worlds and leases; the ledger and its rollup; chat lines, whispers and world notices (a line names a
 --     hero); presence, town bodies and the play cap's claims; the rate counters, refusal aggregates and intent journal; the tick's
---     per-character rows; clans; the town snapshot (its own 25 s cron rebuilds it); bought hero slots (flag rows in player_progress).
+--     per-character rows; clans; the town snapshot (its own 25 s cron rebuilds it); bought hero slots (flag rows in player_progress);
+--     the gold sinks' records (shows, gold given, titles held, the Town Works' totals and gifts: made of gold this file deletes, naming
+--     heroes who no longer exist). The sink lanes' tables are on these lists from the first edit; a name whose table doesn't exist yet
+--     is skipped (tests/char-wipe.mjs CW-SINKS), so the lanes can land in any order.
 --   STAYS (c_keep): auth.*, profiles (reset to a fresh signup's shape), hr_access_allowlist (untouched: closed mode still decides who
 --     plays), friend_links, friend_requests, chat_blocks (a player's social choices), bug_reports (the team's triage), beta_invites and
 --     beta_signup_log (the signup record), hr_lb_hidden (who the boards leave out), hr_tick_config and hr_tick_shard_cursor (their
@@ -70,6 +73,7 @@ declare
     'hr_tick_enrolment', 'hr_tick_horizon_log', 'hr_tick_ownership', 'hr_tick_probe', 'hr_tick_shadow', 'hr_world_notices',
     'hunt_bag', 'hunt_bests', 'hunt_density', 'hunt_instances', 'hunt_parties', 'hunt_party_invites', 'hunt_party_members',
     'hunt_session_events', 'hunt_session_tally', 'hunt_sessions', 'hunt_tick_lease',
+    'account_gold_given', 'player_titles', 'town_shows', 'town_works_gifts', 'town_works_totals',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',
@@ -87,7 +91,7 @@ declare
     'hr_castle_buildings', 'hr_castle_items', 'hr_castle_tiers', 'hr_catalogue_meta', 'hr_character_sheet_engine', 'hr_chat_config',
     'hr_client_rpc_baseline', 'hr_client_write_baseline', 'hr_companion_grants', 'hr_crop_plot_tier', 'hr_crops', 'hr_db_samples', 'hr_depot_config',
     'hr_dungeon_loot', 'hr_dungeons', 'hr_equip_slots', 'hr_farm_yield_perk', 'hr_feast_foods', 'hr_flags', 'hr_gem_unlocks',
-    'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
+    'hr_ground_tiers', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
     'hr_hunt_abilities', 'hr_hunt_action_ids', 'hr_hunt_basic_supplies', 'hr_hunt_condition_limits', 'hr_hunt_condition_metrics', 'hr_hunt_config',
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
     'hr_hunt_resumable_kinds', 'hr_hunt_role_rules', 'hr_hunt_roles', 'hr_hunt_roster', 'hr_hunt_set_options', 'hr_hunt_shields', 'hr_hunt_spawns',
@@ -99,7 +103,7 @@ declare
     'hr_tally_config', 'hr_tally_materials', 'hr_tally_pieces', 'hr_tally_tasks', 'hr_tick_cohort', 'hr_tick_cron_log',
     'hr_town_maps', 'hr_town_stands', 'hr_town_station_hosts', 'hr_town_stations', 'hr_traits', 'hr_unlock_offers', 'hr_unlocks', 'hr_wipe_log',
     'hr_world_notice_rules', 'hr_xp_table', 'hunt_world_shape_move', 'leaderboard_meta', 'maintenance_alerts', 'maintenance_log',
-    'hr_account_deletion_log', 'hr_gm_wall_allow'];
+    'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works', 'hr_gm_wall_allow'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

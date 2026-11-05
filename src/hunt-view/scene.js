@@ -37,17 +37,17 @@
 //      Switched back to a hero, the monsters killed meanwhile stood (at their last drawn
 //      HP, or at 0: an empty bar) until a restart felled them anew (e-20261021-mobs, Andy #65).
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.91';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.91';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.91';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.91';
-import { floatShown } from './float-prefs.js?v=0.2.91';
-import { heroSprite } from '../session/hero-look.js?v=0.2.91';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.91';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.91';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.91';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.91';
-import { levelOf } from '../session/character-sections.js?v=0.2.91';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.97';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.97';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.97';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.97';
+import { floatShown } from './float-prefs.js?v=0.2.97';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.97';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.97';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.97';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.97';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.97';
+import { levelOf } from '../session/character-sections.js?v=0.2.97';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -60,7 +60,7 @@ export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse
   corpseMs: 10000,      // how long a corpse lies
   corpseFadeMs: 2000,   // it fades out over its last 2 s
-  flashMs: 120,         // a hit's white flash
+  recoilMs: 120,        // a hit's 1-art-px recoil (ART_DIRECTION §11)
   riseMs: 400,          // a unit a reconcile finds alive after its drawn death fades back in, never pops up
   staleMs: 1000,        // a scene not drawn for this long (another character viewed, a hidden tab) shows no one fall on its return
   floatMs: 1000,        // a floating number's life
@@ -139,6 +139,8 @@ export function readHunt(cs, peers) {
     self: p ? p.members.find((m) => m.seat === p.selfSeat) || null : null,
     /* the viewed hero's look: the ONE source the town draws it with too (chosen outfit, else role) */
     look: heroSprite(cs),
+    /* ...and its colors, the same section's (hero-look.js) */
+    dye: heroDye(cs),
     /* the viewed hero's Level as the server's envelope says it (the level-up moment watches it rise) */
     level: (levelOf(cs) || {}).level ?? null,
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
@@ -157,10 +159,10 @@ export function createHuntScene(o) {
   const tl = o.timeline, book = o.book;
   const keys = new Set();
   let fx = [], floats = [];
-  const flash = new Map(), dead = new Map(), swing = new Map(), bleed = new Map(), cycle = new Map(), target = new Map(), risen = new Map();
+  const recoil = new Map(), dead = new Map(), swing = new Map(), bleed = new Map(), cycle = new Map(), target = new Map(), risen = new Map();
   const lie = new Map();   // S6: unit -> { dir, diag }, the facing a unit fell with
   const glanced = new Map();   // unit -> the instant its last glance shows (GLANCE_FX.gapMs apart)
-  const perUnit = [flash, dead, swing, bleed, cycle, target, risen, lie, glanced];
+  const perUnit = [recoil, dead, swing, bleed, cycle, target, risen, lie, glanced];
   /* S7: the client instant of the last frame drawn and the units it drew standing */
   let drawnAt = null;
   const standing = new Set();
@@ -183,6 +185,13 @@ export function createHuntScene(o) {
     if (u === read.viewed && read.look) return read.look;
     if (isHero(u)) { const m = read.heroes.get(u); return (m && m.look) || outfitSprite(m && m.outfit, m && m.role); }
     return (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
+  };
+  /* A hero's colors: the viewed hero's own section, everyone else's seat (the server's party_people), so a party draws each other as each is. A monster has none. */
+  const dyeOf = (u) => {
+    if (u === read.viewed) return read.dye;
+    const m = read.heroes.get(u);
+    const who = m ? read.people.get(m.seat) : null;
+    return who ? who.dye : null;
   };
   const unnamed = new Set();
   /* How long a one-shot effect plays (its frames at its fps); a loop shows for its row's lifeMs. */
@@ -222,13 +231,13 @@ export function createHuntScene(o) {
     const bolt = Object.hasOwn(PROJECTILE.ability, ev.ability) ? PROJECTILE.ability[ev.ability] : PROJECTILE.role[role] || null;
     const flies = !!bolt;
     const land = flies ? start + PROJECTILE.flightMs : start;
-    if (flies) {
-      const a = fixed(ev.u, start), b = fixed(ev.t, start);
-      if (a && b) addFx(bolt, start, { x: a.x, y: a.y, tx: b.x, ty: b.y }, PROJECTILE.lift, PROJECTILE.flightMs, ev.u);
-    }
+    const a = fixed(ev.u, start), b = fixed(ev.t, start);
+    if (flies && a && b) addFx(bolt, start, { x: a.x, y: a.y, tx: b.x, ty: b.y }, PROJECTILE.lift, PROJECTILE.flightMs, ev.u);
     const id = HIT_FX.ability[ev.ability] || HIT_FX.element[ev.element] || HIT_FX.role[role] || null;
     addFx(id, land, at(ev.t), HIT_FX.lift);
-    flash.set(ev.t, land);
+    /* The struck sprite gives 1 art px away from the blow. It is never tinted: ART_DIRECTION §2, and a white body hid its armor and the miss spark. */
+    const d = a && b ? Math.hypot(b.x - a.x, b.y - a.y) || 1 : 1;
+    if (a && b) recoil.set(ev.t, { at: land, dx: Math.round((b.x - a.x) / d), dy: Math.round((b.y - a.y) / d) });
     swing.set(ev.u, { t: ev.t, at: start });
     return land;
   }
@@ -259,7 +268,7 @@ export function createHuntScene(o) {
     switch (ev.type) {
       /* every landed blow on a monster deals at least 1, so a 0 is a hero whose barrier took all of it: no harm, no number */
       case 'dmg': if (ev.amount === 0 && isHero(ev.t)) glance(ev, start); else num(ev.t, ev.amount, hit(ev, start)); break;
-      case 'status_tick': if (Number.isFinite(ev.amount)) { num(ev.t, ev.amount, start); flash.set(ev.t, start); } break;
+      case 'status_tick': if (Number.isFinite(ev.amount)) num(ev.t, ev.amount, start); break;
       case 'miss': glance(ev, start); break;
       case 'immune': addFloat(ev.t, 'miss', 'immune', 'miss', start); swing.set(ev.u, { t: ev.t, at: start }); break;
       case 'heal': addFloat(ev.t, 'heal', '+' + ev.amount, 'heal', start); break;
@@ -319,7 +328,7 @@ export function createHuntScene(o) {
     const walking = left > 0 && !!walk;
     const { dir, diag } = facingOf(0, 1);
     const name = read.huntName || 'the hunt';
-    return { id, unit: read.viewed !== null ? read.viewed : -1, x: e.x, y: e.y, dir, diag, alpha: 1, grey: 0, under: false, flash: false,
+    return { id, unit: read.viewed !== null ? read.viewed : -1, x: e.x, y: e.y, dir, diag, alpha: 1, grey: 0, under: false, dye: read.dye,
       anim: walking ? 'walk' : sp.anims && sp.anims.idle ? 'idle' : 'walk',
       frame: walking ? Math.floor((now / 1000) * walk.fps) : 0,
       plate: { text: left > 0 ? 'Walking to ' + name + ' · ' + Math.ceil(left / 1000) + ' s' : (m && m.name) || 'Hero', kind: 'self' } };
@@ -377,9 +386,10 @@ export function createHuntScene(o) {
     /* VW-11: the walk frame advances with distance walked, at the clip's fps when moving at the playback speed. */
     const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;
     const anim = corpse ? corpse.anim : moving ? 'walk' : clips.idle ? 'idle' : walk ? 'walk' : 'idle';
-    const f = flash.get(u);
-    const out = { id, unit: u, x, y, anim, dir, diag, frame, alpha, grey, under,
-      flash: !under && f !== undefined && now >= f && now - f < SCENE_TIMING.flashMs };
+    const r = recoil.get(u);
+    /** @type {Record<string, any>} */
+    const out = { id, unit: u, x, y, anim, dir, diag, frame, alpha, grey, under, dye: dyeOf(u) };
+    if (!under && r && now >= r.at && now - r.at < SCENE_TIMING.recoilMs) out.recoil = [r.dx, r.dy];
     if (!under) {
       /* Every bar is the HP AT THE INSTANT SHOWN (timeline.js T6: heroes too, so it moves live), the snapshot's only as a fallback. */
       const played = typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);
@@ -518,7 +528,7 @@ export function createHuntScene(o) {
       const t = Number.isFinite(now) ? now : null;
       for (const u of alive) {
         if (!dead.has(u)) continue;
-        dead.delete(u); flash.delete(u); lie.delete(u);
+        dead.delete(u); recoil.delete(u); lie.delete(u);
         if (t !== null) risen.set(u, t);
       }
       if (t === null) return;

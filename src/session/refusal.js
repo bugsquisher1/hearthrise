@@ -19,8 +19,8 @@ function countsOf(o) {
 }
 
 /* The whole numbers a market refusal states (2027-01-12-market-account.sql's taxonomy), one level down or on the answer:
-   src/shell/market-words.js says them. Null when it stated none. */
-const FIGURES = Object.freeze(['floor', 'ceiling', 'limit', 'used', 'cap', 'available', 'ask_each', 'have', 'need', 'min_level']);
+   src/shell/market-words.js says them; a setup past its count (hr_setup_locked) and a title short of kills state theirs the same way. Null when it stated none. */
+const FIGURES = Object.freeze(['floor', 'ceiling', 'limit', 'used', 'cap', 'available', 'ask_each', 'have', 'need', 'min_level', 'min_skill_level', 'slots', 'price', 'per_day']);
 function figuresOf(b, d) {
   const out = {};
   for (const k of FIGURES) { const v = n(b[k]) !== null ? b[k] : d[k]; if (n(v) !== null) out[k] = v; }

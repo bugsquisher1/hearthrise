@@ -1,16 +1,16 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/game-master-body.js — THE GAME MASTER WINDOW (2027-03-05-gm-tools.sql).
+// src/shell/windows/game-master-body.js — THE GAME MASTER WINDOW (2027-03-13-gm-tools.sql).
 //
 // Plain and small on purpose, the first version: who's playing, one hero and what can be done to it, one line to everyone, and what
 // this account's own walled hero may be given. Every number and name is the server's answer; a press is one ask, and its buttons stay off
 // until the server answers. A stop, a mute and a ban ask once more, naming the target. Refusals read through refusalText, never a code.
 // One component, shown as a window on a desktop and a sheet on a phone (CLAUDE.md §1).
 // ════════════════════════════════════════════════════════════════════════
-import { attr, cls, element, prop, rows, text } from '../../render/paint.js?v=0.2.91';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.91';
-import { huntFor } from '../../core/hunt-spawn.js?v=0.2.91';
-import { refusalText } from '../intent-words.js?v=0.2.91';
-import { gmBan, gmGrantGold, gmGrantItem, gmGrantLevel, gmHero, gmMute, gmOnline, gmSay, gmStop, gmUnban, gmUnmute } from '../../session/gm-intents.js?v=0.2.91';
+import { attr, cls, element, prop, rows, text } from '../../render/paint.js?v=0.2.97';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.97';
+import { huntFor } from '../../core/hunt-spawn.js?v=0.2.97';
+import { refusalText } from '../intent-words.js?v=0.2.97';
+import { gmBan, gmGrantGold, gmGrantItem, gmGrantLevel, gmHero, gmMute, gmOnline, gmSay, gmStop, gmUnban, gmUnmute } from '../../session/gm-intents.js?v=0.2.97';
 
 const MUTE_MINUTES = Object.freeze([[15, '15 minutes'], [60, '1 hour'], [1440, '1 day'], [10080, '1 week']]);
 const STATES = new WeakMap();

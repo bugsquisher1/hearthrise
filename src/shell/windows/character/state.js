@@ -19,6 +19,8 @@ export function scratchOf(cs) {
       opening: 'due', sheetAsked: null, sheetAsking: false,
       /* the outfit draft (null = not started: follow the server) */
       draft: null, dir: 0, query: '', ownedOnly: false, region: null,
+      /* what a color save costs, as this window last read it (hr_hero_colors_view), null until it answers: never in the envelope */
+      price: null, priceAsking: false, priceAskedAt: 0,
       openDeath: null };
     SCRATCH.set(cs, s);
   }

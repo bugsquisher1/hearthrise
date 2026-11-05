@@ -3,15 +3,15 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.91';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.91';
-import { LIB2_DESC } from './library2-items.js?v=0.2.91';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.91';
-import { CHAMPION_DESC } from './champions.js?v=0.2.91';
-import { DRINK_DESC } from './drinks.js?v=0.2.91';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.91';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.91';
-import { SHIELD_DESC } from './shields.js?v=0.2.91';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.97';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.97';
+import { LIB2_DESC } from './library2-items.js?v=0.2.97';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.97';
+import { CHAMPION_DESC } from './champions.js?v=0.2.97';
+import { DRINK_DESC } from './drinks.js?v=0.2.97';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.97';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.97';
+import { SHIELD_DESC } from './shields.js?v=0.2.97';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -81,8 +81,8 @@ export const ITEM_DESC = {
   'rooks_whistle': 'The bone whistle Rook calls the Mosslight crows with. A collector in town pays well for it',
   'rat_kings_crown': 'The Rat King\'s whole crown, hammered from the Millrace\'s drain grates. Few hunters ever lift it off him',
   'coppercaps_cauldron': 'The polished cauldron Chief Coppercap wears for a crown, dented from every fight in the Warrens',
-  'graypelt_cloak': 'A cape for any fighter: a little more guard and a few more critical hits. Stitched from the pelts of the Thicket\'s gray wolves',
-  'grayjaws_ruff':'A cape for any fighter: more guard and a few more critical hits. Cut from the thick neck fur of Old Grayjaw, the den mother',
+  'graypelt_cloak': 'A cape for any fighter: a little less damage and a few more critical hits. Stitched from the pelts of the Thicket\'s gray wolves',
+  'grayjaws_ruff':'A cape for any fighter: less damage and a few more critical hits. Cut from the thick neck fur of Old Grayjaw, the den mother',
   'ancient_claw': 'A colossal claw from something ancient, a formidable crafting trophy',
   'ancient_fragment': 'A worn shard of some forgotten relic, sought by scholars and collectors',
   'ancient_rune': 'A rune of the old tongue, humming with power, a key arcane reagent',
@@ -104,7 +104,7 @@ export const ITEM_DESC = {
   'bat_wing': 'Leathery wing torn from a cave bat, a minor alchemy reagent',
   'bear_claw': 'A curved claw torn from a bear, a trophy and crafting reagent',
   'bear_claw_pie': 'A rugged pie stuffed with bear meat, a fighter\'s feast that hardens your blows',
-  'bear_pelt': 'The heavy pelt of a Brook Bear, which joins bigger pulls at Mosslight Glade. The Keep, Trophy Room and Houndskin Cloak ask for it',
+  'bear_pelt': 'A Brook Bear\'s heavy pelt, from a party or a harder hunt at Mosslight Glade. The Keep, Trophy Room and Houndskin Cloak ask for it',
   'big_bones': 'Fuel for the Great Hearth in Havora, hotter than plain bones. Left by big brutes',
   'boarhide_belt': 'A broad boarhide belt, rugged enough for a ranger living out of camp',
   'boarhide_body': 'A boarhide jerkin, thick and rugged, cover built for a ranger who hunts the deep woods',
@@ -149,7 +149,7 @@ export const ITEM_DESC = {
   'coal': 'Black coal, the fuel that feeds every smelting fire',
   'cooked_bear_meat': 'A fat-rich bear roast, deeply filling, the meal that ends a hard day',
   'cooked_copper_crab': 'Copper crab steamed in its own shell, briny and rich, a supper that sharpens every skill you practice',
-  'cooked_frostfin': 'A steaming frostfin supper, hearty warmth that stiffens your guard',
+  'cooked_frostfin': 'A steaming frostfin supper: for six minutes, every blow that reaches you lands a little lighter',
   'cooked_goldgill': 'Goldgill steak seared to a shine, a lucky supper that draws richer loot to your hunts',
   'cooked_herring': 'A small pan-cooked fish, plain but filling for the road ahead',
   'cooked_lobster': 'Cracked and buttered claw-meat, a proper meal that draws luck to your hunts',
@@ -224,7 +224,7 @@ export const ITEM_DESC = {
      between this and a staff rune, and flavour alone cannot settle that. */
   'emberheart': 'A coal that has burned since before the first hearth was laid, and will outlast the last',
   'fishers_pie': 'A laden pie of goldgill, wheat and potato, a fisher\'s feast that hardens every blow you land',
-  'gold_amulet': 'A gold amulet set with a ruby, worn by the battle-hardened for sharper attack and sturdier guard',
+  'gold_amulet': 'A gold amulet set with a ruby, worn by the battle-hardened for a sharper attack',
   'gold_ring': 'A gold band set for a seasoned hand, lending real weight to attack and strength',
   'goldgill': 'A golden-gilled fish from the eddy\'s swirl, raw and prized, richer fare once it meets the pan',
   'leather_belt': 'A plain leather belt cinched snug, keeping a ranger\'s kit close at hand',
@@ -264,6 +264,8 @@ export const ITEM_DESC = {
   'iron_belt': 'Iron-buckled girdle bracing the waist against a low blow',
   'iron_boots': 'Iron-shod boots, plain sure footing for a working soldier',
   'iron_fitting': 'A cast-iron bracket and bolt, worked metal for castle building',
+  'temper_salts': 'Bone ash and iron filings, what the smith needs to temper Iron, Studded and Adept gear. Mixed at the forge',
+  'fine_temper_salts': 'Big-bone ash and iron filings, ground fine, what the smith needs to temper Steel, Boarhide and Scholar gear. Mixed at the forge',
   'iron_gauntlets': 'Iron gauntlets that save the knuckles in a brawl',
   'iron_helm': 'Honest iron helm that turns a glancing strike aside',
   'iron_ore': 'Rough iron ore straight from the rock, smelted into iron bars',
@@ -334,7 +336,7 @@ export const ITEM_DESC = {
   'razor_claw': 'A wickedly sharp claw for honing blades and adorning trophies',
   'regent_helm': 'Crown of a fallen Hunt lord, hollow and warding, won by no solo hand',
   'riftmaw_husk': 'The husk the Riftmaw shed at its ruin, hollow and cold, kept as proof of the dive',
-  'river_chowder': 'A thick chowder of silverfin, potato and carrot, a hearty pot that stiffens your guard',
+  'river_chowder': 'A thick chowder of silverfin, potato and carrot: for five minutes, every blow that reaches you lands a little lighter',
   'roasted_carrot': 'A carrot fire-roasted sweet, a light snack that speeds your gathering hand',
   'roasted_pumpkin': 'Roasted gourd, caramelized and hearty, a feast that swells your field yields',
   'ruby': 'A deep-red ruby, a fine gem for rings, amulets and inlay',

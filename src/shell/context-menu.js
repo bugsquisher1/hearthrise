@@ -17,11 +17,11 @@
 // at page level — a press on it never reaches the World; the click a long
 // press leaves behind is swallowed too.
 // ════════════════════════════════════════════════════════════════════════
-import { MENU_ENTRIES } from '../data/social-menu.js?v=0.2.91';
-import { refusalWords } from './intent-words.js?v=0.2.91';
-import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.91';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.91';
-import { attr } from '../render/paint.js?v=0.2.91';
+import { MENU_ENTRIES } from '../data/social-menu.js?v=0.2.97';
+import { refusalWords } from './intent-words.js?v=0.2.97';
+import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.97';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.97';
+import { attr } from '../render/paint.js?v=0.2.97';
 
 const LONG_PRESS_MS = 500;
 /* How long a finished action's answer stays on the menu before it closes. */
@@ -53,7 +53,7 @@ export function entriesFor(target, providers) {
   const out = [];
   for (const row of MENU_ENTRIES) {
     if (row.hidden || !row.targets.includes(target.kind)) continue;
-    /* The Game Master stands apart (2027-03-05-gm-tools.sql): the server refuses the rest, so they aren't offered. */
+    /* The Game Master stands apart (2027-03-13-gm-tools.sql): the server refuses the rest, so they aren't offered. */
     if (target.gm === true && row.id !== 'inspect') continue;
     const e = providers && providers[row.provider] && providers[row.provider][row.id];
     if (!e || typeof e.run !== 'function') continue;

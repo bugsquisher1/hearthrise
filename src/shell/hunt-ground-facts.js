@@ -30,16 +30,16 @@
 //   at the kill's yield share for a party of `size` (hunt-grounds.js yieldPermille), before any
 //   hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.91';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.91';
-import { MONSTERS } from '../data/monsters.js?v=0.2.91';
-import { ITEMS } from '../data/items.js?v=0.2.91';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.91';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.91';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.91';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.91';
-import { listWords } from '../render/format.js?v=0.2.91';
-import { isSpentMaterial } from './bag-model.js?v=0.2.91';
+import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.97';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.97';
+import { MONSTERS } from '../data/monsters.js?v=0.2.97';
+import { ITEMS } from '../data/items.js?v=0.2.97';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.97';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.97';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.97';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.97';
+import { listWords } from '../render/format.js?v=0.2.97';
+import { isSpentMaterial } from './bag-model.js?v=0.2.97';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -88,10 +88,10 @@ export function bigPullOf(hunt) {
     { id, name: (MONSTERS[id] || {}).name || id, pull: pullThatBrings(g, id), drops: everyday(id) }));
 }
 
-/** The ground page's line: "Bigger pulls also bring the Brook Bear (3 or more a pull): Raw Bear Meat, Bear Pelt.", or ''. */
+/** The ground page's line: "A party or a harder hunt also brings the Brook Bear: Raw Bear Meat, Bear Pelt.", or ''. A lone hero on Normal hunts the room as built; a party's own pull, Dangerous and Deadly bring more of its rows. */
 export function bigPullLine(hunt) {
-  const said = bigPullOf(hunt).map((m) => 'the ' + m.name + ' (' + m.pull + ' or more a pull): ' + m.drops.join(', '));
-  return said.length ? 'Bigger pulls also bring ' + said.join('; ') + '.' : '';
+  const said = bigPullOf(hunt).map((m) => 'the ' + m.name + ': ' + m.drops.join(', '));
+  return said.length ? 'A party or a harder hunt also brings ' + said.join('; ') + '.' : '';
 }
 
 const groundName = (g) => (HUNT_INDEX[g.hunt] || {}).name || g.hunt;
@@ -100,8 +100,8 @@ const groundFloor = (g) => { const b = (HUNT_INDEX[g.hunt] || {}).band; return b
 /**
  * WHERE A MONSTER MATERIAL COMES FROM, the one answer the tip, the House and the recipe rows give. Only creatures on grounds
  * a player can walk today, the lowest ground first: "Dropped by Briarcoat Wolf and Old Grayjaw at Meadowbrook Thicket, and at
- * Wickstead and Mosslight Glade". A creature only a bigger pull brings says that: "The Brook Bear only comes to a pull of 3 or
- * more at Mosslight Glade". '' when no open ground has it (the catalogue keeps rows for creatures no open ground spawns).
+ * Wickstead and Mosslight Glade". A creature only a bigger pull brings says that: "The Brook Bear only comes to a party or a
+ * harder hunt at Mosslight Glade". '' when no open ground has it (the catalogue keeps rows for creatures no open ground spawns).
  */
 export function dropWhereWords(item) {
   const standing = [], pulled = [];
@@ -121,7 +121,7 @@ export function dropWhereWords(item) {
   }
   if (!pulled.length) return '';
   const best = pulled.sort((a, b) => a.pull - b.pull)[0];
-  return 'The ' + MONSTERS[best.id].name + ' only comes to a pull of ' + best.pull + ' or more at ' + groundName(best.g);
+  return 'The ' + MONSTERS[best.id].name + ' only comes to a party or a harder hunt at ' + groundName(best.g);
 }
 
 /* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */

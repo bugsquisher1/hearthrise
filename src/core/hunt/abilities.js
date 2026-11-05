@@ -11,8 +11,8 @@
 //   the hero has the mana (AB-12), its rune and its shots (the item its attack
 //   slots loose: castShotOf) resolve — own line
 //   first, then the store (AB-05/06, src/core/action-rules.js resolveLine; a
-//   RUNE is bought only when the slot names the store rune, `action.store`, so
-//   a default bar never buys one unseen — designer 2026-10-21; a basic shot
+//   RUNE is bought only when the slot names the store rune, `action.store`, which
+//   the bar shows and the player can change — designer 2026-11-05; a basic shot
 //   never buys one, shotLine),
 //   and its target rule finds a target (AB-03). A slot the purse cannot pay
 //   waits and the next one is tried; it never ends the hunt by itself.
@@ -39,22 +39,22 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.91';
-import { resolveLine, storeLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.91';
-import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.91';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.91';
-import { temperedAmount } from '../temper.js?v=0.2.91';
-import { cheb, dist2, los } from './grid.js?v=0.2.91';
-import { makeEvent } from './events.js?v=0.2.91';
-import { landHit } from './damage.js?v=0.2.91';
-import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.91';
-import { applyStatus, statusRow } from './status.js?v=0.2.91';
-import { levelOf } from '../xp.js?v=0.2.91';
-import { ammoPerShot } from '../ammo.js?v=0.2.91';
-import { ITEMS } from '../../data/items.js?v=0.2.91';
-import { isRune } from '../../data/supplies.js?v=0.2.91';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.91';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.91';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.97';
+import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.97';
+import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.97';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.97';
+import { temperedAmount } from '../temper.js?v=0.2.97';
+import { cheb, dist2, los } from './grid.js?v=0.2.97';
+import { makeEvent } from './events.js?v=0.2.97';
+import { landHit } from './damage.js?v=0.2.97';
+import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.97';
+import { applyStatus, statusRow } from './status.js?v=0.2.97';
+import { levelOf } from '../xp.js?v=0.2.97';
+import { ammoPerShot } from '../ammo.js?v=0.2.97';
+import { ITEMS } from '../../data/items.js?v=0.2.97';
+import { isRune } from '../../data/supplies.js?v=0.2.97';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.97';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.97';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -130,9 +130,10 @@ const skillLevel = (h, row) => (h && h.skills ? levelOf(h.skills, abilitySkill(r
    the hero carries, the highest tier whose version its level in the row's skill has unlocked, cast at that
    tier's version (a tie in tier goes to the lower item id). Until a slot names the rune it spends (the rune
    quality picker, interface lane p40), a hero casts the best version its own bag and level allow. Else, only
-   when the slot names it (`store`), the store's rune, bought per use: the BASIC version, version I at the
-   store's share. A carried rune whose version is still locked is never spent (`level`). A hero whose entry
-   carries no skills is not gated here. */
+   when the slot names it (`store`), EXACTLY the store rune it names, bought per use: its partner's version at
+   the store's share (the rune ladder, Tyler 2026-11-05; a row of another family is no store here). A version
+   still locked is never spent, carried or bought (`level`), and a locked store rune never falls back to a
+   cheaper one: the game never chooses a player's tier. A hero whose entry carries no skills is not gated here. */
 function runeFor(h, row, store) {
   const fam = (itemRow(h, row.rune) || {}).family;
   const lv = h.skills ? skillLevel(h, row) : Infinity;
@@ -147,9 +148,13 @@ function runeFor(h, row, store) {
     if (!best || tier > best.version) best = { line: l, version: tier, pm: 1000 };
   }
   if (best) return best;
-  const s = typeof store === 'string' ? storeLine(h.hs, row.rune, store) : { why: 'none' };
+  const b = typeof store === 'string' ? basicOf(h.hs, store) : null;
+  const named = b ? itemRow(h, b.partner) : null;
+  const version = named && named.family === fam ? runeTierOf(named) : 0;
+  if (version && lv < versionLevel(version)) return { why: 'level', short: false };
+  const s = version ? storeLine(h.hs, b.partner, store) : { why: 'none' };
   if (!s.id || s.why) return { why: locked ? 'level' : 'no_rune', short: s.why === 'gold_short' };
-  return { line: s, version: 1, pm: BASIC_PM };
+  return { line: s, version, pm: BASIC_PM };
 }
 
 /**

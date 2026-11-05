@@ -812,6 +812,9 @@ async function groundPage(page, tag, fails, floor) {
   if (f.read < floor) fails.push('PH-25 [' + tag + '] a ground\'s page has ' + f.read + ' px to read, under ' + floor);
   if (f.over) fails.push('PH-25 [' + tag + '] the card takes room in the ground\'s sheet');
   if (!f.enter || !f.back) fails.push('PH-25 [' + tag + '] on a ground\'s page Enter ' + f.enter + ', the way back ' + f.back);
+  /* The line beside Enter gets the foot's width, on its own row, as a refusal does (a tier's words stood a word or two a line in 100 px, 2026-11-05). */
+  const why = await page.evaluate(() => { const p = document.querySelector('.hw-enter-why'), foot = document.querySelector('.hw-hd-foot'), was = p.textContent; p.textContent = 'Deadly: 8 monsters a pull, hitting 50% harder.'; const out = { w: p.getBoundingClientRect().width, foot: foot.clientWidth }; p.textContent = was; return out; });
+  if (why.w < why.foot * 0.8) fails.push('PH-25 [' + tag + '] the line beside Enter has ' + Math.round(why.w) + ' px of the foot\'s ' + why.foot);
   if (!(f.end > 0)) { fails.push('PH-25 [' + tag + '] CONTROL: the page does not scroll'); return; }
   await page.evaluate(() => { const s = document.querySelector('.hw-hd-page'); s.scrollTop = s.scrollHeight; });
   await page.waitForTimeout(100);
@@ -1021,8 +1024,8 @@ async function stripReach(page, tag, fails) {
   /* What the row has no room for has its one press here: named, at a thumb's size, and it opens. Market keeps its icon. */
   const more = await page.evaluate(() => { const rows = Array.from(document.querySelectorAll('[data-hs-win="characters"] .hw-icon-names.is-more .hw-icon-name'));
     return { ids: rows.map((r) => r.getAttribute('data-hs-open')).sort(), small: rows.filter((r) => r.getBoundingClientRect().height < 44).length, empty: rows.filter((r) => !r.textContent.trim()).length,
-      market: !!document.querySelector('.hs-launch[data-hs-open="market"]'), onRow: ['honor', 'report'].filter((id) => document.querySelector('.hs-launch[data-hs-open="' + id + '"]')) }; });
-  if (more.ids.join() !== 'honor,report' || more.small || more.empty) fails.push('PH-11 [' + tag + '] the sheet does not name what the row left out: ' + JSON.stringify(more));
+      market: !!document.querySelector('.hs-launch[data-hs-open="market"]'), onRow: ['havora', 'honor', 'report'].filter((id) => document.querySelector('.hs-launch[data-hs-open="' + id + '"]')) }; });
+  if (more.ids.join() !== 'havora,honor,report' || more.small || more.empty) fails.push('PH-11 [' + tag + '] the sheet does not name what the row left out: ' + JSON.stringify(more));
   if (!more.market || more.onRow.length) fails.push('PH-11 [' + tag + '] the row is not Market on, Leaderboards and Report off: ' + JSON.stringify(more));
   await page.evaluate(() => document.querySelector('[data-hs-win="characters"] .hw-icon-name[data-hs-open="honor"]').click());
   if (!(await wait(page, () => document.querySelector('[data-hs-win="honor"]'), null, 3000))) fails.push('PH-11 [' + tag + '] Leaderboards cannot be opened on a phone');
@@ -1778,7 +1781,8 @@ const MUTANTS = [
   ['PH-25 the sheet starts under the place\'s row', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]) .hs-win:not(.is-modal) { top: calc(-1 * (var(--tap) + 6px)); }\n', ''],
   ['PH-25 the stage still clips the sheet\'s head', 'src/styles/shell.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal)) .world-stage { overflow: visible; }\n', ''],
   ['PH-25 the way back scrolls off with the page', 'src/shell/windows/hunts.js', "    + '<button type=\"button\" class=\"hh-tool hw-hd-back\" data-hs-act=\"back\">Back to the list</button>'\n", "    + ''\n"],
-  ['PH-25 mid-hunt the way back is off', 'src/shell/windows/hunts.js', ".hw-hd-foot button:not(.hw-hd-back), .hw-density button", ".hw-hd-foot button, .hw-density button"],
+  ['PH-25 the line beside Enter stands in a column', 'src/styles/windows.css', ".hw-hd-foot .hh-intent-msg:not(:empty), .hw-hd-foot .hw-enter-why:not(:empty) { flex: 1 0 100%; }", ".hw-hd-foot .hh-intent-msg:not(:empty) { flex: 1 0 100%; }"],
+  ['PH-25 mid-hunt the way back is off', 'src/shell/windows/hunts.js', ".hw-hd-foot button:not(.hw-hd-back), .hw-tiers button", ".hw-hd-foot button, .hw-tiers button"],
   ['PH-26 the switch\'s span widens the fold and the close', 'src/styles/hunt.css', '  .ha-analyzer .ha-scope { grid-area: 2 / 1 / 3 / -1; justify-self: end; margin-bottom: 0; }\n', '  .ha-analyzer .ha-scope { grid-area: 2 / 2 / 3 / 4; justify-self: end; margin-bottom: 0; }\n'],
   ['PH-26 the panel is too narrow for its tabs', 'src/styles/hunt.css', 'column-gap: 2px; width: min(376px, calc(100vw - 232px));', 'column-gap: 2px; width: 300px;'],
   ['PH-26 a hero alone keeps the switch', 'src/styles/hunt.css', '  .ha-analyzer.is-alone .ha-scope { display: none; }\n', ''],

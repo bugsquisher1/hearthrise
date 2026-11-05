@@ -27,9 +27,13 @@ export async function loadAxes(root) {
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const { MATERIAL_TIERS } = await import(u('src/data/gear-tiers.js'));
+  const { tierRowOf } = await import(u('src/data/hunt-tiers.js'));
   const grounds = Object.values(G.OPEN_GROUNDS).map((g) => ({ id: g.id, band: HUNT_INDEX[g.hunt].band.slice(), groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
     soloFrom: g.soloFrom || null, densityMax: g.densityMax ? g.densityMax[0] : 8 })).sort((a, b) => a.band[0] - b.band[0]);
-  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level) };
+  const { ITEMS } = await import(u('src/data/items.js'));
+  /* Every cape and jewelry slot's best row a Level can wear. */
+  const dressOf = (L) => Object.fromEntries(['cape', 'necklace', 'ring', 'earrings'].map((slot) => [slot, Object.keys(ITEMS).filter((id) => ITEMS[id].slot === slot && (ITEMS[id].reqLv || 0) <= L).sort((a, b) => (ITEMS[b].reqLv || 0) - (ITEMS[a].reqLv || 0))[0]]).filter(([, id]) => id));
+  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level), tierRowOf, dressOf };
 }
 
 const uniq = (xs) => [...new Set(xs)].sort((a, b) => a - b);
@@ -38,6 +42,18 @@ const inBand = (band) => uniq([band[0], Math.round((band[0] + band[1]) / 2), ban
 const tag = (o) => Object.entries(o).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => k + '=' + (Array.isArray(v) ? v.join('+') : typeof v === 'object' ? JSON.stringify(v) : v)).join(',');
 const cellOf = (o) => ({ id: tag({ g: o.ground, p: o.party, L: o.level, d: o.density, gear: o.gear, bar: o.bar, sup: o.supply, h: o.hours, s: o.seeds, seg: o.segmentH, x: o.x }), ...o });
 
+/* The Levels the tier plans play each ground at: in range, past it, and pushing. */
+export const TIER_LEVELS = Object.freeze({
+  meadowbrook_thicket: [5, 8, 12, 15, 2], wickstead: [8, 13, 16, 18, 20, 5], millrace_sewer: [8, 16, 20, 25, 5],
+  mosslight_glade: [16, 24, 31, 40, 10, 6], coppercap_warrens: [32, 41, 50, 60, 26, 20],
+});
+/* The ladder's rungs, by the game's own advice (recommendedHunt) and its Level bands: [lower, upper, Levels at and past the upper's floor]. */
+export const TIER_RUNGS = Object.freeze([['meadowbrook_thicket', 'wickstead', [8, 12]], ['meadowbrook_thicket', 'millrace_sewer', [8, 12]], ['wickstead', 'mosslight_glade', [16, 20]], ['millrace_sewer', 'mosslight_glade', [16, 20]], ['mosslight_glade', 'coppercap_warrens', [32, 38]]]);
+/* One cell on a tier as written: its pull from the ground's own row, its size's entry. */
+const tierCell = (axes, o) => {
+  const row = axes.tierRowOf(o.ground, o.tier), pull = row.pull[o.party.length - 1];
+  return { ...cellOf({ ground: o.ground, party: o.party, level: o.level, density: pull || null, gear: o.gear, bar: o.bar, supply: o.supply, hours: o.hours, seeds: o.seeds, x: o.x }), ...(o.tier === 'normal' ? {} : { options: { tier: o.tier } }), windowMs: 120000 };
+};
 /**
  * The plans. `scale` multiplies hours (the smoke and estimate modes). Each answers [cells | careers].
  */
@@ -547,6 +563,45 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'tierpull') {
+    /* THE PULL WITH NO TIER (lane/c-difficulty-tiers, Tyler 2026-11-04: "what if we consider not having a dial for amount of mobs?"): today's rows, the Glade and the Warrens, every way to fight, what each pull pays in range.
+       Read by tiers-table.mjs --pull. x=P. */
+    for (const [ground, levels] of [['mosslight_glade', [16, 24, 31]], ['coppercap_warrens', [32, 41, 50]]]) for (const level of levels) for (const density of [null, 4, 5, 6, 8]) {
+      for (const s of SOLO_STYLES) out.push({ ...cellOf({ ground, party: [s], level, density, hours: H(1), seeds: 2, x: 'P' }), windowMs: 120000 });
+      for (const party of [PARTIES.four, PARTIES.four_dps]) out.push({ ...cellOf({ ground, party, level, density, hours: H(1), seeds: 2, x: 'P' }), windowMs: 120000 });
+    }
+    return out;
+  }
+  if (name === 'tierfinal') {
+    /* THE TIERS AS WRITTEN (src/data/hunt-tiers.js): every ground that offers them, in range, pushing and past the ground, every way to fight, alone, a pair, a three, two fours. x = F<tier>. A cell's pull is its row's. */
+    const WHO = [['tank'], ['sword'], ['hammer'], ['axes'], ['bow'], ['crossbow'], ['mage'], ['healer'], PARTIES.duo, PARTIES.trio, PARTIES.four, PARTIES.four_dps];
+    for (const [ground, levels] of Object.entries(TIER_LEVELS)) for (const level of levels) for (const party of WHO) for (const tier of ['normal', 'dangerous', 'deadly']) {
+      out.push(tierCell(axes, { ground, party, level, tier, hours: H(1), seeds: 2, x: 'F' + tier }));
+    }
+    return out;
+  }
+  if (name === 'tierrows') {
+    /* THE LOWER GROUNDS' ROWS, IN THE SIM ONLY (whatIf on hunt-tiers.js; never written to a data file): pull, power and XP on the three grounds the sample's numbers don't fit. x = R<tier>:<pull>:<power>:<xp>. */
+    const WHO = [['tank'], ['hammer'], ['bow'], ['mage'], ['healer'], PARTIES.duo, PARTIES.four, PARTIES.four_dps];
+    const CANDS = {
+      meadowbrook_thicket: [['dangerous', [0, 0, 0, 0], 1250, 1050], ['dangerous', [0, 0, 0, 0], 1500, 1050], ['deadly', [0, 0, 0, 0], 2000, 1100], ['deadly', [0, 0, 0, 0], 2500, 1100], ['deadly', [0, 0, 0, 0], 3000, 1100], ['deadly', [3, 6, 6, 6], 2000, 1000]],
+      wickstead: [['dangerous', [3, 4, 4, 5], 1200, 1050], ['dangerous', [3, 4, 4, 5], 1500, 1050], ['deadly', [5, 8, 8, 8], 1500, 1100], ['deadly', [5, 8, 8, 8], 2000, 1100], ['deadly', [4, 8, 8, 8], 2000, 1100]],
+      millrace_sewer: [['dangerous', [0, 5, 5, 6], 1200, 1050], ['dangerous', [0, 5, 5, 6], 1500, 1050], ['deadly', [0, 8, 8, 8], 1500, 1100], ['deadly', [0, 8, 8, 8], 2000, 1100]],
+    };
+    for (const [ground, rows] of Object.entries(CANDS)) for (const level of { meadowbrook_thicket: [5, 8, 12], wickstead: [8, 16, 20], millrace_sewer: [8, 16, 20] }[ground]) for (const [tier, pull, powerPm, xpPm] of rows) for (const party of WHO) {
+      const density = pull[party.length - 1];
+      out.push({ ...cellOf({ ground, party, level, density: density || null, hours: H(1), seeds: 2, x: 'R' + tier + ':' + pull.join('') + ':' + powerPm + ':' + xpPm }), options: { tier }, windowMs: 120000, whatIf: { tiers: { [ground]: { [tier]: { id: tier, pull, powerPm, xpPm } } } } });
+    }
+    return out;
+  }
+  if (name === 'tiercaps') {
+    /* WHY A LONE HERO HAS NO BIGGER PULL ON THE CAPPED GROUNDS: the rows refused, alone, in the sim only (whatIf; never written to a data file). Read by tiers-table.mjs --caps against plan tierladder's Normals. x = C<pull alone>:<power>:<xp>. */
+    const REFUSED = [['meadowbrook_thicket', [8, 8, 8, 8], 1000, 1000, [8, 12]], ['meadowbrook_thicket', [3, 6, 6, 6], 2000, 1000, [8, 12]], ['wickstead', [8, 8, 8, 8], 2000, 1000, [16, 20]], ['wickstead', [8, 8, 8, 8], 2000, 1100, [16, 20]], ['millrace_sewer', [4, 8, 8, 8], 1750, 1100, [16, 20]], ['millrace_sewer', [8, 8, 8, 8], 1750, 1100, [16, 20]]];
+    for (const [ground, pull, powerPm, xpPm, levels] of REFUSED) for (const level of levels) for (const s of ['hammer', 'axes', 'bow', 'mage']) {
+      out.push({ ...cellOf({ ground, party: [s], level, density: pull[0], hours: H(1), seeds: 2, x: 'C' + pull[0] + ':' + powerPm + ':' + xpPm }), options: { tier: 'deadly' }, windowMs: 120000, whatIf: { tiers: { [ground]: { deadly: { id: 'deadly', pull, powerPm, xpPm } } } } });
+    }
+    return out;
+  }
   if (name === 'armortier') {
     /* BALANCE RULING §9 ON THE REAL SETTLE (a meaningful armor upgrade is 3-5% less actual incoming damage): each rung on its own ground, the whole set and the body one tier behind, three weights. Same dice. */
     for (const [ground, level] of [['wickstead', 16], ['millrace_sewer', 16], ['mosslight_glade', 16], ['mosslight_glade', 31], ['coppercap_warrens', 32]]) for (const s of ['tank', 'bow', 'mage']) {
@@ -555,6 +610,26 @@ export function buildPlan(name, axes, scale = 1) {
       }
     }
     return out;
+  }
+  if (name === 'tierladder') {
+    /* THE LADDER RULE (src/data/hunt-tiers.js): a ground's top tier must not beat the next ground's Normal at the Level that fits it, or nobody moves on. Each rung at the upper ground's floor and past it, the rows as written, the Tempered kit beside the plain one (x = L<tier>, LT<tier>: every rung of both tracks, tier 1 has none). Read by tiers-table.mjs --ladder. */
+    const WHO = [['tank'], ['sword'], ['hammer'], ['axes'], ['bow'], ['crossbow'], ['mage'], ['healer'], PARTIES.duo, PARTIES.trio, PARTIES.four, PARTIES.four_dps];
+    const FULL = { 'temper:blows:2': 5, 'temper:blows:3': 5, 'temper:armor:2': 5, 'temper:armor:3': 5 };
+    for (const [lower, upper, levels] of TIER_RUNGS) for (const level of levels) for (const party of WHO) for (const [x, temper] of [['L', null], ['LT', level >= 15 ? FULL : null]]) {
+      if (x === 'LT' && !temper) continue;
+      const t = temper ? { temper } : {};
+      out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'normal', hours: H(1), seeds: 2, x: x + 'normal' }), ...t });
+      out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'dangerous', hours: H(1), seeds: 2, x: x + 'dangerous' }), ...t });
+      out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'deadly', hours: H(1), seeds: 2, x: x + 'deadly' }), ...t });
+      out.push({ ...tierCell(axes, { ground: upper, party, level, tier: 'normal', hours: H(1), seeds: 2, x: x + 'normal' }), ...t });
+    }
+    /* DRESSED: the same rungs with every cape and jewelry slot's best at that Level, on crafted food eaten early: where a guard or food change would show. x = LB. */
+    for (const [lower, upper, levels] of TIER_RUNGS) for (const level of levels) for (const party of WHO) {
+      const kit = { gear: { also: axes.dressOf(level) }, supply: 'own', bar: { eatPct: 70 }, party, level, hours: H(1), seeds: 2 };
+      out.push(tierCell(axes, { ...kit, ground: lower, tier: 'deadly', x: 'LBdeadly' }));
+      out.push(tierCell(axes, { ...kit, ground: upper, tier: 'normal', x: 'LBnormal' }));
+    }
+    return [...new Map(out.map((c) => [c.id, c])).values()];
   }
   if (name === 'firsthour') {
     /* LEVELS 1-8, WHERE A NEW HERO CAN WALK: every first ground at Levels 1, 3, 5, 8, on the shipped bar. Every way to fight alone in the practice set, the tank in three bronze pieces, a four in the practice set. */
@@ -597,6 +672,24 @@ export function buildPlan(name, axes, scale = 1) {
       out.push(run('mosslight_glade', ['tank'], 16, x + 'F', { gear: { armourSlots: ['helmet', 'body'] } }, w, 2));
       out.push(run('mosslight_glade', ['bow'], 24, x + 'F', {}, w, 2));
       out.push(run('mosslight_glade', PARTIES.four, 16, x + 'F', {}, w, 2));
+    }
+    return out;
+  }
+  if (name === 'capes') {
+    /* A CAPE AND STUDS, before and after guard came off them (2026-11-05): every way to fight, at the Glade's middle and at the Warrens, with no cape, with the rows as they were (whatIf), and as they are. */
+    const DRESSED = { cape: 'houndskin_cloak', earrings: 'copper_studs' };
+    const BEFORE = { items: { houndskin_cloak: { defB: 4, steadyPm: 0 }, copper_studs: { defB: 1 } } };
+    for (const [ground, level] of [['mosslight_glade', 24], ['coppercap_warrens', 40]]) for (const s of ['tank', 'hammer', 'bow', 'mage']) {
+      const cell = (x, gear, whatIf) => ({ ...cellOf({ ground, party: [s], level, gear, hours: H(2), seeds: 4, x }), windowMs: 120000, ...(whatIf ? { whatIf } : {}) });
+      out.push(cell('Nnone', {}), cell('Bbefore', { also: DRESSED }, BEFORE), cell('Aafter', { also: DRESSED }));
+      out.push(cell('Ahound', { also: { cape: 'houndskin_cloak' } }), cell('Agray', { also: { cape: 'graypelt_cloak' } }));
+    }
+    return out;
+  }
+  if (name === 'capes22') {
+    /* THE LEVEL 22 RUNG, where it comes in: a hero at the rung's Level in helm and body, with no cape, the Graypelt below it, the Houndskin. */
+    for (const s of ['tank', 'hammer', 'bow', 'mage']) for (const [x, also] of [['Nnone', null], ['Agray', { cape: 'graypelt_cloak' }], ['Ahound', { cape: 'houndskin_cloak' }]]) {
+      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 22, gear: { armourSlots: ['helmet', 'body'], ...(also ? { also } : {}) }, hours: H(2), seeds: 4, x }), windowMs: 120000 });
     }
     return out;
   }

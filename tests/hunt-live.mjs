@@ -6,7 +6,7 @@
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 // mutant-rule-functions: rules
 // mutant-runner-functions: mutate main
@@ -45,6 +45,9 @@
 //         pocket a full ring (density 8) closes round its centre and the west edge, where the party walks in, feeds 7
 //         box slots; the holder walks on to an edge that feeds 8 and pulls there. Browser closed: every server commit with
 //         5+ of the pull on him at rest has all of them beside him (one or two queued before). Viewed: every commit matches.
+//   LV-KITE A KITER'S PULL IS FOUGHT (Tyler 10-17: kiters never kite outside the area): a lone bow at the Warrens, pull 8, runs
+//         round its pack to the area's edge and stays in it. Browser closed: no pack ever resets (seven in 120 s before, the
+//         first 15 s in, each healing the pack to full). Viewed: every commit matches.
 //   LV-H  THE LOOK-AHEAD (Tyler 2026-10-20): hunt_live sends liveSeeds (16) combat seeds,
 //         one constant (src/data/hunt-tuning.js) the edge reads, and the leave horizon of
 //         2026-10-31-live-horizon.sql is exactly liveSeeds x the swing.
@@ -65,6 +68,8 @@
 //         browser closed) and in the browser's prediction (viewed), every commit matching.
 //   LV-SHOT-SKILL a slot's ammo the hero's skill can't use yet (Mithril Arrows, Ranged 45, at Ranged 42): viewed and closed, neither
 //             shot nor spent, the next slot flies, every commit matches (the settle half: tests/hunt-core/ranger-bar.mjs under-skill)
+//   LV-WAITS  a slot's words read the engine's own test of the prediction's world (src/shell/slot-waits.js): held on a lone monster, free on two,
+//             nothing to judge between pulls, and asked on every tick no commit moves
 //   LV-RANGER A RANGER'S BAR (Andy 2026-10-23, Fremulon): a bow with NO ammo worn, a Copper Whetstone
 //         slot ahead of its arrows: it shoots only its arrows (never the whetstone) and Precision Shot
 //         casts on them, on the server's commits (browser closed) and in the prediction (viewed).
@@ -129,6 +134,8 @@ async function load(base) {
     TL: await u('src/hunt-view/timeline.js'),
     HT: await u('src/core/hunt-track.js'),
     HG: await u('src/core/hunt-ground.js'),
+    GR: await u('src/core/hunt/grid.js'),
+    LS: await u('src/core/hunt/leash.js'),
     SPAWN: await u('src/core/hunt-spawn.js'),
     SB: await u('src/data/supply-basics.js'),
     XP: await u('src/core/xp.js'),
@@ -400,6 +407,23 @@ function rules(M) {
     ok('LV-U', shownXp.join() === closedXp.join(), 'the prediction shows ' + shownXp + ', the server pays ' + closedXp);
   }
 
+  { // LV-TIER: A HARDER HUNT, WATCHED (hunt-tiers.js; CLAUDE.md §6): the browser runs the same core on the frozen tier the leader's peer hero carries: every commit matches, and it's a harder fight than today's pull on the same dice.
+    const worn = { tank: { weapon: 'steel_sword', shield: 'coppercap_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' },
+      melee_dps: { weapon: 'steel_warhammer', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' } };
+    const two = (tier) => ['tank', 'melee_dps'].map((role, i) => {
+      const mi = memberOf(M, 't' + i, i, role, 60); mi.huntId = 'mosslight_glade'; mi.gold = 50000; mi.hp = 1e9; mi.equipment = worn[role];
+      mi.hero = Object.assign({}, mi.hero, { density: 8, lead: i === 1, ...(tier ? { tier } : {}) });
+      return mi;
+    });
+    const taken = (r, mis) => r.fed.events.filter((e) => e.type === 'dmg' && [mis[0].unitId, mis[1].unitId].includes(e.t)).reduce((s, e) => s + (e.amount || 0), 0);
+    const hard = two('deadly'), flat = two(null);
+    const a = run(M, hard, 48000, { server: { hunt: 'mosslight_glade' } }), b = run(M, flat, 48000, { server: { hunt: 'mosslight_glade' } });
+    const bad = a.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-TIER', a.verdicts.length >= 2 && bad.length === 0, `the viewer's browser did not predict the leader's Deadly: ${bad.length} of ${a.verdicts.length} commits diverged`);
+    ok('LV-TIER', taken(a, hard) > taken(b, flat), `Deadly took ${taken(a, hard)} HP in the browser's fight and today's pull ${taken(b, flat)}: the fight is not harder`);
+    console.log(`  LV-TIER Glade pair at the full box, 48 s: ${a.verdicts.length} commits, ${a.verdicts.length - bad.length} matched; HP taken ${taken(a, hard)} on Deadly, ${taken(b, flat)} at today's pull`);
+  }
+
   { // LV-K: THE LEADER CHOOSES (Tyler 2026-10-20): the peer leader's pick is the pull, on the server and in the browser.
     const pick = (mi, density, lead) => { mi.hero = Object.assign({}, mi.hero, { density, lead }); return mi; };
     const mis = [pick(memberOf(M, 'a', 0, 'tank', 6), 3, false), pick(memberOf(M, 'b', 1, 'melee_dps', 6), 7, true)];
@@ -489,6 +513,35 @@ function rules(M) {
     ok('LV-RING', boxes.length >= 3 && boxes.every((b) => b.split('/')[0] === b.split('/')[1]), `browser closed: the server's commits held ${JSON.stringify(boxes)} (beside / on him) of the pull at rest on the holder, want every one beside him (none queued out of reach; at least 3 commits with 5 or more on him)`);
     const bad = r.verdicts.filter((x) => x.v !== 'match');
     ok('LV-RING', r.verdicts.length >= 30 && bad.length === 0, `viewed: the browser's prediction of the ring's pull diverged at ${bad.length} of ${r.verdicts.length} commits`);
+  }
+
+  { // LV-KITE: A KITER'S PULL IS FOUGHT, BOTH PATHS. A retreat's goal was always inside the pack area but its walk was not: at the
+    // area's edge, with the pack on its heels, the re-plan round the monsters stepped out, the pack reset and healed to full, and the
+    // kiter re-pulled at once (Warrens pocket 0, the corridor east of x = 21). The control: the kiter reaches the edge, so "stays in"
+    // is not passed by standing still.
+    const eq = { weapon: 'maple_bow', ammo: 'bronze_arrows', helmet: 'boarhide_helmet', body: 'boarhide_body', pants: 'boarhide_pants', boots: 'boarhide_boots' };
+    const mi = memberOf(M, 'k', 0, 'ranger', 40);
+    mi.huntId = 'coppercap_warrens'; mi.gold = 50000; mi.hp = 1e9; mi.equipment = eq;
+    mi.huntSession = Object.assign({}, mi.huntSession, { bag: { bronze_arrows: { loaded: 60, left: 60 } } });
+    mi.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: M.HR.wornRoleKey(eq, M.ITEMS), options: {}, bar: [], partyRoles: ['ranger'], leaveTogether: true, lead: true }), { density: 8 });
+    const { ground, grid } = M.HG.huntGroundOf('coppercap_warrens');
+    const area = (p, x, y) => M.LS.inArea({ ground, world: {} }, p, x, y);
+    const walksOut = (p, x, y) => [-1, 0, 1].some((dy) => [-1, 0, 1].some((dx) => M.GR.walkable(grid, x + dx, y + dy) && !area(p, x + dx, y + dy)));
+    const outside = []; let resets = 0, atEdge = 0, kills = 0;
+    const r = run(M, [mi], 120000, { server: { hunt: 'coppercap_warrens' }, commitMs: 2000, onCommit: ({ c, srv }) => {
+      for (const e of c.tl.hunt_events) { if (e.type === 'pack_reset') resets++; if (e.type === 'kill') kills++; }
+      const w = srv.inst.world && M.WS.decode(JSON.parse(srv.inst.world));
+      const p = w ? w.packs.findIndex((x) => x.aggro) : -1;
+      if (p < 0) return;
+      const k = w.units.find((u) => u.id === w.packs[p].holder);
+      if (!area(p, k.x, k.y)) outside.push([k.x, k.y]);
+      if (walksOut(p, k.x, k.y)) atEdge++;
+    } });
+    console.log(`  LV-KITE a lone bow at the Warrens, pull 8: ${resets} pack resets, ${kills} kills, ${atEdge} commits on the area's edge; ${r.verdicts.filter((x) => x.v === 'match').length} of ${r.verdicts.length} commits matched the prediction`);
+    ok('LV-KITE', resets === 0 && outside.length === 0, `browser closed: ${resets} pack resets in 120 s, the holder outside its area at ${JSON.stringify(outside)}: it must fight the pack it pulled`);
+    ok('LV-KITE', atEdge >= 2 && kills >= 3, `the control: ${atEdge} commits on the area's edge, ${kills} kills: the kiter must run to the edge and fight`);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-KITE', r.verdicts.length >= 30 && bad.length === 0, `viewed: the browser's prediction of the kite diverged at ${bad.length} of ${r.verdicts.length} commits`);
   }
 
   { // LV-H: the look-ahead is ONE constant (16 swings), and a leave lands no earlier than its last swing.
@@ -1204,6 +1257,27 @@ function rules(M) {
     ok('LV-$', JSON.stringify(dry(closedEvs)) === JSON.stringify(['cooked_shrimp,salted_trout,2']), 'the server\'s run-out event read ' + JSON.stringify(dry(closedEvs)) + ', want slot 2 (Salted Trout) taking over');
     ok('LV-$', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
   }
+  { /* LV-WAITS a slot says why it isn't firing from the engine's own test of the world the prediction runs (slot-waits.js), asked on every tick */
+    const mi = memberOf(M, 'a', 0, 'mage', 1);
+    mi.equipment = { weapon: 'practice_wand', shield: 'practice_spellbook' };
+    mi.huntSession = Object.assign({}, mi.huntSession, { bag: { chalked_fire_rune: { loaded: 200, left: 200 }, cooked_shrimp: { loaded: 30, left: 30, essential: true } } });
+    const fire ={ action: { type: 'ability', id: 'fireball' }, conditions: [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }], join: 'and' };
+    mi.hero = M.SPAWN.heroSetup({ weaponType: 'wand', options: {}, partyRoles: ['mage'], bar: [fire] });
+    const said = { held: 0, free: 0, idle: 0 };
+    const r = run(M, [mi], 96000, { onTick: ({ E }) => {
+      const test = E.slotTester(E.selfUnit());
+      if (!test) { said.idle++; return; }
+      if (test(fire).pass) said.free++; else said.held++;
+    } });
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    const casts = r.fed.events.filter((e) => e.type === 'cast' && e.ability === 'fireball').length;
+    console.log('  LV-WAITS: over 96 s of a Mage\'s prediction the slot read held ' + said.held + ', free ' + said.free + ', nothing engaged ' + said.idle + ' ticks; Fireball cast ' + casts + ' times; ' + bad.length + ' of ' + r.verdicts.length + ' commits off');
+    ok('LV-WAITS', said.held > 0, 'CONTROL: the prediction never read Fireball as held back: ' + JSON.stringify(said));
+    ok('LV-WAITS', said.free > 0 && casts > 0, 'CONTROL: Fireball never had its two monsters: ' + JSON.stringify(said) + ', ' + casts + ' casts');
+    ok('LV-WAITS', said.idle > 0, 'nothing engaged never read as nothing to judge (between pulls): ' + JSON.stringify(said));
+    ok('LV-WAITS', r.verdicts.length > 0 && bad.length === 0, bad.length + ' commit(s) did not match with the slot asked every tick: asking moved the prediction');
+    ok('LV-WAITS', r.E.slotTester(987654) === null, 'a unit nobody plays has a tester');
+  }
   { /* LV-RANGER a Ranger's bar, viewed and with the browser closed (Andy 2026-10-23, Fremulon) */
     const mi = memberOf(M, 'a', 0, 'ranger', 10);
     /* Melee 15 meets the Copper Whetstone's own requirement. At Level 10's Melee the skill gate (abilities.js shotLocked) passes it over first, which hid whether a bow may shoot it: this rule is the weapon's (damage.js pickShot). */
@@ -1330,6 +1404,8 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  ['the prediction never answers why a slot waits (LV-WAITS)', 'src/hunt-view/live-engine.js', 'return side ? slotTesterOf(st.world, st.where.grid, side.member, items) : null;', 'return null;', /^LV-WAITS: CONTROL: the prediction never read/],
+  ['asking why a slot waits moves the prediction (LV-WAITS)', 'src/hunt-view/live-engine.js', '    const t = testSlot(inst, u, h, slot);\n', '    const t = testSlot(inst, u, h, slot);\n    u.mana -= 1;\n', /^LV-WAITS: \d+ commit/],
   ['the engine shoots ammo under its skill (LV-SHOT-SKILL)', 'src/core/hunt/abilities.js', "function shotLocked(h, id) {\n", "function shotLocked(h, id) {\n  if (h) return false;\n", /^LV-SHOT-SKILL: browser closed/],
   ["the peer's Level stays out of its frozen row, so the browser predicts the low seat a full share (LV-U)", 'src/core/member.js', 'armour: snap.armour || null, level: snap.level }', 'armour: snap.armour || null }', /^LV-U: the prediction/],
   ['the party factor is not paid (LV-CLASS)', 'src/core/hunt/xp-share.js', '(raw * party * multOf(sc, h))', '(raw * 1000 * multOf(sc, h))', /^LV-CLASS: mixed/],
@@ -1361,6 +1437,7 @@ const MUTANTS = [
   ['the holder never rotates (LV-T)', 'src/core/hunt/targeting.js', 'return tanks[runs % tanks.length];', 'return tanks[0];', /^LV-T/],
   ['a peer row carries its full setup (LV-P)', 'supabase/functions/hr-accrue/hunt-settle.js', '      if (!self) {', '      if (false) {', /^LV-P/],
   ['the look-ahead is its own number at the edge (LV-H)', 'supabase/functions/hr-accrue/hunt-settle.js', 'export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;', 'export const LIVE_SEEDS = 64;', /^LV-H/],
+  ['the holder walks out of its pack area (LV-KITE)', 'src/core/hunt/leash.js', 'return held < 0 || inArea(inst, held, x, y);', 'return true;', /^LV-KITE: browser closed/],
   ['a walled pull stays on short ground (LV-RING, Andy #64)', 'src/core/hunt/pull-cycle.js', '    if (walled && !arrived && roomierEdge(inst, k, p, Math.round(c.x), Math.round(c.y))) return;\n', '', /^LV-RING: browser closed/],
   ['the tank plants wherever the pull leaves him (LV-OPEN, Tyler + Andy 10-25)', 'src/core/hunt/roles.js', '  if (plantOpen(inst, h, onMe, near, zone)) return;\n', '', /^LV-OPEN: browser closed/],
   ["the browser's pack area is not the server's (LV-OPEN, viewed)", 'src/hunt-view/live-engine.js',
@@ -1391,6 +1468,7 @@ const MUTANTS = [
     'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
+  ['the browser drops the tier of a peer (LV-TIER)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { tier: null }),', /^LV-TIER/],
   ["a peer's frozen numbers drop its Blows rung (LV-TEMPER)", 'src/core/member.js', '...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ', '', /^LV-TEMPER/],
   ["a peer's frozen numbers drop its Armor rung (LV-TEMPER)", 'src/core/member.js', '...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ', '', /^LV-TEMPER/],
   ['the settle never puts the Armor rung on the hero (LV-TEMPER)', 'src/core/combat-sim.js', '  if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;\n', '', /^LV-TEMPER/],

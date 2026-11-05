@@ -35,27 +35,27 @@
 // server's engine has certainly done since its watermark (tickOf: town-ticker.js,
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.91';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.91';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.91';
-import { ITEMS } from '../data/items.js?v=0.2.91';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.91';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.91';
-import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.91';
-import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.91';
-import { recipeInputs } from '../core/artisan.js?v=0.2.91';
-import { pacedXp } from '../core/pacing.js?v=0.2.91';
-import { whole } from '../render/format.js?v=0.2.91';
-import { itemName } from './widgets/bits.js?v=0.2.91';
-import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.91';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.91';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.91';
-import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.91';
-import { skillShortWords } from './intent-words.js?v=0.2.91';
-import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.91';
-import { bestTool } from '../core/tools.js?v=0.2.91';
-import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.91';
-import { whereToGet, toolEffect } from './item-lore.js?v=0.2.91';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.97';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.97';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.97';
+import { ITEMS } from '../data/items.js?v=0.2.97';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.97';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.97';
+import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.97';
+import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.97';
+import { recipeInputs } from '../core/artisan.js?v=0.2.97';
+import { pacedXp } from '../core/pacing.js?v=0.2.97';
+import { whole } from '../render/format.js?v=0.2.97';
+import { itemName } from './widgets/bits.js?v=0.2.97';
+import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.97';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.97';
+import { townActivityWords } from '../session/party-sections.js?v=0.2.97';
+import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.97';
+import { skillShortWords } from './intent-words.js?v=0.2.97';
+import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.97';
+import { bestTool } from '../core/tools.js?v=0.2.97';
+import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.97';
+import { whereToGet, toolEffect } from './item-lore.js?v=0.2.97';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -162,6 +162,12 @@ export function benchSpentAtMs(cs) {
   const left = leftOf(cs);
   const runs = affordable(cs, w, left === null ? runsOf(w.row, supplyOf(cs)) : Math.min(left, runsOf(w.row, supplyOf(cs))));
   return from + runs * actionMs(cs, w) + SLACK_MS;
+}
+
+/** About how many pieces an hour of this node brings at `ms` a swing, to the nearest ten: a higher rung swings slower and may bring more, so seconds alone misread it (Andy 2026-11-05). */
+export function perHourOf(w, ms) {
+  const q = w.row.qty, each = q ? (Number(q[0]) + Number(q[1])) / 2 : 1;
+  return Math.round((3600000 / ms) * each / 10) * 10;
 }
 
 /** XP one action pays at the pacing dial, whole (the server floors the same way). */

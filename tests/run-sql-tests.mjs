@@ -658,7 +658,7 @@ const ALSO_LINTED = [
   '2027-02-10-settle-reads.sql',
   /* THE GAME MASTER TOOLS (lane/c-gm-tools, 2026-11-05): ten client RPCs, two engine functions and link 23 of
      HR_GRANT_HYGIENE_CHAIN, so the grant lints read every revoke-then-grant. */
-  '2027-03-05-gm-tools.sql',
+  '2027-03-13-gm-tools.sql',
   /* LINKS OF HR_APPLY_CHAIN / HR_STATE_OF_CHAIN that were never listed (2026-10-24, lane b-ci-speed):
      the derivation walk reads `sources`, so an unlisted link read as '' and failed "cannot extract the
      body" (4 of the 16 static reds since 2026-10-27), and the c_delta_keys lint read nothing (1 more). */
@@ -1039,7 +1039,7 @@ const HR_GRANT_HYGIENE_CHAIN = [
   '2027-02-10-settle-reads.sql',
   // link 23 (lane/c-gm-tools) — the Game Master's stop: two engine entries, INSERTED at the head of c_engine_allow, so
   // its declared-removals list stays EMPTY. Its base is link 22's TARGET. It is the new last toucher.
-  '2027-03-05-gm-tools.sql',
+  '2027-03-13-gm-tools.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [
@@ -1124,7 +1124,7 @@ const code = new Map([...sources].map(([f, sql]) => [f, stripComments(sql)]));
 // weakening the anon rule for everybody.)
 const CLIENT_CALLABLE = new Map([
   ['hr_load', ['authenticated']],
-  /* THE GAME MASTER (2027-03-05-gm-tools.sql): each refuses everyone without the row only a migration writes. */
+  /* THE GAME MASTER (2027-03-13-gm-tools.sql): each refuses everyone without the row only a migration writes. */
   ['hr_gm_online', ['authenticated']],
   ['hr_gm_hero', ['authenticated']],
   ['hr_gm_mute', ['authenticated']],

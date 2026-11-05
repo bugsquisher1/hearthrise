@@ -37,25 +37,26 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.91';
-import { rollDropTable } from './drops.js?v=0.2.91';
-import { yieldOf } from './hunt/damage.js?v=0.2.91';
-import { applyGoldFind } from './pacing.js?v=0.2.91';
-import { COMBAT_XP } from '../data/core-model.js?v=0.2.91';
-import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.91';
-import { resolveHearthfind } from './hearthfind.js?v=0.2.91';
-import { magicXpFor } from './hunt/xp-share.js?v=0.2.91';
-import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.91';
-import { makeEvent } from './hunt/events.js?v=0.2.91';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.97';
+import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.97';
+import { rollDropTable } from './drops.js?v=0.2.97';
+import { yieldOf } from './hunt/damage.js?v=0.2.97';
+import { applyGoldFind } from './pacing.js?v=0.2.97';
+import { COMBAT_XP } from '../data/core-model.js?v=0.2.97';
+import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.97';
+import { resolveHearthfind } from './hearthfind.js?v=0.2.97';
+import { magicXpFor } from './hunt/xp-share.js?v=0.2.97';
+import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.97';
+import { makeEvent } from './hunt/events.js?v=0.2.97';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
 /* THE DEFENSE XP of one monster blow aimed at member `m` (landed or turned aside):
    only while the hero wears armour; scaled by the attacker's level; a shield's
    block (a miss on a shield-holder) pays blockMult times more. */
-function defenseXp(m, attacker, missed, monsters) {
+function defenseXp(m, attacker, missed, ctx) {
   if (!m || m.armoured !== true || !attacker || attacker.side !== 'mon') return 0;
-  const lv = monsterLevelOf((monsters || MONSTERS)[attacker.kind]);
+  const lv = levelAtTier(monsterLevelOf((ctx.monsters || MONSTERS)[attacker.kind]), ctx.tier);
   return (lv * COMBAT_XP.defenseXpPerLevelPermille / 1000) * (missed && m.shield === true ? COMBAT_XP.blockMult : 1);
 }
 
@@ -130,7 +131,7 @@ function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs, monId) {
  *   { state, hs, fx, family (the weapon family), armoured, shield, bonus(key),
  *     weakness(monsterRow) → { dropMult } }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
- * `ctx` = { rng (the swing's `r` stream), monsters?, hearthfind? (the indexed table; the catalogue's when absent),
+ * `ctx` = { rng (the swing's `r` stream), monsters?, tier? (the hunt's hunt-tiers.js row), hearthfind? (the indexed table; the catalogue's when absent),
  *   emit?(event) (the instance's world events: a party's `rare_roll`) }.
  * Answers the swing's deaths: [{ unit, atMs, monster }], in event order.
  */
@@ -154,7 +155,7 @@ export function rewardSwing(members, events, world, ctx) {
         if (m && ev.crit === true) { m.state.stats = m.state.stats || {}; m.state.stats.crits = (m.state.stats.crits || 0) + 1; }
         /* A status tick (`dot`: poison, burn, bleed) is not a blow: it trains no Defense (Tyler 2026-10-22). */
         const hit = ev.dot === true ? null : members.get(ev.t);
-        const d = hit ? defenseXp(hit, unitOf(ev.u), false, ctx.monsters) : 0;
+        const d = hit ? defenseXp(hit, unitOf(ev.u), false, ctx) : 0;
         if (d > 0) call(hit.fx, 'addXp', 'defense', d);
         break;
       }
@@ -162,7 +163,7 @@ export function rewardSwing(members, events, world, ctx) {
         /* A DODGE (medium armour, ruling K7) is a blow aimed and turned aside by the hero's own
            footwork: it trains Defense like any blow taken, never at a shield block's rate. */
         const aimed = members.get(ev.t);
-        const d = aimed ? defenseXp(aimed, unitOf(ev.u), ev.dodge !== true, ctx.monsters) : 0;
+        const d = aimed ? defenseXp(aimed, unitOf(ev.u), ev.dodge !== true, ctx) : 0;
         if (d > 0) call(aimed.fx, 'addXp', 'defense', d);
         break;
       }

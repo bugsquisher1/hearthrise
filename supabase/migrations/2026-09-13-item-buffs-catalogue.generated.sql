@@ -6,7 +6,7 @@
 --   next generation and FAILS `node tools/gen-catalogues.mjs --check`, which is
 --   a preflight in tests/run-sql-tests.mjs and tests/run-smoke.mjs.
 --
---   catalogue digest: 7aa3e258d542953cb49fdbdfe24dc00b7c499eb92330a9710b6fa7f44bc79600
+--   catalogue digest: 65792aec536e87d1b72049524c39accd4b3a2faa7c3ec52b6be59142efbe690f
 --   rows: 30 buff foods across 9 types (all_xp, combat_xp, damage, damage_crit, defense, drop_rate, farm_yield, gather_speed, gold_find)
 --
 -- WHAT THIS IS FOR. hr_apply's `buff_apply` delta key carries ONE field — the
@@ -54,7 +54,7 @@ insert into public.hr_item_buffs (item_id, type, magnitude, duration_ms) values
   ('bear_claw_pie','damage',3,600000),
   ('carrot_stew','farm_yield',1,360000),
   ('cooked_copper_crab','all_xp',2,180000),
-  ('cooked_frostfin','defense',4,360000),
+  ('cooked_frostfin','defense',5,360000),
   ('cooked_goldgill','drop_rate',2,300000),
   ('cooked_herring','gather_speed',1,120000),
   ('cooked_lobster','drop_rate',3,300000),
@@ -73,7 +73,7 @@ insert into public.hr_item_buffs (item_id, type, magnitude, duration_ms) values
   ('lich_soul_soup','gold_find',5,300000),
   ('moonbloom_elixir','all_xp',5,480000),
   ('pumpkin_pie','all_xp',3,300000),
-  ('river_chowder','defense',2,300000),
+  ('river_chowder','defense',3,300000),
   ('roasted_carrot','gather_speed',1,180000),
   ('roasted_pumpkin','farm_yield',1,600000),
   ('tomato_soup','drop_rate',2,240000),
@@ -140,5 +140,5 @@ begin
      and privilege_type <> 'SELECT';
   if v_bad > 0 then raise exception '% client write grants on hr_item_buffs', v_bad; end if;
 
-  raise notice 'hr_item_buffs OK — % rows, digest 7aa3e258d542953cb49fdbdfe24dc00b7c499eb92330a9710b6fa7f44bc79600', v_n;
+  raise notice 'hr_item_buffs OK — % rows, digest 65792aec536e87d1b72049524c39accd4b3a2faa7c3ec52b6be59142efbe690f', v_n;
 end $$;

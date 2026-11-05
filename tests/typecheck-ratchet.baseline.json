@@ -1,6 +1,6 @@
 {
   "note": "Ceilings, not targets: per file and error kind, counts may only fall. Written by node tests/typecheck-ratchet.mjs --write, which refuses a rise. Regenerate, never hand-merge.",
-  "total": 495,
+  "total": 476,
   "files": {
     "src/app/boot.js": {"TS2367":1,"TS2554":5},
     "src/app/hero-create.js": {"TS1005":3,"TS2304":2,"TS2353":1},
@@ -34,7 +34,6 @@
     "src/data/catalogue-coherence.js": {"TS2339":6},
     "src/data/condition-metrics.js": {"TS2339":8},
     "src/data/gear-tiers.js": {"TS2339":6},
-    "src/data/hero-base.js": {"TS2339":3},
     "src/data/hunt-roles.js": {"TS2339":6,"TS2345":1},
     "src/data/hunt-tutorial.js": {"TS2339":16,"TS2551":1},
     "src/data/hunts.js": {"TS2339":1},
@@ -49,7 +48,7 @@
     "src/hunt-view/float-prefs.js": {"TS2345":1},
     "src/hunt-view/live-diff.js": {"TS2322":1,"TS2339":4},
     "src/hunt-view/live-engine.js": {"TS2345":1},
-    "src/hunt-view/scene.js": {"TS1016":1,"TS2314":1,"TS2339":12,"TS2561":1},
+    "src/hunt-view/scene.js": {"TS1016":1,"TS2314":1,"TS2561":1},
     "src/hunt-view/summary-recorder.js": {"TS2741":1},
     "src/hunt-view/timeline.js": {"TS2339":1,"TS2540":1,"TS8024":2},
     "src/net/auth.js": {"TS2339":1},
@@ -74,7 +73,6 @@
     "src/shell/hunt-go.js": {"TS2339":4},
     "src/shell/hunt-ground-facts.js": {"TS2339":4},
     "src/shell/hunt-list.js": {"TS2339":7},
-    "src/shell/intent-words.js": {"TS2339":1},
     "src/shell/item-lore.js": {"TS2339":5},
     "src/shell/launcher.js": {"TS2339":1},
     "src/shell/market-model.js": {"TS2362":1,"TS2363":1},
@@ -99,7 +97,7 @@
     "src/social/chat-store.js": {"TS2339":1,"TS2345":1},
     "src/world/atlas.js": {"TS2345":4},
     "src/world/core/camera.js": {"TS2339":5},
-    "src/world/core/compose.js": {"TS2339":14,"TS2365":2,"TS2707":1},
+    "src/world/core/compose.js": {"TS2339":13,"TS2365":2,"TS2707":1},
     "src/world/hearth-burn.js": {"TS2739":1},
     "src/world/home-scene.js": {"TS2339":1},
     "src/world/hunt-scene.js": {"TS2322":1},
@@ -107,8 +105,8 @@
     "src/world/render/canvas-backend.js": {"TS2362":1,"TS2363":1},
     "src/world/sandbox-scene.js": {"TS2345":2},
     "src/world/scene-sets.js": {"TS2339":1,"TS2345":2},
-    "src/world/steer-local.js": {"TS2322":3,"TS2339":1},
-    "src/world/walk-scene.js": {"TS2339":5,"TS2367":1},
+    "src/world/steer-local.js": {"TS2322":2,"TS2339":1},
+    "src/world/walk-scene.js": {"TS2339":5},
     "src/world/world-boot.js": {"TS2339":6,"TS2345":3}
   }
 }

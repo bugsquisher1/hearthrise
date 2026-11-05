@@ -599,7 +599,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return await reply(out.body, out.status);
     }
 
-    /* ── THE GAME MASTER'S STOP (./gm-stop.js, 2027-03-05-gm-tools.sql) ─────
+    /* ── THE GAME MASTER'S STOP (./gm-stop.js, 2027-03-13-gm-tools.sql) ─────
        `user` is the VERIFIED subject. hr_gm_stop_gate refuses anyone without a
        server-written row before it reads the body's target or reason. */
     if (intent.verb === 'gm_stop') {

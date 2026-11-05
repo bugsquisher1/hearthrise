@@ -40,7 +40,7 @@
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
 // ════════════════════════════════════════════════════════════════════════
 
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.91';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.97';
 
 export const MAX_OPEN = 3;
 export const DOCK_MAX = 0.6;
@@ -63,8 +63,9 @@ export function validateWindowRows(rows) {
     if (!r || typeof r.id !== 'string' || !/^[a-z][a-z0-9_-]*$/.test(r.id)) throw new Error('shell windows: bad id ' + JSON.stringify(r && r.id));
     if (byId.has(r.id)) throw new Error('shell windows: duplicate id ' + r.id);
     if (typeof r.label !== 'string' || !r.label) throw new Error('shell windows: ' + r.id + ' has no label');
-    /* a popup only the game opens; or the Game Master's window, whose icon is its door: every letter is taken, and a key would open an empty window on anyone's keyboard */
-    const noKey = r.key === null && ((r.modal === true && r.launcher === false) || r.gm === true);
+    const noKey = r.key === null && ((r.modal === true && r.launcher === false)   // a popup only the game opens
+      || r.noShortcut === true                                                    // a launcher row with no letter left for it: the icon opens it
+      || r.gm === true);                                                          // the Game Master's window: a key would open an empty window on anyone's keyboard
     if (!noKey && !KEY_RE.test(r.key || '')) throw new Error('shell windows: ' + r.id + ' key must be a letter, enter or escape');
     if (keys.has(r.key)) throw new Error('shell windows: key ' + r.key + ' is both ' + keys.get(r.key) + ' and ' + r.id);
     /* tabKeys: a second shortcut that opens this window on one of its tabs ({ r: 'services' }: R opens the Shop on Services) */

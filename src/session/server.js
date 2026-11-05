@@ -36,8 +36,8 @@
 // does not know).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.91';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.91';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.97';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.97';
 
 export const CLOSED_CODE = 'hr_closed';
 export const BANNED_CODE = 'hr_banned';
@@ -48,7 +48,7 @@ export function isClosedAnswer(status, body) {
   return status === CLOSED_STATUS && !!body && typeof body === 'object' && (body.code === CLOSED_CODE || body.code === BANNED_CODE);
 }
 
-/* THE WALL AND THE ROW LOCKS (2027-03-05-gm-tools.sql): a raise carries its code in the body, not in `error`. The word the refusal table reads, or null. */
+/* THE WALL AND THE ROW LOCKS (2027-03-13-gm-tools.sql): a raise carries its code in the body, not in `error`. The word the refusal table reads, or null. */
 const WALL_CODE = 'hr_gm_walled';
 function raisedCode(body) {
   if (!body || typeof body !== 'object') return null;

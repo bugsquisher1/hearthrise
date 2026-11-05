@@ -25,6 +25,16 @@ export const CHAT_TABS = Object.freeze([
   Object.freeze({ id: 'combat', label: 'Combat', send: null, placeholder: 'Your hunt’s combat log. Nothing to type here.', unread: false }),
 ]);
 
+/* THE TOWN CRIER's words on the Global tab (src/shell/windows/chat-crier.js). Prices and counts are the server's. */
+export const CRIER = Object.freeze({
+  label: 'Town Crier',
+  mark: 'Crier',
+  cry: 'Cry it',
+  done: 'No more lines today',
+  empty: 'Type the line first. The Crier shouts what\'s in the field.',
+  note: (q) => 'Goes to everyone online, in gold. ' + q.n + ' of ' + q.perDay + ' today.',
+});
+
 /* A whisper conversation's tab: id 'w:<user id>', the other player's name as the label. */
 export const WHISPER = Object.freeze({ prefix: 'w:', placeholder: (name) => 'Message ' + name + '…' });
 

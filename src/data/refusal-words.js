@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.91';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.97';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -68,10 +68,21 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     hunting: 'Your hero is out hunting. The Great Hearth is in town.',
     no_item: 'That fuel is not in your bag any more.',
   }),
+  /* What gold buys in town (2027-02-27-town-shows.sql hr_town_show): src/shell/sink-words.js says those with a number. */
+  town_powder: Object.freeze({
+    hunting: 'Your hero is out hunting. The Great Hearth is in town.',
+    show_limit: 'Havora takes 5 powders a day from one account. More after midnight UTC.',
+    show_busy: 'The Hearth\'s powders are booked for now. You weren\'t charged.',
+  }),
+  town_round: Object.freeze({
+    hunting: 'Your hero is out hunting. The Tavern is in town.',
+    show_limit: 'Havora takes 3 rounds a day from one account. More after midnight UTC.',
+    show_busy: 'Someone\'s round is still going. You weren\'t charged.',
+  }),
 });
 
 export const REFUSAL_WORDS = Object.freeze({
-  /* The Game Master's wall and his tools (2027-03-05-gm-tools.sql). */
+  /* The Game Master's wall and his tools (2027-03-13-gm-tools.sql). */
   gm_walled: 'The Game Master\'s account stays apart from other players, so that can\'t be done.',
   muted: 'The Game Master has muted you for now. You can still read chat.',
   refused: 'That is for the Game Master.',
@@ -83,7 +94,7 @@ export const REFUSAL_WORDS = Object.freeze({
   day_limit: 'That is today\'s limit.',
   /* The Weighhouse: market-words.js says these with the server's numbers. */
   market_closed: MARKET_WORDS.market_closed,
-  market_locked: 'The Weighhouse only trades with heroes of a higher Level. Keep hunting.',
+  market_locked: 'The Weighhouse trades with heroes of a higher Level, or with a higher bench skill.',
   market_spend_daily_cap: MARKET_WORDS.market_spend_daily_cap,
   market_proceeds_daily_cap: MARKET_WORDS.market_proceeds_daily_cap,
   price_below_shop: 'That\'s less than the shop pays. Ask at least that, or sell it at the shop.',
@@ -101,6 +112,26 @@ export const REFUSAL_WORDS = Object.freeze({
   flame_too_low: 'Your Inner Flame is too low for that fuel yet.',
   hearth_limit: 'The Great Hearth takes only so many named fuels a day from one hero. Try again tomorrow.',
   hearth_busy: 'The Great Hearth is already burning named fuels. Try again in a few minutes.',
+  /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql). Every one of these leaves the purse alone. */
+  not_a_show: 'Havora doesn\'t sell that.',
+  show_limit: 'Havora takes only so many of those a day from one account. More after midnight UTC.',
+  show_busy: 'The town is booked for now. You weren\'t charged.',
+  crier_off: 'The Crier is off duty right now. You weren\'t charged.',
+  crier_word: 'The Crier won\'t shout that word. Change it. You weren\'t charged.',
+  crier_link: 'The Crier won\'t shout web addresses. You weren\'t charged.',
+  crier_links: 'The Crier shouts one item link at most. You weren\'t charged.',
+  crier_long: 'The Crier shouts 120 letters at most. You weren\'t charged.',
+  crier_level: 'The Crier takes words from Level 10 heroes and up.',
+  crier_limit: 'The Crier takes 5 lines a day from one account. More after midnight UTC.',
+  crier_busy: 'The Crier is shouting someone else\'s line. Try again in a moment. You weren\'t charged.',
+  /* The Town Works (2027-03-04-town-works.sql hr_town_works_give): src/shell/sink-words.js says those with a number. */
+  not_a_project: 'Havora isn\'t building that.',
+  bad_amount: 'Give a whole number of gold pieces.',
+  works_limit: 'Havora takes 25,000 gp a day from one account, and you\'ve given yours. More after midnight UTC.',
+  works_over: 'That\'s more than you can give today.',
+  works_short: 'That\'s more than the Works still needs.',
+  works_small: 'The smallest gift is 100 gp.',
+  works_done: 'That\'s finished. Nothing else is being built right now.',
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
   network: 'No connection. Nothing was changed.',
   timeout: 'The server has not answered. The game shows what it last confirmed.',
@@ -253,9 +284,18 @@ export const REFUSAL_WORDS = Object.freeze({
   /* Naming, saving and removing a setup (2026-11-15-preset-names.sql). */
   bad_preset_name: 'Names are 1 to 24 characters, and some words are not allowed.',
   setup_in_use: 'That setup is in use. Put another one on first.',
-  /* The density pick per ground (hr_hunt_density_set, 2026-11-17-hunt-density-home.sql). */
+  /* Setup slots and titles (2027-02-28-setup-slots.sql, 2027-02-28-titles.sql). With the server's numbers these read from intent-words.js refusalText. */
+  setup_locked: 'This hero\'s setup slots are full. Delete one, or buy another.',
+  setup_slots_max: 'This hero has every setup slot there is.',
+  /* A hero's colors (2027-03-05-hero-colors.sql). With the server's number the limit reads from intent-words.js refusalText. */
+  colors_same: 'Those are already this hero\'s colors. Nothing was charged.',
+  colors_limit: 'This hero has changed colors as often as a day allows. More after midnight UTC.',
+  title_kills: 'That title takes more kills first. Gold can\'t skip kills.',
+  title_owned: 'This hero already has that title.',
+  title_not_owned: 'This hero hasn\'t claimed that title yet.',
+  /* The tier picked per ground (hr_hunt_tier_set). */
   bad_hunt: 'That hunt has no monsters to set a number for.',
-  bad_density: 'That is more monsters than this hunt allows.',
+  bad_tier: 'This hunt can\'t be hunted that way yet.',
   unknown_supply: 'One of the things packed is not a hunt supply.',
   bad_bag: 'The packed supplies were not valid, so nothing was sent.',
   too_many_lines: 'Too many kinds of supplies packed.',

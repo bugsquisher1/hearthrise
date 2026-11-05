@@ -23,7 +23,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ABILITIES } from './abilities.js?v=0.2.91';
+import { ABILITIES } from './abilities.js?v=0.2.97';
 
 /* Where on a unit an effect centres, as a fraction of its art height: a rat's chest is
    lower than the Rat King's, and a mark floats over whichever head it is on. */
@@ -77,7 +77,7 @@ export const HIT_FX = Object.freeze({
 });
 
 /* What flies `flightMs` from the shooter to the target before a `dmg` lands (the hit, its number and
-   its flash land on arrival): by ability (null: it strikes where it stands), else by the attacker's
+   its recoil land on arrival): by ability (null: it strikes where it stands), else by the attacker's
    role (a role not listed strikes in place). A basic hit carries no element today (no weapon binds
    one), so a caster's bolt is its weapon's: the wand's frost-blue orb, the staff's green mote. Area
    spells land where they are aimed; their burst is the hit. */

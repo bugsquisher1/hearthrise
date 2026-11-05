@@ -35,6 +35,7 @@ import { ITEMS } from '../../../src/data/items.js';
 import { HUNT_ROLES, roleForWeapon, wornRoleKey } from '../../../src/data/hunt-roles.js';
 import { playerCombatRolls } from '../../../src/core/combat.js';
 import { vitalsOf } from '../../../src/core/vitals.js';
+import { mitigationOf } from '../../../src/core/mitigation.js';
 import { buffQueueFromServer } from '../../../src/core/buffs.js';
 import { xpMultiplierParts } from '../../../src/core/progression.js';
 import { heroSnapshot, loadoutOf, bonusFor, liveBuffHost, combatWorn } from '../../../src/core/member.js';
@@ -87,6 +88,7 @@ export function characterSheetOf(env, perks, nowMs) {
   const perkState = perks && perks.ok === true ? perks : null;
   const bonus = bonusFor(perkState, liveBuffHost(() => buffs));
   const snap = heroSnapshot({ skills, levelXp }, { eq, equipment, items: ITEMS, bonus, setBonus, profile });
+  const mit = mitigationOf(snap.armour, snap.level);
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq, equipment, items: ITEMS, skills, bonus, setBonus, profile });
   const role = roleForWeapon(wornRoleKey(equipment, ITEMS), null);
   const row = role ? HUNT_ROLES[role] : null;
@@ -109,10 +111,10 @@ export function characterSheetOf(env, perks, nowMs) {
     defence: snap.def,
     /* WHAT THE ARMOUR DOES TO A BLOW (ruling K7, src/core/mitigation.js): the chance a blow
        misses outright (medium), the share of a landed blow taken off (heavy), the flat amount
-       off each landed blow (light), at this Level, as the settle writes them on the hero. */
-    dodge_pct: round(snap.mit.dodgePm / 10, 1),
-    absorb_pct: round(snap.mit.absorbPm / 10, 1),
-    ward: snap.mit.ward,
+       off each landed blow (light), against a monster of this hero's Level: a stronger one gets through more. */
+    dodge_pct: round(mit.dodgePm / 10, 1),
+    absorb_pct: round(mit.absorbPm / 10, 1),
+    ward: mit.ward,
     set: setBonus ? { tier: setBonus.tier, pieces: setBonus.pieces } : null,
     xp: { perks: round(lasting.all, 4), buffs: round(now.all - lasting.all, 4), combat: round(now.combat, 4) },
   };

@@ -13,6 +13,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 **Equip upgrades gets you dressed.** An empty slot no longer waits for you to choose: it takes the armor weight you picked at Tamsin's, or the one you already wear, or the one that suits your weapon. You can still change any piece on the doll.
 
 **No old news on your way back.** Coming back to a long hunt no longer opens on "Your hero just ate".
+**Armor works against the monster in front of you.** How much armor takes off a blow now depends on how strong the monster is, not on your Level. Weak monsters barely get through, and strong ones get through low armor more. The character sheet shows what your armor does against a monster of your Level.
 
 ## v0.2.89 — 2026-11-04 (Still Here)
 

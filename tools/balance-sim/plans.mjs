@@ -456,6 +456,44 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'armorw') {
+    /* The monsters' own stats, sim only (worker.mjs whatIf): the Glade and the Warrens at atk x1, x1.25 and x1.5 on today's tree, in range and pushing, alone in every way to fight at the floor and a pair and a four. */
+    const THREE = { armourSlots: ['helmet', 'body', 'boots'] }, TWO = { armourSlots: ['helmet', 'body'] };
+    const VARIANTS = { startAvg: { gear: THREE, startBar: true }, avg: { gear: THREE }, two: { gear: TWO }, kit: {} };
+    const cell = (ground, party, level, x, b, m) => ({ ...cellOf({ ground, party, level, hours: H(1), seeds: 2, x, ...b }), windowMs: 120000, ...(m > 1 ? { whatIf: { monsters: { '*': { atk: '*' + m } } } } : {}) });
+    for (const m of [1, 1.25, 1.5]) for (const [ground, levels, floor] of [['mosslight_glade', [16, 24, 31, 13, 10, 6], 16], ['coppercap_warrens', [32, 41, 26, 17], 32]]) {
+      for (const level of levels) {
+        for (const b of ['startAvg', 'kit']) { const x = 'W' + m * 100 + b; out.push(cell(ground, ['tank'], level, x, VARIANTS[b], m)); out.push(cell(ground, PARTIES.four, level, x, VARIANTS[b], m)); out.push(cell(ground, PARTIES.duo, level, x, VARIANTS[b], m)); }
+        if (level === floor) {
+          for (const b of ['avg', 'two']) out.push(cell(ground, ['tank'], level, 'W' + m * 100 + b, VARIANTS[b], m));
+          for (const s of ['hammer', 'bow', 'mage', 'healer']) out.push(cell(ground, [s], level, 'W' + m * 100 + 'kit', VARIANTS.kit, m));
+        }
+      }
+    }
+    return out;
+  }
+  if (name === 'armor') {
+    /* WHAT ARMOR READS (2026-11-04): in range and pushing, alone and in a four, the first-hour grounds, on today's default food and the ground's guide food. x = A<build>, plus W125 when every Warrens monster's atk is x1.25
+       (sim only). startPoor / startAvg play START_BAR as shipped; avg / kit the ground's guide food on the store; built every slot on crafted food, eating early. Read by risk-table.mjs --compare. */
+    const THREE = { armourSlots: ['helmet', 'body', 'boots'] };
+    const BUILDS = { startPoor: { gear: { starter: true }, startBar: true }, startAvg: { gear: THREE, startBar: true }, avg: { gear: THREE }, kit: {}, built: { supply: 'own', bar: { eatPct: 70 } } };
+    const ROWS = { mill_cellar: [1, 3], meadowbrook_thicket: [5, 10, 2], wickstead: [8, 13, 5, 2], millrace_sewer: [8, 16, 5, 2], mosslight_glade: [16, 24, 31, 13, 10, 6, 1], coppercap_warrens: [32, 41, 50, 29, 26, 22, 17, 7] };
+    const cell = (ground, party, level, x, b, whatIf) => ({ ...cellOf({ ground, party, level, hours: H(1), seeds: 2, x, ...b }), windowMs: 120000, ...(whatIf ? { whatIf } : {}) });
+    for (const [ground, levels] of Object.entries(ROWS)) for (const level of levels) {
+      for (const [b, o] of Object.entries(BUILDS)) out.push(cell(ground, ['tank'], level, 'A' + b, o));
+      for (const b of ['startAvg', 'kit']) out.push(cell(ground, PARTIES.four, level, 'A' + b, BUILDS[b]));
+      if (level < (axes.grounds.find((g) => g.id === ground) || { band: [0] }).band[0]) out.push(cell(ground, PARTIES.four, level, 'Abuilt', BUILDS.built));
+      if (ground === 'coppercap_warrens') {
+        const w = { monsters: { '*': { atk: '*1.25' } } };
+        for (const b of ['startAvg', 'kit']) { out.push(cell(ground, ['tank'], level, 'A' + b + 'W125', BUILDS[b], w)); out.push(cell(ground, PARTIES.four, level, 'A' + b + 'W125', BUILDS[b], w)); }
+      }
+    }
+    /* the other two armor lines: medium (dodge) and light (ward), at a floor and pushing */
+    for (const [ground, level] of [['meadowbrook_thicket', 5], ['millrace_sewer', 8], ['mosslight_glade', 16], ['mosslight_glade', 10], ['coppercap_warrens', 32], ['coppercap_warrens', 22]]) {
+      for (const s of ['bow', 'mage']) out.push(cell(ground, [s], level, 'Akit', BUILDS.kit));
+    }
+    return out;
+  }
   if (name === 'riskleech') {
     /* WHAT THE GONE BLOCK LETS IN: a low hero sat behind three friends who hold the ground. Levels [friends x3, the low seat]; the low seat stands last, a bow or a mage, in the practice set or the Level's kit. */
     for (const [ground, friends, lows] of [['coppercap_warrens', 37, [1, 8, 18, 25]], ['mosslight_glade', 24, [1, 8]], ['meadowbrook_thicket', 12, [1]]]) {

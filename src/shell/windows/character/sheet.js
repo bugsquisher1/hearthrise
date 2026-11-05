@@ -110,9 +110,9 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   line(root, '[data-combat="accuracy"]', c && c.accuracyPct !== null ? c.accuracyPct + '% against no armor' : null);
   line(root, '[data-combat="crit"]', c && c.critPct !== null ? c.critPct + '%' : null);
   line(root, '[data-combat="defence"]', c && c.defence !== null ? whole(c.defence) : null);
-  /* The armour's mitigation (ruling K7), the engine's numbers at this Level. */
-  line(root, '[data-combat="dodge"]', c && c.dodgePct !== null ? c.dodgePct + '% of blows' : null);
-  line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '% of each blow' : null);
+  /* The armour's mitigation (ruling K7), the engine's numbers against a monster of this Level: a stronger one gets through more. */
+  line(root, '[data-combat="dodge"]', c && c.dodgePct !== null ? c.dodgePct + '% of blows at your Level' : null);
+  line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '% of each blow at your Level' : null);
   line(root, '[data-combat="ward"]', c && c.ward !== null ? whole(c.ward) + ' off each blow' : null);
   const wait = root.querySelector('.hw-cs-wait');
   text(wait, !sh ? '' : c ? '' : 'Working out your combat numbers…');

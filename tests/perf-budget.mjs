@@ -511,11 +511,12 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
     break;
   }
   /* WHAT THE SHIPPED MAP RARELY REACHES: a shadow falling past its own sprite, from a sheet nothing else in the frame names. The same map, with those sprites filed
-     in sheets of their own (the same art), so each is the only thing in the frame that can name its sheet. (No shipped map draws list.raised, so that line has no proof.) */
-  const filed = (id, set) => { const s = book.sprites[id]; return s && s.shadow && s.shadow.kind === 'cast' ? set + '~cast' : set; };
+     each in a sheet of its own (the same art), so it is the only thing in the frame that can name that sheet. (No shipped map draws list.raised, so that line has no proof.) */
+  const filed = (id, set) => { const s = book.sprites[id]; return s && s.shadow && s.shadow.kind === 'cast' ? set + '~cast~' + id : set; };
   const plantBook = Object.assign({}, book, { frame(id, ...r) { const f = book.frame(id, ...r); return Object.assign({}, f, { set: filed(id, f.set) }); } });
   const plantAll = {};
-  for (const s of Object.keys(images)) { plantAll[s] = images[s]; plantAll[s + '~cast'] = images[s]; }
+  for (const s of Object.keys(images)) plantAll[s] = images[s];
+  for (const id of Object.keys(book.sprites)) { const set = book.frame(id).set, f = filed(id, set); if (f !== set) plantAll[f] = images[set]; }
   const plantSome = {};
   const onPlant = A({ win: window, doc: document, book: plantBook, images: plantSome, tables, css, arrived: (s) => s in plantSome });
   const allPlant = A({ win: window, doc: document, book: plantBook, images: plantAll, tables, css });
@@ -533,7 +534,7 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
     const n = differs();
     if (n) out.view.planted.differ.push([m.id, x, y, n, miss.join('+')]);
     out.view.planted.frames++;
-    if (miss.some((s) => s.endsWith('~cast'))) out.view.planted.casts++;
+    if (miss.some((s) => s.includes('~cast~'))) out.view.planted.casts++;
   };
   for (const [x, y] of stands.filter((_, i) => i % 2 === 0)) plantFrame(townMap, x, y);
   onPlant.destroy(); allPlant.destroy();

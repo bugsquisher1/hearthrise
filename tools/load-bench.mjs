@@ -4,6 +4,7 @@
 //
 //   node tools/load-bench.mjs local --site plain=DIR[,built=DIR] [--release plain=transform,built=DIR] [--runs 3] [--profiles desktop,phone] [--workers off,on] [--scenarios cold,return-expired,release] [--trace] [--js-profile] [--out FILE]
 //   node tools/load-bench.mjs --table FILE...       reprint saved results
+//   --stand N   the hero takes the hearth's stand N, as a busier town would give it (the server's lowest free one: a quiet town gives 1). The local world only.
 //
 // Real Chrome (channel 'chrome', new headless), NEVER Playwright's headless shell: on Windows the shell queues a WinHTTP proxy lookup per request (p50 4.8 s),
 // which was most of the "12 s return load". One browser at a time, a real on-disk profile per pass. Run nothing heavy beside it.
@@ -183,6 +184,9 @@ const MARKS = `(() => {
   addEventListener('load', () => { m.load = performance.now(); });
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) m[e.name] = e.startTime; }).observe({ type: 'paint', buffered: true }); } catch (e) {}
   addEventListener('submit', () => { m.submitted = performance.now(); }, true);
+  /* the frame a player sees: the first paint on the world's own canvas */
+  const di = CanvasRenderingContext2D.prototype.drawImage;
+  CanvasRenderingContext2D.prototype.drawImage = function (...r) { if (m.painted === undefined && this.canvas && this.canvas.classList && this.canvas.classList.contains('world-canvas')) m.painted = performance.now(); return di.apply(this, r); };
   addEventListener('click', () => { m.clicks.push(performance.now()); }, true);
 })();`;
 
@@ -266,6 +270,7 @@ async function walk(opened, url, account, { settleMs = 2000 } = {}) {
   out.charsFrom = hb1.submitted !== undefined ? 'submit' : 'navigation';
   if (await page.$('[data-app="play"]')) await page.click('[data-app="play"]');
   await page.waitForSelector('.hs-launchers');
+  await page.waitForFunction(() => window.__hb.painted !== undefined);
   const hb2 = await page.evaluate(() => new Promise((k) => requestAnimationFrame(() => requestAnimationFrame(() => { window.__hb.frame = performance.now(); k(window.__hb); }))));
   const pressed = hb2.clicks.length ? hb2.clicks[hb2.clicks.length - 1] : null;
   out.town = pressed === null ? null : hb2.frame - pressed;
@@ -276,6 +281,7 @@ async function walk(opened, url, account, { settleMs = 2000 } = {}) {
   const z = zero();
   out.settled = summarise(reqs, z);
   out.metricsSettled = await perfMetrics(cdp);
+  out.sheetsAtFrame = [...reqs.values()].filter((r) => r.kind === 'atlas' && r.end && (r.end - z) * 1000 <= out.marks.painted).map((r) => new URL(r.url).pathname.split('/').pop().replace(/^atlas-|[-.].*$/g, ''));
   out.waterfall = [...reqs.values()].map((r) => [new URL(r.url).pathname.split('/').slice(-2).join('/'), r.kind, Math.round((r.start - z) * 1000), r.end ? Math.round((r.end - z) * 1000) : null, r.bytes, r.from, r.wireStatus ?? r.status]);
   out.errors = errors.filter((e) => !/ERR_NAME_NOT_RESOLVED|Failed to fetch|net::ERR_/.test(e)).slice(0, 8);
   out.wallMs = Date.now() - t0;
@@ -394,7 +400,7 @@ async function browser(profile, spki) {
   return { ctx, close: async () => { await ctx.close().catch(() => {}); try { rmSync(dir, { recursive: true, force: true, maxRetries: 3 }); } catch (e) { /* the OS tidies its own temp */ } } };
 }
 
-const keep = (r) => ({ waterfall: r.waterfall, form: r.form, chars: r.chars, charsFrom: r.charsFrom, town: r.town, total: r.total, marks: r.marks, settled: r.settled, metricsFirstScreen: r.metricsFirstScreen, metricsTown: r.metricsTown, metricsSettled: r.metricsSettled, errors: r.errors, server: r.server, wallMs: r.wallMs });
+const keep = (r) => ({ sheetsAtFrame: r.sheetsAtFrame, waterfall: r.waterfall, form: r.form, chars: r.chars, charsFrom: r.charsFrom, town: r.town, total: r.total, marks: r.marks, settled: r.settled, metricsFirstScreen: r.metricsFirstScreen, metricsTown: r.metricsTown, metricsSettled: r.metricsSettled, errors: r.errors, server: r.server, wallMs: r.wallMs });
 
 function serverSum(log) {
   let bytes = 0, ok = 0, not = 0;
@@ -450,11 +456,12 @@ async function runLocal(o) {
           const tag = site.label + (worker === 'on' ? '+worker' : '');
           const bank = async (scenario, r) => {
             results.push({ site: tag, profile: profileName, scenario, run, ...keep(r) });
-            console.log(`[${run}] ${tag} ${profileName} ${scenario}: form ${Math.round(r.form ?? -1)} chars ${Math.round(r.chars ?? -1)} town ${Math.round(r.town ?? -1)} total ${Math.round(r.total ?? -1)} server ${Math.round(r.server.bytes / 1024)}K ${r.server.ok}/${r.server.notModified}${r.errors.length ? ' ERRORS ' + JSON.stringify(r.errors) : ''}`);
+            console.log(`[${run}] ${tag} ${profileName} ${scenario}: form ${Math.round(r.form ?? -1)} chars ${Math.round(r.chars ?? -1)} town ${Math.round(r.town ?? -1)} total ${Math.round(r.total ?? -1)} sheets-in ${(r.sheetsAtFrame || []).join('+')} last-sheet ${Math.round((r.settled.kinds.atlas || {}).lastMs ?? -1)} server ${Math.round(r.server.bytes / 1024)}K ${r.server.ok}/${r.server.notModified}${r.errors.length ? ' ERRORS ' + JSON.stringify(r.errors) : ''}`);
             await clearBudgets();
           };
           mimic.flush();
           mimic.state.site = site.base; mimic.state.maxAge = SHORT_TTL; mimic.state.worker = worker === 'on';
+          if (o.stand) await world.db.query(`update public.town_bodies set stand_no = ${Number(o.stand)} where station_id is not null`);
           const b = await browser(profile, certificate.spki);
           try {
             let p = await openPage(b.ctx, profile);

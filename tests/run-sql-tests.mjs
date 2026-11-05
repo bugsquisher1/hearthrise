@@ -855,6 +855,9 @@ const HR_PERKS_OF_CHAIN = [
   // the sources.companions census line (blocked → derived), its sole declared
   // removal below.
   '2026-08-20-companion-model.sql',
+  // FIFTH link: Tempering (2027-02-27-tempering.sql). A superset of the companion body: the rungs' read, the `temper`
+  // field and its census line, inserted. Insertions only, so nothing is declared removed.
+  '2027-02-27-tempering.sql',
 ];
 
 // ── THE hr_assert_grant_hygiene DERIVATION CHAIN ─────────────────────────

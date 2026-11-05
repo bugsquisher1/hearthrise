@@ -4513,3 +4513,6 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *`opts.monsters` in the fixture does not reach a monster's speed*: pull-cycle imports the rows itself, so identical arms read as "no effect". Six identical lines is a broken arm, not a result. Plant the row in a tree copy.
 3. *Check a single row before calling a pair right.* The Rook moved everything on the fixture; the Glade Poacher moved nothing on either map.
 4. *A flat to-hit point is worth what the chance already is.* A guard point at a 9% chance to land is 22% of it. Rung bars in percent cannot be met by integer points there.
+## 2026-11-05 · lane/c-armor-tiers (the sim plays the server's map)
+1. *One builder, and test what the run played, not a helper.* The check reads the grid the fixture's `run` answers, so a bypass inside `run` goes red too.
+2. *A number read off a wrong map is not a bar.* "3 deaths in a seed's hour" was a reading; the rule is "the unready hero dies". Say which is which when it moves.

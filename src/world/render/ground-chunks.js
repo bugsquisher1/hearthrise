@@ -16,6 +16,7 @@
 import { takeGround, groundOfSliced, sliced } from '../core/compose.js?v=0.2.89';
 
 const NONE = Object.freeze({ voids: [], tones: [], tiles: [], sets: [] });
+/** @type {(set: string) => boolean} */
 const EVERY_SHEET = () => true;
 const EMPTY = () => ({ cells: new Map(), names: [] });
 /* paint calls between two looks at the clock */

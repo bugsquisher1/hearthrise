@@ -171,7 +171,7 @@ const MUTANTS = [
   ['a town frame shown without the sheet of an effect in it', 'src/world/render/canvas-backend.js',
     '      for (const d of list.fx || []) if (d.set) sets.add(d.set);\n', '', /^PB-VIEW/, 'pix'],
   ['a town frame shown without the sheet whose shadow falls on it', 'src/world/render/canvas-backend.js',
-    "      for (const sh of list.shadows) if (sh.type === 'cast' && sh.sprite.set) sets.add(sh.sprite.set);\n", '', /^PB-VIEW/, 'pix'],
+    "      for (const sh of /** @type {any[]} */ (list.shadows)) if (sh.type === 'cast' && sh.sprite.set) sets.add(sh.sprite.set);\n", '', /^PB-VIEW/, 'pix'],
   ['a chunk baked with a hole is kept for ever', 'src/world/render/ground-chunks.js',
     'const stale = (key) => holed.has(key) && complete(key);', 'const stale = () => false;', /^PB-VIEW/, 'pix'],
   ['the ground kept although the camera moved', 'src/world/render/canvas-backend.js',

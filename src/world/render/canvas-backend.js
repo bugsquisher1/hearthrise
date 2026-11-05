@@ -34,7 +34,7 @@ const HEAL_MS = 5000;
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
- *          css: (token: string) => string}} o   css('--world-void') → the token's value
+ *          css: (token: string) => string, arrived?: (set: string) => boolean}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing)
  */
 export function createCanvasBackend(o) {
   const { win, doc, css } = o;
@@ -568,7 +568,7 @@ export function createCanvasBackend(o) {
       for (const l of [list.decals, list.sprites, list.raised]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);
       /* an effect may be turned and a shadow falls past its sprite: named whatever their box says */
       for (const d of list.fx || []) if (d.set) sets.add(d.set);
-      for (const sh of list.shadows) if (sh.type === 'cast' && sh.sprite.set) sets.add(sh.sprite.set);
+      for (const sh of /** @type {any[]} */ (list.shadows)) if (sh.type === 'cast' && sh.sprite.set) sets.add(sh.sprite.set);
       return Array.from(sets).filter((s) => !o.arrived(s));
     },
     /** May the next sync draw? A new map's (or zoom's) view first bakes its ground, WARM_MS a frame; the frame after draws. So does a view over a chunk its sheet just filled. */

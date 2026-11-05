@@ -818,6 +818,7 @@
   .hv-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
 }
 .hv-lead { margin: 0 2px 10px; color: var(--ink-2); }
+.hv-why { margin: 0 2px 6px; }
 .hv-powders { display: flex; gap: 6px; margin: 0 0 10px; }
 .hv-powder { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 36px; padding: 0 6px; border: 1px solid var(--steel-sep); background: var(--bg-0); color: var(--ink); font-family: var(--f-label); font-weight: 700; cursor: pointer; }
 .hv-powder:hover { color: var(--gold-2); }

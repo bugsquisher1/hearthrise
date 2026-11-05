@@ -530,6 +530,23 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'bowrush') {
+    /* THE LEVEL 1 BOW (2026-11-05): a fresh hero's practice set and shipped bar on grounds far above it, kiters against the rest, deep enough to read a death; then the Glade's monsters' own speed (sim only), with the in-range floors it must not move. */
+    const fresh = { gear: { starter: true }, startBar: true };
+    const run = (ground, party, level, x, b, whatIf, seeds = 4) => ({ ...cellOf({ ground, party, level, hours: H(2), seeds, x, ...b }), windowMs: 120000, ...(whatIf ? { whatIf } : {}) });
+    for (const [ground, levels] of [['mosslight_glade', [1, 5, 10, 15]], ['coppercap_warrens', [1, 5, 10, 20]], ['millrace_sewer', [1, 5]]]) for (const level of levels) for (const s of ['bow', 'crossbow', 'mage']) out.push(run(ground, [s], level, 'B0', fresh));
+    const SPEEDS = { B3400: 3400, B3800: 3800, B4400: 4400 };
+    for (const [x, sp] of [['B0', 0], ...Object.entries(SPEEDS)]) {
+      const w = sp ? { monsters: Object.fromEntries(['glade_poacher', 'goblin_sluicer', 'brook_bear', 'rook_poacher', 'carrion_crow'].map((id) => [id, { speed: Math.max(sp, id === 'carrion_crow' ? 4400 : 0) }])) } : null;
+      for (const level of [1, 5, 10]) for (const s of ['bow', 'mage']) if (x !== 'B0' || s === 'bow' || level !== 0) out.push(run('mosslight_glade', [s], level, x + 'S', fresh, w));
+      /* the floors it must not move: every way to fight at 16 and 24 in the Level's kit, the lone tank in helm and body, a full mix */
+      for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) out.push(run('mosslight_glade', [s], 16, x + 'F', {}, w, 2));
+      out.push(run('mosslight_glade', ['tank'], 16, x + 'F', { gear: { armourSlots: ['helmet', 'body'] } }, w, 2));
+      out.push(run('mosslight_glade', ['bow'], 24, x + 'F', {}, w, 2));
+      out.push(run('mosslight_glade', PARTIES.four, 16, x + 'F', {}, w, 2));
+    }
+    return out;
+  }
   if (name === 'riskleech') {
     /* WHAT THE GONE BLOCK LETS IN: a low hero sat behind three friends who hold the ground. Levels [friends x3, the low seat]; the low seat stands last, a bow or a mage, in the practice set or the Level's kit. */
     for (const [ground, friends, lows] of [['coppercap_warrens', 37, [1, 8, 18, 25]], ['mosslight_glade', 24, [1, 8]], ['meadowbrook_thicket', 12, [1]]]) {

@@ -600,6 +600,24 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'capes') {
+    /* A CAPE AND STUDS, before and after guard came off them (2026-11-05): every way to fight, at the Glade's middle and at the Warrens, with no cape, with the rows as they were (whatIf), and as they are. */
+    const DRESSED = { cape: 'houndskin_cloak', earrings: 'copper_studs' };
+    const BEFORE = { items: { houndskin_cloak: { defB: 4, steadyPm: 0 }, copper_studs: { defB: 1 } } };
+    for (const [ground, level] of [['mosslight_glade', 24], ['coppercap_warrens', 40]]) for (const s of ['tank', 'hammer', 'bow', 'mage']) {
+      const cell = (x, gear, whatIf) => ({ ...cellOf({ ground, party: [s], level, gear, hours: H(2), seeds: 4, x }), windowMs: 120000, ...(whatIf ? { whatIf } : {}) });
+      out.push(cell('Nnone', {}), cell('Bbefore', { also: DRESSED }, BEFORE), cell('Aafter', { also: DRESSED }));
+      out.push(cell('Ahound', { also: { cape: 'houndskin_cloak' } }), cell('Agray', { also: { cape: 'graypelt_cloak' } }));
+    }
+    return out;
+  }
+  if (name === 'capes22') {
+    /* THE LEVEL 22 RUNG, where it comes in: a hero at the rung's Level in helm and body, with no cape, the Graypelt below it, the Houndskin. */
+    for (const s of ['tank', 'hammer', 'bow', 'mage']) for (const [x, also] of [['Nnone', null], ['Agray', { cape: 'graypelt_cloak' }], ['Ahound', { cape: 'houndskin_cloak' }]]) {
+      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 22, gear: { armourSlots: ['helmet', 'body'], ...(also ? { also } : {}) }, hours: H(2), seeds: 4, x }), windowMs: 120000 });
+    }
+    return out;
+  }
   if (name === 'bowspeed') {
     /* WHICH OF THE GLADE'S ROWS: the speed sets, smallest first (sim only), the fresh bow and mage on the rush, every in-range floor beside them. */
     const fresh = { gear: { starter: true }, startBar: true };

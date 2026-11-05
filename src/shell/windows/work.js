@@ -34,7 +34,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.93';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.93';
 import { runIntent } from '../intent-words.js?v=0.2.93';
 import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.93';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine } from '../town-work.js?v=0.2.93';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine } from '../town-work.js?v=0.2.93';
 import { saleWords } from '../item-lore.js?v=0.2.93';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.93';
 import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.93';
@@ -101,7 +101,7 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const gather = w.kind === 'gather';
   /* Who won't buy it is said before it is made (panel 2026-11-01: 12,000 runes, no buyer, no word). */
   const sale = !gather && out ? saleWords(out) : '';
-  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ' · ' + each : recipeWords(w) + (sale ? '. ' + sale + '.' : ''));
+  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ' · about ' + whole(perHourOf(w, actionMs(cs, w))) + ' an hour · ' + each : recipeWords(w) + (sale ? '. ' + sale + '.' : ''));
   const running = !!on && on.id === w.id;
   const why = running ? '' : workBlock(cs, w, hunting);
   /* The status line: running, why not, or what the server's bag holds / covers. A dish says its burn chance at the

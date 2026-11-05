@@ -41,6 +41,7 @@ import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.93';
 import { EFFECT_KINDS } from './item-effects.js?v=0.2.93';
 import { MONSTERS } from './monsters.js?v=0.2.93';
 import { NAMED_FUELS } from './hearth.js?v=0.2.93';
+import { TEMPER_OFFERS } from './temper.js?v=0.2.93';
 import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.93';
 import { HUNT_INDEX } from './hunts.js?v=0.2.93';
 import {
@@ -341,6 +342,7 @@ export function itemUses() {
   for (const o of SHOP_OFFERS) {
     for (const c of (o && o.cost) || []) if (c && c.kind === 'item') push(m, c.id, 'pays for ' + o.id);
   }
+  for (const o of TEMPER_OFFERS) Object.keys(o.items).forEach((id) => push(m, id, 'pays for a Tempering rung'));
   addSet(m, seedIds(), 'planted');
   addSet(m, HEARTHFIND_ITEMS, 'a Hearthfind set piece');
   for (const id of VENDOR_TRASH) push(m, id, 'vendor trash');

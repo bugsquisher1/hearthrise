@@ -10,13 +10,14 @@
 //       one left with the BROWSER CLOSED (one long settle) both pay only the job's outcomes, one piece per 14 Bronze Bars spent, the
 //       XP, and NO gold: a roll pays no bench tax. Each window rolls on its own server seed, so the same window rolls the same twice.
 //   J4  A JOB THAT DOESN'T ROLL DRAWS WHAT IT ALWAYS DREW: the plain Crafting rows leave the stream untouched.
+//   J6  THE END LINE SAYS WHAT THE DICE MADE: a watched run stops on "41 Banded Signet, 3 Fine (2 Keen, 1 Surge), 1 Hallmarked (...)".
 //   J5  THE MACHINERY IS SIZED BY FORMULA: each piece has a Fine row per perk, a Hallmarked row per pair, a Hallmark offer per
 //       (Fine, other perk), and the server's bench-tax rows hold no rolled job (tools/gen-bench-tax.mjs rowsOf).
 //
 //   node tests/jewelry-rolls.mjs            the guard
 //   node tests/jewelry-rolls.mjs --mutate   each claim driven red by a planted defect in a copy of the tree
 //
-// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js
+// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/town-work.js
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -33,7 +34,7 @@ async function load(root) {
     XP: await imp('src/core/xp.js'), RC: await imp('src/data/recipes.js'), ITEMS: (await imp('src/data/items.js')).ITEMS,
     /* the edge's own modules, as the settle imports them (no ?v=: supabase/functions has none) */
     AC: await imp('supabase/functions/hr-accrue/accrual.js', ''), CAT: await imp('supabase/functions/hr-accrue/catalogue.js', ''),
-    BT: await imp('tools/gen-bench-tax.mjs', ''),
+    BT: await imp('tools/gen-bench-tax.mjs', ''), TW: await imp('src/shell/town-work.js'),
   };
 }
 
@@ -137,6 +138,13 @@ const claims = {
     }
     return null;
   },
+  J6(M) {
+    /* THE END LINE SAYS WHAT THE DICE MADE (the spec's bulk report), from two envelopes' bags. */
+    const outs = { banded_signet: 2, banded_signet_keen: 0, banded_signet_surge: 0, banded_signet_follow: 0, banded_signet_keen_surge: 0, banded_signet_keen_follow: 1, banded_signet_surge_follow: 0 };
+    const got = M.TW.rolledWords(outs, { banded_signet: 43, banded_signet_keen: 2, banded_signet_surge: 1, banded_signet_keen_follow: 2 }).join(', ');
+    const want = '41 Banded Signet, 3 Fine (2 Keen, 1 Surge), 1 Hallmarked (Keen and Follow-through)';
+    return got === want ? null : 'a rolled run ends "' + got + '", not "' + want + '"';
+  },
   J5(M) {
     for (const plain of Object.keys(M.J.JEWEL_PIECES)) {
       const n = M.J.perksFor(plain).length;
@@ -159,6 +167,7 @@ const MUTANTS = [
   { claim: 'J3', name: 'the roll reads the wall clock, so the same window rolls twice', edits: [['src/core/artisan.js', 'const u = rng.next() * ODDS_SCALE;', 'const u = Math.random() * ODDS_SCALE;']] },
   { claim: 'J3', name: 'a roll makes a grade from another piece', edits: [['src/core/artisan.js', "  if (grade === 'plain') return { id: plain, grade, perks: [] };", "  if (grade === 'plain') return { id: 'ruby_signet', grade, perks: [] };"]] },
   { claim: 'J4', name: 'every Crafting job rolls a draw', edits: [['src/core/artisan.js', 'const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;', 'rng.next(); const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;']] },
+  { claim: 'J6', name: 'the end line reads every grade as a plain piece', edits: [['src/shell/town-work.js', '    const it = JEWELRY_ITEMS[id];', '    const it = null;']] },
   { claim: 'J5', name: 'a rolled job pays the bench tax', edits: [['src/data/bench-tax.js', 'export const benchTaxed = (recipe) => !!(recipe && recipe.output && !recipe.roll);', 'export const benchTaxed = (recipe) => !!(recipe && recipe.output);']] },
 ];
 
@@ -176,7 +185,7 @@ if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) {
     let missed = 0;
     for (const mu of MUTANTS) {
-      const p = plant(mu.edits, ['supabase/functions/hr-accrue', 'tools/gen-bench-tax.mjs', 'tests/_is-main.mjs']);
+      const p = plant(mu.edits, ['src', 'supabase/functions/hr-accrue', 'tools/gen-bench-tax.mjs', 'tests/_is-main.mjs']);
       try {
         /* A planted tree that can't load is the harness's failure, never a catch. */
         let M;

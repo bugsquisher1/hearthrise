@@ -56,6 +56,7 @@ import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2
 import { bestTool } from '../core/tools.js?v=0.2.96';
 import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.96';
 import { whereToGet, toolEffect } from './item-lore.js?v=0.2.96';
+import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js?v=0.2.96';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -306,7 +307,9 @@ export function startWork(cs, w, send, repaint, words, count) {
     run.timer = null;
     const bag = invOf(cs);
     const out = productOf(w);
-    run.from = { id: w.id, xp: xpOf(cs, w.skill), skill: w.skill, out, made: out ? bag[out] || 0 : 0, burnt: bag[BURNT] || 0 };
+    run.from = { id: w.id, xp: xpOf(cs, w.skill), skill: w.skill, out, made: out ? bag[out] || 0 : 0, burnt: bag[BURNT] || 0,
+      /* a ROLLED job's every grade, so the end line can say what the dice made (src/data/jewelry.js) */
+      outs: w.row && w.row.roll ? Object.fromEntries(recipeOutcomes(w.row).map((id) => [id, bag[id] || 0])) : null };
     if (w.kind === 'artisan') {
       const sup = supplyOf(cs);
       const runs = affordable(cs, w, n === null ? runsOf(w.row, sup) : Math.min(n, runsOf(w.row, sup)));
@@ -328,15 +331,34 @@ export function startWork(cs, w, send, repaint, words, count) {
   });
 }
 
+/* What a rolled run made, grade by grade, from two server envelopes: "41 Banded Signet", "3 Fine (2 Keen, 1 Surge)", "1 Hallmarked (Keen, Surge)". */
+export function rolledWords(outs, bag) {
+  const plain = [], grade = { fine: new Map(), hallmarked: new Map() };
+  for (const [id, was] of Object.entries(outs)) {
+    const n = (bag[id] || 0) - was;
+    if (n <= 0) continue;
+    const it = JEWELRY_ITEMS[id];
+    if (!it) { plain.push(whole(n) + ' ' + itemName(id)); continue; }
+    const label = Object.keys(it.jewelPerks).map((p) => (JEWEL_PERKS[p] ? JEWEL_PERKS[p].name : p)).join(' and ');
+    grade[it.jewelGrade].set(label, (grade[it.jewelGrade].get(label) || 0) + n);
+  }
+  const said = (m, word, each) => {
+    const total = [...m.values()].reduce((a, b) => a + b, 0);
+    return total ? [whole(total) + ' ' + word + ' (' + [...m].map(([l, n]) => (each ? whole(n) + ' ' : '') + l).join(m.size > 1 && word === 'Hallmarked' ? '; ' : ', ') + ')'] : [];
+  };
+  return plain.concat(said(grade.fine, 'Fine', true), said(grade.hallmarked, 'Hallmarked', grade.hallmarked.size > 1 || [...grade.hallmarked.values()].some((n) => n > 1)));
+}
+
 /* "Done: 7 Cooked Wolf Meat, 3 burnt, +245 Cooking XP." — every number a difference of two server envelopes. */
 function doneWords(cs, from, xpBefore, sinceMs) {
   const xp = xpOf(cs, from.skill);
   const x0 = from.xp !== null ? from.xp : xpBefore;
   const bag = invOf(cs);
   const parts = [];
-  const made = from.out ? (bag[from.out] || 0) - from.made : 0;
+  const made = from.out && !from.outs ? (bag[from.out] || 0) - from.made : 0;
   const burnt = from.out ? (bag[BURNT] || 0) - from.burnt : 0;
   if (made > 0) parts.push(whole(made) + ' ' + itemName(from.out));
+  if (from.outs) parts.push(...rolledWords(from.outs, bag));
   if (burnt > 0) parts.push(whole(burnt) + ' burnt');
   if (xp !== null && x0 !== null && xp > x0) parts.push('+' + whole(xp - x0) + ' ' + skillWord(from.skill) + ' XP');
   const paid = benchPaidWords(cs, from.id, sinceMs);

@@ -344,6 +344,22 @@ const cases = {
     const t = (size, v) => M.cond.testSlot(inst, h, Object.assign(row, { items: Object.assign({}, M.ITEMS, { iron_arrows: { ...M.ITEMS.iron_arrows, area: size } }) }),
       slot('attack_with_item', 'iron_arrows', [c('enemies_in_aoe', 'gte', v)])).pass;
     if (!t(3, 5) || t(3, 6) || t(1, 2)) return 'enemies_in_aoe did not read the slot item\'s footprint';
+    /* A CLEAVE reads its swing (abilities.js: its target and the rest beside the hero, up to maxHits 3), not a footprint of 1. */
+    const cleaveCount = (spots, ignore) => {
+      const hm = hero(M, 1, 6, 6, { role: 'melee_dps' });
+      const around = spots.map(([x, y], i) => mon(M, 10 + i, 0, x, y, { target: 1 }));
+      const ci = instOf(M, world(M, [hm, ...around]));
+      const cr = heroRow(M, { range: 1 });
+      ci.heroes = { 1: cr };
+      const n = (v) => M.cond.testSlot(ci, hm, cr, Object.assign(ab('cleave', [c('enemies_in_aoe', 'gte', v)]), ignore ? { ignore } : {})).pass;
+      return [1, 2, 3, 4].filter(n).length;
+    };
+    const four = [[7, 6], [5, 6], [6, 5], [6, 7]];
+    if (cleaveCount(four) !== 3) return 'a Cleave beside four reads ' + cleaveCount(four) + ', want its maxHits 3';
+    if (cleaveCount([[7, 6]]) !== 1) return 'a Cleave beside one reads ' + cleaveCount([[7, 6]]);
+    if (cleaveCount([[7, 6], [6, 5]]) !== 2) return 'a Cleave beside two reads ' + cleaveCount([[7, 6], [6, 5]]);
+    if (cleaveCount([[7, 6], [9, 9]]) !== 1) return 'a Cleave counted a monster out of its swing';
+    if (cleaveCount([[7, 6]], ['rat']) !== 0) return 'a Cleave with nothing it may swing at read a crowd';
     /* An aim out of sight does not count: wall the plus off. */
     return null;
   },

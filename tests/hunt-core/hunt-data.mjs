@@ -39,6 +39,8 @@ const cases = {
     const MAX_PCT = 35;
     const out = [];
     for (const h of Object.values(M.HUNTS)) {
+      /* A called room's blow is the warned exam (src/data/boss-calls.js), not a hunt's floor: its Level-ready bands are tests/boss-call.mjs's table. */
+      if (h.called === true) continue;
       const b = M.hunt['pull-cycle'].biggestBlowOn(h.id, M.grounds.PARTY_SCALE.maxHeroes);
       const hp = M.vitals.maxHpFor(h.band[0], 0);
       if (!b) { out.push(h.id + ' has no blow to read'); continue; }

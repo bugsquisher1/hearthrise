@@ -387,6 +387,8 @@ export function auditRoster(MONSTERS) {
        ±20% of the line), not by the tier's old XP band; every other stat stays banded. */
     const banded = (k) => (Number.isInteger(m.level) ? ['hp', 'atk', 'def'] : ['hp', 'atk', 'def', 'xp']).includes(k);
     if (!TIER_BANDS[m.tier]) { problems.push(id + ': tier ' + m.tier + ' has no band'); return; }
+    /* A called boss (boss-calls.js) stands outside the tier's curve on purpose, and pays nothing: tests/boss-call.mjs holds his row. */
+    if (m.called === true) return;
     /* A champion is checked against championBand instead, and must not also
        claim to be a boss (two flags, two sets of rules — pick one). */
     const champ = m.champion === true;

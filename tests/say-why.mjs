@@ -181,6 +181,9 @@ const BUSY = /!?\(?\b(?:st\.|sc\.|s\.|o\.|a\.|party\.|st\.sc\.)*(?:pending|sendi
  * why, which must be in the file. `where` names where they show. The report's table is this list.
  */
 export const REASONS = Object.freeze({
+  'src/shell/windows/temper-pane.js': [
+    { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: off at the top rung (the button says Full), with no rungs (No rungs), or short of gold (the row\'s line says how much)' },
+  ],
   'src/shell/windows/market/browse.js': [
     { cond: '!plan.qty', words: "'You need ' + goldWords(-left) + ' more.'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },
     { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Forget it stay on; the window\'s line says why' },

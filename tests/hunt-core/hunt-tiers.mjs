@@ -69,6 +69,7 @@ const cases = {
   },
   'normal-is-the-ground': ({ R, T }) => {
     const cell = cellOn(T);
+    for (const word of ['normal', 'hardcore', 'constructor', '__proto__']) if (T.tierRowOf(GLADE, word).id !== T.DEFAULT_TIER) return 'the word ' + word + ' plays ' + T.tierRowOf(GLADE, word).id + ' on the Glade';
     const base = digits(R.runCell({ ...cell(GLADE, ['tank'], 24, null, 0.5) }));
     for (const tier of ['normal', 'hardcore']) {
       const got = digits(R.runCell({ ...cell(GLADE, ['tank'], 24, null, 0.5), options: { tier } }));

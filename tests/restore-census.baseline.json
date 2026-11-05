@@ -1176,7 +1176,7 @@
   },
   "hr_hunt_tiers": {
    "class": "seeded",
-   "replay": 4,
+   "replay": 10,
    "note": "Catalogue (2027-02-27-hunt-tiers.sql; tests/hunt-core/hunt-tiers.mjs holds it equal to src/data/hunt-tiers.js): the harder tiers each ground offers, each one's pull per party size, power and XP. A rebuild restores it; empty, every pick plays Normal and hr_hunt_tier_set refuses a harder tier (bad_tier)."
   },
   "hr_hunt_vendor_value": {

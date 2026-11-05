@@ -77,8 +77,8 @@ if (ladDir) {
     }
     if (row.n) sum.push(row);
   }
-  console.log('\n| Rung | Levels | Kit | Cells | Deadly XP / next Normal XP | Beats it |\n|---|---|---|---|---|---|');
-  for (const r of sum) console.log('| ' + r.rung + ' | ' + r.levels + ' | ' + r.kit + ' | ' + r.n + ' | ' + r.lo + ' to ' + r.hi + ' | ' + (r.beats.length ? r.beats.join(', ') : 'none') + ' |');
+  console.log('\n| Rung | Levels | Kit | Cells | Deadly XP / next Normal XP | Beats it | Out-earns it on gold, within 10% of its XP |\n|---|---|---|---|---|---|---|');
+  for (const r of sum) console.log('| ' + r.rung + ' | ' + r.levels + ' | ' + r.kit + ' | ' + r.n + ' | ' + r.lo + ' to ' + r.hi + ' | ' + (r.beats.length ? r.beats.join(', ') : 'none') + ' | ' + r.netBeats + ' |');
   const beaten = sum.reduce((t, r) => t + r.beats.length, 0);
   console.log('\n' + beaten + ' of ' + sum.reduce((t, r) => t + r.n, 0) + ' cells: a lower ground\'s Deadly beats the next ground\'s Normal on XP');
 }

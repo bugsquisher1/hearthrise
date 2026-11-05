@@ -124,7 +124,7 @@ const TOWN_SHEETS = await sheetsOf('town_common');
 const CELLAR_SHEETS = await sheetsOf('mill_cellar');
 
 /* Two stands for B-20, from what the shipped map draws around them: the hearth's first (the stand a new hero takes in a quiet town) with its
-   sheets read over a view well beyond a phone's, so no camera detail can add one, and a stand whose small view is sure to draw the Havora sheet. */
+   sheets read over a little more than a phone's 422x195, so no camera detail can add one, and a stand whose small view is sure to draw the Havora sheet. */
 async function townStands() {
   const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
   const [{ ATLAS_SETS }, { WORLD_MAPS }, bookm, mapc, ter, comp, { STATIONS }] = await Promise.all(['src/data/world/atlas-sets.js', 'src/data/world/maps/index.js',
@@ -139,13 +139,15 @@ async function townStands() {
     const view = { ox: Math.max(0, Math.min(map.w * T - w, Math.round(x * T - w / 2))), oy: Math.max(0, Math.min(map.h * T - h, Math.round(y * T - h / 2))), w, h };
     const f = comp.composeFrame(map, book, { hero: { x, y } }, view, tables, T);
     const out = new Set([book.frame('outfit_knight').set]);
-    for (const l of [f.decals, f.sprites, f.raised]) for (const d of l) if (d.set) out.add(d.set);
+    const meets = (d) => d.x < view.ox + w && d.x + d.w > view.ox && d.y < view.oy + h && d.y + d.h > view.oy;
+    for (const l of [f.decals, f.sprites, f.raised]) for (const d of l) if (d.set && meets(d)) out.add(d.set);
+    for (const sh of f.shadows) if (sh.type === 'cast') out.add(sh.sprite.set);
     for (const t of ground) if (t.x < view.ox + w && t.x + T > view.ox && t.y < view.oy + h && t.y + T > view.oy) out.add(t.set);
     return Array.from(out);
   };
   const idle = STATIONS.find((s) => s.kind === 'idle');
   const stand = (s, i) => ({ station: s.id, no: i + 1, x: s.stands[i][0], y: s.stands[i][1] });
-  const quiet = Object.assign(stand(idle, 0), { drawn: drawn(idle.stands[0][0], idle.stands[0][1], 500, 280) });
+  const quiet = Object.assign(stand(idle, 0), { drawn: drawn(idle.stands[0][0], idle.stands[0][1], 440, 210) });
   let onHavora = null;
   for (const s of STATIONS) { for (let i = 0; i < (s.stands || []).length && !onHavora; i++) if (drawn(s.stands[i][0], s.stands[i][1], 120, 80).includes('havora')) onHavora = stand(s, i); if (onHavora) break; }
   return { quiet, onHavora };
@@ -754,9 +756,10 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const lateAsked = () => asked.filter((s) => late.includes(s));
         if (!open) fails.push('B-20 with ' + late.join() + ' held the town never opened on its view (asked: ' + asked.join() + ')');
         else {
-          const painted = await page.evaluate(() => { const c = document.querySelector('canvas.world-canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; const seen = new Set();
-            for (let i = 0; i < d.length; i += 4000) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]); return seen.size; });
-          if (painted < 8) fails.push('B-20 the town opened on a canvas with ' + painted + ' colours: nothing was painted');
+          /* its ground bakes a slice a frame first (the last frame stays), so the picture comes within a moment of the bar */
+          const painted = await wait(page, () => { const c = document.querySelector('canvas.world-canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; const seen = new Set();
+            for (let i = 0; i < d.length; i += 4000) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]); return seen.size >= 8; }, null, 8000);
+          if (!painted) fails.push('B-20 the town opened and painted nothing with ' + late.join() + ' held');
           for (const s of TOWN_VIEWS.quiet.drawn) if (!asked.includes(s)) fails.push('B-20 the first view drew from ' + s + ' without asking for it');
           for (let i = 0; i < late.length; i++) {
             for (let k = 0; k < 200 && !asked.includes(late[i]); k++) await page.waitForTimeout(25);

@@ -559,10 +559,16 @@ export function createCanvasBackend(o) {
     missing(state) {
       if (!map || !canvas || !o.arrived) return [];
       if (dirty) measure();
-      const { view } = viewOf(state, win.performance.now());
+      const { view, plan } = viewOf(state, win.performance.now());
       const list = composeFrame(map, book, state, view, tables, T);
-      const sets = ground.setsIn(chunksOf(view, 0), view);
-      for (const l of [list.decals, list.sprites, list.raised, list.fx || []]) for (const d of l) if (d.set) sets.add(d.set);
+      /* what the canvas shows of this view: the rest is overscan, and compose's margin past it */
+      const seen = { ox: view.ox - plan.dx / z, oy: view.oy - plan.dy / z, w: W / z, h: H / z };
+      const meets = (d) => d.x < seen.ox + seen.w && d.x + d.w > seen.ox && d.y < seen.oy + seen.h && d.y + d.h > seen.oy;
+      const sets = ground.setsIn(chunksOf(view, 0), seen);
+      for (const l of [list.decals, list.sprites, list.raised]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);
+      /* an effect may be turned and a shadow falls past its sprite: named whatever their box says */
+      for (const d of list.fx || []) if (d.set) sets.add(d.set);
+      for (const sh of list.shadows) if (sh.type === 'cast' && sh.sprite.set) sets.add(sh.sprite.set);
       return Array.from(sets).filter((s) => !o.arrived(s));
     },
     /** May the next sync draw? A new map's (or zoom's) view first bakes its ground, WARM_MS a frame; the frame after draws. So does a view over a chunk its sheet just filled. */

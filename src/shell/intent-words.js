@@ -10,17 +10,18 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.92';
-import { ITEMS } from '../data/items.js?v=0.2.92';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.92';
-import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.92';
-import { levelOf } from '../session/character-sections.js?v=0.2.92';
-import { needOf, needWords } from './item-lore.js?v=0.2.92';
-import { whole } from '../render/format.js?v=0.2.92';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.92';
-import { marketRefusal } from './market-words.js?v=0.2.92';
-import { setupFullWords } from './setup-words.js?v=0.2.92';
-import { TITLES } from '../data/titles.js?v=0.2.92';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.93';
+import { ITEMS } from '../data/items.js?v=0.2.93';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.93';
+import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.93';
+import { levelOf } from '../session/character-sections.js?v=0.2.93';
+import { needOf, needWords } from './item-lore.js?v=0.2.93';
+import { whole } from '../render/format.js?v=0.2.93';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.93';
+import { marketRefusal } from './market-words.js?v=0.2.93';
+import { setupFullWords } from './setup-words.js?v=0.2.93';
+import { TITLES } from '../data/titles.js?v=0.2.93';
+import { sinkRefusal } from './sink-words.js?v=0.2.93';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -85,6 +86,9 @@ export function refusalText(r, cs) {
   /* The Weighhouse's refusals name the server's own numbers (market-words.js). */
   const market = marketRefusal(r, cs);
   if (market) return market;
+  /* What gold buys in town: the designer's sentences around the server's own numbers (sink-words.js). */
+  const sink = sinkRefusal(r, cs ? nameOf(cs) : null);
+  if (sink) return sink;
   const seats = r && Array.isArray(r.seats) ? r.seats : [];
   if (r && r.error === 'not_ready' && seats.length) {
     return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]

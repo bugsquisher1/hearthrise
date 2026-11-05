@@ -11,6 +11,7 @@
 -- ── WHAT IT SHIPS, AND WHO REPLACES WHAT ─────────────────────────────────────
 --   hr_sink_price(sink, bought, level)  ONE price rule for every sink: the (bought+1)th rung, or base + per level x Level; null past the top.
 --   hr_sink_lock(user)                  the advisory key hr:sink:<uid>, spelled once. Lock order: hero, THIS, hr_apply, then a town key.
+--   hr_sink_bought_today(user, verb, offers)  how many this ACCOUNT bought today on a ladder, across every hero, read off the ledger under that key.
 --   hr_title_of(user, slot)    STUB, null. lane/c-hero-sinks replaces ONLY the body. Answers the worn title's words from the catalogue
 --                              ("the Wolfer"), or null. Never a client's text. chat_messages.from_title and hr_town_look's `title` read it.
 --   hr_town_look               + `title`, + `colors` (player_outfits.base_colors). The look is re-read at most every 60 s per body.
@@ -73,6 +74,16 @@ $fn$;
 create or replace function public.hr_sink_lock(p_user uuid)
 returns void language sql volatile security definer set search_path = public, pg_catalog as $fn$
   select pg_advisory_xact_lock(hashtextextended('hr:sink:' || p_user::text, 0))
+$fn$;
+
+-- THE ACCOUNT'S COUNT TODAY, read off the append-only ledger. A purchase journals kind shop, intent <verb>:<id>:<price>. slot = any bounds the read to the
+-- ledger's own index (user_id, slot, at desc), so it costs the day's rows, not the account's whole journal. Read it AFTER hr_sink_lock.
+create or replace function public.hr_sink_bought_today(p_user uuid, p_verb text, p_offers text[] default null)
+returns int language sql stable security definer set search_path = public, pg_catalog as $fn$
+  select count(*)::int from public.player_ledger l
+   where l.user_id = p_user and l.slot = any (array[0, 1, 2, 3, 4, 5]) and l.at >= public.hr_utc_day_start(now()) and l.kind = 'shop'
+     and split_part(l.intent, ':', 1) = p_verb
+     and (p_offers is null or split_part(l.intent, ':', 2) = any (p_offers))
 $fn$;
 
 -- ── §2 THE STUBS, CREATED ONLY WHEN ABSENT ───────────────────────────────────
@@ -293,8 +304,8 @@ end $function$;
 do $mig$
 declare f text;
 begin
-  foreach f in array array['public.hr_sink_price(text,integer,integer)', 'public.hr_sink_lock(uuid)', 'public.hr_title_of(uuid,integer)',
-                           'public.hr_town_extras(text)', 'public.hr_town_shows_of(text)'] loop
+  foreach f in array array['public.hr_sink_price(text,integer,integer)', 'public.hr_sink_lock(uuid)', 'public.hr_sink_bought_today(uuid,text,text[])',
+                           'public.hr_title_of(uuid,integer)', 'public.hr_town_extras(text)', 'public.hr_town_shows_of(text)'] loop
     execute format('revoke execute on function %s from public, anon, authenticated, service_role', f);
   end loop;
 end $mig$;
@@ -346,8 +357,8 @@ begin
   if exists (select 1 from public.player_state where user_id = v_u) or exists (select 1 from auth.users where id = v_u) then
     raise exception 'seams §7: LEAKED a probe row'; end if;
   -- (e) GRANTS: nothing here is a client's, and no client role can write a chat row, so `crier` has no client path.
-  foreach f in array array['public.hr_sink_price(text,integer,integer)', 'public.hr_sink_lock(uuid)', 'public.hr_title_of(uuid,integer)',
-                           'public.hr_town_extras(text)', 'public.hr_town_shows_of(text)', 'public.hr_chat_row(public.chat_messages)',
+  foreach f in array array['public.hr_sink_price(text,integer,integer)', 'public.hr_sink_lock(uuid)', 'public.hr_sink_bought_today(uuid,text,text[])',
+                           'public.hr_title_of(uuid,integer)', 'public.hr_town_extras(text)', 'public.hr_town_shows_of(text)', 'public.hr_chat_row(public.chat_messages)',
                            'public.hr_town_look(uuid,integer)'] loop
     foreach v_role in array array['anon', 'authenticated'] loop
       if has_function_privilege(v_role, f, 'execute') then raise exception 'seams §7(e): % reaches %', v_role, f; end if;

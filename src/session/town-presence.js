@@ -45,7 +45,7 @@
 // When the server moves the stand (a new activity, back from a hunt, a counter)
 // the World walks the hero there from where it is (me(), display only).
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.92';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.93';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -101,6 +101,16 @@ function hearthOf(h, at) {
     startedAt: at - (now - from), endsAt: at + (until - now), queued: n(h.queued) || 0 });
 }
 
+/** The round a town answer carries (hr_town_shows_of), on the local clock, or null. Pure. */
+function roundOf(s, at) {
+  const r = s && typeof s === 'object' ? s.round : null;
+  if (!r || typeof r !== 'object') return null;
+  const n = (v) => (Number.isSafeInteger(v) ? v : null);
+  const now = n(r.now_ms), from = n(r.from_ms), until = n(r.until_ms);
+  if (now === null || from === null || until === null || until <= from) return null;
+  return Object.freeze({ by: typeof r.by === 'string' && r.by.trim() ? r.by.slice(0, 24) : null, startedAt: at - (now - from), endsAt: at + (until - now) });
+}
+
 /** The position a publish names, validated, or null. Pure. */
 function placeOf(p) {
   if (!p || typeof p.map !== 'string' || !MAP_ID.test(p.map)) return null;
@@ -150,6 +160,7 @@ export class TownPresence {
     this._me = null;          // this character's own stand, as the server last said
     this._hearth = null;      // the named flame the Great Hearth burns, as the last town answer said (local clock)
     this._extras = null;      // what hr_town_extras added to the last town answer (the Town Works)
+    this._round = null;       // the round going now, as the last town answer said (local clock)
     this._burn = null;        // this character's last named burn the server accepted ({item, at}: the throw the World plays)
     this._sent = null;        // the last place the server took
     this._sentAt = -Infinity;
@@ -184,7 +195,7 @@ export class TownPresence {
     this._parked = false;
     this._map = m;
     this._quiet = 0; this._heard = null;
-    this._known = new Map(); this._walkers = []; this._readAt = null; this._cursor = null; this._readCenter = null; this._want = null; this._hearth = null; this._extras = null;
+    this._known = new Map(); this._walkers = []; this._readAt = null; this._cursor = null; this._readCenter = null; this._want = null; this._hearth = null; this._extras = null; this._round = null;
     if (this._timer !== null) { this._clear(this._timer); this._timer = null; }
     if (m) {
       this._timer = this._set(() => this._tick(), this.limits.pollMs);
@@ -342,7 +353,7 @@ export class TownPresence {
 
   /* After an answer: did it say anything new? A walker still on its way counts as news: it is about to move again. */
   _quietAfter(list) {
-    let heard = this._hearth ? this._hearth.flame : '';
+    let heard = (this._hearth ? this._hearth.flame : '') + (this._round ? ':round' : '');
     let walking = false;
     for (const w of list) {
       heard += '|' + keyOf(w) + ':' + w.x + ',' + w.y + ',' + w.gx + ',' + w.gy + ',' + w.dir + ',' + w.station + ',' + w.work + ',' + w.outfit + ',' + w.title + ',' + (w.colors ? w.colors.head + '.' + w.colors.body + '.' + w.colors.legs + '.' + w.colors.feet : '');
@@ -374,11 +385,12 @@ export class TownPresence {
     if (map !== this._map || this._dead) return false;
     const b = ans && ans.body;
     if (!ans || !ans.ok || !b || b.ok !== true) return false;
-    if (b.off) { this._known = new Map(); this._walkers = []; this._hearth = null; this._extras = null; this._readAt = this._now(); this._changed(); return true; }
+    if (b.off) { this._known = new Map(); this._walkers = []; this._hearth = null; this._extras = null; this._round = null; this._readAt = this._now(); this._changed(); return true; }
     /* the Great Hearth's named flame, REPLACED by every answer (absent: none burns) */
     this._hearth = hearthOf(b.hearth, this._now());
     /* hr_town_extras, REPLACED by every answer: its one reader is src/world/town-works.js */
     this._extras = b.extras && typeof b.extras === 'object' && !Array.isArray(b.extras) ? b.extras : null;
+    this._round = roundOf(b.shows, this._now());
     /* A WHOLE ANSWER REPLACES THE LIST; a delta upserts what changed and drops who is gone (never merged upward) */
     if (b.full === true || whole) { this._known = new Map(); this._fullAt = now; }
     for (const g of Array.isArray(b.gone) ? b.gone : []) if (g && typeof g.id === 'string') this._known.delete(g.id.toLowerCase() + ':' + g.slot);
@@ -422,6 +434,12 @@ export class TownPresence {
   hearth() {
     const h = this._hearth;
     return h && this._map && this._now() < h.endsAt ? h : null;
+  }
+
+  /** The round going now ({by, startedAt, endsAt}, local ms), or null. Display only. */
+  round() {
+    const r = this._round;
+    return r && this._map && this._now() < r.endsAt ? r : null;
   }
 
   /** What hr_town_extras added to the last town answer, or null. Display only: nothing here can be spent. */

@@ -46,29 +46,29 @@
 // server's `leader_densities`) with no step, and the server refuses a member's
 // pick (hr_hunt_density_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.92';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.92';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.92';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.92';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.92';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.92';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.92';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.92';
-import { whole } from '../../render/format.js?v=0.2.92';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.92';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.92';
-import { glyphSvg } from '../launcher.js?v=0.2.92';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.92';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.92';
-import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.92';
-import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.92';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.92';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.92';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.92';
-import { openFinderOn } from './party-finder.js?v=0.2.92';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.92';
-import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.92';
-import { callFromGround } from '../../data/boss-calls.js?v=0.2.92';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.93';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.93';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.93';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.93';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.93';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.93';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.93';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.93';
+import { whole } from '../../render/format.js?v=0.2.93';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.93';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.93';
+import { glyphSvg } from '../launcher.js?v=0.2.93';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.93';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.93';
+import { huntRows, densityWords, densityStep, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.93';
+import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.93';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.93';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.93';
+import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.93';
+import { openFinderOn } from './party-finder.js?v=0.2.93';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.93';
+import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.93';
+import { callFromGround } from '../../data/boss-calls.js?v=0.2.93';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing

@@ -535,6 +535,20 @@
 .hc-name.is-mage { color: var(--chat-role-mage); }
 .hc-name.is-healer { color: var(--chat-role-healer); }
 .hc-title { color: var(--ink-3); }
+/* THE TOWN CRIER: a paid line carries a gold bar, and its name and words stay readable on the chat's translucent body */
+.hc-log.is-talk .hc-line.is-crier { padding-left: 6px; border-left: 2px solid var(--gold); color: var(--gold-2); }
+.hc-crier-open { flex: none; }
+.hc-crier-open[aria-expanded="true"] { color: var(--gold-2); }
+.hc-crier-open[hidden], .hc-again[hidden] { display: none; }
+.hc-crier { display: none; flex: none; padding-top: 4px; }
+.hc-crier.is-on { display: block; }
+.hc-crier-msg { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+/* the bar never takes the whole log: a few lines stay on screen, and the chat's own red line gives way while it's open */
+.hc-chat.is-crying .hc-msg:empty { display: none; }
+.hs-win.is-sized .hc-chat.is-crying .hc-pane.is-on { min-height: 52px; }
+.hc-crier-do { display: flex; gap: 6px; margin-bottom: 2px; }
+.hc-cry { flex: none; min-height: 32px; }
+.hc-again { flex: 1; min-width: 0; min-height: 32px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .hc-tag { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .hc-role { display: inline-block; width: 11px; height: 11px; margin-left: 2px; vertical-align: -1px; }
 .hc-role .hs-glyph { width: 100%; height: 100%; fill: currentColor; }
@@ -621,7 +635,7 @@ label.st-line { cursor: pointer; }
   .hs-win[data-hs-win="chat"] .hc-logs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .hs-win[data-hs-win="chat"] .hc-log { flex: 1; min-height: 0; max-height: none; }
   .hc-input { flex: none; }
-  .hc-field, .hc-send { min-height: 40px; }
+  .hc-field, .hc-send, .hc-crier-open { min-height: 40px; }
   .hc-msg:empty { display: none; }
   /* Why this slot will not fire, first thing on its sheet: a phone has no tooltip to read it in (configure-action.js). */
   .ca-why:not(:empty) { display: block; flex: none; margin: 4px 0 0; padding: 2px 8px; font-size: var(--t-micro); color: var(--gold-2); box-shadow: inset 4px 0 0 var(--gold); }

@@ -26,36 +26,37 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.92';
-import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.92';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.92';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.92';
-import { MONSTERS } from '../data/monsters.js?v=0.2.92';
-import { compileMap } from './core/map-compile.js?v=0.2.92';
-import { createBook } from './core/book.js?v=0.2.92';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.92';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.92';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.92';
-import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.92';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.92';
-import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.92';
-import { createViewSheets } from './view-sheets.js?v=0.2.92';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.92';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.92';
-import { huntOfMap } from './hunt-maps.js?v=0.2.92';
-import { createHuntScene } from './hunt-scene.js?v=0.2.92';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.92';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.92';
-import { createWalkScene } from './walk-scene.js?v=0.2.92';
-import { createTownZoom } from './town-zoom.js?v=0.2.92';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.92';
-import { runAction } from './steer-local.js?v=0.2.92';
-import { heroSprite } from '../session/hero-look.js?v=0.2.92';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.92';
-import { homeOf } from '../session/home-sections.js?v=0.2.92';
-import { skillsOf } from '../session/item-sections.js?v=0.2.92';
-import { createHearthView } from './hearth-burn.js?v=0.2.92';
-import { townWorksSwap } from './town-works.js?v=0.2.92';
+import { BUILD } from '../build-info.js?v=0.2.93';
+import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.93';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.93';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.93';
+import { MONSTERS } from '../data/monsters.js?v=0.2.93';
+import { compileMap } from './core/map-compile.js?v=0.2.93';
+import { createBook } from './core/book.js?v=0.2.93';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.93';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.93';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.93';
+import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.93';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.93';
+import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.93';
+import { createViewSheets } from './view-sheets.js?v=0.2.93';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.93';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.93';
+import { huntOfMap } from './hunt-maps.js?v=0.2.93';
+import { createHuntScene } from './hunt-scene.js?v=0.2.93';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.93';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.93';
+import { createWalkScene } from './walk-scene.js?v=0.2.93';
+import { createTownZoom } from './town-zoom.js?v=0.2.93';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.93';
+import { runAction } from './steer-local.js?v=0.2.93';
+import { heroSprite } from '../session/hero-look.js?v=0.2.93';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.93';
+import { homeOf } from '../session/home-sections.js?v=0.2.93';
+import { skillsOf } from '../session/item-sections.js?v=0.2.93';
+import { createHearthView } from './hearth-burn.js?v=0.2.93';
+import { townWorksSwap } from './town-works.js?v=0.2.93';
+import { createTownShows } from './town-shows.js?v=0.2.93';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -221,11 +222,11 @@ export async function bootWorld(panel, opts) {
   let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to
   const town = opts.town || null;
   const readEnv = createEnvReader(homeNow, town);
-  let hearthView = null, hearthMap = null;
+  let hearthView = null, hearthMap = null, showsView = null;
 
   /* THE GREAT HEARTH in a town frame, display only; the book's own sprites (an unloaded colour draws the plain fire) */
   function hearthState(map, f, now) {
-    if (hearthMap !== map) { hearthMap = map; hearthView = createHearthView(map, { sprites: book.sprites }); }
+    if (hearthMap !== map) { hearthMap = map; hearthView = createHearthView(map, { sprites: book.sprites }); showsView = createTownShows(map, { sprites: book.sprites }); }
     const s = character && typeof character.read === 'function' ? character.read('state') : null;
     const sk = character ? skillsOf(character) : null;
     return hearthView.frame({ place: f.place, units: f.units, walkers: town.walkers(), me: town.me(), hero: f.hero,
@@ -315,6 +316,9 @@ export async function bootWorld(panel, opts) {
       /* THE TOWN WORKS (town-works.js): an ambient row swapped by stage, the mechanism the Hearth's fire uses */
       const works = townWorksSwap(map, town.extras());
       if (works) f.ambientSwap = Object.assign({}, f.ambientSwap, works);
+      /* A ROUND'S FIREWORKS over Hearth Square (town-shows.js), from the server's answer */
+      const round = showsView.frame(town.round(), now);
+      if (round.length) f.fx = (f.fx || []).concat(round);
     }
     if (!held) notePos(G, map.id, f.hero.x, f.hero.y);
     presenceFor(town, map, f.place);
@@ -412,7 +416,7 @@ export async function bootWorld(panel, opts) {
     walk: () => true,
     hunt: (id) => emit('entrance', { hunt: id }),
     skill: (id) => emit('station', { skill: id }),
-    window: (id) => emit('keeper', { window: id }),
+    window: (id, tab) => emit('keeper', tab ? { window: id, tab } : { window: id }),
     room: (id) => emit('room', { room: id }),
     house: (id) => emit('house', { room: id }),
     scene(choice) { setChoice(view(), choice); if (running) step(0); return true; },

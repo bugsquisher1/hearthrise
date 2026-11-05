@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+**Call out a boss.** A party can pay to fight a far stronger Rat King (10,000 gp) or Chief Coppercap (30,000 gp), up to 3 calls a day. It pays no XP, coin or drops; bring him down and you earn a title and your name in System chat.
+
+## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
+
+**Throw a pinch on the fire.** Hearth powders turn Havora's flame a new color for everyone in town, for 30 seconds, from 2,000 gp and up to five a day.
+
+**Stand a round.** Buy the town a round and everyone in Havora sees the fireworks, from 5,000 gp and up to three a day.
+
+**The Town Crier.** From Level 10 you can pay to have one line called out to the whole server, from 1,000 gp and up to five a day.
+
+**Gold Given.** A new monthly board ranks the accounts that have given the most to the town. It has no prize, and it resets every month.
+
+**More setups, and titles.** Every hero gets two action bar setups free and can buy three more. Titles are earned by kills and then claimed with gold, so a name beside your hero says what it has actually hunted.
+
 ## v0.2.92 — 2026-11-05 (Standing Your Ground)
 
 - A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.

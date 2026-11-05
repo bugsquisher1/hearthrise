@@ -249,6 +249,13 @@ export const REASONS = Object.freeze({
   'src/shell/windows/character/titles.js': [
     { cond: 'w.off', words: "' · You need ' + gold(short) + ' more.'", where: 'the row\'s own line says how much more gold; a row short of its kills has no button, its line says the count' },
   ],
+  'src/shell/windows/chat-crier.js': [
+    { cond: '!q || q.price === null', words: "q && q.price === null ? CRIER.done", where: 'Cry it and Again: past the day\'s last line the button itself reads the Crier\'s day is done; before the first quote the line under them reads Asking the Crier…' },
+  ],
+  'src/shell/windows/havora/index.js': [
+    { cond: 'pPrice === null', words: "s && pPrice === null ? 'No more powders today'", where: 'the powder button says it; until the first read answers it has no price, and the window\'s line says any refusal' },
+    { cond: 'rPrice === null', words: "s && rPrice === null ? 'No more rounds today'", where: 'the round button says it; until the first read answers it has no price, and the window\'s line says any refusal' },
+  ],
   'src/shell/windows/characters.js': [
     { cond: "x.slot === ctx.character.slot || !ctx.goTo", words: "'On screen'", where: 'the button reads On screen' },
     { cond: '!can', words: "' You have ' + gold(purse) + '.'", where: 'the rename quote: price, why not available, or the gold you have' },

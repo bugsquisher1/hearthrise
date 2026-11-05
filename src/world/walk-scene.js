@@ -19,13 +19,17 @@
 // activity's stand, goTo). Standing still for any length of time never moves it.
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
-import { TAP_OPENS, SITE_OPENS } from '../data/world/stations.js?v=0.2.92';
-import { createSteer, tapAction, walkClip } from './steer-local.js?v=0.2.92';
-import { createTownCast } from './town-scene.js?v=0.2.92';
-import { furnish, maskWith } from './home-scene.js?v=0.2.92';
-import { pickFacing } from './core/facing.js?v=0.2.92';
-import { GRIDS } from '../data/world/art-budget.js?v=0.2.92';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.92';
+import { TAP_OPENS, SITE_OPENS } from '../data/world/stations.js?v=0.2.93';
+import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.93';
+
+/* what a tap opens: the stations' rows and the sinks' (which stay out of stations.js: the edge bundles it) */
+const OPENS = Object.freeze({ ...TAP_OPENS, ...SINK_TAPS });
+import { createSteer, tapAction, walkClip } from './steer-local.js?v=0.2.93';
+import { createTownCast } from './town-scene.js?v=0.2.93';
+import { furnish, maskWith } from './home-scene.js?v=0.2.93';
+import { pickFacing } from './core/facing.js?v=0.2.93';
+import { GRIDS } from '../data/world/art-budget.js?v=0.2.93';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.93';
 
 /* How far a walked map's camera leans from the hero toward the map's `focus`:
    halfway keeps the hero on screen anywhere on a town-sized map and the plaza
@@ -94,7 +98,7 @@ export function createWalkScene(map, o) {
     },
     /** A tap ({tile, hits}) → the action it means; a walk is started here. */
     tap(pick, now) {
-      const act = tapAction(map, pick, { opens: TAP_OPENS, sites: SITE_OPENS, maps: o.maps });
+      const act = tapAction(map, pick, { opens: OPENS, sites: SITE_OPENS, maps: o.maps });
       if (act.kind === 'walk') steer.walkTo(act.to, now, true);
       /* a station tapped: its screen opens AND the hero walks to it (next to it: the station blocks) */
       else if (act.kind === 'skill') steer.walkTo(pick.tile, now, true);
@@ -113,7 +117,7 @@ export function createWalkScene(map, o) {
      */
     goTo(to, now) { steer.walkTo(to, now, false); },
     /** What a tap here would do, without doing it (the pointer's hover cue). */
-    peek: (pick) => tapAction(map, pick, { opens: TAP_OPENS, sites: SITE_OPENS, maps: o.maps }),
+    peek: (pick) => tapAction(map, pick, { opens: OPENS, sites: SITE_OPENS, maps: o.maps }),
     /** Where the hero stands (or is stepping onto). */
     cell: () => steer.cell(),
   };

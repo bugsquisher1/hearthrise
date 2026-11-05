@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.92';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.93';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -68,6 +68,17 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     hunting: 'Your hero is out hunting. The Great Hearth is in town.',
     no_item: 'That fuel is not in your bag any more.',
   }),
+  /* What gold buys in town (2027-02-27-town-shows.sql hr_town_show): src/shell/sink-words.js says those with a number. */
+  town_powder: Object.freeze({
+    hunting: 'Your hero is out hunting. The Great Hearth is in town.',
+    show_limit: 'Havora takes 5 powders a day from one account. More after midnight UTC.',
+    show_busy: 'The Hearth\'s powders are booked for now. You weren\'t charged.',
+  }),
+  town_round: Object.freeze({
+    hunting: 'Your hero is out hunting. The Tavern is in town.',
+    show_limit: 'Havora takes 3 rounds a day from one account. More after midnight UTC.',
+    show_busy: 'Someone\'s round is still going. You weren\'t charged.',
+  }),
 });
 
 export const REFUSAL_WORDS = Object.freeze({
@@ -91,6 +102,18 @@ export const REFUSAL_WORDS = Object.freeze({
   flame_too_low: 'Your Inner Flame is too low for that fuel yet.',
   hearth_limit: 'The Great Hearth takes only so many named fuels a day from one hero. Try again tomorrow.',
   hearth_busy: 'The Great Hearth is already burning named fuels. Try again in a few minutes.',
+  /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql). Every one of these leaves the purse alone. */
+  not_a_show: 'Havora doesn\'t sell that.',
+  show_limit: 'Havora takes only so many of those a day from one account. More after midnight UTC.',
+  show_busy: 'The town is booked for now. You weren\'t charged.',
+  crier_off: 'The Crier is off duty right now. You weren\'t charged.',
+  crier_word: 'The Crier won\'t shout that word. Change it. You weren\'t charged.',
+  crier_link: 'The Crier won\'t shout web addresses. You weren\'t charged.',
+  crier_links: 'The Crier shouts one item link at most. You weren\'t charged.',
+  crier_long: 'The Crier shouts 120 letters at most. You weren\'t charged.',
+  crier_level: 'The Crier takes words from Level 10 heroes and up.',
+  crier_limit: 'The Crier takes 5 lines a day from one account. More after midnight UTC.',
+  crier_busy: 'The Crier is shouting someone else\'s line. Try again in a moment. You weren\'t charged.',
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
   network: 'No connection. Nothing was changed.',
   timeout: 'The server has not answered. The game shows what it last confirmed.',

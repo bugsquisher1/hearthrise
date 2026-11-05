@@ -52,6 +52,13 @@
 // fade through blank frames, never be blank in all of them); the clean sprites and a palette-preserving
 // recolour must stay silent (a guard red on clean art proves nothing).
 //
+// A REGION-MASK SET (src/data/world/atlas-sets.js MASK_SETS, the dyes' masks) is never drawn: it is held to
+// validateMask (only exact region keys, binary alpha, <sprite>_mask names) instead of the scale budget and
+// palette, its manifest says palette MASK_PALETTE, and every mask names a sprite of the set it masks with the
+// same frame, anchor, clips and facings ([mask]). It counts as loaded only while that set is (style 1).
+// --selftest plants a drawn sprite into a mask set, a misnamed mask, a key nudged off its colour, a mask of a
+// sprite that does not exist, and a mask set whose base set nobody loads.
+//
 // mutant-anchors: assets/world/ art/world/ tools/world-art/ src/data/world/ src/data/hunt-outfits.js
 //
 // Exit: 0 green · 1 a finding, drift, or a mutant escaped · 2 harness.
@@ -60,7 +67,7 @@ import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, cpSy
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { decodePNG, encodePNG, encodeSheetPNG, pixelHash, cloneImage, createImage, blit, scaleNearest } from '../tools/world-art/png.mjs';
-import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames, bodyOf } from '../tools/world-art/validate.mjs';
+import { validateSprite, validateMask, validateTerrain, validateAtlasSize, referenceFrames, bodyOf, MASK_PALETTE } from '../tools/world-art/validate.mjs';
 import { measureFrame } from '../tools/world-art/measure.mjs';
 import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
 import { CLASSES, MANIFEST_VERSION, FACINGS } from '../src/data/world/art-budget.js';
@@ -68,7 +75,7 @@ import { PALETTE_ID } from '../tools/world-art/palette.mjs';
 import { style1Findings, reachableRefs, codeSets, RETIRED_SETS } from '../tools/world-art/style1.mjs';
 import { readSidecars, listSets, setGrid } from '../tools/world-art/build.mjs';
 /* every set the renderer can load, on any art grid (the sandbox's hd64 set loads on its first entry) */
-import { LOADED_SETS as ATLAS_SETS } from '../src/data/world/atlas-sets.js';
+import { LOADED_SETS as ATLAS_SETS, MASK_SETS } from '../src/data/world/atlas-sets.js';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../src/data/world/house-layouts.js';
 import { OUTFITS } from '../src/data/hunt-outfits.js';
@@ -96,7 +103,7 @@ function style1Input(root = ROOT, over = {}) {
   const sidecars = {};
   for (const set of listSets(root)) sidecars[set] = readSidecars(root, set);
   return {
-    atlasSets, artSets: listSets(root), builtSets: built, sidecars, code: over.code || codeRefs(root),
+    atlasSets, artSets: listSets(root), builtSets: built, sidecars, code: over.code || codeRefs(root), maskSets: over.maskSets || MASK_SETS,
     scripts: existsSync(join(root, 'tools/world-art')) ? readdirSync(join(root, 'tools/world-art')).map((f) => 'tools/world-art/' + f) : [],
     refs: reachableRefs({ maps: over.maps || WORLD_MAPS, layouts: ROOM_LAYOUTS, trophySprites: TROPHY_MOUNT_SPRITES, peerLooks: Object.values(OUTFITS),
       crier: 'npc_crier', outfits: Object.values(OUTFITS), huntIndex: HUNT_INDEX, grounds: HUNT_GROUNDS, artAlias: HUNT_ART_ALIAS }),
@@ -228,6 +235,23 @@ function loadAtlases(root = ROOT) {
   });
 }
 
+/** [mask]: every sprite of a mask set names a sprite of the set it masks, in the same layout. Strings. */
+function maskLinks(atlases, maskSets = MASK_SETS) {
+  const out = [];
+  for (const { manifest: m } of atlases) {
+    const base = maskSets[m.set];
+    if (!base) continue;
+    const b = (atlases.find((a) => a.manifest.set === base) || {}).manifest;
+    for (const [id, sp] of Object.entries(m.sprites)) {
+      const of = b && b.sprites[id.replace(/_mask$/, '')];
+      if (!of) { out.push(`mask: ${m.set}/${id} masks no sprite of set ${base}`); continue; }
+      const shape = (x) => JSON.stringify([x.frame, x.anchor, Object.entries(x.anims).map(([n, a]) => [n, Object.entries(a.dirs).map(([d, l]) => [d, l.length])])]);
+      if (shape(sp) !== shape(of)) out.push(`mask: ${m.set}/${id} is not laid out like ${base}/${id.replace(/_mask$/, '')} (frame, anchor, clips or facings differ)`);
+    }
+  }
+  return out;
+}
+
 /** A sheet's bytes are not indexed colour (PNG colour type 3): the finding, or null. */
 function encodingFinding(file, bytes) {
   return bytes[25] === 3 ? null : `${file}: [sheet-encoding] PNG colour type ${bytes[25]}, not indexed (3): the same pixels at about twice the bytes (tools/world-art/png.mjs encodeSheetPNG)`;
@@ -240,7 +264,9 @@ function guard() {
   const seen = {};
   for (const { file, manifest: m, atlas } of atlases) {
     if (m.version !== MANIFEST_VERSION) fails.push(`${file}: manifest version ${m.version}, expected ${MANIFEST_VERSION}`);
-    if (m.palette !== PALETTE_ID) fails.push(`${file}: locked to palette ${m.palette}, the world palette is ${PALETTE_ID}`);
+    const mask = !!MASK_SETS[m.set];
+    const wantPalette = mask ? MASK_PALETTE : PALETTE_ID;
+    if (m.palette !== wantPalette) fails.push(`${file}: locked to palette ${m.palette}, ${mask ? 'a mask set is ' : 'the world palette is '}${wantPalette}`);
     if (atlas.width !== m.size[0] || atlas.height !== m.size[1]) fails.push(`${file}: size ${m.size} but the PNG is ${atlas.width}x${atlas.height}`);
     if (pixelHash(atlas) !== m.pixels) fails.push(`${file}: atlas pixels do not match the manifest hash`);
     const enc = encodingFinding(file, readFileSync(join(ROOT, OUT_DIR, m.image)));
@@ -250,6 +276,7 @@ function guard() {
     const grid = setGrid(ROOT, m.set);
     if (m.T !== grid.T) fails.push(`${file}: manifest T ${m.T}, but set ${m.set} is drawn on the ${grid.id} grid (T ${grid.T})`);
     for (const id of Object.keys(m.sprites)) {
+      if (mask) { for (const f of validateMask(spriteFromAtlas(m, atlas, id), grid)) fails.push(`${file}: [${f.rule}] ${f.id}: ${f.detail}`); continue; }
       seen[id] = { set: m.set, sprite: m.sprites[id] };
       for (const f of validateSprite(spriteFromAtlas(m, atlas, id), grid)) fails.push(`${file}: [${f.rule}] ${f.id}: ${f.detail}`);
     }
@@ -263,6 +290,7 @@ function guard() {
     const needs = want.anims.map((a) => [a, want.dirs]).concat(Object.entries(want.also || {}));
     for (const [a, dirs] of needs) for (const d of dirs) if (!got.sprite.anims[a] || !(got.sprite.anims[a].dirs[d] || []).length) fails.push(`content: "${id}" has no ${a} facing ${d}`);
   }
+  for (const f of maskLinks(atlases)) fails.push(f);
   const atlasOf = (set) => (atlases.find((a) => a.manifest.set === set) || {}).atlas;
   for (const f of liveFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
   for (const f of twinFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
@@ -342,7 +370,7 @@ function growTo(sp, target) {
 
 function selftest(atlases) {
   const find = (cls, only) => {
-    for (const { manifest: m, atlas } of atlases) for (const [id, s] of Object.entries(m.sprites)) if (s.class === cls && (!only || id === only)) return spriteFromAtlas(m, atlas, id);
+    for (const { manifest: m, atlas } of atlases) if (!MASK_SETS[m.set]) for (const [id, s] of Object.entries(m.sprites)) if (s.class === cls && (!only || id === only)) return spriteFromAtlas(m, atlas, id);
     return null;
   };
   const chest = find('box'), hero = find('character'), fx = find('vfx'), vermin = find('vermin', 'slime') || find('vermin');
@@ -397,6 +425,38 @@ function selftest(atlases) {
   { const inp = style1Input(); inp.builtSets = inp.builtSets.concat([RETIRED_SETS[0]]); s1('a retired atlas left in assets/world', 's1-retired', inp); }
   s1('a window loading the retired hero atlas itself', 's1-code', style1Input(ROOT, { code: codeRefs(ROOT).concat([{ file: 'src/shell/windows/inventory/doll.js', sets: codeSets("const p = atlasPaths('hero');") }]) }));
   s1('a literal path to a retired atlas', 's1-code', style1Input(ROOT, { code: [{ file: 'src/x.js', sets: codeSets("fetch('assets/world/atlas-town.json')") }] }));
+  s1('a mask set whose base set nobody loads', 's1-orphan', style1Input(ROOT, { maskSets: { 'hunt-masks': 'nope' } }));
+
+  // REGION MASKS: the shipped masks are clean; each planted mask defect is named by its own rule.
+  const maskAtlas = atlases.find((a) => MASK_SETS[a.manifest.set]);
+  if (!maskAtlas) { console.error('world-assets --selftest: harness — needs a shipped mask set (src/data/world/atlas-sets.js MASK_SETS)'); process.exit(2); }
+  const mm = maskAtlas.manifest, mId = Object.keys(mm.sprites)[0];
+  const cleanMask = spriteFromAtlas(mm, maskAtlas.atlas, mId);
+  const shippedMasks = maskLinks(atlases).concat(validateMask(cleanMask).map((f) => f.detail));
+  if (shippedMasks.length) { console.error('world-assets --selftest: harness — the shipped masks are not clean: ' + shippedMasks.slice(0, 3).join('; ')); process.exit(2); }
+  const maskCase = (name, rule, sp) => {
+    const rules = new Set(validateMask(sp).map((f) => f.rule));
+    if (rules.has(rule)) console.log(`  ✓ ${name}: caught by [${rule}]`);
+    else { escaped++; console.log(`  ✗ ${name}: NOT caught by [${rule}] (rules hit: ${[...rules].join(', ') || 'none'})`); }
+  };
+  const nudge = (img) => { const out = cloneImage(img); const i = firstOpaque(out); if (i >= 0) out.data[i] ^= 1; return out; };
+  maskCase('a drawn sprite parked in a mask set', 'mask-colour', { ...hero, id: hero.id + '_mask' });
+  maskCase('a mask not named <sprite>_mask', 'mask-name', { ...cleanMask, id: mId.replace(/_mask$/, '_keys') });
+  maskCase('a region key nudged one step off its colour', 'mask-colour', mapFrames(cleanMask, nudge));
+  const relinked = (fn) => atlases.map((a) => (a !== maskAtlas ? a : { ...a, manifest: { ...mm, sprites: fn({ ...mm.sprites }) } }));
+  const linkCase = (name, want, list) => {
+    const hits = maskLinks(list).filter((f) => f.includes(want));
+    if (hits.length) console.log(`  ✓ ${name}: caught by [mask]`);
+    else { escaped++; console.log(`  ✗ ${name}: NOT caught by [mask] (wanted "${want}")`); }
+  };
+  linkCase('a mask of a sprite that does not exist', 'masks no sprite', relinked((sp) => { sp.ghost_mask = sp[mId]; return sp; }));
+  linkCase('a mask laid out unlike its sprite (a facing short a frame)', 'not laid out', relinked((sp) => {
+    const a = sp[mId].anims, clip = Object.keys(a).find((n) => Object.values(a[n].dirs).some((l) => l.length > 1));
+    const d = Object.keys(a[clip].dirs).find((k) => a[clip].dirs[k].length > 1);
+    sp[mId] = { ...sp[mId], anims: { ...a, [clip]: { ...a[clip], dirs: { ...a[clip].dirs, [d]: a[clip].dirs[d].slice(1) } } } };
+    return sp;
+  }));
+  const MASK_MUTANTS = 5;
 
   // THE LIVE-GROUND CONTRACT: each planted gap must be named by its own finding; the shipped sprites stay silent.
   const sprites = {};
@@ -464,7 +524,7 @@ function selftest(atlases) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 12 + LIVE_MUTANTS} planted defects caught; ${controls.length + 2} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 13 + LIVE_MUTANTS + MASK_MUTANTS} planted defects caught; ${controls.length + 3} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

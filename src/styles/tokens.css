@@ -799,6 +799,9 @@ body[data-theme="hearthlight"] {
      by the role its weapon plays, so a party reads at a glance. World-palette
      ramps, each lifted to read on the charcoal panel (all >= 4.5:1 on --bg-1);
      never a rarity colour, so a name is never mistaken for a drop. */
+  --powder-cinnabar:     #c23a2a;   /* the Havora window's swatches: the top of each powder's ramp (tools/world-art/hearth-flames.mjs) */
+  --powder-quicklime:    #e6dcbc;
+  --powder-borax:        #7ccf4a;
   --chat-role-tank:      #8fb3cf;   /* frost 3 */
   --chat-role-melee:     #e3a066;   /* torch 3 */
   --chat-role-ranger:    #a7c37a;   /* leaf 4 */

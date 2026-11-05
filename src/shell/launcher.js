@@ -6,20 +6,20 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.92';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.92';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.92';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.92';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.92';
-import { levelOf } from '../session/character-sections.js?v=0.2.92';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.92';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.92';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.92';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.92';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.92';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.92';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.92';
-import { trackOnce } from '../net/observability.js?v=0.2.92';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.93';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.93';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.93';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.93';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.93';
+import { levelOf } from '../session/character-sections.js?v=0.2.93';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.93';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.93';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.93';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.93';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.93';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.93';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.93';
+import { trackOnce } from '../net/observability.js?v=0.2.93';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -355,7 +355,7 @@ export function renderLaunchers(ctx) {
     const on = open.has(r.id);
     const key = keyLabel(r.key);
     return '<button type="button" class="hs-launch' + (on ? ' is-open' : '') + '" data-hs-open="' + esc(r.id) + '"'
-      + ' aria-pressed="' + on + '" aria-label="' + esc(r.label) + ' (' + esc(key) + ')"'
+      + ' aria-pressed="' + on + '" aria-label="' + esc(r.label) + (key ? ' (' + esc(key) + ')' : '') + '"'
       + ' data-tip="' + esc(r.label) + '" data-key="' + esc(key) + '"' + (ring === r.id ? ' data-coach-ring=""' : '') + '>'
       + glyphSvg(ctx.glyphs, r.glyph) + '</button>';
   });

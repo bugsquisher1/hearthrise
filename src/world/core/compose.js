@@ -427,7 +427,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     if (o.plate) { const hd = head(d); plates.push({ text: o.plate.text, kind: o.plate.kind, x: hd.cx, y: hd.top, alpha: 1, id: o.id, ref: o.ref || null }); }
   }
   /* A unit: { id, x, y, anim, dir, diag, age (ms into the clip) | frame (the clip frame itself, a
-     walk chosen by distance), alpha, grey (0..1 toward its corpse tone), flash, under (drawn
+     walk chosen by distance), alpha, grey (0..1 toward its corpse tone), recoil ([dx, dy] art px), under (drawn
      beneath the standing: a corpse), plate:{text,kind,alpha?}, bar, barKind, mana, badge, target }.
      dir is the cardinal; diag the diagonal of a diagonal step, drawn when the clip has it (core/facing.js). */
   function unit(u, isHero) {
@@ -436,8 +436,9 @@ export function composeFrame(map, book, state, view, tables, T) {
     const i = Number.isInteger(u.frame) ? u.frame : clipFrame(book, u.id, anim, dir, u.age == null ? state.t || 0 : u.age);
     const d = place(u.id, u.x, u.y, { anim, dir, i, kind: 'unit', alpha: u.alpha, ref: u.ref, bias: u.under ? -UNDER : 0, shadow: u.under ? false : undefined });
     if (u.grey) d.grey = Math.max(0, Math.min(1, u.grey));
-    if (u.flash) d.flash = true;
     const { cx, foot, top } = head(d);
+    /* After head(): a recoil moves the art alone, so a full box's blows never shake a name, a bar or the lamp. */
+    if (u.recoil) { d.x += u.recoil[0]; d.y += u.recoil[1]; }
     if (u.plate) plates.push({ text: u.plate.text, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha,
       /* the plate names its owner, so a right-click on the NAME picks the unit too */ id: u.id, ref: u.ref || null });
     if (u.bar != null) {

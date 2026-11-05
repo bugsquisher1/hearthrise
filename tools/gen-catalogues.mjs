@@ -104,7 +104,8 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    refined goods' book values (hr_items.value, read by the market's ceiling) land in ONE forward file, the same full delete+insert replace. */
 /* KLAPPA'S CLUB (lane/c-klappa-club, designer 2026-11-03): 2027-02-21-rulings-items-catalogue is APPLIED history; the club's hr_items row, its Smithing recipe in hr_activities, ONE forward file, the same full delete+insert replace. */
 /* THE GLADE'S RUNG (lane/c-pre-wipe, designer 2026-11-04): 2027-02-23-klappa-items-catalogue is APPLIED history; the Houndskin Cloak's Level and its Crafting recipe in hr_activities, ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-02-25-houndskin-items-catalogue.generated.sql');
+/* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-25-houndskin-items-catalogue is APPLIED history; the deeper runes' book values (hr_items.value, read by the market's ceiling) land in ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-03-08-rune-ladder-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1457,7 +1458,9 @@ end $$;
    engine makes (isRune / runeTierOf, versionLevel, abilitySkill). A function, not a table. */
 const { ABILITIES: RUNE_ABILITIES, abilitySkill } = await imp('src/data/abilities.js');
 const { isRune, runeTierOf, versionLevel } = await imp('src/data/runes.js');
-const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '2027-02-21-rune-spells.generated.sql');
+const { BASIC_SUPPLIES: RUNE_STORE } = await imp('src/data/supply-basics.js');
+/* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-21-rune-spells is APPLIED history; a spell gains `store`, the store rows its slot may name, in a forward file. */
+const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '2027-03-08-rune-ladder-rune-spells.generated.sql');
 const runeSpells = {};
 for (const id of Object.keys(RUNE_ABILITIES).sort()) {
   const row = RUNE_ABILITIES[id];
@@ -1469,7 +1472,11 @@ for (const id of Object.keys(RUNE_ABILITIES).sort()) {
     if (isRune(ITEMS[item]) && ITEMS[item].family === fam && runeTierOf(ITEMS[item])) runes[item] = versionLevel(runeTierOf(ITEMS[item]));
   }
   if (!Object.keys(runes).length) die(`rune spells: ${id}'s family ${fam} has no rune of a tier`);
-  runeSpells[id] = { skill: abilitySkill(row), runes };
+  /* What the slot may name, by the same rule as conditions.js storeFits: a store row whose partner is a rune of this family. */
+  const store = {};
+  for (const b of [...RUNE_STORE].sort((x, y) => (x.id < y.id ? -1 : 1))) if (Object.prototype.hasOwnProperty.call(runes, b.partner)) store[b.id] = runes[b.partner];
+  if (!Object.values(store).includes(1)) die(`rune spells: ${id}'s family ${fam} has no store rune a hero can cast from level 1`);
+  runeSpells[id] = { skill: abilitySkill(row), runes, store };
 }
 const runeSpellsJson = JSON.stringify(runeSpells);
 const RUNE_SPELLS_DIGEST = createHash('sha256').update(runeSpellsJson).digest('hex');
@@ -1486,12 +1493,13 @@ const sqlRuneSpells = `-- ══════════════════
 --   catalogue digest: ${RUNE_SPELLS_DIGEST}
 --   rune spells: ${RUNE_SPELL_IDS.length} (${RUNE_SPELL_IDS.join(', ')})
 --
--- WHAT THIS IS FOR. hr_hunt_rune_state (2027-02-21-hunt-carry-in.sql), which hr_hunt_settings_view's
--- \`usable\` reads: { ability: { skill, runes: { item: the level in that skill its version needs } } }.
--- Server-only.
+-- WHAT THIS IS FOR. hr_hunt_rune_state (2027-02-21-hunt-carry-in.sql) and hr_hunt_rune_store_state + hr_hunt_slot_check
+-- (2027-03-08-rune-ladder-slots.sql), which hr_hunt_settings_view's \`usable\` reads: { ability: { skill,
+-- runes: { item: the level in that skill its version needs }, store: { store row: the level its version needs } } }.
+-- Server-only. The key \`store\` is new in this file; \`runes\` does not move.
 --
--- APPLY ORDER: after 2027-02-20-party-leader-starts.sql; BEFORE 2027-02-21-hunt-carry-in.sql, whose §0
---              refuses without it. SAFE TO RE-RUN (create or replace).
+-- APPLY ORDER: after 2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql (the store rows it names), BEFORE
+--              2027-03-08-rune-ladder-slots.sql, whose §0 refuses without it. SAFE TO RE-RUN (create or replace).
 -- ══════════════════════════════════════════════════════════════
 
 create or replace function public.hr_hunt_rune_spells()
@@ -1528,6 +1536,15 @@ begin
     from jsonb_each(public.hr_hunt_rune_spells()) s, jsonb_each(s.value->'runes') r
    where not exists (select 1 from public.hr_hunt_supplies p where p.item_id = r.key);
   if v_bad is not null then raise exception 'hr_hunt_rune_spells() names runes no hunt can carry: %', v_bad; end if;
+  -- THE RUNE LADDER: every store row a spell may name is on sale behind a rune of its family, and every rune of the family has one.
+  select string_agg(r.key, ', ') into v_bad
+    from jsonb_each(public.hr_hunt_rune_spells()) s, jsonb_each(s.value->'store') r
+   where not exists (select 1 from public.hr_hunt_basic_supplies q where q.basic_id = r.key and q.partner in (select jsonb_object_keys(s.value->'runes')));
+  if v_bad is not null then raise exception 'hr_hunt_rune_spells() names store rows the store does not sell for that family: %', v_bad; end if;
+  select string_agg(r.key, ', ') into v_bad
+    from jsonb_each(public.hr_hunt_rune_spells()) s, jsonb_each(s.value->'runes') r
+   where not exists (select 1 from public.hr_hunt_basic_supplies q where q.partner = r.key and s.value->'store' ? q.basic_id);
+  if v_bad is not null then raise exception 'a rune a spell can cast has no store row: %', v_bad; end if;
   if has_function_privilege('anon', 'public.hr_hunt_rune_spells()', 'execute')
      or has_function_privilege('authenticated', 'public.hr_hunt_rune_spells()', 'execute') then
     raise exception 'hr_hunt_rune_spells() is executable by a client role';

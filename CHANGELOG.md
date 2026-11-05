@@ -5,12 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## Unreleased
+## v0.2.90 — 2026-11-04 (Armor That Answers)
 
 - Leather Boots give a little less armor, so Studded Boots are a real upgrade.
 - Drain Rats, Briarcoat Wolves and Glade Poachers carry a little more coin.
-
-## v0.2.90 — 2026-11-04 (Armor That Answers)
 
 **Your own party.** A third hero costs 25,000 gp, a fourth 75,000 and a fifth 250,000.
 

@@ -29,6 +29,7 @@
 // --proofs (a set that moved a body, an engine or a catalogue): 30 of the 39 left-behind proofs needed no browser; --pages reaches the
 // other 9, now that a page draws the same font here as on GitHub (tests/_test-fonts.mjs). Slow, so not the default.
 //
+// A FIRST PUSH OVER 300 CHANGED FILES (v0.2.93, 428): GitHub started no run at all, and paths-ignore is the likely cause (its filter reads 300 files). One more small commit starts it.
 // Exit: 0 every command judged green · 1 a red · 2 a harness problem · 3 no red, but some commands not judged (GitHub will).
 // mutant-anchors: none — the proof plants into copies of the workflow text and a scratch runner, never a tree file
 import { spawn, spawnSync } from 'node:child_process';

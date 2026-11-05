@@ -5,7 +5,7 @@
 //   node tools/load-bench.mjs local --site plain=DIR[,built=DIR] [--release plain=transform,built=DIR] [--runs 3] [--profiles desktop,phone] [--workers off,on] [--scenarios cold,return-expired,release] [--trace] [--js-profile] [--out FILE]
 //   node tools/load-bench.mjs --table FILE...       reprint saved results
 //   --settle MS  how long a walk stays after its first frame (default 2000): long enough, and a town's last sheet is timed too
-//   --stand N   the hero takes the hearth's stand N, as a busier town would give it (the server's lowest free one: a quiet town gives 1). The local world only.
+//   --stand [STATION:]N   the hero takes that stand (default the hearth's), as a busier town would give it (the server's lowest free one: a quiet town gives 1). The local world only; each row says the stand the server answered.
 //
 // Real Chrome (channel 'chrome', new headless), NEVER Playwright's headless shell: on Windows the shell queues a WinHTTP proxy lookup per request (p50 4.8 s),
 // which was most of the "12 s return load". One browser at a time, a real on-disk profile per pass. Run nothing heavy beside it.
@@ -255,6 +255,8 @@ function summarise(reqs, zero) {
 async function walk(opened, url, account, { settleMs = 2000 } = {}) {
   const { page, cdp, reqs, errors } = opened;
   const t0 = Date.now();
+  let stand = null;
+  page.on('response', async (res) => { if (stand || !/rpc\/hr_town_view/.test(res.url())) return; try { const b = await res.json(); if (b && b.me) stand = b.me.station + ':' + b.me.stand + '@' + b.me.x + ',' + b.me.y; } catch (e) { /* a body gone with its page */ } });
   const zero = () => { let s = Infinity; for (const r of reqs.values()) s = Math.min(s, r.start); return s; };
   await page.goto(url, { waitUntil: 'commit' });
   await page.waitForSelector('form[data-auth="sign-in"], .char-row, .hs-launchers, [data-closed-notice]');
@@ -284,6 +286,7 @@ async function walk(opened, url, account, { settleMs = 2000 } = {}) {
   out.metricsSettled = await perfMetrics(cdp);
   out.sheetsAtFrame = [...reqs.values()].filter((r) => r.kind === 'atlas' && r.end && (r.end - z) * 1000 <= out.marks.painted).map((r) => new URL(r.url).pathname.split('/').pop().replace(/^atlas-|[-.].*$/g, ''));
   out.waterfall = [...reqs.values()].map((r) => [new URL(r.url).pathname.split('/').slice(-2).join('/'), r.kind, Math.round((r.start - z) * 1000), r.end ? Math.round((r.end - z) * 1000) : null, r.bytes, r.from, r.wireStatus ?? r.status]);
+  out.stand = stand;
   out.errors = errors.filter((e) => !/ERR_NAME_NOT_RESOLVED|Failed to fetch|net::ERR_/.test(e)).slice(0, 8);
   out.wallMs = Date.now() - t0;
   return out;
@@ -401,7 +404,7 @@ async function browser(profile, spki) {
   return { ctx, close: async () => { await ctx.close().catch(() => {}); try { rmSync(dir, { recursive: true, force: true, maxRetries: 3 }); } catch (e) { /* the OS tidies its own temp */ } } };
 }
 
-const keep = (r) => ({ sheetsAtFrame: r.sheetsAtFrame, waterfall: r.waterfall, form: r.form, chars: r.chars, charsFrom: r.charsFrom, town: r.town, total: r.total, marks: r.marks, settled: r.settled, metricsFirstScreen: r.metricsFirstScreen, metricsTown: r.metricsTown, metricsSettled: r.metricsSettled, errors: r.errors, server: r.server, wallMs: r.wallMs });
+const keep = (r) => ({ stand: r.stand, sheetsAtFrame: r.sheetsAtFrame, waterfall: r.waterfall, form: r.form, chars: r.chars, charsFrom: r.charsFrom, town: r.town, total: r.total, marks: r.marks, settled: r.settled, metricsFirstScreen: r.metricsFirstScreen, metricsTown: r.metricsTown, metricsSettled: r.metricsSettled, errors: r.errors, server: r.server, wallMs: r.wallMs });
 
 function serverSum(log) {
   let bytes = 0, ok = 0, not = 0;
@@ -457,12 +460,15 @@ async function runLocal(o) {
           const tag = site.label + (worker === 'on' ? '+worker' : '');
           const bank = async (scenario, r) => {
             results.push({ site: tag, profile: profileName, scenario, run, ...keep(r) });
-            console.log(`[${run}] ${tag} ${profileName} ${scenario}: form ${Math.round(r.form ?? -1)} chars ${Math.round(r.chars ?? -1)} town ${Math.round(r.town ?? -1)} total ${Math.round(r.total ?? -1)} sheets-in ${(r.sheetsAtFrame || []).join('+')} last-sheet ${Math.round((r.settled.kinds.atlas || {}).lastMs ?? -1)} server ${Math.round(r.server.bytes / 1024)}K ${r.server.ok}/${r.server.notModified}${r.errors.length ? ' ERRORS ' + JSON.stringify(r.errors) : ''}`);
+            console.log(`[${run}] ${tag} ${profileName} ${scenario}: form ${Math.round(r.form ?? -1)} chars ${Math.round(r.chars ?? -1)} town ${Math.round(r.town ?? -1)} total ${Math.round(r.total ?? -1)} stand ${r.stand} sheets-in ${(r.sheetsAtFrame || []).join('+')} last-sheet ${Math.round((r.settled.kinds.atlas || {}).lastMs ?? -1)} server ${Math.round(r.server.bytes / 1024)}K ${r.server.ok}/${r.server.notModified}${r.errors.length ? ' ERRORS ' + JSON.stringify(r.errors) : ''}`);
             await clearBudgets();
           };
           mimic.flush();
           mimic.state.site = site.base; mimic.state.maxAge = SHORT_TTL; mimic.state.worker = worker === 'on';
-          if (o.stand) await world.db.query(`update public.town_bodies set stand_no = ${Number(o.stand)} where station_id is not null`);
+          if (o.stand) {
+            const [st, no] = String(o.stand).includes(':') ? String(o.stand).split(':') : [null, o.stand];
+            await world.db.query(`update public.town_bodies set stand_no = ${Number(no)}${st && /^[a-z0-9_]+$/.test(st) ? `, station_id = '${st}'` : ''} where station_id is not null`);
+          }
           const b = await browser(profile, certificate.spki);
           try {
             let p = await openPage(b.ctx, profile);

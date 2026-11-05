@@ -76,7 +76,7 @@ export function renderHavora(ctx) {
     + '</section>'
     + (WORKS_TAB.shown ? '<section class="hw-pane hv-pane" data-pane="works">' + worksHtml() + '</section>' : '')
     /* THE FOOT: what the server says of the day and its answer to a press, stuck to the window's foot, so a short window scrolls the pane under them and never cuts them off */
-    + '<div class="hv-foot"><p class="hw-cap hv-count" data-of="powder"></p><p class="hw-cap hv-count" data-of="round"></p><p class="hw-cap hv-queue"></p>'
+    + '<div class="hv-foot">' + TABS.map((t) => '<p class="hw-cap hv-count" data-of="' + esc(t.id) + '"></p>').join('') + '<p class="hw-cap hv-queue"></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>';
 }
 
@@ -102,8 +102,9 @@ renderHavora.patch = function patchHavora(body, ctx) {
   prop(buyPowder, 'disabled', sc.pending || pPrice === null);
   prop(buyRound, 'disabled', sc.pending || rPrice === null);
   for (const b of root.querySelectorAll('.hv-powder')) prop(b, 'disabled', sc.pending);
-  text(root.querySelector('.hv-count[data-of="powder"]'), s && sc.tab === 'hearth' ? countLine(s.powder, 'powders') : '');
-  text(root.querySelector('.hv-count[data-of="round"]'), s && sc.tab === 'round' ? countLine(s.round, 'rounds') : '');
+  text(root.querySelector('.hv-count[data-of="hearth"]'), s ? countLine(s.powder, 'powders') : '');
+  text(root.querySelector('.hv-count[data-of="round"]'), s ? countLine(s.round, 'rounds') : '');
+  for (const l of root.querySelectorAll('.hv-count')) cls(l, 'is-on', l.getAttribute('data-of') === sc.tab);
   text(root.querySelector('.hv-queue'), s && sc.tab === 'hearth' ? queueLine(s) : '');
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   if (WORKS_TAB.shown && sc.tab === WORKS_TAB.id) patchWorks(root.querySelector('[data-pane="works"]'), ctx);

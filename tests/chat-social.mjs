@@ -8,7 +8,7 @@
 //   node tests/chat-social.mjs --mutate --only=FR-2   just the mutants whose name holds that text
 //   node tests/chat-social.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/styles/hunt.css src/styles/app.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/chat-combat.js src/shell/windows/friends.js src/shell/windows/block-list.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js src/shell/shell.js src/shell/hud.js
+// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/shell/windows/chat-crier.js src/styles/hunt.css src/styles/app.css src/styles/windows.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/chat-combat.js src/shell/windows/friends.js src/shell/windows/block-list.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js src/shell/shell.js src/shell/hud.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The server half of every rule (the sender's name, level and role stamped by
@@ -688,7 +688,35 @@ async function pageRules(overrides, shots) {
       const hhmm = await page.evaluate(() => { const d = new Date(Date.UTC(2026, 9, 18, 9, 5)); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); });
       if (!line || line.time !== hhmm || line.name !== 'Bramble' || line.title !== 'the Wolfer' || !/is-tank/.test(line.cls) || !/\[34/.test(line.tag || '') || !line.glyph
         || line.link !== '[Bronze Sword]' || !line.last || line.body !== 'inline') fails.push('CW-1 [' + tag + '] the line reads ' + JSON.stringify(line));
-      // CW-CRIER: the Town Crier on the Global tab: the server's price on the button, a refusal in the Crier's words, a paid line with its gold bar
+      // CW-HAVORA: the Havora window (the sinks' tests have no browser): the real CSS and markup, a pane taller than the window. The day's line and the answer to a press stand whole at
+      // the window's foot wherever the pane is scrolled to, and the pane's end is reachable above them, so nothing is cut off at the foot. tests/town-shows.mjs reads its wording.
+      const fit = await page.evaluate(async () => {
+        const { renderHavora } = await import(new URL('src/shell/windows/havora/index.js', location.href).href);
+        const win = document.createElement('div');
+        win.className = 'hs-win';
+        win.style.cssText = 'right: 12px; width: 420px; max-height: 340px;';
+        win.innerHTML = '<div class="hs-win-body">' + renderHavora({}) + '</div>';
+        document.querySelector('.hs-layer').appendChild(win);
+        const body = win.querySelector('.hs-win-body');
+        const pane = win.querySelector('[data-pane="hearth"]');
+        pane.classList.add('is-on');
+        const tall = document.createElement('div');
+        tall.style.height = '600px';
+        pane.appendChild(tall);
+        const day = win.querySelector('.hv-count[data-of="hearth"]');
+        day.classList.add('is-on');
+        day.textContent = '0 of 5 powders today from this account. More after midnight UTC.';
+        const said = win.querySelector('.hh-intent-msg');
+        said.textContent = 'Paid 2,000 gp. Your hero heads for the fire.';
+        const whole = (el) => { const r = el.getBoundingClientRect(), b = body.getBoundingClientRect(); return r.height > 0 && r.top >= b.top - 0.5 && r.bottom <= b.bottom + 0.5; };
+        const at = { scrolls: body.scrollHeight > body.clientHeight, day: whole(day), said: whole(said) };
+        body.scrollTop = body.scrollHeight;
+        Object.assign(at, { dayEnd: whole(day), saidEnd: whole(said), reach: tall.getBoundingClientRect().bottom <= win.querySelector('.hv-foot').getBoundingClientRect().top + 0.5 });
+        win.remove();
+        return at;
+      });
+      if (!fit.scrolls || !fit.day || !fit.said || !fit.dayEnd || !fit.saidEnd || !fit.reach) fails.push('CW-HAVORA [' + tag + '] the window cuts something off at its foot: ' + JSON.stringify(fit));
+      // CW-CRIER: the Town Crier on the Global tab: the server's price on the button, a refusal in the Crier's words, a paid line that can't be missed
       const crierBtn = await page.$('[data-hs-win="chat"] .hc-crier-open');
       if (!crierBtn || !(await crierBtn.isVisible())) fails.push('CW-CRIER [' + tag + '] no Town Crier button on Global');
       else {
@@ -700,7 +728,17 @@ async function pageRules(overrides, shots) {
         if ((await page.$$('[data-hs-win="chat"] .hc-line.is-crier')).length) fails.push('CW-CRIER [' + tag + '] a refused line was drawn');
         await page.fill('.hc-field', 'selling rat tails');
         await page.click('[data-hs-win="chat"] .hc-cry');
-        if (!await wait(page, () => Array.from(document.querySelectorAll('[data-hs-win="chat"] .hc-line.is-crier')).some((l) => /selling rat tails/.test(l.textContent)))) fails.push('CW-CRIER [' + tag + '] a paid line has no gold bar');
+        if (!await wait(page, () => Array.from(document.querySelectorAll('[data-hs-win="chat"] .hc-line.is-crier')).some((l) => /selling rat tails/.test(l.textContent)))) fails.push('CW-CRIER [' + tag + '] a paid line draws plain');
+        /* at a glance: its own band, the Crier's mark at its head, a heavier name; a plain line has none of them; nothing under the text floor */
+        const look = await page.evaluate(() => {
+          const lines = Array.from(document.querySelectorAll('[data-hs-win="chat"] .hc-log.is-on .hc-line'));
+          const paid = lines.find((l) => l.classList.contains('is-crier')), plain = lines.find((l) => !l.classList.contains('is-crier') && !l.classList.contains('is-system'));
+          const mark = paid && paid.querySelector('.hc-crier-mark'), css = (e) => getComputedStyle(e);
+          return paid && { mark: mark && mark.textContent, markFirst: !!mark && paid.firstElementChild === mark, markPx: mark && parseFloat(css(mark).fontSize), band: css(paid).backgroundColor, name: Number(css(paid.querySelector('.hc-name')).fontWeight),
+            plain: plain && { band: css(plain).backgroundColor, mark: !!plain.querySelector('.hc-crier-mark'), name: Number(css(plain.querySelector('.hc-name')).fontWeight) } };
+        });
+        if (!look || look.mark !== 'Crier' || !look.markFirst || !(look.markPx >= 12)) fails.push('CW-CRIER [' + tag + '] a paid line has no mark at its head: ' + JSON.stringify(look));
+        else if (/^rgba\(0, 0, 0, 0\)$|transparent/.test(look.band) || (look.plain && (look.plain.band === look.band || look.plain.mark || look.plain.name >= look.name))) fails.push('CW-CRIER [' + tag + '] a paid line reads like a plain one: ' + JSON.stringify(look));
         const sent = s.cries || [];
         if (sent.length !== 2 || sent[1].p_price !== 1000 || sent[1].p_body !== 'selling rat tails' || sent[1].p_idem === sent[0].p_idem || !sent[1].p_idem) fails.push('CW-CRIER [' + tag + '] the rpc was ' + JSON.stringify(sent));
         if (!await wait(page, () => /Cry it: 2,000 gp/.test((document.querySelector('[data-hs-win="chat"] .hc-cry') || {}).textContent || ''))) fails.push('CW-CRIER [' + tag + '] the button did not re-read the next price');
@@ -989,6 +1027,9 @@ const PURE_MUTANTS = [
 const PAGE_MUTANTS = [
   ['the Crier sends a client price', 'src/shell/windows/chat-crier.js', "const r = await social.chat.cry(words, links, s.quote.price);", "const r = await social.chat.cry(words, links, 1);"],
   ['a paid line draws plain', 'src/shell/windows/chat.js', "'<li class=\"hc-line' + (l.crier ? ' is-crier' : '') + '\">", "'<li class=\"hc-line\">"],
+  ['a paid line has no mark', 'src/shell/windows/chat.js', "(l.crier ? crierMarkHtml() + ' ' : '')", "''"],
+  ['a paid line has no band', 'src/styles/hunt.css', 'background: var(--chat-crier-band); color: var(--gold-2); font-weight: 700; }', 'color: var(--gold-2); font-weight: 700; }'],
+  ['the Havora foot scrolls away (CW-HAVORA)', 'src/styles/windows.css', '.hv-foot { position: sticky; bottom: 0; background: var(--bg-1); }\n', '.hv-foot { background: var(--bg-1); }\n'],
   ['the Crier shows off Global', 'src/shell/windows/chat-crier.js', "prop(btn, 'hidden', !global);", "prop(btn, 'hidden', false);"],
   ['the Crier never re-reads', 'src/shell/windows/chat-crier.js', "  s.pending = false;\n  s.stale = true;\n", "  s.pending = false;\n"],
   ['a chat line never draws the title', 'src/shell/windows/chat.js', "const title = l.title ? ' <span class=\"hc-title\">' + esc(l.title) + '</span>' : '';", "const title = '';"],

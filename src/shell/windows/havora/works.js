@@ -5,7 +5,8 @@
 //   lists the tab and builds its pane only while WORKS_TAB.shown;
 //   draws worksHtml() into the pane once per opening;
 //   calls patchWorks(pane, ctx) on every patch while the tab is on show;
-//   offers every action to actWorks first (true: it was the Works').
+//   offers every action to actWorks first (true: it was the Works');
+//   keeps a line for this tab in the window's foot (.hv-count[data-of="works"]), so what the day leaves is never cut off at the window's foot: patchWorks writes it.
 // lane/c-town-works sets `shown` and replaces these bodies. Opening the window on this tab is the shell's: wm.openTab('havora', 'works').
 // ════════════════════════════════════════════════════════════════════════
 

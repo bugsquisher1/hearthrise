@@ -48,12 +48,12 @@ const GOLD = 'fx_round_gold', CINDER = 'fx_round_cinder', FROST = 'fx_round_fros
 export const ROUND_SHOW = Object.freeze({
   from: 'hearth_fire', rise: 'fx_round_rise', riseMs: 416, riseTiles: 6, playMs: 1500, tickMs: 1000 / 24,
   program: Object.freeze([
-    [700, GOLD, -6, -2], [1800, CINDER, -8, -1], [2600, FROST, 4, -1], [3800, CINDER, -4, -1], [4300, GOLD, -3, -1], [5600, FROST, -1, -3], [6500, CINDER, 1, -4], [7700, GOLD, 3, -3],
-    [8200, CINDER, -11, -1], [9500, FROST, -9, -4], [10400, CINDER, -10, -3], [11600, GOLD, -5, -4], [12100, FROST, -2, -2], [13400, CINDER, 0, -1], [14300, GOLD, 2, -1], [15500, CINDER, -7, -1],
-    [16000, FROST, -6, -2], [17300, CINDER, -8, -1], [18200, GOLD, 4, -1], [19400, FROST, -4, -1], [19900, CINDER, -3, -1], [21200, GOLD, -1, -3], [22100, CINDER, 1, -4], [23300, FROST, 3, -3],
-    [23800, CINDER, -11, -1], [25100, GOLD, -9, -4], [26000, FROST, -10, -3], [27200, CINDER, -5, -4], [27700, GOLD, -2, -2], [29000, CINDER, 0, -1], [29900, FROST, 2, -1], [31100, CINDER, -7, -1],
-    [31600, GOLD, -6, -2], [32900, FROST, -8, -1], [33800, CINDER, 4, -1], [35000, GOLD, -4, -1], [35500, CINDER, -3, -1], [36800, FROST, -1, -3], [37700, CINDER, 1, -4], [38400, GOLD, 3, -3],
-    [38800, FROST, -11, -1], [39300, CINDER, -9, -4], [39700, GOLD, -10, -3], [40200, CINDER, -5, -4], [40600, FROST, -2, -2], [41100, CINDER, 0, -1], [41500, GOLD, 2, -1], [42000, FROST, -7, -1],
+    [700, GOLD, -6, -2], [1800, CINDER, 2, -1], [2600, FROST, -10, -3], [3800, CINDER, -1, -3], [4300, GOLD, -8, -1], [5600, FROST, 4, -1], [6500, CINDER, -3, -1], [7700, GOLD, -11, -1],
+    [8200, CINDER, 1, -4], [9500, FROST, -5, -4], [10400, CINDER, 3, -3], [11600, GOLD, -4, -1], [12100, FROST, -9, -4], [13400, CINDER, 0, -1], [14300, GOLD, -7, -1], [15500, CINDER, -2, -2],
+    [16000, FROST, -6, -2], [17300, CINDER, 2, -1], [18200, GOLD, -10, -3], [19400, FROST, -1, -3], [19900, CINDER, -8, -1], [21200, GOLD, 4, -1], [22100, CINDER, -3, -1], [23300, FROST, -11, -1],
+    [23800, CINDER, 1, -4], [25100, GOLD, -5, -4], [26000, FROST, 3, -3], [27200, CINDER, -4, -1], [27700, GOLD, -9, -4], [29000, CINDER, 0, -1], [29900, FROST, -7, -1], [31100, CINDER, -2, -2],
+    [31600, GOLD, -6, -2], [32900, FROST, 2, -1], [33800, CINDER, -10, -3], [35000, GOLD, -1, -3], [35500, CINDER, -8, -1], [36800, FROST, 4, -1], [37700, CINDER, -3, -1], [38400, GOLD, -11, -1],
+    [38800, FROST, 1, -4], [39300, CINDER, -5, -4], [39700, GOLD, 3, -3], [40200, CINDER, -4, -1], [40600, FROST, -9, -4], [41100, CINDER, 0, -1], [41500, GOLD, -7, -1], [42000, FROST, -2, -2],
     [42600, GOLD, -6, -2],
   ].map(Object.freeze)),
 });

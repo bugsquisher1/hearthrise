@@ -804,8 +804,8 @@
 .hv-top .hw-tabs { margin-bottom: -2px; border-bottom: 0; }
 .hv-gold { margin-left: auto; padding: 0 2px 6px; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 .hv-foot { position: sticky; bottom: 0; background: var(--bg-1); }
-.hv-foot:not(:has(> :not(:empty))) { display: none; }
 .hv-foot .hw-cap { margin-bottom: 4px; }
+.hv-count:not(.is-on) { display: none; }
 .hv-lead { margin: 0 2px 10px; color: var(--ink-2); }
 .hv-powders { display: flex; gap: 6px; margin: 0 0 10px; }
 .hv-powder { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 36px; padding: 0 6px; border: 1px solid var(--steel-sep); background: var(--bg-0); color: var(--ink); font-family: var(--f-label); font-weight: 700; cursor: pointer; }

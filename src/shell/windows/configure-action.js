@@ -27,15 +27,16 @@ import { STATUSES } from '../../data/statuses.js?v=0.2.93';
 import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.93';
 import { vitalsOf } from '../../session/party-sections.js?v=0.2.93';
 import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.93';
-import { carriedOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.93';
+import { carriedOf, skillsOf } from '../../session/item-sections.js?v=0.2.93';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.93';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.93';
 import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.93';
 import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.93';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, reasonOf } from '../action-facts.js?v=0.2.93';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning } from '../action-facts.js?v=0.2.93';
+import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.93';
 import { glyphSvg } from '../launcher.js?v=0.2.93';
 import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.93';
-import { carryRows, carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.93';
+import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.93';
 import { whole } from '../../render/format.js?v=0.2.93';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -186,8 +187,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   /* Why this slot's action will not fire, as the bar's tooltip says it: a phone has no hover and a press on a slot opens
      this window, so the words are here, first (shown on a phone only, hunt.css). */
   const saved = set.slots[s.open];
-  const hunt = huntOf(cs);
-  const fireWhy = saved && !saved.empty ? reasonOf(saved, set, bag, hunt && !hunt.ended ? hunt.hero : null, (equipmentOf(cs) || {}).ammo, skillsOf(cs), carryRows(cs)) : null;
+  const fireWhy = saved && !saved.empty ? slotWhy(saved, whyFacts(cs)) : null;
   text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');
   /* CARRY IN: the most of this action's supply the bag holds while the hunt runs (every tier of a rune spell's family). */
   const carry = d.action.id ? (carryFor(cs, d.action) || [])[0] || null : null;
@@ -213,7 +213,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   /* The heal warning: the hero's hunt (running, else the last one) at the party's size, the server's max HP. */
   const h = huntOf(cs), p = partyOf(cs);
   const blow = h && h.huntId ? biggestBlowOn(h.huntId, p ? p.members.length : 1) : null;
-  const warn = healWarning(d, set, blow, vitalsOf(cs).hpMax);
+  /* ...and what the slot's conditions will mean in a fight (slot-waits.js): a player setting it up reads it here, in town too. */
+  const warn = [healWarning(d, set, blow, vitalsOf(cs).hpMax), setupNote(d, p ? p.members.length : 1)].filter(Boolean).join(' ');
   text(root.querySelector('.ca-warn'), warn);
   /* On a phone the sentence's warning is one line with an ellipsis; the detail pane says it whole. */
   text(root.querySelector('.ca-d-warn'), warn);

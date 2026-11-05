@@ -18,6 +18,9 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 **Gold Given.** A new monthly board ranks the accounts that have given the most to the town. It has no prize, and it resets every month.
 
 **More setups, and titles.** Every hero gets two action bar setups free and can buy three more. Titles are earned by kills and then claimed with gold, so a name beside your hero says what it has actually hunted.
+## Unreleased
+
+- Your action bar now says when a slot is waiting. Fireball is set to fire at 2 or more monsters, so on a lone monster its slot dims and shows "2+", and hovering it or pressing it tells you why. Circle of Renewal does the same when you're not in a party. What a slot does hasn't changed: to fire on one monster, remove its condition in Configure action.
 
 ## v0.2.92 — 2026-11-05 (Standing Your Ground)
 

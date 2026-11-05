@@ -7,8 +7,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.95 — 2026-11-05 (First Spells)
 
-**A new Mage or Healer casts from its first fight.** A new Mage used to fire no spell at a lone monster, and a new Healer sat quiet. Frost Lance, Arcane Barrier, Circle of Renewal and Green Sickness now come ready to cast, buying their plain rune at 1 gp when you carry none.
-
+- A new Mage or Healer now casts from the very first fight: every starting spell buys its rune from the store for 1 gp a cast, and Frost Lance or Green Sickness fires even on a lone monster. A new card, "Why it waits", explains the slots that hold back. A new Ranger or axe hero no longer starts with a crossed-out spell: Flame Volley and Rend are offered with their price instead.
 - The store now sells deeper runes for your spells, from 8 gp a cast for Scored up to 24 gp for Graven: pick one on a spell's slot in Configure action to cast that stronger version at Plain's three-quarter strength. Plain stays 1 gp, and your bar never changes unless you change it. Bound runes now make fewer to a job and sell for more, so a runecrafter can sell below the store.
 ## v0.2.94 — 2026-11-05 (A Smith Needs Salts)
 
@@ -17,7 +16,6 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **The Coal Seam.** A richer coal rock at Mining 30, and a rock's row now says about how much an hour brings, so you can see what a higher rock is worth.
 - Your action bar now says when a slot is waiting. Fireball is set to fire at 2 or more monsters, so on a lone monster its slot dims and shows "2+", and hovering it or pressing it tells you why. Circle of Renewal does the same when you're not in a party. What a slot does hasn't changed: to fire on one monster, remove its condition in Configure action.
-- A new Mage or Healer now casts from the very first fight: every starting spell buys its rune from the store for 1 gp a cast, and Frost Lance or Green Sickness fires even on a lone monster. A new card, "Why it waits", explains the slots that hold back. A new Ranger or axe hero no longer starts with a crossed-out spell: Flame Volley and Rend are offered with their price instead.
 - Every hero now gets three setups free; the fourth costs 15,000 gp and the fifth 40,000 gp. Heroes keep every setup they have saved.
 
 ## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)

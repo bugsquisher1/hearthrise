@@ -735,7 +735,8 @@ const ARMS = {
     }
     const views = await q(db, "select c.relname, pg_get_viewdef(c.oid) d from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('v', 'm')");
     for (const v of views) if (/\b(town_works_totals|town_works_gifts|hr_town_works|hr_town_extras)\b/.test(v.d)) out.push('the view ' + v.relname + ' reads a project');
-    for (const t of ['town_works_totals', 'town_works_gifts']) if (Number(await one(db, 'select count(*) from pg_trigger where tgrelid = $1::regclass and not tgisinternal', ['public.' + t]))) out.push('a trigger hangs off ' + t);
+    /* hr_gm_wall (lane/c-gm-tools) refuses a walled hero's insert and reads no total, so it may hang here; nothing else may */
+    for (const t of ['town_works_totals', 'town_works_gifts']) if (Number(await one(db, "select count(*) from pg_trigger where tgrelid = $1::regclass and not tgisinternal and tgname <> 'hr_gm_wall'", ['public.' + t]))) out.push('a trigger hangs off ' + t);
     /* AND NO ENGINE FILE NAMES IT */
     const works = /\btown_works|hr_town_works|town-works|TOWN_WORKS|\.extras\(\)|hr_town_extras/;
     const engine = X.engineFiles.concat(mutant && mutant.plant === 'engineFile' ? [['src/core/planted.js', "const r = rpc('hr_town_works_view');"]] : []);

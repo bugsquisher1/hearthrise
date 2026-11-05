@@ -25,7 +25,7 @@ const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /** The line a code reads as by its family, or null (src/data/refusal-words.js REFUSAL_FAMILIES). */
 function familyWords(code) {
   for (const [re, words] of REFUSAL_FAMILIES) {
-    const m = re.exec(String(code));
+    const m = /** @type {RegExp} */ (re).exec(String(code));
     if (m) return typeof words === 'function' ? words(m) : words;
   }
   return null;

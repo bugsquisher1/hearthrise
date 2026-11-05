@@ -51,6 +51,9 @@
 //   WC-9  THE TOWN ZOOM IS THE VIEWER'S, NOT THE HERO'S (Andy's report #75: "Apollo's screen is very zoomed out after a hunt, but the others
 //         aren't"): one hero's old bare `townZoom: 1` draws no hero zoomed out; a press on one hero shows on the other and goes into both
 //         residues; a reload keeps it on both; a hero that holds an older pick does not put it back, whichever hero is on screen
+//   WC-10 THE BITMAP IS ITS BOX (Steam shell lane 2026-11-04: 2 px over, so a screen at x2 lost two columns and two rows of art): at
+//         1440x900, 1366x768, 1280x800 and 844x390, each at DPR 1, 1.25, 1.5 and 2, the canvas's bitmap is the stage's inner box in device px
+//         as the browser snaps it, its box is that box, its zoom is whole, and nothing keeps resizing
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -111,8 +114,8 @@ async function stub(page, residue, perSlot) {
 
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
-async function enter(browser, base, viewport, residue, perSlot) {
-  const ctx = await browser.newContext({ viewport });
+async function enter(browser, base, viewport, residue, perSlot, contextOpts) {
+  const ctx = await browser.newContext(Object.assign({ viewport }, contextOpts));
   const page = await ctx.newPage();
   page.setDefaultTimeout(6000);
   const errors = [];
@@ -321,7 +324,7 @@ async function huntCamera(browser, base) {
 }
 
 /* `viewer`: run WC-9 too, about 20 s a run on two heroes: --mutate runs it for its own mutants and the clean control only (smoke.yml in-page-2 budgets this job's minutes). */
-async function checks(overrides, viewer = true) {
+async function checks(overrides, viewer = true, box = true) {
   const fails = [];
   const { server, port } = await serve(Object.assign({}, HOOKS, overrides || {}));
   const base = 'http://127.0.0.1:' + port;
@@ -511,6 +514,7 @@ async function checks(overrides, viewer = true) {
     fails.push(...(await huntCamera(browser, base)));   // WC-7
     fails.push(...(await townZoom(browser, base)));     // WC-8
     if (viewer) fails.push(...(await viewerZoom(browser, base)));   // WC-9
+    if (box) fails.push(...(await canvasBox(browser, base)));       // WC-10
   } catch (e) {
     /* a step that threw is HARNESS, never a rule (2026-10-22, tests/_mutant-verdict.mjs) */
     fails.push(harnessFail('a page step', e));
@@ -595,6 +599,42 @@ async function townZoom(browser, base) {
   return fails;
 }
 
+/* WC-10: one page per device pixel ratio, resized through the four sizes (the re-measure is a live one, as a dragged window's is). */
+async function canvasBox(browser, base) {
+  const fails = [];
+  for (const deviceScaleFactor of [1, 1.25, 1.5, 2]) {
+    const { ctx, page, errors, up } = await enter(browser, base, { width: 1440, height: 900 }, undefined, undefined, { deviceScaleFactor });
+    if (!up) fails.push('WC-10 the town did not mount at DPR ' + deviceScaleFactor);
+    else for (const [width, height] of [[1440, 900], [1366, 768], [1280, 800], [844, 390]]) {
+      await page.setViewportSize({ width, height });
+      await settle(page);
+      const m = await page.evaluate(async () => {
+        const stage = document.querySelector('#panel-world .world-stage'), c = stage.querySelector('canvas');
+        const rs = () => { const r = stage.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].join(); };
+        const before = rs();
+        let calls = 0;
+        const ro = new ResizeObserver(() => { calls++; });
+        ro.observe(stage); ro.observe(c);
+        for (let i = 0; i < 12; i++) await new Promise((ok) => requestAnimationFrame(ok));
+        ro.disconnect();
+        const r = stage.getBoundingClientRect(), q = c.getBoundingClientRect(), d = window.devicePixelRatio;
+        /* the stage's inner box, and the device px the browser paints it on: its edges, each snapped */
+        const x = r.left + stage.clientLeft, y = r.top + stage.clientTop;
+        return { bitmap: [c.width, c.height], want: [Math.round((x + stage.clientWidth) * d) - Math.round(x * d), Math.round((y + stage.clientHeight) * d) - Math.round(y * d)],
+          box: [q.width, q.height], inner: [stage.clientWidth, stage.clientHeight], z: window.__world.stats().z, moved: rs() !== before, calls };
+      });
+      const tag = 'WC-10 ' + width + 'x' + height + ' at DPR ' + deviceScaleFactor;
+      if (m.bitmap.join() !== m.want.join()) fails.push(tag + ': the canvas is ' + m.bitmap.join('x') + ' device px in a box of ' + m.want.join('x') + ': the browser resamples the art');
+      if (m.box.join() !== m.inner.join()) fails.push(tag + ': the canvas shows at ' + m.box.join('x') + ' CSS px in a stage of ' + m.inner.join('x'));
+      if (!Number.isInteger(m.z)) fails.push(tag + ': the zoom is x' + m.z + ', not a whole number');
+      if (m.moved || m.calls > 1) fails.push(tag + ': a resize loop (the stage moved: ' + m.moved + ', ' + m.calls + ' observer calls in 12 still frames)');
+    }
+    if (errors.length) fails.push('WC-10 console errors at DPR ' + deviceScaleFactor + ': ' + errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  return fails;
+}
+
 /* WC-9: two heroes on one account, played from the characters screen; a hero tab shows the other. */
 async function viewerZoom(browser, base) {
   const fails = [];
@@ -667,6 +707,8 @@ const MUTANTS = [
   ['the canvas shrinks beside the windows', 'src/shell/shell.js', '  function onWm() {\n', '  function onWm() {\n    doc.querySelector(\'#panel-world canvas\').style.width = wm.openIds().length ? \'60%\' : \'\';\n'],
   ['a modal evicts the oldest docked window', 'src/shell/window-manager.js', '    if (!isModal(id)) while (sheets().length >= MAX_OPEN) drop(sheets()[0]);', '    while (open.length >= MAX_OPEN) drop(open[0]);'],
   ['a name is not a target', 'src/world/render/canvas-backend.js', '      const hits = named.concat(', '      const hits = [].concat('],
+  ['the bitmap takes the stage\'s border box again: 2 px over, art columns lost (WC-10)', 'src/world/render/canvas-backend.js', '    const r = canvas.getBoundingClientRect();\n    W = Math.max(1, Math.round((r.left + r.width) * dpr) - Math.round(r.left * dpr));\n    H = Math.max(1, Math.round((r.top + r.height) * dpr) - Math.round(r.top * dpr));', '    const r = host.getBoundingClientRect();\n    W = Math.max(1, Math.round(r.width * dpr));\n    H = Math.max(1, Math.round(r.height * dpr));'],
+  ['the bitmap takes the stage\'s rounded client box: a row off at a fractional DPR (WC-10)', 'src/world/render/canvas-backend.js', '    const r = canvas.getBoundingClientRect();\n    W = Math.max(1, Math.round((r.left + r.width) * dpr) - Math.round(r.left * dpr));\n    H = Math.max(1, Math.round((r.top + r.height) * dpr) - Math.round(r.top * dpr));', '    W = Math.max(1, Math.round(host.clientWidth * dpr));\n    H = Math.max(1, Math.round(host.clientHeight * dpr));'],
   ['the hunt camera holds the whole view on the room again: the hero hugs the analyzer (WC-7)', 'src/world/core/camera.js', "const rule = { wholeView: map.kind !== 'hunt' };", 'const rule = { wholeView: true };'],
   ['a pane mounted mid-hunt never hears the HUD inset (WC-7)', 'src/shell/shell.js', 'insetListeners.add(fn); fn(insetNow());', 'insetListeners.add(fn);'],
   ['the town never takes the viewer\'s zoom (WC-8)', 'src/world/world-boot.js', '    backend.setZoom(zoom.zoomOf(sc.kind));', '    backend.setZoom(null);'],
@@ -699,7 +741,7 @@ async function main() {
   for (const [name, file, from, to] of MINE.filter((m) => !only || m[0].includes(only))) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
-    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, /WC-9/.test(name))), counts));
+    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, /WC-9/.test(name), /WC-10/.test(name))), counts));
   }
   console.log(exitOf(counts) ? 'window-camera --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'window-camera --mutate: ' + counts.caught + '/' + counts.caught + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));

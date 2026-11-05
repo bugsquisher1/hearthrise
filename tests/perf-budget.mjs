@@ -402,7 +402,8 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
   const px = (id) => { const c = document.querySelector('#' + id + ' canvas'); return c.getContext('2d').getImageData(0, 0, c.width, c.height).data; };
   const out = { frames: 0, differ: [], kept: 0 };
   let hx = 20, hy = 18, rx = 14, t = 0;
-  const fxId = Object.keys(book.sprites).find((k) => book.sprites[k].anims && book.sprites[k].anims.play);
+  /* sorted: the book's order is the order its manifests arrived in, so without this a slow runner's effect was a Common sprite whose sheet the ground draws anyway (v0.2.92 perf-3) */
+  const fxId = Object.keys(book.sprites).sort().find((k) => book.sprites[k].anims && book.sprites[k].anims.play);
   /* the hero stands and only one thing in the frame moves: every kind of thing a frame draws (a held frame must not miss it) */
   const only = (i) => {
     const s = {};
@@ -475,12 +476,14 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
   const pixC = () => px('c'), pixD = () => px('d');
   const differs = () => { const p = pixC(), q = pixD(); let n = 0; for (let k = 0; k < p.length; k++) if (p[k] !== q[k]) n++; return n; };
   const stands = STATIONS.flatMap((s) => (s.stands || []).filter((_, i) => i % 9 === 0));
-  out.view = { frames: 0, differ: [], lacking: 0, least: Infinity, stale: null };
+  out.view = { frames: 0, differ: [], lacking: 0, least: Infinity, stale: null, fxAlone: 0 };
   for (const [x, y] of stands) {
     for (const k of Object.keys(some)) delete some[k];
     onView.setMap(townMap); allOf.setMap(townMap);
     const st = standIn(x, y);
     const miss = onView.missing(st);
+    /* the effect alone names its sheet here: nothing else in this frame would have fetched it */
+    if (!onView.missing(Object.assign({}, st, { fx: [] })).includes(book.frame(fxId).set)) out.view.fxAlone++;
     for (const s of miss) some[s] = images[s];
     if (onView.missing(st).length) { out.view.differ.push([x, y, 'named more once it had what it named']); continue; }
     settle(onView, st); settle(allOf, st);
@@ -577,6 +580,7 @@ async function pixelRule(browser, extra) {
     const w = r.view;
     if (w.differ.length) f.push(`PB-VIEW a town frame with only the sheets it named painted other pixels than a frame with every sheet at ${w.differ.length} of ${w.frames} stands (first: ${JSON.stringify(w.differ[0])})`);
     if (!(w.frames >= 20 && w.lacking > 0)) f.push(`PB-VIEW harness: ${w.frames} frames, ${w.lacking} with a sheet left out: the rule proved nothing`);
+    if (!(w.fxAlone > 0)) f.push(`PB-VIEW harness: in none of ${w.frames} frames is the effect the only thing naming its sheet: its mutant would prove nothing, pick an effect from another sheet`);
     if (w.planted.differ.length) f.push(`PB-VIEW a falling shadow from a sheet nothing else named painted other pixels at ${w.planted.differ.length} of ${w.planted.frames} frames (first: ${JSON.stringify(w.planted.differ[0])})`);
     if (!(w.planted.casts > 0)) f.push(`PB-VIEW harness: of ${w.planted.frames} planted frames ${w.planted.casts} drew a cast shadow: the plant proved nothing`);
     if (!w.stale) f.push('PB-VIEW harness: no stand has an absent sheet just off screen inside its own chunk');

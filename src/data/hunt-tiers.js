@@ -27,7 +27,7 @@ const NORMAL = Object.freeze(tier('normal', Object.freeze([0, 0, 0, 0]), 1000, 1
 
 export const GROUND_TIERS = {
   /* No more monsters: the Thicket's Normal sits about 15% under Wickstead's, so its room is the stats. A pull of 3 at no extra XP already beats it for AoE. */
-  meadowbrook_thicket: { dangerous: tier('dangerous', [0, 0, 0, 0], 1500, 1050), deadly: tier('deadly', [0, 0, 0, 0], 3000, 1100) },
+  meadowbrook_thicket: { dangerous: tier('dangerous', [0, 0, 0, 0], 1500, 1050), deadly: tier('deadly', [0, 0, 0, 0], 3000, 1080) },
   /* A lone hero stops at 5: a full box beats the Glade for a hammer even at no extra XP. A party keeps it, under by a fifth. */
   wickstead: { dangerous: tier('dangerous', [3, 4, 4, 5], 1500, 1050), deadly: tier('deadly', [5, 8, 8, 8], 2000, 1100) },
   /* A lone hero keeps the ground as it stands: a pull of 4 beats the Glade for a hammer. A party keeps the full box. */

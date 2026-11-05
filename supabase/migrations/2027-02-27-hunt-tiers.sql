@@ -60,7 +60,7 @@ comment on table public.hr_ground_tiers is
 delete from public.hr_ground_tiers;
 insert into public.hr_ground_tiers (hunt_id, tier, pull, power_pm, xp_pm) values
   ('meadowbrook_thicket', 'dangerous', '{0,0,0,0}'::int[], 1500, 1050),
-  ('meadowbrook_thicket', 'deadly', '{0,0,0,0}'::int[], 3000, 1100),
+  ('meadowbrook_thicket', 'deadly', '{0,0,0,0}'::int[], 3000, 1080),
   ('wickstead', 'dangerous', '{3,4,4,5}'::int[], 1500, 1050),
   ('wickstead', 'deadly', '{5,8,8,8}'::int[], 2000, 1100),
   ('millrace_sewer', 'dangerous', '{0,5,5,6}'::int[], 1200, 1050),

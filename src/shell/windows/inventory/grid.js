@@ -44,11 +44,11 @@ export const KEYS = '/ search · arrows move · Enter use · Space select · Del
 
 /** The toolbar across the window (tabs, search, sort, categories). */
 export function toolbarHtml(g) {
-  return '<div class="hw-tabs" role="tablist">'
+  return '<div class="hw-inv-head"><div class="hw-tabs" role="tablist">'
     + '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="bag" aria-selected="true">Bag</button>'
     + '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="hunt" aria-selected="false">This hunt</button></div>'
     + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Find an item" aria-label="Find an item" autocomplete="off"></span>'
-    + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
+    + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>';
 }
 

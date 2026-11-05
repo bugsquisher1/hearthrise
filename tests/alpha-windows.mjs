@@ -3265,7 +3265,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             w.querySelector('.hs-win-coach').textContent = '';
             return out;
           });
-          if (foot.foot === null || foot.foot > foot.win || foot.tools === null || foot.tools > foot.win || foot.scroll < 90) fails.push('AW-62 Inventory at 1366x768 reads ' + JSON.stringify(foot));
+          /* three whole rows of 44 px wells under a card (it was 97 px: two rows beside a cut doll) */
+          if (foot.foot === null || foot.foot > foot.win || foot.tools === null || foot.tools > foot.win || foot.scroll < 130) fails.push('AW-62 Inventory at 1366x768 reads ' + JSON.stringify(foot));
           await page.keyboard.press('b');
           /* the Hunts how-to stands aside for a card there, and comes back */
           if (await openWin(page, 'h', 'hunts')) {

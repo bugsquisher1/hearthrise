@@ -219,6 +219,10 @@
 [data-hs-win="inventory"] .hw-inv > * { flex: none; }
 [data-hs-win="inventory"] .hw-inv > .hw-inv-scroll { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }
 [data-hs-win="inventory"] .hw-cats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+/* The tabs and the search share a line: at 1366x768 the bag kept 97 px between its toolbar and its foot, two rows beside a cut doll (door panel 2026-11-04). */
+[data-hs-win="inventory"] .hw-inv-head { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 6px; }
+[data-hs-win="inventory"] .hw-inv-head > .hw-tabs { flex: none; margin-bottom: 0; }
+[data-hs-win="inventory"] .hw-inv-head > .hw-find { flex: 1 1 0; min-width: 0; margin-bottom: 0; }
 [data-hs-win="inventory"] .hw-cat { flex: none; padding: 0 6px; }
 .hw-inv:focus-visible { outline: 1px dashed var(--aqua-2); outline-offset: 2px; }
 .hw-inv-cols { display: flex; align-items: flex-start; gap: 10px; }
@@ -526,6 +530,9 @@
   .hs-win[data-hs-win="inventory"] .hs-win-body { display: block; overflow: auto; }
   [data-hs-win="inventory"] .hw-inv { display: block; overflow-y: visible; }
   [data-hs-win="inventory"] .hw-inv > .hw-inv-scroll { overflow-y: visible; }
+  [data-hs-win="inventory"] .hw-inv-head { display: contents; }
+  [data-hs-win="inventory"] .hw-inv-head > .hw-tabs { margin-bottom: 8px; }
+  [data-hs-win="inventory"] .hw-inv-head > .hw-find { margin-bottom: 6px; }
   .hw-keys { display: none; }
   .hw-tab { min-height: 36px; }
   .hw-cat { min-height: 36px; flex: none; }

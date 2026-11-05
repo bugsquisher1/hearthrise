@@ -95,10 +95,10 @@ export function barAfterSwap(set) {
   return wire;
 }
 
-/** One equip intent; a yes that put a weapon in hand restates the bar when the swap left moves behind (one more intent, read back from the server). */
+/** One equip intent; a yes that put a weapon or a shield in hand (the two set the discipline) restates the bar when the swap left moves behind (one more intent, read back from the server). */
 export async function equipTidyingBar(cs, ops) {
   const ans = await cs.edgeIntent('equip', { equip: ops });
-  if (ans && ans.ok && ops.weapon) {
+  if (ans && ans.ok && (ops.weapon || ops.shield)) {
     const s = settingsOf(cs);
     const next = barAfterSwap(s);
     if (next) await cs.setHuntOptions(s.preset, { slots: next });

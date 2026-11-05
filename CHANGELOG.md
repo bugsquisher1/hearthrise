@@ -17,6 +17,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - On a phone: the Heroes button names the hero on screen when there's no room for a tab, What next has its More, the away card no longer sits on a sliver of the coach card, and Configure action says your hero uses a slot by itself. Its icons are sharp now.
 - In Configure action, picking a spell keeps Details on the spell you picked, instead of the row that slid under your pointer.
 - The Hunts window is wider, so the first row of who lives on a ground isn't cut off above Enter. A long line in the list no longer starts with a stray dot.
+- The bag shows a row more on a laptop screen: its tabs and search now share a line.
 
 ## v0.2.89 — 2026-11-04 (Still Here)
 

@@ -32,6 +32,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 **The Coal Seam.** A richer coal rock at Mining 30, and a rock's row now says about how much an hour brings, so you can see what a higher rock is worth.
 - Your action bar now says when a slot is waiting. Fireball is set to fire at 2 or more monsters, so on a lone monster its slot dims and shows "2+", and hovering it or pressing it tells you why. Circle of Renewal does the same when you're not in a party. What a slot does hasn't changed: to fire on one monster, remove its condition in Configure action.
 - Every hero now gets three setups free; the fourth costs 15,000 gp and the fifth 40,000 gp. Heroes keep every setup they have saved.
+- Monsters no longer stand frozen waiting for your blow. Every creature on every hunting ground now breathes, shifts and flicks its tail while it stands, and anything with wings keeps beating them while it hovers.
 
 ## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
 

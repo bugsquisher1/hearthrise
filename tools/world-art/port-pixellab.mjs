@@ -19,7 +19,7 @@
 //
 // The pixels are never scaled or redrawn (ART_DIRECTION §2); build.mjs locks them to the
 // palette and checks them against the budget like every other source.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit } from './png.mjs';
 import { T, CLASSES, FACINGS } from '../../src/data/world/art-budget.js';
@@ -27,6 +27,7 @@ import { ROOT, ART_DIR } from './build.mjs';
 import { snapTo, liftBody } from './lock.mjs';
 import { RAMPS } from './palette.mjs';
 import { plant } from './port-hunt-sim.mjs';
+import { idleFrames, flightIdle } from './idle-clip.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 /* a ground unit's frame may stand this far above its anchor at most (validate.mjs [feet] allows 4; a lunge can leave one higher) */
@@ -41,7 +42,7 @@ function args(argv) {
     /* --key value, or --key=value (a value that starts with '-', like a negative cell) */
     const eq = a.indexOf('=');
     const k = eq > 0 ? a.slice(2, eq) : a.slice(2), v = eq > 0 ? a.slice(eq + 1) : argv[++i];
-    if (k === 'crop' || k === 'patch') (o[k] = o[k] || []).push(v); else o[k] = v;
+    if (k === 'flight') { o.flight = true; if (eq < 0) i--; } else if (k === 'crop' || k === 'patch') (o[k] = o[k] || []).push(v); else o[k] = v;
   }
   return o;
 }
@@ -291,6 +292,50 @@ function main() {
     };
     writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
     console.log('  ✓ ' + o.set + '/' + o.id + ' (' + o.class + ', ' + anims.map((a) => a.name).join('+') + ')');
+  } else if (cmd === 'idle') {
+    /* --clip DIR [--fps N] [--meta FILE]: a generated v3 idle (DIR holds <facing>/frame_NNN.png, the object ZIP's layout, frame_000
+       the still it started from) on a creature that already ships: its idle rows take a ping-pong of 4 (idle-clip.mjs idleFrames).
+       --flight [--fps N]: a flier's idle is its own flight clip, no generation (flightIdle). Either way frame 0 is the still, and
+       every other row of the sheet is left exactly as it is. */
+    const sc = JSON.parse(readFileSync(join(dir, o.id + '.json'), 'utf8'));
+    const cls = CLASSES[sc.class];
+    if (!cls || !cls.frame) throw new Error(o.id + ': ' + sc.class + ' is not a unit class');
+    const idle = sc.anims[0], walk = sc.anims.find((a) => a.name === 'walk');
+    if (!idle || idle.name !== 'idle') throw new Error(o.id + ': its first clip is not the idle');
+    const [fw, fh] = cls.frame, ay = sc.anchor_px[1];
+    const sheet = decodePNG(readFileSync(join(dir, sc.source)));
+    const NAME = { s: 'south', e: 'east', n: 'north', w: 'west', se: 'south-east', sw: 'south-west', ne: 'north-east', nw: 'north-west' };
+    const rows = FACINGS.filter((d) => idle.dirs[d]);
+    const cell = (col, row) => { const f = createImage(fw, fh); blit(f, sheet, col * fw, row * fh, fw, fh, 0, 0); return f; };
+    const clips = o.flight ? rows : rows.filter((d) => existsSync(join(o.clip, NAME[d])));
+    if (!clips.length) throw new Error(o.id + ': no facing of the clip under ' + o.clip);
+    const picked = {}, laid = {};
+    for (const d of clips) {
+      const still = cell(0, rows.indexOf(d));
+      const { frames, audit } = o.flight
+        ? flightIdle(still, Array.from({ length: walk.dirs[d] }, (_, i) => cell(i, rows.length + rows.indexOf(d))))
+        : idleFrames(still, readdirSync(join(o.clip, NAME[d])).filter((f) => f.endsWith('.png')).sort().map((f) => decodePNG(readFileSync(join(o.clip, NAME[d], f)))), cls.contact === 'flier' ? null : ay);
+      laid[d] = frames; picked[d] = audit.picked;
+      console.log('  ' + d.padEnd(2) + ' picked ' + audit.picked.join(',') + ' · body ' + audit.body + ' px · register ' + audit.register.join(',') + ' · feet off ' + (audit.feet || ['-']).join('/') + ' · over the floor ' + (audit.lifted || ['-']).join('/') + ' · changed a step ' + audit.steps.join('/') + (audit.missed ? ' · frame 0 missed the still by ' + audit.missed + ' px' : ''));
+    }
+    const cols = Math.max(sheet.width / fw, ...clips.map((d) => laid[d].length));
+    const next = createImage(cols * fw, sheet.height);
+    blit(next, sheet, 0, 0, sheet.width, sheet.height, 0, 0);
+    for (const d of clips) {
+      laid[d].forEach((f, i) => { if (i) blit(next, f, 0, 0, fw, fh, i * fw, rows.indexOf(d) * fh); });
+      idle.dirs[d] = laid[d].length;
+    }
+    if (o.fps) idle.fps = Number(o.fps);
+    writeFileSync(join(dir, sc.source), encodePNG(next));
+    const meta = o.meta ? JSON.parse(readFileSync(o.meta, 'utf8')) : {};
+    const was = (sc.pixellab || {}).idle || {};
+    sc.pixellab = { ...(sc.pixellab || {}), idle: o.flight ? { tool: 'flight clip', cost: 0 } : { tool: 'animate_object', mode: 'v3', frame_count: 8, keep_first_frame: true, ...meta, picked: { ...was.picked, ...picked } } };
+    const line = o.flight ? 'Its idle is its own flight clip with the still as frame 0 (port-pixellab.mjs idle --flight).'
+      : 'Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still.';
+    /* first: derive-combat.mjs keeps its own note last, and its --check compares the sidecar whole */
+    if (!(sc.notes || '').includes(line)) sc.notes = line + ' ' + (sc.notes || '');
+    writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
+    console.log('  ✓ ' + o.set + '/' + o.id + ' idle ' + clips.length + ' facing(s)');
   } else if (cmd === 'wang') {
     /* --from SET/GROUND[,…] --ref MAT:SET/GROUND:X:Y[,…] --lower MAT --upper MAT [--variants N]
        Every 32 px cut at (16 + 32k) of the FROM grounds' sources whose four corners are the pair's
@@ -331,7 +376,7 @@ function main() {
     };
     writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
     console.log('  ✓ ' + o.set + '/' + o.id + ' wang16 ' + lo + '/' + up + ': ' + cells.length + ' tiles' + (composed.length ? ', composed ' + composed.join(' ') : '') + ' · per key ' + Object.keys(tiles).sort().map((k) => k + ':' + tiles[k].length).join(' '));
-  } else throw new Error('usage: port-pixellab.mjs map|object|sheet|unit|wang …');
+  } else throw new Error('usage: port-pixellab.mjs map|object|sheet|unit|idle|wang …');
 }
 if (isMain(import.meta.url)) {
   try { main(); } catch (e) { console.error('port-pixellab: ' + (e && e.message || e)); process.exit(2); }

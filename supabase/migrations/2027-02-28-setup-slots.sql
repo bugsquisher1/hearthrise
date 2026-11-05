@@ -30,10 +30,10 @@
 -- and the design's pattern names no hunting refusal for a hero sink.
 --
 -- ── COST ────────────────────────────────────────────────────────────────────
--- The section: one PK read per envelope. hr_setup_locked: one PK read on every bar edit, two more only past the count.
+-- The section: three PK reads per envelope (the limit, the row, the rung). hr_setup_locked: the same three on every bar edit, two more only past the count.
 --
 -- REVERSIBILITY: re-apply the pre-images (2026-11-15-preset-names.sql's save and rename; 2026-11-17-hunt-density-home.sql's options;
--- 2026-10-25-action-conditions.sql's copy; the put as hr_hunt_set_options last left it); drop the section row, the verb, the helpers.
+-- 2026-10-25-action-conditions.sql's copy; 2026-10-23-hunt-settings-options.sql's put); drop the section row, the verb, the helpers.
 -- A bought rung is a player_progress row and goes with the character wipe.
 -- ════════════════════════════════════════════════════════════════════════
 

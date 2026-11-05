@@ -248,7 +248,7 @@ async function checks(overrides) {
       const setups = (nums) => nums.map((n) => Object.assign(clone(FIXTURE.hunt_presets[0]), { preset: n, name: 'Setup ' + (n + 1) }));
       const upTo = (n) => Array.from({ length: n }, (_, i) => i);
       const prep = () => page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-prep"]'), b = w.querySelector('.hw-slot-buy');
-        return { save: w.querySelector('[data-hs-act="save-new"]').disabled, buy: b.getBoundingClientRect().width > 0 ? b.textContent : null, off: b.disabled, msg: w.querySelector('.hh-intent-msg').textContent }; });
+        return { save: w.querySelector('[data-hs-act="save-new"]').disabled, buy: b.getBoundingClientRect().width > 0 ? b.textContent : null, off: b.disabled, why: w.querySelector('.hw-slot-why').hidden ? '' : w.querySelector('.hw-slot-why').textContent, msg: w.querySelector('.hh-intent-msg').textContent }; });
       const at = async () => { await reload(page); await openPrep(page); await page.waitForTimeout(300); };
       s.env.state = Object.assign({}, s.env.state, { gold: 10000000, gold_v: 1 });
       s.env.setup_slots = { count: R.free, free: R.free, bought: 0, max, price: R.prices[0] };
@@ -258,7 +258,7 @@ async function checks(overrides) {
       const third = `Buy a ${ORD[R.free]} setup: ${gp(R.prices[0])}`;
       if (!p.save) fails.push('PN-11 Save is on with every slot used');
       if (p.buy !== third || p.off) fails.push('PN-11 the button reads ' + JSON.stringify(p));
-      if (p.msg !== `This hero's ${R.free} setup slots are full. Delete one, or buy a ${ORD[R.free]} for ${gp(R.prices[0])}.`) fails.push('PN-11 the window says ' + JSON.stringify(p.msg));
+      if (p.why !== `This hero's ${R.free} setup slots are full. Delete one, or buy a ${ORD[R.free]} for ${gp(R.prices[0])}.`) fails.push('PN-11 the window says ' + JSON.stringify(p.why));
       const before = sent(s, 'hr_setup_slot_buy').length;
       await page.click('[data-hs-win="hunt-prep"] .hw-slot-buy');
       await page.waitForTimeout(100);
@@ -284,13 +284,17 @@ async function checks(overrides) {
       p = await prep();
       if (!p.msg.startsWith(`This hero's ${R.free} setup slots are full.`)) fails.push('PN-11 a refused save says ' + JSON.stringify(p.msg));
       s.refuseSave = null;
-      /* a short purse: off, and says how much more */
+      /* a short purse: off, and says how much more; an answer's news on the line below doesn't hide it */
       s.env.state = Object.assign({}, s.env.state, { gold: R.prices[0] - 1, gold_v: 2 });
       s.env.setup_slots = { count: R.free, free: R.free, bought: 0, max, price: R.prices[0] };
       s.env.hunt_presets = setups(upTo(R.free));
       await at();
       p = await prep();
-      if (!p.off || !p.msg.endsWith('You need 1 gp more.')) fails.push('PN-11 a short purse reads ' + JSON.stringify(p));
+      if (!p.off || !p.why.endsWith('You need 1 gp more.')) fails.push('PN-11 a short purse reads ' + JSON.stringify(p));
+      await page.click(ROW(0) + ' [data-hs-act="save-over"]');
+      await page.waitForTimeout(500);
+      p = await prep();
+      if (!/^Saved over/.test(p.msg) || !p.why.endsWith('You need 1 gp more.')) fails.push('PN-11 an answer hid why Save is off: ' + JSON.stringify(p));
       /* A SETUP ALREADY SAVED past the count: every control stays, and the first free number is still under the count */
       s.env.state = Object.assign({}, s.env.state, { gold: 10000000, gold_v: 3 });
       s.env.hunt_presets = setups([0, max - 1]);
@@ -303,7 +307,7 @@ async function checks(overrides) {
       s.env.hunt_presets = setups(upTo(max));
       await at();
       p = await prep();
-      if (p.buy !== null || !p.save || p.msg !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 at the top: ' + JSON.stringify(p));
+      if (p.buy !== null || !p.save || p.why !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 at the top: ' + JSON.stringify(p));
     }
     if (errors.length) fails.push('PN-6 console errors: ' + errors.slice(0, 3).join(' | '));
   } catch (e) {
@@ -337,8 +341,8 @@ const MUTANTS = [
   ['Buy stays on while it is in flight', 'src/shell/windows/hunt-prep.js', "prop(buy, 'disabled', sc.pending || short > 0);", "prop(buy, 'disabled', short > 0);"],
   ['a setup past the count loses its controls', 'src/shell/windows/hunt-prep.js', "prop(b, 'disabled', sc.pending || hunting);", "prop(b, 'disabled', sc.pending || hunting || p.preset >= count0(cs));", "const SCRATCH = new WeakMap();", "const SCRATCH = new WeakMap();\nconst count0 = (cs) => { const q = setupSlotsOf(cs); return q ? q.count : 99; };"],
   ['the button hides past the free count', 'src/shell/windows/hunt-prep.js', "prop(buy, 'hidden', price === null);", "prop(buy, 'hidden', true);"],
-  ['a refused save loses the hero', 'src/shell/windows/hunt-prep.js', "() => { input.value = ''; return 'Saved ' + name + '.'; }, cs);", "() => { input.value = ''; return 'Saved ' + name + '.'; });"],
-  ['the window says the old full line', 'src/shell/windows/hunt-prep.js', "sc.msg || (full && !hunting ? setupFullWords(count, price) + ", "sc.msg || (full && !hunting ? 'All ' + MAX_PRESETS + ' setup slots are used.' + "],
+  ['the window says the old full line', 'src/shell/windows/hunt-prep.js', "const why = full && !hunting ? setupFullWords(count, price) + ", "const why = full && !hunting ? 'All ' + MAX_PRESETS + ' setup slots are used.' + "],
+  ['an answer hides why Save is off', 'src/shell/windows/hunt-prep.js', "const why = full && !hunting ? setupFullWords", "const why = !sc.msg && full && !hunting ? setupFullWords"],
   ['a bar rename that times out throws (PN-10)', 'src/shell/widgets/action-bar.js', "    text(msg, r.ok ? '' : refusalWords(r.error));", "    text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error));"],
   ['the plaque renames another set','src/shell/widgets/action-bar.js', 'renameActionSet(ctx.account, ctx.character, s.preset, name)', 'renameActionSet(ctx.account, ctx.character, s.preset + 1, name)'],
 ];

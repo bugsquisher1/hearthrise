@@ -69,6 +69,7 @@ export function renderHuntPrep() {
     + '<div class="hw-add"><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="Name this setup" aria-label="Setup name" data-hs-act="preset-name">'
     + '<button type="button" class="hh-tool" data-hs-act="save-new" data-coach-hook="setup-save">Save current setup</button></div>'
     + '<button type="button" class="hh-tool hw-slot-buy" data-hs-act="buy-slot" hidden></button>'
+    + '<p class="hs-note hw-slot-why" hidden></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -145,8 +146,12 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   prop(buy, 'hidden', price === null);
   text(buy, price === null ? '' : setupBuyWords(count, price));
   prop(buy, 'disabled', sc.pending || short > 0);
-  /* Saving a new setup is off when every slot is used: said, not only greyed (say-why). */
-  text(root.querySelector('.hh-intent-msg'), sc.msg || (full && !hunting ? setupFullWords(count, price) + (short ? ' You need ' + gold(short) + ' more.' : '') : ''));
+  /* Saving a new setup is off when every slot is used: said, not only greyed (say-why), on a line of its own so an answer's news never hides it. */
+  const why = full && !hunting ? setupFullWords(count, price) + (short ? ' You need ' + gold(short) + ' more.' : '') : '';
+  const whyEl = root.querySelector('.hw-slot-why');
+  prop(whyEl, 'hidden', !why);
+  text(whyEl, why);
+  text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 
 /* CARRY IN (src/shell/carry-in.js): the bag's hunt supplies while this hero hunts, each with the server's two counts. */
@@ -217,7 +222,7 @@ renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, t) {
   }
   if (action === 'buy-slot') {
     const q = setupSlotsOf(cs);
-    if (q && q.price !== null) runIntent(sc, repaint, () => buySetupSlot(ctx.account, cs, q.price), 'Buying…', () => 'Bought. This hero has ' + (q.count + 1) + ' setup slots.', cs);
+    if (q && q.price !== null) runIntent(sc, repaint, () => buySetupSlot(ctx.account, cs, q.price), 'Buying…', () => 'Bought. This hero has ' + (q.count + 1) + ' setup slots.');
     return true;
   }
   if (action === 'save-new') {
@@ -225,7 +230,7 @@ renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, t) {
     const input = body.querySelector('.hw-preset-name');
     const name = input.value.trim() || 'Setup ' + (free + 1);
     if (free >= MAX_PRESETS) return true;
-    runIntent(sc, repaint, () => cs.savePreset(free, name), 'Saving…', () => { input.value = ''; return 'Saved ' + name + '.'; }, cs);
+    runIntent(sc, repaint, () => cs.savePreset(free, name), 'Saving…', () => { input.value = ''; return 'Saved ' + name + '.'; });
     return true;
   }
   return false;

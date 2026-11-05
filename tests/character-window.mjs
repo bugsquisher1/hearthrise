@@ -352,7 +352,7 @@ async function checks(overrides, shots) {
         let t = await read();
         /* LOCKED: the count, and nothing to press */
         const d = TITLES[locked];
-        if (!t[locked] || !t[locked].small.startsWith(`${d.label}: 3,214 of ${d.kills.toLocaleString('en-US')}`) || t[locked].press !== null) fails.push('CW-9 the locked row reads ' + JSON.stringify(t[locked]));
+        if (!t[locked] || t[locked].small !== `${d.label}: 3,214 of ${d.kills.toLocaleString('en-US')}` || t[locked].press !== null) fails.push('CW-9 the locked row reads ' + JSON.stringify(t[locked]));
         if (!t[party] || !/party/.test(t[party].small)) fails.push('CW-9 the party-only row does not say so: ' + JSON.stringify(t[party]));
         /* EARNED: one claim, with the quote, and the row moves only from the re-read */
         const e = TITLES[earned];
@@ -485,7 +485,7 @@ const MUTANTS = [
   ['the tab reads the sheet section max HP again (r09)', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"hp\"]', hv.hpMax !== null ? whole(hv.hpMax) : null);", "line(root, '[data-vital=\"hp\"]', sh && sh.fresh !== undefined ? whole(cs.read('character_sheet').max_hp) : null);"],
   ['the tab reads the engine sheet max mana again (r09)', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', hv.manaMax !== null ? whole(hv.manaMax) : null);", "line(root, '[data-vital=\"mana\"]', c && c.role ? whole(cs.read('character_sheet').combat.max_mana) : hv.manaMax !== null ? whole(hv.manaMax) : null);"],
   ['a leech line the engine does not have', 'src/shell/windows/character/sheet.js', "const COMBAT = Object.freeze([['damage', 'Damage'],", "const COMBAT = Object.freeze([['leech', 'Life Leech'], ['damage', 'Damage'],"],
-  ['a locked title can be pressed', 'src/shell/windows/character/titles.js', "if (r.have < r.kills) return { small: count + priced + (note ? ' · ' + note : ''), press: null, off: true };", "if (r.have < r.kills) return { small: count + priced + (note ? ' · ' + note : ''), press: 'Claim', off: false };"],
+  ['a locked title can be pressed', 'src/shell/windows/character/titles.js', "if (r.have < r.kills) return { small: count + (note ? ' · ' + note : ''), press: null, off: true };", "if (r.have < r.kills) return { small: count + (note ? ' · ' + note : ''), press: 'Claim', off: false };"],
   ['a claim sends a price of its own', 'src/shell/windows/character/titles.js', 'buyTitle(ctx.account, cs, r.id, r.price)', 'buyTitle(ctx.account, cs, r.id, 1)'],
   ['Take off wears it again', 'src/shell/windows/character/titles.js', 'wearTitle(ctx.account, cs, r.worn ? null : r.id)', 'wearTitle(ctx.account, cs, r.id)'],
   ['a title stays pressable in flight', 'src/shell/windows/character/titles.js', "prop(b, 'disabled', sc.pending || w.off);", "prop(b, 'disabled', w.off);"],

@@ -39,8 +39,7 @@ function rowWords(r, purse) {
   const { label, note } = lineOf(r);
   if (r.held) return { small: r.worn ? 'You wear this one.' : 'Yours to wear.', press: r.worn ? 'Take off' : 'Wear', off: false };
   const count = label + ': ' + whole(r.have) + ' of ' + whole(r.kills);
-  const priced = r.price ? ' · ' + gold(r.price) + ' to claim' : ' · free to claim';
-  if (r.have < r.kills) return { small: count + priced + (note ? ' · ' + note : ''), press: null, off: true };
+  if (r.have < r.kills) return { small: count + (note ? ' · ' + note : ''), press: null, off: true };
   const short = purse !== null && purse < r.price ? r.price - purse : 0;
   return { small: count + (short ? ' · You need ' + gold(short) + ' more.' : ''), press: r.price ? 'Claim for ' + gold(r.price) : 'Claim', off: short > 0 };
 }

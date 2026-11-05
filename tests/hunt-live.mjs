@@ -6,7 +6,7 @@
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 // mutant-rule-functions: rules
 // mutant-runner-functions: mutate main
@@ -45,6 +45,9 @@
 //         pocket a full ring (density 8) closes round its centre and the west edge, where the party walks in, feeds 7
 //         box slots; the holder walks on to an edge that feeds 8 and pulls there. Browser closed: every server commit with
 //         5+ of the pull on him at rest has all of them beside him (one or two queued before). Viewed: every commit matches.
+//   LV-KITE A KITER'S PULL IS FOUGHT (Tyler 10-17: kiters never kite outside the area): a lone bow at the Warrens, pull 8, runs
+//         round its pack to the area's edge and stays in it. Browser closed: no pack ever resets (seven in 120 s before, the
+//         first 15 s in, each healing the pack to full). Viewed: every commit matches.
 //   LV-H  THE LOOK-AHEAD (Tyler 2026-10-20): hunt_live sends liveSeeds (16) combat seeds,
 //         one constant (src/data/hunt-tuning.js) the edge reads, and the leave horizon of
 //         2026-10-31-live-horizon.sql is exactly liveSeeds x the swing.
@@ -129,6 +132,8 @@ async function load(base) {
     TL: await u('src/hunt-view/timeline.js'),
     HT: await u('src/core/hunt-track.js'),
     HG: await u('src/core/hunt-ground.js'),
+    GR: await u('src/core/hunt/grid.js'),
+    LS: await u('src/core/hunt/leash.js'),
     SPAWN: await u('src/core/hunt-spawn.js'),
     SB: await u('src/data/supply-basics.js'),
     XP: await u('src/core/xp.js'),
@@ -489,6 +494,35 @@ function rules(M) {
     ok('LV-RING', boxes.length >= 3 && boxes.every((b) => b.split('/')[0] === b.split('/')[1]), `browser closed: the server's commits held ${JSON.stringify(boxes)} (beside / on him) of the pull at rest on the holder, want every one beside him (none queued out of reach; at least 3 commits with 5 or more on him)`);
     const bad = r.verdicts.filter((x) => x.v !== 'match');
     ok('LV-RING', r.verdicts.length >= 30 && bad.length === 0, `viewed: the browser's prediction of the ring's pull diverged at ${bad.length} of ${r.verdicts.length} commits`);
+  }
+
+  { // LV-KITE: A KITER'S PULL IS FOUGHT, BOTH PATHS. A retreat's goal was always inside the pack area but its walk was not: at the
+    // area's edge, with the pack on its heels, the re-plan round the monsters stepped out, the pack reset and healed to full, and the
+    // kiter re-pulled at once (Warrens pocket 0, the corridor east of x = 21). The control: the kiter reaches the edge, so "stays in"
+    // is not passed by standing still.
+    const eq = { weapon: 'maple_bow', ammo: 'bronze_arrows', helmet: 'boarhide_helmet', body: 'boarhide_body', pants: 'boarhide_pants', boots: 'boarhide_boots' };
+    const mi = memberOf(M, 'k', 0, 'ranger', 40);
+    mi.huntId = 'coppercap_warrens'; mi.gold = 50000; mi.hp = 1e9; mi.equipment = eq;
+    mi.huntSession = Object.assign({}, mi.huntSession, { bag: { bronze_arrows: { loaded: 60, left: 60 } } });
+    mi.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: M.HR.wornRoleKey(eq, M.ITEMS), options: {}, bar: [], partyRoles: ['ranger'], leaveTogether: true, lead: true }), { density: 8 });
+    const { ground, grid } = M.HG.huntGroundOf('coppercap_warrens');
+    const area = (p, x, y) => M.LS.inArea({ ground, world: {} }, p, x, y);
+    const walksOut = (p, x, y) => [-1, 0, 1].some((dy) => [-1, 0, 1].some((dx) => M.GR.walkable(grid, x + dx, y + dy) && !area(p, x + dx, y + dy)));
+    const outside = []; let resets = 0, atEdge = 0, kills = 0;
+    const r = run(M, [mi], 120000, { server: { hunt: 'coppercap_warrens' }, commitMs: 2000, onCommit: ({ c, srv }) => {
+      for (const e of c.tl.hunt_events) { if (e.type === 'pack_reset') resets++; if (e.type === 'kill') kills++; }
+      const w = srv.inst.world && M.WS.decode(JSON.parse(srv.inst.world));
+      const p = w ? w.packs.findIndex((x) => x.aggro) : -1;
+      if (p < 0) return;
+      const k = w.units.find((u) => u.id === w.packs[p].holder);
+      if (!area(p, k.x, k.y)) outside.push([k.x, k.y]);
+      if (walksOut(p, k.x, k.y)) atEdge++;
+    } });
+    console.log(`  LV-KITE a lone bow at the Warrens, pull 8: ${resets} pack resets, ${kills} kills, ${atEdge} commits on the area's edge; ${r.verdicts.filter((x) => x.v === 'match').length} of ${r.verdicts.length} commits matched the prediction`);
+    ok('LV-KITE', resets === 0 && outside.length === 0, `browser closed: ${resets} pack resets in 120 s, the holder outside its area at ${JSON.stringify(outside)}: it must fight the pack it pulled`);
+    ok('LV-KITE', atEdge >= 2 && kills >= 3, `the control: ${atEdge} commits on the area's edge, ${kills} kills: the kiter must run to the edge and fight`);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-KITE', r.verdicts.length >= 30 && bad.length === 0, `viewed: the browser's prediction of the kite diverged at ${bad.length} of ${r.verdicts.length} commits`);
   }
 
   { // LV-H: the look-ahead is ONE constant (16 swings), and a leave lands no earlier than its last swing.
@@ -1361,6 +1395,7 @@ const MUTANTS = [
   ['the holder never rotates (LV-T)', 'src/core/hunt/targeting.js', 'return tanks[runs % tanks.length];', 'return tanks[0];', /^LV-T/],
   ['a peer row carries its full setup (LV-P)', 'supabase/functions/hr-accrue/hunt-settle.js', '      if (!self) {', '      if (false) {', /^LV-P/],
   ['the look-ahead is its own number at the edge (LV-H)', 'supabase/functions/hr-accrue/hunt-settle.js', 'export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;', 'export const LIVE_SEEDS = 64;', /^LV-H/],
+  ['the holder walks out of its pack area (LV-KITE)', 'src/core/hunt/leash.js', 'return held < 0 || inArea(inst, held, x, y);', 'return true;', /^LV-KITE: browser closed/],
   ['a walled pull stays on short ground (LV-RING, Andy #64)', 'src/core/hunt/pull-cycle.js', '    if (walled && !arrived && roomierEdge(inst, k, p, Math.round(c.x), Math.round(c.y))) return;\n', '', /^LV-RING: browser closed/],
   ['the tank plants wherever the pull leaves him (LV-OPEN, Tyler + Andy 10-25)', 'src/core/hunt/roles.js', '  if (plantOpen(inst, h, onMe, near, zone)) return;\n', '', /^LV-OPEN: browser closed/],
   ["the browser's pack area is not the server's (LV-OPEN, viewed)", 'src/hunt-view/live-engine.js',

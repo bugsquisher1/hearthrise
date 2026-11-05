@@ -160,8 +160,8 @@ const MUTANTS = [
     'const changed = frameChanged(list, fv);', 'const changed = (frameChanged(list, fv), true);', /^PB-IDLE/, 'pix'],
   ['a frame held although a unit\'s bar, float, effect or name moved (only the sprites compared)', 'src/world/render/canvas-backend.js',
     '    s.add(list);\n', '    s.add(list.sprites);\n', /^PB-PIX/, 'pix'],
-  ['a frame held although a hit flash or a corpse tone changed (their fields left out of the walk)', 'src/world/render/frame-sig.js',
-    "      if (k === UNDRAWN) { put(!!v[k]); continue; }\n", "      if (k === UNDRAWN || k === 'flash' || k === 'grey') continue;\n", /^PB-PIX/, 'pix'],
+  ['a frame held although a corpse tone changed (its field left out of the walk)', 'src/world/render/frame-sig.js',
+    "      if (k === UNDRAWN) { put(!!v[k]); continue; }\n", "      if (k === UNDRAWN || k === 'grey') continue;\n", /^PB-PIX/, 'pix'],
   ['the ground composed again on every paint of a camera that stands', 'src/world/render/canvas-backend.js',
     'if (s.end()) { floorGood = false;', 'if ((s.end(), true)) { floorGood = false;', /^PB-IDLE/, 'pix'],
   ['a town frame shown without the sheets of its ground (only its sprites named)', 'src/world/render/canvas-backend.js',
@@ -411,7 +411,7 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
     if (i >= 230 && i < 245) s.fx = [{ id: fxId, x: 21, y: 18, age: (i - 230) * 40, lift: 0.5 }];
     if (i >= 245 && i < 260) s.plate = { text: i < 252 ? 'Ada' : 'Bram', kind: 'peer' };
     if (i >= 260 && i < 275) s.alpha = (275 - i) / 15;
-    if (i >= 275 && i < 290) s.flash = i % 2 === 0;
+    if (i >= 275 && i < 290) s.recoil = [i % 2, 0];
     if (i >= 290 && i < 300) s.grey = (i - 290) / 10;
     return s;
   };
@@ -424,7 +424,7 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
     if (i === 195) { hx = 20; hy = 18; }
     const o = only(i);
     return { hero: { x: hx, y: hy, anim: (i >= 40 && i < 80) || (i > 150 && i < 190) ? 'walk' : 'idle', dir: 'e' }, floats: o.floats, fx: o.fx,
-      units: [{ id: 'drain_rat', x: rx, y: 19, anim: i >= 100 && i < 140 ? 'walk' : 'idle', dir: 'e', bar: o.bar, plate: o.plate, alpha: o.alpha, flash: o.flash, grey: o.grey }, { id: 'drain_rat', x: 23, y: 17, anim: 'idle', dir: 's' }], t };
+      units: [{ id: 'drain_rat', x: rx, y: 19, anim: i >= 100 && i < 140 ? 'walk' : 'idle', dir: 'e', bar: o.bar, plate: o.plate, alpha: o.alpha, recoil: o.recoil, grey: o.grey }, { id: 'drain_rat', x: 23, y: 17, anim: 'idle', dir: 's' }], t };
   };
   for (let i = 0; i < 300; i++) {
     const state = framesAt(i);

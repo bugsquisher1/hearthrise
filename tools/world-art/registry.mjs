@@ -21,6 +21,8 @@ for (const id of ['great_hearth', 'hearth_fire', 'hearth_fire_verdigris', 'heart
   'square_decal_chips_a', 'square_decal_chips_b', 'square_decal_tuft_a', 'square_decal_tuft_b', 'square_general_store',
   'square_depot', 'square_bank', 'square_barracks', 'square_market_stall', 'mine_mouth', 'ore_copper_rock',
   'westwood_ash', 'fishing_pier', 'rune_block', 'westwood_yew', 'ore_coal_rock']) D[id] = ['staged', 'on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending'];
+/* Town Works (lane/c-town-works, 2026-11-04): the Weighhouse's five stages and its plaque, placed by the same branch's build half. */
+for (const id of ['havora_weighhouse_staked', 'havora_weighhouse_footings', 'havora_weighhouse_framed', 'havora_weighhouse_walled', 'havora_weighhouse_finished', 'havora_weighhouse_plaque']) D[id] = ['staged', 'on no map yet (Town Works, 2026-11-04)'];
 const rows = [];
 for (const set of SETS) {
   const man = JSON.parse(readFileSync(ROOT + 'assets/world/atlas-' + set + '.json'));

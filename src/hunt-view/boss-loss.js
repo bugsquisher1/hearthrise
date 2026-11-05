@@ -8,7 +8,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ABILITIES } from '../data/abilities.js?v=0.2.96';
 import { MONSTERS } from '../data/monsters.js?v=0.2.96';
-import { BOSS_CALL_WORDS, callOfHunt } from '../data/boss-calls.js?v=0.2.96';
+import { BOSS_CALL_WORDS, callOfHunt, isGuarded } from '../data/boss-calls.js?v=0.2.96';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
 /* Every ability that heals (abilities.js `heal`), and every one that hits a crowd (an area cast or a Cleave). */
@@ -47,5 +47,7 @@ export function lossLine(o) {
   const phase = phaseAt(call.monster, f.boss_pm);
   const W = BOSS_CALL_WORDS.loss;
   const lead = (o.reason === 'boss_time' ? W.time : W.fell)[phase].replace('{pct}', String(Math.max(1, Math.ceil(f.boss_pm / 10))));
-  return lead + ': ' + factFor(phase, o.role, fired) + '. ' + W.answer[phase];
+  /* A boss whose adds shield him has his own answer to the wave (the designer's line). */
+  const answer = phase === 'adds' && isGuarded(MONSTERS[call.monster]) ? W.answer.guarded : W.answer[phase];
+  return lead + ': ' + factFor(phase, o.role, fired) + '. ' + answer;
 }

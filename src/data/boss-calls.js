@@ -72,6 +72,8 @@ export const BOSS_CALL_WORDS = Object.freeze({
     answer: Object.freeze({
       first: 'His plain blows beat your healing: bring a healer, eat earlier, or come back a gear tier up.',
       adds: 'His adds go for whoever isn\'t your tank: Challenge brings them to your tank, an area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
+      /* The add wave of a boss whose adds shield him (isGuarded; designer ruling 2026-11-05, the board): the one answer the table says decides it. */
+      guarded: 'His adds shield him while they stand: set your damage dealers\' Target to Lowest HP so they kill the adds before him.',
       enrage: 'Under a quarter of his health he hits far harder: eat earlier on every bar, and set your healer to heal sooner.',
     }),
   }),

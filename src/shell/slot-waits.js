@@ -60,8 +60,9 @@ function neverWords(c, slot, party) {
  * marked slot shows where an item shows its count.
  */
 export function waitReason(sl, party, test) {
-  const conds = sl && !sl.empty && Array.isArray(sl.conditions) ? sl.conditions : [];
-  const mark = (code, text, c) => ({ code, text, glyph: MARKS[c.metric] || 'uiWarn', strike: false, ...(needOf(c) !== null && MARKS[c.metric] ? { need: needOf(c) + (c.op === 'eq' ? '' : '+') } : {}) });
+  if (!sl || sl.empty || !Array.isArray(sl.conditions)) return null;
+  const conds = sl.conditions;
+  const mark =(code, text, c) => ({ code, text, glyph: MARKS[c.metric] || 'uiWarn', strike: false, ...(needOf(c) !== null && MARKS[c.metric] ? { need: needOf(c) + (c.op === 'eq' ? '' : '+') } : {}) });
   const never = conds.find((c) => !canHold(c, sl, party));
   if (never) return mark('never_' + never.metric, neverWords(never, sl, party), never);
   const t = test ? test(sl) : null;
@@ -72,7 +73,7 @@ export function waitReason(sl, party, test) {
   if (!c) return null;
   if (MARKS[c.metric] && needOf(c) !== null) {
     const words = c.metric === 'allies_below' ? heroesWord(c, needOf(c)) : monstersWord(needOf(c));
-    return mark('wait_' + c.metric, 'Waiting: needs ' + words + '. Until then your next slot fires.', c);
+    return mark('wait_' + c.metric, 'Waiting: needs ' + words + '. Until then your hero fights on without it.', c);
   }
   return { code: 'wait_until', text: 'Waiting until ' + conditionWords(c) + '.', glyph: 'uiHourglass', strike: false, quiet: true, rest: true };
 }
@@ -83,8 +84,8 @@ export function setupNote(d, party) {
   for (const c of d.conditions) {
     if (!canHold(c, d, party)) return neverWords(c, d, party);
     const need = c.metric === 'enemies_in_aoe' ? needOf(c) : null;
-    if (need === 2) return 'On a lone monster this slot waits and your next slot fires. To use it on one, remove this condition.';
-    if (need > 2) return 'With fewer than ' + need + ' monsters in its area this slot waits and your next slot fires.';
+    if (need === 2) return 'On a lone monster this slot waits and your hero fights on without it. To use it on one, remove this condition.';
+    if (need > 2) return 'With fewer than ' + need + ' monsters in its area this slot waits and your hero fights on without it.';
   }
   return '';
 }

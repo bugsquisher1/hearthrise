@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+- Your action bar now says when a slot is waiting. Fireball is set to fire at 2 or more monsters, so on a lone monster its slot dims and shows "2+", and hovering it or pressing it tells you why. Circle of Renewal does the same when you're not in a party. What a slot does hasn't changed: to fire on one monster, remove its condition in Configure action.
+
 ## v0.2.92 — 2026-11-05 (Standing Your Ground)
 
 - A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.

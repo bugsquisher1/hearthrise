@@ -12,6 +12,7 @@
 //   suggestions-readable every suggested and default condition names a metric the engine can read, and every metric x operator has words.
 //   between-pulls       with nothing engaged a slot isn't waiting on its conditions: no words, no mark.
 //   display-only        asking leaves the world byte-identical: it can never move the prediction's hash.
+//   ignored             a slot ignoring the monster its hero fights says that, not a condition that holds.
 //   order               a strike beats a wait; a marked wait beats mana; mana beats a wait the player can read.
 //   configure-note      the line Configure action shows: the lone monster, the lone hero, and silence where nothing surprises.
 //
@@ -207,6 +208,8 @@ const cases = {
     const facts = (o) => Object.assign({ set: { discipline: 'destruction', role: 'mage', store: [], slots: [] }, bag: [{ id: 'chalked_fire_rune', qty: 5 }, { id: 'chalked_ice_rune', qty: 5 }], hero: { mana: 500 }, worn: null, skills: null, pack: null, party: 1, holding: false, test: null }, o);
     const fire = suggested(M, 'fireball');
     const lone = fight(M, 'mage', [fire], { mons: [[13, 3]] }).test();
+    /* An empty slot has nothing to test: asking the engine threw on every frame of a fight (played on the local world), and the bar stopped patching. */
+    if (M.W.slotWhy({ empty: true }, facts({ test: lone })) !== null) return 'an empty slot has a reason';
     if (M.W.slotWhy(fire, facts({ test: lone })).code !== 'wait_enemies_in_aoe') return 'the lone monster\'s wait is not the answer';
     if (!M.W.slotWhy(fire, facts({ test: lone, bag: [] })).strike) return 'no rune is a strike: it must beat the wait';
     if (M.W.slotWhy(fire, facts({ test: lone, hero: { mana: 5 } })).code !== 'wait_enemies_in_aoe') return 'mana beat the marked wait';
@@ -219,7 +222,7 @@ const cases = {
   },
   'configure-note': (M) => {
     const draft = (id) => ({ action: { type: 'ability', id }, conditions: M.conditions.suggestedConditions({ type: 'ability', id }), join: 'and' });
-    if (M.W.setupNote(draft('fireball'), 1) !== 'On a lone monster this slot waits and your next slot fires. To use it on one, remove this condition.') return 'Fireball\'s suggestion reads ' + JSON.stringify(M.W.setupNote(draft('fireball'), 1));
+    if (M.W.setupNote(draft('fireball'), 1) !== 'On a lone monster this slot waits and your hero fights on without it. To use it on one, remove this condition.') return 'Fireball\'s suggestion reads ' + JSON.stringify(M.W.setupNote(draft('fireball'), 1));
     if (!/you’re not in a party/.test(M.W.setupNote(draft('circle_of_renewal'), 1))) return 'a lone Healer\'s Circle reads ' + JSON.stringify(M.W.setupNote(draft('circle_of_renewal'), 1));
     if (M.W.setupNote(draft('circle_of_renewal'), 2) !== '') return 'a duo\'s Circle reads ' + JSON.stringify(M.W.setupNote(draft('circle_of_renewal'), 2));
     for (const id of ['frost_lance', 'power_strike', 'mend']) if (M.W.setupNote(draft(id), 1) !== '') return id + ' reads ' + JSON.stringify(M.W.setupNote(draft(id), 1));
@@ -253,17 +256,19 @@ const MUTANTS = [
     edits: [['src/shell/slot-waits.js', "  if (c.metric === 'enemies_in_aoe') { const n = footprintOf(slot, null); return n * n; }\n", '']] },
   { name: 'a slot ignoring its hero\'s target is read as a failed condition', case: 'ignored',
     edits: [['src/hunt-view/live-engine.js', 'ignored: aimsAtMonsters(slot) && ignores(slot, target) };', 'ignored: false };']] },
+  { name: 'an empty slot asks the engine (every frame of a fight threw)', case: 'order',
+    edits: [['src/shell/slot-waits.js', '  if (!sl || sl.empty || !Array.isArray(sl.conditions)) return null;\n  const conds = sl.conditions;\n', "  const conds = sl && !sl.empty && Array.isArray(sl.conditions) ? sl.conditions : [];\n"]] },
   { name: 'mana is named ahead of a marked wait', case: 'order',
     edits: [['src/shell/slot-waits.js', '  if (w && !w.rest) return w;\n', '']] },
   { name: 'Configure action says nothing about a lone monster', case: 'configure-note',
-    edits: [['src/shell/slot-waits.js', "    if (need === 2) return 'On a lone monster this slot waits and your next slot fires. To use it on one, remove this condition.';\n", '']] },
+    edits: [['src/shell/slot-waits.js', "    if (need === 2) return 'On a lone monster this slot waits and your hero fights on without it. To use it on one, remove this condition.';\n", '']] },
   { name: 'a suggestion names a metric the engine can\'t read', case: 'suggestions-readable',
     edits: [['src/data/abilities.js', "return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];", "return [{ metric: 'enemies_near', op: 'gte', value: ABILITY_RULES.areaMin }];"]] },
   { name: 'a metric has no words', case: 'suggestions-readable',
     edits: [['src/shell/slot-waits.js', "  return { code: 'wait_until', text: 'Waiting until ' + conditionWords(c) + '.', glyph: 'uiHourglass', strike: false, quiet: true, rest: true };\n", '  return null;\n']] },
   { name: 'the Mage\'s default fires on one (re-judge: a default the display no longer has to explain)', case: 'lone-monster',
     edits: [['src/data/abilities.js', '  areaMin: 2,\n', '  areaMin: 1,\n']] },
-  { name: 'a new ability whose target rule never fires, and no words', case: 'every-suggestion',
+  { name: 'an ability whose target rule stops finding a target, and no words say so', case: 'every-suggestion',
     edits: [['src/core/hunt/abilities.js', "    case 'mark': {\n", "    case 'mark': return null;\n    case 'mark_old': {\n"]] },
 ];
 
@@ -281,7 +286,7 @@ if (!process.argv.includes('--no-mutate')) {
     try {
       let why = null;
       try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
-      R.ok(!!why && !why.startsWith('CONTROL'), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + ' (' + why + ')');
+      R.ok(!!why && !why.startsWith('CONTROL') && !why.startsWith('threw'), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + ' (' + why + ')');
     } finally { p.done(); }
   }
 }

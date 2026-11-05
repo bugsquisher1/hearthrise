@@ -234,7 +234,7 @@ export const SLOT_DESC = {
   dragon_gem_earrings: 'The gemcutter\'s masterwork: a dragon\'s heart-gem split in two and hung where it can see everything you fight',
 
   woolen_cloak: 'Honest wool against honest weather — the first cloak that is warmer than a rumor',
-  houndskin_cloak: 'A cape for any fighter, with more force behind a blade or a hammer. Wolf pelts backed with a Brook Bear\'s hide, cut short so it never catches on a swing',
+  houndskin_cloak: 'A cape for any fighter, with more force behind a blade or a hammer. Wolf pelts backed with bear hide, cut short for the swing',
   trollhide_cape: 'Troll hide over bear pelt, thick enough to blunt a blade and heavy enough to notice',
   shadowsilk_cape: 'Panther-shadow woven on a spider\'s loom — it hangs perfectly still even when you do not',
   dawnlit_mantle: 'Duskwood thread shot through with dawnsteel, so the hem catches first light before you do',

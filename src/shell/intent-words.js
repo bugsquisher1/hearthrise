@@ -25,7 +25,7 @@ const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /** The line a code reads as by its family, or null (src/data/refusal-words.js REFUSAL_FAMILIES). */
 function familyWords(code) {
   for (const [re, words] of REFUSAL_FAMILIES) {
-    const m = re.exec(String(code));
+    const m = /** @type {RegExp} */ (re).exec(String(code));
     if (m) return typeof words === 'function' ? words(m) : words;
   }
   return null;
@@ -160,6 +160,7 @@ export const ANSWER_STANDS_MS = 30000;
 function answerAges(sc, repaint) {
   const said = sc.msg;
   if (!said) return;
-  const t = setTimeout(() => { if (sc.msg === said && !sc.pending) { sc.msg = ''; repaint(); } }, ANSWER_STANDS_MS);
+  /* a number in the browser; under node (the pure tests) a handle that must not hold the process open */
+  const t = /** @type {any} */ (setTimeout(() => { if (sc.msg === said && !sc.pending) { sc.msg = ''; repaint(); } }, ANSWER_STANDS_MS));
   if (t && t.unref) t.unref();
 }

@@ -11,6 +11,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.90 — 2026-11-04 (Armor That Answers)
 
+**Your own party.** A third hero costs 25,000 gp, a fourth 75,000 and a fifth 250,000.
+
 
 - After you buy a hero slot, your characters stay on the screen and the game says the slot is yours at once, instead of a bare "Reading your characters…".
 - Changing weapon on a bar you've edited no longer leaves the last weapon's moves crossed out: they come off and the new weapon's moves take their places. A setup still keeps its own bar.

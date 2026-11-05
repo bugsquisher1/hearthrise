@@ -1144,6 +1144,12 @@ async function alertStack(page, tag, fails) {
   const tall = await page.evaluate(() => ({ box: window.__r(Array.from(document.querySelectorAll('.hw-alert')).find((e) => e.getClientRects().length)),
     cards: Array.from(document.querySelectorAll('.hs-widget > .hs-pointer')).filter((e) => e.getClientRects().length).map((e) => window.__r(e)) }));
   if (tall.box && tall.cards.some((c) => window_cross(c, tall.box))) fails.push('PH-15 [' + tag + '] a card lies under a tall alert: ' + JSON.stringify(tall));
+  /* ...and folded: its title may wrap to two lines, taller than the room an open card is capped to (v0.2.90's run: 56 px at 922x423) */
+  await page.evaluate(() => { const b = document.querySelector('.hs-widget .hs-pointer .hs-coach-min'); if (b) b.click(); });
+  await page.waitForTimeout(1200);
+  const folded = await page.evaluate(() => ({ box: window.__r(Array.from(document.querySelectorAll('.hw-alert')).find((e) => e.getClientRects().length)),
+    cards: Array.from(document.querySelectorAll('.hs-widget > .hs-pointer')).filter((e) => e.getClientRects().length).map((e) => window.__r(e)) }));
+  if (folded.box && folded.cards.some((c) => window_cross(c, folded.box))) fails.push('PH-15 [' + tag + '] a folded card lies under a tall alert: ' + JSON.stringify(folded));
 }
 async function townCard(page, tag, fails, vp) {
   const c = await page.evaluate(() => { const p = document.querySelector('.hs-launchers > .hs-pointer:not(.is-min)'); return p ? window.__r(p) : null; });
@@ -1238,7 +1244,10 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-    const s = scripted(fixture, prep);
+    /* A HUNT PAGE HERE IS A PLAYER WATCHING: the stamp a page writes on the hunt it shows, a minute old. With none, a hunt past 10 min reads as a return (away-recap.js
+       backWithNoStamp), and every card folds to its tab, so PH-6, 10, 15 and 27 would see no open card. `o.back`: the return itself. */
+    const s = scripted(fixture, (env) => { if (prep) prep(env);
+      if (!o.back && env.hunt && !env.hunt.ended && !(env.client_state && env.client_state.awaySeen)) env.client_state = Object.assign({}, env.client_state, { awaySeen: { s: env.hunt.session_id, at: Date.parse(env.now) - 60000, xp: env.state.level_xp } }); });
     await stub(page, s, !!shots);
     const up = await play(page, base, fixture === ALPHA, o.crew);
     await page.evaluate(RECT);
@@ -1320,6 +1329,16 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
         await coachFits(o.page, tag + ' ' + where, fails, vp.width < 1024);
         await done(o, tag);
       }
+      /* A RETURN NEVER LOSES THE CARD (v0.2.90): it folds to a tab a press can reach, and the press opens it. */
+      const back = await open(vp, HUNT, longCoach, { back: true });
+      if (!back.up) { fails.push('PH-6 [' + tag + ' return] the hunt did not mount'); await back.ctx.close(); continue; }
+      const tab = await back.page.evaluate(() => { const t = document.querySelector('.hs-widget .hs-pointer.is-min .hs-coach-tab'); return !!t && window.__onScreen(window.__r(t)) && window.__hits(t); });
+      if (!tab) fails.push('PH-6 [' + tag + ' return] the folded card has no tab a press can reach');
+      else {
+        await back.page.click('.hs-widget .hs-pointer.is-min .hs-coach-tab', { timeout: 2500 }).catch(() => null);
+        if (!(await wait(back.page, () => document.querySelector('.hs-widget .hs-pointer:not(.is-min) .hs-coach-text'), null, 3000))) fails.push('PH-6 [' + tag + ' return] a press on the tab opens nothing');
+      }
+      await done(back, tag);
     }
     /* PH-6: a fresh hero's first card, over the town and inside the bag's sheet: it ends above the bar, and its Got it is on
        screen and can be pressed (played at 667x375, 2026-10-31: it ran off the foot, and the hero could not get past it). */
@@ -1714,6 +1733,8 @@ const MUTANTS = [
   ['PH-14 a grey button says nothing', 'src/shell/off-why.js', "if (words) show(b, words); else hide();", "hide();"],
   ['PH-14 a slot\'s sheet does not say why', 'src/shell/windows/configure-action.js', "text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');", ''],
   ['PH-14 her board does not say why while it is loaded', 'src/shell/windows/tally.js', "'is-on', !sc.board || st.hunting);", "'is-on', !sc.board);"],
+  ['PH-15 a sliver of card stays under a tall alert', 'src/styles/shell.css', '  .hs-widget.is-no-room > .hs-pointer { display: none; }\n', ''],
+  ['PH-6 a press on a folded card\'s tab opens nothing on a return', 'src/shell/launcher.js', '  if (r && r.seen === card.id && r.min !== true) return false;\n', ''],
   ['PH-15 every alert stacks on a phone', 'src/styles/windows.css', '  .hw-alert-list > .hw-alert:not(:first-child) { display: none; }\n', ''],
   ['PH-15 the alert is see-through', 'src/styles/windows.css', 'padding: 0 0 0 10px; background: var(--bg-2); }', 'padding: 0 0 0 10px; }'],
   ['PH-15 nothing counts the alerts behind', 'src/styles/windows.css', '  .hw-alerts-more:not(:empty) { display: block; }\n', ''],

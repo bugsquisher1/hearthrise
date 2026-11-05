@@ -22,6 +22,7 @@
 //   risk-ladder    THE RISK IS THE MONSTERS (Tyler 2026-11-04): in range is safe; on a harder ground a hero earns well over the ground that fits and its supply bill follows, an unready hero dies and
 //                  a built one holds, with no rule behind any of it (hunt-core/damage.mjs same-blow-at-any-level); a watched hunt and a closed browser die alike; a Level 1 behind high friends earns
 //                  next to nothing, and a party that pushes together is paid in full.
+//   armor-rungs    balance ruling 2026-10-25 §9: every armor rung on its own ground, exact: each weight's mean piece takes 3-5% off what reaches HP, and only the cloth pieces named here stand still.
 //   vs-alone       the Party window's measured line against a full mix on two grounds.
 //   weapon-rungs   the hammer's and the hatchets' tier 2 and tier 3 each pay at least +5% Level XP an hour over the tier behind, on the first ground the rung is worn for.
 //   glade-harder   Tyler's harder monsters (accuracy 0.80), both paths: felt at the floor, no death, profit, pace, the top eases, a held pull pays.
@@ -170,6 +171,22 @@ cases['risk-ladder'] = (R) => {
   return null;
 };
 
+/* A MEANINGFUL ARMOR UPGRADE IS 3-5% LESS ACTUAL INCOMING DAMAGE (balance ruling 2026-10-25 §9). The unit is a piece a player finds, so the bar reads a rung's mean piece on its own ground. Plate's first rung on the Glade reads 5.1 and
+   stays under 5.5. Cloth is over the band on its second rung and stays: its flat ward is worth more against bigger blows, and that step lands it level with leather on its own ground (board 2026-11-05). */
+const RUNG_BAR = Object.freeze({ plate: [3, 5.5], leather: [3, 5.5], cloth: [3, 9.5] });
+const STANDS_STILL = Object.freeze(['cloth:1:boots', 'cloth:1:gloves', 'cloth:1:belt']);
+cases['armor-rungs'] = (R) => {
+  const rows = R.armorRungs();
+  if (rows.length !== 15) return 'the rungs read ' + rows.length + ' rows, not 15';
+  for (const r of rows) {
+    const tag = r.line + ' tier ' + r.from + ' to ' + r.to + ' on ' + r.ground;
+    if (r.mean < RUNG_BAR[r.line][0] || r.mean > RUNG_BAR[r.line][1]) return tag + ': the mean piece takes ' + r.mean + '% off, outside ' + RUNG_BAR[r.line].join('-') + '%';
+    if (!(r.set > r.mean * 2)) return tag + ': the whole set takes ' + r.set + '% off against a piece\'s ' + r.mean + '%';
+    for (const [slot, pct] of Object.entries(r.pieces)) if (!(pct > 0) && !STANDS_STILL.includes(r.line + ':' + r.from + ':' + slot)) return tag + ': the ' + slot + ' stops no more damage than the tier below';
+  }
+  return null;
+};
+
 /* "LEVEL XP BEFORE BONUSES" IS THE EVEN SHARE (blind party test 2026-11-01: it always equalled what was paid). A mixed party was paid above it, a one-class
    Sewer party under it; alone the two are one number. Both paths: the same totals in 30 s and 10 min cuts. */
 cases['before-bonuses'] = () => {
@@ -251,6 +268,9 @@ const mutants = [
     edits: [['src/core/combat.js', 'const base = monster && Number.isFinite(monster.baseAcc) ? monster.baseAcc : b.monsterBaseAccuracy;', 'const base = b.monsterBaseAccuracy;'], ...GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2')])] },
   { name: 'armor reads the hero\'s Level again: a push on the default food pays for itself', case: 'risk-ladder',
     edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(MONSTERS[source.kind]), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
+  { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/items.js', "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},", "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},"]] },
+  { name: 'leather is thin as cloth: its rungs stop being worth finding', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "{ key: 'leather', vmul: 0.70, defMul: 0.55,", "{ key: 'leather', vmul: 0.70, defMul: 0.25,"]] },
+  { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "def: [6, 12, 22, 34, 50, 68, 90], bars: 5,", "def: [6, 6, 22, 34, 50, 68, 90], bars: 5,"]] },
   { name: 'the level share is gone: a Level 1 earns what its friends earn', case: 'risk-ladder', edits: [['src/core/hunt/xp-share.js', 'const seat = underFloorSharePm(ground, h.heroLv, top);', 'const seat = 1000;']] },
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },

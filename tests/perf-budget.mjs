@@ -368,7 +368,7 @@ async function makeServer(second = 'melee_dps') {
    that re-draws both masks every frame, must paint the SAME pixels on every frame: the hero
    standing (masks kept), walking (re-drawn), a monster walking past while the hero stands, and the
    idle clips ticking on. */
-const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/styles/tokens.css"></head>
+const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/styles/tokens.css"><style>#a canvas,#b canvas{position:absolute;inset:0;width:100%;height:100%}</style></head>
 <body style="margin:0"><div id="a" style="position:absolute;left:0;top:0;width:720px;height:420px"></div>
 <div id="b" style="position:absolute;left:0;top:430px;width:720px;height:420px"></div>
 <script type="module">

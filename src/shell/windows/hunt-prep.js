@@ -17,6 +17,9 @@
 //              hr_hunt_preset_rename); Delete asks once on the same button,
 //              then sends ONE hr_hunt_preset_delete (src/session/preset-intents.js;
 //              ruling C4); the setup in use has none (the server: setup_in_use).
+//   Slots      how many setups this hero may open is the server's (`setup_slots`): some free, then bought, up to
+//              ACTION_SET_LIMITS.presets. Past the count, Buy sends ONE hr_setup_slot_buy with the quoted price. A
+//              setup already saved is never blocked: only a NEW number past the count is refused.
 //   Ready?     every open character's checklist (src/shell/readiness.js), with
 //              what is short in one line. Supplies are never bought here: the
 //              action bar pays the store per use (Tyler 2026-10-20).
@@ -26,21 +29,29 @@
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf } from '../../session/item-sections.js?v=0.2.90';
+import { presetsOf, setupSlotsOf, goldOf } from '../../session/item-sections.js?v=0.2.90';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.90';
 import { runIntent } from '../intent-words.js?v=0.2.90';
 import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.90';
 import { itemName } from '../widgets/bits.js?v=0.2.90';
-import { whole } from '../../render/format.js?v=0.2.90';
+import { whole, gold } from '../../render/format.js?v=0.2.90';
 import { readinessOf, readinessLine } from '../readiness.js?v=0.2.90';
 import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.90';
 import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.90';
-import { renameSetup, deleteSetup } from '../../session/preset-intents.js?v=0.2.90';
+import { renameSetup, deleteSetup, buySetupSlot } from '../../session/preset-intents.js?v=0.2.90';
+import { setupBuyWords, setupFullWords } from '../setup-words.js?v=0.2.90';
 import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.90';
 import { settleTownActivity } from '../../session/party-intents.js?v=0.2.90';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 const SCRATCH = new WeakMap();
+/* The lowest setup number nothing stands on: a new setup goes there. MAX_PRESETS when all are taken. */
+function firstFree(presets) {
+  const used = new Set((presets || []).map((p) => p.preset));
+  let free = 0;
+  while (used.has(free) && free < MAX_PRESETS) free++;
+  return free;
+}
 /* `naming`: the setup whose name field is open; `arming`: the setup whose Delete asked "Delete it?". */
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', naming: null, arming: null }; SCRATCH.set(cs, s); } return s; };
 
@@ -57,6 +68,8 @@ export function renderHuntPrep() {
     + '<p class="hs-note hw-town-only">Setups change in town. This hunt keeps the bar it set off with.</p>'
     + '<div class="hw-add"><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="Name this setup" aria-label="Setup name" data-hs-act="preset-name">'
     + '<button type="button" class="hh-tool" data-hs-act="save-new" data-coach-hook="setup-save">Save current setup</button></div>'
+    + '<button type="button" class="hh-tool hw-slot-buy" data-hs-act="buy-slot" hidden></button>'
+    + '<p class="hs-note hw-slot-why" hidden></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -119,11 +132,26 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   const none = root.querySelector('.hw-presets-none');
   cls(none, 'is-on', !presets || !presets.length);
   text(none, presets ? 'No saved setups yet.' : 'Saved setups switch on when the server starts keeping them.');
-  const full = presets && presets.length >= MAX_PRESETS;
+  /* The server says how many this hero may open; with no such section it is the limit and the server's refusal still speaks. */
+  const slots = setupSlotsOf(cs);
+  const count = slots ? slots.count : MAX_PRESETS;
+  const full = presets && firstFree(presets) >= count;
   for (const el of root.querySelectorAll('.hw-add input, .hw-add button')) prop(el, 'disabled', sc.pending || !presets || full || hunting);
   cls(root.querySelector('.hw-town-only'), 'is-on', hunting);
-  /* Saving a new setup is off when every slot is used: said, not only greyed (say-why). */
-  text(root.querySelector('.hh-intent-msg'), sc.msg || (full && !hunting ? 'All ' + MAX_PRESETS + ' setup slots are used. Delete one to save a new setup.' : ''));
+  /* Past the count the next slot is for sale (a hunting hero may buy it too: nothing about the hunt moves). */
+  const price = full && slots ? slots.price : null;
+  const purse = goldOf(cs);
+  const short = price !== null && purse !== null && purse < price ? price - purse : 0;
+  const buy = root.querySelector('.hw-slot-buy');
+  prop(buy, 'hidden', price === null);
+  text(buy, price === null ? '' : setupBuyWords(count, price));
+  prop(buy, 'disabled', sc.pending || short > 0);
+  /* Saving a new setup is off when every slot is used: said, not only greyed (say-why), on a line of its own so an answer's news never hides it. */
+  const why = full && !hunting ? setupFullWords(count, price) + (short ? ' You need ' + gold(short) + ' more.' : '') : '';
+  const whyEl = root.querySelector('.hw-slot-why');
+  prop(whyEl, 'hidden', !why);
+  text(whyEl, why);
+  text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 
 /* CARRY IN (src/shell/carry-in.js): the bag's hunt supplies while this hero hunts, each with the server's two counts. */
@@ -192,10 +220,13 @@ renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, t) {
     if (setup) runIntent(sc, repaint, () => cs.savePreset(setup.preset, setup.name), 'Saving…', () => 'Saved over ' + setup.name + ' with the bar and gear you have on.');
     return true;
   }
+  if (action === 'buy-slot') {
+    const q = setupSlotsOf(cs);
+    if (q && q.price !== null) runIntent(sc, repaint, () => buySetupSlot(ctx.account, cs, q.price), 'Buying…', () => 'Bought. This hero has ' + (q.count + 1) + ' setup slots.');
+    return true;
+  }
   if (action === 'save-new') {
-    const used = new Set((presetsOf(cs) || []).map((p) => p.preset));
-    let free = 0;
-    while (used.has(free) && free < MAX_PRESETS) free++;
+    const free = firstFree(presetsOf(cs));
     const input = body.querySelector('.hw-preset-name');
     const name = input.value.trim() || 'Setup ' + (free + 1);
     if (free >= MAX_PRESETS) return true;

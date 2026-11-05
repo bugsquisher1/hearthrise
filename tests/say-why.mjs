@@ -236,8 +236,12 @@ export const REASONS = Object.freeze({
     { cond: 'huntOpen || !again', words: "'Hunt again is off: a hunt is already running.'", where: 'the summary\'s line under its buttons' },
   ],
   'src/shell/windows/hunt-prep.js': [
-    { cond: '!presets || full || hunting', words: "' setup slots are used. Delete one to save a new setup.'", where: 'the window line (full), the town-only note (hunting), the none line (no presets)' },
+    { cond: '!presets || full || hunting', words: "setupFullWords(count, price)", where: 'the window line (full), the town-only note (hunting), the none line (no presets)' },
+    { cond: 'short > 0', words: "' You need ' + gold(short) + ' more.'", where: 'Buy a setup: the window line says how much more gold' },
     { cond: 'sc.pending || hunting', words: "Setups change in town.", where: 'the town-only note' },
+  ],
+  'src/shell/windows/character/titles.js': [
+    { cond: 'w.off', words: "' · You need ' + gold(short) + ' more.'", where: 'the row\'s own line says how much more gold; a row short of its kills has no button, its line says the count' },
   ],
   'src/shell/windows/characters.js': [
     { cond: "x.slot === ctx.character.slot || !ctx.goTo", words: "'On screen'", where: 'the button reads On screen' },

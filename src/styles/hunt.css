@@ -527,6 +527,7 @@
 .hc-name.is-ranger { color: var(--chat-role-ranger); }
 .hc-name.is-mage { color: var(--chat-role-mage); }
 .hc-name.is-healer { color: var(--chat-role-healer); }
+.hc-title { color: var(--ink-3); }
 .hc-tag { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .hc-role { display: inline-block; width: 11px; height: 11px; margin-left: 2px; vertical-align: -1px; }
 .hc-role .hs-glyph { width: 100%; height: 100%; fill: currentColor; }

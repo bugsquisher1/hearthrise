@@ -88,7 +88,8 @@ function lineEl(ctx, l) {
   const who = '<button type="button" class="hc-name' + (role ? ' is-' + esc(role) : '') + '" data-hs-act="name" data-hs-player'
     + (l.fromId ? ' data-hs-player-id="' + esc(l.fromId) + '"' : '') + ' data-hs-player-name="' + esc(l.name) + '"'
     + (l.slot !== null ? ' data-hs-player-slot="' + esc(l.slot) + '"' : '') + '>' + esc(l.name) + '</button>';
-  return element(ctx.doc, '<li class="hc-line"><time class="hc-time">' + esc(l.time) + '</time> ' + who + tag + ': <span class="hc-body">' + partsHtml(l.parts) + '</span></li>');
+  const title = l.title ? ' <span class="hc-title">' + esc(l.title) + '</span>' : '';
+  return element(ctx.doc, '<li class="hc-line"><time class="hc-time">' + esc(l.time) + '</time> ' + who + title + tag + ': <span class="hc-body">' + partsHtml(l.parts) + '</span></li>');
 }
 
 /* A drawn line keeps its words; only the speaker's NAME follows the server's row (hr_chat_row / hr_whisper_row render

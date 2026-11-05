@@ -54,6 +54,7 @@ import { keyBelongsToField } from '../utils/dom.js?v=0.2.90';
 import { homeOf } from '../session/home-sections.js?v=0.2.90';
 import { skillsOf } from '../session/item-sections.js?v=0.2.90';
 import { createHearthView } from './hearth-burn.js?v=0.2.90';
+import { townWorksSwap } from './town-works.js?v=0.2.90';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -304,7 +305,12 @@ export async function bootWorld(panel, opts) {
       if (k && k !== walkStand) { walkStand = k; walk.goTo(town.me().at, now); }
     }
     const f = walk.frame(readEnv(map.kind), now);
-    if (held && map.kind === 'town') Object.assign(f, hearthState(map, f, now));
+    if (held && map.kind === 'town') {
+      Object.assign(f, hearthState(map, f, now));
+      /* THE TOWN WORKS (town-works.js): an ambient row swapped by stage, the mechanism the Hearth's fire uses */
+      const works = townWorksSwap(map, town.extras());
+      if (works) f.ambientSwap = Object.assign({}, f.ambientSwap, works);
+    }
     if (!held) notePos(G, map.id, f.hero.x, f.hero.y);
     presenceFor(town, map, f.place);
     lastWalk = f;
@@ -387,7 +393,8 @@ export async function bootWorld(panel, opts) {
     for (const id of Object.keys(targets)) roofAlpha[id] = id in roofAlpha ? stepAlpha(roofAlpha[id], targets[id], dt) : targets[id];
     /* a new map's (or zoom's) first view bakes its ground a slice a frame first: the last frame stays meanwhile */
     if (!backend.ready(cast)) return;
-    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name, roofAlpha, t: now }, cast));
+    /* the hero's own label in town reads as a stranger's does: "Marlow the Wolfer" */
+    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name && G.playerTitle ? name + ' ' + G.playerTitle : name, roofAlpha, t: now }, cast));
     frames++;
   }
 

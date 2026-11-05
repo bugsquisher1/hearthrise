@@ -59,7 +59,7 @@ export const MUTANTS = {
   burn_keeps_item: { arm: 'IF-3', why: 'the burn pays the XP and keeps the fuel',
     db: [BURN, "           'items', jsonb_build_object(p_item, -1),\n", ''] },
   flame_not_shared: { arm: 'IF-3', why: 'the town read never carries the flame to the square',
-    db: ['public.hr_town_view(integer,text,integer,integer,bigint,integer,integer)', "    'hearth', public.hr_hearth_flame_of(p_map));", "    'hearth', null);"] },
+    db: ['public.hr_town_view(integer,text,integer,integer,bigint,integer,integer)', "    'hearth', public.hr_hearth_flame_of(p_map),\n", "    'hearth', null,\n"] },
   queue_overlaps: { arm: 'IF-3', why: 'a second named fuel starts now, over the first colour',
     db: [BURN, '  v_start := greatest(now(), coalesce((select max(f.ends_at) from public.hearth_flames f where f.map_id = v_map), now()));',
       '  v_start := now();'] },

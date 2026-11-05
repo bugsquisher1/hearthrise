@@ -1,23 +1,24 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/havora/index.js — THE HAVORA WINDOW: WHAT GOLD BUYS IN TOWN.
 //
-// Two tabs today; Works joins them when its lane sets WORKS_TAB.shown (./works.js):
+// Three tabs:
 //   Hearth   a powder on the Great Hearth (the designer's gold sinks section). The window opens on the color this account threw last, from the server.
 //   Round    a round at the Tavern: fireworks over Hearth Square.
+//   Works    what the whole server is building (./works.js, which keeps its own reads and answers).
 // While it's open the window reads the server's quotes (hr_town_sinks_view: never in the envelope, so an idle hero costs no read), on opening, after each press
 // and every ASK_MS. Every price, count and word about the queue is the server's; a stale price only earns quote_changed, and the answer is said and re-read.
 // Every control is off while an intent is in flight. Nothing here ever computes a price (CLAUDE.md §1, §6).
 // ════════════════════════════════════════════════════════════════════════
-import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.91';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.91';
-import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.91';
-import { TOWN_NAME } from '../../../data/world/town/plan.js?v=0.2.91';
-import { ITEMS } from '../../../data/items.js?v=0.2.91';
-import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.91';
-import { whole, gold } from '../../../render/format.js?v=0.2.91';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.91';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.91';
-import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js?v=0.2.91';
+import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.93';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.93';
+import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.93';
+import { TOWN_NAME } from '../../../data/world/town/plan.js?v=0.2.93';
+import { ITEMS } from '../../../data/items.js?v=0.2.93';
+import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.93';
+import { whole, gold } from '../../../render/format.js?v=0.2.93';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.93';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.93';
+import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js?v=0.2.93';
 
 const ASK_MS = 15000;
 const RETRY_MS = 5000;
@@ -62,21 +63,22 @@ export function renderHavora(ctx) {
   if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.stale = true; sc.msg = ''; sc.pick = null; }
   const offers = SINK_RULES.powder.offers;
   return '<div class="hw-havora">'
-    + '<div class="hw-tabs" role="tablist">' + TABS.map((t, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + esc(t.id) + '" aria-selected="' + (i === 0) + '">' + esc(t.label) + '</button>').join('') + '</div>'
-    + '<p class="hw-cap"><span class="hv-gold"></span></p>'
+    /* the purse shares the tabs' row: a window's height is the first thing a short screen runs out of */
+    + '<div class="hv-top"><div class="hw-tabs" role="tablist">' + TABS.map((t, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + esc(t.id) + '" aria-selected="' + (i === 0) + '">' + esc(t.label) + '</button>').join('') + '</div>'
+    + '<span class="hv-gold"></span></div>'
     + '<section class="hw-pane hv-pane" data-pane="hearth">'
-    + '<p class="hv-lead">Throw a powder on the Great Hearth. Its color fills ' + esc(TOWN_NAME) + '\'s square for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone there sees who threw it.</p>'
+    + '<p class="hv-lead">Throw a powder on the Great Hearth. It burns that color for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone in ' + esc(TOWN_NAME) + ' sees who threw it.</p>'
     + '<div class="hv-powders" role="radiogroup" aria-label="Which powder">' + offers.map((id) => '<button type="button" role="radio" class="hv-powder is-' + esc(id) + '" data-hs-act="pick" data-show="' + esc(id) + '" aria-checked="false"><i class="hv-swatch" aria-hidden="true"></i>' + esc(SHOW_FLAMES[id].label) + '</button>').join('') + '</div>'
     + '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="powder"></button>'
-    + '<p class="hw-cap hv-count" data-of="powder"></p><p class="hw-cap hv-queue"></p>'
     + '</section>'
     + '<section class="hw-pane hv-pane" data-pane="round">'
     + '<p class="hv-lead">Stand a round at the Tavern. Fireworks go up over Hearth Square for ' + whole(SINK_RULES.round.seconds) + ' seconds, and the whole town hears who paid.</p>'
     + '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="round"></button>'
-    + '<p class="hw-cap hv-count" data-of="round"></p>'
     + '</section>'
     + (WORKS_TAB.shown ? '<section class="hw-pane hv-pane" data-pane="works">' + worksHtml() + '</section>' : '')
-    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
+    /* THE FOOT: what the server says of the day and its answer to a press, stuck to the window's foot, so a short window scrolls the pane under them and never cuts them off */
+    + '<div class="hv-foot">' + TABS.map((t) => '<p class="hw-cap hv-count" data-of="' + esc(t.id) + '"></p>').join('') + '<p class="hw-cap hv-queue"></p>'
+    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>';
 }
 
 renderHavora.patch = function patchHavora(body, ctx) {
@@ -89,7 +91,7 @@ renderHavora.patch = function patchHavora(body, ctx) {
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.hv-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
   const purse = goldOf(cs);
-  text(root.querySelector('.hv-gold'), purse === null ? '' : 'Your purse: ' + gold(purse));
+  text(root.querySelector('.hv-gold'), purse === null ? '' : 'Purse: ' + gold(purse));
   const s = sc.sinks;
   const picked = pickedOf(sc);
   for (const b of root.querySelectorAll('.hv-powder')) attr(b, 'aria-checked', String(b.getAttribute('data-show') === picked));
@@ -101,10 +103,12 @@ renderHavora.patch = function patchHavora(body, ctx) {
   prop(buyPowder, 'disabled', sc.pending || pPrice === null);
   prop(buyRound, 'disabled', sc.pending || rPrice === null);
   for (const b of root.querySelectorAll('.hv-powder')) prop(b, 'disabled', sc.pending);
-  text(root.querySelector('.hv-count[data-of="powder"]'), s ? countLine(s.powder, 'powders') : '');
+  text(root.querySelector('.hv-count[data-of="hearth"]'), s ? countLine(s.powder, 'powders') : '');
   text(root.querySelector('.hv-count[data-of="round"]'), s ? countLine(s.round, 'rounds') : '');
-  text(root.querySelector('.hv-queue'), s ? queueLine(s) : '');
-  text(root.querySelector('.hh-intent-msg'), sc.msg);
+  for (const l of root.querySelectorAll('.hv-count')) cls(l, 'is-on', l.getAttribute('data-of') === sc.tab);
+  text(root.querySelector('.hv-queue'), s && sc.tab === 'hearth' ? queueLine(s) : '');
+  /* the answer to a press: the Works tab writes its own (./works.js) */
+  if (sc.tab !== WORKS_TAB.id) text(root.querySelector('.hh-intent-msg'), sc.msg);
   if (WORKS_TAB.shown && sc.tab === WORKS_TAB.id) patchWorks(root.querySelector('[data-pane="works"]'), ctx);
   /* THE READ: once per opening, after a press, and every ASK_MS while open (a read, never the record). */
   const due = sc.stale || ctx.now() - sc.askedAt >= ASK_MS;

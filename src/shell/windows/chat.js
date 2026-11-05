@@ -22,20 +22,20 @@
 // keyBelongsToField (src/utils/dom.js), which the World and the window keys
 // read too — so W types while the field has focus and walks once it is left.
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.91';
-import { refusalWords } from '../intent-words.js?v=0.2.91';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.91';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.91';
-import { isWhisperTab } from '../../social/whispers.js?v=0.2.91';
-import { linkLabel } from '../../social/chat-lines.js?v=0.2.91';
-import { combatHtml, patchCombat, actCombat, keepPinned, isPinned } from './chat-combat.js?v=0.2.91';
-import { crierButtonHtml, crierBarHtml, patchCrier, actCrier } from './chat-crier.js?v=0.2.91';
-import { showTip, hideTip } from './item-tip.js?v=0.2.91';
-import { rarityOf } from '../bag-model.js?v=0.2.91';
-import { glyphSvg } from '../launcher.js?v=0.2.91';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.91';
-import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.91';
-import { playerTargetOf } from '../context-menu.js?v=0.2.91';
+import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.93';
+import { refusalWords } from '../intent-words.js?v=0.2.93';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.93';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.93';
+import { isWhisperTab } from '../../social/whispers.js?v=0.2.93';
+import { linkLabel } from '../../social/chat-lines.js?v=0.2.93';
+import { combatHtml, patchCombat, actCombat, keepPinned, isPinned } from './chat-combat.js?v=0.2.93';
+import { crierButtonHtml, crierBarHtml, crierMarkHtml, patchCrier, actCrier } from './chat-crier.js?v=0.2.93';
+import { showTip, hideTip } from './item-tip.js?v=0.2.93';
+import { rarityOf } from '../bag-model.js?v=0.2.93';
+import { glyphSvg } from '../launcher.js?v=0.2.93';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.93';
+import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.93';
+import { playerTargetOf } from '../context-menu.js?v=0.2.93';
 
 const STATE = new WeakMap();
 const ROW = Object.freeze(Object.fromEntries(CHAT_TABS.map((t) => [t.id, t])));
@@ -91,7 +91,7 @@ function lineEl(ctx, l) {
     + (l.fromId ? ' data-hs-player-id="' + esc(l.fromId) + '"' : '') + ' data-hs-player-name="' + esc(l.name) + '"'
     + (l.slot !== null ? ' data-hs-player-slot="' + esc(l.slot) + '"' : '') + '>' + esc(l.name) + '</button>';
   const title = l.title ? ' <span class="hc-title">' + esc(l.title) + '</span>' : '';
-  return element(ctx.doc, '<li class="hc-line' + (l.crier ? ' is-crier' : '') + '"><time class="hc-time">' + esc(l.time) + '</time> ' + who + title + tag + ': <span class="hc-body">' + partsHtml(l.parts) + '</span></li>');
+  return element(ctx.doc, '<li class="hc-line' + (l.crier ? ' is-crier' : '') + '">' + (l.crier ? crierMarkHtml() + ' ' : '') + '<time class="hc-time">' + esc(l.time) + '</time> ' + who + title + tag + ': <span class="hc-body">' + partsHtml(l.parts) + '</span></li>');
 }
 
 /* A drawn line keeps its words; only the speaker's NAME follows the server's row (hr_chat_row / hr_whisper_row render

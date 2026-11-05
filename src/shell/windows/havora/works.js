@@ -6,13 +6,14 @@
 // While it's on show the tab reads the server (hr_town_works_view: never in the envelope), on opening, after each gift and every ASK_MS. Every number here is the server's: the total,
 // what's left today, the most this account can give, its place, the plaque. The gift is the one number the client names, and the server refuses it under its own clock before any
 // charge. Every control is off while a gift is in flight. The field opens on the last gift, from the server (CLAUDE.md §1, §6). Display scratch per CharacterSession: nothing persists.
+// What the day leaves and the answer to a press stand in the window's foot (.hv-count[data-of="works"], .hh-intent-msg), so a short window never cuts them off: patchWorks writes both.
 // ════════════════════════════════════════════════════════════════════════
-import { readWorks, giveToWorks } from '../../../session/town-intents.js?v=0.2.91';
-import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.91';
-import { text, cls, attr, prop, style, rows, element } from '../../../render/paint.js?v=0.2.91';
-import { whole, gold } from '../../../render/format.js?v=0.2.91';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.91';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.91';
+import { readWorks, giveToWorks } from '../../../session/town-intents.js?v=0.2.93';
+import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.93';
+import { text, cls, attr, prop, style, rows, element } from '../../../render/paint.js?v=0.2.93';
+import { whole, gold } from '../../../render/format.js?v=0.2.93';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.93';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.93';
 
 const ASK_MS = 15000;
 const RETRY_MS = 5000;
@@ -83,12 +84,9 @@ export function worksHtml() {
     + '<div class="hv-works-typed"><span class="hw-cap">Or give</span><input type="number" inputmode="numeric" class="hv-works-amount" aria-label="Gold to give" min="1" step="100"><span class="hw-cap">gp</span>'
     + '<button type="button" class="hh-tool" data-hs-act="works-typed">Give</button></div>'
     + '</div>'
-    + '<p class="hw-cap hv-works-today"></p>'
     + '<p class="hw-cap hv-works-me"></p>'
     + '<h3 class="hv-works-head">The plaque</h3>'
-    + '<ol class="hv-works-plaque"></ol>'
-    /* last in the pane and stuck to the window's foot, so an answer shows wherever the pane is scrolled to: a short window hides everything under the buttons */
-    + '<p class="hv-works-msg" role="status" aria-live="polite"></p>';
+    + '<ol class="hv-works-plaque"></ol>';
 }
 
 function plaqueRow(doc) {
@@ -129,8 +127,10 @@ export function patchWorks(pane, ctx) {
     /* the field opens on the last gift, once per opening, and never over what the player is typing */
     if (w && !sc.filled) { sc.filled = true; if (!field.value && w.lastGift) field.value = String(Math.min(w.lastGift, w.maxGift || w.lastGift)); }
   }
-  text(pane.querySelector('.hv-works-today'), w ? todayWords(w) : '');
-  text(pane.querySelector('.hv-works-msg'), sc.msg);
+  /* THE WINDOW'S FOOT: the day's line and the answer stand whole wherever the pane is scrolled to */
+  const root = pane.closest('.hw-havora');
+  text(root.querySelector('.hv-count[data-of="works"]'), w ? todayWords(w) : '');
+  text(root.querySelector('.hh-intent-msg'), sc.msg);
   text(pane.querySelector('.hv-works-me'), w ? meWords(w) : '');
   rows(pane.querySelector('.hv-works-plaque'), w ? w.plaque : [], { key: (r) => String(r.place), build: () => plaqueRow(pane.ownerDocument), patch: patchPlaqueRow });
   /* THE READ: once per opening, after a gift, and every ASK_MS while on show (a read, never the record) */

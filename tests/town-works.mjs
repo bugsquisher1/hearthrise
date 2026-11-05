@@ -168,7 +168,8 @@ export const MUTANTS = {
   join_forgets_works: { arm: 'TW-WORDS', why: 'Gold Given\'s join line leaves the Works out',
     js: ['src/data/honor-roll.js', [["join: 'Give to the Town Works, throw a Hearth powder, stand a round or pay the Town Crier.'", "join: 'Throw a Hearth powder, stand a round or pay the Town Crier.'"]]] },
   tab_hidden: { arm: 'TW-WINDOW', why: 'the Works tab stays hidden', js: ['src/shell/windows/havora/works.js', [["label: 'Works', shown: true", "label: 'Works', shown: false"]]] },
-  answer_in_the_flow: { arm: 'TW-WINDOW', why: 'a refusal is drawn under the fold, where a short window never shows it', js: ['src/shell/windows/havora/works.js', [["    + '<p class=\"hw-cap hv-works-today\"></p>'\n", "    + '<p class=\"hv-works-msg\" role=\"status\"></p><p class=\"hw-cap hv-works-today\"></p>'\n"], ["    + '<p class=\"hv-works-msg\" role=\"status\" aria-live=\"polite\"></p>';\n", "    + '';\n"]]] },
+  answer_in_the_flow: { arm: 'TW-WINDOW', why: 'a refusal is drawn under the fold, where a short window never shows it', js: ['src/shell/windows/havora/works.js', [["  text(root.querySelector('.hh-intent-msg'), sc.msg);\n", "  text(pane.querySelector('.hv-works-msg'), sc.msg);\n"]]] },
+  day_in_the_flow: { arm: 'TW-WINDOW', why: 'what the day leaves is cut off at the window\'s foot', js: ['src/shell/windows/havora/works.js', [["  text(root.querySelector('.hv-count[data-of=\"works\"]'), w ? todayWords(w) : '');\n", "  text(pane.querySelector('.hv-works-today'), w ? todayWords(w) : '');\n"]]] },
   max_ignores_project: { arm: 'TW-WINDOW', why: 'the last button says "left today" when the project needs less', js: ['src/shell/windows/havora/works.js', [["  return w.left < w.leftToday ? 'Give the ' + gold(w.maxGift) + ' it still needs' : 'Give the ' + gold(w.maxGift) + ' left today';", "  return 'Give the ' + gold(w.maxGift) + ' left today';"]]] },
   parse_trusts_junk: { arm: 'TW-WINDOW', why: 'a broken answer reaches the window', js: ['src/session/town-intents.js', [["  if (!isObj(b) || b.ok !== true || !word(b.project) || int(b.total) === null || int(b.goal) === null || int(b.stage) === null || !Array.isArray(b.stage_at)) return null;\n", "  if (!isObj(b)) return null;\n"]]] },
   giver_names_total: { arm: 'TW-WINDOW', why: 'the intent sends more than the gift', js: ['src/session/town-intents.js', [["p_project: project, p_amount: amount, p_idem:", "p_project: project, p_amount: amount, p_total: amount, p_idem:"]]] },
@@ -799,10 +800,12 @@ const ARMS = {
     if (!html.includes('data-pane="works"')) out.push('the window has no Works pane');
     if (!html.includes('data-amount="1000"') || !html.includes('data-amount="5000"')) { if (X.WK.WORKS_TAB.shown) out.push('the Give buttons are missing'); }
     if (X.WK.giveWords(1000) !== 'Give 1,000 gp') out.push('the gift\'s button reads ' + X.WK.giveWords(1000));
-    /* AN ANSWER SHOWS WHEREVER THE PANE IS SCROLLED TO: at 1366 x 768 the window ends under the buttons, so a refusal drawn in the flow was off screen (played 2026-11-05) */
-    const pane = X.WK.worksHtml();
-    if (pane.indexOf('hv-works-msg') < pane.indexOf('hv-works-plaque')) out.push('the answer is drawn above the plaque, in the flow');
-    if (!/\.hv-works-msg:not\(:empty\) \{ position: sticky; bottom: 0;/.test(readFileSync(join(ROOT, 'src/styles/windows.css'), 'utf8'))) out.push('the answer is not stuck to the window\'s foot');
+    /* THE DAY'S LINE AND THE ANSWER STAND IN THE WINDOW'S FOOT: at 1366 x 768 the window ends under the buttons, so a refusal drawn in the flow was off screen (played 2026-11-05).
+       The patch itself, on the elements it reads: the walk measures them in a browser */
+    if (/hv-works-today|hv-works-msg/.test(X.WK.worksHtml())) out.push('the pane draws its own day\'s line or answer, in the flow');
+    const footed = await footOf(X, await as(db, A, 'select public.hr_town_works_view(0)'));
+    if (footed.day !== 'You can give 23,000 gp more today. More after midnight UTC.') out.push('the foot\'s day line reads ' + JSON.stringify(footed.day));
+    if (footed.said !== 'The smallest gift is 100 gp.') out.push('the foot\'s answer reads ' + JSON.stringify(footed.said));
     /* THE SERVER'S ANSWER, read field by field */
     await give(db, A, 0, 2000);
     const view = await as(db, A, 'select public.hr_town_works_view(0)');
@@ -844,6 +847,23 @@ const ARMS = {
     return out;
   },
 };
+
+/* patchWorks over plain elements, a server read and a refused field: what the foot ends up saying. Only what a patch reads is here; a broken selector reads back empty. */
+async function footOf(X, view) {
+  const els = new Map();
+  const el = (s) => {
+    if (!els.has(s)) els.set(s, { textContent: '', value: s === '.hv-works-amount' ? 'x' : '', firstElementChild: null, style: { getPropertyValue: () => '', setProperty() {}, removeProperty() {} }, setAttribute() {}, removeAttribute() {}, getAttribute: () => null, classList: { contains: () => false, toggle() {} } });
+    return els.get(s);
+  };
+  const pane = { querySelector: el, querySelectorAll: () => [], ownerDocument: {}, closest: () => ({ querySelector: el }) };
+  const cs = { slot: 0, status: 'open', load: async () => {} };
+  const ctx = { character: cs, account: { server: { rpc: async () => ({ ok: true, body: { ...view, plaque: [] } }) } }, now: () => 1000, refresh: () => {} };
+  X.WK.patchWorks(pane, ctx);
+  await new Promise((r) => setTimeout(r, 20));
+  X.WK.actWorks(ctx, pane, 'works-typed', { type: 'click' }, el('.hv-works-typed'));
+  X.WK.patchWorks(pane, ctx);
+  return { day: el('.hv-count[data-of="works"]').textContent, said: el('.hh-intent-msg').textContent };
+}
 
 function plantSql(text, [, find, repl]) {
   if (text.split(find).length !== 2) throw Object.assign(new Error('sql mutant anchor not found once: ' + find.slice(0, 80)), { harness: true });

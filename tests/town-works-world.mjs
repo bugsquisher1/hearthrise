@@ -16,6 +16,7 @@
 //   WW-6  a hero walks to row 54 behind stage 4 and to row 61 in front of it (the order itself is TW-MAP's, on this map's real compose; these are the shots to read)
 //   WW-7  finished: the works_done line, the building stands, a tap on it opens the Market, the plaque stays
 //   WW-8  no console errors, nothing left the machine
+//   WW-9  at 1366x768 the day's line and the answer stay whole in the window's foot at both ends of the pane's scroll
 // mutant-anchors: none — a manual walk of the real game
 // ════════════════════════════════════════════════════════════════════════
 import { mkdirSync } from 'node:fs';
@@ -126,9 +127,9 @@ try {
   // ── WW-3 ──
   const before = await purse();
   await page.click(WIN + ' [data-amount="1000"]');
-  const gave = await waitText(WIN + ' .hv-works-msg', /Gave 1,000 gp/);
+  const gave = await waitText(WIN + ' .hh-intent-msg', /Gave 1,000 gp/);
   const footings = await worksArt('havora_weighhouse_footings');
-  step('WW-3 a press gives 1,000 gp', gave && (await purse()) === before - 1000, JSON.stringify({ msg: await textOf(WIN + ' .hv-works-msg'), purse: await purse(), before }));
+  step('WW-3 a press gives 1,000 gp', gave && (await purse()) === before - 1000, JSON.stringify({ msg: await textOf(WIN + ' .hh-intent-msg'), purse: await purse(), before }));
   step('WW-5 a gift across a stage swaps the map for this viewer', footings, JSON.stringify((await walkOf() || {}).works));
   const shown = await waitText(WIN + ' .hv-gold', /1,999,000 gp/);
   step('WW-3 the purse drops from the envelope', shown, await textOf(WIN + ' .hv-gold'));
@@ -141,7 +142,7 @@ try {
   await p.shot('works-gave');
   await page.fill(WIN + ' .hv-works-amount', '700');
   await page.click(WIN + ' [data-hs-act="works-typed"]');
-  await waitText(WIN + ' .hv-works-msg', /Gave 700 gp/);
+  await waitText(WIN + ' .hh-intent-msg', /Gave 700 gp/);
   await p.reload();
   await page.waitForSelector('[data-hs-open="havora"]', { timeout: 30000 });
   await page.click('[data-hs-open="havora"]');
@@ -154,13 +155,32 @@ try {
   const purse4 = await purse();
   await page.fill(WIN + ' .hv-works-amount', '24000');
   await page.click(WIN + ' [data-hs-act="works-typed"]');
-  const overWords = await waitText(WIN + ' .hv-works-msg', /You can give 23,300 gp more today\./);
-  step('WW-4 over today\'s cap says why and charges nothing', overWords && (await purse()) === purse4, JSON.stringify({ msg: await textOf(WIN + ' .hv-works-msg'), purse: await purse(), was: purse4 }));
+  const overWords = await waitText(WIN + ' .hh-intent-msg', /You can give 23,300 gp more today\./);
+  step('WW-4 over today\'s cap says why and charges nothing', overWords && (await purse()) === purse4, JSON.stringify({ msg: await textOf(WIN + ' .hh-intent-msg'), purse: await purse(), was: purse4 }));
   /* on screen, not just in the page: at this size the window ends under the buttons */
-  const onScreen = await page.evaluate(([w, m]) => { const a = document.querySelector(w).getBoundingClientRect(), b = document.querySelector(m).getBoundingClientRect(); return b.height > 0 && b.top >= a.top && b.bottom <= a.bottom; }, [WIN, WIN + ' .hv-works-msg']);
+  const onScreen = await page.evaluate(([w, m]) => { const a = document.querySelector(w).getBoundingClientRect(), b = document.querySelector(m).getBoundingClientRect(); return b.height > 0 && b.top >= a.top && b.bottom <= a.bottom; }, [WIN, WIN + ' .hh-intent-msg']);
   step('WW-4 the answer is on screen, inside the window', onScreen, 'it is clipped');
   await page.waitForTimeout(300);
   await p.shot('works-over');
+  /* ── WW-9 ── the foot, measured at both ends of the pane's scroll */
+  const footWhole = () => page.evaluate(([w, day, said]) => {
+    const win = document.querySelector(w), box = win.getBoundingClientRect();
+    const whole = (s) => { const e = win.querySelector(s); if (!e || !e.textContent) return false; const r = e.getBoundingClientRect(); return r.height > 0 && r.top >= box.top && r.bottom <= box.bottom && e.scrollWidth <= e.clientWidth + 1; };
+    return { day: whole(day), said: whole(said) };
+  }, [WIN, WIN + ' .hv-count[data-of="works"]', WIN + ' .hh-intent-msg']);
+  const scrollTo = (end) => page.evaluate(([s, e]) => { let n = document.querySelector(s); while (n && !(n.scrollHeight > n.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(n).overflowY))) n = n.parentElement; if (!n) return null; n.scrollTop = e ? n.scrollHeight : 0; return { top: n.scrollTop, max: n.scrollHeight - n.clientHeight }; }, [WIN + ' .hv-works-plaque', end]);
+  const atTop = await scrollTo(false);
+  await page.waitForTimeout(200);
+  const topWhole = await footWhole();
+  await p.shot('works-scroll-top');
+  const atEnd = await scrollTo(true);
+  await page.waitForTimeout(200);
+  const endWhole = await footWhole();
+  await p.shot('works-scroll-end');
+  step('WW-9 the pane scrolls at this size', !!atEnd && atEnd.max > 0 && atEnd.top > 0 && !!atTop && atTop.top === 0, JSON.stringify({ atTop, atEnd }));
+  step('WW-9 the day\'s line and the answer are whole at the top of the scroll', topWhole.day && topWhole.said, JSON.stringify(topWhole));
+  step('WW-9 the day\'s line and the answer are whole at the end of the scroll', endWhole.day && endWhole.said, JSON.stringify(endWhole));
+  await scrollTo(false);
   const maxWords = await waitText(WIN + ' .hv-works-max', /Give the 23,300 gp left today/);
   step('WW-4 the last button names what\'s left today', maxWords, await textOf(WIN + ' .hv-works-max'));
 

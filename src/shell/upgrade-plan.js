@@ -41,16 +41,16 @@
 //     takes the weight preferredWeight names, so no hero stays bare (designer 2026-11-04)
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.91';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.91';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.91';
-import { loadoutOf } from '../core/member.js?v=0.2.91';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.91';
-import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.91';
-import { itemName } from './widgets/bits.js?v=0.2.91';
-import { reqHave } from './item-lore.js?v=0.2.91';
-import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.91';
-import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.91';
+import { ITEMS } from '../data/items.js?v=0.2.93';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.93';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.93';
+import { loadoutOf } from '../core/member.js?v=0.2.93';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.93';
+import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.93';
+import { itemName } from './widgets/bits.js?v=0.2.93';
+import { reqHave } from './item-lore.js?v=0.2.93';
+import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.93';
+import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.93';
 
 /* The off-hand and the quiver: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['shield', 'ammo']);

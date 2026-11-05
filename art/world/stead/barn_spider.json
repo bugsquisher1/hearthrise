@@ -2,7 +2,7 @@
   "id": "barn_spider",
   "class": "vermin",
   "style": "s1",
-  "material": "unit",
+  "material": "native",
   "source": "barn_spider.png",
   "anchor_px": [
     24,
@@ -52,7 +52,11 @@
         "s": 6,
         "e": 6,
         "n": 6,
-        "w": 6
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
       }
     },
     {
@@ -78,5 +82,28 @@
       }
     }
   ],
-  "notes": "Wickstead's barn spider: the shipped style-1 cistern_spider (hunt set) under its own row, pixels unchanged (the same animal under a new row, as the Drain Rat is the cellar's rat; lane b-wickstead-art 2026-10-28). Source: Ported from prototypes/hunt-sim-assets/venom_spider (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels. attack, death and corpse derived from this unit's own idle frames by tools/world-art/derive-combat.mjs (whole-pixel shifts, quarter turns, flips; no drawn death exists)."
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "70b39926-6c54-4978-9862-72789e4b0669",
+    "n_directions": 8,
+    "name": "S1 Barn Spider 8dir",
+    "view": "high top-down",
+    "style_options": {
+      "color_palette": false,
+      "detail": true,
+      "outline": true,
+      "shading": true
+    },
+    "clips": "animate_object mode v3, 6 frames, keep_first_frame false; the fall interpolates to one edit_image_pro_flash dead pose (end frame), last frame and corpse as generated",
+    "lane": "a-art-batch-1",
+    "first_frame_object": "a8e11bbc-d6c4-4cab-9d41-bd26cf6b83ee",
+    "canvas": 44,
+    "seed": 2504,
+    "style_image": "hunt/cistern_spider idle south",
+    "dead_pose_job": "04853c82-09d3-4126-897c-ca7ee5b3cf7d",
+    "cost": 30,
+    "west_fall": "east mirrored",
+    "request": "fat barn orb-weaver: round russet abdomen with a pale cross, banded legs, web wisps and hay"
+  },
+  "notes": "Ported from PixelLab object 70b39926-6c54-4978-9862-72789e4b0669 (style 1, 44 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the shadow, earth, bronze, bone, torch, blood ramps before the lock (lock.mjs snapTo): its hue is its identity."
 }

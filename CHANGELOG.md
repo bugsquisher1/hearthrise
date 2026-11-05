@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+- A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.
+
 ## v0.2.91 — 2026-11-04 (The Smith Tempers)
 
 - A blow that misses your hero now strikes a small spark off it, on the side the blow came from, instead of floating "miss" over its head. Your own missed swings leave a small scuff on the monster. The combat log says who missed whom in words, and "Missed blows and immune hits" in Settings turns the sparks off.

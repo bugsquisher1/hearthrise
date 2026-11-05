@@ -185,6 +185,9 @@ export const REASONS = Object.freeze({
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
     { cond: 'itemsShort', words: "'Needs ' + whole(n.need) + ' ' + n.name + '. You hold '", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },
   ],
+  'src/shell/windows/hallmark-pane.js': [
+    { cond: '!!why || sc.pending || !!sc.hallmark', words: "text(li.querySelector('.hw-hallmark-need'), why ||", where: 'Hallmark: the line beside it says the first thing missing (the Crafting level, the day\'s limit, the gem and where to get one, the gold short); while the confirm is open it asks in the window' },
+  ],
   'src/shell/windows/market/browse.js': [
     { cond: '!plan.qty', words: "'You need ' + goldWords(-left) + ' more.'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },
     { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Forget it stay on; the window\'s line says why' },

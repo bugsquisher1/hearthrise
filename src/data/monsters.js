@@ -137,8 +137,8 @@ export const MONSTERS = {
     drops: [{ id: 'goblin_ear', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'bronze_sword', ch: .03 }, { id: 'goblin_totem', ch: .01 }] },
   kobold: { name: 'Kobold', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 12, atk: 3, def: 1, xp: 10, gp: [2, 6], speed: 3200,
-    /* its Banded Signet left (src/data/jewelry.js: the ring is crafted now, tests/jewelry-sources.mjs) */
-    drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 }] },
+    drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 },
+      { id: 'copper_ore', ch: .18 }] },
   witchs_apprentice: { name: "Witch's Apprentice", icon: '🧹', tier: 1, cls: 'human', family: 'Human',
     hp: 10, atk: 5, def: 0, xp: 12, gp: [2, 7],
     drops: [{ id: 'magic_essence', ch: .3 }, { id: 'rune_frag', ch: .1 }, { id: 'normal_log', ch: .25 },
@@ -847,9 +847,7 @@ export const MONSTERS = {
        champion with his own (larger) art, the next batch */
     drops: [{ id: 'boar_bristle', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'orchard_boar_tusk', ch: .08, band: 'uncommon' }] },
   turncoat: { name: 'Turncoat', icon: '🗡️', tier: 2, level: 16, cls: 'human', family: 'Human',
-    /* a deserter from a free company, robbing the Thicket road; glass that hits hard. The jeweler's carrier: the Road Garnet he robbed
-       replaced his Banded Signet (src/data/jewelry.js, the designer's spec: about one per 11 h at 45 kills an hour). The Torc and the
-       Studs leave with the next jewelry batch (tests/jewelry-sources.mjs PENDING). */
+    /* a deserter robbing the Thicket road; glass that hits hard. The jeweler's carrier: his Road Garnet (jewelry.js) replaced the crafted Signet. */
     hp: 34, atk: 10, def: 3, xp: 240, gp: [8, 18], speed: 3400,
     drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'torn_company_badge', ch: .1, band: 'uncommon' },
       { id: 'iron_platebody', ch: .0345, band: 'scarce' }, { id: 'studded_body', ch: .0345, band: 'scarce' }, { id: 'adept_body', ch: .0345, band: 'scarce' }, { id: 'bramble_blade', ch: .0345, band: 'scarce' },

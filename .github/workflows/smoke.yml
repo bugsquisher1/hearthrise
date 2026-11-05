@@ -4952,6 +4952,20 @@ jobs:
           node tests/temper-buy.mjs
           node tools/mutant-gate.mjs node tests/temper-buy.mjs --mutate
 
+      # CRAFTED JEWELRY (Tyler 2026-11-05, the sample): the designer's odds and the dice, a bench watched and one with the browser closed on the
+      # server's settle (no gold moves on a roll), jewelry crafted not dropped, and the Hallmark step's generated catalogue. The verb's own
+      # proof is its migration's §4 (db-replay); the perks' fight is tests/hunt-core/jewelry-play.mjs in the hunt-core step.
+      - name: Crafted jewelry - the roll, the sources, the Hallmark catalogue
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-jewelry.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-jewelry.mjs --selftest
+          node tests/jewelry-rolls.mjs
+          node tools/mutant-gate.mjs node tests/jewelry-rolls.mjs --mutate
+          node tests/jewelry-sources.mjs
+          node tools/mutant-gate.mjs node tests/jewelry-sources.mjs --mutate
+          node tools/world-art/jewelry-icons.mjs --check
+
       # THE GOLD SINKS (Tyler 2026-11-04): every price is a row generated into hr_sink_rules; the shared seams (the title on a chat row and
       # the town label, the hero's colors, the town read's extras) reach a stranger, a later lane's body survives a second apply. Hearth powders,
       # rounds, the Crier and Gold Given: no XP, the climb per account, a refused show charges nothing; TS-NO-METER is the standing guard that

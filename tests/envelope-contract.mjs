@@ -165,6 +165,10 @@ function contract(R, cs, body, tl) {
   const tp = R.TP.temperOf(cs);
   need('temper', Array.isArray(tp) && tp.length === 4 && tp.every((l) => l.rung === 0 && l.max === 5 && typeof l.offer === 'string' && Number.isInteger(l.gold) && l.gold > 0),
     'temperOf yields ' + JSON.stringify(tp) + ' from ' + JSON.stringify(body.temper).slice(0, 160));
+  // the Hallmark step (2027-03-14-jewelry-hallmark.sql): the offers for the Fine pieces held (none here), the account's count and the day's limit
+  const hm = R.JW.hallmarkOf(cs);
+  need('hallmark', !!hm && Array.isArray(hm.offers) && hm.offers.length === 0 && hm.today === 0 && hm.perDay >= 1,
+    'hallmarkOf yields ' + JSON.stringify(hm) + ' from ' + JSON.stringify(body.hallmark));
   // the ACCOUNT storage's space (2026-11-28-storage-chests.sql): used / cap and the next chest, the Storage window's line
   const dp = R.IS.depotOf(cs);
   need('depot', !!dp && dp.cap >= 1 && dp.used >= 0 && (dp.next === null || (dp.next.stacks >= 1 && dp.next.name.length > 0)),
@@ -263,7 +267,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'hallmark']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -321,6 +325,7 @@ async function readers(root) {
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
+    JW: await import(u('src/session/jewelry-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')),
   };
@@ -438,6 +443,7 @@ const DB_MUTANTS = [
   ['skill_inputs', 'public.hr_skill_inputs_view(uuid,integer)', "jsonb_build_object('from', jsonb_build_array('bag', 'storage'))", "jsonb_build_object('sources', jsonb_build_array('bag', 'storage'))"],
   ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
   ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0),", "'level', coalesce(pp.value, 0),"],
+  ['hallmark', 'public.hr_hallmark_view(uuid,integer)', "'per_day', v_limit);", "'perday', v_limit);"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

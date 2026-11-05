@@ -1,16 +1,16 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.90';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.90';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.90';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.90';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.90';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.90';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.90';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.90';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.90';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.90';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.90';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.91';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.91';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.91';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.91';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.91';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.91';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.91';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.91';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.91';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.91';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.91';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -130,8 +130,9 @@ export const ITEMS={
   razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15,reqSkill:'level',reqLv:30},
   hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
   ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11,reqSkill:'level',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2,reqSkill:'level',reqLv:30},
-  /* v 90 -> 35, its ladder value (gear-tiers.js leather boots, tier 1): at 90 it outsold the tier-2 Studded Boots (75). */
-  leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},
+  /* defB 2 -> 1, its ladder value: at 2 the tier-2 Studded Boots stopped no more damage (balance ruling 2026-10-25 §9; tests/hunt-core/first-week-bands.mjs armor-rungs).
+     v 90 -> 35, its ladder value (gear-tiers.js leather boots, tier 1): at 90 it outsold the tier-2 Studded Boots (75). */
+  leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},
   /* THE SEVEN LAST UNGATED EQUIPPABLES. The 2026-09-12 sweep closed the 34 rows that
      carried a `tier`; these seven carry none, so neither reader had anything to
      gate on — `gearWieldReq` returned null AND `hr_items.req_lv` was NULL, which

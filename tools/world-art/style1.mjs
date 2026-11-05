@@ -4,7 +4,8 @@
 // Style 1 is the PixelLab "classic MMORPG readability" kit (docs/design/PIXELLAB_STYLE1_KIT.md).
 // A world asset is style 1 when its sidecar says `style: 's1'` AND names where it came from:
 // a PixelLab object, image, map or tileset id (tools/world-art/port-pixellab.mjs), or the hunt
-// sim's style-1 assets (tools/world-art/port-hunt-sim.mjs). Everything else is old art.
+// sim's style-1 assets (tools/world-art/port-hunt-sim.mjs), or for a combat effect only, a script
+// here that draws it by rule (`drawn`). Everything else is old art.
 //
 //   [s1-retired]  a retired pre-style-1 set (hero, cellar, town, home) is loaded, or its art or
 //                 atlas is still in the tree
@@ -29,12 +30,15 @@ export const RETIRED_SETS = Object.freeze(['hero', 'cellar', 'town', 'home']);
 const CODE_SPRITES = Object.freeze(['loot_bag', 'signpost']);
 
 /** Is this sidecar style 1, with a style-1 source? */
-function isStyle1(sc) {
+function isStyle1(sc, scripts = []) {
   if (!sc || sc.style !== 's1') return false;
   const pl = sc.pixellab || {};
   const fromLab = !!(pl.object || pl.image || pl.map || pl.tileset || pl.id);
   const fromSim = typeof sc.notes === 'string' && sc.notes.includes('prototypes/hunt-sim-assets');
-  return fromLab || fromSim;
+  /* A combat effect drawn by rule (`drawn`: a script here that exists, tools/world-art/glance-spark.mjs): hard
+     pixels in palette colours. An effect only: anything that stands in the world comes from the kit. */
+  const fromScript = sc.class === 'vfx' && typeof sc.drawn === 'string' && scripts.includes(sc.drawn);
+  return fromLab || fromSim || fromScript;
 }
 
 /**
@@ -89,9 +93,10 @@ export function codeSets(src) {
 
 /**
  * @param {{atlasSets: string[], artSets: string[], builtSets: string[], maskSets?: {[set: string]: string},
- *          sidecars: {[set: string]: object[]}, refs: object[], code?: {file: string, sets: string[]}[]}} d
+ *          sidecars: {[set: string]: object[]}, refs: object[], code?: {file: string, sets: string[]}[], scripts?: string[]}} d
  *   atlasSets: ATLAS_SETS (what the renderer loads); artSets: art/world/* dirs; builtSets: assets/world atlas names;
- *   maskSets: MASK_SETS (mask set -> the set it masks)
+ *   maskSets: MASK_SETS (mask set -> the set it masks);
+ *   scripts: the tools/world-art/* files in the tree, the only thing a sidecar's `drawn` may name
  * @returns {{rule: string, detail: string}[]}
  */
 export function style1Findings(d) {
@@ -109,7 +114,7 @@ export function style1Findings(d) {
   const sprites = new Map(), terrains = new Map();
   for (const set of d.atlasSets) {
     for (const sc of d.sidecars[set] || []) {
-      if (!isStyle1(sc)) bad('s1-source', set + '/' + sc.id + ' is not style-1 art (no `style: "s1"` with a PixelLab or hunt-sim source)');
+      if (!isStyle1(sc, d.scripts)) bad('s1-source', set + '/' + sc.id + ' is not style-1 art (no `style: "s1"` with a PixelLab or hunt-sim source, or an effect\'s drawing script)');
       (sc.class === 'terrain' ? terrains : sprites).set(sc.id, set);
     }
   }

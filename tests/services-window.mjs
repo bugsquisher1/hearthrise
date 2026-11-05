@@ -25,6 +25,9 @@
 //         controls stay off and the window says the server has not priced them
 //   SV-6  THE ANSWER STAYS: the tab's words ("Blessing II is yours.") survive the
 //         Shop's next repaint (the Shop writes only its own line)
+//   SV-7  TEMPERING AT THE SERVER'S PRICE: two rows for what this hero wears, in the server's numbers; a press only asks, at
+//         that price, and the question is on screen; confirming sends ONE unlock_buy naming the offer and NO number; a row
+//         at the top reads Full, a row short of gold says how short, gear with no ladder says so, and all of them are off
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -42,6 +45,10 @@ const SECTIONS = {
     { tier: 3, permille: 950, price: 220, held: false }] },
 };
 const RPCS = ['hr_stamina_refill', 'hr_blessing_buy'];
+/* Tempering, as hr_temper_view states it: Blows rung 1 at a price the fixture's 5,200 gp can pay, Armor at the top, and the next tier's ladders never begun. */
+const TEMPER = { equipment: { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' }, temper: [
+  { track: 'armor', tier: 2, rung: 5, max: 5, offer: null, gold: null }, { track: 'armor', tier: 3, rung: 0, max: 5, offer: 'temper.armor.3.1', gold: 7000 },
+  { track: 'blows', tier: 2, rung: 1, max: 5, offer: 'temper.blows.2.2', gold: 4000 }, { track: 'blows', tier: 3, rung: 0, max: 5, offer: 'temper.blows.3.1', gold: 7000 }] };
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 async function stub(page, s) {
@@ -133,6 +140,59 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    { // SV-7
+      const { ctx, page, s, opened } = await open(Object.assign(clone(SECTIONS), clone(TEMPER)));
+      const P = '[data-hs-win="shop"] [data-pane="services"] ';
+      if (!opened) fails.push('SV-7 the Services tab did not open');
+      else {
+        const blows = await txt(page, '.hw-temper [data-track="blows"]'), armor = await txt(page, '.hw-temper [data-track="armor"]');
+        if (!/Iron Sword/.test(blows || '') || !/Rung 1 of 5/.test(blows || '') || !/1% harder/.test(blows || '') || !/Next rung 2%/.test(blows || '')) fails.push('SV-7 the Blows row reads ' + JSON.stringify(blows));
+        if (!/Rung 5 of 5/.test(armor || '') || !/5% softer/.test(armor || '') || !/Full/.test(armor || '')) fails.push('SV-7 the Armor row reads ' + JSON.stringify(armor));
+        if (!(await off(page, '.hw-temper [data-track="armor"] button'))) fails.push('SV-7 a full ladder can still be pressed');
+        const before = s.calls.length;
+        const sales = () => s.calls.slice(before).filter((c) => c.name === 'hr-accrue' && JSON.stringify(c.body).includes('unlock_buy'));
+        await press(page, P + '.hw-temper [data-track="blows"] button', 'SV-7');
+        await page.waitForTimeout(150);
+        if (sales().length) fails.push('SV-7 Temper sent a sale before the confirmation');
+        if (!/rung 2 for 4,000/.test(await txt(page, '.hw-temper-ask .hw-confirm-q') || '')) fails.push('SV-7 the question does not state the rung and price: ' + await txt(page, '.hw-temper-ask .hw-confirm-q'));
+        const seen = await page.evaluate((q) => { const e = document.querySelector(q); const r = e.getBoundingClientRect(); const w = e.closest('[data-hs-win]').getBoundingClientRect(); return r.height > 0 && r.top >= w.top && r.bottom <= w.bottom; }, P + '.hw-temper-ask');
+        if (!seen) fails.push('SV-7 the question opened out of sight: the press looks dead');
+        await press(page, P + '[data-hs-act="temper-yes"]', 'SV-7');
+        await page.waitForTimeout(800);
+        const buys = sales();
+        if (buys.length !== 1) fails.push('SV-7 the confirm sent ' + buys.length + ' unlock_buy: ' + JSON.stringify(s.calls.slice(before).map((c) => c.name)));
+        else {
+          const raw = JSON.stringify(buys[0].body);
+          if (!raw.includes('temper.blows.2.2')) fails.push('SV-7 the sale names another offer: ' + raw);
+          if (/4000|"gold"|"price"/.test(raw)) fails.push('SV-7 a number crossed in the sale: ' + raw);
+        }
+        /* the sheet says what the rungs do for what is worn now, from the same server rows */
+        await page.keyboard.press('c');
+        const sheet = await wait(page, () => /blows \+1%, damage taken -5%/.test((document.querySelector('[data-combat="temper"]') || {}).textContent || ''), null, 3000);
+        if (!sheet) fails.push('SV-7 the sheet reads ' + JSON.stringify(await page.evaluate(() => (document.querySelector('[data-combat="temper"]') || {}).textContent || null)));
+      }
+      await ctx.close();
+    }
+    { // SV-7: short of gold says how short, and the button is off
+      const short = clone(TEMPER);
+      short.temper = short.temper.map((l) => (l.track === 'blows' && l.tier === 2 ? { ...l, rung: 3, offer: 'temper.blows.2.4', gold: 16000 } : l));
+      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), short));
+      if (!opened) fails.push('SV-7 the Services tab did not open short of gold');
+      else {
+        const b = await txt(page, '.hw-temper [data-track="blows"]');
+        if (!/You need 10,800 gp more\./.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 short of gold reads ' + JSON.stringify(b));
+      }
+      await ctx.close();
+    }
+    { // SV-7: gear with no ladder says so, and nothing is on
+      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), { equipment: { weapon: 'bronze_sword', body: 'bronze_platebody' }, temper: clone(TEMPER.temper) }));
+      if (!opened) fails.push('SV-7 the Services tab did not open on Bronze');
+      else {
+        const b = await txt(page, '.hw-temper [data-track="blows"]');
+        if (!/can't be tempered\. Gear worn from Level 15 can\./.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Bronze Sword reads ' + JSON.stringify(b));
+      }
+      await ctx.close();
+    }
     { // SV-5
       const { ctx, page, opened } = await open({});
       if (!opened) fails.push('SV-5 the Services tab did not open without the sections');
@@ -140,6 +200,7 @@ async function checks(overrides) {
         if (!(await off(page, '[data-hs-act="stam-ask"]'))) fails.push('SV-5 Buy stamina is on with no quote');
         if (!/not priced/.test(await txt(page, '.hw-stam-quote') || '')) fails.push('SV-5 the stamina line does not say it is unpriced');
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-bless li').length) !== 0) fails.push('SV-5 blessing rows were invented');
+        if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-temper li').length) !== 0) fails.push('SV-5 Tempering rows were invented');
       }
       await ctx.close();
     }
@@ -151,6 +212,13 @@ async function checks(overrides) {
 }
 
 const MUTANTS = [
+  ['Temper sends without a confirmation (SV-7)', 'src/shell/windows/temper-pane.js', "sc.ask = t.getAttribute('data-track');\n    sc.msg = '';", "sc.ask = t.getAttribute('data-track');\n    return actTemperPane(ctx, 'temper-yes', t, sc, repaint);\n    sc.msg = '';"],
+  ['the sale carries a price (SV-7)', 'src/shell/windows/temper-pane.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('unlock_buy', { offer, gold: 8000 })"],
+  ['the sheet forgets the rungs (SV-7)', 'src/session/temper-sections.js', 'return r && (r.blows.nowPm > 0 || r.armor.nowPm > 0) ?', 'return r && false ?'],
+  ['short of gold stays on (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short ||", "prop(btn, 'disabled', !offer ||"],
+  ['the top of a ladder can be pressed (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short", "prop(btn, 'disabled', !!short"],
+  ['the question opens out of sight (SV-7)', 'src/shell/windows/temper-pane.js', "    if (cf && cf.scrollIntoView) cf.scrollIntoView({ block: 'nearest' });\n", ''],
+  ['the reader invents a ladder (SV-5)', 'src/session/temper-sections.js', "  if (!Array.isArray(s)) return null;\n", "  if (!Array.isArray(s)) return [{ track: 'blows', tier: 2, rung: 0, max: 5, offer: 'temper.blows.2.1', gold: 1 }];\n"],
   ['the confirm sends a price of its own', 'src/shell/windows/services.js', 'cs.buyStamina(q.price)', 'cs.buyStamina(q.price - 1)'],
   ['Buy sends without a confirmation', 'src/shell/windows/services.js',
     "if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }",

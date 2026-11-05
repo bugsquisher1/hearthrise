@@ -4,6 +4,7 @@
 //   node tools/balance-sim/sim.mjs --plan risk --workers 4 --out tools/balance-sim/out/risk
 //   node tools/balance-sim/sim.mjs --plan riskclimb --workers 4 --out tools/balance-sim/out/riskclimb
 //   node tools/balance-sim/risk-table.mjs [--in tools/balance-sim/out/risk] [--climb tools/balance-sim/out/riskclimb] [--write]
+//   node tools/balance-sim/risk-table.mjs --rungs   every armor rung on its own ground, exact (balance ruling §9)
 //   node tools/balance-sim/sim.mjs --plan armor --workers 4 --out tools/balance-sim/out/armorA
 //   node tools/balance-sim/risk-table.mjs --compare tools/balance-sim/out/armorA,tools/balance-sim/out/armorB   the same cells in two trees, side by side
 //
@@ -17,6 +18,13 @@ import { fileURLToPath } from 'node:url';
 import { round } from './stats.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+if (process.argv.includes('--rungs')) {
+  const { loadCellRunner } = await import('./cell.mjs');
+  const R = await loadCellRunner(resolve(HERE, '..', '..'));
+  console.log('| Weight | Rung | Ground | Body | Legs | Helm | Boots | Gloves | Belt | Mean of six | Whole set |\n|' + '---|'.repeat(11));
+  for (const r of R.armorRungs()) console.log('| ' + r.line + ' | ' + r.from + ' to ' + r.to + ' | ' + r.ground + ' | ' + ['body', 'pants', 'helmet', 'boots', 'gloves', 'belt'].map((s) => r.pieces[s]).join(' | ') + ' | ' + r.mean + ' | ' + r.set + ' |');
+  process.exit(0);
+}
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : d; };
 const IN = resolve(arg('in', join(HERE, 'out', 'risk')));
 const SHORT = { mill_cellar: 'Cellar', meadowbrook_thicket: 'Thicket', wickstead: 'Wickstead', millrace_sewer: 'Sewer', mosslight_glade: 'Glade', coppercap_warrens: 'Warrens' };

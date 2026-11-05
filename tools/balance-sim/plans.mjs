@@ -425,6 +425,59 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'gu1104') {
+    /* THE GEAR UPGRADE'S EVIDENCE (Tyler 2026-11-04: "some sort of upgrade system that slightly increases gear power"; lane/c-gear-upgrade). C: what a lone hero, a pair and a four earn to hour 100, spending
+       nothing, the piles it must bite on. The rest, in the sim only (worker.mjs whatIf): the Level's kit with its weapon's fighting numbers or its armor value at +10% and +20%, against the same hero one tier
+       behind (gear.mjs tierOffset), on the same dice, so the most an upgrade gives reads against the step it must not pass. Armor adds whole points to the body piece (mitigation.js floors each piece). */
+    const life = { kind: 'career', startLevel: 1, targetLevel: 200, maxHours: 100, chunkH: 1, chunkByLevel: [[1, 0.25], [8, 0.5], [12, 1]], seed: 0 };
+    for (const s of ['tank', 'hammer', 'mage']) out.push({ ...life, id: 'C:life:' + s, party: [s] });
+    out.push({ ...life, id: 'C:duo', party: PARTIES.duo });
+    out.push({ ...life, id: 'C:four', party: PARTIES.four, maxHours: 50 });
+    const WEAPONS = { iron_sword: { atkB: 7, strB: 6 }, iron_warhammer: { atkB: 7, strB: 16 }, longbow: { atkB: 9, strB: 6, rangeAtkB: 9, rangeStrB: 6 }, oak_wand: { atkB: 7, strB: 8, magicAtkB: 7, magicStrB: 8 }, oak_staff: { atkB: 6, strB: 9, magicAtkB: 6, magicStrB: 9 },
+      steel_sword: { atkB: 12, strB: 10 }, steel_warhammer: { atkB: 9, strB: 23 }, willow_longbow: { atkB: 14, strB: 10, rangeAtkB: 14, rangeStrB: 10 }, willow_wand: { atkB: 12, strB: 13, magicAtkB: 12, magicStrB: 13 }, willow_staff: { atkB: 10, strB: 14, magicAtkB: 10, magicStrB: 14 } };
+    const weaponsAt = (m) => Object.fromEntries(Object.entries(WEAPONS).map(([id, f]) => [id, Object.fromEntries(Object.entries(f).map(([k, v]) => [k, Math.round(v * m * 100) / 100]))]));
+    const ARMOR = { 10: { iron_platebody: 16, studded_body: 9, adept_body: 5, steel_platebody: 29, boarhide_body: 16, scholar_body: 9 }, 20: { iron_platebody: 19, studded_body: 11, adept_body: 6, steel_platebody: 35, boarhide_body: 19, scholar_body: 11 } };
+    const armorAt = (pct) => Object.fromEntries(Object.entries(ARMOR[pct]).map(([id, defB]) => [id, { defB }]));
+    const VARIANTS = [['base', {}], ['W10', { whatIf: { items: weaponsAt(1.1) } }], ['W20', { whatIf: { items: weaponsAt(1.2) } }], ['A10', { whatIf: { items: armorAt(10) } }], ['A20', { whatIf: { items: armorAt(20) } }],
+      ['stepW', { gear: { tierOffset: -1, only: 'weapon' } }], ['stepA', { gear: { tierOffset: -1, only: 'armour' } }]];
+    for (const L of [24, 40]) for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const [x, o] of VARIANTS) {
+      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: L, hours: H(2), seeds: 2, x: 'P' + x, ...(o.gear ? { gear: o.gear } : {}) }), ...(o.whatIf ? { whatIf: o.whatIf } : {}) });
+    }
+    /* a bigger pull, where armor and the bill matter most, and a four on the party ground */
+    for (const s of ['tank', 'hammer', 'mage']) for (const [x, o] of VARIANTS.slice(0, 5)) {
+      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'B' + x }), ...(o.whatIf ? { whatIf: o.whatIf } : {}) });
+    }
+    for (const [x, o] of VARIANTS) {
+      out.push({ ...cellOf({ ground: 'coppercap_warrens', party: PARTIES.four, level: 40, hours: H(1), seeds: 2, x: 'Q' + x, ...(o.gear ? { gear: o.gear } : {}) }), windowMs: 120000, ...(o.whatIf ? { whatIf: o.whatIf } : {}) });
+    }
+    return out;
+  }
+  if (name === 'gu1104d') {
+    /* The second half (sim only): a hero's EVERY blow at +5% and +10%, spells and cleaves too, stood in for by the monsters' HP (a weapon's numbers never reach a spell: gu1104's W cells read 0 to +0.7% on a mage and a bow), and armor at about +5%. */
+    const DEALT = [['D5', { whatIf: { monsters: { '*': { hp: '*0.952' } } } }], ['D10', { whatIf: { monsters: { '*': { hp: '*0.909' } } } }]];
+    for (const L of [24, 40]) for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const [x, o] of DEALT) out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: L, hours: H(2), seeds: 2, x: 'P' + x }), whatIf: o.whatIf });
+    for (const s of ['tank', 'hammer', 'mage']) for (const [x, o] of DEALT) out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'B' + x }), whatIf: o.whatIf });
+    const A5 = { items: { iron_platebody: { defB: 14 }, studded_body: { defB: 8 }, steel_platebody: { defB: 25 }, boarhide_body: { defB: 14 } } };
+    for (const L of [24, 40]) for (const s of ['tank', 'hammer', 'bow']) out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: L, hours: H(2), seeds: 2, x: 'PA5' }), whatIf: A5 });
+    for (const s of ['tank', 'hammer']) out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'BA5' }), whatIf: A5 });
+    return out;
+  }
+  if (name === 'gu1105') {
+    /* TEMPERING ON ITS REAL HOOK (src/core/temper.js, on the settle; replaces gu1104's stand-ins): a whole ladder of Blows, of Armor, and both, against rung 0 and one tier behind, same dice. */
+    const FULL = { blows: { 'temper:blows:2': 5, 'temper:blows:3': 5 }, armor: { 'temper:armor:2': 5, 'temper:armor:3': 5 } };
+    const VARIANTS = [['base', {}], ['Bmax', { temper: FULL.blows }], ['Amax', { temper: FULL.armor }], ['Both', { temper: { ...FULL.blows, ...FULL.armor } }]];
+    const STEPS = [['stepW', { gear: { tierOffset: -1, only: 'weapon' } }], ['stepA', { gear: { tierOffset: -1, only: 'armour' } }]];
+    for (const [ground, L] of [['mosslight_glade', 24], ['coppercap_warrens', 38]]) for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const [x, o] of [...VARIANTS, ...STEPS]) {
+      out.push({ ...cellOf({ ground, party: [s], level: L, hours: H(2), seeds: 2, x: 'P' + x, ...(o.gear ? { gear: o.gear } : {}) }), ...(o.temper ? { temper: o.temper } : {}) });
+    }
+    for (const s of ['tank', 'hammer', 'mage']) for (const [x, o] of VARIANTS) {
+      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'B' + x }), ...(o.temper ? { temper: o.temper } : {}) });
+    }
+    for (const [x, o] of VARIANTS) {
+      out.push({ ...cellOf({ ground: 'coppercap_warrens', party: PARTIES.four, level: 40, hours: H(1), seeds: 2, x: 'Q' + x }), windowMs: 120000, ...(o.temper ? { temper: o.temper } : {}) });
+    }
+    return out;
+  }
   if (name === 'risk') {
     /* THE RISK LADDER (Tyler 2026-11-04 UTC): a harder ground pays more and hits harder, and any hero may walk in. Every open ground at its floor and 3, 6, 10, 15 and 25 Levels under, three builds:
        poor = the practice set, no armor; average = the Level's best helm, body and boots on store food; optimized = every slot of the Level's best on crafted food, eating early. Read by risk-table.mjs. */
@@ -491,6 +544,74 @@ export function buildPlan(name, axes, scale = 1) {
     /* the other two armor lines: medium (dodge) and light (ward), at a floor and pushing */
     for (const [ground, level] of [['meadowbrook_thicket', 5], ['millrace_sewer', 8], ['mosslight_glade', 16], ['mosslight_glade', 10], ['coppercap_warrens', 32], ['coppercap_warrens', 22]]) {
       for (const s of ['bow', 'mage']) out.push(cell(ground, [s], level, 'Akit', BUILDS.kit));
+    }
+    return out;
+  }
+  if (name === 'armortier') {
+    /* BALANCE RULING §9 ON THE REAL SETTLE (a meaningful armor upgrade is 3-5% less actual incoming damage): each rung on its own ground, the whole set and the body one tier behind, three weights. Same dice. */
+    for (const [ground, level] of [['wickstead', 16], ['millrace_sewer', 16], ['mosslight_glade', 16], ['mosslight_glade', 31], ['coppercap_warrens', 32]]) for (const s of ['tank', 'bow', 'mage']) {
+      for (const [x, gear] of [['Tnew', {}], ['Tset', { tierOffset: -1, only: 'armour' }], ['Tbody', { tierOffset: -1, only: 'body' }], ['Thelmet', { tierOffset: -1, only: 'helmet' }]]) {
+        out.push({ ...cellOf({ ground, party: [s], level, gear, hours: H(2), seeds: 2, x }), windowMs: 120000 });
+      }
+    }
+    return out;
+  }
+  if (name === 'firsthour') {
+    /* LEVELS 1-8, WHERE A NEW HERO CAN WALK: every first ground at Levels 1, 3, 5, 8, on the shipped bar. Every way to fight alone in the practice set, the tank in three bronze pieces, a four in the practice set. */
+    const THREE = { armourSlots: ['helmet', 'body', 'boots'] };
+    for (const ground of ['mill_cellar', 'meadowbrook_thicket', 'wickstead', 'millrace_sewer', 'mosslight_glade']) for (const level of [1, 3, 5, 8]) {
+      for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) out.push({ ...cellOf({ ground, party: [s], level, gear: { starter: true }, startBar: true, hours: H(1), seeds: 2, x: 'Fpractice' }), startBar: true, windowMs: 120000 });
+      out.push({ ...cellOf({ ground, party: ['tank'], level, gear: THREE, startBar: true, hours: H(1), seeds: 2, x: 'Fbronze' }), startBar: true, windowMs: 120000 });
+      out.push({ ...cellOf({ ground, party: PARTIES.four, level, gear: { starter: true }, startBar: true, hours: H(1), seeds: 2, x: 'Fpractice' }), startBar: true, windowMs: 120000 });
+    }
+    return out;
+  }
+  if (name === 'gladefour') {
+    /* IS THERE A STATS-ONLY ANSWER TO THE GLADE'S MIXED FOUR? Sim only: every monster's atk or the pull, at the floor, in range and pushing, a four against the lone hero who has to live with the same row. */
+    const lone = { armourSlots: ['helmet', 'body'] };
+    const row = (party, level, gear, x, extra) => ({ ...cellOf({ ground: 'mosslight_glade', party, level, gear, hours: H(1), seeds: 2, x, ...(extra && extra.density ? { density: extra.density } : {}) }), windowMs: 120000, ...(extra && extra.m > 1 ? { whatIf: { monsters: { '*': { atk: '*' + extra.m } } } } : {}) });
+    for (const m of [1, 1.05, 1.1, 1.25, 1.5, 2, 3]) {
+      for (const L of [16, 24, 13, 10, 6]) out.push(row(PARTIES.four, L, {}, 'Gatk' + m * 100, { m }));
+      out.push(row(['tank'], 16, lone, 'Gatk' + m * 100, { m }));
+    }
+    for (const d of [4, 5, 6, 8]) for (const L of [16, 24, 13, 10, 6]) out.push(row(PARTIES.four, L, {}, 'Gpull' + d, { density: d }));
+    /* the monsters' other own stats: their level (armor reads it) and their HP (the fight lasts longer, the XP doesn't move) */
+    for (const [x, fields] of [['Glevel150', { level: '*1.5' }], ['Glevel200', { level: '*2' }], ['Ghp150', { hp: '*1.5' }], ['Ghp200', { hp: '*2' }]]) {
+      for (const [party, L, gear] of [[PARTIES.four, 16, {}], [PARTIES.four, 10, {}], [PARTIES.four, 6, {}], [['tank'], 16, lone]]) {
+        out.push({ ...row(party, L, gear, x), whatIf: { monsters: { '*': fields } } });
+      }
+    }
+    return out;
+  }
+  if (name === 'bowrush') {
+    /* THE LEVEL 1 BOW (2026-11-05): a fresh hero's practice set and shipped bar on grounds far above it, kiters against the rest, deep enough to read a death; then the Glade's monsters' own speed (sim only), with the in-range floors it must not move. */
+    const fresh = { gear: { starter: true }, startBar: true };
+    const run = (ground, party, level, x, b, whatIf, seeds = 4) => ({ ...cellOf({ ground, party, level, hours: H(2), seeds, x, ...b }), windowMs: 120000, ...(whatIf ? { whatIf } : {}) });
+    for (const [ground, levels] of [['mosslight_glade', [1, 5, 10, 15]], ['coppercap_warrens', [1, 5, 10, 20]], ['millrace_sewer', [1, 5]]]) for (const level of levels) for (const s of ['bow', 'crossbow', 'mage']) out.push(run(ground, [s], level, 'B0', fresh));
+    const SPEEDS = { B3400: 3400, B3800: 3800, B4400: 4400 };
+    for (const [x, sp] of [['B0', 0], ...Object.entries(SPEEDS)]) {
+      const w = sp ? { monsters: Object.fromEntries(['glade_poacher', 'goblin_sluicer', 'brook_bear', 'rook_poacher', 'carrion_crow'].map((id) => [id, { speed: Math.max(sp, id === 'carrion_crow' ? 4400 : 0) }])) } : null;
+      for (const level of [1, 5, 10]) for (const s of ['bow', 'mage']) out.push(run('mosslight_glade', [s], level, x + 'S', fresh, w));
+      /* the floors it must not move: every way to fight at 16 and 24 in the Level's kit, the lone tank in helm and body, a full mix */
+      for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) out.push(run('mosslight_glade', [s], 16, x + 'F', {}, w, 2));
+      out.push(run('mosslight_glade', ['tank'], 16, x + 'F', { gear: { armourSlots: ['helmet', 'body'] } }, w, 2));
+      out.push(run('mosslight_glade', ['bow'], 24, x + 'F', {}, w, 2));
+      out.push(run('mosslight_glade', PARTIES.four, 16, x + 'F', {}, w, 2));
+    }
+    return out;
+  }
+  if (name === 'bowspeed') {
+    /* WHICH OF THE GLADE'S ROWS: the speed sets, smallest first (sim only), the fresh bow and mage on the rush, every in-range floor beside them. */
+    const fresh = { gear: { starter: true }, startBar: true };
+    const run = (party, level, x, b, whatIf, seeds) => ({ ...cellOf({ ground: 'mosslight_glade', party, level, hours: H(2), seeds, x, ...b }), windowMs: 120000, ...(whatIf ? { whatIf } : {}) });
+    const speeds = (poacher, rook, sluicer, bear) => ({ monsters: { glade_poacher: { speed: poacher }, rook_poacher: { speed: rook }, goblin_sluicer: { speed: sluicer }, brook_bear: { speed: bear } } });
+    const SETS = { S0: null, S1: speeds(3800, 3800, 3000, 3000), S2: speeds(3800, 3800, 3400, 3400), S3: speeds(3600, 3600, 3600, 3600), S4: speeds(3800, 3800, 3800, 3000), S5: speeds(3800, 3800, 3800, 3800) };
+    for (const [x, w] of Object.entries(SETS)) {
+      for (const level of [1, 5, 10]) out.push(run(['bow'], level, x, fresh, w, 4));
+      for (const level of [1, 5]) out.push(run(['mage'], level, x, fresh, w, 4));
+      for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) out.push(run([s], 16, x + 'F', {}, w, 2));
+      out.push(run(['tank'], 16, x + 'F', { gear: { armourSlots: ['helmet', 'body'] } }, w, 2));
+      out.push(run(PARTIES.four, 16, x + 'F', {}, w, 2));
     }
     return out;
   }

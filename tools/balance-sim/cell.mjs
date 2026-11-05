@@ -48,6 +48,8 @@ export async function loadCellRunner(root) {
   const VIT = await import(u('src/core/vitals.js') + v);
   /* every combat skill (src/data/skills.js: Inner Flame since lane/b-inner-flame), the ones a career records */
   const { COMBAT_SKILLS } = await import(u('src/data/skills.js') + v);
+  const CORE_COMBAT = await import(u('src/core/combat.js') + v);
+  const { monsterLevelOf } = await import(u('src/data/monsters.js') + v);
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const { START_BAR } = await import(u('src/data/start-kit.js'));
@@ -285,6 +287,7 @@ export async function loadCellRunner(root) {
         if (!opts.start) delete opts.start;
         if (!opts.options) delete opts.options;
         if (Number.isInteger(cell.density)) opts.density = cell.density;
+        if (cell.temper) opts.temper = cell.temper;
         /* a what-if on the ground's own row (respawnMs, partyScale ...): a copy, never the frozen table */
         if (cell.groundPatch) opts.ground = { ...ground, ...cell.groundPatch };
         const res = play.run(cell.ground, levels.length > 1 ? levels : levels[0], roles, opts);
@@ -356,7 +359,36 @@ export async function loadCellRunner(root) {
   }
   const msS = (ms) => (ms === null ? null : round(ms / 1000, 1));
 
-  return { runCell, STYLES, gear, XP, COMBAT_SKILLS };
+  /* THE ARMOR RUNGS (balance ruling 2026-10-25 §9, "3-5% less actual incoming damage, same level, enemy, other items and settings"): exact, no dice. The damage reaching HP per monster swing aimed at a hero, over a
+     ground's as-built spawn mix, through the engine's own to-hit, blow and armor functions; each piece moved one tier from a full set of the rung below, then the whole set. Rows: { line, from, to, ground, pieces { slot: % }, mean, set }. */
+  function armorRungs() {
+    const SLOTS = ['body', 'pants', 'helmet', 'boots', 'gloves', 'belt'];
+    const RUNGS = [[0, 1, ['wickstead', 'millrace_sewer', 'mosslight_glade']], [1, 2, ['mosslight_glade', 'coppercap_warrens']]];
+    const worn = (line, tier) => Object.fromEntries(SLOTS.map((s) => [s, gear.ladder[line + ':' + s][tier]]));
+    const perSwing = (kit, gid) => {
+      const mix = new Map();
+      for (const p of G.HUNT_GROUNDS[gid].pockets) for (const s of p.spawns || []) mix.set(s.monster, (mix.get(s.monster) || 0) + 1);
+      const values = MIT.armourValues(kit, ITEMS), floor = HUNT_INDEX[G.HUNT_GROUNDS[gid].hunt].band[0];
+      let sum = 0, n = 0;
+      for (const [id, k] of mix) {
+        const row = MONSTERS[id], max = CORE_COMBAT.monsterMaxHit(row), prof = MIT.mitigationOf(values, monsterLevelOf(row));
+        let blow = 0;
+        for (let b = 1; b <= max; b++) blow += MIT.mitigate(b, 1000, prof);
+        sum += k * CORE_COMBAT.monsterAccuracy(row, floor) * (1 - prof.dodgePm / 1000) * (blow / max);
+        n += k;
+      }
+      return sum / n;
+    };
+    const out = [];
+    for (const line of ['plate', 'leather', 'cloth']) for (const [lo, hi, grounds] of RUNGS) for (const gid of grounds) {
+      const base = perSwing(worn(line, lo), gid), cut = (kit) => Math.round(1000 * (1 - perSwing(kit, gid) / base)) / 10;
+      const pieces = Object.fromEntries(SLOTS.map((s) => [s, cut({ ...worn(line, lo), [s]: gear.ladder[line + ':' + s][hi] })]));
+      out.push({ line, from: lo + 1, to: hi + 1, ground: gid, pieces, mean: Math.round((10 * SLOTS.reduce((a, s) => a + pieces[s], 0)) / SLOTS.length) / 10, set: cut(worn(line, hi)) });
+    }
+    return out;
+  }
+
+  return { runCell, armorRungs, STYLES, gear, XP, COMBAT_SKILLS };
 }
 
 /* THE RULING'S DIFFICULTY BANDS (§3): a cell's band by its typical encounter minimum HP and by its deaths per

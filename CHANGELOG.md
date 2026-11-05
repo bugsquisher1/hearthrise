@@ -5,7 +5,17 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.91 — 2026-11-04 (The Smith Tempers)
+
+- A blow that misses your hero now strikes a small spark off it, on the side the blow came from, instead of floating "miss" over its head. Your own missed swings leave a small scuff on the monster. The combat log says who missed whom in words, and "Missed blows and immune hits" in Settings turns the sparks off.
+- The chat's Combat tab now shows its lines at the window's normal size, follows the newest one and names everyone in them. Its filters fold away under "Filter lines".
+**The smith tempers your gear.** On the Shop's Services tab (R), a hero wearing gear from Level 15 up can pay gold for a little more from it. Each rung of Blows makes your blows and heals land 1% harder; each rung of Armor lets 1% less damage reach you; five rungs of each. Every tier of gear has its own rungs. It can't fail, nothing wears out, and your hero keeps it through a death.
+- On a slow connection the town opens sooner. The game now waits only for the art around your hero, and the rest of the town loads behind it.
+
 ## v0.2.90 — 2026-11-04 (Armor That Answers)
+
+- Leather Boots give a little less armor, so Studded Boots are a real upgrade.
+- Drain Rats, Briarcoat Wolves and Glade Poachers carry a little more coin.
 
 **Your own party.** A third hero costs 25,000 gp, a fourth 75,000 and a fifth 250,000.
 
@@ -29,6 +39,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **No old news on your way back.** Coming back to a long hunt no longer opens on "Your hero just ate".
 **Armor works against the monster in front of you.** How much armor takes off a blow now depends on how strong the monster is, not on your Level. Weak monsters barely get through, and strong ones get through low armor more. The character sheet shows what your armor does against a monster of your Level.
+- A tab showing a hero the server no longer holds now goes to your characters screen instead of standing still.
+**A sharper world.** The picture now fits its frame exactly at every screen size and display scale, so the art no longer loses a row or column of pixels.
 
 ## v0.2.89 — 2026-11-04 (Still Here)
 
@@ -38,7 +50,6 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - The sign-in screens now link the Privacy Policy and the Terms of Service, and Create account says what pressing it means. Both pages were rewritten to say what Hearthrise really does today, including that your characters will be wiped before Steam Early Access.
 - New in Settings, under Help: "Share session recordings to help fix bugs". It is on by default. Turn it off and the game stops recording your screen at once.
 **What next is one goal.** The card now names the one thing worth doing next, with the press that does it, and More shows the rest. It tells you when your next hero is free or paid for, when more stamina is yours to buy, and which harder ground is your next step up. The Hunts list marks that ground too and opens on the harder ground you last hunted.
-- A tab showing a hero the server no longer holds now goes to your characters screen instead of standing still.
 
 ## v0.2.88 — 2026-11-04 (Simply Harder)
 

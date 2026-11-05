@@ -7,7 +7,7 @@
 // Pure and deterministic: the same pixels and palette give the same output, which is
 // what lets build.mjs --check compare a rebuild against the committed atlas.
 import { GRADE, ALPHA_CUT } from '../../src/data/world/palette.js';
-import { PALETTE } from './palette.mjs';
+import { PALETTE, RAMPS } from './palette.mjs';
 import { createImage } from './png.mjs';
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -59,6 +59,46 @@ function grade(r, g, b, sat, dk, hue = 0) {
     }
   }
   return [Math.min(255, Math.floor(r * dk)), Math.min(255, Math.floor(g * dk)), Math.min(255, Math.floor(b * dk))];
+}
+
+/**
+ * Snap to a chosen subset of the palette (hex colours) with lock's own metric. The plain lock
+ * measured a dun-brown rat onto the stone ramp: a warm grey is nearest a grey, and every rat came
+ * out the Giant Rat's charcoal. A creature whose hue is its identity is snapped to its own ramps
+ * first and declared `material: native`, which the lock then leaves alone.
+ */
+export function snapTo(img, colours) {
+  const rgb = colours.map(hexRgb), labs = rgb.map(([r, g, b]) => lab(r, g, b));
+  const out = createImage(img.width, img.height);
+  for (let i = 0; i < img.data.length; i += 4) {
+    if (img.data[i + 3] < ALPHA_CUT) continue;
+    const [L, A, B] = lab(img.data[i], img.data[i + 1], img.data[i + 2]);
+    let best = 0, bestD = Infinity;
+    labs.forEach((p, k) => { const d = (L - p[0]) ** 2 * 1.3 + (A - p[1]) ** 2 + (B - p[2]) ** 2; if (d < bestD) { bestD = d; best = k; } });
+    out.data[i] = rgb[best][0]; out.data[i + 1] = rgb[best][1]; out.data[i + 2] = rgb[best][2]; out.data[i + 3] = 255;
+  }
+  return out;
+}
+
+/**
+ * One value step up its own ramp, `steps` times, for every body pixel of an on-palette image (ART_DIRECTION section 4: a
+ * body on a dark floor lifts up its ramp, never to another hue). The silhouette's edge, the shadow ramp and the accents
+ * (a Drain Rat's orange teeth stay orange) keep their value.
+ */
+const UNLIFTED = Object.freeze(['shadow', 'torch', 'blood', 'frost', 'venom', 'gold']);
+export function liftBody(img, steps) {
+  const at = {};
+  for (const [name, ramp] of Object.entries(RAMPS)) ramp.forEach((c, k) => { at[c] = UNLIFTED.includes(name) ? c : ramp[Math.min(ramp.length - 1, k + steps)]; });
+  const out = createImage(img.width, img.height);
+  const on = (x, y) => x >= 0 && y >= 0 && x < img.width && y < img.height && img.data[(y * img.width + x) * 4 + 3] >= ALPHA_CUT;
+  for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
+    if (!on(x, y)) continue;
+    const i = (y * img.width + x) * 4;
+    const hex = '#' + [0, 1, 2].map((k) => img.data[i + k].toString(16).padStart(2, '0')).join('');
+    const c = on(x - 1, y) && on(x + 1, y) && on(x, y - 1) && on(x, y + 1) ? hexRgb(at[hex]) : [img.data[i], img.data[i + 1], img.data[i + 2]];
+    out.data[i] = c[0]; out.data[i + 1] = c[1]; out.data[i + 2] = c[2]; out.data[i + 3] = 255;
+  }
+  return out;
 }
 
 /** Grade by material class and snap to the palette. Returns a new image. */

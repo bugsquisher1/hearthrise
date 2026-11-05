@@ -13,7 +13,7 @@
 //                                    known, so nothing records: src/net/observability.js)
 //   setReplayWanted(heroes, on, now) the press: one pick, newer than any held, into every hero
 // ════════════════════════════════════════════════════════════════════════
-import { REPLAY } from '../data/privacy.js?v=0.2.91';
+import { REPLAY } from '../data/privacy.js?v=0.2.92';
 
 const pickOf = (cs) => {
   const p = cs && cs.record && cs.record.residue ? cs.record.residue[REPLAY.field] : null;

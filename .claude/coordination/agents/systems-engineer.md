@@ -4516,3 +4516,16 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *A coin roll's low end is the cheap lever.* The generated kill bound reads only the top roll, so raising the low end moves the mean with no catalogue apply. Check with `gen-hunt-sessions --check`.
 3. *A scratch skip is not a tick.* A ten-minute `world.skip` pays coin only at the window's end, and a store use reads the purse mid-window; one-minute steps are closer. The real gold-out on a fresh hero is the 300 g gold floor, and the sim has no purse at all: only the page shows it.
 7. *An escaped mutant is either a gap or dead code; read which.* "An answer hides why Save is off" escaped because no rule held the line with an answer showing: rule added. "A refused save loses the hero" escaped because the argument it removed did nothing: the argument went, not the rule.
+## 2026-11-05 · lane/c-armor-tiers (the poacher rows, and the map the fixture plays)
+1. *When the page disagrees with the sim, stop and find the difference before believing either.* The sim said bill +63%; the page said +9%. Four hypotheses died (settle window, options, kill mix, dice) before the two grid builders turned up. The sim's map has object footprints the server's does not.
+2. *`opts.monsters` in the fixture does not reach a monster's speed*: pull-cycle imports the rows itself, so identical arms read as "no effect". Six identical lines is a broken arm, not a result. Plant the row in a tree copy.
+3. *Check a single row before calling a pair right.* The Rook moved everything on the fixture; the Glade Poacher moved nothing on either map.
+4. *A flat to-hit point is worth what the chance already is.* A guard point at a 9% chance to land is 22% of it. Rung bars in percent cannot be met by integer points there.
+## 2026-11-05 · lane/c-armor-tiers (the sim plays the server's map)
+1. *One builder, and test what the run played, not a helper.* The check reads the grid the fixture's `run` answers, so a bypass inside `run` goes red too.
+2. *A number read off a wrong map is not a bar.* "3 deaths in a seed's hour" was a reading; the rule is "the unready hero dies". Say which is which when it moves.
+## 2026-11-05 · lane/a-kiter-resets (the holder's walk stays in its pack area)
+1. *A filter on where a walk ends is not a filter on the walk.* Every retreat tile was inside the area and the A* to it was not: a blocked re-plan round the pack stepped one tile out, and that one tile healed the whole pack. Put the rule where every plan and step already asks (leashAllows), not on the caller.
+2. *Re-measure a bug on the server's map before sizing it.* "XP down to 44%" (821 resets an hour, L60 mage) was the fixture's old map; on the engine's grid the same cell loses 5-6%. The fix cures both, and the report says which number is real.
+3. *The same dice answer "normal play unchanged".* 42 of 58 cells digit for digit: every default pull at the Glade and the Warrens, every melee cell, the shield four. Only kiters at big pulls move.
+4. *A red on your branch may not be yours: run it on the tree without your change before touching anything.* temper-play's blows-pay went red the moment the server's map met v0.2.91, same digits with and without this fix. It read a coin on a saturated cell (the mage out-clears the respawn), so the guard moved to where only the hero bounds it, with both mutants still caught.

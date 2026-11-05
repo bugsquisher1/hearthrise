@@ -6,7 +6,7 @@
 //
 // The hunt renders a kill as the clip `death` and then the held `corpse` (src/world/choreo.js), a
 // swing as `attack`. A monster ported with only an idle rotation and a walk (the Mill Cellar's three,
-// the Sewer's six) has none of them, so a kill left whatever the renderer fell back to. These
+// four of the Sewer's six) has none of them, so a kill left whatever the renderer fell back to. These
 // units have no drawn death, and nothing is borrowed from another creature: every frame here is the
 // unit's own shipped idle pixels moved by whole pixels, turned by a quarter, flipped or squashed.
 // Nothing is scaled up or smoothed, so the palette and the integer grid are untouched.
@@ -34,9 +34,7 @@ import { isMain } from '../../tests/_is-main.mjs';
 /* sprite id → the set that holds it and how its body falls. Every id is a monster of a live hunting ground. */
 export const UNITS = Object.freeze({
   rat: { set: 'hunt', method: 'flip' },
-  drain_rat: { set: 'hunt', method: 'flip' },
   slime: { set: 'hunt', method: 'squash' },
-  sump_slime: { set: 'hunt', method: 'squash' },
   cistern_spider: { set: 'hunt', method: 'flip' },
   culvert_bat: { set: 'hunt', method: 'flip' },
   kobold_tosher: { set: 'hunt', method: 'fall' },

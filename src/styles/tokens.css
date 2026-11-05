@@ -741,9 +741,9 @@ body[data-theme="hearthlight"] {
   --world-float-miss:    #a9a39a;
   --world-float-hurt:    #ff6a55;
   /* the live hunt (src/hunt-view/scene.js): float types (FX-01), HP bars by how
-     full (VW-07) with the hero's mana line, the bleed badge (VW-08), and the two
-     unit variants: the hit flash and the corpse ramp (VW-05). Palette colours
-     (art/world/palette.json), so a flashed or fallen unit never leaves it. */
+     full (VW-07) with the hero's mana line, the bleed badge (VW-08), and the
+     corpse ramp (VW-05). Palette colours
+     (art/world/palette.json), so a fallen unit never leaves it. */
   --world-float-heal:    #7ccf4a;
   --world-float-xp:      #e8c547;
   --world-float-supply:  #a8e4ff;
@@ -755,7 +755,6 @@ body[data-theme="hearthlight"] {
   --world-bar-mana:      #4fa8e8;
   --world-bleed:         #8e1f1f;
   --world-bleed-ink:     #e6dcbc;
-  --world-flash:         #e6dcbc;
   --world-corpse-0:      #17141a;
   --world-corpse-1:      #231d1f;
   --world-corpse-2:      #3a3a3e;

@@ -143,8 +143,9 @@ cases['risk-ladder'] = (R) => {
   if (!(avg.storePerH > 1000 && avg.storePerH > fits.storePerH * 3)) return 'the push bills ' + avg.storePerH + ' g/h on the store against ' + fits.storePerH + ' on the ground that fits: harder monsters cost supplies, or nothing is at stake';
   if (!(avg.profitPerH < fits.profitPerH * 0.5)) return 'the push nets ' + avg.profitPerH + ' g/h against ' + fits.profitPerH + ': the waste hunt loses gold';
   /* THE BUILD DECIDES: fifteen Levels under, the practice set dies; ten under, a built hero holds, and eats far more of its own food than on the ground that fits. */
-  const [poor] = play('mosslight_glade', ['tank'], 1, { gear: STARTER }), [built] = play('mosslight_glade', ['tank'], 6, BUILT), [builtFits] = play('meadowbrook_thicket', ['tank'], 6, BUILT);
-  if (!(poor.deaths >= 3)) return 'fifteen Levels under the Glade the practice set died ' + poor.deaths + ' time(s) in an hour (typical ' + poor.encMinHpPct.p50 + '%)';
+  /* "Dies" (re-derived 2026-11-05 from the rule, with the fixture on the server's map): at least once an hour on the mean of four dice. The old "3 in one seed's hour" was a number read off the fixture's old map; here eight seeds read 2 2 2 6 4 6 0 6, so one seed is a coin. */
+  const [poor] = play('mosslight_glade', ['tank'], 1, { gear: STARTER }, { seeds: 4 }), [built] = play('mosslight_glade', ['tank'], 6, BUILT), [builtFits] = play('meadowbrook_thicket', ['tank'], 6, BUILT);
+  if (!(poor.deaths >= poor.hours)) return 'fifteen Levels under the Glade the practice set died ' + poor.deaths + ' time(s) in ' + poor.hours + ' h (typical ' + poor.encMinHpPct.p50 + '%)';
   if (built.deaths) return 'ten Levels under the Glade a built hero died ' + built.deaths + ' time(s): the build no longer changes the outcome';
   if (!(built.eatsPerH.own >= 20 && built.eatsPerH.own > builtFits.eatsPerH.own * 3)) return 'a built hero ate ' + built.eatsPerH.own + ' of its own meals an hour above its level, ' + builtFits.eatsPerH.own + ' on the ground that fits';
   /* ARMOR READS WHO STRUCK, ON THE DEFAULT FOOD (2026-11-04; the hero who never touched its bar): three pieces of bronze pay at the Glade's floor and lose gold ten Levels under it; a curve on the hero's own Level paid there. BOTH PATHS. */

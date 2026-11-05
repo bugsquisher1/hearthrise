@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-glade.png",
   "size": [2048,1532],
-  "pixels": "e4540f690632a8c6f0175b08b745394bc9e329a7d9a2bcfa9a5a54c1a2b9aecd",
+  "pixels": "a77b6e464b06fed6d557dad2c645d04e1d7061eda8ae932fe411b1259f0d0931",
   "sprites": {
     "brook_bear": {
       "class": "beast",

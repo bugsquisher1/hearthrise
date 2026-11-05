@@ -424,7 +424,12 @@ async function rules(M) {
     const struck = list(landed + 40), passed = list(landed + M.S.SCENE_TIMING.recoilMs + 10);
     const a = rat(struck), b = rat(passed);
     ok('SC-15', a && b && a.x === b.x + 1 && a.y === b.y, 'the struck rat stands 1 art px east of its spot, got ' + JSON.stringify([a && [a.x, a.y], b && [b.x, b.y]]));
-    ok('SC-15', a && b && JSON.stringify({ ...a, x: 0 }) === JSON.stringify({ ...b, x: 0 }), 'a hit changes no frame, tone or alpha of the sprite: ' + JSON.stringify([a, b]));
+    /* the idle turns on the clock, hit or no hit (SC-IDLE): the struck frame is the one that clock names, and everything else stands */
+    const still = (d) => JSON.stringify({ ...d, x: 0, sx: 0, sy: 0 });
+    ok('SC-15', a && b && still(a) === still(b), 'a hit changes no tone or alpha of the sprite: ' + JSON.stringify([a, b]));
+    const u = unitOf(v.at(at(landed + 40)), 101);
+    const named = u && M.book.frame('rat', 'idle', M.book.facing('rat', 'idle', u.dir, u.diag), Math.floor(at(landed + 40) * M.book.sprite('rat').anims.idle.fps / 1000) + 101);
+    ok('SC-15', a && named && a.sx === named.sx && a.sy === named.sy, 'a hit changes no frame: the struck rat draws its idle at that instant, got ' + JSON.stringify([a && [a.sx, a.sy], named && [named.sx, named.sy]]));
     const cx = b && b.x + M.book.sprite('rat').anchor[0];
     ok('SC-15', struck.bars.some((x) => x.x === cx) && passed.bars.some((x) => x.x === cx), 'a recoil leaves the bar where it stands: ' + JSON.stringify([cx, struck.bars, passed.bars]));
   }

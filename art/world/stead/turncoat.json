@@ -163,5 +163,5 @@
       }
     }
   },
-  "notes": "Ported from PixelLab object 5d7e2ad2-24f5-4ac9-909f-e500acbf6cca (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the shadow, cloth, blood, iron, stone, earth, skin, moss, leaf, bone ramps before the lock (lock.mjs snapTo): its hue is its identity. Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still."
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab object 5d7e2ad2-24f5-4ac9-909f-e500acbf6cca (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the shadow, cloth, blood, iron, stone, earth, skin, moss, leaf, bone ramps before the lock (lock.mjs snapTo): its hue is its identity."
 }

@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-hunt.png",
   "size": [2048,1972],
-  "pixels": "ec2665c4a4f236d4935da8e76f4060e25afd0d7307f688b0a9d0d326d39580e8",
+  "pixels": "c2071d91d12141369b31daffc03953024b88ce8ca13d9df68ca83f5735637705",
   "sprites": {
     "cistern_spider": {
       "class": "vermin",

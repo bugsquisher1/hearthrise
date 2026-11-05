@@ -89,5 +89,5 @@
       "cost": 0
     }
   },
-  "notes": "Ported from PixelLab object 1c4dd534-ac8a-47de-90f3-bed71ad6a160 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. attack, death and corpse derived from this unit's own idle frames by tools/world-art/derive-combat.mjs (whole-pixel shifts, quarter turns, flips; no drawn death exists). Its idle is its own flight clip with the still as frame 0 (port-pixellab.mjs idle --flight)."
+  "notes": "Its idle is its own flight clip with the still as frame 0 (port-pixellab.mjs idle --flight). Ported from PixelLab object 1c4dd534-ac8a-47de-90f3-bed71ad6a160 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. attack, death and corpse derived from this unit's own idle frames by tools/world-art/derive-combat.mjs (whole-pixel shifts, quarter turns, flips; no drawn death exists)."
 }

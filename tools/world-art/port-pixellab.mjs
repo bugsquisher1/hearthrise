@@ -330,9 +330,10 @@ function main() {
     const meta = o.meta ? JSON.parse(readFileSync(o.meta, 'utf8')) : {};
     const was = (sc.pixellab || {}).idle || {};
     sc.pixellab = { ...(sc.pixellab || {}), idle: o.flight ? { tool: 'flight clip', cost: 0 } : { tool: 'animate_object', mode: 'v3', frame_count: 8, keep_first_frame: true, ...meta, picked: { ...was.picked, ...picked } } };
-    const line = o.flight ? ' Its idle is its own flight clip with the still as frame 0 (port-pixellab.mjs idle --flight).'
-      : ' Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still.';
-    if (!(sc.notes || '').includes(line)) sc.notes = (sc.notes || '') + line;
+    const line = o.flight ? 'Its idle is its own flight clip with the still as frame 0 (port-pixellab.mjs idle --flight).'
+      : 'Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still.';
+    /* first: derive-combat.mjs keeps its own note last, and its --check compares the sidecar whole */
+    if (!(sc.notes || '').includes(line)) sc.notes = line + ' ' + (sc.notes || '');
     writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
     console.log('  ✓ ' + o.set + '/' + o.id + ' idle ' + clips.length + ' facing(s)');
   } else if (cmd === 'wang') {

@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 1833e7e9d419ad479c38460bc4adaacb7149075cf5db87e189611f4533d2864e
+--   catalogue digest: 8acb1af9dff4f7bd9b9cd5a6e263eb8f7874612b162d1a473d757003b166831a
 --   rows: 573 items (6 untradeable) ·
 --         325 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 347 activities ·
@@ -1301,7 +1301,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','steep_emberfruit_cordial','cooking',72,null,false,null),
   ('artisan','steep_goldenroot_tea','cooking',60,null,false,null),
   ('artisan','stitch_graypelt_cloak','crafting',1,null,false,null),
-  ('artisan','stitch_houndskin_cloak','crafting',5,null,false,null),
+  ('artisan','stitch_houndskin_cloak','crafting',1,null,false,null),
   ('artisan','stitch_leather_belt','crafting',3,null,false,null),
   ('artisan','string_longbow','crafting',15,null,false,null),
   ('artisan','string_oak_crossbow','crafting',15,null,false,null),
@@ -2040,7 +2040,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '1833e7e9d419ad479c38460bc4adaacb7149075cf5db87e189611f4533d2864e', now())
+  values (true, '8acb1af9dff4f7bd9b9cd5a6e263eb8f7874612b162d1a473d757003b166831a', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2260,7 +2260,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 1833e7e9d419ad479c38460bc4adaacb7149075cf5db87e189611f4533d2864e',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 8acb1af9dff4f7bd9b9cd5a6e263eb8f7874612b162d1a473d757003b166831a',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

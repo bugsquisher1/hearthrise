@@ -324,7 +324,7 @@ const cases = {
       ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Your stamina is nearly out. 4 more hours of hunting cost 6,000 gp: press the + beside your stamina.'],
       ['no task held, past the Sewer', 27, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), tally: { held: 0, paid: 0, weight: true } }, 'Tamsin pays for kills, and in armor too: open her tally (Q) and take a task.'],
       /* THE GLADE'S RUNG: the longest stretch with nothing new to wear ends at Level 22, on a piece made from what the Glade drops */
-      ['nothing to buy: the gear', 21, { inParty: true, gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), land: null }, 'Next gear at Level 22: Houndskin Cloak (cape). Houndskin Cloak is made at Crafting 5 from Wolf Pelt ×12 and Bear Pelt ×1.'],
+      ['nothing to buy: the gear', 21, { inParty: true, gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), land: null }, 'Next gear at Level 22: Houndskin Cloak (cape). Houndskin Cloak is made in Crafting from Wolf Pelt ×12 and Bear Pelt ×1.'],
     ];
     for (const [what, lv, more, want] of walk) {
       const g = at(lv, more);

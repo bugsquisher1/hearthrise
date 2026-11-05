@@ -212,8 +212,8 @@ export const SLOT_RECIPES = {
     /* The first-hour rung (graypelt_cloak above): Crafting 1, so a hero who never crafted can stitch it the day it reaches Level 8. */
     { id: 'stitch_graypelt_cloak', name: 'Stitch Graypelt Cloak', icon: '🦸', inputs: { wolf_pelt: 6 }, output: 'graypelt_cloak', xp: 30, req: 1, ms: 3200 },
     /* THE GLADE'S RUNG (designer 2026-11-04, played: nothing new to wear by Level from 15 to 28, and What next named one cape at 0.099% a kill). A cape every way to fight wears, at Level 22, made from what the Glade
-       drops: a Bear Pelt only comes to a pull of 3 or more, so the rung asks for the one press Levels 10 to 30 turn on. Twelve pelts' 420 and the Bear's 260 of book stand over the cloak's 310: never a gold faucet. */
-    { id: 'stitch_houndskin_cloak', name: 'Stitch Houndskin Cloak', icon: '🦸', inputs: { wolf_pelt: 12, bear_pelt: 1 }, output: 'houndskin_cloak', xp: 60, req: 5, ms: 3400 },
+       drops: a Bear Pelt only comes to a pull of 3 or more, so the rung asks for the one press Levels 10 to 30 turn on, and Crafting 1, as the Graypelt does: at the bench's real XP, Crafting 5 was 35 more cloaks with no decision in them. Twelve pelts' 420 and the Bear's 260 of book stand over the cloak's 310: never a gold faucet. */
+    { id: 'stitch_houndskin_cloak', name: 'Stitch Houndskin Cloak', icon: '🦸', inputs: { wolf_pelt: 12, bear_pelt: 1 }, output: 'houndskin_cloak', xp: 60, req: 1, ms: 3400 },
   ],
 };
 

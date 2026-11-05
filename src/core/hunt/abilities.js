@@ -39,21 +39,22 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.90';
-import { resolveLine, storeLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.90';
-import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.90';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.90';
-import { cheb, dist2, los } from './grid.js?v=0.2.90';
-import { makeEvent } from './events.js?v=0.2.90';
-import { landHit } from './damage.js?v=0.2.90';
-import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.90';
-import { applyStatus, statusRow } from './status.js?v=0.2.90';
-import { levelOf } from '../xp.js?v=0.2.90';
-import { ammoPerShot } from '../ammo.js?v=0.2.90';
-import { ITEMS } from '../../data/items.js?v=0.2.90';
-import { isRune } from '../../data/supplies.js?v=0.2.90';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.90';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.90';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.91';
+import { resolveLine, storeLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.91';
+import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.91';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.91';
+import { temperedAmount } from '../temper.js?v=0.2.91';
+import { cheb, dist2, los } from './grid.js?v=0.2.91';
+import { makeEvent } from './events.js?v=0.2.91';
+import { landHit } from './damage.js?v=0.2.91';
+import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.91';
+import { applyStatus, statusRow } from './status.js?v=0.2.91';
+import { levelOf } from '../xp.js?v=0.2.91';
+import { ammoPerShot } from '../ammo.js?v=0.2.91';
+import { ITEMS } from '../../data/items.js?v=0.2.91';
+import { isRune } from '../../data/supplies.js?v=0.2.91';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.91';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.91';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -282,6 +283,8 @@ export function firstUsable(inst, hero, sc, only) {
 
 /* Heal `t` by up to `n`, capped at its missing HP (AB-09). */
 function healOne(u, t, n, sc) {
+  /* TEMPERING raises a heal as it raises a blow (src/core/temper.js). */
+  n = temperedAmount(n, u.blowsPm, sc.rng);
   const got = Math.max(0, Math.min(n, int(t.maxHp) - int(t.hp)));
   t.hp = int(t.hp) + got;
   sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got }));

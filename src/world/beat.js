@@ -42,7 +42,6 @@ export function beatOf(b, a, o) {
     at: o.at, tickMs: o.tickMs,
     foe: b.foe, next: a.foe,
     killed, foeDmg, crit: !!o.crit && foeDmg > 0,
-    miss: !killed && foeDmg === 0,
     heroDmg: killed ? 0 : Math.max(0, b.heroHp - a.heroHp),
     downAfter: !!o.downAfter,
   };

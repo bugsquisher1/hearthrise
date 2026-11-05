@@ -7,12 +7,12 @@
 // what's left today, the most this account can give, its place, the plaque. The gift is the one number the client names, and the server refuses it under its own clock before any
 // charge. Every control is off while a gift is in flight. The field opens on the last gift, from the server (CLAUDE.md §1, §6). Display scratch per CharacterSession: nothing persists.
 // ════════════════════════════════════════════════════════════════════════
-import { readWorks, giveToWorks } from '../../../session/town-intents.js?v=0.2.90';
-import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.90';
-import { text, cls, attr, prop, style, rows, element } from '../../../render/paint.js?v=0.2.90';
-import { whole, gold } from '../../../render/format.js?v=0.2.90';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.90';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.90';
+import { readWorks, giveToWorks } from '../../../session/town-intents.js?v=0.2.91';
+import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.91';
+import { text, cls, attr, prop, style, rows, element } from '../../../render/paint.js?v=0.2.91';
+import { whole, gold } from '../../../render/format.js?v=0.2.91';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.91';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.91';
 
 const ASK_MS = 15000;
 const RETRY_MS = 5000;

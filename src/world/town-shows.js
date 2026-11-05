@@ -6,7 +6,7 @@
 // of one round see the same show. A burst whose art the atlas lacks draws nothing, never a missing sprite. The powders' colors are hearth-burn.js's.
 // PURE: no DOM, no window, no clock of its own (the caller passes `now`).
 // ════════════════════════════════════════════════════════════════════════
-import { ROUND_SHOW } from '../data/gold-sinks.js?v=0.2.90';
+import { ROUND_SHOW } from '../data/gold-sinks.js?v=0.2.91';
 
 /* a stable spread per burst: the same round draws the same show on every screen */
 const mix = (n) => { let h = Math.imul(n + 1, 2654435761) >>> 0; h ^= h >>> 13; return Math.imul(h, 1597334677) >>> 0; };

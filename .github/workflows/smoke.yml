@@ -4936,6 +4936,16 @@ jobs:
           node tests/bench-tax.mjs
           node tools/mutant-gate.mjs node tests/bench-tax.mjs --mutate
 
+      # TEMPERING (Tyler 2026-11-04, lane/c-gear-upgrade): the sale of a rung on the replayed chain with the shipped edge.
+      # The fight's half (tests/hunt-core/temper*.mjs) runs in the hunt-core step, the browser's in hunt-live and services-window.
+      - name: Tempering - the catalogue and the sale, per hero, at the server's price
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-temper.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-temper.mjs --selftest
+          node tests/temper-buy.mjs
+          node tools/mutant-gate.mjs node tests/temper-buy.mjs --mutate
+
       # THE GOLD SINKS (Tyler 2026-11-04): every price is a row generated into hr_sink_rules; the shared seams (the title on a chat row and
       # the town label, the hero's colors, the town read's extras) reach a stranger, a later lane's body survives a second apply. Hearth powders,
       # rounds, the Crier and Gold Given: no XP, the climb per account, a refused show charges nothing; TS-NO-METER is the standing guard that

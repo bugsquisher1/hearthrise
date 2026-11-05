@@ -24,22 +24,23 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.90';
-import { STATUSES } from '../../data/statuses.js?v=0.2.90';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.90';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.90';
-import { cheb } from './grid.js?v=0.2.90';
-import { atRest, unitById } from './movement.js?v=0.2.90';
-import { makeEvent } from './events.js?v=0.2.90';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.90';
-import { fallen, partySize } from './pull-cycle.js?v=0.2.90';
-import { shareKillXp } from './xp-share.js?v=0.2.90';
-import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.90';
-import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.90';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.90';
-import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.90';
-import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.90';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.90';
+import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.91';
+import { STATUSES } from '../../data/statuses.js?v=0.2.91';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.91';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.91';
+import { cheb } from './grid.js?v=0.2.91';
+import { atRest, unitById } from './movement.js?v=0.2.91';
+import { makeEvent } from './events.js?v=0.2.91';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.91';
+import { fallen, partySize } from './pull-cycle.js?v=0.2.91';
+import { shareKillXp } from './xp-share.js?v=0.2.91';
+import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.91';
+import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.91';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.91';
+import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.91';
+import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.91';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.91';
+import { temperedAmount } from '../temper.js?v=0.2.91';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -77,7 +78,7 @@ const armourVs = (target, source) => (target.armour
  * Apply `amount` from `source` to `target`; answers what landed:
  * { dmg (HP removed), absorbed (shield spent), killed, immune }.
  */
-export function hurt(inst, target, amount, source, element, ability) {
+export function hurt(inst, target, amount, source, element, ability, rng) {
   if (!target || !target.alive) return { dmg: 0, killed: false };
   /* THE SOLO HEALER FLOOR (hunt-grounds.js, BALANCE_RULINGS 2026-10-16): a Healer
      alone lands every blow at least at the floor, whatever the target's profile. */
@@ -94,7 +95,9 @@ export function hurt(inst, target, amount, source, element, ability) {
   /* THE HERO'S ARMOUR, in the fixed order (dodge was rolled by landHit): absorb, resistances,
      ward, never past the total cap (src/core/mitigation.js), then the shield below and HP.
      Every landed blow deals at least 1. */
-  n = target.side === 'hero' ? mitigate(n, el, armourVs(target, source)) : Math.max(1, n);
+  n = target.side === 'hero' ? mitigate(n, el, armourVs(target, source), target.armorPm, rng) : Math.max(1, n);
+  /* TEMPERING: a hero's rung raises what lands on a monster, last, so +1% is +1% of the damage whatever the monster's defence (src/core/temper.js: the part of a point is one draw, made only by a hero with a rung). */
+  if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
   const dmg = Math.min(target.hp, n - absorbed);
@@ -124,7 +127,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target);
   const base = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
   const r = hurt(inst, target, amount, source, element,
-    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability);
+    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u, t: target.id }));

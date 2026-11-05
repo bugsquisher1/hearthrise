@@ -4,8 +4,8 @@
   "palette": "hr-world-56-v2",
   "T": 32,
   "image": "atlas-vfx.png",
-  "size": [512,324],
-  "pixels": "14332e87d57617abc80144c61a0f3ec6c8909f96d7ad3b1e3681d6de8bb8f3f5",
+  "size": [512,328],
+  "pixels": "ba4ffd8b8f516f2002e1a071c93e87a89c9c2f99a8214cdebc1a82d8ad227c67",
   "sprites": {
     "fx_arcane_barrier": {
       "class": "vfx",
@@ -197,7 +197,7 @@
           "fps": 12,
           "loop": true,
           "dirs": {
-            "s": [[495,304],[0,317],[495,304],[0,317]]
+            "s": [[41,317],[55,317],[41,317],[55,317]]
           }
         }
       }
@@ -264,6 +264,48 @@
           "loop": false,
           "dirs": {
             "s": [[376,0],[415,0],[454,0],[0,65],[39,65],[78,65],[117,65],[156,65]]
+          }
+        }
+      }
+    },
+    "fx_glance_scuff": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [7,7],
+      "anchor": [3,3],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 3,
+      "contact": [2,4],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 20,
+          "loop": false,
+          "dirs": {
+            "s": [[10,317],[18,317],[26,317]]
+          }
+        }
+      }
+    },
+    "fx_glance_spark": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [9,9],
+      "anchor": [4,4],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 3,
+      "contact": [2,6],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 20,
+          "loop": false,
+          "dirs": {
+            "s": [[488,304],[498,304],[0,317]]
           }
         }
       }
@@ -458,7 +500,7 @@
           "fps": 12,
           "loop": true,
           "dirs": {
-            "s": [[488,304]]
+            "s": [[34,317]]
           }
         }
       }

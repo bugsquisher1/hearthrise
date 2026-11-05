@@ -21,15 +21,15 @@
 // heroVitalsOf, the ONE reader the Character tab shares (r09: the two said Level 4
 // and 11), stamina from staminaOf, regen from the hunt section. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../../data/consumables.js?v=0.2.90';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.90';
-import { huntOf, huntBagOf, staminaOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.90';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.90';
-import { text, attr } from '../../render/paint.js?v=0.2.90';
-import { whole, gold, hoursMinutes } from '../../render/format.js?v=0.2.90';
-import { glyphSvg } from '../launcher.js?v=0.2.90';
-import { itemIconHtml, itemName } from './bits.js?v=0.2.90';
-import { staminaPlusHtml } from './stamina-buy.js?v=0.2.90';
+import { CONSUMABLES } from '../../data/consumables.js?v=0.2.91';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.91';
+import { huntOf, huntBagOf, staminaOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.91';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.91';
+import { text, attr } from '../../render/paint.js?v=0.2.91';
+import { whole, gold, hoursMinutes } from '../../render/format.js?v=0.2.91';
+import { glyphSvg } from '../launcher.js?v=0.2.91';
+import { itemIconHtml, itemName } from './bits.js?v=0.2.91';
+import { staminaPlusHtml } from './stamina-buy.js?v=0.2.91';
 
 /* THE RING on a 120-unit grid, centre (60, 60), drawn smooth (no crispEdges) at any size the stylesheet gives it.
    From the outside in: the steel bezel (r 59), the gauge channel (r 52, 10 wide) with HP on its left from the bottom

@@ -45,7 +45,7 @@
 // When the server moves the stand (a new activity, back from a hunt, a counter)
 // the World walks the hero there from where it is (me(), display only).
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.90';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.91';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -179,6 +179,9 @@ export class TownPresence {
 
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
   _changed() { for (const fn of Array.from(this._listeners)) { try { fn(); } catch (e) { console.error('[town] a listener failed', e); } } }
+
+  /** The read out now has settled (asks for nothing itself): a first view waits on it to learn where its hero stands. */
+  heard() { return this._reading ? this._reading.then(() => true, () => false) : Promise.resolve(false); }
 
   /** The town map on screen for this character, or null (home, hunt, pane closed): null leaves town. */
   show(map) {

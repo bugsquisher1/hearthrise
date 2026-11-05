@@ -51,11 +51,11 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 | Warrens 17 (15 under), alone, default | -6.8k, dies in 2 h, 28% | -9.9k, dies in 4 min, 18% |
 | Warrens 26, four, kit | +3.6k, 384, 69% | +3.1k, 565, 66% |
 | Warrens 17, four, kit | +1.7k, 1.6k, 59% | +1.0k, 2.6k, 54% |
-Floor guard (`drop-tables`, its reference group's coin and commons over the store bill): Glade 16 +59% to +27%, Sewer 8 +135% to about +77%, Warrens 32 party still over +400% a seat. Level XP an hour doesn't move at a floor.
+Floor guard (`drop-tables`, its reference group's coin and commons over the store bill): Glade 16 +59% to +27%, Sewer 8 +135% to +73%, Thicket 5 +3,274% to +2,176%, Warrens 32 party still over +400% a seat. Level XP an hour doesn't move at a floor.
 
-**Warrens x1.25: refused.** It sat a four in his band (72%, 65% on default) and made pushing cost (four at 17: -3.6k), but the tank's own seat at the floor goes to **-47% and -43%** (`warrens-floor`, costs are personal), against his +25% minimum.
+**Warrens x1.25: refused.** It sat a four in his band (75%, 65% on default) and made pushing cost (four at 17: -3.6k), but the tank's own seat at the floor goes to **-47% and -43%** (`warrens-floor`, costs are personal), against his +25% minimum.
 
-**What it doesn't do.** A mixed four on the Glade still pushes for free: Level 10 nets +3.0k at 65k XP/h against Wickstead's +2.7k at 33k. Glade x1.25 wouldn't fix it (+2.3k) and fails his 11-02 floor the way it did then (a tank in helm and body at 16, guide food, +53% to -30%). Monsters' stats can't reach a healed party without breaking the lone hero's floor. A four on the Warrens stays cheap too: 6 under costs about 1.7k net for 1.7x the XP. Wickstead and the first grounds barely move: their blows are small, and a fresh hero's practice set wears no armor, so its first hour is unchanged by construction (not re-played).
+**What it doesn't do.** A mixed four on the Glade still pushes for free: Level 10 nets +3.0k at 65k XP/h against Wickstead's +2.7k at 33k. Glade x1.25 wouldn't fix it (+2.3k, read at k 0.7) and fails his 11-02 floor the way it did then (a tank in helm and body at 16, guide food, +53% to -30%, also k 0.7). Monsters' stats can't reach a healed party without breaking the lone hero's floor. A four on the Warrens stays cheap too: 6 under costs about 1.7k net for 1.7x the XP. Wickstead and the first grounds barely move: their blows are small, and a fresh hero's practice set wears no armor, so its first hour is unchanged by construction (not re-played).
 
 **The Ranger's floor sits on the bar and always has.** The crossbow Ranger at the Sewer's floor reads +24.9% averaged over six seeds on today's rule, +25.3% on the guard's one seed; every combat change moves its one-seed reading by 3-5 points (20% to 28% across k 0.56-0.65). k 0.62 reads +26.5% and passes. That is the dice, not a margin: the designer should look at it.
 

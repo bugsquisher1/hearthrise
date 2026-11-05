@@ -7,11 +7,11 @@
 // ONE unlock_buy naming the offer and no number, and hr_unlock_buy prices it under its own lock. A rung is permanent and
 // not refundable, so it asks once; nothing changes on screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════
-import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.90';
-import { goldOf } from '../../session/item-sections.js?v=0.2.90';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.90';
-import { gold } from '../../render/format.js?v=0.2.90';
-import { runIntent } from '../intent-words.js?v=0.2.90';
+import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.91';
+import { goldOf } from '../../session/item-sections.js?v=0.2.91';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.91';
+import { gold } from '../../render/format.js?v=0.2.91';
+import { runIntent } from '../intent-words.js?v=0.2.91';
 
 const TRACKS = Object.freeze([
   { id: 'blows', label: 'Blows', effect: 'your blows and heals land', worse: 'harder', none: 'Wield a weapon to temper it.' },

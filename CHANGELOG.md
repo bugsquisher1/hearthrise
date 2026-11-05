@@ -5,7 +5,7 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## Unreleased
+## v0.2.91 — 2026-11-04 (The Smith Tempers)
 
 **The smith tempers your gear.** On the Shop's Services tab (R), a hero wearing gear from Level 15 up can pay gold for a little more from it. Each rung of Blows makes your blows and heals land 1% harder; each rung of Armor lets 1% less damage reach you; five rungs of each. Every tier of gear has its own rungs. It can't fail, nothing wears out, and your hero keeps it through a death.
 

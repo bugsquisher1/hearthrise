@@ -30,6 +30,236 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-04 Crafted jewelry (designer, lane/d-crafted-jewelry): DESIGN, read against origin/release/v0.2.90, measured on the real settle with stand-in rows, nothing built. **Tyler decides: three calls at the end**
+**Tyler, 2026-11-04:** "I'm also tinkering with the Idea of making jewelry crafted only so that people who are solely focused on crafting vs combat have something unique/special to them and maybe introduce a type of RNG to the crafts where it has a chance for different rolls like crit chance etc". Then, on the assessment: "Yes, spec it." Not yet approved to build.
+
+**Verdict: SIMPLIFY, then keep.** A smaller version is worth building: it gives Crafting its first prized product and gives fighters a reason to trade. Four parts of the pitch don't survive the numbers.
+- **"Crafted only" at every tier breaks the first hours and a thin market.** The Shop keeps plain jewelry. Only Fine and Hallmarked pieces are crafted only, and no jewelry drops.
+- **It can't make a person unique.** One account runs four heroes with a shared purse and Storage, and a resting hero works for free. At equal Crafting, a fighter's jeweler rolls the same dice as a full-time crafter. What a dedicated crafter gets is speed and a public name.
+- **It isn't a gold sink.** Jewelry never wears out, so demand ends once a hero is dressed. What keeps running is a crafter's shop wage, which mints gold. The Coordinator's guess that it repeats where the ladders fade doesn't hold.
+- **A crit ring as pitched is nearly invisible, and a guard roll is far too strong.** Both are measured below.
+
+**Three things this lane found that matter beyond jewelry.**
+1. **Guard is the strongest stat in the game at depth.** `defB` outside armor feeds the monster's to-hit, and at the Warrens that roll sits near its floor: +4 guard on jewelry cut damage taken **36-49%** at Level 40. Shields and capes use the same path. **Handoff to lane/c-armor-tiers.**
+2. **Today's jewelry does almost nothing for a bow, a wand or a staff.** The rows carry only `atkB` and `strB`, which those styles don't read. Today's best T2 set: bow +0.1% XP/h, mage -0.2%, healer +0.4%, against tank +8.3% and hammer +4.0%.
+3. **A hero who never hunts can't use the Weighhouse at all.** `hr_market_eligible` wants any hero on the account at Level 10, so a pure crafter is `market_locked` for good.
+
+**1. The jewelry inventory: all 24 rows on v0.2.90.** Only six can be had today: three in the Shop and three on Wickstead's Turncoat.
+| Item | Slot, worn at | Source today | Becomes |
+|---|---|---|---|
+| Copper Ring | Ring, 1 | Shop 240 g | **Keep in the Shop.** Also craftable, plain only. Stats for every style |
+| Hunter Necklace | Necklace, 1 | Shop 360 g | Same |
+| Copper Studs | Earrings, 1 | Shop 120 g | Same |
+| Banded Signet | Ring, 15 | Turncoat Rare .003 (also off-roster Kobold) | **Convert:** T2 plain, crafted; Shop at a premium |
+| Wolfbone Torc | Necklace, 15 | Turncoat Rare .003 (also off-roster Small Wolf) | **Convert and rename "Twisted Torc":** it's iron now, so a crafter can make it from the rock. Id stays |
+| Fang Studs | Earrings, 15 | Turncoat Rare .003 (also off-roster Giant Bat) | **Convert and rename "Bronze Studs".** Id stays |
+| Gold Ring | Ring, 30 | None (`AWAITING_ROSTER`) | **Make craftable:** T3 plain. Leaves the list |
+| Gold Amulet | Necklace, 30 | None (`AWAITING_ROSTER`) | Same |
+| Spider-Eye Studs | Earrings, 34 | None (`AWAITING_ROSTER`) | **Stays parked.** New row Gold Studs takes the T3 earrings slot |
+| Tusker's Charm, Packlord's Band, Mirewort Drops | Necklace 8, ring 22, earrings 38 | Champions off the roster (`UNREACHABLE.greenhaven`) | **Stay parked.** When a ground opens with these monsters, the row becomes a gem. A guard enforces it |
+| Spidersilk Choker | Necklace, 34 | Off-roster Venom Spider | Same |
+| Panther's Eye Pendant, Wraithglass Drops, Warlord's Torc, Jarl's Rimetorc | Necklace 68, earrings 50, necklace 52, necklace 66 | Off-roster monsters (`UNREACHABLE.later`) | Same |
+| Hollow Sigil Ring, Ruby Signet, Spellstone Ring, Dawnforged Signet, Rubyfire Studs, Dragon Gem Earrings, Dawnbound Amulet | Later tiers, 35 to 86 | None (`AWAITING_ROSTER`) | **Stay parked** until those tiers open. Then they become that tier's crafted rows, or get cut |
+The rows live in `src/data/items.js`, `slot-ladders.js`, `champions.js` and `wave3-uniques.js`; the Shop's three in `shops.js`; the drop rows in `monsters.js`. No starter item is jewelry (`START_EQUIPMENT`, `STARTER_SETS`). **The cut is one guard, `jewelry-sources`:** no reachable monster's drop row may name a ring, necklace or earrings item. **"Crafted only" does not include the Shop's three starter pieces (decided):** they're how a Level 1 hero gets a ring.
+
+**2. Which skill: Crafting.** No new skill. A jewelry skill fails the purpose test: it would be a second bench with no new decision, and it would split a skill that has no prized product yet. Metal comes from Mining and Smithing, so the rock-to-ring chain already crosses three skills, as DESIGN_STANDARDS asks.
+
+**True per-item rolls: no.** A roll on the piece means identity on a stack row, through `player_inventory`, `account_bank`, `player_equipment`, `market_listings`, `market_sales`, `player_item_rules`, `hr_apply`'s item delta, `hr_materials_take`, Inspect and every window that reads a bag. Tempering rejected the same change for the same reason. **Each result is its own row with fixed stats**, inside the 10-14 ruling.
+
+**3. The roll model. The player picks the job; the dice pick the grade.**
+
+*What the engine actually reads (grepped):*
+| Stat | Reaches | Doesn't reach |
+|---|---|---|
+| `atkB`, `rangeAtkB`, `magicAtkB`, by the weapon's profile | Basic attack accuracy | Spells, heals |
+| `strB`, `rangeStrB`, `magicStrB`, same | Basic attack max hit | Spells, heals |
+| `critB` (`combat.js` `critChance`, `damage.js` `roll`) | Landed basic blows and area shots | **Spells, heals, shields** (`landHit` is called with no crit roll) |
+| `defB` on non-armor (`guardB`) | The monster's to-hit | |
+| Heal and spell output | Skill level, rune version, and Tempering's `temperPm` once it lands | **Nothing on any item** |
+| Ward | Light armor points only | Jewelry |
+
+Damage share through basic blows, measured: tank 62-80%, hammer 39-65%, bow 74-81%, wand 57-84%, staff 100% alone. So crit does more for a caster's damage than the pitch assumed, and nothing for a healer's healing.
+
+*The three kinds:*
+| Kind | Stat | Helps | T2 Fine / Hallmarked | T3 Fine / Hallmarked | Engine |
+|---|---|---|---|---|---|
+| **Keen** | `critB` | Every basic blow | +1% / +2.5% crit | +2% / +4% crit | None |
+| **Clear** | New `clearPm` | Rune spells and heals. The healer's only output roll | +0.5% / +1.2% | +1% / +2% | Two reads on Tempering's hook |
+| **Steady** | New `steadyPm` | Every blow taken, after the armor chain | -0.5% / -1% | -0.8% / -1.5% | One read on Tempering's hook |
+| **Which slot rolls what** | | Ring: Keen or Clear. Necklace: Clear or Steady. Earrings: Keen or Steady | | | |
+
+- **Fine** adds one of the slot's two kinds, chosen by the dice. That's the "different rolls" Tyler asked for.
+- **Hallmarked** carries **both** of the slot's kinds, so any style can use it. That matters on a thin market, and it means one gem per tier instead of one per kind.
+- **Name:** a hallmark is an assayer's stamp, which ties it to the Weighhouse. "Keen Banded Signet", "Hallmarked Banded Signet".
+- **Rejected: rolled guard.** At Warrens depth it's -36 to -49%. Steady is linear on purpose.
+- **Plain pieces read for every style.** The row carries `atkB` and `rangeAtkB` and `magicAtkB`, and so on, so switching weapons never strands a ring. Plain earrings keep +1 guard at every tier, so guard stops climbing with tier.
+
+*Plain stats (measured as stand-ins):*
+| Tier, worn at | Ring | Necklace | Earrings |
+|---|---|---|---|
+| T1, Level 1 | Copper Ring: +1 accuracy, +1 damage | Hunter Necklace: +2 accuracy | Copper Studs: +1 guard, 0.5% crit |
+| T2, Level 15 | Banded Signet: +2, +2 | Twisted Torc: +3 accuracy | Bronze Studs: +1 guard, 1% crit |
+| T3, Level 30 | Gold Ring: +3, +3 | Gold Amulet: +4 accuracy | Gold Studs: +2 damage, +1 guard, 1.5% crit |
+
+*The odds, all data rows, shown on the recipe card from the same row the server rolls.* L = Crafting level, R = the recipe's level.
+| Recipe | Result | Rule | Crafting 15 | 30 | 60 | 99 |
+|---|---|---|---|---|---|---|
+| Base T2 (metal only) | Fine | 5% + 0.1% a level over R, cap 12% | 5.0% | 6.5% | 9.5% | 12% |
+| | Hallmarked | 0 under R+15; 0.04% + 0.001% a level, cap 0.10% | 0 | 0.04% | 0.07% | 0.10% |
+| Gem set T2 (plain piece + gem) | Hallmarked, else Fine | 10% + 0.2% a level over R, cap 25% | 10% | 13% | 19% | 25% |
+| Base T3 | Hallmarked | Half of T2's, because a T3 job is twice as fast | | 0 | 0.03% | 0.05% |
+- **Pace check.** Base T2 Hallmarked at Crafting 30 is one in 2,500 jobs, about 119 h of whole-chain work: inside the 100-150 h extra-rare band. A gem is a 10-20 h Rare, so a gem-set Hallmarked is 40-200 h of hunting.
+- **A gem never fails to nothing:** the piece comes out Fine at worst. No re-roll exists, and a Fine piece can't take a gem. **Never a paid re-roll.**
+- **Bulk report, on the Work card and the return:** "Made 44 Banded Signets: 41 plain, 3 fine (2 Keen, 1 Clear)." Counters are `player_progress` rows the server zeroes when the job changes.
+- **The roll stream already exists.** `resolveArtisanAction` draws on `rng`, seeded `hr_seed(user, slot, 'accrue:<accrued_to>')`, which is how a cook burns (`produced` becomes `burnt_food`). Grades are one more block in that function, the same shape as the burn. Only rows with `grades` draw, so no other recipe's dice move. The client never rolls. Exclude graded rows from the tool double (`advanceToolCarry`). `hr_apply` gets a bound: credited ids must be in that recipe's outcome list and sum to the crafts.
+- **The Hallmarked moment.** Tyler's rare rules: the `alerts.js` rare alert from the server's word, the existing `share-card.js`, and a System line through `hr_world_notice_rules` (new kind `top_craft`, 3 per hero per UTC day, none for a quiet hero): "Marlow made a [[item:...]]." A Fine piece stays a line on the Work card.
+
+*What sells for what.* Every grade of a piece has **the same book value**, so the same `gearSaleRate`, shop bid and bench fee. A Hallmarked ring sells to the Shop for what a plain one does: **it can't be a faucet**, and `vendorPriceOf` doesn't change. Market ceiling is 100x book, so T2 ring and necklace 26,000, T2 earrings 13,000, T3 ring 60,000, amulet 110,000, studs 30,000. Floor is the bid.
+
+*Recipes, as starting values. `tests/craft-wages.mjs` has the last word.* Computed from paced rates: ore 4.8 s, bronze bar 13.76 s whole chain, iron 12 s, gold 17.6 s, at the 11-01 target of four fifths of hunting.
+| Piece (Crafting) | Inputs | Shop bid | Before tax, g/h | After 15% tax | Target |
+|---|---|---|---|---|---|
+| Copper Ring (1) | 15 Copper Bars | 60 | 1,603 | 1,363 | 1,622 |
+| Hunter Necklace (2) | 23 Copper Bars | 90 | 1,589 | 1,351 | 1,622 |
+| Copper Studs (1) | 8 Copper Bars | 30 | 1,467 | 1,247 | 1,622 |
+| Banded Signet (15) | 12 Bronze Bars | 130 | 2,744 | 2,332 | 2,845 |
+| Twisted Torc (18) | 14 Iron Bars | 130 | 2,698 | 2,294 | 2,845 |
+| Bronze Studs (15) | 6 Bronze Bars | 65 | 2,669 | 2,268 | 2,845 |
+| Gold Ring (30) | 4 Gold Bars | 84 | 3,971 | 3,375 | about 4,000 |
+| Gold Amulet (33) | 8 Gold Bars | 154 | 3,783 | 3,215 | about 4,000 |
+| Gold Studs (30) | 2 Gold Bars | 42 | 3,691 | 3,138 | about 4,000 |
+The method holds: computed the same way, Iron Hatchets come to 2,470 g/h, and they played at 2,463. XP rows are set so the chain trains at the bench's going rate: T1 120, T2 420, T3 300 book, so 3,440 XP/h at T2 and 5,527 at T3. Each gem-set recipe takes one plain piece and one gem, and pays **no bench tax**, so no gold moves on the press that can make a Hallmarked.
+
+**4. The power budget, measured on the real settle.** Five styles, solo, 2 h x 2 seeds, paired dice, stand-in rows added in memory. XP is about ±1 point; damage taken is noisier, about ±5. `tools/balance-sim` kits hold no jewelry, so the pace numbers and the risk table don't read any of this.
+| | Tank | Hammer | Bow | Mage | Healer |
+|---|---|---|---|---|---|
+| Today's best T2, Glade L24, vs none: XP/h | +8.3% | +4.0% | +0.1% | -0.2% | +0.4% |
+| Today's best T2: damage taken (+4 guard) | -23% | -17% | -13% | -15% | -18% |
+| **New plain T2**, Glade L24, vs none: XP/h | +8.0% | +4.2% | +4.0% | +1.6% | +5.0% |
+| New plain T2: damage taken (+1 guard) | -12% | -6% | -8% | -8% | -12% |
+| **New plain T3**, Warrens L40, vs none: XP/h | +14.6% | +12.0% | +12.1% | +6.8% | +9.3% |
+| Crit +15% (3 pieces), Warrens L40, vs plain: XP/h | +4.6% | +3.5% | +5.6% | +4.9% | +5.6% |
+| Crit +9% (3 pieces), Glade L24 pull 8, vs plain: XP/h | +2.0% | +0.2% | +0.9% | +0.4% | +2.6% |
+| Rolled guard +4 over plain, Warrens L40: damage taken | -42% | -38% | -36% | -49% | -48% |
+| Rolled guard +4 over plain, Glade L24 pull 8: damage taken | -21% | -14% | -11% | -18% | -18% |
+**Best in slot, T3, as designed:** four Hallmarked pieces give +12% crit from rolls (2 rings + earrings), or +13.5% with the plain earrings, +16.5% with the armor set's 3%, against a 60% cap.
+- **Through `critMult` 1.5:** +12% crit is +6% on basic blows, so **+3.9% to +6.0% damage** by style (computed).
+- **In XP:** scaling the measured row by 0.8 gives **+2.8% to +4.5% XP/h** (computed, not run at these exact numbers).
+- **Clear:** +6% on spells and heals at most. **Steady:** -3% damage taken at most.
+- **Against Tempering's 5%:** the same size. Both together are about +9-11% damage, about +5-9% XP/h: **about one weapon tier, which is the most I'd allow.** The 10-25 ruling's meaningful weapon upgrade is +5-8% and its armor upgrade 3-5%. Steady's -3% sits at the low end.
+- **The profit floor doesn't move.** It's coins and commons over the store bill, with rares extra. Kills only get faster and bills only fall. Net moved inside the dice in every row.
+- **The small end is honest:** at the Glade's default pull the walk sets the pace, so a T2 Hallmarked set adds under 1% XP/h. The crits show, though: about 1 blow in 6 at T3 best in slot, against 1 in 20.
+- **Needs re-measuring after lane/c-armor-tiers and Tempering's hook:** Steady, Clear, everything in a party, a healer's heals. None of those was measured here.
+
+**5. Rare gems: two rows, one per tier.**
+| Gem | Home | Row | Book, shop bid | Use |
+|---|---|---|---|---|
+| **Road Garnet** (robbed on the Thicket road) | Turncoat, Wickstead, already "the jewellery's carrier" | Rare, .002 | 200, 40 | T2 gem set |
+| **Seam Jasper** (cut from the copper hill's seams) | Goblin Digger, the Warrens | Rare, .0027, the rate of its belts | 500, 100 | T3 gem set |
+- **Pace:** Turncoat is about 45 kills/h (2 of 24 at 540 kills/h), so .002 is about one per 11 h. Digger copies a row already tuned there. `tests/hunt-core/drop-tables.mjs` holds both to 10-20 h.
+- **Caps:** at Wickstead, three rows worth 650 book become one worth 200, so value falls. At the Warrens it's about one 500-book gem per 15 h, about +35 book/h against about 8k coin, about +0.5%, far under the +25% cap. Gems aren't gear, so the 50% gear cap can't be hit.
+- **Rules kept:** no new carrier. Each gem has one home a player can learn. ≤ 2 armor slots + a weapon per monster is untouched. The party rare roll and the rare broadcast already apply to any `band: 'rare'` row. The rare moment survives: a gem is still "I found one".
+- **Source and use (`catalogue-coherence`):** source the drop row, use the gem-set recipes. Marked `raw` so the shop pays a fifth.
+- **Value check on Wickstead:** Rare income falls about 39 g/h of 3,500 (about -1.1%), outside the floor.
+
+**6. A pure crafter's first 20 hours: walked against real data.** A hero who never hunts. Times marked "played" are the 11-01 walk; the rest are computed from `pacing.js` and the XP table. PACE is 0.39 XP and 1.6x time. The jewelry rows don't exist yet.
+| Hour | Holds, from the steps before | Step | Reaches it because |
+|---|---|---|---|
+| 0 | 500 g | Copper Rock, `copper_ore`, no tool | Mining 1, town edge |
+| 0.5 | 374 ore, Mining 16 (played) | Smelt Copper Bars | `smelt_copper` at Smithing 1 |
+| 1.5 | 561 bars, Smithing 17 (played) | Copper Ring, Crafting 1, 15 bars | 37 rings, about Crafting 12 |
+| About 2.5 | About 3,000 g after tax, Crafting 15 at 52 rings | Bronze Bars; **first roll**, Banded Signet | Smithing 1, Crafting 15 |
+| About 6.5 | About 12,000 g, Crafting 30 at 3,450 XP/h (3.2 h) | Hallmarked now possible, 0.04% | Odds table |
+| About 15 | About 32,000 g, Mining 45 and Smithing 25 | Gold Rock, Gold Bars, Gold Ring | "Mining 45 at 8 h" (11-01), at about 60% mining time in the chain |
+| 20 | **About 45,000-50,000 g**, Crafting about 47, estimated | Selling Plain to the Shop | Against a hunter's 58-76k at hour 20: about 65-80%, as the 11-01 rule intends |
+Non-combat sources, grepped: every rock to Mithril, every tree, fish, farm. Combat only: gems, pelts, silk, `bat_wing`, `slime_gel`.
+
+**Where a pure crafter breaks, worst first.**
+1. **The Weighhouse is locked for good.** `market_locked`: no hero at Level 10. **Fix in this lane:** any hero at Level 10 **or** any bench skill at 30, hours of real work either way (Crafting 30 is about 6.5 h here; Level 10 took about 10 h in play). It's one config row plus `hr_market_eligible`, and it goes on the EA Security list because Threat #9 is about fresh accounts funneling their 500 g. Without it the whole idea is dead.
+2. **Few buyers.** About 20 accounts x 3 heroes x 4 pieces is about 240 pieces per tier, ever, and one crafter makes 21 T2 rings an hour. Most of a crafter's work goes to the Shop at the floor. Fine and Hallmarked are the only real trade.
+3. **Gems are a hunter's.** On a thin market a pure crafter may never see one. Hallmarked is still reachable at the bench, by luck at about 119 h a piece. That's why base recipes can roll it at all.
+4. **The coach keeps asking for the Cellar.** The hero loses nothing, but What next is noise for this player. Not played.
+5. **They can't wear what they make.** Gear reads hero Level only. That's allowed, and it's the point: a Level 1 jeweler can make a Level 30 ring.
+
+**What actually makes a dedicated crafter special? Honestly: time and a name.** Crafting 99 is 13.0M XP (computed at T3's about 5,500 XP/h chain rate):
+| Who | Hours a day on the chain | Crafting 60 | Crafting 99 |
+|---|---|---|---|
+| A fighter's hero, resting at the bench | 12 | 4 days | About 200 days |
+| A dedicated hero | 24 | 2 days | About 100 days |
+| Four heroes feeding one bench | 4 x 24 | Under a day | About 25 days |
+- The odds gap is small: gem-set Hallmarked is 19% at 60 and 25% at 99. **So at equal levels there's no edge, and that's by design.**
+- A full-time account's real edge is about four times the jobs, so about four times the rolls, at the cost of a seat that could earn hunting gold.
+- **Also theirs:** the name on every Hallmarked broadcast, the Crafting board (exists), and a "Goldsmith" row once Titles can read `craft_roll` counters.
+- **Rejected: better odds for a hero who stays under Level 10.** It's the only rule that would really reward "solely crafting", but it punishes leveling, and every account would just keep one Level 1 hero. His no-penalty ruling on monsters leans the same way.
+
+**7. A fighter who never crafts.**
+| When | Holds | Gets a ring how | If nobody sells |
+|---|---|---|---|
+| Hour 1 | 1,900-2,900 g earned | Shop T1: 240 + 240 + 360 + 120 = 960 g for all four | Same |
+| **Hour 10** | 15.7k played | **Shop T1, or the market.** T2 isn't wearable until Level 15 | **Same: the Shop always has it** |
+| Hour 18-22, Level 15 | 40-60k | Market, undercutting the Shop; or Shop plain T2 at **3,000 g** a piece, 12,000 g a set (3 h at Level 18) | Shop. Never blocked |
+| Level 30 | 100k+ | Market; or Shop plain T3 at **12,000 g** a piece, 48,000 g a set (7 h at Level 45) | Shop |
+| Any | | Fine and Hallmarked: market only | Goes without. Plain is enough for every in-band ground: the risk table holds no jewelry at all |
+- **Gear pace ruling:** "about one piece per hour per slot per armor weight" is armor, and today's jewelry is a 10-20 h Rare. A piece at the Shop any time you have the gold is faster.
+- **The premium is on purpose:** a crafter can sell plain at anything from the 130 g floor to 3,000 g and still beat the Shop. `vendor-shop-arbitrage` holds: buy at 3,000, sell at 130.
+- **Or the free way:** the second hero is free, and a hero's rest time is free. About two hours of its rest gets Crafting 15. "Never crafts" is a choice, not a wall.
+
+**8. Budget: added to the 2026-11-04 Gold sinks picture.** The rows are **estimates of behavior**; no player has seen this. Bench tax is computed per hour from the table above.
+| Burned per day | Day one | Hunter | Rich | Four heroes | Assumed |
+|---|---|---|---|---|---|
+| Shop plain pieces, one-time | 0 | 860 | 1,600 | 6,000 | T2 12k over 14 days / T3 48k over 30 / 240k over 40 |
+| Bench tax on jewelry | Under 100 | 1,200 | 1,700 | 9,600 | 3 h a day at T2 / 3 h at T3 / one hero 24 h at T2 |
+| Market fee and cut, 5% | 0 | 250 | 1,000 | 2,500 | 5k / 20k / 50k traded a day |
+| **Total** | **Under 100** | **2,310, 3.9%** | **4,300, 5.1%** | **18,100, 8.2%** | Against 60k / 85k / 220k |
+| Once everyone's dressed | 0 | 1,450, 2.4% | 2,700, 3.2% | 12,100, 5.5% | Tax and cut, only while crafters keep running |
+| **Minted by those same bench hours (Plain to the Shop)** | | **+8,200** | **+11,000** | **+65,000** | Same hours x the wage |
+Materials burn no gold: they're gathered, and gems are found. **Does it repeat where the ladders fade? No.** No durability (ruled out), so a hero buys four pieces per tier and stops. What continues is the chase for Hallmarked, which is a few sales a week, and the shop wage, which is **a net faucet** no larger than any other bench (the 11-01 cap holds it). A new tier reopens demand once; nothing reopens it inside a tier. Don't count this as a sink.
+
+**9. Size.** Final about 50 rows; §10's sample rule applies.
+| Rows | Count |
+|---|---|
+| New items: T2 9 (6 Fine, 3 Hallmarked), T3 10 (6, 3, Gold Studs), gems 2 | 21 |
+| Changed items: T1 3, T2 3, T3 2 | 8 |
+| Recipes: T1 3, T2 base 3 + gem set 3, T3 base 3 + gem set 3 | 15 |
+| Shop rows | 6 |
+**The first sample, about 5, no engine hook:** T2 ring only. Banded Signet (plain, for every style), Keen Banded Signet (Fine), Hallmarked Banded Signet (crit part only until the hook lands), Road Garnet on the Turncoat, its base and gem-set recipes. Play it on `tools/qa/local-world.mjs`: 200 rings on a never-hunted hero, the report, the reveal, a sale between two accounts, a return with the page closed. Art Director reads the icons at 1x. Then expand in batches of 20 or fewer.
+
+**10. Art: 21 icons, 0 generations.** A new Fine piece is its plain icon plus one palette-locked stone (Keen `#c23a2a`, Clear `#4fa8e8`, Steady `#e6dcbc`). A Hallmarked piece is the plain icon with a gold band and a stamped gold mark (`#e8c547`). Gold Studs recolors Bronze Studs. Two gems by script. Scripted icons already pass here: `rune-icons.mjs`, `hearth-fuel-icons.mjs`, and art batch 0 ("0 generations, 0 spend"). **No PixelLab use, so no new yes is needed.** If the Art Director rejects the sample, drawing by hand in `pixelart_workbench` is free; generating would need Tyler's word.
+
+**11. The build: one lane, `lane/c-crafted-jewelry`, then a small follow-up.**
+| Part | Files |
+|---|---|
+| Data | `src/data/jewelry.js` (new: rows, grades, odds, spread into ITEMS and ARTISAN_RECIPES as `wave3-uniques.js` does); `items.js`, `slot-ladders.js`, `recipes.js`, `monsters.js`, `shops.js`, `catalogue-coherence.js`, `item-art.js`, `chat-channels.js`, `refusal-words.js`, `skill-guide.js` |
+| Engine | `src/core/artisan.js`, `artisan-sim.js`; `supabase/functions/hr-accrue/accrual.js` (counters) |
+| Client | `src/shell/windows/skills.js` (odds), `work.js`, `src/shell/town-work.js` (report), `alerts.js`, `share-card.js` (reveal), `windows/item-tip.js` (stat lines); `tools/world-art/jewelry-icons.mjs` (new) |
+| Server, dates from 2027-03-03 | `2027-03-03-jewelry-items-catalogue.generated.sql`, `-bench-inputs.generated.sql`, `-bench-tax-rates.generated.sql`, `-hunt-sessions-catalogue.generated.sql`, `2027-03-03-jewelry-rolls.sql` (one anchored `hr_apply` edit with RESTATEMENT-DEBT-ACK: the outcome bound and the notice; `hr_world_notice_rules` gets a kind and a row; section `craft_rolls`), `2027-03-03-market-bench-eligible.sql`. Entries at the end of `tests/schema-apply-order.json` |
+| Tests | `tests/jewelry-rolls.mjs` (new: odds, no draw on other recipes, the bound, bench viewed and browser closed), `jewelry-sources` guard (new), `craft-wages.mjs`, `catalogue-coherence.mjs`, `hunt-core/drop-tables.mjs`; fixtures that name these items: `lucky-finds`, `forest-cave`, `ranger-bar`, `equip-intent`, `gold-intents`, `field-salvage`, `alpha-windows`, `alpha-server` |
+| Follow-up, after Tempering's hook lands | `src/core/combat.js`, `member.js`, `temper.js`, `hunt/abilities.js`, `hunt/damage.js`, `character-sheet.js`: Clear and Steady. Rows inert until then |
+- **New tables: none,** so the wipe list doesn't change. Counters use `player_progress`; everything else is catalogue rows and functions.
+- **The edge moves:** `monsters.js`, `recipes.js` and `artisan.js` are all in the hr-accrue bundle. The drop rows change the kill bounds, so the `hunt-sessions-catalogue` and the edge go together: **one local smoke first, then apply, then deploy immediately**, or hunts stop on a catalogue the old engine can't honor (memory, 10-31).
+- **No world-shape change.** Clear and Steady ride the hero's snapshot, as Tempering does.
+- **Where it sits.** After Tempering, because the follow-up needs its hook. After `lane/c-armor-tiers`, because Steady's size depends on theirs and my guard finding belongs to them. **The pace re-measure doesn't need to wait or repeat for it:** the sim's kits hold no jewelry, and gem rows don't move XP.
+- **Honest wipe delay: about 3 days of lane time** with 1-2 lanes running (sample 1 day, Tyler's look, full set 1-2 days), plus one combined edge deploy. **I wouldn't hold the wipe for it.** The ids stay, so a tester's old pieces still work, and the row swap needs no second wipe. By the 10-25 plan, more wipes are coming anyway before Early Access. Tyler's "every planned change before a wipe" says otherwise, so it's his call.
+
+**The avoid list and Steam.** Crowns can buy gold, gold can buy materials and gems, and a craft has a random result. **I'm not claiming this is legally fine.** Craft rolls go into the Steam/legal review Crowns already require. What the design does: no gold moves on a gem set; there's no paid re-roll; every odd is on the card from the row the server rolls; nothing is hidden. **One real conflict with his own avoid list ("random gold spends"):** a base recipe still pays bench tax on a job with a random result. See call 3. Also: Crowns reach Hallmarked power through the market, at one remove, the open conflict Tempering already flagged.
+
+**Purpose test.**
+| Question | Answer |
+|---|---|
+| Player problem | Crafting has no prized product. Jewelry has one odd source. Ranged and magic heroes have no jewelry worth wearing |
+| Decision | Crafter: burn a gem now or level first; which slot to run. Fighter: Shop now or wait for a crafter; which kinds suit the build |
+| Plugs into | Mining, Smithing, Crafting; Wickstead and the Warrens; the Weighhouse; the rare broadcast; four equip slots |
+| Tradeoff | Time at the bench against hunting gold; gem sold against gem set |
+| Hour 1,000 | **Only as good as the tier ladder.** With T3 as the top, every keen player has four Hallmarked within weeks and the chase ends. Each new tier (Mithril at 45) restarts it. Still more than Crafting has at hour 1,000 today |
+| Depth or complexity | Depth, in this size: 3 grades, 3 kinds, 2 gems. As first pitched (crit, every slot, every kind and grade as its own row) it was about 100 rows, and no |
+
+**Done:** this design. **Verified, by grep or probe on v0.2.90:** the 24 rows and their sources; what the engine reads; no stat reaches spells or heals; `market_locked` at Level 10; 100x book ceiling; rng seed and burn path; `gearSaleRate` and shop bids; kits hold no jewelry; **Measured here (real settle, stand-ins, solo):** every number in the power table. **Measured earlier, quoted:** gather and bench rates, Mining 45 at 8 h, purses, kills/h, hunting wages. **Computed:** chain wages, odds to hours, +3.9-6.0% damage, +2.8-4.5% XP/h, Crafting timelines, gem pace. **Estimated:** the crafter's purse by hour, 240 pieces of demand, how many Hallmarked a beta makes (about 10-15 per tier), all behavior rows in the budget. **Not played or measured:** the feature itself; any party; Clear and Steady in combat; a never-hunted hero's coach; icons in the bag.
+
+**For Tyler, three calls.**
+1. **Build it, and when.** My read: build this smaller version, with the sample first. Don't hold the wipe for it; it can land after the wipe with no second wipe. Holding the wipe costs about 3 days.
+2. **"Crafted only" softened.** Plain stays in the Shop at a premium, T1 cheap, T2 3,000 g, T3 12,000 g. Fine and Hallmarked are crafted only, and nothing drops. If you want plain truly crafted only, a fighter on a 20-account server can sit at Level 15 with no ring unless it uses its own second hero. I'd keep the Shop. The prices are rows.
+3. **Bench tax on rolled recipes.** Your 11-01 ruling taxes every bench; your avoid list says no random gold spends. A base recipe does both. I'd waive the tax on graded recipes and raise inputs to hold the wage, so "no gold is spent on a roll" is simply true. It costs about 1,200-9,600 g a day of burn that was never going to matter. Your call, and the Steam/legal review should see it either way.
+
 ### 2026-11-04 What the wipe is held against (designer, lane/c-pre-wipe): THE LIST
 Read from this board, `DISCOVERIES.md`, rulings-of-record and 28 played hours (lane/c-hour-20). Delivery-only work (return load, build step, account delete) isn't on it, by Tyler's rule.
 | Item | Call | Size, owner | Why |

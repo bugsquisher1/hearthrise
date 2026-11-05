@@ -318,14 +318,15 @@
 /* The band against the Level: words always, the tone a second cue (in range / above / far above / below). */
 .hw-hunt-fit[data-tone="in"] { color: var(--green); }
 .hw-hunt-fit[data-tone="above"], .hw-hunt-fit[data-tone="far"] { color: var(--red); }
-.hw-hunt-sub { display: flex; flex-wrap: wrap; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-hunt-sub { display: block; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hunt-fits { font-weight: 700; color: var(--gold-2); }
-.hw-hunt-fits:not(:empty) + .hw-hunt-bestline:not(:empty)::before { content: ' · '; font-weight: 400; color: var(--ink-3); white-space: pre; }
+/* The separator keeps to the line it ends: a wrapped line never starts with a dot (the narrow list, 2026-11-04). */
+.hw-hunt-fits:not(:empty) + .hw-hunt-bestline:not(:empty)::before { content: '\00a0· '; font-weight: 400; color: var(--ink-3); }
 .hw-hunt-fits:empty, .hw-hunt-bestline:empty { display: none; }
 /* The page: a steel panel, its left edge in dim gold toward the list; its text scrolls, its foot stays. */
 .hw-hunt-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fill-1); border: 2px solid var(--steel-edge); border-left-color: var(--steel-rule); }
 .hw-hunt-detail[hidden] { display: none; }
-.hw-hd-page { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 14px 18px 12px; }
+.hw-hd-page { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 18px 12px; }
 .hw-hd-back { display: none; }
 .hw-hd-head { margin-bottom: 8px; }
 /* The ground's name, as a place is named: Cinzel in gold (ART_DIRECTION §10). */
@@ -418,7 +419,7 @@
 .hw-bring-none:empty { display: none; }
 /* The one primary at the page's foot, below its scroller (never over the page); the server's answer beside it.
    Solid at any window opacity: it is the press that matters most. Enter goes somewhere: a dark arrow follows it. */
-.hw-hd-foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 18px 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
+.hw-hd-foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .hw-hd-foot .hh-intent-msg { flex: 1; min-width: 0; margin: 0; }
 .hw-enter-why { flex: 1; min-width: 0; margin: 0; font-size: var(--t-small); color: var(--ink); }
 .hw-enter-why:empty { display: none; }

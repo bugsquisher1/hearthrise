@@ -2124,6 +2124,22 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+    { // AW-25c 1440x900: the first row of "Who lives here" stands whole above Enter, the warning over it included; a wrapped list line never starts with its dot (board 11-04)
+      const { ctx, page, up } = await open({ viewport: { width: 1440, height: 900 }, mutateEnv: levelOne });
+      const W = '[data-hs-win="hunts"] ';
+      if (!up || !(await openWin(page, 'h', 'hunts'))) fails.push('AW-25c the Hunts window did not open at 1440x900');
+      else {
+        await page.click(W + '.hw-hunt[data-hunt="millrace_sewer"]');
+        await page.waitForTimeout(400);
+        const m = await page.evaluate((w) => { const f = document.querySelector(w + '.hw-hd-mon'), pg = document.querySelector(w + '.hw-hd-page'), sub = document.querySelector(w + '.hw-hunt-sub');
+          const best = Array.from(document.querySelectorAll(w + '.hw-hunt-bestline')).find((e) => e.textContent);
+          return { foot: f && f.getBoundingClientRect().bottom, end: pg.getBoundingClientRect().bottom, flow: getComputedStyle(sub).display, dot: best ? getComputedStyle(best, '::before').content : '' }; }, W);
+        if (!m.foot || m.foot > m.end + 0.5) fails.push('AW-25c the first creature is cut at the pane\'s foot: ' + JSON.stringify(m));
+        if (m.flow !== 'block') fails.push('AW-25c the list line wraps as flex items, so its dot can start a line: ' + m.flow);
+      }
+      await ctx.close();
+    }
+
     { // AW-25b the phone: the list, then the ground's page as the sheet, with the way back
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, mutateEnv: levelOne });
       const W = '[data-hs-win="hunts"] ';

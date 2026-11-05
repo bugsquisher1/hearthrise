@@ -35,7 +35,8 @@ export function createViewSheets(o) {
   function check(id, cast) {
     if (!opensOnView(id) || sheets.ready(needs.get(id))) return false;
     const miss = missing(cast);
-    for (const set of miss) if (!asked.has(set)) { asked.add(set); sheets.ensure([set]).then(wake); }
+    /* no wake while open() is at work: it goes on by itself, and a wake starts the frame loop, seconds of frames that cannot show (phone: 0.5 s of main thread) */
+    for (const set of miss) if (!asked.has(set)) { asked.add(set); sheets.ensure([set]).then(() => { if (!opening) wake(); }); }
     if (!miss.length) loadBehind(id);
     return miss.length > 0;
   }

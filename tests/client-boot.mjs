@@ -786,9 +786,15 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         let open = null, hits = 0;
         const shut = new Promise((k) => { open = k; });
         await page.route('**/assets/world/atlas-havora.png*', async (r) => { hits++; await shut; return r.continue(); });
+        await page.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window); window.__rafs = 0; window.requestAnimationFrame = (cb) => { window.__rafs++; return raf(cb); }; });
         await toPlay(page);
         for (let k = 0; k < 400 && !hits; k++) await page.waitForTimeout(25);
+        /* the wait costs the main thread nothing: its other sheets land while it is held, and no frame loop starts for frames that cannot show */
+        await page.waitForTimeout(500);
+        const rafs0 = await page.evaluate(() => window.__rafs);
         const early = await opened(page, 1500);
+        const spun = (await page.evaluate(() => window.__rafs)) - rafs0;
+        if (spun > 20) fails.push('B-21 while the first view waited on its sheet the page asked for ' + spun + ' animation frames in 1.5 s: the frame loop runs for frames that cannot show');
         open();
         const later = await opened(page, 15000);
         if (!hits) fails.push('B-21 a view on the Havora sheet never asked for it');
@@ -1235,6 +1241,7 @@ const MUTANTS = [
   ['the first view asks before the server names its stand (B-21)', 'src/world/view-sheets.js', 'if (!waited && town && !town.placeOn(now.id)) {', 'if (false) {'],
   ['the sheets behind the view are never asked for (B-21)', 'src/world/view-sheets.js', '    sheets.ensure(needs.get(id));\n', ''],
   ['a frame asks for the sheets of the town start while the first view waits for its stand (B-21)', 'src/world/view-sheets.js', 'const held = (id, cast) => (opening ? opensOnView(id) : check(id, cast));', 'const held = check;'],
+  ['the frame loop runs while the first view waits (B-21)', 'src/world/view-sheets.js', 'sheets.ensure([set]).then(() => { if (!opening) wake(); });', 'sheets.ensure([set]).then(wake);'],
   ['a read that never answers holds the town shut (B-21)', 'src/world/view-sheets.js', 'await Promise.race([town.heard(), new Promise((done) => win.setTimeout(done, PLACE_WAIT_MS))]);', 'await new Promise(() => {});'],
   ['a frame naming a sheet on its way is drawn anyway (B-21)', 'src/world/view-sheets.js', 'return miss.length > 0;', 'return false;'],
   ['a failed sheet ends the town instead of drawing stubs (B-21)', 'src/world/atlas.js', "(e) => { console.warn('[world] atlas \"' + set + '\" did not load; its sprites draw as stubs', e && e.message); return false; })", '(e) => { throw e; })'],

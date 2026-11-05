@@ -44,6 +44,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - New in Settings, under Help: "Share session recordings to help fix bugs". It is on by default. Turn it off and the game stops recording your screen at once.
 **What next is one goal.** The card now names the one thing worth doing next, with the press that does it, and More shows the rest. It tells you when your next hero is free or paid for, when more stamina is yours to buy, and which harder ground is your next step up. The Hunts list marks that ground too and opens on the harder ground you last hunted.
 - A tab showing a hero the server no longer holds now goes to your characters screen instead of standing still.
+**A sharper world.** The picture now fits its frame exactly at every screen size and display scale, so the art no longer loses a row or column of pixels.
 
 ## v0.2.88 — 2026-11-04 (Simply Harder)
 

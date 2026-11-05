@@ -104,7 +104,7 @@ export function refusalText(r, cs) {
   if (r && r.error === 'hearth_busy' && Number.isInteger(r.waitS)) {
     return 'The Great Hearth is already burning named fuels. Try again in ' + Math.max(1, Math.ceil(r.waitS / 60)) + ' min.';
   }
-  /* A new setup past this hero's count (hr_setup_locked sends both numbers): "This hero's 2 setup slots are full. Delete one, or buy a third for 5,000 gp." */
+  /* A new setup past this hero's count (hr_setup_locked sends both numbers): "This hero's 3 setup slots are full. Delete one, or buy a fourth for 15,000 gp." */
   if (r && r.error === 'setup_locked' && r.figures && Number.isInteger(r.figures.slots)) {
     return setupFullWords(r.figures.slots, Number.isInteger(r.figures.price) ? r.figures.price : null);
   }

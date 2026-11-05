@@ -28,6 +28,7 @@ export const CHAT_TABS = Object.freeze([
 /* THE TOWN CRIER's words on the Global tab (src/shell/windows/chat-crier.js). Prices and counts are the server's. */
 export const CRIER = Object.freeze({
   label: 'Town Crier',
+  mark: 'Crier',
   cry: 'Cry it',
   done: 'No more lines today',
   empty: 'Type the line first. The Crier shouts what\'s in the field.',

@@ -620,12 +620,14 @@
     "2027-02-28-setup-slots.sql",
     "2027-02-28-titles-catalogue.generated.sql",
     "2027-02-28-titles.sql",
+    "2027-02-28-sink-price-plan.sql",
     "2027-03-02-boss-call-hunts-catalogue.generated.sql",
     "2027-03-02-boss-call-hunt-sessions-catalogue.generated.sql",
     "2027-03-02-boss-call-titles-catalogue.generated.sql",
     "2027-03-02-boss-call.sql"
   ],
   "_order_notes": {
+    "2027-02-28-sink-price-plan.sql": "APPLIED 2026-11-05 08:37 UTC (lane/c-sink-price-plan, systems-engineer, 2026-11-05; pre-EA: applies on its passing §3; moves no value). tests/settle-budget.mjs SB-3 was red on set/v0.2.93: hr_state_of builds every section 5.33 times a watched settle, and setup_slots read through hr_sink_price (LANGUAGE sql, re-planned per call on PostgreSQL 17), hr_setups_of and hr_setups_bought. hr_setup_slots_view is now one statement with no helper, the same keys and values at every rung; hr_sink_price is plpgsql, its body verbatim. §0 pins both to their live images. After 2027-02-28-titles.sql. No edge move, no client half: the section keeps its shape.",
     "2027-02-27-gold-given.sql": "APPLIED 2026-11-05 07:56 UTC (lane/c-town-shows, backend-architect, 2026-11-04; Tyler the same day: a Gold Given board that ranks accounts; pre-EA: applies on its passing §4; on the EA Security list: a ranked surface). account_gold_given + hr_gold_given_add (owner-only; a verb calls it in the transaction of its charge), the board gold_given on leaderboard_ranked (one row per account, the lead hero, this UTC month). After 2027-02-27-gold-sinks-seams.sql, before 2027-02-27-town-crier.sql. No edge move. Rides the release with src/data/honor-roll.js's row.",
     "2027-02-27-town-crier.sql": "APPLIED 2026-11-05 07:56 UTC (lane/c-town-shows, backend-architect, 2026-11-04; Tyler the same day: Town Crier; pre-EA: applies on its passing §4; on the EA Security list: a paid line to every player, and no per-account mute exists yet). hr_crier_send, the flag town_crier (the server-wide stop), hr_town_crier_quote. After 2027-02-27-gold-given.sql, before 2027-02-27-town-shows.sql, whose window read calls the quote. No edge move.",
     "2027-02-27-town-shows.sql": "APPLIED 2026-11-05 07:56 UTC (lane/c-town-shows, backend-architect, 2026-11-04; Tyler the same day: colored Hearth fuels and Round for the Tavern; pre-EA: applies on its passing §9; on the EA Security list: money, and a shared surface). town_shows, hr_town_show, hr_town_sinks_view, hr_town_show_push; restates hr_hearth_flame_of and hr_hearth_burn (one added line) and replaces the stub hr_town_shows_of. Last of the lane's five files. No edge move.",

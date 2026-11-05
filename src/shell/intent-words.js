@@ -160,6 +160,7 @@ export const ANSWER_STANDS_MS = 30000;
 function answerAges(sc, repaint) {
   const said = sc.msg;
   if (!said) return;
-  const t = setTimeout(() => { if (sc.msg === said && !sc.pending) { sc.msg = ''; repaint(); } }, ANSWER_STANDS_MS);
+  /* a number in the browser; under node (the pure tests) a handle that must not hold the process open */
+  const t = /** @type {any} */ (setTimeout(() => { if (sc.msg === said && !sc.pending) { sc.msg = ''; repaint(); } }, ANSWER_STANDS_MS));
   if (t && t.unref) t.unref();
 }

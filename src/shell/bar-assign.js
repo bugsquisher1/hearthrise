@@ -95,15 +95,15 @@ export function barAfterSwap(set) {
   return wire;
 }
 
-/** One equip intent; a yes that put a weapon or a shield in hand (the two set the discipline) restates the bar when the swap left moves behind (one more intent, read back from the server). */
-export async function equipTidyingBar(cs, ops) {
-  const ans = await cs.edgeIntent('equip', { equip: ops });
-  if (ans && ans.ok && (ops.weapon || ops.shield)) {
-    const s = settingsOf(cs);
-    const next = barAfterSwap(s);
-    if (next) await cs.setHuntOptions(s.preset, { slots: next });
-  }
-  return ans;
+/**
+ * After an equip's yes that put a weapon or a shield in hand (the two set the discipline): restate the bar when the swap left moves behind, one more
+ * intent, read back from the server. Its answer, or null with nothing to do: the caller's runIntent says a refusal.
+ */
+export function tidyBarAfterSwap(cs, ops) {
+  const s = settingsOf(cs);
+  const next = ops.weapon || ops.shield ? barAfterSwap(s) : null;
+  if (!next) return null;
+  return cs.setHuntOptions(s.preset, { slots: next });
 }
 
 /* The first working store slot of the kind this own stack is, whose place it takes; -1 with none on the bar. (A store row is no bag item: barKind holds it off this path.) */

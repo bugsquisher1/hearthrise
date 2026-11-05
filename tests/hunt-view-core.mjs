@@ -292,6 +292,23 @@ async function rules(M) {
     ok('LOG-4', ['dealt', 'taken'].every((id) => M.CT.LOG_TYPES.find((r) => r.id === id).events.includes('miss')), 'the Dealt and Taken filters must read a miss');
   }
 
+  { // LOG-5: a unit newer than the last pose has a name ("Someone misses Someone" filled the first seconds of a hunt):
+    // a monster the timeline walked but the pose does not list yet, a hero only the live view knows.
+    const clock = { t: 500000 };
+    const { cs } = session(M, { hr_load: () => ({ ok: true, body: clone(FIXTURE) }) }, clock);
+    const log = M.L.logFor(cs);
+    await cs.load();
+    const me = M.H.partyOf(cs).members[0];
+    cs.live = { heroUnits: () => [{ unit: 950, seat: me.seat, role: me.role, self: true }] };
+    const at = FIXTURE.hunt_server_now_ms + 100;
+    cs.timeline.ingest({ units: { 901: ['rat', 30, 30] }, fromMs: at, events: [
+      { id: 'new.1', type: 'miss', atMs: at, u: 901, t: 950 }, { id: 'new.2', type: 'miss', atMs: at, u: 950, t: 901 }] }, clock.t);
+    cs.timeline.advance(clock.t + 60000);
+    const said = log.lines().slice(-2);
+    ok('LOG-5', said[0] && said[0].type === 'taken' && said[0].text === 'Giant Rat misses ' + me.name + '.', 'a new monster and a live hero read ' + JSON.stringify(said[0]));
+    ok('LOG-5', said[1] && said[1].type === 'dealt' && said[1].text === me.name + ' misses Giant Rat.', 'a live hero\'s own swing is filed under Dealt, by name: ' + JSON.stringify(said[1]));
+  }
+
   { // LOG-3: while the live prediction runs, a server answer's rare roll still reaches the log (the prediction
     // cannot draw it, live-engine.js), and nothing else of that answer does (one position source).
     const clock = { t: 500000 };
@@ -335,6 +352,8 @@ const MUTANTS = [
   ['the log says nothing of a miss (LOG-4)', 'src/hunt-view/combat-log.js', "    case 'miss': return ev.dodge === true", "    case 'miss_': return ev.dodge === true"],
   ['a monster\'s miss reads as dealt (LOG-4)', 'src/hunt-view/combat-log.js', ": line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses '", ": line('dealt', a + ' misses '"],
   ['a dodge reads as a plain miss (LOG-4)', 'src/hunt-view/combat-log.js', "return ev.dodge === true ? line('taken',", "return false ? line('taken',"],
+  ['a monster newer than the pose reads Someone (LOG-5)', 'src/hunt-view/combat-log.js', 'const kind = x.kind || cs.timeline.kindOf(u);', 'const kind = x.kind;'],
+  ['a hero only the live view knows reads Someone (LOG-5)', 'src/hunt-view/combat-log.js', '    if (m) heroes.set(x.unit, m.name);\n', ''],
 ];
 
 async function main() {

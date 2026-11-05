@@ -1,5 +1,26 @@
 # Art Director — running log
 
+## 2026-11-04 - the spark instead of the word (lane/a-miss-spark, from main v0.2.89)
+
+Tyler's named fix: "miss miss miss" over the hero becomes a spark. Lessons worth keeping:
+
+- **Read the brief's premise against the code.** "The combat log keeps its words" was untrue: `lineOf` had no `miss` case, so
+  taking the float away would have taken the information with it. The log gained the line Tyler assumed was there.
+- **A new line inherits the old line's bug.** The log resolved names from the last pose, so its first test on real play read
+  "Someone misses Someone" for a quarter of the lines. Timeline `kindOf` and the live view's `heroUnits` fix every line.
+- **Quiet can mean invisible.** A stone-ramp scuff disappeared on the Mill Cellar's stone floor at real size, and only a full
+  screenshot showed it. One step up to bone kept it quiet and made it exist.
+- **Freeze the real frame to read a 150 ms effect:** a scratch driver wraps `drawImage` to spot the sprite's atlas rect and holds
+  `requestAnimationFrame` while Playwright takes the shot. It catches every frame of a short effect on the real canvas.
+- **Direction costs one field.** 0.3 tile toward the attacker rings a full box around the hero. All on one pixel, it would read
+  as a blinking light.
+- **Measure the rate you are throttling.** A fresh hero in a box of 8 rats: 52 of 99 monster blows missed in the log, about 2 a
+  second. The 400 ms gap caps a spark at 2.5 a second, under the 3 flashes that read as flicker.
+- **`style1.mjs` knew only PixelLab and the sim.** It now also passes a `vfx` sidecar whose `drawn` names a script in
+  `tools/world-art`, with two planted defects proving a missing script and a non-effect stay red.
+- **Open, not mine to fix here:** a ranged hero's miss flies no bolt, so the scuff appears with nothing arriving; and the whole-body
+  white hit flash contradicts §2's "no white hit-flash".
+
 ## 2026-11-01 - the panel's second phone read (lane/a-panel-phone, from main v0.2.78)
 
 - **A later rule can quietly win.** My in-sheet card cap did nothing because an older same-weight rule (5.5 lines) sat below

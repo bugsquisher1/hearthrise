@@ -2,6 +2,7 @@
   "id": "fx_glance_spark",
   "class": "vfx",
   "style": "s1",
+  "drawn": "tools/world-art/glance-spark.mjs",
   "material": "light",
   "source": "fx_glance_spark.png",
   "frame": [

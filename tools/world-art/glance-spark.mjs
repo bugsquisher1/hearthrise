@@ -121,7 +121,7 @@ export function sheetOf(frames) {
 
 function sidecarOf(id, frames) {
   const n = frames[0].length, c = (n - 1) / 2;
-  return { id, class: 'vfx', style: 's1', material: 'light', source: id + '.png', frame: [n, n], anchor_px: [c, c], footprint: [1, 1],
+  return { id, class: 'vfx', style: 's1', drawn: 'tools/world-art/glance-spark.mjs', material: 'light', source: id + '.png', frame: [n, n], anchor_px: [c, c], footprint: [1, 1],
     anims: [{ name: 'play', fps: FPS, loop: false, dirs: { s: frames.length } }],
     notes: 'A blow that did no harm. Drawn by tools/world-art/glance-spark.mjs: hard pixels, palette colours, no generation.' };
 }

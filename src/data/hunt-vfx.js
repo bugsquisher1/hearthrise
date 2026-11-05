@@ -55,8 +55,9 @@ export const EVENT_FX = Object.freeze({
      lift           how high on the unit, as a row above
      reach          how far toward the attacker, in tiles: the edge of a body, so a full box of 8 rings the hero
                     with sparks rather than stacking them on one pixel
-     gapMs          the least time between two on one unit: 8 monsters swing 4 times a second, and past this it is a flicker */
-export const GLANCE_FX = row({ hero: 'fx_glance_spark', monster: 'fx_glance_scuff', lift: CHEST, reach: 0.3, gapMs: 300 });
+     gapMs          the least time between two on one unit: 8 monsters swing 4 times a second, about half of them missing a
+                    fresh hero and most an overlevelled one, and 2.5 a second stays under the 3 flashes that read as flicker */
+export const GLANCE_FX = row({ hero: 'fx_glance_spark', monster: 'fx_glance_scuff', lift: CHEST, reach: 0.3, gapMs: 400 });
 
 /* The twinkle a kill that dropped loot leaves on the body (FX-06). */
 export const LOOT_FX = row({ fx: 'fx_loot_sparkle', at: 't', lift: 0.15 });

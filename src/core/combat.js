@@ -17,13 +17,13 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=0.2.93';
+import { levelOf } from './xp.js?v=0.2.94';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
-} from './bane.js?v=0.2.93';
-import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=0.2.93';
-import { ELEMENT_PERMILLE } from '../data/elements.js?v=0.2.93';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.93';
+} from './bane.js?v=0.2.94';
+import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=0.2.94';
+import { ELEMENT_PERMILLE } from '../data/elements.js?v=0.2.94';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.94';
 /* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
    demolition safety review item 9: trophies stay as claims and display; the
    ladders no longer price a fight). A monster's drops are its own row's. */
@@ -155,6 +155,7 @@ export function equipmentStats(equipment, items) {
        weights (a shield, a cape, an offhand). Weighted armour's defB feeds its weight's line of
        the chain instead (src/core/mitigation.js), never the monster's to-hit roll. */
     guardB: 0,
+    steadyPm: 0,
     /* class → best bane multiplier, or null when no bane gear is worn. Derived
        here (rather than in weaknessInfo) because this is the ONE function that
        already walks the equipped set, and because both engines — the live tick
@@ -170,6 +171,7 @@ export function equipmentStats(equipment, items) {
     if (!it) return;
     s.atkB += it.atkB || 0; s.strB += it.strB || 0; s.defB += it.defB || 0;
     if (!ARMOUR_WEIGHT[it.armourClass]) s.guardB += it.defB || 0;
+    s.steadyPm += it.steadyPm || 0;
     s.critB += it.critB || 0;
     if (slot === 'weapon' && it.weaponType) s.weaponType = it.weaponType;
   });
@@ -370,7 +372,7 @@ export function monsterCombatRolls(monster, ctx) {
   const c = ctx || {};
   const eq = c.eq || {};
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
-  const playerDefense = levelOf(c.skills || {}, 'defense') + (eq.guardB || 0) + (bonus('defense') || 0);
+  const playerDefense = levelOf(c.skills || {}, 'defense') + (eq.guardB || 0);
   return { accuracy: monsterAccuracy(monster, playerDefense), maxHit: monsterMaxHit(monster) };
 }
 

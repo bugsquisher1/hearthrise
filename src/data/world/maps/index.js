@@ -1,14 +1,14 @@
 // src/data/world/maps/index.js — every world map, and which one each scene opens on.
 // A new map is a file in this folder plus one row below; nothing else changes.
-import millCellar from './mill_cellar.js?v=0.2.93';
-import townCommon from './town_common.js?v=0.2.93';
-import homeCottage from './home_cottage.js?v=0.2.93';
-import millraceSewer from './millrace_sewer.js?v=0.2.93';
-import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.93';
-import coppercapWarrens from './coppercap_warrens.js?v=0.2.93';
-import mosslightGlade from './mosslight_glade.js?v=0.2.93';
-import sandboxHd64 from './sandbox_hd64.js?v=0.2.93';
-import wickstead from './wickstead.js?v=0.2.93';
+import millCellar from './mill_cellar.js?v=0.2.94';
+import townCommon from './town_common.js?v=0.2.94';
+import homeCottage from './home_cottage.js?v=0.2.94';
+import millraceSewer from './millrace_sewer.js?v=0.2.94';
+import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.94';
+import coppercapWarrens from './coppercap_warrens.js?v=0.2.94';
+import mosslightGlade from './mosslight_glade.js?v=0.2.94';
+import sandboxHd64 from './sandbox_hd64.js?v=0.2.94';
+import wickstead from './wickstead.js?v=0.2.94';
 
 export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64]);
 

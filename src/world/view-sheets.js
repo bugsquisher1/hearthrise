@@ -9,7 +9,7 @@
 // Only the town: a ground's monsters walk in from sheets no view names yet, so a ground still opens whole.
 // Proof: tests/client-boot.mjs B-21; its pixels, tests/perf-budget.mjs PB-VIEW.
 // ════════════════════════════════════════════════════════════════════════
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.93';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.94';
 
 /* how long a first view waits for the server to say where its hero stands (a read lost on a bad line) */
 const PLACE_WAIT_MS = 3000;

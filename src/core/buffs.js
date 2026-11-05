@@ -41,7 +41,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { CHANNEL, channelApplies } from './away.js?v=0.2.93';
+import { CHANNEL, channelApplies } from './away.js?v=0.2.94';
 
 /* Maps buff.type -> {label, bonusKey, isPercent|isFlat, glyph}.
    `bonusKey` is the getBonus key the effect pays into; a type with no row
@@ -61,9 +61,8 @@ export const BUFFS_DEF = {
      as 0.15 of a crop and harvestPlot floored it to nothing. */
   farm_yield: { label: 'Farm Yield', bonusKey: 'farmYield', isPercent: false, isFlat: true, glyph: 'uiWheat' },
   damage: { label: 'Damage', bonusKey: 'damage', isPercent: true, glyph: 'uiSword' },
-  /* b238: a FLAT bump to defence (a +4 food buff reads "+4", not "+4%"),
-     consumed by monsterCombatRolls. */
-  defense: { label: 'Defense', bonusKey: 'defense', isPercent: false, isFlat: true, glyph: 'uiShield' },
+  /* A share off every blow, on the same capped cut a cape carries (mitigation.js steadyPmOf). One to-hit point was 12-16% of the damage at depth. */
+  defense: { label: 'Damage cut', bonusKey: 'steady', isPercent: true, glyph: 'uiShield' },
   combat_xp: { label: 'Combat XP', bonusKey: 'combatXP', isPercent: true, glyph: 'uiTarget' },
   gold_find: { label: 'Gold Find', bonusKey: 'goldFind', isPercent: true, glyph: 'uiCoinStack' },
   /* Pays into the `crit` bonus key, which is ALSO fed by gear (`critB` + the

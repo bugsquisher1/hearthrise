@@ -70,6 +70,10 @@ export const ROCKS=[
      (The Coal(10.36)-to-Dawnstone xp climb below now starts at Verdite.) */
   {id:'coal_rock',name:'Coal Rock',icon:'⬛',req:1,xp:38,ms:5500,prod:'coal',qty:[1,1]},
   {id:'iron_rock',name:'Iron Rock',icon:'⬜',req:15,xp:40,ms:4500,prod:'iron_ore',qty:[1,1]},
+  /* THE MIDDLE SEAM (Andy 2026-11-05: coal "has been a real slog and bottleneck for smithing"). Coal's first sink is Steel at Smithing 30, and half to two thirds of the
+     hours from Smithing 30 to 45 are coal; the Coal Rock pays the fewest pieces of any rock under Mining 45 and the next rung sat 12 hours of mining away. So a rung where
+     the sink opens: 1.33x the Coal Rock, halfway to the Rich Seam, its XP seated between Iron and Verdite. It sells raw for 1,088 g/h, under W-RAW (tests/craft-wages.mjs). */
+  {id:'coal_seam',name:'Coal Seam',icon:'⬛',req:30,xp:60,ms:6200,prod:'coal',qty:[1,2]},
   /* b390 (game-design / gathering-plateau ruling): xp 75 → 79. The mid-to-high
      mining band had gone FLAT — Gold(45)→Rich Coal(52)→Mithril(60) moved only
      ~10.7→10.8→11.5 xp/sec, so +15 levels bought ~+8% training speed and an

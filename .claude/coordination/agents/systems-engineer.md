@@ -4524,8 +4524,24 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 ## 2026-11-05 · lane/c-armor-tiers (the sim plays the server's map)
 1. *One builder, and test what the run played, not a helper.* The check reads the grid the fixture's `run` answers, so a bypass inside `run` goes red too.
 2. *A number read off a wrong map is not a bar.* "3 deaths in a seed's hour" was a reading; the rule is "the unready hero dies". Say which is which when it moves.
+## 2026-11-05 · lane/c-armor-tiers (guard off capes)
+1. *Lowering a bar needs a mutant on that very line.* A catch by an earlier line proves nothing about the new one, so the mutant names the line it must fail on (`expect`).
+2. *An existing hook beats a new one.* Tempering's last-step cut took a cape in one sum and one floor; the jewelry spec's Steady now needs one row field.
+3. *To show a player-visible limit, ask the server where the hero stands, then shoot the page.* One read found the hero inside a tree.
+## 2026-11-05 · lane/c-armor-tiers (the guard foods)
+1. *Size a rewire by what the data row is named in.* A new buff type would have touched the hunt catalogue. Keeping the type and moving what it pays touched one generated file with two numbers.
+2. *The scratchpad is shared with other lanes.* Another lane's `run-guards.mjs` replaced mine and ran my guard list as nonsense with exit 0. Name scratch tools for the lane and read the output, not the exit of the wrapper.
 ## 2026-11-05 · lane/a-kiter-resets (the holder's walk stays in its pack area)
 1. *A filter on where a walk ends is not a filter on the walk.* Every retreat tile was inside the area and the A* to it was not: a blocked re-plan round the pack stepped one tile out, and that one tile healed the whole pack. Put the rule where every plan and step already asks (leashAllows), not on the caller.
 2. *Re-measure a bug on the server's map before sizing it.* "XP down to 44%" (821 resets an hour, L60 mage) was the fixture's old map; on the engine's grid the same cell loses 5-6%. The fix cures both, and the report says which number is real.
 3. *The same dice answer "normal play unchanged".* 42 of 58 cells digit for digit: every default pull at the Glade and the Warrens, every melee cell, the shield four. Only kiters at big pulls move.
 4. *A red on your branch may not be yours: run it on the tree without your change before touching anything.* temper-play's blows-pay went red the moment the server's map met v0.2.91, same digits with and without this fix. It read a coin on a saturated cell (the mage out-clears the respawn), so the guard moved to where only the hero bounds it, with both mutants still caught.
+## 2026-11-05 · lane/a-silent-triggers (a slot that waits says why)
+1. *Play it before believing the green.* Eleven cases and sixteen mutants were green and every fixture bar was full. The real bar has empty slots, asking the engine about one threw every frame of a fight, and the bar stopped patching. The case came second.
+2. *Ask the engine, don't restate it.* The words read `testSlot` on the prediction's own world (it writes nothing), so they can't drift from what the settle does, and no `src/core` moved.
+3. *Not every wait is news.* Marking every unmet condition would have flagged every food slot at full health. A mark goes where the screen shows nothing else that explains it; the rest is words.
+## 2026-11-05 · lane/c-caster-starter-bars (a new caster's first fights)
+1. *Run the file, not the case.* The ruling's chain was played the way its case plays it and matched digit for digit; the next case in the same file, `glade-between`, was red on that very number. A partial read can only agree with itself.
+2. *A window smaller than its noise is a dice roll.* The Sewer's rung has 17.5 g/h between two guards, and neighboring mana gates read 1,824 to 1,899.5 in no order. Lowering a gate doesn't tune that, it rerolls it. Say so in the row's comment and in the report, or the next reader believes 78 means something.
+3. *A fixture that can't shop proves nothing about a bar that shops.* `solo-healer` ran a Healer with no store rows: it could never cast Greater Mend, and Tyler's P1 passed on staff blows. The fixture now carries what `hr_hunt_member_read` hands the settle.
+4. *An offer's words are about the thing it names.* "Trains Magic" was true of every spell "A spell costs runes" had offered, until the axes got it and Rend trains Melee. A row reaching a card for the first time is a new input to its words.

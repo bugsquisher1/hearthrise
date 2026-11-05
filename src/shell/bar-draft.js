@@ -11,18 +11,18 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.93';
-import { STATUSES } from '../data/statuses.js?v=0.2.93';
-import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.93';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.93';
-import { isRune } from '../data/supplies.js?v=0.2.93';
-import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.93';
-import { ITEMS } from '../data/items.js?v=0.2.93';
-import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.93';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.93';
-import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.93';
-import { refusalWords } from './intent-words.js?v=0.2.93';
-import { skillName } from './widgets/bits.js?v=0.2.93';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.94';
+import { STATUSES } from '../data/statuses.js?v=0.2.94';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.94';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.94';
+import { isRune } from '../data/supplies.js?v=0.2.94';
+import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.94';
+import { ITEMS } from '../data/items.js?v=0.2.94';
+import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.94';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.94';
+import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.94';
+import { refusalWords } from './intent-words.js?v=0.2.94';
+import { skillName } from './widgets/bits.js?v=0.2.94';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -126,7 +126,7 @@ export function storeName(id) {
 }
 
 /**
- * A RUNE SPELL'S STORE CHOICE (designer 2026-10-21: a default bar never buys a rune unseen; the rune ladder, Tyler
+ * A RUNE SPELL'S STORE CHOICE (designer 2026-11-05: every default rune slot starts with its store rune on, shown, and the player can change it; the rune ladder, Tyler
  * 2026-11-05): "Carried runes only" (`id` null), then every store row of the spell's family, Plain first, at the
  * server's price a cast. Each row is what the player compares: `mana` a cast, `times` the power against Plain's
  * at the hero's own level (`skills`, the server's; null until it has said), `needs` the level its version takes and

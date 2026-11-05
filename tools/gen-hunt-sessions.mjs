@@ -211,7 +211,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
    2027-02-24-risk-no-level-block.sql (the old gate reads a missing limit as a hard floor). No kill bound, spawn or shape moves. */
 /* GOLD MATTERS (lane/c-gold-matters, designer 2026-11-03): 2027-02-24-risk is the file before this one and this one carries it; 15 monsters' coin moves hr_hunt_kill_bounds' gold_max (down on Wickstead, the Glade's
    poachers, the Sewer's bat and spider; up on the Warrens and the Rat King) and tier 2's hourly armor moves hr_hunt_vendor_value, the same full replace. No spawn, limit or shape moves. */
-/* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-24-gold-matters is APPLIED history; the deeper store runes join hr_hunt_basic_supplies and the deeper runes' bids move in hr_hunt_vendor_value, the same full replace. No kill bound, spawn, limit or shape moves. */
+/* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-28-temper-craft is the file before this one and this one carries it; the deeper store runes join hr_hunt_basic_supplies and the deeper runes' bids move in hr_hunt_vendor_value, the same full replace. No kill bound, spawn, limit or shape moves. */
 export const OUT_NAME = '2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;

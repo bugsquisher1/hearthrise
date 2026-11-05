@@ -23,6 +23,8 @@
 //   W-USE     Bronze Arrows, Coarse Whetstones and Chalked Runes stay priced at nothing: made for your own use
 //   W-TAX     the public bench's fee (src/data/bench-tax.js): no craft charges more than its output sells for, and a row the cheap goods
 //             line leaves free never out-earns the taxed rows it stands beside, so the line cannot become the way to work
+//   W-COAL    coal has a better rung by the Smithing level of its first sink (Andy 2026-11-05: "a real slog and bottleneck"); its rungs climb in pieces an hour, and the
+//             Coal Seam's XP an hour sits between the rocks around it, so mining it costs a smith no Mining
 //   W-BENCH   a house bench is a long goal (Tyler 2026-11-01): each bench room's first rung costs at least a week's money, rungs climb,
 //             and the shop row and the ladder agree
 //   W-RUNE    the rune ladder (Tyler 2026-11-05): a job's runes sell to the shop for less than the book value of the blanks that went in, so a rune is
@@ -42,7 +44,7 @@ import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
 import { ROOM_RUNGS } from '../src/data/homestead-tiers.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { recipeInputs } from '../src/core/artisan.js';
-import { pacedActionMs } from '../src/core/pacing.js';
+import { pacedActionMs, pacedXp } from '../src/core/pacing.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { BENCH_TAX, BENCH_TAX_FREE_UNDER_MG } from '../src/data/bench-tax.js';
 import { feeMgOf } from '../src/core/bench-tax.js';
@@ -186,6 +188,18 @@ export function check() {
     if (!store) fails.push(`W-RUNE ${r.output}: no store row, and every spendable rune has a store partner`);
     else if (bid(r.output) >= store.price) fails.push(`W-RUNE ${r.output}: the shop bids ${bid(r.output)} g and the store sells ${store.n} at ${store.price} g: no crafter can list under the store`);
   }
+  /* W-COAL: the supply rung at Mining 1 is exempt from the XP seat on purpose (gathering.js, coal at any level); the seam above it is not. */
+  const perHour = (n) => (3600000 / pacedActionMs(n.ms)) * ((Number(n.qty?.[0] ?? 1) + Number(n.qty?.[1] ?? 1)) / 2);
+  const xpHour = (n) => (3600000 / pacedActionMs(n.ms)) * pacedXp('mining', n.xp);
+  const coalRows = ROCKS.filter((n) => n.prod === 'coal').sort((a, b) => a.req - b.req);
+  const firstSink = Math.min(...Object.values(ARTISAN_RECIPES).flat().filter((r) => recipeInputs(r).coal).map((r) => r.req));
+  if (!coalRows.some((n) => n.req > 1 && n.req <= firstSink)) fails.push(`W-COAL no coal rung past the Coal Rock by Mining ${firstSink}, where Steel first eats it: ${coalRows.map((n) => n.req).join()}`);
+  coalRows.forEach((n, i) => { if (i && !(perHour(n) > perHour(coalRows[i - 1]) * 1.2)) fails.push(`W-COAL ${n.id} brings ${Math.round(perHour(n))} an hour, not a fifth over ${coalRows[i - 1].id}'s ${Math.round(perHour(coalRows[i - 1]))}`); });
+  const seam = coalRows.find((n) => n.req > 1 && n.req <= firstSink);
+  if (seam) {
+    const under = ROCKS.filter((n) => n.req < seam.req && n.prod !== 'coal').sort((a, b) => b.req - a.req)[0], over = ROCKS.filter((n) => n.req > seam.req).sort((a, b) => a.req - b.req)[0];
+    if (!(xpHour(seam) > xpHour(under) && xpHour(seam) < xpHour(over))) fails.push(`W-COAL ${seam.id} pays ${Math.round(xpHour(seam))} XP an hour, not between ${under.id} ${Math.round(xpHour(under))} and ${over.id} ${Math.round(xpHour(over))}`);
+  }
   for (const id of SELF_USE) if (bid(id) !== 0) fails.push(`W-USE ${id}: the shop bids ${bid(id)} g; it is made for your own use (the recipe says so)`);
   for (const [room, least] of Object.entries(BENCH_ROOMS)) {
     const rungs = ROOM_RUNGS[room];
@@ -213,6 +227,11 @@ function mutate() {
   const setField = (id, k, v) => { const had = Object.prototype.hasOwnProperty.call(ITEMS[id], k); const was = ITEMS[id][k]; ITEMS[id][k] = v; return () => { if (had) ITEMS[id][k] = was; else delete ITEMS[id][k]; }; };
   const inputs = (skill, rid, next) => { const list = ARTISAN_RECIPES[skill]; const at = list.findIndex((x) => x.id === rid); const was = list[at]; list[at] = { ...was, inputs: next }; return () => { list[at] = was; }; };
   run('coal back at book 40 (3,273 g/h at Mining 1)', 'W-RAW', () => setField('coal', 'v', 40));
+  const rock = (id, k, v) => () => { const n = ROCKS.find((x) => x.id === id), was = n[k]; n[k] = v; return () => { n[k] = was; }; };
+  run('the Coal Seam back up at Mining 52: the smith waits twelve hours of mining', 'W-COAL', rock('coal_seam', 'req', 52));
+  run('the Coal Seam no richer than the Coal Rock', 'W-COAL', rock('coal_seam', 'qty', [1, 1]));
+  run('the Coal Seam paying less XP than the Iron Rock under it', 'W-COAL', rock('coal_seam', 'xp', 30));
+  run('the Coal Seam pouring out coal at a raw wage over the cap', 'W-RAW', rock('coal_seam', 'qty', [3, 4]));
   run('maple logs back at book 80', 'W-RAW', () => setField('maple_log', 'v', 80));
   run('the Iron Bar back at book 90, a fifth of it still too much', 'W-CHAIN', () => setField('iron_bar', 'v', 90));
   run('the Iron Bar off the bulk list (the shop pays its whole book)', 'W-CHAIN', () => setField('iron_bar', 'raw', false));

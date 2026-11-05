@@ -11,8 +11,8 @@
 //   the hero has the mana (AB-12), its rune and its shots (the item its attack
 //   slots loose: castShotOf) resolve — own line
 //   first, then the store (AB-05/06, src/core/action-rules.js resolveLine; a
-//   RUNE is bought only when the slot names the store rune, `action.store`, so
-//   a default bar never buys one unseen — designer 2026-10-21; a basic shot
+//   RUNE is bought only when the slot names the store rune, `action.store`, which
+//   the bar shows and the player can change — designer 2026-11-05; a basic shot
 //   never buys one, shotLine),
 //   and its target rule finds a target (AB-03). A slot the purse cannot pay
 //   waits and the next one is tried; it never ends the hunt by itself.
@@ -39,22 +39,22 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.93';
-import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.93';
-import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.93';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.93';
-import { temperedAmount } from '../temper.js?v=0.2.93';
-import { cheb, dist2, los } from './grid.js?v=0.2.93';
-import { makeEvent } from './events.js?v=0.2.93';
-import { landHit } from './damage.js?v=0.2.93';
-import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.93';
-import { applyStatus, statusRow } from './status.js?v=0.2.93';
-import { levelOf } from '../xp.js?v=0.2.93';
-import { ammoPerShot } from '../ammo.js?v=0.2.93';
-import { ITEMS } from '../../data/items.js?v=0.2.93';
-import { isRune } from '../../data/supplies.js?v=0.2.93';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.93';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.93';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.94';
+import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.94';
+import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.94';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.94';
+import { temperedAmount } from '../temper.js?v=0.2.94';
+import { cheb, dist2, los } from './grid.js?v=0.2.94';
+import { makeEvent } from './events.js?v=0.2.94';
+import { landHit } from './damage.js?v=0.2.94';
+import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.94';
+import { applyStatus, statusRow } from './status.js?v=0.2.94';
+import { levelOf } from '../xp.js?v=0.2.94';
+import { ammoPerShot } from '../ammo.js?v=0.2.94';
+import { ITEMS } from '../../data/items.js?v=0.2.94';
+import { isRune } from '../../data/supplies.js?v=0.2.94';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.94';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.94';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],

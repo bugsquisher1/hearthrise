@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 461c2f3c315458142deb33acc6d722668bbee7880fd366814aebd2bfb0ffb426
+--   digest: 7750c0a6238953e4d7fd9300822f3513dbacd721f88e3a2afad408dc6e943284
 --   82 supplies, 128 hunts (named + training), 47 limits, 13 end reasons,
---   548 vendor values, 49 store supplies paid per use, 5 target modes,
+--   550 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
 --
 -- NEW IN THIS FILE (lane/c-rune-ladder, Tyler 2026-11-05: "let start with your calls"): hr_hunt_basic_supplies gains one store rune a
@@ -1263,6 +1263,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('fang_studs', 65),
   ('fangdart_recurve', 1008),
   ('field_ration', 90),
+  ('fine_temper_salts', 12),
   ('fishers_pie', 520),
   ('flux_salt', 3),
   ('foremans_lash', 18),
@@ -1514,6 +1515,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('sump_membrane', 4),
   ('swarm_heart', 650),
   ('swordfish', 8),
+  ('temper_salts', 7),
   ('timber_beam', 46),
   ('tomato', 18),
   ('tomato_juice', 30),
@@ -1623,7 +1625,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 128
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 13
-     or (select count(*) from public.hr_hunt_vendor_value) <> 548
+     or (select count(*) from public.hr_hunt_vendor_value) <> 550
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

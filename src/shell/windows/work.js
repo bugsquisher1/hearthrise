@@ -23,21 +23,21 @@
 // (src/shell/town-ticker.js), as pending; the rows' numbers stay the server's.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.93';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.93';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.93';
-import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.93';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.93';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.93';
-import { whole } from '../../render/format.js?v=0.2.93';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.93';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.93';
-import { runIntent } from '../intent-words.js?v=0.2.93';
-import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.93';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine } from '../town-work.js?v=0.2.93';
-import { saleWords } from '../item-lore.js?v=0.2.93';
-import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.93';
-import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.93';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.94';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.94';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.94';
+import { skillsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.94';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.94';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.94';
+import { whole } from '../../render/format.js?v=0.2.94';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.94';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.94';
+import { runIntent } from '../intent-words.js?v=0.2.94';
+import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.94';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, defaultCount, leftOf, toolLine } from '../town-work.js?v=0.2.94';
+import { saleWords } from '../item-lore.js?v=0.2.94';
+import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.94';
+import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.94';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
@@ -101,7 +101,7 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const gather = w.kind === 'gather';
   /* Who won't buy it is said before it is made (panel 2026-11-01: 12,000 runes, no buyer, no word). */
   const sale = !gather && out ? saleWords(out) : '';
-  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ' · ' + each : recipeWords(w) + (sale ? '. ' + sale + '.' : ''));
+  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ' · about ' + whole(perHourOf(w, actionMs(cs, w))) + ' an hour · ' + each : recipeWords(w) + (sale ? '. ' + sale + '.' : ''));
   const running = !!on && on.id === w.id;
   const why = running ? '' : workBlock(cs, w, hunting);
   /* The status line: running, why not, or what the server's bag holds / covers. A dish says its burn chance at the

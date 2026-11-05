@@ -13,13 +13,13 @@
 // The one exception is the town's own sets, asked for once an account is known
 // (src/world/prewarm.js), so the first Play after a release does not wait for them.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.93';
-import { atlasPaths } from '../data/world/art-budget.js?v=0.2.93';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.93';
-import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.93';
+import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.94';
+import { atlasPaths } from '../data/world/art-budget.js?v=0.2.94';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.94';
+import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.94';
 /* Each atlas image loads once per page (src/render/images.js): a remounted pane and the Character
    window's outfit preview reuse the decoded image instead of fetching it again. */
-import { heldImage } from '../render/images.js?v=0.2.93';
+import { heldImage } from '../render/images.js?v=0.2.94';
 
 /* A module specifier resolves against THIS module's URL, an image against the
    document: both are made absolute from the document so assets/ is the site's. */

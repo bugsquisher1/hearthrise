@@ -103,6 +103,7 @@ export async function loadGear(root) {
     }
     if (S.role === 'ranger') set.ammo = opts.ammo || 'bronze_arrows';
     else if (opts.ammo) set.ammo = opts.ammo;
+    Object.assign(set, opts.also || {});
     for (const k of Object.keys(set)) if (!set[k]) delete set[k];
     return set;
   }

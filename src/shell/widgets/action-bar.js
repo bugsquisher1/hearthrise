@@ -10,8 +10,9 @@
 //            slot: the action's icon, its small slot number, ONE count badge
 //            (what the bag holds of it, from the server), a diagonal strike when
 //            the server marks it unusable or it has nothing left and no store
-//            behind it, a "!" when an earlier slot always wins (action-facts.js
-//            conflictsOf). An empty slot shows only a "+". A press (or the "+")
+//            behind it, a dim icon, a glyph and "2+" when its condition wants more
+//            monsters or heroes (slot-waits.js), a "!" when an earlier slot always wins
+//            (action-facts.js conflictsOf). An empty slot shows only a "+". A press (or the "+")
 //            opens Configure action, centred; dragging a slot onto another moves
 //            it there (ONE intent, the whole bar restated); a bag stack dropped
 //            on a slot puts it there (src/shell/bar-assign.js)
@@ -26,28 +27,27 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.93';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.93';
-import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.93';
-import { carriedOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.93';
-import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.93';
-import { whole } from '../../render/format.js?v=0.2.93';
-import { glyphSvg } from '../launcher.js?v=0.2.93';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.93';
-import { actionIconHtml } from './bits.js?v=0.2.93';
-import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.93';
-import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.93';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.93';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, holdingReason, sharedCooldownOf } from '../action-facts.js?v=0.2.93';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.93';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.93';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.93';
-import { refusalWords } from '../intent-words.js?v=0.2.93';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.93';
-import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.93';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.93';
-import { renameActionSet } from '../../session/preset-intents.js?v=0.2.93';
-import { carryRows } from '../carry-in.js?v=0.2.93';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.94';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.94';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.94';
+import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.94';
+import { whole } from '../../render/format.js?v=0.2.94';
+import { glyphSvg } from '../launcher.js?v=0.2.94';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.94';
+import { actionIconHtml } from './bits.js?v=0.2.94';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.94';
+import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.94';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.94';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, sharedCooldownOf } from '../action-facts.js?v=0.2.94';
+import { whyFacts, slotWhy } from '../slot-waits.js?v=0.2.94';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.94';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.94';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.94';
+import { refusalWords } from '../intent-words.js?v=0.2.94';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.94';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.94';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.94';
+import { renameActionSet } from '../../session/preset-intents.js?v=0.2.94';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -94,10 +94,6 @@ function patchCooldown(li, s, casts, now) {
   li.querySelector('.hb-cd-ember').style.height = (Math.round((1 - left / r.cdMs) * 1000) / 10) + '%';
   text(li.querySelector('.hb-cd-s'), left < 10000 ? (left / 1000).toFixed(1) : String(Math.ceil(left / 1000)));
 }
-
-/* THE VIEWED TANK HOLDS THE PACK (bug #61): every engaged monster is on it in the world the live engine runs (the
-   server's start point, reconciled at every commit; live-engine.js holdsPack), so its Challenge slot reads "Holding". */
-const holdsPackNow = (cs, hero) => !!hero && !!cs && !!cs.live && typeof cs.live.holdsPack === 'function' && cs.live.holdsPack(hero.unit);
 
 function slotHtml(i) {
   return '<li class="hb-slot is-empty" data-slot="' + i + '" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot ' + (i + 1) + '">'
@@ -161,15 +157,16 @@ function patchSlot(li, s, w, ctx, bag, conflict, why) {
   }
   /* The count: the server's own count for a slot naming one item (a store item has none); the loaded ammo's is the bag's. */
   const n = s.empty || s.action.type === 'ability' ? null : Number.isInteger(s.count) && !KINDS.has(s.action.id) ? s.count : carried(s.action, bag);
-  /* WHY it cannot fire (action-facts.js reasonOf): struck when the server would not fire it, a glyph either way. */
-  const out = !!why && why.strike;
+  /* WHY it cannot fire (slot-waits.js slotWhy): struck when the server would not fire it, a glyph either way. A `rest` reason
+     is words only: the slot looks as it always does (a food slot at full health is not broken). */
+  const seen = why && !why.rest ? why : null;
   cls(li, 'is-empty', s.empty);
-  cls(li, 'is-off', out);
-  cls(li, 'is-wait', !!why && !why.strike);
+  cls(li, 'is-off', !!seen && seen.strike);
+  cls(li, 'is-wait', !!seen && !seen.strike);
   cls(li, 'is-blocked', !!conflict);
   const g = li.querySelector('.hb-why');
-  if (g.getAttribute('data-for') !== (why ? why.code : '')) { g.innerHTML = why ? glyphSvg(ctx.glyphs, why.glyph) : ''; attr(g, 'data-for', why ? why.code : ''); }
-  text(li.querySelector('.hb-count'), n ? whole(n) : '');
+  if (g.getAttribute('data-for') !== (seen ? seen.code : '')) { g.innerHTML = seen ? glyphSvg(ctx.glyphs, seen.glyph) : ''; attr(g, 'data-for', seen ? seen.code : ''); }
+  text(li.querySelector('.hb-count'), n ? whole(n) : (seen && seen.need) || '');
   attr(li, 'aria-label', 'Slot ' + (li.getAttribute('data-slot') * 1 + 1) + ': ' + (s.empty ? 'empty, press to configure' : actionName(s.action) + (why ? ': ' + why.text : '') + (conflict ? ', never fires' : '')));
 }
 
@@ -182,13 +179,10 @@ function tipHtml(i, ctx) {
   const f = factsOf(s.action);
   const wires = Array.from({ length: SLOTS }, (_, k) => wireSlot(set.slots[k]));
   const conflict = conflictsOf(wires, set).get(i);
-  const h = huntOf(ctx.character);
-  const bag = carriedOf(ctx.character);
-  const hero = h && !h.ended ? h.hero : null;
-  const worn = (equipmentOf(ctx.character) || {}).ammo;
-  const why = reasonOf(s, set, bag, hero, worn, skillsOf(ctx.character), carryRows(ctx.character)) || holdingReason(s, holdsPackNow(ctx.character, hero));
+  const facts = whyFacts(ctx.character);
+  const why = slotWhy(s, facts);
   const shared = sharedCooldownOf(wires, i);
-  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag, worn)).filter(Boolean);
+  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, facts.bag, facts.worn)).filter(Boolean);
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
     + (why ? '<p class="' + (why.quiet ? 'is-why' : 'is-warn is-why') + '">' + esc(why.text) + '</p>' : '')
     + lines.map((l) => '<p>' + esc(l) + '</p>').join('')
@@ -248,19 +242,14 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const slots = s ? Array.from({ length: SLOTS }, (_, i) => s.slots[i] || { empty: true }) : [];
   const wires = slots.map((x) => wireSlot(x));
   const conflicts = s ? conflictsOf(wires, s) : new Map();
-  const bag = carriedOf(cs);
-  const hero = h && !h.ended ? h.hero : null;
   const casts = watchCasts(ctx);
   const now = ctx.now();
-  const holding = holdsPackNow(cs, hero);
-  const worn = (equipmentOf(cs) || {}).ammo;
-  const skills = skillsOf(cs);
-  /* What the running hunt could carry in from the bag: a slot it is out of says where its stock waits (carry-in.js). */
-  const pack = carryRows(cs);
+  /* Read once for the whole bar; each slot's reason comes from these (slot-waits.js). */
+  const facts = whyFacts(cs);
   for (const li of el.querySelectorAll('.hb-slot')) {
     const i = Number(li.getAttribute('data-slot'));
     const sl = slots[i] || { empty: true };
-    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero, worn, skills, pack) || holdingReason(sl, holding));
+    patchSlot(li, sl, wires[i], ctx, facts.bag, conflicts.get(i), slotWhy(sl, facts));
     patchCooldown(li, sl, casts, now);
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);

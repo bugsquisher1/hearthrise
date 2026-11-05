@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: d739720e20048bb1e4a28885f286fd33136cbab9e5fc3f9f5664fd1a206be4f9
---   rows: 573 items (6 untradeable) ·
+--   catalogue digest: 79765f64b7c91347263dec8ac65e7da1a85b852ff42a930dce790b860eb8c17d
+--   rows: 575 items (6 untradeable) ·
 --         325 item-slot pairs · 14 equip slots ·
---         13 skills · 9 crops · 347 activities ·
+--         13 skills · 9 crops · 350 activities ·
 --         0 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -405,6 +405,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('fangdart_recurve','Fangdart Recurve',true,'weapon',7200,'level',36,null,false,null,true),
   ('field_cookbook','Field Cookbook',true,null,0,null,null,null,false,null,false),
   ('field_ration','Field Ration',true,null,90,null,null,null,false,null,false),
+  ('fine_temper_salts','Fine Tempering Salts',true,null,60,null,null,null,false,null,false),
   ('fishers_pie','Fisher''s Pie',true,null,520,null,null,408,false,null,false),
   ('flux_salt','Fluxsalt',true,null,15,null,null,null,false,null,false),
   ('foremans_lash','Foreman''s Lash',true,null,92,null,null,null,false,null,false),
@@ -668,6 +669,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('sump_membrane','Sump Membrane',true,null,20,null,null,null,false,null,false),
   ('swarm_heart','Swarm Heart',true,null,650,null,null,null,false,null,false),
   ('swordfish','Raw Swordfish',true,null,40,null,null,168,true,null,false),
+  ('temper_salts','Tempering Salts',true,null,35,null,null,null,false,null,false),
   ('tidecallers_pearl','Tidecaller''s Pearl',false,'trophy',0,null,null,null,false,null,false),
   ('timber_beam','Timber Beam',true,null,230,null,null,null,false,null,false),
   ('tomato','Tomato',true,null,90,null,null,48,true,null,false),
@@ -1264,6 +1266,8 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','grind_mithril_whetstone','smithing',50,null,false,null),
   ('artisan','grind_rune_whetstone','smithing',65,null,false,null),
   ('artisan','grind_steel_whetstone','smithing',35,null,false,null),
+  ('artisan','mix_fine_temper_salts','smithing',30,null,false,null),
+  ('artisan','mix_temper_salts','smithing',15,null,false,null),
   ('artisan','press_carrot_juice','cooking',12,null,false,null),
   ('artisan','press_tomato_juice','cooking',30,null,false,null),
   ('artisan','press_turnip_juice','cooking',1,null,false,null),
@@ -1447,6 +1451,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','zombie',null,null,78,false,35),
   ('gather','ancient_runewood_tree','woodcutting',82,null,false,null),
   ('gather','coal_rock','mining',1,null,false,null),
+  ('gather','coal_seam','mining',30,null,false,null),
   ('gather','copper_crab_s','fishing',28,null,false,null),
   ('gather','copper_rock','mining',1,null,false,null),
   ('gather','dawnstone_rock','mining',90,null,false,null),
@@ -2040,7 +2045,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'd739720e20048bb1e4a28885f286fd33136cbab9e5fc3f9f5664fd1a206be4f9', now())
+  values (true, '79765f64b7c91347263dec8ac65e7da1a85b852ff42a930dce790b860eb8c17d', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2068,13 +2073,13 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 573 then raise exception 'hr_items has % rows, generator emitted 573', v_n; end if;
+  if v_n <> 575 then raise exception 'hr_items has % rows, generator emitted 575', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 6 then
     raise exception 'untradeable count is %, generator emitted 6', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 347 then raise exception 'hr_activities has % rows, expected 347', v_n; end if;
+  if v_n <> 350 then raise exception 'hr_activities has % rows, expected 350', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -2260,7 +2265,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest d739720e20048bb1e4a28885f286fd33136cbab9e5fc3f9f5664fd1a206be4f9',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 79765f64b7c91347263dec8ac65e7da1a85b852ff42a930dce790b860eb8c17d',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

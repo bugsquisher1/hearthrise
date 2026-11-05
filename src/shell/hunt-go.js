@@ -23,20 +23,20 @@
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.93';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.93';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.93';
-import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.93';
-import { ITEMS } from '../data/items.js?v=0.2.93';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.93';
-import { attackOrder, DEFAULT_ATTACK_ROW } from '../core/hunt/conditions.js?v=0.2.93';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.93';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.93';
-import { ABILITIES } from '../data/abilities.js?v=0.2.93';
-import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.93';
-import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.93';
-import { shortOf } from './item-lore.js?v=0.2.93';
-import { whole, gold } from '../render/format.js?v=0.2.93';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.94';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.94';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.94';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.94';
+import { ITEMS } from '../data/items.js?v=0.2.94';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.94';
+import { attackOrder, DEFAULT_ATTACK_ROW } from '../core/hunt/conditions.js?v=0.2.94';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.94';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.94';
+import { ABILITIES } from '../data/abilities.js?v=0.2.94';
+import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.94';
+import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.94';
+import { shortOf } from './item-lore.js?v=0.2.94';
+import { whole, gold } from '../render/format.js?v=0.2.94';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
@@ -127,8 +127,8 @@ function bareWords(kind, parts, carried) {
   if (kind !== 'rune') return spareWords(kind, carried, new Set(parts.map((p) => (p.own ? p.own.id : null)))) || BARE_WORDS[kind];
   const spells = Array.from(new Set(parts.map((p) => p.spell).filter(Boolean)));
   if (!spells.length) return 'Nothing to cast';
-  /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars): a style's default bar may hold a rune spell
-     that casts own runes only; before the first hunt this line is where a new hero meets it, so it says the fix */
+  /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars): a slot the player set to Carried runes only, with none left
+     (no default bar: rule-subjects.js); this line says the fix before the hunt */
   const fixes = Array.from(new Map(parts.filter((p) => p.spell && p.fix).map((p) => [p.fix.name, p.fix])).values());
   return spells.join(' and ') + ' will not fire' + (fixes.length ? '. To cast ' + (spells.length > 1 ? 'them' : 'it') + ', press ' + (spells.length > 1 ? 'each' : 'its')
     + ' slot and pick ' + fixes.map((x) => x.name + ' (' + x.price + ' gp a cast)').join(' or ') + ' under "When your runes run out"' : '');
@@ -147,14 +147,29 @@ function partWords(p) {
   return [own, store].filter(Boolean).join(', then ');
 }
 
-/* THE RUNES LINE: what casts, in slot order, each stock or store rune once (two spells of one family name it once), then
-   the spells that will not fire and their fix. Nothing usable keeps the listed stocks (bareWords). */
+/* What casts, in slot order. "Then" is a fallback, and it stays inside one spell's own runes and its store rune (partWords): two spells
+   are two spends, so they never chain ("Plain Fire Rune..., then Plain Ice Rune..." read as if Ice took over when Fire ran out, played
+   2026-11-05). The store runes bought at one price are said together, each once. */
+function liveRunes(live) {
+  const spends = [], said = new Set();
+  for (const p of live) {
+    if (p.own && p.own.n > 0) { spends.push({ words: partWords(p) }); if (p.store) said.add(p.store.name); continue; }
+    if (said.has(p.store.name)) continue;
+    said.add(p.store.name);
+    const same = spends.find((x) => x.price === p.store.price);
+    if (same) same.names.push(p.store.name);
+    else spends.push({ price: p.store.price, names: [p.store.name] });
+  }
+  const andWords = (n) => (n.length < 2 ? n[0] : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1]);
+  return spends.map((x) => x.words || andWords(x.names) + ' from the store, ' + x.price + ' gp a cast').join('; ');
+}
+
+/* THE RUNES LINE: what casts (liveRunes), then the spells that will not fire and their fix. Nothing usable keeps the listed stocks (bareWords). */
 function runeLine(parts, carried) {
   const live = parts.filter((p) => (p.own && p.own.n > 0) || p.store);
   if (!live.length) return parts.map(partWords).filter(Boolean).join(', ') + '. ' + bareWords('rune', parts, carried);
-  const words = Array.from(new Set(live.map(partWords).filter(Boolean)));
   const dead = parts.filter((p) => !live.includes(p) && p.spell);
-  return words.join(', then ') + (dead.length ? '. ' + bareWords('rune', dead, carried) : '');
+  return liveRunes(live) + (dead.length ? '. ' + bareWords('rune', dead, carried) : '');
 }
 
 /* WHAT A SHOOTER WILL SPEND, IN THE ENGINE'S ORDER (conditions.js attackOrder, damage.js pickShot; Andy #63, #74): the bar's

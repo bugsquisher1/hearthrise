@@ -16,6 +16,7 @@
 //                       `staged`) is not in the Hunts window, its map only in STAGED_MAPS, and both generators leave it
 //                       out of the server catalogue (hr_hunt_enter refuses it)
 //   walk-art            every creature of every OPEN walked ground idles and walks in all 8 facings in a loaded atlas
+//   sim-plays-the-server-map  what the fixture's run plays (the hunt guards, tools/balance-sim) is, tile for tile, the grid the edge settle plays, on every ground
 //   glade-solo-floor    a solo Melee in the ladder kit at the glade's floor (L16) plays the hour with no death on the six
 //                       seeds; prints the practice-sword-and-Thicket-leather graduate beside it (evidence)
 //   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party < the glade solo in its four plate pieces < the
@@ -397,6 +398,22 @@ cases['first-grounds-net-chain'] = async (M) => {
   return bad.length ? bad.join('; ') : null;
 };
 
+/* THE SIM PLAYS THE SERVER'S MAP (2026-11-05): every balance number in the hunt guards and tools/balance-sim comes from the fixture's `run`. Its own grid carried the client's object
+   footprints, 7-52 walkable tiles short of the server's on each ground, and a Level 1 bow on the Glade read 16,500 damage an hour where the page took 20,000. Walking and sight both, on every ground. */
+cases['sim-plays-the-server-map'] = async (M) => {
+  const P = await playOf(M);
+  const { huntGroundOf } = await import(pathToFileURL(join(M.root, 'src/core/hunt-ground.js')).href + V);
+  const bad = [];
+  for (const g of Object.values(M.grounds.HUNT_GROUNDS)) {
+    const mine = P.run(g.hunt, 1, ['tank'], { spanMs: 10000, windowMs: 10000 }).grid, server = huntGroundOf(g.hunt).grid;
+    if (mine.w !== server.w || mine.h !== server.h) { bad.push(g.id + ' plays ' + mine.w + 'x' + mine.h + ' against the server\'s ' + server.w + 'x' + server.h); continue; }
+    let walk = 0, sight = 0;
+    for (let i = 0; i < server.walk.length; i++) { if (mine.walk[i] !== server.walk[i]) walk++; if (mine.opaque[i] !== server.opaque[i]) sight++; }
+    if (walk || sight) bad.push(g.id + ': ' + walk + ' walkable tile(s) and ' + sight + ' sight tile(s) differ from the server\'s');
+  }
+  return bad.length ? 'the sim plays another map: ' + bad.join('; ') : null;
+};
+
 /* THE SPRING GROUND (lane c-ground-16-31): Mosslight Glade is the solo ground for 16-31, between the Sewer and the
    Warrens. Its floor hero is the Thicket's graduate in the smiths' ladder kit (iron at 15), alone. */
 const GLADE = 'mosslight_glade';
@@ -535,12 +552,17 @@ const mutants = [
      72 all six (1.4-30 min). The rule is unchanged; the mutant is the lethal ground it must catch. */
   { name: 'the glade\'s sluicer and Rook hit four times as hard (atk 18 -> 72)', case: 'glade-solo-floor',
     edits: [['src/data/monsters.js', 'hp: 70, atk: 18, baseAcc: 0.8, def: 10, xp: 360,', 'hp: 70, atk: 72, baseAcc: 0.8, def: 10, xp: 360,'], ['src/data/monsters.js', 'hp: 78, atk: 18, baseAcc: 0.8, def: 11,', 'hp: 78, atk: 72, baseAcc: 0.8, def: 11,']] },
+  { name: 'the fixture back on the client\'s compiled collision mask', case: 'sim-plays-the-server-map',
+    edits: [['tests/hunt-core/fixtures/play-ground.mjs', "const { gridOfMap } = await import(u('src/core/hunt-ground.js'));",
+      "const [MAPS, TER, MC, SETS, GRID, FS] = await Promise.all(['src/data/world/maps/index.js', 'src/data/world/terrain.js', 'src/world/core/map-compile.js', 'src/data/world/atlas-sets.js', 'src/core/hunt/grid.js'].map((p) => import(u(p))).concat(import('node:fs'))); const sprites = {}; for (const s of SETS.ATLAS_SETS) Object.assign(sprites, JSON.parse(FS.readFileSync(join(root, 'assets/world/atlas-' + s + '.json'), 'utf8')).sprites); const gridOfMap = (mapId) => { const map = MC.compileMap(MAPS.mapRowOf(mapId), { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: {} }); return GRID.makeGrid(map.w, map.h, (x, y) => map.mask[y * map.w + x] === 0, (x, y) => { const m = TER.MATERIALS[map.ground[y * map.w + x]]; return !!(m && m.solid && !m.flat); }); };"]] },
+  { name: 'one walkable tile short on the map the run plays', case: 'sim-plays-the-server-map',
+    edits: [['tests/hunt-core/fixtures/play-ground.mjs', "grid = gridOfMap(ground.map);", "grid = (() => { const g = gridOfMap(ground.map), walk = g.walk.slice(); walk[walk.indexOf(1)] = 0; return { ...g, walk }; })();"]] },
   { name: 'the glade\'s coin doubled (it out-earns the Warrens)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 12]', 'xp: 165, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 14]', 'xp: 225, gp: [16, 28]'],
+    edits: [['src/data/monsters.js', 'xp: 165, gp: [5, 12]', 'xp: 165, gp: [10, 24]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 14]', 'xp: 225, gp: [16, 28]'],
       ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [28, 68]'],
       ['src/data/monsters.js', 'xp: 520, gp: [14, 36]', 'xp: 520, gp: [28, 72]']] },
   { name: 'the glade\'s coin halved (it pays under the Sewer\'s party)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 12]', 'xp: 165, gp: [2, 6]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 14]', 'xp: 225, gp: [4, 7]'],
+    edits: [['src/data/monsters.js', 'xp: 165, gp: [5, 12]', 'xp: 165, gp: [3, 6]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 14]', 'xp: 225, gp: [4, 7]'],
       ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [2, 6]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [7, 17]'],
       ['src/data/monsters.js', 'xp: 520, gp: [14, 36]', 'xp: 520, gp: [7, 18]']] },
   { name: 'the glade\'s blows x1.25, the attack Tyler dropped (helm and body under +25%)', case: 'glade-between',

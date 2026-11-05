@@ -30,6 +30,81 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-05 Tempering: a gold sink that adds a little gear power (designer, lane/c-gear-upgrade): BUILT, played, STAGED: two files, then the edge, then the client
+**Tyler, 2026-11-04:** "we need to add some additional gold sinks before we raise the price. I'm thinking about some sort of upgrade system that slightly increases gear power or something."
+
+**The design.** At the town's smith (Shop, Services tab), a hero pays gold to temper what it wears. **Two tracks, Blows and Armor; five rungs a track; one ladder per gear tier.** A Blows rung adds 1% to every blow, spell and heal of that tier's weapon, 5% at most. An Armor rung takes 1% off the damage reaching the hero, after the armor chain and never past its cap, 5% at most; a mixed set reads each piece by its tier, weighted by the armor it wears. Steel starts at rung 0, and Iron's rungs still count on Iron. Tier 1 has no ladder. A failed roll is never made, and nothing is lost on a death or a sale.
+
+**Changed in the build, on evidence: Armor is damage taken, not armor points.** The first hook added 1% to armor value. Played through the real curve, a rung moved plate and leather about 0.3% of a blow, and a full cloth set's Ward floored to the same whole point for rungs 1, 2 and 3: 14,000 gold for nothing. In the ruling's own unit ("less actual incoming damage"), every weight now gets the same exact 1%.
+
+| Shape | Verdict | Why |
+|---|---|---|
+| On the piece | No | Items are stacks by id (`player_inventory`, `player_equipment`) with no per-piece data. It needs a new item model through bag, Storage, Market and loot plans, plus a dupe review |
+| On a made copy (+1 rows) | No | About 230 catalogue rows differing only by +N, which DESIGN_STANDARDS §7 bans |
+| On each equip slot | No | Eleven presses with no real choice: a repeated decision |
+| **On the hero: track and tier** | **Yes** | One real choice (hit harder or last longer), no item changes, and gear still trades |
+
+**Why a new ladder per tier.** Power can't compound, so the chase stays alive: the next tier always wins, and gold is asked again at every tier. New tiers are new rows.
+
+**Failure.** None. A fail roll is a penalty rule (Tyler: risk comes from play). The price ladder drains the same gold knowably, and a failed press only teaches players to resent the smith.
+
+**Gold, measured** (`tools/balance-sim` plan `gu1104`, real settle, seed 0, advised grounds, everything sold, nothing spent; a four past hour 50 is extrapolated at its last 20 h).
+| Rung | 1 | 2 | 3 | 4 | 5 | A track | Both tracks, a hero |
+|---|---|---|---|---|---|---|---|
+| Iron (worn at 15) | 2,000 | 4,000 | 8,000 | 16,000 | 32,000 | 62,000 | **124,000** |
+| Steel (worn at 30) | 7,000 | 14,000 | 28,000 | 56,000 | 112,000 | 217,000 | **434,000** |
+
+| Hour | Lone hero: Level, earned | The ladder can take | Pair: earned | The ladder can take | Four: earned | The ladder can take |
+|---|---|---|---|---|---|---|
+| 10 | 10-11, 30-35k | **0**: no Iron yet | 64k | 0 | 138k | 0 (Level 13) |
+| 20 | 14-16, 64-76k | 124k, if Iron is on | 150k | 248k | 312k | 496k |
+| 50 | 27-31, 192-244k | 124k, plus 434k from Level 30 | 445k | 248k, then Steel from Level 30 | 863k | 496k + 1.74M |
+| 100 | 38-42, 433-546k | 558k | 972k | 1.12M | about 1.8M | 2.23M |
+**For lane/d-gold-sinks' budget (Tyler's "NEW GOLD SINKS", 11-04): these prices are provisional, and the final ones come from its table.** The most the ladder can take at each hour, as a share of everything earned to then, before any other spending. It's a one-time ladder, so this is a ceiling and not a rate:
+| Hour | Lone hero | Pair | Four |
+|---|---|---|---|
+| 10 | 0 | 0 | 0 |
+| 20 | 0 at Level 14; 124k, 163-186%, at Levels 15-16 | 248k, 165% | 496k, 159% |
+| 50 | 124k, 65%, at Level 27; 558k, about 230%, at Levels 30-31 | 248k, 56% | 2.23M, 258% |
+| 100 | 558k, 102-129% | 1.12M, 115% | 2.23M, about 124% (extrapolated) |
+The whole ladder is 558,000 a hero: 2.23M for a four, on top of the rest of the game's one-time ladders (about 2.9M at the new hero slots, the 3.6M measured 11-03 less their 700k cut). **A real sink:** at pull 8, Level 24, a maxed Armor track cuts the food bill 700-750 g/h on the two that eat most (hammer 7,954 to 7,255; sword 7,600 to 6,850; wand 1,622 to 1,563), and next to nothing at the Glade's own pull. Over the 30 or so hours a tier is worn, at pull 8 all the way, that's about a third of its 62,000 back. It buys pace and safety. **`lane/d-gold-sinks` keeps these prices as the budget's final table.**
+
+**Power, on the real hook** (plan `gu1105`, 2 h x 2 seeds, about ±1 point).
+| Way | Blows max, XP/h: Glade, Level 24 | At pull 8 | Warrens, Level 38 | One weapon tier, XP/h: Glade, Warrens |
+|---|---|---|---|---|
+| Sword + shield | +2.9% | +4.2% | +4.0% | 4.1%, 11.9% |
+| Hammer | +2.0% | +2.5% | +4.5% | 5.4%, 8.5% |
+| Bow | +1.9% | | +4.3% | 6.3%, 5.5% |
+| Wand | +1.7% | +3.8% | +4.9% | 2.2%, 7.1% |
+| Staff | +0.7% | | +3.8% | 6.4%, 5.8% |
+A four at the Warrens, Level 40: +2.6%. Both tracks at once add nothing to XP over Blows alone, and no cell died at rung 0 or with rungs.
+| Guard | Result, on real numbers |
+|---|---|
+| A full Blows ladder against the next tier's kit, real settle (`temper-play next-tier-wins`) | Ladder +1.0 to +5.5% XP; next kit +5.0 to +24.1%. The next kit wins on all 12 cells; thinnest is the Ranger at Level 24: +3.4 against +5.2 |
+| A full Armor ladder, exact per swing (`temper-play armor-below-the-next-set`) | -5.0% on all three weights (cloth -4.8 at the Sewer, where the 1-point floor bites): inside the ruling's 3-5% |
+| The same ladder against the next bare set, on `lane/c-armor-tiers`' whole-set bar | The next set is 5.4 to 24.5% under a maxed one; thinnest is plate at the Sewer. Its table reads a set's step at 9-29% and a mean piece at 3.1-8.9%, so a full ladder is worth about one good piece, never a set |
+**Rejected: tempering the weapon's own numbers.** +20% on them gives a wand +0.3% and a bow +0.7%, because spells and sweeps read no weapon. That would sell casters nothing.
+
+**Rulings.** Gear keeps fixed stats (10-14), and this sits on the hero. Imbuing stays later and per piece, with effects rather than plain power: no collision, but its budget must be measured on top. No bound gear: pieces still trade. Mechanics only, named our own. **Tyler's avoid list (11-04):** no random spend, since nothing is rolled for the player to lose (the part of a point is the fight's dice, like any hit); no repair or durability, since nothing wears; no bought rare drops, since drop chances don't move. **The nearest line is "gold-funded server XP buffs":** this is neither server-wide nor an XP rate, but Blows does earn a hero +0.7 to +4.9% XP/h by killing faster, as gear does. **Flag, Tyler's open conflict:** Crowns can buy gold from players, so tempering is one more thing Crowns reach at one remove, the same link that ruled the XP buff out. The Coordinator has it with him.
+
+**Server-owned.** `hr_unlock_buy` sells it untouched: catalogue, rung order, GREATEST, per-day clamp, intent key, settle-first, purse, ledger. New rows in `hr_unlocks` and `hr_unlock_offers`, no new money RPC, no table, no client RPC: already on the EA Security list. `hr_perks_of` gains one key and the settle reads it every window; `hr_temper_view` is the envelope's `temper` section. The hero's unit carries the permille at each boundary, never persisted, so no world-shape change. A forged rung names a ladder and never a number: it is clamped to the ladder and magnitudes are src/core/temper.js's.
+
+**Landing, in order, one file per call:** `2027-02-27-tempering-catalogue.generated.sql`, `2027-02-27-tempering.sql` (pinned on the live `hr_perks_of`), the `hr-accrue` deploy, then the client. Additive: no rung rows, no change, so it needs no second wipe. Rung 0 draws nothing and its hunts are byte-identical. `paceFingerprint` doesn't read it: still `f4bebb011ee8915a`.
+
+**Walk-through, a hero with only what it holds** (every name grepped in `src/data/*` and pressed on the local world):
+| Step | Holds, can reach | Doable because |
+|---|---|---|
+| 1. Bronze, Shop (V), Services (R) | Start kit, any Level | The rows say "Your Bronze Sword can't be tempered. Gear worn from Level 15 can." Buttons off |
+| 2. Level 15, Iron Sword or Iron Platebody worn | Drops and Smithing, as today | Both rows name the piece, the first rung's worth and its server price: 2,000 gp |
+| 3. Twice the price in hand | Gold from hunting | What next and the gold card name the smith and the press. Under twice it, silent, so it never eats the food money |
+| 4. Press Temper | The row | Asks at that price, in sight; sends nothing. Cancel sends nothing |
+| 5. Confirm | The question | One `unlock_buy` naming the offer and no number. Row moves to rung 1, 4,000 gp next; the sheet says so |
+| 6. Mid-hunt | Any rung, any time | The next settle reads it, and the browser eases once and predicts again (LV-TEMPER) |
+| 7. Steel worn | Level 30 | Steel's ladder at rung 0, 7,000 gp; Iron's rungs wait on Iron |
+
+**Repeated decisions (first principle), flagged:** a four's whole ladder is 80 rungs and 160 presses, spread over hundreds of hours and each one a real spend, so I kept the question; a "temper all my heroes" press is the fix if players ask.
+
+**Done:** engine, catalogue, view, section, edge forward list, client, sheet, coach, guards. **Verified by playing** (local world, real client and engine, 2026-11-04; levels, gear and gold are local fixtures): Bronze's refusal, a rung bought, short of gold, the question in sight, a rung bought mid-hunt, 50 minutes hunted with the browser closed for part of it, reload, the sheet; screenshots read. **Assumed:** nobody has spent real gold on this, so how fast piles go and whether anyone feels 1% are unmeasured; hours past 50 for a four. **Could still be wrong:** rung 1 may feel like nothing on screen (a blow of 8 lands 9 one time in twelve): the row and sheet say it, the blows barely can. The deep-pocket line: rich players press the pull, so piles run about 1.4x sooner.
 ### 2026-11-05 Armor rungs, Levels 1-8, the crossbow floor, the Glade's four (systems-engineer, lane/c-armor-tiers): MEASURED on v0.2.90; one row changed; engine deploy, no migration
 **The first-ground ladder under the attacker-level armor rule (v0.2.90 release red, `forest-cave`).** Three coin rows, low end only, so the top roll and the kill bound stay and there is no catalogue apply: Briarcoat Wolf [2,5] to [3,5], Drain Rat [4,18] to [8,18], Glade Poacher [4,14] to [8,14]. Net per hero-hour at each floor, 6-seed median: Cellar 1829.5, Thicket 1809.5 to 1838, Sewer party 1795 to 1843.5, Glade four plate 1833 to 1908, Warrens 3704. Glade in helm and body, worst seed: +23% to over +25%. The crossbow Ranger at the Sewer floor: 12-seed mean +23.7% to +26.4% (+-0.9), and `drop-tables` ranger-floor now gates that mean, with the old Drain Rat row as its mutant.
 **The Level 1 bow on the Glade, played on the real page (fresh account, practice bow, Enter twice): real, NOT built yet.** 27:42, 184 kills, 24,080 Level XP, Level 1 to 7, 52k XP/h, gold 1,147 + loot 487 against 1,334 of supplies, no death. It stopped at the 300 g gold floor, never by danger; the sim has no purse, and this hero then sells and goes again. Why it holds, from the real settle's track: both. 68% of the time nothing stands within a blow of the bow, with 1.16 monsters within 7 tiles on average, because the kite walks away from everything slower than a hero (3,200) and only the crow (4,400) is sure to catch it; the blow itself is unchanged (27 a swing). The Sewer answers the same hero (10 deaths in 8 h, 1,761 swings/h), the Warrens too (319 deaths in 7 h).

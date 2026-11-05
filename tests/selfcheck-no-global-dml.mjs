@@ -863,6 +863,18 @@ export function scan(sources, playerTables) {
 // finding (an entry that matches nothing is RED — the list may not rot), and a
 // `proof` entry's strings must all still be present in the file.
 export const ACKNOWLEDGED = {
+  '2027-02-25-character-wipe.sql :: dml :: update hr_name_holds': {
+    verdict: 'scoped-by-proof',
+    why: 'The file\'s WORK, not a self-check: a declared wipe of every hero is global on purpose. It is `excluded` from the chain and '
+       + 'applies only on Tyler\'s word. The proof strings are its fences: one-shot on hr_wipe_log, refused unless the game is closed, the '
+       + 'market off and every table classified, and a truncate that restricts. tests/char-wipe.mjs proves what stays.',
+    proof: [
+      'if exists (select 1 from public.hr_wipe_log where wipe_key = c_key) then',
+      "raise exception 'PRECONDITION: closed_mode is not ON",
+      "raise exception 'PRECONDITION: the market is ON",
+      "' continue identity restrict'",
+    ],
+  },
   '2027-02-20-market-wipe.sql :: dml :: truncate market_listings': {
     verdict: 'scoped-by-proof',
     why: 'The file\'s WORK, not a self-check: Security market review change 3 empties the market as part of a declared '

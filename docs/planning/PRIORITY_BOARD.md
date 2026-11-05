@@ -177,6 +177,23 @@ Cut: nothing.
 **Done:** 1 to 5 above, tests below. #6 is out until its re-measure. **Verified by play:** What next and More on Marlow (screenshots read), the list's tags and the opening pick on Marlow and on the Sorrel and Brin party, all stops above. **Done, not played:** the top-up and Tamsin lines fire (guard only), #6 was never played. **Assumed:** the wall at 30-32. **Could still be wrong:** naming the step up moves more players onto the faster road: an earlier lane measured it as L25 at 29.5 h against the target 36 (before this tree's penalty removal; not re-measured). Fifteen Levels is my number: Level 17 is the first the Warrens is named. The bar's Salted Shrimp held for a shield hero; a wand at 15 under may not.
 
 **Handoffs.** Characters screen after Buy a hero slot (above; the slot was bought, the screen said nothing yet, and a player may press again). A hub read HP 0/415 and an empty action bar for a few seconds while a long skip's settle was still running, then read right: harness-only as far as I could tell, not chased. On a narrow list "Fits your level" wraps and the next line starts with its separator dot: art-director.
+### 2026-11-04 The character wipe (backend-architect, lane/c-char-wipe): AUTHORED, played on the local world, STAGED. Applies only on Tyler's word
+**The order, one file per call:** closed_mode on + a pre-wipe backup, `2027-02-14-market-off.sql`, `2027-02-20-market-wipe.sql`, `2027-02-25-character-wipe.sql`, `2027-02-20-market-wipe-resume.sql`, `2027-02-14-market-on.sql`. No edge deploy. No client change has to land first.
+
+| What | Decision |
+|---|---|
+| Heroes and everything keyed on one, the purse, Storage, house, land, bought slots | Go (94 tables, one TRUNCATE) |
+| Hero and display names | Free again; a name a moderator pulled stays pulled, with its owner cleared |
+| Open hunts, instances, worlds, leases | Dropped with no pay; the tick finds nothing due |
+| Parties, invites, notices, seekers, clans | Go |
+| Ledger and rollup | Go, with their guard back on and proved |
+| Chat lines, whispers, world notices, private frames | Go (they name heroes) |
+| Presence, town bodies, play cap claims, rate counters, refusals, intent journal, tick rows | Go |
+| Leaderboards | Refreshed empty; `hr_lb_hidden` stays |
+| Accounts, profiles (reset), allowlist, friends, blocks, bug reports, signup record | Stay |
+| Catalogues, config, baselines, operator logs | Stay, counted before and after |
+
+**Stale browsers:** all residue is server-side, so a reload is clean (played: same first card as a brand-new account). A tab left open on today's build stands still until reloaded; the next release's build goes to the characters screen by itself. Any new table stops the wipe by name until someone decides it.
 
 ### 2026-11-04 No level penalty: the monsters are simply stronger (systems-engineer, lane/c-no-level-penalty): BUILT, engine deploy, no migration. **Tyler should read the party finding and the Warrens proposal**
 **Tyler, 2026-11-04:** "Tibia doesn't have a scaling penalty for higher level monsters.... They are just simply harder. That is the risk lol so either A. The player or party dies, or B. They have to spend more on supplies to stay alive. (Healing/more damage to kill/ etc) it's inherent in the game, not a penalty driven system..." This replaces the level gap in the 2026-11-03 "Rush if you dare" section below and the 11-02 x1.05 per Level before it: both are gone, not softened.

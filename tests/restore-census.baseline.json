@@ -1016,6 +1016,11 @@
    "replay": 10,
    "note": "Generated GEM PRICE catalogue (2026-09-14-gem-unlocks-catalogue.generated.sql, tools/gen-catalogues.mjs --check) holding unlock_id -> namespace, offer_id, name, cost_gems and `free`, for the 9 gem-priced theme/cosmetic offers plus the one FREE row (theme:default). Derived from src/data/shops.js SHOP_OFFERS, which tools/gen-shops.mjs derives from `const HOUSE_THEMES=[` (src/legacy.js) and `const cosmetics=[` (src/render/shop.js). public.hr_buy_gem_unlock reads the PRICE from here under the character lock — the caller sends an id and an idempotency key and no number at all. Holds NOTHING per player: which unlock a character owns is a kind='flag' row in player_progress, and that row is restore_only like every other player value. So a rebuild is the whole truth here and a restore must NOT carry this table — but it must not come back EMPTY either, and the two ways it can be wrong are different: empty of PRICED rows and every purchase answers unknown_unlock (a dead shop, loud, the buy migration's section 0 refuses to install against it); empty of the FREE row and every character silently loses ownership of the STARTING theme, because setTheme gates on ownsGemUnlock and the projection is where ownership comes from — a silent un-equip rather than an outage. Both are asserted by the generated file's own self-check (theme:default present AND free, nothing else free, every priced row backed by a flag-shaped hr_unlocks row)."
   },
+  "hr_ground_tiers": {
+   "class": "seeded",
+   "replay": 10,
+   "note": "Catalogue (2027-02-27-hunt-tiers.sql; tests/hunt-core/hunt-tiers.mjs holds it equal to src/data/hunt-tiers.js): the harder tiers each ground offers, each one's pull per party size, power and XP. A rebuild restores it; empty, every pick plays Normal and hr_hunt_tier_set refuses a harder tier (bad_tier)."
+  },
   "hr_hearth_named": {
    "class": "seeded",
    "replay": 5,
@@ -1182,11 +1187,6 @@
    "class": "seeded",
    "replay": 128,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): every hunt a session may be entered on: the 4 named hunts and the 94 non-boss, non-champion training monsters, with their walk time. An EMPTY rebuild refuses every enter (unknown_hunt, fail closed). Rebuilt from repo, never restored; nothing player-owned."
-  },
-  "hr_ground_tiers": {
-   "class": "seeded",
-   "replay": 10,
-   "note": "Catalogue (2027-02-27-hunt-tiers.sql; tests/hunt-core/hunt-tiers.mjs holds it equal to src/data/hunt-tiers.js): the harder tiers each ground offers, each one's pull per party size, power and XP. A rebuild restores it; empty, every pick plays Normal and hr_hunt_tier_set refuses a harder tier (bad_tier)."
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",

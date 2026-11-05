@@ -7,16 +7,16 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-05",
- "digest": "7f17f37655e02343504b3d4ce7a4aaab2cfc5ea8d36a33aae70faf9ee9c91c20",
+ "digest": "68e2018e1a59b728dad97e7aa684e0d66213408762caee523aeb5ead0fa72bfd",
  "counts": {
-  "relations": 251,
-  "functions": 617,
+  "relations": 254,
+  "functions": 625,
   "policies": 115,
-  "indexes": 359,
+  "indexes": 366,
   "triggers": 62,
-  "constraints": 964,
-  "columns": 1436,
-  "rls": 225,
+  "constraints": 987,
+  "columns": 1458,
+  "rls": 228,
   "event_triggers": 1
  },
  "known_production_delta": null,

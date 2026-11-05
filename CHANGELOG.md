@@ -8,6 +8,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## Unreleased
 
 - On a slow connection the town opens sooner. The game now waits only for the art around your hero, and the rest of the town loads behind it.
+
 ## v0.2.90 — 2026-11-04 (Armor That Answers)
 
 - Leather Boots give a little less armor, so Studded Boots are a real upgrade.

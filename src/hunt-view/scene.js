@@ -378,6 +378,7 @@ export function createHuntScene(o) {
     const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;
     const anim = corpse ? corpse.anim : moving ? 'walk' : clips.idle ? 'idle' : walk ? 'walk' : 'idle';
     const r = recoil.get(u);
+    /** @type {Record<string, any>} */
     const out = { id, unit: u, x, y, anim, dir, diag, frame, alpha, grey, under };
     if (!under && r && now >= r.at && now - r.at < SCENE_TIMING.recoilMs) out.recoil = [r.dx, r.dy];
     if (!under) {

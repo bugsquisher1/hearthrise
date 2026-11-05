@@ -428,9 +428,9 @@ function selftest(atlases) {
   /* a monster wearing another's drawing: the shipped sprites stay silent, the planted twin is named */
   const twinShipped = twinFindings(monsters, sprites, atlasOf);
   if (twinShipped.length) { console.error('world-assets --selftest: harness — two live monsters already share a drawing: ' + twinShipped.join('; ')); process.exit(2); }
-  const planted = twinFindings(monsters, { ...sprites, drain_rat: sprites.rat }, atlasOf);
-  if (planted.some((f) => f.includes('drain_rat') && f.includes('rat'))) console.log('  ✓ the Drain Rat wearing the Giant Rat: caught by [twin]');
-  else { escaped++; console.log(`  ✗ the Drain Rat wearing the Giant Rat: NOT caught by [twin] (${planted.join('; ') || 'silent'})`); }
+  const twins = twinFindings(monsters, { ...sprites, drain_rat: sprites.rat }, atlasOf);
+  if (twins.some((f) => f.includes('drain_rat') && f.includes('rat'))) console.log('  ✓ the Drain Rat wearing the Giant Rat: caught by [twin]');
+  else { escaped++; console.log(`  ✗ the Drain Rat wearing the Giant Rat: NOT caught by [twin] (${twins.join('; ') || 'silent'})`); }
   const LIVE_MUTANTS = 8;
 
   // The sheet encoding: the committed bytes pass, RGBA is red, and the encoder gives back every pixel, transparent ones

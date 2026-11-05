@@ -362,7 +362,7 @@ const mutants = [
   { name: 'Defense ignores the attacker level', case: 'xp-routes',
     edits: [['src/core/hunt-rewards.js', '(lv * COMBAT_XP.defenseXpPerLevelPermille / 1000)', '(COMBAT_XP.defenseXpPerLevelPermille / 1000)']] },
   { name: 'a dodge pays a shield block', case: 'defense-dodge-and-dot',
-    edits: [['src/core/hunt-rewards.js', "defenseXp(aimed, unitOf(ev.u), ev.dodge !== true, ctx.monsters)", "defenseXp(aimed, unitOf(ev.u), true, ctx.monsters)"]] },
+    edits: [['src/core/hunt-rewards.js', "defenseXp(aimed, unitOf(ev.u), ev.dodge !== true, ctx)", "defenseXp(aimed, unitOf(ev.u), true, ctx)"]] },
   { name: 'a status tick trains Defense', case: 'defense-dodge-and-dot',
     edits: [['src/core/hunt-rewards.js', "const hit = ev.dot === true ? null : members.get(ev.t);", "const hit = members.get(ev.t);"]] },
   { name: 'Magic XP drifts off 1.5', case: 'magic-xp-from-mana',

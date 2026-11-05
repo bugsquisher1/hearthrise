@@ -3,13 +3,18 @@
 //
 //   node tools/balance-sim/sim.mjs --plan tierpull --workers 3 --out tools/balance-sim/out/tierpull
 //   node tools/balance-sim/tiers-table.mjs --pull tools/balance-sim/out/tierpull      what each pull pays each way to fight, and what one fixed pull costs it
+//   node tools/balance-sim/sim.mjs --plan tierfinal --workers 3 --out tools/balance-sim/out/tierfinal, then --final, --board [--write], --static PULL,FINAL
+//   node tools/balance-sim/sim.mjs --plan tierladder --workers 3 --out tools/balance-sim/out/tierladder, then --ladder; plan tiercand and tierlow, then --cand
+//   --same A,B   two runs of one plan, digit for digit (Normal against today's engine)
 //
 // Every number is read off the cells; the only arithmetic here is pooling (hours-weighted) and ratios.
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve, join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { round } from './stats.mjs';
 
-const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d; };
+const HERE = dirname(fileURLToPath(import.meta.url));
+const arg =(k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d; };
 const SHORT = { mill_cellar: 'Cellar', meadowbrook_thicket: 'Thicket', wickstead: 'Wickstead', millrace_sewer: 'Sewer', mosslight_glade: 'Glade', coppercap_warrens: 'Warrens' };
 const load = (dir) => readFileSync(resolve(dir, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.heroes);
 
@@ -114,6 +119,44 @@ if (staticDirs) {
   ratios.sort((a, b) => a.ratio - b.ratio);
   console.log('\nLowest: ' + ratios.slice(0, 6).map((r) => SHORT[r.ground] + ' ' + r.level + ' ' + r.who + ' ' + Math.round(r.ratio * 100) + '%').join(', '));
   console.log('Median: ' + Math.round(ratios[ratios.length >> 1].ratio * 100) + '% over ' + ratios.length + ' cells; ' + rows.filter((r) => r.a && !r.b).length + ' cells have a good pull today and no good tier; ' + rows.filter((r) => !r.a && r.b).length + ' the other way');
+}
+
+/* --same A,B: two runs of one plan, digit for digit: every cell's party and heroes as JSON. How many cells match, and the first that doesn't. */
+const sameDirs = arg('same', null);
+if (sameDirs) {
+  const [a, b] = sameDirs.split(',').map((d) => new Map(load(d).map((c) => [c.id, c])));
+  let same = 0, differ = 0, first = null;
+  for (const [id, c] of a) {
+    const o = b.get(id);
+    if (!o) continue;
+    const eq = JSON.stringify({ p: c.party, h: c.heroes }) === JSON.stringify({ p: o.party, h: o.heroes });
+    if (eq) same++; else { differ++; first = first || id; }
+  }
+  console.log(same + ' cells digit for digit, ' + differ + ' differ' + (first ? ' (first: ' + first + ')' : '') + ', of ' + a.size + ' and ' + b.size);
+  process.exitCode = differ ? 1 : 0;
+}
+
+/* --board FINALDIR: the board's table: three tiers, the ways to fight that bracket the question, in range, pushing and past the ground. --write commits every tier cell's reading as tiers-summary.json beside the other summaries. */
+const boardDir = arg('board', null);
+if (boardDir) {
+  const rows = new Map();
+  for (const c of load(boardDir)) {
+    const key = [c.ground, c.cell.level, whoOf(c)].join('|');
+    if (!rows.has(key)) rows.set(key, { ground: c.ground, level: c.cell.level, who: whoOf(c), size: c.cell.party.length });
+    rows.get(key)[c.cell.x.slice(1)] = readCell(c);
+  }
+  const say = (c) => (c ? k(c.xp) + ', ' + signed(c.net) + ', ' + Math.round(c.hp) + '%, ' + life(c) : '-');
+  const NAME = { tank: 'Sword + shield', hammer: 'Hammer', mage: 'Mage', 'tank+healer+bow+mage': 'Healed four' };
+  console.log('| Ground, Level | Who | Normal | Dangerous | Deadly |\n|---|---|---|---|---|');
+  for (const [ground, levels] of [['mosslight_glade', [10, 16, 24, 31, 40]], ['coppercap_warrens', [26, 32, 41, 50, 60]]]) for (const level of levels) for (const who of Object.keys(NAME)) {
+    const r = rows.get([ground, level, who].join('|'));
+    if (r) console.log('| ' + SHORT[ground] + ' ' + level + ' | ' + NAME[who] + ' | ' + say(r.normal) + ' | ' + say(r.dangerous) + ' | ' + say(r.deadly) + ' |');
+  }
+  if (process.argv.includes('--write')) {
+    const out = [...rows.values()].sort((a, b) => a.ground.localeCompare(b.ground) || a.level - b.level || a.who.localeCompare(b.who));
+    writeFileSync(join(HERE, 'tiers-summary.json'), JSON.stringify({ generated: new Date().toISOString(), rows: out }) + '\n');
+    console.log('wrote tiers-summary.json');
+  }
 }
 
 const pullDir = arg('pull', null);

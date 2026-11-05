@@ -45,8 +45,8 @@ export const pullOfTier = (tier, size) => tier.pull[Math.min(tier.pull.length, M
 /** A tier row's level of a monster row's level: the armor's read and Defense's training. */
 export const levelAtTier = (level, tier) => (tier && tier.powerPm !== 1000 ? Math.round((level * tier.powerPm) / 1000) : level);
 
-/** A monster row as it fights on a tier: the row itself on Normal, so Normal is the row digit for digit. Coin and drops are always the row's. */
+/** A monster row as it fights on a tier: its blow and its kill's Level XP. The row itself on Normal, so Normal is the row digit for digit. Coin and drops are always the row's. */
 export function atTier(row, tier) {
   if (!row || !tier || (tier.powerPm === 1000 && tier.xpPm === 1000)) return row;
-  return { ...row, atk: ((row.atk || 1) * tier.powerPm) / 1000, xp: ((row.xp || 0) * tier.xpPm) / 1000, ...(Number.isInteger(row.level) ? { level: levelAtTier(row.level, tier) } : {}) };
+  return { ...row, atk: ((row.atk || 1) * tier.powerPm) / 1000, xp: ((row.xp || 0) * tier.xpPm) / 1000 };
 }

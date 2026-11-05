@@ -11,7 +11,7 @@
 //   HT-3 THE PICK SURVIVES: the section reads the pick and the tier the hunt froze after a reload (a fresh hr_state_of); a pick mid-hunt moves neither the instance nor the engine's read, and plays from the next hunt.
 //   HT-4 REFUSED, NEVER CLAMPED: a word nobody offers, a tier the ground doesn't offer and an unknown ground, each in words; a tier never comes in through the action set's options (bad_option).
 //
-// mutant-anchors: none — the mutants are SQL patched into the booted replay, not an anchored patch of a file.
+// The mutants are SQL patched into the booted replay; their anchors are FILE's text.
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
@@ -115,19 +115,25 @@ async function aFour(boot) {
 }
 
 const MUTANTS = [
-  { name: 'the freeze ignores the pick: every hunt is Normal', find: "  v_tier := public.hr_hunt_tier_pick(new.instance_id, new.user_id, new.slot);", repl: "  v_tier := 'normal';", want: /HT-1/ },
-  { name: 'the engine never reads the tier', find: "jsonb_build_object('density', v_i.density, 'tier', coalesce(v_i.tier, 'normal'))", repl: "jsonb_build_object('density', v_i.density)", want: /HT-3/ },
-  { name: 'a member picks for itself', find: "    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'not_leader')); end if;\n  if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;\n  insert into public.hunt_density as d (user_id, slot, hunt_id, density, tier, updated_at)", repl: "    null; end if;\n  if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;\n  insert into public.hunt_density as d (user_id, slot, hunt_id, density, tier, updated_at)", want: /HT-2/, four: true },
-  { name: 'a four plays the lone pull', find: "    t.pull[v_size]", repl: "    t.pull[1]", alt: "select t.pull[v_size] from", altRepl: "select t.pull[1] from", want: /HT-2/, four: true },
-  { name: 'a tier the ground does not offer is clamped, not refused', find: "    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_tier')); end if;", repl: "    p_tier := 'normal'; end if;", want: /HT-4/ },
+  { name: 'the freeze ignores the pick: every hunt is Normal', fn: 'public.hr_hunt_density_freeze()', find: "  v_tier := public.hr_hunt_tier_pick(new.instance_id, new.user_id, new.slot);", repl: "  v_tier := 'normal';", want: /HT-1/ },
+  { name: 'the engine never reads the tier', fn: 'public.hr_hunt_instance_read(uuid,integer)', find: "jsonb_build_object('density', v_i.density, 'tier', coalesce(v_i.tier, 'normal'))", repl: "jsonb_build_object('density', v_i.density)", want: /HT-3/ },
+  { name: 'a member picks for itself', fn: 'public.hr_hunt_tier_set(integer,text,text,uuid)', find: "    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'not_leader')); end if;\n  if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;\n  insert into public.hunt_density as d (user_id, slot, hunt_id, density, tier, updated_at)", repl: "    null; end if;\n  if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;\n  insert into public.hunt_density as d (user_id, slot, hunt_id, density, tier, updated_at)", want: /HT-2/, four: true },
+  { name: 'a four plays the lone pull', fn: 'public.hr_hunt_density_freeze()', find: "select t.pull[v_size] from", repl: "select t.pull[1] from", want: /HT-2/, four: true },
+  { name: 'a tier the ground does not offer is clamped, not refused', fn: 'public.hr_hunt_tier_set(integer,text,text,uuid)', find: "    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_tier')); end if;", repl: "    p_tier := 'normal'; end if;", want: /HT-4/ },
 ];
 
 async function main() {
   if (process.argv.includes('--mutate')) {
     let escaped = 0;
     for (const m of MUTANTS) {
-      const pairs = [[m.alt || m.find, m.altRepl || m.repl]];
-      const boot = () => bootReplay({ patches: new Map([[FILE, pairs]]) });
+      /* Patched into the booted replay (FILE's own self-check would refuse most of them at apply): the body as it landed, the one change, re-applied. */
+      const boot = async () => {
+        const b = await bootReplay();
+        const def = await one(b.db, 'select pg_get_functiondef($1::regprocedure)', [m.fn]);
+        if (!def.includes(m.find)) throw new Error('HARNESS: ' + m.fn + ' has no ' + JSON.stringify(m.find.slice(0, 60)));
+        await b.db.exec(def.replace(m.find, () => m.repl));
+        return b;
+      };
       let got = [];
       try { got = m.four ? await aFour(boot) : await bothPaths(boot); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
       const hit = got.some((p) => m.want.test(p));

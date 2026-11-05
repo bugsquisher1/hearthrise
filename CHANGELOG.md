@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## Unreleased
+
+**Three ways to hunt.** Mosslight Glade and Coppercap Warrens can be hunted Normal, Dangerous or Deadly. Harder hunts bring more monsters at once and they hit harder, for more XP on every kill and the same gold and drops. It replaces the + and - on a hunt's page. Your pick is kept for each ground, and a party leader's pick holds for everyone.
+
 ## v0.2.90 — 2026-11-04 (Armor That Answers)
 
 **Your own party.** A third hero costs 25,000 gp, a fourth 75,000 and a fifth 250,000.

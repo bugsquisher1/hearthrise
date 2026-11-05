@@ -522,6 +522,15 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'tierlow') {
+    /* WHAT A LOWER GROUND'S TOP TIER CAN BE (the expansion's question, sim only): a smaller full tier and less XP on the three grounds whose Deadly beats the next Normal at the sample's numbers. x = W<pull>x<xpPm>. Read with tiers-table.mjs --cand beside plan tierladder's Lnormal. */
+    for (const [ground, levels] of [['meadowbrook_thicket', [8, 12]], ['wickstead', [16, 20]], ['millrace_sewer', [16, 20]]]) for (const level of levels) for (const party of [['tank'], ['hammer'], ['bow'], ['mage'], ['healer'], PARTIES.four]) {
+      for (const [density, xpPm] of [[4, 1100], [5, 1100], [6, 1100], [8, 1100], [8, 1000]]) {
+        out.push({ ...cellOf({ ground, party, level, density, hours: H(1), seeds: 2, x: 'W' + density + 'x' + xpPm }), options: { tier: 'deadly' }, windowMs: 120000, whatIf: { tiers: { deadly: { xpPm } }, tierGrounds: [ground] } });
+      }
+    }
+    return out;
+  }
   if (name === 'tierladder') {
     /* THE LADDER RULE (lane/c-difficulty-tiers): a ground's Deadly must not beat Normal of the next ground up at the Level that fits it, or nobody moves on. Each rung at the upper ground's floor and a little past it, the lower ground on Normal and Deadly, the upper on Normal. Sim only (whatIf tierGrounds); read by tiers-table.mjs --ladder. */
     const RUNGS = [['mill_cellar', 'meadowbrook_thicket', [5, 8]], ['meadowbrook_thicket', 'wickstead', [8, 12]], ['meadowbrook_thicket', 'millrace_sewer', [8, 12]], ['wickstead', 'mosslight_glade', [16, 20]], ['millrace_sewer', 'mosslight_glade', [16, 20]], ['mosslight_glade', 'coppercap_warrens', [32, 38]]];

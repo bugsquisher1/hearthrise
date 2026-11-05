@@ -10,22 +10,22 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.89';
-import { ITEMS } from '../data/items.js?v=0.2.89';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.89';
-import { skillsOf } from '../session/item-sections.js?v=0.2.89';
-import { levelOf } from '../session/character-sections.js?v=0.2.89';
-import { needOf, needWords } from './item-lore.js?v=0.2.89';
-import { whole } from '../render/format.js?v=0.2.89';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.89';
-import { marketRefusal } from './market-words.js?v=0.2.89';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.90';
+import { ITEMS } from '../data/items.js?v=0.2.90';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.90';
+import { skillsOf } from '../session/item-sections.js?v=0.2.90';
+import { levelOf } from '../session/character-sections.js?v=0.2.90';
+import { needOf, needWords } from './item-lore.js?v=0.2.90';
+import { whole } from '../render/format.js?v=0.2.90';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.90';
+import { marketRefusal } from './market-words.js?v=0.2.90';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
 /** The line a code reads as by its family, or null (src/data/refusal-words.js REFUSAL_FAMILIES). */
 function familyWords(code) {
   for (const [re, words] of REFUSAL_FAMILIES) {
-    const m = re.exec(String(code));
+    const m = /** @type {RegExp} */ (re).exec(String(code));
     if (m) return typeof words === 'function' ? words(m) : words;
   }
   return null;
@@ -150,5 +150,17 @@ export async function runIntent(sc, repaint, send, busy, done, cs) {
   sc.pending = false;
   sc.msg = r.ok ? (done ? done(r) : '') : playCapOf(r) ? '' : refusalText(r, cs);
   repaint();
+  answerAges(sc, repaint);
   return r;
+}
+
+/* AN ANSWER IS NEWS, NOT A FACT (QA 2026-11-04: "Put on 3 pieces." and "You stopped mining the Copper Rock." still stood when
+   the window was reopened hours later). The line leaves on its own unless something newer has replaced it. */
+export const ANSWER_STANDS_MS = 30000;
+function answerAges(sc, repaint) {
+  const said = sc.msg;
+  if (!said) return;
+  /* a number in the browser; under node (the pure tests) a handle that must not hold the process open */
+  const t = /** @type {any} */ (setTimeout(() => { if (sc.msg === said && !sc.pending) { sc.msg = ''; repaint(); } }, ANSWER_STANDS_MS));
+  if (t && t.unref) t.unref();
 }

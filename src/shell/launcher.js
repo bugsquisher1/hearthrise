@@ -6,20 +6,20 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.89';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.89';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.89';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.89';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.89';
-import { levelOf } from '../session/character-sections.js?v=0.2.89';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.89';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.89';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.89';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.89';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.89';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.89';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.89';
-import { trackOnce } from '../net/observability.js?v=0.2.89';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.90';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.90';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.90';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.90';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.90';
+import { levelOf } from '../session/character-sections.js?v=0.2.90';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.90';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.90';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.90';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.90';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.90';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.90';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.90';
+import { trackOnce } from '../net/observability.js?v=0.2.90';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -316,7 +316,14 @@ export function actCoach(ctx, el, action, ev) {
   const card = cs && heldCard(ctx);
   if (!card || typeof cs.setResidue !== 'function') return true;
   if (action === 'coach-open') RESTED.delete(cs);
-  if (action === 'coach-got') { if (card.gotIt) { if (ctx.isPhone && ctx.isPhone() && coachWindow(card)) RESTED.set(cs, coachWindow(card)); markCoachRead(cs, card); } return true; }
+  if (action === 'coach-got') {
+    /* THE PRESS ANSWERS THE CARD IT WAS DRAWN ON: the box redraws on a paint or the display tick, so the next card may already be the held one
+       under a box still showing the last, and its Got it would finish a card nobody read (a skipped step, QA 2026-11-04). */
+    const on = ev.target && ev.target.closest ? ev.target.closest('.hs-pointer') : null;
+    if (on && on.getAttribute('data-tutorial') !== card.id) return true;
+    if (card.gotIt) { if (ctx.isPhone && ctx.isPhone() && coachWindow(card)) RESTED.set(cs, coachWindow(card)); markCoachRead(cs, card); }
+    return true;
+  }
   if (action === 'coach-close') { if (readable(card)) { markCoachRead(cs, card); return true; } action = 'coach-min'; }
   const doc = el.ownerDocument;
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);

@@ -17,26 +17,26 @@
 //                       from the store, 14 gp each"), ammo in the engine's own order (shotPlan). `c` is
 //                       what the hero can use NOW (item-sections.js carriedOf: the hunt bag in a hunt).
 //   beforeLines(cs, o)  "Before you go" (A #5): supplyWords, the stamina when it will end the hunt
-//                       soon, the gold when the store is paid from it, no weapon, and held tasks that do
-//                       not count on this ground. A line shows only when it informs, and never stops the press.
+//                       soon, the gold when the store is paid from it, no weapon, held tasks that do
+//                       not count on this ground, and the Blessings on. A line shows only when it informs, and never stops the press.
 //   freeHeroes(cs, all) "Bring your heroes" (B #3): this account's other open
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.89';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf } from '../session/item-sections.js?v=0.2.89';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.89';
-import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.89';
-import { ITEMS } from '../data/items.js?v=0.2.89';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.89';
-import { attackOrder, DEFAULT_ATTACK_ROW } from '../core/hunt/conditions.js?v=0.2.89';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.89';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.89';
-import { ABILITIES } from '../data/abilities.js?v=0.2.89';
-import { storeOf, storeName } from './bar-draft.js?v=0.2.89';
-import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.89';
-import { shortOf } from './item-lore.js?v=0.2.89';
-import { whole, gold } from '../render/format.js?v=0.2.89';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.90';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.90';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.90';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.90';
+import { ITEMS } from '../data/items.js?v=0.2.90';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.90';
+import { attackOrder, DEFAULT_ATTACK_ROW } from '../core/hunt/conditions.js?v=0.2.90';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.90';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.90';
+import { ABILITIES } from '../data/abilities.js?v=0.2.90';
+import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.90';
+import { itemName, runeWords, familyCount } from './widgets/bits.js?v=0.2.90';
+import { shortOf } from './item-lore.js?v=0.2.90';
+import { whole, gold } from '../render/format.js?v=0.2.90';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
@@ -91,6 +91,8 @@ function slotSupply(sl, s, carried) {
       : { kind: c.kind, own: { id: a.id, n: Number.isInteger(sl.count) ? sl.count : have(a.id) }, store: null, off };
   }
   if (a.type === 'ability' && ABILITIES[a.id] && ABILITIES[a.id].rune) {
+    /* a move the worn weapon can't use never fires, so it spends nothing (a club hero warned about Flame Volley's runes, QA 2026-11-04) */
+    if (moveOffWeapon(s.discipline, a.id)) return null;
     /* a rune spell spends any tier of its family: count them all, say the family */
     const r = ABILITIES[a.id].rune, n = familyCount(r, carried);
     /* the store's rune of that family, the way to fix a slot that casts own runes only (starter bars, 2026-10-29) */
@@ -310,7 +312,18 @@ export function beforeLines(cs, o) {
     out.push(gp > 0 ? { id: 'gold', text: 'Gold: ' + gold(gp) + ' pays the store as you use it.', short: false }
       : { id: 'gold', text: 'No gold for the store: the hunt ends when your own supplies run out.', short: true });
   }
+  const bless = blessingWords(blessingsOf(cs));
+  if (bless) out.push({ id: 'blessings', text: bless, short: false });
   return out;
+}
+
+/* WHAT A DEATH WOULD COST, said before the risk is taken: the Blessings on, or the next one and its price. A heads-up, never a stop. All the server's. */
+function blessingWords(b) {
+  if (!b || !b.tiers.length) return '';
+  const on = b.tiers.filter((t) => t.held).length, next = b.tiers.find((t) => !t.held);
+  const cut = on ? 'A death takes ' + Math.round(b.permille / 10) + '% less XP. ' : '';
+  const more = !next ? '' : (on ? 'More' : 'A death takes less XP with them') + (next.price === 0 ? ': free for now' : ': the next is ' + gold(next.price)) + ', in the Shop\'s Services tab.';
+  return ('Blessings: ' + (on ? on + ' of ' + b.tiers.length + ' on. ' : 'none on. ') + cut + more).trim();
 }
 
 /** "Bring your heroes": this account's other open characters in no party, [{ slot, name }]. */

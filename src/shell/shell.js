@@ -39,35 +39,35 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.89';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.89';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.89';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.89';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.89';
-import { createHudRoom } from './hud-room.js?v=0.2.89';
-import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.89';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.89';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.89';
-import { mountContextMenu } from './context-menu.js?v=0.2.89';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.89';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.89';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.89';
-import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.89';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.89';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.89';
-import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.89';
-import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.89';
-import { benchSpentAtMs } from './town-work.js?v=0.2.89';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.89';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.89';
-import { heroIsAlone } from './widgets/party-panel.js?v=0.2.89';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.90';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.90';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.90';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.90';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt, stackBelow } from './hud.js?v=0.2.90';
+import { createHudRoom } from './hud-room.js?v=0.2.90';
+import { keyLabel, glyphSvg, actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.90';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.90';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.90';
+import { mountContextMenu } from './context-menu.js?v=0.2.90';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.90';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.90';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.90';
+import { takeFresh, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.90';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.90';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.90';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.90';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.90';
+import { benchSpentAtMs } from './town-work.js?v=0.2.90';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.90';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.90';
+import { heroIsAlone } from './widgets/party-panel.js?v=0.2.90';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
 /* How far a press on a window's head must travel before it is a drag (a click never floats a window). */
 const DRAG_SLOP_PX = 5;
 /* The widgets the coach card hangs under (launcher.js: the icon row in town, the hunt bar in a hunt). */
-const COACH_HOSTS = '[data-hs-widget="launchers"], [data-hs-widget="hunt-topbar"]', SHORT_ROOM = 112;
+const COACH_HOSTS = '[data-hs-widget="launchers"], [data-hs-widget="hunt-topbar"]', SHORT_ROOM = 112, NO_ROOM = 60;
 /* The DOM events a renderer may opt into with `.events` (click and change always reach `.act`). */
 const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout', 'focusin']);
@@ -301,6 +301,8 @@ export function mountShell(root, o) {
       const shared = alert && w.matches('.is-hunt-topbar') ? alert.getBoundingClientRect().top - 8 : floor;
       const room = Math.max(0, Math.floor(Math.min(floor, shared) - w.getBoundingClientRect().bottom));
       w.classList.toggle('is-short-room', !!alert && room < SHORT_ROOM);
+      /* not even its title fits: the away card is tall, and the title lay under it as a sliver (phone, QA 2026-11-04). The card waits till the alert closes. */
+      w.classList.toggle('is-no-room', !!alert && room < NO_ROOM);
       if (w.style.getPropertyValue('--coach-room') !== room + 'px') w.style.setProperty('--coach-room', room + 'px');
     }
   }

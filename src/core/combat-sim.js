@@ -44,18 +44,18 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.89';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.89';
-import { createRng } from './rng.js?v=0.2.89';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.89';
-import { stepSwing } from './hunt/world-step.js?v=0.2.89';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.89';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.89';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.89';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.89';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.90';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.90';
+import { createRng } from './rng.js?v=0.2.90';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.90';
+import { stepSwing } from './hunt/world-step.js?v=0.2.90';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.90';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.90';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.90';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.90';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.89';
+export { stepSwing } from './hunt/world-step.js?v=0.2.90';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -105,9 +105,8 @@ function syncUnit(u, m) {
   u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def;
   /* THE LEVEL, for the party's level share (xp-share.js) and nothing else: a level gained mid-window counts from the next kill, never persisted, like `mit`. */
   u.heroLv = snap.level;
-  /* THE ARMOUR'S MITIGATION (ruling K7, mitigation.js): derived from the member's gear and Level at
-     every boundary and never persisted, so a decoded world gets it back here before any blow. */
-  u.mit = snap.mit || null;
+  /* THE ARMOUR (ruling K7, mitigation.js): the member's gear values at every boundary, never persisted, so a decoded world gets them back here before any blow; each blow prices them against its attacker. */
+  u.armour = snap.armour || null;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
   u.maxMana = Math.max(u.maxMana || 0, m.state.playerMaxMana || 0);
   u.regenPm = m.state.regenPm;

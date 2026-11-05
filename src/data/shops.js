@@ -42,8 +42,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.89';
-import { ITEMS } from './items.js?v=0.2.89';
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.90';
+import { ITEMS } from './items.js?v=0.2.90';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 
@@ -58,19 +58,19 @@ export const SHOP_OFFERS = [
   {
     id: "character_slot.2", table: "character_slot",
     name: "Character slot 3",
-    cost: [{ kind: "currency", id: "gold", amount: 50000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 25000 }],
     grant: [{ kind: "unlock", id: "character_slot:2", amount: 1 }],
   },
   {
     id: "character_slot.3", table: "character_slot",
     name: "Character slot 4",
-    cost: [{ kind: "currency", id: "gold", amount: 200000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 75000 }],
     grant: [{ kind: "unlock", id: "character_slot:3", amount: 1 }],
   },
   {
     id: "character_slot.4", table: "character_slot",
     name: "Character slot 5",
-    cost: [{ kind: "currency", id: "gold", amount: 800000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 250000 }],
     grant: [{ kind: "unlock", id: "character_slot:4", amount: 1 }],
   },
   {

@@ -122,7 +122,7 @@ const MUTANTS = [
   ['the sheet reads a key its fingerprint misses', SHEET, "  const equipment = combatWorn(isObj(env.equipment) ? env.equipment : {}, ITEMS);", "  const equipment = combatWorn(isObj(env.equipment) ? env.equipment : {}, ITEMS); void env.enchant;"],
   ['the fingerprint stops covering the buffs', BODIES, "    'buffs', coalesce((select jsonb_agg(jsonb_build_object('type', b.v->>'type',", "    'bufs', coalesce((select jsonb_agg(jsonb_build_object('type', b.v->>'type',"],
   ['the sheet prices armour at Level 1', SHEET, "heroSnapshot({ skills, levelXp }, {", "heroSnapshot({ skills }, {"],
-  ['the sheet drops the ward', SHEET, "    ward: snap.mit.ward,", "    ward: 0,"],
+  ['the sheet drops the ward', SHEET, "    ward: mit.ward,", "    ward: 0,"],
   ['the put is handed a fixed engine version', SHEET, "const version = o.version || PAYLOAD_SHA256;", "const version = o.version || 'unpacked0';"],
   ['the view ignores the engine', BODIES, "    v_fresh := v_cs.engine_version = v_engine\n      and", "    v_fresh := true\n      and"],
 ];

@@ -178,7 +178,7 @@ async function checks(overrides, shots) {
         if (tabs.join('|') !== 'Character|Outfit|Deaths') fails.push('CW-1 the tabs are ' + tabs.join('|'));
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
-        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armor', 'Critical chance': '4.5%', Defense: '23', Dodge: '12.5% of blows', Absorb: '31% of each blow', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
+        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armor', 'Critical chance': '4.5%', Defense: '23', Dodge: '12.5% of blows at your Level', Absorb: '31% of each blow at your Level', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
           Regeneration: '+1.9% (Inner Flame)', 'Home and renown': '+2%', Total: '+2%' };
         for (const [k, v] of Object.entries(want)) if (L[k] !== v) fails.push('CW-2 ' + k + ' reads ' + JSON.stringify(L[k]) + ', the server sent ' + v);
         if ('Prayer ward' in L || 'Gear' in L || 'Food and drink' in L) fails.push('CW-3 a zero line is drawn: ' + JSON.stringify(L));
@@ -387,7 +387,7 @@ async function checks(overrides, shots) {
 const MUTANTS = [
   ['the vitals no longer wrap under the identity', 'src/styles/character.css', '.hw-cs-vitals { flex: 1 1 260px; min-width: 0;', '.hw-cs-vitals { flex: none; grid-template-columns: auto auto !important;'],
   ['the damage is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.damage ? c.damage.min + '–' + c.damage.max : null", "c && c.damage ? '1–' + (Math.floor(c.defence * 0.35) + 2) : null"],
-  ['the absorb is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.absorbPct !== null ? c.absorbPct + '% of each blow' : null", "c && c.absorbPct !== null ? Math.round(c.defence * 1.5) + '% of each blow' : null"],
+  ['the absorb is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.absorbPct !== null ? c.absorbPct + '% of each blow at your Level' : null", "c && c.absorbPct !== null ? Math.round(c.defence * 1.5) + '% of each blow at your Level' : null"],
   ['a stale sheet keeps the last numbers', 'src/session/character-sections.js', '    combat: s.fresh === true ? combatOf(s.combat) : null,', '    combat: (globalThis.__lc = s.fresh === true ? combatOf(s.combat) : (globalThis.__lc || null)),'],
   ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', hv.manaMax !== null ? whole(hv.manaMax) : null);", "line(root, '[data-vital=\"mana\"]', whole(hv.manaMax || 0));"],
   ['a wand reads (staff) again', 'src/data/item-uses.js', "  if (it.type === 'weapon') return WEAPON_WORD[roleWeaponOf(it)] || 'weapon';", "  if (it.type === 'weapon') return ({ magic: 'staff' })[it.weaponType] || WEAPON_WORD[it.weaponType] || 'weapon';"],

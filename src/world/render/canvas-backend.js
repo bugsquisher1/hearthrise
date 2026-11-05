@@ -16,11 +16,11 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.89';
-import { composeFrame } from '../core/compose.js?v=0.2.89';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.89';
-import { createFrameSig } from './frame-sig.js?v=0.2.89';
-import { paintStub } from '../stub-atlas.js?v=0.2.89';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.90';
+import { composeFrame } from '../core/compose.js?v=0.2.90';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.90';
+import { createFrameSig } from './frame-sig.js?v=0.2.90';
+import { paintStub } from '../stub-atlas.js?v=0.2.90';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const FLASH_ALPHA = 0.7; // a hit's silhouette over the frame
@@ -78,9 +78,12 @@ export function createCanvasBackend(o) {
     dpr = win.devicePixelRatio || 1;
     z = zoomFor(win.innerWidth, dpr, map && map.grid, zoomPick);
     zs = (z * T) / 32;
-    const r = host.getBoundingClientRect();
-    W = Math.max(1, Math.round(r.width * dpr));
-    H = Math.max(1, Math.round(r.height * dpr));
+    /* THE BITMAP IS THE BOX IT IS SHOWN IN, device px for device px, so no browser resample ever touches the art: the canvas's
+       own box (the stage's border is outside it; a bitmap 2 px over was squeezed back nearest-neighbour, dropping whole columns
+       and rows), from its edges, as the browser snaps them (a 1 px border is 0.8 CSS px at DPR 1.25). Its size never moves the stage. */
+    const r = canvas.getBoundingClientRect();
+    W = Math.max(1, Math.round((r.left + r.width) * dpr) - Math.round(r.left * dpr));
+    H = Math.max(1, Math.round((r.top + r.height) * dpr) - Math.round(r.top * dpr));
     sizeTo(canvas, W, H);
     dirty = false;
   }

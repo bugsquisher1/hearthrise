@@ -4494,3 +4494,17 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 3. *Read the cell, not its summary, before writing a bar.* Glade L6 in the practice set is "dies in 16 min" over two seeds and no death at all on seed 0: a hero who survives the first hour levels out of it. A bar on one seed needs a cell that dies on that seed.
 4. *A mutant caught for the wrong reason is a red clean arm.* The verbose list showed a share mutant caught by a line about the practice set: that line fails with no mutant at all. Read why it was caught.
 5. *Look for what favors the low hero too.* The armor curve (value / (value + k x Level), capped at 60%) gives a Level 1 more from bronze than a Level 16, which is why danger is so flat under a floor. No gap sweep finds it, because it never reads the ground.
+## 2026-11-04 · lane/c-armor-truth (armor reads the attacker, not the hero)
+1. *Read the floor guard before the table.* A pooled table showed Warrens x1.25 at +1,774%; `drop-tables` read the tank's own seat at -47%, because costs are personal and pooling hides who pays. The same table showed the Glade floor at +320%; the guard's helm-and-body reference group read +19%.
+2. *A curve moved to a new reader needs its constant moved too.* Floors meet monsters above their Level, so "in range barely moves" was false at the old k. Fit k on the guard, then re-read the pushing numbers.
+3. *One seed at the bar is a coin.* The crossbow Ranger's reading wandered 20-28% across small k changes with no causal link (dodge k changed nothing). Measure six seeds before calling a move real, and say the bar is sitting on dice.
+4. *To compare two rules, export the base tree (git archive) and run the guard there.* It needed assets/world too. Toggling data in the worktree is safe only with nothing else running that loads it.
+## 2026-11-05 · lane/c-armor-tiers (armor rungs, Levels 1-8, the crossbow floor, the Glade four)
+1. *When the rule is a closed form, compute it.* Two sim hours on leather read -6% to +11% for one piece because dodge draws dice. The exact per-swing arithmetic through the engine's own functions needs no dice; use the settle only to check the arithmetic (plate whole sets within 3 points).
+2. *A zero in a ladder can be fixed from either end.* Raising the upper rung pushed the next rung under the bar; lowering a hand-made outlier to its ladder value fixed it in one number.
+3. *Twelve seeds settle what one guard seed can't.* The crossbow floor was +24 under both armor rules; the guard was reading a coin that happened to land.
+4. *To say "no stats-only answer", list every stat you moved and what it did to the row that shares it.* The lone hero's floor bounds what the four can be charged.
+## 2026-11-05 · lane/c-armor-tiers (the v0.2.90 red, the crossbow pin, the Level 1 bow)
+1. *A rule that moves every bill needs every guard that reads a bill.* I ran `sewer` and `first-week-bands` on the armor rule; `forest-cave` read the same money from the other end and went red in the release. Grep the bars, not the file names.
+2. *A coin roll's low end is the cheap lever.* The generated kill bound reads only the top roll, so raising the low end moves the mean with no catalogue apply. Check with `gen-hunt-sessions --check`.
+3. *A scratch skip is not a tick.* A ten-minute `world.skip` pays coin only at the window's end, and a store use reads the purse mid-window; one-minute steps are closer. The real gold-out on a fresh hero is the 300 g gold floor, and the sim has no purse at all: only the page shows it.

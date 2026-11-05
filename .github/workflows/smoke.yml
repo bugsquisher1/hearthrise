@@ -3208,6 +3208,16 @@ jobs:
           node tests/market-wipe.mjs
           node tools/mutant-gate.mjs node tests/market-wipe.mjs --mutate
 
+      # The declared character wipe (2027-02-25-character-wipe.sql, STAGED in `excluded`): replayed CLOSED, a played account goes
+      # through the whole procedure in order. Refused with the market on or full, the sweep on, the game open, or any public
+      # table on no list; after it nothing but its account and social rows names it, read as text from every relation; two
+      # slots; every scheduled job answers on the empty world; it plays again. --mutate: 14 SQL mutants, one replay.
+      - name: Character wipe — the whole procedure, nothing left, the way back in
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/char-wipe.mjs
+          node tools/mutant-gate.mjs node tests/char-wipe.mjs --mutate
+
       # Legacy keys (the JWT secret exposed 2026-11-01): the client ships a publishable key, hr-accrue reads no API
       # key, the bridge prefers the platform's publishable key, no tool or workflow holds a legacy key, and the real
       # driver on the replayed chain posts apikey alone. --selftest: 22 mutations, one replay.

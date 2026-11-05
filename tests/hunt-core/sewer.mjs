@@ -293,6 +293,20 @@ function walkChain(M, T, extra) {
 /* What next as a player can read it: the card's goal and the ones behind its More. */
 const whatNext = (g) => (g ? [g.text, ...(g.also || [])].join(' ') : '');
 const cases = {
+  'return-with-no-stamp': async (M) => {
+    /* Played 2026-11-04: a hero left hunting with the tab killed seconds after Enter came back ten hours later to "Your hero just ate". No stamp, so no recap and no markBack, and the just-now cards spoke. */
+    const { backWithNoStamp } = await import(pathToFileURL(join(M.root, 'src/shell/away-recap.js')).href + V);
+    const make = (ms, stamp, ended) => { const e = { state: { level_xp: 5000 }, hunt: { session_id: 's1', hunt_id: 'meadowbrook_thicket', ended: !!ended, session: {}, hero: { hp_max: 170 }, pose: { units: [] } },
+      hunt_analyzer: { hunt_ms: ms, session: {}, hero: { kills: 5, xp: 10, gold: 1, loot: [], supplies: [] } } };
+      const writes = []; return { read: (k) => e[k], record: { residue: stamp ? { awaySeen: stamp } : {} }, setResidue: (k, v) => { writes.push([k, v]); return true; }, writes }; };
+    const old = make(36000000);
+    if (!backWithNoStamp(old) || old.writes.length !== 1 || old.writes[0][0] !== 'coach' || old.writes[0][1].back !== 's1') return 'a ten-hour hunt no stamp covers is not marked as a return: ' + JSON.stringify(old.writes);
+    if (backWithNoStamp(make(300000))) return 'a five-minute hunt read as a return, so a hero watching its first hunt loses the first-meal card';
+    if (backWithNoStamp(make(36000000, { s: 's1', at: 1 }))) return 'a hunt with a stamp is the recap\'s to mark, not this';
+    if (backWithNoStamp(make(36000000, null, true))) return 'an ended hunt was marked as a return';
+    if (!readFileSync(join(M.root, 'src/shell/alerts.js'), 'utf8').includes('else if (judged) backWithNoStamp(cs);')) return 'the alerts scan never asks';
+    return null;
+  },
   'what-next-one-goal': async (M) => {
     /* WHAT NEXT IS ONE GOAL (played 2026-11-04, Level 17: eight sentences, the Farm first and the third hero not named; blind 20-hour panel: "a five-sentence paragraph"). The walk-through, one lone sword
        and shield through the hours as played: at each stop the first goal is the one the card says, and the others wait behind More. Prices are the server's, passed in. */
@@ -309,7 +323,8 @@ const cases = {
       ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'The Sewer fits your Level with a party. Right-click your other hero\'s tab (on a phone: Heroes, then Invite) and choose Invite to party.'],
       ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Your stamina is nearly out. 4 more hours of hunting cost 6,000 gp: press the + beside your stamina.'],
       ['no task held, past the Sewer', 27, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), tally: { held: 0, paid: 0, weight: true } }, 'Tamsin pays for kills, and in armor too: open her tally (Q) and take a task.'],
-      ['nothing to buy: the gear', 27, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), land: null }, 'Next gear at Level 28: Houndskin Cloak (cape).'],
+      /* THE GLADE'S RUNG: the longest stretch with nothing new to wear ends at Level 22, on a piece made from what the Glade drops */
+      ['nothing to buy: the gear', 21, { inParty: true, gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), land: null }, 'Next gear at Level 22: Houndskin Cloak (cape). Houndskin Cloak is made in Crafting from Wolf Pelt ×12 and Bear Pelt ×1.'],
     ];
     for (const [what, lv, more, want] of walk) {
       const g = at(lv, more);
@@ -969,7 +984,14 @@ const cases = {
     /* WHAT THE GOLD IS FOR (panel 2026-11-01: 22,355 gp and "no idea what I'm saving for"), at the server's price */
     const goal = (charLevel, more) => whatNext(M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 9, land: null, inParty: false, ...more }));
     if (!goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 }).includes('You can pay for a third hero (15,000 gp): press Characters. It hunts while this one does.')) return 'at 16,000 gp What next reads ' + goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 });
-    if (!goal(8, { gold: 6000, slotCost: 15000, slotsOwned: 2 }).includes('A third hero costs 15,000 gp')) return 'at 6,000 gp What next names no price: ' + goal(8, { gold: 6000, slotCost: 15000, slotsOwned: 2 });
+    if (!goal(8, { gold: 8000, slotCost: 15000, slotsOwned: 2 }).includes('A third hero costs 15,000 gp')) return 'at 8,000 gp What next names no price: ' + goal(8, { gold: 8000, slotCost: 15000, slotsOwned: 2 });
+    /* THE SHARE AT THE REAL LADDER (lane/c-slots-lower): under half the next hero the house's deed speaks, from half the hero does, and the fourth reads the same way */
+    const cottage = { owned: true, next: { name: 'Cottage', gold: 8000, items: [{ id: 'normal_log', qty: 40 }] } };
+    const under = goal(8, { gold: 12499, slotCost: 25000, slotsOwned: 2, home: cottage }), half = goal(8, { gold: 12500, slotCost: 25000, slotsOwned: 2, home: cottage });
+    if (!under.includes('You can pay for the Cottage') || /hero costs/.test(under)) return 'at 12,499 gp of a 25,000 gp hero What next reads ' + under;
+    if (!half.includes('A third hero costs 25,000 gp, and you have 12,500 gp') || half.includes('You can pay for the Cottage')) return 'at 12,500 gp of a 25,000 gp hero What next reads ' + half;
+    if (/hero costs/.test(goal(20, { gold: 37499, slotCost: 75000, slotsOwned: 3 }))) return 'the fourth hero speaks under half its price';
+    if (!goal(20, { gold: 37500, slotCost: 75000, slotsOwned: 3 }).includes('A fourth hero costs 75,000 gp, and you have 37,500 gp')) return 'at 37,500 gp the fourth hero reads ' + goal(20, { gold: 37500, slotCost: 75000, slotsOwned: 3 });
     if (/hero \(|hero costs/.test(goal(12, { gold: 16000, slotCost: null, slotsOwned: 5 }))) return 'with no slot for sale What next offers one';
     if (/hero costs/.test(goal(5, { gold: 400, slotCost: 15000, slotsOwned: 2 }))) return 'at 400 gp the third hero is held up as a goal';
     if (!goal(20, { gold: 45000, slotCost: 40000, slotsOwned: 3 }).includes('a fourth hero (40,000 gp)')) return 'the fourth hero reads ' + goal(20, { gold: 45000, slotCost: 40000, slotsOwned: 3 });
@@ -992,10 +1014,10 @@ const cases = {
     const rich = (lv, gold, more, ...read) => ({ ...atL(lv, 'weighhouse', 'roll_of_honor', 'pull_goal', ...read), gold, slotCost: 15000, slotsOwned: 2, home: { owned: false, next: DEED }, chest: CHEST, ...more });
     const purse = say(rich(M.tut.ROLL_LEVEL, 15000));
     if (!purse || purse.id !== 'purse_goal' || purse.text !== 'You hold 15,000 gp: enough for a third hero (15,000 gp, press Characters). In the House: the Hearthside Homestead (400 gp, Copper Ore ×20, Normal Log ×30) and storage chests (the Millrace Crate, 1,500 gp, Normal Log ×40).' || !purse.gotIt || M.tut.coachWindow(purse) !== 'house') return 'with 15,000 gp the card reads ' + JSON.stringify(purse);
-    /* The hero is a saving goal now (lane/c-gold-matters): the card comes at the What next line's share of its price and says what is short, never "enough". */
-    if ((say(rich(M.tut.ROLL_LEVEL, 3749)) || {}).id === 'purse_goal') return 'the gold card came before the purse is a start on the next hero';
-    const saving = say(rich(M.tut.ROLL_LEVEL, 3750));
-    if (!saving || saving.id !== 'purse_goal' || !saving.text.startsWith('You hold 3,750 gp. A third hero costs 15,000 gp (press Characters). In the House: the Hearthside Homestead')) return 'saving for a hero the gold card reads ' + JSON.stringify(saving && saving.text);
+    /* The hero is a saving goal now (lane/c-gold-matters): the card comes at the What next line's share of its price (a half) and says what is short, never "enough". */
+    if ((say(rich(M.tut.ROLL_LEVEL, 7499)) || {}).id === 'purse_goal') return 'the gold card came before the purse is a start on the next hero';
+    const saving = say(rich(M.tut.ROLL_LEVEL, 7500));
+    if (!saving || saving.id !== 'purse_goal' || !saving.text.startsWith('You hold 7,500 gp. A third hero costs 15,000 gp (press Characters). In the House: the Hearthside Homestead')) return 'saving for a hero the gold card reads ' + JSON.stringify(saving && saving.text);
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, {}, 'purse_goal')) || {}).id === 'purse_goal') return 'Got it does not pass the gold card';
     if ((say(rich(M.tut.ROLL_LEVEL, 99999, { slotCost: null, slotsOwned: 5 })) || {}).id === 'purse_goal') return 'with no hero on offer the gold card still offers one';
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, { huntId: 'mosslight_glade' })) || {}).id === 'purse_goal') return 'the gold card came up in a hunt';
@@ -1528,7 +1550,10 @@ const cases = {
     const atStyles = L.heldCard(gotCtx);
     if (!atStyles || atStyles.id !== 'styles') return 'after cooking, in town, the coach shows ' + (atStyles && atStyles.id) + ', want "Every weapon is a style"';
     if (L.ringPlan(atStyles, at('inventory'))[0] !== '[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]') return 'the styles card rings ' + L.ringPlan(atStyles, at('inventory'))[0];
-    L.actCoach(gotCtx, null, 'coach-got', { type: 'click' });
+    /* a press on a box still showing another card finishes nothing: the card it would finish was never read (a skipped step, QA 2026-11-04) */
+    L.actCoach(gotCtx, null, 'coach-got', { type: 'click', target: { closest: () => ({ getAttribute: () => 'plant_land' }) } });
+    if (g.puts.some(([f]) => f === 'coach')) return 'a Got it drawn on another card finished the held one: ' + JSON.stringify(g.puts);
+    L.actCoach(gotCtx, null, 'coach-got', { type: 'click', target: { closest: () => ({ getAttribute: () => 'styles' }) } });
     const put = g.puts.find(([f]) => f === 'coach');
     if (!put || !put[1].read.includes('styles')) return 'Got it wrote ' + JSON.stringify(g.puts) + ', want coach.read to hold styles';
     if ((L.heldCard(gotCtx) || {}).id === 'styles') return 'after Got it the styles card is still up';
@@ -1717,6 +1742,12 @@ const mutants = [
     edits: [['src/shell/launcher.js', "const p = el.querySelector('.hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');", "const p = el.querySelector(':scope > .hs-pointer'), b = p && p.querySelector(':scope > .hs-coach-more');"]] },
   { name: 'a repaint shuts the goals More opened', case: 'what-next-one-goal',
     edits: [['src/shell/launcher.js', 'const open = !!also && ALSO_OPEN.get(cs) === card.id;', 'const open = false;']] },
+  { name: 'a return with no stamp keeps its old cards (played 11-04)', case: 'return-with-no-stamp',
+    edits: [['src/shell/alerts.js', ' else if (judged) backWithNoStamp(cs);', '']] },
+  { name: 'a young hunt reads as a return', case: 'return-with-no-stamp',
+    edits: [['src/shell/away-recap.js', ' || a.sessionMs < AWAY_MIN_MS) return false;', ') return false;']] },
+  { name: 'a stamped hunt is marked twice over', case: 'return-with-no-stamp',
+    edits: [['src/shell/away-recap.js', '(was && was.s === h.sessionId) || !a', '!a']] },
   { name: 'the coach keeps its goals to itself', case: 'what-next-one-goal',
     edits: [['src/shell/launcher.js', "const also = Array.isArray(card.also) && card.also.length ? card.also : null;", "const also = null;"]] },
   { name: 'What next offers a slot the server is not selling', case: 'tutorial-reactive',

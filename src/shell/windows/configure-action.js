@@ -22,21 +22,21 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.89';
-import { STATUSES } from '../../data/statuses.js?v=0.2.89';
-import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.89';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.89';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.89';
-import { carriedOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.89';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.89';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.89';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.89';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.89';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, reasonOf } from '../action-facts.js?v=0.2.89';
-import { glyphSvg } from '../launcher.js?v=0.2.89';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.89';
-import { carryRows, carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.89';
-import { whole } from '../../render/format.js?v=0.2.89';
+import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.90';
+import { STATUSES } from '../../data/statuses.js?v=0.2.90';
+import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.90';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.90';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.90';
+import { carriedOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.90';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.90';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.90';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.90';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, startConditions, storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.90';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, reasonOf } from '../action-facts.js?v=0.2.90';
+import { glyphSvg } from '../launcher.js?v=0.2.90';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.90';
+import { carryRows, carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.90';
+import { whole } from '../../render/format.js?v=0.2.90';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -100,7 +100,7 @@ export function renderConfigureAction(ctx) {
     + '<div class="ca-move-phone">' + tool('up', 'Earlier') + tool('down', 'Later') + '</div>'
     + '</div></div></div>'
     + '<p class="hh-intent-msg ca-msg" role="status" aria-live="polite"></p>'
-    + '<div class="hc-foot ca-foot">' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
+    + '<div class="hc-foot ca-foot"><p class="ca-self hw-phone-only">Your hero uses this by itself. Here you choose when.</p>' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
     + '</div></div>';
 }
 
@@ -294,6 +294,10 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
   /* Hover or focus compares a row against the pick (display only). */
   if ((ev.type === 'mouseover' || ev.type === 'focusin') && action === 'cfg') {
     if (t.getAttribute('data-x') !== 'pick') return false;
+    /* A pick grows the sentence above the list, so the list moves under a pointer that has not: the browser's mouseover then names
+       a row nobody aimed at, and Details describes it (pick Mend, read Power Strike: art audit 2026-11-04). A row counts from the pointer's next move. */
+    if (ev.type === 'mouseover' && v.pickedAt && v.pickedAt.x === ev.clientX && v.pickedAt.y === ev.clientY) return false;
+    v.pickedAt = null;
     const next = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
     if (keyOf(v.hover) !== keyOf(next)) { v.hover = next; repaint(); }
     return false;
@@ -308,6 +312,7 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
     else if (x === 'pick') {
       d.action = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
       v.hover = null;
+      v.pickedAt = { x: ev.clientX, y: ev.clientY };
       LAST_TAB.set(cs, tabOf(d.action));
       const st = storeDefault(d.action, (settingsOf(cs) || {}).store);
       if (st) d.action.store = st;

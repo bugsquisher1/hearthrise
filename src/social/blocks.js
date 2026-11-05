@@ -12,8 +12,8 @@
 //   has(id)
 //   set(target, on) ONE hr_block_set; then the SocialSession re-reads
 // ════════════════════════════════════════════════════════════════════════
-import { personOf } from './friends.js?v=0.2.89';
-import { askVia } from '../session/intent-ledger.js?v=0.2.89';
+import { personOf } from './friends.js?v=0.2.90';
+import { askVia } from '../session/intent-ledger.js?v=0.2.90';
 
 export class BlockStore {
   /** @param {{ account: object, reread: () => Promise<any>, onBlocked: (id: string) => void }} o */

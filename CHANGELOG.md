@@ -8,6 +8,35 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## Unreleased
 
 - On a slow connection the town opens sooner. The game now waits only for the art around your hero, and the rest of the town loads behind it.
+## v0.2.90 — 2026-11-04 (Armor That Answers)
+
+- Leather Boots give a little less armor, so Studded Boots are a real upgrade.
+- Drain Rats, Briarcoat Wolves and Glade Poachers carry a little more coin.
+
+**Your own party.** A third hero costs 25,000 gp, a fourth 75,000 and a fifth 250,000.
+
+
+- After you buy a hero slot, your characters stay on the screen and the game says the slot is yours at once, instead of a bare "Reading your characters…".
+- Changing weapon on a bar you've edited no longer leaves the last weapon's moves crossed out: they come off and the new weapon's moves take their places. A setup still keeps its own bar.
+- Before you go no longer warns a club hero about the runes for a spell that weapon can't cast.
+- Before you go now says which Blessings you have on, what they save you on a death, and the price of the next.
+- Making juice now says "Making Turnip Juice", not "Cooking Turnip".
+- The answer to your last press leaves a window after half a minute, so an old "Put on 3 pieces." isn't still there when you come back.
+- Got it can no longer finish a card you haven't seen yet, so the coach doesn't skip a step.
+- On a phone: the Heroes button names the hero on screen when there's no room for a tab, What next has its More, the away card no longer sits on a sliver of the coach card, and Configure action says your hero uses a slot by itself. Its icons are sharp now.
+- In Configure action, picking a spell keeps Details on the spell you picked, instead of the row that slid under your pointer.
+- The Hunts window is wider, so the first row of who lives on a ground isn't cut off above Enter. A long line in the list no longer starts with a stray dot.
+- The bag shows a row more on a laptop screen: its tabs and search now share a line.
+- Reloading just as the game opens no longer loses your hunt summary or your "While you were away" card.
+**Friends with the same weapon.** Four friends with the same weapon in Meadowbrook Thicket now earn more Level XP.
+**A cloak for the Glade.** You can wear the Houndskin Cloak at Level 22 now, and stitch it in Crafting from 12 Wolf Pelts and a Bear Pelt. Brook Bears only come to a pull of 3 or more at Mosslight Glade.
+
+**Equip upgrades gets you dressed.** An empty slot no longer waits for you to choose: it takes the armor weight you picked at Tamsin's, or the one you already wear, or the one that suits your weapon. You can still change any piece on the doll.
+
+**No old news on your way back.** Coming back to a long hunt no longer opens on "Your hero just ate".
+**Armor works against the monster in front of you.** How much armor takes off a blow now depends on how strong the monster is, not on your Level. Weak monsters barely get through, and strong ones get through low armor more. The character sheet shows what your armor does against a monster of your Level.
+- A tab showing a hero the server no longer holds now goes to your characters screen instead of standing still.
+**A sharper world.** The picture now fits its frame exactly at every screen size and display scale, so the art no longer loses a row or column of pixels.
 
 ## v0.2.89 — 2026-11-04 (Still Here)
 

@@ -756,13 +756,15 @@ label.st-line { cursor: pointer; }
   .ca-well { max-height: none; overflow: visible; }
   .ca-pinned.is-on { display: none; }
   .ca-detail { position: sticky; top: 0; max-height: calc(100vh - 160px); overflow-y: auto; overscroll-behavior: contain; }
-  .ca-head, .ca-row { grid-template-columns: 28px minmax(0, 1fr) 52px 56px 56px; column-gap: 8px; }
+  .ca-head, .ca-row { grid-template-columns: 32px minmax(0, 1fr) 52px 56px 56px; column-gap: 8px; }
   /* The heads stick to the sheet's scroller while their run scrolls under them: solid, so no row reads through. */
   .ca-head { min-height: 24px; background: var(--bg-0); }
   .ca-head .ca-c[data-c="1"], .ca-row .ca-c[data-c="1"] { display: none; }
-  .ca-ico, .ca-ico .hh-icon { width: 28px; height: 28px; }
+  .ca-ico, .ca-ico .hh-icon { width: 32px; height: 32px; } /* whole pixels: 28 drew 16-px art at 0.875x */
   .ca-token, .ca-step, .ca-cfg .hh-tool, .ca-form .hh-tool { min-height: 40px; }
-  .ca-foot { flex: none; position: static; min-height: 48px; margin: 0 -8px; }
+  .ca-foot { flex: none; position: static; min-height: 48px; margin: 0 -8px; align-items: center; }
+  /* a phone's press on a slot opens this, and a player may have meant to use it (QA 2026-11-04): the bar is idle by ruling, so the foot says so */
+  .ca-self { flex: 1 1 0; min-width: 0; margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
   .ht-bar { gap: 6px; padding: 2px 4px; }
   /* The side sheet halves the stage: the top bar (anchored right) would run
      under the party board, so it drops the ground's name and keeps the clock

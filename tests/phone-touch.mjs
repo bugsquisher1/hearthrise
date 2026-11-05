@@ -200,6 +200,11 @@ const RECT = `window.__r = (q, root) => { const e = typeof q === 'string' ? (roo
 async function configureFits(page, tag, fails) {
   await page.click('.hb-slot[data-slot="2"]');
   if (!(await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank')))) { fails.push('PH-1 [' + tag + '] a bar slot did not open Configure action'); return; }
+  /* A press on a slot opens this, and a player may have meant to use it: the foot says the hero does it alone, clear of its buttons (QA 2026-11-04). Every icon at a whole pixel scale (28 px drew 0.875x). */
+  const foot = await page.evaluate(() => { const p = document.querySelector('.ca-self'), r = p && p.getBoundingClientRect(), b = document.querySelector('.ca-foot [data-x="clear"]').getBoundingClientRect();
+    return { said: !!r && r.width > 0 && /by itself/.test(p.textContent), clear: !!r && r.right <= b.left + 0.5, tall: r ? r.height : 0, icons: Array.from(document.querySelectorAll('.ca-ico .hh-icon')).map((e) => e.getBoundingClientRect().width).filter((w) => w > 0) }; });
+  if (!foot.said || !foot.clear) fails.push('PH-1 [' + tag + '] the foot does not say the hero acts alone, or lies on its buttons: ' + JSON.stringify(foot));
+  if (!foot.icons.length || foot.icons.some((w) => Math.abs(w - 32) > 0.01)) fails.push('PH-1 [' + tag + '] an icon is off the whole-pixel scale: ' + JSON.stringify(foot.icons.slice(0, 4)));
   for (const tab of ['spells', 'food', 'ammo']) {
     await page.click('.ca-tab[data-tab="' + tab + '"]');
     if (!(await wait(page, (t) => document.querySelector('.ca-tab[data-tab="' + t + '"][aria-selected="true"]') && document.querySelectorAll('.ca-runs .ca-row').length > 3, tab, 4000))) {
@@ -988,8 +993,13 @@ async function stripReach(page, tag, fails) {
       strip: window.__r('.char-strip'), stage: window.__r('.world-stage'),
       icons: Array.from(document.querySelectorAll('.hs-launch')).map((e) => window.__r(e)),
       tabsBox: shown(box) ? window.__r(box) : null, tabs: shown(box) ? Array.from(box.querySelectorAll('.char-tab')).map((e) => window.__r(e)) : [],
-      tools: Array.from(document.querySelectorAll('.char-tool:not(.is-all)')).filter(shown).length };
+      tools: Array.from(document.querySelectorAll('.char-tool:not(.is-all)')).filter(shown).length,
+      now: (() => { const n = document.querySelector('.char-tool-now'); return n && shown(n) ? n.textContent : null; })(),
+      viewed: (document.querySelector('.char-tab.is-shown .char-tab-name') || {}).textContent };
   });
+  /* The hero on screen is named whichever way the strip fits: a tab, or the press to every hero (667 px: no tab, no name anywhere, QA 2026-11-04). */
+  if (!f.tabsBox && (!f.now || f.now !== f.viewed)) fails.push('PH-11 [' + tag + '] no tabs and the hero on screen is not named: ' + JSON.stringify([f.now, f.viewed]));
+  if (f.tabsBox && f.now) fails.push('PH-11 [' + tag + '] the tabs and Heroes both name the hero');
   if (!f.all || !window_onScreen(f.all, page.viewportSize()) || !f.hit || f.all.height < 40) fails.push('PH-11 [' + tag + '] All characters is not a thumb\'s press on screen: ' + JSON.stringify(f.all) + ' hit ' + f.hit);
   else if (window_cross(f.all, f.row)) fails.push('PH-11 [' + tag + '] the icon row lies over All characters: ' + JSON.stringify([f.all, f.row]));
   if (!f.word) fails.push('PH-11 [' + tag + '] All characters\' word is cut');
@@ -1128,6 +1138,18 @@ async function alertStack(page, tag, fails) {
   if (a.more !== (a.all - 1) + ' more' || !a.moreOn) fails.push('PH-15 [' + tag + '] nothing counts the alerts waiting: ' + a.more);
   if (a.box && a.box.bottom > a.bar.top) fails.push('PH-15 [' + tag + '] the alert runs onto the bar');
   if (a.card && a.box && window_cross(a.card, a.box)) fails.push('PH-15 [' + tag + '] the card and the alert lie on each other: ' + JSON.stringify([a.card, a.box]));
+  /* The away card is tall (154 px at 667x375): no sliver of a card stays under it, open or folded (QA 2026-11-04). */
+  await page.evaluate(() => { const t = document.querySelector('.hw-alert .hw-alert-text'); if (t) t.style.minHeight = '110px'; });
+  await page.waitForTimeout(1200);
+  const tall = await page.evaluate(() => ({ box: window.__r(Array.from(document.querySelectorAll('.hw-alert')).find((e) => e.getClientRects().length)),
+    cards: Array.from(document.querySelectorAll('.hs-widget > .hs-pointer')).filter((e) => e.getClientRects().length).map((e) => window.__r(e)) }));
+  if (tall.box && tall.cards.some((c) => window_cross(c, tall.box))) fails.push('PH-15 [' + tag + '] a card lies under a tall alert: ' + JSON.stringify(tall));
+  /* ...and folded: its title may wrap to two lines, taller than the room an open card is capped to (v0.2.90's run: 56 px at 922x423) */
+  await page.evaluate(() => { const b = document.querySelector('.hs-widget .hs-pointer .hs-coach-min'); if (b) b.click(); });
+  await page.waitForTimeout(1200);
+  const folded = await page.evaluate(() => ({ box: window.__r(Array.from(document.querySelectorAll('.hw-alert')).find((e) => e.getClientRects().length)),
+    cards: Array.from(document.querySelectorAll('.hs-widget > .hs-pointer')).filter((e) => e.getClientRects().length).map((e) => window.__r(e)) }));
+  if (folded.box && folded.cards.some((c) => window_cross(c, folded.box))) fails.push('PH-15 [' + tag + '] a folded card lies under a tall alert: ' + JSON.stringify(folded));
 }
 async function townCard(page, tag, fails, vp) {
   const c = await page.evaluate(() => { const p = document.querySelector('.hs-launchers > .hs-pointer:not(.is-min)'); return p ? window.__r(p) : null; });
@@ -1137,6 +1159,10 @@ async function townCard(page, tag, fails, vp) {
   if (!window_onScreen(c, vp)) fails.push('PH-15 [' + tag + '] the town\'s card runs off the screen: ' + JSON.stringify(c));
   const chrome = await page.evaluate(() => window.__r('.world-chrome'));
   if (chrome && c.top < chrome.bottom - 0.5) fails.push('PH-15 [' + tag + '] the town\'s card lies over the place\'s name');
+  /* What next's More shows on a phone (QA 2026-11-04: the one goal, the rest out of reach); only a window's one-line More stays off, its line wraps there. */
+  const more = await page.evaluate(() => { const box = document.querySelector('.hs-launchers > .hs-pointer'), b = document.createElement('button'); b.className = 'hs-coach-more'; box.appendChild(b);
+    const goal = getComputedStyle(b).display; box.classList.add('is-line'); const line = getComputedStyle(b).display; box.classList.remove('is-line'); b.remove(); return { goal, line }; });
+  if (more.goal === 'none' || more.line !== 'none') fails.push('PH-15 [' + tag + '] What next\'s More reads ' + JSON.stringify(more));
 }
 
 /* ── PH-16 ── Words while waiting: the world's line and the connection's, a leave with no answer, a leave counting down. */
@@ -1218,7 +1244,10 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-    const s = scripted(fixture, prep);
+    /* A HUNT PAGE HERE IS A PLAYER WATCHING: the stamp a page writes on the hunt it shows, a minute old. With none, a hunt past 10 min reads as a return (away-recap.js
+       backWithNoStamp), and every card folds to its tab, so PH-6, 10, 15 and 27 would see no open card. `o.back`: the return itself. */
+    const s = scripted(fixture, (env) => { if (prep) prep(env);
+      if (!o.back && env.hunt && !env.hunt.ended && !(env.client_state && env.client_state.awaySeen)) env.client_state = Object.assign({}, env.client_state, { awaySeen: { s: env.hunt.session_id, at: Date.parse(env.now) - 60000, xp: env.state.level_xp } }); });
     await stub(page, s, !!shots);
     const up = await play(page, base, fixture === ALPHA, o.crew);
     await page.evaluate(RECT);
@@ -1300,6 +1329,16 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
         await coachFits(o.page, tag + ' ' + where, fails, vp.width < 1024);
         await done(o, tag);
       }
+      /* A RETURN NEVER LOSES THE CARD (v0.2.90): it folds to a tab a press can reach, and the press opens it. */
+      const back = await open(vp, HUNT, longCoach, { back: true });
+      if (!back.up) { fails.push('PH-6 [' + tag + ' return] the hunt did not mount'); await back.ctx.close(); continue; }
+      const tab = await back.page.evaluate(() => { const t = document.querySelector('.hs-widget .hs-pointer.is-min .hs-coach-tab'); return !!t && window.__onScreen(window.__r(t)) && window.__hits(t); });
+      if (!tab) fails.push('PH-6 [' + tag + ' return] the folded card has no tab a press can reach');
+      else {
+        await back.page.click('.hs-widget .hs-pointer.is-min .hs-coach-tab', { timeout: 2500 }).catch(() => null);
+        if (!(await wait(back.page, () => document.querySelector('.hs-widget .hs-pointer:not(.is-min) .hs-coach-text'), null, 3000))) fails.push('PH-6 [' + tag + ' return] a press on the tab opens nothing');
+      }
+      await done(back, tag);
     }
     /* PH-6: a fresh hero's first card, over the town and inside the bag's sheet: it ends above the bar, and its Got it is on
        screen and can be pressed (played at 667x375, 2026-10-31: it ran off the foot, and the hero could not get past it). */
@@ -1694,6 +1733,8 @@ const MUTANTS = [
   ['PH-14 a grey button says nothing', 'src/shell/off-why.js', "if (words) show(b, words); else hide();", "hide();"],
   ['PH-14 a slot\'s sheet does not say why', 'src/shell/windows/configure-action.js', "text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');", ''],
   ['PH-14 her board does not say why while it is loaded', 'src/shell/windows/tally.js', "'is-on', !sc.board || st.hunting);", "'is-on', !sc.board);"],
+  ['PH-15 a sliver of card stays under a tall alert', 'src/styles/shell.css', '  .hs-widget.is-no-room > .hs-pointer { display: none; }\n', ''],
+  ['PH-6 a press on a folded card\'s tab opens nothing on a return', 'src/shell/launcher.js', '  if (r && r.seen === card.id && r.min !== true) return false;\n', ''],
   ['PH-15 every alert stacks on a phone', 'src/styles/windows.css', '  .hw-alert-list > .hw-alert:not(:first-child) { display: none; }\n', ''],
   ['PH-15 the alert is see-through', 'src/styles/windows.css', 'padding: 0 0 0 10px; background: var(--bg-2); }', 'padding: 0 0 0 10px; }'],
   ['PH-15 nothing counts the alerts behind', 'src/styles/windows.css', '  .hw-alerts-more:not(:empty) { display: block; }\n', ''],

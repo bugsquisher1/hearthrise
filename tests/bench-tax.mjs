@@ -35,12 +35,14 @@ import { BENCH_TAX, BENCH_TAX_FREE_UNDER_MG } from '../src/data/bench-tax.js';
 import { recipeInputs } from '../src/core/artisan.js';
 import { feeMgOf, taxFor, payCraft, canPayNext, craftsCovered } from '../src/core/bench-tax.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
+import { OUT_FILE as BENCH_RATES_FILE } from '../tools/gen-bench-tax.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const FN = 'supabase/functions/hr-accrue';
 const MIG = '2027-02-19-bench-tax.sql';
-const RATES = '2027-02-23-klappa-bench-tax-rates.generated.sql';
+/* The rates' NEWEST file, from its generator: each is a full replace, so a second apply of an older one deletes the newer rows. Named by hand it went stale on the Houndskin Cloak (v0.2.90: T-IDEM moved state, and T-RATES read the fee of a row T-IDEM had just removed). */
+const RATES = BENCH_RATES_FILE;
 const COLORS = '{"head": 13, "body": 5, "legs": 3, "feet": 0}';
 
 const recipeMaking = (skill, output) => ARTISAN_RECIPES[skill].find((r) => r.output === output && !r.gated);

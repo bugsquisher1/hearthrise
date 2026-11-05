@@ -42,7 +42,7 @@ function needsOf(cs, ladder) {
   if (!ladder || !ladder.offer) return [];
   const inv = cs && typeof cs.read === 'function' ? cs.read('inventory') : null;
   const bank = bankOf(cs) || [];
-  const levels = skillsOf(cs) || {};
+  const levels = /** @type {Record<string, {level: number}>} */ (skillsOf(cs) || {});
   return ladder.items.map(([id, need]) => {
     const bag = inv && count(inv[id]) ? inv[id] : 0;
     const row = bank.find((r) => r.id === id);

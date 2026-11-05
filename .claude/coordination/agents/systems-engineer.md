@@ -4506,3 +4506,12 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 4. *A reason that shares the answer line disappears for 30 s.* "Saved Setup 2." hid "You need 4,500 gp more." beside a greyed button. The play script found it, not a guard. The reason now has its own line, and a mutant holds it there.
 5. *The local world can earn it for real.* 18 skips of 30 min took about 40 s on a loaded PC: 2,585 rats, 6,790 gp, no fixture needed. Try the real path before writing the shortcut; the script's FIXTURE branches never ran.
 6. *One refused command in a parallel batch leaves the rest running on the old file.* A hook refused my cleanup script while the next step in the batch replayed the chain and looked green. The mutation proof's anchors caught it ("anchor not found once"). Read each result in a batch before building on it.
+## 2026-11-05 · lane/c-armor-tiers (armor rungs, Levels 1-8, the crossbow floor, the Glade four)
+1. *When the rule is a closed form, compute it.* Two sim hours on leather read -6% to +11% for one piece because dodge draws dice. The exact per-swing arithmetic through the engine's own functions needs no dice; use the settle only to check the arithmetic (plate whole sets within 3 points).
+2. *A zero in a ladder can be fixed from either end.* Raising the upper rung pushed the next rung under the bar; lowering a hand-made outlier to its ladder value fixed it in one number.
+3. *Twelve seeds settle what one guard seed can't.* The crossbow floor was +24 under both armor rules; the guard was reading a coin that happened to land.
+4. *To say "no stats-only answer", list every stat you moved and what it did to the row that shares it.* The lone hero's floor bounds what the four can be charged.
+## 2026-11-05 · lane/c-armor-tiers (the v0.2.90 red, the crossbow pin, the Level 1 bow)
+1. *A rule that moves every bill needs every guard that reads a bill.* I ran `sewer` and `first-week-bands` on the armor rule; `forest-cave` read the same money from the other end and went red in the release. Grep the bars, not the file names.
+2. *A coin roll's low end is the cheap lever.* The generated kill bound reads only the top roll, so raising the low end moves the mean with no catalogue apply. Check with `gen-hunt-sessions --check`.
+3. *A scratch skip is not a tick.* A ten-minute `world.skip` pays coin only at the window's end, and a store use reads the purse mid-window; one-minute steps are closer. The real gold-out on a fresh hero is the 300 g gold floor, and the sim has no purse at all: only the page shows it.

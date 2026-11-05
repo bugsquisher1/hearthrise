@@ -13,7 +13,7 @@
 <!-- the site root: the atlases resolve against the document, as on play.html -->
 <base href="../../">
 <link rel="stylesheet" href="../../src/styles/tokens.css">
-<style>html,body{margin:0;background:#0b0a0c;color:#e6dcbc;font:12px monospace}#stage{position:relative;overflow:hidden}#out{position:fixed;left:4px;bottom:4px;background:#000c;padding:4px;white-space:pre}</style>
+<style>html,body{margin:0;background:#0b0a0c;color:#e6dcbc;font:12px monospace}#stage{position:relative;overflow:hidden}#stage canvas{position:absolute;inset:0;width:100%;height:100%}#out{position:fixed;left:4px;bottom:4px;background:#000c;padding:4px;white-space:pre}</style>
 </head><body><div id="stage"></div><div id="out">loading…</div>
 <script type="module">
 import { loadAtlases } from '../../src/world/atlas.js';

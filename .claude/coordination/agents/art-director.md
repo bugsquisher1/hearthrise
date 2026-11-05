@@ -23,6 +23,11 @@ Tyler's named fix: "miss miss miss" over the hero becomes a spark. Lessons worth
   second. The 400 ms gap caps a spark at 2.5 a second, under the 3 flashes that read as flicker.
 - **`style1.mjs` knew only PixelLab and the sim.** It now also passes a `vfx` sidecar whose `drawn` names a script in
   `tools/world-art`, with two planted defects proving a missing script and a non-effect stay red.
+- **`guards-for --run` picks too much when a stylesheet moves:** `hunt.css` drew 42 tests, `run-smoke` among them, and my `kill` of it
+  was denied, so it ran on after my report said it was still running. It ended by itself, RED 3 of 42, none from this diff:
+  `hunt-screen` (load timeout under my own overlap, exit 0 alone), `run-smoke` (only failure found: the Edge payload guard, live
+  `fb6fc2847f21c645` vs repo `a758dbb60c855b8d`, main's own hash, so it needs the edge deploy), `run-sql-tests` (45 static checks on
+  migrations this lane never touched, not in `smoke.yml`, so nobody is watching it; not run on main). Read the list before `--run`.
 - **Open, not mine to fix here:** a ranged hero's miss flies no bolt, so the scuff appears with nothing arriving; and the whole-body
   white hit flash contradicts §2's "no white hit-flash".
 

@@ -31,7 +31,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
 ### 2026-11-04 Crafted jewelry (designer, lane/d-crafted-jewelry): DESIGN, revised for crafting identity, nothing built. **Tyler: seven decisions first**
-**Revised 2026-11-05 on Tyler's answer (what changed: perks replace crit-only rolls; a fixed gold step is the sink; two perks a piece; a per-row market ceiling; runes join as the repeat customer. The earlier "not a sink, simplify" verdict is gone. Usage was at 74%, so the new numbers are computed from runs already made, and each is labeled).** Tyler: "I want to give crafting some identity across the board." "Crafting should be a decent gold sink to upgrade items / sell to other players... combat players... will be willing to pay top coin on the market to crafters who are making amazing jewelry, and that jewelry should have an RNG aspect (not necessarily gambling) but a 'chance' at certain perks to roll. Kind of like new world does it." Mechanic only, §10.
+**Revised 2026-11-05 on Tyler's answer (what changed: perks replace crit-only rolls; a fixed gold step is the sink; two perks a piece; a per-row market ceiling; runes join as the repeat customer. The earlier "not a sink, simplify" verdict is gone. Every number is labeled; perks and runes were measured on a scratch copy with stand-in hooks).** Tyler: "I want to give crafting some identity across the board." "Crafting should be a decent gold sink to upgrade items / sell to other players... combat players... will be willing to pay top coin on the market to crafters who are making amazing jewelry, and that jewelry should have an RNG aspect (not necessarily gambling) but a 'chance' at certain perks to roll. Kind of like new world does it." Mechanic only, §10.
 
 **Verdict: build it, with one correction to the pitch.** Fighters paying crafters top coin works, but a sale only moves gold. What burns gold is a fixed-price step, so the design has one. Crafters roll perks with materials; a Hallmark step adds a chosen second perk for a large gold fee; crafters sell the result. Runes, not jewelry, are the repeat customer.
 
@@ -91,7 +91,7 @@ Crafted stays cheaper and stronger (100% against 75%), and a rune now books near
 | Mage, Glade L24, pull 8 | 363 | 1,622, +8,458 | Scored: **+20.6%**, 3,474, +8,786, +253%: too good, the first thing to re-check |
 | Mage, Warrens L40 | 261 | 449, +7,530 | Etched: **+12.5%**, 2,848, +6,619, +232%: a real trade |
 - **Burn per caster-day, 12 h at Etched:** store about 31,000 g, 37% of a rich day. Bought from a crafter at 8 g, about 25,000 g moves and 1,250 g burns. Self-made, 0. **So the more crafters win, the less burns:** "fighters pay crafters" and "burn gold" pull against each other on consumables, and that's fine.
-- **Fairness:** a mage's floor isn't close: at least +225% on any deeper rune above. The tightest style stays a Ranger on store arrows, +32% to +39% (`supply-basics.js` comment, not re-run). A Ranger on free Bronze pays about nothing, melee pays food only when pressing the pull. Mage bills stay under a store-arrow Ranger's 1,800 g/h until Etched at the Warrens. **No style falls under +25-35% in band.**
+- **Fairness:** a mage's floor isn't close: at least +225% on any deeper rune above. The tightest style stays a Ranger on store arrows, +32% to +39% (`supply-basics.js` comment, not re-run). A Ranger on free Bronze pays about nothing, melee pays food only when pressing the pull. Mage bills stay under a store-arrow Ranger's 1,800 g/h until Etched at the Warrens or Scored at pull 8. **No style falls under +25-35% in band.**
 - **Chain, measured on the real test:** Sewer floor party nets 1,843.5 at 1 g, 1,724.5 at 2 g, 1,605.5 at 3 g, against the Thicket's 1,838. So Plain can't move without a coin change.
 - **Re-measure on `lane/c-armor-tiers`' fixed grid:** `first-grounds-net-chain`; `ranger-floor`; mage and healer on Plain, Scored and Etched at the Glade (default and pull 8) and the Warrens; a party healer's output (one sample read +21% heals on Scored, too thin to quote).
 - **Size, separate from jewelry, and it can ship alone:** `stonecraft.js` (book, 4 yields), `supply-basics.js` (24 store rows; 8 for Fire and Water first), one line in `core/hunt/abilities.js` `runeFor` so a store row casts its own version, `conditions.js` `storeFits`, Configure action's rune list, 24 scripted icons, catalogue files, `supplies-catalogue`, `craft-wages`, `recipe-yield-guard`. **The edge moves** (those files are in the bundle), so one smoke, apply, deploy at once. About a lane-day. Yields and book alone, no engine line, about half a day. **Must land before the final pace re-measure.** Default bars keep Plain, so the sim's bars don't change unless a re-measure names a deeper rune.
@@ -136,16 +136,33 @@ Rows are built by formula from one table, as `bestiary.js` builds from the roste
 | Gem roll (plain + gem): Hallmarked, else Fine | 10% | 13% | 19% | 25% |
 **The Hallmark step, fixed, gold allowed:** one Fine piece + one gem + the fee, at Crafting 30 (T2) or 45 (T3), adds the second perk **you choose**, no dice. A new RPC on the stamina-refill pattern, kind `shop`, no bench time. That's where gold sits; no gold moves on a roll, and there's no re-roll. Base Hallmarked at Crafting 30 is about 119 h of whole-chain work, the extra-rare band. A roll draws on the bench's existing seeded stream (`resolveArtisanAction`, the burn's path); only graded rows draw; the client never rolls. `hr_apply` bounds credits to that recipe's outcomes. A rolled Hallmarked gets the rare alert, `share-card.js` and a System line (`hr_world_notice_rules`, 3 a hero a day). Bulk report: "Made 44 Banded Signets: 41 plain, 3 fine (2 Keen, 1 Surge)."
 
-**The perks: behavior you can see, each counting once per hero.** Rejected on the avoid list: XP %, drop rate. Rejected as a faucet: gold find. T3 numbers; T2 about two thirds. **Estimated, scaled from measured runs; re-measure each.**
-| Perk | What you see | Helps most | Estimated worth | Hook |
-|---|---|---|---|---|
-| **Keen** | +6% crit on basic blows | Sword, axes, bow, wand, solo staff | +1.4-2.2% XP/h (from +15% crit = +3.5-5.6%) | None |
-| **Surge** | 8% of spells, abilities and heals land 1.5x, with the crit number | Hammer (abilities 35-60%), wand, **healer: the only thing that reaches heals** | +4% heals; +1-2.5% damage | `abilities.js` `effect` |
-| **Follow-through** | A basic blow also lands 8% on one more monster beside it: two numbers | Sword, axes, hammer, bow. Better the bigger the pull, so it sells pressing the pull | +2-4% XP/h at pull 8; under 1% at default, where the walk sets the pace | `damage.js` `roll` |
-| **Deflect** | 4% of blows at you are turned aside, shown as a dodge | **Tank**, then anyone | -4% damage taken, under the armor cap | `damage.js` `landHit`, the existing dodge draw |
-| **Second Wind** | 0.6% max HP back on each kill, green numbers | Tank and melee on a big pull | About -6-8% food at pull (from kills/h and HP) | `damage.js` kill branch |
-| **Thrift** | 8% of casts and shots cost nothing: "free cast" | Wand, staff, bow on bought arrows | -8% rune and arrow bill; more uptime | `payBasic`, `fire` |
-**By style:** tank Deflect, Second Wind, Keen. Sword and axes Keen, Follow-through. Hammer Surge, Follow-through. Bow and crossbow Keen, Follow-through, Thrift. Wand Surge, Keen, Thrift. Staff Surge, Thrift, Deflect. **Pools:** ring Keen, Surge, Follow-through, Thrift; necklace Surge, Thrift, Second Wind, Deflect; earrings Keen, Follow-through, Second Wind, Deflect. **Honest limit:** flat numbers are small, so "amazing" is what the player sees, not a big XP jump. A leaderboard chaser pays because it's the last few percent: +3% XP/h on 12 h is about 0.36 h a day, so a 150k ring pays back in about 60 days of a rich hero's gold (computed).
+**The perks: behavior you can see, each counting once per hero.** Rejected on the avoid list: XP %, drop rate. Rejected as a faucet: gold find. T3 numbers; T2 about two thirds.
+| Perk | What you see | Helps most | Hook |
+|---|---|---|---|
+| **Keen** | +6% crit on basic blows | Sword, tank, axes, bow | None |
+| **Surge** | 10% of spells, abilities and heals land 1.5x, with the crit number | Axes, tank, **healer: the only thing that reaches heals** | `abilities.js` `effect` |
+| **Follow-through** | A basic blow also lands 6% on one more monster beside it: two numbers | Every damage style; better the bigger the pull, so it sells pressing the pull | `damage.js` `roll` |
+| **Deflect** | 4% of blows at you are turned aside, shown as a dodge | **Tank**, then anyone who eats | `damage.js` `landHit`, the existing dodge draw |
+| **Second Wind** | 1% max HP back on each kill, green numbers | Melee on a big pull: pays in food, not XP | `damage.js` kill branch |
+| **Thrift** | 8% of casts and shots cost nothing: "free cast" | Wand, staff, bow on bought arrows | `payBasic`, `fire` |
+
+*Measured with stand-in hooks on a scratch copy of the Tempering build, Warrens L40, solo, 2 h x 2 seeds, XP/h against plain (±1 point). Fixture's grid, so re-measure on the fixed grid. Measured sizes: Keen 6%, Surge 6%, Follow-through 8%, Deflect 4%, Second Wind 1%, Thrift 8%. Damage-taken and bills move on few blows, so they're noisy.*
+| | Tank | Hammer | Axes | Bow | Mage | Healer, solo |
+|---|---|---|---|---|---|---|
+| Plain vs none | +14.3% | +12.1% | +11.5% | +13.0% | +6.7% | +9.0% |
+| Keen | +2.5% | +1.3% | +1.5% | +1.9% | +0.7% | +2.9% |
+| Surge | +1.9% | +0.1% | +1.3% | +0.9% | -0.2% | +1.2% |
+| Follow-through | +3.1% | +2.6% | +2.2% | +2.8% | +4.4% | +4.2% |
+| Deflect | +1.6% | -0.7% | +0.5% | 0.0% | -1.7% | +0.4% |
+| Second Wind | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Thrift | +0.7% | +0.1% | +0.7% | +1.0% | -0.6% | +0.5% |
+| **All six** | **+4.4%** | **+3.3%** | **+5.1%** | **+6.1%** | **+5.8%** | **+7.8%** |
+| Store bill, plain → Deflect | 45 → 45 | 1,170 → 900 | 1,575 → 1,125 | 900 → 630 | 516 → 357 | |
+| Store bill, plain → Second Wind | 45 → 45 | 1,170 → 1,080 | 1,575 → 1,395 | 900 → 855 | | |
+- **Follow-through was the clear favorite at 8% (+2.2% to +4.4%), and one right answer for everyone is a bad perk,** so I've cut it to 6% and raised Surge to 10%. Those two sizes aren't measured, only scaled. Surge is a healer's perk more than a damage perk: +6% on heals at the measured size is +3% of output (party healing not run).
+- **Second Wind and Deflect pay in gold, not XP,** which is why a tank or a hammer on a big pull would want them: less food, more pull. So every style has something: damage styles Follow-through and Keen; tank Deflect and Second Wind; casters Thrift and Surge.
+- **By style:** tank Deflect, Second Wind, Follow-through. Sword and axes Keen, Follow-through. Hammer Follow-through, Keen. Bow and crossbow Follow-through, Keen, Thrift. Wand Follow-through, Thrift, Surge. Staff Surge, Thrift, Deflect. **Pools:** ring Keen, Surge, Follow-through, Thrift; necklace Surge, Thrift, Second Wind, Deflect; earrings Keen, Follow-through, Second Wind, Deflect.
+- **Honest limit:** flat numbers are small, so "amazing" is what the player sees, not a big XP jump. A leaderboard chaser pays because it's the last few percent: +3% XP/h on 12 h is about 0.36 h a day, so a 150k ring pays back in about 60 days of a rich hero's gold (computed).
 
 **Bench tax:** rolled recipes are exempt (decision 5), inputs raised to hold the wage; every fixed-result job keeps the tax.
 
@@ -175,17 +192,17 @@ The method holds: computed the same way, Iron Hatchets come to 2,470 g/h, and th
 | New plain T3, Warrens L40, vs none | +14.6% | +12.0% | +12.1% | +6.8% | +9.3% |
 | Crit +15%, Warrens L40, vs plain | +4.6% | +3.5% | +5.6% | +4.9% | +5.6% |
 | Crit +9%, Glade L24 pull 8, vs plain | +2.0% | +0.2% | +0.9% | +0.4% | +2.6% |
-**Ceiling: one weapon tier, +5-8% measured.** A style's best two-perk set reads three or four perks. Estimated total **about +3-6% XP/h** alone, and with Tempering's +1.8-4.6% about +5-10%, at the top of what I'd allow. **Not measured; first thing to run when usage allows,** one cell per perk per style at the Warrens L40 and Glade L24 pull 8, on the fixed grid. Guard is out (see Armor alignment). The profit floor doesn't move: it's coins and commons over the bill, and kills only get faster.
+**Ceiling: one weapon tier, +5-8% measured.** All six perks at once, the most anyone can wear, measured +3.3% to +7.8% XP/h at the Warrens. Add Tempering's +1.8-4.6% and it's about +5-10%, at the top of what I'd allow. A real set reads three or four perks, so less. **Holds, for now; re-measure on the fixed grid.** The Glade at pull 8 is the other cell to read: Follow-through should grow there. The profit floor doesn't move: it's coins and commons over the bill, and kills only get faster.
 
 **5. Rare gems: two rows, one per tier.**
 | Gem | Home | Row | Book, shop bid | Use |
 |---|---|---|---|---|
-| **Road Garnet** (robbed on the Thicket road) | Turncoat, Wickstead, already "the jewellery's carrier" | Rare, .002 | 200, 40 | T2 gem set |
-| **Seam Jasper** (cut from the copper hill's seams) | Goblin Digger, the Warrens | Rare, .0027, the rate of its belts | 500, 100 | T3 gem set |
+| **Road Garnet** (robbed on the Thicket road) | Turncoat, Wickstead, already "the jewellery's carrier" | Rare, .002 | 200, 40 | T2 gem roll and Hallmark |
+| **Seam Jasper** (cut from the copper hill's seams) | Goblin Digger, the Warrens | Rare, .0027, the rate of its belts | 500, 100 | T3 gem roll and Hallmark |
 - **Pace:** Turncoat is about 45 kills/h (2 of 24 at 540 kills/h), so .002 is about one per 11 h. Digger copies a row already tuned there. `tests/hunt-core/drop-tables.mjs` holds both to 10-20 h.
 - **Caps:** at Wickstead, three rows worth 650 book become one worth 200, so value falls. At the Warrens it's about one 500-book gem per 15 h, about +35 book/h against about 8k coin, about +0.5%, far under the +25% cap. Gems aren't gear, so the 50% gear cap can't be hit.
 - **Rules kept:** no new carrier. Each gem has one home a player can learn. ≤ 2 armor slots + a weapon per monster is untouched. The party rare roll and the rare broadcast already apply to any `band: 'rare'` row. The rare moment survives: a gem is still "I found one".
-- **Source and use (`catalogue-coherence`):** source the drop row, use the gem-set recipes. Marked `raw` so the shop pays a fifth.
+- **Source and use (`catalogue-coherence`):** source the drop row, use the gem rolls and the Hallmark step. Marked `raw` so the shop pays a fifth.
 - **Value check on Wickstead:** Rare income falls about 39 g/h of 3,500 (about -1.1%), outside the floor.
 
 **6. A pure crafter's first 20 hours: walked against real data.** A hero who never hunts. Times marked "played" are the 11-01 walk; the rest are computed from `pacing.js` and the XP table. PACE is 0.39 XP and 1.6x time. The jewelry rows don't exist yet.
@@ -213,7 +230,7 @@ Non-combat sources, grepped: every rock to Mithril, every tree, fish, farm. Comb
 | A fighter's hero, resting at the bench | 12 | 4 days | About 200 days |
 | A dedicated hero | 24 | 2 days | About 100 days |
 | Four heroes feeding one bench | 4 x 24 | Under a day | About 25 days |
-- The odds gap is small: gem-set Hallmarked is 19% at 60 and 25% at 99. **So at equal levels there's no edge, and that's by design.**
+- The odds gap is small: a gem roll's Hallmarked is 19% at 60 and 25% at 99. **So at equal levels there's no edge, and that's by design.**
 - A full-time account's real edge is about four times the jobs, so about four times the rolls, at the cost of a seat that could earn hunting gold.
 - **Also theirs:** the name on every Hallmarked broadcast, the Crafting board (exists), and a "Goldsmith" row once Titles can read `craft_roll` counters.
 - **Rejected: better odds for a hero who stays under Level 10.** It's the only rule that would really reward "solely crafting", but it punishes leveling, and every account would just keep one Level 1 hero. His no-penalty ruling on monsters leans the same way.
@@ -251,7 +268,7 @@ Non-combat sources, grepped: every rock to Mithril, every tree, fish, farm. Comb
 
 **Purpose test.** Problem: Crafting has no prized product, gold has no late use, and casters' runes are free to make. Decision: crafter, which job, burn a gem now or level first; fighter, which perks, buy now or wait. Plugs into Mining, Smithing, Crafting, Runecrafting, two grounds, the Weighhouse, the rare broadcast. **Hour 1,000:** jewelry only as good as the tier ladder, as before; runes keep selling. Keep.
 
-**Status.** **Verified by grep or probe:** the 24 rows; what the engine reads; no stat reaches spells or heals; `market_locked`; 100x book ceiling; the bench roll path; shop bids; `temper_salts` recipe and rungs in the read-only worktree; T3 salts absent there; store and rune rows. **Measured:** the XP table above; runes/h, incomes and deeper-rune XP (fixture grid, soon stale); `first-grounds-net-chain` at 1, 2, 3 g; 11-01 rates; armor lane's guard table. **Computed:** recipe wages (hatchets check 2,470 against 2,463 played), rune chain rates and wages, Hallmark prices in hours, chain gaps. **Estimated:** every perk's worth; every behavior row; bills at new prices; +3.4% Sewer fix; build sizes; T3 salts time. **Not run:** any perk hook; parties; a never-hunted hero's coach; the feature itself. A stand-in perk run I started before the usage stop may finish on its own in the scratchpad; nothing here uses it.
+**Status.** **Verified by grep or probe:** the 24 rows; what the engine reads; no stat reaches spells or heals; `market_locked`; 100x book ceiling; the bench roll path; shop bids; `temper_salts` recipe and rungs in the read-only worktree; T3 salts absent there; store and rune rows. **Measured (fixture grid, stand-in rows and hooks on a scratch copy):** the XP tables above, every perk row; runes/h, incomes and deeper-rune XP (fixture grid, soon stale); `first-grounds-net-chain` at 1, 2, 3 g; 11-01 rates; armor lane's guard table. **Computed:** recipe wages (hatchets check 2,470 against 2,463 played), rune chain rates and wages, Hallmark prices in hours, chain gaps. **Estimated:** Surge at 10% and Follow-through at 6%, scaled; every behavior row; bills at new prices; +3.4% Sewer fix; build sizes; T3 salts time. **Not run:** parties; heals; perks at pull 8 (left running in the scratchpad at report time, not used); a never-hunted hero's coach; the feature itself.
 
 ### 2026-11-04 What the wipe is held against (designer, lane/c-pre-wipe): THE LIST
 Read from this board, `DISCOVERIES.md`, rulings-of-record and 28 played hours (lane/c-hour-20). Delivery-only work (return load, build step, account delete) isn't on it, by Tyler's rule.

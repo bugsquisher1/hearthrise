@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-common.png",
   "size": [2048,1368],
-  "pixels": "764193249ef8a77399a911e7642b61f0173a8bd1bae7d7925dae4f7e848281f7",
+  "pixels": "d7c741aa7914a9ee6051249f598d7eb633808cc76d1d613724bf467a668130c0",
   "sprites": {
     "anvil": {
       "class": "bulky",
@@ -179,7 +179,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[505,1338]]
+            "s": [[488,1338]]
           }
         }
       }
@@ -206,7 +206,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[565,1338]]
+            "s": [[548,1338]]
           }
         }
       }
@@ -233,7 +233,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[520,1338]]
+            "s": [[503,1338]]
           }
         }
       }
@@ -260,7 +260,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[445,1338]]
+            "s": [[428,1338]]
           }
         }
       }
@@ -287,7 +287,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[593,1338]]
+            "s": [[589,1338]]
           }
         }
       }
@@ -314,7 +314,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[488,1338]]
+            "s": [[471,1338]]
           }
         }
       }
@@ -341,7 +341,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[460,1338]]
+            "s": [[443,1338]]
           }
         }
       }
@@ -368,7 +368,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[475,1338]]
+            "s": [[458,1338]]
           }
         }
       }
@@ -376,17 +376,17 @@
     "fuel_powder": {
       "class": "loot",
       "layer": "prop",
-      "frame": [16,16],
-      "anchor": [8,15],
+      "frame": [12,14],
+      "anchor": [6,13],
       "footprint": [1,1],
       "overhang": [0,0,0,0],
       "hover": 0,
-      "height": 11,
-      "contact": [5,9],
+      "height": 13,
+      "contact": [1,10],
       "shadow": {
         "kind": "ellipse",
-        "w": 6,
-        "h": 2,
+        "w": 13,
+        "h": 5,
         "dx": 2,
         "dy": 2
       },
@@ -395,7 +395,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[428,1338]]
+            "s": [[561,1338]]
           }
         }
       }
@@ -422,7 +422,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[535,1338]]
+            "s": [[518,1338]]
           }
         }
       }
@@ -449,7 +449,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[550,1338]]
+            "s": [[533,1338]]
           }
         }
       }
@@ -476,7 +476,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[578,1338]]
+            "s": [[574,1338]]
           }
         }
       }
@@ -489,8 +489,8 @@
       "footprint": [1,1],
       "overhang": [0,0,0,0],
       "hover": 0,
-      "height": 8,
-      "contact": [27,36],
+      "height": 13,
+      "contact": [16,46],
       "shadow": null,
       "anims": {
         "play": {
@@ -510,8 +510,8 @@
       "footprint": [1,1],
       "overhang": [0,0,0,0],
       "hover": 0,
-      "height": 8,
-      "contact": [27,36],
+      "height": 13,
+      "contact": [16,46],
       "shadow": null,
       "anims": {
         "play": {
@@ -531,8 +531,8 @@
       "footprint": [1,1],
       "overhang": [0,0,0,0],
       "hover": 0,
-      "height": 8,
-      "contact": [27,36],
+      "height": 13,
+      "contact": [16,46],
       "shadow": null,
       "anims": {
         "play": {

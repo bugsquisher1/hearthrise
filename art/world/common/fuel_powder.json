@@ -5,12 +5,12 @@
   "material": "native",
   "source": "fuel_powder.png",
   "frame": [
-    16,
-    16
+    12,
+    14
   ],
   "anchor_px": [
-    8,
-    15
+    6,
+    13
   ],
   "footprint": [
     1,
@@ -27,9 +27,12 @@
     }
   ],
   "pixellab": {
-    "tool": "script",
-    "script": "tools/world-art/round-fireworks.mjs",
-    "cost": "0"
+    "tool": "create_image_pro",
+    "image": "9a68274e-ee8a-472b-9cda-912b7368383b",
+    "candidate": 30,
+    "cost": "10 for the 64-candidate call",
+    "style": "common/woodpile",
+    "derived": "tools/world-art/round-fireworks.mjs: fuel_coal re-poured pale; no generation"
   },
-  "notes": "THE BURN, for a bought powder: the pinch the hero throws on the Great Hearth. Drawn by tools/world-art/round-fireworks.mjs; no generation."
+  "notes": "THE BURN, for a bought powder: the pinch a hero throws on the Great Hearth. fuel_coal's chunk poured pale; the powder's color is the fire's."
 }

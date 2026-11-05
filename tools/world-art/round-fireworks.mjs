@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tools/world-art/round-fireworks.mjs — THE ROUND'S FIREWORKS AND THE POWDER'S PINCH, DRAWN BY SCRIPT
-// (lane/c-town-shows, 2026-11-04; the designer's gold sinks section: "One 64 x 64, 8-frame burst by script, 3 recolors"; "one 16 px
-// fuel_powder by script"; 0 generations, $0).
+// tools/world-art/round-fireworks.mjs — THE ROUND'S FIREWORKS AND THE POWDER'S PINCH, RE-POURED FROM SHIPPED ART BY SCRIPT
+// (lane/c-town-shows, 2026-11-04; the designer's gold sinks section: "One 64 x 64, 8-frame burst by script, 3 recolors"; "one 16 px fuel_powder by script"; 0 generations, $0).
 //
-// fx_round_<color>: one deterministic burst on a 64 x 64 frame, whole pixels and binary alpha: a bright core, then rays that fly out, droop and
-// burn down to embers. Only the ramp differs between the three, so the set can't drift apart. fuel_powder: the pinch a hero throws on the fire, on
-// the world chunks' 16 px cell (the powder's own color is the fire's, so the pinch is plain).
-// Output: art/world/common/<id>.png + its sidecar, built into atlas-common by tools/world-art/build.mjs.
+// Every world asset has a style-1 source (tools/world-art/style1.mjs), so nothing here is drawn from nothing:
+//   fx_round_<color>  the Great Hearth's own hearth_burn_sparks, each frame mirrored four ways about its anchor into a 64 x 64 frame: the same sparks, thrown every way at once.
+//                     Its colors are re-poured, dark to light by luminance rank, onto the color's palette ramp, the way tools/world-art/hearth-flames.mjs pours a flame.
+//   fuel_powder       fuel_coal's chunk, the same lump poured pale: what a hero throws on the fire is a pinch of powder; its color is the fire's.
+// Output: art/world/common/<id>.png + its sidecar (the base's, renamed), built into atlas-common by tools/world-art/build.mjs.
 //
 //   node tools/world-art/round-fireworks.mjs          write the sources and sidecars
 //   node tools/world-art/round-fireworks.mjs --check  exit 1 when a written source differs
@@ -19,105 +19,59 @@ import { decodePNG, encodePNG, pixelHash } from './png.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DIR = join(ROOT, 'art', 'world', 'common');
-const FRAME = 64, FRAMES = 8;
-/* Palette colors only (art/world/palette.json): dim ember, trail, head, core. */
+const FRAME = 64;
+/* Palette colors only (art/world/palette.json), dark to light. */
 export const BURSTS = Object.freeze({
   gold: Object.freeze(['#7a4f26', '#f2a03a', '#ffd36a', '#e6dcbc']),
   cinder: Object.freeze(['#5e1a1f', '#c23a2a', '#f2a03a', '#ffd36a']),
   frost: Object.freeze(['#2b4a6a', '#4fa8e8', '#a8e4ff', '#e6dcbc']),
 });
+const PINCH_RAMP = Object.freeze(['#553a26', '#8a6440', '#c9bfa0', '#e6dcbc']);
+const hex = (d, i) => '#' + [d[i], d[i + 1], d[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('');
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const lum = (h) => { const [r, g, b] = rgb(h); return 0.299 * r + 0.587 * g + 0.114 * b; };
 
-/** One burst, FRAMES frames left to right. Pure: the same ramp always draws the same pixels. */
-export function drawBurst(ramp) {
-  const data = new Uint8Array(FRAME * FRAMES * FRAME * 4);
-  const put = (f, x, y, hex) => {
-    const px = Math.round(x), py = Math.round(y);
-    if (px < 0 || py < 0 || px >= FRAME || py >= FRAME) return;
-    const i = (py * FRAME * FRAMES + f * FRAME + px) * 4;
-    const [r, g, b] = rgb(hex);
-    data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
-  };
+/** Every color an image uses, dark to light, mapped onto a ramp by its rank. */
+function pourOnto(img, ramp) {
+  const seen = new Set();
+  for (let i = 0; i < img.data.length; i += 4) if (img.data[i + 3]) seen.add(hex(img.data, i));
+  const steps = [...seen].sort((a, b) => lum(a) - lum(b));
+  return new Map(steps.map((h, k) => [h, rgb(ramp[Math.min(ramp.length - 1, Math.floor(k * ramp.length / steps.length))])]));
+}
+
+/** One burst: the base's frames, each mirrored four ways about its anchor onto a FRAME x FRAME cell. Pure. */
+export function burstOf(base, side, ramp) {
+  const [fw, fh] = side.frame;
+  const [ax, ay] = side.anchor_px;
+  const frames = side.anims[0].dirs.s;
+  const to = pourOnto(base, ramp);
+  const data = new Uint8Array(FRAME * frames * FRAME * 4);
   const c = FRAME / 2 - 1;
-  /* a head is a 2 px square, so a burst reads at a town's x2 from across the square */
-  const blob = (f, x, y, hex) => { put(f, x, y, hex); put(f, x + 1, y, hex); put(f, x, y + 1, hex); put(f, x + 1, y + 1, hex); };
-  /* how far the rays have flown, per frame: fast, then hanging */
-  const reach = [4, 11, 17, 22, 25, 27, 28, 29];
-  const RAYS = 20;
-  for (let f = 0; f < FRAMES; f++) {
-    if (f < 3) {
-      /* the core: a hot star, gone by the fourth frame */
-      const arm = [2, 5, 3][f];
-      for (let k = -arm; k <= arm; k++) { put(f, c + k, c, ramp[3]); put(f, c + 1 + k, c + 1, ramp[3]); put(f, c, c + k, ramp[3]); put(f, c + 1, c + 1 + k, ramp[3]); }
-      if (f === 1) for (const [dx, dy] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) blob(f, c + dx, c + dy, ramp[2]);
-    }
-    for (let i = 0; i < RAYS; i++) {
-      /* every other ray runs shorter, so the ring isn't a perfect circle */
-      const long = i % 2 === 0 ? 1 : 0.72;
-      const a = (i / RAYS) * Math.PI * 2 + 0.11;
-      const droop = f >= 4 ? (f - 3) * (f - 3) * 0.55 : 0;
-      const at = (back) => {
-        const r = (reach[f] - back) * long;
-        return [c + Math.cos(a) * r, c + Math.sin(a) * r + droop];
-      };
-      if (f >= 6 && i % 2 === 1) continue;   // the short rays are out first
-      const head = f >= 6 ? ramp[0] : f >= 5 ? ramp[1] : ramp[2];
-      const [hx, hy] = at(0);
-      if (f <= 5) blob(f, hx, hy, head); else put(f, hx, hy, head);
-      /* the streak behind it: long while it flies, gone as it hangs */
-      const streak = [0, 5, 7, 7, 5, 3, 0, 0][f];
-      for (let b = 2; b <= streak; b++) {
-        const [tx, ty] = at(b);
-        put(f, tx, ty, b <= streak / 2 ? ramp[1] : ramp[0]);
+  for (let f = 0; f < frames; f++) {
+    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
+      const si = (y * base.width + f * fw + x) * 4;
+      if (!base.data[si + 3]) continue;
+      const [r, g, b] = to.get(hex(base.data, si));
+      for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+        const px = c + (x - ax) * sx, py = c + (y - ay) * sy;
+        if (px < 0 || py < 0 || px >= FRAME || py >= FRAME) continue;
+        const di = (py * FRAME * frames + f * FRAME + px) * 4;
+        data[di] = r; data[di + 1] = g; data[di + 2] = b; data[di + 3] = 255;
       }
     }
   }
-  return { width: FRAME * FRAMES, height: FRAME, data };
+  return { width: FRAME * frames, height: FRAME, data };
 }
 
-/* The pinch: a little rolled twist of paper, its mouth open on the powder. 16 x 16, on the world chunks' scale. */
-const PINCH = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '......cdd.......',
-  '.....cbaad......',
-  '.....baabb......',
-  '.....dbbbc......',
-  '......dcc.......',
-  '......cdb.......',
-  '.....cddbb......',
-  '....cdeeddb.....',
-  '....cdeedcb.....',
-  '.....bccbb......',
-  '......bbb.......',
-  '................',
-];
-const PINCH_INK = Object.freeze({ a: '#e6dcbc', b: '#553a26', c: '#6e4c30', d: '#a88457', e: '#c9bfa0' });
-export function drawPinch() {
-  const data = new Uint8Array(16 * 16 * 4);
-  PINCH.forEach((row, y) => [...row].forEach((ch, x) => {
-    if (ch === '.') return;
-    const i = (y * 16 + x) * 4;
-    const [r, g, b] = rgb(PINCH_INK[ch]);
-    data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
-  }));
-  return { width: 16, height: 16, data };
+/** The base, poured onto a ramp. Pure. */
+export function poured(base, ramp) {
+  const to = pourOnto(base, ramp);
+  const out = { width: base.width, height: base.height, data: Uint8Array.from(base.data) };
+  for (let i = 0; i < out.data.length; i += 4) if (out.data[i + 3]) [out.data[i], out.data[i + 1], out.data[i + 2]] = to.get(hex(base.data, i));
+  return out;
 }
 
-const burstSide = (id, color) => ({
-  id, class: 'vfx', style: 's1', material: 'light', source: id + '.png', frame: [FRAME, FRAME], anchor_px: [FRAME / 2 - 1, FRAME / 2 - 1], footprint: [1, 1],
-  anims: [{ name: 'play', fps: 12, loop: false, dirs: { s: FRAMES } }],
-  pixellab: { tool: 'script', script: 'tools/world-art/round-fireworks.mjs', cost: '0' },
-  notes: 'THE ROUND: one firework over Hearth Square, ' + color + ' ramp. Drawn by tools/world-art/round-fireworks.mjs; no generation.',
-});
-const PINCH_SIDE = {
-  id: 'fuel_powder', class: 'loot', style: 's1', material: 'native', source: 'fuel_powder.png', frame: [16, 16], anchor_px: [8, 15], footprint: [1, 1],
-  anims: [{ name: 'idle', fps: 0, loop: false, dirs: { s: 1 } }],
-  pixellab: { tool: 'script', script: 'tools/world-art/round-fireworks.mjs', cost: '0' },
-  notes: 'THE BURN, for a bought powder: the pinch the hero throws on the Great Hearth. Drawn by tools/world-art/round-fireworks.mjs; no generation.',
-};
+const read = (id) => ({ img: decodePNG(readFileSync(join(DIR, id + '.png'))), side: JSON.parse(readFileSync(join(DIR, id + '.json'), 'utf8')) });
 
 function main() {
   const check = process.argv.includes('--check');
@@ -133,10 +87,19 @@ function main() {
     writeFileSync(join(DIR, id + '.json'), JSON.stringify(side, null, 2) + '\n');
     console.log('wrote ' + id);
   };
-  for (const [color, ramp] of Object.entries(BURSTS)) one('fx_round_' + color, drawBurst(ramp), burstSide('fx_round_' + color, color));
-  one('fuel_powder', drawPinch(), PINCH_SIDE);
+  const sparks = read('hearth_burn_sparks');
+  for (const [color, ramp] of Object.entries(BURSTS)) {
+    const id = 'fx_round_' + color;
+    one(id, burstOf(sparks.img, sparks.side, ramp), Object.assign({}, sparks.side, { id, source: id + '.png', frame: [FRAME, FRAME], anchor_px: [FRAME / 2 - 1, FRAME / 2 - 1],
+      pixellab: Object.assign({}, sparks.side.pixellab, { derived: 'tools/world-art/round-fireworks.mjs: hearth_burn_sparks mirrored four ways, re-poured onto the ' + color + ' ramp; no generation' }),
+      notes: 'THE ROUND: one firework over Hearth Square. The Hearth\'s own sparks thrown every way at once, on the ' + color + ' ramp.' }));
+  }
+  const coal = read('fuel_coal');
+  one('fuel_powder', poured(coal.img, PINCH_RAMP), Object.assign({}, coal.side, { id: 'fuel_powder', source: 'fuel_powder.png',
+    pixellab: Object.assign({}, coal.side.pixellab, { derived: 'tools/world-art/round-fireworks.mjs: fuel_coal re-poured pale; no generation' }),
+    notes: 'THE BURN, for a bought powder: the pinch a hero throws on the Great Hearth. fuel_coal\'s chunk poured pale; the powder\'s color is the fire\'s.' }));
   if (check && stale) process.exit(1);
-  if (check) console.log('round-fireworks --check: every source matches its script');
+  if (check) console.log('round-fireworks --check: every source matches its base');
 }
 
 main();

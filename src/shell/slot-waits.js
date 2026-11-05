@@ -44,7 +44,9 @@ function canHold(c, slot, party) {
   return top === null || need === null || need <= top;
 }
 
-const heroesWord = (c, n) => (n === 1 ? 'a hero' : n + ' or more heroes') + ' under ' + METRIC.get('allies_below').subject[c.subject || 'under_50'];
+/* The registry's own words for "under 80% health" (allies_below's subjects). */
+const HURT = /** @type {Record<string, string>} */ (/** @type {any} */ (METRIC.get('allies_below')).subject);
+const heroesWord = (c, n) => (n === 1 ? 'a hero' : n + ' or more heroes') + ' under ' + HURT[c.subject || 'under_50'];
 const monstersWord = (n) => (n === 1 ? 'a monster' : n + ' or more monsters') + ' in its area';
 
 function neverWords(c, slot, party) {
@@ -58,6 +60,7 @@ function neverWords(c, slot, party) {
  * WHY `sl`'S CONDITIONS HOLD IT BACK, or null: { code, text, glyph, strike: false, quiet?, rest?, need? }. `party` is the party's
  * size; `test` the engine's test of a slot (slotTesterOf), or null when no fight is on or no prediction runs. `need` is the "2+" a
  * marked slot shows where an item shows its count.
+ * @returns {{ code: string, text: string, glyph: string, strike: boolean, quiet?: boolean, rest?: boolean, need?: string } | null}
  */
 export function waitReason(sl, party, test) {
   if (!sl || sl.empty || !Array.isArray(sl.conditions)) return null;
@@ -95,7 +98,7 @@ export function whyFacts(cs) {
   const h = huntOf(cs), p = partyOf(cs), live = cs && cs.live;
   const hero = h && !h.ended ? h.hero : null;
   return {
-    set: settingsOf(cs), bag: carriedOf(cs), hero, worn: (equipmentOf(cs) || {}).ammo, skills: skillsOf(cs), pack: carryRows(cs),
+    set: settingsOf(cs), bag: carriedOf(cs), hero, worn: /** @type {{ ammo?: string }} */ (equipmentOf(cs) || {}).ammo, skills: skillsOf(cs), pack: carryRows(cs),
     party: p ? p.members.length : 1,
     /* (Bug #61: the viewed tank holds every engaged monster, so its Challenge slot reads "Holding".) */
     holding: !!hero && !!live && typeof live.holdsPack === 'function' && live.holdsPack(hero.unit),

@@ -200,10 +200,3 @@ export const JEWEL_CEILINGS = Object.freeze(Object.fromEntries(Object.keys(JEWEL
   const it = JEWELRY_ITEMS[id];
   return [id, JEWEL_TIERS[it.tier].ceiling[it.jewelGrade]];
 })));
-
-/** The flavour line of each graded row: its plain piece's, which a reader of src/data/item-descriptions.js joins. */
-export function jewelDescriptions(plainDesc) {
-  const out = {};
-  for (const [id, it] of Object.entries(JEWELRY_ITEMS)) if (plainDesc[it.jewelBase]) out[id] = plainDesc[it.jewelBase];
-  return out;
-}

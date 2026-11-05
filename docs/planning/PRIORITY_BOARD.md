@@ -30,6 +30,35 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-05 Call out: a paid fight that can't pay (systems-engineer, lane/c-boss-call): BUILT, played on the local world, STAGED. **The fight is an exam you pass before it starts; read the verdict**
+**Tyler, 2026-11-04:** approved the proof version from the gold sinks design. A party presses Call out on the Sewer's or the Warrens' page, reads the warning, confirms, and fights a stronger copy of the boss in his own hall. The leader pays 10,000 or 30,000 gp, 3 calls a UTC day an account. It ends on the kill, on a death, or after 10 minutes. The prize is a title at price 0, "the Grate Thief" or "the Cauldron Thief", and one System line.
+
+**It can't pay, three ways.** A called row is `xp: 0, gp: [0, 0], drops: []`, and gen-hunt-sessions refuses anything else. The engine has one door for a called swing (`hunt-rewards.js calledSwing`): no skill XP, no Defense XP, no Magic XP, no coin, no drop, no die drawn. The settle refuses a window on a room whose delta holds anything off an allowlist (`called_pays`), so a new payout route fails closed. Tests: `tests/boss-call.mjs`, `tests/boss-call-db.mjs`.
+
+**The numbers (real settle, 30 seeds a cell; win rate, median kill).** Each row's stats are the only dials: Rat King HP 5,000, attack 61, base to-hit 0.1; Chief HP 8,000, attack 155, base to-hit -1.3. The design's x2.5 HP and x1.5 attack were far too soft: at those a Level 25 party with no healer won every try (2 seeds, a first look).
+| Party | Rat King | Chief Coppercap |
+|---|---|---|
+| In band, tank, healer, 2 dps | 100%, 186 s | 97%, 202 s |
+| In band, tank, healer, bow | 100%, 238 s | 97%, 236 s |
+| In band, tank and healer | 97%, 320 s | 87%, 304 s |
+| Over, tank, healer, 2 dps (Level 31 / 55) | 100%, 138 s | 100%, 180 s |
+| Under, tank, healer, 2 dps (Level 18 / 36) | 70%, 214 s | 80%, 222 s |
+| One gear tier behind, tank, healer, 2 dps | 27%, 248 s | 17%, 242 s |
+| One gear tier behind, tank and healer | 7%, 440 s | 3%, 362 s |
+| No healer, tank and dps | 0% | 17%, 294 s |
+| No tank or healer, four dps | 0% | 0% |
+| In band, no tank, healer and 2 dps | 87%, 172 s | 43%, 218 s |
+| Tank and healer on the starter's food | 97%, 320 s | 0% |
+| Tank and healer, every Tempering rung | not measured | 100%, 288 s |
+
+**Softening the cliff (data only).** The first rows put a prepared party one gear tier behind at 0-3%. Two dials moved it to 7-27% on the King and 3-17% on the Chief: a shorter fight, so a party just under the line can win the race, and a low base to-hit, which takes the boss off the 85% ceiling so a hero's Defense and shield count. **The cliff is still there, and it's inherent at these stats:** it's healing against damage over a long fight, so the average decides. Rat King attack 60 to 67, nothing else moved: tank and healer 97% to 43%, a gear tier behind with 2 dps 40% to 0%.
+
+**Does preparing matter?** Yes, before the press: a healer is the difference between 0% and 97%, gear tier is next, and at the Chief so are food and Tempering. On the bar: Frost Lance kills 13% faster than no spell; Fireball never fires, because its suggested trigger wants two targets and the room has one, so a mage who leaves it on gets nothing and isn't told. Ward and Challenge are worth little in band, and only matter near the line. **After the press there's nothing to do.** No phases, nothing to answer, one small health bar like any monster's. It's a real exam and a dull fight to watch for 3-5 minutes. **If this is to be the climax, it needs something mid-fight: a second phase or adds, a boss bar.** That's new mechanics, not numbers, so it wasn't built here.
+
+**Server.** `hr_boss_call` (one charge, kind `shop`, all seats or none), `hr_boss_call_view` (read while the page is open, never in the envelope), `hr_boss_calls`, splices into `hr_hunt_admit` (`call_only` on every other door), `hr_hunt_settle_session`, `hr_hunt_apply_member` and `hr_bestiary_of`, two triggers on `hunt_sessions`. No new player table. Order: hunts catalogue, hunt-sessions catalogue, titles catalogue, then `2027-03-02-boss-call.sql`. On the EA Security list.
+
+**For `lane/c-difficulty-tiers`:** a tier can't reach a room: `tierRowOf` reads the ground's id, which isn't on `TIERED_GROUNDS`, and `hr_hunt_tiers` holds no row for it. The merge touches one line of `combat-sim.js` (the `rewardSwing` context: keep both `tier` and `call`) and a few of `hunts.js`. `tests/boss-call.mjs` BC-TIER starts checking the day `hunt-tiers.js` lands. This lane adds no reader of density.
+
 ### 2026-11-05 Tempering: a gold sink that adds a little gear power (designer, lane/c-gear-upgrade): BUILT, played, STAGED: two files, then the edge, then the client
 **Tyler, 2026-11-04:** "we need to add some additional gold sinks before we raise the price. I'm thinking about some sort of upgrade system that slightly increases gear power or something."
 

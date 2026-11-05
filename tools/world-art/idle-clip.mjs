@@ -1,20 +1,22 @@
 // tools/world-art/idle-clip.mjs — a generated v3 idle → the frames a shipped creature's source sheet takes.
 // `node tools/world-art/port-pixellab.mjs idle` writes them; this is the part that decides the pixels.
 //
-// The clip starts from the creature's own still (PixelLab rotation, or a start frame passed as custom_start_frame_base64),
-// so its frame 0 and the shipped still are one drawing. That fixes everything else:
+// The clip starts from the creature's own still (PixelLab rotation, or animate_image from an upload of the still), so its
+// frame 0 and the shipped still are one drawing. That fixes everything else:
 //   register   the whole-pixel shift that lays frame 0 on the still (the port seated the still on the class anchor), used for
 //              the whole clip: the model's own motion is kept, and nothing is moved per frame, which read as a skating body
 //   colours    every generated pixel is snapped to a colour frame 0 uses, then given the colour that pixel wears in the still.
 //              A v3 frame invents near-colours from frame to frame, so a body standing still shimmers without this; it also carries the
 //              still's ramps and body lift (`material: native`) to the new frames with no second list of them
-//   frame 0    is the still itself: the Bestiary's portrait, the atlas rect and the step from a walk are all unchanged
+//   the body   holds the still's pixels away from a moving edge (holdBody): only the silhouette breathes
+//   frame 0    is the still itself: the hunt's portraits, the atlas rect and the step from a walk are all unchanged
 //   picking    v3 bills the same for 4 and for 8 frames at 64 px or less, so the clip is generated at 8 and the loop takes the two
 //              frames that move most calmly from the still (idleFrames). A ping-pong's repeated frame shares its atlas rect (pack.mjs), so
 //              a loop of 4 costs 2 new frames a facing
 // Pure: the same input gives the same frames, so a re-port of a downloaded clip is byte-identical.
 import { createImage, blit } from './png.mjs';
 import { snapTo } from './lock.mjs';
+import { measureFrame } from './measure.mjs';
 import { ALPHA_CUT } from '../../src/data/world/palette.js';
 
 const on = (im, x, y) => x >= 0 && y >= 0 && x < im.width && y < im.height && im.data[(y * im.width + x) * 4 + 3] >= ALPHA_CUT;
@@ -162,6 +164,8 @@ const FOOT_ROWS = 3;
 const MIN_MOTION = 12;
 /* and each of the loop's two steps moves this many, so no step is a held frame (a loop that only pops once) */
 const MIN_STEP = 6;
+/* a standing unit's lowest pixel leaves the floor by this much at most (a whole frame further up is a hop, and validate.mjs [feet] refuses past 4) */
+const MAX_LIFT = 2;
 /* one foot pixel out of place reads worse than this many pixels of a body's shading turning */
 const FOOT_WEIGHT = 8;
 /* a step moving more of the mask than this share of the body costs this much a pixel */
@@ -185,11 +189,14 @@ export function idleFrames(still, frames, floorRow) {
      mask moving (a tail, a wing, a flank) is the motion we came for, and costs nothing until one step moves a good part of the body: a pop. */
   const shimmer = (x, y) => changed(laid[x], laid[y]).colour;
   const body = still.data.reduce((n, v, i) => n + (i % 4 === 3 && v >= ALPHA_CUT ? 1 : 0), 0);
+  /* measured as validate.mjs [feet] measures: the mass, so a thin leg tip that stays down does not hide a body that hopped */
+  const lifted = (c) => floorRow - measureFrame(laid[c]).foot;
   const pop = (x, y) => POP_WEIGHT * Math.max(0, maskDiff(laid[x], laid[y]) - POP_SHARE * body);
   const pick = (minStep) => {
     let best = null;
     for (let a = 1; a < laid.length; a++) for (let b = 1; b < laid.length; b++) {
       if (a === b || maskDiff(laid[b], still) < MIN_MOTION || maskDiff(laid[a], still) < minStep || maskDiff(laid[a], laid[b]) < minStep) continue;
+      if (floorRow !== null && (lifted(a) > MAX_LIFT || lifted(b) > MAX_LIFT)) continue;
       const cost = shimmer(0, a) + shimmer(a, b) + FOOT_WEIGHT * (feet(a) + feet(b)) + pop(0, a) + pop(a, b);
       if (!best || cost < best.cost) best = { a, b, cost };
     }
@@ -202,7 +209,7 @@ export function idleFrames(still, frames, floorRow) {
   const audit = {
     picked, body, register: [reg.dx, reg.dy], missed: reg.miss,
     feet: floorRow === null ? null : out.map((f) => maskDiff(f, still, floorRow - FOOT_ROWS, floorRow)),
-    lifted: floorRow === null ? null : out.map((f) => floorRow - lowest(f)),
+    lifted: floorRow === null ? null : picked.map(lifted),
     steps: out.map((f, i) => { const c = changed(f, out[(i + out.length - 1) % out.length]); return c.colour + c.mask; }),
   };
   return { frames: out, audit };

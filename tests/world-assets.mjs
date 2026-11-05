@@ -145,7 +145,7 @@ const REQUIRED = {
   ...Object.fromEntries(['outfit_knight', 'outfit_berserker', 'outfit_brute', 'outfit_ranger', 'outfit_sorcerer', 'outfit_witch', 'outfit_dawnward', 'outfit_druid']
     .map((id) => [id, { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS }])),
   rat_king: { set: 'hunt', class: 'beast', anims: ['idle', 'walk'], dirs: FACINGS },
-  // the Millrace Sewer's six (src/data/monsters.js: the sprite id is the monster id). The hunt atlas is at 2048x1808 of 2048,
+  // the Millrace Sewer's six (src/data/monsters.js: the sprite id is the monster id). The hunt atlas is at 2048x1972 of 2048,
   // so the rat and the slime with art of their own live in the Sewer's set, loaded on that map only.
   ...Object.fromEntries(['drain_rat', 'sump_slime'].map((id) => [id, { set: 'sewer', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS }])),
   cistern_spider: { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },

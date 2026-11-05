@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-stead.png",
   "size": [2048,964],
-  "pixels": "4eadaaa697d086a7151872fb0afdcb58a651c34c80a29a3fff8eb35063a00470",
+  "pixels": "4047b5c64265b0ceab1a36af22f1675d74c1dc828e5720423372660fb4e62003",
   "sprites": {
     "barn_spider": {
       "class": "vermin",

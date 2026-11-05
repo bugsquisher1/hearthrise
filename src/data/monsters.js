@@ -783,7 +783,7 @@ export const MONSTERS = {
   /* ══ THE CALLED BOSSES (Call out, Tyler 2026-11-04; src/data/boss-calls.js): a stronger copy of a ground's boss, fought in one room a party pays to enter. A CALLED ROW
      PAYS NOTHING, EVER: xp 0, gp [0, 0], no drops; yieldOf reads a yieldPm of 0 as FULL yield, so this is the only way to say it (tests/boss-call.mjs; gen-hunt-sessions refuses
      anything else). Level and stats are its only dials: it reaches armor, to-hit and every other reader through the normal paths, no multiplier keyed on a hero's Level.
-     Its art is its boss's (monster-art.js HUNT_ART_ALIAS). Numbers measured on the real settle: tools/balance-sim plan bosscall. ══ */
+     Its art is its boss's (monster-art.js HUNT_ART_ALIAS). Numbers measured on the real settle: tools/balance-sim/boss-call-table.mjs. The low `baseAcc` takes his to-hit off the 85% ceiling (combat.js), so a hero's Defense and shield count, and a party just short of ready has a chance, not none. ══ */
   rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true, called: true,
     elementResist: ['ember'],
     hp: 5000, atk: 61, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [] },

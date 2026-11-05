@@ -253,6 +253,9 @@ row / 5% all-gear faucet caps, 0.5-10 measured hours, both paths) are
 `tests/field-salvage.mjs`. A salvage-shaped row without the flag is a guard red,
 because the flag is what silences the client's dice.
 
+### 6. A called boss (Call out) — data
+A paid fight in one room that pays nothing. One row in each of `src/data/boss-calls.js` (the fee, the press's ground), `monsters.js` (`called: true`, id ending `_called`, `xp: 0, gp: [0, 0], drops: []`), `hunts.js` `CALLED_HUNTS`, `hunt-grounds.js` `CALLED_GROUNDS`, `monster-art.js` `HUNT_ART_ALIAS`, its map's `hunts`, and a title in `titles.js`. Then `gen-hunts`, `gen-hunt-sessions`, `gen-title-catalogue`. The generator refuses a row that pays; `tests/boss-call.mjs` and `tests/boss-call-db.mjs` hold it. Tune with `tools/balance-sim/boss-call-table.mjs`: the row's `hp`, `atk`, `baseAcc` and `level` are the only dials.
+
 ### 7. Shops / other faucets — data
 The store (food, drink, runes, ammo, starter tools) is `src/data/shops.js`;
 own stock is spent first, then the store at store price. A drop that has **no** faucet will fail the

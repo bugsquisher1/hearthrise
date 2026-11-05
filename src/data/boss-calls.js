@@ -60,5 +60,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
     quote_changed: 'The price moved, so you weren\'t charged. Look again.',
     call_unknown: 'Nobody here answers that call, so you weren\'t charged.',
     insufficient_gold: 'You don\'t have the gold, so you weren\'t charged.',
+    not_ready: 'Not everyone in the party is ready, so you weren\'t charged. The Party window says who.',
+    party_hunting: 'Not while your party is hunting, so you weren\'t charged. Wait until everyone is back in town.',
   }),
 });

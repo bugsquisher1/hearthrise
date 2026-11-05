@@ -77,7 +77,7 @@ export const MUTANTS = {
     db: [PRICE, 'r.price_base + r.price_per_level * greatest(coalesce(p_level, 1), 1)', 'r.price_base + r.price_per_level'] },
   helper_open_to_clients: { arm: 'TS-PRICE', why: 'a client role can call a helper', ddl: `grant execute on function public.hr_title_of(uuid, integer) to authenticated` },
   rules_drift: { arm: 'TS-RULES', why: 'the table no longer says what the data file says', ddl: `update public.hr_sink_rules set prices = array[1, 2, 3]::bigint[] where sink_id = 'round'` },
-  setups_past_limit: { arm: 'TS-RULES', why: 'free + prices is more than a hero can hold', ddl: `update public.hr_sink_rules set free = 3 where sink_id = 'setup_slot'` },
+  setups_past_limit: { arm: 'TS-RULES', why: 'free + prices is more than a hero can hold', ddl: `update public.hr_sink_rules set free = 4 where sink_id = 'setup_slot'` },
   title_not_stamped: { arm: 'TS-TITLE', why: 'the trigger stops stamping the title',
     db: [NAME_TRIGGER, "  new.from_title := case when new.from_id is null then null\n                         else left(public.hr_title_of(new.from_id, coalesce(new.from_slot, 0)), 40) end;\n", ''] },
   title_from_client: { arm: 'TS-TITLE', why: 'a forged title survives the insert',

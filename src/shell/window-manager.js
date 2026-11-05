@@ -40,7 +40,7 @@
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
 // ════════════════════════════════════════════════════════════════════════
 
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.92';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.93';
 
 export const MAX_OPEN = 3;
 export const DOCK_MAX = 0.6;
@@ -63,7 +63,8 @@ export function validateWindowRows(rows) {
     if (!r || typeof r.id !== 'string' || !/^[a-z][a-z0-9_-]*$/.test(r.id)) throw new Error('shell windows: bad id ' + JSON.stringify(r && r.id));
     if (byId.has(r.id)) throw new Error('shell windows: duplicate id ' + r.id);
     if (typeof r.label !== 'string' || !r.label) throw new Error('shell windows: ' + r.id + ' has no label');
-    const noKey = r.key === null && r.modal === true && r.launcher === false;   // a popup only the game opens
+    const noKey = r.key === null && ((r.modal === true && r.launcher === false)   // a popup only the game opens
+      || r.noShortcut === true);                                                  // a launcher row with no letter left for it: the icon opens it
     if (!noKey && !KEY_RE.test(r.key || '')) throw new Error('shell windows: ' + r.id + ' key must be a letter, enter or escape');
     if (keys.has(r.key)) throw new Error('shell windows: key ' + r.key + ' is both ' + keys.get(r.key) + ' and ' + r.id);
     /* tabKeys: a second shortcut that opens this window on one of its tabs ({ r: 'services' }: R opens the Shop on Services) */

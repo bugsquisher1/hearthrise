@@ -500,6 +500,8 @@
 /* ── The shop and hunt prep ── */
 .hw-qty { width: 64px; }
 .hw-add { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.hw-slot-buy { margin-top: 8px; }
+.hw-slot-buy[hidden], .hw-title .hh-tool[hidden] { display: none; }
 .hw-add .hh-select { flex: 1; min-width: 0; }
 .hw-add .hw-preset-name { flex: 1; width: auto; }
 .hw-ready { margin: 0 0 6px; padding: 0; list-style: none; }
@@ -515,7 +517,7 @@
 .hw-setup.is-arming .hw-del { color: var(--red); }
 .hw-setup.is-arming [data-hs-act="save-over"], .hw-setup.is-arming .hw-use { display: none; }
 /* The setup the hero is on: "In use" in gold, and no Delete (its place kept so the rows line up). */
-.hw-setup.is-current small { color: var(--gold-2); }
+.hw-setup.is-current small, .hw-title.is-current small { color: var(--gold-2); }
 .hw-setup.is-current .hw-del { visibility: hidden; }
 .hw-town-only { display: none; }
 .hw-town-only.is-on { display: block; }
@@ -797,6 +799,18 @@
 }
 /* ── The Roll of Honor (src/shell/windows/honor.js): a town's roll, not a table. A place, a hero's name and the
    number that earned it, on ruled lines; first place in gold; the viewed hero marked by a gold rule at its edge. ── */
+/* THE HAVORA WINDOW: what gold buys in town. A pick of three powders, the one action under it, what the server says of the day. */
+.hv-lead { margin: 0 2px 10px; color: var(--ink-2); }
+.hv-powders { display: flex; gap: 6px; margin: 0 0 10px; }
+.hv-powder { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 36px; padding: 0 6px; border: 1px solid var(--steel-sep); background: var(--bg-0); color: var(--ink); font-family: var(--f-label); font-weight: 700; cursor: pointer; }
+.hv-powder:hover { color: var(--gold-2); }
+.hv-powder[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; color: var(--gold-2); }
+.hv-powder:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hv-swatch { flex: none; width: 12px; height: 12px; }
+.hv-powder.is-cinnabar .hv-swatch { background: var(--powder-cinnabar); }
+.hv-powder.is-quicklime .hv-swatch { background: var(--powder-quicklime); }
+.hv-powder.is-borax .hv-swatch { background: var(--powder-borax); }
+.hv-buy { display: block; width: 100%; min-height: 40px; margin-bottom: 8px; }
 .hr-pick { display: flex; align-items: center; gap: 8px; margin: 0 2px 10px; font-family: var(--f-label); font-weight: 700;
   font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hr-pick .hh-select { flex: 1; min-width: 0; }

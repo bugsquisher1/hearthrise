@@ -21,3 +21,9 @@ export const GRID_SETS = Object.freeze({ hd64: Object.freeze(['sandbox64']) });
 
 /** Every set the renderer can load, on any grid (the art guards read this list). */
 export const LOADED_SETS = Object.freeze(ATLAS_SETS.concat(...Object.values(GRID_SETS)));
+
+/* THE REGION-MASK SETS (dyes): mask set -> the set whose sprites it masks. Never drawn and never loaded on the
+   pane's first open: the dye code loads one on first need (src/world/atlas.js loadAtlasSet). Its sprite
+   `<id>_mask` is sprite <id>'s frames keyed by region (src/data/outfits.js MASK_COLOURS), built unpalette-locked by
+   tools/world-art/build.mjs, written by tools/world-art/outfit-masks.mjs and held to <id> by tests/outfit-masks.mjs. */
+export const MASK_SETS = Object.freeze({ 'hunt-masks': 'hunt' });

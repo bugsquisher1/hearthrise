@@ -1,11 +1,12 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/character/index.js — THE CHARACTER WINDOW (hotkey C).
 //
-// One window, three tabs, each its own module:
+// One window, four tabs, each its own module:
 //   sheet.js    Character: portrait, role, level, vitals, the combat skills,
 //               the engine's combat numbers, the bestiary, the XP bonuses
 //   outfit.js   Outfit: the preview, the outfit grid, the dyes, Save (one intent)
 //   deaths.js   Deaths: the server's death log
+//   titles.js   Titles: what this hero has earned the right to be called
 //   state.js    the window's display scratch
 // Built once per opening, patched in place on every envelope and display tick
 // (src/render/paint.js).
@@ -18,18 +19,19 @@
 // While open, a stale sheet is asked for once per record version. The answer
 // is the re-read envelope. A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.92';
-import { characterSheetOf } from '../../../session/character-sections.js?v=0.2.92';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.92';
-import { attr, cls } from '../../../render/paint.js?v=0.2.92';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.92';
-import { outfitArt, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.92';
-import { scratchOf } from './state.js?v=0.2.92';
-import { sheetHtml, patchSheet } from './sheet.js?v=0.2.92';
-import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.92';
-import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.92';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.93';
+import { characterSheetOf } from '../../../session/character-sections.js?v=0.2.93';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.93';
+import { attr, cls } from '../../../render/paint.js?v=0.2.93';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.93';
+import { outfitArt, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.93';
+import { scratchOf } from './state.js?v=0.2.93';
+import { sheetHtml, patchSheet } from './sheet.js?v=0.2.93';
+import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.93';
+import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.93';
+import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.93';
 
-const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['deaths', 'Deaths']]);
+const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['deaths', 'Deaths']]);
 const PORTRAIT_SCALE = 1;
 
 /* The hunt art set, once loaded (null until then; the canvases stay blank, never a stand-in). */
@@ -48,6 +50,7 @@ export function renderCharacter(ctx) {
     + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="cs-tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + esc(l) + '</button>').join('') + '</div>'
     + '<div class="hw-cs-pane" data-pane="sheet">' + sheetHtml() + '</div>'
     + '<div class="hw-cs-pane" data-pane="outfit">' + outfitHtml(ctx.glyphs) + '</div>'
+    + '<div class="hw-cs-pane" data-pane="titles">' + titlesHtml() + '</div>'
     + '<div class="hw-cs-pane" data-pane="deaths">' + deathsHtml() + '</div>'
     + '</div>';
 }
@@ -85,7 +88,8 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
     const d = draftOf(cs, sc);
     patchOutfit(body, ctx, sc, ART, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, []));
     paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyesOf(d, ctx.doc));
-  } else patchDeaths(body, ctx, sc);
+  } else if (sc.tab === 'titles') patchTitles(body, ctx, sc);
+  else patchDeaths(body, ctx, sc);
 };
 
 renderCharacter.events = Object.freeze(['input']);
@@ -95,6 +99,7 @@ renderCharacter.act = function actCharacter(ctx, body, action, ev, t) {
   const repaint = () => renderCharacter.patch(body, ctx);
   if (action === 'cs-tab' && ev.type === 'click') { sc.tab = t.getAttribute('data-tab'); sc.msg = ''; repaint(); return true; }
   if (sc.tab === 'outfit' && actOutfit(ctx, sc, action, ev, t, repaint)) return true;
+  if (sc.tab === 'titles' && actTitles(ctx, sc, action, ev, t, repaint)) return true;
   if (sc.tab === 'deaths' && actDeaths(sc, action, ev, t, repaint)) return true;
   return false;
 };

@@ -183,6 +183,7 @@ const BUSY = /!?\(?\b(?:st\.|sc\.|s\.|o\.|a\.|party\.|st\.sc\.)*(?:pending|sendi
 export const REASONS = Object.freeze({
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
+    { cond: 'itemsShort', words: "'Needs ' + whole(n.need) + ' ' + n.name + '. You hold '", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },
   ],
   'src/shell/windows/market/browse.js': [
     { cond: '!plan.qty', words: "'You need ' + goldWords(-left) + ' more.'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },
@@ -239,8 +240,19 @@ export const REASONS = Object.freeze({
     { cond: 'huntOpen || !again', words: "'Hunt again is off: a hunt is already running.'", where: 'the summary\'s line under its buttons' },
   ],
   'src/shell/windows/hunt-prep.js': [
-    { cond: '!presets || full || hunting', words: "' setup slots are used. Delete one to save a new setup.'", where: 'the window line (full), the town-only note (hunting), the none line (no presets)' },
+    { cond: '!presets || full || hunting', words: "setupFullWords(count, price)", where: 'the window line (full), the town-only note (hunting), the none line (no presets)' },
+    { cond: 'short > 0', words: "' You need ' + gold(short) + ' more.'", where: 'Buy a setup: the window line says how much more gold' },
     { cond: 'sc.pending || hunting', words: "Setups change in town.", where: 'the town-only note' },
+  ],
+  'src/shell/windows/character/titles.js': [
+    { cond: 'w.off', words: "' · You need ' + gold(short) + ' more.'", where: 'the row\'s own line says how much more gold; a row short of its kills has no button, its line says the count' },
+  ],
+  'src/shell/windows/chat-crier.js': [
+    { cond: '!q || q.price === null', words: "q && q.price === null ? CRIER.done", where: 'Cry it and Again: past the day\'s last line the button itself reads the Crier\'s day is done; before the first quote the line under them reads Asking the Crier…' },
+  ],
+  'src/shell/windows/havora/index.js': [
+    { cond: 'pPrice === null', words: "s && pPrice === null ? 'No more powders today'", where: 'the powder button says it; until the first read answers it has no price, and the window\'s line says any refusal' },
+    { cond: 'rPrice === null', words: "s && rPrice === null ? 'No more rounds today'", where: 'the round button says it; until the first read answers it has no price, and the window\'s line says any refusal' },
   ],
   'src/shell/windows/characters.js': [
     { cond: "x.slot === ctx.character.slot || !ctx.goTo", words: "'On screen'", where: 'the button reads On screen' },

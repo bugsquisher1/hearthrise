@@ -727,7 +727,7 @@ const MUTANTS = [
   ['A1', 'the scene sheets forget the hunt effects', 'src/world/scene-sets.js', [['    for (const id of effectIds()) ids.add(id);\n', '']]],
   ['A1', 'the scene sheets forget the home\'s furniture', 'src/world/scene-sets.js', [['  const layout = ROOM_LAYOUTS[row.id];', '  const layout = null;']]],  ['A2', 'every scene loads every sheet', 'src/world/scene-sets.js', [['  return fetchOrder(sets, groundTiles, book);', '  for (const id of Object.keys(book.sprites)) note(book.frame(id).set);\n  return fetchOrder(sets, groundTiles, book);']]],
   ['G3', 'sprites drawn over the roofs', 'src/world/render/canvas-backend.js', [
-    ['    for (const d of list.sprites) {\n      if (d.kind === \'unit\' && (d.flash || d.grey)) blitUnit(g, d, view);\n      else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }\n    }\n', ''],
+    ['    for (const d of list.sprites) {\n      if (d.kind === \'unit\' && d.grey) blitUnit(g, d, view);\n      else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }\n    }\n', ''],
     ['    g.globalAlpha = 1;\n    light(g, list, view, fv);', '    for (const d of list.sprites) blit(g, d, view);\n    g.globalAlpha = 1;\n    light(g, list, view, fv);']]],
 ];
 

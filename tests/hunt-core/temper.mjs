@@ -135,6 +135,67 @@ const cases = {
     }
     return null;
   },
+  /* THE CAPE (2026-11-05): one to-hit guard point was worth 12-16% of the damage at the Warrens, an armor piece 3-5%, so guard is a shield's alone. A cape's `steadyPm` is a linear cut on this same hook:
+     last in the chain, summed with the Armor rung, never past the total cap, armored or not. The jewelry spec's Steady needs nothing more. */
+  'the-cape-shares-the-hook-and-the-cap': (M) => {
+    const { mitigationOf, mitigate, NO_MITIGATION } = M.mitigation;
+    const snapOf = (worn, temper) => { const { eq, setBonus, profile } = M.member.loadoutOf(worn, M.ITEMS);
+      return M.member.heroSnapshot({ skills: { melee: 0, defense: 0 }, levelXp: 0 }, { eq, equipment: worn, items: M.ITEMS, bonus: () => 0, setBonus, profile, temper }); };
+    const CAPED = { ...IRON, cape: 'houndskin_cloak' };
+    if (snapOf(CAPED).armorPm !== 70) return 'a Houndskin Cloak snaps to ' + snapOf(CAPED).armorPm;
+    if (snapOf(CAPED, { 'temper:armor:2': 5 }).armorPm !== 120) return 'a Houndskin Cloak and five Armor rungs snap to ' + snapOf(CAPED, { 'temper:armor:2': 5 }).armorPm;
+    if (snapOf(CAPED).def !== snapOf(IRON).def) return 'a cape moved the to-hit roll: ' + snapOf(CAPED).def + ' against ' + snapOf(IRON).def;
+    if (snapOf({ ...IRON, shield: 'ironbound_shield' }).def !== snapOf(IRON).def + 5) return 'the Ironbound Shield no longer guards';
+    if ('armorPm' in snapOf(IRON)) return 'a hero with no cape and no rung carries a cut';
+    const rng = rngOf(M, 5);
+    const mean = landed(4000, () => mitigate(1000, 1000, NO_MITIGATION, 70, rng)) / 4000;
+    if (Math.abs(mean - 930) > 1) return 'a 1000 blow through 7% lands ' + mean;
+    /* The cap, armored or not: the hook is the chain's last step and the keep floor is under it. */
+    const maxed = mitigationOf({ heavy: 5000, medium: 0, light: 0 }, 1);
+    for (const blow of [100, 1000, 12345]) for (let i = 0; i < 200; i++) {
+      if (mitigate(blow, 1000, maxed, 335, rng) < Math.floor((blow * maxed.keepPm) / 1000)) return 'armor, cape and rung took a blow of ' + blow + ' past the cap';
+      if (mitigate(blow, 1000, NO_MITIGATION, 900, rng) < Math.floor((blow * 400) / 1000)) return 'a cut alone took a blow of ' + blow + ' past the cap';
+    }
+    return null;
+  },
+  /* A food's buff is the same cut, sized like a cape's step, and never the to-hit roll: a +4 food was -40% at the Warrens. What the row pays, the words say. */
+  'a-food-cuts-and-never-guards': (M) => {
+    const { eq, setBonus, profile } = M.member.loadoutOf(IRON, M.ITEMS);
+    const snap = (bonus) => M.member.heroSnapshot({ skills: { melee: 0, defense: 0 }, levelXp: 0 }, { eq, equipment: IRON, items: M.ITEMS, bonus, setBonus, profile });
+    const pays = M.buffs.buffBonuses([{ type: 'defense', magnitude: 5, remainingMs: 60000 }], {});
+    if (pays.steady !== 0.05 || pays.defense) return 'a Defense-type food pays ' + JSON.stringify(pays);
+    const fed = snap((k) => pays[k] || 0), bare = snap(() => 0);
+    if (fed.armorPm !== 50) return 'a 5% food snaps to ' + fed.armorPm;
+    if (fed.def !== bare.def) return 'a food moved the to-hit roll: ' + fed.def + ' against ' + bare.def;
+    const rows = Object.entries(M.ITEMS).filter(([, it]) => it.buff && it.buff.type === 'defense');
+    if (rows.length < 2) return 'the cut foods are gone';
+    for (const [id, it] of rows) {
+      if (it.buff.magnitude < 3 || it.buff.magnitude > 7) return id + ' cuts ' + it.buff.magnitude + '%, outside a cape step';
+      const words = M.descriptions[id] || '';
+      if (!words.includes(it.buff.magnitude + '% lighter') || /guard/i.test(words)) return id + ' says: ' + words;
+    }
+    return null;
+  },
+  'guard-is-a-shields-alone': (M) => {
+    const bad = Object.keys(M.ITEMS).filter((id) => { const it = M.ITEMS[id]; if (!it.slot || it.slot === 'shield' || !(Number(it.defB) > 0)) return false;
+      const v = M.mitigation.armourValues({ x: id }, M.ITEMS); return !(v.heavy || v.medium || v.light); });
+    return bad.length ? 'to-hit guard outside a shield: ' + bad.join(', ') : null;
+  },
+  /* A cape steps as an armor piece steps (balance ruling §9, 3-5% less actual damage): each tier's best keeps 95-97% of what the tier below lets through. */
+  'a-cape-steps-like-armor': (M) => {
+    const capes = Object.values(M.ITEMS).filter((it) => it.slot === 'cape');
+    const none = capes.filter((it) => !(it.steadyPm > 0)).map((it) => it.n);
+    if (none.length) return 'no reason to wear: ' + none.join(', ');
+    const best = {};
+    for (const it of capes) if (it.tier) best[it.tier] = Math.max(best[it.tier] || 0, it.steadyPm);
+    const tiers = Object.keys(best).map(Number).sort((a, b) => a - b);
+    if (tiers.length < 8) return 'the ladder has ' + tiers.length + ' tiers';
+    for (let i = 1; i < tiers.length; i++) {
+      const keeps = (1000 - best[tiers[i]]) / (1000 - best[tiers[i - 1]]);
+      if (keeps < 0.95 || keeps > 0.97) return 'tier ' + tiers[i] + ' keeps ' + (keeps * 100).toFixed(1) + '% of tier ' + tiers[i - 1] + '\'s damage, outside 95-97%';
+    }
+    return null;
+  },
   'a-heal-is-raised-too': (M) => {
     const heal = (pm, seed) => {
       const h = H(M, 1, 12, 3, 'healer', { hp: 1000, maxHp: 1e6, mana: 1e6, maxMana: 1e6 });
@@ -168,14 +229,14 @@ const cases = {
   'the-coach-names-the-smith': (M) => {
     const { nextGoal, cardFor } = M.tutorial;
     const said = (gold, temper) => JSON.stringify(nextGoal({ charLevel: 20, gold, temper, inParty: false, visited: new Set() }));
-    const rung = { piece: 'Iron Sword', gold: 2000 };
-    if (!said(4000, rung).includes('temper your Iron Sword for 2,000 gp')) return 'twice the price in hand says ' + said(4000, rung);
+    const rung = { piece: 'Iron Sword', gold: 2000, needs: '10 Tempering Salts' };
+    if (!said(4000, rung).includes('temper your Iron Sword for 2,000 gp and 10 Tempering Salts')) return 'twice the price in hand says ' + said(4000, rung);
     if (said(3999, rung).includes('temper your')) return 'under twice the price the coach still names the smith';
     if (said(99999, null).includes('temper your')) return 'with no first rung to buy the coach still names the smith';
     const facts = { gold: 30000, slotCost: 25000, slotsOwned: 2, temper: rung, home: { owned: true }, chest: null };
     const card = M.tutorial.HUNT_TUTORIAL.find((c) => c.id === 'purse_goal');
     const with_ = cardFor(card, facts), without = cardFor(card, { ...facts, temper: null });
-    if (!with_.text.includes('The smith can temper your Iron Sword: 2,000 gp for a first rung')) return 'the gold card reads ' + with_.text;
+    if (!with_.text.includes('The smith can temper your Iron Sword: 2,000 gp and 10 Tempering Salts for a first rung')) return 'the gold card reads ' + with_.text;
     if (without.text.includes('smith')) return 'with no first rung the gold card names the smith: ' + without.text;
     return null;
   },
@@ -190,6 +251,12 @@ const cases = {
       for (let i = 1; i < prices.length; i++) if (!(prices[i] > prices[i - 1])) return 'tier ' + tier + ' rung ' + (i + 1) + ' is no dearer';
     }
     if (TEMPER_TIERS[1]) return 'tier 1 has a ladder: the first hours are not to be touched';
+    /* Every rung takes its tier's crafted material, climbing with its gold (Tyler 2026-11-05; the data's rules are tests/temper-buy.mjs TB-MATERIAL). Tier 1 has no ladder, so none. */
+    const { TEMPER_MATERIALS } = M.temperData;
+    for (const o of TEMPER_OFFERS) {
+      const tier = Number(o.unlock_id.split(':')[2]), m = TEMPER_MATERIALS[tier];
+      if (!m || Object.keys(o.items).join() !== m.item || o.items[m.item] !== m.qty[o.value - 1]) return o.offer_id + ' takes ' + JSON.stringify(o.items);
+    }
     if (M.temperData.TEMPER_RUNG_PM * TEMPER_RUNGS > 50) return 'a full ladder is past the ruling\'s 5%: ' + M.temperData.TEMPER_RUNG_PM * TEMPER_RUNGS + ' pm';
     return null;
   },
@@ -215,10 +282,22 @@ const mutants = [
     edits: [[MI, '  if (armorPm) x = temperedAmount(x, -armorPm, rng);\n', ''], [MI, '  let x = raw - Math.floor((raw * (m.absorbPm || 0)) / 1000);\n', '  let x = temperedAmount(raw, -(armorPm || 0), rng);\n  x = x - Math.floor((x * (m.absorbPm || 0)) / 1000);\n']] },
   { name: 'Armor after the cap', case: 'armor-never-passes-the-cap',
     edits: [[MI, '  if (armorPm) x = temperedAmount(x, -armorPm, rng);\n', ''], [MI, '  return Math.max(1, floor, x);\n', '  return Math.max(1, armorPm ? temperedAmount(Math.max(floor, x), -armorPm, rng) : Math.max(floor, x));\n']] },
+  { name: 'a cape reads nothing on the hook', case: 'the-cape-shares-the-hook-and-the-cap', edits: [[MB, ' + steadyPmOf(c.eq, c.bonus)', '']] },
+  { name: 'a food pays the to-hit roll again', case: 'a-food-cuts-and-never-guards', edits: [[MB, " + (Number(c.eq.guardB) || 0));", " + (Number(c.eq.guardB) || 0) + (Number(c.bonus('steady')) || 0) * 80);"]] },
+  { name: 'a food reads nothing on the hook', case: 'a-food-cuts-and-never-guards', edits: [[MI, " + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);", ";"]] },
+  { name: 'the buff back on its old flat key', case: 'a-food-cuts-and-never-guards', edits: [['src/core/buffs.js', "defense: { label: 'Damage cut', bonusKey: 'steady', isPercent: true, glyph: 'uiShield' },", "defense: { label: 'Defense', bonusKey: 'defense', isPercent: false, isFlat: true, glyph: 'uiShield' },"]] },
+  { name: 'a Frostfin Supper past a cape step', case: 'a-food-cuts-and-never-guards', edits: [['src/data/items.js', "buff:{type:'defense', magnitude:5,", "buff:{type:'defense', magnitude:12,"]] },
+  { name: 'the words still promise guard', case: 'a-food-cuts-and-never-guards', edits: [['src/data/item-descriptions.js', "'A thick chowder of silverfin, potato and carrot: for five minutes, every blow that reaches you lands 3% lighter'", "'A thick chowder of silverfin, potato and carrot, a hearty pot that stiffens your guard'"]] },
+  { name: 'a cut alone has no cap', case: 'the-cape-shares-the-hook-and-the-cap', edits: [[MI, 'const keep = m.keepPm || (armorPm ? 1000 - ARMOUR_MITIGATION.capPm : 0);', 'const keep = m.keepPm;']] },
+  { name: 'a cape guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 4,']] },
+  { name: 'a stud guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', "copper_studs:        { n: 'Copper Studs',", "copper_studs:        { defB: 1, n: 'Copper Studs',"]] },
+  { name: 'a Houndskin Cloak past the step', case: 'a-cape-steps-like-armor', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, steadyPm: 120,']] },
+  { name: 'a cape with nothing on it', case: 'a-cape-steps-like-armor', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22,']] },
   { name: 'a heal ignores Blows', case: 'a-heal-is-raised-too', edits: [['src/core/hunt/abilities.js', '  n = temperedAmount(n, u.blowsPm, sc.rng);\n', '']] },
   { name: 'a rung-0 hero carries a zero, so its snapshot changed', case: 'the-snapshot-carries-only-a-rung', edits: [[MB, '...(blowsPm ? { blowsPm } : {})', 'blowsPm']] },
   { name: 'the coach spends the food money', case: 'the-coach-names-the-smith', edits: [['src/data/hunt-tutorial.js', 'f.gold < r.gold * 2) return null;', 'f.gold < r.gold) return null;']] },
   { name: 'the gold card never names the smith', case: 'the-coach-names-the-smith', edits: [['src/data/hunt-tutorial.js', "listed(house) + '.' : '') + smith };", "listed(house) + '.' : '') };"]] },
+  { name: 'a rung takes no material', case: 'the-table-is-the-sale', edits: [['src/data/temper.js', 'gold, items: itemsOf(tier, i), req_property_tier: 0,', 'gold, items: Object.freeze({}), req_property_tier: 0,']] },
   { name: 'a full ladder is 10%, past the ruling', case: 'the-table-is-the-sale', edits: [['src/data/temper.js', 'export const TEMPER_RUNG_PM = 10;', 'export const TEMPER_RUNG_PM = 20;']] },
 ];
 

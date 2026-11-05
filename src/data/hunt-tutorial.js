@@ -65,27 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.91';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.91';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.91';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.91';
-import { SKILLS_DEF } from './skills.js?v=0.2.91';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.91';
-import { tallyTask } from './tally-tasks.js?v=0.2.91';
-import { ITEMS } from './items.js?v=0.2.91';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.91';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.91';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.91';
-import { isShield } from './shields.js?v=0.2.91';
-import { deriveProfile } from '../core/member.js?v=0.2.91';
-import { ABILITIES } from './abilities.js?v=0.2.91';
-import { CONSUMABLES } from './consumables.js?v=0.2.91';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.91';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.91';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.91';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.91';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.91';
-import { regenPermille } from '../core/vitals.js?v=0.2.91';
+import { HUNT_INDEX } from './hunts.js?v=0.2.93';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.93';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.93';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.93';
+import { SKILLS_DEF } from './skills.js?v=0.2.93';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.93';
+import { tallyTask } from './tally-tasks.js?v=0.2.93';
+import { ITEMS } from './items.js?v=0.2.93';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.93';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.93';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.93';
+import { isShield } from './shields.js?v=0.2.93';
+import { deriveProfile } from '../core/member.js?v=0.2.93';
+import { ABILITIES } from './abilities.js?v=0.2.93';
+import { CONSUMABLES } from './consumables.js?v=0.2.93';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.93';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.93';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.93';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.93';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.93';
+import { regenPermille } from '../core/vitals.js?v=0.2.93';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -936,7 +936,7 @@ const SAY = Object.freeze({
     const house = [named(f.home && f.home.next) ? 'the ' + f.home.next.name + ' (' + priced(f.home.next) + ')' : null,
       named(f.chest) ? 'storage chests (the ' + f.chest.name + ', ' + priced(f.chest) + ')' : null].filter(Boolean);
     const hero = f.gold >= f.slotCost ? ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' : '. A ' + nth + ' hero costs ' + gp(f.slotCost) + ' (press Characters).';
-    const smith = f.temper ? ' The smith can temper your ' + f.temper.piece + ': ' + gp(f.temper.gold) + ' for a first rung (Shop, Services).' : '';
+    const smith = f.temper ? ' The smith can temper your ' + f.temper.piece + ': ' + gp(f.temper.gold) + (f.temper.needs ? ' and ' + f.temper.needs : '') + ' for a first rung (Shop, Services).' : '';
     return { text: 'You hold ' + gp(f.gold) + hero + (house.length ? ' In the House: ' + listed(house) + '.' : '') + smith };
   },
   stitch_cloak: () => {
@@ -1134,7 +1134,7 @@ function deedLine(f, offer) {
 function temperLine(f) {
   const r = f.temper;
   if (!r || !Number.isSafeInteger(r.gold) || !Number.isSafeInteger(f.gold) || f.gold < r.gold * 2) return null;
-  return 'The smith can temper your ' + r.piece + ' for ' + gp(r.gold) + ', a small gain that lasts: open the Shop\'s Services (R).';
+  return 'The smith can temper your ' + r.piece + ' for ' + gp(r.gold) + (r.needs ? ' and ' + r.needs : '') + ', a small gain that lasts: open the Shop\'s Services (R).';
 }
 /* OUT OF STAMINA WITH GOLD IN HAND: the one purchase that never runs out, named at the moment it can be used, at the server's quote. The day's first costs about a third of what its hours earn
    (stamina-refill.js), so it speaks ahead of saving. Nearly out: under half an hour. */

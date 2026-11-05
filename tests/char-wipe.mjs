@@ -16,6 +16,7 @@
 //   CW-LISTS    every table in tests/restore-census.baseline.json is on the list its class says
 //   CW-REFUSE   refused with the market on, its tables full, the sweep scheduled, or the game open; nothing moved
 //   CW-UNKNOWN  a table added since (user_id or none at all), or a person column on a no-player table, refuses by name
+//   CW-SINKS    every table the gold sink lanes add is on the list the design says, in one edit; a name with no table yet is skipped
 //   CW-APPLY    the procedure in order: 39+ relations named the account before; after, only the rows meant to stay do, read as text from
 //               every row of every relation in every schema; every wiped table is empty, for everyone
 //   CW-KEPT     auth, the allowlist, friends, blocks, bug reports, signup log, catalogues and config all stand; the profile is a fresh signup's
@@ -42,8 +43,8 @@ const SRC = { wipe: await read(FILE), mWipe: await read('2027-02-20-market-wipe.
 const js = (v) => String(JSON.stringify(v === undefined ? null : v));
 const uid = (n) => '000000c1-0000-4000-8000-0000c4a2' + String(n).padStart(4, '0');
 const key = () => crypto.randomUUID();
-const listOf = (name) => {
-  const m = SRC.wipe.match(new RegExp('c_' + name + ' constant text\\[\\] := array\\[([\\s\\S]*?)\\];'));
+const listOf = (name, sql = SRC.wipe) => {
+  const m = sql.match(new RegExp('c_' + name + ' constant text\\[\\] := array\\[([\\s\\S]*?)\\];'));
   if (!m) throw Object.assign(new Error('no list c_' + name), { harness: true });
   return [...m[1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]);
 };
@@ -123,6 +124,13 @@ async function scenario(db, wipeSql) {
     const sold = await one(`select public.hr_market_buy($1::uuid, 0, null, $2::uuid, $3::uuid, 1::bigint, $4::bigint, 'storage')`, [B, key(), listed.listed.listing_id, item.f]);
     if (!sold || sold.ok !== true) await db.query('update public.account_wallet set gold = 1000000 where user_id = $1', [B]);
     await claims(null);
+    /* the gold sinks' records: a powder, a round and a Crier line from a hero in town. They go with everything else. */
+    for (const [show, price] of [['cinnabar', 2000], ['round', 5000]]) {
+      const b = await ask(A, 'select public.hr_town_show(1, $1, $2::bigint, $3::uuid)', [show, price, key()]);
+      if (!b || b.ok !== true) throw Object.assign(new Error('hr_town_show: ' + js(b)), { harness: true });
+    }
+    const cried = await ask(A, 'select public.hr_crier_send(1, $1, 1000::bigint, $2::uuid)', ['selling rat tails', key()]);
+    if (!cried || cried.ok !== true) throw Object.assign(new Error('hr_crier_send: ' + js(cried)), { harness: true });
     const entered = await ask(A, `select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, gen_random_uuid())`, [hunt]);
     if (!entered || entered.ok !== true) throw Object.assign(new Error('hr_hunt_enter: ' + js(entered)), { harness: true });
     const inst = await one('select instance_id from public.hunt_sessions where user_id = $1 and ended_at is null', [A]);
@@ -162,7 +170,22 @@ async function scenario(db, wipeSql) {
     }
     const everyPlayer = (await db.query(`select c.relname t from pg_class c join pg_attribute a on a.attrelid = c.oid where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and a.attname = 'user_id' and not a.attisdropped`)).rows.map((r) => r.t);
     for (const t of everyPlayer) if (!WIPE.has(t) && !KEEP.has(t) && !MARKET.has(t)) wrong.push(t + ' has a user_id and is on no player list');
-    arm('CW-LISTS', !wrong.length && WIPE.size >= 94, `${WIPE.size} tables go, ${KEEP.size} stay, ${NOP.size} name no player; ${everyPlayer.length} tables with a user_id all placed, every census class agrees`, wrong.join('; '));
+    arm('CW-LISTS', !wrong.length && WIPE.size >= 99, `${WIPE.size} tables go, ${KEEP.size} stay, ${NOP.size} name no player; ${everyPlayer.length} tables with a user_id all placed, every census class agrees`, wrong.join('; '));
+
+    /* CW-SINKS: the design's wipe table, whatever has landed so far. hr_boss_calls waits on Tyler's word, so it isn't listed yet. */
+    const SINK_GOES = ['town_shows', 'account_gold_given', 'player_titles', 'town_works_totals', 'town_works_gifts'];
+    const SINK_NAMES_NOBODY = ['hr_sink_rules', 'hr_titles', 'hr_town_works'];
+    /* read from the text this run applies, not the file on disk: a mutant moves the lists */
+    const [goes, stays, nobody] = ['wipe', 'keep', 'no_player'].map((l) => new Set(listOf(l, wipeSql)));
+    const sinkBad = [...SINK_GOES.filter((t) => !goes.has(t) || nobody.has(t) || stays.has(t)), ...SINK_NAMES_NOBODY.filter((t) => !nobody.has(t) || goes.has(t) || stays.has(t))];
+    const sinkAbsent = [];
+    for (const t of [...SINK_GOES, ...SINK_NAMES_NOBODY]) if (!(await one('select to_regclass($1) is not null', ['public.' + t]))) sinkAbsent.push(t);
+    /* what a sink left behind is real before the wipe runs, or the wipe's empties below prove nothing about it */
+    const sinkRows = (await one('select count(*)::int from public.town_shows where user_id = $1', [A])) + (await one('select count(*)::int from public.account_gold_given where user_id = $1', [A])) + (await one('select count(*)::int from public.chat_messages where crier and from_id = $1', [A]));
+    if (sinkRows < 4) throw Object.assign(new Error('the played account holds no sink rows: ' + sinkRows), { harness: true });
+    arm('CW-SINKS', !sinkBad.length && !goes.has('hr_boss_calls') && !nobody.has('hr_boss_calls'),
+      `${SINK_GOES.length} sink tables go, ${SINK_NAMES_NOBODY.length} name nobody, each on its list; ${sinkAbsent.length} of them don't exist yet (${sinkAbsent.join(', ') || 'none'}) and the wipe below skips those`,
+      'a sink table is on the wrong list, or none: ' + sinkBad.join(', '));
 
     /* CW-REFUSE: market on, then off with goods, then the sweep, then an open game. */
     const rOn = await apply(wipeSql);
@@ -297,6 +320,10 @@ async function scenario(db, wipeSql) {
 
 /* Most of these the file's own §2 refuses before behaviour runs, which is the §4 self-check doing its job: CW-APPLY-SELF. */
 const MUTANTS = [
+  { id: 'sink_table_unlisted', arm: 'CW-SINKS', why: 'a sink table leaves the wipe list', edits: [["'account_gold_given', 'player_titles', 'town_shows',", "'player_titles', 'town_shows',"]] },
+  { id: 'sink_catalogue_wiped', arm: 'CW-SINKS', why: 'the wipe truncates the prices', edits: [["'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works'];", "'hr_account_deletion_log', 'hr_titles', 'hr_town_works'];"], ["'account_gold_given', 'player_titles',", "'hr_sink_rules', 'account_gold_given', 'player_titles',"]] },
+  { id: 'wipe_needs_every_table', arm: 'CW-APPLY-SELF', why: 'a listed table that does not exist yet stops the wipe', edits: [["    if to_regclass('public.' || t) is not null then\n      v_present := v_present || t;", "    if true then\n      v_present := v_present || t;"]] },
+  { id: 'kept_count_needs_every_table', arm: 'CW-APPLY-SELF', why: 'a no-player table that does not exist yet stops the wipe', edits: [["    if to_regclass('public.' || t) is not null then\n      execute format('select count(*) from public.%I', t) into v_n;\n      v_kept", "    if true then\n      execute format('select count(*) from public.%I', t) into v_n;\n      v_kept"]] },
   { id: 'open_game', arm: 'CW-REFUSE', why: 'the wipe runs in an open game', edits: [["  if not coalesce((select enabled from public.hr_flags where key = 'closed_mode'), false) then\n    raise exception 'PRECONDITION: closed_mode", "  if false then\n    raise exception 'PRECONDITION: closed_mode"]] },
   { id: 'market_on', arm: 'CW-REFUSE', why: 'the wipe runs with the market on', edits: [["  if (select enabled from public.hr_market_config) is distinct from false then\n    raise exception 'PRECONDITION: the market is ON", "  if false then\n    raise exception 'PRECONDITION: the market is ON"]] },
   { id: 'market_full', arm: 'CW-REFUSE', why: 'the escrow is ignored', edits: [["    if v_n <> 0 then raise exception 'PRECONDITION: public.% holds", "    if false then raise exception 'PRECONDITION: public.% holds"]] },

@@ -54,30 +54,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = 'assets/icons-bundle/pixel/items';
 const SUPPLY = 'assets/icons-bundle/pixel/supplies';
 const ABILITY = 'assets/icons-bundle/pixel/abilities';
-/** Pairs of items that still share one icon, waiting for art of their own (Art Director). A new pair is a finding. */
+/** Pairs of items that share one icon. The second of each is a later or cut item no hero can reach today, so the two never
+    share a shelf (src/data/catalogue-coherence.js reachableSources); it gets its own when it opens. A new pair is a finding. */
 const KNOWN_TWINS = [
-  /* Grayjaw's Ruff (the loot bands' Thicket sample, lane b-loot-bands) wears the Houndskin Cloak's fur cape until the
-     Asset Director draws Grayjaw's gray neck ruff (no generated art in that lane). */
-  ['grayjaws_ruff', 'houndskin_cloak'],
-  /* The Graypelt Cloak (the first-hour rung, lane b-first-hour) wears the Woollen Cloak's icon (an unreachable cape, so
-     the two never share a shelf) until the Asset Director draws a gray wolf-pelt cloak. */
-  ['graypelt_cloak', 'woolen_cloak'],
-  /* The Warrens' two new tier-3 Rares (loot bands batch 4) wear the practice pair's icon until steel heads and a willow stock are drawn. */
-  ['steel_hatchets', 'practice_hatchets'], ['willow_crossbow', 'practice_crossbow'],
-  /* The Cellar's and the Warrens' imbuement items and the two boss Trophies (loot bands phase C) wear a near item's
-     icon until their own are drawn: a hide, a stinger, a copper fleck, a shiv, a pot, a lash, tallow, two crowns. */
-  ['giant_rat_hide', 'wolf_pelt'], ['hive_wasp_stinger', 'venom_sac'], ['glowing_copper_fleck', 'copper_ore'], ['skulkers_shiv', 'bronze_knife'],
-  ['dented_copper_pot', 'copper_bar'], ['foremans_lash', 'snare_wire'], ['coppercaps_tallow', 'slime_gel'],
-  ['rat_kings_crown', 'crown_of_the_fallen_king'], ['coppercaps_cauldron', 'war_crown'],
-  /* Wickstead's four imbuement items (lane b-greenhaven-6, staged; no art spend) wear a near item's icon until the Asset
-     Director draws them: a rat's whisker, a wasp's sting, a wad of web, a torn badge. */
-  ['granary_whisker', 'grayjaw_whisker'], ['barn_wasp_sting', 'culvert_bat_fang'], ['loft_web', 'silk_thread'], ['torn_company_badge', 'warlord_badge'],
-  /* the Orchard Boar's and Brook Bear's three (lane b-unsourced-items): a bristle tuft, a tusk, a tooth, until drawn */
-  ['boar_bristle', 'dire_hackle'], ['orchard_boar_tusk', 'alpha_fang'], ['brook_bear_tooth', 'small_fang'],
-  /* Three of the shields (src/data/shields.js, lane b-spell-roles) still wear the Practice Shield's icon until they are
-     drawn: iron bands on oak, a copper cap on steel, a steel grate. The Bronze-Rimmed and the Kingsgrate have their own. */
-  ...['practice_shield', 'ironbound_shield', 'coppercap_shield', 'steelgrate']
-    .flatMap((a, i, l) => l.slice(i + 1).map((b) => [a, b]))];
+  ['graypelt_cloak', 'woolen_cloak'], ['skulkers_shiv', 'bronze_knife'],
+  ['rat_kings_crown', 'crown_of_the_fallen_king'], ['torn_company_badge', 'warlord_badge']];
 
 /** Byte-identical icon files under two ids, except the listed twins. */
 export function checkDuplicates(dir, ids, twins = KNOWN_TWINS) {

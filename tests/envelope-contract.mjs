@@ -247,6 +247,12 @@ function sheetContract(R, cs, body) {
   need('character_sheet', !!sh && sh.fresh && !!c && !!c.damage && c.damage.max >= 1 && c.defence !== null && c.accuracyPct !== null
     && c.critPct !== null && !!c.role,
     'after the sheet verb characterSheetOf yields ' + JSON.stringify(sh) + ' from ' + JSON.stringify(body.character_sheet));
+  const ss = R.IS.setupSlotsOf(cs);
+  need('setup_slots', !!ss && isNum(ss.count) && isNum(ss.max) && ss.count <= ss.max && (ss.price === null || isNum(ss.price)),
+    'setupSlotsOf yields ' + JSON.stringify(ss) + ' from ' + JSON.stringify(body.setup_slots));
+  const tt = R.CS.titlesOf(cs);
+  need('titles', !!tt && tt.rows.length > 0 && tt.rows.every((r) => isNum(r.price) && isNum(r.kills) && isNum(r.have)),
+    'titlesOf yields ' + JSON.stringify(tt) + ' from ' + JSON.stringify(body.titles));
   const dl = R.CS.deathLogOf(cs);
   need('death_log', !!dl && dl.length === 1 && dl[0].monster === 'rat' && dl[0].xp === 5 && !!dl[0].hunt,
     'deathLogOf yields ' + JSON.stringify(dl) + ' from ' + JSON.stringify(body.death_log));
@@ -257,11 +263,11 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'temper']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
-  tool: 'bronze_axe', preset: 2, presetName: 'Contract set' });
+  tool: 'bronze_axe', preset: 0, presetName: 'Contract set' });   // number 0 is open at any free count (hr_setup_locked)
 async function seedS2(db, M, H) {
   const ok = async (uid, sql, params) => {
     await db.query("select set_config('request.jwt.claim.sub', $1, true)", [uid]);
@@ -410,6 +416,9 @@ const DB_MUTANTS = [
   ['shop', 'public.hr_shop_view(uuid,integer)', "'offers', coalesce(", "'offer_list', coalesce("],
   ['hunt_presets', 'public.hr_hunt_presets_view(uuid,integer)', "'action_set', p.action_set,", "'set', p.action_set,"],
   ['role', 'public.hr_role_view(uuid,integer)', "'weapon', w.weapon_type)", "'weapon_type', w.weapon_type)"],
+  ['setup_slots', 'public.hr_setup_slots_view(uuid,integer)', "jsonb_build_object('count', v_count,", "jsonb_build_object('slots', v_count,"],
+  ['titles', 'public.hr_titles_view(uuid,integer)', "'rows', coalesce(jsonb_agg(", "'list', coalesce(jsonb_agg("],
+  ['titles', 'public.hr_titles_view(uuid,integer)', "'have', public.hr_title_kills(", "'count', public.hr_title_kills("],
   ['party_invites', 'public.hr_party_invites_view(uuid,integer)', "'from', public.hr_character_name(", "'sender', public.hr_character_name("],
   ['party_notices', 'public.hr_party_notices_view(uuid,integer)', "'who', left(public.hr_character_name(", "'actor', left(public.hr_character_name("],
   ['stamina_refill', 'public.hr_stamina_refill_quote(uuid,integer)', "'restore_ms', v_min * 60000,", "'restore', v_min * 60000,"],

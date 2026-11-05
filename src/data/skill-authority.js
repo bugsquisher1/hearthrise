@@ -55,10 +55,10 @@
 // PURE ESM. No DOM required to import; loads and answers in Node.
 // ============================================================================
 
-import { SKILLS_DEF } from './skills.js?v=0.2.91';
-import { COMBAT_XP_SKILLS } from '../core/progression.js?v=0.2.91';
-import { GATHER_SKILLS } from '../core/pacing.js?v=0.2.91';
-import { ARTISAN_SETTLEMENT } from './item-authority.js?v=0.2.91';
+import { SKILLS_DEF } from './skills.js?v=0.2.93';
+import { COMBAT_XP_SKILLS } from '../core/progression.js?v=0.2.93';
+import { GATHER_SKILLS } from '../core/pacing.js?v=0.2.93';
+import { ARTISAN_SETTLEMENT } from './item-authority.js?v=0.2.93';
 
 /** The skills a hunt pays XP into (src/core/hunt-rewards.js routes, the one list). */
 export function combatXpSkills() {

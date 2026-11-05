@@ -39,7 +39,7 @@ export const BUY_CHIPS = Object.freeze([[1, '1'], [10, '10'], [100, '100'], ['af
 export function rulesOf(raw) {
   if (!isObj(raw) || int(raw.fee_bp) === null || int(raw.cut_bp) === null) return null;
   return { enabled: raw.enabled === true, feeBp: raw.fee_bp, feeMin: count(raw.fee_min), cutBp: raw.cut_bp, ttlH: count(raw.ttl_h),
-    maxListings: count(raw.max_listings), maxListsPerDay: count(raw.max_lists_per_day), minLevel: int(raw.min_level) };
+    maxListings: count(raw.max_listings), maxListsPerDay: count(raw.max_lists_per_day), minLevel: int(raw.min_level), minSkillLevel: int(raw.min_skill_level) };
 }
 
 /** One item's summary (hr_market_item_summary). */

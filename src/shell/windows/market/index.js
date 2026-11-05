@@ -16,6 +16,7 @@ import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.90';
 import { whole } from '../../../render/format.js?v=0.2.90';
 import { goldOf } from '../../../session/item-sections.js?v=0.2.90';
 import { MARKET_TABS } from '../../market-model.js?v=0.2.90';
+import { lockedWords } from '../../market-words.js?v=0.2.90';
 import { hideTip } from '../item-tip.js?v=0.2.90';
 import { marketScratch, rereadAll, readMine, readItem } from './state.js?v=0.2.90';
 import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.90';
@@ -37,7 +38,7 @@ export function renderMarket(ctx) {
 /* What stands between this account and a trade, in the server's own terms ('' = nothing). */
 function blockWords(sc) {
   if (sc.closed) return 'The Weighhouse isn\'t trading right now. Your listings are safe, and you can still take them back.';
-  if (sc.locked && sc.rules && sc.rules.minLevel) return 'The Weighhouse trades with heroes of Level ' + whole(sc.rules.minLevel) + ' or higher. Reach it on any hero to buy and sell here. Until then, have a look around.';
+  if (sc.locked && sc.rules && sc.rules.minLevel) return lockedWords(sc.rules.minLevel, sc.rules.minSkillLevel) + ' Until then, have a look around.';
   return '';
 }
 

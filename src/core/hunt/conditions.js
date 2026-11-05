@@ -380,7 +380,7 @@ export function reaches(inst, hero, range, t) {
 function cleaveReach(inst, hero, range, row, slot) {
   const mons = engagedMons(inst);
   const can = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))
-    .sort((a, b) => ((b.id === hero.target) - (a.id === hero.target)) || (dist2(a, hero) - dist2(b, hero)) || (a.id - b.id));
+    .sort((a, b) => (Number(b.id === hero.target) - Number(a.id === hero.target)) || (dist2(a, hero) - dist2(b, hero)) || (a.id - b.id));
   if (!can.length) return 0;
   const beside = mons.filter((m) => cheb(m, hero) <= 1);
   return Math.min(row.maxHits, beside.length + (beside.includes(can[0]) ? 0 : 1));

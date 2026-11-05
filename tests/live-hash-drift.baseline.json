@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-05",
- "replay_ms": 51128,
+ "replay_ms": 8029,
  "counts": {
   "tracked_names": 746,
   "entries": 601
@@ -1383,17 +1383,18 @@
     "2027-02-08-unsourced-bench-inputs.generated.sql",
     "2027-02-18-craft-economy-bench-inputs.generated.sql",
     "2027-02-23-klappa-bench-inputs.generated.sql",
-    "2027-02-25-houndskin-bench-inputs.generated.sql"
+    "2027-02-25-houndskin-bench-inputs.generated.sql",
+    "2027-02-28-temper-craft-bench-inputs.generated.sql"
    ],
    "live": {
-    "md5": "17eb206db0e5c3e7d136c311574cce16",
-    "norm_len": 7452,
+    "md5": "2f7ae906a53e26cd073447debef8b24c",
+    "norm_len": 7554,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "17eb206db0e5c3e7d136c311574cce16",
-    "norm_len": 7452,
+    "md5": "2f7ae906a53e26cd073447debef8b24c",
+    "norm_len": 7554,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8089,17 +8090,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-13-market-eligibility.sql"
+    "2027-02-13-market-eligibility.sql",
+    "2027-03-03-market-bench-gate.sql"
    ],
    "live": {
-    "md5": "056beb6114283331e59a30ffa51dd8cc",
-    "norm_len": 355,
+    "md5": "92022f3c66a2c92ed05ef85920c41d5c",
+    "norm_len": 604,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "056beb6114283331e59a30ffa51dd8cc",
-    "norm_len": 355,
+    "md5": "92022f3c66a2c92ed05ef85920c41d5c",
+    "norm_len": 604,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8208,17 +8210,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-13-market-eligibility.sql"
+    "2027-02-13-market-eligibility.sql",
+    "2027-03-03-market-bench-gate.sql"
    ],
    "live": {
-    "md5": "cbf89da79caca1933c3d2b8dc2bea571",
-    "norm_len": 382,
+    "md5": "5bce1ab8099cf6713139812748535eca",
+    "norm_len": 424,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "cbf89da79caca1933c3d2b8dc2bea571",
-    "norm_len": 382,
+    "md5": "5bce1ab8099cf6713139812748535eca",
+    "norm_len": 424,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8298,22 +8301,24 @@
    "sig": "hr_market_rules()",
    "name": "hr_market_rules",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2027-01-12-market-account.sql",
-    "2027-02-13-market-eligibility.sql"
+    "2027-02-13-market-eligibility.sql",
+    "2027-03-03-market-bench-gate.sql"
    ],
    "live": {
-    "md5": "8e667ce8b858309d9b7be59667245bc3",
-    "norm_len": 605,
+    "md5": "e14739cd1221852a134b55cc91f8310f",
+    "norm_len": 643,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "8e667ce8b858309d9b7be59667245bc3",
-    "norm_len": 605,
+    "md5": "e14739cd1221852a134b55cc91f8310f",
+    "norm_len": 643,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8326,17 +8331,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-13-market-eligibility.sql"
+    "2027-02-13-market-eligibility.sql",
+    "2027-03-03-market-bench-gate.sql"
    ],
    "live": {
-    "md5": "95c3791a94cc512e358048fa18c535c7",
-    "norm_len": 385,
+    "md5": "f7d402c686dae0bec69e0b76ec405518",
+    "norm_len": 427,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "95c3791a94cc512e358048fa18c535c7",
-    "norm_len": 385,
+    "md5": "f7d402c686dae0bec69e0b76ec405518",
+    "norm_len": 427,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -11327,6 +11333,7 @@
    "sig": "hr_skill_xp_for_level(p_skill text, p_level integer)",
    "name": "hr_skill_xp_for_level",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -12249,17 +12256,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-02-27-tempering.sql"
+    "2027-02-27-tempering.sql",
+    "2027-02-28-temper-craft.sql"
    ],
    "live": {
-    "md5": "a8ab953b443000d4f18a51f529fc0b4b",
-    "norm_len": 842,
+    "md5": "8e6c5e795488b62af71fe535075d4de0",
+    "norm_len": 860,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a8ab953b443000d4f18a51f529fc0b4b",
-    "norm_len": 842,
+    "md5": "8e6c5e795488b62af71fe535075d4de0",
+    "norm_len": 860,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -13781,17 +13789,18 @@
     "2026-09-28-settle-before-mutate.sql",
     "2026-11-29-house-home.sql",
     "2026-12-15-account-gold.sql",
-    "2027-01-10-house-from-storage.sql"
+    "2027-01-10-house-from-storage.sql",
+    "2027-02-28-temper-craft.sql"
    ],
    "live": {
-    "md5": "ccb6f35bdd42c88051e4420791d58900",
-    "norm_len": 21954,
+    "md5": "05f188f2878b0bf692fc81ff4e6d65fc",
+    "norm_len": 21964,
     "measured": "2026-11-05",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ccb6f35bdd42c88051e4420791d58900",
-    "norm_len": 21954,
+    "md5": "05f188f2878b0bf692fc81ff4e6d65fc",
+    "norm_len": 21964,
     "source": "computed-from-replay"
    },
    "agree": true

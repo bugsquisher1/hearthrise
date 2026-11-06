@@ -422,13 +422,18 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       if (again.length) fails.push('B-14 a sheet the prewarm loaded was loaded again by the World (an image per load, not the held one): ' + again.join(', '));
       /* B-4 SIGN OUT STAYS WHERE IT WAS PRESSED (Andy 2026-11-06: "sometimes I sign out and it brings me to my character list"): on a
          desktop the strip's tools rode behind the hero tabs, so a tab arriving or a hero's status changing slid Characters under a
-         pointer aimed at Sign out. They stand against the icon row the strip keeps clear of (its padding), at one tab and at two. */
+         pointer aimed at Sign out. They stand against the icon row the strip keeps clear of (its padding), at one tab and at two, on
+         a 1920 px screen (at 1280 the icon row leaves the strip no room to slide in). */
       const toolsAt = async () => {
         await wait(page, () => document.querySelector('.hs-launchers') && document.querySelector('nav.char-strip').style.paddingRight);
-        return page.evaluate(() => {
+        await page.setViewportSize({ width: 1920, height: 1080 });
+        await page.waitForTimeout(100);
+        const at = await page.evaluate(() => {
           const gap = Math.round(document.querySelector('.hs-launchers').getBoundingClientRect().left - document.querySelector('nav.char-strip [data-app="sign-out"]').getBoundingClientRect().right);
           return gap >= 0 && gap <= 16 ? 'against the icon row' : 'Sign out ends ' + gap + ' px left of the icon row';
         });
+        await page.setViewportSize({ width: 1280, height: 720 });
+        return at;
       };
       const oneTab = await toolsAt();
       if (oneTab !== 'against the icon row') fails.push('B-4 with one hero tab, ' + oneTab + ': the tools ride the tabs, and a press aimed at Sign out lands on Characters when a tab grows');
@@ -453,14 +458,18 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.click('.char-tab[data-app="show"][data-slot="0"]');
       await page.waitForTimeout(400);
       const asked = [];
-      const onAsk = (q) => { const m = /\/rest\/v1\/rpc\/([a-z_]+)|\/functions\/v1\/(hr-accrue)/.exec(q.url()); if (m) asked.push(m[1] || m[2]); };
+      let out = 0;
+      const onAsk = (q) => { const m = /\/rest\/v1\/rpc\/([a-z_]+)|\/functions\/v1\/(hr-accrue)/.exec(q.url()); if (m) asked.push({ n: m[1] || m[2], late: out > 0 }); };
       page.on('request', onAsk);
       await page.click('[data-app="sign-out"]');
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-5 sign-out did not return to sign-in');
-      await page.waitForTimeout(500);
+      out = 1;
+      await page.waitForTimeout(2500);   // past a town keepalive's pollMs (2 s): a hero still standing would ask again
       page.off('request', onAsk);
-      const played = asked.filter((n) => n !== 'hr_town_move' && n !== 'hr_put_client_state');
-      if (played.length) fails.push('B-5 a Sign out press still asked the server ' + played.join(', ') + ' (only the heroes\' leaves and residue belong to it)');
+      const shown = asked.filter((a) => a.n === 'hr-accrue' || a.n === 'hr_chat_recent').map((a) => a.n);
+      const later = asked.filter((a) => a.late).map((a) => a.n);
+      if (shown.length) fails.push('B-5 a Sign out press showed the next hero on its way out: ' + shown.join(', '));
+      if (later.length) fails.push('B-5 after the sign-in screen the page still asked the server ' + later.join(', '));
       const left = await page.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage)]
         .filter((k) => k === 'hr-auth' || k.startsWith('hr-auth-') || k.startsWith('sb-') || k === 'hr-tab-id' || k === 'hr-open' || k === 'hearthrise:supabaseSession'));
       if (left.length) fails.push('B-5 session copies left after sign-out: ' + left.join(', '));

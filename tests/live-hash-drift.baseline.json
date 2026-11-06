@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-06",
- "replay_ms": 5879,
+ "replay_ms": 261557,
  "counts": {
   "tracked_names": 802,
   "entries": 654
@@ -1611,20 +1611,22 @@
    "sig": "hr_beta_gate_message(p_reason text)",
    "name": "hr_beta_gate_message",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-08-23-beta-invite-gate.sql"
+    "2026-08-23-beta-invite-gate.sql",
+    "2027-03-18-invite-refusal-words.sql"
    ],
    "live": {
-    "md5": "2929fd8052854265155e103d488e0d74",
-    "norm_len": 743,
+    "md5": "4cceafc0ad326c3d9aa96ec25032b7bb",
+    "norm_len": 742,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2929fd8052854265155e103d488e0d74",
-    "norm_len": 743,
+    "md5": "4cceafc0ad326c3d9aa96ec25032b7bb",
+    "norm_len": 742,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1701,20 +1703,22 @@
    "sig": "hr_beta_signup_message(p_reason text)",
    "name": "hr_beta_signup_message",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-08-23-open-beta.sql"
+    "2026-08-23-open-beta.sql",
+    "2027-03-18-invite-refusal-words.sql"
    ],
    "live": {
-    "md5": "b64648cc84c0264f0631ad5240aae0a4",
-    "norm_len": 863,
+    "md5": "87ebfeee42442979662b1d9f913537a6",
+    "norm_len": 862,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b64648cc84c0264f0631ad5240aae0a4",
-    "norm_len": 863,
+    "md5": "87ebfeee42442979662b1d9f913537a6",
+    "norm_len": 862,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -20,14 +20,14 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.100';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.100';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.100';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.100';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.100';
-import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.100';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.100';
-import { chance, listWords } from '../../render/format.js?v=0.2.100';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.102';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.102';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.102';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.102';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.102';
+import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.102';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.102';
+import { chance, listWords } from '../../render/format.js?v=0.2.102';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -178,7 +178,7 @@ export function patchGround(det, ctx, r, o) {
   text(bigPull, bigSaid);
   prop(bigPull, 'hidden', !bigSaid);
   /* What drops here and how often (Tyler 2026-10-24: "a % drop chance or nothing at all"): the gear a line a tier, the
-     hero's own armour weight first ("Iron, Studded, Adept: helmets, boots; Iron Sword") with the chance a kill here drops
+     hero's own armour weight first ("Iron, Studded, Adept: helmets, boots and Iron Sword") with the chance a kill here drops
      any piece of it, then each Rare and Trophy, item and carrier, with its chance per kill of that creature. The odds
      are the engine's own rows at this hero's party size (hunt-ground-facts.js), never a number typed here. */
   /* PER KILL, FOR THE WHOLE PARTY (blind party test 2026-11-01; played): each kill rolls once and each drop goes to one hero, so a party's higher odds are shared out
@@ -190,7 +190,7 @@ export function patchGround(det, ctx, r, o) {
       + '<span class="hw-hd-odds"></span></li>'),
     patch: (li, e) => {
       text(li.querySelector('.hw-hd-set-lines'), e.lines.join(', '));
-      text(li.querySelector('.hw-hd-set-what'), (e.lines.length ? ': ' : '') + [e.slots.join(', '), e.weapons.join(', ')].filter(Boolean).join('; '));
+      text(li.querySelector('.hw-hd-set-what'), (e.lines.length ? ': ' : '') + e.what);
       text(li.querySelector('.hw-hd-odds'), chance(e.chance));
     },
   });

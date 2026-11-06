@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.102 — 2026-11-06 (Clear Invites)
+
+**A clearer invite message.** If an invite code doesn't work at sign-up, the message now says so in plain words and tells you that you can leave the code blank.
+
+## v0.2.101 — 2026-11-06 (Plainer Lists)
+
+**More plain words.** Lists in the game now read like sentences. A hunt's drops say "bodies, legs and Bramble Blade", death notes and your action bar explain things in short sentences, and item requirements read "Needs Ranged 45 (you have 42)".
+
 ## v0.2.100 — 2026-11-06 (Plain Words)
 
 **Plainer words.** A lot of the game's text is rewritten in plain English. Kills earn Level XP, the Thicket is a tougher challenge, and the tutorial, hunt cards and Hunts list say things more simply.

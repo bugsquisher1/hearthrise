@@ -16,14 +16,14 @@
 //   sourceLine(row, ctx)  where its uses come from
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.100';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.100';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.100';
-import { ITEMS } from '../data/items.js?v=0.2.100';
-import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.100';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.100';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.100';
-import { shortOf } from './item-lore.js?v=0.2.100';
+import { ABILITIES } from '../data/abilities.js?v=0.2.102';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.102';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.102';
+import { ITEMS } from '../data/items.js?v=0.2.102';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.102';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.102';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.102';
+import { shortOf } from './item-lore.js?v=0.2.102';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -182,7 +182,7 @@ export function wasteLine(row, pct, max) {
   const unit = row.kind === 'food' ? 'HP' : 'mana';
   const missing = Math.round((max * (100 - pct)) / 100);
   const lost = row.amount - missing;
-  return lost > 0 ? 'At ' + pct + '% you are missing ' + missing + ' ' + unit + '; ' + lost + ' of its ' + row.amount + ' would be wasted.' : '';
+  return lost > 0 ? 'At ' + pct + '% you are missing ' + missing + ' ' + unit + ', so ' + lost + ' of its ' + row.amount + ' would be wasted.' : '';
 }
 
 /** Where a row's uses come from, in one sentence. */

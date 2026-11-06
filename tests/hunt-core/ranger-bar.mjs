@@ -171,13 +171,13 @@ async function clientWords(root) {
   const at = (n) => ({ ranged: { xp: 1, level: n } });
   const held = [{ id: 'mithril_arrows', qty: 5 }];
   const under = F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(42));
-  if (!under || !under.strike || under.code !== 'skill' || under.text !== 'Needs Ranged 45 — you have 42. This slot waits until then, and your next ammo fires.') return 'Mithril Arrows at Ranged 42 read ' + JSON.stringify(under);
+  if (!under || !under.strike || under.code !== 'skill' || under.text !== 'Needs Ranged 45 (you have 42). This slot waits until then, and your next ammo fires.') return 'Mithril Arrows at Ranged 42 read ' + JSON.stringify(under);
   if (F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(45))) return 'Mithril Arrows at Ranged 45 read ' + JSON.stringify(F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(45)));
   if (F.reasonOf(slot('mithril_arrows'), set, held, null, null, null)) return 'with no skills from the server yet, Mithril Arrows read ' + JSON.stringify(F.reasonOf(slot('mithril_arrows'), set, held, null, null, null));
   if (F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(42)) !== under.text) return 'Configure action on Mithril Arrows at Ranged 42 reads ' + JSON.stringify(F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(42)));
   if (F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(45))) return 'Configure action warns at Ranged 45';
   const ammoRun = (skills) => T.tableOf('ammo', { role: 'ranger', bag: [], store: [], skills }).runs.find((r) => r.kind === 'ammo').rows.find((r) => r.action.id === 'mithril_arrows');
-  if (!ammoRun(at(42)).locked || ammoRun(at(42)).lockWhy !== 'Needs Ranged 45 — you have 42') return 'the Ammo run at Ranged 42 reads ' + JSON.stringify(ammoRun(at(42)));
+  if (!ammoRun(at(42)).locked || ammoRun(at(42)).lockWhy !== 'Needs Ranged 45 (you have 42)') return 'the Ammo run at Ranged 42 reads ' + JSON.stringify(ammoRun(at(42)));
   if (ammoRun(at(45)).locked || ammoRun(null).locked) return 'the Ammo run locks Mithril Arrows at Ranged 45 or before the server has said: ' + JSON.stringify([ammoRun(at(45)).locked, ammoRun(null).locked]);
   const run = T.tableOf('ammo', { role: 'ranger', bag: [], store: [] }).runs.find((r) => r.kind === 'ammo');
   const row = (id) => (run && run.rows.find((r) => r.action.id === id)) || null;

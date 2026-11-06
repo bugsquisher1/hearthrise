@@ -30,16 +30,16 @@
 //   at the kill's yield share for a party of `size` (hunt-grounds.js yieldPermille), before any
 //   hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.100';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.100';
-import { MONSTERS } from '../data/monsters.js?v=0.2.100';
-import { ITEMS } from '../data/items.js?v=0.2.100';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.100';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.100';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.100';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.100';
-import { listWords } from '../render/format.js?v=0.2.100';
-import { isSpentMaterial } from './bag-model.js?v=0.2.100';
+import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows, routeFor, yieldPermille } from '../data/hunt-grounds.js?v=0.2.102';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.102';
+import { MONSTERS } from '../data/monsters.js?v=0.2.102';
+import { ITEMS } from '../data/items.js?v=0.2.102';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.102';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.102';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.102';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.102';
+import { listWords } from '../render/format.js?v=0.2.102';
+import { isSpentMaterial } from './bag-model.js?v=0.2.102';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -88,10 +88,10 @@ export function bigPullOf(hunt) {
     { id, name: (MONSTERS[id] || {}).name || id, pull: pullThatBrings(g, id), drops: everyday(id) }));
 }
 
-/** The ground page's line: "A party or a harder hunt also brings the Brook Bear: Raw Bear Meat, Bear Pelt.", or ''. A lone hero on Normal hunts the room as built; a party's own pull, Dangerous and Deadly bring more of its rows. */
+/** The ground page's line: "A party or a harder hunt also brings the Brook Bear (Raw Bear Meat, Bear Pelt).", or ''. A lone hero on Normal hunts the room as built; a party's own pull, Dangerous and Deadly bring more of its rows. */
 export function bigPullLine(hunt) {
-  const said = bigPullOf(hunt).map((m) => 'the ' + m.name + ': ' + m.drops.join(', '));
-  return said.length ? 'A party or a harder hunt also brings ' + said.join('; ') + '.' : '';
+  const said = bigPullOf(hunt).map((m) => 'the ' + m.name + (m.drops.length ? ' (' + m.drops.join(', ') + ')' : ''));
+  return said.length ? 'A party or a harder hunt also brings ' + listWords(said, Infinity) + '.' : '';
 }
 
 const groundName = (g) => (HUNT_INDEX[g.hunt] || {}).name || g.hunt;
@@ -180,7 +180,7 @@ function killMixOf(g, size) {
 
 /**
  * The ground's Scarce gear, one entry a tier (lowest first): { tier, lines: ['Iron', 'Studded', 'Adept'] (the worn
- * weight's first), slots: ['helmets', 'boots'], weapons: ['Iron Sword'], chance } where `chance` is that one kill here,
+ * weight's first), slots: ['helmets', 'boots'], weapons: ['Iron Sword'], what: 'helmets, boots and Iron Sword' (the page's words), chance } where `chance` is that one kill here,
  * by a party of `size` (default alone), drops any piece of the tier. [] for a ground with none.
  */
 export function scarceSetOf(hunt, worn, size) {
@@ -200,13 +200,15 @@ export function scarceSetOf(hunt, worn, size) {
     }
   }
   const mix = g ? killMixOf(g, n) : new Map();
-  return [...tiers.values()].sort((a, b) => a.tier - b.tier).map((e) => ({
+  return [...tiers.values()].sort((a, b) => a.tier - b.tier).map((e) => { const slots = Object.keys(SLOT_WORDS).filter((sl) => e.slots.has(sl)).map((sl) => SLOT_WORDS[sl]); return {
     tier: e.tier,
     lines: order.map((w) => [...e.weights].find((c) => ARMOUR_WEIGHT[c] === w)).filter(Boolean).map((c) => armourLineWord(c, e.tier)),
-    slots: Object.keys(SLOT_WORDS).filter((sl) => e.slots.has(sl)).map((sl) => SLOT_WORDS[sl]),
+    slots,
     weapons: e.weapons,
+    /* one list, never "bodies, legs; Bramble Blade" (v0.2.100 played on Wickstead) */
+    what: listWords([...slots, ...e.weapons], Infinity),
     chance: Array.from(e.rows, ([id, rows]) => (mix.get(id) || 0) * anyOf(g, rows, n)).reduce((t, c) => t + c, 0),
-  }));
+  }; });
 }
 
 /**

@@ -254,6 +254,39 @@ export function changelogFindings(text, file = 'CHANGELOG.md') {
   return out;
 }
 
+/* SERVER-HELD PLAYER TEXT (lane/c-copy-server, 2026-11-06): the SQL functions whose sentences GoTrue or the client hand a
+   player word for word. Each is read at its NEWEST definition in apply order (tests/schema-apply-order.json `order`), so a
+   restating migration fixes it and an old file's history stays as it shipped. Its quoted strings are read like copy: the
+   voice rules and American spelling. A new player-facing SQL function joins this list. */
+export const SQL_COPY_FUNCTIONS = Object.freeze(['hr_beta_gate_message', 'hr_beta_signup_message']);
+/** `files`: [[name, sql], ...] in apply order. Findings for each listed function's newest body. */
+export function sqlCopyFindings(files, fns = SQL_COPY_FUNCTIONS) {
+  const out = [];
+  for (const fn of fns) {
+    const head = new RegExp('create\\s+or\\s+replace\\s+function\\s+public\\.' + fn + '\\s*\\(', 'i');
+    const last = [...files].reverse().find(([, sql]) => head.test(sql));
+    if (!last) { out.push({ file: 'supabase/migrations', line: 0, rule: 'sql-copy', text: fn + ' is defined by no migration in the apply order' }); continue; }
+    const [name, sql] = last;
+    const from = sql.search(head);
+    const open = /\$([A-Za-z_]*)\$/.exec(sql.slice(from));
+    const start = from + open.index + open[0].length;
+    const body = sql.slice(start, sql.indexOf(open[0], start)).replace(/--[^\n]*/g, ' ');
+    for (const m of body.matchAll(/'((?:[^']|'')*)'/g)) {
+      const text = m[1].replace(/''/g, '\'');
+      if (!prose(text)) continue;
+      const line = sql.slice(0, start + m.index).split('\n').length;
+      for (const rule of [...voiceRules(text), ...(britishWords(text).length ? ['spelling'] : [])]) {
+        out.push({ file: 'supabase/migrations/' + name, line, rule, text: fn + ': ' + text.slice(0, 100) });
+      }
+    }
+  }
+  return out;
+}
+function chainSql(root) {
+  const order = JSON.parse(readFileSync(join(root, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  return order.map((n) => [n, readFileSync(join(root, 'supabase', 'migrations', n), 'utf8').replace(/\r\n/g, '\n')]);
+}
+
 /* A waiver is one known literal the next edge deploy removes (edge-bundled
    files move only with that deploy). A waiver that no longer matches is stale
    and fails the gate, so it is deleted the day its fix lands. */
@@ -289,6 +322,11 @@ export async function scan(root, opts = {}) {
       const next = lits[i + 1];
       if (next && !rules.includes('pays-xp') && PAYS_TAIL_RE.test(text) && XP_HEAD_RE.test(next.text)
         && /^[^;{}]{0,160}\+\s*$/.test(src.slice(at + 1 + text.length, next.at)) && !devOnly(src, next.at)) rules.push('pays-xp');
+      /* THE JOINS (v0.2.100 played: "Iron, Studded, Adept: bodies, legs; Bramble Blade"): a bare "; " or " — " literal glues
+         player words together in code (`.join('; ')`, `a + '; ' + b`, `${a}; ${b}`), so no prose literal ever holds the slip.
+         A bare ";" or "—" with no space after it is a code token (a map legend, a cache key) or a table's empty cell, and stays quiet. */
+      if (!rules.includes('semicolon') && /^\s*;\s+$|§\s*;\s+§/.test(text)) rules.push('semicolon');
+      if (!rules.includes('em-dash') && /^\s+—\s+$/.test(text)) rules.push('em-dash');
       if (!rules.length) continue;
       const line = src.slice(0, at).split('\n').length;
       for (const rule of rules) {
@@ -371,6 +409,7 @@ async function gate(root, report) {
   const baseline = readNamesBaseline();
   findings.push(...nameFindings(dataNames(root), baseline));
   findings.push(...changelogFindings(readFileSync(join(root, 'CHANGELOG.md'), 'utf8')));
+  findings.push(...sqlCopyFindings(chainSql(root)));
   if (report || findings.length) for (const f of findings) console.log(`  ${f.rule.padEnd(12)} ${f.file}:${f.line}  ${f.text}`);
   console.log(`copy-lint: ${files} files, ${plurals} plural item names, ${Object.keys(baseline).length} pinned filler name(s), ${findings.length} slip(s)`);
   return findings.length ? 1 : 0;
@@ -414,6 +453,10 @@ async function selftest() {
       ['fits-you', "export const a = 'Keep hunting until Level 5. Then ' + name + ' fits you. You can close the game.';"],
       ['fits-you', "export const a = HUNT.name + ' fits your Level with a party. ' + how;"],
       ['fits-you', "export function tag(party) { return party ? 'Fits your party' : 'Fits your level'; }"],
+      ['semicolon', "export const a = (e) => [e.slots.join(', '), e.weapons.join(', ')].filter(Boolean).join('; ');"],
+      ['semicolon', "export const a = (n, u, l) => 'You are missing ' + n + ' ' + u + '; ' + l + ' would be wasted.';"],
+      ['semicolon', "export const a = (x, y) => `${x}; ${y}`;"],
+      ['em-dash', "export const a = (lv, have) => 'Needs Level ' + lv + ' — ' + have;"],
     ];
     for (const [rule, body] of cases) {
       writeFileSync(plant, '// planted\n' + body + '\n');
@@ -444,11 +487,27 @@ async function selftest() {
     writeFileSync(plant, "export const a = ['Tamsin pays for kills, and in armor too.', 'The Shop pays more for gear than for scraps of XP.', 'Right for your level', 'A glove that fits your hand like its own skin',"
       + " '<button>&lsaquo; All settings</button> and the rest', 'display: none; color: var(--ink)', 'Best with a party of 2–4 heroes'];\n"
       + "export const R = { id: 'room.cellar.1', name: 'Cellar — Root Cellar', server_needs: 'player_state holds the COUNT; the server prices it — never the client' };\n"
-      + "function v(bad) { bad('L-COVER', 'is drawn behind a roof; the hero standing there would be hidden'); }\n");
+      + "function v(bad) { bad('L-COVER', 'is drawn behind a roof; the hero standing there would be hidden'); }\n"
+      + "export const cell = (r) => (r.per === null ? '—' : String(r.per));\n"
+      + "export function ev(bad) { if (bad.length) throw new Error('makeEvent: ' + bad.join('; ')); }\n");
     const quiet = await scan(HERE_ROOT, { files: [plant] });
     const loud = quiet.findings.filter((f) => VOICE.includes(f.rule));
     console.log(`  ${loud.length ? 'FALSE-POSITIVE' : 'ignored'}  voice rules on gold, tags, entities, CSS, labels, dev text${loud.length ? ': ' + loud.map((f) => f.rule + ' ' + f.text).join(' | ') : ''}`);
     if (loud.length) bad++;
+    // Server-held copy: the newest definition of a listed SQL function is read; an older one is history; a function no file defines is red.
+    const sqlBad = "create or replace function public.hr_beta_gate_message(p_reason text)\nreturns text language sql immutable as $$\n  select case p_reason when 'x' then 'That invite code was not recognised. Check it for typos — or ask; we answer fast.' end\n$$;\n";
+    const sqlGood = sqlBad.replace('was not recognised. Check it for typos — or ask; we answer fast.', 'was not recognized. Check it for typos, or ask in the Discord.');
+    const sqlRed = sqlCopyFindings([['a.sql', sqlBad]], ['hr_beta_gate_message']).map((f) => f.rule).sort().join(',');
+    const sqlNewest = sqlCopyFindings([['a.sql', sqlBad], ['b.sql', sqlGood]], ['hr_beta_gate_message']).length;
+    const sqlNone = sqlCopyFindings([['b.sql', sqlGood]], ['hr_no_such_copy']).some((f) => f.rule === 'sql-copy');
+    const sqlReal = sqlCopyFindings(chainSql(HERE_ROOT)).length;
+    const sqlWithoutFix = sqlCopyFindings(chainSql(HERE_ROOT).filter(([n]) => n !== '2027-03-18-invite-refusal-words.sql')).length;
+    for (const [ok, what] of [[sqlRed === 'em-dash,semicolon,spelling', 'sql-copy: an em dash, a semicolon and "recognised" in a SQL copy function (' + sqlRed + ')'],
+      [sqlNewest === 0, 'sql-copy: only the newest definition is read'], [sqlNone, 'sql-copy: a listed function no migration defines'],
+      [sqlReal === 0, 'sql-copy: the real chain is green'], [sqlWithoutFix > 0, 'sql-copy: the chain without 2027-03-18-invite-refusal-words.sql is red (' + sqlWithoutFix + ')']]) {
+      console.log(`  ${ok ? 'caught' : 'MISSED'}  ${what}`);
+      if (!ok) bad++;
+    }
     // A waiver only shelters its own literal: a new slip in an edge-bundled file is red.
     writeFileSync(plant, "export const D = { x: 'Bones and grief. Crush them; poison does nothing to the dead.' };\n");
     const sheltered = (await scan(HERE_ROOT, { files: [plant] })).findings.some((f) => f.rule === 'semicolon');

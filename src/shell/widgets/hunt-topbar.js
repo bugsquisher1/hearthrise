@@ -9,16 +9,16 @@
 // close lands, and a plain "still processing" line if it is late.
 // "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.100';
-import { callOfHunt } from '../../data/boss-calls.js?v=0.2.100';
-import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.100';
-import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.100';
-import { text, prop, attr } from '../../render/paint.js?v=0.2.100';
-import { clock } from '../../render/format.js?v=0.2.100';
-import { track } from '../../net/observability.js?v=0.2.100';
-import { refusalText } from '../intent-words.js?v=0.2.100';
-import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.100';
-import { connection } from '../../net/connection.js?v=0.2.100';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.102';
+import { callOfHunt } from '../../data/boss-calls.js?v=0.2.102';
+import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.102';
+import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.102';
+import { text, prop, attr } from '../../render/paint.js?v=0.2.102';
+import { clock } from '../../render/format.js?v=0.2.102';
+import { track } from '../../net/observability.js?v=0.2.102';
+import { refusalText } from '../intent-words.js?v=0.2.102';
+import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.102';
+import { connection } from '../../net/connection.js?v=0.2.102';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });

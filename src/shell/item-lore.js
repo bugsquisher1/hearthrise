@@ -15,23 +15,23 @@
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.100';
-import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js?v=0.2.100';
-import { listWords, whole } from '../render/format.js?v=0.2.100';
-import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.100';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.100';
-import { MONSTERS } from '../data/monsters.js?v=0.2.100';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.100';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.100';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.100';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.100';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.100';
-import { itemName } from './widgets/bits.js?v=0.2.100';
-import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit } from './bag-model.js?v=0.2.100';
-import { FLAMES } from '../data/hearth.js?v=0.2.100';
-import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.100';
-import { dropWhereWords, isRareItem } from './hunt-ground-facts.js?v=0.2.100';
-import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.100';
+import { ITEMS } from '../data/items.js?v=0.2.102';
+import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js?v=0.2.102';
+import { listWords, whole } from '../render/format.js?v=0.2.102';
+import { LEVEL_REQ } from '../data/gear-tiers.js?v=0.2.102';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.102';
+import { MONSTERS } from '../data/monsters.js?v=0.2.102';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.102';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.102';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.102';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.102';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.102';
+import { itemName } from './widgets/bits.js?v=0.2.102';
+import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit } from './bag-model.js?v=0.2.102';
+import { FLAMES } from '../data/hearth.js?v=0.2.102';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.102';
+import { dropWhereWords, isRareItem } from './hunt-ground-facts.js?v=0.2.102';
+import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.102';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
@@ -203,13 +203,13 @@ function ammoUse(id, it) {
 
 /**
  * A requirement in words, from what it names and the server's number (null: not known yet):
- * "Needs Level 30 — you're 28", "Needs Magic 20 — you have 14". Every piece of gear names the hero's Level
+ * "Needs Level 30 (you're 28)", "Needs Magic 20 (you have 14)". Every piece of gear names the hero's Level
  * (gear-tiers.js LEVEL_REQ, Tyler 2026-10-24); a supply names its skill.
  */
 export function needWords(req, lv, have) {
   const level = req === LEVEL_REQ;
   return 'Needs ' + (level ? 'Level' : skillName(req)) + ' ' + lv
-    + (Number.isInteger(have) ? ' — ' + (level ? 'you\'re ' : 'you have ') + have : '');
+    + (Number.isInteger(have) ? ' (' + (level ? 'you\'re ' : 'you have ') + have + ')' : '');
 }
 
 /**

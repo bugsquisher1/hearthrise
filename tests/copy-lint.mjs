@@ -254,31 +254,43 @@ export function changelogFindings(text, file = 'CHANGELOG.md') {
   return out;
 }
 
+/* SERVER-HELD PLAYER TEXT (lane/c-copy-server, 2026-11-06): the SQL functions whose sentences GoTrue or the client hand a
+   player word for word. Each is read at its NEWEST definition in apply order (tests/schema-apply-order.json `order`), so a
+   restating migration fixes it and an old file's history stays as it shipped. Its quoted strings are read like copy: the
+   voice rules and American spelling. A new player-facing SQL function joins this list. */
+export const SQL_COPY_FUNCTIONS = Object.freeze(['hr_beta_gate_message', 'hr_beta_signup_message']);
+/** `files`: [[name, sql], ...] in apply order. Findings for each listed function's newest body. */
+export function sqlCopyFindings(files, fns = SQL_COPY_FUNCTIONS) {
+  const out = [];
+  for (const fn of fns) {
+    const head = new RegExp('create\\s+or\\s+replace\\s+function\\s+public\\.' + fn + '\\s*\\(', 'i');
+    const last = [...files].reverse().find(([, sql]) => head.test(sql));
+    if (!last) { out.push({ file: 'supabase/migrations', line: 0, rule: 'sql-copy', text: fn + ' is defined by no migration in the apply order' }); continue; }
+    const [name, sql] = last;
+    const from = sql.search(head);
+    const open = /\$([A-Za-z_]*)\$/.exec(sql.slice(from));
+    const start = from + open.index + open[0].length;
+    const body = sql.slice(start, sql.indexOf(open[0], start)).replace(/--[^\n]*/g, ' ');
+    for (const m of body.matchAll(/'((?:[^']|'')*)'/g)) {
+      const text = m[1].replace(/''/g, '\'');
+      if (!prose(text)) continue;
+      const line = sql.slice(0, start + m.index).split('\n').length;
+      for (const rule of [...voiceRules(text), ...(britishWords(text).length ? ['spelling'] : [])]) {
+        out.push({ file: 'supabase/migrations/' + name, line, rule, text: fn + ': ' + text.slice(0, 100) });
+      }
+    }
+  }
+  return out;
+}
+function chainSql(root) {
+  const order = JSON.parse(readFileSync(join(root, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  return order.map((n) => [n, readFileSync(join(root, 'supabase', 'migrations', n), 'utf8').replace(/\r\n/g, '\n')]);
+}
+
 /* A waiver is one known literal the next edge deploy removes (edge-bundled
    files move only with that deploy). A waiver that no longer matches is stale
    and fails the gate, so it is deleted the day its fix lands. */
-/* THE VOICE IN EDGE-BUNDLED FILES (2026-11-05): these ship inside hr-accrue (tools/pack-edge.mjs), so their words
-   change only with an edge deploy, never in a client-only lane. Each one is rewritten on lane/a-copy-voice-edge, which
-   deletes its row here and rides the next deploy. Nothing may be added: a new slip in these files is red like any other. */
-const EDGE = (file, rule, ...texts) => texts.map((text) => ({ file: 'src/data/' + file, rule, text }));
-const WAIVERS = [
-  ...EDGE('boss-forge.js', 'semicolon', 'still-cold heart; nothing'),
-  ...EDGE('champions.js', 'semicolon', 'Frost Jarl; it never warms'),
-  ...EDGE('hunt-sessions.js', 'em-dash', 'Back in town — {activity}', 'supplies — the hunt ended'),
-  ...EDGE('items.js', 'em-dash', 'eat this — sell it'),
-  ...EDGE('library2-items.js', 'semicolon', 'climbed back out; the head'),
-  ...EDGE('library2-items.js', 'em-dash', 'its own sinew — the only bow', 'a hide backing — armor grown', 'no sound at all — not the cloth', 'bound in basalt — the last stone'),
-  ...EDGE('monster-classes.js', 'em-dash', 'People — bandits and casters'),
-  ...EDGE('monster-classes.js', 'semicolon', 'Crush them; poison'),
-  ...EDGE('shops.js', 'semicolon', 'not per unit; a vendor price list', 'to the outfitter (supply-basics.js, designer 2026-10-22); the eight',
-    'Nth hire; the last rung', 'hand-authored rows (lane S2; the outfitter'),
-  ...EDGE('slot-ladders.js', 'em-dash', 'plain shafts — a fletcher', 'faintly warm — they go in', 'wedding work — small, honest', 'cold glass — light passes',
-    'honest weather — the first cloak', 'spider\'s loom — it hangs', 'into one collar — the second', 'mithril band — it makes'),
-  ...EDGE('wave3-uniques.js', 'em-dash', 'in death-steel — a greatblade', 'onto dawnsteel — it weighs', 'plague-swarm\'s heart — a blade', 'will not die — every cast',
-    'on shadow-silk — it sharpens', 'own fading edge — it drinks', 'unblinking eye — it strikes', 'wizard\'s sigil — it whispers', 'night-bone shot — light, quick',
-    'clawed clasps — armor that', 'a steel frame — it hits back', 'a panther\'s shadow — weightless'),
-  ...EDGE('wave3-uniques.js', 'semicolon', 'of a pack-alpha; the bow'),
-];
+const WAIVERS = [];
 const usedWaivers = new Set();
 function waived(root, f, rule, text) {
   const rel = relative(root, f).split(sep).join('/');
@@ -397,6 +409,7 @@ async function gate(root, report) {
   const baseline = readNamesBaseline();
   findings.push(...nameFindings(dataNames(root), baseline));
   findings.push(...changelogFindings(readFileSync(join(root, 'CHANGELOG.md'), 'utf8')));
+  findings.push(...sqlCopyFindings(chainSql(root)));
   if (report || findings.length) for (const f of findings) console.log(`  ${f.rule.padEnd(12)} ${f.file}:${f.line}  ${f.text}`);
   console.log(`copy-lint: ${files} files, ${plurals} plural item names, ${Object.keys(baseline).length} pinned filler name(s), ${findings.length} slip(s)`);
   return findings.length ? 1 : 0;
@@ -481,6 +494,20 @@ async function selftest() {
     const loud = quiet.findings.filter((f) => VOICE.includes(f.rule));
     console.log(`  ${loud.length ? 'FALSE-POSITIVE' : 'ignored'}  voice rules on gold, tags, entities, CSS, labels, dev text${loud.length ? ': ' + loud.map((f) => f.rule + ' ' + f.text).join(' | ') : ''}`);
     if (loud.length) bad++;
+    // Server-held copy: the newest definition of a listed SQL function is read; an older one is history; a function no file defines is red.
+    const sqlBad = "create or replace function public.hr_beta_gate_message(p_reason text)\nreturns text language sql immutable as $$\n  select case p_reason when 'x' then 'That invite code was not recognised. Check it for typos — or ask; we answer fast.' end\n$$;\n";
+    const sqlGood = sqlBad.replace('was not recognised. Check it for typos — or ask; we answer fast.', 'was not recognized. Check it for typos, or ask in the Discord.');
+    const sqlRed = sqlCopyFindings([['a.sql', sqlBad]], ['hr_beta_gate_message']).map((f) => f.rule).sort().join(',');
+    const sqlNewest = sqlCopyFindings([['a.sql', sqlBad], ['b.sql', sqlGood]], ['hr_beta_gate_message']).length;
+    const sqlNone = sqlCopyFindings([['b.sql', sqlGood]], ['hr_no_such_copy']).some((f) => f.rule === 'sql-copy');
+    const sqlReal = sqlCopyFindings(chainSql(HERE_ROOT)).length;
+    const sqlWithoutFix = sqlCopyFindings(chainSql(HERE_ROOT).filter(([n]) => n !== '2027-03-18-invite-refusal-words.sql')).length;
+    for (const [ok, what] of [[sqlRed === 'em-dash,semicolon,spelling', 'sql-copy: an em dash, a semicolon and "recognised" in a SQL copy function (' + sqlRed + ')'],
+      [sqlNewest === 0, 'sql-copy: only the newest definition is read'], [sqlNone, 'sql-copy: a listed function no migration defines'],
+      [sqlReal === 0, 'sql-copy: the real chain is green'], [sqlWithoutFix > 0, 'sql-copy: the chain without 2027-03-18-invite-refusal-words.sql is red (' + sqlWithoutFix + ')']]) {
+      console.log(`  ${ok ? 'caught' : 'MISSED'}  ${what}`);
+      if (!ok) bad++;
+    }
     // A waiver only shelters its own literal: a new slip in an edge-bundled file is red.
     writeFileSync(plant, "export const D = { x: 'Bones and grief. Crush them; poison does nothing to the dead.' };\n");
     const sheltered = (await scan(HERE_ROOT, { files: [plant] })).findings.some((f) => f.rule === 'semicolon');

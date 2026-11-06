@@ -33,7 +33,12 @@ export async function loadAxes(root) {
   const { ITEMS } = await import(u('src/data/items.js'));
   /* Every cape and jewelry slot's best row a Level can wear. */
   const dressOf = (L) => Object.fromEntries(['cape', 'necklace', 'ring', 'earrings'].map((slot) => [slot, Object.keys(ITEMS).filter((id) => ITEMS[id].slot === slot && (ITEMS[id].reqLv || 0) <= L).sort((a, b) => (ITEMS[b].reqLv || 0) - (ITEMS[a].reqLv || 0))[0]]).filter(([, id]) => id));
-  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level), tierRowOf, dressOf };
+  /* The casters' default slots and the rune family each spends (plan pacefinal's rune and Mend rows). */
+  const { ROLE_RULES } = await import(u('src/data/rule-subjects.js'));
+  const { ABILITIES } = await import(u('src/data/abilities.js'));
+  const { runeId } = await import(u('src/data/runes.js'));
+  const familyOf = (abilityId) => (ITEMS[(ABILITIES[abilityId] || {}).rune] || {}).family || null;
+  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level), tierRowOf, dressOf, ROLE_RULES, familyOf, runeId };
 }
 
 const uniq = (xs) => [...new Set(xs)].sort((a, b) => a - b);
@@ -685,6 +690,46 @@ export function buildPlan(name, axes, scale = 1) {
     };
     for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const [x, also] of Object.entries(RINGS)) {
       out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, gear: { also }, hours: H(2), seeds: 4, x }), windowMs: 120000 });
+    }
+    return out;
+  }
+  if (name === 'pacefinal') {
+    /* THE FINAL PACE RE-MEASURE'S READS (lane/b-pace-final, 2026-11-06), on the set that holds every change that moves combat or drops.
+       Read by pacefinal-table.mjs. x = T<tier> | R<rune tier><s store | o own> | M<Greater Mend's line>.
+       T: every tier on every ground that has one, in band and where the game sends a lone hero past it (the Glade to 50; the Warrens from
+          its soloFrom), every way to fight alone; the parties on the two top grounds. The fastest honest hour and the skill rates at 50. */
+    const SOLO_AT = { meadowbrook_thicket: [5, 10, 15], wickstead: [8, 13, 18], millrace_sewer: [8, 16, 25], mosslight_glade: [16, 24, 31, 40, 50], coppercap_warrens: [45, 48, 50] };
+    const PARTY_AT = { mosslight_glade: [16, 31], coppercap_warrens: [32, 41, 50] };
+    for (const tier of ['normal', 'dangerous', 'deadly']) {
+      for (const [ground, levels] of Object.entries(SOLO_AT)) for (const level of levels) for (const s of SOLO_STYLES) out.push(tierCell(axes, { ground, party: [s], level, tier, hours: H(2), seeds: 2, x: 'T' + tier }));
+      for (const [ground, levels] of Object.entries(PARTY_AT)) for (const level of levels) for (const party of Object.values(PARTIES)) out.push(tierCell(axes, { ground, party, level, tier, hours: H(2), seeds: 2, x: 'T' + tier }));
+    }
+    /* R: the casters on each rune tier their Magic casts (Scored from 15, Etched from 30): the store's deeper rune named on every rune slot
+       (the bar a player sets), or the hero's own runes carried (a self-binding caster: 100%, no bill). Same dice as the default (R1s). */
+    const casterSlots = (role, tier, mendPct) => axes.ROLE_RULES[role].map((sl) => {
+      const y = JSON.parse(JSON.stringify(sl));
+      const fam = y.action.store ? axes.familyOf(y.action.id) : null;
+      if (fam && tier > 1) y.action.store = 'plain_' + axes.runeId(fam, tier);
+      if (mendPct) for (const c of y.conditions) if (c.metric === 'ally_hp_pct') c.value = mendPct;
+      return y;
+    });
+    const ownRunes = (role, tier) => Object.fromEntries(axes.ROLE_RULES[role].filter((sl) => sl.action.store).map((sl) => [axes.runeId(axes.familyOf(sl.action.id), tier), 100000]));
+    const runeVariants = (level) => [[1, 's'], ...(level >= 15 ? [[2, 's'], [2, 'o']] : []), ...(level >= 30 ? [[3, 's'], [3, 'o']] : [])];
+    const runeCell = (ground, party, level, tier, rt, src, seeds) => {
+      const casters = [...new Set(party.map((s) => STYLES[s].role).filter((r) => r === 'mage' || r === 'healer'))];
+      const slotsByRole = rt > 1 && src === 's' ? Object.fromEntries(casters.map((r) => [r, casterSlots(r, rt)])) : null;
+      const bagByRole = src === 'o' ? Object.fromEntries(casters.map((r) => [r, ownRunes(r, rt)])) : null;
+      return { ...tierCell(axes, { ground, party, level, tier, hours: H(2), seeds, x: 'R' + rt + src + ':' + tier }), ...(slotsByRole ? { slotsByRole } : {}), ...(bagByRole ? { bagByRole } : {}) };
+    };
+    const RUNE_SOLO = [['mosslight_glade', 16, 'normal'], ['mosslight_glade', 24, 'normal'], ['mosslight_glade', 24, 'deadly'], ['mosslight_glade', 31, 'normal'], ['mosslight_glade', 50, 'normal'],
+      ['coppercap_warrens', 45, 'normal'], ['coppercap_warrens', 50, 'normal'], ['coppercap_warrens', 50, 'deadly']];
+    for (const [ground, level, tier] of RUNE_SOLO) for (const s of ['mage', 'healer']) for (const [rt, src] of runeVariants(level)) out.push(runeCell(ground, [s], level, tier, rt, src, 4));
+    for (const [ground, level] of [['coppercap_warrens', 32], ['coppercap_warrens', 50]]) for (const [rt, src] of runeVariants(level)) out.push(runeCell(ground, PARTIES.four, level, 'normal', rt, src, 2));
+    /* M: the healer's "needs healing" line (Greater Mend under it, Green Sickness only over it): as built 70 (the slots written out, so it
+       must read the default digit for digit), 80, 90. Alone and as the four's healer. */
+    for (const [ground, level, party] of [['mosslight_glade', 24, ['healer']], ['mosslight_glade', 50, ['healer']], ['coppercap_warrens', 50, ['healer']],
+      ['mosslight_glade', 24, PARTIES.four], ['coppercap_warrens', 41, PARTIES.four], ['coppercap_warrens', 50, PARTIES.four]]) for (const pct of [70, 80, 90]) {
+      out.push({ ...tierCell(axes, { ground, party, level, tier: 'normal', hours: H(2), seeds: 4, x: 'M' + pct }), slotsByRole: { healer: casterSlots('healer', 1, pct) } });
     }
     return out;
   }

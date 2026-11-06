@@ -5,12 +5,12 @@
 // quotes (hr_town_sinks_view on opening and after each press). Cry it sends ONE hr_crier_send with the price the player saw; a press on the last line cries that
 // line again. Every number is the server's, and every refusal is the server's in the Crier's words (src/shell/sink-words.js). Display scratch only.
 // ════════════════════════════════════════════════════════════════════════
-import { CRIER } from '../../data/chat-channels.js?v=0.2.101';
-import { readSinks } from '../../session/town-intents.js?v=0.2.101';
-import { text, cls, prop } from '../../render/paint.js?v=0.2.101';
-import { whole, gold } from '../../render/format.js?v=0.2.101';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.101';
-import { refusalText } from '../intent-words.js?v=0.2.101';
+import { CRIER } from '../../data/chat-channels.js?v=0.2.102';
+import { readSinks } from '../../session/town-intents.js?v=0.2.102';
+import { text, cls, prop } from '../../render/paint.js?v=0.2.102';
+import { whole, gold } from '../../render/format.js?v=0.2.102';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.102';
+import { refusalText, refusalWords } from '../intent-words.js?v=0.2.102';
 
 const STATE = new WeakMap();
 const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { open: false, quote: null, asking: false, stale: true, pending: false, msg: '' }; STATE.set(body, s); } return s; };
@@ -61,22 +61,24 @@ export function patchCrier(body, ctx, global) {
   if (!global || !s.open) return;
   if (s.stale) ask(body, ctx);
   const q = s.quote;
+  /* the server's quote says a mute stands: both presses are off and the line says why, before any press */
+  const muted = !!(q && q.mutedUntil);
   const cry = body.querySelector('.hc-cry');
   text(cry, q && q.price === null ? CRIER.done : cryWords(q ? q.price : null));
-  prop(cry, 'disabled', s.pending || !q || q.price === null);
+  prop(cry, 'disabled', s.pending || !q || q.price === null || muted);
   const again = body.querySelector('.hc-again');
   const last = q && q.lastLine;
   prop(again, 'hidden', !last);
   if (last) { text(again, 'Again: ' + last); again.title = last; }
-  prop(again, 'disabled', s.pending || !q || q.price === null);
+  prop(again, 'disabled', s.pending || !q || q.price === null || muted);
   /* one line under the buttons: the server's answer while it stands, what the Crier does otherwise */
-  text(body.querySelector('.hc-crier-msg'), s.msg || (q ? CRIER.note(q) : 'Asking the Crier…'));
+  text(body.querySelector('.hc-crier-msg'), s.msg || (muted ? refusalWords('muted', 'crier') : q ? CRIER.note(q) : 'Asking the Crier…'));
 }
 
 async function press(ctx, body, words, viaDraft) {
   const s = stateOf(body);
   const social = ctx.account && ctx.account.social;
-  if (!social || s.pending || !s.quote || s.quote.price === null) return;
+  if (!social || s.pending || !s.quote || s.quote.price === null || s.quote.mutedUntil) return;
   s.pending = true; s.msg = ''; ctx.refresh('chat');
   const links = viaDraft ? social.chat.draft.links : [];
   const r = await social.chat.cry(words, links, s.quote.price);

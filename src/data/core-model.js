@@ -45,20 +45,20 @@
    Wickstead) and 16-49 1-3% (the Glade); Level 25 fell to 32 h. Re-measured (plans pace + ladder) and re-fitted by
    pace.mjs --fit (minimax 3.3%). Forward file 2027-02-09-walk-on-level-curve. */
 export const LEVEL_CURVE = Object.freeze({
-  first: 127,
+  first: 128,
   brackets: Object.freeze([
-    Object.freeze({ from: 1, rise: 127, bend: 0 }),
-    Object.freeze({ from: 2, rise: 254, bend: 0 }),
-    Object.freeze({ from: 3, rise: 521, bend: 0 }),
-    Object.freeze({ from: 4, rise: 5535, bend: 0 }),
-    Object.freeze({ from: 5, rise: 7009, bend: 0 }),
-    Object.freeze({ from: 6, rise: 13939, bend: 0 }),
-    Object.freeze({ from: 7, rise: 28376, bend: 0 }),
-    Object.freeze({ from: 8, rise: 16156, bend: 0 }),
+    Object.freeze({ from: 1, rise: 128, bend: 0 }),
+    Object.freeze({ from: 2, rise: 255, bend: 0 }),
+    Object.freeze({ from: 3, rise: 524, bend: 0 }),
+    Object.freeze({ from: 4, rise: 5402, bend: 0 }),
+    Object.freeze({ from: 5, rise: 6358, bend: 0 }),
+    Object.freeze({ from: 6, rise: 12568, bend: 0 }),
+    Object.freeze({ from: 7, rise: 34000, bend: 0 }),
+    Object.freeze({ from: 8, rise: 12681, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
     Object.freeze({ from: 10, rise: 0, bend: 504 }),
-    Object.freeze({ from: 50, rise: 79325, bend: 129 }),
-    Object.freeze({ from: 300, rise: 209310, bend: 584 }),
+    Object.freeze({ from: 50, rise: 87981, bend: 161 }),
+    Object.freeze({ from: 300, rise: 209508, bend: 742 }),
   ]),
 });
 
@@ -84,7 +84,7 @@ export const LEVEL_PACE = Object.freeze({
     .map((t) => Object.freeze(t))),
   tolerance: 0.1,
   early: Object.freeze({ level: 5, hours: Object.freeze([0.15, 0.35]), aim: 0.25 }),
-  contract: Object.freeze({ a: 1086, b: 1.333 }),
+  contract: Object.freeze({ a: 1019, b: 1.365 }),
   smooth: Object.freeze({ from: 1, ratio: 2 }),
 });
 

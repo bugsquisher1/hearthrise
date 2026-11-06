@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.101';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.102';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -73,6 +73,10 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     hunting: 'Your hero is out hunting. The Great Hearth is in town.',
     show_limit: 'Havora takes 5 powders a day from one account. More after midnight UTC.',
     show_busy: 'The Hearth\'s powders are booked for now. You weren\'t charged.',
+  }),
+  /* The Town Crier (2027-02-27-town-crier.sql hr_crier_send): a mute is refused before the charge (2027-03-16-crier-muted.sql). */
+  crier: Object.freeze({
+    muted: 'The Game Master has muted you, so the Crier is off.',
   }),
   town_round: Object.freeze({
     hunting: 'Your hero is out hunting. The Tavern is in town.',

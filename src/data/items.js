@@ -1,17 +1,17 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.101';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.101';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.101';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.101';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.101';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.101';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.101';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.101';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.101';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.101';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.101';
-import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.101';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.102';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.102';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.102';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.102';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.102';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.102';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.102';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.102';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.102';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.102';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.102';
+import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.102';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -542,7 +542,7 @@ export const ITEMS={
          flavour has an actual reader rather than being a dead field.        */
   burnt_food: {
     n:'Burnt Food', icon:'🔥', v:1,
-    note:'Charcoal with ambitions. Nobody will eat this — sell it and cook better.',
+    note:'Charcoal with ambitions. Nobody will eat this, so sell it and cook better.',
   },
 
   /* ── Farmer's Deed (b136 — Batch C) ────────────────────────────

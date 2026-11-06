@@ -7,7 +7,7 @@
 //   node tests/town-crier.mjs --selftest  every planted defect must turn its arm red
 //   node tests/town-crier.mjs --mutate=<id>
 //
-// mutant-anchors: supabase/migrations/2027-02-27-town-crier.sql
+// mutant-anchors: supabase/migrations/2027-02-27-town-crier.sql supabase/migrations/2027-03-16-crier-muted.sql src/data/refusal-words.js src/session/town-intents.js
 //
 // The real chain replayed (PGlite), the real client modules; production untouched:
 //   TC-LINE    a clean line pays once, one ledger row (kind shop, crier:line:<price>), reaches Global with crier = true, counts on Gold Given, climbs per account; a replay charges once
@@ -15,6 +15,7 @@
 //   TC-GATES   Level 10; 120 letters; 5 a day per account across heroes; a stale or forged price gets quote_changed; a short purse pays nothing
 //   TC-GAP     one line per 30 s server-wide, refused before the charge; a line that loses the race rolls back whole
 //   TC-OFF     the town_crier flag off stops it, charging nothing
+//   TC-MUTE    a muted account is refused before the rule, the words and the charge, with the mute's end; the quote says it first; lifted, the line pays
 //   TC-FORGE   no client role can insert or update a chat row, so crier = true has no other path; the helpers are the owner's; only the verb is the client's
 //   TC-WORDS-C every refusal says why in the designer's sentence, with the server's numbers
 //   TC-CLIENT  a line carries its flag; the button reads the server's price; a player's plain line never reads as the Crier's
@@ -31,6 +32,7 @@ const A = '000000c0-0000-4000-a000-0000901d8a01';
 const B = '000000c0-0000-4000-a000-0000901d8a02';
 const idem = () => crypto.randomUUID();
 const SEND = 'public.hr_crier_send(integer,text,bigint,uuid)';
+const QUOTE = 'public.hr_town_crier_quote(uuid)';
 
 export const MUTANTS = {
   no_mask_check: { arm: 'TC-WORDS', why: 'a masked word is paid for and shouted in stars', db: [SEND, '  if public.hr_chat_mask(v_body) is distinct from v_body then\n', '  if false then\n'] },
@@ -46,6 +48,8 @@ export const MUTANTS = {
   race_keeps_charge: { arm: 'TC-GAP', why: 'a line that lost the race keeps the charge', db: [SEND, "    if v_wait > 0 then raise exception using errcode = 'HR939', message = 'crier_busy'; end if;\n", "    if v_wait > 0 then return jsonb_build_object('ok', false, 'error', 'crier_busy', 'wait_s', 1); end if;\n"] },
   flag_ignored: { arm: 'TC-OFF', why: 'the server-wide stop stops nothing', db: [SEND, "  if not public.hr_flag_on('town_crier') then\n", '  if false then\n'] },
   flag_missing: { arm: 'TC-OFF', why: 'the flag row is gone, and the stop can\'t be thrown', ddl: "delete from public.hr_flags where key = 'town_crier'" },
+  mute_unread: { arm: 'TC-MUTE', why: 'a muted press pays and dies at the row lock, a raised error and no refusal', db: [SEND, '  if public.hr_chat_muted_until(v_uid) is not null then\n', '  if false then\n'] },
+  quote_hides_mute: { arm: 'TC-MUTE', why: 'the quote never says the mute, so the tab can\'t say why before a press', db: [QUOTE, "'muted_until', public.hr_chat_muted_until(p_user),", "'muted_until', null::timestamptz,"] },
   client_may_insert: { arm: 'TC-FORGE', why: 'a client role can insert a chat row', ddl: 'grant insert on public.chat_messages to authenticated' },
   client_may_flag: { arm: 'TC-FORGE', why: 'a client role can set the flag', ddl: 'grant update (crier) on public.chat_messages to authenticated' },
   helper_open: { arm: 'TC-FORGE', why: 'a client can read the quote helper directly', ddl: 'grant execute on function public.hr_town_crier_quote(uuid) to authenticated' },
@@ -59,6 +63,10 @@ export const MUTANTS = {
     js: ['src/shell/sink-words.js', [["if (r.error === 'crier_level' && num(r.need) && num(r.level)) return", 'if (false) return']]] },
   line_ignores_flag: { arm: 'TC-CLIENT', why: 'a Crier line draws as a plain line',
     js: ['src/social/chat-lines.js', [['    crier: !whisper && row.crier === true,', '    crier: false,']]] },
+  mute_words_gone: { arm: 'TC-WORDS-C', why: 'a muted press reads the chat\'s mute line, not the Crier\'s',
+    js: ['src/data/refusal-words.js', [["    muted: 'The Game Master has muted you, so the Crier is off.',\n", '']]] },
+  quote_drops_mute: { arm: 'TC-CLIENT', why: 'the tab never learns of the mute the server quoted',
+    js: ['src/session/town-intents.js', [["mutedUntil: typeof c.muted_until === 'string' && c.muted_until ? c.muted_until : null", 'mutedUntil: null']]] },
   button_has_no_price: { arm: 'TC-CLIENT', why: 'the Crier\'s button hides the server\'s price',
     js: ['src/shell/windows/chat-crier.js', [["return CRIER.cry + (Number.isSafeInteger(price) ? ': ' + gold(price) : '');", 'return CRIER.cry;']]] },
 };
@@ -247,6 +255,31 @@ const ARMS = {
     return out;
   },
 
+  'TC-MUTE': async (db) => {
+    let out = [];
+    await hero(db, A, 0, 'Marlow');
+    await db.query("insert into public.hr_chat_mutes (user_id, until, at) values ($1, now() + interval '1 hour', now())", [A]);
+    /* the tab reads it before a press: the window's own read, the one the client parses */
+    const seen = await as(db, A, 'select public.hr_town_sinks_view(0)');
+    if (!seen.crier || typeof seen.crier.muted_until !== 'string') out.push('the window\'s quote of a muted account reads ' + JSON.stringify(seen.crier));
+    /* a press anyway (a stale tab): refused with the mute's end, before the words and the charge */
+    const key = idem();
+    const r = await cry(db, A, 0, 'selling rat tails', 1000, key);
+    if (!r || r.ok !== false || r.error !== 'muted' || typeof r.until !== 'string') out.push('a muted press answered ' + JSON.stringify(r));
+    const link = await cry(db, A, 0, 'join discord.gg/abc', 1000);
+    if (!link || link.error !== 'muted') out.push('a muted web address answered ' + JSON.stringify(link) + ' (the mute is the first thing to say)');
+    out = out.concat(await nothingMoved(db, A));
+    if (await one(db, 'select exists (select 1 from public.player_intents where user_id = $1 and intent_id = $2)', [A, key])) out.push('a muted press spent its key');
+    /* lifted: the quote reads null and the same key pays */
+    await db.query('delete from public.hr_chat_mutes where user_id = $1', [A]);
+    const free = await as(db, A, 'select public.hr_town_sinks_view(0)');
+    if (!free.crier || !('muted_until' in free.crier) || free.crier.muted_until !== null) out.push('the quote of a free account reads ' + JSON.stringify(free.crier));
+    await calm(db);
+    const paid = await cry(db, A, 0, 'selling rat tails', 1000, key);
+    if (!paid || paid.ok !== true) out.push('the lifted account\'s press answered ' + JSON.stringify(paid));
+    return out;
+  },
+
   'TC-FORGE': async (db) => {
     const out = [];
     await hero(db, A, 0, 'Marlow');
@@ -285,6 +318,8 @@ const ARMS = {
       [{ error: 'crier_busy', waitS: 12 }, 'The Crier is shouting someone else\'s line. Try again in 12 seconds. You weren\'t charged.'],
       [{ error: 'crier_off' }, 'The Crier is off duty right now. You weren\'t charged.'],
       [{ error: 'quote_changed', price: 2000 }, 'The price moved to 2,000 gp. You weren\'t charged. Press again to pay it.'],
+      /* a muted press, said for the Crier (the raised row lock reads the same code through src/session/server.js raisedCode) */
+      [{ error: 'muted' }, 'The Game Master has muted you, so the Crier is off.'],
     ];
     for (const [r, words] of want) if (R(r) !== words) out.push(JSON.stringify(r) + ' reads: ' + R(r));
     const lv = X.SW.sinkRefusal({ verb: 'crier', error: 'crier_level', need: 10, level: 7 }, 'Marlow');
@@ -300,6 +335,11 @@ const ARMS = {
     if (X.CL.lineOf(row({}), { tz: 'utc' }).crier !== false) out.push('a plain line reads as the Crier\'s');
     if (X.CC.cryWords(1000) !== 'Cry it: 1,000 gp') out.push('the button reads ' + X.CC.cryWords(1000));
     if (X.CC.cryWords(null) !== 'Cry it') out.push('with no quote the button reads ' + X.CC.cryWords(null));
+    /* the window's read as the server sends it: a standing mute reaches the tab, and none reads null */
+    const sinks = (crier) => X.TI.parseSinks({ ok: true, powder: { n: 0, per_day: 5, price: 500 }, round: { n: 0, per_day: 3, price: 800 }, crier });
+    const crierRow = { n: 0, per_day: 5, price: 1000, min_level: 10, max_letters: 120, gap_s: 30, on: true, wait_s: 0, last_line: null };
+    if (sinks({ ...crierRow, muted_until: '2026-11-06T03:00:00+00:00' }).crier.mutedUntil !== '2026-11-06T03:00:00+00:00') out.push('a quoted mute never reaches the tab');
+    if (sinks({ ...crierRow, muted_until: null }).crier.mutedUntil !== null) out.push('no mute reads as one');
     return out;
   },
 };
@@ -311,6 +351,7 @@ async function loadReaders(root) {
     SW: await import(u('src/shell/sink-words.js')),
     CL: await import(u('src/social/chat-lines.js')),
     CC: await import(u('src/shell/windows/chat-crier.js')),
+    TI: await import(u('src/session/town-intents.js')),
   };
 }
 

@@ -260,6 +260,7 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/chat-crier.js': [
     { cond: '!q || q.price === null', words: "q && q.price === null ? CRIER.done", where: 'Cry it and Again: past the day\'s last line the button itself reads the Crier\'s day is done; before the first quote the line under them reads Asking the Crier…' },
+    { cond: 'muted', words: "muted ? refusalWords('muted', 'crier')", where: 'Cry it and Again while the server\'s quote says a mute stands (2027-03-16-crier-muted.sql): the line under them says the Game Master muted you' },
   ],
   'src/shell/windows/havora/index.js': [
     { cond: 'pPrice === null', words: "s && pPrice === null ? 'No more powders today'", where: 'the powder button says it; until the first read answers it has no price, and the window\'s line says any refusal' },

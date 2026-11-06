@@ -11,18 +11,18 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.101';
-import { STATUSES } from '../data/statuses.js?v=0.2.101';
-import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.101';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.101';
-import { isRune } from '../data/supplies.js?v=0.2.101';
-import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.101';
-import { ITEMS } from '../data/items.js?v=0.2.101';
-import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.101';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.101';
-import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.101';
-import { refusalWords } from './intent-words.js?v=0.2.101';
-import { skillName } from './widgets/bits.js?v=0.2.101';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.102';
+import { STATUSES } from '../data/statuses.js?v=0.2.102';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.102';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.102';
+import { isRune } from '../data/supplies.js?v=0.2.102';
+import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.102';
+import { ITEMS } from '../data/items.js?v=0.2.102';
+import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.102';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.102';
+import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.102';
+import { refusalWords } from './intent-words.js?v=0.2.102';
+import { skillName } from './widgets/bits.js?v=0.2.102';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));

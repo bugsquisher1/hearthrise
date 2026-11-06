@@ -42,8 +42,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.101';
-import { ITEMS } from './items.js?v=0.2.101';
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.102';
+import { ITEMS } from './items.js?v=0.2.102';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 
@@ -552,7 +552,7 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const SEED_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "note": "the price is per BUNDLE of qty, not per unit; a vendor price list only since 2026-10-22: shop_buy refuses every seed row not_listed (no Shop tab lists it). The nine crop seeds moved to the seed counter (supply-basics.js kind 'seed', designer 2026-10-22, lane/b-orphan-sources) at the same unit price; the four left (air rune, bronze arrows, coarse whetstone, blank rune) are their items' vendor price only",
+    "note": "the price is per BUNDLE of qty, not per unit. A vendor price list only since 2026-10-22, shop_buy refuses every seed row not_listed (no Shop tab lists it). The nine crop seeds moved to the seed counter (supply-basics.js kind 'seed', designer 2026-10-22, lane/b-orphan-sources) at the same unit price. The four left (air rune, bronze arrows, coarse whetstone, blank rune) are their items' vendor price only",
     "count": 4
   },
   {
@@ -560,7 +560,7 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const EQUIP_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "note": "the Bronze Belt, Copper Ring, Hunter Necklace, Leather Gloves and Traveler Cape rows moved to the outfitter (supply-basics.js, designer 2026-10-22); the eight left, like every seed row, are a vendor price list only: shop_buy refuses them not_listed (catalogue.js offerRefusal, 2026-10-22)",
+    "note": "the Bronze Belt, Copper Ring, Hunter Necklace, Leather Gloves and Traveler Cape rows moved to the outfitter (supply-basics.js, designer 2026-10-22). The eight left, like every seed row, are a vendor price list only: shop_buy refuses them not_listed (catalogue.js offerRefusal, 2026-10-22)",
     "count": 8
   },
   {
@@ -576,7 +576,7 @@ export const SHOP_TABLES = [
     "origin": "src/features/workers.js",
     "anchor": "var HIRE_COSTS = [",
     "spends_at": "workers.js hire()",
-    "note": "rung N is the price of the Nth hire; the last rung repeats forever",
+    "note": "rung N is the price of the Nth hire, and the last rung repeats forever",
     "count": 6
   },
   {
@@ -599,7 +599,7 @@ export const SHOP_TABLES = [
     "origin": "src/data/supply-basics.js",
     "anchor": "export const SUPPLY_SHOP_OFFERS",
     "spends_at": "hr-accrue shop_buy (the tools and the outfitter's gear; Tyler 2026-10-20: the Shop sells no supplies)",
-    "note": "hand-authored rows (lane S2; the outfitter, designer 2026-10-22); the server's hr_shop_supply_offers is generated from them; food, drink and ammo are SUPPLY_PRICE_LIST, never offers",
+    "note": "hand-authored rows (lane S2, the outfitter, designer 2026-10-22). The server's hr_shop_supply_offers is generated from them. Food, drink and ammo are SUPPLY_PRICE_LIST, never offers",
     "count": SUPPLY_SHOP_OFFERS.filter((s) => SHOP_SOLD_KINDS.includes(s.kind)).length
   }
 ];

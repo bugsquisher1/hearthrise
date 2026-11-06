@@ -19,18 +19,18 @@
 // payout (src/shell/town-ticker.js) as a pending segment: the level stays the
 // server's and the bar fills no further than its level.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.101';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.101';
-import { skillXpForLevel, skillCapOf } from '../../core/xp.js?v=0.2.101';
-import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.101';
-import { skillsOf } from '../../session/item-sections.js?v=0.2.101';
-import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.101';
-import { whole } from '../../render/format.js?v=0.2.101';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.101';
-import { glyphSvg } from '../launcher.js?v=0.2.101';
-import { tickOf } from '../town-work.js?v=0.2.101';
-import { aheadXp } from '../town-ticker.js?v=0.2.101';
-import { characterSheetOf } from '../../session/character-sections.js?v=0.2.101';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.102';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.102';
+import { skillXpForLevel, skillCapOf } from '../../core/xp.js?v=0.2.102';
+import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.102';
+import { skillsOf } from '../../session/item-sections.js?v=0.2.102';
+import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.102';
+import { whole } from '../../render/format.js?v=0.2.102';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.102';
+import { glyphSvg } from '../launcher.js?v=0.2.102';
+import { tickOf } from '../town-work.js?v=0.2.102';
+import { aheadXp } from '../town-ticker.js?v=0.2.102';
+import { characterSheetOf } from '../../session/character-sections.js?v=0.2.102';
 
 /* Is `level` the skill's last (a capped skill at its cap)? Combat skills have none. */
 const mastered = (id, level) => { const cap = skillCapOf(id); return cap !== null && level >= cap; };

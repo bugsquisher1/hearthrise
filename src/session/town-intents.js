@@ -11,8 +11,8 @@
 // re-quotes under its lock and answers quote_changed if the price moved (2027-02-27-town-shows.sql). On ok the character is RE-READ, so the purse changes
 // only from the envelope. Each ask goes in the account's intent ledger (askVia), so the pressed control waits.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.101';
-import { SHOW_FLAMES, ROUND_OFFER } from '../data/gold-sinks.js?v=0.2.101';
+import { askVia } from './intent-ledger.js?v=0.2.102';
+import { SHOW_FLAMES, ROUND_OFFER } from '../data/gold-sinks.js?v=0.2.102';
 
 const usable = (account, cs) => !!account && !!account.server && !!cs && cs.status !== 'closed' && Number.isInteger(cs.slot);
 const int = (v) => (Number.isSafeInteger(v) ? v : null);
@@ -31,7 +31,9 @@ function mineOf(m) {
 function crierOf(c) {
   if (!isObj(c)) return null;
   return Object.freeze({ n: int(c.n) || 0, perDay: int(c.per_day), price: int(c.price), minLevel: int(c.min_level), maxLetters: int(c.max_letters),
-    waitS: int(c.wait_s) || 0, on: c.on === true, lastLine: typeof c.last_line === 'string' && c.last_line ? c.last_line : null });
+    waitS: int(c.wait_s) || 0, on: c.on === true, lastLine: typeof c.last_line === 'string' && c.last_line ? c.last_line : null,
+    /* a standing mute's end (2027-03-16-crier-muted.sql), else null: the tab says why before a press */
+    mutedUntil: typeof c.muted_until === 'string' && c.muted_until ? c.muted_until : null });
 }
 
 /** That answer, checked field by field and frozen; null when it is not the server's shape (the window then says so, it never invents a price). Pure. */

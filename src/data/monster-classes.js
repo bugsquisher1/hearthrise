@@ -35,7 +35,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 /* The element vocabulary is src/data/elements.js's, the one copy (re-exported). */
-import { ELEMENTS, isElement } from './elements.js?v=0.2.101';
+import { ELEMENTS, isElement } from './elements.js?v=0.2.102';
 export { ELEMENTS };
 
 /** The weapon triangle axis. NOTE: 'neutral' is deliberately absent. */
@@ -78,13 +78,13 @@ export const MONSTER_CLASSES = Object.freeze({
   },
   human: {
     id: 'human', name: 'Human', order: 5,
-    line: 'People — bandits and casters both. Glass, and they hit like a cart.',
+    line: 'People, bandits and casters both. Glass, and they hit like a cart.',
     weaponWeak: 'ranged', weaponResist: ['magic'],
     elementWeak: 'poison', elementResist: [], elementImmune: [],
   },
   undead: {
     id: 'undead', name: 'Undead', order: 6,
-    line: 'Bones and grief. Crush them; poison does nothing to the dead.',
+    line: 'Bones and grief. Crush them. Poison does nothing to the dead.',
     weaponWeak: 'hammer', weaponResist: [],
     elementWeak: 'ember', elementResist: ['frost'], elementImmune: ['poison'],
   },

@@ -220,34 +220,34 @@ export const SLOT_RECIPES = {
 };
 
 export const SLOT_DESC = {
-  bronze_arrows: 'Blunt bronze heads on plain shafts — a fletcher\'s first hundred, and they cost nothing but an afternoon',
+  bronze_arrows: 'Blunt bronze heads on plain shafts, a fletcher\'s first hundred, and they cost nothing but an afternoon',
   barbed_arrows: 'Iron heads filed with a backward tooth, so what goes in does not come out clean',
   steel_arrows: 'Steel points ground to a needle, true over distance and cruel at the end of it',
   mithril_arrows: 'Mithril heads so light the shaft outruns the eye, and so hard they turn on nothing',
   rune_arrows: 'Runed points that hum on the string and bite deeper than their weight has any right to',
-  emberhead_arrows: 'Heads quenched in emberforge heat and still faintly warm — they go in glowing',
+  emberhead_arrows: 'Heads quenched in emberforge heat and still faintly warm. They go in glowing',
   dawnpoint_arrows: 'Dawnsteel points, each one worth a lesser sword, spent a quiverful at a time',
 
-  copper_studs: 'Two beaten copper studs, a village smith\'s wedding work — small, honest, and they steady the eye',
+  copper_studs: 'Two beaten copper studs, a village smith\'s wedding work. Small, honest, and they steady the eye',
   fang_studs: 'Wolf fangs capped in bronze, worn by trackers who like a kill to be quick',
   spidereye_studs: 'A venom-spider\'s eyes set in steel, still black and still watching for the soft place',
-  wraithglass_drops: 'Wraith-veil fused into cold glass — light passes through and comes out wrong',
+  wraithglass_drops: 'Wraith-veil fused into cold glass. Light passes through and comes out wrong',
   rubyfire_studs: 'Rubies caught in runed settings that catch the light like a struck spark',
   dragon_gem_earrings: 'The gemcutter\'s masterwork: a dragon\'s heart-gem split in two and hung where it can see everything you fight',
 
-  woolen_cloak: 'Honest wool against honest weather — the first cloak that is warmer than a rumor',
+  woolen_cloak: 'Honest wool against honest weather, the first cloak that is warmer than a rumor',
   houndskin_cloak: 'A cape for any fighter, with more force behind a blade or a hammer. Wolf pelts backed with bear hide, cut short for the swing',
   trollhide_cape: 'Troll hide over bear pelt, thick enough to blunt a blade and heavy enough to notice',
-  shadowsilk_cape: 'Panther-shadow woven on a spider\'s loom — it hangs perfectly still even when you do not',
+  shadowsilk_cape: 'Panther-shadow woven on a spider\'s loom. It hangs perfectly still even when you do not',
   dawnlit_mantle: 'Duskwood thread shot through with dawnsteel, so the hem catches first light before you do',
 
   wolfbone_torc: 'A ring of wolfbone bound in bronze, worn by hunters who count their kills on it',
   spidersilk_choker: 'Spider-silk drawn to a thread of gold, close at the throat and quietly deadly',
-  warlords_torc: 'Two warlords\' badges melted into one collar — the second one was not given willingly',
+  warlords_torc: 'Two warlords\' badges melted into one collar. The second one was not given willingly',
   dawnbound_amulet: 'Dawnsteel and dragon-gem hung on gold, an amulet a kingdom would notice missing',
 
   banded_signet: 'Bronze banded over copper, the signet a free company issues to its own',
-  ruby_signet: 'A ruby the size of a thumbnail on a mithril band — it makes the hand it is on obvious',
+  ruby_signet: 'A ruby the size of a thumbnail on a mithril band. It makes the hand it is on obvious',
   spellstone_ring: 'A warlock\'s cracked spellstone bound in runes, whispering the next word before you reach it',
   dawnforged_signet: 'Dawnsteel, death-steel and gold, forged into a ring that outlasts the finger wearing it',
 };

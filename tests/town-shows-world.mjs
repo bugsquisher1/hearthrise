@@ -21,6 +21,7 @@
 import { mkdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { openWorld } from '../tools/qa/local-world.mjs';
+import { answered } from './_press.mjs';
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
@@ -124,6 +125,8 @@ try {
   await page.click('[data-hs-win="chat"] .hc-cry');
   const said = await waitText('[data-hs-win="chat"] .hc-crier-msg', /won't shout web addresses/);
   step('SW-5 a web address is refused in words, charging nothing', said && (await purse()) === purse0, await textOf('[data-hs-win="chat"] .hc-crier-msg'));
+  /* the refusal's re-quote is still the Cry press's own ask: press again once it is answered (tests/_press.mjs) */
+  step('SW-5 the Cry button is given back after its refusal', await answered(page, '[data-hs-win="chat"] .hc-cry', 30000), await textOf('[data-hs-win="chat"] .hc-crier'));
   await page.fill('[data-hs-win="chat"] .hc-field', 'selling rat tails, ask Marlow');
   await page.click('[data-hs-win="chat"] .hc-cry');
   const gone = await page.waitForFunction(() => Array.from(document.querySelectorAll('[data-hs-win="chat"] .hc-line.is-crier')).some((l) => /selling rat tails/.test(l.textContent)), null, { timeout: 15000 }).then(() => true, () => false);

@@ -111,6 +111,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { answered } from './_press.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
@@ -480,10 +481,7 @@ async function pureRules(M) {
 
 /* ── THE PAGE ── */
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
-/* A control is pressed again only once its last press is answered: src/shell/press-ack.js swallows a press on a control still
-   aria-busy, and it holds the reads the press's own answer starts (the Crier's re-quote) as part of that press. A second press
-   sent before then never reached the page on a busy runner (main run 42253408437, CW-CRIER and CW-3 RED). */
-const answered = (page, q) => wait(page, (sel) => { const b = document.querySelector(sel); return !!b && !b.hasAttribute('aria-busy'); }, q);
+/* A control is pressed again only once its last press is answered (tests/_press.mjs): press-ack swallows a press on a busy one. */
 
 /* The fixture as the S1 server sends it: members carry their seat, and party_people names each seat's account. */
 function env(seats = 2) {

@@ -52,18 +52,18 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.97';
-import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.97';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.97';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.97';
-import { ITEMS } from '../../data/items.js?v=0.2.97';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.97';
-import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.97';
-import { cheb, dist2, los } from './grid.js?v=0.2.97';
-import { makeEvent } from './events.js?v=0.2.97';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.97';
-import { START_BAR } from '../../data/start-kit.js?v=0.2.97';
-import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.97';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.98';
+import { ABILITIES, suggestedTrigger } from '../../data/abilities.js?v=0.2.98';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.98';
+import { SUPPLIES } from '../../data/supplies.js?v=0.2.98';
+import { ITEMS } from '../../data/items.js?v=0.2.98';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.98';
+import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.98';
+import { cheb, dist2, los } from './grid.js?v=0.2.98';
+import { makeEvent } from './events.js?v=0.2.98';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.98';
+import { START_BAR } from '../../data/start-kit.js?v=0.2.98';
+import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.98';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
@@ -373,6 +373,28 @@ export function reaches(inst, hero, range, t) {
   return dist2(hero, t) <= r * r && los(inst.grid, hero, t);
 }
 
+/* CLEAVE'S REACH (abilities.js effect 'cleave'): no square on an aim but the swing itself, its target and every other engaged
+   monster beside the hero, up to the row's maxHits. The target is the one abilities.js targetFor takes (in reach, not ignored:
+   the hero's own first, then the nearest, then the lowest id). Read as a footprint of 1 it said "one monster at most" of a
+   swing that hits three, so a Cleave held for a crowd never fired (lane/c-boss-call; tests/hunt-core/conditions.mjs). */
+function cleaveReach(inst, hero, range, row, slot) {
+  const mons = engagedMons(inst);
+  const can = mons.filter((m) => reaches(inst, hero, range, m) && !ignores(slot, m))
+    .sort((a, b) => (Number(b.id === hero.target) - Number(a.id === hero.target)) || (dist2(a, hero) - dist2(b, hero)) || (a.id - b.id));
+  if (!can.length) return 0;
+  const beside = mons.filter((m) => cheb(m, hero) <= 1);
+  return Math.min(row.maxHits, beside.length + (beside.includes(can[0]) ? 0 : 1));
+}
+const cleaveRow = (slot) => (slot && slot.action.type === 'ability' && ABILITIES[slot.action.id] && ABILITIES[slot.action.id].target === 'cleave' ? ABILITIES[slot.action.id] : null);
+
+/** The most monsters `slot`'s action can hit at once: a Cleave's maxHits, else every tile of its footprint (src/shell/slot-waits.js). */
+export function areaTopOf(slot, h) {
+  const cl = cleaveRow(slot);
+  if (cl) return cl.maxHits;
+  const n = footprintOf(slot, h);
+  return n * n;
+}
+
 /** The best aim for an n-footprint: { aim, count } over every reachable engaged monster, or null. A
     monster `slot` ignores is never the aim (it is still counted when the footprint covers it). */
 export function bestAim(inst, hero, range, n, slot) {
@@ -432,6 +454,8 @@ const EVAL = Object.freeze({
   ally_hp_pct: (cx, c) => { const a = allyOf(cx, c.subject, 'hp'); if (a) cx.ally = cx.ally || a; return a ? share(a.hp, a.maxHp) : null; },
   ally_mana_pct: (cx, c) => { const a = allyOf(cx, c.subject, 'mana'); return a ? share(a.mana, a.maxMana) : null; },
   enemies_in_aoe: (cx) => {
+    const cl = cleaveRow(cx.slot);
+    if (cl) return cleaveReach(cx.inst, cx.u, cx.h && cx.h.range, cl, cx.slot);
     const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h), cx.slot);
     if (b) cx.aim = b.aim;
     return b ? b.count : 0;

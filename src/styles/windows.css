@@ -104,6 +104,9 @@
 .hs-win .hh-intent-msg:where(:not(.ca-msg)) { margin-top: 6px; font-size: var(--t-small); color: var(--ink); }
 .hs-win .hh-intent-msg:not(:empty, .ca-msg) { position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }
 .is-pending .hh-intent-msg { color: var(--ink-2); }
+/* Tempering's answer takes its question's place, in the flow: stuck to a phone sheet's foot it lay over the note on where the material comes from. */
+.hw-temper-msg { margin: 6px 0 0; padding: 6px 10px; font-size: var(--t-small); color: var(--ink); }
+.hw-temper-msg:empty { display: none; }
 /* A sunk field (shell.css, Forged Steel), its magnifier inside. */
 .hw-search { flex: 1; display: flex; align-items: center; gap: 6px; padding-left: 8px; color: var(--ink-3); }
 .hw-search .hs-glyph { width: 16px; height: 16px; }
@@ -438,6 +441,12 @@
 .hw-bring-none:empty { display: none; }
 /* The one primary at the page's foot, below its scroller (never over the page); the server's answer beside it.
    Solid at any window opacity: it is the press that matters most. Enter goes somewhere: a dark arrow follows it. */
+/* Call out on a ground's page (boss-call-pane.js): the press, then its warning in the confirmation's well. */
+.hw-hd-call[hidden] { display: none; }
+.hw-call-line { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-call-line:empty { display: none; }
+.hw-call-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.hw-call-press[hidden] { display: none; }
 .hw-hd-foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .hw-hd-foot .hh-intent-msg { flex: 1; min-width: 0; margin: 0; }
 .hw-enter-why { flex: 1; min-width: 0; margin: 0; font-size: var(--t-small); color: var(--ink); }
@@ -828,6 +837,7 @@
   .hv-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
 }
 .hv-lead { margin: 0 2px 10px; color: var(--ink-2); }
+.hv-why { margin: 0 2px 6px; }
 .hv-powders { display: flex; gap: 6px; margin: 0 0 10px; }
 .hv-powder { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 36px; padding: 0 6px; border: 1px solid var(--steel-sep); background: var(--bg-0); color: var(--ink); font-family: var(--f-label); font-weight: 700; cursor: pointer; }
 .hv-powder:hover { color: var(--gold-2); }

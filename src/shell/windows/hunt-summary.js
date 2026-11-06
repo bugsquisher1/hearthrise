@@ -17,21 +17,25 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.97';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.97';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.97';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.97';
-import { runIntent } from '../intent-words.js?v=0.2.97';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.97';
-import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.97';
-import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.97';
-import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.97';
-import { observeSessions } from '../../session/character-session.js?v=0.2.97';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.97';
-import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.97';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.97';
-import { heldCard } from '../launcher.js?v=0.2.97';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.97';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.98';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.98';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.98';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.98';
+import { runIntent } from '../intent-words.js?v=0.2.98';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.98';
+import { callOfHunt } from '../../data/boss-calls.js?v=0.2.98';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.98';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.98';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.98';
+import { observeSessions } from '../../session/character-session.js?v=0.2.98';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.98';
+import { nameOf, bagOf } from '../../session/item-sections.js?v=0.2.98';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.98';
+import { heldCard } from '../launcher.js?v=0.2.98';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.98';
+
+/* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), and an old hunt that kept no settings. */
+const againOffWords = (cur) => (callOfHunt(cur.hunt) ? 'he comes when he is called, from the ground\'s page.' : 'this hunt did not keep its settings.');
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
 const nextStepOf = (ctx) => { const c = ctx.character ? heldCard(ctx) : null; return c && c.done ? c : null; };
@@ -55,7 +59,7 @@ export function renderHuntSummary() {
     + '<p class="hs-note hsum-none">No hunts have ended yet. When one does, what it came to lands here.</p>'
     + '<section class="hsum-live"><h3 class="hw-ledger-head is-on">Just now</h3><ul class="hsum-falls hsum-live-falls"></ul></section>'
     + '<section class="hsum-card">'
-    + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p>'
+    + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p><p class="hsum-loss" hidden></p>'
     + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
     /* The presses and their answer stay in reach: the reason and the numbers pushed them under a 1366x768 window's fold, so a hunt that
        ran out of stamina opened with no press in sight (door panel 2026-11-04). */
@@ -122,10 +126,15 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     text(root.querySelector('.hsum-when'), cur.at ? dayTime(cur.at) : '');
     const st = cur === list[0] && !huntOpen ? staminaOf(cs) : null;
     text(root.querySelector('.hsum-reason'), reasonWords(cur, nameOf(cs), st ? st.msLeft : null));
+    /* A lost called fight: where it was lost and what answers it (hunt-view/boss-loss.js). */
+    text(root.querySelector('.hsum-loss'), cur.loss || '');
+    prop(root.querySelector('.hsum-loss'), 'hidden', !cur.loss);
     for (const [k, , fmt, onlySent] of STATS) {
       const dd = root.querySelector('[data-stat="' + k + '"]');
       text(dd, fmt(cur[k]));
       prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));
+      /* A called boss counts no kill (src/data/boss-calls.js): the reason line says he's down, and "Monsters 0" would say he isn't. */
+      if (k === 'kills' && callOfHunt(cur.hunt)) prop(dd.parentNode, 'hidden', true);
     }
     const loot = cur.loot.map(([it, n]) => ({ it, n }));
     cls(root.querySelector('.hsum-h-loot'), 'is-on', loot.length > 0);
@@ -139,9 +148,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const route = again ? againRoute(partyMembershipOf(cs), again.hunt) : null;
     const go = root.querySelector('[data-hs-act="again"]');
     prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
-    attr(go, 'title', huntOpen ? 'A hunt is already running.' : !again ? 'This hunt did not keep its settings.' : route.why || 'Same ground, action set and limits, with what your bag holds now.');
+    attr(go, 'title', huntOpen ? 'A hunt is already running.' : !again ? againOffWords(cur) : route.why || 'Same ground, action set and limits, with what your bag holds now.');
     /* Hunt again off says why on the line under it, not only in a title (say-why). */
-    againWhy = huntOpen ? 'Hunt again is off: a hunt is already running.' : !again ? 'Hunt again is off: this hunt did not keep its settings.' : route.why ? 'Hunt again is off. ' + route.why : '';
+    againWhy = huntOpen ? 'Hunt again is off: a hunt is already running.' : !again ? 'Hunt again is off: ' + againOffWords(cur) : route.why ? 'Hunt again is off. ' + route.why : '';
     const card = huntOpen ? null : nextStepOf(ctx);
     const next = root.querySelector('[data-hs-act="coach-next"]');
     prop(next, 'hidden', !card);

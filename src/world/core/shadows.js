@@ -31,3 +31,24 @@ export function castPoint(px, py, cy) {
 export function castMatrix(cy) {
   return [1, 0, -SHEAR.x, -SHEAR.y, SHEAR.x * cy, (1 + SHEAR.y) * cy];
 }
+
+/**
+ * The box a cast shadow falls in, art px: its sprite's corners through the matrix, a pixel more on every side for the
+ * edge a sheared blit softens. What a frame shows of it is decided by this box, never by its sprite's (it falls past it).
+ * @param {{x:number, y:number, w:number, h:number}} s  the sprite's drawn box
+ * @param {number[]} m  castMatrix()
+ * @returns {{x:number, y:number, w:number, h:number}}
+ */
+export function castBox(s, m) {
+  const [a, b, c, d, e, f] = m;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i < 4; i++) {
+    const px = s.x + (i & 1 ? s.w : 0), py = s.y + (i & 2 ? s.h : 0);
+    const x = a * px + c * py + e, y = b * px + d * py + f;
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+  }
+  return { x: x0 - 1, y: y0 - 1, w: x1 - x0 + 2, h: y1 - y0 + 2 };
+}

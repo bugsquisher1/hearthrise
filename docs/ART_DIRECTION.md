@@ -47,7 +47,7 @@ Read this before touching any sprite, icon, tile, effect, CSS or screen layout. 
 | Clip | Hero and humanoids | Monsters | Notes |
 |---|---|---|---|
 | Facings | **8** (s, se, e, ne, n, nw, w, sw) | **2** (e and w; w may mirror e only if the creature has no handedness) | the engine paths in 8 directions (`path.js`), so a 4-facing hero slides on every diagonal; monsters keep a side (`choreo.js sideOf`) |
-| idle | 4–6 frames at 5 fps, loop | 4 frames at 5 fps, loop | nothing alive is a still frame (today every monster and NPC idle is 1 frame) |
+| idle | 4–6 frames at 5 fps, loop | 4 frames at 5 fps, loop: a ping-pong from the still (still, a, b, a), feet planted; a flier's is its own flight clip at 10 fps | nothing alive is a still frame (every live monster obeys, `tests/world-assets.mjs` [live]; hero and NPC idles are still 1 frame). Frame 0 stays the still, so a portrait and the step from a walk never change. All units turn on one clock edge, each from its own place in the loop (`hunt-view/scene.js idleFrame`) |
 | walk | 8 frames at 10 fps; **both feet lift**, contact poses at frames 0 and 4 on opposite feet | 6 frames at 8–10 fps | the hero's south walk lifts only the left foot today |
 | attack | 6–7 frames at 12 fps with a declared `hit` frame; the clip ends within `ACT_MS` (600 ms) | the same | impact effects fire on the `hit` frame, never on a timer |
 | hit | 3–5 frames at 12 fps, a 1-art-px recoil away from the blow | 5 frames at 12 fps | the hero has no hit clip today |

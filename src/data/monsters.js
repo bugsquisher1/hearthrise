@@ -63,8 +63,8 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.97';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.97';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.98';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.98';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -779,6 +779,22 @@ export const MONSTERS = {
       { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }, { id: 'war_crown', ch: .016, band: 'rare' },
       { id: 'willow_wand', ch: .0125, band: 'rare' }, { id: 'willow_spellbook', ch: .0125, band: 'rare' }, { id: 'willow_staff', ch: .0125, band: 'rare' },
       { id: 'verdigris_cake', ch: .0125, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .0013, band: 'trophy' }] },
+
+  /* ══ THE CALLED BOSSES (src/data/boss-calls.js): a stronger copy, in one room a party pays to enter. A CALLED ROW PAYS NOTHING: xp 0, gp [0, 0], no drops (yieldOf reads a yieldPm of 0 as FULL yield; tests/boss-call.mjs). Stats are the only dials, through the normal paths: measured on tools/balance-sim/boss-call-table.mjs. The low `baseAcc` takes his to-hit off the 85% ceiling, so Defense and a shield count. Art: monster-art.js HUNT_ART_ALIAS. ══ */
+  rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, boss: true,
+    elementResist: ['ember'],
+    hp: 2000, atk: 42, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1600 } },
+  /* HIS ADDS (hunt-grounds.js `adds`, boss-phases.js): the ground's own Drain Rat, called too, so a wave pays what he pays: nothing. No boss: a slot's "target is a boss" tells them apart. */
+  drain_rat_called: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, add: true,
+    hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },
+  chief_coppercap_called: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, boss: true,
+    elementResist: ['frost'],
+    hp: 3500, atk: 130, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
+  /* His adds, the Warrens' own diggers: called too, no boss, as the King's. His crew, under him: lower Level, softer, surer blows. While one stands he takes 80% of a blow
+     (`guardPm`, boss-phases.js): burning him through them lost to the careless four (53% before), and Target on Lowest HP is the add wave's answer (board, 2026-11-05). */
+  goblin_digger_called: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, add: true,
+    weaponWeak: 'hammer', weaponResist: ['sword'],
+    hp: 300, atk: 70, baseAcc: 0.2, def: 20, xp: 0, gp: [0, 0], speed: 2600, drops: [] },
 
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their

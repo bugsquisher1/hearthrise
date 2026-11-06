@@ -1074,6 +1074,17 @@ const cases = {
     const wh = say(atL(M.tut.WEIGHHOUSE_LEVEL));
     if (!wh || wh.id !== 'weighhouse' || !wh.gotIt || M.tut.coachIcon(wh, () => false) !== 'market') return 'at its Level the Weighhouse card reads ' + JSON.stringify(wh);
     if ((say(atL(M.tut.WEIGHHOUSE_LEVEL, 'weighhouse')) || {}).id === 'weighhouse') return 'Got it does not pass the Weighhouse card';
+    /* A CRAFTER IS TOLD TOO (11-05: the card waited for Level 10 while hr_market_eligible also opens at a bench skill of 30): below the Level, the best
+       bench skill at its level puts the card up; one under, or a bench the server never sent, does not. Through the envelope, the bench is the catalogue's
+       artisan rows at the server's levels: a gathering skill at 60 opens nothing. */
+    const bench = (lv) => (say({ ...atL(M.tut.WEIGHHOUSE_LEVEL - 1), benchLevel: lv }) || {}).id;
+    if (bench(M.tut.WEIGHHOUSE_BENCH) !== 'weighhouse') return 'a bench skill at ' + M.tut.WEIGHHOUSE_BENCH + ' below Level ' + M.tut.WEIGHHOUSE_LEVEL + ' meets ' + bench(M.tut.WEIGHHOUSE_BENCH) + ', not the Weighhouse card';
+    if (bench(M.tut.WEIGHHOUSE_BENCH - 1) === 'weighhouse' || bench(null) === 'weighhouse') return 'the Weighhouse card came below its bench level, or on a bench the server never sent';
+    const benchOf = (skills) => tsb.tutorialFactsOf({ read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(3) }, skills })[k], slot: 0 }).benchLevel;
+    const sk = (id, level) => ({ [id]: { xp: 1, level } });
+    if (benchOf({ ...sk('smithing', 31), ...sk('cooking', 4), ...sk('mining', 60) }) !== 31 || benchOf(sk('mining', 60)) !== null || benchOf(undefined) !== null) return 'through the envelope the bench reads ' + JSON.stringify([benchOf({ ...sk('smithing', 31), ...sk('mining', 60) }), benchOf(sk('mining', 60)), benchOf(undefined)]);
+    const benchGate = readFileSync(join(M.root, 'supabase/migrations/2027-03-03-market-bench-gate.sql'), 'utf8');
+    if (!benchGate.includes('min_skill_level int not null default ' + M.tut.WEIGHHOUSE_BENCH)) return 'the Weighhouse card opens at a bench of ' + M.tut.WEIGHHOUSE_BENCH + ', and its migration does not';
     if ((say(atL(M.tut.ROLL_LEVEL - 1, 'weighhouse')) || {}).id === 'roll_of_honor') return 'the Leaderboards card came below its Level';
     const roll = say(atL(M.tut.ROLL_LEVEL, 'weighhouse'));
     if (!roll || roll.id !== 'roll_of_honor' || roll.title !== 'Leaderboards' || M.tut.coachIcon(roll, () => false) !== 'honor') return 'the Leaderboards card reads ' + JSON.stringify(roll);
@@ -1827,6 +1838,10 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }", "'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: 9999 }] }"]] },
   { name: 'the Weighhouse line names a Level its gate does not', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', 'export const WEIGHHOUSE_LEVEL = 10;', 'export const WEIGHHOUSE_LEVEL = 12;']] },
+  { name: 'a crafter at bench 30 is never told the Weighhouse is open (11-05)', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', ' || (Number.isInteger(f.benchLevel) && f.benchLevel >= WEIGHHOUSE_BENCH)', '']] },
+  { name: 'a gathering skill opens the Weighhouse card', case: 'tutorial-reactive',
+    edits: [['src/session/tutorial-sections.js', "SKILLS_DEF[id].cat === 'artisan'", "SKILLS_DEF[id].cat !== 'combat'"]] },
   { name: 'the own-juice card asks a hero who hardly drinks (core-loop 10-31)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),", "when: [{ kind: 'carries', item: 'turnip_juice' }] }),"]] },
   { name: 'What next hides a made piece\'s bench level (core-loop 10-31)', case: 'tutorial-reactive',

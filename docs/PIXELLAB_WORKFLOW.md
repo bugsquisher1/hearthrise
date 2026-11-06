@@ -76,6 +76,15 @@ Batch estimate: about 30–90 generations, most of it R3. **Cost tracking:** the
 - **Re-roll on sight:** a north attack with a mouth on the rump, a south walk that turns away, a baked flash. Read every clip at x2 after the lock: `seen from behind` and `facing the viewer the whole time` fixed these for 1 generation each.
 - **Icons:** `create_1_direction_object` with `style_images` and the palette gives 64 on-palette 32 px candidates for 10 generations: pass `item_descriptions` several times each and pick. Beware a style image's own shape: `alpha_fang` as the style drew the next claw as its twin.
 
+## 5c. What the creature idles measured (2026-11-05, lane `a-creature-idles`; `art/review/creature-idles-2026-11-05/`)
+- **Generate 8, keep 2.** `frame_count: 8` bills the same 1 generation a facing as 4 at 64 px or less, and the 9 stored frames give `tools/world-art/idle-clip.mjs` a choice: a ping-pong (still, a, b, a), which always comes home without a pop and costs 2 new atlas frames a facing.
+- **The words that held the feet:** `frozen in place and alert, all four paws planted and never lifting, only breathing: ...` (`both feet`, `all eight legs`). "The feet do not move" and "almost motionless" both let a paw walk off.
+- **The model redraws the whole body each frame, so a big furred one shimmers** (a boar's flank turned 80% of its pixels a step). `holdBody` keeps the still's pixels except within 2 px of where the silhouette moved: only the outline breathes, 2-12% of the body a step, and the shading never flickers. Snapping only to the still's colours was not enough on its own.
+- **A flier never stands:** its idle is its own flight clip with the still as frame 0 (`port-pixellab.mjs idle --flight`), at 10 fps, no generation, nearly no atlas.
+- **A sprite with no object:** `animate_image` with `first_frame_url: "upload:<id>"` from `get_upload_url` is the same price and the same quality, and frames come from `/mcp/images/<job>/download?index=N`. `custom_start_frame_base64` works but a 1 KB string copied through a tool call slips a character about one call in ten (PNG's CRCs refuse it, nothing is billed), so do not use it for a batch. It also fixes a facing whose object rotation is not the shipped still (the audit prints `frame 0 missed`).
+- **Measure lift the way `validate.mjs [feet]` does:** on the mass, not the lowest pixel. A spider's thin leg can stay down while its body hops 5 px.
+- **20 jobs at once is the account's limit;** one creature of 8 facings takes 2-5 minutes, so two creatures a round.
+
 ## 6. Planned after the first playable (counts only; no calls yet)
 | Batch | Calls | Tools |
 |---|---|---|

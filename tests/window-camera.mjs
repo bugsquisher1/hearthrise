@@ -323,14 +323,28 @@ async function huntCamera(browser, base) {
   return fails;
 }
 
-/* `viewer`: run WC-9 too, about 20 s a run on two heroes: --mutate runs it for its own mutants and the clean control only (smoke.yml in-page-2 budgets this job's minutes). */
-async function checks(overrides, viewer = true, box = true) {
+/* THE PAGES, AND THE RULES EACH READS. A mutant runs the pages of the rules its name tags (pagesOf), the plain run and the clean control
+   all of them: every mutant ran every page, about 37 s each on CI, 17 of in-page-2's 28 minutes (run 42096671527), so the job's full
+   sweep never finished and the next run swept in full again. */
+const PAGES_OF = { 'WC-1': ['wide'], 'WC-2': ['wide'], 'WC-5': ['wide'], 'WC-5b': ['wide'], 'WC-3': ['desk'], 'WC-4': ['desk'], 'WC-6': ['desk', 'bar'],
+  'WC-7': ['hunt'], 'WC-8': ['zoom'], 'WC-9': ['viewer'], 'WC-10': ['box'] };
+const PAGES = ['wide', 'desk', 'bar', 'hunt', 'zoom', 'viewer', 'box'];
+/** The pages a mutant's tagged rules read; null when a name tags none, or one no page reads (main refuses those as HARNESS). */
+function pagesOf(name) {
+  const tags = String(name).match(/\bWC-\d+b?\b/g) || [];
+  if (!tags.length || tags.some((t) => !PAGES_OF[t])) return null;
+  return new Set(tags.flatMap((t) => PAGES_OF[t]));
+}
+
+/* `pages`: the pages to run (null: all) */
+async function checks(overrides, pages = null) {
   const fails = [];
+  const on = (p) => !pages || pages.has(p);
   const { server, port } = await serve(Object.assign({}, HOOKS, overrides || {}));
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
   try {
-    { // WC-1, WC-2 on a wide screen (three windows dock side by side inside 60% of the World)
+    if (on('wide')) { // WC-1, WC-2 on a wide screen (three windows dock side by side inside 60% of the World)
       const { ctx, page, errors, up } = await enter(browser, base, { width: 2560, height: 1200 });
       if (!up) fails.push('WC-1 the town did not mount');
       else {
@@ -425,7 +439,7 @@ async function checks(overrides, viewer = true, box = true) {
       await ctx.close();
     }
 
-    { // WC-3 no snap; WC-4 right-click
+    if (on('desk')) { // WC-3 no snap; WC-4 right-click; WC-6 at 1440x900
       const { ctx, page, errors, up } = await enter(browser, base, { width: 1440, height: 900 });
       if (!up) fails.push('WC-3 the town did not mount');
       else {
@@ -503,7 +517,7 @@ async function checks(overrides, viewer = true, box = true) {
     }
     /* WC-6 at 1920x1080 (the bar had room left of the dock there, so it jumped across), and on a phone, where the
        sheet is full height and the bar clears it the same on every tab */
-    for (const [vp, home] of [[{ width: 1920, height: 1080 }, true], [{ width: 922, height: 423 }, false]]) {
+    for (const [vp, home] of on('bar') ? [[{ width: 1920, height: 1080 }, true], [{ width: 922, height: 423 }, false]] : []) {
       const tag = vp.width + 'x' + vp.height;
       const { ctx, page, errors, up } = await enter(browser, base, vp);
       if (!up) fails.push('WC-6 [' + tag + '] the town did not mount');
@@ -511,10 +525,10 @@ async function checks(overrides, viewer = true, box = true) {
       if (errors.length) fails.push('WC-6 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
-    fails.push(...(await huntCamera(browser, base)));   // WC-7
-    fails.push(...(await townZoom(browser, base)));     // WC-8
-    if (viewer) fails.push(...(await viewerZoom(browser, base)));   // WC-9
-    if (box) fails.push(...(await canvasBox(browser, base)));       // WC-10
+    if (on('hunt')) fails.push(...(await huntCamera(browser, base)));     // WC-7
+    if (on('zoom')) fails.push(...(await townZoom(browser, base)));       // WC-8
+    if (on('viewer')) fails.push(...(await viewerZoom(browser, base)));   // WC-9
+    if (on('box')) fails.push(...(await canvasBox(browser, base)));       // WC-10
   } catch (e) {
     /* a step that threw is HARNESS, never a rule (2026-10-22, tests/_mutant-verdict.mjs) */
     fails.push(harnessFail('a page step', e));
@@ -697,16 +711,16 @@ const MUTANTS = [
   ['a modal never drags (WC-5b)', 'src/shell/shell.js', '    if (!head || e.button !== 0 || phoneMq.matches) return;', '    if (!head || e.button !== 0 || phoneMq.matches || wm.row(id).modal) return;'],
   ['a dragged modal keeps its centring transform (WC-5b)', 'src/styles/shell.css', '.hs-win.is-modal.is-moved { transform: none; }', '.hs-win.is-modal.is-moved { }'],
   ['a modal is clamped by a 48 px head, not its height (WC-5b)', 'src/shell/shell.js', '    const h = wm.row(id).modal ? r.height : undefined;', '    const h = undefined;'],
-  ['the dock follows the focus order', 'src/shell/window-manager.js', "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE,",
+  ['the dock follows the focus order (WC-1)', 'src/shell/window-manager.js', "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE,",
     "else Object.assign(e, { docked: true, right: DOCK_EDGE + open.slice(i + 1).filter((d) => !floating.has(d)).reduce((s, d) => s + width(d) + DOCK_GAP, 0),"],
-  ['a docked window that grows runs over the bar', 'src/shell/shell.js', '    capDock();\n', ''],
-  ['a click that wanders a pixel drags the window off the dock', 'src/shell/shell.js', 'const DRAG_SLOP_PX = 5;', 'const DRAG_SLOP_PX = 0;'],
-  ['the stage can scroll', 'src/styles/world.css', 'overflow: clip;   /* never scrollable', 'overflow: hidden;   /* never scrollable'],
-  ['the pane can scroll', 'src/styles/world.css', '  overflow: clip;\n}', '  overflow: hidden;\n}'],
-  ['a docked window takes the World again', 'src/shell/shell.js', '    const inset = insetNow();', '    const inset = Object.assign(insetNow(), { right: wm.openIds().length ? 420 : 0 });'],
-  ['the canvas shrinks beside the windows', 'src/shell/shell.js', '  function onWm() {\n', '  function onWm() {\n    doc.querySelector(\'#panel-world canvas\').style.width = wm.openIds().length ? \'60%\' : \'\';\n'],
-  ['a modal evicts the oldest docked window', 'src/shell/window-manager.js', '    if (!isModal(id)) while (sheets().length >= MAX_OPEN) drop(sheets()[0]);', '    while (open.length >= MAX_OPEN) drop(open[0]);'],
-  ['a name is not a target', 'src/world/render/canvas-backend.js', '      const hits = named.concat(', '      const hits = [].concat('],
+  ['a docked window that grows runs over the bar (WC-6)', 'src/shell/shell.js', '    capDock();\n', ''],
+  ['a click that wanders a pixel drags the window off the dock (WC-1)', 'src/shell/shell.js', 'const DRAG_SLOP_PX = 5;', 'const DRAG_SLOP_PX = 0;'],
+  ['the stage can scroll (WC-2)', 'src/styles/world.css', 'overflow: clip;   /* never scrollable', 'overflow: hidden;   /* never scrollable'],
+  ['the pane can scroll (WC-2)', 'src/styles/world.css', '  overflow: clip;\n}', '  overflow: hidden;\n}'],
+  ['a docked window takes the World again (WC-3)', 'src/shell/shell.js', '    const inset = insetNow();', '    const inset = Object.assign(insetNow(), { right: wm.openIds().length ? 420 : 0 });'],
+  ['the canvas shrinks beside the windows (WC-3)', 'src/shell/shell.js', '  function onWm() {\n', '  function onWm() {\n    doc.querySelector(\'#panel-world canvas\').style.width = wm.openIds().length ? \'60%\' : \'\';\n'],
+  ['a modal evicts the oldest docked window (WC-5b)', 'src/shell/window-manager.js', '    if (!isModal(id)) while (sheets().length >= MAX_OPEN) drop(sheets()[0]);', '    while (open.length >= MAX_OPEN) drop(open[0]);'],
+  ['a name is not a target (WC-4)', 'src/world/render/canvas-backend.js', '      const hits = named.concat(', '      const hits = [].concat('],
   ['the bitmap takes the stage\'s border box again: 2 px over, art columns lost (WC-10)', 'src/world/render/canvas-backend.js', '    const r = canvas.getBoundingClientRect();\n    W = Math.max(1, Math.round((r.left + r.width) * dpr) - Math.round(r.left * dpr));\n    H = Math.max(1, Math.round((r.top + r.height) * dpr) - Math.round(r.top * dpr));', '    const r = host.getBoundingClientRect();\n    W = Math.max(1, Math.round(r.width * dpr));\n    H = Math.max(1, Math.round(r.height * dpr));'],
   ['the bitmap takes the stage\'s rounded client box: a row off at a fractional DPR (WC-10)', 'src/world/render/canvas-backend.js', '    const r = canvas.getBoundingClientRect();\n    W = Math.max(1, Math.round((r.left + r.width) * dpr) - Math.round(r.left * dpr));\n    H = Math.max(1, Math.round((r.top + r.height) * dpr) - Math.round(r.top * dpr));', '    W = Math.max(1, Math.round(host.clientWidth * dpr));\n    H = Math.max(1, Math.round(host.clientHeight * dpr));'],
   ['the hunt camera holds the whole view on the room again: the hero hugs the analyzer (WC-7)', 'src/world/core/camera.js', "const rule = { wholeView: map.kind !== 'hunt' };", 'const rule = { wholeView: true };'],
@@ -732,6 +746,11 @@ async function main() {
   /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
   const MINE = scopedMutants('tests/window-camera.mjs', MUTANTS);
   if (!MINE.length) process.exit(0);
+  /* a name that tags no rule, or a page no rule reads, is a harness slip: never a quiet full run, never a page left unproved */
+  const untagged = MINE.filter(([name]) => !pagesOf(name)).map(([name]) => name);
+  if (untagged.length) { console.log('  ✗ HARNESS: no page for ' + untagged.join('; ') + ' (tag each with its WC rule, PAGES_OF)'); process.exit(2); }
+  const unread = PAGES.filter((p) => !Object.values(PAGES_OF).some((ps) => ps.includes(p)));
+  if (unread.length) { console.log('  ✗ HARNESS: no rule reads ' + unread.join()); process.exit(2); }
   const clean = await cleanControl(() => checks(null));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
@@ -741,7 +760,7 @@ async function main() {
   for (const [name, file, from, to] of MINE.filter((m) => !only || m[0].includes(only))) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
-    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, /WC-9/.test(name), /WC-10/.test(name))), counts));
+    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, pagesOf(name))), counts));
   }
   console.log(exitOf(counts) ? 'window-camera --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'window-camera --mutate: ' + counts.caught + '/' + counts.caught + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));

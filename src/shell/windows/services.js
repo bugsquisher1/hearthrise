@@ -18,18 +18,18 @@
 // Every control is off while an intent is in flight; nothing changes on
 // screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.97';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.97';
-import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.97';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.97';
-import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.97';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.97';
-import { runIntent } from '../intent-words.js?v=0.2.97';
-import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js?v=0.2.97';
+import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.98';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.98';
+import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.98';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.98';
+import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.98';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.98';
+import { runIntent } from '../intent-words.js?v=0.2.98';
+import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js?v=0.2.98';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { confirm: false, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { confirm: false, pending: false, msg: '', msgAt: null }; SCRATCH.set(cs, s); } return s; };
 
 /** The tab's skeleton (built once per opening of the Shop, inside its pane). */
 export function servicesPaneHtml() {
@@ -99,7 +99,8 @@ export function patchServicesPane(body, ctx) {
     },
   });
   patchTemperPane(root, ctx, sc);
-  text(root.querySelector('.hh-intent-msg'), sc.msg);
+  /* the tab's line answers Stamina and Blessings; Tempering's answer stands in its own section (temper-pane.js) */
+  text(root.querySelector('.hh-intent-msg'), sc.msgAt === 'temper' ? '' : sc.msg);
   cls(root, 'is-pending', sc.pending);
 }
 
@@ -116,6 +117,7 @@ export function actServicesPane(ctx, body, action, ev, t) {
     const q = staminaRefillOf(cs);
     sc.confirm = false;
     if (!q || !q.available) { repaint(); return true; }
+    sc.msgAt = null;
     runIntent(sc, repaint, () => cs.buyStamina(q.price), 'Buying stamina…', () => 'Stamina restored.');
     return true;
   }
@@ -124,6 +126,7 @@ export function actServicesPane(ctx, body, action, ev, t) {
     const tier = Number(t.getAttribute('data-tier'));
     const row = b && b.tiers.find((x) => x.tier === tier);
     if (!row || row.held) return true;
+    sc.msgAt = null;
     runIntent(sc, repaint, () => cs.buyBlessing(tier, row.price), 'Blessing…', () => 'Blessing ' + ROMAN[tier] + ' is yours.');
     return true;
   }

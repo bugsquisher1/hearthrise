@@ -37,7 +37,8 @@
 // facings, the blow (`attack`), the fall (`death`) and the held body (`corpse`) in the four
 // cardinals, every frame inside its atlas and not blank (rule [live], LIVE_CLIPS). A kill that
 // leaves a brown square or a standing monster is red here, not in a player's hunt. Two live monsters
-// on the same pixels are red too (rule [twin]): a new name gets a new drawing.
+// on the same pixels are red too (rule [twin]): a new name gets a new drawing. A live monster whose
+// idle is a still frame is red as well: its loop is at least IDLE_POSES different drawings, in every facing.
 //
 // ONE STYLE (Tyler 2026-10-18, tools/world-art/style1.mjs): every sidecar of a set
 // the renderer loads is style 1 with a style-1 source, no retired pre-style-1 set
@@ -80,6 +81,7 @@ import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../src/data/world/house-layouts.js';
 import { OUTFITS } from '../src/data/hunt-outfits.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
+import { HUNT_ART_ALIAS } from '../src/data/monster-art.js';
 /* the OPEN grounds: a staged one (src/data/hunts.js `staged`) is drawn by nobody until its art lands (forest-cave.mjs staged-until-art) */
 import { OPEN_GROUNDS as HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 
@@ -105,7 +107,7 @@ function style1Input(root = ROOT, over = {}) {
     atlasSets, artSets: listSets(root), builtSets: built, sidecars, code: over.code || codeRefs(root), maskSets: over.maskSets || MASK_SETS,
     scripts: existsSync(join(root, 'tools/world-art')) ? readdirSync(join(root, 'tools/world-art')).map((f) => 'tools/world-art/' + f) : [],
     refs: reachableRefs({ maps: over.maps || WORLD_MAPS, layouts: ROOM_LAYOUTS, trophySprites: TROPHY_MOUNT_SPRITES, peerLooks: Object.values(OUTFITS),
-      crier: 'npc_crier', outfits: Object.values(OUTFITS), huntIndex: HUNT_INDEX, grounds: HUNT_GROUNDS }),
+      crier: 'npc_crier', outfits: Object.values(OUTFITS), huntIndex: HUNT_INDEX, grounds: HUNT_GROUNDS, artAlias: HUNT_ART_ALIAS }),
   };
 }
 
@@ -144,7 +146,7 @@ const REQUIRED = {
   ...Object.fromEntries(['outfit_knight', 'outfit_berserker', 'outfit_brute', 'outfit_ranger', 'outfit_sorcerer', 'outfit_witch', 'outfit_dawnward', 'outfit_druid']
     .map((id) => [id, { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS }])),
   rat_king: { set: 'hunt', class: 'beast', anims: ['idle', 'walk'], dirs: FACINGS },
-  // the Millrace Sewer's six (src/data/monsters.js: the sprite id is the monster id). The hunt atlas is at 2048x1808 of 2048,
+  // the Millrace Sewer's six (src/data/monsters.js: the sprite id is the monster id). The hunt atlas is at 2048x1972 of 2048,
   // so the rat and the slime with art of their own live in the Sewer's set, loaded on that map only.
   ...Object.fromEntries(['drain_rat', 'sump_slime'].map((id) => [id, { set: 'sewer', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS }])),
   cistern_spider: { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
@@ -177,6 +179,7 @@ const REQUIRED_TERRAIN = { sewer_ground: 'sewer', cellar_ground: 'mill', common_
 // diagonal falls back to its cardinal, core/book.js pickFacing).
 const CARDINALS = ['s', 'e', 'n', 'w'];
 const LIVE_CLIPS = [['idle', FACINGS], ['walk', FACINGS], ['attack', CARDINALS], ['death', CARDINALS], ['corpse', CARDINALS]];
+const IDLE_POSES = 3;
 /** monster id → the grounds whose packs and spawn rows name it. */
 function liveMonsters(grounds = HUNT_GROUNDS, hunts = HUNT_INDEX) {
   const out = new Map();
@@ -195,6 +198,12 @@ function liveFindings(monsters, sprites, atlasOf) {
     const got = sprites[id];
     if (!got) { out.push(`live: ${id} spawns on ${at} but no loaded atlas carries a sprite "${id}" (the renderer draws a brown stub box)`); continue; }
     const [fw, fh] = got.sprite.frame, atlas = atlasOf(got.set);
+    /* nothing alive is a still frame (ART_DIRECTION section 6): a standing monster plays a loop of at least IDLE_POSES different drawings */
+    const idle = got.sprite.anims.idle || { dirs: {} };
+    for (const d of FACINGS) {
+      const list = idle.dirs[d] || [];
+      if (list.length && (!idle.fps || !idle.loop || new Set(list.map(String)).size < IDLE_POSES)) out.push(`live: ${id} (${at}) stands still facing ${d}: its idle is ${new Set(list.map(String)).size} drawing(s) at ${idle.fps || 0} fps, loop ${!!idle.loop}`);
+    }
     for (const [name, dirs] of LIVE_CLIPS) for (const d of dirs) {
       const list = (got.sprite.anims[name] || { dirs: {} }).dirs[d] || [];
       if (!list.length) { out.push(`live: ${id} (${at}) has no ${name} facing ${d}`); continue; }
@@ -485,13 +494,17 @@ function selftest(atlases) {
         if (!any) blank = [xx, yy]; }
       return { anims: { ...sp.anims, corpse: { ...sp.anims.corpse, dirs: { ...sp.anims.corpse.dirs, s: [blank || [x, y]] } } } }; }));
   liveCase('a spawn whose monster has no sprite at all (the brown stub)', 'brown stub', new Map([...monsters, ['ghost_rat', new Set(['mill_cellar'])]]), sprites);
+  const idleOf = (id, over) => without(id, (sp) => ({ anims: { ...sp.anims, idle: over(sp.anims.idle) } }));
+  liveCase('a monster standing on one still frame in one facing', 'stands still facing e', monsters, idleOf('rat', (c) => ({ ...c, dirs: { ...c.dirs, e: c.dirs.e.slice(0, 1) } })));
+  liveCase('an idle of four rects that are one drawing', 'stands still facing s', monsters, idleOf('goblin_digger', (c) => ({ ...c, dirs: { ...c.dirs, s: c.dirs.s.map(() => c.dirs.s[0]) } })));
+  liveCase('an idle with no frame rate (it would hold its first frame)', 'stands still facing n', monsters, idleOf('gray_wolf', (c) => ({ ...c, fps: 0 })));
   /* a monster wearing another's drawing: the shipped sprites stay silent, the planted twin is named */
   const twinShipped = twinFindings(monsters, sprites, atlasOf);
   if (twinShipped.length) { console.error('world-assets --selftest: harness — two live monsters already share a drawing: ' + twinShipped.join('; ')); process.exit(2); }
   const twins = twinFindings(monsters, { ...sprites, drain_rat: sprites.rat }, atlasOf);
   if (twins.some((f) => f.includes('drain_rat') && f.includes('rat'))) console.log('  ✓ the Drain Rat wearing the Giant Rat: caught by [twin]');
   else { escaped++; console.log(`  ✗ the Drain Rat wearing the Giant Rat: NOT caught by [twin] (${twins.join('; ') || 'silent'})`); }
-  const LIVE_MUTANTS = 8;
+  const LIVE_MUTANTS = 11;
 
   // The sheet encoding: the committed bytes pass, RGBA is red, and the encoder gives back every pixel, transparent ones
   // included, past 256 colours too (it falls back to RGBA there, so no sheet can lose a colour to a palette).

@@ -20,6 +20,7 @@
 .hsum-when { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hsum-when:empty { display: none; }
 .hsum-reason { margin: 0 2px 10px; font-size: var(--t-small); color: var(--ink); line-height: 1.4; }
+.hsum-loss { margin: 4px 0 8px; color: var(--gold-2); font-size: 14px; }
 /* What it came to: one steel panel of figures, three to a row; each label sits on its value at the foot of its
    cell, so a label that wraps never lifts its number off the row; the long premium figure takes two cells. */
 .hsum-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 14px; margin: 0; padding: 10px 12px 12px; background: var(--fill-1); border: 2px solid var(--steel-edge); }

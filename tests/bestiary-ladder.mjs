@@ -57,7 +57,8 @@ function audit(w) {
      ladder is a spawn a long-term player cannot chase; a ladder without a
      monster is a badge that can never be earned and a claim key that dangles. */
   for (const id of Object.keys(roster)) {
-    if (!best[id]) say('B1', `monster "${id}" is in the roster and has no bestiary ladder`);
+    /* A called boss (src/data/boss-calls.js) is the one row with none: the Bestiary never counts him (tests/boss-call.mjs BC-ROW). */
+    if (!best[id] && roster[id].called !== true) say('B1', `monster "${id}" is in the roster and has no bestiary ladder`);
   }
   for (const id of Object.keys(best)) {
     if (!roster[id]) say('B1', `bestiary ladder "${id}" names no monster in the roster`);

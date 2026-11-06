@@ -39,7 +39,7 @@ const A = '000000c0-0000-4000-a000-0000901d7c01';
 const B = '000000c0-0000-4000-a000-0000901d7c02';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
-const CATALOGUE = '2027-02-28-titles-catalogue.generated.sql';
+const CATALOGUE = '2027-03-12-boss-call-titles-catalogue.generated.sql';
 const FILE = '2027-02-28-titles.sql';
 const COLORS = '2027-03-05-hero-colors.sql';   // restates hr_title_wear: a second apply of this file is followed by that one's, as the chain orders them
 const BUY = 'public.hr_title_buy(integer,text,bigint,uuid)';
@@ -361,8 +361,8 @@ const ARMS = {
   'TT-ZERO': async (db, X) => {
     const out = [];
     const [t] = await titles(db);
-    if (X.GEN.problemsOf({ ...X.T.TITLES, zz_prize: { ...X.T.TITLES[t.title_id], name: 'Grate Thief', words: 'the Grate Thief', price: 0 } }).length) out.push('the generator refuses a price of 0');
-    await db.query(`insert into public.hr_titles (title_id, words, price, kills, monsters, ord) values ('zz_prize', 'the Grate Thief', 0, 1, array[$1], 9999)`, [t.monsters[0]]);
+    if (X.GEN.problemsOf({ ...X.T.TITLES, zz_prize: { ...X.T.TITLES[t.title_id], name: 'Drain Thief', words: 'the Drain Thief', price: 0 } }).length) out.push('the generator refuses a price of 0');
+    await db.query(`insert into public.hr_titles (title_id, words, price, kills, monsters, ord) values ('zz_prize', 'the Drain Thief', 0, 1, array[$1], 9999)`, [t.monsters[0]]);
     await hero(db, A, 0, 'Marlow');
     const was = await purse(db);
     /* the kills still count at price 0 */
@@ -380,7 +380,7 @@ const ARMS = {
     if ((await journal(db, 0)).length !== 1) out.push(`${(await journal(db, 0)).length} journal rows for a free claim`);
     if (!(await held(db, 0)).some((x) => x.title_id === 'zz_prize')) out.push('the free claim gave nothing');
     r = await wear(db, 0, 'zz_prize');
-    if (!r || r.ok !== true || (await one(db, `select public.hr_title_of($1::uuid, 0)`, [A])) !== 'the Grate Thief') out.push('wearing the free title answered ' + JSON.stringify(r));
+    if (!r || r.ok !== true || (await one(db, `select public.hr_title_of($1::uuid, 0)`, [A])) !== 'the Drain Thief') out.push('wearing the free title answered ' + JSON.stringify(r));
     return out;
   },
 

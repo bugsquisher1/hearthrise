@@ -12,9 +12,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.97';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.97';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.97';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.98';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.98';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.98';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -192,7 +192,7 @@ export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3
    killed one for NO_FIGHT_END_MIN (combat-sim.js, the world's `fightAt`). The server reads
    this list as hr_hunt_end_reasons and as hunt_sessions.end_reason's CHECK
    (tools/gen-hunt-sessions.mjs). */
-export const END_ORDER = Object.freeze(['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'no_fight', 'server']);
+export const END_ORDER = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'left', 'changed', 'no_fight', 'server']);
 
 /* THE NO-FIGHT SPAN, in hunt minutes (the server reads it as hr_hunt_limits.no_fight_min). MEASURED on the real settle,
    every ground at its floor, solo and as a party with a Healer (tests/hunt-core/no-fight.mjs quiet-gaps): the longest
@@ -209,7 +209,7 @@ export const NO_FIGHT_END_MIN = 10;
    place later without touching the settle. A BENCH IS REMEMBERED BUT NEVER RESUMED
    (2027-02-15-panel-truth.sql hr_resume_has_inputs): a resume has no count, so it would spend
    a whole hunt's loot the player never pointed at. Gathering spends nothing and resumes. */
-export const RESUME_AFTER_END = Object.freeze(['died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'no_fight', 'server']);
+export const RESUME_AFTER_END = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'no_fight', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`
    is RESERVED for the combat redesign (train a chosen combat skill in town while
@@ -235,6 +235,9 @@ export const END_CARD_COPY = Object.freeze({
 export const END_REASON_COPY = Object.freeze({
   /* `{name}` the character, `{ground}` the hunt's name, both from the server. */
   died: Object.freeze({ one: '{name} died in {ground} and returned to town.' }),
+  /* CALL OUT (src/data/boss-calls.js): the kill and the limit. A death is `died` / `party_member_died`, as anywhere. */
+  boss_felled: Object.freeze({ one: 'He is down. {name} walked out of {ground}. There is a title to claim on the Character window, under Titles.' }),
+  boss_time: Object.freeze({ one: 'Ten minutes, and he still stands. {name} came home from {ground}.' }),
   /* LEAVE TOGETHER (Tyler 2026-10-22): `{member}` the party member whose hunt ended first (the server's
      hunt.session.end_by; "A party member" when it cannot say), `{name}` this hero. */
   party_member_died: Object.freeze({ one: '{member} fell, so {name} came home too.' }),

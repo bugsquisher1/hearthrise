@@ -37,19 +37,20 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.97';
-import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.97';
-import { rollDropTable } from './drops.js?v=0.2.97';
-import { yieldOf } from './hunt/damage.js?v=0.2.97';
-import { applyGoldFind } from './pacing.js?v=0.2.97';
-import { COMBAT_XP } from '../data/core-model.js?v=0.2.97';
-import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.97';
-import { resolveHearthfind } from './hearthfind.js?v=0.2.97';
-import { magicXpFor } from './hunt/xp-share.js?v=0.2.97';
-import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.97';
-import { makeEvent } from './hunt/events.js?v=0.2.97';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.98';
+import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.98';
+import { rollDropTable } from './drops.js?v=0.2.98';
+import { yieldOf } from './hunt/damage.js?v=0.2.98';
+import { applyGoldFind } from './pacing.js?v=0.2.98';
+import { COMBAT_XP } from '../data/core-model.js?v=0.2.98';
+import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.98';
+import { resolveHearthfind } from './hearthfind.js?v=0.2.98';
+import { magicXpFor } from './hunt/xp-share.js?v=0.2.98';
+import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.98';
+import { makeEvent } from './hunt/events.js?v=0.2.98';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
+
 
 /* THE DEFENSE XP of one monster blow aimed at member `m` (landed or turned aside):
    only while the hero wears armour; scaled by the attacker's level; a shield's
@@ -126,18 +127,37 @@ function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs, monId) {
   resolveHearthfind(lead.state, 'monster', kind, roll);
 }
 
+/* A CALLED FIGHT PAYS NOTHING (Tyler 2026-11-04; src/data/boss-calls.js): no XP on any route, no coin, no drop, no Hearthfind, no die drawn, and of the kill counters only the boss's own
+   `ev:kill_monster:<called row>`, the one number his title reads (the Bestiary's read leaves it out, and no kill is journalled, so a tally can't see it). One door, so a route added above
+   can't reach it. hr_hunt_apply_member refuses a window that says otherwise (tests/boss-call.mjs). */
+function calledSwing(members, events, unitOf, boss) {
+  const deaths = [];
+  for (const ev of events) {
+    if (ev.type !== 'kill') continue;
+    const t = unitOf(ev.t);
+    if (t && t.side === 'mon' && t.kind === boss) {
+      for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });
+    } else if (members.has(ev.t)) {
+      const k = unitOf(ev.u);
+      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });
+    }
+  }
+  return deaths;
+}
+
 /**
  * Pay one swing. `members` maps a hero unit id to its member:
  *   { state, hs, fx, family (the weapon family), armoured, shield, bonus(key),
  *     weakness(monsterRow) → { dropMult } }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
  * `ctx` = { rng (the swing's `r` stream), monsters?, tier? (the hunt's hunt-tiers.js row), hearthfind? (the indexed table; the catalogue's when absent),
- *   emit?(event) (the instance's world events: a party's `rare_roll`) }.
+ *   emit?(event) (the instance's world events: a party's `rare_roll`), call? (the room's boss call: it pays nothing) }.
  * Answers the swing's deaths: [{ unit, atMs, monster }], in event order.
  */
 export function rewardSwing(members, events, world, ctx) {
   const unitOf = (id) => world.units.find((u) => u.id === id) || null;
   const presentIds = () => world.units.filter((u) => u.side === 'hero' && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
+  if (ctx.call) return calledSwing(members, events, unitOf, ctx.call.monster);
   const deaths = [];
   for (const ev of events) {
     switch (ev.type) {

@@ -172,6 +172,9 @@ export const MUTANTS = {
   tab_hidden: { arm: 'TW-WINDOW', why: 'the Works tab stays hidden', js: ['src/shell/windows/havora/works.js', [["label: 'Works', shown: true", "label: 'Works', shown: false"]]] },
   answer_in_the_flow: { arm: 'TW-WINDOW', why: 'a refusal is drawn under the fold, where a short window never shows it', js: ['src/shell/windows/havora/works.js', [["  text(root.querySelector('.hh-intent-msg'), sc.msg);\n", "  text(pane.querySelector('.hv-works-msg'), sc.msg);\n"]]] },
   day_in_the_flow: { arm: 'TW-WINDOW', why: 'what the day leaves is cut off at the window\'s foot', js: ['src/shell/windows/havora/works.js', [["  text(root.querySelector('.hv-count[data-of=\"works\"]'), w ? todayWords(w) : '');\n", "  text(pane.querySelector('.hv-works-today'), w ? todayWords(w) : '');\n"]]] },
+  gift_over_purse_on: { arm: 'TW-WINDOW', why: 'a gift the purse can\'t pay stays live and is refused after the press', js: ['src/shell/windows/havora/works.js', [["prop(b, 'disabled', off || short > 0);", "prop(b, 'disabled', off);"]]] },
+  max_ignores_purse: { arm: 'TW-WINDOW', why: 'the last button offers today\'s room over a short purse', js: ['src/shell/windows/havora/works.js', [['return Number.isSafeInteger(purse) ? Math.max(0, Math.min(w.maxGift, purse)) : w.maxGift;', 'return w.maxGift;']]] },
+  purse_unsaid: { arm: 'TW-WINDOW', why: 'nothing under the buttons says why they are off', js: ['src/shell/windows/havora/works.js', [["  text(pane.querySelector('.hv-works-why'), purseWords(w, purse, row.gifts));\n", '']]] },
   max_ignores_project: { arm: 'TW-WINDOW', why: 'the last button says "left today" when the project needs less', js: ['src/shell/windows/havora/works.js', [["  return w.left < w.leftToday ? 'Give the ' + gold(w.maxGift) + ' it still needs' : 'Give the ' + gold(w.maxGift) + ' left today';", "  return 'Give the ' + gold(w.maxGift) + ' left today';"]]] },
   parse_trusts_junk: { arm: 'TW-WINDOW', why: 'a broken answer reaches the window', js: ['src/session/town-intents.js', [["  if (!isObj(b) || b.ok !== true || !word(b.project) || int(b.total) === null || int(b.goal) === null || int(b.stage) === null || !Array.isArray(b.stage_at)) return null;\n", "  if (!isObj(b)) return null;\n"]]] },
   giver_names_total: { arm: 'TW-WINDOW', why: 'the intent sends more than the gift', js: ['src/session/town-intents.js', [["p_project: project, p_amount: amount, p_idem:", "p_project: project, p_amount: amount, p_total: amount, p_idem:"]]] },
@@ -812,6 +815,24 @@ const ARMS = {
     const footed = await footOf(X, await as(db, A, 'select public.hr_town_works_view(0)'));
     if (footed.day !== 'You can give 25,000 gp more today. More after midnight UTC.') out.push('the foot\'s day line reads ' + JSON.stringify(footed.day));
     if (footed.said !== 'The smallest gift is 100 gp.') out.push('the foot\'s answer reads ' + JSON.stringify(footed.said));
+    /* A GIFT THE PURSE CAN'T PAY IS OFF BEFORE THE PRESS, AND SAYS WHY (v0.2.97 gate: a 500 gp purse saw "Give 1,000 gp", "Give 5,000 gp" and "Give the 25,000 gp left
+       today" live, and "Not enough gold." only after the press). The purse is the envelope's; the room is the server's; the last button gives the smaller. */
+    const room = await as(db, A, 'select public.hr_town_works_view(0)');
+    const poor = await giftsOf(X, room, 500);
+    if (poor.gifts.some((g) => !g.off) || poor.gifts.map((g) => g.why).join('|') !== 'You need 500 gp more.|You need 4,500 gp more.') out.push('with 500 gp the gifts read ' + JSON.stringify(poor.gifts));
+    /* the last button says the purse itself; a line more pushed the custom gift under a 1366x768 window's foot (chat-social CW-HAVORA measures it) */
+    if (poor.max.words !== 'Give the 500 gp you have' || poor.max.off || poor.max.hidden || poor.cap !== '500' || poor.why) out.push('with 500 gp the last button and its line read ' + JSON.stringify(poor));
+    /* where the last button gives what the project still needs, the purse under a gift says it on the line */
+    const near = await giftsOf(X, { ...room, left: 800, max_gift: 800 }, 900);
+    if (near.gifts[0].off !== true || near.max.words !== 'Give the 800 gp it still needs' || near.why !== 'You have 900 gp. A gift can\'t be more than your purse.') out.push('near the finish with 900 gp the window reads ' + JSON.stringify(near));
+    if (poor.sent.join() !== '500') out.push('with 500 gp the last button sent ' + JSON.stringify(poor.sent));
+    const flush = await giftsOf(X, room, 30000);
+    if (flush.gifts.some((g) => g.off || g.why) || flush.max.words !== 'Give the 25,000 gp left today' || flush.why || flush.sent.join() !== '25000') out.push('with 30,000 gp the window reads ' + JSON.stringify(flush));
+    const unsaid = await giftsOf(X, room, null);
+    if (unsaid.gifts.some((g) => g.off) || unsaid.max.words !== 'Give the 25,000 gp left today' || unsaid.why) out.push('with no purse stated the window judges for the server: ' + JSON.stringify(unsaid));
+    const empty = await giftsOf(X, room, 0), crumbs = await giftsOf(X, room, 50);
+    if (empty.gifts.some((g) => !g.off) || !empty.max.hidden || !empty.typed || empty.why !== 'Your purse is empty.' || empty.sent.length) out.push('an empty purse reads ' + JSON.stringify(empty));
+    if (!crumbs.max.hidden || !crumbs.typed || crumbs.why !== 'You have 50 gp, and the smallest gift is 100 gp.') out.push('a purse under the smallest gift reads ' + JSON.stringify(crumbs));
     /* THE SERVER'S ANSWER, read field by field */
     await give(db, A, 0, 2000);
     const view = await as(db, A, 'select public.hr_town_works_view(0)');
@@ -869,6 +890,33 @@ async function footOf(X, view) {
   X.WK.actWorks(ctx, pane, 'works-typed', { type: 'click' }, el('.hv-works-typed'));
   X.WK.patchWorks(pane, ctx);
   return { day: el('.hv-count[data-of="works"]').textContent, said: el('.hh-intent-msg').textContent };
+}
+
+/* patchWorks over plain elements with the envelope's purse (`state.gold`), the gift buttons as the pane draws them: what each button, the last button,
+   the field and the line under them end up as, and what a press on the last button sends. */
+async function giftsOf(X, view, purse) {
+  const els = new Map();
+  const fake = (amount) => {
+    const at = {};
+    return { textContent: '', value: '', disabled: false, hidden: false, firstElementChild: null, at, style: { getPropertyValue: () => '', setProperty() {}, removeProperty() {} },
+      getAttribute: (k) => (k === 'data-amount' && amount !== null ? String(amount) : k in at ? at[k] : null), setAttribute: (k, v) => { at[k] = String(v); },
+      hasAttribute: (k) => k in at, removeAttribute: (k) => { delete at[k]; }, classList: { contains: () => false, toggle() {} } };
+  };
+  const el = (s) => { if (!els.has(s)) els.set(s, fake(null)); return els.get(s); };
+  const gifts = X.TWD.TOWN_WORKS.weighhouse.gifts.map(fake);
+  const pane = { querySelector: (s) => (s === '[data-hs-act="works-typed"]' ? el('typed') : el(s)), querySelectorAll: (s) => (s === '[data-hs-act="works-give"]' ? gifts : []), ownerDocument: {}, closest: () => ({ querySelector: el }) };
+  const sent = [];
+  const cs = { slot: 0, status: 'open', load: async () => {}, read: (k) => (k === 'state' && purse !== null ? { gold: purse, gold_v: 1 } : undefined) };
+  const rpc = async (name, args) => { if (name === 'hr_town_works_view') return { ok: true, body: { ...view, plaque: [] } }; sent.push(args); return { ok: true, body: { ok: true, amount: args.p_amount, total: 1, goal: 2, stage: 0 } }; };
+  const ctx = { character: cs, account: { server: { rpc } }, now: () => 1000, refresh: () => {} };
+  X.WK.patchWorks(pane, ctx);
+  await new Promise((r) => setTimeout(r, 20));
+  X.WK.patchWorks(pane, ctx);
+  const max = el('.hv-works-max');
+  const out = { gifts: gifts.map((b) => ({ amount: Number(b.getAttribute('data-amount')), off: b.disabled, why: b.getAttribute('data-off-why') })),
+    max: { words: max.textContent, off: max.disabled, hidden: max.hidden }, typed: el('typed').disabled, cap: el('.hv-works-amount').getAttribute('max'), why: el('.hv-works-why').textContent };
+  if (!max.hidden && !max.disabled) { X.WK.actWorks(ctx, pane, 'works-max', { type: 'click' }, max); await new Promise((r) => setTimeout(r, 20)); }
+  return { ...out, sent: sent.map((a) => a.p_amount) };
 }
 
 function plantSql(text, [, find, repl]) {

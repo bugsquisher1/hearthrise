@@ -235,6 +235,9 @@ const cases = {
     const set = (id, c) => M.W.setupNote({ action: { type: 'ability', id }, conditions: [c], join: 'and' }, 1);
     if (!/^With fewer than 3 monsters/.test(set('fireball', { metric: 'enemies_in_aoe', op: 'gte', value: 3 }))) return 'three on the area reads ' + JSON.stringify(set('fireball', { metric: 'enemies_in_aoe', op: 'gte', value: 3 }));
     if (!/never gets to 2/.test(set('power_strike', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a strike wanting 2 reads ' + JSON.stringify(set('power_strike', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));
+    /* A Cleave hits up to three beside its hero (abilities.js maxHits): two is a crowd it can see, four never comes. */
+    if (/never gets to/.test(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a Cleave wanting 2 reads ' + JSON.stringify(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));
+    if (!/reaches 3 monsters at most, so it never gets to 4/.test(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 4 }))) return 'a Cleave wanting 4 reads ' + JSON.stringify(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 4 }));
     return /never happens/.test(set('mend', { metric: 'self_hp_pct', op: 'lt', value: 0 })) ? null : 'below 0% HP reads ' + JSON.stringify(set('mend', { metric: 'self_hp_pct', op: 'lt', value: 0 }));
   },
 };
@@ -259,7 +262,7 @@ const MUTANTS = [
   { name: 'the tester writes to the world it reads', case: 'display-only',
     edits: [['src/hunt-view/live-engine.js', '    const t = testSlot(inst, u, h, slot);\n', '    const t = testSlot(inst, u, h, slot);\n    u.mana -= 1;\n']] },
   { name: 'the words read a different footprint from the slot\'s', case: 'configure-note',
-    edits: [['src/shell/slot-waits.js', "  if (c.metric === 'enemies_in_aoe') { const n = footprintOf(slot, null); return n * n; }\n", '']] },
+    edits: [['src/shell/slot-waits.js', "  if (c.metric === 'enemies_in_aoe') return areaTopOf(slot, null);\n", '']] },
   { name: 'a slot ignoring its hero\'s target is read as a failed condition', case: 'ignored',
     edits: [['src/hunt-view/live-engine.js', 'ignored: aimsAtMonsters(slot) && ignores(slot, target) };', 'ignored: false };']] },
   { name: 'an empty slot asks the engine (every frame of a fight threw)', case: 'order',

@@ -102,6 +102,8 @@ for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) {
   });
 }
 for (const id of Object.keys(MONSTERS).sort()) {
+  /* A CALLED ROW IS NO ACTIVITY (Call out, src/data/boss-calls.js): one verb reaches its room; no combat pointer, renown or fight clamp ever names it. */
+  if (MONSTERS[id].called === true) continue;
   const hp = Math.trunc(Number(MONSTERS[id].hp));
   /* FAIL THE GENERATOR, not the migration. A monster with no positive HP would
      emit a null ceiling, and a null ceiling makes hr_apply's fight clamp

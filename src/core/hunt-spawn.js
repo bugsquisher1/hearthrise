@@ -4,14 +4,15 @@
 // roll is src/core/hunt/pull-cycle.js (every pack spawns from its pocket's
 // rows): the C2 single-foe `pickSpawn` was retired with the single-foe swing
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.97';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.97';
-import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.97';
-import { disciplineAbilities } from '../data/abilities.js?v=0.2.97';
-import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.97';
-import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.97';
-import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.97';
-import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.97';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.98';
+import { densityFor, partyPick, packHpFor } from '../data/hunt-grounds.js?v=0.2.98';
+import { MONSTERS } from '../data/monsters.js?v=0.2.98';
+import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.98';
+import { disciplineAbilities } from '../data/abilities.js?v=0.2.98';
+import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.98';
+import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.98';
+import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.98';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.98';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -111,6 +112,15 @@ export function newHuntWorld(ground, grid, party, o) {
   const inst = { world, ground, grid, occ: null, makeUnit };
   for (let p = 0; p < ground.pockets.length; p++) spawnPack(inst, p, null);
   return world;
+}
+
+/** A CALLED ROOM'S ONE SPAWN (src/data/boss-calls.js): each monster's HP for the `heroes` walking in, as the ground's party scale reads it (hunt-grounds.js packHpFor). */
+export function scaleRoomFor(world, ground, heroes) {
+  for (const u of world.units) {
+    if (u.side !== 'mon') continue;
+    u.maxHp = packHpFor(ground, MONSTERS[u.kind], heroes);
+    u.hp = u.maxHp;
+  }
 }
 
 /**

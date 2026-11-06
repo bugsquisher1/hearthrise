@@ -16,13 +16,13 @@
 // tooltip and on Configure action's first line, or every food slot on the bar would look broken at full health.
 // Display only: an answer is worth one frame, and nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS } from '../data/condition-metrics.js?v=0.2.97';
-import { footprintOf } from '../core/hunt/conditions.js?v=0.2.97';
-import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.97';
-import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.97';
-import { conditionWords } from './bar-draft.js?v=0.2.97';
-import { reasonOf, holdingReason } from './action-facts.js?v=0.2.97';
-import { carryRows } from './carry-in.js?v=0.2.97';
+import { METRICS } from '../data/condition-metrics.js?v=0.2.98';
+import { areaTopOf } from '../core/hunt/conditions.js?v=0.2.98';
+import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.98';
+import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.98';
+import { conditionWords } from './bar-draft.js?v=0.2.98';
+import { reasonOf, holdingReason } from './action-facts.js?v=0.2.98';
+import { carryRows } from './carry-in.js?v=0.2.98';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 /* The tests that mark a slot, and the glyph each marks it with. */
@@ -30,10 +30,10 @@ const MARKS = Object.freeze({ enemies_in_aoe: 'uiTarget', allies_below: 'uiPeopl
 
 /* The least an "at least" count test wants ("at or above 2" and "above 1" both want 2); null for any other test. */
 const atLeast = (c) => (c.op === 'gte' ? c.value : c.op === 'gt' ? c.value + 1 : null);
-/* The most a count can read: the party's heroes, or the tiles the slot's action covers (conditions.js footprintOf). */
+/* The most a count can read: the party's heroes, or the monsters the slot's action can hit (conditions.js areaTopOf: a Cleave's maxHits, else its footprint's tiles). */
 function topOf(c, slot, party) {
   if (c.metric === 'allies_below') return party;
-  if (c.metric === 'enemies_in_aoe') { const n = footprintOf(slot, null); return n * n; }
+  if (c.metric === 'enemies_in_aoe') return areaTopOf(slot, null);
   return null;
 }
 /* Can `c` ever hold on `slot` in a party of `party`? */

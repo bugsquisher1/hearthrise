@@ -177,9 +177,9 @@ async function scenario(db, wipeSql) {
     for (const t of everyPlayer) if (!WIPE.has(t) && !KEEP.has(t) && !MARKET.has(t)) wrong.push(t + ' has a user_id and is on no player list');
     arm('CW-LISTS', !wrong.length && WIPE.size >= 99, `${WIPE.size} tables go, ${KEEP.size} stay, ${NOP.size} name no player; ${everyPlayer.length} tables with a user_id all placed, every census class agrees`, wrong.join('; '));
 
-    /* CW-SINKS: the design's wipe table, whatever has landed so far. hr_boss_calls waits on Tyler's word, so it isn't listed yet. */
+    /* CW-SINKS: the design's wipe table, whatever has landed so far. */
     const SINK_GOES = ['town_shows', 'account_gold_given', 'player_titles', 'town_works_totals', 'town_works_gifts'];
-    const SINK_NAMES_NOBODY = ['hr_sink_rules', 'hr_titles', 'hr_town_works'];
+    const SINK_NAMES_NOBODY = ['hr_sink_rules', 'hr_titles', 'hr_town_works', 'hr_boss_calls'];
     /* read from the text this run applies, not the file on disk: a mutant moves the lists */
     const [goes, stays, nobody] = ['wipe', 'keep', 'no_player'].map((l) => new Set(listOf(l, wipeSql)));
     const sinkBad = [...SINK_GOES.filter((t) => !goes.has(t) || nobody.has(t) || stays.has(t)), ...SINK_NAMES_NOBODY.filter((t) => !nobody.has(t) || goes.has(t) || stays.has(t))];
@@ -190,7 +190,7 @@ async function scenario(db, wipeSql) {
     if (sinkRows < 4) throw Object.assign(new Error('the played account holds no sink rows: ' + sinkRows), { harness: true });
     const worksRows = (await one('select count(*)::int from public.town_works_totals')) + (await one('select count(*)::int from public.town_works_gifts where user_id = $1', [A]));
     if (worksRows !== 2) throw Object.assign(new Error('the Works hold no rows to wipe: ' + worksRows), { harness: true });
-    arm('CW-SINKS', !sinkBad.length && !goes.has('hr_boss_calls') && !nobody.has('hr_boss_calls'),
+    arm('CW-SINKS', !sinkBad.length,
       `${SINK_GOES.length} sink tables go, ${SINK_NAMES_NOBODY.length} name nobody, each on its list; ${sinkAbsent.length} of them don't exist yet (${sinkAbsent.join(', ') || 'none'}) and the wipe below skips those`,
       'a sink table is on the wrong list, or none: ' + sinkBad.join(', '));
 
@@ -224,9 +224,13 @@ async function scenario(db, wipeSql) {
     }
     arm('CW-UNKNOWN', !unknownBad.length, 'a table on no list, or a no-player table that names one, stops the wipe by name', unknownBad.join('; '));
 
+    /* A LISTED TABLE THAT DOES NOT EXIST YET (a lane not landed) is skipped, never fatal. Planted here for each list the file counts, so the
+       mutants that drop the skip are seen whatever the chain holds (release/v0.2.97: the Works tables landed, none was absent, one survived). */
+    const absent = { wiped: await plantAbsent(db, one, attempt, listOf('wipe', wipeSql), wipeSql), kept: await plantAbsent(db, one, attempt, [...listOf('keep', wipeSql), ...listOf('no_player', wipeSql)], wipeSql) };
+
     /* THE WIPE (the market's half already ran, above, in its place in the order) */
     const eWipe = await apply(wipeSql);
-    arm('CW-APPLY-SELF', eWipe === null, 'the file applied: its §2 proved the wipe and a probe through hero creation and every tick job', 'the file refused: ' + eWipe);
+    arm('CW-APPLY-SELF', eWipe === null, `the file applied with listed tables absent (wiped: ${absent.wiped}; kept: ${absent.kept}): its §2 proved the wipe and a probe through hero creation and every tick job`, 'the file refused: ' + eWipe);
     if (eWipe) return red;
 
     /* CW-APPLY */
@@ -332,11 +336,27 @@ async function scenario(db, wipeSql) {
   }
 }
 
+/* One table on `names` that does not exist when the wipe applies: one already absent on this chain, or else the first that nothing this run
+   executes names (a function body, a job, a file it applies, this guard), dropped inside the scenario's transaction (RESTRICT: a view, key or
+   policy on it refuses, and the next is tried). Returns it, said how. */
+const SELF_SRC = await readFile(new URL(import.meta.url), 'utf8');
+async function plantAbsent(db, one, attempt, names, wipeSql) {
+  const gone = (await db.query(`select t from unnest($1::text[]) t where to_regclass('public.' || t) is null`, [names])).rows.map((r) => r.t);
+  if (gone.length) return gone[0] + ' (not landed)';
+  const body = wipeSql.replace(/c_[a-z_]+ constant text\[\] := array\[[\s\S]*?\];/g, '');
+  const ran = [SRC.on, SRC.off, SRC.mWipe, SRC.resume, body, SELF_SRC].join('\n');
+  const free = (await db.query(`select t from unnest($1::text[]) with ordinality u(t, i)
+     where not exists (select 1 from pg_proc p where p.prosrc ~ ('\\m' || t || '\\M')) and not exists (select 1 from cron.job j where j.command ~ ('\\m' || t || '\\M'))
+     order by i`, [names])).rows.map((r) => r.t).filter((t) => !new RegExp('\\b' + t + '\\b').test(ran));
+  for (const t of free) if (!(await attempt(() => db.exec(`drop table public.${t}`))).e && (await one('select to_regclass($1) is null', ['public.' + t]))) return t + ' (dropped here)';
+  throw Object.assign(new Error('no listed table can be planted absent: every one is named by a function, a job or a file this guard runs (' + names.length + ' tried)'), { harness: true });
+}
+
 /* Most of these the file's own §2 refuses before behaviour runs, which is the §4 self-check doing its job: CW-APPLY-SELF. */
 const MUTANTS = [
   { id: 'sink_table_unlisted', arm: 'CW-SINKS', why: 'a sink table leaves the wipe list', edits: [["'account_gold_given', 'player_titles', 'town_shows',", "'player_titles', 'town_shows',"]] },
   { id: 'works_total_kept', arm: 'CW-WORKS', why: 'a finished Weighhouse survives the wipe', edits: [["'town_works_gifts', 'town_works_totals',", "'town_works_gifts',"], ["'hr_lb_hidden', 'hr_name_holds',", "'town_works_totals', 'hr_lb_hidden', 'hr_name_holds',"]] },
-  { id: 'sink_catalogue_wiped', arm: 'CW-SINKS', why: 'the wipe truncates the prices', edits: [["'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works'];", "'hr_account_deletion_log', 'hr_titles', 'hr_town_works'];"], ["'account_gold_given', 'player_titles',", "'hr_sink_rules', 'account_gold_given', 'player_titles',"]] },
+  { id: 'sink_catalogue_wiped', arm: 'CW-SINKS', why: 'the wipe truncates the prices', edits: [["'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works', 'hr_boss_calls'];", "'hr_account_deletion_log', 'hr_titles', 'hr_town_works'];"], ["'account_gold_given', 'player_titles',", "'hr_sink_rules', 'account_gold_given', 'player_titles',"]] },
   { id: 'wipe_needs_every_table', arm: 'CW-APPLY-SELF', why: 'a listed table that does not exist yet stops the wipe', edits: [["    if to_regclass('public.' || t) is not null then\n      v_present := v_present || t;", "    if true then\n      v_present := v_present || t;"]] },
   { id: 'kept_count_needs_every_table', arm: 'CW-APPLY-SELF', why: 'a no-player table that does not exist yet stops the wipe', edits: [["    if to_regclass('public.' || t) is not null then\n      execute format('select count(*) from public.%I', t) into v_n;\n      v_kept", "    if true then\n      execute format('select count(*) from public.%I', t) into v_n;\n      v_kept"]] },
   { id: 'open_game', arm: 'CW-REFUSE', why: 'the wipe runs in an open game', edits: [["  if not coalesce((select enabled from public.hr_flags where key = 'closed_mode'), false) then\n    raise exception 'PRECONDITION: closed_mode", "  if false then\n    raise exception 'PRECONDITION: closed_mode"]] },

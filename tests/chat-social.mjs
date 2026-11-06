@@ -717,6 +717,43 @@ async function pageRules(overrides, shots) {
         return at;
       });
       if (!fit.scrolls || !fit.day || !fit.said || !fit.flush || !fit.dayEnd || !fit.saidEnd || !fit.reach) fails.push('CW-HAVORA [' + tag + '] the window cuts something off at its foot: ' + JSON.stringify(fit));
+      // CW-HAVORA-GIFT (v0.2.97 gate): the Works tab with a 500 gp purse, patched by works.js itself, in the Havora window as tall as 1366x768 allows (its body 381 px): the
+      // custom gift's field and Give keep their height and read above the window's foot at the top of the pane (a purse line under the gifts pushed them under it); with
+      // the purse line showing (900 gp, a project 800 gp from done) they keep their height too, and the body scrolls to them.
+      if (vp.width >= 1366) {
+        const gift = await page.evaluate(async () => {
+          const { renderHavora } = await import(new URL('src/shell/windows/havora/index.js', location.href).href);
+          const { patchWorks } = await import(new URL('src/shell/windows/havora/works.js', location.href).href);
+          const view = { ok: true, project: 'weighhouse', name: 'The Weighhouse', total: 0, goal: 1000000, left: 1000000, stage: 0, stage_at: [0, 100000, 300000, 600000, 1000000], finished: false,
+            min_gift: 100, per_day: 25000, given_today: 0, left_today: 25000, max_gift: 25000, last_gift: null, gold: 0, place: null, plaque: [] };
+          const one = async (purse, more) => {
+            const win = document.createElement('div');
+            win.className = 'hs-win';
+            win.style.cssText = 'right: 12px; width: 420px; max-height: 381px;';
+            win.innerHTML = '<div class="hs-win-body">' + renderHavora({}) + '</div>';
+            document.querySelector('.hs-layer').appendChild(win);
+            const pane = win.querySelector('[data-pane="works"]');
+            pane.classList.add('is-on');
+            win.querySelector('.hv-count[data-of="works"]').classList.add('is-on');
+            const cs = { slot: 0, status: 'open', load: async () => {}, read: (k) => (k === 'state' ? { gold: purse, gold_v: 1 } : undefined) };
+            const ctx = { character: cs, account: { server: { rpc: async () => ({ ok: true, body: Object.assign({}, view, more) }) } }, now: () => 1000, refresh: () => {} };
+            /* patch until the read has landed (a loaded box answers late), as the window's own re-patch does */
+            const max = win.querySelector('.hv-works-max');
+            patchWorks(pane, ctx);
+            for (let i = 0; i < 150 && !max.textContent; i++) { await new Promise((r) => setTimeout(r, 20)); patchWorks(pane, ctx); }
+            const r = (s) => win.querySelector(s).getBoundingClientRect();
+            const field = r('.hv-works-amount'), give = r('[data-hs-act="works-typed"]'), foot = r('.hv-foot'), body = win.querySelector('.hs-win-body');
+            const out = { read: max.textContent, why: win.querySelector('.hv-works-why').textContent, field: Math.round(field.height), give: Math.round(give.height),
+              reads: field.top + field.height / 2 < foot.top && give.top + give.height / 2 < foot.top, scrolls: body.scrollHeight > body.clientHeight };
+            win.remove();
+            return out;
+          };
+          return { poor: await one(500, {}), near: await one(900, { left: 800, max_gift: 800 }) };
+        });
+        if (gift.poor.read !== 'Give the 500 gp you have' || gift.near.read !== 'Give the 800 gp it still needs') fails.push('CW-HAVORA-GIFT [' + tag + '] CONTROL: the Works read never landed: ' + JSON.stringify(gift));
+        else if (gift.poor.field < 30 || gift.poor.give < 30 || !gift.poor.reads) fails.push('CW-HAVORA-GIFT [' + tag + '] with 500 gp the custom gift does not read above the foot: ' + JSON.stringify(gift.poor));
+        if (!gift.near.why || gift.near.field < 30 || gift.near.give < 30 || !gift.near.scrolls) fails.push('CW-HAVORA-GIFT [' + tag + '] with the purse line the custom gift loses its height: ' + JSON.stringify(gift.near));
+      }
       // CW-CRIER: the Town Crier on the Global tab: the server's price on the button, a refusal in the Crier's words, a paid line that can't be missed
       const crierBtn = await page.$('[data-hs-win="chat"] .hc-crier-open');
       if (!crierBtn || !(await crierBtn.isVisible())) fails.push('CW-CRIER [' + tag + '] no Town Crier button on Global');
@@ -1030,6 +1067,7 @@ const PAGE_MUTANTS = [
   ['a paid line draws plain', 'src/shell/windows/chat.js', "'<li class=\"hc-line' + (l.crier ? ' is-crier' : '') + '\">", "'<li class=\"hc-line\">"],
   ['a paid line has no mark', 'src/shell/windows/chat.js', "(l.crier ? crierMarkHtml() + ' ' : '')", "''"],
   ['a paid line has no band', 'src/styles/hunt.css', 'background: var(--chat-crier-band); color: var(--gold-2); font-weight: 700; }', 'color: var(--gold-2); font-weight: 700; }'],
+  ['a purse line pushes the custom gift under the Havora foot (CW-HAVORA-GIFT)', 'src/shell/windows/havora/works.js', "  if (purse < w.maxGift) return '';\n", ''],
   ['the Havora foot scrolls away (CW-HAVORA)', 'src/styles/windows.css', '.hv-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 6px 0 12px;', '.hv-foot { padding: 6px 0 12px;'],
   ['a sliver of the pane shows under the Havora foot (CW-HAVORA)', 'src/styles/windows.css', '.hv-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 6px 0 12px;', '.hv-foot { position: sticky; bottom: 0; padding: 6px 0 0;'],
   ['the Crier shows off Global', 'src/shell/windows/chat-crier.js', "prop(btn, 'hidden', !global);", "prop(btn, 'hidden', false);"],

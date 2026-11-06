@@ -18,9 +18,11 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.97';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.97';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.97';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.98';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.98';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.98';
+import { callOfHunt } from '../data/boss-calls.js?v=0.2.98';
+import { lossLine } from './boss-loss.js?v=0.2.98';
 
 export { sanitizeSummaries };
 
@@ -28,6 +30,7 @@ export { sanitizeSummaries };
 /** Why a hunt ended, as a sentence (one per END_ORDER name; a guard in tests/hunt-summary.mjs keeps them equal). */
 export const END_WORDS = Object.freeze({
   died: 'Your hero died and returned to town.',
+  boss_felled: 'He is down. There is a title to claim on the Character window, under Titles.',
   party_member_died: 'A party member fell, so your hero came home too.',
   party_member_left: 'A party member left the hunt, so your hero came home too.',
   heals_out: 'You ran out of healing supplies.',
@@ -36,6 +39,7 @@ export const END_WORDS = Object.freeze({
   rule: 'One of your stop rules was met, so you headed home.',
   stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\'t hunting.',
   hours: 'The hunt reached its time limit.',
+  boss_time: 'Ten minutes, and he still stands. Your party came home.',
   left: 'You left the hunt.',
   changed: 'You moved on to another hunt.',
   no_fight: END_REASON_COPY.no_fight.one,
@@ -110,6 +114,8 @@ export function endedSessionOf(cs) {
     enteredMs: ms(s.entered_at), endedMs: ms(s.ended_at), bag,
     tally: isObj(s.tally) ? s.tally : null,
     died: int(isObj(s.tally) ? s.tally.deaths : null),
+    /* A called fight's record, the server's (hunt_session_tally.fight): the losing line reads it. */
+    fight: isObj(s.tally) && isObj(s.tally.fight) ? s.tally.fight : null,
   };
 }
 
@@ -118,8 +124,9 @@ export function endedSessionOf(cs) {
  * @param {object} s         endedSessionOf(cs)
  * @param {object|null} an   analyzerOf(cs) (hunt-sections.js) or null
  * @param {string[]} deaths  the death explanations' headlines (death-explain.js)
+ * @param {string|null} [role]  this hero's role, for a called fight's losing line
  */
-export function buildSummary(s, an, deaths) {
+export function buildSummary(s, an, deaths, role) {
   const hero = an && an.hero;
   const ph = hero && hero.perHour ? hero.perHour : null;
   const t = s.tally || {};
@@ -143,6 +150,7 @@ export function buildSummary(s, an, deaths) {
     balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawLevelXp : null,
     died: s.died, loot, supplies,
     preset: s.preset, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
+    loss: lossLine({ hunt: s.hunt, reason: s.reason, fight: s.fight || null, role: role || null }),
   });
 }
 
@@ -159,7 +167,8 @@ export function withSummary(list, summary) {
  * @returns {{hunt: string, bag: {item: string, qty: number, essential?: boolean}[], preset: number, hours: number|null}|null}
  */
 export function huntAgainOf(summary) {
-  if (!summary || !summary.hunt || summary.preset === null) return null;
+  /* A called room has one door, its paid press on the ground's page (src/data/boss-calls.js): no free way back. */
+  if (!summary || !summary.hunt || summary.preset === null || callOfHunt(summary.hunt)) return null;
   return {
     hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,
     bag: summary.bag.map(([item, qty, ess]) => (ess ? { item, qty, essential: true } : { item, qty })),

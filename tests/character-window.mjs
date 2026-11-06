@@ -239,6 +239,32 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(900);
         const saves = s.calls.filter((c) => c.name === 'hr_outfit_set');
         if (saves.length !== 1 || saves[0].body.p_outfit !== 'ranger' || JSON.stringify(saves[0].body.p_colors) !== '{}' || saves[0].body.p_slot !== 0) fails.push('CW-4 Save sent ' + JSON.stringify(saves.map((c) => c.body)));
+        /* CW-4b: SAVE COLORS THE PURSE CAN'T PAY (v0.2.97 gate: "Save colors: 1,550 gp" live on a 400 gp purse, refused only after the press): off before the press,
+           the line under it says how much more, a press sends nothing; the envelope's next purse turns it back on. */
+        await page.click('[data-hs-act="of-pick"][data-outfit="knight"]');
+        if (!(await wait(page, () => document.querySelector('.hw-of-dye.is-on [data-hs-act="of-dye"]'), null, 8000))) fails.push('CW-4b CONTROL: the knight offers no colors to try on');
+        else {
+          await page.click('[data-hs-act="of-dye"][data-dye="7"]');
+          const colors = () => page.evaluate(() => { const b = document.querySelector('[data-hs-act="of-colors"]'); return { words: b.textContent, off: b.disabled, why: b.getAttribute('data-off-why'), line: document.querySelector('.hw-of-why').textContent }; });
+          await wait(page, () => /Save colors: 1,550 gp/.test(document.querySelector('[data-hs-act="of-colors"]').textContent), null, 4000);
+          const rich = await colors();
+          if (rich.words !== 'Save colors: 1,550 gp' || rich.off || rich.line) fails.push('CW-4b with 5,200 gp Save colors reads ' + JSON.stringify(rich));
+          const was = s.env.state;
+          s.env.state = Object.assign({}, was, { gold: 400, gold_v: 3 });
+          await push(page, s);
+          await wait(page, () => document.querySelector('[data-hs-act="of-colors"]').disabled, null, 4000);
+          const poor = await colors();
+          if (!poor.off || poor.line !== 'You need 1,150 gp more.' || poor.why !== 'You need 1,150 gp more.' || poor.words !== 'Save colors: 1,550 gp') fails.push('CW-4b with 400 gp Save colors reads ' + JSON.stringify(poor));
+          await page.evaluate(() => document.querySelector('[data-hs-act="of-colors"]').click());
+          await page.waitForTimeout(300);
+          if (s.calls.some((c) => c.name === 'hr_hero_colors_set')) fails.push('CW-4b a press on a 400 gp purse went to the server');
+          s.env.state = Object.assign({}, was, { gold: 5200, gold_v: 4 });
+          await push(page, s);
+          await wait(page, () => !document.querySelector('[data-hs-act="of-colors"]').disabled, null, 4000);
+          const back = await colors();
+          if (back.off || back.line) fails.push('CW-4b the next envelope\'s purse leaves Save colors off: ' + JSON.stringify(back));
+          await page.click('[data-hs-act="of-undo"]');
+        }
         /* CW-5: the death log. */
         await page.click('[data-hs-win="character"] .hw-tab[data-tab="deaths"]');
         await page.waitForTimeout(300);
@@ -499,6 +525,8 @@ const MUTANTS = [
   ['the old sheet shows before the opening asked', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(base, ctx.doc)), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(base, ctx.doc)), true);"],
   ['Save sends the outfit twice', 'src/shell/windows/character/outfit.js', "runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',", "cs.saveOutfit(d.outfit); runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',"],
   ['the worn mark follows the draft', 'src/shell/windows/character/outfit.js', "cls(b, 'is-worn', !!o && o.worn === id);", "cls(b, 'is-worn', id === d.outfit);"],
+  ['Save colors stays live on a short purse (CW-4b)', 'src/shell/windows/character/outfit.js', "prop(save, 'disabled', sc.pending || !offer || sc.price === null || short > 0);", "prop(save, 'disabled', sc.pending || !offer || sc.price === null);"],
+  ['a short purse says nothing under Save colors (CW-4b)', 'src/shell/windows/character/outfit.js', "text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more.' : '');", "text(root.querySelector('.hw-of-why'), '');"],
   ['a premium outfit not owned can be saved', 'src/shell/windows/character/outfit.js', "sc.pending || !o || !owned || (o.worn || null) === d.outfit", "sc.pending || !o || (o.worn || null) === d.outfit"],
   ['the trade skills list the combat skills', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['the unlock line drops the kind', 'src/data/item-uses.js', "  if (it.type === 'tool' && it.toolSkill) return it.toolSkill + ' tool';", "  if (it.type === 'tool' && it.toolSkill) return '';"],

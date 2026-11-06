@@ -22,7 +22,7 @@ export default Object.freeze({
   id: 'millrace_sewer',
   name: 'The Sewer',
   kind: 'hunt',
-  hunts: Object.freeze(['millrace_sewer']),
+  hunts: Object.freeze(['millrace_sewer', 'millrace_sewer_called']),
   outdoor: false,
   light: 'cellar',
   ground: 'sewer_ground',

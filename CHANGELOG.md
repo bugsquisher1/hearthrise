@@ -5,9 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## Unreleased
+## v0.2.98 — 2026-11-06 (Every Creature Breathes)
 
+**Call out a boss.** A party can pay to fight a far stronger Rat King (10,000 gp) or Chief Coppercap (30,000 gp), up to 3 calls a day. At half his health his adds come for whoever isn't your tank, and at a quarter he rages, so your action bar decides it. It pays no XP, coin or drops: bring him down and you earn a title and your name in System chat. Lose, and the game says where you lost it and what to change.
 **Etched runes cost 12 gold a cast,** up from 10, so the stronger spell is worth its price without making Scored runes pointless.
+**Monsters no longer stand frozen waiting for your blow.** Every creature on every hunting ground now breathes, shifts and flicks its tail while it stands, and anything with wings keeps beating them while it hovers.
+- A Cleave set to fire at 2 or more monsters now fires. It counted its own swing as one monster, so it waited forever; now it counts the monsters it can really hit, up to three.
+- Etched runes cost 12 gold a cast, up from 10, so the stronger spell is worth its price without making Scored runes pointless.
+- A crafter now gets the "Weighhouse is open" card when a bench skill reaches 30, not only at Level 10.
+- In the Havora window and the Outfit tab, a button your purse can't pay for stays off and says how much more you need, and the last gift button offers what you have.
+- After you temper a piece, the answer appears in the page instead of covering its note.
 
 ## v0.2.97 — 2026-11-05 (A Town That Grows)
 

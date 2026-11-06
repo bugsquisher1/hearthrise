@@ -181,12 +181,17 @@ const BUSY = /!?\(?\b(?:st\.|sc\.|s\.|o\.|a\.|party\.|st\.sc\.)*(?:pending|sendi
  * why, which must be in the file. `where` names where they show. The report's table is this list.
  */
 export const REASONS = Object.freeze({
+  'src/shell/windows/boss-call-pane.js': [
+    { cond: '!open', words: 'BOSS_CALL_WORDS.noQuote', where: 'Call out: the line above the press reads the server\'s why (party of two, leader only, 3 a day), the hunt under way, or no answer yet' },
+  ],
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
     { cond: 'itemsShort', words: "'Needs ' + whole(n.need) + ' ' + n.name + '. You hold '", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },
   ],
   'src/shell/windows/havora/works.js': [
     { cond: 'off', words: 'a day from one account, and you', where: 'Give: off while a gift is in flight, before the first read, and when today\'s allowance is spent; the line under them says so in the designer\'s words' },
+    { cond: 'short > 0', words: "'You need ' + gold(short) + ' more.'", where: 'a gift over the envelope\'s purse: data-off-why says how much more on a press, and the line under the buttons says what the purse holds' },
+    { cond: 'poor', words: "'Your purse is empty.'", where: 'a purse under the smallest gift: the last button is hidden, Give is off, and the line under the buttons says why' },
   ],
   'src/shell/windows/market/browse.js': [
     { cond: '!plan.qty', words: "'You need ' + goldWords(-left) + ' more.'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },
@@ -256,6 +261,8 @@ export const REASONS = Object.freeze({
   'src/shell/windows/havora/index.js': [
     { cond: 'pPrice === null', words: "s && pPrice === null ? 'No more powders today'", where: 'the powder button says it; until the first read answers it has no price, and the window\'s line says any refusal' },
     { cond: 'rPrice === null', words: "s && rPrice === null ? 'No more rounds today'", where: 'the round button says it; until the first read answers it has no price, and the window\'s line says any refusal' },
+    { cond: 'pShort > 0', words: "text(root.querySelector('.hv-why[data-of=\"hearth\"]'), needWords(pShort))", where: 'a powder the purse can\'t pay: the line under the button says how much more, and data-off-why on a press' },
+    { cond: 'rShort > 0', words: "text(root.querySelector('.hv-why[data-of=\"round\"]'), needWords(rShort))", where: 'a round the purse can\'t pay: the line under the button says how much more, and data-off-why on a press' },
   ],
   'src/shell/windows/characters.js': [
     { cond: "x.slot === ctx.character.slot || !ctx.goTo", words: "'On screen'", where: 'the button reads On screen' },
@@ -265,6 +272,7 @@ export const REASONS = Object.freeze({
   'src/shell/windows/character/outfit.js': [
     { cond: '!owned || (o.worn || null) === d.outfit', words: "'Premium · not owned'", where: 'the outfit tile says not owned; Wear needs another outfit' },
     { cond: '!offer', words: "cls(save, 'is-on', offer)", where: 'with nothing to pay for the button isn\'t shown at all, and the line above the picker says what this outfit shows or why it has no colors' },
+    { cond: 'short > 0', words: "text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more.' : '')", where: 'Save colors over the envelope\'s purse: the line under it says how much more, and data-off-why on a press' },
   ],
   'src/shell/windows/house.js': [
     { cond: '!on', words: "(you have '", where: 'each step\'s cost lines mark what is short, with your counts' },

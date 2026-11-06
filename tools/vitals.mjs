@@ -76,6 +76,7 @@ led as (
          count(*) filter (where l.kind = 'shop'   and l.intent like 'town_show:%' and l.intent not like 'town_show:round:%') as powders,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'town_show:round:%')   as rounds,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'crier:%')             as cries,
+         count(*) filter (where l.kind = 'shop'   and l.intent like 'boss\\_call:%')       as boss_calls,
          count(*) filter (where l.kind = 'shop'   and l.intent like 'town_works:%')        as gifts,
          count(distinct l.user_id)                                                         as users
   from public.player_ledger l where l.at >= now() - interval '8 days' group by 1),
@@ -97,7 +98,7 @@ pet as (select (updated_at at time zone 'UTC')::date as day,
            and updated_at >= now() - interval '8 days' group by 1)
 select d.day, coalesce(plants,0) plants, coalesce(waters,0) waters, coalesce(harvests,0) harvests, coalesce(fights,0) fights, coalesce(deaths,0) deaths,
        coalesce(gathers,0) gathers, coalesce(crafts,0) crafts, coalesce(buys,0) buys, coalesce(rooms,0) rooms,
-       coalesce(setup_slots,0) setup_slots, coalesce(titles,0) titles, coalesce(hero_colors,0) hero_colors,
+       coalesce(setup_slots,0) setup_slots, coalesce(titles,0) titles, coalesce(hero_colors,0) hero_colors, coalesce(boss_calls,0) boss_calls,
        coalesce(powders,0) powders, coalesce(rounds,0) rounds, coalesce(cries,0) cries, coalesce(gifts,0) gifts,
        to_regprocedure('public.hr_town_show(integer,text,bigint,uuid)') is not null as sinks_live,
        to_regprocedure('public.hr_setup_slot_buy(integer,bigint,uuid)') is not null as hero_sinks_live,
@@ -834,7 +835,7 @@ if (selftestMode) {
     // looks broken to anyone who checks its exit code, and looks fine to anyone
     // who only reads the table. Fall off the end instead.
   } else {
-    const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','buys','rooms','setup_slots','titles','hero_colors','powders','rounds','cries','gifts','pets_xp','pet_xp','listings','sales','refused','users'];
+    const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','buys','rooms','setup_slots','titles','hero_colors','boss_calls','powders','rounds','cries','gifts','pets_xp','pet_xp','listings','sales','refused','users'];
     console.log(cols.map((c) => String(c).padStart(c === 'day' ? 10 : 8)).join(' '));
     for (const row of rows) console.log(cols.map((c) => String(row[c] ?? '').padStart(c === 'day' ? 10 : 8)).join(' '));
     // The zero-watch: a feature at zero for two days is a P1 by definition (CLAUDE.md §3.4).

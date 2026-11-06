@@ -647,9 +647,17 @@ jobs:
   # run: Windows 6.8 (40314818369) + Services 0.4 + House 0.7 + Instant press 0.4
   # (nightly 40196078710) + Say why 0.5 (40314818369) + Farm 2.7 (40301377956) + setup
   # 0.9 = 12.4 min; x2 = 25, 28 so the apt stall (12.4 + 12.5 = 24.9) keeps 11% slack.
+  # 2026-11-05 (lane t-v097-reds): CANCELLED at 28 on every run from nightly 42065774032 on, 0 failures,
+  # in a loop: a nightly that does not prove this job green sends the next run to the full sweep, which
+  # no longer fit. MEASURED full sweep (42096671527): setup 0.8 + Windows 18.5 (window-camera --mutate
+  # 17.3: 24 mutants, each re-running every page, 37-52 s apiece) + Services 3.8 + Say why 0.5 + House
+  # 0.7 + Farm 3.1 + Instant press 4.2 (nightly 41867104263) = 31.6 min. Each window-camera mutant now
+  # runs only the pages its rule reads (pagesOf). MEASURED on Tyler's PC under a second browser suite:
+  # window-camera 115 s (CI: 67) + --mutate 423 s, 24/24 caught = 9.0 min, about 5.2 at CI's pace.
+  # Full sweep 22.1 min at the local figure; x2 = 44. With the apt stall: 34.6 (79%).
   in-page-2:
     runs-on: ubuntu-latest
-    timeout-minutes: 28
+    timeout-minutes: 44
 
     steps:
       - uses: actions/checkout@v4
@@ -4993,6 +5001,16 @@ jobs:
           node tests/titles.mjs
           node tools/mutant-gate.mjs node tests/titles.mjs --selftest
 
+      # CALL OUT (Tyler 2026-11-04, lane/c-boss-call): a paid fight that can't pay XP, coin or a drop. tests/boss-call.mjs is the money line on the real settle, tests/boss-call-db.mjs the server's half.
+      - name: Call out - pays nothing, one door, the leader's fee, both paths
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/boss-call.mjs
+          node tools/mutant-gate.mjs node tests/boss-call.mjs --mutate
+          node tests/boss-call-db.mjs
+          node tools/mutant-gate.mjs node tests/boss-call-db.mjs --mutate
+          node tests/boss-call-window.mjs
+          node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate
       - name: Gold sinks - hero colors
         if: ${{ !cancelled() }}
         run: |

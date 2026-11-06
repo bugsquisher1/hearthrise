@@ -44,19 +44,20 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.97';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.97';
-import { createRng } from './rng.js?v=0.2.97';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.97';
-import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.97';
-import { stepSwing } from './hunt/world-step.js?v=0.2.97';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.97';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.97';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.97';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.97';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.98';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.98';
+import { createRng } from './rng.js?v=0.2.98';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.98';
+import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.98';
+import { stepSwing } from './hunt/world-step.js?v=0.2.98';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.98';
+import { newHuntWorld, joinHero, leaveHero, scaleRoomFor } from './hunt-spawn.js?v=0.2.98';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.98';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.98';
+import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.98';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.97';
+export { stepSwing } from './hunt/world-step.js?v=0.2.98';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -192,7 +193,8 @@ function endMember(m, why, atMs, world, out) {
  *        against that monster (a basic swing's accuracy and weapon weakness), shotRolls?(row, ammo) (the same with
  *        the item a shot spent in the ammo slot: damage.js blow), fx, buffsAt?(atMs) (re-measures the timed
  *        buff queue the member's bonus reads, at each of its boundaries) }
- * @param ctx  { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
+ * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any}} ctx
+ *        { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId) }
  * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary } }
  */
@@ -203,6 +205,13 @@ export function simulateHuntInstance(inst, ctx) {
   let world = inst.world || null;
   /* A world made in this call: the leader's hold pick is in force from its first lap (not only from the next). */
   let fresh = false;
+  /* CALL OUT (src/data/boss-calls.js): the room's call, its limit from the party's first swing (one instant for every member however the windows were cut), and ONE FIGHT: whatever ends one
+     hero's ends everyone's, box ticked or not (the box is the hero's own word for a hunt, and this isn't one). */
+  const call = ctx.ground && ctx.ground.call ? BOSS_CALLS[ctx.ground.call] : null;
+  if (call) {
+    const ends = Math.min(...members.map((m) => Number(m.hs.huntFromMs) || 0)) + BOSS_CALL_RULES.limitMs;
+    for (const m of members) { m.hs.callEndsAtMs = ends; m.hero = Object.assign({}, m.hero, { leaveTogether: true }); }
+  }
   /* NO WORLD, NO PLACED HERO: a unit id names a unit of a world that is gone (a stored world of
      another field list restarts: world-state decodeStored), so every member re-enters the fresh one. */
   if (!world) for (const m of members) m.unitId = null;
@@ -277,6 +286,8 @@ export function simulateHuntInstance(inst, ctx) {
           const standing = members.filter((x) => !x.left);
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
             { density: densityFor(ctx.ground, standing.length, picker(standing)) });
+          /* The room's one spawn is for the party walking in, not the first hero through the door: he never comes back at their size. */
+          if (call) scaleRoomFor(world, ctx.ground, standing.length);
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
@@ -339,8 +350,10 @@ export function simulateHuntInstance(inst, ctx) {
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
-      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, tier, hearthfind: ctx.hearthfind,
+      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, tier, hearthfind: ctx.hearthfind, call,
         emit: (e) => worldEvents.push(e) });
+      /* THE CALLED BOSS IS DOWN: everyone still in the fight ends `boss_felled` at their next boundary. */
+      if (call && r.events.some((e) => e.type === 'kill' && kinds[e.t] === call.monster)) for (const m of members) if (!m.left) m.hs.bossFelled = true;
       for (const f of deaths) {
         const m = byUnit.get(f.unit);
         const o = out.get(m.key);
@@ -369,7 +382,7 @@ export function simulateHuntInstance(inst, ctx) {
   const stamped = new Map();
   for (const m of members) {
     if (m.left || m.unitId === null) continue;
-    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || m.hs.died === true) {
+    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || m.hs.died === true || m.hs.bossFelled === true) {
       stamped.set(m, endReasonAt(m.hs, m.hs.nextSwingAtMs) || 'gold_out');
     }
   }

@@ -16,11 +16,12 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.97';
-import { composeFrame } from '../core/compose.js?v=0.2.97';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.97';
-import { createFrameSig } from './frame-sig.js?v=0.2.97';
-import { paintStub } from '../stub-atlas.js?v=0.2.97';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.98';
+import { composeFrame } from '../core/compose.js?v=0.2.98';
+import { castBox } from '../core/shadows.js?v=0.2.98';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.98';
+import { createFrameSig } from './frame-sig.js?v=0.2.98';
+import { paintStub } from '../stub-atlas.js?v=0.2.98';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
@@ -175,11 +176,11 @@ export function createCanvasBackend(o) {
     g.globalCompositeOperation = 'source-over';
   }
 
-  /* A mask's signature: the view, its colour, and every shape (a cast by its frame) or lamp (the hero's moves). */
+  /* A mask's signature: the view, its colour, and every shape (a cast by its frame and its sheet being in) or lamp (the hero's moves). */
   function shadeSigOf(list, view) {
     let k = view.ox + ',' + view.oy + ',' + view.w + ',' + view.h + '|' + tone('shadow');
     for (const sh of list.shadows) {
-      if (sh.type === 'cast') { const d = sh.sprite; k += '|c' + d.set + ',' + d.sx + ',' + d.sy + ',' + d.w + ',' + d.h + ',' + d.x + ',' + d.y + ',' + sh.m.join(','); }
+      if (sh.type === 'cast') { const d = sh.sprite; k += '|c' + d.set + ',' + !!images[d.set] + ',' + d.sx + ',' + d.sy + ',' + d.w + ',' + d.h + ',' + d.x + ',' + d.y + ',' + sh.m.join(','); }
       else if (sh.type === 'ellipse') k += '|e' + sh.cx + ',' + sh.cy + ',' + sh.w + ',' + sh.h;
       else k += '|p' + sh.pts.join(';');
     }
@@ -563,9 +564,9 @@ export function createCanvasBackend(o) {
       const meets = (d) => d.x < seen.ox + seen.w && d.x + d.w > seen.ox && d.y < seen.oy + seen.h && d.y + d.h > seen.oy;
       const sets = ground.setsIn(chunksOf(view, 0), seen);
       for (const l of [list.decals, list.sprites, list.raised]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);
-      /* an effect may be turned and a shadow falls past its sprite: named whatever their box says */
+      /* an effect may be turned: named whatever its box says; a shadow falls past its sprite: named by the box it falls in (castBox, B-21) */
       for (const d of list.fx || []) if (d.set) sets.add(d.set);
-      for (const sh of /** @type {any[]} */ (list.shadows)) if (sh.type === 'cast' && sh.sprite.set) sets.add(sh.sprite.set);
+      for (const sh of /** @type {any[]} */ (list.shadows)) if (sh.type === 'cast' && sh.sprite.set && meets(castBox(sh.sprite, sh.m))) sets.add(sh.sprite.set);
       return Array.from(sets).filter((s) => !o.arrived(s));
     },
     /** May the next sync draw? A new map's (or zoom's) view first bakes its ground, WARM_MS a frame; the frame after draws. So does a view over a chunk its sheet just filled. */

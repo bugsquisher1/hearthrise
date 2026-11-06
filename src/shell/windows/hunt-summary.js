@@ -17,12 +17,11 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.99';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.99';
 import { whole, gold, clock } from '../../render/format.js?v=0.2.99';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.99';
 import { runIntent } from '../intent-words.js?v=0.2.99';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords } from '../../hunt-view/summary-model.js?v=0.2.99';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.99';
 import { callOfHunt } from '../../data/boss-calls.js?v=0.2.99';
 import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.99';
 import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.99';
@@ -78,7 +77,6 @@ export function renderHuntSummary() {
 }
 
 const li = (doc, markup) => element(doc, markup);
-const groundName = (s) => (s.hunt && HUNT_INDEX[s.hunt] ? HUNT_INDEX[s.hunt].name : 'Hunt');
 const dayTime = (at) => (at === null ? '' : new Date(at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
 
 function lines(host, doc, items) {
@@ -122,7 +120,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   const card = root.querySelector('.hsum-card');
   cls(card, 'is-on', !!cur);
   if (cur) {
-    text(root.querySelector('.hsum-title'), groundName(cur));
+    text(root.querySelector('.hsum-title'), groundTitle(cur));
     text(root.querySelector('.hsum-when'), cur.at ? dayTime(cur.at) : '');
     const st = cur === list[0] && !huntOpen ? staminaOf(cs) : null;
     text(root.querySelector('.hsum-reason'), reasonWords(cur, nameOf(cs), st ? st.msLeft : null));
@@ -170,7 +168,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     build: (s) => li(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span>'
       + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">Show</button></li>'),
     patch: (el, s) => {
-      text(el.querySelector('b'), groundName(s));
+      text(el.querySelector('b'), groundTitle(s));
       text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit, s.by, nameOf(cs), s.why).split('. ')[0].replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
     },
   });

@@ -30,6 +30,8 @@ export function sanitizeSummary(v) {
   const reason = typeof v.reason === 'string' && REASON.test(v.reason) ? v.reason : null;
   return {
     id: v.id, hunt: id(v.hunt), at: ms(v.at), reason, forfeit: v.forfeit === true,
+    /* The tier the hunt ran at (the server's session `tier`), a code or null: the renderer names only one it knows. */
+    tier: typeof v.tier === 'string' && REASON.test(v.tier) ? v.tier : null,
     /* LEAVE TOGETHER: the member whose end sent the hero home (the server's end_by), a bounded name or null. */
     by: typeof v.by === 'string' && v.by.trim() ? v.by.trim().slice(0, 40) : null,
     /* What ended that member (the server's end_by_why), a reason code or null. */

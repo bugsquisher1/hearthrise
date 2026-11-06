@@ -45,7 +45,7 @@ const newKey = () => {
 /** The skeleton (built once). */
 export function renderReport() {
   return '<div class="rp" data-state="edit">'
-    + '<p class="hs-note">Tell us what went wrong: what you did, what you expected, and what happened instead.</p>'
+    + '<p class="hs-note">Tell us what went wrong. Say what you did, what you expected and what happened instead.</p>'
     + '<textarea class="rp-text" data-hs-act="type" rows="6" maxlength="4000" aria-label="What went wrong"'
     + ' placeholder="I clicked Leave hunt and the screen froze for a few seconds..."></textarea>'
     + '<label class="rp-shot"><input type="checkbox" class="rp-shot-on" checked> Include a picture of the game view</label>'

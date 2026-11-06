@@ -19,7 +19,7 @@ import { runIntent } from '../../intent-words.js?v=0.2.103';
 /** The Titles tab's skeleton. */
 export function titlesHtml() {
   return '<section class="hw-cs-titles">'
-    + '<p class="hs-note">A title stands beside this hero\'s name in town and in chat. Each hero earns its own: the kills first, then the gold.</p>'
+    + '<p class="hs-note">A title stands beside this hero\'s name in town and in chat. Each hero earns its own, the kills first and then the gold.</p>'
     + '<ul class="hw-ledger hw-titles"></ul><p class="hh-empty hw-titles-none"></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></section>';
 }

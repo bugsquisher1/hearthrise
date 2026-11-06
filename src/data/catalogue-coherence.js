@@ -182,7 +182,7 @@ export const UNREACHABLE_FATES = Object.freeze({
   staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Wickstead, waiting on its painted ground)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
   premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
   greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
-  later:      Object.freeze({ bucket: 'c', door: 'none in Early Access: kept for a later region, or cut (Tyler)' }),
+  later:      Object.freeze({ bucket: 'c', door: 'none in Early Access, kept for a later region or cut (Tyler)' }),
   cut:        Object.freeze({ bucket: 'c', door: 'none: dead weight, listed for a cut (Tyler approves)' }),
 });
 

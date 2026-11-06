@@ -248,7 +248,7 @@ export const REASONS = Object.freeze({
     { cond: 'v.partyBlock.full', words: 'v.partyBlock.why', where: 'the party block says the party\'s size' },
   ],
   'src/shell/windows/hunt-summary.js': [
-    { cond: 'huntOpen || !again', words: "'Hunt again is off: a hunt is already running.'", where: 'the summary\'s line under its buttons' },
+    { cond: 'huntOpen || !again', words: "'Hunt again is off. A hunt is already running.'", where: 'the summary\'s line under its buttons' },
   ],
   'src/shell/windows/hunt-prep.js': [
     { cond: '!presets || full || hunting', words: "setupFullWords(count, price)", where: 'the window line (full), the town-only note (hunting), the none line (no presets)' },

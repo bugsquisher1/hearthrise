@@ -560,7 +560,7 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const EQUIP_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "note": "the Bronze Belt, Copper Ring, Hunter Necklace, Leather Gloves and Traveler Cape rows moved to the outfitter (supply-basics.js, designer 2026-10-22). The eight left, like every seed row, are a vendor price list only: shop_buy refuses them not_listed (catalogue.js offerRefusal, 2026-10-22)",
+    "note": "the Bronze Belt, Copper Ring, Hunter Necklace, Leather Gloves and Traveler Cape rows moved to the outfitter (supply-basics.js, designer 2026-10-22). The eight left, like every seed row, are a vendor price list only, and shop_buy refuses them not_listed (catalogue.js offerRefusal, 2026-10-22)",
     "count": 8
   },
   {

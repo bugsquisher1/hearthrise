@@ -82,7 +82,7 @@ function mutate() {
     ['an off-roster monster drops a Hallmarked ring', 'JS2', () => { const d = MONSTERS.kobold.drops; d.push({ id: 'banded_signet_keen_follow', ch: .0001 }); return () => d.pop(); }],
     ['a pending piece stops dropping and stays on the list', 'JS3', () => { const d = MONSTERS.turncoat.drops, i = d.findIndex((x) => x.id === 'fang_studs'); const [row] = d.splice(i, 1); return () => d.splice(i, 0, row); }],
     ['the Shop sells a Fine ring', 'JS4', () => { SHOP_OFFERS.push({ id: 'supply.banded_signet_keen', table: 'supply', cost: [{ kind: 'currency', id: 'gold', amount: 3000 }], grant: [{ kind: 'item', id: 'banded_signet_keen', amount: 1 }] }); return () => SHOP_OFFERS.pop(); }],
-    ['the gem gains a second home', 'JS4', () => { const m = Object.keys(MONSTERS).find((k) => k !== 'turncoat' && metMonsters().has(k)); const d = MONSTERS[m].drops; d.push({ id: 'road_garnet', ch: .001, band: 'rare' }); return () => d.pop(); }],
+    ['the gem gains a second home', 'JS4', () => { const m = Object.keys(MONSTERS).find((k) => k !== 'turncoat' && metMonsters().has(k)); const d = MONSTERS[m].drops; d.push({ id: 'road_carnelian', ch: .001, band: 'rare' }); return () => d.pop(); }],
   ];
   let missed = 0;
   for (const [name, claim, plantIt] of cases) {

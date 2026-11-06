@@ -30,7 +30,7 @@ export const ITEM_DESC = {
   'banded_signet_keen_surge': 'A gilt Banded Signet with its maker\'s stamp, set with an amber chip and a pale blue stone',
   'banded_signet_keen_follow': 'A gilt Banded Signet with its maker\'s stamp, set with an amber chip and a red stone',
   'banded_signet_surge_follow': 'A gilt Banded Signet with its maker\'s stamp, set with a pale blue stone and a red one',
-  'road_garnet': 'A dark garnet pried from a traveler\'s ring on the Thicket road, ready for a jeweler\'s setting',
+  'road_carnelian': 'A red carnelian pried from a traveler\'s signet on the Thicket road. Sealing wax won\'t stick to it',
   'willow_spellbook': 'Willow-leaf pages pressed into a book of quicker spells',
   'maple_spellbook': 'A maple-bound spellbook clasped shut against the damp',
   'yew_spellbook': 'A yew-clasped spellbook whose pages fall open at the right spell',

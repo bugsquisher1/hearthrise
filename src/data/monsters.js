@@ -847,11 +847,11 @@ export const MONSTERS = {
        champion with his own (larger) art, the next batch */
     drops: [{ id: 'boar_bristle', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'orchard_boar_tusk', ch: .08, band: 'uncommon' }] },
   turncoat: { name: 'Turncoat', icon: '🗡️', tier: 2, level: 16, cls: 'human', family: 'Human',
-    /* a deserter robbing the Thicket road; glass that hits hard. The jeweler's carrier: his Road Garnet (jewelry.js) replaced the crafted Signet. */
+    /* a deserter robbing the Thicket road; glass that hits hard. The jeweler's carrier: his Road Carnelian (jewelry.js) replaced the crafted Signet. */
     hp: 34, atk: 10, def: 3, xp: 240, gp: [8, 18], speed: 3400,
     drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'torn_company_badge', ch: .1, band: 'uncommon' },
       { id: 'iron_platebody', ch: .0345, band: 'scarce' }, { id: 'studded_body', ch: .0345, band: 'scarce' }, { id: 'adept_body', ch: .0345, band: 'scarce' }, { id: 'bramble_blade', ch: .0345, band: 'scarce' },
-      { id: 'road_garnet', ch: .003, band: 'rare' }, { id: 'wolfbone_torc', ch: .003, band: 'rare' }, { id: 'fang_studs', ch: .003, band: 'rare' }] },
+      { id: 'road_carnelian', ch: .003, band: 'rare' }, { id: 'wolfbone_torc', ch: .003, band: 'rare' }, { id: 'fang_studs', ch: .003, band: 'rare' }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

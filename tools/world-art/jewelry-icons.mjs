@@ -7,8 +7,8 @@
 // Each graded row of src/data/jewelry.js wears its plain piece's own icon with one stone per perk SET INTO THE PIECE (STONE_AT, per
 // piece: the first perk's stone where a signet's face would be, the second below it), each a 3x3 stone in the perk's colour inside a
 // 1 px #0b0a0c setting, lit from the upper left; a Hallmarked row's band is GILT (the piece's light steel re-cut to the gold ramps), the
-// maker's mark. So a bag tells plain, Fine and Hallmarked apart at 1x, and two Fine rings by their stone. The Road Garnet is the shipped Ruby re-cut a step darker on its own ramps (blood to cloth), so the
-// gem reads as a garnet beside it. Every colour is an entry of art/world/palette.json; binary alpha; 32x32 (tests/pixel-icons.mjs).
+// maker's mark. So a bag tells plain, Fine and Hallmarked apart at 1x, and two Fine rings by their stone. The Road Carnelian is the shipped Ruby re-cut a step lighter on its ramps (cloth to blood to torch), so
+// the gem reads orange-red beside the Ruby and the wine-dark Heartgarnet. Every colour is an entry of art/world/palette.json; binary alpha; 32x32 (tests/pixel-icons.mjs).
 // The Art Director judges and may replace these with bespoke art; until then edit THIS script and rerun it, never the PNG.
 //
 //   node tools/world-art/jewelry-icons.mjs            write assets/icons-bundle/pixel/items/<id>.png
@@ -34,10 +34,10 @@ export const STONES = Object.freeze({
 export const STONE_AT = Object.freeze({ banded_signet: [[13, 6], [15, 21]] });
 /* A Hallmarked band: the piece's light steel re-cut to gold, light to dark. */
 const GILT = Object.freeze({ '#c8e6e0': '#ffd36a', '#c4ccd2': '#e8c547', '#8a9aa8': '#cfa25c' });
-/* The Ruby re-cut as a garnet: each red one step darker on its ramp. */
-const GARNET_CUT = Object.freeze({ '#c23a2a': '#8e1f1f', '#8e1f1f': '#5e1a1f', '#5e1a1f': '#3e1216' });
+/* The Ruby re-cut as a carnelian: each red one step lighter, its brightest to the torch's orange. */
+const CARNELIAN_CUT = Object.freeze({ '#c23a2a': '#f2a03a', '#8e1f1f': '#c23a2a', '#5e1a1f': '#8e1f1f', '#3e1216': '#5e1a1f' });
 /* The gems this script cuts: each tier's gem from a shipped gem it re-cuts. */
-const GEMS = Object.freeze({ road_garnet: { from: 'ruby', cut: GARNET_CUT } });
+const GEMS = Object.freeze({ road_carnelian: { from: 'ruby', cut: CARNELIAN_CUT } });
 
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 function put(img, x, y, hex) {
@@ -55,7 +55,7 @@ function stone(img, x, y, [dark, light]) {
   }
 }
 
-/* Every pixel of a colour in `cut` re-cut to its partner (the gilt band, the garnet). */
+/* Every pixel of a colour in `cut` re-cut to its partner (the gilt band, the carnelian). */
 function recut(img, cut) {
   for (let i = 0; i < img.data.length; i += 4) {
     if (!img.data[i + 3]) continue;

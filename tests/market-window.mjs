@@ -19,6 +19,8 @@
 //   W8  a price from history carries its sample (market review change 5); the Sell sheet's chips cannot read it
 //   W9  no name crosses: a read's stray name field never reaches a row
 //   W10 the residue fields are on the allowlist, and bounded
+//   W11 a graded jewelry piece's Suggested is what it cost in fixed gold (Fine 3,000, Hallmarked 28,200), never the book every grade shares
+//   W12 the Sell sheet keeps the picked name on screen: its head holds the top of the scroller, and a long name wraps
 //
 // The selftest copies src/ to a temp tree, plants one defect per arm and requires the
 // named test to fail. No ?v= on imports here (tests/**).
@@ -41,7 +43,7 @@ async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
   await import(u(WORDS));   // parsed even when intent-words.js is the only caller
   return { M: await import(u(MODEL)), I: await import(u(INTENTS)), G: await import(u(GESTURE)), C: await import(u(CATCH)),
-    F: await import(u(REFUSAL)), R: await import(u('src/session/residue.js')), T: await import(u('src/shell/intent-words.js')), base };
+    F: await import(u(REFUSAL)), R: await import(u('src/session/residue.js')), T: await import(u('src/shell/intent-words.js')), S: await import(u(SELL)), base };
 }
 
 const ASKS = [
@@ -51,7 +53,7 @@ const ASKS = [
 ];
 const RULES = { feeBp: 100, feeMin: 1, cutBp: 400, ttlH: 168 };
 
-async function runTests({ M, I, G, C, F, R, T, base }) {
+async function runTests({ M, I, G, C, F, R, T, S, base }) {
   const fails = [];
   const ok = (test, cond, msg) => { if (!cond) fails.push(test + ' ' + msg); };
 
@@ -158,6 +160,18 @@ async function runTests({ M, I, G, C, F, R, T, base }) {
   const ml = M.listingOf({ id: 'x', item_id: 'coal', buyer_name: 'Tessaly', qty: 1, qty_listed: 1, ask_each: 3, fee: 1 });
   ok('W9', !JSON.stringify(ml).includes('Tessaly'), 'a stray name would reach My listings');
 
+  /* W11 a graded ring's Suggested (designer 2026-11-05: "Suggested 260" invited a crafter to sell a 25,000 g piece for 260), clamped as ever */
+  const wide = { floor: 130, ceiling: 300000 };
+  ok('W11', S.suggested('banded_signet_keen', wide) === 3000, 'a Fine ring suggests ' + S.suggested('banded_signet_keen', wide) + ", not its plain piece's Shop price 3,000");
+  ok('W11', S.suggested('banded_signet_keen_follow', wide) === 28200, 'a Hallmarked ring suggests ' + S.suggested('banded_signet_keen_follow', wide) + ", not 3,000 + 25,000 + the gem's 200");
+  ok('W11', S.suggested('banded_signet', wide) === 260 && S.suggested('banded_signet_keen_follow', { floor: 130, ceiling: 26000 }) === 26000, 'the plain ring keeps its book, and a ceiling still clamps');
+
+  /* W12 the Sell sheet's head stays on screen (screen 09 of the jewelry sample: a graded name cut at the top) */
+  const css = readFileSync(join(base, 'src/styles/market.css'), 'utf8');
+  const head = /\.hw-mk-sell \.hw-mk-head \{([^}]*)\}/.exec(css), name = /\.hw-mk-sell \.hw-mk-name \{([^}]*)\}/.exec(css);
+  ok('W12', !!head && /position:\s*sticky/.test(head[1]) && /top:\s*0/.test(head[1]) && /background:\s*var\(--/.test(head[1]), "the Sell sheet's head does not hold the top of its scroller with a token fill: " + (head ? head[1] : 'no rule'));
+  ok('W12', !!name && /overflow-wrap:\s*anywhere/.test(name[1]) && /font-size:\s*var\(--t-/.test(name[1]), 'a long picked name does not wrap at a token size: ' + (name ? name[1] : 'no rule'));
+
   /* W10 the residue */
   ok('W10', R.RESIDUE_FIELDS.includes('marketView') && R.RESIDUE_FIELDS.includes('marketSeen'), 'the two fields are not on the allowlist');
   const v = R.sanitizeResidueField('marketView', { cat: 'gear', sort: 'most', deliver: 'bag', source: 'storage', gold: 500, price: 3 });
@@ -181,6 +195,8 @@ const MUTANTS = [
   { test: 'W7', file: MODEL, from: 'h.at > seenAt && ', to: '', why: 'every old sale is told again' },
   { test: 'W8', file: SELL, from: "t.getAttribute('data-chip') === 'last' ? lastAsk(sc, f.pick) : suggested(f.pick, s)", to: "t.getAttribute('data-chip') === 'last' ? s.lastEach : suggested(f.pick, s)", why: 'one press prices a good from a number a wash pair can print' },
   { test: 'W9', file: MODEL, from: "return { id: raw.item_id, listable: raw.listable === true,", to: "return { ...raw, id: raw.item_id, listable: raw.listable === true,", why: 'the row keeps whatever the read carried' },
+  { test: 'W11', file: SELL, from: 'const book = jewelSuggestedAsk(id, ITEMS) ?? (ITEMS[id] && Number(ITEMS[id].v));', to: 'const book = ITEMS[id] && Number(ITEMS[id].v);', why: 'a Hallmarked ring suggests its 260 book' },
+  { test: 'W12', file: 'src/styles/market.css', from: '.hw-mk-sell .hw-mk-head { position: sticky; top: 0; z-index: 1; background: var(--fill-1); }', to: '', why: 'the price field scrolls the picked name out of sight' },
   { test: 'W10', file: 'src/session/residue.js', from: "  if (v.deliver === 'storage' || v.deliver === 'bag') out.deliver = v.deliver;", to: '  if (v.deliver) out.deliver = v.deliver;', why: 'a junk delivery survives' },
 ];
 
@@ -190,7 +206,7 @@ async function selftest() {
   try {
     for (const m of MUTANTS) {
       const base = join(tmp, String(caught) + '-' + m.test);
-      const skip = new Set(['styles', 'vendor'].map((d) => join(ROOT, 'src', d)));
+      const skip = new Set(['vendor'].map((d) => join(ROOT, 'src', d)));
       mkdirSync(join(base, 'src'), { recursive: true });
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true, filter: (s) => !skip.has(s) });
       const p = join(base, m.file);

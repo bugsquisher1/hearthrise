@@ -55,7 +55,7 @@ export const JEWEL_POOLS = Object.freeze({
 /* ── WHAT EACH TIER TAKES. The gem (src/data/items.js), the Hallmark step's gold and Crafting level, and the market's
    per-row ceiling for each grade (the plain piece keeps 100x book: hr_market_items). The gold is Tyler's call (11-05). ── */
 export const JEWEL_TIERS = Object.freeze({
-  2: Object.freeze({ gem: 'road_garnet', hallmark: Object.freeze({ gold: 25000, level: 30 }), ceiling: Object.freeze({ fine: 100000, hallmarked: 300000 }) }),
+  2: Object.freeze({ gem: 'road_carnelian', hallmark: Object.freeze({ gold: 25000, level: 30 }), ceiling: Object.freeze({ fine: 100000, hallmarked: 300000 }) }),
   3: Object.freeze({ gem: 'seam_jasper', hallmark: Object.freeze({ gold: 100000, level: 45 }), ceiling: Object.freeze({ fine: 300000, hallmarked: 1000000 }) }),
 });
 
@@ -86,7 +86,7 @@ export const HALLMARK_DAY_LIMIT = 10;
 export const JEWEL_PIECES = Object.freeze({
   banded_signet: Object.freeze({
     recipe: Object.freeze({ id: 'craft_banded_signet', name: 'Make Banded Signet', icon: '💍', inputs: Object.freeze({ bronze_bar: 14 }), xp: 420, req: 15, ms: 4000 }),
-    gem: Object.freeze({ id: 'set_banded_signet', name: 'Set a Road Garnet in a Banded Signet', icon: '💍', xp: 200, req: 15, ms: 3000 }),
+    gem: Object.freeze({ id: 'set_banded_signet', name: 'Set a Road Carnelian in a Banded Signet', icon: '💍', xp: 200, req: 15, ms: 3000 }),
   }),
 });
 
@@ -194,6 +194,20 @@ export const HALLMARK_OFFERS = Object.freeze(Object.keys(JEWEL_PIECES).flatMap((
     }));
   });
 }));
+
+/**
+ * WHAT A GRADED PIECE COST IN FIXED GOLD, the Weighhouse's Suggested for it (designer 2026-11-05: "Suggested 260" invited a crafter to sell a
+ * 25,000 g piece for 260): a Fine piece, its plain piece's Shop price; a Hallmarked one, that plus its tier's Hallmark fee and its gem's book.
+ * Catalogue numbers only, so no account can steer it. `items` is the ITEMS table (passed in: items.js imports this file). Null for any other row.
+ */
+export function jewelSuggestedAsk(id, items) {
+  const it = items && items[id];
+  if (!it || !it.jewelGrade || !Number.isSafeInteger(JEWEL_SHOP_PRICE[it.jewelBase])) return null;
+  const shop = JEWEL_SHOP_PRICE[it.jewelBase];
+  if (it.jewelGrade !== 'hallmarked') return shop;
+  const t = JEWEL_TIERS[it.tier], gem = t && items[t.gem];
+  return t && gem ? shop + t.hallmark.gold + Math.floor(Number(gem.v) || 0) : null;
+}
 
 /** The market's per-row ceiling for each graded row (hr_market_ceilings): the tier's number for its grade. */
 export const JEWEL_CEILINGS = Object.freeze(Object.fromEntries(Object.keys(JEWELRY_ITEMS).map((id) => {

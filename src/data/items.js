@@ -102,9 +102,10 @@ export const ITEMS={
   lich_soul:{n:'Lich Soul',icon:'☠️',v:800},magic_essence:{n:'Magic Essence',icon:'✨',v:50},
   rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Ancient Rune',icon:'🔮',v:300},
   dragon_gem:{n:'Dragon Gem',icon:'💎',v:2000},ruby:{n:'Ruby',icon:'❤️',v:400},
-  /* THE T2 JEWEL'S GEM (src/data/jewelry.js JEWEL_TIERS): robbed on the Thicket road, so Wickstead's Turncoat carries it, the one
-     rare that replaced his Banded Signet. A gem roll and the Hallmark step spend it; raw, so the shop pays a fifth. */
-  road_garnet:{n:'Road Garnet',icon:'🔴',v:200},
+  /* THE T2 JEWEL'S GEM (src/data/jewelry.js JEWEL_TIERS): a carnelian, the old signet-ring stone, robbed on the Thicket road, so Wickstead's
+     Turncoat carries it, the one rare that replaced his Banded Signet. A gem roll and the Hallmark step spend it; raw, so the shop pays a fifth.
+     Not a garnet (designer 2026-11-05): the mined Heartgarnet is a red gem too, and a player holding both would set the wrong one. */
+  road_carnelian:{n:'Road Carnelian',icon:'🟠',v:200},
   rat_tail:{n:'Rat Tail',icon:'🐀',v:6},
   /* The Rat King's shard (15%, ~3 an hour for a full party): sold, the sewer's profit. */
   crown_shard:{n:'Crown Shard',icon:'👑',v:150},small_fang:{n:'Small Fang',icon:'🦷',v:15},
@@ -902,7 +903,7 @@ const RAW_DROPS = [
   'shadow_thread', 'void_chitin', 'death_steel', 'brute_plate',
   'raw_wolf_meat', 'raw_panther_meat', 'raw_bear_meat',
   /* a gem a monster carries for the jeweler (src/data/jewelry.js) */
-  'road_garnet',
+  'road_carnelian',
 ];
 
 /* BULK GOODS (designer 2026-11-01, lane/c-craft-economy; the measured table is on the priority board). A shop buys a

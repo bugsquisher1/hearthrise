@@ -17,6 +17,7 @@ import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.96';
 import { whole } from '../../../render/format.js?v=0.2.96';
 import { ITEMS } from '../../../data/items.js?v=0.2.96';
+import { jewelSuggestedAsk } from '../../../data/jewelry.js?v=0.2.96';
 import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.96';
 import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.96';
 import { refusalText } from '../../intent-words.js?v=0.2.96';
@@ -62,9 +63,10 @@ function stacksOf(cs, sc, source) {
   return { shown: shown.sort((a, b) => itemName(a.id).localeCompare(itemName(b.id))), kept };
 }
 
-/* The catalogue's own value, inside the server's floor and ceiling: the one price no player can steer. */
-function suggested(id, s) {
-  const book = ITEMS[id] && Number(ITEMS[id].v);
+/* The catalogue's own value, inside the server's floor and ceiling: the one price no player can steer. A graded jewelry piece's value
+   is what it cost in fixed gold (src/data/jewelry.js jewelSuggestedAsk), never its book, which every grade shares with the plain piece. */
+export function suggested(id, s) {
+  const book = jewelSuggestedAsk(id, ITEMS) ?? (ITEMS[id] && Number(ITEMS[id].v));
   if (!s || !Number.isFinite(book) || book <= 0) return null;
   return Math.min(s.ceiling === null ? book : s.ceiling, Math.max(s.floor === null ? book : s.floor, book));
 }

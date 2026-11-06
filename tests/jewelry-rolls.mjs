@@ -12,13 +12,15 @@
 //   J4  A JOB THAT DOESN'T ROLL DRAWS WHAT IT ALWAYS DREW: the plain Crafting rows leave the stream untouched.
 //   J6  THE END LINE SAYS WHAT THE DICE MADE: a watched run stops on "41 Banded Signet, 3 Fine (2 Keen, 1 Surge), 1 Hallmarked (...)".
 //   J7  THE BROWSER NEVER GUESSES A GRADE: the town ticker counts a rolled job's actions as unsure, in no stack, until the server pays.
+//   J8  A JEWEL'S GEM IS NAMED APART: no other item's name holds its word (the Road Garnet beside the mined Heartgarnet).
+//   J9  THE LORE NAMES THE JOB: an input to a gem roll or the Hallmark reads the job's name, never the grades it may make.
 //   J5  THE MACHINERY IS SIZED BY FORMULA: each piece has a Fine row per perk, a Hallmarked row per pair, a Hallmark offer per
 //       (Fine, other perk), and the server's bench-tax rows hold no rolled job (tools/gen-bench-tax.mjs rowsOf).
 //
 //   node tests/jewelry-rolls.mjs            the guard
 //   node tests/jewelry-rolls.mjs --mutate   each claim driven red by a planted defect in a copy of the tree
 //
-// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/town-work.js src/shell/town-ticker.js
+// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/town-work.js src/shell/town-ticker.js src/shell/item-lore.js src/data/items.js
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -35,7 +37,7 @@ async function load(root) {
     XP: await imp('src/core/xp.js'), RC: await imp('src/data/recipes.js'), ITEMS: (await imp('src/data/items.js')).ITEMS,
     /* the edge's own modules, as the settle imports them (no ?v=: supabase/functions has none) */
     AC: await imp('supabase/functions/hr-accrue/accrual.js', ''), CAT: await imp('supabase/functions/hr-accrue/catalogue.js', ''),
-    BT: await imp('tools/gen-bench-tax.mjs', ''), TW: await imp('src/shell/town-work.js'), TT: await imp('src/shell/town-ticker.js'),
+    BT: await imp('tools/gen-bench-tax.mjs', ''), TW: await imp('src/shell/town-work.js'), TT: await imp('src/shell/town-ticker.js'), IL: await imp('src/shell/item-lore.js'),
   };
 }
 
@@ -152,10 +154,35 @@ const claims = {
     const t0 = Date.UTC(2026, 10, 5, 12, 0, 0), at = new Date(t0).toISOString();
     const tick = M.TT.predictTown({ w: { kind: 'artisan', id: row.id, skill: 'crafting', row },
       state: { active_kind: 'artisan', active_id: row.id, accrued_to: at, active_since: at }, nowMs: t0 + 20000,
-      skills: { crafting: { xp: M.XP.skillXpForLevel('crafting', 30) } }, inventory: { banded_signet: 5, road_garnet: 5 }, equipment: {} });
+      skills: { crafting: { xp: M.XP.skillXpForLevel('crafting', 30) } }, inventory: { banded_signet: 5, road_carnelian: 5 }, equipment: {} });
     if (!tick || !(tick.unsure > 0)) return '20 s of a gem roll predicted ' + JSON.stringify(tick);
     const guessed = row.outcomes.concat([row.output]).filter((id) => (tick.items[id] || 0) > 0);
     return guessed.length ? 'the ticker put a guessed grade in the bag: ' + guessed.join(', ') : null;
+  },
+  J8(M) {
+    /* A JEWEL'S GEM IS NAMED APART (designer 2026-11-05): the Road Garnet beside the mined Heartgarnet, both red, read as one gem, and a
+       player holding both would set the wrong one. No other item's name holds a tier gem's own word. */
+    for (const t of Object.values(M.J.JEWEL_TIERS)) {
+      const gem = M.ITEMS[t.gem];
+      if (!gem) continue;
+      const word = gem.n.split(' ').pop().toLowerCase();
+      const twin = Object.entries(M.ITEMS).find(([id, it]) => id !== t.gem && it && typeof it.n === 'string' && it.n.toLowerCase().includes(word));
+      if (twin) return t.gem + ' (' + gem.n + ') shares "' + word + '" with ' + twin[0] + ' (' + twin[1].n + ')';
+    }
+    return null;
+  },
+  J9(M) {
+    /* AN INPUT TO A GEM ROLL OR THE HALLMARK NAMES THE JOB, NEVER THE GRADES IT MAY MAKE (designer 2026-11-05, the three lines as ruled). */
+    const want = {
+      road_carnelian: 'Used in Crafting: Set a Road Carnelian in a Banded Signet, and the Hallmark',
+      banded_signet: 'Used in Crafting: Set a Road Carnelian in a Banded Signet',
+      banded_signet_keen: 'Used in Crafting: the Hallmark',
+    };
+    for (const [id, line] of Object.entries(want)) {
+      const got = M.IL.usesOf(id).find((l) => /^Used in Crafting/.test(l)) || '';
+      if (got !== line) return id + ' reads "' + got + '", not "' + line + '"';
+    }
+    return null;
   },
   J5(M) {
     for (const plain of Object.keys(M.J.JEWEL_PIECES)) {
@@ -181,6 +208,8 @@ const MUTANTS = [
   { claim: 'J4', name: 'every Crafting job rolls a draw', edits: [['src/core/artisan.js', 'const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;', 'rng.next(); const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;']] },
   { claim: 'J6', name: 'the end line reads every grade as a plain piece', edits: [['src/shell/town-work.js', '    const it = JEWELRY_ITEMS[id];', '    const it = null;']] },
   { claim: 'J7', name: 'the ticker predicts a rolled job\'s grade', edits: [['src/shell/town-ticker.js', '  const rolled = !gather && !!w.row.roll;', '  const rolled = false;']] },
+  { claim: 'J8', name: 'the T2 gem is a garnet again', edits: [['src/data/items.js', "road_carnelian:{n:'Road Carnelian'", "road_carnelian:{n:'Road Garnet'"]] },
+  { claim: 'J9', name: "a gem roll's inputs name the grades it makes", edits: [['src/shell/item-lore.js', "r.roll === 'gem' ? r.name : null", 'null']] },
   { claim: 'J5', name: 'a rolled job pays the bench tax', edits: [['src/data/bench-tax.js', 'export const benchTaxed = (recipe) => !!(recipe && recipe.output && !recipe.roll);', 'export const benchTaxed = (recipe) => !!(recipe && recipe.output);']] },
 ];
 

@@ -33,6 +33,11 @@
 .hw-mk-page[hidden] { display: none; }
 .hw-mk-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .hw-mk-title { min-width: 0; }
+/* THE SELL SHEET KEEPS ITS NAME ON SCREEN (designer 2026-11-05, screen 09: "Banded Signet (Surge)" cut at the top when the price field took
+   the scroller down). The head holds the top of its scroller, and a long graded name ("Hallmarked Banded Signet (Keen, Follow-through)")
+   sets at the panel-title size and wraps, so it reads whole in two lines. */
+.hw-mk-sell .hw-mk-head { position: sticky; top: 0; z-index: 1; background: var(--fill-1); }
+.hw-mk-sell .hw-mk-name { font-size: var(--t-h2); overflow-wrap: anywhere; }
 .hw-mk-kind { padding: 0; }
 .hw-mk-kind::before, .hw-mk-kind::after { display: none; }
 .hw-mk-lore { margin: 12px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }

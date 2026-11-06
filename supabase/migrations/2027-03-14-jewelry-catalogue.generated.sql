@@ -42,12 +42,12 @@ revoke all on table public.hr_market_ceilings from public, anon, authenticated, 
 
 delete from public.hr_hallmark_offers;
 insert into public.hr_hallmark_offers (from_item, to_item, perk, gem, gold, skill, level, tier) values
-  ('banded_signet_follow', 'banded_signet_keen_follow', 'keen', 'road_garnet', 25000, 'crafting', 30, 2),
-  ('banded_signet_follow', 'banded_signet_surge_follow', 'surge', 'road_garnet', 25000, 'crafting', 30, 2),
-  ('banded_signet_keen', 'banded_signet_keen_follow', 'follow', 'road_garnet', 25000, 'crafting', 30, 2),
-  ('banded_signet_keen', 'banded_signet_keen_surge', 'surge', 'road_garnet', 25000, 'crafting', 30, 2),
-  ('banded_signet_surge', 'banded_signet_keen_surge', 'keen', 'road_garnet', 25000, 'crafting', 30, 2),
-  ('banded_signet_surge', 'banded_signet_surge_follow', 'follow', 'road_garnet', 25000, 'crafting', 30, 2);
+  ('banded_signet_follow', 'banded_signet_keen_follow', 'keen', 'road_carnelian', 25000, 'crafting', 30, 2),
+  ('banded_signet_follow', 'banded_signet_surge_follow', 'surge', 'road_carnelian', 25000, 'crafting', 30, 2),
+  ('banded_signet_keen', 'banded_signet_keen_follow', 'follow', 'road_carnelian', 25000, 'crafting', 30, 2),
+  ('banded_signet_keen', 'banded_signet_keen_surge', 'surge', 'road_carnelian', 25000, 'crafting', 30, 2),
+  ('banded_signet_surge', 'banded_signet_keen_surge', 'keen', 'road_carnelian', 25000, 'crafting', 30, 2),
+  ('banded_signet_surge', 'banded_signet_surge_follow', 'follow', 'road_carnelian', 25000, 'crafting', 30, 2);
 
 delete from public.hr_hallmark_rule;
 insert into public.hr_hallmark_rule (id, day_limit) values (true, 10);

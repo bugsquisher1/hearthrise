@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: e96c28904cdc2fe7e8b2547b51ae6b281196ba19046b0e3eeaff5905af885b6d
+--   catalogue digest: 2a1e64e6feddc5ebeaaeb105f9e61edaa7fc06e98a3f54bb8bb16267236f1350
 --   rows: 582 items (6 untradeable) ·
 --         337 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 352 activities ·
@@ -569,7 +569,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('riftmaw_carapace','Riftmaw Carapace',true,'armor',83160,'level',90,null,false,'medium',false),
   ('riftmaw_husk','Riftmaw Husk',true,null,4200,null,null,null,false,null,false),
   ('river_chowder','River Chowder',true,null,380,null,null,360,true,null,false),
-  ('road_garnet','Road Garnet',true,null,200,null,null,null,false,null,false),
+  ('road_carnelian','Road Carnelian',true,null,200,null,null,null,false,null,false),
   ('roasted_carrot','Roasted Carrot',true,null,12,null,null,60,false,null,false),
   ('roasted_pumpkin','Roasted Pumpkin',true,null,90,null,null,264,false,null,false),
   ('rooks_moss_charm','Rook''s Moss Charm',true,null,58,null,null,null,false,null,false),
@@ -2066,7 +2066,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'e96c28904cdc2fe7e8b2547b51ae6b281196ba19046b0e3eeaff5905af885b6d', now())
+  values (true, '2a1e64e6feddc5ebeaaeb105f9e61edaa7fc06e98a3f54bb8bb16267236f1350', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2286,7 +2286,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest e96c28904cdc2fe7e8b2547b51ae6b281196ba19046b0e3eeaff5905af885b6d',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 2a1e64e6feddc5ebeaaeb105f9e61edaa7fc06e98a3f54bb8bb16267236f1350',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

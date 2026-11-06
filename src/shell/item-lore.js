@@ -38,7 +38,9 @@ const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Ra
 const TYPE = Object.freeze({ weapon: 'Weapon', armor: 'Armor', jewelry: 'Jewelry', tool: 'Tool', trophy: 'Trophy' });
 
 let INDEX = null;
-/* item -> { drops:[monster], made:[skill], from:[gather skill], at:{skill: lowest level}, shop, inputOf:[[skill, output]] }, built once. */
+/* item -> { drops:[monster], made:[skill], from:[gather skill], at:{skill: lowest level}, shop, inputOf:[[skill, output, job]] }, built once.
+   `job`: the words for a job that names itself rather than its product (designer 2026-11-05: an input to a gem roll or to the Hallmark
+   names the job, never the grades it may make); null for every other recipe. */
 function index() {
   if (INDEX) return INDEX;
   INDEX = new Map();
@@ -49,12 +51,13 @@ function index() {
     /* every grade a rolled job can make is made by it (src/data/jewelry.js) */
     for (const id of recipeOutcomes(r)) { at(id).made.push(skill); lowest(at(id), skill, r.req); }
     const ins = Object.assign({}, r.inputs || {}, r.input ? { [r.input]: 1 } : {}, r.secondary || {});
-    for (const id of Object.keys(ins)) if (r.output) at(id).inputOf.push([skill, r.output]);
+    /* a gem roll never makes the piece it is named for: its inputs name the job (a piece's own rolled job is named for the piece it makes) */
+    for (const id of Object.keys(ins)) if (r.output) at(id).inputOf.push([skill, r.output, r.roll === 'gem' ? r.name : null]);
   };
   for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) recipe(skill, r);
   for (const r of DRINK_RECIPES) recipe('cooking', r);
   /* the Hallmark step: a Fine piece and its gem make the Hallmarked row (at Crafting), and are used in it */
-  for (const o of HALLMARK_OFFERS) { at(o.to).made.push(o.skill); lowest(at(o.to), o.skill, o.level); for (const id of [o.from, o.gem]) at(id).inputOf.push([o.skill, o.to]); }
+  for (const o of HALLMARK_OFFERS) { at(o.to).made.push(o.skill); lowest(at(o.to), o.skill, o.level); for (const id of [o.from, o.gem]) at(id).inputOf.push([o.skill, o.to, 'the Hallmark']); }
   for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) if (n.prod) { at(n.prod).from.push(skill); lowest(at(n.prod), skill, n.req); }
   for (const c of Object.values(CROPS)) if (c && c.prod) { at(c.prod).from.push('farming'); lowest(at(c.prod), 'farming', c.req || c.lv); }
   /* Only a row a Shop tab lists is "sold at the shop": the rest are the vendor's price list (lane/b-orphan-sources). */
@@ -147,6 +150,9 @@ export function rareSaleWords(lines) {
   return [rare.length ? 'This sells rare finds: ' + listWords(rare) + '.' : '', ...once].filter(Boolean).join(' ');
 }
 
+/* "A", "A, and B", "A, B, and C". */
+const jobListWords = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ', and ' + a[a.length - 1]);
+
 /** What it is for, in plain words. */
 export function usesOf(id) {
   const it = ITEMS[id] || {};
@@ -154,8 +160,13 @@ export function usesOf(id) {
   const out = [];
   if (r && r.inputOf.length) {
     const bySkill = new Map();
-    for (const [skill, outId] of r.inputOf) { if (!bySkill.has(skill)) bySkill.set(skill, []); bySkill.get(skill).push(itemName(outId)); }
-    for (const [skill, outs] of bySkill) out.push('Used in ' + skillName(skill) + ': ' + listWords(outs));
+    for (const [skill, outId, job] of r.inputOf) {
+      if (!bySkill.has(skill)) bySkill.set(skill, { items: [], jobs: [] });
+      const b = bySkill.get(skill);
+      if (job) { if (!b.jobs.includes(job)) b.jobs.push(job); } else b.items.push(itemName(outId));
+    }
+    /* a job's name holds its own "and" ("Set a Road Carnelian in a Banded Signet"), so a list with one takes a comma before its last */
+    for (const [skill, b] of bySkill) out.push('Used in ' + skillName(skill) + ': ' + (b.jobs.length ? jobListWords([...new Set(b.items)].concat(b.jobs)) : listWords(b.items)));
   }
   const k = kindOf(id);
   if (k === 'gear') out.push('Worn in the ' + ((EQUIP_SLOT_META[it.slot] && EQUIP_SLOT_META[it.slot].label) || it.slot).toLowerCase() + ' slot');

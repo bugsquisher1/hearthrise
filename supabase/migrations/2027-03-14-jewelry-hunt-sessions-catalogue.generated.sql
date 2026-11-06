@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 3f6dc2195269e6e63f2b5e9184329c4549692cc9af4f392c490060b9a413cf0c
+--   digest: 5d223de64fb719db1386644b63db09602e24809cdf063baf20c63aeb963aa5c9
 --   82 supplies, 128 hunts (named + training), 47 limits, 13 end reasons,
 --   557 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
@@ -628,7 +628,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('the_silence', 614, 1716, '{"void_chitin":1,"void_core":1,"shadow_thread":1,"hollow_sigil":1}'::jsonb),
   ('the_unlit', 698, 2010, '{"void_core":1,"void_chitin":1,"hollow_sigil":1,"ancient_rune":1,"dawnstone_ore":1}'::jsonb),
   ('treant', 528, 1828, '{"duskwood_log":1,"runewood_log":1,"timber_beam":1,"moonbloom":1,"yew_log":1}'::jsonb),
-  ('turncoat', 18, 291, '{"wolf_pelt":1,"bones":1,"torn_company_badge":1,"iron_platebody":1,"studded_body":1,"adept_body":1,"bramble_blade":1,"road_garnet":1,"wolfbone_torc":1,"fang_studs":1}'::jsonb),
+  ('turncoat', 18, 291, '{"wolf_pelt":1,"bones":1,"torn_company_badge":1,"iron_platebody":1,"studded_body":1,"adept_body":1,"bramble_blade":1,"road_carnelian":1,"wolfbone_torc":1,"fang_studs":1}'::jsonb),
   ('vampire_bride', 608, 1718, '{"vamp_dust":1,"wraith_veil":1,"ruby":1,"ancient_rune":1,"archmage_gloves":1}'::jsonb),
   ('venom_spider', 34, 160, '{"venom_sac":1,"silk_thread":1,"spider_eye":1,"spidersilk_choker":1}'::jsonb),
   ('vharek', 620, 1919, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"ember_bar":1,"hollow_sigil":1}'::jsonb),
@@ -1416,7 +1416,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('riftmaw_carapace', 41580),
   ('riftmaw_husk', 4200),
   ('river_chowder', 380),
-  ('road_garnet', 40),
+  ('road_carnelian', 40),
   ('roasted_carrot', 12),
   ('roasted_pumpkin', 90),
   ('rooks_moss_charm', 11),
@@ -1888,7 +1888,7 @@ begin
     ('wickstead', 'loft_web', 1),
     ('wickstead', 'orchard_boar_tusk', 1),
     ('wickstead', 'rat_tail', 1),
-    ('wickstead', 'road_garnet', 1),
+    ('wickstead', 'road_carnelian', 1),
     ('wickstead', 'silk_thread', 1),
     ('wickstead', 'studded_belt', 1),
     ('wickstead', 'studded_body', 1),
@@ -2056,7 +2056,7 @@ begin
     ('iron_gauntlets'),
     ('loft_web'),
     ('orchard_boar_tusk'),
-    ('road_garnet'),
+    ('road_carnelian'),
     ('studded_belt'),
     ('studded_gloves'),
     ('torn_company_badge'),

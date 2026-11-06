@@ -79,7 +79,7 @@ export function patchHallmarkPane(root, ctx, sc) {
   const none = root.querySelector('.hw-hallmark-none');
   cls(none, 'is-on', !offers.length);
   text(none, !h ? 'The Hallmark step loads from the server.' : offers.length ? ''
-    : 'Hold a Fine piece to choose its second perk here. Make Banded Signet can roll one; setting a Road Garnet in a plain one always does.');
+    : 'Hold a Fine piece to choose its second perk here. Make Banded Signet can roll one; setting a Road Carnelian in a plain one always does.');
   const asked = sc.hallmark ? offers.find((o) => keyOf(o) === sc.hallmark) : null;
   if (sc.hallmark && (!asked || !!blockOf(cs, asked, h, purse, lv) || sc.pending)) sc.hallmark = null;
   const cf = root.querySelector('.hw-hallmark-ask');

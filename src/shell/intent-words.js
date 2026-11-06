@@ -10,18 +10,18 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.96';
-import { ITEMS } from '../data/items.js?v=0.2.96';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.96';
-import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.96';
-import { levelOf } from '../session/character-sections.js?v=0.2.96';
-import { needOf, needWords } from './item-lore.js?v=0.2.96';
-import { whole } from '../render/format.js?v=0.2.96';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.96';
-import { marketRefusal } from './market-words.js?v=0.2.96';
-import { setupFullWords } from './setup-words.js?v=0.2.96';
-import { TITLES } from '../data/titles.js?v=0.2.96';
-import { sinkRefusal } from './sink-words.js?v=0.2.96';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.98';
+import { ITEMS } from '../data/items.js?v=0.2.98';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.98';
+import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.98';
+import { levelOf } from '../session/character-sections.js?v=0.2.98';
+import { needOf, needWords } from './item-lore.js?v=0.2.98';
+import { whole } from '../render/format.js?v=0.2.98';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.98';
+import { marketRefusal } from './market-words.js?v=0.2.98';
+import { setupFullWords } from './setup-words.js?v=0.2.98';
+import { TITLES } from '../data/titles.js?v=0.2.98';
+import { sinkRefusal } from './sink-words.js?v=0.2.98';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -107,6 +107,10 @@ export function refusalText(r, cs) {
   /* A new setup past this hero's count (hr_setup_locked sends both numbers): "This hero's 3 setup slots are full. Delete one, or buy a fourth for 15,000 gp." */
   if (r && r.error === 'setup_locked' && r.figures && Number.isInteger(r.figures.slots)) {
     return setupFullWords(r.figures.slots, Number.isInteger(r.figures.price) ? r.figures.price : null);
+  }
+  /* A hero's colors past the row's cap (hr_hero_colors_set sends the number). */
+  if (r && r.error === 'colors_limit' && r.figures && Number.isInteger(r.figures.per_day)) {
+    return 'A hero can change colors ' + r.figures.per_day + ' times a day. More after midnight UTC.';
   }
   /* A title short of its kills (hr_title_buy counts them): "Wolfer takes 5,000 wolves. Marlow has 3,214. Gold can't skip kills." */
   const title = r && typeof r.title === 'string' && own(TITLES, r.title) ? TITLES[r.title] : null;

@@ -18,11 +18,11 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.96';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.96';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.96';
-import { callOfHunt } from '../data/boss-calls.js?v=0.2.96';
-import { lossLine } from './boss-loss.js?v=0.2.96';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.98';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.98';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.98';
+import { callOfHunt } from '../data/boss-calls.js?v=0.2.98';
+import { lossLine } from './boss-loss.js?v=0.2.98';
 
 export { sanitizeSummaries };
 

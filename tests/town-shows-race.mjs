@@ -13,9 +13,14 @@
 //       key over its hr_apply, so the burn waited on a row the powder held while the powder waited on the key (2027-02-27-town-shows.sql §7 moves the key after the charge)
 //   R5  two accounts race for the Crier's 30 s (gate: the Crier's key): one line; the other refused crier_busy and charged nothing
 //   R6  one key pressed twice at once: one charge, one row, one line
+//   THE TOWN WORKS (2027-03-04-town-works.sql):
+//   R7  two heroes on one account press together for more than the day holds (gate: the purse): the account gives 25,000 and no more; the other is told what's left and charged nothing
+//   R8  two accounts race for what's left on the project (gate: the project's key): it fills exactly; the other is refused works_short and every trace of its charge rolls back
+//   R9  two accounts' gifts cross one stage at once (gate: the project's key): the town says it once, and the total is the sum of both
+//   R10 one gift's key pressed twice at once: one charge, one row, one gift
 // NOT A CI STEP: GitHub has no PostgreSQL 17 binaries (tests/guards-unregistered.json). Never touches production or the machine's own PostgreSQL service: it starts tools/pg-replay.mjs's
 // scratch cluster. HR_PG_TEMPLATE = an existing chain database to clone, this lane's files applied over it, instead of the build of the whole chain.
-// mutant-anchors: supabase/migrations/2027-02-27-town-shows.sql
+// mutant-anchors: supabase/migrations/2027-02-27-town-shows.sql, supabase/migrations/2027-03-04-town-works.sql
 // Exit: 0 green (--mutate: every mutant caught) · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
@@ -27,11 +32,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean);
 const TEMPLATE = process.env.HR_PG_TEMPLATE || undefined;
-const LANE_FILES = ['2027-02-27-gold-sinks-catalogue.generated.sql', '2027-02-27-gold-sinks-seams.sql', '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql'];
+const LANE_FILES = ['2027-02-27-gold-sinks-catalogue.generated.sql', '2027-02-27-gold-sinks-seams.sql', '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-03-04-town-works-catalogue.generated.sql', '2027-03-04-town-works.sql'];
 const MAP = 'town_common';
 const SHOW = 'public.hr_town_show(integer,text,bigint,uuid)';
 const CRY = 'public.hr_crier_send(integer,text,bigint,uuid)';
 const BURN = 'public.hr_hearth_burn(integer,text,uuid)';
+const GIVE = 'public.hr_town_works_give(integer,text,bigint,uuid)';
 const idem = () => crypto.randomUUID();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let serial = 0;
@@ -40,7 +46,9 @@ const newUser = () => '000000c0-0000-4000-a000-0000901e' + String(++serial).padS
 /* THE RATE BUCKET'S ROW ALSO SERIALIZES ONE VERB ACROSS HEROES (hr_rate_ok's upsert holds it to commit), by accident, not by contract: a bucket can be moved or dropped. So the
    sink key's own proof takes the bucket out with it, and a control proves the key alone holds the race. */
 const RATE = "  if not public.hr_rate_ok(v_uid, 'town_show', v_rule.per_minute, interval '1 minute') then\n    return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;\n";
+const WORKS_RATE = "  if not public.hr_rate_ok(v_uid, 'town_works', v_p.per_minute, interval '1 minute') then\n    return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;\n";
 const CONTROLS = {
+  works_key_alone: { race: 'R7', why: 'with no rate bucket in the way, hr:sink:<uid> alone holds the day\'s cap', fn: GIVE, find: WORKS_RATE, repl: '' },
   the_key_alone: { race: 'R1', why: 'with no rate bucket in the way, hr:sink:<uid> alone holds the climb', fn: SHOW, find: RATE, repl: '' },
   the_key_alone_next_price: { race: 'R2', why: 'with no rate bucket in the way, hr:sink:<uid> alone pays the next price', fn: SHOW, find: RATE, repl: '' },
 };
@@ -50,6 +58,15 @@ const MUTANTS = {
     find: "    if v_free > now() + make_interval(secs => v_rule.book_s) then raise exception using errcode = 'HR938', message = 'show_busy'; end if;\n", repl: '' },
   crier_recheck_gone: { race: 'R5', why: 'the gap is never read again under the Crier\'s key, so two lines go out', fn: CRY,
     find: "    if v_wait > 0 then raise exception using errcode = 'HR939', message = 'crier_busy'; end if;\n", repl: '' },
+  works_sink_lock_gone: { race: 'R7', why: 'two heroes both read what\'s left before either pays, so the account gives past its cap', fn: GIVE, find: WORKS_RATE, repl: '', find2: '  perform public.hr_sink_lock(v_uid);\n', repl2: '' },
+  works_recheck_gone: { race: 'R8', why: 'what\'s left is never read again under the project\'s key, so the project overfills', fn: GIVE,
+    find: "    if v_fault is not null then raise exception using errcode = 'HR943', message = 'town_works lost the race'; end if;\n", repl: '' },
+  works_race_charges: { race: 'R8', why: 'a gift that lost the race keeps its charge', fn: GIVE,
+    find: "raise exception using errcode = 'HR943', message = 'town_works lost the race'; end if;", repl: "return v_fault || jsonb_build_object('ok', false, 'project', p_project); end if;" },
+  works_stale_total: { race: 'R9', why: 'the total isn\'t read again under the key: the second gift overwrites the first and the stage speaks twice', fn: GIVE,
+    find: "    v_total := coalesce((select t.total from public.town_works_totals t where t.project_id = p_project), 0);\n    v_fault := public.hr_town_works_fault(v_p.min_gift, v_p.per_day, v_goal - v_total, v_given, p_amount);\n    if v_fault is not null then raise", repl: '    if v_fault is not null then raise' },
+  works_second_replay_gone: { race: 'R10', why: 'a second press of one key that waited on the hero\'s lock is never answered from the first', fn: GIVE,
+    find: "  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);\n  if v_r is not null then return public.hr_note_rejection('town_works', p_slot, v_r); end if;\n  select version into v_ver", repl: '  select version into v_ver' },
   burn_holds_the_key: { race: 'R4', why: 'the burn holds the Hearth\'s key over its charge, against a powder holding its row and waiting on the key', fn: BURN,
     find: "    -- THE BURN: the item and the XP, journalled, exactly once on this key\n", repl: "    perform pg_advisory_xact_lock(hashtextextended('hr:hearth:' || v_map, 0));\n" },
 };
@@ -88,6 +105,7 @@ async function asClient(c, uid, sql, params) {
   } catch (e) { await c.exec('rollback').catch(() => {}); throw e; }
 }
 const press = (c, uid, slot, show, price, key = idem()) => asClient(c, uid, 'select public.hr_town_show($1::int, $2, $3::bigint, $4::uuid) r', [slot, show, price, key]);
+const gift = (c, uid, slot, amount, key = idem()) => asClient(c, uid, 'select public.hr_town_works_give($1::int, $2, $3::bigint, $4::uuid) r', [slot, 'weighhouse', amount, key]);
 const cry = (c, uid, slot, body, price, key = idem()) => asClient(c, uid, 'select public.hr_crier_send($1::int, $2, $3::bigint, $4::uuid) r', [slot, body, price, key]);
 
 async function account(w, heroes) {
@@ -124,8 +142,10 @@ const open = (w) => w.gate.exec('commit');
 const clearTown = async (w) => {
   await w.db.query('delete from public.town_shows');
   await w.db.query('delete from public.hearth_flames');
+  await w.db.query('delete from public.town_works_gifts');
+  await w.db.query('delete from public.town_works_totals');
   await w.db.exec('alter table public.chat_messages disable trigger hr_chat_immutable');
-  await w.db.query('delete from public.chat_messages where crier');
+  await w.db.query("delete from public.chat_messages where crier or from_name = 'The Weighhouse'");
   await w.db.exec('alter table public.chat_messages enable trigger hr_chat_immutable');
 };
 
@@ -261,6 +281,98 @@ const RACES = {
     if ((await purse(w, u)) !== 998000) out.push('one key twice left the purse at ' + (await purse(w, u)));
     if ((await shopRows(w, u)).length !== 1) out.push('one key twice journalled ' + JSON.stringify(await shopRows(w, u)));
     if (Number((await w.db.query('select count(*) n from public.town_shows where user_id = $1', [u])).rows[0].n) !== 1) out.push('one key twice booked twice');
+    return out;
+  },
+  /* THE TOWN WORKS */
+  R7: async (w) => {
+    const out = [];
+    await clearTown(w);
+    const u = await account(w, 2);
+    await holdPurse(w, u);
+    const p0 = gift(w.A, u, 0, 15000);
+    const b0 = await blocked(w, w.A, p0);
+    const p1 = gift(w.B, u, 1, 15000);
+    const b1 = await blocked(w, w.B, p1);
+    await open(w);
+    const [r0, r1] = await Promise.all([p0, p1]);
+    if (!b0 || !b1) out.push('the race never opened: ' + JSON.stringify({ b0, b1, r0, r1 }));
+    const oks = [r0, r1].filter((r) => r.ok === true);
+    const refused = [r0, r1].filter((r) => r.error === 'works_over' && Number(r.left) === 10000);
+    if (oks.length !== 1 || refused.length !== 1) out.push('two heroes over the cap answered ' + JSON.stringify([r0, r1]));
+    if ((await purse(w, u)) !== 985000) out.push('the purse reads ' + (await purse(w, u)));
+    if ((await shopRows(w, u)).length !== 1) out.push('the journal reads ' + JSON.stringify(await shopRows(w, u)));
+    const given = (await w.db.query('select coalesce(sum(day_gold), 0) n from public.town_works_gifts where user_id = $1', [u])).rows[0].n;
+    if (Number(given) !== 15000) out.push('the account gave ' + given + ' today');
+    return out;
+  },
+  R8: async (w) => {
+    const out = [];
+    await clearTown(w);
+    const [a, b] = [await account(w, 1), await account(w, 1)];
+    /* the project has room for one of these two, not both */
+    await w.db.query("insert into public.town_works_totals (project_id, total) values ('weighhouse', 999000)");
+    await holdKey(w, 'hr:works:weighhouse');
+    const pa = gift(w.A, a, 0, 1000);
+    const ba = await blocked(w, w.A, pa);
+    const pb = gift(w.B, b, 0, 1000);
+    const bb = await blocked(w, w.B, pb);
+    await open(w);
+    const [ra, rb] = await Promise.all([pa, pb]);
+    if (!ba || !bb) out.push('the race never opened: ' + JSON.stringify({ ba, bb, ra, rb }));
+    const answers = [ra, rb];
+    if (answers.filter((r) => r.ok === true).length !== 1 || answers.filter((r) => r.error === 'works_done').length !== 1) out.push('the race for the last gift answered ' + JSON.stringify(answers));
+    const total = Number((await w.db.query("select total from public.town_works_totals where project_id = 'weighhouse'")).rows[0].total);
+    if (total !== 1000000) out.push('the project reads ' + total);
+    const won = ra.ok === true ? a : b, lost = ra.ok === true ? b : a;
+    if ((await purse(w, won)) !== 999000) out.push('the winner\'s purse reads ' + (await purse(w, won)));
+    if ((await purse(w, lost)) !== 1000000) out.push('the loser was charged: ' + (await purse(w, lost)));
+    if ((await shopRows(w, lost)).length) out.push('the loser was journalled');
+    if (Number((await w.db.query('select count(*) n from public.player_intents where user_id = $1', [lost])).rows[0].n) > 1) out.push('the loser spent a key');
+    if (Number((await w.db.query('select count(*) n from public.town_works_gifts where user_id = $1', [lost])).rows[0].n)) out.push('the loser wrote a gift');
+    if (Number((await w.db.query('select count(*) n from public.account_gold_given where user_id = $1', [lost])).rows[0].n)) out.push('the loser counted on the board');
+    const said = (await w.db.query("select body from public.chat_messages where from_name = 'The Weighhouse'")).rows.map((r) => r.body);
+    if (said.join() !== 'is finished.') out.push('the finish said ' + said);
+    return out;
+  },
+  R9: async (w) => {
+    const out = [];
+    await clearTown(w);
+    const [a, b] = [await account(w, 1), await account(w, 1)];
+    /* each gift alone crosses 100,000: only the first to hold the key does */
+    await w.db.query("insert into public.town_works_totals (project_id, total) values ('weighhouse', 99500)");
+    await holdKey(w, 'hr:works:weighhouse');
+    const pa = gift(w.A, a, 0, 1000);
+    const ba = await blocked(w, w.A, pa);
+    const pb = gift(w.B, b, 0, 1000);
+    const bb = await blocked(w, w.B, pb);
+    await open(w);
+    const [ra, rb] = await Promise.all([pa, pb]);
+    if (!ba || !bb) out.push('the race never opened: ' + JSON.stringify({ ba, bb, ra, rb }));
+    if (ra.ok !== true || rb.ok !== true) out.push('the two gifts answered ' + JSON.stringify([ra, rb]));
+    const total = Number((await w.db.query("select total from public.town_works_totals where project_id = 'weighhouse'")).rows[0].total);
+    if (total !== 101500) out.push('the total reads ' + total + ': a gift was lost');
+    const rows = (await w.db.query("select from_id, body from public.chat_messages where from_name = 'The Weighhouse'")).rows;
+    if (rows.length !== 1 || rows[0].body !== 'has its footings.') out.push('the stage spoke ' + JSON.stringify(rows));
+    /* AS THE TOWN, ON REAL CLAIMS: the session's sub and its claims both come off for the one insert */
+    if (rows[0] && rows[0].from_id !== null) out.push('the line is stamped with a giver');
+    return out;
+  },
+  R10: async (w) => {
+    const out = [];
+    await clearTown(w);
+    const u = await account(w, 1);
+    const key = idem();
+    await holdPurse(w, u);
+    const p0 = gift(w.A, u, 0, 1000, key);
+    await blocked(w, w.A, p0);
+    const p1 = gift(w.B, u, 0, 1000, key);
+    await blocked(w, w.B, p1);
+    await open(w);
+    const [r0, r1] = await Promise.all([p0, p1]);
+    if (r0.ok !== true || r1.ok !== true) out.push('one key twice answered ' + JSON.stringify([r0, r1]));
+    if ((await purse(w, u)) !== 999000) out.push('one key twice left the purse at ' + (await purse(w, u)));
+    if ((await shopRows(w, u)).length !== 1) out.push('one key twice journalled ' + JSON.stringify(await shopRows(w, u)));
+    if (Number((await w.db.query('select gold from public.town_works_gifts where user_id = $1', [u])).rows[0].gold) !== 1000) out.push('one key twice gave twice');
     return out;
   },
 };

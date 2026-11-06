@@ -34,7 +34,7 @@
 //   knight    head plume · body the faulds (the blue cloth under the belt). Plate stays steel: the sword
 //             is the same steel and crosses the legs in the east and south walks, and the shield is the
 //             faulds' blue and gold.
-//   berserker head the helmet and fur mantle · body the red tunic · feet the boots. The leg wraps are the
+//   berserker head the helmet and fur mantle · body the red tunic · feet the boots (its legs band stands 7 rows up, or a lifted boot blinks undyed). The leg wraps are the
 //             leather of the forearm bracers and the axe hafts and swing with them: no legs.
 //   brute     head the cap · body the shirt. The trousers are the hammer head's grey and the hammer swings
 //             across them in the north and west walks: no legs; the boots are the trousers' shadow: no feet.
@@ -94,7 +94,7 @@ export const OUTFIT_MASKS = Object.freeze({
   berserker: {
     materials: [OUTLINE(0.09), ['red', { h: [350, 12], s: [0.66, 1] }], ['skin', { h: [18, 28], s: [0.4, 0.58], v: [0.72, 1] }],
       ['leather', { h: [10, 26], s: [0.56, 1] }], ['fur', { h: [10, 40], s: [0.08, 0.3], v: [0.2, 0.66] }], ['steel', { s: [0, 0.12], v: [0.6, 1] }]],
-    bands: { head: 27, body: 15, legs: 5 },
+    bands: { head: 27, body: 15, legs: 7 },
     parts: { fur: { region: 'head', n4: true, above: 19 }, red: { region: 'body' }, leather: { byBand: ['feet'], n4: true, split: 2 } },
   },
   brute: {

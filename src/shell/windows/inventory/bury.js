@@ -35,22 +35,22 @@
 // A count rides the ONE set_activity (2026-12-01-bench-count.sql: the server stops
 // the bench after that many); a dish is always the whole stack (Cook all).
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.96';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.96';
-import { recipeInputs } from '../../../core/artisan.js?v=0.2.96';
-import { whole } from '../../../render/format.js?v=0.2.96';
-import { itemName } from '../../widgets/bits.js?v=0.2.96';
-import { riteOf, cookOf } from '../../bag-model.js?v=0.2.96';
-import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.96';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.96';
-import { townActivityWords } from '../../../session/party-sections.js?v=0.2.96';
-import { startWork, stopWork, workRow, workOf, runParts, doWords, workBlock } from '../../town-work.js?v=0.2.96';
-import { skillShortWords } from '../../intent-words.js?v=0.2.96';
-import { lineParts, lineText } from '../../town-ticker.js?v=0.2.96';
-import { namedFuelOf } from '../../bag-model.js?v=0.2.96';
-import { HUNT_INDEX } from '../../../data/hunts.js?v=0.2.96';
-import { nameOf } from '../../../session/item-sections.js?v=0.2.96';
-import { burnNamedFuel } from '../../../session/hearth-intents.js?v=0.2.96';
+import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.98';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.98';
+import { recipeInputs } from '../../../core/artisan.js?v=0.2.98';
+import { whole } from '../../../render/format.js?v=0.2.98';
+import { itemName } from '../../widgets/bits.js?v=0.2.98';
+import { riteOf, cookOf } from '../../bag-model.js?v=0.2.98';
+import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.98';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.98';
+import { townActivityWords } from '../../../session/party-sections.js?v=0.2.98';
+import { startWork, stopWork, workRow, workOf, runParts, doWords, workBlock } from '../../town-work.js?v=0.2.98';
+import { skillShortWords } from '../../intent-words.js?v=0.2.98';
+import { lineParts, lineText } from '../../town-ticker.js?v=0.2.98';
+import { namedFuelOf } from '../../bag-model.js?v=0.2.98';
+import { HUNT_INDEX } from '../../../data/hunts.js?v=0.2.98';
+import { nameOf } from '../../../session/item-sections.js?v=0.2.98';
+import { burnNamedFuel } from '../../../session/hearth-intents.js?v=0.2.98';
 
 /* The Hearth's skill: every output-less bench row is a fuel (src/data/hearth.js). */
 const FLAME = 'inner_flame';

@@ -29,24 +29,24 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.96';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.96';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.96';
-import { SKILLS_DEF } from './skills.js?v=0.2.96';
-import { SHOP_OFFERS } from './shops.js?v=0.2.96';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.96';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.96';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.96';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.96';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.96';
-import { MONSTERS } from './monsters.js?v=0.2.96';
-import { NAMED_FUELS } from './hearth.js?v=0.2.96';
-import { TEMPER_OFFERS } from './temper.js?v=0.2.96';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.96';
-import { HUNT_INDEX } from './hunts.js?v=0.2.96';
+import { ITEMS } from './items.js?v=0.2.98';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.98';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.98';
+import { SKILLS_DEF } from './skills.js?v=0.2.98';
+import { SHOP_OFFERS } from './shops.js?v=0.2.98';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.98';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.98';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.98';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.98';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.98';
+import { MONSTERS } from './monsters.js?v=0.2.98';
+import { NAMED_FUELS } from './hearth.js?v=0.2.98';
+import { TEMPER_OFFERS } from './temper.js?v=0.2.98';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.98';
+import { HUNT_INDEX } from './hunts.js?v=0.2.98';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.96';
+} from './item-authority.js?v=0.2.98';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module

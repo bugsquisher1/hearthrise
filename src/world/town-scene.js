@@ -20,11 +20,11 @@
 // ref.player so a right-click opens the shared player menu for that account.
 // PURE: no DOM, no window, no G — the caller passes the walkers and the clock.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.96';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.96';
-import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.96';
-import { pickFacing } from './core/facing.js?v=0.2.96';
-import { GRIDS } from '../data/world/art-budget.js?v=0.2.96';
+import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.98';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.98';
+import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.98';
+import { pickFacing } from './core/facing.js?v=0.2.98';
+import { GRIDS } from '../data/world/art-budget.js?v=0.2.98';
 
 /** A tile coordinate on the whole art pixel of a `T` px grid. */
 const onPixelOf = (T) => (v) => Math.round(v * T) / T;
@@ -86,6 +86,8 @@ export function createTownCast(map, o) {
         const { anim, age } = walkClip(o.sprites[id], at, p.steer.restMs(now), pickFacing);
         units.push({
           id, x: onPixel(at.x), y: onPixel(at.y), dir: at.moving ? at.dir : p.dir, diag: at.moving ? at.diag : null, anim, age,
+          /* its own colors, as the server's walker named them (dye indices, src/world/hero-dye.js draws them) */
+          dye: p.w.dye,
           plate: { text: plateTextOf(p.w), kind: 'peer' },
           /* who this is, for the player menu: the server's account id and slot */
           ref: { player: { id: p.w.id, name: p.w.name, slot: p.w.slot } },

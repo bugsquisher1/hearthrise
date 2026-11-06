@@ -34,6 +34,12 @@
 //         one offers "Harvest (grows back N more times)" (ONE hr_farm_harvest) and "Harvest
 //         and clear plot" (ONE hr_farm_harvest_clear); on its last harvest Harvest and replant
 //         / Harvest and clear plot (it withers), never "Harvest only"
+//   FW-9  SOW WITHOUT SCROLLING (Discord 0.2.95: "Scrolling up and down to select new plantable
+//         seeds over and over is tedious"), at 922×423: pressing an empty plot brings the picker
+//         on screen; the crops you can plant list first; after a plant the picker stays drawn,
+//         moves to the server's next empty plot and the window keeps its scroll; "Plant
+//         N empty plots" sends ONE hr_farm_plant per empty plot in order, every control off
+//         meanwhile, and stops at the first refusal saying so
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -68,6 +74,21 @@ const REGROW = {
       { i: 1, crop: 'tomato', ready: true, ready_in_s: 0, waterable: false, regrows_left: 3, by: 0, by_name: 'Alda', extra: false },
       { i: 2, crop: 'tomato', ready: true, ready_in_s: 0, waterable: false, regrows_left: 0, by: 0, by_name: 'Alda', extra: false }] },
 };
+/* FW-9: room for 4 at tier 2, Farming 10, plot 1 growing; 2 carrot seeds and no turnip seed, so the third plant is refused. */
+const SOW = {
+  farm_land: { cap: 4, plot_level: 2, deeds: 0, upgrade: null,
+    plots: [{ i: 1, crop: 'turnip', ready: false, ready_in_s: 7200, waterable: false, regrows_left: null, by: 0, by_name: 'Alda', extra: false }] },
+  skills: Object.assign(clone(BASE_ENV.skills), { farming: { xp: 9000, level: 10, frac: 0 } }),
+  inventory: Object.assign(clone(BASE_ENV.inventory), { carrot_seed: 2, turnip_seed: 0 }),
+};
+/* The stub server's plant: a seed from the bag into the plot, or the server's refusal when none is left. */
+function sowOn(body, s) {
+  const inv = s.env.inventory;
+  if (!(inv.carrot_seed > 0)) return { ok: false, error: 'insufficient_seed' };
+  inv.carrot_seed -= 1;
+  s.env.farm_land.plots.push({ i: body.p_plot_idx, crop: body.p_crop, ready: false, ready_in_s: 21600, waterable: true, regrows_left: null, by: 0, by_name: 'Alda', extra: false });
+  return { ok: true, plot: body.p_plot_idx, crop: body.p_crop };
+}
 const CLEAR = { ok: true, plot: 1, crop: 'tomato', produce: 'tomato', qty: 3, xp: 4410, regrew: false, withered: false, extra: false, cleared: true, regrows_left: null };
 const RPCS = ['hr_farm_plant', 'hr_farm_water', 'hr_farm_harvest', 'hr_farm_harvest_replant', 'hr_farm_harvest_clear', 'hr_farm_upgrade_plot'];
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
@@ -83,6 +104,7 @@ async function stub(page, s) {
     if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
     if (RPCS.includes(name)) {
       await new Promise((ok) => setTimeout(ok, 400));
+      if (typeof s.answers[name] === 'function') return json(s.answers[name](body, s));
       return json(s.answers[name] || (name === 'hr_farm_harvest_replant' ? HARVEST : { ok: true }));
     }
     return json({ ok: true });
@@ -105,8 +127,8 @@ async function checks(overrides) {
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
   const W = '[data-hs-win="farm"] ';
-  const open = async (sections, answers) => {
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const open = async (sections, answers, viewport) => {
+    const ctx = await browser.newContext({ viewport: viewport || { width: 1440, height: 900 } });
     const page = await ctx.newPage();
     page.setDefaultTimeout(6000);
     const errors = [];
@@ -235,6 +257,50 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    { // FW-9 (Discord 0.2.95)
+      const { ctx, page, errors, s, opened } = await open(clone(SOW), { hr_farm_plant: sowOn }, { width: 922, height: 423 });
+      if (!opened) fails.push('FW-9 the window did not open');
+      else {
+        if (errors.length) fails.push('FW-9 console errors: ' + errors.join(' | ').slice(0, 300));
+        /* the window's scroll box, how far it is scrolled, and whether a part of it is on screen */
+        const view = (sel) => page.evaluate((q) => {
+          let e = document.querySelector('[data-hs-win="farm"] .hw-farm');
+          while (e && !(e.scrollHeight > e.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(e).overflowY))) e = e.parentElement;
+          const t = document.querySelector(q), r = t && t.getBoundingClientRect(), b = e ? e.getBoundingClientRect() : { top: 0, bottom: innerHeight };
+          return { top: e ? Math.round(e.scrollTop) : 0, seen: !!r && r.height > 0 && r.top >= b.top - 1 && r.top < b.bottom - 20 };
+        }, sel);
+        await press(page, W + '.hw-plot[data-plot="0"] .hw-soil', 'FW-9');
+        if (!(await view(W + '.hw-sow.is-on .hw-sow-head')).seen) fails.push('FW-9 pressing an empty plot leaves the picker off screen');
+        const order = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-seeds li')].map((li) => li.getAttribute('data-crop')));
+        if (order[0] !== 'carrot' || !/No seeds/.test((await txt(page, W + '.hw-seeds li[data-crop="turnip"] small')) || '')) fails.push('FW-9 the picker lists ' + JSON.stringify(order.slice(0, 3)) + ', want the plantable carrot first and turnip saying No seeds');
+        const sow = W + '.hw-seeds li[data-crop="carrot"] [data-hs-act="sow"]';
+        await page.evaluate((q) => {
+          document.querySelector(q).scrollIntoView({ block: 'nearest' });
+          window.__sowGone = 0;
+          const el = document.querySelector('[data-hs-win="farm"] .hw-sow');
+          new MutationObserver(() => { if (!el.classList.contains('is-on')) window.__sowGone++; }).observe(el, { attributes: true, attributeFilter: ['class'] });
+        }, sow);
+        const top0 = (await view(sow)).top;
+        await press(page, sow, 'FW-9');
+        await idle(page);
+        const head = await txt(page, W + '.hw-sow.is-on .hw-sow-head');
+        const top1 = (await view(sow)).top;
+        const gone = await page.evaluate(() => window.__sowGone);
+        if (head !== 'Plant in plot 3' || gone || top1 !== top0) fails.push('FW-9 after a plant the picker reads ' + JSON.stringify(head) + ' (want "Plant in plot 3"), hid ' + gone + ' time(s), scroll ' + top0 + ' -> ' + top1);
+        const all = W + '.hw-seeds li[data-crop="carrot"] [data-hs-act="sowall"]';
+        const label = await txt(page, all);
+        if (label !== 'Plant 2 empty plots' || !(await shown(page, all))) fails.push('FW-9 the sweep reads ' + JSON.stringify(label));
+        await press(page, all, 'FW-9');
+        await page.waitForTimeout(60);
+        if (!(await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-seeds button')].every((b) => b.disabled)))) fails.push('FW-9 a seed control stayed on while the sweep was in flight');
+        await idle(page);
+        const pl = sent(s, 'hr_farm_plant').map((c) => c.body.p_plot_idx + ':' + c.body.p_crop);
+        if (pl.join() !== '0:carrot,2:carrot,3:carrot') fails.push('FW-9 the plants sent ' + JSON.stringify(pl) + ', want plot 0, then 2 and 3 in order, then stop');
+        const line = await txt(page, W + '.hh-intent-msg');
+        if (!/^Planted Carrot in 1 plot\. Stopped at plot 4: You have no seed for that crop/.test(line || '')) fails.push('FW-9 the sweep\'s line reads ' + JSON.stringify(line));
+      }
+      await ctx.close();
+    }
     { // FW-6
       const { ctx, page, opened } = await open({});
       if (!opened) fails.push('FW-6 the window did not open without the section');
@@ -273,6 +339,12 @@ const MUTANTS = [
   ['clear sends the plain harvest (#66)', 'src/session/farm-intents.js', "rpc('hr_farm_harvest_clear', {", "rpc('hr_farm_harvest', {"],
   ['the regrow count is not the server\'s (#66)', 'src/session/farm-sections.js', 'regrowsLeft: count(p.regrows_left)', 'regrowsLeft: 4'],
   ['the reader drops the planter', 'src/session/farm-sections.js', 'byName: nameOf(p.by_name)', 'byName: null'],
+  /* Discord 0.2.95: "Scrolling up and down to select new plantable seeds over and over is tedious". */
+  ['the picker closes after a plant (0.2.95)', 'src/shell/windows/farm.js', "sc.pick = nextEmpty(cs, ctx, at); return 'Planted '", "sc.pick = null; return 'Planted '"],
+  ['the picker lists crops in catalogue order (0.2.95)', 'src/shell/windows/farm.js', '}).sort((a, b) => Number(!!a.why) - Number(!!b.why));', '});'],
+  ['the picker hides while a plant is in flight (0.2.95)', 'src/shell/windows/farm.js', '(st.sc.pending || !st.land.plots.has(st.sc.pick))', '!st.land.plots.has(st.sc.pick)'],
+  ['the picker is left off screen (0.2.95)', 'src/shell/windows/farm.js', "if (sow && typeof sow.scrollIntoView === 'function')", 'if (false)'],
+  ['Plant in all runs past a refusal (0.2.95)', 'src/shell/windows/farm.js', 'if (!r.ok) return n ? { ok: true, n, at, stop: r } : r;', 'if (!r.ok) continue;'],
 ];
 
 async function main() {
@@ -280,7 +352,7 @@ async function main() {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'farm-window: ' + fails.length + ' rule(s) RED'
-      : 'farm-window: opens on J; the server\'s plots; plant from own seeds; harvest-and-replant only when the server says ready; water; refusals in plain words; fails safe; one field for every hero (who planted each plot, an extra plot harvested once); a regrowing crop says it grows back and can be harvested and cleared');
+      : 'farm-window: opens on J; the server\'s plots; plant from own seeds; harvest-and-replant only when the server says ready; water; refusals in plain words; fails safe; one field for every hero (who planted each plot, an extra plot harvested once); a regrowing crop says it grows back and can be harvested and cleared; the picker comes on screen, lists the plantable crops first, stays on the next empty plot and plants them all in order');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null);

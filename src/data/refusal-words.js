@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.96';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.98';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -114,6 +114,14 @@ export const REFUSAL_WORDS = Object.freeze({
   crier_level: 'The Crier takes words from Level 10 heroes and up.',
   crier_limit: 'The Crier takes 5 lines a day from one account. More after midnight UTC.',
   crier_busy: 'The Crier is shouting someone else\'s line. Try again in a moment. You weren\'t charged.',
+  /* The Town Works (2027-03-04-town-works.sql hr_town_works_give): src/shell/sink-words.js says those with a number. */
+  not_a_project: 'Havora isn\'t building that.',
+  bad_amount: 'Give a whole number of gold pieces.',
+  works_limit: 'Havora takes 25,000 gp a day from one account, and you\'ve given yours. More after midnight UTC.',
+  works_over: 'That\'s more than you can give today.',
+  works_short: 'That\'s more than the Works still needs.',
+  works_small: 'The smallest gift is 100 gp.',
+  works_done: 'That\'s finished. Nothing else is being built right now.',
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
   network: 'No connection. Nothing was changed.',
   timeout: 'The server has not answered. The game shows what it last confirmed.',
@@ -269,6 +277,9 @@ export const REFUSAL_WORDS = Object.freeze({
   /* Setup slots and titles (2027-02-28-setup-slots.sql, 2027-02-28-titles.sql). With the server's numbers these read from intent-words.js refusalText. */
   setup_locked: 'This hero\'s setup slots are full. Delete one, or buy another.',
   setup_slots_max: 'This hero has every setup slot there is.',
+  /* A hero's colors (2027-03-05-hero-colors.sql). With the server's number the limit reads from intent-words.js refusalText. */
+  colors_same: 'Those are already this hero\'s colors. Nothing was charged.',
+  colors_limit: 'This hero has changed colors as often as a day allows. More after midnight UTC.',
   title_kills: 'That title takes more kills first. Gold can\'t skip kills.',
   title_owned: 'This hero already has that title.',
   title_not_owned: 'This hero hasn\'t claimed that title yet.',

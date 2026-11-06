@@ -420,6 +420,18 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const loads = await page.evaluate(() => window.__sheetLoads || {});
       const again = Object.entries(loads).filter(([, n]) => n > 1).map(([k, n]) => k + ' x' + n);
       if (again.length) fails.push('B-14 a sheet the prewarm loaded was loaded again by the World (an image per load, not the held one): ' + again.join(', '));
+      /* B-4 SIGN OUT STAYS WHERE IT WAS PRESSED (Andy 2026-11-06: "sometimes I sign out and it brings me to my character list"): on a
+         desktop the strip's tools rode behind the hero tabs, so a tab arriving or a hero's status changing slid Characters under a
+         pointer aimed at Sign out. They stand against the icon row the strip keeps clear of (its padding), at one tab and at two. */
+      const toolsAt = async () => {
+        await wait(page, () => document.querySelector('.hs-launchers') && document.querySelector('nav.char-strip').style.paddingRight);
+        return page.evaluate(() => {
+          const gap = Math.round(document.querySelector('.hs-launchers').getBoundingClientRect().left - document.querySelector('nav.char-strip [data-app="sign-out"]').getBoundingClientRect().right);
+          return gap >= 0 && gap <= 16 ? 'against the icon row' : 'Sign out ends ' + gap + ' px left of the icon row';
+        });
+      };
+      const oneTab = await toolsAt();
+      if (oneTab !== 'against the icon row') fails.push('B-4 with one hero tab, ' + oneTab + ': the tools ride the tabs, and a press aimed at Sign out lands on Characters when a tab grows');
       await page.click('[data-app="characters"]');
       if (!(await wait(page, () => document.querySelector('[data-app="play"][data-slot="1"]')))) fails.push('B-4 no way back to the characters screen');
       else {
@@ -428,6 +440,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           && window.__hub.channels['hr:' + uid + ':0'] && window.__hub.channels['hr:' + uid + ':1']
           && document.querySelector('#panel-world[data-slot="1"]'), UID);
         if (!two) fails.push('B-4 a second character did not open beside the first');
+        else { const twoTabs = await toolsAt(); if (twoTabs !== 'against the icon row') fails.push('B-4 with two hero tabs, ' + twoTabs + ': the tools moved with the tabs'); }
         /* B-4 ON A PHONE EACH HERO HAS A TAB YOU CAN PRESS (first-hour play 2026-10-31: at 922x423 the tools and the icon row
            left each tab 12 px; no hero could be seen or switched to, and Invite to party starts on that tab). */
         await page.setViewportSize({ width: 922, height: 423 });
@@ -435,8 +448,19 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         await page.setViewportSize({ width: 1280, height: 720 });
         if (tabs.length !== 2 || tabs.some((w) => w < 44)) fails.push('B-4 on a 922x423 phone the hero tabs are ' + tabs.join(' and ') + ' px wide, too narrow to press');
       }
+      /* B-5 SIGN OUT PLAYS NO HERO ON ITS WAY OUT: with hero 0 shown and closed first, the next hero was shown in its place (a
+         settle) and the chat re-read for it, after the press. Only the heroes' leaves and their last residue belong to a sign-out. */
+      await page.click('.char-tab[data-app="show"][data-slot="0"]');
+      await page.waitForTimeout(400);
+      const asked = [];
+      const onAsk = (q) => { const m = /\/rest\/v1\/rpc\/([a-z_]+)|\/functions\/v1\/(hr-accrue)/.exec(q.url()); if (m) asked.push(m[1] || m[2]); };
+      page.on('request', onAsk);
       await page.click('[data-app="sign-out"]');
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-5 sign-out did not return to sign-in');
+      await page.waitForTimeout(500);
+      page.off('request', onAsk);
+      const played = asked.filter((n) => n !== 'hr_town_move' && n !== 'hr_put_client_state');
+      if (played.length) fails.push('B-5 a Sign out press still asked the server ' + played.join(', ') + ' (only the heroes\' leaves and residue belong to it)');
       const left = await page.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage)]
         .filter((k) => k === 'hr-auth' || k.startsWith('hr-auth-') || k.startsWith('sb-') || k === 'hr-tab-id' || k === 'hr-open' || k === 'hearthrise:supabaseSession'));
       if (left.length) fails.push('B-5 session copies left after sign-out: ' + left.join(', '));
@@ -1246,6 +1270,11 @@ const MUTANTS = [
   ['a hero short of gold can press buy', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(o.pending ? ' disabled' : '')"],
   ['a bought slot is not re-read', 'src/app/boot.js', "if (r.ok) { track('hero_slot_bought'); await showCharacters(", "if (r.ok) { track('hero_slot_bought'); drawSlotOffer(); void ("],
   ['the notice page boots the app', 'index.html', '</body>', '<script type="module" src="src/app/boot.js?v=1"></script></body>'],
+  ['the strip\'s tools ride behind the hero tabs (B-4)', 'src/styles/app.css', '.char-strip-tools { display: flex; align-items: stretch; flex: none; margin-left: auto; }', '.char-strip-tools { display: flex; align-items: stretch; flex: none; }'],
+  ['signing out shows the next hero (B-5)', 'src/session/account-session.js', 'this._chars.size && !this._ending ? this.characters()[0].slot : null;', 'this._chars.size ? this.characters()[0].slot : null;'],
+  ['signing out keeps the chat until the heroes close (B-5)', 'src/session/account-session.js',
+    "    if (this.social) { this.social.destroy(); this.social = null; }\n    for (const slot of Array.from(this._chars.keys())) this.close(slot);",
+    "    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n    if (this.social) { this.social.destroy(); this.social = null; }"],
   ['sign-out leaves the session copies', 'src/net/auth.js', '      for (const k of store.keys()) if (k === cfg.authKey', '      for (const k of []) if (k === cfg.authKey'],
   ['the world pane never mounts the shell', 'src/app/world-pane.js', "  shell = mountShell(stage, {", "  shell = { onInset: () => () => {}, paint() {}, destroy() {} }; void ({"],
   ['"not confirmed" offers no new link (B-6)', 'src/app/sign-in.js', 'offerResend(!!r.unconfirmed);', ''],

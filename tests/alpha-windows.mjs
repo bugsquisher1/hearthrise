@@ -460,7 +460,7 @@ async function huntsPure(imp) {
   if (sets('millrace_sewer', 'medium') !== 'Leather,Bronze,Apprentice:bodies,legs:|Studded,Iron,Adept:helmets,boots:Iron Sword') fails.push('AW-25 the Sewer\'s gear reads ' + sets('millrace_sewer', 'medium'));
   /* the page's words are one list (v0.2.100 played on Wickstead: "Iron, Studded, Adept: bodies, legs; Bramble Blade") */
   const wick = scarceSetOf('wickstead', 'medium').map((e) => e.what).join('|');
-  if (wick !== 'helmets and boots|bodies, legs and Bramble Blade') fails.push('AW-25 Wickstead's drop lines read ' + wick);
+  if (wick !== 'helmets and boots|bodies, legs and Bramble Blade') fails.push('AW-25 Wickstead\'s drop lines read ' + wick);
   if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Longbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
   /* THE ODDS (Tyler 2026-10-24: "a % drop chance or nothing at all"): each line's chance per kill is the engine's rows
      (monsters.js, the catalogue hr-accrue rolls) at the yield share the settle spawns a party-scaled monster with. Worked
@@ -2890,7 +2890,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           why: document.querySelector('.hw-inv .hw-pick-why').textContent }));
         await page.keyboard.press('Enter');
         await page.waitForTimeout(300);
-        if (!need.off || need.why !== 'Needs Level 45 — you\'re 30.' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Mithril Helm at Level 30 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
+        if (!need.off || need.why !== 'Needs Level 45 (you\'re 30).' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Mithril Helm at Level 30 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
         /* A refusal (the engine's 409): nothing moves, and the words say why ON THE LINE PRESSED, in view (they sat at the
            window's foot, below the fold, so the press looked like nothing). */
         s.refuse = 'requirement_not_met';

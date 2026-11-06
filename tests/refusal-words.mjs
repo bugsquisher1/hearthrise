@@ -108,11 +108,11 @@ const CLAIMS = {
     /* Gear names the hero's LEVEL (Tyler 2026-10-24): a Level-14 hero with Defense 99 is still short of the Iron Platelegs. */
     const with1 = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'iron_platelegs' },
       csWith({ defense: { xp: 0, level: 99 } }, M.XP.charXpForLevel(14)));
-    if (with1 !== 'Iron Platelegs needs Level 15 — you\'re 14.') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
+    if (with1 !== 'Iron Platelegs needs Level 15 (you\'re 14).') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
     /* The refusal's own numbers (hr_apply's need / have, through the session reader) win over the sections. */
     const served = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'scholar_helmet', counts: { have: 28, need: 30 } },
       csWith({}, M.XP.charXpForLevel(5)));
-    if (served !== 'Scholar Hat needs Level 30 — you\'re 28.') out.push('RW3 the server\'s own Level reads ' + JSON.stringify(served));
+    if (served !== 'Scholar Hat needs Level 30 (you\'re 28).') out.push('RW3 the server\'s own Level reads ' + JSON.stringify(served));
     /* A supply keeps its skill ("Supplies/runes stick to skill level"). */
     const arrows = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'barbed_arrows' }, csWith({ ranged: { xp: 0, level: 3 } }, 0));
     if (arrows !== 'Barbed Arrows needs Ranged 15 (you have 3).') out.push('RW3 the Barbed Arrows refusal reads ' + JSON.stringify(arrows));

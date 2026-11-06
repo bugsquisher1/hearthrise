@@ -477,7 +477,7 @@ async function body(db, call, exec) {
     const { refusalOf } = await import(pathToFileURL(join(ROOT, 'src/session/refusal.js')).href);
     const { refusalText } = await import(pathToFileURL(join(ROOT, 'src/shell/intent-words.js')).href);
     const said = refusalText(refusalOf({ ok: false, status: r.status, body: r.body }));
-    ok(said === 'Steel Helm needs Level 30 — you\'re 28.', `E2g: the refusal reads "${said}"`);
+    ok(said === 'Steel Helm needs Level 30 (you\'re 28).', `E2g: the refusal reads "${said}"`);
     ok(await setLevel(db, 15) === 15, 'E2g: the hero did not return to Level 15 for the arms after it');
   }
 

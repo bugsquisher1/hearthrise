@@ -733,7 +733,11 @@ async function pageRules(overrides, shots) {
             win.className = 'hs-win';
             win.style.cssText = 'right: 12px; width: 420px; max-height: 381px;';
             win.innerHTML = '<div class="hs-win-body">' + renderHavora({}) + '</div>';
-            document.querySelector('.hs-layer').appendChild(win);
+            /* a layer of its own: the shell repaints [data-hs-layer] on any window or size change and drops what it did not place, and this
+               read is awaited (a repaint inside the wait measured a detached window; .hs-layer is the only rule the layer carries) */
+            const layer = document.createElement('div');
+            layer.className = 'hs-layer';
+            document.querySelector('[data-hs-shell]').appendChild(layer).appendChild(win);
             const pane = win.querySelector('[data-pane="works"]');
             pane.classList.add('is-on');
             win.querySelector('.hv-count[data-of="works"]').classList.add('is-on');
@@ -747,7 +751,7 @@ async function pageRules(overrides, shots) {
             const field = r('.hv-works-amount'), give = r('[data-hs-act="works-typed"]'), foot = r('.hv-foot'), body = win.querySelector('.hs-win-body');
             const out = { read: max.textContent, why: win.querySelector('.hv-works-why').textContent, field: Math.round(field.height), give: Math.round(give.height),
               reads: field.top + field.height / 2 < foot.top && give.top + give.height / 2 < foot.top, scrolls: body.scrollHeight > body.clientHeight };
-            win.remove();
+            layer.remove();
             return out;
           };
           return { poor: await one(500, {}), near: await one(900, { left: 800, max_gift: 800 }) };

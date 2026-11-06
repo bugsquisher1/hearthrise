@@ -14,6 +14,8 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 ### 2026-11-06 · chat-social CW-CRIER/CW-3 flake (lane/a-chat-flake)
 1. *press-ack binds a press's follow-up reads.* Any ask that begins in the microtasks after a press's ask settles (a re-quote, a re-read) keeps that control aria-busy, and press-ack swallows a press on a busy control. A test that presses the same control twice waits for `aria-busy` to clear first (`answered()` in chat-social), never for the answer's text alone.
 2. *A cascade hides the cause.* CW-3's red ("selling ratwasd tails") was CW-CRIER's unsent line still in the field. Each page case sets its own precondition; what the earlier case left behind is asserted in that case.
+3. *Never mount a test fixture in a container the app repaints.* shell.js paintWindows drops every `[data-hs-layer]` child it did not place; a fixture there survives only a synchronous measure. Give it its own `.hs-layer`.
+4. *Tyler's PC under several lanes stalls headless Chrome for 20 s or more* (page.goto and page.reload time out while the static server answers 444 files in 0.4 s). Count such a run as a stall with no verdict, retry it, and say so; never count it as green or as a rule's red.
 
 ### 2026-10-31 · Andy's reports re-triaged (lane/a-andy-reports)
 1. *A snapshot field the reader drops is a bug the tests cannot see.* The pose sent `alive` all along; unitsOf never read it, so a corpse stood up with an empty bar on every reload (the live fixture's own rat) and on every hero switch back. Grep each server field against its reader before trusting a rule built on the reader.

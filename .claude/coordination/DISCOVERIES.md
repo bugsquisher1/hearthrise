@@ -4,6 +4,12 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-06 · qa-engineer · chat-social CW-CRIER/CW-3 flake on main run 42253408437 (lane a-chat-flake, tests only)
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P1 (red in-page test) · after a refused cry, chat-crier.js re-quotes (hr_town_sinks_view) inside press-ack's chain window, so the read is bound to the Cry press: the button stays aria-busy until it lands and press-ack swallows a press on it. The test re-pressed as soon as the refusal text showed; on a slow runner the read had not landed, the second cry never left the page (only one rpc), the line stayed in the field, and CW-3 then typed "wasd" into the middle of it. Reproduced 7/7 red with a 600 ms delay on the re-quote. Not a player bug: by design one press per answer, the re-read protects against a stale price. | `tests/chat-social.mjs` | Done: wait until the control is no longer aria-busy before a second press (CW-CRIER, FR-2 Ask); CW-3 starts from an empty field; CW-CRIER now asserts a paid line leaves the field, with a mutant. |
+
 ## 2026-10-24 · backend-architect · where the client's address is known server-side (lane c-play-cap)
 PostgREST calls carry it: hr_request_ip() (cf-connecting-ip; the project answers `server: cloudflare`) keyed 246
 distinct anon rate buckets live, and one hash-matches an address GoTrue recorded in auth.sessions, so it is the

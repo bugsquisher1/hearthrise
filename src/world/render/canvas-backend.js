@@ -298,7 +298,8 @@ export function createCanvasBackend(o) {
       ctx.fillStyle = tone('bar-back');
       ctx.fillRect(x - 1, y - 1, w + 2, h + 2 + (mh ? mh + 1 : 0));
       ctx.fillStyle = tone(b.kind === 'hero' ? 'bar-hero' : b.kind === 'foe' ? 'bar-foe' : 'bar-' + b.kind);
-      ctx.fillRect(x, y, Math.round(w * b.pct), h);
+      /* a living unit's bar is never drawn empty: any HP above 0 fills at least one pixel (timeline.js T13) */
+      ctx.fillRect(x, y, b.pct > 0 ? Math.max(1, Math.round(w * b.pct)) : 0, h);
       if (mh) { ctx.fillStyle = tone('bar-mana'); ctx.fillRect(x, y + h + 1, Math.round(w * b.mana), mh); }
     }
     /* VW-08: a bleed badge with its stack count, right of the bar. */

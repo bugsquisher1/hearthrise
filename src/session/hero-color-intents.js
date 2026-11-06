@@ -7,9 +7,9 @@
 //   readColorsPrice(account, cs)                ONE hr_hero_colors_view while the Outfit tab is open, never in the envelope: an idle hero costs no read, and a settle never prices anything
 //   saveHeroColors(account, cs, colors, price)  hr_hero_colors_set
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.98';
-import { refusalOf } from './refusal.js?v=0.2.98';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.98';
+import { askVia } from './intent-ledger.js?v=0.2.99';
+import { refusalOf } from './refusal.js?v=0.2.99';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.99';
 
 const RE_READS = Object.freeze(['quote_changed', 'colors_same']);
 

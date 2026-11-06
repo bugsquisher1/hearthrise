@@ -39,23 +39,23 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.98';
-import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.98';
-import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.98';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.98';
-import { temperedAmount } from '../temper.js?v=0.2.98';
-import { SURGE_MULT_PM } from '../../data/jewelry.js?v=0.2.98';
-import { cheb, dist2, los } from './grid.js?v=0.2.98';
-import { makeEvent } from './events.js?v=0.2.98';
-import { landHit } from './damage.js?v=0.2.98';
-import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.98';
-import { applyStatus, statusRow } from './status.js?v=0.2.98';
-import { levelOf } from '../xp.js?v=0.2.98';
-import { ammoPerShot } from '../ammo.js?v=0.2.98';
-import { ITEMS } from '../../data/items.js?v=0.2.98';
-import { isRune } from '../../data/supplies.js?v=0.2.98';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.98';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.98';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm } from '../../data/abilities.js?v=0.2.99';
+import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.99';
+import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.99';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.99';
+import { temperedAmount } from '../temper.js?v=0.2.99';
+import { SURGE_MULT_PM } from '../../data/jewelry.js?v=0.2.99';
+import { cheb, dist2, los } from './grid.js?v=0.2.99';
+import { makeEvent } from './events.js?v=0.2.99';
+import { landHit } from './damage.js?v=0.2.99';
+import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.99';
+import { applyStatus, statusRow } from './status.js?v=0.2.99';
+import { levelOf } from '../xp.js?v=0.2.99';
+import { ammoPerShot } from '../ammo.js?v=0.2.99';
+import { ITEMS } from '../../data/items.js?v=0.2.99';
+import { isRune } from '../../data/supplies.js?v=0.2.99';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder } from './conditions.js?v=0.2.99';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.99';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],

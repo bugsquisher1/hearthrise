@@ -12,8 +12,8 @@
 //   openLegal(box, which, opener)   the reader over `box`; which: 'privacy' | 'terms'
 //   legalHtml(md, { dropTitle })    the pure Markdown reader (tested on its own)
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.98';
-import { readLegal } from '../session/server.js?v=0.2.98';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.99';
+import { readLegal } from '../session/server.js?v=0.2.99';
 
 export const LEGAL_DOCS = Object.freeze({
   privacy: Object.freeze({ title: 'Privacy Policy', file: 'legal/PRIVACY_POLICY.md' }),

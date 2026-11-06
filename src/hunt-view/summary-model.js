@@ -23,6 +23,8 @@ import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.99';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.99';
 import { callOfHunt } from '../data/boss-calls.js?v=0.2.99';
 import { lossLine } from './boss-loss.js?v=0.2.99';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.99';
+import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.99';
 
 export { sanitizeSummaries };
 
@@ -114,6 +116,8 @@ export function endedSessionOf(cs) {
     enteredMs: ms(s.entered_at), endedMs: ms(s.ended_at), bag,
     tally: isObj(s.tally) ? s.tally : null,
     died: int(isObj(s.tally) ? s.tally.deaths : null),
+    /* The tier it ran at, the server's (hr_hunt_view `tier`, stamped as it ended), or null. */
+    tier: typeof s.tier === 'string' ? s.tier : null,
     /* A called fight's record, the server's (hunt_session_tally.fight): the losing line reads it. */
     fight: isObj(s.tally) && isObj(s.tally.fight) ? s.tally.fight : null,
   };
@@ -137,7 +141,7 @@ export function buildSummary(s, an, deaths, role) {
   const supplies = hero ? hero.supplies.filter((x) => id(x.item) && num(x.count) !== null).map((x) => [x.item, x.source, x.count])
     : countPairs(t.supplies).map(([item, n]) => [item, 'own', n]);
   return sanitizeSummary({
-    id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, by: s.by || null, why: s.why || null, ms: dur,
+    id: s.id, hunt: s.hunt, tier: s.tier || null, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, by: s.by || null, why: s.why || null, ms: dur,
     /* `xp` is LEVEL XP only (the tally's `level` key), never Level plus training (Tyler 2026-10-22). */
     kills: hero ? hero.kills : int(t.kills), xp: hero ? hero.levelXp : isObj(t.xp) ? num(t.xp.level) : num(t.xp), gold: hero ? hero.gold : num(t.coins),
     /* `gold` is coin received (the server's coins); the loot's shop price is its own line (Brannoc 10-22). */
@@ -152,6 +156,12 @@ export function buildSummary(s, an, deaths, role) {
     preset: s.preset, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
     loss: lossLine({ hunt: s.hunt, reason: s.reason, fight: s.fight || null, role: role || null }),
   });
+}
+
+/** The card's and the history's name for a hunt: its ground, and the tier it ran at when that was harder than Normal ("Wickstead · Dangerous"). */
+export function groundTitle(s) {
+  const name = s && s.hunt && HUNT_INDEX[s.hunt] ? HUNT_INDEX[s.hunt].name : 'Hunt';
+  return s && s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier) ? name + ' · ' + TIER_NAME[s.tier] : name;
 }
 
 /** The list with `summary` first (replacing the same session id), bounded. */

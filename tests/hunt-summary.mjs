@@ -20,6 +20,7 @@
 //       and, for a free character, the session tally
 //   S5  Hunt again's arguments are the ended hunt's own
 //   S6  a forfeited hunt (the server's `forfeit`) reads why in plain words; a plain server end keeps its own
+//   S7  an ended hunt names the tier it ran at (the server's session `tier`) on the card and in Earlier hunts; Normal and a forged tier name the ground alone
 //   A1  Hunt again sends ONE hr_hunt_enter with the same ground, set, limits and
 //       bag; a call missing its ground sends nothing
 //   A2  an ended session stores its summary ONCE (a second envelope for it adds
@@ -202,6 +203,19 @@ async function runTests(M) {
     for (const w of Object.values(MD.FORFEIT_WORDS).concat(Object.values(MD.END_WORDS))) ok(!/maintenance/i.test(w), 'no maintenance claim: ' + w);
   });
 
+  await t('S7 an ended hunt names the tier it ran at, on the card and in Earlier hunts', () => {
+    /* The server's ended session (hr_hunt_view `tier`, 2027-03-16-ended-hunt-tier.sql): hunt_tier.playing is null by then. */
+    const csOf = (session) => ({ read: (k) => (k === 'hunt' ? { session, pose: null } : null) });
+    const card = (over) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(Object.assign({ id: 'sess-t', hunt: 'wickstead', preset: 0,
+      entered_at: '2026-11-05T10:00:00Z', ended_at: '2026-11-05T10:20:00Z', end_reason: 'left', phase: 'ended', bag: [], tally: { kills: 3, xp: 30, coins: 5 } }, over))), null, [])])[0];
+    eq([card({ tier: 'dangerous' }).tier, MD.groundTitle(card({ tier: 'dangerous' }))], ['dangerous', 'Wickstead · Dangerous'], 'a Dangerous hunt, stored and named');
+    eq(MD.groundTitle(card({ tier: 'deadly' })), 'Wickstead · Deadly', 'a Deadly hunt');
+    eq([MD.groundTitle(card({ tier: 'normal' })), MD.groundTitle(card({})), MD.groundTitle(card({ tier: null }))], ['Wickstead', 'Wickstead', 'Wickstead'], 'Normal, or a session the server stamped none on, is the ground alone');
+    /* the residue is the player's own file: a forged tier names nothing */
+    eq([MD.groundTitle(MD.sanitizeSummaries([entry(1, { hunt: 'wickstead', tier: 'constructor' })])[0]), MD.sanitizeSummaries([entry(1, { tier: 'Deadly!' })])[0].tier],
+      ['Wickstead', null], 'a forged tier');
+  });
+
   const FIX = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
   const endedEnv = (version) => {
     const e = clone(FIX);
@@ -340,6 +354,9 @@ const MUTANTS = [
   { test: 'S6', file: MODEL, from: "return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason]", to: "return END_WORDS[reason]" },
   { test: 'S6', file: MODEL, from: "    forfeit: s.forfeit === true,\n", to: '' },
   { test: 'S6', file: SUMMARIES, from: "reason, forfeit: v.forfeit === true,", to: "reason," },
+  { test: 'S7', file: MODEL, from: "    tier: typeof s.tier === 'string' ? s.tier : null,\n", to: '' },
+  { test: 'S7', file: SUMMARIES, from: "    tier: typeof v.tier === 'string' && REASON.test(v.tier) ? v.tier : null,\n", to: '' },
+  { test: 'S7', file: MODEL, from: "s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier)", to: "s.tier && TIER_NAME[s.tier]" },
   { test: 'A1', file: SESSION, from: "p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,", to: "p_hunt: a.hunt, p_bag: [], p_preset: a.preset," },
   { test: 'A1', file: SESSION, from: "if (!a || !ITEM.test(String(a.hunt)) ||", to: "if (!a ||" },
   { test: 'A2', file: RECORDER, from: "    if (a.done.has(s.id)) return;\n    a.done.add(s.id);", to: "    a.done.add(s.id);" },

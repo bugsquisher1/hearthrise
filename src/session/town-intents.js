@@ -31,7 +31,9 @@ function mineOf(m) {
 function crierOf(c) {
   if (!isObj(c)) return null;
   return Object.freeze({ n: int(c.n) || 0, perDay: int(c.per_day), price: int(c.price), minLevel: int(c.min_level), maxLetters: int(c.max_letters),
-    waitS: int(c.wait_s) || 0, on: c.on === true, lastLine: typeof c.last_line === 'string' && c.last_line ? c.last_line : null });
+    waitS: int(c.wait_s) || 0, on: c.on === true, lastLine: typeof c.last_line === 'string' && c.last_line ? c.last_line : null,
+    /* a standing mute's end (2027-03-16-crier-muted.sql), else null: the tab says why before a press */
+    mutedUntil: typeof c.muted_until === 'string' && c.muted_until ? c.muted_until : null });
 }
 
 /** That answer, checked field by field and frozen; null when it is not the server's shape (the window then says so, it never invents a price). Pure. */

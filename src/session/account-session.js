@@ -49,15 +49,15 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.99';
-import { CharacterSession } from './character-session.js?v=0.2.99';
-import { TownPresence } from './town-presence.js?v=0.2.99';
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.99';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.99';
-import { assignmentOf } from './party-sections.js?v=0.2.99';
-import { benchJobOver } from './bench-sections.js?v=0.2.99';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.99';
-import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.99';
+import { SESSION_CONFIG } from './config.js?v=0.2.100';
+import { CharacterSession } from './character-session.js?v=0.2.100';
+import { TownPresence } from './town-presence.js?v=0.2.100';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.100';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.100';
+import { assignmentOf } from './party-sections.js?v=0.2.100';
+import { benchJobOver } from './bench-sections.js?v=0.2.100';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.100';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.100';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
@@ -160,6 +160,10 @@ export class AccountSession {
    */
   constructor(o) {
     this.auth = o.auth;
+    /* THE LOGIN THIS SESSION PLAYS, fixed for its life. The auth's session can move to another account under it (another
+       tab's sign-in: src/net/auth.js 'switched'); this account's purse, Storage, roster and heroes stay its own, and its
+       server link sends nothing as that one (auth.tokensFor). */
+    this.uid = o.auth.userId();
     this.server = o.server;
     /** The asks in flight (intent-ledger.js): the server link's, shared with every CharacterSession. */
     this.intents = (o.server && o.server.intents) || createIntentLedger();
@@ -211,7 +215,8 @@ export class AccountSession {
   purse() { return this._purse; }
 
   /* A hero's answer stated the purse: keep it if it is newer (raise-only), and let every OTHER open hero
-     re-render with it (their own envelopes still hold the older copy until their next answer). */
+     re-render with it (their own envelopes still hold the older copy until their next answer). Every answer is this
+     account's own (its link carries only this login's token), so a version is only ever compared with its own wallet's. */
   _notePurse(cs) {
     const next = newerPurse(this._purse, purseOf(cs));
     /* Raise-only by VERSION, never by identity: two heroes re-rendering each other stop at once. */
@@ -232,7 +237,7 @@ export class AccountSession {
     for (const other of this._chars.values()) if (other !== cs && typeof other.noteStorage === 'function') other.noteStorage();
   }
 
-  get userId() { return this.auth.userId(); }
+  get userId() { return this.uid; }
   /** The open characters, in slot order. */
   characters() { return Array.from(this._chars.values()).sort((a, b) => a.slot - b.slot); }
   character(slot) { return this._chars.get(slot) || null; }
@@ -375,7 +380,7 @@ export class AccountSession {
     if (this._chars.has(slot)) return { ok: true, session: this._chars.get(slot) };
     if (this._chars.size >= this.limit()) return { ok: false, reason: 'limit', limit: this.limit() };
     const uid = this.userId;
-    if (!uid) return { ok: false, reason: 'signed_out' };
+    if (!uid || this._ending) return { ok: false, reason: 'signed_out' };
     /* A PARTY NUDGE (2027-02-11-party-nudge.sql) on the hero's topic is no frame: it carries no state, only "read yourself". */
     const channel = this._channel ? (topic, onMsg, onStatus) => this._channel(topic, (m) => (m && m.t === 'nudge' ? this._nudged(slot) : onMsg(m)), onStatus) : null;
     const cs = new CharacterSession({ slot, uid, server: this.server, intents: this.intents, channel,

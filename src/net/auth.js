@@ -60,13 +60,20 @@
 // request queued in the holder was granted to it in turn. A forced refresh here says so
 // (o.lock.refreshing), since its token's expiry says it needs no lock: one refresher across tabs.
 //
+// ANOTHER ACCOUNT SIGNED IN ON THIS DEVICE (Andy 2026-11-06: "now i have 500k"). The session lives in the
+// device store, so a sign-in to another account in another tab reaches this tab too (supabase-js's broadcast,
+// its refresh tick, getSession's re-read), while this page still plays the first account: every call went out
+// as the new one, its heroes drew under the old account's purse. Taking another account's session says
+// 'switched' once (the page reloads as that account, src/app/boot.js), and tokensFor(uid) hands a login's
+// calls that login's token only, so nothing made for one account is ever sent as another.
+//
 // A THROWN ERROR IS NOT A REFUSAL. Only the auth server's own answer ends a session; a step that
 // failed for any other reason (the lock, say) keeps the session and sends nothing this time.
 // Ending it there signs out the whole device.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.99';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.99';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.100';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.100';
 
 /** A token closer than this to its expiry is refreshed before it is sent. */
 export const TOKEN_MARGIN_MS = 60000;
@@ -168,6 +175,7 @@ export function createAuth(o) {
   const tell = (ev) => { for (const fn of Array.from(changeFns)) { try { fn(ev); } catch (e) { console.error('[auth] a listener failed', e); } } };
 
   const tokenOf = (s) => (s && s.access_token) || null;
+  const userOf = (s) => (s && s.user && typeof s.user.id === 'string' && s.user.id) || null;
   const lasts = (s) => !!tokenOf(s) && (!s.expires_at || s.expires_at * 1000 - now() > TOKEN_MARGIN_MS);
   const sessionStore = o.store || (cfg.authStore === 'tab' ? o.tab : o.device);
 
@@ -182,10 +190,18 @@ export function createAuth(o) {
     } catch (e) { return null; }
   }
 
+  /* Every session this tab takes comes through here: one for ANOTHER account than the one it held says 'switched' (above). */
+  function adopt(s) {
+    const was = userOf(session);
+    session = s || null;
+    const now = userOf(session);
+    if (was && now && was !== now) tell('switched');
+  }
+
   async function refresh() {
     const kept = storedSession();
-    if (lasts(kept)) { session = kept; return session; }
-    try { const { data } = await auth.getSession(); session = (data && data.session) || null; } catch (e) { session = null; }
+    if (lasts(kept)) { adopt(kept); return session; }
+    try { const { data } = await auth.getSession(); adopt((data && data.session) || null); } catch (e) { session = null; }
     return session;
   }
 
@@ -206,11 +222,11 @@ export function createAuth(o) {
           /* getSession re-reads the shared store (another tab may have refreshed already) and refreshes a stale one. */
           const { data } = await auth.getSession();
           const s = (data && data.session) || null;
-          if (lasts(s)) { session = s; return tokenOf(s); }
+          if (lasts(s)) { adopt(s); return tokenOf(s); }
         }
         const { data, error } = await forcedRefresh(() => auth.refreshSession());
         const s = (data && data.session) || null;
-        if (lasts(s)) { session = s; return tokenOf(s); }
+        if (lasts(s)) { adopt(s); return tokenOf(s); }
         if (error && isRetryable(error)) return null;
         return expire();
       } catch (e) {
@@ -256,6 +272,12 @@ export function createAuth(o) {
     token: () => tokenOf(session),
     freshToken,
     renewToken,
+    /** freshToken and renewToken for ONE login (`uid`, the account a page plays): that account's token, else null, so the
+        server link sends nothing (a session another tab swapped in is another account's: see adopt). */
+    tokensFor(uid) {
+      const mine = (t) => (t && uid && userOf(session) === uid && tokenOf(session) === t ? t : null);
+      return { fresh: async () => mine(await freshToken()), renew: async (bad) => mine(await renewToken(bad)) };
+    },
 
     async signIn(email, password) {
       const e = String(email || '').trim();
@@ -267,7 +289,7 @@ export function createAuth(o) {
           const key = copyFor(error, SIGN_IN_SAYS, 'signInFailed');
           return { ok: false, message: AUTH_COPY[key], unconfirmed: key === 'notConfirmed' };
         }
-        session = data.session || null;
+        adopt(data.session || null);
         return { ok: !!session, message: session ? '' : AUTH_COPY.signInFailed };
       } catch (err) { return fail(AUTH_COPY.network); }
     },
@@ -327,11 +349,11 @@ export function createAuth(o) {
       clearCopies();
     },
 
-    /** fn('signed-in' | 'signed-out' | 'recovery' | 'refreshed' | 'expired') on every auth event. */
+    /** fn('signed-in' | 'signed-out' | 'recovery' | 'refreshed' | 'expired' | 'switched') on every auth event. */
     onChange(fn) {
       changeFns.add(fn);
       const { data } = auth.onAuthStateChange((event, s) => {
-        session = s || null;
+        adopt(s);
         if (event === 'PASSWORD_RECOVERY') fn('recovery');
         else if (event === 'SIGNED_OUT') fn('signed-out');
         else if (event === 'TOKEN_REFRESHED') fn('refreshed');

@@ -11,8 +11,8 @@
 //                      session, no second sign-in. Not yet, or no answer: the line says which.
 // Sign out stays on the card: its press is boot.js's (data-app).
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.99';
-import { AUTH_BRAND } from './sign-in.js?v=0.2.99';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.100';
+import { AUTH_BRAND } from './sign-in.js?v=0.2.100';
 
 const CHECK = Object.freeze({ idle: 'Check again', busy: 'Checking…' });
 const SAY = Object.freeze({

@@ -97,10 +97,10 @@ async function run(base) {
   ok('G5', open({ huntId: 'wickstead', endReason: 'left' }) === 'mosslight_glade', 'a hero who has outgrown its last ground opens on ' + open({ huntId: 'wickstead', endReason: 'left' }));
   /* G6: the list's two tags, on the advice and the ground above it; a note means the advice's band doesn't hold, so no Fits. */
   const tagged = (lv) => { const rec = HL.recommendation(lv, 1, rows), step = STEP.nextStepUp(rows, lv, true); return rows.filter((r) => HL.adviceTag(r, rec, step, false)).map((r) => r.hunt + ':' + HL.adviceTag(r, rec, step, false)).join(); };
-  ok('G6', tagged(1) === 'mill_cellar:Fits your level', 'Level 1 reads ' + tagged(1));
-  ok('G6', tagged(11) === 'wickstead:Fits your level,mosslight_glade:Next step up', 'Level 11 reads ' + tagged(11));
-  ok('G6', tagged(17) === 'mosslight_glade:Fits your level,coppercap_warrens:Next step up', 'Level 17 reads ' + tagged(17));
-  ok('G6', tagged(16) === 'mosslight_glade:Fits your level', 'Level 16 (16 under the Warrens) reads ' + tagged(16));
+  ok('G6', tagged(1) === 'mill_cellar:Right for your level', 'Level 1 reads ' + tagged(1));
+  ok('G6', tagged(11) === 'wickstead:Right for your level,mosslight_glade:Next step up', 'Level 11 reads ' + tagged(11));
+  ok('G6', tagged(17) === 'mosslight_glade:Right for your level,coppercap_warrens:Next step up', 'Level 17 reads ' + tagged(17));
+  ok('G6', tagged(16) === 'mosslight_glade:Right for your level', 'Level 16 (16 under the Warrens) reads ' + tagged(16));
   ok('G6', tagged(35) === '', 'Level 35 alone, with a note and nothing above, reads ' + tagged(35));
   const war = rows.find((r) => r.hunt === 'coppercap_warrens');
   ok('G2', !!war && HL.heroWords(war) === 'Best with 2 to 4, and alone it pays from Level 45', 'the Warrens card reads ' + JSON.stringify(war && HL.heroWords(war)));

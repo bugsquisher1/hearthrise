@@ -351,7 +351,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* Blessings first on the way back: they are one press and the next ground is where a hero can die (the panel: "Before the
      wolves" came after the wolves). */
   step('bless', 'Before the wolves',
-    'Past the Cellar, you can die. Blessings soften the blow, and they\'re free for now. Open the Shop\'s Services tab and Bless all three.',
+    'Past the Cellar, you can die. Blessings soften the blow and are free for now. In the Shop\'s Services tab, Bless all three.',
     'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('sell_loot', 'Sell what only pays coin',
@@ -915,8 +915,8 @@ const SAY = Object.freeze({
     const b = f.blessings;
     if (!b || !Number.isInteger(b.freeUntil) || !(b.best > 0)) return null;
     /* Three lines (newcomer panel 2026-11-01: ten read like documentation): what to press. What a death costs is the death popup's, and Help's. */
-    return { text: 'Past the Cellar, you can die. Blessings soften the blow, and they\'re free until Level ' + b.freeUntil
-      + '. Open the Shop\'s Services tab and Bless all ' + inWords(b.of) + '.' };
+    return { text: 'Past the Cellar, you can die. Blessings soften the blow and are free until Level ' + b.freeUntil
+      + '. In the Shop\'s Services tab, Bless all ' + inWords(b.of) + '.' };
   },
   /* The way, in three lines (newcomer panel 2026-11-01: twelve read like documentation, and a phone's Take was cut off under them). What each
      weight gives is her window's own line, beside the picker. */
@@ -985,7 +985,7 @@ const SAY = Object.freeze({
       named(f.chest) ? 'storage chests (the ' + f.chest.name + ', ' + priced(f.chest) + ')' : null].filter(Boolean);
     const hero = f.gold >= f.slotCost ? ', enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' : '. A ' + nth + ' hero costs ' + gp(f.slotCost) + ' (press Characters).';
     const smith = f.temper ? ' The smith can temper your ' + f.temper.piece + ' to its first rung for ' + gp(f.temper.gold) + (f.temper.needs ? ' and ' + f.temper.needs : '') + ' (Shop, Services).' : '';
-    return { text: 'You have ' + gp(f.gold) + hero + (house.length ? ' The House sells ' + listed(house) + '.' : '') + smith };
+    return { text: 'You have ' + gp(f.gold) + hero + (house.length ? ' In the House, you can buy ' + listed(house) + '.' : '') + smith };
   },
   stitch_cloak: () => {
     const r = (ARTISAN_RECIPES.crafting || []).find((x) => x.output === 'graypelt_cloak');
@@ -1255,7 +1255,7 @@ export function nextGoal(facts) {
   /* Defense at 0 XP means no armour worn (Tyler 2026-10-18: it trains only in armour). The fresh-hero play hit 117
      kills like that; the Shop's gloves and belts are the cheapest armour (designer 2026-10-22, the outfitter). */
   if (facts.defenseXp === 0) {
-    lines.push('Your Defense isn\'t training. It only rises while you wear armor, and the Shop sells gloves and belts.');
+    lines.push('Your Defense isn\'t training. It only rises while you wear armor. The Shop sells gloves and belts.');
     ids.push('armour');
   }
   const free = freeHeroLine(facts);

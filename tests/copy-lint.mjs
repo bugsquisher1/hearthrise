@@ -38,9 +38,8 @@
 //                                                 → a period or a comma
 //   pays-xp       "pays (more) Level XP", also across "' pays ' + n + ' more XP'"
 //                                                 → "earns"; gold is what pays
-//   fits-you      "<ground> fits you(r Level)" mid-sentence (the list TAG
-//                 "Fits your level" starts its string and is left alone)
-//                                                 → "is right for", "awaits"
+//   fits-you      "<ground> fits you(r Level)" in a sentence, and the list
+//                 tag "Fits your level"           → "is right for", "awaits"
 // plus a SHRINK-ONLY RATCHET on filler fantasy words in NAMES (DESIGN_STANDARDS
 // §2): Shadow, Void, Ancient, Eternal, Dark, Forgotten (whole word, any case)
 // in the `name`/`label`/`title`/`n` field of a data row under src/data/**.
@@ -184,9 +183,9 @@ export const PAYS_XP_RE = /\bpa(?:y|ys|id|ying)\b(?:\s+[^\s.!?;:]+){0,3}?\s+(?:L
 /* The two halves of "' pays ' + pct + ' more Level XP'": a literal ending on pay(s), the next one starting on (a word or two and) XP. */
 export const PAYS_TAIL_RE = /\bpa(?:y|ys|id|ying)\s*$/i;
 export const XP_HEAD_RE = /^\s*(?:[^\s.!?;:]+\s+){0,2}(?:Level\s+)?(?:XP|experience)\b/i;
-/* A ground or a hunt that "fits you." / "fits your Level": mid-sentence, or a literal that starts on it after a name (' fits you.').
-   A string that starts "Fits your level" is the list's tag; a glove that fits your hand is English. */
-export const FITS_YOU_RE = /(?:^\s+|\S\s+)fits (?:you(?=\s*[.,;:!?)]|\s*$)|your (?:Level|level|party|group)\b)/;
+/* A ground or a hunt that "fits you." / "fits your Level", in a sentence, a literal after a name (' fits you.') or a list tag
+   ("Fits your level", the Hunts chip the playtest read on Wickstead). A glove that fits your hand is English. */
+export const FITS_YOU_RE = /\bfits (?:you(?=\s*[.,;:!?)]|\s*$)|your (?:level|party|group)\b)/i;
 /* A CSS declaration list ("display: none; color: red") is code, not a sentence. */
 const CSS_LIST_RE = /^\s*(?:-{0,2}[a-z][a-z-]*\s*:\s*[^;:]+;\s*)+(?:-{0,2}[a-z][a-z-]*\s*:\s*[^;:]*)?$/;
 
@@ -435,6 +434,7 @@ async function selftest() {
       ['pays-xp', "export const a = `Each kill pays ${pct} more experience`;"],
       ['fits-you', "export const a = 'Keep hunting until Level 5. Then ' + name + ' fits you. You can close the game.';"],
       ['fits-you', "export const a = HUNT.name + ' fits your Level with a party. ' + how;"],
+      ['fits-you', "export function tag(party) { return party ? 'Fits your party' : 'Fits your level'; }"],
     ];
     for (const [rule, body] of cases) {
       writeFileSync(plant, '// planted\n' + body + '\n');
@@ -462,7 +462,7 @@ async function selftest() {
     // The voice rules read words only: gold that pays, the list's tag, an HTML entity, a CSS list, a label's
     // separator, a validator's message, a price catalogue's notes, and an en dash in a range all stay silent.
     const VOICE = ['semicolon', 'em-dash', 'pays-xp', 'fits-you'];
-    writeFileSync(plant, "export const a = ['Tamsin pays for kills, and in armor too.', 'The Shop pays more for gear than for scraps of XP.', 'Fits your level', 'A glove that fits your hand like its own skin',"
+    writeFileSync(plant, "export const a = ['Tamsin pays for kills, and in armor too.', 'The Shop pays more for gear than for scraps of XP.', 'Right for your level', 'A glove that fits your hand like its own skin',"
       + " '<button>&lsaquo; All settings</button> and the rest', 'display: none; color: var(--ink)', 'Best with a party of 2–4 heroes'];\n"
       + "export const R = { id: 'room.cellar.1', name: 'Cellar — Root Cellar', server_needs: 'player_state holds the COUNT; the server prices it — never the client' };\n"
       + "function v(bad) { bad('L-COVER', 'is drawn behind a roof; the hero standing there would be hidden'); }\n");

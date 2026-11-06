@@ -225,9 +225,9 @@ export function openingPick(rec, list, last) {
   return was && advised && was.band[0] > advised.band[0] ? was : advised;
 }
 
-/** THE LIST'S TWO TAGS on one ground: "Fits your level" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure. */
+/** THE LIST'S TWO TAGS on one ground: "Right for your level" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure. */
 export function adviceTag(r, rec, step, party) {
-  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Fits your party' : 'Fits your level';
+  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Right for your party' : 'Right for your level';
   return step && step.hunt === r.hunt ? 'Next step up' : '';
 }
 

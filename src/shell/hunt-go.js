@@ -112,7 +112,7 @@ const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten, so HP comes bac
 /* The kinds an empty slot of which stops nothing: food and drink (a heads-up line). */
 const HEADS_UP_KINDS = Object.freeze(new Set(['food', 'drink']));
 
-/* "You carry 12 Trout: put it on the bar to eat it", or '': the biggest own stack of a food or drink in `rows`
+/* "You carry 12 Trout. Put it on the bar to eat it", or '': the biggest own stack of a food or drink in `rows`
    (what the hero can use now) that the bar does not name (`named`, a Set of item ids). Display only. */
 function spareWords(kind, rows, named) {
   let best = null;
@@ -120,7 +120,7 @@ function spareWords(kind, rows, named) {
     const c = CONSUMABLES[r.id];
     if (c && c.kind === kind && c.source !== 'store' && !named.has(r.id) && r.qty > 0 && (!best || r.qty > best.qty)) best = r;
   }
-  return best ? 'You carry ' + whole(best.qty) + ' ' + itemName(best.id) + ': put it on the bar to ' + (kind === 'food' ? 'eat' : 'drink') + ' it' : '';
+  return best ? 'You carry ' + whole(best.qty) + ' ' + itemName(best.id) + '. Put it on the bar to ' + (kind === 'food' ? 'eat' : 'drink') + ' it' : '';
 }
 
 function bareWords(kind, parts, carried) {

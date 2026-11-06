@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.100 — 2026-11-06 (One Account per Tab)
+
+**Your gold shows the right number.** If you signed into another account in a second tab, the first tab could keep showing the old account's gold while it played the new one. Now that tab reloads as the account you just signed into. No gold was created or lost. Only the number on screen was wrong.
+
 ## v0.2.99 — 2026-11-06 (Rings and a King)
 
 **Call out a boss.** A party can pay to fight a far stronger Rat King (10,000 gp) or Chief Coppercap (30,000 gp), up to 3 calls a day. At half his health his adds go after whoever isn't your tank, and at a quarter he rages, so your action bar decides the fight. There's no XP, coin or loot in it. Bring him down for a title and your name in System chat. Lose, and the game tells you where it went wrong and what to change.

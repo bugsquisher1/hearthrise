@@ -7,8 +7,8 @@
 // shows the new price before the next press). On ok the character is RE-READ: the new piece shows only from the server's envelope.
 //   hallmarkPiece(account, cs, from, to, price)  hr_hallmark
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.99';
-import { refusalOf } from './refusal.js?v=0.2.99';
+import { askVia } from './intent-ledger.js?v=0.2.100';
+import { refusalOf } from './refusal.js?v=0.2.100';
 
 const ID = /^[a-z0-9_]{1,48}$/;
 const newIdem = () => globalThis.crypto.randomUUID();

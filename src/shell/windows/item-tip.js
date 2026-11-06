@@ -9,15 +9,15 @@
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.99';
-import { whole, gold } from '../../render/format.js?v=0.2.99';
-import { itemName } from '../widgets/bits.js?v=0.2.99';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords } from '../item-lore.js?v=0.2.99';
-import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.99';
-import { planWords } from '../loot-dispatch.js?v=0.2.99';
-import { pieceWords } from '../../data/armour-weights.js?v=0.2.99';
-import { ITEMS } from '../../data/items.js?v=0.2.99';
-import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.99';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.100';
+import { whole, gold } from '../../render/format.js?v=0.2.100';
+import { itemName } from '../widgets/bits.js?v=0.2.100';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords } from '../item-lore.js?v=0.2.100';
+import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.100';
+import { planWords } from '../loot-dispatch.js?v=0.2.100';
+import { pieceWords } from '../../data/armour-weights.js?v=0.2.100';
+import { ITEMS } from '../../data/items.js?v=0.2.100';
+import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.100';
 
 const GAP = 10;
 

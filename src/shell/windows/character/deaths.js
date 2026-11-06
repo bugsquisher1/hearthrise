@@ -8,13 +8,13 @@
 // event id (data-event) for the death explanation (src/hunt-view/death-explain.js).
 // Nothing here is the client's: no death is counted or priced in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNTS } from '../../../data/hunts.js?v=0.2.99';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.99';
-import { deathLogOf } from '../../../session/character-sections.js?v=0.2.99';
-import { rows, text, cls, attr, element } from '../../../render/paint.js?v=0.2.99';
-import { whole } from '../../../render/format.js?v=0.2.99';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.99';
-import { monsterName } from '../../widgets/bits.js?v=0.2.99';
+import { HUNTS } from '../../../data/hunts.js?v=0.2.100';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.100';
+import { deathLogOf } from '../../../session/character-sections.js?v=0.2.100';
+import { rows, text, cls, attr, element } from '../../../render/paint.js?v=0.2.100';
+import { whole } from '../../../render/format.js?v=0.2.100';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.100';
+import { monsterName } from '../../widgets/bits.js?v=0.2.100';
 
 const HUNT_NAME = new Map(HUNTS.map((h) => [h.id, h.name]));
 

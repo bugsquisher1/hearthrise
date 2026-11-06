@@ -26,11 +26,11 @@
 // newer build (`stale`: src/app/new-version.js raises the reload banner if so).
 // ════════════════════════════════════════════════════════════════════════
 
-import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.99';
-import { worldDiff } from '../hunt-view/live-diff.js?v=0.2.99';
-import { ITEMS } from '../data/items.js?v=0.2.99';
-import { MONSTERS } from '../data/monsters.js?v=0.2.99';
-import { SESSION_CONFIG } from './config.js?v=0.2.99';
+import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.100';
+import { worldDiff } from '../hunt-view/live-diff.js?v=0.2.100';
+import { ITEMS } from '../data/items.js?v=0.2.100';
+import { MONSTERS } from '../data/monsters.js?v=0.2.100';
+import { SESSION_CONFIG } from './config.js?v=0.2.100';
 
 export class LiveLink {
   /**

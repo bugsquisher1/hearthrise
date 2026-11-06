@@ -733,6 +733,51 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'tierrisk' || name === 'tierrisk2') {
+    /* A LONE HERO'S HARDER TIER CARRIES REAL RISK (Tyler 2026-11-06, "Yes, make it risky"; lane/b-tier-risk). Candidate rows for Wickstead and the
+       Glade, in the sim only (whatIf on hunt-tiers.js; never written to a data file): every way to fight alone where the fastest honest path runs,
+       and the parties on those grounds wherever a candidate moves the power they share. x = K<tier>:<pull>:<power>:<xp>; Normal is plan
+       pacefinal's (the same dice) except Wickstead's parties, played here as Knormal. Read by tierrisk-table.mjs. */
+    const SOLO = { wickstead: [8, 13, 18], mosslight_glade: [16, 24, 31, 40, 50] };
+    const PARTY = { wickstead: [13], mosslight_glade: [16, 24, 31] };
+    /* tierrisk2: the rows between the first grid's, where it read too free or too deadly */
+    const CANDS = name === 'tierrisk2' ? {
+      wickstead: { deadly: [[[0, 8, 8, 8], 2500, 1100]] },
+      mosslight_glade: { dangerous: [[[3, 5, 5, 6], 1800, 1100], [[3, 5, 5, 6], 2000, 1100]], deadly: [[[8, 8, 8, 8], 2250, 1200], [[8, 8, 8, 8], 2750, 1200]] },
+    } : {
+      wickstead: {
+        dangerous: [[[0, 4, 4, 5], 1500, 1050], [[0, 4, 4, 5], 2000, 1050], [[2, 4, 4, 5], 2000, 1050]],
+        deadly: [[[0, 8, 8, 8], 2000, 1100], [[0, 8, 8, 8], 3000, 1100], [[3, 8, 8, 8], 3000, 1100]],
+      },
+      mosslight_glade: {
+        dangerous: [[[0, 5, 5, 6], 1200, 1100], [[0, 5, 5, 6], 1500, 1100], [[3, 5, 5, 6], 1500, 1100]],
+        deadly: [[[8, 8, 8, 8], 2000, 1200], [[8, 8, 8, 8], 2500, 1200], [[8, 8, 8, 8], 3000, 1200]],
+      },
+    };
+    const now = (g, t) => axes.tierRowOf(g, t);
+    const kcell = (ground, party, level, tier, row) => {
+      const pull = row ? row.pull[party.length - 1] : 0;
+      const x = row ? 'K' + tier + ':' + row.pull.join('') + ':' + row.powerPm + ':' + row.xpPm : 'Knormal';
+      return { ...cellOf({ ground, party, level, density: pull || null, hours: H(2), seeds: 2, x }), windowMs: 120000,
+        ...(row ? { options: { tier }, whatIf: { tiers: { [ground]: { [tier]: { id: tier, pull: row.pull, powerPm: row.powerPm, xpPm: row.xpPm } } } } } : {}) };
+    };
+    for (const [ground, byTier] of Object.entries(CANDS)) for (const [tier, list] of Object.entries(byTier)) for (const [pull, powerPm, xpPm] of list) {
+      const row = { pull, powerPm, xpPm };
+      for (const level of SOLO[ground]) for (const s of SOLO_STYLES) out.push(kcell(ground, [s], level, tier, row));
+      /* the parties play it only where the power they share moves (their pull never does) */
+      if (powerPm !== now(ground, tier).powerPm) for (const level of PARTY[ground]) for (const party of Object.values(PARTIES)) out.push(kcell(ground, party, level, tier, row));
+    }
+    if (name === 'tierrisk') for (const level of PARTY.wickstead) for (const party of Object.values(PARTIES)) for (const tier of ['normal', 'dangerous', 'deadly']) out.push(tier === 'normal' ? kcell('wickstead', party, level, tier, null) : kcell('wickstead', party, level, tier, now('wickstead', tier)));
+    return out;
+  }
+  if (name === 'tierriskfinal') {
+    /* THE ROWS AS WRITTEN (lane/b-tier-risk), the parties plan pacefinal doesn't play: Wickstead's at 8, 13 and 18 and the Glade's at 24,
+       every tier, the same dice and tags as pacefinal (x = T<tier>), so its reader takes both folders. */
+    for (const [ground, levels] of [['wickstead', [8, 13, 18]], ['mosslight_glade', [24]]]) for (const level of levels) for (const party of Object.values(PARTIES)) for (const tier of ['normal', 'dangerous', 'deadly']) {
+      out.push(tierCell(axes, { ground, party, level, tier, hours: H(2), seeds: 2, x: 'T' + tier }));
+    }
+    return out;
+  }
   if (name === 'capes') {
     /* A CAPE AND STUDS, before and after guard came off them (2026-11-05): every way to fight, at the Glade's middle and at the Warrens, with no cape, with the rows as they were (whatIf), and as they are. */
     const DRESSED = { cape: 'houndskin_cloak', earrings: 'copper_studs' };

@@ -28,11 +28,16 @@ const NORMAL = Object.freeze(tier('normal', Object.freeze([0, 0, 0, 0]), 1000, 1
 export const GROUND_TIERS = {
   /* No more monsters: the Thicket's Normal sits about 15% under Wickstead's, so its room is the stats. A pull of 3 at no extra XP already beats it for AoE. */
   meadowbrook_thicket: { dangerous: tier('dangerous', [0, 0, 0, 0], 1500, 1050), deadly: tier('deadly', [0, 0, 0, 0], 3000, 1080) },
-  /* A lone hero stops at 5: a full box beats the Glade for a hammer even at no extra XP. A party keeps it, under by a fifth. */
-  wickstead: { dangerous: tier('dangerous', [3, 4, 4, 5], 1500, 1050), deadly: tier('deadly', [5, 8, 8, 8], 2000, 1100) },
+  /* A LONE HERO'S HARDER TIER IS A RISK, NOT FREE XP (Tyler 2026-11-06, "Yes, make it risky"; lane/b-tier-risk, plans tierrisk and tierrisk2,
+     2 seeds x 2 h a cell). Alone, Wickstead keeps the ground as it stands and hits twice and two and a half times as hard: the extra pull
+     (3 and 5 alone) paid 1.47-1.72x Normal with every way to fight alive and richer. A party keeps its pulls, and its gains held at 2.5x. */
+  wickstead: { dangerous: tier('dangerous', [0, 4, 4, 5], 2000, 1050), deadly: tier('deadly', [0, 8, 8, 8], 2500, 1100) },
   /* A lone hero keeps the ground as it stands: a pull of 4 beats the Glade for a hammer. A party keeps the full box. */
   millrace_sewer: { dangerous: tier('dangerous', [0, 5, 5, 6], 1200, 1050), deadly: tier('deadly', [0, 8, 8, 8], 1750, 1100) },
-  mosslight_glade: { dangerous: tier('dangerous', [4, 5, 5, 6], 1200, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1500, 1200) },
+  /* The Glade (lane/b-tier-risk): alone, Dangerous brings 3, the pull that first brings the Brook Bear (the Keep's pelts stay a lone
+     hero's), at 1.5x; Deadly keeps the full box (Tyler 10-18) at 2.75x, where a lone hero over the ground's Levels no longer farms it for
+     free (1.82x Normal at Level 50, eight of eight alive and richer, at 1.5x). Parties keep their pulls; a healed four at 31 holds on Deadly. */
+  mosslight_glade: { dangerous: tier('dangerous', [3, 5, 5, 6], 1500, 1100), deadly: tier('deadly', [8, 8, 8, 8], 2750, 1200) },
   coppercap_warrens: { dangerous: tier('dangerous', [4, 5, 5, 6], 1200, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1500, 1200) },
 };
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);

@@ -289,14 +289,14 @@ export const LIB2_ITEMS = {
    shipped: an unbuilt promise in a tooltip is the same lie as a broken stat.
    ══════════════════════════════════════════════════════════════════════════ */
 export const LIB2_DESC = {
-  lazlos_maul: 'Lazlo dug graves for coin and forged this to settle what climbed back out; the head is cast from the fittings of coffins he emptied',
-  dragonrib_bow: 'A wyrm\'s rib bent against its own sinew — the only bow that was grown before it was strung',
+  lazlos_maul: 'Lazlo dug graves for coin and forged this to settle what climbed back out. The head is cast from the fittings of coffins he emptied',
+  dragonrib_bow: 'A wyrm\'s rib bent against its own sinew, the only bow that was grown before it was strung',
   bramble_blade: 'A short blade wound with living thorn, kept sharp by the very hedges it was cut to clear',
   void_censer: 'A censer that burns nothing and still smokes, and the smoke always leans toward the thing that should not be there',
   rat_stick: 'A stick. Weighted at one end, worn smooth at the other. It is very good at rats',
 
   chitin_helmet: 'A coif plated in overlapping vermin shell, lighter than leather and colder to the touch',
-  chitin_body: 'Chitin scales laid like roof tiles, stitched to a hide backing — armor grown, not skinned',
+  chitin_body: 'Chitin scales laid like roof tiles, stitched to a hide backing. Armor grown, not skinned',
   chitin_pants: 'Segmented chitin chaps that click faintly with every stride',
   chitin_boots: 'Shell-capped boots that turn a bite the way tanned hide never could',
   chitin_gloves: 'Vambraces of banded chitin, clawed at the knuckle out of habit rather than design',
@@ -309,7 +309,7 @@ export const LIB2_DESC = {
   watchknight_gloves: 'Deathsteel gauntlets, articulated finely enough to hold a cup at the end of a long night',
   watchknight_belt: 'A deathsteel warbelt, buckled once and rarely undone',
 
-  quiet_coat: 'A long coat of void-chitin weave that makes no sound at all — not the cloth, not the buckles, not the man inside it',
+  quiet_coat: 'A long coat of void-chitin weave that makes no sound at all. Not the cloth, not the buckles, not the man inside it',
 
   rune_essence: 'Pale humming stone off the essence face, the raw stuff every blank rune is cut out of',
   rune_blank: 'A blank stone chip, cut square and waiting for a mark',
@@ -336,5 +336,5 @@ export const LIB2_DESC = {
   steel_whetstone: 'A close-grained stone that leaves an edge you can hear',
   mithril_whetstone: 'A pale stone that takes almost nothing off and gives a great deal back',
   rune_whetstone: 'A marked whetstone that sharpens a little more than the honing accounts for',
-  dawn_whetstone: 'Dawnsteel grit bound in basalt — the last stone a blade will ever need',
+  dawn_whetstone: 'Dawnsteel grit bound in basalt, the last stone a blade will ever need',
 };

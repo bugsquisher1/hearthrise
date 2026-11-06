@@ -542,7 +542,7 @@ export const ITEMS={
          flavour has an actual reader rather than being a dead field.        */
   burnt_food: {
     n:'Burnt Food', icon:'🔥', v:1,
-    note:'Charcoal with ambitions. Nobody will eat this — sell it and cook better.',
+    note:'Charcoal with ambitions. Nobody will eat this, so sell it and cook better.',
   },
 
   /* ── Farmer's Deed (b136 — Batch C) ────────────────────────────

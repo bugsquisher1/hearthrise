@@ -257,28 +257,7 @@ export function changelogFindings(text, file = 'CHANGELOG.md') {
 /* A waiver is one known literal the next edge deploy removes (edge-bundled
    files move only with that deploy). A waiver that no longer matches is stale
    and fails the gate, so it is deleted the day its fix lands. */
-/* THE VOICE IN EDGE-BUNDLED FILES (2026-11-05): these ship inside hr-accrue (tools/pack-edge.mjs), so their words
-   change only with an edge deploy, never in a client-only lane. Each one is rewritten on lane/a-copy-voice-edge, which
-   deletes its row here and rides the next deploy. Nothing may be added: a new slip in these files is red like any other. */
-const EDGE = (file, rule, ...texts) => texts.map((text) => ({ file: 'src/data/' + file, rule, text }));
-const WAIVERS = [
-  ...EDGE('boss-forge.js', 'semicolon', 'still-cold heart; nothing'),
-  ...EDGE('champions.js', 'semicolon', 'Frost Jarl; it never warms'),
-  ...EDGE('hunt-sessions.js', 'em-dash', 'Back in town — {activity}', 'supplies — the hunt ended'),
-  ...EDGE('items.js', 'em-dash', 'eat this — sell it'),
-  ...EDGE('library2-items.js', 'semicolon', 'climbed back out; the head'),
-  ...EDGE('library2-items.js', 'em-dash', 'its own sinew — the only bow', 'a hide backing — armor grown', 'no sound at all — not the cloth', 'bound in basalt — the last stone'),
-  ...EDGE('monster-classes.js', 'em-dash', 'People — bandits and casters'),
-  ...EDGE('monster-classes.js', 'semicolon', 'Crush them; poison'),
-  ...EDGE('shops.js', 'semicolon', 'not per unit; a vendor price list', 'to the outfitter (supply-basics.js, designer 2026-10-22); the eight',
-    'Nth hire; the last rung', 'hand-authored rows (lane S2; the outfitter'),
-  ...EDGE('slot-ladders.js', 'em-dash', 'plain shafts — a fletcher', 'faintly warm — they go in', 'wedding work — small, honest', 'cold glass — light passes',
-    'honest weather — the first cloak', 'spider\'s loom — it hangs', 'into one collar — the second', 'mithril band — it makes'),
-  ...EDGE('wave3-uniques.js', 'em-dash', 'in death-steel — a greatblade', 'onto dawnsteel — it weighs', 'plague-swarm\'s heart — a blade', 'will not die — every cast',
-    'on shadow-silk — it sharpens', 'own fading edge — it drinks', 'unblinking eye — it strikes', 'wizard\'s sigil — it whispers', 'night-bone shot — light, quick',
-    'clawed clasps — armor that', 'a steel frame — it hits back', 'a panther\'s shadow — weightless'),
-  ...EDGE('wave3-uniques.js', 'semicolon', 'of a pack-alpha; the bow'),
-];
+const WAIVERS = [];
 const usedWaivers = new Set();
 function waived(root, f, rule, text) {
   const rel = relative(root, f).split(sep).join('/');

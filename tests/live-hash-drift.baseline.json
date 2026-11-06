@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-06",
- "replay_ms": 3868,
+ "replay_ms": 3842,
  "counts": {
-  "tracked_names": 763,
-  "entries": 615
+  "tracked_names": 802,
+  "entries": 654
  },
  "functions": [
   {
@@ -781,17 +781,18 @@
    ],
    "touched_by": [
     "2026-10-21-closed-mode.sql",
-    "2026-10-22-closed-mode-ungated-rpcs.sql"
+    "2026-10-22-closed-mode-ungated-rpcs.sql",
+    "2027-03-13-gm-tools.sql"
    ],
    "live": {
-    "md5": "1a83c74b90f9a75ca24d661ec4f5ca06",
-    "norm_len": 615,
+    "md5": "8150be4e8357755c5672abb5083d1e8c",
+    "norm_len": 1572,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "1a83c74b90f9a75ca24d661ec4f5ca06",
-    "norm_len": 615,
+    "md5": "8150be4e8357755c5672abb5083d1e8c",
+    "norm_len": 1572,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1070,17 +1071,18 @@
     "restate"
    ],
    "touched_by": [
-    "2026-10-21-closed-mode.sql"
+    "2026-10-21-closed-mode.sql",
+    "2027-03-13-gm-tools.sql"
    ],
    "live": {
-    "md5": "12541f7c9cae283c2ef7901e2873d591",
-    "norm_len": 359,
+    "md5": "f80a0608c78ac2a16856437a3f99d4ce",
+    "norm_len": 563,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "12541f7c9cae283c2ef7901e2873d591",
-    "norm_len": 359,
+    "md5": "f80a0608c78ac2a16856437a3f99d4ce",
+    "norm_len": 563,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1190,17 +1192,18 @@
     "2026-10-23-hunt-world-state.sql",
     "2026-10-25-character-sheet.sql",
     "2027-01-12-market-account.sql",
-    "2027-02-10-settle-reads.sql"
+    "2027-02-10-settle-reads.sql",
+    "2027-03-13-gm-tools.sql"
    ],
    "live": {
-    "md5": "fd199ade7986a63c8709e62374859435",
-    "norm_len": 50834,
+    "md5": "19c0726a535d28b18699bdf5dbbfdd7f",
+    "norm_len": 51498,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "fd199ade7986a63c8709e62374859435",
-    "norm_len": 50834,
+    "md5": "19c0726a535d28b18699bdf5dbbfdd7f",
+    "norm_len": 51498,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1385,17 +1388,18 @@
     "2027-02-18-craft-economy-bench-inputs.generated.sql",
     "2027-02-23-klappa-bench-inputs.generated.sql",
     "2027-02-25-houndskin-bench-inputs.generated.sql",
-    "2027-02-28-temper-craft-bench-inputs.generated.sql"
+    "2027-02-28-temper-craft-bench-inputs.generated.sql",
+    "2027-03-14-jewelry-bench-inputs.generated.sql"
    ],
    "live": {
-    "md5": "2f7ae906a53e26cd073447debef8b24c",
-    "norm_len": 7554,
+    "md5": "84662116a88ed7455992571dd06cc7ef",
+    "norm_len": 7653,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2f7ae906a53e26cd073447debef8b24c",
-    "norm_len": 7554,
+    "md5": "84662116a88ed7455992571dd06cc7ef",
+    "norm_len": 7653,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1537,21 +1541,23 @@
    "sig": "hr_bestiary_of(p_user uuid, p_slot integer)",
    "name": "hr_bestiary_of",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
     "2026-08-20-bestiary.sql",
-    "2027-02-11-settle-plan-cache-2.generated.sql"
+    "2027-02-11-settle-plan-cache-2.generated.sql",
+    "2027-03-12-boss-call.sql"
    ],
    "live": {
-    "md5": "096319cae30f82fb3c3012c6d1b49afc",
-    "norm_len": 655,
+    "md5": "68fbfb5c5a8e6063fb6bd5fc0f2fbf6d",
+    "norm_len": 762,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "096319cae30f82fb3c3012c6d1b49afc",
-    "norm_len": 655,
+    "md5": "68fbfb5c5a8e6063fb6bd5fc0f2fbf6d",
+    "norm_len": 762,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1825,6 +1831,167 @@
    "replay": {
     "md5": "7a97684270ce8b9e5ea22d22a8900be3",
     "norm_len": 1502,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_boss_call(p_slot integer, p_call text, p_price bigint, p_idem uuid)",
+   "name": "hr_boss_call",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-12-boss-call.sql"
+   ],
+   "live": {
+    "md5": "ee93f2247d5ae64b71d45b5ba8102095",
+    "norm_len": 3804,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ee93f2247d5ae64b71d45b5ba8102095",
+    "norm_len": 3804,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_boss_call_closed()",
+   "name": "hr_boss_call_closed",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-12-boss-call.sql"
+   ],
+   "live": {
+    "md5": "f03e2bd6eaa4b03ed8d4843c4e0f5571",
+    "norm_len": 760,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f03e2bd6eaa4b03ed8d4843c4e0f5571",
+    "norm_len": 760,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_boss_call_felled()",
+   "name": "hr_boss_call_felled",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-12-boss-call.sql"
+   ],
+   "live": {
+    "md5": "e93d7196db40c7bab081da4b95f29a96",
+    "norm_len": 970,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e93d7196db40c7bab081da4b95f29a96",
+    "norm_len": 970,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_boss_call_pays(p_delta jsonb, p_monster text)",
+   "name": "hr_boss_call_pays",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-12-boss-call.sql"
+   ],
+   "live": {
+    "md5": "378b0f46c3ffe3b2ebf1bb00797038e9",
+    "norm_len": 985,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "378b0f46c3ffe3b2ebf1bb00797038e9",
+    "norm_len": 985,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_boss_call_quote(p_user uuid, p_slot integer, p_call text)",
+   "name": "hr_boss_call_quote",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-12-boss-call.sql"
+   ],
+   "live": {
+    "md5": "e08d04a92e029799395cbb7de557af20",
+    "norm_len": 1356,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e08d04a92e029799395cbb7de557af20",
+    "norm_len": 1356,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_boss_call_view(p_slot integer, p_call text)",
+   "name": "hr_boss_call_view",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-12-boss-call.sql"
+   ],
+   "live": {
+    "md5": "36f733349e306a5c2f78a78b346bd91c",
+    "norm_len": 959,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "36f733349e306a5c2f78a78b346bd91c",
+    "norm_len": 959,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_boss_fight_ok(p jsonb, p_hunt text)",
+   "name": "hr_boss_fight_ok",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-12-boss-call.sql"
+   ],
+   "live": {
+    "md5": "a373985d3863b900b4e1ad4e39cbbef9",
+    "norm_len": 701,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a373985d3863b900b4e1ad4e39cbbef9",
+    "norm_len": 701,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2639,6 +2806,29 @@
    "agree": true
   },
   {
+   "sig": "hr_chat_muted_until(p_user uuid)",
+   "name": "hr_chat_muted_until",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "25a9b53afcc2f705b5e467e543fb2d69",
+    "norm_len": 316,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "25a9b53afcc2f705b5e467e543fb2d69",
+    "norm_len": 316,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_chat_name_authority()",
    "name": "hr_chat_name_authority",
    "tracked_by": [
@@ -2740,21 +2930,24 @@
    "sig": "hr_chat_send(p_slot integer, p_kind text, p_body text)",
    "name": "hr_chat_send",
    "tracked_by": [
+    "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-25-chat-channels.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2027-03-13-gm-tools.sql"
    ],
    "live": {
-    "md5": "73a6e4ceecd28824bb0c683f89e338b1",
-    "norm_len": 2323,
+    "md5": "bb01f726ababc0d970db3a80741a39ef",
+    "norm_len": 2594,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "73a6e4ceecd28824bb0c683f89e338b1",
-    "norm_len": 2323,
+    "md5": "bb01f726ababc0d970db3a80741a39ef",
+    "norm_len": 2594,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2799,6 +2992,29 @@
    "replay": {
     "md5": "d2ba37ff0392c2f5f909fd6deddf427e",
     "norm_len": 238,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_chat_zgm_gate()",
+   "name": "hr_chat_zgm_gate",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "2aa29549b9c153db721e984705bdbd49",
+    "norm_len": 1301,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2aa29549b9c153db721e984705bdbd49",
+    "norm_len": 1301,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -4441,6 +4657,604 @@
    "agree": true
   },
   {
+   "sig": "hr_gm_account_guard()",
+   "name": "hr_gm_account_guard",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "5941d5e1d85817a2ff6a7d05e59d74bd",
+    "norm_len": 800,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "5941d5e1d85817a2ff6a7d05e59d74bd",
+    "norm_len": 800,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_account_hide()",
+   "name": "hr_gm_account_hide",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "bbf2e8ec6e44fa4cfa829570afcbfd43",
+    "norm_len": 418,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "bbf2e8ec6e44fa4cfa829570afcbfd43",
+    "norm_len": 418,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_ban(p_target uuid, p_reason text, p_idem uuid)",
+   "name": "hr_gm_ban",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "925ef0ae3fb8ee5b73797251f11d5989",
+    "norm_len": 2261,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "925ef0ae3fb8ee5b73797251f11d5989",
+    "norm_len": 2261,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_close(p_actor uuid, p_verb text, p_target uuid, p_slot integer, p_reason text, p_idem uuid, p_answer jsonb)",
+   "name": "hr_gm_close",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "72ce2d9a412b0f1b5e32f7a2120c28f4",
+    "norm_len": 565,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "72ce2d9a412b0f1b5e32f7a2120c28f4",
+    "norm_len": 565,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_grant_gold(p_slot integer, p_amount bigint, p_reason text, p_idem uuid)",
+   "name": "hr_gm_grant_gold",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "7ba998cab14ace28ffe4cc5bcc6e0efc",
+    "norm_len": 2579,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7ba998cab14ace28ffe4cc5bcc6e0efc",
+    "norm_len": 2579,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_grant_item(p_slot integer, p_item text, p_qty bigint, p_reason text, p_idem uuid)",
+   "name": "hr_gm_grant_item",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "1e2579b7a9a615c2c9447af36d262e4b",
+    "norm_len": 2867,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1e2579b7a9a615c2c9447af36d262e4b",
+    "norm_len": 2867,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_grant_level(p_slot integer, p_level integer, p_reason text, p_idem uuid)",
+   "name": "hr_gm_grant_level",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "d5bed76a13e87b999249806f20c7270c",
+    "norm_len": 2733,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d5bed76a13e87b999249806f20c7270c",
+    "norm_len": 2733,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_hero(p_target text, p_slot integer)",
+   "name": "hr_gm_hero",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "82dcfdca5228184456a270cb5d99bdc0",
+    "norm_len": 3914,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "82dcfdca5228184456a270cb5d99bdc0",
+    "norm_len": 3914,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_hero_idle(p_user uuid, p_slot integer)",
+   "name": "hr_gm_hero_idle",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "c1a0b31d0054765c1b72180ce57bea37",
+    "norm_len": 528,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c1a0b31d0054765c1b72180ce57bea37",
+    "norm_len": 528,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_log_immutable()",
+   "name": "hr_gm_log_immutable",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "1667a8a5d6c8e009126b0cd69b9a082b",
+    "norm_len": 265,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1667a8a5d6c8e009126b0cd69b9a082b",
+    "norm_len": 265,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_look_stamp()",
+   "name": "hr_gm_look_stamp",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "7627a6565b7eb40ac186a26acb17ddcd",
+    "norm_len": 322,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7627a6565b7eb40ac186a26acb17ddcd",
+    "norm_len": 322,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_mute(p_target uuid, p_minutes integer, p_reason text, p_idem uuid)",
+   "name": "hr_gm_mute",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "01bbec70b2dffd274bbe5ed8cf65df07",
+    "norm_len": 1937,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "01bbec70b2dffd274bbe5ed8cf65df07",
+    "norm_len": 1937,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_online()",
+   "name": "hr_gm_online",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "41a2e916eeb62ff4ad616cce5438279b",
+    "norm_len": 1817,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "41a2e916eeb62ff4ad616cce5438279b",
+    "norm_len": 1817,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_open(p_actor uuid, p_verb text, p_target uuid, p_slot integer, p_reason text, p_idem uuid)",
+   "name": "hr_gm_open",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "4b64bdbf76c712cf72ddcbcbfd34c478",
+    "norm_len": 1252,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4b64bdbf76c712cf72ddcbcbfd34c478",
+    "norm_len": 1252,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_party_guard()",
+   "name": "hr_gm_party_guard",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "b733e6be2ce90203081f454d41868c54",
+    "norm_len": 626,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b733e6be2ce90203081f454d41868c54",
+    "norm_len": 626,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_reason(p_reason text)",
+   "name": "hr_gm_reason",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "4ac0e95696ab14e6d806ae8a365e42b7",
+    "norm_len": 279,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4ac0e95696ab14e6d806ae8a365e42b7",
+    "norm_len": 279,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_say(p_body text, p_idem uuid)",
+   "name": "hr_gm_say",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "3dc5d55f01596a2143fbc4d867fcc80f",
+    "norm_len": 1711,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "3dc5d55f01596a2143fbc4d867fcc80f",
+    "norm_len": 1711,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_section(p_user uuid, p_slot integer)",
+   "name": "hr_gm_section",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "b11340a939e3c94f592b81b369fadcb7",
+    "norm_len": 323,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b11340a939e3c94f592b81b369fadcb7",
+    "norm_len": 323,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_stop_gate(p_gm uuid, p_user uuid, p_slot integer, p_reason text, p_idem uuid)",
+   "name": "hr_gm_stop_gate",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "d42900653451417fe04bbaf61fffc7b4",
+    "norm_len": 1938,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d42900653451417fe04bbaf61fffc7b4",
+    "norm_len": 1938,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_stop_result(p_gm uuid, p_user uuid, p_slot integer, p_error text)",
+   "name": "hr_gm_stop_result",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "32440bd919e273c31328adf8dd0acf6e",
+    "norm_len": 620,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "32440bd919e273c31328adf8dd0acf6e",
+    "norm_len": 620,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_unban(p_target uuid, p_reason text, p_idem uuid)",
+   "name": "hr_gm_unban",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "b9ee888620b8d9226a4c1ccebc3cb8ff",
+    "norm_len": 1161,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b9ee888620b8d9226a4c1ccebc3cb8ff",
+    "norm_len": 1161,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_unmute(p_target uuid, p_reason text, p_idem uuid)",
+   "name": "hr_gm_unmute",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "43d14b63dc9333ae3b57a772fdf566a6",
+    "norm_len": 1075,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "43d14b63dc9333ae3b57a772fdf566a6",
+    "norm_len": 1075,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_wall_guard()",
+   "name": "hr_gm_wall_guard",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "1c4b24fe632ab1b753ef470155a6dec5",
+    "norm_len": 462,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1c4b24fe632ab1b753ef470155a6dec5",
+    "norm_len": 462,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_wall_quiet()",
+   "name": "hr_gm_wall_quiet",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "86f9e76147fb95ea29909b69f840841b",
+    "norm_len": 368,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "86f9e76147fb95ea29909b69f840841b",
+    "norm_len": 368,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_wall_session()",
+   "name": "hr_gm_wall_session",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "f83c97c83feb07808b2d0c804b4e689c",
+    "norm_len": 281,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f83c97c83feb07808b2d0c804b4e689c",
+    "norm_len": 281,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_gm_walled(p_user uuid)",
+   "name": "hr_gm_walled",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "0614e069c121915c326fec055fa3aa65",
+    "norm_len": 274,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "0614e069c121915c326fec055fa3aa65",
+    "norm_len": 274,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_goal_week_days(p_at timestamp with time zone)",
    "name": "hr_goal_week_days",
    "tracked_by": [
@@ -4552,6 +5366,50 @@
    "replay": {
     "md5": "951dc06a58edd8895bf1037ae894f496",
     "norm_len": 5013,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hallmark(p_slot integer, p_from text, p_to text, p_price bigint, p_idem uuid)",
+   "name": "hr_hallmark",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-14-jewelry-hallmark.sql"
+   ],
+   "live": {
+    "md5": "895933042e07d6e2a76b964ec6471c6e",
+    "norm_len": 4540,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "895933042e07d6e2a76b964ec6471c6e",
+    "norm_len": 4540,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hallmark_view(p_user uuid, p_slot integer)",
+   "name": "hr_hallmark_view",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-14-jewelry-hallmark.sql"
+   ],
+   "live": {
+    "md5": "3340082a9e23cce49b8d4b751b6c368f",
+    "norm_len": 1401,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "3340082a9e23cce49b8d4b751b6c368f",
+    "norm_len": 1401,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -4884,20 +5742,22 @@
    "sig": "hr_hunt_admit(p_user uuid, p_slot integer, p_hunt text)",
    "name": "hr_hunt_admit",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-21-hunt-sessions.sql"
+    "2026-10-21-hunt-sessions.sql",
+    "2027-03-12-boss-call.sql"
    ],
    "live": {
-    "md5": "9a14e2ca1f22ab2a9045fa6b3e0cc1ae",
-    "norm_len": 1202,
+    "md5": "3e9d29fe7ec468b037e0e98878afdb61",
+    "norm_len": 1561,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9a14e2ca1f22ab2a9045fa6b3e0cc1ae",
-    "norm_len": 1202,
+    "md5": "3e9d29fe7ec468b037e0e98878afdb61",
+    "norm_len": 1561,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5049,17 +5909,18 @@
     "2026-11-16-hunt-density-bounds.sql",
     "2026-12-15-account-gold.sql",
     "2027-01-20-tutorial-facts.sql",
-    "2027-01-31-inner-flame.sql"
+    "2027-01-31-inner-flame.sql",
+    "2027-03-12-boss-call.sql"
    ],
    "live": {
-    "md5": "641b1542905bea44db89e68eeaa9870a",
-    "norm_len": 30634,
+    "md5": "48f088fc64c779dd58c8b2a9f939b2b0",
+    "norm_len": 31381,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "641b1542905bea44db89e68eeaa9870a",
-    "norm_len": 30634,
+    "md5": "48f088fc64c779dd58c8b2a9f939b2b0",
+    "norm_len": 31381,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5697,22 +6558,47 @@
    "sig": "hr_hunt_leave(p_slot integer, p_idem uuid)",
    "name": "hr_hunt_leave",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
-    "2026-10-31-live-horizon.sql"
+    "2026-10-31-live-horizon.sql",
+    "2027-03-13-gm-tools.sql"
    ],
    "live": {
-    "md5": "50777ec1d731bed9cb315ec8948fe010",
-    "norm_len": 1934,
+    "md5": "18b15d50e27b9beae8e52a5680f1d408",
+    "norm_len": 1442,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "50777ec1d731bed9cb315ec8948fe010",
-    "norm_len": 1934,
+    "md5": "18b15d50e27b9beae8e52a5680f1d408",
+    "norm_len": 1442,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_leave_pending(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_leave_pending",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "d22a6caa86fedc90188d01a5c8d17eee",
+    "norm_len": 843,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d22a6caa86fedc90188d01a5c8d17eee",
+    "norm_len": 843,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -5864,20 +6750,22 @@
    "sig": "hr_hunt_member_state(p_user uuid, p_slot integer)",
    "name": "hr_hunt_member_state",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-02-02-settle-cost.sql"
+    "2027-02-02-settle-cost.sql",
+    "2027-03-13-gm-tools.sql"
    ],
    "live": {
-    "md5": "bb248b1f9110151713ae4da9495a36cc",
-    "norm_len": 2964,
+    "md5": "7b60207972f90e7a6a8c9913d364b47c",
+    "norm_len": 3114,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bb248b1f9110151713ae4da9495a36cc",
-    "norm_len": 2964,
+    "md5": "7b60207972f90e7a6a8c9913d364b47c",
+    "norm_len": 3114,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6938,17 +7826,18 @@
     "2026-12-15-account-gold.sql",
     "2026-12-16-own-drinks-settle.sql",
     "2026-12-18-party-leave-together.sql",
-    "2027-02-11-no-fight-settle.sql"
+    "2027-02-11-no-fight-settle.sql",
+    "2027-03-12-boss-call.sql"
    ],
    "live": {
-    "md5": "f23d597f674167b194dbdf78669a1c35",
-    "norm_len": 19583,
+    "md5": "a53fa5b7f3ec8f3b11014b8d88ed2bce",
+    "norm_len": 20278,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "f23d597f674167b194dbdf78669a1c35",
-    "norm_len": 19583,
+    "md5": "a53fa5b7f3ec8f3b11014b8d88ed2bce",
+    "norm_len": 20278,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7276,17 +8165,18 @@
     "2026-11-20-hunt-forfeit-durable.sql",
     "2026-12-18-party-leave-together.sql",
     "2027-02-10-settle-plan-cache.generated.sql",
-    "2027-02-18-party-truth.sql"
+    "2027-02-18-party-truth.sql",
+    "2027-03-12-boss-call.sql"
    ],
    "live": {
-    "md5": "a4e2bb43d38a9d3d7f05c1da04313342",
-    "norm_len": 3242,
+    "md5": "340550f700e04e92282c59834538bf9e",
+    "norm_len": 3373,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a4e2bb43d38a9d3d7f05c1da04313342",
-    "norm_len": 3242,
+    "md5": "340550f700e04e92282c59834538bf9e",
+    "norm_len": 3373,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9960,20 +10850,22 @@
    "sig": "hr_play_net_note(p_uid uuid)",
    "name": "hr_play_net_note",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-01-19-play-cap.sql"
+    "2027-01-19-play-cap.sql",
+    "2027-03-13-gm-tools.sql"
    ],
    "live": {
-    "md5": "c78439988934bccb8517057e989bb5bb",
-    "norm_len": 908,
+    "md5": "9c4511cca3676149a8804f3ac5304e44",
+    "norm_len": 1002,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c78439988934bccb8517057e989bb5bb",
-    "norm_len": 908,
+    "md5": "9c4511cca3676149a8804f3ac5304e44",
+    "norm_len": 1002,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9982,20 +10874,22 @@
    "sig": "hr_play_net_of(p_uid uuid)",
    "name": "hr_play_net_of",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-01-19-play-cap.sql"
+    "2027-01-19-play-cap.sql",
+    "2027-03-13-gm-tools.sql"
    ],
    "live": {
-    "md5": "cc34d6202a5c0d931c82a17cc418583c",
-    "norm_len": 823,
+    "md5": "1758b43055aaf454fff31d42d52e6f75",
+    "norm_len": 917,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "cc34d6202a5c0d931c82a17cc418583c",
-    "norm_len": 823,
+    "md5": "1758b43055aaf454fff31d42d52e6f75",
+    "norm_len": 917,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -14240,21 +15134,24 @@
    "sig": "hr_validate_display_name(p_name text)",
    "name": "hr_validate_display_name",
    "tracked_by": [
+    "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
     "2026-08-08-unique-names.sql",
-    "2026-10-11-name-moderation.sql"
+    "2026-10-11-name-moderation.sql",
+    "2027-03-13-gm-tools.sql"
    ],
    "live": {
-    "md5": "c9584e490534887784ac7ad27c4126da",
-    "norm_len": 1969,
+    "md5": "d2a9eee485fbc4d9fdcf3f700cb1f07b",
+    "norm_len": 2231,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c9584e490534887784ac7ad27c4126da",
-    "norm_len": 1969,
+    "md5": "d2a9eee485fbc4d9fdcf3f700cb1f07b",
+    "norm_len": 2231,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -14455,17 +15352,41 @@
    "touched_by": [
     "2026-10-25-social.sql",
     "2026-10-27-core-bodies.sql",
-    "2027-01-17-social-pass.sql"
+    "2027-01-17-social-pass.sql",
+    "2027-03-13-gm-tools.sql"
    ],
    "live": {
-    "md5": "89e8cee45bbb512d91b47c71ed3d2106",
-    "norm_len": 2275,
+    "md5": "dab619b519fe70419dd022f9c6b11d11",
+    "norm_len": 2616,
     "measured": "2026-11-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "89e8cee45bbb512d91b47c71ed3d2106",
-    "norm_len": 2275,
+    "md5": "dab619b519fe70419dd022f9c6b11d11",
+    "norm_len": 2616,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_whisper_zgm_gate()",
+   "name": "hr_whisper_zgm_gate",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-13-gm-tools.sql"
+   ],
+   "live": {
+    "md5": "42b6b7c372c704c7acc78b47b94fed0e",
+    "norm_len": 420,
+    "measured": "2026-11-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "42b6b7c372c704c7acc78b47b94fed0e",
+    "norm_len": 420,
     "source": "computed-from-replay"
    },
    "agree": true

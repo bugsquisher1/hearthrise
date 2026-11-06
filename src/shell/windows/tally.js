@@ -131,7 +131,7 @@ function patchOffer(li, r, st) {
   const t = tallyTask(r.task);
   text(li.querySelector('b'), titleOf(r.task, r.target));
   const where = huntName(r.hunt) + (r.bandMin ? ' (Level ' + r.bandMin + ' ground)' : '') + (t && t.party ? ', best with a party' : '');
-  const once = r.pick && st.shared.has(r.pick.item) ? ' (she gives it once: the first of these she pays gets it)' : '';
+  const once = r.pick && st.shared.has(r.pick.item) ? ' (she gives it once, to the first of these she pays)' : '';
   text(li.querySelector('small'), where + ' · ' + payWords(r) + once);
   const btn = li.querySelector('button');
   const why = r.held ? 'Held' : st.t && st.t.held.length >= st.t.heldMax ? 'Full' : '';
@@ -170,7 +170,7 @@ renderTally.patch = function patchTally(body, ctx) {
   rows(root.querySelector('.ht-held'), t ? t.held : [], { key: (x) => x.task, build: (x) => element(ctx.doc, heldHtml(x)), patch: (li, x) => patchHeld(li, x, st) });
   cls(root.querySelector('.ht-none'), 'is-on', !!t && !t.held.length);
   text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? (suggest ? suggest.words : 'Pick the armor weight she pays you in. You can change it later.') + ' ' + WEIGHT_ORDER.map(weightSentence).join(' ')
-    : 'Each task pays what its line says: its gold and the next ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you, in the slot order below, even if you\'ve found one yourself. '
+    : 'Each task pays what its line says, its gold and the next ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you, in the slot order below, even if you\'ve found one yourself. '
       + 'Where she has no piece left to give, she pays in crafting materials instead.');
   for (const b of root.querySelectorAll('[data-hs-act="weight"]')) {
     attr(b, 'aria-pressed', String(!!t && t.weight === b.getAttribute('data-weight')));

@@ -49,5 +49,7 @@ export function lossLine(o) {
   const lead = (o.reason === 'boss_time' ? W.time : W.fell)[phase].replace('{pct}', String(Math.max(1, Math.ceil(f.boss_pm / 10))));
   /* A boss whose adds shield him has his own answer to the wave (the designer's line). */
   const answer = phase === 'adds' && isGuarded(MONSTERS[call.monster]) ? W.answer.guarded : W.answer[phase];
-  return lead + ': ' + factFor(phase, o.role, fired) + '. ' + answer;
+  /* two sentences, never a colon join (copy 11-06): the facts start lower-case in the table */
+  const fact = factFor(phase, o.role, fired);
+  return lead + '. ' + fact.charAt(0).toUpperCase() + fact.slice(1) + '. ' + answer;
 }

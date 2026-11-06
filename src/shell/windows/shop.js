@@ -124,7 +124,7 @@ function spareOf(cs, items, rules, shop) {
 function sellNote(plan, kept, spare) {
   const parts = [];
   if (spare.lines.length) parts.push('Sell spare gear keeps what you wear, anything of a higher tier and Rare pieces.');
-  if (kept.ids.length) parts.push('It keeps ' + whole(kept.ids.length) + (kept.ids.length === 1 ? ' stack' : ' stacks') + ' worth ' + gold(kept.worth) + ' that you can use: fuel, food to cook, and materials for your recipes or your next House step. Sell those by hand if you want the gold.');
+  if (kept.ids.length) parts.push('It keeps ' + whole(kept.ids.length) + (kept.ids.length === 1 ? ' stack' : ' stacks') + ' worth ' + gold(kept.worth) + ' you can use, like fuel, food to cook and materials for your recipes or your next House step. Sell those by hand if you want the gold.');
   if (plan.capped) parts.push('One sale takes up to ' + whole(sellQty(Infinity)) + ' of a stack.');
   return parts.join(' ');
 }

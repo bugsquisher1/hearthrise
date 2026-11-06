@@ -63,7 +63,7 @@ export function renderHuntPrep() {
     + '<p class="hs-note hw-carry-note" hidden>This hunt uses only the supplies it carries, then buys from the store. What you got after you set out waits in your backpack until you carry it in.</p>'
     + '<ul class="hw-ledger hw-carry" hidden></ul><p class="hh-empty hw-carry-none"></p>'
     + '<h3 class="hw-ledger-head is-on">Saved setups</h3>'
-    + '<p class="hs-note">A setup is a whole loadout: its own action bar and the gear it wears. The bar always shows the setup in use, and changing the bar changes that setup. To make another, save what you have on as a new setup, then change it.</p>'
+    + '<p class="hs-note">A setup is a whole loadout, with its own action bar and the gear it wears. The bar always shows the setup in use, and changing the bar changes that setup. To make another, save what you have on as a new setup, then change it.</p>'
     + '<ul class="hw-ledger hw-presets"></ul><p class="hh-empty hw-presets-none"></p>'
     + '<p class="hs-note hw-town-only">Setups change in town. This hunt keeps the bar it set off with.</p>'
     + '<div class="hw-add"><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="Name this setup" aria-label="Setup name" data-hs-act="preset-name">'

@@ -63,7 +63,7 @@ export const SHIELD_RECIPES = Object.freeze([
 export const SHIELD_DESC = Object.freeze({
   bronze_rimmed_shield: 'A plank round with a hammered bronze rim, the outfitter\'s answer to a first bite',
   ironbound_shield: 'Two iron bands across oak boards, heavy enough to turn a cellar rat\'s lunge',
-  kingsgrate: 'The Rat King\'s drain grate, bent into a buckler: it stops a blow and drags at your swing',
+  kingsgrate: 'The Rat King\'s drain grate, bent into a buckler. It stops a blow and drags at your swing',
   coppercap_shield: 'Steel faced and copper capped in the Warrens\' fashion, the goblin chief\'s own pattern',
-  steelgrate: 'The Kingsgrate reforged on a steel frame: it stops more and still drags at your swing',
+  steelgrate: 'The Kingsgrate reforged on a steel frame. It stops more and still drags at your swing',
 });

@@ -249,7 +249,9 @@
 .char-bar.is-stamina > i { background: var(--hud-fill-stamina); }
 .char-badge { display: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--red); color: var(--bg-0); font-size: var(--t-micro); font-weight: 700; line-height: 18px; text-align: center; }
 .char-badge.is-on { display: inline-block; }
-.char-strip-tools { display: flex; align-items: stretch; flex: none; }
+/* The tools stand at the strip's right end, never behind the tabs: a tab arriving or a hero's status changing slid Characters under
+   a pointer aimed at Sign out (Andy 2026-11-06, client-boot B-4). */
+.char-strip-tools { display: flex; align-items: stretch; flex: none; margin-left: auto; }
 .char-tool { font: inherit; font-size: 0.85rem; color: var(--ink-3); background: none; border: 0; padding: 0 0.6rem; cursor: pointer; }
 .char-tool:hover { color: var(--ink); }
 .char-tool-short, .char-tool-now, .char-tool .char-all-badge { display: none; }
@@ -263,7 +265,7 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .char-strip { box-sizing: border-box; height: 40px; padding-left: 2px; gap: 0; align-items: flex-start; container: char-strip / inline-size; }
   .game #panel-world { padding-top: 2px; }
-  .char-strip-tools { order: -1; height: 40px; }
+  .char-strip-tools { order: -1; height: 40px; margin-left: 0; }
   .char-tool { position: relative; height: 40px; padding: 0 4px; font-size: var(--t-micro); font-weight: 700; color: var(--ink-2); }
   .char-tool:not(.is-all), .char-tool-wide { display: none; }
   .char-tool.is-all { box-sizing: border-box; width: 58px; padding: 0; } /* the row gives back 60 px (shell.css), whichever font the word lands in */

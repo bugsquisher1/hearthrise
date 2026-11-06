@@ -493,7 +493,8 @@ export class AccountSession {
     const town = this._towns.get(slot);
     if (town) { this._towns.delete(slot); town.destroy(); }
     cs.close();
-    if (this.viewed === slot) { this.viewed = this._chars.size ? this.characters()[0].slot : null; if (this.viewed !== null) this._chars.get(this.viewed).setViewed(true); }
+    /* signing out, the next hero is not shown: being shown asks a settle, which is a hero played after Sign out */
+    if (this.viewed === slot) { this.viewed = this._chars.size && !this._ending ? this.characters()[0].slot : null; if (this.viewed !== null) this._chars.get(this.viewed).setViewed(true); }
     this._keepOpen();
     this._emit('closed', slot);
     return true;
@@ -503,8 +504,9 @@ export class AccountSession {
   async signOut() {
     this._ending = true;   // the closes below are not what this tab had open; auth.signOut removes the record
     if (this._awayTimer !== null) { (this._timers.clearTimer || ((t) => clearTimeout(t)))(this._awayTimer); this._awayTimer = null; }
-    for (const slot of Array.from(this._chars.keys())) this.close(slot);
+    /* the social side first: its chat re-reads for whichever hero is shown, and nothing is shown while every hero closes */
     if (this.social) { this.social.destroy(); this.social = null; }
+    for (const slot of Array.from(this._chars.keys())) this.close(slot);
     await this.auth.signOut();
     this._emit('signed-out');
     this._listeners.clear();

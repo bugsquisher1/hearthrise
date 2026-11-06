@@ -64,7 +64,7 @@ export const MUTANTS = {
   line_ignores_flag: { arm: 'TC-CLIENT', why: 'a Crier line draws as a plain line',
     js: ['src/social/chat-lines.js', [['    crier: !whisper && row.crier === true,', '    crier: false,']]] },
   mute_words_gone: { arm: 'TC-WORDS-C', why: 'a muted press reads the chat\'s mute line, not the Crier\'s',
-    js: ['src/data/refusal-words.js', [["    muted: 'The Game Master has muted you for now, so the Crier won\\'t take your line or your gold.',\n", '']]] },
+    js: ['src/data/refusal-words.js', [["    muted: 'The Game Master has muted you, so the Crier is off.',\n", '']]] },
   quote_drops_mute: { arm: 'TC-CLIENT', why: 'the tab never learns of the mute the server quoted',
     js: ['src/session/town-intents.js', [["mutedUntil: typeof c.muted_until === 'string' && c.muted_until ? c.muted_until : null", 'mutedUntil: null']]] },
   button_has_no_price: { arm: 'TC-CLIENT', why: 'the Crier\'s button hides the server\'s price',
@@ -319,7 +319,7 @@ const ARMS = {
       [{ error: 'crier_off' }, 'The Crier is off duty right now. You weren\'t charged.'],
       [{ error: 'quote_changed', price: 2000 }, 'The price moved to 2,000 gp. You weren\'t charged. Press again to pay it.'],
       /* a muted press, said for the Crier (the raised row lock reads the same code through src/session/server.js raisedCode) */
-      [{ error: 'muted' }, 'The Game Master has muted you for now, so the Crier won\'t take your line or your gold.'],
+      [{ error: 'muted' }, 'The Game Master has muted you, so the Crier is off.'],
     ];
     for (const [r, words] of want) if (R(r) !== words) out.push(JSON.stringify(r) + ' reads: ' + R(r));
     const lv = X.SW.sinkRefusal({ verb: 'crier', error: 'crier_level', need: 10, level: 7 }, 'Marlow');

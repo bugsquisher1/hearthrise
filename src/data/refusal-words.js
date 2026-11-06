@@ -76,7 +76,7 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   }),
   /* The Town Crier (2027-02-27-town-crier.sql hr_crier_send): a mute is refused before the charge (2027-03-16-crier-muted.sql). */
   crier: Object.freeze({
-    muted: 'The Game Master has muted you for now, so the Crier won\'t take your line or your gold.',
+    muted: 'The Game Master has muted you, so the Crier is off.',
   }),
   town_round: Object.freeze({
     hunting: 'Your hero is out hunting. The Tavern is in town.',

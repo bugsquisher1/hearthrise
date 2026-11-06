@@ -1979,8 +1979,8 @@ const MUTANTS = [
   ['the server limit is ignored above one', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this.config.maxConcurrentCharacters);'],
   ['a switch re-reads the viewed character', 'src/session/account-session.js', "    this._chars.get(slot).setViewed(true);\n    this._emit('viewed', slot);", "    this._chars.get(slot).setViewed(true);\n    this._chars.get(slot).load();\n    this._emit('viewed', slot);"],
   ['a switch closes the others', 'src/session/account-session.js', "    this._chars.get(slot).setViewed(true);\n    this._emit('viewed', slot);", "    this._chars.get(slot).setViewed(true);\n    for (const c of this._chars.values()) if (c.slot !== slot) c._leave && (c._leave(), c._leave = null);\n    this._emit('viewed', slot);"],
-  ['the boot read waits on the auth lock (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { session = kept; return session; }\n', ''],
-  ['a stale stored session is used as it stands (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { session = kept; return session; }', '    if (kept) { session = kept; return session; }'],
+  ['the boot read waits on the auth lock (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { adopt(kept); return session; }\n', ''],
+  ['a stale stored session is used as it stands (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { adopt(kept); return session; }', '    if (kept) { adopt(kept); return session; }'],
   ['sign-out keeps sb-* keys', 'src/net/auth.js', " || k.startsWith('sb-')", ''],
   ['sign-out keeps the tab id', 'src/net/auth.js', ' o.tab.remove(cfg.tabKey);', ''],
   ['sign-out keeps the heroes the tab had open', 'src/net/auth.js', ' o.tab.remove(cfg.openKey);', ''],
@@ -2063,7 +2063,7 @@ const MUTANTS = [
   /* ACC-SWITCH (Andy 11-06): another account's sign-in on this device never plays under the page's account */
   ['another account\'s session is taken in silence', 'src/net/auth.js', "    if (was && now && was !== now) tell('switched');\n", ''],
   ['a login\'s calls carry whatever session the tab holds', 'src/net/auth.js', '(t && uid && userOf(session) === uid && tokenOf(session) === t ? t : null)', '(t && uid && tokenOf(session) === t ? t : null)'],
-  ['the account follows whoever the auth holds', 'src/session/account-session.js', '  get userId() { return this._ending ? null : this.uid; }', '  get userId() { return this.auth.userId(); }'],
+  ['the account follows whoever the auth holds', 'src/session/account-session.js', '  get userId() { return this.uid; }', '  get userId() { return this.auth.userId(); }'],
   ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took && engine) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
   /* STORE-1 (Andy 10-26): the account Storage is the newest any hero read; a refusal re-reads ONCE; reads are bounded */

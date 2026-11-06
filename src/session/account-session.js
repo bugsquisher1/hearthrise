@@ -237,7 +237,7 @@ export class AccountSession {
     for (const other of this._chars.values()) if (other !== cs && typeof other.noteStorage === 'function') other.noteStorage();
   }
 
-  get userId() { return this._ending ? null : this.uid; }
+  get userId() { return this.uid; }
   /** The open characters, in slot order. */
   characters() { return Array.from(this._chars.values()).sort((a, b) => a.slot - b.slot); }
   character(slot) { return this._chars.get(slot) || null; }
@@ -380,7 +380,7 @@ export class AccountSession {
     if (this._chars.has(slot)) return { ok: true, session: this._chars.get(slot) };
     if (this._chars.size >= this.limit()) return { ok: false, reason: 'limit', limit: this.limit() };
     const uid = this.userId;
-    if (!uid) return { ok: false, reason: 'signed_out' };
+    if (!uid || this._ending) return { ok: false, reason: 'signed_out' };
     /* A PARTY NUDGE (2027-02-11-party-nudge.sql) on the hero's topic is no frame: it carries no state, only "read yourself". */
     const channel = this._channel ? (topic, onMsg, onStatus) => this._channel(topic, (m) => (m && m.t === 'nudge' ? this._nudged(slot) : onMsg(m)), onStatus) : null;
     const cs = new CharacterSession({ slot, uid, server: this.server, intents: this.intents, channel,

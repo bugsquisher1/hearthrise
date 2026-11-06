@@ -5,9 +5,11 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## v0.2.100 — 2026-11-06 (One Account per Tab)
+## v0.2.100 — 2026-11-06 (Plain Words)
 
-**Your gold shows the right number.** If you signed into another account in a second tab, the first tab could keep showing the old account's gold while it played the new one. Now that tab reloads as the account you just signed into. No gold was created or lost. Only the number on screen was wrong.
+**Plainer words.** A lot of the game's text is rewritten in plain English. Kills earn Level XP, the Thicket is a tougher challenge, and the tutorial, hunt cards and Hunts list say things more simply.
+
+- **Your gold shows the right number.** If you signed into another account in a second tab, the first tab could keep showing the old account's gold while it played the new one. Now that tab reloads as the account you just signed into. No gold was created or lost. Only the number on screen was wrong.
 
 ## v0.2.99 — 2026-11-06 (Rings and a King)
 

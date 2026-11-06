@@ -203,13 +203,13 @@ function ammoUse(id, it) {
 
 /**
  * A requirement in words, from what it names and the server's number (null: not known yet):
- * "Needs Level 30 — you're 28", "Needs Magic 20 — you have 14". Every piece of gear names the hero's Level
+ * "Needs Level 30 (you're 28)", "Needs Magic 20 (you have 14)". Every piece of gear names the hero's Level
  * (gear-tiers.js LEVEL_REQ, Tyler 2026-10-24); a supply names its skill.
  */
 export function needWords(req, lv, have) {
   const level = req === LEVEL_REQ;
   return 'Needs ' + (level ? 'Level' : skillName(req)) + ' ' + lv
-    + (Number.isInteger(have) ? ' — ' + (level ? 'you\'re ' : 'you have ') + have : '');
+    + (Number.isInteger(have) ? ' (' + (level ? 'you\'re ' : 'you have ') + have + ')' : '');
 }
 
 /**

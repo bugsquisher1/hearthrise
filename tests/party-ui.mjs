@@ -478,7 +478,7 @@ async function pureRules(M, base) {
     if (r.ok || r.error !== 'not_ready' || srv.calls.length !== 1 || c0.record !== rec) return 'a refused start answered ' + JSON.stringify(r) + ' after ' + JSON.stringify(srv.calls.map((c) => c[0]));
     const a = srv.calls[0][1];
     if (srv.calls[0][0] !== 'hr_hunt_party_start' || Object.keys(a).sort().join() !== 'p_hunt,p_idem,p_slot' || a.p_slot !== 0 || a.p_hunt !== 'millrace_sewer') return 'the start sent ' + JSON.stringify(srv.calls[0]);
-    if (M.IW.refusalText(r) !== 'Nobody went in: Mira is away.') return 'the not-ready words are ' + JSON.stringify(M.IW.refusalText(r));
+    if (M.IW.refusalText(r) !== 'Nobody went in. Mira is away.') return 'the not-ready words are ' + JSON.stringify(M.IW.refusalText(r));
     /* Live v0.2.11 "busy in town": an own character still gathering is settled through the engine first
        (set_activity idle collects before it switches), then the party starts. */
     srv.env[0].state = Object.assign({}, srv.env[0].state, { active_kind: 'gather', active_id: 'shrimp_s' });
@@ -1223,7 +1223,7 @@ async function pageRules(overrides, shots) {
         const st = sent(s, 'hr_hunt_party_start').slice(before);
         if (st.length !== 1 || Object.keys(st[0].body).sort().join() !== 'p_hunt,p_idem,p_slot' || st[0].body.p_slot !== 0 || st[0].body.p_hunt !== 'millrace_sewer') fails.push('UI-3 [' + tag + '] Start sent ' + JSON.stringify(st.map((c) => c.body)));
         const said = await page.evaluate((q) => document.querySelector(q).textContent, W + '.hh-intent-msg');
-        if (said !== 'Nobody went in: Mira is away.') fails.push('UI-3 [' + tag + '] a refused start says ' + JSON.stringify(said));
+        if (said !== 'Nobody went in. Mira is away.') fails.push('UI-3 [' + tag + '] a refused start says ' + JSON.stringify(said));
         /* UI-TRUTH (panel 2026-11-01): a seat under the floor hears first: the first press is ONE hr_hunt_party_warn and no start,
            the words name the seat, the button reads Start anyway, and only the second press starts. */
         const mira = s.env[0].party.members.find((m) => m.name === 'Mira');
@@ -1445,7 +1445,7 @@ const PURE_MUTANTS = [
   ['a hero sent home by a leave raises a plain end line', 'src/shell/alerts.js', "  else if (h.ended && h.endReason === 'party_member_left') out.push(", '  else if (false) out.push('],
   ['the summary says the hunt ended (no member, no hero)', 'src/hunt-view/summary-model.js', "  if (typeof by === 'string' && by && (reason === 'party_member_left'", "  if (false && (reason === 'party_member_left'"],
   ['the summary forgets who sent the hero home', 'src/hunt-view/summary-model.js', "    by: typeof s.end_by === 'string' && s.end_by.trim() ? s.end_by.trim().slice(0, 40) : null,", '    by: null,'],
-  ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
+  ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in. ' + listWords(why, Infinity) + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [
   ['the finder tab has no way to invite (UI-17)', 'src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', true);", "cls(root.querySelector('.hw-invite-name'), 'is-on', tab !== 'find');"],

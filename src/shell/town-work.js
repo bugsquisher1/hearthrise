@@ -344,7 +344,7 @@ export function rolledWords(outs, bag) {
   }
   const said = (m, word, each) => {
     const total = [...m.values()].reduce((a, b) => a + b, 0);
-    return total ? [whole(total) + ' ' + word + ' (' + [...m].map(([l, n]) => (each ? whole(n) + ' ' : '') + l).join(m.size > 1 && word === 'Hallmarked' ? '; ' : ', ') + ')'] : [];
+    return total ? [whole(total) + ' ' + word + ' (' + [...m].map(([l, n]) => (each ? whole(n) + ' ' : '') + l).join(', ') + ')'] : [];
   };
   return plain.concat(said(grade.fine, 'Fine', true), said(grade.hallmarked, 'Hallmarked', grade.hallmarked.size > 1 || [...grade.hallmarked.values()].some((n) => n > 1)));
 }

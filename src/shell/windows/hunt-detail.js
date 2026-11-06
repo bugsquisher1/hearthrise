@@ -178,7 +178,7 @@ export function patchGround(det, ctx, r, o) {
   text(bigPull, bigSaid);
   prop(bigPull, 'hidden', !bigSaid);
   /* What drops here and how often (Tyler 2026-10-24: "a % drop chance or nothing at all"): the gear a line a tier, the
-     hero's own armour weight first ("Iron, Studded, Adept: helmets, boots; Iron Sword") with the chance a kill here drops
+     hero's own armour weight first ("Iron, Studded, Adept: helmets, boots and Iron Sword") with the chance a kill here drops
      any piece of it, then each Rare and Trophy, item and carrier, with its chance per kill of that creature. The odds
      are the engine's own rows at this hero's party size (hunt-ground-facts.js), never a number typed here. */
   /* PER KILL, FOR THE WHOLE PARTY (blind party test 2026-11-01; played): each kill rolls once and each drop goes to one hero, so a party's higher odds are shared out
@@ -190,7 +190,7 @@ export function patchGround(det, ctx, r, o) {
       + '<span class="hw-hd-odds"></span></li>'),
     patch: (li, e) => {
       text(li.querySelector('.hw-hd-set-lines'), e.lines.join(', '));
-      text(li.querySelector('.hw-hd-set-what'), (e.lines.length ? ': ' : '') + [e.slots.join(', '), e.weapons.join(', ')].filter(Boolean).join('; '));
+      text(li.querySelector('.hw-hd-set-what'), (e.lines.length ? ': ' : '') + e.what);
       text(li.querySelector('.hw-hd-odds'), chance(e.chance));
     },
   });

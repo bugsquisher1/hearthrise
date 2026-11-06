@@ -182,7 +182,7 @@ export function wasteLine(row, pct, max) {
   const unit = row.kind === 'food' ? 'HP' : 'mana';
   const missing = Math.round((max * (100 - pct)) / 100);
   const lost = row.amount - missing;
-  return lost > 0 ? 'At ' + pct + '% you are missing ' + missing + ' ' + unit + '; ' + lost + ' of its ' + row.amount + ' would be wasted.' : '';
+  return lost > 0 ? 'At ' + pct + '% you are missing ' + missing + ' ' + unit + ', so ' + lost + ' of its ' + row.amount + ' would be wasted.' : '';
 }
 
 /** Where a row's uses come from, in one sentence. */

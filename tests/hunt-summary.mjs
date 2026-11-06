@@ -83,7 +83,8 @@ async function runTests(M) {
     ok(f.lines[0].includes('3 Rat King hits (42, 38, 51)'), 'the blows and amounts: ' + f.lines[0]);
     ok(f.lines[0].includes('no heal for 8 s'), 'the healing gap: ' + f.lines[0]);
     ok(f.lines[0].includes('Druid at 4 mana'), 'the empty mana: ' + f.lines[0]);
-    ok(f.lines[0].includes("rule 'Knight below 50%' was waiting for mana"), 'the rule that waited: ' + f.lines[0]);
+    ok(f.lines[0].includes("Druid at 4 mana. Rule 'Knight below 50%' was waiting for mana."), 'the rule that waited, its own sentence: ' + f.lines[0]);
+    ok(!/;/.test(f.lines.join(' ')), 'no semicolon joins the reasons (copy 11-06): ' + f.lines.join(' | '));
     ok(f.lines[1] === 'The killing blow was 51 from Rat King.', 'the killing blow: ' + f.lines[1]);
     eq(f.damageByType, [{ type: 'physical', total: 131 }], 'damage by type');
   });

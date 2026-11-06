@@ -161,7 +161,7 @@ function liveRunes(live) {
     else spends.push({ price: p.store.price, names: [p.store.name] });
   }
   const andWords = (n) => (n.length < 2 ? n[0] : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1]);
-  return spends.map((x) => x.words || andWords(x.names) + ' from the store, ' + x.price + ' gp a cast').join('; ');
+  return spends.map((x) => x.words || andWords(x.names) + ' from the store, ' + x.price + ' gp a cast').join('. ');
 }
 
 /* THE RUNES LINE: what casts (liveRunes), then the spells that will not fire and their fix. Nothing usable keeps the listed stocks (bareWords). */

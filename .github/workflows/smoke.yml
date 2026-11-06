@@ -1401,9 +1401,9 @@ jobs:
   # 11.1 min, not yet on a runner. 1 + 0.4 + 11.1 = 12.5; x2 = 25, 28 so the apt stall
   # (12.5 + 12.2 = 24.7) keeps 12% slack.
   # 2026-11-06 (lane/t-v099-reds): the Call out window joins it from client-guards, which installs no browser (run
-  # 42146852443: "Executable doesn't exist"). MEASURED on Tyler's PC under load: plain 1.8 min, --mutate (13 mutants,
-  # each the whole rule set) about 75; at a page guard's minute a mutant on a runner, ~14. 12.5 + 14 = 26.5; x2 = 53,
-  # 55 so the apt stall (26.5 + 12.2 = 38.7) keeps 30% slack.
+  # 42146852443: "Executable doesn't exist"). MEASURED on Tyler's PC under load: plain 1.8 min, --mutate 25.3 (13 mutants,
+  # each the whole rule set); at a page guard's minute a mutant on a runner, ~14. 12.5 + 14 = 26.5; x2 = 53, 55 so the
+  # apt stall (26.5 + 12.2 = 38.7) keeps 30% slack. A runner as slow as this PC (12.5 + 27.1 = 39.6) still fits.
   in-page-23:
     runs-on: ubuntu-latest
     timeout-minutes: 55

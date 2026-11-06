@@ -357,7 +357,11 @@ async function boot(mutate) {
     if (!m) { const e = new Error(`unknown mutation "${mutate}"`); e.harness = true; throw e; }
     if (m.migration) {
       sqlPatches = new Map([[m.migration, [[m.find, m.repl]]]]);
-      replayTo = m.migration === BUY_FILE ? BUY_FILE : REPLAY_UPTO;
+      /* A file past REPLAY_UPTO (the detector's last restatement, 2027-03-13-gm-tools.sql) replays up to ITSELF: stopped at
+         REPLAY_UPTO the plant never applies, and the mutant reads "caught" on the catalogue's distance from that point (U1, U8). */
+      const order = (await chainFiles()).map(([n]) => n);
+      replayTo = m.migration === BUY_FILE ? BUY_FILE
+        : (order.indexOf(m.migration) > order.indexOf(REPLAY_UPTO) ? m.migration : REPLAY_UPTO);
     } else {
       const src = (await readFile(m.file, 'utf8')).replace(/\r\n/g, '\n');
       const n = src.split(m.find).length - 1;

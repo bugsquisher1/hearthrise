@@ -11,17 +11,17 @@
 // Anonymous: no seller or buyer name reaches this window; the server's reads hold listing
 // ids only. Every number is the server's and every control is off until it has answered.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.102';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.102';
-import { whole } from '../../../render/format.js?v=0.2.102';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.102';
-import { MARKET_TABS } from '../../market-model.js?v=0.2.102';
-import { lockedWords } from '../../market-words.js?v=0.2.102';
-import { hideTip } from '../item-tip.js?v=0.2.102';
-import { marketScratch, rereadAll, readMine, readItem } from './state.js?v=0.2.102';
-import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.102';
-import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.102';
-import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.102';
+import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.103';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.103';
+import { whole } from '../../../render/format.js?v=0.2.103';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.103';
+import { MARKET_TABS } from '../../market-model.js?v=0.2.103';
+import { lockedWords } from '../../market-words.js?v=0.2.103';
+import { hideTip } from '../item-tip.js?v=0.2.103';
+import { marketScratch, rereadAll, readMine, readItem } from './state.js?v=0.2.103';
+import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.103';
+import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.103';
+import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.103';
 
 /** The skeleton (built once per opening). An opening reads the server again. */
 export function renderMarket(ctx) {

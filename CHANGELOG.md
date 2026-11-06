@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.103 — 2026-11-06 (Even Steps)
+
+**Smoother first Levels.** Levels 1 to 9 now climb in even steps, so Level 6 no longer takes twice as long as Level 5. Level 10 and up cost the same XP as before.
+
+- **Your hunt summary shows the tier you picked.** An ended hunt keeps its Normal, Dangerous or Deadly label.
+- **The Town Crier tells you first.** If you are muted in chat, the Crier says so and shows when the mute ends. You no longer press and get an error.
+- **Plainer hunt messages.** The messages your hunt sends back now read in plain English too.
+
 ## v0.2.102 — 2026-11-06 (Clear Invites)
 
 **A clearer invite message.** If an invite code doesn't work at sign-up, the message now says so in plain words and tells you that you can leave the code blank.

@@ -65,7 +65,10 @@ const FLAME = 'public.hr_hearth_flame_of(text)';
 const PUSH = 'public.hr_town_show_push(text,timestamp with time zone,timestamp with time zone)';
 const ADD = 'public.hr_gold_given_add(uuid,integer,bigint)';
 /* in chain order: 2027-02-28-sink-price-plan.sql restates the seams' hr_sink_price */
-const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-02-28-sink-price-plan.sql', '2027-03-07-gold-sinks-catalogue.generated.sql'];
+/* Every file that writes one of TS-AGAIN's bodies, in apply order: a later file's splice (2027-03-16-crier-muted.sql: hr_crier_send, the Crier's quote) is undone by
+   re-applying the file it splices, so it is re-applied after it, as a replay does. */
+const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-02-28-sink-price-plan.sql', '2027-03-07-gold-sinks-catalogue.generated.sql',
+  '2027-03-16-crier-muted.sql'];
 
 /* ── THE PLANTED DEFECTS ─────────────────────────────────────────────────────
    db: a live body edited inside the arm's transaction (fn, find, replace). ddl: a statement in it. sql: an edit of a migration's TEXT the

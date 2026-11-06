@@ -747,7 +747,7 @@ const ARMS = {
     await k.fresh();
   },
   'GM-W-BOSS': async (W, say) => {
-    const { k } = W;
+    const { k, hunt } = W;
     const c = (await k.db.query(`select call_id, hunt_id, fee from public.hr_boss_calls order by call_id limit 1`)).rows[0];
     if (!c) throw harness('no boss call in the catalogue');
     const before = await gold(k, GM);
@@ -755,7 +755,14 @@ const ARMS = {
     if (!door || door.raised !== 'hr_gm_walled') say('the door let a boss call through: ' + js(door).slice(0, 200));
     if (await gold(k, GM) !== before) say('the refused call took the gold');
     /* THE ROOM'S ROW, whatever path writes it: a walled hero's session in a called room is refused; a real hero's is not refused by the wall. */
-    const src = await k.one('select id from public.hunt_sessions where ended_at is not null order by entered_at limit 1');
+    /* A real hero's ended hunt is the row to copy (this arm runs alone under --mutate, so it makes its own). */
+    let src = await k.one('select id from public.hunt_sessions where ended_at is not null order by entered_at limit 1');
+    if (!src) {
+      await k.call(A, `select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, $2::uuid)`, [hunt, key()]);
+      await k.db.query(`update public.hunt_sessions set leave_at = now() - interval '1 hour', ended_at = now(), end_reason = 'left' where user_id = $1 and ended_at is null`, [A]);
+      await k.db.query(`update public.player_state set active_kind = 'idle', active_id = null where user_id = $1`, [A]);
+      src = await k.one('select id from public.hunt_sessions where ended_at is not null order by entered_at limit 1');
+    }
     if (!src) throw harness('no ended session to copy');
     const enter = async (u) => {
       await k.db.exec('begin');

@@ -47,6 +47,8 @@ begin
   if to_regclass('public.account_gold_given') is null or to_regclass('public.town_shows') is null
      or to_regclass('public.town_works_gifts') is null or to_regclass('public.town_works_totals') is null then
     raise exception 'PRECONDITION: Gold Given, the shows or the Town Works tables are absent: this file orders after them'; end if;
+  if to_regclass('public.hr_boss_calls') is null or to_regprocedure('public.hr_boss_call(integer,text,bigint,uuid)') is null then
+    raise exception 'PRECONDITION: the boss call is absent: this file orders after 2027-03-12-boss-call.sql'; end if;
   for v_r in select * from (values
     ('public.hr_access_check()', 'f272a1de5dd20c1f65467a3b205ca2c1', 'beee27d37742fb9717933c7a03f5833e'),
     ('public.hr_admitted(uuid)', 'ec1d3f7be2565cb903a06fcb44591db8', 'aadfb4d79184c1162f6bbdd8916f6938'),
@@ -376,6 +378,10 @@ create or replace trigger hr_gm_wall before insert on public.account_gold_given 
 create or replace trigger hr_gm_wall before insert on public.town_shows for each row execute function public.hr_gm_wall_guard('user_id');
 create or replace trigger hr_gm_wall before insert on public.town_works_gifts for each row execute function public.hr_gm_wall_guard('user_id');
 create or replace trigger hr_gm_wall before insert on public.town_works_totals for each row execute function public.hr_gm_wall_session();
+-- THE CALLED ROOMS (2027-03-12-boss-call.sql): a paid party fight whose felling is broadcast and earns a title. A walled hero never stands in one, by
+-- any path: the door refuses hr_boss_call, and this refuses the session row (a called room's suffix, as that file's own triggers read it). Named so
+-- it fires before every other insert trigger on the table.
+create or replace trigger hr_gm_wall_called before insert on public.hunt_sessions for each row when (right(new.hunt_id, 7) = '_called') execute function public.hr_gm_wall_guard('user_id');
 
 -- ── §4 THE DOOR ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 create or replace function public.hr_admitted(p_user uuid)
@@ -1978,7 +1984,7 @@ declare
     'hr_gm_grant_item(integer,text,bigint,text,uuid)', 'hr_gm_grant_level(integer,integer,text,uuid)'];
   c_deny constant text[] := array['hr_chat_send', 'hr_whisper_send', 'hr_friend_request', 'hr_friend_answer', 'hr_friend_remove', 'hr_block_set',
     'hr_hunt_party_invite', 'hr_hunt_party_invite_player', 'hr_hunt_party_join', 'hr_hunt_party_list', 'hr_party_seek', 'hr_hearth_burn',
-    'hr_claim_discord_gift', 'hr_companion_grant', 'hr_buy_gem_unlock', 'hr_town_works_give', 'hr_town_show', 'hr_crier_send'];
+    'hr_claim_discord_gift', 'hr_companion_grant', 'hr_buy_gem_unlock', 'hr_town_works_give', 'hr_town_show', 'hr_crier_send', 'hr_boss_call'];
   c_auth constant text[] := array['hr_gm_walled(uuid)', 'hr_gm_open(uuid,text,uuid,integer,text,uuid)', 'hr_gm_close(uuid,text,uuid,integer,text,uuid,jsonb)',
     'hr_gm_stop_gate(uuid,uuid,integer,text,uuid)', 'hr_gm_stop_result(uuid,uuid,integer,text)', 'hr_hunt_leave_pending(uuid,integer)'];
   t text; v jsonb; v_n int; v_err text; v_ok boolean; v_before bigint; v_colors jsonb;

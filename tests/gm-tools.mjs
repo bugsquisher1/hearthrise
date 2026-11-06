@@ -38,6 +38,7 @@
 //   GM-W-OTHER    clans and the Discord gift, by row
 //   GM-W-CROSS    a grant reaches no other purse; Storage and the bag have no path across accounts
 //   GM-W-WORKS    a Town Works gift: the door, then both row locks (the plaque's by its person, the total's by the session); nothing is charged
+//   GM-W-BOSS     a boss call: the door, then the called room's session row; nothing charged, no room entered
 //   GM-W-FUTURE   a shared table landed by a later lane carries the row lock (the door already refuses its verbs)
 //   GM-WIPE       the wipe's lists say who stays
 //   GM-TOOL       tools/gm-allow.mjs: its migration makes a fresh account the GM, twice over the same; refuses an account with a hero; a typo admits nobody
@@ -206,7 +207,7 @@ const ARMS = {
     const { k } = W;
     const deny = ['hr_chat_send', 'hr_whisper_send', 'hr_friend_request', 'hr_friend_answer', 'hr_friend_remove', 'hr_block_set', 'hr_hunt_party_invite', 'hr_hunt_party_invite_player',
       'hr_hunt_party_join', 'hr_hunt_party_list', 'hr_party_seek', 'hr_hearth_burn', 'hr_claim_discord_gift', 'hr_companion_grant', 'hr_buy_gem_unlock',
-      'hr_town_works_give', 'hr_town_show', 'hr_crier_send', 'hr_nothing_decided_yet'];
+      'hr_town_works_give', 'hr_town_show', 'hr_crier_send', 'hr_boss_call', 'hr_nothing_decided_yet'];
     for (const n of deny) {
       const r = await k.call(GM, 'select public.hr_server_now()', [], { path: '/rpc/' + n, door: true });
       if (!r || r.raised !== 'hr_gm_walled') say(`the door let the walled account reach ${n}: ${js(r)}`);
@@ -745,6 +746,30 @@ const ARMS = {
     for (const [who, sub] of [['a real session', A], ['a sessionless writer', null]]) if (await write(sub, total, [p]) !== 'written') say(`the total's lock refused ${who}`);
     await k.fresh();
   },
+  'GM-W-BOSS': async (W, say) => {
+    const { k } = W;
+    const c = (await k.db.query(`select call_id, hunt_id, fee from public.hr_boss_calls order by call_id limit 1`)).rows[0];
+    if (!c) throw harness('no boss call in the catalogue');
+    const before = await gold(k, GM);
+    const door = await k.call(GM, 'select public.hr_boss_call(0, $1, $2::bigint, $3::uuid)', [c.call_id, c.fee, key()], { door: true });
+    if (!door || door.raised !== 'hr_gm_walled') say('the door let a boss call through: ' + js(door).slice(0, 200));
+    if (await gold(k, GM) !== before) say('the refused call took the gold');
+    /* THE ROOM'S ROW, whatever path writes it: a walled hero's session in a called room is refused; a real hero's is not refused by the wall. */
+    const src = await k.one('select id from public.hunt_sessions where ended_at is not null order by entered_at limit 1');
+    if (!src) throw harness('no ended session to copy');
+    const enter = async (u) => {
+      await k.db.exec('begin');
+      try {
+        await k.db.query(`insert into public.hunt_sessions select (jsonb_populate_record(null::public.hunt_sessions, to_jsonb(s) || jsonb_build_object('id', gen_random_uuid(), 'user_id', $1::uuid, 'slot', 0, 'hunt_id', $2::text, 'prev_session_id', null))).* from public.hunt_sessions s where s.id = $3`, [u, c.hunt_id, src]);
+        return 'written';
+      } catch (e) { return String(e.message).split('\n')[0]; } finally { await k.db.exec('rollback'); }
+    };
+    if (!/gm_walled/.test(await enter(GM))) say('a walled hero stood in a called room by another path');
+    const real = await enter(A);
+    if (/gm_walled/.test(real)) say('the wall refused a real hero a called room: ' + real);
+    if (await k.one(`select count(*)::int from public.hunt_sessions where user_id = $1 and right(hunt_id, 7) = '_called'`, [GM])) say('a walled hero has a called session');
+    await k.fresh();
+  },
   'GM-W-FUTURE': async (W, say) => {
     const { k } = W;
     for (const t of ['account_gold_given', 'town_works_gifts', 'town_works_totals', 'town_shows']) {
@@ -841,6 +866,8 @@ const MUTANTS = [
   { id: 'works_total_row', arm: 'GM-W-WORKS', why: "a walled session moves the town's total", edits: [['create or replace trigger hr_gm_wall before insert on public.town_works_totals for each row execute function public.hr_gm_wall_session();\n', '']] },
   { id: 'works_total_reads_nobody', arm: 'GM-W-WORKS', why: "the total's lock reads no session", edits: [["  if public.hr_gm_walled(auth.uid()) then perform public.hr_reject('gm_walled'); end if;\n", '']] },
   { id: 'works_both_rows', arm: 'GM-W-WORKS', why: 'a walled gift goes through and charges', edits: [[WALL('town_works_gifts', "'user_id'"), ''], ['create or replace trigger hr_gm_wall before insert on public.town_works_totals for each row execute function public.hr_gm_wall_session();\n', '']] },
+  { id: 'boss_room_row', arm: 'GM-W-BOSS', why: 'a walled hero enters a called room past the door', edits: [["create or replace trigger hr_gm_wall_called before insert on public.hunt_sessions for each row when (right(new.hunt_id, 7) = '_called') execute function public.hr_gm_wall_guard('user_id');\n", '']] },
+  { id: 'boss_door_listed', arm: 'GM-W-BOSS', why: 'the boss call is on the walled account\'s list', edits: [["  ('hr_load', 'its own hero'),", "  ('hr_boss_call', 'x'), ('hr_load', 'its own hero'),"]] },
   { id: 'future_table_unlocked', arm: 'GM-W-FUTURE', why: 'a shared table landed with no row lock', edits: [[WALL('town_works_gifts', "'user_id'"), '']] },
   { id: 'shows_unlocked', arm: 'GM-W-FUTURE', why: 'the shows table carries no row lock', edits: [[WALL('town_shows', "'user_id'"), '']] },
 ];

@@ -80,7 +80,7 @@ export function showsWords(row, hiddenChange) {
   if (!row.regions.length) return row.plain;
   const parts = row.regions.map((g) => row.parts[g]).join(', ');
   return 'On this outfit your colors change: ' + parts + '. The rest stays as drawn.'
-    + (hiddenChange ? ' This save only changes colors this outfit doesn\'t show; they show on other outfits.' : '');
+    + (hiddenChange ? ' This save only changes colors this outfit doesn\'t show. They show on your other outfits.' : '');
 }
 
 /* Has the draft moved a region this outfit's art doesn't show, and no region it does? */

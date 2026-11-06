@@ -222,14 +222,14 @@ export const END_CARD_COPY = Object.freeze({
   title: 'Hunt over',
   again: 'Hunt again',
   details: 'Details',
-  againShort: 'Not enough {item} to pack this bag again: you have {have}, the bag needs {need}.',
+  againShort: 'Not enough {item} to pack this bag again. You have {have}, and the bag needs {need}.',
   /* The death cost this much XP in all (DEATH_XP_LOSS), summed by the
      renderer from the `death` event's server-stated `xp_lost`. */
   xpLost: Object.freeze({ one: 'Dying cost you 1 XP.', other: 'Dying cost you {n} XP.' }),
   /* After an automatic end the character walks home and picks up what it was
      doing; `{activity}` is the server's own name for it ("fishing at Shrimp
      Spot"), drawn from the `ended` event's `resume`. */
-  resumed: Object.freeze({ one: 'Back in town — {activity} again.' }),
+  resumed: Object.freeze({ one: 'Back in town and {activity} again.' }),
 });
 
 export const END_REASON_COPY = Object.freeze({
@@ -244,7 +244,7 @@ export const END_REASON_COPY = Object.freeze({
   party_member_left: Object.freeze({ one: '{member} left the hunt, so {name} came home too.' }),
   heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
   ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),
-  gold_out: Object.freeze({ one: 'You ran out of gold for supplies — the hunt ended.' }),
+  gold_out: Object.freeze({ one: 'You ran out of gold for supplies, so you headed home.' }),
   rule: Object.freeze({ one: 'One of your stop rules was met, so you headed home.' }),
   stamina: Object.freeze({ one: 'Out of stamina, so you headed home. It rests back 1:1 while you are not hunting.' }),
   hours: Object.freeze({ one: 'Your 1-hour limit was up, so you headed home.', other: 'Your {n}-hour limit was up, so you headed home.' }),
@@ -269,7 +269,7 @@ export const EVENT_COPY = Object.freeze({
   rare_drop: Object.freeze({ one: 'Rare drop: {item}.' }),
   death: Object.freeze({ one: 'Killed by {monster}.' }),
   slot_dry: Object.freeze({ one: 'Ran out of {item}.' }),
-  stamina_low: Object.freeze({ one: 'Stamina is low: about 1 minute left.', other: 'Stamina is low: about {n} minutes left.' }),
+  stamina_low: Object.freeze({ one: 'Stamina is low, with about 1 minute left.', other: 'Stamina is low, with about {n} minutes left.' }),
   /* Sell-to-cover: loot sold to the vendor so the shop could be paid. */
   cover: Object.freeze({ one: 'Sold 1 item to keep the shop paid.', other: 'Sold {n} items to keep the shop paid.' }),
   ended: Object.freeze({ one: 'Hunt over: {reason}' }),

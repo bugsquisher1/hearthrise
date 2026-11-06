@@ -21,7 +21,7 @@ export const CONNECTION_WORDS = Object.freeze({
   lost: 'No connection. Your heroes keep hunting. Reconnecting…',
   slow: 'Slow connection. Still trying…',
   loadingLost: 'No connection. Your heroes keep hunting on the server, and the world loads by itself when you are back online.',
-  loadingSlow: 'Still loading the world. The connection is slow; your heroes keep hunting.',
+  loadingSlow: 'Still loading the world. The connection is slow, but your heroes keep hunting.',
 });
 
 /** The waiting world's line, from the state and how long it has waited (ms); `first` until there is more to say. Pure. */

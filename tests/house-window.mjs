@@ -134,7 +134,7 @@ async function checks(overrides) {
         if (errors.length) fails.push('HW-1 console errors: ' + errors.join(' | ').slice(0, 300));
         const head = (await txt(page, '.hw-house-name')) + ' / ' + (await txt(page, '.hw-house-note'));
         if (!/Hearthside Homestead/.test(head) || !/all your characters/.test(head)
-          || !/Gold comes from your shared purse; materials from Tyler's bag first, then Storage\./.test(head)) fails.push('HW-1 the head reads ' + JSON.stringify(head));
+          || !/Gold comes from your shared purse, and materials from Tyler's bag first, then Storage\./.test(head)) fails.push('HW-1 the head reads ' + JSON.stringify(head));
         // HW-2
         const deed = await lines(page, '.hw-deed');
         if (deed.length !== 3 || !/Yours/.test(deed[0].t) || deed[0].btn !== 'none'

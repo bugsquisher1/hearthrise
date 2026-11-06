@@ -59,7 +59,7 @@ const ms = (v) => { if (typeof v === 'number' && Number.isFinite(v)) return v; c
 /* A hunt ended by the refused-window rule (the session's server-stated `forfeit`: six refused windows in a
    row, hr_hunt_forfeit): what was lost and why, never "by the server" (2026-11-17-hunt-density-home.sql). */
 export const FORFEIT_WORDS = Object.freeze({
-  server: 'Your hunt was stopped because the server could not accept its last few minutes; nothing from them was counted.',
+  server: 'Your hunt was stopped because the server could not accept its last few minutes, so nothing from them was counted.',
   left: 'You left the hunt. The server could not accept its last few minutes, so nothing from them was counted.',
 });
 

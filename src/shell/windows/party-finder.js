@@ -91,7 +91,7 @@ export function patchFinder(root, ctx, sc) {
   const listed = listedOf(ctx.character);
   const sw = root.querySelector('.hw-list-party');
   prop(sw, 'hidden', !(mine && mine.isLeader));
-  text(sw.querySelector('.hw-list-why'), listed ? 'Your party shows in the finder.' : 'Your party is private: only players you invite can join.');
+  text(sw.querySelector('.hw-list-why'), listed ? 'Your party shows in the finder.' : 'Your party is private. Only players you invite can join.');
   text(sw.querySelector('button'), listed ? 'Hide from the finder' : 'Show in the finder');
   prop(sw.querySelector('button'), 'disabled', sc.pending);
   const why = root.querySelector('.hw-find-why');

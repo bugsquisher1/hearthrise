@@ -80,8 +80,8 @@ function shotProblem(a, role, skills) {
   if (!a || a.type !== 'attack_with_item' || own(ATTACK_KINDS, a.id)) return '';
   const it = ITEMS[a.id];
   if (shootsItem(role, it)) { const need = shortOf(a.id, skills, null); return need ? need.text + '. This slot waits until then, and your next ammo fires.' : ''; }
-  if (it && it.reqSkill === 'melee') return 'A whetstone is not a shot: it sharpens a Melee weapon worn in the ammo slot. No weapon shoots it, so this slot never fires.';
-  if (isRune(it)) return 'A rune isn’t a shot: it fuels your spells. No weapon shoots it, so this slot never fires.';
+  if (it && it.reqSkill === 'melee') return 'A whetstone is not a shot. It sharpens a Melee weapon worn in the ammo slot. No weapon shoots it, so this slot never fires.';
+  if (isRune(it)) return 'A rune isn’t a shot. It fuels your spells. No weapon shoots it, so this slot never fires.';
   const by = weaponsOf(Object.keys(HUNT_ROLES).filter((r) => shootsItem(r, it)));
   if (!by) return 'No weapon shoots this, so this slot never fires.';
   return (role && HUNT_ROLES[role] ? 'Your weapon can’t shoot this' : 'No weapon worn') + '. The slot stays struck until you wield a ' + by + '.';
@@ -295,14 +295,14 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
         + (packed ? 'none in this hunt, and ' + packed : 'you carry none. Pick the store’s rune for this slot to buy one as used.'), glyph: 'uiChest', strike: true };
     }
     if (r.ammo > 0 && set && !hasShot(set, bag, worn, skills)) {
-      return { code: 'ammo', text: 'Nothing loaded to shoot. Put arrows or bolts on the bar (Ammo): this spell casts them.', glyph: 'uiChest', strike: true };
+      return { code: 'ammo', text: 'Nothing loaded to shoot. Put arrows or bolts on the bar (Ammo), and this spell casts them.', glyph: 'uiChest', strike: true };
     }
     if (sl.usable === false && sl.why === 'rune_level') {
       return { code: 'rune_level', text: 'Your ' + runeWords(r.rune, 2) + ' are a higher tier than your level can cast. Carry a lower tier, or pick the store’s rune for this slot.', glyph: 'uiLock', strike: true };
     }
     if (sl.usable === false && sl.why === 'store_level') {
       const c = storeChoices(a, set && set.store, skills).find((x) => x.id === a.store);
-      return { code: 'store_level', text: (c ? c.name + ' needs ' + c.needs : 'The store rune on this slot is a higher tier than your level can cast') + '. This slot waits until then: pick a lower rune for it, or carry your own.', glyph: 'uiLock', strike: true };
+      return { code: 'store_level', text: (c ? c.name + ' needs ' + c.needs : 'The store rune on this slot is a higher tier than your level can cast') + '. This slot waits until then. Pick a lower rune for it, or carry your own.', glyph: 'uiLock', strike: true };
     }
     if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
     if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: 'Needs ' + r.mana + ' mana, you have ' + Math.floor(hero.mana) + '.', glyph: 'uiPotion', strike: false };

@@ -912,7 +912,7 @@ async function pureRules(M, base) {
     const cs = (await acc.open(0)).session;
     const lines = () => centre.list().filter((a) => a.kind === 'party' || a.kind === 'partywarn');
     const warnLine = lines().find((a) => a.kind === 'partywarn');
-    if (!warnLine || !/^Bramwell wants to take the party to Mosslight Glade, above Tyler’s level: /.test(warnLine.text)) return 'the ground warning reads ' + JSON.stringify(warnLine);
+    if (!warnLine || !/^Bramwell wants to take the party to Mosslight Glade, above Tyler’s level\. It will hit hard/.test(warnLine.text)) return 'the ground warning reads ' + JSON.stringify(warnLine);
     if (lines().length !== 1) return 'an unknown kind raised a line: ' + JSON.stringify(lines().map((a) => a.text));
     await cs.load();
     if (lines().length !== 1) return 'a re-read repeated a notice: ' + lines().length;

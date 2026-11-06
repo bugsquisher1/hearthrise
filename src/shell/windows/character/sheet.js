@@ -41,8 +41,8 @@ const COMBAT_TIPS = Object.freeze({
 });
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
 /* What Level is, for its tooltip (CORE_MODEL.md §1-2). */
-const LEVEL_TIP = 'Level rises only from monsters you defeat. Each Level adds max health and max mana; '
-  + 'heavy armor adds more health, light armor more mana. Dying costs a little Level XP, never a Level.';
+const LEVEL_TIP = 'Level rises only from monsters you defeat. Each Level adds max health and max mana. '
+  + 'Heavy armor adds more health, and light armor more mana. Dying costs a little Level XP, never a Level.';
 
 const lineHtml = ([k, l], kind, tips) => '<div class="hw-cs-line" data-' + kind + '="' + k + '"'
   + (tips && tips[k] ? ' title="' + esc(tips[k]) + '"' : '') + '><dt>' + esc(l) + '</dt><dd></dd></div>';

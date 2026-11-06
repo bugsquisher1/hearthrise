@@ -236,7 +236,7 @@ const cases = {
     const facts = { gold: 30000, slotCost: 25000, slotsOwned: 2, temper: rung, home: { owned: true }, chest: null };
     const card = M.tutorial.HUNT_TUTORIAL.find((c) => c.id === 'purse_goal');
     const with_ = cardFor(card, facts), without = cardFor(card, { ...facts, temper: null });
-    if (!with_.text.includes('The smith can temper your Iron Sword: 2,000 gp and 10 Tempering Salts for a first rung')) return 'the gold card reads ' + with_.text;
+    if (!with_.text.includes('The smith can temper your Iron Sword to its first rung for 2,000 gp and 10 Tempering Salts')) return 'the gold card reads ' + with_.text;
     if (without.text.includes('smith')) return 'with no first rung the gold card names the smith: ' + without.text;
     return null;
   },

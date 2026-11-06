@@ -66,7 +66,7 @@ function patchInvites(root, ctx, sc, inv) {
   });
   const none = root.querySelector('.hw-invites-none');
   cls(none, 'is-on', !inv.length);
-  text(none, partyMembershipOf(ctx.character) ? 'No invites. You are in a party: its members show on the Your party tab.'
+  text(none, partyMembershipOf(ctx.character) ? 'No invites. You are in a party, and its members show on the Your party tab.'
     : 'No invites right now. ' + (ctx.isPhone && ctx.isPhone() ? 'Type a name above, or hold a player’s name' : 'Type a name above, or right-click a player') + ' and choose Invite to party to start your own.');
 }
 

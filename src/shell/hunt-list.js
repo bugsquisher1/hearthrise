@@ -108,8 +108,8 @@ export function tierWords(r, id, size = 1) {
   const t = tierRowOf(r.hunt, id);
   if (t.id === DEFAULT_TIER) return '';
   const blow = biggestBlowOn(r.hunt, size, t), was = biggestBlowOn(r.hunt, size);
-  return tierHead(r, t, size) + (blow ? ': the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + '. '
-    + 'Each kill pays ' + PCT(t.xpPm) + ' more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die: the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
+  return tierHead(r, t, size) + (blow ? ', and the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + '. '
+    + 'Each kill earns ' + PCT(t.xpPm) + ' more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die. A death ends the hunt and costs ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
 }
 
 /** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: 8 monsters a pull, hitting 50% harder." '' on Normal. Pure. */
@@ -129,10 +129,10 @@ export function bandWords(r, level) {
     press of Enter arms "Enter anyway" (hunts.js), and that one confirm is all that stands between a hero and a ground. */
 /* THE MONSTERS ARE SIMPLY STRONGER (Tyler 2026-11-04: "it's inherent in the game, not a penalty driven system"): nothing in the fight reads a hero's Level against the ground. The claims are played on the
    real engine (tests/hunt-core/first-week-bands.mjs above-your-level-words), so a balance change that makes one false turns it red. */
-export const ABOVE_LEVEL_WORDS = 'Its monsters are stronger than you: expect to spend more on supplies, or to die. More XP and better loot.';
+export const ABOVE_LEVEL_WORDS = 'Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.';
 /* FAR under a floor: the words and the list line lean harder. Display only. */
 const FAR_UNDER_LEVELS = 10;
-const FAR_WORDS = 'Its monsters are far stronger than you: expect to spend much more on supplies, or to die. More XP and better loot.';
+const FAR_WORDS = 'Its monsters are far stronger than you. Expect to spend much more on supplies, or to die. More XP and better loot.';
 export function rangeWords(r, level) {
   if (!Number.isInteger(level) || level >= r.band[0]) return null;
   const gap = r.band[0] - level;
@@ -201,9 +201,9 @@ export function recommendation(levels, partySize = 1, rows = huntRows()) {
   const below = fit.filter((r) => r.band[1] < lo).sort((x, y) => y.band[1] - x.band[1] || y.band[0] - x.band[0])[0];
   if (below) {
     const party = alone ? best(rows.filter((r) => !fitsGroup(r, 1) && holds(r, lo, lo))) : null;
-    const note = 'No ground ' + (alone ? 'for one hero' : 'for your party') + ' fits ' + levelsWords(lo, hi) + ' yet. '
-      + below.name + ' (Level ' + below.band[0] + ' to ' + below.band[1] + ') is the nearest below'
-      + (party ? '; ' + party.name + ' fits your level with a party.' : '.');
+    const note = 'There\'s no ground ' + (alone ? 'for one hero' : 'for your party') + ' at ' + levelsWords(lo, hi) + ' yet. '
+      + below.name + ' (Level ' + below.band[0] + ' to ' + below.band[1] + ') is the nearest below.'
+      + (party ? ' ' + party.name + ' is right for your level if you bring a party.' : '');
     return { row: below, note };
   }
   return { row: best(rows.filter((r) => holds(r, lo, lo))) || rows[0] || null, note: null };
@@ -225,9 +225,9 @@ export function openingPick(rec, list, last) {
   return was && advised && was.band[0] > advised.band[0] ? was : advised;
 }
 
-/** THE LIST'S TWO TAGS on one ground: "Fits your level" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure. */
+/** THE LIST'S TWO TAGS on one ground: "Right for your level" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure. */
 export function adviceTag(r, rec, step, party) {
-  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Fits your party' : 'Fits your level';
+  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Right for your party' : 'Right for your level';
   return step && step.hunt === r.hunt ? 'Next step up' : '';
 }
 

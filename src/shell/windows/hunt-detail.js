@@ -117,7 +117,7 @@ export function patchGo(det, ctx, v) {
     patch: (b, h) => { text(b, 'Bring ' + h.name); prop(b, 'disabled', v.off || v.partyBlock.full); },
   });
   const none = pb.querySelector('.hw-bring-none');
-  text(none, v.partyBlock.bring.length ? '' : 'Your other heroes can come too: play one from Characters and it shows here. Up to four play at once.');
+  text(none, v.partyBlock.bring.length ? '' : 'Your other heroes can come too. Play one from Characters and it shows here. Up to four play at once.');
 }
 
 /* "Level 2 · common"; a boss says so in place of its share. */

@@ -40,7 +40,7 @@ function holdWords(cs, id) {
 /** The section's skeleton, above the skill's rows. */
 export function hallmarkPaneHtml() {
   return '<section class="hw-hallmark"><h3 class="hs-sub">Hallmark</h3>'
-    + '<p class="hs-note hw-hallmark-how">Set a gem in a Fine piece and choose its second perk. Nothing is rolled here and it can\'t fail; it costs gold and the gem.</p>'
+    + '<p class="hs-note hw-hallmark-how">Set a gem in a Fine piece and choose its second perk. Nothing is rolled here and it can\'t fail. It costs gold and the gem.</p>'
     + '<p class="hs-note hw-hallmark-day"></p>'
     + '<ul class="hw-ledger hw-hallmark-rows"></ul><p class="hh-empty hw-hallmark-none"></p>'
     + '<div class="hw-confirm hw-hallmark-ask" role="alertdialog" aria-label="Confirm the Hallmark"><p class="hw-confirm-q"></p>'
@@ -79,7 +79,7 @@ export function patchHallmarkPane(root, ctx, sc) {
   const none = root.querySelector('.hw-hallmark-none');
   cls(none, 'is-on', !offers.length);
   text(none, !h ? 'The Hallmark step loads from the server.' : offers.length ? ''
-    : 'Hold a Fine piece to choose its second perk here. Make Banded Signet can roll one; setting a Road Carnelian in a plain one always does.');
+    : 'Hold a Fine piece to choose its second perk here. Make Banded Signet can roll one, and setting a Road Carnelian in a plain one always does.');
   const asked = sc.hallmark ? offers.find((o) => keyOf(o) === sc.hallmark) : null;
   if (sc.hallmark && (!asked || !!blockOf(cs, asked, h, purse, lv) || sc.pending)) sc.hallmark = null;
   const cf = root.querySelector('.hw-hallmark-ask');

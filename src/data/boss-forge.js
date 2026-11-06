@@ -60,7 +60,7 @@ export const BOSS_FORGE_ITEMS = {
 };
 
 export const BOSS_FORGE_DESC = {
-  elderscale_platebody: "Dawnsteel plate hammered around the Great Wyrm's still-cold heart; nothing in the realm turns a blow better",
+  elderscale_platebody: "Dawnsteel plate hammered around the Great Wyrm's still-cold heart. Nothing in the realm turns a blow better",
   riftmaw_carapace: "The Riftmaw's shed husk, split and stitched over duskwood ribs, light as leather and steadying every shot",
   voidheart_robe: 'A robe woven through with distilled void, and every spell cast in it lands as if the dark were pushing',
 };

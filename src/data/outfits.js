@@ -36,7 +36,7 @@ export const OUTFIT_ROWS = Object.freeze({
   berserker: row('Fur Wraps', false, { head: 'Helmet', body: 'Tunic', feet: 'Boots' }),
   ranger: row('Hooded Leathers', false, { head: 'Hair', legs: 'Skirt panel' }),
   sorcerer: row('Scholar’s Robe', false, { head: 'Hat', body: 'Robe', feet: 'Boots' }),
-  druid: row('Grove Robe', false, {}, 'The Grove Robe keeps its own green: its staff leaves are the same green as the cloth, so a dye would change both. Your colors stay saved and show on every other outfit.'),
+  druid: row('Grove Robe', false, {}, 'The Grove Robe keeps its own green. Its staff leaves are the same green as the cloth, so a dye would change both. Your colors stay saved and show on every other outfit.'),
   brute: row('Quarry Brute', true, { head: 'Cap', body: 'Shirt' }),
   witch: row('Hedge Witch', true, { head: 'Hat', body: 'Robe', feet: 'Trim' }),
   dawnward: row('Dawnward', true, { body: 'Cape' }),

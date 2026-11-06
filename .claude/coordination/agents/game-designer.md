@@ -811,3 +811,10 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Tiers (2026-11-05): a low ground's room is the gap between two Normals. Where it's under 20%, a bigger pull breaks the ladder at any XP, so the row moves stats only (Thicket). Read the rule per way to fight: AoE fails first, a fixed count hides it.
 - `tools/balance-sim` holds its workers above 85% CPU (`--cpu`), so a 648-cell plan runs 3 to 80 cells a minute with other lanes up. Cell `ms` against wall time says which. It also resumes by id: a re-measure needs a new out dir.
 - A mutant that makes every word play Deadly leaves base and word equal, so a digits-only compare can't catch it. Assert the pure lookup too (`tierRowOf`).
+
+## 2026-11-06 lane/b-pace-final (the final pace re-measure before the wipe)
+- `level-curve` C1's fingerprint covers grounds, monsters and the advice, never gear, bars or the engine: a set that moves combat stays green on a stale snapshot. Re-measure on the set, then judge.
+- `pace.mjs --fit` pins the first Levels at exactly 2.00x, the C6 limit, so the next re-measure's noise reads 2.03x. Fit with `--bands 4:9:0:1.95` for room. `--fit-past` is infeasible while the held part breaks C6, and needs `--first-minutes 1.05` (the held first step rounds past one minute).
+- A new curve file is rows only: 02-11 holds `hr_char_xp_for_level` as plpgsql, and a restated SQL body turns `settle-budget` SB-3 red.
+- The careers' reference from 32 to 50 is the over-leveled Glade on Normal (86k), while Dangerous and Deadly there pay 1.4-2x with no death in 4 h. The pace is the default path's; the fastest honest hour is its own read, and it is far ahead.
+- Under load, split a plan: a second pool on `--only "x=(R|M)"` into its own folder, and a reader that takes both (`pacefinal-table.mjs --in a,b`).

@@ -77,9 +77,11 @@ export async function loadCellRunner(root) {
   /* THE BAG: 'store' = empty (every heal and drink bought per use: the store bill is the whole supply cost);
      'own' = the ground's guide food and drink carried (crafted, own stock first, then the store). A Ranger on the
      free Bronze Arrow carries one (ammoPerShot 0: it never runs out). */
-  const bagFor = (huntId, supply, kit) => {
+  const bagFor = (huntId, supply, kit, also) => {
     const bag = {};
     if (kit.ammo === 'bronze_arrows') bag.bronze_arrows = { loaded: 1 };
+    /* cell.bagByRole { role: { item: n } }: carried stock beside the supply policy (a self-bound caster's own runes) */
+    for (const [id, n] of Object.entries(also || {})) bag[id] = { loaded: n };
     if (supply === 'own') {
       const g = guideOf(huntId);
       if (g) { bag[g.melee.heal.id] = { loaded: 100000 }; if (g.magic.mana) bag[g.magic.mana.id] = { loaded: 100000 }; }
@@ -277,8 +279,11 @@ export async function loadCellRunner(root) {
           spanMs: span, secret: secretOf((cell.seedBase || 0) + seed, seg), windowMs: windowOf(cell), onWindow,
           equipment: (role, i) => kits[i],
           /* `startBar`: the bar a hero who never touched it plays: START_BAR as shipped (Salted Shrimp, Thin Turnip Juice), not the ground's guide food */
-          bar: cell.startBar ? () => JSON.parse(JSON.stringify(START_BAR)) : cell.bar ? () => barFor(cell.ground, cell.bar) : undefined,
-          bag: (role, i) => bagFor(cell.ground, cell.supply || 'store', kits[i]),
+          /* `slotsByRole` { role: [slot] }: a stored ability lane for that role beside the cell's consumables (the bar a
+             player set: a deeper store rune, another trigger), so the role's defaults (rule-subjects.js ROLE_RULES) stand aside */
+          bar: cell.startBar ? () => JSON.parse(JSON.stringify(START_BAR)) : cell.bar || cell.slotsByRole
+            ? (role) => barFor(cell.ground, cell.bar || {}).concat(JSON.parse(JSON.stringify((cell.slotsByRole && cell.slotsByRole[role]) || []))) : undefined,
+          bag: (role, i) => bagFor(cell.ground, cell.supply || 'store', kits[i], cell.bagByRole && cell.bagByRole[role]),
           buffs: cell.buffs ? () => cell.buffs : undefined,
           start: cell.skillsBySeat || cell.startBySeat ? startFor : undefined,
           leaveTogether: party.length > 1 && cell.leaveTogether !== false,

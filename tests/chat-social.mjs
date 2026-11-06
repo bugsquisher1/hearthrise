@@ -111,6 +111,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { answered } from './_press.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
@@ -480,6 +481,7 @@ async function pureRules(M) {
 
 /* ── THE PAGE ── */
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
+/* A control is pressed again only once its last press is answered (tests/_press.mjs): press-ack swallows a press on a busy one. */
 
 /* The fixture as the S1 server sends it: members carry their seat, and party_people names each seat's account. */
 function env(seats = 2) {
@@ -731,7 +733,11 @@ async function pageRules(overrides, shots) {
             win.className = 'hs-win';
             win.style.cssText = 'right: 12px; width: 420px; max-height: 381px;';
             win.innerHTML = '<div class="hs-win-body">' + renderHavora({}) + '</div>';
-            document.querySelector('.hs-layer').appendChild(win);
+            /* a layer of its own: the shell repaints [data-hs-layer] on any window or size change and drops what it did not place, and this
+               read is awaited (a repaint inside the wait measured a detached window; .hs-layer is the only rule the layer carries) */
+            const layer = document.createElement('div');
+            layer.className = 'hs-layer';
+            document.querySelector('[data-hs-shell]').appendChild(layer).appendChild(win);
             const pane = win.querySelector('[data-pane="works"]');
             pane.classList.add('is-on');
             win.querySelector('.hv-count[data-of="works"]').classList.add('is-on');
@@ -745,7 +751,7 @@ async function pageRules(overrides, shots) {
             const field = r('.hv-works-amount'), give = r('[data-hs-act="works-typed"]'), foot = r('.hv-foot'), body = win.querySelector('.hs-win-body');
             const out = { read: max.textContent, why: win.querySelector('.hv-works-why').textContent, field: Math.round(field.height), give: Math.round(give.height),
               reads: field.top + field.height / 2 < foot.top && give.top + give.height / 2 < foot.top, scrolls: body.scrollHeight > body.clientHeight };
-            win.remove();
+            layer.remove();
             return out;
           };
           return { poor: await one(500, {}), near: await one(900, { left: 800, max_gift: 800 }) };
@@ -764,9 +770,12 @@ async function pageRules(overrides, shots) {
         await page.click('[data-hs-win="chat"] .hc-cry');
         if (!await wait(page, () => /won't shout web addresses/.test((document.querySelector('[data-hs-win="chat"] .hc-crier-msg') || {}).textContent || ''))) fails.push('CW-CRIER [' + tag + '] a refused line says nothing');
         if ((await page.$$('[data-hs-win="chat"] .hc-line.is-crier')).length) fails.push('CW-CRIER [' + tag + '] a refused line was drawn');
+        if (!await answered(page, '[data-hs-win="chat"] .hc-cry')) fails.push('CW-CRIER [' + tag + '] the Cry button stayed busy after its refusal');
         await page.fill('.hc-field', 'selling rat tails');
         await page.click('[data-hs-win="chat"] .hc-cry');
         if (!await wait(page, () => Array.from(document.querySelectorAll('[data-hs-win="chat"] .hc-line.is-crier')).some((l) => /selling rat tails/.test(l.textContent)))) fails.push('CW-CRIER [' + tag + '] a paid line draws plain');
+        /* the server's yes takes the line out of the field (src/social/chat-store.js cry), as a sent line does */
+        if (!await wait(page, () => document.querySelector('.hc-field').value === '')) fails.push('CW-CRIER [' + tag + '] a paid line stays in the field: ' + JSON.stringify(await page.inputValue('.hc-field')));
         /* at a glance: its own band, the Crier's mark at its head, a heavier name; a plain line has none of them; nothing under the text floor */
         const look = await page.evaluate(() => {
           const lines = Array.from(document.querySelectorAll('[data-hs-win="chat"] .hc-log.is-on .hc-line'));
@@ -801,6 +810,8 @@ async function pageRules(overrides, shots) {
       await page.click('[data-hs-win="chat"] [data-tab="global"]');
       if (shots) await page.screenshot({ path: join(shots, 'chat-' + tag + '.png') });
       // CW-3
+      /* CW-3 starts from an empty field whatever an earlier case left in it (CW-CRIER above asserts its own yes empties it) */
+      await page.fill('.hc-field', '');
       await page.evaluate(() => { window.__keys = []; document.addEventListener('keydown', (e) => window.__keys.push({ k: e.key, field: !!(e.target.closest && e.target.closest('input')) })); });
       await page.click('.hc-field');
       await page.keyboard.type('wasd');
@@ -920,7 +931,10 @@ async function pageRules(overrides, shots) {
           return { friend: who('.hf-list.is-friends .hf-who'), target: f && [f.getAttribute('data-hs-player-name'), f.getAttribute('data-hs-player-slot')],
             asks: who('.hf-list.is-in .hf-who'), mine: who('.hf-list.is-out .hf-who'), blocked: who('.hs-blocks .hs-block b'), msg: w.querySelector('.hf-msg').textContent };
         });
-        const ask = async (name) => { await page.fill('[data-hs-win="friends"] .hf-name', name); await page.click('[data-hs-win="friends"] [data-hs-act="ask"]'); await page.waitForTimeout(500); };
+        const ask = async (name) => {
+          if (!await answered(page, '[data-hs-win="friends"] [data-hs-act="ask"]')) fail2('the Ask button stayed busy after its last press');
+          await page.fill('[data-hs-win="friends"] .hf-name', name); await page.click('[data-hs-win="friends"] [data-hs-act="ask"]'); await page.waitForTimeout(500);
+        };
         s.social = answer(false); s.ask = { ok: true, state: 'requested', person: { id: ID(2), name: 'Waiter', slot: 0 } };
         await ask('Waiter');
         const r0 = await read();
@@ -1072,6 +1086,7 @@ const PAGE_MUTANTS = [
   ['a sliver of the pane shows under the Havora foot (CW-HAVORA)', 'src/styles/windows.css', '.hv-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 6px 0 12px;', '.hv-foot { position: sticky; bottom: 0; padding: 6px 0 0;'],
   ['the Crier shows off Global', 'src/shell/windows/chat-crier.js', "prop(btn, 'hidden', !global);", "prop(btn, 'hidden', false);"],
   ['the Crier never re-reads', 'src/shell/windows/chat-crier.js', "  s.pending = false;\n  s.stale = true;\n", "  s.pending = false;\n"],
+  ['a paid Crier line stays in the field', 'src/social/chat-store.js', "    this.draft = { text: '', links: [], rev: this.draft.rev + 1 };\n    if (b.line && this._take(b.line, false)) this._changed();", "    if (b.line && this._take(b.line, false)) this._changed();"],
   ['a chat line never draws the title', 'src/shell/windows/chat.js', "const title = l.title ? ' <span class=\"hc-title\">' + esc(l.title) + '</span>' : '';", "const title = '';"],
   ['the input takes the Combat log\'s room back (CW-11)', 'src/styles/hunt.css', '.hc-pane.is-combat.is-on ~ .hc-input, .hc-pane.is-combat.is-on ~ .hc-msg:empty { display: none; }\n', ''],
   ['the filters stand open over the log (CW-11)', 'src/shell/windows/chat-combat.js', '<details class="hc-more">', '<details class="hc-more" open>'],

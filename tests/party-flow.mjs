@@ -892,7 +892,9 @@ MUTANTS.push(
     find: '      continue when v_lv >= v_floor;\n', repl: '' },
   { arm: 'PF-WARN', file: TRUTH, why: 'the seat under the floor is never told',
     find: "      perform public.hr_party_notice(v_m.user_id, v_m.slot, 'ground_warn', v_uid, p_slot, p_hunt);\n", repl: '' },
-  { arm: 'PF-END-WHY', file: TRUTH, why: 'a cascaded hero is named as the cause',
+  /* `fn`: planted into the LIVE body. TRUTH wrote this hr_hunt_view; 2027-03-12-boss-call.sql splices its CALL-OUT key into it
+     (an anchored replace), so the body that runs is text no single file holds. */
+  { arm: 'PF-END-WHY', fn: 'hr_hunt_view', why: 'a cascaded hero is named as the cause',
     find: "         and o.end_reason <> all (array['party_member_died', 'party_member_left'])\n", repl: '' },
   { arm: 'PF-END-WHY', file: TIERS, why: 'a seat\'s whole stamina pool is shown',
     find: 'and ps.stamina_at is not null and ps.stamina_ms <= 900000 then', repl: 'and ps.stamina_at is not null then' },
@@ -965,6 +967,15 @@ async function main() {
                                                  where pronamespace = 'public'::regnamespace and proname = $1`, [name])).rows.map((r) => r.s);
   const plans = [];
   for (const mu of MUTANTS) {
+    if (mu.fn) {
+      /* A body a later file splices in place: read it from the chain end and plant there (tests/alpha-server.mjs plantLive). */
+      const defs = (await db.query(`select replace(pg_get_functiondef(p.oid), chr(13), '') d from pg_proc p
+                                     where p.pronamespace = 'public'::regnamespace and p.proname = $1`, [mu.fn])).rows.map((r) => r.d);
+      const holders = defs.filter((d) => d.split(mu.find).length === 2);
+      if (holders.length !== 1) { console.error(`✗ ${mu.arm} (${mu.why}): ${holders.length} of ${defs.length} live bodies of ${mu.fn} hold the anchor exactly once`); missed++; continue; }
+      plans.push({ mu, shipped: holders[0] + ';', planted: holders[0].replace(mu.find, () => mu.repl) + ';' });
+      continue;
+    }
     const f = mu.file || FILE;
     const edits = [[mu.find, mu.repl], ...(mu.also ? [mu.also] : [])];
     let shipped; let planted;

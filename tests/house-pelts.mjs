@@ -17,8 +17,8 @@
 //   HP-3 HELD    the Castle and the rung 5s are refused by name, hr_home_view stops at the Keep and at four rungs a room,
 //                and no sellable row costs an item the catalogue cannot reach.
 //   HP-4 SELF-CHECK the two 2027-02-16 files refuse their own apply on a visible rung with a dead item, a sold Castle, and a
-//                bear whose kill bound forgets the pelt; a second apply of both, with the catalogue that carries them forward
-//                (the next full replace, the party pull's), is byte-identical.
+//                bear whose kill bound forgets the pelt; a second apply of both, on the chain as of the later of them, is
+//                byte-identical (later full replaces own these rows at the chain end).
 //   HP-5 THE WORDS (no database) no Brook Bear below a pull of 3 (the pull's own rows: a lone hero asks for it, and a Glade
 //                party's default of 3 meets it, hunt-grounds.js partyPull), and the player reading for a pelt is told: the item tip's
 //                "Comes from" names the bear and not the six monsters no ground spawns, the House's short cost line and the
@@ -32,10 +32,6 @@ import { isMain } from './_is-main.mjs';
 
 const OFFERS = '2027-02-16-house-pelts-unlock-offers.generated.sql';
 const BOUNDS = '2027-02-16-house-pelts-hunt-sessions-catalogue.generated.sql';
-/* The newest forward catalogue, applied after these two: a full replace that carries the bear's bound. */
-const CARRIES = '2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql';
-/* The newest forward price list, the same way: a full replace of OFFERS' rows. */
-const OFFERS_NOW = '2027-02-19-bench-prices-unlock-offers.generated.sql';
 const GLADE = 'mosslight_glade';
 const NEEDED = 5;
 const STEP_MS = 2 * 60000;           // one settle fire's reach (HUNT_SETTLE_SPAN_MS: a longer backlog lands in slices)
@@ -230,7 +226,19 @@ const ARMS = {
     ['if v_n <> 36 then', 'if v_n <> 37 then']], 'held house rows are sellable', 'the Castle sold');
     await refuses(BOUNDS, [[`'{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`, `'{"raw_bear_meat":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb`]],
       'item bound is under', 'the bear\'s bound forgets the pelt');
-    /* A SECOND APPLY IS BYTE-IDENTICAL: both files over themselves, the tables they write and the schema around them. */
+    problems.push(...await secondApply(H));
+    return problems;
+  },
+};
+
+/* A SECOND APPLY IS BYTE-IDENTICAL: both files over themselves, on the chain AS OF the later of them (the boss call's BD-AGAIN rule):
+   every later full-replace catalogue owns these rows at the chain end, so a re-apply there rolls that lane's rows back by design,
+   and only the chain up to these two can say they are idempotent where they stand. `again` (the mutant) edits the re-applied text. */
+const AGAIN_UP_TO = OFFERS;
+async function secondApply(H, again = (sql) => sql) {
+  const { bootReplay } = await import('./schema-replay.mjs');
+  const { db } = await bootReplay({ upTo: AGAIN_UP_TO });
+  try {
     const image = async () => {
       const out = {};
       for (const t of ['hr_unlock_offers', 'hr_hunt_kill_bounds', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_limits', 'hr_hunt_vendor_value', 'hr_hunt_cover_items', 'hr_hunt_world_shape']) {
@@ -241,12 +249,20 @@ const ARMS = {
       return JSON.stringify(out);
     };
     const before = await image();
-    for (const f of [BOUNDS, OFFERS, CARRIES, OFFERS_NOW]) await db.exec(readFileSync(join(H.ROOT, 'supabase', 'migrations', f), 'utf8'));
+    for (const f of [BOUNDS, OFFERS]) {
+      try { await db.exec(again(readFileSync(join(H.ROOT, 'supabase', 'migrations', f), 'utf8'), f)); }
+      catch (e) { return [`${f} refused a second apply: ${String(e.message).split('\n')[0].slice(0, 200)}`]; }
+    }
     const after = await image();
-    if (before !== after) problems.push(`a second apply moved something: ${before} -> ${after}`);
-    return problems;
-  },
-};
+    return before !== after ? [`a second apply moved something: ${before} -> ${after}`] : [];
+  } finally { await db.close().catch(() => {}); }
+}
+
+/* HP-4's second apply, made to move a row: each must turn it red (`node tests/house-pelts.mjs --selftest`). */
+const AGAIN_MUTANTS = [
+  { name: 'the bounds file moves a limit on every apply', again: (sql, f) => (f === BOUNDS ? sql + "\nupdate public.hr_hunt_limits set value = value + 1 where key = 'armour_slots';\n" : sql) },
+  { name: 'the offers file moves a price on every apply', again: (sql, f) => (f === OFFERS ? sql + "\nupdate public.hr_unlock_offers set gold = gold + 1 where offer_id = 'property.keep';\n" : sql) },
+];
 
 /* HP-5, on the tree at `root` (a planted copy for its mutants). */
 async function wordsFails(root) {
@@ -358,7 +374,14 @@ async function main() {
       console.log(`  ${f.length ? 'CAUGHT' : 'MISSED'} ${mu.name} [HP-5]${f.length ? ' (' + f[0].slice(0, 110) + ')' : ''}`);
       if (!f.length) missed++;
     }
-    console.log(`house-pelts --selftest: ${Object.keys(MUTANTS).length + WORD_MUTANTS.length} mutants, ${missed} missed`);
+    for (const mu of AGAIN_MUTANTS) {
+      let f;
+      try { f = await secondApply(H, mu.again); } catch (e) { f = ['threw: ' + String(e && e.message).slice(0, 200)]; }
+      const real = f.filter((x) => x.startsWith('a second apply moved'));
+      console.log(`  ${real.length ? 'CAUGHT' : 'MISSED'} ${mu.name} [HP-4]${f.length ? ' (' + f[0].slice(0, 110) + ')' : ''}`);
+      if (!real.length) missed++;
+    }
+    console.log(`house-pelts --selftest: ${Object.keys(MUTANTS).length + WORD_MUTANTS.length + AGAIN_MUTANTS.length} mutants, ${missed} missed`);
     process.exit(missed ? 1 : 0);
   }
   const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);

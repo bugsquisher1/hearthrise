@@ -138,7 +138,7 @@ export const MONSTERS = {
   kobold: { name: 'Kobold', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 12, atk: 3, def: 1, xp: 10, gp: [2, 6], speed: 3200,
     drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 },
-      { id: 'copper_ore', ch: .18 }] },
+      { id: 'copper_ore', ch: .18 }, { id: 'iron_helm', ch: .00016, lucky: true }] },  // was the Banded Signet (now crafted only): the Sewer kobolds' iron kit, ~10 h
   witchs_apprentice: { name: "Witch's Apprentice", icon: '🧹', tier: 1, cls: 'human', family: 'Human',
     hp: 10, atk: 5, def: 0, xp: 12, gp: [2, 7],
     drops: [{ id: 'magic_essence', ch: .3 }, { id: 'rune_frag', ch: .1 }, { id: 'normal_log', ch: .25 },

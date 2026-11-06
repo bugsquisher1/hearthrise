@@ -50,9 +50,15 @@ async function play(db, hunt) {
   return problems;
 }
 
-/* THE FILE ITSELF, over the chain: its §4 self-check refuses the as-built spawns, and a second apply moves no byte of any
-   table it writes, of the world shape, or of any public function. */
-async function selfCheck(db) {
+/* THE FILE ITSELF, on the chain AS OF it (the boss call's BD-AGAIN rule): its §4 self-check refuses the as-built spawns, and a
+   second apply moves no byte of any table it writes, of the world shape, or of any public function. Every later full-replace
+   catalogue owns these rows at the chain end, so a re-apply there rolls that lane's rows back by design; only the chain up to
+   CATALOGUE can say it is idempotent where it stands. `again` (the mutant) edits the re-applied text. */
+async function selfCheck(again = (sql) => sql) {
+  const { db } = await bootReplay({ upTo: CATALOGUE });
+  try { return await selfCheckOn(db, again); } finally { await db.close().catch(() => {}); }
+}
+async function selfCheckOn(db, again) {
   const problems = [];
   const text = readFileSync(join(ROOT, 'supabase', 'migrations', CATALOGUE), 'utf8');
   const row = "('mill_cellar', 'mill_cellar', 2, 15, 32000,";
@@ -72,11 +78,15 @@ async function selfCheck(db) {
     return JSON.stringify(out);
   };
   const before = await image();
-  await db.exec(text);
+  await db.exec(again(text));
   const after = await image();
   if (before !== after) problems.push('a second apply moved something: ' + before + ' -> ' + after);
   return problems;
 }
+
+/* The second apply made to move a row: it must turn the check red (`--mutate`). */
+const AGAIN_MUTANT = { name: 'the catalogue moves a kill bound on every apply',
+  again: (sql) => sql + "\nupdate public.hr_hunt_kill_bounds set gold_max = gold_max + 1 where monster_id = 'drain_rat';\n" };
 
 async function main() {
   if (process.argv.includes('--mutate')) {
@@ -86,19 +96,20 @@ async function main() {
     const got = await play(db, 'mill_cellar');
     const hit = got.some((p) => /kills_over/.test(p));
     console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' the as-built spawns on the Cellar: ' + (got[0] || 'every window landed').slice(0, 160));
-    console.log(hit ? 'party-pull-bound --mutate: 1/1 caught' : 'party-pull-bound --mutate: 1 ESCAPED');
-    process.exitCode = hit ? 0 : 1;
+    const moved = (await selfCheck(AGAIN_MUTANT.again)).some((p) => p.startsWith('a second apply moved'));
+    console.log('  ' + (moved ? 'caught ' : 'ESCAPED') + ' ' + AGAIN_MUTANT.name);
+    const n = (hit ? 1 : 0) + (moved ? 1 : 0);
+    console.log(n === 2 ? 'party-pull-bound --mutate: 2/2 caught' : `party-pull-bound --mutate: ${2 - n} ESCAPED`);
+    process.exitCode = n === 2 ? 0 : 1;
     return;
   }
   const problems = [];
   /* One replay a ground: the fixture's heroes are one party, and its hunt is its ground. */
-  let last = null;
   for (const hunt of GROUNDS) {
     const { db } = await bootReplay();
     problems.push(...await play(db, hunt));
-    last = db;
   }
-  problems.push(...await selfCheck(last));
+  problems.push(...await selfCheck());
   for (const p of problems) console.log('  ✗ ' + p);
   console.log(problems.length ? 'party-pull-bound: RED' : 'party-pull-bound: a four with no pick lands ' + (WINDOWS + 1) + ' windows of 90 s on ' + GROUNDS.join(' and '));
   process.exitCode = problems.length ? 1 : 0;

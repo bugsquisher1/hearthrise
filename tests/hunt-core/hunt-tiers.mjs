@@ -119,15 +119,15 @@ const cases = {
 };
 
 const D = 'src/data/hunt-tiers.js';
-const GLADE_ROW = "mosslight_glade: { dangerous: tier('dangerous', [3, 5, 5, 6], 1500, 1100), deadly: tier('deadly', [8, 8, 8, 8], 2750, 1200) },";
+const GLADE_ROW = "mosslight_glade: { dangerous: tier('dangerous', [3, 5, 5, 6], 1400, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1600, 1200) },";
 const mutants = [
-  { name: 'the data and the catalogue part: Deadly hits harder in the data only', case: 'catalogue', edits: [[D, GLADE_ROW, GLADE_ROW.replace('2750, 1200', '2850, 1200')]] },
+  { name: 'the data and the catalogue part: Deadly hits harder in the data only', case: 'catalogue', edits: [[D, GLADE_ROW, GLADE_ROW.replace('1600, 1200', '1700, 1200')]] },
   { name: 'the Glade loses its full box', case: 'rows', edits: [[D, GLADE_ROW, GLADE_ROW.replace('[8, 8, 8, 8]', '[6, 6, 6, 6]')]] },
   { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[D, "  meadowbrook_thicket: {", "  mill_cellar: { dangerous: tier('dangerous', [0, 0, 0, 0], 1500, 1050), deadly: tier('deadly', [0, 0, 0, 0], 2500, 1100) },\n  meadowbrook_thicket: {"]] },
   { name: 'the settle reads no tier at all', case: 'harder-tier-costs', edits: [['src/core/combat-sim.js', "const tier = tierRowOf(ground.id, tierPick(members.filter((m) => !m.left && m.unitId !== null)));", "const tier = null;"]] },
   { name: 'a tier pays more gold a kill', case: 'harder-tier-costs', edits: [['src/core/hunt-rewards.js', "const y = yieldPm / 1000;", "const y = (yieldPm / 1000) * (ctx.tier ? ctx.tier.xpPm / 1000 : 1);"]] },
   { name: 'a word nobody offers plays a harder tier', case: 'normal-is-the-ground', edits: [[D, "return (rows && Object.prototype.hasOwnProperty.call(rows, id) && rows[id]) || NORMAL;", "return (rows && (rows[id] || rows.deadly)) || NORMAL;"]] },
-  { name: 'the Glade pays double XP on Deadly: nobody moves on to the Warrens', case: 'ladder', edits: [[D, GLADE_ROW, GLADE_ROW.replace('2750, 1200', '2750, 2400')]] },
+  { name: 'the Glade pays double XP on Deadly: nobody moves on to the Warrens', case: 'ladder', edits: [[D, GLADE_ROW, GLADE_ROW.replace('1600, 1200', '1600, 2400')]] },
 ];
 
 const REPORT = makeReport('hunt-core/hunt-tiers');

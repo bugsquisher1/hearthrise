@@ -801,6 +801,55 @@ export function buildPlan(name, axes, scale = 1) {
     for (const s of SOLO_STYLES) out.push({ ...cellOf({ ground: 'wickstead', party: [s], level: 14, hours: H(2), seeds: 2, x: 'S14' }), windowMs: 120000 });
     return out;
   }
+  if (name === 'weightclass') {
+    /* OUTSIDE YOUR WEIGHT CLASS (Tyler 2026-11-06 20:20 UTC: "if you are fighting outside your weight class even in a party, you're gonna waste
+       money but get more exp and possibly die a few times"; Andy: a duo under-leveled on Normal and Dangerous "was barely taking damage or using
+       any potions"). The Glade at Levels 13 and 14 (under its floor of 16) and 16 and 20 (in it), two duos, every tier, on the rows live today
+       (whatIf, x = W<tier>live) and as this lane writes them (x = W<tier>); level-matched lone heroes on Normal, the safety check (x = Wsafe).
+       4 seeds x 2 h. */
+    const LIVE = { mosslight_glade: { dangerous: { id: 'dangerous', pull: [4, 5, 5, 6], powerPm: 1200, xpPm: 1100 }, deadly: { id: 'deadly', pull: [8, 8, 8, 8], powerPm: 1500, xpPm: 1200 } } };
+    for (const party of [['tank', 'healer'], ['hammer', 'bow']]) for (const level of [13, 14, 16, 20]) for (const tier of ['normal', 'dangerous', 'deadly']) {
+      out.push(tierCell(axes, { ground: 'mosslight_glade', party, level, tier, hours: H(2), seeds: 4, x: 'W' + tier }));
+      if (tier !== 'normal') {
+        const row = LIVE.mosslight_glade[tier], pull = row.pull[party.length - 1];
+        out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, density: pull || null, hours: H(2), seeds: 4, x: 'W' + tier + 'live' }), options: { tier }, windowMs: 120000, whatIf: { tiers: { mosslight_glade: { [tier]: row } } } });
+      }
+    }
+    for (const [ground, level] of [['wickstead', 13], ['mosslight_glade', 16], ['mosslight_glade', 24]]) for (const s of SOLO_STYLES) out.push({ ...cellOf({ ground, party: [s], level, hours: H(2), seeds: 4, x: 'Wsafe' }), windowMs: 120000 });
+    return out;
+  }
+  if (name === 'weightclass2') {
+    /* THE ROWS FOR TYLER'S WEIGHT CLASS (2026-11-06 20:20 UTC), in the sim only: the Glade's Dangerous at 1.4x and its Deadly at 1.6x (a four
+       at the right Level stays about where it is, 1.5x live), against duos at 13-20, fours at 16-31 and lone heroes at 31-50 (x = V<tier>);
+       and Normal with the Glade's monsters hitting 1.25x and 1.5x as hard (whatIf on their atk, x = Vatk125 | Vatk150) against the same duos
+       and the level-matched lone heroes. 2 seeds x 2 h. */
+    const ROWS = { dangerous: { id: 'dangerous', pull: [3, 5, 5, 6], powerPm: 1400, xpPm: 1100 }, deadly: { id: 'deadly', pull: [8, 8, 8, 8], powerPm: 1600, xpPm: 1200 } };
+    const GLADE_MONSTERS = ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear'];
+    const tcell = (party, level, tier) => { const row = ROWS[tier], pull = row.pull[party.length - 1];
+      return { ...cellOf({ ground: 'mosslight_glade', party, level, density: pull || null, hours: H(2), seeds: 2, x: 'V' + tier }), options: { tier }, windowMs: 120000, whatIf: { tiers: { mosslight_glade: { [tier]: row } } } }; };
+    for (const tier of ['dangerous', 'deadly']) {
+      for (const party of [['tank', 'healer'], ['hammer', 'bow']]) for (const level of [13, 14, 16, 20]) out.push(tcell(party, level, tier));
+      for (const party of [PARTIES.four, PARTIES.four_dps]) for (const level of [16, 24, 31]) out.push(tcell(party, level, tier));
+      for (const s of SOLO_STYLES) for (const level of [31, 40, 50]) out.push(tcell([s], level, tier));
+    }
+    for (const k of [1.25, 1.5]) {
+      const whatIf = { monsters: Object.fromEntries(GLADE_MONSTERS.map((id) => [id, { atk: '*' + k }])) }, x = 'Vatk' + Math.round(k * 100);
+      for (const party of [['tank', 'healer'], ['hammer', 'bow']]) for (const level of [13, 14, 16, 20]) out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, hours: H(2), seeds: 2, x }), windowMs: 120000, whatIf });
+      for (const s of SOLO_STYLES) for (const level of [16, 24]) out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level, hours: H(2), seeds: 2, x }), windowMs: 120000, whatIf });
+    }
+    return out;
+  }
+  if (name === 'weightclassfinal') {
+    /* THE ROWS AS WRITTEN (lane/b-tier-risk, the weight-class rows): the cases the Coordinator asked for, on the same dice as plans weightclass
+       (duos, 4 seeds) and tierrisklive2 (Andy's three, 2 seeds), plus a four at the Glade's 31 and the level-matched lone safety check. */
+    for (const party of [['tank', 'healer'], ['hammer', 'bow']]) for (const level of [13, 14, 16, 20]) for (const tier of ['normal', 'dangerous', 'deadly']) {
+      out.push(tierCell(axes, { ground: 'mosslight_glade', party, level, tier, hours: H(2), seeds: 4, x: 'F' + tier }));
+    }
+    out.push(tierCell(axes, { ground: 'mosslight_glade', party: ['hammer', 'bow', 'mage'], level: [14, 14, 8], tier: 'deadly', hours: H(2), seeds: 2, x: 'Fandy' }));
+    for (const party of [PARTIES.four, PARTIES.four_dps]) for (const tier of ['normal', 'deadly']) out.push(tierCell(axes, { ground: 'mosslight_glade', party, level: 31, tier, hours: H(2), seeds: 2, x: 'F' + tier }));
+    for (const [ground, level] of [['wickstead', 13], ['mosslight_glade', 16]]) for (const s of SOLO_STYLES) out.push({ ...cellOf({ ground, party: [s], level, hours: H(2), seeds: 4, x: 'Fsafe' }), windowMs: 120000 });
+    return out;
+  }
   if (name === 'capes') {
     /* A CAPE AND STUDS, before and after guard came off them (2026-11-05): every way to fight, at the Glade's middle and at the Warrens, with no cape, with the rows as they were (whatIf), and as they are. */
     const DRESSED = { cape: 'houndskin_cloak', earrings: 'copper_studs' };

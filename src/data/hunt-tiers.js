@@ -34,10 +34,12 @@ export const GROUND_TIERS = {
   wickstead: { dangerous: tier('dangerous', [0, 4, 4, 5], 2000, 1050), deadly: tier('deadly', [0, 8, 8, 8], 2500, 1100) },
   /* A lone hero keeps the ground as it stands: a pull of 4 beats the Glade for a hammer. A party keeps the full box. */
   millrace_sewer: { dangerous: tier('dangerous', [0, 5, 5, 6], 1200, 1050), deadly: tier('deadly', [0, 8, 8, 8], 1750, 1100) },
-  /* The Glade (lane/b-tier-risk): alone, Dangerous brings 3, the pull that first brings the Brook Bear (the Keep's pelts stay a lone
-     hero's), at 1.5x; Deadly keeps the full box (Tyler 10-18) at 2.75x, where a lone hero over the ground's Levels no longer farms it for
-     free (1.82x Normal at Level 50, eight of eight alive and richer, at 1.5x). Parties keep their pulls; a healed four at 31 holds on Deadly. */
-  mosslight_glade: { dangerous: tier('dangerous', [3, 5, 5, 6], 1500, 1100), deadly: tier('deadly', [8, 8, 8, 8], 2750, 1200) },
+  /* The Glade (lane/b-tier-risk; Tyler 2026-11-06 20:20 UTC: "if you are fighting outside your weight class even in a party, you're gonna waste
+     money but get more exp and possibly die a few times"). Alone, Dangerous brings 3, the pull that first brings the Brook Bear (the Keep's
+     pelts stay a lone hero's). Dangerous hits 1.4x: a duo under the Glade's Levels now pays for it in food (net -1.8k to -8.1k an hour at 13-14)
+     while one at its Levels still nets +2.3k to +3.7k. Deadly keeps the full box (Tyler 10-18) at 1.6x, next to the 1.5x a four found about
+     right (Andy, 11-06): a four at 24-31 holds and nets +4k to +7.7k, and a party under the Glade's Levels dies there. */
+  mosslight_glade: { dangerous: tier('dangerous', [3, 5, 5, 6], 1400, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1600, 1200) },
   coppercap_warrens: { dangerous: tier('dangerous', [4, 5, 5, 6], 1200, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1500, 1200) },
 };
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);

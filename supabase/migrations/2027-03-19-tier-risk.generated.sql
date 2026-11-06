@@ -32,8 +32,8 @@ insert into public.hr_ground_tiers (hunt_id, tier, pull, power_pm, xp_pm) values
   ('wickstead', 'deadly', '{0,8,8,8}'::int[], 2500, 1100),
   ('millrace_sewer', 'dangerous', '{0,5,5,6}'::int[], 1200, 1050),
   ('millrace_sewer', 'deadly', '{0,8,8,8}'::int[], 1750, 1100),
-  ('mosslight_glade', 'dangerous', '{3,5,5,6}'::int[], 1500, 1100),
-  ('mosslight_glade', 'deadly', '{8,8,8,8}'::int[], 2750, 1200),
+  ('mosslight_glade', 'dangerous', '{3,5,5,6}'::int[], 1400, 1100),
+  ('mosslight_glade', 'deadly', '{8,8,8,8}'::int[], 1600, 1200),
   ('coppercap_warrens', 'dangerous', '{4,5,5,6}'::int[], 1200, 1100),
   ('coppercap_warrens', 'deadly', '{8,8,8,8}'::int[], 1500, 1200);
 
@@ -51,8 +51,8 @@ begin
       ('wickstead','deadly',array[0,8,8,8],2500,1100),
       ('millrace_sewer','dangerous',array[0,5,5,6],1200,1050),
       ('millrace_sewer','deadly',array[0,8,8,8],1750,1100),
-      ('mosslight_glade','dangerous',array[3,5,5,6],1500,1100),
-      ('mosslight_glade','deadly',array[8,8,8,8],2750,1200),
+      ('mosslight_glade','dangerous',array[3,5,5,6],1400,1100),
+      ('mosslight_glade','deadly',array[8,8,8,8],1600,1200),
       ('coppercap_warrens','dangerous',array[4,5,5,6],1200,1100),
       ('coppercap_warrens','deadly',array[8,8,8,8],1500,1200)) d(hunt_id, tier, pull, power_pm, xp_pm)
                  where not exists (select 1 from public.hr_ground_tiers t where t.hunt_id = d.hunt_id and t.tier = d.tier

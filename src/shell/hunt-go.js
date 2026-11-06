@@ -107,12 +107,12 @@ function slotSupply(sl, s, carried) {
    without them is a fair choice, HP and mana come back between fights (designer 2026-10-29, Tyler's "0 food" report); food
    the bag carries but the bar does not name is said with the fix. A rune spell that cannot fire only loses that spell, and
    says which. Empty ammo leaves a hero that shoots unable to attack (shotLine's short line). */
-const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten: HP comes back only between fights',
-  drink: 'Nothing will be drunk: mana comes back only between fights' });
+const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten, so HP comes back only between fights',
+  drink: 'Nothing will be drunk, so mana comes back only between fights' });
 /* The kinds an empty slot of which stops nothing: food and drink (a heads-up line). */
 const HEADS_UP_KINDS = Object.freeze(new Set(['food', 'drink']));
 
-/* "You carry 12 Trout: put it on the bar to eat it", or '': the biggest own stack of a food or drink in `rows`
+/* "You carry 12 Trout. Put it on the bar to eat it", or '': the biggest own stack of a food or drink in `rows`
    (what the hero can use now) that the bar does not name (`named`, a Set of item ids). Display only. */
 function spareWords(kind, rows, named) {
   let best = null;
@@ -120,7 +120,7 @@ function spareWords(kind, rows, named) {
     const c = CONSUMABLES[r.id];
     if (c && c.kind === kind && c.source !== 'store' && !named.has(r.id) && r.qty > 0 && (!best || r.qty > best.qty)) best = r;
   }
-  return best ? 'You carry ' + whole(best.qty) + ' ' + itemName(best.id) + ': put it on the bar to ' + (kind === 'food' ? 'eat' : 'drink') + ' it' : '';
+  return best ? 'You carry ' + whole(best.qty) + ' ' + itemName(best.id) + '. Put it on the bar to ' + (kind === 'food' ? 'eat' : 'drink') + ' it' : '';
 }
 
 function bareWords(kind, parts, carried) {
@@ -315,7 +315,7 @@ export function beforeLines(cs, o) {
   const tally = tallyElsewhere(cs, o && o.hunt);
   if (tally) out.push(tally);
   const st = staminaOf(cs);
-  if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: 'No stamina left: rest in town before you go.', short: true });
+  if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: 'No stamina left. Rest in town before you go.', short: true });
   else if (st) {
     const m = Math.floor(st.msLeft / 60000);
     const left = (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min';
@@ -325,7 +325,7 @@ export function beforeLines(cs, o) {
   const gp = goldOf(cs);
   if (paysStore && gp !== null) {
     out.push(gp > 0 ? { id: 'gold', text: 'Gold: ' + gold(gp) + ' pays the store as you use it.', short: false }
-      : { id: 'gold', text: 'No gold for the store: the hunt ends when your own supplies run out.', short: true });
+      : { id: 'gold', text: 'No gold for the store, so the hunt ends when your own supplies run out.', short: true });
   }
   const bless = blessingWords(blessingsOf(cs));
   if (bless) out.push({ id: 'blessings', text: bless, short: false });

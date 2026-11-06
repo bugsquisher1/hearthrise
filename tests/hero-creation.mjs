@@ -115,7 +115,7 @@ export function checkClient({ cells = previewDyes, text = refusalText, shop = sh
   // H-C4 the step says how you fight where a newcomer looks for a class (Tyler 2026-10-22): no class, the
   // weapon is the style, one line per way to fight naming its starter weapon, every role and starter weapon covered.
   const how = howHtml();
-  if (!/no class to pick/i.test(how) || !/weapon you hold/i.test(how)) out.push('H-C4 the creation step does not say the weapon, not a class, sets the style');
+  if (!/no class to pick/i.test(how) || !/weapon[^.]*\b(?:you hold|in your hand) decides how you fight/i.test(how)) out.push('H-C4 the creation step does not say the weapon, not a class, sets the style');
   /* the five rows read as a menu (blind panel 11-03: "I wanted to pick"): the lead says there is nothing to pick, and that the hero already owns them all */
   if (!/nothing to choose here/i.test(how) || !/owns every weapon below/i.test(how)) out.push('H-C4 the creation step lists five styles and does not say they are not a choice here');
   for (const r of HOW_YOU_FIGHT) if (!how.includes('data-style="' + r.id + '"') || !how.includes(r.name)) out.push(`H-C4 the creation step leaves out ${r.name}`);

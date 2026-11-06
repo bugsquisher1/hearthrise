@@ -31,7 +31,7 @@ const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role,
 
 /* The lead line above the rows: the rule itself. The sword and shield are WORN, not in the bag (start-kit.js
    START_EQUIPMENT); a player can make more heroes and play several at once (2 slots to start, up to 4 at once). */
-export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick, and nothing to choose here: your hero owns every weapon below. The weapon you hold is how you fight. You start with the sword and shield on, and the rest are in your bag. To switch, equip another in town, any time.';
+export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick, and nothing to choose here. Your hero owns every weapon below, and the one in your hand decides how you fight. You start with the sword and shield on, and the rest are in your bag. To switch, equip another in town, any time.';
 /* The lead's last sentence: not about fighting, so a phone's short card leaves it to the Help page (app.css). */
 export const HOW_YOU_FIGHT_SLOTS = 'You start with two hero slots, gold buys more, and up to four heroes can play at once.';
 
@@ -42,26 +42,26 @@ export const HOW_YOU_FIGHT = Object.freeze([
   style('hit', 'melee_dps', ['practice_hatchets', 'practice_club'], 'Two axes or a hammer',
     'Hits hardest, up close.', 'Uses food.'),
   style('shoot', 'ranger', ['practice_bow', 'practice_crossbow'], 'Bow or crossbow',
-    'Shoots from a distance.', 'Bronze Arrows are free and never run out; better ammo costs a little per shot. Uses food.'),
+    'Shoots from a distance.', 'Bronze Arrows are free and never run out. Better ammo costs a little per shot. Uses food.'),
   style('cast', 'mage', ['practice_wand', 'practice_spellbook'], 'Wand and spellbook',
-    'Casts spells at the monsters.', 'Spells cost mana: drinks bring it back.'),
+    'Casts spells at the monsters.', 'Spells cost mana, and drinks bring it back.'),
   style('heal', 'healer', ['practice_staff'], 'Staff',
-    'Heals you and your party.', 'Heals cost mana: drinks bring it back.'),
+    'Heals you and your party.', 'Heals cost mana, and drinks bring it back.'),
 ]);
 
 const note = (id, label, text) => Object.freeze({ id, label, text });
 
 export const HELP_NOTES = Object.freeze([
   note('idle', 'Your hero fights by itself',
-    'Pick a hunt and your hero walks, fights and loots on its own. You never click to attack: you choose where it hunts, and the action bar tells it what to use and when.'),
+    'Pick a hunt and your hero walks, fights and loots on its own. You never click to attack. You choose where it hunts, and the action bar tells it what to use and when.'),
   note('away', 'It keeps hunting with the game closed',
     'Hunts run on our server, so you can close the game and come back to what your hero earned. A hunt stops when stamina runs out, when your hero dies, when it cannot pay for supplies, or when you press Leave hunt.'),
   note('stamina', 'Stamina is hunting time',
-    'Every minute of hunting uses a minute of stamina, and every minute out of a hunt gives one back, even with the game closed. A hero holds up to 8 hours, or 12 with premium, and every hero has premium during the beta: the hourglass on your bar shows yours.'),
+    'Every minute of hunting uses a minute of stamina, and every minute out of a hunt gives one back, even with the game closed. A hero holds up to 8 hours, or 12 with premium, and every hero has premium during the beta. The hourglass on your bar shows how much you have.'),
   note('weapon', 'Your weapon is how you fight',
     'There is no class. A sword and shield hold monsters on you, two axes or a hammer hit hard, a bow or crossbow shoots from a distance, a wand and spellbook cast spells, and a staff heals. Equip another from your bag to switch.'),
   note('supplies', 'Food and drink',
-    'Food heals and drink brings back mana. What you carry is used first, for free. Store supplies cost gold each time your hero uses one, and if the gold runs out the hunt ends. Raw meat and fish cook into food: pick them in your bag and choose Cook all.'),
+    'Food heals and drink brings back mana. What you carry is used first, for free. Store supplies cost gold each time your hero uses one, and if the gold runs out the hunt ends. Raw meat and fish cook into food. Pick them in your bag and choose Cook all.'),
   note('bar', 'The action bar',
     'Each slot is one spell, food or drink, with up to three conditions such as My HP % below 60. The first slot that can fire, fires, so put the most important one first.'),
   note('loot', 'Selling and keeping loot',
@@ -69,14 +69,14 @@ export const HELP_NOTES = Object.freeze([
   note('gold', 'What gold is for',
     'Store supplies cost gold as your hero uses them. In town the Shop sells gloves, belts, jewelry and tools, and its Services tab sells extra stamina and Blessings. Save up and you can buy another hero slot.'),
   note('armour', 'Armor and Defense',
-    'Defense rises only while your hero wears armor and takes blows. Monsters drop helmets, bodies, legs and boots; gloves and belts are armor too, and the Shop sells them. '
+    'Defense rises only while your hero wears armor and takes blows. Monsters drop helmets, bodies, legs and boots. Gloves and belts count as armor too, and the Shop sells them. '
     + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces of different weights mix freely. Any hero can wear any piece once its Level is high enough.'),
   note('farm', 'Your farm',
-    'Open the Farm (J) and plant a seed in an empty plot; your bag starts with turnip seeds. A crop grows while you hunt or play away, and watering makes it grow twice as fast for 2 hours. Harvest and replant puts the same crop back in, from your own seeds or one bought at the Shop\'s price; Harvest only leaves the plot empty. Some crops, such as tomatoes, grow back after a harvest: the plot says how many more times, and Harvest and clear plot pulls the plant out.'),
+    'Open the Farm (J) and plant a seed in an empty plot. Your bag starts with turnip seeds. A crop grows while you hunt or play away, and watering makes it grow twice as fast for 2 hours. Harvest and replant puts the same crop back in, from your own seeds or one bought at the Shop\'s price. Harvest only leaves the plot empty. Some crops, such as tomatoes, grow back after a harvest. The plot says how many more times, and Harvest and clear plot pulls the plant out.'),
   note('levels', 'Level and skills',
-    'Every kill pays Level XP, and each Level raises your health and mana. Your Level decides which gear you can wear; arrows, whetstones and runes ask for their skill instead. Melee, Ranged, Magic and Defense rise by doing them: fighting with that weapon, or taking blows in armor. Level has no cap.'),
+    'Every kill earns Level XP, and each Level raises your health and mana. Your Level decides which gear you can wear, while arrows, whetstones and runes need their own skill instead. Melee, Ranged, Magic and Defense rise as you use them, by fighting with that weapon or taking blows in armor. Level has no cap.'),
   note('town', 'Work in town',
-    'Between hunts your hero can chop, mine, fish, cook, smith, craft and bind runes. Open Gathering and crafting (G), press a skill and choose what to do. Gathering keeps going with the game closed; making something uses what is in your bag. A hunt stops either one.'),
+    'Between hunts your hero can chop, mine, fish, cook, smith, craft and bind runes. Open Gathering and crafting (G), press a skill and choose what to do. Gathering keeps going with the game closed. Making something uses what is in your bag. Starting a hunt stops either one.'),
   note('heroes', 'Several heroes at once',
     'Your account starts with two hero slots, and up to four heroes can play at the same time. Your own heroes join your party straight away, so one can hold the monsters while another heals.'),
   note('death', 'If your hero dies',

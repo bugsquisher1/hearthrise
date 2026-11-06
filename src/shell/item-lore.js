@@ -11,7 +11,7 @@
 //   sourcesOf(id)   ["Dropped by Slime at Mill Cellar", "Made with Cooking"]
 //   whereToGet(id)  the short answer where a shortage is shown: "Made with Crafting 21"
 //   usesOf(id)      ["Used in Cooking: Wheat Bread", "Eat to heal 18 health"]
-//   saleWords(id)   who won't buy it: "" or "For your own use: ..."; toolWords(id) what a tool does and where it counts
+//   saleWords(id)   who won't buy it: "" or "For your own use. ..."; toolWords(id) what a tool does and where it counts
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
@@ -139,7 +139,7 @@ export function toolWords(id) {
 export function saleWords(id) {
   const it = ITEMS[id] || DRINK_ITEMS[id];
   if (!it) return '';
-  if (!(Number(it.v) > 0) || it.bop) return 'For your own use: the shop and the Weighhouse won\'t take it';
+  if (!(Number(it.v) > 0) || it.bop) return 'For your own use. The shop and the Weighhouse won\'t take it';
   return isStartKit(id) ? 'The shop buys it, but every new hero starts with some, so the Weighhouse won\'t list it' : '';
 }
 
@@ -179,7 +179,7 @@ export function usesOf(id) {
   if (rite) out.push('Burn it in the Great Hearth to train ' + skillName(rite.skill) + (rite.recipe.req > 1 ? ' (' + skillName(rite.skill) + ' ' + rite.recipe.req + ')' : ''));
   /* A named fuel: a burst of Inner Flame, and the square's fire takes its colour for everyone */
   const named = namedFuelOf(id);
-  if (named) out.push('Burn it in the Great Hearth for a burst of ' + skillName('inner_flame') + ' XP; the fire ' + FLAMES[named.flame].words + ' for all Havora'
+  if (named) out.push('Burn it in the Great Hearth for a burst of ' + skillName('inner_flame') + ' XP, and the fire ' + FLAMES[named.flame].words + ' for all Havora'
     + (named.req > 1 ? ' (' + skillName('inner_flame') + ' ' + named.req + ')' : ''));
   /* Raw food that cooks (playtest 10-22: Raw Wolf Meat read as 1 gp loot): Cook all in the bag does it. */
   const cook = cookOf(id);

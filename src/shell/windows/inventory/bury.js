@@ -104,10 +104,10 @@ export function buryingOf(cs) {
   return s && s.active_kind === 'artisan' && typeof s.active_id === 'string' ? byRecipeId(s.active_id) : null;
 }
 
-/* "Brannoc is hunting in The Sewer; the Great Hearth is in town." (the board's refusal, Tyler 10-25: say why) */
+/* "Brannoc is hunting in The Sewer, and the Great Hearth is in town." (the board's refusal, Tyler 10-25: say why) */
 function huntingWords(cs, h) {
   const hunt = h.huntId && HUNT_INDEX[h.huntId] ? HUNT_INDEX[h.huntId].name : null;
-  return (nameOf(cs) || 'Your hero') + ' is hunting' + (hunt ? ' in ' + hunt : '') + '; the Great Hearth is in town.';
+  return (nameOf(cs) || 'Your hero') + ' is hunting' + (hunt ? ' in ' + hunt : '') + ', and the Great Hearth is in town.';
 }
 
 /** Why the stack cannot be spent now (plain words), or '' when it can. Every number is the server's. */

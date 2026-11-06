@@ -193,7 +193,7 @@ async function runTests(M) {
     const card = (session) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(session)), null, [])])[0];
     const f = card(sess());
     eq([f.reason, f.forfeit], ['server', true], 'the stored card keeps the forfeit');
-    eq(MD.endWords(f.reason, f.forfeit), 'Your hunt was stopped because the server could not accept its last few minutes; nothing from them was counted.', 'the forfeit sentence');
+    eq(MD.endWords(f.reason, f.forfeit), 'Your hunt was stopped because the server could not accept its last few minutes, so nothing from them was counted.', 'the forfeit sentence');
     const plain = card(sess({ forfeit: false }));
     eq([plain.forfeit, MD.endWords(plain.reason, plain.forfeit)], [false, MD.END_WORDS.server], 'a plain server end keeps its own words');
     const left = card(sess({ end_reason: 'left' }));

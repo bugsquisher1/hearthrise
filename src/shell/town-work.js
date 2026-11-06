@@ -247,7 +247,7 @@ export function toolLine(cs, skill) {
   const row = TOOLS.filter((id) => ITEMS[id].toolSkill === skill && whereToGet(id));
   const inBag = pick(skill, invOf(cs));
   const stored = pick(skill, Object.fromEntries((bankOf(cs) || []).map((r) => [r.id, r.qty])));
-  const better = stored && (!inBag || (stored.toolTier || 0) > (inBag.toolTier || 0)) ? itemName(stored.id) + ' is in Storage, so it doesn\'t count: take it out to go faster.' : '';
+  const better = stored && (!inBag || (stored.toolTier || 0) > (inBag.toolTier || 0)) ? itemName(stored.id) + ' is in Storage, so it doesn\'t count. Take it out to go faster.' : '';
   if (inBag) return ['Your ' + itemName(inBag.id) + ' is in your bag: ' + toolEffect(inBag.id) + '. The times below count it.', better ? 'Your ' + better : ''].filter(Boolean).join(' ');
   if (better) return 'Your ' + better;
   if (!row.length) return '';
@@ -269,7 +269,7 @@ export function toolLossWords(cs, id, qty) {
   const left = (inv[id] || 0) - qty;
   if (left > 0) return '';
   const after = pick(it.toolSkill, Object.assign({}, inv, { [id]: 0 }));
-  return skillWord(it.toolSkill) + ' is slower without it: a tool only counts in your bag' + (after ? ', so your ' + itemName(after.id) + ' takes over.' : '.');
+  return skillWord(it.toolSkill) + ' is slower without it. A tool only counts in your bag' + (after ? ', so your ' + itemName(after.id) + ' takes over.' : '.');
 }
 
 /* ── The one run per character: the armed stop and the numbers it started from (display only). ── */

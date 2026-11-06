@@ -22,7 +22,7 @@ const SAID = Object.freeze({
   unauthenticated: 'Your sign-in has ended. Reload the page, sign in and send it again.',
   payload_too_large: 'That was too big to send. Untick the picture and try again.',
   bad_request: 'That report could not be read. Write a line about the problem and try again.',
-  other: 'It did not send. Check your connection and try again; your text is still here.',
+  other: 'It did not send. Check your connection and try again. Your text is still here.',
 });
 const SENT = new Set(['accepted', 'stored', 'duplicate']);
 

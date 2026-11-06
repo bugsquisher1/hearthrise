@@ -30,7 +30,7 @@ import { showTip, hideTip } from '../item-tip.js?v=0.2.100';
 import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey } from './state.js?v=0.2.100';
 
 const SEARCH_MAX = 50;
-const LOST_WORDS = 'No answer from the Weighhouse. Press again: it won\'t buy twice.';
+const LOST_WORDS = 'No answer from the Weighhouse. Press again. It won\'t buy twice.';
 
 /** The Browse pane's skeleton. */
 export function browseHtml(ctx) {
@@ -217,7 +217,7 @@ export function patchBrowse(v) {
   /* THE EMPTY MARKET READS AS AN INVITATION: said only once the server has answered that nothing is for sale. */
   const bare = sc.forSale !== null && !sc.forSale.length && !sc.query && !sc.closed;
   cls(pane.querySelector('.hw-mk-invite'), 'is-on', bare);
-  text(pane.querySelector('.hw-mk-invite-p'), 'Nothing is for sale yet. Be the first: list something from your bag or your storage, and the Weighhouse holds it until someone buys it.');
+  text(pane.querySelector('.hw-mk-invite-p'), 'Nothing is for sale yet. Be the first to list something from your bag or your storage, and the Weighhouse holds it until someone buys it.');
   const cols = pane.querySelector('.hw-mk-cols');
   prop(cols, 'hidden', bare);
   if (!sc.pick && list.length && !ctx.isPhone()) { sc.pick = list[0].id; readItem(ctx, cs, sc, sc.pick); }
@@ -336,7 +336,7 @@ export async function cancelListing(o, listing) {
   let r;
   try { r = await marketCancel(ctx.account, cs, listing, cancelKey(sc, listing)); } catch (e) { r = { ok: false, error: 'network' }; }
   sc.pending = false;
-  if (answerLost(r)) { sc.msg = 'No answer from the Weighhouse. Press Cancel again: it\'s safe.'; repaint(); return; }
+  if (answerLost(r)) { sc.msg = 'No answer from the Weighhouse. Press Cancel again. It\'s safe.'; repaint(); return; }
   sc.cancels.delete(listing);
   const c = r.ok && r.receipt ? r.receipt : null;
   sc.msg = !r.ok ? refusalText(r, cs) : c && c.item_id ? 'Canceled. ' + whole(c.qty) + ' ' + itemName(c.item_id) + (c.qty === 1 ? ' is' : ' are') + ' back in your storage.' : 'Canceled. It\'s back in your storage.';

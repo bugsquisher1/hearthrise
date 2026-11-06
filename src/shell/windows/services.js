@@ -64,7 +64,7 @@ export function patchServicesPane(body, ctx) {
     text(quote, q.why === 'stamina_full' ? 'Your stamina is full.' : 'You have bought all ' + whole(q.perDay) + ' refills for today. More tomorrow.');
     text(ask, 'Buy stamina');
   } else {
-    text(quote, 'Restores ' + hoursText(q.restoreMs) + ' for ' + gold(q.price) + '. Bought today: ' + whole(q.boughtToday) + ' of ' + whole(q.perDay) + '; each one costs more.'
+    text(quote, 'Restores ' + hoursText(q.restoreMs) + ' for ' + gold(q.price) + '. Bought today: ' + whole(q.boughtToday) + ' of ' + whole(q.perDay) + '. Each one costs more.'
       + (purse !== null && purse < q.price ? ' You need ' + gold(q.price - purse) + ' more.' : ''));
     text(ask, 'Buy ' + hoursText(q.restoreMs) + ' · ' + gold(q.price));
   }
@@ -83,7 +83,7 @@ export function patchServicesPane(body, ctx) {
   /* BLESSINGS */
   const b = blessingsOf(cs);
   text(root.querySelector('.hw-bless-note'), !b ? 'Blessings load from the server.'
-    : 'Each blessing cuts the XP a death takes; a death uses them all up.' + (b.freeUntil ? ' Free below Level ' + b.freeUntil + '.' : ''));
+    : 'Each blessing cuts the XP a death takes, and a death uses them all up.' + (b.freeUntil ? ' Free below Level ' + b.freeUntil + '.' : ''));
   const next = b ? b.tiers.find((t) => !t.held) : null;
   rows(root.querySelector('.hw-bless'), b ? b.tiers : [], {
     key: (t) => String(t.tier),

@@ -1054,7 +1054,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
       if (!/You own 2 hero slots, and up to 4 heroes can play at once\. More slots cost gold: the third is 15,000\./.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
-      if (!b0 || b0.text !== 'Buy a hero slot — 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
+      if (!b0 || b0.text !== 'Buy a hero slot for 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
         || b0.purse !== 'Your gold: 14,100' || !/^You need 900 more gold./.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Your gold: 14,100, 900 short, off, no payer to pick)');
       else {
         o.purse = 80000; o.goldV = 8; o.lag = null;

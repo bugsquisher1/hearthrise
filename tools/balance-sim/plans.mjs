@@ -778,6 +778,29 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'tierrisklive') {
+    /* THE LIVE DEATH (2026-11-06 20:08 UTC): a three at Levels 14, 14 and 8 on the Glade's Deadly lost its tank at 8m20s, out of its own food at
+       2m. The same party on the Deadly row live then (8888 x1.5, whatIf) and as written now, 2 seeds x 2 h. x = Llive | Lnow. */
+    const party = ['tank', 'healer', 'bow'], level = [14, 14, 8];
+    const live = { tiers: { mosslight_glade: { deadly: { id: 'deadly', pull: [8, 8, 8, 8], powerPm: 1500, xpPm: 1200 } } } };
+    out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, density: 8, hours: H(2), seeds: 2, x: 'Llive' }), options: { tier: 'deadly' }, windowMs: 120000, whatIf: live });
+    out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, density: 8, hours: H(2), seeds: 2, x: 'Lnow' }), options: { tier: 'deadly' }, windowMs: 120000 });
+    out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, hours: H(2), seeds: 2, x: 'Lnormal' }), windowMs: 120000 });
+    return out;
+  }
+  if (name === 'tierrisklive2') {
+    /* ANDY'S RUN (party instance 741a2c33, 2026-11-06 20:00-20:08 UTC): Klappa (club), Krungus (ranged) and Saphina (magic), Levels 14, 14
+       and about 8, on the Glade's Deadly: 267 kills in 8m20s, 190,821 Level XP/h a head for the two at 14. The same three on the Deadly row
+       live then (x1.5, whatIf), as written now (x2.75), and on Normal, beside a lone Level 14 on Normal where the game sends him (Wickstead),
+       every way to fight. 2 seeds x 2 h. x = A<live|now|normal> | S14. */
+    const party = ['hammer', 'bow', 'mage'], level = [14, 14, 8];
+    const live = { tiers: { mosslight_glade: { deadly: { id: 'deadly', pull: [8, 8, 8, 8], powerPm: 1500, xpPm: 1200 } } } };
+    out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, density: 8, hours: H(2), seeds: 2, x: 'Alive' }), options: { tier: 'deadly' }, windowMs: 120000, whatIf: live });
+    out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, density: 8, hours: H(2), seeds: 2, x: 'Anow' }), options: { tier: 'deadly' }, windowMs: 120000 });
+    out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, hours: H(2), seeds: 2, x: 'Anormal' }), windowMs: 120000 });
+    for (const s of SOLO_STYLES) out.push({ ...cellOf({ ground: 'wickstead', party: [s], level: 14, hours: H(2), seeds: 2, x: 'S14' }), windowMs: 120000 });
+    return out;
+  }
   if (name === 'capes') {
     /* A CAPE AND STUDS, before and after guard came off them (2026-11-05): every way to fight, at the Glade's middle and at the Warrens, with no cape, with the rows as they were (whatIf), and as they are. */
     const DRESSED = { cape: 'houndskin_cloak', earrings: 'copper_studs' };

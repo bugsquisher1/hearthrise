@@ -37,17 +37,17 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.101';
-import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.101';
-import { rollDropTable } from './drops.js?v=0.2.101';
-import { yieldOf } from './hunt/damage.js?v=0.2.101';
-import { applyGoldFind } from './pacing.js?v=0.2.101';
-import { COMBAT_XP } from '../data/core-model.js?v=0.2.101';
-import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.101';
-import { resolveHearthfind } from './hearthfind.js?v=0.2.101';
-import { magicXpFor } from './hunt/xp-share.js?v=0.2.101';
-import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.101';
-import { makeEvent } from './hunt/events.js?v=0.2.101';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.102';
+import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.102';
+import { rollDropTable } from './drops.js?v=0.2.102';
+import { yieldOf } from './hunt/damage.js?v=0.2.102';
+import { applyGoldFind } from './pacing.js?v=0.2.102';
+import { COMBAT_XP } from '../data/core-model.js?v=0.2.102';
+import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.102';
+import { resolveHearthfind } from './hearthfind.js?v=0.2.102';
+import { magicXpFor } from './hunt/xp-share.js?v=0.2.102';
+import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.102';
+import { makeEvent } from './hunt/events.js?v=0.2.102';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 

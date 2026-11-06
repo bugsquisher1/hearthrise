@@ -22,20 +22,20 @@
 // keyBelongsToField (src/utils/dom.js), which the World and the window keys
 // read too — so W types while the field has focus and walks once it is left.
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.101';
-import { refusalWords } from '../intent-words.js?v=0.2.101';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.101';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.101';
-import { isWhisperTab } from '../../social/whispers.js?v=0.2.101';
-import { linkLabel } from '../../social/chat-lines.js?v=0.2.101';
-import { combatHtml, patchCombat, actCombat, keepPinned, isPinned } from './chat-combat.js?v=0.2.101';
-import { crierButtonHtml, crierBarHtml, crierMarkHtml, patchCrier, actCrier } from './chat-crier.js?v=0.2.101';
-import { showTip, hideTip } from './item-tip.js?v=0.2.101';
-import { rarityOf } from '../bag-model.js?v=0.2.101';
-import { glyphSvg } from '../launcher.js?v=0.2.101';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.101';
-import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.101';
-import { playerTargetOf } from '../context-menu.js?v=0.2.101';
+import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.102';
+import { refusalWords } from '../intent-words.js?v=0.2.102';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.102';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.102';
+import { isWhisperTab } from '../../social/whispers.js?v=0.2.102';
+import { linkLabel } from '../../social/chat-lines.js?v=0.2.102';
+import { combatHtml, patchCombat, actCombat, keepPinned, isPinned } from './chat-combat.js?v=0.2.102';
+import { crierButtonHtml, crierBarHtml, crierMarkHtml, patchCrier, actCrier } from './chat-crier.js?v=0.2.102';
+import { showTip, hideTip } from './item-tip.js?v=0.2.102';
+import { rarityOf } from '../bag-model.js?v=0.2.102';
+import { glyphSvg } from '../launcher.js?v=0.2.102';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.102';
+import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.102';
+import { playerTargetOf } from '../context-menu.js?v=0.2.102';
 
 const STATE = new WeakMap();
 const ROW = Object.freeze(Object.fromEntries(CHAT_TABS.map((t) => [t.id, t])));

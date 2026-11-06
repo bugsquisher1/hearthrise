@@ -96,7 +96,7 @@ async function check(base) {
 }
 
 const MUTANTS = [
-  { name: 'a row with no help', file: 'src/data/settings.js', from: "help: 'Hunts play themselves; keys only open windows.'", to: "help: ''", want: 'help' },
+  { name: 'a row with no help', file: 'src/data/settings.js', from: "help: 'Hunts play themselves. Keys only open windows.'", to: "help: ''", want: 'help' },
   { name: 'a display toggle that does not persist', file: 'src/shell/settings-model.js', from: "ctx.character.setResidue('combatText'", to: "ctx.character.setResidue('zzText'", want: 'persist' },
   { name: 'a server row that is not sent', file: 'src/shell/settings-model.js', from: "if (row.scope === 'server') {", to: "if (row.scope === 'never') {", want: 'server row must call' },
   { name: 'search that ignores help text', file: 'src/shell/settings-model.js', from: "(r.label + ' ' + r.help)", to: 'r.label', want: 'search' },

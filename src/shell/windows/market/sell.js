@@ -154,7 +154,7 @@ function patchSheet(pane, v, have, source) {
   const fee = rules && qty && ask ? feeOf(rules, qty, ask) : null;
   const shortFee = fee !== null && purse !== null && purse < fee ? 'The listing fee is ' + goldWords(fee) + '.' : '';
   text(foot.querySelector('.hw-mk-terms'), rules && fee !== null && !why
-    ? 'Listing fee: ' + goldWords(fee) + ' now (kept if it doesn\'t sell). The Weighhouse keeps ' + (rules.cutBp / 100) + '% of each sale: ' + payWords(rules, qty, ask) + ' Listed for ' + Math.round(rules.ttlH / 24) + ' days; anything unsold comes back to your storage.'
+    ? 'Listing fee: ' + goldWords(fee) + ' now (kept if it doesn\'t sell). The Weighhouse keeps ' + (rules.cutBp / 100) + '% of each sale: ' + payWords(rules, qty, ask) + ' Listed for ' + Math.round(rules.ttlH / 24) + ' days, and anything unsold comes back to your storage.'
     : '');
   /* A sale that pays less than the shop would is the seller's call, and the sheet says so (a 1-gold ask nets 0 after the cut). */
   const under = rules && ask && bid !== null && netEachOf(rules, ask) < bid ? 'At this price the shop pays you more than a sale would. Ask ' + whole(evenAskOf(rules, bid)) + ' or more to match it.' : '';
@@ -220,7 +220,7 @@ async function runList(o) {
   try { r = await marketList(ctx.account, cs, { source: g.source, item: g.item, qty: g.qty, askEach: g.ask, key: g.key }); } catch (e) { r = { ok: false, error: 'network' }; }
   sc.pending = false;
   const said = r.ok ? '' : refusalText(r, cs);
-  if (answerLost(r)) { sc.msg = 'No answer from the Weighhouse. Press again: it won\'t list twice.'; repaint(); return; }
+  if (answerLost(r)) { sc.msg = 'No answer from the Weighhouse. Press again. It won\'t list twice.'; repaint(); return; }
   dropGesture(sc);
   if (r.ok) {
     const fee = r.receipt && Number.isSafeInteger(r.receipt.fee) ? ' The fee was ' + goldWords(r.receipt.fee) + '.' : '';

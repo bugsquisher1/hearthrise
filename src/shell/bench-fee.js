@@ -73,7 +73,7 @@ function bestStackWords(cs) {
 /* What to do about it, in the player's words: gathering is always free. */
 function payWords(cs) {
   const stack = bestStackWords(cs);
-  return stack ? 'Sell ' + stack + ' at the shop, or gather something: gathering is free.' : 'Gather something and sell it: gathering is free.';
+  return stack ? 'Sell ' + stack + ' at the shop, or gather something. Gathering is free.' : 'Gather something and sell it. Gathering is free.';
 }
 
 /** Why this row cannot start for gold (plain words), or ''. */

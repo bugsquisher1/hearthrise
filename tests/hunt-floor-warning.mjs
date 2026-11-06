@@ -75,7 +75,7 @@ async function run(base) {
     const r = HL.recommendation(lv, 1, rows);
     if (!r.row || !HL.fitsGroup(r.row, 1)) { ok('G2', false, 'a lone Level-' + lv + ' hero is recommended ' + (r.row && r.row.hunt)); break; }
     const inBand = r.row.band[0] <= lv && lv <= r.row.band[1];
-    if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith('No ground for one hero fits Level ' + lv + ' yet. ' + r.row.name))) {
+    if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith('There\'s no ground for one hero at Level ' + lv + ' yet. ' + r.row.name))) {
       ok('G2', false, 'a lone Level-' + lv + ' hero is sent to ' + r.row.hunt + ' [' + r.row.band + '] with the note ' + JSON.stringify(r.note)); break;
     }
     if (inBand && r.note !== null) { ok('G2', false, 'a fitting ground still carries a note at Level ' + lv); break; }
@@ -84,7 +84,7 @@ async function run(base) {
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
   /* G4: where the advice stands until the pace is re-measured (level-curve reads it: a pair sent to the Glade and a lone 45 sent to the Warrens re-land together, 2026-11-04): the Warrens is a party's, and a pair's first ground is the Sewer. */
   const lone = (lv) => HL.recommendation(lv, 1, rows);
-  ok('G4', lone(44).row.hunt === 'mosslight_glade' && /Coppercap Warrens fits your level with a party/.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
+  ok('G4', lone(44).row.hunt === 'mosslight_glade' && /Coppercap Warrens is right for your level if you bring a party/.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
   const sewerPair = HL.recommendation([12, 12], 2, rows);
   ok('G4', sewerPair.row.hunt === 'millrace_sewer', 'the first party ground moved: a pair at Level 12 is sent to ' + sewerPair.row.hunt);
   /* G5 (first principle, played 11-04): the window opens on the harder ground this hero last hunted and came home from; never on one that killed it, and never on one below the advice. */
@@ -178,10 +178,10 @@ const MUTANTS = [
   ['the words forget what dying costs', 'src/shell/hunt-list.js', "    + ' If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';", "    + '';"],
   ['the fight reads a hero Level again (S2)', 'src/core/hunt/damage.js', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow) + (t.heroLv ? 0 : 0));'],
   ['a gap row comes back in the data (S2)', 'src/data/hunt-tuning.js', '  partyShareRangePm: 667,', '  partyShareRangePm: 667,\n  underFloorAtkPm: 50,'],
-  ['the warning claims a penalty again', 'src/shell/hunt-list.js', "'Its monsters are stronger than you: expect to spend more on supplies, or to die. More XP and better loot.'", "'More XP and better loot, but its monsters hit harder.'"],
+  ['the warning claims a penalty again', 'src/shell/hunt-list.js', "'Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.'", "'More XP and better loot, but its monsters hit harder.'"],
   ['a margin comes back in the data', 'src/data/hunt-sessions.js', '  bagLines: 10,\n', '  bagLines: 10,\n  belowRangeRefuse: 15,\n'],
   ['a lone hero walks in with no confirm press', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
-  ['the tier says nothing of what it costs', 'src/shell/hunt-list.js', "' more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die: the hunt ends and you lose '", "' more Level XP, with the same gold and drops. You lose '"],
+  ['the tier says nothing of what it costs', 'src/shell/hunt-list.js', "' more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die. A death ends the hunt and costs '", "' more Level XP, with the same gold and drops. It costs '"],
   ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));", ''],
   ['a ground names its start tiles, not the party the server allows (G3)', 'src/shell/hunt-list.js', 'heroes: PARTY.maxSize,', 'heroes: Math.min(g.start.length, PARTY.maxSize),'],
   ['the leader\'s warning names the leader too (G3)', 'src/shell/hunt-list.js', 's.seat !== party.me && Number.isInteger(s.level)', 'Number.isInteger(s.level)'],

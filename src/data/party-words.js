@@ -15,7 +15,7 @@ export const PARTY_NOTICE_WORDS = Object.freeze({
   disbanded: '{who} closed the party.',
   left: '{who} left the party.',
   dropped: '{who} was away too long and lost their party seat.',
-  ground_warn: '{who} wants to take the party to {ground}, above {name}’s level: it will hit hard, and {name} could die. Leave the party to stay out.',
+  ground_warn: '{who} wants to take the party to {ground}, above {name}’s level. It will hit hard, and {name} could die. Leave the party to stay out.',
 });
 
 /* Why a friend's own end sent this hero home (`end_by_why`, an END_ORDER name). "left" and an unknown name keep the plain line. */

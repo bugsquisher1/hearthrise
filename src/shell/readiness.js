@@ -43,7 +43,7 @@ export function readinessOf(cs) {
   const st = staminaOf(cs);
   if (st) {
     /* How much, never a bare "Stamina left" (core-loop play 2026-10-30): the server's stamina, in hours and minutes. */
-    checks.push({ id: 'stamina', ok: st.msLeft > 0, text: st.msLeft > 0 ? 'Stamina: ' + hoursWords(st.msLeft) + ' left' : 'No stamina left: rest first' });
+    checks.push({ id: 'stamina', ok: st.msLeft > 0, text: st.msLeft > 0 ? 'Stamina: ' + hoursWords(st.msLeft) + ' left' : 'No stamina left. Rest first' });
     if (!(st.msLeft > 0)) short.push('no stamina');
   }
   const gp = goldOf(cs);

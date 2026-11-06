@@ -369,7 +369,7 @@ async function pure() {
   const bones = usesOf('bones');
   if (!bones.some((l) => /^Burn it in the Great Hearth to train Inner Flame/.test(l)) || bones.some((l) => /sell/i.test(l))) fails.push('AW-0 the bones tooltip reads ' + JSON.stringify(bones));
   const knot = usesOf('den_knot');
-  if (!knot.some((l) => /^Burn it in the Great Hearth for a burst of Inner Flame XP; the fire burns deep amber for all Havora/.test(l))) fails.push('AW-0 the Den Knot tooltip reads ' + JSON.stringify(knot));
+  if (!knot.some((l) => /^Burn it in the Great Hearth for a burst of Inner Flame XP, and the fire burns deep amber for all Havora/.test(l))) fails.push('AW-0 the Den Knot tooltip reads ' + JSON.stringify(knot));
   /* AW-20: what cooks is read off the recipe rows (no id list); the bench refuses in words, from the server's level. */
   const { cookOf } = await imp('src/shell/bag-model.js');
   const { buryRecipeOf, buryBlock, buryLabel } = await imp('src/shell/windows/inventory/bury.js');
@@ -521,9 +521,9 @@ async function huntsPure(imp) {
   const say = (cs, o) => beforeLines(cs, o).map((l) => (l.short ? '!' : '') + l.text).join(' | ');
   /* (A fresh hero's starter bar and Bring your heroes are read on the page's own modules, AW-27 / AW-28 in checks.) */
   const bare = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_shrimp', 0)], store: STORE }, state: { gold: 0 }, stamina: { ms: 0, max_ms: 28800000 } }));
-  if (bare !== 'Food: no Cooked Shrimp left. Nothing will be eaten: HP comes back only between fights | !No stamina left: rest in town before you go.') fails.push('AW-27 an empty bar and no stamina read ' + JSON.stringify(bare));
+  if (bare !== 'Food: no Cooked Shrimp left. Nothing will be eaten, so HP comes back only between fights | !No stamina left. Rest in town before you go.') fails.push('AW-27 an empty bar and no stamina read ' + JSON.stringify(bare));
   const poor = say(sess({ state: { gold: 0 }, stamina: { ms: 30 * 60000, max_ms: 28800000 } }));
-  if (!/\| Stamina: 30 min left, then the hunt ends\. \| !No gold for the store: the hunt ends when your own supplies run out\.$/.test(poor)) fails.push('AW-27 low stamina and no gold read ' + JSON.stringify(poor));
+  if (!/\| Stamina: 30 min left, then the hunt ends\. \| !No gold for the store, so the hunt ends when your own supplies run out\.$/.test(poor)) fails.push('AW-27 low stamina and no gold read ' + JSON.stringify(poor));
   const other = say(sess({}), { other: 'Bow' });
   if (!/^Supplies: as Bow’s own bar sets them/.test(other)) fails.push('AW-27 another setup\'s supplies read ' + JSON.stringify(other));
   /* Go as: the setups the server can put on, plus the one in use (its bar's first four); a set with no setup row is not offered. */
@@ -602,10 +602,10 @@ async function itemTruthRules(base) {
   if (!/Your Iron Axe is in Storage/.test(toolLine(hero({ bronze_axe: 1 }, { iron_axe: 1 }), 'woodcutting'))) fails.push('AW-60 a better axe in Storage reads ' + toolLine(hero({ bronze_axe: 1 }, { iron_axe: 1 }), 'woodcutting'));
   const bare = toolLine(hero({}, {}, [{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }]), 'woodcutting');
   if (!/^No tool in your bag\. Bronze Axe from the Shop: Woodcutting 5% faster/.test(bare)) fails.push('AW-60 a hero with no axe reads ' + bare);
-  if (toolLossWords(both, 'iron_axe', 1) !== 'Woodcutting is slower without it: a tool only counts in your bag, so your Bronze Axe takes over.') fails.push('AW-60 storing the best axe says ' + toolLossWords(both, 'iron_axe', 1));
+  if (toolLossWords(both, 'iron_axe', 1) !== 'Woodcutting is slower without it. A tool only counts in your bag, so your Bronze Axe takes over.') fails.push('AW-60 storing the best axe says ' + toolLossWords(both, 'iron_axe', 1));
   if (toolLossWords(both, 'bronze_axe', 1) !== '') fails.push('AW-60 storing the axe that was not counting says ' + toolLossWords(both, 'bronze_axe', 1));
   if (toolLossWords(hero({ iron_axe: 2 }), 'iron_axe', 1) !== '') fails.push('AW-60 storing one of two axes says the rate changed');
-  if (toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1) !== 'Woodcutting is slower without it: a tool only counts in your bag.') fails.push('AW-60 storing the only axe says ' + toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1));
+  if (toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1) !== 'Woodcutting is slower without it. A tool only counts in your bag.') fails.push('AW-60 storing the only axe says ' + toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1));
   if (toolLossWords(both, 'rat_tail', 1) !== '') fails.push('AW-60 storing a rat tail warns about tools');
   /* A SHORT INPUT SAYS WHERE IT COMES FROM, where the shortage is read. */
   const wc = workRow('artisan', Object.keys(BENCH_INDEX).find((id) => { const i = BENCH_INDEX[id].recipe.inputs || {}; return i.silk_thread && Object.keys(i).length === 1; }));
@@ -1083,7 +1083,7 @@ async function planRules(base) {
   if (/critical chance ends/.test(UP.upgradeWords(stepOf({ weapon: 'bronze_sword', body: 'bronze_platebody' }, ['iron_platebody'])))) fails.push('AW-21 a step that ends no set says it ends one');
   /* A tie that stands says why the button is off (playtest 2026-10-29 #11: the line was hidden, nothing said). */
   const tieSaid = UP.upgradeWords(tieOf(null));
-  if (tieSaid !== 'Nothing goes on by itself: each piece is better at something. Body: Bronze Platebody or Leather Body. Boots: Bronze Boots or Leather Boots. Pick on the doll, or pick an armor weight at Tamsin\'s.')
+  if (tieSaid !== 'Nothing goes on by itself, since each piece is better at something. Body: Bronze Platebody or Leather Body. Boots: Bronze Boots or Leather Boots. Pick on the doll, or pick an armor weight at Tamsin\'s.')
     fails.push('AW-21 a standing tie reads ' + JSON.stringify(tieSaid));
   /* "Decide once": the shop's section bids only on what the bag holds, so a stack sold since (0 in the bag) is never
      called unsellable (playtest 2026-10-29: the coach rang a Sell its row had switched off). */
@@ -2086,7 +2086,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.state = Object.assign({}, s.env.state, { gold: 0 });
         await pushEnvelope(page, s);
         const b1 = await before();
-        if (b1 !== 'Runes: 3 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast | Food: 2 Wheat Bread of yours. You carry 5 Cooked Shrimp: put it on the bar to eat it | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | !No gold for the store: the hunt ends when your own supplies run out.')
+        if (b1 !== 'Runes: 3 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast | Food: 2 Wheat Bread of yours. You carry 5 Cooked Shrimp: put it on the bar to eat it | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | !No gold for the store, so the hunt ends when your own supplies run out.')
           fails.push('AW-27 Before you go kept a number the server replaced: ' + JSON.stringify(b1));
         /* The page's own modules (a planted defect in them is what is served): a fresh hero's starter bar (the designer's
            walk-through row 4) and Bring your heroes (this account's other open heroes in no party). */
@@ -2375,7 +2375,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('[data-hs-win="skills-trade"] [data-hs-act="work-back"]');
         await page.click('[data-hs-win="skills-trade"] [data-skill="runecrafting"]');
         await page.waitForTimeout(200);
-        if (!/Chalked Fire Rune\. For your own use: the shop and the Weighhouse won't take it\./.test(await say('[data-hs-win="skills-trade"] .hw-work-rows') || '')) fails.push('AW-60 Runecrafting rows read ' + await say('[data-hs-win="skills-trade"] .hw-work-rows'));
+        if (!/Chalked Fire Rune\. For your own use\. The shop and the Weighhouse won't take it\./.test(await say('[data-hs-win="skills-trade"] .hw-work-rows') || '')) fails.push('AW-60 Runecrafting rows read ' + await say('[data-hs-win="skills-trade"] .hw-work-rows'));
         await page.click('[data-hs-win="skills-trade"] [data-hs-act="work-back"]');
         await page.click('[data-hs-win="skills-trade"] [data-skill="woodcutting"]');
         await page.waitForTimeout(200);
@@ -2389,7 +2389,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await openWin(page, 'b', 'inventory');
         await page.hover('[data-hs-win="inventory"] .hw-pocket[data-item="chalked_fire_rune"]');
         const tip = await wait(page, () => document.querySelector('.hw-tip.is-on'), null, 1500) ? await say('.hw-tip') : '';
-        if (!/For your own use: the shop and the Weighhouse won't take it/.test(tip) || /priced/.test(tip)) fails.push('AW-60 the rune\'s tooltip reads ' + tip);
+        if (!/For your own use\. The shop and the Weighhouse won't take it/.test(tip) || /priced/.test(tip)) fails.push('AW-60 the rune\'s tooltip reads ' + tip);
         await page.mouse.move(2, 2);
         /* Storage: the counting axe put away says so, the one that wasn't counting does not. */
         await openWin(page, 't', 'storage');

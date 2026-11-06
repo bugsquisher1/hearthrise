@@ -60,7 +60,7 @@ const FARM_WORDS = Object.freeze({
   plot_tier_locked: 'Your plots need a higher tier for that crop.',
   still_watered: 'Still soaked. Water it again when this wears off.',
   water_capped: 'That plot cannot take more water.',
-  already_ready: 'It is ready: harvest it.',
+  already_ready: 'It\'s ready to harvest.',
   day_budget: 'You have farmed all you can today. More tomorrow.',
   farm_level_too_low: 'Your Farming level is too low for the next plot tier.',
   cannot_afford: 'Not enough gold for that.',
@@ -322,7 +322,7 @@ renderFarm.act = function actFarm(ctx, body, action, ev, t) {
     });
     return true;
   }
-  if (action === 'water') { run(sc, repaint, () => waterPlot(ctx.account, cs, plot), 'Watering…', () => 'Watered: it grows twice as fast for 2 hours.'); return true; }
+  if (action === 'water') { run(sc, repaint, () => waterPlot(ctx.account, cs, plot), 'Watering…', () => 'Watered. It grows twice as fast for 2 hours.'); return true; }
   if (action === 'harvest' || action === 'leave') {
     run(sc, repaint, () => harvestPlot(ctx.account, cs, plot, action === 'harvest'), 'Harvesting…', harvestLine);
     return true;

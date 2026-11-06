@@ -132,7 +132,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
   text(root.querySelector('.hw-house-name'), home ? tierName(home.tier) : 'Your house');
   const who = nameOf(cs);
   text(root.querySelector('.hw-house-note'), !home ? 'Reading your house from the server…'
-    : 'One house for all your characters. Gold comes from your shared purse; materials from ' + (who ? who + '\'s' : 'this hero\'s') + ' bag first, then Storage.');
+    : 'One house for all your characters. Gold comes from your shared purse, and materials from ' + (who ? who + '\'s' : 'this hero\'s') + ' bag first, then Storage.');
   /* THE DEED */
   const next = home ? home.tiers.find((t) => !t.owned) : null;
   rows(root.querySelector('.hw-deed'), home ? home.tiers : [], {

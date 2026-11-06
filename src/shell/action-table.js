@@ -147,15 +147,15 @@ export function sentenceOf(action, store) {
     if (!a || !a.rune) return { verb: 'Cast', item: abilityName(action.id), note: '' };
     const p = action.store ? (store || []).find((r) => r.id === action.store) : null;
     return { verb: 'Cast', item: abilityName(action.id),
-      note: '(uses 1 ' + runeWords(a.rune, 1) + (p ? '; once yours are gone, ' + itemName(p.id) + ' from the store at ' + p.price + ' g a cast)' : ', carried runes only)') };
+      note: '(uses 1 ' + runeWords(a.rune, 1) + (p ? '. Once yours are gone, ' + itemName(p.id) + ' from the store at ' + p.price + ' g a cast)' : ', carried runes only)') };
   }
   /* WHICH ARROWS FIRE (Andy #63; src/core/hunt/conditions.js attackOrder, the engine's one order): what you carry
      first, the worn ammo ahead of the bar's other ammo unless a slot has conditions, the store last. */
   if (action.type === 'attack_with_item') {
     const worn = own(ATTACK_KINDS, action.id);
     return { verb: 'Shoot with', item: worn ? 'the loaded ammo' : itemName(action.id),
-      note: worn ? '(the ammo you wear shoots first; the store sells a shot only once everything you carry is gone)'
-        : '(after the ammo you wear, unless you give this slot conditions; the store sells a shot only once everything you carry is gone)' };
+      note: worn ? '(the ammo you wear shoots first, and the store sells a shot only once everything you carry is gone)'
+        : '(after the ammo you wear, unless you give this slot conditions. The store sells a shot only once everything you carry is gone.)' };
   }
   const c = CONSUMABLES[action.id];
   return { verb: c && c.kind === 'drink' ? 'Drink' : 'Eat', item: itemName(action.id), note: '' };
@@ -195,7 +195,7 @@ export function sourceLine(row) {
   if (row.kind === 'ammo') return row.price !== null
     ? (n ? 'Uses your ' + n + ' first, then the store at ' + row.price + ' g a shot.' : 'You carry none. The store sells it at ' + row.price + ' g a shot.')
     : (n ? 'You carry ' + n + '. The store does not sell it, so after ' + n + ' shots this slot waits.' : 'You carry none, and the store does not sell it.');
-  return n ? 'You carry ' + n + '. The store does not sell it, so after ' + n + ' uses this slot waits; put a store item in a later slot to carry on.'
+  return n ? 'You carry ' + n + '. The store does not sell it, so after ' + n + ' uses this slot waits. Put a store item in a later slot to carry on.'
     : 'You carry none, so this slot waits. The store does not sell it.';
 }
 

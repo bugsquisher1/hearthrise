@@ -78,7 +78,7 @@ const LOOK_ROWS = [row({
   id: 'ui.windowOpacity',
   category: 'interface',
   label: 'Window opacity',
-  help: 'How solid windows and panels are. Lower lets the world show through them; their text and frames stay solid.',
+  help: 'How solid windows and panels are. Lower lets the world show through them, but their text and frames stay solid.',
   type: 'slider',
   default: PANEL_ALPHA.initial,
   options: Object.freeze({ min: PANEL_ALPHA.min, max: PANEL_ALPHA.max, step: PANEL_ALPHA.step, unit: '%' }),
@@ -110,7 +110,7 @@ const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !w.escape && w.key).map((w) => r
   type: 'hotkey', key: w.key,
 })).concat(HOTKEYS.map((k, i) => row({
   id: 'key.shell' + i, category: 'controls', label: k.does,
-  help: 'Hunts play themselves; keys only open windows.', type: 'hotkey', key: k.key,
+  help: 'Hunts play themselves. Keys only open windows.', type: 'hotkey', key: k.key,
 })));
 
 /* ── Help: how the game works (src/data/how-to-play.js HELP_NOTES, read-only notes the search finds),

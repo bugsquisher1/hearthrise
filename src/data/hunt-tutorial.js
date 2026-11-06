@@ -96,7 +96,7 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   world: anchor('the world pane (src/app/world-pane.js): nothing to ring'),
   hud_vitals: anchor('the bottom bar\'s Level, HP and stamina (action-bar.js): its hooks'),
   hunt_topbar: anchor('Leave hunt (HUNT_SCREEN_SPEC §1.4 hunt-topbar.js)'),
-  action_bar: anchor('the bar slot the card names (src/shell/widgets/action-bar.js), then Configure action\'s Save; shown in town too', 'configure-action'),
+  action_bar: anchor('the bar slot the card names (src/shell/widgets/action-bar.js), then Configure action\'s Save, shown in town too', 'configure-action'),
   farm: anchor('the Farm (src/shell/windows/farm.js): its icon, an empty plot\'s Plant, then ring.crop\'s Plant', 'farm', true),
   crafting: anchor('Gathering and crafting (src/shell/windows/work.js): its icon, ring.skill, then ring.work\'s Start', 'skills-trade', true),
   tally: anchor('Tamsin\'s tally (src/shell/windows/tally.js): her icon, the armor weight, then ring.task\'s Take', 'tally', true),
@@ -140,7 +140,7 @@ const step = (id, title, text, anchor, done, more) => Object.freeze({ id, title,
 /* The task Tamsin's card names: a solo task on the solo ground (tally-tasks.js). */
 const WOLVES = tallyTask('thicket_gray_wolves');
 /* The first place a new hero picks an armor weight: one sentence a weight (Tyler 2026-10-25, src/data/armour-weights.js). */
-const TAMSIN_WAY = 'Tamsin pays for kills. Open her tally and Take ' + WOLVES.count + ' ' + WOLVES.label + ': she pays in the armor weight that suits you.';
+const TAMSIN_WAY = 'Tamsin pays for kills. Open her tally and Take ' + WOLVES.count + ' ' + WOLVES.label + '. She pays in armor, so pick the armor weight that suits your style.';
 const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket';
 /* A second hero skips the knowledge cards once another hero on the account is past this Level (the designer's rule:
    it has lived through the first hour; the cards that set THIS hero's own state still show). */
@@ -210,7 +210,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* ── THE WEAPON IS THE STYLE, BEFORE ANY HUNT (the panel 2026-10-31: it came after the archer's disaster). One Got it, or
      a weapon taken up, and the first hunt's card follows. ── */
   step('styles', 'Every weapon is a style',
-    'There\'s no class to pick: the weapon you hold decides how you fight.',
+    'There\'s no class to pick. The weapon in your hand decides how you fight.',
     'inventory', { kind: 'any', of: [READ, { kind: 'weapon_changed' }] },
     { knowledge: true, gotIt: true, when: [IN_TOWN], hooks: ['[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]'] }),
   /* ── A. Before the first pull ───────────────────────────────────────── */
@@ -224,11 +224,11 @@ export const HUNT_TUTORIAL = Object.freeze([
      why, since the first kill's card waits for a kill that never comes). Equip loads a shot now (bag-model.js equipOps);
      these catch a hero who took it off or came by another door. First, so they stand before that wait. ── */
   step('load_shot', 'Nothing to shoot',
-    'Your weapon shoots what is loaded, and nothing is, so your hero won\'t attack.',
+    'Your weapon has nothing loaded, so your hero won\'t attack.',
     'inventory', { kind: 'shot_ready' }, { when: [IN_TOWN, { kind: 'no_shot' }],
       hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="{shot}"]', '[data-hs-win="inventory"] .hw-pick[data-item="{shot}"] [data-hs-act="primary"]'] }),
   step('load_shot_hunt', 'Nothing to shoot',
-    'Your weapon shoots what is loaded, and nothing is, so your hero won\'t attack. Leave the hunt, then put arrows on your bar from your bag.',
+    'Your weapon has nothing loaded, so your hero won\'t attack. Leave the hunt, then put arrows on your bar from your bag.',
     'hunt_topbar', { kind: 'shot_ready' }, { when: [HUNTING, { kind: 'no_shot' }] }),
   /* ── B. The first hunt: the cards the server finishes on its own come first (AUTO_KINDS) ── */
   step('first_kill', 'Your hero fights on its own',
@@ -237,15 +237,15 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* Shown from the first kill until Level 2 lands, so it never names the Level (playtest 2026-10-29: "Level 2" sat
      over a bar that read Lv 1). */
   step('first_level', 'Your first Level',
-    'Every kill pays Level XP and fills the ring around your Level. Each Level gives you more health and mana and opens new grounds and gear.',
+    'Every kill earns Level XP and fills the ring around your Level. Each new Level gives you more health and mana, and opens new grounds and gear.',
     'hud_vitals', { kind: 'level' }, { knowledge: true, holdOpen: true, hooks: ['[data-coach-hook="level"]'] }),
   /* ── Reactive cards that interrupt the chain (after the first-minute cards, so the shell's "passed" rule never
      replays one of those). Each starts on its own fact and explains what just happened. ── */
   step('stamina_low', 'Stamina is low',
-    'At 0 the hunt ends. Anything but hunting refills it hour for hour, and the + beside your stamina buys a top-up.',
+    'When it reaches 0, the hunt ends. Every hour you spend doing anything else gives an hour back, and the + beside your stamina buys a top-up.',
     'hud_vitals', READ, { reactive: true, when: [HUNTING, { kind: 'stamina_low' }], hooks: ['[data-coach-hook="stamina-buy"]'] }),
   step('first_death', 'You died',
-    'The hunt ended and your hero came home. Blessings cut what a death costs, and they\'re free for now: open the Shop\'s Services tab and Bless again.',
+    'The hunt ended and your hero came home. Blessings cut what a death costs, and they\'re free for now. Open the Shop\'s Services tab and Bless again.',
     'services', { kind: 'blessed' }, { reactive: true, when: [IN_TOWN, { kind: 'died' }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each Blessing while they\'re free.', hooks: TO_BLESS }),
   step('first_eat', 'Your hero just ate',
@@ -256,11 +256,11 @@ export const HUNT_TUTORIAL = Object.freeze([
     'action_bar', READ, { reactive: true, when: [HUNTING, FRESH, { kind: 'drank' }] }),
   /* Tyler 2026-10-25: the stance, chase and distance sit ON the bar's right side, never behind the sliders popup. */
   step('fight_settings', 'Taking a beating?',
-    'The stance on your bar changes how hard your hero hits and is hit: Defensive takes less damage and deals less.',
+    'The stance on your bar changes how hard your hero hits and gets hit. Defensive takes less damage and deals less.',
     'hud_vitals', { kind: 'any', of: [READ, { kind: 'stance_changed' }] },
     { reactive: true, knowledge: true, gotIt: true, when: [HUNTING, FRESH, { kind: 'eating_fast', n: BEATING_EATS, perHour: BEATING_PER_HOUR }], hooks: ['[data-coach-hook="stance"]'] }),
   step('more_heroes', 'More than one hero',
-    'Your hero keeps hunting while you do something else. You can play more heroes at once: press Characters, then Create hero in your empty slot.',
+    'Your hero keeps hunting while you do something else. You can play more than one hero at once. Press Characters, then Create hero in your empty slot.',
     /* A card that asks never walls: played 2026-11-01, a hero who wants one hero sat on this card in every hunt past 5 minutes, ahead of the Thicket's lessons. */
     'characters', orGotIt({ kind: 'heroes', atLeast: 2 }),
     { reactive: true, knowledge: true, gotIt: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
@@ -270,11 +270,11 @@ export const HUNT_TUTORIAL = Object.freeze([
      Cellar steps (played on live 10-28, Pellow beside Corliss). Past the Cellar stretch it fits. */
   /* A card that asks never walls (optimizer panel 11-03: "Next: Hunt together" for two days over a woodcutting alt, and nothing behind it was reached). */
   step('party_own', 'Hunt together',
-    'Your heroes can share a hunt. Right-click another hero\'s tab (on a phone: Heroes, then Invite) and choose Invite to party; your own heroes join at once. Then the Party window\'s Your party tab shows everyone in it.',
+    'Your heroes can hunt together. Right-click another hero\'s tab (on a phone, Heroes, then Invite) and choose Invite to party. Your own heroes join right away, and the Party window\'s Your party tab shows everyone in it.',
     'strip', orGotIt({ kind: 'partied' }), { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'own_hero_in_town' }],
       hooks: ['.char-tab[data-slot="{other}"]'] }),
   step('equip_upgrades', 'Wear what you found',
-    'You found gear that beats what you wear. Gear goes on in town: open your bag and press Equip upgrades.',
+    'You found gear that beats what you\'re wearing. You change gear in town, so open your bag and press Equip upgrades.',
     'inventory', { kind: 'upgrades_none' }, { reactive: true, when: [IN_TOWN, { kind: 'upgrades' }],
       inWindow: 'Press Equip upgrades. You can swap any piece back from your bag.', hooks: ['[data-hs-win="inventory"] [data-hs-act="equip-upgrades"]'] }),
   step('storage', 'Room in your bag',
@@ -284,7 +284,7 @@ export const HUNT_TUTORIAL = Object.freeze([
      card, so no hero was ever asked to fuel the Hearth. In town with a stack of fuel and no Inner Flame XP yet, the
      card names the stack and rings it in the bag, then its Fuel all. Finished by the server's Inner Flame XP. */
   step('fuel_hearth', 'Feed the Hearth',
-    'Burn your Bones in the Great Hearth to raise your Inner Flame: your hero recovers health and mana faster on every hunt. Open your bag, press your Bones, then Fuel all.',
+    'Burn your Bones in the Great Hearth to raise your Inner Flame. It helps your hero recover health and mana faster on every hunt. Open your bag, press your Bones, then Fuel all.',
     'inventory', { kind: 'skill_xp', skill: 'inner_flame' }, { reactive: true, when: [IN_TOWN, { kind: 'fuel_held', n: FUEL_CARD_AT }],
       inWindow: 'Press your Bones, then Fuel all. Your hero walks to the Great Hearth and burns them.',
       /* while the walk and the burn run (no XP yet) the ring rests: pressing Fuel all again only says it is running */
@@ -295,7 +295,7 @@ export const HUNT_TUTORIAL = Object.freeze([
      cards come before it, so never ahead of the first hunt), the card says so and names the Shop's piece every style
      can wear; wearing one finishes it. */
   step('no_defense', 'Defense isn\'t training',
-    'Defense rises only from blows you take while wearing armor or a shield, and you wear neither. The Shop sells Leather Gloves, which suit every way to fight.',
+    'Defense only rises from hits you take while wearing armor or a shield, and you have neither on. The Shop sells Leather Gloves, and every fighting style can wear them.',
     'shop', { kind: 'any', of: [READ, { kind: 'armoured' }] },
     { reactive: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND, { kind: 'unarmoured' }],
       inWindow: 'Press Buy, then buy Leather Gloves. Put them on from your bag.', hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="buy"]'] }),
@@ -306,7 +306,7 @@ export const HUNT_TUTORIAL = Object.freeze([
       + CROPS.turnip.hours + ' hours and cook into Turnip Juice, a drink.',
     'farm', orGotIt({ kind: 'planted', crop: 'turnip' }), { gotIt: true, when: [LESSON], ring: { crop: 'turnip' }, inWindow: 'Press Plant on an empty plot, then Plant on Turnip. Do it again for each empty plot.' }),
   step('bar_intro', 'Your action bar',
-    'Your hero uses this bar by itself. It tries the slots in order and uses the first one that\'s ready and whose conditions are all true.',
+    'Your hero uses this bar on its own. It checks the slots in order and uses the first one that\'s ready and whose conditions are all met.',
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON] }),
   /* WHY IT WAITS (designer 2026-11-05, lane/d-caster-first-fights): a default bar no longer reaches "Spells need runes", so a caster
      would lose the lesson about what a cast costs and why a slot waits. It sits on a real slot, the one the bar marks (src/shell/slot-waits.js).
@@ -316,7 +316,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON, { kind: 'slot_waits' }] }),
   /* A slot the hero picked Carried runes only for, with none left: no default bar reaches it (every default rune spell names its store rune). */
   step('spell_runes', 'Spells need runes',
-    'A spell on your bar has a line through it: every cast needs a rune, and you carry none.',
+    'A spell on your bar has a line through it. Every cast needs a rune, and you don\'t have any.',
     'action_bar', orGotIt({ kind: 'rune_ready' }), { gotIt: true, when: [LESSON, { kind: 'rune_struck' }], hooks: ['[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]'] }),
   step('food_when', 'Eat on time',
     'A food slot on your bar eats for you below an HP you set.',
@@ -341,8 +341,8 @@ export const HUNT_TUTORIAL = Object.freeze([
     'The gear icon at the top right opens Settings, and its Help page explains hunting, supplies, loot, gear and dying in plain words. It\'s there whenever you want it.',
     'settings', READ, { knowledge: true, gotIt: true, when: [HUNTING, THICKET_BEHIND], hooks: ['[data-hs-win="settings"] .st-tab[data-cat="help"]'] }),
   step('earn_the_thicket', 'Out to the brook',
-    'Keep hunting here until Level ' + HUNT_INDEX[THICKET].band[0] + ', about a quarter of an hour into your first hunt; then '
-      + HUNT_INDEX[THICKET].name + ' fits you. You can close the game: your hero keeps hunting until its stamina runs out, and what it earns waits for you.',
+    'Keep hunting here until Level ' + HUNT_INDEX[THICKET].band[0] + ', about fifteen minutes into your first hunt. Then a tougher challenge awaits in '
+      + HUNT_INDEX[THICKET].name + '. You can close the game and your hero keeps hunting until its stamina runs out. Everything it earns will be waiting for you.',
     'hud_vitals', { kind: 'unlock', hunt: THICKET }, { hooks: ['[data-coach-hook="stamina"]'] }),
   step('leave_cellar', 'Cash in',
     'Leave the hunt to go back to town. Your loot is already in your bag.',
@@ -351,7 +351,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* Blessings first on the way back: they are one press and the next ground is where a hero can die (the panel: "Before the
      wolves" came after the wolves). */
   step('bless', 'Before the wolves',
-    'Past the Cellar you can die. Blessings soften the cost and are free for now: in the Shop\'s Services tab, Bless all three.',
+    'Past the Cellar, you can die. Blessings soften the blow, and they\'re free for now. Open the Shop\'s Services tab and Bless all three.',
     'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('sell_loot', 'Sell what only pays coin',
@@ -362,7 +362,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* One decision, not a form (panel 2026-11-01: a 14-dropdown list at hour one, "I don't know what I don't need yet"): after the
      Thicket the bag knows what piles up, and a plan once set is kept for every hunt after (the first principle). */
   step('loot_rules', 'Decide once',
-    'Your bag\'s This hunt tab lists what you picked up. Pick one thing you only ever sell and set it to Sell: the game remembers, and Dispatch loot does every plan you set in one press.',
+    'Your bag\'s This hunt tab lists what you picked up. Pick one thing you only ever sell and set it to Sell. The game remembers, and Dispatch loot carries out every plan you set in one press.',
     'inventory', { kind: 'any', asks: true, of: [READ, { kind: 'loot_rule' }] },
     { knowledge: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND], inWindow: 'Press This hunt, then set one thing you only ever sell to Sell. Set more whenever you like.',
       hooks: ['[data-hs-win="inventory"] .hw-tab[data-tab="hunt"]', '[data-hs-win="inventory"] [data-rule-item][data-coin]'] }),
@@ -381,11 +381,11 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* Done when Tamsin pays, or once the hero hunts PAST the Thicket (#58, Andy: the wolves still held, out of the
      Sewer the card sent him back to the Thicket; the tally on screen still counts them and she still pays). */
   step('tamsin_pays', 'Paid in town',
-    'Hunt the Thicket until your ' + WOLVES.count + ' ' + WOLVES.label + ' are down; the tally on screen counts. Tamsin pays as you come back to town: '
-      + WOLVES.gold + ' gp and a piece of armor you don\'t own yet, or materials if you own them all.',
+    'Hunt the Thicket until your ' + WOLVES.count + ' ' + WOLVES.label + ' are down. The tally on screen keeps count. When you get back to town, Tamsin pays you '
+      + WOLVES.gold + ' gp and a piece of armor you don\'t own yet, or materials if you already own them all.',
     'world', { kind: 'any', of: [{ kind: 'tally_paid' }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
   step('go_below', 'Into the sewer, together',
-    'The Sewer is a party hunt. Pick The Sewer and Start with party: everyone walks in together. The Rat King holds the last room and only comes out for a party.',
+    'The Sewer is a party hunt. Pick The Sewer and Start with party, and everyone walks in together. The Rat King holds the last room and only comes out for a party.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
   step('save_setup', 'Keep this bar',
     'A setup is your whole loadout, bar and gear. Open Hunt prep and press Save current setup, so you can come back to it after trying another style.',
@@ -394,10 +394,10 @@ export const HUNT_TUTORIAL = Object.freeze([
       hooks: ['[data-hs-act="setups"]', '[data-hs-win="hunt-prep"] [data-coach-hook="setup-save"]'] }),
   /* ── F. Day one: each waits for the chain, then starts on its own fact ── */
   step('harvest_juice', 'Turnips are ready',
-    'Harvest them on the Farm, then cook Turnip Juice: Gathering and crafting, Cooking.',
+    'Harvest them on the Farm, then cook Turnip Juice in Gathering and crafting, under Cooking.',
     'farm', { kind: 'juice_made' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'turnips' }] }),
   step('juice_slot', 'Drink your own juice',
-    'Put your Turnip Juice in a drink slot before the store\'s juice: your own drinks cost nothing.',
+    'Put your Turnip Juice in a drink slot ahead of the store\'s juice. Your own drinks cost nothing.',
     'action_bar', { kind: 'drink_slot', item: 'turnip_juice' }, { reactive: true, dayOne: true,
       when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),
   /* KLAPPA'S CLUB (Tyler 2026-11-03; Andy's own idea, the first taste of the bench): a club hero's next rung is 10 Levels away and this one
@@ -413,13 +413,13 @@ export const HUNT_TUTORIAL = Object.freeze([
      prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Club, one card at a time: the club has a job in it and a Level on it, and the gold
      keeps. */
   step('purse_goal', 'What your gold buys',
-    'Your gold buys more than gear: another hero, and in the House, deeds, rooms and storage chests.',
+    'Your gold buys more than gear. It buys another hero, and deeds, rooms and storage chests for your House.',
     'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),
   step('home', 'Build your home',
-    'Your first house needs gold, ore and logs: start with logs in Gathering and crafting, Woodcutting.',
+    'Your first house needs gold, ore and logs. Start with logs from Woodcutting, in Gathering and crafting.',
     'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),
   step('own_runes', 'Make your own runes',
-    'Mine Rune Essence, then cut it into Blank Runes and bind them in Runecrafting. Your own runes cast the full spell; the store\'s rune casts a weaker one.',
+    'Mine Rune Essence, then cut it into Blank Runes and bind them in Runecrafting. Your own runes cast the full spell. The store\'s rune casts a weaker one.',
     'crafting', { kind: 'rune_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'rune_unowned' }] }),
   /* The first-hour rung (slot-ladders.js graypelt_cloak): at its Level with the pelts in the bag, the card rings the
      recipe. Finished by any Crafting XP (a fresh hero has none: the cloak is most heroes' first craft). */
@@ -440,7 +440,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* THE ONE DECISION OF LEVELS 10-30 (designer 2026-11-02, re-ruled with Tyler's harder monsters; a blind veteran found it by poking, +110% XP/h): it costs food now, and too big
      can kill, so it is named once with its price. The tier is that decision since 2026-11-04 (hunt-tiers.js). */
   step('pull_goal', 'How hard can you hunt?',
-    'Most hunts can be Dangerous or Deadly: the monsters hit harder, often more come at once, and every kill pays more XP. They cost more food, and they can kill you. Better armor and your Level let you hold them.',
+    'Most hunts can be Dangerous or Deadly. The monsters hit harder, more of them often come at once, and every kill earns more XP. These hunts cost more food, and they can kill you. Better armor and a higher Level let you handle them.',
     'hunt_picker', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: PULL_LEVEL, below: WANT_BELOW }] }),
 ]);
 
@@ -785,7 +785,7 @@ export const ROLE_WORDS = Object.freeze({ tank: 'a shield tank', melee_dps: 'a M
 const STANCE_WORDS = (() => {
   const pc = (pm) => Math.abs(pm - 1000) / 10 + '%';
   const d = HUNT_STANCES.defensive, o = HUNT_STANCES.offensive;
-  return 'Defensive takes ' + pc(d.taken) + ' less damage and deals ' + pc(d.dealt) + ' less; Offensive deals and takes ' + pc(o.dealt) + ' more.';
+  return 'Defensive takes ' + pc(d.taken) + ' less damage and deals ' + pc(d.dealt) + ' less. Offensive deals and takes ' + pc(o.dealt) + ' more.';
 })();
 
 /* MEASURED on the real settle (lane/c-caster-starter-bars: the Thicket at its floor on free Bronze Arrows, store rune on, at 2+, 2 h x 6 seeds, medians):
@@ -796,7 +796,7 @@ const SAY = Object.freeze({
     /* the bag's first stack the weapon can loose: the card names and rings it (none: the Hunts page's Ammo line says the rest) */
     const id = f.carried ? Object.keys(f.carried).find((x) => f.carried[x] > 0 && shootsItem(f.role, ITEMS[x])) : null;
     if (!id) return null;
-    return { text: 'Your ' + (name(f.weapon) || 'weapon') + ' shoots what is loaded, and nothing is, so your hero won\'t attack. Open your bag, press ' + name(id) + ', then Put on the bar.',
+    return { text: 'Your ' + (name(f.weapon) || 'weapon') + ' has nothing loaded, so your hero won\'t attack. Open your bag, press ' + name(id) + ', then Put on the bar.',
       textIn: 'Press ' + name(id) + ', then Put on the bar. Your hero shoots them from then on.', shot: id };
   },
   bar_intro: (f) => {
@@ -806,7 +806,7 @@ const SAY = Object.freeze({
       [at(isDrink), 'drink', 'drinks'], [at((s) => s.type === 'attack_with_item'), 'shoot', 'shoots']]
       .filter(([ix]) => ix.length).map(([ix, many, one]) => slotWords(ix) + ' ' + (ix.length > 1 ? many : one));
     if (!parts.length) return null;
-    return { text: 'Your hero uses this bar by itself. It tries the slots in order and uses the first one that\'s ready and whose conditions are all true. '
+    return { text: 'Your hero uses this bar on its own. It checks the slots in order and uses the first one that\'s ready and whose conditions are all met. '
       + uc(listed(parts)) + '.', barSlot: 0 };
   },
   why_it_waits: (f) => {
@@ -838,7 +838,7 @@ const SAY = Object.freeze({
     const fam = a && ITEMS[a.rune] ? ITEMS[a.rune].family : null;
     const st = fam && Array.isArray(f.store) ? f.store.find((r) => r && r.partner === a.rune) : null;
     if (!fam || !RUNE_FAMILIES[fam] || !st || !name(st.id)) return null;
-    return { text: uc(slotWords([i])) + ', ' + a.n + ', has a line through it: every cast needs ' + anA(RUNE_FAMILIES[fam].label) + ' rune, and you carry none. Press '
+    return { text: uc(slotWords([i])) + ', ' + a.n + ', has a line through it. Every cast needs ' + anA(RUNE_FAMILIES[fam].label) + ' rune, and you don\'t have any. Press '
       + slotWords([i]) + ', pick ' + name(st.id) + ' under "When your runes run out" (' + st.price + ' gp a cast from the store), then Save. Later you can make your own with Runecrafting.',
     barSlot: i, store: st.id };
   },
@@ -848,12 +848,12 @@ const SAY = Object.freeze({
     const s = f.slots[i], pct = hpBelow(s), heal = CONSUMABLES[s.id].amount, food = name(s.id);
     const max = Number.isFinite(f.hpMax) && f.hpMax > 0 ? f.hpMax : null;
     const head = uc(slotWords([i])) + ' eats your own ' + food + ' when your HP is below ' + pct + '%. ';
-    if (!max) return { text: head + uc(anA(food)) + ' heals ' + heal + ': eat too early and some of it is wasted, too late and a big hit can catch you. Press '
+    if (!max) return { text: head + uc(anA(food)) + ' heals ' + heal + '. Eat too early and some of it is wasted. Eat too late and a big hit can catch you. Press '
       + slotWords([i]) + ', set the HP with − or +, then Save.', barSlot: i };
     const lost = wasteAt(heal, pct, max);
     const missing = Math.round((max * (100 - pct)) / 100);
     if (lost <= 0) return { text: head + uc(anA(food)) + ' heals ' + heal + ', and at ' + pct + '% of your ' + max + ' HP you\'re missing ' + missing
-      + ', so none of it is wasted. Eat lower to save food or higher to play safe: press ' + slotWords([i]) + ', set it with − or +, then Save.', barSlot: i };
+      + ', so none of it is wasted. Eat lower to save food or higher to play safe. Press ' + slotWords([i]) + ', set it with − or +, then Save.', barSlot: i };
     /* where to stop: the first step down (Configure action's 5%) that wastes nothing, but never under EAT_FLOOR_PCT (a low
        hero's few HP; the designer's 50%), where a little waste is the price of eating before a big hit */
     let to = pct;
@@ -902,21 +902,21 @@ const SAY = Object.freeze({
   /* In a party a leaver takes the others home (Tyler 10-22: every ticked box, on by default): the card says so before the press (party panel 11-03). */
   /* The goal it reached, not the Level now: the card stays up while the hero levels on (read Level 5 on a Level 6 hero, v0.2.85 gate). */
   leave_cellar: (f) => ({ text: f.inParty === true
-    ? 'You\'ve reached Level ' + HUNT_INDEX[THICKET].band[0] + ', and your loot is already in your bag. Talk to your party first: if you leave the hunt, anyone with "Leave if anyone leaves the hunt or dies" ticked comes home too.'
+    ? 'You\'ve reached Level ' + HUNT_INDEX[THICKET].band[0] + ', and your loot is already in your bag. Talk to your party first. If you leave the hunt, anyone with "Leave if anyone leaves the hunt or dies" ticked comes home too.'
     : 'You\'ve reached Level ' + HUNT_INDEX[THICKET].band[0] + '. Leave the hunt to go back to town. Your loot is already in your bag.' }),
   styles: () => {
     /* the switch and the door to better ones, on top of the list (Tyler 2026-10-22; style-gear.js: each rung is made at a bench) */
     /* Short: over the town and inside a phone's bag sheet the long list cut Got it off the screen (played at 922x423). The
        creation step and Help carry each style's fuller words. */
-    return { text: 'No class to pick: the weapon you hold is how you fight. Press another in your bag, then Equip, any time in town.',
+    return { text: 'No class to pick. The weapon in your hand decides how you fight. Press another in your bag, then Equip, any time in town.',
       textIn: 'Sword and shield hold the monsters on you. Hatchets or a club hit hardest. A bow or crossbow shoots from range. A wand and book cast spells. A staff heals. Press one, then Equip, any time in town. Better ones are made in Gathering and crafting.' };
   },
   bless: (f) => {
     const b = f.blessings;
     if (!b || !Number.isInteger(b.freeUntil) || !(b.best > 0)) return null;
     /* Three lines (newcomer panel 2026-11-01: ten read like documentation): what to press. What a death costs is the death popup's, and Help's. */
-    return { text: 'Past the Cellar you can die. Blessings soften the cost and are free until Level ' + b.freeUntil
-      + ': in the Shop\'s Services tab, Bless all ' + inWords(b.of) + '.' };
+    return { text: 'Past the Cellar, you can die. Blessings soften the blow, and they\'re free until Level ' + b.freeUntil
+      + '. Open the Shop\'s Services tab and Bless all ' + inWords(b.of) + '.' };
   },
   /* The way, in three lines (newcomer panel 2026-11-01: twelve read like documentation, and a phone's Take was cut off under them). What each
      weight gives is her window's own line, beside the picker. */
@@ -925,16 +925,16 @@ const SAY = Object.freeze({
     const pick = w ? ' ' + uc(w) + ' suits ' + ROLE_WORDS[f.role] + '.' : '';
     return { text: TAMSIN_WAY,
     /* inside her window it no longer says "open her tally" */
-    textIn: 'Take ' + WOLVES.count + ' ' + WOLVES.label + ': each one counts, even while you\'re away. She pays you in armor, and you can change the weight under her board.' + pick };
+    textIn: 'Take ' + WOLVES.count + ' ' + WOLVES.label + '. Every one counts, even while you\'re away. She pays you in armor, and you can change the weight under her board.' + pick };
   },
   first_death: (f) => {
     const d = f.death, b = f.blessings;
     if (!d || !Number.isInteger(d.xp) || !b || !Number.isInteger(b.freeUntil)) return null;
     const who = f.name || 'Your hero';
     const kept = d.saved && Number.isInteger(d.saved.level) && d.saved.level > 0
-      ? '; your Blessings saved ' + d.saved.level.toLocaleString('en-US') + ' more and are used up now' : '. Blessings would have saved most of it';
+      ? '. Your Blessings saved ' + d.saved.level.toLocaleString('en-US') + ' more, and now they\'re used up' : '. Blessings would have saved most of it';
     return { text: 'The hunt ended and ' + who + ' came home. You kept your loot and your Level. Dying cost ' + d.xp.toLocaleString('en-US') + ' Level XP' + kept
-      + '. They\'re free until Level ' + b.freeUntil + ': open the Shop\'s Services tab and Bless ' + (d.saved ? 'again' : 'all ' + inWords(b.of)) + ' before you go back.' };
+      + '. They\'re free until Level ' + b.freeUntil + ', so open the Shop\'s Services tab and Bless ' + (d.saved ? 'again' : 'all ' + inWords(b.of)) + ' before you go back.' };
   },
   first_eat: (f) => {
     const ate = used(f, 'food', 'own');
@@ -944,9 +944,9 @@ const SAY = Object.freeze({
     const left = f.carried && Number.isInteger(f.carried[item]) ? f.carried[item] : f.slots[i].count;
     const st = slotOf(f, (s) => isStore(s) && BASIC_INDEX[s.id].kind === 'heal');
     const gp = st >= 0 ? priceOf(f, f.slots[st].id) : null;
-    const then = st >= 0 && gp !== null ? '; after that ' + slotWords([st]) + ' buys ' + name(f.slots[st].id) + ' at ' + gp + ' gp' : '';
+    const then = (w) => (st >= 0 && gp !== null ? ' ' + w + slotWords([st]) + ' buys ' + name(f.slots[st].id) + ' at ' + gp + ' gp.' : '');
     return { text: 'Your HP fell under ' + hpBelow(f.slots[i]) + '%, so ' + slotWords([i]) + ' ate ' + anA(name(item)) + '.'
-      + (Number.isInteger(left) ? (left > 0 ? ' You have ' + left + ' left' : ' That was your last one') + then + '.' : '') + ' Cook more to keep your gold.', barSlot: i };
+      + (Number.isInteger(left) ? (left > 0 ? ' You have ' + left + ' left.' + then('After that, ') : ' That was your last one.' + then('From now on, ')) : '') + ' Cook more to keep your gold.', barSlot: i };
   },
   first_drink: (f) => {
     const i = slotOf(f, (s) => isDrink(s) && below(s, 'self_mana_pct') !== null);
@@ -954,11 +954,11 @@ const SAY = Object.freeze({
     const s = f.slots[i], gp = isStore(s) ? priceOf(f, s.id) : 0;
     if (gp === null) return null;
     const how = isStore(s) ? 'buys ' + name(s.id) + ' (' + gp + ' gp)' : 'drinks your own ' + name(s.id);
-    return { text: 'Your moves cost mana. Below ' + below(s, 'self_mana_pct') + '% mana, ' + slotWords([i]) + ' ' + how + (isStore(s) ? '. Your own turnips cook into juice that costs nothing, once it has a slot on your bar before this one.' : '. Your own costs nothing.'), barSlot: i };
+    return { text: 'Your moves cost mana. Below ' + below(s, 'self_mana_pct') + '% mana, ' + slotWords([i]) + ' ' + how + (isStore(s) ? '. Turnips you grow cook into juice that costs nothing, once you give it a slot ahead of this one.' : '. Your own costs nothing.'), barSlot: i };
   },
   fight_settings: (f) => {
     const n = used(f, 'food');
-    return n ? { text: 'Your hero has eaten ' + sum(n) + ' times this hunt. Try the stance on your bar: ' + STANCE_WORDS + ' Target picks who your hero hits first.' } : null;
+    return n ? { text: 'Your hero has eaten ' + sum(n) + ' times this hunt. Try changing the stance on your bar. ' + STANCE_WORDS + ' Target picks who your hero hits first.' } : null;
   },
   more_heroes: (f) => {
     const h = heroesOn(f);
@@ -969,12 +969,12 @@ const SAY = Object.freeze({
   party_own: (f) => {
     const o = (heroesOn(f) || []).find((x) => x.slot !== f.self && x.open === true && x.hunting === false && x.name);
     if (!o) return null;
-    return { text: 'Your heroes can share a hunt. Right-click ' + o.name + '\'s tab (on a phone: Heroes, then Invite) and choose Invite to party; your own heroes join at once. A shield tank holds the pack and a staff heals. Then the Party window\'s Your party tab shows everyone in it.', other: o.slot };
+    return { text: 'Your heroes can hunt together. Right-click ' + o.name + '\'s tab (on a phone, Heroes, then Invite) and choose Invite to party. Your own heroes join right away. A shield tank holds the pack and a staff heals, and the Party window\'s Your party tab shows everyone in it.', other: o.slot };
   },
   equip_upgrades: (f) => {
     const ids = (f.upgrades || []).filter((id) => name(id));
     if (!ids.length) return null;
-    return { text: 'You found ' + listed(ids.slice(0, 2).map(name)) + (ids.length > 2 ? ' and more' : '') + '. Gear goes on in town: open your bag and press Equip upgrades.' };
+    return { text: 'You found ' + listed(ids.slice(0, 2).map(name)) + (ids.length > 2 ? ' and more' : '') + '. You change gear in town, so open your bag and press Equip upgrades.' };
   },
   purse_goal: (f) => {
     const nth = ORDINAL[(Number(f.slotsOwned) || 0) + 1];
@@ -983,9 +983,9 @@ const SAY = Object.freeze({
     const named = (r) => !!r && Array.isArray(r.items) && !r.items.some((x) => !name(x.id));
     const house = [named(f.home && f.home.next) ? 'the ' + f.home.next.name + ' (' + priced(f.home.next) + ')' : null,
       named(f.chest) ? 'storage chests (the ' + f.chest.name + ', ' + priced(f.chest) + ')' : null].filter(Boolean);
-    const hero = f.gold >= f.slotCost ? ': enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' : '. A ' + nth + ' hero costs ' + gp(f.slotCost) + ' (press Characters).';
-    const smith = f.temper ? ' The smith can temper your ' + f.temper.piece + ': ' + gp(f.temper.gold) + (f.temper.needs ? ' and ' + f.temper.needs : '') + ' for a first rung (Shop, Services).' : '';
-    return { text: 'You hold ' + gp(f.gold) + hero + (house.length ? ' In the House: ' + listed(house) + '.' : '') + smith };
+    const hero = f.gold >= f.slotCost ? ', enough for a ' + nth + ' hero (' + gp(f.slotCost) + ', press Characters).' : '. A ' + nth + ' hero costs ' + gp(f.slotCost) + ' (press Characters).';
+    const smith = f.temper ? ' The smith can temper your ' + f.temper.piece + ' to its first rung for ' + gp(f.temper.gold) + (f.temper.needs ? ' and ' + f.temper.needs : '') + ' (Shop, Services).' : '';
+    return { text: 'You have ' + gp(f.gold) + hero + (house.length ? ' The House sells ' + listed(house) + '.' : '') + smith };
   },
   stitch_cloak: () => {
     const r = (ARTISAN_RECIPES.crafting || []).find((x) => x.output === 'graypelt_cloak');
@@ -1006,28 +1006,28 @@ const SAY = Object.freeze({
     const top = f.bag ? FIRST_FUELS.map((id) => [id, Number(f.bag[id]) || 0]).sort((a, b) => b[1] - a[1])[0] : null;
     if (!top || !(top[1] > 0) || !name(top[0])) return null;
     const n = top[1], what = name(top[0]);
-    return { text: 'Your bag holds ' + what + ' ×' + n + '. Burn them in the Great Hearth to raise your Inner Flame: your hero recovers health and mana faster on every hunt, '
+    return { text: 'Your bag holds ' + what + ' ×' + n + '. Burn them in the Great Hearth to raise your Inner Flame. It helps your hero recover health and mana faster on every hunt, '
       + FLAME_PCT + '% faster by Inner Flame ' + FLAME_AT + '. Open your bag, press the ' + what + ', then Fuel all.', fuel: top[0],
     /* "Fuel all" without its count: the button counts Storage too (skills from storage, Tyler 2026-10-25) */
     textIn: 'Press the ' + what + ', then Fuel all. Your hero walks to the Great Hearth and burns them.' };
   },
   storage: (f) => {
     if (f.stacks == null || !f.bagCap) return null;
-    return { text: f.stacks + ' of your bag\'s ' + f.bagCap + ' spaces are used. Storage holds more, and all your heroes share it: open Storage and press a stack in your bag to put it away.' };
+    return { text: f.stacks + ' of your bag\'s ' + f.bagCap + ' spaces are used. Storage holds more, and all your heroes share it. Open Storage and press a stack in your bag to put it away.' };
   },
   harvest_juice: (f) => {
     const juice = (ARTISAN_RECIPES.cooking || []).find((r) => r.output === 'turnip_juice');
     if (!juice) return null;
     const ready = f.land && f.land.ready && f.land.ready.turnip > 0;
     /* Harvested, the way is the bench: the ring stayed on the Farm, whose window then showed "Cook your turnips" over a field with nothing left to press (door panel 2026-11-04). */
-    return { text: (ready ? 'Harvest them on the Farm, then cook' : 'Cook your turnips into') + ' Turnip Juice: Gathering and crafting, Cooking, ' + juice.name
+    return { text: (ready ? 'Harvest them on the Farm, then cook' : 'Cook your turnips into') + ' Turnip Juice. In Gathering and crafting, press Cooking, then Start on ' + juice.name
       + ' (1 turnip makes ' + (juice.outputQty || 1) + '). Your own juice costs nothing to drink.', ...(ready ? {} : { anchor: 'crafting', ring: { skill: 'cooking', work: juice.id } }) };
   },
   juice_slot: (f) => {
     const n = f.carried && f.carried.turnip_juice;
     if (!(n > 0)) return null;
     const st = slotOf(f, (s) => isStore(s) && BASIC_INDEX[s.id].kind === 'mana' && below(s, 'self_mana_pct') !== null);
-    if (st < 0) return { text: 'You carry ' + n + ' ' + name('turnip_juice') + '. Press an empty slot, pick ' + name('turnip_juice') + ', add a mana condition, then Save: your own drinks cost nothing.' };
+    if (st < 0) return { text: 'You carry ' + n + ' ' + name('turnip_juice') + '. Press an empty slot, pick ' + name('turnip_juice') + ', add a mana condition, then Save. Your own drinks cost nothing.' };
     const S = f.slots[st];
     return { text: 'You carry ' + n + ' ' + name('turnip_juice') + '. Press an empty slot, pick ' + name('turnip_juice') + ' and give it My mana % below '
       + below(S, 'self_mana_pct') + ', then press Earlier until it sits before ' + slotWords([st]) + ' (the store\'s ' + name(S.id) + ') and Save. Your own juice costs nothing, and the store\'s takes over once yours runs out.', barSlot: st };
@@ -1042,7 +1042,7 @@ const SAY = Object.freeze({
     if (t.items.some((x) => !name(x.id))) return null;
     const cost = t.gold + ' gp, ' + listed(t.items.map((x) => name(x.id) + ' ×' + x.qty));
     const next = need.length ? (node ? name(need[0].id) + ' so far: ' + need[0].have + ' of ' + need[0].qty + '. Get more in Gathering and crafting, ' + skill + ', ' + node.name + '.' : null)
-      : 'You have the materials: open the House and press Buy.';
+      : 'You have the materials, so open the House and press Buy.';
     return next ? { text: 'The ' + t.name + ' needs ' + cost + '. ' + next } : null;
   },
   own_runes: (f) => {
@@ -1055,15 +1055,15 @@ const SAY = Object.freeze({
     const ins = (x) => Object.entries(x.inputs || {})[0] || [];
     /* the recipes' own names are the buttons the player presses (and they are written plural) */
     return { text: 'Mine ' + ess.name + ' (Gathering and crafting, Mining), then in Runecrafting press ' + cut.name + ' (' + ins(cut)[1] + ' essence make ' + cut.outputQty
-      + ') and ' + bind.name + ' (' + ins(bind)[1] + ' blanks make ' + bind.outputQty + '). Your own runes cast the full spell; the store\'s rune casts a weaker one.' };
+      + ') and ' + bind.name + ' (' + ins(bind)[1] + ' blanks make ' + bind.outputQty + '). Your own runes cast the full spell. The store\'s rune casts a weaker one.' };
   },
   bless_paid: (f) => {
     const b = f.blessings;
     if (!b || !Array.isArray(b.prices) || !b.prices.length || !(b.best > 0)) return null;
     const total = b.prices.reduce((n, p) => n + p, 0);
     const which = b.prices.length === b.of ? 'all ' + inWords(b.of) : 'the ' + inWords(b.prices.length) + ' you don\'t hold';
-    return { text: 'From Level ' + b.freeUntil + ' each Blessing costs gold: ' + total + ' gp for ' + which + ' at Level ' + f.charLevel
-      + '. They still cut what a death takes by up to ' + Math.round(b.best / 10) + '%.' };
+    return { text: 'From Level ' + b.freeUntil + ', each Blessing costs gold. At Level ' + f.charLevel + ', ' + which + (b.prices.length === 1 ? ' comes to ' : ' come to ') + total
+      + ' gp, and they still cut what a death takes by up to ' + Math.round(b.best / 10) + '%.' };
   },
 });
 
@@ -1169,20 +1169,20 @@ function emptySlot(f) {
 /* The hero already paid for: the best thing an empty slot can do, doubling what the account earns for no gold. */
 function freeHeroLine(f) {
   const heroes = emptySlot(f);
-  return heroes === null || !ORDINAL[heroes + 1] ? null : 'Your ' + ORDINAL[heroes + 1] + ' hero is free: press Characters, then Create hero. It hunts while this one does.';
+  return heroes === null || !ORDINAL[heroes + 1] ? null : 'Your ' + ORDINAL[heroes + 1] + ' hero is free. Press Characters, then Create hero, and it hunts while this one does.';
 }
 /* The house's next deed the purse covers, its materials said. Gold's first job is the next hero (lane/c-gold-matters): a deed speaks when no hero is on offer, or the hero is too far off to save for. */
 function deedLine(f, offer) {
   const purse = Number.isSafeInteger(f.gold) ? f.gold : null;
   if (purse === null || (offer && purse >= offer.slot * SAVING_FROM)) return null;
   const deed = f.home && f.home.next && Array.isArray(f.home.next.items) && !f.home.next.items.some((x) => !name(x.id)) ? f.home.next : null;
-  return deed && purse >= deed.gold ? 'You can pay for the ' + deed.name + ' (' + [gp(deed.gold), ...deed.items.map((x) => name(x.id) + ' ×' + x.qty)].join(', ') + '): open the House.' : null;
+  return deed && purse >= deed.gold ? 'You can pay for the ' + deed.name + ' (' + [gp(deed.gold), ...deed.items.map((x) => name(x.id) + ' ×' + x.qty)].join(', ') + '). Open the House to buy it.' : null;
 }
 /* THE SMITH'S FIRST RUNG (Tempering, src/data/temper.js): named once a hero has twice its price in hand, so it never eats the food money, and only on a ladder this hero has not begun: after that it knows the way. */
 function temperLine(f) {
   const r = f.temper;
   if (!r || !Number.isSafeInteger(r.gold) || !Number.isSafeInteger(f.gold) || f.gold < r.gold * 2) return null;
-  return 'The smith can temper your ' + r.piece + ' for ' + gp(r.gold) + (r.needs ? ' and ' + r.needs : '') + ', a small gain that lasts: open the Shop\'s Services (R).';
+  return 'The smith can temper your ' + r.piece + ' for ' + gp(r.gold) + (r.needs ? ' and ' + r.needs : '') + ', a small gain that lasts. Open the Shop\'s Services (R).';
 }
 /* OUT OF STAMINA WITH GOLD IN HAND: the one purchase that never runs out, named at the moment it can be used, at the server's quote. The day's first costs about a third of what its hours earn
    (stamina-refill.js), so it speaks ahead of saving. Nearly out: under half an hour. */
@@ -1191,13 +1191,13 @@ function topUpLine(f) {
   const q = f.refill;
   if (!q || q.available !== true || !Number.isSafeInteger(q.price) || !Number.isSafeInteger(q.restoreMs) || !Number.isFinite(f.staminaMs) || f.staminaMs >= TOP_UP_UNDER_MS) return null;
   if (!Number.isSafeInteger(f.gold) || f.gold < q.price) return null;
-  return 'Your stamina is nearly out. ' + Math.round(q.restoreMs / 3600000) + ' more hours of hunting cost ' + gp(q.price) + ': press the + beside your stamina.';
+  return 'Your stamina is nearly out. ' + Math.round(q.restoreMs / 3600000) + ' more hours of hunting cost ' + gp(q.price) + '. Press the + beside your stamina.';
 }
 
 /* How a hero who hunts alone makes a party (the go_below card's lesson, said on the What next line instead). */
-const PARTY_HOW = 'Invite a friend, or make a second hero: up to four of yours can hunt at once.';
+const PARTY_HOW = 'Invite a friend, or make a second hero. Up to four of yours can hunt at once.';
 /* A hero with another hero of its own already needs only the press. */
-const PARTY_HOW_OWN = 'Right-click your other hero\'s tab (on a phone: Heroes, then Invite) and choose Invite to party.';
+const PARTY_HOW_OWN = 'Right-click your other hero\'s tab (on a phone, Heroes, then Invite) and choose Invite to party.';
 const partyHow = (f) => (Array.isArray(f.roster) && f.roster.length > 1 ? PARTY_HOW_OWN : PARTY_HOW);
 /* A ground built for a party: a pocket of it needs one (hunt-grounds.js minParty). */
 const partyGround = (hunt) => Object.values(HUNT_GROUNDS).some((g) => g.hunt === hunt && g.pockets.some((p) => (p.minParty || 1) > 1));
@@ -1255,14 +1255,14 @@ export function nextGoal(facts) {
   /* Defense at 0 XP means no armour worn (Tyler 2026-10-18: it trains only in armour). The fresh-hero play hit 117
      kills like that; the Shop's gloves and belts are the cheapest armour (designer 2026-10-22, the outfitter). */
   if (facts.defenseXp === 0) {
-    lines.push('Your Defense isn\'t training: it rises only while you wear armor. The Shop sells gloves and belts.');
+    lines.push('Your Defense isn\'t training. It only rises while you wear armor, and the Shop sells gloves and belts.');
     ids.push('armour');
   }
   const free = freeHeroLine(facts);
   if (free) { lines.push(free); ids.push('free_hero'); }
   const offer = heroOffer(facts);
   if (offer && offer.purse >= offer.slot) {
-    lines.push('You can pay for a ' + offer.nth + ' hero (' + gp(offer.slot) + '): press Characters. It hunts while this one does.');
+    lines.push('You can pay for a ' + offer.nth + ' hero (' + gp(offer.slot) + '). Press Characters, and it hunts while this one does.');
     ids.push('slot', String(offer.slot));
   }
   const topUp = topUpLine(facts);
@@ -1272,7 +1272,7 @@ export function nextGoal(facts) {
   const step = nextStepUp(groundHunts().map(adviceRow), facts.charLevel, solo);
   if (step && !visited(step.hunt)) {
     lines.push('Next step up: ' + HUNT_INDEX[step.hunt].name + ', built for Level ' + step.band[0] + '. ' + (solo ? 'You can' : 'Your party can')
-      + ' go now: more XP and better loot, a bigger food bill, and you could die. Press Hunts.');
+      + ' go now for more XP and better loot, but the food bill is bigger and you could die. Press Hunts.');
     ids.push('step', step.hunt);
   }
   /* The land is the ACCOUNT's (2026-12-14-shared-farm), so the line reads the field, never this hero's Farming XP
@@ -1283,14 +1283,14 @@ export function nextGoal(facts) {
   if (land && land.ready) {
     const ready = readyWords(land.ready);
     if (ready.words.length) {
-      lines.push(listed(ready.words) + (ready.plots === 1 ? ' is' : ' are') + ' ready on your land: open the Farm (J) to harvest '
+      lines.push(listed(ready.words) + (ready.plots === 1 ? ' is' : ' are') + ' ready on your land. Open the Farm (J) to harvest '
         + (ready.plots === 1 ? 'it.' : 'them.'));
       ids.push('harvest', ...ready.ids);
     }
   }
   /* AN HOUR'S GOAL WITH A PRESS (played 11-04: 28 hours and no task after the wolves): nothing held, and she pays for the grounds this hero walks. */
   if (facts.tally && facts.tally.held === 0) {
-    lines.push('Tamsin pays for kills, and in armor too: open her tally (Q) and take a task.');
+    lines.push('Tamsin pays for kills, in armor too. Open her tally (Q) and take a task.');
     ids.push('tally');
   }
   const deed = deedLine(facts, offer);
@@ -1298,14 +1298,14 @@ export function nextGoal(facts) {
   const smith = temperLine(facts);
   if (smith) { lines.push(smith); ids.push('temper', String(facts.temper.gold)); }
   if (offer && offer.purse < offer.slot && offer.purse >= offer.slot * SAVING_FROM) {
-    lines.push('A ' + offer.nth + ' hero costs ' + gp(offer.slot) + ', and you have ' + gp(offer.purse) + ': another hero hunting while this one does.');
+    lines.push('A ' + offer.nth + ' hero costs ' + gp(offer.slot) + ', and you have ' + gp(offer.purse) + '. That\'s another hero hunting while this one does.');
     ids.push('saving', String(offer.slot));
   }
   /* THE PARTY PITCH (designer playtest 2026-10-24): the solo chain ends here, not behind a party card, so a hero with
      no party hears of the party ground its Level fits, and how to make a party: once, on whichever line names it. */
   const fits = solo ? groundHunts().find((h) => partyGround(h) && HUNT_INDEX[h].band[0] <= facts.charLevel && facts.charLevel <= HUNT_INDEX[h].band[1]) : null;
   if (fits) {
-    lines.push(HUNT_INDEX[fits].name + ' fits your Level with a party. ' + partyHow(facts));
+    lines.push(HUNT_INDEX[fits].name + ' is right for your Level if you bring a party. ' + partyHow(facts));
     ids.push('party', fits);
   }
   /* THE NEXT GEAR, BY LEVEL (Tyler 2026-10-24): the lowest Level above the hero's that opens a piece a player can get
@@ -1330,7 +1330,7 @@ export function nextGoal(facts) {
     ids.push(next, String(HUNT_INDEX[next].band[0]), ...(party && solo && !fits ? ['solo'] : []));
   }
   if (land && land.planted === 0) {
-    lines.push('Nothing grows on your land: open the Farm (J) and plant a seed. Turnips are ready in ' + CROPS.turnip.hours + ' hours, sooner if watered.');
+    lines.push('Nothing is growing on your land. Open the Farm (J) and plant a seed. Turnips are ready in ' + CROPS.turnip.hours + ' hours, sooner if watered.');
     ids.push('farm');
   }
   const skill = ROLE_SKILL[facts.role];

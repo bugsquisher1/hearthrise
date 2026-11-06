@@ -34,7 +34,7 @@ export const BOSSES = {
     id: 'marrow_king', name: 'The Marrow King', title: 'Lord of the Bonepit',
     dungeon: 'crypt_of_bones', tier: 2, reqLv: 25, style: 'melee',
     weakness: 'hammer', resist: ['ranged'],
-    mechanic: 'Raises skeletons as it fights — bring burst before the swarm builds.',
+    mechanic: 'Raises skeletons as it fights, so bring burst before the swarm builds.',
     signature: ['warboss_standard'],
   },
   grimtusk: {
@@ -48,7 +48,7 @@ export const BOSSES = {
     id: 'pale_archivist', name: 'The Pale Archivist', title: 'Keeper of Forbidden Pages',
     dungeon: 'haunted_archive', tier: 4, reqLv: 45, style: 'magic',
     weakness: 'ranged', resist: ['magic'],
-    mechanic: 'Phase-shifts between pages — only vulnerable when it re-forms.',
+    mechanic: 'Phase-shifts between pages, and can only be hurt when it re-forms.',
     signature: ['whispering_codex', 'lexarch_seal'],
   },
   ashen_king: {
@@ -69,7 +69,7 @@ export const BOSSES = {
     id: 'elderscale', name: 'Elderscale, the Great Wyrm', title: 'Eldest of Dragons',
     dungeon: 'ancient_wyrm', tier: 7, reqLv: 95, style: 'ranged',
     weakness: 'ranged', resist: ['melee'],
-    mechanic: 'Breathes dragonfire in waves — dodge, load the ballista, then strike.',
+    mechanic: 'Breathes dragonfire in waves. Dodge, load the ballista, then strike.',
     signature: ['dragonfang_pike', 'elderscale_heart'],
   },
 };

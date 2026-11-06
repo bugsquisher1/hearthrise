@@ -29,6 +29,18 @@
 //                 defence, cancelled, -ise…) — player copy is American
 //                 (Tyler 2026-10-28); one-word labels are read too, and so is
 //                 every CHANGELOG.md entry from v0.2.64 on (the welcome modal's text)
+// THE VOICE (Discord playtest 2026-11-05, Andy: "so many ; in the text are a dead
+// giveaway of AI writing", "pays" for XP, "...fits you"; Tyler: "we are getting
+// absolutely flamed for the wording"). Read on the words: tags, HTML entities
+// (&lsaquo;) and a CSS declaration list are not prose.
+//   semicolon     a ";" in copy                   → two sentences, or "and"/"so"
+//   em-dash       a "—" in copy (a name/label field's "Room — Rung" is a label)
+//                                                 → a period or a comma
+//   pays-xp       "pays (more) Level XP", also across "' pays ' + n + ' more XP'"
+//                                                 → "earns"; gold is what pays
+//   fits-you      "<ground> fits you(r Level)" mid-sentence (the list TAG
+//                 "Fits your level" starts its string and is left alone)
+//                                                 → "is right for", "awaits"
 // plus a SHRINK-ONLY RATCHET on filler fantasy words in NAMES (DESIGN_STANDARDS
 // §2): Shadow, Void, Ancient, Eternal, Dark, Forgotten (whole word, any case)
 // in the `name`/`label`/`title`/`n` field of a data row under src/data/**.
@@ -147,14 +159,16 @@ export function prose(text) {
   return /[A-Za-z]{2,}[ ,.;:!?'’—-]+[A-Za-z]{2,}/.test(text) || /·/.test(text);
 }
 
-/* Developer text is not copy: a literal inside a console.* call, an Error, or
-   a catalogue's `formula`/`where` field never reaches a player. Read from the
+/* Developer text is not copy: a literal inside a console.* call, an Error, a
+   validator's message (`problems.push(`, `bad(`), or a catalogue's documentation
+   field (`formula`, `where`, and the price catalogue's `server_needs` /
+   `spends_at` / `anchor` / `origin`) never reaches a player. Read from the
    statement the literal sits in (back to the last ; { or }). */
 export function devOnly(src, at) {
   const back = src.slice(Math.max(0, at - 600), at);
   const stmt = back.slice(Math.max(back.lastIndexOf(';'), back.lastIndexOf('{'), back.lastIndexOf('}')) + 1);
-  if (/console\.\w+\(|Error\(|\blog\(|blockers\.push\(/.test(stmt)) return true;
-  return /["']?\b(formula|where)["']?\s*:\s*$/.test(back);
+  if (/console\.\w+\(|Error\(|\blog\(|blockers\.push\(|problems\.push\(|\bbad\(/.test(stmt)) return true;
+  return /["']?\b(formula|where|server_needs|spends_at|anchor|origin)["']?\s*:\s*$/.test(back);
 }
 
 /* One alternation for every plural name, compiled once per scan. */
@@ -164,8 +178,31 @@ export function pluralArticleRe(plurals) {
   return new RegExp('\\b[Aa]n? (?:' + alt + ')\\b');
 }
 
-export function lintText(text, pluralRe) {
+/* THE VOICE rules' patterns (header). `pays` then up to three words of the same
+   sentence, then (Level) XP: "every kill pays more XP", "pays 10% more Level XP". */
+export const PAYS_XP_RE = /\bpa(?:y|ys|id|ying)\b(?:\s+[^\s.!?;:]+){0,3}?\s+(?:Level\s+)?(?:XP|experience)\b/i;
+/* The two halves of "' pays ' + pct + ' more Level XP'": a literal ending on pay(s), the next one starting on (a word or two and) XP. */
+export const PAYS_TAIL_RE = /\bpa(?:y|ys|id|ying)\s*$/i;
+export const XP_HEAD_RE = /^\s*(?:[^\s.!?;:]+\s+){0,2}(?:Level\s+)?(?:XP|experience)\b/i;
+/* A ground or a hunt that "fits you." / "fits your Level": mid-sentence, or a literal that starts on it after a name (' fits you.').
+   A string that starts "Fits your level" is the list's tag; a glove that fits your hand is English. */
+export const FITS_YOU_RE = /(?:^\s+|\S\s+)fits (?:you(?=\s*[.,;:!?)]|\s*$)|your (?:Level|level|party|group)\b)/;
+/* A CSS declaration list ("display: none; color: red") is code, not a sentence. */
+const CSS_LIST_RE = /^\s*(?:-{0,2}[a-z][a-z-]*\s*:\s*[^;:]+;\s*)+(?:-{0,2}[a-z][a-z-]*\s*:\s*[^;:]*)?$/;
+
+/** The voice rules a prose literal breaks. `name`: it is a name/label field (an em dash there is a label's separator). */
+export function voiceRules(text, name = false) {
+  const w = String(text).replace(/<[^>]*>/g, ' ').replace(/&#?[A-Za-z0-9]+;/g, ' ');
   const hits = [];
+  if (/;/.test(w) && !CSS_LIST_RE.test(w)) hits.push('semicolon');
+  if (!name && /—/.test(w)) hits.push('em-dash');
+  if (PAYS_XP_RE.test(w)) hits.push('pays-xp');
+  if (FITS_YOU_RE.test(w)) hits.push('fits-you');
+  return hits;
+}
+
+export function lintText(text, pluralRe, name = false) {
+  const hits = voiceRules(text, name);
   const t = text.replace(/<[^>]*>/g, ' \u0000 ');   // tags are not copy; keep a gap marker
   /* also a literal glued to the number before it ("' + n + ' heroes in all'", "' in all'"): it starts with the space */
   if (/\b\d[\d,]*\s+[a-z]+(\s+[a-z]+)?\s+in all\b|§\s+[a-z]+(\s+[a-z]+)?\s+in all\b|^\s+(?:[a-z]+\s+){0,2}in all\b/i.test(t)) hits.push('in-all');
@@ -221,7 +258,28 @@ export function changelogFindings(text, file = 'CHANGELOG.md') {
 /* A waiver is one known literal the next edge deploy removes (edge-bundled
    files move only with that deploy). A waiver that no longer matches is stale
    and fails the gate, so it is deleted the day its fix lands. */
-const WAIVERS = [];
+/* THE VOICE IN EDGE-BUNDLED FILES (2026-11-05): these ship inside hr-accrue (tools/pack-edge.mjs), so their words
+   change only with an edge deploy, never in a client-only lane. Each one is rewritten on lane/a-copy-voice-edge, which
+   deletes its row here and rides the next deploy. Nothing may be added: a new slip in these files is red like any other. */
+const EDGE = (file, rule, ...texts) => texts.map((text) => ({ file: 'src/data/' + file, rule, text }));
+const WAIVERS = [
+  ...EDGE('boss-forge.js', 'semicolon', 'still-cold heart; nothing'),
+  ...EDGE('champions.js', 'semicolon', 'Frost Jarl; it never warms'),
+  ...EDGE('hunt-sessions.js', 'em-dash', 'Back in town — {activity}', 'supplies — the hunt ended'),
+  ...EDGE('items.js', 'em-dash', 'eat this — sell it'),
+  ...EDGE('library2-items.js', 'semicolon', 'climbed back out; the head'),
+  ...EDGE('library2-items.js', 'em-dash', 'its own sinew — the only bow', 'a hide backing — armor grown', 'no sound at all — not the cloth', 'bound in basalt — the last stone'),
+  ...EDGE('monster-classes.js', 'em-dash', 'People — bandits and casters'),
+  ...EDGE('monster-classes.js', 'semicolon', 'Crush them; poison'),
+  ...EDGE('shops.js', 'semicolon', 'not per unit; a vendor price list', 'to the outfitter (supply-basics.js, designer 2026-10-22); the eight',
+    'Nth hire; the last rung', 'hand-authored rows (lane S2; the outfitter'),
+  ...EDGE('slot-ladders.js', 'em-dash', 'plain shafts — a fletcher', 'faintly warm — they go in', 'wedding work — small, honest', 'cold glass — light passes',
+    'honest weather — the first cloak', 'spider\'s loom — it hangs', 'into one collar — the second', 'mithril band — it makes'),
+  ...EDGE('wave3-uniques.js', 'em-dash', 'in death-steel — a greatblade', 'onto dawnsteel — it weighs', 'plague-swarm\'s heart — a blade', 'will not die — every cast',
+    'on shadow-silk — it sharpens', 'own fading edge — it drinks', 'unblinking eye — it strikes', 'wizard\'s sigil — it whispers', 'night-bone shot — light, quick',
+    'clawed clasps — armor that', 'a steel frame — it hits back', 'a panther\'s shadow — weightless'),
+  ...EDGE('wave3-uniques.js', 'semicolon', 'of a pack-alpha; the bow'),
+];
 const usedWaivers = new Set();
 function waived(root, f, rule, text) {
   const rel = relative(root, f).split(sep).join('/');
@@ -239,13 +297,20 @@ export async function scan(root, opts = {}) {
   const findings = [];
   for (const f of files) {
     const src = readFileSync(f, 'utf8');
-    for (const { text, at } of stringLiterals(src)) {
+    const lits = stringLiterals(src);
+    for (let i = 0; i < lits.length; i++) {
+      const { text, at } = lits[i];
       if (devOnly(src, at)) continue;
       /* A one-word label ("Armour", ' colour ') is copy too for spelling: a
          capitalised word or one with a space round it. A bare lower-case
          token ('armour', 'armour/helm') is an id, never read. */
-      const rules = prose(text) ? lintText(text, pluralRe)
+      const name = NAME_KEY_RE.test(src.slice(Math.max(0, at - 40), at));
+      const rules = prose(text) ? lintText(text, pluralRe, name)
         : (/^[A-Z]|\s/.test(text) && britishWords(text).length ? ['spelling'] : []);
+      /* "' pays ' + pct + ' more Level XP'": the slip split across a join (the next literal, after a + only) */
+      const next = lits[i + 1];
+      if (next && !rules.includes('pays-xp') && PAYS_TAIL_RE.test(text) && XP_HEAD_RE.test(next.text)
+        && /^[^;{}]{0,160}\+\s*$/.test(src.slice(at + 1 + text.length, next.at)) && !devOnly(src, next.at)) rules.push('pays-xp');
       if (!rules.length) continue;
       const line = src.slice(0, at).split('\n').length;
       for (const rule of rules) {
@@ -359,6 +424,17 @@ async function selftest() {
       ['spelling', "export const a = r + ' colour ' + i;"],
       ['spelling', "export const a = 'Pick your favourite grey cloak from the centre rack';"],
       ['spelling', "export const a = 'Organise the bag: it was cancelled while travelling';"],
+      ['semicolon', "export const a = 'One house for all your heroes. Gold comes from your purse; materials from your bag.';"],
+      ['semicolon', "export const a = 'Bought today: ' + n + '; each one costs more.';"],
+      ['semicolon', "export const a = `Defensive takes ${d} less damage; Offensive deals more.`;"],
+      ['em-dash', "export const a = { one: 'You ran out of gold for supplies — the hunt ended.' };"],
+      ['em-dash', "export const a = 'Buy a hero slot — ' + whole(cost) + ' gold';"],
+      ['pays-xp', "export const a = 'Every kill pays Level XP and fills the ring around your Level.';"],
+      ['pays-xp', "export const a = 'They cost more food, and every kill pays more XP.';"],
+      ['pays-xp', "export const a = 'Each kill pays ' + PCT(t.xpPm) + ' more Level XP, with the same gold.';"],
+      ['pays-xp', "export const a = `Each kill pays ${pct} more experience`;"],
+      ['fits-you', "export const a = 'Keep hunting until Level 5. Then ' + name + ' fits you. You can close the game.';"],
+      ['fits-you', "export const a = HUNT.name + ' fits your Level with a party. ' + how;"],
     ];
     for (const [rule, body] of cases) {
       writeFileSync(plant, '// planted\n' + body + '\n');
@@ -383,6 +459,28 @@ async function selftest() {
     const idLeak = ids.findings.some((f) => f.rule === 'spelling');
     console.log(`  ${idLeak ? 'FALSE-POSITIVE' : 'ignored'}  spelling in ids / paths / selectors / classes`);
     if (idLeak) bad++;
+    // The voice rules read words only: gold that pays, the list's tag, an HTML entity, a CSS list, a label's
+    // separator, a validator's message, a price catalogue's notes, and an en dash in a range all stay silent.
+    const VOICE = ['semicolon', 'em-dash', 'pays-xp', 'fits-you'];
+    writeFileSync(plant, "export const a = ['Tamsin pays for kills, and in armor too.', 'The Shop pays more for gear than for scraps of XP.', 'Fits your level', 'A glove that fits your hand like its own skin',"
+      + " '<button>&lsaquo; All settings</button> and the rest', 'display: none; color: var(--ink)', 'Best with a party of 2–4 heroes'];\n"
+      + "export const R = { id: 'room.cellar.1', name: 'Cellar — Root Cellar', server_needs: 'player_state holds the COUNT; the server prices it — never the client' };\n"
+      + "function v(bad) { bad('L-COVER', 'is drawn behind a roof; the hero standing there would be hidden'); }\n");
+    const quiet = await scan(HERE_ROOT, { files: [plant] });
+    const loud = quiet.findings.filter((f) => VOICE.includes(f.rule));
+    console.log(`  ${loud.length ? 'FALSE-POSITIVE' : 'ignored'}  voice rules on gold, tags, entities, CSS, labels, dev text${loud.length ? ': ' + loud.map((f) => f.rule + ' ' + f.text).join(' | ') : ''}`);
+    if (loud.length) bad++;
+    // A waiver only shelters its own literal: a new slip in an edge-bundled file is red.
+    writeFileSync(plant, "export const D = { x: 'Bones and grief. Crush them; poison does nothing to the dead.' };\n");
+    const sheltered = (await scan(HERE_ROOT, { files: [plant] })).findings.some((f) => f.rule === 'semicolon');
+    console.log(`  ${sheltered ? 'caught' : 'MISSED'}  a waived literal outside its own file`);
+    if (!sheltered) bad++;
+    // A waiver whose literal is gone (rewritten on the edge lane) goes red until its row is deleted.
+    WAIVERS.push({ file: 'src/data/items.js', rule: 'em-dash', text: 'a literal that was rewritten' });
+    const staleW = (await scan(HERE_ROOT)).findings.some((f) => f.rule === 'stale-waiver' && f.text === 'a literal that was rewritten');
+    WAIVERS.pop();
+    console.log(`  ${staleW ? 'caught' : 'MISSED'}  stale-waiver (a fixed literal's row left behind)`);
+    if (!staleW) bad++;
     // A comment is not copy.
     writeFileSync(plant, "/* 'Smith 60 items in all' */\n// 'item(s)' 'an Apprentice Gloves'\nexport const a = 1;\n");
     const c = await scan(HERE_ROOT, { files: [plant] });

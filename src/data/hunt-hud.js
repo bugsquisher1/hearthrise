@@ -28,7 +28,7 @@ export const ROLE_GLYPH = Object.freeze({
 /* Keys that are not a window's own (each window row's `key` is listed from
    src/data/shell-windows.js, so a window's key is never typed twice). */
 export const HOTKEYS = Object.freeze([
-  Object.freeze({ key: 'Esc', does: 'Close the top window; with none open, open Settings' }),
+  Object.freeze({ key: 'Esc', does: 'Close the top window, or open Settings if none is open' }),
 ]);
 
 export const WEAPON_WORDS = Object.freeze({

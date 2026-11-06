@@ -310,6 +310,11 @@ export async function scan(root, opts = {}) {
       const next = lits[i + 1];
       if (next && !rules.includes('pays-xp') && PAYS_TAIL_RE.test(text) && XP_HEAD_RE.test(next.text)
         && /^[^;{}]{0,160}\+\s*$/.test(src.slice(at + 1 + text.length, next.at)) && !devOnly(src, next.at)) rules.push('pays-xp');
+      /* THE JOINS (v0.2.100 played: "Iron, Studded, Adept: bodies, legs; Bramble Blade"): a bare "; " or " — " literal glues
+         player words together in code (`.join('; ')`, `a + '; ' + b`, `${a}; ${b}`), so no prose literal ever holds the slip.
+         A bare ";" or "—" with no space after it is a code token (a map legend, a cache key) or a table's empty cell, and stays quiet. */
+      if (!rules.includes('semicolon') && /^\s*;\s+$|§\s*;\s+§/.test(text)) rules.push('semicolon');
+      if (!rules.includes('em-dash') && /^\s+—\s+$/.test(text)) rules.push('em-dash');
       if (!rules.length) continue;
       const line = src.slice(0, at).split('\n').length;
       for (const rule of rules) {
@@ -435,6 +440,10 @@ async function selftest() {
       ['fits-you', "export const a = 'Keep hunting until Level 5. Then ' + name + ' fits you. You can close the game.';"],
       ['fits-you', "export const a = HUNT.name + ' fits your Level with a party. ' + how;"],
       ['fits-you', "export function tag(party) { return party ? 'Fits your party' : 'Fits your level'; }"],
+      ['semicolon', "export const a = (e) => [e.slots.join(', '), e.weapons.join(', ')].filter(Boolean).join('; ');"],
+      ['semicolon', "export const a = (n, u, l) => 'You are missing ' + n + ' ' + u + '; ' + l + ' would be wasted.';"],
+      ['semicolon', "export const a = (x, y) => `${x}; ${y}`;"],
+      ['em-dash', "export const a = (lv, have) => 'Needs Level ' + lv + ' — ' + have;"],
     ];
     for (const [rule, body] of cases) {
       writeFileSync(plant, '// planted\n' + body + '\n');
@@ -465,7 +474,9 @@ async function selftest() {
     writeFileSync(plant, "export const a = ['Tamsin pays for kills, and in armor too.', 'The Shop pays more for gear than for scraps of XP.', 'Right for your level', 'A glove that fits your hand like its own skin',"
       + " '<button>&lsaquo; All settings</button> and the rest', 'display: none; color: var(--ink)', 'Best with a party of 2–4 heroes'];\n"
       + "export const R = { id: 'room.cellar.1', name: 'Cellar — Root Cellar', server_needs: 'player_state holds the COUNT; the server prices it — never the client' };\n"
-      + "function v(bad) { bad('L-COVER', 'is drawn behind a roof; the hero standing there would be hidden'); }\n");
+      + "function v(bad) { bad('L-COVER', 'is drawn behind a roof; the hero standing there would be hidden'); }\n"
+      + "export const cell = (r) => (r.per === null ? '—' : String(r.per));\n"
+      + "export function ev(bad) { if (bad.length) throw new Error('makeEvent: ' + bad.join('; ')); }\n");
     const quiet = await scan(HERE_ROOT, { files: [plant] });
     const loud = quiet.findings.filter((f) => VOICE.includes(f.rule));
     console.log(`  ${loud.length ? 'FALSE-POSITIVE' : 'ignored'}  voice rules on gold, tags, entities, CSS, labels, dev text${loud.length ? ': ' + loud.map((f) => f.rule + ' ' + f.text).join(' | ') : ''}`);

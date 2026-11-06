@@ -29,12 +29,13 @@ export function short(v) {
 }
 const trim = (x) => (x >= 100 ? String(Math.round(x)) : x.toFixed(1).replace(/\.0$/, ''));
 
-/** "A, B and C", or "A, B, C and 4 more" past `max`. */
-export function listWords(names, max = 3) {
+/** "A, B and C", or "A, B, C and 4 more" past `max`; `conj` 'or' for "A, B or C". The one way player text joins a list
+    (copy 11-06: never "; "). */
+export function listWords(names, max = 3, conj = 'and') {
   const a = Array.from(new Set(names));
   if (a.length <= 1) return a.join('');
-  if (a.length > max) return a.slice(0, max).join(', ') + ' and ' + (a.length - max) + ' more';
-  return a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+  if (a.length > max) return a.slice(0, max).join(', ') + ' ' + conj + ' ' + (a.length - max) + ' more';
+  return a.slice(0, -1).join(', ') + ' ' + conj + ' ' + a[a.length - 1];
 }
 
 /** 1,234 gp */

@@ -29,7 +29,7 @@ import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.100';
 import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.100';
 import { shortOf } from './item-lore.js?v=0.2.100';
 import { storeOf, storeWords, storeChoices, conditionWords } from './bar-draft.js?v=0.2.100';
-import { whole } from '../render/format.js?v=0.2.100';
+import { listWords, whole } from '../render/format.js?v=0.2.100';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -184,7 +184,7 @@ export function supplyLines(a, set, bag, worn) {
     Tyler 2026-10-23: nothing hidden stands behind a slot). */
 export function setupWords(w) {
   if (!w.conditions.length) return 'Always: whenever it is ready (no conditions).';
-  return (w.conditions.length > 1 ? (w.join === 'or' ? 'Any of: ' : 'All of: ') : 'When ') + w.conditions.map(conditionWords).join('; ') + '.';
+  return (w.conditions.length > 1 ? (w.join === 'or' ? 'Any of: ' : 'All of: ') : 'When ') + listWords(w.conditions.map(conditionWords), Infinity, w.join === 'or' ? 'or' : 'and') + '.';
 }
 
 /* A slot that heals its own hero: a food, or a self spell that heals. */

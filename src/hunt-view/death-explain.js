@@ -6,7 +6,7 @@
 // answers the player's question "what just happened?":
 //
 //   "Knight died: 3 Rat King hits (42, 38, 51), no heal for 6 s, Druid at
-//    4 mana; heal rule 'Knight below 50%' was waiting for mana."
+//    4 mana. Rule 'Knight below 50%' was waiting for mana."
 //
 // It READS events, it authors nothing: every number is one the server sent,
 // and an event with the same id counts once (the recorder de-duplicates).
@@ -24,6 +24,8 @@
 // Without either, the explanation names damage, healing gaps and supplies
 // only. Nothing is guessed.
 // ════════════════════════════════════════════════════════════════════════
+
+import { listWords } from '../render/format.js?v=0.2.100';
 
 export const EXPLAIN_WINDOW_MS = 10000;
 const MAX_HITS_LISTED = 4;
@@ -109,7 +111,9 @@ function explainFall(events, fall, who) {
   const killer = typeof fall.monster === 'string' ? spell(fall.monster) : null;
 
   const lines = [];
-  lines.push(who.name + ' died: ' + parts.join(', ') + (rules.length ? '; ' + rules.join('; ') : '') + '.');
+  /* the bar's rules, a sentence of their own on the same line (copy 11-06: no "; " joins) */
+  const ruled = rules.length ? listWords(rules, Infinity) : '';
+  lines.push(who.name + ' died: ' + parts.join(', ') + '.' + (ruled ? ' ' + ruled.charAt(0).toUpperCase() + ruled.slice(1) + '.' : ''));
   if (killingBlow) lines.push('The killing blow was ' + killingBlow.amount + ' from ' + killingBlow.by + '.');
   else if (killer) lines.push('The killing blow came from a ' + killer + '.');
 

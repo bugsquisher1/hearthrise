@@ -59,7 +59,7 @@ const wornOf = (cs) => (equipmentOf(cs) || {}).ammo || null;
    shot the worn weapon looses: a rune's version is its spell's (the server's `rune_level`), and food has no such gate. */
 function waitOf(id, role, skills) {
   const need = shootsItem(role, ITEMS[id]) ? shortOf(id, skills, null) : null;
-  return need ? need.text + ': it can’t be shot until then.' : null;
+  return need ? need.text + ', so it can’t be shot until then.' : null;
 }
 
 /** The bag's hunt supplies this running hunt could carry in, or null (see the header). */

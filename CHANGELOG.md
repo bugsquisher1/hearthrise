@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.104 — 2026-11-06 (Sign Out Means Sign Out)
+
+**Sign out stays where you click.** On a computer, the Characters and Sign out buttons used to slide along the top strip while your other heroes loaded. A click meant for Sign out could land on Characters, which left you signed in. Both buttons now stay put, and signing out no longer opens your next hero on the way out.
+
+**Plainer words, round two.** Boss call results, tutorial notes, item text, Tamsin's greeting and the older What's new entries now read as plain sentences.
+
 ## v0.2.103 — 2026-11-06 (Even Steps)
 
 **Smoother first Levels.** Levels 1 to 9 now climb in even steps, so Level 6 no longer takes twice as long as Level 5. Level 10 and up cost the same XP as before.

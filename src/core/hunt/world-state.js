@@ -23,19 +23,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.97';
-import { hashSeed } from '../rng.js?v=0.2.97';
-import * as movement from './movement.js?v=0.2.97';
-import * as targeting from './targeting.js?v=0.2.97';
-import * as roles from './roles.js?v=0.2.97';
-import * as pullCycle from './pull-cycle.js?v=0.2.97';
-import * as damage from './damage.js?v=0.2.97';
-import * as abilities from './abilities.js?v=0.2.97';
-import * as status from './status.js?v=0.2.97';
-import * as consumables from './consumables.js?v=0.2.97';
-import * as xpShare from './xp-share.js?v=0.2.97';
-import * as conditions from './conditions.js?v=0.2.97';
-import * as partySplit from '../party-split.js?v=0.2.97';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.98';
+import { hashSeed } from '../rng.js?v=0.2.98';
+import * as movement from './movement.js?v=0.2.98';
+import * as targeting from './targeting.js?v=0.2.98';
+import * as roles from './roles.js?v=0.2.98';
+import * as pullCycle from './pull-cycle.js?v=0.2.98';
+import * as damage from './damage.js?v=0.2.98';
+import * as abilities from './abilities.js?v=0.2.98';
+import * as status from './status.js?v=0.2.98';
+import * as consumables from './consumables.js?v=0.2.98';
+import * as xpShare from './xp-share.js?v=0.2.98';
+import * as conditions from './conditions.js?v=0.2.98';
+import * as partySplit from '../party-split.js?v=0.2.98';
 
 export const WORLD_VERSION = 1;
 

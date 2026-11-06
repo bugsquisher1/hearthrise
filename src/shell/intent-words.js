@@ -10,18 +10,18 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.97';
-import { ITEMS } from '../data/items.js?v=0.2.97';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.97';
-import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.97';
-import { levelOf } from '../session/character-sections.js?v=0.2.97';
-import { needOf, needWords } from './item-lore.js?v=0.2.97';
-import { whole } from '../render/format.js?v=0.2.97';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.97';
-import { marketRefusal } from './market-words.js?v=0.2.97';
-import { setupFullWords } from './setup-words.js?v=0.2.97';
-import { TITLES } from '../data/titles.js?v=0.2.97';
-import { sinkRefusal } from './sink-words.js?v=0.2.97';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.98';
+import { ITEMS } from '../data/items.js?v=0.2.98';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.98';
+import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.98';
+import { levelOf } from '../session/character-sections.js?v=0.2.98';
+import { needOf, needWords } from './item-lore.js?v=0.2.98';
+import { whole } from '../render/format.js?v=0.2.98';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.98';
+import { marketRefusal } from './market-words.js?v=0.2.98';
+import { setupFullWords } from './setup-words.js?v=0.2.98';
+import { TITLES } from '../data/titles.js?v=0.2.98';
+import { sinkRefusal } from './sink-words.js?v=0.2.98';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 

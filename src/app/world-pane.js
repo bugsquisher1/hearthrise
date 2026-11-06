@@ -12,14 +12,14 @@
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldViewOf } from './world-view.js?v=0.2.100';
-import { mountShell } from '../shell/shell.js?v=0.2.100';
-import { logFor } from '../hunt-view/combat-log.js?v=0.2.100';
-import { pickHunt } from '../shell/windows/hunts.js?v=0.2.100';
-import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.100';
-import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.100';
-import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.100';
-import { connection, loadingWords } from '../net/connection.js?v=0.2.100';
+import { worldViewOf } from './world-view.js?v=0.2.101';
+import { mountShell } from '../shell/shell.js?v=0.2.101';
+import { logFor } from '../hunt-view/combat-log.js?v=0.2.101';
+import { pickHunt } from '../shell/windows/hunts.js?v=0.2.101';
+import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.101';
+import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.101';
+import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.101';
+import { connection, loadingWords } from '../net/connection.js?v=0.2.101';
 
 /* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
 const KEEPER_WINDOWS = new Set([...TAP_WINDOWS, ...Object.values(SINK_TAPS).map((t) => t.window)]);
@@ -101,7 +101,7 @@ export async function mountWorldPane(host, character, o) {
   let runtime = null;
   let reloading = false;   // the World's module did not load and the page is about to try again by itself (src/platform/load-shell.js)
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=0.2.100').catch((e) => {
+    const { bootWorld } = await import('../world/world-boot.js?v=0.2.101').catch((e) => {
       const win = doc.defaultView;
       reloading = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();
       throw e;

@@ -10,11 +10,11 @@
 // field `huntSummaries`, with the death explanation (death-explain.js) taken
 // from those events. It authors no number: it reads the server's sections.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.100';
-import { roleIdOf } from '../session/party-sections.js?v=0.2.100';
-import { monsterName } from '../shell/widgets/bits.js?v=0.2.100';
-import { explainDeaths } from './death-explain.js?v=0.2.100';
-import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.100';
+import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.101';
+import { roleIdOf } from '../session/party-sections.js?v=0.2.101';
+import { monsterName } from '../shell/widgets/bits.js?v=0.2.101';
+import { explainDeaths } from './death-explain.js?v=0.2.101';
+import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.101';
 
 const ATTACHED = new WeakMap();
 

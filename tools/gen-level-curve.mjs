@@ -45,12 +45,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2027-02-09-walk-on-level-curve (lane/a-pull-freeze, Coordinator ruling 2026-10-29): 2027-02-08 is APPLIED history. With
    every pack down a hero now walks on to the next spawn (report #69), so Levels 5-15 earn 7-12% more an hour and Level 25
    fell to 32 h; re-measured (plans pace + ladder) and re-fitted by pace.mjs --fit (minimax 3.3%). Same table, new rows. */
-/* ⚠ THE NEXT CURVE FILE (lane/c-envelope-diff, 2026-10-30): 2027-02-11-settle-plan-cache-2.generated.sql restates
-   hr_char_xp_for_level as LANGUAGE plpgsql (its SQL body verbatim inside `return (select hr_q.v from ( .. ) as hr_q(v)
-   limit 1)`), because PostgreSQL 17 re-plans a SQL body on every call (32 a watched settle). A new curve file placed after
-   it must emit that plpgsql form too, or tests/settle-budget.mjs SB-3 goes red naming this generator. The template below
-   is unchanged on purpose: it must keep writing the APPLIED file named here byte for byte (--check). */
-export const OUT_NAME = '2027-02-09-walk-on-level-curve.generated.sql';
+/* 2027-03-15-pace-final-level-curve (lane/b-pace-final, the final pace re-measure before the wipe, 2026-11-06): 2027-02-09 is
+   APPLIED history. Re-measured on the set that holds every change that moves combat or drops (plans pace + ladder): the ladder
+   now trends 1019 x L^1.365 (LEVEL_PACE.contract follows it, so the brackets from Level 50 re-fit: pace.mjs --fit --fit-past),
+   and Level 6 sat at 2.03x Level 5's minutes (C6), so Levels 1-9 re-shape at 1.95x from the Thicket (pace.mjs --fit
+   --hold-from 10); Levels 10-49 cost what they did. ROWS ONLY: 2027-02-11-settle-plan-cache-2.generated.sql holds
+   hr_char_xp_for_level as LANGUAGE plpgsql (PostgreSQL 17 re-plans a SQL body on every call) and hr_char_level is plpgsql;
+   both read the table, so this file restates neither (a SQL copy would turn tests/settle-budget.mjs SB-3 red) and its §0
+   refuses to run before 02-11. */
+export const OUT_NAME = '2027-03-15-pace-final-level-curve.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */
@@ -69,6 +72,7 @@ export function buildSql(XP) {
   const deep = pins.filter(([, x]) => Number.isSafeInteger(x));
   const values = rows.map((r) => `  (${r.from}, ${r.base}, ${r.first}, ${r.rise}, ${r.bend})`).join(',\n');
   const pinValues = deep.map(([L, x]) => `(${L}, ${x})`).join(', ');
+  const l10 = XP.charXpForLevel(10), l50 = XP.charXpForLevel(50);
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE LEVEL CURVE  (GENERATED — DO NOT EDIT)
 --
@@ -80,36 +84,33 @@ export function buildSql(XP) {
 -- balance ruling 2026-10-25 §2: L10 6 h, L25 36 h, L50 168 h ... L1000 23,520 h of
 -- efficient hunting, held on the real engine by tools/balance-sim): from a bracket's
 -- start Level the step to the next Level costs first + rise x m + bend x m^2 (m Levels
--- into the bracket). hr_level_curve holds ${rows.length} rows, rewritten whole; the two curve
--- functions are restated unchanged (their signatures, volatility and grants too), so
--- every reader (the settle's death floor, hr_level_block, hr_level_of, the analyzer's
--- ETA) follows with no edit. SINCE 2027-02-01 (lane/b-curve-smooth, the new-player walk:
--- five Levels in 15 min, then a 7x wall at Level 6): the first ten Levels are paced one
--- by one, each about twice the minutes of the one before in the Mill Cellar and about
--- 1.77x in the Thicket; from Level 10 (137,918 XP) every total is what it was.
--- LIVE CHARACTERS: nothing is stored per Level, so a character whose Level XP now
--- makes a different Level simply shows that Level; no row is written. The death
--- floor is re-read at each settle, so the edge's and the server's floors agree once
--- the hr-accrue deploy carrying the same LEVEL_CURVE follows this file (AT ONCE:
--- between the two, a death's loss is priced on the old curve and may be refused once
--- as death_xp_over, then settles on the next tick after the deploy).
--- LIVE CHARACTERS UNDER LEVEL 10 may move a Level (5,000 XP was Level 6, now 5: Levels 5-9 cost
--- more, 1-4 about the same); nothing is written, and from 137,918 XP on nothing changes.
--- NEW IN 2027-02-09 (lane/a-pull-freeze, Coordinator ruling 2026-10-29): with every pack
--- down a hero walks on to the next spawn (report #69), so the pace was re-measured and every
--- bracket from Level 4 re-fitted (Level 10 at 177,499 XP, was 157,965; Level 5's total is
--- unchanged): live characters from Level 6 up may read a Level lower; nothing is written.
--- ORDER: any time after 2027-02-01-level-curve.generated.sql (APPLIED); the hr-accrue
--- deploy carrying the same LEVEL_CURVE follows AT ONCE. With 2027-02-09: apply this file,
--- deploy hr-accrue at once, then apply 2027-02-09-cellar-respawn (its kill bound wants the
--- edge first). No begin/commit (CLAUDE.md §2).
+-- into the bracket). hr_level_curve holds ${rows.length} rows, rewritten whole. ROWS ONLY: the two
+-- curve functions read this table and are not restated (hr_char_xp_for_level is LANGUAGE
+-- plpgsql since 2027-02-11-settle-plan-cache-2.generated.sql: a SQL copy is re-planned on
+-- every call on PostgreSQL 17), so every reader (the settle's death floor, hr_level_block,
+-- hr_level_of, the analyzer's ETA) follows with no edit.
+-- NEW IN 2027-03-15 (lane/b-pace-final, 2026-11-06, the final pace re-measure before the
+-- wipe): the ground ladder now pays 1019 x L^1.365 Level XP an hour, so every bracket from
+-- Level 50 re-fits to it; Levels 1-9 re-shape so no Level takes more than 1.95x the minutes
+-- of the one before (Level 6 read 2.03x). Level 10 at ${l10} XP, Level 50 at ${l50};
+-- Levels 10-49 cost what they did. LIVE CHARACTERS: nothing is stored per Level, so a
+-- character whose Level XP now makes a different Level simply shows it; no row is written.
+-- The death floor is re-read at each settle, so the edge's and the server's floors agree
+-- once the hr-accrue deploy carrying the same LEVEL_CURVE follows this file (AT ONCE:
+-- between the two, a death's loss is priced on the old curve and may be refused once as
+-- death_xp_over, then settles on the next tick after the deploy).
+-- ORDER: after 2027-02-11-settle-plan-cache-2.generated.sql (APPLIED); the hr-accrue deploy
+-- carrying the same LEVEL_CURVE follows AT ONCE. No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
 do $mig$
 begin
   if to_regprocedure('public.hr_char_level(bigint)') is null or to_regprocedure('public.hr_char_xp_for_level(integer)') is null then
-    raise exception 'PRECONDITION: apply 2026-10-27-core-bodies.sql first (the curve functions this file restates)'; end if;
+    raise exception 'PRECONDITION: apply 2026-10-27-core-bodies.sql first (the curve functions this file feeds)'; end if;
+  if (select l.lanname from pg_proc p join pg_language l on l.oid = p.prolang
+       where p.oid = 'public.hr_char_xp_for_level(integer)'::regprocedure) <> 'plpgsql' then
+    raise exception 'PRECONDITION: apply 2027-02-11-settle-plan-cache-2.generated.sql first (hr_char_xp_for_level as plpgsql)'; end if;
 end $mig$;
 
 -- ── §1 THE ROWS ──────────────────────────────────────────────────────────────
@@ -128,49 +129,7 @@ delete from public.hr_level_curve;
 insert into public.hr_level_curve (from_level, base_xp, first_xp, rise, bend) values
 ${values};
 
--- ── §2 THE CURVE FUNCTIONS (src/core/xp.js charXpForLevel / charLevelFromXp) ──
--- Total XP to reach a Level: its bracket's base + first m + rise m(m-1)/2 + bend (m-1)m(2m-1)/6, exact.
-create or replace function public.hr_char_xp_for_level(p_level int)
-returns bigint language sql stable set search_path = public, pg_catalog as $$
-  select (c.base_xp + c.first_xp * m + c.rise * div(m * (m - 1), 2) + c.bend * div((m - 1) * m * (2 * m - 1), 6))::bigint
-    from (select greatest(1, coalesce(p_level, 1)) as l) x
-    cross join lateral (select * from public.hr_level_curve k where k.from_level <= x.l order by k.from_level desc limit 1) c
-    cross join lateral (select (x.l - c.from_level)::numeric as m) mm
-$$;
-revoke execute on function public.hr_char_xp_for_level(int) from public, anon, authenticated, service_role;
-
--- The Level an XP total makes: the last bracket whose base it reaches, then the largest m inside it whose total it
--- reaches (a binary search; the open last bracket is bounded by doubling, capped at 10^7 Levels).
-create or replace function public.hr_char_level(p_xp bigint)
-returns int language plpgsql stable set search_path = public, pg_catalog as $$
-declare
-  x    numeric := greatest(0, coalesce(p_xp, 0));
-  c    public.hr_level_curve%rowtype;
-  nxt  int;
-  lo   numeric := 0;
-  hi   numeric;
-  mid  numeric;
-begin
-  select * into c from public.hr_level_curve k where k.base_xp <= x order by k.from_level desc limit 1;
-  if not found then return 1; end if;
-  select min(k.from_level) into nxt from public.hr_level_curve k where k.from_level > c.from_level;
-  if nxt is not null then
-    hi := nxt - c.from_level;
-  else
-    hi := 1;
-    while hi < 10000000 and c.base_xp + c.first_xp * hi + c.rise * div(hi * (hi - 1), 2) + c.bend * div((hi - 1) * hi * (2 * hi - 1), 6) <= x loop
-      hi := hi * 2;
-    end loop;
-  end if;
-  while hi - lo > 1 loop
-    mid := div(lo + hi, 2);
-    if c.base_xp + c.first_xp * mid + c.rise * div(mid * (mid - 1), 2) + c.bend * div((mid - 1) * mid * (2 * mid - 1), 6) <= x then lo := mid; else hi := mid; end if;
-  end loop;
-  return c.from_level + lo::int;
-end $$;
-revoke execute on function public.hr_char_level(bigint) from public, anon, authenticated, service_role;
-
--- ── §4 SELF-CHECK (CLAUDE.md §4) ──────────────────────────────────────────────
+-- ── §2 SELF-CHECK (CLAUDE.md §4) ──────────────────────────────────────────────
 -- The rows are exactly the generated set; both functions answer the JS values at every pinned Level (bracket edges,
 -- the target Levels, a deep one) and read back each boundary exactly (x - 1, x, the next total - 1); every step from
 -- Level 1 to 3,000 costs more than the one before; the block a fresh hero projects is Level 1 needing the first step;
@@ -234,12 +193,15 @@ async function selftest() {
   expectThrow('a fractional bend', planted((c) => { c.brackets[0].bend = 1.5; return c; }));
   expectThrow('a first step of 0 XP (Level 2 for nothing)', planted((c) => { c.first = 0; return c; }));
   const sql = buildSql(XP);
-  if (!/revoke all on public\.hr_level_curve/.test(sql) || !/revoke execute on function public\.hr_char_level\(bigint\)/.test(sql)) { console.error('  MISSED  the curve is client-reachable'); bad++; }
+  /* the rows are revoked here; the functions' grants stand from the file that last restated them, and the self-check executes
+     has_function_privilege on both for every client role */
+  if (!/revoke all on public\.hr_level_curve/.test(sql) || !/has_function_privilege\(v_role, 'public\.hr_char_level\(bigint\)', 'execute'\)/.test(sql)
+      || !/has_function_privilege\(v_role, 'public\.hr_char_xp_for_level\(integer\)', 'execute'\)/.test(sql)) { console.error('  MISSED  the curve is client-reachable'); bad++; }
   else console.log('  caught  a client-reachable curve');
-  /* the two function bodies (each from its `create or replace` to its closing `$$;`) never read the retired limits */
-  const bodies = sql.split('create or replace function').slice(1).map((b) => b.slice(0, b.indexOf('$$;')));
-  if (bodies.length !== 2 || bodies.some((b) => /level_quartic|hr_hunt_limit/.test(b))) { console.error('  MISSED  a function still reads the old limits'); bad++; }
-  else console.log('  caught  a function reading the retired limits');
+  /* rows only (2027-03-15): the file restates no function, so neither curve function can come back as SQL (settle-budget SB-3)
+     or read the retired limits */
+  if (/create or replace function/.test(sql) || /level_quartic|hr_hunt_limit/.test(sql)) { console.error('  MISSED  the file restates a curve function'); bad++; }
+  else console.log('  caught  a curve function restated (SQL, re-planned per call)');
   if (bad) { console.error('gen-level-curve --selftest: ' + bad + ' refusal(s) did not bite'); process.exit(1); }
   console.log('gen-level-curve --selftest: every refusal bites');
 }

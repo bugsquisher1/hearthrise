@@ -1400,9 +1400,13 @@ jobs:
   # of ~15. A mutant now stops at its first red arm. MEASURED on Tyler's PC under load: 0.4 +
   # 11.1 min, not yet on a runner. 1 + 0.4 + 11.1 = 12.5; x2 = 25, 28 so the apt stall
   # (12.5 + 12.2 = 24.7) keeps 12% slack.
+  # 2026-11-06 (lane/t-v099-reds): the Call out window joins it from client-guards, which installs no browser (run
+  # 42146852443: "Executable doesn't exist"). MEASURED on Tyler's PC under load: plain 1.8 min, --mutate (13 mutants,
+  # each the whole rule set) about 75; at a page guard's minute a mutant on a runner, ~14. 12.5 + 14 = 26.5; x2 = 53,
+  # 55 so the apt stall (26.5 + 12.2 = 38.7) keeps 30% slack.
   in-page-23:
     runs-on: ubuntu-latest
-    timeout-minutes: 28
+    timeout-minutes: 55
 
     steps:
       - uses: actions/checkout@v4
@@ -1432,6 +1436,15 @@ jobs:
         run: |
           node tests/auth-lock.mjs
           node tools/mutant-gate.mjs node tests/auth-lock.mjs --mutate
+
+      # CALL OUT ON THE GROUND'S PAGE (lane/c-boss-call): the server's words, the warning then ONE press at the quoted price,
+      # a moved price, no hammer, no free way back, the losing line and the boss bar. The money line and the server's half
+      # (tests/boss-call.mjs, tests/boss-call-db.mjs) stay in client-guards: they need no browser.
+      - name: Call out window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/boss-call-window.mjs
+          node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate
 
       - name: Upload failure artifacts
         if: failure()
@@ -5023,8 +5036,6 @@ jobs:
           node tools/mutant-gate.mjs node tests/boss-call.mjs --mutate
           node tests/boss-call-db.mjs
           node tools/mutant-gate.mjs node tests/boss-call-db.mjs --mutate
-          node tests/boss-call-window.mjs
-          node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate
       - name: Gold sinks - hero colors
         if: ${{ !cancelled() }}
         run: |

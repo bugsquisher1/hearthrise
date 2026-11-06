@@ -2195,24 +2195,37 @@ const DB_ARMS = {
     await version('Flame Strike, Melee 1, Magic 20, Scored Fire', { ...BLADE, skillsXp: xpAt('magic', 20) }, 'scored_fire_rune', 'rune_level');
     return problems;
   },
-  'RUNE-LADDER-IDEM': async (db) => inTx(db, async () => {
+  /* On the chain AS OF the lane's last file (PARTY-LEAVE-IDEM's move, boss-call-db BD-AGAIN): later full-replace catalogues
+     (Etched's 12 g, the jewelry rows) own these rows at the chain end, so a re-apply there rolls them back by design. */
+  'RUNE-LADDER-IDEM': async () => {
     const FILES = ['2027-03-08-rune-ladder-items-catalogue.generated.sql', '2027-03-08-rune-ladder-bench-tax-rates.generated.sql',
-      '2027-03-11-etched-12g-hunt-sessions-catalogue.generated.sql', '2027-03-08-rune-ladder-rune-spells.generated.sql', '2027-03-08-rune-ladder-slots.sql'];
+      '2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql', '2027-03-08-rune-ladder-rune-spells.generated.sql', '2027-03-08-rune-ladder-slots.sql'];
     const FNS = ['public.hr_hunt_slot_check(jsonb)', 'public.hr_hunt_settings_view(uuid,integer)', 'public.hr_hunt_rune_store_state(uuid,integer,text,text)', 'public.hr_hunt_rune_spells()'];
-    const image = async () => {
-      const out = {};
-      for (const fn of FNS) out[fn] = await one(db, `select jsonb_build_object('def', md5(replace(pg_get_functiondef($1::regprocedure), chr(13), '')), 'acl', (select proacl::text from pg_proc where oid = $1::regprocedure))`, [fn]);
-      for (const t of ['hr_hunt_basic_supplies', 'hr_hunt_vendor_value', 'hr_items', 'hr_activities', 'hr_bench_tax_rates']) out[t] = await one(db, `select md5(coalesce(string_agg(x::text, '|' order by x::text), '')) from public.${t} x`);
-      return out;
-    };
-    const before = await image();
-    for (const f of FILES) {
-      try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n')); }
-      catch (e) { return [`the second apply of ${f} RAISED: ${String(e.message).split('\n')[0]}`]; }
-    }
-    const after = await image();
-    return canon(after) === canon(before) ? [] : [`a second apply moved ${firstDiff(canon(before), canon(after))}`];
-  }),
+    const { bootReplay } = await import('./schema-replay.mjs');
+    const { db } = await bootReplay({ upTo: FILES[FILES.length - 1] });
+    try {
+      return await inTx(db, async () => {
+        if (AS_OF_PLANT) {
+          const d = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [AS_OF_PLANT.fn])).split(String.fromCharCode(13)).join('');
+          if (d.split(AS_OF_PLANT.find).length !== 2) { AS_OF_PLANT.missed = true; return ['HARNESS: the plant\'s anchor is not in the body as of the file']; }
+          await db.exec(d.replace(AS_OF_PLANT.find, () => AS_OF_PLANT.replace));
+        }
+        const image = async () => {
+          const out = {};
+          for (const fn of FNS) out[fn] = await one(db, `select jsonb_build_object('def', md5(replace(pg_get_functiondef($1::regprocedure), chr(13), '')), 'acl', (select proacl::text from pg_proc where oid = $1::regprocedure))`, [fn]);
+          for (const t of ['hr_hunt_basic_supplies', 'hr_hunt_vendor_value', 'hr_items', 'hr_activities', 'hr_bench_tax_rates']) out[t] = await one(db, `select md5(coalesce(string_agg(x::text, '|' order by x::text), '')) from public.${t} x`);
+          return out;
+        };
+        const before = await image();
+        for (const f of FILES) {
+          try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n')); }
+          catch (e) { return [`the second apply of ${f} RAISED: ${String(e.message).split('\n')[0]}`]; }
+        }
+        const after = await image();
+        return canon(after) === canon(before) ? [] : [`a second apply moved ${firstDiff(canon(before), canon(after))}`];
+      });
+    } finally { await db.close?.(); }
+  },
   /* THE RUNE LADDER (Tyler 2026-11-05). One bar slot naming one store rune, the hero carrying none, every tier; both doors; the price read three ways. */
   'RUNE-LADDER': async (db, M) => {
     const problems = [];
@@ -4352,6 +4365,9 @@ const DB_MUTANTS = [
   /* `asOf`: every spliced body now has a later author (hr_hunt_view 2027-02-10-settle-plan-cache.generated.sql,
      hr_hunt_instance_read 2027-02-02-settle-cost.sql, hr_hunt_party_view 2027-01-25-town-defaults.sql,
      hr_hunt_settle_session 2027-02-11-no-fight-settle.sql), so none is carried over: the plant goes on the arm's chain. */
+  /* RUNE-LADDER-IDEM bites: a body the five files write, moved on the chain as of them, is moved back by the second apply. */
+  { arm: 'RUNE-LADDER-IDEM', name: '[rune ladder] a second apply rewrites a store rune\'s spell table', fn: 'public.hr_hunt_rune_spells()', asOf: true,
+    find: '"rend":{"skill":"melee"', replace: '"rend":{"skill":"magic"' },
   { arm: 'PARTY-LEAVE-IDEM', name: '[leave together] §0 takes a spliced body another file moved', fn: SS, asOf: true,
     find: "      when 'party_member_died' then coalesce((select ps.party_leave_together",
     replace: "      when 'party_member_died' then /* moved */ coalesce((select ps.party_leave_together" },

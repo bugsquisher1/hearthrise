@@ -137,8 +137,10 @@ export const MONSTERS = {
     drops: [{ id: 'goblin_ear', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'bronze_sword', ch: .03 }, { id: 'goblin_totem', ch: .01 }] },
   kobold: { name: 'Kobold', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 12, atk: 3, def: 1, xp: 10, gp: [2, 6], speed: 3200,
+    /* Its lucky find (tests/lucky-finds.mjs, four a tier) was the Banded Signet until jewelry became crafted (jewelry-sources JS2).
+       Now an Iron Helm, the Sewer kobolds' iron kit, at the Signet's pace (~10 h); off the roster, so no ground pays it yet. */
     drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 },
-      { id: 'copper_ore', ch: .18 }] },
+      { id: 'copper_ore', ch: .18 }, { id: 'iron_helm', ch: .00016, lucky: true }] },
   witchs_apprentice: { name: "Witch's Apprentice", icon: '🧹', tier: 1, cls: 'human', family: 'Human',
     hp: 10, atk: 5, def: 0, xp: 12, gp: [2, 7],
     drops: [{ id: 'magic_essence', ch: .3 }, { id: 'rune_frag', ch: .1 }, { id: 'normal_log', ch: .25 },

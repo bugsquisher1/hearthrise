@@ -29,12 +29,18 @@ const CHAR_LEVELS = [...LEVELS, 299, 301, 500, 750, 1000, 2500, 10000];
 const COMBAT = Object.keys(SKILLS_DEF).filter((k) => SKILLS_DEF[k].cat === 'combat');
 const CAPPED = Object.keys(SKILLS_DEF).filter((k) => SKILLS_DEF[k].cat !== 'combat').slice(0, 2);
 
+/* A CALLED ROW HAS NO SERVER LEVEL (src/data/boss-calls.js): tools/catalogue-rows.mjs gives it no hr_activities row, so no
+   combat pointer, fight clamp or renown `is_boss` join names it (live-settlement SETTLE-1c), and hr_monster_level reads 0. The
+   one server reader, the settle's Defense bound, is then 0 in a called room, which pays nothing on any route (hunt-rewards.js
+   calledSwing). The engine's own level for him (mitigation) never crosses to the server. */
+const serverLevelOf = (id) => (MONSTERS[id].called === true ? 0 : monsterLevelOf(MONSTERS[id]));
+
 /* The JS half, as one object, so --selftest can hand a drifted copy to the same comparison. */
 const JS = Object.freeze({
   charXp: XP.charXpForLevel, charLevel: XP.charLevelFromXp,
   skillXp: XP.skillXpForLevel, skillLevel: XP.skillLevelFromXp,
   maxHp: VIT.maxHpFor, maxMana: VIT.maxManaFor, regen: VIT.regenPermille,
-  monster: (id) => monsterLevelOf(MONSTERS[id]),
+  monster: serverLevelOf,
 });
 
 /** Read every SQL value once (one round trip per family). */
@@ -95,7 +101,10 @@ const MUTANTS = [
   ['max HP adds 11 a Level', { maxHp: (l, a) => VIT.maxHpFor(l, a) + Math.max(0, l - 1) }],
   ['light armour adds nothing to mana', { maxMana: (l) => VIT.maxManaFor(l, 0) }],
   ['Inner Flame\'s regen k is 51', { regen: (p) => { const P = Math.max(1, p); return 1000 + Math.floor((1000 * P) / (P + 51)); } }],
-  ['an unplaced monster reads its tier one higher', { monster: (m) => monsterLevelOf(MONSTERS[m]) + (Number.isInteger(MONSTERS[m].level) ? 0 : 1) }],
+  ['an unplaced monster reads its tier one higher', { monster: (m) => serverLevelOf(m) + (Number.isInteger(MONSTERS[m].level) ? 0 : 1) }],
+  /* the called rows are compared exactly: one read at his engine level disagrees with the server's 0 (and an hr_activities row
+     giving him one, the door SETTLE-1c forbids, disagrees the other way) */
+  ['a called row is read at his engine level', { monster: (m) => monsterLevelOf(MONSTERS[m]) }],
 ];
 
 async function main() {

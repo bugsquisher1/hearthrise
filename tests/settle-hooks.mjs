@@ -33,7 +33,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
-import { staleAnchors, memberPlant } from './alpha-server.mjs';
+import { staleAnchors, memberPlant, plantLive } from './alpha-server.mjs';
 import { goldOf } from './_gold.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
@@ -186,8 +186,8 @@ async function coverArm(db, { H, M }, forged) {
 /* Each mutant: file, [find, replace], the arm that must go red (the file's self-check is turned off).
    Each hook is planted in the body that RUNS, the chain's last author of its function (staleAnchors refuses any
    other): hr_hunt_loot_rules is restated last by 2027-01-23-loot-dispatch.sql (the pickup filter only, md5-pinned to
-   its pre-image, so a plant in an earlier file trips that pin); hr_hunt_apply_member is patched last by
-   2027-01-20-tutorial-facts.sql under the same kind of pin (memberPlant, tests/alpha-server.mjs); hr_hunt_member_read
+   its pre-image, so a plant in an earlier file trips that pin); hr_hunt_apply_member's mutants are planted in its LIVE body
+   (memberPlant + plantLive, tests/alpha-server.mjs: restated by 2027-01-31-inner-flame.sql, spliced by 2027-03-12-boss-call.sql); hr_hunt_member_read
    by 2026-11-07-store-by-slot.sql (after the core rebuild, 2026-10-27-core-bodies.sql). */
 const LOOT = '2027-01-23-loot-dispatch.sql';
 const READ = '2026-11-07-store-by-slot.sql';
@@ -252,16 +252,25 @@ async function main() {
     console.log(bad ? `settle-hooks: ${bad} of ${res.length} arms red` : `settle-hooks: green — ${res.length} arms`);
     process.exit(bad ? 1 : 0);
   }
-  /* A mutant planted in a body a later file restates never runs (H-ALL/H-COVER, v0.2.30): refuse it up front. */
-  const stale = staleAnchors(MUTANTS, { patches: true });
+  /* A mutant planted in a body a later file restates never runs (H-ALL/H-COVER, v0.2.30): refuse it up front. A member mutant
+     (`fn`, memberPlant) is planted into the LIVE body after the whole chain, the way tests/alpha-server.mjs plants it: that body
+     is 2027-01-31-inner-flame.sql's with 2027-03-12-boss-call.sql's anchored splice on top, text no single file holds. */
+  const stale = staleAnchors(MUTANTS.filter((mu) => !mu.fn), { patches: true });
   for (const s of stale) console.error('✗ ANCHOR ' + s);
   let missed = stale.length;
   for (const mu of MUTANTS) {
     let db;
-    const pairs = [selfCheckOff(mu.file), [mu.find, mu.repl]];
-    try { ({ db } = await bootReplay({ patches: new Map([[mu.file, pairs]]), upTo: mu.file === HOOKS ? LAST_PATCHED : undefined,
-      fullChain: mu.file === HOOKS ? undefined : 'the hook lives in its feature file and is called only by 2026-10-25-settle-hooks.sql, which must run after it for the settle to reach the defect' })); }
-    catch (e) { console.error(`✗ HARNESS ${mu.arm} (${mu.why}): ${String(e.message).split('\n').slice(0, 2).join(' ')}`); missed++; continue; }
+    try {
+      if (mu.fn) {
+        ({ db } = await bootReplay());
+        const refused = await plantLive(db, mu.fn, mu.find, mu.repl);
+        if (refused) { console.error(`✗ ANCHOR ${mu.arm} (${mu.why}): ${refused}`); missed++; await db.close().catch(() => {}); continue; }
+      } else {
+        const pairs = [selfCheckOff(mu.file), [mu.find, mu.repl]];
+        ({ db } = await bootReplay({ patches: new Map([[mu.file, pairs]]), upTo: mu.file === HOOKS ? LAST_PATCHED : undefined,
+          fullChain: mu.file === HOOKS ? undefined : 'the hook lives in its feature file and is called only by 2026-10-25-settle-hooks.sql, which must run after it for the settle to reach the defect' }));
+      }
+    } catch (e) { console.error(`✗ HARNESS ${mu.arm} (${mu.why}): ${String(e.message).split('\n').slice(0, 2).join(' ')}`); missed++; continue; }
     await H.pinDice(db);
     const [r] = await runArms(db, ctx, [mu.arm]);
     const real = r.problems.filter((x) => !x.startsWith('HARNESS') && !x.startsWith('CONTROL'));

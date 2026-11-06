@@ -222,7 +222,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05): 2027-03-12-boss-call is the file before this one and this one carries it (and Etched's 12 g); the Turncoat's rare
    Banded Signet becomes a Road Carnelian (hr_hunt_drop_rows, hr_hunt_kill_bounds) and hr_hunt_vendor_value gains the carnelian's and the graded rings' bids, the same full
    replace, applied after 2027-03-13-gm-tools.sql. No spawn, limit or shape moves. */
-export const OUT_NAME = '2027-03-14-jewelry-hunt-sessions-catalogue.generated.sql';
+/* THE KOBOLD'S LUCKY FIND (lane/t-v099-reds, 2026-11-06): 2027-03-14-jewelry is APPLIED history; the off-roster Kobold's lucky row, the Banded Signet until jewelry
+   became crafted, is an Iron Helm (tests/lucky-finds.mjs: four a tier), so its hr_hunt_kill_bounds row names the helm, the same full replace. No spawn, limit, bid or
+   shape moves, and no ground fields a Kobold: either order against the edge. */
+export const OUT_NAME = '2027-03-17-lucky-kobold-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -732,6 +735,11 @@ export function render(src) {
 -- hr_hunt_kill_bounds, every bound 0 (a called row pays nothing); END_ORDER's boss_felled and boss_time (hr_hunt_end_reasons, hunt_sessions.end_reason's CHECK); hr_boss_calls. hr_hunt_roster does not
 -- move: the Bestiary never counts a called row. The world's shape is unchanged (no world_shape_pending on either order), and nobody can reach a room until 2027-03-12-boss-call.sql. ORDER: after
 -- 2027-03-11-etched-12g-hunt-sessions-catalogue.generated.sql (it carries that file) and 2027-03-12-boss-call-hunts-catalogue.generated.sql (every ground hunt is in hr_hunts), right before 2027-03-12-boss-call.sql.
+--
+-- NEW IN THIS FILE (lane/t-v099-reds, 2026-11-06): the off-roster Kobold's lucky row is an Iron Helm (it was the Banded Signet, which jewelry made crafted
+-- only), so hr_hunt_kill_bounds' kobold row names iron_helm. No spawn, limit, bid or ground moves and the world's shape is unchanged (no world_shape_pending
+-- on either order); no ground fields a Kobold, so the edge may deploy before or after. ORDER: after 2027-03-14-jewelry-hallmark.sql (it carries
+-- 2027-03-14-jewelry-hunt-sessions-catalogue.generated.sql).
 --
 -- CARRIED FROM 2027-02-24-gold-matters (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
 -- the Glade's poachers and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and

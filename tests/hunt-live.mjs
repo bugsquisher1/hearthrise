@@ -6,7 +6,7 @@
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 // mutant-rule-functions: rules
 // mutant-runner-functions: mutate main
@@ -27,6 +27,7 @@
 //   LV-M  MELEE HOLDS: the engine's lone knight changes tile no more often per kill than the
 //         frozen sim's (measured) and almost never steps back and forth between swings (a step out and
 //         straight back with no kill between; in to pull and out once the pack is dead is not one).
+//   LV-CALL A CALLED ROOM, VIEWED: the browser plays his two lines and his adds as the server's commits do, to the kill.
 //   LV-DOWN EVERY PACK DOWN, THE LEADER WALKS ON (report #69): a knight that outruns the Cellar's respawn
 //         never stands on the pocket it cleared, browser closed (every swing's commit) and viewed (every
 //         commit matches the prediction).
@@ -610,6 +611,31 @@ function rules(M) {
       console.log(`  LV-M ${role}: ${moves} tile changes over ${kills} kills (${(moves / Math.max(1, kills)).toFixed(2)} per kill; the sim's knight ${SIM_TILES_PER_KILL}), ${flips} back-and-forth steps in 600 s`);
       ok('LV-M', kills > 20 && moves / kills <= SIM_TILES_PER_KILL, `${role}: ${(moves / Math.max(1, kills)).toFixed(2)} tile changes per kill (sim ${SIM_TILES_PER_KILL})`);
       ok('LV-M', flips <= kills * 0.15, `${role}: ${flips} back-and-forth steps over ${kills} kills (a hero stepping between swings)`);
+    }
+  }
+
+  { // LV-CALL: A CALLED ROOM, THE HUNT VIEWED (Tyler 2026-11-05: "phases", src/core/hunt/boss-phases.js). His adds spawn inside a swing with no die drawn, so the browser's prediction
+    // plays the same wave at the same instant: every commit matches, both lines fall once each on the screen, and the fight ends on the kill. (The closed path: tests/boss-call-db.mjs BD-BOTH.)
+    const ROWS = [['rat_king_called', { hp: 2400, atk: 1, baseAcc: 0 }], ['drain_rat_called', { hp: 60, atk: 1, baseAcc: 0 }]];
+    const keep = ROWS.map(([id]) => [id, { ...M.ENGINE_MONSTERS[id] }]);
+    for (const [id, row] of ROWS) { Object.assign(M.ENGINE_MONSTERS[id], row); Object.assign(M.MONSTERS[id], row); }
+    try {
+      /* The room's last commit is the end, whose world is gone (accrual.js: no world once everyone has left), so no prediction can match it: every commit before it must, and both lines must fall before it. This harness's server (like no real one) would go on settling members that have left. */
+      const ends = [];
+      let over = Infinity;
+      const v = run(M, [memberOf(M, 'a', 0, 'tank', 30), memberOf(M, 'b', 1, 'melee_dps', 30)], 300000,
+        { server: { hunt: 'millrace_sewer_called', id: 'i-call' }, onCommit: ({ t, c }) => { if (t <= over) for (const e of c.ends) { ends.push(e.reason); over = t; } } });
+      const judged = v.verdicts.filter((x) => x.t < over);
+      const bad = judged.filter((x) => x.v !== 'match');
+      const lastLine = Math.max(...v.fed.events.filter((e) => e.type === 'boss_phase').map((e) => e.atMs));
+      const lines = v.fed.events.filter((e) => e.type === 'boss_phase').map((e) => e.phase).join();
+      console.log(`  LV-CALL the King's room, viewed: ${judged.length - bad.length} of ${judged.length} commits matched; lines ${lines}; ended ${ends.join()} at ${(over - T0) / 1000} s`);
+      ok('LV-CALL', lines === 'adds,enrage', `the browser played the lines as ${lines || 'nothing'}, want adds then enrage, once each`);
+      ok('LV-CALL', judged.length >= 3 && bad.length === 0, `viewed: ${bad.length} of ${judged.length} commits off the prediction`);
+      ok('LV-CALL', judged.some((x) => x.t > lastLine), 'CONTROL: no commit after his second line was judged');
+      ok('LV-CALL', ends.join() === 'boss_felled,boss_felled', `ended ${ends.join() || 'nothing'}, want the kill for both`);
+    } finally {
+      for (const [id, row] of keep) { Object.assign(M.ENGINE_MONSTERS[id], row); Object.assign(M.MONSTERS[id], row); }
     }
   }
 
@@ -1456,6 +1482,7 @@ const MUTANTS = [
   ['the reseed teleports (LV-R)', 'src/hunt-view/timeline.js', 'const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));', 'const dur = 1;', /^LV-R/],
   ['a restart before the next swing places units with no kind (LV-N, Andy 10-22)', 'src/hunt-view/live-engine.js', '      hp[u.id] = [u.kind, u.maxHp, u.hp];\n', '', /^LV-N/],
   ['every commit reads as a match (LV-R)', 'src/hunt-view/live-engine.js', "return h === hc.world_hash ? 'match' : 'diverged';", "return 'match';", /^LV-R/],
+  ['a called boss crosses no lines (LV-CALL)', 'src/core/hunt/boss-phases.js', "sc.emit(makeEvent('boss_phase', sc.atMs, { u: t.id, phase: 'adds' }));", '', /^LV-CALL/],
   ['every pack down, the leader stands on the pocket it cleared (LV-DOWN, report #69)', 'src/core/hunt/pull-cycle.js',
     '    else awaitPack(inst, k, p);\n', '', /^LV-DOWN: closed/],
   ['a melee hero beside its target steps to another side every repath (LV-M)', 'src/core/hunt/roles.js',

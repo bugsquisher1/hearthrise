@@ -16,11 +16,12 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.96';
-import { composeFrame } from '../core/compose.js?v=0.2.96';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.96';
-import { createFrameSig } from './frame-sig.js?v=0.2.96';
-import { paintStub } from '../stub-atlas.js?v=0.2.96';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.98';
+import { composeFrame } from '../core/compose.js?v=0.2.98';
+import { castBox } from '../core/shadows.js?v=0.2.98';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.98';
+import { createFrameSig } from './frame-sig.js?v=0.2.98';
+import { paintStub } from '../stub-atlas.js?v=0.2.98';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
@@ -33,10 +34,10 @@ const HEAL_MS = 5000;
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
- *          css: (token: string) => string, arrived?: (set: string) => boolean}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing)
+ *          css: (token: string) => string, arrived?: (set: string) => boolean, dyes?: object}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing); dyes: heroes' colors (hero-dye.js createHeroDye)
  */
 export function createCanvasBackend(o) {
-  const { win, doc, css } = o;
+  const { win, doc, css, dyes } = o;
   let { book, images, tables } = o;
   const tone = (name) => css('--world-' + name);
   const layer = (opts) => { const c = doc.createElement('canvas'); return { c, g: c.getContext('2d', opts) }; };
@@ -89,6 +90,7 @@ export function createCanvasBackend(o) {
 
   /** The source to blit a draw-list entry from: its atlas image, or a stub box. */
   function source(d) {
+    if (d.dye && dyes) { const dyed = dyes.source(d.id, d.dye, d.sx, d.sy); if (dyed) return dyed; }
     if (d.set && images[d.set]) return { img: images[d.set], sx: d.sx, sy: d.sy };
     let s = stubs.get(d.w + 'x' + d.h);
     if (!s) {
@@ -174,11 +176,11 @@ export function createCanvasBackend(o) {
     g.globalCompositeOperation = 'source-over';
   }
 
-  /* A mask's signature: the view, its colour, and every shape (a cast by its frame) or lamp (the hero's moves). */
+  /* A mask's signature: the view, its colour, and every shape (a cast by its frame and its sheet being in) or lamp (the hero's moves). */
   function shadeSigOf(list, view) {
     let k = view.ox + ',' + view.oy + ',' + view.w + ',' + view.h + '|' + tone('shadow');
     for (const sh of list.shadows) {
-      if (sh.type === 'cast') { const d = sh.sprite; k += '|c' + d.set + ',' + d.sx + ',' + d.sy + ',' + d.w + ',' + d.h + ',' + d.x + ',' + d.y + ',' + sh.m.join(','); }
+      if (sh.type === 'cast') { const d = sh.sprite; k += '|c' + d.set + ',' + !!images[d.set] + ',' + d.sx + ',' + d.sy + ',' + d.w + ',' + d.h + ',' + d.x + ',' + d.y + ',' + sh.m.join(','); }
       else if (sh.type === 'ellipse') k += '|e' + sh.cx + ',' + sh.cy + ',' + sh.w + ',' + sh.h;
       else k += '|p' + sh.pts.join(';');
     }
@@ -427,7 +429,15 @@ export function createCanvasBackend(o) {
     s.add(fv.plan.dx); s.add(fv.plan.dy); s.add(fv.open.w); s.add(fv.open.h);
     s.add(list);
     for (const l of [list.decals, list.sprites, list.raised, list.fx]) for (const d of l) s.add(!!images[d.set]);
+    if (dyes) for (const d of list.sprites) if (d.dye) s.add(dyes.has(d.id, d.dye));
     return s.end();
+  }
+
+  /* THE FRAME'S COLORS (hero-dye.js): every dyed unit it draws, then at most one bake, before the paint decides: a held frame still bakes, and a look landing changes the picture. Not baked: drawn as the art is. */
+  function wantDyes(list) {
+    if (!dyes) return;
+    for (const d of list.sprites) if (d.dye) dyes.want(d.id, d.dye, d.dyeOwn === true, book.sprite(d.id), images[d.set]);
+    dyes.pump();
   }
 
   /* THE GROUND (void, chunks, decals) OF ONE VIEW. The camera moved: drawn straight onto the frame, as nothing can reuse
@@ -466,6 +476,7 @@ export function createCanvasBackend(o) {
     ground.fit(Math.max(CHUNK_KEEP, 2 * ring.length));
     if (!aheadId && !ground.whole(ring)) aheadId = later(bakeAhead);
     hold = false;
+    wantDyes(list);
     const changed = frameChanged(list, fv);
     frames++;
     last = list;
@@ -553,9 +564,9 @@ export function createCanvasBackend(o) {
       const meets = (d) => d.x < seen.ox + seen.w && d.x + d.w > seen.ox && d.y < seen.oy + seen.h && d.y + d.h > seen.oy;
       const sets = ground.setsIn(chunksOf(view, 0), seen);
       for (const l of [list.decals, list.sprites, list.raised]) for (const d of l) if (d.set && meets(d)) sets.add(d.set);
-      /* an effect may be turned and a shadow falls past its sprite: named whatever their box says */
+      /* an effect may be turned: named whatever its box says; a shadow falls past its sprite: named by the box it falls in (castBox, B-21) */
       for (const d of list.fx || []) if (d.set) sets.add(d.set);
-      for (const sh of /** @type {any[]} */ (list.shadows)) if (sh.type === 'cast' && sh.sprite.set) sets.add(sh.sprite.set);
+      for (const sh of /** @type {any[]} */ (list.shadows)) if (sh.type === 'cast' && sh.sprite.set && meets(castBox(sh.sprite, sh.m))) sets.add(sh.sprite.set);
       return Array.from(sets).filter((s) => !o.arrived(s));
     },
     /** May the next sync draw? A new map's (or zoom's) view first bakes its ground, WARM_MS a frame; the frame after draws. So does a view over a chunk its sheet just filled. */

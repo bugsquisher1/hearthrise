@@ -349,7 +349,8 @@ export async function runSetActivity(o) {
   }
 
   /* (1) GATE + READ. The bucket comes out of the registry, never a literal. */
-  const [read] = await exec(READ_SQL, [user, slot, rateBucketFor(VERB)]);
+  /* `readSql`: gm-stop.js only. The Game Master's stop is rated at its own gate, and neither the hero's budget nor its ban may refuse it. */
+  const [read] = await exec(o.readSql || READ_SQL, [user, slot, rateBucketFor(VERB)]);
   if (!read || read.allowed !== true) {
     return { status: 429, body: { ok: false, error: INTENT_ERRORS.RATE_LIMITED } };
   }

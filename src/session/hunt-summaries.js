@@ -43,6 +43,8 @@ export function sanitizeSummary(v) {
     preset: int(v.preset), hoursLimit: int(v.hoursLimit),
     bag: pairs(v.bag, (p) => (Array.isArray(p) && id(p[0]) && int(p[1]) !== null && p[1] >= 1 && p[1] <= 100000 ? [p[0], p[1], p[2] === 1 ? 1 : 0] : null), BAG_LINES_MAX),
     deaths: Array.isArray(v.deaths) ? v.deaths.filter((d) => typeof d === 'string').slice(0, DEATH_LINES_MAX).map((d) => d.slice(0, 280)) : [],
+    /* A lost called fight's line (hunt-view/boss-loss.js): display only, from the server's record. */
+    loss: typeof v.loss === 'string' ? v.loss.slice(0, 280) : null,
   };
 }
 

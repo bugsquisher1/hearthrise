@@ -14,8 +14,8 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { leashMarginOf } from '../../data/hunt-grounds.js?v=0.2.96';
-import { makeEvent } from './events.js?v=0.2.96';
+import { leashMarginOf } from '../../data/hunt-grounds.js?v=0.2.98';
+import { makeEvent } from './events.js?v=0.2.98';
 
 /** Is (x, y) inside pocket `pocket`'s pack area (its room plus the ground's margin)? */
 export function inArea(inst, pocket, x, y) {
@@ -62,7 +62,8 @@ export function holderOutside(inst, pocket) {
  */
 export function resetPack(inst, pocket, sc) {
   const pack = inst.world.packs[pocket];
-  if (!pack) return;
+  /* A CALLED ROOM NEVER RESETS: a death ends the whole fight at its next boundary, and his HP only falls (boss-phases.js reads no flag, the fight's record reads where he stood). */
+  if (!pack || (inst.ground && inst.ground.call)) return;
   pack.aggro = false;
   pack.holder = null;
   for (const u of inst.world.units) {

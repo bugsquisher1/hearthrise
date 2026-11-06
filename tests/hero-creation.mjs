@@ -35,7 +35,7 @@ import { START_INVENTORY, START_EQUIPMENT, STARTER_SETS } from '../src/data/star
 import { BASE_REGIONS, BASE_DEFAULT_COLORS } from '../src/data/outfits.js';
 import { roleForWeapon, roleKeyOf } from '../src/data/hunt-roles.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
-import { heroCells, refusalText, howYouFightHtml } from '../src/app/hero-create.js';
+import { previewDyes, refusalText, howYouFightHtml } from '../src/app/hero-create.js';
 import { HOW_YOU_FIGHT, validate as validateHowToPlay } from '../src/data/how-to-play.js';
 import { shopOf } from '../src/session/item-sections.js';
 import { renderShop } from '../src/shell/windows/shop.js';
@@ -80,22 +80,22 @@ export function checkData({ items = ITEMS, inv = START_INVENTORY, eq = START_EQU
 }
 
 // ── H-C ─────────────────────────────────────────────────────────────────────
-const TOKENS = { 'hero-skin': '#dcae86', 'hero-skin-shade': '#b5835f', 'hero-outline': '#17141a' };
+const TOKENS = {};
 for (let i = 0; i < 16; i++) TOKENS['dye-' + i] = '#' + (i * 0x0f0f0f + 0x101010).toString(16).padStart(6, '0').slice(-6);
 /* A server that still offers supplies (the pre-2026-11-02 shop section). */
 const OLD_SHOP = { offers: [{ offer: 'supply.cooked_shrimp', item: 'cooked_shrimp', kind: 'food', price: 19 },
   { offer: 'supply.turnip_juice', item: 'turnip_juice', kind: 'drink', price: 8 }, { offer: 'supply.barbed_arrows', item: 'barbed_arrows', kind: 'ammo', price: 2 },
   { offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }], bids: {}, refill: { lines: [], total: 0 } };
 const WINDOWS = { shop: renderShop, summary: renderHuntSummary, prep: renderHuntPrep };
-export function checkClient({ cells = heroCells, text = refusalText, shop = shopOf, windows = WINDOWS, howHtml = howYouFightHtml, howValidate = validateHowToPlay } = {}) {
+export function checkClient({ cells = previewDyes, text = refusalText, shop = shopOf, windows = WINDOWS, howHtml = howYouFightHtml, howValidate = validateHowToPlay } = {}) {
   const out = [];
   const colorOf = (t) => TOKENS[t];
   const a = cells(BASE_DEFAULT_COLORS, colorOf);
   for (const g of BASE_REGIONS) {
     const next = Object.assign({}, BASE_DEFAULT_COLORS, { [g]: (BASE_DEFAULT_COLORS[g] + 7) % 16 });
     const b = cells(next, colorOf);
-    const changed = a.filter((c, i) => b[i] && String(b[i].rgb) !== String(c.rgb)).length;
-    if (!changed) out.push(`H-C1 picking a new ${g} colour repainted nothing`);
+    const changed = a.filter((c, i) => b[i] !== c).length;
+    if (changed !== 1 || b[BASE_REGIONS.indexOf(g)] !== TOKENS['dye-' + next[g]]) out.push(`H-C1 picking a new ${g} colour reads ${JSON.stringify(b)}`);
     const other = BASE_REGIONS.find((x) => x !== g);
     const sameOther = cells(Object.assign({}, BASE_DEFAULT_COLORS, { [other]: BASE_DEFAULT_COLORS[other] }), colorOf);
     if (JSON.stringify(sameOther) !== JSON.stringify(a)) out.push('H-C1 the preview is not a function of the picks');
@@ -226,7 +226,7 @@ const DATA_MUTANTS = {
   /* Tyler 2026-10-23: the SHIELD makes the tank; a kit sword read without its shield plays Melee damage */
   sword_set_no_shield: { why: 'the sword set is read without its shield', run: (sql) => checkData({ sql, items: Object.assign({}, ITEMS, { practice_shield: Object.assign({}, ITEMS.practice_shield, { offhand: 'buckler' }) }) }) },
   regions_drift: { why: 'the server names a fifth region', run: (sql) => checkData({ sql: sql.replace("array['head', 'body', 'legs', 'feet']::text[]", "array['head', 'body', 'legs', 'feet', 'cape']::text[]") }) },
-  preview_ignores_pick: { why: 'the preview paints the default colours whatever is picked', run: () => checkClient({ cells: (c, f) => heroCells(BASE_DEFAULT_COLORS, f) }) },
+  preview_ignores_pick: { why: 'the preview paints the default colours whatever is picked', run: () => checkClient({ cells: (c, f) => previewDyes(BASE_DEFAULT_COLORS, f) }) },
   shop_sells_food: { why: 'the session keeps a food offer a server still sends', run: () => checkClient({ shop: (cs) => ({ offers: cs.read('shop').offers, bids: new Map() }) }) },
   summary_restock: { why: 'the hunt summary offers Restock again', run: () => checkClient({ windows: { ...WINDOWS, summary: () => renderHuntSummary() + '<button data-hs-act="restock">Restock</button>' } }) },
   creation_silent_on_styles: { why: 'the creation step says nothing about how you fight', run: () => checkClient({ howHtml: () => '' }) },

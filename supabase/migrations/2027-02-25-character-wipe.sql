@@ -26,7 +26,9 @@
 --   STAYS (c_keep): auth.*, profiles (reset to a fresh signup's shape), hr_access_allowlist (untouched: closed mode still decides who
 --     plays), friend_links, friend_requests, chat_blocks (a player's social choices), bug_reports (the team's triage), beta_invites and
 --     beta_signup_log (the signup record), hr_lb_hidden (who the boards leave out), hr_tick_config and hr_tick_shard_cursor (their
---     cursors nulled), hr_name_holds (owner cleared: a name a moderator pulled stays pulled; every other name is free again).
+--     cursors nulled), hr_name_holds (owner cleared: a name a moderator pulled stays pulled; every other name is free again),
+--     hr_gm_accounts and hr_gm_log (the Game Master and his journal; his walled heroes follow the wipe like anyone's), hr_bans and hr_chat_mutes
+--     (a character wipe doesn't forgive a ban).
 --   MUST ALREADY BE EMPTY (c_market): market_listings is the escrow, so its own file empties it first; this file refuses otherwise.
 --   NAMES NO PLAYER (c_no_player): catalogues, config, baselines, operator logs. Counted before and after.
 --   ALSO: every row of leaderboard_ranked (a refresh), private frames in realtime.messages (no page can read them back).
@@ -81,13 +83,14 @@ declare
   -- hr_account_deletions is lane/c-account-delete's, if it lands first: a waiting deletion belongs to the account, which stays.
   c_keep constant text[] := array[
     'beta_invites', 'beta_signup_log', 'bug_reports', 'chat_blocks', 'friend_links', 'friend_requests', 'profiles', 'hr_access_allowlist',
-    'hr_lb_hidden', 'hr_name_holds', 'hr_tick_config', 'hr_tick_shard_cursor', 'hr_account_deletions'];
+    'hr_lb_hidden', 'hr_name_holds', 'hr_tick_config', 'hr_tick_shard_cursor', 'hr_account_deletions',
+    'hr_gm_accounts', 'hr_gm_log', 'hr_bans', 'hr_chat_mutes'];
   c_market constant text[] := array['market_listings', 'market_sales', 'market_item_daily'];
   c_no_player constant text[] := array[
     'hr_activities', 'hr_bench_tax_rates', 'hr_blessing_rule', 'hr_blessing_tiers', 'hr_bounty_board_monsters', 'hr_bounty_monsters',
     'hr_castle_buildings', 'hr_castle_items', 'hr_castle_tiers', 'hr_catalogue_meta', 'hr_character_sheet_engine', 'hr_chat_config',
     'hr_client_rpc_baseline', 'hr_client_write_baseline', 'hr_companion_grants', 'hr_crop_plot_tier', 'hr_crops', 'hr_db_samples', 'hr_depot_config',
-    'hr_dungeon_loot', 'hr_dungeons', 'hr_equip_slots', 'hr_farm_yield_perk', 'hr_feast_foods', 'hr_flags', 'hr_gem_unlocks',
+    'hr_dungeon_loot', 'hr_dungeons', 'hr_equip_slots', 'hr_farm_yield_perk', 'hr_feast_foods', 'hr_flags', 'hr_gem_unlocks', 'hr_gm_wall_allow',
     'hr_ground_tiers', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
     'hr_hunt_abilities', 'hr_hunt_action_ids', 'hr_hunt_basic_supplies', 'hr_hunt_condition_limits', 'hr_hunt_condition_metrics', 'hr_hunt_config',
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
@@ -100,7 +103,7 @@ declare
     'hr_tally_config', 'hr_tally_materials', 'hr_tally_pieces', 'hr_tally_tasks', 'hr_tick_cohort', 'hr_tick_cron_log',
     'hr_town_maps', 'hr_town_stands', 'hr_town_station_hosts', 'hr_town_stations', 'hr_traits', 'hr_unlock_offers', 'hr_unlocks', 'hr_wipe_log',
     'hr_world_notice_rules', 'hr_xp_table', 'hunt_world_shape_move', 'leaderboard_meta', 'maintenance_alerts', 'maintenance_log',
-    'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works',
+    'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works', 'hr_boss_calls',
     /* crafted jewelry's catalogues (2027-03-14-jewelry-catalogue.generated.sql): the Hallmark step, its day limit, the graded rows' ceilings */
     'hr_hallmark_offers', 'hr_hallmark_rule', 'hr_market_ceilings'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';

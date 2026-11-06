@@ -40,24 +40,25 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.96';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.96';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.96';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.96';
-import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.96';
-import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.96';
-import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.96';
-import { itemName } from './widgets/bits.js?v=0.2.96';
-import { noShotWords } from './hunt-go.js?v=0.2.96';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.96';
-import { deathSeen } from './death-popup.js?v=0.2.96';
-import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.96';
-import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.96';
-import { benchStopRecapOf } from './bench-fee.js?v=0.2.96';
-import { workRow } from './town-work.js?v=0.2.96';
-import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.96';
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.96';
-import { gold } from '../render/format.js?v=0.2.96';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.98';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.98';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.98';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.98';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.98';
+import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.98';
+import { callOfHunt } from '../data/boss-calls.js?v=0.2.98';
+import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.98';
+import { itemName } from './widgets/bits.js?v=0.2.98';
+import { noShotWords } from './hunt-go.js?v=0.2.98';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.98';
+import { deathSeen } from './death-popup.js?v=0.2.98';
+import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.98';
+import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.98';
+import { benchStopRecapOf } from './bench-fee.js?v=0.2.98';
+import { workRow } from './town-work.js?v=0.2.98';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.98';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.98';
+import { gold } from '../render/format.js?v=0.2.98';
 
 const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
 
@@ -129,6 +130,8 @@ function candidatesOf(cs, viewed) {
   const h = huntOf(cs);
   if (!h) return out;
   const where = huntName(h.huntId);
+  /* A called room has no "Start again": its one door is the paid press on the ground's page (src/data/boss-calls.js). */
+  const endedKind = callOfHunt(h.huntId) ? 'party' : 'ended', endedSession = endedKind === 'ended' ? h.sessionId : null;
   /* A death ends the hunt (CORE_MODEL.md §4): the death alert stands in for the ended one. The character
      on screen gets the death POPUP instead (death-popup.js, Tyler 2026-10-19), and a death whose popup was
      already dismissed never comes back as a side line. */
@@ -139,11 +142,11 @@ function candidatesOf(cs, viewed) {
   /* LEAVE TOGETHER (Tyler 2026-10-22): "<Name> left the hunt, so <hero> came home too." / "<Name> fell, so ..." */
   else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
     text: cameHomeLine(h, who(cs)) });
-  else if (h.ended && h.endReason === 'party_member_left') out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId,
+  else if (h.ended && h.endReason === 'party_member_left') out.push({ id: 'ended:' + h.sessionId, kind: endedKind, session: endedSession,
     text: cameHomeLine(h, who(cs)) });
   /* The character ON SCREEN gets its hunt summary instead (it opens by itself: src/shell/shell.js followSummary), the
      one notice of a return (designer walk 2026-10-25 #5): its line is marked seen, never shown. */
-  else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, quiet: viewed, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
+  else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: endedKind, session: endedSession, quiet: viewed, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
   else {
     for (const l of lowItems(cs, h.hero)) {
       out.push({ id: 'low:' + h.sessionId + ':' + l.item, kind: 'low', session: h.sessionId, item: l.item,

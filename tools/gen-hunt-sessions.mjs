@@ -49,6 +49,8 @@
 //   hr_hunt_end_reasons    hunt-sessions.js END_ORDER (reason, position) + RESUME_AFTER_END
 //   hr_hunt_kill_bounds    the most ONE kill of each monster can pay (the value bound)
 //   hr_hunt_vendor_value   vendorPriceOf (supabase/functions/hr-accrue/catalogue.js)
+//   hr_boss_calls          boss-calls.js BOSS_CALLS + BOSS_CALL_RULES: which rooms, what fee (Call out). A called row and its room
+//                          are refused here unless they pay NOTHING: xp 0, gp [0, 0], no drops; never in hr_hunt_roster
 //   hr_premium_login_reward premium.js PREMIUM_LOGIN_REWARD
 //   + CHECKS GENERATED FROM DATA on tables other files own: hunt_sessions
 //     end_reason, player_action_sets slots (the bar's length), the timeline's
@@ -121,7 +123,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, OPEN_HUNTS, trainingHunt } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, trainingHunt } from '../src/data/hunts.js';
+import { BOSS_CALLS, BOSS_CALL_RULES } from '../src/data/boss-calls.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { SUPPLIES, COMBAT_BUFF_TYPES } from '../src/data/supplies.js';
@@ -137,6 +140,7 @@ import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hun
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
 import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
+import { CALLED_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -212,8 +216,12 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* GOLD MATTERS (lane/c-gold-matters, designer 2026-11-03): 2027-02-24-risk is the file before this one and this one carries it; 15 monsters' coin moves hr_hunt_kill_bounds' gold_max (down on Wickstead, the Glade's
    poachers, the Sewer's bat and spider; up on the Warrens and the Rat King) and tier 2's hourly armor moves hr_hunt_vendor_value, the same full replace. No spawn, limit or shape moves. */
 /* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-28-temper-craft is the file before this one and this one carries it; the deeper store runes join hr_hunt_basic_supplies and the deeper runes' bids move in hr_hunt_vendor_value, the same full replace. No kill bound, spawn, limit or shape moves. */
-/* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05): 2027-03-08-rune-ladder is APPLIED history; the Turncoat's rare Banded Signet becomes a Road Carnelian
-   (hr_hunt_drop_rows, hr_hunt_kill_bounds) and hr_hunt_vendor_value gains the carnelian's and the graded rings' bids, the same full replace. No spawn, limit or shape moves. */
+/* ETCHED 12 G (lane/c-etched-12g, Tyler 2026-11-05): 2027-03-08-rune-ladder is APPLIED history; the Etched store rune's price is 12 g (was 10), the same full replace. No kill bound, spawn, limit or shape moves. */
+/* CALL OUT (lane/c-boss-call, Tyler 2026-11-04): 2027-03-11-etched-12g is the file before this one (staged ahead of it, v0.2.98) and this one carries it; the two called rooms (grounds, spawn rows, travel), their called monsters (kill bounds of nothing),
+   END_ORDER's boss_felled and boss_time and the new hr_boss_calls land in this forward file, the same full replace, applied right before 2027-03-12-boss-call.sql. No world shape moves. */
+/* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05): 2027-03-12-boss-call is the file before this one and this one carries it (and Etched's 12 g); the Turncoat's rare
+   Banded Signet becomes a Road Carnelian (hr_hunt_drop_rows, hr_hunt_kill_bounds) and hr_hunt_vendor_value gains the carnelian's and the graded rings' bids, the same full
+   replace, applied after 2027-03-13-gm-tools.sql. No spawn, limit or shape moves. */
 export const OUT_NAME = '2027-03-14-jewelry-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -253,6 +261,12 @@ export function groundRows(grounds, refs = {}) {
       for (const s of p.spawns || []) {
         if (!own(monsters, s.monster)) throw new Error(`ground ${id} spawns unknown monster ${s.monster}`);
         if (!own(counts, s.monster)) counts[s.monster] = 1;   // a `spawns` row outside its `pack` (no box builds one)
+        n++;
+      }
+      /* A CALLED BOSS'S WAVE (pull-cycle.js spawnAdds): the ground's monsters too, and heads the bound counts. */
+      for (const s of p.adds || []) {
+        if (!own(monsters, s.monster)) throw new Error(`ground ${id} adds unknown monster ${s.monster}`);
+        counts[s.monster] = (counts[s.monster] || 0) + 1;
         n++;
       }
     }
@@ -300,7 +314,7 @@ export function dropNeeds(grounds, monsters) {
 /** Every input, validated and normalised into sorted rows. Throws on any defect. */
 export function catalogueRows(src = {}) {
   const S = {
-    /* the OPEN hunts and grounds only: a staged one (hunts.js `staged`) is not served, so hr_hunt_enter refuses it */
+    /* the OPEN hunts and grounds only: a staged one (hunts.js `staged`) is not served, so hr_hunt_enter refuses it. The called rooms join them below, served to one verb, hr_boss_call. */
     hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS, supplies: SUPPLIES, buffTypes: COMBAT_BUFF_TYPES,
     setLimits: ACTION_SET_LIMITS, distance: HERO_DISTANCE,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER,
@@ -311,11 +325,14 @@ export function catalogueRows(src = {}) {
     targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END,
     consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
-    grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, partyMax: PARTY.maxSize,
+    grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, calledHunts: CALLED_HUNTS, calledGrounds: CALLED_GROUNDS, calls: BOSS_CALLS, callRules: BOSS_CALL_RULES, partyMax: PARTY.maxSize,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
     roles: HUNT_ROLES, roleKeys: ROLE_KEYS, shieldArm: SHIELD_ARM, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana, ...src,
   };
+  /* THE CALLED ROOMS (boss-calls.js) stand beside the open grounds in every row the settle reads; the roster below leaves them out. */
+  S.hunts = [...S.hunts, ...S.calledHunts];
+  S.grounds = { ...S.grounds, ...S.calledGrounds };
   /* THE STORE (Tyler 2026-10-14): each row is gold per use, never an item. */
   const basicSeen = new Set();
   const basics = [...S.basics].map((b) => {
@@ -368,7 +385,7 @@ export function catalogueRows(src = {}) {
   for (const h of S.hunts) addTravel(h, false);
   for (const id of Object.keys(S.monsters).sort()) {
     const m = S.monsters[id];
-    if (m.boss || m.champion) continue;
+    if (m.boss || m.champion || m.called === true) continue;
     addTravel(trainingHunt(id, m), true);
   }
   travel.sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -490,7 +507,8 @@ export function catalogueRows(src = {}) {
     const drops = {};
     for (const d of (m.drops || [])) if (d && d.id && ID.test(d.id)) drops[d.id] = (drops[d.id] || 0) + 1;
     const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[1]) || 0));
-    const xp = Math.ceil(Math.max(1, Number(m.hp) || 1) * xpPerHp + Math.max(0, Number(m.xp) || 0));
+    /* A CALLED ROW PAYS NOTHING (boss-calls.js): its bound says so, and no blow on it teaches anything. */
+    const xp = m.called === true ? 0 : Math.ceil(Math.max(1, Number(m.hp) || 1) * xpPerHp + Math.max(0, Number(m.xp) || 0));
     return { id, gold, xp, drops };
   });
   if (!(whole(lim.swing_interval_ms) && lim.swing_interval_ms >= 600)) {
@@ -553,8 +571,10 @@ export function catalogueRows(src = {}) {
     throw new Error(`ON_EMPTY ${JSON.stringify(S.onEmpty)} must default to 'switch' and keep 'end' as an opt-in`);
   }
   const { rows: grounds, spawns: groundSpawns } = groundRows(S.grounds, { hunts: S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}), monsters: S.monsters });
-  /* what a player can meet on the grounds served above (a staged ground is not among them) */
-  const reach = reachableOf(S.grounds, S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}));
+  /* THE CALLED ROOMS PAY NOTHING AND STAND APART (Tyler 2026-11-04; boss-calls.js): refused here, nothing written, unless every called row pays nothing and meets a party in its own room only. */
+  const bossCalls = calledRows(S);
+  /* what a player can meet on the grounds served above (a staged ground is not among them, nor a called room: the Bestiary's total never counts one) */
+  const reach = reachableOf(Object.fromEntries(Object.entries(S.grounds).filter(([, g]) => !g.call)), S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}));
   for (const id of reach.monsters) if (!ID.test(id) || !own(S.monsters, id)) throw new Error(`roster monster ${id} is not a monster id`);
   const roster = [...reach.monsters];
   /* THE DROP BOUNDS the self-check executes (dropNeeds: each ground's items, a second derivation from the authored rows) */
@@ -595,10 +615,58 @@ export function catalogueRows(src = {}) {
   const worldFields = { unit: fieldIdx('unit'), world: fieldIdx('world') };
   for (const n of WORLD_FIELDS_READ.unit) if (!own(worldFields.unit, n)) throw new Error(`world unit field ${n} (read by the party section) is not persisted`);
   for (const n of WORLD_FIELDS_READ.world) if (!own(worldFields.world, n)) throw new Error(`world field ${n} (read by the party section) is not persisted`);
-  return { supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
+  return { bossCalls, supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
     cover, resume, eventTypes, abilities, grounds, groundSpawns, roster, drops, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
     login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, shields,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
+}
+
+/* THE MONEY LINE, AT THE GENERATOR (tests/boss-call.mjs mutates it): the rows of hr_boss_calls, or a throw. A called row has xp 0, gp [0, 0] and no drops, and carries no yield trick;
+   a called room holds called rows only and a called row stands nowhere else; a call names one room and the open ground its press sits on, and that ground fields the boss it copies. */
+function calledRows(S) {
+  const calledMon = Object.keys(S.monsters).filter((id) => S.monsters[id].called === true);
+  for (const id of calledMon) {
+    const m = S.monsters[id];
+    if (!(m.xp === 0)) throw new Error(`called row ${id} pays XP (${m.xp}): a called row pays nothing`);
+    if (!(Array.isArray(m.gp) && m.gp[0] === 0 && m.gp[1] === 0)) throw new Error(`called row ${id} pays coin (${JSON.stringify(m.gp)}): a called row pays nothing`);
+    if (!(Array.isArray(m.drops) && m.drops.length === 0)) throw new Error(`called row ${id} drops something: a called row pays nothing`);
+    if (m.yieldPm !== undefined || m.dropBonus !== undefined) throw new Error(`called row ${id} carries a yield: damage.js yieldOf reads 0 as full yield`);
+    if (m.boss !== true && m.add !== true) throw new Error(`called row ${id} is neither a boss nor his add`);
+    if (m.boss === true && m.add === true) throw new Error(`called row ${id} is both a boss and an add: "target is a boss" tells them apart`);
+    if (m.boss === true && !(m.phases && whole(m.phases.addsPm) && whole(m.phases.enragePm) && whole(m.phases.enrageAtkPm) && m.phases.addsPm > m.phases.enragePm && m.phases.enragePm > 0 && m.phases.addsPm < 1000 && m.phases.enrageAtkPm > 1000)) throw new Error(`called boss ${id} has no two lines: ${JSON.stringify(m.phases)}`);
+  }
+  /* The table's CHECK tells a called row by its id (hr_hunt_kill_bounds_xp_max_check): the id and the flag agree, both ways. */
+  for (const id of Object.keys(S.monsters)) if (/_called$/.test(id) !== (S.monsters[id].called === true)) throw new Error(`monster ${id}: an id ends _called exactly when its row is called`);
+  const rows = Object.values(S.calls).map((c) => {
+    const h = S.hunts.find((x) => x.id === c.hunt);
+    const g = Object.values(S.grounds).find((x) => x.hunt === c.hunt);
+    const from = Object.values(S.grounds).find((x) => x.hunt === c.from);
+    if (!h || h.called !== true) throw new Error(`call ${c.id} names room ${c.hunt}, which is no called hunt`);
+    if (!/_called$/.test(c.hunt)) throw new Error(`call ${c.id}: a room's id ends _called (the close trigger's cheap test)`);
+    if (!g || g.call !== c.id) throw new Error(`call ${c.id}: its room's ground does not name it`);
+    if (!(S.monsters[c.monster] && S.monsters[c.monster].called === true)) throw new Error(`call ${c.id} names ${c.monster}, which is no called row`);
+    if (!from || from.call || !from.pockets.some((p) => (p.pack || []).concat(p.spawns).some((s) => s.monster === c.of))) throw new Error(`call ${c.id}: its press's ground ${c.from} does not field ${c.of}`);
+    if (!(whole(c.fee) && c.fee >= 1 && c.fee <= 1000000000)) throw new Error(`call ${c.id} fee ${c.fee} is not whole gold in 1..1e9`);
+    return { id: c.id, hunt: c.hunt, from: c.from, monster: c.monster, fee: c.fee };
+  }).sort((a, b) => (a.id < b.id ? -1 : 1));
+  for (const id of Object.keys(S.monsters)) if (S.monsters[id].phases && S.monsters[id].called !== true) throw new Error(`monster ${id} has phases and is no called row`);
+  for (const g of Object.values(S.grounds)) {
+    if (g.call && !g.pockets.some((p) => (p.adds || []).length)) throw new Error(`called room ${g.id} has no adds`);
+    if (!g.call && g.pockets.some((p) => p.adds)) throw new Error(`ground ${g.id} has adds and is no called room`);
+    const mons = g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns, p.adds || [])).map((s) => s.monster);
+    for (const id of mons) {
+      if (g.call && !(S.monsters[id] && S.monsters[id].called === true)) throw new Error(`called room ${g.id} fields ${id}, which pays`);
+      if (!g.call && S.monsters[id] && S.monsters[id].called === true) throw new Error(`ground ${g.id} fields the called row ${id}`);
+    }
+    if (g.call && !S.calls[g.call]) throw new Error(`ground ${g.id} names call ${g.call}, which is no row`);
+  }
+  const hs = S.hunts.filter((h) => h.called === true && !rows.some((c) => c.hunt === h.id));
+  if (hs.length) throw new Error(`called hunt ${hs[0].id} has no call: it would have no door`);
+  const rules = S.callRules;
+  if (!(whole(rules.perDay) && rules.perDay >= 1 && whole(rules.partyMin) && rules.partyMin >= 2 && whole(rules.limitMs) && rules.limitMs >= 60000 && rules.limitMs <= 3600000)) {
+    throw new Error(`BOSS_CALL_RULES ${JSON.stringify(rules)}: a whole per-day count, a party of two or more, a limit of 1 to 60 minutes`);
+  }
+  return rows.map((c) => ({ ...c, perDay: rules.perDay, partyMin: rules.partyMin, limitMs: rules.limitMs }));
 }
 
 export function render(src) {
@@ -627,11 +695,12 @@ export function render(src) {
   const resumableValues = r.resumable.map((k) => `  (${sq(k)})`).join(',\n');
   const endList = r.ends.map((e) => sq(e.r)).join(', ');
   const vendorValues = r.vendor.map((v) => `  (${sq(v.id)}, ${v.unit})`).join(',\n');
+  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.fee}, ${c.perDay}, ${c.partyMin}, ${c.limitMs})`).join(',\n');
   const nLim = Object.keys(r.lim).length;
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
     'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes',
     'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns',
-    'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields'];
+    'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls'];
   const tableList = CATALOGUE.map(sq).join(', ');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE HUNT SESSION CATALOGUE  (GENERATED — DO NOT EDIT)
@@ -654,6 +723,15 @@ export function render(src) {
 -- shape is unchanged (no world_shape_pending on either order). The old engine never buys a new row: it casts a slot only on the store row
 -- partnering the family's Chalked rune. ORDER: after 2027-03-08-rune-ladder-items-catalogue.generated.sql, before
 -- 2027-03-08-rune-ladder-rune-spells.generated.sql and 2027-03-08-rune-ladder-slots.sql; the hr-accrue carrying the same rows deploys at once.
+--
+-- NEW IN THIS FILE (lane/c-etched-12g, Tyler 2026-11-05: at 10 g Etched read +39% XP for only -429 g/h): every family's Etched store rune costs 12 g, up from 10
+-- (STORE_RUNE_PRICE). Nothing else moves; the world's shape is unchanged (no world_shape_pending on either order). ORDER: after 2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql
+-- (it carries that file), then the hr-accrue carrying the same price deploys at once.
+--
+-- NEW IN THIS FILE (lane/c-boss-call, Tyler 2026-11-04, src/data/boss-calls.js): the two called rooms in hr_hunt_grounds, hr_hunt_ground_spawns and hr_hunt_travel; their two called rows in
+-- hr_hunt_kill_bounds, every bound 0 (a called row pays nothing); END_ORDER's boss_felled and boss_time (hr_hunt_end_reasons, hunt_sessions.end_reason's CHECK); hr_boss_calls. hr_hunt_roster does not
+-- move: the Bestiary never counts a called row. The world's shape is unchanged (no world_shape_pending on either order), and nobody can reach a room until 2027-03-12-boss-call.sql. ORDER: after
+-- 2027-03-11-etched-12g-hunt-sessions-catalogue.generated.sql (it carries that file) and 2027-03-12-boss-call-hunts-catalogue.generated.sql (every ground hunt is in hr_hunts), right before 2027-03-12-boss-call.sql.
 --
 -- CARRIED FROM 2027-02-24-gold-matters (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
 -- the Glade's poachers and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and
@@ -979,6 +1057,23 @@ alter table public.hr_hunt_weapon_roles add constraint hr_hunt_weapon_roles_with
 create table if not exists public.hr_hunt_shields (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$')
 );
+-- CALL OUT, THE MONEY LINE AS A CHECK: a normal monster's XP bound stays at least 1 (a 0 refuses every kill of it), and a called row's whole bound is nothing. The id tells them apart (calledRows holds id and flag equal).
+alter table public.hr_hunt_kill_bounds drop constraint if exists hr_hunt_kill_bounds_xp_max_check;
+alter table public.hr_hunt_kill_bounds add constraint hr_hunt_kill_bounds_xp_max_check
+  check ((monster_id !~ '_called$' and xp_max >= 1) or (monster_id ~ '_called$' and xp_max = 0 and gold_max = 0 and drops = '{}'::jsonb));
+-- CALL OUT (boss-calls.js): which rooms, what fee. Read by hr_hunt_admit, hr_boss_call and the settle's proof of the room's ends.
+create table if not exists public.hr_boss_calls (
+  call_id    text   primary key check (call_id ~ '^[a-z0-9_]{1,64}$'),
+  hunt_id    text   not null unique check (hunt_id ~ '^[a-z0-9_]{1,57}_called$'),
+  from_hunt  text   not null check (from_hunt ~ '^[a-z0-9_]{1,64}$'),
+  monster_id text   not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
+  fee        bigint not null check (fee between 1 and 1000000000),
+  per_day    int    not null check (per_day between 1 and 100),
+  party_min  int    not null check (party_min between 2 and 8),
+  limit_ms   int    not null check (limit_ms between 60000 and 3600000)
+);
+comment on table public.hr_boss_calls is
+  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms and their fees (Call out, lane/c-boss-call). Names no player; character wipe c_no_player.';
 do $$
 declare v_t text;
 begin
@@ -1073,6 +1168,9 @@ alter table public.player_state add constraint player_state_last_activity_ck
 delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
 ${vendorValues};
+delete from public.hr_boss_calls;
+insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, party_min, limit_ms) values
+${callValues};
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$
@@ -1103,6 +1201,7 @@ begin
      or (select count(*) from public.hr_hunt_weapon_roles) <> ${r.weaponRoles.length}
      or (select count(*) from public.hr_hunt_roles) <> 0
      or (select count(*) from public.hr_hunt_shields) <> ${r.shields.length}
+     or (select count(*) from public.hr_boss_calls) <> ${r.bossCalls.length}
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
                  and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
@@ -1131,6 +1230,15 @@ begin
      or coalesce(public.hr_char_xp_for_level(2), 0) <= 0 or coalesce(public.hr_hunt_limit('skill_base'), 0) <= 0
      or coalesce(public.hr_hunt_limit('armour_slots'), 0) <= 0 then
     raise exception 'the stamina caps or the core model rows are malformed'; end if;
+  -- CALL OUT, THE MONEY LINE: every called room stands only on rows that pay nothing, its rows reach no roster and no other ground, and it has its travel and its ground.
+  if exists (select 1 from public.hr_boss_calls c
+              where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = c.hunt_id)
+                 or not exists (select 1 from public.hr_hunt_travel t where t.hunt_id = c.hunt_id and not t.training)
+                 or exists (select 1 from public.hr_hunt_ground_spawns s join public.hr_hunt_kill_bounds b on b.monster_id = s.monster_id
+                             where s.hunt_id = c.hunt_id and (b.gold_max <> 0 or b.xp_max <> 0 or b.drops <> '{}'::jsonb))
+                 or exists (select 1 from public.hr_hunt_roster o where o.monster_id = c.monster_id)
+                 or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.monster_id and s.hunt_id <> c.hunt_id)) then
+    raise exception 'a called room pays, or its row reaches a normal hunt'; end if;
   -- Every supply, vendor value, ability rune and login reward is a catalogued item;
   -- every named hunt and ground hunt is in hr_hunts; every training id is a
   -- non-boss combat target; every ground spawn has a kill bound.
@@ -1254,10 +1362,24 @@ function selftest() {
     'a login reward that is no item': () => ({ loginReward: { item: 'not_an_item', qty: 1 } }),
     'a role key playing a discipline no ability holds': () => ({ roleKeys: { ...ROLE_KEYS, club: { roles: ['melee_dps'], discipline: 'crush' } } }),
     'a shield arm to no role key': () => ({ shieldArm: { ...SHIELD_ARM, sword: 'buckler' } }),
+    'a called row that pays XP': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, xp: 1 } } }),
+    'a called row that pays coin': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, gp: [0, 1] } } }),
+    'a called row that drops': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, drops: [{ id: 'bones', ch: 1, band: 'common' }] } } }),
+    'a called row with a yield of nothing': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, yieldPm: 0 } } }),
+    'a paying row named as a called one': () => ({ monsters: { ...MONSTERS, rat_called: { ...MONSTERS.rat } } }),
+    'a called row with an ordinary id': () => ({ monsters: { ...MONSTERS, rat_king_copy: { ...MONSTERS.rat_king_called } } }),
+    'a called room fielding a row that pays': () => ({ calledGrounds: { ...CALLED_GROUNDS, millrace_sewer_called: { ...CALLED_GROUNDS.millrace_sewer_called,
+      pockets: [{ room: [51, 17, 57, 29], spawns: [{ monster: 'rat_king', x: 55, y: 23 }] }] } } }),
+    'a normal ground fielding a called row': () => ({ grounds: { ...OPEN_GROUNDS, mill_cellar: { ...OPEN_GROUNDS.mill_cellar,
+      pockets: [{ room: [4, 5, 10, 10], spawns: [{ monster: 'rat_king_called', x: 7, y: 8 }] }, ...OPEN_GROUNDS.mill_cellar.pockets.slice(1)] } } }),
+    'a call with no room': () => ({ calls: { ...BOSS_CALLS, ghost: { ...BOSS_CALLS.rat_king, id: 'ghost', hunt: 'nowhere_called' } } }),
+    'a called hunt with no call': () => ({ calls: { rat_king: BOSS_CALLS.rat_king } }),
+    'a free call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fee: 0 } } }),
+    'a call for one hero': () => ({ callRules: { ...BOSS_CALL_RULES, partyMin: 1 } }),
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
   };
   /* The fixture ground itself must pass (the arm proves the ground path is live). */
-  catalogueRows({ grounds: fixtureGround });
+  catalogueRows({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer, coppercap_warrens: OPEN_GROUNDS.coppercap_warrens } });
   let bad = 0;
   for (const [name, mk] of Object.entries(cases)) {
     let threw = false;

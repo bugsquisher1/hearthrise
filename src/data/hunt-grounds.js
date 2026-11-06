@@ -134,9 +134,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.96';
-import { HUNT_INDEX } from './hunts.js?v=0.2.96';
-import { MONSTERS } from './monsters.js?v=0.2.96';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.98';
+import { HUNT_INDEX } from './hunts.js?v=0.2.98';
+import { MONSTERS } from './monsters.js?v=0.2.98';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
@@ -363,6 +363,36 @@ export const HUNT_GROUNDS = Object.freeze({
   }),
 });
 
+/* A called boss's wave, rows like a pocket's spawns (pull-cycle.js spawnAdds): nothing else reads them but the catalogue's bounds. */
+const addRows = (...rows) => Object.freeze(rows.map(([monster, x, y]) => Object.freeze({ monster, x, y })));
+
+/* THE CALLED ROOMS (Call out, Tyler 2026-11-04; src/data/boss-calls.js): one pocket, the boss's own hall on his own map, no pull dial: a pocket of nothing but a boss keeps its
+   as-built pack at any size (pullRows). Not in HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt). `call` marks
+   the room: the engine pays nothing in it (hunt-rewards.js), a death or a leave sends everyone home, and its end is the kill or the limit (combat-sim.js). */
+export const CALLED_GROUNDS = Object.freeze({
+  millrace_sewer_called: Object.freeze({
+    id: 'millrace_sewer_called', hunt: 'millrace_sewer_called', map: 'millrace_sewer', call: 'rat_king',
+    /* in through the west arch, the King across the hall */
+    start: Object.freeze([[51, 23], [51, 22], [51, 24], [50, 23]]),
+    pockets: Object.freeze([{ ...pocket([51, 17, 57, 29], ['rat_king_called', 55, 23]), adds: addRows(['drain_rat_called', 56, 18], ['drain_rat_called', 56, 28], ['drain_rat_called', 53, 18]) }]),
+    route: Object.freeze([0]),
+    respawnMs: 600000, pullDist: 1.5, partyScale: true, groupFit: 'party',
+  }),
+  coppercap_warrens_called: Object.freeze({
+    id: 'coppercap_warrens_called', hunt: 'coppercap_warrens_called', map: 'coppercap_warrens', call: 'chief_coppercap',
+    /* in from the gallery on the east side, the Chief in the middle of his hall */
+    start: Object.freeze([[12, 31], [12, 30], [12, 32], [13, 31]]),
+    pockets: Object.freeze([{ ...pocket([2, 25, 14, 38], ['chief_coppercap_called', 7, 31]), adds: addRows(['goblin_digger_called', 4, 26], ['goblin_digger_called', 4, 36], ['goblin_digger_called', 9, 26]) }]),
+    route: Object.freeze([0]),
+    respawnMs: 600000, pullDist: 1.5, partyScale: true, groupFit: 'party',
+  }),
+});
+
+/** The ground row a hunt is fought on, called rooms included, or null: the engine's and the scene's one lookup. */
+export function groundOfHunt(huntId) {
+  return Object.values(HUNT_GROUNDS).find((g) => g.hunt === huntId) || CALLED_GROUNDS[huntId] || null;
+}
+
 /** The grounds a player can enter: every row whose hunt is not `staged` (hunts.js). The server catalogue reads these. */
 export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS).filter(([, g]) => !(HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].staged === true))));
 
@@ -420,6 +450,7 @@ export function monstersOn(ground, partySize) {
   for (const i of routeFor(ground, partySize)) {
     const pk = ground.pockets[i];
     for (const s of (pk.pack || pk.spawns).concat(pk.spawns)) out.add(s.monster);
+    for (const s of pk.adds || []) out.add(s.monster);
   }
   return out;
 }
@@ -631,7 +662,7 @@ export function validateGround(row, refs) {
 /** Every problem with the table, as strings. Empty = valid. */
 export function validate() {
   const out = [];
-  for (const [key, row] of Object.entries(HUNT_GROUNDS)) {
+  for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS)]) {
     if (row.id !== key) out.push(key + ': row id ' + row.id + ' does not match its key');
     if (row.partyScale !== true) out.push(key + ': a shipped ground carries partyScale: true (designer ruling 2026-10-18)');
     out.push(...validateGround(row));

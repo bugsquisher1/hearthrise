@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/view-sheets.js src/world/atlas.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
+// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/view-sheets.js src/world/atlas.js src/world/render/canvas-backend.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -38,7 +38,8 @@
 //        before any Play (src/world/prewarm.js), and the World never fetches one again
 //   B-21 THE TOWN OPENS ON ITS VIEW (phone, first visit: Play waited 6.5 s for six sheets, the view drew two): with the other sheets held the
 //        town opens and is painted, asks for nothing the view does not draw until the server has named its stand, then asks for all the others;
-//        a view that draws a held sheet waits for it; a failed sheet and a read that never answers do not hold it shut. Its pixels: PB-VIEW
+//        a view that draws a held sheet waits for it, a shadow falling off it does not (v0.2.97); a failed sheet and a read that never
+//        answers do not hold it shut. Its pixels: PB-VIEW
 //   B-15 A SESSION THAT ENDS WHILE THE TOWN PREWARM RUNS STOPS IT (v0.2.71 merge; run 41045835796: 6 sheets):
 //        signed out with the atlas manifests still held, the page asks for no sheet afterwards
 //   B-17 "WHILE YOU WERE AWAY" IS WRITTEN ON THE WAY OUT (beta cost 11-01: a put a minute per hero): a hunt on screen with a young
@@ -979,14 +980,14 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         fails.push('B-9 one hero and an empty owned slot list as ' + JSON.stringify(rows));
       else {
         await page.click('[data-app="create"][data-slot="1"]');
-        /* The creation step: a name and how you fight; nothing is sent before Enter town. The colors are hidden until the world draws them
-           (outfits.js HERO_DYES_SHOWN, newcomer panel 2026-11-01), and Enter town shows with no scrolling at a laptop's 1366x768. */
+        /* The creation step: a name and how you fight; nothing is sent before Enter town. The four color strips and the real hero show beside them
+           (outfits.js HERO_DYES_SHOWN, lane/c-hero-colors), and Enter town shows with no scrolling at a laptop's 1366x768. */
         await page.setViewportSize({ width: 1366, height: 768 });
         const step = await wait(page, () => document.querySelector('.hero-name') && document.querySelector('.hero-how-list'));
         if (!step) fails.push('B-9 Create did not open the creation step (sent ' + JSON.stringify(o.created) + ')');
         else {
           const laptop = await page.evaluate(() => { const b = document.querySelector('.hero-confirm').getBoundingClientRect(); return { bottom: Math.round(b.bottom), H: innerHeight, doc: document.documentElement.scrollHeight, dyes: document.querySelectorAll('.hero-region, .hero-preview, .hero-note').length }; });
-          if (laptop.bottom > laptop.H || laptop.doc > laptop.H || laptop.dyes) fails.push('B-9 at 1366x768 the creation step reads ' + JSON.stringify(laptop));
+          if (laptop.bottom > laptop.H || laptop.doc > laptop.H || laptop.dyes !== 6) fails.push('B-9 at 1366x768 the creation step reads ' + JSON.stringify(laptop));
           /* On a 922x423 phone the five ways to fight show too (playtest 2026-10-29: the phone hid them), in a column
              that scrolls, and Enter town still fits the screen. */
           await page.setViewportSize({ width: 922, height: 423 });
@@ -1238,7 +1239,7 @@ const MUTANTS = [
   ['a sign-up sent keeps its fields', 'src/styles/app.css', '.auth-card.is-sent .auth-field, .auth-card.is-sent .auth-submit { display: none; }\n', ''],
   ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],
   ['Enter town runs under the fold at 1366x768', 'src/styles/app.css', '.auth:has(.auth-card.is-create) .auth-brand { display: none; }\n', ''],
-  ['the color strips are back while the world draws none', 'src/data/outfits.js', 'export const HERO_DYES_SHOWN = false;', 'export const HERO_DYES_SHOWN = true;'],
+  ['the color strips are gone though the world draws them', 'src/data/outfits.js', 'export const HERO_DYES_SHOWN = true;', 'export const HERO_DYES_SHOWN = false;'],
   ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "  return '';"],
   ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
   ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
@@ -1290,6 +1291,7 @@ const MUTANTS = [
   ['a frame asks for the sheets of the town start while the first view waits for its stand (B-21)', 'src/world/view-sheets.js', 'const held = (id, cast) => (opening ? opensOnView(id) : check(id, cast));', 'const held = check;'],
   ['the frame loop runs while the first view waits (B-21)', 'src/world/view-sheets.js', 'sheets.ensure([set]).then(() => { if (!opening) wake(); });', 'sheets.ensure([set]).then(wake);'],
   ['a read that never answers holds the town shut (B-21)', 'src/world/view-sheets.js', 'await Promise.race([town.heard(), new Promise((done) => win.setTimeout(done, PLACE_WAIT_MS))]);', 'await new Promise(() => {});'],
+  ['a shadow off the view holds the town for its sheet (B-21, v0.2.97: the Weighhouse plaque under the hearth view)', 'src/world/render/canvas-backend.js', " && sh.sprite.set && meets(castBox(sh.sprite, sh.m))) ", ' && sh.sprite.set) '],
   ['a frame naming a sheet on its way is drawn anyway (B-21)', 'src/world/view-sheets.js', 'return miss.length > 0;', 'return false;'],
   ['a failed sheet ends the town instead of drawing stubs (B-21)', 'src/world/atlas.js', "(e) => { console.warn('[world] atlas \"' + set + '\" did not load; its sprites draw as stubs', e && e.message); return false; })", '(e) => { throw e; })'],
   ['a scene shows before its sheets arrive', 'src/world/world-boot.js', "could not be prepared', e));\n      }\n      return null;",

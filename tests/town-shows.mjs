@@ -19,7 +19,7 @@
 //   TS-TOWN    replacing ONLY hr_town_extras / hr_town_shows_of reaches the town read as `extras` / `shows`; the read keeps what it had
 //   TS-AGAIN   a second apply of all five files is byte-identical and never overwrites a body a later lane put in a stub
 //   TS-CLIENT  the walker keeps a title and colors and refuses junk; the plate reads "Marlow the Wolfer · 18"; a chat line carries the
-//              title and draws it; the Works stubs stay hidden
+//              title and draws it
 //   TS-XP      a bought powder pays zero Inner Flame XP by any path: no xp key in the verb, no item to burn, no recipe, no named row
 //   TS-NAMED   a named fuel never waits behind a bought powder; it answers first in the square; the paused powder still burns every second it paid for
 //   TS-CLIMB   two heroes on one account share one ladder, in order, each paying the next price; the lock order is hero, sink key, the count, the charge, the town's key
@@ -34,7 +34,7 @@
 //   TS-NO-METER THE STANDING GUARD: nothing but the named functions reads town_shows or the purchase journal: gold into the Hearthrise meter is a paid XP buff (avoid list)
 //   TS-EDGE    bought flames stay out of src/data/hearth.js, and src/data/gold-sinks.js is in no edge bundle, so this lane moves no edge hash
 //   TS-WORDS   every refusal says why in the designer's sentence, with the server's numbers
-//   TS-WINDOW  the Havora window's buttons read the server's quote; its tabs hide Works; the Tavern opens its Round tab; a bought flame swaps the fire's art and a round bursts;
+//   TS-WINDOW  the Havora window's buttons read the server's quote; its tabs name Works; the Tavern opens its Round tab; a bought flame swaps the fire's art and a round bursts;
 //              the Hearth tab says what a powder does, and the day's line and the answer stand in the window's foot (tests/chat-social.mjs CW-HAVORA measures the foot in a browser)
 //   TS-SHOW    a round is a show for its whole length: shells climb from the square and burst high over it, in many places, never dark for long, never crowding the square;
 //              each shell is large, mostly air and no mirrored stamp, and every shell steps on one tick so a show can't repaint the town every frame
@@ -102,8 +102,6 @@ export const MUTANTS = {
     js: ['src/social/chat-lines.js', [["    title: !whisper && typeof row.from_title === 'string' && TITLE.test(row.from_title) ? row.from_title : null,", '    title: null,']]] },
   extras_merged: { arm: 'TS-CLIENT', why: 'an answer with no extras keeps the last ones',
     js: ['src/session/town-presence.js', [["    this._extras = b.extras && typeof b.extras === 'object' && !Array.isArray(b.extras) ? b.extras : null;", "    this._extras = b.extras && typeof b.extras === 'object' && !Array.isArray(b.extras) ? b.extras : this._extras;"]]] },
-  works_shown: { arm: 'TS-CLIENT', why: 'the Works tab shows before its lane lands',
-    js: ['src/shell/windows/havora/works.js', [["shown: false", 'shown: true']]] },
   /* A BOUGHT POWDER PAYS NO XP */
   powder_pays_xp: { arm: 'TS-XP', why: 'a powder pays Inner Flame XP',
     db: [SHOW, "             'gold', -v_price,\n", "             'gold', -v_price, 'xp', jsonb_build_object('inner_flame', 500),\n"] },
@@ -163,6 +161,8 @@ export const MUTANTS = {
   meter_view: { arm: 'TS-NO-METER', why: 'a view feeds gold into a meter', ddl: 'create view public.hr_hearthrise_fuel as select map_id, count(*) n from public.town_shows group by 1' },
   meter_reads_journal: { arm: 'TS-NO-METER', why: 'a meter counts purchases off the ledger', ddl: "create function public.hr_hearthrise_paid() returns bigint language sql stable as $f$ select count(*) from public.player_ledger where intent like 'town_show:%' $f$" },
   meter_reads_flame: { arm: 'TS-NO-METER', why: 'a meter reads the flame the square burns, which includes bought ones', ddl: "create function public.hr_hearthrise_lit(p_map text) returns boolean language sql stable as $f$ select public.hr_hearth_flame_of(p_map) is not null $f$" },
+  meter_trigger: { arm: 'TS-NO-METER', why: 'a trigger counts each show into a meter', ddl: "create function public.hr_hearthrise_tick() returns trigger language plpgsql as $f$ begin perform pg_notify('hearthrise', new.map_id); return new; end $f$; create trigger hr_hearthrise_tick after insert on public.town_shows for each row execute function public.hr_hearthrise_tick()" },
+  meter_wears_the_wall: { arm: 'TS-NO-METER', why: 'a meter hides under the Game Master wall\'s name', ddl: "create function public.hr_hearthrise_tick() returns trigger language plpgsql as $f$ begin perform pg_notify('hearthrise', new.map_id); return new; end $f$; create or replace trigger hr_gm_wall before insert on public.town_shows for each row execute function public.hr_hearthrise_tick()" },
   /* THE EDGE */
   flame_in_hearth_data: { arm: 'TS-EDGE', why: 'a bought flame lands in src/data/hearth.js, which the edge bundles',
     js: ['src/data/hearth.js', [["  fire: flame('hearth_fire', 'hearth_flare', 'hearth_burn_sparks', 'burns'),\n", "  fire: flame('hearth_fire', 'hearth_flare', 'hearth_burn_sparks', 'burns'),\n  cinnabar: flame('hearth_fire_cinnabar', 'hearth_flare_cinnabar', 'hearth_burn_sparks_cinnabar', 'burns red'),\n"]]] },
@@ -183,6 +183,8 @@ export const MUTANTS = {
   show_in_one_place: { arm: 'TS-SHOW', why: 'every shell bursts on one spot', js: ['src/world/town-shows.js', [['x: fire.x + dx, y: fire.y + dy }); continue; }', 'x: fire.x, y: fire.y + dy }); continue; }']]] },
   show_every_frame: { arm: 'TS-SHOW', why: 'a shell moves on every frame, so a show repaints the town at the screen\'s rate', js: ['src/world/town-shows.js', [['const t = Math.floor((now - round.startedAt) / beatMs) * beatMs;', 'const t = now - round.startedAt;']]] },
   hearth_claims_the_square: { arm: 'TS-WINDOW', why: 'the Hearth tab promises a color the square never shows', js: ['src/shell/windows/havora/index.js', [["It burns that color for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone in ' + esc(TOWN_NAME) + ' sees", "Its color fills ' + esc(TOWN_NAME) + '\\'s square for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone there sees"]]] },
+  powder_over_purse_on: { arm: 'TS-WINDOW', why: 'a powder the purse can\'t pay stays live and is refused after the press', js: ['src/shell/windows/havora/index.js', [["prop(buyPowder, 'disabled', sc.pending || pPrice === null || pShort > 0);", "prop(buyPowder, 'disabled', sc.pending || pPrice === null);"]]] },
+  round_short_unsaid: { arm: 'TS-WINDOW', why: 'nothing under the round says why it is off', js: ['src/shell/windows/havora/index.js', [["  text(root.querySelector('.hv-why[data-of=\"round\"]'), needWords(rShort));\n", '']]] },
   foot_in_the_pane: { arm: 'TS-WINDOW', why: 'the answer to a press sits outside the foot, under the fold of a short window', js: ['src/shell/windows/havora/index.js', [["    + '<p class=\"hh-intent-msg\" role=\"status\" aria-live=\"polite\"></p></div></div>';", "    + '</div><p class=\"hh-intent-msg\" role=\"status\" aria-live=\"polite\"></p></div>';"]]] },
 };
 
@@ -203,6 +205,22 @@ async function hero(db, uid, slot, name) {
   const r = await as(db, uid, 'select public.hr_create_hero($1::int, $2, $3::jsonb, $4::uuid)', [slot, name, JSON.stringify({ head: dye, body: dye, legs: dye, feet: dye }), idem()]);
   if (!r || r.ok !== true) throw Object.assign(new Error(`hr_create_hero(${slot}, ${name}): ` + JSON.stringify(r)), { harness: true });
   await db.query('update public.player_state set stamina_ms = 28800000, stamina_at = now() where user_id = $1 and slot = $2', [uid, slot]);
+}
+/* renderHavora.patch over plain elements, the server's sinks read and the envelope's purse (`state.gold`): each buy button and the line under it. */
+async function buysOf(X, view, purse) {
+  const els = new Map();
+  const fake = () => { const at = {}; return { textContent: '', disabled: false, hidden: false, at, style: { getPropertyValue: () => '', setProperty() {}, removeProperty() {} },
+    getAttribute: (k) => (k in at ? at[k] : null), setAttribute: (k, v) => { at[k] = String(v); }, hasAttribute: (k) => k in at, removeAttribute: (k) => { delete at[k]; }, classList: { contains: () => false, toggle() {} } }; };
+  const el = (s) => { if (!els.has(s)) els.set(s, fake()); return els.get(s); };
+  const root = { querySelector: el, querySelectorAll: () => [] };
+  const body = { querySelector: (s) => (s === '.hw-havora' ? root : el(s)) };
+  const cs = { slot: 0, status: 'open', load: async () => {}, read: (k) => (k === 'state' && purse !== null ? { gold: purse, gold_v: 1 } : undefined) };
+  const ctx = { character: cs, account: { server: { rpc: async () => ({ ok: true, body: view }) } }, now: () => 1000, refresh: () => {} };
+  X.HW.renderHavora.patch(body, ctx);
+  await new Promise((r) => setTimeout(r, 20));
+  X.HW.renderHavora.patch(body, ctx);
+  const one = (act, of) => { const b = el('[data-hs-act="' + act + '"]'); return { off: b.disabled, why: b.getAttribute('data-off-why'), line: el('.hv-why[data-of="' + of + '"]').textContent }; };
+  return { powder: one('powder', 'hearth'), round: one('round', 'round') };
 }
 /* A stranger's read of the square, with `whose` standing in it. */
 async function strangerSees(db, whose, viewer) {
@@ -331,7 +349,8 @@ const ARMS = {
     await hero(db, B, 0, 'Tamsel');
     const before = await strangerSees(db, A, B);
     if (!before.read || before.read.ok !== true) return ['the town read answered ' + JSON.stringify(before.read)];
-    if (JSON.stringify(before.read.extras) !== '{}' || before.read.shows !== null) out.push(`the stubs read extras ${JSON.stringify(before.read.extras)}, shows ${JSON.stringify(before.read.shows)}`);
+    /* hr_town_extras' body is the Town Works' now (tests/town-works.mjs); nothing is burning, so the shows read null */
+    if (!before.read.extras || !before.read.extras.works || before.read.shows !== null) out.push(`the town read holds extras ${JSON.stringify(before.read.extras)}, shows ${JSON.stringify(before.read.shows)}`);
     for (const k of ['map', 'inst', 'cap', 'full', 'cursor', 'area', 'walkers', 'gone', 'me', 'hearth']) if (!(k in before.read)) out.push(`the town read lost ${k}`);
     await db.exec(`create or replace function public.hr_town_extras(p_map text) returns jsonb language sql stable security definer set search_path = public, pg_catalog as $fn$
       select jsonb_build_object('works', jsonb_build_object('map', p_map, 'stage', 2)) $fn$`);
@@ -711,7 +730,11 @@ const ARMS = {
       if (/\btown_shows\b/.test(v.d)) out.push('the view ' + v.relname + ' reads town_shows');
       if (/\baccount_gold_given\b/.test(v.d) && v.relname !== 'leaderboard_ranked') out.push('the view ' + v.relname + ' reads the Gold Given counter');
     }
-    if (Number(await one(db, "select count(*) from pg_trigger where tgrelid = 'public.town_shows'::regclass and not tgisinternal"))) out.push('a trigger hangs off town_shows');
+    /* ONE TRIGGER IS ARGUED: the Game Master's wall (2027-03-13-gm-tools.sql), hr_gm_wall running hr_gm_wall_guard, a refusal that counts nothing. Any other is a meter until argued here. */
+    for (const t of await q(db, `select g.tgname, g.tgfoid::regprocedure::text as fn, g.tgfoid = to_regprocedure('public.hr_gm_wall_guard()') as wall
+                                   from pg_trigger g where g.tgrelid = 'public.town_shows'::regclass and not g.tgisinternal`)) {
+      if (!(t.tgname === 'hr_gm_wall' && t.wall === true)) out.push(`a trigger hangs off town_shows: ${t.tgname} runs ${t.fn}`);
+    }
     /* AND NO ENGINE FILE NAMES IT */
     for (const [rel, text] of X.engineFiles) if (/\btown_shows\b|hr_town_show\b|town_show:/.test(text)) out.push(rel + ' names the shows');
     if (!X.engineFiles.length) out.push('the scan of the engine read no file');
@@ -751,15 +774,14 @@ const ARMS = {
     if (X.HW.throwWords('cinnabar', 2000) !== 'Throw Cinnabar: 2,000 gp') out.push('the powder\'s button reads ' + X.HW.throwWords('cinnabar', 2000));
     if (X.HW.roundWords(5000) !== 'Stand a round: 5,000 gp') out.push('the round\'s button reads ' + X.HW.roundWords(5000));
     const html = X.HW.renderHavora({});
-    if (/data-tab="works"|data-pane="works"/.test(html)) out.push('the window shows Works before its lane lands');
-    for (const id of ['hearth', 'round']) if (!html.includes('data-tab="' + id + '"')) out.push('the window has no ' + id + ' tab');
+    for (const id of ['hearth', 'round', 'works']) if (!html.includes('data-tab="' + id + '"')) out.push('the window has no ' + id + ' tab');
     /* ONLY THE FLAME CHANGES COLOR, so the Hearth tab says so, with the rules row's own seconds */
     const lead = (/data-pane="hearth"><p class="hv-lead">([^<]*)</.exec(html) || [])[1] || '';
     if (/fills|square/i.test(lead)) out.push('the Hearth tab promises the square a color: ' + lead);
     if (!lead.includes('burns that color for ' + X.GS.SINK_RULES.powder.seconds + ' seconds') || !lead.includes('everyone in Havora sees who threw it')) out.push('the Hearth tab reads: ' + lead);
     /* THE DAY'S LINE AND THE ANSWER STAND IN THE FOOT, one line per tab: a short window scrolls the pane under them */
     const foot = (/<div class="hv-foot">(.*)<\/div><\/div>$/.exec(html) || [])[1] || '';
-    for (const id of ['hearth', 'round']) if (!foot.includes('hv-count" data-of="' + id + '"')) out.push('the foot has no line for ' + id + ': ' + foot);
+    for (const id of ['hearth', 'round', 'works']) if (!foot.includes('hv-count" data-of="' + id + '"')) out.push('the foot has no line for ' + id + ': ' + foot);
     if (!foot.includes('hh-intent-msg')) out.push('the answer to a press is not in the foot: ' + foot);
     /* THE SERVER'S ANSWER, read field by field */
     await hero(db, A, 0, 'Marlow');
@@ -767,6 +789,13 @@ const ARMS = {
     const s = X.TI.parseSinks(view);
     if (!s || s.powder.price !== 2000 || s.round.price !== 5000 || s.powder.perDay !== 5 || !s.crier || s.crier.price !== 1000 || s.crier.minLevel !== 10) out.push('the window parses ' + JSON.stringify(s));
     if (X.TI.parseSinks({ ok: true }) !== null) out.push('a broken answer parsed');
+    /* A PRICE THE PURSE CAN'T PAY IS OFF BEFORE THE PRESS, AND SAYS BY HOW MUCH (v0.2.97 gate, the Works tab's class: "Throw Cinnabar: 2,000 gp" live on a 500 gp purse).
+       The real patch over plain elements, the envelope's purse against the server's quote; with no purse stated the server judges. */
+    const poor = await buysOf(X, view, 500), flush = await buysOf(X, view, 9000), unsaid = await buysOf(X, view, null);
+    if (!poor.powder.off || poor.powder.why !== 'You need 1,500 gp more.' || poor.powder.line !== 'You need 1,500 gp more.') out.push('with 500 gp the powder reads ' + JSON.stringify(poor.powder));
+    if (!poor.round.off || poor.round.line !== 'You need 4,500 gp more.') out.push('with 500 gp the round reads ' + JSON.stringify(poor.round));
+    if (flush.powder.off || flush.round.off || flush.powder.line || flush.round.line || flush.powder.why !== null) out.push('with 9,000 gp the buys read ' + JSON.stringify(flush));
+    if (unsaid.powder.off || unsaid.round.off) out.push('with no purse stated a buy is off: ' + JSON.stringify(unsaid));
     /* THE TAVERN OPENS ITS ROUND TAB */
     const row = X.ST.SINK_TAPS.havora_tavern;
     const act = row ? X.SL.tapAction({ id: 'town', exits: [] }, { tile: [62, 20], hits: [{ id: 'havora_tavern', tx: 62, ty: 20, ref: null }] }, { opens: X.ST.SINK_TAPS, maps: {} }) : null;
@@ -892,8 +921,6 @@ const ARMS = {
     if (tp.extras() !== null) out.push('an answer with no extras kept the last ones');
     tp.destroy();
 
-    if (X.WK.WORKS_TAB.shown !== false || X.WK.worksHtml() !== '' || X.WK.patchWorks({}, {}) !== undefined || X.WK.actWorks({}, {}, 'tab', {}, {}) !== false) out.push('the Works tab is not hidden');
-    if (X.TW.townWorksSwap({}, { works: { stage: 4 } }) !== null) out.push('the map draws Works before its lane lands');
     return out;
   },
 };
@@ -933,8 +960,6 @@ async function loadReaders(root) {
     TP: await import(u('src/session/town-presence.js')),
     TS: await import(u('src/world/town-scene.js')),
     CL: await import(u('src/social/chat-lines.js')),
-    WK: await import(u('src/shell/windows/havora/works.js')),
-    TW: await import(u('src/world/town-works.js')),
   };
 }
 

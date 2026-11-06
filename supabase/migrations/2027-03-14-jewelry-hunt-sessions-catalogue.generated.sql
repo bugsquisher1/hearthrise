@@ -8,10 +8,10 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 5d223de64fb719db1386644b63db09602e24809cdf063baf20c63aeb963aa5c9
---   82 supplies, 128 hunts (named + training), 47 limits, 13 end reasons,
+--   digest: 75430a685a20a7e26e5bdb1f3abb6e800bb8173b25bca972e25eeea06f4fbdaf
+--   82 supplies, 130 hunts (named + training), 47 limits, 15 end reasons,
 --   557 vendor values, 49 store supplies paid per use, 5 target modes,
---   4 lanes, 16 abilities, 10 action-set options, 6 hunt grounds
+--   4 lanes, 16 abilities, 10 action-set options, 8 hunt grounds
 --
 -- NEW IN THIS FILE (lane/c-rune-ladder, Tyler 2026-11-05: "let start with your calls"): hr_hunt_basic_supplies gains one store rune a
 -- family a tier above Plain (src/data/supply-basics.js STORE_RUNE_PRICE), and hr_hunt_vendor_value moves the deeper runes' bids to their new
@@ -19,6 +19,15 @@
 -- shape is unchanged (no world_shape_pending on either order). The old engine never buys a new row: it casts a slot only on the store row
 -- partnering the family's Chalked rune. ORDER: after 2027-03-08-rune-ladder-items-catalogue.generated.sql, before
 -- 2027-03-08-rune-ladder-rune-spells.generated.sql and 2027-03-08-rune-ladder-slots.sql; the hr-accrue carrying the same rows deploys at once.
+--
+-- NEW IN THIS FILE (lane/c-etched-12g, Tyler 2026-11-05: at 10 g Etched read +39% XP for only -429 g/h): every family's Etched store rune costs 12 g, up from 10
+-- (STORE_RUNE_PRICE). Nothing else moves; the world's shape is unchanged (no world_shape_pending on either order). ORDER: after 2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql
+-- (it carries that file), then the hr-accrue carrying the same price deploys at once.
+--
+-- NEW IN THIS FILE (lane/c-boss-call, Tyler 2026-11-04, src/data/boss-calls.js): the two called rooms in hr_hunt_grounds, hr_hunt_ground_spawns and hr_hunt_travel; their two called rows in
+-- hr_hunt_kill_bounds, every bound 0 (a called row pays nothing); END_ORDER's boss_felled and boss_time (hr_hunt_end_reasons, hunt_sessions.end_reason's CHECK); hr_boss_calls. hr_hunt_roster does not
+-- move: the Bestiary never counts a called row. The world's shape is unchanged (no world_shape_pending on either order), and nobody can reach a room until 2027-03-12-boss-call.sql. ORDER: after
+-- 2027-03-11-etched-12g-hunt-sessions-catalogue.generated.sql (it carries that file) and 2027-03-12-boss-call-hunts-catalogue.generated.sql (every ground hunt is in hr_hunts), right before 2027-03-12-boss-call.sql.
 --
 -- CARRIED FROM 2027-02-24-gold-matters (lane/c-gold-matters, designer 2026-11-03): gold value climbs with the monster. hr_hunt_kill_bounds' gold_max falls on Wickstead,
 -- the Glade's poachers and the Sewer's bat and spider, and rises on the Rat King and the Warrens; hr_hunt_vendor_value falls for tier 2's helmet, body, legs and
@@ -344,10 +353,27 @@ alter table public.hr_hunt_weapon_roles add constraint hr_hunt_weapon_roles_with
 create table if not exists public.hr_hunt_shields (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$')
 );
+-- CALL OUT, THE MONEY LINE AS A CHECK: a normal monster's XP bound stays at least 1 (a 0 refuses every kill of it), and a called row's whole bound is nothing. The id tells them apart (calledRows holds id and flag equal).
+alter table public.hr_hunt_kill_bounds drop constraint if exists hr_hunt_kill_bounds_xp_max_check;
+alter table public.hr_hunt_kill_bounds add constraint hr_hunt_kill_bounds_xp_max_check
+  check ((monster_id !~ '_called$' and xp_max >= 1) or (monster_id ~ '_called$' and xp_max = 0 and gold_max = 0 and drops = '{}'::jsonb));
+-- CALL OUT (boss-calls.js): which rooms, what fee. Read by hr_hunt_admit, hr_boss_call and the settle's proof of the room's ends.
+create table if not exists public.hr_boss_calls (
+  call_id    text   primary key check (call_id ~ '^[a-z0-9_]{1,64}$'),
+  hunt_id    text   not null unique check (hunt_id ~ '^[a-z0-9_]{1,57}_called$'),
+  from_hunt  text   not null check (from_hunt ~ '^[a-z0-9_]{1,64}$'),
+  monster_id text   not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
+  fee        bigint not null check (fee between 1 and 1000000000),
+  per_day    int    not null check (per_day between 1 and 100),
+  party_min  int    not null check (party_min between 2 and 8),
+  limit_ms   int    not null check (limit_ms between 60000 and 3600000)
+);
+comment on table public.hr_boss_calls is
+  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms and their fees (Call out, lane/c-boss-call). Names no player; character wipe c_no_player.';
 do $$
 declare v_t text;
 begin
-  foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields'] loop
+  foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls'] loop
     execute format('alter table public.%I enable row level security', v_t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', v_t);
   end loop;
@@ -449,12 +475,12 @@ insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana,
   ('plain_dawnpoint_arrows', 'ammo', 'dawnpoint_arrows', 0, 0, 12),
   ('plain_earth_rune', 'ammo', 'chalked_earth_rune', 0, 0, 1),
   ('plain_emberhead_arrows', 'ammo', 'emberhead_arrows', 0, 0, 9),
-  ('plain_etched_earth_rune', 'ammo', 'etched_earth_rune', 0, 0, 10),
-  ('plain_etched_fire_rune', 'ammo', 'etched_fire_rune', 0, 0, 10),
-  ('plain_etched_ice_rune', 'ammo', 'etched_ice_rune', 0, 0, 10),
-  ('plain_etched_poison_rune', 'ammo', 'etched_poison_rune', 0, 0, 10),
-  ('plain_etched_rupture_rune', 'ammo', 'etched_rupture_rune', 0, 0, 10),
-  ('plain_etched_water_rune', 'ammo', 'etched_water_rune', 0, 0, 10),
+  ('plain_etched_earth_rune', 'ammo', 'etched_earth_rune', 0, 0, 12),
+  ('plain_etched_fire_rune', 'ammo', 'etched_fire_rune', 0, 0, 12),
+  ('plain_etched_ice_rune', 'ammo', 'etched_ice_rune', 0, 0, 12),
+  ('plain_etched_poison_rune', 'ammo', 'etched_poison_rune', 0, 0, 12),
+  ('plain_etched_rupture_rune', 'ammo', 'etched_rupture_rune', 0, 0, 12),
+  ('plain_etched_water_rune', 'ammo', 'etched_water_rune', 0, 0, 12),
   ('plain_fire_rune', 'ammo', 'chalked_fire_rune', 0, 0, 1),
   ('plain_graven_earth_rune', 'ammo', 'graven_earth_rune', 0, 0, 24),
   ('plain_graven_fire_rune', 'ammo', 'graven_fire_rune', 0, 0, 24),
@@ -533,6 +559,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('centipede', 40, 188, '{"void_chitin":1,"venom_sac":1,"iron_ore":1,"coal":1}'::jsonb),
   ('chained_demon', 254, 962, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"iron_fitting":1,"yew_staff":1}'::jsonb),
   ('chief_coppercap', 227, 9570, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"coppercaps_tallow":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1,"willow_wand":1,"willow_spellbook":1,"willow_staff":1,"verdigris_cake":1,"coppercaps_cauldron":1}'::jsonb),
+  ('chief_coppercap_called', 0, 0, '{}'::jsonb),
   ('cistern_spider', 74, 839, '{"silk_thread":1,"dry_husk":1,"cistern_venom_gland":1,"longbow":1,"oak_crossbow":1}'::jsonb),
   ('clay_golem', 40, 217, '{"iron_ore":1,"iron_fitting":1,"coal":1,"steel_boots":1}'::jsonb),
   ('conjurer', 118, 477, '{"magic_essence":1,"hell_ember":1,"rune_frag":1,"maple_spellbook":1,"warlock_boots":1}'::jsonb),
@@ -547,6 +574,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('draconia', 646, 1924, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"dragonrib_bow":1}'::jsonb),
   ('dragon', 700, 2030, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"marrow_cookbook":1}'::jsonb),
   ('drain_rat', 18, 222, '{"rat_tail":1,"bones":1,"rat_incisor":1,"bronze_platelegs":1,"leather_pants":1,"apprentice_pants":1}'::jsonb),
+  ('drain_rat_called', 0, 0, '{}'::jsonb),
   ('drake', 240, 923, '{"dragon_scale":1,"dragon_bones":1,"mithril_ore":1,"steel_bar":1,"yew_bow":1}'::jsonb),
   ('drowned_dead', 96, 441, '{"grave_dust":1,"big_bones":1,"lobster":1,"abyssal_pearl":1}'::jsonb),
   ('dryad', 232, 881, '{"yew_log":1,"moonbloom":1,"runewood_log":1,"goldenroot":1}'::jsonb),
@@ -569,6 +597,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('goblin', 8, 36, '{"goblin_ear":1,"bones":1,"bronze_sword":1,"goblin_totem":1}'::jsonb),
   ('goblin_brute', 42, 207, '{"goblin_ear":1,"brute_plate":1,"steel_sword":1,"goblin_totem":1}'::jsonb),
   ('goblin_digger', 43, 1812, '{"copper_ore":1,"coal":1,"bones":1,"goblin_ear":1,"dented_copper_pot":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1,"steel_warhammer":1,"steel_belt":1,"boarhide_belt":1,"scholar_belt":1}'::jsonb),
+  ('goblin_digger_called', 0, 0, '{}'::jsonb),
   ('goblin_scavenger', 32, 1149, '{"goblin_ear":1,"copper_ore":1,"bones":1,"glowing_copper_fleck":1,"steel_boots":1,"boarhide_boots":1,"scholar_boots":1,"steel_platelegs":1,"boarhide_pants":1,"scholar_pants":1,"steel_sword":1}'::jsonb),
   ('goblin_skulker', 38, 1377, '{"goblin_ear":1,"bones":1,"iron_ore":1,"skulkers_shiv":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"willow_longbow":1,"willow_crossbow":1,"steel_gauntlets":1,"boarhide_gloves":1,"scholar_gloves":1}'::jsonb),
   ('goblin_sluicer', 34, 465, '{"copper_ore":1,"bones":1,"sluice_crust":1,"iron_platebody":1,"studded_body":1,"adept_body":1}'::jsonb),
@@ -609,6 +638,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('plague_swarm', 82, 360, '{"plague_ichor":1,"venom_sac":1,"swarm_heart":1,"field_cookbook":1}'::jsonb),
   ('rat', 4, 41, '{"rat_tail":1,"small_fang":1,"wheat":1,"bones":1,"giant_rat_hide":1}'::jsonb),
   ('rat_king', 247, 4740, '{"rat_tail":1,"bones":1,"knotted_tails":1,"crown_shard":1,"kingsgrate":1,"rat_kings_knot":1,"rat_kings_crown":1}'::jsonb),
+  ('rat_king_called', 0, 0, '{}'::jsonb),
   ('revenant', 512, 1707, '{"big_bones":1,"death_steel":1,"ancient_rune":1,"grave_dust":1,"ember_gauntlets":1}'::jsonb),
   ('rock_troll', 48, 226, '{"troll_hide":1,"iron_ore":1,"coal":1,"big_bones":1,"steel_belt":1}'::jsonb),
   ('rook_poacher', 36, 637, '{"raw_wolf_meat":1,"bones":1,"rooks_moss_charm":1,"rooks_whistle":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1}'::jsonb),
@@ -679,9 +709,11 @@ delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
   ('coppercap_warrens', 'coppercap_warrens', 6, 18, 90000, 4, '{8,8,8,8}'::int[]),
+  ('coppercap_warrens_called', 'coppercap_warrens_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
   ('meadowbrook_thicket', 'meadowbrook_thicket', 6, 49, 60000, 4, '{8,8,8,8}'::int[]),
   ('mill_cellar', 'mill_cellar', 2, 15, 32000, 4, '{8,8,8,8}'::int[]),
   ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4, '{8,8,10,12}'::int[]),
+  ('millrace_sewer_called', 'millrace_sewer_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
   ('mosslight_glade', 'mosslight_glade', 6, 37, 60000, 4, '{8,8,8,8}'::int[]),
   ('wickstead', 'wickstead', 6, 36, 60000, 4, '{8,8,8,8}'::int[]);
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
@@ -690,6 +722,8 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('coppercap_warrens', 'goblin_scavenger', 20),
   ('coppercap_warrens', 'goblin_skulker', 13),
   ('coppercap_warrens', 'hobgoblin_foreman', 2),
+  ('coppercap_warrens_called', 'chief_coppercap_called', 1),
+  ('coppercap_warrens_called', 'goblin_digger_called', 3),
   ('meadowbrook_thicket', 'briarcoat_wolf', 7),
   ('meadowbrook_thicket', 'dire_gray', 3),
   ('meadowbrook_thicket', 'gray_whelp', 20),
@@ -704,6 +738,8 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('millrace_sewer', 'kobold_tosher', 3),
   ('millrace_sewer', 'rat_king', 1),
   ('millrace_sewer', 'sump_slime', 3),
+  ('millrace_sewer_called', 'drain_rat_called', 3),
+  ('millrace_sewer_called', 'rat_king_called', 1),
   ('mosslight_glade', 'brook_bear', 2),
   ('mosslight_glade', 'carrion_crow', 23),
   ('mosslight_glade', 'glade_poacher', 9),
@@ -869,6 +905,7 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('clay_golem', 0, true),
   ('conjurer', 0, true),
   ('coppercap_warrens', 0, false),
+  ('coppercap_warrens_called', 0, false),
   ('culvert_bat', 0, true),
   ('cutpurse', 0, true),
   ('cyclops', 0, true),
@@ -923,6 +960,7 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('meadowbrook_thicket', 0, false),
   ('mill_cellar', 0, false),
   ('millrace_sewer', 0, false),
+  ('millrace_sewer_called', 0, false),
   ('minotaur', 0, true),
   ('mosslight_glade', 0, false),
   ('mountain_ram', 0, true),
@@ -1025,18 +1063,20 @@ insert into public.hr_hunt_limits (key, value) values
 delete from public.hr_hunt_end_reasons;
 insert into public.hr_hunt_end_reasons (reason, ord, resumes) values
   ('died', 1, true),
-  ('party_member_died', 2, true),
-  ('party_member_left', 3, true),
-  ('heals_out', 4, true),
-  ('ammo_out', 5, true),
-  ('gold_out', 6, true),
-  ('rule', 7, true),
-  ('stamina', 8, true),
-  ('hours', 9, true),
-  ('left', 10, false),
-  ('changed', 11, false),
-  ('no_fight', 12, true),
-  ('server', 13, true);
+  ('boss_felled', 2, true),
+  ('party_member_died', 3, true),
+  ('party_member_left', 4, true),
+  ('heals_out', 5, true),
+  ('ammo_out', 6, true),
+  ('gold_out', 7, true),
+  ('rule', 8, true),
+  ('stamina', 9, true),
+  ('hours', 10, true),
+  ('boss_time', 11, true),
+  ('left', 12, false),
+  ('changed', 13, false),
+  ('no_fight', 14, true),
+  ('server', 15, true);
 delete from public.hr_hunt_resumable_kinds;
 insert into public.hr_hunt_resumable_kinds (kind) values
   ('gather'),
@@ -1045,7 +1085,7 @@ insert into public.hr_hunt_resumable_kinds (kind) values
 -- hunt_sessions.end_reason's CHECK is END_ORDER (the generator owns it).
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
 alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
-  check (end_reason in ('died', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'no_fight', 'server'));
+  check (end_reason in ('died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'left', 'changed', 'no_fight', 'server'));
 -- The bar's size is ACTION_SET_LIMITS.slots (Huntera's two rows of ten).
 alter table public.player_action_sets drop constraint if exists player_action_sets_slots_check;
 alter table public.player_action_sets add constraint player_action_sets_slots_check
@@ -1623,15 +1663,19 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('yew_spellbook', 504),
   ('yew_staff', 630),
   ('yew_wand', 567);
+delete from public.hr_boss_calls;
+insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, party_min, limit_ms) values
+  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 30000, 3, 2, 600000),
+  ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 10000, 3, 2, 600000);
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$
 declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 82
-     or (select count(*) from public.hr_hunt_travel) <> 128
+     or (select count(*) from public.hr_hunt_travel) <> 130
      or (select count(*) from public.hr_hunt_limits) <> 47
-     or (select count(*) from public.hr_hunt_end_reasons) <> 13
+     or (select count(*) from public.hr_hunt_end_reasons) <> 15
      or (select count(*) from public.hr_hunt_vendor_value) <> 557
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
@@ -1641,11 +1685,11 @@ begin
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
      or (select count(*) from public.hr_hunt_lanes) <> 4
      or (select count(*) from public.hr_hunt_set_options) <> 10
-     or (select count(*) from public.hr_hunt_kill_bounds) <> 140
+     or (select count(*) from public.hr_hunt_kill_bounds) <> 144
      or (select count(*) from public.hr_hunt_abilities) <> 16
-     or (select count(*) from public.hr_hunt_grounds) <> 6
+     or (select count(*) from public.hr_hunt_grounds) <> 8
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
-     or (select count(*) from public.hr_hunt_ground_spawns) <> 30
+     or (select count(*) from public.hr_hunt_ground_spawns) <> 34
      or (select count(*) from public.hr_hunt_roster) <> 30
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
@@ -1653,18 +1697,19 @@ begin
      or (select count(*) from public.hr_hunt_weapon_roles) <> 12
      or (select count(*) from public.hr_hunt_roles) <> 0
      or (select count(*) from public.hr_hunt_shields) <> 6
+     or (select count(*) from public.hr_boss_calls) <> 2
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
                  and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
-     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 11 then
+     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 13 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- Every ground's respawn is the data's (the settle's kill bound reads it: 2027-02-09, the Cellar at 32 s).
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
-               (('coppercap_warrens', 90000), ('meadowbrook_thicket', 60000), ('mill_cellar', 32000), ('millrace_sewer', 90000), ('mosslight_glade', 60000), ('wickstead', 60000))) then
+               (('coppercap_warrens', 90000), ('coppercap_warrens_called', 600000), ('meadowbrook_thicket', 60000), ('mill_cellar', 32000), ('millrace_sewer', 90000), ('millrace_sewer_called', 600000), ('mosslight_glade', 60000), ('wickstead', 60000))) then
     raise exception 'a hunt ground''s respawn_ms is not hunt-grounds.js respawnMs'; end if;
   -- THE KILL BOUND'S BASE covers a party's default pull: every ground's spawns, as generated, and each at least its pockets' largest pull.
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.pockets, g.spawns) not in
-               (('coppercap_warrens', 6, 18), ('meadowbrook_thicket', 6, 49), ('mill_cellar', 2, 15), ('millrace_sewer', 6, 19), ('mosslight_glade', 6, 37), ('wickstead', 6, 36))) then
+               (('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 4), ('meadowbrook_thicket', 6, 49), ('mill_cellar', 2, 15), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 4), ('mosslight_glade', 6, 37), ('wickstead', 6, 36))) then
     raise exception 'a hunt ground''s spawns is not as-built plus its pockets at a party''s largest default pull'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"yieldPm":30,"stance":31,"acc":32,"maxHit":33,"def":34,"element":35,"swingLeftMs":36,"mana":37,"maxMana":38,"manaMilli":39,"regenPm":40,"lanes":41,"cds":42,"shield":43,"markPm":44,"markUntil":45,"statuses":46,"laneAt":47,"otHp":48,"otMana":49,"ruleHold":50,"ruleWait":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16}}'::jsonb
@@ -1681,6 +1726,15 @@ begin
      or coalesce(public.hr_char_xp_for_level(2), 0) <= 0 or coalesce(public.hr_hunt_limit('skill_base'), 0) <= 0
      or coalesce(public.hr_hunt_limit('armour_slots'), 0) <= 0 then
     raise exception 'the stamina caps or the core model rows are malformed'; end if;
+  -- CALL OUT, THE MONEY LINE: every called room stands only on rows that pay nothing, its rows reach no roster and no other ground, and it has its travel and its ground.
+  if exists (select 1 from public.hr_boss_calls c
+              where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = c.hunt_id)
+                 or not exists (select 1 from public.hr_hunt_travel t where t.hunt_id = c.hunt_id and not t.training)
+                 or exists (select 1 from public.hr_hunt_ground_spawns s join public.hr_hunt_kill_bounds b on b.monster_id = s.monster_id
+                             where s.hunt_id = c.hunt_id and (b.gold_max <> 0 or b.xp_max <> 0 or b.drops <> '{}'::jsonb))
+                 or exists (select 1 from public.hr_hunt_roster o where o.monster_id = c.monster_id)
+                 or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.monster_id and s.hunt_id <> c.hunt_id)) then
+    raise exception 'a called room pays, or its row reaches a normal hunt'; end if;
   -- Every supply, vendor value, ability rune and login reward is a catalogued item;
   -- every named hunt and ground hunt is in hr_hunts; every training id is a
   -- non-boss combat target; every ground spawn has a kill bound.
@@ -2072,11 +2126,11 @@ begin
     raise exception 'drink_mana_per_min_max is under the store drinks at one per consumable lane'; end if;
   -- No client role reads or writes any of them; no policy exists.
   foreach v_role in array array['anon', 'authenticated'] loop
-    foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields'] loop
+    foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
   end loop;
-  if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields')) then
+  if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;

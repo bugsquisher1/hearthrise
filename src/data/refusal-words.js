@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.96';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.98';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -82,6 +82,15 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
 });
 
 export const REFUSAL_WORDS = Object.freeze({
+  /* The Game Master's wall and his tools (2027-03-13-gm-tools.sql). */
+  gm_walled: 'The Game Master\'s account stays apart from other players, so that can\'t be done.',
+  muted: 'The Game Master has muted you for now. You can still read chat.',
+  needs_reason: 'Write a few words saying why first.',
+  nothing_to_stop: 'That hero isn\'t doing anything to stop.',
+  hero_busy: 'Stop this hero first: it can\'t be given anything while it hunts or works.',
+  target_is_gm: 'That is a Game Master account.',
+  already_there: 'This hero is already at or past that Level.',
+  day_limit: 'That is today\'s limit.',
   /* The Weighhouse: market-words.js says these with the server's numbers. */
   market_closed: MARKET_WORDS.market_closed,
   market_locked: 'The Weighhouse trades with heroes of a higher Level, or with a higher bench skill.',
@@ -114,6 +123,14 @@ export const REFUSAL_WORDS = Object.freeze({
   crier_level: 'The Crier takes words from Level 10 heroes and up.',
   crier_limit: 'The Crier takes 5 lines a day from one account. More after midnight UTC.',
   crier_busy: 'The Crier is shouting someone else\'s line. Try again in a moment. You weren\'t charged.',
+  /* The Town Works (2027-03-04-town-works.sql hr_town_works_give): src/shell/sink-words.js says those with a number. */
+  not_a_project: 'Havora isn\'t building that.',
+  bad_amount: 'Give a whole number of gold pieces.',
+  works_limit: 'Havora takes 25,000 gp a day from one account, and you\'ve given yours. More after midnight UTC.',
+  works_over: 'That\'s more than you can give today.',
+  works_short: 'That\'s more than the Works still needs.',
+  works_small: 'The smallest gift is 100 gp.',
+  works_done: 'That\'s finished. Nothing else is being built right now.',
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
   network: 'No connection. Nothing was changed.',
   timeout: 'The server has not answered. The game shows what it last confirmed.',
@@ -269,6 +286,9 @@ export const REFUSAL_WORDS = Object.freeze({
   /* Setup slots and titles (2027-02-28-setup-slots.sql, 2027-02-28-titles.sql). With the server's numbers these read from intent-words.js refusalText. */
   setup_locked: 'This hero\'s setup slots are full. Delete one, or buy another.',
   setup_slots_max: 'This hero has every setup slot there is.',
+  /* A hero's colors (2027-03-05-hero-colors.sql). With the server's number the limit reads from intent-words.js refusalText. */
+  colors_same: 'Those are already this hero\'s colors. Nothing was charged.',
+  colors_limit: 'This hero has changed colors as often as a day allows. More after midnight UTC.',
   title_kills: 'That title takes more kills first. Gold can\'t skip kills.',
   title_owned: 'This hero already has that title.',
   title_not_owned: 'This hero hasn\'t claimed that title yet.',
@@ -290,6 +310,13 @@ export const REFUSAL_WORDS = Object.freeze({
   no_party: 'That party is gone.',
   not_leader: 'Only the party leader can do that.',
   not_party_leader: 'Only the party leader can do that.',
+  /* Call out (2027-03-12-boss-call.sql). The press's own section reads src/data/boss-calls.js, with the boss's name; these are the codes' lines anywhere else. */
+  call_party: 'The boss wants a party of two or more.',
+  call_leader: 'Only your party\'s leader can call him out.',
+  call_limit: 'You\'ve called 3 times today. More after midnight UTC.',
+  call_unknown: 'Nobody here answers that call, so you weren\'t charged.',
+  call_only: 'He only comes when he is called: press Call out on the ground\'s page.',
+  called_pays: 'That fight pays nothing, so nothing was paid.',
   bad_seat: 'That seat is empty now.',
   not_a_tank: 'Only a hero with a sword and shield can hold the pack.',
   member_hunting: 'Not while that member is hunting.',

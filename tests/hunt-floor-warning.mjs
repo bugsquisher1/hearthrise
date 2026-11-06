@@ -176,7 +176,7 @@ const MUTANTS = [
   ['the Warrens forgets its solo break-even', 'src/data/hunt-grounds.js', '    soloFrom: 45,\n', ''],
   ['far under reads as near (the words never lean harder)', 'src/shell/hunt-list.js', "(gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)", 'ABOVE_LEVEL_WORDS'],
   ['the words forget what dying costs', 'src/shell/hunt-list.js', "    + ' If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';", "    + '';"],
-  ['the fight reads a hero Level again (S2)', 'src/core/hunt/damage.js', 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));', 'swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row) + (t.heroLv ? 0 : 0));'],
+  ['the fight reads a hero Level again (S2)', 'src/core/hunt/damage.js', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow) + (t.heroLv ? 0 : 0));'],
   ['a gap row comes back in the data (S2)', 'src/data/hunt-tuning.js', '  partyShareRangePm: 667,', '  partyShareRangePm: 667,\n  underFloorAtkPm: 50,'],
   ['the warning claims a penalty again', 'src/shell/hunt-list.js', "'Its monsters are stronger than you: expect to spend more on supplies, or to die. More XP and better loot.'", "'More XP and better loot, but its monsters hit harder.'"],
   ['a margin comes back in the data', 'src/data/hunt-sessions.js', '  bagLines: 10,\n', '  bagLines: 10,\n  belowRangeRefuse: 15,\n'],

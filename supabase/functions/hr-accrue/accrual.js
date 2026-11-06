@@ -124,6 +124,7 @@ import { memberSide, sharePurses, bonusFor, liveBuffHost } from '../../../src/co
    and the analyzer's tally of what each hero dealt, took and healed. */
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
 import { tallyEvents } from '../../../src/core/hunt/tally.js';
+import { BOSS_CALLS } from '../../../src/data/boss-calls.js';
 /* THE WORLD BOUND (hunt_instances.world <= worldMaxBytes UTF-8 bytes): the engine
    refuses a world past it before anything is proposed (accrueHunt). */
 import { HUNT_TUNING } from '../../../src/data/hunt-tuning.js';
@@ -1179,6 +1180,19 @@ function analyzerOf(sim, unitIds, unitId) {
   return t ? { dealt: t.dealt, taken: t.taken, healed: t.healed } : null;
 }
 
+/* THE RECORD OF A CALLED FIGHT (Tyler 2026-11-05: a losing line naming the phase; hunt_session_tally.fight), display only: where the boss stood when this
+   window closed, in permille of his HP (a called room never heals him: leash.js resetPack), and what this hero's bar fired in it, by ability, plus `eat` and `drink`. */
+function fightOf(sim, unitId, call) {
+  const boss = sim.world ? sim.world.units.find((u) => u.kind === call.monster) : null;
+  const fired = {};
+  for (const e of sim.events) {
+    if (e.u !== unitId) continue;
+    const k = e.type === 'cast' ? e.ability : e.type === 'eat' || e.type === 'drink' ? e.type : null;
+    if (k) fired[k] = (fired[k] || 0) + 1;
+  }
+  return { boss_pm: boss ? Math.floor((boss.hp * 1000) / boss.maxHp) : 0, fired };
+}
+
 /**
  * ONE SETTLE OF ONE HUNT INSTANCE (spec §1.3). A solo hunt is a party of one.
  *
@@ -1229,6 +1243,10 @@ export function accrueHunt(inp) {
     if (hs.swingIndex === swingFrom.get(s.mi.key) && !hs.endedReason) continue;   // walked nothing: nothing to settle
     out.push({ key: s.mi.key, user: s.mi.user, slot: s.mi.slot, ...memberDelta(s, summary, fromMs, toMs, tickMs),
       analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });
+    if (inp.ground.call && Number.isInteger(summary.unitIdEver)) {
+      const row = out[out.length - 1];
+      row.analyzer = { ...(row.analyzer || {}), fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call]) };
+    }
   }
   if (!out.length) return { accrued: false, reason: SKIP.NOTHING };
   const world = sim.world && sim.members && sides.some((s) => !s.hs.endedReason) ? encodeWorld(sim.world) : null;

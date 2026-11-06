@@ -17,10 +17,10 @@
 // left as typed.
 // Anything malformed is null: a line the client cannot read is not shown.
 // ════════════════════════════════════════════════════════════════════════
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.96';
-import { ITEMS } from '../data/items.js?v=0.2.96';
-import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.96';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.96';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.98';
+import { ITEMS } from '../data/items.js?v=0.2.98';
+import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.98';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.98';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHANNEL = /^(global|trade|system|local:[a-z0-9_]{1,64}|party:[0-9a-f-]{36})$/;
@@ -78,7 +78,11 @@ export function bodyOf(text, links) {
   return out;
 }
 
-/** One server row as a display line, or null. */
+/**
+ * One server row as a display line, or null.
+ * @param {any} row
+ * @param {{tz?: string}} [o]
+ */
 export function lineOf(row, o = {}) {
   if (!isObj(row) || typeof row.id !== 'string' || !UUID.test(row.id)) return null;
   const whisper = typeof row.to_id === 'string';
@@ -90,11 +94,16 @@ export function lineOf(row, o = {}) {
   const weapon = str(row.from_weapon, 32);
   const name = str(row.from_name, 24) || 'Adventurer';
   const fromId = typeof row.from_id === 'string' && UUID.test(row.from_id) ? row.from_id : null;
+  /* The Game Master's line (2027-03-13-gm-tools.sql hr_gm_say): no client writes this channel, so the server's role stamp is the mark. */
+  if (!whisper && row.channel === 'system' && row.from_role === 'game_master') {
+    return { id: row.id, channel: 'system', at, time: clockOf(at, o.tz), fromId: null, name: 'Game Master', level: null, role: null,
+      slot: null, parts: [{ text: 'Game Master: ' }, ...partsOf(body, true)], toId: null, toName: null, system: true };
+  }
   /* A System row is the server's notice: one sentence, the hero's name first, no level or role tag. So is a town notice in Local (a powder on the Hearth): it
      has no Level, which no line a player writes ever lacks (hr_chat_send always stamps one). */
   if (!whisper && (row.channel === 'system' || (row.from_role === 'notice' && !Number.isInteger(row.from_level)))) {
     return { id: row.id, channel: row.channel, at, time: clockOf(at, o.tz), fromId, name, level: null, role: null,
-      slot: int(row.from_slot, 0, 32), parts: [{ text: name + ' ' }].concat(partsOf(body, true)), toId: null, toName: null, system: true };
+      slot: int(row.from_slot, 0, 32), parts: [{ text: name + ' ' }, ...partsOf(body, true)], toId: null, toName: null, system: true };
   }
   return {
     id: row.id,
@@ -116,7 +125,10 @@ export function lineOf(row, o = {}) {
   };
 }
 
-/** A system line (a server notice row, or an alert the client was told of): { id, at, time, parts, system: true }. */
+/**
+ * A system line (a server notice row, or an alert the client was told of): { id, at, time, parts, system: true }.
+ * @param {{tz?: string}} [o]
+ */
 export function systemLine(id, text, at, o = {}) {
   return { id: String(id), channel: 'system', at, time: clockOf(at, o.tz), fromId: null, name: null, level: null,
     role: null, slot: null, parts: [{ text: String(text).slice(0, 300) }], toId: null, toName: null, system: true };

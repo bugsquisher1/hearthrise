@@ -41,28 +41,30 @@
 // read-only ("Set by <leader>: Dangerous", the server's `leader_tiers`) with no buttons, and the server refuses a
 // member's pick (hr_hunt_tier_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.96';
-import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.96';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.96';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.96';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.96';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.96';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.96';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.96';
-import { whole } from '../../render/format.js?v=0.2.96';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.96';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.96';
-import { glyphSvg } from '../launcher.js?v=0.2.96';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.96';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.96';
-import { TIER_IDS, TIER_NAME, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.96';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.96';
-import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.96';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.96';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.96';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.96';
-import { openFinderOn } from './party-finder.js?v=0.2.96';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.96';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.98';
+import { bagOf, equipmentOf } from '../../session/item-sections.js?v=0.2.98';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.98';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.98';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.98';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.98';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.98';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.98';
+import { whole } from '../../render/format.js?v=0.2.98';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.98';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.98';
+import { glyphSvg } from '../launcher.js?v=0.2.98';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.98';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.98';
+import { TIER_IDS, TIER_NAME, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.98';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.98';
+import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.98';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.98';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.98';
+import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.98';
+import { openFinderOn } from './party-finder.js?v=0.2.98';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.98';
+import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.98';
+import { callFromGround } from '../../data/boss-calls.js?v=0.2.98';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -185,7 +187,7 @@ export function renderHunts(ctx) {
     + TIER_IDS.map((id) => '<button type="button" class="hh-seg" data-hs-act="tier" data-tier="' + id + '">' + TIER_NAME[id] + '</button>').join('')
     + '</span><output class="hw-tier-read"></output></span></div>'
     + '<p class="hw-tier-note"></p>'
-    + '<p class="hw-hunt-pack"></p>' + goHtml() + '</div>'
+    + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<p class="hw-enter-why"></p><button type="button" class="hh-tool" data-hs-act="leave-party" hidden>Leave party</button>'
     /* The phone's way back (windows.css): beside Enter, in reach however far down the page has been read. */
@@ -300,6 +302,7 @@ function patchPage(det, ctx, sc, v) {
       bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
     } : null,
   });
+  patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
   const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
@@ -384,6 +387,14 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   }
   /* An Enter the server took closes this window once its hunt section shows the hunt (patchHunts). */
   const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };
+  /* Call out: its section's presses, run as the setup Go as chose; its refusals read the designer's words. */
+  const called = callFromGround(sc.pick);
+  if (actCall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
+    const said = r && !r.ok && called ? callRefusal(r, called) : null;
+    if (said) { sc.msg = said; repaint(); }
+    thenClose(r);
+    return r;
+  }))) return true;
   if (action === 'leave-party') { leaveOrDisband(ctx, cs, sc, repaint, 'leave'); return true; }
   if (action === 'enter' && partyMembershipOf(cs)) {
     sc.pick = hunt;

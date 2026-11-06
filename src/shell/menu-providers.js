@@ -19,12 +19,12 @@
 //                                         Security review) ships
 // worldTargetOf turns what the World picked under a pointer into a target.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS } from '../data/monsters.js?v=0.2.96';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.96';
-import { refusalText } from './intent-words.js?v=0.2.96';
-import { monsterName } from './widgets/bits.js?v=0.2.96';
-import { partyMembershipOf, partyPeopleOf } from '../session/party-sections.js?v=0.2.96';
-import { inviteOwn, invitePlayer, afterLeave } from '../session/party-intents.js?v=0.2.96';
+import { MONSTERS } from '../data/monsters.js?v=0.2.98';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.98';
+import { refusalText } from './intent-words.js?v=0.2.98';
+import { monsterName } from './widgets/bits.js?v=0.2.98';
+import { partyMembershipOf, partyPeopleOf } from '../session/party-sections.js?v=0.2.98';
+import { inviteOwn, invitePlayer, afterLeave } from '../session/party-intents.js?v=0.2.98';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -51,7 +51,7 @@ export function worldTargetOf(pick) {
   for (const h of pick.hits) {
     const p = h && h.ref && h.ref.player;
     if (p && typeof p.name === 'string' && p.name) {
-      return { kind: 'player', id: typeof p.id === 'string' && UUID.test(p.id) ? p.id : null, name: p.name.slice(0, 24), slot: Number.isInteger(p.slot) ? p.slot : null };
+      return { kind: 'player', id: typeof p.id === 'string' && UUID.test(p.id) ? p.id : null, name: p.name.slice(0, 24), slot: Number.isInteger(p.slot) ? p.slot : null, gm: p.gm === true };
     }
     const mon = h && h.ref && typeof h.ref.monster === 'string' ? h.ref.monster : h && h.id;
     if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };

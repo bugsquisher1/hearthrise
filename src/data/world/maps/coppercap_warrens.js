@@ -19,7 +19,7 @@ export default Object.freeze({
   id: 'coppercap_warrens',
   name: 'Coppercap Warrens',
   kind: 'hunt',
-  hunts: Object.freeze(['coppercap_warrens']),
+  hunts: Object.freeze(['coppercap_warrens', 'coppercap_warrens_called']),
   outdoor: false,
   light: 'cellar',
   ground: 'warrens_ground',

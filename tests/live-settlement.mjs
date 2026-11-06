@@ -310,7 +310,9 @@ export async function sqlGuard() {
     const rows = (await db.query(
       "select activity_id, max_hp from hr_activities where kind='combat'")).rows;
     const inDb = new Map(rows.map((r) => [r.activity_id, r.max_hp === null ? null : Number(r.max_hp)]));
-    const authored = Object.keys(MONSTERS);
+    /* A called boss (src/data/boss-calls.js) is no activity: one verb reaches his room, and no combat pointer or fight clamp may name him. */
+    const authored = Object.keys(MONSTERS).filter((id) => MONSTERS[id].called !== true);
+    for (const id of Object.keys(MONSTERS)) ok(MONSTERS[id].called !== true || !inDb.has(id), `SETTLE-1c: the called row ${id} has an hr_activities row: a door of its own`);
     ok(authored.length > 50,
       `SETTLE-1c: only ${authored.length} authored monsters — the sweep would be near-vacuous`);
     ok(inDb.size === authored.length,

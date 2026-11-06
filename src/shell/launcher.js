@@ -6,20 +6,20 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.96';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.96';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.96';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.96';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.96';
-import { levelOf } from '../session/character-sections.js?v=0.2.96';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.96';
-import { COACH_READ_MAX } from '../session/residue.js?v=0.2.96';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.96';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.96';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.96';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.96';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.96';
-import { trackOnce } from '../net/observability.js?v=0.2.96';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.98';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.98';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.98';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.98';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.98';
+import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.98';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.98';
+import { COACH_READ_MAX } from '../session/residue.js?v=0.2.98';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.98';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.98';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.98';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.98';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.98';
+import { trackOnce } from '../net/observability.js?v=0.2.98';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -341,7 +341,7 @@ export function actCoach(ctx, el, action, ev) {
 /* The rows the icon row shows on this screen: a phone holds fewer (src/data/shell-windows.js phoneIcon). */
 function launcherRows(ctx) {
   const phone = typeof ctx.isPhone === 'function' && ctx.isPhone();
-  return ctx.wm.rows().filter((r) => r.launcher !== false && !(phone && r.phoneIcon === false));
+  return ctx.wm.rows().filter((r) => r.launcher !== false && !(phone && r.phoneIcon === false) && (r.gm !== true || gmOf(ctx.character)));
 }
 
 /** The `launchers` widget body: one button per window row that has a launcher. The coach's ring is drawn here when

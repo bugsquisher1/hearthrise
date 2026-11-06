@@ -8,7 +8,8 @@
 -- on its passing §4; ON THE EA SECURITY LIST (a money surface, and an item made from gold that trades). EDGE: none here; the roll's
 -- engine half ships in the hr-accrue bundle with the items catalogue. CLIENT: the Hallmark pane rides the release AFTER this applies.
 -- APPLY ORDER: after 2027-03-14-jewelry-catalogue.generated.sql (hr_hallmark_offers, hr_hallmark_rule, hr_market_ceilings), which is
--- after 2027-03-14-jewelry-items-catalogue.generated.sql (hr_items holds the rows).
+-- after 2027-03-14-jewelry-items-catalogue.generated.sql (hr_items holds the rows), all after 2027-03-13-gm-tools.sql: §3b puts the verb on
+-- the GM's door (hr_gm_wall_allow), and skips it on a database without GM tools (the door then refuses it, the safe default).
 --
 -- ── THE VERB ─────────────────────────────────────────────────────────────────
 -- hr_hallmark(p_slot int, p_from text, p_to text, p_price bigint, p_idem uuid): this hero turns ONE Fine piece into the Hallmarked row the
@@ -185,6 +186,17 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
   ('hr_hallmark', 'p_slot integer, p_from text, p_to text, p_price bigint, p_idem uuid', 'authenticated',
    'added 2027-03-14 (lane/c-jewelry-sample): MONEY (a gold sink) - a Fine jewelry piece + its tier''s gem + the catalogue''s gold make the Hallmarked row the catalogue pairs it with, at the hero''s server Crafting level, ten an account a UTC day; refuses quote_changed; one key charges once');
 
+-- ── §3b THE GAME MASTER'S DOOR (2027-03-13-gm-tools.sql: default deny) ──────────────────────────────────────
+-- A Hallmark reaches no other player: the hero's own purse, bag and the account's own Storage. So the walled GM account's test hero may make
+-- one, and what it makes stays walled: the Weighhouse's row lock refuses a walled listing (gm-tools GM-W-MARKET), whatever the item.
+do $mig$
+begin
+  if to_regclass('public.hr_gm_wall_allow') is not null then
+    insert into public.hr_gm_wall_allow (rpc, why) values ('hr_hallmark', 'its own purse, bag and Storage')
+      on conflict (rpc) do update set why = excluded.why;
+  end if;
+end $mig$;
+
 -- ── §4 SELF-CHECK (CLAUDE.md §4), EXECUTED on a probe account, every probe rolled back ─────────────────────
 do $mig$
 declare
@@ -291,6 +303,9 @@ begin
   if has_function_privilege('anon', 'public.hr_hallmark(integer,text,text,bigint,uuid)', 'execute')
      or not has_function_privilege('authenticated', 'public.hr_hallmark(integer,text,text,bigint,uuid)', 'execute') then
     raise exception 'jewelry-hallmark §4(i): hr_hallmark''s grants moved'; end if;
+  -- (j) THE GM'S DOOR names the verb, once gm-tools is in.
+  if to_regclass('public.hr_gm_wall_allow') is not null and not exists (select 1 from public.hr_gm_wall_allow where rpc = 'hr_hallmark') then
+    raise exception 'jewelry-hallmark §4(j): the GM door does not name hr_hallmark'; end if;
   perform public.hr_assert_grant_hygiene(true);
   raise notice 'jewelry-hallmark §4 OK: the level, the pair, the quote, a short purse, bag then Storage, the journal, one key one charge, the day''s limit, the ceilings, the grants';
 end $mig$;

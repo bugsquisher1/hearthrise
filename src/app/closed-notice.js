@@ -11,8 +11,8 @@
 //                      session, no second sign-in. Not yet, or no answer: the line says which.
 // Sign out stays on the card: its press is boot.js's (data-app).
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.96';
-import { AUTH_BRAND } from './sign-in.js?v=0.2.96';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.98';
+import { AUTH_BRAND } from './sign-in.js?v=0.2.98';
 
 const CHECK = Object.freeze({ idle: 'Check again', busy: 'Checking…' });
 const SAY = Object.freeze({
@@ -39,6 +39,15 @@ async function copyText(win, el, value) {
  * @param {Window} o.win
  * @param {() => Promise<'in'|'closed'|'unanswered'>} o.admission  one read of the server's answer for this account
  */
+/** A banned account's screen: the door's own word, plain, and the way out. It offers no Check again: nothing the player does lifts it. */
+export function renderBannedNotice(root, o) {
+  root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card" data-banned-notice>'
+    + '<h1 class="auth-title">This account has been banned</h1>'
+    + '<p class="auth-lead">The Game Master has banned this account from Hearthrise. If you think this is a mistake, ask on the Discord.</p>'
+    + '<p class="auth-links"><a class="auth-link" href="' + esc(o.discord) + '" rel="noopener">Join the Discord</a>'
+    + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';
+}
+
 export function renderClosedNotice(root, o) {
   root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card" data-closed-notice>'
     + '<h1 class="auth-title">You\'re signed up</h1>'

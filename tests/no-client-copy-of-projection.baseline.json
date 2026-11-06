@@ -19,6 +19,7 @@
       "equipment",
       "farm_land",
       "gem_unlocks",
+      "gm",
       "hallmark",
       "hero_slots",
       "home",
@@ -98,5 +99,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-05"
+  "generatedAt": "2026-11-06"
 }

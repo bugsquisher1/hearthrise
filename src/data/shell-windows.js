@@ -24,6 +24,7 @@
 //   title   the frame's words when they are not the label (the Market's "The Weighhouse")
 //   phoneIcon false keeps a launcher row off the phone's icon row, which holds 15 at a thumb's width on the
 //            narrowest phone (tests/phone-touch.mjs PH-11); the All characters sheet names it under "Also here"
+//   gm       true: shown only when the server's `gm` section says so (launcher.js, characters.js)
 //
 // The rest of the spec's catalogue (Bestiary L) lands
 // with its renderer: a launcher never opens a window that does not exist yet
@@ -37,7 +38,7 @@
 // search inside Inventory and Storage, not a window of its own.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.96';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.98';
 
 export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 960, object: 'plain' }),
@@ -86,4 +87,6 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', glyph: 'uiSettings', width: 540, object: 'plain', escape: true }),
   /* A player's problem report, straight to the team through the bug-report bridge (also in Settings, Help: a phone's way in). */
   Object.freeze({ id: 'report', label: 'Report a problem', key: 'f', phoneIcon: false, glyph: 'uiWarn', width: 420, object: 'plain' }),
+  /* The owner's tools (2027-03-13-gm-tools.sql). No key: nobody else's keyboard reaches an empty window; the icon is the way in. */
+  Object.freeze({ id: 'game-master', label: 'Game Master', key: null, phoneIcon: false, gm: true, glyph: 'uiTarget', width: 520, object: 'ledger' }),
 ]);

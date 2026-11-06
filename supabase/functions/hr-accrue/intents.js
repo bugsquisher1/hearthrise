@@ -580,6 +580,9 @@ export const INTENT_REGISTRY = Object.freeze({
   market_browse: Object.freeze({ bucket: 'market_read', needsKey: false, collectsFirst: false }),
   market_item: Object.freeze({ bucket: 'market_read', needsKey: false, collectsFirst: false }),
   market_mine: Object.freeze({ bucket: 'market_read', needsKey: false, collectsFirst: false }),
+  /* THE GAME MASTER'S STOP (./gm-stop.js). This verb collects nothing itself: a town job's stop runs set_activity, whose row does.
+     The rate is the caller's, spent at hr_gm_stop_gate; the bucket names the switch it runs. */
+  gm_stop: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the

@@ -41,7 +41,7 @@
 // one line to change if the sheet wins.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=0.2.96';
+import { MONSTERS } from './monsters.js?v=0.2.98';
 
 /** The retired direction — the 30 portraits that shipped before the wave. */
 export const PAINTED_DIR = 'assets/icons-bundle/painted/monsters/';
@@ -195,5 +195,8 @@ export function pendingArt() {
    into a world atlas and needs its own walk there (tests/hunt-core/sewer.mjs). */
 export const HUNT_WALK_ART = Object.freeze({
   rat: 'giant_rat', slime: 'slime', culvert_bat: 'giant_bat',
-  cistern_spider: 'venom_spider', kobold_tosher: 'kobold', rat_king: 'rat_king',
+  cistern_spider: 'venom_spider', kobold_tosher: 'kobold', rat_king: 'rat_king', rat_king_called: 'rat_king',
 });
+
+/* A CALLED BOSS WEARS HIS OWN ART (Call out, src/data/boss-calls.js): a row with no sprite of its own draws as the row it copies. The scene's one reader (hunt-view/scene.js spriteOf). */
+export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief_coppercap_called: 'chief_coppercap', drain_rat_called: 'drain_rat', goblin_digger_called: 'goblin_digger' });

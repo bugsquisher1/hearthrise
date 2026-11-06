@@ -5,6 +5,23 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.98 — 2026-11-06 (Every Creature Breathes)
+
+**Call out a boss.** A party can pay to fight a far stronger Rat King (10,000 gp) or Chief Coppercap (30,000 gp), up to 3 calls a day. At half his health his adds come for whoever isn't your tank, and at a quarter he rages, so your action bar decides it. It pays no XP, coin or drops: bring him down and you earn a title and your name in System chat. Lose, and the game says where you lost it and what to change.
+**Etched runes cost 12 gold a cast,** up from 10, so the stronger spell is worth its price without making Scored runes pointless.
+**Monsters no longer stand frozen waiting for your blow.** Every creature on every hunting ground now breathes, shifts and flicks its tail while it stands, and anything with wings keeps beating them while it hovers.
+- A Cleave set to fire at 2 or more monsters now fires. It counted its own swing as one monster, so it waited forever; now it counts the monsters it can really hit, up to three.
+- Etched runes cost 12 gold a cast, up from 10, so the stronger spell is worth its price without making Scored runes pointless.
+- A crafter now gets the "Weighhouse is open" card when a bench skill reaches 30, not only at Level 10.
+- In the Havora window and the Outfit tab, a button your purse can't pay for stays off and says how much more you need, and the last gift button offers what you have.
+- After you temper a piece, the answer appears in the page instead of covering its note.
+
+## v0.2.97 — 2026-11-05 (A Town That Grows)
+
+**Your hero's colors.** Pick four colors when you make a hero and everyone sees them, in town and in hunts, on every outfit. Trying on new colors in the Character window's Outfit tab is free; saving them costs gold, more at higher Levels.
+- **The Weighhouse goes up.** All of Havora can now give gold to raise the Weighhouse on the east bank, 100 gp to 25,000 gp a day from one account: tap its plaque on the high street, watch it climb through five stages, and the biggest givers go on the plaque.
+- Planting is quicker on the Farm. Pressing an empty plot brings the seed list into view with the seeds you can plant at the top, and after you plant, the list stays open on your next empty plot, so there's no more scrolling up and down. "Plant N empty plots" fills every empty plot with that seed in one press and tells you if it runs out of seeds partway.
+
 ## v0.2.96 — 2026-11-05 (Three Ways to Hunt)
 
 **Three ways to hunt.** Every hunting ground past the Mill Cellar can be hunted Normal, Dangerous or Deadly. Harder hunts hit harder and often bring more monsters at once, for more XP on every kill and the same gold and drops. It replaces the + and - on a hunt's page. Your pick is kept for each ground, and a party leader's pick holds for everyone.

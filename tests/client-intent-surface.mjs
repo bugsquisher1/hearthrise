@@ -48,6 +48,17 @@ const CATCH = 'src/session/catch-up.js';
 /* The client's whole RPC surface, each with what it is for. */
 export const CLIENT_RPCS = Object.freeze({
   hr_load: 'the full read of one character (CharacterSession.load)',
+  /* THE GAME MASTER (2027-03-13-gm-tools.sql; src/session/gm-intents.js, loaded only once the server says `gm`): each refuses everyone without the server-written row. */
+  hr_gm_online: 'who is online or playing; names, ground or job, Level',
+  hr_gm_hero: 'one hero as the server holds it, by a name or an account id and slot',
+  hr_gm_mute: 'mute an account\'s chat for a set time, with a reason',
+  hr_gm_unmute: 'lift a mute, with a reason',
+  hr_gm_ban: 'ban an account, with a reason; hr_admitted reads it',
+  hr_gm_unban: 'lift a ban, with a reason',
+  hr_gm_say: 'one server-wide line, stamped Game Master by the server',
+  hr_gm_grant_gold: 'gold to the caller\'s own walled account, clamped; the slot and a reason, never an account',
+  hr_gm_grant_item: 'an item to the caller\'s own walled account, clamped; the slot and a reason, never an account',
+  hr_gm_grant_level: 'a Level to the caller\'s own walled account, raise-only; the slot and a reason, never an account',
   hr_create_hero: 'make the hero in an owned slot with its name and four dye indices, all or nothing (AccountSession.create)',
   hr_buy_hero_slot: 'buy the next hero slot with one own hero\'s gold: the slot id, the paying hero and a key, never a price; the server prices, caps and debits (AccountSession.buySlot)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
@@ -89,6 +100,9 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_disband: 'the leader closes its party in town (party-intents.js disbandParty)',
   hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
   hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
+  /* Call out (2027-03-12-boss-call.sql): a slot, a catalogue id and the price shown; the fee, the count and the party are the server's. */
+  hr_boss_call: 'the party leader pays the server\'s fee and the party enters the called room, every member or none; a stale price is quote_changed (boss-intents.js callOut)',
+  hr_boss_call_view: 'the call as the server prices it, read while the ground\'s page is open (boss-quote.js readCall)',
   hr_hunt_party_warn: 'the leader, before Start, tells the seats under a ground; a catalogue ground only, display notices, no value (party-intents.js warnPartyGround)',
   hr_party_hold_set: 'the leader picks who holds the pack, a seat or null for take turns; the server checks leader, seat and tank (party-intents.js setHoldSeat; 2026-12-08-party-hold.sql)',
   hr_party_leave_together_set: 'this hero\'s own "Leave if anyone leaves the hunt or dies", a yes/no; no other hero is named (party-intents.js setLeaveTogether; 2026-12-18-party-leave-together.sql)',
@@ -100,6 +114,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks Crafting and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
   hr_title_wear: 'wear a title this hero holds, or null to take it off; moves no value (title-intents.js wearTitle)',
+  hr_hero_colors_view: 'what a color save costs this hero right now; the read of the Outfit tab, moves nothing (hero-color-intents.js readColorsPrice)',
+  hr_hero_colors_set: 'this hero\'s four dye indices at the quoted price; never a color value (hero-color-intents.js saveHeroColors; 2027-03-05-hero-colors.sql)',
   hr_storage_chest_build: 'build the account’s next storage chest at the quoted price; the server gates, prices and debits it (home-intents.js buildChest)',
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
   hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
@@ -116,6 +132,9 @@ export const CLIENT_RPCS = Object.freeze({
   /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql): a catalogue id, the price the player saw and a fresh key; the server re-quotes and charges. */
   hr_town_sinks_view: 'the Havora window\'s read of this account\'s quotes and last choices; a read, while the window is open (town-intents.js readSinks)',
   hr_town_show: 'a Hearth powder or a round by catalogue id, at the price the player saw, with a fresh key; never an amount, a color or a time (town-intents.js)',
+  /* The Town Works (2027-03-04-town-works.sql): the gift is the one number; the server refuses it under its own clock, before any charge. */
+  hr_town_works_view: 'the Works tab\'s read of the project, today\'s allowance, this account\'s place and the plaque; a read, while the tab is on show (town-intents.js readWorks)',
+  hr_town_works_give: 'a gift to a Town Works project: a catalogue id, the amount the player chose and a fresh key; never a total, a stage or a time (town-intents.js giveToWorks)',
   hr_crier_send: 'a paid line to Global, at the price the player saw, with a fresh key; the server names the sender and checks every word first (ChatStore.cry)',
   hr_tally_view: 'Tamsin\'s board for this hero: the tasks, what each pays and her pick now; a read (tally-intents.js tallyBoard)',
   hr_tally_accept: 'take a kill task by id at her board in town, with the armour weight the first time; no count, no price (tally-intents.js takeTask)',
@@ -144,7 +163,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_town_view: 'who stands around this character in its town instance, only what changed since its cursor, and its own server stand, a read (TownPresence.read)',
   hr_town_here: 'an unviewed character is present in town, no tile: the server stands it on its stand (TownPresence.here)',
   hr_town_go: 'send this character’s body to a counter or back to its work: a station id only (TownPresence.go)',
-  hr_outfit_set: 'wear an owned outfit with a dye index per region; cosmetic, the server checks ownership (CharacterSession.saveOutfit)',
+  hr_outfit_set: 'wear an owned outfit; free and it carries no color, the server checks ownership (CharacterSession.saveOutfit)',
 });
 
 /* The Edge Functions the one link may call, each with what it is for. */
@@ -173,6 +192,8 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   market_browse: ['market'],
   market_item: ['market'],
   market_mine: [],
+  /* the Game Master's stop (hr-accrue gm-stop.js): refused to everyone without the server-written row */
+  gm_stop: ['gm'],
 });
 
 /* The `market` object's subfields per verb (edge-intents.js MARKET_FIELDS = hr-accrue request.js readMarket). */

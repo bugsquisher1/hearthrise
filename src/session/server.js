@@ -36,15 +36,24 @@
 // does not know).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.96';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.96';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.98';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.98';
 
 export const CLOSED_CODE = 'hr_closed';
+export const BANNED_CODE = 'hr_banned';
 export const CLOSED_STATUS = 403;
 
 /** Is this answer the closed-game refusal? Pure. */
 export function isClosedAnswer(status, body) {
-  return status === CLOSED_STATUS && !!body && typeof body === 'object' && body.code === CLOSED_CODE;
+  return status === CLOSED_STATUS && !!body && typeof body === 'object' && (body.code === CLOSED_CODE || body.code === BANNED_CODE);
+}
+
+/* THE WALL AND THE ROW LOCKS (2027-03-13-gm-tools.sql): a raise carries its code in the body, not in `error`. The word the refusal table reads, or null. */
+const WALL_CODE = 'hr_gm_walled';
+function raisedCode(body) {
+  if (!body || typeof body !== 'object') return null;
+  if (body.code === WALL_CODE) return 'gm_walled';
+  return body.code === 'HR000' && typeof body.message === 'string' && /^[a-z_]{1,40}$/.test(body.message) ? body.message : null;
 }
 
 /**
@@ -103,6 +112,7 @@ function looksStale(status, body) {
 export function createServerLink(o) {
   const base = String(o.url || '').replace(/\/+$/, '');
   const doFetch = o.fetch || ((...a) => globalThis.fetch(...a));
+  let banned = false;
   const send = (path, payload, jwt, keep) => {
     const body = JSON.stringify(payload || {});
     return doFetch(base + path, {
@@ -134,8 +144,9 @@ export function createServerLink(o) {
     let body = null;
     try { body = await res.json(); } catch (e) { body = null; }
     const closed = isClosedAnswer(res.status, body);
+    if (closed && body.code === BANNED_CODE) banned = true;
     if (o.stale && !closed && looksStale(res.status, body)) { try { o.stale(); } catch (e) { /* the check reports itself */ } }
-    return { ok: res.ok && !closed, status: res.status, body, closed, error: res.ok ? null : 'http_' + res.status };
+    return { ok: res.ok && !closed, status: res.status, body, closed, error: res.ok ? null : raisedCode(body) || 'http_' + res.status };
   }
   return Object.freeze({
     rpc: (name, args, opt) => {
@@ -145,6 +156,8 @@ export function createServerLink(o) {
     accrue: (body) => post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body),
     report: (body) => post('/functions/v1/bug-report-bridge', body),
     intents: createIntentLedger(),
+    /** The server named this account banned (the door's own word): the closed screen says so instead of "not on the list yet". */
+    banned: () => banned,
     /** Something an answer HELD looks like a newer server's (the live view: a monster this build does not know): `o.stale`. */
     stale: () => { if (o.stale) { try { o.stale(); } catch (e) { /* the check reports itself */ } } },
   });

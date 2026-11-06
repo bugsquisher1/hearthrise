@@ -94,6 +94,7 @@ import { runEat } from './eat.js';
 import {
   runMarketList, runMarketCancel, runMarketBuy, runMarketBrowse, runMarketItem, runMarketMine,
 } from './market.js';
+import { runGmStop } from './gm-stop.js';
 import { withCors } from './cors.js';
 /* THE WORLD TICK'S OWN ENTRY (WORLD_TICK_DESIGN.md §15c, milestone 1b). It is
    the ONE request path that reaches the engine with no player behind it, so it
@@ -595,6 +596,14 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     }
     if (intent.verb === 'market_mine') {
       const out = await runMarketMine({ exec, user, slot });
+      return await reply(out.body, out.status);
+    }
+
+    /* ── THE GAME MASTER'S STOP (./gm-stop.js, 2027-03-13-gm-tools.sql) ─────
+       `user` is the VERIFIED subject. hr_gm_stop_gate refuses anyone without a
+       server-written row before it reads the body's target or reason. */
+    if (intent.verb === 'gm_stop') {
+      const out = await runGmStop({ exec, gm: user, stop: intent.gmStop, intentId: intent.intentId });
       return await reply(out.body, out.status);
     }
 

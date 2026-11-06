@@ -43,7 +43,7 @@
 //     done       a fact kind (FACTS), or { kind: 'any', of: [...] }
 //
 // FACTS (src/session/tutorial-sections.js tutorialFactsOf; a field the server has not sent is null or absent):
-//   levelXp, charLevel, skillLevel, skillXp { skill: xp }, huntId (the open hunt), visited (Set of hunts the
+//   levelXp, charLevel, skillLevel, benchLevel (the best bench skill's level), skillXp { skill: xp }, huntId (the open hunt), visited (Set of hunts the
 //   server has seen this hero in), unitKinds, inParty, partied (a party personal best on any ground), self (slot),
 //   name, slots (the bar the server SHOWS: [{ type, id, store, conditions, enabled, usable, count } | null]),
 //   stored (the bar it STORED: [{ type, id, conditions } | null]), discipline, role, stance, store (the server's
@@ -65,27 +65,27 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.96';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.96';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.96';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.96';
-import { SKILLS_DEF } from './skills.js?v=0.2.96';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.96';
-import { tallyTask } from './tally-tasks.js?v=0.2.96';
-import { ITEMS } from './items.js?v=0.2.96';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.96';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.96';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.96';
-import { isShield } from './shields.js?v=0.2.96';
-import { deriveProfile } from '../core/member.js?v=0.2.96';
-import { ABILITIES } from './abilities.js?v=0.2.96';
-import { CONSUMABLES } from './consumables.js?v=0.2.96';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.96';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.96';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.96';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.96';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.96';
-import { regenPermille } from '../core/vitals.js?v=0.2.96';
+import { HUNT_INDEX } from './hunts.js?v=0.2.98';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.98';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.98';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.98';
+import { SKILLS_DEF } from './skills.js?v=0.2.98';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.98';
+import { tallyTask } from './tally-tasks.js?v=0.2.98';
+import { ITEMS } from './items.js?v=0.2.98';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.98';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.98';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.98';
+import { isShield } from './shields.js?v=0.2.98';
+import { deriveProfile } from '../core/member.js?v=0.2.98';
+import { ABILITIES } from './abilities.js?v=0.2.98';
+import { CONSUMABLES } from './consumables.js?v=0.2.98';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.98';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.98';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.98';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.98';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.98';
+import { regenPermille } from '../core/vitals.js?v=0.2.98';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -183,8 +183,10 @@ const IN_TOWN = { kind: 'in_town' }, HUNTING = { kind: 'hunting' };
    once"): the Thicket is where a hero has time to read, and the second return is when a bag has something to decide about. */
 const THICKET_BEHIND = { kind: 'been', hunt: THICKET };
 /* WHAT TO WANT, ONCE EACH (the same ruling): the Weighhouse when it opens (hr_market_config's default: the window says the live Level, and
-   sewer.mjs pins this to its migration), the Roll of Honor from the first Level the gear runs thin (none from 18 to 30). */
+   sewer.mjs pins this to its migration), the Roll of Honor from the first Level the gear runs thin (none from 18 to 30). It opens on either
+   route the server takes (hr_market_eligible, 2027-03-03-market-bench-gate.sql): the Level, or a bench skill (skills.js `artisan`) at its own level. */
 export const WEIGHHOUSE_LEVEL = 10;
+export const WEIGHHOUSE_BENCH = 30;
 export const ROLL_LEVEL = 16;
 const PULL_LEVEL = 10;
 /* A hero past the guide's last ground has found them. */
@@ -431,7 +433,7 @@ export const HUNT_TUTORIAL = Object.freeze([
       hooks: TO_BLESS }),
   step('weighhouse', 'The Weighhouse is open',
     'List what you find there and other heroes can buy it, and they may pay more than the Shop. Press its icon to look around.',
-    'market', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: WEIGHHOUSE_LEVEL, below: WANT_BELOW }] }),
+    'market', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'market_open', below: WANT_BELOW }] }),
   step('roll_of_honor', 'Leaderboards',
     'It ranks every hero in Havora. See where you stand, and who is ahead of you.',
     'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }),
@@ -563,6 +565,9 @@ const FACTS = Object.freeze({
   kills: (p, f) => f.levelXp > 0,
   level: (p, f) => f.charLevel >= 2,
   level_at: (p, f) => f.charLevel >= p.at && (!p.below || f.charLevel < p.below),
+  /* the Weighhouse trades with this hero by either of the server's routes: its Level, or its best bench skill as the server sent it (a bench
+     not sent opens nothing: never "open" on a guess) */
+  market_open: (p, f) => (f.charLevel >= WEIGHHOUSE_LEVEL || (Number.isInteger(f.benchLevel) && f.benchLevel >= WEIGHHOUSE_BENCH)) && (!p.below || f.charLevel < p.below),
   unlock: (p, f) => f.charLevel >= HUNT_INDEX[p.hunt].band[0],
   /* town work, judged on facts that stay (Farming and Cooking XP; the shared land) */
   /* "plant a seed in EACH empty plot" (playtest 2026-10-29 #12: one plot finished it, since a plant pays Farming XP): done

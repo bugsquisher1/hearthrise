@@ -15,6 +15,7 @@
 //                                                                      start a gathering node or a bench
 //                                                                      recipe (town-work.js) / stop; the
 //                                                                      engine collects before it switches
+//   gm_stop           { gm: { target, slot, reason } }                the Game Master stops a hero (gm-intents.js)
 //   market_*          { market: { ... } }                             the Weighhouse (market lane 2): list,
 //                                                                      cancel, buy and three reads, each with
 //                                                                      the subfields MARKET_FIELDS names
@@ -30,7 +31,7 @@
 // new verb or field is a reviewed edit there as well as here.
 // ════════════════════════════════════════════════════════════════════════
 
-import { refusalOf } from './refusal.js?v=0.2.96';
+import { refusalOf } from './refusal.js?v=0.2.98';
 
 export const EDGE_INTENTS = Object.freeze({
   equip: Object.freeze(['equip']),
@@ -50,6 +51,8 @@ export const EDGE_INTENTS = Object.freeze({
   market_browse: Object.freeze(['market']),
   market_item: Object.freeze(['market']),
   market_mine: Object.freeze([]),
+  /* The Game Master's stop (hr-accrue gm-stop.js): which hero, and why. The server refuses it to everyone without the server-written row. */
+  gm_stop: Object.freeze(['gm']),
 });
 
 /* The `market` object's subfields per verb (hr-accrue request.js readMarket); a browse's are all optional. */
@@ -124,6 +127,11 @@ const FIELD = Object.freeze({
     return out;
   },
   item: (v) => (typeof v === 'string' && ID.test(v) ? v : null),
+  gm(v) {
+    if (!v || typeof v !== 'object' || Array.isArray(v) || typeof v.target !== 'string' || !UUID.test(v.target)
+        || !Number.isInteger(v.slot) || typeof v.reason !== 'string') return null;
+    return { target: v.target, slot: v.slot, reason: v.reason.slice(0, 200) };
+  },
   /* Only the declarations the client makes: a gathering node or a bench recipe by id, or stop. Never `combat`
      (a hunt is hr_hunt_enter's) and never `training`. */
   activity(v) {

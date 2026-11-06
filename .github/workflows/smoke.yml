@@ -647,9 +647,17 @@ jobs:
   # run: Windows 6.8 (40314818369) + Services 0.4 + House 0.7 + Instant press 0.4
   # (nightly 40196078710) + Say why 0.5 (40314818369) + Farm 2.7 (40301377956) + setup
   # 0.9 = 12.4 min; x2 = 25, 28 so the apt stall (12.4 + 12.5 = 24.9) keeps 11% slack.
+  # 2026-11-05 (lane t-v097-reds): CANCELLED at 28 on every run from nightly 42065774032 on, 0 failures,
+  # in a loop: a nightly that does not prove this job green sends the next run to the full sweep, which
+  # no longer fit. MEASURED full sweep (42096671527): setup 0.8 + Windows 18.5 (window-camera --mutate
+  # 17.3: 24 mutants, each re-running every page, 37-52 s apiece) + Services 3.8 + Say why 0.5 + House
+  # 0.7 + Farm 3.1 + Instant press 4.2 (nightly 41867104263) = 31.6 min. Each window-camera mutant now
+  # runs only the pages its rule reads (pagesOf). MEASURED on Tyler's PC under a second browser suite:
+  # window-camera 115 s (CI: 67) + --mutate 423 s, 24/24 caught = 9.0 min, about 5.2 at CI's pace.
+  # Full sweep 22.1 min at the local figure; x2 = 44. With the apt stall: 34.6 (79%).
   in-page-2:
     runs-on: ubuntu-latest
-    timeout-minutes: 28
+    timeout-minutes: 44
 
     steps:
       - uses: actions/checkout@v4
@@ -3218,6 +3226,14 @@ jobs:
           node tests/char-wipe.mjs
           node tools/mutant-gate.mjs node tests/char-wipe.mjs --mutate
 
+      # The Game Master tools (2027-03-13-gm-tools.sql): every power refuses a stranger, every shared surface refuses a forged
+      # call from the walled account, by the door and by the row. --mutate: one mutant per power and per wall, the file's §9 dropped.
+      - name: Game Master tools — the powers refuse strangers, the wall holds
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/gm-tools.mjs
+          node tools/mutant-gate.mjs node tests/gm-tools.mjs --mutate
+
       # Legacy keys (the JWT secret exposed 2026-11-01): the client ships a publishable key, hr-accrue reads no API
       # key, the bridge prefers the platform's publishable key, no tool or workflow holds a legacy key, and the real
       # driver on the replayed chain posts apikey alone. --selftest: 22 mutations, one replay.
@@ -4981,6 +4997,11 @@ jobs:
           node tools/mutant-gate.mjs node tests/town-crier.mjs --selftest
           node tools/world-art/hearth-flames.mjs --check
           node tools/world-art/round-fireworks.mjs --check
+          # THE TOWN WORKS (Tyler 2026-11-04): the server gives gold and Havora raises the Weighhouse. TW-NO-BUFF is the standing guard that nothing in the engine, XP, drops or prices reads a project.
+          node tools/gen-town-works.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-town-works.mjs --selftest
+          node tests/town-works.mjs
+          node tools/mutant-gate.mjs node tests/town-works.mjs --selftest
 
       # THE HERO SINKS (Tyler 2026-11-04): setups free then bought (a saved setup is never blocked, a new number past the count is refused by every verb);
       # titles, where gold unlocks one only after the kills are earned. One key charges once, a forged price is quote_changed, per hero.
@@ -4993,6 +5014,22 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-title-catalogue.mjs --selftest
           node tests/titles.mjs
           node tools/mutant-gate.mjs node tests/titles.mjs --selftest
+
+      # CALL OUT (Tyler 2026-11-04, lane/c-boss-call): a paid fight that can't pay XP, coin or a drop. tests/boss-call.mjs is the money line on the real settle, tests/boss-call-db.mjs the server's half.
+      - name: Call out - pays nothing, one door, the leader's fee, both paths
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/boss-call.mjs
+          node tools/mutant-gate.mjs node tests/boss-call.mjs --mutate
+          node tests/boss-call-db.mjs
+          node tools/mutant-gate.mjs node tests/boss-call-db.mjs --mutate
+          node tests/boss-call-window.mjs
+          node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate
+      - name: Gold sinks - hero colors
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hero-colors.mjs
+          node tools/mutant-gate.mjs node tests/hero-colors.mjs --selftest
 
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt

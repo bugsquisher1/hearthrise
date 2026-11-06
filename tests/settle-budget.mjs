@@ -116,7 +116,7 @@ const SEQUENCE_REFS = Object.freeze({ 'public.hunt_session_tally': ['ledger_hwm'
 const PRE_NAMES = Object.freeze({ hrsr_role_of: 'hr_hunt_role_of', hrsr_role_view: 'hr_role_view', hrsr_sections: 'hr_state_sections_of' });
 /* Bodies a LATER file moved on purpose. Their old pre-image would undo that file, not the settle-cost lanes (party-truth's why a
    friend's end sent a hero home; bench tax's gold kind), so the "before" image holds the body as the chain ended, taken before any plant. */
-const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql', hr_gold_kind: '2027-02-19-bench-tax.sql' });
+const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql', hr_gold_kind: '2027-02-19-bench-tax.sql', hr_social_party_view: '2027-03-05-hero-colors.sql' });
 /** The pre-image DDL the lane's files carry (their pg_temp copies), renamed back to the public functions they were. */
 export function preImages() {
   const out = [];

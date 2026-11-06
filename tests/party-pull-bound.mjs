@@ -25,7 +25,7 @@ import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 
 const GROUNDS = Object.freeze(['mill_cellar', 'meadowbrook_thicket']);
 const WINDOWS = 3;
-const CATALOGUE = '2027-03-08-rune-ladder-hunt-sessions-catalogue.generated.sql';
+const CATALOGUE = '2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql';
 
 /** Play a four on `hunt` on `db`: the problems found, as words. */
 async function play(db, hunt) {

@@ -19,11 +19,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES } from '../data/supplies.js?v=0.2.96';
-import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, DEATH_XP_BASE, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.96';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.96';
-import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.96';
-import { skillLevelFromXp, skillXpForLevel, charLevelFromXp, charXpForLevel } from './xp.js?v=0.2.96';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.98';
+import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, DEATH_XP_BASE, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.98';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.98';
+import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.98';
+import { skillLevelFromXp, skillXpForLevel, charLevelFromXp, charXpForLevel } from './xp.js?v=0.2.98';
 
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 
@@ -244,6 +244,9 @@ const at = (ms, t) => ms !== null && ms !== undefined && Number.isFinite(Number(
 const END_CHECKS = Object.freeze({
   /* The hero was killed this span (combat-sim.js die): the hunt ends at the next boundary. */
   died: (hs) => hs.died === true,
+  /* CALL OUT (src/data/boss-calls.js): the called boss fell this span (combat-sim.js); a flag of the span, never stored. Ahead of the party ends: a kill and a death in one swing is
+     still a kill, for everyone the death didn't take. */
+  boss_felled: (hs) => hs.bossFelled === true,
   /* LEAVE TOGETHER (Tyler 2026-10-22): another member's hunt ended and this hero's box "Leave if anyone leaves
      the hunt or dies" is ticked (combat-sim.js cascadeFrom); a flag of the span, never stored. */
   party_member_died: (hs) => hs.partyEnd === 'died' && hs.died !== true,
@@ -255,6 +258,8 @@ const END_CHECKS = Object.freeze({
   rule: (hs) => typeof hs.ruleStop === 'string' && hs.ruleStop.length > 0,
   stamina: (hs) => hs.staminaMs !== null && hs.staminaMs !== undefined && !(Number(hs.staminaMs) > 0),
   hours: (hs, t) => Number(hs.hoursLimit) > 0 && t - hs.huntFromMs >= Number(hs.hoursLimit) * 3600000,
+  /* CALL OUT: the fight's limit, the one instant combat-sim.js sets on every member from the party's first swing. */
+  boss_time: (hs, t) => at(hs.callEndsAtMs, t),
   left: (hs, t) => at(hs.leaveAtMs, t),
   changed: (hs, t) => at(hs.changeAtMs, t),
   /* THE NO-FIGHT END (designer 2026-10-31): `fightAtMs` is this boundary's reading of the world's last blow on a monster
@@ -378,6 +383,9 @@ export function newHuntSession(o) {
     died: s.died === true,
     /* Sent home by another member's end (LEAVE TOGETHER): 'died' | 'left' | null, a flag of the span. */
     partyEnd: s.partyEnd === 'died' || s.partyEnd === 'left' ? s.partyEnd : null,
+    /* CALL OUT (src/data/boss-calls.js), both set by combat-sim.js from the ground, never stored: the called boss is down; the instant the fight's limit falls. */
+    bossFelled: s.bossFelled === true,
+    callEndsAtMs: s.callEndsAtMs ?? null,
     /* The leader removed this member (the server's read: still hunting in its party's instance, no longer seated):
        its end sends nobody home (Coordinator ruling 2026-10-23; combat-sim.js cascadeFrom). */
     kicked: s.kicked === true,

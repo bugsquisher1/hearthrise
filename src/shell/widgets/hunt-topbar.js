@@ -9,15 +9,16 @@
 // close lands, and a plain "still processing" line if it is late.
 // "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.96';
-import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.96';
-import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.96';
-import { text, prop, attr } from '../../render/paint.js?v=0.2.96';
-import { clock } from '../../render/format.js?v=0.2.96';
-import { track } from '../../net/observability.js?v=0.2.96';
-import { refusalText } from '../intent-words.js?v=0.2.96';
-import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.96';
-import { connection } from '../../net/connection.js?v=0.2.96';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.98';
+import { callOfHunt } from '../../data/boss-calls.js?v=0.2.98';
+import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.98';
+import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.98';
+import { text, prop, attr } from '../../render/paint.js?v=0.2.98';
+import { clock } from '../../render/format.js?v=0.2.98';
+import { track } from '../../net/observability.js?v=0.2.98';
+import { refusalText } from '../intent-words.js?v=0.2.98';
+import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.98';
+import { connection } from '../../net/connection.js?v=0.2.98';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
@@ -91,7 +92,8 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   /* The tutorial card hangs UNDER this bar while a hunt is open (the launcher's would cover Leave hunt). */
   /* Nothing while the leave runs: "Cash in, leave the hunt" popped up during its countdown (the panel 2026-10-31). */
   const html = leaving && !over ? '' : pointerFor(ctx, !over);
-  placeCoach(el, html);
+  /* ...nor over a called fight: the card hung across his boss bar (played 2026-11-05). */
+  placeCoach(el, callOfHunt(h && h.huntId) && !over ? '' : html);
 };
 
 renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {

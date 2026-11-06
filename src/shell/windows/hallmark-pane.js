@@ -8,16 +8,16 @@
 // the shown price; confirming sends ONE hr_hallmark naming the two pieces and that price, and the server re-quotes it under its own lock.
 // The new piece shows only from the re-read envelope.
 // ════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.2.96';
-import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.96';
-import { hallmarkOf, jewelLevelOf, heldForHallmark } from '../../session/jewelry-sections.js?v=0.2.96';
-import { hallmarkPiece } from '../../session/hallmark-intents.js?v=0.2.96';
-import { goldOf } from '../../session/item-sections.js?v=0.2.96';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.96';
-import { gold, whole } from '../../render/format.js?v=0.2.96';
-import { itemName } from '../widgets/bits.js?v=0.2.96';
-import { runIntent } from '../intent-words.js?v=0.2.96';
-import { whereToGet } from '../item-lore.js?v=0.2.96';
+import { ITEMS } from '../../data/items.js?v=0.2.98';
+import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.98';
+import { hallmarkOf, jewelLevelOf, heldForHallmark } from '../../session/jewelry-sections.js?v=0.2.98';
+import { hallmarkPiece } from '../../session/hallmark-intents.js?v=0.2.98';
+import { goldOf } from '../../session/item-sections.js?v=0.2.98';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.98';
+import { gold, whole } from '../../render/format.js?v=0.2.98';
+import { itemName } from '../widgets/bits.js?v=0.2.98';
+import { runIntent } from '../intent-words.js?v=0.2.98';
+import { whereToGet } from '../item-lore.js?v=0.2.98';
 
 const keyOf = (o) => o.from + '>' + o.to;
 

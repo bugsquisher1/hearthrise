@@ -7,7 +7,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.99 — 2026-11-06 (Rings and a King)
 
-**Call out a boss.** A party can pay to fight a far stronger Rat King (10,000 gp) or Chief Coppercap (30,000 gp), up to 3 calls a day. At half his health his adds come for whoever isn't your tank, and at a quarter he rages, so your action bar decides it. It pays no XP, coin or drops: bring him down and you earn a title and your name in System chat. Lose, and the game says where you lost it and what to change.
+**Call out a boss.** A party can pay to fight a far stronger Rat King (10,000 gp) or Chief Coppercap (30,000 gp), up to 3 calls a day. At half his health his adds go after whoever isn't your tank, and at a quarter he rages, so your action bar decides the fight. There's no XP, coin or loot in it. Bring him down for a title and your name in System chat. Lose, and the game tells you where it went wrong and what to change.
 - **Crafted rings.** Make a Banded Signet at Crafting from Bronze Bars. Before you press, the bench shows your odds of a Fine ring with one perk (Keen, Surge or Follow-through). At Crafting 30, the Hallmark adds a second perk of your choice for 25,000 gp and a Road Carnelian, a gem the Turncoats carry. Graded rings trade on the Weighhouse like any other piece. The plain Signet is still in the Shop.
 
 ## v0.2.98 — 2026-11-06 (Every Creature Breathes)

@@ -343,8 +343,9 @@ const MUTATIONS = {
     file: FN('set-activity.js'),
     why: 'C4 — the rate bucket becomes a literal at the call site again. Behaviourally IDENTICAL '
        + 'today, so only the source assertion can see it — which is the whole point',
-    find: '  const [read] = await exec(READ_SQL, [user, slot, rateBucketFor(VERB)]);',
-    repl: "  const [read] = await exec(READ_SQL, [user, slot, 'activity']);",
+    /* the call site as lane/c-gm-tools left it (gm-stop.js passes its own read, the bucket stays the registry's) */
+    find: '  const [read] = await exec(o.readSql || READ_SQL, [user, slot, rateBucketFor(VERB)]);',
+    repl: "  const [read] = await exec(o.readSql || READ_SQL, [user, slot, 'activity']);",
   },
   collected_dropped_on_replay: {
     file: FN('set-activity.js'),

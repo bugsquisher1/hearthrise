@@ -2,13 +2,14 @@
 // tools/balance-sim/pacefinal-table.mjs — lane/b-pace-final's READS, off the engine's cells (plan pacefinal) and the pace snapshot.
 //
 //   node tools/balance-sim/sim.mjs --plan pacefinal --out tools/balance-sim/out/pacefinal
-//   node tools/balance-sim/pacefinal-table.mjs [--in tools/balance-sim/out/pacefinal]
+//   node tools/balance-sim/pacefinal-table.mjs [--in tools/balance-sim/out/pacefinal[,DIR2...]]
+//   (several folders: a subset re-run in a second pool, `--only "x=(R|M)"`; a cell id read twice counts once)
 //
 // Prints: the tiers per ground (median of the eight ways to fight alone), the fastest honest pace (each Level's reference
 // rate times the median style's best tier that held and paid on that ground, nearest Level of the grid), the skill rates at
 // 50, the Warrens at 50 against LEVEL_PACE.contract, the casters on each rune tier, and the healer's "needs healing" line.
 // Every number is read off the cells; the only arithmetic is pooling (hours-weighted), medians and ratios.
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readCell } from './tiers-table.mjs';
@@ -17,8 +18,9 @@ import { hoursTo, referenceRate, loadPaceData, SNAPSHOT } from './pace.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : d; };
-const DIR = resolve(arg('in', join(HERE, 'out', 'pacefinal')));
-const cells = readFileSync(join(DIR, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.heroes);
+const DIRS = arg('in', join(HERE, 'out', 'pacefinal')).split(',').map((d) => resolve(d));
+const cells = [...new Map(DIRS.filter((d) => existsSync(join(d, 'cells.jsonl'))).flatMap((d) => readFileSync(join(d, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)))
+  .filter((r) => r.heroes).map((r) => [r.id, r])).values()];
 const { BUILD } = await import(pathToFileURL(join(ROOT, 'src/build-info.js')).href);
 const XP = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href + '?v=' + BUILD.version);
 const { LEVEL_PACE } = await import(pathToFileURL(join(ROOT, 'src/data/core-model.js')).href);

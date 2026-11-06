@@ -33,6 +33,11 @@
 // A DEAD SESSION (a refresh the server refuses, or a sign-out in another tab)
 // closes every character and lands on sign-in with one plain line; nothing is
 // retried in the background.
+//
+// ANOTHER ACCOUNT SIGNED IN ON THIS DEVICE (another tab; src/net/auth.js 'switched'): the page
+// plays ONE account, so it reloads as the one the device now holds. Until it has, the account's
+// server link sends nothing (auth.tokensFor: its own login's token only), so no call made for one
+// account reaches another's heroes and no answer of another's reaches this page (Andy 2026-11-06).
 // ════════════════════════════════════════════════════════════════════════
 
 import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.99';
@@ -180,9 +185,11 @@ function startApp(win) {
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
     import('../world/prewarm.js?v=0.2.99').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
-    /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that */
-    const tokenForCall = async () => { const t = await auth.freshToken(); timing.sending(); return t; };
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, publishableKey: SUPABASE_CONFIG.publishableKey, token: tokenForCall, renew: auth.renewToken, watch: connection,
+    /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that; the
+       link carries THIS login's token only (auth.tokensFor), never another account's a later sign-in left on the device */
+    const tokens = auth.tokensFor(auth.userId());
+    const tokenForCall = async () => { const t = await tokens.fresh(); timing.sending(); return t; };
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, publishableKey: SUPABASE_CONFIG.publishableKey, token: tokenForCall, renew: tokens.renew, watch: connection,
       stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
@@ -395,6 +402,9 @@ function startApp(win) {
   auth.onChange((ev) => {
     if (ev === 'recovery') showAuth('set-password');
     else if (ev === 'signed-out' || ev === 'expired') sessionEnded();
+    /* every account-level thing this page holds (the purse, the Storage, the roster, the heroes, every window) is the old
+       account's: a reload starts the page over as the new one, from the device's session */
+    else if (ev === 'switched' && account) win.location.reload();
   });
 
   auth.refresh().then(() => {

@@ -1558,6 +1558,44 @@ async function rules(M) {
       return 'newerPurse does not keep the higher wallet version';
     return JSON.stringify(acc.purse()) === '{"gold":150,"v":5}' || 'the account purse reads ' + JSON.stringify(acc.purse());
   });
+  await t('ACC-SWITCH', async () => {
+    /* ANOTHER ACCOUNT SIGNED IN ON THIS DEVICE (Andy 2026-11-06: "now i have 500k"). A page plays account A (580,340 g at wallet
+       version 901); another tab signs account B in, and supabase-js hands this tab B's session (SIGNED_IN). The page went on
+       asking as B: B's hero drew on A's screen under A's purse, since B's wallet (v1) never out-versions it. Now: the auth says
+       'switched' (boot.js reloads the page as B), the account still plays A, nothing is sent as B, and no answer of B's lands. */
+    const UB = '99999999-8888-7777-6666-555555555555';
+    const sessOf = (tok, id) => ({ access_token: tok, refresh_token: 'r-' + tok, expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id } });
+    let stored = sessOf('A', UID), fire = null;
+    const client = { auth: { getSession: async () => ({ data: { session: stored } }), refreshSession: async () => ({ data: { session: stored }, error: null }),
+      signOut: async () => {}, onAuthStateChange: (fn) => { fire = fn; return { data: { subscription: { unsubscribe() {} } } }; } } };
+    const auth = AU.createAuth({ client, device: memStore(), tab: memStore(), redirectTo: 'https://x/' });
+    await auth.refresh();
+    const heard = [];
+    auth.onChange((ev) => heard.push(ev));
+    const wallet = { A: { name: 'Richa', gold: 580340, gold_v: 901 }, B: { name: 'Newb', gold: 500, gold_v: 1 } };
+    const sent = [];
+    const fetch = async (url, init) => {
+      const tok = init.headers.Authorization.slice(7), w = wallet[tok];
+      sent.push(tok);
+      return { ok: true, status: 200, json: async () => env(sent.length, { name: w.name, state: { gold: w.gold, gold_v: w.gold_v } }) };
+    };
+    /* the account's link as boot.js builds it */
+    const tokens = auth.tokensFor(auth.userId());
+    const server = S.createServerLink({ url: 'https://p', publishableKey: 'sb_publishable_test', token: tokens.fresh, renew: tokens.renew, fetch });
+    const acc = new A.AccountSession({ auth, server, tab: memStore(), channel: fakeHub().channel, timers });
+    if (!(await acc.open(0)).ok) return 'account A could not open its hero';
+    const hero = acc.character(0);
+    if (I.goldOf(hero) !== 580340 || I.nameOf(hero) !== 'Richa') return 'account A opened as ' + I.nameOf(hero) + ' with ' + I.goldOf(hero) + ' g';
+    stored = sessOf('B', UB);
+    fire('SIGNED_IN', stored);   // the other tab's sign-in, told to this one
+    if (!heard.includes('switched')) return 'the page took account B\'s session under account A and said nothing (heard ' + heard + ')';
+    await hero.load();
+    await hero.load();
+    const asB = sent.filter((tok) => tok === 'B').length;
+    if (asB) return 'a page playing account A sent ' + asB + ' calls as account B';
+    if (acc.userId !== UID) return 'the account session became ' + acc.userId;
+    return (I.nameOf(hero) === 'Richa' && I.goldOf(hero) === 580340) || 'account A\'s hero now reads ' + I.nameOf(hero) + ' with ' + I.goldOf(hero) + ' g';
+  });
   await t('ACC-FARM', async () => {
     /* The farm land is the ACCOUNT's (2026-12-14-shared-farm.sql): hero 0 plants and hero 1, open
        beside it, sees the plot at once (the account re-reads the other heroes); hero 1 harvests it
@@ -1941,8 +1979,8 @@ const MUTANTS = [
   ['the server limit is ignored above one', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this.config.maxConcurrentCharacters);'],
   ['a switch re-reads the viewed character', 'src/session/account-session.js', "    this._chars.get(slot).setViewed(true);\n    this._emit('viewed', slot);", "    this._chars.get(slot).setViewed(true);\n    this._chars.get(slot).load();\n    this._emit('viewed', slot);"],
   ['a switch closes the others', 'src/session/account-session.js', "    this._chars.get(slot).setViewed(true);\n    this._emit('viewed', slot);", "    this._chars.get(slot).setViewed(true);\n    for (const c of this._chars.values()) if (c.slot !== slot) c._leave && (c._leave(), c._leave = null);\n    this._emit('viewed', slot);"],
-  ['the boot read waits on the auth lock (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { session = kept; return session; }\n', ''],
-  ['a stale stored session is used as it stands (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { session = kept; return session; }', '    if (kept) { session = kept; return session; }'],
+  ['the boot read waits on the auth lock (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { adopt(kept); return session; }\n', ''],
+  ['a stale stored session is used as it stands (TOK-6)', 'src/net/auth.js', '    if (lasts(kept)) { adopt(kept); return session; }', '    if (kept) { adopt(kept); return session; }'],
   ['sign-out keeps sb-* keys', 'src/net/auth.js', " || k.startsWith('sb-')", ''],
   ['sign-out keeps the tab id', 'src/net/auth.js', ' o.tab.remove(cfg.tabKey);', ''],
   ['sign-out keeps the heroes the tab had open', 'src/net/auth.js', ' o.tab.remove(cfg.openKey);', ''],
@@ -2022,6 +2060,10 @@ const MUTANTS = [
   ['a refused refresh keeps the dead session', 'src/net/auth.js', "    session = null;\n    tell('expired');", "    tell('expired');"],
   ['a thrown lock error ends the session', 'src/net/auth.js', 'return e && e.__isAuthError === true && !isRetryable(e) ? expire() : null;', 'return isRetryable(e) ? null : expire();'],
   ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
+  /* ACC-SWITCH (Andy 11-06): another account's sign-in on this device never plays under the page's account */
+  ['another account\'s session is taken in silence', 'src/net/auth.js', "    if (was && now && was !== now) tell('switched');\n", ''],
+  ['a login\'s calls carry whatever session the tab holds', 'src/net/auth.js', '(t && uid && userOf(session) === uid && tokenOf(session) === t ? t : null)', '(t && uid && tokenOf(session) === t ? t : null)'],
+  ['the account follows whoever the auth holds', 'src/session/account-session.js', '  get userId() { return this.uid; }', '  get userId() { return this.auth.userId(); }'],
   ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took && engine) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
   /* STORE-1 (Andy 10-26): the account Storage is the newest any hero read; a refusal re-reads ONCE; reads are bounded */

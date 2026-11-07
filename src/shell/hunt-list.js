@@ -37,9 +37,11 @@ import { MONSTERS } from '../data/monsters.js?v=0.2.106';
 import { SUPPLIES } from '../data/supplies.js?v=0.2.106';
 import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.106';
 import { whole, gold } from '../render/format.js?v=0.2.106';
+import { t, hasText } from '../render/player-text.js?v=0.2.106';
 
 const PACK_QTY_MAX = 100000;
-const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
+/* A party size in words (hunts.count_<n>, "two"), else the number. */
+const countWords = (n) => (Number.isInteger(n) && hasText('hunts.count_' + n) ? t('hunts.count_' + n) : String(n));
 
 /** "The Rat King wants a party of two or more. Alone, you skip that hall." for this hunt's ground, or ''. */
 export function partyNote(hunt) {
@@ -47,9 +49,8 @@ export function partyNote(hunt) {
   const p = g && g.pockets.find((q) => q.minParty);
   if (!p) return '';
   const boss = p.spawns.map((s) => MONSTERS[s.monster]).find((m) => m && m.boss === true);
-  const n = COUNT_WORDS[p.minParty] || String(p.minParty);
-  return boss ? 'The ' + boss.name + ' wants a party of ' + n + ' or more. Alone, you skip that hall.'
-    : 'One hall here wants a party of ' + n + ' or more. Alone, you skip it.';
+  const n = countWords(p.minParty);
+  return boss ? t('hunts.party_boss', { boss: boss.name, n }) : t('hunts.party_hall', { n });
 }
 
 /** One line per hunt ground, lowest band first (ties by name). */
@@ -83,11 +84,9 @@ export function huntRows() {
  * pull the server spawns this ground at on the shown tier (every pack holds n), 0 or unknown = the room as built.
  */
 export function packWords(r, n) {
-  const built = r.packMin === r.packMax ? String(r.packMin) : r.packMin + ' to ' + r.packMax;
+  const built = r.packMin === r.packMax ? String(r.packMin) : t('hunts.pack_range', { min: r.packMin, max: r.packMax });
   const picked = Number.isInteger(n) && n > 0;
-  const packs = r.packs + (r.packs === 1 ? ' pack' : ' packs');
-  const size = picked ? ' of ' + n : ' of ' + built;
-  return packs + size + (r.boss ? ', a boss' : '') + ' · back in ' + r.respawnS + ' s';
+  return t(r.boss ? 'hunts.packs_boss' : 'hunts.packs', { count: r.packs, size: picked ? n : built, secs: r.respawnS });
 }
 
 /** How many monsters a pull brings on tier `id` for a group of `size` (0 = the room as built: Normal alone). The tier's row, else the ground's own party pull. Pure. */
@@ -99,12 +98,23 @@ const PCT = (pm) => Math.round(pm / 10 - 100) + '%';
 /* What's different, the words both lines open on: the monsters a pull, how much harder they hit and how much more HP they
    have (hunt-tiers.js dmgPm, hpPm), each said only when the tier moves it. */
 /* A multiple to one decimal (the sheet's per-ground dials are not round: Wickstead's 2847 reads "2.8 times"), "twice" when it is 2. */
-const TIMES = (pm, what) => { const x = Math.round(pm / 100) / 10; return x === 2 ? 'twice ' + what : x + ' times ' + what; };
-const HARDER = (pm) => (pm >= 1950 ? TIMES(pm, 'as hard') : PCT(pm) + ' harder');
-const TOUGHER = (pm) => (pm >= 1950 ? TIMES(pm, 'the HP') : PCT(pm) + ' more HP');
-const tierHead = (r, t, size) => {
-  const n = pullOfTier(t, size);
-  return (n ? n + ' monsters a pull' : 'The same monsters') + (t.dmgPm > 1000 ? ', hitting ' + HARDER(t.dmgPm) : '') + (t.hpPm > 1000 ? ', with ' + TOUGHER(t.hpPm) : '');
+const TIMES = (pm, twice, times) => { const x = Math.round(pm / 100) / 10; return x === 2 ? t(twice) : t(times, { x }); };
+const HARDER = (pm) => (pm >= 1950 ? TIMES(pm, 'hunts.twice_as_hard', 'hunts.times_as_hard') : t('hunts.pct_harder', { pct: PCT(pm) }));
+const TOUGHER = (pm) => (pm >= 1950 ? TIMES(pm, 'hunts.twice_the_hp', 'hunts.times_the_hp') : t('hunts.pct_more_hp', { pct: PCT(pm) }));
+/* Each head's four shapes: plain, harder, tougher, both. */
+const TIER_HEADS = Object.freeze({
+  pull: ['hunts.tier_pull', 'hunts.tier_pull_hard', 'hunts.tier_pull_tough', 'hunts.tier_pull_hard_tough'],
+  same: ['hunts.tier_same', 'hunts.tier_same_hard', 'hunts.tier_same_tough', 'hunts.tier_same_hard_tough'],
+  mid: ['hunts.tier_same_mid', 'hunts.tier_same_mid_hard', 'hunts.tier_same_mid_tough', 'hunts.tier_same_mid_hard_tough'],
+});
+/* The head, at a sentence's start or (`mid`) inside one: the pull, then how much harder and tougher, each only when the tier moves it. */
+const tierHead = (r, tier, size, mid = false) => {
+  const n = pullOfTier(tier, size);
+  const v = {};
+  if (n) v.n = n;
+  if (tier.dmgPm > 1000) v.harder = HARDER(tier.dmgPm);
+  if (tier.hpPm > 1000) v.tougher = TOUGHER(tier.hpPm);
+  return t(TIER_HEADS[n ? 'pull' : mid ? 'mid' : 'same'][(v.harder ? 1 : 0) + (v.tougher ? 2 : 0)], v);
 };
 
 /**
@@ -112,23 +122,23 @@ const tierHead = (r, t, size) => {
  * Normal says nothing: it is the ground as the page describes it. The risk is a real number, never a mood (Tyler 2026-11-04: a warned choice). Pure.
  */
 export function tierWords(r, id, size = 1) {
-  const t = tierRowOf(r.hunt, id);
-  if (t.id === DEFAULT_TIER) return '';
-  const blow = biggestBlowOn(r.hunt, size, t), was = biggestBlowOn(r.hunt, size);
-  return tierHead(r, t, size) + (blow && was && blow.hit !== was.hit ? ', and the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + '. '
-    + 'Each kill earns ' + PCT(t.xpPm) + ' more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die. A death ends the hunt and costs ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
+  const tier = tierRowOf(r.hunt, id);
+  if (tier.id === DEFAULT_TIER) return '';
+  const blow = biggestBlowOn(r.hunt, size, tier), was = biggestBlowOn(r.hunt, size);
+  const head = tierHead(r, tier, size);
+  return [(blow && was && blow.hit !== was.hit ? t('hunts.tier_head_blow', { head, hit: blow.hit, was: was.hit }) : t('hunts.tier_head_end', { head })),
+    t('hunts.tier_cost', { xp: PCT(tier.xpPm), loss: Math.round(DEATH_XP_LOSS * 100) })].join(' ');
 }
 
 /** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: 8 monsters a pull, hitting 50% harder." '' on Normal. Pure. */
 export function tierChoiceWords(r, id, size = 1) {
-  const t = tierRowOf(r.hunt, id);
-  return t.id === DEFAULT_TIER ? '' : TIER_NAME[t.id] + ': ' + tierHead(r, t, size).replace(/^The/, 'the') + '.';
+  const tier = tierRowOf(r.hunt, id);
+  return tier.id === DEFAULT_TIER ? '' : t('hunts.tier_choice', { tier: TIER_NAME[tier.id], head: tierHead(r, tier, size, true) });
 }
 
 /** The ground's level band in words, and where the character stands when its level is known. */
 export function bandWords(r, level) {
-  const band = 'Level ' + r.band[0] + ' to ' + r.band[1];
-  return Number.isInteger(level) ? band + ', you are ' + level : band;
+  return Number.isInteger(level) ? t('hunts.band_you', { lo: r.band[0], hi: r.band[1], level }) : t('hunts.band', { lo: r.band[0], hi: r.band[1] });
 }
 
 /** Words on a hunt ABOVE the character's level, or null. The floor is only ever a warning (Tyler 2026-11-04 UTC: "big risks should include warnings
@@ -136,15 +146,15 @@ export function bandWords(r, level) {
     press of Enter arms "Enter anyway" (hunts.js), and that one confirm is all that stands between a hero and a ground. */
 /* THE MONSTERS ARE SIMPLY STRONGER (Tyler 2026-11-04: "it's inherent in the game, not a penalty driven system"): nothing in the fight reads a hero's Level against the ground. The claims are played on the
    real engine (tests/hunt-core/first-week-bands.mjs above-your-level-words), so a balance change that makes one false turns it red. */
-export const ABOVE_LEVEL_WORDS = 'Its monsters are stronger than you. Expect to spend more on supplies, or to die. More XP and better loot.';
+export const ABOVE_LEVEL_WORDS = t('hunts.above_level');
 /* FAR under a floor: the words and the list line lean harder. Display only. */
 const FAR_UNDER_LEVELS = 10;
-const FAR_WORDS = 'Its monsters are far stronger than you. Expect to spend much more on supplies, or to die. More XP and better loot.';
+const FAR_WORDS = t('hunts.far_above_level');
 export function rangeWords(r, level) {
   if (!Number.isInteger(level) || level >= r.band[0]) return null;
   const gap = r.band[0] - level;
-  return 'You\'re ' + gap + (gap === 1 ? ' Level' : ' Levels') + ' under this ground. ' + (gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)
-    + ' If you die, the hunt ends and you lose ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
+  return [t('hunts.range_under', { count: gap }), (gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS),
+    t('hunts.range_die', { loss: Math.round(DEATH_XP_LOSS * 100) })].join(' ');
 }
 
 /**
@@ -159,20 +169,21 @@ export function seatsUnder(r, party) {
 /** "Sorrel (Level 9) and Oren (Level 12) are under this ground's Level 16." or '' for nobody. Pure. */
 export function underWords(r, seats) {
   if (!seats.length) return '';
-  const names = seats.map((s) => s.name + ' (Level ' + s.level + ')');
-  const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
-  return list + (names.length > 1 ? ' are' : ' is') + ' under this ground’s Level ' + r.band[0] + '. It will hit them hard, and they could die.';
+  const names = seats.map((s) => t('hunts.seat_level', { name: s.name, level: s.level }));
+  const who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+  return t('hunts.seats_under', { count: names.length, who, level: r.band[0] });
 }
 
 /** THE LEVEL SHARE IN WORDS (xp-share.js reads the same row): each seat, this hero included at `myLevel`, that keeps less than a full share of Level XP on this ground, or ''. Pure. */
 export function shareWords(r, party, myLevel) {
   if (!party) return '';
-  const seats = party.seats.map((s) => ({ name: s.seat === party.me ? 'You' : s.name, level: s.seat === party.me ? myLevel : s.level })).filter((s) => Number.isInteger(s.level));
+  const seats = party.seats.map((s) => ({ me: s.seat === party.me, name: s.name, level: s.seat === party.me ? myLevel : s.level })).filter((s) => Number.isInteger(s.level));
   const top = Math.max(0, ...seats.map((s) => s.level));
   const ground = Object.values(HUNT_GROUNDS).find((g) => g.hunt === r.hunt);
   const low = seats.map((s) => ({ ...s, pm: underFloorSharePm(ground, s.level, top) })).filter((s) => s.pm < 1000);
   if (!low.length) return '';
-  return low.map((s) => s.name + (s.name === 'You' ? ' earn ' : ' earns ') + Math.max(1, Math.round(s.pm / 10)) + '% of a full share of Level XP here, so far under Level ' + top).join('. ') + '.';
+  return low.map((s) => (s.me ? t('hunts.share_you', { pct: Math.max(1, Math.round(s.pm / 10)), top })
+    : t('hunts.share_seat', { name: s.name, pct: Math.max(1, Math.round(s.pm / 10)), top }))).join(' ');
 }
 
 /** Is this ground built for a group of `partySize` (1 = alone)? A 'both' ground always is. */
@@ -181,7 +192,7 @@ export function fitsGroup(r, partySize) {
 }
 
 /* The party's levels in words: "Level 20", or "Levels 12 to 20" when they differ. */
-const levelsWords = (lo, hi) => (lo === hi ? 'Level ' + lo : 'Levels ' + lo + ' to ' + hi);
+const levelsWords = (lo, hi) => (lo === hi ? t('hunts.level_one', { level: lo }) : t('hunts.levels_range', { lo, hi }));
 
 /**
  * THE ONE RECOMMENDATION (the Hunts window's default pick; tests/core-loop.mjs plays it), from the
@@ -208,9 +219,9 @@ export function recommendation(levels, partySize = 1, rows = huntRows()) {
   const below = fit.filter((r) => r.band[1] < lo).sort((x, y) => y.band[1] - x.band[1] || y.band[0] - x.band[0])[0];
   if (below) {
     const party = alone ? best(rows.filter((r) => !fitsGroup(r, 1) && holds(r, lo, lo))) : null;
-    const note = 'There\'s no ground ' + (alone ? 'for one hero' : 'for your party') + ' at ' + levelsWords(lo, hi) + ' yet. '
-      + below.name + ' (Level ' + below.band[0] + ' to ' + below.band[1] + ') is the nearest below.'
-      + (party ? ' ' + party.name + ' is right for your level if you bring a party.' : '');
+    const note = [t(alone ? 'hunts.no_ground_solo' : 'hunts.no_ground_party', { levels: levelsWords(lo, hi) }),
+      t('hunts.nearest_below', { ground: below.name, lo: below.band[0], hi: below.band[1] })]
+      .concat(party ? [t('hunts.bring_party', { ground: party.name })] : []).join(' ');
     return { row: below, note };
   }
   return { row: best(rows.filter((r) => holds(r, lo, lo))) || rows[0] || null, note: null };
@@ -234,13 +245,13 @@ export function openingPick(rec, list, last) {
 
 /** THE LIST'S TWO TAGS on one ground: "Right for your level" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure. */
 export function adviceTag(r, rec, step, party) {
-  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Right for your party' : 'Right for your level';
-  return step && step.hunt === r.hunt ? 'Next step up' : '';
+  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? t('hunts.tag_right_party') : t('hunts.tag_right_level');
+  return step && step.hunt === r.hunt ? t('hunts.tag_next_step') : '';
 }
 
 /** A party ground seen by a lone hero: "Best with a party of 2–4"; else null. */
 export function groupWords(r, partySize) {
-  return r.groupFit === 'party' && (Number(partySize) || 1) < 2 ? 'Best with a party of 2–' + Math.max(2, r.heroes) : null;
+  return r.groupFit === 'party' && (Number(partySize) || 1) < 2 ? t('hunts.best_with_party', { max: Math.max(2, r.heroes) }) : null;
 }
 
 /**
@@ -253,10 +264,10 @@ export function groupWords(r, partySize) {
 export function bestWords(bests, hunt) {
   if (!bests) return null;
   const g = bests.grounds[hunt] || {};
-  const line = (b) => whole(b.xpH) + ' Level XP per hour · balance ' + gold(b.balanceH) + ' per hour';
-  const solo = g.solo ? 'Best alone: ' + line(g.solo) : null;
-  const party = g.party ? 'Best in a party: ' + line(g.party) : null;
-  return { solo, party, none: solo || party ? null : 'No best here yet. A hunt of ' + Math.round(bests.minMs / 60000) + ' min or more sets your best.' };
+  const rate = (b) => t('hunts.best_rate', { xp: whole(b.xpH), gold: gold(b.balanceH) });
+  const solo = g.solo ? t('hunts.best_alone', { rate: rate(g.solo) }) : null;
+  const party = g.party ? t('hunts.best_party', { rate: rate(g.party) }) : null;
+  return { solo, party, none: solo || party ? null : t('hunts.best_none', { min: Math.round(bests.minMs / 60000) }) };
 }
 
 /**
@@ -269,7 +280,7 @@ export function bestLine(bests, hunt) {
   if (!bests) return null;
   const g = bests.grounds[hunt] || {};
   const xp = Math.max(g.solo ? g.solo.xpH : -Infinity, g.party ? g.party.xpH : -Infinity);
-  return Number.isFinite(xp) ? 'Best ' + whole(xp) + ' Level XP/h' : 'No best yet';
+  return Number.isFinite(xp) ? t('hunts.best_line', { xp: whole(xp) }) : t('hunts.best_line_none');
 }
 
 /**
@@ -279,8 +290,8 @@ export function bestLine(bests, hunt) {
  */
 export function fitWords(r, level) {
   if (!Number.isInteger(level)) return null;
-  if (rangeWords(r, level)) return r.band[0] - level < FAR_UNDER_LEVELS ? { words: 'Above your level', tone: 'above' } : { words: 'Far above your level', tone: 'far' };
-  return level > r.band[1] ? { words: 'Below your level', tone: 'below' } : { words: 'In your range', tone: 'in' };
+  if (rangeWords(r, level)) return r.band[0] - level < FAR_UNDER_LEVELS ? { words: t('hunts.fit_above'), tone: 'above' } : { words: t('hunts.fit_far'), tone: 'far' };
+  return level > r.band[1] ? { words: t('hunts.fit_below'), tone: 'below' } : { words: t('hunts.fit_in'), tone: 'in' };
 }
 
 /** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "Best with 2 to 4, and alone it pays from Level 45"
@@ -288,9 +299,9 @@ export function fitWords(r, level) {
     enter": advice, no rule holds a lone hero out (the panel 2026-11-01 walked the Sewer alone at Level 10; Tyler 2026-11-04 UTC). */
 export function heroWords(r) {
   if (r.groupFit === 'party' && r.heroes > 1) {
-    return Number.isInteger(r.soloFrom) ? 'Best with 2 to ' + r.heroes + ', and alone it pays from Level ' + r.soloFrom : 'Best with 2 to ' + r.heroes + ', and a lone hero can enter';
+    return Number.isInteger(r.soloFrom) ? t('hunts.heroes_solo_from', { n: r.heroes, level: r.soloFrom }) : t('hunts.heroes_lone_ok', { n: r.heroes });
   }
-  return r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';
+  return r.heroes > 1 ? t('hunts.heroes_up_to', { n: r.heroes - 1 }) : t('hunts.heroes_one');
 }
 
 /**

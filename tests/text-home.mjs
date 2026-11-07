@@ -263,7 +263,9 @@ export function callFindings(table, sites, rows) {
   for (const c of sites.calls) {
     const at = `${c.file}:${c.line}`;
     if (c.prefix !== undefined) {
-      if (!rows.some((r) => r.id.startsWith(c.prefix)) || !c.prefix.includes('.')) out.push(`TH-3 ${at} ${c.fn}('${c.prefix}' + …) matches no row`);
+      /* a prefix is a family of rows ('farm.refused_'): a bare surface ('farm.') would mark every row of it read (TH-4) */
+      if (!/^[a-z][a-z0-9-]*\.[a-z][a-z0-9_]{2,}/.test(c.prefix)) out.push(`TH-3 ${at} ${c.fn}('${c.prefix}' + …) builds an id from a bare surface: name the ids, or a family of 3+ letters`);
+      else if (!rows.some((r) => r.id.startsWith(c.prefix))) out.push(`TH-3 ${at} ${c.fn}('${c.prefix}' + …) matches no row`);
       continue;
     }
     const row = rowOf(table, c.id);
@@ -397,6 +399,7 @@ async function mutate() {
     ['TH-3', 'a call that names a value the row never reads', { sources: plant('src/shell/__th_call.js', imp + 'export const x = () => t(\'' + filled.id + '\', { '
       + [...placeholdersOf(filled.row)].map((k) => k + ': 1').join(', ') + ', thTypo: 2 });\n') }],
     ['TH-3', 'a prefix no row starts with', { sources: plant('src/shell/__th_call.js', imp + 'export const x = (c) => t(\'' + surface + '.zz_none_\' + c);\n') }],
+    ['TH-3', 'an id built from a bare surface (it would read every row as used)', { sources: plant('src/shell/__th_call.js', imp + 'export const x = (c) => t(\'' + surface + '.\' + c);\n') }],
     ['TH-4', 'a row nothing reads', { table: withRow('A row nobody reads.') }],
     ['TH-5', 'a handler whose target is named t', { sources: plant('src/shell/__th_shadow.js', imp + 'export function act(ctx, ev, t) { return t.getAttribute(\'data-x\'); }\n') }],
     ['TH-6', 'a reader that never throws', { reader: { t: (id, v) => { try { return reader.t(id, v); } catch { return ''; } }, hasText: reader.hasText } }],

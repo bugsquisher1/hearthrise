@@ -11,11 +11,13 @@
 import { BAR_TEXT } from './bar.js?v=0.2.106';
 import { FARM_TEXT } from './farm.js?v=0.2.106';
 import { HOUSE_TEXT } from './house.js?v=0.2.106';
+import { HUNTS_TEXT } from './hunts.js?v=0.2.106';
 import { ITEM_TEXT } from './item.js?v=0.2.106';
 
 export const TEXT = Object.freeze({
   bar: BAR_TEXT,
   farm: FARM_TEXT,
   house: HOUSE_TEXT,
+  hunts: HUNTS_TEXT,
   item: ITEM_TEXT,
 });

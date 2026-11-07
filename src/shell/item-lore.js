@@ -112,10 +112,10 @@ const fromWords = (skills) => skills.map((s) => t(s === 'farming' ? 'item.grown_
 export function whereToGet(id) {
   const r = index().get(id);
   if (!r) return '';
-  /* "Made with Crafting 21" (item.<how>_level), or no level at 1 */
-  const leveled = (how, skill) => (r.at[skill] > 1 ? t('item.' + how + '_level', { skill: skillName(skill), level: r.at[skill] }) : t('item.' + how, { skill: skillName(skill) }));
-  const hands = [...new Set(r.from)].map((s) => leveled(s === 'farming' ? 'grown_with' : 'gathered_with', s))
-    .concat([...new Set(r.made)].map((s) => leveled('made_with', s)));
+  /* "Made with Crafting 21", or no level at 1: [the row without a level, the row with one] */
+  const leveled = (ids, skill) => (r.at[skill] > 1 ? t(ids[1], { skill: skillName(skill), level: r.at[skill] }) : t(ids[0], { skill: skillName(skill) }));
+  const hands = [...new Set(r.from)].map((s) => leveled(s === 'farming' ? ['item.grown_with', 'item.grown_with_level'] : ['item.gathered_with', 'item.gathered_with_level'], s))
+    .concat([...new Set(r.made)].map((s) => leveled(['item.made_with', 'item.made_with_level'], s)));
   if (r.shop) hands.push(t('item.sold_at_shop'));
   const easy = r.shop || Object.values(r.at).some((lv) => lv <= 1);
   const drop = !easy && r.drops.length ? dropWhereWords(id) : '';

@@ -7,6 +7,7 @@
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.104';
 import { densityFor, partyPick, packHpFor } from '../data/hunt-grounds.js?v=0.2.104';
 import { MONSTERS } from '../data/monsters.js?v=0.2.104';
+import { atTier } from '../data/hunt-tiers.js?v=0.2.104';
 import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.104';
 import { disciplineAbilities } from '../data/abilities.js?v=0.2.104';
 import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.104';
@@ -95,6 +96,7 @@ function heroUnit(id, h, partyRoles, tile) {
  * `settings` the character's own { dist, chase, tmode, stance } (an absent key
  * takes the role's default for this party). Heroes are units 1..n. `o.density`, when given,
  * is the density the packs spawn at (the settle's whole entering party), else the party's own.
+ * `o.tier` (a hunt-tiers.js row, null = Normal) is the hunt's tier the first packs spawn on, as every respawn does.
  */
 export function newHuntWorld(ground, grid, party, o) {
   if (!Array.isArray(party) || !party.length || party.length > ground.start.length) {
@@ -109,16 +111,16 @@ export function newHuntWorld(ground, grid, party, o) {
     density: o && Number.isInteger(o.density) ? o.density
       : densityFor(ground, party.length, partyPick(party.map((h, i) => ({ density: h.density, lead: h.lead === true, seat: i })))) });
   world.units = units;
-  const inst = { world, ground, grid, occ: null, makeUnit };
+  const inst = { world, ground, grid, occ: null, tier: (o && o.tier) || null, makeUnit };
   for (let p = 0; p < ground.pockets.length; p++) spawnPack(inst, p, null);
   return world;
 }
 
-/** A CALLED ROOM'S ONE SPAWN (src/data/boss-calls.js): each monster's HP for the `heroes` walking in, as the ground's party scale reads it (hunt-grounds.js packHpFor). */
-export function scaleRoomFor(world, ground, heroes) {
+/** A CALLED ROOM'S ONE SPAWN (src/data/boss-calls.js): each monster's HP for the `heroes` walking in, as the ground's party scale reads it (hunt-grounds.js packHpFor), on `tier` as a pack's (null = Normal). */
+export function scaleRoomFor(world, ground, heroes, tier) {
   for (const u of world.units) {
     if (u.side !== 'mon') continue;
-    u.maxHp = packHpFor(ground, MONSTERS[u.kind], heroes);
+    u.maxHp = packHpFor(ground, atTier(MONSTERS[u.kind], tier), heroes);
     u.hp = u.maxHp;
   }
 }

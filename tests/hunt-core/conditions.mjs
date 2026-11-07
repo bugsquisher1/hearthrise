@@ -1074,7 +1074,7 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list.filter((h) => h.density > 0).sort((a, b) => a.density - b.density)[0]\n    || list"]] },
   { name: 'the lowest seat chooses, not the leader', case: 'density-pull', edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list"]] },
   { name: 'the settle never hands the member its leader flag', case: 'density-pull', edits: [['src/core/member.js', ' density: h.density || 0, tier: h.tier || null, lead: h.lead === true,', ' density: h.density || 0, tier: h.tier || null,']] },
-  { name: 'the first packs spawn at the opening hero\'s pick alone', case: 'density-pull', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, picker(standing)) });', '            {});']] },
+  { name: 'the first packs spawn at the opening hero\'s pick alone', case: 'density-pull', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, picker(standing)), tier });', '            { tier });']] },
   { name: 'respawns read every member\'s pick, smallest first (Andy 10-20, v0.2.20)', case: 'density-laps',
     edits: [['src/core/combat-sim.js', '        picker(members.filter((m) => !m.left && m.unitId !== null)));', '        Math.min(...members.filter((m) => !m.left && m.unitId !== null).map((m) => m.hero.density)));']] },
   { name: 'a full box walls the leader off the pull tile (no pull from the ring\'s edge)', case: 'density-laps',

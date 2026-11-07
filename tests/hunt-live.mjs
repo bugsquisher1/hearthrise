@@ -127,6 +127,9 @@ async function load(base) {
   const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(base, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   return {
     ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
+    /* the engine's own tier rows (LV-DIAL swaps one for a what-if and puts it back) */
+    ENGINE_TIERS: (await import(pathToFileURL(join(base, 'src/data/hunt-tiers.js')).href + V)).GROUND_TIERS,
+    HGR: await u('src/data/hunt-grounds.js'),
     base,
     AC: await u(FN + '/accrual.js'),
     HS: await u(FN + '/hunt-settle.js'),
@@ -451,6 +454,31 @@ function rules(M) {
     ok('LV-TIER', a.verdicts.length >= 2 && bad.length === 0, `the viewer's browser did not predict the leader's Deadly: ${bad.length} of ${a.verdicts.length} commits diverged`);
     ok('LV-TIER', taken(a, hard) > taken(b, flat), `Deadly took ${taken(a, hard)} HP in the browser's fight and today's pull ${taken(b, flat)}: the fight is not harder`);
     console.log(`  LV-TIER Glade pair at the full box, 48 s: ${a.verdicts.length} commits, ${a.verdicts.length - bad.length} matched; HP taken ${taken(a, hard)} on Deadly, ${taken(b, flat)} at today's pull`);
+  }
+
+  { // LV-DIAL: A TIER'S HEALTH, WATCHED (hunt-tiers.js hpPm, lane/b-tier-dials; Tyler 2026-11-07: a tier is a % of difficulty). The Glade's Deadly
+    // pull with the health dial alone (a what-if on the engine's own rows, put back after): the viewer's browser predicts every commit, and
+    // every monster of the server's world stands at the dial's health under the party scale (hunt-grounds.js scaledHp, not the reader).
+    const HP = 1500, rows = M.ENGINE_TIERS.mosslight_glade, was = rows.deadly;
+    rows.deadly = { ...was, pull: [...was.pull], dmgPm: 1000, hpPm: HP, xpPm: 1000 };
+    try {
+      const worn = { tank: { weapon: 'steel_sword', shield: 'coppercap_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' },
+        melee_dps: { weapon: 'steel_warhammer', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' } };
+      const mis = ['tank', 'melee_dps'].map((role, i) => {
+        const mi = memberOf(M, 'd' + i, i, role, 60); mi.huntId = 'mosslight_glade'; mi.gold = 50000; mi.hp = 1e9; mi.equipment = worn[role];
+        mi.hero = Object.assign({}, mi.hero, { density: 8, lead: i === 1, tier: 'deadly' });
+        return mi;
+      });
+      const r = run(M, mis, 48000, { server: { hunt: 'mosslight_glade' } });
+      const bad = r.verdicts.filter((x) => x.v !== 'match');
+      ok('LV-DIAL', r.verdicts.length >= 2 && bad.length === 0, `the viewer's browser did not predict a Deadly with the health dial: ${bad.length} of ${r.verdicts.length} commits diverged`);
+      const w = r.srv.inst.world ? M.WS.decode(JSON.parse(r.srv.inst.world)) : null;
+      /* the first packs spawn for the one hero the world opens with, a respawn for the pair (pull-cycle.js partySize) */
+      const dialHp = (u) => [1, 2].map((n) => M.HGR.scaledHp({ hp: Math.round((M.MONSTERS[u.kind].hp * HP) / 1000) }, n));
+      const off = (w ? w.units : []).filter((u) => u.side === 'mon' && !dialHp(u).includes(u.maxHp));
+      ok('LV-DIAL', !!w && w.units.some((u) => u.side === 'mon') && off.length === 0, `${off.length} monster(s) of the server's world stand off the dial's health: ${off.slice(0, 3).map((u) => u.kind + ' ' + u.maxHp).join(', ')}`);
+      console.log(`  LV-DIAL Glade pair on Deadly at health x${HP / 1000}, 48 s: ${r.verdicts.length} commits, ${r.verdicts.length - bad.length} matched; ${w ? w.units.filter((u) => u.side === 'mon').length : 0} monsters at the dial's health`);
+    } finally { rows.deadly = was; }
   }
 
   { // LV-K: THE LEADER CHOOSES (Tyler 2026-10-20): the peer leader's pick is the pull, on the server and in the browser.
@@ -1524,6 +1552,8 @@ const MUTANTS = [
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
   ['the browser drops the tier of a peer (LV-TIER)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { tier: null }),', /^LV-TIER/],
+  ["a spawn ignores the tier's health (LV-DIAL)", 'src/core/hunt/pull-cycle.js', 'const hp = packHpFor(inst.ground, atTier(row, inst.tier), heroes);', 'const hp = packHpFor(inst.ground, row, heroes);', /^LV-DIAL/],
+  ['the browser drops the tier of a peer, health dial (LV-DIAL)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { tier: null }),', /^LV-DIAL/],
   ["a peer's frozen numbers drop its Blows rung (LV-TEMPER)", 'src/core/member.js', '...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ', '', /^LV-TEMPER/],
   ["a peer's frozen numbers drop its Armor rung (LV-TEMPER)", 'src/core/member.js', '...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ', '', /^LV-TEMPER/],
   ['the settle never puts the Armor rung on the hero (LV-TEMPER)', 'src/core/combat-sim.js', '  if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;\n', '', /^LV-TEMPER/],

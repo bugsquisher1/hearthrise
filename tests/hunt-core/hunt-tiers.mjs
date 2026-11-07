@@ -5,6 +5,9 @@
 //   catalogue             the server's rows (hr_ground_tiers) are the data's, digit for digit.
 //   normal-is-the-ground  no tier, Normal, a word nobody offers and a tier the ground doesn't offer all play the same hunt, digit for digit.
 //   harder-tier-costs     Deadly against the same pull with no tier, one hero: a bigger bill, the row's XP a kill, the same gold and loot a kill.
+//   dials                 ONE FORMULA (Tyler 2026-11-07: "a scaling % of exp and difficulty BUT NOT GOLD"): the Glade's Deadly with a health dial (a what-if):
+//                         every monster of the first world has the dial's health under the party scale and the party scale's yield; over an hour each
+//                         kill takes the dial's damage, pays the tier's XP and the row's coin and loot, never more coin.
 //   ladder                the rule that keeps people moving: a ground's top tier doesn't beat the next ground's Normal on XP at the Level that fits it, single target, AoE or a party.
 //
 // --only a,b plays just those cases and their mutants. About three minutes on one core, mutants included.
@@ -18,8 +21,9 @@ const { loadCellRunner } = await import(pathToFileURL(join(ROOT, 'tools/balance-
 const { PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const REAL = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + V);
 const G = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href + V);
-/* the newest file that writes hr_ground_tiers' rows (tools/gen-ground-tiers.mjs; 2027-02-27-hunt-tiers.sql made the table and the first rows) */
-const CATALOGUE = '2027-03-19-tier-risk.generated.sql';
+/* the newest file that writes hr_ground_tiers' rows: the generator's own (tools/gen-ground-tiers.mjs; 2027-02-27-hunt-tiers.sql made the table and the first rows) */
+const { OUT_NAME: CATALOGUE } = await import(pathToFileURL(join(ROOT, 'tools/gen-ground-tiers.mjs')).href);
+const { loadPlay } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const WINDOW = 120000;
 const GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens';
 const HARDER = ['dangerous', 'deadly'];
@@ -36,7 +40,7 @@ const pooled = (r, f) => r.heroes.reduce((s, h) => s + f(h) * h.hours, 0) / r.he
 const cases = {
   rows: ({ T }) => {
     const N = T.tierRowOf('mill_cellar', 'deadly');
-    if (N.id !== T.DEFAULT_TIER || N.powerPm !== 1000 || N.xpPm !== 1000 || N.pull.some((p) => p !== 0)) return 'Normal moved off the ground as it stands: ' + JSON.stringify(N);
+    if (N.id !== T.DEFAULT_TIER || N.dmgPm !== 1000 || N.hpPm !== 1000 || N.xpPm !== 1000 || N.pull.some((p) => p !== 0)) return 'Normal moved off the ground as it stands: ' + JSON.stringify(N);
     if (T.tiersOf('mill_cellar').join() !== T.DEFAULT_TIER) return 'the Cellar offers ' + T.tiersOf('mill_cellar');
     for (const id of Object.keys(G.OPEN_GROUNDS)) if (id !== 'mill_cellar' && T.tiersOf(id).join() !== T.TIER_IDS.join()) return id + ' offers ' + T.tiersOf(id) + ', not all three (Tyler: each hunting ground)';
     for (const [id, rows] of Object.entries(T.GROUND_TIERS)) {
@@ -46,7 +50,8 @@ const cases = {
       for (const t of HARDER) {
         const r = rows[t];
         if (!r || r.id !== t) return id + ' has no row for ' + t;
-        if (!(r.powerPm > was.powerPm) || !(r.xpPm > was.xpPm)) return id + ': ' + t + ' is not harder and better paid than ' + was.id;
+        /* harder: damage and health never fall and one of them rises; better paid: more XP a kill */
+        if (r.dmgPm < was.dmgPm || r.hpPm < was.hpPm || (r.dmgPm === was.dmgPm && r.hpPm === was.hpPm) || !(r.xpPm > was.xpPm)) return id + ': ' + t + ' is not harder and better paid than ' + was.id;
         if (r.pull.length !== G.PARTY_SCALE.maxHeroes || r.pull.some((p, s) => (p && p < was.pull[s]) || (s && p && p < r.pull[s - 1]))) return id + ': ' + t + "'s pull falls: " + r.pull;
         for (let s = 0; s < r.pull.length; s++) if (r.pull[s] > g.densityMax[s]) return id + " cannot spawn " + t + "'s " + r.pull[s] + ' for ' + (s + 1);
         /* SLIGHTLY MORE XP (Tyler 2026-11-04): a kill never pays more than +25% for a tier, and power is what it's paid for. */
@@ -62,9 +67,9 @@ const cases = {
   },
   catalogue: ({ T }) => {
     const sql = readFileSync(join(ROOT, 'supabase', 'migrations', CATALOGUE), 'utf8');
-    const got = [...sql.matchAll(/\('([a-z_]+)', '([a-z]+)', '\{([0-9,]+)\}'::int\[\], (\d+), (\d+)\)/g)].map((m) => [m[1], m[2], m[3], m[4], m[5]].join('|')).sort();
+    const got = [...sql.matchAll(/\('([a-z_]+)', '([a-z]+)', '\{([0-9,]+)\}'::int\[\], (\d+), (\d+), (\d+)\)/g)].map((m) => [m[1], m[2], m[3], m[4], m[5], m[6]].join('|')).sort();
     const want = [];
-    for (const [g, rows] of Object.entries(T.GROUND_TIERS)) for (const id of HARDER) { const t = rows[id]; want.push([g, id, t.pull.join(), t.powerPm, t.xpPm].join('|')); }
+    for (const [g, rows] of Object.entries(T.GROUND_TIERS)) for (const id of HARDER) { const t = rows[id]; want.push([g, id, t.pull.join(), t.dmgPm, t.hpPm, t.xpPm].join('|')); }
     want.sort();
     return got.join(';') === want.join(';') ? null : 'the catalogue says ' + got.join(';') + ' and the data ' + want.join(';');
   },
@@ -99,6 +104,45 @@ const cases = {
     if (!(loot > 0.85 && loot < 1.15)) return 'a Deadly kill pays ' + loot.toFixed(3) + ' times the loot (Tyler: the same drops)';
     return null;
   },
+  dials: ({ R, T, P, WS }) => {
+    /* The Glade's Deadly pull with the health dial alone (damage and XP at the row's), a what-if on the engine's own rows, restored after:
+       the new dial isolated. Damage and XP are harder-tier-costs' and damage.mjs a-tier-is-the-monsters-stats'. */
+    const HP = 1500;
+    const rows = T.GROUND_TIERS[GLADE], was = rows.deadly;
+    rows.deadly = { ...was, pull: [...was.pull], dmgPm: 1000, hpPm: HP, xpPm: 1000 };
+    try {
+      const pull = T.pullOfTier(rows.deadly, 1);
+      /* (1) THE FIRST WORLD: every monster, at the dial's health under the party scale (hunt-grounds.js scaledHp, never the reader under test),
+         and at the party scale's yield, so more health pays no more. */
+      let first = null;
+      P.run(GLADE, 31, ['tank'], { spanMs: 10000, windowMs: 10000, density: pull, options: () => ({ tier: 'deadly' }), onWindow: (out) => { if (!first) first = out.world; } });
+      const w = first ? WS.decode(JSON.parse(first)) : null;
+      const mons = w ? w.units.filter((u) => u.side === 'mon') : [];
+      if (mons.length < pull) return 'the first world holds ' + mons.length + ' monsters for a pull of ' + pull;
+      for (const u of mons) {
+        const row = P.MONSTERS[u.kind], want = G.scaledHp({ hp: Math.round((row.hp * HP) / 1000) }, 1);
+        if (u.maxHp !== want || !(want > G.scaledHp(row, 1))) return 'a ' + u.kind + ' spawned at ' + u.maxHp + ' health; the dial says ' + want + ', Normal ' + G.scaledHp(row, 1);
+        if (u.yieldPm !== G.yieldPermille(1)) return 'a ' + u.kind + ' spawned at a yield of ' + u.yieldPm + ', the party scale says ' + G.yieldPermille(1) + ': health paid in coin';
+      }
+      /* (2) AN HOUR, the same hero and pull with no tier against the dialled Deadly: a kill takes the dial's damage, earns the tier's XP and
+         pays the row's coin and loot (Tyler 2026-11-07: never gold). */
+      const cell = cellOn(T);
+      const flat = R.runCell({ ...cell(GLADE, ['tank'], 31, null), density: pull });
+      const dial = R.runCell(cell(GLADE, ['tank'], 31, 'deadly'));
+      const f = flat.heroes[0], d = dial.heroes[0];
+      if (!(flat.party.killsPerH > 100 && dial.party.killsPerH > 50)) return 'the fixture killed ' + flat.party.killsPerH + ' and ' + dial.party.killsPerH + ' an hour';
+      const perKill = (r, n) => n / r.party.killsPerH;
+      const took = perKill(dial, d.dealtPerH) / perKill(flat, f.dealtPerH);
+      if (!(took > (HP / 1000) * 0.9 && took < (HP / 1000) * 1.1)) return 'a dialled kill takes ' + took.toFixed(3) + ' times the damage, the dial says ' + HP / 1000;
+      const xp = perKill(dial, d.levelXpPerH) / perKill(flat, f.levelXpPerH), want = rows.deadly.xpPm / 1000;
+      if (!(xp > want - 0.05 && xp < want + 0.05)) return 'a dialled kill earns ' + xp.toFixed(3) + ' times the Level XP, the row says ' + want;
+      const coin = perKill(dial, d.coinPerH) / perKill(flat, f.coinPerH);
+      if (!(coin > 0.9 && coin < 1.1)) return 'a dialled kill pays ' + coin.toFixed(3) + ' times the coin (Tyler 2026-11-07: never gold)';
+      const loot = perKill(dial, d.incomePerH - d.coinPerH) / perKill(flat, f.incomePerH - f.coinPerH);
+      if (!(loot > 0.85 && loot < 1.15)) return 'a dialled kill pays ' + loot.toFixed(3) + ' times the loot (the same drops)';
+      return null;
+    } finally { rows.deadly = was; }
+  },
   ladder: ({ R, T }) => {
     /* At the Level the upper ground opens, the ways that bracket it: a lone single target, a lone area hero of each kind, a mixed four. The upper ground's own bill is its business: this is the rule that keeps people moving. tools/balance-sim plan tierladder has every way to fight, past the floor, and Tempered. */
     const cell = cellOn(T);
@@ -119,24 +163,35 @@ const cases = {
 };
 
 const D = 'src/data/hunt-tiers.js';
-const GLADE_ROW = "mosslight_glade: { dangerous: tier('dangerous', [3, 5, 5, 6], 1400, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1600, 1200) },";
+const GLADE_DEADLY = '    deadly: Object.freeze({ dmgPm: 1600 }),';
+const PC = 'src/core/hunt/pull-cycle.js';
 const mutants = [
-  { name: 'the data and the catalogue part: Deadly hits harder in the data only', case: 'catalogue', edits: [[D, GLADE_ROW, GLADE_ROW.replace('1600, 1200', '1700, 1200')]] },
-  { name: 'the Glade loses its full box', case: 'rows', edits: [[D, GLADE_ROW, GLADE_ROW.replace('[8, 8, 8, 8]', '[6, 6, 6, 6]')]] },
-  { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[D, "  meadowbrook_thicket: {", "  mill_cellar: { dangerous: tier('dangerous', [0, 0, 0, 0], 1500, 1050), deadly: tier('deadly', [0, 0, 0, 0], 2500, 1100) },\n  meadowbrook_thicket: {"]] },
+  { name: 'the data and the catalogue part: Deadly hits harder in the data only', case: 'catalogue', edits: [[D, GLADE_DEADLY, GLADE_DEADLY.replace('1600', '1700')]] },
+  { name: 'the table and the catalogue part: Deadly earns more on every ground in the data only', case: 'catalogue', edits: [[D, "deadly: Object.freeze({ pull: Object.freeze([8, 8, 8, 8]), dmgPm: 1500, hpPm: 1000, xpPm: 1200 }),", "deadly: Object.freeze({ pull: Object.freeze([8, 8, 8, 8]), dmgPm: 1500, hpPm: 1000, xpPm: 1250 }),"]] },
+  { name: 'the Glade loses its full box', case: 'rows', edits: [[D, GLADE_DEADLY, '    deadly: Object.freeze({ pull: Object.freeze([6, 6, 6, 6]), dmgPm: 1600 }),']] },
+  { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[D, "export const NORMAL_ONLY = Object.freeze(['mill_cellar']);", 'export const NORMAL_ONLY = Object.freeze([]);']] },
+  { name: 'an override replaces the table row whole', case: 'rows', edits: [[D, 'for (const k of DIALS) row[k] = Object.prototype.hasOwnProperty.call(o, k) ? o[k] : base[k];', 'for (const k of DIALS) row[k] = o[k];']] },
+  { name: 'the dial reader drops the health dial', case: 'dials', edits: [[D, 'hp: hp === 1000 ? row.hp : Math.max(1, Math.round(((row.hp || 1) * hp) / 1000))', 'hp: row.hp']] },
+  { name: 'the dial reader drops the XP dial', case: 'harder-tier-costs', edits: [[D, 'xp: ((row.xp || 0) * xp) / 1000 };', 'xp: row.xp || 0 };']] },
+  { name: 'health is no dial: a row on damage and XP alone is the row', case: 'dials', edits: [[D, "if (!row || (dmg === 1000 && hp === 1000 && xp === 1000)) return row;", "if (!row || (dmg === 1000 && xp === 1000)) return row;"]] },
+  { name: 'a spawn ignores the tier\'s health', case: 'dials', edits: [[PC, 'const hp = packHpFor(inst.ground, atTier(row, inst.tier), heroes);', 'const hp = packHpFor(inst.ground, row, heroes);']] },
+  { name: 'the first packs spawn on no tier', case: 'dials', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, picker(standing)), tier });', '            { density: densityFor(ctx.ground, standing.length, picker(standing)) });']] },
+  { name: 'more health pays more coin', case: 'dials', edits: [[PC, 'const yieldPm = inst.ground.partyScale === true ? yieldPermille(heroes) : 1000;', 'const yieldPm = Math.round(((inst.ground.partyScale === true ? yieldPermille(heroes) : 1000) * (inst.tier ? inst.tier.hpPm : 1000)) / 1000);']] },
   { name: 'the settle reads no tier at all', case: 'harder-tier-costs', edits: [['src/core/combat-sim.js', "const tier = tierRowOf(ground.id, tierPick(members.filter((m) => !m.left && m.unitId !== null)));", "const tier = null;"]] },
   { name: 'a tier pays more gold a kill', case: 'harder-tier-costs', edits: [['src/core/hunt-rewards.js', "const y = yieldPm / 1000;", "const y = (yieldPm / 1000) * (ctx.tier ? ctx.tier.xpPm / 1000 : 1);"]] },
   { name: 'a word nobody offers plays a harder tier', case: 'normal-is-the-ground', edits: [[D, "return (rows && Object.prototype.hasOwnProperty.call(rows, id) && rows[id]) || NORMAL;", "return (rows && (rows[id] || rows.deadly)) || NORMAL;"]] },
-  { name: 'the Glade pays double XP on Deadly: nobody moves on to the Warrens', case: 'ladder', edits: [[D, GLADE_ROW, GLADE_ROW.replace('1600, 1200', '1600, 2400')]] },
+  { name: 'the Glade pays double XP on Deadly: nobody moves on to the Warrens', case: 'ladder', edits: [[D, GLADE_DEADLY, '    deadly: Object.freeze({ dmgPm: 1600, xpPm: 2400 }),']] },
 ];
 
 const REPORT = makeReport('hunt-core/hunt-tiers');
 const RUN = await loadCellRunner(ROOT);
+const PLAY = await loadPlay(ROOT);
+const WSTATE = await import(pathToFileURL(join(ROOT, 'src/core/hunt/world-state.js')).href + V);
 const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null;
 for (const k of ONLY || []) REPORT.ok(!!cases[k], '--only names no case ' + k);
 for (const [cn, fn] of Object.entries(cases).filter(([k]) => !ONLY || ONLY.includes(k))) {
   let why = null;
-  try { why = fn({ R: RUN, T: REAL }); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+  try { why = await fn({ R: RUN, T: REAL, P: PLAY, WS: WSTATE }); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   REPORT.ok(!why, cn + ': ' + why);
 }
 const PICKED = mutants.filter((m) => !ONLY || ONLY.includes(m.case));
@@ -147,7 +202,9 @@ for (const mu of PICKED) {
     let why = null;
     try {
       const { loadCellRunner: planted } = await import(pathToFileURL(join(p.root, 'tools/balance-sim/cell.mjs')).href);
-      why = cases[mu.case]({ R: await planted(p.root), T: await import(pathToFileURL(join(p.root, 'src/data/hunt-tiers.js')).href + V) });
+      const { loadPlay: plantedPlay } = await import(pathToFileURL(join(p.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+      why = await cases[mu.case]({ R: await planted(p.root), T: await import(pathToFileURL(join(p.root, 'src/data/hunt-tiers.js')).href + V),
+        P: await plantedPlay(p.root), WS: await import(pathToFileURL(join(p.root, 'src/core/hunt/world-state.js')).href + V) });
     } catch (e) { why = 'threw ' + e.message; }
     REPORT.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);

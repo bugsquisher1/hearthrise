@@ -3697,9 +3697,13 @@ jobs:
           node tests/party-pull-bound.mjs
           node tools/mutant-gate.mjs node tests/party-pull-bound.mjs --mutate
       # THE TIER IS THE SERVER'S (2027-02-27-hunt-tiers.sql): a pick frozen with its pull at hunt start, browser closed and hunt viewed store one world, a four plays its leader's, refused not clamped.
+      # The catalogue is GENERATED from hunt-tiers.js's one table (tools/gen-ground-tiers.mjs): --check holds the file to the data,
+      # --selftest proves each refusal bites (a tier no harder, a pull lost, a dial past the server's value bound).
       - name: Hunt tiers — the server freezes the pick, both paths
         if: ${{ !cancelled() }}
         run: |
+          node tools/gen-ground-tiers.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-ground-tiers.mjs --selftest
           node tests/hunt-tiers-db.mjs
           node tools/mutant-gate.mjs node tests/hunt-tiers-db.mjs --mutate
       # THE WORLD TICK'S HUNT SETTLES, PACKED BY LOAD (2026-11-04-hunt-tick-shards.sql,

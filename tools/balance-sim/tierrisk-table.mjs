@@ -35,7 +35,7 @@ const honest = (r) => r && r.deaths === 0 && r.net >= 0;
 /* Normal: plan pacefinal's Tnormal alone, and its parties; Wickstead's parties from Knormal */
 const normalOf = (g, L, w) => { const c = PF.find((x) => x.ground === g && x.cell.level === L && who(x) === w && x.cell.x === 'Tnormal') || TR.find((x) => x.ground === g && x.cell.level === L && who(x) === w && x.cell.x === 'Knormal'); return c ? readCell(c) : null; };
 const { tierRowOf } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href);
-const todayKey = (g, tier) => { const r = tierRowOf(g, tier); return 'K' + tier + ':' + r.pull.join('') + ':' + r.powerPm + ':' + r.xpPm; };
+const todayKey = (g, tier) => { const r = tierRowOf(g, tier); return 'K' + tier + ':' + r.pull.join('') + ':' + r.dmgPm + ':' + r.xpPm; };
 /* today's rows: plan pacefinal's T<tier>, else this plan's cell on today's row (Wickstead's parties) */
 const todayCell = (g, L, w, tier) => PF.find((x) => x.ground === g && x.cell.level === L && who(x) === w && x.cell.x === 'T' + tier) || TR.find((x) => x.ground === g && x.cell.level === L && who(x) === w && x.cell.x === todayKey(g, tier));
 const todayOf = (g, L, w, tier) => { const c = todayCell(g, L, w, tier); return c ? readCell(c) : null; };

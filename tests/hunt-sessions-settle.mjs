@@ -1527,7 +1527,7 @@ async function character(db, M, uid, o) {
   /* The tier picked on the hunter's ground (hunt_density.tier, 2027-02-27-hunt-tiers.sql: per ground, never a setup). The Cellar offers none in the data, so the arm writes its own catalogue row: `o.density` is that row's pull, `o.tier` its name. */
   if (o.density != null || o.tier) {
     const t = o.tier || { id: 'deadly', pull: o.density };
-    await db.query("insert into public.hr_ground_tiers (hunt_id, tier, pull, power_pm, xp_pm) values ('mill_cellar', $1, array_fill($2::int, array[4]), 1000, 1000) on conflict (hunt_id, tier) do update set pull = excluded.pull", [t.id, t.pull]);
+    await db.query("insert into public.hr_ground_tiers (hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm) values ('mill_cellar', $1, array_fill($2::int, array[4]), 1000, 1000, 1000) on conflict (hunt_id, tier) do update set pull = excluded.pull", [t.id, t.pull]);
     await asUser(db, uid);
     const r = await one(db, `select public.hr_hunt_tier_set(0, 'mill_cellar', $1, $2::uuid)`, [t.id, idem()]);
     if (!r || r.ok !== true) throw new Error('tier refused: ' + JSON.stringify(r));

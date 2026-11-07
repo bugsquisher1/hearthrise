@@ -96,9 +96,14 @@ export function tierPull(r, id, size = 1) {
 }
 
 const PCT = (pm) => Math.round(pm / 10 - 100) + '%';
-/* What's different, the words both lines open on: the monsters a pull, and how much harder they hit. */
+/* What's different, the words both lines open on: the monsters a pull, how much harder they hit and how much more HP they
+   have (hunt-tiers.js dmgPm, hpPm), each said only when the tier moves it. */
 const HARDER = (pm) => (pm === 2000 ? 'twice as hard' : pm > 2000 ? pm / 1000 + ' times as hard' : PCT(pm) + ' harder');
-const tierHead = (r, t, size) => { const n = pullOfTier(t, size); return (n ? n + ' monsters a pull' : 'The same monsters') + ', hitting ' + HARDER(t.powerPm); };
+const TOUGHER = (pm) => (pm === 2000 ? 'twice the HP' : pm > 2000 ? pm / 1000 + ' times the HP' : PCT(pm) + ' more HP');
+const tierHead = (r, t, size) => {
+  const n = pullOfTier(t, size);
+  return (n ? n + ' monsters a pull' : 'The same monsters') + (t.dmgPm > 1000 ? ', hitting ' + HARDER(t.dmgPm) : '') + (t.hpPm > 1000 ? ', with ' + TOUGHER(t.hpPm) : '');
+};
 
 /**
  * WHAT A TIER DOES, the page's words: its numbers from its row (hunt-tiers.js), and the biggest blow the ground can land on it, before armor (pull-cycle.js biggestBlowOn).
@@ -108,7 +113,7 @@ export function tierWords(r, id, size = 1) {
   const t = tierRowOf(r.hunt, id);
   if (t.id === DEFAULT_TIER) return '';
   const blow = biggestBlowOn(r.hunt, size, t), was = biggestBlowOn(r.hunt, size);
-  return tierHead(r, t, size) + (blow ? ', and the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + '. '
+  return tierHead(r, t, size) + (blow && was && blow.hit !== was.hit ? ', and the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + '. '
     + 'Each kill earns ' + PCT(t.xpPm) + ' more Level XP, with the same gold and drops. Expect a bigger food bill, and you can die. A death ends the hunt and costs ' + Math.round(DEATH_XP_LOSS * 100) + '% of your XP.';
 }
 

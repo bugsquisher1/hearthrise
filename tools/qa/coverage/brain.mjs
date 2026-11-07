@@ -239,6 +239,11 @@ const RULES = [
   { id: 'gather', pick: ({ v, map, mem }) => {
     if (v.hunting || mem.focus === 'party') return null;
     const lv = (s) => v.skills[s] || 1;
+    /* a bench skill still at 1 whose first recipe waits on something a node makes (Runecrafting on essence): feed it first */
+    for (const r of map.recipes.filter((x) => x.req === 1 && lv(x.skill) === 1).sort((a, b) => (a.skill < b.skill ? -1 : 1))) {
+      const n = map.nodes.find((x) => x.kind === 'gather' && x.req <= lv(x.skill) && r.inputs[x.prod] && owned(v, x.prod) < r.inputs[x.prod] * PACE.minBatches && !tried(mem, 'work:' + x.id));
+      if (n) return { type: 'work', kind: 'gather', id: n.id, skill: n.skill, minutes: PACE.workStretchMin, key: 'work:' + n.id, why: r.skill + ' is untrained and its first recipe (' + r.name + ') needs ' + n.prod };
+    }
     /* the least-trained gathering skill, its best node (a hunt was not possible, or the stamina is out) */
     const nodes = map.nodes.filter((n) => n.kind === 'gather' && n.req <= lv(n.skill) && !tried(mem, 'work:' + n.id));
     nodes.sort((a, b) => lv(a.skill) - lv(b.skill) || b.req - a.req);

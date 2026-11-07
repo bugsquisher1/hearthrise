@@ -9,9 +9,10 @@
 //   control          nothing planted: every probe below must read clean, or a plant proves nothing
 //   no-source        an item whose ONLY door is a listed Shop row loses the row (the engine refuses `not_listed`):
 //                    the report must say the item was NEVER REACHED
-//   blocked-skill    every node of the first gathering skill the crafter trains needs Level 1000 in the server's
-//                    own activity catalogue (hr_activities, this world's memory only): the report must carry a
-//                    BLOCKED stall for that skill, quoting the server's refusal
+//   blocked-skill    every gathering node needs Level 1000 in the server's own activity catalogue (hr_activities,
+//                    this world's memory only), so whichever node the crafter goes to first is refused: the report
+//                    must carry a BLOCKED stall for an untrained gathering skill, quoting the server's refusal
+//                    (one skill alone was a coin toss on the brain's order: the 'stock' rule went to copper first)
 //   refused-buy      a listed Shop row costs 1000x in the engine's catalogue: the report must quote the refusal
 // Every pick is read from data (the first row that fits), so the plants follow the content.
 // Exit 0: the control is clean and every plant shows; 1: a plant escaped (named); 2: harness.
@@ -32,8 +33,9 @@ export function picks(map) {
   /* a piece to wear whose ONLY door is the Shop; and the first tool on the list (every hero's first buy, brain.mjs `buy`) */
   const onlyShop = listed.find((s) => { const it = map.itemIndex.get(s.grants[0]); return ITEMS[s.grants[0]].slot && it && it.sources.length === 1 && it.sources[0] === 'shop'; });
   const priced = listed.find((s) => ITEMS[s.grants[0]].toolSkill);
-  const firstGather = map.nodes.find((n) => n.kind === 'gather' && n.req === 1);
-  return { noSource: onlyShop, refusedBuy: priced, blockedSkill: firstGather && firstGather.skill };
+  /* every gathering skill (a crafter's first job is always one, whichever the brain picks first) */
+  const gathering = [...new Set(map.nodes.filter((n) => n.kind === 'gather').map((n) => n.skill))];
+  return { noSource: onlyShop, refusedBuy: priced, blockedSkills: gathering };
 }
 
 /** The plant, in THIS process. `phase` 'data' runs before the world opens; 'world' after (it gets the world). */
@@ -46,7 +48,7 @@ export async function plant(name, map, phase, world) {
     SHOP_OFFERS[i] = { ...o, cost: o.cost.map((c, k) => (k === 0 ? { ...c, amount: c.amount * 1000 } : c)) };
   }
   if (name === 'blocked-skill' && phase === 'world') {
-    await world.db.query(`update public.hr_activities set req_lv = 1000 where kind = 'gather' and req_skill = $1`, [p.blockedSkill]);
+    await world.db.query(`update public.hr_activities set req_lv = 1000 where kind = 'gather' and req_skill = any($1)`, [p.blockedSkills]);
   }
   return p;
 }
@@ -56,7 +58,7 @@ export async function mutate({ out, opt }) {
   const { coverageMap } = await import('./map.mjs');
   const map = coverageMap();
   const p = picks(map);
-  if (!p.noSource || !p.refusedBuy || !p.blockedSkill) { console.error('coverage --mutate: HARNESS: no data row fits a plant ' + JSON.stringify({ noSource: !!p.noSource, refusedBuy: !!p.refusedBuy, blockedSkill: p.blockedSkill })); return 2; }
+  if (!p.noSource || !p.refusedBuy || !p.blockedSkills.length) { console.error('coverage --mutate: HARNESS: no data row fits a plant ' + JSON.stringify({ noSource: !!p.noSource, refusedBuy: !!p.refusedBuy, blockedSkills: p.blockedSkills })); return 2; }
   const hours = String(opt('--hours', 1));
   const fails = [];
   const reports = {};
@@ -71,19 +73,20 @@ export async function mutate({ out, opt }) {
   }
   /* the three probes, read the same way on every report */
   const item = (R, id) => R.items.find((i) => i.id === id) || {};
-  const blocked = (R) => R.stalls.find((s) => s.kind === 'blocked' && s.skill === p.blockedSkill);
+  /* a gathering skill the server refused every try at and that never trained: the stall the report must carry */
+  const blocked = (R) => R.stalls.find((s) => s.kind === 'blocked' && p.blockedSkills.includes(s.skill) && (R.skills.find((k) => k.id === s.skill) || {}).level === 1);
   const refusedBuy = (R) => R.refusals.find((x) => x.what === 'buy buy:' + p.refusedBuy.id);
   const C = reports.control;
   const control = [
     [item(C, p.noSource.grants[0]).status !== 'never reached', 'control: ' + p.noSource.grants[0] + ' is reached (' + item(C, p.noSource.grants[0]).status + ')'],
-    [!blocked(C), 'control: no blocked stall for ' + p.blockedSkill],
+    [!blocked(C), 'control: no blocked stall for ' + p.blockedSkills.join('/')],
     [!refusedBuy(C) && (C.sinks.find((s) => s.id === p.refusedBuy.id) || {}).bought === true, 'control: ' + p.refusedBuy.id + ' is bought, not refused'],
   ];
   for (const [ok, why] of control) if (!ok) fails.push(why);
   const nr = item(reports['no-source'], p.noSource.grants[0]);
   if (nr.status !== 'never reached') fails.push('no-source: ' + p.noSource.grants[0] + ' read "' + nr.status + '", not "never reached"');
   const bs = blocked(reports['blocked-skill']);
-  if (!bs) fails.push('blocked-skill: no blocked stall for ' + p.blockedSkill + ' (stalls: ' + JSON.stringify(reports['blocked-skill'].stalls).slice(0, 300) + ')');
+  if (!bs) fails.push('blocked-skill: no blocked stall for ' + p.blockedSkills.join('/') + ' (stalls: ' + JSON.stringify(reports['blocked-skill'].stalls).slice(0, 300) + ')');
   const rb = refusedBuy(reports['refused-buy']);
   if (!rb || !rb.error) fails.push('refused-buy: no quoted refusal for ' + p.refusedBuy.id);
   for (const f of fails) console.log('  RED  ' + f);

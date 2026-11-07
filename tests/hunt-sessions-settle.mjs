@@ -4029,7 +4029,7 @@ const MUTANTS = [
     from: "    if ((v.outcome === 'nothing' && v.reason !== 'world_shape_pending') || v.outcome === 'none') {",
     to: "    if (v.outcome === 'nothing' || v.outcome === 'none') {" },
   { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
-    from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.capMs);', to: '  const toMs = Math.min(endMs, inst.play.capMs);' },
+    from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.stopMs);', to: '  const toMs = Math.min(endMs, inst.play.stopMs);' },
   { arm: 'SPAN', name: '[tick-span] the settle span is the pre-fix 15 min (a backlog body runs past the edge CPU)', file: join(FN, 'hunt-settle.js'),
     from: 'export const HUNT_SETTLE_SPAN_MS = 2 * 60000;', to: 'export const HUNT_SETTLE_SPAN_MS = 15 * 60000;' },
   { arm: 'SPAN', name: '[tick-span] the engine budget leaves no room for one slice under the edge CPU', file: join(FN, 'hunt-settle.js'),

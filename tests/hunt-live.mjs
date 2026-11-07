@@ -219,7 +219,7 @@ function server(M, mis, o) {
   const where = M.HG.huntGroundOf(hunt);
   const inst = { id: (o && o.id) || 'i-live', hunt, world: null, settled_to_ms: t0, next_swing_at_ms: t0, world_swing: 0, secret: SECRET };
   /* LV-SCALE: the server's scale of this instance (hunt-settle.js scalePlanOf's `play`; the hours never run out here) */
-  inst.play = { level: (o && o.scale) || null, restart: false, capMs: Infinity };
+  inst.play = { level: (o && o.scale) || null, restart: false, stopMs: Infinity };
   const drops = {}, buys = {};
   return {
     inst, drops, buys,

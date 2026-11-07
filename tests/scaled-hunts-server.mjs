@@ -82,13 +82,13 @@ function shPlan(HS) {
   const where = { ground: { id: 'mill_cellar' } };
   const inst = (o) => ({ settled_to_ms: 1e12, next_swing_at_ms: 1e12, world: '{"w":1}', scale_level: null, ...o });
   const a = HS.scalePlanOf(inst({ scale: { level: 20, banked_ms: 10 * SWING + 1500 } }), where);
-  if (a.level !== 20 || a.capMs !== 1e12 + 10 * SWING || a.restart !== true) bad.push('a scaled read plans ' + JSON.stringify(a) + ' (want Level 20, ten swings, a restart from an unscaled world)');
+  if (a.level !== 20 || a.stopMs !== 1e12 + 10 * SWING || a.restart !== true) bad.push('a scaled read plans ' + JSON.stringify(a) + ' (want Level 20, ten swings, a restart from an unscaled world)');
   const b = HS.scalePlanOf(inst({ scale: { level: 20, banked_ms: 3 * HOUR }, scale_level: 20 }), where);
   if (b.level !== 20 || b.restart !== false) bad.push('a world built at the same Level restarts: ' + JSON.stringify(b));
   const c = HS.scalePlanOf(inst({ scale_level: 20 }), where);
-  if (c.level !== null || c.restart !== true || c.capMs !== Infinity) bad.push('the end of the hours plans ' + JSON.stringify(c) + ' (want the ground\'s own, restarted, uncapped)');
+  if (c.level !== null || c.restart !== true || c.stopMs !== Infinity) bad.push('the end of the hours plans ' + JSON.stringify(c) + ' (want the ground\'s own, restarted, uncapped)');
   const d = HS.scalePlanOf(inst({}), where);
-  if (d.level !== null || d.restart !== false || d.capMs !== Infinity) bad.push('a read with no scale (a database before the file) plans ' + JSON.stringify(d));
+  if (d.level !== null || d.restart !== false || d.stopMs !== Infinity) bad.push('a read with no scale (a database before the file) plans ' + JSON.stringify(d));
   const e = HS.scalePlanOf(inst({ scale: { level: 20, banked_ms: 1999 } }), where);
   if (e.level !== null) bad.push('less than one swing banked plays scaled');
   const f = HS.scalePlanOf(inst({ scale: { level: 60, banked_ms: HOUR } }), where);
@@ -418,10 +418,10 @@ const JS_MUTANTS = [
   { arm: 'SH-PLAY', name: 'a Deadly pick plays Deadly while scaled', file: 'src/core/combat-sim.js', from: "normalOf: (id) => id !== DEFAULT_TIER && own(id) === null };", to: 'normalOf: () => false };' },
   { arm: 'SH-PLAY', name: 'a scaled ground keeps its own tier rows', file: 'src/core/combat-sim.js', from: 'tierOf: (id) => own(id) || tierRowOf(groundId, DEFAULT_TIER),', to: 'tierOf: (id) => tierRowOf(groundId, id),' },
   { arm: 'SH-PLAY', name: 'a Level the data can\'t play is played anyway', file: 'src/core/combat-sim.js', from: 'const level = asked !== null && scaleLevelFor(groundId, asked) === asked ? asked : null;', to: 'const level = asked !== null && scaleLevelFor(groundId, asked) !== null ? asked : null;' },
-  { arm: 'SH-PLAN', name: 'the window runs past the banked hours', file: 'supabase/functions/hr-accrue/hunt-settle.js', from: '  return { level, restart: typeof (inst && inst.world) === \'string\' && stored !== level, capMs: level === null ? Infinity : capMs };',
-    to: '  return { level, restart: typeof (inst && inst.world) === \'string\' && stored !== level, capMs: Infinity };' },
+  { arm: 'SH-PLAN', name: 'the window runs past the banked hours', file: 'supabase/functions/hr-accrue/hunt-settle.js', from: '  return { level, restart: typeof (inst && inst.world) === \'string\' && stored !== level, stopMs: level === null ? Infinity : stopMs };',
+    to: '  return { level, restart: typeof (inst && inst.world) === \'string\' && stored !== level, stopMs: Infinity };' },
   { arm: 'SH-PLAN', name: 'a world built at another Level plays on', file: 'supabase/functions/hr-accrue/hunt-settle.js', from: "restart: typeof (inst && inst.world) === 'string' && stored !== level,", to: 'restart: false,' },
-  { arm: 'SH-OUT', name: 'the settle never stops at the end of the hours', file: 'supabase/functions/hr-accrue/hunt-settle.js', from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.capMs);', to: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);' },
+  { arm: 'SH-OUT', name: 'the settle never stops at the end of the hours', file: 'supabase/functions/hr-accrue/hunt-settle.js', from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.stopMs);', to: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);' },
 ];
 
 async function main() {

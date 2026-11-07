@@ -524,7 +524,7 @@ export async function readHuntSettle(o, mode) {
       body: { ok: true, settled: false, reason: 'below_min_span', ...(await envOf()), hunt_live: huntLive(inst, members, user, slot) } } };
   }
   const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
-  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.capMs);
+  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.stopMs);
   if (!(toMs > fromMs)) return notDue();
   return { envOf, inst, members, where, fromMs, toMs, endMs, nowMs, worldMaxBytes: o.worldMaxBytes };
 }
@@ -537,7 +537,7 @@ export async function readHuntSettle(o, mode) {
  *   level    the Level the engine plays (null: the ground's own; a scale this engine's data can't play is played unscaled, never half)
  *   restart  the stored world was built on another Level: it restarts from the stored swing (as a party change does), so no standing
  *            monster keeps a row the window doesn't play
- *   capMs    the window may walk at most the banked hours of world swings: hours spent only while the party is in the spawn, never
+ *   stopMs    the window may walk at most the banked hours of world swings: hours spent only while the party is in the spawn, never
  *            past what is banked (a window that would cross the end stops there; the next settle plays the ground's own)
  * A database before that file carries neither key: every window plays unscaled, as before.
  */
@@ -547,11 +547,11 @@ export function scalePlanOf(inst, where) {
   const tick = COMBAT_BALANCE.tickMs;
   const swings = s ? Math.floor(Number(s.banked_ms) / tick) : 0;
   const next = Math.floor(Number(inst && inst.next_swing_at_ms));
-  const capMs = asked !== null && swings > 0 && Number.isFinite(next) ? next + swings * tick : Infinity;
+  const stopMs = asked !== null && swings > 0 && Number.isFinite(next) ? next + swings * tick : Infinity;
   const level = asked !== null && swings > 0 && where && huntPlayOf(where.ground.id, { level: asked }).level === asked
-    && capMs > Number(inst.settled_to_ms) ? asked : null;
+    && stopMs > Number(inst.settled_to_ms) ? asked : null;
   const stored = inst && Number.isInteger(inst.scale_level) ? inst.scale_level : null;
-  return { level, restart: typeof (inst && inst.world) === 'string' && stored !== level, capMs: level === null ? Infinity : capMs };
+  return { level, restart: typeof (inst && inst.world) === 'string' && stored !== level, stopMs: level === null ? Infinity : stopMs };
 }
 
 /* (2) THE PROPOSAL: the engine over [fromMs, toMs) and every member's keyed

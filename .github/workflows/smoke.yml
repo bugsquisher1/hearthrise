@@ -3746,6 +3746,9 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-ground-stats.mjs --selftest
           node tests/balance-grade.mjs
           node tools/mutant-gate.mjs node tools/balance-sim/grade.mjs --selftest
+          # SCALED HUNTS (lane/b-scaled-hunts, hidden): on the real engine a scaled ground pays under the right-Level ground and over its own, nobody dies on Normal at the leader's Level, coin scales and drops don't
+          node tests/scaled-hunts.mjs
+          node tools/mutant-gate.mjs node tests/scaled-hunts.mjs --mutate
           node tools/gen-level-curve.mjs --check
           node tools/mutant-gate.mjs node tools/gen-level-curve.mjs --selftest
           node tests/hearth-fuel-rate.mjs

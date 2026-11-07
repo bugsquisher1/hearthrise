@@ -19,7 +19,7 @@ export const SHEET = Object.freeze({
     { id: 'normal-easy', why: '10-25: Normal is 60-80%, Easy 80-95% (Andy 11-06: "a cake walk")', tiers: ['normal'], offsets: ['floor'], metric: 'minHpP50', max: 80, binding: false },
     { id: 'normal-profit', why: '10-18 and 11-02: every hunt in range clears +25% over its store bill (a minimum)', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], metric: 'margin', min: 0.25, binding: true },
     { id: 'normal-supplies', why: 'Andy 11-06 and Tyler 11-07 ("make it 20% harder", about a fifth of income): supplies are real at the floor', tiers: ['normal'], offsets: ['floor'], sizes: [1], metric: 'supplyShare', min: 0.1, binding: false },
-    { id: 'normal-pace', why: '10-25 first-week bar: in range, at least half the pace of record', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], sizes: [1], metric: 'xpVsPace', min: 0.5, binding: true },
+    { id: 'normal-pace', why: '10-25 first-week bar: at the floor, at least half the pace of record (the pace is the ground the game sends a Level to, so a band top reads under it by design)', tiers: ['normal'], offsets: ['floor'], sizes: [1], metric: 'xpVsPace', min: 0.5, binding: true },
     /* UNDER YOUR WEIGHT CLASS COSTS GOLD (10-18 "below range = higher XP, gold loss, more deaths"; 11-06 "even in a party, you're gonna waste money") */
     { id: 'under5-loses', why: '10-18 and 11-06: five Levels under a floor loses gold, on every tier, even in a party', offsets: ['under5'], metric: 'net', max: 0, binding: true },
     { id: 'under-gap-costs', why: '11-06: the cost grows with the gap (2-3 under nets less than at the floor, same tier and party)', offsets: ['under3', 'under2'], metric: 'netMinusFloor', max: 0, binding: false },

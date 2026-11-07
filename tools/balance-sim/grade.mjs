@@ -74,10 +74,10 @@ export async function buildGrid(root, mode, opts = {}) {
         const n = Number(size), pull = tier === 'normal' ? 0 : row.pull[n - 1], { seeds, hours } = dice(mode, n, tier, offset);
         const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + tag;
         jobs.push({ id, ground: g.id, party: comp, level, ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
-          windowMs: 120000, ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: g.groupFit || 'solo', tier, offset, size: n, comp: comp.join('+'), gear: 'ladder' } });
+          windowMs: 120000, ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset, size: n, comp: comp.join('+'), gear: 'ladder' } });
       }
       /* THE FRESH HERO (first-week bars): the practice set alone at a first-day solo floor (Level 15 or under), Normal, every way */
-      if (tier === 'normal' && band[0] <= 15 && (g.groupFit || 'solo') === 'solo') for (const [s] of COMPS[mode][1]) {
+      if (tier === 'normal' && band[0] <= 15 && fitOf(g) === 'solo') for (const [s] of COMPS[mode][1]) {
         const { seeds, hours } = dice(mode, 1, tier, 'floor');
         const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + tag;
         jobs.push({ id, ground: g.id, party: [s], level: band[0], gear: { starter: true }, hours, seeds, windowMs: 120000, ...(wi ? { whatIf: wi } : {}),
@@ -87,6 +87,10 @@ export async function buildGrid(root, mode, opts = {}) {
   }
   return jobs;
 }
+
+/** A ground's fit: party where a pocket needs a party or the ground says so (tools/balance-sim plans.mjs loadAxes), else solo (a both ground sends a lone hero). */
+export const fitOf = (g) => ((g.pockets || []).some((p) => p.minParty) || g.groupFit === 'party' ? 'party' : 'solo');
+export async function fitsOf(root) { const G = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href); return Object.fromEntries(Object.values(G.OPEN_GROUNDS).map((g) => [g.id, fitOf(g)])); }
 
 /* ── THE METRICS OF ONE CELL (hour-weighted per head) ── */
 export function metricsOf(c) {
@@ -120,8 +124,8 @@ const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Ma
  * { verdicts: [{ rule, binding, verdict 'FAIL'|'UNPROVEN'|'OFF'|'ok', key, value, lo, hi, bound, off, why }], grounds: { id: { fail, unproven, off, ok } } }.
  * OFF is an advisory rule off its target; a solo cell on a party ground (groupFit 'party') grades its binding rules as advisory.
  */
-export function gradeCells(cells, sheet, pace) {
-  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: c.cell.grade, x: metricsOf(c) }));
+export function gradeCells(cells, sheet, pace, fits = {}) {
+  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit }, x: metricsOf(c) }));
   const key = (m, extra) => [m.ground, m.tier, m.offset, 'size ' + m.size, extra].filter(Boolean).join(' / ');
   const find = (m, pred) => rows.filter((r) => r.m.ground === m.ground && pred(r.m));
   const verdicts = [];
@@ -155,7 +159,7 @@ export function gradeCells(cells, sheet, pace) {
       for (const r of rows) if (scoped(rule, r.m)) { const k = [r.m.ground, r.m.tier, r.m.offset, r.m.size].join('|'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
       if (rule.aggregate === 'xpVsContract') {
         /* a party ground reads its fours a head; a solo ground its lone heroes */
-        for (const k of [...groups.keys()]) { const m = groups.get(k)[0].m; if ((m.groupFit === 'party') !== (m.size === 4)) groups.delete(k); }
+        for (const k of [...groups.keys()]) { const m = groups.get(k)[0].m; if (m.size !== (m.groupFit === 'party' ? 4 : 1)) groups.delete(k); }
       }
       for (const g of groups.values()) {
         const m = g[0].m, L = g[0].c.cell.level;
@@ -321,7 +325,7 @@ if (isMain) {
     await runPool(jobs, join(out, 'cells.jsonl'), { root: ROOT, workers: Number(arg('workers', '4')), cpuMax: Number(arg('cpu', '85')) });
   }
   const cells = existsSync(join(out, 'cells.jsonl')) ? readFileSync(join(out, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
-  const graded = gradeCells(cells, SHEET, await loadPace(ROOT));
+  const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT));
   for (const v of await blowVerdicts(ROOT, SHEET)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
   writeFileSync(join(out, 'grade.json'), JSON.stringify({ sheet: SHEET.source, cells: cells.length, ...graded }, null, 1));
   console.log('GRADE (' + SHEET.source + '), ' + cells.length + ' cells from ' + out + '\n' + report(graded, Number(arg('limit', '60'))));

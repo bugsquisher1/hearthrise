@@ -1,0 +1,45 @@
+THE SLAKE ON THE BARROW MARCH KIT (art director, 2026-11-07, lane/a-region-kit). What the kit covers, what the ground
+adds, and what is missing. The kit is data: src/data/world/region-kits.js `barrow_march`, held by tests/world-assets.mjs
+[kit]. Rendered reads: art/review/region-kit-2026-11-07/ (the real renderer, tools/qa/region-kit.html, x2).
+
+THE RIVER ART THAT EXISTS (audited under today's law, tools/world-art/validate.mjs + build.mjs rebuild):
+  set march (origin/lane/b-hasks-ford-art, not loaded): 4 bodies, 16 hf_ props, hasks_ford_ground. Palette
+    hr-world-56-v2, every sprite on budget, rebuilds identical. Fails today's world-assets on two counts: the sheet is
+    RGBA (rule [sheet-encoding], added 11-01: a rebuild fixes it, 0 gens) and the 4 bodies idle on their still (rule
+    [live], added 11-05: brief 02).
+  set muster (origin/lane/b-muster-barrows-art): 2 bodies, 16 mu_ props, muster_barrows_ground. Same two failures.
+  Greenhaven (loaded, green): the Meadowbrook's river pieces mb_reeds, mb_stepping_stones, mb_fallen_log,
+    mb_log_bridge; the Warrens' copper pieces cw_ore_stain, cw_puddle, cw_copper_pots; the sewer's moss_puddle and
+    drowned_lantern; the clutter the Ford already places (barrels, bones, skull, cart_wheel, coins_scattered ...).
+    The Glade and Wickstead creatures are their own drawings and stay theirs.
+  Effects: none are regional; the hunt's shared effects (atlas vfx) serve every ground.
+
+WHAT THE KIT COVERS FOR THE SLAKE (0 generations):
+  the floor's river, shallows, gravel, mud and reeds (13 March pro tilesets; port-pixellab.mjs paint from the merged
+    art lane; 0 gens). Deep water never meets mud in the kit (no river/mud pair): where the Slake's silt bars meet a
+    channel, paint a one-cell shallows lip (mud/shallows and river/shallows pairs exist). Paint the edges organic:
+    the walk grid's rectangles (the shallows crossings) must not show as rectangles in the paint (the Ford's gravel bars
+    do, read 11-07).
+  props: hf_pikes_fallen, hf_banded_shield, hf_helm_heap, hf_pike_stakes, hf_rowboat_sunk, mu_dead_hawthorn,
+    mu_shields_leaning, mu_crates, mb_reeds, westwood_ash, and the clutter. Not `oak` (read 11-07: its light round
+    canopy is Greenhaven's beside the March's alder; trees.png).
+WHAT IT ADDS (its signature, 2 pieces): the Grounded Barge (brief 03) and the Stake Nets (brief 04), each a small
+  family of variants (sl_grounded_barge_*, sl_stake_nets_*).
+ITS FOUR BODIES: Mudlark NEW (brief 01); Greened Pikeman and Bargeman NEW (brief 01, A4f: the re-pour failed, see
+  repour-sample.png); Color Sergeant a verdigris re-pour of the bannerman (scripted, 0 gens, ramp capped at #4f7a80,
+  verdigris under 15% of its pixels), read on the ground before it ships.
+MISSING, with the plan's costs: Mudlark 40, Greened Pikeman 40, Bargeman 40, the barge 40, the nets sheet 12, the
+  copper silt pair 30, its icons 20, the March idles its re-pour base needs 60 (the six bodies, which the Ford and the
+  Muster need too). The Slake alone: 222 gens, plus the shared idles.
+
+WHAT WOULD READ AS MIXED (none is pre-style-1 art; everything is style 1 on one palette):
+  1 `oak` on a March ground: a Greenhaven tree, too light and round beside the alder (the Ford's brief places four:
+    swap them at its import).
+  2 still March bodies beside breathing Greenhaven monsters, wherever both show (brief 02).
+  3 mb_stepping_stones on March shallows: near-white, the brightest thing on the floor, brighter than the actors'
+    bodies (ART_DIRECTION §4: clutter sits a value step below actors). Keep them to the Ford's crossing.
+  4 water: Wickstead's brook (Map Workshop) is a deep even blue-teal; the March river and shallows are lighter, with
+    pebbles. Never on one screen, but the "same river" changes look between grounds; the Slake follows the Ford.
+  The March props sit on Greenhaven grass with no break (glade-with-march.png, wickstead-with-march.png): one hand,
+  one outline, one light. The Glade's meadow and the Ford's withered grass come out of the palette lock close enough
+  that the river reads as one world from the Glade's springs to the Ford.

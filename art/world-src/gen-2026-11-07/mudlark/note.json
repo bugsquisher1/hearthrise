@@ -1,0 +1,54 @@
+{
+  "asset": "mudlark",
+  "brief": "art/briefs/gen-2026-11-07/01-mudlark.txt",
+  "plan_line": "A4a sample (step 1 rotations, and the south facing of each step-2 clip)",
+  "status": "SAMPLE, not imported; waits on the art director's read. Retry limit reached (2 rounds): stopped to report.",
+  "made": "2026-11-07",
+  "sprite_id": "mudlark",
+  "set": "slake (staged)",
+  "class": "vermin",
+  "style_image": { "file": "art/briefs/gen-2026-11-07/refs/style-glade-poacher-s-48.png", "upload": "upload:61e1504d-862f-4de6-9d4e-8f2d43000afb (expires 3 days after 2026-11-07)" },
+  "object_id": "19e89e47-fb16-4cec-b1b0-f14c663accdd",
+  "object_name": "S1 Mudlark",
+  "rotations": {
+    "tool": "create_object_pro_flash",
+    "settings": { "n_directions": 8, "width": 48, "height": 48, "view": "high top-down", "seed": 11, "style_options": "palette, detail, outline, shading", "style_usage": "match palette, outline, shading only; the creature is smaller and crouches lower than this figure" },
+    "prompt": "small hunched undead river scavenger squatting low on deeply bent knees, compact crouched body, head sunk low between the shoulders, mud-caked torn rags, grey-green waterlogged skin, a lumpy sack of scavenged scraps tied on its back, a short iron boathook in one hand, green copper stains on the rags and the hook, muted browns and greys, game enemy sprite",
+    "files": "south.png east.png north.png west.png south-east.png south-west.png north-east.png north-west.png",
+    "generations": 6,
+    "measured": { "body_h_px": { "south": 37, "south-east": 37, "east": 37, "north-east": 36, "north": 37, "north-west": 36, "west": 37, "south-west": 37 }, "green_cast_share": "1.4-3.8% (the hook carries the verdigris)" }
+  },
+  "rejected_rotations_1": {
+    "object_id": "0d647177-6332-4794-a169-82f1a2334a13",
+    "prompt": "hunched undead river scavenger crouching low, mud-caked torn rags, grey-green waterlogged skin, a lumpy sack of scavenged scraps tied on its back, a short iron boathook in one hand, green copper stains on the rags and the hook, muted browns and greys, game enemy sprite",
+    "settings": { "n_directions": 8, "width": 48, "height": 48, "view": "high top-down", "seed": 0, "style_usage": "match palette, outline, shading" },
+    "why": "stands upright at the poacher's own height: body 39-44 px (brief 30-36, vermin budget max 40), legs straight; it copies the style image's scale. Files in rejected-rotations-1/. The PixelLab object was left in the account.",
+    "generations": 6
+  },
+  "clips": {
+    "tool": "animate_object", "mode": "v3", "facing": "south",
+    "idle": { "group": "acbb48f2-082e-4e69-9d54-d3240e48e710", "animation_id": "62ca3b55-3847-4db2-b869-15f509dd87ee", "display_name": "idle-r2", "frame_count": 8, "keep_first_frame": true, "files": "idle/south/frame_000..008.png",
+      "action": "breathing slowly while staying crouched low, does not stand up, the sack rises and falls a little, feet planted, stays in place, nothing else appears in the frame",
+      "generations": 1, "flag": "still stands up out of the crouch: 37 px at frame 0, 45 px at frames 5-6. The idleFrames preview picks 0,1,8,1 (38 and 40 px) and stays calm, feet 0" },
+    "walk": { "group": "9c91dd8c-5583-4ba4-ba5e-aee1b59729ea", "animation_id": "e2662f3c-afae-4ab5-9626-69a73ded3554", "display_name": "walk-r2", "frame_count": 6, "keep_first_frame": false, "files": "walk/south/0..5.png",
+      "action": "quick crouched scuttle, stays crouched low and does not stand up, left foot and right foot lift in turn, the sack bounces, nothing else appears in the frame",
+      "generations": 1, "flag": "feet lift in turn (right 44/42/41, left 44/42/43), but the body rises from 38 to 44 px mid-stride and frames 3-4 leave the floor by 2-3 px (within the brief's 3 px)" },
+    "attack": { "group": "067b85bd-cfe4-4132-91c6-2a2244cc04f0", "animation_id": "ab938893-639b-4458-b56e-26bf5ea71612", "display_name": "attack-r2", "frame_count": 6, "keep_first_frame": false, "files": "attack/south/0..5.png", "hit_frame_per_brief": 3,
+      "action": "stays crouched low, lunges forward and hooks with the boathook, then pulls back, the boathook stays in its hand the whole time, nothing else appears in the frame",
+      "generations": 1, "flag": "the hook stays in hand and no effect is painted; the motion is a sweep of the hook inward to the front of the legs, not much of a lunge" },
+    "death": { "group": "77b80917-a24d-4953-8d7d-4a0ed6f0e676", "animation_id": "124f1a8b-4b51-4dbc-9e18-265e0c95e731", "display_name": "death-r2", "frame_count": 6, "keep_first_frame": false, "files": "death/south/0..5.png",
+      "action": "collapses face down into the mud, falls forward flat onto the ground, the sack slides off onto the ground beside it, lies still, nothing else appears in the frame",
+      "generations": 1, "flag": "falls flat and lies still; the sack stays on its back rather than spilling; the lying body spans x 1-46 of the 48 canvas" }
+  },
+  "rejected_clips_1": {
+    "files": "rejected-clips-1/<clip>/south/",
+    "idle": { "group": "ec60f891-362d-4d60-bd9e-77e56d6c073e", "action": "breathing slowly while crouched, the sack rises and falls, feet planted, stays in place, nothing else appears in the frame", "why": "stands up 37 -> 46 px (its preview loop moved twice as much as the re-roll's)" },
+    "walk": { "group": "fc1b0092-cfe5-46e6-949c-dbbb64223c5c", "action": "quick crouched scuttle, both feet lift in turn, the sack bounces, nothing else appears in the frame", "why": "the feet never lift (both on row 46 in every frame) and the body rises 38 -> 46 px" },
+    "attack": { "group": "ab597ed8-6513-42b0-b2c9-1aec99f4b7cf", "action": "lunges forward and hooks with the boathook, then pulls back, nothing else appears in the frame", "why": "the boathook vanishes in frames 3-5" },
+    "death": { "group": "5d506154-78f3-4777-b48f-a1085c0d1efd", "action": "collapses face down into the mud, the sack spills, lies still", "why": "it never falls; the sack lifts off and floats above its head in frames 2-5" },
+    "generations": 4
+  },
+  "generations_total": 20,
+  "review_strip": "art/review/gen-2026-11-07/mudlark.png (rows: knight walk; 8 rotations s se e ne n nw w sw; idle; idle change from frame 0; idle loop preview; walk; attack; death)",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs unit --set slake --id mudlark --dir art/world-src/gen-2026-11-07/mudlark --class vermin --object 19e89e47-fb16-4cec-b1b0-f14c663accdd --name \"S1 Mudlark\" --hit 3 (needs all 8 facings of walk first)"
+}

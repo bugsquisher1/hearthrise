@@ -38,8 +38,8 @@ import { runPool } from '../tools/balance-sim/pool.mjs';
 const BAR = 1.0;
 /* THE ONE NAMED EXCEPTION. Tyler 2026-11-02 ("same-weapon friends lose about 6-15%") beats his 2026-10-31 ("a same-class party never out-earns solo") where they conflict (CLAUDE.md §0; Coordinator 2026-11-04):
    the Thicket's one-class four pays the even share, and a four of wands at its default pull stands 4-5% over solo (an hour's read; this guard's 15-minute cut reads about 1.02). It holds for that party, on that
-   ground and arm only, and only on the row that was ruled on (table cell 1000, pull 6): any other number voids it, and the party answers to 1.00 like every other cell. Its own bar is the accepted 5%. */
-const EXCEPTION = Object.freeze({ ground: 'meadowbrook_thicket', arm: 'pull', party: 'wands4', cell: 1000, pull: 6, bar: 1.05 });
+   ground and arm only, and only on the row that was ruled on (table cell 940, pull 6; 1000 until the formula's rows moved the four 10% toward the party, lane/b-ground-formula-2): any other number voids it, and the party answers to 1.00 like every other cell. Its own bar is the accepted 5%. */
+const EXCEPTION = Object.freeze({ ground: 'meadowbrook_thicket', arm: 'pull', party: 'wands4', cell: 940, pull: 6, bar: 1.05 });
 const WIDE = process.argv.includes('--wide');
 /* A party cell's hours, and a lone hero's as built: every party is judged against those, and they are the cheapest cells. */
 const HOURS = WIDE ? 0.5 : 0.25;
@@ -163,11 +163,11 @@ const MUTANTS = [
     edits: [['src/data/hunt-grounds.js', 'partyPull: Object.freeze([0, 4, 5, 5])', 'partyPull: Object.freeze([0, 8, 8, 8])']] },
   /* THE NAMED EXCEPTION STILL BITES: a bigger number voids it, it reaches no other cell, and its own bar is real. */
   { name: 'the excepted cell one permille bigger: the exception is void, a four of wands answers to 1.00', cells: [['meadowbrook_thicket', LARGER.wands4]],
-    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [1001, 1210, 1260, 1300])']] },
+    edits: [['src/data/party-class-xp.js', 'row([930, 1290], [880, 1180, 1310], [940, 1100, 1150, 1180])', 'row([930, 1290], [880, 1180, 1310], [941, 1100, 1150, 1180])']] },
   { name: 'the excepted four at a wider pull (7): the exception is void', cells: [['meadowbrook_thicket', LARGER.wands4]],
     edits: [['src/data/hunt-grounds.js', 'partyPull: Object.freeze([0, 4, 5, 6])', 'partyPull: Object.freeze([0, 4, 5, 7])']] },
   { name: 'the exception never reaches the next cell: the Thicket\'s three of wands paid over the even share', cells: [['meadowbrook_thicket', LARGER.wands3]],
-    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [1030, 1180, 1310], [1000, 1210, 1260, 1300])']] },
+    edits: [['src/data/party-class-xp.js', 'row([930, 1290], [880, 1180, 1310], [940, 1100, 1150, 1180])', 'row([930, 1290], [1030, 1180, 1310], [940, 1100, 1150, 1180])']] },
   { name: 'the exception never reaches another ground: Wickstead\'s four of wands paid over the even share', cells: [['wickstead', LARGER.wands4]],
     edits: [['src/data/party-class-xp.js', 'wickstead: row([880, 1070], [970, 1160, 1220], [970, 1200, 1240, 1270])', 'wickstead: row([880, 1070], [970, 1160, 1220], [1150, 1200, 1240, 1270])']] },
   { name: 'the row as ruled, and a four of wands past the exception\'s own 5% (a four\'s shares x1.1)', cells: [['meadowbrook_thicket', LARGER.wands4]],

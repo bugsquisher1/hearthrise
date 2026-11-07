@@ -282,8 +282,8 @@ cases['glade-harder'] = (R) => {
 };
 
 const GLADE_SOFT = [['hp: 30, atk: 11, baseAcc: 0.8, def: 1, xp: 155', 'hp: 30, atk: 2, def: 1, xp: 155'], ['hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 172', 'hp: 26, atk: 2, def: 1, xp: 172'],
-  ['hp: 48, atk: 11, baseAcc: 0.82, def: 5, xp: 309', 'hp: 48, atk: 2, def: 5, xp: 309'], ['hp: 74, atk: 21, baseAcc: 0.8, def: 8, xp: 533', 'hp: 74, atk: 2, def: 8, xp: 533'],
-  ['hp: 81, atk: 22, baseAcc: 0.84, def: 9, xp: 609', 'hp: 81, atk: 2, def: 9, xp: 609'], ['hp: 69, atk: 20, baseAcc: 0.78, def: 8, xp: 481', 'hp: 69, atk: 2, def: 8, xp: 481']].map(([a, b]) => ['src/data/monsters.js', a, b]);
+  ['hp: 48, atk: 11, baseAcc: 0.82, def: 6, xp: 309', 'hp: 48, atk: 2, def: 6, xp: 309'], ['hp: 74, atk: 21, baseAcc: 0.8, def: 11, xp: 533', 'hp: 74, atk: 2, def: 11, xp: 533'],
+  ['hp: 81, atk: 22, baseAcc: 0.84, def: 14, xp: 609', 'hp: 81, atk: 2, def: 14, xp: 609'], ['hp: 69, atk: 20, baseAcc: 0.78, def: 10, xp: 481', 'hp: 69, atk: 2, def: 10, xp: 481']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
@@ -297,7 +297,7 @@ const mutants = [
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
   { name: 'the Thicket pays the old 1.52 on its wider pull, and the window still says 20%', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1520])']] },
+    edits: [['src/data/party-class-xp.js', 'row([930, 1290], [880, 1180, 1310], [940, 1100, 1150, 1180])', 'row([930, 1290], [880, 1180, 1310], [940, 1100, 1150, 1520])']] },
   { name: 'the Iron Warhammer is back at 7/12: its upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:12},"]] },
   { name: 'the Steel Warhammer is back at 9/19: over the Iron it pays under +5%', case: 'weapon-rungs',
@@ -305,7 +305,7 @@ const mutants = [
   { name: 'the Iron Hatchets are back at 7/7: their upgrade pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 18, 25, 33, 42], str: [4, 11, 14, 16, 22, 29, 38],', 'atk: [4, 7, 14, 18, 25, 33, 42], str: [4, 7, 14, 16, 22, 29, 38],']] },
   { name: 'a Thicket four of one weapon is paid 0.85, and the window still tells a four of wands it earns more than alone', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([980, 1290], [970, 1180, 1310], [1000, 1210, 1260, 1300])', 'row([980, 1290], [970, 1180, 1310], [850, 1210, 1260, 1300])']] },
+    edits: [['src/data/party-class-xp.js', 'row([930, 1290], [880, 1180, 1310], [940, 1100, 1150, 1180])', 'row([930, 1290], [880, 1180, 1310], [850, 1100, 1150, 1180])']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',
@@ -325,18 +325,19 @@ const mutants = [
     edits: [['src/data/supply-basics.js', "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14)", "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 1)"],
       ['src/data/supply-basics.js', "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40)", "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 1)"]] },
   { name: 'the Cellar\'s rats, slimes and wasps armoured like a Coppercap foreman (def 0 -> 60): a fresh hero cannot clear it', case: 'solo-mill_cellar',
-    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 18, gp: [1, 3], formula: true, speed: 3400,', 'hp: 6, atk: 3, baseAcc: 0.34, def: 60, xp: 18, gp: [1, 3], formula: true, speed: 3400,'],
-      ['src/data/monsters.js', 'hp: 9, atk: 3, baseAcc: 0.28, def: 0, xp: 30, gp: [1, 4], formula: true, speed: 2400,', 'hp: 9, atk: 3, baseAcc: 0.28, def: 60, xp: 30, gp: [1, 4], formula: true, speed: 2400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 5, baseAcc: 0.43, def: 0, xp: 29, gp: [1, 4],', 'hp: 8, atk: 5, baseAcc: 0.43, def: 60, xp: 29, gp: [1, 4],']] },
+    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 18, gp: [1, 2], formula: true, speed: 3400,', 'hp: 6, atk: 3, baseAcc: 0.34, def: 60, xp: 18, gp: [1, 2], formula: true, speed: 3400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 26, gp: [1, 3], formula: true, speed: 2400,', 'hp: 8, atk: 3, baseAcc: 0.28, def: 60, xp: 26, gp: [1, 3], formula: true, speed: 2400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 5, baseAcc: 0.43, def: 0, xp: 29, gp: [1, 3],', 'hp: 8, atk: 5, baseAcc: 0.43, def: 60, xp: 29, gp: [1, 3],']] },
   { name: 'Thin Turnip Juice costs six times as much (a fresh Mage in the Thicket pays more than it earns)', case: 'solo-meadowbrook_thicket',
     edits: [['src/data/supply-basics.js', "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10)", "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 60)"]] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
     edits: [['src/data/monsters.js', 'hp: 15, atk: 5, baseAcc: 0.44, def: 0, xp: 61, gp: [2, 7], formula: true, speed: 3400', 'hp: 15, atk: 14, baseAcc: 0.44, def: 0, xp: 61, gp: [2, 7], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (profit-floor, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
-     practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. */
-  { name: 'the Sewer\'s Culvert Bats bite a third harder (atk 9 -> 12): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 53, atk: 6, baseAcc: 0.63, def: 1, xp: 256, gp: [8, 24], formula: true, speed: 4400', 'hp: 53, atk: 8, baseAcc: 0.63, def: 1, xp: 256, gp: [8, 24], formula: true, speed: 4400']] },
+     practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
+     to-hit 0.63, lane/b-ground-formula-2): at 12 the duo's tank dips once (the bar allows one), at 14 three times in 2 h, as the old 12 did. */
+  { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 6 -> 14): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
+    edits: [['src/data/monsters.js', 'hp: 53, atk: 6, baseAcc: 0.63, def: 1, xp: 256, gp: [9, 26], formula: true, speed: 4400', 'hp: 53, atk: 14, baseAcc: 0.63, def: 1, xp: 256, gp: [9, 26], formula: true, speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');

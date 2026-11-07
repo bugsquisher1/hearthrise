@@ -64,7 +64,8 @@ const CASES = {
       let was = null;
       for (let L = 1; L <= 200; L++) {
         const f = B.formulaStats({ level: L, role, tier: 2, floor: L }, { formula: B.STAT_FORMULA, roles: B.MONSTER_ROLES });
-        if (was && (f.hp < was.hp || f.xp < was.xp || f.gp[1] < was.gp[1])) { bad.push(role + ' falls from Level ' + (L - 1) + ' to ' + L); break; }
+        /* coin is the roll's MEAN (STAT_FORMULA.gp.keepMean: lo..2 x mean - lo, so the top can step down a coin as the bottom steps up) */
+        if (was && (f.hp < was.hp || f.xp < was.xp || f.gp[0] + f.gp[1] < was.gp[0] + was.gp[1])) { bad.push(role + ' falls from Level ' + (L - 1) + ' to ' + L); break; }
         was = f;
       }
     }
@@ -138,6 +139,7 @@ const MUTANTS = [
   ['same-level-read', 'to-hit per point restated as 0.01', () => { const B = plant({}); B.formulaStats = (spec, o) => { const f = REAL.formulaStats(spec, o); return { ...f, baseAcc: Math.round((f.hitVsSameLevel - (f.atk - spec.level) * 0.01) * 100) / 100 }; }; return B; }],
   ['blows-capped', 'a regular blow of 40% of HP', () => plant({ STAT_FORMULA: { ...REAL.STAT_FORMULA, blow: { lo: 0.10, hi: 0.40 } } })],
   ['curves-climb', 'HP falling past Level 100', () => { const B = plant({}); B.formulaStats = (spec, o) => { const f = REAL.formulaStats(spec, o); return { ...f, hp: spec.level > 100 ? f.hp - spec.level : f.hp }; }; return B; }],
+  ['curves-climb', 'coin falling past Level 100', () => { const B = plant({}); B.formulaStats = (spec, o) => { const f = REAL.formulaStats(spec, o); return { ...f, gp: spec.level > 100 ? [f.gp[0] - 1, f.gp[1] - spec.level] : f.gp }; }; return B; }],
   ['tiers', 'Deadly paying coin', () => plant({ TIER_DIALS: { ...REAL.TIER_DIALS, deadly: { ...REAL.TIER_DIALS.deadly, gpPm: 1200 } } })],
   ['tiers', 'Dangerous hitting softer than Normal', () => plant({ TIER_DIALS: { ...REAL.TIER_DIALS, dangerous: { ...REAL.TIER_DIALS.dangerous, dmgPm: 900 } } })],
 ];

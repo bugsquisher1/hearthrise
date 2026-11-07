@@ -63,8 +63,12 @@ const FAUCET = 0.50;            // designer 2026-10-23, Tyler: gear's sale value
 const TOTAL_RISE_MAX = 0.25;    // Tyler 2026-10-23: total value up to +25% over today's pinned numbers
 /* TODAY'S PINNED VALUE: expected gold per hero-hour at the floor (coin as the settle rounds it, commons, and every row the
    band model puts at 5% or less, each at the trader's price with gear at full book), on the floor hour's kills, measured
-   on next b7af6a9db before any ground converted. A conversion is held to +25% over its ground's row; never re-pinned. */
-const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 4588, mosslight_glade: 3834,
+   on next b7af6a9db before any ground converted. A conversion is held to +25% over its ground's row. RE-PINNED ONCE, by the formula
+   (lane/b-ground-formula-2, Tyler 11-07 "nothing in the game is set in stone"; measured on its rows, the same method): the Glade 3834 -> 5043 (its
+   coin x1.4 pays the food Tyler's x1.2 bite costs, so its floor nets over the Sewer party: forest-cave glade-between), the Warrens 4588 -> 7424
+   and alone at 45 5226 -> 8427 (its coin x0.53 of its HP is the least that keeps harder-pays-more, Tyler 11-03, at 41 and 45: at the old pins the
+   Warrens paid under the Glade for the same hero). Every other pin stands and every ground still reads under its +25%. */
+const TOTAL_TODAY = Object.freeze({ mill_cellar: 1869, millrace_sewer: 3822, meadowbrook_thicket: 2285, coppercap_warrens: 7424, mosslight_glade: 5043,
   /* a NEW ground has no pre-conversion value: its pin is its neighbours' by floor, the Thicket (L5) to the Glade (L16)
      interpolated at Wickstead's L8 (lane b-greenhaven-6, designer 2026-10-28): 2285 + (3834 - 2285) x 3/11 */
   wickstead: 2707 });
@@ -94,7 +98,7 @@ const REFERENCE = Object.freeze({
      set, his 10-25 words; lane/b-ground-formula writes that 20%) */
   mosslight_glade: { roles: ['tank'], full: true,
     /* ...but its VALUE rules read the ladder kit TOTAL_TODAY was pinned in (3834, measured that way), like for like: the full kit kills faster and
-       would read the same loot as a rise (4,874 against the pin, +27%, lane/b-ground-formula). The pin is never moved. */
+       would read the same loot as a rise (lane/b-ground-formula). The pin is the formula's ladder-kit value (see TOTAL_TODAY). */
     valueFull: false },
   /* the farm ground (lane b-greenhaven-6): a solo Melee in the ladder kit at 8, the Thicket's second door */
   wickstead: { roles: ['tank'], full: false },
@@ -105,7 +109,7 @@ const GEAR_RUNS = Object.freeze(['meadowbrook_thicket', 'millrace_sewer', 'mossl
    pinned value (TOTAL_TODAY's method, next b7af6a9db). */
 const BAND_ALT = Object.freeze({
   millrace_sewer: Object.freeze({ roles: PARTY, full: true, at: 'floor', today: 3422 }),
-  coppercap_warrens: Object.freeze({ roles: Object.freeze(['tank']), full: true, at: 'soloFrom', today: 5226 }),
+  coppercap_warrens: Object.freeze({ roles: Object.freeze(['tank']), full: true, at: 'soloFrom', today: 8427 }),
 });
 /* The party grounds whose Rare units must go through the party's rare roll (a GEAR_HOURS hunt at the floor). */
 const PARTY_REVEAL = Object.freeze({
@@ -801,7 +805,7 @@ const rangerMutants = [
   { name: 'the store Iron Bolt back at 2 g a shot', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/supply-basics.js', "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 1),", "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),"]] },
   /* the mean is the guard: at this old row the fixture's one seed still read over +25%, the twelve read +23.7% */
   /* (the casters' store-fed spells lift this floor to +29.7%, so the plant is the row's pre-x1.8 coin, not [4, 18]: the bar doesn't move, lane/c-caster-starter-bars) */
-  { name: 'the Drain Rat\'s coin back at its pre-x1.8 [2, 10]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [6, 18]', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [2, 10]']] },
+  { name: 'the Drain Rat\'s coin back at its pre-x1.8 [2, 10]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [7, 20]', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [2, 10]']] },
 ];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',

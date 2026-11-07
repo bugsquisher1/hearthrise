@@ -11,13 +11,19 @@
 //   HT-3 THE PICK SURVIVES: the section reads the pick and the tier the hunt froze after a reload (a fresh hr_state_of); a pick mid-hunt moves neither the instance nor the engine's read, and plays from the next hunt.
 //   HT-5 THE GROUND AS IT STANDS: a hero on a tier whose row brings no more monsters (the Thicket's Deadly) freezes its tier at pull 0, and the world stands at the ground's own pull, inside the kill bound.
 //   HT-4 REFUSED, NEVER CLAMPED: a word nobody offers, a tier the ground doesn't offer and an unknown ground, each in words; a tier never comes in through the action set's options (bad_option).
+//   HT-6 THE DIALS ARE THE DATA'S (tools/gen-ground-tiers.mjs OUT_NAME, lane/b-tier-dials): the replayed table holds dmg_pm, hp_pm and xp_pm, never power_pm, and
+//        every ground's resolved row of src/data/hunt-tiers.js digit for digit; the catalogue file applied a second time moves no row and no constraint.
 //
 // The mutants are SQL patched into the booted replay; their anchors are FILE's text.
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { decodeStored } from '../src/core/hunt/world-state.js';
-import { tierRowOf, pullOfTier } from '../src/data/hunt-tiers.js';
+import { tierRowOf, pullOfTier, GROUND_TIERS } from '../src/data/hunt-tiers.js';
+import { OUT_NAME as DIALS_FILE } from '../tools/gen-ground-tiers.mjs';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const FILE = '2027-02-27-hunt-tiers.sql';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
@@ -129,10 +135,35 @@ async function asItStands(boot) {
   return problems;
 }
 
+/* HT-6 on a booted chain: the shape, the rows, and a second apply of the catalogue file (`again`: a mutant's edit to that file's text). */
+async function dialsTwice(db, again) {
+  const problems = [];
+  const cols = (await db.query("select column_name, data_type, is_nullable from information_schema.columns where table_schema = 'public' and table_name = 'hr_ground_tiers' order by column_name")).rows
+    .map((c) => c.column_name + ':' + c.data_type + ':' + c.is_nullable).join();
+  if (cols !== 'dmg_pm:integer:NO,hp_pm:integer:NO,hunt_id:text:NO,pull:ARRAY:NO,tier:text:NO,xp_pm:integer:NO') problems.push('HT-6 the table is shaped ' + cols);
+  const print = async () => JSON.stringify({
+    rows: (await db.query('select hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm from public.hr_ground_tiers order by hunt_id, tier')).rows,
+    checks: (await db.query("select conname, pg_get_constraintdef(oid) d from pg_constraint where conrelid = 'public.hr_ground_tiers'::regclass order by conname")).rows,
+  });
+  const want = [];
+  for (const g of Object.keys(GROUND_TIERS).sort()) for (const id of ['dangerous', 'deadly']) {
+    const t = GROUND_TIERS[g][id];
+    want.push({ hunt_id: g, tier: id, pull: t.pull, dmg_pm: t.dmgPm, hp_pm: t.hpPm, xp_pm: t.xpPm });
+  }
+  const once = await print();
+  if (JSON.stringify(JSON.parse(once).rows) !== JSON.stringify(want)) problems.push('HT-6 the server holds ' + JSON.stringify(JSON.parse(once).rows).slice(0, 300) + ', the data ' + JSON.stringify(want).slice(0, 300));
+  const sql = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'supabase', 'migrations', DIALS_FILE), 'utf8');
+  try { await db.exec(again ? again(sql) : sql); } catch (e) { problems.push('HT-6 ' + DIALS_FILE + ' does not apply a second time: ' + String(e && e.message).slice(0, 200)); return problems; }
+  if (await print() !== once) problems.push('HT-6 a second apply of ' + DIALS_FILE + ' moved the table');
+  return problems;
+}
+
 const MUTANTS = [
   { name: 'the freeze ignores the pick: every hunt is Normal', fn: 'public.hr_hunt_density_freeze()', find: "  v_tier := public.hr_hunt_tier_pick(new.instance_id, new.user_id, new.slot);", repl: "  v_tier := 'normal';", want: /HT-1/ },
   { name: 'the engine never reads the tier', fn: 'public.hr_hunt_instance_read(uuid,integer)', find: "jsonb_build_object('density', v_i.density, 'tier', coalesce(v_i.tier, 'normal'))", repl: "jsonb_build_object('density', v_i.density)", want: /HT-3/ },
   { name: 'a member picks for itself', fn: 'public.hr_hunt_tier_set(integer,text,text,uuid)', find: "    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'not_leader')); end if;\n  if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;\n  insert into public.hunt_density as d (user_id, slot, hunt_id, density, tier, updated_at)", repl: "    null; end if;\n  if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_slot) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;\n  insert into public.hunt_density as d (user_id, slot, hunt_id, density, tier, updated_at)", want: /HT-2/, four: true },
+  { name: 'the rename is not guarded: the file applies once', again: (sql) => sql.replace(/if exists \(select 1 from information_schema\.columns\s+where table_schema = 'public' and table_name = 'hr_ground_tiers' and column_name = 'power_pm'\) then/, 'if true then'), want: /HT-6/ },
+  { name: 'a second apply moves a check', again: (sql) => sql.replace('check (hp_pm between 1000 and 4000)', 'check (hp_pm between 1000 and 5000)'), want: /HT-6/ },
   { name: 'a four plays the lone pull', fn: 'public.hr_hunt_density_freeze()', find: "select t.pull[v_size] from", repl: "select t.pull[1] from", want: /HT-2/, four: true },
   { name: 'a tier the ground does not offer is clamped, not refused', fn: 'public.hr_hunt_tier_set(integer,text,text,uuid)', find: "    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_tier')); end if;", repl: "    p_tier := 'normal'; end if;", want: /HT-4/ },
 ];
@@ -142,6 +173,14 @@ async function main() {
     let escaped = 0;
     for (const m of MUTANTS) {
       /* Patched into the booted replay (FILE's own self-check would refuse most of them at apply): the body as it landed, the one change, re-applied. */
+      if (m.again) {
+        let got = [];
+        try { got = await dialsTwice((await bootReplay()).db, m.again); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
+        const hit = got.some((p) => m.want.test(p));
+        if (!hit) escaped++;
+        console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + (got[0] || 'every check held').slice(0, 160));
+        continue;
+      }
       const boot = async () => {
         const b = await bootReplay();
         const def = await one(b.db, 'select pg_get_functiondef($1::regprocedure)', [m.fn]);
@@ -160,9 +199,9 @@ async function main() {
     return;
   }
   const boot = () => bootReplay();
-  const problems = [...await bothPaths(boot), ...await aFour(boot), ...await asItStands(boot)];
+  const problems = [...await bothPaths(boot), ...await aFour(boot), ...await asItStands(boot), ...await dialsTwice((await boot()).db)];
   for (const p of problems) console.log('FAIL  ' + p);
-  console.log(problems.length ? 'hunt-tiers-db: ' + problems.length + ' FAILED' : 'hunt-tiers-db: green (both paths, a four, the pick survives, refused not clamped, a row with no more monsters)');
+  console.log(problems.length ? 'hunt-tiers-db: ' + problems.length + ' FAILED' : 'hunt-tiers-db: green (both paths, a four, the pick survives, refused not clamped, a row with no more monsters, the dials are the data\'s twice)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

@@ -54,18 +54,18 @@ const cases = {
   },
   /* A TIER IS THE MONSTER'S OWN STATS (hunt-tiers.js, Tyler 2026-11-04): on a harder tier the same monster's blow reads a higher atk, armor reads its higher Level and its kill pays more Level XP. No hero Level anywhere; Normal is the row to the digit. Both paths: this hook is the one a watched hunt and a closed browser both step through. */
   'a-tier-is-the-monsters-stats': (M) => {
-    const T = { id: 'deadly', powerPm: 1500, xpPm: 1200 };
+    const T = { id: 'deadly', pull: [8, 8, 8, 8], dmgPm: 1500, hpPm: 1000, xpPm: 1200 };
     const row = M.MONSTERS.hobgoblin_foreman;
     const plate = { heavy: 18, medium: 0, light: 0 };
     const through = (tier) => { const inst = fight(M, []); inst.tier = tier; const t = H(M, 2, 12, 3, 'tank', { hp: 100000, maxHp: 100000 }); t.armour = plate; return M.damage.hurt(inst, t, 1000, E(M, 9, 0, 13, 3, 1, { kind: 'hobgoblin_foreman' }), null, null).dmg; };
-    const want = M.mitigation.mitigate(1000, 1000, M.mitigation.mitigationOf(plate, Math.round((row.level * T.powerPm) / 1000)));
+    const want = M.mitigation.mitigate(1000, 1000, M.mitigation.mitigationOf(plate, Math.round((row.level * T.dmgPm) / 1000)));
     if (through(T) !== want || !(want > through(null))) return 'through plate a Deadly foreman lands ' + through(T) + ' of 1000, the curve at its raised level says ' + want + ', Normal ' + through(null);
     /* the blow: the same dice, a higher atk: it lands at least as often and past Normal's biggest blow, and never past the tier's */
     const swings = (tier, lv) => blowsAtLevel(M, lv === undefined ? 32 : lv, tier);
     const top = (bs) => Math.max(0, ...bs.filter((b) => b.startsWith('dmg:')).map((b) => Number(b.split(/[:@]/)[1])));
     const hits = (bs) => bs.filter((b) => b.startsWith('dmg:')).length;
     const plain = swings(null), hard = swings(T);
-    if (swings({ id: 'normal', powerPm: 1000, xpPm: 1000 }).join() !== plain.join()) return 'Normal is not the row: ' + swings({ id: 'normal', powerPm: 1000, xpPm: 1000 }).slice(0, 4).join();
+    if (swings({ id: 'normal', dmgPm: 1000, hpPm: 1000, xpPm: 1000 }).join() !== plain.join()) return 'Normal is not the row: ' + swings({ id: 'normal', dmgPm: 1000, hpPm: 1000, xpPm: 1000 }).slice(0, 4).join();
     if (!(top(hard) > top(plain)) || hits(hard) < hits(plain)) return 'on Deadly the foreman tops out at ' + top(hard) + ' and lands ' + hits(hard) + '; on Normal ' + top(plain) + ' and ' + hits(plain);
     /* in no armor, past anything his row can land */
     const bare = blowsAtLevel(M, 32, T, true);
@@ -380,8 +380,10 @@ const cases = {
 };
 
 /* NO HERO LEVEL IN A MONSTER'S BLOW: one foreman, one hero's stats in all three armor weights, one ground, one dice stream, swung for a minute at each hero Level. */
+/* def 40: the foreman's to-hit off both its caps (formula row, baseAcc 0.86: 0.85 at def 20 and under, 0.52 at 40, 0.05 from 80), so a
+   level term on the to-hit roll moves the blows this reads (lane/b-tier-dials: at def 20 that mutant escaped once the formula wrote the row). */
 const blowsAtLevel = (M, heroLv, tier, bare) => {
-  const k = H(M, 1, 12, 3, 'tank', { hp: 1000000, maxHp: 1000000, target: 2, def: 20 });
+  const k = H(M, 1, 12, 3, 'tank', { hp: 1000000, maxHp: 1000000, target: 2, def: 40 });
   k.heroLv = heroLv;
   k.armour = bare ? null : { heavy: 21, medium: 11, light: 7 };
   const m = E(M, 2, 0, 13, 3, 1, { kind: 'hobgoblin_foreman', hp: 1000000, maxHp: 1000000 });

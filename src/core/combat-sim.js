@@ -293,10 +293,12 @@ export function simulateHuntInstance(inst, ctx) {
           /* The first packs spawn at the ENTERING party's density (its leader's pick, clamped for their
              number), the same number every respawn reads below, never the first hero's pick alone. */
           const standing = members.filter((x) => !x.left);
+          /* ...and on the hunt's tier, the one every respawn reads below (hunt-tiers.js: its health is the packs' from the first). */
+          const tier = tierRowOf(ctx.ground.id, tierPick(standing));
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
-            { density: densityFor(ctx.ground, standing.length, picker(standing)) });
+            { density: densityFor(ctx.ground, standing.length, picker(standing)), tier });
           /* The room's one spawn is for the party walking in, not the first hero through the door: he never comes back at their size. */
-          if (call) scaleRoomFor(world, ctx.ground, standing.length);
+          if (call) scaleRoomFor(world, ctx.ground, standing.length, tier);
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));

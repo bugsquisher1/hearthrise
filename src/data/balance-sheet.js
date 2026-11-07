@@ -18,7 +18,7 @@
 // the formula runs when a ground is AUTHORED, and a monster's blow in a fight is its row against the
 // hero's stats, as ever.
 //
-// PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. Not read by the engine.
+// PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. The engine reads only the tier rows (hunt-tiers.js builds GROUND_TIERS from tierRowFor, lane/b-tier-dials).
 // ════════════════════════════════════════════════════════════════════════
 
 import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.105';

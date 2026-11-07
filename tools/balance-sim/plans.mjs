@@ -598,17 +598,17 @@ export function buildPlan(name, axes, scale = 1) {
       wickstead: [['dangerous', [3, 4, 4, 5], 1200, 1050], ['dangerous', [3, 4, 4, 5], 1500, 1050], ['deadly', [5, 8, 8, 8], 1500, 1100], ['deadly', [5, 8, 8, 8], 2000, 1100], ['deadly', [4, 8, 8, 8], 2000, 1100]],
       millrace_sewer: [['dangerous', [0, 5, 5, 6], 1200, 1050], ['dangerous', [0, 5, 5, 6], 1500, 1050], ['deadly', [0, 8, 8, 8], 1500, 1100], ['deadly', [0, 8, 8, 8], 2000, 1100]],
     };
-    for (const [ground, rows] of Object.entries(CANDS)) for (const level of { meadowbrook_thicket: [5, 8, 12], wickstead: [8, 16, 20], millrace_sewer: [8, 16, 20] }[ground]) for (const [tier, pull, powerPm, xpPm] of rows) for (const party of WHO) {
+    for (const [ground, rows] of Object.entries(CANDS)) for (const level of { meadowbrook_thicket: [5, 8, 12], wickstead: [8, 16, 20], millrace_sewer: [8, 16, 20] }[ground]) for (const [tier, pull, dmgPm, xpPm] of rows) for (const party of WHO) {
       const density = pull[party.length - 1];
-      out.push({ ...cellOf({ ground, party, level, density: density || null, hours: H(1), seeds: 2, x: 'R' + tier + ':' + pull.join('') + ':' + powerPm + ':' + xpPm }), options: { tier }, windowMs: 120000, whatIf: { tiers: { [ground]: { [tier]: { id: tier, pull, powerPm, xpPm } } } } });
+      out.push({ ...cellOf({ ground, party, level, density: density || null, hours: H(1), seeds: 2, x: 'R' + tier + ':' + pull.join('') + ':' + dmgPm + ':' + xpPm }), options: { tier }, windowMs: 120000, whatIf: { tiers: { [ground]: { [tier]: { id: tier, pull, dmgPm, xpPm } } } } });
     }
     return out;
   }
   if (name === 'tiercaps') {
     /* WHY A LONE HERO HAS NO BIGGER PULL ON THE CAPPED GROUNDS: the rows refused, alone, in the sim only (whatIf; never written to a data file). Read by tiers-table.mjs --caps against plan tierladder's Normals. x = C<pull alone>:<power>:<xp>. */
     const REFUSED = [['meadowbrook_thicket', [8, 8, 8, 8], 1000, 1000, [8, 12]], ['meadowbrook_thicket', [3, 6, 6, 6], 2000, 1000, [8, 12]], ['wickstead', [8, 8, 8, 8], 2000, 1000, [16, 20]], ['wickstead', [8, 8, 8, 8], 2000, 1100, [16, 20]], ['millrace_sewer', [4, 8, 8, 8], 1750, 1100, [16, 20]], ['millrace_sewer', [8, 8, 8, 8], 1750, 1100, [16, 20]]];
-    for (const [ground, pull, powerPm, xpPm, levels] of REFUSED) for (const level of levels) for (const s of ['hammer', 'axes', 'bow', 'mage']) {
-      out.push({ ...cellOf({ ground, party: [s], level, density: pull[0], hours: H(1), seeds: 2, x: 'C' + pull[0] + ':' + powerPm + ':' + xpPm }), options: { tier: 'deadly' }, windowMs: 120000, whatIf: { tiers: { [ground]: { deadly: { id: 'deadly', pull, powerPm, xpPm } } } } });
+    for (const [ground, pull, dmgPm, xpPm, levels] of REFUSED) for (const level of levels) for (const s of ['hammer', 'axes', 'bow', 'mage']) {
+      out.push({ ...cellOf({ ground, party: [s], level, density: pull[0], hours: H(1), seeds: 2, x: 'C' + pull[0] + ':' + dmgPm + ':' + xpPm }), options: { tier: 'deadly' }, windowMs: 120000, whatIf: { tiers: { [ground]: { deadly: { id: 'deadly', pull, dmgPm, xpPm } } } } });
     }
     return out;
   }
@@ -762,15 +762,15 @@ export function buildPlan(name, axes, scale = 1) {
     const now = (g, t) => axes.tierRowOf(g, t);
     const kcell = (ground, party, level, tier, row) => {
       const pull = row ? row.pull[party.length - 1] : 0;
-      const x = row ? 'K' + tier + ':' + row.pull.join('') + ':' + row.powerPm + ':' + row.xpPm : 'Knormal';
+      const x = row ? 'K' + tier + ':' + row.pull.join('') + ':' + row.dmgPm + ':' + row.xpPm : 'Knormal';
       return { ...cellOf({ ground, party, level, density: pull || null, hours: H(2), seeds: 2, x }), windowMs: 120000,
-        ...(row ? { options: { tier }, whatIf: { tiers: { [ground]: { [tier]: { id: tier, pull: row.pull, powerPm: row.powerPm, xpPm: row.xpPm } } } } } : {}) };
+        ...(row ? { options: { tier }, whatIf: { tiers: { [ground]: { [tier]: { id: tier, pull: row.pull, dmgPm: row.dmgPm, xpPm: row.xpPm } } } } } : {}) };
     };
-    for (const [ground, byTier] of Object.entries(CANDS)) for (const [tier, list] of Object.entries(byTier)) for (const [pull, powerPm, xpPm] of list) {
-      const row = { pull, powerPm, xpPm };
+    for (const [ground, byTier] of Object.entries(CANDS)) for (const [tier, list] of Object.entries(byTier)) for (const [pull, dmgPm, xpPm] of list) {
+      const row = { pull, dmgPm, xpPm };
       for (const level of SOLO[ground]) for (const s of SOLO_STYLES) out.push(kcell(ground, [s], level, tier, row));
       /* the parties play it only where the power they share moves (their pull never does) */
-      if (powerPm !== now(ground, tier).powerPm) for (const level of PARTY[ground]) for (const party of Object.values(PARTIES)) out.push(kcell(ground, party, level, tier, row));
+      if (dmgPm !== now(ground, tier).dmgPm) for (const level of PARTY[ground]) for (const party of Object.values(PARTIES)) out.push(kcell(ground, party, level, tier, row));
     }
     if (name === 'tierrisk') for (const level of PARTY.wickstead) for (const party of Object.values(PARTIES)) for (const tier of ['normal', 'dangerous', 'deadly']) out.push(tier === 'normal' ? kcell('wickstead', party, level, tier, null) : kcell('wickstead', party, level, tier, now('wickstead', tier)));
     return out;
@@ -787,7 +787,7 @@ export function buildPlan(name, axes, scale = 1) {
     /* THE LIVE DEATH (2026-11-06 20:08 UTC): a three at Levels 14, 14 and 8 on the Glade's Deadly lost its tank at 8m20s, out of its own food at
        2m. The same party on the Deadly row live then (8888 x1.5, whatIf) and as written now, 2 seeds x 2 h. x = Llive | Lnow. */
     const party = ['tank', 'healer', 'bow'], level = [14, 14, 8];
-    const live = { tiers: { mosslight_glade: { deadly: { id: 'deadly', pull: [8, 8, 8, 8], powerPm: 1500, xpPm: 1200 } } } };
+    const live = { tiers: { mosslight_glade: { deadly: { id: 'deadly', pull: [8, 8, 8, 8], dmgPm: 1500, xpPm: 1200 } } } };
     out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, density: 8, hours: H(2), seeds: 2, x: 'Llive' }), options: { tier: 'deadly' }, windowMs: 120000, whatIf: live });
     out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, density: 8, hours: H(2), seeds: 2, x: 'Lnow' }), options: { tier: 'deadly' }, windowMs: 120000 });
     out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, hours: H(2), seeds: 2, x: 'Lnormal' }), windowMs: 120000 });
@@ -799,7 +799,7 @@ export function buildPlan(name, axes, scale = 1) {
        live then (x1.5, whatIf), as written now (x2.75), and on Normal, beside a lone Level 14 on Normal where the game sends him (Wickstead),
        every way to fight. 2 seeds x 2 h. x = A<live|now|normal> | S14. */
     const party = ['hammer', 'bow', 'mage'], level = [14, 14, 8];
-    const live = { tiers: { mosslight_glade: { deadly: { id: 'deadly', pull: [8, 8, 8, 8], powerPm: 1500, xpPm: 1200 } } } };
+    const live = { tiers: { mosslight_glade: { deadly: { id: 'deadly', pull: [8, 8, 8, 8], dmgPm: 1500, xpPm: 1200 } } } };
     out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, density: 8, hours: H(2), seeds: 2, x: 'Alive' }), options: { tier: 'deadly' }, windowMs: 120000, whatIf: live });
     out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, density: 8, hours: H(2), seeds: 2, x: 'Anow' }), options: { tier: 'deadly' }, windowMs: 120000 });
     out.push({ ...cellOf({ ground: 'mosslight_glade', party, level, hours: H(2), seeds: 2, x: 'Anormal' }), windowMs: 120000 });
@@ -812,7 +812,7 @@ export function buildPlan(name, axes, scale = 1) {
        any potions"). The Glade at Levels 13 and 14 (under its floor of 16) and 16 and 20 (in it), two duos, every tier, on the rows live today
        (whatIf, x = W<tier>live) and as this lane writes them (x = W<tier>); level-matched lone heroes on Normal, the safety check (x = Wsafe).
        4 seeds x 2 h. */
-    const LIVE = { mosslight_glade: { dangerous: { id: 'dangerous', pull: [4, 5, 5, 6], powerPm: 1200, xpPm: 1100 }, deadly: { id: 'deadly', pull: [8, 8, 8, 8], powerPm: 1500, xpPm: 1200 } } };
+    const LIVE = { mosslight_glade: { dangerous: { id: 'dangerous', pull: [4, 5, 5, 6], dmgPm: 1200, xpPm: 1100 }, deadly: { id: 'deadly', pull: [8, 8, 8, 8], dmgPm: 1500, xpPm: 1200 } } };
     for (const party of [['tank', 'healer'], ['hammer', 'bow']]) for (const level of [13, 14, 16, 20]) for (const tier of ['normal', 'dangerous', 'deadly']) {
       out.push(tierCell(axes, { ground: 'mosslight_glade', party, level, tier, hours: H(2), seeds: 4, x: 'W' + tier }));
       if (tier !== 'normal') {
@@ -828,7 +828,7 @@ export function buildPlan(name, axes, scale = 1) {
        at the right Level stays about where it is, 1.5x live), against duos at 13-20, fours at 16-31 and lone heroes at 31-50 (x = V<tier>);
        and Normal with the Glade's monsters hitting 1.25x and 1.5x as hard (whatIf on their atk, x = Vatk125 | Vatk150) against the same duos
        and the level-matched lone heroes. 2 seeds x 2 h. */
-    const ROWS = { dangerous: { id: 'dangerous', pull: [3, 5, 5, 6], powerPm: 1400, xpPm: 1100 }, deadly: { id: 'deadly', pull: [8, 8, 8, 8], powerPm: 1600, xpPm: 1200 } };
+    const ROWS = { dangerous: { id: 'dangerous', pull: [3, 5, 5, 6], dmgPm: 1400, xpPm: 1100 }, deadly: { id: 'deadly', pull: [8, 8, 8, 8], dmgPm: 1600, xpPm: 1200 } };
     const GLADE_MONSTERS = ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear'];
     const tcell = (party, level, tier) => { const row = ROWS[tier], pull = row.pull[party.length - 1];
       return { ...cellOf({ ground: 'mosslight_glade', party, level, density: pull || null, hours: H(2), seeds: 2, x: 'V' + tier }), options: { tier }, windowMs: 120000, whatIf: { tiers: { mosslight_glade: { [tier]: row } } } }; };
@@ -925,7 +925,8 @@ export function buildPlan(name, axes, scale = 1) {
         const pull = rows !== 'T' ? dial.pull[party.length - 1] : live.pull[party.length - 1];
         const monsters = rows !== 'T' ? Object.fromEntries(Object.entries(P.grounds[ground]).map(([id, r]) => [id, { ...r.formula, hp: Math.max(1, Math.round((r.formula.hp * dial.hpPm) / 1000)) }]))
           : ground === 'mosslight_glade' ? GLADE_X12 : null;
-        const tiers = rows !== 'T' && tier !== 'normal' ? { [ground]: { [tier]: { id: tier, pull: dial.pull, powerPm: dial.dmgPm, xpPm: dial.xpPm } } } : null;
+        /* (the HP dial rides the monster rows above, so the engine tier row reads HP at 1000: never twice; lane/b-tier-dials) */
+        const tiers = rows !== 'T' && tier !== 'normal' ? { [ground]: { [tier]: { id: tier, pull: dial.pull, dmgPm: dial.dmgPm, hpPm: 1000, xpPm: dial.xpPm } } } : null;
         const whatIf = monsters || tiers ? { ...(monsters ? { monsters } : {}), ...(tiers ? { tiers } : {}) } : null;
         return { ...cellOf({ ground, party, level, density: pull || null, gear, hours: H(2), seeds: 2, x: rows + tier }), windowMs: 120000,
           ...(tier === 'normal' ? {} : { options: { tier } }), ...(whatIf ? { whatIf } : {}) };

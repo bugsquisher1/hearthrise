@@ -813,7 +813,7 @@ async function groundPage(page, tag, fails, floor) {
   if (f.over) fails.push('PH-25 [' + tag + '] the card takes room in the ground\'s sheet');
   if (!f.enter || !f.back) fails.push('PH-25 [' + tag + '] on a ground\'s page Enter ' + f.enter + ', the way back ' + f.back);
   /* The line beside Enter gets the foot's width, on its own row, as a refusal does (a tier's words stood a word or two a line in 100 px, 2026-11-05). */
-  const why = await page.evaluate(() => { const p = document.querySelector('.hw-enter-why'), foot = document.querySelector('.hw-hd-foot'), was = p.textContent; p.textContent = 'Deadly: 8 monsters a pull, hitting 50% harder.'; const out = { w: p.getBoundingClientRect().width, foot: foot.clientWidth }; p.textContent = was; return out; });
+  const why = await page.evaluate(() => { const p = document.querySelector('.hw-enter-why'), foot = document.querySelector('.hw-hd-foot'), was = p.textContent; p.textContent = 'Deadly: 8 monsters a pull, hitting 50% harder, with 25% more HP.'; const out = { w: p.getBoundingClientRect().width, foot: foot.clientWidth }; p.textContent = was; return out; });
   if (why.w < why.foot * 0.8) fails.push('PH-25 [' + tag + '] the line beside Enter has ' + Math.round(why.w) + ' px of the foot\'s ' + why.foot);
   if (!(f.end > 0)) { fails.push('PH-25 [' + tag + '] CONTROL: the page does not scroll'); return; }
   await page.evaluate(() => { const s = document.querySelector('.hw-hd-page'); s.scrollTop = s.scrollHeight; });

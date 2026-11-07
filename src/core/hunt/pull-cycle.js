@@ -82,14 +82,15 @@ export function biggestBlowOn(huntId, size, tier) {
   return best;
 }
 
-/* One spawn row as a unit on the first free tile near its spot, at this party's HP, or null with no tile: the pack's path and a called boss's adds'. */
+/* One spawn row as a unit on the first free tile near its spot, at this party's HP on the hunt's tier, or null with no tile: the pack's path and a called boss's adds'. */
 function placeRow(inst, p, s, heroes, sc) {
   const w = inst.world;
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
   const at = freeNear(inst.grid, s.x, s.y, 3, taken);
   const row = MONSTERS[s.monster];
   if (!at || !row) return null;
-  const hp = packHpFor(inst.ground, row, heroes);
+  /* THE TIER'S HEALTH (hunt-tiers.js hpPm) under the party scale; the yield below is the party scale's alone, so more health pays no more. */
+  const hp = packHpFor(inst.ground, atTier(row, inst.tier), heroes);
   /* SCALING IS PAID IN REWARD (designer ruling 2026-10-18): a monster at s/1000 of its HP pays s/1000
      of its kill yield (hunt-rewards.js, damage.landHit), so yield per HOUR holds at every party size. */
   const yieldPm = inst.ground.partyScale === true ? yieldPermille(heroes) : 1000;

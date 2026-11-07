@@ -16,6 +16,7 @@ const ENG = {
   combat: [(await import(pathToFileURL(join(root, 'src/core/combat.js')).href + v)).COMBAT_BALANCE],
   tiers: [(await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v)).GROUND_TIERS],
 };
+const { DIALS: TIER_DIALS } = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v);
 /* THE GAME'S OWN HUNT ADVICE (the Hunts window's default pick): a career hunts where the game tells it to */
 const { recommendedHunt } = await import(pathToFileURL(join(root, 'src/shell/hunt-list.js')).href + v);
 const recommend = (levels, n) => recommendedHunt(levels, n).hunt;
@@ -29,6 +30,11 @@ function applyWhatIf(w) {
     row[k] = typeof val === 'string' && val.startsWith('*') ? Math.max(1, Math.round(Number(row[k] || 0) * Number(val.slice(1)))) : val;
   };
   for (const [table, rows] of Object.entries(w || {})) {
+    /* A tier row names only the dials the engine reads (hunt-tiers.js DIALS): a stale or misspelt one would play at 1000, silently. */
+    if (table === 'tiers') for (const [g, byTier] of Object.entries(rows)) for (const [id, row] of Object.entries(byTier)) {
+      const stray = Object.keys(row).filter((k) => !['id', 'pull', ...TIER_DIALS].includes(k));
+      if (stray.length || !TIER_DIALS.every((k) => row[k] === undefined || Number.isInteger(row[k]))) throw new Error('whatIf tiers ' + g + ' ' + id + ': ' + (stray.join() || 'a dial is not whole'));
+    }
     for (const inst of ENG[table] || []) {
       if (table === 'combat') { for (const [k, val] of Object.entries(rows)) set(inst, k, val); continue; }
       for (const [id, fields] of Object.entries(rows)) {

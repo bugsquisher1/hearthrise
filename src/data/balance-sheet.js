@@ -146,15 +146,15 @@ export const STAT_FORMULA = Object.freeze({
        to-hit  `hit` points on a gentle party ground, `hitFull` on a full one. -0.3 there: a lone hero at the Warrens'
                soloFrom (45) ate 3.9k g an hour of food at the formula's to-hit and earned less than on the Glade
                (forest-cave harder-pays-more); at -0.3 it eats next to nothing, as the card's "alone from 45" says.
-       coin    `gp` on a gentle party ground, `gpFull` on a full one, on top of the line. Gentle 1: since the gentle blow cap the
+       coin    `gp` on a gentle party ground, `gpFull` on a full one, on top of the line. Gentle 1.02: since the gentle blow cap the
                Sewer's four eats less and nets 1,945-2,050 a head against the Thicket's ~1,850 (1.05 put it over the Glade's floor,
-               forest-cave glade-between). Full 0.53: the least that keeps harder-pays-more with a 5% margin at
+               forest-cave glade-between); at 1 the store-fed crossbow Ranger read +24.2% (ranger-floor, bar +25%). Full 0.53: the least that keeps harder-pays-more with a 5% margin at
                both Warrens probes (a four at 41: 8,168 against the Glade's 7,693; alone at 45: 8,356 against 7,116); at x1
                the Warrens paid 2.4x its 10-23 value (a four at 32 netted 8,759 g an hour, the Glade's floor 1,977). */
   fit: Object.freeze({
     solo: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
     both: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
-    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1, gpFull: 0.53 }),
+    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.02, gpFull: 0.53 }),
   }),
 });
 

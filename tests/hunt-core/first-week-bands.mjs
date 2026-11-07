@@ -337,7 +337,7 @@ const mutants = [
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
      to-hit 0.63, lane/b-ground-formula-2): at 12 the duo's tank dips once (the bar allows one), at 14 three times in 2 h, as the old 12 did. */
   { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 6 -> 14): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 53, atk: 4, baseAcc: 0.67, def: 1, xp: 256, gp: [8, 25], formula: true, speed: 4400', 'hp: 53, atk: 14, baseAcc: 0.67, def: 1, xp: 256, gp: [8, 25], formula: true, speed: 4400']] },
+    edits: [['src/data/monsters.js', 'hp: 53, atk: 4, baseAcc: 0.67, def: 1, xp: 256, gp: [9, 25], formula: true, speed: 4400', 'hp: 53, atk: 14, baseAcc: 0.67, def: 1, xp: 256, gp: [9, 25], formula: true, speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');

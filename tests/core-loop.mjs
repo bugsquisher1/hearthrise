@@ -807,7 +807,10 @@ async function loop2(S, M, tag, rows) {
        store's food ON THE BAR, eaten under 80% HP (the starter bar's 60% leaves a Thicket hour to the dice). */
     /* …and at 95% (a-core-loop-flake): at 80% a Level-15 hour in the Thicket ate 2 on the pinned dice and 0 on
        other rolls (a cold replay's, a mutant play's), so the step still rode the dice. */
-    const bar = [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 95 }], join: 'and' }];
+    /* …and at 98% (lane/b-ground-formula-fix): on the formula's rows (Wickstead is a gentle ground: no blow passes a tenth of its
+       floor hero's HP) an iron-kitted Level 15 never fell under 95% in an hour (569 kills, no meal). Measured on the pinned dice:
+       97% 12 meals, 98% 65 (910 g, the hour nets +1,967), 99% 130, 100% 194 (+161, at the break-even edge). */
+    const bar = [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 98 }], join: 'and' }];
     const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, $2::jsonb, $1::uuid) r`, [uuid(), JSON.stringify({ supply_source: 'store', slots: bar })]);
     t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store', `the supplies choice was refused: ${brief(pick)}`);
     food = { item: '*heal_shop' };

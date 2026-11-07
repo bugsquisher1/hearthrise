@@ -107,7 +107,8 @@
 //         tile with no frame moving a unit more than one tile.
 //   LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31: better only with different classes): a mixed pair earns the table's
 //         factor and a same-class pair the even share, on the server's commits (browser closed, one long settle) and
-//         viewed (the prediction's own `xp` events), the same XP on every path; every commit matches.
+//         viewed (the prediction's own `xp` events), the same XP on every path; every commit matches. The swing the
+//         prediction runs past the last commit shows what the server's next commit pays.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -129,6 +130,8 @@ async function load(base) {
     ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
     /* the engine's own tier rows (LV-DIAL swaps one for a what-if and puts it back) */
     ENGINE_TIERS: (await import(pathToFileURL(join(base, 'src/data/hunt-tiers.js')).href + V)).GROUND_TIERS,
+    /* the engine's own blow (LV-Q builds its deadly rows with it) */
+    MAX_HIT: (await import(pathToFileURL(join(base, 'src/core/combat.js')).href + V)).monsterMaxHit,
     HGR: await u('src/data/hunt-grounds.js'),
     base,
     AC: await u(FN + '/accrual.js'),
@@ -145,6 +148,7 @@ async function load(base) {
     XP: await u('src/core/xp.js'),
     MB: await u('src/core/member.js'),
     HR: await u('src/data/hunt-roles.js'),
+    PCX: await u('src/data/party-class-xp.js'),
     TUNE: (await u('src/data/hunt-tuning.js')).HUNT_TUNING,
     CB: (await u('src/core/combat.js')).COMBAT_BALANCE,
     WS: await u('src/core/hunt/world-state.js'),
@@ -958,37 +962,56 @@ function rules(M) {
   }
 
   { // LV-Q: ONE DEATH STOPS THE WHOLE PARTY AT ONCE (Tyler 2026-10-19; live v0.2.23, Andy: "2nd char starts to run
-    // away after death"). A Sewer duo at density 8 whose tank falls: from the sub-step the tank dies nobody acts again
+    // away after death"). A duo whose tank falls (Andy's was a Sewer duo at 8): from the sub-step the tank dies nobody acts again
     // (the party's hunt ends at each member's next boundary). Before: the ranger, alone and targeted, kited 5 tiles
     // away for the rest of the swing and could take blows the death had already ended. BROWSER CLOSED: the server's
     // commits; VIEWED: the live engine's fed swings (LV-D: the same).
+    // THE DEADLY CASE IS BUILT HERE, FROM DATA (lane/b-ground-formula-fix): the formula made the Sewer a gentle ground (no blow
+    // passes 10% of its floor hero's HP, balance-sheet.js), and Andy's duo at 14 no longer fell in 10 minutes. So the rule
+    // no longer leans on how hard a ground's rows hit: for this case only (a what-if on the engine's own rows, put back after,
+    // as LV-CALL does) every Sewer monster's blow reaches a sixth of the tank's max HP (member.js, combat.js monsterMaxHit).
+    // Measured: the tank falls at about 170 s (a quarter: 13 s; a fifth: 85 s; an eighth or a tenth: 260 s).
+    const HUNT = 'millrace_sewer', SHARE = 6;
     const mk = () => { const mis = [memberOf(M, 'a', 0, 'tank', 14), memberOf(M, 'b', 1, 'ranger', 14)];
-      for (const m of mis) { m.huntId = 'millrace_sewer'; m.hero = Object.assign({}, m.hero, { density: 8 }); } return mis; };
-    const after = (steps, events, ids) => {
-      const death = events.find((e) => e.type === 'kill' && ids.includes(e.t));
-      if (!death) return null;
-      return { at: death.atMs - T0, steps: steps.filter((s) => ids.includes(s.u) && s.atMs > death.atMs).length,
-        blows: events.filter((e) => e.atMs > death.atMs && (ids.includes(e.u) || ids.includes(e.t))).length };
-    };
-    const mis = mk();
-    const srv = server(M, mis, { hunt: 'millrace_sewer' });
-    const steps = [], events = [];
-    let ids = [];
-    for (let t = T0 + 10000; t <= T0 + 600000 && !mis.every((m) => m.unitId === null && m.huntSession.swingIndex > 0); t += 10000) {
-      const c = srv.commit(t);
-      if (!ids.length) ids = mis.map((m) => m.unitId);
-      if (c) { steps.push(...c.tl.hunt_track); events.push(...c.tl.hunt_events); }
+      for (const m of mis) { m.huntId = HUNT; m.hero = Object.assign({}, m.hero, { density: 8 }); } return mis; };
+    const tankHp = M.MB.memberSide(mk()[0], { items: M.ITEMS }).state.playerMaxHp;
+    const kinds = [...new Set(M.HG.huntGroundOf(HUNT).ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
+      .filter((k) => M.ENGINE_MONSTERS[k]);
+    const keep = kinds.map((id) => [id, { atk: M.ENGINE_MONSTERS[id].atk }]);
+    for (const id of kinds) {
+      let atk = M.ENGINE_MONSTERS[id].atk || 1;
+      while (M.MAX_HIT({ ...M.ENGINE_MONSTERS[id], atk }) * SHARE < tankHp) atk++;
+      Object.assign(M.ENGINE_MONSTERS[id], { atk }); Object.assign(M.MONSTERS[id], { atk });
     }
-    const closed = after(steps, events, ids);
-    const vm = mk();
-    let vids = [];
-    const v = run(M, vm, closed ? closed.at + 4000 : 1000, { server: { hunt: 'millrace_sewer' }, commitMs: 10000,
-      onCommit: () => { if (!vids.length) vids = vm.map((m) => m.unitId); } });
-    const viewed = after(v.fed.steps, v.fed.events, vids);
-    console.log(`  LV-Q a Sewer duo's tank falls at ${closed && closed.at} ms: after it, closed ${closed && closed.steps} hero steps / ${closed && closed.blows} blows, viewed ${viewed && viewed.steps} / ${viewed && viewed.blows}`);
-    ok('LV-Q', !!closed && !!viewed, 'the duo never lost a hero in 10 minutes (the rule needs a death)');
-    ok('LV-Q', closed && closed.steps === 0 && closed.blows === 0, `browser closed: after the death the party took ${closed && closed.steps} steps and ${closed && closed.blows} blows`);
-    ok('LV-Q', viewed && viewed.steps === 0 && viewed.blows === 0, `viewed: after the death the party took ${viewed && viewed.steps} steps and ${viewed && viewed.blows} blows on screen`);
+    try {
+      const after = (steps, events, ids) => {
+        const death = events.find((e) => e.type === 'kill' && ids.includes(e.t));
+        if (!death) return null;
+        return { at: death.atMs - T0, steps: steps.filter((s) => ids.includes(s.u) && s.atMs > death.atMs).length,
+          blows: events.filter((e) => e.atMs > death.atMs && (ids.includes(e.u) || ids.includes(e.t))).length };
+      };
+      const mis = mk();
+      const srv = server(M, mis, { hunt: HUNT });
+      const steps = [], events = [];
+      let ids = [];
+      for (let t = T0 + 10000; t <= T0 + 600000 && !mis.every((m) => m.unitId === null && m.huntSession.swingIndex > 0); t += 10000) {
+        const c = srv.commit(t);
+        if (!ids.length) ids = mis.map((m) => m.unitId);
+        if (c) { steps.push(...c.tl.hunt_track); events.push(...c.tl.hunt_events); }
+      }
+      const closed = after(steps, events, ids);
+      const vm = mk();
+      let vids = [];
+      const v = run(M, vm, closed ? closed.at + 4000 : 1000, { server: { hunt: HUNT }, commitMs: 10000,
+        onCommit: () => { if (!vids.length) vids = vm.map((m) => m.unitId); } });
+      const viewed = after(v.fed.steps, v.fed.events, vids);
+      console.log(`  LV-Q a Sewer duo's tank falls at ${closed && closed.at} ms (blows to a 1/${SHARE} of its ${tankHp} HP): after it, closed ${closed && closed.steps} hero steps / ${closed && closed.blows} blows, viewed ${viewed && viewed.steps} / ${viewed && viewed.blows}`);
+      ok('LV-Q', !!closed && !!viewed, 'the duo never lost a hero in 10 minutes (the rule needs a death)');
+      ok('LV-Q', closed && closed.steps === 0 && closed.blows === 0, `browser closed: after the death the party took ${closed && closed.steps} steps and ${closed && closed.blows} blows`);
+      ok('LV-Q', viewed && viewed.steps === 0 && viewed.blows === 0, `viewed: after the death the party took ${viewed && viewed.steps} steps and ${viewed && viewed.blows} blows on screen`);
+    } finally {
+      for (const [id, row] of keep) { Object.assign(M.ENGINE_MONSTERS[id], row); Object.assign(M.MONSTERS[id], row); }
+    }
   }
 
   { // LV-E: THE HUNT ENDS IN THE BROWSER WITHOUT FREEZING IT (Andy, live v0.2.22: "crashing in Coppercap Warrens
@@ -1430,8 +1453,8 @@ function rules(M) {
     ok('LV-NOFIGHT', !!end && end.reason === 'no_fight' && Date.parse(end.at) === T0 + SPAN, 'browser closed: a bare bow ended ' + JSON.stringify(end) + ', want no_fight at +' + SPAN + ' ms');
     ok('LV-NOFIGHT', verdicts.length > 30 && off.length === 0, 'viewed: ' + off.length + ' of ' + verdicts.length + ' commits did not match the prediction');
   }
-  { /* LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31), both paths: a Melee and a Ranger in the Cellar earn the table's 1.07 over
-       the even share; a Melee and a Melee earn the even share. The same swings pay the same XP viewed and browser closed. */
+  { /* LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31), both paths: a Melee and a Ranger in the Cellar earn the table's cell over
+       the even share (src/data/party-class-xp.js, read here: lane/b-party-xp moved it 1070 -> 1210); a Melee and a Melee earn the even share. The same swings pay the same XP viewed and browser closed. */
     const SPAN = 240000;
     const cast = { mixed: ['tank', 'ranger'], same: ['tank', 'melee_dps'] };
     for (const [name, roles] of Object.entries(cast)) {
@@ -1444,22 +1467,33 @@ function rules(M) {
       const closedXp = closedMis.map((m, i) => m.levelXp - before[i]);
       const evs = c.tl.hunt_events.filter((e) => e.type === 'xp');
       const paid = evs.reduce((s, e) => s + e.amount, 0), raw = evs.reduce((s, e) => s + e.raw, 0);
-      /* VIEWED: the browser predicting swing by swing beside the server's 16 s commits. */
+      /* VIEWED: the browser predicting swing by swing beside the server's 16 s commits. A swing plays once its START is
+         reached (live-engine.js advance), so the prediction stands one swing past the last commit: its `xp` is summed over
+         the swings that commit settled, and the swing past it is held to the server's next commit (lane/b-ground-formula-fix:
+         the formula's Cellar rows put two kills in that swing, and the whole-run sum read 436 against the commit's 420). */
       const viewedMis = heroes();
       const v0 = viewedMis.map((m) => m.levelXp);
-      const r = run(M, viewedMis, SPAN);
+      const batches = [];
+      const r = run(M, viewedMis, SPAN, { feed: (b) => batches.push(b) });
       const viewedXp = viewedMis.map((m, i) => m.levelXp - v0[i]);
-      const shown = {};
-      for (const e of r.fed.events) if (e.type === 'xp') shown[e.u] = (shown[e.u] || 0) + e.amount;
-      const shownXp = viewedMis.map((m) => shown[m.unitId] || 0);
+      const xpBy = (evList) => { const o = {}; for (const e of evList) if (e.type === 'xp') o[e.u] = (o[e.u] || 0) + e.amount; return viewedMis.map((m) => o[m.unitId] || 0); };
+      const settled = r.srv.inst.settled_to_ms;
+      const shownXp = xpBy(batches.filter((b) => b.toMs <= settled).flatMap((b) => b.events));
+      const ahead = batches.filter((b) => b.fromMs >= settled);
+      const aheadTo = Math.max(settled, ...ahead.map((b) => b.toMs));
+      const aheadXp = xpBy(ahead.flatMap((b) => b.events));
+      const next = r.srv.commit(aheadTo + 16000);
+      const nextXp = xpBy(next ? next.tl.hunt_events.filter((e) => e.atMs < aheadTo) : []);
       const off = r.verdicts.filter((x) => x.v !== 'match').length;
-      console.log('  LV-CLASS ' + name + ': closed ' + closedXp + ', viewed ' + viewedXp + ', prediction ' + shownXp + ', ' + (raw ? (paid / raw).toFixed(3) : '-') + 'x the even share, ' + off + ' commits off');
+      console.log('  LV-CLASS ' + name + ': closed ' + closedXp + ', viewed ' + viewedXp + ', prediction ' + shownXp + ' (and ' + aheadXp + ' in the ' + ahead.length + ' swing(s) past the last commit, next commit ' + nextXp + '), ' + (raw ? (paid / raw).toFixed(3) : '-') + 'x the even share, ' + off + ' commits off');
       ok('LV-CLASS', evs.length >= 8 && closedXp.every((x) => x > 0), name + ': the fixture earned ' + closedXp + ' on ' + evs.length + ' paid shares');
       ok('LV-CLASS', closedXp.join() === viewedXp.join(), name + ': viewed the server paid ' + viewedXp + ', with the browser closed ' + closedXp);
       ok('LV-CLASS', shownXp.join() === closedXp.join(), name + ': the prediction shows ' + shownXp + ', the server pays ' + closedXp);
+      ok('LV-CLASS', !!next && aheadXp.join() === nextXp.join(), name + ': the prediction past the last commit shows ' + aheadXp + ', the next commit pays ' + nextXp);
       ok('LV-CLASS', off === 0, name + ': ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
-      /* Whole shares floor: the cell moves each share by 1.20 before its floor, so the sum sits within a floor of it. */
-      const want = name === 'mixed' ? evs.reduce((s, e) => s + Math.floor(e.raw * 1.07 + 1e-9), 0) : raw;
+      /* Whole shares floor: the cell moves each share before its floor, so the sum sits within a floor of it. */
+      const cell = M.PCX.partyClassXp('mill_cellar', roles).permille;
+      const want = name === 'mixed' ? evs.reduce((s, e) => s + Math.floor((e.raw * cell) / 1000 + 1e-9), 0) : raw;
       ok('LV-CLASS', name === 'same' ? paid === raw : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares');
     }
     /* A PARTY'S DEFAULT PULL (designer 2026-11-01), both paths: a Thicket pair with no pick stands at 3 each in the server's world

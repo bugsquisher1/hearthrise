@@ -26,7 +26,7 @@ const cli = (cells) => {
   const dir = mkdtempSync(join(tmpdir(), 'grade-'));
   try {
     writeFileSync(join(dir, 'cells.jsonl'), cells.map((c) => JSON.stringify(c)).join('\n') + '\n');
-    return spawnSync(process.execPath, [GRADER, '--in', dir], { encoding: 'utf8' }).status;
+    return spawnSync(process.execPath, [GRADER, '--in', dir, '--sheet', 'local'], { encoding: 'utf8' }).status;
   } finally { rmSync(dir, { recursive: true, force: true }); }
 };
 

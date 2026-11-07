@@ -25,6 +25,7 @@ import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { rateCI } from './stats.mjs';
+import { isMain } from '../../tests/_is-main.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -343,10 +344,10 @@ export function synthSet(mut = {}) {
   return cells;
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
+if (isMain(import.meta.url)) {
   const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : d; };
-  const SHEET = await loadSheet(ROOT, arg('sheet', null), arg('sheet-ref', null));
+  /* the selftest proves the grader's logic on the local sheet, whatever sheet the tree carries */
+  const SHEET = await loadSheet(ROOT, process.argv.includes('--selftest') ? 'local' : arg('sheet', null), arg('sheet-ref', null));
   if (process.argv.includes('--selftest')) {
     const flat = () => 70000;
     const good = gradeCells(synthSet(), SHEET, flat);

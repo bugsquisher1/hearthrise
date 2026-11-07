@@ -3735,6 +3735,8 @@ jobs:
           node tools/mutant-gate.mjs node tests/core-curves.mjs --selftest
           node tests/level-curve.mjs
           node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
+          node tests/balance-grade.mjs
+          node tools/mutant-gate.mjs node tools/balance-sim/grade.mjs --selftest
           node tools/gen-level-curve.mjs --check
           node tools/mutant-gate.mjs node tools/gen-level-curve.mjs --selftest
           node tests/hearth-fuel-rate.mjs

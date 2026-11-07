@@ -424,7 +424,9 @@ const cases = {
   'party-scale': (M) => {
     const got = [1, 2, 3, 4].map((n) => M.grounds.packScalePermille(n)).join(',');
     if (got !== '550,700,850,1000') return 'party scale ' + got;
-    if (M.grounds.scaledHp(M.MONSTERS.rat_king, 1) !== 330) return 'a solo Rat King has ' + M.grounds.scaledHp(M.MONSTERS.rat_king, 1) + ' HP, not 330';
+    /* his row's HP at the solo 550 permille, read off the row (the formula moved it, 600 -> 556: lane/b-ground-formula-2) */
+    const solo = Math.floor((M.MONSTERS.rat_king.hp * 550) / 1000);
+    if (M.grounds.scaledHp(M.MONSTERS.rat_king, 1) !== solo) return 'a solo Rat King has ' + M.grounds.scaledHp(M.MONSTERS.rat_king, 1) + ' HP, not ' + solo;
     return null;
   },
   'sewer-full-party-loop': (M) => {

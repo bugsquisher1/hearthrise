@@ -573,8 +573,11 @@ async function nodeRules(M) {
     // walking on to the next (pull-cycle.js travel, #69): the timeline listed only the two heroes, nothing was to forget
     // and the window agreed with the snapshot, so neither mutant could bite. Both are asserted below, so the scenario
     // can never go quiet again unseen.
+    // 130 s SINCE THE FORMULA (lane/b-ground-formula-fix, the Cellar's rows by src/data/balance-sheet.js): at 94-106 s the units
+    // stood 9-10 tiles off (the ease alone 2,525 ms against the 2,350 budget). Scanned every 2-6 s from 64 to 138 s: 124-136 s
+    // is one plateau (ease 3.6 tiles, settled 2,235 ms, a window 3.6 tiles off, 3 units forgotten); 110 and 116 s pass alone.
     const delay = M.CFG.SESSION_CONFIG.liveDelayMs, ask = M.CFG.SESSION_CONFIG.liveAskMs, ease = M.CFG.SESSION_CONFIG.liveEaseMs, LAT = 850;
-    for (const [tag, back, quiet] of [['first ask a commit', 100000, 15000], ['first ask a start point', 53000, 0]]) {
+    for (const [tag, back, quiet] of [['first ask a commit', 130000, 15000], ['first ask a start point', 53000, 0]]) {
       const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
       const SW = [LIVE_H.T0 + 30000, LIVE_H.T0 + back];
       const r = { first: null, snapOff: null, liveAt: null, easeEndAt: null, easeTiles: 0, step: 0, speed: 0, speedPlay: 0, unnamed: 0, windowOff: 0, forgot: 0, deadSeen: 0, stood: 0, stoodIds: new Set() };
@@ -752,11 +755,24 @@ async function nodeRules(M) {
     // kills, then catches up. No monster the server's world holds dead is drawn standing a second later, and
     // none stands at 0 HP (live v0.2.21: "the kobold was still standing at the end", its bar empty/black).
     let frames = 0, ghost = 0, zeroHp = 0, jump = 0, lastSettled = null, hooked = false;
-    const seen = new Set(), deadAt = new Map(), zero = new Map(), prev = new Map(), fell = new Set();
-    const PAUSE = [LIVE_H.T0 + 46000, LIVE_H.T0 + 51000];
-    await playLive(M, LM, book, [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)], 70000, ({ s, f, cs, T0, srv }) => {
-      /* each death the screen plays (the fall, its loot and XP): a death inside the pause is PLAYED, not just laid down */
-      if (!hooked) { hooked = true; cs.timeline.subscribe((ev) => { if (ev.type === 'kill') fell.add(ev.t); }); }
+    const seen = new Set(), deadAt = new Map(), zero = new Map(), prev = new Map(), fell = new Set(), killedAt = new Map();
+    /* THE PAUSE, ACROSS TWO KILLS, read off the server's own kills (lane/b-ground-formula-fix: typed at 46-51 s, it fell
+       between kills once the formula moved the Cellar's rows): it opens half a second before the first two kills at least
+       20 s in (the prediction live) that lie within 4 s of each other. The fixture's server is the one playLive runs. */
+    const hero = () => [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)];
+    const kills = (() => { const c = LIVE_H.server(LM, hero()).commit(LIVE_H.T0 + 120000); return c ? c.tl.hunt_events.filter((e) => e.type === 'kill').map((e) => e.atMs) : []; })();
+    const pair = kills.findIndex((k, i) => i > 0 && kills[i - 1] >= LIVE_H.T0 + 20000 && k - kills[i - 1] <= 4000);
+    const k1 = pair > 0 ? kills[pair - 1] : LIVE_H.T0 + 46500;
+    const PAUSE = [k1 - 500, k1 + 4500];
+    await playLive(M, LM, book, hero(), Math.max(70000, PAUSE[1] - LIVE_H.T0 + 19000), ({ s, f, cs, T0, srv }) => {
+      /* each death the screen plays (the fall, its loot and XP): a death inside the pause is PLAYED, not just laid down;
+         and each death the server's commits hold, at its instant */
+      if (!hooked) {
+        hooked = true;
+        cs.timeline.subscribe((ev) => { if (ev.type === 'kill') fell.add(ev.t); });
+        const commit = srv.commit;
+        srv.commit = (t) => { const c = commit(t); if (c) for (const e of c.tl.hunt_events) if (e.type === 'kill') killedAt.set(e.t, e.atMs); return c; };
+      }
       if (srv.inst.world && srv.inst.settled_to_ms !== lastSettled) {
         lastSettled = srv.inst.settled_to_ms;
         const w = LM.WS.decode(JSON.parse(srv.inst.world));
@@ -776,14 +792,14 @@ async function nodeRules(M) {
       for (const d of [f.hero, ...f.units]) {
         if (!d || d.under) continue;
         const q = prev.get(d.unit);
-        if (q && q.s >= T0 + 51000) jump = Math.max(jump, Math.hypot(d.x - q.x, d.y - q.y));   // frame to frame after the pause
+        if (q && q.s >= PAUSE[1]) jump = Math.max(jump, Math.hypot(d.x - q.x, d.y - q.y));   // frame to frame after the pause
         prev.set(d.unit, { x: d.x, y: d.y, s });
       }
     }, { pause: PAUSE, hold: PAUSE });   // a background tab whose polls are held too: the same prediction catches up
-    const inPause = [...deadAt].filter(([, at]) => at > PAUSE[0] && at <= PAUSE[1] + 16000).map(([u]) => u);
+    const inPause = [...killedAt].filter(([, at]) => at >= PAUSE[0] && at < PAUSE[1]).map(([u]) => u);
     const unplayed = inPause.filter((u) => !fell.has(u));
-    console.log(`  LV-12 5 s background pause across two kills: ${frames} frames, ${ghost} unit-frame(s) standing after the server had it dead, ${zeroHp} standing at 0 HP, ${inPause.length - unplayed.length}/${inPause.length} deaths of the span played, largest frame step after it ${jump.toFixed(3)} tiles`);
-    ok('LV-12', inPause.length > 0 && unplayed.length === 0, `${unplayed.length} of ${inPause.length} deaths inside the pause were never played (units ${unplayed.join(', ')})`);
+    console.log(`  LV-12 5 s background pause at ${(PAUSE[0] - LIVE_H.T0) / 1000}-${(PAUSE[1] - LIVE_H.T0) / 1000} s across two kills: ${frames} frames, ${ghost} unit-frame(s) standing after the server had it dead, ${zeroHp} standing at 0 HP, ${inPause.length - unplayed.length}/${inPause.length} deaths inside it played, largest frame step after it ${jump.toFixed(3)} tiles`);
+    ok('LV-12', inPause.length >= 2 && unplayed.length === 0, `${unplayed.length} of ${inPause.length} deaths inside the pause were never played (units ${unplayed.join(', ')}; the case wants 2+)`);
     { // a restart drops the queued future and the restarted prediction hands the same events back: they play once, their HP once
       const OFF = 1000000, T = 80000;
       const tl = M.TL.createTimeline({ delayMs: 0 });
@@ -1149,8 +1165,11 @@ async function nodeRules(M) {
     // Melee no longer killed a wolf mid-step in 450 s (tests/hunt-core/roles.mjs tank-plants-on-open-ground). From its first dead
     // frame a corpse is drawn on ONE spot until it fades (before: one glided 1.5 tiles after the kill). CONTROL: the
     // timeline did hold steps of a killed unit past its kill.
+    // THE LEVEL (lane/b-ground-formula-fix): on the formula's Thicket rows a pair at 12 kills every wolf between steps (88
+    // kills, 0 steps past one in 150 s); at 8 three steps run past a kill (at 9 two, 10 two, 7 one, 11 none), and every
+    // commit matches (at 5 a peer's Melee level-up leaves its frozen row behind: one commit off).
     const mis = ['melee_dps', 'melee_dps'].map((r, i) => {
-      const mi = LIVE_H.memberOf(LM, 'ab'[i], i, r, 12);
+      const mi = LIVE_H.memberOf(LM, 'ab'[i], i, r, 8);
       mi.huntId = 'meadowbrook_thicket'; mi.hero = Object.assign({}, mi.hero, { density: 8 });
       return mi;
     });

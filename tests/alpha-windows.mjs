@@ -455,6 +455,10 @@ async function huntsPure(imp) {
     if (!/^8 monsters a pull, hitting 50% harder, with 25% more HP, and the biggest blow here is (\d+), not (?!\1\.)\d+\. /.test(tierWords(glade, 'deadly', 1))) fails.push('AW-25 the tier note with a harder blow reads: ' + tierWords(glade, 'deadly', 1));
     TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 1000, 2000, 1200);
     if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, with twice the HP.') fails.push('AW-25 a tier with HP alone reads: ' + tierChoiceWords(glade, 'deadly', 1));
+    /* a sheet's multiple is not round (Wickstead's 2261 and 2847): one decimal, never "2.261 times" */
+    TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 2261, 2847, 1400);
+    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, hitting 2.3 times as hard, with 2.8 times the HP.') fails.push('AW-25 a sheet multiple reads: ' + tierChoiceWords(glade, 'deadly', 1));
+    TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 1000, 2000, 1200);
     /* the same blow is no news: the note never says "72, not 72" */
     if (!tierWords(glade, 'deadly', 1).startsWith('8 monsters a pull, with twice the HP. Each kill earns 20% more Level XP, with the same gold and drops.')) fails.push('AW-25 the tier note with HP alone reads: ' + tierWords(glade, 'deadly', 1));
   } finally { TV.GROUND_TIERS.mosslight_glade = kept.glade; TV.GROUND_TIERS.meadowbrook_thicket = kept.thicket; }

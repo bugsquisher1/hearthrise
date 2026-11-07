@@ -6,8 +6,8 @@
 --
 -- WHAT: hr_ground_tiers (made by 2027-02-27-hunt-tiers.sql, APPLIED) rewritten whole, 10 rows: per ground and tier the
 -- pull for one to four heroes (0 = the ground as it stands), the monsters' damage and health and the XP a kill pays, permille.
--- Normal is no row and doesn't move. The data holds ONE table for every ground (hunt-tiers.js TIER_TABLE) under named
--- per-ground overrides; this table holds each ground's resolved rows, so every server reader stays one lookup. No function,
+-- Normal is no row and doesn't move. The data holds ONE table for every ground (balance-sheet.js TIER_DIALS, tierRowFor at the
+-- ground's floor, named per-ground pulls); this table holds each ground's resolved rows, so every server reader stays one lookup. No function,
 -- grant or client verb changes. The server reads the pull when it freezes a hunt and a row's presence when a hero picks it;
 -- the engine reads the same numbers from the data, so the hr-accrue deploy carrying this GROUND_TIERS follows AT ONCE (a hunt
 -- already running keeps the pull it froze; its blows and its next spawns read the deployed engine).
@@ -47,16 +47,16 @@ comment on table public.hr_ground_tiers is
   '2027-03-20-tier-dials.generated.sql: the harder tiers a ground offers (src/data/hunt-tiers.js through tools/gen-ground-tiers.mjs; tests/hunt-core/hunt-tiers.mjs holds the two equal). Per ground and tier: the pull for 1-4 heroes, the monsters'' damage (dmg_pm) and health (hp_pm) and a kill''s Level XP (xp_pm), permille; never coin. Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
 delete from public.hr_ground_tiers;
 insert into public.hr_ground_tiers (hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm) values
-  ('millrace_sewer', 'dangerous', '{0,5,5,6}'::int[], 1200, 1000, 1050),
-  ('millrace_sewer', 'deadly', '{0,8,8,8}'::int[], 1750, 1000, 1100),
-  ('meadowbrook_thicket', 'dangerous', '{0,0,0,0}'::int[], 1500, 1000, 1050),
-  ('meadowbrook_thicket', 'deadly', '{0,0,0,0}'::int[], 3000, 1000, 1080),
-  ('coppercap_warrens', 'dangerous', '{4,5,5,6}'::int[], 1200, 1000, 1100),
-  ('coppercap_warrens', 'deadly', '{8,8,8,8}'::int[], 1500, 1000, 1200),
-  ('mosslight_glade', 'dangerous', '{3,5,5,6}'::int[], 1400, 1000, 1100),
-  ('mosslight_glade', 'deadly', '{8,8,8,8}'::int[], 1600, 1000, 1200),
-  ('wickstead', 'dangerous', '{0,4,4,5}'::int[], 2000, 1000, 1050),
-  ('wickstead', 'deadly', '{0,8,8,8}'::int[], 2500, 1000, 1100);
+  ('millrace_sewer', 'dangerous', '{3,5,5,6}'::int[], 2261, 1100, 1200),
+  ('millrace_sewer', 'deadly', '{8,8,8,8}'::int[], 2847, 1200, 1400),
+  ('meadowbrook_thicket', 'dangerous', '{3,5,5,6}'::int[], 2305, 1100, 1200),
+  ('meadowbrook_thicket', 'deadly', '{8,8,8,8}'::int[], 2912, 1200, 1400),
+  ('coppercap_warrens', 'dangerous', '{3,5,5,6}'::int[], 1170, 1100, 1200),
+  ('coppercap_warrens', 'deadly', '{8,8,8,8}'::int[], 1330, 1200, 1400),
+  ('mosslight_glade', 'dangerous', '{3,5,5,6}'::int[], 1170, 1100, 1200),
+  ('mosslight_glade', 'deadly', '{8,8,8,8}'::int[], 1330, 1200, 1400),
+  ('wickstead', 'dangerous', '{0,5,5,6}'::int[], 2261, 1100, 1200),
+  ('wickstead', 'deadly', '{0,8,8,8}'::int[], 2847, 1200, 1400);
 alter table public.hr_ground_tiers alter column hp_pm set not null;
 alter table public.hr_ground_tiers add constraint hr_ground_tiers_dmg_pm_check check (dmg_pm between 1000 and 4000);
 alter table public.hr_ground_tiers add constraint hr_ground_tiers_hp_pm_check check (hp_pm between 1000 and 4000);
@@ -74,16 +74,16 @@ begin
     raise exception 'tier-dials: hr_ground_tiers is not shaped (dmg_pm, hp_pm, xp_pm), every one an integer and not null'; end if;
   if (select count(*) from public.hr_ground_tiers) <> 10
      or exists (select 1 from (values
-      ('millrace_sewer','dangerous',array[0,5,5,6],1200,1000,1050),
-      ('millrace_sewer','deadly',array[0,8,8,8],1750,1000,1100),
-      ('meadowbrook_thicket','dangerous',array[0,0,0,0],1500,1000,1050),
-      ('meadowbrook_thicket','deadly',array[0,0,0,0],3000,1000,1080),
-      ('coppercap_warrens','dangerous',array[4,5,5,6],1200,1000,1100),
-      ('coppercap_warrens','deadly',array[8,8,8,8],1500,1000,1200),
-      ('mosslight_glade','dangerous',array[3,5,5,6],1400,1000,1100),
-      ('mosslight_glade','deadly',array[8,8,8,8],1600,1000,1200),
-      ('wickstead','dangerous',array[0,4,4,5],2000,1000,1050),
-      ('wickstead','deadly',array[0,8,8,8],2500,1000,1100)) d(hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm)
+      ('millrace_sewer','dangerous',array[3,5,5,6],2261,1100,1200),
+      ('millrace_sewer','deadly',array[8,8,8,8],2847,1200,1400),
+      ('meadowbrook_thicket','dangerous',array[3,5,5,6],2305,1100,1200),
+      ('meadowbrook_thicket','deadly',array[8,8,8,8],2912,1200,1400),
+      ('coppercap_warrens','dangerous',array[3,5,5,6],1170,1100,1200),
+      ('coppercap_warrens','deadly',array[8,8,8,8],1330,1200,1400),
+      ('mosslight_glade','dangerous',array[3,5,5,6],1170,1100,1200),
+      ('mosslight_glade','deadly',array[8,8,8,8],1330,1200,1400),
+      ('wickstead','dangerous',array[0,5,5,6],2261,1100,1200),
+      ('wickstead','deadly',array[0,8,8,8],2847,1200,1400)) d(hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm)
                  where not exists (select 1 from public.hr_ground_tiers t where t.hunt_id = d.hunt_id and t.tier = d.tier
                                      and t.pull = d.pull and t.dmg_pm = d.dmg_pm and t.hp_pm = d.hp_pm and t.xp_pm = d.xp_pm)) then
     raise exception 'tier-dials: hr_ground_tiers is not the generated %-row set', 10; end if;

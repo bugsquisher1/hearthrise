@@ -2,8 +2,9 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/gen-ground-tiers.mjs — GENERATE THE SERVER'S TIER CATALOGUE (hr_ground_tiers).
 //
-// src/data/hunt-tiers.js is the one source of a ground's harder tiers: ONE table for every ground (TIER_TABLE: pull per party
-// size, the monsters' damage and health, the XP a kill pays) under named per-ground overrides, resolved into GROUND_TIERS.
+// src/data/balance-sheet.js is the one source of a ground's harder tiers: ONE table for every ground (TIER_DIALS: pull per party
+// size, the monsters' damage and HP, the XP a kill pays), named per-ground pulls (TIER_PULL_OVERRIDES) and tierRowFor, which
+// answers a ground's row from its floor; src/data/hunt-tiers.js resolves every open ground's rows into GROUND_TIERS once.
 // The engine reads the data; the server reads hr_ground_tiers when it freezes a hunt's pull (hr_hunt_tier_set, the freeze in
 // 2027-02-27-hunt-tiers.sql). This writes the resolved rows, rewritten whole, and a self-check.
 // tests/hunt-core/hunt-tiers.mjs `catalogue` holds the file's insert equal to the data digit for digit (the CI guard).
@@ -69,8 +70,8 @@ export function buildSql(tiers, headroom) {
 --
 -- WHAT: hr_ground_tiers (made by 2027-02-27-hunt-tiers.sql, APPLIED) rewritten whole, ${rows.length} rows: per ground and tier the
 -- pull for one to four heroes (0 = the ground as it stands), the monsters' damage and health and the XP a kill pays, permille.
--- Normal is no row and doesn't move. The data holds ONE table for every ground (hunt-tiers.js TIER_TABLE) under named
--- per-ground overrides; this table holds each ground's resolved rows, so every server reader stays one lookup. No function,
+-- Normal is no row and doesn't move. The data holds ONE table for every ground (balance-sheet.js TIER_DIALS, tierRowFor at the
+-- ground's floor, named per-ground pulls); this table holds each ground's resolved rows, so every server reader stays one lookup. No function,
 -- grant or client verb changes. The server reads the pull when it freezes a hunt and a row's presence when a hero picks it;
 -- the engine reads the same numbers from the data, so the hr-accrue deploy carrying this GROUND_TIERS follows AT ONCE (a hunt
 -- already running keeps the pull it froze; its blows and its next spawns read the deployed engine).
@@ -164,15 +165,14 @@ async function loadData(root) {
   const v = '?v=' + BUILD.version;
   const T = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v);
   const { VALUE_HEADROOM } = await import(pathToFileURL(join(root, 'src/data/hunt-sessions.js')).href + v);
-  return { tiers: T.GROUND_TIERS, overrides: T.GROUND_OVERRIDES, headroom: VALUE_HEADROOM };
+  const { TIER_PULL_OVERRIDES } = await import(pathToFileURL(join(root, 'src/data/balance-sheet.js')).href + v);
+  return { tiers: T.GROUND_TIERS, overrides: TIER_PULL_OVERRIDES, headroom: VALUE_HEADROOM };
 }
 
-/* ONE FORMULA, SAID OUT LOUD: every override that moves a dial and not just the pull (the table's numbers are the designer's to
-   fold in; a pull override is a ground's shape). Informational: it never refuses. */
-function dialOverrides(overrides) {
-  const out = [];
-  for (const [g, byTier] of Object.entries(overrides)) for (const id of HARDER) for (const k of DIALS) if (byTier[id] && byTier[id][k] !== undefined) out.push(g + ' ' + id + ' ' + k + ' ' + byTier[id][k]);
-  return out;
+/* ONE FORMULA, SAID OUT LOUD: the grounds on the table as it stands, and each named exception the sheet carries. */
+function said(tiers, overrides) {
+  const named = Object.entries(overrides).map(([g, o]) => g + (o.normalOnly ? ' Normal only' : ' ' + HARDER.filter((id) => o[id]).map((id) => id + ' pull ' + o[id].join('/')).join(', ')));
+  return Object.keys(tiers).length + ' grounds from balance-sheet.js tierRowFor; named: ' + (named.join('; ') || 'none');
 }
 
 async function selftest() {
@@ -202,16 +202,15 @@ async function main() {
   if (process.argv.includes('--selftest')) return selftest();
   const { tiers, overrides, headroom } = await loadData(ROOT);
   const wanted = buildSql(tiers, headroom);
-  const dials = dialOverrides(overrides);
-  const said = dials.length ? dials.length + ' per-ground dial override(s), not one formula yet: ' + dials.join('; ') : 'every ground on the one table (overrides are pulls only)';
+  const line = said(tiers, overrides);
   if (process.argv.includes('--check')) {
     const have = await readFile(OUT, 'utf8').catch(() => '');
     if (have.replace(/\r\n/g, '\n') !== wanted) { console.error('gen-ground-tiers --check FAILED: ' + OUT_NAME + ' is stale. Run: node tools/gen-ground-tiers.mjs'); process.exit(1); }
-    console.log('gen-ground-tiers --check: ' + OUT_NAME + ' matches src/data/hunt-tiers.js GROUND_TIERS (' + said + ')');
+    console.log('gen-ground-tiers --check: ' + OUT_NAME + ' matches src/data/hunt-tiers.js GROUND_TIERS (' + line + ')');
     return;
   }
   await writeFile(OUT, wanted);
-  console.log('gen-ground-tiers: wrote ' + OUT_NAME + ' (' + said + ')');
+  console.log('gen-ground-tiers: wrote ' + OUT_NAME + ' (' + line + ')');
 }
 
 if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(1); });

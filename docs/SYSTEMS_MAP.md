@@ -28,7 +28,7 @@ and drift guards bind the copies. Never keep a second hand-written copy of game 
 
 ### 0. Hunts — data
 `src/data/hunts.js` (grounds: level floor, monster family and spawn weights),
-`src/data/hunt-grounds.js` (pockets, route), `src/data/hunt-tiers.js` (Normal, Dangerous, Deadly: one table for every ground under named overrides, pull, damage, health and XP, never coin;
+`src/data/hunt-grounds.js` (pockets, route), `src/data/hunt-tiers.js` (Normal, Dangerous, Deadly: pull, damage, HP and XP, never coin, resolved from `src/data/balance-sheet.js` TIER_DIALS and tierRowFor;
 its rows and `hr_ground_tiers` are held equal by `tests/hunt-core/hunt-tiers.mjs`), `src/data/hunt-sessions.js`
 and `hunt-tuning.js` (engine values), `src/data/monsters.js` (stats and drops).
 Regenerate with `node tools/gen-hunts.mjs` and `node tools/gen-hunt-sessions.mjs`.

@@ -98,8 +98,10 @@ export function tierPull(r, id, size = 1) {
 const PCT = (pm) => Math.round(pm / 10 - 100) + '%';
 /* What's different, the words both lines open on: the monsters a pull, how much harder they hit and how much more HP they
    have (hunt-tiers.js dmgPm, hpPm), each said only when the tier moves it. */
-const HARDER = (pm) => (pm === 2000 ? 'twice as hard' : pm > 2000 ? pm / 1000 + ' times as hard' : PCT(pm) + ' harder');
-const TOUGHER = (pm) => (pm === 2000 ? 'twice the HP' : pm > 2000 ? pm / 1000 + ' times the HP' : PCT(pm) + ' more HP');
+/* A multiple to one decimal (the sheet's per-ground dials are not round: Wickstead's 2847 reads "2.8 times"), "twice" when it is 2. */
+const TIMES = (pm, what) => { const x = Math.round(pm / 100) / 10; return x === 2 ? 'twice ' + what : x + ' times ' + what; };
+const HARDER = (pm) => (pm >= 1950 ? TIMES(pm, 'as hard') : PCT(pm) + ' harder');
+const TOUGHER = (pm) => (pm >= 1950 ? TIMES(pm, 'the HP') : PCT(pm) + ' more HP');
 const tierHead = (r, t, size) => {
   const n = pullOfTier(t, size);
   return (n ? n + ' monsters a pull' : 'The same monsters') + (t.dmgPm > 1000 ? ', hitting ' + HARDER(t.dmgPm) : '') + (t.hpPm > 1000 ? ', with ' + TOUGHER(t.hpPm) : '');

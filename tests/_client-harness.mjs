@@ -90,7 +90,7 @@ export const SDK_STUB = `(function () {
           subscribe: function (cb) { slot().status = cb; setTimeout(function () { cb('SUBSCRIBED'); }, 0); return ch; } };
         return ch;
       },
-      removeChannel: function (ch) { delete window.__hub.channels[ch.topic]; },
+      removeChannel: function (ch) { (window.__hub.left = window.__hub.left || []).push(ch.topic); delete window.__hub.channels[ch.topic]; },
     };
   } };
 })();`;

@@ -461,6 +461,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       let out = 0;
       const onAsk = (q) => { const m = /\/rest\/v1\/rpc\/([a-z_]+)|\/functions\/v1\/(hr-accrue)/.exec(q.url()); if (m) asked.push({ n: m[1] || m[2], late: out > 0 }); };
       page.on('request', onAsk);
+      await page.evaluate(() => { window.__hub.left = []; });   // the topics this press leaves, in order
       await page.click('[data-app="sign-out"]');
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-5 sign-out did not return to sign-in');
       out = 1;
@@ -475,6 +476,12 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       if (left.length) fails.push('B-5 session copies left after sign-out: ' + left.join(', '));
       const topics = await page.evaluate(() => Object.keys(window.__hub.channels));
       if (topics.length) fails.push('B-5 character topics still joined after sign-out: ' + topics.join(', '));
+      /* ...and the social side (the whispers inbox, any chat channel) leaves before the first hero does, so nothing social follows a
+         hero while every hero closes. Read from the order the stub saw the topics left (__hub.left), not from the network. */
+      const order = await page.evaluate(() => window.__hub.left || []);
+      const firstHero = order.findIndex((t) => /^hr:/.test(t)), social = order.filter((t) => !/^hr:/.test(t));
+      if (firstHero < 0 || !social.length) fails.push('B-5 harness: the sign-out left ' + (order.join(', ') || 'no topic') + ' (a hero topic and a social one are needed to read the order)');
+      else if (order.slice(firstHero).some((t) => !/^hr:/.test(t))) fails.push('B-5 a hero closed before the social side ended: topics left in the order ' + order.join(', '));
       if (errors.length) fails.push('B-1..5 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }

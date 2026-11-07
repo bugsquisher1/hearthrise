@@ -295,10 +295,9 @@ declare
   if p_hunt ? 'xp_event' then
     if jsonb_typeof(p_hunt->'xp_event') is distinct from 'number' or (p_hunt->>'xp_event') !~ '^[0-9]{1,15}$'
        or (p_hunt->>'xp_event')::numeric > coalesce(case when jsonb_typeof(p_delta->'level_xp') = 'number' then (p_delta->>'level_xp')::numeric end, 0)
-       or (p_hunt->>'xp_event')::numeric > case when public.hr_live_xp_max_pm(p_user, v_s.hunt_id, v_s.settled_to, v_to) = 1000 then 0
-            else coalesce(case when jsonb_typeof(p_delta->'level_xp') = 'number' then (p_delta->>'level_xp')::numeric end, 0)
-                 * (public.hr_live_xp_max_pm(p_user, v_s.hunt_id, v_s.settled_to, v_to) - 1000) / public.hr_live_xp_max_pm(p_user, v_s.hunt_id, v_s.settled_to, v_to)
-                 + v_kills end then
+       or (p_hunt->>'xp_event')::numeric > (select case when q.m = 1000 then 0
+              else coalesce(case when jsonb_typeof(p_delta->'level_xp') = 'number' then (p_delta->>'level_xp')::numeric end, 0) * (q.m - 1000) / q.m + v_kills end
+            from (select public.hr_live_xp_max_pm(p_user, v_s.hunt_id, v_s.settled_to, v_to) as m) q) then
       perform public.hr_reject('bad_xp_event', jsonb_build_object('xp_event', p_hunt->'xp_event', 'level_xp', p_delta->'level_xp')); end if;
     update public.hunt_session_tally t set xp_event = t.xp_event + (p_hunt->>'xp_event')::bigint where t.session_id = p_session;
   end if;
@@ -442,7 +441,7 @@ declare
 begin
   -- (a)
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure;
-  if (length(v_src) - length(replace(v_src, 'public.hr_live_xp_max_pm(', ''))) / length('public.hr_live_xp_max_pm(') <> 3
+  if (length(v_src) - length(replace(v_src, 'public.hr_live_xp_max_pm(', ''))) / length('public.hr_live_xp_max_pm(') <> 2
      or strpos(v_src, '''tick_ms'' - ''xp_event''') = 0 or strpos(v_src, 'set xp_event = t.xp_event +') = 0 then
     raise exception 'live-events §8(a): hr_hunt_apply_member does not bound and keep the event''s part'; end if;
   if strpos((select prosrc from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure), '''live_xp'', public.hr_live_xp_windows(') = 0

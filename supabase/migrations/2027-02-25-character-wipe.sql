@@ -76,6 +76,8 @@ declare
     'account_gold_given', 'player_titles', 'town_shows', 'town_works_gifts', 'town_works_totals',
     /* scaled hunts' banked hours (2027-03-21-scaled-hunts.sql): a hero's, bought with gold the wipe also clears */
     'player_scaled_hours',
+    /* the live-event announcer's record of the window edges it passed (2027-03-22-live-events.sql), with the System lines the wipe clears */
+    'hr_live_event_notices',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',
@@ -111,7 +113,9 @@ declare
     /* crafted jewelry's catalogues (2027-03-14-jewelry-catalogue.generated.sql): the Hallmark step, its day limit, the graded rows' ceilings */
     'hr_hallmark_offers', 'hr_hallmark_rule', 'hr_market_ceilings',
     /* scaled hunts' catalogues (2027-03-21-scaled-hunts-catalogue.generated.sql): the rule, the grounds, the scaled kill bounds */
-    'hr_scaled_hunt_rule', 'hr_scaled_grounds', 'hr_scaled_kill_bounds'];
+    'hr_scaled_hunt_rule', 'hr_scaled_grounds', 'hr_scaled_kill_bounds',
+    /* the live events' catalogues (2027-03-22-live-events-catalogue.generated.sql): the types and the schedule */
+    'hr_live_event_types', 'hr_live_events'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

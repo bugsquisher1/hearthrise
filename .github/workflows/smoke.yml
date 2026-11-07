@@ -3813,7 +3813,7 @@ jobs:
           node tests/hunt-sessions-settle.mjs
           node tests/hunt-sessions-settle.mjs --closed
           node tools/mutant-gate.mjs node tests/hunt-sessions-settle.mjs --mutate
-  # db-replay-11: Scaled hunts, the server half (lane/c-scaled-hunts, 2026-11-07), its own job: db-replay-8 already runs near its
+  # db-replay-11: Scaled hunts, the server half (lane/c-scaled-hunts, 2026-11-07), and live events (lane/c-live-events), its own job: db-replay-8 already runs near its
   # 30 min. Measured locally 2026-11-07 on a cached chain: plain 89 s, --mutate 295 s (21 mutants); a cold chain build adds ~6 min.
   db-replay-11:
     runs-on: ubuntu-latest
@@ -3845,6 +3845,18 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-scaled-hunts.mjs --selftest
           node tests/scaled-hunts-server.mjs
           node tools/mutant-gate.mjs node tests/scaled-hunts-server.mjs --mutate
+
+      # LIVE EVENTS, STEPS 1 AND 2 (2027-03-22-live-events*.sql, lane/c-live-events): a Level XP dial paid by each kill's own time to the
+      # accounts whose switch is on, browser closed and hunt viewed alike, kept apart on the tally so a personal best leaves it out; the
+      # commit's bound grows by the account's own dial only; Open Halls makes a Call out free through the quote, journalled and counted;
+      # the section and the announcer. The catalogue is GENERATED from src/data/live-events.js (tools/gen-live-events.mjs).
+      - name: Live events — the XP dial, the fee dial, the section and the announcer, both paths
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-live-events.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-live-events.mjs --selftest
+          node tests/live-events.mjs
+          node tools/mutant-gate.mjs node tests/live-events.mjs --mutate
   artisan-selftest:
     runs-on: ubuntu-latest
     timeout-minutes: 56

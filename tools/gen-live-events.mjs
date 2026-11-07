@@ -210,7 +210,7 @@ end $$;
 `;
 }
 
-async function loadData(root) {
+export async function loadData(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const L = await import(u('src/data/live-events.js'));
   const { OPEN_GROUNDS } = await import(u('src/data/hunt-grounds.js'));

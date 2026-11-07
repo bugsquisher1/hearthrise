@@ -1,7 +1,7 @@
 {
  "schema": "hearthrise.level-pace/1",
- "generated": "2026-11-07T09:11:08.941Z",
- "commit": "e68752729",
+ "generated": "2026-11-07T14:03:02.151Z",
+ "commit": "edad3282f",
  "version": "0.2.105",
  "curve": {
   "first": 128,
@@ -68,7 +68,7 @@
    }
   ]
  },
- "fingerprint": "6a558fc0441911a6",
+ "fingerprint": "a8e4dffddf2d1146",
  "ceiling": 50,
  "reference": "median of 8 solo styles, Level 1 to 50, where the Hunts window recommends, as built (tools/balance-sim plan pace)",
  "styles": [
@@ -76,8 +76,8 @@
   "axes",
   "sword",
   "tank",
-  "crossbow",
   "bow",
+  "crossbow",
   "mage",
   "healer"
  ],
@@ -348,57 +348,6 @@
     }
    }
   },
-  "crossbow": {
-   "party": [
-    "crossbow"
-   ],
-   "density": null,
-   "hours": 161.25,
-   "reached": [
-    50
-   ],
-   "hoursTo": {
-    "2": 0.02,
-    "5": 0.25,
-    "10": 6.22,
-    "15": 17.25,
-    "20": 25,
-    "25": 33.79,
-    "30": 46.6,
-    "40": 88.31,
-    "50": 160.93
-   },
-   "deaths": 0,
-   "grounds": [
-    "mill_cellar",
-    "meadowbrook_thicket",
-    "wickstead",
-    "mosslight_glade"
-   ],
-   "skillsAt": {
-    "10": {
-     "melee": 1,
-     "ranged": 19,
-     "magic": 1,
-     "defense": 10,
-     "inner_flame": 1
-    },
-    "25": {
-     "melee": 1,
-     "ranged": 33,
-     "magic": 1,
-     "defense": 19,
-     "inner_flame": 1
-    },
-    "49": {
-     "melee": 1,
-     "ranged": 51,
-     "magic": 1,
-     "defense": 30,
-     "inner_flame": 1
-    }
-   }
-  },
   "bow": {
    "party": [
     "bow"
@@ -446,6 +395,57 @@
      "ranged": 51,
      "magic": 1,
      "defense": 27,
+     "inner_flame": 1
+    }
+   }
+  },
+  "crossbow": {
+   "party": [
+    "crossbow"
+   ],
+   "density": null,
+   "hours": 161.25,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0.02,
+    "5": 0.25,
+    "10": 6.22,
+    "15": 17.25,
+    "20": 25,
+    "25": 33.79,
+    "30": 46.6,
+    "40": 88.31,
+    "50": 160.93
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "wickstead",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 1,
+     "ranged": 19,
+     "magic": 1,
+     "defense": 10,
+     "inner_flame": 1
+    },
+    "25": {
+     "melee": 1,
+     "ranged": 33,
+     "magic": 1,
+     "defense": 19,
+     "inner_flame": 1
+    },
+    "49": {
+     "melee": 1,
+     "ranged": 51,
+     "magic": 1,
+     "defense": 30,
      "inner_flame": 1
     }
    }

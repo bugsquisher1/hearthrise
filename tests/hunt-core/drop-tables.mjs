@@ -805,7 +805,7 @@ const rangerMutants = [
   { name: 'the store Iron Bolt back at 2 g a shot', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/supply-basics.js', "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 1),", "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),"]] },
   /* the mean is the guard: at this old row the fixture's one seed still read over +25%, the twelve read +23.7% */
   /* (the casters' store-fed spells lift this floor to +29.7%, so the plant is the row's pre-x1.8 coin, not [4, 18]: the bar doesn't move, lane/c-caster-starter-bars) */
-  { name: 'the Drain Rat\'s coin back at its pre-x1.8 [2, 10]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [7, 19]', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [2, 10]']] },
+  { name: 'the Drain Rat\'s coin back at its pre-x1.8 [2, 10]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 140, gp: [7, 19]', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 140, gp: [2, 10]']] },
 ];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',

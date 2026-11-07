@@ -4887,6 +4887,15 @@ jobs:
           node tests/copy-lint.mjs --report
           node tools/mutant-gate.mjs node tests/copy-lint.mjs --selftest
 
+      # lane/b-text-home (Tyler 2026-11-07): every word a player reads lives in
+      # src/data/text/ and is read through t(); the text still written in the
+      # windows' code may only go down, and every call names a real row.
+      - name: Presentation floor - player text lives in one table
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/text-home.mjs
+          node tools/mutant-gate.mjs node tests/text-home.mjs --mutate
+
 
       # slice 5 step 1 - src/styles/tokens.css is the single source of design
       # tokens. Before it, 367 token declarations lived in four sheets at four

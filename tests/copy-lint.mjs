@@ -53,7 +53,7 @@
 // Exit: 0 green · 1 a slip found · 2 harness error.
 // ════════════════════════════════════════════════════════════════════════
 
-import { readFileSync, readdirSync, statSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, normalize, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -323,6 +323,9 @@ function waived(root, f, rule, text) {
   return !!w;
 }
 
+/* Every player sentence the windows show lives in src/data/text/ (src/render/player-text.js reads it). */
+const TEXT_TABLE_RE = /[\\/]src[\\/]data[\\/]text[\\/][^\\/]+\.js$/;
+
 /* opts.files: scan only these files (the selftest's plants); opts.article: the
    article helper to exercise (default src/render/article.js under root). */
 export async function scan(root, opts = {}) {
@@ -333,8 +336,11 @@ export async function scan(root, opts = {}) {
   for (const f of files) {
     const src = readFileSync(f, 'utf8');
     const lits = stringLiterals(src);
+    /* THE TEXT TABLE (src/data/text/*, lane/b-text-home): a row's {placeholder} is a hole, read like a template's ${…}. */
+    const table = TEXT_TABLE_RE.test(f);
     for (let i = 0; i < lits.length; i++) {
-      const { text, at } = lits[i];
+      const { at } = lits[i];
+      const text = table ? lits[i].text.replace(/\{[a-z][A-Za-z0-9_]*\}/g, '§') : lits[i].text;
       if (devOnly(src, at)) continue;
       /* A one-word label ("Armour", ' colour ') is copy too for spelling: a
          capitalised word or one with a space round it. A bare lower-case
@@ -491,6 +497,17 @@ async function selftest() {
       console.log(`  ${hit ? 'caught' : 'MISSED'}  ${rule}`);
       if (!hit) bad++;
     }
+    // The text table (src/data/text/*): a row's {placeholder} reads as a hole, so "{count} items in all" is a slip
+    // there, and the same row anywhere else is not read as one.
+    mkdirSync(join(tmp, 'src', 'data', 'text'), { recursive: true });
+    const tablePlant = join(tmp, 'src', 'data', 'text', '__copy_lint_table.js');
+    const row = "export const T = Object.freeze({ crafted: 'Smith {count} items in all' });\n";
+    writeFileSync(tablePlant, row);
+    writeFileSync(plant, row);
+    const inTable = (await scan(HERE_ROOT, { files: [tablePlant] })).findings.some((f) => f.rule === 'in-all');
+    const outside = (await scan(HERE_ROOT, { files: [plant] })).findings.some((f) => f.rule === 'in-all');
+    console.log(`  ${inTable && !outside ? 'caught' : 'MISSED'}  a text table row's {placeholder} reads as a number`);
+    if (!inTable || outside) bad++;
     // The CHANGELOG: an entry from CHANGELOG_FROM on is read (the real file is green), an older one is history,
     // and a British word in `code` or a link target is not copy.
     const log = (v) => '# Changelog\n\n## v' + v + ' — 2026-10-30 (Colors)\n\n**Armor.** The grey cloak is your favourite.\n`armour-weights.js` [notes](docs/armour.md)\n';

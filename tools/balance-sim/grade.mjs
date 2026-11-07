@@ -248,6 +248,51 @@ export async function blowVerdicts(root, sheet) {
   return out;
 }
 
+/**
+ * WHAT A PLAYER WOULD FEEL (Coordinator 2026-11-07: lead with these), read off the cells with no sheet, each from a ruling:
+ *   feel-normal-deaths  a death on Normal at or above a floor, any party size (11-04 "in range is safe"; 10-25 <= 1 per 1,000 h)
+ *   feel-tier-less      a harder tier a hero or party HELD (no death) paying less Level XP a head than Normal (11-05 more XP a kill)
+ *   feel-seat-below-solo a party seat on Normal in range earning less Level XP than the median lone hero there (10-25 parties advantaged)
+ *   feel-gold-order     a ground's floor netting less gold an hour than a ground with a lower floor (11-03 "harder pays more"): the
+ *                       median lone way on a solo ground, the four a head on a party ground
+ */
+export function feelVerdicts(cells, fits = {}) {
+  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit }, x: metricsOf(c) }))
+    .filter((r) => (r.m.gear || 'ladder') === 'ladder');
+  const out = [], v = (rule, verdict, key, ground, value, extra) => out.push({ rule, binding: true, verdict, key, ground, value, lo: null, hi: null, k: null, hours: null, min: null, max: null, off: 0, why: '', ...extra });
+  const inRange = (o) => ['floor', 'middle', 'plus10', 'top'].includes(o);
+  const groups = new Map();
+  for (const r of rows) if (r.m.tier === 'normal' && inRange(r.m.offset)) { const k = r.m.ground + '|' + r.m.size; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+  for (const g of groups.values()) {
+    const k = g.reduce((s, r) => s + r.x.deaths, 0), hours = g.reduce((s, r) => s + r.x.hours, 0), ci = rateCI(k, hours, 1000);
+    if (k > 0) v('feel-normal-deaths', ci.lo > 1 ? 'FAIL' : 'UNPROVEN', g[0].m.ground + ' / normal / at or above the floor / size ' + g[0].m.size + ' / ' + g.filter((r) => r.x.deaths).map((r) => r.m.comp + ' ' + r.m.offset + ' L' + r.c.cell.level + ' x' + r.x.deaths).join(', '),
+      g[0].m.ground, ci.rate, { lo: ci.lo, hi: ci.hi, k, hours: ci.hours, max: 1, off: ci.rate, why: '11-04 in range is safe; 10-25 Normal at most 1 death per 1,000 h' });
+  }
+  const at = (m, tier) => rows.find((o) => o.m.ground === m.ground && o.m.tier === tier && o.m.offset === m.offset && o.m.comp === m.comp);
+  for (const r of rows) if (r.m.tier !== 'normal' && inRange(r.m.offset) && r.x.held) {
+    const n = at(r.m, 'normal');
+    if (n && r.x.xp < n.x.xp) v('feel-tier-less', 'FAIL', r.m.ground + ' / ' + r.m.tier + ' / ' + r.m.offset + ' / ' + r.m.comp + ' L' + r.c.cell.level, r.m.ground, r.x.xp / n.x.xp,
+      { min: 1, off: 1 - r.x.xp / n.x.xp, why: '11-05: a harder tier held pays more XP a kill; this one pays less an hour than Normal' });
+  }
+  for (const r of rows) if (r.m.tier === 'normal' && inRange(r.m.offset) && r.m.size > 1) {
+    const solo = median(rows.filter((o) => o.m.ground === r.m.ground && o.m.tier === 'normal' && o.m.offset === r.m.offset && o.m.size === 1).map((o) => o.x.xp));
+    const seat = Math.min(...r.c.heroes.map((h) => h.levelXpPerH));
+    if (solo > 0 && seat < solo) v('feel-seat-below-solo', 'FAIL', r.m.ground + ' / normal / ' + r.m.offset + ' / ' + r.m.comp + ' L' + r.c.cell.level + ' (lowest seat ' + r.c.heroes.reduce((a, h) => (h.levelXpPerH < a.levelXpPerH ? h : a)).style + ')',
+      r.m.ground, seat / solo, { min: 1, off: 1 - seat / solo, why: '10-25: parties are advantaged; a seat here levels slower than going alone' });
+  }
+  const floors = [...new Set(rows.map((r) => r.m.ground))].map((g) => {
+    const fl = rows.filter((r) => r.m.ground === g && r.m.tier === 'normal' && r.m.offset === 'floor');
+    if (!fl.length) return null;
+    const party = fl[0].m.groupFit === 'party', pick = fl.filter((r) => r.m.size === (party ? 4 : 1));
+    return { g, floor: fl[0].m.band[0], net: median(pick.map((r) => r.x.net)), who: party ? 'the fours a head' : 'the median lone way' };
+  }).filter(Boolean).sort((a, b) => a.floor - b.floor);
+  for (const a of floors) for (const b of floors) if (b.floor < a.floor && a.net < b.net) {
+    v('feel-gold-order', 'FAIL', a.g + ' (floor ' + a.floor + ', ' + a.who + ') nets ' + Math.round(a.net) + ' g/h, under ' + b.g + ' (floor ' + b.floor + ', ' + b.who + ') at ' + Math.round(b.net), a.g, a.net / b.net,
+      { min: 1, off: 1 - a.net / b.net, why: '11-03: harder pays more; a higher floor nets more gold an hour' });
+  }
+  return out;
+}
+
 const RANK = { FAIL: 3, UNPROVEN: 2, OFF: 1, ok: 0 };
 /** The ranked outliers: FAIL, then UNPROVEN, then OFF, each by how far off. */
 export const ranked = (verdicts) => verdicts.filter((v) => v.verdict !== 'ok').sort((a, b) => RANK[b.verdict] - RANK[a.verdict] || b.off - a.off);
@@ -255,7 +300,11 @@ export const ranked = (verdicts) => verdicts.filter((v) => v.verdict !== 'ok').s
 const fmt = (v) => (v == null ? '-' : Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'k' : Math.abs(v) >= 10 ? String(Math.round(v)) : v.toFixed(2));
 export function report(out, limit = 60) {
   const lines = [];
-  const R = ranked(out.verdicts);
+  const feel = ranked(out.verdicts.filter((v) => v.rule.startsWith('feel-')));
+  lines.push('WHAT A PLAYER WOULD FEEL (' + feel.length + ')', '| # | Verdict | Rule | Where | Value | Why |', '|---|---|---|---|---|---|');
+  feel.slice(0, limit).forEach((v, i) => lines.push('| ' + (i + 1) + ' | ' + v.verdict + ' | ' + v.rule + ' | ' + v.key + ' | ' + fmt(v.value) + (v.lo != null ? ' [' + fmt(v.lo) + '-' + fmt(v.hi) + ', ' + v.k + ' in ' + Math.round(v.hours) + ' h]' : '') + ' | ' + v.why + ' |'));
+  lines.push('', 'AGAINST THE SHEET');
+  const R = ranked(out.verdicts.filter((v) => !v.rule.startsWith('feel-')));
   lines.push('| # | Verdict | Rule | Where | Value | Target | Why |', '|---|---|---|---|---|---|---|');
   R.slice(0, limit).forEach((v, i) => lines.push('| ' + (i + 1) + ' | ' + v.verdict + ' | ' + v.rule + ' | ' + v.key + ' | ' + fmt(v.value) + (v.lo != null ? ' [' + fmt(v.lo) + '-' + fmt(v.hi) + ', ' + v.k + ' in ' + Math.round(v.hours) + ' h]' : '')
     + ' | ' + (v.min != null ? '>= ' + v.min : '') + (v.min != null && v.max != null ? ', ' : '') + (v.max != null ? '<= ' + v.max : '') + ' | ' + v.why + ' |'));
@@ -326,6 +375,7 @@ if (isMain) {
   }
   const cells = existsSync(join(out, 'cells.jsonl')) ? readFileSync(join(out, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
   const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT));
+  for (const v of feelVerdicts(cells, await fitsOf(ROOT))) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
   for (const v of await blowVerdicts(ROOT, SHEET)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
   writeFileSync(join(out, 'grade.json'), JSON.stringify({ sheet: SHEET.source, cells: cells.length, ...graded }, null, 1));
   console.log('GRADE (' + SHEET.source + '), ' + cells.length + ' cells from ' + out + '\n' + report(graded, Number(arg('limit', '60'))));

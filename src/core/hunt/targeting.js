@@ -2,8 +2,8 @@
 // src/core/hunt/targeting.js — TARGET CHOICE (spec §3.2 #11-15; parity TG-01..09)
 //
 // Who each unit is after. A hero picks from the ENGAGED monsters (a monster is
-// engaged while it holds a target) in the order its Target setting gives,
-// element-aware (TG-03). A monster keeps its target until that target falls
+// engaged while it holds a target) in the order its Target setting gives
+// (no monster is immune to an element, Tyler 2026-11-06, so no element skips one). A monster keeps its target until that target falls
 // (it then turns on the pull leader, TG-05/06), a hero's attack peels it
 // (TG-07), or a tank Challenges it (TG-08).
 //
@@ -23,7 +23,7 @@
 import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.103';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.103';
 import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.103';
-import { elementPermille } from '../combat.js?v=0.2.103';
+import { elementPermille } from '../elements.js?v=0.2.103';
 import { cheb, dist2, los } from './grid.js?v=0.2.103';
 import { unitById, leaderOf } from './movement.js?v=0.2.103';
 import { makeEvent } from './events.js?v=0.2.103';
@@ -45,7 +45,7 @@ export const roleOf = (u) => (u && u.side === 'hero' && HUNT_ROLES[u.role]) || n
 /** The living monsters that hold a target, in id order. */
 export const engaged = (inst) => inst.world.units.filter((u) => u.side === 'mon' && u.alive && Number.isInteger(u.target));
 
-/** What a blow of `element` is worth against `unit`, in permille (0 = immune). Heroes take every element. */
+/** What a blow of `element` is worth against `unit`, in permille (core/elements.js; never 0). Heroes take every element in full. */
 export const elementOn = (unit, element) => (unit.side === 'mon' ? elementPermille(MONSTERS[unit.kind], element) : 1000);
 
 /** Can hero `u` hit monster `m` from where it stands? Melee: adjacent. Ranged: range + line of sight (TG-02). */
@@ -111,10 +111,10 @@ function outranked(inst, u, cur) {
   return engaged(inst).some((m) => m !== cur && cmp(m, cur) < 0);
 }
 
-/** The basic attack's target: the first in order it can hit that its element hurts, else the first it can hit (TG-03). */
+/** The basic attack's target: the first in order it can hit. */
 export function basicTarget(inst, u) {
   const inR = pickTargets(inst, u).filter((m) => inRange(inst, u, m));
-  return inR.find((m) => elementOn(m, u.element) > 0) || inR[0] || null;
+  return inR[0] || null;
 }
 
 function retarget(m, id, sc) {
@@ -254,7 +254,7 @@ export function chooseTargets(inst, sc) {
     if (cur && cur.alive && Number.isInteger(cur.target) && (inRange(inst, u, cur) || enRoute) && !outranked(inst, u, cur)) continue;
     const b = marks ? null : basicTarget(inst, u);
     const all = !b && (u === k || !leaderMoving) ? pickTargets(inst, u) : [];
-    const first = b || all.find((m) => elementOn(m, u.element) > 0) || all[0] || null;
+    const first = b || all[0] || null;
     const id = first ? first.id : null;
     /* A new mark is walked to at once, not after the last walk's re-aim clock (roles.js closeIn). */
     if (marks && id !== u.target) u.aiMs = 0;

@@ -23,12 +23,12 @@
 //   family       DISPLAY LABEL ONLY (the class's display name). Also the key
 //                of `G.stats.killsByFamily`, which is why FAMILY_ALIAS exists
 //                in legacy.js — see the fold note below.
-//   weaponWeak / weaponResist / elementWeak / elementResist / elementImmune
-//                THE SINGLE OVERRIDE. A row may diverge from its class on at
-//                most ONE axis (weapon or element). `auditRoster()` fails the
-//                smoke suite on two. Classes marked `elementPerMonster`
-//                (Dragon / Elemental / Extra Dimensional) REQUIRE an element
-//                profile, and supplying it is not an override.
+//   weaponWeak / weaponResist / elements
+//                THE SINGLE OVERRIDE: at most ONE axis (weapon or element);
+//                `auditRoster()` fails the smoke suite on two. `elementPerMonster`
+//                classes (Dragon / Elemental / Extra Dimensional) REQUIRE an
+//                element profile, which is not an override. `elements` = percent
+//                LESS taken per element, negative = more, never immune (2026-11-06).
 //   dropBonus    see the NEUTRAL_DROP_BONUS note below.
 //   tier/hp/atk/def/xp/gp
 //                must land inside `TIER_BANDS` in monster-classes.js, which
@@ -89,9 +89,9 @@ export const MONSTERS = {
   /* ══ Tier 1 — local threats ═══════════════════════════════════════════ */
 
   slime: { name: 'Slime', icon: '🟢', tier: 1, level: 2, cls: 'vermin', family: 'Vermin',
-    /* one override (element): a slime is the element-immune outlier — the
-       pure weapon-triangle check the class needed. */
-    elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
+    /* one override (element): a slime shrugs off half of every element, so the
+       weapon triangle is the better answer. Fire still burns it (Tyler 2026-11-06). */
+    elements: { ember: 50, frost: 50, poison: 50 },
     dropBonus: 1.15,
     hp: 8, atk: 2, def: 0, xp: 22, gp: [1, 3], speed: 2400,
     /* no skeleton, so no bones: its family's Hearth fuel (Tyler 2026-10-25, src/data/hearth.js) */
@@ -157,7 +157,7 @@ export const MONSTERS = {
     drops: [{ id: 'demon_shard', ch: .1 }, { id: 'coal', ch: .25 }, { id: 'rune_frag', ch: .08 },
       { id: 'apprentice_boots', ch: .0027, salvage: true }] },
   fire_elemental: { name: 'Fire Elemental', icon: '🔥', tier: 1, cls: 'elemental', family: 'Elemental',
-    elementWeak: 'frost', elementImmune: ['ember'],
+    elements: { ember: 50, frost: -15 },
     hp: 12, atk: 4, def: 1, xp: 11, gp: [2, 6],
     drops: [{ id: 'coal', ch: .5 }, { id: 'copper_ore', ch: .2 }, { id: 'hell_ember', ch: .005 },
       { id: 'apprentice_belt', ch: .003, salvage: true }] },
@@ -177,8 +177,8 @@ export const MONSTERS = {
     drops: [{ id: 'wheat', ch: .8 }, { id: 'silk_thread', ch: .2 }, { id: 'venom_sac', ch: .1 },
       { id: 'studded_belt', ch: .0032, salvage: true }] },
   ooze: { name: 'Ooze', icon: '🫧', tier: 2, cls: 'vermin', family: 'Vermin',
-    /* one override (element): immune to every element — the pure triangle check. */
-    elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
+    /* one override (element): half of every element, so the triangle is the better answer. */
+    elements: { ember: 50, frost: 50, poison: 50 },
     hp: 33, atk: 7, def: 3, xp: 31, gp: [5, 14],
     drops: [{ id: 'slime_gel', ch: .85 }, { id: 'bone_chips', ch: .3 },
       { id: 'iron_boots', ch: .0036, salvage: true }] },
@@ -229,19 +229,19 @@ export const MONSTERS = {
       { id: 'adept_boots', ch: .004, salvage: true }] },
   salamander: { name: 'Salamander', icon: '🦎', tier: 2, cls: 'dragon', family: 'Dragon',
     /* breathes Ember, so it fears Frost. */
-    elementWeak: 'frost', elementImmune: ['ember'],
+    elements: { ember: 50, frost: -15 },
     hp: 27, atk: 10, def: 2, xp: 40, gp: [7, 17],
     drops: [{ id: 'dragon_scale', ch: .3 }, { id: 'coal', ch: .35 }, { id: 'bones', ch: .7 },
       { id: 'studded_gloves', ch: .004, salvage: true }] },
   water_elemental: { name: 'Water Elemental', icon: '💧', tier: 2, cls: 'elemental', family: 'Elemental',
-    elementWeak: 'ember', elementImmune: ['frost'],
+    elements: { ember: -15, frost: 50 },
     hp: 30, atk: 9, def: 2, xp: 35, gp: [6, 16],
     drops: [{ id: 'trout', ch: .5 }, { id: 'herring', ch: .35 }, { id: 'magic_essence', ch: .18 },
       { id: 'adept_belt', ch: .004, salvage: true }] },
   air_elemental: { name: 'Air Elemental', icon: '🌀', tier: 2, cls: 'elemental', family: 'Elemental',
     /* one override (weapon): arrows pass straight through it. */
     weaponResist: ['sword', 'ranged'],
-    elementWeak: 'frost',
+    elements: { frost: -15 },
     hp: 24, atk: 11, def: 1, xp: 43, gp: [8, 19],
     drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .22 }, { id: 'normal_log', ch: .3 },
       { id: 'adept_gloves', ch: .0031, salvage: true }] },
@@ -319,12 +319,12 @@ export const MONSTERS = {
       { id: 'warlock_helmet', ch: .0004, lucky: true }] },
   wyrmling: { name: 'Wyrmling', icon: '🐉', tier: 3, cls: 'dragon', family: 'Dragon',
     /* breathes Frost, so it fears Ember. */
-    elementWeak: 'ember', elementImmune: ['frost'],
+    elements: { ember: -15, frost: 50 },
     hp: 61, atk: 20, def: 8, xp: 120, gp: [20, 50],
     drops: [{ id: 'dragon_scale', ch: .4 }, { id: 'bones', ch: 1 }, { id: 'big_bones', ch: .2 },
       { id: 'boarhide_helmet', ch: .0033, salvage: true }] },
   earth_elemental: { name: 'Earth Elemental', icon: '🪨', tier: 3, cls: 'elemental', family: 'Elemental',
-    elementWeak: 'frost', elementResist: ['poison'],
+    elements: { frost: -15, poison: 25 },
     hp: 74, atk: 15, def: 12, xp: 110, gp: [18, 45],
     drops: [{ id: 'iron_ore', ch: .6 }, { id: 'coal', ch: .45 }, { id: 'gold_ore', ch: .06 },
       { id: 'scholar_belt', ch: .0035, salvage: true }] },
@@ -347,9 +347,9 @@ export const MONSTERS = {
     hp: 140, atk: 34, def: 16, xp: 275, gp: [42, 95],
     drops: [{ id: 'bear_pelt', ch: .75 }, { id: 'bear_claw', ch: .35 }, { id: 'big_bones', ch: 1 }, { id: 'raw_bear_meat', ch: .6 }] },
   winter_wolf: { name: 'Winter Wolf', icon: '🐺', tier: 4, cls: 'mammal', family: 'Mammal',
-    /* one override (element): the coat is on the portrait, and Frost does
-       nothing. Mammal's Ember weakness is untouched. */
-    elementResist: ['frost'],
+    /* one override (element): the coat is on the portrait, and Frost is
+       blunted. Mammal's Ember weakness is untouched. */
+    elements: { ember: -15, frost: 25 },
     hp: 132, atk: 35, def: 15, xp: 288, gp: [48, 106],
     drops: [{ id: 'wolf_pelt', ch: 1 }, { id: 'dire_fang', ch: .45 }, { id: 'alpha_fang', ch: .03 }, { id: 'raw_wolf_meat', ch: .8 },
       { id: 'snakeskin_belt', ch: .003, salvage: true }] },
@@ -381,9 +381,9 @@ export const MONSTERS = {
     drops: [{ id: 'magic_essence', ch: .9 }, { id: 'rune_frag', ch: .5 }, { id: 'cracked_spellstone', ch: .04 },
       { id: 'maple_wand', ch: .0015 }, { id: 'warlock_gloves', ch: .003, salvage: true }] },
   conjurer: { name: 'Conjurer', icon: '🔮', tier: 4, cls: 'human', family: 'Human',
-    /* one override (element): he casts what he is immune to — the first
+    /* one override (element): he casts the fire he half shrugs off, the first
        "bring the other element" lesson. */
-    elementImmune: ['ember'],
+    elements: { ember: 50, poison: -15 },
     hp: 110, atk: 36, def: 14, xp: 312, gp: [54, 118],
     drops: [{ id: 'magic_essence', ch: .7 }, { id: 'hell_ember', ch: .03 }, { id: 'rune_frag', ch: .45 },
       { id: 'maple_spellbook', ch: .0014 }, { id: 'warlock_boots', ch: .003, salvage: true }] },
@@ -413,7 +413,7 @@ export const MONSTERS = {
     hp: 122, atk: 39, def: 15, xp: 330, gp: [58, 130],
     drops: [{ id: 'demon_shard', ch: .45 }, { id: 'hell_ember', ch: .035 }, { id: 'big_bones', ch: 1 }, { id: 'coal', ch: .6 }] },
   wyvern: { name: 'Wyvern', icon: '🐲', tier: 4, cls: 'dragon', family: 'Dragon',
-    elementWeak: 'frost', elementImmune: ['ember'],
+    elements: { ember: 50, frost: -15 },
     hp: 135, atk: 34, def: 18, xp: 296, gp: [51, 112],
     drops: [{ id: 'dragon_scale', ch: .6 }, { id: 'dragon_bones', ch: .35 }, { id: 'big_bones', ch: 1 },
       { id: 'snakeskin_boots', ch: .003, salvage: true }] },
@@ -421,12 +421,12 @@ export const MONSTERS = {
     /* one override (weapon): no wings, so the class is not a bow-only tax.
        It breathes nothing, so its element is Poison (art sheet §0.2). */
     weaponWeak: 'hammer', weaponResist: [],
-    elementWeak: 'poison',
+    elements: { poison: -15 },
     hp: 158, atk: 30, def: 22, xp: 278, gp: [47, 102],
     drops: [{ id: 'dragon_scale', ch: .5 }, { id: 'iron_ore', ch: .6 }, { id: 'mithril_ore', ch: .1 }, { id: 'coal', ch: .5 },
       { id: 'snakeskin_gloves', ch: .003, salvage: true }] },
   ice_elemental: { name: 'Ice Elemental', icon: '❄️', tier: 4, cls: 'elemental', family: 'Elemental',
-    elementWeak: 'ember', elementImmune: ['frost'],
+    elements: { ember: -15, frost: 50 },
     hp: 128, atk: 33, def: 17, xp: 270, gp: [46, 100],
     drops: [{ id: 'frostfin', ch: .5 }, { id: 'magic_essence', ch: .5 }, { id: 'mithril_ore', ch: .08 }] },
   watchknight: { name: 'Watchknight', icon: '🛡️', tier: 4, cls: 'construct', family: 'Construct',
@@ -435,7 +435,7 @@ export const MONSTERS = {
     drops: [{ id: 'steel_bar', ch: .5 }, { id: 'iron_fitting', ch: .6 }, { id: 'steel_helm', ch: .02 }, { id: 'brute_plate', ch: .25 }] },
   void_mote: { name: 'Void Mote', icon: '🌑', tier: 4, cls: 'extradimensional', family: 'Extra Dimensional',
     /* hidden element — the bestiary reveals it at 25 kills (PROG-01). */
-    elementWeak: 'ember', elementResist: ['frost', 'poison'],
+    elements: { ember: -15, frost: 25, poison: 25 },
     hp: 104, atk: 38, def: 13, xp: 326, gp: [57, 126],
     drops: [{ id: 'void_chitin', ch: .3 }, { id: 'magic_essence', ch: .6 }, { id: 'rune_frag', ch: .4 },
       { id: 'void_censer', ch: .0005, lucky: true }] },
@@ -444,7 +444,7 @@ export const MONSTERS = {
 
   carrion_swarm: { name: 'Carrion Swarm', icon: '🪰', tier: 5, cls: 'vermin', family: 'Vermin',
     /* one override (element): dense enough that only cold thins it. */
-    elementResist: ['ember', 'poison'],
+    elements: { ember: 25, frost: -15, poison: 50 },
     hp: 198, atk: 62, def: 24, xp: 560, gp: [112, 236],
     drops: [{ id: 'plague_ichor', ch: .7 }, { id: 'swarm_heart', ch: .04 }, { id: 'venom_sac', ch: .6 }] },
   panther: { name: 'Night Panther', icon: '🐈‍⬛', tier: 5, cls: 'mammal', family: 'Mammal',
@@ -465,16 +465,16 @@ export const MONSTERS = {
   dryad: { name: 'Dryad', icon: '🌳', tier: 5, cls: 'plant', family: 'Plant',
     /* one override (element): green wood does not burn — she has NO element
        weakness at all, which is why the art carries no accent. */
-    elementWeak: null, elementResist: ['ember', 'poison'],
+    elements: { ember: 25, poison: 25 },
     hp: 222, atk: 57, def: 30, xp: 548, gp: [110, 232],
     drops: [{ id: 'yew_log', ch: .7 }, { id: 'moonbloom', ch: .5 }, { id: 'runewood_log', ch: .1 }, { id: 'goldenroot', ch: .55 }] },
   warband_captain: { name: 'Warband Captain', icon: '🛡️', tier: 5, cls: 'humanoid', family: 'Humanoid',
     hp: 230, atk: 54, def: 34, xp: 540, gp: [110, 225],
     drops: [{ id: 'warlord_badge', ch: .4 }, { id: 'captain_medal', ch: .12 }, { id: 'rune_sword', ch: .006 }] },
   frost_giant: { name: 'Frost Giant', icon: '🧊', tier: 5, cls: 'humanoid', family: 'Humanoid',
-    /* one override (element): rime in the braids — Frost does nothing, Ember
+    /* one override (element): rime in the braids. Frost is blunted, Ember
        is the answer. The Ember arrow's first genuinely worth-it target. */
-    elementWeak: 'ember', elementResist: ['frost'],
+    elements: { ember: -15, frost: 25 },
     hp: 248, atk: 59, def: 35, xp: 608, gp: [124, 256],
     drops: [{ id: 'troll_hide', ch: .8 }, { id: 'big_bones', ch: 1 }, { id: 'mithril_ore', ch: .3 }, { id: 'frostfin', ch: .4 },
       { id: 'wyvernhide_gloves', ch: .0025, salvage: true }] },
@@ -516,12 +516,12 @@ export const MONSTERS = {
     drops: [{ id: 'demon_shard', ch: .6 }, { id: 'razor_claw', ch: .35 }, { id: 'hell_ember', ch: .05 }] },
   drake: { name: 'Drake', icon: '🐉', tier: 5, cls: 'dragon', family: 'Dragon',
     /* breathes neither, so Poison is its answer (art sheet §0.2). */
-    elementWeak: 'poison',
+    elements: { poison: -15 },
     hp: 234, atk: 58, def: 34, xp: 572, gp: [116, 240],
     drops: [{ id: 'dragon_scale', ch: .8 }, { id: 'dragon_bones', ch: .6 }, { id: 'mithril_ore', ch: .3 }, { id: 'steel_bar', ch: .4 },
       { id: 'yew_bow', ch: .0006, lucky: true }] },
   magma_elemental: { name: 'Magma Elemental', icon: '🌋', tier: 5, cls: 'elemental', family: 'Elemental',
-    elementWeak: 'frost', elementImmune: ['ember'],
+    elements: { ember: 50, frost: -15 },
     hp: 226, atk: 60, def: 31, xp: 580, gp: [117, 242],
     drops: [{ id: 'hell_ember', ch: .3 }, { id: 'emberstone_ore', ch: .5 }, { id: 'coal', ch: .9 }, { id: 'ember_bar', ch: .15 }] },
   gargoyle: { name: 'Gargoyle', icon: '🗿', tier: 5, cls: 'construct', family: 'Construct',
@@ -529,12 +529,12 @@ export const MONSTERS = {
     drops: [{ id: 'iron_fitting', ch: .7 }, { id: 'mithril_ore', ch: .35 }, { id: 'keystone', ch: .05 }, { id: 'steel_bar', ch: .45 },
       { id: 'rune_belt', ch: .0018, salvage: true }] },
   shadow_creeper: { name: 'Shadow Creeper', icon: '🕸️', tier: 5, cls: 'extradimensional', family: 'Extra Dimensional',
-    elementWeak: 'frost', elementResist: ['ember', 'poison'],
+    elements: { ember: 25, frost: -15, poison: 25 },
     hp: 190, atk: 48, def: 26, xp: 475, gp: [90, 190],
     drops: [{ id: 'shadow_thread', ch: .45 }, { id: 'silk_thread', ch: .6 }, { id: 'void_chitin', ch: .018 },
       { id: 'shadowsilk_cape', ch: .0005, lucky: true }] },
   starhusk: { name: 'Starhusk', icon: '✨', tier: 5, cls: 'extradimensional', family: 'Extra Dimensional',
-    elementWeak: 'frost', elementResist: ['ember', 'poison'],
+    elements: { ember: 25, frost: -15, poison: 25 },
     hp: 208, atk: 66, def: 26, xp: 628, gp: [130, 272],
     drops: [{ id: 'void_chitin', ch: .4 }, { id: 'shadow_thread', ch: .5 }, { id: 'ancient_rune', ch: .12 }, { id: 'grave_dust', ch: .5 },
       { id: 'sorcerer_belt', ch: .0025, salvage: true }] },
@@ -586,30 +586,30 @@ export const MONSTERS = {
     drops: [{ id: 'demon_shard', ch: 1 }, { id: 'hell_ember', ch: .3 }, { id: 'death_steel', ch: .35 }, { id: 'ember_bar', ch: .4 }, { id: 'hollow_sigil', ch: .04 }] },
   dragon: { name: 'Green Dragon', icon: '🐲', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,
     /* DEC-DRA-01 (Tyler: "Ember"): its breath is EMBER, so it fears Frost. */
-    elementWeak: 'frost', elementImmune: ['ember'],
+    elements: { ember: 50, frost: -15 },
     dropBonus: 1.15,
     hp: 520, atk: 105, def: 62, xp: 1250, gp: [320, 700],
     drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .5 }, { id: 'dragon_gem', ch: .02 }, { id: 'ancient_claw', ch: .08 }, { id: 'marrow_cookbook', ch: .005 }] },
   draconia: { name: 'Draconia', icon: '🐉', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,
     /* breathes Frost: Frost-resistant, Ember-weak. Ashwing's mirror. */
-    elementWeak: 'ember', elementResist: ['frost'],
+    elements: { ember: -15, frost: 25 },
     hp: 484, atk: 99, def: 55, xp: 1198, gp: [300, 646],
     drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .8 }, { id: 'dragon_gem', ch: .05 }, { id: 'ancient_claw', ch: .2 },
       { id: 'dragonrib_bow', ch: .0008, lucky: true }] },
   ashwing: { name: 'Ashwing', icon: '🔥', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,
     /* Draconia's opposite — one weekly rotation slot, two opposite loadouts. */
-    elementWeak: 'frost', elementResist: ['ember'],
+    elements: { ember: 25, frost: -15 },
     hp: 472, atk: 101, def: 53, xp: 1205, gp: [304, 656],
     drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .8 }, { id: 'hell_ember', ch: .2 }, { id: 'ember_bar', ch: .5 }, { id: 'dragon_gem', ch: .05 }] },
   storm_elemental: { name: 'Storm Elemental', icon: '⚡', tier: 6, cls: 'elemental', family: 'Elemental',
     /* the one monster that resists two elements; its weakness is the
        unpopular third, which is exactly the job Poison needs. */
-    elementWeak: 'poison', elementResist: ['ember', 'frost'],
+    elements: { ember: 25, frost: 25, poison: -15 },
     hp: 392, atk: 92, def: 44, xp: 1085, gp: [268, 548],
     drops: [{ id: 'magic_essence', ch: 1 }, { id: 'ancient_rune', ch: .3 }, { id: 'dawnstone_ore', ch: .1 }, { id: 'rune_bar', ch: .2 },
       { id: 'runewood_staff', ch: .0007, lucky: true }] },
   elder_cinder: { name: 'Elder Cinder', icon: '🕯️', tier: 6, cls: 'elemental', family: 'Elemental', boss: true,
-    elementWeak: 'frost', elementImmune: ['ember'],
+    elements: { ember: 50, frost: -15 },
     hp: 440, atk: 96, def: 48, xp: 1130, gp: [278, 578],
     drops: [{ id: 'hell_ember', ch: .6 }, { id: 'ember_bar', ch: .7 }, { id: 'emberstone_ore', ch: .9 }, { id: 'dawnstone_ore', ch: .08 }, { id: 'ancient_rune', ch: .25 },
       { id: 'emberfang_blade', ch: .0008, lucky: true }] },
@@ -617,19 +617,19 @@ export const MONSTERS = {
     hp: 518, atk: 80, def: 62, xp: 1075, gp: [264, 544],
     drops: [{ id: 'rune_bar', ch: .35 }, { id: 'mithril_bar', ch: .7 }, { id: 'keystone', ch: .25 }, { id: 'iron_fitting', ch: 1 }, { id: 'death_steel', ch: .2 }] },
   void_parasite: { name: 'Void Parasite', icon: '🪱', tier: 6, cls: 'extradimensional', family: 'Extra Dimensional',
-    elementWeak: 'poison', elementResist: ['ember', 'frost'],
+    elements: { ember: 25, frost: 25, poison: -15 },
     hp: 340, atk: 82, def: 42, xp: 900, gp: [210, 420],
     drops: [{ id: 'void_chitin', ch: .55 }, { id: 'plague_ichor', ch: .35 }, { id: 'void_core', ch: .015 },
       { id: 'archmage_boots', ch: .0017, salvage: true }] },
   the_silence: { name: 'The Silence', icon: '🌑', tier: 6, cls: 'extradimensional', family: 'Extra Dimensional',
     /* one override (weapon): arrows find nothing to hit. */
     weaponResist: ['ranged'],
-    elementWeak: 'poison', elementResist: ['ember', 'frost'],
+    elements: { ember: 25, frost: 25, poison: -15 },
     hp: 364, atk: 99, def: 36, xp: 1170, gp: [292, 614],
     drops: [{ id: 'void_chitin', ch: .7 }, { id: 'void_core', ch: .04 }, { id: 'shadow_thread', ch: .6 }, { id: 'hollow_sigil', ch: .05 }] },
   the_unlit: { name: 'The Unlit', icon: '⬛', tier: 6, cls: 'extradimensional', family: 'Extra Dimensional', boss: true,
     /* the endgame's actual final boss, which the game did not have. */
-    elementWeak: 'ember', elementResist: ['frost', 'poison'],
+    elements: { ember: -15, frost: 25, poison: 25 },
     hp: 508, atk: 104, def: 59, xp: 1248, gp: [318, 698],
     drops: [{ id: 'void_core', ch: .12 }, { id: 'void_chitin', ch: 1 }, { id: 'hollow_sigil', ch: .1 }, { id: 'ancient_rune', ch: .5 }, { id: 'dawnstone_ore', ch: .15 }] },
 
@@ -663,7 +663,7 @@ export const MONSTERS = {
       { id: 'barrowking_mantle', ch: .0043, champion: true }] },
   frost_jarl: { name: 'The Frost Jarl', icon: '🧊', tier: 5, cls: 'humanoid', family: 'Humanoid', champion: true,
     /* one override (element), the same as the giants he rules: Ember answers. */
-    elementWeak: 'ember', elementResist: ['frost'],
+    elements: { ember: -15, frost: 25 },
     hp: 360, atk: 70, def: 38, xp: 880, gp: [210, 430],
     drops: [{ id: 'troll_hide', ch: 1 }, { id: 'big_bones', ch: 1 }, { id: 'mithril_ore', ch: .5 }, { id: 'frostfin', ch: .5 },
       { id: 'jarls_rimetorc', ch: .0048, champion: true }] },
@@ -680,8 +680,8 @@ export const MONSTERS = {
     drops: [{ id: 'rat_tail', ch: .9, band: 'common' }, { id: 'bones', ch: .35, band: 'common' }, { id: 'rat_incisor', ch: .08, band: 'uncommon' },
       { id: 'bronze_platelegs', ch: .03, band: 'scarce' }, { id: 'leather_pants', ch: .03, band: 'scarce' }, { id: 'apprentice_pants', ch: .03, band: 'scarce' }] },
   sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
-    /* one override (element): the sump shrugs off every element. */
-    elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
+    /* one override (element): the sump shrugs off half of every element. */
+    elements: { ember: 50, frost: 50, poison: 50 },
     hp: 50, atk: 4, def: 0, xp: 141, gp: [4, 14], speed: 2400,
     drops: [{ id: 'slime_gel', ch: .95, band: 'common' }, { id: 'lamp_jelly', ch: .35, band: 'common' }, { id: 'sump_membrane', ch: .08, band: 'uncommon' },
       { id: 'bronze_platebody', ch: .05, band: 'scarce' }, { id: 'leather_body', ch: .05, band: 'scarce' }, { id: 'apprentice_body', ch: .05, band: 'scarce' },
@@ -691,8 +691,8 @@ export const MONSTERS = {
     drops: [{ id: 'bat_wing', ch: .7, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'culvert_bat_fang', ch: .08, band: 'uncommon' },
       { id: 'iron_helm', ch: .04, band: 'scarce' }, { id: 'studded_helmet', ch: .04, band: 'scarce' }, { id: 'adept_helmet', ch: .04, band: 'scarce' }] },
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
-    /* one override (element): venomous, so poison is a resist, not an immunity. */
-    elementResist: ['poison'], elementImmune: [],
+    /* one override (element): venomous, so poison is only a quarter off, not the vermin half. */
+    elements: { frost: -15, poison: 25 },
     hp: 90, atk: 9, def: 6, xp: 704, gp: [30, 74], speed: 3600,
     drops: [{ id: 'silk_thread', ch: .3, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'cistern_venom_gland', ch: .1, band: 'uncommon' }, { id: 'longbow', ch: .0055, band: 'rare' }, { id: 'oak_crossbow', ch: .0055, band: 'rare' }] },
   kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
@@ -703,7 +703,7 @@ export const MONSTERS = {
       { id: 'iron_hatchets', ch: .0037, band: 'rare' }, { id: 'iron_warhammer', ch: .0037, band: 'rare' }] },
   rat_king: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
-    elementResist: ['ember'],
+    elements: { ember: 25, frost: -15, poison: 50 },
     hp: 600, atk: 14, def: 4, xp: 3840, gp: [124, 247], speed: 2800,
     drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .017, band: 'rare' }, { id: 'rat_kings_knot', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .0015, band: 'trophy' }] },
 
@@ -773,7 +773,7 @@ export const MONSTERS = {
       { id: 'steel_hatchets', ch: .0124, band: 'rare' }] },
   chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
-    elementResist: ['frost'],
+    elements: { frost: 25, poison: -15 },
     hp: 1100, atk: 29, def: 28, xp: 7920, gp: [100, 227], speed: 2800,
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .05, band: 'scarce' }, { id: 'boarhide_body', ch: .05, band: 'scarce' }, { id: 'scholar_body', ch: .05, band: 'scarce' }, { id: 'war_crown', ch: .016, band: 'rare' },
@@ -782,13 +782,13 @@ export const MONSTERS = {
 
   /* ══ THE CALLED BOSSES (src/data/boss-calls.js): a stronger copy, in one room a party pays to enter. A CALLED ROW PAYS NOTHING: xp 0, gp [0, 0], no drops (yieldOf reads a yieldPm of 0 as FULL yield; tests/boss-call.mjs). Stats are the only dials, through the normal paths: measured on tools/balance-sim/boss-call-table.mjs. The low `baseAcc` takes his to-hit off the 85% ceiling, so Defense and a shield count. Art: monster-art.js HUNT_ART_ALIAS. ══ */
   rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, boss: true,
-    elementResist: ['ember'],
+    elements: { ember: 25, frost: -15, poison: 50 },
     hp: 2000, atk: 42, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1600 } },
   /* HIS ADDS (hunt-grounds.js `adds`, boss-phases.js): the ground's own Drain Rat, called too, so a wave pays what he pays: nothing. No boss: a slot's "target is a boss" tells them apart. */
   drain_rat_called: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, add: true,
     hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },
   chief_coppercap_called: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, boss: true,
-    elementResist: ['frost'],
+    elements: { frost: 25, poison: -15 },
     hp: 3500, atk: 130, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
   /* His adds, the Warrens' own diggers: called too, no boss, as the King's. His crew, under him: lower Level, softer, surer blows. While one stands he takes 80% of a blow
      (`guardPm`, boss-phases.js): burning him through them lost to the careless four (53% before), and Target on Lowest HP is the add wave's answer (board, 2026-11-05). */
@@ -816,7 +816,7 @@ export const MONSTERS = {
       { id: 'mosslight_clump', ch: .0013, band: 'rare' }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): soaked from the spring run, so fire hisses off it. */
-    elementResist: ['ember'],
+    elements: { ember: 25, poison: -15 },
     hp: 70, atk: 18, baseAcc: 0.8, def: 10, xp: 360, gp: [14, 34], speed: 3000,
     drops: [{ id: 'copper_ore', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'sluice_crust', ch: .08, band: 'uncommon' },
       { id: 'iron_platebody', ch: .05, band: 'scarce' }, { id: 'studded_body', ch: .05, band: 'scarce' }, { id: 'adept_body', ch: .05, band: 'scarce' }] },
@@ -827,7 +827,7 @@ export const MONSTERS = {
       { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' }] },
   brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
     /* the Meadowbrook's bruiser: the wet coat sheds frost, fire takes it. The Keep and Trophy Room ask for its Pelt (Andy's report), about an hour's errand, so the Claw, a pie's trophy, rides a Rare row (drop-tables big-pull). */
-    elementWeak: 'ember', elementResist: ['frost'],
+    elements: { ember: -15, frost: 25 },
     hp: 74, atk: 18, baseAcc: 0.8, def: 8, xp: 420, gp: [14, 36], speed: 3000,
     drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_pelt', ch: .18, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }, { id: 'bear_claw', ch: .0033, band: 'rare' }] },
 
@@ -850,7 +850,7 @@ export const MONSTERS = {
       { id: 'iron_belt', ch: .003, band: 'rare' }, { id: 'studded_belt', ch: .003, band: 'rare' }, { id: 'adept_belt', ch: .003, band: 'rare' }] },
   barn_spider: { name: 'Barn Spider', icon: '🕷️', tier: 2, level: 13, cls: 'vermin', family: 'Vermin',
     /* the tank: slow and webbed in; fire takes the web */
-    elementWeak: 'ember',
+    elements: { ember: -15, poison: 50 },
     hp: 30, atk: 7, def: 4, xp: 150, gp: [4, 12], speed: 2600,
     drops: [{ id: 'silk_thread', ch: .4, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'loft_web', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .0165, band: 'scarce' }, { id: 'studded_pants', ch: .0165, band: 'scarce' }, { id: 'adept_pants', ch: .0165, band: 'scarce' },

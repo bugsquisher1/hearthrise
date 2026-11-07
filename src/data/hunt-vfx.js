@@ -45,7 +45,7 @@ export const EVENT_FX = Object.freeze({
   rare_roll: null,   // a party's roll: its rare_drop (same instant, the winner) plays the sparkle; the roll is a log line
   ended: null, death: null, slot_dry: null, pack_reset: null, pull: null, respawn: null, wipe: null, boss_phase: null,
   miss: null,  // GLANCE_FX, below
-  target: null, immune: null, status_on: null, status_off: null,
+  target: null, status_on: null, status_off: null,
   eat: null, drink: null, xp: null, xp_group: null, rule_stop: null, shot: null, rule_wait: null,
 });
 

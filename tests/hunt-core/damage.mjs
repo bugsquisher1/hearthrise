@@ -11,7 +11,7 @@ const src = (M, o) => H(M, 90, 1, 1, 'ranger', o);
    snapshot max hit is 20). Every blow lands at its max hit (the dice). */
 function shotFixture(M, bag, ammo, stored, o) {
   const x = o || {};
-  const id = Object.keys(M.MONSTERS).find((k) => M.C.defenceReduction(M.MONSTERS[k]) === 0 && !(M.MONSTERS[k].elementImmune || []).length);
+  const id = Object.keys(M.MONSTERS).find((k) => M.C.defenceReduction(M.MONSTERS[k]) === 0 && Object.values(M.MONSTERS[k].elements).every((p) => p < 0));
   const inst = fight(M, [H(M, 1, 12, 3, x.role || 'ranger', Object.assign({ target: 2, maxHit: 20 }, x.unit || {})), E(M, 2, 0, 13, 3, 1, { kind: id, hp: 100000, maxHp: 100000 })]);
   const hs = M.AR.newHuntSession({ id: 'dm', huntFromMs: 0, bag, purse: x.purse ?? 1000, goldFloor: 0,
     basics: { plain_barbed_arrows: { kind: 'ammo', price: 2, heals: 0, mana: 0, partner: 'barbed_arrows' },
@@ -85,26 +85,27 @@ const cases = {
     if (killXp(null) !== xp) return 'a Normal kill pays ' + killXp(null) + ', the row says ' + xp;
     return killXp(T) === Math.round((xp * T.xpPm) / 1000) ? null : 'a Deadly kill pays ' + killXp(T) + ', the tier says ' + Math.round((xp * T.xpPm) / 1000);
   },
-  /* contract §1.5 (today's element profile): weak pays the weakness bonus, immune takes 0, neutral pays 1x. */
-  'weak-resist-immune': (M) => {
-    const weakId = Object.keys(M.MONSTERS).find((id) => M.MONSTERS[id].elementWeak && M.C.defenceReduction(M.MONSTERS[id]) === 0
-      && !(M.MONSTERS[id].elementImmune || []).length);
+  /* contract §1.5 (the element profile, a percentage each: Tyler 2026-11-06): a weakness pays its share more, a resist
+     its share less, a blow with no element is untouched, and nothing is immune (the slime takes half of an ember blow). */
+  'weak-resist-half': (M) => {
+    const weakId = Object.keys(M.MONSTERS).find((id) => M.C.defenceReduction(M.MONSTERS[id]) === 0
+      && Object.values(M.MONSTERS[id].elements).some((p) => p < 0));
     if (!weakId) return 'fixture: no monster with an element weakness';
-    const el = M.MONSTERS[weakId].elementWeak;
+    const [el, pct] = Object.entries(M.MONSTERS[weakId].elements).find(([, p]) => p < 0);
     const t = () => E(M, 2, 0, 12, 3, 1, { kind: weakId, hp: 1000, maxHp: 1000 });
     const inst = fight(M, []);
     const weak = M.damage.hurt(inst, t(), 100, src(M), el, null).dmg;
-    const want = 115; /* elements.js ELEMENT_BONUS.damage 1.15 */
+    const want = 100 - pct;
     if (weak !== want) return weakId + ' weak to ' + el + ': 100 dealt ' + weak + ', expected ' + want;
     if (M.damage.hurt(inst, t(), 100, src(M), null, null).dmg !== 100) return 'a blow with no element was changed';
-    const slime = E(M, 3, 0, 12, 3, 1, { kind: 'slime', hp: 8, maxHp: 8 });
+    if (M.MONSTERS.slime.elements.ember !== 50 || M.C.defenceReduction(M.MONSTERS.slime)) return 'fixture: the slime is ' + JSON.stringify(M.MONSTERS.slime.elements);
+    const slime = E(M, 3, 0, 12, 3, 1, { kind: 'slime', hp: 800, maxHp: 800 });
     const r = M.damage.hurt(inst, slime, 100, src(M), 'ember', null);
-    return r.immune && r.dmg === 0 && slime.hp === 8 ? null : 'the slime is immune to ember and took ' + r.dmg;
+    return r.dmg === 50 && slime.hp === 750 && !('immune' in r) ? null : 'the slime took ' + JSON.stringify(r) + ' of a 100 ember blow, want 50';
   },
   /* The monster's defence takes combat.js defenceReduction off every blow (one source with playerCombatRolls). */
   'def-reduction': (M) => {
-    const ids = Object.keys(M.MONSTERS).filter((id) => !(M.MONSTERS[id].elementImmune || []).length);
-    const id = ids.sort((a, b) => M.C.defenceReduction(M.MONSTERS[b]) - M.C.defenceReduction(M.MONSTERS[a]))[0];
+    const id = Object.keys(M.MONSTERS).sort((a, b) => M.C.defenceReduction(M.MONSTERS[b]) - M.C.defenceReduction(M.MONSTERS[a]))[0];
     const red = M.C.defenceReduction(M.MONSTERS[id]);
     if (red < 1) return 'fixture: no monster whose defence reduces a blow';
     const m = E(M, 2, 0, 12, 3, 1, { kind: id, hp: 1000, maxHp: 1000 });
@@ -308,7 +309,7 @@ const cases = {
      passed over and the arrows behind it fire; a whetstone worn in a bow's ammo slot is no shot; a staff never
      shoots an arrow slot (its basic spends mana, never the arrow or a rune: Tyler 2026-10-23). */
   'no-shot-the-weapon-cannot-loose': (M) => {
-    const id = Object.keys(M.MONSTERS).find((k) => M.C.defenceReduction(M.MONSTERS[k]) === 0 && !(M.MONSTERS[k].elementImmune || []).length);
+    const id = Object.keys(M.MONSTERS).find((k) => M.C.defenceReduction(M.MONSTERS[k]) === 0 && Object.values(M.MONSTERS[k].elements).every((p) => p < 0));
     const atk = (item) => ({ action: { type: 'attack_with_item', id: item }, conditions: [], join: 'and' });
     const one = (role, slots, ammo, bag, unit) => {
       const inst = fight(M, [H(M, 1, 12, 3, role, Object.assign({ target: 2, maxHit: 20 }, unit || {})), E(M, 2, 0, 15, 3, 1, { kind: id, hp: 100000, maxHp: 100000 })]);
@@ -332,7 +333,7 @@ const cases = {
      shot ahead of the Bronze he wore. Carried stock first: the worn ammo, then the bar's ammo in bar order; the store
      only once everything carried is gone, in that same order (the worn ammo's partner first). */
   'worn-ammo-before-the-store': (M) => {
-    const id = Object.keys(M.MONSTERS).find((k) => M.C.defenceReduction(M.MONSTERS[k]) === 0 && !(M.MONSTERS[k].elementImmune || []).length);
+    const id = Object.keys(M.MONSTERS).find((k) => M.C.defenceReduction(M.MONSTERS[k]) === 0 && Object.values(M.MONSTERS[k].elements).every((p) => p < 0));
     const atk = (item) => ({ action: { type: 'attack_with_item', id: item }, conditions: [], join: 'and' });
     const store = (sid, partner) => ({ [sid]: { kind: 'ammo', price: 1, heals: 0, mana: 0, partner } });
     /* n swings; after each, what the bag holds and the store sold (the default swing emits no shot event: stock is the record) */
@@ -406,8 +407,8 @@ const mutants = [
     edits: [[D, 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def - (t.heroLv < 32 ? 30 : 0)), monsterMaxHit(blowRow));']] },
   { name: 'the 11-02 term comes back: atk x 1.05 per Level under the floor', case: 'same-blow-at-any-level',
     edits: [[D, 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'const foe = Object.assign({}, blowRow, { atk: blowRow.atk * (1 + 0.05 * Math.max(0, 32 - (t.heroLv || 32))) }); swing(inst, sc, u, t, monsterAccuracy(foe, t.def), monsterMaxHit(foe));']] },
-  { name: 'the element is ignored', case: 'weak-resist-immune', edits: [[D, '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? 1000 : 1000;']] },
-  { name: 'immune still takes damage', case: 'weak-resist-immune', edits: [[D, '  if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };', '']] },
+  { name: 'the element is ignored', case: 'weak-resist-half', edits: [[D, '  const el = elementOn(target, element);', '  const el = 1000;']] },
+  { name: 'a slime is immune to ember again', case: 'weak-resist-half', edits: [[D, '  const el = elementOn(target, element);', "  const el = element === 'ember' && target.kind === 'slime' ? 0 : elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };"]] },
   { name: 'defence is ignored', case: 'def-reduction', edits: [[D, " - defenceReduction(MONSTERS[target.kind]);", ';']] },
   { name: 'the dealer\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(source).dealt) / 1000);\n', '']] },
   { name: 'the target\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(target).taken) / 1000);\n', '']] },
@@ -427,7 +428,7 @@ const mutants = [
   { name: 'no dodge roll', case: 'armour-dodge', edits: [[D, '  if (dodgePm > 0 && sc.rng.chance(dodgePm / 1000)) {', '  if (false) {']] },
   { name: 'a status tick is dodged', case: 'armour-dodge', edits: [[D, ' && !(ability && ability.dot) ?', ' ?']] },
   { name: 'dodge read as percent', case: 'armour-dodge', edits: [[D, '  if (dodgePm > 0 && sc.rng.chance(dodgePm / 1000)) {', '  if (dodgePm > 0 && sc.rng.chance(dodgePm / 100)) {']] },
-  { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}),", '      element: element || null, ...(crit ? { crit: true } : {}),']] },
+  { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "    ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}),", '    element: element || null, ...(crit ? { crit: true } : {}),']] },
   { name: 'a killed hero gets back up', case: 'kill-hand-off', edits: [['src/core/hunt/pull-cycle.js', "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.spot = null;", "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.alive = true; u.hp = 1; u.spot = null;"]] },
   { name: 'Melee swings on the move', case: 'ranged-fires-on-move', edits: [[D, '    if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;', '    if (!row || !inRange(inst, u, t)) continue;']] },
   { name: 'a shot is priced by the loaded ammo, not the item it spent', case: 'blow-priced-by-the-item-spent',

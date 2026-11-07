@@ -230,7 +230,7 @@ export function validate() {
     if (['ally', 'self'].includes(r.target) && !r.heal && !(Number.isInteger(r.shield) && r.shield > 0)) bad('a friendly target with no heal and no shield');
     if (['ally', 'self'].includes(r.target) && r.heal && r.shield !== undefined) bad('a friendly target heals or shields, never both');
     if (r.target === 'party' && !r.heal) bad('a heal target with no heal');
-    /* One vocabulary (elements.js): a name outside it would match no weakness, resist or immunity. */
+    /* One vocabulary (elements.js): a name outside it would match no monster's element profile. */
     if ('element' in r && !isElement(r.element)) bad('unknown element ' + r.element);
     /* No ability may name a missing item (spec §1.2): an active rune is a carried supply line of a rune family. */
     if (r.rune && r.active && !(SUPPLIES[r.rune] && SUPPLIES[r.rune].kind === 'ammo' && isRune(ITEMS[r.rune]))) bad('rune ' + r.rune + ' is not a carried rune line');

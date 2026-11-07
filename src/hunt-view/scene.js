@@ -283,7 +283,6 @@ export function createHuntScene(o) {
       case 'dmg': if (ev.amount === 0 && isHero(ev.t)) glance(ev, start); else num(ev.t, ev.amount, hit(ev, start)); break;
       case 'status_tick': if (Number.isFinite(ev.amount)) num(ev.t, ev.amount, start); break;
       case 'miss': glance(ev, start); break;
-      case 'immune': addFloat(ev.t, 'miss', 'immune', 'miss', start); swing.set(ev.u, { t: ev.t, at: start }); break;
       case 'heal': addFloat(ev.t, 'heal', '+' + ev.amount, 'heal', start); break;
       case 'cast': {
         const r = CAST_FX.ability[ev.ability] || CAST_FX.role[roleOf(ev.u)];

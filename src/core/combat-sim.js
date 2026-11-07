@@ -183,6 +183,22 @@ function endMember(m, why, atMs, world, out) {
 }
 
 /**
+ * THE UNIT BOOK'S HP FOR A UNIT BORN INSIDE A SWING (visual only, never value): its HP after the swing (`u.hp`) with
+ * that swing's own HP changes (`evs`) taken back, as the timeline adds them again. Only a `dmg` or a `heal` moves HP: a
+ * `status_tick` is the tick's roll, and the `dmg` it lands (damage.js landHit, `dot`) is its HP change, so counting
+ * both booked a bled unit too full (lane/a-hp-zero). A pack pulled in the swing it respawns (report #69: the leader
+ * waits at the spawn) had its first blows counted twice: a standing monster drawn at 0 HP.
+ */
+export function bornHpOf(u, evs) {
+  let hp = u.hp;
+  for (const e of evs) {
+    if (e.t !== u.id || !Number.isFinite(e.amount)) continue;
+    if (e.type === 'heal') hp -= e.amount; else if (e.type === 'dmg') hp += e.amount;
+  }
+  return Math.max(0, Math.min(u.maxHp, hp));
+}
+
+/**
  * THE HUNT INSTANCE'S SPAN (spec §1.1 engine contract).
  *
  * @param inst { world (decoded world-state world, or null before anyone
@@ -230,18 +246,8 @@ export function simulateHuntInstance(inst, ctx) {
      sizes and fills the bar of a unit it first meets mid-window or after the snapshot stopped
      listing it (a corpse played behind the server); the window's dmg/heal events move the bar. */
   const units = {};
-  /* A unit first seen after a swing (`evs`, its events) was born inside it: its book HP is the HP it came with, that
-     swing's own HP changes taken back, as the timeline adds them again. A pack pulled in the swing it respawns (report
-     #69: the leader waits at the spawn) had its first blows counted twice: a standing monster drawn at 0 HP. */
-  const bornHp = (u, evs) => {
-    let hp = u.hp;
-    for (const e of evs) {
-      if (e.t !== u.id || !Number.isFinite(e.amount)) continue;
-      if (e.type === 'heal') hp -= e.amount; else if (e.type === 'dmg' || e.type === 'status_tick') hp += e.amount;
-    }
-    return Math.max(0, Math.min(u.maxHp, hp));
-  };
-  const seen = (evs) => { if (world) for (const u of world.units) { kinds[u.id] = u.kind; if (!units[u.id]) units[u.id] = [u.kind, u.maxHp, evs ? bornHp(u, evs) : u.hp]; } };
+  /* A unit first seen after a swing (`evs`, its events) was born inside it: its book HP is bornHpOf's. */
+  const seen = (evs) => { if (world) for (const u of world.units) { kinds[u.id] = u.kind; if (!units[u.id]) units[u.id] = [u.kind, u.maxHp, evs ? bornHpOf(u, evs) : u.hp]; } };
   seen();
   /* ANCHORS (visual only): every unit standing at the window's first instant gets a step on its
      tile, so a unit that never moves inside a window is still placed by it (the track is moves). */

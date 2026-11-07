@@ -1,7 +1,7 @@
 // ============================================================
 // src/core/hunt/damage.js — ONE hurt() (spec §2 damage; parity DM-*)
 //
-// Every blow any unit lands goes through `hurt`: element (permille, 0 = immune),
+// Every blow any unit lands goes through `hurt`: element (permille, never 0: no immunities),
 // the target's defence, the dealer's and the target's stance, minimum 1, the
 // target's shield first, then HP, and the kill hand-off. A blow AT A HERO takes
 // the armour chain of ruling K7 instead of a monster's defence: dodge (landHit),
@@ -33,12 +33,11 @@ import { cheb } from './grid.js?v=0.2.103';
 import { atRest, unitById } from './movement.js?v=0.2.103';
 import { makeEvent } from './events.js?v=0.2.103';
 import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.103';
-import { fallen, partySize } from './pull-cycle.js?v=0.2.103';
+import { fallen } from './pull-cycle.js?v=0.2.103';
 import { shareKillXp } from './xp-share.js?v=0.2.103';
 import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.103';
 import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.103';
 import { shootsItem } from '../../data/hunt-roles.js?v=0.2.103';
-import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.103';
 import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.103';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.103';
 import { temperedAmount } from '../temper.js?v=0.2.103';
@@ -78,15 +77,12 @@ const armourVs = (inst, target, source) => (target.armour
 
 /**
  * Apply `amount` from `source` to `target`; answers what landed:
- * { dmg (HP removed), absorbed (shield spent), killed, immune }.
+ * { dmg (HP removed), absorbed (shield spent), killed }.
  */
 export function hurt(inst, target, amount, source, element, ability, rng) {
   if (!target || !target.alive) return { dmg: 0, killed: false };
-  /* THE SOLO HEALER FLOOR (hunt-grounds.js, BALANCE_RULINGS 2026-10-16): a Healer
-     alone lands every blow at least at the floor, whatever the target's profile. */
-  const el = source && source.side === 'hero'
-    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);
-  if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };
+  /* NO IMMUNITIES (Tyler 2026-11-06): the target's element profile is a percentage, never 0 (core/elements.js). */
+  const el = elementOn(target, element);
   /* A monster's defence comes off a hero's blow after its element. A blow AT A HERO keeps its
      element for the armour chain below (ruling K7). */
   let n = Math.max(0, Math.floor(amount));
@@ -106,11 +102,11 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   if (absorbed) target.shield -= absorbed;
   const dmg = Math.min(target.hp, n - absorbed);
   target.hp -= dmg;
-  return { dmg, absorbed, killed: target.hp <= 0, immune: false };
+  return { dmg, absorbed, killed: target.hp <= 0 };
 }
 
 /**
- * Land a blow and tell the client: the one place a `dmg` / `immune` / `kill` event
+ * Land a blow and tell the client: the one place a `dmg` / `kill` event
  * is made, and the kill hand-off (pull-cycle.fallen, then xp-share.shareKillXp for a
  * monster). `dmg` names its ability ('basic' for a swing) and element (null for none),
  * which the analyzer tally reads. abilities.js lands its hits here too.
@@ -135,14 +131,11 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
     markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
-  if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u, t: target.id }));
-  else {
-    if (target.side === 'mon') inst.world.fightAt = sc.atMs;
-    sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
-      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
-      ...(ability && ability.dot ? { dot: true } : {}) }));
-    if (target.side === 'mon') crossLines(inst, sc, target, before);
-  }
+  if (target.side === 'mon') inst.world.fightAt = sc.atMs;
+  sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
+    ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
+    ...(ability && ability.dot ? { dot: true } : {}) }));
+  if (target.side === 'mon') crossLines(inst, sc, target, before);
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);

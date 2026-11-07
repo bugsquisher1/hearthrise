@@ -1231,7 +1231,7 @@ const ENGINE_ARMS = {
     if (sum(fire, 'buys').plain_fire_rune) problems.push(`a staff's basics bought ${sum(fire, 'buys').plain_fire_rune} Plain Fire Runes the bar never named`);
     if (sum(fire, 'uses').chalked_fire_rune) problems.push(`the staff's basics spent ${sum(fire, 'uses').chalked_fire_rune} Fire Runes (runes fuel spells only)`);
     if (!(hits(fire).length > 3)) problems.push(`the staff landed ${hits(fire).length} basics`);
-    const swings = fire.outs.reduce((a, x) => a + x.events.filter((e) => (e.type === 'dmg' || e.type === 'miss' || e.type === 'immune') && e.u === unitOf(fire) && (e.ability || 'basic') === 'basic').length, 0);
+    const swings = fire.outs.reduce((a, x) => a + x.events.filter((e) => (e.type === 'dmg' || e.type === 'miss') && e.u === unitOf(fire) && (e.ability || 'basic') === 'basic').length, 0);
     if (basicMana(fire) !== swings * cost) problems.push(`the staff's ${swings} basics spent ${basicMana(fire)} mana, want ${cost} each`);
     /* Magic XP is exactly the mana every cast AND every basic spent, at its multiplier (hunt-rewards.js) */
     const paid = fire.outs.reduce((a, x) => a + x.events.filter((e) => (e.type === 'cast' || e.type === 'shot') && e.u === unitOf(fire) && e.mana > 0 && e.magicXpMult > 0)

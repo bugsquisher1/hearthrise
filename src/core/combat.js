@@ -22,7 +22,6 @@ import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
 } from './bane.js?v=0.2.103';
 import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=0.2.103';
-import { ELEMENT_PERMILLE } from '../data/elements.js?v=0.2.103';
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.103';
 /* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
    demolition safety review item 9: trophies stay as claims and display; the
@@ -263,9 +262,9 @@ export function weaknessInfo(monster, eq) {
   const baneMult = baneMultFor(baneClass, eq && eq.bane);
 
   /* ELEMENT — the third damage factor, the twin of bane. A weapon-slot enchant
-     (`eq.element`, stamped by equipmentStats) pays a flat +15% against a
-     monster WEAK to that element and nothing otherwise (pure upside — v1 gives
-     resist/immune no distinct number). Read here, inside the ONE expression
+     (`eq.element`, stamped by equipmentStats) pays what the monster's `elements`
+     profile says when it takes MORE from that element, and nothing otherwise
+     (pure upside: a resisted element reads like a neutral one). Read here, inside the ONE expression
      both the live tick and the Edge accrual call, so an enchanted weapon pays
      away nights identically to awake ones with no second code path. See
      src/core/elements.js. */
@@ -428,20 +427,6 @@ export function monsterMaxHit(monster) {
   const b = COMBAT_BALANCE;
   const scale = (monster && b.monsterDamageScaleByTier[monster.tier]) || b.monsterAttackDamageScale;
   return Math.max(1, Math.floor(((monster && monster.atk) || 1) * scale));
-}
-
-/**
- * What one blow of `element` is worth against `monster`, in PERMILLE: 0 when the
- * monster is immune (TG-03: it is still attacked when it is the only target, and
- * takes nothing), the weakness bonus when it is weak (elements.js elementMultFor,
- * the one weakness reader), ELEMENT_PERMILLE.resist when it resists (HUNT_PARITY
- * DM-01; src/data/elements.js), 1000 otherwise.
- */
-export function elementPermille(monster, element) {
-  if (!monster || !element) return 1000;
-  if (Array.isArray(monster.elementImmune) && monster.elementImmune.includes(element)) return ELEMENT_PERMILLE.immune;
-  if (Array.isArray(monster.elementResist) && monster.elementResist.includes(element)) return ELEMENT_PERMILLE.resist;
-  return Math.round(elementMultFor(monster, element) * 1000);
 }
 
 // ── Seeded resolution helpers (the pieces combatTick spends RNG on) ──────

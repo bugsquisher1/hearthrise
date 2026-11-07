@@ -38,7 +38,7 @@
 // expression, under MAX_TOTAL_DAMAGE_MULT) with its own review.
 // `reveal` is the column Phase 1 acted on:
 // it lifts the `hiddenElement` curtain that src/data/monster-classes.js
-// documents ("the data carries `elementWeak` so the combat engine can resolve
+// documents ("the data carries `elements` so the combat engine can resolve
 // it; the RENDERER is what hides it"), which is PROG-01's proof of value and
 // costs no power at all.
 //

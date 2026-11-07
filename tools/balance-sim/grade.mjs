@@ -30,19 +30,19 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
 
 /* ── THE GRID ── */
-export const OFFSETS = Object.freeze({ quick: ['under5', 'under2', 'floor', 'top'], full: ['under5', 'under3', 'under2', 'floor', 'plus10', 'top'] });
+export const OFFSETS = Object.freeze({ quick: ['under5', 'under2', 'floor', 'middle'], full: ['under5', 'under3', 'under2', 'floor', 'middle', 'plus10', 'top'] });
 const SOLO8 = ['tank', 'sword', 'hammer', 'axes', 'bow', 'crossbow', 'mage', 'healer'];
 export const COMPS = Object.freeze({
   quick: { 1: [['tank'], ['hammer'], ['bow'], ['mage']], 2: [['tank', 'healer']], 4: [['tank', 'healer', 'bow', 'mage']] },
   full: { 1: SOLO8.map((s) => [s]), 2: [['tank', 'healer'], ['hammer', 'bow']], 3: [['tank', 'healer', 'bow'], ['hammer', 'bow', 'mage']],
     4: [['tank', 'healer', 'bow', 'mage'], ['tank', 'hammer', 'bow', 'mage']] },
 });
-const IN_RANGE = ['floor', 'plus10', 'top'];
+const IN_RANGE = ['floor', 'middle', 'plus10', 'top'];
 
 /** The Levels a band is played at: [{ offset, level }], deduped (the first label wins), Level 1 or more; floor+10 past the top is `above`. */
 export function levelsOf(band, offsets) {
   const [lo, hi] = band, out = [], seen = new Set();
-  const at = { under5: lo - 5, under3: lo - 3, under2: lo - 2, floor: lo, plus10: lo + 10, top: hi };
+  const at = { under5: lo - 5, under3: lo - 3, under2: lo - 2, floor: lo, middle: Math.round((lo + hi) / 2), plus10: lo + 10, top: hi };
   for (const o of offsets) {
     const level = at[o];
     if (!(level >= 1) || seen.has(level)) continue;
@@ -74,7 +74,14 @@ export async function buildGrid(root, mode, opts = {}) {
         const n = Number(size), pull = tier === 'normal' ? 0 : row.pull[n - 1], { seeds, hours } = dice(mode, n, tier, offset);
         const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + tag;
         jobs.push({ id, ground: g.id, party: comp, level, ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
-          windowMs: 120000, ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: g.groupFit || 'solo', tier, offset, size: n, comp: comp.join('+') } });
+          windowMs: 120000, ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: g.groupFit || 'solo', tier, offset, size: n, comp: comp.join('+'), gear: 'ladder' } });
+      }
+      /* THE FRESH HERO (first-week bars): the practice set alone at a first-day solo floor (Level 15 or under), Normal, every way */
+      if (tier === 'normal' && band[0] <= 15 && (g.groupFit || 'solo') === 'solo') for (const [s] of COMPS[mode][1]) {
+        const { seeds, hours } = dice(mode, 1, tier, 'floor');
+        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + tag;
+        jobs.push({ id, ground: g.id, party: [s], level: band[0], gear: { starter: true }, hours, seeds, windowMs: 120000, ...(wi ? { whatIf: wi } : {}),
+          grade: { ground: g.id, band, groupFit: 'solo', tier, offset: 'floor', size: 1, comp: s, gear: 'practice' } });
       }
     }
   }
@@ -101,8 +108,10 @@ export async function loadPace(root) {
   return (L) => { if (L >= snap.ceiling) return LEVEL_PACE.contract.a * L ** LEVEL_PACE.contract.b; let r = snap.rate[known[0]]; for (const k of known) if (k <= L) r = snap.rate[k]; return r; };
 }
 
+/* a rule's scope: tier, offset, size, the ground's fit, the gear (`ladder` unless it says `practice`), the floor's Level, a skip */
 const scoped = (rule, m) => (!rule.tiers || rule.tiers.includes(m.tier)) && (!rule.offsets || rule.offsets.includes(m.offset)) && (!rule.sizes || rule.sizes.includes(m.size))
-  && (!rule.fit || rule.fit === m.groupFit);
+  && (!rule.fit || rule.fit === m.groupFit) && (rule.gear || 'ladder') === (m.gear || 'ladder') && (rule.floorFrom == null || m.band[0] >= rule.floorFrom)
+  && (rule.floorMax == null || m.band[0] <= rule.floorMax) && !(rule.skip && rule.skip(m));
 const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
 const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Math.max(Math.abs(rule.min), 1e-9) : rule.max != null && v > rule.max ? (v - rule.max) / Math.max(Math.abs(rule.max), 1e-9) : 0);
 
@@ -140,13 +149,39 @@ export function gradeCells(cells, sheet, pace) {
       }
       continue;
     }
+    if (rule.aggregate) {
+      /* one number per ground x tier x offset x size (the median way, a count, or the four a head on a party ground) */
+      const groups = new Map();
+      for (const r of rows) if (scoped(rule, r.m)) { const k = [r.m.ground, r.m.tier, r.m.offset, r.m.size].join('|'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+      if (rule.aggregate === 'xpVsContract') {
+        /* a party ground reads its fours a head; a solo ground its lone heroes */
+        for (const k of [...groups.keys()]) { const m = groups.get(k)[0].m; if ((m.groupFit === 'party') !== (m.size === 4)) groups.delete(k); }
+      }
+      for (const g of groups.values()) {
+        const m = g[0].m, L = g[0].c.cell.level;
+        let v = null;
+        switch (rule.aggregate) {
+          case 'supplyShare': v = median(g.map((r) => r.x.supplyShare)); break;
+          case 'xpVsContract': v = sheet.contract ? median(g.map((r) => r.x.xp)) / sheet.contract(Array.isArray(L) ? Math.max(...L) : L) : null; break;
+          case 'xpVsNormal': { const n = median(find(m, (o) => o.tier === 'normal' && o.offset === m.offset && o.size === m.size && (o.gear || 'ladder') === 'ladder').map((o) => o.x.xp)); v = n > 0 ? median(g.map((r) => r.x.xp)) / n : null; break; }
+          case 'heldCount': v = Math.round(((g.filter((r) => r.x.held).length * 8) / g.length) * 10) / 10; break; /* held of 8 ways (a quick run plays 4) */
+          case 'medianCost': v = median(g.map((r) => r.x.deaths)) > 0 || median(g.map((r) => r.x.net)) < 0 ? 1 : 0; break;
+          default: throw new Error('grade: no aggregate ' + rule.aggregate);
+        }
+        push(rule, m, v, 'the median of ' + g.length + ' (' + g.map((r) => r.m.comp).join(', ') + ') L' + L);
+      }
+      continue;
+    }
     for (const r of rows) {
       if (!scoped(rule, r.m)) continue;
       if (rule.heldOnly && !r.x.held) continue;
       const m = r.m, x = r.x;
       let v = null;
       switch (rule.metric) {
-        case 'net': case 'margin': case 'supplyShare': case 'minHpP50': v = x[rule.metric]; break;
+        case 'net': case 'margin': case 'supplyShare': case 'minHpP50': case 'deaths': case 'dips': v = x[rule.metric]; break;
+        case 'deathsPer16h': v = x.hours > 0 ? (x.deaths / x.hours) * 16 : null; break;
+        case 'xpVsFloorSolo': { const f = median(find(m, (o) => o.tier === m.tier && o.offset === 'floor' && o.size === 1 && (o.gear || 'ladder') === 'ladder').map((o) => o.x.xp)); v = f > 0 ? x.xp / f : null; break; }
+        case 'xpVsNormal': { const n = find(m, (o) => o.tier === 'normal' && o.offset === m.offset && o.comp === m.comp && (o.gear || 'ladder') === 'ladder')[0]; v = n && n.x.xp > 0 ? x.xp / n.x.xp : null; break; }
         case 'xpVsPace': { const L = r.c.cell.level, p = pace(Array.isArray(L) ? Math.max(...L) : L); v = p > 0 ? x.xp / p : null; break; }
         case 'netMinusFloor': { const f = find(m, (o) => o.tier === m.tier && o.offset === 'floor' && o.comp === m.comp)[0]; v = f ? x.net - f.x.net : null; break; }
         case 'xpVsSolo': case 'netVsSolo': { const solo = median(find(m, (o) => o.tier === m.tier && o.offset === m.offset && o.size === 1).map((o) => (rule.metric === 'xpVsSolo' ? o.x.xp : o.x.net)));
@@ -160,6 +195,53 @@ export function gradeCells(cells, sheet, pace) {
   const grounds = {};
   for (const v of verdicts) { const g = grounds[v.ground] || (grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : v.verdict === 'UNPROVEN' ? 'unproven' : v.verdict === 'OFF' ? 'off' : 'ok']++; }
   return { verdicts, grounds };
+}
+
+/**
+ * THE SHEET: `--sheet local` (grade-sheet.mjs SHEET); `--sheet <module>` (exports SHEET, or BALANCE_SHEET read through
+ * sheetFromBalanceSheet); `--sheet-ref <git ref>` (that ref's src/data/balance-sheet.js, copied under out/ with its one import pointed
+ * at this tree's core-model.js, nothing written under src/); by default src/data/balance-sheet.js once it is in this tree, else local.
+ */
+export async function loadSheet(root, sheetArg, ref) {
+  const L = await import('./grade-sheet.mjs');
+  const adapt = (mod) => (mod.SHEET ? mod.SHEET : { ...L.sheetFromBalanceSheet(mod.BALANCE_SHEET), contract: mod.contractXpPerH });
+  if (sheetArg === 'local') return L.SHEET;
+  if (sheetArg) return adapt(await import(pathToFileURL(resolve(sheetArg)).href));
+  if (ref) {
+    const { execFileSync } = await import('node:child_process');
+    const src = execFileSync('git', ['-C', root, 'show', ref + ':src/data/balance-sheet.js'], { encoding: 'utf8' });
+    const core = pathToFileURL(join(root, 'src/data/core-model.js')).href;
+    const file = join(HERE, 'out', 'balance-sheet.' + ref.replace(/[^\w.-]+/g, '_') + '.mjs');
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, src.replace(/from '\.\/core-model\.js(\?v=[\d.]+)?'/, "from '" + core + "$1'"));
+    return adapt(await import(pathToFileURL(file).href));
+  }
+  const own = join(root, 'src/data/balance-sheet.js');
+  return existsSync(own) ? adapt(await import(pathToFileURL(own).href)) : L.SHEET;
+}
+
+/** THE LARGEST BLOWS (a sheet's `blows`): every regular on an open ground, its largest blow (combat.js monsterMaxHit) against the base
+    HP of a hero of its own Level (VITALS), at most `regularMaxShare`. Static: read off the rows, no play. */
+export async function blowVerdicts(root, sheet) {
+  if (!sheet.blows) return [];
+  const u = (p) => pathToFileURL(join(root, p)).href;
+  const { BUILD } = await import(u('src/build-info.js'));
+  const v = '?v=' + BUILD.version;
+  const G = await import(u('src/data/hunt-grounds.js') + v), { MONSTERS } = await import(u('src/data/monsters.js') + v);
+  const { monsterMaxHit } = await import(u('src/core/combat.js') + v), { VITALS } = await import(u('src/data/core-model.js') + v);
+  const out = [];
+  for (const g of Object.values(G.OPEN_GROUNDS)) {
+    const ids = new Set();
+    for (const p of g.pockets || []) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
+    for (const id of ids) {
+      const m = MONSTERS[id];
+      if (!m || m.boss || !m.level) continue;
+      const share = monsterMaxHit(m) / (VITALS.hpBase + VITALS.hpPerLevel * m.level), max = sheet.blows.regularMaxShare;
+      out.push({ rule: 'blow-share', binding: true, verdict: share > max ? 'FAIL' : 'ok', key: g.id + ' / ' + id + ' L' + m.level, ground: g.id, value: share, lo: null, hi: null, k: null, hours: null,
+        min: null, max, off: share > max ? (share - max) / max : 0, why: 'balance-sheet.js blows.regularMaxShare: a regular\'s largest blow against a same-Level hero\'s base HP' });
+    }
+  }
+  return out;
 }
 
 const RANK = { FAIL: 3, UNPROVEN: 2, OFF: 1, ok: 0 };
@@ -211,8 +293,7 @@ export function synthSet(mut = {}) {
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : d; };
-  const sheetPath = arg('sheet', null);
-  const { SHEET } = sheetPath ? await import(pathToFileURL(resolve(sheetPath)).href) : await import('./grade-sheet.mjs');
+  const SHEET = await loadSheet(ROOT, arg('sheet', null), arg('sheet-ref', null));
   if (process.argv.includes('--selftest')) {
     const flat = () => 70000;
     const good = gradeCells(synthSet(), SHEET, flat);
@@ -241,6 +322,7 @@ if (isMain) {
   }
   const cells = existsSync(join(out, 'cells.jsonl')) ? readFileSync(join(out, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
   const graded = gradeCells(cells, SHEET, await loadPace(ROOT));
+  for (const v of await blowVerdicts(ROOT, SHEET)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
   writeFileSync(join(out, 'grade.json'), JSON.stringify({ sheet: SHEET.source, cells: cells.length, ...graded }, null, 1));
   console.log('GRADE (' + SHEET.source + '), ' + cells.length + ' cells from ' + out + '\n' + report(graded, Number(arg('limit', '60'))));
   process.exit(graded.verdicts.some((v) => v.verdict === 'FAIL') ? 1 : 0);

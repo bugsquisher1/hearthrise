@@ -39,3 +39,45 @@ export const SHEET = Object.freeze({
     { id: 'deadly-deaths', why: '10-25 Extreme band: 50-100 deaths per 1,000 h (a built party in range)', tiers: ['deadly'], offsets: ['floor', 'plus10', 'top'], sizes: [3, 4], metric: 'deathsPer1000h', max: 100, pooled: true, binding: true },
   ]),
 });
+
+/**
+ * The formula lane's src/data/balance-sheet.js BALANCE_SHEET (lane/b-ground-formula, 2026-11-07) read as grader rules, each line in
+ * its own scope: Normal at the floor (lone, the 8 ways in the Level's gear), the fresh hero (practice set, first-day grounds), the
+ * weight class (pairs 2-3 and 5 under), the harder tiers at the floor (lone and four), the four against solo, the largest blows.
+ * A line the sheet calls "a report line" is advisory; every other line is binding (off it, the grader exits 1).
+ */
+export function sheetFromBalanceSheet(BS) {
+  const N = BS.normal, F = BS.freshHero, W = BS.weightClass, T = BS.tiers, P = BS.party;
+  const floor1 = { tiers: ['normal'], offsets: ['floor'], sizes: [1] };
+  const fresh = { ...floor1, gear: 'practice', floorMax: F.upToLevel, fit: 'solo', binding: true };
+  const why = (s) => 'balance-sheet.js ' + s;
+  const deadlyUnder = { tiers: ['dangerous', 'deadly'], offsets: ['under2', 'under3', 'under5'], sizes: [2], skip: (m) => m.tier === 'dangerous' && m.offset !== 'under5', binding: true };
+  return Object.freeze({
+    source: 'src/data/balance-sheet.js BALANCE_SHEET (lane/b-ground-formula)',
+    blows: BS.blows,
+    rules: Object.freeze([
+      { id: 'normal-deaths', why: why('normal.deathsPer1000h (RULED 10-25)'), ...floor1, metric: 'deathsPer1000h', max: N.deathsPer1000h, pooled: true, binding: true },
+      { id: 'normal-dips', why: why('normal.closeCallsPer12h (RULED 10-25)'), ...floor1, metric: 'dipsPer12h', max: N.closeCallsPer12h, pooled: true, binding: true },
+      { id: 'normal-low-point', why: why('normal.typicalMinHpPct, every way (RULED 10-25)'), ...floor1, metric: 'minHpP50', min: N.typicalMinHpPct, binding: true },
+      { id: 'normal-profit', why: why('normal.marginMin, every way (RULED 10-18)'), ...floor1, metric: 'margin', min: N.marginMin, binding: true },
+      { id: 'normal-supplies-max', why: why('normal.supplyShare.max, the median way (DESIGNER)'), ...floor1, aggregate: 'supplyShare', max: N.supplyShare.max, binding: true },
+      { id: 'normal-supplies-min', why: why('normal.supplyShare.min from Level ' + N.supplyShare.fromLevel + ', the median way (DESIGNER, Tyler 11-07)'), ...floor1, floorFrom: N.supplyShare.fromLevel, aggregate: 'supplyShare', min: N.supplyShare.min, binding: true },
+      { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median way (a party ground: the four a head)'), tiers: ['normal'], offsets: ['middle'], aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },
+      { id: 'fresh-deaths', why: why('freshHero.deaths, the practice set at a first-day floor'), ...fresh, metric: 'deaths', max: F.deaths },
+      { id: 'fresh-dips', why: why('freshHero.closeCalls'), ...fresh, metric: 'dips', max: F.closeCalls },
+      { id: 'fresh-low-point', why: why('freshHero.typicalMinHpPct'), ...fresh, metric: 'minHpP50', min: F.typicalMinHpPct },
+      { id: 'fresh-profit', why: why('freshHero.marginMin'), ...fresh, metric: 'margin', min: F.marginMin },
+      { id: 'fresh-pace', why: why('freshHero.xpVsPaceMin'), ...fresh, metric: 'xpVsPace', min: F.xpVsPaceMin },
+      { id: 'wc-normal-under', why: why('weightClass.normalUnder (a report line): 2-3 under earns more XP a head than the floor hero'), tiers: ['normal'], offsets: ['under2', 'under3'], sizes: [2], metric: 'xpVsFloorSolo', min: W.normalUnder.xpVsFloorMin, binding: false },
+      { id: 'wc-dangerous-under', why: why('weightClass.dangerousUnder (RULED 11-06): 2-3 under on Dangerous loses gold'), tiers: ['dangerous'], offsets: ['under2', 'under3'], sizes: [2], metric: 'net', max: W.dangerousUnder.netMax, binding: true },
+      { id: 'wc-deadly-under-dies', why: why('weightClass.deadlyUnder: 2-3 under on Deadly, 5 under on either harder tier, dies'), ...deadlyUnder, metric: 'deaths', min: W.deadlyUnder.deathsMin },
+      { id: 'wc-deadly-under-loses', why: why('weightClass.deadlyUnder: and loses gold'), ...deadlyUnder, metric: 'net', max: W.deadlyUnder.netMax },
+      { id: 'tier-dangerous-xp', why: why('tiers.dangerous.xpVsNormalMin, lone at the floor, the median way'), tiers: ['dangerous'], offsets: ['floor'], sizes: [1], aggregate: 'xpVsNormal', min: T.dangerous.xpVsNormalMin, binding: true },
+      { id: 'tier-dangerous-held', why: why('tiers.dangerous.loneHeldMin of the 8 ways hold at the floor'), tiers: ['dangerous'], offsets: ['floor'], sizes: [1], aggregate: 'heldCount', min: T.dangerous.loneHeldMin, binding: true },
+      { id: 'tier-deadly-lone-cost', why: why('tiers.deadly.loneMustCost (RULED 11-06): the median lone way dies or loses gold'), tiers: ['deadly'], offsets: ['floor'], sizes: [1], aggregate: 'medianCost', min: T.deadly.loneMustCost ? 1 : 0, binding: true },
+      { id: 'tier-deadly-four-held', why: why('tiers.deadly.fourDeathsPer16hMax, a four at the floor'), tiers: ['deadly'], offsets: ['floor'], sizes: [4], metric: 'deathsPer16h', max: T.deadly.fourDeathsPer16hMax, binding: true },
+      { id: 'tier-deadly-four-xp', why: why('tiers.deadly.fourXpVsNormalMin, a four at the floor a head'), tiers: ['deadly'], offsets: ['floor'], sizes: [4], metric: 'xpVsNormal', min: T.deadly.fourXpVsNormalMin, binding: true },
+      { id: 'four-xp', why: why('party.fourVsSolo (RULED 10-25)'), tiers: ['normal'], offsets: ['floor', 'middle', 'top'], sizes: [4], metric: 'xpVsSolo', min: P.fourVsSolo[0], max: P.fourVsSolo[1], binding: true },
+    ]),
+  });
+}

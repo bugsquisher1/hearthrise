@@ -727,8 +727,8 @@ const playMutants = [
   /* The Sewer's coin cut to under half (armour weights, ruling K7, left the ladder-kit Melee +119% at the floor,
      so the old /1.8 coin clears +25% by a hair; lane b-spell-roles' Bronze-Rimmed Shield took the floor tank to +159%,
      so /2.2 clears it too, about +32%: the floor still bites at /2.6, about +16%). */
-  { name: 'the Sewer coin cut to under half', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
-    for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 2.6)));
+  { name: 'the Sewer coin cut to a sixth (re-aimed from 1/2.6 when the gentle blow cap cut the floor tank\'s bill to 628 g an hour)', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
+    for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 6)));
   } },
   { name: 'the Kingsgrate at 5% (a Rare every 4 h)', rule: 'rare-pace: millrace_sewer (party of 4) rare kingsgrate', edit: (ms) => { rowOf(ms, 'rat_king', 'kingsgrate').ch = 0.05; } },
   { name: 'the Thicket\'s heavy boots five times rarer', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').ch /= 5; } },
@@ -805,7 +805,7 @@ const rangerMutants = [
   { name: 'the store Iron Bolt back at 2 g a shot', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/supply-basics.js', "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 1),", "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),"]] },
   /* the mean is the guard: at this old row the fixture's one seed still read over +25%, the twelve read +23.7% */
   /* (the casters' store-fed spells lift this floor to +29.7%, so the plant is the row's pre-x1.8 coin, not [4, 18]: the bar doesn't move, lane/c-caster-starter-bars) */
-  { name: 'the Drain Rat\'s coin back at its pre-x1.8 [2, 10]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [7, 20]', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [2, 10]']] },
+  { name: 'the Drain Rat\'s coin back at its pre-x1.8 [2, 10]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [6, 20]', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [2, 10]']] },
 ];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',

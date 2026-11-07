@@ -112,7 +112,10 @@ export const STAT_FORMULA = Object.freeze({
   hit: Object.freeze({ lo: 0.40, hi: 0.70 }),
   /* A REGULAR's largest blow, a share of the same-Level hero's base HP; atk = blow / the tier's damage scale.
      A monster above its hero's Level hits a bigger share of that hero (10 HP a Level), and more often (2% a Level). */
-  blow: Object.freeze({ lo: 0.12, hi: 0.20 }),
+  /* gentleCap: on a gentle ground no blow passes this share of the FLOOR hero's HP (its deep monsters meet fresh heroes 8-10 Levels under them),
+     climbing to no cap on a full ground. 0.10: the Thicket's fresh melee dipped under 25% 1-6 times in 4 h (1 at 0.10, 1-5 at 0.14;
+     the sheet allows 0), lane/b-ground-formula-2. */
+  blow: Object.freeze({ lo: 0.12, hi: 0.20, gentleCap: 0.10 }),
   /* A REGULAR's HP (the row's: a party of four's, the engine scales it 55-100% by party size): base + perLevel x
      its Level, a straight line like a hero's damage, so it grows by perLevel / HP a Level (13% at 5, 7% at 16, 3%
      at 50). Fitted on every open ground's rows (Cellar 9 at Level 2, Glade 30 at 16, Warrens 150 at 34 / 2.5). */
@@ -143,15 +146,15 @@ export const STAT_FORMULA = Object.freeze({
        to-hit  `hit` points on a gentle party ground, `hitFull` on a full one. -0.3 there: a lone hero at the Warrens'
                soloFrom (45) ate 3.9k g an hour of food at the formula's to-hit and earned less than on the Glade
                (forest-cave harder-pays-more); at -0.3 it eats next to nothing, as the card's "alone from 45" says.
-       coin    `gp` on a gentle party ground, `gpFull` on a full one, on top of the line. Gentle 1.05: the least that keeps
-               the first party a head over the solo ground before it with a 5% margin (Sewer 1,964 g an hour against the
-               Thicket's 1,852; at 1.0 it was 1,863). Full 0.53: the least that keeps harder-pays-more with a 5% margin at
+       coin    `gp` on a gentle party ground, `gpFull` on a full one, on top of the line. Gentle 1: since the gentle blow cap the
+               Sewer's four eats less and nets 1,945-2,050 a head against the Thicket's ~1,850 (1.05 put it over the Glade's floor,
+               forest-cave glade-between). Full 0.53: the least that keeps harder-pays-more with a 5% margin at
                both Warrens probes (a four at 41: 8,168 against the Glade's 7,693; alone at 45: 8,356 against 7,116); at x1
                the Warrens paid 2.4x its 10-23 value (a four at 32 netted 8,759 g an hour, the Glade's floor 1,977). */
   fit: Object.freeze({
     solo: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
     both: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
-    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.05, gpFull: 0.53 }),
+    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1, gpFull: 0.53 }),
   }),
 });
 
@@ -267,7 +270,9 @@ export function formulaStats(spec, opts = {}) {
   const h0 = fit.hit || 0, fitHit = fit.hitFull === undefined ? h0 : h0 + (fit.hitFull - h0) * dz.ramp;
   const hit = dz.hit + R.hit + fitHit;
   /* a boss's blow is held under its cap of the FLOOR hero, however deep it lives */
-  const blowShare = R.floorCap ? Math.min(dz.blow * R.blow * (fit.bossBlow ? fit.blow : 1), (R.floorCap * F.refHp(Number(spec.floor))) / F.refHp(L)) : dz.blow * R.blow * fit.blow;
+  const gentleCap = F.blow.gentleCap ? F.blow.gentleCap + (1 - F.blow.gentleCap) * dz.ramp : Infinity;
+  const blowShare = R.floorCap ? Math.min(dz.blow * R.blow * (fit.bossBlow ? fit.blow : 1), (R.floorCap * F.refHp(Number(spec.floor))) / F.refHp(L))
+    : Math.min(dz.blow * R.blow * fit.blow, (gentleCap * F.refHp(Number(spec.floor))) / F.refHp(L));
   const atk = Math.max(1, Math.round((blowShare * F.refHp(L)) / scale));
   /* to-hit at the same-Level hero = baseAcc + (atk - L) x 0.02, so: */
   const baseAcc = Math.round((hit - (atk - L) * ACC_PER_POINT) * 100) / 100;
@@ -330,8 +335,11 @@ export const TIER_PULL_OVERRIDES = Object.freeze({
 /* What one swing is worth at a same-Level hero: its to-hit times its blow share, a tier's atk scaling `k` applied the engine's way
    (atk x k: the blow x k, the to-hit up 2% a point of atk added). The reference monster is a regular at the floor, tier-1 damage scale. */
 function swingWorth(floor, lift, k, F) {
-  const d = dangerAt(floor, lift, F), atk = (d.blow * F.refHp(floor)) / DAMAGE_SCALE_BY_TIER[1];
-  return (d.hit + atk * (k - 1) * ACC_PER_POINT) * d.blow * k;
+  /* the gentle blow cap is a Normal kindness too: a tier takes it back with the rest (at full lift there is none) */
+  const d = dangerAt(floor, lift, F), dl = d.ramp + (1 - d.ramp) * clamp01(lift);
+  const cap = F.blow.gentleCap ? F.blow.gentleCap + (1 - F.blow.gentleCap) * dl : Infinity;
+  const atk = (Math.min(d.blow, cap) * F.refHp(floor)) / DAMAGE_SCALE_BY_TIER[1];
+  return (d.hit + atk * (k - 1) * ACC_PER_POINT) * Math.min(d.blow, cap) * k;
 }
 
 /**

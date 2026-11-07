@@ -1,7 +1,7 @@
 {
  "schema": "hearthrise.level-pace/1",
- "generated": "2026-11-07T08:39:00.173Z",
- "commit": "a77a3fad9",
+ "generated": "2026-11-07T09:11:08.941Z",
+ "commit": "e68752729",
  "version": "0.2.105",
  "curve": {
   "first": 128,
@@ -68,7 +68,7 @@
    }
   ]
  },
- "fingerprint": "b0e3812a3ee11d29",
+ "fingerprint": "6a558fc0441911a6",
  "ceiling": 50,
  "reference": "median of 8 solo styles, Level 1 to 50, where the Hunts window recommends, as built (tools/balance-sim plan pace)",
  "styles": [
@@ -76,8 +76,8 @@
   "axes",
   "sword",
   "tank",
-  "bow",
   "crossbow",
+  "bow",
   "mage",
   "healer"
  ],
@@ -97,20 +97,20 @@
   "13": 34392,
   "14": 34367,
   "15": 35000,
-  "16": 79441,
-  "17": 79627,
+  "16": 79868,
+  "17": 80447,
   "18": 80877,
   "19": 81966,
   "20": 82475,
   "21": 81539,
   "22": 81986,
   "23": 83329,
-  "24": 83557,
+  "24": 83289,
   "25": 84211,
   "26": 84204,
   "27": 84926,
-  "28": 85086,
-  "29": 86109,
+  "28": 84836,
+  "29": 85947,
   "30": 89206,
   "31": 89685,
   "32": 89978,
@@ -141,7 +141,7 @@
   "25": 33.84,
   "30": 46.715,
   "40": 88.505,
-  "50": 161.475
+  "50": 161.445
  },
  "careers": {
   "hammer": {
@@ -348,57 +348,6 @@
     }
    }
   },
-  "bow": {
-   "party": [
-    "bow"
-   ],
-   "density": null,
-   "hours": 162.25,
-   "reached": [
-    50
-   ],
-   "hoursTo": {
-    "2": 0.02,
-    "5": 0.25,
-    "10": 6.13,
-    "15": 17.15,
-    "20": 25.03,
-    "25": 33.89,
-    "30": 46.83,
-    "40": 88.7,
-    "50": 161.72
-   },
-   "deaths": 0,
-   "grounds": [
-    "mill_cellar",
-    "meadowbrook_thicket",
-    "wickstead",
-    "mosslight_glade"
-   ],
-   "skillsAt": {
-    "10": {
-     "melee": 1,
-     "ranged": 19,
-     "magic": 1,
-     "defense": 9,
-     "inner_flame": 1
-    },
-    "25": {
-     "melee": 1,
-     "ranged": 33,
-     "magic": 1,
-     "defense": 17,
-     "inner_flame": 1
-    },
-    "49": {
-     "melee": 1,
-     "ranged": 51,
-     "magic": 1,
-     "defense": 27,
-     "inner_flame": 1
-    }
-   }
-  },
   "crossbow": {
    "party": [
     "crossbow"
@@ -450,6 +399,57 @@
     }
    }
   },
+  "bow": {
+   "party": [
+    "bow"
+   ],
+   "density": null,
+   "hours": 162.25,
+   "reached": [
+    50
+   ],
+   "hoursTo": {
+    "2": 0.02,
+    "5": 0.25,
+    "10": 6.13,
+    "15": 17.15,
+    "20": 25.03,
+    "25": 33.89,
+    "30": 46.83,
+    "40": 88.7,
+    "50": 161.72
+   },
+   "deaths": 0,
+   "grounds": [
+    "mill_cellar",
+    "meadowbrook_thicket",
+    "wickstead",
+    "mosslight_glade"
+   ],
+   "skillsAt": {
+    "10": {
+     "melee": 1,
+     "ranged": 19,
+     "magic": 1,
+     "defense": 9,
+     "inner_flame": 1
+    },
+    "25": {
+     "melee": 1,
+     "ranged": 33,
+     "magic": 1,
+     "defense": 17,
+     "inner_flame": 1
+    },
+    "49": {
+     "melee": 1,
+     "ranged": 51,
+     "magic": 1,
+     "defense": 27,
+     "inner_flame": 1
+    }
+   }
+  },
   "mage": {
    "party": [
     "mage"
@@ -463,12 +463,12 @@
     "2": 0.02,
     "5": 0.23,
     "10": 5.59,
-    "15": 16.09,
-    "20": 23.07,
+    "15": 16.1,
+    "20": 23.06,
     "25": 31.01,
-    "30": 42.67,
-    "40": 80.54,
-    "50": 147.46
+    "30": 42.64,
+    "40": 80.5,
+    "50": 147.42
    },
    "deaths": 0,
    "grounds": [
@@ -506,20 +506,20 @@
     "healer"
    ],
    "density": null,
-   "hours": 161.25,
+   "hours": 162,
    "reached": [
     50
    ],
    "hoursTo": {
     "2": 0.02,
     "5": 0.27,
-    "10": 7.01,
-    "15": 18.82,
-    "20": 26.96,
-    "25": 35.84,
-    "30": 48.83,
-    "40": 89.55,
-    "50": 161.23
+    "10": 7,
+    "15": 18.79,
+    "20": 26.77,
+    "25": 35.71,
+    "30": 48.75,
+    "40": 89.46,
+    "50": 161.17
    },
    "deaths": 0,
    "grounds": [
@@ -755,7 +755,7 @@
    "target": 168,
    "hours": 161.7,
    "err": -0.038,
-   "measured": 161.5,
+   "measured": 161.4,
    "before": 92
   },
   "100": {

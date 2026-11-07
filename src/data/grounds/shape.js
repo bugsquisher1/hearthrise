@@ -54,13 +54,14 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      xpFit, tierOverride   (optional) its GROUND_XP_FIT number and TIER_PULL_OVERRIDES row (balance-sheet.js), each with its reason
      partyClassXp, partyVsAlone   (optional) its party rows { 2: [...], 3: [...], 4: [...] } (party-class-xp.js): the pay cell when a
                same-class party would beat solo there, and the measured line the party window says (tests/party-class-xp-line.mjs)
+     bagGuide  the hunt's suggested bag { tier, melee, ranged, magic } (src/data/supplies.js BAG_GUIDE_BY_HUNT's row shape)
      checks    (optional) the pack's own test facts, read only by the guards that loop over every ground: bridge [[x, y], ...]
                (its one-tile choke, tests/hunt-core/forest-cave.mjs), dropRef { roles, full } and valueToday (its measured value pin,
                tests/hunt-core/drop-tables.mjs). Measured once, then frozen here, so a guard never needs a row typed for a new ground */
 export const PACK_STATUS = Object.freeze(['staged', 'open']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
-const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks']);
+const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide']);
 
 /** A pack, checked for shape and frozen at its top. Throws on a malformed one, naming the pack and the field. */
 export function definePack(p) {
@@ -81,6 +82,7 @@ export function definePack(p) {
   if (p.xpFit !== undefined && !(isObj(p.xpFit) && Number.isFinite(p.xpFit.k) && typeof p.xpFit.why === 'string' && p.xpFit.why)) no('xpFit is not { k, why }');
   if (p.tierOverride !== undefined && !(isObj(p.tierOverride) && typeof p.tierOverride.why === 'string' && p.tierOverride.why)) no('tierOverride has no why');
   if (p.checks !== undefined && !isObj(p.checks)) no('checks is not an object');
+  if (p.bagGuide !== undefined && !(isObj(p.bagGuide) && Number.isInteger(p.bagGuide.tier))) no('bagGuide is not { tier, melee, ranged, magic }');
   for (const k of ['partyClassXp', 'partyVsAlone']) if (p[k] !== undefined && !(isObj(p[k]) && [2, 3, 4].every((n) => Array.isArray(p[k][n]) && p[k][n].length === n))) no(k + ' is not { 2: [2], 3: [3], 4: [4] }');
   return Object.freeze({ monsters: {}, roster: {}, items: {}, itemText: {}, sql: null, ...p });
 }

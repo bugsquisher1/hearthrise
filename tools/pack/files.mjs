@@ -126,6 +126,7 @@ export async function fixturePack(gid, opts = {}, root = ROOT) {
   /* the ground's own rows on the shared tables come with it: its tier row, its XP fit, its party rows */
   const BS = await import(v('src/data/balance-sheet.js'));
   const PC = await import(v('src/data/party-class-xp.js'));
+  const SU = await import(v('src/data/supplies.js'));
   const has = (o) => Object.prototype.hasOwnProperty.call(o, gid);
   const rowOf = (t) => (has(t) ? Object.fromEntries(Object.entries(plain(t[gid]))) : undefined);
   const extra = {
@@ -133,6 +134,7 @@ export async function fixturePack(gid, opts = {}, root = ROOT) {
     ...(has(BS.GROUND_XP_FIT) ? { xpFit: { k: BS.GROUND_XP_FIT[gid], why: 'as ' + gid } } : {}),
     ...(has(PC.PARTY_CLASS_XP) ? { partyClassXp: rowOf(PC.PARTY_CLASS_XP) } : {}),
     ...(has(PC.PARTY_VS_ALONE) ? { partyVsAlone: rowOf(PC.PARTY_VS_ALONE) } : {}),
+    ...(has(SU.BAG_GUIDE_BY_HUNT) ? { bagGuide: plain(SU.BAG_GUIDE_BY_HUNT[gid]) } : {}),
   };
   return { id, status: opts.status || 'open', sql: opts.sql || null, hunt, ground, map, monsters, roster, ...extra };
 }

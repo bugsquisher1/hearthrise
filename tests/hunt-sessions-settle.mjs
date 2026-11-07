@@ -784,10 +784,12 @@ const ENGINE_ARMS = {
     if (M.HSD.coverSellable({ type: 'resource' }, false) || !M.HSD.coverSellable({ type: 'resource', junk: true }, false)) problems.push('sell-to-cover sells something other than junk');
     /* THE COINS REACH THE PURSE: a hero one coin short of the store's food, at full HP, can buy
        food once a kill has paid — without its coins the first meal it needs ends the hunt gold_out.
-       Drain rats (Level 10) bite a Level-9 hero hard enough to need food, after a few kills; the cellar's rats never do. */
+       Kobold Toshers (Level 13, the Sewer's) bite a Level-9 hero hard enough to need food, after a few kills; the cellar's
+       rats never do, nor since the formula (lane/b-ground-formula-2: the Sewer is a gentle ground) its Drain Rats (68 kills,
+       no meal in 30 min; the Toshers: 58 kills, 6 meals). */
     /* Its bar eats the store's food under 40% HP (no drink slot), so the first meal comes after kills have paid coins. */
     const poorBar = [{ action: { type: 'consume', id: t.shop.heal }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 40 }], join: 'and' }];
-    const out = runCut(M, () => [memberIn(M, 'a', { level: 9, gold: row.price - 1, bar: poorBar })], 1800000, [], groundWith(M, 'drain_rat'));
+    const out = runCut(M, () => [memberIn(M, 'a', { level: 9, gold: row.price - 1, bar: poorBar })], 1800000, [], groundWith(M, 'kobold_tosher'));
     const ms = out.outs.flatMap((o) => o.members);
     /* FOOD buys only: a 6 g store drink is affordable from the purse alone (designer 2026-10-17), so a drink buy proves nothing about the coins. */
     const tl = ms.reduce((a, x) => a + Object.entries(x.hunt.buys || {}).reduce((n, [id, q]) => n + ((t.basics[id] || {}).kind === 'heal' ? q : 0), 0), 0);
@@ -1251,12 +1253,19 @@ const ENGINE_ARMS = {
     };
     if (snapOf('graven_rupture_rune') !== snapOf(null)) problems.push(`a loaded Graven Rupture Rune prices the staff's blow: ${snapOf('graven_rupture_rune')} vs bare ${snapOf(null)}`);
     /* (2) a Mage's wand with twenty Earth Runes loaded (no store row behind them), the default supply setting */
-    const earth = both('earth', () => [memberIn(M, 'a', { role: 'mage', level: 20, bag: { chalked_earth_rune: { loaded: 20, left: 20, essential: true } },
+    const runes = 20;
+    const earth = both('earth', () => [memberIn(M, 'a', { role: 'mage', level: 20, bag: { chalked_earth_rune: { loaded: runes, left: runes, essential: true } },
       equipment: { weapon: 'oak_wand', shield: 'oak_spellbook', ammo: 'chalked_earth_rune' } })]);
     if (ended(earth)) problems.push(`Earth Runes ended a default hunt ${canon(ended(earth))}`);
     /* (every Earth rune spent is an Arcane Barrier's, the Mage's Earth spell: none is a basic's) */
     if ((sum(earth, 'uses').chalked_earth_rune || 0) !== casts(earth, 'arcane_barrier')) problems.push(`the wand spent ${sum(earth, 'uses').chalked_earth_rune} Earth Runes for ${casts(earth, 'arcane_barrier')} Arcane Barriers`);
-    if (!(hits(earth).length > 30)) problems.push(`the wand landed ${hits(earth).length} basics in ten minutes`);
+    /* the wand swung through the ten minutes: more basics than the 20 runes it held (so none can have been rune-fed) and one
+       in the span's last respawn (90 s). Read off the fixture, not a count of 30: the formula's 6 HP rats fall to one blow, so
+       the ground's respawn holds ten minutes to 30 basics (28 kills, as before the formula; 32 basics when a rat took two). */
+    const eh = hits(earth), respawn = groundRow().respawnMs;
+    if (!(eh.length > runes) || !(Math.max(...eh.map((x) => x[0])) >= T0 + span - respawn)) {
+      problems.push(`the wand landed ${eh.length} basics in ten minutes (want more than its ${runes} runes), the last at +${eh.length ? Math.max(...eh.map((x) => x[0])) - T0 : '-'} ms`);
+    }
     /* (3) a Ranger with Steel named on the bar and Bronze loaded, or Steel loaded (its one ability looses no shot,
        so every arrow spent is a basic's). The Steel slot is a RULE (a condition that always holds): a rule fires ahead
        of the worn ammo (conditions.js attackOrder, Andy #63), a plain bar slot only once the worn ammo runs out. */
@@ -1997,7 +2006,9 @@ const DB_ARMS = {
       if (!l || l.l !== 58 || l.r !== 3 + 55 - x.uses) problems.push(`race: the line is ${JSON.stringify(l)} after a window that ate ${x.uses}, want loaded 58, left ${3 + 55 - x.uses}`);
       if (await held() !== 15) problems.push(`race: the bag holds ${await held()} shrimp, not 15`);
       const after = await mark();
-      for (const t of [50000, 80000]) await settleAt({ mode: 'tick', session: h.sid }, h.from + t);
+      /* to +180 s, as (1) runs: on the formula's rats (lane/b-ground-formula-2, fewer bites) a hero full after the race's window
+         went 60 s unhurt, so two windows to +80 s ate nothing */
+      for (const t of [50000, 80000, 120000, 180000]) await settleAt({ mode: 'tick', session: h.sid }, h.from + t);
       const l2 = await line(h.sid);
       if (!l2 || !(l2.r < l.r)) problems.push(`race: the next windows ate none of the carried shrimp (${JSON.stringify(l)} -> ${JSON.stringify(l2)})`);
       if (!l2 || !(l2.r > 0)) problems.push(`race: CONTROL: the carried shrimp ran out, so "before the store" does not bind (${JSON.stringify(l2)})`);
@@ -3290,8 +3301,12 @@ const DB_ARMS = {
     const h = await hunter(db, M, { party: [{ ...STRONG }, GRIEFER] });
     const [A, B] = UIDS; const [sA, sB] = h.sids;
     await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'shield'", [A]);
-    /* 50 g a bone (tests/settle-hooks.mjs H-COVER): one pickup covers a store meal, so the cover case is reached */
-    await db.query("insert into public.hr_hunt_cover_items (item_id, unit) values ('bones', 50) on conflict (item_id) do update set unit = 50");
+    /* A bone is worth one store meal, read off the store's row (tests/settle-hooks.mjs H-COVER sets 50 g: one pickup covers a meal),
+       so every meal past the purse sells a bone and a window that eats more meals than it loots bones sells from the bag: the
+       race. At 50 g one bone covered three meals, and on the formula's rats (lane/b-ground-formula-2: fewer bites, coin
+       [1, 2]) the 20 minutes held two covers, each of a bone the same window looted. */
+    const meal = M.SB.BASIC_SUPPLIES.find((x) => x.id === 'salted_shrimp').price;
+    await db.query('insert into public.hr_hunt_cover_items (item_id, unit) values ($1, $2) on conflict (item_id) do update set unit = $2', ['bones', meal]);
     const exec = makeExec(db);
     /* (1) honest windows until the next one's proposal sells B's bones to cover its store food */
     let at = null;

@@ -21,7 +21,7 @@
 // PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. Not read by the engine.
 // ════════════════════════════════════════════════════════════════════════
 
-import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.104';
+import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.105';
 
 /* ── THE TARGET SHEET ─────────────────────────────────────────────────────
    Judged per ground on the real engine, store supplies bought per use (the store bill is the whole

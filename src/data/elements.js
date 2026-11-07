@@ -60,7 +60,7 @@ export function validate() {
   if (SET.has(PHYSICAL)) out.push('physical is not an element');
   const p = ELEMENT_PCT;
   if (!(Number.isInteger(p.min) && Number.isInteger(p.max) && p.min >= -100 && p.min < 0 && p.max > 0 && p.max < 100)) {
-    out.push('ELEMENT_PCT must be integers with -100 <= min < 0 < max < 100: no element is ever shrugged off whole');
+    out.push('ELEMENT_PCT must be integers with -100 <= min < 0 < max < 100, so no element is ever shrugged off whole');
   }
   return out;
 }

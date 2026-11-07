@@ -68,12 +68,14 @@ export const PARTY_CLASS_XP = Object.freeze({
    that measured 19% more than its heroes alone. THIS row is the measured answer, in whole percent to the nearest 5: Level XP per hero at the default pull, against the
    same heroes alone as built, one row per ground in the table's shape (tools/balance-sim plan b1102p, real settle, 1 h x 2 seeds a cell, one mix a cell; the Thicket's one-class
    cells are the mean of its shield, bow and wand parties after party-class-xp-line moved them under 1000; its four's -10 is the mean of all five weapons at the 1000 cell, 11-04, and reads only for a one-class four of mixed roles: see ONE_ROLE_VS_ALONE). It pays nothing;
-   tests/hunt-core/first-week-bands.mjs vs-alone plays the full mix against it. Retune the table, re-measure this. */
+   tests/hunt-core/first-week-bands.mjs vs-alone plays the full mix against it. Retune the table, re-measure this.
+   RE-MEASURED 2026-11-07 on the formula's rows with tier dials (lane/b-party-xp; tools/balance-sim/grade.mjs full, Normal, at the floor, each seat over the same way alone):
+   the Sewer pair +25, Wickstead's three +15, and the fours that read off, the Cellar's at 3 and 4 classes +9% and +28% (10, 30), Wickstead's +26% and +27% (25, 25). */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 export const PARTY_VS_ALONE = Object.freeze({
-  mill_cellar: said([-5, 10], [-5, 5, 15], [-20, 5, 5, 25]),
+  mill_cellar: said([-5, 10], [-5, 5, 15], [-20, 5, 10, 30]),
   meadowbrook_thicket: said([-10, 10], [-10, 5, 20], [-10, 0, 5, 20]),
-  wickstead: said([-10, 5], [-10, 5, 15], [-15, 5, 5, 20]),
+  wickstead: said([-10, 5], [-10, 5, 15], [-15, 5, 25, 25]),
   mosslight_glade: said([-10, 5], [-15, 5, 15], [-10, 5, 10, 20]),
   millrace_sewer: said([-10, 25], [-15, 10, 20], [-20, 10, 10, 20]),
   coppercap_warrens: said([-10, 10], [-15, 5, 15], [-15, 5, 10, 20]),

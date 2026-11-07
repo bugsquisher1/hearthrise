@@ -5,13 +5,13 @@
 // rung's offer at the server's price, gold and material. Every envelope replaces it and nothing here holds a number of its own: what a rung is
 // worth is the one rule the fight uses (src/core/temper.js), read over the server's rungs and the server's worn set.
 // ════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.104';
-import { TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.104';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.104';
-import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.104';
-import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.104';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.104';
-import { recipeInputs } from '../core/artisan.js?v=0.2.104';
+import { ITEMS } from '../data/items.js?v=0.2.105';
+import { TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.105';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.105';
+import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.105';
+import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.105';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.105';
+import { recipeInputs } from '../core/artisan.js?v=0.2.105';
 
 const count = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : null);
 

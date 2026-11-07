@@ -21,19 +21,19 @@
 //                          its line is the server's answer, and every count on
 //                          screen changes only from the re-read envelope
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.104';
-import { huntBagOf, settingsOf } from '../session/hunt-sections.js?v=0.2.104';
-import { carryIntoHunt, CARRY_MAX } from '../session/carry-intents.js?v=0.2.104';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.104';
-import { ABILITIES } from '../data/abilities.js?v=0.2.104';
-import { ITEMS } from '../data/items.js?v=0.2.104';
-import { shootsItem } from '../data/hunt-roles.js?v=0.2.104';
-import { shortOf } from './item-lore.js?v=0.2.104';
-import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.104';
-import { amountHtml, amountOf, stepAmount } from './widgets/amount.js?v=0.2.104';
-import { runIntent } from './intent-words.js?v=0.2.104';
-import { itemName, familyCount } from './widgets/bits.js?v=0.2.104';
-import { whole } from '../render/format.js?v=0.2.104';
+import { bagOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.105';
+import { huntBagOf, settingsOf } from '../session/hunt-sections.js?v=0.2.105';
+import { carryIntoHunt, CARRY_MAX } from '../session/carry-intents.js?v=0.2.105';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.105';
+import { ABILITIES } from '../data/abilities.js?v=0.2.105';
+import { ITEMS } from '../data/items.js?v=0.2.105';
+import { shootsItem } from '../data/hunt-roles.js?v=0.2.105';
+import { shortOf } from './item-lore.js?v=0.2.105';
+import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.105';
+import { amountHtml, amountOf, stepAmount } from './widgets/amount.js?v=0.2.105';
+import { runIntent } from './intent-words.js?v=0.2.105';
+import { itemName, familyCount } from './widgets/bits.js?v=0.2.105';
+import { whole } from '../render/format.js?v=0.2.105';
 
 /* The server's hunt is open and not on its way home: a session, not ended, no Leave or change pending. */
 function running(cs) {

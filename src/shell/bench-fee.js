@@ -5,11 +5,11 @@
 // (src/session/bench-sections.js) and its purse, read here and spent nowhere. The server stops a job it cannot pay and says
 // so; these are the words for that stop, before Start and after it, and they name the stack the shop would pay it back with.
 // ════════════════════════════════════════════════════════════════════════
-import { taxFor, craftsCovered, canPayNext, dueNext } from '../core/bench-tax.js?v=0.2.104';
-import { benchTaxOf, benchFeeMg, benchRunOf } from '../session/bench-sections.js?v=0.2.104';
-import { goldOf, shopOf } from '../session/item-sections.js?v=0.2.104';
-import { whole } from '../render/format.js?v=0.2.104';
-import { itemName } from './widgets/bits.js?v=0.2.104';
+import { taxFor, craftsCovered, canPayNext, dueNext } from '../core/bench-tax.js?v=0.2.105';
+import { benchTaxOf, benchFeeMg, benchRunOf } from '../session/bench-sections.js?v=0.2.105';
+import { goldOf, shopOf } from '../session/item-sections.js?v=0.2.105';
+import { whole } from '../render/format.js?v=0.2.105';
+import { itemName } from './widgets/bits.js?v=0.2.105';
 
 const roomWords = (t, skill) => (t && t.rooms[skill] ? t.rooms[skill].room : null);
 

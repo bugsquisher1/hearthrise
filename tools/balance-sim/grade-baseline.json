@@ -1,0 +1,684 @@
+{
+ "what": "tools/balance-sim/grade.mjs --mode full, the baseline on today's rows (lane/b-ground-grader)",
+ "rows": "origin/set/v0.2.105 990ccf3e9",
+ "sheet": "src/data/balance-sheet.js BALANCE_SHEET (lane/b-ground-formula) at origin/lane/b-ground-formula 0a5094430",
+ "cells": 1424,
+ "grounds": {
+  "mill_cellar": {
+   "fail": 4,
+   "unproven": 0,
+   "off": 0,
+   "ok": 63
+  },
+  "millrace_sewer": {
+   "fail": 19,
+   "unproven": 0,
+   "off": 2,
+   "ok": 41
+  },
+  "meadowbrook_thicket": {
+   "fail": 19,
+   "unproven": 0,
+   "off": 0,
+   "ok": 73
+  },
+  "coppercap_warrens": {
+   "fail": 9,
+   "unproven": 0,
+   "off": 7,
+   "ok": 46
+  },
+  "mosslight_glade": {
+   "fail": 1,
+   "unproven": 0,
+   "off": 0,
+   "ok": 63
+  },
+  "wickstead": {
+   "fail": 18,
+   "unproven": 0,
+   "off": 0,
+   "ok": 82
+  }
+ },
+ "outliers": [
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "wickstead / dangerous / under2 / size 2 / hammer+bow L6",
+   "value": 3822.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "wickstead / dangerous / under3 / size 2 / hammer+bow L5",
+   "value": 3701.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "wickstead / dangerous / under5 / size 2 / hammer+bow L3",
+   "value": 3698,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "millrace_sewer / dangerous / under2 / size 2 / hammer+bow L6",
+   "value": 3669,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "millrace_sewer / dangerous / under3 / size 2 / hammer+bow L5",
+   "value": 3597.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "millrace_sewer / dangerous / under5 / size 2 / hammer+bow L3",
+   "value": 3523.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "meadowbrook_thicket / dangerous / under2 / size 2 / hammer+bow L3",
+   "value": 2896,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "millrace_sewer / dangerous / under2 / size 2 / tank+healer L6",
+   "value": 2863.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "millrace_sewer / dangerous / under5 / size 2 / tank+healer L3",
+   "value": 2842.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "millrace_sewer / dangerous / under3 / size 2 / tank+healer L5",
+   "value": 2817,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "meadowbrook_thicket / dangerous / under3 / size 2 / hammer+bow L2",
+   "value": 2809,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "wickstead / dangerous / under3 / size 2 / tank+healer L5",
+   "value": 2790,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "wickstead / dangerous / under2 / size 2 / tank+healer L6",
+   "value": 2729,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "wickstead / dangerous / under5 / size 2 / tank+healer L3",
+   "value": 2648,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "meadowbrook_thicket / deadly / under3 / size 2 / hammer+bow L2",
+   "value": 2587.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "meadowbrook_thicket / deadly / under2 / size 2 / hammer+bow L3",
+   "value": 2539.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "meadowbrook_thicket / dangerous / under3 / size 2 / tank+healer L2",
+   "value": 2276.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "meadowbrook_thicket / dangerous / under2 / size 2 / tank+healer L3",
+   "value": 2195,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "meadowbrook_thicket / deadly / under2 / size 2 / tank+healer L3",
+   "value": 1864,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "meadowbrook_thicket / deadly / under3 / size 2 / tank+healer L2",
+   "value": 1845,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "millrace_sewer / deadly / under2 / size 2 / hammer+bow L6",
+   "value": 1294.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "millrace_sewer / deadly / under3 / size 2 / hammer+bow L5",
+   "value": 869,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "wickstead / deadly / under2 / size 2 / hammer+bow L6",
+   "value": 418,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "millrace_sewer / deadly / under5 / size 2 / hammer+bow L3",
+   "value": 337,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "coppercap_warrens / dangerous / under2 / size 2 / tank+healer L30",
+   "value": 315.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "wickstead / deadly / under3 / size 2 / hammer+bow L5",
+   "value": 180,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "millrace_sewer / deadly / under2 / size 2 / tank+healer L6",
+   "value": 155.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "fresh-dips",
+   "where": "meadowbrook_thicket / normal / floor / size 1 / sword L5",
+   "value": 60,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "fresh-dips",
+   "where": "meadowbrook_thicket / normal / floor / size 1 / tank L5",
+   "value": 25,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "millrace_sewer / deadly / under3 / size 2 / tank+healer L5",
+   "value": 21.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "fresh-dips",
+   "where": "meadowbrook_thicket / normal / floor / size 1 / axes L5",
+   "value": 16,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "fresh-dips",
+   "where": "wickstead / normal / floor / size 1 / sword L8",
+   "value": 13,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "fresh-dips",
+   "where": "meadowbrook_thicket / normal / floor / size 1 / hammer L5",
+   "value": 11,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "fresh-dips",
+   "where": "wickstead / normal / floor / size 1 / axes L8",
+   "value": 4,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "fresh-dips",
+   "where": "wickstead / normal / floor / size 1 / tank L8",
+   "value": 3,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "fresh-dips",
+   "where": "wickstead / normal / floor / size 1 / hammer L8",
+   "value": 1,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "fresh-dips",
+   "where": "meadowbrook_thicket / normal / floor / size 1 / bow L5",
+   "value": 1,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "fresh-dips",
+   "where": "meadowbrook_thicket / normal / floor / size 1 / crossbow L5",
+   "value": 1,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-deadly-four-held",
+   "where": "millrace_sewer / deadly / floor / size 4 / tank+hammer+bow+mage L8",
+   "value": 219.29,
+   "min": null,
+   "max": 9
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-deadly-four-held",
+   "where": "millrace_sewer / deadly / floor / size 4 / tank+healer+bow+mage L8",
+   "value": 102,
+   "min": null,
+   "max": 9
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-deadly-four-held",
+   "where": "coppercap_warrens / deadly / floor / size 4 / tank+hammer+bow+mage L32",
+   "value": 40,
+   "min": null,
+   "max": 9
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-deadly-four-held",
+   "where": "wickstead / deadly / floor / size 4 / tank+hammer+bow+mage L8",
+   "value": 23,
+   "min": null,
+   "max": 9
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "millrace_sewer / dangerous / under5 / size 2 / hammer+bow L3",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "millrace_sewer / dangerous / under5 / size 2 / tank+healer L3",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "meadowbrook_thicket / deadly / under3 / size 2 / hammer+bow L2",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "meadowbrook_thicket / deadly / under2 / size 2 / hammer+bow L3",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "coppercap_warrens / dangerous / under5 / size 2 / hammer+bow L27",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "coppercap_warrens / dangerous / under5 / size 2 / tank+healer L27",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "mosslight_glade / dangerous / under5 / size 2 / tank+healer L11",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "wickstead / dangerous / under5 / size 2 / hammer+bow L3",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "wickstead / dangerous / under5 / size 2 / tank+healer L3",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-deadly-lone-cost",
+   "where": "wickstead / deadly / floor / size 1 / the median of 8 (tank, sword, hammer, axes, bow, crossbow, mage, healer) L8",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-deadly-four-xp",
+   "where": "millrace_sewer / deadly / floor / size 4 / tank+hammer+bow+mage L8",
+   "value": 0.57,
+   "min": 1.25,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-deadly-four-xp",
+   "where": "millrace_sewer / deadly / floor / size 4 / tank+healer+bow+mage L8",
+   "value": 0.74,
+   "min": 1.25,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "normal-xp-contract",
+   "where": "coppercap_warrens / normal / middle / size 4 / the median of 2 (tank+healer+bow+mage, tank+hammer+bow+mage) L41",
+   "value": 1.36,
+   "min": 0.9,
+   "max": 1.1
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "normal-xp-contract",
+   "where": "millrace_sewer / normal / middle / size 4 / the median of 2 (tank+hammer+bow+mage, tank+healer+bow+mage) L17",
+   "value": 1.28,
+   "min": 0.9,
+   "max": 1.1
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-deadly-four-xp",
+   "where": "meadowbrook_thicket / deadly / floor / size 4 / tank+healer+bow+mage L5",
+   "value": 1.05,
+   "min": 1.25,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-deadly-four-xp",
+   "where": "meadowbrook_thicket / deadly / floor / size 4 / tank+hammer+bow+mage L5",
+   "value": 1.08,
+   "min": 1.25,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "normal-xp-contract",
+   "where": "mill_cellar / normal / middle / size 1 / the median of 8 (axes, hammer, sword, tank, bow, crossbow, mage, healer) L5",
+   "value": 0.83,
+   "min": 0.9,
+   "max": 1.1
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "four-xp",
+   "where": "mill_cellar / normal / top / size 4 / tank+hammer+bow+mage L8",
+   "value": 1.08,
+   "min": 1.15,
+   "max": 1.25
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "four-xp",
+   "where": "mill_cellar / normal / middle / size 4 / tank+hammer+bow+mage L5",
+   "value": 1.08,
+   "min": 1.15,
+   "max": 1.25
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-dangerous-xp",
+   "where": "wickstead / dangerous / floor / size 1 / the median of 8 (sword, tank, hammer, axes, bow, crossbow, mage, healer) L8",
+   "value": 1.04,
+   "min": 1.1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "tier-dangerous-xp",
+   "where": "meadowbrook_thicket / dangerous / floor / size 1 / the median of 8 (tank, sword, hammer, axes, bow, crossbow, mage, healer) L5",
+   "value": 1.04,
+   "min": 1.1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "four-xp",
+   "where": "mill_cellar / normal / floor / size 4 / tank+hammer+bow+mage L1",
+   "value": 1.09,
+   "min": 1.15,
+   "max": 1.25
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "four-xp",
+   "where": "coppercap_warrens / normal / floor / size 4 / tank+healer+bow+mage L32",
+   "value": 1.29,
+   "min": 1.15,
+   "max": 1.25
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "four-xp",
+   "where": "coppercap_warrens / normal / middle / size 4 / tank+healer+bow+mage L41",
+   "value": 1.28,
+   "min": 1.15,
+   "max": 1.25
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "four-xp",
+   "where": "coppercap_warrens / normal / top / size 4 / tank+healer+bow+mage L50",
+   "value": 1.26,
+   "min": 1.15,
+   "max": 1.25
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "four-xp",
+   "where": "millrace_sewer / normal / top / size 4 / tank+hammer+bow+mage L25",
+   "value": 1.14,
+   "min": 1.15,
+   "max": 1.25
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "four-xp",
+   "where": "coppercap_warrens / normal / top / size 4 / tank+hammer+bow+mage L50",
+   "value": 1.15,
+   "min": 1.15,
+   "max": 1.25
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "four-xp",
+   "where": "wickstead / normal / floor / size 4 / tank+hammer+bow+mage L8",
+   "value": 1.25,
+   "min": 1.15,
+   "max": 1.25
+  },
+  {
+   "verdict": "OFF",
+   "rule": "normal-profit",
+   "where": "coppercap_warrens / normal / floor / size 1 / sword L32",
+   "value": -0.68,
+   "min": 0.25,
+   "max": null
+  },
+  {
+   "verdict": "OFF",
+   "rule": "normal-profit",
+   "where": "coppercap_warrens / normal / floor / size 1 / axes L32",
+   "value": -0.51,
+   "min": 0.25,
+   "max": null
+  },
+  {
+   "verdict": "OFF",
+   "rule": "normal-profit",
+   "where": "coppercap_warrens / normal / floor / size 1 / hammer L32",
+   "value": -0.35,
+   "min": 0.25,
+   "max": null
+  },
+  {
+   "verdict": "OFF",
+   "rule": "normal-profit",
+   "where": "coppercap_warrens / normal / floor / size 1 / tank L32",
+   "value": -0.12,
+   "min": 0.25,
+   "max": null
+  },
+  {
+   "verdict": "OFF",
+   "rule": "normal-supplies-max",
+   "where": "coppercap_warrens / normal / floor / size 1 / the median of 8 (sword, hammer, tank, axes, bow, crossbow, healer, mage) L32",
+   "value": 0.83,
+   "min": null,
+   "max": 0.35
+  },
+  {
+   "verdict": "OFF",
+   "rule": "normal-dips",
+   "where": "millrace_sewer / normal / floor / size 1 / 8 cells, 192 hero-h",
+   "value": 1.81,
+   "ci95": [
+    1.214,
+    2.603
+   ],
+   "k": 29,
+   "hours": 192,
+   "min": null,
+   "max": 1
+  },
+  {
+   "verdict": "OFF",
+   "rule": "normal-low-point",
+   "where": "coppercap_warrens / normal / floor / size 1 / sword L32",
+   "value": 55.9,
+   "min": 60,
+   "max": null
+  },
+  {
+   "verdict": "OFF",
+   "rule": "tier-dangerous-xp",
+   "where": "millrace_sewer / dangerous / floor / size 1 / the median of 8 (sword, tank, hammer, axes, bow, crossbow, mage, healer) L8",
+   "value": 1.05,
+   "min": 1.1,
+   "max": null
+  },
+  {
+   "verdict": "OFF",
+   "rule": "normal-low-point",
+   "where": "coppercap_warrens / normal / floor / size 1 / axes L32",
+   "value": 59.1,
+   "min": 60,
+   "max": null
+  }
+ ]
+}

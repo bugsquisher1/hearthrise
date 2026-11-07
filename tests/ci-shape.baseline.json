@@ -305,6 +305,8 @@
     "node tools/mutant-gate.mjs node tests/balance-sheet.mjs --mutate": "db-replay-8",
     "node tools/gen-ground-stats.mjs --check": "db-replay-8",
     "node tools/mutant-gate.mjs node tools/gen-ground-stats.mjs --selftest": "db-replay-8",
+    "node tests/balance-grade.mjs": "db-replay-8",
+    "node tools/mutant-gate.mjs node tools/balance-sim/grade.mjs --selftest": "db-replay-8",
     "node tools/gen-level-curve.mjs --check": "db-replay-8",
     "node tools/mutant-gate.mjs node tools/gen-level-curve.mjs --selftest": "db-replay-8",
     "node tests/hearth-fuel-rate.mjs": "db-replay-8",

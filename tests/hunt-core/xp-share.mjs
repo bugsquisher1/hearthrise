@@ -122,7 +122,8 @@ const cases = {
   /* A shield Melee and a Melee are ONE class, whichever shares the party; a Melee beside a Ranger is two. */
   'party-class-melee-is-one': (M) => {
     const one = killOn(M, 'meadowbrook_thicket', ['tank', 'melee_dps'], BIG);
-    if (Object.values(one).some((v) => v !== Math.round((BIG / 2) * 0.98))) return 'tank + melee_dps paid ' + JSON.stringify(one) + ', the one-class cell is 980';
+    const cell = PARTY_TABLE.meadowbrook_thicket[2][0];   // the Thicket's one-class duo cell, read from the table (930 since lane/b-ground-formula-2)
+    if (Object.values(one).some((v) => v !== Math.round((BIG / 2) * cell / 1000))) return 'tank + melee_dps paid ' + JSON.stringify(one) + ', the one-class cell is ' + cell;
     const four = killOn(M, 'mosslight_glade', ['tank', 'tank', 'melee_dps', 'melee_dps'], BIG);
     if (Object.values(four).some((v) => v !== BIG / 4)) return 'four Melee paid ' + JSON.stringify(four);
     const sewer = killOn(M, 'millrace_sewer', ['tank', 'melee_dps'], BIG);

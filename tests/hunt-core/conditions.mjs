@@ -140,7 +140,9 @@ const HAVOC = 'steel_arrows'; const BURST = 'iron_arrows';
 function party(M, o) {
   const x = o || {};
   return [
-    member(M, 'a-knight', 'tank', { seat: 0, hp: 1920, def: 2, maxHit: 5 }),
+    /* 1200 HP (was 1920, lane/b-ground-formula-fix): on the formula's Drain Rats (atk 5 -> 4) the 1920 knight's lowest was 81.1%
+       at a 2 s boundary, so the druid's under-80% rule never fired (main: 79.1%, 13 heals). 900-1300 HP: 6-11 heals, no death. */
+    member(M, 'a-knight', 'tank', { seat: 0, hp: 1200, def: 2, maxHit: 5 }),
     member(M, 'b-ranger', 'ranger', { seat: 1, ammo: 'bronze_arrows', maxHit: 4,
       bag: { bronze_arrows: { loaded: 50 }, [HAVOC]: { loaded: x.havoc ?? 6 }, [BURST]: { loaded: 500 } },
       slots: [slot('attack_with_item', HAVOC, [c('enemies_in_aoe', 'gte', 4)], 'and', 'havoc'), slot('attack_with_item', BURST, [c('enemies_in_aoe', 'gte', 2)], 'and', 'burst')] }),

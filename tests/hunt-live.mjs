@@ -148,6 +148,7 @@ async function load(base) {
     XP: await u('src/core/xp.js'),
     MB: await u('src/core/member.js'),
     HR: await u('src/data/hunt-roles.js'),
+    PCX: await u('src/data/party-class-xp.js'),
     TUNE: (await u('src/data/hunt-tuning.js')).HUNT_TUNING,
     CB: (await u('src/core/combat.js')).COMBAT_BALANCE,
     WS: await u('src/core/hunt/world-state.js'),
@@ -1452,8 +1453,8 @@ function rules(M) {
     ok('LV-NOFIGHT', !!end && end.reason === 'no_fight' && Date.parse(end.at) === T0 + SPAN, 'browser closed: a bare bow ended ' + JSON.stringify(end) + ', want no_fight at +' + SPAN + ' ms');
     ok('LV-NOFIGHT', verdicts.length > 30 && off.length === 0, 'viewed: ' + off.length + ' of ' + verdicts.length + ' commits did not match the prediction');
   }
-  { /* LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31), both paths: a Melee and a Ranger in the Cellar earn the table's 1.07 over
-       the even share; a Melee and a Melee earn the even share. The same swings pay the same XP viewed and browser closed. */
+  { /* LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31), both paths: a Melee and a Ranger in the Cellar earn the table's cell over
+       the even share (src/data/party-class-xp.js, read here: lane/b-party-xp moved it 1070 -> 1210); a Melee and a Melee earn the even share. The same swings pay the same XP viewed and browser closed. */
     const SPAN = 240000;
     const cast = { mixed: ['tank', 'ranger'], same: ['tank', 'melee_dps'] };
     for (const [name, roles] of Object.entries(cast)) {
@@ -1490,8 +1491,9 @@ function rules(M) {
       ok('LV-CLASS', shownXp.join() === closedXp.join(), name + ': the prediction shows ' + shownXp + ', the server pays ' + closedXp);
       ok('LV-CLASS', !!next && aheadXp.join() === nextXp.join(), name + ': the prediction past the last commit shows ' + aheadXp + ', the next commit pays ' + nextXp);
       ok('LV-CLASS', off === 0, name + ': ' + off + ' of ' + r.verdicts.length + ' commits did not match the prediction');
-      /* Whole shares floor: the cell moves each share by 1.20 before its floor, so the sum sits within a floor of it. */
-      const want = name === 'mixed' ? evs.reduce((s, e) => s + Math.floor(e.raw * 1.07 + 1e-9), 0) : raw;
+      /* Whole shares floor: the cell moves each share before its floor, so the sum sits within a floor of it. */
+      const cell = M.PCX.partyClassXp('mill_cellar', roles).permille;
+      const want = name === 'mixed' ? evs.reduce((s, e) => s + Math.floor((e.raw * cell) / 1000 + 1e-9), 0) : raw;
       ok('LV-CLASS', name === 'same' ? paid === raw : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares');
     }
     /* A PARTY'S DEFAULT PULL (designer 2026-11-01), both paths: a Thicket pair with no pick stands at 3 each in the server's world

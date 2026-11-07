@@ -534,7 +534,8 @@ begin
     update public.player_state set active_kind = 'idle', active_id = null where user_id = v_u and slot = 0;
     insert into public.account_wallet as w (user_id, gold) values (v_u, 1000000)
       on conflict (user_id) do update set gold = excluded.gold, version = w.version + 1, updated_at = now();
-    -- (s)
+    -- (s) (off for the probe whatever the Coordinator has flipped on live: the block rolls back, so the live row stands)
+    update public.hr_feature_switches set scope = 'off', accounts = '{}' where switch_id = 'scaled_hunts';
     update public.player_state set level_xp = public.hr_char_xp_for_level(20) where user_id = v_u and slot = 0;
     if public.hr_feature_on('scaled_hunts', v_u) then raise exception 'scaled-hunts §8(s): the switch is not off for a probe account'; end if;
     if public.hr_scaled_hunts_view(v_u, 0) is not null then raise exception 'scaled-hunts §8(s): the switch off still projects the section'; end if;

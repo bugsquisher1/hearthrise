@@ -48,16 +48,14 @@ const MUTATE = process.argv.includes('--mutate');
 const u = (p) => pathToFileURL(join(ROOT, p)).href;
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
-const S = await import(u('src/data/scaled-hunts.js') + V);
-const T = await import(u('src/data/hunt-tiers.js') + V);
-const { MONSTERS } = await import(u('src/data/monsters.js') + V);
 const HOUR = 3600000, SWING = 2000;
 const ARMS = ['SH-PLAY', 'SH-PLAN', 'SH-CAT', 'SH-BUY', 'SH-CLOSED', 'SH-VIEWED', 'SH-OUT', 'SH-SWITCH', 'SH-PARTY', 'SH-FEATURE', 'SH-FORGE'];
 
 // ═══════════════════════════════════════════════════════════════════════
 // ENGINE ARMS
 // ═══════════════════════════════════════════════════════════════════════
-function shPlay(CSx) {
+function shPlay(M) {
+  const { CS: CSx, S, TT: T, MON: MONSTERS } = M;
   const bad = [];
   const plain = CSx.huntPlayOf('mill_cellar', null);
   if (plain.level !== null || plain.monsters !== null || plain.tierOf('normal') !== T.tierRowOf('mill_cellar', 'normal')) bad.push('no scale does not play the catalogue');
@@ -260,7 +258,7 @@ const DB_ARMS = {
     /* a fixture bank of 40 s (20 swings), its books kept */
     await db.query('update public.player_scaled_hours set banked_ms = 40000, spent_ms = bought_ms - 40000 where user_id = $1', [UID]);
     const s0 = await instOf(db, h.inst);
-    await cutsTo(db, M, [h.from + 3 * 60000]);
+    try { await cutsTo(db, M, [h.from + 3 * 60000]); } catch (e) { return ['a window past the hours was refused: ' + String(e && e.message).slice(0, 200)]; }
     const i1 = await instOf(db, h.inst), open = await one(db, 'select count(*)::int from public.hunt_sessions where id = $1 and ended_at is null', [h.sid]);
     const row = (await q(db, 'select banked_ms::int b, spent_ms::text s, bought_ms::text t from public.player_scaled_hours where user_id = $1', [UID]))[0];
     if (row.b !== 0 || BigInt(row.t) - BigInt(row.s) !== 0n) bad.push('the bank holds ' + row.b + ' ms after its hours ran out (books ' + row.t + ' - ' + row.s + ')');
@@ -374,7 +372,7 @@ async function runArms(db, M, only) {
   const ctx = {};
   for (const name of ARMS) {
     if (only && !only.includes(name)) continue;
-    if (name === 'SH-PLAY') { out[name] = shPlay(M.CS); continue; }
+    if (name === 'SH-PLAY') { out[name] = shPlay(M); continue; }
     if (name === 'SH-PLAN') { out[name] = shPlan(M.HS); continue; }
     try {
       out[name] = await inTx(db, async () => {
@@ -402,7 +400,8 @@ const DB_MUTANTS = [
     find: "  if exists (select 1 from public.hunt_parties p where p.id = p_instance) then", replace: "  if false then" },
   { arm: 'SH-FEATURE', name: 'every scope reads on', fn: 'public.hr_feature_on(text,uuid)', find: "    else false end;", replace: "    else true end;" },
   { arm: 'SH-FEATURE', name: 'the purchase never asks the switch', fn: 'public.hr_scaled_hunt_buy(integer,text,integer,bigint,uuid)',
-    find: "  if not public.hr_feature_on('scaled_hunts', v_uid) then", replace: "  if false then" },
+    find: "  if not public.hr_feature_on('scaled_hunts', v_uid) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'feature_off')); end if;\n  perform public.hr_hunt_lock(v_uid, p_slot);\n  select version",
+    replace: "  perform public.hr_hunt_lock(v_uid, p_slot);\n  select version" },
   { arm: 'SH-FEATURE', name: 'the settle reads the hours with the switch off', fn: 'public.hr_scaled_hunt_of(uuid)',
     find: "  if not public.hr_feature_on('scaled_hunts', v_lu) then return null; end if;", replace: '' },
   { arm: 'SH-FEATURE', name: 'the testers scope is everyone', fn: 'public.hr_feature_on(text,uuid)',
@@ -432,7 +431,9 @@ async function main() {
   let db;
   try { ({ db } = await bootReplay()); } catch (e) { console.error('✗ the chain would not replay: ' + String(e.message).slice(0, 600)); process.exit(1); }
   await H.pinDice(db);
-  const load = async (root) => ({ ...(await H.loadEdge(root)), CS: await import(pathToFileURL(join(root, 'src/core/combat-sim.js')).href + V) });
+  const at = (root, f) => import(pathToFileURL(join(root, f)).href + V);
+  const load = async (root) => ({ ...(await H.loadEdge(root)), CS: await at(root, 'src/core/combat-sim.js'), S: await at(root, 'src/data/scaled-hunts.js'),
+    TT: await at(root, 'src/data/hunt-tiers.js'), MON: (await at(root, 'src/data/monsters.js')).MONSTERS });
   if (MUTATE) {
     let bad = 0;
     const M = await load(ROOT);

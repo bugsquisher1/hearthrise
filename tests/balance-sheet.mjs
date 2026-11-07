@@ -105,7 +105,26 @@ const CASES = {
     try { execFileSync(process.execPath, [join(ROOT, 'tools/gen-ground-stats.mjs'), '--selftest'], { stdio: 'pipe' }); } catch (e) { bad.push('gen-ground-stats --selftest is red: ' + String(e.stdout || e.message).trim()); }
     return bad;
   },
+  /* THE FENCE: every row that says `formula: true` (monster-classes.js auditRoster then skips its hand bands) is the formula's, digit
+     for digit, and stands on the roster; a ground the formula has written has every one of its roster rows written. */
+  'rows-are-the-formula': (B, M = MONSTERS) => {
+    const bad = [], D = { MONSTERS: M, formulaStats: B.formulaStats, floorOf: GEN_D.floorOf, fitOf: GEN_D.fitOf };
+    const onRoster = new Set(Object.values(GEN.ROSTER).flatMap((r) => Object.keys(r)));
+    for (const [id, m] of Object.entries(M)) if (m && m.formula === true && !onRoster.has(id)) bad.push(id + ' says formula: true and is on no ground\'s roster');
+    for (const g of Object.keys(GEN.ROSTER)) {
+      const rows = GEN.proposeGround(g, D), written = rows.filter((r) => M[r.id].formula === true);
+      if (written.length && written.length !== rows.length) bad.push(g + ': ' + written.length + ' of ' + rows.length + ' roster rows written (a ground moves whole)');
+      for (const r of written) if (r.drift.length) bad.push(r.id + ' (' + g + '): ' + r.drift.map((k) => k + ' ' + JSON.stringify(r.today[k]) + ', the formula ' + JSON.stringify(r.formula[k])).join('; '));
+    }
+    return bad;
+  },
 };
+/* the generator's own ground readers (floor and fit from src/data), for the fence */
+const GEN_D = await (async () => {
+  const { HUNT_GROUNDS } = await import(u('src/data/hunt-grounds.js'));
+  const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
+  return { floorOf: (g) => HUNT_INDEX[HUNT_GROUNDS[g].hunt].band[0], fitOf: (g) => (HUNT_GROUNDS[g].pockets.some((p) => p.minParty) ? 'party' : HUNT_GROUNDS[g].groupFit || 'both') };
+})();
 
 /* THE MUTANTS: a planted copy of the module with one rule broken; the named case must go red on it. */
 const plant = (patch) => {
@@ -123,6 +142,18 @@ const MUTANTS = [
   ['tiers', 'Dangerous hitting softer than Normal', () => plant({ TIER_DIALS: { ...REAL.TIER_DIALS, dangerous: { ...REAL.TIER_DIALS.dangerous, dmgPm: 900 } } })],
 ];
 
+/* a roster with one ground written by the formula, then one of its rows nudged off it, or one row left behind */
+const writtenGround = (nudge) => {
+  const g = 'wickstead', D = { MONSTERS, formulaStats: REAL.formulaStats, floorOf: GEN_D.floorOf, fitOf: GEN_D.fitOf };
+  const M = { ...MONSTERS };
+  for (const r of GEN.proposeGround(g, D)) M[r.id] = { ...MONSTERS[r.id], ...r.formula, formula: true };
+  nudge(M, Object.keys(GEN.ROSTER[g]));
+  return M;
+};
+MUTANTS.push(['rows-are-the-formula', 'a written row one atk point off', () => ({ M: writtenGround((M, ids) => { M[ids[0]] = { ...M[ids[0]], atk: M[ids[0]].atk + 1 }; }) })]);
+MUTANTS.push(['rows-are-the-formula', 'a ground written all but one row', () => ({ M: writtenGround((M, ids) => { const { formula, ...hand } = M[ids[1]]; M[ids[1]] = hand; }) })]);
+MUTANTS.push(['rows-are-the-formula', 'a hand row flagged as the formula\'s', () => ({ M: { ...MONSTERS, slime: { ...MONSTERS.slime, formula: true }, gray_wolf: { ...MONSTERS.gray_wolf, formula: true } } })]);
+
 const mutate = process.argv.includes('--mutate');
 let red = 0;
 for (const [name, fn] of Object.entries(CASES)) {
@@ -130,7 +161,8 @@ for (const [name, fn] of Object.entries(CASES)) {
   if (bad.length) { red++; console.error('  RED  ' + name + '\n        ' + bad.slice(0, 5).join('\n        ')); } else console.log('  ok   ' + name);
 }
 if (mutate) for (const [name, what, make] of MUTANTS) {
-  const bad = CASES[name](make());
+  const made = make();
+  const bad = made.M ? CASES[name](REAL, made.M) : CASES[name](made);
   if (!bad.length) { red++; console.error('  MUTANT SURVIVED  ' + name + ': ' + what); } else console.log('  caught  ' + name + ': ' + what);
 }
 if (red) { console.error('balance-sheet: RED (' + red + ')'); process.exit(1); }

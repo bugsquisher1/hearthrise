@@ -30,6 +30,86 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-07 One formula for every hunt (designer, lane/b-ground-formula; Tyler 2026-11-07 "is there a formula you can start following?", then "Yes, start there", then "fleshing this system out perfectly and applying it to all current hunts"): BUILT as data, a generator and a grader; the sample MEASURED on the real engine; Wickstead's and the Glade's rows WRITTEN by the formula
+**The call.** Every ground is now built and graded by three things in one data module, `src/data/balance-sheet.js`: a **target sheet** (what a ground must measure), a **stat formula** (a monster's numbers from its Level, its role and its ground's floor) and **one tier table** (Normal, Dangerous, Deadly as dials). `tools/gen-ground-stats.mjs` writes the rows (`formula: true` on each), `tools/balance-sim/sheet-check.mjs` plays a ground and grades it line by line, and `tests/balance-sheet.mjs` holds every written row to the formula digit for digit. A balance complaint becomes a dial to move, not a hand re-fit. The formula reproduces the economy the hand rows already had (about 0.3 g and 1.8 x Level^0.4 XP per HP point on every open ground); what it fixes is danger, which now climbs by one rule instead of by ground.
+
+**The target sheet** (`BALANCE_SHEET`; ruled lines are Tyler's, the rest are mine).
+| Line | Target | Source |
+|---|---|---|
+| Normal, a lone hero at the floor in that Level's gear, each of the 8 ways | 0 deaths in the sample (the ruling: at most 1 per 1,000 h), at most 1 dip under 25% per 12 h (pooled), typical low point 60% or more, every way +25% or more over its bill | Ruled 10-25 §3, 10-18, 10-20 |
+| Normal, supplies | From floor 16: the median way spends 10-35% of income on supplies; under 16, at most 35% | Mine (Tyler took 21% at the Glade, 11-07) |
+| Normal, XP | At the band's middle the median way earns 0.9-1.1x the pace contract (1019 x L^1.365: L10 ~6 h, L25 ~36 h, L50 ~168 h) | Ruled 10-25 §2 |
+| The fresh hero (practice set, a first-day ground) | No death, no dip, typical 60%+, +25% margin, XP at least half the pace | first-week-bands |
+| A four at the floor | 1.15-1.25x the median lone way's Level XP a head | Ruled 10-25 §5 |
+| Dangerous, alone at the floor | 1.1x Normal's XP or more, 6 of 8 ways hold | Ruled 11-05, 11-06 |
+| Deadly, alone at the floor / a four at the floor | The median way dies or nets less than Normal / a four earns 1.25x its Normal or more with 9 deaths or fewer in 16 hero-hours | Ruled 11-06 ("make it risky"), Andy 11-06 |
+| Outside the weight class (pairs 2-3 under the floor, 5 under) | Normal: more XP a head than their own Level's pace. Dangerous: the median pair loses gold. Deadly and 5 under: the median cell dies and loses gold | Ruled 11-06 ("waste money, more exp, possibly die") |
+| Blows | A regular's largest blow at most 30% of a same-Level hero's HP; a boss's at most 35% of the floor hero's | combat.js, designer 10-21 |
+
+**The stat formula** (`STAT_FORMULA`, `formulaStats`). Inputs a designer writes: the monster's Level, its role, its art tier and class (both already on the row). The ground gives its floor and fit. Every curve is a share of a same-Level hero or a rate per Level, so each reads as a per-Level percentage dial.
+| Stat | Curve | Per Level |
+|---|---|---|
+| Danger (to-hit and blow) | A gentle ground (floor 8 or under: fresh heroes hunt it) has a regular landing 40% of swings at a same-Level hero with a blow up to 12% of its HP. A full ground (floor 16 and up) lands 70% with up to 20%. Between the two it's a straight line on the floor. `atk` = blow / the tier's damage scale; `baseAcc` is derived so the engine's to-hit comes out right | A blow grows with a hero's HP (10 a Level), a monster above you lands 2% more a Level |
+| HP | 4.5 + 1.6 x Level (the row's, a four's; the engine scales it 55-100% by party size), x2.5 on a party ground | 13% at 5, 7% at 16, 3% at 50 |
+| Defense | 0.08 x Level | |
+| Level XP a kill | HP x 1.7 x Level^0.4 (at least 3 a point) | The contract's L^1.365 over a hero's linear damage |
+| Coin a kill | HP x 0.30 g, rolled 0.5x to 1.5x | Follows HP |
+
+| Role | HP | To-hit | Blow | Def | XP | Who |
+|---|---|---|---|---|---|---|
+| swarm | x0.8 | -4 pts | x0.85 | x0.5 | x1 | the common majority |
+| regular | x1 | 0 | x1 | x1 | x1 | |
+| glass | x0.75 | +5 | x1.1 | x0.5 | x1.2 | fliers, archers, deserters |
+| heavy | x1.2 | -10 | x0.8 | x3 | x1.1 | the tanks |
+| elite | x1.6 | 0 | x1 | x4 | x1.15 | bruisers, rare carriers |
+| boss | x5 | 0 | x1.1, held to 33% of the floor hero | x4 | x1.2 | |
+
+**The tier table** (`TIER_DIALS`, `tierRowFor`; Tyler 11-07: "a scaling % of exp and difficulty BUT NOT GOLD", "Dangerous and Deadly keep the bigger pulls"). Coin and drops never move.
+| Tier | Pull (1-4 heroes) | Harder | HP | Level XP a kill | Engine row, a full ground (Glade) | Engine row, a gentle one (Wickstead) |
+|---|---|---|---|---|---|---|
+| Normal | the ground's | x1 | x1 | x1 | | |
+| Dangerous | 3 / 5 / 5 / 6 | x1.17 over a full ground, after taking back 80% of a gentle ground's kindness | x1.1 | x1.2 | 1170 | 2261 |
+| Deadly | 8 / 8 / 8 / 8 | x1.33 over a full ground, after taking back all of it | x1.2 | x1.4 | 1330 | 2847 |
+"Harder" is what a swing is worth (to-hit x blow) at a same-Level hero, so a tier means the same danger on every ground. The formula derives Wickstead's 2261 and 2847 where lane/b-tier-risk fitted 2000 and 2500 by hand. **Re-anchored:** the Glade's live 1400 and 1600 were measured on monsters a fifth softer than Tyler's x1.2 Normal; at 1600 on the new Normal a four at the Glade's floor died 31 times in 16 hero-hours. 1400 / 1.2 = 1170 and 1600 / 1.2 = 1330 keep each tier's measured total. **The HP dial** (Tyler's "difficulty ... HP") was played beside no HP dial (plan formulaH): a little more food, the same XP an hour, so it is on.
+**Named exceptions** (`TIER_PULL_OVERRIDES`): the Mill Cellar is Normal only (Coordinator 11-05). Wickstead's lone pull stays 0 on both tiers (the ladder rule): on its soft monsters a lone hammer at 18 took 97k XP an hour and +8.6k gold from Deadly's pull of 8 with no death, past the Glade's Normal (72-79k), and Dangerous's pull of 3 paid every way 1.3-1.6x for free. Parties keep the table's pulls there.
+
+**What changes on the two sample grounds** (today, the Glade at Tyler's x1.2, then the formula's row; atk @ baseAcc).
+| Monster, Level, role | Today | Formula |
+|---|---|---|
+| Granary Rat 9, swarm | 15 hp, 4 @0.5, def 1, 56 xp, 3-6 g | 15 hp, 5 @0.44, def 0, 61 xp, 2-7 g |
+| Barn Wasp 11, glass | 13, 5 @0.5, 0, 70, 3-6 | 17, 6 @0.55, 0, 90, 3-8 |
+| Barn Spider 13, heavy | 30, 7 @0.5, 4, 150, 4-12 | 30, 5 @0.46, 3, 157, 5-14 |
+| Orchard Boar 12, heavy | 16, 5 @0.5, 2, 95, 3-7 | 28, 5 @0.44, 3, 141, 4-13 |
+| Turncoat 16, glass | 34, 10 @0.5, 3, 240, 8-18 | 23, 8 @0.61, 1, 142, 3-10 |
+| Carrion Crow 16, regular | 30, 12 @0.8, 1, 165, 5-12 | 30, 11 @0.8, 1, 155, 5-14 |
+| Glade Poacher 19, glass | 32, 14 @0.8, 2, 225, 8-14 | 26, 14 @0.85, 1, 172, 4-12 |
+| Walking Vine 22, heavy | 35, 11 @0.8, 4, 260, 4-12 | 48, 11 @0.82, 5, 309, 7-22 |
+| Goblin Sluicer 26, elite | 70, 22 @0.8, 10, 360, 14-34 | 74, 21 @0.8, 8, 533, 11-33 |
+| Brook Bear 24, elite | 74, 22 @0.8, 8, 420, 14-36 | 69, 20 @0.78, 8, 481, 10-31 |
+| Rook the Poacher 29, elite | 78, 22 @0.8, 11, 520, 14-36 | 81, 22 @0.84, 9, 609, 12-36 |
+
+**Measured** (plan `formula`: today against the formula on the same dice, 2 seeds x 2 h a cell, 312 + 156 cells; reader `sheet-check.mjs --in out/formula,out/formula5`).
+| Sheet line | Wickstead today | Wickstead formula | Glade today (x1.2) | Glade formula |
+|---|---|---|---|---|
+| Normal floor: deaths, dips per 12 h, typical low | 0 in 32 h, 0, 90% | 0, 0, 92% | 0, 0.75, 76% | 0, 0.75, 77% |
+| Normal floor: worst margin, bill share | +378%, 7% | +352%, 7% | +45% (sword), 21% | +118% (sword), 17% |
+| Normal middle: XP against the contract | 30.8k (0.91x) | 31.3k (0.93x) | 77.5k (0.99x) | 79.7k (1.02x) |
+| Fresh hero: deaths / dips / typical | 0 / **2** / 78% | 0 / 0 / 78% | | |
+| A four at the floor, a head against alone | 1.17x | 1.17x | 1.17x | 1.22x |
+| Dangerous alone at the floor: XP, ways held | **1.04x**, 8 of 8 | 1.14x, 8 of 8 | 1.19x, 8 of 8 | 1.27x, 8 of 8 |
+| Dangerous, pairs 2-3 under: net a head | **+3.2k** | **+2.8k** | -8.2k | -4.0k |
+| Deadly alone at the floor | 7 of 8 held, +2.5k (Normal +3k) | 6 of 8, +2.0k | 0 of 8, -20k | 0 of 8, -18.6k |
+| Deadly, a four at the floor: XP x Normal, deaths in 16 h | 1.53x, 2 | 1.71x, 9 | 1.45x, **16** | 1.51x, 0 |
+| Deadly, pairs 2-3 under: deaths, net | 100, **+53** | 176, -3.1k | 238, -14.5k | 195, -14.1k |
+| Normal, pairs 2-3 under: XP a head against their own pace | 1.07x | 1.07x | 1.65x | 1.73x |
+The Glade on the formula meets every line; it reads like Tyler's x1.2 on close calls and the typical low, a little cheaper in food (17% of income against 21%). Wickstead on the formula meets every line but one, and fixes three that today fails (the fresh hero's dips, Dangerous paying nothing alone, Deadly's under-weight pairs earning).
+
+**What the formula can't meet, and why: Wickstead's Dangerous for a pair 2-3 Levels under (5-6) nets +2.4k to +3.2k a head with no death** (today: +2.7k to +3.8k). At those Levels a pair wears the same tier-1 gear as the floor hero and has 20-30 less HP, so there is little weight class to charge. Raising Dangerous until they lose gold puts it at Deadly's level (2847 charges them -3.1k), and Deadly a four at the floor already sits at the 9-deaths line. I'd leave it: Deadly charges them, and Dangerous still pays them 1.3-2x their own Level's pace.
+
+**Scaled hunts (later, not built):** a ground scaled to a leader's Level is this formula read at every monster's Level plus the gap and the floor plus the gap: HP, danger, XP and coin follow their curves, the drops stay the ground's own, and the fee is set so its net stays under the right-Level ground's. The tiers use the same dials on top.
+
+**Proof and guards.** `tests/balance-sheet.mjs` (engine constants restated, every role read back through the engine's own to-hit and max hit at Levels 1-200, blows capped, curves climb, the tier table, the roster, every `formula: true` row equal to the formula; 9 mutants). `tools/balance-sim/sheet-check.mjs --selftest` (6 mutants on a real run). `tools/gen-ground-stats.mjs --selftest` and `--check`. `monster-classes.js` auditRoster holds a formula row to the formula instead of the August hand bands. `forest-cave` glade-between judges the Glade's +25% in its four plate pieces, per Tyler's 11-07 (he took the helm-and-body drop to +6%), and its mutant became x2 attack. **Measured:** every number above. **Assumed:** that 2 seeds x 2 h with no death bounds a death rate only to about 0.9 an hour (the 1-in-1,000 h line needs deep runs); that the median of 8 ways stands for a player.
+
 ### 2026-11-07 Normal can't bite through monster stats (designer, lane/b-monster-bite, inside Tyler's 11-04 NO LEVEL PENALTY): MEASURED, no rows changed, the edge does not move. **Tyler's call: which hero Normal at a ground's floor protects**
 **The question.** Make Normal bite through the monsters' own stats, so the right Level spends real supplies, a pair 2-3 Levels under breaks even or loses, 5 under dies and loses, and the floor stays safe. The Level-gap rule is withdrawn (it broke 11-04).
 

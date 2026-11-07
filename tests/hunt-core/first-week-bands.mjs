@@ -327,8 +327,8 @@ const mutants = [
       ['src/data/monsters.js', 'hp: 8, atk: 4, def: 0, xp: 36, gp: [1, 4],', 'hp: 8, atk: 4, def: 60, xp: 36, gp: [1, 4],']] },
   { name: 'Thin Turnip Juice costs six times as much (a fresh Mage in the Thicket pays more than it earns)', case: 'solo-meadowbrook_thicket',
     edits: [['src/data/supply-basics.js', "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10)", "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 60)"]] },
-  { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 4 -> 14)', case: 'solo-wickstead',
-    edits: [['src/data/monsters.js', 'hp: 15, atk: 4, def: 1, xp: 56, gp: [3, 6], speed: 3400', 'hp: 15, atk: 14, def: 1, xp: 56, gp: [3, 6], speed: 3400']] },
+  { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
+    edits: [['src/data/monsters.js', 'hp: 15, atk: 5, baseAcc: 0.44, def: 0, xp: 61, gp: [2, 7], formula: true, speed: 3400', 'hp: 15, atk: 14, baseAcc: 0.44, def: 0, xp: 61, gp: [2, 7], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (profit-floor, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. */

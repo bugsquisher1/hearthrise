@@ -11,13 +11,14 @@
 //
 //   node tools/gen-ground-stats.mjs [--grounds a,b]             print today's rows beside the formula's
 //   node tools/gen-ground-stats.mjs --propose [--grounds a,b]   also write tools/balance-sim/out/formula-proposal.json
+//   node tools/gen-ground-stats.mjs --write [--grounds a,b]     write the formula's numbers into those rows of src/data/monsters.js
 //   node tools/gen-ground-stats.mjs --check [--grounds a,b]     exit 1 if a row on those grounds is not the formula's
 //                                                               (a named exception in EXCEPTIONS stands, with its reason)
 //   node tools/gen-ground-stats.mjs --selftest                  every refusal bites
 //
 // PURE where it counts: proposeGround() reads only the data it is handed, so the grader and the lab can call it.
 // ════════════════════════════════════════════════════════════════════════
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
@@ -110,10 +111,36 @@ async function main() {
     writeFileSync(PROPOSAL, JSON.stringify({ schema: 'hearthrise.formula-proposal/2', grounds: out, tiers: tierRows }, null, 1) + '\n');
     console.log('\nwrote ' + PROPOSAL);
   }
+  if (argv.includes('--write')) {
+    const n = writeRows(Object.values(out).flatMap((g) => Object.values(g)));
+    console.log('\nwrote ' + n + ' row(s) into src/data/monsters.js');
+    return;
+  }
   if (argv.includes('--check')) {
     if (drift) { console.error('\ngen-ground-stats --check: RED, ' + drift + ' row(s) are not the formula\'s'); process.exit(1); }
     console.log('\ngen-ground-stats --check: green, every row is the formula\'s');
   }
+}
+
+/* THE ROW'S STAT LINE in monsters.js: `hp: N, atk: N, [baseAcc: N, ]def: N, xp: N, gp: [a, b]` (one line, the house style), with
+   `formula: true` after it once the formula owns it (monster-classes.js auditRoster then holds the row to the formula, not to TIER_BANDS). */
+const STAT_LINE = /hp: \d+, atk: \d+, (?:baseAcc: [\d.]+, )?def: \d+, xp: \d+, gp: \[\d+, \d+\](?:, formula: true)?/;
+/** Write each proposed row's formula numbers into src/data/monsters.js, in place. Answers how many rows moved. */
+export function writeRows(rows, file = join(ROOT, 'src', 'data', 'monsters.js')) {
+  const lines = readFileSync(file, 'utf8').split('\n');
+  let moved = 0;
+  for (const r of rows) {
+    const at = lines.findIndex((l) => l.startsWith('  ' + r.id + ': {'));
+    if (at < 0) throw new Error('gen-ground-stats --write: no row ' + r.id + ' in monsters.js');
+    const end = lines.findIndex((l, i) => i > at && /^ {2}[a-z0-9_]+: \{/.test(l));
+    const i = lines.findIndex((l, j) => j >= at && (end < 0 || j < end) && STAT_LINE.test(l));
+    if (i < 0) throw new Error('gen-ground-stats --write: ' + r.id + ' has no stat line in the house style');
+    const f = r.formula;
+    const next = lines[i].replace(STAT_LINE, 'hp: ' + f.hp + ', atk: ' + f.atk + ', baseAcc: ' + f.baseAcc + ', def: ' + f.def + ', xp: ' + f.xp + ', gp: [' + f.gp[0] + ', ' + f.gp[1] + '], formula: true');
+    if (next !== lines[i]) { lines[i] = next; moved++; }
+  }
+  writeFileSync(file, lines.join('\n'));
+  return moved;
 }
 
 if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(1); });

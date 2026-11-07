@@ -143,7 +143,7 @@ export const MONSTER_ROLES = Object.freeze({
   /* the tank: slow, thick, a softer blow */
   heavy: Object.freeze({ hp: 1.2, hit: -0.10, blow: 0.8, def: 3.0, xp: 1.1, gp: 1.0 }),
   /* the bruiser or the rare carrier: much more HP and defense, a full blow */
-  elite: Object.freeze({ hp: 1.6, hit: 0, blow: 1.1, def: 4.0, xp: 1.15, gp: 1.0 }),
+  elite: Object.freeze({ hp: 1.6, hit: 0, blow: 1.0, def: 4.0, xp: 1.15, gp: 1.0 }),
   /* a ground's boss: a long fight, and a blow held to `floorCap` of the FLOOR hero's base HP (designer 10-21: at most
      35%; Andy's Sewer death), whatever its own Level */
   boss: Object.freeze({ hp: 5, hit: 0, blow: 1.1, def: 4.0, xp: 1.2, gp: 1.0, floorCap: 0.33 }),
@@ -262,7 +262,7 @@ export function formulaStats(spec, opts = {}) {
    (plan formulaH): a little more food and about the same XP an hour, so a tier costs what Tyler asked. */
 export const TIER_DIALS = Object.freeze({
   normal: Object.freeze({ pull: Object.freeze([0, 0, 0, 0]), lift: 0, dmgPm: 1000, hpPm: 1000, xpPm: 1000 }),
-  dangerous: Object.freeze({ pull: Object.freeze([3, 5, 5, 6]), lift: 0.5, dmgPm: 1170, hpPm: 1100, xpPm: 1200 }),
+  dangerous: Object.freeze({ pull: Object.freeze([3, 5, 5, 6]), lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1200 }),
   deadly: Object.freeze({ pull: Object.freeze([8, 8, 8, 8]), lift: 1, dmgPm: 1330, hpPm: 1200, xpPm: 1400 }),
 });
 /* Per-ground pull rows, only where a ground's shape demands one, each with its reason: { tier: pull[4] }, or

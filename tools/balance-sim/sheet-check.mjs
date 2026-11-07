@@ -114,7 +114,8 @@ export function gradeGround(cells, g, rows) {
     if (pairs.length && tier === 'dangerous') { const n = median(pairs.map((r) => r.net)); line('weight.dangerous', 'Dangerous, pairs 2-3 under: net a head, median pair (range)', signed(n) + ' (' + spanG(pairs) + ')', '< 0', n < S.weightClass.dangerousUnder.netMax); }
     if (pairs.length && tier === 'deadly') { const d = median(pairs.map((r) => r.deaths)), n = median(pairs.map((r) => r.net)); line('weight.deadly', 'Deadly, pairs 2-3 under: deaths / net a head, median pair (ranges)', d + ' (' + span(pairs, 'deaths') + ') / ' + signed(n) + ' (' + spanG(pairs) + ')', '>= 1 / < 0', d >= S.weightClass.deadlyUnder.deathsMin && n < S.weightClass.deadlyUnder.netMax); }
     const five = T((c) => c.cell.level === sh.floor - 5 && c.cell.level >= 1).map((c) => readCell(c));
-    if (five.length) { const d = median(five.map((r) => r.deaths)), n = median(five.map((r) => r.net)); line('weight.five.' + tier, tier[0].toUpperCase() + tier.slice(1) + ', 5 under (pairs and alone): deaths / net, median cell (ranges)', d + ' (' + span(five, 'deaths') + ') / ' + signed(n) + ' (' + spanG(five) + ')', '>= 1 / < 0', d >= S.weightClass.deadlyUnder.deathsMin && n < S.weightClass.deadlyUnder.netMax); }
+    if (five.length) { const d = median(five.map((r) => r.deaths)), n = median(five.map((r) => r.net)), dies = tier === 'deadly';
+      line('weight.five.' + tier, tier[0].toUpperCase() + tier.slice(1) + ', 5 under (pairs and alone): deaths / net, median cell (ranges)', d + ' (' + span(five, 'deaths') + ') / ' + signed(n) + ' (' + spanG(five) + ')', (dies ? '>= 1' : 'any') + ' / < 0', (!dies || d >= S.weightClass.deadlyUnder.deathsMin) && n < S.weightClass.deadlyUnder.netMax); }
   }
   const pairsN = N((c) => c.heroes.length === 2 && c.cell.level >= sh.floor - 3 && c.cell.level <= sh.floor - 2);
   if (pairsN.length) {
@@ -127,7 +128,9 @@ export function gradeGround(cells, g, rows) {
 function main() {
   const arg = (k2, d) => { const i = process.argv.indexOf('--' + k2); return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d; };
   /* --in A,B: several runs, a later folder's cell wins on a shared id (a re-run of the formula after a dial moved) */
-  const cells = [...new Map(arg('in', join(HERE, 'out', 'formula')).split(',').flatMap((d) => load(resolve(d))).map((c) => [c.id, c])).values()];
+  /* --in A,B: several runs; a later folder REPLACES every row set (T, F, ...) it holds, so a re-run of the formula never mixes with the run before */
+  const folders = arg('in', join(HERE, 'out', 'formula')).split(',').map((d) => load(resolve(d)));
+  const cells = folders.flatMap((cs, i) => cs.filter((c) => !folders.slice(i + 1).some((later) => later.some((x) => x.cell.x[0] === c.cell.x[0] && x.ground === c.ground))));
   if (process.argv.includes('--selftest')) return selftest(cells);
   const graded = arg('rows', 'F'), grounds = arg('grounds', Object.keys(SHAPE).join(',')).split(',');
   /* the row sets shown beside the graded one: every set the run holds (T today, F the formula, others a candidate) */

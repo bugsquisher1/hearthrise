@@ -20,7 +20,7 @@
 //   glade-solo-floor    a solo Melee in the ladder kit at the glade's floor (L16) plays the hour with no death on the six
 //                       seeds; prints the practice-sword-and-Thicket-leather graduate beside it (evidence)
 //   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party < the glade solo in its four plate pieces < the
-//                       Warrens' party, in net gold AND Level XP, and the glade in helm and body alone clears +25% over its bill (the H11 gap, 16-31)
+//                       Warrens' party, in net gold AND Level XP, and the glade in those four pieces clears +25% over its bill (Tyler 2026-11-07: judged properly equipped)
 //   harder-pays-more    a kill's expected gold climbs with hp x attack, and the same hero at one Level earns more an hour on the ground above (Tyler 2026-11-03)
 //   wickstead-solo-floor  (Wickstead, lane b-greenhaven-6; staged, played on its fitted grid) a ladder-kit Melee alone at
 //                       its floor (L8) lives the hour on the six seeds, clears +25%, and nets and levels no worse than
@@ -441,7 +441,9 @@ cases['glade-between'] = async (M) => {
   /* each ground at its floor in its own reference (tests/hunt-core/drop-tables.mjs REFERENCE): the Sewer's party of four in the ladder kit, the glade's solo Melee, the
      Warrens' party of four in the full own-tier set. THE GLADE'S STEP IS MEASURED IN ITS FOUR PLATE PIECES (designer 2026-11-03, Tyler's accuracy 0.80): a hero who reaches
      Level 16 holds them (the Thicket's Bronze in 6 h, Wickstead's and the Glade's Iron about hourly), and in helm and body alone the harder Glade now nets 1,282 g/h against
-     the Sewer party's 2,024: the armor is what the harder floor asks for, as ruled. The profit rule stays on the thinner kit, its own count, below. */
+     the Sewer party's 2,024: the armor is what the harder floor asks for, as ruled. THE PROFIT RULE IS JUDGED IN THAT SAME FULL KIT (Tyler 2026-11-07, "make it 20% harder":
+     he took the measured cost that a hero in helm and body alone drops to about +6% over its bill on the Glade, so the floor is judged "properly equipped", his 10-25 words;
+     the formula's rows, lane/b-ground-formula, are that 20%). */
   const chain = [['millrace_sewer', PARTY4, false], [GLADE, ['tank'], true], ['coppercap_warrens', PARTY4, true]];
   const rows = [], bad = [];
   for (const [gid, roles, fullSet] of chain) {
@@ -449,9 +451,8 @@ cases['glade-between'] = async (M) => {
     for (const secret of STARTER_SEEDS) {
       const x = P.run(gid, floor, roles, { spanMs: 3600000, secret, fullSet });
       nets.push(x.income - x.store); xps.push(x.levelXp);
-      const thin = gid === GLADE ? P.run(gid, floor, roles, { spanMs: 3600000, secret, fullSet: false }) : null;
-      if (thin && thin.store >= BILL_SHARE_FOR_MARGIN * thin.income && (thin.income / thin.store - 1) * 100 < STARTER_MARGIN_MIN) {
-        bad.push(gid + ' seed ' + secret + ' in helm and body: ' + Math.round((thin.income / thin.store - 1) * 100) + '% over its bill, under +' + STARTER_MARGIN_MIN + '%');
+      if (gid === GLADE && x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < STARTER_MARGIN_MIN) {
+        bad.push(gid + ' seed ' + secret + ' in its four plate pieces: ' + Math.round((x.income / x.store - 1) * 100) + '% over its bill, under +' + STARTER_MARGIN_MIN + '%');
       }
     }
     rows.push({ gid, floor, net: median(nets), xp: median(xps) });
@@ -550,30 +551,30 @@ const mutants = [
      floor hero now LIVES Warrens-strength hits (atk 26, 30, 36, 42, 50 all lived six seeds of six, eating 3-8k g/h),
      so "like the Warrens" no longer proves lethality. The floor still bites: at atk 60 three seeds of six die, at
      72 all six (1.4-30 min). The rule is unchanged; the mutant is the lethal ground it must catch. */
-  { name: 'the glade\'s sluicer and Rook hit four times as hard (atk 18 -> 72)', case: 'glade-solo-floor',
-    edits: [['src/data/monsters.js', 'hp: 70, atk: 18, baseAcc: 0.8, def: 10, xp: 360,', 'hp: 70, atk: 72, baseAcc: 0.8, def: 10, xp: 360,'], ['src/data/monsters.js', 'hp: 78, atk: 18, baseAcc: 0.8, def: 11,', 'hp: 78, atk: 72, baseAcc: 0.8, def: 11,']] },
+  { name: 'the glade\'s sluicer and Rook hit four times as hard (atk 21-22 -> 84-88)', case: 'glade-solo-floor',
+    edits: [['src/data/monsters.js', 'hp: 74, atk: 21, baseAcc: 0.8, def: 8, xp: 533,', 'hp: 74, atk: 84, baseAcc: 0.8, def: 8, xp: 533,'], ['src/data/monsters.js', 'hp: 81, atk: 22, baseAcc: 0.84, def: 9,', 'hp: 81, atk: 88, baseAcc: 0.84, def: 9,']] },
   { name: 'the fixture back on the client\'s compiled collision mask', case: 'sim-plays-the-server-map',
     edits: [['tests/hunt-core/fixtures/play-ground.mjs', "const { gridOfMap } = await import(u('src/core/hunt-ground.js'));",
       "const [MAPS, TER, MC, SETS, GRID, FS] = await Promise.all(['src/data/world/maps/index.js', 'src/data/world/terrain.js', 'src/world/core/map-compile.js', 'src/data/world/atlas-sets.js', 'src/core/hunt/grid.js'].map((p) => import(u(p))).concat(import('node:fs'))); const sprites = {}; for (const s of SETS.ATLAS_SETS) Object.assign(sprites, JSON.parse(FS.readFileSync(join(root, 'assets/world/atlas-' + s + '.json'), 'utf8')).sprites); const gridOfMap = (mapId) => { const map = MC.compileMap(MAPS.mapRowOf(mapId), { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: {} }); return GRID.makeGrid(map.w, map.h, (x, y) => map.mask[y * map.w + x] === 0, (x, y) => { const m = TER.MATERIALS[map.ground[y * map.w + x]]; return !!(m && m.solid && !m.flat); }); };"]] },
   { name: 'one walkable tile short on the map the run plays', case: 'sim-plays-the-server-map',
     edits: [['tests/hunt-core/fixtures/play-ground.mjs', "grid = gridOfMap(ground.map);", "grid = (() => { const g = gridOfMap(ground.map), walk = g.walk.slice(); walk[walk.indexOf(1)] = 0; return { ...g, walk }; })();"]] },
   { name: 'the glade\'s coin doubled (it out-earns the Warrens)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 165, gp: [5, 12]', 'xp: 165, gp: [10, 24]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 14]', 'xp: 225, gp: [16, 28]'],
-      ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [28, 68]'],
-      ['src/data/monsters.js', 'xp: 520, gp: [14, 36]', 'xp: 520, gp: [28, 72]']] },
+    edits: [['src/data/monsters.js', 'xp: 155, gp: [5, 14]', 'xp: 155, gp: [10, 28]'], ['src/data/monsters.js', 'xp: 172, gp: [4, 12]', 'xp: 172, gp: [8, 24]'],
+      ['src/data/monsters.js', 'xp: 309, gp: [7, 22]', 'xp: 309, gp: [14, 44]'], ['src/data/monsters.js', 'xp: 533, gp: [11, 33]', 'xp: 533, gp: [22, 66]'],
+      ['src/data/monsters.js', 'xp: 609, gp: [12, 36]', 'xp: 609, gp: [24, 72]']] },
   { name: 'the glade\'s coin halved (it pays under the Sewer\'s party)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 165, gp: [5, 12]', 'xp: 165, gp: [3, 6]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 14]', 'xp: 225, gp: [4, 7]'],
-      ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [2, 6]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [7, 17]'],
-      ['src/data/monsters.js', 'xp: 520, gp: [14, 36]', 'xp: 520, gp: [7, 18]']] },
-  { name: 'the glade\'s blows x1.25, the attack Tyler dropped (helm and body under +25%)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'hp: 30, atk: 10, baseAcc: 0.8,', 'hp: 30, atk: 13, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 32, atk: 12, baseAcc: 0.8,', 'hp: 32, atk: 15, baseAcc: 0.8,'],
-      ['src/data/monsters.js', 'hp: 35, atk: 9, baseAcc: 0.8,', 'hp: 35, atk: 11, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 70, atk: 18, baseAcc: 0.8,', 'hp: 70, atk: 23, baseAcc: 0.8,'],
-      ['src/data/monsters.js', 'hp: 78, atk: 18, baseAcc: 0.8,', 'hp: 78, atk: 23, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 74, atk: 18, baseAcc: 0.8,', 'hp: 74, atk: 23, baseAcc: 0.8,']] },
-  { name: 'Wickstead\'s Turncoats and spiders hit six times as hard (atk 10 -> 60, 7 -> 42)', case: 'wickstead-solo-floor',
-    edits: [['src/data/monsters.js', 'hp: 34, atk: 10, def: 3, xp: 240,', 'hp: 34, atk: 60, def: 3, xp: 240,'], ['src/data/monsters.js', 'hp: 30, atk: 7, def: 4, xp: 150,', 'hp: 30, atk: 42, def: 4, xp: 150,']] },
+    edits: [['src/data/monsters.js', 'xp: 155, gp: [5, 14]', 'xp: 155, gp: [3, 7]'], ['src/data/monsters.js', 'xp: 172, gp: [4, 12]', 'xp: 172, gp: [2, 6]'],
+      ['src/data/monsters.js', 'xp: 309, gp: [7, 22]', 'xp: 309, gp: [4, 11]'], ['src/data/monsters.js', 'xp: 533, gp: [11, 33]', 'xp: 533, gp: [6, 17]'],
+      ['src/data/monsters.js', 'xp: 609, gp: [12, 36]', 'xp: 609, gp: [6, 18]']] },
+  { name: 'the glade\'s blows x2 (its four plate pieces under +25%)', case: 'glade-between',
+    edits: [['src/data/monsters.js', 'hp: 30, atk: 11, baseAcc: 0.8,', 'hp: 30, atk: 22, baseAcc: 0.8,'], ['src/data/monsters.js', 'hp: 26, atk: 14, baseAcc: 0.85,', 'hp: 26, atk: 28, baseAcc: 0.85,'],
+      ['src/data/monsters.js', 'hp: 48, atk: 11, baseAcc: 0.82,', 'hp: 48, atk: 22, baseAcc: 0.82,'], ['src/data/monsters.js', 'hp: 74, atk: 21, baseAcc: 0.8,', 'hp: 74, atk: 42, baseAcc: 0.8,'],
+      ['src/data/monsters.js', 'hp: 81, atk: 22, baseAcc: 0.84,', 'hp: 81, atk: 44, baseAcc: 0.84,'], ['src/data/monsters.js', 'hp: 69, atk: 20, baseAcc: 0.78,', 'hp: 69, atk: 40, baseAcc: 0.78,']] },
+  { name: 'Wickstead\'s Turncoats and spiders hit six times as hard (atk 8 -> 48, 5 -> 30)', case: 'wickstead-solo-floor',
+    edits: [['src/data/monsters.js', 'hp: 23, atk: 8, baseAcc: 0.61, def: 1, xp: 142,', 'hp: 23, atk: 48, baseAcc: 0.61, def: 1, xp: 142,'], ['src/data/monsters.js', 'hp: 30, atk: 5, baseAcc: 0.46, def: 3, xp: 157,', 'hp: 30, atk: 30, baseAcc: 0.46, def: 3, xp: 157,']] },
   { name: 'Wickstead\'s coin cut to a third (it pays under the Thicket)', case: 'wickstead-solo-floor',
-    edits: [['src/data/monsters.js', 'xp: 56, gp: [3, 6]', 'xp: 56, gp: [1, 2]'], ['src/data/monsters.js', 'xp: 150, gp: [4, 12]', 'xp: 150, gp: [2, 4]'],
-      ['src/data/monsters.js', 'xp: 240, gp: [8, 18]', 'xp: 240, gp: [3, 6]'], ['src/data/monsters.js', 'xp: 70, gp: [3, 6]', 'xp: 70, gp: [1, 2]']] },
+    edits: [['src/data/monsters.js', 'xp: 61, gp: [2, 7]', 'xp: 61, gp: [1, 2]'], ['src/data/monsters.js', 'xp: 157, gp: [5, 14]', 'xp: 157, gp: [2, 5]'],
+      ['src/data/monsters.js', 'xp: 142, gp: [3, 10]', 'xp: 142, gp: [1, 3]'], ['src/data/monsters.js', 'xp: 90, gp: [3, 8]', 'xp: 90, gp: [1, 3]']] },
   { name: 'the Warrens\' coin halved (the Glade out-earns the harder ground)', case: 'harder-pays-more',
     edits: [['src/data/monsters.js', 'xp: 924, gp: [13, 32]', 'xp: 924, gp: [6, 16]'], ['src/data/monsters.js', 'xp: 1122, gp: [15, 38]', 'xp: 1122, gp: [7, 19]'],
       ['src/data/monsters.js', 'xp: 1452, gp: [18, 43]', 'xp: 1452, gp: [9, 21]'], ['src/data/monsters.js', 'xp: 2112, gp: [31, 72]', 'xp: 2112, gp: [15, 36]'],

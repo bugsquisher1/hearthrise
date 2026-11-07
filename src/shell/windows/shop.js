@@ -21,22 +21,22 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.103';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.103';
-import { whole, gold } from '../../render/format.js?v=0.2.103';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.103';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.103';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.103';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.103';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.103';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.103';
-import { toolLossWords } from '../town-work.js?v=0.2.103';
-import { runIntent } from '../intent-words.js?v=0.2.103';
-import { showTip, hideTip } from './item-tip.js?v=0.2.103';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.103';
-import { gearLocked } from '../gear-gate.js?v=0.2.103';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.103';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.103';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.104';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.104';
+import { whole, gold } from '../../render/format.js?v=0.2.104';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.104';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.104';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.104';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.104';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.104';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.104';
+import { toolLossWords } from '../town-work.js?v=0.2.104';
+import { runIntent } from '../intent-words.js?v=0.2.104';
+import { showTip, hideTip } from './item-tip.js?v=0.2.104';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.104';
+import { gearLocked } from '../gear-gate.js?v=0.2.104';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.104';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.104';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -124,7 +124,7 @@ function spareOf(cs, items, rules, shop) {
 function sellNote(plan, kept, spare) {
   const parts = [];
   if (spare.lines.length) parts.push('Sell spare gear keeps what you wear, anything of a higher tier and Rare pieces.');
-  if (kept.ids.length) parts.push('It keeps ' + whole(kept.ids.length) + (kept.ids.length === 1 ? ' stack' : ' stacks') + ' worth ' + gold(kept.worth) + ' that you can use: fuel, food to cook, and materials for your recipes or your next House step. Sell those by hand if you want the gold.');
+  if (kept.ids.length) parts.push('It keeps ' + whole(kept.ids.length) + (kept.ids.length === 1 ? ' stack' : ' stacks') + ' worth ' + gold(kept.worth) + ' you can use, like fuel, food to cook and materials for your recipes or your next House step. Sell those by hand if you want the gold.');
   if (plan.capped) parts.push('One sale takes up to ' + whole(sellQty(Infinity)) + ' of a stack.');
   return parts.join(' ');
 }

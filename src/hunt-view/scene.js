@@ -37,19 +37,19 @@
 //      Switched back to a hero, the monsters killed meanwhile stood (at their last drawn
 //      HP, or at 0: an empty bar) until a restart felled them anew (e-20261021-mobs, Andy #65).
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.103';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.103';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.103';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.103';
-import { floatShown } from './float-prefs.js?v=0.2.103';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.103';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.103';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.103';
-import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.103';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.103';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.103';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.103';
-import { levelOf } from '../session/character-sections.js?v=0.2.103';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.104';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.104';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.104';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.104';
+import { floatShown } from './float-prefs.js?v=0.2.104';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.104';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.104';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.104';
+import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.104';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.104';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.104';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.104';
+import { levelOf } from '../session/character-sections.js?v=0.2.104';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -407,7 +407,10 @@ export function createHuntScene(o) {
       /* Every bar is the HP AT THE INSTANT SHOWN (timeline.js T6: heroes too, so it moves live), the snapshot's only as a fallback. */
       const played = typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);
       const hp = played ? played.hp : hero ? m && m.hp : (read.units.get(u) || {}).hp;
-      const hpMax = played ? played.maxHp : hero ? m && m.hpMax : (read.units.get(u) || {}).hpMax;
+      /* A hero's max is the server's latest (the party section's hp_max): a Level-up raises it mid-hunt while the
+         playback may still hold the old one (hunt-sections.js liveHpOf, the same rule for every HP readout). */
+      const serverMax = hero && m && Number.isFinite(m.hpMax) && m.hpMax > 0 ? m.hpMax : null;
+      const hpMax = serverMax !== null ? serverMax : played ? played.maxHp : hero ? m && m.hpMax : (read.units.get(u) || {}).hpMax;
       const mana = hero && m ? m.mana : null, manaMax = hero && m ? m.manaMax : null;
       const hpPct = Number.isFinite(hp) && hpMax > 0 ? Math.max(0, Math.min(1, hp / hpMax)) : null;
       const mpPct = Number.isFinite(mana) && manaMax > 0 ? Math.max(0, Math.min(1, mana / manaMax)) : null;

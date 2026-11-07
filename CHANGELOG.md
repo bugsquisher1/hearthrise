@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.104 — 2026-11-06 (Sign Out Means Sign Out)
+
+**Sign out stays where you click.** On a computer, the Characters and Sign out buttons used to slide along the top strip while your other heroes loaded. A click meant for Sign out could land on Characters, which left you signed in. Both buttons now stay put, and signing out no longer opens your next hero on the way out.
+
+**A living hero never shows 0 HP.** While you watch a hunt, health bars now match the server after every swing. Before, a tank's bar could slide down to 0 while the hero was still alive and fighting. When you level up during a hunt, your new max HP now shows right away.
+
+**Plainer words, round two.** Boss call results, tutorial notes, item text, Tamsin's greeting and the older What's new entries now read as plain sentences.
+
 ## v0.2.103 — 2026-11-06 (Even Steps)
 
 **Smoother first Levels.** Levels 1 to 9 now climb in even steps, so Level 6 no longer takes twice as long as Level 5. Level 10 and up cost the same XP as before.
@@ -35,7 +43,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 ## v0.2.98 — 2026-11-06 (Every Creature Breathes)
 
 **Monsters no longer stand frozen waiting for your blow.** Every creature on every hunting ground now breathes, shifts and flicks its tail while it stands, and anything with wings keeps beating them while it hovers.
-- A Cleave set to fire at 2 or more monsters now fires. It counted its own swing as one monster, so it waited forever; now it counts the monsters it can really hit, up to three.
+- A Cleave set to fire at 2 or more monsters now fires. It counted its own swing as one monster, so it waited forever. Now it counts the monsters it can really hit, up to three.
 - Etched runes cost 12 gold a cast, up from 10, so the stronger spell is worth its price without making Scored runes pointless.
 - A crafter now gets the "Weighhouse is open" card when a bench skill reaches 30, not only at Level 10.
 - In the Havora window and the Outfit tab, a button your purse can't pay for stays off and says how much more you need, and the last gift button offers what you have.
@@ -43,8 +51,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.97 — 2026-11-05 (A Town That Grows)
 
-**Your hero's colors.** Pick four colors when you make a hero and everyone sees them, in town and in hunts, on every outfit. Trying on new colors in the Character window's Outfit tab is free; saving them costs gold, more at higher Levels.
-- **The Weighhouse goes up.** All of Havora can now give gold to raise the Weighhouse on the east bank, 100 gp to 25,000 gp a day from one account: tap its plaque on the high street, watch it climb through five stages, and the biggest givers go on the plaque.
+**Your hero's colors.** Pick four colors when you make a hero and everyone sees them, in town and in hunts, on every outfit. Trying on new colors in the Character window's Outfit tab is free. Saving them costs gold, more at higher Levels.
+- **The Weighhouse goes up.** All of Havora can now give gold to raise the Weighhouse on the east bank, 100 gp to 25,000 gp a day from one account. Tap its plaque on the high street, watch it climb through five stages, and the biggest givers go on the plaque.
 - Planting is quicker on the Farm. Pressing an empty plot brings the seed list into view with the seeds you can plant at the top, and after you plant, the list stays open on your next empty plot, so there's no more scrolling up and down. "Plant N empty plots" fills every empty plot with that seed in one press and tells you if it runs out of seeds partway.
 
 ## v0.2.96 — 2026-11-05 (Three Ways to Hunt)
@@ -53,17 +61,17 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.95 — 2026-11-05 (First Spells)
 
-- A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.
-- A new Mage or Healer now casts from the very first fight: every starting spell buys its rune from the store for 1 gp a cast, and Frost Lance or Green Sickness fires even on a lone monster. A new card, "Why it waits", explains the slots that hold back. A new Ranger or axe hero no longer starts with a crossed-out spell: Flame Volley and Rend are offered with their price instead.
-- The store now sells deeper runes for your spells, from 8 gp a cast for Scored up to 24 gp for Graven: pick one on a spell's slot in Configure action to cast that stronger version at Plain's three-quarter strength. Plain stays 1 gp, and your bar never changes unless you change it. Bound runes now make fewer to a job and sell for more, so a runecrafter can sell below the store.
+- A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full. Now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.
+- A new Mage or Healer now casts from the very first fight. Every starting spell buys its rune from the store for 1 gp a cast, and Frost Lance or Green Sickness fires even on a lone monster. A new card, "Why it waits", explains the slots that hold back. A new Ranger or axe hero no longer starts with a crossed-out spell. Flame Volley and Rend are offered with their price instead.
+- The store now sells deeper runes for your spells, from 8 gp a cast for Scored up to 24 gp for Graven. Pick one on a spell's slot in Configure action to cast that stronger version at Plain's three-quarter strength. Plain stays 1 gp, and your bar never changes unless you change it. Bound runes now make fewer to a job and sell for more, so a runecrafter can sell below the store.
 ## v0.2.94 — 2026-11-05 (A Smith Needs Salts)
 
 - Crafters can use the Weighhouse now. A bench skill at 30 (Smithing, Crafting, Cooking or Runecrafting) opens it for your whole account, just as a hero at Level 10 does.
 **Tempering takes crafted salts.** Each rung now takes Tempering Salts as well as gold, or Fine Tempering Salts for gear worn from Level 30. Mix them at Smithing from Iron Bars and the Bone Chips or Big Bones your hunts bring home, or buy them at the Weighhouse. Any of your heroes can use them from Storage.
 
 **The Coal Seam.** A richer coal rock at Mining 30, and a rock's row now says about how much an hour brings, so you can see what a higher rock is worth.
-- Your action bar now says when a slot is waiting. Fireball is set to fire at 2 or more monsters, so on a lone monster its slot dims and shows "2+", and hovering it or pressing it tells you why. Circle of Renewal does the same when you're not in a party. What a slot does hasn't changed: to fire on one monster, remove its condition in Configure action.
-- Every hero now gets three setups free; the fourth costs 15,000 gp and the fifth 40,000 gp. Heroes keep every setup they have saved.
+- Your action bar now says when a slot is waiting. Fireball is set to fire at 2 or more monsters, so on a lone monster its slot dims and shows "2+", and hovering it or pressing it tells you why. Circle of Renewal does the same when you're not in a party. What a slot does hasn't changed. To fire on one monster, remove its condition in Configure action.
+- Every hero now gets three setups free. The fourth costs 15,000 gp and the fifth 40,000 gp. Heroes keep every setup they have saved.
 
 ## v0.2.93 — 2026-11-05 (Gold With Somewhere to Go)
 
@@ -80,16 +88,16 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 **More setups, and titles.** Every hero gets two action bar setups free and can buy three more. Titles are earned by kills and then claimed with gold, so a name beside your hero says what it has actually hunted.
 ## v0.2.92 — 2026-11-05 (Standing Your Ground)
 
-- A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full; now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.
+- A bow, crossbow or wand that keeps its distance now fights the pack it pulled. Run back to the edge of the pack's ground, your hero used to step out and the whole pack healed to full. Now it stays in, so its hits count and the XP comes in, and a cornered hero can really get caught.
 - A hit no longer turns your hero or a monster into a pale blur for a moment. Whoever takes the blow now jolts back a little, so you can always see their armor and face, and the spark of a blow that missed.
 
 - Carrion Crows carry a little more coin.
-- Capes no longer make monsters miss. A cape now takes a share off every blow that reaches you: 3% for a Graypelt Cloak, 7% for a Houndskin Cloak. Earrings, necklaces and rings no longer add Defense; only a shield does that outside armor. Frostfin Supper and River Chowder now take 5% and 3% off every blow for a few minutes.
+- Capes no longer make monsters miss. A cape now takes a share off every blow that reaches you: 3% for a Graypelt Cloak, 7% for a Houndskin Cloak. Earrings, necklaces and rings no longer add Defense. Only a shield does that outside armor. Frostfin Supper and River Chowder now take 5% and 3% off every blow for a few minutes.
 ## v0.2.91 — 2026-11-04 (The Smith Tempers)
 
 - A blow that misses your hero now strikes a small spark off it, on the side the blow came from, instead of floating "miss" over its head. Your own missed swings leave a small scuff on the monster. The combat log says who missed whom in words, and "Missed blows and immune hits" in Settings turns the sparks off.
 - The chat's Combat tab now shows its lines at the window's normal size, follows the newest one and names everyone in them. Its filters fold away under "Filter lines".
-**The smith tempers your gear.** On the Shop's Services tab (R), a hero wearing gear from Level 15 up can pay gold for a little more from it. Each rung of Blows makes your blows and heals land 1% harder; each rung of Armor lets 1% less damage reach you; five rungs of each. Every tier of gear has its own rungs. It can't fail, nothing wears out, and your hero keeps it through a death.
+**The smith tempers your gear.** On the Shop's Services tab (R), a hero wearing gear from Level 15 up can pay gold for a little more from it. Each rung of Blows makes your blows and heals land 1% harder, and each rung of Armor lets 1% less damage reach you. There are five rungs of each. Every tier of gear has its own rungs. It can't fail, nothing wears out, and your hero keeps it through a death.
 - On a slow connection the town opens sooner. The game now waits only for the art around your hero, and the rest of the town loads behind it.
 - Carrion Crows carry a little more coin.
 - The Drain Rat, Sump Slime, Granary Rat, Barn Wasp, Barn Spider and Turncoat each have a look of their own now, and 19 items that borrowed another item's picture have their own icons.
@@ -103,7 +111,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 
 - After you buy a hero slot, your characters stay on the screen and the game says the slot is yours at once, instead of a bare "Reading your characters…".
-- Changing weapon on a bar you've edited no longer leaves the last weapon's moves crossed out: they come off and the new weapon's moves take their places. A setup still keeps its own bar.
+- Changing weapon on a bar you've edited no longer leaves the last weapon's moves crossed out. They come off and the new weapon's moves take their places. A setup still keeps its own bar.
 - Before you go no longer warns a club hero about the runes for a spell that weapon can't cast.
 - Before you go now says which Blessings you have on, what they save you on a death, and the price of the next.
 - Making juice now says "Making Turnip Juice", not "Cooking Turnip".
@@ -112,12 +120,12 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 - On a phone: the Heroes button names the hero on screen when there's no room for a tab, What next has its More, the away card no longer sits on a sliver of the coach card, and Configure action says your hero uses a slot by itself. Its icons are sharp now.
 - In Configure action, picking a spell keeps Details on the spell you picked, instead of the row that slid under your pointer.
 - The Hunts window is wider, so the first row of who lives on a ground isn't cut off above Enter. A long line in the list no longer starts with a stray dot.
-- The bag shows a row more on a laptop screen: its tabs and search now share a line.
+- The bag shows a row more on a laptop screen, because its tabs and search now share a line.
 - Reloading just as the game opens no longer loses your hunt summary or your "While you were away" card.
 **Friends with the same weapon.** Four friends with the same weapon in Meadowbrook Thicket now earn more Level XP.
 **A cloak for the Glade.** You can wear the Houndskin Cloak at Level 22 now, and stitch it in Crafting from 12 Wolf Pelts and a Bear Pelt. Brook Bears only come to a pull of 3 or more at Mosslight Glade.
 
-**Equip upgrades gets you dressed.** An empty slot no longer waits for you to choose: it takes the armor weight you picked at Tamsin's, or the one you already wear, or the one that suits your weapon. You can still change any piece on the doll.
+**Equip upgrades gets you dressed.** An empty slot no longer waits for you to choose. It takes the armor weight you picked at Tamsin's, or the one you already wear, or the one that suits your weapon. You can still change any piece on the doll.
 
 **No old news on your way back.** Coming back to a long hunt no longer opens on "Your hero just ate".
 **Armor works against the monster in front of you.** How much armor takes off a blow now depends on how strong the monster is, not on your Level. Weak monsters barely get through, and strong ones get through low armor more. The character sheet shows what your armor does against a monster of your Level.
@@ -135,7 +143,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.88 — 2026-11-04 (Simply Harder)
 
-**No hidden penalty for rushing.** A monster now hits every hero the same way, whatever your Level. A hunting ground above your Level is simply full of monsters stronger than you: expect to spend more on supplies, or to die, for more XP and better loot. The game still warns you and asks you to press once more.
+**No hidden penalty for rushing.** A monster now hits every hero the same way, whatever your Level. A hunting ground above your Level is simply full of monsters stronger than you. Expect to spend more on supplies, or to die, for more XP and better loot. The game still warns you and asks you to press once more.
 - Mend, Rend and Protective Ward now have their own icons on your bar and in Configure action.
 - The Bronze-Rimmed Shield, the Kingsgrate, the Iron Hatchets, the Oak Crossbow and the Crown Shard each have their own picture, so you can tell a new find from your starting gear at a glance.
 
@@ -159,21 +167,21 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Gold means more.** A third hero now costs 50,000 gp, a fourth 200,000 and a fifth 800,000, so what to save for is a real choice. Harder grounds pay more: Coppercap's coin is up and the Rat King carries a little more, Wickstead and the Glade's poachers pay a little less, and Iron, Studded and Adept armor (helmets, bodies, legs, boots) sells for less at the shop. A stamina top-up costs more too, so an extra four hours is worth thinking about.
 
-**Rush if you dare.** Any hero can walk into any hunting ground now. Harder grounds pay more XP and better loot, and the further under a ground's Level you are, the harder its monsters hit, including heroes already hunting a little under it. The game tells you the risk, asks you to press once more, and a death names what killed you and why. Heroes far under both the ground and their party's top Level earn a much smaller share of XP.
+**Rush if you dare.** Any hero can walk into any hunting ground now. Harder grounds give more XP and better loot, and the further under a ground's Level you are, the harder its monsters hit, including heroes already hunting a little under it. The game tells you the risk, asks you to press once more, and a death names what killed you and why. Heroes far under both the ground and their party's top Level earn a much smaller share of XP.
 
 ## v0.2.85 — 2026-11-03 (Klappa's Club)
 
-**New weapon: Klappa's Club.** Reforge your Practice Club with 6 Bronze Bars and 3 Small Fangs and swing it from Level 5; it hits as hard as an Iron Warhammer. Sell spare gear keeps it. Selling it by hand warns you that nothing sells the Practice Club that makes another.
+**New weapon: Klappa's Club.** Reforge your Practice Club with 6 Bronze Bars and 3 Small Fangs and swing it from Level 5. It hits as hard as an Iron Warhammer. Sell spare gear keeps it. Selling it by hand warns you that nothing sells the Practice Club that makes another.
 
-**A clearer start.** Your first view of Havora shows the Great Hearth and Tamsin's board. Creating a hero says there's nothing to choose: your hero owns every weapon. Your first Take at Tamsin's asks for the armor weight that suits you; change it under her board. Equip upgrades now puts on a better weapon of the kind you hold and never changes how you fight.
+**A clearer start.** Your first view of Havora shows the Great Hearth and Tamsin's board. Creating a hero says there's nothing to choose, because your hero owns every weapon. Your first Take at Tamsin's asks for the armor weight that suits you, and you can change it under her board. Equip upgrades now puts on a better weapon of the kind you hold and never changes how you fight.
 
-**Gold and gear.** Sell spare gear in the Shop: one press and one confirm, keeping what you wear, higher tiers, Rare pieces and anything locked or set to Keep or Deposit. A card says what your gold buys once you can afford another hero.
+**Gold and gear.** Sell spare gear in the Shop with one press and one confirm. It keeps what you wear, higher tiers, Rare pieces and anything locked or set to Keep or Deposit. A card says what your gold buys once you can afford another hero.
 
 **Parties.** "Hunt together" can be dismissed. The Party window shows how to invite on every tab. "Cash in" warns that leaving can bring your party home.
 
 **Fixes.** All characters says "Bag worth", so it no longer reads as a second purse. Friend requests and messages leave your alerts once answered or read, and "came home too" leaves with that hunt's summary. The Hunt summary no longer keeps "Setting out." or covers its buttons. In the Inventory, Fuel all and Stop stay in reach above the status line. The Shop's tabs stay whole when you scroll. Putting on armor in town keeps your hero at full HP.
 
-**Phones.** A hunting ground's page has more than twice the room to read, and windows use the full height in town. Tutorial cards stand beside windows and show their whole text; the longest ones show a gold arrow when there is more. Hunt Details shows all four tabs and more numbers, and the Party panel starts folded when you hunt alone. Easier buttons for More slots and the setup name; Create hero shows all five ways to fight. After Create account, only the answer and the way back remain on the card.
+**Phones.** A hunting ground's page has more than twice the room to read, and windows use the full height in town. Tutorial cards stand beside windows and show their whole text, and the longest ones show a gold arrow when there is more. Hunt Details shows all four tabs and more numbers, and the Party panel starts folded when you hunt alone. More slots and the setup name have easier buttons, and Create hero shows all five ways to fight. After Create account, only the answer and the way back remain on the card.
 
 ## v0.2.84 — 2026-11-03 (Try Again)
 
@@ -183,9 +191,9 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Carry supplies into a running hunt.** Press to carry food, drinks, ammo and runes from your backpack into a hunt that's already going, from Hunt prep or the action slot. What you don't use comes home when the hunt ends.
 
-**Ammo you can't use yet waits.** It stays on your bar and says why: it isn't shot or bought, your next ammo fires, and it wakes at the level. Spell slots now show as struck only when the spell really can't cast.
+**Ammo you can't use yet waits.** It stays on your bar and says why. It isn't shot or bought, your next ammo fires, and it wakes at the level. Spell slots now show as struck only when the spell really can't cast.
 
-**The Mosslight Glade bites harder.** Its monsters land their blows more often. Good armor still pays well, and a thin kit pays in food. Below a hunt's floor, monsters hit harder for every Level you're short: big XP, and you may lose gold.
+**The Mosslight Glade bites harder.** Its monsters land their blows more often. Good armor still pays well, and a thin kit pays in food. Below a hunt's floor, monsters hit harder for every Level you're short. The XP is big, and you may lose gold.
 
 **Parties.** The Thicket now takes parties from Level 5, with bigger pulls, so same-weapon friends lose less. The Party window tells you how a party compares with hunting alone, and hunt pages say each drop goes to one of you. A new card at Level 10 asks how big a pull you can hold, and what it costs.
 
@@ -199,7 +207,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Your own food and drink.** Putting your own food or drink on the bar now puts it ahead of the store's, so a hunt spends yours first.
 
-**Heroes keep working.** A hero gathering or crafting while you're away now keeps earning without waiting for you to come back. A bug could leave a hero stuck until you returned; that's fixed.
+**Heroes keep working.** A hero gathering or crafting while you're away now keeps earning without waiting for you to come back. A bug could leave a hero stuck until you returned, and that's fixed.
 
 **You'll see messages.** Private messages and friend requests now pop up when they arrive.
 
@@ -259,7 +267,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Coming back.** The away line tells you how much stamina is left or how long ago the hunt ended, and the end card shows your stamina now. Before you go, you always see how long your hero will last.
 
-**Level warnings tell the truth.** A hunt above your level now says what it really costs: more XP, harder hits, and in weak armor you can spend more on food than you earn, or die. The Hunts window also says bigger pulls pay more once your heroes can hold them.
+**Level warnings tell the truth.** A hunt above your level now says what it really costs. It gives more XP and hits harder, and in weak armor you can spend more on food than you earn, or die. The Hunts window also says bigger pulls pay more once your heroes can hold them.
 
 **Benches stop when a hunt ends.** A hunt ending on its own no longer restarts a bench job, so your loot won't get burned or crafted without you asking. Gathering still carries on.
 
@@ -275,7 +283,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.78 — 2026-10-31 (The Weighhouse)
 
-**The Weighhouse.** A market for every player, kept by Aldous Pell (M). List from your bag or storage, browse by category or search, and buy from other players, all anonymously. A hero needs Level 10 to trade; below that you can still look around.
+**The Weighhouse.** A market for every player, kept by Aldous Pell (M). List from your bag or storage, browse by category or search, and buy from other players, all anonymously. A hero needs Level 10 to trade. Below that you can still look around.
 
 **How it works.** There's a small listing fee, and the Weighhouse keeps 4% of each sale. You see both before you press. Your gold arrives the moment something sells, and whatever doesn't sell in 7 days comes back to your storage.
 
@@ -287,7 +295,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Full bags.** A hero carrying every kind of item the bag can hold no longer loses the hunt when a new kind drops.
 
-**Parties.** Coin from a party hunt now splits evenly between the members; before, the first seat took most of it. A hero idle in town now hears about party invites and changes right away.
+**Parties.** Coin from a party hunt now splits evenly between the members. Before, the first seat took most of it. A hero idle in town now hears about party invites and changes right away.
 
 **A hero who can't fight.** A hero with nothing to attack with goes home after 10 minutes instead of standing in the hunt until stamina runs out. Bronze Arrows stay free.
 
@@ -311,7 +319,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.75 — 2026-10-31 (Back where you left off)
 
-**Reloading keeps your place.** A reload reopens the heroes you were playing instead of the character list. Reloads are faster too: the slow ones that took 5 to 12 seconds should now take about a second.
+**Reloading keeps your place.** A reload reopens the heroes you were playing instead of the character list. Reloads are faster too. The slow ones that took 5 to 12 seconds should now take about a second.
 
 **Hunts look right.** A dead monster no longer stands back up when you reload or switch heroes, and big pulls no longer lose monsters off the screen. Coming back to a hidden tab catches up smoothly instead of freezing for a moment.
 
@@ -327,7 +335,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.73 — 2026-10-30 (Faster and smoother)
 
-**Faster start after an update.** After each update, getting from Play to town took about 1.5 s; it now takes about 0.3 s.
+**Faster start after an update.** After each update, getting from Play to town took about 1.5 s. It now takes about 0.3 s.
 
 **Smoother town.** The town draws only what is on screen, so it no longer stutters on slower computers.
 
@@ -363,7 +371,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.67 — 2026-10-29 (Ready without a snack)
 
-**Hunt Prep.** A hero whose food or drink slot is empty no longer reads "0 food" and not ready: food is optional, so it is now a heads-up, and if your bag holds other food it says which and how to put it on the bar. A ranged hero with no arrows and no store behind them now shows "0 ammo", since they cannot attack.
+**Hunt Prep.** A hero whose food or drink slot is empty no longer reads "0 food" and not ready. Food is optional, so it is now a heads-up, and if your bag holds other food it says which and how to put it on the bar. A ranged hero with no arrows and no store behind them now shows "0 ammo", since they cannot attack.
 
 ## v0.2.66 — 2026-10-29 (No more standing around)
 
@@ -385,7 +393,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.64 — 2026-10-29 (Boars and bears)
 
-**Two new creatures.** The Orchard Boar now roots through Wickstead's burned orchard: low, heavy and hard to put down. Up in Mosslight Glade, the Brook Bear fishes the springs and Vine Hollow, and it hits harder than anything else there.
+**Two new creatures.** The Orchard Boar now roots through Wickstead's burned orchard, low, heavy and hard to put down. Up in Mosslight Glade, the Brook Bear fishes the springs and Vine Hollow, and it hits harder than anything else there.
 
 **Bear on the menu.** Brook Bears drop Raw Bear Meat and Bear Claws, so the two bear dishes in Cooking can finally be made.
 
@@ -393,7 +401,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Early levels smoothed.** Levels 4 to 7 take a little less time, so no level suddenly takes twice as long as the one before.
 
-**Fixes.** A Hearth run that has used up its fuel now stops showing as fueling, and the hero stops throwing at the fire. A minimized tutorial tip such as "Your hero just drank" no longer sits on screen forever: it finishes on its own, and tips you only need to read now have a close button.
+**Fixes.** A Hearth run that has used up its fuel now stops showing as fueling, and the hero stops throwing at the fire. A minimized tutorial tip such as "Your hero just drank" no longer sits on screen forever. It finishes on its own, and tips you only need to read now have a close button.
 
 ## v0.2.63 — 2026-10-28 (Wickstead)
 

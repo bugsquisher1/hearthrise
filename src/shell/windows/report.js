@@ -11,9 +11,9 @@
 // it runs. States (data-state on .rp): edit → sending → sent | failed.
 // Built once; patched in place (the button follows the text and the state).
 // ════════════════════════════════════════════════════════════════════════
-import { reportBody, worldSnapshot } from '../report-model.js?v=0.2.103';
-import { startDiagnostics } from '../../net/diagnostics.js?v=0.2.103';
-import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.103';
+import { reportBody, worldSnapshot } from '../report-model.js?v=0.2.104';
+import { startDiagnostics } from '../../net/diagnostics.js?v=0.2.104';
+import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.104';
 
 /* What the player reads after the bridge answers, by its status (or the link's). */
 const SAID = Object.freeze({
@@ -45,7 +45,7 @@ const newKey = () => {
 /** The skeleton (built once). */
 export function renderReport() {
   return '<div class="rp" data-state="edit">'
-    + '<p class="hs-note">Tell us what went wrong: what you did, what you expected, and what happened instead.</p>'
+    + '<p class="hs-note">Tell us what went wrong. Say what you did, what you expected and what happened instead.</p>'
     + '<textarea class="rp-text" data-hs-act="type" rows="6" maxlength="4000" aria-label="What went wrong"'
     + ' placeholder="I clicked Leave hunt and the screen froze for a few seconds..."></textarea>'
     + '<label class="rp-shot"><input type="checkbox" class="rp-shot-on" checked> Include a picture of the game view</label>'

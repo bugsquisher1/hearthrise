@@ -31,21 +31,21 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.103';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.103';
-import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.103';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.103';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.103';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.103';
-import { runIntent } from '../intent-words.js?v=0.2.103';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.103';
-import { short, whole } from '../../render/format.js?v=0.2.103';
-import { glyphSvg } from '../launcher.js?v=0.2.103';
-import { markPlayer } from '../context-menu.js?v=0.2.103';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.103';
-import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.103';
-import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.103';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.103';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.104';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.104';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.104';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.104';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.104';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.104';
+import { runIntent } from '../intent-words.js?v=0.2.104';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.104';
+import { short, whole } from '../../render/format.js?v=0.2.104';
+import { glyphSvg } from '../launcher.js?v=0.2.104';
+import { markPlayer } from '../context-menu.js?v=0.2.104';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.104';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.104';
+import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.104';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.104';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -156,7 +156,7 @@ export function liveRoster(cs, r) {
       const v = heroVitalsOf(cs);
       return Object.assign({}, m, { level: v.level, hp: v.hp, hpMax: v.hpMax, mana: v.mana, manaMax: v.manaMax });
     }
-    const live = m.hunting ? liveHpOf(cs, m.unit) : null;
+    const live = m.hunting ? liveHpOf(cs, m.unit, m.hpMax) : null;
     return live ? Object.assign({}, m, { hp: live.hp, hpMax: live.maxHp }) : m;
   });
   return Object.assign({}, r, { members, hold: holdView(Object.assign({}, r, { members }), turns) });

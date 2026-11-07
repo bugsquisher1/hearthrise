@@ -65,53 +65,53 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.103';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.103';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.103';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.103';
-import { SKILLS_DEF } from './skills.js?v=0.2.103';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.103';
-import { tallyTask } from './tally-tasks.js?v=0.2.103';
-import { ITEMS } from './items.js?v=0.2.103';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.103';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.103';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.103';
-import { isShield } from './shields.js?v=0.2.103';
-import { deriveProfile } from '../core/member.js?v=0.2.103';
-import { ABILITIES } from './abilities.js?v=0.2.103';
-import { CONSUMABLES } from './consumables.js?v=0.2.103';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.103';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.103';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.103';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.103';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.103';
-import { regenPermille } from '../core/vitals.js?v=0.2.103';
+import { HUNT_INDEX } from './hunts.js?v=0.2.104';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.104';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.104';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.104';
+import { SKILLS_DEF } from './skills.js?v=0.2.104';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.104';
+import { tallyTask } from './tally-tasks.js?v=0.2.104';
+import { ITEMS } from './items.js?v=0.2.104';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.104';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.104';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.104';
+import { isShield } from './shields.js?v=0.2.104';
+import { deriveProfile } from '../core/member.js?v=0.2.104';
+import { ABILITIES } from './abilities.js?v=0.2.104';
+import { CONSUMABLES } from './consumables.js?v=0.2.104';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.104';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.104';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.104';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.104';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.104';
+import { regenPermille } from '../core/vitals.js?v=0.2.104';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
    (src/shell/launcher.js ringPlan). */
 const anchor = (about, window, icon, tab) => Object.freeze({ about, window: window || null, icon: !!icon, tab: tab || null });
 export const TUTORIAL_ANCHORS = Object.freeze({
-  hunt_picker: anchor('Hunts (src/shell/windows/hunts.js): its icon, then the ground\'s line, then Enter', 'hunts', true),
-  world: anchor('the world pane (src/app/world-pane.js): nothing to ring'),
-  hud_vitals: anchor('the bottom bar\'s Level, HP and stamina (action-bar.js): its hooks'),
+  hunt_picker: anchor('Hunts (src/shell/windows/hunts.js), its icon, then the ground\'s line, then Enter', 'hunts', true),
+  world: anchor('the world pane (src/app/world-pane.js), nothing to ring'),
+  hud_vitals: anchor('the bottom bar\'s Level, HP and stamina (action-bar.js), its hooks'),
   hunt_topbar: anchor('Leave hunt (HUNT_SCREEN_SPEC §1.4 hunt-topbar.js)'),
   action_bar: anchor('the bar slot the card names (src/shell/widgets/action-bar.js), then Configure action\'s Save, shown in town too', 'configure-action'),
-  farm: anchor('the Farm (src/shell/windows/farm.js): its icon, an empty plot\'s Plant, then ring.crop\'s Plant', 'farm', true),
-  crafting: anchor('Gathering and crafting (src/shell/windows/work.js): its icon, ring.skill, then ring.work\'s Start', 'skills-trade', true),
-  tally: anchor('Tamsin\'s tally (src/shell/windows/tally.js): her icon, the armor weight, then ring.task\'s Take', 'tally', true),
-  inventory: anchor('the bag (src/shell/windows/inventory): its icon, then the control the card names', 'inventory', true),
-  shop: anchor('the Shop (src/shell/windows/shop.js): its icon, the Sell tab, then Sell all loot', 'shop', true),
-  /* Services is the Shop's third tab (Tyler 2026-10-25): the Shop's icon, its Services tab, then the next Bless */
-  services: anchor('the Shop\'s Services tab (src/shell/windows/services.js): the Shop\'s icon, the Services tab, then the control', 'shop', true, 'services'),
-  storage: anchor('Storage (src/shell/windows/storage.js): its icon', 'storage', true),
-  market: anchor('the Weighhouse (src/shell/windows/market): its icon', 'market', true),
-  honor: anchor('Leaderboards (src/shell/windows/honor.js): its icon', 'honor', true),
-  settings: anchor('Settings (src/shell/windows/settings.js): its icon, then the Help tab', 'settings', true),
-  hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js): the bar\'s setup corner, then Save current setup', 'hunt-prep', true),
-  house: anchor('the House (src/shell/windows/house.js): its icon, then Buy', 'house', true),
+  farm: anchor('the Farm (src/shell/windows/farm.js), its icon, an empty plot\'s Plant, then ring.crop\'s Plant', 'farm', true),
+  crafting: anchor('Gathering and crafting (src/shell/windows/work.js), its icon, ring.skill, then ring.work\'s Start', 'skills-trade', true),
+  tally: anchor('Tamsin\'s tally (src/shell/windows/tally.js), her icon, the armor weight, then ring.task\'s Take', 'tally', true),
+  inventory: anchor('the bag (src/shell/windows/inventory), its icon, then the control the card names', 'inventory', true),
+  shop: anchor('the Shop (src/shell/windows/shop.js), its icon, the Sell tab, then Sell all loot', 'shop', true),
+  /* Services is the Shop's third tab (Tyler 2026-10-25), the Shop's icon, its Services tab, then the next Bless */
+  services: anchor('the Shop\'s Services tab (src/shell/windows/services.js), the Shop\'s icon, the Services tab, then the control', 'shop', true, 'services'),
+  storage: anchor('Storage (src/shell/windows/storage.js), its icon', 'storage', true),
+  market: anchor('the Weighhouse (src/shell/windows/market), its icon', 'market', true),
+  honor: anchor('Leaderboards (src/shell/windows/honor.js), its icon', 'honor', true),
+  settings: anchor('Settings (src/shell/windows/settings.js), its icon, then the Help tab', 'settings', true),
+  hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js), the bar\'s setup corner, then Save current setup', 'hunt-prep', true),
+  house: anchor('the House (src/shell/windows/house.js), its icon, then Buy', 'house', true),
   characters: anchor('the character strip\'s Characters button, then Create hero on the characters screen', 'characters'),
-  strip: anchor('the character strip (src/app/character-strip.js): another hero\'s tab'),
+  strip: anchor('the character strip (src/app/character-strip.js), another hero\'s tab'),
 });
 
 /** The window `card`'s controls live in (its card shows inside it while open), or null. */

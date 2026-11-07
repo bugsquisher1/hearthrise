@@ -22,10 +22,10 @@
 //                   its progress are read off it on the shared curve (src/core/xp.js, the
 //                   curve hr_char_level uses), never counted in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.103';
-import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.103';
-import { TITLE_WORDS } from '../data/titles.js?v=0.2.103';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.103';
+import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.104';
+import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.104';
+import { TITLE_WORDS } from '../data/titles.js?v=0.2.104';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.104';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -118,7 +118,7 @@ export function heroVitalsOf(cs) {
   const h = huntOf(cs);
   const hero = h && !h.ended ? h.hero : null;
   if (hero) {
-    const live = liveHpOf(cs, hero.unit);
+    const live = liveHpOf(cs, hero.unit, hero.hpMax);
     /* Until the first settle builds the instance's world the server sends the hero's max mana (hr_vitals_of) but
        no `mana`: a new instance's hero starts FULL (src/core/hunt-spawn.js), so the pool reads full, never "–"
        for the hunt's first ~10 s (Fingerguns + Pellow 10-25). The next envelope with the world replaces it. */

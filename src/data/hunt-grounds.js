@@ -134,9 +134,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.103';
-import { HUNT_INDEX } from './hunts.js?v=0.2.103';
-import { MONSTERS } from './monsters.js?v=0.2.103';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.104';
+import { HUNT_INDEX } from './hunts.js?v=0.2.104';
+import { MONSTERS } from './monsters.js?v=0.2.104';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
@@ -654,7 +654,7 @@ export function validate() {
   const out = [];
   for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS)]) {
     if (row.id !== key) out.push(key + ': row id ' + row.id + ' does not match its key');
-    if (row.partyScale !== true) out.push(key + ': a shipped ground carries partyScale: true (designer ruling 2026-10-18)');
+    if (row.partyScale !== true) out.push(key + ' is shipped, so it must set partyScale to true (designer ruling 2026-10-18)');
     out.push(...validateGround(row));
   }
   return out;

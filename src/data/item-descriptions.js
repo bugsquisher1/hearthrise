@@ -3,15 +3,15 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.103';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.103';
-import { LIB2_DESC } from './library2-items.js?v=0.2.103';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.103';
-import { CHAMPION_DESC } from './champions.js?v=0.2.103';
-import { DRINK_DESC } from './drinks.js?v=0.2.103';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.103';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.103';
-import { SHIELD_DESC } from './shields.js?v=0.2.103';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.104';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.104';
+import { LIB2_DESC } from './library2-items.js?v=0.2.104';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.104';
+import { CHAMPION_DESC } from './champions.js?v=0.2.104';
+import { DRINK_DESC } from './drinks.js?v=0.2.104';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.104';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.104';
+import { SHIELD_DESC } from './shields.js?v=0.2.104';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -89,8 +89,8 @@ export const ITEM_DESC = {
   'rooks_whistle': 'The bone whistle Rook calls the Mosslight crows with. A collector in town pays well for it',
   'rat_kings_crown': 'The Rat King\'s whole crown, hammered from the Millrace\'s drain grates. Few hunters ever lift it off him',
   'coppercaps_cauldron': 'The polished cauldron Chief Coppercap wears for a crown, dented from every fight in the Warrens',
-  'graypelt_cloak': 'A cape for any fighter: a little less damage and a few more critical hits. Stitched from the pelts of the Thicket\'s gray wolves',
-  'grayjaws_ruff':'A cape for any fighter: less damage and a few more critical hits. Cut from the thick neck fur of Old Grayjaw, the den mother',
+  'graypelt_cloak': 'A cape for any fighter, with a little less damage and a few more critical hits. Stitched from the pelts of the Thicket\'s gray wolves',
+  'grayjaws_ruff':'A cape for any fighter, with less damage and a few more critical hits. Cut from the thick neck fur of Old Grayjaw, the den mother',
   'ancient_claw': 'A colossal claw from something ancient, a formidable crafting trophy',
   'ancient_fragment': 'A worn shard of some forgotten relic, sought by scholars and collectors',
   'ancient_rune': 'A rune of the old tongue, humming with power, a key arcane reagent',
@@ -122,7 +122,7 @@ export const ITEM_DESC = {
   'boarhide_pants': 'Boarhide chaps, tough and broken-in, built for a ranger who never stops moving',
   'bone_chips': 'Splinters of shattered bone, ground into meal for smithing or burned in the Great Hearth',
   'bone_needle': 'A simple bone needle, a novice crafter\'s first honest stitch',
-  'bones': 'Fuel for the Great Hearth in Havora: burn them there to raise your Inner Flame',
+  'bones': 'Fuel for the Great Hearth in Havora. Burn them there to raise your Inner Flame',
   /* THE GREAT HEARTH'S FUELS (src/data/hearth.js): what each is for, then where it comes from */
   'lamp_jelly': 'Fuel for the Great Hearth, burned like bones. A slime has no skeleton, but its jelly burns like lamp oil',
   'dry_husk': 'Fuel for the Great Hearth, burned like bones. The papery shell a spider sheds, dry as kindling',
@@ -157,7 +157,7 @@ export const ITEM_DESC = {
   'coal': 'Black coal, the fuel that feeds every smelting fire',
   'cooked_bear_meat': 'A fat-rich bear roast, deeply filling, the meal that ends a hard day',
   'cooked_copper_crab': 'Copper crab steamed in its own shell, briny and rich, a supper that sharpens every skill you practice',
-  'cooked_frostfin': 'A steaming frostfin supper: for six minutes, every blow that reaches you lands a little lighter',
+  'cooked_frostfin': 'A steaming frostfin supper. For six minutes, every blow that reaches you lands a little lighter',
   'cooked_goldgill': 'Goldgill steak seared to a shine, a lucky supper that draws richer loot to your hunts',
   'cooked_herring': 'A small pan-cooked fish, plain but filling for the road ahead',
   'cooked_lobster': 'Cracked and buttered claw-meat, a proper meal that draws luck to your hunts',
@@ -319,7 +319,7 @@ export const ITEM_DESC = {
   'oak_plank': 'A solid oak plank, dependable timber for crafted goods',
   'practice_sword': 'With the Practice Shield it makes you the tank, holding the monsters on you. A blunted drill-yard blade',
   'practice_shield': 'Worn with a one-handed sword it makes you the tank. Ash boards, scarred from the drill yard',
-  'practice_hatchets': 'A pair of light axes, one in each hand: wield them to fight as a melee damage dealer',
+  'practice_hatchets': 'A pair of light axes, one in each hand. Wield them to fight as a melee damage dealer',
   'practice_club': 'Swing it with both hands to fight as a melee damage dealer. Seasoned ash, all weight and no edge',
   'practice_bow': 'Wield it to fight as a ranger, shooting from a distance. Strung light for a first season',
   'practice_crossbow': 'Wield it to fight as a ranger, shooting from a distance. A small cocking crossbow, steady in the hand',
@@ -344,7 +344,7 @@ export const ITEM_DESC = {
   'razor_claw': 'A wickedly sharp claw for honing blades and adorning trophies',
   'regent_helm': 'Crown of a fallen Hunt lord, hollow and warding, won by no solo hand',
   'riftmaw_husk': 'The husk the Riftmaw shed at its ruin, hollow and cold, kept as proof of the dive',
-  'river_chowder': 'A thick chowder of silverfin, potato and carrot: for five minutes, every blow that reaches you lands a little lighter',
+  'river_chowder': 'A thick chowder of silverfin, potato and carrot. For five minutes, every blow that reaches you lands a little lighter',
   'roasted_carrot': 'A carrot fire-roasted sweet, a light snack that speeds your gathering hand',
   'roasted_pumpkin': 'Roasted gourd, caramelized and hearty, a feast that swells your field yields',
   'ruby': 'A deep-red ruby, a fine gem for rings, amulets and inlay',

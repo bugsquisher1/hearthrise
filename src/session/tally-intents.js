@@ -14,9 +14,9 @@
 // envelope. Each is one ask in the account's intent ledger (askVia), so the pressed
 // control waits on it.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.103';
-import { TALLY_RULES } from '../data/tally-tasks.js?v=0.2.103';
-import { parseTally } from './tally-sections.js?v=0.2.103';
+import { askVia } from './intent-ledger.js?v=0.2.104';
+import { TALLY_RULES } from '../data/tally-tasks.js?v=0.2.104';
+import { parseTally } from './tally-sections.js?v=0.2.104';
 
 const ID = /^[a-z0-9_]{1,40}$/;
 const newIdem = () => globalThis.crypto.randomUUID();

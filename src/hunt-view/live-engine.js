@@ -34,17 +34,17 @@
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.103';
-import { memberSide, frozenSide } from '../core/member.js?v=0.2.103';
-import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.103';
-import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.103';
-import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.103';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.103';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.103';
-import { stepCost } from '../core/hunt/grid.js?v=0.2.103';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.103';
-import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.103';
-import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js?v=0.2.103';
+import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.104';
+import { memberSide, frozenSide } from '../core/member.js?v=0.2.104';
+import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.104';
+import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.104';
+import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.104';
+import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.104';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.104';
+import { stepCost } from '../core/hunt/grid.js?v=0.2.104';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.104';
+import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.104';
+import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js?v=0.2.104';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -246,7 +246,12 @@ export function createLiveEngine(o) {
       s.texts.set(s.world.swing, text);
       if (s.texts.size > KEEP_TEXTS) s.texts.delete(s.texts.keys().next().value);
     }
-    const tl = huntTimeline(sim.track, sim.events.filter(predicted), at, sim.nextSwingAtMs, at, sim.units);
+    /* THE SWING'S END (timeline.js T13): every unit's HP at the next boundary, so the bar carries the HP the events
+       do not (a hero's regen) and never reads below the engine's. The next swing's own book restates it. */
+    /** @type {Record<number, [string, number, number]>} */
+    const endUnits = {};
+    for (const u of (s.world ? s.world.units : [])) endUnits[u.id] = [u.kind, u.maxHp, u.hp];
+    const tl = Object.assign(huntTimeline(sim.track, sim.events.filter(predicted), at, sim.nextSwingAtMs, at, sim.units), { endUnits });
     const alive = new Set();
     for (const u of (s.world ? s.world.units : [])) { if (!speeds.has(u.id)) speeds.set(u.id, u.speed); alive.add(u.id); }
     timeSteps(tl.hunt_track, (id) => speeds.get(id), s.drawn);
@@ -284,6 +289,8 @@ export function createLiveEngine(o) {
     }
     const of = st;
     let n = 0;
+    /* The last swing run (the one `until` falls in): its span, each unit's HP at its start, the HP its events move, and at its end. */
+    let last = null;
     const due = () => st.next <= until && n < MAX_SWINGS_PER_CALL;
     function run(more) {
       while (due()) {
@@ -292,30 +299,45 @@ export function createLiveEngine(o) {
         n++;
         for (const [k, v] of Object.entries(tl.hunt_units || {})) hp[k] = v.slice();
         for (const s of tl.hunt_track) { if (s.atMs <= until) pos.set(s.u, [s.x, s.y]); else track.push(s); }
+        const moved = {};
         for (const ev of tl.hunt_events) {
+          /* a bleed tick is booked once, by its dmg event (timeline.js T13) */
+          const d = Number.isFinite(ev.amount) && (ev.type === 'dmg' || ev.type === 'heal') ? (ev.type === 'heal' ? ev.amount : -ev.amount) : null;
+          if (d !== null) moved[ev.t] = (moved[ev.t] || 0) + d;
           if (ev.atMs > until) { events.push(ev); continue; }
           if (ev.type === 'kill' && isInt(ev.t)) { killed.add(ev.t); kills.push(ev); }
           const r = hp[ev.t];
-          if (r && Number.isFinite(ev.amount) && (ev.type === 'dmg' || ev.type === 'heal' || ev.type === 'status_tick')) {
-            r[2] = Math.max(0, Math.min(r[1], r[2] + (ev.type === 'heal' ? ev.amount : -ev.amount)));
-          }
+          if (r && d !== null) r[2] = Math.max(0, Math.min(r[1], r[2] + d));
         }
+        last = { from: tl.hunt_from_ms, to: st.next, start: tl.hunt_units || {}, moved, end: tl.endUnits || {} };
         if (more && !more()) return !due();
       }
       return true;
     }
+    /* A unit's book row at `until` (timeline.js T13): the HP the last swing moved without an event (regen) spread to the
+       instant, and a living unit never below 1 HP (the engine kills at 0). */
+    const rowAt = (u) => {
+      const r = hp[u].slice();
+      const s0 = last && last.start[u], e = last && last.end[u];
+      if (s0 && e && last.to > last.from) {
+        const f = Math.min(1, Math.max(0, (until - last.from) / (last.to - last.from)));
+        r[2] += Math.round((e[2] - s0[2] - (last.moved[u] || 0)) * f);
+      }
+      r[2] = Math.max(1, Math.min(r[1], r[2]));
+      return r;
+    };
     function result() {
       const positions = new Map(), alive = new Set(), units = {}, fallen = {};
       for (const u of killed) if (hp[u]) fallen[u] = [hp[u][0], hp[u][1], 0];
       for (const [u, xy] of pos) {
         if (killed.has(u)) continue;
         positions.set(u, xy); alive.add(u);
-        if (hp[u]) units[u] = hp[u];
+        if (hp[u]) units[u] = rowAt(u);
       }
       /* a unit that first appears after `until` (a respawn) is alive too: its steps are played on, and it is
          named and sized from the swing that spawned it (the run's unit book), or the scene cannot draw it until
          the next swing names it ("[hunt-scene] no sprite for unit 6..17 (null)", Andy #65 at a switch) */
-      for (const s of track) { alive.add(s.u); if (!units[s.u] && !killed.has(s.u) && hp[s.u]) units[s.u] = hp[s.u]; }
+      for (const s of track) { alive.add(s.u); if (!units[s.u] && !killed.has(s.u) && hp[s.u]) units[s.u] = rowAt(s.u); }
       return { positions, alive, units, fallen, fromMs: until, track, events, kills };
     }
     return { of, run, result };
@@ -370,7 +392,7 @@ export function createLiveEngine(o) {
         let tl;
         try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) break; fail(reasonOf(e)); return n; }
         n++;
-        feed({ track: tl.hunt_track, events: tl.hunt_events, units: tl.hunt_units, fromMs: tl.hunt_from_ms });
+        feed({ track: tl.hunt_track, events: tl.hunt_events, units: tl.hunt_units, fromMs: tl.hunt_from_ms, endUnits: tl.endUnits, toMs: st.next });
       }
       return n;
     },

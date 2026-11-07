@@ -14,16 +14,16 @@
 // Stats the engine does not have (leech, element protections, a character
 // XP bar) have no line at all.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.103';
-import { characterSheetOf, heroVitalsOf, wornTitleOf } from '../../../session/character-sections.js?v=0.2.103';
-import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.103';
-import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.103';
-import { roleIdOf } from '../../../session/party-sections.js?v=0.2.103';
-import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.103';
-import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.103';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.103';
-import { combatLedger } from '../skills.js?v=0.2.103';
-import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.103';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.104';
+import { characterSheetOf, heroVitalsOf, wornTitleOf } from '../../../session/character-sections.js?v=0.2.104';
+import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.104';
+import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.104';
+import { roleIdOf } from '../../../session/party-sections.js?v=0.2.104';
+import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.104';
+import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.104';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.104';
+import { combatLedger } from '../skills.js?v=0.2.104';
+import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.104';
 
 /* [key, label] of each number line; a line shows only when its value exists. */
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);
@@ -36,7 +36,7 @@ const COMBAT_TIPS = Object.freeze({
   dodge: 'Medium armor: the chance a blow misses you completely.',
   absorb: 'Heavy armor: the share of every blow that lands which your armor takes.',
   ward: 'Light armor: a flat amount taken off every blow that lands. Best against many small blows.',
-  steady: 'Your cape and some foods: a share taken off every blow that reaches you, last of all.',
+  steady: 'Your cape and some foods take a share off every blow that reaches you, last of all.',
   temper: 'What the smith has done for what you wear now. Shop, Services.',
 });
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);

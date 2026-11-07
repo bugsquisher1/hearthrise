@@ -19,20 +19,20 @@
 // (hr_tally_view). Every control is off while an intent is in flight; the window
 // changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.103';
-import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.103';
-import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.103';
-import { huntName } from '../../session/party-sections.js?v=0.2.103';
-import { goldOf, equipmentOf } from '../../session/item-sections.js?v=0.2.103';
-import { WEIGHT_FOR_ROLE, ROLE_WORDS } from '../../data/hunt-tutorial.js?v=0.2.103';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.103';
-import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.103';
-import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.103';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.103';
-import { whole, gold } from '../../render/format.js?v=0.2.103';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.103';
-import { itemName } from '../widgets/bits.js?v=0.2.103';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.103';
+import { tallyOf, tallyLine, waitWords, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.104';
+import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.104';
+import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.104';
+import { huntName } from '../../session/party-sections.js?v=0.2.104';
+import { goldOf, equipmentOf } from '../../session/item-sections.js?v=0.2.104';
+import { WEIGHT_FOR_ROLE, ROLE_WORDS } from '../../data/hunt-tutorial.js?v=0.2.104';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.104';
+import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.104';
+import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.104';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.104';
+import { whole, gold } from '../../render/format.js?v=0.2.104';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.104';
+import { itemName } from '../widgets/bits.js?v=0.2.104';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.104';
 
 const SCRATCH = new WeakMap();
 /* `board` is her last answer (null until it comes), `asking` the read in flight, `stale` asks again,
@@ -131,7 +131,7 @@ function patchOffer(li, r, st) {
   const t = tallyTask(r.task);
   text(li.querySelector('b'), titleOf(r.task, r.target));
   const where = huntName(r.hunt) + (r.bandMin ? ' (Level ' + r.bandMin + ' ground)' : '') + (t && t.party ? ', best with a party' : '');
-  const once = r.pick && st.shared.has(r.pick.item) ? ' (she gives it once: the first of these she pays gets it)' : '';
+  const once = r.pick && st.shared.has(r.pick.item) ? ' (she gives it once, to the first of these she pays)' : '';
   text(li.querySelector('small'), where + ' · ' + payWords(r) + once);
   const btn = li.querySelector('button');
   const why = r.held ? 'Held' : st.t && st.t.held.length >= st.t.heldMax ? 'Full' : '';
@@ -170,7 +170,7 @@ renderTally.patch = function patchTally(body, ctx) {
   rows(root.querySelector('.ht-held'), t ? t.held : [], { key: (x) => x.task, build: (x) => element(ctx.doc, heldHtml(x)), patch: (li, x) => patchHeld(li, x, st) });
   cls(root.querySelector('.ht-none'), 'is-on', !!t && !t.held.length);
   text(root.querySelector('.ht-pick-note'), !t ? '' : !t.weight ? (suggest ? suggest.words : 'Pick the armor weight she pays you in. You can change it later.') + ' ' + WEIGHT_ORDER.map(weightSentence).join(' ')
-    : 'Each task pays what its line says: its gold and the next ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you, in the slot order below, even if you\'ve found one yourself. '
+    : 'Each task pays what its line says, its gold and the next ' + WEIGHT_WORDS[t.weight].toLowerCase() + ' armor piece from that ground she hasn\'t given you, in the slot order below, even if you\'ve found one yourself. '
       + 'Where she has no piece left to give, she pays in crafting materials instead.');
   for (const b of root.querySelectorAll('[data-hs-act="weight"]')) {
     attr(b, 'aria-pressed', String(!!t && t.weight === b.getAttribute('data-weight')));

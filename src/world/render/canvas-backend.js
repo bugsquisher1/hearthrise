@@ -16,12 +16,12 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.103';
-import { composeFrame } from '../core/compose.js?v=0.2.103';
-import { castBox } from '../core/shadows.js?v=0.2.103';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.103';
-import { createFrameSig } from './frame-sig.js?v=0.2.103';
-import { paintStub } from '../stub-atlas.js?v=0.2.103';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.104';
+import { composeFrame } from '../core/compose.js?v=0.2.104';
+import { castBox } from '../core/shadows.js?v=0.2.104';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.104';
+import { createFrameSig } from './frame-sig.js?v=0.2.104';
+import { paintStub } from '../stub-atlas.js?v=0.2.104';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
@@ -298,7 +298,7 @@ export function createCanvasBackend(o) {
       ctx.fillStyle = tone('bar-back');
       ctx.fillRect(x - 1, y - 1, w + 2, h + 2 + (mh ? mh + 1 : 0));
       ctx.fillStyle = tone(b.kind === 'hero' ? 'bar-hero' : b.kind === 'foe' ? 'bar-foe' : 'bar-' + b.kind);
-      ctx.fillRect(x, y, Math.round(w * b.pct), h);
+      ctx.fillRect(x, y, b.pct > 0 ? Math.max(1, Math.round(w * b.pct)) : 0, h); // living = at least 1 px (timeline.js T13)
       if (mh) { ctx.fillStyle = tone('bar-mana'); ctx.fillRect(x, y + h + 1, Math.round(w * b.mana), mh); }
     }
     /* VW-08: a bleed badge with its stack count, right of the bar. */

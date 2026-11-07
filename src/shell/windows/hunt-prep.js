@@ -29,19 +29,19 @@
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, setupSlotsOf, goldOf } from '../../session/item-sections.js?v=0.2.103';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.103';
-import { runIntent } from '../intent-words.js?v=0.2.103';
-import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.103';
-import { itemName } from '../widgets/bits.js?v=0.2.103';
-import { whole, gold } from '../../render/format.js?v=0.2.103';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.103';
-import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.103';
-import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.103';
-import { renameSetup, deleteSetup, buySetupSlot } from '../../session/preset-intents.js?v=0.2.103';
-import { setupBuyWords, setupFullWords } from '../setup-words.js?v=0.2.103';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.103';
-import { settleTownActivity } from '../../session/party-intents.js?v=0.2.103';
+import { presetsOf, setupSlotsOf, goldOf } from '../../session/item-sections.js?v=0.2.104';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.104';
+import { runIntent } from '../intent-words.js?v=0.2.104';
+import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.104';
+import { itemName } from '../widgets/bits.js?v=0.2.104';
+import { whole, gold } from '../../render/format.js?v=0.2.104';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.104';
+import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.104';
+import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.104';
+import { renameSetup, deleteSetup, buySetupSlot } from '../../session/preset-intents.js?v=0.2.104';
+import { setupBuyWords, setupFullWords } from '../setup-words.js?v=0.2.104';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.104';
+import { settleTownActivity } from '../../session/party-intents.js?v=0.2.104';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 const SCRATCH = new WeakMap();
@@ -63,7 +63,7 @@ export function renderHuntPrep() {
     + '<p class="hs-note hw-carry-note" hidden>This hunt uses only the supplies it carries, then buys from the store. What you got after you set out waits in your backpack until you carry it in.</p>'
     + '<ul class="hw-ledger hw-carry" hidden></ul><p class="hh-empty hw-carry-none"></p>'
     + '<h3 class="hw-ledger-head is-on">Saved setups</h3>'
-    + '<p class="hs-note">A setup is a whole loadout: its own action bar and the gear it wears. The bar always shows the setup in use, and changing the bar changes that setup. To make another, save what you have on as a new setup, then change it.</p>'
+    + '<p class="hs-note">A setup is a whole loadout, with its own action bar and the gear it wears. The bar always shows the setup in use, and changing the bar changes that setup. To make another, save what you have on as a new setup, then change it.</p>'
     + '<ul class="hw-ledger hw-presets"></ul><p class="hh-empty hw-presets-none"></p>'
     + '<p class="hs-note hw-town-only">Setups change in town. This hunt keeps the bar it set off with.</p>'
     + '<div class="hw-add"><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="Name this setup" aria-label="Setup name" data-hs-act="preset-name">'

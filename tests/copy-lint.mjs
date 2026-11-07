@@ -197,7 +197,28 @@ export function voiceRules(text, name = false) {
   if (!name && /—/.test(w)) hits.push('em-dash');
   if (PAYS_XP_RE.test(w)) hits.push('pays-xp');
   if (FITS_YOU_RE.test(w)) hits.push('fits-you');
+  if (colonJoins(w).length) hits.push('colon-join');
   return hits;
+}
+
+/* COLON JOINS (Tyler 2026-11-06, "did you fix all the shitty text"): a clause glued to another by ": " inside a sentence
+   ("Creating a hero says there's nothing to choose: your hero owns every weapon"). A LABEL stays: 1 to 3 words before the
+   colon in its sentence ("Food: store", "Gold: 12,875 gp", "Next step up: Mosslight Glade"), and so does a colon that
+   opens a capitalized value ("Next gear at Level 22: Houndskin Cloak"). Flagged: 4+ words of the same sentence before
+   it AND a lower-case word after it. A CSS declaration list is code. Returns the offending clause heads. */
+export function colonJoins(text) {
+  const w = String(text);
+  if (CSS_LIST_RE.test(w)) return [];
+  const out = [];
+  for (const m of w.matchAll(/:\s+(?=[a-z])/g)) {
+    const before = w.slice(0, m.index);
+    /* the sentence it sits in: back to a sentence end, a tag gap, an open bracket or an attribute's opening quote */
+    const sentence = before.slice(Math.max(before.lastIndexOf('. '), before.lastIndexOf('! '), before.lastIndexOf('? '), before.lastIndexOf('\u0000'),
+      before.lastIndexOf('('), before.lastIndexOf('="'), -1) + 1);
+    const words = sentence.match(/[A-Za-z0-9§][\w'’%,.§-]*/g) || [];
+    if (words.length >= 4) out.push(sentence.trim().slice(-60));
+  }
+  return out;
 }
 
 export function lintText(text, pluralRe, name = false) {
@@ -248,8 +269,11 @@ export function changelogFindings(text, file = 'CHANGELOG.md') {
     const h = /^## v(\d+\.\d+\.\d+)\b/.exec(line);
     if (h) on = atLeast(h[1], CHANGELOG_FROM);
     if (!on) return;
-    const words = britishWords(line.replace(/`[^`]*`/g, ' ').replace(/\]\([^)]*\)/g, ']'));
+    const plain = line.replace(/`[^`]*`/g, ' ').replace(/\]\([^)]*\)/g, ']');
+    const words = britishWords(plain);
     if (words.length) out.push({ file, line: i + 1, rule: 'spelling', text: words.join(', ') + ' — ' + line.slice(0, 90) });
+    /* THE VOICE on every body line the welcome modal shows (2026-11-06); the `## vX.Y.Z — date (Title)` heading keeps its dash */
+    if (!h) for (const rule of voiceRules(plain.replace(/^\s*[-*]\s+/, '').replace(/\*\*/g, ''))) out.push({ file, line: i + 1, rule, text: line.slice(0, 110) });
   });
   return out;
 }
@@ -457,6 +481,8 @@ async function selftest() {
       ['semicolon', "export const a = (n, u, l) => 'You are missing ' + n + ' ' + u + '; ' + l + ' would be wasted.';"],
       ['semicolon', "export const a = (x, y) => `${x}; ${y}`;"],
       ['em-dash', "export const a = (lv, have) => 'Needs Level ' + lv + ' — ' + have;"],
+      ['colon-join', "export const a = 'Creating a hero says there is nothing to choose: your hero owns every weapon.';"],
+      ['colon-join', "export const a = (g) => `Hunt again is off: a hunt is already running in ${g}.`;"],
     ];
     for (const [rule, body] of cases) {
       writeFileSync(plant, '// planted\n' + body + '\n');
@@ -470,8 +496,11 @@ async function selftest() {
     const log = (v) => '# Changelog\n\n## v' + v + ' — 2026-10-30 (Colors)\n\n**Armor.** The grey cloak is your favourite.\n`armour-weights.js` [notes](docs/armour.md)\n';
     const cl = [changelogFindings(readFileSync(join(HERE_ROOT, 'CHANGELOG.md'), 'utf8')).length === 0,
       changelogFindings(log('0.2.65')).length === 1 && /grey, favourite/.test(changelogFindings(log('0.2.65'))[0].text),
-      changelogFindings(log('0.2.63')).length === 0];
-    for (const [ok, what] of [[cl[0], 'the CHANGELOG is green'], [cl[1], 'spelling in a CHANGELOG entry from ' + CHANGELOG_FROM], [cl[2], 'an older CHANGELOG entry is left as it shipped']]) {
+      changelogFindings(log('0.2.63')).length === 0,
+      changelogFindings(log('0.2.65') + '- Trying colors on is free; saving them costs gold.\n- It stays on your bar and says why: it waits.\n').map((x) => x.rule).join() === 'spelling,semicolon,colon-join',
+      changelogFindings(log('0.2.63') + '- Trying colors on is free; saving them costs gold.\n').length === 0];
+    for (const [ok, what] of [[cl[0], 'the CHANGELOG is green'], [cl[1], 'spelling in a CHANGELOG entry from ' + CHANGELOG_FROM], [cl[2], 'an older CHANGELOG entry is left as it shipped'],
+      [cl[3], 'the voice rules in a CHANGELOG entry body from ' + CHANGELOG_FROM + ' (its heading keeps its dash)'], [cl[4], 'the voice rules leave an older entry alone']]) {
       console.log(`  ${ok ? 'ok    ' : 'FAILED'}  ${what}`);
       if (!ok) bad++;
     }
@@ -483,9 +512,10 @@ async function selftest() {
     if (idLeak) bad++;
     // The voice rules read words only: gold that pays, the list's tag, an HTML entity, a CSS list, a label's
     // separator, a validator's message, a price catalogue's notes, and an en dash in a range all stay silent.
-    const VOICE = ['semicolon', 'em-dash', 'pays-xp', 'fits-you'];
+    const VOICE = ['semicolon', 'em-dash', 'pays-xp', 'fits-you', 'colon-join'];
     writeFileSync(plant, "export const a = ['Tamsin pays for kills, and in armor too.', 'The Shop pays more for gear than for scraps of XP.', 'Right for your level', 'A glove that fits your hand like its own skin',"
-      + " '<button>&lsaquo; All settings</button> and the rest', 'display: none; color: var(--ink)', 'Best with a party of 2–4 heroes'];\n"
+      + " '<button>&lsaquo; All settings</button> and the rest', 'display: none; color: var(--ink)', 'Best with a party of 2–4 heroes',"
+      + " 'Food: store, then your own bread', 'Gold: 12,875 gp', 'Next gear at Level 22: Houndskin Cloak', 'Runes: Plain Fire Rune from the store'];\n"
       + "export const R = { id: 'room.cellar.1', name: 'Cellar — Root Cellar', server_needs: 'player_state holds the COUNT; the server prices it — never the client' };\n"
       + "function v(bad) { bad('L-COVER', 'is drawn behind a roof; the hero standing there would be hidden'); }\n"
       + "export const cell = (r) => (r.per === null ? '—' : String(r.per));\n"

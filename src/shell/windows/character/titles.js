@@ -7,19 +7,19 @@
 // Each press is ONE intent (src/session/title-intents.js), and the row changes only from the re-read envelope.
 // Per hero: the purse pays, but the kills and the title are this hero's.
 // ════════════════════════════════════════════════════════════════════════
-import { TITLES } from '../../../data/titles.js?v=0.2.103';
-import { MIN_PARTY_NOTE } from '../../../data/hunt-grounds.js?v=0.2.103';
-import { titlesOf } from '../../../session/character-sections.js?v=0.2.103';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.103';
-import { buyTitle, wearTitle } from '../../../session/title-intents.js?v=0.2.103';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.103';
-import { whole, gold } from '../../../render/format.js?v=0.2.103';
-import { runIntent } from '../../intent-words.js?v=0.2.103';
+import { TITLES } from '../../../data/titles.js?v=0.2.104';
+import { MIN_PARTY_NOTE } from '../../../data/hunt-grounds.js?v=0.2.104';
+import { titlesOf } from '../../../session/character-sections.js?v=0.2.104';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.104';
+import { buyTitle, wearTitle } from '../../../session/title-intents.js?v=0.2.104';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.104';
+import { whole, gold } from '../../../render/format.js?v=0.2.104';
+import { runIntent } from '../../intent-words.js?v=0.2.104';
 
 /** The Titles tab's skeleton. */
 export function titlesHtml() {
   return '<section class="hw-cs-titles">'
-    + '<p class="hs-note">A title stands beside this hero\'s name in town and in chat. Each hero earns its own: the kills first, then the gold.</p>'
+    + '<p class="hs-note">A title stands beside this hero\'s name in town and in chat. Each hero earns its own, the kills first and then the gold.</p>'
     + '<ul class="hw-ledger hw-titles"></ul><p class="hh-empty hw-titles-none"></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></section>';
 }

@@ -70,11 +70,11 @@ export const BOSS_CALL_WORDS = Object.freeze({
     time: Object.freeze({ first: 'Time ran out before his adds came, at {pct}%', adds: 'Time ran out in the add wave at {pct}%', enrage: 'Time ran out in the enrage at {pct}%' }),
     fact: Object.freeze({ challenge: 'your Challenge fired {times}', heals: 'your heals fired {times}', area: 'your area slots fired {times}', ate: 'you ate {times}' }),
     answer: Object.freeze({
-      first: 'His plain blows beat your healing: bring a healer, eat earlier, or come back a gear tier up.',
-      adds: 'His adds go for whoever isn\'t your tank: Challenge brings them to your tank, an area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
+      first: 'His plain blows beat your healing. Bring a healer, eat earlier, or come back a gear tier up.',
+      adds: 'His adds go for whoever isn\'t your tank. Challenge brings them to your tank, an area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
       /* The add wave of a boss whose adds shield him (isGuarded; designer ruling 2026-11-05, the board): the one answer the table says decides it. */
-      guarded: 'His adds shield him while they stand: set your damage dealers\' Target to Lowest HP so they kill the adds before him.',
-      enrage: 'Under a quarter of his health he hits far harder: eat earlier on every bar, and set your healer to heal sooner.',
+      guarded: 'His adds shield him while they stand. Set your damage dealers\' Target to Lowest HP so they kill the adds before him.',
+      enrage: 'Under a quarter of his health he hits far harder. Eat earlier on every bar, and set your healer to heal sooner.',
     }),
   }),
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). */

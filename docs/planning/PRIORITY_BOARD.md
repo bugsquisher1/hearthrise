@@ -197,8 +197,14 @@ Two seams an event can use already exist. **Feature switches** (lane/c-scaled-hu
 | 3 cells on the Mill Cellar | x1.2467 | the mage's differs | the mage's differs | the hammer's differs | the mage's differs | 0 and 0 |
 The Cellar differs only because the check forced a tier row onto a Normal-only ground. That is the method's limit, and it is why the build puts the event in `xpMultOf` and never in a tier pick. Level XP an hour a head moved from 83,117 to 103,965 for the Glade's hammer at 24, and from 230,958 to 288,752 for the Warrens four at 41.
 
-(b) **What it does to the pace.** Careers from Level 1 to 50 where the Hunts window recommends, the event as a dial on every hunting hour it covers (the hour's Level XP x the dial). A career's hour fixes the hero's Level, so this is exactly the kill dial. The no-event rows are `level-pace.json`, and a hammer re-run on this branch matched it to the hundredth of an hour. Hours to each Level, hammer / bow / mage (median).
-PACE_TABLE_PLACEHOLDER
+(b) **What it does to the pace.** Careers from Level 1 to 50 where the Hunts window recommends, the event as a dial on every hunting hour it covers (the hour's Level XP x the dial). A career's hour fixes the hero's Level, so this is exactly the kill dial. The no-event rows are `level-pace.json`, and a hammer re-run on this branch matched it to the hundredth of an hour. Hours to each Level, hammer / bow / mage (their median). The last column applies the three styles' median ratio to `level-pace.json`'s eight-style reference and reads it against Tyler's targets (36 h to Level 25, 168 h to Level 50).
+| Schedule, and the player it models | Hunting hours the window covers | Level 10 | Level 25 | Level 50 | Level 50 against no event | The reference against Tyler's targets |
+|---|---|---|---|---|---|---|
+| No event | none | 5.63 / 6.13 / 5.59 (5.63) | 32.07 / 33.89 / 31.01 (32.07) | 160.77 / 161.72 / 147.42 (160.77) | x1 | 33.8 h (-6.0%), 161.4 h (-3.9%) |
+| +25% every other weekend, a player who hunts every night (3 nights in 14, a dial of x1.054 on average) | 21% | 5.38 / 5.81 / 5.34 (5.38) | 30.81 / 32.08 / 29.90 (30.81) | 152.99 / 153.71 / 140.35 (152.99) | x0.952 | 32.5 h (-9.7%), 153.6 h (-8.6%) |
+| +25% every weekend, the same player (3 nights in 7, x1.107) | 43% | 5.09 / 5.56 / 5.06 (5.09) | 29.19 / 30.96 / 28.20 (29.19) | 145.69 / 146.93 / 133.53 (145.69) | x0.906 | 30.8 h (-14.4%), 146.3 h (-12.9%) |
+| +25% on every hour, a player who hunts only on bonus weekends | 100% | 4.57 / 4.96 / 4.55 (4.57) | 26.17 / 27.21 / 25.32 (26.17) | 129.45 / 130.41 / 118.63 (129.45) | x0.805 | 27.6 h (-23.3%), 130.0 h (-22.6%) |
+No career died. The pace follows the share almost exactly (x0.805 is 1 / 1.24). Skills lag the faster Levels by 1-2% at Levels 10-25 and by nothing that shows at 50.
 
 (c) **Open Halls, from the measured Call out table** (2026-11-05, real settle, 30 seeds a cell, a four at Level 25 and 45) and the formula section's net gold a hero-hour at each ground's lowest Level.
 | | The Rat King (10,000 gp) | Chief Coppercap (30,000 gp) |
@@ -209,7 +215,14 @@ PACE_TABLE_PLACEHOLDER
 | One fee in hours of a hero's net gold at the ground's lowest Level | 5.1 h (the Sewer, 1,966 an hour) | 5.5 h (the Warrens four, 5,426 an hour) |
 Today a win costs the leader about 6 hours of a hero's gold with a good bar, about 19 hours with a bad one, and 43 hours at the Chief with a bar never touched (30,000 / 13% / 5,426 an hour). That is why a party doesn't try. On an Open Halls night it costs nothing, and the losing line still says what to fix, so the next paid call is an informed one. The sink gives up little, since 3 calls were paid in all.
 
-**The cadence, from (b).** CADENCE_PLACEHOLDER
+**The cadence, from (b). +25%, every other weekend.**
+- **Every weekend is too much.** It brings a player who hunts every night to Level 50 in x0.906 the hours, 12.9% under Tyler's 168 h and 14.4% under his 36 h at Level 25. That is past the curve's own 10% band for everyone who plays every night, which is exactly the player the curve is for.
+- **Every other weekend fits.** It reads x0.952, 8.6% under at Level 50 and 9.7% at Level 25, inside the band.
+- **+50% once a month costs the curve the same** (the same XP on average), but it gives half as many reasons to come back, and missing one costs twice as much.
+- **+10% every weekend costs about the same, and nobody would feel it.** At the Glade at 24 a hammer earns 83,117 an hour and a mage 90,681 (cells above), a wider gap than +10% on either. +25% takes the hammer to 103,965, more than any gap between two ways to fight there.
+- **The most an event can give** is to a player who hunts only on bonus weekends, x0.805 the hours. Every hour of it is still fought at the ground's normal danger.
+- **What missing one costs.** An attendee who starts one 8 h hunt on each of the three nights earns 24 h x 25% = 6 h of extra Level XP (9 h with premium's 12 h nights). Between Level 40 and 50 a Level takes about 7.3 h with no event, so a missed weekend leaves a player about one Level behind an attendee there, and nothing behind the curve.
+- **Open Halls every week** costs the curve nothing (the halls earn no XP), so it can be the weekly anchor, on a Wednesday so the week has a middle.
 
 **The data shape.** One home, `src/data/live-events.js`, holding data and words only. A generator (`tools/gen-live-events.mjs`, with `--check`) writes the server's two tables from it, like the titles and the Town Works. Nothing under `src/core` imports it, so a new event never moves the edge hash. The settle reads the server's rows.
 ```js

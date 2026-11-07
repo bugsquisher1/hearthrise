@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts } from '../tools/balance-sim/grade.mjs';
 import { SHEET } from '../tools/balance-sim/grade-sheet.mjs';
+import { worse } from '../tools/balance-sim/grade-compare.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const GRADER = join(ROOT, 'tools/balance-sim/grade.mjs');
@@ -57,6 +58,11 @@ check(feel(seat).includes('feel-seat-below-solo'), 'feel: a party seat under the
 const two = synthSet().concat(synthSet().map((c) => ({ ...c, cell: { ...c.cell, grade: { ...c.cell.grade, ground: 'g2', band: [30, 40] } },
   heroes: c.heroes.map((h) => ({ ...h, profitPerH: h.profitPerH - 3000 })) })));
 check(feel(two).includes('feel-gold-order'), 'feel: a higher floor netting less gold is flagged');
+
+/* the release gate (grade-compare.mjs): nothing is worse against itself; a new Normal death and a seat sliding under solo are */
+check(worse(synthSet(), synthSet()).length === 0, 'compare: a run against itself is worse nowhere');
+check(worse(synthSet(), synthSet({ deaths: true })).some((x) => x.what === 'feel-normal-deaths'), 'compare: a new Normal death is worse');
+check(worse(synthSet(), seat).some((x) => x.what === 'seat-vs-solo'), 'compare: a seat sliding under solo is worse');
 
 const L = levelsOf([5, 15], ['under5', 'under3', 'under2', 'floor', 'plus10', 'top']);
 check(JSON.stringify(L) === JSON.stringify([{ offset: 'under3', level: 2 }, { offset: 'under2', level: 3 }, { offset: 'floor', level: 5 }, { offset: 'plus10', level: 15 }]),

@@ -1,0 +1,99 @@
+THE GENERATION PLAN, 2026-11-07 to 2026-11-13 (art director, lane/a-region-kit)
+Tyler 11-07: "our generations for art reset on the 14th so lets make sure we use all of those up". Subscription only:
+2,123.4 of 10,000 generations left, $0.00 credits (GET /v2/balance, 2026-11-07 ~18:00 UTC). Never buy credits.
+A generator agent runs each brief; the art director reads every result before it is imported (CLAUDE.md §10: a builder
+never scores their own work). Each line starts with a sample (one body, or two facings) that I read; the batch follows
+only on my yes (§10: samples first, batches of 20 rows or fewer). Read the balance before each batch; stop at zero.
+
+HOW THE COSTS ARE ESTIMATED (docs/design/PIXELLAB_STYLE1_KIT.md §3, §6-§8, and what past lanes spent):
+  create_object_pro_flash, 8 directions ............ about 6 per object
+  animate_object (v3), one facing of one clip ...... about 1 (8 frames bill like 4 at 64 px or less: idle-clip.mjs)
+  a full creature (rotations, idle 8, walk 8, attack 8, death 4) = 34, plus about 20% re-rolls = 40
+      measured: lane/a-art-batch-1 283 gens for 6 creatures + 19 icons; Glade 165 for ground + 5 creatures + 6 icons
+  create_image_pro_flash, a 4x4 prop sheet ......... about 6 (KIT §8: "6 gen for 16")
+  create_image_pro, one large image (over 256 px) .. about 10 (the Weighhouse's stage 4 was one image, 10 gens)
+  create_topdown_tileset, pro mode ................. about 15 per pair
+  create_image_pixen, one 32x32 icon ............... 1 to 2
+
+WHAT THE SUGGESTED ORDER GOT WRONG (measured 2026-11-07 on main + release/v0.2.106, tests/world-assets.mjs green):
+  (b) "all 30 creatures idle on 1 frame": no longer. Since v0.2.98 (lane/a-creature-idles) every live creature carries a
+      3-pose idle (fliers 6). Still frames today: the 8 hero outfits, the 2 town NPCs, and the 6 Barrow March bodies on the
+      unmerged art branches. That line is about 160 gens, not 300.
+  (c) done on 11-05 (lane/a-art-batch-1): 30 live creatures on 30 drawings; the 4 icon pairs still shared each have an
+      unreachable partner (tests/pixel-icons.mjs KNOWN_TWINS); all 16 abilities have tiles (item-art.js ABILITY_ART).
+  (d) the house has art for all 39 of its pieces (no stubs). The farm draws each crop's produce icon at every stage:
+      growth sprites are line C1 below, and they need a farm.js change to show.
+
+RANKED. "Needs" names what must exist before the generator starts that line.
+ #   Line                                        Kind       Tool                          Size / frames               Gens  Needs
+ A1  Hero outfit idles, 8 outfits x 8 facings    animation  animate_object v3 on each    64 frame, 8 generated,       80   nothing: brief 05
+                                                            outfit's object               ping-pong of 4
+     Why first: every player sees their hero every second, in town and between pulls, and it is the one unit on screen
+     that never breathes (ART_DIRECTION §6: nothing alive is a still).
+ A2  Town NPC idles (crier, smith), 8 facings    animation  animate_object v3             64 frame                     20   brief 05 (same recipe)
+ A3  Barrow March idles: banded_pikeman,         animation  animate_object v3             64 frame                     60   brief 02
+     bannerman, fordsunk, wight, barrow_knight,
+     captain_hask (6 x 8 facings)
+     Why: no March body can go live without one (world-assets [live]), and three of them are the Slake's re-poured bases.
+ A4  The Slake (sample ground of the ground pack, Level 50-65):
+     a. Mudlark, the one new body                creature   create_object_pro_flash +     48 canvas, vermin class      40   brief 01
+                                                            animate_object v3
+     b. The Grounded Barge (signature 1)         prop       create_image_pro              320x160, building class      40   brief 03
+     c. The Stake Nets + river-kit sheet         props      create_image_pro_flash        256x256, 4x4 cells of 64     12   brief 04
+        (signature 2, the barge's spill, silt decals)
+     d. Copper silt floor: silt/mud and          tiles      create_topdown_tileset pro    32 px, chained on mud        30   brief 04 (part 2)
+        silt/shallows
+        Why: the floor is the Slake's theme ("the Meadowbrook drops its copper here") and most of the ground. The
+        March mud is one 32 px fill that shows its pebble lattice across a whole flat (read on the Ford through
+        tools/qa/region-kit.html); A4c's silt decals break that up (ART_DIRECTION §5), this gives the flat its colour.
+     e. Its icons: green_rivet, barge_nail,      icons      create_image_pixen            32x32, hr-world-56-v2        20   the designer's rows
+        mudlark_hook, color_cord, barge_pitch
+        (+ its world fuel sprite), maple_crossbow,
+        mithril_hatchets
+     f. CONTINGENCY: if the scripted verdigris  creatures  as a.                          as a.                       120   my read of the re-pour
+        re-pour of the three kit bodies reads as                                                                         sample (0 gens) says no
+        a plain recolour, three new bodies
+ B1  Town cast: 6 station NPCs (shopkeeper,      creature   create_object_pro_flash +     64 frame, idle (+ walk for  160   the designer's one-line
+     depot clerk, Tamsin at her board, the                  animate_object v3             those who walk)                   look and name for each
+     kill-task hunter, the cook, the farmer)
+     Why: ART_DIRECTION §3, the town is "warm, lived-in, busy"; two NPCs stand in it today.
+ B2  Hero attack swings, 8 outfits x 8 facings   animation  animate_object v3             64 frame, 6 frames, hit      100   a ruling: the swing
+                                                                                          frame declared                    shows the outfit's own
+     Why: heroes have only idle and walk; a blow today is an effect over a standing hero.     drawn weapon, not the
+                                                                                                                            equipped one (role comes
+                                                                                                                            from the weapon)
+ B3  Hit and fall clips: 36 bodies x 4 hit       animation  animate_object v3             5 frames at 12 fps (hit),   260   a client hook to play
+     facings, 8 outfits x (4 hit + 4 death)                                               6-7 (death), 4 cardinals          `hit` (choreo.js) and the
+                                                                                                                            hero's fall
+ B4  The Pyre Field (March, 70-90 solo): the     tiles,     create_topdown_tileset,       as A4                       280   the designer's three
+     ash-field tile family (6 pairs), 3 bodies,  creatures, create_object_pro_flash,                                        creature rows and layout
+     1-2 signature pieces, its icons             props      create_image_pro(_flash),
+                                                            pixen
+ B5  Ebbe's Chantry (March, 85-110 party): a     tiles,     as B4, Prior Ebbe at 64       as A4; the boss 64 canvas   300   the designer's rows,
+     crypt wall family (4 pairs), 3 bodies,      creatures                                with a special clip               boss phases (11-05)
+     Prior Ebbe, 2 signatures, icons
+ C1  Farm growth: 9 crops x 3 stages, and        props,     create_image_pro_flash        128x128 sheets of 32 px      40   a farm.js change to draw
+     tilled / watered soil                       tiles      sheets, create_tiles_pro      cells                             the stage
+ C2  Town and ground life: the mill's            animation  animate_image on a crop       8 frames at 6 fps            90   nothing (sample first)
+     waterwheel, ambient birds, reeds that                  (the hearth's method),
+     sway, the Glade's moss glow                            create_object_pro_flash
+ C3  A kit-built Greenhaven solo door at 32-45   creatures, as A4                         as A4                       160   the designer (board, "a
+     (3 bodies, 2 signature pieces)              props                                                                      lone hero at 32-45")
+ R   Re-rolls and review fixes, held back                                                                             288
+     TOTAL (A 422, B 1,100, C 290, R 288)                                                                           2,100
+
+BY DAY (about 300 a day; a line waiting on its "Needs" gives its day to the next line that is ready):
+  11-07 A1 sample (knight, 2 facings), my read, then A1 + A2 ........................ 100
+  11-08 A3; A4a sample, my read, batch; A4b, A4c, A4d, A4e .......................... 202
+  11-09 A4f (only if the re-pour read says no); B1 .................................. 280
+  11-10 B2 (once ruled); B3 first 200 ............................................... 300
+  11-11 B3 rest; B4 .................................................................. 340
+  11-12 B5 .............................................................................. 300
+  11-13 C1, C2, C3 (290); the reserve is spent as re-rolls through the week, and what is left goes to C, to zero
+  Pyre Field and Chantry art (B4, B5) stays on its art branch, unloaded, until the designer opens those grounds:
+  world-assets [s1-orphan] keeps a set nobody loads out of main.
+
+WHERE THE OUTPUT GOES: raw downloads under art/world-src/gen-2026-11-07/<asset>/ on the generator's branch (rotations
+<facing>.png, clips <clip>/<facing>/frame_NNN.png, the PixelLab ids in a note.json), plus one review strip per asset
+(tools/world-art/review-strip.mjs for units). The art director reads them; an import lane ports the accepted ones
+(tools/world-art/port-pixellab.mjs unit | idle | sheet, build.mjs, world-assets).

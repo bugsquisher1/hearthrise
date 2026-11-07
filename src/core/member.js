@@ -215,9 +215,12 @@ export function memberSide(mi, ctx) {
     },
     /* LEVEL XP: the kill share xp-share.js already split, whole (Level comes from
        kills only). A Level raises max HP and max mana from the next swing. */
-    addLevelXp(amt, raw) {
+    addLevelXp(amt, raw, ev) {
       const n = Math.max(0, Math.floor(Number(amt) || 0));
       if (!n) return;
+      /* A LIVE EVENT'S PART (xp-share.js `ev`): Level XP like the rest, kept apart so a personal best leaves it out (accrual.js xp_event). */
+      const e = Math.min(n, Math.max(0, Math.floor(Number(ev) || 0)));
+      if (e > 0) hs.tally.xpEvent = (hs.tally.xpEvent || 0) + e;
       /* "Before bonuses": the kill's even share (xp-share.js `raw`), before the party factor and the hero's multiplier. */
       hs.tally.rawLevelXp = (hs.tally.rawLevelXp || 0) + Math.max(0, Math.floor(Number(raw ?? n) || 0));
       const lv0 = charLevelFromXp(state.levelXp);

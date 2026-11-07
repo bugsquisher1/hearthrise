@@ -163,7 +163,7 @@ export function rewardSwing(members, events, world, ctx) {
     switch (ev.type) {
       case 'xp': {
         const m = members.get(ev.u);
-        if (m && ev.amount > 0) call(m.fx, 'addLevelXp', ev.amount, ev.raw);
+        if (m && ev.amount > 0) call(m.fx, 'addLevelXp', ev.amount, ev.raw, ev.ev);
         break;
       }
       case 'dmg': {

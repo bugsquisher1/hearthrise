@@ -45,6 +45,7 @@ import { stepCost } from '../core/hunt/grid.js?v=0.2.106';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.106';
 import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.106';
 import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js?v=0.2.106';
+import { xpMultFor } from '../core/live-events.js?v=0.2.106';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -206,6 +207,9 @@ export function createLiveEngine(o) {
       self: (live.members.find((m) => m.self) || {}).unitId ?? null,
       setup: setupOf(live), scale: scaleOf(live),
     };
+    /* A LIVE EVENT (hunt_live.instance.live_xp): each member's Level XP windows by key, the server's own, so a kill earns here what it will there */
+    const lx = live.instance.live_xp && typeof live.instance.live_xp === 'object' ? live.instance.live_xp : null;
+    s.xpMultOf = lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null;
     s.hashes.set(Number(live.instance.world_swing), live.instance.world_hash);
     if (text !== null) s.texts.set(Number(live.instance.world_swing), text);
     return s;
@@ -233,7 +237,8 @@ export function createLiveEngine(o) {
     for (const u of (s.world ? s.world.units : [])) speeds.set(u.id, u.speed);
     const sim = simulateHuntInstance({ world: s.world, nextSwingAtMs: at, members: s.sides.map((x) => x.member),
       worldSwing: s.worldSwing },
-    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items, ...(s.scale ? { scale: s.scale } : {}) });
+    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items, ...(s.scale ? { scale: s.scale } : {}),
+      ...(s.xpMultOf ? { xpMultOf: s.xpMultOf } : {}) });
     /* THE INSTANCE HAS ENDED (every member left: a death and the party's end with it, a leave, stamina):
        the engine runs no swing and its clock stands. A prediction that kept calling it never caught up:
        64 empty swings a frame, then a catch-up whose loop never ended (live v0.2.22, Andy: the tab froze

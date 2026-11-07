@@ -107,7 +107,9 @@ export function huntLive(inst, members, user, slot) {
     v: 1,
     instance: { id: String(inst.id), hunt: String(inst.hunt), world, world_hash: worldHash(world),
       settled_to_ms: Number(inst.settled_to_ms), next_swing_at_ms: Number(inst.next_swing_at_ms), world_swing: from,
-      scale: play.level === null ? null : { level: play.level } },
+      scale: play.level === null ? null : { level: play.level },
+      /* A LIVE EVENT: each member's Level XP windows by member key (src/core/live-events.js), so the browser's prediction earns what the server will */
+      ...(members.some((m) => m.liveXp) ? { live_xp: Object.fromEntries(members.filter((m) => m.liveXp).map((m) => [m.key, m.liveXp])) } : {}) },
     seeds: liveSeeds(inst, from),
     members: members.map((m) => {
       const self = String(m.user) === String(user) && Number(m.slot) === Number(slot);
@@ -625,6 +627,9 @@ async function memberInput(exec, m, inst) {
     /* LEAVE TOGETHER (Tyler 2026-10-22): this member's own "Leave if anyone leaves the hunt or dies" (hr_hunt_instance_read
        `leave_together`, the server's player_state.party_leave_together). A read without it (an older server) is off. */
     _leaveTogether: m.leave_together === true,
+    /* A LIVE EVENT (2027-03-22-live-events.sql hr_live_xp_windows, through hr_hunt_instance_read `live_xp`): this member's own Level XP
+       windows [[fromMs, toMs, pm], ...] over the span, already switched per account, summed and capped by the server; none, null. */
+    liveXp: Array.isArray(m.live_xp) && m.live_xp.length ? m.live_xp : null,
   };
 }
 

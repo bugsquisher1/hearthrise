@@ -108,6 +108,10 @@
 //         monsters stand at the scaled rows' health; against the same pair unscaled a kill pays 2x the Level XP and coin, and a
 //         monster lands a blow no catalogue Cellar monster can. The settle's half (the bank, the bounds, browser closed):
 //         tests/scaled-hunts-server.mjs.
+//   LV-EVENT A LIVE EVENT, VIEWED (lane/c-live-events; src/core/live-events.js): a pair on the Cellar, the peer leader's account inside a
+//         +25% Level XP window for 40 s of the run (the server's windows on the start point, hunt_live.instance.live_xp): every commit
+//         matches, every `xp` event the server played is the browser's (the event's part `ev` included), a kill pays its dial by its own
+//         time (inside the window only, the windowless viewer never), and the leader's Level XP over the window is the event's x1.25.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -567,6 +571,37 @@ function rules(M) {
         + per(scaled, 'xp').toFixed(0) + ' Level XP and ' + per(scaled, 'gold').toFixed(1) + ' coin (own ' + per(own, 'xp').toFixed(0) + ' and ' + per(own, 'gold').toFixed(1)
         + '); the hardest blow landed ' + scaled.maxBlow + ' (a catalogue Cellar monster swings at most ' + catMax + ')');
     }
+  }
+
+  { // LV-EVENT: A LIVE EVENT, VIEWED (lane/c-live-events). The peer leader's account holds a +25% Level XP window for 40 s of a 64 s run; the
+    // viewer's doesn't. The browser reads both from the start point and earns, kill by kill, what the server's commits pay.
+    const W = [T0 + 20000, T0 + 60000, 1250];
+    const pair = () => [memberOf(M, 'ev0', 0, 'tank', 6), memberOf(M, 'ev1', 1, 'melee_dps', 6)].map((mi, i) => {
+      mi.hero = Object.assign({}, mi.hero, { lead: i === 0 });
+      return mi;
+    });
+    const mis = pair(); mis[0].liveXp = [W];
+    const r = run(M, mis, 64000, { viewer: { user: 'ev1', slot: 0 } });
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-EVENT', r.verdicts.length >= 3 && bad.length === 0, bad.length + ' of ' + r.verdicts.length + ' commits did not match the prediction');
+    const fedEvents = new Set(r.fed.events.map(ekey));
+    const xps = r.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'xp');
+    const miss = xps.filter((e) => !fedEvents.has(ekey(e)));
+    ok('LV-EVENT', xps.length > 3 && miss.length === 0, miss.length + ' of the server\'s ' + xps.length + ' xp events were not the browser\'s (' + miss.slice(0, 2).map(ekey).join(' ') + ')');
+    const lead = mis[0].unitId, other = mis[1].unitId;
+    const inWin = (e) => e.atMs >= W[0] && e.atMs < W[1];
+    const wrong = xps.filter((e) => (e.u === lead && inWin(e) && !(e.ev > 0)) || ((e.u !== lead || !inWin(e)) && e.ev !== undefined));
+    ok('LV-EVENT', xps.some((e) => e.u === lead && inWin(e)) && wrong.length === 0,
+      wrong.length + ' xp event(s) pay the dial at the wrong time or to the wrong hero: ' + wrong.slice(0, 2).map(ekey).join(' '));
+    const ctl = pair(), rc = run(M, ctl, 64000, { viewer: { user: 'ev1', slot: 0 } });
+    const xpc = rc.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'xp');
+    const sum = (list, u, f) => list.filter((e) => e.u === u && f(e)).reduce((a, e) => a + e.amount, 0);
+    const with_ = sum(xps, lead, inWin), without = sum(xpc, lead, inWin);
+    ok('LV-EVENT', without > 0 && Math.abs(with_ / without - 1.25) < 0.05 && sum(xps, other, () => true) === sum(xpc, other, () => true)
+      && sum(xps, lead, (e) => !inWin(e)) === sum(xpc, lead, (e) => !inWin(e)),
+      'the leader earned ' + with_ + ' inside the window against ' + without + ' with none (want x1.25), the viewer ' + sum(xps, other, () => true) + ' against ' + sum(xpc, other, () => true));
+    console.log('  LV-EVENT Cellar pair, +25% for the leader 20-60 s of 64 s: ' + r.verdicts.length + ' commits, ' + (r.verdicts.length - bad.length) + ' matched; '
+      + xps.length + ' xp events, all the browser\'s; the leader ' + with_ + ' Level XP inside the window against ' + without + ' with none');
   }
 
   { // LV-K: THE LEADER CHOOSES (Tyler 2026-10-20): the peer leader's pick is the pull, on the server and in the browser.
@@ -1614,8 +1649,11 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
-  ['the browser plays a scaled hunt unscaled (LV-SCALE)', 'src/hunt-view/live-engine.js', 'monsters, items, ...(s.scale ? { scale: s.scale } : {}) });', 'monsters, items });', /^LV-SCALE: (solo|party): \d+ of/],
-  ['the start point drops the scale (LV-SCALE)', 'supabase/functions/hr-accrue/hunt-settle.js', '      scale: play.level === null ? null : { level: play.level } },', '      scale: null },', /^LV-SCALE: (solo|party): \d+ of/],
+  ['the browser drops the live event windows (LV-EVENT)', 'src/hunt-view/live-engine.js', 's.xpMultOf = lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null;', 's.xpMultOf = null;', /^LV-EVENT: \d+ of the server's/],
+  ['a kill reads its dial with no time (LV-EVENT)', 'src/core/hunt/xp-share.js', 'const m = f ? f(hero, sc.atMs) : 1;', 'const m = f ? f(hero) : 1;', /^LV-EVENT: (\d+ xp event|the leader earned)/],
+  ['the start point drops the windows (LV-EVENT)', 'supabase/functions/hr-accrue/hunt-settle.js', '...(members.some((m) => m.liveXp) ?', '...(false ?', /^LV-EVENT: \d+ of the server's/],
+  ['the browser plays a scaled hunt unscaled (LV-SCALE)', 'src/hunt-view/live-engine.js', 'monsters, items, ...(s.scale ? { scale: s.scale } : {}),', 'monsters, items,', /^LV-SCALE: (solo|party): \d+ of/],
+  ['the start point drops the scale (LV-SCALE)', 'supabase/functions/hr-accrue/hunt-settle.js', '      scale: play.level === null ? null : { level: play.level },', '      scale: null,', /^LV-SCALE: (solo|party): \d+ of/],
   ["a peer is frozen against the catalogue's rows (LV-SCALE)", 'supabase/functions/hr-accrue/hunt-settle.js', 'Number(inst.next_swing_at_ms), rows) };', 'Number(inst.next_swing_at_ms)) };', /^LV-SCALE: party: \d+ of/],
   ['a spawn reads the catalogue row (LV-SCALE)', 'src/core/hunt/pull-cycle.js', 'const row = (inst.monsters || MONSTERS)[s.monster];', 'const row = MONSTERS[s.monster];', /^LV-SCALE: .*scaled rows' health/],
   ['a kill pays the catalogue Level XP (LV-SCALE)', 'src/core/hunt/damage.js', 'xp: Math.round((atTier(rowOf(inst, target.kind), inst.tier).xp', 'xp: Math.round((atTier(MONSTERS[target.kind], inst.tier).xp', /^LV-SCALE: a scaled kill paid .* Level XP/],

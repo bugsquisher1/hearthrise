@@ -839,6 +839,58 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'bite') {
+    /* NORMAL BITES THROUGH THE MONSTERS' OWN STATS (lane/b-monster-bite, Tyler 11-04 "they are just simply harder", no Level term): every
+       Wickstead and Glade monster's attack x1 (the same dice), x1.5, x2, x2.5 (whatIf, x = B<k>). The lone hero at each floor (8 ways to
+       fight), the band's middle (pace), pairs 2-3 Levels under each floor and 5 under, and a lone hero 5 under. 2 seeds x 2 h, the sample. */
+    const BITE = { wickstead: ['granary_rat', 'barn_wasp', 'barn_spider', 'orchard_boar', 'turncoat'],
+      mosslight_glade: ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear'] };
+    const PAIRS = [['tank', 'healer'], ['hammer', 'bow']];
+    for (const k of [1, 1.5, 2, 2.5]) {
+      const whatIf = k === 1 ? null : { monsters: Object.fromEntries(Object.values(BITE).flat().map((id) => [id, { atk: '*' + k }])) }, x = 'B' + Math.round(k * 100);
+      const cell = (ground, party, level) => ({ ...cellOf({ ground, party, level, hours: H(2), seeds: 2, x }), windowMs: 120000, ...(whatIf ? { whatIf } : {}) });
+      for (const [ground, floor, mid] of [['wickstead', 8, 13], ['mosslight_glade', 16, 24]]) {
+        for (const s of SOLO_STYLES) out.push(cell(ground, [s], floor));
+        for (const s of ['tank', 'hammer', 'bow', 'mage']) out.push(cell(ground, [s], mid));
+        for (const party of PAIRS) for (const level of [floor - 3, floor - 2, floor - 5]) out.push(cell(ground, party, level));
+        for (const s of ['hammer', 'mage']) out.push(cell(ground, [s], floor - 5));
+      }
+    }
+    return out;
+  }
+  if (name === 'bite2') {
+    /* THE PROFIT RULE'S CEILING (Tyler 10-18 and 11-02: +25% over the bill in range): plan bite read the Glade's floor tank under +25% at x1.5
+       and the pairs two Levels under still paid, and Wickstead's floor far from it at x2.5. So: the Glade at x1.2, x1.3, x1.4 with the floor in
+       helm and body beside the full kit (11-02's own test), Wickstead at x2, x2.5, x3 with a fresh hero's practice set at its floor (the
+       first-week bars) and the Level 13 tank the climb rule plays. Same cells otherwise, 2 seeds x 2 h. */
+    const BITE = { wickstead: ['granary_rat', 'barn_wasp', 'barn_spider', 'orchard_boar', 'turncoat'],
+      mosslight_glade: ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear'] };
+    const PAIRS = [['tank', 'healer'], ['hammer', 'bow']];
+    for (const [ground, floor, ks] of [['mosslight_glade', 16, [1.2, 1.3, 1.4]], ['wickstead', 8, [2, 2.5, 3]]]) for (const k of ks) {
+      const whatIf = { monsters: Object.fromEntries(BITE[ground].map((id) => [id, { atk: '*' + k }])) }, x = 'B' + Math.round(k * 100);
+      const cell = (party, level, gear) => ({ ...cellOf({ ground, party, level, gear, hours: H(2), seeds: 2, x }), windowMs: 120000, whatIf });
+      for (const s of SOLO_STYLES) out.push(cell([s], floor));
+      if (ground === 'mosslight_glade') for (const s of ['tank', 'sword', 'hammer']) out.push(cell([s], floor, { armourSlots: ['helmet', 'body'] }));
+      else for (const s of SOLO_STYLES) out.push(cell([s], floor, { starter: true }));
+      out.push(cell(['tank'], ground === 'wickstead' ? 13 : 24));
+      for (const party of PAIRS) for (const level of [floor - 3, floor - 2, floor - 5]) out.push(cell(party, level));
+      for (const s of ['hammer', 'mage']) out.push(cell([s], floor - 5));
+    }
+    return out;
+  }
+  if (name === 'bite3') {
+    /* WHERE EACH RULE BINDS (plan bite2 found the Glade's floor in helm and body under +25% at x1.2 and Wickstead's practice set dying at x2):
+       the Glade's tank and sword in helm and body at x1, x1.1, x1.15, and Wickstead's practice set (8 ways) at x1, x1.25, x1.5. */
+    const BITE = { wickstead: ['granary_rat', 'barn_wasp', 'barn_spider', 'orchard_boar', 'turncoat'],
+      mosslight_glade: ['carrion_crow', 'glade_poacher', 'walking_vine', 'goblin_sluicer', 'rook_poacher', 'brook_bear'] };
+    for (const [ground, floor, ks] of [['mosslight_glade', 16, [1, 1.1, 1.15]], ['wickstead', 8, [1, 1.25, 1.5]]]) for (const k of ks) {
+      const whatIf = k === 1 ? null : { monsters: Object.fromEntries(BITE[ground].map((id) => [id, { atk: '*' + k }])) }, x = 'B' + Math.round(k * 100);
+      const cell = (party, level, gear) => ({ ...cellOf({ ground, party, level, gear, hours: H(2), seeds: 2, x }), windowMs: 120000, ...(whatIf ? { whatIf } : {}) });
+      if (ground === 'mosslight_glade') for (const s of ['tank', 'sword']) out.push(cell([s], floor, { armourSlots: ['helmet', 'body'] }));
+      else for (const s of SOLO_STYLES) out.push(cell([s], floor, { starter: true }));
+    }
+    return out;
+  }
   if (name === 'weightclassfinal') {
     /* THE ROWS AS WRITTEN (lane/b-tier-risk, the weight-class rows): the cases the Coordinator asked for, on the same dice as plans weightclass
        (duos, 4 seeds) and tierrisklive2 (Andy's three, 2 seeds), plus a four at the Glade's 31 and the level-matched lone safety check. */

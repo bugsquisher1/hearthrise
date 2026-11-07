@@ -30,7 +30,26 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
-### 2026-11-06 Fighting above your weight class costs gold and lives (designer, lane/b-tier-risk, **Tyler 2026-11-06: "Yes, make it risky", then 20:20 UTC: "if you are fighting outside your weight class even in a party, you're gonna waste money but get more exp and possibly die a few times"**): BUILT on the harder tiers, measured on the real settle, one rows-only catalogue STAGED, the edge moves. **Normal is NOT done: it needs an engine rule (Systems)**
+### 2026-11-07 Normal can't bite through monster stats (designer, lane/b-monster-bite, inside Tyler's 11-04 NO LEVEL PENALTY): MEASURED, no rows changed, the edge does not move. **Tyler's call: which hero Normal at a ground's floor protects**
+**The question.** Make Normal bite through the monsters' own stats, so the right Level spends real supplies, a pair 2-3 Levels under breaks even or loses, 5 under dies and loses, and the floor stays safe. The Level-gap rule is withdrawn (it broke 11-04).
+
+**What was played** (plans `bite`, `bite2`, `bite3`, 325 cells, 2 seeds x 2 h each, reader `tools/balance-sim/bite-table.mjs`): every Wickstead and Glade monster's attack x1 to x3, the lone hero at each floor in the 8 ways to fight, the Glade's tank and sword in helm and body (Tyler's 11-02 test), Wickstead's fresh hero in the practice set (the first-week bars), pairs 2, 3 and 5 Levels under each floor, and a lone hero 5 under.
+
+| The Glade's attack | Floor, full kit: bill share of income, worst margin, close calls in 12 h | Tank in helm and body (11-02: +25%) | Pair 2-3 under: net a head, damage taken | 5 under: lone hammer / mage, pairs |
+|---|---|---|---|---|
+| x1 (today) | 10%, sword +150%, 0 | +71% | +3.1k to +3.9k, 13k | +2.1k / +2.9k, +2.7k to +3.2k |
+| x1.1 | | +27% | | |
+| x1.2 | 21%, sword +45%, 0.8 | **+6%** | +2.6k to +3k, 16-17k | +0.6k / +2.5k, +2k to +2.4k |
+| x1.5 | 40%, sword -10%, 7.1 | | +0.9k to +1.9k, 20-22k | -2.6k / +0.6k, 0 to +1.2k |
+| x2 | 88%, sword -55%, 51 | | **-0.2k to -2.2k**, 28-31k | -8.6k, 5 deaths in 10 h / -2.5k, 2.5 deaths |
+
+Wickstead's floor heroes in the practice set dip under 25% HP 0.75 times in 12 h today and 15 times at x1.25 (the bar is 1), so Wickstead can't move either. Its pairs 2-3 under wear the same tier-1 gear as the floor, so nothing separates them.
+
+**Why it can't work.** With no Level term, a pair 2-3 Levels under the Glade (tier-1 gear, 20-30 less HP) is about as strong as the median hero at its floor, and stronger than a sword alone there. A lone hammer at 11 takes 1.45x the damage of one at 16, and a sword alone at 16 takes 1.19x a hammer's on 0.71x the income. Any bite costs the weakest legal builds at the floor first: the tank in helm and body, the sword alone, the bow's close calls and the practice set. The pair 2-3 under only starts losing gold where the median hero at the floor no longer clears +25%.
+
+**The designer's call.** Normal stays the safe tier ("in range is safe", Tyler 11-04). The weight class lives where the stats can show it: on Dangerous and Deadly (lane/b-tier-risk, the same pair loses 1.9k to 7.9k an hour on Dangerous) and at bigger gaps. **For Tyler, if he wants Normal to bite anyway:** drop the 11-02 helm-and-body test and judge the floor on the full kit (his 10-25 words, "properly equipped"). Then the Glade can take x1.2 (close calls 0.8 in 12 h, inside the bar) and supplies become real at the floor (21% of income). A pair 2-3 under still nets +2.6k to +3k a head.
+
+### 2026-11-06 Fighting above your weight class costs gold and lives (designer, lane/b-tier-risk, **Tyler 2026-11-06: "Yes, make it risky", then 20:20 UTC: "if you are fighting outside your weight class even in a party, you're gonna waste money but get more exp and possibly die a few times"**): BUILT on the harder tiers, measured on the real settle, one rows-only catalogue STAGED, the edge moves. **Normal: see 2026-11-07**
 **The call.** The pace stays on Normal. Above your Level, every harder tier still pays more XP, and now it costs gold and some deaths, more the further below the ground you are. At the right Level, Normal stays safe and a four's Deadly stays where Andy found it ("mostly balanced for 4-man squads"). Tyler's 11-05 tier words stand: bigger pulls, harder hits, more XP a kill, the same coin and drops, and you can die. The death penalty is unchanged (the 10-25 ruling, §4).
 
 **The rows** (`src/data/hunt-tiers.js`. Pull for one to four heroes, where 0 is the ground as it stands, then power and XP in permille). Normal and the Thicket, the Sewer and the Warrens don't move.
@@ -70,7 +89,7 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 **The fastest honest lone path to Level 50** (each Level's reference rate times the median way to fight's best tier that held and netted, on the ground the game sends a lone hero to): **110.9 h, was 102.1** (Level 25 in 30.1 h, Level 10 in 5.8 h, against 169.8, 34.5 and 6.2 on Normal). Wickstead's free lone gain is gone. The Glade's is not: a lone hero above its band (31-50) still holds its Deadly at 1.5-1.8x, because the one power number that keeps a four at 16 alive can't also hurt a lone hero at 40.
 
 **Still open, not built.**
-1. **Normal under your weight class (Systems, an engine rule).** A pair two Levels under the Glade's floor still nets +3-4k on Normal with no deaths, which is Andy's "barely taking damage". No tier row reaches Normal, and a monster row hits the right-Level hero too: the Glade's monsters at 1.5x attack (plan `weightclass2`) left the pair at +0.9-2.1k while the lone 16 dropped to a 72% low point. The rule Tyler's words ask for: for each Level a hero is below a ground's band, its monsters hit that hero harder (more accuracy and more damage), on every tier, and nothing changes at or above the floor. It lives in `combat-sim` beside the tier power, with the gap read from the ground's `band`. Numbers to be set by its own sweep.
+1. **Normal under your weight class.** WITHDRAWN 2026-11-07: a Level-gap rule breaks Tyler's 11-04 NO LEVEL PENALTY. The monsters' own stats were measured instead (section "2026-11-07 Normal can't bite through monster stats" above): they can't do it within the in-range rules, and it is Tyler's call.
 2. **A tier's power per party size (Systems).** `powerPm` as four numbers, like `pull`, through `atTier`, `levelAtTier` and `hr_ground_tiers.power_pm`. With it, a lone hero's Deadly at the Glade 31-50 can carry a bill while a four at 16 keeps 1600.
 
 **Proof and guards.** Real settle, `tools/balance-sim` plans `weightclass` (64 cells), `weightclass2` (124), `weightclassfinal` and the Glade's lone tiers re-played (125), `tierrisklive2` (Andy, 11), `tierrisk` (472), `tierrisk2` (236), readers `tools/balance-sim/pacefinal-table.mjs` and `tierrisk-table.mjs`. Server: `2027-03-19-tier-risk.generated.sql` by the new `tools/gen-ground-tiers.mjs`, rows only (10, as before), a self-check, byte-identical on a second apply. `tests/hunt-core/hunt-tiers.mjs` reads it. **Assumed:** that 4 hours with no death is "held" (it bounds a death rate only under about 0.9 an hour), and that the median way to fight stands for the fastest player.

@@ -30,9 +30,9 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.105';
-import { HUNT_INDEX } from './hunts.js?v=0.2.105';
-import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.105';
+import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.106';
+import { HUNT_INDEX } from './hunts.js?v=0.2.106';
+import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.106';
 
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);
 export const DEFAULT_TIER = 'normal';

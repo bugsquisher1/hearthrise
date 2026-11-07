@@ -4,16 +4,16 @@
 // roll is src/core/hunt/pull-cycle.js (every pack spawns from its pocket's
 // rows): the C2 single-foe `pickSpawn` was retired with the single-foe swing
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.105';
-import { densityFor, partyPick, packHpFor } from '../data/hunt-grounds.js?v=0.2.105';
-import { MONSTERS } from '../data/monsters.js?v=0.2.105';
-import { atTier } from '../data/hunt-tiers.js?v=0.2.105';
-import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.105';
-import { disciplineAbilities } from '../data/abilities.js?v=0.2.105';
-import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.105';
-import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.105';
-import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.105';
-import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.105';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.106';
+import { densityFor, partyPick, packHpFor } from '../data/hunt-grounds.js?v=0.2.106';
+import { MONSTERS } from '../data/monsters.js?v=0.2.106';
+import { atTier } from '../data/hunt-tiers.js?v=0.2.106';
+import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.106';
+import { disciplineAbilities } from '../data/abilities.js?v=0.2.106';
+import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.106';
+import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.106';
+import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.106';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.106';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {

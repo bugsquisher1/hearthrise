@@ -130,8 +130,8 @@ async function load(base) {
     ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
     /* the engine's own tier rows (LV-DIAL swaps one for a what-if and puts it back) */
     ENGINE_TIERS: (await import(pathToFileURL(join(base, 'src/data/hunt-tiers.js')).href + V)).GROUND_TIERS,
-    /* the engine's own blow (LV-Q builds its deadly rows with it) */
-    MAX_HIT: (await import(pathToFileURL(join(base, 'src/core/combat.js')).href + V)).monsterMaxHit,
+    /* the engine's own blow and to-hit (deadlyRows builds its rows with them) */
+    ENGINE_COMBAT: await import(pathToFileURL(join(base, 'src/core/combat.js')).href + V),
     HGR: await u('src/data/hunt-grounds.js'),
     base,
     AC: await u(FN + '/accrual.js'),
@@ -176,6 +176,32 @@ function memberOf(M, user, seat, role, level) {
     /* (the SHIELD makes the tank, Tyler 2026-10-23: a tank's key is the shield's, a sword alone plays Melee damage) */
     hero: M.SPAWN.heroSetup({ weaponType: role === 'ranger' ? 'ranged' : role === 'melee_dps' ? 'hammer' : 'shield', options: {}, bar: [], partyRoles: ['tank', 'melee_dps'], leaveTogether: true }),
   };
+}
+
+/* A DEADLY CASE BUILT FROM DATA (LV-Q; tests/perf-budget.mjs's death scene). Every monster the ground of `hunt` fields,
+   priced as the engine prices a blow (combat.js monsterMaxHit, monsterAccuracy): a blow of at least 1/`share` of the max
+   HP of `mi` and, when `hit` is given, a to-hit of at least `hit` against its defence (member.js memberSide, the settle's own numbers). Only ever
+   raised, never the rows' own numbers, so a ground the formula softens or reshapes still kills. `put()` and `back()` lift
+   and restore the engine's own rows (and this harness's copy); `rows` is what to lift on another copy (the page's). */
+function deadlyRows(M, hunt, mi, o) {
+  const share = (o && o.share) || 6, hit = o && Number.isFinite(o.hit) ? o.hit : null;
+  const side = M.MB.memberSide(mi, { items: M.ITEMS });
+  const hp = side.state.playerMaxHp, def = side.member.snapshot(side.state).def;
+  const kinds = [...new Set(M.HG.huntGroundOf(hunt).ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
+    .filter((k) => M.ENGINE_MONSTERS[k]);
+  const C = M.ENGINE_COMBAT, rows = {}, was = {};
+  for (const id of kinds) {
+    const r = M.ENGINE_MONSTERS[id];
+    let atk = r.atk || 1;
+    while (C.monsterMaxHit({ ...r, atk }) * share < hp) atk++;
+    const base = Number.isFinite(r.baseAcc) ? r.baseAcc : C.COMBAT_BALANCE.monsterBaseAccuracy;
+    const lift = hit === null ? 0 : Math.max(0, Math.ceil((hit - C.monsterAccuracy({ ...r, atk }, def)) * 100) / 100);
+    rows[id] = lift > 0 ? { atk, baseAcc: Math.round((base + lift) * 100) / 100 } : { atk };
+    was[id] = { atk: r.atk, baseAcc: r.baseAcc };
+  }
+  const set = (list) => { for (const [id, x] of Object.entries(list)) for (const book of [M.ENGINE_MONSTERS, M.MONSTERS]) {
+    for (const [k, v] of Object.entries(x)) { if (v === undefined) delete book[id][k]; else book[id][k] = v; } } };
+  return { rows, hp, def, put: () => set(rows), back: () => set(was) };
 }
 
 /* The server: the instance row and its members, settled by accrueHunt in commits. */
@@ -969,20 +995,15 @@ function rules(M) {
     // THE DEADLY CASE IS BUILT HERE, FROM DATA (lane/b-ground-formula-fix): the formula made the Sewer a gentle ground (no blow
     // passes 10% of its floor hero's HP, balance-sheet.js), and Andy's duo at 14 no longer fell in 10 minutes. So the rule
     // no longer leans on how hard a ground's rows hit: for this case only (a what-if on the engine's own rows, put back after,
-    // as LV-CALL does) every Sewer monster's blow reaches a sixth of the tank's max HP (member.js, combat.js monsterMaxHit).
-    // Measured: the tank falls at about 170 s (a quarter: 13 s; a fifth: 85 s; an eighth or a tenth: 260 s).
+    // as LV-CALL does) every Sewer monster's blow reaches a sixth of the tank's max HP (deadlyRows, the harness's one builder;
+    // perf-budget's death scene uses it too). No to-hit floor here: at 60% the tank fell in the first pull (13.9 s), before the
+    // ranger fought, and the run-on mutant had nothing to show; at 1/6 alone he falls at 170.5 s, both heroes fighting.
     const HUNT = 'millrace_sewer', SHARE = 6;
     const mk = () => { const mis = [memberOf(M, 'a', 0, 'tank', 14), memberOf(M, 'b', 1, 'ranger', 14)];
       for (const m of mis) { m.huntId = HUNT; m.hero = Object.assign({}, m.hero, { density: 8 }); } return mis; };
-    const tankHp = M.MB.memberSide(mk()[0], { items: M.ITEMS }).state.playerMaxHp;
-    const kinds = [...new Set(M.HG.huntGroundOf(HUNT).ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
-      .filter((k) => M.ENGINE_MONSTERS[k]);
-    const keep = kinds.map((id) => [id, { atk: M.ENGINE_MONSTERS[id].atk }]);
-    for (const id of kinds) {
-      let atk = M.ENGINE_MONSTERS[id].atk || 1;
-      while (M.MAX_HIT({ ...M.ENGINE_MONSTERS[id], atk }) * SHARE < tankHp) atk++;
-      Object.assign(M.ENGINE_MONSTERS[id], { atk }); Object.assign(M.MONSTERS[id], { atk });
-    }
+    const deadly = deadlyRows(M, HUNT, mk()[0], { share: SHARE });
+    const tankHp = deadly.hp;
+    deadly.put();
     try {
       const after = (steps, events, ids) => {
         const death = events.find((e) => e.type === 'kill' && ids.includes(e.t));
@@ -994,7 +1015,8 @@ function rules(M) {
       const srv = server(M, mis, { hunt: HUNT });
       const steps = [], events = [];
       let ids = [];
-      for (let t = T0 + 10000; t <= T0 + 600000 && !mis.every((m) => m.unitId === null && m.huntSession.swingIndex > 0); t += 10000) {
+      /* the first commit is one swing long, so both heroes are named before any death (a fast one fell inside a first 10 s commit, unnamed) */
+      for (let t = T0 + 2000; t <= T0 + 600000 && !mis.every((m) => m.unitId === null && m.huntSession.swingIndex > 0); t += t === T0 + 2000 ? 8000 : 10000) {
         const c = srv.commit(t);
         if (!ids.length) ids = mis.map((m) => m.unitId);
         if (c) { steps.push(...c.tl.hunt_track); events.push(...c.tl.hunt_events); }
@@ -1002,7 +1024,7 @@ function rules(M) {
       const closed = after(steps, events, ids);
       const vm = mk();
       let vids = [];
-      const v = run(M, vm, closed ? closed.at + 4000 : 1000, { server: { hunt: HUNT }, commitMs: 10000,
+      const v = run(M, vm, closed ? closed.at + 4000 : 1000, { server: { hunt: HUNT }, commitMs: 2000,
         onCommit: () => { if (!vids.length) vids = vm.map((m) => m.unitId); } });
       const viewed = after(v.fed.steps, v.fed.events, vids);
       console.log(`  LV-Q a Sewer duo's tank falls at ${closed && closed.at} ms (blows to a 1/${SHARE} of its ${tankHp} HP): after it, closed ${closed && closed.steps} hero steps / ${closed && closed.blows} blows, viewed ${viewed && viewed.steps} / ${viewed && viewed.blows}`);
@@ -1010,7 +1032,7 @@ function rules(M) {
       ok('LV-Q', closed && closed.steps === 0 && closed.blows === 0, `browser closed: after the death the party took ${closed && closed.steps} steps and ${closed && closed.blows} blows`);
       ok('LV-Q', viewed && viewed.steps === 0 && viewed.blows === 0, `viewed: after the death the party took ${viewed && viewed.steps} steps and ${viewed && viewed.blows} blows on screen`);
     } finally {
-      for (const [id, row] of keep) { Object.assign(M.ENGINE_MONSTERS[id], row); Object.assign(M.MONSTERS[id], row); }
+      deadly.back();
     }
   }
 
@@ -1650,7 +1672,7 @@ async function mutate() {
 }
 
 /* For tests/hunt-scene-live.mjs: the same members, server and start point. */
-export const HARNESS = Object.freeze({ T0, load, memberOf, server });
+export const HARNESS = Object.freeze({ T0, load, memberOf, server, deadlyRows });
 
 async function main() {
   if (process.argv.includes('--mutate')) return mutate();

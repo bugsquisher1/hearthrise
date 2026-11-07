@@ -12,11 +12,11 @@
 // the form fields; `onSignedIn` is called once the account is signed in.
 // ════════════════════════════════════════════════════════════════════════
 
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.105';
-import { AUTH_COPY } from '../net/auth.js?v=0.2.105';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.105';
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.105';
-import { LEGAL_DOCS, openLegal } from './legal-reader.js?v=0.2.105';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.106';
+import { AUTH_COPY } from '../net/auth.js?v=0.2.106';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.106';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.106';
+import { LEGAL_DOCS, openLegal } from './legal-reader.js?v=0.2.106';
 
 const FIELD = {
   email: '<label class="auth-field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>',
@@ -28,7 +28,7 @@ const FIELD = {
 };
 
 /** The crest and the name over every account screen (painted art at its own 1:1 or exactly 1:2, never between). */
-export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.105" alt="" width="311" height="384">'
+export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.106" alt="" width="311" height="384">'
   + '<p class="auth-name">Hearthrise</p><p class="auth-pitch">Your heroes hunt, gather and craft, even while you\'re away.</p></header>';
 
 /* The two pages a player can read from here (legal-reader.js), as presses. */

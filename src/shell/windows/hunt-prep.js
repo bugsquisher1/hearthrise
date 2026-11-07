@@ -29,19 +29,19 @@
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, setupSlotsOf, goldOf } from '../../session/item-sections.js?v=0.2.105';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.105';
-import { runIntent } from '../intent-words.js?v=0.2.105';
-import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.105';
-import { itemName } from '../widgets/bits.js?v=0.2.105';
-import { whole, gold } from '../../render/format.js?v=0.2.105';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.105';
-import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.105';
-import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.105';
-import { renameSetup, deleteSetup, buySetupSlot } from '../../session/preset-intents.js?v=0.2.105';
-import { setupBuyWords, setupFullWords } from '../setup-words.js?v=0.2.105';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.105';
-import { settleTownActivity } from '../../session/party-intents.js?v=0.2.105';
+import { presetsOf, setupSlotsOf, goldOf } from '../../session/item-sections.js?v=0.2.106';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.106';
+import { runIntent } from '../intent-words.js?v=0.2.106';
+import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.106';
+import { itemName } from '../widgets/bits.js?v=0.2.106';
+import { whole, gold } from '../../render/format.js?v=0.2.106';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.106';
+import { settingsOf, huntOf } from '../../session/hunt-sections.js?v=0.2.106';
+import { ACTION_SET_LIMITS } from '../../data/rule-subjects.js?v=0.2.106';
+import { renameSetup, deleteSetup, buySetupSlot } from '../../session/preset-intents.js?v=0.2.106';
+import { setupBuyWords, setupFullWords } from '../setup-words.js?v=0.2.106';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.106';
+import { settleTownActivity } from '../../session/party-intents.js?v=0.2.106';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 const SCRATCH = new WeakMap();

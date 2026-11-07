@@ -9,7 +9,7 @@
 //   node tests/perf-budget.mjs --mutate        every planted defect must turn the budget RED
 //   node tests/perf-budget.mjs --mutate --shard=K/N   the Kth of N shards, balanced by each mutant's scenario length
 //
-// mutant-anchors: src/social/social-session.js src/shell/away-recap.js src/shell/alerts.js src/world/render/frame-sig.js src/world/render/ground-chunks.js src/shell/widgets/action-bar.js src/app/boot.js src/session/page-away.js src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js
+// mutant-anchors: src/social/social-session.js src/shell/away-recap.js src/shell/alerts.js src/world/render/frame-sig.js src/world/render/ground-chunks.js src/shell/widgets/action-bar.js src/app/boot.js src/session/page-away.js src/world/world-boot.js src/world/core/compose.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js src/render/images.js src/app/world-view.js
 // mutant-writes-tree: no — probes and mutants are served from memory (tests/_client-harness.mjs serve overrides)
 //
 // THE SCENARIO (Andy, Firefox, live v0.2.23: "the page is slowing down", "the analyser seems to have slowed
@@ -18,7 +18,9 @@
 // accrual.js accrueHunt) on The Sewer: a party of the account's two heroes at density 8, the first viewed.
 // The server settles every 10 s (the pg_cron tick) and answers every poll with the asking hero's start point.
 // Along the run: the analyzer open, a hero switch A -> B -> A, an alert storm (party invites, 20 s), a hidden
-// tab (the frame loop held, then resumed), and the tank's death mid-pull (the party's hunt ends for both).
+// tab (the frame loop held, then resumed), and the tank's death mid-pull (the party's hunt ends for both): a deadly case
+// built from data at the kill (DEATH: the Sewer's rows lifted on the server and on the page alike), the end awaited, then
+// the still town judged after it (deathFails: the end within DEATH.withinMs, the page in town).
 //
 // WHAT IS MEASURED, in the page, the same way in both browsers:
 //   fps            requestAnimationFrame gaps: median and the p5 frame rate, outside the hidden span
@@ -63,6 +65,11 @@ const WEAPON = Object.freeze({ melee_dps: 'hammer', ranger: 'ranged', tank: 'swo
 const TICK_MS = 10000;   // the server's settle cadence (pg_cron, live-world-decision)
 
 const TOWN_TAIL_MS = 60000;
+/* THE DEATH SCENE (makeServer): from the kill, a blow of at least 1/6 of the tank's max HP at a 60% to-hit at least; the hunt ends within
+   withinMs (measured in node, a kill every 5 s from 150 to 300 s in: 10-35 s on the formula's Sewer, 0-35 s on its reshaped blows,
+   x1.6 at 1/1.6 the to-hit; the longest a kill between two pulls. The page, 3 CI runs on the reshaped rows: 24.6, 9.2, 5.8 s),
+   and the still town is judged from townAfterMs past the end, never before (the page reads the end, sums it up and walks back). */
+const DEATH = Object.freeze({ share: 6, hit: 0.6, withinMs: 60000, townAfterMs: 20000 });
 const SHOW_ANSWER_HELD_MS = 1500;   // PB-AWAY: the show's answer waits this long, so its catch-up is at the route first on every run (scenario)
 const IDLE_STAND = STATIONS.find((s) => s.kind === 'idle');
 /* THE BUDGETS (Chromium, 1440x900, the 4-minute CI scenario), from the measured numbers plus margin. */
@@ -124,6 +131,8 @@ const PROBES = [
     '        const r = window.__perf ? window.__perf.time(\'groundSlice\', () => runFor(it, o.now, budget)) : runFor(it, o.now, budget);'],
   /* every frame the World really paints (a held one paints nothing) */
   ['src/world/render/canvas-backend.js', '    kept.painted++;\n', '    kept.painted++; if (window.__perf) window.__perf.count(\'paint\');\n'],
+  /* the page's own monster rows (the one module every engine file reads): the death scene lifts on the page the rows it lifts on the server */
+  ['src/data/monsters.js', 'export const MONSTERS = {', 'export const MONSTERS = globalThis.__perfMonsters = {'],
 ];
 
 /* ── the planted defects (--mutate): each must turn a budget red ── */
@@ -190,6 +199,11 @@ const MUTANTS = [
     '    return this.online.take(read ? ans.body.online : null);', "    this._account.server.rpc('hr_players_online', { p_slots: this.online.slots() });\n    return this.online.take(read ? ans.body.online : null);", /^asks: .*apart/, 'scenario', 4],
   ['the social poll is sent twice as often (the total must see what no verb budget names)', 'src/social/social-session.js',
     "this._poll = set(() => { if (!this._away", "this._poll = set(() => { this.reread(); this.reread(); if (!this._away", /^asks: .*a minute/, 'scenario', 4],
+  /* THE DEATH SCENE (DEATH, deathFails): an ended hunt the page still holds open never takes it back to town */
+  ['the world pane keeps the ended hunt\'s scene (the page never goes back to town)', 'src/app/world-view.js',
+    "  if (st.active_kind === 'combat' && typeof st.active_id === 'string') {\n    const hunt = HUNT_INDEX[st.active_id];",
+    "  if (st.active_kind === 'combat' && typeof st.active_id === 'string') scratch.lastHunt = st.active_id;\n  if (scratch.lastHunt) {\n    const hunt = HUNT_INDEX[scratch.lastHunt];",
+    /^death: .*not the town/, 'scenario', 2],
   ['the still town reads every 2 s, never settling to its idle read', 'src/data/town-presence.js', '  idlePollMs: 6000,', '  idlePollMs: 2000,', /^asks: .*still town/, 'scenario', 4],
   ['the page does not say goodbye (its heroes\' stamps stay where they were when it is hidden)', 'src/shell/alerts.js',
     'for (const cs of account.characters()) { stampAway(cs, true);', 'for (const cs of []) { stampAway(cs, true);', /^asks: .*on the way out/, 'scenario', 4],
@@ -274,6 +288,12 @@ async function makeServer(second = 'melee_dps') {
   mis[1].key = UID + ':1'; mis[1].slot = 1;
   for (const m of mis) { m.huntId = HUNT; m.hero = Object.assign({}, m.hero, { density: 8 }); }
   const srv = LIVE_H.server(LM, mis, { hunt: HUNT });
+  /* THE DEADLY CASE, BUILT FROM DATA (lane/b-ground-formula-fix): from the kill on, every Sewer monster's blow reaches DEATH.share
+     of the tank's max HP and hits it DEATH.hit of the time (tests/hunt-live.mjs deadlyRows, the engine's own pricing), on this
+     server's rows AND the page's (the monsters.js probe), so the prediction plays what the server settles. Before, the scene
+     leaned on the Sewer's own bite: on the formula's gentle rows a kill between pulls let the tank regenerate to full and the hunt
+     ran on to the end of the run (no death, no town). Lifted only at the kill, put back on close. */
+  const deadly = LIVE_H.deadlyRows(LM, HUNT, mis[0], { share: DEATH.share, hit: DEATH.hit });
   /* the hunt began about 30 s before the page loads; the engine's clock lands on the page's by whole minutes */
   const start = Date.now() - 30000 - (((Date.now() - 30000 - T0) % 60000) + 60000) % 60000;
   const shift = (ms) => ms - T0 + start;
@@ -281,7 +301,7 @@ async function makeServer(second = 'melee_dps') {
   const NAMES = ['Ada', 'Bram'];
   const SESS = [randomUUID(), randomUUID()];
   const PARTY = randomUUID();
-  const S = { ended: false, endedAt: null, killAt: null, storm: false, version: [LIVE.version, LIVE.version], tally: [0, 1].map(() => ({ kills: 0, xp: 0, gold: 0, loot: {} })) };
+  const S = { ended: false, endedAt: null, killAt: null, killWall: null, storm: false, version: [LIVE.version, LIVE.version], tally: [0, 1].map(() => ({ kills: 0, xp: 0, gold: 0, loot: {} })) };
   const tick = () => {
     if (S.ended) return;
     const to = back(Date.now());
@@ -291,10 +311,11 @@ async function makeServer(second = 'melee_dps') {
       /* THE TANK'S DEATH MID-PULL: from this settle on the tank's bar is empty (no food, no Challenge), a
          setup change the start points carry, so the browser's prediction plays the death live */
       mis[0].hero = Object.assign({}, mis[0].hero, { slots: [] });
-      const w = LM.WS.decode(JSON.parse(srv.inst.world));
-      const u = w.units.find((x) => x.id === mis[0].unitId);
+      /* (the deadly rows are up from the kill itself: the settle that reaches it may already hold the death, and no world) */
+      const w = srv.inst.world ? LM.WS.decode(JSON.parse(srv.inst.world)) : null;
+      const u = w && w.units.find((x) => x.id === mis[0].unitId);
       if (u) { u.hp = Math.max(1, Math.floor(u.maxHp * 0.15)); u.otHp = 0; }
-      srv.inst.world = JSON.stringify(LM.WS.encode(w));
+      if (w) srv.inst.world = JSON.stringify(LM.WS.encode(w));
       S.killed = true;
     }
     if (!c) return;
@@ -373,7 +394,8 @@ async function makeServer(second = 'melee_dps') {
     }
     return { ok: true };
   };
-  return { H, start, S, answer, close: () => clearInterval(timer), deathIn: (ms) => { S.killAt = back(Date.now() + ms); } };
+  return { H, start, S, answer, deadly: deadly.rows, close: () => { clearInterval(timer); deadly.back(); },
+    deathIn: (ms) => { deadly.put(); S.killWall = Date.now() + ms; S.killAt = back(S.killWall); } };
 }
 
 /* ── PB-PIX: A KEPT MASK IS THE MASK A REDRAW MAKES ──
@@ -735,8 +757,15 @@ async function scenario(o) {
     const caught = asked.filter(([t, n]) => t >= shownAt && t < shownAt + 3000 && n === 'hr-accrue').length;
     if (o.viewAtDeath) { await at(D * 0.7 - 3000); await tab(o.viewAtDeath); }
     await at(D * 0.7); await page.evaluate(() => { window.__perf.trackOn = true; window.__perf.mark('death'); });
+    /* THE DEATH (makeServer, DEATH): the page's rows lifted with the server's, in one moment, then the end AWAITED, never assumed
+       from the clock (how far the next pull is depends on where the whole-minute start put the hunt) */
+    await page.evaluate((rows) => { const B = globalThis.__perfMonsters; for (const [id, r] of Object.entries(rows)) Object.assign(B[id], r); }, srv.deadly);
     srv.deathIn(0);
-    await at(D - 8000);
+    const endBy = Date.now() + DEATH.withinMs;
+    while (!srv.S.ended && Date.now() < endBy) await page.waitForTimeout(250);
+    /* the still town: the run's last 8 s, and never sooner than townAfterMs past the end */
+    const town0 = srv.S.ended ? Math.max(D - 8000, Date.now() - t0 + DEATH.townAfterMs) : D - 8000;
+    await at(town0);
     /* the town after the hunt: the last seconds, standing still, a slot's tip open (PB-QUIET): what the page writes and restyles */
     const recalcs = async () => { if (!cdp) return null; await cdp.send('Performance.enable'); return (await cdp.send('Performance.getMetrics')).metrics.find((x) => x.name === 'RecalcStyleCount').value; };
     const recalc0 = await recalcs();
@@ -745,8 +774,9 @@ async function scenario(o) {
       P.writes = 0; P.wrote = new MutationObserver((ms) => { for (const m of ms) P.writes += 1 + m.addedNodes.length; });
       P.wrote.observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
       return P.c.paint || 0; });
-    await at(D);
-    const tail = await page.evaluate(() => { const P = window.__perf; P.wrote.disconnect(); return { paint: P.c.paint || 0, writes: P.writes, tip: !!document.querySelector('.hb-tip.is-on') }; });
+    await at(town0 + 8000);
+    const tail = await page.evaluate(() => { const P = window.__perf; P.wrote.disconnect(); const sc = document.querySelector('[data-scene]');
+      return { paint: P.c.paint || 0, writes: P.writes, tip: !!document.querySelector('.hb-tip.is-on'), scene: sc ? sc.getAttribute('data-scene') : null }; });
     const townPaintsPerS = (tail.paint - paint0) / 8;
     const townWritesPerS = tail.writes / 8;
     const townRecalcPerS = cdp ? ((await recalcs()) - recalc0) / 8 : null;
@@ -769,7 +799,8 @@ async function scenario(o) {
     const walked = asked.filter(([, n]) => n === 'hr-accrue' || n === 'hr_town_move').reduce((m, [t]) => Math.max(m, t), 0);
     const asks = { hunt: asksIn(asked, t0, hiddenAt), town: asksIn(asked, Math.max((srv.S.endedAt || t0 + D) + 20000, walked + 2000), Date.now()), stampsLeaving, townOwed: o.minutes >= 4 };
     return Object.assign(analyse(out, w0, o, srv), { asks, townPaintsPerS, townWritesPerS, townRecalcPerS, townTip: tail.tip, away, caught, awayFor, hiddenFor: shownAt - hiddenAt, heapMb: h0 === null ? null : (h1 - h0) / 1048576,
-      heapRawMb: h0 === null ? null : (h1raw - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt });
+      heapRawMb: h0 === null ? null : (h1raw - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt,
+      death: { killWall: srv.S.killWall, endedAt: srv.S.endedAt, townScene: tail.scene } });
   } finally {
     srv.close();
     await browser.close();
@@ -893,8 +924,18 @@ function asksFails(a) {
   return f;
 }
 
+/* THE DEATH SCENE (DEATH): the tank's death ended the hunt within withinMs of the kill, and the page stood in town after it. */
+function deathFails(d) {
+  if (!d) return [];
+  const f = [];
+  const took = d.endedAt === null || d.killWall === null ? null : d.endedAt - d.killWall;
+  if (took === null || took > DEATH.withinMs) f.push(`death: the hunt never ended ${took === null ? 'after the kill' : Math.round(took / 1000) + ' s after the kill'} (the scene needs the tank's death within ${DEATH.withinMs / 1000} s)`);
+  else if (d.townScene !== 'town') f.push(`death: the hunt ended ${Math.round(took / 1000)} s after the kill, and the page stood in ${d.townScene || 'no scene'}, not the town`);
+  return f;
+}
+
 function budgetFails(m) {
-  const f = asksFails(m.asks);
+  const f = asksFails(m.asks).concat(deathFails(m.death));
   const b = BUDGET;
   if (m.errors.length) f.push('page errors: ' + m.errors.join(' | '));
   if (!(m.fpsMedian >= b.fpsMedianMin)) f.push(`fps median ${m.fpsMedian} (budget >= ${b.fpsMedianMin})`);
@@ -935,6 +976,7 @@ function row(m) {
     + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers}) sheets ${m.sheets.bitmap} bitmap/${m.sheets.img} img`
     + ` | still town: ${m.townPaintsPerS === undefined ? '-' : m.townPaintsPerS.toFixed(1)} paints/s ${m.townWritesPerS === undefined ? '-' : m.townWritesPerS.toFixed(1)} writes/s ${m.townRecalcPerS == null ? '-' : m.townRecalcPerS.toFixed(1)} recalcs/s`
     + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`
+    + `\n  DEATH the hunt ended ${m.death && m.death.endedAt !== null && m.death.killWall !== null ? ((m.death.endedAt - m.death.killWall) / 1000).toFixed(1) + ' s after the kill' : 'never'}, the page then in ${(m.death && m.death.townScene) || 'no scene'}`
     + `\n  PB-REQ a hunt in view ${perMin(m.asks.hunt).toFixed(1)}/min ${JSON.stringify(m.asks.hunt.verbs)} over ${Math.round(m.asks.hunt.ms / 1000)} s; still town ${perMin(m.asks.town).toFixed(1)}/min ${JSON.stringify(m.asks.town.verbs)} over ${Math.round(m.asks.town.ms / 1000)} s; away stamps in view ${m.asks.hunt.stamps}, on the way out ${m.asks.stampsLeaving}`;
 }
 

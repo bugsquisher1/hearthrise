@@ -16,12 +16,12 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.105';
-import { composeFrame } from '../core/compose.js?v=0.2.105';
-import { castBox } from '../core/shadows.js?v=0.2.105';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.105';
-import { createFrameSig } from './frame-sig.js?v=0.2.105';
-import { paintStub } from '../stub-atlas.js?v=0.2.105';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.106';
+import { composeFrame } from '../core/compose.js?v=0.2.106';
+import { castBox } from '../core/shadows.js?v=0.2.106';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.106';
+import { createFrameSig } from './frame-sig.js?v=0.2.106';
+import { paintStub } from '../stub-atlas.js?v=0.2.106';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each

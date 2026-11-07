@@ -3814,7 +3814,7 @@ jobs:
           node tests/hunt-sessions-settle.mjs --closed
           node tools/mutant-gate.mjs node tests/hunt-sessions-settle.mjs --mutate
   # db-replay-11: Scaled hunts, the server half (lane/c-scaled-hunts, 2026-11-07), its own job: db-replay-8 already runs near its
-  # 30 min. Measured locally 2026-11-07 on a cached chain: plain ~3 min, --mutate ~10 min (21 mutants); x2 + setup = 34.
+  # 30 min. Measured locally 2026-11-07 on a cached chain: plain 89 s, --mutate 295 s (21 mutants); a cold chain build adds ~6 min.
   db-replay-11:
     runs-on: ubuntu-latest
     timeout-minutes: 34

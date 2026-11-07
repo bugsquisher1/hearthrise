@@ -114,12 +114,22 @@ export async function play({ world, map, heroes, hours, log = console.log, pageC
     for (const c of crew) {
       if (c.busyUntil > clock) continue;
       if (c.doing) await finish(c);
-      /* instant steps first, until the hero starts something that takes time */
+      /* instant steps first, until the hero starts something that takes time. The same step twice in one visit is a
+         loop (the server took it and nothing changed, or refused it with no key): a finding, cooled, never a spin */
+      const seen = new Set();
       for (let guard = 0; guard < 40; guard++) {
         const v = await look(c);
         c.mem.hour = clock / 60;
         if (guard === 0) sample(j, { hour: clock / 60, hero: c.name, v, huntH: hunted(c) / 60 });
         const a = nextAction({ v, map, mem: c.mem });
+        const k = a && (a.key || a.type) + ' ' + JSON.stringify(a.lines || a.map || a.plot || '');
+        if (a && seen.has(k)) {
+          stall(j, { hour: clock / 60, hero: c.name, why: 'the same step came back after it ran: ' + k + ' (' + a.why + ')', v });
+          if (a.key) c.mem.cooldown.set(a.key, c.mem.hour + 2);
+          if (a.type === 'sell') for (const l of a.lines) c.mem.cooldown.set('sell:' + l.item, c.mem.hour + 2);
+          continue;
+        }
+        if (a) seen.add(k);
         if (!a) {
           /* a party member with nothing to do in town is waiting for its party's next hunt, not stuck */
           if (!c.party) stall(j, { hour: clock / 60, hero: c.name, why: 'the brain found nothing sensible to do', v });
@@ -242,8 +252,10 @@ export async function play({ world, map, heroes, hours, log = console.log, pageC
   }
   function cool(c, a, ans) {
     if (!a.key) return;
+    /* a sale is judged per stack (the brain asks per item), a harvest per plot: both may pass later */
+    if (a.type === 'sell') { for (const l of a.lines) c.mem.cooldown.set('sell:' + l.item, c.mem.hour + 2); return; }
     /* a refusal that names the hero's state (level, skill, stock, gold) may pass later: try again in 2 hours; any other is final */
-    if (/level|skill|short|gold|afford|stock|input|stamina|busy|open|cooldown|rate/i.test(String(ans.error))) c.mem.cooldown.set(a.key, c.mem.hour + 2);
+    if (a.type === 'harvest' || /level|skill|short|gold|afford|stock|input|stamina|busy|open|cooldown|rate|prereq|tier|locked/i.test(String(ans.error))) c.mem.cooldown.set(a.key, c.mem.hour + 2);
     else c.mem.refused.add(a.key);
   }
 

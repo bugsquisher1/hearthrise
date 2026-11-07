@@ -95,9 +95,9 @@ export function partyHunt({ vs, map, mem }) {
 
 // ── THE RULES ────────────────────────────────────────────────────────────
 const RULES = [
-  { id: 'harvest', pick: ({ v }) => {
+  { id: 'harvest', pick: ({ v, mem }) => {
     const p = v.farm.find((x) => x.crop && x.ready);
-    return p ? { type: 'harvest', plot: p.idx, why: 'the ' + p.crop + ' on plot ' + p.idx + ' is ready' } : null;
+    return p && !tried(mem, 'harvest:' + p.idx) ? { type: 'harvest', plot: p.idx, key: 'harvest:' + p.idx, why: 'the ' + p.crop + ' on plot ' + p.idx + ' is ready' } : null;
   } },
 
   { id: 'plant', pick: ({ v, map, mem }) => {
@@ -144,7 +144,7 @@ const RULES = [
       if (trash || worseGear || notMine || crowded) lines.push({ item: id, qty: Math.min(qty, 1000), why: trash ? 'trash' : worseGear ? 'worse than worn' : notMine ? 'not worn by a ' + role : 'bag crowded' });
       if (lines.length >= 64) break;
     }
-    return lines.length ? { type: 'sell', lines: lines.map(({ item, qty }) => ({ item, qty })), why: lines.length + ' stacks with no use for this hero (' + [...new Set(lines.map((l) => l.why))].join(', ') + ')' } : null;
+    return lines.length ? { type: 'sell', lines: lines.map(({ item, qty }) => ({ item, qty })), key: 'sell:' + lines.map((l) => l.item).join('+'), why: lines.length + ' stacks with no use for this hero (' + [...new Set(lines.map((l) => l.why))].join(', ') + ')' } : null;
   } },
 
   { id: 'buy', pick: ({ v, map, mem }) => {
@@ -184,7 +184,8 @@ const RULES = [
       return { type: 'slot', slotId: h.slotId, price: h.gold, key: 'slot:' + h.slotId, why: 'gold\'s first job is the next hero (the coach\'s own order, hunt-tutorial.js)' };
     }
     const f = v.farmUpgrade;
-    if (f && v.gold - f.gold >= PACE.keepGold && v.deeds >= f.deeds && (v.skills.farming || 1) >= f.farming && !tried(mem, 'land:' + f.level)) {
+    /* the land's tier is paid in gold first, deeds only as the fallback (2026-12-14-shared-farm.sql hr_farm_upgrade_plot) */
+    if (f && (v.gold - f.gold >= PACE.keepGold || v.deeds >= f.deeds) && (v.skills.farming || 1) >= f.farming && !tried(mem, 'land:' + f.level)) {
       return { type: 'land', level: f.level, key: 'land:' + f.level, why: 'the land\'s tier ' + f.level + ' opens the next crops' };
     }
     return null;

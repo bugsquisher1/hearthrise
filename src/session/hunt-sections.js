@@ -208,12 +208,18 @@ const outfitIdOf = (o) => (isObj(o) && typeof o.id === 'string' && OUTFIT_ID.tes
  * unit, nothing booked yet). Every HP readout of a hunting hero reads it so none lags the
  * bar: the envelope's `hp` is the last commit's, up to a commit window old (Andy 2026-10-21,
  * the Warrens: the hub and the party panel showed the HP of seconds before the death).
+ * THE MAX IS THE SERVER'S (`serverMax`, the hunt or party section's `hp_max`, replaced by every envelope) whenever
+ * it names one: a Level-up raises it mid-hunt, and the playback can still hold the old one (a prediction started
+ * before the raise, one that never levels a party-mate, a window that began under it): the hub read 150/150 at
+ * Level 4 while the server fought at 180 (local-world smoke, 11-06). The HP is the playback's, never above that max.
  */
-export function liveHpOf(cs, unit) {
+export function liveHpOf(cs, unit, serverMax) {
   const tl = cs && cs.timeline;
   if (!Number.isInteger(unit) || !tl || typeof tl.hpAt !== 'function' || typeof cs.now !== 'function') return null;
   const r = tl.hpAt(unit, cs.now());
-  return r && Number.isFinite(r.hp) && Number.isFinite(r.maxHp) && r.maxHp > 0 ? r : null;
+  if (!(r && Number.isFinite(r.hp) && Number.isFinite(r.maxHp) && r.maxHp > 0)) return null;
+  const maxHp = Number.isFinite(serverMax) && serverMax > 0 ? serverMax : r.maxHp;
+  return { hp: Math.min(r.hp, maxHp), maxHp };
 }
 
 /* A party member. `unit` is its hero in the hunt instance, null while the party is in town (it is

@@ -408,7 +408,10 @@ export function createHuntScene(o) {
       /* Every bar is the HP AT THE INSTANT SHOWN (timeline.js T6: heroes too, so it moves live), the snapshot's only as a fallback. */
       const played = typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);
       const hp = played ? played.hp : hero ? m && m.hp : (read.units.get(u) || {}).hp;
-      const hpMax = played ? played.maxHp : hero ? m && m.hpMax : (read.units.get(u) || {}).hpMax;
+      /* A hero's max is the server's latest (the party section's hp_max): a Level-up raises it mid-hunt while the
+         playback may still hold the old one (hunt-sections.js liveHpOf, the same rule for every HP readout). */
+      const serverMax = hero && m && Number.isFinite(m.hpMax) && m.hpMax > 0 ? m.hpMax : null;
+      const hpMax = serverMax !== null ? serverMax : played ? played.maxHp : hero ? m && m.hpMax : (read.units.get(u) || {}).hpMax;
       const mana = hero && m ? m.mana : null, manaMax = hero && m ? m.manaMax : null;
       const hpPct = Number.isFinite(hp) && hpMax > 0 ? Math.max(0, Math.min(1, hp / hpMax)) : null;
       const mpPct = Number.isFinite(mana) && manaMax > 0 ? Math.max(0, Math.min(1, mana / manaMax)) : null;

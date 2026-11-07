@@ -118,7 +118,7 @@ export function heroVitalsOf(cs) {
   const h = huntOf(cs);
   const hero = h && !h.ended ? h.hero : null;
   if (hero) {
-    const live = liveHpOf(cs, hero.unit);
+    const live = liveHpOf(cs, hero.unit, hero.hpMax);
     /* Until the first settle builds the instance's world the server sends the hero's max mana (hr_vitals_of) but
        no `mana`: a new instance's hero starts FULL (src/core/hunt-spawn.js), so the pool reads full, never "–"
        for the hunt's first ~10 s (Fingerguns + Pellow 10-25). The next envelope with the world replaces it. */

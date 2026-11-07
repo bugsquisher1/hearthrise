@@ -156,7 +156,7 @@ export function liveRoster(cs, r) {
       const v = heroVitalsOf(cs);
       return Object.assign({}, m, { level: v.level, hp: v.hp, hpMax: v.hpMax, mana: v.mana, manaMax: v.manaMax });
     }
-    const live = m.hunting ? liveHpOf(cs, m.unit) : null;
+    const live = m.hunting ? liveHpOf(cs, m.unit, m.hpMax) : null;
     return live ? Object.assign({}, m, { hp: live.hp, hpMax: live.maxHp }) : m;
   });
   return Object.assign({}, r, { members, hold: holdView(Object.assign({}, r, { members }), turns) });

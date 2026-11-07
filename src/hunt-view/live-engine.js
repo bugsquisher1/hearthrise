@@ -246,11 +246,12 @@ export function createLiveEngine(o) {
       s.texts.set(s.world.swing, text);
       if (s.texts.size > KEEP_TEXTS) s.texts.delete(s.texts.keys().next().value);
     }
-    const tl = huntTimeline(sim.track, sim.events.filter(predicted), at, sim.nextSwingAtMs, at, sim.units);
     /* THE SWING'S END (timeline.js T13): every unit's HP at the next boundary, so the bar carries the HP the events
        do not (a hero's regen) and never reads below the engine's. The next swing's own book restates it. */
-    tl.endUnits = {};
-    for (const u of (s.world ? s.world.units : [])) tl.endUnits[u.id] = [u.kind, u.maxHp, u.hp];
+    /** @type {Record<number, [string, number, number]>} */
+    const endUnits = {};
+    for (const u of (s.world ? s.world.units : [])) endUnits[u.id] = [u.kind, u.maxHp, u.hp];
+    const tl = Object.assign(huntTimeline(sim.track, sim.events.filter(predicted), at, sim.nextSwingAtMs, at, sim.units), { endUnits });
     const alive = new Set();
     for (const u of (s.world ? s.world.units : [])) { if (!speeds.has(u.id)) speeds.set(u.id, u.speed); alive.add(u.id); }
     timeSteps(tl.hunt_track, (id) => speeds.get(id), s.drawn);

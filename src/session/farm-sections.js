@@ -7,7 +7,12 @@
 //     plots: [{ i, crop, ready, ready_in_s, waterable, regrows_left, by, by_name, extra }] }
 // The field is the ACCOUNT's (Tyler 2026-10-23): every hero reads the same plots,
 // each naming the hero who planted it (`by` the slot, `by_name` the name); an
-// `extra` plot sits past the cap and goes once harvested. `deeds` are this hero's.
+// `extra` plot sits past the cap and goes once harvested.
+// NO DEEDS: the server still sends `deeds` (the hero's Farmer's Deeds and the tier's
+// deed price), but the Farmer's Deed left the catalogue with every source it had (the
+// 2026-10-23 demolition), so no player can hold one. The reader drops both, and no
+// window offers a payment nobody can make (coverage bot 2026-11-07; the server half
+// is tests/catalogue-coherence.mjs SERVER_ITEM_DEBT's).
 // Every judgement is the server's: how many plots the land holds (the property
 // ladder and the Garden), whether a plot is ready or may be watered (by the
 // server's clock), and the next plot tier's price. Null = the server sent no field
@@ -34,14 +39,15 @@ function read(cs, key) {
   return cs && typeof cs.read === 'function' ? cs.read(key) : undefined;
 }
 
+/* The next tier's price in gold, at its Farming level (no deeds: see the header). */
 function priceOf(u) {
   if (!isObj(u) || !Number.isInteger(u.level) || u.level < 2) return null;
-  const gold = count(u.gold), deeds = count(u.deeds), farming = count(u.farming);
-  return gold === null || deeds === null || farming === null ? null : { level: u.level, gold, deeds, farming };
+  const gold = count(u.gold), farming = count(u.farming);
+  return gold === null || farming === null ? null : { level: u.level, gold, farming };
 }
 
 /**
- * `farm_land`: { cap, plotLevel, deeds, upgrade, plots: Map<i, plot>, seenAt }, or null.
+ * `farm_land`: { cap, plotLevel, upgrade, plots: Map<i, plot>, seenAt }, or null.
  * @param {object} cs        a CharacterSession (or anything with read(key))
  * @param {number} nowMs     the display clock, recorded the first time this envelope is read
  */
@@ -58,7 +64,7 @@ export function farmLandOf(cs, nowMs) {
 }
 
 /**
- * The same field with no clock: { cap, plotLevel, deeds, upgrade, plots }, or null. For a reader that shows no
+ * The same field with no clock: { cap, plotLevel, upgrade, plots }, or null. For a reader that shows no
  * countdown (the coach's "What next" line): it never stamps `seenAt`, so it cannot shift the Farm window's.
  */
 export function farmFieldOf(cs) {
@@ -68,13 +74,13 @@ export function farmFieldOf(cs) {
 function parse(raw) {
   if (!isObj(raw)) return null;
   if (PARSED.has(raw)) return PARSED.get(raw);
-  const cap = count(raw.cap), plotLevel = count(raw.plot_level), deeds = count(raw.deeds);
-  const field = cap === null || plotLevel === null || plotLevel < 1 ? null : fieldOf(raw, cap, plotLevel, deeds);
+  const cap = count(raw.cap), plotLevel = count(raw.plot_level);
+  const field = cap === null || plotLevel === null || plotLevel < 1 ? null : fieldOf(raw, cap, plotLevel);
   PARSED.set(raw, field);
   return field;
 }
 
-function fieldOf(raw, cap, plotLevel, deeds) {
+function fieldOf(raw, cap, plotLevel) {
   const plots = new Map();
   for (const p of Array.isArray(raw.plots) ? raw.plots.slice(0, MAX_PLOTS) : []) {
     if (!isObj(p) || !Number.isInteger(p.i) || p.i < 0 || p.i >= MAX_PLOTS || !ID.test(String(p.crop))) continue;
@@ -85,7 +91,7 @@ function fieldOf(raw, cap, plotLevel, deeds) {
       by: count(p.by), byName: nameOf(p.by_name), extra: p.extra === true,
     });
   }
-  return Object.freeze({ cap: Math.min(cap, MAX_PLOTS), plotLevel, deeds: deeds || 0, upgrade: priceOf(raw.upgrade), plots });
+  return Object.freeze({ cap: Math.min(cap, MAX_PLOTS), plotLevel, upgrade: priceOf(raw.upgrade), plots });
 }
 
 /** Milliseconds until a plot is ready, as the display shows it: the server's seconds less the time since it said so. */

@@ -16,7 +16,8 @@
 //   FW-2  PLANT: pressing the empty plot opens the seed picker; turnip says the
 //         seeds held, carrot its Farming level; Plant sends exactly ONE
 //         hr_farm_plant (slot, plot 2, turnip) and every control is off until
-//         the server answers
+//         the server answers; the tier line offers no Farmer's Deed (no player
+//         can get one, coverage bot 2026-11-07)
 //   FW-3  HARVEST ON THE SERVER'S WORD: only the ready plot shows Harvest (the
 //         growing one does not, however its clock reads); Harvest sends ONE
 //         hr_farm_harvest_replant for plot 1 and the line words the answer
@@ -171,6 +172,8 @@ async function checks(overrides) {
         /* the tier line agrees with the picker (playtest 2026-10-29 #12): the soil needs Farming 5, the carrot itself 10 */
         const tier = await txt(page, W + '.hw-tier');
         if (!/Tier 2 adds Carrot \(Farming 10 to plant\)[^:]*: .*, at Farming 5\./.test(tier || '')) fails.push('FW-2 the tier line reads ' + JSON.stringify(tier) + ' beside "Needs Farming 10"');
+        /* the server still prices the tier in deeds too, and no player can hold a Farmer's Deed (it left the catalogue with its sources, 2026-10-23) */
+        if (/Deed/.test(tier || '')) fails.push('FW-2 the tier line offers a Farmer\'s Deed, which no player can get: ' + JSON.stringify(tier));
         await press(page, W + '.hw-seeds li[data-crop="turnip"] button', 'FW-2');
         await page.waitForTimeout(60);
         if (!(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] [data-hs-act="water"]').disabled))) fails.push('FW-2 a control stayed on while the plant was in flight');

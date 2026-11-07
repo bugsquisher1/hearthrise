@@ -430,16 +430,20 @@ async function huntsPure(imp) {
   const { MONSTERS } = await imp('src/data/monsters.js');
   const { huntRows, fitWords, bestLine, bestWords, tierPull, tierWords, tierChoiceWords } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
+  /* The tier numbers come from the rows themselves, never typed (v0.2.105: the Glade's rows moved; the formula lanes move them again). */
+  const { GROUND_TIERS } = await imp('src/data/hunt-tiers.js');
+  const GD = GROUND_TIERS.mosslight_glade;
+  const harder = (row) => Math.round((row.powerPm - 1000) / 10) + '% harder';
   const STORE = FIXTURE.hunt_settings.store;
   /* THE PULL EACH TIER BRINGS: Normal is the ground as it stands (as built alone, 0; a party's own pull), a harder tier its own row's number for the group's size, and a row of 0 the ground as it stands too. */
   const rowOf = (hunt) => huntRows().find((x) => x.hunt === hunt);
   const glade = rowOf('mosslight_glade'), thicketR = rowOf('meadowbrook_thicket');
   if (tierPull(glade, 'normal', 1) !== 0) fails.push('AW-25 a lone hero moved off the room as built: ' + tierPull(glade, 'normal', 1));
   if (tierPull(glade, 'normal', 2) !== 3 || tierPull(glade, 'normal', 4) !== 4) fails.push('AW-25 a party on Normal does not read its own pull: ' + tierPull(glade, 'normal', 2) + ' / ' + tierPull(glade, 'normal', 4));
-  if (tierPull(glade, 'dangerous', 1) !== 4 || tierPull(glade, 'dangerous', 4) !== 6 || tierPull(glade, 'deadly', 1) !== 8 || tierPull(glade, 'deadly', 4) !== 8) fails.push('AW-25 a harder tier does not read its row');
+  if (tierPull(glade, 'dangerous', 1) !== GD.dangerous.pull[0] || tierPull(glade, 'dangerous', 4) !== GD.dangerous.pull[3] || tierPull(glade, 'deadly', 1) !== GD.deadly.pull[0] || tierPull(glade, 'deadly', 4) !== GD.deadly.pull[3]) fails.push('AW-25 a harder tier does not read its row');
   if (tierPull(thicketR, 'deadly', 1) !== 0 || tierPull(thicketR, 'deadly', 4) !== 6) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicketR, 'deadly', 1) + ' / ' + tierPull(thicketR, 'deadly', 4));
   if (tierWords(glade, 'normal', 1) !== '' || tierChoiceWords(glade, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(glade, 'normal', 1));
-  if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: 8 monsters a pull, hitting 50% harder.') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
+  if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: ' + GD.deadly.pull[0] + ' monsters a pull, hitting ' + harder(GD.deadly) + '.') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
   if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: the same monsters, hitting 3 times as hard.') fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1));
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
   const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();

@@ -6,7 +6,11 @@
 --
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). Pre-EA: applies on its
 -- passing §8. ON THE EA SECURITY LIST: a gold purchase (§1 money surface) and a value bound's input (a scaled window pays more a kill).
--- ORDER: after 2027-03-21-scaled-hunts-catalogue.generated.sql (the three catalogues this file reads). EDGE: either order. The engine reads
+-- THE SWITCH (2027-03-21-feature-switches.sql): the feature is the server switch `scaled_hunts`, seeded OFF here (on conflict do nothing, so a
+-- re-apply never reverts the Coordinator's flip). While it is off for an account: its purchase and its switch refuse `feature_off`, the
+-- section is null, and a hunt it leads plays the ground's own rows and spends nothing (hr_scaled_hunt_of). Turning it on is a
+-- Coordinator migration (testers first), no release.
+-- ORDER: after 2027-03-21-feature-switches.sql and 2027-03-21-scaled-hunts-catalogue.generated.sql. EDGE: either order. The engine reads
 -- the instance read's `scale` and plays the ground's own rows without it, and an unscaled settle sends no `scale` key, so an edge before this
 -- file, or this file before the edge, settles every hunt exactly as before; the hr-accrue deploy carrying combat-sim.js huntPlayOf turns it on.
 -- CLIENT: none (the slider is a follow-up lane). Nothing here is reachable from today's client except the `scaled_hunts` section.
@@ -36,13 +40,13 @@
 -- ── THE CONTRACT ────────────────────────────────────────────────────────────
 --   hr_scaled_hunt_buy(p_slot int, p_hunt text, p_hours int, p_price bigint, p_idem uuid) -> jsonb
 --     ok:     { ok, version, gold: -price, hours, scaled_hunts }        (a replay of the key answers its stored receipt, charging nothing)
---     errors: not_signed_in, bad_slot, bad_idem, bad_quote (price not 1..1e9), rate_limited, no_character, catalogue_missing,
+--     errors: not_signed_in, bad_slot, bad_idem, bad_quote (price not 1..1e9), rate_limited, feature_off, no_character, catalogue_missing,
 --             not_scalable (no such scalable ground), scale_level { level, need } (the hero still fits it), bad_hours { min, max },
 --             quote_changed { scaled_hunts } (p_price is not the server's price now), scaled_bank_full { banked_ms, max_ms },
 --             scaled_day_limit { today, max }, insufficient_gold (hr_apply's), intent_mismatch (the key names another verb)
 --   hr_scaled_hunt_switch(p_slot int, p_hunt text, p_on boolean, p_idem uuid) -> jsonb
 --     ok:     { ok, hunt, on, scaled_hunts }
---     errors: not_signed_in, bad_slot, bad_idem, bad_switch, rate_limited, not_scalable, no_character, intent_mismatch
+--     errors: not_signed_in, bad_slot, bad_idem, bad_switch, rate_limited, feature_off, not_scalable, no_character, intent_mismatch
 --   The settle (hr_hunt_apply_instance): settle.scale = { level } or absent. New refusals: bad_scale, scale_moved (the edge re-reads at once:
 --   hunt-settle.js RETRYABLE), scale_over.
 --
@@ -81,6 +85,8 @@ begin
   if to_regclass('public.hr_scaled_hunt_rule') is null or to_regclass('public.hr_scaled_grounds') is null
      or to_regclass('public.hr_scaled_kill_bounds') is null then
     raise exception 'PRECONDITION: apply 2027-03-21-scaled-hunts-catalogue.generated.sql first (the catalogues this file reads)'; end if;
+  if to_regprocedure('public.hr_feature_on(text,uuid)') is null or to_regclass('public.hr_feature_switches') is null then
+    raise exception 'PRECONDITION: apply 2027-03-21-feature-switches.sql first (the switch this feature sits behind)'; end if;
   if to_regprocedure('public.hr_purse_of(uuid)') is null or to_regclass('public.hr_state_sections') is null
      or to_regprocedure('public.hr_char_xp_for_level(integer)') is null then
     raise exception 'PRECONDITION: the account purse (2026-12-15-account-gold.sql), the section registry and the level curve first'; end if;
@@ -120,6 +126,11 @@ drop policy if exists "player_scaled_hours own read" on public.player_scaled_hou
 create policy "player_scaled_hours own read" on public.player_scaled_hours for select to authenticated using ((select auth.uid()) = user_id);
 comment on table public.player_scaled_hours is
   '2027-03-21-scaled-hunts.sql: a hero''s banked scaled-hunt hours per ground and its "use my scaled hours here" switch. Written only by hr_scaled_hunt_buy, hr_scaled_hunt_switch and the settle (hr_hunt_apply_instance). RLS: own rows readable, no client write.';
+
+-- THE SWITCH, seeded OFF once (2027-03-21-feature-switches.sql): a re-apply never reverts the Coordinator's flip.
+insert into public.hr_feature_switches (switch_id, scope, note) values
+  ('scaled_hunts', 'off', '2027-03-21-scaled-hunts.sql: buying scaled-hunt hours, the switch, and a scaled settle. Off: refused, and every hunt plays the ground''s own rows.')
+  on conflict (switch_id) do nothing;
 
 alter table public.hunt_instances add column if not exists scale_level int;
 comment on column public.hunt_instances.scale_level is
@@ -168,6 +179,8 @@ begin
       from public.hunt_sessions h where h.instance_id = p_instance and h.ended_at is null;
     if v_n <> 1 then return null; end if;
   end if;
+  -- THE SWITCH (2027-03-21-feature-switches.sql): off for the leader's account, its banked hours are not read.
+  if not public.hr_feature_on('scaled_hunts', v_lu) then return null; end if;
   select * into v_h from public.player_scaled_hours h where h.user_id = v_lu and h.slot = v_ls and h.hunt_id = v_i.hunt_id;
   if not found or not v_h.use_on or v_h.banked_ms < coalesce(public.hr_hunt_limit('swing_interval_ms'), 2000) then return null; end if;
   v_to := public.hr_scaled_level(v_i.hunt_id, public.hr_level_of(v_lu, v_ls));
@@ -182,6 +195,7 @@ declare r public.hr_scaled_hunt_rule%rowtype; v_lv int; v_today int := 0; v_play
 begin
   select * into r from public.hr_scaled_hunt_rule where id;
   if not found or not exists (select 1 from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot) then return null; end if;
+  if not public.hr_feature_on('scaled_hunts', p_user) then return null; end if;   -- the switch off: nothing to show
   v_lv := public.hr_level_of(p_user, p_slot);
   if exists (select 1 from public.player_scaled_hours h where h.user_id = p_user and h.slot = p_slot and h.bought_at >= public.hr_utc_day_start(now())) then
     v_today := public.hr_scaled_hours_today(p_user, p_slot);
@@ -229,6 +243,8 @@ begin
   v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
   if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  if not public.hr_feature_on('scaled_hunts', v_uid) then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'feature_off')); end if;
   perform public.hr_hunt_lock(v_uid, p_slot);
   select version into v_ver from public.player_state where user_id = v_uid and slot = p_slot;
   if v_ver is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
@@ -292,6 +308,8 @@ begin
   v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
   if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  if not public.hr_feature_on('scaled_hunts', v_uid) then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'feature_off')); end if;
   if not exists (select 1 from public.hr_scaled_grounds g where g.hunt_id = p_hunt) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'not_scalable')); end if;
   perform public.hr_hunt_lock(v_uid, p_slot);
@@ -307,107 +325,126 @@ begin
 end $fn$;
 
 -- ── §6 THE SETTLE: THREE BODIES, ANCHORED SPLICES (each fails closed if its anchor moved; a second apply finds its marker and skips) ──
+-- (a) hr_hunt_instance_read: the server's scale of the next window, and the Level the stored world was built on.
 do $mig$
 declare
-  c_mark constant text := 'SCALED-HUNTS (2027-03-21-scaled-hunts.sql)';
-  v_def text; v_n int; i int; v_a text[]; v_b text[];
+  a1 constant text := $a$      'tier', v_i.tier,
+$a$;
+  r1 constant text := $a$      'tier', v_i.tier,
+      -- SCALED-HUNTS (2027-03-21-scaled-hunts.sql): the server's own scale of the next window (hr_scaled_hunt_of: { level, banked_ms,
+      -- user, slot } of the leader, or null) and the Level the stored world was built on (the engine restarts a world built on another).
+      'scale', public.hr_scaled_hunt_of(v_i.id), 'scale_level', v_i.scale_level,
+$a$;
+  v_def text; v_n int;
 begin
-  -- (a) hr_hunt_instance_read: the server's scale of the next window, and the Level the stored world was built on.
   v_def := replace(pg_get_functiondef('public.hr_hunt_instance_read(uuid,integer)'::regprocedure), chr(13), '');
-  if strpos(v_def, c_mark) > 0 then raise notice 'scaled-hunts §6(a): hr_hunt_instance_read already carries the scale - skipped';
-  else
-    v_a := array[E'      \'tier\', v_i.tier,\n'];
-    v_b := array[E'      \'tier\', v_i.tier,\n'
-      || E'      -- ' || c_mark || E': the server''s own scale of the next window (hr_scaled_hunt_of: { level, banked_ms, user, slot } of\n'
-      || E'      -- the leader, or null) and the Level the stored world was built on (the engine restarts a world built on another).\n'
-      || E'      \'scale\', public.hr_scaled_hunt_of(v_i.id), \'scale_level\', v_i.scale_level,\n'];
-    for i in 1 .. array_length(v_a, 1) loop
-      v_n := (length(v_def) - length(replace(v_def, v_a[i], ''))) / length(v_a[i]);
-      if v_n <> 1 then raise exception 'scaled-hunts §6(a): hr_hunt_instance_read anchor % matched % times (need 1): the body moved', i, v_n; end if;
-      v_def := replace(v_def, v_a[i], v_b[i]);
-    end loop;
-    execute v_def;
-  end if;
+  if position('SCALED-HUNTS (2027-03-21-scaled-hunts.sql)' in v_def) > 0 then
+    raise notice 'scaled-hunts §6(a): hr_hunt_instance_read already carries the scale - skipped'; return; end if;
+  v_n := (length(v_def) - length(replace(v_def, a1, ''))) / length(a1);
+  if v_n <> 1 then raise exception 'scaled-hunts §6(a): the hr_hunt_instance_read anchor matched % times (need 1): the body moved', v_n; end if;
+  execute replace(v_def, a1, r1);
+end $mig$;
 
-  -- (b) hr_hunt_apply_instance: the claim allowed, re-proved before any member lands, the hours spent after every member landed.
+-- (b) hr_hunt_apply_instance: the claim allowed, re-proved before any member lands, the hours spent after every member landed.
+do $mig$
+declare
+  a1 constant text := $a$  if exists (select 1 from jsonb_object_keys(p_settle) k where k not in ('to', 'world_swing', 'world'))
+$a$;
+  r1 constant text := $a$  -- SCALED-HUNTS (2027-03-21-scaled-hunts.sql): `scale` { level } is the Level the edge says the window played, a CLAIM (4) re-proves.
+  if exists (select 1 from jsonb_object_keys(p_settle) k where k not in ('to', 'world_swing', 'world', 'scale'))
+$a$;
+  a2 constant text := $a$  v_cur   jsonb;   -- PARTY-ISOLATION (2027-01-22-party-settle-isolation.sql): the member whose own half is being proved
+$a$;
+  r2 constant text := $a$  v_cur   jsonb;   -- PARTY-ISOLATION (2027-01-22-party-settle-isolation.sql): the member whose own half is being proved
+  v_scale int;            -- SCALED-HUNTS: the Level this window played (null: the ground's own), proved before any member lands
+  v_sc    jsonb;          -- SCALED-HUNTS: the server's own scale of the instance (hr_scaled_hunt_of)
+  v_sms   bigint := 0;    -- SCALED-HUNTS: the hours this window spends, in ms: its world swings x the swing
+$a$;
+  a3 constant text := $a$  begin
+    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>'user')::uuid, (e.value->>'slot')::int loop
+      v_cur := jsonb_build_object('user', v_m->'user', 'slot', v_m->'slot', 'session', v_m->'session');
+      v_h := public.hr_hunt_apply_member($a$;
+  r3 constant text := $a$  begin
+    -- SCALED-HUNTS: THE SCALE THIS WINDOW PLAYED, re-proved against the server's own rule before any member lands (each member's kill
+    --   bound reads it): a claim stands only if the instance's leader has the switch on, hours banked and a Level that scales the ground
+    --   to exactly that Level (hr_scaled_hunt_of), and the window's world swings fit in those hours. No claim is the ground's own rows,
+    --   which spend nothing. The Level the stored world is built on is written here.
+    v_scale := null;
+    if p_settle ? 'scale' and jsonb_typeof(p_settle->'scale') <> 'null' then
+      if jsonb_typeof(p_settle->'scale') <> 'object' or exists (select 1 from jsonb_object_keys(p_settle->'scale') k where k <> 'level')
+         or jsonb_typeof(p_settle->'scale'->'level') is distinct from 'number' or (p_settle->'scale'->>'level') !~ '^[0-9]{1,4}$' then
+        perform public.hr_reject('bad_scale'); end if;
+      v_sc := public.hr_scaled_hunt_of(p_instance);
+      if v_sc is null or (v_sc->>'level')::int <> (p_settle->'scale'->>'level')::int then
+        perform public.hr_reject('scale_moved', jsonb_build_object('claim', p_settle->'scale', 'level', v_sc->'level')); end if;
+      v_scale := (v_sc->>'level')::int;
+      v_sms := (v_wsw - v_i.world_swing) * v_tick;
+      if v_sms > (v_sc->>'banked_ms')::bigint then
+        perform public.hr_reject('scale_over', jsonb_build_object('ms', v_sms, 'banked_ms', (v_sc->>'banked_ms')::bigint)); end if;
+    end if;
+    update public.hunt_instances set scale_level = v_scale where id = p_instance and scale_level is distinct from v_scale;
+    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>'user')::uuid, (e.value->>'slot')::int loop
+      v_cur := jsonb_build_object('user', v_m->'user', 'slot', v_m->'slot', 'session', v_m->'session');
+      v_h := public.hr_hunt_apply_member($a$;
+  a4 constant text := $a$    -- PARTY-ISOLATION (2027-01-22-party-settle-isolation.sql): every member's half landed, so each committed seat's
+$a$;
+  r4 constant text := $a$    -- SCALED-HUNTS: THE HOURS SPENT, from the leader's bank, under every member's lock and purse taken above (a purchase takes its
+    --   hero's lock, then the purse, then this row: the same order). They tick down only while the party is in the spawn: the window's
+    --   world swings, never town or travel. Refused, never clamped, if the bank no longer holds them.
+    if v_scale is not null and v_sms > 0 then
+      update public.player_scaled_hours h
+         set banked_ms = h.banked_ms - v_sms, spent_ms = h.spent_ms + v_sms, updated_at = now()
+       where h.user_id = (v_sc->>'user')::uuid and h.slot = (v_sc->>'slot')::int and h.hunt_id = v_i.hunt_id and h.banked_ms >= v_sms;
+      if not found then perform public.hr_reject('scale_over', jsonb_build_object('ms', v_sms)); end if;
+    end if;
+    -- PARTY-ISOLATION (2027-01-22-party-settle-isolation.sql): every member's half landed, so each committed seat's
+$a$;
+  v_a text[] := array[a1, a2, a3, a4];
+  v_b text[] := array[r1, r2, r3, r4];
+  v_def text; v_n int; i int;
+begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure), chr(13), '');
-  if strpos(v_def, c_mark) > 0 then raise notice 'scaled-hunts §6(b): hr_hunt_apply_instance already carries the scale - skipped';
-  else
-    v_a := array[
-      E'  if exists (select 1 from jsonb_object_keys(p_settle) k where k not in (\'to\', \'world_swing\', \'world\'))\n',
-      E'  v_cur   jsonb;   -- PARTY-ISOLATION (2027-01-22-party-settle-isolation.sql): the member whose own half is being proved\n',
-      E'  begin\n    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>\'user\')::uuid, (e.value->>\'slot\')::int loop\n      v_cur := jsonb_build_object(\'user\', v_m->\'user\', \'slot\', v_m->\'slot\', \'session\', v_m->\'session\');\n      v_h := public.hr_hunt_apply_member(',
-      E'    -- PARTY-ISOLATION (2027-01-22-party-settle-isolation.sql): every member\'s half landed, so each committed seat\'s\n'];
-    v_b := array[
-      E'  -- ' || c_mark || E': `scale` { level } is the Level the edge says the window played, a CLAIM (4) re-proves.\n'
-      || E'  if exists (select 1 from jsonb_object_keys(p_settle) k where k not in (\'to\', \'world_swing\', \'world\', \'scale\'))\n',
-      E'  v_cur   jsonb;   -- PARTY-ISOLATION (2027-01-22-party-settle-isolation.sql): the member whose own half is being proved\n'
-      || E'  v_scale int;            -- SCALED-HUNTS: the Level this window played (null: the ground''s own), proved before any member lands\n'
-      || E'  v_sc    jsonb;          -- SCALED-HUNTS: the server''s own scale of the instance (hr_scaled_hunt_of)\n'
-      || E'  v_sms   bigint := 0;    -- SCALED-HUNTS: the hours this window spends, in ms: its world swings x the swing\n',
-      E'  begin\n'
-      || E'    -- ' || c_mark || E': THE SCALE THIS WINDOW PLAYED, re-proved against the server''s own rule before any member lands (each\n'
-      || E'    --   member''s kill bound reads it): a claim stands only if the instance''s leader has the switch on, hours banked and a Level that\n'
-      || E'    --   scales the ground to exactly that Level (hr_scaled_hunt_of), and the window''s world swings fit in those hours. No claim is the\n'
-      || E'    --   ground''s own rows, which spend nothing. The Level the stored world is built on is written here.\n'
-      || E'    v_scale := null;\n'
-      || E'    if p_settle ? \'scale\' and jsonb_typeof(p_settle->\'scale\') <> \'null\' then\n'
-      || E'      if jsonb_typeof(p_settle->\'scale\') <> \'object\' or exists (select 1 from jsonb_object_keys(p_settle->\'scale\') k where k <> \'level\')\n'
-      || E'         or jsonb_typeof(p_settle->\'scale\'->\'level\') is distinct from \'number\' or (p_settle->\'scale\'->>\'level\') !~ \'^[0-9]{1,4}$\' then\n'
-      || E'        perform public.hr_reject(\'bad_scale\'); end if;\n'
-      || E'      v_sc := public.hr_scaled_hunt_of(p_instance);\n'
-      || E'      if v_sc is null or (v_sc->>\'level\')::int <> (p_settle->\'scale\'->>\'level\')::int then\n'
-      || E'        perform public.hr_reject(\'scale_moved\', jsonb_build_object(\'claim\', p_settle->\'scale\', \'level\', v_sc->\'level\')); end if;\n'
-      || E'      v_scale := (v_sc->>\'level\')::int;\n'
-      || E'      v_sms := (v_wsw - v_i.world_swing) * v_tick;\n'
-      || E'      if v_sms > (v_sc->>\'banked_ms\')::bigint then\n'
-      || E'        perform public.hr_reject(\'scale_over\', jsonb_build_object(\'ms\', v_sms, \'banked_ms\', (v_sc->>\'banked_ms\')::bigint)); end if;\n'
-      || E'    end if;\n'
-      || E'    update public.hunt_instances set scale_level = v_scale where id = p_instance and scale_level is distinct from v_scale;\n'
-      || E'    for v_m in select e.value from jsonb_array_elements(p_members) e order by (e.value->>\'user\')::uuid, (e.value->>\'slot\')::int loop\n      v_cur := jsonb_build_object(\'user\', v_m->\'user\', \'slot\', v_m->\'slot\', \'session\', v_m->\'session\');\n      v_h := public.hr_hunt_apply_member(',
-      E'    -- SCALED-HUNTS: THE HOURS SPENT, from the leader''s bank, under every member''s lock and purse taken above (a purchase takes its hero''s\n'
-      || E'    --   lock, then the purse, then this row: the same order). They tick down only while the party is in the spawn: the window''s world\n'
-      || E'    --   swings, never town or travel. Refused, never clamped, if the bank no longer holds them.\n'
-      || E'    if v_scale is not null and v_sms > 0 then\n'
-      || E'      update public.player_scaled_hours h\n'
-      || E'         set banked_ms = h.banked_ms - v_sms, spent_ms = h.spent_ms + v_sms, updated_at = now()\n'
-      || E'       where h.user_id = (v_sc->>\'user\')::uuid and h.slot = (v_sc->>\'slot\')::int and h.hunt_id = v_i.hunt_id and h.banked_ms >= v_sms;\n'
-      || E'      if not found then perform public.hr_reject(\'scale_over\', jsonb_build_object(\'ms\', v_sms)); end if;\n'
-      || E'    end if;\n'
-      || E'    -- PARTY-ISOLATION (2027-01-22-party-settle-isolation.sql): every member\'s half landed, so each committed seat\'s\n'];
-    for i in 1 .. array_length(v_a, 1) loop
-      v_n := (length(v_def) - length(replace(v_def, v_a[i], ''))) / length(v_a[i]);
-      if v_n <> 1 then raise exception 'scaled-hunts §6(b): hr_hunt_apply_instance anchor % matched % times (need 1): the body moved', i, v_n; end if;
-      v_def := replace(v_def, v_a[i], v_b[i]);
-    end loop;
-    execute v_def;
-  end if;
+  if position('SCALED-HUNTS (2027-03-21-scaled-hunts.sql)' in v_def) > 0 then
+    raise notice 'scaled-hunts §6(b): hr_hunt_apply_instance already carries the scale - skipped'; return; end if;
+  for i in 1 .. array_length(v_a, 1) loop
+    v_n := (length(v_def) - length(replace(v_def, v_a[i], ''))) / length(v_a[i]);
+    if v_n <> 1 then raise exception 'scaled-hunts §6(b): hr_hunt_apply_instance anchor % matched % times (need 1): the body moved', i, v_n; end if;
+    v_def := replace(v_def, v_a[i], v_b[i]);
+  end loop;
+  execute v_def;
+end $mig$;
 
-  -- (c) hr_hunt_apply_member: a window proved scaled is bounded by its scaled roster's own most a kill pays, and its Defense by their Level.
+-- (c) hr_hunt_apply_member: a window proved scaled is bounded by its scaled roster's own most a kill pays, and its Defense by their Level.
+do $mig$
+declare
+  a1 constant text := $a$   where b.monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id);
+  -- THE MAGIC BOUND$a$;
+  r1 constant text := $a$   where b.monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id);
+  -- SCALED-HUNTS (2027-03-21-scaled-hunts.sql): a window the commit proved scaled (hunt_instances.scale_level, written by
+  -- hr_hunt_apply_instance before any member lands) is bounded by its scaled roster's most a kill pays as well (hr_scaled_kill_bounds).
+  select greatest(v_vb_gold, coalesce(max(b.gold_max), 0)), greatest(v_vb_xp, coalesce(max(b.xp_max), 0)) into v_vb_gold, v_vb_xp
+    from public.hunt_instances i join public.hr_scaled_kill_bounds b on b.hunt_id = i.hunt_id and b.level = i.scale_level
+   where i.id = p_instance;
+  -- THE MAGIC BOUND$a$;
+  a2 constant text := $a$                * coalesce((select max(public.hr_monster_level(sp.monster_id)) from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id), 0)
+$a$;
+  r2 constant text := $a$                * greatest(coalesce((select max(public.hr_monster_level(sp.monster_id)) from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id), 0),
+                           coalesce((select b.level_max from public.hunt_instances i join public.hr_scaled_kill_bounds b
+                                       on b.hunt_id = i.hunt_id and b.level = i.scale_level where i.id = p_instance), 0))
+$a$;
+  v_a text[] := array[a1, a2];
+  v_b text[] := array[r1, r2];
+  v_def text; v_n int; i int;
+begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), chr(13), '');
-  if strpos(v_def, c_mark) > 0 then raise notice 'scaled-hunts §6(c): hr_hunt_apply_member already reads the scaled bounds - skipped';
-  else
-    v_a := array[
-      E'   where b.monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id);\n  -- THE MAGIC BOUND',
-      E'                * coalesce((select max(public.hr_monster_level(sp.monster_id)) from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id), 0)\n'];
-    v_b := array[
-      E'   where b.monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id);\n'
-      || E'  -- ' || c_mark || E': a window the commit proved scaled (hunt_instances.scale_level, written by hr_hunt_apply_instance\n'
-      || E'  -- before any member lands) is bounded by its scaled roster''s most a kill pays as well (hr_scaled_kill_bounds, generated).\n'
-      || E'  select greatest(v_vb_gold, coalesce(max(b.gold_max), 0)), greatest(v_vb_xp, coalesce(max(b.xp_max), 0)) into v_vb_gold, v_vb_xp\n'
-      || E'    from public.hunt_instances i join public.hr_scaled_kill_bounds b on b.hunt_id = i.hunt_id and b.level = i.scale_level\n'
-      || E'   where i.id = p_instance;\n'
-      || E'  -- THE MAGIC BOUND',
-      E'                * greatest(coalesce((select max(public.hr_monster_level(sp.monster_id)) from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id), 0),\n'
-      || E'                           coalesce((select b.level_max from public.hunt_instances i join public.hr_scaled_kill_bounds b\n'
-      || E'                                       on b.hunt_id = i.hunt_id and b.level = i.scale_level where i.id = p_instance), 0))\n'];
-    for i in 1 .. array_length(v_a, 1) loop
-      v_n := (length(v_def) - length(replace(v_def, v_a[i], ''))) / length(v_a[i]);
-      if v_n <> 1 then raise exception 'scaled-hunts §6(c): hr_hunt_apply_member anchor % matched % times (need 1): the body moved', i, v_n; end if;
-      v_def := replace(v_def, v_a[i], v_b[i]);
-    end loop;
-    execute v_def;
-  end if;
+  if position('SCALED-HUNTS (2027-03-21-scaled-hunts.sql)' in v_def) > 0 then
+    raise notice 'scaled-hunts §6(c): hr_hunt_apply_member already reads the scaled bounds - skipped'; return; end if;
+  for i in 1 .. array_length(v_a, 1) loop
+    v_n := (length(v_def) - length(replace(v_def, v_a[i], ''))) / length(v_a[i]);
+    if v_n <> 1 then raise exception 'scaled-hunts §6(c): hr_hunt_apply_member anchor % matched % times (need 1): the body moved', i, v_n; end if;
+    v_def := replace(v_def, v_a[i], v_b[i]);
+  end loop;
+  execute v_def;
 end $mig$;
 
 -- ── §7 GRANTS: revoke from everyone first, then the two client verbs only ─────
@@ -442,6 +479,8 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
 
 -- ── §8 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 -- (a) the splices: each body carries its marker and its anchors' new text exactly once; the client surface is the two verbs alone
+-- (s) THE SWITCH: while `scaled_hunts` is off for the account the section is null and both verbs refuse feature_off, nothing moved;
+--     then it is turned on for the probe account alone (rolled back with the rest)
 -- (b) the quote: a Level 1 hero scales nothing; at Level 20 the Cellar, the Thicket and Wickstead price 40 x 20 an hour, the Sewer and the Glade not yet
 -- (c) refused, nothing moved: a wrong price, hours outside the slider, a ground that never scales, a ground the hero still fits
 -- (d) a purchase: the purse pays exactly the server's price, ONE ledger row carries it, the bank holds the hours, the switch is on
@@ -495,6 +534,19 @@ begin
     update public.player_state set active_kind = 'idle', active_id = null where user_id = v_u and slot = 0;
     insert into public.account_wallet as w (user_id, gold) values (v_u, 1000000)
       on conflict (user_id) do update set gold = excluded.gold, version = w.version + 1, updated_at = now();
+    -- (s)
+    update public.player_state set level_xp = public.hr_char_xp_for_level(20) where user_id = v_u and slot = 0;
+    if public.hr_feature_on('scaled_hunts', v_u) then raise exception 'scaled-hunts §8(s): the switch is not off for a probe account'; end if;
+    if public.hr_scaled_hunts_view(v_u, 0) is not null then raise exception 'scaled-hunts §8(s): the switch off still projects the section'; end if;
+    v := public.hr_scaled_hunt_buy(0, 'mill_cellar', 1, 800, (k || '0015')::uuid);
+    if v->>'error' is distinct from 'feature_off' then raise exception 'scaled-hunts §8(s): the switch off answered the purchase %', v; end if;
+    delete from public.hr_rate_counters where user_id = v_u;
+    v := public.hr_scaled_hunt_switch(0, 'mill_cellar', false, (k || '0016')::uuid);
+    if v->>'error' is distinct from 'feature_off' or exists (select 1 from public.player_scaled_hours where user_id = v_u)
+       or public.hr_purse_of(v_u) <> 1000000 then raise exception 'scaled-hunts §8(s): the switch off answered the switch % or moved something', v; end if;
+    update public.hr_feature_switches set scope = 'accounts', accounts = array[v_u] where switch_id = 'scaled_hunts';
+    update public.player_state set level_xp = 0 where user_id = v_u and slot = 0;
+    delete from public.hr_rate_counters where user_id = v_u;
     -- (b)
     v := public.hr_scaled_hunts_view(v_u, 0);
     if v is null or exists (select 1 from jsonb_each(v->'grounds') g where g.value->'level' <> 'null'::jsonb or g.value->'price' <> 'null'::jsonb) then

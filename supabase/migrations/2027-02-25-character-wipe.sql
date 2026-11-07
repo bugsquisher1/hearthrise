@@ -86,7 +86,9 @@ declare
   c_keep constant text[] := array[
     'beta_invites', 'beta_signup_log', 'bug_reports', 'chat_blocks', 'friend_links', 'friend_requests', 'profiles', 'hr_access_allowlist',
     'hr_lb_hidden', 'hr_name_holds', 'hr_tick_config', 'hr_tick_shard_cursor', 'hr_account_deletions',
-    'hr_gm_accounts', 'hr_gm_log', 'hr_bans', 'hr_chat_mutes'];
+    'hr_gm_accounts', 'hr_gm_log', 'hr_bans', 'hr_chat_mutes',
+    /* the server feature switches (2027-03-21-feature-switches.sql): config naming tester accounts, which outlive a character wipe */
+    'hr_feature_switches'];
   c_market constant text[] := array['market_listings', 'market_sales', 'market_item_daily'];
   c_no_player constant text[] := array[
     'hr_activities', 'hr_bench_tax_rates', 'hr_blessing_rule', 'hr_blessing_tiers', 'hr_bounty_board_monsters', 'hr_bounty_monsters',

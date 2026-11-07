@@ -1007,6 +1007,12 @@
    "replay": 34,
    "note": "Hand-seeded by 2026-08-27-clan-economy-sinks.sql: which foods a clan feast accepts and what each contributes. It prices a clan-wide sink, so a rebuild with a different set changes what a feast costs a clan. Content drift is separately guarded by tests/clan-feast-catalogue-drift.mjs. Rebuilt from repo, never restored."
   },
+  "hr_feature_switches": {
+   "class": "operator_tunable",
+   "replay": 1,
+   "wiped_at_cutover": false,
+   "note": "THE SERVER FEATURE SWITCHES (2027-03-21-feature-switches.sql): one row per switch, its scope (off, accounts, testers = hr_access_allowlist, everyone) and the accounts it names. Each feature seeds its own row OFF with on conflict do nothing (scaled_hunts, 2027-03-21-scaled-hunts.sql), and the Coordinator moves it by a migration, so a rebuild restores every switch OFF and silently closes what live had opened: re-apply the flips from the apply order after a restore. No client or service_role privilege, no policy; the owner is the only writer. Coming back empty is the SAFE direction (a missing row is off)."
+  },
   "hr_flags": {
    "class": "operator_tunable",
    "replay": 5,

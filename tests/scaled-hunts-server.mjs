@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tests/scaled-hunts-server.mjs — THE SERVER HALF OF SCALED HUNTS (lane/c-scaled-hunts; Tyler 2026-11-07 "an option to 'scale' early
 // game hunts up with gold", "party would scale to the leader", "make it a per hour slider", "up to 24 hours", "the time only ticks
-// down while in the spawn"; supabase/migrations/2027-03-21-scaled-hunts*.sql, src/core/combat-sim.js huntPlayOf,
+// down while in the spawn"; supabase/migrations/2027-03-21-feature-switches.sql and 2027-03-21-scaled-hunts*.sql, src/core/combat-sim.js huntPlayOf,
 // supabase/functions/hr-accrue/hunt-settle.js scalePlanOf). The designer's own guard (what a scaled ground pays) is tests/scaled-hunts.mjs;
 // the browser's prediction of a scaled hunt is tests/hunt-live.mjs LV-SCALE.
 //
@@ -30,6 +30,10 @@
 //   SH-SWITCH  the switch off mid-hunt: the next window plays unscaled and spends nothing
 //   SH-PARTY   a party scales to its LEADER: the leader's bank pays one hour per hour whatever the party's size, the member's isn't
 //              touched; when the leader changes to a hero with no hours, the next window is the ground's own
+//   SH-FEATURE THE SERVER SWITCH (2027-03-21-feature-switches.sql): `scaled_hunts` off, the purchase and the switch refuse feature_off,
+//              the section is null and the account's `features` lack it; turned on for the account, the same code sells, projects and
+//              scales the hunt; off mid-hunt, the next window plays the ground's own and spends nothing; on for the testers, an
+//              allowlisted leader scales again and a stranger still can't buy. Every flip is a row, none is a release.
 //   SH-FORGE   the commit re-proves the claim (a Level 50 leader): another Level (scale_moved), a claim with the switch off (scale_moved),
 //              more swings than the bank holds (scale_over); a scaled window that claims nothing is refused by the ground's own value bound
 //              (value_over), and the honest window lands only because its bound reads the scaled roster's
@@ -45,12 +49,10 @@ const u = (p) => pathToFileURL(join(ROOT, p)).href;
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
 const S = await import(u('src/data/scaled-hunts.js') + V);
-const CS = await import(u('src/core/combat-sim.js') + V);
 const T = await import(u('src/data/hunt-tiers.js') + V);
 const { MONSTERS } = await import(u('src/data/monsters.js') + V);
-const GEN = await import(u('tools/gen-scaled-hunts.mjs'));
 const HOUR = 3600000, SWING = 2000;
-const ARMS = ['SH-PLAY', 'SH-PLAN', 'SH-CAT', 'SH-BUY', 'SH-CLOSED', 'SH-VIEWED', 'SH-OUT', 'SH-SWITCH', 'SH-PARTY', 'SH-FORGE'];
+const ARMS = ['SH-PLAY', 'SH-PLAN', 'SH-CAT', 'SH-BUY', 'SH-CLOSED', 'SH-VIEWED', 'SH-OUT', 'SH-SWITCH', 'SH-PARTY', 'SH-FEATURE', 'SH-FORGE'];
 
 // ═══════════════════════════════════════════════════════════════════════
 // ENGINE ARMS
@@ -305,6 +307,38 @@ const DB_ARMS = {
     return bad;
   },
 
+  'SH-FEATURE': async (db, M) => {
+    const bad = [];
+    /* a flip is the Coordinator's migration on live; here, the same row written by the fixture */
+    const flip = (scope, accounts = []) => db.query("update public.hr_feature_switches set scope = $1, accounts = $2::uuid[], updated_at = now() where switch_id = 'scaled_hunts'", [scope, accounts]);
+    const env = async (uid) => one(db, 'select public.hr_state_of($1::uuid, 0) as s', [uid]);
+    await flip('off');
+    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 8 });
+    const e0 = await env(UID);
+    const off = await buy(db, UID, 'mill_cellar', 1, { price: 800 });
+    const sw = await switchOf(db, UID, 'mill_cellar', false);
+    if (!off || off.error !== 'feature_off' || !sw || sw.error !== 'feature_off') bad.push('off: the purchase answered ' + JSON.stringify(off) + ', the switch ' + JSON.stringify(sw));
+    if (e0.scaled_hunts != null || (e0.features || []).includes('scaled_hunts')) bad.push('off: the envelope projects ' + JSON.stringify({ s: e0.scaled_hunts, f: e0.features }));
+    await flip('accounts', [UID]);
+    const e1 = await env(UID), on = await buy(db, UID, 'mill_cellar', 1);
+    if (!on || on.ok !== true || !e1.scaled_hunts || !(e1.features || []).includes('scaled_hunts')) bad.push('on for the account: the purchase answered ' + JSON.stringify(on) + ', features ' + JSON.stringify(e1.features));
+    await cutsTo(db, M, [h.from + 2 * 60000]);
+    if ((await instOf(db, h.inst)).scale_level !== 20) bad.push('on for the account: the hunt did not scale');
+    await flip('off');
+    const b1 = await bankOf(db, UID);
+    await cutsTo(db, M, [h.from + 4 * 60000]);
+    if ((await instOf(db, h.inst)).scale_level !== null || await bankOf(db, UID) !== b1) bad.push('off mid-hunt: the next window still scaled or spent ' + (b1 - await bankOf(db, UID)) + ' ms');
+    await db.query("insert into public.hr_access_allowlist (user_id, note) values ($1, 'scaled-hunts-server SH-FEATURE') on conflict (user_id) do nothing", [UID]);
+    await db.query('delete from public.hr_access_allowlist where user_id = $1', [UIDS[1]]);
+    await flip('testers');
+    await cutsTo(db, M, [h.from + 6 * 60000]);
+    if ((await instOf(db, h.inst)).scale_level !== 20 || !(await bankOf(db, UID) < b1)) bad.push('on for the testers: an allowlisted leader did not scale again');
+    await H.character(db, M, UIDS[1], { level: 20, gold: 100000, inv: {} });
+    const stranger = await buy(db, UIDS[1], 'mill_cellar', 1, { price: 800 });
+    if (!stranger || stranger.error !== 'feature_off') bad.push('on for the testers: a stranger\'s purchase answered ' + JSON.stringify(stranger));
+    return bad;
+  },
+
   'SH-FORGE': async (db, M) => {
     const bad = [];
     /* Level 50: a scaled kill pays several times what the Cellar's own value bound allows (K x its best kill), so the bound bites */
@@ -344,6 +378,7 @@ async function runArms(db, M, only) {
     if (name === 'SH-PLAN') { out[name] = shPlan(M.HS); continue; }
     try {
       out[name] = await inTx(db, async () => {
+        if (name !== 'SH-FEATURE') await db.query("update public.hr_feature_switches set scope = 'everyone' where switch_id = 'scaled_hunts'");
         await db.query('savepoint sh_arm');
         return DB_ARMS[name](db, M, ctx);
       });
@@ -362,19 +397,25 @@ const DB_MUTANTS = [
     find: "v_sms := (v_wsw - v_i.world_swing) * v_tick;", replace: "v_sms := (v_wsw - v_i.world_swing) * v_tick * 2;" },
   { arm: 'SH-FORGE', name: 'the commit takes any Level the edge claims', fn: 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)',
     find: "if v_sc is null or (v_sc->>'level')::int <> (p_settle->'scale'->>'level')::int then", replace: "if v_sc is null then" },
-  { arm: 'SH-FORGE', name: 'the commit spends past the bank', fn: 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)',
-    find: "      if v_sms > (v_sc->>'banked_ms')::bigint then\n", replace: "      if false then\n" },
   { arm: 'SH-SWITCH', name: 'the switch is never read', fn: 'public.hr_scaled_hunt_of(uuid)', find: 'or not v_h.use_on ', replace: '' },
   { arm: 'SH-PARTY', name: 'every member\'s own bank scales the party (the first hunter\'s, not the leader\'s)', fn: 'public.hr_scaled_hunt_of(uuid)',
     find: "  if exists (select 1 from public.hunt_parties p where p.id = p_instance) then", replace: "  if false then" },
+  { arm: 'SH-FEATURE', name: 'every scope reads on', fn: 'public.hr_feature_on(text,uuid)', find: "    else false end;", replace: "    else true end;" },
+  { arm: 'SH-FEATURE', name: 'the purchase never asks the switch', fn: 'public.hr_scaled_hunt_buy(integer,text,integer,bigint,uuid)',
+    find: "  if not public.hr_feature_on('scaled_hunts', v_uid) then", replace: "  if false then" },
+  { arm: 'SH-FEATURE', name: 'the settle reads the hours with the switch off', fn: 'public.hr_scaled_hunt_of(uuid)',
+    find: "  if not public.hr_feature_on('scaled_hunts', v_lu) then return null; end if;", replace: '' },
+  { arm: 'SH-FEATURE', name: 'the testers scope is everyone', fn: 'public.hr_feature_on(text,uuid)',
+    find: "    when 'testers'  then exists (select 1 from public.hr_access_allowlist a where a.user_id = p_user)", replace: "    when 'testers'  then true" },
   { arm: 'SH-BUY', name: 'the purchase trusts the client\'s price', fn: 'public.hr_scaled_hunt_buy(integer,text,integer,bigint,uuid)', find: '  if v_price <> p_price then', replace: '  v_price := p_price;\n  if false then' },
   { arm: 'SH-BUY', name: 'no day clamp', fn: 'public.hr_scaled_hunt_buy(integer,text,integer,bigint,uuid)', find: '  if v_today + p_hours > r.day_max_hours then', replace: '  if false then' },
   { arm: 'SH-BUY', name: 'no bank cap', fn: 'public.hr_scaled_hunt_buy(integer,text,integer,bigint,uuid)', find: '  if v_bank + p_hours * c_hour > r.bank_max_hours::bigint * c_hour then', replace: '  if false then' },
   { arm: 'SH-BUY', name: 'the price reads the ground\'s floor, not the hero\'s Level', fn: 'public.hr_scaled_hunt_buy(integer,text,integer,bigint,uuid)',
     find: '  v_price := r.price_per_level::bigint * v_to * p_hours;', replace: '  v_price := r.price_per_level::bigint * (v_top + 1) * p_hours;' },
-  { arm: 'SH-CAT', name: 'a kill bound typed by hand', fn: null, sql: "update public.hr_scaled_kill_bounds set xp_max = xp_max + 1 where hunt_id = 'mill_cellar' and level = 20" },
 ];
 const JS_MUTANTS = [
+  { arm: 'SH-CAT', name: 'the server\'s kill bounds drift from the data (the generator\'s formula moved, the file not regenerated)', file: 'tools/gen-scaled-hunts.mjs',
+    from: 'xp: Math.ceil(Math.max(1, Number(m.hp) || 1) * xpPerHp + Math.max(0, Number(m.xp) || 0)),', to: 'xp: Math.ceil(Math.max(1, Number(m.hp) || 1) * xpPerHp + Math.max(0, Number(m.xp) || 0)) + 1,' },
   { arm: 'SH-PLAY', name: 'a Deadly pick plays Deadly while scaled', file: 'src/core/combat-sim.js', from: "normalOf: (id) => id !== DEFAULT_TIER && own(id) === null };", to: 'normalOf: () => false };' },
   { arm: 'SH-PLAY', name: 'a scaled ground keeps its own tier rows', file: 'src/core/combat-sim.js', from: 'tierOf: (id) => own(id) || tierRowOf(groundId, DEFAULT_TIER),', to: 'tierOf: (id) => tierRowOf(groundId, id),' },
   { arm: 'SH-PLAY', name: 'a Level the data can\'t play is played anyway', file: 'src/core/combat-sim.js', from: 'const level = asked !== null && scaleLevelFor(groundId, asked) === asked ? asked : null;', to: 'const level = asked !== null && scaleLevelFor(groundId, asked) !== null ? asked : null;' },
@@ -386,7 +427,7 @@ const JS_MUTANTS = [
 
 async function main() {
   const { bootReplay } = await import('./schema-replay.mjs');
-  const { mkdtempSync, cpSync, writeFileSync, rmSync } = await import('node:fs');
+  const { mkdtempSync, mkdirSync, cpSync, writeFileSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
   let db;
   try { ({ db } = await bootReplay()); } catch (e) { console.error('✗ the chain would not replay: ' + String(e.message).slice(0, 600)); process.exit(1); }
@@ -395,15 +436,13 @@ async function main() {
   if (MUTATE) {
     let bad = 0;
     const M = await load(ROOT);
-    const need = (m, res) => (res[m.arm] && res[m.arm].length ? (console.log('✓ ' + m.arm + ' goes red on: ' + m.name), 0) : (console.error('✗ ' + m.arm + ' stayed GREEN on: ' + m.name), 1));
+    const need = (m, res) => {
+      const p = (res[m.arm] || [])[0];
+      if (!p) { console.error('✗ ' + m.arm + ' stayed GREEN on: ' + m.name); return 1; }
+      if (/^threw/.test(p)) { console.error('✗ harness: ' + m.arm + ' threw on: ' + m.name + ' (' + p.slice(0, 160) + ')'); return 1; }
+      console.log('✓ ' + m.arm + ' goes red on: ' + m.name + '  (' + p.slice(0, 110) + ')'); return 0;
+    };
     for (const m of DB_MUTANTS) {
-      if (!m.fn) {
-        const res = await runArms(db, { ...M, _plant: m.sql }, [m.arm]).catch((e) => ({ [m.arm]: ['threw ' + e.message] }));
-        await db.exec('begin'); await db.exec(m.sql);
-        const r2 = await runArms(db, M, [m.arm]).catch((e) => ({ [m.arm]: ['threw ' + e.message] }));
-        await db.exec('rollback');
-        void res; bad += need(m, r2); continue;
-      }
       const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [m.fn])).split(String.fromCharCode(13)).join('');
       if (def.split(m.find).length !== 2) { console.error('✗ db mutant "' + m.name + '": anchor not found exactly once'); bad++; continue; }
       await db.exec(def.replace(m.find, () => m.replace));
@@ -412,7 +451,10 @@ async function main() {
     for (const m of JS_MUTANTS) {
       const dir = mkdtempSync(join(tmpdir(), 'hr-sh-'));
       try {
-        for (const d of ['src', 'supabase/functions/hr-accrue', 'tools']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
+        for (const d of ['src/core', 'src/data', 'src/build-info.js', 'supabase/functions/hr-accrue', 'tools/gen-scaled-hunts.mjs', 'tests/_is-main.mjs']) {
+          mkdirSync(dirname(join(dir, d)), { recursive: true });
+          cpSync(join(ROOT, d), join(dir, d), { recursive: true });
+        }
         const p = join(dir, m.file);
         const src = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
         if (src.split(m.from).length !== 2) { console.error('✗ mutant "' + m.name + '": marker not found exactly once in ' + m.file); bad++; continue; }

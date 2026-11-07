@@ -103,10 +103,11 @@
 //         Strongest hero on the strongest kind engaged, browser closed (the server's boundaries) and viewed (every
 //         commit matches; the browser plays their blows as the server's commits hold them).
 //   LV-SCALE A SCALED HUNT, VIEWED (lane/c-scaled-hunts; Tyler 2026-11-07 "party would scale to the leader"): the Cellar played at
-//         Level 20 (src/core/combat-sim.js huntPlayOf, the server's scale on the start point): every commit matches the prediction,
+//         Level 50 (src/core/combat-sim.js huntPlayOf, the server's scale on the start point): every commit matches the prediction,
 //         solo and in a pair viewed from the member (its leader a frozen peer, rolled against the scaled rows); the server's
-//         monsters stand at the scaled rows' health; against the same pair unscaled a kill pays 2x the Level XP and coin and a
-//         monster's blow lands harder. The settle's half (the bank, the bounds, browser closed): tests/scaled-hunts-server.mjs.
+//         monsters stand at the scaled rows' health; against the same pair unscaled a kill pays 2x the Level XP and coin, and a
+//         monster lands a blow no catalogue Cellar monster can. The settle's half (the bank, the bounds, browser closed):
+//         tests/scaled-hunts-server.mjs.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -520,31 +521,36 @@ function rules(M) {
     } finally { rows.deadly = was; }
   }
 
-  { // LV-SCALE: A SCALED HUNT, VIEWED (lane/c-scaled-hunts; src/core/combat-sim.js huntPlayOf). The Cellar played at Level 20, its leader's
-    // paid scale: the browser predicts every commit from the start point's scale (solo, and a pair viewed from the member, its leader a frozen
-    // peer rolled against the scaled rows); the server's world stands on the scaled rows; and against the same pair unscaled, a kill pays more.
+  { // LV-SCALE: A SCALED HUNT, VIEWED (lane/c-scaled-hunts; src/core/combat-sim.js huntPlayOf). The Cellar played at Level 50, its Level 50
+    // leader's paid scale: the browser predicts every commit from the start point's scale (solo, and a pair viewed from the member, its leader
+    // a frozen peer rolled against the scaled rows); the server's world stands on the scaled rows; against the same pair unscaled a kill pays
+    // more, and a scaled monster lands blows no Cellar monster of the catalogue can.
+    const L = 50;
     const worn = { tank: { weapon: 'steel_sword', shield: 'coppercap_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' },
       melee_dps: { weapon: 'steel_warhammer', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' } };
     const pair = (n) => ['tank', 'melee_dps'].slice(0, n).map((role, i) => {
-      const mi = memberOf(M, 'sc' + i, i, role, 20); mi.equipment = worn[role]; mi.gold = 50000;
+      const mi = memberOf(M, 'sc' + i, i, role, L); mi.equipment = worn[role]; mi.gold = 50000;
       mi.hero = Object.assign({}, mi.hero, { lead: i === 0 });
-      /* the leader swings at Melee 5, so its to-hit reads each monster's defense unclamped: a frozen peer rolled against the wrong rows shows */
+      /* the leader swings at Melee 5, so its to-hit reads each monster's defense unclamped (0.72 on the catalogue's rows, 0.44-0.55 on
+         the scaled): a frozen peer rolled against the wrong rows lands other blows */
       if (i === 0) mi.skills = Object.assign({}, mi.skills, { melee: M.XP.skillXpForLevel('melee', 5) });
       return mi;
     });
-    const play = M.ENGINE_SIM.huntPlayOf('mill_cellar', { level: 20 });
+    const play = M.ENGINE_SIM.huntPlayOf('mill_cellar', { level: L });
     const ground = M.HG.huntGroundOf('mill_cellar').ground;
+    /* the hardest blow any Cellar monster of the catalogue can swing (combat.js monsterMaxHit, before the hero's armor) */
+    const catMax = Math.max(...Object.keys(play.monsters).filter((k) => play.monsters[k] !== M.ENGINE_MONSTERS[k]).map((k) => M.ENGINE_COMBAT.monsterMaxHit(M.ENGINE_MONSTERS[k])));
     const stats = (r, mis) => {
       const ev = r.verdicts.flatMap((x) => x.tl.hunt_events);
       const kills = ev.filter((e) => e.type === 'kill').length;
       const heroes = new Set(mis.map((mi) => mi.unitId).filter(Number.isInteger));
-      const blows = ev.filter((e) => e.type === 'dmg' && heroes.has(e.t) && !e.dot);
-      return { kills, xp: mis.reduce((a, mi) => a + mi.levelXp - M.XP.charXpForLevel(20), 0), gold: mis.reduce((a, mi) => a + mi.gold - 50000, 0),
-        blow: blows.length ? blows.reduce((a, e) => a + e.amount, 0) / blows.length : 0 };
+      const blows = ev.filter((e) => e.type === 'dmg' && heroes.has(e.t) && !e.dot).map((e) => e.amount);
+      return { kills, xp: mis.reduce((a, mi) => a + mi.levelXp - M.XP.charXpForLevel(L), 0), gold: mis.reduce((a, mi) => a + mi.gold - 50000, 0),
+        maxBlow: blows.length ? Math.max(...blows) : 0 };
     };
     for (const [name, n, viewer] of [['solo', 1, null], ['party', 2, { user: 'sc1', slot: 0 }]]) {
       const mis = pair(n);
-      const r = run(M, mis, 64000, { server: { scale: 20 }, ...(viewer ? { viewer } : {}) });
+      const r = run(M, mis, 64000, { server: { scale: L }, ...(viewer ? { viewer } : {}) });
       const bad = r.verdicts.filter((x) => x.v !== 'match');
       ok('LV-SCALE', r.verdicts.length >= 3 && bad.length === 0, name + ': ' + bad.length + ' of ' + r.verdicts.length + ' commits did not match the prediction');
       const w = r.srv.inst.world ? M.WS.decode(JSON.parse(r.srv.inst.world)) : null;
@@ -556,10 +562,10 @@ function rules(M) {
       const per = (x, k) => x[k] / Math.max(1, x.kills);
       ok('LV-SCALE', scaled.kills > 3 && per(scaled, 'xp') >= 2 * per(own, 'xp'), 'a scaled kill paid ' + per(scaled, 'xp').toFixed(1) + ' Level XP, the Cellar\'s own ' + per(own, 'xp').toFixed(1) + ' (want 2x)');
       ok('LV-SCALE', per(scaled, 'gold') >= 2 * per(own, 'gold'), 'a scaled kill paid ' + per(scaled, 'gold').toFixed(1) + ' coin, the Cellar\'s own ' + per(own, 'gold').toFixed(1) + ' (want 2x)');
-      ok('LV-SCALE', scaled.blow >= 1.5 * Math.max(1, own.blow), 'a scaled monster\'s blow landed ' + scaled.blow.toFixed(1) + ', the Cellar\'s own ' + own.blow.toFixed(1) + ' (want 1.5x, and 1.5 at least)');
-      console.log('  LV-SCALE Cellar pair at Level 20, 64 s: ' + r.verdicts.length + ' commits, ' + (r.verdicts.length - bad.length) + ' matched; a kill pays '
+      ok('LV-SCALE', scaled.maxBlow > catMax, 'a scaled monster\'s hardest blow landed ' + scaled.maxBlow + ', no more than a catalogue Cellar monster can swing (' + catMax + ')');
+      console.log('  LV-SCALE Cellar pair at Level ' + L + ', 64 s: ' + r.verdicts.length + ' commits, ' + (r.verdicts.length - bad.length) + ' matched; a kill pays '
         + per(scaled, 'xp').toFixed(0) + ' Level XP and ' + per(scaled, 'gold').toFixed(1) + ' coin (own ' + per(own, 'xp').toFixed(0) + ' and ' + per(own, 'gold').toFixed(1)
-        + '), a blow lands ' + scaled.blow.toFixed(1) + ' (own ' + own.blow.toFixed(1) + ')');
+        + '); the hardest blow landed ' + scaled.maxBlow + ' (a catalogue Cellar monster swings at most ' + catMax + ')');
     }
   }
 
@@ -1600,7 +1606,7 @@ const MUTANTS = [
   ['a spawn reads the catalogue row (LV-SCALE)', 'src/core/hunt/pull-cycle.js', 'const row = (inst.monsters || MONSTERS)[s.monster];', 'const row = MONSTERS[s.monster];', /^LV-SCALE: .*scaled rows' health/],
   ['a kill pays the catalogue Level XP (LV-SCALE)', 'src/core/hunt/damage.js', 'xp: Math.round((atTier(rowOf(inst, target.kind), inst.tier).xp', 'xp: Math.round((atTier(MONSTERS[target.kind], inst.tier).xp', /^LV-SCALE: a scaled kill paid .* Level XP/],
   ["a kill's coin is the catalogue's (LV-SCALE)", 'src/core/combat-sim.js', 'monsters: play.monsters || ctx.monsters, tier,', 'monsters: ctx.monsters, tier,', /^LV-SCALE: a scaled kill paid .* coin/],
-  ['a monster swings its catalogue row (LV-SCALE)', 'src/core/hunt/damage.js', 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = atTier(MONSTERS[u.kind], inst.tier);', /^LV-SCALE: a scaled monster's blow/],
+  ['a monster swings its catalogue row (LV-SCALE)', 'src/core/hunt/damage.js', 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = atTier(MONSTERS[u.kind], inst.tier);', /^LV-SCALE: a scaled monster's hardest blow/],
   ['the prediction never answers why a slot waits (LV-WAITS)', 'src/hunt-view/live-engine.js', 'return side ? slotTesterOf(st.world, st.where.grid, side.member, items) : null;', 'return null;', /^LV-WAITS: CONTROL: the prediction never read/],
   ['asking why a slot waits moves the prediction (LV-WAITS)', 'src/hunt-view/live-engine.js', '    const t = testSlot(inst, u, h, slot);\n', '    const t = testSlot(inst, u, h, slot);\n    u.mana -= 1;\n', /^LV-WAITS: \d+ commit/],
   ['the engine shoots ammo under its skill (LV-SHOT-SKILL)', 'src/core/hunt/abilities.js', "function shotLocked(h, id) {\n", "function shotLocked(h, id) {\n  if (h) return false;\n", /^LV-SHOT-SKILL: browser closed/],

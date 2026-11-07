@@ -50,7 +50,7 @@ const cases = {
     if (Object.keys(S.TIER_DIALS).join() !== T.TIER_IDS.join()) return 'the sheet\'s tiers are ' + Object.keys(S.TIER_DIALS) + ', the game\'s ' + T.TIER_IDS;
     if (T.DIALS.some((k) => S.TIER_DIALS.normal[k] !== 1000) || S.TIER_DIALS.normal.pull.some((p) => p !== 0)) return 'the sheet\'s Normal is not the ground as it stands: ' + JSON.stringify(S.TIER_DIALS.normal);
     for (const [g, over] of Object.entries(S.TIER_PULL_OVERRIDES)) {
-      if (!G.OPEN_GROUNDS[g]) return 'an override for ' + g + ', which is no open ground';
+      if (!G.HUNT_GROUNDS[g]) return 'an override for ' + g + ', which is no ground';
       if (!(typeof over.why === 'string' && over.why.length > 10)) return 'the override for ' + g + ' gives no reason';
       for (const [k, v] of Object.entries(over)) {
         if (k === 'why' || (k === 'normalOnly' && v === true)) continue;
@@ -66,12 +66,12 @@ const cases = {
        them (tools/gen-ground-stats.mjs floorOf, fitOf), per-ground dials included, digit for digit. */
     const fitOf = (gr) => (gr.pockets.some((p) => p.minParty) ? 'party' : gr.groupFit || 'both');
     for (const [g, rows] of Object.entries(T.GROUND_TIERS)) for (const t of HARDER) {
-      const want = S.tierRowFor(HUNTS.HUNT_INDEX[G.OPEN_GROUNDS[g].hunt].band[0], t, { ground: g, fit: fitOf(G.OPEN_GROUNDS[g]) }), r = rows[t];
+      const want = S.tierRowFor(HUNTS.HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0], t, { ground: g, fit: fitOf(G.HUNT_GROUNDS[g]) }), r = rows[t];
       if (!r || r.pull.join() !== want.pull.join() || T.DIALS.some((k) => r[k] !== want[k])) return g + ' ' + t + ' plays ' + JSON.stringify(r) + ', the sheet answers ' + JSON.stringify(want);
     }
     for (const [id, rows] of Object.entries(T.GROUND_TIERS)) {
-      const g = G.OPEN_GROUNDS[id];
-      if (!g) return id + ' offers tiers but is no open ground';
+      const g = G.HUNT_GROUNDS[id];
+      if (!g) return id + ' offers tiers but is no ground';
       let was = N;
       for (const t of HARDER) {
         const r = rows[t];
@@ -222,7 +222,7 @@ const mutants = [
   { name: 'an override\'s typo plays the table\'s pull', case: 'rows', edits: [[SH, 'wickstead: Object.freeze({ dangerous: Object.freeze([0, 5, 5, 6]),', 'wickstead: Object.freeze({ dangerus: Object.freeze([0, 5, 5, 6]),']] },
   { name: 'Deadly pays more than slightly more XP', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 1300')]] },
   { name: 'a ground\'s dial names no dial', case: 'rows', edits: [[SH, THICKET_DIALS, THICKET_DIALS.replace('xpPm: 1080', 'xpPM: 1080')]] },
-  { name: 'a party ground lifts its tiers', case: 'rows', edits: [[D, '{ ground: g, fit: fitOf(OPEN_GROUNDS[g]) }', '{ ground: g }']] },
+  { name: 'a party ground lifts its tiers', case: 'rows', edits: [[D, '{ ground: g, fit: fitOf(HUNT_GROUNDS[g]) }', '{ ground: g }']] },
   { name: 'the dial reader drops the health dial', case: 'dials', edits: [[D, 'hp: hp === 1000 ? row.hp : Math.max(1, Math.round(((row.hp || 1) * hp) / 1000))', 'hp: row.hp']] },
   { name: 'the dial reader drops the XP dial', case: 'harder-tier-costs', edits: [[D, 'xp: ((row.xp || 0) * xp) / 1000 };', 'xp: row.xp || 0 };']] },
   { name: 'health is no dial: a row on damage and XP alone is the row', case: 'dials', edits: [[D, "if (!row || (dmg === 1000 && hp === 1000 && xp === 1000)) return row;", "if (!row || (dmg === 1000 && xp === 1000)) return row;"]] },

@@ -66,7 +66,8 @@ const TICK_MS = 10000;   // the server's settle cadence (pg_cron, live-world-dec
 
 const TOWN_TAIL_MS = 60000;
 /* THE DEATH SCENE (makeServer): from the kill, a blow of at least 1/6 of the tank's max HP at a 60% to-hit at least; the hunt ends within
-   withinMs (measured on the formula's Sewer, a kill every 5 s from 150 to 300 s in: 10-35 s, the longest a kill between two pulls),
+   withinMs (measured in node, a kill every 5 s from 150 to 300 s in: 10-35 s on the formula's Sewer, 0-35 s on its reshaped blows,
+   x1.6 at 1/1.6 the to-hit; the longest a kill between two pulls. The page, 3 CI runs on the reshaped rows: 24.6, 9.2, 5.8 s),
    and the still town is judged from townAfterMs past the end, never before (the page reads the end, sums it up and walks back). */
 const DEATH = Object.freeze({ share: 6, hit: 0.6, withinMs: 60000, townAfterMs: 20000 });
 const SHOW_ANSWER_HELD_MS = 1500;   // PB-AWAY: the show's answer waits this long, so its catch-up is at the route first on every run (scenario)

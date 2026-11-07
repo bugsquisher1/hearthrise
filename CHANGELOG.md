@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.105 — 2026-11-07 (No Immunities)
+
+**No monster is immune anymore.** Every element now hurts every monster. A monster can still resist an element and take less from it, but never nothing. Sewer slimes take half damage from fire, frost and poison, and the Fire Elemental takes half from fire. Your fire spells work in the Sewer again.
+
+**Harder tiers cost more when you're out of your league.** At Wickstead and the Glade, Dangerous and Deadly hit harder. Above your Level they still give more XP, but now they cost gold and some deaths. A party of four at the Glade's Level holds Deadly as before, and Normal doesn't change.
+
+- At Wickstead, a hero alone on Dangerous or Deadly no longer gets bigger pulls. The tier only makes the monsters hit harder.
+- A monster that was already bleeding when it came into view shows the right health.
+- The "Missed blows and immune hits" setting is now just "Missed blows".
+
 ## v0.2.104 — 2026-11-06 (Sign Out Means Sign Out)
 
 **Sign out stays where you click.** On a computer, the Characters and Sign out buttons used to slide along the top strip while your other heroes loaded. A click meant for Sign out could land on Characters, which left you signed in. Both buttons now stay put, and signing out no longer opens your next hero on the way out.

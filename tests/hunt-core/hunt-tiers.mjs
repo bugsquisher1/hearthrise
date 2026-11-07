@@ -43,6 +43,15 @@ const cases = {
     if (N.id !== T.DEFAULT_TIER || N.dmgPm !== 1000 || N.hpPm !== 1000 || N.xpPm !== 1000 || N.pull.some((p) => p !== 0)) return 'Normal moved off the ground as it stands: ' + JSON.stringify(N);
     if (T.tiersOf('mill_cellar').join() !== T.DEFAULT_TIER) return 'the Cellar offers ' + T.tiersOf('mill_cellar');
     for (const id of Object.keys(G.OPEN_GROUNDS)) if (id !== 'mill_cellar' && T.tiersOf(id).join() !== T.TIER_IDS.join()) return id + ' offers ' + T.tiersOf(id) + ', not all three (Tyler: each hunting ground)';
+    /* ONE TABLE, NAMED EXCEPTIONS: an override names an open ground that offers tiers, a harder tier, and only the pull and the dials; a typo would be the table's number, silently. */
+    for (const [g, over] of Object.entries(T.GROUND_OVERRIDES)) {
+      if (!G.OPEN_GROUNDS[g] || T.NORMAL_ONLY.includes(g)) return 'an override for ' + g + ', which offers no harder tier';
+      for (const [id, row] of Object.entries(over)) {
+        if (!HARDER.includes(id)) return g + ' overrides a tier nobody offers: ' + id;
+        const stray = Object.keys(row).filter((k) => k !== 'pull' && !T.DIALS.includes(k));
+        if (stray.length) return g + ' ' + id + ' overrides ' + stray.join() + ', no dial';
+      }
+    }
     for (const [id, rows] of Object.entries(T.GROUND_TIERS)) {
       const g = G.OPEN_GROUNDS[id];
       if (!g) return id + ' offers tiers but is no open ground';
@@ -170,6 +179,7 @@ const mutants = [
   { name: 'the table and the catalogue part: Deadly earns more on every ground in the data only', case: 'catalogue', edits: [[D, "deadly: Object.freeze({ pull: Object.freeze([8, 8, 8, 8]), dmgPm: 1500, hpPm: 1000, xpPm: 1200 }),", "deadly: Object.freeze({ pull: Object.freeze([8, 8, 8, 8]), dmgPm: 1500, hpPm: 1000, xpPm: 1250 }),"]] },
   { name: 'the Glade loses its full box', case: 'rows', edits: [[D, GLADE_DEADLY, '    deadly: Object.freeze({ pull: Object.freeze([6, 6, 6, 6]), dmgPm: 1600 }),']] },
   { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[D, "export const NORMAL_ONLY = Object.freeze(['mill_cellar']);", 'export const NORMAL_ONLY = Object.freeze([]);']] },
+  { name: 'an override\'s typo plays the table\'s number', case: 'rows', edits: [[D, GLADE_DEADLY, '    deadly: Object.freeze({ dmgPM: 1600 }),']] },
   { name: 'an override replaces the table row whole', case: 'rows', edits: [[D, 'for (const k of DIALS) row[k] = Object.prototype.hasOwnProperty.call(o, k) ? o[k] : base[k];', 'for (const k of DIALS) row[k] = o[k];']] },
   { name: 'the dial reader drops the health dial', case: 'dials', edits: [[D, 'hp: hp === 1000 ? row.hp : Math.max(1, Math.round(((row.hp || 1) * hp) / 1000))', 'hp: row.hp']] },
   { name: 'the dial reader drops the XP dial', case: 'harder-tier-costs', edits: [[D, 'xp: ((row.xp || 0) * xp) / 1000 };', 'xp: row.xp || 0 };']] },

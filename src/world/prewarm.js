@@ -18,12 +18,12 @@
 // whatever the pass was doing (release/v0.2.73 run 41045835796: a stop sent as a message missed
 // the pass on CI and all six sheets were fetched for a signed-out account).
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.104';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.104';
-import { compileMap } from './core/map-compile.js?v=0.2.104';
-import { createBook } from './core/book.js?v=0.2.104';
-import { loadManifests, loadAtlasImage, baseTables } from './atlas.js?v=0.2.104';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.104';
+import { BUILD } from '../build-info.js?v=0.2.105';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.105';
+import { compileMap } from './core/map-compile.js?v=0.2.105';
+import { createBook } from './core/book.js?v=0.2.105';
+import { loadManifests, loadAtlasImage, baseTables } from './atlas.js?v=0.2.105';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.105';
 
 const RUNS = new WeakMap();   // win -> { stopped, live(), sets (the town's, once made), done: Promise<string[]> }
 

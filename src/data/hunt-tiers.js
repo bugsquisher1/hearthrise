@@ -31,7 +31,7 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.104';
+import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.105';
 
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);
 export const DEFAULT_TIER = 'normal';

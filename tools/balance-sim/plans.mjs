@@ -891,6 +891,27 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
+  if (name === 'gladebite') {
+    /* THE GLADE 20% HARDER (Tyler 2026-11-07, "make it 20% harder"; lane/b-glade-bite): its monsters' own attack x1.2 is in the data, so this
+       plays Normal as written and the tier power rows on top of it. Normal (x = GN): the lone floor in the 8 ways x 4 seeds, pairs 2, 3 and 5
+       Levels under, a lone hero 5 under, fours at 16 and 31. Tiers: Dangerous at 1150, 1200, 1400 (x = GD<power>) and Deadly at 1300, 1350, 1400,
+       1600 (x = GX<power>) against fours at 16 and 31, the pairs 2-3 under and Andy's three (Levels 14, 14, 8). */
+    const G = 'mosslight_glade', ROW = { dangerous: { id: 'dangerous', pull: [3, 5, 5, 6], xpPm: 1100 }, deadly: { id: 'deadly', pull: [8, 8, 8, 8], xpPm: 1200 } };
+    const PAIRS = [['tank', 'healer'], ['hammer', 'bow']];
+    const norm = (party, level, seeds) => ({ ...cellOf({ ground: G, party, level, hours: H(2), seeds, x: 'GN' }), windowMs: 120000 });
+    for (const s of SOLO_STYLES) out.push(norm([s], 16, 4));
+    for (const party of PAIRS) for (const level of [13, 14, 11]) out.push(norm(party, level, 4));
+    for (const s of ['hammer', 'mage']) out.push(norm([s], 11, 4));
+    for (const party of [PARTIES.four, PARTIES.four_dps]) for (const level of [16, 31]) out.push(norm(party, level, 2));
+    const tcell = (party, level, tier, powerPm, x, seeds) => { const row = { ...ROW[tier], powerPm }, pull = row.pull[party.length - 1];
+      return { ...cellOf({ ground: G, party, level, density: pull || null, hours: H(2), seeds, x }), options: { tier }, windowMs: 120000, whatIf: { tiers: { [G]: { [tier]: row } } } }; };
+    for (const [tier, powers, tag] of [['dangerous', [1150, 1200, 1400], 'GD'], ['deadly', [1300, 1350, 1400, 1600], 'GX']]) for (const p of powers) {
+      for (const party of [PARTIES.four, PARTIES.four_dps]) for (const level of [16, 31]) out.push(tcell(party, level, tier, p, tag + p, 2));
+      for (const party of PAIRS) for (const level of [13, 14]) out.push(tcell(party, level, tier, p, tag + p, 4));
+      if (tier === 'deadly') out.push(tcell(['hammer', 'bow', 'mage'], [14, 14, 8], tier, p, tag + p, 2));
+    }
+    return out;
+  }
   if (name === 'weightclassfinal') {
     /* THE ROWS AS WRITTEN (lane/b-tier-risk, the weight-class rows): the cases the Coordinator asked for, on the same dice as plans weightclass
        (duos, 4 seeds) and tierrisklive2 (Andy's three, 2 seeds), plus a four at the Glade's 31 and the level-matched lone safety check. */

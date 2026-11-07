@@ -11,6 +11,8 @@
 // (OUT_NAME). 2027-02-27-hunt-tiers.sql (APPLIED) made the table and its first rows by hand.
 //   2027-03-19-tier-risk.generated.sql (lane/b-tier-risk, Tyler 2026-11-06 "Yes, make it risky"): a lone hero's
 //   harder tier on Wickstead and the Glade carries real risk; parties keep their pulls.
+//   2027-03-20-glade-bite-tiers.generated.sql (lane/b-glade-bite, Tyler 2026-11-07 "make it 20% harder"): the Glade's monsters hit 1.2x
+//   on Normal in their own rows, so its tier powers come down to keep each tier where it was played.
 //
 //   node tools/gen-ground-tiers.mjs            write OUT_NAME
 //   node tools/gen-ground-tiers.mjs --check    exit 1 if OUT_NAME is not what it would write
@@ -26,7 +28,7 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2027-03-19-tier-risk.generated.sql';
+export const OUT_NAME = '2027-03-20-glade-bite-tiers.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const HARDER = ['dangerous', 'deadly'];
 const FULL_BOX_GROUNDS = ['mosslight_glade', 'coppercap_warrens'];
@@ -62,9 +64,10 @@ export function buildSql(tiers) {
 -- no row and doesn't move. ROWS ONLY: no table, function, grant or client verb changes. The server reads the pull when it
 -- freezes a hunt; the engine reads the same numbers from the data, so the hr-accrue deploy carrying this GROUND_TIERS
 -- follows AT ONCE (a hunt already running keeps the pull it froze; its blows read the deployed engine).
--- NEW IN 2027-03-19 (lane/b-tier-risk, Tyler 2026-11-06 "Yes, make it risky"): a lone hero's Dangerous and Deadly on
--- Wickstead and the Glade carry real risk instead of free XP; a party's pulls don't move.
--- ORDER: after 2027-02-27-hunt-tiers.sql (APPLIED). No begin/commit (CLAUDE.md §2).
+-- NEW IN 2027-03-20 (lane/b-glade-bite, Tyler 2026-11-07 "make it 20% harder"): the Glade's monsters hit 1.2x on Normal in their
+-- own rows (src/data/monsters.js, the engine), and a tier multiplies them, so the Glade's Dangerous power goes 1400 to 1200 and its
+-- Deadly 1600 to 1350: each tier plays where it did. Every other row is as in 2027-03-19.
+-- ORDER: after 2027-03-19-tier-risk.generated.sql. No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────

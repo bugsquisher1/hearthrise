@@ -108,6 +108,7 @@ const TARGET_LINE = Object.freeze({
 /* "Deals 4–9 fire damage to each monster hit." by the spell's shape: area, a cap on monsters, repeated hits, or one. */
 function damageLine(r) {
   const shape = r.target === 'area' ? '_area' : r.maxHits ? '_max' : r.hits ? '_hits' : '';
+  /** @type {Record<string, number|string>} */
   const v = { lo: r.dmg[0], hi: r.dmg[1] };
   if (r.element) v.element = r.element;
   if (shape === '_max') v.max = r.maxHits;

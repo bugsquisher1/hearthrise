@@ -45,6 +45,8 @@ const HOOK = pathToFileURL(join(fileURLToPath(new URL('.', import.meta.url)), 'w
 export function wholeViewOrRerun(scriptUrl, outName) {
   if (process.env.HR_WHOLE_VIEW === '1') return true;
   const ids = packIds();
+  /* no pack: the data IS the whole view (a planted copy of the tree carries no apply order to read) */
+  if (!ids.length) return true;
   const folded = [...foldedPacks(outName), ...(process.env.HR_PACK_FOLD_ADD || '').split(',').filter(Boolean)];
   if (ids.every((id) => folded.includes(id))) return true;
   const r = spawnSync(process.execPath, ['--import', HOOK, fileURLToPath(scriptUrl), ...process.argv.slice(2)],

@@ -30,13 +30,17 @@ export function verdictOf(status, body) {
  * @param {(entry) => void} onAnswer  every request and its answer, for the journal
  */
 export async function openAccount(world, name, onAnswer = () => {}) {
-  const post = async (path, body, token, again = true) => {
-    try {
-      const res = await fetch(world.origin + path, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body) });
-      return { status: res.status, body: await res.json().catch(() => null) };
-    } catch (e) {
-      if (!again) throw e;   // a kept-alive socket the local server just closed; every verb carries its key, so a repeat is a replay
-      return post(path, body, token, false);
+  /* a kept-alive socket the local server just closed, or a box so busy the connect timed out: every verb carries its own
+     idempotency key, so a repeat is a replay, never a second buy. Four tries, backing off (a loaded box dropped one at 7 h). */
+  const post = async (path, body, token) => {
+    for (let i = 0; ; i++) {
+      try {
+        const res = await fetch(world.origin + path, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body) });
+        return { status: res.status, body: await res.json().catch(() => null) };
+      } catch (e) {
+        if (i >= 3) throw e;
+        await new Promise((r) => setTimeout(r, 500 * 4 ** i));
+      }
     }
   };
   const email = name + '@local-world.test';

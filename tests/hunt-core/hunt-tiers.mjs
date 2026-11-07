@@ -73,10 +73,10 @@ const cases = {
         if (r.dmgPm < was.dmgPm || r.hpPm < was.hpPm || (r.dmgPm === was.dmgPm && r.hpPm === was.hpPm) || !(r.xpPm > was.xpPm)) return id + ': ' + t + ' is not harder and better paid than ' + was.id;
         if (r.pull.length !== G.PARTY_SCALE.maxHeroes || r.pull.some((p, s) => (p && p < was.pull[s]) || (s && p && p < r.pull[s - 1]))) return id + ': ' + t + "'s pull falls: " + r.pull;
         for (let s = 0; s < r.pull.length; s++) if (r.pull[s] > g.densityMax[s]) return id + " cannot spawn " + t + "'s " + r.pull[s] + ' for ' + (s + 1);
-        /* A TIER PAYS FOR ITS RISK (the sheet's rule, lane/b-ground-formula: xpPm above hpPm): a kill earns more than its HP costs to take
-           down, so a harder tier pays more an hour. (Was "+25% at most", Tyler 2026-11-04's "slightly more XP"; the designer's table at x1.2 and
-           x1.4 on Tyler's 2026-11-07 "a scaling % of exp and difficulty" replaces it.) */
-        if (!(r.xpPm > r.hpPm)) return id + ': ' + t + ' earns ' + r.xpPm + ' XP permille a kill for ' + r.hpPm + ' HP: no more an hour for the risk';
+        /* SLIGHTLY MORE XP (Tyler 2026-11-05 tier words: "Dangerous and Deadly ... pay slightly more Level XP", +10% and +20% in his 11-05
+           table; 11-07's "a scaling % of exp and difficulty" names the dial, not the amount): a kill never pays more than +25% for a tier, and
+           power is what it's paid for. */
+        if (r.xpPm > 1250) return id + ': ' + t + ' pays more than slightly more XP: ' + r.xpPm;
         was = r;
       }
     }
@@ -212,7 +212,7 @@ const mutants = [
   { name: 'the Glade loses its full box', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('[8, 8, 8, 8]', '[6, 8, 8, 8]')]] },
   { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[SH, 'mill_cellar: Object.freeze({ normalOnly: true,', 'mill_cellar: Object.freeze({ normalOnly: false,']] },
   { name: 'an override\'s typo plays the table\'s pull', case: 'rows', edits: [[SH, 'wickstead: Object.freeze({ dangerous: Object.freeze([0, 5, 5, 6]),', 'wickstead: Object.freeze({ dangerus: Object.freeze([0, 5, 5, 6]),']] },
-  { name: 'a tier earns no more than its HP costs', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1400', 'xpPm: 1200')]] },
+  { name: 'Deadly pays more than slightly more XP', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1400', 'xpPm: 1300')]] },
   { name: 'the dial reader drops the health dial', case: 'dials', edits: [[D, 'hp: hp === 1000 ? row.hp : Math.max(1, Math.round(((row.hp || 1) * hp) / 1000))', 'hp: row.hp']] },
   { name: 'the dial reader drops the XP dial', case: 'harder-tier-costs', edits: [[D, 'xp: ((row.xp || 0) * xp) / 1000 };', 'xp: row.xp || 0 };']] },
   { name: 'health is no dial: a row on damage and XP alone is the row', case: 'dials', edits: [[D, "if (!row || (dmg === 1000 && hp === 1000 && xp === 1000)) return row;", "if (!row || (dmg === 1000 && xp === 1000)) return row;"]] },

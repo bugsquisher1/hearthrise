@@ -117,8 +117,10 @@ export function build(outDir = join(HERE, 'dist')) {
     + 'globalThis.__HEARTHRISE_LAB_BUNDLE__ = ' + JSON.stringify(stamp) + ';\n'
     + '__req(' + JSON.stringify(WORKER_ENTRY) + ');\n})();\n';
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, 'engine.js'), engineText);
-  writeFileSync(join(outDir, 'worker.js'), workerText);
+  /* a raw NUL in a source literal (the FNV helper's parts.join) is written as its \u0000 escape: the same string value, and the Artifact publisher refuses NUL bytes */
+  const noNul = (t) => t.split(String.fromCharCode(0)).join('\\u0000');
+  writeFileSync(join(outDir, 'engine.js'), noNul(engineText));
+  writeFileSync(join(outDir, 'worker.js'), noNul(workerText));
   return { files: [join(outDir, 'engine.js'), join(outDir, 'worker.js')], modules: engine.modules.length, hash: engine.hash, version: stamp.version,
     bytes: { engine: Buffer.byteLength(engineText), worker: Buffer.byteLength(workerText) } };
 }

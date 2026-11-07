@@ -62,6 +62,14 @@
 //       C12a every unlock-granting shop row and storage chest not held costs only items reachableSources() reaches;
 //       C12b a held row (homestead-tiers.js HELD_HOME_OFFERS) exists and still costs an item with no door (shrink-only);
 //       C12c held rows are the top of their ladder: no visible rung above a held one, none gated on a held home.
+//   C13 no server function the game reaches trades in an item the catalogue does not hold (coverage bot 2026-11-07: the
+//       Farmer's Deed left ITEMS with every source at the 2026-10-23 demolition, and hr_farm_upgrade_plot still took it
+//       as payment while the Farm window offered it; C1-C12 read only ITEMS, so an id named only in SQL never reached them):
+//       C13a every item id a reached body compares the bag against (`item_id = 'x'`, `item_id in (...)`, a `c_… constant`
+//            it compares item_id with) is in ITEMS, or a SERVER_ITEM_DEBT row names its owner; the reached bodies are the
+//            client's RPCs, the envelope's section views and the hr-accrue engine's calls, each with every hr_ function it
+//            calls (tests/_sql-bodies.mjs, the latest body in apply order);
+//       C13b no stale debt row: its id is still named by a reached body and is still no item (shrink-only).
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -89,6 +97,7 @@ import { unclassifiedGrantIds } from '../src/data/item-authority.js';
 import { JEWEL_PIECES, JEWEL_SHOP_PREMIUM } from '../src/data/jewelry.js';
 import { START_CURRENCY } from '../src/data/start-kit.js';
 import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
+import { latestBodies, clientRpcNames, serverEntryNames, reachedFunctions } from './_sql-bodies.mjs';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 /* C9's start kit: the shipped one, or a planted one (mutate() only; the data is frozen). */
@@ -98,7 +107,46 @@ let TIERS_PLANT = null;
 /* C12's held list and chests: the shipped ones, or planted ones (mutate() only). */
 let HELD_PLANT = null;
 let CHESTS_PLANT = null;
+/* C13's reached server bodies and debt list: the repo's, or planted ones (mutate() only). */
+let BODIES_PLANT = null;
+let DEBT_PLANT = null;
 const realRead = (rel) => readFileSync(join(ROOT, rel), 'utf8');
+
+/* C13: item ids a server function the game reaches still compares the bag against, with no ITEMS row and so no source.
+   SHRINK-ONLY like PENDING_SOURCE: a row no reached body names any more fails as stale, and no id may be added without
+   a ruling and an owner. */
+export const SERVER_ITEM_DEBT = Object.freeze({
+  farm_deed: 'lane C, systems-engineer: the Farmer\'s Deed left ITEMS with every source (demolition 2026-10-23), so the deed payment in '
+    + 'hr_farm_upgrade_plot and the deed count in hr_farm_land_view are dead; cut them with hr_plot_tier.deed_cost and src/core/farm.js '
+    + 'PLOT_TIERS cost / PLOT_TIER_PRICES deeds (tests/plot-tier-parity.mjs moves with them). The client reader dropped deeds 2026-11-07.',
+});
+let REACHED = null;
+const reached = () => REACHED || (REACHED = reachedFunctions(latestBodies(ROOT), [...clientRpcNames(ROOT), ...serverEntryNames(ROOT)]));
+
+/** The item ids one SQL body compares player_inventory's item_id against. */
+export function bodyItemIds(body) {
+  const ids = new Set();
+  for (const m of body.matchAll(/item_id\s*=\s*'([a-z0-9_]+)'/g)) ids.add(m[1]);
+  for (const m of body.matchAll(/item_id\s+in\s*\(\s*('[a-z0-9_]+'(?:\s*,\s*'[a-z0-9_]+')*)\s*\)/g)) for (const x of m[1].matchAll(/'([a-z0-9_]+)'/g)) ids.add(x[1]);
+  for (const m of body.matchAll(/\b(c_[a-z0-9_]+)\s+constant\s+text\s*:=\s*'([a-z0-9_]+)'/g)) if (new RegExp('item_id\\s*=\\s*' + m[1] + '\\b').test(body)) ids.add(m[2]);
+  return ids;
+}
+
+/* C13. An item the server trades in that the catalogue does not hold has no source, whatever C1 says about ITEMS. */
+export function serverItemFails({ bodies = BODIES_PLANT || reached(), debt = DEBT_PLANT || SERVER_ITEM_DEBT } = {}) {
+  const out = [];
+  if (bodies.size < 200) out.push(`C13 the walk reached only ${bodies.size} server functions: the extraction broke, not the server`);
+  const named = new Map();
+  for (const [fn, b] of bodies) for (const id of bodyItemIds(b)) { if (!named.has(id)) named.set(id, []); named.get(id).push(fn); }
+  for (const [id, fns] of named) {
+    if (!ITEMS[id] && !debt[id]) out.push(`C13a ${fns.join(', ')} compare(s) the bag against ${id}, which is no item in src/data/items.js: nothing can source it, so cut that path or add the row with a source`);
+  }
+  for (const id of Object.keys(debt)) {
+    if (!named.has(id)) out.push(`C13b stale SERVER_ITEM_DEBT row ${id}: no server function the game reaches names it now, delete the row`);
+    else if (ITEMS[id]) out.push(`C13b stale SERVER_ITEM_DEBT row ${id}: it is an item again, delete the row`);
+  }
+  return out;
+}
 
 /* Gaps the audit handed to another W0 lane. SHRINK-ONLY: see the header. */
 export const PENDING_USE = Object.freeze({
@@ -214,6 +262,8 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   fails.push(...far.fails);
   // C12 — a house price a player can pay.
   fails.push(...housePriceFails());
+  // C13 — no server function the game reaches trades in an item the catalogue does not hold.
+  fails.push(...serverItemFails());
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length, ...far.counts } };
 }
 
@@ -554,6 +604,21 @@ function mutate() {
     o.cost = [was[0], { kind: 'item', id: 'oak_log', amount: 1 }];
     return { restore: () => { o.cost = was; HELD_PLANT = null; } };
   });
+  /* C13 — the item a server function trades in (coverage bot 2026-11-07, the Farmer's Deed). */
+  const bodiesWith = (edit) => { const m = new Map(reached()); edit(m); BODIES_PLANT = m; return { restore: () => { BODIES_PLANT = null; } }; };
+  run('a plant takes a seed the catalogue lost (an item id only SQL names)', 'C13a', () => bodiesWith((m) => {
+    const b = m.get('hr_farm_plant');
+    if (!b) throw new Error('hr_farm_plant is not reached: the C13 plant has no anchor');
+    m.set('hr_farm_plant', b + "\n  perform 1 from public.player_inventory where item_id = 'ghost_seed';");
+  }));
+  run('the deed\'s debt row is dropped while the deed payment stands', 'C13a', () => {
+    DEBT_PLANT = Object.freeze({});
+    return { restore: () => { DEBT_PLANT = null; } };
+  });
+  run('the deed branch is cut and its debt row stays', 'C13b', () => bodiesWith((m) => {
+    for (const [fn, b] of m) if (bodyItemIds(b).has('farm_deed')) m.delete(fn);
+  }));
+  run('the walk loses every server function', 'C13 the walk', () => bodiesWith((m) => m.clear()));
 
   let bad = 0;
   for (const [name, hit] of results) {

@@ -49,6 +49,13 @@
 //   T12 A POSE NEVER PLACES A CORPSE: a unit the snapshot lists dead that the timeline does not hold
 //      died where nothing drew it (a reload, a hero switched back to) and gets no step; placed, it
 //      stood up with an empty bar (e-20261021-mobs).
+//   T13 THE BAR IS THE ENGINE'S HP, NEVER LOWER (Andy 2026-11-06: "my tank at 0 hp", the server had him alive).
+//      The book's events miss the HP the engine moves without one (a hero's regen, a leashed monster's reset),
+//      so between two bases the HP the events do not explain is spread evenly over the span, and a batch may
+//      carry its window's END (`endUnits` at `toMs`, the live engine's swing) so the next base is known at once.
+//      A bleed tick is booked once: its `dmg` event carries what landed, the `status_tick` only the roll.
+//      A unit alive at the instant (the base in force holds it above 0 HP and no kill naming it lies between
+//      that base and the instant) reads at least 1 HP: the engine kills at 0, so a living 0 is always drift.
 //
 // Rendering, simulation and persistence run on independent clocks: the caller
 // asks positionAt()/advance() with its own frame clock; the server ticks at its
@@ -78,7 +85,7 @@ export function createTimeline(o) {
   const queue = [];                  // events not yet played, ascending atMs
   const listeners = new Set();
   const arrivals = new Set();        // told of each NEW event at ingest (the alerts), before playback
-  const book = new Map();            // unit -> { kind, maxHp, maxAt, bases: [[atMs, hp, maxHp]], deltas: [[atMs, d]] } (T6)
+  const book = new Map();            // unit -> { kind, maxHp, maxAt, bases: [[atMs, hp, maxHp]], deltas: [[atMs, d]], kills: [atMs] } (T6, T13)
   const gone = new Map();            // T11: unit -> the server instant it was forgotten at (bounded: maxEvents)
   /* T11: is this (unit, server instant) the past of a unit already forgotten? */
   const past = (u, atMs) => gone.has(u) && atMs <= gone.get(u);
@@ -142,7 +149,7 @@ export function createTimeline(o) {
       if (!isInt(u) || !Array.isArray(v) || typeof v[0] !== 'string' || !isInt(v[1]) || v[1] <= 0) continue;
       let r = book.get(u);
       if (!r && past(u, fromMs)) continue;
-      if (!r) { r = { kind: v[0], maxHp: v[1], maxAt: fromMs, bases: [], deltas: [] }; book.set(u, r); }
+      if (!r) { r = { kind: v[0], maxHp: v[1], maxAt: fromMs, bases: [], deltas: [], kills: [] }; book.set(u, r); }
       /* Max HP is each batch's, never the first one's: a Level-up mid-hunt raises it (Brannoc 10-22:
          150/150 in the hunt through Level 5 while the server held 190). The newest batch sizes the bar. */
       if (fromMs >= r.maxAt) { r.maxHp = v[1]; r.maxAt = fromMs; }
@@ -156,7 +163,9 @@ export function createTimeline(o) {
   }
   function noteDelta(ev) {
     const r = book.get(ev.t);
-    if (!r || !Number.isFinite(ev.amount)) return;
+    if (!r) return;
+    if (ev.type === 'kill') { if (r.kills.length < 8) r.kills.push(ev.atMs); return; }   // T13: a unit dies once (a restart may hand it back)
+    if (!Number.isFinite(ev.amount)) return;
     const d = ev.type === 'heal' ? ev.amount : -ev.amount;
     r.deltas.push([ev.atMs, d]);
     if (r.deltas.length > 512) r.deltas.splice(0, r.deltas.length - 512);
@@ -166,6 +175,7 @@ export function createTimeline(o) {
     const b = batch && typeof batch === 'object' ? batch : {};
     measure(b.serverNowMs, clientNowMs);
     noteUnits(b.units, b.fromMs);
+    noteUnits(b.endUnits, b.toMs);   // T13: the window's end, the next base known at once
     let ns = 0, ne = 0;
     /* a step may carry its roll's own duration (`dur`, the live engine's drawn timing); else it rolls over tileMs */
     for (const s of Array.isArray(b.track) ? b.track : []) if (s && addStep(s.u, s.x, s.y, s.atMs, s.dur)) ns++;
@@ -178,7 +188,7 @@ export function createTimeline(o) {
       while (i > 0 && queue[i - 1].atMs > ev.atMs) i--;
       const fresh = Object.freeze(Object.assign({ key: k }, ev));
       queue.splice(i, 0, fresh);
-      if (ev.type === 'dmg' || ev.type === 'heal' || ev.type === 'status_tick') noteDelta(fresh);
+      if (ev.type === 'dmg' || ev.type === 'heal' || ev.type === 'kill') noteDelta(fresh);   // T13: not status_tick (its dmg books it)
       ne++;
       for (const fn of Array.from(arrivals)) fn(fresh);
     }
@@ -261,6 +271,7 @@ export function createTimeline(o) {
     for (const r of book.values()) {
       for (let i = r.deltas.length - 1; i >= 0; i--) if (r.deltas[i][0] > atMs) r.deltas.splice(i, 1);
       for (let i = r.bases.length - 1; i > 0; i--) if (r.bases[i][0] > atMs) r.bases.splice(i, 1);
+      r.kills = r.kills.filter((k) => k <= atMs);
     }
     let n = 0;
     for (const [u, xy] of positions) {
@@ -299,14 +310,22 @@ export function createTimeline(o) {
     const r = book.get(u);
     const t = serverAt(now);
     if (!r || t === null || !r.bases.length) return null;
-    let base = null;
-    for (const x of r.bases) if (x[0] <= t) base = x;
-    if (!base) base = r.bases[0];
+    let k = -1;
+    for (let i = 0; i < r.bases.length; i++) if (r.bases[i][0] <= t) k = i;
+    const base = r.bases[Math.max(0, k)];
+    const next = k >= 0 ? r.bases[k + 1] : undefined;
     let hp = base[1];
     for (const [at, d] of r.deltas) if (at >= base[0] && at <= t) hp += d;
+    /* T13: the HP no event explains between this base and the next (regen), spread evenly over the span. */
+    if (next) {
+      let explained = base[1];
+      for (const [at, d] of r.deltas) if (at >= base[0] && at < next[0]) explained += d;
+      hp += Math.round(((next[1] - explained) * (t - base[0])) / (next[0] - base[0]));
+    }
     /* The max of the batch the instant falls in (its base), so a raise shows from the batch that made it. */
     const max = base[2] || r.maxHp;
-    return { hp: Math.max(0, Math.min(max, hp)), maxHp: max };
+    const alive = base[1] > 0 && !r.kills.some((at) => at >= base[0] && at <= t);
+    return { hp: Math.max(alive ? 1 : 0, Math.min(max, hp)), maxHp: max };
   }
 
   /** T10: a new hunt session is a new instance whose unit ids start again at 1: forget every step,

@@ -44,6 +44,9 @@
 //   LV-25 A LONG HUNT HOLDS ONLY WHAT IS ON SCREEN: a finished corpse is forgotten by the scene and the timeline, so the
 //         units held stay those drawn; a forgotten corpse never stands up from a restated past, and nothing still to play is lost.
 //   LV-21 A LEVEL-UP MID-HUNT RAISES THE BAR'S MAX HP: each batch's unit book re-sizes a unit (Brannoc 10-22).
+//   LV-34 A LIVING HERO NEVER READS 0 HP, AND THE BAR IS THE ENGINE'S HP (Andy 11-06, "my tank at 0 hp"): regen moves HP
+//         with no event, so the book spreads it between bases and a living unit reads at least 1; a bleed tick is booked
+//         once. On the real engine: viewed (every swing end), a catch-up, and the browser closed (the server's windows).
 //   LV-20 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
 //         player's hero the party section's member `outfit` (2026-11-04-party-outfits.sql), never the role's.
 //   LV-22 THE CHALLENGE SLOT READS AS WORKING (bug #61): a tank holding every engaged monster in the live
@@ -831,6 +834,83 @@ async function nodeRules(M) {
     ok('LV-21', after && after.maxHp === 190 && after.hp === 150, `after a batch raised max HP the bar reads ${after && after.hp}/${after && after.maxHp}, want 150/190`);
   }
 
+  { // LV-34 A LIVING HERO NEVER READS 0 HP, AND THE BAR IS THE ENGINE'S HP (Andy 2026-11-06, a deadly three at Mosslight:
+    // "my tank at 0 hp", the server had him alive). The book moved HP by events only, and a hero's regen has none, so a
+    // tank that healed between two blows read below the engine, down to 0 (timeline.js T13).
+    const OFF = 1000000, T = 50000;
+    const hit = (id, t, amount, at, more) => Object.assign({ id, type: 'dmg', u: 9, t, amount, atMs: T + at }, more);
+    { // the book alone: 40 HP, -30, +20 regen (no event), -25: the engine holds the tank at 5
+      const tl = M.TL.createTimeline({ delayMs: 0 });
+      tl.ingest({ serverNowMs: T, units: { 1: ['hero', 300, 40] }, fromMs: T, track: [{ u: 1, x: 3, y: 3, atMs: T }],
+        events: [hit('a', 1, 30, 500), hit('b', 1, 25, 1500)] }, T - OFF);
+      const open = tl.hpAt(1, T + 1600 - OFF);
+      ok('LV-34', open && open.hp >= 1, `a living tank whose regen no event names read ${open && open.hp} HP before its swing's end was known (want at least 1)`);
+      tl.ingest({ endUnits: { 1: ['hero', 300, 5] }, toMs: T + 2000 }, T - OFF);
+      const end = tl.hpAt(1, T + 1999 - OFF);
+      ok('LV-34', end && end.hp === 5, `the tank read ${end && end.hp} HP at its swing's end (the engine's 5)`);
+      const dot = M.TL.createTimeline({ delayMs: 0 });
+      dot.ingest({ serverNowMs: T, units: { 2: ['rat', 20, 20] }, fromMs: T, track: [{ u: 2, x: 4, y: 3, atMs: T }],
+        events: [{ id: 'c', type: 'status_tick', t: 2, status: 'bleed', amount: 4, atMs: T + 300 }, hit('d', 2, 3, 300, { dot: true }),
+          hit('e', 2, 17, 700), { id: 'f', type: 'kill', u: 9, t: 2, atMs: T + 700 }] }, T - OFF);
+      ok('LV-34', dot.hpAt(2, T + 400 - OFF).hp === 17, `a bleed tick that landed 3 took ${20 - dot.hpAt(2, T + 400 - OFF).hp} off the bar (booked twice)`);
+      ok('LV-34', dot.hpAt(2, T + 800 - OFF).hp === 0, `a killed rat read ${dot.hpAt(2, T + 800 - OFF).hp} HP (the floor holds only the living)`);
+    }
+    { // the real engine, a three with no food at Mosslight: viewed (the swings the browser runs), a tab back from the
+      // background (the catch-up), and the browser closed (the server's windows played on return)
+      const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 14), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 14), LIVE_H.memberOf(LM, 'c', 2, 'ranger', 14)];
+      for (const m of mis) { m.huntId = 'mosslight_glade'; m.huntSession.bag = {}; }
+      const srv = LIVE_H.server(LM, mis, { hunt: 'mosslight_glade' });
+      /* the browser's engine is the build under test (M: a mutant's copy), the server's the shipped one (LM) */
+      const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS }), C = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+      E.seed(srv.live('a', 0)); C.seed(srv.live('a', 0));
+      const tl = M.TL.createTimeline({ delayMs: 0 }), closed = M.TL.createTimeline({ delayMs: 0 });
+      const truth = new Map(), heroIds = new Set();
+      let t = LIVE_H.T0, swings = 0, off = 0, zero = 0, regen = 0, windows = 0, winOff = 0, winZero = 0, prev = null;
+      while (t < LIVE_H.T0 + 64000) {
+        t += 100;
+        const i = E.swingIndex();
+        E.advance(t, (b) => tl.ingest(Object.assign({ serverNowMs: t }, b), t));
+        if (E.swingIndex() !== i) {
+          const at = E.nextAt(), w = LM.WS.decodeStored(JSON.parse(E.worldAt(E.swingIndex())));
+          const heroes = new Map(w.units.filter((u) => u.side === 'hero' && u.alive).map((u) => [u.id, u.hp]));
+          truth.set(at, heroes);
+          for (const [u, hp] of heroes) {
+            heroIds.add(u);
+            const read = tl.hpAt(u, at - 1);
+            if (!read) continue;
+            swings++;
+            if (read.hp !== hp) off++;
+            if (read.hp <= 0) zero++;
+          }
+        }
+        if ((t - LIVE_H.T0) % 16000 === 0) {
+          const c = srv.commit(t);
+          if (!c) continue;
+          E.reconcile(c.check);
+          closed.ingest({ serverNowMs: t, units: c.tl.hunt_units, fromMs: c.tl.hunt_from_ms, events: c.tl.hunt_events, track: c.tl.hunt_track }, t);
+          if (prev) for (const [u, row] of Object.entries(c.tl.hunt_units)) {
+            if (!heroIds.has(Number(u)) || !(row[2] > 0)) continue;
+            for (let s = prev; s < c.tl.hunt_from_ms; s += 100) { const r = closed.hpAt(Number(u), s); if (r && r.hp <= 0) winZero++; }
+            const end = closed.hpAt(Number(u), c.tl.hunt_from_ms - 1);
+            windows++;
+            if (!end || Math.abs(end.hp - row[2]) > 1) winOff++;
+          }
+          prev = c.tl.hunt_from_ms;
+        }
+      }
+      /* the catch-up lands just inside a swing's end: the book it hands the screen is the engine's HP there */
+      const b = [...truth.keys()].find((at) => at > LIVE_H.T0 + 20000);
+      const res = C.catchUp(b - 1, 0);
+      let catchOff = 0;
+      for (const [u, hp] of truth.get(b)) if (!res || !res.units[u] || res.units[u][2] !== hp) catchOff++;
+      for (const [at, hs] of truth) { const p = truth.get(at - LM.CB.tickMs); if (p) for (const [u, hp] of hs) if (p.has(u) && hp > p.get(u)) regen++; }
+      ok('LV-34', swings > 60 && regen > 0, `CONTROL: ${swings} hero swing ends, ${regen} with HP regained (the case is not exercised)`);
+      ok('LV-34', off === 0 && zero === 0, `viewed: ${off} of ${swings} hero swing ends read other than the engine's HP (${zero} read 0 while alive)`);
+      ok('LV-34', windows >= 6 && winOff === 0 && winZero === 0, `browser closed: ${winOff} of ${windows} server windows ended off the server's HP, ${winZero} instant(s) read a living hero at 0`);
+      ok('LV-34', res && catchOff === 0, `a catch-up handed ${catchOff} hero(es) an HP other than the engine's`);
+    }
+  }
+
   { // LV-31 ANDY'S OWN PARTY SWITCHED BACK (#65, live v0.2.45: four heroes of one account at Coppercap Warrens, toggled
     // between). The viewer (the tank) is away 40 s to 70 s; the heroes viewed meanwhile settle and push frames (`unview`).
     // A monster an earlier pose placed alive and the newest snapshot holds dead must not stand once the screen reaches the
@@ -1480,6 +1560,13 @@ async function pageRules() {
 }
 
 const MUTANTS = [
+  /* Andy 11-06 ("my tank at 0 hp"): the bar is the engine's HP, never below it, and a living unit never reads 0 (LV-34). */
+  ['a living unit reads 0 HP (LV-34)', 'src/hunt-view/timeline.js', 'return { hp: Math.max(alive ? 1 : 0, Math.min(max, hp)), maxHp: max };', 'return { hp: Math.max(0, Math.min(max, hp)), maxHp: max };', /^LV-34: a living tank/],
+  ["the book never takes a window's end (LV-34)", 'src/hunt-view/timeline.js', '    noteUnits(b.endUnits, b.toMs);', '', /^LV-34: the tank read/],
+  ['the HP no event explains is dropped (LV-34)', 'src/hunt-view/timeline.js', '      hp += Math.round(((next[1] - explained) * (t - base[0])) / (next[0] - base[0]));', '', /^LV-34: the tank read/],
+  ['a bleed tick is booked twice (LV-34)', 'src/hunt-view/timeline.js', "if (ev.type === 'dmg' || ev.type === 'heal' || ev.type === 'kill') noteDelta(fresh);", "if (ev.type === 'dmg' || ev.type === 'heal' || ev.type === 'kill' || ev.type === 'status_tick') noteDelta(fresh);", /^LV-34: a bleed tick/],
+  ['the live engine feeds no swing end (LV-34)', 'src/hunt-view/live-engine.js', 'endUnits: tl.endUnits, toMs: st.next });', '});', /^LV-34: viewed/],
+  ["a catch-up drops the swing's silent HP (LV-34)", 'src/hunt-view/live-engine.js', '        r[2] += Math.round((e[2] - s0[2] - (last.moved[u] || 0)) * f);\n', '', /^LV-34: a catch-up/],
   /* Andy #65 (live v0.2.45): a hero viewed again mid-hunt shows the server's snapshot at once and eases forward (LV-27). */
   ['a hero viewed again plays a poll behind until its start point (LV-27)', 'src/session/character-session.js', "this.liveLink.join(this.read('hunt').pose);", 'void 0;', /^LV-27: \(first ask a (commit|start point)\) a frame after the switch moved/],
   ['a joining view plays the server window over the snapshot (LV-27)', 'src/session/character-session.js', '    if (this.live.running() || this.live.stalled() || this.liveLink.joining()) {', '    if (this.live.running() || this.live.stalled()) {', /^LV-27: \(first ask a commit\)/],

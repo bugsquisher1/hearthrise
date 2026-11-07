@@ -1554,7 +1554,7 @@ const MUTANTS = [
   ['a frozen peer swings every shot on its worn rolls (LV-4P)', 'src/core/member.js', '    shotRolls: (m, ammo, sharePm) => {', '    wornOnly: (m, ammo, sharePm) => {', /^LV-4P: viewing/],
   ['a frozen peer\'s store shot hits as a carried one (LV-4P)', 'src/core/member.js', '      for (const pm of [1000, STORE_SHOT_PM]) {', '      for (const pm of [1000]) {', /^LV-4P: viewing/],
   ['a unit spawned in a catch-up\'s last swing has no kind (LV-N, Andy #65)', 'src/hunt-view/live-engine.js',
-    'for (const s of track) { alive.add(s.u); if (!units[s.u] && !killed.has(s.u) && hp[s.u]) units[s.u] = hp[s.u]; }', 'for (const s of track) alive.add(s.u);', /^LV-N: a restart played on/],
+    'for (const s of track) { alive.add(s.u); if (!units[s.u] && !killed.has(s.u) && hp[s.u]) units[s.u] = rowAt(s.u); }', 'for (const s of track) alive.add(s.u);', /^LV-N: a restart played on/],
 ];
 
 async function mutate() {

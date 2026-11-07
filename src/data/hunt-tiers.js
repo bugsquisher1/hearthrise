@@ -28,11 +28,18 @@ const NORMAL = Object.freeze(tier('normal', Object.freeze([0, 0, 0, 0]), 1000, 1
 export const GROUND_TIERS = {
   /* No more monsters: the Thicket's Normal sits about 15% under Wickstead's, so its room is the stats. A pull of 3 at no extra XP already beats it for AoE. */
   meadowbrook_thicket: { dangerous: tier('dangerous', [0, 0, 0, 0], 1500, 1050), deadly: tier('deadly', [0, 0, 0, 0], 3000, 1080) },
-  /* A lone hero stops at 5: a full box beats the Glade for a hammer even at no extra XP. A party keeps it, under by a fifth. */
-  wickstead: { dangerous: tier('dangerous', [3, 4, 4, 5], 1500, 1050), deadly: tier('deadly', [5, 8, 8, 8], 2000, 1100) },
+  /* A LONE HERO'S HARDER TIER IS A RISK, NOT FREE XP (Tyler 2026-11-06, "Yes, make it risky"; lane/b-tier-risk, plans tierrisk and tierrisk2,
+     2 seeds x 2 h a cell). Alone, Wickstead keeps the ground as it stands and hits twice and two and a half times as hard: the extra pull
+     (3 and 5 alone) paid 1.47-1.72x Normal with every way to fight alive and richer. A party keeps its pulls, and its gains held at 2.5x. */
+  wickstead: { dangerous: tier('dangerous', [0, 4, 4, 5], 2000, 1050), deadly: tier('deadly', [0, 8, 8, 8], 2500, 1100) },
   /* A lone hero keeps the ground as it stands: a pull of 4 beats the Glade for a hammer. A party keeps the full box. */
   millrace_sewer: { dangerous: tier('dangerous', [0, 5, 5, 6], 1200, 1050), deadly: tier('deadly', [0, 8, 8, 8], 1750, 1100) },
-  mosslight_glade: { dangerous: tier('dangerous', [4, 5, 5, 6], 1200, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1500, 1200) },
+  /* The Glade (lane/b-tier-risk; Tyler 2026-11-06 20:20 UTC: "if you are fighting outside your weight class even in a party, you're gonna waste
+     money but get more exp and possibly die a few times"). Alone, Dangerous brings 3, the pull that first brings the Brook Bear (the Keep's
+     pelts stay a lone hero's). Dangerous hits 1.4x: a duo under the Glade's Levels now pays for it in food (net -1.8k to -8.1k an hour at 13-14)
+     while one at its Levels still nets +2.3k to +3.7k. Deadly keeps the full box (Tyler 10-18) at 1.6x, next to the 1.5x a four found about
+     right (Andy, 11-06): a four at 24-31 holds and nets +4k to +7.7k, and a party under the Glade's Levels dies there. */
+  mosslight_glade: { dangerous: tier('dangerous', [3, 5, 5, 6], 1400, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1600, 1200) },
   coppercap_warrens: { dangerous: tier('dangerous', [4, 5, 5, 6], 1200, 1100), deadly: tier('deadly', [8, 8, 8, 8], 1500, 1200) },
 };
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);

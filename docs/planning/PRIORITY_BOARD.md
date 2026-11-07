@@ -30,6 +30,51 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-11-06 Fighting above your weight class costs gold and lives (designer, lane/b-tier-risk, **Tyler 2026-11-06: "Yes, make it risky", then 20:20 UTC: "if you are fighting outside your weight class even in a party, you're gonna waste money but get more exp and possibly die a few times"**): BUILT on the harder tiers, measured on the real settle, one rows-only catalogue STAGED, the edge moves. **Normal is NOT done: it needs an engine rule (Systems)**
+**The call.** The pace stays on Normal. Above your Level, every harder tier still pays more XP, and now it costs gold and some deaths, more the further below the ground you are. At the right Level, Normal stays safe and a four's Deadly stays where Andy found it ("mostly balanced for 4-man squads"). Tyler's 11-05 tier words stand: bigger pulls, harder hits, more XP a kill, the same coin and drops, and you can die. The death penalty is unchanged (the 10-25 ruling, §4).
+
+**The rows** (`src/data/hunt-tiers.js`. Pull for one to four heroes, where 0 is the ground as it stands, then power and XP in permille). Normal and the Thicket, the Sewer and the Warrens don't move.
+| Ground, tier | Live | Written | Why |
+|---|---|---|---|
+| Wickstead Dangerous | 3,4,4,5 · 1500 · 1050 | 0,4,4,5 · 2000 · 1050 | The extra lone pull was the whole free gain |
+| Wickstead Deadly | 5,8,8,8 · 2000 · 1100 | 0,8,8,8 · 2500 · 1100 | Same. At 3000 the parties died at 13, at 2500 they held |
+| Glade Dangerous | 4,5,5,6 · 1200 · 1100 | 3,5,5,6 · 1400 · 1100 | A pull of 3 brings the Brook Bear, so the Keep's pelts stay a lone hero's (`drop-tables` big-pull). 1400 is what makes a pair two Levels under the floor pay for it |
+| Glade Deadly | 8,8,8,8 · 1500 · 1200 | 8,8,8,8 · 1600 · 1200 | The full box stays (Tyler 10-18). 1600 is the most a four at the Glade's floor (16) holds: at 2000 it dies 51-107 times in 16 hero-hours |
+
+**Under your weight class, a pair at the Glade** (floor 16, Levels 13-14, 4 seeds x 2 h a cell, per party an hour. Damage taken, food and drinks used, deaths in 10 h, net gold).
+| Pair, Level, tier | Live | Written |
+|---|---|---|
+| Tank + healer 13-14, Normal | 53-54k XP, 13.4-13.8k taken, 0 food 12-16 drinks, 0 deaths, +3.0-3.1k | the same (Normal doesn't move) |
+| Tank + healer 13-14, Dangerous | 67.5-67.7k, 28.8-29.2k taken, 50-56 food 64-65 drinks, 0 deaths, +0.2-0.4k | 67.6-68.5k, 36.3-37.2k taken, 101-109 food 75-78 drinks, 0 deaths, **-1.9 to -2.3k** |
+| Hammer + bow 13-14, Normal | 76-77k, 12.8-13.0k taken, 18-23 food 9-10 drinks, 0 deaths, +3.7-4.0k | the same |
+| Hammer + bow 13-14, Dangerous | 102k, 28.5-29.0k taken, 201-213 food 11-13 drinks, 0 deaths, -2.2 to -2.8k | 99-101k, 36.4-38.1k taken, 304-334 food 12-13 drinks, **2.5-8.8 deaths, -6.3 to -7.9k** |
+| Either pair 13-14, Deadly | 62-90k, 140-650 deaths, -13.6 to -14.1k | 59-86k (1.1x its Normal), 290-950 deaths (one every minute or two, the sim restarting at once), -13.5 to -15k |
+
+**At your weight class, the safety checks.**
+| Who | Written rows |
+|---|---|
+| Lone hero on Normal, Wickstead 13 and the Glade 16, the 8 ways to fight x 4 seeds x 2 h | 0 deaths in 64 h each. The worst cell's median low point is 94% HP (Wickstead) and 79% (the Glade) |
+| Four at the Glade 16 / 24 / 31 on Deadly (tank, healer or hammer, bow, mage) | 129-134k / 139-146k / 163-166k a head, 0-9 / 0 / 0 deaths in 16 hero-hours, +0.1-2.5k / +4-5k / +7.5-7.7k. At 31 that is 1.64x its Normal, as on the live row |
+| Four at the Glade 31 on Dangerous | 124.4-124.7k, 0 deaths, the same as live |
+
+**Andy's run, the first live Deadly** (party 741a2c33, 11-06 20:00:15 to 20:08:35 UTC): Klappa (club) and Krungus (ranged) at 13 to 14, Saphina (magic) at about 8. 267 kills in 8m20s, 190,821 Level XP/h a head for the two at 14, then Klappa died to a goblin_sluicer for 485 Level XP. Replayed (Levels 14, 14 and 8, 2 seeds x 2 h, the sim starts the next hunt at once after a death): on the live row 124.9k a head for the two at 14, 168 deaths, -4.5k an hour. On the written row 121.0k (1.45x their Normal 83.6k, 3.9x a lone 14 on Normal at Wickstead, 31.1k), 203 deaths, -4.7k. That is Tyler's weight class: more XP, a gold bill, many deaths. The deaths come from the free restart, which the death penalty ruling keeps.
+
+**Alone, before and after** (median of the 8 ways to fight, 2 seeds x 2 h a cell, the same dice. XP an hour, net, how many of 8 held with no death).
+| Ground, Level | Normal | Dangerous live → written | Deadly live → written | Best honest tier x Normal |
+|---|---|---|---|---|
+| Wickstead 8 / 13 / 18 | 30-32.9k | 41.5-48.6k → 31.3-34.2k, 8/8 | 46.5-56.4k, 4-8/8 → 32.4-36k, 7-8/8 | 1.47-1.72 → 1.09-1.10 |
+| Glade 16 | 72.7k, +4.8k | 91.3k +2.4k → 87k +2.9k, 8/8 | 105k 1/8 → 104.6k -18.5k 0/8 | 1.26 → 1.20 |
+| Glade 24 | 77.7k, +5.4k | 100.2k +6.3k → 94.2k +5.9k, 8/8 | 117.9k 3/8 → 118k -12.7k 2/8 | 1.48 → 1.28 |
+| Glade 31 | 84.2k, +6k | 117.5k +7.8k → 108k +7.2k, 8/8 | 137.9k +3k → 136.4k +1.3k, 8/8 | 1.59 → 1.47 |
+| Glade 40 / 50 | 85.8k / 87.2k | 122-127k → 112-115k, 8/8 | 147-153k → 147-153k, 8/8, +8.4-9.5k | 1.79-1.82 → 1.78-1.81 |
+**The fastest honest lone path to Level 50** (each Level's reference rate times the median way to fight's best tier that held and netted, on the ground the game sends a lone hero to): **110.9 h, was 102.1** (Level 25 in 30.1 h, Level 10 in 5.8 h, against 169.8, 34.5 and 6.2 on Normal). Wickstead's free lone gain is gone. The Glade's is not: a lone hero above its band (31-50) still holds its Deadly at 1.5-1.8x, because the one power number that keeps a four at 16 alive can't also hurt a lone hero at 40.
+
+**Still open, not built.**
+1. **Normal under your weight class (Systems, an engine rule).** A pair two Levels under the Glade's floor still nets +3-4k on Normal with no deaths, which is Andy's "barely taking damage". No tier row reaches Normal, and a monster row hits the right-Level hero too: the Glade's monsters at 1.5x attack (plan `weightclass2`) left the pair at +0.9-2.1k while the lone 16 dropped to a 72% low point. The rule Tyler's words ask for: for each Level a hero is below a ground's band, its monsters hit that hero harder (more accuracy and more damage), on every tier, and nothing changes at or above the floor. It lives in `combat-sim` beside the tier power, with the gap read from the ground's `band`. Numbers to be set by its own sweep.
+2. **A tier's power per party size (Systems).** `powerPm` as four numbers, like `pull`, through `atTier`, `levelAtTier` and `hr_ground_tiers.power_pm`. With it, a lone hero's Deadly at the Glade 31-50 can carry a bill while a four at 16 keeps 1600.
+
+**Proof and guards.** Real settle, `tools/balance-sim` plans `weightclass` (64 cells), `weightclass2` (124), `weightclassfinal` and the Glade's lone tiers re-played (125), `tierrisklive2` (Andy, 11), `tierrisk` (472), `tierrisk2` (236), readers `tools/balance-sim/pacefinal-table.mjs` and `tierrisk-table.mjs`. Server: `2027-03-19-tier-risk.generated.sql` by the new `tools/gen-ground-tiers.mjs`, rows only (10, as before), a self-check, byte-identical on a second apply. `tests/hunt-core/hunt-tiers.mjs` reads it. **Assumed:** that 4 hours with no death is "held" (it bounds a death rate only under about 0.9 an hour), and that the median way to fight stands for the fastest player.
+
 ### 2026-11-06 Final pace re-measure (designer, lane/b-pace-final): MEASURED on `set/v0.2.99` 677763d98, the curve RE-FITTED (data rows), one rows-only curve file STAGED, the edge moves. **Tyler: one call at the end**
 **What was measured.** The set that holds every change that moves combat or drops: Tempering and its salts, the three tiers, the kiter fix, armor tiers, capes and foods, caster starter bars, the rune ladder with Etched at 12 g, the Cleave fix, the paid boss, the jewelry sample. Real settle (`tools/balance-sim`), seeded: plan `pace` (8 careers, one per way to fight alone, Level 1 to 50 where the Hunts window sends a lone hero, seed 0, 1,410 hero-hours a run; run on the old curve and again on the re-fit), plan `ladder` (120 cells, each ground in its own band, 2 seeds x 2 h), plan `pacefinal` (564 cells: Normal, Dangerous and Deadly at 3-5 Levels of every ground that has them, the eight ways to fight alone and four parties, 2 seeds x 2 h; the casters on each rune tier and the healer's line, 4 seeds x 2 h), plan `jewelry` (15 cells, 4 seeds x 2 h). Reader: `tools/balance-sim/pacefinal-table.mjs`.
 

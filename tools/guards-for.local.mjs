@@ -55,10 +55,10 @@ console.log(red ? `RED: ${red} of ${list.length}` : `GREEN: ${list.length} of ${
 
 let proofs = 0;
 if (!args.includes('--no-proofs')) {
-  const dirty = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).stdout.trim();
+  const dirty = (spawnSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).stdout || '').trim();
   if (dirty) console.log('\nguards-for: UNCOMMITTED changes are not in the proofs\' diff (GitHub reads commits): commit, then run again');
   console.log('\nThe proofs GitHub will run for this diff:');
-  const p = spawnSync(process.execPath, [fileURLToPath(new URL('./preflight.local.mjs', import.meta.url)), '--proofs', '--base', base, ...(args.includes('--pages') ? ['--pages'] : [])], { stdio: 'inherit' });
+  const p = spawnSync(process.execPath, [fileURLToPath(new URL('./preflight.local.mjs', import.meta.url)), '--proofs', '--plant', '--base', base, ...(args.includes('--pages') ? ['--pages'] : [])], { stdio: 'inherit' });
   proofs = p.status ?? 1;
   if (proofs === 3) console.log('guards-for: some proofs were NOT JUDGED here; GitHub will judge them');
 }

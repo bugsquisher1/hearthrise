@@ -9,6 +9,8 @@
 //   node tools/preflight.local.mjs --proofs     instead: the proofs this diff touches in every job with no browser, narrowed
 //                                               as GitHub narrows them, one at a time (10-20 min, no Chrome)
 //   node tools/preflight.local.mjs --proofs --pages   the same with the page guards' proofs (one Chrome, a minute a mutant)
+//   node tools/preflight.local.mjs --proofs --plant   in a LANE's own worktree: the proofs that plant into the tree too (party-flow,
+//                                               hunt-live: 3 of the 18 proof reds since 11-04); refuses a dirty tree, checks it after
 //   node tools/preflight.local.mjs --selftest   the plan and the verdict, each proved by a planted mutant
 //
 // WHY (lane r-release-gate, 2026-11-04). Of the 79 causes behind the last 30 red release runs, 24 were a forgotten pin or
@@ -142,11 +144,11 @@ export function buildPlan(text, { changed = [], selected = new Set(), solo = new
 }
 
 /** --proofs: the touched proofs of every job that installs no browser, read from the workflow. Pure. */
-export function proofsPlan(text, { selected = new Set(), solo = new Set(), pages = false } = {}) {
+export function proofsPlan(text, { selected = new Set(), solo = new Set(), pages = false, plant = false } = {}) {
   const jobs = parseWorkflow(text);
   const browser = new Set(jobs.filter((j) => j.steps.some((s) => /playwright-chromium/.test(s.uses || ''))).map((j) => j.name));
   /* (run-ci-local's skips are for a machine with no browser; with --pages only the installs stay out.) */
-  const plan = buildPlan(text, { selected, solo, slow: new Map(), extras: [], job: { test: (name) => pages || !browser.has(name) }, skip: pages ? (name) => /^Install /.test(name) : isSkipped });
+  const plan = buildPlan(text, { selected, solo: plant ? new Set() : solo, slow: new Map(), long: new Map(), first: new Set(), extras: [], job: { test: (name) => pages || !browser.has(name) }, skip: pages ? (name) => /^Install /.test(name) : isSkipped });
   return { run: plan.run.filter((r) => r.proof), left: plan.left.filter((l) => PROOF_FLAG.test(l.cmd)), errors: plan.errors };
 }
 
@@ -402,6 +404,7 @@ async function selftest() {
       [!impl(FIXTURE, { selected: new Set() }).run.length, '--proofs on an untouched diff runs nothing'],
       [!n.includes('node tests/page.mjs --mutate'), '--proofs leaves a job with a browser alone'],
       [impl(FIXTURE, { selected: new Set(['tests/page.mjs']), pages: true }).run.some((r) => r.cmd === 'node tests/page.mjs --mutate'), '--proofs --pages reads it'],
+      [impl(FIXTURE, { selected: new Set(['tests/plants.mjs']), solo: new Set(['tests/plants.mjs']), plant: true }).run.some((r) => r.cmd === 'node tests/plants.mjs --selftest'), '--proofs --plant runs a proof that plants (a lane\'s own tree)'],
     ];
   };
   for (const [c, m] of proofChecks(proofsPlan)) ok(c, m);
@@ -412,6 +415,7 @@ async function selftest() {
     ['--proofs runs whatever the diff', (t, o) => proofsPlan(t, { ...o, selected: { has: () => true } })],
     ['--proofs reads the browser jobs too', (t, o) => proofsPlan(t, { ...o, pages: true })],
     ['--pages does nothing', (t, o) => proofsPlan(t, { ...o, pages: false })],
+    ['--plant does nothing', (t, o) => proofsPlan(t, { ...o, plant: false })],
   ]) {
     const missed = proofChecks(impl).every(([c]) => c);
     console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} --proofs mutant: ${label}`);
@@ -425,9 +429,14 @@ async function selftest() {
 /* One at a time, each narrowed by the same plan GitHub hands its guards (HR_MUTANT_SCOPE), each printed as it ends. */
 async function deepProofs(text, d, allProofs, read, solo, argv) {
   const selected = new Set(selectGuards(d.files, { base: d.sha, extraGuards: allProofs, regions: d.regions, read }).keys());
-  const plan = proofsPlan(text, { selected, solo, pages: argv.includes('--pages') });
-  console.log(`preflight --proofs: ${d.files.length} changed file(s) since ${d.sha.slice(0, 9)}; ${plan.run.length} proof(s) to run, ${plan.left.length} that plant into the tree stay on GitHub`);
+  const plant = argv.includes('--plant');
+  const plan = proofsPlan(text, { selected, solo, pages: argv.includes('--pages'), plant });
+  console.log(`preflight --proofs: ${d.files.length} changed file(s) since ${d.sha.slice(0, 9)}; ${plan.run.length} proof(s) to run, ${plan.left.length} that plant into the tree stay on GitHub${plant ? ' (--plant: none)' : ''}`);
   if (argv.includes('--list')) { for (const r of plan.run) console.log(`  run   ${r.cmd}`); for (const l of plan.left) console.log(`  left  ${l.cmd}`); return 0; }
+  /* A plant interrupted mid-run stays in the tree (11-05: guard-anchors' plant in src/session/envelope.js). On a dirty tree it
+     could not be told from the lane's own edits, so --plant refuses one, and names any file a proof left changed. */
+  const status = () => spawnSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }).stdout || '';
+  if (plant && d.dirty) { console.error('preflight --proofs --plant: the tree has uncommitted changes; commit them first, so a plant left behind can be seen'); return 2; }
   const dir = mkdtempSync(join(tmpdir(), 'hr-preflight-plan-'));
   const scope = join(dir, 'plan.json');
   writeFileSync(scope, JSON.stringify({ full: false, base: d.sha, tip: d.head, changed: d.files, selected: Object.fromEntries([...selected].map((g) => [g, 'preflight --proofs'])) }));
@@ -440,6 +449,8 @@ async function deepProofs(text, d, allProofs, read, solo, argv) {
     } });
     const v = verdict(results);
     console.log(`\npreflight --proofs: ${v.green} green, ${v.red.length} red, ${v.unjudged.length} not judged, ${Math.round((Date.now() - t0) / 1000)} s`);
+    const left = plant ? status().trim() : '';
+    if (left) { console.error(`preflight --proofs --plant: a proof left the tree changed; restore it before committing:\n${left}`); return 2; }
     return v.exit;
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }

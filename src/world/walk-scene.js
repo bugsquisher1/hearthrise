@@ -19,17 +19,17 @@
 // activity's stand, goTo). Standing still for any length of time never moves it.
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
-import { TAP_OPENS, SITE_OPENS } from '../data/world/stations.js?v=0.2.105';
-import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.105';
+import { TAP_OPENS, SITE_OPENS } from '../data/world/stations.js?v=0.2.106';
+import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.106';
 
 /* what a tap opens: the stations' rows and the sinks' (which stay out of stations.js: the edge bundles it) */
 const OPENS = Object.freeze({ ...TAP_OPENS, ...SINK_TAPS });
-import { createSteer, tapAction, walkClip } from './steer-local.js?v=0.2.105';
-import { createTownCast } from './town-scene.js?v=0.2.105';
-import { furnish, maskWith } from './home-scene.js?v=0.2.105';
-import { pickFacing } from './core/facing.js?v=0.2.105';
-import { GRIDS } from '../data/world/art-budget.js?v=0.2.105';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.105';
+import { createSteer, tapAction, walkClip } from './steer-local.js?v=0.2.106';
+import { createTownCast } from './town-scene.js?v=0.2.106';
+import { furnish, maskWith } from './home-scene.js?v=0.2.106';
+import { pickFacing } from './core/facing.js?v=0.2.106';
+import { GRIDS } from '../data/world/art-budget.js?v=0.2.106';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.106';
 
 /* How far a walked map's camera leans from the hero toward the map's `focus`:
    halfway keeps the hero on screen anywhere on a town-sized map and the plaza

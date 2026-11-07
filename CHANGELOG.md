@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.106 — 2026-11-07 (One Rule for Every Hunt)
+
+**Every hunting ground now follows the same rules.** How hard monsters hit, how much health they have and what they pay now come from one formula, set by each ground's Level. Moving from one ground to the next should feel even. If you're partway through the game, some hunts will feel different, but your hero keeps everything.
+
+- The Mosslight Glade's monsters hit 20% harder on Normal.
+- At the Meadowbrook Thicket and Wickstead, no single blow takes more than a tenth of a new hero's health.
+- Millrace Sewer monsters land fewer hits, but each one hits harder. The damage is about the same, and better armor now blocks more of it.
+- The Coppercap Warrens pay more gold. A party of four earns about 45% more an hour.
+- Levels 4 to 8 come faster.
+
+**Dangerous and Deadly work the same way everywhere.** Each harder tier brings bigger pulls, monsters that hit harder and have up to 10% more health, and more XP per kill. Dangerous gives up to 20% more XP and Deadly up to 25% more. The hunt screen shows how much harder each tier hits. Coin per kill never changes with the tier.
+
+- At Wickstead and the Sewer, a hero alone gets no bigger pull.
+- A party of two different classes earns more XP at the Mill Cellar and the Sewer. Three classes together at Wickstead earn a little more too.
+- The Party window now shows the XP bonus a party really gets.
+
 ## v0.2.105 — 2026-11-07 (No Immunities)
 
 **No monster is immune anymore.** Every element now hurts every monster. A monster can still resist an element and take less from it, but never nothing. Sewer slimes take half damage from fire, frost and poison, and the Fire Elemental takes half from fire. Your fire spells work in the Sewer again.

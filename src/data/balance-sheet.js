@@ -154,7 +154,7 @@ export const STAT_FORMULA = Object.freeze({
   fit: Object.freeze({
     solo: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
     both: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
-    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.02, gpFull: 0.53 }),
+    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.02, gpFull: 0.53, blowShape: 1.6 }),
   }),
 });
 
@@ -268,12 +268,17 @@ export function formulaStats(spec, opts = {}) {
   const fit = (F.fit && F.fit[spec.fit || 'solo']) || { hp: 1, blow: 1, xp: 1 };
   const dz = dangerAt(Number(spec.floor), 0, F);
   const h0 = fit.hit || 0, fitHit = fit.hitFull === undefined ? h0 : h0 + (fit.hitFull - h0) * dz.ramp;
-  const hit = dz.hit + R.hit + fitHit;
+  const shape0 = R.floorCap ? 1 : 1 + ((fit.blowShape || 1) - 1) * (1 - dz.ramp);
+  const hit = (dz.hit + R.hit + fitHit) / shape0;
   /* a boss's blow is held under its cap of the FLOOR hero, however deep it lives */
   const gentleCap = F.blow.gentleCap ? F.blow.gentleCap + (1 - F.blow.gentleCap) * dz.ramp : Infinity;
   const blowShare = R.floorCap ? Math.min(dz.blow * R.blow * (fit.bossBlow ? fit.blow : 1), (R.floorCap * F.refHp(Number(spec.floor))) / F.refHp(L))
     : Math.min(dz.blow * R.blow * fit.blow, (gentleCap * F.refHp(Number(spec.floor))) / F.refHp(L));
-  const atk = Math.max(1, Math.round((blowShare * F.refHp(L)) / scale));
+  /* THE BLOW'S SHAPE on a gentle party ground (fit.blowShape, 1 on a full one): the same swing worth as fewer, bigger blows, so a blow clears the
+     ward of cheap armor and an armor rung is felt (temper-play armor-below-the-next-set). The engine swings every 2 s (Tyler 10-15), so the
+     to-hit falls as the blow grows. */
+  const shape = R.floorCap ? 1 : 1 + ((fit.blowShape || 1) - 1) * (1 - dz.ramp);
+  const atk = Math.max(1, Math.round((blowShare * shape * F.refHp(L)) / scale));
   /* to-hit at the same-Level hero = baseAcc + (atk - L) x 0.02, so: */
   const baseAcc = Math.round((hit - (atk - L) * ACC_PER_POINT) * 100) / 100;
   const rHp = R.gentleHp === undefined ? R.hp : R.gentleHp + (R.hp - R.gentleHp) * dz.ramp;

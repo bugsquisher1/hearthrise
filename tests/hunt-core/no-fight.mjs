@@ -163,8 +163,8 @@ R.ok(!gaps, 'quiet-gaps: ' + gaps);
 
 const MUTANTS = [
   { name: 'the end never fires', edits: [['src/core/action-rules.js', "  no_fight: (hs, t) => Number.isInteger(hs.fightAtMs) && t - Math.max(hs.fightAtMs, Number(hs.huntFromMs) || 0) >= NO_FIGHT_END_MIN * 60000,", '  no_fight: () => false,']], arm: /^trapped/ },
-  { name: 'a blow never resets the clock (a party that kills goes home)', edits: [['src/core/hunt/damage.js', "    if (target.side === 'mon') inst.world.fightAt = sc.atMs;\n", '']], arm: /^(party-fights|dried-up)/ },
-  { name: 'a blow at a hero counts as a fight', edits: [['src/core/hunt/damage.js', "    if (target.side === 'mon') inst.world.fightAt = sc.atMs;\n", '    inst.world.fightAt = sc.atMs;\n']], arm: /^(trapped|dried-up)/ },
+  { name: 'a blow never resets the clock (a party that kills goes home)', edits: [['src/core/hunt/damage.js', "  if (target.side === 'mon') inst.world.fightAt = sc.atMs;\n", '']], arm: /^(party-fights|dried-up)/ },
+  { name: 'a blow at a hero counts as a fight', edits: [['src/core/hunt/damage.js', "  if (target.side === 'mon') inst.world.fightAt = sc.atMs;\n", '  inst.world.fightAt = sc.atMs;\n']], arm: /^(trapped|dried-up)/ },
   { name: 'the clock does not survive a settle cut', edits: [['src/core/hunt/damage.js', "  world: Object.freeze([['fightAt', 'int']]),", '  world: Object.freeze([]),']], arm: /^trapped/ },
   { name: 'a fresh world keeps no clock of its own (a restart ends an old hunt)', edits: [['src/core/combat-sim.js', '          world.fightAt = atMs;\n', '']], arm: /^restart/ },
   { name: 'a late joiner reads the world\'s clock alone', edits: [['src/core/action-rules.js', 't - Math.max(hs.fightAtMs, Number(hs.huntFromMs) || 0) >= NO_FIGHT_END_MIN * 60000', 't - hs.fightAtMs >= NO_FIGHT_END_MIN * 60000']], arm: /^late-joiner/ },

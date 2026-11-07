@@ -23,8 +23,8 @@ export const FLOAT_TYPES = Object.freeze([
   Object.freeze({ id: 'heal', label: 'Healing', on: on(true, true) }),
   Object.freeze({ id: 'xp', label: 'Level XP gained', on: on(true, true) }),
   Object.freeze({ id: 'level', label: 'Level ups', on: on(true, true) }),
-  /* a miss, a dodge or a blow a barrier swallowed is a spark (hunt-vfx.js GLANCE_FX, Tyler 2026-11-04); only `immune` is still a word */
-  Object.freeze({ id: 'miss', label: 'Missed blows and immune hits', on: on(true, true) }),
+  /* a miss, a dodge or a blow a barrier swallowed is a spark (hunt-vfx.js GLANCE_FX, Tyler 2026-11-04), never a word */
+  Object.freeze({ id: 'miss', label: 'Missed blows', on: on(true, true) }),
   Object.freeze({ id: 'supply', label: 'Food, drink and mana', on: on(true, true) }),
   Object.freeze({ id: 'loot', label: 'Loot', on: on(true, true) }),
   Object.freeze({ id: 'ability', label: 'Ability names', on: on(true, true) }),

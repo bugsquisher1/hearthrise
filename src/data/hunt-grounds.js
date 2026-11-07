@@ -127,9 +127,9 @@
 // whose row says `partyScale: true` (the two grounds the party test measured;
 // lane action-engine wired it 2026-10-18: pull-cycle spawnPack via packHpFor).
 // A ground opts in by its row so the measured kill rates of the fixture rooms
-// the drop odds are pinned on do not move until the Designer rules them. A solo
-// Healer gets an element floor so an immune first room is not a wall (every
-// ground; damage.hurt via elementWithFloor). Both are DATA.
+// the drop odds are pinned on do not move until the Designer rules them. It is
+// DATA. (The solo Healer's element floor is gone with the immunities it answered,
+// Tyler 2026-11-06: every element now lands at least ELEMENT_PCT's share.)
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -455,11 +455,6 @@ export function monstersOn(ground, partySize) {
   return out;
 }
 
-/* THE SOLO HEALER FLOOR (same ruling): in a party of one Healer, the Healer's blows
-   are worth at least this much (permille) whatever the target's element profile, so
-   a Healer alone can still clear a first room that is immune to her one element. */
-export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille: 500 });
-
 /* MONSTER DENSITY: how many monsters a pull brings (0 = the room as built). THE DIAL IS GONE (lane/c-difficulty-tiers): the
    tier a hero or its party's leader picks (hunt-tiers.js) sets it, and the server freezes that number at hunt start. The
    settle still CLAMPS it to the ground's `densityMax` for the party's size (a row's array, one entry per party size 1..4).
@@ -524,11 +519,6 @@ export function packHpFor(ground, row, partySize) {
 /** A spawned monster's HP for `partySize`: the row's HP scaled, never below 1. */
 export function scaledHp(row, partySize) {
   return Math.max(1, Math.floor(((row && row.hp) || 1) * packScalePermille(partySize) / 1000));
-}
-
-/** The element value (permille) a hero's blow lands at, after the solo Healer floor. */
-export function elementWithFloor(permille, role, partySize) {
-  return role === SOLO_HEALER_FLOOR.role && partySize === 1 ? Math.max(permille, SOLO_HEALER_FLOOR.elementPermille) : permille;
 }
 
 const isBoss = (s) => !!(MONSTERS[s.monster] && MONSTERS[s.monster].boss === true);

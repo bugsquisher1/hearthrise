@@ -41,7 +41,6 @@ export const EVENT_TYPES = Object.freeze({
   /* damage.js */
   dmg: Object.freeze(['u', 't', 'amount']),
   miss: Object.freeze(['u', 't']),
-  immune: Object.freeze(['u', 't']),
   kill: Object.freeze(['u', 't']),
   /* abilities.js */
   cast: Object.freeze(['u', 'ability']),

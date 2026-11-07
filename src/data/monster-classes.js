@@ -18,7 +18,7 @@
 //
 // TWO AXES, AND ONLY TWO
 //   • weapon  — sword | hammer | ranged | magic   (weak / resist)
-//   • element — ember | frost | poison            (weak / resist / immune)
+//   • element — ember | frost | poison            (`elements`: percent less taken)
 //   `neutral` is RETIRED (DEC-NEUT-01). Every class has a real weapon
 //   weakness, distributed 3/3/3/2 across sword/hammer/ranged/magic; the
 //   distribution is asserted below so a future edit cannot quietly make one
@@ -35,7 +35,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 /* The element vocabulary is src/data/elements.js's, the one copy (re-exported). */
-import { ELEMENTS, isElement } from './elements.js?v=0.2.104';
+import { ELEMENTS, elementProfileProblems } from './elements.js?v=0.2.104';
 export { ELEMENTS };
 
 /** The weapon triangle axis. NOTE: 'neutral' is deliberately absent. */
@@ -47,79 +47,86 @@ export const WEAPON_AXES = Object.freeze(['sword', 'hammer', 'ranged', 'magic'])
    breath; an Elemental is ruined by its opposite). Declaring one there is
    REQUIRED and is therefore NOT counted as an override.
 
-   `hiddenElement: true` (Extra Dimensional only) means the element weakness
+   `hiddenElement: true` (Extra Dimensional only) means the element profile
    exists in data but must not be shown until the bestiary threshold is met —
-   PROG-01's proof of value. The data carries `elementWeak` so the combat
-   engine can resolve it; the RENDERER is what hides it. */
+   PROG-01's proof of value. The data carries `elements` so the combat
+   engine can resolve it; the RENDERER is what hides it.
+
+   `elements` is the WHOLE element profile: percent LESS damage taken per
+   element, negative = takes more, unnamed = full (src/data/elements.js). A
+   monster that states its own replaces its class's whole profile.
+   NO IMMUNITIES (Tyler 2026-11-06 ~21:51 UTC, Discord: "i meant to remove all
+   'immunity' and move it to %s"): converted that day at weak -15, resist 25
+   and every former immunity 50. The numbers are the Game Designer's. */
 export const MONSTER_CLASSES = Object.freeze({
   mammal: {
     id: 'mammal', name: 'Mammal', order: 1,
     line: 'Ordinary animals, fast and unarmoured. The first foes most heroes meet.',
     weaponWeak: 'ranged', weaponResist: ['magic'],
-    elementWeak: 'ember', elementResist: [], elementImmune: [],
+    elements: { ember: -15 },
   },
   vermin: {
     id: 'vermin', name: 'Vermin', order: 2,
     line: 'Small, many, and it does not care how sharp your sword is.',
     weaponWeak: 'hammer', weaponResist: ['ranged'],
-    elementWeak: 'frost', elementResist: [], elementImmune: ['poison'],
+    elements: { frost: -15, poison: 50 },
   },
   plant: {
     id: 'plant', name: 'Plant', order: 3,
     line: 'Rooted, patient, and it burns. Poison is something plants make.',
     weaponWeak: 'sword', weaponResist: ['ranged'],
-    elementWeak: 'ember', elementResist: ['poison'], elementImmune: [],
+    elements: { ember: -15, poison: 25 },
   },
   humanoid: {
     id: 'humanoid', name: 'Humanoid', order: 4,
     line: 'Goblins, trolls, ogres, giants. Armored, drops gear, hits hard.',
     weaponWeak: 'sword', weaponResist: [],
-    elementWeak: 'poison', elementResist: [], elementImmune: [],
+    elements: { poison: -15 },
   },
   human: {
     id: 'human', name: 'Human', order: 5,
     line: 'People, bandits and casters both. Glass, and they hit like a cart.',
     weaponWeak: 'ranged', weaponResist: ['magic'],
-    elementWeak: 'poison', elementResist: [], elementImmune: [],
+    elements: { poison: -15 },
   },
   undead: {
     id: 'undead', name: 'Undead', order: 6,
-    line: 'Bones and grief. Crush them. Poison does nothing to the dead.',
+    line: 'Bones and grief. Crush them. Poison does little to the dead.',
     weaponWeak: 'hammer', weaponResist: [],
-    elementWeak: 'ember', elementResist: ['frost'], elementImmune: ['poison'],
+    elements: { ember: -15, frost: 25, poison: 50 },
   },
   demon: {
     id: 'demon', name: 'Demon', order: 7,
     line: 'Things that came up. Magic-shy, and fire is their native language.',
     weaponWeak: 'magic', weaponResist: [],
-    elementWeak: 'frost', elementResist: [], elementImmune: ['ember'],
+    elements: { ember: 50, frost: -15 },
   },
   dragon: {
     id: 'dragon', name: 'Dragon', order: 8,
     line: 'Wyrms, drakes, wyverns. Scaled against blades, open to a good shot.',
     weaponWeak: 'ranged', weaponResist: ['sword'],
     elementPerMonster: true,
-    elementWeak: null, elementResist: [], elementImmune: [],
+    elements: {},
   },
   elemental: {
     id: 'elemental', name: 'Elemental', order: 9,
-    line: 'It is the element. Immune to its own, ruined by its opposite.',
+    line: 'It is the element. Its own does it little harm, and its opposite ruins it.',
     weaponWeak: 'magic', weaponResist: ['sword'],
     elementPerMonster: true,
-    elementWeak: null, elementResist: [], elementImmune: [],
+    elements: {},
   },
   construct: {
     id: 'construct', name: 'Construct', order: 10,
-    line: 'Stone, clay, clockwork. No blood to spill, no lungs to poison.',
+    line: 'Stone, clay, clockwork. No blood to spill, and little for poison to eat.',
     weaponWeak: 'hammer', weaponResist: ['ranged'],
-    elementWeak: 'frost', elementResist: ['ember'], elementImmune: ['poison'],
+    elements: { ember: 25, frost: -15, poison: 50 },
   },
   extradimensional: {
     id: 'extradimensional', name: 'Extra Dimensional', order: 11,
     line: 'Endgame only. Its element weakness is not printed until you have killed enough of it.',
     weaponWeak: 'sword', weaponResist: [],
     elementPerMonster: true, hiddenElement: true,
-    elementWeak: null, elementResist: [], elementImmune: [],
+    elements: {},
   },
 });
 
@@ -204,12 +211,15 @@ export const MIN_CLASSES_PER_TIER = 8;
 // ── Resolution ───────────────────────────────────────────────────────────
 
 const arr = (v) => (Array.isArray(v) ? v.slice() : []);
-/* PRESENCE, not truthiness. `elementWeak: null` is an explicit statement —
-   "this monster has NO element weakness" (the Dryad, the Slime, the Ooze) —
-   and must NOT fall through to the class default. Writing this as
-   `m[k] != null` silently inherited Ember onto the Dryad and then flagged it
-   as self-contradictory in the audit, which is how the bug was found. */
+/* An `elements` profile, copied and frozen so no row shares (or edits) its class's object. */
+const profileOf = (v) => Object.freeze(v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {});
+/* PRESENCE, not truthiness. `weaponWeak: null` or `elements: {}` is an explicit
+   statement and must NOT fall through to the class default. Writing this as
+   `m[k] != null` once silently inherited Ember onto the Dryad. */
 const has = (m, k) => Object.prototype.hasOwnProperty.call(m, k) && m[k] !== undefined;
+/* The element fields the percentages replaced (Tyler 2026-11-06). A row or class that still
+   carries one is refused by auditRoster, so a stale lane cannot bring an immunity back unread. */
+const RETIRED_ELEMENT_FIELDS = Object.freeze(['elementWeak', 'elementResist', 'elementImmune']);
 
 /**
  * The effective combat profile of a monster: its class default, with the
@@ -231,8 +241,7 @@ export function resolveMonsterProfile(mon) {
     return {
       cls: m.cls || null, className: m.family || 'Monster',
       weaponWeak: m.weaponWeak || null, weaponResist: arr(m.weaponResist),
-      elementWeak: m.elementWeak || null, elementResist: arr(m.elementResist),
-      elementImmune: arr(m.elementImmune), hiddenElement: false,
+      elements: profileOf(m.elements), hiddenElement: false,
     };
   }
   return {
@@ -240,9 +249,7 @@ export function resolveMonsterProfile(mon) {
     className: c.name,
     weaponWeak: has(m, 'weaponWeak') ? m.weaponWeak : c.weaponWeak,
     weaponResist: has(m, 'weaponResist') ? arr(m.weaponResist) : arr(c.weaponResist),
-    elementWeak: has(m, 'elementWeak') ? m.elementWeak : c.elementWeak,
-    elementResist: has(m, 'elementResist') ? arr(m.elementResist) : arr(c.elementResist),
-    elementImmune: has(m, 'elementImmune') ? arr(m.elementImmune) : arr(c.elementImmune),
+    elements: profileOf(has(m, 'elements') ? m.elements : c.elements),
     hiddenElement: !!c.hiddenElement,
   };
 }
@@ -250,6 +257,10 @@ export function resolveMonsterProfile(mon) {
 const sameSet = (a, b) => {
   const A = arr(a).sort(); const B = arr(b).sort();
   return A.length === B.length && A.every((v, i) => v === B[i]);
+};
+const sameProfile = (a, b) => {
+  const A = profileOf(a), B = profileOf(b);
+  return sameSet(Object.keys(A), Object.keys(B)) && Object.keys(A).every((k) => A[k] === B[k]);
 };
 
 /**
@@ -270,11 +281,7 @@ export function overrideAxisOf(mon) {
   const out = [];
   if ((has(m, 'weaponWeak') && m.weaponWeak !== c.weaponWeak)
     || (has(m, 'weaponResist') && !sameSet(m.weaponResist, c.weaponResist))) out.push('weapon');
-  if (!c.elementPerMonster) {
-    if ((has(m, 'elementWeak') && m.elementWeak !== c.elementWeak)
-      || (has(m, 'elementResist') && !sameSet(m.elementResist, c.elementResist))
-      || (has(m, 'elementImmune') && !sameSet(m.elementImmune, c.elementImmune))) out.push('element');
-  }
+  if (!c.elementPerMonster && has(m, 'elements') && !sameProfile(m.elements, c.elements)) out.push('element');
   return out;
 }
 
@@ -307,9 +314,7 @@ export function applyClassProfiles(MONSTERS) {
     m.className = p.className;
     m.weaponWeak = p.weaponWeak;
     m.weaponResist = p.weaponResist;
-    m.elementWeak = p.elementWeak;
-    m.elementResist = p.elementResist;
-    m.elementImmune = p.elementImmune;
+    m.elements = p.elements;
     m.hiddenElement = p.hiddenElement;
   });
   return MONSTERS;
@@ -360,20 +365,11 @@ export function auditRoster(MONSTERS) {
     if (WEAPON_AXES.indexOf(p.weaponWeak) < 0) {
       problems.push(id + ': weaponWeak "' + p.weaponWeak + '" is not a weapon axis (neutral is retired)');
     }
-    if (p.elementWeak != null && !isElement(p.elementWeak)) {
-      problems.push(id + ': elementWeak "' + p.elementWeak + '" is not an element');
-    }
-    for (const k of ['elementResist', 'elementImmune']) {
-      for (const e of p[k]) if (!isElement(e)) problems.push(id + ': ' + k + ' "' + e + '" is not an element');
-    }
-    if (MONSTER_CLASSES[m.cls].elementPerMonster
-      && p.elementWeak == null && !p.elementImmune.length && !p.elementResist.length) {
+    /* NO IMMUNITIES (Tyler 2026-11-06): one percentage per element, inside ELEMENT_PCT (src/data/elements.js). */
+    for (const k of RETIRED_ELEMENT_FIELDS) if (has(m, k)) problems.push(id + ': ' + k + ' is retired, state the element as a percentage in `elements`');
+    for (const why of elementProfileProblems(p.elements)) problems.push(id + ': ' + why);
+    if (MONSTER_CLASSES[m.cls].elementPerMonster && !Object.keys(p.elements).length) {
       problems.push(id + ': class ' + m.cls + ' requires a per-monster element profile');
-    }
-    // A weakness that is also an immunity/resistance is unfightable nonsense.
-    if (p.elementWeak
-      && (p.elementImmune.indexOf(p.elementWeak) >= 0 || p.elementResist.indexOf(p.elementWeak) >= 0)) {
-      problems.push(id + ': elementWeak "' + p.elementWeak + '" is also resisted/immune');
     }
     if (p.weaponResist.indexOf(p.weaponWeak) >= 0) {
       problems.push(id + ': weaponWeak "' + p.weaponWeak + '" is also resisted');
@@ -432,6 +428,9 @@ export function auditRoster(MONSTERS) {
 
   MONSTER_CLASS_ORDER.forEach((cid) => {
     if (!ids.some((id) => MONSTERS[id].cls === cid)) problems.push('class ' + cid + ' has no monsters');
+    const c = MONSTER_CLASSES[cid];
+    for (const k of RETIRED_ELEMENT_FIELDS) if (has(c, k)) problems.push('class ' + cid + ': ' + k + ' is retired, state the element as a percentage in `elements`');
+    for (const why of elementProfileProblems(c.elements)) problems.push('class ' + cid + ': ' + why);
   });
   TIERS.forEach((t) => {
     const classes = new Set(ids.filter((id) => MONSTERS[id].tier === t).map((id) => MONSTERS[id].cls));

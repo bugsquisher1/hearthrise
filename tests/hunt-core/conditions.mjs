@@ -21,7 +21,6 @@
 //                     every respawn, is a pack of 8, never the room as built; the box's ring of 8 never walls the leader
 //                     off the pull tile (it pulls from the ring's edge)
 //   party-scale       a pack spawns at the party scale's HP for the instance's size
-//   healer-floor      a solo Healer's blow into an immunity lands at the floor; a duo's does not
 //   party-acceptance  a 4-party (Knight, Ranger, Druid, Sorcerer) on one instance: the Ranger switches 5x5 / 3x3 by
 //                     enemies_in_aoe and falls back when the 5x5 runs out, one unit a shot; the Druid heals only the
 //                     Knight and only under 80%; the Sorcerer casts at density 3+; cut into windows (the client closed,
@@ -727,27 +726,6 @@ const cases = {
     if (flat !== M.MONSTERS.drain_rat.hp) return 'a ground that does not opt in scaled its pack to ' + flat;
     return ['mill_cellar', 'millrace_sewer'].every((g) => M.grounds.HUNT_GROUNDS[g].partyScale === true) ? null : 'the cellar and the sewer do not opt in to the party scale';
   },
-  'healer-floor': (M) => {
-    /* A fixture immunity: the monster rows are the designer's, so the immune element is planted on the unit's kind row copy. */
-    const kind = 'rat';
-    const was = M.MONSTERS[kind].elementImmune;
-    const probe = (n) => {
-      const heroes = Array.from({ length: n }, (_, i) => hero(M, i + 1, 2 + i, 3, { role: 'healer' }));
-      const t = mon(M, 10, 0, 13, 3, { kind, hp: 900, maxHp: 900 });
-      const inst = instOf(M, world(M, [...heroes, t]));
-      return M.damage.hurt(inst, t, 100, heroes[0], 'poison', null);
-    };
-    let a; let b;
-    try {
-      Object.defineProperty(M.MONSTERS[kind], 'elementImmune', { value: ['poison'], configurable: true, writable: true });
-      a = probe(1); b = probe(2);
-    } catch (e) {
-      return 'fixture: could not plant an immunity (' + e.message + ')';
-    } finally {
-      try { Object.defineProperty(M.MONSTERS[kind], 'elementImmune', { value: was, configurable: true, writable: true }); } catch { /* frozen */ }
-    }
-    return !a.immune && a.dmg > 0 && b.immune ? null : 'solo ' + JSON.stringify(a) + ' duo ' + JSON.stringify(b);
-  },
   'party-acceptance': (M) => {
     const whole = runParty(M, []);
     const cut = runParty(M, [10000, 26000, 50000, 90000]);
@@ -769,7 +747,7 @@ const cases = {
     const casts = ev.filter((e) => e.type === 'cast' && e.u === sorc && e.ability === 'fireball');
     if (!casts.length) return 'the sorcerer never cast fireball';
     for (const k of casts) {
-      const hits = ev.filter((e) => (e.type === 'dmg' || e.type === 'immune') && e.u === sorc && e.atMs === k.atMs && (e.ability === 'fireball' || e.type === 'immune')).length;
+      const hits = ev.filter((e) => e.type === 'dmg' && e.u === sorc && e.atMs === k.atMs && e.ability === 'fireball').length;
       if (hits < 3) return 'a fireball at density ' + hits + ' (the rule says 3+)';
     }
     /* XP and loot settled ONCE: every monster kill is one tally kill and one bestiary count, never twice. */
@@ -778,8 +756,8 @@ const cases = {
     return monKills > 0 && tallied === monKills * whole.members.length ? null
       : 'kills: ' + monKills + ' monster kill events, tallies sum ' + tallied + ' over ' + whole.members.length + ' members';
   },
-  /* Both with today's neutral staff blow and with the Healer's POISON (the sim's element, which the element-id
-     unification will land: every cellar and first-sewer monster is poison-immune, so only the floor lets her kill). */
+  /* Both with today's neutral staff blow and with the Healer's POISON (the sim's element): every cellar and first-sewer
+     monster takes half of it (vermin, Tyler 2026-11-06: no immunities, so no solo Healer floor either). */
   'solo-healer': (M) => {
     for (const [seed, el] of [[1, ''], [2, ''], [1, 'poison'], [2, 'poison']]) {
       const tag = 'seed ' + seed + (el ? ' (' + el + ')' : '');
@@ -1058,7 +1036,6 @@ const mutants = [
   { name: 'the density pick is not clamped', case: 'density', edits: [['src/data/hunt-grounds.js', '  return Math.max(0, Math.min(max, p, DENSITY_PICK.max));', '  return Math.max(0, Math.min(p, DENSITY_PICK.max));']] },
   { name: 'density does not reach the pack', case: 'density', edits: [['src/core/hunt/pull-cycle.js', 'pullRows(inst.ground, p, w.density)', 'pullRows(inst.ground, p, 0)']] },
   { name: 'packs spawn at full HP whatever the party', case: 'party-scale', edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);']] },
-  { name: 'the solo healer floor is never applied', case: 'healer-floor', edits: [['src/core/hunt/damage.js', '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? elementOn(target, element) : elementOn(target, element);']] },
   { name: 'the druid heals whoever is lowest', case: 'ally-subject', edits: [['src/core/hunt/conditions.js', '  if (subject && subject !== \'lowest\') return all.find((a) => a.role === subject) || null;\n', '']] },
   { name: 'an attack slot ignores its conditions', case: 'party-acceptance', edits: [['src/core/hunt/damage.js', '  const got = shotPasses(inst, u, h, rows, (own) => (slot, cx) => {', '  const got = shotPasses(inst, u, h, rows.map((r) => ({ rule: r.rule, slot: Object.assign({}, r.slot, { conditions: [] }) })), (own) => (slot, cx) => {']] },
   { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),", "  unit: Object.freeze([['ruleWait', 'json']]),"]] },
@@ -1103,9 +1080,11 @@ const mutants = [
   { name: 'a full box walls the leader off the pull tile (no pull from the ring\'s edge)', case: 'density-laps',
     edits: [['src/core/hunt/pull-cycle.js', ' || arrived || walled)) {', ' || arrived)) {']] },
   { name: 'the settle never clamps the stored pick', case: 'density-settle', edits: [['src/core/combat-sim.js', '      world.density = densityFor(ctx.ground,', '      world.density = Math.max(...members.map((m) => m.hero.density), 1) || densityFor(ctx.ground,']] },
-  { name: 'the solo healer fights unscaled packs with no floor (the P1 as it shipped)', case: 'solo-healer',
+  /* the P1 as it shipped: unscaled packs, and a first room that shrugs off her poison whole (the immunity Tyler removed 2026-11-06) */
+  { name: 'the solo healer fights unscaled packs behind a poison wall (the P1 as it shipped)', case: 'solo-healer',
     edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);'],
-      ['src/core/hunt/damage.js', '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? elementOn(target, element) : elementOn(target, element);']] },
+      ['src/core/elements.js', '  if (!monster || !isElement(element)) return 1000;', "  if (element === 'poison' && monster && monster.elements && monster.elements.poison === 50) return 0;\n  if (!monster || !isElement(element)) return 1000;"],
+      ['src/core/hunt/damage.js', '  const el = elementOn(target, element);\n', '  const el = elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false };\n']] },
   { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq'])", "label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
   { name: 'the start kit bar drifts from the server one', case: 'sql-rows', edits: [['src/data/start-kit.js', "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30)", "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 35)"]] },
   { name: 'a store food is no slot item', case: 'sql-rows', edits: [['src/data/consumables.js', "    .map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),", "    .filter(() => false).map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),"]] },

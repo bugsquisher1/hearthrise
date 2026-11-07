@@ -52,18 +52,17 @@ const cases = {
     if (R(inst, r2, far)) return 'a ranger (range 7) reached 8 tiles';
     return null;
   },
-  /* TG-03: prefer a target the element hurts; an immune one is still attacked when it is the only one, and takes 0. */
-  'immune-target-still-hit-when-only-one': (M) => {
-    if (!M.MONSTERS.slime.elementImmune.includes('ember')) return 'fixture: the slime is no longer immune to ember';
+  /* TG-03 (Tyler 2026-11-06, no immunities): the Target setting picks, never the element. An ember shot on "weakest"
+     takes the slime that shrugs off half of it, and the blow lands at half. */
+  'element-never-skips-a-target': (M) => {
+    if (M.MONSTERS.slime.elements.ember !== 50) return 'fixture: the slime takes ember at ' + JSON.stringify(M.MONSTERS.slime.elements);
     const u = H(M, 1, 12, 3, 'ranger', { element: 'ember', tmode: 'weakest' });
-    const slime = E(M, 2, 0, 14, 3, 1, { kind: 'slime', hp: 1, maxHp: 8 });
+    const slime = E(M, 2, 0, 14, 3, 1, { kind: 'slime', hp: 5, maxHp: 8 });
     const rat = E(M, 3, 0, 15, 3, 1, { hp: 9, maxHp: 9 });
     const inst = fight(M, [u, slime, rat]);
-    if (M.targeting.basicTarget(inst, u) !== rat) return 'with a rat in range the ember shot went to the immune slime';
-    rat.alive = false;
-    if (M.targeting.basicTarget(inst, u) !== slime) return 'the only target in range (immune) was not attacked';
-    const r = M.damage.hurt(inst, slime, 7, u, 'ember', null);
-    return r.immune && r.dmg === 0 && slime.hp === 1 ? null : 'the immune slime took ' + r.dmg;
+    if (M.targeting.basicTarget(inst, u) !== slime) return 'the ember shot passed the weakest (the slime) for the rat';
+    const r = M.damage.hurt(inst, slime, 8, u, 'ember', null);
+    return r.dmg === 4 && slime.hp === 1 ? null : 'an 8 ember blow into the slime took ' + JSON.stringify(r) + ', want 4';
   },
   /* TG-04: the leader's last target is remembered; a follower's "follow" puts it first while the leader is between targets. */
   'follow-uses-leader-last': (M) => {
@@ -343,10 +342,8 @@ const mutants = [
   { name: 'a tie turns a melee hero', case: 'melee-takes-its-mark',
     edits: [[T, 'return engaged(inst).some((m) => m !== cur && cmp(m, cur) < 0);', 'return engaged(inst).some((m) => m !== cur && cmp(m, cur) <= 0);']] },
   { name: 'ranged ignores line of sight', case: 'in-range', edits: [[T, ' && los(inst.grid, u, m);', ';']] },
-  { name: 'the basic target ignores the element', case: 'immune-target-still-hit-when-only-one',
-    edits: [[T, 'return inR.find((m) => elementOn(m, u.element) > 0) || inR[0] || null;', 'return inR[0] || null;']] },
-  { name: 'an immune target is skipped even alone', case: 'immune-target-still-hit-when-only-one',
-    edits: [[T, 'return inR.find((m) => elementOn(m, u.element) > 0) || inR[0] || null;', 'return inR.find((m) => elementOn(m, u.element) > 0) || null;']] },
+  { name: 'the basic target prefers what the element hurts most', case: 'element-never-skips-a-target',
+    edits: [[T, '  return inR[0] || null;', '  return inR.find((m) => elementOn(m, u.element) >= 1000) || inR[0] || null;']] },
   { name: 'the leader\'s target is not remembered', case: 'follow-uses-leader-last',
     edits: [['src/core/hunt/damage.js', 'if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;', '']] },
   { name: 'a fallen target is kept', case: 'monster-retargets-on-death', edits: [[T, 'if (!t || !t.alive) { retarget(', 'if (!t) { retarget(']] },

@@ -49,8 +49,8 @@
 //         Combat text toggle is off (designer 2026-10-22)
 //   SC-14 A BLOW THAT DID NO HARM IS A SPARK, NOT A WORD (Tyler 2026-11-04): a miss, a dodge and a barrier's 0 on a
 //         hero draw the spark on the side the blow came from, a hero's miss the scuff on the monster, and none of them
-//         a float; one shows at a time on a unit under a full box's blows; 150 ms and gone; its toggle hides it;
-//         `immune` stays a word (the log's line for it all: tests/hunt-view-core.mjs LOG-4)
+//         a float; one shows at a time on a unit under a full box's blows; 150 ms and gone; its toggle hides it
+//         (the log's line for it all: tests/hunt-view-core.mjs LOG-4; nothing is immune since Tyler 2026-11-06)
 //   SC-15 A HIT MOVES THE SPRITE, IT NEVER REPAINTS IT (ART_DIRECTION §2, §11): the struck unit's draw entry is the entry it has once
 //         the hit has passed, 1 art px away from the blow; its name, bar and everything else stand
 // ════════════════════════════════════════════════════════════════════════
@@ -371,7 +371,6 @@ async function rules(M) {
         { id: 'g:3', type: 'miss', atMs: S0 + 900, u: 103, t: 1 },        // inside the gap: the next of a full box's blows
         { id: 'g:4', type: 'miss', atMs: S0 + 1000, u: 1, t: 101 },       // the tank's own swing
         { id: 'g:5', type: 'dmg', atMs: S0 + 1300, u: 101, t: 1, amount: 0, ability: 'basic', element: null },   // a barrier took all of it
-        { id: 'g:6', type: 'immune', atMs: S0 + 1400, u: 1, t: 103 },
       ];
       return body;
     };
@@ -400,8 +399,6 @@ async function rules(M) {
     const barrier = v.at(at(S0 + 1310));
     ok('SC-14', named(barrier, 'fx_glance_spark').length === 1 && !barrier.floats.length && !unitOf(barrier, 1).recoil,
       'a blow a barrier took whole is a spark, no 0 and no recoil: ' + JSON.stringify([barrier.fx.map((e) => e.id), barrier.floats]));
-    const imm = v.at(at(S0 + 1410));
-    ok('SC-14', imm.floats.some((x) => x.text === 'immune'), '`immune` stays a word: it says change your element, got ' + JSON.stringify(imm.floats));
 
     const off = { t: C0 };
     const quiet = session(M, off, [glances()]);
@@ -548,7 +545,6 @@ const MUTANTS = [
   ['the offset is dropped when the frame reads it (SC-14)', 'src/hunt-view/scene.js', 'x: p.x + (e.ox || 0), y: p.y + (e.oy || 0), age', 'x: p.x, y: p.y, age'],
   ['a monster wears the hero\'s spark (SC-14)', 'src/hunt-view/scene.js', 'isHero(ev.t) ? GLANCE_FX.hero : GLANCE_FX.monster', 'GLANCE_FX.hero'],
   ['a barrier floats a 0 (SC-14)', 'src/hunt-view/scene.js', 'if (ev.amount === 0 && isHero(ev.t)) glance(ev, start); else num(', 'num('],
-  ['immune loses its word (SC-14)', 'src/hunt-view/scene.js', "      case 'immune': addFloat(ev.t, 'miss', 'immune', 'miss', start); swing", "      case 'immune': swing"],
   ['the spark names art the atlas lacks (SC-5)', 'src/data/hunt-vfx.js', "hero: 'fx_glance_spark'", "hero: 'fx_glance_sparks'"],
 ];
 

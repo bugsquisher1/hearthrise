@@ -99,6 +99,19 @@ const cases = {
     if (M.status.applyStatus(inst(w), h, bleed(M), { u: 2 }, sc) !== null || h.statuses.length) return 'a dead hero took a stack';
     return sc.events.filter((e) => e.type === 'status_off').length === 1 ? null : 'death did not end the bleed once';
   },
+  /* THE UNIT BOOK (combat-sim.js bornHpOf, lane/a-hp-zero): a bleed tick moves HP once, by the `dmg` it lands; the
+     `status_tick` beside it is the roll. A unit born in a swing it bled in is booked at its HP before those ticks. */
+  'born-book-counts-a-tick-once': (M) => {
+    const t = unit(M, 2, 'mon', { hp: 60000 });
+    const w = worldOf(M, [unit(M, 1, 'hero'), t]);
+    const sc = ctx35(M, 7);
+    M.status.applyStatus(inst(w), t, bleed(M), { u: 1, skillLv: 0, runeTier: 1 }, sc);
+    steps(inst(w), sc, 0, 30, M.status.tickStatuses);
+    const dots = sc.events.filter((e) => e.type === 'dmg' && e.dot && e.t === 2);
+    if (ticks(sc).length < 2 || dots.length !== ticks(sc).length) return 'fixture: ' + ticks(sc).length + ' ticks, ' + dots.length + ' landed';
+    const booked = M.cs.bornHpOf(t, sc.events);
+    return booked === 60000 ? null : 'a unit that bled ' + ticks(sc).length + ' times from 60000 HP was booked at ' + booked;
+  },
   /* The same seed ticks the same; a stack cut mid-life at a settle boundary resumes exactly (TICK-1). */
   'stack-survives-a-cut': (M) => {
     const run = (cutAt) => {
@@ -135,6 +148,8 @@ const mutants = [
     edits: [['src/data/statuses.js', "damageType: 'physical',", "damageType: 'ember',"]] },
   { name: 'stacks are not persisted', case: 'stack-survives-a-cut',
     edits: [['src/core/hunt/status.js', "unit: Object.freeze([['statuses', 'json']])", 'unit: Object.freeze([])']] },
+  { name: 'the unit book counts a bleed tick twice (lane/a-hp-zero)', case: 'born-book-counts-a-tick-once',
+    edits: [['src/core/combat-sim.js', "if (e.type === 'heal') hp -= e.amount; else if (e.type === 'dmg') hp += e.amount;", "if (e.type === 'heal') hp -= e.amount; else if (e.type === 'dmg' || e.type === 'status_tick') hp += e.amount;"]] },
   { name: 'a dead unit keeps bleeding', case: 'monster-can-bleed-hero',
     edits: [['src/core/hunt/status.js', "if (unit.alive !== true) { dropAll(unit, sc); continue; }\n    for", 'for']] },
 ];

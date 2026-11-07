@@ -4,7 +4,7 @@
 //                          world map, and every spawn is also listed in the map's `spawns`
 //   formation-rows         the six sewer rows pass the roster audit on the formation band,
 //                          walk at their own speed, and only the Rat King is a boss
-//   party-scale            550 / 700 / 850 / 1000 permille, and the solo Healer floor
+//   party-scale            550 / 700 / 850 / 1000 permille
 //   sewer-full-party-loop  a four-hero party plays the real core (stepSwing) on the real map:
 //                          every pocket is pulled in route order, the Rat King dies, nobody wipes
 //   tutorial-walk-through  each step is doable from the start kit plus the steps before it; one hero walks the whole
@@ -425,8 +425,6 @@ const cases = {
     const got = [1, 2, 3, 4].map((n) => M.grounds.packScalePermille(n)).join(',');
     if (got !== '550,700,850,1000') return 'party scale ' + got;
     if (M.grounds.scaledHp(M.MONSTERS.rat_king, 1) !== 330) return 'a solo Rat King has ' + M.grounds.scaledHp(M.MONSTERS.rat_king, 1) + ' HP, not 330';
-    if (M.grounds.elementWithFloor(0, 'healer', 1) !== 500) return 'a solo Healer into an immunity is not floored at 500';
-    if (M.grounds.elementWithFloor(0, 'healer', 2) !== 0) return 'the Healer floor reached a party of two';
     return null;
   },
   'sewer-full-party-loop': (M) => {

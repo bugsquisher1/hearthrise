@@ -84,7 +84,7 @@ const cases = {
   },
   /* THE HOOK, on the one hurt(): +1% of what LANDS, whatever the monster's defence, so a tough monster doesn't double it. */
   'blows-raise-what-lands': (M) => {
-    const def = Object.keys(M.MONSTERS).filter((k) => !(M.MONSTERS[k].elementImmune || []).length).sort((a, b) => M.C.defenceReduction(M.MONSTERS[b]) - M.C.defenceReduction(M.MONSTERS[a]))[0];
+    const def = Object.keys(M.MONSTERS).sort((a, b) => M.C.defenceReduction(M.MONSTERS[b]) - M.C.defenceReduction(M.MONSTERS[a]))[0];
     if (!(M.C.defenceReduction(M.MONSTERS[def]) >= 2)) return 'fixture: the toughest monster takes ' + M.C.defenceReduction(M.MONSTERS[def]) + ' off a blow';
     const inst = fight(M, []);
     for (const swing of [12, 40, 120]) {

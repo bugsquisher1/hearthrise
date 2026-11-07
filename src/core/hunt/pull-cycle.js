@@ -87,7 +87,8 @@ function placeRow(inst, p, s, heroes, sc) {
   const w = inst.world;
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
   const at = freeNear(inst.grid, s.x, s.y, 3, taken);
-  const row = MONSTERS[s.monster];
+  /* the instance's own rows (world-step.js inst.monsters: a scaled hunt's), the catalogue for a bare caller */
+  const row = (inst.monsters || MONSTERS)[s.monster];
   if (!at || !row) return null;
   /* THE TIER'S HEALTH (hunt-tiers.js hpPm) under the party scale; the yield below is the party scale's alone, so more health pays no more. */
   const hp = packHpFor(inst.ground, atTier(row, inst.tier), heroes);

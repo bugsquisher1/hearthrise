@@ -74,6 +74,8 @@ declare
     'hunt_bag', 'hunt_bests', 'hunt_density', 'hunt_instances', 'hunt_parties', 'hunt_party_invites', 'hunt_party_members',
     'hunt_session_events', 'hunt_session_tally', 'hunt_sessions', 'hunt_tick_lease',
     'account_gold_given', 'player_titles', 'town_shows', 'town_works_gifts', 'town_works_totals',
+    /* scaled hunts' banked hours (2027-03-21-scaled-hunts.sql): a hero's, bought with gold the wipe also clears */
+    'player_scaled_hours',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',
@@ -105,7 +107,9 @@ declare
     'hr_world_notice_rules', 'hr_xp_table', 'hunt_world_shape_move', 'leaderboard_meta', 'maintenance_alerts', 'maintenance_log',
     'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works', 'hr_boss_calls',
     /* crafted jewelry's catalogues (2027-03-14-jewelry-catalogue.generated.sql): the Hallmark step, its day limit, the graded rows' ceilings */
-    'hr_hallmark_offers', 'hr_hallmark_rule', 'hr_market_ceilings'];
+    'hr_hallmark_offers', 'hr_hallmark_rule', 'hr_market_ceilings',
+    /* scaled hunts' catalogues (2027-03-21-scaled-hunts-catalogue.generated.sql): the rule, the grounds, the scaled kill bounds */
+    'hr_scaled_hunt_rule', 'hr_scaled_grounds', 'hr_scaled_kill_bounds'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

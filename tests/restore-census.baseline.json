@@ -552,7 +552,8 @@
   "hero_tally_claims",
   "hero_tally_given",
   "hero_tally_tasks",
-  "town_works_gifts"
+  "town_works_gifts",
+  "player_scaled_hours"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",
@@ -1395,6 +1396,21 @@
    "replay": 0,
    "note": "Generated catalogue (2026-08-11-catalogue.generated.sql, tools/gen-catalogues.mjs --check): the rune definitions the enchant path validates against. Three rows — small, but it is an ALLOWLIST, so a rebuild with a different set changes what may legally be enchanted. Rebuilt from repo, never restored."
   },
+  "hr_scaled_grounds": {
+   "class": "seeded",
+   "replay": 5,
+   "note": "Generated catalogue (2027-03-21-scaled-hunts-catalogue.generated.sql from src/data/scaled-hunts.js): the grounds a leader may scale and their bands. Empty, nothing scales and every purchase refuses not_scalable. Rebuilt from repo, never restored."
+  },
+  "hr_scaled_hunt_rule": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (2027-03-21-scaled-hunts-catalogue.generated.sql from src/data/scaled-hunts.js): the scaled hunts' one rule row (slider, bank, day clamp, top Level, price a Level). Empty, every purchase refuses catalogue_missing and nothing is charged. Rebuilt from repo, never restored."
+  },
+  "hr_scaled_kill_bounds": {
+   "class": "seeded",
+   "replay": 153,
+   "note": "Generated catalogue (2027-03-21-scaled-hunts-catalogue.generated.sql from src/data/scaled-hunts.js): per scalable ground and scaled Level, the most one scaled kill pays and the highest scaled monster Level, read by hr_hunt_apply_member on a window proved scaled. Empty, a scaled window is bounded by the ground's own kills (its honest XP refused value_over), never loosened. Rebuilt from repo, never restored."
+  },
   "hr_server_secrets": {
    "class": "regenerated",
    "replay": 2,
@@ -1826,6 +1842,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE — quests, dailies, bounties, lifetime stats, collections, flags, and the bestiary kill counts. 914 rows in production. A generic (kind, key, period_key) -> value space; losing it resets every quest, every collection and every lifetime counter, and because the quest model is a LIFETIME count there is nothing else in the database it could be reconstructed from. Since 2026-10-12-companion-xp-frac.sql each row also carries xp_frac, non-zero only on a stat companion_xp:<id> row: the pet's [0,1) XP remainder (written only by hr_apply) — a restore without it costs under 1 companion XP per pet, never a level."
+  },
+  "player_scaled_hours": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE (2027-03-21-scaled-hunts.sql) - a hero's banked scaled-hunt hours per ground (banked_ms = bought_ms - spent_ms, a CHECK) and its \"use my scaled hours here\" switch. Hours are BOUGHT with gold (hr_scaled_hunt_buy, one shop ledger row each) and spent by the settle; losing a row loses gold a player spent. Written only by hr_scaled_hunt_buy, hr_scaled_hunt_switch and hr_hunt_apply_instance; RLS own read, no client write."
   },
   "player_skills": {
    "class": "restore_only",

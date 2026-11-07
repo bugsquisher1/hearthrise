@@ -1208,8 +1208,9 @@ function fightOf(sim, unitId, call) {
  *        + the envelope inputs (skills, levelXp,
  *        xpFrac, hp, gold, equipment, inventory, deathsLifetimeBefore, perks,
  *        hearthfindReady) }]
+ * @param inp.scale    { level } when the server scales this window (hr_scaled_hunt_of through the instance read), else absent
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
- *            track, events, members: [{ key, delta, hunt }] }
+ *            track, events, members: [{ key, delta, hunt }], scaleLevel }
  */
 export function accrueHunt(inp) {
   const w = inp.window || {};
@@ -1231,9 +1232,11 @@ export function accrueHunt(inp) {
   /* THE INSTANCE'S KEYED SEEDER: built once per settle; throws on a missing or
      malformed secret — an unseeded hunt swing is a predictable one. */
   const seed = seederFor(String(inp.secret ?? ''), String(inp.instance.id));
+  /* A SCALED HUNT (combat-sim.js huntPlayOf): the server's scale of this window, { level } or none; the engine answers what it played. */
+  const scale = inp.scale && Number.isInteger(inp.scale.level) ? { level: inp.scale.level } : null;
   const sim = simulateHuntInstance(
     { world: world0, worldSwing: worldSwing0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
-    { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items });
+    { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items, ...(scale ? { scale } : {}) });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
 
   const out = [];
@@ -1263,6 +1266,8 @@ export function accrueHunt(inp) {
     tickMs,
     track: sim.track, events: sim.events, units: sim.units,
     members: out,
+    /* the Level the window played at (null: the ground's own), the commit's claim the server re-proves (hr_hunt_apply_instance) */
+    scaleLevel: Number.isInteger(sim.scale) ? sim.scale : null,
   };
 }
 

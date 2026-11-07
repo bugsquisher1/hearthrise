@@ -226,8 +226,11 @@ export const GROUND_ROSTER = Object.freeze({
    pay for. Measured, each with its reason (lane/b-ground-formula-2): the Meadowbrook Thicket x0.9: at Wickstead's floor (8) its
    Normal paid within 0-12% of Wickstead's for every way to fight (a four 33.3k against 33.6k), so no harder tier fitted under
    the next ground (hunt-tiers ladder), and its middle (10) paid 1.05x the pace contract on three ways (1.27x on the sheet's eight
-   before the gentle roles). */
-export const GROUND_XP_FIT = Object.freeze({ meadowbrook_thicket: 0.9 });
+   before the gentle roles). The Mill Cellar x1.25 and Wickstead x1.1: the pace re-measure's ladder read them at 0.75x and 0.89x the
+   contract in band (the Cellar 5,960 at 4.5, Wickstead 30,088 at 13), so the ladder's fit ran steeper than the contract (718 x L^1.472:
+   level-curve C5 -13% at 100) and the careers reached Level 10 in 6.7 h (C3, +12%); the Cellar is the tutorial, paced to Level 5 in
+   LEVEL_PACE.early (0.32 h against its 0.25 aim). */
+export const GROUND_XP_FIT = Object.freeze({ mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1 });
 
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({});

@@ -93,7 +93,7 @@ export const MONSTERS = {
        weapon triangle is the better answer. Fire still burns it (Tyler 2026-11-06). */
     elements: { ember: 50, frost: 50, poison: 50 },
     dropBonus: 1.15,
-    hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 26, gp: [1, 3], formula: true, speed: 2400,
+    hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 33, gp: [1, 3], formula: true, speed: 2400,
     /* no skeleton, so no bones: its family's Hearth fuel (Tyler 2026-10-25, src/data/hearth.js) */
     drops: [{ id: 'slime_gel', ch: .8, band: 'common' }, { id: 'lamp_jelly', ch: .25, band: 'common' }, { id: 'sticky_core', ch: .08, band: 'uncommon' }] },
   /* FOLD-02 / FOLD-31 (combat-screen-rework.md §7): `barn_rat` merged INTO this
@@ -104,13 +104,13 @@ export const MONSTERS = {
      `barn_rat`'s better drop line (wheat, the granary flavour) is absorbed here
      so nothing the merged monster offered is lost. */
   rat: { name: 'Giant Rat', icon: '🐀', tier: 1, level: 2, cls: 'vermin', family: 'Vermin',
-    hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 18, gp: [1, 2], formula: true, speed: 3400,
+    hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 23, gp: [1, 2], formula: true, speed: 3400,
     drops: [{ id: 'rat_tail', ch: .7, band: 'common' }, { id: 'small_fang', ch: .16, band: 'common' }, { id: 'wheat', ch: .3, band: 'common' }, { id: 'bones', ch: .35, band: 'common' },
       { id: 'giant_rat_hide', ch: .08, band: 'uncommon' }] },
   hive_wasp: { name: 'Hive Wasp', icon: '🐝', tier: 1, level: 4, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so the T1 bow finally has a target. */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 8, atk: 5, baseAcc: 0.43, def: 0, xp: 29, gp: [1, 3], formula: true,
+    hp: 8, atk: 5, baseAcc: 0.43, def: 0, xp: 36, gp: [1, 3], formula: true,
     /* the loot bands (batch 1): the tutorial's first helmet in all three weights, each about hourly at the floor */
     /* the Hearth (Tyler 2026-10-25): the hive's heart holds the Queen's Comb, a named fuel (src/data/hearth.js). Its Dry
        Husk waits: its two Commons are full (the loot bands' 1-2), and its Silk Thread is Crafting 1-9's only early source */
@@ -838,33 +838,33 @@ export const MONSTERS = {
      earrings, ring and necklace, so here they are the prize above it, never a regular drop. Stats: src/data/balance-sheet.js. ══ */
   granary_rat: { name: 'Granary Rat', icon: '🐀', tier: 1, level: 9, cls: 'vermin', family: 'Vermin',
     /* the swarm: fat on the farm's grain, many and quick */
-    hp: 15, atk: 5, baseAcc: 0.44, def: 0, xp: 61, gp: [2, 7], formula: true, speed: 3400,
+    hp: 15, atk: 5, baseAcc: 0.44, def: 0, xp: 68, gp: [2, 7], formula: true, speed: 3400,
     drops: [{ id: 'rat_tail', ch: .4, band: 'common' }, { id: 'bones', ch: .35, band: 'common' }, { id: 'granary_whisker', ch: .08, band: 'uncommon' },
       { id: 'bronze_boots', ch: .0049, band: 'scarce' }, { id: 'leather_boots', ch: .0049, band: 'scarce' }, { id: 'apprentice_boots', ch: .0049, band: 'scarce' }] },
   barn_wasp: { name: 'Barn Wasp', icon: '🐝', tier: 1, level: 11, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so an arrow brings it down and a club swings at air */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 17, atk: 6, baseAcc: 0.55, def: 0, xp: 90, gp: [3, 8], formula: true, speed: 4600,
+    hp: 17, atk: 6, baseAcc: 0.55, def: 0, xp: 100, gp: [3, 8], formula: true, speed: 4600,
     drops: [{ id: 'venom_sac', ch: .25, band: 'common' }, { id: 'dry_husk', ch: .4, band: 'common' }, { id: 'barn_wasp_sting', ch: .08, band: 'uncommon' },
       { id: 'bronze_helm', ch: .03, band: 'scarce' }, { id: 'leather_helmet', ch: .03, band: 'scarce' }, { id: 'apprentice_helmet', ch: .03, band: 'scarce' },
       { id: 'iron_belt', ch: .003, band: 'rare' }, { id: 'studded_belt', ch: .003, band: 'rare' }, { id: 'adept_belt', ch: .003, band: 'rare' }] },
   barn_spider: { name: 'Barn Spider', icon: '🕷️', tier: 2, level: 13, cls: 'vermin', family: 'Vermin',
     /* the tank: slow and webbed in; fire takes the web */
     elements: { ember: -15, poison: 50 },
-    hp: 25, atk: 5, baseAcc: 0.46, def: 3, xp: 130, gp: [4, 12], formula: true, speed: 2600,
+    hp: 25, atk: 5, baseAcc: 0.46, def: 3, xp: 143, gp: [4, 12], formula: true, speed: 2600,
     drops: [{ id: 'silk_thread', ch: .4, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'loft_web', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .0165, band: 'scarce' }, { id: 'studded_pants', ch: .0165, band: 'scarce' }, { id: 'adept_pants', ch: .0165, band: 'scarce' },
       { id: 'iron_gauntlets', ch: .0015, band: 'rare' }, { id: 'studded_gloves', ch: .0015, band: 'rare' }, { id: 'adept_gloves', ch: .0015, band: 'rare' }] },
   orchard_boar: { name: 'Orchard Boar', icon: '🐗', tier: 1, level: 12, cls: 'mammal', family: 'Mammal',
     /* the orchard's tank (lane b-unsourced-items): its thick skull rings a hammer off; a blade finds the flank */
     weaponWeak: 'sword', weaponResist: ['hammer'],
-    hp: 24, atk: 5, baseAcc: 0.44, def: 3, xp: 121, gp: [4, 11], formula: true, speed: 3000,
+    hp: 24, atk: 5, baseAcc: 0.44, def: 3, xp: 133, gp: [4, 11], formula: true, speed: 3000,
     /* no Rare: the Tusker's Charm is Old Tusker's relic, ONE source (tests/w0f-fun-content.mjs); he joins the Orchard as its
        champion with his own (larger) art, the next batch */
     drops: [{ id: 'boar_bristle', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'orchard_boar_tusk', ch: .08, band: 'uncommon' }] },
   turncoat: { name: 'Turncoat', icon: '🗡️', tier: 2, level: 16, cls: 'human', family: 'Human',
     /* a deserter robbing the Thicket road; glass that hits hard. The jeweler's carrier: his Road Carnelian (jewelry.js) replaced the crafted Signet. */
-    hp: 23, atk: 8, baseAcc: 0.61, def: 1, xp: 142, gp: [4, 11], formula: true, speed: 3400,
+    hp: 23, atk: 8, baseAcc: 0.61, def: 1, xp: 156, gp: [4, 11], formula: true, speed: 3400,
     drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'torn_company_badge', ch: .1, band: 'uncommon' },
       { id: 'iron_platebody', ch: .0345, band: 'scarce' }, { id: 'studded_body', ch: .0345, band: 'scarce' }, { id: 'adept_body', ch: .0345, band: 'scarce' }, { id: 'bramble_blade', ch: .0345, band: 'scarce' },
       { id: 'road_carnelian', ch: .003, band: 'rare' }, { id: 'wolfbone_torc', ch: .003, band: 'rare' }, { id: 'fang_studs', ch: .003, band: 'rare' }] },

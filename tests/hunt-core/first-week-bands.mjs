@@ -325,13 +325,13 @@ const mutants = [
     edits: [['src/data/supply-basics.js', "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14)", "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 1)"],
       ['src/data/supply-basics.js', "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40)", "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 1)"]] },
   { name: 'the Cellar\'s rats, slimes and wasps armoured like a Coppercap foreman (def 0 -> 60): a fresh hero cannot clear it', case: 'solo-mill_cellar',
-    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 18, gp: [1, 2], formula: true, speed: 3400,', 'hp: 6, atk: 3, baseAcc: 0.34, def: 60, xp: 18, gp: [1, 2], formula: true, speed: 3400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 26, gp: [1, 3], formula: true, speed: 2400,', 'hp: 8, atk: 3, baseAcc: 0.28, def: 60, xp: 26, gp: [1, 3], formula: true, speed: 2400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 5, baseAcc: 0.43, def: 0, xp: 29, gp: [1, 3],', 'hp: 8, atk: 5, baseAcc: 0.43, def: 60, xp: 29, gp: [1, 3],']] },
+    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 23, gp: [1, 2], formula: true, speed: 3400,', 'hp: 6, atk: 3, baseAcc: 0.34, def: 60, xp: 23, gp: [1, 2], formula: true, speed: 3400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 33, gp: [1, 3], formula: true, speed: 2400,', 'hp: 8, atk: 3, baseAcc: 0.28, def: 60, xp: 33, gp: [1, 3], formula: true, speed: 2400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 5, baseAcc: 0.43, def: 0, xp: 36, gp: [1, 3],', 'hp: 8, atk: 5, baseAcc: 0.43, def: 60, xp: 36, gp: [1, 3],']] },
   { name: 'Thin Turnip Juice costs six times as much (a fresh Mage in the Thicket pays more than it earns)', case: 'solo-meadowbrook_thicket',
     edits: [['src/data/supply-basics.js', "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10)", "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 60)"]] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
-    edits: [['src/data/monsters.js', 'hp: 15, atk: 5, baseAcc: 0.44, def: 0, xp: 61, gp: [2, 7], formula: true, speed: 3400', 'hp: 15, atk: 14, baseAcc: 0.44, def: 0, xp: 61, gp: [2, 7], formula: true, speed: 3400']] },
+    edits: [['src/data/monsters.js', 'hp: 15, atk: 5, baseAcc: 0.44, def: 0, xp: 68, gp: [2, 7], formula: true, speed: 3400', 'hp: 15, atk: 14, baseAcc: 0.44, def: 0, xp: 68, gp: [2, 7], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (profit-floor, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at

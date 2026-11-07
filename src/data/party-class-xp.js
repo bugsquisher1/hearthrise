@@ -42,7 +42,12 @@ const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obje
 
 /* ground id → its row (designer's final table, 2026-11-01). */
 export const PARTY_CLASS_XP = Object.freeze({
-  mill_cellar: row([1000, 1070], [990, 1120, 1180], [1000, 1250, 1270, 1400]),
+  /* NO SEAT SLIDES UNDER TODAY ON THE FORMULA'S ROWS (lane/b-party-xp, 2026-11-07; tools/balance-sim/grade-compare.mjs, the release gate). The formula left lone heroes
+     where they were and took 8-10% off a tank + healer pair: its tank against the median hero alone read 1.02 -> 0.93 on the Cellar and 0.95 -> 0.87 at the Sewer floor,
+     and a three of tank, healer and bow 1.03 -> 0.99 on Wickstead. A ground's XP dial moves alone and party alike, so the cell is the lever: the Cellar's two-class pair
+     1070 -> 1210 (its tank 1.04-1.05, its hammer and bow 1.12, today 1.11), the Sewer's 1000 -> 1100 (its tank 0.96 at the floor and 1.09-1.12 above it, today 0.95-1.07),
+     Wickstead's three-class three 1220 -> 1270 (1.03-1.09, today 1.03-1.07). Measured on the real settle, full grade, Normal (tools/balance-sim/grade.mjs). */
+  mill_cellar: row([1000, 1210], [990, 1120, 1180], [1000, 1250, 1270, 1400]),
   /* A one-weapon four pays the even share: Tyler 11-02 (same-weapon friends lose about 6-15%) beats 10-31 (one class never beats solo) where they conflict (CLAUDE.md §0; Coordinator 2026-11-04). The share floors per
      kill, so the cell moves in steps: 995 left shields at -17 to -19%, 1000 lands them at -12 to -15%, and a four of wands 4-5% over solo, the accepted cost and party-class-xp-line's one named exception. A pull of 7: mixed coin 1.04-1.05, over solo.
      RE-MEASURED ON THE FORMULA'S ROWS (lane/b-ground-formula-2, 1 h x 2 seeds at 10): the four row moved a head about 10% toward the party (a mix +33% against
@@ -50,9 +55,9 @@ export const PARTY_CLASS_XP = Object.freeze({
      party-class-xp-line on the same rows: the Thicket's mage duo read 1.05 and trio 1.09 (cells 930, 880), the Cellar's healer trio 1.007 (990), the Warrens'
      four of staves at 8 each 1.014 (960). */
   meadowbrook_thicket: row([930, 1290], [880, 1180, 1310], [940, 1100, 1150, 1180]),
-  wickstead: row([880, 1070], [970, 1160, 1220], [970, 1200, 1240, 1270]),
+  wickstead: row([880, 1070], [970, 1160, 1270], [970, 1200, 1240, 1270]),
   mosslight_glade: row([960, 1180], [1000, 1300, 1400], [1000, 1200, 1290, 1320]),
-  millrace_sewer: row([800, 1000], [800, 1050, 1100], [800, 1050, 1100, 1180]),
+  millrace_sewer: row([800, 1100], [800, 1050, 1100], [800, 1050, 1100, 1180]),
   /* One class under the even share (Tyler 2026-10-31, "only better if there are different classes"; lane/c-caster-party-line). With Green Sickness on the Healer's default bar a pair at 8 each read 1.033 against
      one alone and a four 1.005: the debuff stays up far longer in a one-class party, as Greater Mend's load splits (a head's casts an hour, alone 84 and 256, in a pair 144 and 168). Mana gates can't hold it (at 95% the
      pair reads 0.987 and the four still 1.009, and each gate rerolls the first grounds' net chain); the cell can, and it moves no gold, no mixed party and no other ground. */
@@ -68,9 +73,9 @@ const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obj
 export const PARTY_VS_ALONE = Object.freeze({
   mill_cellar: said([-5, 10], [-5, 5, 15], [-20, 5, 5, 25]),
   meadowbrook_thicket: said([-10, 10], [-10, 5, 20], [-10, 0, 5, 20]),
-  wickstead: said([-10, 5], [-10, 5, 10], [-15, 5, 5, 20]),
+  wickstead: said([-10, 5], [-10, 5, 15], [-15, 5, 5, 20]),
   mosslight_glade: said([-10, 5], [-15, 5, 15], [-10, 5, 10, 20]),
-  millrace_sewer: said([-10, 15], [-15, 10, 20], [-20, 10, 10, 20]),
+  millrace_sewer: said([-10, 25], [-15, 10, 20], [-20, 10, 10, 20]),
   coppercap_warrens: said([-10, 10], [-15, 5, 15], [-15, 5, 10, 20]),
 });
 

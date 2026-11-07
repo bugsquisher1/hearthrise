@@ -44,11 +44,11 @@ function away(M, fx, xpMultOf, awayFlag) {
 
 /* THE DESIGNER'S TABLE (2026-11-01): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
 const PARTY_TABLE = {
-  mill_cellar: { 2: [1000, 1070], 3: [990, 1120, 1180], 4: [1000, 1250, 1270, 1400] },
+  mill_cellar: { 2: [1000, 1210], 3: [990, 1120, 1180], 4: [1000, 1250, 1270, 1400] },
   meadowbrook_thicket: { 2: [930, 1290], 3: [880, 1180, 1310], 4: [940, 1100, 1150, 1180] },
-  wickstead: { 2: [880, 1070], 3: [970, 1160, 1220], 4: [970, 1200, 1240, 1270] },
+  wickstead: { 2: [880, 1070], 3: [970, 1160, 1270], 4: [970, 1200, 1240, 1270] },
   mosslight_glade: { 2: [960, 1180], 3: [1000, 1300, 1400], 4: [1000, 1200, 1290, 1320] },
-  millrace_sewer: { 2: [800, 1000], 3: [800, 1050, 1100], 4: [800, 1050, 1100, 1180] },
+  millrace_sewer: { 2: [800, 1100], 3: [800, 1050, 1100], 4: [800, 1050, 1100, 1180] },
   coppercap_warrens: { 2: [960, 1180], 3: [970, 1200, 1280], 4: [960, 1200, 1260, 1360] },
 };
 /* A kill big enough that every cell lands whole (no floor hides a cell), divisible by 2, 3, 4 and 5. */
@@ -145,7 +145,7 @@ const cases = {
     if (got.join() !== String(Math.round((BIG / 3) * 1.18))) return 'after the Ranger died three classes paid ' + got;
     heroes[0].alive = false;   // the Melee dies: two heroes of two classes
     got = each(kill());
-    if (got.join() !== String(Math.round((BIG / 2) * 1.07))) return 'after the Melee died two classes paid ' + got;
+    if (got.join() !== String(Math.round((BIG / 2) * 1.21))) return 'after the Melee died two classes paid ' + got;
     w.units = w.units.filter((u) => u !== heroes[2]);   // the Mage leaves: a hero alone
     got = each(kill());
     if (got.join() !== String(BIG)) return 'the last hero standing paid ' + got;
@@ -176,7 +176,7 @@ const cases = {
     const w = worldOf(M, [unit(M, 1, 'hero', { role: 'tank' }), unit(M, 2, 'hero', { role: 'mage' }), unit(M, 9, 'mon')]);
     const sc = ctx35(M, 8, { xpMultOf: (h) => (h.id === 1 ? 2 : 1) });
     const paid = M.xpshare.shareKillXp({ world: w, ground: { id: 'mill_cellar' }, grid: null, occ: null }, { t: 9, u: 1, xp: BIG }, sc);
-    if (paid[1] !== Math.round(BIG * 1.07) || paid[2] !== Math.round((BIG / 2) * 1.07)) return 'the factor and the hook paid ' + JSON.stringify(paid);
+    if (paid[1] !== Math.round(BIG * 1.21) || paid[2] !== Math.round((BIG / 2) * 1.21)) return 'the factor and the hook paid ' + JSON.stringify(paid);
     const xp = ofType(sc, 'xp');
     return xp.length === 2 && xp.every((e) => e.raw === BIG / 2) ? null : 'raw must stay the even share: ' + JSON.stringify(xp);
   },
@@ -335,7 +335,7 @@ const mutants = [
   { name: 'the ground is ignored: every ground reads the Cellar\'s row', case: 'party-class-every-cell',
     edits: [['src/core/hunt/xp-share.js', "partyClassXp(groundId, heroes", "partyClassXp('mill_cellar', heroes"]] },
   { name: 'one Sewer cell drifts (a same-class duo back to the even share)', case: 'party-class-every-cell',
-    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([800, 1000]', 'millrace_sewer: row([1000, 1000]']] },
+    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([800, 1100]', 'millrace_sewer: row([1000, 1100]']] },
   { name: 'a ground with no row pays a bonus', case: 'party-class-no-row-is-even',
     edits: [['src/data/party-class-xp.js', "if (n < 2 || !Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1000, classes };", "if (n < 2) return { permille: 1000, classes }; if (!Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1200, classes };"]] },
   { name: 'a hero alone reads a party cell', case: 'party-class-no-row-is-even',

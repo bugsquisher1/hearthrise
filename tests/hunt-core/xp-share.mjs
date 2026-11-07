@@ -44,12 +44,12 @@ function away(M, fx, xpMultOf, awayFlag) {
 
 /* THE DESIGNER'S TABLE (2026-11-01): ground -> heroes alive -> permille by distinct classes (1, 2, ...). */
 const PARTY_TABLE = {
-  mill_cellar: { 2: [1000, 1070], 3: [1000, 1120, 1180], 4: [1000, 1250, 1270, 1400] },
-  meadowbrook_thicket: { 2: [980, 1290], 3: [970, 1180, 1310], 4: [1000, 1210, 1260, 1300] },
+  mill_cellar: { 2: [1000, 1070], 3: [990, 1120, 1180], 4: [1000, 1250, 1270, 1400] },
+  meadowbrook_thicket: { 2: [930, 1290], 3: [880, 1180, 1310], 4: [940, 1100, 1150, 1180] },
   wickstead: { 2: [880, 1070], 3: [970, 1160, 1220], 4: [970, 1200, 1240, 1270] },
   mosslight_glade: { 2: [960, 1180], 3: [1000, 1300, 1400], 4: [1000, 1200, 1290, 1320] },
   millrace_sewer: { 2: [800, 1000], 3: [800, 1050, 1100], 4: [800, 1050, 1100, 1180] },
-  coppercap_warrens: { 2: [960, 1180], 3: [970, 1200, 1280], 4: [980, 1200, 1260, 1360] },
+  coppercap_warrens: { 2: [960, 1180], 3: [970, 1200, 1280], 4: [960, 1200, 1260, 1360] },
 };
 /* A kill big enough that every cell lands whole (no floor hides a cell), divisible by 2, 3, 4 and 5. */
 const BIG = 600000;

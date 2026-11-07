@@ -47,7 +47,11 @@ const NORMAL = Object.freeze({ id: DEFAULT_TIER, pull: Object.freeze([0, 0, 0, 0
 /** A ground offers only Normal when the sheet names it so (the Cellar, the first ground). */
 const normalOnly = (groundId) => !!(Object.prototype.hasOwnProperty.call(TIER_PULL_OVERRIDES, groundId) && TIER_PULL_OVERRIDES[groundId].normalOnly === true);
 
-/* Every open ground's harder rows from the sheet, at its floor (a fresh pull array a row, so a what-if moves one ground). */
+/* Who a ground is built for, as the sheet's tools read it (tools/gen-ground-stats.mjs fitOf): a party ground's tiers lift nothing. */
+const fitOf = (ground) => (ground.pockets.some((p) => p.minParty) ? 'party' : ground.groupFit || 'both');
+
+/* Every open ground's harder rows from the sheet, at its floor and fit, its per-ground dials included (tierRowFor reads the
+   sheet's named exceptions: the Thicket's tiers pay 1050 and 1080 XP on no HP dial). A fresh pull array a row, so a what-if moves one ground. */
 function resolve() {
   const out = {};
   for (const g of Object.keys(OPEN_GROUNDS)) {
@@ -55,7 +59,7 @@ function resolve() {
     const floor = HUNT_INDEX[OPEN_GROUNDS[g].hunt].band[0];
     out[g] = {};
     for (const id of TIER_IDS) if (id !== DEFAULT_TIER) {
-      const r = tierRowFor(floor, id, { ground: g });
+      const r = tierRowFor(floor, id, { ground: g, fit: fitOf(OPEN_GROUNDS[g]) });
       out[g][id] = { id, pull: [...r.pull], dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };
     }
   }

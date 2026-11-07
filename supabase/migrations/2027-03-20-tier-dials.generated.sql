@@ -13,9 +13,12 @@
 -- already running keeps the pull it froze; its blows and its next spawns read the deployed engine).
 -- SHAPE (lane/b-tier-dials, Tyler 2026-11-07: a tier is "a scaling % of exp and difficulty BUT NOT GOLD"): power_pm is renamed
 -- dmg_pm (the monsters' atk and Level, as before) and hp_pm is new (the monsters' health under the party scale; its kill yield
--- stays the party scale's, so more health pays no more coin or drops). Every dial stays inside the value bound hr_hunt_apply_member
--- reads (a window's XP under K x the most a Normal kill of the ground teaches, K = hr_hunt_limit('value_headroom')).
--- ORDER: after 2027-03-19-tier-risk.generated.sql (the last file to write these rows under the old shape). Idempotent: the
+-- stays the party scale's, so more health pays no more coin or drops). HP and XP stay inside the value bound hr_hunt_apply_member
+-- reads (a window's kill XP under K x the most a Normal kill of the ground teaches, K = hr_hunt_limit('value_headroom')); damage
+-- moves only Defense XP, whose own term (16 foes a swing x K) holds the 4000 cap at a full box of 8.
+-- ORDER: after lane/b-ground-formula-2's three files (2027-03-20-ground-formula-items-catalogue, -level-curve and
+-- -hunt-sessions-catalogue: the monster rows these dials were measured on) and 2027-03-19-tier-risk.generated.sql (the last file
+-- to write these rows under the old shape). Idempotent: the
 -- rename is guarded and the rows rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- REVERSIBLE: rename dmg_pm back to power_pm, drop hp_pm and re-apply 2027-03-19-tier-risk.generated.sql's rows.
 -- ════════════════════════════════════════════════════════════════════════
@@ -47,16 +50,16 @@ comment on table public.hr_ground_tiers is
   '2027-03-20-tier-dials.generated.sql: the harder tiers a ground offers (src/data/hunt-tiers.js through tools/gen-ground-tiers.mjs; tests/hunt-core/hunt-tiers.mjs holds the two equal). Per ground and tier: the pull for 1-4 heroes, the monsters'' damage (dmg_pm) and health (hp_pm) and a kill''s Level XP (xp_pm), permille; never coin. Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
 delete from public.hr_ground_tiers;
 insert into public.hr_ground_tiers (hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm) values
-  ('millrace_sewer', 'dangerous', '{3,5,5,6}'::int[], 2261, 1100, 1200),
-  ('millrace_sewer', 'deadly', '{8,8,8,8}'::int[], 2847, 1200, 1400),
-  ('meadowbrook_thicket', 'dangerous', '{3,5,5,6}'::int[], 2305, 1100, 1200),
-  ('meadowbrook_thicket', 'deadly', '{8,8,8,8}'::int[], 2912, 1200, 1400),
+  ('millrace_sewer', 'dangerous', '{0,5,5,6}'::int[], 1170, 1100, 1200),
+  ('millrace_sewer', 'deadly', '{0,8,8,8}'::int[], 1330, 1100, 1250),
+  ('meadowbrook_thicket', 'dangerous', '{0,0,0,0}'::int[], 2711, 1000, 1050),
+  ('meadowbrook_thicket', 'deadly', '{0,0,0,0}'::int[], 3433, 1000, 1080),
   ('coppercap_warrens', 'dangerous', '{3,5,5,6}'::int[], 1170, 1100, 1200),
-  ('coppercap_warrens', 'deadly', '{8,8,8,8}'::int[], 1330, 1200, 1400),
+  ('coppercap_warrens', 'deadly', '{8,8,8,8}'::int[], 1330, 1100, 1250),
   ('mosslight_glade', 'dangerous', '{3,5,5,6}'::int[], 1170, 1100, 1200),
-  ('mosslight_glade', 'deadly', '{8,8,8,8}'::int[], 1330, 1200, 1400),
-  ('wickstead', 'dangerous', '{0,5,5,6}'::int[], 2261, 1100, 1200),
-  ('wickstead', 'deadly', '{0,8,8,8}'::int[], 2847, 1200, 1400);
+  ('mosslight_glade', 'deadly', '{8,8,8,8}'::int[], 1330, 1100, 1250),
+  ('wickstead', 'dangerous', '{0,5,5,6}'::int[], 2654, 1100, 1200),
+  ('wickstead', 'deadly', '{0,8,8,8}'::int[], 3351, 1100, 1250);
 alter table public.hr_ground_tiers alter column hp_pm set not null;
 alter table public.hr_ground_tiers add constraint hr_ground_tiers_dmg_pm_check check (dmg_pm between 1000 and 4000);
 alter table public.hr_ground_tiers add constraint hr_ground_tiers_hp_pm_check check (hp_pm between 1000 and 4000);
@@ -64,7 +67,7 @@ alter table public.hr_ground_tiers add constraint hr_ground_tiers_hp_pm_check ch
 -- ── §3 SELF-CHECK (CLAUDE.md §4) ──────────────────────────────────────────────
 -- The shape is the data's; the rows are exactly the generated set, each on a ground the catalogue knows; on every ground Deadly is
 -- harder (damage and health never fall, one rises) and better paid than Dangerous; the Glade and the Warrens keep their full box on
--- Deadly; no dial is past the value bound; the checks refuse a dial under the row; no client reaches the table.
+-- Deadly; no HP or XP dial is past the value bound; the checks refuse a dial under the row; no client reaches the table.
 do $$
 declare v_role text; v_k numeric := public.hr_hunt_limit('value_headroom');
 begin
@@ -74,16 +77,16 @@ begin
     raise exception 'tier-dials: hr_ground_tiers is not shaped (dmg_pm, hp_pm, xp_pm), every one an integer and not null'; end if;
   if (select count(*) from public.hr_ground_tiers) <> 10
      or exists (select 1 from (values
-      ('millrace_sewer','dangerous',array[3,5,5,6],2261,1100,1200),
-      ('millrace_sewer','deadly',array[8,8,8,8],2847,1200,1400),
-      ('meadowbrook_thicket','dangerous',array[3,5,5,6],2305,1100,1200),
-      ('meadowbrook_thicket','deadly',array[8,8,8,8],2912,1200,1400),
+      ('millrace_sewer','dangerous',array[0,5,5,6],1170,1100,1200),
+      ('millrace_sewer','deadly',array[0,8,8,8],1330,1100,1250),
+      ('meadowbrook_thicket','dangerous',array[0,0,0,0],2711,1000,1050),
+      ('meadowbrook_thicket','deadly',array[0,0,0,0],3433,1000,1080),
       ('coppercap_warrens','dangerous',array[3,5,5,6],1170,1100,1200),
-      ('coppercap_warrens','deadly',array[8,8,8,8],1330,1200,1400),
+      ('coppercap_warrens','deadly',array[8,8,8,8],1330,1100,1250),
       ('mosslight_glade','dangerous',array[3,5,5,6],1170,1100,1200),
-      ('mosslight_glade','deadly',array[8,8,8,8],1330,1200,1400),
-      ('wickstead','dangerous',array[0,5,5,6],2261,1100,1200),
-      ('wickstead','deadly',array[0,8,8,8],2847,1200,1400)) d(hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm)
+      ('mosslight_glade','deadly',array[8,8,8,8],1330,1100,1250),
+      ('wickstead','dangerous',array[0,5,5,6],2654,1100,1200),
+      ('wickstead','deadly',array[0,8,8,8],3351,1100,1250)) d(hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm)
                  where not exists (select 1 from public.hr_ground_tiers t where t.hunt_id = d.hunt_id and t.tier = d.tier
                                      and t.pull = d.pull and t.dmg_pm = d.dmg_pm and t.hp_pm = d.hp_pm and t.xp_pm = d.xp_pm)) then
     raise exception 'tier-dials: hr_ground_tiers is not the generated %-row set', 10; end if;
@@ -94,8 +97,8 @@ begin
     raise exception 'tier-dials: a ground''s Deadly is not harder and better paid than its Dangerous'; end if;
   if exists (select 1 from public.hr_ground_tiers t where t.tier = 'deadly' and t.hunt_id in ('mosslight_glade', 'coppercap_warrens') and t.pull <> array[8,8,8,8]) then
     raise exception 'tier-dials: the Glade or the Warrens lost its full box on Deadly'; end if;
-  if v_k is null or exists (select 1 from public.hr_ground_tiers t where greatest(t.dmg_pm, t.hp_pm, t.xp_pm) > v_k * 1000) then
-    raise exception 'tier-dials: a dial is past the value bound (% x a Normal kill)', v_k; end if;
+  if v_k is null or exists (select 1 from public.hr_ground_tiers t where greatest(t.hp_pm, t.xp_pm) > v_k * 1000) then
+    raise exception 'tier-dials: an HP or XP dial is past the value bound (% x a Normal kill)', v_k; end if;
   begin
     update public.hr_ground_tiers set hp_pm = 999 where tier = 'deadly';
     raise exception 'tier-dials: a health under the row''s was stored';

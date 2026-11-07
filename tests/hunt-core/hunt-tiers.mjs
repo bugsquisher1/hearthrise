@@ -54,12 +54,19 @@ const cases = {
       if (!(typeof over.why === 'string' && over.why.length > 10)) return 'the override for ' + g + ' gives no reason';
       for (const [k, v] of Object.entries(over)) {
         if (k === 'why' || (k === 'normalOnly' && v === true)) continue;
+        /* a ground's own dials (the Thicket's: XP on no HP dial), named like a pull: a harder tier's, and only the dials the engine reads */
+        if (k === 'dials') {
+          for (const [id, d] of Object.entries(v)) if (!HARDER.includes(id) || Object.keys(d).some((x) => !T.DIALS.includes(x))) return g + ' dials ' + id + ': ' + Object.keys(d) + ', no dial';
+          continue;
+        }
         if (!HARDER.includes(k) || !Array.isArray(v) || v.length !== G.PARTY_SCALE.maxHeroes) return g + ' overrides ' + k + ': only a harder tier\'s pull, or Normal only';
       }
     }
-    /* NEVER TYPED: every ground's row is the sheet's tierRowFor at its floor (hunts.js band), digit for digit. */
+    /* NEVER TYPED: every ground's row is the sheet's tierRowFor at its floor (hunts.js band) and its fit, as the designer's own tool reads
+       them (tools/gen-ground-stats.mjs floorOf, fitOf), per-ground dials included, digit for digit. */
+    const fitOf = (gr) => (gr.pockets.some((p) => p.minParty) ? 'party' : gr.groupFit || 'both');
     for (const [g, rows] of Object.entries(T.GROUND_TIERS)) for (const t of HARDER) {
-      const want = S.tierRowFor(HUNTS.HUNT_INDEX[G.OPEN_GROUNDS[g].hunt].band[0], t, { ground: g }), r = rows[t];
+      const want = S.tierRowFor(HUNTS.HUNT_INDEX[G.OPEN_GROUNDS[g].hunt].band[0], t, { ground: g, fit: fitOf(G.OPEN_GROUNDS[g]) }), r = rows[t];
       if (!r || r.pull.join() !== want.pull.join() || T.DIALS.some((k) => r[k] !== want[k])) return g + ' ' + t + ' plays ' + JSON.stringify(r) + ', the sheet answers ' + JSON.stringify(want);
     }
     for (const [id, rows] of Object.entries(T.GROUND_TIERS)) {
@@ -204,15 +211,18 @@ const cases = {
 
 const D = 'src/data/hunt-tiers.js';
 const SH = 'src/data/balance-sheet.js';
-const SHEET_DEADLY = 'deadly: Object.freeze({ pull: Object.freeze([8, 8, 8, 8]), lift: 1, dmgPm: 1330, hpPm: 1200, xpPm: 1400 }),';
+const SHEET_DEADLY = 'deadly: Object.freeze({ pull: Object.freeze([8, 8, 8, 8]), lift: 1, dmgPm: 1330, hpPm: 1100, xpPm: 1250 }),';
+const THICKET_DIALS = "dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1000, xpPm: 1050 }), deadly: Object.freeze({ hpPm: 1000, xpPm: 1080 }) }),";
 const PC = 'src/core/hunt/pull-cycle.js';
 const mutants = [
-  { name: 'the sheet and the catalogue part: Deadly has more HP in the data only', case: 'catalogue', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('hpPm: 1200', 'hpPm: 1250')]] },
+  { name: 'the sheet and the catalogue part: Deadly has more HP in the data only', case: 'catalogue', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('hpPm: 1100', 'hpPm: 1150')]] },
   { name: 'a ground\'s row typed in hunt-tiers.js, not the sheet\'s', case: 'rows', edits: [[D, 'dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };', "dmgPm: g === 'mosslight_glade' ? 1600 : r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };"]] },
   { name: 'the Glade loses its full box', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('[8, 8, 8, 8]', '[6, 8, 8, 8]')]] },
   { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[SH, 'mill_cellar: Object.freeze({ normalOnly: true,', 'mill_cellar: Object.freeze({ normalOnly: false,']] },
   { name: 'an override\'s typo plays the table\'s pull', case: 'rows', edits: [[SH, 'wickstead: Object.freeze({ dangerous: Object.freeze([0, 5, 5, 6]),', 'wickstead: Object.freeze({ dangerus: Object.freeze([0, 5, 5, 6]),']] },
-  { name: 'Deadly pays more than slightly more XP', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1400', 'xpPm: 1300')]] },
+  { name: 'Deadly pays more than slightly more XP', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 1300')]] },
+  { name: 'a ground\'s dial names no dial', case: 'rows', edits: [[SH, THICKET_DIALS, THICKET_DIALS.replace('xpPm: 1080', 'xpPM: 1080')]] },
+  { name: 'a party ground lifts its tiers', case: 'rows', edits: [[D, '{ ground: g, fit: fitOf(OPEN_GROUNDS[g]) }', '{ ground: g }']] },
   { name: 'the dial reader drops the health dial', case: 'dials', edits: [[D, 'hp: hp === 1000 ? row.hp : Math.max(1, Math.round(((row.hp || 1) * hp) / 1000))', 'hp: row.hp']] },
   { name: 'the dial reader drops the XP dial', case: 'harder-tier-costs', edits: [[D, 'xp: ((row.xp || 0) * xp) / 1000 };', 'xp: row.xp || 0 };']] },
   { name: 'health is no dial: a row on damage and XP alone is the row', case: 'dials', edits: [[D, "if (!row || (dmg === 1000 && hp === 1000 && xp === 1000)) return row;", "if (!row || (dmg === 1000 && xp === 1000)) return row;"]] },
@@ -224,7 +234,8 @@ const mutants = [
   { name: 'a tier pays more gold a kill (exact)', case: 'never-gold', edits: [['src/core/hunt-rewards.js', "const y = yieldPm / 1000;", "const y = (yieldPm / 1000) * (ctx.tier ? ctx.tier.xpPm / 1000 : 1);"]] },
   { name: 'a tier pays more gold a kill', case: 'harder-tier-costs', edits: [['src/core/hunt-rewards.js', "const y = yieldPm / 1000;", "const y = (yieldPm / 1000) * (ctx.tier ? ctx.tier.xpPm / 1000 : 1);"]] },
   { name: 'a word nobody offers plays a harder tier', case: 'normal-is-the-ground', edits: [[D, "return (rows && Object.prototype.hasOwnProperty.call(rows, id) && rows[id]) || NORMAL;", "return (rows && (rows[id] || rows.deadly)) || NORMAL;"]] },
-  { name: 'Deadly pays triple XP: nobody moves on', case: 'ladder', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1400', 'xpPm: 4200')]] },
+  { name: 'Deadly pays triple XP: nobody moves on', case: 'ladder', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 4200')]] },
+  { name: 'the Thicket loses its own dials: its Deadly out-earns Wickstead', case: 'ladder', edits: [[SH, THICKET_DIALS, '']] },
 ];
 
 const REPORT = makeReport('hunt-core/hunt-tiers');

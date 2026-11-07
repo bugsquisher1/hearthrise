@@ -112,31 +112,56 @@ export const STAT_FORMULA = Object.freeze({
   hit: Object.freeze({ lo: 0.40, hi: 0.70 }),
   /* A REGULAR's largest blow, a share of the same-Level hero's base HP; atk = blow / the tier's damage scale.
      A monster above its hero's Level hits a bigger share of that hero (10 HP a Level), and more often (2% a Level). */
-  blow: Object.freeze({ lo: 0.12, hi: 0.20 }),
+  /* gentleCap: on a gentle ground no blow passes this share of the FLOOR hero's HP (its deep monsters meet fresh heroes 8-10 Levels under them),
+     climbing to no cap on a full ground. 0.10: the Thicket's fresh melee dipped under 25% 1-6 times in 4 h (1 at 0.10, 1-5 at 0.14;
+     the sheet allows 0), lane/b-ground-formula-2. */
+  blow: Object.freeze({ lo: 0.12, hi: 0.20, gentleCap: 0.10 }),
   /* A REGULAR's HP (the row's: a party of four's, the engine scales it 55-100% by party size): base + perLevel x
      its Level, a straight line like a hero's damage, so it grows by perLevel / HP a Level (13% at 5, 7% at 16, 3%
      at 50). Fitted on every open ground's rows (Cellar 9 at Level 2, Glade 30 at 16, Warrens 150 at 34 / 2.5). */
   hp: Object.freeze({ base: 4.5, perLevel: 1.6 }),
-  /* A REGULAR's defense: perLevel x its Level. */
-  def: Object.freeze({ perLevel: 0.08 }),
+  /* A REGULAR's defense: perLevel x its Level (x the role), plus `past.perLevel` a Level past `past.from` for every role. A hero's
+     to-hit is 0.55 + (skill + weapon accuracy - defense) x 0.01, held to 95%: at 0.08 a Level a Warrens goblin (def 2-17) left a
+     Level 45 hero at the cap, so a better weapon's accuracy bought nothing (first-week-bands weapon-rungs: the hatchets' tier 3
+     paid +1.9% over tier 2, the bar is +5%; with the term the Warrens read def 10-33, its hand rows' 10-28, and the rung passes). */
+  def: Object.freeze({ perLevel: 0.08, past: Object.freeze({ from: 20, perLevel: 0.5 }) }),
   /* LEVEL XP a kill = a x L^b per HP point of the monster, never under `min` (today's grounds pay about
      1.8 x L^0.4 from the Thicket to the Warrens: the pace contract's L^1.365 rising over a hero's roughly linear
      damage; the Cellar's first kills pay about 3 a point, the floor). */
   xp: Object.freeze({ a: 1.70, b: 0.4, min: 3.0 }),
-  /* COIN a kill: the mean gold per HP point, and the spread of [lo, hi] around it (today's grounds pay about
-     0.30 g per HP at every Level), plus `danger` more on a ground that bites in full (by the ramp): HARDER PAYS MORE
-     (Tyler 2026-11-03 and 11-04, "harder mobs grant better loot"). Measured: at one coin rate the Glade's floor tank
-     netted 1,234 g an hour against the Sewer party's 1,900, and a lone tank at 25 earned more on Wickstead
-     (forest-cave glade-between, harder-pays-more): the food the danger costs has to come back in coin. */
-  gp: Object.freeze({ perHp: 0.30, lo: 0.5, hi: 1.5, danger: 0.30 }),
-  /* A PARTY GROUND (hunt-grounds.js groupFit 'party', or a pocket that needs a party) is built for four heroes'
-     damage: its rows carry this much more HP, and so this much more XP and coin a kill (today's Sewer and Warrens
-     stand 2.2-3x the solo grounds' HP at their Levels). */
-  fit: Object.freeze({ solo: 1, both: 1, party: 2.5 }),
+  /* COIN a kill: perHp gold per HP point times the ground's `line`, rolled lo..2 x mean - lo so the roll's mean IS the
+     formula's (keepMean: a plain [0.5, 1.5] rounding paid a 3 g whelp 3.5). HARDER PAYS MORE ON ONE LINE (Tyler 11-03,
+     11-04): coin per HP climbs straight with the ground's floor, x0.75 at the first ground to x1.4 from floor 16
+     (the Thicket x0.92, Wickstead and the Sewer x1.05). Measured (lane/b-ground-formula-2, the real settle, 6 seeds):
+     at a flat 0.30 the Thicket's floor netted 2,069 g an hour over the Sewer party's 1,771 (first-grounds chain), and
+     the Glade's floor, whose x1.2 bite costs food, needs x1.4 to net over the Sewer party (2,234 against 1,964). */
+  gp: Object.freeze({ perHp: 0.30, lo: 0.5, keepMean: true, line: Object.freeze({ from: 1, to: 16, lo: 0.75, hi: 1.4 }) }),
+  /* WHO A GROUND IS BUILT FOR. A PARTY GROUND (hunt-grounds.js groupFit 'party', or a pocket that needs a party) is built
+     for four heroes' damage on one tank: its rows carry `hp` times the HP (today's Sewer and Warrens stand 2.2-3x the solo
+     grounds' at their Levels), each blow `blow` of a solo ground's (the tank takes every monster of the pull at once: on
+     the solo blow a four at the Warrens' floor sat at a 69% typical low, today 85%), `xp` of the XP a point (the four
+     earned 21-25% over today's pace at the Sewer and the Warrens), and its harder tiers lift nothing (`tierLift` false:
+     a gentle party ground's Deadly lifted to full killed its four at the floor 195 times in 16 hero-hours). Plan formula.
+     Its boss's blow takes `blow` too (`bossBlow`). Two dials run on the danger ramp, gentle to full (lane/b-ground-formula-2):
+       to-hit  `hit` points on a gentle party ground, `hitFull` on a full one. -0.3 there: a lone hero at the Warrens'
+               soloFrom (45) ate 3.9k g an hour of food at the formula's to-hit and earned less than on the Glade
+               (forest-cave harder-pays-more); at -0.3 it eats next to nothing, as the card's "alone from 45" says.
+       coin    `gp` on a gentle party ground, `gpFull` on a full one, on top of the line. Gentle 1.02: since the gentle blow cap the
+               Sewer's four eats less and nets 1,945-2,050 a head against the Thicket's ~1,850 (1.05 put it over the Glade's floor,
+               forest-cave glade-between); at 1 the store-fed crossbow Ranger read +24.2% (ranger-floor, bar +25%). Full 0.53: the least that keeps harder-pays-more with a 5% margin at
+               both Warrens probes (a four at 41: 8,168 against the Glade's 7,693; alone at 45: 8,356 against 7,116); at x1
+               the Warrens paid 2.4x its 10-23 value (a four at 32 netted 8,759 g an hour, the Glade's floor 1,977). */
+  fit: Object.freeze({
+    solo: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
+    both: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
+    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.02, gpFull: 0.53 }),
+  }),
 });
 
 /* ROLES: a monster's shape at its Level, as multipliers on the regular (hit is points added, the rest x).
-   DESIGNER, provisional. */
+   DESIGNER, provisional. `gentleHp`: the role's HP on a gentle ground (ramp 0), climbing to `hp` on a full one. Fresh heroes
+   kill a gentle ground's monsters in one or two blows, so extra HP there only inflated the kill's XP and coin (the Thicket's
+   middle paid 1.20x the pace contract at heavy 1.2 / elite 1.6, 1.05x at 1.0 / 1.2; lane/b-ground-formula-2). */
 export const MONSTER_ROLES = Object.freeze({
   /* many and weak: the common majority (rats, whelps) */
   swarm: Object.freeze({ hp: 0.8, hit: -0.04, blow: 0.85, def: 0.5, xp: 1.0, gp: 1.0 }),
@@ -144,9 +169,9 @@ export const MONSTER_ROLES = Object.freeze({
   /* fragile, quick to land: fliers, archers, deserters, casters */
   glass: Object.freeze({ hp: 0.75, hit: 0.05, blow: 1.1, def: 0.5, xp: 1.2, gp: 1.0 }),
   /* the tank: slow, thick, a softer blow */
-  heavy: Object.freeze({ hp: 1.2, hit: -0.10, blow: 0.8, def: 3.0, xp: 1.1, gp: 1.0 }),
+  heavy: Object.freeze({ hp: 1.2, gentleHp: 1.0, hit: -0.10, blow: 0.8, def: 3.0, xp: 1.1, gp: 1.0 }),
   /* the bruiser or the rare carrier: much more HP and defense, a full blow */
-  elite: Object.freeze({ hp: 1.6, hit: 0, blow: 1.0, def: 4.0, xp: 1.15, gp: 1.0 }),
+  elite: Object.freeze({ hp: 1.6, gentleHp: 1.2, hit: 0, blow: 1.0, def: 4.0, xp: 1.15, gp: 1.0 }),
   /* a ground's boss: a long fight, and a blow held to `floorCap` of the FLOOR hero's base HP (designer 10-21: at most
      35%; Andy's Sewer death), whatever its own Level */
   boss: Object.freeze({ hp: 5, hit: 0, blow: 1.1, def: 4.0, xp: 1.2, gp: 1.0, floorCap: 0.33 }),
@@ -200,6 +225,16 @@ export const GROUND_ROSTER = Object.freeze({
     chief_coppercap: 'boss',
   }),
 });
+/* A GROUND'S XP FIT: Level XP a kill on one ground, x this, where its layout (pockets, walks) kills faster than its Levels
+   pay for. Measured, each with its reason (lane/b-ground-formula-2): the Meadowbrook Thicket x0.9: at Wickstead's floor (8) its
+   Normal paid within 0-12% of Wickstead's for every way to fight (a four 33.3k against 33.6k), so no harder tier fitted under
+   the next ground (hunt-tiers ladder), and its middle (10) paid 1.05x the pace contract on three ways (1.27x on the sheet's eight
+   before the gentle roles). The Mill Cellar x1.25 and Wickstead x1.1: the pace re-measure's ladder read them at 0.75x and 0.89x the
+   contract in band (the Cellar 5,960 at 4.5, Wickstead 30,088 at 13), so the ladder's fit ran steeper than the contract (718 x L^1.472:
+   level-curve C5 -13% at 100) and the careers reached Level 10 in 6.7 h (C3, +12%); the Cellar is the tutorial, paced to Level 5 in
+   LEVEL_PACE.early (0.32 h against its 0.25 aim). */
+export const GROUND_XP_FIT = Object.freeze({ mill_cellar: 1.25, meadowbrook_thicket: 0.9, wickstead: 1.1 });
+
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({});
 
@@ -230,19 +265,27 @@ export function formulaStats(spec, opts = {}) {
   if (!Number.isFinite(Number(spec.floor))) throw new Error('balance-sheet: no ground floor for a ' + spec.role);
   const L = Math.max(1, Math.floor(Number(spec.level) || 1));
   const scale = DAMAGE_SCALE_BY_TIER[spec.tier] || DAMAGE_SCALE_BY_TIER[1];
-  const fit = (F.fit && F.fit[spec.fit || 'solo']) || 1;
+  const fit = (F.fit && F.fit[spec.fit || 'solo']) || { hp: 1, blow: 1, xp: 1 };
   const dz = dangerAt(Number(spec.floor), 0, F);
-  const hit = dz.hit + R.hit;
+  const h0 = fit.hit || 0, fitHit = fit.hitFull === undefined ? h0 : h0 + (fit.hitFull - h0) * dz.ramp;
+  const hit = dz.hit + R.hit + fitHit;
   /* a boss's blow is held under its cap of the FLOOR hero, however deep it lives */
-  const blowShare = R.floorCap ? Math.min(dz.blow * R.blow, (R.floorCap * F.refHp(Number(spec.floor))) / F.refHp(L)) : dz.blow * R.blow;
+  const gentleCap = F.blow.gentleCap ? F.blow.gentleCap + (1 - F.blow.gentleCap) * dz.ramp : Infinity;
+  const blowShare = R.floorCap ? Math.min(dz.blow * R.blow * (fit.bossBlow ? fit.blow : 1), (R.floorCap * F.refHp(Number(spec.floor))) / F.refHp(L))
+    : Math.min(dz.blow * R.blow * fit.blow, (gentleCap * F.refHp(Number(spec.floor))) / F.refHp(L));
   const atk = Math.max(1, Math.round((blowShare * F.refHp(L)) / scale));
   /* to-hit at the same-Level hero = baseAcc + (atk - L) x 0.02, so: */
   const baseAcc = Math.round((hit - (atk - L) * ACC_PER_POINT) * 100) / 100;
-  const hp = Math.max(1, Math.round(((F.hp.base || 0) + F.hp.perLevel * L) * R.hp * fit));
-  const def = Math.max(0, Math.round(F.def.perLevel * L * R.def));
-  const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp));
-  const mean = F.gp.perHp * (1 + (F.gp.danger || 0) * dz.ramp) * hp * R.gp;
-  const gp = [Math.max(1, Math.round(mean * F.gp.lo)), Math.max(1, Math.round(mean * F.gp.hi))];
+  const rHp = R.gentleHp === undefined ? R.hp : R.gentleHp + (R.hp - R.gentleHp) * dz.ramp;
+  const hp = Math.max(1, Math.round(((F.hp.base || 0) + F.hp.perLevel * L) * rHp * fit.hp));
+  const def = Math.max(0, Math.round(F.def.perLevel * L * R.def + (F.def.past ? F.def.past.perLevel * Math.max(0, L - F.def.past.from) : 0)));
+  const gx = (opts.groundXp || GROUND_XP_FIT)[spec.ground] || 1;
+  const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp * fit.xp * gx));
+  const g0 = fit.gp === undefined ? 1 : fit.gp, fitGp = fit.gpFull === undefined ? g0 : g0 + (fit.gpFull - g0) * dz.ramp;
+  const line = F.gp.line ? F.gp.line.lo + (F.gp.line.hi - F.gp.line.lo) * clamp01((Number(spec.floor) - F.gp.line.from) / (F.gp.line.to - F.gp.line.from)) : 1 + (F.gp.danger || 0) * dz.ramp;
+  const mean = F.gp.perHp * line * hp * R.gp * fitGp;
+  const lo = Math.max(1, Math.round(mean * F.gp.lo));
+  const gp = F.gp.keepMean ? [lo, Math.max(lo, Math.round(2 * mean - lo))] : [lo, Math.max(1, Math.round(mean * F.gp.hi))];
   return { hp, atk, baseAcc, def, xp, gp, hitVsSameLevel: Math.round(hit * 100) / 100, blowShare: Math.round(blowShare * 1000) / 1000 };
 }
 
@@ -257,16 +300,18 @@ export function formulaStats(spec, opts = {}) {
             swing is worth (to-hit x blow at a same-Level hero), then adds dmgPm: tierRowFor answers the engine's
             permille per ground (Wickstead 1840 and 2845; the Glade the table's own).
      hpPm   its HP, permille (Tyler: HP is part of a tier's difficulty): a pile that stays on you longer.
-     xpPm   Level XP a kill, permille: above hpPm, so a tier pays more an hour for the risk.
+     xpPm   Level XP a kill, permille: above hpPm, so a tier pays more an hour for the risk. AT MOST 1250 (Tyler 11-05:
+            tiers "pay slightly more Level XP"; tests/hunt-core/hunt-tiers.mjs rows): Deadly's 1400 came down to 1250 and
+            its HP to 1100 with it, so a Deadly HP point still pays more than a Dangerous one (1.14 against 1.09).
    RE-ANCHORED on the formula's Normal: the Glade's 1400 and 1600 were measured (lane/b-tier-risk, Andy's live Deadly)
    on monsters a fifth softer than Tyler's x1.2 Normal, so a tier keeps its measured total over the old Normal:
    1400 / 1.2 = 1170, 1600 / 1.2 = 1330 (at 1600 on the formula's Normal a four at the Glade's floor died 31 times in
-   16 hero-hours, plan formula). The HP dial (x1.1, x1.2, paid by x1.2 and x1.4 XP a kill) was played beside none
+   16 hero-hours, plan formula). The HP dial (then x1.1, x1.2, paid by x1.2 and x1.4 XP a kill) was played beside none
    (plan formulaH): a little more food and about the same XP an hour, so a tier costs what Tyler asked. */
 export const TIER_DIALS = Object.freeze({
   normal: Object.freeze({ pull: Object.freeze([0, 0, 0, 0]), lift: 0, dmgPm: 1000, hpPm: 1000, xpPm: 1000 }),
   dangerous: Object.freeze({ pull: Object.freeze([3, 5, 5, 6]), lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1200 }),
-  deadly: Object.freeze({ pull: Object.freeze([8, 8, 8, 8]), lift: 1, dmgPm: 1330, hpPm: 1200, xpPm: 1400 }),
+  deadly: Object.freeze({ pull: Object.freeze([8, 8, 8, 8]), lift: 1, dmgPm: 1330, hpPm: 1100, xpPm: 1250 }),
 });
 /* Per-ground pull rows, only where a ground's shape demands one, each with its reason: { tier: pull[4] }, or
    normalOnly. Grounds not listed take TIER_DIALS whole. */
@@ -277,30 +322,43 @@ export const TIER_PULL_OVERRIDES = Object.freeze({
      97k on Deadly's pull of 8 (+8.6k gold, no death) against the Glade's Normal at 16-18 (72-79k), and Dangerous's pull of 3 paid every way
      at the floor 1.3-1.6x with no death (plan formula). Alone it keeps the ground as it stands, as lane/b-tier-risk found; parties keep the table's. */
   wickstead: Object.freeze({ dangerous: Object.freeze([0, 5, 5, 6]), deadly: Object.freeze([0, 8, 8, 8]), why: 'the ladder rule: a lone extra pull on soft monsters is free XP past the Glade' }),
+  /* The Thicket's room is the stats, not more monsters, as live, and its tiers pay a little XP on no extra HP (`dials`, as live: 1050 and 1080): its Normal
+     at Wickstead's floor (8) pays 6-12% under Wickstead's, so the table's x1.25 on its Deadly beat Wickstead's Normal for every way to fight
+     (tests/hunt-core/hunt-tiers.mjs ladder; lane/b-ground-formula-2: a lone tank 25.8k against 24.3k, a four 38.1k against 33.6k). */
+  meadowbrook_thicket: Object.freeze({ dangerous: Object.freeze([0, 0, 0, 0]), deadly: Object.freeze([0, 0, 0, 0]),
+    dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1000, xpPm: 1050 }), deadly: Object.freeze({ hpPm: 1000, xpPm: 1080 }) }),
+    why: 'the ladder rule: a pull of 3, or the table XP, at the Thicket beats the Normal at Wickstead' }),
+  /* A lone hero keeps the Sewer as it stands, as live: a pull of 4 there beats the Glade for a hammer. */
+  millrace_sewer: Object.freeze({ dangerous: Object.freeze([0, 5, 5, 6]), deadly: Object.freeze([0, 8, 8, 8]), why: 'the ladder rule: a lone pull of 4 at the Sewer beats the Glade for a hammer' }),
 });
 
 /* What one swing is worth at a same-Level hero: its to-hit times its blow share, a tier's atk scaling `k` applied the engine's way
    (atk x k: the blow x k, the to-hit up 2% a point of atk added). The reference monster is a regular at the floor, tier-1 damage scale. */
 function swingWorth(floor, lift, k, F) {
-  const d = dangerAt(floor, lift, F), atk = (d.blow * F.refHp(floor)) / DAMAGE_SCALE_BY_TIER[1];
-  return (d.hit + atk * (k - 1) * ACC_PER_POINT) * d.blow * k;
+  /* the gentle blow cap is a Normal kindness too: a tier takes it back with the rest (at full lift there is none) */
+  const d = dangerAt(floor, lift, F), dl = d.ramp + (1 - d.ramp) * clamp01(lift);
+  const cap = F.blow.gentleCap ? F.blow.gentleCap + (1 - F.blow.gentleCap) * dl : Infinity;
+  const atk = (Math.min(d.blow, cap) * F.refHp(floor)) / DAMAGE_SCALE_BY_TIER[1];
+  return (d.hit + atk * (k - 1) * ACC_PER_POINT) * Math.min(d.blow, cap) * k;
 }
 
 /**
  * The engine's tier row on a ground of this floor and id ({ pull, dmgPm, hpPm, xpPm }, hunt-tiers.js's shape after
  * lane/b-tier-dials): dmgPm is the atk scaling that makes a swing on this ground worth what the tier's is on a full
- * ground lifted as written; the pull is the ground's override, else the table's. opts { formula, tiers, overrides, ground }.
+ * ground lifted as written; the pull is the ground's override, else the table's. opts { formula, tiers, overrides, ground, fit }.
  */
 export function tierRowFor(floor, tierId, opts = {}) {
   const T = (opts.tiers || TIER_DIALS)[tierId];
   if (!T) throw new Error('balance-sheet: no tier ' + tierId);
   const F = opts.formula || STAT_FORMULA;
-  const want = swingWorth(floor, T.lift, T.dmgPm / 1000, F);
+  /* a party ground's tiers lift nothing (STAT_FORMULA.fit): the table's own scaling on its own Normal */
+  const fit = F.fit && F.fit[opts.fit || 'solo'];
+  const want = swingWorth(floor, fit && fit.tierLift === false ? 0 : T.lift, T.dmgPm / 1000, F);
   /* the scaling of this ground's Normal regular that reaches `want` (it only grows with k): bisection */
   let lo = 1, hi = 10;
   for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (swingWorth(floor, 0, mid, F) < want) lo = mid; else hi = mid; }
   const o = opts.ground ? (opts.overrides || TIER_PULL_OVERRIDES)[opts.ground] : null;
-  const pull = (o && o[tierId]) || T.pull;
-  return { pull: pull.slice(), dmgPm: Math.round(hi * 1000), hpPm: T.hpPm, xpPm: T.xpPm };
+  const pull = (o && o[tierId]) || T.pull, d = (o && o.dials && o.dials[tierId]) || {};
+  return { pull: pull.slice(), dmgPm: Math.round(hi * 1000), hpPm: d.hpPm || T.hpPm, xpPm: d.xpPm || T.xpPm };
 }
 

@@ -43,17 +43,21 @@
    RE-FITTED 2026-10-29 (lane/a-pull-freeze, Coordinator ruling): with every pack down a hero now walks on to the next
    spawn instead of standing on the pocket it cleared (report #69), so Levels 5-15 earn 7-12% more an hour (the Thicket,
    Wickstead) and 16-49 1-3% (the Glade); Level 25 fell to 32 h. Re-measured (plans pace + ladder) and re-fitted by
-   pace.mjs --fit (minimax 3.3%). Forward file 2027-02-09-walk-on-level-curve. */
+   pace.mjs --fit (minimax 3.3%). Forward file 2027-02-09-walk-on-level-curve.
+   EASED 2026-11-07 (lane/b-ground-formula-2): the formula's Cellar pays a Level 4 hero 1.2% more an hour than a Level 3 (was 2.1%) and its Thicket a
+   Level 5 23,066 (was 24,624), so C6 read 2.00x at Level 4 -> 5 and 2.14x at 5 -> 6. By hand, each step under 2x the minutes before it: 4 -> 5
+   1,015 XP (was 1,035), 5 -> 6 5,980 (6,437), 6 -> 7 12,100 (12,795), 7 -> 8 24,800 (25,363); Level 8 -> 9 on costs what it did, every total from 9
+   on 1,715 XP less. Forward file 2027-03-20-ground-formula-level-curve. */
 export const LEVEL_CURVE = Object.freeze({
   first: 128,
   brackets: Object.freeze([
     Object.freeze({ from: 1, rise: 128, bend: 0 }),
     Object.freeze({ from: 2, rise: 255, bend: 0 }),
-    Object.freeze({ from: 3, rise: 524, bend: 0 }),
-    Object.freeze({ from: 4, rise: 5402, bend: 0 }),
-    Object.freeze({ from: 5, rise: 6358, bend: 0 }),
-    Object.freeze({ from: 6, rise: 12568, bend: 0 }),
-    Object.freeze({ from: 7, rise: 34000, bend: 0 }),
+    Object.freeze({ from: 3, rise: 504, bend: 0 }),
+    Object.freeze({ from: 4, rise: 4965, bend: 0 }),
+    Object.freeze({ from: 5, rise: 6120, bend: 0 }),
+    Object.freeze({ from: 6, rise: 12700, bend: 0 }),
+    Object.freeze({ from: 7, rise: 34563, bend: 0 }),
     Object.freeze({ from: 8, rise: 12681, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
     Object.freeze({ from: 10, rise: 0, bend: 504 }),

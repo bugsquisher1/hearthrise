@@ -45,7 +45,7 @@ export function proposeGround(gid, D, opts = {}) {
     const m = D.MONSTERS[id];
     if (!m) throw new Error('gen-ground-stats: ' + gid + ' names ' + id + ', which is not a monster');
     if (!Number.isInteger(m.level)) throw new Error('gen-ground-stats: ' + id + ' has no Level');
-    const f = D.formulaStats({ level: m.level, role, tier: m.tier, floor: D.floorOf(gid), fit: D.fitOf ? D.fitOf(gid) : 'solo' }, opts);
+    const f = D.formulaStats({ level: m.level, role, tier: m.tier, floor: D.floorOf(gid), fit: D.fitOf ? D.fitOf(gid) : 'solo', ground: gid }, opts);
     const formula = Object.fromEntries(FORMULA_FIELDS.map((k) => [k, f[k]]));
     for (const [k, why] of Object.entries((EXCEPTIONS[id] || {}))) { if (!why) throw new Error('gen-ground-stats: ' + id + '.' + k + ' exception has no reason'); formula[k] = m[k]; }
     const today = Object.fromEntries(FORMULA_FIELDS.map((k) => [k, k === 'baseAcc' ? (Number.isFinite(m.baseAcc) ? m.baseAcc : 0.5) : m[k]]));
@@ -97,7 +97,7 @@ async function main() {
   for (const g of grounds) {
     const rows = proposeGround(g, D);
     out[g] = Object.fromEntries(rows.map((r) => [r.id, r]));
-    const tiers = Object.fromEntries(['dangerous', 'deadly'].map((t) => [t, D.tierRowFor(D.floorOf(g), t, { ground: g })]));
+    const tiers = Object.fromEntries(['dangerous', 'deadly'].map((t) => [t, D.tierRowFor(D.floorOf(g), t, { ground: g, fit: D.fitOf(g) })]));
     tierRows[g] = tiers;
     console.log('\n' + g + ' (floor ' + D.floorOf(g) + '; engine tier rows: Dangerous ' + JSON.stringify(tiers.dangerous) + ', Deadly ' + JSON.stringify(tiers.deadly) + ')');
     for (const r of rows) {

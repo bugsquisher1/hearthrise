@@ -107,7 +107,8 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* TEMPERING'S MATERIAL (lane/c-temper-craft, designer 2026-11-05): 2027-02-25-houndskin-items-catalogue is APPLIED history; the salts' hr_items rows and their Smithing recipes in hr_activities land in ONE forward file, the same full delete+insert replace. */
 /* THE RUNE LADDER (lane/c-rune-ladder, Tyler 2026-11-05): 2027-02-28-temper-craft-items-catalogue is the file before this one and this one carries it; the deeper runes' book values (hr_items.value, read by the market's ceiling) land in ONE forward file, the same full delete+insert replace. */
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, Tyler 2026-11-05): 2027-03-08-rune-ladder-items-catalogue is APPLIED history; the Banded Signet's Fine and Hallmarked rows, the Road Carnelian (hr_items) and the two rolled Crafting jobs (hr_activities) land in ONE forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-03-14-jewelry-items-catalogue.generated.sql');
+/* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-14-jewelry-items-catalogue is APPLIED history; the open grounds' monsters' max HP (hr_activities combat rows) land in ONE forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-03-20-ground-formula-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

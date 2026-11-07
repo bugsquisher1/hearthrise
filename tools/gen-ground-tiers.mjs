@@ -22,8 +22,11 @@
 // REFUSES (throws, nothing written): a row the table's checks would refuse (damage and health 1000-4000, XP 1000-2000, four
 // pulls of 0-12), a harder tier that isn't harder and better paid than the one before (damage and health never fall, one of
 // them rises, XP rises), the Glade's or the Warrens' Deadly without its full box (Tyler 10-18), and a dial past the server's
-// value bound: hr_hunt_apply_member bounds a window's XP by K x the most a Normal kill of the ground can teach (VALUE_HEADROOM,
-// hunt-sessions.js), so a tier asking more than K times a kill's damage, health or XP would see honest play refused.
+// value bound: hr_hunt_apply_member bounds a window's kill XP by K x the most a Normal kill of the ground can teach (VALUE_HEADROOM,
+// hunt-sessions.js: every HP of damage plus the kill's Level XP), so a tier asking more than K times a kill's HP or XP would see
+// honest play refused. Damage is not in that term: it moves Defense XP (the monster's Level), which the server bounds by its own
+// worst case, every swing from 16 foes at the ground's top Level, x K; at most a full box (8) strikes one hero, so the table's
+// 4000 cap is half that room at K = 3 (x3.43 at the Thicket's Deadly reads 0.57 of it).
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -37,6 +40,8 @@ const HARDER = ['dangerous', 'deadly'];
 const FULL_BOX_GROUNDS = ['mosslight_glade', 'coppercap_warrens'];
 const DIALS = ['dmgPm', 'hpPm', 'xpPm'];
 const RANGE = { dmgPm: [1000, 4000], hpPm: [1000, 4000], xpPm: [1000, 2000] };
+/* the dials a Normal kill's bound is made of (gen-hunt-sessions.mjs killBounds: hp x hitXpPerDamage + xp) */
+const KILL_DIALS = ['hpPm', 'xpPm'];
 
 /** The SQL for `tiers` (GROUND_TIERS' shape) under the server's value headroom `headroom` (hunt-sessions.js VALUE_HEADROOM). */
 export function buildSql(tiers, headroom) {
@@ -53,7 +58,7 @@ export function buildSql(tiers, headroom) {
       if (t.dmgPm < was.dmgPm || t.hpPm < was.hpPm || (t.dmgPm === was.dmgPm && t.hpPm === was.hpPm) || !(t.xpPm > was.xpPm)) {
         throw new Error(at + ' is not harder and better paid than the tier before');
       }
-      for (const k of DIALS) if (t[k] > headroom * 1000) throw new Error(at + ' ' + k + ' ' + t[k] + ' is past the value bound (' + headroom + 'x a Normal kill)');
+      for (const k of KILL_DIALS) if (t[k] > headroom * 1000) throw new Error(at + ' ' + k + ' ' + t[k] + ' is past the value bound (' + headroom + 'x a Normal kill)');
       was = t;
       rows.push([ground, id, t.pull, t.dmgPm, t.hpPm, t.xpPm]);
     }
@@ -77,9 +82,12 @@ export function buildSql(tiers, headroom) {
 -- already running keeps the pull it froze; its blows and its next spawns read the deployed engine).
 -- SHAPE (lane/b-tier-dials, Tyler 2026-11-07: a tier is "a scaling % of exp and difficulty BUT NOT GOLD"): power_pm is renamed
 -- dmg_pm (the monsters' atk and Level, as before) and hp_pm is new (the monsters' health under the party scale; its kill yield
--- stays the party scale's, so more health pays no more coin or drops). Every dial stays inside the value bound hr_hunt_apply_member
--- reads (a window's XP under K x the most a Normal kill of the ground teaches, K = hr_hunt_limit('value_headroom')).
--- ORDER: after 2027-03-19-tier-risk.generated.sql (the last file to write these rows under the old shape). Idempotent: the
+-- stays the party scale's, so more health pays no more coin or drops). HP and XP stay inside the value bound hr_hunt_apply_member
+-- reads (a window's kill XP under K x the most a Normal kill of the ground teaches, K = hr_hunt_limit('value_headroom')); damage
+-- moves only Defense XP, whose own term (16 foes a swing x K) holds the 4000 cap at a full box of 8.
+-- ORDER: after lane/b-ground-formula-2's three files (2027-03-20-ground-formula-items-catalogue, -level-curve and
+-- -hunt-sessions-catalogue: the monster rows these dials were measured on) and 2027-03-19-tier-risk.generated.sql (the last file
+-- to write these rows under the old shape). Idempotent: the
 -- rename is guarded and the rows rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- REVERSIBLE: rename dmg_pm back to power_pm, drop hp_pm and re-apply 2027-03-19-tier-risk.generated.sql's rows.
 -- ════════════════════════════════════════════════════════════════════════
@@ -119,7 +127,7 @@ alter table public.hr_ground_tiers add constraint hr_ground_tiers_hp_pm_check ch
 -- ── §3 SELF-CHECK (CLAUDE.md §4) ──────────────────────────────────────────────
 -- The shape is the data's; the rows are exactly the generated set, each on a ground the catalogue knows; on every ground Deadly is
 -- harder (damage and health never fall, one rises) and better paid than Dangerous; the Glade and the Warrens keep their full box on
--- Deadly; no dial is past the value bound; the checks refuse a dial under the row; no client reaches the table.
+-- Deadly; no HP or XP dial is past the value bound; the checks refuse a dial under the row; no client reaches the table.
 do $$
 declare v_role text; v_k numeric := public.hr_hunt_limit('value_headroom');
 begin
@@ -140,8 +148,8 @@ begin
     raise exception 'tier-dials: a ground''s Deadly is not harder and better paid than its Dangerous'; end if;
   if exists (select 1 from public.hr_ground_tiers t where t.tier = 'deadly' and t.hunt_id in ('mosslight_glade', 'coppercap_warrens') and t.pull <> array[8,8,8,8]) then
     raise exception 'tier-dials: the Glade or the Warrens lost its full box on Deadly'; end if;
-  if v_k is null or exists (select 1 from public.hr_ground_tiers t where greatest(t.dmg_pm, t.hp_pm, t.xp_pm) > v_k * 1000) then
-    raise exception 'tier-dials: a dial is past the value bound (% x a Normal kill)', v_k; end if;
+  if v_k is null or exists (select 1 from public.hr_ground_tiers t where greatest(t.hp_pm, t.xp_pm) > v_k * 1000) then
+    raise exception 'tier-dials: an HP or XP dial is past the value bound (% x a Normal kill)', v_k; end if;
   begin
     update public.hr_ground_tiers set hp_pm = 999 where tier = 'deadly';
     raise exception 'tier-dials: a health under the row''s was stored';
@@ -171,7 +179,8 @@ async function loadData(root) {
 
 /* ONE FORMULA, SAID OUT LOUD: the grounds on the table as it stands, and each named exception the sheet carries. */
 function said(tiers, overrides) {
-  const named = Object.entries(overrides).map(([g, o]) => g + (o.normalOnly ? ' Normal only' : ' ' + HARDER.filter((id) => o[id]).map((id) => id + ' pull ' + o[id].join('/')).join(', ')));
+  const dialsOf = (o, id) => (o.dials && o.dials[id] ? ' ' + Object.entries(o.dials[id]).map(([k, v]) => k + ' ' + v).join(' ') : '');
+  const named = Object.entries(overrides).map(([g, o]) => g + (o.normalOnly ? ' Normal only' : ' ' + HARDER.filter((id) => o[id]).map((id) => id + ' pull ' + o[id].join('/') + dialsOf(o, id)).join(', ')));
   return Object.keys(tiers).length + ' grounds from balance-sheet.js tierRowFor; named: ' + (named.join('; ') || 'none');
 }
 
@@ -186,7 +195,8 @@ async function selftest() {
   expectThrow('a damage the table refuses', (t) => { t.wickstead.deadly.dmgPm = 4500; });
   expectThrow('a health under the row', (t) => { t.wickstead.dangerous.hpPm = 900; });
   expectThrow('a health past the value bound', (t) => { t.coppercap_warrens.deadly.hpPm = 3500; });
-  expectThrow('a damage past a tighter value bound', () => {}, 2);
+  expectThrow('an XP past a tighter value bound', () => {}, 1);
+
   expectThrow('three pulls for four sizes', (t) => { t.wickstead.dangerous.pull = [0, 4, 4]; });
   expectThrow('the Glade without its full box', (t) => { t.mosslight_glade.deadly.pull = [4, 8, 8, 8]; });
   expectThrow('a ground with no Deadly', (t) => { delete t.millrace_sewer.deadly; });

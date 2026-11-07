@@ -303,7 +303,7 @@
     "node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest": "db-replay-8",
     "node tests/balance-sheet.mjs": "db-replay-8",
     "node tools/mutant-gate.mjs node tests/balance-sheet.mjs --mutate": "db-replay-8",
-    "node tools/gen-ground-stats.mjs --check --grounds wickstead,mosslight_glade": "db-replay-8",
+    "node tools/gen-ground-stats.mjs --check": "db-replay-8",
     "node tools/mutant-gate.mjs node tools/gen-ground-stats.mjs --selftest": "db-replay-8",
     "node tools/gen-level-curve.mjs --check": "db-replay-8",
     "node tools/mutant-gate.mjs node tools/gen-level-curve.mjs --selftest": "db-replay-8",

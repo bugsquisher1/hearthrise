@@ -125,3 +125,6 @@ docs/reports/css-ab/
 
 # tools/balance-sim: simulator runs (JSONL per plan); the committed summary is tools/balance-sim/baseline-summary.json
 tools/balance-sim/out/
+
+# the coverage bot's reports (tools/qa/coverage/run.mjs): written per run, never committed
+tools/qa/coverage/out/

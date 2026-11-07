@@ -110,6 +110,8 @@ export async function play({ world, map, heroes, hours, log = console.log, pageC
     }
   }
 
+  let stopped = null;
+  try {
   while (clock < budget) {
     for (const c of crew) {
       if (c.busyUntil > clock) continue;
@@ -151,16 +153,23 @@ export async function play({ world, map, heroes, hours, log = console.log, pageC
     for (const c of crew) if (c.doing && c.doing.type === 'hunt') await watchHunt(c);
     if (log) log('  ' + (clock / 60).toFixed(2) + ' h  ' + crew.map((c) => c.name + ': ' + (c.doing ? c.doing.type + ' ' + (c.doing.ground || c.doing.id || '') : 'idle')).join(' | ') + '  (' + Math.round((Date.now() - t0) / 1000) + ' s wall)');
   }
-  for (const c of crew) if (c.doing) await finish(c);
+  } catch (e) {
+    /* a harness failure hours in keeps what was played: the report says where it stopped and why (two 20 h shards were lost whole) */
+    stopped = { hour: Math.round((clock / 60) * 100) / 100, error: String(e && e.message || e).slice(0, 300) };
+    if (log) log('coverage: STOPPED at ' + stopped.hour + ' h: ' + stopped.error + ' (the report keeps what was played)');
+  }
   const finals = {};
   for (const c of crew) {
-    const env = (await c.hero.load()).body;
-    sample(j, { hour: clock / 60, hero: c.name, v: viewOf(env, clock), huntH: hunted(c) / 60 });
-    finals[c.name] = nextCostsOf(env);
-    if (pageCheck) await pageLook(c, 'at the end');
+    try {
+      if (!stopped && c.doing) await finish(c);
+      const env = (await c.hero.load()).body;
+      sample(j, { hour: clock / 60, hero: c.name, v: viewOf(env, clock), huntH: hunted(c) / 60 });
+      finals[c.name] = nextCostsOf(env);
+      if (pageCheck && !stopped) await pageLook(c, 'at the end');
+    } catch (e) { stopped = stopped || { hour: clock / 60, error: String(e && e.message || e).slice(0, 300) }; }
   }
   for (const c of crew) if (c.page) await c.page.close().catch(() => {});
-  return { journal: j, wallMs: Date.now() - t0, gameHours: clock / 60, finals,
+  return { journal: j, wallMs: Date.now() - t0, gameHours: clock / 60, finals, stopped,
     crew: crew.map((c) => ({ name: c.name, way: c.way.id, focus: c.focus, uid: c.acct.uid })) };
 
   /** A party whose members are all free in town goes hunting together: the leader picks (the party's advice), sets the tier, starts. */
@@ -385,7 +394,8 @@ function mergeRuns(out) {
   const kills = {};
   for (const r of runs) for (const [m, n] of Object.entries(r.kills || {})) kills[m] = (kills[m] || 0) + n;
   const run = { journal, crew: runs.flatMap((r) => r.run.crew), gameHours: Math.max(...runs.map((r) => r.run.gameHours)),
-    wallMs: Math.max(...runs.map((r) => r.run.wallMs)), bootMs: Math.max(...runs.map((r) => r.run.bootMs || 0)), finals: Object.assign({}, ...runs.map((r) => r.run.finals)) };
+    wallMs: Math.max(...runs.map((r) => r.run.wallMs)), bootMs: Math.max(...runs.map((r) => r.run.bootMs || 0)), finals: Object.assign({}, ...runs.map((r) => r.run.finals)),
+    stopped: runs.map((r) => r.run.stopped && { ...r.run.stopped, error: r.tag + ': ' + r.run.stopped.error }).filter(Boolean) };
   return verdicts({ map: coverageMap(), run, kills, finals: run.finals });
 }
 
@@ -441,6 +451,7 @@ if (isMain(import.meta.url)) {
     console.log(reportText(R).split('\n').slice(0, 60).join('\n'));
     console.log('coverage: ' + (shard ? 'shard ' + shard.join('/') + ' written to ' + out + ' (merge with --merge)' : 'wrote ' + join(out, 'coverage.md'))
       + ' (' + Math.round((Date.now() - t0) / 1000) + ' s wall, ' + run.gameHours.toFixed(1) + ' in-game hours)');
+    if (run.stopped) { console.error('coverage: HARNESS: stopped early at ' + run.stopped.hour + ' h: ' + run.stopped.error + ' (the report keeps what was played)'); code = 2; }
   } catch (e) {
     console.error('coverage: HARNESS: ' + (e && e.stack || e));
     code = 2;

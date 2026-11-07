@@ -121,6 +121,7 @@ export function verdicts({ map, run, kills = {}, finals = {} }) {
   const counts = (list, pred) => ({ done: list.filter(pred).length, of: list.length });
   return {
     commit: commit(), when: new Date().toISOString(), gameHours: r1(run.gameHours), wallSeconds: Math.round(run.wallMs / 1000), bootSeconds: Math.round((run.bootMs || 0) / 1000),
+    stopped: [].concat(run.stopped || []).filter(Boolean),
     heroes,
     summary: {
       skills: counts(skills, (s) => s.trained), grounds: counts(grounds.flatMap((g) => g.tiers), (t) => t.reached),
@@ -172,6 +173,7 @@ export function reportText(R) {
   L.push('# Coverage bot: ' + R.gameHours + ' in-game hours, ' + R.heroes.length + ' hero(es), build ' + R.commit);
   L.push('');
   L.push('Wall clock ' + R.wallSeconds + ' s of play (' + R.bootSeconds + ' s to open the world). ' + R.actions + ' actions.');
+  for (const s of R.stopped || []) L.push('STOPPED EARLY at ' + s.hour + ' in-game hours (a harness failure, not the game): ' + s.error + '. Everything below is what was played until then.');
   for (const h of R.heroes) L.push('- ' + h.name + ' (' + h.way + (h.focus === 'crafter' ? ', crafter' : '') + '): Level ' + h.level + ', ' + h.gold + ' gold, ' + h.huntHours + ' h hunting.');
   L.push('');
   L.push('## 1. Coverage');

@@ -9,6 +9,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Sign out stays where you click.** On a computer, the Characters and Sign out buttons used to slide along the top strip while your other heroes loaded. A click meant for Sign out could land on Characters, which left you signed in. Both buttons now stay put, and signing out no longer opens your next hero on the way out.
 
+**A living hero never shows 0 HP.** While you watch a hunt, health bars now match the server after every swing. Before, a tank's bar could slide down to 0 while the hero was still alive and fighting.
+
 **Plainer words, round two.** Boss call results, tutorial notes, item text, Tamsin's greeting and the older What's new entries now read as plain sentences.
 
 ## v0.2.103 — 2026-11-06 (Even Steps)

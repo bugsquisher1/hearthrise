@@ -8,7 +8,7 @@
 // ruled; `--sheet <module>` reads the formula lane's src/data/balance-sheet.js once it exports SHEET in that shape).
 //
 //   node tools/balance-sim/grade.mjs --mode quick [--grounds a,b] [--workers 4]     a subset in minutes, for any lane
-//   node tools/balance-sim/grade.mjs --mode full  [--grounds a,b]                   the whole grid (about 13k hero-hours)
+//   node tools/balance-sim/grade.mjs --mode full  [--grounds a,b] [--tiers t,u]     the whole grid (about 17k hero-hours)
 //   node tools/balance-sim/grade.mjs --in DIR                                       grade cells already played (no play)
 //   node tools/balance-sim/grade.mjs --mode quick --what-if '{"monsters":{"*":{"atk":"*3"}}}'   a candidate on the same dice
 //   node tools/balance-sim/grade.mjs --selftest                                     every rule bites a synthetic mutant
@@ -69,7 +69,7 @@ export async function buildGrid(root, mode, opts = {}) {
   for (const g of Object.values(G.OPEN_GROUNDS)) {
     if (opts.grounds && !opts.grounds.includes(g.id)) continue;
     const band = HUNT_INDEX[g.hunt].band;
-    for (const tier of T.tiersOf(g.id)) {
+    for (const tier of T.tiersOf(g.id).filter((t) => !opts.tiers || opts.tiers.includes(t))) {
       const row = T.tierRowOf(g.id, tier);
       for (const { offset, level } of levelsOf(band, OFFSETS[mode])) for (const [size, comps] of Object.entries(COMPS[mode])) for (const comp of comps) {
         const n = Number(size), pull = tier === 'normal' ? 0 : row.pull[n - 1], { seeds, hours } = dice(mode, n, tier, offset);
@@ -367,8 +367,8 @@ if (isMain(import.meta.url)) {
   const out = resolve(inDir || arg('out', join(HERE, 'out', 'grade-' + mode)));
   if (!inDir) {
     const whatIf = arg('what-if', null) ? JSON.parse(arg('what-if')) : null;
-    const grounds = arg('grounds', null) ? arg('grounds').split(',') : null;
-    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds });
+    const grounds = arg('grounds', null) ? arg('grounds').split(',') : null, tiers = arg('tiers', null) ? arg('tiers').split(',') : null;
+    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers });
     if (process.argv.includes('--estimate')) { console.log('grade ' + mode + ': ' + jobs.length + ' cells, ' + jobs.reduce((s, j) => s + j.seeds * j.hours * j.party.length, 0) + ' hero-hours'); process.exit(0); }
     const { runPool } = await import('./pool.mjs');
     mkdirSync(out, { recursive: true });

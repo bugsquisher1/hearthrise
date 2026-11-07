@@ -1,20 +1,21 @@
 {
- "what": "tools/balance-sim/grade.mjs --mode full, the FINAL verdict before release (lane/b-ground-grader); player feel first",
- "rows": "lane/b-tier-dials LANE DONE fee447e68 (on lane/b-ground-formula-2 fd852dcc7): every cell played on formula-2 9630df6d5 + tier-dials 0d41345dc, whose rows equal fee447e68 except the Sewer tiers, which were re-played on fee447e68",
+ "what": "tools/balance-sim/grade.mjs --mode full, the FINAL release grade for v0.2.106 (lane/b-ground-grader); player feel first",
+ "rows": "origin/set/v0.2.106 cfea7366e",
+ "today": "origin/main e9ce20b38 (v0.2.105 live): set/v0.2.105 cells with the Glade re-played for the Carrion Crow coin, graded on the same v0.2.106 sheet",
  "sheet": "src/data/balance-sheet.js BALANCE_SHEET (lane/b-ground-formula)",
  "cells": 1424,
  "grounds": {
   "mill_cellar": {
-   "fail": 12,
+   "fail": 7,
    "unproven": 0,
    "off": 0,
    "ok": 60
   },
   "millrace_sewer": {
-   "fail": 28,
+   "fail": 22,
    "unproven": 0,
    "off": 1,
-   "ok": 36
+   "ok": 40
   },
   "meadowbrook_thicket": {
    "fail": 18,
@@ -35,76 +36,36 @@
    "ok": 62
   },
   "wickstead": {
-   "fail": 17,
+   "fail": 16,
    "unproven": 0,
    "off": 0,
    "ok": 86
   }
  },
  "gate": {
-  "question": "does anything a player would feel get worse than today (set/v0.2.105)?",
-  "answer": "YES",
+  "question": "does anything a player would feel get worse than today?",
+  "answer": "NO",
+  "exit": 0,
   "report": [
    "SHEET BINDING FAILS per ground, before -> after",
    "  mill_cellar           4 -> 7",
-   "  millrace_sewer        19 -> 25",
+   "  millrace_sewer        19 -> 21",
    "  coppercap_warrens     9 -> 11",
    "  wickstead             18 -> 14",
    "  meadowbrook_thicket   19 -> 18",
    "  mosslight_glade       1 -> 1",
    "",
-   "WORSE FOR A PLAYER (9)",
-   "  seat-vs-solo        mill_cellar / floor / tank+healer: 1.02 -> 0.93",
-   "  seat-vs-solo        mill_cellar / middle / hammer+bow: 1.11 -> 1",
-   "  seat-vs-solo        mill_cellar / middle / tank+healer: 1.02 -> 0.93",
-   "  seat-vs-solo        mill_cellar / top / tank+healer: 1.02 -> 0.93",
-   "  seat-vs-solo        mill_cellar / top / hammer+bow: 1.1 -> 1",
-   "  seat-vs-solo        millrace_sewer / floor / tank+healer: 0.95 -> 0.87",
-   "  seat-vs-solo        millrace_sewer / middle / tank+healer: 1.06 -> 1",
-   "  seat-vs-solo        millrace_sewer / plus10 / tank+healer: 1.07 -> 1",
-   "  seat-vs-solo        wickstead / floor / tank+healer+bow: 1.03 -> 0.99",
+   "WORSE FOR A PLAYER (0)",
    "",
-   "GATE: anything a player would feel worse than before? YES"
+   "GATE: anything a player would feel worse than before? NO"
   ]
  },
  "outliers": [
   {
    "verdict": "FAIL",
    "rule": "feel-seat-below-solo",
-   "where": "millrace_sewer / normal / floor / tank+healer L8 (lowest seat tank)",
-   "value": 0.87,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "feel-seat-below-solo",
    "where": "wickstead / normal / floor / tank+healer L8 (lowest seat tank)",
    "value": 0.92,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "feel-seat-below-solo",
-   "where": "mill_cellar / normal / top / tank+healer L8 (lowest seat tank)",
-   "value": 0.93,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "feel-seat-below-solo",
-   "where": "mill_cellar / normal / floor / tank+healer L1 (lowest seat tank)",
-   "value": 0.93,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "feel-seat-below-solo",
-   "where": "mill_cellar / normal / middle / tank+healer L5 (lowest seat tank)",
-   "value": 0.93,
    "min": 1,
    "max": null
   },
@@ -127,6 +88,14 @@
   {
    "verdict": "FAIL",
    "rule": "feel-seat-below-solo",
+   "where": "millrace_sewer / normal / floor / tank+healer L8 (lowest seat tank)",
+   "value": 0.96,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "feel-seat-below-solo",
    "where": "mosslight_glade / normal / middle / tank+healer L24 (lowest seat tank)",
    "value": 0.97,
    "min": 1,
@@ -143,46 +112,6 @@
   {
    "verdict": "FAIL",
    "rule": "feel-seat-below-solo",
-   "where": "wickstead / normal / floor / tank+healer+bow L8 (lowest seat tank)",
-   "value": 0.99,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "feel-seat-below-solo",
-   "where": "millrace_sewer / normal / middle / tank+healer L17 (lowest seat tank)",
-   "value": 1,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "feel-seat-below-solo",
-   "where": "mill_cellar / normal / top / hammer+bow L8 (lowest seat hammer)",
-   "value": 1,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "feel-seat-below-solo",
-   "where": "millrace_sewer / normal / plus10 / tank+healer L18 (lowest seat tank)",
-   "value": 1,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "feel-seat-below-solo",
-   "where": "mill_cellar / normal / middle / hammer+bow L5 (lowest seat hammer)",
-   "value": 1,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "feel-seat-below-solo",
    "where": "mosslight_glade / normal / top / tank+healer L31 (lowest seat tank)",
    "value": 1,
    "min": 1,
@@ -192,15 +121,7 @@
    "verdict": "FAIL",
    "rule": "wc-dangerous-under",
    "where": "millrace_sewer / dangerous / under2 / size 2 / hammer+bow L6",
-   "value": 4745.5,
-   "min": null,
-   "max": 0
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "wc-dangerous-under",
-   "where": "millrace_sewer / dangerous / under3 / size 2 / hammer+bow L5",
-   "value": 4610,
+   "value": 4384,
    "min": null,
    "max": 0
   },
@@ -208,23 +129,15 @@
    "verdict": "FAIL",
    "rule": "wc-deadly-under-loses",
    "where": "millrace_sewer / dangerous / under5 / size 2 / hammer+bow L3",
-   "value": 4564,
+   "value": 4384,
    "min": null,
    "max": 0
   },
   {
    "verdict": "FAIL",
-   "rule": "wc-deadly-under-loses",
-   "where": "millrace_sewer / deadly / under2 / size 2 / hammer+bow L6",
-   "value": 4280.5,
-   "min": null,
-   "max": 0
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "wc-deadly-under-loses",
-   "where": "millrace_sewer / deadly / under3 / size 2 / hammer+bow L5",
-   "value": 4113,
+   "rule": "wc-dangerous-under",
+   "where": "millrace_sewer / dangerous / under3 / size 2 / hammer+bow L5",
+   "value": 4353.5,
    "min": null,
    "max": 0
   },
@@ -233,14 +146,6 @@
    "rule": "wc-dangerous-under",
    "where": "wickstead / dangerous / under3 / size 2 / hammer+bow L5",
    "value": 4073,
-   "min": null,
-   "max": 0
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "wc-deadly-under-loses",
-   "where": "millrace_sewer / deadly / under5 / size 2 / hammer+bow L3",
-   "value": 4041,
    "min": null,
    "max": 0
   },
@@ -263,16 +168,24 @@
   {
    "verdict": "FAIL",
    "rule": "wc-deadly-under-loses",
-   "where": "millrace_sewer / deadly / under5 / size 2 / tank+healer L3",
-   "value": 3028,
+   "where": "millrace_sewer / deadly / under2 / size 2 / hammer+bow L6",
+   "value": 3395,
    "min": null,
    "max": 0
   },
   {
    "verdict": "FAIL",
-   "rule": "wc-dangerous-under",
-   "where": "millrace_sewer / dangerous / under2 / size 2 / tank+healer L6",
-   "value": 2989.5,
+   "rule": "wc-deadly-under-loses",
+   "where": "millrace_sewer / deadly / under5 / size 2 / hammer+bow L3",
+   "value": 3373,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
+   "where": "millrace_sewer / deadly / under3 / size 2 / tank+healer L5",
+   "value": 2969,
    "min": null,
    "max": 0
   },
@@ -296,23 +209,23 @@
    "verdict": "FAIL",
    "rule": "wc-deadly-under-loses",
    "where": "millrace_sewer / deadly / under2 / size 2 / tank+healer L6",
-   "value": 2910.5,
+   "value": 2930,
    "min": null,
    "max": 0
   },
   {
    "verdict": "FAIL",
    "rule": "wc-deadly-under-loses",
-   "where": "millrace_sewer / deadly / under3 / size 2 / tank+healer L5",
-   "value": 2795,
+   "where": "millrace_sewer / deadly / under5 / size 2 / tank+healer L3",
+   "value": 2875,
    "min": null,
    "max": 0
   },
   {
    "verdict": "FAIL",
    "rule": "wc-dangerous-under",
-   "where": "millrace_sewer / dangerous / under3 / size 2 / tank+healer L5",
-   "value": 2767.5,
+   "where": "millrace_sewer / dangerous / under2 / size 2 / tank+healer L6",
+   "value": 2862,
    "min": null,
    "max": 0
   },
@@ -320,7 +233,15 @@
    "verdict": "FAIL",
    "rule": "wc-deadly-under-loses",
    "where": "millrace_sewer / dangerous / under5 / size 2 / tank+healer L3",
-   "value": 2766.5,
+   "value": 2849.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-dangerous-under",
+   "where": "millrace_sewer / dangerous / under3 / size 2 / tank+healer L5",
+   "value": 2818,
    "min": null,
    "max": 0
   },
@@ -407,6 +328,14 @@
   {
    "verdict": "FAIL",
    "rule": "wc-deadly-under-loses",
+   "where": "millrace_sewer / deadly / under3 / size 2 / hammer+bow L5",
+   "value": 1839.5,
+   "min": null,
+   "max": 0
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-loses",
    "where": "wickstead / deadly / under3 / size 2 / tank+healer L5",
    "value": 1172,
    "min": null,
@@ -447,6 +376,46 @@
   {
    "verdict": "FAIL",
    "rule": "wc-deadly-under-dies",
+   "where": "millrace_sewer / dangerous / under5 / size 2 / hammer+bow L3",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "millrace_sewer / dangerous / under5 / size 2 / tank+healer L3",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "millrace_sewer / deadly / under5 / size 2 / tank+healer L3",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "millrace_sewer / deadly / under3 / size 2 / tank+healer L5",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
+   "where": "millrace_sewer / deadly / under2 / size 2 / tank+healer L6",
+   "value": 0,
+   "min": 1,
+   "max": null
+  },
+  {
+   "verdict": "FAIL",
+   "rule": "wc-deadly-under-dies",
    "where": "meadowbrook_thicket / deadly / under3 / size 2 / hammer+bow L2",
    "value": 0,
    "min": 1,
@@ -479,7 +448,7 @@
   {
    "verdict": "FAIL",
    "rule": "wc-deadly-under-dies",
-   "where": "coppercap_warrens / dangerous / under5 / size 2 / tank+healer L27",
+   "where": "coppercap_warrens / dangerous / under5 / size 2 / hammer+bow L27",
    "value": 0,
    "min": 1,
    "max": null
@@ -487,7 +456,7 @@
   {
    "verdict": "FAIL",
    "rule": "wc-deadly-under-dies",
-   "where": "coppercap_warrens / dangerous / under5 / size 2 / hammer+bow L27",
+   "where": "coppercap_warrens / dangerous / under5 / size 2 / tank+healer L27",
    "value": 0,
    "min": 1,
    "max": null
@@ -511,7 +480,7 @@
   {
    "verdict": "FAIL",
    "rule": "wc-deadly-under-dies",
-   "where": "wickstead / dangerous / under5 / size 2 / hammer+bow L3",
+   "where": "wickstead / dangerous / under5 / size 2 / tank+healer L3",
    "value": 0,
    "min": 1,
    "max": null
@@ -519,7 +488,7 @@
   {
    "verdict": "FAIL",
    "rule": "wc-deadly-under-dies",
-   "where": "wickstead / dangerous / under5 / size 2 / tank+healer L3",
+   "where": "wickstead / dangerous / under5 / size 2 / hammer+bow L3",
    "value": 0,
    "min": 1,
    "max": null
@@ -534,72 +503,8 @@
   },
   {
    "verdict": "FAIL",
-   "rule": "wc-deadly-under-dies",
-   "where": "millrace_sewer / dangerous / under5 / size 2 / hammer+bow L3",
-   "value": 0,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "wc-deadly-under-dies",
-   "where": "millrace_sewer / dangerous / under5 / size 2 / tank+healer L3",
-   "value": 0,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "wc-deadly-under-dies",
-   "where": "millrace_sewer / deadly / under5 / size 2 / hammer+bow L3",
-   "value": 0,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "wc-deadly-under-dies",
-   "where": "millrace_sewer / deadly / under5 / size 2 / tank+healer L3",
-   "value": 0,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "wc-deadly-under-dies",
-   "where": "millrace_sewer / deadly / under3 / size 2 / hammer+bow L5",
-   "value": 0,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "wc-deadly-under-dies",
-   "where": "millrace_sewer / deadly / under3 / size 2 / tank+healer L5",
-   "value": 0,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "wc-deadly-under-dies",
-   "where": "millrace_sewer / deadly / under2 / size 2 / hammer+bow L6",
-   "value": 0,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
-   "rule": "wc-deadly-under-dies",
-   "where": "millrace_sewer / deadly / under2 / size 2 / tank+healer L6",
-   "value": 0,
-   "min": 1,
-   "max": null
-  },
-  {
-   "verdict": "FAIL",
    "rule": "tier-deadly-lone-cost",
-   "where": "meadowbrook_thicket / deadly / floor / size 1 / the median of 8 (sword, tank, hammer, axes, bow, crossbow, mage, healer) L5",
+   "where": "meadowbrook_thicket / deadly / floor / size 1 / the median of 8 (tank, sword, hammer, axes, bow, crossbow, mage, healer) L5",
    "value": 0,
    "min": 1,
    "max": null
@@ -647,7 +552,7 @@
   {
    "verdict": "FAIL",
    "rule": "normal-xp-contract",
-   "where": "millrace_sewer / normal / middle / size 4 / the median of 2 (tank+healer+bow+mage, tank+hammer+bow+mage) L17",
+   "where": "millrace_sewer / normal / middle / size 4 / the median of 2 (tank+hammer+bow+mage, tank+healer+bow+mage) L17",
    "value": 1.18,
    "min": 0.9,
    "max": 1.1
@@ -671,7 +576,7 @@
   {
    "verdict": "FAIL",
    "rule": "tier-dangerous-xp",
-   "where": "meadowbrook_thicket / dangerous / floor / size 1 / the median of 8 (tank, sword, axes, hammer, bow, crossbow, mage, healer) L5",
+   "where": "meadowbrook_thicket / dangerous / floor / size 1 / the median of 8 (tank, sword, hammer, axes, bow, crossbow, mage, healer) L5",
    "value": 1.05,
    "min": 1.1,
    "max": null
@@ -687,7 +592,7 @@
   {
    "verdict": "FAIL",
    "rule": "four-xp",
-   "where": "millrace_sewer / normal / floor / size 4 / tank+healer+bow+mage L8",
+   "where": "mill_cellar / normal / middle / size 4 / tank+hammer+bow+mage L5",
    "value": 1.11,
    "min": 1.15,
    "max": 1.25
@@ -695,7 +600,7 @@
   {
    "verdict": "FAIL",
    "rule": "four-xp",
-   "where": "mill_cellar / normal / middle / size 4 / tank+hammer+bow+mage L5",
+   "where": "millrace_sewer / normal / floor / size 4 / tank+healer+bow+mage L8",
    "value": 1.11,
    "min": 1.15,
    "max": 1.25
@@ -789,14 +694,6 @@
    "max": 1.25
   },
   {
-   "verdict": "FAIL",
-   "rule": "four-xp",
-   "where": "millrace_sewer / normal / floor / size 4 / tank+hammer+bow+mage L8",
-   "value": 1.15,
-   "min": 1.15,
-   "max": 1.25
-  },
-  {
    "verdict": "UNPROVEN",
    "rule": "normal-dips",
    "where": "mosslight_glade / normal / floor / size 1 / 8 cells, 192 hero-h",
@@ -845,7 +742,7 @@
   {
    "verdict": "OFF",
    "rule": "normal-supplies-max",
-   "where": "coppercap_warrens / normal / floor / size 1 / the median of 8 (sword, tank, hammer, axes, bow, crossbow, healer, mage) L32",
+   "where": "coppercap_warrens / normal / floor / size 1 / the median of 8 (sword, hammer, tank, axes, bow, crossbow, healer, mage) L32",
    "value": 0.92,
    "min": null,
    "max": 0.35
@@ -853,7 +750,7 @@
   {
    "verdict": "OFF",
    "rule": "tier-deadly-lone-cost",
-   "where": "millrace_sewer / deadly / floor / size 1 / the median of 8 (tank, sword, hammer, axes, bow, crossbow, mage, healer) L8",
+   "where": "millrace_sewer / deadly / floor / size 1 / the median of 8 (tank, sword, hammer, axes, bow, crossbow, healer, mage) L8",
    "value": 0,
    "min": 1,
    "max": null

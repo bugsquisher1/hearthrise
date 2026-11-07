@@ -130,9 +130,37 @@ const tierHeadOf = (row) => row.pull[0] + ' monsters a pull' + (row.dmgPm > 1000
 /* HS-23's numbers from the data, never typed (lane/b-tier-dials: lane/b-ground-formula-2 rewrote the Sewer and the Rat King's 75 became 37):
    the fixture hero's 220 HP, the Sewer's biggest blow for a pair (pull-cycle.js biggestBlowOn, the warning's own read), a warned threshold in
    whole HP under it (a multiple of 5%: 11 HP a step), and a lone hero's biggest blow under that, so the solo hero is never warned. */
+/* THE PARTY-ONLY BLOW IS BUILT FROM DATA (lane/a-v106-reds): the reshaped Sewer (blows x1.6) gave its Cistern Spider the Rat King's 37, so no
+   ground's rows leave a party-only blow over a lone hero's (every ground's biggest is the same alone and in a pair). For this case only, on
+   the page's own rows (HS23_LIFT, set through the page's monsters.js module) and in these numbers, every monster a pair meets and a lone
+   hero never does (hunt-grounds.js monstersOn) hits until its blow is two 5% steps of the fixture's HP over a lone hero's biggest. */
 const PULL_CYCLE = await import(pathToFileURL(join(ROOT, 'src/core/hunt/pull-cycle.js')).href);
-const SEWER_PAIR_BLOW = PULL_CYCLE.biggestBlowOn('millrace_sewer', 2), SEWER_SOLO_BLOW = PULL_CYCLE.biggestBlowOn('millrace_sewer', 1);
-const HS23_HP = 220, HS23_PCT = 5 * Math.floor((SEWER_PAIR_BLOW.hit - 1) / 11), HS23_AT = (HS23_HP * HS23_PCT) / 100;
+const HS23_HP = 220, HS23_STEP = (HS23_HP * 5) / 100;
+const SEWER_SOLO_BLOW = PULL_CYCLE.biggestBlowOn('millrace_sewer', 1);
+const { MONSTERS: HS23_ROWS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
+const { monsterMaxHit } = await import(pathToFileURL(join(ROOT, 'src/core/combat.js')).href);
+const HS23_GROUNDS = Object.values((await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href)).HUNT_GROUNDS).filter((g) => g.hunt === 'millrace_sewer');
+const { monstersOn } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
+const HS23_SPAWNS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)).HUNT_INDEX.millrace_sewer.spawns.map((s) => s.monster);
+const HS23_MET = (size) => new Set([...HS23_SPAWNS, ...HS23_GROUNDS.flatMap((g) => [...monstersOn(g, size)])].filter((id) => HS23_ROWS[id]));
+const HS23_LIFT = {};
+for (const id of [...HS23_MET(2)].filter((x) => !HS23_MET(1).has(x))) {
+  let atk = HS23_ROWS[id].atk || 1;
+  while (monsterMaxHit({ ...HS23_ROWS[id], atk }) < SEWER_SOLO_BLOW.hit + 2 * HS23_STEP) atk++;
+  HS23_LIFT[id] = atk;
+}
+/* the pair's biggest blow as pull-cycle.js biggestBlowOn reads it (sorted ids, the first of the biggest), on the lifted rows */
+const SEWER_PAIR_BLOW = [...HS23_MET(2)].sort().reduce((best, id) => {
+  const hit = monsterMaxHit({ ...HS23_ROWS[id], atk: HS23_LIFT[id] ?? HS23_ROWS[id].atk });
+  return !best || hit > best.hit ? { monster: id, name: HS23_ROWS[id].name, hit } : best;
+}, null);
+const HS23_PCT = 5 * Math.floor((SEWER_PAIR_BLOW.hit - 1) / HS23_STEP), HS23_AT = (HS23_HP * HS23_PCT) / 100;
+/* ...set on the page before the heal slot opens (the warning reads the rows live) */
+const liftHs23 = (page) => page.evaluate(async (lift) => {
+  const v = new URL(document.querySelector('script[type="module"]').src).searchParams.get('v');
+  const m = await import('/src/data/monsters.js?v=' + v);
+  for (const [id, atk] of Object.entries(lift)) m.MONSTERS[id].atk = atk;
+}, HS23_LIFT);
 const HS23_HARNESS = !(HS23_PCT >= 5 && HS23_HP / 2 >= SEWER_PAIR_BLOW.hit && SEWER_SOLO_BLOW.hit < HS23_AT)
   ? 'HS-23 HARNESS: the Sewer\'s blows (a pair ' + SEWER_PAIR_BLOW.hit + ', alone ' + SEWER_SOLO_BLOW.hit + ') leave no warned threshold between them at ' + HS23_HP + ' HP' : null;
 const xpInto = (L, share) => charXpForLevel(L) + Math.ceil(share * (charXpForLevel(L + 1) - charXpForLevel(L)));
@@ -1167,6 +1195,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     { // HS-23 THE HEAL WARNING (designer 2026-10-21, Andy died in the Sewer healing at 40%)
       const { ctx, page, s, up } = await open({ prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
       if (up) {
+        await liftHs23(page);   // the party-only blow, built from data (HS23_LIFT)
         await page.click('.hb-slot[data-slot="2"]');
         await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
         const warn = () => page.evaluate(() => { const w = document.querySelector('.ca-warn'); return w && w.getClientRects().length ? w.textContent : ''; });
@@ -1195,6 +1224,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       // keeps the sentence (and its warning, one line) above the only scrolling parts; the detail pane says it whole.
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
       if (up) {
+        await liftHs23(page);   // the party-only blow, built from data (HS23_LIFT)
         await page.click('.hb-slot[data-slot="2"]');
         await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
         await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', String(HS23_PCT));

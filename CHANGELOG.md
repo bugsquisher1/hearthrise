@@ -7,27 +7,27 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.106 — 2026-11-07 (One Rule for Every Hunt)
 
-**Every hunting ground now follows the same rules.** How hard monsters hit, how much health they have and what they pay now come from one formula, set by each ground's Level. Moving from one ground to the next should feel even. If you're partway through the game, some hunts will feel different, but your hero keeps everything.
+**Every hunting ground now follows the same rules.** A ground's Level now decides how hard its monsters hit, how much health they have and how much gold they drop. Before, each ground was set by hand, so some were much easier or richer than others. If you're partway through the game, some hunts will feel different. Your hero keeps all their progress.
 
 - The Mosslight Glade's monsters hit 20% harder on Normal.
-- At the Meadowbrook Thicket and Wickstead, no single blow takes more than a tenth of a new hero's health.
-- Millrace Sewer monsters land fewer hits, but each one hits harder. The damage is about the same, and better armor now blocks more of it.
-- The Coppercap Warrens pay more gold. A party of four earns about 45% more an hour.
-- Levels 4 to 8 come faster.
+- At the Meadowbrook Thicket and Wickstead, no single hit takes more than a tenth of a new hero's health.
+- Millrace Sewer monsters hit less often, but harder. You take about the same damage, and better armor now blocks more of it.
+- The Coppercap Warrens drop more gold. A party of four earns about 45% more an hour.
+- Levels 5 to 8 need a little less XP.
 
-**Dangerous and Deadly work the same way everywhere.** Each harder tier brings bigger pulls, monsters that hit harder and have up to 10% more health, and more XP per kill. Dangerous gives up to 20% more XP and Deadly up to 25% more. The hunt screen shows how much harder each tier hits. Coin per kill never changes with the tier.
+**Dangerous and Deadly now work the same way on every ground.** A harder tier sends more monsters at you at once. They hit harder, have up to 10% more health and give more XP per kill. Dangerous gives up to 20% more XP and Deadly up to 25% more. Gold per kill is the same on every tier. The hunt screen shows how much harder each tier is.
 
-- At Wickstead and the Sewer, a hero alone gets no bigger pull.
-- A party of two different classes earns more XP at the Mill Cellar and the Sewer. Three classes together at Wickstead earn a little more too.
-- The Party window now shows the XP bonus a party really gets.
+- At Wickstead and the Sewer, a hero hunting alone fights the same number of monsters on every tier.
+- A party with two different classes earns more XP at the Mill Cellar and the Sewer. Three different classes at Wickstead earn a little more too.
+- The Party window now shows the real XP bonus your party gets.
 
 ## v0.2.105 — 2026-11-07 (No Immunities)
 
 **No monster is immune anymore.** Every element now hurts every monster. A monster can still resist an element and take less from it, but never nothing. Sewer slimes take half damage from fire, frost and poison, and the Fire Elemental takes half from fire. Your fire spells work in the Sewer again.
 
-**Harder tiers cost more when you're out of your league.** At Wickstead and the Glade, Dangerous and Deadly hit harder. Above your Level they still give more XP, but now they cost gold and some deaths. A party of four at the Glade's Level holds Deadly as before, and Normal doesn't change.
+**Dangerous and Deadly are riskier when you're under-leveled.** At Wickstead and the Glade, monsters on Dangerous and Deadly now hit harder. If your Level is below the ground's, you still get extra XP there, but you'll use more supplies and die more often. A full party of four at the right Level isn't affected, and Normal doesn't change.
 
-- At Wickstead, a hero alone on Dangerous or Deadly no longer gets bigger pulls. The tier only makes the monsters hit harder.
+- At Wickstead, a hero hunting alone on Dangerous or Deadly now fights the same number of monsters as on Normal. The monsters just hit harder.
 - A monster that was already bleeding when it came into view shows the right health.
 - The "Missed blows and immune hits" setting is now just "Missed blows".
 

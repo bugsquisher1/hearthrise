@@ -16,6 +16,7 @@
 //   GP-5  ADDITIVE AND TRANSPARENT: each shipped ground, planted as a pack under new ids, adds rows only (no base row moves, no
 //         file's schema or function bodies move), and they are that ground's own rows, renamed: the pack path writes what the
 //         base path writes for the same content. The whole --check of every covered generator stays green with it planted.
+//   GP-7  (--fold) a new ground at a new band takes the formula's numbers from tools/pack.mjs propose --write, in its own file only
 //   GP-6  THE ADDITIVE FILE EQUALS THE WHOLE ONE on a real PostgreSQL (the replayed chain, tests/schema-replay.mjs): the six
 //         planted packs' files applied in turn (twice: idempotent), then the whole files with all six folded: no row of a
 //         pack table moves. So a world move that folds the packs later re-states them, and packs commute.
@@ -205,12 +206,31 @@ async function loop(argv) {
   console.log('ground-pack --loop: green (' + results.length + ' guard runs, a held and an open new ground, zero edits outside the pack)');
 }
 
+/* GP-7 THE DESIGNER'S STEP WORKS ON A PACK: a new ground at a new band (Levels moved with it) takes the formula's numbers from
+   `tools/pack.mjs propose --write` in its own file, and then reads as the formula's (check's lint); nothing outside the folder moves. */
+async function gp7() {
+  const fx = await fixturePack('wickstead', { prefix: FIX, status: 'staged', band: [50, 65] });
+  writePack(ROOT, fx);
+  try {
+    const before = spawnSync('git', ['status', '--porcelain', '--', 'src', 'tools', 'tests', 'supabase'], { cwd: ROOT, encoding: 'utf8' }).stdout;
+    const w = spawnSync(process.execPath, [join(ROOT, 'tools', 'pack.mjs'), 'propose', fx.id, '--write'], { cwd: ROOT, encoding: 'utf8' });
+    ok(w.status === 0 && /row\(s\) moved in .*grounds/.test(w.stdout), 'GP-7 propose --write on a pack: ' + (w.stderr || w.stdout).trim().split('\n').pop());
+    const drift = childJson(`import { loadPackData } from './tools/pack.mjs'; import { proposeGround } from './tools/gen-ground-stats.mjs';
+      const D = await loadPackData(); const floorOf = (g) => D.HUNT_INDEX[D.G.HUNT_GROUNDS[g].hunt].band[0];
+      console.log(JSON.stringify(proposeGround('${fx.id}', { MONSTERS: D.MONSTERS, formulaStats: D.BS.formulaStats, floorOf, fitOf: () => 'solo' }).filter((r) => r.drift.length).map((r) => r.id)));`);
+    ok(!drift.length, 'GP-7 after propose --write the pack still drifts from the formula on ' + drift.join(', '));
+    const after = spawnSync('git', ['status', '--porcelain', '--', 'src', 'tools', 'tests', 'supabase'], { cwd: ROOT, encoding: 'utf8' }).stdout;
+    ok(before === after, 'GP-7 propose --write moved a file outside the pack folder');
+  } finally { removePack(ROOT, fx.id); }
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   gp1(); gp2(); gp3(); gp4();
   if (argv.includes('--mutate')) return mutate();
   if (argv.includes('--loop')) return loop(argv);
   if (argv.includes('--fold')) {
+    await gp7();
     const grounds = childJson(`import { OPEN_GROUNDS } from './src/data/hunt-grounds.js'; console.log(JSON.stringify(Object.keys(OPEN_GROUNDS).filter((g) => !g.startsWith('${FIX}'))));`);
     const planted = await plantAll(grounds);
     try {
@@ -227,7 +247,7 @@ async function main() {
 
 function report() {
   if (fail.length) { for (const f of fail) console.error('✗ ' + f); console.error('ground-pack: ' + fail.length + ' claim(s) red'); process.exit(1); }
-  console.log('ground-pack: green (' + packIds().length + ' pack(s); GP-1..GP-4' + (process.argv.includes('--fold') ? ', GP-5, GP-6' : '') + ')');
+  console.log('ground-pack: green (' + packIds().length + ' pack(s); GP-1..GP-4' + (process.argv.includes('--fold') ? ', GP-5, GP-6, GP-7' : '') + ')');
 }
 
 /* --mutate: each claim bites. Tree edits are planted packs only, always removed. */

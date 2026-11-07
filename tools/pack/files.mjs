@@ -53,10 +53,21 @@ export function packSources(pack, version) {
   const { map, ...rest } = pack;
   const lit = (o) => JSON.stringify(o, null, 1).replace(/\n\s*/g, ' ');
   const head = (what) => `// src/data/grounds/${pack.id}/${what} — written by tools/pack.mjs (lane/b-ground-pack). Shape: src/data/grounds/shape.js.\n`;
+  /* a monster row in the house style (monsters.js): one row a block, its stat line on its own, so tools/pack.mjs propose --write
+     (gen-ground-stats writeRows) finds and moves it like any other */
+  const STAT = ['hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'formula'];
+  const monster = (id, m) => {
+    if (!['hp', 'atk', 'def', 'xp'].every((k) => Number.isInteger(m[k])) || !Array.isArray(m.gp)) return `    ${id}: ${lit(m)},\n`;
+    const other = Object.fromEntries(Object.entries(m).filter(([k]) => !STAT.includes(k)));
+    const stat = 'hp: ' + (m.hp | 0) + ', atk: ' + (m.atk | 0) + (Number.isFinite(m.baseAcc) ? ', baseAcc: ' + m.baseAcc : '') + ', def: ' + (m.def | 0)
+      + ', xp: ' + (m.xp | 0) + ', gp: [' + (m.gp || [1, 1]).join(', ') + ']' + (m.formula ? ', formula: true' : '');
+    return `    ${id}: {\n      ${lit(other).slice(1, -1).trim()},\n      ${stat} },\n`;
+  };
+  const field = ([k, v]) => (k === 'monsters' ? '  monsters: {\n' + Object.entries(v).map(([id, m]) => monster(id, m)).join('') + '  },\n' : `  ${k}: ${lit(v)},\n`);
   return {
     'map.js': head('map.js') + `export default Object.freeze(${lit(map)});\n`,
     'pack.js': head('pack.js') + `import { definePack } from '../shape.js?v=${version}';\nimport map from './map.js?v=${version}';\n\n`
-      + 'export default definePack({\n' + Object.entries(rest).map(([k, v]) => `  ${k}: ${lit(v)},\n`).join('') + '  map,\n});\n',
+      + 'export default definePack({\n' + Object.entries(rest).map(field).join('') + '  map,\n});\n',
   };
 }
 

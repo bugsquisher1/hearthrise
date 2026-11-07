@@ -896,23 +896,28 @@ export function buildPlan(name, axes, scale = 1) {
     }
     return out;
   }
-  if (name === 'formula' || name === 'formulaF' || name === 'formulaH') {
+  if (/^formula[FH]?(:|$)/.test(name)) {
     /* ONE FORMULA FOR EVERY HUNT, THE SAMPLE (lane/b-ground-formula, Tyler 2026-11-07): Wickstead and the Glade, today's rows (x = T: the
        Glade's six at x1.2 attack, Tyler's 11-07 ruling, and the tier rows as live) against the formula's (x = F: tools/gen-ground-stats.mjs
        --propose, and src/data/balance-sheet.js TIER_DIALS for both grounds, its HP dial on the rows), every tier, the same dice. Per ground:
        the lone hero at the floor (8 ways) and at the floor + 10 (4 ways), the band's middle on Normal (8 ways: XP against the contract),
        pairs 2 and 3 Levels under, pairs and a lone hero 5 under, a four at the floor and the top; Wickstead's fresh hero in the practice
        set at its floor on Normal. 2 seeds x 2 h. Read by tools/balance-sim/sheet-check.mjs. 'formulaF': the F cells only (a re-run
-       of the formula after a dial moves, the same ids, into its own folder: sheet-check --in formula,formula2 takes the later). */
+       of the formula after a dial moves, the same ids, into its own folder: sheet-check --in formula,formula2 takes the later).
+       THE ROLLOUT: 'formula:<ground>,<ground>' (and formulaF:, formulaH:) plays those grounds by the same shape, read from their band and
+       fit: a party ground plays a four at its floor, middle and top, a duo at its floor, a lone hero from its soloFrom; a first-day ground
+       (floor 15 or under) its fresh heroes (a party ground: the duo and the four in practice sets); the Cellar Normal only. */
     const P = axes.formula;
     if (!P) throw new Error('plan formula: run node tools/gen-ground-stats.mjs --propose first');
-    const GLADE_X12 = Object.fromEntries(Object.keys(P.grounds.mosslight_glade).map((id) => [id, { atk: '*1.2' }]));
-    const SHAPE = { wickstead: { floor: 8, mid: 13, top: 18 }, mosslight_glade: { floor: 16, mid: 24, top: 31 } };
+    const GLADE_X12 = Object.fromEntries(Object.keys(P.grounds.mosslight_glade || {}).map((id) => [id, { atk: '*1.2' }]));
+    const wanted = name.includes(':') ? name.split(':')[1].split(',') : ['wickstead', 'mosslight_glade'];
+    const SHAPE = Object.fromEntries(axes.grounds.filter((g) => wanted.includes(g.id)).map((g) => [g.id, { floor: g.band[0], mid: Math.round((g.band[0] + g.band[1]) / 2), top: g.band[1],
+      party: g.groupFit === 'party', soloFrom: g.soloFrom, normalOnly: g.id === 'mill_cellar' }]));
     const PAIRS = [['tank', 'healer'], ['hammer', 'bow']];
     /* formulaH: the harder tiers with the HP dial on (x = H: Dangerous 1.1x HP and 1.2x XP a kill, Deadly 1.2x and 1.4x), the formula's rows */
     const HP_DIAL = { dangerous: { hpPm: 1100, xpPm: 1200 }, deadly: { hpPm: 1200, xpPm: 1400 } };
-    const SETS = name === 'formulaF' ? ['F'] : name === 'formulaH' ? ['H'] : ['T', 'F'];
-    for (const [ground, s] of Object.entries(SHAPE)) for (const rows of SETS) for (const tier of rows === 'H' ? ['dangerous', 'deadly'] : ['normal', 'dangerous', 'deadly']) {
+    const SETS = name.startsWith('formulaF') ? ['F'] : name.startsWith('formulaH') ? ['H'] : ['T', 'F'];
+    for (const [ground, s] of Object.entries(SHAPE)) for (const rows of SETS) for (const tier of s.normalOnly ? ['normal'] : rows === 'H' ? ['dangerous', 'deadly'] : ['normal', 'dangerous', 'deadly']) {
       /* the engine's tier row on this ground (src/data/balance-sheet.js tierRowFor, in the proposal), else the table's */
       const dial = { ...((P.tiers && P.tiers[ground] && P.tiers[ground][tier]) || axes.tierDials[tier]), ...(rows === 'H' ? HP_DIAL[tier] : {}) };
       const cell = (party, level, gear) => {
@@ -925,13 +930,22 @@ export function buildPlan(name, axes, scale = 1) {
         return { ...cellOf({ ground, party, level, density: pull || null, gear, hours: H(2), seeds: 2, x: rows + tier }), windowMs: 120000,
           ...(tier === 'normal' ? {} : { options: { tier } }), ...(whatIf ? { whatIf } : {}) };
       };
-      for (const st of SOLO_STYLES) out.push(cell([st], s.floor));
-      for (const st of ['tank', 'hammer', 'bow', 'mage']) out.push(cell([st], s.floor + 10));
-      if (tier === 'normal') for (const st of SOLO_STYLES) out.push(cell([st], s.mid));
-      for (const party of PAIRS) for (const level of [s.floor - 3, s.floor - 2, s.floor - 5]) out.push(cell(party, level));
-      for (const st of ['hammer', 'mage']) out.push(cell([st], s.floor - 5));
-      for (const level of [s.floor, s.top]) out.push(cell(PARTIES.four, level));
-      if (tier === 'normal' && ground === 'wickstead') for (const st of SOLO_STYLES) out.push(cell([st], s.floor, { starter: true }));
+      const under = [s.floor - 3, s.floor - 2, s.floor - 5].filter((l) => l >= 1);
+      if (s.party) {
+        for (const level of [s.floor, s.mid, s.top]) out.push(cell(PARTIES.four, level));
+        out.push(cell(PARTIES.duo, s.floor));
+        if (Number.isInteger(s.soloFrom) && tier === 'normal') for (const st of SOLO_STYLES) out.push(cell([st], s.soloFrom));
+        for (const level of under) out.push(cell(PARTIES.duo, level));
+        if (tier === 'normal' && s.floor <= 15) for (const party of [PARTIES.duo, PARTIES.four]) out.push(cell(party, s.floor, { starter: true }));
+      } else {
+        for (const st of SOLO_STYLES) out.push(cell([st], s.floor));
+        for (const st of ['tank', 'hammer', 'bow', 'mage']) out.push(cell([st], s.floor + 10));
+        if (tier === 'normal') for (const st of SOLO_STYLES) out.push(cell([st], s.mid));
+        for (const party of PAIRS) for (const level of under) out.push(cell(party, level));
+        if (s.floor - 5 >= 1) for (const st of ['hammer', 'mage']) out.push(cell([st], s.floor - 5));
+        for (const level of [s.floor, s.top]) out.push(cell(PARTIES.four, level));
+        if (tier === 'normal' && s.floor <= 15) for (const st of SOLO_STYLES) out.push(cell([st], s.floor, { starter: true }));
+      }
     }
     return out;
   }

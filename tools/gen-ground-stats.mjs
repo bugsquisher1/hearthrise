@@ -21,33 +21,17 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
+import { GROUND_ROSTER, FORMULA_EXCEPTIONS } from '../src/data/balance-sheet.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const PROPOSAL = join(ROOT, 'tools', 'balance-sim', 'out', 'formula-proposal.json');
 /* the stats the formula owns on a row (speed, class, weaknesses, drops and Level stay the designer's) */
 export const FORMULA_FIELDS = Object.freeze(['hp', 'atk', 'baseAcc', 'def', 'xp', 'gp']);
 
-/* THE ROSTER: each monster's role on its ground (designer input; the reason is the row's own comment in monsters.js).
-   A monster on two grounds keeps one role. */
-export const ROSTER = Object.freeze({
-  wickstead: Object.freeze({
-    granary_rat: 'swarm',     // "the swarm: fat on the farm's grain, many and quick"
-    barn_wasp: 'glass',       // a flier: quick, fragile
-    barn_spider: 'heavy',     // "the tank: slow and webbed in"
-    orchard_boar: 'heavy',    // "the orchard's tank"
-    turncoat: 'glass',        // "glass that hits hard"; the rare carrier
-  }),
-  mosslight_glade: Object.freeze({
-    carrion_crow: 'regular',  // the common majority
-    glade_poacher: 'glass',   // "glass that hits like a cart"
-    walking_vine: 'heavy',    // "the tank: slow and woody"
-    goblin_sluicer: 'elite',  // the tier-3 body carrier
-    brook_bear: 'elite',      // "the Meadowbrook's bruiser"
-    rook_poacher: 'elite',    // "the poachers' chief", the rare carrier
-  }),
-});
-/* NAMED EXCEPTIONS: a field a row keeps by hand, with the reason. Empty: no row has earned one yet. */
-export const EXCEPTIONS = Object.freeze({});
+/* THE ROSTER (each monster's role on its ground) and the named exceptions live with the formula, in
+   src/data/balance-sheet.js GROUND_ROSTER and FORMULA_EXCEPTIONS, so the grader and the lab read the same ones. */
+export const ROSTER = GROUND_ROSTER;
+export const EXCEPTIONS = FORMULA_EXCEPTIONS;
 
 /**
  * Today's row beside the formula's for every monster `ROSTER[gid]` names. D = { MONSTERS, formulaStats, floorOf(gid) }, opts the lab's dials.
@@ -60,7 +44,7 @@ export function proposeGround(gid, D, opts = {}) {
     const m = D.MONSTERS[id];
     if (!m) throw new Error('gen-ground-stats: ' + gid + ' names ' + id + ', which is not a monster');
     if (!Number.isInteger(m.level)) throw new Error('gen-ground-stats: ' + id + ' has no Level');
-    const f = D.formulaStats({ level: m.level, role, tier: m.tier, floor: D.floorOf(gid) }, opts);
+    const f = D.formulaStats({ level: m.level, role, tier: m.tier, floor: D.floorOf(gid), fit: D.fitOf ? D.fitOf(gid) : 'solo' }, opts);
     const formula = Object.fromEntries(FORMULA_FIELDS.map((k) => [k, f[k]]));
     for (const [k, why] of Object.entries((EXCEPTIONS[id] || {}))) { if (!why) throw new Error('gen-ground-stats: ' + id + '.' + k + ' exception has no reason'); formula[k] = m[k]; }
     const today = Object.fromEntries(FORMULA_FIELDS.map((k) => [k, k === 'baseAcc' ? (Number.isFinite(m.baseAcc) ? m.baseAcc : 0.5) : m[k]]));
@@ -77,7 +61,9 @@ async function load() {
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   /* a ground's floor: its hunt's band floor (src/data/hunts.js) */
   const floorOf = (gid) => { const g = HUNT_GROUNDS[gid]; if (!g || !HUNT_INDEX[g.hunt]) throw new Error('gen-ground-stats: no ground ' + gid); return HUNT_INDEX[g.hunt].band[0]; };
-  return { MONSTERS, formulaStats, tierRowFor, floorOf };
+  /* who a ground is built for: a pocket that needs a party makes it a party ground (tools/balance-sim plans.mjs reads it the same way) */
+  const fitOf = (gid) => { const g = HUNT_GROUNDS[gid]; return g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit || 'both'; };
+  return { MONSTERS, formulaStats, tierRowFor, floorOf, fitOf };
 }
 const fmt = (r) => r.hp + ' hp, atk ' + r.atk + ' @' + r.baseAcc + ', def ' + r.def + ', xp ' + r.xp + ', gp ' + r.gp.join('-');
 
@@ -110,7 +96,7 @@ async function main() {
   for (const g of grounds) {
     const rows = proposeGround(g, D);
     out[g] = Object.fromEntries(rows.map((r) => [r.id, r]));
-    const tiers = Object.fromEntries(['dangerous', 'deadly'].map((t) => [t, D.tierRowFor(D.floorOf(g), t)]));
+    const tiers = Object.fromEntries(['dangerous', 'deadly'].map((t) => [t, D.tierRowFor(D.floorOf(g), t, { ground: g })]));
     tierRows[g] = tiers;
     console.log('\n' + g + ' (floor ' + D.floorOf(g) + '; engine tier rows: Dangerous ' + JSON.stringify(tiers.dangerous) + ', Deadly ' + JSON.stringify(tiers.deadly) + ')');
     for (const r of rows) {

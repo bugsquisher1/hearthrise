@@ -235,7 +235,7 @@ const mutants = [
   { name: 'a tier pays more gold a kill', case: 'harder-tier-costs', edits: [['src/core/hunt-rewards.js', "const y = yieldPm / 1000;", "const y = (yieldPm / 1000) * (ctx.tier ? ctx.tier.xpPm / 1000 : 1);"]] },
   { name: 'a word nobody offers plays a harder tier', case: 'normal-is-the-ground', edits: [[D, "return (rows && Object.prototype.hasOwnProperty.call(rows, id) && rows[id]) || NORMAL;", "return (rows && (rows[id] || rows.deadly)) || NORMAL;"]] },
   { name: 'Deadly pays triple XP: nobody moves on', case: 'ladder', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 4200')]] },
-  { name: 'the Thicket loses its own dials: its Deadly out-earns Wickstead', case: 'ladder', edits: [[SH, THICKET_DIALS, '']] },
+  { name: 'the Thicket\'s Deadly brings the full box: it out-earns Wickstead', case: 'ladder', edits: [[SH, 'meadowbrook_thicket: Object.freeze({ dangerous: Object.freeze([0, 0, 0, 0]), deadly: Object.freeze([0, 0, 0, 0]),', 'meadowbrook_thicket: Object.freeze({ dangerous: Object.freeze([0, 0, 0, 0]), deadly: Object.freeze([8, 8, 8, 8]),']] },
 ];
 
 const REPORT = makeReport('hunt-core/hunt-tiers');

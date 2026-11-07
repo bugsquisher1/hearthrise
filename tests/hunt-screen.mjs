@@ -127,6 +127,14 @@ const GLADE_DANGEROUS = (await import(pathToFileURL(join(ROOT, 'src/data/hunt-ti
 const tierPct = (pm) => Math.round((pm - 1000) / 10);
 /* A tier's sentence head from its row (hunt-list.js tierHead): the pull, then each dial the tier moves, HP only when hpPm is off 1000 (lane/b-tier-dials). */
 const tierHeadOf = (row) => row.pull[0] + ' monsters a pull' + (row.dmgPm > 1000 ? ', hitting ' + tierPct(row.dmgPm) + '% harder' : '') + (row.hpPm > 1000 ? ', with ' + tierPct(row.hpPm) + '% more HP' : '');
+/* HS-23's numbers from the data, never typed (lane/b-tier-dials: lane/b-ground-formula-2 rewrote the Sewer and the Rat King's 75 became 37):
+   the fixture hero's 220 HP, the Sewer's biggest blow for a pair (pull-cycle.js biggestBlowOn, the warning's own read), a warned threshold in
+   whole HP under it (a multiple of 5%: 11 HP a step), and a lone hero's biggest blow under that, so the solo hero is never warned. */
+const PULL_CYCLE = await import(pathToFileURL(join(ROOT, 'src/core/hunt/pull-cycle.js')).href);
+const SEWER_PAIR_BLOW = PULL_CYCLE.biggestBlowOn('millrace_sewer', 2), SEWER_SOLO_BLOW = PULL_CYCLE.biggestBlowOn('millrace_sewer', 1);
+const HS23_HP = 220, HS23_PCT = 5 * Math.floor((SEWER_PAIR_BLOW.hit - 1) / 11), HS23_AT = (HS23_HP * HS23_PCT) / 100;
+const HS23_HARNESS = !(HS23_PCT >= 5 && HS23_HP / 2 >= SEWER_PAIR_BLOW.hit && SEWER_SOLO_BLOW.hit < HS23_AT)
+  ? 'HS-23 HARNESS: the Sewer\'s blows (a pair ' + SEWER_PAIR_BLOW.hit + ', alone ' + SEWER_SOLO_BLOW.hit + ') leave no warned threshold between them at ' + HS23_HP + ' HP' : null;
 const xpInto = (L, share) => charXpForLevel(L) + Math.ceil(share * (charXpForLevel(L + 1) - charXpForLevel(L)));
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -1162,17 +1170,18 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('.hb-slot[data-slot="2"]');
         await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
         const warn = () => page.evaluate(() => { const w = document.querySelector('.ca-warn'); return w && w.getClientRects().length ? w.textContent : ''; });
-        /* Wheat Bread at HP 50% or below of 220 = 110 HP: above the King's 75, nothing to say. */
+        /* Wheat Bread at HP 50% or below of 220 = 110 HP: above the pair's biggest blow (the King's), nothing to say. */
         const safe = await warn();
-        await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', '30');
+        if (HS23_HARNESS) fails.push(HS23_HARNESS);
+        await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', String(HS23_PCT));
         await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
         const shown = await warn();
-        if (safe !== '' || shown !== 'The Rat King can hit for 75. At 30% you have 66 HP, so one hit can kill you before you eat.') {
+        if (safe !== '' || shown !== 'The ' + SEWER_PAIR_BLOW.name + ' can hit for ' + SEWER_PAIR_BLOW.hit + '. At ' + HS23_PCT + '% you have ' + HS23_AT + ' HP, so one hit can kill you before you eat.') {
           fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
         }
         const footOn = () => page.evaluate(() => { const f = document.querySelector('.hp-foot'); return !!f && f.getClientRects().length > 0; });
         const twoFoot = await footOn();
-        /* Alone the King's hall is skipped (minParty 2): the biggest blow is a Cistern Spider's 48, under 66. */
+        /* Alone the King's hall is skipped (minParty 2): the biggest blow is a lone hero's (a Cistern Spider's), under the warned HP. */
         s.env.party.members = [s.env.party.members[0]];
         await pushEnvelope(page, s);
         const solo = await warn();
@@ -1188,7 +1197,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (up) {
         await page.click('.hb-slot[data-slot="2"]');
         await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
-        await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', '30');
+        await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', String(HS23_PCT));
         await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
         const seen = await page.evaluate(() => {
           const inView = (el) => { const r = el && el.getBoundingClientRect(); return !!r && r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight && r.left >= 0 && r.right <= window.innerWidth; };

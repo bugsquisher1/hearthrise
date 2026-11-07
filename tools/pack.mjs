@@ -161,20 +161,29 @@ async function ship(id, argv) {
   const S = await import(u('tools/pack/ship.mjs'));
   const { readFileSync, writeFileSync } = await import('node:fs');
   if (!F.packIds().includes(id)) { console.error('pack ship: no pack ' + id); process.exit(2); }
-  const out = S.shipText(id);
-  if (out.moved.length) { console.error('pack ship: ' + id + ' moves the schema or a function body of ' + out.moved.join(', ') + ': a world move, not a pack'); process.exit(1); }
+  /* once a whole file folds the pack, its rows are the whole files' (a re-ship after it would move that file's --check): a world move changes it */
+  const outs = readFileSync(join(ROOT, 'tools', 'gen-hunts.mjs'), 'utf8').match(/OUT_NAME = '([^']+)'/);
+  if (outs && W.foldedPacks(outs[1]).includes(id)) { console.error('pack ship: ' + id + ' is folded into the whole files (' + outs[1] + '): change it with a world move, not a re-ship'); process.exit(1); }
   const order = W.applyOrder();
   const was = W.packSqlOf(id);
   const dir = join(ROOT, 'supabase', 'migrations');
-  if (was && existsSync(join(dir, was)) && readFileSync(join(dir, was), 'utf8') === out.sql) { console.log('pack ship: ' + was + ' is current'); return; }
   /* a new forward file: dated with the chain's newest date, a -N suffix past the first (an applied file is history) */
   const date = order.map((f) => f.slice(0, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().pop();
   const n = order.filter((f) => new RegExp('^\\d{4}-\\d{2}-\\d{2}-pack-' + id + '(-\\d+)?\\.generated\\.sql$').test(f)).length;
   const file = date + '-pack-' + id + (n ? '-' + (n + 1) : '') + '.generated.sql';
-  writeFileSync(join(dir, file), out.sql);
+  /* OPEN FIRST, THEN RENDER: a staged ground is never served, so its rows exist only once it is open (gen-hunts and gen-hunt-sessions
+     read the open grounds). Put back as it was if the render refuses. */
   const packFile = join(F.GROUNDS_DIR(), id, 'pack.js');
-  const src = readFileSync(packFile, 'utf8').replace(/^(\s*)status: "staged",$/m, '$1status: "open",').replace(/^(\s*)sql: (null|"[^"]*"),$/m, '$1sql: "' + file + '",');
-  writeFileSync(packFile, src);
+  const before = readFileSync(packFile, 'utf8');
+  writeFileSync(packFile, before.replace(/^(\s*)status: "staged",$/m, '$1status: "open",').replace(/^(\s*)sql: (null|"[^"]*"),$/m, '$1sql: "' + (was || file) + '",'));
+  let out;
+  try {
+    out = S.shipText(id);
+    if (out.moved.length) throw new Error(id + ' moves the schema or a function body of ' + out.moved.join(', ') + ': a world move, not a pack');
+  } catch (e) { writeFileSync(packFile, before); console.error('pack ship: ' + (e.message || e)); process.exit(1); }
+  if (was && existsSync(join(dir, was)) && readFileSync(join(dir, was), 'utf8') === out.sql) { console.log('pack ship: ' + was + ' is current'); return; }
+  writeFileSync(join(dir, file), out.sql);
+  writeFileSync(packFile, readFileSync(packFile, 'utf8').replace(/^(\s*)sql: (null|"[^"]*"),$/m, '$1sql: "' + file + '",'));
   const manifest = join(ROOT, 'tests', 'schema-apply-order.json');
   const j = JSON.parse(readFileSync(manifest, 'utf8'));
   j.order.push(file);

@@ -50,6 +50,11 @@ import { makeReport, ROOT } from './fixtures/h1.js';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'mosslight_glade', 'wickstead'];
+/* THE WALKED GROUNDS, LOOPED (lane/b-ground-pack phase 2): the base four above stay the literal anchor, and every ground pack
+   (src/data/grounds) is walked by definition, so a new ground is checked here with no edit. Its one-tile choke, when it has
+   one, is its own fact (the pack's checks.bridge); a ground with no single choke (The Slake's four crossings) makes no claim. */
+const walkedOf = (M) => [...NEW, ...M.packs.filter((p) => !NEW.includes(p.id)).map((p) => p.id)];
+const bridgeOf = (M, id) => BRIDGE[id] || ((M.packs.find((p) => p.id === id) || {}).checks || {}).bridge || null;
 const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 5]], coppercap_warrens: [[51, 20], [51, 21], [51, 22]],
   mosslight_glade: [[44, 19], [44, 20], [44, 21], [44, 22], [44, 23]], wickstead: [[28, 8], [29, 8], [30, 8], [31, 8]] };
 const MID_DENSITY = 4;
@@ -70,7 +75,7 @@ async function load(root) {
     grounds: await imp('src/data/hunt-grounds.js'), hunts: await imp('src/data/hunts.js'), MONSTERS: (await imp('src/data/monsters.js')).MONSTERS,
     maps: await imp('src/data/world/maps/index.js'), terrain: await imp('src/data/world/terrain.js'), mapc: await imp('src/world/core/map-compile.js'),
     sets: await imp('src/data/world/atlas-sets.js'), gathering: await imp('src/data/gathering.js'), budget: await imp('src/data/world/art-budget.js'),
-    kit: await imp('src/data/start-kit.js'),
+    kit: await imp('src/data/start-kit.js'), packs: (await imp('src/data/grounds/index.js')).GROUND_PACKS,
   };
 }
 
@@ -135,7 +140,7 @@ const BOSSES = new Set(['rat_king', 'grayjaw', 'chief_coppercap', 'rook_poacher'
 
 const cases = {
   'packs-on-the-map': (M) => {
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       const g = M.grounds.HUNT_GROUNDS[id];
       const m = maskOf(M, g.map);
       if (!m) return id + ': no world map';
@@ -156,11 +161,12 @@ const cases = {
     return null;
   },
   'one-choke': (M) => {
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       const g = M.grounds.HUNT_GROUNDS[id];
       const m = maskOf(M, g.map);
-      const br = new Set(BRIDGE[id].map((t) => t.join(',')));
-      for (const [x, y] of BRIDGE[id]) if (!m.open(x, y)) return id + ': the bridge tile ' + x + ',' + y + ' is not open';
+      if (!bridgeOf(M, id)) continue;
+      const br = new Set(bridgeOf(M, id).map((t) => t.join(',')));
+      for (const [x, y] of bridgeOf(M, id)) if (!m.open(x, y)) return id + ': the bridge tile ' + x + ',' + y + ' is not open';
       /* the passages are the GROUND's (props against a wall leave nooks, not passages); props are held
          to never cutting the walk: everything open on the ground, less the props' own tiles, is reached */
       const ground = (x, y) => x >= 0 && y >= 0 && x < m.map.w && y < m.map.h && !(M.terrain.MATERIALS[m.map.ground[y * m.map.w + x]] || {}).solid;
@@ -183,14 +189,14 @@ const cases = {
       }
       /* the route leans on it: some leg of the route walks over the bridge, and without it that leg is cut or longer */
       const legs = g.route.map((p, i) => [g.pockets[p].pull, g.pockets[g.route[(i + 1) % g.route.length]].pull]);
-      if (!legs.some(([a, b]) => { const w = dist(m, a, b, []), wo = dist(m, a, b, BRIDGE[id]); return w !== null && (wo === null || wo > w); })) {
+      if (!legs.some(([a, b]) => { const w = dist(m, a, b, []), wo = dist(m, a, b, bridgeOf(M, id)); return w !== null && (wo === null || wo > w); })) {
         return id + ': no leg of the route crosses the bridge, so it is no choke';
       }
     }
     return null;
   },
   'route-walk-through': (M) => {
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       const g = M.grounds.HUNT_GROUNDS[id];
       const m = maskOf(M, g.map);
       const all = reach(m, m.row.start, []);
@@ -202,7 +208,7 @@ const cases = {
     return null;
   },
   'density-full-box': (M) => {
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       const g = M.grounds.HUNT_GROUNDS[id];
       for (const [i] of g.pockets.entries()) {
         if (packAt(M, g, i, 8).length !== 8) return id + ' pocket ' + i + ': no full box';
@@ -213,7 +219,7 @@ const cases = {
   },
   'spawn-mix': (M) => {
     const RANK = { common: 3, uncommon: 2, rare: 1 };
-    for (const id of ['mill_cellar', 'millrace_sewer', ...NEW]) {
+    for (const id of ['mill_cellar', 'millrace_sewer', ...walkedOf(M)]) {
       const h = M.hunts.HUNT_INDEX[id];
       const g = M.grounds.HUNT_GROUNDS[id];
       const n = headCount(M, g);
@@ -237,7 +243,7 @@ const cases = {
   'gather-nodes': (M) => {
     const rows = Object.fromEntries([...M.gathering.TREES.map((r) => [r.id, ['woodcutting', r]]), ...M.gathering.ROCKS.map((r) => [r.id, ['mining', r]])]);
     const spr = sprites(M);
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       const g = M.grounds.HUNT_GROUNDS[id];
       const h = M.hunts.HUNT_INDEX[id];
       const m = maskOf(M, g.map);
@@ -298,7 +304,7 @@ const cases = {
   },
   'walk-art': (M) => {
     const spr = sprites(M);
-    for (const id of NEW) {
+    for (const id of walkedOf(M)) {
       if (M.hunts.HUNT_INDEX[id].staged === true) continue;   // staged: no art yet, held by staged-until-art
       const g = M.grounds.HUNT_GROUNDS[id];
       const kinds = new Set(g.pockets.flatMap((p, i) => packAt(M, g, i, 8).map((s) => s.monster)));
@@ -496,7 +502,13 @@ cases['harder-pays-more'] = async (M) => {
     for (const [id, k] of Object.entries(x.killsBy)) g += k * kill(M.MONSTERS[id], y);
     return Math.round((g - x.totals.store) / roles.length / h);
   };
-  for (const [L, roles, low, high, fullSet] of CLIMB) {
+  /* a ground pack climbs from the open ground under it by floor (band order, from the data), a lone tank in its own-tier set at its floor */
+  const floorOf = (g) => M.hunts.HUNT_INDEX[M.grounds.OPEN_GROUNDS[g].hunt].band[0];
+  const climbs = [...CLIMB, ...M.packs.filter((p) => M.grounds.OPEN_GROUNDS[p.id]).map((p) => {
+    const below = Object.keys(M.grounds.OPEN_GROUNDS).filter((g) => g !== p.id && floorOf(g) < floorOf(p.id)).sort((a, b) => floorOf(b) - floorOf(a))[0];
+    return below ? [floorOf(p.id), ['tank'], below, p.id, true] : null;
+  }).filter(Boolean)];
+  for (const [L, roles, low, high, fullSet] of climbs) {
     const a = hour(low, L, roles, fullSet), b = hour(high, L, roles, fullSet), who = roles.length > 1 ? 'a party of ' + roles.length : 'a lone ' + roles[0];
     console.log('    ' + who + ' at L' + L + ', gold an hour, all sold: ' + low + ' ' + a + ' -> ' + high + ' ' + b);
     if (!(b > a)) bad.push(who + ' at L' + L + ' earns ' + a + ' g/h on ' + low + ' and ' + b + ' g/h on ' + high + ': staying on the weaker ground pays');

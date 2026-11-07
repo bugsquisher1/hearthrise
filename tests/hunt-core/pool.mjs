@@ -39,7 +39,7 @@ async function properties(impl) {
   return fails;
 }
 
-const MUTANTS = [
+const WRONG_POOLS = [
   ['the batch barrier this replaced (wait for the slowest of each four)', async (items, size, work) => {
     const out = [];
     for (let i = 0; i < items.length; i += size) out.push(...await Promise.all(items.slice(i, i + size).map((x, j) => work(x, i + j))));
@@ -64,10 +64,10 @@ const MUTANTS = [
 let bad = 0;
 const real = await properties(pool);
 for (const f of real) { console.log('FAIL  ' + f); bad++; }
-for (const [name, impl] of MUTANTS) {
+for (const [name, impl] of WRONG_POOLS) {
   const f = await properties(impl);
   if (f.length) console.log(`CAUGHT  ${name}: ${f[0]}`);
   else { console.log(`MISSED  ${name}`); bad++; }
 }
-console.log(bad ? `hunt-core/pool: ${bad} FAILED` : `hunt-core/pool: green, ${MUTANTS.length}/${MUTANTS.length} mutants caught`);
+console.log(bad ? `hunt-core/pool: ${bad} FAILED` : `hunt-core/pool: green, ${WRONG_POOLS.length}/${WRONG_POOLS.length} mutants caught`);
 process.exit(bad ? 1 : 0);

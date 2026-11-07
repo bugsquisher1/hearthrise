@@ -29,7 +29,7 @@ on:
   workflow_dispatch:
     inputs:
       rehearse_range:
-        description: 'A lane only: <full sha>..<full sha>, run this branch under the plan that diff gets (tools/mutant-gate.mjs). Empty = the full sweep.'
+        description: 'A lane only: <full sha>..<full sha>, run this branch under the plan that diff gets (tools/mutant-gate.mjs). full = the full sweep. Empty = the full sweep, except on release/** and next: the gate their push gets.'
         required: false
         default: ''
   # THE NIGHTLY MUTATION SWEEP (CLAUDE.md §3.6/§4, Tyler 2026-10-21): the whole

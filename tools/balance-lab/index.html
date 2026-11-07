@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Balance Lab</title>
+<!--
+  tools/balance-lab/index.html — THE BALANCE LAB: Hearthrise's real combat engine in a browser, with dials.
+  Build the engine first: `node tools/balance-lab/build.mjs` (writes dist/worker.js and dist/engine.js beside this page).
+  Serve the folder statically (e.g. `npx --yes http-server tools/balance-lab -p 8765`) or publish the three files together.
+  The page plays every run in Web Workers built from dist/worker.js (one per core, up to four); a host where no worker
+  can start runs the same code on the page's own thread. No network, no storage, no secrets: everything is local.
+  Dials JSON shape: tools/balance-lab/dials.mjs header (schema hearthrise.balance-dials/1).
+-->
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f2f1ee;
+  --surface: #ffffff;
+  --surface-2: #f7f6f3;
+  --surface-3: #ecebe7;
+  --line: rgba(122, 94, 34, .26);
+  --line-soft: rgba(29, 31, 36, .09);
+  --ink: #1d1f24;
+  --ink-2: #474c55;
+  --ink-3: #636973;
+  --gold: #85651a;
+  --gold-2: #9c7a26;
+  --gold-bg: rgba(156, 122, 38, .12);
+  --gold-ink: #ffffff;
+  --good: #3f6b22;
+  --good-bg: rgba(63, 107, 34, .12);
+  --bad: #a83a2b;
+  --bad-bg: rgba(168, 58, 43, .10);
+  --focus: #2f5f8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0a0b0e;
+    --surface: #101217;
+    --surface-2: #1a1d23;
+    --surface-3: #252931;
+    --line: rgba(201, 162, 74, .24);
+    --line-soft: rgba(214, 224, 240, .08);
+    --ink: #e9e7e2;
+    --ink-2: #b8bcc4;
+    --ink-3: #979da7;
+    --gold: #c9a24a;
+    --gold-2: #e3c77e;
+    --gold-bg: rgba(201, 162, 74, .14);
+    --gold-ink: #15120a;
+    --good: #9bb86a;
+    --good-bg: rgba(127, 154, 79, .16);
+    --bad: #e8735e;
+    --bad-bg: rgba(178, 58, 44, .18);
+    --focus: #a9b2bd;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0a0b0e;
+  --surface: #101217;
+  --surface-2: #1a1d23;
+  --surface-3: #252931;
+  --line: rgba(201, 162, 74, .24);
+  --line-soft: rgba(214, 224, 240, .08);
+  --ink: #e9e7e2;
+  --ink-2: #b8bcc4;
+  --ink-3: #979da7;
+  --gold: #c9a24a;
+  --gold-2: #e3c77e;
+  --gold-bg: rgba(201, 162, 74, .14);
+  --gold-ink: #15120a;
+  --good: #9bb86a;
+  --good-bg: rgba(127, 154, 79, .16);
+  --bad: #e8735e;
+  --bad-bg: rgba(178, 58, 44, .18);
+  --focus: #a9b2bd;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+.wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 16px; }
+h1 { font-size: 20px; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); margin: 0; font-weight: 700; }
+.sub { color: var(--ink-3); font-size: 13px; flex: 1 1 320px; }
+.theme { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.theme button { border: 0; border-radius: 0; background: transparent; padding: 4px 10px; font-size: 12px; color: var(--ink-2); min-height: 28px; }
+.theme button[aria-pressed="true"] { background: var(--gold-bg); color: var(--ink); }
+.layout { display: grid; grid-template-columns: minmax(330px, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+section.block { background: var(--surface); border: 1px solid var(--line-soft); border-radius: 6px; padding: 14px; margin-bottom: 16px; min-width: 0; }
+h2 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); font-weight: 700; }
+h3 { font-size: 13px; margin: 14px 0 6px; color: var(--ink); font-weight: 600; }
+label, .lbl { font-size: 12px; color: var(--ink-3); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.field { display: grid; gap: 3px; margin-bottom: 10px; min-width: 0; }
+select, input[type="number"], textarea {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-soft);
+  border-radius: 4px; padding: 5px 7px; min-height: 32px; min-width: 0;
+}
+select:focus-visible, input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+input[type="number"] { width: 76px; }
+button {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 4px; padding: 6px 12px; min-height: 32px; cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--gold); }
+button:disabled { opacity: .5; cursor: default; }
+button.primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); font-weight: 700; letter-spacing: .03em; }
+button.primary:hover:not(:disabled) { background: var(--gold-2); }
+button.link { background: none; border: 0; padding: 2px 4px; min-height: 0; color: var(--gold); text-decoration: underline; text-underline-offset: 2px; font-size: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line-soft); background: transparent; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--gold-bg); color: var(--ink); box-shadow: inset 0 -2px 0 var(--gold); }
+.seg button .note { display: block; font-size: 12px; color: var(--ink-3); }
+.hero { border-top: 1px solid var(--line-soft); padding: 8px 0; }
+.hero:first-of-type { border-top: 0; }
+.hero .controls { display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.hero .controls input[type="number"] { width: 100%; }
+.kit { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+.kit b { color: var(--ink-2); font-weight: 600; }
+.x { padding: 4px 8px; min-height: 30px; }
+.dial { display: grid; grid-template-columns: minmax(96px, 128px) minmax(0, 1fr) 70px; gap: 8px; align-items: center; margin-bottom: 6px; }
+.dial input[type="range"] { width: 100%; accent-color: var(--gold); min-width: 0; }
+.dial input[type="number"] { width: 100%; }
+.dial .name { font-size: 13px; color: var(--ink-2); }
+.dial.moved .name { color: var(--ink); font-weight: 600; }
+.dial.moved .name::after { content: " *"; color: var(--gold); }
+.hint { font-size: 12px; color: var(--ink-3); margin: 2px 0 8px; }
+.pulls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+.pulls label { display: grid; gap: 2px; }
+.pulls input { width: 100%; }
+.pulls input.moved, .dial input.moved { border-color: var(--gold); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; white-space: normal; }
+thead th { font-size: 12px; color: var(--ink-3); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--line); }
+tbody tr:hover td { background: var(--surface-2); }
+td.up { color: var(--good); }
+td.down { color: var(--bad); }
+td.flat { color: var(--ink-3); }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+.chip { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 12px; font-weight: 700; letter-spacing: .03em; }
+.chip.pass { background: var(--good-bg); color: var(--good); }
+.chip.miss { background: var(--bad-bg); color: var(--bad); }
+.chip.na { color: var(--ink-3); font-weight: 400; }
+.progress { height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; margin: 10px 0 4px; }
+.progress > i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .15s linear; }
+.status { font-size: 12px; color: var(--ink-3); min-height: 18px; }
+.status.err { color: var(--bad); }
+.empty { color: var(--ink-3); font-size: 13px; padding: 18px 0; }
+.headline { font-size: 15px; margin: 0 0 4px; }
+.meta-line { font-size: 12px; color: var(--ink-3); margin: 0 0 12px; }
+.tierline { font-size: 12px; color: var(--ink-3); margin: 6px 0 0; }
+.tierline b { color: var(--ink-2); font-weight: 600; }
+.tierline .moved { color: var(--gold); }
+dialog { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); padding: 16px; width: min(560px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgba(0, 0, 0, .55); }
+dialog textarea { width: 100%; height: 260px; font: 12px/1.4 ui-monospace, Consolas, monospace; }
+.note-box { font-size: 12px; color: var(--ink-2); background: var(--surface-2); border-left: 2px solid var(--gold); padding: 6px 10px; margin: 8px 0; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--ink-2); margin: 4px 0 10px; }
+.check input { margin-top: 3px; }
+@media (max-width: 540px) {
+  .wrap { padding: 14px 16px 40px; }
+  .dial { grid-template-columns: minmax(0, 1fr) 70px; }
+  .dial input[type="range"] { grid-column: 1 / -1; grid-row: 2; }
+  .hero .controls { grid-template-columns: minmax(0, 1fr) 60px auto; }
+  .hero .controls select.gear { grid-column: 1 / -1; grid-row: 2; }
+  th, td { padding: 5px 6px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Balance Lab</h1>
+    <div class="sub" id="sub">Loading the game's engine…</div>
+    <div class="theme" role="group" aria-label="Color scheme">
+      <button type="button" data-theme-pick="" aria-pressed="true">Auto</button>
+      <button type="button" data-theme-pick="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-pick="dark" aria-pressed="false">Dark</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div>
+      <section class="block" aria-labelledby="h-hunt">
+        <h2 id="h-hunt">The hunt</h2>
+        <div class="field">
+          <label for="ground">Ground</label>
+          <select id="ground"></select>
+        </div>
+        <div class="field">
+          <span class="lbl" id="tier-l">Tier</span>
+          <div class="seg" role="group" aria-labelledby="tier-l" id="tier"></div>
+          <div class="hint" id="tier-hint"></div>
+        </div>
+        <h3>Party</h3>
+        <div id="heroes"></div>
+        <div class="row"><button type="button" id="add-hero">Add a hero</button><span class="hint" id="party-hint"></span></div>
+      </section>
+
+      <section class="block" aria-labelledby="h-run">
+        <h2 id="h-run">The run</h2>
+        <div class="row">
+          <div class="field"><label for="hours">Hours a seed</label><input type="number" id="hours" min="0.25" max="24" step="0.25" value="2"></div>
+          <div class="field"><label for="seeds">Seeds</label><input type="number" id="seeds" min="1" max="12" step="1" value="2"></div>
+          <div class="field"><label for="supply">Supplies</label>
+            <select id="supply"><option value="store">Bought per use</option><option value="own">Own food carried</option></select></div>
+        </div>
+        <label class="check"><input type="checkbox" id="solo" checked> <span>Also play each hero alone (reads the party line: XP a head against solo)</span></label>
+        <label class="check"><input type="checkbox" id="with-normal" checked> <span>Also play Normal beside a harder tier (reads the tier lines: XP against Normal)</span></label>
+        <div class="row">
+          <button type="button" class="primary" id="run" disabled>Run</button>
+          <button type="button" id="cancel" disabled>Cancel</button>
+        </div>
+        <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="block" aria-labelledby="h-dials">
+        <h2 id="h-dials">Dials</h2>
+        <h3>Every monster</h3>
+        <div class="hint">A share of each monster's own row, on every tier. Damage moves its to-hit and its blow, as a tier's power does.</div>
+        <div id="mon-dials"></div>
+        <div class="hint" id="mon-effect"></div>
+        <h3 id="tier-dials-h">Tier</h3>
+        <div class="hint">Monsters a pull brings for 1, 2, 3 or 4 heroes (0 = the ground as it stands), then the tier's own shares on top of the monster dials. Coin never moves with a tier. On today's rows a tier's damage also raises its monsters' Level for armor, as the game does.</div>
+        <div class="pulls" id="pulls"></div>
+        <div id="tier-dials"></div>
+        <div id="tier-table"></div>
+        <h3>Scaled hunt (preview)</h3>
+        <div class="field">
+          <label for="scale">Scale the ground's monsters to Level</label>
+          <div class="row"><input type="number" id="scale" min="1" max="500" step="1" placeholder="off"><span class="hint" id="scale-hint"></span></div>
+        </div>
+        <div class="row">
+          <button type="button" id="reset">Reset to today's data</button>
+          <button type="button" id="sheet-tiers" hidden>Load the sheet's tier table</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button type="button" id="copy">Copy dials as JSON</button>
+          <button type="button" id="paste">Paste dials</button>
+        </div>
+      </section>
+    </div>
+
+    <div>
+      <section class="block" aria-labelledby="h-res">
+        <h2 id="h-res">Result</h2>
+        <div id="result"><div class="empty">Pick a ground and a party, move a dial, then press Run. Baseline is today's data; Tweaked is your dials, on the same dice.</div></div>
+      </section>
+      <section class="block" aria-labelledby="h-targets">
+        <h2 id="h-targets">Against the target sheet</h2>
+        <div id="targets"><div class="empty">Targets show after a run.</div></div>
+      </section>
+      <section class="block" aria-labelledby="h-heroes" id="heroes-block" hidden>
+        <h2 id="h-heroes">Each hero</h2>
+        <div id="hero-results"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<dialog id="json-dialog">
+  <h2 id="json-title">Dials as JSON</h2>
+  <p class="hint" id="json-hint"></p>
+  <textarea id="json-text" spellcheck="false" aria-labelledby="json-title"></textarea>
+  <div class="row" style="margin-top:10px; justify-content:flex-end">
+    <button type="button" id="json-apply" hidden>Load these dials</button>
+    <button type="button" id="json-close">Close</button>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+(function () {
+  const WORKER_URL = 'dist/worker.js';
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, attrs, kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v;
+      else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else if (v !== null && v !== undefined && v !== false) n.setAttribute(k, v === true ? '' : v);
+    }
+    for (const c of [].concat(kids || [])) if (c !== null && c !== undefined) n.append(c.nodeType ? c : String(c));
+    return n;
+  };
+  const fmt = (x, d) => (x === null || x === undefined || !Number.isFinite(x) ? '–' : x.toLocaleString('en-US', { maximumFractionDigits: d || 0, minimumFractionDigits: d || 0 }));
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+
+  /* ── THEME ─────────────────────────────────────────────────────────────── */
+  document.querySelectorAll('[data-theme-pick]').forEach((b) => b.addEventListener('click', () => {
+    const t = b.getAttribute('data-theme-pick');
+    if (t) document.documentElement.setAttribute('data-theme', t); else document.documentElement.removeAttribute('data-theme');
+    document.querySelectorAll('[data-theme-pick]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+
+  /* ── THE WORKERS ───────────────────────────────────────────────────────── */
+  /* A worker from the file; else from a blob of its text (a host that forbids file workers); else the same code on this thread. */
+  let workerSource = null;
+  async function makeWorker() {
+    try { return new Worker(WORKER_URL); } catch (e) { /* fall through */ }
+    try {
+      if (!workerSource) workerSource = await (await fetch(WORKER_URL)).text();
+      return new Worker(URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' })));
+    } catch (e) { /* fall through */ }
+    return null;
+  }
+  let inline = null;
+  function loadInline() {
+    if (inline) return inline;
+    inline = new Promise((ok, bad) => {
+      const s = document.createElement('script');
+      s.src = WORKER_URL; s.onload = () => (window.HearthriseLab ? ok(window.HearthriseLab) : bad(new Error('the engine did not load')));
+      s.onerror = () => bad(new Error('could not load ' + WORKER_URL + ' (run node tools/balance-lab/build.mjs)'));
+      document.head.append(s);
+    });
+    return inline;
+  }
+  /* One endpoint: a worker or the page-thread fallback, answering request(msg) -> Promise, with progress callbacks. */
+  function endpoint(w) {
+    let seq = 0;
+    const waiting = new Map();
+    const onMsg = (m) => {
+      const p = waiting.get(m.id);
+      if (!p) return;
+      if (m.type === 'progress') { if (p.progress) p.progress(m.f); return; }
+      waiting.delete(m.id);
+      if (m.type === 'error') p.bad(new Error(m.message)); else p.ok(m);
+    };
+    if (w) {
+      w.onmessage = (e) => onMsg(e.data);
+      w.onerror = (e) => { for (const p of waiting.values()) p.bad(new Error(e.message || 'the worker failed')); waiting.clear(); };
+    }
+    return {
+      worker: w,
+      request(msg, progress) {
+        const id = ++seq;
+        return new Promise((ok, bad) => {
+          waiting.set(id, { ok, bad, progress });
+          if (w) w.postMessage({ ...msg, id });
+          else loadInline().then((lab) => setTimeout(() => lab.handle({ ...msg, id }, onMsg), 0), bad);
+        });
+      },
+      kill() { if (w) w.terminate(); for (const p of waiting.values()) p.bad(new Error('cancelled')); waiting.clear(); },
+    };
+  }
+  let metaEp = null;
+  let pool = [];
+  let threadMode = 'workers';
+  async function getMetaEp() {
+    if (!metaEp) { const w = await makeWorker(); if (!w) threadMode = 'page'; metaEp = endpoint(w); }
+    return metaEp;
+  }
+  const poolSize = () => (threadMode === 'page' ? 1 : Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)));
+  async function getPool() {
+    while (pool.length < poolSize()) { const w = threadMode === 'page' ? null : await makeWorker(); pool.push(endpoint(w)); }
+    return pool;
+  }
+  function killPool() { for (const p of pool) p.kill(); pool = []; }
+
+  /* ── STATE ─────────────────────────────────────────────────────────────── */
+  const S = { meta: null, ground: null, tier: 'normal', heroes: [], dials: null, running: false, cache: new Map(), last: null };
+  const PM = 1000;
+  const groundOf = (id) => S.meta.grounds.find((g) => g.id === id);
+  const todayTiers = (gid) => S.meta.tiers[gid].tiers;
+  const dialsToday = (gid) => ({ schema: 'hearthrise.balance-dials/1', ground: gid, monsters: { dmgPm: PM, hpPm: PM, xpPm: PM, goldPm: PM }, tiers: clone(todayTiers(gid)), scale: { toLevel: null } });
+  const dialsMoved = (d) => JSON.stringify({ m: d.monsters, t: d.tiers, s: d.scale.toLevel }) !== JSON.stringify({ m: dialsToday(S.ground).monsters, t: todayTiers(S.ground), s: null });
+
+  /* ── THE HUNT AND THE PARTY ───────────────────────────────────────────── */
+  function renderGrounds() {
+    const sel = $('ground');
+    sel.replaceChildren(...S.meta.grounds.map((g) => el('option', { value: g.id, text: g.name + ' (Levels ' + g.band[0] + '-' + g.band[1] + (g.groupFit === 'party' ? ', party' : '') + ')' })));
+    sel.value = S.ground;
+  }
+  function renderTier() {
+    const offered = S.meta.tiers[S.ground].offered;
+    $('tier').replaceChildren(...['normal', 'dangerous', 'deadly'].map((t) => el('button', { type: 'button', 'aria-pressed': String(S.tier === t),
+      onclick: () => { S.tier = t; renderTier(); renderTierDials(); } }, [t[0].toUpperCase() + t.slice(1), offered.includes(t) ? null : el('span', { class: 'note', text: 'not offered' })])));
+    $('tier-hint').textContent = offered.includes(S.tier) ? '' : 'This ground offers only ' + offered.join(', ') + ' today: this tier plays as a preview of your tier dials.';
+    $('tier-dials-h').textContent = 'Tier: ' + S.tier[0].toUpperCase() + S.tier.slice(1);
+  }
+  async function heroCard(h, box) {
+    try {
+      const ep = await getMetaEp();
+      const r = await ep.request({ type: 'hero', style: h.style, level: h.level, gear: h.gear });
+      box.replaceChildren(el('b', { text: r.card.maxHp + ' HP, ' + r.card.maxMana + ' mana' }), ' · ' + r.card.pieces.map((p) => p.name).join(', '));
+    } catch (e) { box.textContent = e.message; }
+  }
+  function renderHeroes() {
+    const box = $('heroes');
+    box.replaceChildren(...S.heroes.map((h, i) => {
+      const kit = el('div', { class: 'kit', text: '…' });
+      const style = el('select', { 'aria-label': 'Way to fight, hero ' + (i + 1), onchange: (e) => { h.style = e.target.value; heroCard(h, kit); } },
+        S.meta.styles.map((s) => el('option', { value: s.id, text: s.label })));
+      style.value = h.style;
+      const lv = el('input', { type: 'number', min: 1, max: 500, step: 1, value: h.level, 'aria-label': 'Level, hero ' + (i + 1),
+        onchange: (e) => { h.level = Math.max(1, Math.min(500, Math.round(Number(e.target.value) || 1))); e.target.value = h.level; heroCard(h, kit); } });
+      const gear = el('select', { class: 'gear', 'aria-label': 'Gear, hero ' + (i + 1), onchange: (e) => { h.gear = e.target.value; heroCard(h, kit); } },
+        Object.entries(S.meta.gearPresets).map(([k, label]) => el('option', { value: k, text: label })));
+      gear.value = h.gear;
+      const rm = el('button', { type: 'button', class: 'x', 'aria-label': 'Remove hero ' + (i + 1), disabled: S.heroes.length < 2,
+        onclick: () => { S.heroes.splice(i, 1); renderHeroes(); renderTierDials(); } }, '×');
+      heroCard(h, kit);
+      return el('div', { class: 'hero' }, [el('div', { class: 'controls' }, [style, lv, gear, rm]), kit]);
+    }));
+    $('add-hero').disabled = S.heroes.length >= 4;
+    const g = groundOf(S.ground);
+    $('party-hint').textContent = S.heroes.length + ' of 4 · ground band ' + g.band[0] + '-' + g.band[1];
+  }
+
+  /* ── THE DIALS ─────────────────────────────────────────────────────────── */
+  function dial(name, get, set, today, min, max, onMove) {
+    const wrap = el('div', { class: 'dial' });
+    const range = el('input', { type: 'range', min, max, step: 1, 'aria-label': name });
+    const num = el('input', { type: 'number', min: 1, max: 1000, step: 1, 'aria-label': name + ' (%)' });
+    const sync = () => {
+      const v = get();
+      range.value = String(Math.max(min, Math.min(max, v))); num.value = String(v);
+      const moved = v !== today();
+      wrap.classList.toggle('moved', moved); num.classList.toggle('moved', moved);
+      wrap.title = 'Today: ' + today() + '%';
+    };
+    range.addEventListener('input', () => { set(Number(range.value)); sync(); onMove(); });
+    num.addEventListener('change', () => { const v = Math.max(1, Math.min(1000, Math.round(Number(num.value) || today()))); set(v); sync(); onMove(); });
+    wrap.append(el('span', { class: 'name', text: name }), range, num);
+    sync();
+    return wrap;
+  }
+  let effectTimer = null;
+  function onDialsMoved() {
+    clearTimeout(effectTimer);
+    effectTimer = setTimeout(async () => {
+      const ids = S.meta.effect[S.ground] || [];
+      try {
+        const r = await (await getMetaEp()).request({ type: 'effect', dials: S.dials, monsterIds: ids });
+        const e = r.effect;
+        const notes = [];
+        if (e.hpPct !== S.dials.monsters.hpPm / 10) notes.push('HP ' + fmt(e.hpPct, 1) + '%');
+        if (e.goldPct !== S.dials.monsters.goldPm / 10) notes.push('coin ' + fmt(e.goldPct, 1) + '%');
+        $('mon-effect').textContent = notes.length ? 'On this ground\'s monsters the whole-number rows land at ' + notes.join(', ') + '.' : '';
+      } catch (err) { $('mon-effect').textContent = ''; }
+    }, 150);
+    renderTierTable();
+  }
+  function renderMonsterDials() {
+    const m = S.dials.monsters;
+    $('mon-dials').replaceChildren(
+      dial('Damage', () => m.dmgPm / 10, (v) => { m.dmgPm = v * 10; }, () => 100, 25, 300, onDialsMoved),
+      dial('HP', () => m.hpPm / 10, (v) => { m.hpPm = v * 10; }, () => 100, 25, 300, onDialsMoved),
+      dial('Level XP', () => m.xpPm / 10, (v) => { m.xpPm = v * 10; }, () => 100, 25, 300, onDialsMoved),
+      dial('Coin a kill', () => m.goldPm / 10, (v) => { m.goldPm = v * 10; }, () => 100, 25, 300, onDialsMoved));
+  }
+  function renderTierDials() {
+    const t = S.dials.tiers[S.tier], today = todayTiers(S.ground)[S.tier];
+    $('pulls').replaceChildren(...[0, 1, 2, 3].map((i) => {
+      const inp = el('input', { type: 'number', min: 0, max: 16, step: 1, value: t.pull[i], 'aria-label': 'Pull for ' + (i + 1) + (i ? ' heroes' : ' hero') });
+      inp.classList.toggle('moved', t.pull[i] !== today.pull[i]);
+      inp.addEventListener('change', () => { t.pull[i] = Math.max(0, Math.min(16, Math.round(Number(inp.value) || 0))); inp.value = t.pull[i]; inp.classList.toggle('moved', t.pull[i] !== today.pull[i]); onDialsMoved(); });
+      return el('label', {}, [el('span', { class: 'lbl', text: (i + 1) + (i ? ' heroes' : ' hero') + (S.heroes.length === i + 1 ? ' (yours)' : '') }), inp]);
+    }));
+    $('tier-dials').replaceChildren(
+      dial('Damage', () => t.dmgPm / 10, (v) => { t.dmgPm = v * 10; }, () => today.dmgPm / 10, 50, 400, onDialsMoved),
+      dial('HP', () => t.hpPm / 10, (v) => { t.hpPm = v * 10; }, () => today.hpPm / 10, 50, 400, onDialsMoved),
+      dial('Level XP', () => t.xpPm / 10, (v) => { t.xpPm = v * 10; }, () => today.xpPm / 10, 50, 400, onDialsMoved));
+    renderTierTable();
+  }
+  function renderTierTable() {
+    const today = todayTiers(S.ground);
+    $('tier-table').replaceChildren(...['normal', 'dangerous', 'deadly'].map((k) => {
+      const t = S.dials.tiers[k], d = today[k];
+      const part = (txt, moved) => el('span', { class: moved ? 'moved' : null, text: txt });
+      return el('div', { class: 'tierline' }, [el('b', { text: k[0].toUpperCase() + k.slice(1) + ': ' }),
+        part('pull ' + t.pull.join('/'), t.pull.join() !== d.pull.join()), ' · ', part('damage ' + t.dmgPm / 10 + '%', t.dmgPm !== d.dmgPm), ' · ',
+        part('HP ' + t.hpPm / 10 + '%', t.hpPm !== d.hpPm), ' · ', part('XP ' + t.xpPm / 10 + '%', t.xpPm !== d.xpPm)]);
+    }));
+  }
+  function renderScale() {
+    const g = groundOf(S.ground);
+    const inp = $('scale');
+    inp.disabled = !S.meta.hasSheet;
+    inp.value = Number.isInteger(S.dials.scale.toLevel) ? S.dials.scale.toLevel : '';
+    $('scale-hint').textContent = S.meta.hasSheet
+      ? 'Every monster read from the stat formula that many Levels above the ground\'s floor (' + g.band[0] + '); coin scales, item drops do not. A preview, not a ruling.'
+      : 'Needs the stat formula (src/data/balance-sheet.js, lane/b-ground-formula) in the bundle.';
+  }
+  function renderDials() { renderMonsterDials(); renderTierDials(); renderScale(); onDialsMoved(); }
+  $('scale').addEventListener('change', (e) => {
+    const v = Math.round(Number(e.target.value));
+    S.dials.scale = Number.isInteger(v) && v > 0 ? { toLevel: v, fromLevel: groundOf(S.ground).band[0] } : { toLevel: null };
+    onDialsMoved();
+  });
+  $('reset').addEventListener('click', () => { S.dials = dialsToday(S.ground); renderDials(); });
+  $('sheet-tiers').addEventListener('click', () => { const t = S.meta.sheetTiers[S.ground]; if (t) { S.dials.tiers = clone(t); renderTierDials(); onDialsMoved(); } });
+
+  /* ── JSON ──────────────────────────────────────────────────────────────── */
+  function exportJson() {
+    return JSON.stringify({ ...clone(S.dials), schema: 'hearthrise.balance-dials/1', engine: S.meta.bundle.version, ground: S.ground,
+      run: { ground: S.ground, tier: S.tier, party: S.heroes.map((h) => ({ style: h.style, level: h.level, gear: h.gear })), hours: num('hours'), seeds: num('seeds') } }, null, 2);
+  }
+  function openJson(mode) {
+    const d = $('json-dialog');
+    $('json-title').textContent = mode === 'copy' ? 'Dials as JSON' : 'Paste dials';
+    $('json-apply').hidden = mode === 'copy';
+    $('json-text').readOnly = mode === 'copy';
+    $('json-text').value = mode === 'copy' ? exportJson() : '';
+    $('json-hint').textContent = mode === 'copy' ? 'Copied to the clipboard where the browser allows it; otherwise select the text below.' : 'Paste a "hearthrise.balance-dials/1" JSON, then load it.';
+    if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', '');
+    if (mode === 'copy') { $('json-text').select(); }
+  }
+  $('copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(exportJson()); setStatus('Dials copied as JSON.'); } catch (e) { /* the dialog below holds it */ }
+    openJson('copy');
+  });
+  $('paste').addEventListener('click', () => openJson('paste'));
+  $('json-close').addEventListener('click', () => $('json-dialog').close());
+  $('json-apply').addEventListener('click', () => {
+    try {
+      const j = JSON.parse($('json-text').value);
+      if (!j || j.schema !== 'hearthrise.balance-dials/1') throw new Error('not a hearthrise.balance-dials/1 JSON');
+      if (j.run && groundOf(j.run.ground)) {
+        S.ground = j.run.ground; S.tier = j.run.tier || 'normal';
+        if (Array.isArray(j.run.party) && j.run.party.length) S.heroes = j.run.party.slice(0, 4).map((h) => ({ style: h.style, level: h.level, gear: h.gear || 'level' }));
+        if (j.run.hours) $('hours').value = j.run.hours;
+        if (j.run.seeds) $('seeds').value = j.run.seeds;
+      }
+      const base = dialsToday(S.ground);
+      S.dials = { ...base, monsters: { ...base.monsters, ...(j.monsters || {}) }, tiers: { ...base.tiers, ...(j.tiers || {}) }, scale: j.scale && Number.isInteger(j.scale.toLevel) ? j.scale : { toLevel: null } };
+      $('ground').value = S.ground; renderTier(); renderHeroes(); renderDials();
+      $('json-dialog').close();
+      setStatus('Dials loaded.');
+    } catch (e) { $('json-hint').textContent = 'Could not load: ' + e.message; }
+  });
+
+  /* ── RUNNING ───────────────────────────────────────────────────────────── */
+  const num = (id) => Number($(id).value);
+  function setStatus(t, err) { $('status').textContent = t; $('status').classList.toggle('err', !!err); }
+  function inputs() {
+    return { ground: S.ground, tier: S.tier, heroes: clone(S.heroes), hours: Math.max(0.25, Math.min(24, num('hours') || 2)), seeds: Math.max(1, Math.min(12, Math.round(num('seeds') || 1))),
+      supply: $('supply').value, solo: $('solo').checked && S.heroes.length > 1, normal: $('with-normal').checked && S.tier !== 'normal' };
+  }
+  /* the page's cell for a party under a dial set's tier row: its pull for the party's size */
+  const cellFor = (inp, heroes, dials, tier) => ({ ground: inp.ground, tier: tier || inp.tier, heroes, hours: inp.hours, seeds: inp.seeds, supply: inp.supply, windowMs: 30000,
+    density: (dials ? dials.tiers[tier || inp.tier] : todayTiers(inp.ground)[tier || inp.tier]).pull[heroes.length - 1] || 0 });
+  /* every cell one variant needs: the party; each distinct hero alone when the party line is read; the party on Normal beside a harder tier */
+  function cellsOf(inp, dials) {
+    const out = [{ key: 'party', cell: cellFor(inp, inp.heroes, dials) }];
+    if (inp.normal) out.push({ key: 'normal', cell: cellFor(inp, inp.heroes, dials, 'normal') });
+    if (inp.solo) {
+      const seen = new Set();
+      for (const h of inp.heroes) {
+        const k = h.style + '@' + h.level + '@' + h.gear;
+        if (seen.has(k)) continue; seen.add(k);
+        out.push({ key: 'solo:' + k, cell: cellFor(inp, [h], dials) });
+      }
+    }
+    return out;
+  }
+  let cancelled = false;
+  async function run() {
+    if (S.running) return;
+    const inp = inputs();
+    const moved = dialsMoved(S.dials);
+    const dials = clone(S.dials);
+    const baseKey = JSON.stringify(inp);
+    const variants = [];
+    if (!S.cache.has(baseKey)) variants.push({ name: 'baseline', dials: null });
+    if (moved) variants.push({ name: 'tweaked', dials });
+    const monsterIds = S.meta.effect[inp.ground] || [];
+    const jobs = [];
+    for (const v of variants) for (const c of cellsOf(inp, v.dials)) for (let s = 0; s < inp.seeds; s++) {
+      jobs.push({ v: v.name, key: c.key, cell: c.cell, seeds: [s], dials: v.dials, weight: inp.hours * c.cell.heroes.length, f: 0 });
+    }
+    S.running = true; cancelled = false;
+    $('run').disabled = true; $('cancel').disabled = false;
+    const t0 = performance.now();
+    const totalW = jobs.reduce((s, j) => s + j.weight, 0) || 1;
+    let live = true;
+    const paint = () => {
+      if (!live) return;
+      const done = jobs.reduce((s, j) => s + j.f * j.weight, 0) / totalW;
+      $('bar').style.width = (100 * done).toFixed(1) + '%';
+      setStatus('Playing ' + jobs.length + ' job' + (jobs.length === 1 ? '' : 's') + ' on ' + poolSize() + (threadMode === 'page' ? ' page thread' : ' worker' + (poolSize() === 1 ? '' : 's'))
+        + ' · ' + Math.round(100 * done) + '% · ' + ((performance.now() - t0) / 1000).toFixed(1) + ' s');
+    };
+    try {
+      const eps = jobs.length ? await getPool() : [];
+      let next = 0;
+      const lane = async (ep) => {
+        while (next < jobs.length && !cancelled) {
+          const j = jobs[next++];
+          const r = await ep.request({ type: 'play', cell: j.cell, seeds: j.seeds, dials: j.dials, monsterIds }, (f) => { j.f = f; paint(); });
+          j.totals = r.totals; j.f = 1; paint();
+        }
+      };
+      paint();
+      await Promise.all(eps.map(lane));
+      if (cancelled) throw new Error('cancelled');
+      const meta = await getMetaEp();
+      const g = groundOf(inp.ground);
+      const ctx = { band: g.band, tier: inp.tier, gear: inp.heroes.map((h) => h.gear) };
+      const summarise = async (vname) => {
+        const keys = [...new Set(jobs.filter((j) => j.v === vname).map((j) => j.key))];
+        const solo = {};
+        let normal = null;
+        for (const k of keys.filter((x) => x !== 'party')) {
+          const js = jobs.filter((j) => j.v === vname && j.key === k);
+          const r = await meta.request({ type: 'summary', cell: js[0].cell, parts: js.map((j) => j.totals), ctx: { ...ctx, tier: js[0].cell.tier, gear: js[0].cell.heroes.map((h) => h.gear) } });
+          if (k === 'normal') { normal = { hours: r.run.party.hours, heroes: r.run.heroes.map((h) => ({ levelXpPerH: h.levelXpPerH, deaths: h.deaths, profitPerH: h.profitPerH })) }; continue; }
+          const h = r.run.heroes[0];
+          solo[h.style + '@' + h.level] = { levelXpPerH: h.levelXpPerH };
+        }
+        const js = jobs.filter((j) => j.v === vname && j.key === 'party');
+        const out = await meta.request({ type: 'summary', cell: js[0].cell, parts: js.map((j) => j.totals), ctx, solo: inp.solo ? solo : null, normal });
+        out.normal = normal;
+        return out;
+      };
+      if (variants.some((v) => v.name === 'baseline')) S.cache.set(baseKey, await summarise('baseline'));
+      const base = S.cache.get(baseKey);
+      const tweaked = moved ? await summarise('tweaked') : null;
+      const secs = (performance.now() - t0) / 1000;
+      S.last = { inp, base, tweaked, secs, jobs: jobs.length };
+      renderResult();
+      setStatus((jobs.length ? 'Played ' + jobs.length + ' job' + (jobs.length === 1 ? '' : 's') : 'Baseline from this session') + ' in ' + secs.toFixed(1) + ' s'
+        + (moved ? '' : ' · your dials match today\'s data, so there is only a baseline') + '.');
+      $('bar').style.width = '100%';
+    } catch (e) {
+      /* one job's failure stops the others: their workers are dropped, and no late progress paints over the reason */
+      live = false;
+      const wasCancel = cancelled || /cancelled/.test(e.message);
+      cancelled = true; killPool();
+      if (wasCancel) setStatus('Cancelled.'); else setStatus('The run failed: ' + e.message, true);
+      $('bar').style.width = '0';
+    } finally {
+      live = false;
+      S.running = false;
+      $('run').disabled = false; $('cancel').disabled = true;
+    }
+  }
+  $('run').addEventListener('click', run);
+  $('cancel').addEventListener('click', () => { cancelled = true; killPool(); });
+
+  /* ── THE RESULT ────────────────────────────────────────────────────────── */
+  const avg = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
+  const sum = (xs) => xs.reduce((s, x) => s + (x || 0), 0);
+  /* the party's reads: per head for rates, the whole party for risk */
+  function reads(r) {
+    const H = r.heroes, n = H.length;
+    const deaths = sum(H.map((h) => h.deaths)), hours = avg(H.map((h) => h.hours)) || 1e-9;
+    return {
+      xp: avg(H.map((h) => h.levelXpPerH)), next: n === 1 ? H[0].lab.hoursToNextLevel : null, nextTarget: n === 1 ? H[0].lab.contractHoursToNext : null,
+      coin: avg(H.map((h) => h.coinPerH)), loot: avg(H.map((h) => h.lab.lootValuePerH)), store: avg(H.map((h) => h.storePerH)),
+      net: avg(H.map((h) => h.profitPerH)), netRares: avg(H.map((h) => h.netWithRaresPerH)),
+      d10: (10 * deaths) / hours, d1000: (1000 * deaths) / hours, d1000hi: n === 1 ? H[0].deathsPer1000h.hi : null,
+      lowest: Math.min(...H.map((h) => (h.lab.lowestHpPct === null ? 100 : h.lab.lowestHpPct))), typical: Math.max(0, Math.min(...H.map((h) => (h.encMinHpPct.p50 === null ? 100 : h.encMinHpPct.p50)))),
+      close: sum(H.map((h) => h.closeCallsPer12h.rate)), kills: r.party.killsPerH, hours: r.party.hours,
+    };
+  }
+  /* label, key, decimals, unit, which way is better for the player (1 up, -1 down, 0 neither) */
+  const ROWS = [
+    ['Level XP an hour', 'xp', 0, '', 1, 'per hero'], ['Hours to the next Level', 'next', 2, ' h', -1, 'target: see below'],
+    ['Coin an hour', 'coin', 0, ' g', 1, 'per hero'], ['Loot value an hour', 'loot', 0, ' g', 1, 'vendor bid, rares in'], ['Supplies an hour', 'store', 0, ' g', -1, 'store bill'],
+    ['Net an hour', 'net', 0, ' g', 1, 'coin + commons - supplies'], ['Net with rares', 'netRares', 0, ' g', 1, ''],
+    ['Deaths per 10 h', 'd10', 2, '', -1, 'all heroes'], ['Deaths per 1,000 h', 'd1000', 1, '', -1, ''], ['Lowest HP, any pull', 'lowest', 1, '%', 1, ''],
+    ['Typical lowest HP a pull', 'typical', 1, '%', 1, 'median pull'], ['Dips under 25% per 12 h', 'close', 2, '', -1, 'all heroes'], ['Kills an hour', 'kills', 0, '', 1, 'party'],
+    ['Hours played', 'hours', 2, '', 0, 'all seeds'],
+  ];
+  function deltaCell(a, b, dec, better) {
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return el('td', { class: 'flat', text: '–' });
+    const d = b - a;
+    if (Math.abs(d) < Math.pow(10, -dec) / 2) return el('td', { class: 'flat', text: '0' });
+    const p = a !== 0 ? ' (' + (d > 0 ? '+' : '') + fmt((100 * d) / Math.abs(a), 1) + '%)' : '';
+    const cls = better === 0 ? 'flat' : (d > 0) === (better > 0) ? 'up' : 'down';
+    return el('td', { class: cls, text: (d > 0 ? '+' : '') + fmt(d, dec) + p });
+  }
+  function renderResult() {
+    const L = S.last;
+    const g = groundOf(L.inp.ground);
+    const B = reads(L.base.run), T = L.tweaked ? reads(L.tweaked.run) : null;
+    const who = L.inp.heroes.map((h) => S.meta.styles.find((s) => s.id === h.style).label.replace(/ \(.+\)$/, '') + ' ' + h.level).join(', ');
+    const head = el('thead', {}, el('tr', {}, [el('th', { text: '' }), el('th', { text: 'Baseline' }), T ? el('th', { text: 'Tweaked' }) : null, T ? el('th', { text: 'Change' }) : null]));
+    const body = el('tbody', {}, ROWS.filter((r) => !(r[1] === 'next' && B.next === null)).map(([label, k, dec, unit, better, note]) => el('tr', {}, [
+      el('td', {}, [label, note ? el('div', { class: 'hint', style: 'margin:0', text: k === 'next' && B.nextTarget ? 'pace contract: ' + fmt(B.nextTarget, 2) + ' h' : note }) : null]),
+      el('td', { text: fmt(B[k], dec) + (Number.isFinite(B[k]) ? unit : '') }),
+      T ? el('td', { text: fmt(T[k], dec) + (Number.isFinite(T[k]) ? unit : '') }) : null,
+      T ? deltaCell(B[k], T[k], dec, better) : null])));
+    $('result').replaceChildren(
+      el('p', { class: 'headline', text: g.name + ' · ' + L.inp.tier[0].toUpperCase() + L.inp.tier.slice(1) + ' · ' + who }),
+      el('p', { class: 'meta-line', text: L.inp.hours + ' h x ' + L.inp.seeds + ' seed' + (L.inp.seeds === 1 ? '' : 's') + ' a cell, same dice both columns · pull '
+        + (L.base.run.cell.density || 'as built') + (T && T !== B && L.tweaked.run.cell.density !== L.base.run.cell.density ? ' → ' + (L.tweaked.run.cell.density || 'as built') : '')
+        + ' · engine v' + S.meta.bundle.version + ' · ' + L.jobs + (L.jobs === 1 ? ' job' : ' jobs') + ' in ' + L.secs.toFixed(1) + ' s' }),
+      el('div', { class: 'scroll' }, el('table', {}, [head, body])));
+    renderTargets();
+    renderHeroResults();
+  }
+  function chip(pass) { return pass === true ? el('span', { class: 'chip pass', text: 'Pass' }) : pass === false ? el('span', { class: 'chip miss', text: 'Miss' }) : el('span', { class: 'chip na', text: 'n/a' }); }
+  function renderTargets() {
+    const L = S.last;
+    const b = L.base.grade.rows, t = L.tweaked ? L.tweaked.grade.rows : null;
+    const head = el('thead', {}, el('tr', {}, [el('th', { text: 'Target' }), el('th', { text: 'Hero' }), el('th', { text: 'Wants' }), el('th', { text: 'Baseline' }), t ? el('th', { text: 'Tweaked' }) : null]));
+    const val = (r) => String(r && r.value !== null && r.value !== undefined ? r.value : '–');
+    const body = el('tbody', {}, b.map((r, i) => el('tr', {}, [
+      el('td', {}, [r.label, r.note ? el('div', { class: 'hint', style: 'margin:0', text: r.note }) : null]), el('td', { text: r.who }), el('td', { text: r.target }),
+      el('td', {}, [chip(r.pass), ' ', val(r)]), t ? el('td', {}, [chip(t[i] && t[i].pass), ' ', val(t[i])]) : null])));
+    const notes = [...new Set([...(L.base.grade.notes || []), ...((L.tweaked && L.tweaked.grade.notes) || [])])];
+    const passes = (rows) => rows.filter((r) => r.pass === true).length + ' of ' + rows.filter((r) => r.pass !== null).length + ' pass';
+    $('targets').replaceChildren(
+      el('p', { class: 'meta-line', text: 'Sheet: ' + L.base.grade.source + ' · baseline ' + passes(b) + (t ? ' · tweaked ' + passes(t) : '') }),
+      ...notes.map((n) => el('div', { class: 'note-box', text: n })),
+      b.length ? el('div', { class: 'scroll' }, el('table', {}, [head, body])) : el('div', { class: 'empty', text: 'No target reads this run.' }));
+  }
+  function renderHeroResults() {
+    const L = S.last;
+    if (L.base.run.heroes.length < 2) { $('heroes-block').hidden = true; return; }
+    $('heroes-block').hidden = false;
+    const cols = [['Level XP/h', (h) => h.levelXpPerH, 0], ['Net/h', (h) => h.profitPerH, 0], ['Supplies/h', (h) => h.storePerH, 0], ['Deaths', (h) => h.deaths, 0],
+      ['Lowest HP', (h) => h.lab.lowestHpPct, 1], ['Dips/12 h', (h) => h.closeCallsPer12h.rate, 2]];
+    const cell = (b, t, dec) => el('td', { text: fmt(b, dec) + (L.tweaked ? ' → ' + fmt(t, dec) : '') });
+    const head = el('thead', {}, el('tr', {}, [el('th', { text: 'Hero' + (L.tweaked ? ' (baseline → tweaked)' : '') }), ...cols.map((c) => el('th', { text: c[0] }))]));
+    const body = el('tbody', {}, L.base.run.heroes.map((h, i) => {
+      const t = L.tweaked ? L.tweaked.run.heroes[i] : null;
+      return el('tr', {}, [el('td', { text: S.meta.styles.find((s) => s.id === h.style).label + ' L' + h.level }), ...cols.map(([, f, dec]) => cell(f(h), t ? f(t) : null, dec))]);
+    }));
+    $('hero-results').replaceChildren(el('div', { class: 'scroll' }, el('table', {}, [head, body])));
+  }
+
+  /* ── BOOT ──────────────────────────────────────────────────────────────── */
+  $('ground').addEventListener('change', (e) => {
+    const was = S.dials, wasToday = dialsToday(S.ground);
+    S.ground = e.target.value;
+    /* untouched tier dials follow the ground's own rows; moved ones stay as you set them */
+    const next = dialsToday(S.ground);
+    next.monsters = was.monsters;
+    if (JSON.stringify(was.tiers) !== JSON.stringify(wasToday.tiers)) next.tiers = was.tiers;
+    S.dials = next;
+    const g = groundOf(S.ground);
+    if (!S.meta.tiers[S.ground].offered.includes(S.tier)) S.tier = 'normal';
+    for (const h of S.heroes) if (h.level < g.band[0] || h.level > g.band[1]) h.level = g.band[0];
+    renderTier(); renderHeroes(); renderDials();
+  });
+  $('add-hero').addEventListener('click', () => {
+    const order = ['tank', 'healer', 'bow', 'mage', 'hammer'];
+    const have = new Set(S.heroes.map((h) => h.style));
+    S.heroes.push({ style: order.find((s) => !have.has(s)) || 'hammer', level: S.heroes[0].level, gear: 'level' });
+    renderHeroes(); renderTierDials();
+  });
+  (async function boot() {
+    try {
+      const ep = await getMetaEp();
+      const m = await ep.request({ type: 'meta' });
+      S.meta = m;
+      S.ground = (m.grounds.find((g) => g.id === 'mosslight_glade') || m.grounds[0]).id;
+      S.heroes = [{ style: 'tank', level: groundOf(S.ground).band[0], gear: 'level' }];
+      S.dials = dialsToday(S.ground);
+      $('sub').textContent = 'The game\'s own combat engine (v' + m.bundle.version + (m.bundle.hash ? ', sources ' + m.bundle.hash : '') + ') running in your browser' + (threadMode === 'page' ? ' on the page thread' : '')
+        + '. Move a dial, press Run, read it against the target sheet.';
+      $('sheet-tiers').hidden = !Object.values(m.sheetTiers || {}).some(Boolean);
+      renderGrounds(); renderTier(); renderHeroes(); renderDials();
+      $('run').disabled = false;
+    } catch (e) {
+      $('sub').textContent = 'The engine did not load: ' + e.message + '. Build it with node tools/balance-lab/build.mjs and serve this folder.';
+    }
+  })();
+})();
+</script>
+</body>
+</html>

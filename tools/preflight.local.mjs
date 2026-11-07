@@ -68,6 +68,12 @@ export const LONG = new Map([
   ['node tests/typecheck-ratchet.mjs', [420, 'red on GitHub in v0.2.90, v0.2.104 and v0.2.106 (42394831391); 112-195 s on the Coordinator\'s PC at 41% CPU, 8-17 s on GitHub, so the 120 s limit killed it every time']],
 ]);
 
+/* The quick pins that reddened release runs on GitHub (r-release-gate's 30 runs to 11-04, and the 22 red runs since): they start
+   right after LONG, before workflow order. On a loaded PC a 180 s run judged 32 of 121 commands, and module-preload (1 s, v0.2.106's
+   MP-1) was among the 88 it never reached. */
+export const FIRST = new Set(['node tests/module-preload.mjs', 'node tests/comment-ratio-ratchet.mjs --report', 'node tests/client-module-size.mjs',
+  'node tests/copy-lint.mjs --report', 'node tests/item-flavour-coverage.mjs', 'bash bump-version.sh --check']);
+
 /* Measured 13-120 s here, the rest under 10 s. They go last so a busy machine judges the most commands inside the limit: 124 s for all 71
    at 54% CPU, but 45 of 72 at the limit on a busier one, when two of these ate a slot each. */
 export const LATE = new Set(['node tests/w0e-ammo-runecraft-prayer.mjs', 'node tests/selfcheck-no-global-dml.bypass.mjs', 'node tests/world-assets.mjs',
@@ -100,7 +106,7 @@ const isSkipped = (name) => SKIP.some(([n]) => n === name);
  * The plan, from the workflow's text and a diff. Pure.
  * @returns {{ run: {cmd,why,proof,guard}[], left: {cmd,why}[], errors: string[] }}
  */
-export function buildPlan(text, { changed = [], selected = new Set(), solo = new Set(), slow = SLOW, long = LONG, extras = EXTRAS, job = CHEAP_JOB, smokeText = '', skip = isSkipped } = {}) {
+export function buildPlan(text, { changed = [], selected = new Set(), solo = new Set(), slow = SLOW, long = LONG, first = FIRST, extras = EXTRAS, job = CHEAP_JOB, smokeText = '', skip = isSkipped } = {}) {
   const steps = flatSteps(parseWorkflow(text));
   const errors = [];
   const run = [];
@@ -108,6 +114,7 @@ export function buildPlan(text, { changed = [], selected = new Set(), solo = new
   const all = new Set(steps.flatMap((s) => s.run.map(unwrapGate)));
   for (const name of slow.keys()) if (!all.has(name)) errors.push(`SLOW names "${name}", which smoke.yml no longer runs`);
   for (const name of long.keys()) if (!all.has(name)) errors.push(`LONG names "${name}", which smoke.yml no longer runs`);
+  for (const name of first) if (!all.has(name)) errors.push(`FIRST names "${name}", which smoke.yml no longer runs`);
   const seen = new Set();
   const cheap = steps.filter((s) => job.test(s.job) && !skip(s.name));
   for (const s of cheap) {
@@ -183,10 +190,10 @@ export async function runAll(cmds, { jobs = 3, runLimitS = RUN_LIMIT_S, limitS =
   return results;
 }
 
-/** The order commands start in: LONG first (each in a slot of its own), then the quick plain commands, then LATE, then the
-    proofs, so a plain red reads first and is the cheap one to fix. Pure. */
-export function ordered(run, { long = LONG, late = LATE } = {}) {
-  const rank = (r) => (long.has(r.cmd) ? -1 : r.proof ? 2 : late.has(r.cmd) ? 1 : 0);
+/** The order commands start in: LONG (each in a slot of its own), the FIRST pins, the quick plain commands, LATE, then the
+    proofs, so a plain red reads first and is the cheap one to fix. Stable within a rank. Pure. */
+export function ordered(run, { long = LONG, first = FIRST, late = LATE } = {}) {
+  const rank = (r) => (long.has(r.cmd) ? -2 : first.has(r.cmd) ? -1 : r.proof ? 2 : late.has(r.cmd) ? 1 : 0);
   return [...run].sort((a, b) => rank(a) - rank(b));
 }
 
@@ -262,7 +269,8 @@ async function selftest() {
   const X = [['node tests/census.mjs', (f) => f.startsWith('supabase/'), 'census']];
   const S = new Map([['node tests/slow.mjs', 'slow']]);
   const L = new Map([['node tests/plain-b.mjs', [60, 'long']]]);
-  const plan = (o = {}, text = FIXTURE, impl = buildPlan) => impl(text, { slow: S, long: L, extras: X, ...o });
+  const F = new Set(['node tests/plain-a.mjs']);
+  const plan = (o = {}, text = FIXTURE, impl = buildPlan) => impl(text, { slow: S, long: L, first: F, extras: X, ...o });
   const names = (p) => p.run.map((r) => r.cmd);
 
   const planChecks = (impl) => {
@@ -274,6 +282,7 @@ async function selftest() {
     const noExtra = plan({ changed: ['supabase/x.sql'] }, FIXTURE.replace('node tests/census.mjs\n', 'node tests/other.mjs\n'), impl);
     const third = plan({}, FIXTURE.replace('  db-replay-2:\n', '  client-guards-3:\n    steps:\n      - name: New shard\n        run: node tests/plain-c.mjs\n  db-replay-2:\n'), impl);
     const goneLong = plan({}, FIXTURE.replace('          node tests/plain-b.mjs\n', '          node tests/plain-renamed.mjs\n'), impl);
+    const goneFirst = plan({}, FIXTURE.replace('          node tests/plain-a.mjs\n', '          node tests/plain-renamed.mjs\n'), impl);
     return [
       [names(none).includes('node tests/plain-a.mjs') && names(none).includes('node tests/plain-b.mjs'), 'every plain command of the client-guards jobs runs'],
       [!names(none).some((c) => PROOF_FLAG.test(c)), 'an untouched proof does not run'],
@@ -289,6 +298,7 @@ async function selftest() {
       [gone.errors.some((e) => /SLOW names/.test(e)), 'a SLOW name smoke.yml dropped is a harness error'],
       [noExtra.errors.some((e) => /EXTRAS names/.test(e)), 'an EXTRA smoke.yml dropped is a harness error'],
       [goneLong.errors.some((e) => /LONG names/.test(e)), 'a LONG name smoke.yml dropped is a harness error'],
+      [goneFirst.errors.some((e) => /FIRST names/.test(e)), 'a FIRST name smoke.yml dropped is a harness error'],
       [names(none).includes('node tests/plain-b.mjs'), 'a LONG command runs here (it is not left for GitHub)'],
       [new Set(names(plan({ selected: new Set(['tests/plain-a.mjs']) }, FIXTURE, impl))).size === names(plan({ selected: new Set(['tests/plain-a.mjs']) }, FIXTURE, impl)).length, 'nothing runs twice'],
     ];
@@ -307,6 +317,7 @@ async function selftest() {
     ['a gone SLOW name is silent', wrap((p) => ({ ...p, errors: p.errors.filter((e) => !/SLOW/.test(e)) }))],
     ['a gone EXTRA is silent', wrap((p) => ({ ...p, errors: p.errors.filter((e) => !/EXTRAS/.test(e)) }))],
     ['a gone LONG name is silent', wrap((p) => ({ ...p, errors: p.errors.filter((e) => !/LONG/.test(e)) }))],
+    ['a gone FIRST name is silent', wrap((p) => ({ ...p, errors: p.errors.filter((e) => !/FIRST/.test(e)) }))],
     ['a LONG command is left for GitHub like a SLOW one', (t, o) => buildPlan(t, { ...o, slow: new Map([...(o.slow || []), ...[...(o.long || [])].map(([c, [, w]]) => [c, w])]) })],
     ['the list is frozen, not read', () => ({ run: [{ cmd: 'node tests/plain-a.mjs' }, { cmd: 'node tests/plain-b.mjs' }], left: [{ cmd: 'node tests/slow.mjs' }], errors: [] })],
   ]) {
@@ -351,17 +362,18 @@ async function selftest() {
        A LONG command starts first and runs to its own limit, past the run's. */
     const slowRed = script('slow-red.mjs', 'setTimeout(() => { console.log("the long guard\'s words"); process.exit(1); }, 4000);');
     const longChecks = async (order, run) => {
-      const list = [{ cmd: green, proof: false }, { cmd: 'node p.mjs --mutate', proof: true }, { cmd: 'node late.mjs', proof: false }, { cmd: slowRed, proof: false }];
-      const o = order(list, { long: new Map([[slowRed, [60, 'x']]]), late: new Set(['node late.mjs']) }).map((r) => r.cmd);
+      const list = [{ cmd: green, proof: false }, { cmd: 'node p.mjs --mutate', proof: true }, { cmd: 'node late.mjs', proof: false }, { cmd: 'node pin.mjs', proof: false }, { cmd: slowRed, proof: false }];
+      const o = order(list, { long: new Map([[slowRed, [60, 'x']]]), first: new Set(['node pin.mjs']), late: new Set(['node late.mjs']) }).map((r) => r.cmd);
       const v = verdict(await run([{ cmd: slowRed }, { cmd: green }], { cwd: dir, jobs: 2, limitS: 2, runLimitS: 2, limits: new Map([[slowRed, 60]]) }));
       return [
-        [o[0] === slowRed && o[1] === green && o[2] === 'node late.mjs' && o[3] === 'node p.mjs --mutate', 'LONG starts first, then plain, then LATE, then the proofs'],
+        [o.join() === [slowRed, 'node pin.mjs', green, 'node late.mjs', 'node p.mjs --mutate'].join(), 'LONG starts first, then the FIRST pins, then plain, then LATE, then the proofs'],
         [v.exit === 1 && v.unjudged.length === 0 && /the long guard's words/.test(v.red[0]?.out || ''), 'a LONG command runs past the run\'s limit to its own and is judged'],
       ];
     };
     for (const [c, m] of await longChecks(ordered, runAll)) ok(c, m);
     for (const [label, ord, run] of [
       ['LONG starts with the plain commands', (r, o) => ordered(r, { ...o, long: new Map() }), runAll],
+      ['the FIRST pins wait their turn in workflow order', (r, o) => ordered(r, { ...o, first: new Set() }), runAll],
       ['a LONG command is cut at the run\'s limit', ordered, (c, o) => runAll(c, { ...o, limits: new Map() })],
     ]) {
       const missed = (await longChecks(ord, run)).every(([c]) => c);
@@ -374,6 +386,7 @@ async function selftest() {
   const real = buildPlan(readFileSync(WORKFLOW, 'utf8'), { changed: ['supabase/migrations/x.sql', 'src/data/items.js'], smokeText: readFileSync(join(ROOT, 'tests', 'run-smoke.mjs'), 'utf8') });
   ok(!real.errors.length, `SLOW, LONG and EXTRAS name commands smoke.yml runs (${real.errors.join('; ') || 'all of them'})`);
   ok(ordered(real.run)[0]?.cmd === 'node tests/typecheck-ratchet.mjs', 'the real plan starts the type ratchet first');
+  ok(ordered(real.run).slice(1, 1 + FIRST.size).every((r) => FIRST.has(r.cmd)), 'the real plan starts the FIRST pins next (module-preload among them)');
   for (const need of ['node tests/module-preload.mjs', 'node tests/comment-ratio-ratchet.mjs --report', 'node tests/client-module-size.mjs', 'node tests/mutant-anchors.mjs',
     'node tests/copy-lint.mjs --report', 'node tests/dead-exports.mjs', 'node tests/patch-chain-guard.mjs --report', 'bash bump-version.sh --check', 'node tests/restore-census.mjs']) {
     ok(names(real).includes(need), `the real plan runs ${need}`);

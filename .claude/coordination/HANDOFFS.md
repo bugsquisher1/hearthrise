@@ -1,5 +1,13 @@
 # Handoffs
 
+### 2026-11-07 · ART DIRECTOR (lane/a-region-kit) → GROUND PACK (lane/b-ground-pack), GENERATOR, IMPORT LANES · the region kits
+
+1. **Kits are data now:** `src/data/world/region-kits.js` (greenhaven: 3 tile families, 65 props, 27 bodies, 5 signatures; barrow_march: 8 terrains in 13 pro tilesets, 41 props, 5 bodies, 5 signatures, 14 pending). `tests/world-assets.mjs` rule [kit] (`tools/world-art/region-kit.mjs`) holds every hunting map to its kit: a new ground is claimed by one kit, places its props plus at most 2 signature pieces (a signature covers its `<id>_*` variants), never another ground's. `pack new --region` and `pack-distinct`'s "signature" check should read this file, not a second list.
+2. **Phase 0's March merge:** rebuild both sets (they are RGBA: [sheet-encoding]); split so a kit ground never downloads another's floor: `march` = the kit (hf_ + mu_ shared props, the 5 bodies), `ford` (hasks_ford_ground, hf_toll_stone, hf_ford_marker), `muster` (its ground, mu_barrow_door, captain_hask), `slake`. The six bodies need idles first ([live]): brief 02.
+3. **The Ford's import:** its brief places 4 `oak`; the kit leaves oak out (read 11-07, trees.png): swap to westwood_ash or mu_dead_hawthorn.
+4. **Generator:** `art/briefs/gen-2026-11-07/00-plan.txt` (2,100 gens ranked) and briefs 01-05. Raw output to `art/world-src/gen-2026-11-07/<asset>/`; I read every result before import.
+5. **Read a kit with the real renderer:** `tools/qa/region-kit.html` (map= or ground=, extra= unshipped sets from a folder, props=, units=, board=<kit>), served from the worktree root.
+
 ### 2026-10-31 · ART DIRECTOR (lane/a-phone-reach) → lane/b-first-hour-styles (owner of src/data/hunt-tutorial.js) · tutorial words a phone cannot follow
 
 Left alone as briefed. On a phone: "Hunt together" (hunt-tutorial.js lines 220 and 802) says "Right-click (long-press on a phone) X's tab", and at 667 px there are no tabs: the route is Heroes, then Invite on the hero's row. Coach lines also name keys a phone lacks ("open the Farm (J)"). Semantic overlap to check on merge: your "cards that stand aside" against this lane's phone placement (town card at the left, `--coach-room` capped by the alert, `.is-short-room`, one alert at a time).

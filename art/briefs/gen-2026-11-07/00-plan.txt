@@ -50,9 +50,13 @@ RANKED. "Needs" names what must exist before the generator starts that line.
         mudlark_hook, color_cord, barge_pitch
         (+ its world fuel sprite), maple_crossbow,
         mithril_hatchets
-     f. CONTINGENCY: if the scripted verdigris  creatures  as a.                          as a.                       120   my read of the re-pour
-        re-pour of the three kit bodies reads as                                                                         sample (0 gens) says no
-        a plain recolour, three new bodies
+     f. New bodies for the Greened Pikeman and  creatures  as a. (brief 01's recipe,      as a.                       120   nothing: READ 11-07
+        the Bargeman (80); the Color Sergeant                with each one's own prompt)                                    (art/review/region-kit-
+        stays a re-pour of the bannerman unless                                                                             2026-11-07/repour-sample.png)
+        it fails on the ground (40 held)
+        Why: the scripted verdigris re-pour (0 gens) read on 11-07: the pikeman is a skeleton in brown rags, so the pour
+        only turned its pike shaft teal (the same creature); the fordsunk's grey skin went pale cyan (a frost zombie, the
+        wrong family); only the bannerman's plate armour takes it, and only with the ramp capped at #4f7a80.
  B1  Town cast: 6 station NPCs (shopkeeper,      creature   create_object_pro_flash +     64 frame, idle (+ walk for  160   the designer's one-line
      depot clerk, Tamsin at her board, the                  animate_object v3             those who walk)                   look and name for each
      kill-task hunter, the cook, the farmer)
@@ -85,7 +89,7 @@ RANKED. "Needs" names what must exist before the generator starts that line.
 BY DAY (about 300 a day; a line waiting on its "Needs" gives its day to the next line that is ready):
   11-07 A1 sample (knight, 2 facings), my read, then A1 + A2 ........................ 100
   11-08 A3; A4a sample, my read, batch; A4b, A4c, A4d, A4e .......................... 202
-  11-09 A4f (only if the re-pour read says no); B1 .................................. 280
+  11-09 A4f (the two new bodies; the sergeant's 40 only if its re-pour fails); B1 ...... 280
   11-10 B2 (once ruled); B3 first 200 ............................................... 300
   11-11 B3 rest; B4 .................................................................. 340
   11-12 B5 .............................................................................. 300

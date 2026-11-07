@@ -53,6 +53,10 @@
 // fade through blank frames, never be blank in all of them); the clean sprites and a palette-preserving
 // recolour must stay silent (a guard red on clean art proves nothing).
 //
+// ONE KIT A REGION (Tyler 2026-11-07, tools/world-art/region-kit.mjs, rule [kit]): every hunting ground is claimed by
+// one region kit (src/data/world/region-kits.js), places only that kit's props and at most two signature pieces of its
+// own (never another ground's), and its painted floor comes from its kit's tile family. --selftest plants each defect.
+//
 // A REGION-MASK SET (src/data/world/atlas-sets.js MASK_SETS, the dyes' masks) is never drawn: it is held to
 // validateMask (only exact region keys, binary alpha, <sprite>_mask names) instead of the scale budget and
 // palette, its manifest says palette MASK_PALETTE, and every mask names a sprite of the set it masks with the
@@ -84,6 +88,9 @@ import { HUNT_INDEX } from '../src/data/hunts.js';
 import { HUNT_ART_ALIAS } from '../src/data/monster-art.js';
 /* the OPEN grounds: a staged one (src/data/hunts.js `staged`) is drawn by nobody until its art lands (forest-cave.mjs staged-until-art) */
 import { OPEN_GROUNDS as HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+/* ONE KIT A REGION (Tyler 2026-11-07): every hunting ground places its region kit's props and at most two signature pieces */
+import { REGION_KITS, SIGNATURE_MAX } from '../src/data/world/region-kits.js';
+import { kitFindings } from '../tools/world-art/region-kit.mjs';
 
 /* ONE STYLE (tools/world-art/style1.mjs): what the renderer loads, what is in the tree, and
    everything a player can reach, read from the shipped data. */
@@ -260,6 +267,19 @@ function maskLinks(atlases, maskSets = MASK_SETS) {
   return out;
 }
 
+/** [kit]: the region kits against the shipped maps and the loaded sets (tools/world-art/region-kit.mjs). `over` swaps kits or maps. */
+function kitInput(atlases, over = {}) {
+  const sprites = {};
+  for (const { manifest: m } of atlases) if (!MASK_SETS[m.set]) for (const [id, s] of Object.entries(m.sprites)) sprites[id] = { set: m.set, class: s.class };
+  const groundSource = (tid) => {
+    const a = atlases.find((x) => x.manifest.terrain[tid]);
+    const f = a && join(ROOT, ART_DIR, a.manifest.set, tid + '.json');
+    return f && existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')).pixellab || {} : null;
+  };
+  return { kits: over.kits || REGION_KITS, signatureMax: SIGNATURE_MAX, maps: over.maps || WORLD_MAPS, sprites, groundSource,
+    loadedSets: ATLAS_SETS, retiredSets: RETIRED_SETS, classes: CLASSES };
+}
+
 /** A sheet's bytes are not indexed colour (PNG colour type 3): the finding, or null. */
 function encodingFinding(file, bytes) {
   return bytes[25] === 3 ? null : `${file}: [sheet-encoding] PNG colour type ${bytes[25]}, not indexed (3): the same pixels at about twice the bytes (tools/world-art/png.mjs encodeSheetPNG)`;
@@ -307,6 +327,7 @@ function guard() {
     if (!m || !m.manifest.terrain[id]) fails.push(`content: no terrain "${id}" in set ${set}`);
   }
   for (const f of style1Findings(style1Input())) fails.push(`style-1: [${f.rule}] ${f.detail}`);
+  for (const f of kitFindings(kitInput(atlases))) fails.push(`kit: [${f.kind}] ${f.detail}`);
   const { findings, drift } = checkAll(ROOT);
   for (const f of findings) fails.push(`source: [${f.rule}] ${f.id}: ${f.detail}`);
   for (const d of drift) fails.push(`drift: ${d}`);
@@ -435,6 +456,28 @@ function selftest(atlases) {
   s1('a literal path to a retired atlas', 's1-code', style1Input(ROOT, { code: [{ file: 'src/x.js', sets: codeSets("fetch('assets/world/atlas-town.json')") }] }));
   s1('a mask set whose base set nobody loads', 's1-orphan', style1Input(ROOT, { maskSets: { 'hunt-masks': 'nope' } }));
 
+  // ONE KIT A REGION: the shipped kits and maps are silent; each planted defect is named by its own kind.
+  const kitClean = kitFindings(kitInput(atlases));
+  if (kitClean.length) { console.error('world-assets --selftest: harness — the shipped grounds are off their kits: ' + kitClean.map((f) => f.detail).join('; ')); process.exit(2); }
+  const gh = REGION_KITS.greenhaven;
+  const withGh = (g) => ({ ...REGION_KITS, greenhaven: { ...gh, ...g(gh) } });
+  const placing = (map, id) => WORLD_MAPS.map((m) => (m.id === map ? { ...m, objects: m.objects.concat([{ id, x: 1, y: 1 }]) } : m));
+  const kitCase = (name, kind, over) => {
+    const kinds = new Set(kitFindings(kitInput(atlases, over)).map((f) => f.kind));
+    if (kinds.has(kind)) console.log(`  ✓ ${name}: caught by [kit] ${kind}`);
+    else { escaped++; console.log(`  ✗ ${name}: NOT caught by [kit] ${kind} (kinds hit: ${[...kinds].join(', ') || 'none'})`); }
+  };
+  kitCase('the Glade placing a Barrow March prop (another region\'s kit)', 'place', { maps: placing('mosslight_glade', 'hf_pikes_fallen') });
+  kitCase('Wickstead placing the Warrens\' throne (another ground\'s signature)', 'signature', { maps: placing('wickstead', 'cw_throne') });
+  kitCase('Wickstead placing a variant of the Sewer\'s signature', 'signature', { maps: placing('wickstead', 'grate_bridge_short') });
+  kitCase('a ground with three signature pieces', 'shape', { kits: withGh((k) => ({ grounds: { ...k.grounds, wickstead: { family: 'meadow', signature: ['a_one', 'a_two', 'a_three'] } } })) });
+  kitCase('a hunting ground no region claims', 'region', { kits: withGh((k) => ({ grounds: Object.fromEntries(Object.entries(k.grounds).filter(([g]) => g !== 'mosslight_glade')) })) });
+  kitCase('the Thicket said to be painted in the sewer family', 'family', { kits: withGh((k) => ({ grounds: { ...k.grounds, meadowbrook_thicket: { family: 'sewer', signature: ['mb_log_bridge'] } } })) });
+  kitCase('a pending piece that a loaded set already carries', 'pending', { kits: withGh(() => ({ pending: ['granary_rat'] })) });
+  kitCase('a creature listed as a kit prop', 'piece', { kits: withGh((k) => ({ props: k.props.concat(['gray_wolf']) })) });
+  kitCase('a kit that lists a retired set', 'sets', { kits: withGh((k) => ({ sets: k.sets.concat([RETIRED_SETS[0]]) })) });
+  const KIT_MUTANTS = 9;
+
   // REGION MASKS: the shipped masks are clean; each planted mask defect is named by its own rule.
   const maskAtlas = atlases.find((a) => MASK_SETS[a.manifest.set]);
   if (!maskAtlas) { console.error('world-assets --selftest: harness — needs a shipped mask set (src/data/world/atlas-sets.js MASK_SETS)'); process.exit(2); }
@@ -536,7 +579,7 @@ function selftest(atlases) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 13 + LIVE_MUTANTS + MASK_MUTANTS} planted defects caught; ${controls.length + 3} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 13 + LIVE_MUTANTS + MASK_MUTANTS + KIT_MUTANTS} planted defects caught; ${controls.length + 4} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

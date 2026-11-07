@@ -51,6 +51,20 @@ Import, after my yes (an art lane, on the Slake's art branch, never main while t
   node tools/world-art/port-pixellab.mjs idle --set slake --id mudlark --clip art/world-src/gen-2026-11-07/mudlark/idle
   node tools/world-art/build.mjs --set slake;  node tests/world-assets.mjs
 
+THE SAME RECIPE, TWO MORE BODIES (plan line A4f, 80 gens; the verdigris re-pour of their Ford twins failed my read,
+art/review/region-kit-2026-11-07/repour-sample.png). Run each only after the Mudlark is accepted.
+  greened_pikeman  class brute (64 frame; canvas 48 like its Ford twin), style image refs/style-glade-poacher-s-48.png
+                   (the March family's source; refs/still-banded_pikeman-s-64.png is the twin to differ from). Swarm row, the Slake's commonest. The Banded Company's pikemen after
+                   years in the copper silt: "undead pikeman soldier crusted in green copper verdigris and dried grey
+                   mud, corroded green helmet and breastplate, a long pike held upright, rags caked to the bones, muted
+                   grey-green and mud brown, game enemy sprite". It must read as the Banded Pikeman's drowned cousin,
+                   not its twin: armoured where the Ford's is a bare skeleton in rags.
+  bargeman         class character (64 frame, body 36-40, canvas 48), style image refs/style-glade-poacher-s-48.png
+                   (refs/still-fordsunk-s-64.png is the twin to differ from). The barge's crew, the slowest thing on the flat: "a drowned river bargeman, broad and heavy,
+                   waterlogged leather apron and rolled sleeves, a long wooden barge pole in both hands, cracked grey
+                   skin, coal-black hands, muted browns and greys, game enemy sprite". No bloat (that is the Fordsunk).
+  Clips, rejects, import and checks as above (set slake; --class brute for the pikeman, character for the bargeman).
+
 WHAT I CHECK (the review): the walk strip beside the knight (node tools/world-art/review-strip.mjs mudlark), body
 30-36 px in every facing (build.mjs --report), verdigris at or under 15% of pixels, palette-locked colours that still
 read as mud and drowned skin, and the body on the Ford's mud at x2 in tools/qa/region-kit.html beside the hero and the

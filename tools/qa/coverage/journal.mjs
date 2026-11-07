@@ -44,7 +44,7 @@ export function labelOf(a) {
     case 'work': return a.kind === 'gather' ? { up: 'gathered (' + a.id + ')', down: 'gathering (' + a.id + ')' } : { up: 'made by ' + a.skill + ' (' + a.id + ')', down: a.skill + ' input (' + a.id + ')' };
     case 'sell': return { up: 'sold (?)', down: 'sold to the shop' };
     case 'buy': return { up: 'bought (' + a.offer + ')', down: 'paid for ' + a.offer };
-    case 'unlock': return { up: 'unlocked (' + a.offer + ')', down: 'paid for ' + a.offer };
+    case 'unlock': case 'chest': case 'slot': case 'land': return { up: 'unlocked (' + a.offer + ')', down: 'paid for ' + a.offer };
     case 'plant': return { up: 'planted (?)', down: 'planted (' + a.crop + ')' };
     case 'harvest': return { up: 'harvested', down: 'harvest (?)' };
     case 'equip': return { up: 'equip (?)', down: 'equip (?)' };
@@ -84,7 +84,7 @@ export function record(j, { hour, hero, action, answer, before, after, wornAfter
   if (action.type === 'work' && action.kind === 'gather') for (const id of Object.keys(before || {})) if (ITEMS[id] && ITEMS[id].toolSkill === action.skill) first(j.used, id, round(hour), hero, action.skill + ' tool');
   /* an inner_flame bench burns its input with no output: the input fell, the skill rose (the journal sees the fall) */
   for (const id of Object.values(wornAfter || {})) if (id) first(j.used, id, round(hour), hero, 'worn');
-  if ((action.type === 'buy' || action.type === 'unlock') && !j.sinks[action.offer]) j.sinks[action.offer] = { first: round(hour), hero };
+  if (['buy', 'unlock', 'chest', 'slot', 'land'].includes(action.type) && action.offer && !j.sinks[action.offer]) j.sinks[action.offer] = { first: round(hour), hero };
 }
 
 /** The brain had nothing sensible to do: the hero's state goes with it, so the finding can be read alone. */
@@ -97,17 +97,18 @@ export function sample(j, { hour, hero, v, huntH = null }) {
 }
 
 /** A hunt stretch's outcome on one ground and tier. */
-export function huntOutcome(j, { hour, hero, ground, tier, minutes, end, level, lastLevel, tally }) {
-  const k = ground + ':' + tier;
-  const g = j.grounds[k] || (j.grounds[k] = { first: round(hour), hero, level, minutes: 0, stretches: 0, deaths: 0, ends: {}, xp: 0, kills: 0, coins: 0, supplyGold: 0 });
-  g.minutes += minutes;
-  g.stretches++;
+export function huntOutcome(j, { hour, hero, ground, tier, minutes, end, level, lastLevel, tally, party = 0, lead = false }) {
+  /* a party's stretch is ONE row for all its members: the leader counts the minutes once, every member adds its own XP,
+     kills, coin and deaths, and the rates are per head (size) */
+  const k = ground + ':' + tier + (party ? ':party' : '');
+  const g = j.grounds[k] || (j.grounds[k] = { first: round(hour), hero, level, minutes: 0, stretches: 0, deaths: 0, ends: {}, xp: 0, kills: 0, coins: 0, supplyGold: 0, size: party || 1 });
+  if (!party || lead) { g.minutes += minutes; g.stretches++; }
   if (end) g.ends[end] = (g.ends[end] || 0) + 1;
   if (end === 'died') g.deaths++;
   if (tally) { g.xp += tally.xp; g.kills += tally.kills; g.coins += tally.coins; g.supplyGold += tally.supplyGold; }
   g.lastLevel = lastLevel || level;
-  g.xpPerH = g.minutes > 0 ? Math.round(g.xp / (g.minutes / 60)) : null;
-  g.netPerH = g.minutes > 0 ? Math.round((g.coins - g.supplyGold) / (g.minutes / 60)) : null;
+  g.xpPerH = g.minutes > 0 ? Math.round(g.xp / g.size / (g.minutes / 60)) : null;
+  g.netPerH = g.minutes > 0 ? Math.round((g.coins - g.supplyGold) / g.size / (g.minutes / 60)) : null;
 }
 
 /** Several shards' journals as one: a book's row keeps its earliest hour and every label; lists concatenate. */

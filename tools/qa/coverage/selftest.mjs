@@ -55,6 +55,7 @@ export function selftest() {
     buy: (v) => { v.gold = 5000; },
     build: (v, mem) => { v.gold = home.gold + 5000; for (const c of home.items) v.bag[c.id] = c.qty; for (const s of map.sinks) if (s.verb === 'shop_buy') mem.bought.add(s.id); },
     craft: (v) => { for (const [id, n] of Object.entries(r1.inputs)) v.bag[id] = n * 10; v.skills[r1.skill] = 1; },
+    stock: (v, mem) => { v.gold = 5000; for (const s of map.sinks) if (s.verb === 'shop_buy') mem.bought.add(s.id); },
     hunt: () => {},
     gather: (v) => { v.staminaMin = 10; },
   };

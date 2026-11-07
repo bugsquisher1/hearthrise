@@ -60,6 +60,11 @@ export function viewOf(env, clockMin = 0) {
       supplyGold: num(tally.supply_gold), supplies: isObj(tally.supplies) ? tally.supplies : {}, bought: isObj(tally.bought) ? tally.bought : {} } : null,
     activity: st.active_kind && st.active_kind !== 'idle' ? { kind: st.active_kind, id: st.active_id } : null,
     farm,
+    /* the server's own next buys (its prices, its gates): a storage chest, a hero slot, the land's next tier */
+    depotNext: isObj(env.depot) && isObj(env.depot.next) ? { chest: env.depot.next.chest, gold: num(env.depot.next.gold), items: isObj(env.depot.next.items) ? env.depot.next.items : {}, can: env.depot.next.can_build === true } : null,
+    heroSlot: isObj(env.account) && isObj(env.account.hero_slot_offer) ? { slotId: env.account.hero_slot_offer.slot_id, gold: num(env.account.hero_slot_offer.cost_gold) } : null,
+    farmUpgrade: isObj(land.upgrade) ? { level: num(land.upgrade.level), gold: num(land.upgrade.gold), deeds: num(land.upgrade.deeds), farming: num(land.upgrade.farming) } : null,
+    deeds: num(land.deeds),
   };
 }
 

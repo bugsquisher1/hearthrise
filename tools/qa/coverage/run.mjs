@@ -200,6 +200,10 @@ export async function play({ world, map, heroes, hours, log = console.log, pageC
       case 'plant': ans = await c.hero.plant(a.plot, a.crop); break;
       case 'harvest': ans = await c.hero.harvest(a.plot); break;
       case 'burn': ans = await c.hero.burn(a.item); break;
+      /* the server's own next buys, quoted at the server's price (home-intents.js, account-session.js, farm-intents.js) */
+      case 'chest': ans = await c.hero.chest(a.chest, a.price); if (ans.ok) c.mem.bought.add('chest.' + a.chest); a.offer = 'chest.' + a.chest; break;
+      case 'slot': ans = await c.acct.buySlot(a.slotId, 0); a.offer = 'character_slot.' + a.slotId; break;
+      case 'land': ans = await c.acct.rpc('hr_farm_upgrade_plot', { p_slot: 0, p_idem: randomUUID(), p_expect_level: a.level }); a.offer = 'land.' + a.level; break;
       case 'hunt': {
         if (a.tier !== 'normal') {
           const t = await c.hero.setTier(a.hunt, a.tier);
@@ -279,11 +283,13 @@ export async function play({ world, map, heroes, hours, log = console.log, pageC
       c.huntMin = (c.huntMin || 0) + (end && end.minutes > 0 ? Math.min(clock - d.at, Math.round(end.minutes)) : clock - d.at);
       if (v.tally && tally && v.tally.session === tally.session) tally = v.tally;   // the ended session's final tally
       huntOutcome(j, { hour: d.at / 60, hero: c.name, ground: d.ground, tier: d.tier,
-        minutes: end && end.minutes > 0 ? Math.min(clock - d.at, Math.round(end.minutes)) : clock - d.at, end: end && end.reason, level: d.level0, lastLevel: v.level, tally });
+        minutes: end && end.minutes > 0 ? Math.min(clock - d.at, Math.round(end.minutes)) : clock - d.at, end: end && end.reason, level: d.level0, lastLevel: v.level, tally,
+        party: c.party ? crew.filter((m) => m.party === c.party).length : 0, lead: c.lead });
       if (!end || end.reason !== 'died') c.mem.held.set(d.ground + ':' + d.tier, (c.mem.held.get(d.ground + ':' + d.tier) || 0) + 1);
       else c.mem.cooldown.set('hunt:' + d.ground + ':' + d.tier, c.mem.hour + 1);
       record(j, { hour: d.at / 60, hero: c.name, action: d, answer: { ok: true }, before: d.before, after: holdingsOf(v), wornAfter: v.worn });
-      if (pageCheck && j.grounds[d.ground + ':' + d.tier].stretches === 1) await pageLook(c, 'after the first hunt on ' + d.ground + ' (' + d.tier + ')');
+      const row = j.grounds[d.ground + ':' + d.tier + (c.party ? ':party' : '')];
+      if (pageCheck && (!c.party || c.lead) && row && row.stretches === 1) await pageLook(c, 'after the first hunt on ' + d.ground + ' (' + d.tier + (c.party ? ', party' : '') + ')');
     } else if (d.type === 'work') {
       if (d.kind === 'artisan') c.mem.visitMin += clock - d.at;
       const stop = await c.hero.activity({ kind: 'idle' });

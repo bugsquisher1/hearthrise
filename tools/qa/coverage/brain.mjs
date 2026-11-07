@@ -46,6 +46,21 @@ const tierOf = (id) => { const it = ITEMS[id] || {}; return [Number(it.reqLv) ||
 const better = (a, b) => { const x = tierOf(a), y = tierOf(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i]; return false; };
 const tried = (mem, key) => mem.refused.has(key) || (mem.cooldown.get(key) || 0) > mem.hour;
 
+/**
+ * What the hero is saving stock for: the cheapest house tier (data: shops.js `property`) not yet bought, and the server's
+ * next storage chest (its envelope's depot.next). item -> count. The sell and craft rules keep these; the stock rule fetches them.
+ */
+export function wantedItems(v, map, mem) {
+  const out = new Map();
+  const add = (id, n) => out.set(id, Math.max(out.get(id) || 0, n));
+  const home = map.sinks.filter((s) => s.table === 'property' && !mem.bought.has(s.id) && !tried(mem, 'build:' + s.id)).sort((a, b) => a.gold - b.gold)[0];
+  if (home) for (const c of home.items) add(c.id, c.qty);
+  if (v.depotNext) for (const [id, n] of Object.entries(v.depotNext.items)) add(id, n);
+  /* the gold those builds cost: a fighter fetches materials only once the purse is there (a crafter fetches them anyway) */
+  out.gold = Math.min(home ? home.gold : Infinity, v.depotNext ? v.depotNext.gold : Infinity);
+  return out;
+}
+
 /** The role a worn set plays (hunt-roles.js, the one weapon -> role table). */
 export function roleOf(worn) {
   return roleForWeapon(roleKeyOf(ITEMS[worn.weapon] || null, ITEMS[worn.shield] || null)) || 'melee_dps';
@@ -115,14 +130,18 @@ const RULES = [
     if (v.hunting) return null;
     const lines = [];
     const kinds = Object.keys(v.bag).length;
+    const role = mem.way ? mem.way.role : roleOf(v.worn);
+    const want = wantedItems(v, map, mem);
     for (const [id, qty] of Object.entries(v.bag)) {
       const it = ITEMS[id];
-      if (!it || !(qty > 0) || mem.locked.has(id) || tried(mem, 'sell:' + id) || !(Number(it.v) > 0)) continue;
+      if (!it || !(qty > 0) || mem.locked.has(id) || want.has(id) || tried(mem, 'sell:' + id) || !(Number(it.v) > 0)) continue;
       const row = map.itemIndex.get(id);
       const trash = row && row.uses.length > 0 && row.uses.every((u) => u === 'vendor trash');
       const worseGear = it.slot && Object.values(v.worn).some((w) => w && ITEMS[w] && ITEMS[w].slot === it.slot && better(w, id));
-      const crowded = kinds > PACE.bagKindsSoft && !mem.wanted.has(id) && !it.heals && !it.mana;
-      if (trash || worseGear || crowded) lines.push({ item: id, qty: Math.min(qty, 1000), why: trash ? 'trash' : worseGear ? 'worse than worn' : 'bag crowded' });
+      /* a piece this way of fighting never wears (plate to a caster, cloth to a tank): the shop's coin is its use here */
+      const notMine = it.slot && it.slot !== 'ammo' && !wornByRole(id, role) && !(it.slot === 'weapon' && mem.way && mem.way.keepsWeapon(id));
+      const crowded = kinds > PACE.bagKindsSoft && !it.heals && !it.mana;
+      if (trash || worseGear || notMine || crowded) lines.push({ item: id, qty: Math.min(qty, 1000), why: trash ? 'trash' : worseGear ? 'worse than worn' : notMine ? 'not worn by a ' + role : 'bag crowded' });
       if (lines.length >= 64) break;
     }
     return lines.length ? { type: 'sell', lines: lines.map(({ item, qty }) => ({ item, qty })), why: lines.length + ' stacks with no use for this hero (' + [...new Set(lines.map((l) => l.why))].join(', ') + ')' } : null;
@@ -155,26 +174,60 @@ const RULES = [
       if (!s.items.every((c) => owned(v, c.id) >= c.qty)) continue;
       return { type: 'unlock', offer: s.id, key: 'build:' + s.id, why: s.name + ': the purse and the bag can pay it' };
     }
+    /* the server's own next buys, at the server's price: a storage chest, the next hero, the land's next tier */
+    const c = v.depotNext;
+    if (c && c.can && v.gold - c.gold >= PACE.keepGold && Object.entries(c.items).every(([id, n]) => owned(v, id) >= n) && !tried(mem, 'chest:' + c.chest)) {
+      return { type: 'chest', chest: c.chest, price: c.gold, key: 'chest:' + c.chest, why: 'the depot is full-ish and the ' + c.chest + ' is paid for' };
+    }
+    const h = v.heroSlot;
+    if (h && v.gold - h.gold >= PACE.keepGold * 10 && !tried(mem, 'slot:' + h.slotId)) {
+      return { type: 'slot', slotId: h.slotId, price: h.gold, key: 'slot:' + h.slotId, why: 'gold\'s first job is the next hero (the coach\'s own order, hunt-tutorial.js)' };
+    }
+    const f = v.farmUpgrade;
+    if (f && v.gold - f.gold >= PACE.keepGold && v.deeds >= f.deeds && (v.skills.farming || 1) >= f.farming && !tried(mem, 'land:' + f.level)) {
+      return { type: 'land', level: f.level, key: 'land:' + f.level, why: 'the land\'s tier ' + f.level + ' opens the next crops' };
+    }
     return null;
   } },
 
   { id: 'craft', pick: ({ v, map, mem }) => {
     if (v.hunting || (mem.focus !== 'crafter' && mem.visitMin >= PACE.visitMin)) return null;
     const lv = (s) => v.skills[s] || 1;
-    /* it turns held stock into what another skill uses (fish -> food, ore -> bars -> gear, logs -> planks, bones -> Inner Flame) */
+    const want = wantedItems(v, map, mem);
+    /* it turns held stock into what another skill uses (fish -> food, ore -> bars -> gear, logs -> planks, bones -> Inner Flame);
+       never the stock a wanted build is waiting for */
+    const spare = (id) => owned(v, id) - (want.get(id) || 0);
     const crafts = map.recipes.filter((r) => r.req <= lv(r.skill) && !tried(mem, 'work:' + r.id)
-      && Object.entries(r.inputs).length && Object.entries(r.inputs).every(([id, n]) => owned(v, id) >= n * PACE.minBatches) && (!r.gated || owned(v, r.gated) > 0));
+      && Object.entries(r.inputs).length && Object.entries(r.inputs).every(([id, n]) => spare(id) >= n * PACE.minBatches) && (!r.gated || owned(v, r.gated) > 0));
     /* the least-trained skill's highest recipe it can make, so every bench is trained */
     crafts.sort((a, b) => lv(a.skill) - lv(b.skill) || b.req - a.req);
     if (!crafts.length) return null;
     const r = crafts[0];
-    const batches = Math.min(...Object.entries(r.inputs).map(([id, n]) => Math.floor(owned(v, id) / n)));
+    const batches = Math.min(...Object.entries(r.inputs).map(([id, n]) => Math.floor(spare(id) / n)));
     const count = Math.min(batches, 100000);
     /* the bench stops at its count (2026-12-01-bench-count.sql): wait as long as the count takes, the visit's budget at most */
     const budget = mem.focus === 'crafter' ? PACE.workStretchMin : PACE.visitMin - mem.visitMin;
     const minutes = Math.min(budget, PACE.workStretchMin, Math.max(1, Math.ceil((count * pacedActionMs(r.ms)) / 60000) + 1));
     return { type: 'work', kind: 'artisan', id: r.id, skill: r.skill, count, minutes, key: 'work:' + r.id,
       why: 'back in town, the bag holds ' + batches + ' batches for ' + r.name };
+  } },
+
+  { id: 'stock', pick: ({ v, map, mem }) => {
+    if (v.hunting || mem.focus === 'party' || (mem.focus !== 'crafter' && mem.visitMin >= PACE.visitMin)) return null;
+    const lv = (s) => v.skills[s] || 1;
+    /* a wanted build (the next house tier, the next chest) waits on something a node this hero can work makes: go and get it */
+    const want = wantedItems(v, map, mem);
+    if (mem.focus !== 'crafter' && v.gold < want.gold + PACE.keepGold) return null;
+    for (const [id, need] of want) {
+      const short = need - owned(v, id);
+      if (short <= 0) continue;
+      const n = map.nodes.find((x) => x.kind === 'gather' && x.prod === id && x.req <= lv(x.skill) && !tried(mem, 'work:' + x.id));
+      if (!n) continue;
+      const budget = mem.focus === 'crafter' ? PACE.workStretchMin : PACE.visitMin - mem.visitMin;
+      return { type: 'work', kind: 'gather', id: n.id, skill: n.skill, minutes: Math.max(10, Math.min(budget, PACE.workStretchMin)), key: 'work:' + n.id,
+        why: short + ' ' + id + ' short for a wanted build' };
+    }
+    return null;
   } },
 
   { id: 'hunt', pick: ({ v, map, mem }) => {

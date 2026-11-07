@@ -38,8 +38,7 @@ export function verdicts({ map, run, kills = {}, finals = {} }) {
   const last = (hero) => j.samples.filter((s) => s.hero === hero).slice(-1)[0] || null;
   const heroes = run.crew.map((c) => {
     const s = last(c.name);
-    const huntMin = Object.values(j.grounds).filter((g) => g.hero === c.name).reduce((t, g) => t + g.minutes, 0);
-    return { name: c.name, way: c.way, focus: c.focus || 'combat', level: s && s.level, gold: s && s.gold, skills: s && s.skills, huntHours: r1(huntMin / 60), next: finals[c.name] || null };
+    return { name: c.name, way: c.way, focus: c.focus || 'combat', level: s && s.level, gold: s && s.gold, skills: s && s.skills, huntHours: s && s.huntH !== null && s.huntH !== undefined ? r1(s.huntH) : null, next: finals[c.name] || null };
   });
 
   /* SKILLS: the best level any hero reached, the hours to each mark */
@@ -55,13 +54,17 @@ export function verdicts({ map, run, kills = {}, finals = {} }) {
   });
 
   /* GROUNDS AND TIERS: reached, survived, Level XP an hour against the pace contract at the stretch's middle Level */
+  const row = (o, t) => {
+    if (!o) return null;
+    const mid = Math.round((o.level + (o.lastLevel || o.level)) / 2);
+    return { tier: t, reached: true, size: o.size || 1, firstHour: o.first, level: o.level, lastLevel: o.lastLevel || o.level, hours: r1(o.minutes / 60), deaths: o.deaths, ends: o.ends,
+      xpPerH: o.xpPerH || null, contract: Math.round(contractXpPerH(mid)), netPerH: o.netPerH, kills: o.kills };
+  };
+  /* a tier is reached when a lone hero or the party hunted it; both rows are kept (a party's rates are per head) */
   const grounds = map.grounds.map((g) => ({ id: g.id, name: g.name, band: g.band, party: g.party,
     tiers: g.tiers.map((t) => {
-      const o = j.grounds[g.id + ':' + t];
-      if (!o) return { tier: t, reached: false };
-      const mid = Math.round((o.level + (o.lastLevel || o.level)) / 2);
-      return { tier: t, reached: true, firstHour: o.first, level: o.level, lastLevel: o.lastLevel || o.level, hours: r1(o.minutes / 60), deaths: o.deaths, ends: o.ends,
-        xpPerH: o.xpPerH || null, contract: Math.round(contractXpPerH(mid)), netPerH: o.netPerH, kills: o.kills };
+      const solo = row(j.grounds[g.id + ':' + t], t), four = row(j.grounds[g.id + ':' + t + ':party'], t);
+      return solo || four ? { ...(solo || four), party: four } : { tier: t, reached: false };
     }) }));
 
   /* ITEMS: reached (a count rose while play ran) and used (a count fell, or worn) */
@@ -83,6 +86,23 @@ export function verdicts({ map, run, kills = {}, finals = {} }) {
     const no = j.refusals.filter((x) => x.action.endsWith(':' + s.id)).map((x) => x.error);
     return { id: s.id, table: s.table, name: s.name, gold: s.gold, bought: !!took, firstHour: took ? took.first : null, refused: [...new Set(no)] };
   });
+
+  /* HOW THE SKILLS FED EACH OTHER, as played: an item one skill made (or a ground dropped) that another skill spent or a fight wore or ate */
+  const skillOfLabel = (l) => { const m = /^(?:made by (\w+)|gathered \((\w+)\)|(\w+) input|drop on (\w+)|harvested)/.exec(l); if (!m) return null;
+    if (m[1]) return m[1]; if (m[2]) { const n = map.nodes.find((x) => x.id === m[2]); return n ? n.skill : null; } if (m[3]) return m[3]; if (m[4]) return 'hunting'; return 'farming'; };
+  const links = new Map();
+  for (const [id, got] of Object.entries(j.obtained)) {
+    const use = j.used[id];
+    if (!use) continue;
+    for (const a of got.via) for (const b of use.via) {
+      const from = skillOfLabel(a), to = /^worn$|used on a hunt/.test(b) ? 'combat' : skillOfLabel(b);
+      if (!from || !to || from === to) continue;
+      const k = from + ' -> ' + to;
+      if (!links.has(k)) links.set(k, []);
+      if (links.get(k).length < 4 && !links.get(k).includes(id)) links.get(k).push(id);
+    }
+  }
+  const chains = [...links.entries()].map(([k, ids]) => ({ link: k, via: ids }));
 
   /* STALLS: the brain's own (nothing sensible to do), plus every skill whose every try the server refused (a dead end) */
   const stalls = j.stalls.map((s) => ({ kind: 'nothing to do', ...s }));
@@ -108,7 +128,7 @@ export function verdicts({ map, run, kills = {}, finals = {} }) {
       itemsReached: counts(items.filter((i) => i.paperDoor), (i) => i.status !== 'never reached'),
       recipes: counts(recipes, (r) => r.made), nodes: counts(nodes, (n) => n.worked), monsters: counts(monsters, (m) => m.kills > 0), sinks: counts(sinks, (s) => s.bought),
     },
-    skills, grounds, items, recipes, nodes, monsters, sinks, pace, stalls,
+    skills, grounds, items, recipes, nodes, monsters, sinks, pace, stalls, chains,
     refusals: groupRefusals(j.refusals), pages: j.notes, actions: j.actions.length, route: j.actions,
     targets: { levelPace: LEVEL_PACE.targets.slice(0, 3), early: LEVEL_PACE.early, xpVsContract: BALANCE_SHEET.normal.xpVsContract },
   };
@@ -163,10 +183,11 @@ export function reportText(R) {
   for (const s of R.skills) L.push('- ' + s.name + ': level ' + s.level + (s.cap ? ' of ' + s.cap : '') + (s.marks.length ? ' (' + s.marks.map((m) => m.level + ' at ' + m.hour + ' h').join(', ') + ')' : '') + (s.trained ? '' : '. NEVER TRAINED'));
   L.push('');
   L.push('### Grounds');
+  const words = (t) => (t.size > 1 ? 'a party of ' + t.size + ' ' : '') + 'first at ' + t.firstHour + ' h at Level ' + t.level + ', ' + t.hours + ' h to Level ' + t.lastLevel + ', ' + t.deaths + ' death(s)'
+    + (t.xpPerH ? ', ' + t.xpPerH + ' Level XP/h a head (pace contract ' + t.contract + ')' : '') + (t.netPerH !== null && t.netPerH !== undefined ? ', coin less store bill ' + t.netPerH + ' g/h a head' : '');
   for (const g of R.grounds) {
-    L.push('- ' + g.name + ' (Levels ' + g.band.join('-') + (g.party ? ', a party ground' : '') + '): ' + g.tiers.map((t) => t.reached
-      ? t.tier + ' first at ' + t.firstHour + ' h at Level ' + t.level + ', ' + t.hours + ' h to Level ' + t.lastLevel + ', ' + t.deaths + ' death(s)' + (t.xpPerH ? ', ' + t.xpPerH + ' Level XP/h (pace contract ' + t.contract + ')' : '') + (t.netPerH !== null && t.netPerH !== undefined ? ', coin less store bill ' + t.netPerH + ' g/h' : '')
-      : t.tier + ' never reached').join('; '));
+    L.push('- ' + g.name + ' (Levels ' + g.band.join('-') + (g.party ? ', a party ground' : '') + '): ' + g.tiers.map((t) => !t.reached ? t.tier + ' never reached'
+      : t.tier + ' ' + words(t) + (t.party && t.party !== t && t.size === 1 ? '; and ' + words(t.party) : '')).join('; '));
   }
   L.push('');
   const never = R.items.filter((i) => i.status === 'never reached');
@@ -180,6 +201,10 @@ export function reportText(R) {
   L.push('Worked: ' + (R.nodes.filter((n) => n.worked).map((n) => n.id).join(', ') || 'none'));
   L.push('Met: ' + (R.monsters.filter((m) => m.kills).map((m) => m.id + ' ' + m.kills).join(', ') || 'none'));
   L.push('Bought: ' + (R.sinks.filter((s) => s.bought).map((s) => s.id).join(', ') || 'none'));
+  L.push('');
+  L.push('### How the skills fed each other (as played)');
+  for (const c of R.chains) L.push('- ' + c.link + ': ' + c.via.join(', '));
+  if (!R.chains.length) L.push('No item made by one skill was spent by another.');
   L.push('');
   L.push('## 2. Stalls and refusals');
   if (!R.stalls.length) L.push('No stall: the brain always had a sensible next step.');

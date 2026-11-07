@@ -16,6 +16,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
+import { packIds } from '../../tools/pack/files.mjs';
+import { foldedPacks } from '../../tools/pack/whole.mjs';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const { loadCellRunner } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/cell.mjs')).href);
@@ -97,7 +99,13 @@ const cases = {
     const sql = readFileSync(join(ROOT, 'supabase', 'migrations', CATALOGUE), 'utf8');
     const got = [...sql.matchAll(/\('([a-z_]+)', '([a-z]+)', '\{([0-9,]+)\}'::int\[\], (\d+), (\d+), (\d+)\)/g)].map((m) => [m[1], m[2], m[3], m[4], m[5], m[6]].join('|')).sort();
     const want = [];
-    for (const [g, rows] of Object.entries(T.GROUND_TIERS)) for (const id of HARDER) { const t = rows[id]; want.push([g, id, t.pull.join(), t.dmgPm, t.hpPm, t.xpPm].join('|')); }
+    /* the file serves the OPEN grounds its whole view carries: a ground pack not folded into it ships its rows in its own file
+       (tools/pack/whole.mjs, tests/ground-pack.mjs GP-3), so a new ground never re-issues this one (lane/b-ground-pack) */
+    const unfolded = new Set(packIds().filter((id) => !foldedPacks(CATALOGUE).includes(id)));
+    for (const [g, rows] of Object.entries(T.GROUND_TIERS)) {
+      if (!G.OPEN_GROUNDS[g] || unfolded.has(g)) continue;
+      for (const id of HARDER) { const t = rows[id]; want.push([g, id, t.pull.join(), t.dmgPm, t.hpPm, t.xpPm].join('|')); }
+    }
     want.sort();
     return got.join(';') === want.join(';') ? null : 'the catalogue says ' + got.join(';') + ' and the data ' + want.join(';');
   },

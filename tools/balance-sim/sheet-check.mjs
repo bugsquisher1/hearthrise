@@ -99,7 +99,7 @@ export function gradeGround(cells, g, rows) {
     const fl = lone(T((c) => c.cell.level === sh.floor && !starter(c))).map((c) => readCell(c));
     if (fl.length && facts.floorXp) {
       const xp = median(fl.map((r) => r.xp)), held = fl.filter((r) => r.deaths === 0).length, net = median(fl.map((r) => r.net));
-      if (tier === 'dangerous') line('dangerous.lone', 'Dangerous, ' + by + ' floor: Level XP against Normal (median) / ways that held', (xp / facts.floorXp).toFixed(2) + 'x / ' + held + ' of ' + fl.length, '>= ' + S.tiers.dangerous.xpVsNormalMin + 'x / >= ' + S.tiers.dangerous.loneHeldMin, xp / facts.floorXp >= S.tiers.dangerous.xpVsNormalMin && held >= S.tiers.dangerous.loneHeldMin);
+      if (tier === 'dangerous') line('dangerous.lone', 'Dangerous, ' + by + ' floor: Level XP against Normal (median) / ways that held', (xp / facts.floorXp).toFixed(2) + 'x / ' + held + ' of ' + fl.length, '>= ' + S.tiers.dangerous.xpVsNormalMin + 'x / >= ' + S.tiers.dangerous.loneHeldMin, xp / facts.floorXp >= S.tiers.dangerous.xpVsNormalMin && held >= Math.min(S.tiers.dangerous.loneHeldMin, fl.length));
       else if (!sh.party) line('deadly.lone', 'Deadly, ' + by + ' floor: the median way pays for it (dies, or nets less than on Normal)', held + ' of ' + fl.length + ' held, net ' + signed(net) + ' (Normal ' + signed(facts.floorNet) + ')', 'a death, or net under Normal', held < fl.length / 2 || net < facts.floorNet);
     }
     const f4 = T((c) => c.heroes.length === 4 && c.cell.level === sh.floor && !starter(c))[0];

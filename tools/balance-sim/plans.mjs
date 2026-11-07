@@ -925,7 +925,8 @@ export function buildPlan(name, axes, scale = 1) {
         const pull = rows !== 'T' ? dial.pull[party.length - 1] : live.pull[party.length - 1];
         const monsters = rows !== 'T' ? Object.fromEntries(Object.entries(P.grounds[ground]).map(([id, r]) => [id, { ...r.formula, hp: Math.max(1, Math.round((r.formula.hp * dial.hpPm) / 1000)) }]))
           : ground === 'mosslight_glade' ? GLADE_X12 : null;
-        const tiers = rows !== 'T' && tier !== 'normal' ? { [ground]: { [tier]: { id: tier, pull: dial.pull, powerPm: dial.dmgPm, xpPm: dial.xpPm } } } : null;
+        /* (the HP dial rides the monster rows above, so the engine tier row reads HP at 1000: never twice; lane/b-tier-dials) */
+        const tiers = rows !== 'T' && tier !== 'normal' ? { [ground]: { [tier]: { id: tier, pull: dial.pull, dmgPm: dial.dmgPm, hpPm: 1000, xpPm: dial.xpPm } } } : null;
         const whatIf = monsters || tiers ? { ...(monsters ? { monsters } : {}), ...(tiers ? { tiers } : {}) } : null;
         return { ...cellOf({ ground, party, level, density: pull || null, gear, hours: H(2), seeds: 2, x: rows + tier }), windowMs: 120000,
           ...(tier === 'normal' ? {} : { options: { tier } }), ...(whatIf ? { whatIf } : {}) };

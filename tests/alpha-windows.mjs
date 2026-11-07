@@ -3589,7 +3589,7 @@ const MUTANTS = [
   ['AW-66 the summary\'s presses lie on a phone\'s numbers', 'src/styles/summary.css', '  .hsum-card.is-on { display: flex; flex-direction: column; }\n', ''],
   ['AW-71 the same card keeps its first number', 'src/shell/launcher.js', '  else if (key) sameCardWords(have, html);\n', ''],
   ['AW-67 the stack on the fire is refused in words', 'src/shell/windows/inventory/grid.js', "(buryingOf(st.cs) === buryRecipeOf(cur) ? '' : buryBlock(st.cs, buryRecipeOf(cur)))", 'buryBlock(st.cs, buryRecipeOf(cur))'],
-  ['AW-67 the card reads as a purse', 'src/shell/windows/characters.js', "'Bag worth ' + gold(x.bagValue)", "'Bag ' + gold(x.bagValue)"],
+  ['AW-67 the card reads as a purse', 'src/data/text/heroes.js', "  bag_worth: 'Bag worth {gold}',", "  bag_worth: 'Bag {gold}',"],
   ['AW-67 the press in hand stays under the answer', 'src/shell/windows/inventory/index.js', '  if (over > 0) root.scrollTop += over + 4;\n', ''],
   ['AW-67 the column fights the player', 'src/shell/windows/inventory/index.js', '  if (st.sc.clearSig === sig) return;\n', ''],
   ['AW-67 the Shop\'s tabs slice', 'src/styles/windows.css', '.hw-shop > .hw-tabs { position: sticky; top: -10px; margin-top: -10px; padding-top: 10px; z-index: 1; background: var(--bg-1); }\n', ''],

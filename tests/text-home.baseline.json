@@ -74,7 +74,6 @@
     "src/shell/windows/character/outfit.js": 25,
     "src/shell/windows/character/sheet.js": 45,
     "src/shell/windows/character/titles.js": 17,
-    "src/shell/windows/characters.js": 46,
     "src/shell/windows/chat-combat.js": 8,
     "src/shell/windows/chat-crier.js": 2,
     "src/shell/windows/chat.js": 7,

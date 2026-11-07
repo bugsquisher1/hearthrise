@@ -142,7 +142,7 @@ async function run(base) {
   ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));") && win.includes('<p class="hw-hunt-warn"></p>')
     && win.includes("(groupWords(r, size) || heroWords(r)) + '.'"),
     'the Hunts line does not draw rangeWords');
-  ok('W4', read('src/shell/hunt-list.js').includes('Expect a bigger food bill, and you can die') && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a bigger pull costs (first-week-bands.mjs bigger-pulls-words plays it)');
+  ok('W4', read('src/data/text/hunts.js').includes('Expect a bigger food bill, and you can die') && read('src/shell/hunt-list.js').includes("t('hunts.tier_cost'") && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a bigger pull costs (first-week-bands.mjs bigger-pulls-words plays it)');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning');
   ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? 'Enter anyway' : 'Enter'"), 'a lone hero above its level walks in with no confirm press');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');

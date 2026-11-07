@@ -90,7 +90,7 @@ async function stub(page, s) {
 }
 
 async function signInAndPlay(page, base) {
-  await page.goto(base + '/play.html', { waitUntil: 'load' });
+  await page.goto(base + '/play.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
   await page.fill('input[name=email]', 'qa@example.test');
   await page.fill('input[name=password]', 'not-a-real-password');

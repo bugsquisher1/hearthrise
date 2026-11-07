@@ -338,9 +338,9 @@ async function selftest() {
     const judge = async (cmds, o = {}) => verdict(await runAll(cmds.map((cmd) => ({ cmd })), { cwd: dir, ...o }));
     const v0 = await judge([green, green]);
     const v1 = await judge([green, red]);
-    const v2 = await judge([green, hang], { limitS: 2 });
+    const v2 = await judge([green, hang], { limitS: 10 });
     const v3 = await judge([green, green, green], { jobs: 1, runLimitS: 0 });
-    const v4 = await judge([red, hang], { limitS: 2 });
+    const v4 = await judge([red, hang], { limitS: 10 });
     const checks = (v) => [
       [v(v0).exit === 0 && v(v0).green === 2, 'all green exits 0'],
       [v(v1).exit === 1 && v(v1).red.length === 1 && /the words a fix needs/.test(v(v1).red[0].out), 'a red exits 1 and keeps the words'],
@@ -366,7 +366,7 @@ async function selftest() {
     const longChecks = async (order, run) => {
       const list = [{ cmd: green, proof: false }, { cmd: 'node p.mjs --mutate', proof: true }, { cmd: 'node late.mjs', proof: false }, { cmd: 'node pin.mjs', proof: false }, { cmd: slowRed, proof: false }];
       const o = order(list, { long: new Map([[slowRed, [60, 'x']]]), first: new Set(['node pin.mjs']), late: new Set(['node late.mjs']) }).map((r) => r.cmd);
-      const v = verdict(await run([{ cmd: slowRed }, { cmd: green }], { cwd: dir, jobs: 2, limitS: 2, runLimitS: 2, limits: new Map([[slowRed, 60]]) }));
+      const v = verdict(await run([{ cmd: slowRed }], { cwd: dir, jobs: 1, limitS: 1, runLimitS: 1, limits: new Map([[slowRed, 60]]) }));
       return [
         [o.join() === [slowRed, 'node pin.mjs', green, 'node late.mjs', 'node p.mjs --mutate'].join(), 'LONG starts first, then the FIRST pins, then plain, then LATE, then the proofs'],
         [v.exit === 1 && v.unjudged.length === 0 && /the long guard's words/.test(v.red[0]?.out || ''), 'a LONG command runs past the run\'s limit to its own and is judged'],

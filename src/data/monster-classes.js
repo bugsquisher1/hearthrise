@@ -385,6 +385,13 @@ export function auditRoster(MONSTERS) {
     if (!TIER_BANDS[m.tier]) { problems.push(id + ': tier ' + m.tier + ' has no band'); return; }
     /* A called boss (boss-calls.js) stands outside the tier's curve on purpose, and pays nothing: tests/boss-call.mjs holds his row. */
     if (m.called === true) return;
+    /* A FORMULA ROW (`formula: true`, written by tools/gen-ground-stats.mjs from src/data/balance-sheet.js, lane/b-ground-formula
+       2026-11-07): its numbers are the formula's, so the formula is its fence (tests/balance-sheet.mjs holds every such row equal to
+       it), not these hand bands, which measured the August roster. Its gp still has to be a [lo, hi] pair. */
+    if (m.formula === true) {
+      if (!Array.isArray(m.gp) || m.gp.length !== 2 || m.gp[0] > m.gp[1]) problems.push(id + ': gp must be [lo,hi] with lo<=hi');
+      return;
+    }
     /* A champion is checked against championBand instead, and must not also
        claim to be a boss (two flags, two sets of rules — pick one). */
     const champ = m.champion === true;

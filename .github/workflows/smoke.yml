@@ -3739,6 +3739,11 @@ jobs:
           node tools/mutant-gate.mjs node tests/core-curves.mjs --selftest
           node tests/level-curve.mjs
           node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
+          # ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula): every `formula: true` monster row is src/data/balance-sheet.js's, and the formula holds its own rules
+          node tests/balance-sheet.mjs
+          node tools/mutant-gate.mjs node tests/balance-sheet.mjs --mutate
+          node tools/gen-ground-stats.mjs --check --grounds wickstead,mosslight_glade
+          node tools/mutant-gate.mjs node tools/gen-ground-stats.mjs --selftest
           node tools/gen-level-curve.mjs --check
           node tools/mutant-gate.mjs node tools/gen-level-curve.mjs --selftest
           node tests/hearth-fuel-rate.mjs

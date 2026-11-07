@@ -153,6 +153,9 @@ cases['risk-ladder'] = (R) => {
   const SHRIMP = { gear: AVERAGE.gear, startBar: true };
   const [pushed] = play('mosslight_glade', ['tank'], 6, SHRIMP), [floor] = play('mosslight_glade', ['tank'], 16, SHRIMP);
   if (!(pushed.profitPerH < 0)) return 'ten Levels under the Glade on the default food nets ' + pushed.profitPerH + ' g/h: a push pays for itself';
+  /* ...and each swing that reaches the pushed hero is worth far more than at the floor (more of them land, and its armor reads the stronger attacker). Measured on the
+     formula's rows (lane/b-ground-formula, 2026-11-07): 18.6 against 13.2 a swing, 1.41x; on a curve keyed to the hero's own Level its armor would read 6, not the monster's. */
+  if (!(pushed.dmgPerMonsterSwing >= 1.25 * floor.dmgPerMonsterSwing)) return 'ten Levels under the Glade a swing reaches the hero for ' + pushed.dmgPerMonsterSwing + ' against ' + floor.dmgPerMonsterSwing + ' at the floor: under 1.25x, armor is not reading who struck';
   if (!(floor.raw.income >= 1.25 * floor.raw.store)) return 'at the Glade\'s floor on the default food coin and commons are ' + floor.incomePerH + ' g/h against ' + floor.storePerH + ': under +25%';
   const [armoredView] = play('mosslight_glade', ['tank'], 10, SHRIMP, { windowMs: 10000 }), [armoredClosed] = play('mosslight_glade', ['tank'], 10, SHRIMP, { windowMs: 600000 });
   for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (armoredView[k] !== armoredClosed[k]) return 'armored, ' + k + ': viewed ' + armoredView[k] + ', browser closed ' + armoredClosed[k];
@@ -278,9 +281,9 @@ cases['glade-harder'] = (R) => {
   return null;
 };
 
-const GLADE_SOFT = [['hp: 30, atk: 10, baseAcc: 0.8, def: 1, xp: 165', 'hp: 30, atk: 2, def: 1, xp: 165'], ['hp: 32, atk: 12, baseAcc: 0.8, def: 2, xp: 225', 'hp: 32, atk: 2, def: 2, xp: 225'],
-  ['hp: 35, atk: 9, baseAcc: 0.8, def: 4, xp: 260', 'hp: 35, atk: 2, def: 4, xp: 260'], ['hp: 70, atk: 18, baseAcc: 0.8, def: 10, xp: 360', 'hp: 70, atk: 2, def: 10, xp: 360'],
-  ['hp: 78, atk: 18, baseAcc: 0.8, def: 11, xp: 520', 'hp: 78, atk: 2, def: 11, xp: 520'], ['hp: 74, atk: 18, baseAcc: 0.8, def: 8, xp: 420', 'hp: 74, atk: 2, def: 8, xp: 420']].map(([a, b]) => ['src/data/monsters.js', a, b]);
+const GLADE_SOFT = [['hp: 30, atk: 11, baseAcc: 0.8, def: 1, xp: 155', 'hp: 30, atk: 2, def: 1, xp: 155'], ['hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 172', 'hp: 26, atk: 2, def: 1, xp: 172'],
+  ['hp: 48, atk: 11, baseAcc: 0.82, def: 5, xp: 309', 'hp: 48, atk: 2, def: 5, xp: 309'], ['hp: 74, atk: 21, baseAcc: 0.8, def: 8, xp: 533', 'hp: 74, atk: 2, def: 8, xp: 533'],
+  ['hp: 81, atk: 22, baseAcc: 0.84, def: 9, xp: 609', 'hp: 81, atk: 2, def: 9, xp: 609'], ['hp: 69, atk: 20, baseAcc: 0.78, def: 8, xp: 481', 'hp: 69, atk: 2, def: 8, xp: 481']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
@@ -327,8 +330,8 @@ const mutants = [
       ['src/data/monsters.js', 'hp: 8, atk: 4, def: 0, xp: 36, gp: [1, 4],', 'hp: 8, atk: 4, def: 60, xp: 36, gp: [1, 4],']] },
   { name: 'Thin Turnip Juice costs six times as much (a fresh Mage in the Thicket pays more than it earns)', case: 'solo-meadowbrook_thicket',
     edits: [['src/data/supply-basics.js', "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10)", "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 60)"]] },
-  { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 4 -> 14)', case: 'solo-wickstead',
-    edits: [['src/data/monsters.js', 'hp: 15, atk: 4, def: 1, xp: 56, gp: [3, 6], speed: 3400', 'hp: 15, atk: 14, def: 1, xp: 56, gp: [3, 6], speed: 3400']] },
+  { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
+    edits: [['src/data/monsters.js', 'hp: 15, atk: 5, baseAcc: 0.44, def: 0, xp: 61, gp: [2, 7], formula: true, speed: 3400', 'hp: 15, atk: 14, baseAcc: 0.44, def: 0, xp: 61, gp: [2, 7], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (profit-floor, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. */

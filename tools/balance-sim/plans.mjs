@@ -11,6 +11,7 @@
 //   - deep runs (enough hours to bound 1 death per 1,000 h) only on each ground's in-band reference cell.
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import { STYLES } from './gear.mjs';
 
 export const SOLO_STYLES = Object.freeze(Object.keys(STYLES));
@@ -38,7 +39,11 @@ export async function loadAxes(root) {
   const { ABILITIES } = await import(u('src/data/abilities.js'));
   const { runeId } = await import(u('src/data/runes.js'));
   const familyOf = (abilityId) => (ITEMS[(ABILITIES[abilityId] || {}).rune] || {}).family || null;
-  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level), tierRowOf, dressOf, ROLE_RULES, familyOf, runeId };
+  /* plan formula: the one tier table and the formula's proposal (tools/gen-ground-stats.mjs --propose), when written */
+  const { TIER_DIALS } = await import(u('src/data/balance-sheet.js'));
+  const proposal = join(root, 'tools', 'balance-sim', 'out', 'formula-proposal.json');
+  const formula = existsSync(proposal) ? JSON.parse(readFileSync(proposal, 'utf8')) : null;
+  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level), tierRowOf, dressOf, ROLE_RULES, familyOf, runeId, tierDials: TIER_DIALS, formula };
 }
 
 const uniq = (xs) => [...new Set(xs)].sort((a, b) => a - b);
@@ -888,6 +893,59 @@ export function buildPlan(name, axes, scale = 1) {
       const cell = (party, level, gear) => ({ ...cellOf({ ground, party, level, gear, hours: H(2), seeds: 2, x }), windowMs: 120000, ...(whatIf ? { whatIf } : {}) });
       if (ground === 'mosslight_glade') for (const s of ['tank', 'sword']) out.push(cell([s], floor, { armourSlots: ['helmet', 'body'] }));
       else for (const s of SOLO_STYLES) out.push(cell([s], floor, { starter: true }));
+    }
+    return out;
+  }
+  if (/^formula[FH]?(:|$)/.test(name)) {
+    /* ONE FORMULA FOR EVERY HUNT, THE SAMPLE (lane/b-ground-formula, Tyler 2026-11-07): Wickstead and the Glade, today's rows (x = T: the
+       Glade's six at x1.2 attack, Tyler's 11-07 ruling, and the tier rows as live) against the formula's (x = F: tools/gen-ground-stats.mjs
+       --propose, and src/data/balance-sheet.js TIER_DIALS for both grounds, its HP dial on the rows), every tier, the same dice. Per ground:
+       the lone hero at the floor (8 ways) and at the floor + 10 (4 ways), the band's middle on Normal (8 ways: XP against the contract),
+       pairs 2 and 3 Levels under, pairs and a lone hero 5 under, a four at the floor and the top; Wickstead's fresh hero in the practice
+       set at its floor on Normal. 2 seeds x 2 h. Read by tools/balance-sim/sheet-check.mjs. 'formulaF': the F cells only (a re-run
+       of the formula after a dial moves, the same ids, into its own folder: sheet-check --in formula,formula2 takes the later).
+       THE ROLLOUT: 'formula:<ground>,<ground>' (and formulaF:, formulaH:) plays those grounds by the same shape, read from their band and
+       fit: a party ground plays a four at its floor, middle and top, a duo at its floor, a lone hero from its soloFrom; a first-day ground
+       (floor 15 or under) its fresh heroes (a party ground: the duo and the four in practice sets); the Cellar Normal only. */
+    const P = axes.formula;
+    if (!P) throw new Error('plan formula: run node tools/gen-ground-stats.mjs --propose first');
+    const GLADE_X12 = Object.fromEntries(Object.keys(P.grounds.mosslight_glade || {}).map((id) => [id, { atk: '*1.2' }]));
+    const wanted = name.includes(':') ? name.split(':')[1].split(',') : ['wickstead', 'mosslight_glade'];
+    const SHAPE = Object.fromEntries(axes.grounds.filter((g) => wanted.includes(g.id)).map((g) => [g.id, { floor: g.band[0], mid: Math.round((g.band[0] + g.band[1]) / 2), top: g.band[1],
+      party: g.groupFit === 'party', soloFrom: g.soloFrom, normalOnly: g.id === 'mill_cellar' }]));
+    const PAIRS = [['tank', 'healer'], ['hammer', 'bow']];
+    /* formulaH: the harder tiers with the HP dial on (x = H: Dangerous 1.1x HP and 1.2x XP a kill, Deadly 1.2x and 1.4x), the formula's rows */
+    const HP_DIAL = { dangerous: { hpPm: 1100, xpPm: 1200 }, deadly: { hpPm: 1200, xpPm: 1400 } };
+    const SETS = name.startsWith('formulaF') ? ['F'] : name.startsWith('formulaH') ? ['H'] : ['T', 'F'];
+    for (const [ground, s] of Object.entries(SHAPE)) for (const rows of SETS) for (const tier of s.normalOnly ? ['normal'] : rows === 'H' ? ['dangerous', 'deadly'] : ['normal', 'dangerous', 'deadly']) {
+      /* the engine's tier row on this ground (src/data/balance-sheet.js tierRowFor, in the proposal), else the table's */
+      const dial = { ...((P.tiers && P.tiers[ground] && P.tiers[ground][tier]) || axes.tierDials[tier]), ...(rows === 'H' ? HP_DIAL[tier] : {}) };
+      const cell = (party, level, gear) => {
+        const live = axes.tierRowOf(ground, tier);
+        const pull = rows !== 'T' ? dial.pull[party.length - 1] : live.pull[party.length - 1];
+        const monsters = rows !== 'T' ? Object.fromEntries(Object.entries(P.grounds[ground]).map(([id, r]) => [id, { ...r.formula, hp: Math.max(1, Math.round((r.formula.hp * dial.hpPm) / 1000)) }]))
+          : ground === 'mosslight_glade' ? GLADE_X12 : null;
+        const tiers = rows !== 'T' && tier !== 'normal' ? { [ground]: { [tier]: { id: tier, pull: dial.pull, powerPm: dial.dmgPm, xpPm: dial.xpPm } } } : null;
+        const whatIf = monsters || tiers ? { ...(monsters ? { monsters } : {}), ...(tiers ? { tiers } : {}) } : null;
+        return { ...cellOf({ ground, party, level, density: pull || null, gear, hours: H(2), seeds: 2, x: rows + tier }), windowMs: 120000,
+          ...(tier === 'normal' ? {} : { options: { tier } }), ...(whatIf ? { whatIf } : {}) };
+      };
+      const under = [s.floor - 3, s.floor - 2, s.floor - 5].filter((l) => l >= 1);
+      if (s.party) {
+        for (const level of [s.floor, s.mid, s.top]) out.push(cell(PARTIES.four, level));
+        out.push(cell(PARTIES.duo, s.floor));
+        if (Number.isInteger(s.soloFrom) && tier === 'normal') for (const st of SOLO_STYLES) out.push(cell([st], s.soloFrom));
+        for (const level of under) out.push(cell(PARTIES.duo, level));
+        if (tier === 'normal' && s.floor <= 15) for (const party of [PARTIES.duo, PARTIES.four]) out.push(cell(party, s.floor, { starter: true }));
+      } else {
+        for (const st of SOLO_STYLES) out.push(cell([st], s.floor));
+        for (const st of ['tank', 'hammer', 'bow', 'mage']) out.push(cell([st], s.floor + 10));
+        if (tier === 'normal') for (const st of SOLO_STYLES) out.push(cell([st], s.mid));
+        for (const party of PAIRS) for (const level of under) out.push(cell(party, level));
+        if (s.floor - 5 >= 1) for (const st of ['hammer', 'mage']) out.push(cell([st], s.floor - 5));
+        for (const level of [s.floor, s.top]) out.push(cell(PARTIES.four, level));
+        if (tier === 'normal' && s.floor <= 15) for (const st of SOLO_STYLES) out.push(cell([st], s.floor, { starter: true }));
+      }
     }
     return out;
   }

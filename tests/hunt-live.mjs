@@ -130,6 +130,8 @@ async function load(base) {
     ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
     /* the engine's own tier rows (LV-DIAL swaps one for a what-if and puts it back) */
     ENGINE_TIERS: (await import(pathToFileURL(join(base, 'src/data/hunt-tiers.js')).href + V)).GROUND_TIERS,
+    /* the engine's own blow (LV-Q builds its deadly rows with it) */
+    MAX_HIT: (await import(pathToFileURL(join(base, 'src/core/combat.js')).href + V)).monsterMaxHit,
     HGR: await u('src/data/hunt-grounds.js'),
     base,
     AC: await u(FN + '/accrual.js'),
@@ -963,38 +965,52 @@ function rules(M) {
     // (the party's hunt ends at each member's next boundary). Before: the ranger, alone and targeted, kited 5 tiles
     // away for the rest of the swing and could take blows the death had already ended. BROWSER CLOSED: the server's
     // commits; VIEWED: the live engine's fed swings (LV-D: the same).
-    // THE GROUND (lane/b-ground-formula-fix): the formula made the Sewer a gentle ground (floor 8: no blow passes 10% of
-    // the floor hero's HP, balance-sheet.js), and its duo at 14 no longer fell in 10 minutes (at 4-14 only Level 6 did,
-    // at 300 s). The Glade is a full one: a pair at 18 pulling 5 loses its tank at about 117 s (17-20: 74-123 s). Pulling
-    // 6 or more it falls inside the first commit, before `ids` below can name it.
-    const HUNT = 'mosslight_glade';
-    const mk = () => { const mis = [memberOf(M, 'a', 0, 'tank', 18), memberOf(M, 'b', 1, 'ranger', 18)];
-      for (const m of mis) { m.huntId = HUNT; m.hero = Object.assign({}, m.hero, { density: 5 }); } return mis; };
-    const after = (steps, events, ids) => {
-      const death = events.find((e) => e.type === 'kill' && ids.includes(e.t));
-      if (!death) return null;
-      return { at: death.atMs - T0, steps: steps.filter((s) => ids.includes(s.u) && s.atMs > death.atMs).length,
-        blows: events.filter((e) => e.atMs > death.atMs && (ids.includes(e.u) || ids.includes(e.t))).length };
-    };
-    const mis = mk();
-    const srv = server(M, mis, { hunt: HUNT });
-    const steps = [], events = [];
-    let ids = [];
-    for (let t = T0 + 10000; t <= T0 + 600000 && !mis.every((m) => m.unitId === null && m.huntSession.swingIndex > 0); t += 10000) {
-      const c = srv.commit(t);
-      if (!ids.length) ids = mis.map((m) => m.unitId);
-      if (c) { steps.push(...c.tl.hunt_track); events.push(...c.tl.hunt_events); }
+    // THE DEADLY CASE IS BUILT HERE, FROM DATA (lane/b-ground-formula-fix): the formula made the Sewer a gentle ground (no blow
+    // passes 10% of its floor hero's HP, balance-sheet.js), and Andy's duo at 14 no longer fell in 10 minutes. So the rule
+    // no longer leans on how hard a ground's rows hit: for this case only (a what-if on the engine's own rows, put back after,
+    // as LV-CALL does) every Sewer monster's blow reaches a sixth of the tank's max HP (member.js, combat.js monsterMaxHit).
+    // Measured: the tank falls at about 170 s (a quarter: 13 s; a fifth: 85 s; an eighth or a tenth: 260 s).
+    const HUNT = 'millrace_sewer', SHARE = 6;
+    const mk = () => { const mis = [memberOf(M, 'a', 0, 'tank', 14), memberOf(M, 'b', 1, 'ranger', 14)];
+      for (const m of mis) { m.huntId = HUNT; m.hero = Object.assign({}, m.hero, { density: 8 }); } return mis; };
+    const tankHp = M.MB.memberSide(mk()[0], { items: M.ITEMS }).state.playerMaxHp;
+    const kinds = [...new Set(M.HG.huntGroundOf(HUNT).ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
+      .filter((k) => M.ENGINE_MONSTERS[k]);
+    const keep = kinds.map((id) => [id, { atk: M.ENGINE_MONSTERS[id].atk }]);
+    for (const id of kinds) {
+      let atk = M.ENGINE_MONSTERS[id].atk || 1;
+      while (M.MAX_HIT({ ...M.ENGINE_MONSTERS[id], atk }) * SHARE < tankHp) atk++;
+      Object.assign(M.ENGINE_MONSTERS[id], { atk }); Object.assign(M.MONSTERS[id], { atk });
     }
-    const closed = after(steps, events, ids);
-    const vm = mk();
-    let vids = [];
-    const v = run(M, vm, closed ? closed.at + 4000 : 1000, { server: { hunt: HUNT }, commitMs: 10000,
-      onCommit: () => { if (!vids.length) vids = vm.map((m) => m.unitId); } });
-    const viewed = after(v.fed.steps, v.fed.events, vids);
-    console.log(`  LV-Q a Glade duo's tank falls at ${closed && closed.at} ms: after it, closed ${closed && closed.steps} hero steps / ${closed && closed.blows} blows, viewed ${viewed && viewed.steps} / ${viewed && viewed.blows}`);
-    ok('LV-Q', !!closed && !!viewed, 'the duo never lost a hero in 10 minutes (the rule needs a death)');
-    ok('LV-Q', closed && closed.steps === 0 && closed.blows === 0, `browser closed: after the death the party took ${closed && closed.steps} steps and ${closed && closed.blows} blows`);
-    ok('LV-Q', viewed && viewed.steps === 0 && viewed.blows === 0, `viewed: after the death the party took ${viewed && viewed.steps} steps and ${viewed && viewed.blows} blows on screen`);
+    try {
+      const after = (steps, events, ids) => {
+        const death = events.find((e) => e.type === 'kill' && ids.includes(e.t));
+        if (!death) return null;
+        return { at: death.atMs - T0, steps: steps.filter((s) => ids.includes(s.u) && s.atMs > death.atMs).length,
+          blows: events.filter((e) => e.atMs > death.atMs && (ids.includes(e.u) || ids.includes(e.t))).length };
+      };
+      const mis = mk();
+      const srv = server(M, mis, { hunt: HUNT });
+      const steps = [], events = [];
+      let ids = [];
+      for (let t = T0 + 10000; t <= T0 + 600000 && !mis.every((m) => m.unitId === null && m.huntSession.swingIndex > 0); t += 10000) {
+        const c = srv.commit(t);
+        if (!ids.length) ids = mis.map((m) => m.unitId);
+        if (c) { steps.push(...c.tl.hunt_track); events.push(...c.tl.hunt_events); }
+      }
+      const closed = after(steps, events, ids);
+      const vm = mk();
+      let vids = [];
+      const v = run(M, vm, closed ? closed.at + 4000 : 1000, { server: { hunt: HUNT }, commitMs: 10000,
+        onCommit: () => { if (!vids.length) vids = vm.map((m) => m.unitId); } });
+      const viewed = after(v.fed.steps, v.fed.events, vids);
+      console.log(`  LV-Q a Sewer duo's tank falls at ${closed && closed.at} ms (blows to a 1/${SHARE} of its ${tankHp} HP): after it, closed ${closed && closed.steps} hero steps / ${closed && closed.blows} blows, viewed ${viewed && viewed.steps} / ${viewed && viewed.blows}`);
+      ok('LV-Q', !!closed && !!viewed, 'the duo never lost a hero in 10 minutes (the rule needs a death)');
+      ok('LV-Q', closed && closed.steps === 0 && closed.blows === 0, `browser closed: after the death the party took ${closed && closed.steps} steps and ${closed && closed.blows} blows`);
+      ok('LV-Q', viewed && viewed.steps === 0 && viewed.blows === 0, `viewed: after the death the party took ${viewed && viewed.steps} steps and ${viewed && viewed.blows} blows on screen`);
+    } finally {
+      for (const [id, row] of keep) { Object.assign(M.ENGINE_MONSTERS[id], row); Object.assign(M.MONSTERS[id], row); }
+    }
   }
 
   { // LV-E: THE HUNT ENDS IN THE BROWSER WITHOUT FREEZING IT (Andy, live v0.2.22: "crashing in Coppercap Warrens

@@ -37,19 +37,19 @@
 //      Switched back to a hero, the monsters killed meanwhile stood (at their last drawn
 //      HP, or at 0: an empty bar) until a restart felled them anew (e-20261021-mobs, Andy #65).
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.104';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.104';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.104';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.104';
-import { floatShown } from './float-prefs.js?v=0.2.104';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.104';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.104';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.104';
-import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.104';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.104';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.104';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.104';
-import { levelOf } from '../session/character-sections.js?v=0.2.104';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.105';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.105';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.105';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.105';
+import { floatShown } from './float-prefs.js?v=0.2.105';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.105';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.105';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.105';
+import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.105';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.105';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.105';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.105';
+import { levelOf } from '../session/character-sections.js?v=0.2.105';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {

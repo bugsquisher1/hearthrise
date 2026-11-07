@@ -122,6 +122,9 @@ import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
+/* The Glade's Dangerous row, never typed: HS-8 reads its numbers from the data (v0.2.105 moved them; the formula lanes move them again). */
+const GLADE_DANGEROUS = (await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href)).GROUND_TIERS.mosslight_glade.dangerous;
+const tierPct = (pm) => Math.round((pm - 1000) / 10);
 const xpInto = (L, share) => charXpForLevel(L) + Math.ceil(share * (charXpForLevel(L + 1) - charXpForLevel(L)));
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -1619,11 +1622,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const others0 = await otherFacts();
       const d0 = await dRead();
       if (d0.v !== 'dangerous') fails.push('HS-8 the tier does not show the server’s Dangerous: ' + d0.v);
-      if (!/ packs? of 4[ ,]/.test(d0.facts)) fails.push('HS-8 the facts line does not say the pull on the server’s Dangerous: ' + d0.facts);
+      const gdPull = GLADE_DANGEROUS.pull[0], gdHarder = tierPct(GLADE_DANGEROUS.powerPm), gdXp = tierPct(GLADE_DANGEROUS.xpPm);
+      if (!new RegExp(' packs? of ' + gdPull + '[ ,]').test(d0.facts)) fails.push('HS-8 the facts line does not say the pull on the server’s Dangerous: ' + d0.facts);
       /* The note names the risk with real numbers: a lone hero's pull, the power, the biggest blow on the tier against Normal's, the XP. */
-      if (!/4 monsters a pull, hitting 20% harder, and the biggest blow here is \d+, not \d+\. Each kill earns 10% more Level XP, with the same gold and drops\. Expect a bigger food bill, and you can die\. A death ends the hunt and costs 2% of your XP\./.test(d0.note)) fails.push('HS-8 the tier note reads: ' + d0.note);
+      if (!new RegExp(gdPull + ' monsters a pull, hitting ' + gdHarder + '% harder, and the biggest blow here is \\d+, not \\d+\\. Each kill earns ' + gdXp + '% more Level XP, with the same gold and drops\\. Expect a bigger food bill, and you can die\\. A death ends the hunt and costs 2% of your XP\\.').test(d0.note)) fails.push('HS-8 the tier note reads: ' + d0.note);
       /* A pick kept from last time is said at the press: the line beside Enter. */
-      if (d0.press !== 'Dangerous: 4 monsters a pull, hitting 20% harder.') fails.push('HS-8 the line beside Enter reads: ' + d0.press);
+      if (d0.press !== 'Dangerous: ' + gdPull + ' monsters a pull, hitting ' + gdHarder + '% harder.') fails.push('HS-8 the line beside Enter reads: ' + d0.press);
       /* the save answers Dangerous (not the Deadly asked, s.onTier): what shows afterwards is the server's. The answer
          is held while the unsaved draft is read, so a slow box cannot let it land first. */
       s.holdTier = true;
@@ -1641,7 +1645,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (JSON.stringify(dSent) !== JSON.stringify([{ hunt: picked, tier: 'deadly' }])) fails.push('HS-8 two quick tier presses sent ' + JSON.stringify(dSent) + ' (want ONE intent: ' + picked + ' on Deadly)');
       if (s.calls.some((c) => c.name === 'hr_action_set_options' && c.body.p_opts && ('tier' in c.body.p_opts || 'density' in c.body.p_opts))) fails.push('HS-8 a tier went out as a setup option');
       const dAfter = await dRead();
-      if (!/ packs? of 4[ ,]/.test(dAfter.facts) || /Saving/.test(dAfter.msg)) fails.push('HS-8 after the save the line does not read the server’s Dangerous: ' + JSON.stringify(dAfter));
+      if (!new RegExp(' packs? of ' + GLADE_DANGEROUS.pull[0] + '[ ,]').test(dAfter.facts) || /Saving/.test(dAfter.msg)) fails.push('HS-8 after the save the line does not read the server’s Dangerous: ' + JSON.stringify(dAfter));
       const others1 = await otherFacts();
       if (others1 !== others0) fails.push('HS-8 a pick on ' + picked + ' moved another ground: ' + others0 + ' -> ' + others1);
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-hunts-tier.png') });

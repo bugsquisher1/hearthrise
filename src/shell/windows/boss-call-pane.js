@@ -6,12 +6,12 @@
 // quote (hr_boss_call_view, read when the page opens on it; a stale price only earns quote_changed). The press stays off
 // until a quote says yes, and says why when it doesn't. hunts.js owns the window, its status line and the run of the press.
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls } from '../../render/paint.js?v=0.2.104';
-import { whole } from '../../render/format.js?v=0.2.104';
-import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.104';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.104';
-import { callOut } from '../../session/boss-intents.js?v=0.2.104';
-import { readCall } from '../../session/boss-quote.js?v=0.2.104';
+import { text, prop, cls } from '../../render/paint.js?v=0.2.105';
+import { whole } from '../../render/format.js?v=0.2.105';
+import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.105';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.105';
+import { callOut } from '../../session/boss-intents.js?v=0.2.105';
+import { readCall } from '../../session/boss-quote.js?v=0.2.105';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false }; SCRATCH.set(cs, s); } return s; };

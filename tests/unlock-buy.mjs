@@ -614,7 +614,7 @@ async function run(mutate) {
       [{ ...base, grant: [{ kind: 'unlock', id: 'room:kitchen', amount: 1 },
         { kind: 'unlock', id: 'room:forge', amount: 1 }] }, 'multi_line_grant',
         'two ladders and one price, written to one row'],
-      [{ ...base, grant: [{ kind: 'unlock', id: 'plot:scarecrow', amount: 1 }] },
+      [{ ...base, grant: [{ kind: 'unlock', id: 'plot:any_building', amount: 1 }] },
         'namespace_unsupported:plot',
         'a namespace whose cap is the property tier and lives in no server catalogue'],
       [{ ...base, cost: [{ kind: 'currency', id: 'gold', amount: 100 },

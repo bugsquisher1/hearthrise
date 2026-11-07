@@ -15,23 +15,25 @@
 //        catalogue — and redeploying hr-accrue — is not required).
 //   2. hr_crop_plot_tier  — which PLOT TIER unlocks a crop. Source:
 //        PLOT_TIERS[t].unlocks in src/core/farm.js.
-//   3. hr_plot_tier       — the price of each plot level: deed_cost from
-//        PLOT_TIERS[t].cost, gold_cost and req_farm_level from PLOT_TIER_PRICES
-//        (src/core/farm.js). ALL THREE are emitted: a truncate + refill that names
-//        only deed_cost lets the 2026-09-06 column defaults (gold 0, level 1) price
-//        every tier at nothing (Security R1, 2026-10-15).
+//   3. hr_plot_tier       — the price of each plot level: gold_cost and
+//        req_farm_level from PLOT_TIER_PRICES (src/core/farm.js). BOTH are
+//        emitted: a truncate + refill that names neither lets the 2026-09-06
+//        column defaults (gold 0, level 1) price every tier at nothing (Security
+//        R1, 2026-10-15). The deed_cost column (the Farmer's Deed, which left the
+//        catalogue 2026-10-23) is DROPPED here, once no function body reads it
+//        (lane/c-dead-plot-deed, 2026-11-07, after 2027-03-22-dead-plot-deed.sql).
 //   4. hr_farm_yield_perk — the FLAT farmYield paid at harvest by the SERVER-
 //        owned perk stack: the Garden room rung (src/data/perks.js
-//        ROOM_PERKS.garden), the Scarecrow plot building (src/core/perks.js
-//        PLOT_PERKS.scarecrow) and any companion carrying `bonus.farmYield`
-//        (src/data/companions.js COMPANIONS).
+//        ROOM_PERKS.garden) and any companion carrying `bonus.farmYield`
+//        (src/data/companions.js COMPANIONS). (The Scarecrow's row left with the
+//        plot buildings, 2026-11-07.)
 //
 // Copying game DATA into SQL by hand is the failure src/main.js `unifyObject`
 // was written about. This file is machine-written from those single sources and
 // drift-guarded (`--check`, a preflight in tests/run-smoke.mjs), so the copy
 // cannot rot.
 //
-//   Regenerate:  node tools/gen-farm-catalogues.mjs
+//   Regenerate:  node tools/gen-farm-catalogues.mjs   (an APPLIED target is refused: --new <file>)
 //   Verify:      node tools/gen-farm-catalogues.mjs --check   (run in run-smoke)
 //
 // DELIBERATELY NOT HERE (documented UNDER-pay of farmYield — the safe direction
@@ -46,15 +48,18 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { PLOT_TIERS, PLOT_TIER_PRICES, MAX_PLOT_LEVEL, REGROW_LIMITS } from '../src/core/farm.js';
 import { ROOM_PERKS } from '../src/data/perks.js';
-import { PLOT_PERKS } from '../src/core/perks.js';
 import { COMPANIONS } from '../src/data/companions.js';
 import { CROPS } from '../src/data/gathering.js';
+import { generatedTarget } from './lib/generated-target.mjs';
+import { makeDie } from './lib/slice-literal.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* DEMOLITION REGEN (2026-10-14, Master Design Reference §9): the farm-yield perk
-   table is re-emitted into a NEW, LAST-registered file (the Garden and Scarecrow
-   farmYield left); 2026-08-22-farm-catalogues.generated.sql stays in the chain. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-farm-catalogues.generated.sql');
+const argv = process.argv.slice(2);
+const CHECK = argv.includes('--check');
+/* THE OUTPUT: the newest migration this tool wrote, in apply order (tools/lib/generated-target.mjs); an
+   APPLIED one is never rewritten. 2026-08-22-farm-catalogues.generated.sql and
+   2026-10-23-demolition-farm-catalogues.generated.sql stay in the chain as APPLIED history. */
+const OUT = generatedTarget(ROOT, 'gen-farm-catalogues.mjs', argv, { write: !CHECK, die: makeDie('gen-farm-catalogues') });
 
 // ── 0. crop → finite regrow limit (0 for a non-regrow crop) ─────────────
 // A regrowing crop MUST carry a finite (>0) limit; the assertion below and the
@@ -92,19 +97,16 @@ function cropPlotTiers() {
   return [...seen.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-// ── 2. plot level → DEEDS required to REACH it (PLOT_TIERS[lv].cost) ─────
+// ── 2. plot level → its GOLD price and FARMING gate (PLOT_TIER_PRICES) ───
+// Level 1 is the starting state: free and ungated. Every level above it is priced.
 function plotTierCosts() {
   const rows = [];
   for (let lv = 1; lv <= MAX_PLOT_LEVEL; lv++) {
-    const c = PLOT_TIERS[lv].cost;
-    if (!Number.isInteger(c) || c < 0) throw new Error(`PLOT_TIERS[${lv}].cost is not a non-negative int: ${c}`);
-    const p = lv === 1 ? { gold: 0, farming: 1, deeds: 0 } : PLOT_TIER_PRICES[lv];
+    const p = lv === 1 ? { gold: 0, farming: 1 } : PLOT_TIER_PRICES[lv];
     if (!p || !Number.isInteger(p.gold) || !Number.isInteger(p.farming)) throw new Error(`PLOT_TIER_PRICES[${lv}] missing`);
     if (lv > 1 && (p.gold <= 0 || p.farming <= 1)) throw new Error(`plot level ${lv} is unpriced (gold ${p.gold}, farming ${p.farming})`);
-    if (p.deeds !== c) throw new Error(`plot level ${lv}: PLOT_TIER_PRICES deeds ${p.deeds} != PLOT_TIERS cost ${c}`);
-    rows.push([lv, c, p.gold, p.farming]);
+    rows.push([lv, p.gold, p.farming]);
   }
-  if (rows[0][1] !== 0) throw new Error('level 1 must cost 0 deeds (the starting state)');
   return rows;
 }
 
@@ -118,9 +120,6 @@ function yieldPerks() {
     if (!Number.isInteger(v) || v < 0) throw new Error(`garden rung ${i + 1} farmYield not a non-negative int: ${v}`);
     rows.push([`garden:${i + 1}`, v]);
   });
-  const sc = (PLOT_PERKS.scarecrow && PLOT_PERKS.scarecrow.farmYield) || 0;
-  if (!Number.isInteger(sc) || sc < 0) throw new Error(`scarecrow farmYield not a non-negative int: ${sc}`);
-  rows.push(['scarecrow', sc]);
   for (const id of Object.keys(COMPANIONS).sort()) {
     const v = COMPANIONS[id].bonus && COMPANIONS[id].bonus.farmYield;
     if (v === undefined || v === null) continue;
@@ -141,8 +140,8 @@ export function render() {
     .update(JSON.stringify({ regrow, crops, tiers, perks })).digest('hex');
   const regrowV = regrow.map(([id, v]) => `  ('${id}', ${v})`).join(',\n');
   const cropsV = crops.map(([id, t]) => `  ('${id}', ${t})`).join(',\n');
-  const tiersV = tiers.map(([lv, c, g, r]) => `  (${lv}, ${c}, ${g}, ${r})`).join(',\n');
-  const tierChecks = tiers.filter(([lv]) => lv > 1).map(([lv, , g, r]) =>
+  const tiersV = tiers.map(([lv, g, r]) => `  (${lv}, ${g}, ${r})`).join(',\n');
+  const tierChecks = tiers.filter(([lv]) => lv > 1).map(([lv, g, r]) =>
     `  if not exists (select 1 from public.hr_plot_tier where plot_level = ${lv} and gold_cost = ${g} and req_farm_level = ${r}) then\n`
     + `    raise exception 'plot level ${lv} is not priced at ${g} gold / farming ${r}'; end if;`).join('\n');
   const perksV = perks.map(([k, v]) => `  ('${k}', ${v})`).join(',\n');
@@ -150,19 +149,19 @@ export function render() {
 -- Hearthrise — THE SERVER FARM-GATE CATALOGUES  (GENERATED — DO NOT EDIT)
 --
 --   Generated by tools/gen-farm-catalogues.mjs from src/core/farm.js,
---   src/data/gathering.js, src/data/perks.js, src/core/perks.js and
---   src/data/companions.js. Any hand edit is reverted by the next generation
---   and FAILS \`node tools/gen-farm-catalogues.mjs --check\` (a preflight in
---   tests/run-smoke.mjs).
+--   src/data/gathering.js, src/data/perks.js and src/data/companions.js. Any
+--   hand edit is reverted by the next generation and FAILS
+--   \`node tools/gen-farm-catalogues.mjs --check\` (a preflight in tests/run-smoke.mjs).
 --
 --   farm-catalogue digest: ${digest}
 --   ${regrow.length} crops (${nRegrowFinite} finite perennials) · ${crops.length} crop plot-tiers · ${tiers.length} plot levels · ${perks.length} yield perks
 --
--- Read by hr_farm_plant / hr_farm_harvest / hr_farm_water / hr_farm_upgrade_plot
--- (2026-08-22-server-farming-complete.sql). Numbers only; no client value
--- crosses. Idempotent: truncate+insert / update inside the migration
--- transaction. Apply BEFORE the RPC migration (which asserts every regrowing
--- crop carries a finite regrow_limit).
+-- Read by hr_farm_plant / hr_farm_harvest / hr_farm_water / hr_farm_upgrade_plot /
+-- hr_farm_land_view. Numbers only; no client value crosses. Idempotent:
+-- truncate+insert / update inside the migration transaction. hr_plot_tier is
+-- priced in GOLD only: its deed_cost column (the Farmer's Deed, which left the
+-- catalogue 2026-10-23) is dropped below, and the drop REFUSES while any
+-- function body still reads it (2027-03-22-dead-plot-deed.sql restates them).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── hr_crops.regrow_limit — the finite-perennial cap ─────────────────────
@@ -196,8 +195,7 @@ begin
   end if;
   if to_regclass('public.hr_plot_tier') is null then
     create table public.hr_plot_tier (
-      plot_level int primary key check (plot_level between 1 and ${MAX_PLOT_LEVEL}),
-      deed_cost  int not null check (deed_cost >= 0)
+      plot_level int primary key check (plot_level between 1 and ${MAX_PLOT_LEVEL})
     );
     alter table public.hr_plot_tier enable row level security;
   end if;
@@ -228,8 +226,21 @@ ${cropsV};
 
 alter table public.hr_plot_tier add column if not exists gold_cost      bigint not null default 0;
 alter table public.hr_plot_tier add column if not exists req_farm_level int    not null default 1;
+-- THE DEED'S PRICE COLUMN GOES (lane/c-dead-plot-deed, 2026-11-07), never under a reader: a body that still
+-- read it would fail every plot upgrade from this apply on.
+do $$
+declare v_fns text;
+begin
+  select string_agg(p.oid::regprocedure::text, ', ' order by p.oid::regprocedure::text) into v_fns
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and strpos(p.prosrc, 'deed_cost') > 0;
+  if v_fns is not null then
+    raise exception 'PRECONDITION: % still read(s) hr_plot_tier.deed_cost: apply 2027-03-22-dead-plot-deed.sql first', v_fns;
+  end if;
+end $$;
+alter table public.hr_plot_tier drop column if exists deed_cost;
 truncate table public.hr_plot_tier;
-insert into public.hr_plot_tier (plot_level, deed_cost, gold_cost, req_farm_level) values
+insert into public.hr_plot_tier (plot_level, gold_cost, req_farm_level) values
 ${tiersV};
 
 truncate table public.hr_farm_yield_perk;
@@ -257,9 +268,13 @@ begin
     where not exists (select 1 from public.hr_crops k where k.crop_id = c.crop_id);
   if v_bad > 0 then raise exception '% plot-tier crops are absent from hr_crops', v_bad; end if;
 
-  -- Level 1 must be free; no client write policy may exist on a catalogue.
-  if (select deed_cost from public.hr_plot_tier where plot_level = 1) <> 0 then
-    raise exception 'plot level 1 must cost 0 deeds';
+  -- Level 1 must be free and ungated; the deed's price column is gone; no client write policy may exist on a catalogue.
+  if not exists (select 1 from public.hr_plot_tier where plot_level = 1 and gold_cost = 0 and req_farm_level = 1) then
+    raise exception 'plot level 1 must be free and ungated';
+  end if;
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'hr_plot_tier' and column_name = 'deed_cost') then
+    raise exception 'hr_plot_tier still carries deed_cost';
   end if;
   -- Every paid tier carries its gold price and farming gate (R1: never the defaults).
 ${tierChecks}
@@ -275,11 +290,11 @@ end $$;
 }
 
 const wanted = render();
-if (process.argv.includes('--check')) {
+if (CHECK) {
   const have = await readFile(OUT, 'utf8').catch(() => '');
   if (have.replace(/\r\n/g, '\n') !== wanted.replace(/\r\n/g, '\n')) {
     console.error('gen-farm-catalogues --check FAILED: '
-      + '2026-08-22-farm-catalogues.generated.sql is stale. Run: node tools/gen-farm-catalogues.mjs');
+      + OUT.split(/[\\/]/).pop() + ' is stale. Run: node tools/gen-farm-catalogues.mjs');
     process.exit(1);
   }
   console.log('gen-farm-catalogues --check: catalogues match src/core/farm.js + gathering + perks + companions');

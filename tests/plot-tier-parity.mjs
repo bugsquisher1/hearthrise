@@ -2,17 +2,18 @@
 // tests/plot-tier-parity.mjs — THE CLIENT AND THE SERVER MAY NEVER DISAGREE
 //                              ON WHAT A PLOT TIER COSTS.
 //
-// b510 priced the farm plot tier in GOLD behind a FARMING LEVEL, with the
-// Farmer's Deed count kept as the alternative payment
+// b510 priced the farm plot tier in GOLD behind a FARMING LEVEL
 // (supabase/migrations/2026-09-06-plot-tier-reachable.sql, the ruling). The
-// price therefore exists in FOUR places that have to say the same thing:
+// Farmer's Deed was the alternative payment until it left the catalogue
+// (2026-10-23) and the server (lane/c-dead-plot-deed, 2026-11-07): the tier is
+// GOLD ONLY. The price exists in FOUR places that have to say the same thing:
 //
-//   1. the migration's §1 UPDATE           — what the database will charge
+//   1. the migration's §1 UPDATE           — what the database was first set to
 //   2. the migration's §4 self-check       — what the migration claims it set
-//   3. src/core/farm.js PLOT_TIER_PRICES   — what the House -> Plot card QUOTES
-//   4. 2026-08-22-farm-catalogues.generated.sql hr_plot_tier.deed_cost
-//                                          — the deed half, GENERATED from
-//                                            src/core/farm.js PLOT_TIERS
+//   3. src/core/farm.js PLOT_TIER_PRICES   — what the Farm window QUOTES
+//   4. the NEWEST tools/gen-farm-catalogues.mjs file's hr_plot_tier refill
+//                                          — what the chain end CHARGES,
+//                                            GENERATED from PLOT_TIER_PRICES
 //
 // A player who is quoted 500g and charged 5,000g files a bug report and is
 // right to. The RPC re-reads its own catalogue under a row lock, so a lying
@@ -25,8 +26,8 @@
 //     bought slightly BEFORE the crop it enables. The 2026-09-06 outage was a
 //     tier that gated content NOTHING could unlock; this is the property that
 //     makes it un-reintroducible.
-//   • LEVEL 1 IS FREE in both currencies (it is the starting state).
-//   • The ladder rises: gold, deeds and required level all strictly increase.
+//   • LEVEL 1 IS FREE and ungated (it is the starting state).
+//   • The ladder rises: gold and required level both strictly increase.
 //
 // Text-based ON PURPOSE. It parses the four files rather than replaying the
 // chain, so it costs milliseconds, needs no database and no credentials, and
@@ -49,10 +50,12 @@
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { newestOwned } from '../tools/lib/generated-target.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MIGRATION = join(ROOT, 'supabase', 'migrations', '2026-09-06-plot-tier-reachable.sql');
-const GENERATED = join(ROOT, 'supabase', 'migrations', '2026-08-22-farm-catalogues.generated.sql');
+/* The chain end's refill: the newest file tools/gen-farm-catalogues.mjs wrote, in apply order. */
+const GENERATED = (newestOwned(ROOT, 'gen-farm-catalogues.mjs') || {}).path;
 const CLIENT    = join(ROOT, 'src', 'core', 'farm.js');
 const GATHERING = join(ROOT, 'src', 'data', 'gathering.js');
 
@@ -95,30 +98,21 @@ export function parseClientPrices(js) {
   const m = js.match(/export const PLOT_TIER_PRICES = Object\.freeze\(\{([\s\S]*?)\}\);/);
   if (!m) throw harness('src/core/farm.js PLOT_TIER_PRICES was not found');
   const out = {};
-  const re = /(\d+):\s*Object\.freeze\(\{\s*gold:\s*(\d+),\s*deeds:\s*(\d+),\s*farming:\s*(\d+)\s*\}\)/g;
+  const re = /(\d+):\s*Object\.freeze\(\{\s*gold:\s*(\d+),\s*farming:\s*(\d+)\s*\}\)/g;
   let t;
-  while ((t = re.exec(m[1]))) out[+t[1]] = { gold: +t[2], deeds: +t[3], farming: +t[4] };
+  while ((t = re.exec(m[1]))) out[+t[1]] = { gold: +t[2], farming: +t[3] };
   if (Object.keys(out).length !== 4) {
     throw harness(`PLOT_TIER_PRICES parsed ${Object.keys(out).length} rungs, expected 4 (tiers 2..5)`);
   }
   return out;
 }
 
-/** src/core/farm.js PLOT_TIERS[].cost — the deed price the catalogue generates from. */
-export function parseClientDeeds(js) {
-  const m = js.match(/export const PLOT_TIERS = \[([\s\S]*?)\n\];/);
-  if (!m) throw harness('src/core/farm.js PLOT_TIERS was not found');
-  const costs = [...m[1].matchAll(/cost:\s*(\d+)/g)].map((x) => +x[1]);
-  if (costs.length !== 5) throw harness(`PLOT_TIERS parsed ${costs.length} costs, expected 5`);
-  return costs;   // index 0 = plot level 1
-}
-
-/** The generated catalogue's deed_cost rows. */
-export function parseGeneratedDeeds(sql) {
-  const m = sql.match(/insert into public\.hr_plot_tier \(plot_level, deed_cost\) values([\s\S]*?);/);
-  if (!m) throw harness('the generated hr_plot_tier insert was not found');
+/** The chain end's generated hr_plot_tier refill: (plot_level, gold_cost, req_farm_level) rows. */
+export function parseGeneratedPrices(sql) {
+  const m = sql.match(/insert into public\.hr_plot_tier \(plot_level, gold_cost, req_farm_level\) values([\s\S]*?);/);
+  if (!m) throw harness('the generated hr_plot_tier (plot_level, gold_cost, req_farm_level) insert was not found');
   const out = {};
-  for (const t of m[1].matchAll(/\((\d+),\s*(\d+)\)/g)) out[+t[1]] = +t[2];
+  for (const t of m[1].matchAll(/\((\d+),\s*(\d+),\s*(\d+)\)/g)) out[+t[1]] = { gold: +t[2], farming: +t[3] };
   if (Object.keys(out).length !== 5) throw harness('the generated hr_plot_tier insert is not 5 rows');
   return out;
 }
@@ -156,8 +150,7 @@ export function check(src) {
   const mig  = parseMigrationPrices(src.migration);
   const self = parseMigrationSelfCheck(src.migration);
   const cli  = parseClientPrices(src.client);
-  const deedsClient = parseClientDeeds(src.client);
-  const deedsGen    = parseGeneratedDeeds(src.generated);
+  const gen  = parseGeneratedPrices(src.generated);
   const crops   = parseCrops(src.gathering);
   const unlocks = parseTierUnlocks(src.client);
 
@@ -176,9 +169,9 @@ export function check(src) {
   // proven executed by the migration's §4(e8)); this is the authored half of
   // the same rule, so the two can never be relaxed independently.
   for (const lv of [2, 3, 4, 5]) {
-    if (mig[lv].gold === 0 && deedsGen[lv] === 0) {
-      throw fail('PRICED', `plot tier ${lv} costs nothing in either currency — an unpriced rung is the `
-        + `column DEFAULT showing through, and the server refuses it with tier_unpriced`);
+    if (mig[lv].gold === 0) {
+      throw fail('PRICED', `plot tier ${lv} costs no gold — an unpriced rung is the column DEFAULT `
+        + `showing through, and the server refuses it with tier_unpriced`);
     }
   }
 
@@ -194,35 +187,29 @@ export function check(src) {
     }
   }
 
-  // DEED-PARITY: PLOT_TIER_PRICES.deeds == PLOT_TIERS[].cost == the GENERATED
-  // catalogue. The generator is the only writer of hr_plot_tier.deed_cost, so
-  // the mirror has to track it or the fallback payment is quoted wrong.
-  for (const lv of [1, 2, 3, 4, 5]) {
-    if (deedsGen[lv] !== deedsClient[lv - 1]) {
-      throw fail('DEED-PARITY', `plot level ${lv}: the generated catalogue charges ${deedsGen[lv]} deed(s) `
-        + `but PLOT_TIERS says ${deedsClient[lv - 1]} — re-run node tools/gen-farm-catalogues.mjs`);
-    }
-    if (lv > 1 && cli[lv].deeds !== deedsGen[lv]) {
-      throw fail('DEED-PARITY', `tier ${lv}: PLOT_TIER_PRICES quotes ${cli[lv].deeds} deed(s), the catalogue `
-        + `charges ${deedsGen[lv]}`);
+  // GEN-PARITY: the chain end's GENERATED refill charges what the client quotes.
+  // tools/gen-farm-catalogues.mjs truncates and refills hr_plot_tier from
+  // PLOT_TIER_PRICES, so this is the copy the database actually holds.
+  for (const lv of [2, 3, 4, 5]) {
+    if (gen[lv].gold !== cli[lv].gold || gen[lv].farming !== cli[lv].farming) {
+      throw fail('GEN-PARITY', `tier ${lv}: the generated catalogue charges ${gen[lv].gold}g at farming `
+        + `${gen[lv].farming}, PLOT_TIER_PRICES quotes ${cli[lv].gold}g at farming ${cli[lv].farming} — `
+        + 're-run node tools/gen-farm-catalogues.mjs');
     }
   }
 
   // FREE-START: plot level 1 is the state every character begins in.
-  if (mig[1].gold !== 0 || mig[1].farming !== 1 || deedsGen[1] !== 0) {
-    throw fail('FREE-START', `plot level 1 must be free and ungated, got gold=${mig[1].gold} `
-      + `farming=${mig[1].farming} deeds=${deedsGen[1]}`);
+  if (mig[1].gold !== 0 || mig[1].farming !== 1 || gen[1].gold !== 0 || gen[1].farming !== 1) {
+    throw fail('FREE-START', `plot level 1 must be free and ungated, got gold=${mig[1].gold}/${gen[1].gold} `
+      + `farming=${mig[1].farming}/${gen[1].farming} (migration/generated)`);
   }
 
   // LADDER: every rung costs more and asks more than the one below it. A flat
   // or falling rung is either a typo or a re-price that lost a digit.
   for (const lv of [3, 4, 5]) {
-    if (!(mig[lv].gold > mig[lv - 1].gold)
-        || !(mig[lv].farming > mig[lv - 1].farming)
-        || !(deedsGen[lv] > deedsGen[lv - 1])) {
+    if (!(mig[lv].gold > mig[lv - 1].gold) || !(mig[lv].farming > mig[lv - 1].farming)) {
       throw fail('LADDER', `tier ${lv} does not cost strictly more than tier ${lv - 1} `
-        + `(gold ${mig[lv - 1].gold}->${mig[lv].gold}, farming ${mig[lv - 1].farming}->${mig[lv].farming}, `
-        + `deeds ${deedsGen[lv - 1]}->${deedsGen[lv]})`);
+        + `(gold ${mig[lv - 1].gold}->${mig[lv].gold}, farming ${mig[lv - 1].farming}->${mig[lv].farming})`);
     }
   }
 
@@ -243,10 +230,11 @@ export function check(src) {
     }
   }
 
-  return { mig, cli, deedsGen };
+  return { mig, cli, gen };
 }
 
 function readAll() {
+  if (!GENERATED) throw harness('no migration in tests/schema-apply-order.json carries "Generated by tools/gen-farm-catalogues.mjs"');
   return {
     migration: readFileSync(MIGRATION, 'utf8'),
     generated: readFileSync(GENERATED, 'utf8'),
@@ -263,28 +251,27 @@ async function checkModuleAgrees(src) {
   for (const lv of [2, 3, 4, 5]) {
     const live = mod.PLOT_TIER_PRICES[lv];
     if (!live) throw fail('CLIENT-MODULE', `PLOT_TIER_PRICES has no tier ${lv} at runtime`);
-    if (live.gold !== parsed[lv].gold || live.deeds !== parsed[lv].deeds || live.farming !== parsed[lv].farming) {
+    if (live.gold !== parsed[lv].gold || live.farming !== parsed[lv].farming || Object.keys(live).length !== 2) {
       throw fail('CLIENT-MODULE', `tier ${lv}: the parsed text says `
         + `${JSON.stringify(parsed[lv])} but the module exports ${JSON.stringify(live)}`);
     }
   }
   // And the helper the UI actually calls answers the same numbers.
   const p = mod.plotUpgradePrice(1);
-  if (!p || p.level !== 2 || p.gold !== parsed[2].gold || p.farming !== parsed[2].farming
-      || p.deeds !== parsed[2].deeds) {
+  if (!p || p.level !== 2 || p.gold !== parsed[2].gold || p.farming !== parsed[2].farming || 'deeds' in p) {
     throw fail('CLIENT-MODULE', `plotUpgradePrice(1) answered ${JSON.stringify(p)}`);
   }
   if (mod.plotUpgradePrice(mod.MAX_PLOT_LEVEL) !== null) {
     throw fail('CLIENT-MODULE', 'plotUpgradePrice at max level must be null');
   }
-  // The payment ORDER is part of the price: gold first, deeds only when short.
+  // GOLD ONLY: the gold pays, and a player short of it is refused, whatever else they hold.
   const rich = mod.plotUpgradeCheck({ plotLevel: 1, farmingLevel: 99, gold: 10000, deeds: 9 });
   if (!rich.ok || rich.pay !== 'gold') {
-    throw fail('CLIENT-MODULE', `a player with both currencies must be quoted GOLD, got ${JSON.stringify(rich)}`);
+    throw fail('CLIENT-MODULE', `a player with the gold must be quoted GOLD, got ${JSON.stringify(rich)}`);
   }
   const short = mod.plotUpgradeCheck({ plotLevel: 1, farmingLevel: 99, gold: 0, deeds: 9 });
-  if (!short.ok || short.pay !== 'deeds') {
-    throw fail('CLIENT-MODULE', `a player short of gold must fall back to deeds, got ${JSON.stringify(short)}`);
+  if (short.ok || short.error !== 'cannot_afford') {
+    throw fail('CLIENT-MODULE', `a player short of gold must be refused, never paid in deeds, got ${JSON.stringify(short)}`);
   }
   const low = mod.plotUpgradeCheck({ plotLevel: 1, farmingLevel: 1, gold: 1e9, deeds: 9 });
   if (low.ok || low.error !== 'farm_level_too_low') {
@@ -314,11 +301,11 @@ const MUTATIONS = [
   { id: 'M2', by: 'GOLD-PARITY', what: 'the client card quotes a cheaper tier 3 than the server charges',
     edit: rep('client', '3: Object.freeze({ gold: 5000,', '3: Object.freeze({ gold: 4000,') },
   { id: 'M3', by: 'LEVEL-PARITY', what: 'the client enables the button a level early',
-    edit: rep('client', 'deeds: 5, farming: 45', 'deeds: 5, farming: 44') },
-  { id: 'M4', by: 'DEED-PARITY', what: 'the deed fallback was re-priced in the mirror only',
-    edit: rep('client', 'gold: 100000, deeds: 8', 'gold: 100000, deeds: 2') },
-  { id: 'M5', by: 'DEED-PARITY', what: 'the generated catalogue moved and PLOT_TIERS did not',
-    edit: rep('generated', '  (3, 3),', '  (3, 2),') },
+    edit: rep('client', 'gold: 25000,  farming: 45', 'gold: 25000,  farming: 44') },
+  { id: 'M4', by: 'GEN-PARITY', what: 'the generated catalogue charges tier 3 below what the client quotes',
+    edit: rep('generated', '  (3, 5000, 25),', '  (3, 4000, 25),') },
+  { id: 'M5', by: 'GEN-PARITY', what: 'the generated catalogue opens tier 4 at a lower Farming level than the client says',
+    edit: rep('generated', '  (4, 25000, 45),', '  (4, 25000, 40),') },
   { id: 'M6', by: 'MIG-SELF', what: "the migration's §4 self-check was updated but its §1 UPDATE was not",
     edit: rep('migration', '(4, 25000::bigint, 45), (5, 100000::bigint, 70)) as t(lv, g, r)',
                            '(4, 26000::bigint, 45), (5, 100000::bigint, 70)) as t(lv, g, r)') },
@@ -331,12 +318,10 @@ const MUTATIONS = [
     what: "tier 2 was pushed ABOVE carrot's own farming level on BOTH sides — the tier becomes the wall "
         + 'again, which is the whole 2026-09-06 outage',
     edit: chain(rep('migration', '(2, 500::bigint, 5)', '(2, 500::bigint, 15)'),
-                rep('client', 'gold: 500,    deeds: 1, farming: 5 ', 'gold: 500,    deeds: 1, farming: 15')) },
+                rep('client', 'gold: 500,    farming: 5 ', 'gold: 500,    farming: 15')) },
   { id: 'M10', by: 'PRICED',
-    what: 'tier 2 lost both its prices (a re-price that zeroed gold while the deed row was regenerated '
-        + 'to 0) — the column defaults would hand the tier out free',
-    edit: chain(rep('migration', '(2, 500::bigint, 5)', '(2, 0::bigint, 5)'),
-                rep('generated', '  (2, 1),', '  (2, 0),')) },
+    what: 'tier 2 lost its gold price — the column default would hand the tier out free',
+    edit: rep('migration', '(2, 500::bigint, 5)', '(2, 0::bigint, 5)') },
 ];
 
 const CONTROLS = [
@@ -390,8 +375,7 @@ try {
   await checkModuleAgrees(src);
   console.log('plot-tier-parity: the four authored copies agree.');
   for (const lv of [2, 3, 4, 5]) {
-    console.log(`  tier ${lv}: ${facts.mig[lv].gold.toLocaleString('en-US')}g  or  ${facts.deedsGen[lv]} deed(s)`
-      + `   at farming ${facts.mig[lv].farming}`);
+    console.log(`  tier ${lv}: ${facts.gen[lv].gold.toLocaleString('en-US')}g   at farming ${facts.gen[lv].farming}`);
   }
 
   if (argv.includes('--selftest') || argv.includes('--mutate')) {

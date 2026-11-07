@@ -27,9 +27,9 @@
 // catalogue:
 //   · `property:homestead` grants amount 1 and is a LEVEL (tier 1 of 5)
 //   · `theme:forest`       grants amount 1 and is a FLAG
-//   · `plot:scarecrow`     grants amount 1 and is a COUNT (max 2, and
-//                          getBonus pays PER INSTANCE — two Scarecrows really
-//                          are +2 farmYield)
+//   · `plot:scarecrow`     granted amount 1 and was a COUNT (max 2, and
+//                          getBonus paid PER INSTANCE; the plot buildings were
+//                          cut 2026-11-07, the lesson stands)
 // Three identical `amount: 1` rows, three different merge rules. So NAMESPACES
 // is a declaration, and an unlock id in a namespace nobody declared FAILS
 // GENERATION rather than defaulting to anything. (This reasoning is inherited
@@ -120,11 +120,10 @@ const NAMESPACES = {
     merge: 'max', progress_kind: 'unlock',
     why: 'A tier ladder with no colon in its id — the id IS the namespace.',
   },
-  plot: {
-    merge: 'count', progress_kind: 'stat',
-    why: 'REPEATABLE. getBonus pays per INSTANCE owned, so the row holds a '
-       + 'count and additive merge is correct. Two Scarecrows are +2 farmYield.',
-  },
+  /* `plot` is NOT declared (lane/c-dead-plot-deed, 2026-11-07): the four plot
+     buildings were refused by every verb and granted by nothing, and they are cut
+     (RETIRED_UNLOCKS below). A shop row that grants a `plot:` unlock again fails
+     generation here, by name. (plot:farm_land is gen-gold-ladders.mjs's row.) */
   worker: {
     merge: 'count', progress_kind: 'stat',
     why: 'Repeatable hire, one id, no colon. Additive is correct.',
@@ -316,6 +315,8 @@ const RETIRED_UNLOCKS = Object.freeze([
   'dungeon_run:haunted_archive', 'dungeon_run:obsidian_keep', 'dungeon_run:voidbringer',
   'recipe:alpha_pattern', 'recipe:captain_recipe', 'recipe:chief_blade_recipe', 'recipe:gemcutter_note',
   'recipe:spellstone_diagram',
+  /* lane/c-dead-plot-deed (2026-11-07): the four plot buildings, refused by every verb and granted by nothing. */
+  'plot:farm_plot', 'plot:scarecrow', 'plot:toolshed', 'plot:watchtower',
 ]);
 for (const id of RETIRED_UNLOCKS) {
   if (rows.some((r) => r.unlock_id === id)) die(`retired unlock ${id} is still derived — take it off RETIRED_UNLOCKS or remove its source`);

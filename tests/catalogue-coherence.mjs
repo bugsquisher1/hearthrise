@@ -69,7 +69,12 @@
 //            it compares item_id with) is in ITEMS, or a SERVER_ITEM_DEBT row names its owner; the reached bodies are the
 //            client's RPCs, the envelope's section views and the hr-accrue engine's calls, each with every hr_ function it
 //            calls (tests/_sql-bodies.mjs, the latest body in apply order);
-//       C13b no stale debt row: its id is still named by a reached body and is still no item (shrink-only).
+//       C13b no stale debt row: its id is still named by a reached body and is still no item (shrink-only). The list is
+//            EMPTY since lane/c-dead-plot-deed (2026-11-07) cut the deed's server payment and count.
+//   C14 no shop row sells a plot building (lane/c-dead-plot-deed, 2026-11-07: the four `plot.*` rows were refused by every
+//       verb, listed by no window and granted by nothing, and the Tool Shed's +2% gatherSpeed rode an unreachable unlock):
+//       no SHOP_OFFERS row sits in the cut `plot` table or grants a `plot:` unlock. (plot:farm_land is a gold-ladder rung
+//       in src/data/gold-ladders.js, not a shop row.)
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -114,12 +119,9 @@ const realRead = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
 /* C13: item ids a server function the game reaches still compares the bag against, with no ITEMS row and so no source.
    SHRINK-ONLY like PENDING_SOURCE: a row no reached body names any more fails as stale, and no id may be added without
-   a ruling and an owner. */
-export const SERVER_ITEM_DEBT = Object.freeze({
-  farm_deed: 'lane C, systems-engineer: the Farmer\'s Deed left ITEMS with every source (demolition 2026-10-23), so the deed payment in '
-    + 'hr_farm_upgrade_plot and the deed count in hr_farm_land_view are dead; cut them with hr_plot_tier.deed_cost and src/core/farm.js '
-    + 'PLOT_TIERS cost / PLOT_TIER_PRICES deeds (tests/plot-tier-parity.mjs moves with them). The client reader dropped deeds 2026-11-07.',
-});
+   a ruling and an owner. EMPTY since lane/c-dead-plot-deed (2026-11-07): its one row, the Farmer's Deed, left the server
+   (2027-03-22-dead-plot-deed.sql), so C13a now holds with no exception at all. */
+export const SERVER_ITEM_DEBT = Object.freeze({});
 let REACHED = null;
 const reached = () => REACHED || (REACHED = reachedFunctions(latestBodies(ROOT), [...clientRpcNames(ROOT), ...serverEntryNames(ROOT)]));
 
@@ -144,6 +146,18 @@ export function serverItemFails({ bodies = BODIES_PLANT || reached(), debt = DEB
   for (const id of Object.keys(debt)) {
     if (!named.has(id)) out.push(`C13b stale SERVER_ITEM_DEBT row ${id}: no server function the game reaches names it now, delete the row`);
     else if (ITEMS[id]) out.push(`C13b stale SERVER_ITEM_DEBT row ${id}: it is an item again, delete the row`);
+  }
+  return out;
+}
+
+/* C14. The plot buildings are cut (lane/c-dead-plot-deed, 2026-11-07): every verb refused them and nothing read them, so
+   no shop row may sell one again, under the old table or any other. */
+export function plotBuildingFails(offers = SHOP_OFFERS) {
+  const out = [];
+  for (const o of offers) {
+    if (!o) continue;
+    const g = (o.grant || []).find((x) => x && x.kind === 'unlock' && typeof x.id === 'string' && x.id.startsWith('plot:'));
+    if (o.table === 'plot' || g) out.push(`C14 shop row ${o.id} sells a plot building (${g ? g.id : 'table plot'}): the plot buildings are cut and nothing reads one`);
   }
   return out;
 }
@@ -264,6 +278,8 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   fails.push(...housePriceFails());
   // C13 — no server function the game reaches trades in an item the catalogue does not hold.
   fails.push(...serverItemFails());
+  // C14 — no shop row sells a plot building.
+  fails.push(...plotBuildingFails());
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length, ...far.counts } };
 }
 
@@ -611,14 +627,29 @@ function mutate() {
     if (!b) throw new Error('hr_farm_plant is not reached: the C13 plant has no anchor');
     m.set('hr_farm_plant', b + "\n  perform 1 from public.player_inventory where item_id = 'ghost_seed';");
   }));
-  run('the deed\'s debt row is dropped while the deed payment stands', 'C13a', () => {
-    DEBT_PLANT = Object.freeze({});
+  run('the Farmer\'s Deed payment comes back to the plot tier (a c_ constant the bag is compared with)', 'C13a', () => bodiesWith((m) => {
+    const b = m.get('hr_farm_upgrade_plot');
+    if (!b) throw new Error('hr_farm_upgrade_plot is not reached: the C13 deed plant has no anchor');
+    m.set('hr_farm_upgrade_plot', "declare c_deed constant text := 'farm_deed';\n" + b
+      + '\n  perform 1 from public.player_inventory where item_id = c_deed;');
+  }));
+  run('a debt row is added that no server function names', 'C13b', () => {
+    DEBT_PLANT = Object.freeze({ farm_deed: 'planted' });
     return { restore: () => { DEBT_PLANT = null; } };
   });
-  run('the deed branch is cut and its debt row stays', 'C13b', () => bodiesWith((m) => {
-    for (const [fn, b] of m) if (bodyItemIds(b).has('farm_deed')) m.delete(fn);
-  }));
   run('the walk loses every server function', 'C13 the walk', () => bodiesWith((m) => m.clear()));
+  /* C14 — the plot buildings stay cut (lane/c-dead-plot-deed, 2026-11-07). */
+  run('the Tool Shed comes back to the shop', 'C14', () => {
+    SHOP_OFFERS.push({ id: 'plot.toolshed', table: 'plot', name: 'Tool Shed',
+      cost: [{ kind: 'currency', id: 'gold', amount: 800 }, { kind: 'item', id: 'normal_log', amount: 40 }],
+      grant: [{ kind: 'unlock', id: 'plot:toolshed', amount: 1 }], repeatable: true, max: 1 });
+    return { restore: () => { SHOP_OFFERS.pop(); } };
+  });
+  run('a room row grants a plot building', 'C14', () => {
+    const o = offerOf('room.kitchen.1'); const was = o.grant;
+    o.grant = [{ kind: 'unlock', id: 'plot:scarecrow', amount: 1 }];
+    return { restore: () => { o.grant = was; } };
+  });
 
   let bad = 0;
   for (const [name, hit] of results) {

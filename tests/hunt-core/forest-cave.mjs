@@ -223,7 +223,8 @@ const cases = {
       const h = M.hunts.HUNT_INDEX[id];
       const g = M.grounds.HUNT_GROUNDS[id];
       const n = headCount(M, g);
-      for (const b of BOSSES) delete n[b];
+      /* a room holder is no weight: the base ones by name, a pack's from its own checks.holders */
+      for (const b of [...BOSSES, ...M.packs.flatMap((p) => ((p.checks || {}).holders || []))]) delete n[b];
       const w = Object.fromEntries(h.spawns.map((s) => [s.monster, s.w]));
       for (const k of new Set([...Object.keys(n), ...Object.keys(w)])) {
         if (n[k] !== w[k]) return id + ': ' + k + ' weighs ' + w[k] + ' but its packs hold ' + (n[k] || 0);

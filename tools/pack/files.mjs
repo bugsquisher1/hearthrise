@@ -136,5 +136,8 @@ export async function fixturePack(gid, opts = {}, root = ROOT) {
     ...(has(PC.PARTY_VS_ALONE) ? { partyVsAlone: rowOf(PC.PARTY_VS_ALONE) } : {}),
     ...(has(SU.BAG_GUIDE_BY_HUNT) ? { bagGuide: plain(SU.BAG_GUIDE_BY_HUNT[gid]) } : {}),
   };
-  return { id, status: opts.status || 'open', sql: opts.sql || null, hunt, ground, map, monsters, roster, ...extra };
+  /* its room holders (placed, never a weighted spawn), as the shipped ground has them: a pack's own fact (checks.holders) */
+  const weighted = new Set(hunt.spawns.map((s) => s.monster));
+  const holders = [...placed].filter((m) => !weighted.has(m)).sort();
+  return { id, status: opts.status || 'open', sql: opts.sql || null, hunt, ground, map, monsters, roster, ...extra, ...(holders.length ? { checks: { holders } } : {}) };
 }

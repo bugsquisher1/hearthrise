@@ -56,7 +56,7 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
                same-class party would beat solo there, and the measured line the party window says (tests/party-class-xp-line.mjs)
      bagGuide  the hunt's suggested bag { tier, melee, ranged, magic } (src/data/supplies.js BAG_GUIDE_BY_HUNT's row shape)
      checks    (optional) the pack's own test facts, read only by the guards that loop over every ground: bridge [[x, y], ...]
-               (its one-tile choke, tests/hunt-core/forest-cave.mjs), dropRef { roles, full } and valueToday (its measured value pin,
+               (its one-tile choke, tests/hunt-core/forest-cave.mjs), holders [monster, ...] (its room holders, no spawn weight), dropRef { roles, full } and valueToday (its measured value pin,
                tests/hunt-core/drop-tables.mjs). Measured once, then frozen here, so a guard never needs a row typed for a new ground */
 export const PACK_STATUS = Object.freeze(['staged', 'open']);
 const ID = /^[a-z0-9_]{1,40}$/;

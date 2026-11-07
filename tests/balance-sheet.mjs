@@ -40,11 +40,11 @@ const CASES = {
   },
   'same-level-read': (B) => {
     const bad = [];
-    for (const role of B.ROLE_IDS) for (let L = 1; L <= 200; L++) for (const tier of [1, 3, 5]) {
-      const f = B.formulaStats({ level: L, role, tier }, { formula: B.STAT_FORMULA, roles: B.MONSTER_ROLES });
+    for (const role of B.ROLE_IDS) for (let L = 1; L <= 200; L++) for (const tier of [1, 3, 5]) for (const floor of [1, 16]) {
+      const f = B.formulaStats({ level: L, role, tier, floor }, { formula: B.STAT_FORMULA, roles: B.MONSTER_ROLES });
       const row = { atk: f.atk, baseAcc: f.baseAcc, tier };
       const hit = C.monsterAccuracy(row, L), want = Math.min(0.85, Math.max(0.05, f.hitVsSameLevel));
-      if (Math.abs(hit - want) > 0.0101) { bad.push(role + ' L' + L + ' T' + tier + ': to-hit ' + hit.toFixed(3) + ', the formula ' + want); break; }
+      if (Math.abs(hit - want) > 0.0101) { bad.push(role + ' L' + L + ' T' + tier + ' floor ' + floor + ': to-hit ' + hit.toFixed(3) + ', the formula ' + want); break; }
       const share = C.monsterMaxHit(row) / B.STAT_FORMULA.refHp(L), step = B.DAMAGE_SCALE_BY_TIER[tier] / B.STAT_FORMULA.refHp(L);
       if (f.atk > 1 && Math.abs(share - f.blowShare) > step) { bad.push(role + ' L' + L + ' T' + tier + ': blow ' + share.toFixed(3) + ' of HP, the formula ' + f.blowShare); break; }
     }
@@ -53,7 +53,7 @@ const CASES = {
   'blows-capped': (B) => {
     const bad = [];
     for (const role of B.ROLE_IDS) for (let L = 1; L <= 200; L++) {
-      const f = B.formulaStats({ level: L, role, tier: 2 }, { formula: B.STAT_FORMULA, roles: B.MONSTER_ROLES });
+      const f = B.formulaStats({ level: L, role, tier: 2, floor: L }, { formula: B.STAT_FORMULA, roles: B.MONSTER_ROLES });
       if (f.blowShare > B.BALANCE_SHEET.blows.regularMaxShare) { bad.push(role + ' L' + L + ': blow ' + f.blowShare + ' of a same-Level hero, cap ' + B.BALANCE_SHEET.blows.regularMaxShare); break; }
     }
     return bad;
@@ -63,7 +63,7 @@ const CASES = {
     for (const role of B.ROLE_IDS) {
       let was = null;
       for (let L = 1; L <= 200; L++) {
-        const f = B.formulaStats({ level: L, role, tier: 2 }, { formula: B.STAT_FORMULA, roles: B.MONSTER_ROLES });
+        const f = B.formulaStats({ level: L, role, tier: 2, floor: L }, { formula: B.STAT_FORMULA, roles: B.MONSTER_ROLES });
         if (was && (f.hp < was.hp || f.xp < was.xp || f.gp[1] < was.gp[1])) { bad.push(role + ' falls from Level ' + (L - 1) + ' to ' + L); break; }
         was = f;
       }
@@ -84,6 +84,16 @@ const CASES = {
     }
     if (!(B.TIER_PULL_OVERRIDES.mill_cellar && B.TIER_PULL_OVERRIDES.mill_cellar.normalOnly)) bad.push('the Mill Cellar offers a harder tier');
     for (const [g, o] of Object.entries(B.TIER_PULL_OVERRIDES)) if (!o.why) bad.push(g + '\'s override has no reason');
+    /* the engine row a ground gets: never softer than the table, the table's own on a full ground, harder the gentler the ground */
+    for (const id of ['dangerous', 'deadly']) {
+      let above = Infinity;
+      for (let floor = 1; floor <= 60; floor++) {
+        const r = B.tierRowFor(floor, id, { tiers: T, formula: B.STAT_FORMULA });
+        if (r.dmgPm < T[id].dmgPm || r.dmgPm > above) { bad.push(id + ' on a floor-' + floor + ' ground hits ' + r.dmgPm + ' permille'); break; }
+        if (floor >= B.STAT_FORMULA.ramp.to && r.dmgPm !== T[id].dmgPm) { bad.push(id + ' on a full ground is not the table\'s ' + T[id].dmgPm); break; }
+        above = r.dmgPm;
+      }
+    }
     return bad;
   },
   roster: () => {

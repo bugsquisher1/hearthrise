@@ -49,8 +49,9 @@ export function gradeGround(cells, g, rows) {
   if (floor.length) {
     const deaths = floor.reduce((s, x) => s + x.r.deaths, 0), hours = floor.reduce((s, x) => s + x.r.hours, 0);
     line('normal.deaths', 'Normal, floor alone: deaths (' + floor.length + ' ways)', deaths + ' in ' + Math.round(hours) + ' h', '0 in the sample (<= 1 per 1,000 h)', deaths === 0);
-    const worstClose = Math.max(...floor.map((x) => (12 * closeOf(x.c)) / x.r.hours));
-    line('normal.close', 'Normal, floor alone: dips under ' + S.normal.closeCallPct + '% per 12 h, worst way', worstClose.toFixed(2), '<= ' + S.normal.closeCallsPer12h, worstClose <= S.normal.closeCallsPer12h);
+    const dips = floor.reduce((s, x) => s + closeOf(x.c), 0), pooled = (12 * dips) / hours;
+    const worstWay = floor.map((x) => [closeOf(x.c), who(x.c)]).sort((a, b) => b[0] - a[0])[0];
+    line('normal.close', 'Normal, floor alone: dips under ' + S.normal.closeCallPct + '% per 12 h, the 8 ways pooled (most in one way)', pooled.toFixed(2) + ' (' + dips + ' in ' + Math.round(hours) + ' h; ' + worstWay[1] + ' ' + worstWay[0] + ')', '<= ' + S.normal.closeCallsPer12h, pooled <= S.normal.closeCallsPer12h);
     const low = Math.min(...floor.map((x) => x.r.hp));
     line('normal.typical', 'Normal, floor alone: typical low point, worst way', low + '%', '>= ' + S.normal.typicalMinHpPct + '%', low >= S.normal.typicalMinHpPct);
     const margins = floor.map((x) => (x.r.margin == null ? Infinity : x.r.margin));
@@ -105,25 +106,29 @@ export function gradeGround(cells, g, rows) {
     const five = T((c) => c.cell.level === sh.floor - 5).map((c) => readCell(c));
     if (five.length) { const d = Math.min(...five.map((r) => r.deaths)), n = Math.max(...five.map((r) => r.net)); line('weight.five.' + tier, tier[0].toUpperCase() + tier.slice(1) + ', 5 under (pairs and alone): deaths (fewest) / net (best)', d + ' / ' + signed(n), '>= 1 / < 0', d >= S.weightClass.deadlyUnder.deathsMin && n < S.weightClass.deadlyUnder.netMax); }
   }
-  const pairsN = N((c) => c.heroes.length === 2 && c.cell.level >= sh.floor - 3 && c.cell.level <= sh.floor - 2).map((c) => readCell(c));
-  if (pairsN.length && facts.floorXp) { const lo = Math.min(...pairsN.map((r) => r.xp)); line('weight.normal', 'Normal, pairs 2-3 under: Level XP a head (slowest) against the floor hero', (lo / facts.floorXp).toFixed(2) + 'x, net ' + pairsN.map((r) => signed(r.net)).join(' / '), '>= ' + S.weightClass.normalUnder.xpVsFloorMin + 'x', lo / facts.floorXp >= S.weightClass.normalUnder.xpVsFloorMin); }
+  const pairsN = N((c) => c.heroes.length === 2 && c.cell.level >= sh.floor - 3 && c.cell.level <= sh.floor - 2);
+  if (pairsN.length) {
+    const ratios = pairsN.map((c) => readCell(c).xp / PACE.rate[String(c.cell.level)]), lo = Math.min(...ratios);
+    line('weight.normal', 'Normal, pairs 2-3 under: Level XP a head (slowest) against the pace of record at their own Level', lo.toFixed(2) + 'x, net ' + pairsN.map((c) => signed(readCell(c).net)).join(' / '), '>= ' + S.weightClass.normalUnder.xpVsOwnPaceMin + 'x', lo >= S.weightClass.normalUnder.xpVsOwnPaceMin);
+  }
   return { lines, facts };
 }
 
 function main() {
   const arg = (k2, d) => { const i = process.argv.indexOf('--' + k2); return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d; };
-  const cells = load(resolve(arg('in', join(HERE, 'out', 'formula'))));
+  /* --in A,B: several runs, a later folder's cell wins on a shared id (a re-run of the formula after a dial moved) */
+  const cells = [...new Map(arg('in', join(HERE, 'out', 'formula')).split(',').flatMap((d) => load(resolve(d))).map((c) => [c.id, c])).values()];
   if (process.argv.includes('--selftest')) return selftest(cells);
   const graded = arg('rows', 'F'), grounds = arg('grounds', Object.keys(SHAPE).join(',')).split(',');
+  /* the row sets shown beside the graded one: every set the run holds (T today, F the formula, others a candidate) */
+  const sets = [...new Set(cells.map((c) => c.cell.x[0]))].sort((a, b) => (a === 'T' ? -1 : b === 'T' ? 1 : a.localeCompare(b)));
   let fails = 0;
   for (const g of grounds) {
-    const by = Object.fromEntries(['T', 'F'].map((x) => [x, gradeGround(cells, g, x).lines]));
-    console.log('\n' + g + ' (graded: ' + graded + ')\n| Line | Today (T) | Formula (F) | Target |\n|---|---|---|---|');
-    for (const l of by[graded]) {
-      const other = by[graded === 'F' ? 'T' : 'F'].find((x) => x.id === l.id);
-      const mark = (x) => (x ? x.value + (x.pass === true ? '' : x.pass === false ? ' **FAIL**' : '') : '-');
-      const [t, f] = graded === 'F' ? [other, l] : [l, other];
-      console.log('| ' + l.what + ' | ' + mark(t) + ' | ' + mark(f) + ' | ' + l.target + ' |');
+    const by = Object.fromEntries(sets.map((x) => [x, gradeGround(cells, g, x).lines]));
+    console.log('\n' + g + ' (graded: ' + graded + ')\n| Line | ' + sets.join(' | ') + ' | Target |\n|---|' + sets.map(() => '---').join('|') + '|---|');
+    const mark = (x) => (x ? x.value + (x.pass === true ? '' : x.pass === false ? ' **FAIL**' : '') : '-');
+    for (const l of by[graded] || []) {
+      console.log('| ' + l.what + ' | ' + sets.map((x) => mark(by[x].find((y) => y.id === l.id))).join(' | ') + ' | ' + l.target + ' |');
       if (l.pass === false) fails++;
     }
   }

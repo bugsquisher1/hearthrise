@@ -312,9 +312,18 @@ function chainSql(root) {
 }
 
 /* A waiver is one known literal the next edge deploy removes (edge-bundled
-   files move only with that deploy). A waiver that no longer matches is stale
-   and fails the gate, so it is deleted the day its fix lands. */
-const WAIVERS = [];
+   files move only with that deploy), or a slip the text table UNCOVERED: a
+   sentence glued from pieces hid it from these rules, and moving its words into
+   src/data/text/ (lane/b-text-home) may not change them, so it waits for Tyler's
+   wording review. A waiver that no longer matches is stale and fails the gate,
+   so it is deleted the day its fix lands. */
+const WAIVERS = [
+  /* Uncovered by the move: "Needs a Fire rune for each cast: you carry none." ("' for each cast: '" was its own literal). */
+  { file: 'src/data/text/bar.js', rule: 'colon-join', text: 'Needs a § for each cast: you carry none.' },
+  { file: 'src/data/text/bar.js', rule: 'colon-join', text: 'Needs an § for each cast: you carry none.' },
+  { file: 'src/data/text/bar.js', rule: 'colon-join', text: 'Needs a § for each cast: none in this hunt, and §' },
+  { file: 'src/data/text/bar.js', rule: 'colon-join', text: 'Needs an § for each cast: none in this hunt, and §' },
+];
 const usedWaivers = new Set();
 function waived(root, f, rule, text) {
   const rel = relative(root, f).split(sep).join('/');

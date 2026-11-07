@@ -23,6 +23,7 @@ import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.106';
 import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.106';
 import { refusalWords } from './intent-words.js?v=0.2.106';
 import { skillName } from './widgets/bits.js?v=0.2.106';
+import { t } from '../render/player-text.js?v=0.2.106';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -164,9 +165,9 @@ export function storeDefault(a, rows) {
   return c.length > 1 ? c[1].id : null;
 }
 
-/** The store line in words: "then the store's, from 14 g each, paid as used". */
-export function storeWords(st) {
-  return st ? 'then the store’s ' + st.name + ', ' + st.price + ' g each, paid as used' : '';
+/** The store line in words: "then the store's Plain Fire Rune, 14 g each, paid as used" (`lead` false: without the "then"). */
+export function storeWords(st, lead = true) {
+  return st ? t(lead ? 'bar.store_then' : 'bar.store_plain', { name: st.name, price: st.price }) : '';
 }
 
 function valueWords(c, m) {

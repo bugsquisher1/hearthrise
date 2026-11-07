@@ -8,8 +8,14 @@
 // tests/text-home.mjs keeps every call site honest and ratchets the text
 // still written in code down to none.
 // ════════════════════════════════════════════════════════════════════════
+import { BAR_TEXT } from './bar.js?v=0.2.106';
 import { FARM_TEXT } from './farm.js?v=0.2.106';
+import { HOUSE_TEXT } from './house.js?v=0.2.106';
+import { ITEM_TEXT } from './item.js?v=0.2.106';
 
 export const TEXT = Object.freeze({
+  bar: BAR_TEXT,
   farm: FARM_TEXT,
+  house: HOUSE_TEXT,
+  item: ITEM_TEXT,
 });

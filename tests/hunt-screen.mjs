@@ -1934,7 +1934,7 @@ const MUTANTS = [
   ['the hub prints the server’s per-minute mana regen as /s', 'src/shell/widgets/vitals-hub.js', "regen(hero.manaPerS) : ''", "regen(hero.manaPerS * 60) : ''"],
   ['the hub prints regen with two decimals', 'src/shell/widgets/vitals-hub.js', "'+' + r.toFixed(1)", "'+' + r.toFixed(2)"],
   ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = seen ? glyphSvg(ctx.glyphs, seen.glyph) : '';", "g.innerHTML = seen && !seen.strike ? glyphSvg(ctx.glyphs, seen.glyph) : '';"],
-  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
+  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return SERVER;\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
   ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') { const c = valueOf(s, key, cs); return c === null ? null : { chase: !c }; }", "  if (key === 'chase') return null;"],
   /* Tyler 10-25: the bar is configurable IN TOWN from the server's projected picks; the client fills nothing (HS-27). */
   ['the fight panel locks a value the server sent in town (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return null;"],

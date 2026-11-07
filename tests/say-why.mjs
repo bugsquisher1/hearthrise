@@ -279,7 +279,7 @@ export const REASONS = Object.freeze({
     { cond: 'short > 0', words: "text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more.' : '')", where: 'Save colors over the envelope\'s purse: the line under it says how much more, and data-off-why on a press' },
   ],
   'src/shell/windows/house.js': [
-    { cond: '!on', words: "(you have '", where: 'each step\'s cost lines mark what is short, with your counts' },
+    { cond: '!on', words: "t('house.cost_gold_short'", where: 'each step\'s cost lines mark what is short, with your counts' },
   ],
   'src/shell/windows/tally.js': [
     { cond: '!!why || st.sc.pending || st.hunting', words: "': take tasks when you are back in town.'", where: 'the button reads Held / Full; hunting says the board is in town' },

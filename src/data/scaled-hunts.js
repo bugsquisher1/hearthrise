@@ -22,10 +22,41 @@
 //           ground, whatever its size, on the server clock (town, travel and other grounds spend nothing).
 //   TIERS   Normal and Dangerous, read at the scaled floor. Deadly is not offered while scaled (see SCALED_HUNTS.tiers).
 //
-// PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. It imports balance-sheet.js only; the ground facts
-// it needs (floor, top, fit) are restated in SCALABLE_GROUNDS and pinned to hunts.js and hunt-grounds.js by tests/scaled-hunts.mjs.
+// PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. Which grounds scale, their bands and fits, and the top
+// Level are READ from the ground data (hunt-grounds.js OPEN_GROUNDS, hunts.js bands; every ground pack folds into them), never typed
+// here, so opening a ground needs no row in this file (the ground-pack lane, CONFLICTS.md 2026-11-07).
 // ════════════════════════════════════════════════════════════════════════
 import { formulaStats, tierRowFor, GROUND_ROSTER, STAT_FORMULA, TIER_PULL_OVERRIDES } from './balance-sheet.js?v=0.2.106';
+import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.106';
+import { HUNT_INDEX } from './hunts.js?v=0.2.106';
+
+/* NAMED EXCEPTIONS a scaled ground carries, each with its why. `danger`: the share of full danger it reaches at its scaled floor.
+   A row here never makes a ground scalable: the ground data does. */
+export const SCALE_EXCEPTIONS = Object.freeze({
+  meadowbrook_thicket: Object.freeze({ danger: 0.5,
+    why: 'its wolves run down a lone archer. At full danger a lone bow at the leader\'s Level died once and dipped under 25% HP 12 times in 4 h (0 and 2 at half)' }),
+});
+
+/**
+ * WHICH GROUNDS SCALE, from the ground data: every open ground with a formula roster whose band ends under the top open ground's
+ * band, and the top Level a ground scales to (that band's end). The top ground has nothing above it to stay under. Each ground
+ * reads { floor, top } from its hunt's band and `fit` the way the tier table reads it (a pocket that needs a party, else groupFit).
+ * Pure: `open` is hunt-grounds.js OPEN_GROUNDS' shape, `huntIndex` hunts.js HUNT_INDEX's. Answers { topLevel, grounds: { id: row } }.
+ */
+export function scaleLadderOf(open, huntIndex, roster = GROUND_ROSTER, exceptions = SCALE_EXCEPTIONS) {
+  const bandOf = (g) => (g && huntIndex[g.hunt] && Array.isArray(huntIndex[g.hunt].band) ? huntIndex[g.hunt].band : null);
+  const rows = Object.entries(open).filter(([, g]) => bandOf(g));
+  const topLevel = Math.max(...rows.map(([, g]) => bandOf(g)[1]));
+  const grounds = {};
+  for (const [id, g] of rows) {
+    const [floor, top] = bandOf(g);
+    if (top >= topLevel || !roster[id]) continue;
+    const fit = (g.pockets || []).some((p) => p.minParty) ? 'party' : g.groupFit || 'both';
+    grounds[id] = Object.freeze({ floor, top, fit, ...(exceptions[id] || {}) });
+  }
+  return { topLevel, grounds: Object.freeze(grounds) };
+}
+const LADDER = scaleLadderOf(OPEN_GROUNDS, HUNT_INDEX);
 
 export const SCALED_HUNTS = Object.freeze({
   /* the slider: whole hours, 1 to 24 a purchase (Tyler 11-07 "up to 24 hours") */
@@ -36,8 +67,8 @@ export const SCALED_HUNTS = Object.freeze({
   bankMaxHours: 24,
   /* the buy RPC's clamp: hours a hero may buy a server day, every ground together (a refill of two banks, and more than a day's stamina) */
   buyMaxHoursPerDay: 48,
-  /* the highest Level a ground scales to: the top of the highest open ground's band (the Coppercap Warrens, 32 to 50) */
-  topLevel: 50,
+  /* the highest Level a ground scales to: the top of the highest open ground's band (today the Coppercap Warrens, 32 to 50) */
+  topLevel: LADDER.topLevel,
   /* Level XP a kill, permille of the formula's at the scaled Level. 800: the scaled Glade's four at 50 read 1.13x the Warrens' XP at
      the formula's own (its layout kills fast); at 800 every tested gap reads 0.5-0.9x the right-Level ground */
   xpPm: 800,
@@ -54,17 +85,9 @@ export const SCALED_HUNTS = Object.freeze({
   tiers: Object.freeze(['normal', 'dangerous']),
 });
 
-/* EVERY GROUND THAT CAN BE SCALED: each open ground under the top one, so every early monster's bestiary can be finished at XP worth
-   having. The Warrens (the top, 32 to 50) has nothing above it to stay under. `floor` and `top` are hunts.js's band, `fit` is who
-   the ground is built for (hunt-tiers.js fitOf). `danger` (optional): the share of full danger a scaled ground reaches, with its why. */
-export const SCALABLE_GROUNDS = Object.freeze({
-  mill_cellar: Object.freeze({ floor: 1, top: 8, fit: 'both' }),
-  meadowbrook_thicket: Object.freeze({ floor: 5, top: 15, fit: 'both', danger: 0.5,
-    why: 'its wolves run down a lone archer. At full danger a lone bow at the leader\'s Level died once and dipped under 25% HP 12 times in 4 h (0 and 2 at half)' }),
-  wickstead: Object.freeze({ floor: 8, top: 18, fit: 'solo' }),
-  millrace_sewer: Object.freeze({ floor: 8, top: 25, fit: 'party' }),
-  mosslight_glade: Object.freeze({ floor: 16, top: 31, fit: 'solo' }),
-});
+/* EVERY GROUND THAT CAN BE SCALED, from the ground data (scaleLadderOf): today the Mill Cellar, the Thicket, Wickstead, the Sewer and
+   the Glade. { id: { floor, top, fit, danger?, why? } } */
+export const SCALABLE_GROUNDS = LADDER.grounds;
 
 /** The Level a ground is fought at for a party led by a hero of `leaderLevel`, or null when it can't be scaled for them. */
 export function scaleLevelFor(groundId, leaderLevel) {

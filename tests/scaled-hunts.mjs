@@ -8,7 +8,10 @@
 // One seed, one hour a way, the same dice in every cell (paired): a lone hero is the median of hammer, bow and mage; a four is tank, healer,
 // bow and mage. Every number is Level XP or net gold (coin + commons - the store bill) a hero an hour, Normal.
 //
-//   rules        pure: when a ground scales (past its band's top, never past topLevel, the Warrens never), SCALABLE_GROUNDS restates
+//   derived      pure: the scalable grounds and topLevel are READ from the ground data, never typed in scaled-hunts.js. A test-only
+//                ground opened above the top is picked up (it becomes the top, the Warrens becomes scalable), and the module's
+//                source restates no band (the ground-pack lane must open a ground without a row there; CONFLICTS.md 2026-11-07)
+//   rules        pure: when a ground scales (past its band's top, never past topLevel, the Warrens never), SCALABLE_GROUNDS agrees with
 //                hunts.js and hunt-grounds.js, scaledRow is the formula at the scaled Level with the dials, its drops are the row's,
 //                scaledMonsters is the roster's rows, the tier rows are the sheet's at the scaled floor (no Deadly), the slider's words are the rows'
 //                ratios, the price is whole and climbs, the buy's catalogue refuses a bad number of hours
@@ -131,6 +134,31 @@ function coinScales(S, cells, tag) {
   if (!(commons >= BAR.commonsPerKill[0] && commons <= BAR.commonsPerKill[1])) bad.push(gid + ' L' + L + ': commons a kill ' + commons.toFixed(2) + 'x the ground unscaled (drops must not scale)');
   return bad;
 }
+/* THE GROUND DATA IS THE LIST: the module's table is scaleLadderOf on the open grounds, a ground opened above the top is picked up,
+   and no band, floor or top Level is typed in the module's source. `S.__src`: a mutant's source text. */
+const SRC = readFileSync(join(ROOT, 'src/data/scaled-hunts.js'), 'utf8');
+function derived(S) {
+  const bad = [];
+  const now = S.scaleLadderOf(G.OPEN_GROUNDS, HUNT_INDEX);
+  if (JSON.stringify(now.grounds) !== JSON.stringify(S.SCALABLE_GROUNDS) || now.topLevel !== S.SCALED_HUNTS.topLevel) {
+    bad.push('the module\'s table is not the ground data\'s: ' + JSON.stringify(Object.keys(S.SCALABLE_GROUNDS)) + ' top ' + S.SCALED_HUNTS.topLevel + ', the data ' + JSON.stringify(Object.keys(now.grounds)) + ' top ' + now.topLevel);
+  }
+  /* a test-only party ground opened above the Warrens, its band 50-65, with a roster */
+  const warrens = G.OPEN_GROUNDS.coppercap_warrens, extra = { ...warrens, id: 'test_slake', hunt: 'test_slake' };
+  const opened = S.scaleLadderOf({ ...G.OPEN_GROUNDS, test_slake: extra }, { ...HUNT_INDEX, test_slake: { ...HUNT_INDEX[warrens.hunt], band: [50, 65] } },
+    { ...B.GROUND_ROSTER, test_slake: B.GROUND_ROSTER.coppercap_warrens });
+  const w = opened.grounds.coppercap_warrens;
+  if (opened.topLevel !== 65) bad.push('a ground opened at 50-65 leaves the top Level at ' + opened.topLevel);
+  if (!w || w.floor !== 32 || w.top !== 50 || w.fit !== 'party') bad.push('a ground opened above the Warrens leaves the Warrens unscalable (' + JSON.stringify(w) + ')');
+  if (opened.grounds.test_slake) bad.push('the new top ground scales');
+  for (const id of Object.keys(now.grounds)) if (JSON.stringify(opened.grounds[id]) !== JSON.stringify(now.grounds[id])) bad.push(id + ' moved when a ground opened above the top');
+  /* the source: no band typed (a restated table reads `floor: 1`, `top: 8`, `topLevel: 50`) */
+  const typed = (S.__src || SRC).match(/\b(?:floor|top|topLevel)\s*:\s*\d+/g);
+  if (typed) bad.push('scaled-hunts.js types a band again: ' + typed.slice(0, 3).join(', '));
+  for (const id of Object.keys(S.SCALE_EXCEPTIONS || {})) if (!S.SCALABLE_GROUNDS[id]) bad.push('the exception ' + id + ' names a ground that does not scale');
+  return bad;
+}
+
 function rules(S) {
   const bad = [], H = S.SCALED_HUNTS;
   /* the restated ground facts are hunts.js's and hunt-grounds.js's; the scalable set is every open ground under the top one */
@@ -201,7 +229,11 @@ const rowPatch = (fn) => {
   const scaledRow = (row, id, g, L) => { const r = REAL.scaledRow(row, id, g, L); return r === row ? r : fn(r, row, g); };
   return plant({ scaledRow, scaledMonsters: (M, g, L) => Object.fromEntries(Object.keys(REAL.scaledMonsters(M, g, L)).map((id) => [id, scaledRow(M[id], id, g, L)])) });
 };
+const OLD_TABLE = Object.freeze({ topLevel: 50, grounds: REAL.SCALABLE_GROUNDS });
 const MUTANTS = [
+  ['derived', 'the list typed back in (the derivation ignores a new ground)', () => plant({ scaleLadderOf: () => OLD_TABLE })],
+  ['derived', 'the top Level typed back in the source', () => plant({ __src: SRC.replace('topLevel: LADDER.topLevel,', 'topLevel: 50,') })],
+  ['derived', 'a band restated in the source', () => plant({ __src: SRC + '\nconst THICKET = { floor: 5, top: 15 };\n' })],
   ['rules', 'the Warrens scale', () => plant({ SCALABLE_GROUNDS: { ...REAL.SCALABLE_GROUNDS, coppercap_warrens: { floor: 32, top: 50, fit: 'party' } } })],
   ['rules', 'a ground scales for a leader it still fits', () => plant({ scaleLevelFor: (g, L) => (REAL.SCALABLE_GROUNDS[g] ? Math.min(Math.max(1, Math.floor(L)), 50) : null) })],
   ['rules', 'no cap at topLevel', () => plant({ scaleLevelFor: (g, L) => { const r = REAL.scaleLevelFor(g, L); return r === null ? null : Math.floor(L); } })],
@@ -224,6 +256,7 @@ const MUTANTS = [
 const mutate = process.argv.includes('--mutate');
 let red = 0;
 const say = (name, bad) => { if (bad.length) { red++; console.error('  RED  ' + name + '\n        ' + bad.slice(0, 6).join('\n        ')); } else console.log('  ok   ' + name); };
+say('derived', derived(REAL));
 say('rules', rules(REAL));
 const t0 = Date.now();
 const cells = await play([...freeJobs(), ...scaledJobs(REAL, '')]);
@@ -240,7 +273,7 @@ say('coin-scales', coinScales(REAL, cells, ''));
   console.log('       ' + gid + ' L' + L + ': coin a kill ' + s.coinPerKill.toFixed(1) + ' vs ' + o.coinPerKill.toFixed(1) + ', commons a kill ' + s.commonsPerKill.toFixed(2) + ' vs ' + o.commonsPerKill.toFixed(2)); }
 console.log('  (' + cells.size + ' cells on the engine, ' + Math.round((Date.now() - t0) / 1000) + ' s)');
 if (mutate) {
-  const CHECK = { rules: (S) => rules(S), 'fee-guard': (S, c, t) => feeGuard(S, c, t), 'no-deaths': (S, c, t) => noDeaths(S, c, t), 'coin-scales': (S, c, t) => coinScales(S, c, t) };
+  const CHECK = { derived: (S) => derived(S), rules: (S) => rules(S), 'fee-guard': (S, c, t) => feeGuard(S, c, t), 'no-deaths': (S, c, t) => noDeaths(S, c, t), 'coin-scales': (S, c, t) => coinScales(S, c, t) };
   const made = MUTANTS.map(([name, what, make, engine], i) => ({ name, what, S: make(), tag: engine ? 'm' + i : '' }));
   /* the engine mutants' scaled cells, all on one pool run (the free cells are the module's own, reused) */
   const extra = await play(made.filter((m) => m.tag).flatMap((m) => (m.name === 'coin-scales' ? [COIN_CASE] : CASES).flatMap(([gid, L, size]) => compsOf(size).map((p) => job('scaled', gid, L, p, { whatIf: whatIfOf(m.S, gid, L) }, m.tag)))));

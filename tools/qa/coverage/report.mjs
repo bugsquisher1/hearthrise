@@ -187,7 +187,7 @@ export function reportText(R) {
     + (t.xpPerH ? ', ' + t.xpPerH + ' Level XP/h a head (pace contract ' + t.contract + ')' : '') + (t.netPerH !== null && t.netPerH !== undefined ? ', coin less store bill ' + t.netPerH + ' g/h a head' : '');
   for (const g of R.grounds) {
     L.push('- ' + g.name + ' (Levels ' + g.band.join('-') + (g.party ? ', a party ground' : '') + '): ' + g.tiers.map((t) => !t.reached ? t.tier + ' never reached'
-      : t.tier + ' ' + words(t) + (t.party && t.party !== t && t.size === 1 ? '; and ' + words(t.party) : '')).join('; '));
+      : t.tier + ' ' + words(t) + (t.party && t.party !== t && t.size === 1 ? '. And ' + words(t.party) : '')).join('. ') + '.');
   }
   L.push('');
   const never = R.items.filter((i) => i.status === 'never reached');
@@ -219,6 +219,6 @@ export function reportText(R) {
   L.push('');
   L.push('## Page checks (the browser against the server)');
   for (const n of R.pages) L.push('- ' + r1(n.hour) + ' h ' + n.hero + ' ' + n.page + ': ' + (n.failed ? 'FAILED ' + n.failed : 'Level ' + (n.levelShown ? 'shown' : 'NOT SHOWN') + ', gold ' + (n.goldShown ? 'shown' : 'NOT SHOWN')
-    + ', ' + n.stacks + ' stacks' + (n.off && n.off.length ? ', COUNTS DIFFER: ' + n.off.slice(0, 3).join('; ') : '') + (n.missing && n.missing.length ? ', MISSING: ' + n.missing.slice(0, 5).join(', ') : '') + (n.errors && n.errors.length ? ', console: ' + n.errors.slice(0, 2).join(' | ') : '')));
+    + ', ' + n.stacks + ' stacks' + (n.off && n.off.length ? ', COUNTS DIFFER: ' + n.off.slice(0, 3).join(', ') : '') + (n.missing && n.missing.length ? ', MISSING: ' + n.missing.slice(0, 5).join(', ') : '') + (n.errors && n.errors.length ? ', console: ' + n.errors.slice(0, 2).join(' | ') : '')));
   return L.join('\n') + '\n';
 }

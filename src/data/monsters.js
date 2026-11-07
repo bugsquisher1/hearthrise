@@ -802,7 +802,7 @@ export const MONSTERS = {
   carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 30, atk: 10, baseAcc: 0.8, def: 1, xp: 165, gp: [5, 12], speed: 4400,
+    hp: 30, atk: 10, baseAcc: 0.8, def: 1, xp: 165, gp: [7, 12], speed: 4400,   // floor 7 (11-07): fire now burns Sewer slimes, so the Glade's common pays more than a Sewer rat. Top stays 12, so the server's kill bound holds.
     drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0114, band: 'scarce' }, { id: 'studded_boots', ch: .0114, band: 'scarce' }, { id: 'adept_boots', ch: .0114, band: 'scarce' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */

@@ -325,9 +325,9 @@ const mutants = [
     edits: [['src/data/supply-basics.js', "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14)", "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 1)"],
       ['src/data/supply-basics.js', "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40)", "heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 1)"]] },
   { name: 'the Cellar\'s rats, slimes and wasps armoured like a Coppercap foreman (def 0 -> 60): a fresh hero cannot clear it', case: 'solo-mill_cellar',
-    edits: [['src/data/monsters.js', 'hp: 9, atk: 2, def: 0, xp: 27, gp: [1, 4], speed: 3400,', 'hp: 9, atk: 2, def: 60, xp: 27, gp: [1, 4], speed: 3400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 2, def: 0, xp: 22, gp: [1, 3], speed: 2400,', 'hp: 8, atk: 2, def: 60, xp: 22, gp: [1, 3], speed: 2400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 4, def: 0, xp: 36, gp: [1, 4],', 'hp: 8, atk: 4, def: 60, xp: 36, gp: [1, 4],']] },
+    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 18, gp: [1, 3], formula: true, speed: 3400,', 'hp: 6, atk: 3, baseAcc: 0.34, def: 60, xp: 18, gp: [1, 3], formula: true, speed: 3400,'],
+      ['src/data/monsters.js', 'hp: 9, atk: 3, baseAcc: 0.28, def: 0, xp: 30, gp: [1, 4], formula: true, speed: 2400,', 'hp: 9, atk: 3, baseAcc: 0.28, def: 60, xp: 30, gp: [1, 4], formula: true, speed: 2400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 5, baseAcc: 0.43, def: 0, xp: 29, gp: [1, 4],', 'hp: 8, atk: 5, baseAcc: 0.43, def: 60, xp: 29, gp: [1, 4],']] },
   { name: 'Thin Turnip Juice costs six times as much (a fresh Mage in the Thicket pays more than it earns)', case: 'solo-meadowbrook_thicket',
     edits: [['src/data/supply-basics.js', "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10)", "mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 60)"]] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
@@ -336,7 +336,7 @@ const mutants = [
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. */
   { name: 'the Sewer\'s Culvert Bats bite a third harder (atk 9 -> 12): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [12, 31], speed: 4400', 'hp: 70, atk: 12, def: 1, xp: 288, gp: [12, 31], speed: 4400']] },
+    edits: [['src/data/monsters.js', 'hp: 53, atk: 6, baseAcc: 0.63, def: 1, xp: 256, gp: [8, 24], formula: true, speed: 4400', 'hp: 53, atk: 8, baseAcc: 0.63, def: 1, xp: 256, gp: [8, 24], formula: true, speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');

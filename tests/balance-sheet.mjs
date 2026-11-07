@@ -152,7 +152,12 @@ const writtenGround = (nudge) => {
 };
 MUTANTS.push(['rows-are-the-formula', 'a written row one atk point off', () => ({ M: writtenGround((M, ids) => { M[ids[0]] = { ...M[ids[0]], atk: M[ids[0]].atk + 1 }; }) })]);
 MUTANTS.push(['rows-are-the-formula', 'a ground written all but one row', () => ({ M: writtenGround((M, ids) => { const { formula, ...hand } = M[ids[1]]; M[ids[1]] = hand; }) })]);
-MUTANTS.push(['rows-are-the-formula', 'a hand row flagged as the formula\'s', () => ({ M: { ...MONSTERS, slime: { ...MONSTERS.slime, formula: true }, gray_wolf: { ...MONSTERS.gray_wolf, formula: true } } })]);
+MUTANTS.push(['rows-are-the-formula', 'a hand row off every roster flagged as the formula\'s', () => {
+  const onRoster = new Set(Object.values(GEN.ROSTER).flatMap((r) => Object.keys(r)));
+  const off = Object.keys(MONSTERS).find((id) => !onRoster.has(id));
+  return { M: { ...MONSTERS, [off]: { ...MONSTERS[off], formula: true } } };
+}]);
+MUTANTS.push(['rows-are-the-formula', 'a written row\'s coin doubled', () => ({ M: { ...MONSTERS, rat_king: { ...MONSTERS.rat_king, gp: MONSTERS.rat_king.gp.map((g) => g * 2) } } })]);
 
 const mutate = process.argv.includes('--mutate');
 let red = 0;

@@ -97,7 +97,7 @@ async function main() {
   for (const g of grounds) {
     const rows = proposeGround(g, D);
     out[g] = Object.fromEntries(rows.map((r) => [r.id, r]));
-    const tiers = Object.fromEntries(['dangerous', 'deadly'].map((t) => [t, D.tierRowFor(D.floorOf(g), t, { ground: g })]));
+    const tiers = Object.fromEntries(['dangerous', 'deadly'].map((t) => [t, D.tierRowFor(D.floorOf(g), t, { ground: g, fit: D.fitOf(g) })]));
     tierRows[g] = tiers;
     console.log('\n' + g + ' (floor ' + D.floorOf(g) + '; engine tier rows: Dangerous ' + JSON.stringify(tiers.dangerous) + ', Deadly ' + JSON.stringify(tiers.deadly) + ')');
     for (const r of rows) {

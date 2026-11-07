@@ -92,7 +92,10 @@ const REFERENCE = Object.freeze({
   /* the solo spring ground (lane c-ground-16-31): a solo Melee, PROPERLY EQUIPPED (Tyler 2026-11-07, "make it 20% harder": he took the
      measured cost that the ladder kit's helm and body drops to about +6% over its bill here, so the floor is judged in the full own-tier
      set, his 10-25 words; lane/b-ground-formula writes that 20%) */
-  mosslight_glade: { roles: ['tank'], full: true },
+  mosslight_glade: { roles: ['tank'], full: true,
+    /* ...but its VALUE rules read the ladder kit TOTAL_TODAY was pinned in (3834, measured that way), like for like: the full kit kills faster and
+       would read the same loot as a rise (4,874 against the pin, +27%, lane/b-ground-formula). The pin is never moved. */
+    valueFull: false },
   /* the farm ground (lane b-greenhaven-6): a solo Melee in the ladder kit at 8, the Thicket's second door */
   wickstead: { roles: ['tank'], full: false },
 });
@@ -456,8 +459,11 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
       R.ok(x.playedMs >= H, 'profit-floor: ' + gid + ' ended after ' + (x.playedMs / 60000).toFixed(0) + ' min at its floor (' + T.ended.join(', ') + ')');
       R.ok(m >= MARGIN_MIN, 'profit-floor: ' + gid + ' at level ' + floor + ' earns ' + pct(m) + ' over its store bill, under +' + MARGIN_MIN + '%');
     }
-    const refKills = bossKillsOf(M, monsters, gid, x, (secret) => P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: ref.full, monsters, secret }));
-    row.bands = bandRules(M, P, monsters, R, gid, x, n, TOTAL_TODAY[gid], '', refKills);
+    /* the value and band rules read the kit the pin was measured in (REFERENCE valueFull), the profit rule the reference kit */
+    const vFull = ref.valueFull === undefined ? ref.full : ref.valueFull;
+    const xv = vFull === ref.full ? x : P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: vFull, monsters });
+    const refKills = bossKillsOf(M, monsters, gid, xv, (secret) => P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: vFull, monsters, secret }));
+    row.bands = bandRules(M, P, monsters, R, gid, xv, n, TOTAL_TODAY[gid], '', refKills);
     /* A PARTY GROUND's second group (the Sewer's party at the floor, the Warrens' lone hero at soloFrom) holds the bands too. */
     const alt = BAND_ALT[gid];
     if (alt) {
@@ -744,7 +750,8 @@ const playMutants = [
 ];
 const bigPullMutants = [
   { name: 'the Bear Claw at 2% (a reveal every hour or so)', rule: 'big-pull: mosslight_glade rare bear_claw', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_claw').ch = 0.02; } },
-  { name: 'the Bear Claw back at 0.19% (every 20-34 h once the yield is paid)', rule: 'big-pull: mosslight_glade rare bear_claw', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_claw').ch = 0.0019; } },
+  /* re-aimed (lane/b-ground-formula): the formula's bear falls faster, 48 an hour at the pull of 3, so 0.19% read 19.9 h, inside the band; 0.15% reads about 25 h */
+  { name: 'the Bear Claw back at 0.15% (every 25 h once the yield is paid)', rule: 'big-pull: mosslight_glade rare bear_claw', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_claw').ch = 0.0015; } },
   { name: 'the Bear Pelt at 1% (the Keep a long grind again)', rule: 'big-pull: mosslight_glade the Keep', edit: (ms) => { rowOf(ms, 'brook_bear', 'bear_pelt').ch = 0.01; } },
 ];
 /* Planted trees (src/data, src/core, the settle), played on the ground the rule names. */
@@ -794,7 +801,7 @@ const rangerMutants = [
   { name: 'the store Iron Bolt back at 2 g a shot', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/supply-basics.js', "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 1),", "shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),"]] },
   /* the mean is the guard: at this old row the fixture's one seed still read over +25%, the twelve read +23.7% */
   /* (the casters' store-fed spells lift this floor to +29.7%, so the plant is the row's pre-x1.8 coin, not [4, 18]: the bar doesn't move, lane/c-caster-starter-bars) */
-  { name: 'the Drain Rat\'s coin back at its pre-x1.8 [2, 10]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [8, 18]', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [2, 10]']] },
+  { name: 'the Drain Rat\'s coin back at its pre-x1.8 [2, 10]', dice: { millrace_sewer: 12, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [6, 18]', 'hp: 41, atk: 4, baseAcc: 0.48, def: 0, xp: 140, gp: [2, 10]']] },
 ];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',

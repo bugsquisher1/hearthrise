@@ -225,8 +225,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE KOBOLD'S LUCKY FIND (lane/t-v099-reds, 2026-11-06): 2027-03-14-jewelry is APPLIED history; the off-roster Kobold's lucky row, the Banded Signet until jewelry
    became crafted, is an Iron Helm (tests/lucky-finds.mjs: four a tier), so its hr_hunt_kill_bounds row names the helm, the same full replace. No spawn, limit, bid or
    shape moves, and no ground fields a Kobold: either order against the edge. */
-/* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-17-lucky-kobold is APPLIED history; Wickstead's and the Glade's eleven monsters are written by
-   tools/gen-ground-stats.mjs, so their hr_hunt_kill_bounds rows move (gold_max, xp_max), the same full replace. Some bounds WIDEN (the Barn Wasp, the Walking Vine, the
+/* ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula, Tyler 2026-11-07): 2027-03-17-lucky-kobold is APPLIED history; every open ground's thirty monsters are written by
+   tools/gen-ground-stats.mjs, so their hr_hunt_kill_bounds rows move (gold_max, xp_max), the same full replace. Some bounds WIDEN (the Barn Wasp, the Walking Vine, the Warrens' coin, the
    Sluicer pay more a kill), so this applies BEFORE the hr-accrue edge carrying the same src/data/monsters.js. No spawn, limit, bid or shape moves. */
 export const OUT_NAME = '2027-03-20-ground-formula-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);

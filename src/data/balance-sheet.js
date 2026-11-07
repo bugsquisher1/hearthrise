@@ -129,10 +129,17 @@ export const STAT_FORMULA = Object.freeze({
      netted 1,234 g an hour against the Sewer party's 1,900, and a lone tank at 25 earned more on Wickstead
      (forest-cave glade-between, harder-pays-more): the food the danger costs has to come back in coin. */
   gp: Object.freeze({ perHp: 0.30, lo: 0.5, hi: 1.5, danger: 0.30 }),
-  /* A PARTY GROUND (hunt-grounds.js groupFit 'party', or a pocket that needs a party) is built for four heroes'
-     damage: its rows carry this much more HP, and so this much more XP and coin a kill (today's Sewer and Warrens
-     stand 2.2-3x the solo grounds' HP at their Levels). */
-  fit: Object.freeze({ solo: 1, both: 1, party: 2.5 }),
+  /* WHO A GROUND IS BUILT FOR. A PARTY GROUND (hunt-grounds.js groupFit 'party', or a pocket that needs a party) is built
+     for four heroes' damage on one tank: its rows carry `hp` times the HP (today's Sewer and Warrens stand 2.2-3x the solo
+     grounds' at their Levels), each blow `blow` of a solo ground's (the tank takes every monster of the pull at once: on
+     the solo blow a four at the Warrens' floor sat at a 69% typical low, today 85%), `xp` of the XP a point (the four
+     earned 21-25% over today's pace at the Sewer and the Warrens), and its harder tiers lift nothing (`tierLift` false:
+     a gentle party ground's Deadly lifted to full killed its four at the floor 195 times in 16 hero-hours). Plan formula. */
+  fit: Object.freeze({
+    solo: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
+    both: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
+    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false }),
+  }),
 });
 
 /* ROLES: a monster's shape at its Level, as multipliers on the regular (hit is points added, the rest x).
@@ -230,17 +237,17 @@ export function formulaStats(spec, opts = {}) {
   if (!Number.isFinite(Number(spec.floor))) throw new Error('balance-sheet: no ground floor for a ' + spec.role);
   const L = Math.max(1, Math.floor(Number(spec.level) || 1));
   const scale = DAMAGE_SCALE_BY_TIER[spec.tier] || DAMAGE_SCALE_BY_TIER[1];
-  const fit = (F.fit && F.fit[spec.fit || 'solo']) || 1;
+  const fit = (F.fit && F.fit[spec.fit || 'solo']) || { hp: 1, blow: 1, xp: 1 };
   const dz = dangerAt(Number(spec.floor), 0, F);
   const hit = dz.hit + R.hit;
   /* a boss's blow is held under its cap of the FLOOR hero, however deep it lives */
-  const blowShare = R.floorCap ? Math.min(dz.blow * R.blow, (R.floorCap * F.refHp(Number(spec.floor))) / F.refHp(L)) : dz.blow * R.blow;
+  const blowShare = R.floorCap ? Math.min(dz.blow * R.blow, (R.floorCap * F.refHp(Number(spec.floor))) / F.refHp(L)) : dz.blow * R.blow * fit.blow;
   const atk = Math.max(1, Math.round((blowShare * F.refHp(L)) / scale));
   /* to-hit at the same-Level hero = baseAcc + (atk - L) x 0.02, so: */
   const baseAcc = Math.round((hit - (atk - L) * ACC_PER_POINT) * 100) / 100;
-  const hp = Math.max(1, Math.round(((F.hp.base || 0) + F.hp.perLevel * L) * R.hp * fit));
+  const hp = Math.max(1, Math.round(((F.hp.base || 0) + F.hp.perLevel * L) * R.hp * fit.hp));
   const def = Math.max(0, Math.round(F.def.perLevel * L * R.def));
-  const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp));
+  const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp * fit.xp));
   const mean = F.gp.perHp * (1 + (F.gp.danger || 0) * dz.ramp) * hp * R.gp;
   const gp = [Math.max(1, Math.round(mean * F.gp.lo)), Math.max(1, Math.round(mean * F.gp.hi))];
   return { hp, atk, baseAcc, def, xp, gp, hitVsSameLevel: Math.round(hit * 100) / 100, blowShare: Math.round(blowShare * 1000) / 1000 };
@@ -277,6 +284,10 @@ export const TIER_PULL_OVERRIDES = Object.freeze({
      97k on Deadly's pull of 8 (+8.6k gold, no death) against the Glade's Normal at 16-18 (72-79k), and Dangerous's pull of 3 paid every way
      at the floor 1.3-1.6x with no death (plan formula). Alone it keeps the ground as it stands, as lane/b-tier-risk found; parties keep the table's. */
   wickstead: Object.freeze({ dangerous: Object.freeze([0, 5, 5, 6]), deadly: Object.freeze([0, 8, 8, 8]), why: 'the ladder rule: a lone extra pull on soft monsters is free XP past the Glade' }),
+  /* The Thicket's Normal sits about 15% under Wickstead's (lane/c-difficulty-tiers), so its room is the stats, not more monsters, as live. */
+  meadowbrook_thicket: Object.freeze({ dangerous: Object.freeze([0, 0, 0, 0]), deadly: Object.freeze([0, 0, 0, 0]), why: 'the ladder rule: a pull of 3 at the Thicket beats Wickstead for area damage' }),
+  /* A lone hero keeps the Sewer as it stands, as live: a pull of 4 there beats the Glade for a hammer. */
+  millrace_sewer: Object.freeze({ dangerous: Object.freeze([0, 5, 5, 6]), deadly: Object.freeze([0, 8, 8, 8]), why: 'the ladder rule: a lone pull of 4 at the Sewer beats the Glade for a hammer' }),
 });
 
 /* What one swing is worth at a same-Level hero: its to-hit times its blow share, a tier's atk scaling `k` applied the engine's way
@@ -289,13 +300,15 @@ function swingWorth(floor, lift, k, F) {
 /**
  * The engine's tier row on a ground of this floor and id ({ pull, dmgPm, hpPm, xpPm }, hunt-tiers.js's shape after
  * lane/b-tier-dials): dmgPm is the atk scaling that makes a swing on this ground worth what the tier's is on a full
- * ground lifted as written; the pull is the ground's override, else the table's. opts { formula, tiers, overrides, ground }.
+ * ground lifted as written; the pull is the ground's override, else the table's. opts { formula, tiers, overrides, ground, fit }.
  */
 export function tierRowFor(floor, tierId, opts = {}) {
   const T = (opts.tiers || TIER_DIALS)[tierId];
   if (!T) throw new Error('balance-sheet: no tier ' + tierId);
   const F = opts.formula || STAT_FORMULA;
-  const want = swingWorth(floor, T.lift, T.dmgPm / 1000, F);
+  /* a party ground's tiers lift nothing (STAT_FORMULA.fit): the table's own scaling on its own Normal */
+  const fit = F.fit && F.fit[opts.fit || 'solo'];
+  const want = swingWorth(floor, fit && fit.tierLift === false ? 0 : T.lift, T.dmgPm / 1000, F);
   /* the scaling of this ground's Normal regular that reaches `want` (it only grows with k): bisection */
   let lo = 1, hi = 10;
   for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (swingWorth(floor, 0, mid, F) < want) lo = mid; else hi = mid; }

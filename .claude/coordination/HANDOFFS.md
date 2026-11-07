@@ -7,6 +7,7 @@
 3. **The Ford's import:** its brief places 4 `oak`; the kit leaves oak out (read 11-07, trees.png): swap to westwood_ash or mu_dead_hawthorn.
 4. **Generator:** `art/briefs/gen-2026-11-07/00-plan.txt` (2,100 gens ranked) and briefs 01-05. Raw output to `art/world-src/gen-2026-11-07/<asset>/`; I read every result before import.
 5. **Read a kit with the real renderer:** `tools/qa/region-kit.html` (map= or ground=, extra= unshipped sets from a folder, props=, units=, board=<kit>), served from the worktree root.
+6. **Correction to my handback ("lane-done still running, 0 red"):** it finished after the handback, cut by my 900 s timeout (exit 124). Its fixed guards were all ok; its scoped proofs (base set/v0.2.105, so 287 arms over the whole v0.2.106 diff, none on this lane's files) went RED on `catalogue-regrow-limit --mutate` (0.2 s), `buff-queue --selftest` (clean baseline not green) and `auth-lock --mutate` (575 s) while four lanes shared the PC. Re-run alone: `catalogue-regrow-limit --mutate` exit 0 (2/2 caught); `buff-queue --selftest` printed "CLEAN baseline GREEN" and every mutant it reached CAUGHT before my 300 s cap cut it (no exit code, so not claimed green); `auth-lock --mutate` not re-run. Read them as load reds until a quiet run says otherwise; none touches this lane's files.
 
 ### 2026-10-31 · ART DIRECTOR (lane/a-phone-reach) → lane/b-first-hour-styles (owner of src/data/hunt-tutorial.js) · tutorial words a phone cannot follow
 

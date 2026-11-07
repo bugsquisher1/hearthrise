@@ -47,10 +47,18 @@ const cases = {
       const pct = Math.round((100 * b.hit) / hp);
       if (pct > MAX_PCT) out.push(h.id + ': ' + b.monster + ' hits ' + b.hit + ' = ' + pct + '% of the floor hero\'s ' + hp + ' HP (max ' + MAX_PCT + '%)');
     }
-    /* the party filter is live: alone you never meet the King, so the Sewer's solo blow is a commoner's */
+    /* the party filter is live: alone you never meet the King, so the Sewer's solo blow is a commoner's. Read off the rows, not the blows
+       (lane/a-v106-reds): the reshaped Sewer gave its Cistern Spider the King's 37, so the biggest blow alone and in a pair is the same
+       monster and could no longer show who a pair meets. The monsters a pair meets and a lone hero never does (hunt-grounds.js monstersOn,
+       the read biggestBlowOn makes) must exist, and the solo blow must be none of them. */
+    const sewerGrounds = Object.values(M.grounds.HUNT_GROUNDS).filter((g) => g.hunt === 'millrace_sewer');
+    const spawns = Object.values(M.HUNTS).find((h) => h.id === 'millrace_sewer').spawns.map((s) => s.monster);
+    const met = (size) => new Set([...spawns, ...sewerGrounds.flatMap((g) => [...M.grounds.monstersOn(g, size)])]);
+    const partyOnly = [...met(2)].filter((id) => !met(1).has(id));
     const sewer1 = M.hunt['pull-cycle'].biggestBlowOn('millrace_sewer', 1);
-    const sewer2 = M.hunt['pull-cycle'].biggestBlowOn('millrace_sewer', 2);
-    if (!sewer1 || sewer1.monster === 'rat_king' || !sewer2 || sewer2.monster !== 'rat_king') out.push('the Sewer blow ignores minParty: ' + JSON.stringify([sewer1, sewer2]));
+    if (!partyOnly.length || !sewer1 || partyOnly.includes(sewer1.monster)) {
+      out.push('the Sewer blow ignores minParty: a pair alone meets ' + JSON.stringify(partyOnly) + ', the solo blow is ' + JSON.stringify(sewer1));
+    }
     return out.length ? out.join('; ') : null;
   },
   /* THE ANALYZER RATE WINDOW: the client's "per hour after N min" is the server's own window. */

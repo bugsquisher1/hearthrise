@@ -65,6 +65,8 @@
 
 import { applyClassProfiles } from './monster-classes.js?v=0.2.106';
 import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.106';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.106';
+import { foldRows } from './grounds/shape.js?v=0.2.106';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -869,6 +871,13 @@ export const MONSTERS = {
       { id: 'iron_platebody', ch: .0345, band: 'scarce' }, { id: 'studded_body', ch: .0345, band: 'scarce' }, { id: 'adept_body', ch: .0345, band: 'scarce' }, { id: 'bramble_blade', ch: .0345, band: 'scarce' },
       { id: 'road_carnelian', ch: .003, band: 'rare' }, { id: 'wolfbone_torc', ch: .003, band: 'rare' }, { id: 'fang_studs', ch: .003, band: 'rare' }] },
 };
+
+/* GROUND PACKS (src/data/grounds): each pack's new monsters join the table, a copy each (the seal below writes onto its rows).
+   An id already taken is refused (foldRows): a pack adds, it never replaces. */
+for (const [id, row] of Object.entries(foldRows('monster', {}, GROUND_PACKS, (p) => p.monsters))) {
+  if (Object.prototype.hasOwnProperty.call(MONSTERS, id)) throw new Error('ground pack: monster ' + id + ' is already taken; a pack only adds');
+  MONSTERS[id] = { ...row };
+}
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a
    plain field for every one of the twelve live readers (including the two

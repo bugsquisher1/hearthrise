@@ -533,8 +533,8 @@ cases['wickstead-solo-floor'] = async (M) => {
 
 /* The glade put back to STAGED as a whole (flag + map), so the two leak mutants below have a staged hunt to leak. */
 const RESTAGE = [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,", "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,"],
-  ['src/data/world/maps/index.js', 'meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64]);', 'meadowbrookThicket, coppercapWarrens, wickstead, sandboxHd64]);'],
-  ['src/data/world/maps/index.js', 'export const STAGED_MAPS = Object.freeze([]);', 'export const STAGED_MAPS = Object.freeze([mosslightGlade]);']];
+  ['src/data/world/maps/index.js', "meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64, ...packMaps('open')]);", "meadowbrookThicket, coppercapWarrens, wickstead, sandboxHd64, ...packMaps('open')]);"],
+  ['src/data/world/maps/index.js', "export const STAGED_MAPS = Object.freeze([...packMaps('staged')]);", "export const STAGED_MAPS = Object.freeze([mosslightGlade, ...packMaps('staged')]);"]];
 const mutants = [
   /* the glade is OPEN on its art (lane b-mosslight-art): it must stay open only while its painted ground ships */
   { name: 'the glade open on a ground no atlas carries', case: 'staged-until-art',
@@ -608,7 +608,7 @@ const mutants = [
     edits: [['src/data/world/maps/coppercap_warrens.js', "'#######...#####################################~~~~=~~~~~~##',\n    '#######...#####################################~~~~=~~~~~~##',\n    '#######...#####################################~~~~=~~~~~~##',",
       "'#######...#####################################~~~==~~~~~~##',\n    '#######...#####################################~~~==~~~~~~##',\n    '#######...#####################################~~~==~~~~~~##',"]] },
   { name: 'the full box cut to six', case: 'density-full-box',
-    edits: [['src/data/hunt-grounds.js', 'export const FULL_BOX = 8;', 'export const FULL_BOX = 6;']] },
+    edits: [['src/data/grounds/shape.js', 'export const FULL_BOX = 8;', 'export const FULL_BOX = 6;']] },
   { name: 'a weight that lies about the packs', case: 'spawn-mix',
     edits: [['src/data/hunts.js', "{ monster: 'gray_wolf', w: 10, rarity: 'common' }", "{ monster: 'gray_wolf', w: 5, rarity: 'common' }"]] },
   { name: 'a rare spawn as common as the commons', case: 'spawn-mix',

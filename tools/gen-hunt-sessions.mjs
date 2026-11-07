@@ -119,6 +119,7 @@
 // that is not `switch`, a stamina cap that is not a whole minute or a premium
 // cap below the free one, and a training id that collides with a named hunt.
 // ════════════════════════════════════════════════════════════════════════
+import { wholeViewOrRerun } from './pack/whole.mjs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -1402,7 +1403,8 @@ function selftest() {
   console.log('gen-hunt-sessions --selftest: every refusal bites; shipped data passes');
 }
 
-if (isMain(import.meta.url)) {
+/* GROUND PACKS: a whole file carries the base and the folded packs only (tools/pack/whole.mjs), so a new pack re-issues nothing */
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, OUT_NAME)) {
   if (process.argv.includes('--selftest')) {
     selftest();
   } else {

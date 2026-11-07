@@ -3,6 +3,8 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.106';
+import { foldRows } from './grounds/shape.js?v=0.2.106';
 import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.106';
 import { SLOT_DESC } from './slot-ladders.js?v=0.2.106';
 import { LIB2_DESC } from './library2-items.js?v=0.2.106';
@@ -499,3 +501,9 @@ export const ITEM_DESC = {
   'yew_rod': 'Strong yew rod that hauls in the fish lesser lines would lose',
   'yew_staff': 'Prized yew staff, a deep channel for a skilled healer',
 };
+
+/* GROUND PACKS (src/data/grounds): each pack's items say their line here too (`itemText`). An id already said is refused. */
+for (const [id, text] of Object.entries(foldRows('item text', {}, GROUND_PACKS, (p) => p.itemText))) {
+  if (Object.prototype.hasOwnProperty.call(ITEM_DESC, id)) throw new Error('ground pack: item text ' + id + ' is already said; a pack only adds');
+  ITEM_DESC[id] = text;
+}

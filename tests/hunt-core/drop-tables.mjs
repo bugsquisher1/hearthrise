@@ -89,8 +89,10 @@ const REFERENCE = Object.freeze({
   meadowbrook_thicket: { roles: ['tank'], full: false },
   millrace_sewer: { roles: ['tank'], full: false },
   coppercap_warrens: { roles: PARTY, full: true },
-  /* the solo spring ground (lane c-ground-16-31): a solo Melee in the ladder kit, the Thicket graduate it is built for */
-  mosslight_glade: { roles: ['tank'], full: false },
+  /* the solo spring ground (lane c-ground-16-31): a solo Melee, PROPERLY EQUIPPED (Tyler 2026-11-07, "make it 20% harder": he took the
+     measured cost that the ladder kit's helm and body drops to about +6% over its bill here, so the floor is judged in the full own-tier
+     set, his 10-25 words; lane/b-ground-formula writes that 20%) */
+  mosslight_glade: { roles: ['tank'], full: true },
   /* the farm ground (lane b-greenhaven-6): a solo Melee in the ladder kit at 8, the Thicket's second door */
   wickstead: { roles: ['tank'], full: false },
 });

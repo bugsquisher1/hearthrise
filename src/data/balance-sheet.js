@@ -124,8 +124,11 @@ export const STAT_FORMULA = Object.freeze({
      damage; the Cellar's first kills pay about 3 a point, the floor). */
   xp: Object.freeze({ a: 1.70, b: 0.4, min: 3.0 }),
   /* COIN a kill: the mean gold per HP point, and the spread of [lo, hi] around it (today's grounds pay about
-     0.30 g per HP at every Level). */
-  gp: Object.freeze({ perHp: 0.30, lo: 0.5, hi: 1.5 }),
+     0.30 g per HP at every Level), plus `danger` more on a ground that bites in full (by the ramp): HARDER PAYS MORE
+     (Tyler 2026-11-03 and 11-04, "harder mobs grant better loot"). Measured: at one coin rate the Glade's floor tank
+     netted 1,234 g an hour against the Sewer party's 1,900, and a lone tank at 25 earned more on Wickstead
+     (forest-cave glade-between, harder-pays-more): the food the danger costs has to come back in coin. */
+  gp: Object.freeze({ perHp: 0.30, lo: 0.5, hi: 1.5, danger: 0.30 }),
   /* A PARTY GROUND (hunt-grounds.js groupFit 'party', or a pocket that needs a party) is built for four heroes'
      damage: its rows carry this much more HP, and so this much more XP and coin a kill (today's Sewer and Warrens
      stand 2.2-3x the solo grounds' HP at their Levels). */
@@ -238,7 +241,7 @@ export function formulaStats(spec, opts = {}) {
   const hp = Math.max(1, Math.round(((F.hp.base || 0) + F.hp.perLevel * L) * R.hp * fit));
   const def = Math.max(0, Math.round(F.def.perLevel * L * R.def));
   const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp));
-  const mean = F.gp.perHp * hp * R.gp;
+  const mean = F.gp.perHp * (1 + (F.gp.danger || 0) * dz.ramp) * hp * R.gp;
   const gp = [Math.max(1, Math.round(mean * F.gp.lo)), Math.max(1, Math.round(mean * F.gp.hi))];
   return { hp, atk, baseAcc, def, xp, gp, hitVsSameLevel: Math.round(hit * 100) / 100, blowShare: Math.round(blowShare * 1000) / 1000 };
 }

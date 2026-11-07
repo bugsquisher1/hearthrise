@@ -149,7 +149,7 @@ const cellWords = (r) => r.g + ', ' + armWords(r.armId) + ', ' + r.party.join('+
 /* ── THE PROOF. Each mutant reaches the rule the way a data row or a code slip would, and plays the cell it should move. ── */
 const MUTANTS = [
   { name: 'the Sewer pays same-class parties the even share again (no 0.80)', cells: [['millrace_sewer', ['bow', 'bow']]],
-    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([800, 1000]', 'millrace_sewer: row([1000, 1000]']] },
+    edits: [['src/data/party-class-xp.js', 'millrace_sewer: row([800, 1100]', 'millrace_sewer: row([1000, 1100]']] },
   { name: 'Wickstead\'s same-class pair keeps the even share (no 0.88)', cells: [['wickstead', ['bow', 'bow']], ['wickstead', ['tank', 'tank']], ['wickstead', ['healer', 'healer']]],
     edits: [['src/data/party-class-xp.js', 'wickstead: row([880, 1070]', 'wickstead: row([1000, 1070]']] },
   { name: 'a one-class cell above the identity on one row (the Warrens)', cells: [['coppercap_warrens', ['bow', 'bow']]],
@@ -169,7 +169,7 @@ const MUTANTS = [
   { name: 'the exception never reaches the next cell: the Thicket\'s three of wands paid over the even share', cells: [['meadowbrook_thicket', LARGER.wands3]],
     edits: [['src/data/party-class-xp.js', 'row([930, 1290], [880, 1180, 1310], [940, 1100, 1150, 1180])', 'row([930, 1290], [1030, 1180, 1310], [940, 1100, 1150, 1180])']] },
   { name: 'the exception never reaches another ground: Wickstead\'s four of wands paid over the even share', cells: [['wickstead', LARGER.wands4]],
-    edits: [['src/data/party-class-xp.js', 'wickstead: row([880, 1070], [970, 1160, 1220], [970, 1200, 1240, 1270])', 'wickstead: row([880, 1070], [970, 1160, 1220], [1150, 1200, 1240, 1270])']] },
+    edits: [['src/data/party-class-xp.js', 'wickstead: row([880, 1070], [970, 1160, 1270], [970, 1200, 1240, 1270])', 'wickstead: row([880, 1070], [970, 1160, 1270], [1150, 1200, 1240, 1270])']] },
   { name: 'the row as ruled, and a four of wands past the exception\'s own 5% (a four\'s shares x1.1)', cells: [['meadowbrook_thicket', LARGER.wands4]],
     edits: [['src/core/hunt/xp-share.js', 'const paid = (raw * party * multOf(sc, h)) / 1000;', 'const paid = (raw * party * (heroes.length === 4 ? 1.1 : 1) * multOf(sc, h)) / 1000;']] },
 ];

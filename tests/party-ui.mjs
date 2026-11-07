@@ -836,7 +836,7 @@ async function pureRules(M, base) {
       [['tank', 'melee_dps'], 'meadowbrook_thicket', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in Meadowbrook Thicket.'],
       [['tank', 'melee_dps'], 'millrace_sewer', 'Your party has 1 of 4 classes: about 10% less Level XP each than hunting alone in The Sewer.'],
       [['tank', 'mage', 'healer'], 'coppercap_warrens', 'Your party has 3 of 4 classes: about 15% more Level XP each than hunting alone in Coppercap Warrens.'],
-      [['tank', 'ranger'], 'millrace_sewer', 'Your party has 2 of 4 classes: about 15% more Level XP each than hunting alone in The Sewer.'],
+      [['tank', 'ranger'], 'millrace_sewer', 'Your party has 2 of 4 classes: about 25% more Level XP each than hunting alone in The Sewer.'],
       [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', 'Your party has 4 of 4 classes: about 20% more Level XP each than hunting alone in The Sewer.'],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
       [[null, 'ranger'], 'wickstead', 'Your party has 2 of 4 classes: about 5% more Level XP each than hunting alone in Wickstead.'],
@@ -1340,8 +1340,8 @@ async function pageRules(overrides, shots) {
           const names = v.seats.map((x) => x.name + (x.lead ? '*' : '') + ':' + x.where).join('|');
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
-          /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes: 1.00). */
-          if (v.classLine !== 'Your party has 2 of 4 classes: about 15% more Level XP each than hunting alone in The Sewer. Melee, Ranger, Mage and Healer each count.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
+          /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes: 1.10). */
+          if (v.classLine !== 'Your party has 2 of 4 classes: about 25% more Level XP each than hunting alone in The Sewer. Melee, Ranger, Mage and Healer each count.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword · Melee') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');

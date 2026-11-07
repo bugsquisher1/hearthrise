@@ -1,0 +1,207 @@
+{
+  "asset": "outfit_druid-idle",
+  "brief": "art/briefs/gen-2026-11-07/05-hero-idles.txt, run per 07-next-batch.txt (batches 1-4)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-07",
+  "object_id": "e4e96180-b199-4d59-9f67-ef9aa033ce16",
+  "set": "hunt",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "94fb0449-c518-4533-af60-be83c0333046",
+      "action": "standing at rest, breathing slowly, chest rises and falls, a slight shift of weight, feet planted, the weapon and shield stay still, stays in place, nothing else appears in the frame",
+      "directions": "all 8",
+      "note": "WRONG START: this object's rotations are not the shipped druid (34 px shipped vs 32 px rotation); every loop sat 2 px off the floor. Kept in alt/r1 only for the record"
+    },
+    "r2": {
+      "tool": "animate_image (brief 05 fallback) from an upload of each shipped still, 64x64, 8 frames",
+      "action": "standing at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
+      "jobs": {
+        "south": "42e4ea02-895d-49cd-9355-9e4fcf327a37",
+        "east": "557c80f6-2dcd-4cc8-a4a8-f57fab2a0efe",
+        "north": "1da4bfb0-7c6a-4977-b967-3f2f8bf33016",
+        "west": "1ce562b7-e2dd-4c28-abef-3d3fb345dc29",
+        "south-east": "d34e95db-3d57-46a6-9ebc-60f83f45e6a0",
+        "south-west": "1b384f17-fca9-4ce9-b801-d78cbc52a41e",
+        "north-east": "896503e9-1c54-46e7-b66c-6a57c52b10e9",
+        "north-west": "34a128fb-c640-4c12-b93a-7c3f8eb7d425"
+      }
+    },
+    "r3": {
+      "tool": "animate_object v3 with custom_start_frame_base64 = the shipped still (the sheet's idle cell, 64x64), so frame_000 is the still pixel for pixel",
+      "action": "standing still at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
+      "groups": {
+        "south": "30bf6b68-1617-48ba-8d79-1811ec8fe3a5",
+        "north": "6c543ecf-181f-4e9b-b83c-11fdfc6d20e1",
+        "west": "2e7b9005-1009-482c-bef7-8b7694e5f251",
+        "south-east": "e59045fb-21f7-47c9-a481-2b05e8f4169c",
+        "south-west": "fa64a9f3-76e3-45f8-8a54-1e804c70629e",
+        "north-east": "8e83ab67-f62b-4e17-96c1-9b2cb25f107f",
+        "north-west": "a8046786-7579-4544-8e2e-cac40afbbd15"
+      }
+    }
+  },
+  "chosen": {
+    "east": "r2",
+    "south": "r2",
+    "north": "r2",
+    "south-east": "r2",
+    "north-east": "r2",
+    "west": "r3",
+    "south-west": "r3",
+    "north-west": "r3"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(shipped still, frames, 58), as port-pixellab.mjs idle lays it; feet = foot-row mask px moved, detached = px of the picked frames 3+ px off the still's body",
+    "facings": {
+      "south": {
+        "roll": "r2",
+        "picks": [
+          0,
+          8,
+          1,
+          8
+        ],
+        "steps": [
+          166,
+          182
+        ],
+        "feet": 7,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          8,
+          6,
+          8
+        ],
+        "steps": [
+          71,
+          40
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "roll": "r2",
+        "picks": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "steps": [
+          97,
+          173
+        ],
+        "feet": 4,
+        "lifted": 0,
+        "detached": 14,
+        "missed": 0
+      },
+      "west": {
+        "roll": "r3",
+        "picks": [
+          0,
+          7,
+          1,
+          7
+        ],
+        "steps": [
+          96,
+          195
+        ],
+        "feet": 5,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          73,
+          179
+        ],
+        "feet": 3,
+        "lifted": 0,
+        "detached": 2,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "r3",
+        "picks": [
+          0,
+          7,
+          8,
+          7
+        ],
+        "steps": [
+          190,
+          24
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 3,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          7,
+          8,
+          7
+        ],
+        "steps": [
+          112,
+          31
+        ],
+        "feet": 3,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r3",
+        "picks": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "steps": [
+          126,
+          219
+        ],
+        "feet": 9,
+        "lifted": 0,
+        "detached": 22,
+        "missed": 0
+      }
+    }
+  },
+  "generations": 23,
+  "flags": [
+    "ONLY EAST PASSES. The druid's staff will not hold still: it grows, sprouts a glowing tip or vanishes in every other facing across all three rolls; retry limit reached in s n w se sw ne nw",
+    "west r2 grew a glowing green ball on the staff, so r3 is kept there; north-east r2 loses the staff head in its far frame",
+    "suggest: a 2-frame loop (still + the calm near frame) for the druid, or a hand pass, rather than more rolls"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/outfit_druid-idle.png (per facing: knight walk, raw clip, change from frame 0, the laid loop) and outfit_druid-idle-loops.png (per facing s e n w se sw ne nw: own walk frame 0 or idle still, then the 4-frame loop)",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_druid --clip art/world-src/gen-2026-11-07/outfit_druid-idle"
+}

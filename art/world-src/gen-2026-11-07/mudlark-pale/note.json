@@ -1,0 +1,38 @@
+{
+  "asset": "mudlark-pale",
+  "brief": "art/briefs/gen-2026-11-07/07-next-batch.txt (DAY 1, SIDE BY SIDE: THE MUDLARK SAMPLE) on brief 01",
+  "status": "STOPPED at the retry limit (the 07 sample + 2 re-rolls). No candidate passes in every facing, so no clips were made (a clip is drawn from its body and would fail with it).",
+  "made": "2026-11-07",
+  "check": "node tools/world-art/ring-contrast.mjs art/briefs/gen-2026-11-07/refs/floor-ford-mud-64.png <rotation>  (3:1 or more); body <= 38 px; crouched",
+  "style_image": "art/briefs/gen-2026-11-07/refs/style-glade-poacher-s-48.png as upload:61e1504d-862f-4de6-9d4e-8f2d43000afb",
+  "candidates": {
+    "r3 (the files in this folder, best)": {
+      "object_id": "b0f9bca5-f91f-462d-a28a-f7dcc24f0114", "name": "S1 Mudlark (pale r3)", "tool": "create_object_pro_flash", "generations": 6,
+      "settings": { "n_directions": 8, "width": 48, "height": 48, "view": "high top-down", "seed": 11, "style_options": { "color_palette": false, "detail": true, "outline": true, "shading": true }, "style_usage": "match outline and shading style only, not its colours; the creature is smaller, crouches lower and is much paler than this figure" },
+      "prompt": "small hunched undead river scavenger squatting low on deeply bent knees, compact crouched body with thick limbs, head sunk low between the shoulders, chalk-white bleached drowned skin, off-white pale rags, a bright pale body with only light grey shading, a single thin black outline, a small pale canvas sack tied on its back, a short dark iron boathook with green copper stains in one hand, game enemy sprite",
+      "ring_contrast": { "south": 2.81, "south-east": 3.51, "east": 3.51, "north-east": 3.24, "north": 4.15, "north-west": 3.24, "west": 3.51, "south-west": 3.51 },
+      "body_h_px": { "south": 38, "south-east": 37, "east": 36, "north-east": 38, "north": 38, "north-west": 39, "west": 38, "south-west": 38 },
+      "rejects": ["south ring 2.81:1 (UNDER 3:1; its darkest ring pixels are the iron hook and the face's hollows)", "north-west 39 px (over 38)"],
+      "flags": ["the sack is pale canvas, not dark: a dark sack kept the back views under 3:1 in r1 and r2", "it stands more upright than r1 (knees bent, but not the squat of the accepted brown body)", "the hook is hidden in east and north-east"]
+    },
+    "r2 (rejected-rotations-2/)": {
+      "object_id": "abb672c0-efe5-44ee-a70a-1d8bdd06dd05", "name": "S1 Mudlark (pale r2)", "generations": 6,
+      "settings": "as r3 (color_palette false, the same style usage)",
+      "prompt": "small hunched undead river scavenger squatting low on deeply bent knees, compact crouched body, head sunk low between the shoulders, pale bleached grey-white drowned skin, washed-out pale grey rags, pale bone-white body right up to a thin black outline, light soft shading with no dark edges, a small dark brown sack of scavenged scraps tied on its back, a short dark iron boathook with green copper stains in one hand, game enemy sprite",
+      "ring_contrast": { "south": 1.99, "south-east": 1.99, "east": 1.99, "north-east": 3.08, "north": 2.57, "north-west": 1.99, "west": 1.99, "south-west": 2.23 },
+      "body_h_px": "33-38",
+      "why": "7 of 8 facings under 3:1 (ring holds mid-brown shading, the brown sack and 2 px black outline joins)"
+    },
+    "r1, the 07 sample as written (rejected-rotations-1/)": {
+      "object_id": "ab94af3e-9525-42b5-9e83-6f2474d35918", "name": "S1 Mudlark (pale)", "generations": 6,
+      "settings": { "seed": 11, "style_options": "palette, detail, outline, shading all on", "style_usage": "match palette, outline, shading only; the creature is smaller and crouches lower than this figure" },
+      "prompt": "small hunched undead river scavenger squatting low on deeply bent knees, compact crouched body, head sunk low between the shoulders, pale bleached grey-white drowned skin, washed-out pale grey rags, a dark brown lumpy sack of scavenged scraps tied on its back, a short dark iron boathook with green copper stains in one hand, dark outline, game enemy sprite",
+      "ring_contrast": "1.03-1.10 in all 8",
+      "body_h_px": "32-36",
+      "why": "with the poacher's palette matched, the pixels inside the outline are dark browns (#433a2d, #513922); the body only looks pale in its middle"
+    }
+  },
+  "generations_total": 18,
+  "review_strip": "art/review/gen-2026-11-07/mudlark-pale.png (rows: knight walk; r3; r2; r1; each s se e ne n nw w sw)",
+  "possible_ways_on": ["accept r3 with its south lifted at import (port-pixellab.mjs unit --ramps .. --lift N)", "one more roll of r3's settings for south only is not possible: a Pro Flash object makes all 8 together"]
+}

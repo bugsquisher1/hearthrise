@@ -1,0 +1,196 @@
+{
+  "asset": "outfit_ranger-idle",
+  "brief": "art/briefs/gen-2026-11-07/05-hero-idles.txt, run per 07-next-batch.txt (batches 1-4)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-07",
+  "object_id": "0934ce5c-0838-4b3e-9b53-16e9e9504489",
+  "set": "hunt",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "fb618808-1a43-4be2-8ca0-765775ef6728",
+      "action": "standing at rest, breathing slowly, chest rises and falls, a slight shift of weight, feet planted, the weapon and shield stay still, stays in place, nothing else appears in the frame",
+      "directions": "all 8"
+    },
+    "r2": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "766e44af-1706-4d82-bf4f-b9798cb255bd",
+      "action": "standing at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
+      "directions": "s e w se ne, then n nw"
+    },
+    "r3": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "dc8e00b2-567f-4c35-a9ec-e932d3f36d40",
+      "action": "standing still at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
+      "directions": "s"
+    }
+  },
+  "chosen": {
+    "north": "r2",
+    "south-west": "r1",
+    "north-west": "r1",
+    "east": "r2",
+    "west": "r2",
+    "south-east": "r2",
+    "north-east": "r2",
+    "south": "r2"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(shipped still, frames, 58), as port-pixellab.mjs idle lays it; feet = foot-row mask px moved, detached = px of the picked frames 3+ px off the still's body",
+    "facings": {
+      "south": {
+        "roll": "r2",
+        "picks": [
+          0,
+          3,
+          5,
+          3
+        ],
+        "steps": [
+          182,
+          37
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          38,
+          145
+        ],
+        "feet": 3,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          18,
+          104
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          7,
+          1
+        ],
+        "steps": [
+          16,
+          68
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          6,
+          1
+        ],
+        "steps": [
+          35,
+          71
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          3,
+          1
+        ],
+        "steps": [
+          20,
+          74
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          28,
+          98
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "steps": [
+          16,
+          15
+        ],
+        "feet": 4,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      }
+    }
+  },
+  "generations": 16,
+  "flags": [
+    "south: all three rolls redraw or move the crossbow (r1 feet 24, r2 first step 182, r3 feet 7): retry limit, best kept",
+    "north-west: r1 kept (steps 16/15) though its foot rows move 4 px; r2 was worse (feet 10)"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/outfit_ranger-idle.png (per facing: knight walk, raw clip, change from frame 0, the laid loop) and outfit_ranger-idle-loops.png (per facing s e n w se sw ne nw: own walk frame 0 or idle still, then the 4-frame loop)",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_ranger --clip art/world-src/gen-2026-11-07/outfit_ranger-idle"
+}

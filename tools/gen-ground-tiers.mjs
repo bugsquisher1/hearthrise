@@ -14,6 +14,7 @@
 //   2027-03-19-tier-risk.generated.sql (lane/b-tier-risk, Tyler 2026-11-06 "Yes, make it risky").
 //   2027-03-20-tier-dials.generated.sql (lane/b-tier-dials, Tyler 2026-11-07: a tier is a % of XP and difficulty, never gold):
 //   the shape moves to the data's dials, power_pm renamed dmg_pm and hp_pm new; every row as it stood, at hp_pm 1000.
+//   2027-03-21-sewer-deadly-xp.generated.sql (lane/a-v106-ladder): the Sewer's Deadly pays x1.22 Level XP (was x1.25), the ladder rule.
 //
 //   node tools/gen-ground-tiers.mjs            write OUT_NAME
 //   node tools/gen-ground-tiers.mjs --check    exit 1 if OUT_NAME is not what it would write
@@ -28,13 +29,22 @@
 // worst case, every swing from 16 foes at the ground's top Level, x K; at most a full box (8) strikes one hero, so the table's
 // 4000 cap is half that room at K = 3 (x3.43 at the Thicket's Deadly reads 0.57 of it).
 // ════════════════════════════════════════════════════════════════════════
+import { wholeViewOrRerun } from './pack/whole.mjs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2027-03-20-tier-dials.generated.sql';
+export const OUT_NAME = '2027-03-21-sewer-deadly-xp.generated.sql';
+/* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
+const FILE_NOTE = `-- THIS FILE (lane/a-v106-ladder, the ladder rule, tests/hunt-core/hunt-tiers.mjs): one row moves. The Millrace Sewer's Deadly
+-- pays xp_pm 1220 (was 1250): since the gentle party blow shape a lone hammer on it at the Glade's floor (16) read 78,980 Level
+-- XP an hour against the Glade's Normal 78,779, so nobody moved on. Still above its Dangerous (1200). Every other row as it stands.
+-- ORDER: after 2027-03-20-tier-dials.generated.sql (APPLIED, the shape this file keeps). Idempotent: the rename stays guarded and
+-- the rows are rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying
+-- the same src/data/balance-sheet.js follows AT ONCE.
+-- REVERSIBLE: re-apply 2027-03-20-tier-dials.generated.sql.`;
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const HARDER = ['dangerous', 'deadly'];
 const FULL_BOX_GROUNDS = ['mosslight_glade', 'coppercap_warrens'];
@@ -85,11 +95,7 @@ export function buildSql(tiers, headroom) {
 -- stays the party scale's, so more health pays no more coin or drops). HP and XP stay inside the value bound hr_hunt_apply_member
 -- reads (a window's kill XP under K x the most a Normal kill of the ground teaches, K = hr_hunt_limit('value_headroom')); damage
 -- moves only Defense XP, whose own term (16 foes a swing x K) holds the 4000 cap at a full box of 8.
--- ORDER: after lane/b-ground-formula-2's three files (2027-03-20-ground-formula-items-catalogue, -level-curve and
--- -hunt-sessions-catalogue: the monster rows these dials were measured on) and 2027-03-19-tier-risk.generated.sql (the last file
--- to write these rows under the old shape). Idempotent: the
--- rename is guarded and the rows rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
--- REVERSIBLE: rename dmg_pm back to power_pm, drop hp_pm and re-apply 2027-03-19-tier-risk.generated.sql's rows.
+${FILE_NOTE}
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
@@ -174,7 +180,10 @@ async function loadData(root) {
   const T = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v);
   const { VALUE_HEADROOM } = await import(pathToFileURL(join(root, 'src/data/hunt-sessions.js')).href + v);
   const { TIER_PULL_OVERRIDES } = await import(pathToFileURL(join(root, 'src/data/balance-sheet.js')).href + v);
-  return { tiers: T.GROUND_TIERS, overrides: TIER_PULL_OVERRIDES, headroom: VALUE_HEADROOM };
+  const { OPEN_GROUNDS } = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href + v);
+  /* the server is served OPEN grounds only: GROUND_TIERS holds a staged one too, for the grader (tools/pack.mjs check) */
+  const tiers = Object.fromEntries(Object.entries(T.GROUND_TIERS).filter(([g]) => Object.prototype.hasOwnProperty.call(OPEN_GROUNDS, g)));
+  return { tiers, overrides: TIER_PULL_OVERRIDES, headroom: VALUE_HEADROOM };
 }
 
 /* ONE FORMULA, SAID OUT LOUD: the grounds on the table as it stands, and each named exception the sheet carries. */
@@ -223,4 +232,5 @@ async function main() {
   console.log('gen-ground-tiers: wrote ' + OUT_NAME + ' (' + line + ')');
 }
 
-if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(1); });
+/* GROUND PACKS: a whole file carries the base and the folded packs only (tools/pack/whole.mjs), so a new pack re-issues nothing */
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, OUT_NAME)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(1); });

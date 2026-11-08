@@ -130,10 +130,18 @@ function judge(w) {
 async function world() {
   const D = await loadPaceData(ROOT);
   return { xpFor: XP.charXpForLevel, rows: XP.levelCurveRows(), curve: JSON.parse(JSON.stringify(LEVEL_CURVE)), snap: SNAP,
-    fingerprint: paceFingerprint(D), pace: LEVEL_PACE, D };
+    fingerprint: paceFingerprint(D, SNAP.ceiling), pace: LEVEL_PACE, D };
 }
+/* a new ground on the data: a copy of the Glade under a new id, at `band` (a ground pack's shape, src/data/grounds) */
+const withGround = (w, band) => {
+  const g = w.D.OPEN_GROUNDS.mosslight_glade;
+  /* the window sends a lone hero there across its band, as recommendation() does for the highest floor that holds a Level */
+  return paceFingerprint({ ...w.D, OPEN_GROUNDS: { ...w.D.OPEN_GROUNDS, probe_ground: { ...g, id: 'probe_ground', hunt: 'probe_hunt' } },
+    HUNT_INDEX: { ...w.D.HUNT_INDEX, probe_hunt: { ...w.D.HUNT_INDEX[g.hunt], id: 'probe_hunt', band } },
+    recommend: (L) => (L >= band[0] && L <= band[1] ? 'probe_hunt' : w.D.recommend(L)) }, w.snap.ceiling);
+};
 /* the fingerprint of the data with one monster row or the Hunts window's pick changed */
-const withMonster = (w, id, field, k) => paceFingerprint({ ...w.D, MONSTERS: { ...w.D.MONSTERS, [id]: { ...w.D.MONSTERS[id], [field]: w.D.MONSTERS[id][field] * k } } });
+const withMonster = (w, id, field, k) => paceFingerprint({ ...w.D, MONSTERS: { ...w.D.MONSTERS, [id]: { ...w.D.MONSTERS[id], [field]: w.D.MONSTERS[id][field] * k } } }, w.snap.ceiling);
 const firstGlade = (w) => Object.values(w.D.OPEN_GROUNDS).find((g) => g.id === 'mosslight_glade').pockets[0].spawns[0].monster;
 
 /* Planted defects: each must turn its claim red. */
@@ -148,7 +156,9 @@ const MUTANTS = [
   ['C1', 'the curve was re-tuned without re-measuring', { curve: (w) => { const c = JSON.parse(JSON.stringify(w.curve)); c.brackets[2].bend += 1; return c; }, rowsFollow: true }],
   ['C1', 'a Glade monster pays double XP since the measurement', { fingerprint: (w) => withMonster(w, firstGlade(w), 'xp', 2) }],
   ['C1', 'a Glade monster has 20% more HP since the measurement', { fingerprint: (w) => withMonster(w, firstGlade(w), 'hp', 1.2) }],
-  ['C1', 'the Hunts window sends a lone hero to the Warrens from Level 41', { fingerprint: (w) => paceFingerprint({ ...w.D, recommend: (L) => (L >= 41 ? 'coppercap_warrens' : w.D.recommend(L)) }) }],
+  ['C1', 'the Hunts window sends a lone hero to the Warrens from Level 41', { fingerprint: (w) => paceFingerprint({ ...w.D, recommend: (L) => (L >= 41 ? 'coppercap_warrens' : w.D.recommend(L)) }, w.snap.ceiling) }],
+  ['C1', 'a new ground opens under the ceiling (Levels 25-40)', { fingerprint: (w) => withGround(w, [25, 40]) }],
+  ['C1', 'a new ground opens one Level under the ceiling', { fingerprint: (w) => withGround(w, [w.snap.ceiling - 1, w.snap.ceiling + 15]) }],
   ['C3', 'the careers took 20% longer to every Level', { snap: (w) => ({ ...w.snap, measuredHours: Object.fromEntries(Object.entries(w.snap.measuredHours).map(([L, x]) => [L, x * 1.2])) }) }],
   ['C3', 'the Mill Cellar holds a new hero for an hour', { snap: (w) => ({ ...w.snap, measuredHours: { ...w.snap.measuredHours, [LEVEL_PACE.early.level]: 1 } }) }],
   ['C4', 'a flat Level (the same XP as the one before)', { xpFor: (L) => (L <= 40 ? XP.charXpForLevel(L) : XP.charXpForLevel(L) - (XP.charXpForLevel(41) - XP.charXpForLevel(40)) + (XP.charXpForLevel(40) - XP.charXpForLevel(39))) }],
@@ -169,6 +179,12 @@ async function main() {
       c.brackets[c.brackets.length - 1].bend += 1;
       const quiet = !judge({ ...w, curve: c, rows: XP.levelCurveRowsOf(c), xpFor: (L) => XP.xpForLevelOn(XP.levelCurveRowsOf(c), L) }).out.some((s) => s.startsWith('C1'));
       console.log(`  ${quiet ? 'ok  ' : 'MISS'} control: a bracket past Level ${w.snap.ceiling} re-fitted needs no re-measure`);
+      if (!quiet) miss++;
+    }
+    /* CONTROL: a new ground from the ceiling up (a ground pack past the content) moves nothing the careers measured (C1 stays quiet) */
+    {
+      const quiet = !judge({ ...w, fingerprint: withGround(w, [w.snap.ceiling, w.snap.ceiling + 15]) }).out.some((s) => s.startsWith('C1'));
+      console.log(`  ${quiet ? 'ok  ' : 'MISS'} control: a new ground from Level ${w.snap.ceiling} up needs no re-measure`);
       if (!quiet) miss++;
     }
     for (const [claim, name, over] of MUTANTS) {

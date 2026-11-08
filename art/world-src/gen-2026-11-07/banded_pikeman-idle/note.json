@@ -1,8 +1,8 @@
 {
   "asset": "banded_pikeman-idle",
-  "brief": "art/briefs/gen-2026-11-07/02-march-idles.txt; the east re-roll per 07-next-batch.txt (batch 5, one call)",
-  "status": "S and SE APPROVED by the art director (07). East re-rolled twice: retry limit reached, best kept, not imported",
-  "made": "2026-11-07",
+  "brief": "art/briefs/gen-2026-11-07/02-march-idles.txt, run per 08-next-batch.txt (A3)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-08",
   "object_id": "fd5d913f-f372-41a2-b45b-098b375b3570",
   "object_name": "S1 Banded Pikeman",
   "set": "march",
@@ -51,90 +51,173 @@
         "east": "54e56bd5-1912-4aa6-b978-84e68c0c2d14"
       },
       "generations": 1
+    },
+    "a3_r1": {
+      "brief": "08 A3a",
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "b2dbf02c-860a-4f71-8ccf-7a916c7db42b",
+      "directions": "n w sw ne nw",
+      "action": "standing guard, the chest rises and falls, the head stays level and does not bow, both feet stay exactly where they are, the pike stays upright, stays in place, nothing else appears in the frame"
+    },
+    "a3_r2": {
+      "brief": "08 A3a re-roll",
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "a102defe-31e5-4308-8a52-4cbe2050c580",
+      "directions": "ne",
+      "action": "standing guard very still, the chest rises and falls, the head stays level and does not bow, both feet stay exactly where they are, the pike stays upright and does not move, stays in place, nothing else appears in the frame"
     }
   },
   "chosen": {
     "south": "r1",
     "south-east": "r1",
-    "east": "r2"
+    "east": "r2",
+    "north": "a3_r1",
+    "west": "a3_r1",
+    "south-west": "a3_r1",
+    "north-west": "a3_r1",
+    "north-east": "a3_r2"
   },
   "loop_preview": {
-    "how": "idle-clip.mjs idleFrames(the shipped still from origin/lane/b-hasks-ford-art, frames, 58)",
-    "south": {
-      "picks": [
-        0,
-        4,
-        1,
-        4
-      ],
-      "steps": [
-        143,
-        141
-      ],
-      "feet": 0
-    },
-    "south-east": {
-      "picks": [
-        0,
-        2,
-        7,
-        2
-      ],
-      "steps": [
-        31,
-        65
-      ],
-      "feet": 0
-    },
-    "east r1": {
-      "picks": [
-        0,
-        2,
-        1,
-        2
-      ],
-      "steps": [
-        221,
-        66
-      ],
-      "feet": 6,
-      "why rejected": "the head bows and the body lurches (AD, 07)"
-    },
-    "east r2 (kept)": {
-      "picks": [
-        0,
-        2,
-        8,
-        2
-      ],
-      "steps": [
-        226,
-        41
-      ],
-      "feet": 10,
-      "note": "the head now stays level; the whole pike shifts 1 px right in both loop frames, and its butt end is what moves the foot rows (the boots hold)"
-    },
-    "east r3": {
-      "picks": [
-        0,
-        1,
-        2,
-        1
-      ],
-      "steps": [
-        201,
-        240
-      ],
-      "feet": 8,
-      "why not kept": "the whole body leans 1 px and back each loop"
+    "how": "idle-clip.mjs idleFrames(the shipped still from the March art branch, frames, 58)",
+    "facings": {
+      "south": {
+        "picks": [
+          0,
+          4,
+          1,
+          4
+        ],
+        "steps": [
+          143,
+          141
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "east": {
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          44,
+          28
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "roll": "a3_r1",
+        "picks": [
+          0,
+          2,
+          3,
+          2
+        ],
+        "steps": [
+          56,
+          33
+        ],
+        "feet": 2,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "roll": "a3_r1",
+        "picks": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "steps": [
+          42,
+          28
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "picks": [
+          0,
+          2,
+          7,
+          2
+        ],
+        "steps": [
+          31,
+          65
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "a3_r1",
+        "picks": [
+          0,
+          8,
+          6,
+          8
+        ],
+        "steps": [
+          60,
+          92
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "a3_r2",
+        "picks": [
+          0,
+          1,
+          7,
+          1
+        ],
+        "steps": [
+          76,
+          66
+        ],
+        "feet": 3,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "a3_r1",
+        "picks": [
+          0,
+          8,
+          1,
+          8
+        ],
+        "steps": [
+          33,
+          68
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      }
     }
   },
-  "generations_total": 5,
   "flags": [
-    "east still fails the AD's bar on numbers (first step 226 px): every roll moves the pike or the body by 1 px. Retry limit reached. A hold of the pike column at the still's pixels (idle-clip holdBody) or a 2-frame loop may be the way, not a 4th roll"
+    "east still fails the AD's bar on numbers (first step 226 px): every roll moves the pike or the body by 1 px. Retry limit reached. A hold of the pike column at the still's pixels (idle-clip holdBody) or a 2-frame loop may be the way, not a 4th roll",
+    "A3a: north-east r1 redrew the pike; r2 kept (steps 76/66, feet 3), though the hand on the pike redraws in its far frame; its A3 roll 1 is alt/r1/north-east",
+    "all 8 facings now have a clip (S, SE approved; E by hand pass H1)"
   ],
-  "review_strip": "art/review/gen-2026-11-07/banded_pikeman-idle.png and banded_pikeman-idle-loops.png (rows s, e, se)",
-  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set march --id banded_pikeman --clip art/world-src/gen-2026-11-07/banded_pikeman-idle (on the Phase 0 March merge, where the march set lives)",
+  "review_strip": "art/review/gen-2026-11-07/banded_pikeman-idle.png and banded_pikeman-idle-loops.png",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set march --id banded_pikeman --clip art/world-src/gen-2026-11-07/banded_pikeman-idle (on the March merge, where the march set lives)",
   "hand_passes": {
     "east": {
       "id": "H1",
@@ -154,5 +237,7 @@
       "brief": "08-next-batch.txt",
       "how": "local script on the raw frames (copy frame_000 inside the box; 0 gens); the other raw frames moved to alt/unpicked/east"
     }
-  }
+  },
+  "needs_hand_pass": {},
+  "generations": 11
 }

@@ -1,0 +1,17 @@
+{
+  "asset": "mudlark attack north-east, brief 10 M1 (the free hand pass)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt M1",
+  "status": "CANDIDATE for the art director; not imported. Only attack/north-east is here: every other mudlark file stays art/world-src/gen-2026-11-08/mudlark (approved in 10)",
+  "made": "2026-11-08",
+  "generations": 0,
+  "source": "art/world-src/gen-2026-11-08/mudlark/attack/north-east/0..5.png (r2, group 044bc0f2-fce2-4292-ad52-2c96b56a14a5)",
+  "rule_as_written": "make transparent every opaque island not 8-connected to the body's largest piece, frames 1-3. Measured: 0 islands in every frame (1 piece of 604, 595, 597 px; no partial alpha). The loose pale pixels the brief names ARE joined to the body, through dark outline pixels: left of the body it is the boathook's butt end (frames 0, 1, 4, 5 show the same butt joined to the hand), right of the hook it is the curl's chain",
+  "what_was_done_instead": "frame 3 only, three boxes cleared (29 px): x7-12 y21-25 (the pale specks left of the outline at x13-14), x35-43 y33 (a 9 px grey streak under the hook's curl), x35-36 y31-32 (pale specks beside the curl). Frames 0, 1, 2, 4, 5 are byte-identical to the source; frames 1-2's left pieces were left as the shaft's butt (the same shape as frames 0, 4, 5)",
+  "layout": "attack/north-east/0..5.png = the passed clip (drop-in for gen-2026-11-08/mudlark/attack/north-east)",
+  "flags": [
+    "M1's rule removes nothing: the director's call whether this box pass is what was meant",
+    "frame 3 now has no butt end at the left while frames 2 and 4 do (a 1-frame gap at 12 fps)",
+    "frame 3's hook curl (x37-42 y27-32) is still a rough shape after the specks went"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/mudlark-m1.png (x4: row 1 the source frames 0-5, row 2 the passed frames, row 3 the mask with removed pixels red)"
+}

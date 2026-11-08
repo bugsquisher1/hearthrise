@@ -118,19 +118,19 @@ const STRUCK = Object.freeze({ line: 'Each monster on the line', ring: 'Each mon
 
 /** A `hitPm` row's damage in words: each hit rolls from half its share to its share of the hero's biggest normal hit
     (src/data/abilities.js blowShare, the rule a monster's spell hits by), so it grows with the weapon and the skill. */
-export function blowShareWords(r) {
+function blowShareWords(r) {
   const top = r.hitPm / 10, low = Math.round((top * ABILITY_RULES.hitLowPm) / 1000);
   return (STRUCK[r.target] || 'Each monster it hits') + ' takes ' + low + '% to ' + top + '% of your biggest normal hit' + (r.element ? ' as ' + r.element + ' damage' : '') + '.';
 }
 
 /** What a status does to the monster it lands on, from its row: "Causes chill for 4 s, so its swings and spell windups run 30% slower." */
-export function statusWords(st) {
+function statusWords(st) {
   const does = st.slowPm ? 'its swings and spell windups run ' + st.slowPm / 10 + '% slower' : st.takenPm ? 'it takes ' + st.takenPm / 10 + '% more from every blow' : null;
   return 'Causes ' + st.name.toLowerCase() + (st.durationMs ? ' for ' + secs(st.durationMs) + ' s' : '') + (does ? ', so ' + does : '') + '.';
 }
 
 /** "Unlocks at Ranged 10." for a row that waits for a level in its own skill (`unlock`), else null. */
-export function unlockWords(r) {
+function unlockWords(r) {
   if (!r || !r.unlock) return null;
   const sk = abilitySkill(r);
   return 'Unlocks at ' + ((SKILLS_DEF[sk] && SKILLS_DEF[sk].name) || sk) + ' ' + r.unlock + '.';

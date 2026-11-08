@@ -331,7 +331,7 @@ function standingOf(map, book, tables, T) {
  * @param {object} book      createBook()
  * @param {{hero: {x:number,y:number}|null, name?: string, roofAlpha?: object, t?: number,
  *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
- *          stillIdle?: boolean, marks?: object[]}} state
+ *          stillIdle?: boolean, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[]}} state
  *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0;
  *                           marks: a hunt's danger marks (src/hunt-view/spell-marks.js), drawn on the ground under every actor (mark-shapes.js)
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px

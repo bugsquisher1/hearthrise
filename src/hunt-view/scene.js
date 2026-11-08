@@ -532,7 +532,7 @@ export function createHuntScene(o) {
       if (p) effects.push({ id: e.id, x: p.x + (e.ox || 0), y: p.y + (e.oy || 0), age, lift: e.lift, on: e.on, alpha });
     }
     const shown = floats.filter((e) => now >= e.start).map((e) => ({ text: e.text, kind: e.kind, x: e.x, y: e.y, dx: e.dx, dy: e.dy, age: now - e.start, life: e.life, big: e.big }));
-    const heroes = (hero ? [hero] : []).concat(units.filter((d) => !d.under && isHero(d.unit)));   // a group spell marks each (spell-marks.js)
+    const heroes = (hero ? [hero] : []).concat(units.filter((d) => !d.under && isHero(d.unit))).map((d) => ({ x: d.x, y: d.y }));   // a group spell marks each (spell-marks.js)
     return { hero, units, floats: shown, fx: effects, marks: marks.frame(now, { heroes, gone: (u) => dead.has(u) || serverDead(u), alpha: read.fx ? read.fx.marks : 1 }) };
   }
 

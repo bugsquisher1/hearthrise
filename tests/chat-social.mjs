@@ -43,6 +43,10 @@
 //   MN-1  THE MENU lists the data rows its providers allow, in row order: Trade
 //         never (hidden until its lane); no Message or Block on yourself; a
 //         blocked player gets Unblock; a monster gets Look
+//   MN-2  LOOK SAYS ONLY WHAT THE ENGINE DOES: while no engine file (src/core,
+//         supabase/functions) reads `weaponResist`, no monster's Look text claims a
+//         resistance; the day one does, this rule turns red and names it, and
+//         lookText (src/shell/menu-providers.js) may show the engine's real number
 //   FR-1  FRIENDS read as the server said: online, and what they are doing; a
 //         person keeps the server's slot (the hero its name is), a bad slot is null
 //   FR-2  [page] A FRIEND ROW IS ONE HERO (2027-01-17-social-pass.sql): every row
@@ -105,7 +109,7 @@
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
-import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -271,6 +275,21 @@ async function pureRules(M) {
     const mon = ids({ kind: 'monster', id: Object.keys((await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href)).MONSTERS)[0] });
     if (mon !== 'look') fail('MN-1 a monster gets ' + mon);
     soc.destroy();
+  }
+  // MN-2: a resistance the engine never applies is never claimed
+  {
+    const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
+    const readers = ['src/core', 'supabase/functions'].flatMap((d) => readdirSync(join(ROOT, d), { recursive: true })
+      .map((f) => d + '/' + String(f).replace(/\\/g, '/')).filter((f) => /\.(m?js|ts)$/.test(f) && readFileSync(join(ROOT, f), 'utf8').includes('weaponResist')));
+    if (readers.length) fail('MN-2 the engine now reads weaponResist (' + readers.join(', ') + '): show its real number in lookText (src/shell/menu-providers.js), then make this rule check those words instead');
+    const look = M.prov.menuProvidersOf({ account: null, character: null }).look.look;
+    const ids = Object.keys(MONSTERS);
+    const said = ids.map((id) => [id, look.run({ kind: 'monster', id }).say]);
+    const blank = said.filter(([, t]) => typeof t !== 'string' || !t);
+    if (blank.length) fail('MN-2 Look says nothing for ' + blank.slice(0, 3).map(([id]) => id).join(', '));
+    const claims = said.filter(([, t]) => /\b(shrugs?|resists?|resistant|resistance|immune)\b/i.test(t || ''));
+    if (claims.length) fail('MN-2 Look claims a resistance the engine never applies on ' + claims.length + ' of ' + ids.length + ' monsters, e.g. '
+      + JSON.stringify(claims[0][1]) + ' (' + ids.filter((id) => (MONSTERS[id].weaponResist || []).length).length + ' rows carry weaponResist)');
   }
   // RT-1: the realtime joins per client are capped by the data value, across chat and whispers (the inbox counts once)
   // RT-2: every join is a PRIVATE broadcast topic the server sends on (2026-12-26-chat-broadcast.sql): chat:<channel>
@@ -1071,6 +1090,8 @@ const PURE_MUTANTS = [
   ['a poll asks the count apart again', 'src/social/social-session.js', "    return this.online.take(read ? ans.body.online : null);", "    await this._account.server.rpc('hr_players_online', { p_slots: this.online.slots() });\n    return this.online.take(read ? ans.body.online : null);"],
   ['the online ask names only the viewed character', 'src/social/social-session.js',
     "o.account.characters().map((cs) => cs.slot)", '[o.account.viewed]'],
+  ['the look claims a resistance the engine never applies (MN-2)', 'src/shell/menu-providers.js', '  return s;\n}',
+    "  const r = (m.weaponResist || []).filter((w) => WEAPON_WORDS[w]).map((w) => WEAPON_WORDS[w].toLowerCase());\n  if (r.length) s += ' Shrugs off ' + r.join(' and ') + '.';\n  return s;\n}"],
   ['the ground opens a menu', 'src/shell/menu-providers.js', "    if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };", "    return { kind: 'monster', id: mon, title: String(mon) };"],
   ['a person drops its slot (FR-1)', 'src/social/friends.js', 'slot: Number.isInteger(p.slot) && p.slot >= 0 && p.slot <= 32 ? p.slot : null };', 'slot: null };'],
   ['a held whisper keeps its old name (WH-2)', 'src/social/whispers.js', 'if (this._ids.has(l.id)) return this._rename(l);', 'if (this._ids.has(l.id)) return false;'],

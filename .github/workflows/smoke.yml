@@ -4525,6 +4525,16 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tests/skill-row-upsert.mjs --mutate
 
+      # THE ECONOMY WATCH (lane/r-economy-watch, 2026-11-07). tools/economy-watch.local.mjs reads gold in against gold out per
+      # UTC day from player_ledger, read-only, and raises five alarms: a source running away, net per hero past the sheet, a
+      # recurring sink at zero for two days, a kind or gold key it does not know, the purses against the journal. Its plain run
+      # reads production and is the Coordinator's. --selftest runs planted in-memory ledgers through the lifted rules and plants
+      # 36 mutants, each required red. It is also red when gold-sinks.js gains a row the watch has no journal key for.
+      # Sub-second, no DB, no token.
+      - name: Economy watch - every alarm fires on a planted ledger, every mutant caught
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/economy-watch.local.mjs --selftest
+
   # ── client-guards ── STATIC AND SOURCE-SCANNING GUARDS: censuses, ratchets,
   # parity checks, the cache-buster invariant. No database, no browser, no
   # network; the whole family is text in this repository. Seconds, not minutes —

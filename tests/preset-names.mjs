@@ -337,7 +337,7 @@ const MUTANTS = [
   /* An optimistic rename: the window keeps the typed name and shows it over the server's (two plants, one file). */
   ['the new name shows before the server', 'src/shell/windows/hunt-prep.js', "      text(li.querySelector('.hs-name-t'), p.name);",
     "      text(li.querySelector('.hs-name-t'), (sc.typed && sc.typed[p.preset]) || p.name);",
-    '  sc.naming = null;\n  repaint();\n  t.blur();', '  sc.naming = null;\n  sc.typed = { [preset]: name.trim() };\n  repaint();\n  t.blur();'],
+    '  sc.naming = null;\n  repaint();\n  el.blur();', '  sc.naming = null;\n  sc.typed = { [preset]: name.trim() };\n  repaint();\n  el.blur();'],
   ['the setup stays pressable while a rename is in flight', 'src/shell/windows/hunt-prep.js', "for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', sc.pending);", "for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', false);"],
   ['Delete sends at the first press', 'src/shell/windows/hunt-prep.js', '    if (sc.arming !== setup.preset) { sc.arming = setup.preset; repaint(); return true; }\n', ''],
   ['Escape sends the rename', 'src/shell/inline-name.js', "ev.key === 'Escape' ? 'cancel'", "ev.key === 'Escape' ? 'commit'"],

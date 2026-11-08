@@ -49,7 +49,7 @@
    `equipmentStats` and this module, so a fourth "element" can never leak in from
    a forged enchant or a bad rune row) are src/data/elements.js's, the one copy;
    re-exported so existing callers keep their import. */
-import { ELEMENTS, ELEMENT_PCT, isElement } from '../data/elements.js?v=0.2.108';
+import { ELEMENTS, ELEMENT_PCT, isElement } from '../data/elements.js?v=0.2.109';
 export { ELEMENTS, isElement };
 
 /** The hard ceiling on the single enchant factor (damage only: the b343 ruling, an

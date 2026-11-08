@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.109 — 2026-11-08 (Four Heroes)
+
+**An account now holds up to four heroes.** The fifth hero slot is gone from the character screen. If you already have five heroes, all five stay and keep playing.
+
+**Old shop rows are gone.** A few upgrades that did nothing (farm buildings, worker hires and extra farm land rows) were removed. None of them ever showed in a window.
+
 ## v0.2.108 — 2026-11-08 (Honest Labels)
 
 **Monster descriptions only say what is true.** When you look at a monster, it no longer says it "shrugs off" a weapon. That never changed the damage you deal, so the line is gone. "Weak to" still works the way it says.

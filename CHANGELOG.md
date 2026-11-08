@@ -11,6 +11,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **You can turn idle animations off.** Open Settings, then Interface, and switch off "Idle animations". Heroes, townsfolk and monsters then stand still between actions. Walking, attacks, hits and falls still play. The switch applies to every hero you have open.
 
+**Inventory search shows only what the server found.** While it looks, the list says "Searching…". If a search fails, it says so instead of showing a guess. A few lines that said a section would "switch on later" now say they are reading your hero.
+
 ## v0.2.109 — 2026-11-08 (Four Heroes)
 
 **An account now holds up to four heroes.** The fifth hero slot is gone from the character screen. If you already have five heroes, all five stay and keep playing.

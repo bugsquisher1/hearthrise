@@ -1,0 +1,59 @@
+{
+ "rat/attackpose/south": {
+  "order": [
+   0,
+   1,
+   2,
+   4,
+   2,
+   1
+  ],
+  "hit": 3
+ },
+ "kobold_tosher/attack/east": {
+  "order": [
+   3,
+   2,
+   1,
+   0,
+   1,
+   2
+  ],
+  "hit": 3,
+  "why": "the clip starts at full reach"
+ },
+ "rat/attack/north": {
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "hit": 3
+ },
+ "cistern_spider/attack/east": {
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "hit": 3
+ },
+ "hive_wasp/attack/east": {
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "hit": 3
+ },
+ "deaths": "use <clip>-seated/<facing>/ (the corpse on the foot row)"
+}

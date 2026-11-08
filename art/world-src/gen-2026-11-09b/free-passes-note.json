@@ -1,0 +1,10 @@
+{
+  "what": "the verdicts' free passes (0 gens), scripted on the kept samples; originals untouched beside them",
+  "Y2 sand snap": "y2-sand-ring/snapped/r3-0edd6ad0-sheet-locked-snapped.png: lock(r3,'terrain'), 4-connected flood seeded on the #dcae86 rake pixels through #a88457 and #dcae86, every #a88457 inside -> #c49a5c: 6,799 px move (the art director's probe count); r3-0edd6ad0-sheet-locked.png = the plain lock for the dirt-side byte check",
+  "Y4 straw dummy": "y4-reactions/ty_straw_dummy/laid/south/frame_000..004 = 0 1 2 1 0 at 12 fps; frame 2 takes frame 0's arm peg (box x6-14, y16-23) over the lean's lump; lay.json",
+  "corpses re-seated": "each death's last frame's lowest pixel onto the still's foot row (43 for a vermin_flier), the frames stepping down by whole-frame shifts, never lifted: q1 culvert_bat death S +6 (death-seated/), slime deathpose S +3, rat deathpose E +5, rat_king S 0 (lies 1 px low), kobold_tosher S 0; q4 carrion_crow deathpose SE +9, orchard_boar SE +2, goblin_digger SE 0; q8 barrow_knight SE 0 (lies 4 px forward). Files: <creature>/<clip>-seated/<facing>/",
+  "re-lays": "q1-first-fights-sample/lay.json (rat S pose 0 1 2 4 2 1, kobold E 3 2 1 0 1 2, the kept plain attacks 0-5, the blow on index 3); q2 forge/lay.json (loop 0 1 2 6 7 8 at 8 fps, 3-5 to alt); q6 wraith idle/lay.json (0 1 2 1 at 5 fps); q10 sergeant idle/lay.json (0 1 2 1, 3-8 to alt)",
+  "candle island pass": "q2-flames-sample/candle/cut-island/ and overlay-island/: a warm blob that touches none of the still's warm pixels and is not the flame's main blob goes back to the still (frames 2 and 4: 1 and 2 px)",
+  "icon trims": "q9-icons-sample/trimmed/ (trims.json): pike_ferrule c1 2 px off the left and 1 off the bottom (the stub's broken end runs to the lower left), 30x30 = 94%; rake_tine c1 1 px off the bottom point, 25x30 = 94%; warrant_seal c2 1 px off the top of the cord loop, 30x30 = 94%; each outline closed on the cut and centred",
+  "pumpkin trim": "q11-crop-beds-sheet2/trimmed/pumpkin-ripe.png: 1 px off the left leaf tip, 32x21, the fruit untouched"
+}

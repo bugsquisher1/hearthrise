@@ -23,7 +23,6 @@ import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.110';
 import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.110';
 import { refusalWords } from './intent-words.js?v=0.2.110';
 import { skillName } from './widgets/bits.js?v=0.2.110';
-import { t } from '../render/player-text.js?v=0.2.110';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -151,7 +150,7 @@ export function storeChoices(a, rows, skills) {
   return list.length ? [{ id: null, name: 'Carried runes only', price: null, tier: 0, mana: 0, times: null, needs: '', short: false }].concat(list) : [];
 }
 
-/** A rune choice in words: "Plain Scored Fire Rune · 8 g a cast · 30 mana · 1.6x the power", or what it waits for. */
+/** A rune choice in words: "Scored Fire Rune · 8 g a cast · 30 mana · 1.7x the power", or what it waits for. */
 export function storeChoiceWords(c) {
   if (c.price === null) return c.name;
   const power = c.tier > 1 && c.times !== null ? ' · ' + (Math.round(c.times * 10) / 10) + 'x the power' : '';
@@ -165,40 +164,38 @@ export function storeDefault(a, rows) {
   return c.length > 1 ? c[1].id : null;
 }
 
-/** The store line in words: "then the store's Plain Fire Rune, 14 g each, paid as used" (`lead` false: without the "then"). */
-export function storeWords(st, lead = true) {
-  return st ? t(lead ? 'bar.store_then' : 'bar.store_plain', { name: st.name, price: st.price }) : '';
+/** A comparison in the words of metric `m`'s kind (condition-metrics.js OPERATORS): "is at most" for a percent, "at least"
+    for a count, "has" for an effect. Configure action's picker and the slot's summary both read it. */
+export function opWords(op, m) {
+  const o = OPERATORS[op];
+  return (o && (m && (m.value === 'pct' || m.value === 'count') ? o[m.value] : o.say)) || op;
 }
 
-function valueWords(c, m) {
-  if (m.value === 'pct') return c.value + '%';
-  if (m.value === 'effect') return (STATUSES[c.value] && STATUSES[c.value].name) || String(c.value);
-  return String(c.value);
+/** A number's unit, read right after it: '%' for a percent ("50%"), a count's noun by the number (" monster", " monsters"), else ''. */
+export function unitWords(m, value) {
+  if (!m || !m.unit) return '';
+  return Array.isArray(m.unit) ? ' ' + m.unit[value === 1 ? 0 : 1] : m.unit;
 }
 
 /* Whose effect, as the subject of a sentence (an effect test reads "my target lacks Burn", "I have Shielded"). */
 const EFFECT_WHO = Object.freeze({ target: 'my target', self: 'I', ally: 'the ally I would heal' });
 
-/** One condition as a plain sentence, in the words Configure action uses (the registry's `say`): "my HP is at or
-    below 50%", "the HP of the lowest ally is below 60%", "the number of allies under half health is above 1". Never
-    the picker's labels ("My HP % below 50%" read like a form field on every slot's tooltip, core-loop play 2026-10-30). */
+/** One condition as a plain sentence, word for word what Configure action's picker reads (Tyler 2026-11-08, "at or above 2
+    what?"): "my HP is at most 50%", "the HP of the lowest ally is below 60%", "it would hit at least 2 monsters", "the party
+    has at least 2 heroes under half health". A count names its noun after the number; never a form label. */
 export function conditionWords(c) {
   const m = METRIC.get(c.metric);
   if (!m) return c.metric;
-  const op = OPERATORS[c.op] ? OPERATORS[c.op].say : c.op;
-  if (m.value === 'bool') {
-    const what = m.label.charAt(0).toLowerCase() + m.label.slice(1);
-    return (c.op === 'eq') === (c.value === true) ? what : what.replace(' is ', ' is not ');
-  }
+  if (m.value === 'bool') return (c.op === 'eq') === (c.value === true) ? m.say : m.say.replace(' is ', ' is not ');
   if (m.value === 'effect') {
     const who = EFFECT_WHO[c.subject] || EFFECT_WHO.target;
-    const verb = who === 'I' ? (c.op === 'has_effect' ? 'have' : 'lack') : op;
-    return who + ' ' + verb + ' ' + valueWords(c, m);
+    const verb = who === 'I' ? (c.op === 'has_effect' ? 'have' : 'lack') : opWords(c.op, m);
+    return who + ' ' + verb + ' ' + ((STATUSES[c.value] && STATUSES[c.value].name) || String(c.value));
   }
-  const whose = c.subject && m.subject ? ' ' + (m.subject[c.subject] || c.subject) : '';
-  /* a count of things reads as "the number of ..." (allies, monsters); a count left in the bag already says "what" */
-  const what = m.value === 'count' && !/^what /.test(m.say) ? 'the number of ' + m.say.replace(/^the /, '') : m.say;
-  return what + whose + ' ' + op + ' ' + valueWords(c, m);
+  /* the subject the picker shows: the condition's, else the first (conditionFor's default) */
+  const key = m.subject ? (c.subject && Object.prototype.hasOwnProperty.call(m.subject, c.subject) ? c.subject : Object.keys(m.subject)[0]) : null;
+  const subject = key ? ' ' + m.subject[key] : '';
+  return m.say + (m.subjectAfter ? '' : subject) + ' ' + opWords(c.op, m) + ' ' + c.value + unitWords(m, c.value) + (m.subjectAfter ? subject : '');
 }
 
 

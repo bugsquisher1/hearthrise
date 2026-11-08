@@ -10,7 +10,7 @@ import { hero, ROOT } from './fixtures/h1.js';
    action table and the bar's store line must price what the engine buys, never more (CLAUDE.md §6). */
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const shellOf = (p) => import(pathToFileURL(join(ROOT, p)).href + V);
-const SHELL = { table: await shellOf('src/shell/action-table.js'), draft: await shellOf('src/shell/bar-draft.js') };
+const SHELL = { table: await shellOf('src/shell/action-table.js'), draft: await shellOf('src/shell/bar-draft.js'), facts: await shellOf('src/shell/action-facts.js') };
 
 const casts = (sc) => sc.events.filter((e) => e.type === 'cast').map((e) => e.ability);
 const cast = (M) => (inst, sc) => M.abilities.castAbilities(inst, sc);
@@ -221,7 +221,8 @@ const cases = {
       const row = SHELL.table.rowIn(table, { type: 'ability', id: 'flame_strike' }), other = SHELL.table.rowIn(table, { type: 'ability', id: 'rend' });
       if (row.price !== M.SB.BASIC_INDEX[id].price || SHELL.table.cellsOf(row)[2] !== String(M.SB.BASIC_INDEX[id].price)) return 'the Runes tab reads ' + JSON.stringify(SHELL.table.cellsOf(row)) + ' for a slot naming ' + id;
       if (other.price !== M.SB.BASIC_INDEX.plain_rupture_rune.price) return 'naming ' + id + ' moved another spell\'s price: ' + JSON.stringify(other);
-      if (SHELL.table.sentenceOf({ type: 'ability', id: 'flame_strike', store: id }, M.SB.BASIC_SUPPLIES).note.indexOf(M.SB.BASIC_INDEX[id].n + ' from the store at ' + M.SB.BASIC_INDEX[id].price + ' g a cast') < 0) return 'the sentence does not name ' + id + ' at its price';
+      const cost = SHELL.facts.factsOf({ type: 'ability', id: 'flame_strike', store: id }, { store: M.SB.BASIC_SUPPLIES, bag: [], skills: { melee: { level: t.level } } }).cost;
+      if (cost !== 'Cost: ' + M.AD.versionOf(fs, t.tier).mana + ' mana · 1 ' + M.SB.BASIC_INDEX[id].n + ' (' + M.SB.BASIC_INDEX[id].price + ' g)') return 'the cost line does not name ' + id + ' at its price and its version\'s mana: ' + cost;
     }
     const foreign = melee(M, [], { mana: 500, maxMana: 500 }, { hs: foreignHs, skills: skills(60), slots: past });
     M.abilities.castAbilities(foreign.inst, foreign.sc);
@@ -237,6 +238,41 @@ const cases = {
     }
     const bad = M.conditions.slotProblem({ action: { type: 'ability', id: 'flame_strike', store: 'plain_scored_ice_rune' }, conditions: [], join: 'and' });
     return bad && bad.error === 'bad_store' ? null : 'the bar lets a Fire spell name an Ice store rune: ' + JSON.stringify(bad);
+  },
+  /* THE BAR STATES THE CAST THE ENGINE MAKES (Tyler 2026-11-08, a Fireball slot set to the store's Scored Fire Rune: "it should be
+     showing me different damage numbers. right?"). The hover read the row's version I (25 mana, 7–12) while the engine cast version
+     II (30 mana) at the hero's Magic level and the store's share. For the same slot, bag, store rows and level, the hover's lines are
+     EXACTLY its cost line (the version's mana, the store rune by its tier's own name, at its price), its damage at the power the engine
+     cast, its cooldown and its When line in plain words, and the mana a short hero waits for is that version's too (Tyler: "all of this
+     should be decided in the configure actions, and simplified when hovering the skill on the bar"). */
+  'the-bar-states-the-cast-the-engine-makes': (M) => {
+    if (!M.shell) return 'no shell to read';
+    const fb = M.AD.ABILITIES.fireball, id = 'plain_scored_fire_rune', row = M.SB.BASIC_INDEX[id], lv = 20;
+    const cond = [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }];
+    const slot = { action: { type: 'ability', id: 'fireball', store: id }, conditions: cond, join: 'and' };
+    const hs = supplySession(M, { purse: 1000, runes: true });
+    const x = oneHero(M, { mana: 500, maxMana: 500, role: 'mage' }, { hs, bar: [slot], range: 7, skills: { magic: M.XP.skillXpForLevel('magic', lv) } },
+      [{ x: 15, y: 3, hp: 900, maxHp: 900 }, { x: 15, y: 4, hp: 900, maxHp: 900 }]);
+    x.sc.rng = rngOf(M, 4);
+    M.abilities.castAbilities(x.inst, x.sc);
+    const cast = x.sc.events.find((e) => e.type === 'cast');
+    if (!cast || cast.version !== 2 || cast.supply !== id || cast.source !== 'store' || cast.mana !== M.AD.versionOf(fb, 2).mana) return 'the engine did not cast version II on the store\'s Scored rune: ' + JSON.stringify(cast);
+    const hits = x.sc.events.filter((e) => e.type === 'dmg').map((e) => e.amount);
+    /* the client: the server's store rows, bag and skills, as the bar holds them */
+    const store = M.SB.BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, amount: b.heals || b.mana || 0, price: b.price }));
+    const ctx = { bag: [], store, skills: { magic: { xp: M.XP.skillXpForLevel('magic', lv), level: lv } }, set: { supplySource: 'mine', onEmpty: 'switch' } };
+    const lo = Math.floor((fb.dmg[0] * cast.power) / 1000), hi = Math.floor((fb.dmg[1] * cast.power) / 1000);
+    if (row.n !== 'Scored Fire Rune') return 'the store\'s tier-2 Fire rune is named ' + JSON.stringify(row.n) + ', not by its tier ("Scored Fire Rune")';
+    const want = ['Cost: ' + cast.mana + ' mana · 1 Scored Fire Rune (' + row.price + ' g)', 'Deals ' + lo + '–' + hi + ' ember damage to each monster hit.',
+      (fb.cdMs / 1000) + ' s cooldown', 'When it would hit at least 2 monsters.'];
+    const said = M.shell.facts.hoverLines(slot, ctx, null, null).map((l) => l.text);
+    if (JSON.stringify(said) !== JSON.stringify(want)) return 'the hover reads ' + JSON.stringify(said) + ', the engine cast ' + JSON.stringify(want);
+    if (hits.length !== 2 || hits.some((n) => n < lo || n > hi)) return 'the engine landed ' + JSON.stringify(hits) + ' where the bar says ' + lo + '–' + hi;
+    /* Configure action's facts carry the same lines (the hover is their subset), and the cast's mana is what a short hero waits for */
+    const f = M.shell.facts.factsOf(slot.action, ctx);
+    if (f.cost !== want[0] || f.effect[0] !== want[1] || f.cooldown !== want[2]) return 'Configure action reads other facts: ' + JSON.stringify(f);
+    const short = M.shell.facts.reasonOf({ action: slot.action, conditions: cond }, { discipline: 'destruction', store, supplySource: 'mine', onEmpty: 'switch' }, [], { mana: cast.mana - 1 }, null, ctx.skills, null);
+    return short && short.code === 'mana' && short.text === 'Needs ' + cast.mana + ' mana, you have ' + (cast.mana - 1) + '.' ? null : 'a hero 1 mana short of the cast reads ' + JSON.stringify(short);
   },
   /* NEVER AUTO-PICKED: a freshly picked rune spell starts on Plain, the choices run cheapest tier first, and a default bar names Plain or nothing. */
   'a-deeper-rune-is-opt-in': (M) => {
@@ -655,6 +691,24 @@ const mutants = [
     edits: [['src/core/hunt/abilities.js', "    if (row.target === 'self' && row.shield && int(hero.shield) >= landsShield(row, pm)) return { why: 'no_target' };\n", '']] },
   { name: 'Magic XP is paid on refunded mana', case: 'barrier-recast-refunds',
     edits: [['src/core/hunt/abilities.js', "{ u: u.id, ability: row.id, t: pick.target.id, mana, magicXpMult:", "{ u: u.id, ability: row.id, t: pick.target.id, mana: paid, magicXpMult:"]] },
+  { name: '[bar] the hover casts version I whatever store rune the slot names', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/shell/cast-facts.js', '    else if (tier) { version = tier; share = STORE_PM;', '    else if (tier) { version = 1; share = STORE_PM;']] },
+  { name: '[bar] the hover lands a store rune at full power', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/shell/cast-facts.js', '    else if (tier) { version = tier; share = STORE_PM;', '    else if (tier) { version = tier; share = 1000;']] },
+  { name: '[bar] the hover reads its numbers at level 1', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/shell/cast-facts.js', 'pm: Math.floor((outputPm(row, version, lv) * share) / 1000)', 'pm: Math.floor((outputPm(row, version, 1) * share) / 1000)']] },
+  { name: '[bar] the damage line reads the catalogue row (Tyler 2026-11-08)', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/shell/action-facts.js', '    if (r.dmg) numbers.push(damageLine(r, k.pm));', '    if (r.dmg) numbers.push(damageLine(r, 1000));']] },
+  { name: '[bar] a short hero waits for version I\'s mana', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/shell/action-facts.js', '    const need = /** @type {{ mana: number }} */ (castOf(a, { bag, store: set && set.store, skills, set })).mana;', '    const need = r.mana;']] },
+  { name: '[bar] the hover keeps the explanatory type line', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/shell/action-facts.js', "    .concat(f.numbers.map((n) => line(n)), [line(f.cooldown),", "    .concat(f.effect.map((n) => line(n)), [line(f.type), line(f.cooldown),"]] },
+  { name: '[names] the store\'s Scored rune is "Plain Scored Fire Rune" again', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/data/supply-basics.js', "  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier),", "  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : 'Plain ' + runeName(family, t.tier),"]] },
+  { name: '[conditions] the When line reads a count with no noun ("at or above 2 what?")', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/shell/bar-draft.js', " + c.value + unitWords(m, c.value) + (m.subjectAfter ? subject : '');", " + c.value + (m.subjectAfter ? subject : '');"]] },
+  { name: '[conditions] a count reads the old "is at or above"', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
+    edits: [['src/data/condition-metrics.js', "  gte: Object.freeze({ pct: 'is at least', count: 'at least' }),", "  gte: Object.freeze({ pct: 'is at least', count: 'is at or above' }),"]] },
   { name: 'a food slot saves its ignore list', case: 'ignore-only-where-it-aims', also: ['src'],
     edits: [['src/shell/bar-draft.js', '  if (!d || !Array.isArray(d.ignore) || aimsAtMonsters(d)) return d;', '  return d;']] },
   { name: 'the blocked-slot check reads a food slot\'s ignore list', case: 'ignore-only-where-it-aims', also: ['src'],
@@ -690,7 +744,7 @@ const mutants = [
   { name: '[rune ladder] the bar lets a spell name another family\'s store rune', case: 'store-rune-is-the-one-the-slot-names',
     edits: [['src/core/hunt/conditions.js', '  return !!family && !!ITEMS[b.partner] && ITEMS[b.partner].family === family;', '  return !!family && !!ITEMS[b.partner] && !!ITEMS[b.partner].family;']] },
   { name: '[rune ladder] a deeper store row priced off the ladder', case: 'store-rune-is-the-one-the-slot-names',
-    edits: [['src/data/supply-basics.js', "  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : 'Plain ' + runeName(family, t.tier), runeId(family, t.tier), STORE_RUNE_PRICE[t.tier - 1]);", "  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : 'Plain ' + runeName(family, t.tier), runeId(family, t.tier), 1);"]] },
+    edits: [['src/data/supply-basics.js', "  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier), runeId(family, t.tier), STORE_RUNE_PRICE[t.tier - 1]);", "  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier), runeId(family, t.tier), 1);"]] },
   { name: 'a hit ignores its power', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '  const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };', '  const hitTag = { id: row.id };']] },
   { name: 'a heal and a shield ignore their version', case: 'version-output-scales-numbers',

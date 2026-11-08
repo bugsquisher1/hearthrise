@@ -1,7 +1,7 @@
 {
   "asset": "verdicts B3: Q1 the rest, the first fights' attacks and deaths in 8 facings",
   "status": "for the art director's read. Not imported",
-  "generations": 161,
+  "generations": 201,
   "objects": { "rat": "01744036", "cistern_spider": "d6f7f699", "culvert_bat": "3d41dcb0", "hive_wasp": "1c4dd534", "kobold_tosher": "27b8daf0", "rat_king": "3c137163", "slime": "a53b1f35" },
   "attacks_plain": {
     "tool": "animate_object v3, frame_count 6, keep_first_frame false, one call per creature for its side and diagonal facings, one for N",

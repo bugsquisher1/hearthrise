@@ -49,7 +49,8 @@ const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obje
    same tiers a party fights; this pays it a little for that. +5%, the largest round boost that keeps every solo ground's Normal on the
    pace contract (balance-sheet.js normal.xpVsContract, 0.90-1.10 at the band middle): on the v0.2.106 grade the Thicket read 1.025x and
    the Glade 1.016x, so +10% put them at 1.13x and 1.12x, past the band, and +5% at 1.08x and 1.07x. Level XP only, read at each kill
-   like every cell: a party's last hero standing hunts alone and earns it. */
+   like every cell: a party's last hero standing hunts alone and earns it. A kill's share floors (xp-share.js), so where kills are worth
+   a few dozen XP an hour reads less than +5% (a Wickstead tank at its floor +3.5%, 27,216 -> 28,165). */
 export const SOLO_XP_PM = 1050;
 
 /* ground id → its row (designer's final table, 2026-11-01). THE SOLO BOOST IN EVERY MIXED CELL (lane/b-one-difficulty, 2026-11-08): each cell

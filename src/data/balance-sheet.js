@@ -309,9 +309,11 @@ export function formulaStats(spec, opts = {}) {
    ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be
    unchanged"): a tier's pull is ONE number, the monsters a pull for one hero or four, and its damage and HP are the
    same for every group. The engine's row still carries one entry per party size (the server's catalogue reads it by
-   size), every entry this number. 0 = no more monsters than Normal brings that group. Dangerous 6: the four's pull
-   before 11-08 (a lone hero's was 3), so a four fights what it fought and every smaller group fights the same; never
-   under the largest Normal pull a party draws (the Thicket's 6). Deadly 8: the full box, as before.
+   size), every entry this number. 0 = no more monsters than Normal brings that group. Dangerous 5 (before 11-08 a lone
+   hero 3, a pair or three 5, a four 6): halfway from Normal's built packs (2-3) to Deadly's full box, never under a party's
+   Normal pull on a ground that takes it (the Glade's 4), and the Glade's Bear Claw stays a 10-20 h rare for a lone hero
+   (tests/hunt-core/drop-tables.mjs big-pull: the bear is 1 of the pull, so at 5 a lone tank at 16 met 32 an hour, a Claw
+   every 17.2 h, at 6 27 and 20.4 h). Deadly 8: the full box, as before.
    THE BIGGER PULLS START AT THE GLADE (TIER_PULL_FROM_FLOOR): on a ground whose floor is under 16 (the Thicket, Wickstead,
    the Sewer) the harder tiers bring no more monsters, for anyone; the monsters only hit harder and pay more. Those grounds
    sit close under the next one, so with one pull for everyone a lone area hero out-earned the next ground's Normal at the
@@ -340,7 +342,7 @@ export const TIER_PULL_FROM_FLOOR = 16;
    (plan formulaH): a little more food and about the same XP an hour, so a tier costs what Tyler asked. */
 export const TIER_DIALS = Object.freeze({
   normal: Object.freeze({ pull: 0, lift: 0, dmgPm: 1000, hpPm: 1000, xpPm: 1000 }),
-  dangerous: Object.freeze({ pull: 6, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1200 }),
+  dangerous: Object.freeze({ pull: 5, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1200 }),
   deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1100, xpPm: 1250 }),
 });
 /** The party sizes a tier row answers for (the server's catalogue reads its pull by size, 1..4). */

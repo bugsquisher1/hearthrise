@@ -18,7 +18,7 @@
 -- moves only Defense XP, whose own term (16 foes a swing x K) holds the 4000 cap at a full box of 8.
 -- THIS FILE (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be
 -- unchanged. Either they are strong enough to do the harder content or they aren't"): ONE pull a tier for one hero or four, every
--- entry of a row's pull the same. The Glade and the Warrens: Dangerous {6,6,6,6} (was {3,5,5,6}), Deadly {8,8,8,8} as before. The
+-- entry of a row's pull the same. The Glade and the Warrens: Dangerous {5,5,5,5} (was {3,5,5,6}), Deadly {8,8,8,8} as before. The
 -- first grounds, floors under 16 (the Thicket, Wickstead, the Sewer): no tier brings more monsters, for anyone, {0,0,0,0} (Wickstead
 -- and the Sewer were {0,5,5,6} and {0,8,8,8}: a party pulled more than a lone hero). Damage, health and XP as they stand. The solo
 -- boost (party-class-xp.js SOLO_XP_PM) is engine data and moves nothing here.
@@ -59,9 +59,9 @@ insert into public.hr_ground_tiers (hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm) v
   ('millrace_sewer', 'deadly', '{0,0,0,0}'::int[], 1330, 1100, 1220),
   ('meadowbrook_thicket', 'dangerous', '{0,0,0,0}'::int[], 2711, 1000, 1050),
   ('meadowbrook_thicket', 'deadly', '{0,0,0,0}'::int[], 3433, 1000, 1080),
-  ('coppercap_warrens', 'dangerous', '{6,6,6,6}'::int[], 1170, 1100, 1200),
+  ('coppercap_warrens', 'dangerous', '{5,5,5,5}'::int[], 1170, 1100, 1200),
   ('coppercap_warrens', 'deadly', '{8,8,8,8}'::int[], 1330, 1100, 1250),
-  ('mosslight_glade', 'dangerous', '{6,6,6,6}'::int[], 1170, 1100, 1200),
+  ('mosslight_glade', 'dangerous', '{5,5,5,5}'::int[], 1170, 1100, 1200),
   ('mosslight_glade', 'deadly', '{8,8,8,8}'::int[], 1330, 1100, 1250),
   ('wickstead', 'dangerous', '{0,0,0,0}'::int[], 2654, 1100, 1200),
   ('wickstead', 'deadly', '{0,0,0,0}'::int[], 3351, 1100, 1250);
@@ -86,9 +86,9 @@ begin
       ('millrace_sewer','deadly',array[0,0,0,0],1330,1100,1220),
       ('meadowbrook_thicket','dangerous',array[0,0,0,0],2711,1000,1050),
       ('meadowbrook_thicket','deadly',array[0,0,0,0],3433,1000,1080),
-      ('coppercap_warrens','dangerous',array[6,6,6,6],1170,1100,1200),
+      ('coppercap_warrens','dangerous',array[5,5,5,5],1170,1100,1200),
       ('coppercap_warrens','deadly',array[8,8,8,8],1330,1100,1250),
-      ('mosslight_glade','dangerous',array[6,6,6,6],1170,1100,1200),
+      ('mosslight_glade','dangerous',array[5,5,5,5],1170,1100,1200),
       ('mosslight_glade','deadly',array[8,8,8,8],1330,1100,1250),
       ('wickstead','dangerous',array[0,0,0,0],2654,1100,1200),
       ('wickstead','deadly',array[0,0,0,0],3351,1100,1250)) d(hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm)

@@ -227,7 +227,7 @@ const mutants = [
   { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[SH, 'mill_cellar: Object.freeze({ normalOnly: true,', 'mill_cellar: Object.freeze({ normalOnly: false,']] },
   /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08): a lone hero's own pull again, in the engine's rows, and in the sheet */
   { name: 'a lone hero pulls fewer than a four on the Glade\'s Dangerous', case: 'rows', edits: [[D, 'out[g][id] = { id, pull: [...r.pull],', "out[g][id] = { id, pull: [g === 'mosslight_glade' && id === 'dangerous' ? 3 : r.pull[0], ...r.pull.slice(1)],"]] },
-  { name: 'the sheet pulls Dangerous by party size again', case: 'rows', edits: [[SH, 'dangerous: Object.freeze({ pull: 6,', 'dangerous: Object.freeze({ pull: Object.freeze([3, 6, 6, 6]),']] },
+  { name: 'the sheet pulls Dangerous by party size again', case: 'rows', edits: [[SH, 'dangerous: Object.freeze({ pull: 5,', 'dangerous: Object.freeze({ pull: Object.freeze([3, 5, 5, 6]),']] },
   { name: 'a ground gives a party its own pull again', case: 'rows', edits: [[SH, "  mill_cellar: Object.freeze({ normalOnly: true,", "  wickstead: Object.freeze({ deadly: Object.freeze([0, 8, 8, 8]), why: 'a lone hero keeps the ground as it stands' }),\n  mill_cellar: Object.freeze({ normalOnly: true,"]] },
   { name: 'the Glade\'s Dangerous under a party\'s Normal pull', case: 'rows', edits: [['src/data/hunt-grounds.js', "partyPull: Object.freeze([0, 3, 3, 4]),\n    gather: gather(9000, [\n      /* P0 the Crow Field", "partyPull: Object.freeze([0, 3, 3, 7]),\n    gather: gather(9000, [\n      /* P0 the Crow Field"]] },
   { name: 'Deadly pays more than slightly more XP', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 1300')]] },

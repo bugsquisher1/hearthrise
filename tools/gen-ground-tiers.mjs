@@ -41,7 +41,7 @@ export const OUT_NAME = '2027-03-23-one-difficulty.generated.sql';
 /* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
 const FILE_NOTE = `-- THIS FILE (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be
 -- unchanged. Either they are strong enough to do the harder content or they aren't"): ONE pull a tier for one hero or four, every
--- entry of a row's pull the same. The Glade and the Warrens: Dangerous {6,6,6,6} (was {3,5,5,6}), Deadly {8,8,8,8} as before. The
+-- entry of a row's pull the same. The Glade and the Warrens: Dangerous {5,5,5,5} (was {3,5,5,6}), Deadly {8,8,8,8} as before. The
 -- first grounds, floors under 16 (the Thicket, Wickstead, the Sewer): no tier brings more monsters, for anyone, {0,0,0,0} (Wickstead
 -- and the Sewer were {0,5,5,6} and {0,8,8,8}: a party pulled more than a lone hero). Damage, health and XP as they stand. The solo
 -- boost (party-class-xp.js SOLO_XP_PM) is engine data and moves nothing here.
@@ -213,7 +213,7 @@ async function selftest() {
   expectThrow('an XP past a tighter value bound', () => {}, 1);
 
   expectThrow('three pulls for four sizes', (t) => { t.wickstead.dangerous.pull = [0, 4, 4]; });
-  expectThrow('a lone hero pulling fewer than a four', (t) => { t.mosslight_glade.dangerous.pull = [3, 6, 6, 6]; });
+  expectThrow('a lone hero pulling fewer than a four', (t) => { t.mosslight_glade.dangerous.pull = [3, 5, 5, 6]; });
   expectThrow('the Glade without its full box', (t) => { t.mosslight_glade.deadly.pull = [4, 8, 8, 8]; });
   expectThrow('a ground with no Deadly', (t) => { delete t.millrace_sewer.deadly; });
   const sql = buildSql(T, headroom);

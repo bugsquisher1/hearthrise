@@ -73,14 +73,14 @@ export default definePack({
       /* P0 the Gate Pyres: the first pull, the dead the carts left by the gate, and a dog among them */
       box([10, 29, 27, 37], [20, 32], [CP, CP], [LU, CP, ST, CP, PW, CP]),
       /* P1 the Shroud Rows: the dead laid out for a pyre that never came, and the Wraiths rising out of their shrouds */
-      box([3, 15, 22, 26], [9, 20], [PW, CP], [PW, CP, CP, ST, CP, LU]),
+      box([3, 15, 22, 26], [9, 20], [PW, PW], [CP, CP, CP, ST, CP, LU]),
       /* P2 the Stokers' Yard: the Chantry's wood, and the brothers who still split it */
-      box([3, 2, 25, 12], [14, 7], [ST, ST], [CP, PW, CP, CP, LU, CP]),
+      box([3, 2, 25, 12], [14, 7], [ST, CP], [ST, PW, CP, CP, LU, CP]),
       /* P3 the Kennels: the burnt-out pits the Lurchers den in. Three come out at once (as built), as the Slake's Mudlark Holes do,
          so a lone hero's Normal costs real food here */
       box([35, 2, 55, 12], [45, 7], [LU, LU, CP], [LU, CP, ST, CP, LU]),
       /* P4 the Ash Heaps: the pyres that burned down, the Pikemen who crawled out of them, and a Provost driving them back */
-      box([39, 15, 57, 26], [51, 21], [CP, CP], [ST, PV, CP, PW, CP, LU]),
+      box([39, 15, 57, 26], [51, 21], [CP, PV], [CP, ST, PW, CP, LU, CP]),
       /* P5 the Great Pyre: the officers' pyre, and the Provosts who still keep the company in line under it */
       box([23, 22, 36, 26], [30, 24], [PV, ST], [PV, PW, CP, CP, ST, CP]),
     ],
@@ -102,28 +102,28 @@ export default definePack({
          once (one override, element). Its boots, its sidearm, its burnt bones for the Hearth. */
       elements: BURNED,
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_ferrule', ch: 0.08, band: 'uncommon' },
-        { id: 'rune_boots', ch: 0.014, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.014, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.014, band: 'scarce' },
-        { id: 'rune_sword', ch: 0.014, band: 'scarce' }],
-      hp: 96, atk: 49, baseAcc: 1.12, def: 29, xp: 903, gp: [20, 61], formula: true },
+        { id: 'rune_boots', ch: 0.015, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.015, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.015, band: 'scarce' },
+        { id: 'rune_sword', ch: 0.015, band: 'scarce' }],
+      hp: 96, atk: 49, baseAcc: 1.12, def: 29, xp: 1065, gp: [20, 61], formula: true },
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 76, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the field: the Chantry's lay brothers who fed the pyres and forged in their heat. Worked in the
          fire all their lives (one override, element). The coal they carry, their smith's hammer, the apron's legs and belts. */
       elements: BURNED,
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'rake_tine', ch: 0.08, band: 'uncommon' },
-        { id: 'rune_platelegs', ch: 0.033, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.033, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.033, band: 'scarce' },
-        { id: 'rune_warhammer', ch: 0.033, band: 'scarce' },
-        { id: 'rune_belt', ch: 0.0022, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0022, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0022, band: 'rare' }],
-      hp: 151, atk: 49, baseAcc: 1.14, def: 46, xp: 1596, gp: [32, 95], formula: true },
+        { id: 'rune_platelegs', ch: 0.037, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.037, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.037, band: 'scarce' },
+        { id: 'rune_warhammer', ch: 0.037, band: 'scarce' },
+        { id: 'rune_belt', ch: 0.0025, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0025, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0025, band: 'rare' }],
+      hp: 151, atk: 49, baseAcc: 1.14, def: 46, xp: 1884, gp: [32, 95], formula: true },
     lurcher: {
       name: 'Lurcher', icon: '🐕', tier: 5, level: 74, cls: 'mammal', family: 'Mammal', speed: 4600,
       /* the skirmisher: the company's camp dogs, lean and quick enough to run down a kiter, who never left their dead. Living, so the
          Mammal class with no override: an arrow's mark, fire does more. They worry the helmets off the dead, chew the gloves, and
          dig the claws sharp in the ash. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'razor_claw', ch: 0.2, band: 'common' }, { id: 'kennel_tag', ch: 0.08, band: 'uncommon' },
-        { id: 'rune_helm', ch: 0.033, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.033, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.033, band: 'scarce' },
-        { id: 'rune_gauntlets', ch: 0.0022, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0022, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0022, band: 'rare' }],
-      hp: 92, atk: 65, baseAcc: 0.93, def: 30, xp: 1050, gp: [19, 58], formula: true },
+        { id: 'rune_helm', ch: 0.037, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.037, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.037, band: 'scarce' },
+        { id: 'rune_gauntlets', ch: 0.0025, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0025, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0025, band: 'rare' }],
+      hp: 92, atk: 65, baseAcc: 0.93, def: 30, xp: 1239, gp: [19, 58], formula: true },
     pyre_wraith: {
       name: 'Pyre Wraith', icon: '👻', tier: 5, level: 78, cls: 'undead', family: 'Undead', speed: 3600,
       /* the regular: a dead man Ebbe's rite bound into the pyre smoke, still in his shroud. A spell undoes the binding and a blade goes
@@ -133,7 +133,7 @@ export default definePack({
       drops: [{ id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'wraith_veil', ch: 0.2, band: 'common' }, { id: 'shroud_pin', ch: 0.08, band: 'uncommon' },
         { id: 'yew_staff', ch: 0.036, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0024, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0024, band: 'rare' }],
-      hp: 129, atk: 62, baseAcc: 1.02, def: 35, xp: 1253, gp: [27, 81], formula: true },
+      hp: 129, atk: 62, baseAcc: 1.02, def: 35, xp: 1478, gp: [27, 81], formula: true },
     provost: {
       name: 'Provost', icon: '⚔️', tier: 5, level: 82, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's provosts, who hanged its deserters (Wickstead's Turncoats ran from them), burned
@@ -142,11 +142,11 @@ export default definePack({
          Emberforged weapons the company's officers were burned with. */
       elements: BURNED,
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'warrant_seal', ch: 0.1, band: 'uncommon' },
-        { id: 'rune_platebody', ch: 0.05, band: 'scarce' }, { id: 'wyvernhide_body', ch: 0.05, band: 'scarce' }, { id: 'sorcerer_body', ch: 0.05, band: 'scarce' },
-        { id: 'yew_bow', ch: 0.05, band: 'scarce' },
-        { id: 'ember_sword', ch: 0.0033, band: 'rare' }, { id: 'ember_warhammer', ch: 0.0033, band: 'rare' }, { id: 'runewood_bow', ch: 0.0033, band: 'rare' },
-        { id: 'runewood_staff', ch: 0.0033, band: 'rare' }, { id: 'runewood_wand', ch: 0.0033, band: 'rare' }, { id: 'runewood_codex', ch: 0.0033, band: 'rare' }],
-      hp: 217, atk: 65, baseAcc: 1.04, def: 57, xp: 2472, gp: [46, 136], formula: true },
+        { id: 'rune_platebody', ch: 0.038, band: 'scarce' }, { id: 'wyvernhide_body', ch: 0.038, band: 'scarce' }, { id: 'sorcerer_body', ch: 0.038, band: 'scarce' },
+        { id: 'yew_bow', ch: 0.038, band: 'scarce' },
+        { id: 'ember_sword', ch: 0.0025, band: 'rare' }, { id: 'ember_warhammer', ch: 0.0025, band: 'rare' }, { id: 'runewood_bow', ch: 0.0025, band: 'rare' },
+        { id: 'runewood_staff', ch: 0.0025, band: 'rare' }, { id: 'runewood_wand', ch: 0.0025, band: 'rare' }, { id: 'runewood_codex', ch: 0.0025, band: 'rare' }],
+      hp: 217, atk: 65, baseAcc: 1.04, def: 57, xp: 2918, gp: [46, 136], formula: true },
   },
   roster: {
     charred_pikeman: 'swarm',   // the common majority
@@ -177,6 +177,15 @@ export default definePack({
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_ice_rune', qty: 650 } } },
+  /* THE XP FIT (balance-sheet.js GROUND_XP_FIT): on the formula's rows the median way at the band middle (80) earned 0.85 of the pace
+     contract as opened (its own tier-5 set; quick grade, 1 seed), where the sheet asks 0.90-1.10. */
+  xpFit: { k: 1.18, why: 'the formula pays 0.85 of the pace contract at the band middle (80), measured as opened on the quick grade' },
+  /* THE PARTY'S DANGEROUS PULL, one up (TIER_PULL_OVERRIDES' shape), as the Slake: on the table's 5 a Melee and Healer pair two or three
+     Levels under the floor netted +14k to +15k an hour on Dangerous, where the weight-class ruling (11-06) asks them to lose gold. */
+  tierOverride: { dangerous: [3, 7, 7, 8], why: 'weight class (11-06): on the table pull of 5, and on 6, a Melee and Healer pair 2-5 under the floor netted gold on Dangerous' },
+  /* PARTY LEVEL XP (party-class-xp.js's row shape): better only with different classes (Tyler 10-31). With no row a mixed four read
+     0.97-1.00 of its heroes alone and a tank's seat beside a Healer 0.91 (quick grade): the Slake's cells, the same shape. */
+  partyClassXp: { 2: [960, 1160], 3: [960, 1120, 1240], 4: [960, 1120, 1230, 1230] },
   checks: { dropRef: { roles: ['tank'], full: true } },
   map,
 });

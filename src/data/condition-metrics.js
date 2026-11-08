@@ -83,6 +83,16 @@ export const METRICS = Object.freeze([
   Object.freeze({ id: 'allies_below', label: 'Allies under', say: 'allies under', value: 'count', ops: NUM, range: Object.freeze([0, 5]),
     subject: Object.freeze({ under_50: 'half health', under_60: '60% health', under_70: '70% health', under_80: '80% health', under_90: '90% health' }) }),
   Object.freeze({ id: 'enemies_in_aoe', label: 'Monsters the area would hit', say: 'the monsters it would hit', value: 'count', ops: NUM, range: Object.freeze([0, 25]), slotOnly: true }),
+  /* THE AREA SPELLS' CONDITIONS (Tyler 2026-11-08: "make sure the conditions are available that make sense"; the board's
+     "2026-11-08 Area spells" §2b). Every true/false label holds " is ": the slot's words deny it by " is not ". */
+  Object.freeze({ id: 'party_hp_pct', label: 'The party’s HP %', say: 'the party’s HP', value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
+  /* the monsters winding up a spell whose mark covers me, or anyone in the party (a group strike covers everyone) */
+  Object.freeze({ id: 'enemy_casting', label: 'Monsters casting at', say: 'the monsters casting at', value: 'count', ops: NUM, range: Object.freeze([0, 8]),
+    subject: Object.freeze({ self: 'me', any: 'anyone' }) }),
+  Object.freeze({ id: 'in_fight', label: 'The fight is on', say: 'the fight being on', value: 'bool', ops: Object.freeze(['eq']) }),
+  /* the slot's own element against its aim (else my target): it takes more from it, or less */
+  Object.freeze({ id: 'target_weak', label: 'My target is weak to it', say: 'my target being weak to it', value: 'bool', ops: Object.freeze(['eq']), slotOnly: true }),
+  Object.freeze({ id: 'target_resists', label: 'My target is resistant to it', say: 'my target resisting it', value: 'bool', ops: Object.freeze(['eq']), slotOnly: true }),
   Object.freeze({ id: 'target_is_boss', label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq']) }),
   Object.freeze({ id: 'item_qty', label: 'Left in the bag', say: 'what is left in the bag', value: 'count', ops: NUM, range: Object.freeze([0, 100000]),
     subject: Object.freeze({ item: 'of this slot’s item', food: 'of food', drink: 'of drink', ammo: 'of the loaded ammo' }) }),

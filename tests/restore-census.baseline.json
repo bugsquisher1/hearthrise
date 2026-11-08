@@ -1121,7 +1121,7 @@
   },
   "hr_hunt_condition_metrics": {
    "class": "seeded",
-   "replay": 9,
+   "replay": 14,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the condition metrics a bar slot or stop rule may test (src/data/condition-metrics.js METRICS). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_config": {

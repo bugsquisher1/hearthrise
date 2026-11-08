@@ -16,7 +16,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-export const EVENT_VERSION = 5;
+export const EVENT_VERSION = 6;
 
 /* type → its required fields. `u` acts, `t` is acted on (unit ids). */
 export const EVENT_TYPES = Object.freeze({
@@ -33,6 +33,11 @@ export const EVENT_TYPES = Object.freeze({
   pull: Object.freeze(['pocket']),
   respawn: Object.freeze(['pocket']),
   wipe: Object.freeze([]),
+  /* monster-spells.js: a monster's telegraphed area spell. `spell` STARTS its mark: the shape (shapes.js kind, origin x, y,
+     aim offset dx, dy, r, len) and the windup `ms` it lands after (marks.js markTiles: the tiles to draw, the server's own).
+     `spell_end` CLOSES it: why 'landed' (hits: the heroes struck), 'killed' or 'reset' (the caster fell or left the fight). */
+  spell: Object.freeze(['u', 't', 'spell', 'shape', 'x', 'y', 'ms']),
+  spell_end: Object.freeze(['u', 'spell', 'why']),
   /* boss-phases.js: a called boss crossed a line (phase: adds | enrage) */
   boss_phase: Object.freeze(['u', 'phase']),
   /* targeting.js */

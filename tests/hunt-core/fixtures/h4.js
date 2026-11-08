@@ -79,7 +79,8 @@ export async function suiteH4(name, cases, mutants) {
   const M = await load(ROOT);
   for (const [cn, fn] of Object.entries(cases)) {
     let why = null;
-    try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+    /* a case may be async (one that plants rows into its own copy of the tree under test: abilities.mjs hero-area-shapes) */
+    try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
     R.ok(!why, cn + ': ' + why);
   }
   for (const mu of mutants || []) {
@@ -88,7 +89,7 @@ export async function suiteH4(name, cases, mutants) {
     const p = plant(mu.edits, mu.also || []);
     try {
       let why = null;
-      try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
+      try { why = await cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
       R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
     } finally { p.done(); }
   }

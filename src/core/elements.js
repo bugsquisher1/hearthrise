@@ -92,6 +92,36 @@ export function elementPermille(monster, element) {
 }
 
 /**
+ * A HERO'S ELEMENTAL RESISTANCE (Tyler 2026-11-08: "when we start to increase the difficulty we can add some elemental
+ * resistance to gear and imbuements in order for the party to survive"). `resistPm` is the hero's resolved
+ * { element: permille less taken } (combat.js equipmentStats sums the worn pieces' `resistPm`; member.js heroSnapshot
+ * carries it to the unit as `resistPm`). The profile a hero's unit holds, normalised: element ids only, whole permille
+ * inside ELEMENT_PCT x 10 (never shrugged off whole, at most double from a weakness), zeros dropped, keys in vocabulary
+ * order (so two runtimes write the same JSON); null when nothing is left, which is every hero today.
+ */
+export function resistProfile(resistPm) {
+  if (!resistPm || typeof resistPm !== 'object') return null;
+  /** @type {Record<string, number>} */
+  const out = {};
+  let any = false;
+  for (const e of ELEMENTS) {
+    const v = Object.prototype.hasOwnProperty.call(resistPm, e) ? Math.trunc(Number(resistPm[e])) : 0;
+    const pm = Number.isFinite(v) ? Math.min(ELEMENT_PCT.max * 10, Math.max(ELEMENT_PCT.min * 10, v)) : 0;
+    if (pm) { out[e] = pm; any = true; }
+  }
+  return any ? out : null;
+}
+
+/** What one blow of `element` is worth against a HERO carrying `resistPm` (resistProfile), in permille: 1000 less its
+    resistance to that element; physical, an unnamed element or no profile: 1000. The armour chain's resistances step
+    (src/core/mitigation.js mitigate, through targeting.js elementOn). */
+export function heroElementPermille(resistPm, element) {
+  if (!resistPm || !isElement(element) || !Object.prototype.hasOwnProperty.call(resistPm, element)) return 1000;
+  const v = Math.trunc(Number(resistPm[element]));
+  return Number.isFinite(v) ? 1000 - Math.min(ELEMENT_PCT.max * 10, Math.max(ELEMENT_PCT.min * 10, v)) : 1000;
+}
+
+/**
  * The clamped multiplier a loadout enchanted with `element` earns against
  * `monster`. Always ≥ 1.
  *

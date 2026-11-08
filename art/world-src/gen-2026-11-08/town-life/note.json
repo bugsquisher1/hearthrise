@@ -1,0 +1,36 @@
+{
+  "asset": "town life sample (brief 09 C2): the mill's waterwheel and mb_reeds sway",
+  "brief": "art/briefs/gen-2026-11-07/09-next-batch.txt C2",
+  "status": "SAMPLE for the art director; not imported, nothing wired",
+  "made": "2026-11-08",
+  "mill_wheel": {
+    "source": "art/world/common/mill.png (192x140), crop x112-159 y68-131 (48x64): the wheel (mill x132-150, y71-125) and 20 columns of wall for context; uploaded as upload:c4844ae7-efd1-4e0a-a6e7-364e5ab24be1",
+    "tool": "animate_image, frame_count 8, seed 41",
+    "job": "f5bc0b05-c78f-4f98-bfbd-272824ded7a4", "asset": "0ab1ab15-7422-5ed7-ab5b-9ef36ac06e8e",
+    "action": "the waterwheel turns slowly, water drips from its paddles, nothing else moves",
+    "files": "raw/frame_000..008.png (frame_000 the crop unchanged); cut/0..8.png = the cut: crop columns 0-19 (the wall, mill x112-131) always frame_000's pixels, columns 20-47 (the wheel, mill x132-159) the generated frame's",
+    "measured": "the model changed 29-36 wall pixels a frame (dropped by the cut, so the wall never shimmers); the wheel redraws 576-678 px a frame, its box steady at 19 x 55-57 px (crop x20-38, y3-59); 0 blue pixels in any frame",
+    "gens": 1,
+    "flags": [
+      "NO WATER: the drips the action asked for were not painted (0 blue pixels)",
+      "the wheel is seen nearly edge-on, so the turn reads as the paddles sliding down the rim; frames 7-8 look a little thinner at the rim",
+      "the cut line is a column (crop x19/x20 = mill x131/x132), the wall's own outline; a wheel pixel the model moved left of it would be cut (none of the 9 boxes starts left of x20)",
+      "8 frames generated; the brief's 6 fps loop is the art director's pick of frames"
+    ]
+  },
+  "mb_reeds": {
+    "source": "art/world/forest/mb_reeds.png (32x32, decal), uploaded as upload:18a6f0bf-ccc0-411a-8556-8715527fe195",
+    "tool": "animate_image, frame_count 4, seed 41",
+    "job": "d0777743-ef04-47f6-9618-cc946fa8e725", "asset": "68e2f49c-4d3e-50d3-a6d3-3c0e34631d2e",
+    "action": "the reeds sway gently in the wind",
+    "files": "raw/frame_000..004.png (frame_000 the still, byte-identical)",
+    "measured": "mask moves 49-102 px from the still (frames 1-4), colour turns 89-105 px (v3 shimmer: an import would snap to the still's colours as idle-clip.mjs does); the base rows 28-31 move 1-3 px; the box grows from y4 to y2 at frame 2",
+    "gens": 1,
+    "flags": [
+      "the two cattail heads rise 2 px at frame 2 (the stems lengthen, not only lean)",
+      "the loop's last frame (4) is close to the still (49 px), so 0-1-2-3-4 loops without a pop"
+    ]
+  },
+  "generations": 2,
+  "review_strip": "art/review/gen-2026-11-08/town-life-c2.png (x4: the wheel crop raw frames 0-8; the cut frames 0-8; then x8 the reeds: the shipped still, raw frames 0-4)"
+}

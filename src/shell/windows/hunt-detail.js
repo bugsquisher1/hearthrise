@@ -24,7 +24,7 @@ import { rows, text, cls, prop, attr, style, element } from '../../render/paint.
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.109';
 import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.109';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.109';
-import { bandWords, fitWords, heroWords, partyNote, bestWords, SOLO_WORDS } from '../hunt-list.js?v=0.2.109';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.109';
 import { residentsOf, scarceSetOf, raresOf, bigPullLine, materialsOf } from '../hunt-ground-facts.js?v=0.2.109';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.109';
 import { chance, listWords } from '../../render/format.js?v=0.2.109';
@@ -152,7 +152,7 @@ export function patchGround(det, ctx, r, o) {
   const fitEl = band.querySelector('.hw-hunt-fit');
   text(fitEl, fit && (fit.tone === 'in' || fit.tone === 'below') ? fit.words : '');
   attr(fitEl, 'data-tone', fit ? fit.tone : null);
-  text(det.querySelector('.hw-hd-who'), heroWords(r) + '. ' + SOLO_WORDS);
+  text(det.querySelector('.hw-hd-who'), heroWords(r) + '.');
   text(det.querySelector('.hw-hd-theme'), (HUNT_INDEX[r.hunt] && HUNT_INDEX[r.hunt].theme) || r.theme);
   const residents = residentsOf(r.hunt);
   wantArt(ctx.doc, residents.map((m) => m.id), repaint);

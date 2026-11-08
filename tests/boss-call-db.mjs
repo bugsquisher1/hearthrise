@@ -5,7 +5,7 @@
 //   node tests/boss-call-db.mjs            the guard
 //   node tests/boss-call-db.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: supabase/migrations/2027-03-12-boss-call.sql
+// mutant-anchors: supabase/migrations/2027-03-12-boss-call.sql supabase/migrations/2027-03-22-live-events.sql
 //
 //   BD-WORDS   every refusal: a party of one, a member, a stale price, an unknown call, each in its code, each charging nothing and opening nothing
 //   BD-CHARGE  the leader pays the server's price, one ledger row kind shop; the member pays nothing; a replayed key charges once and answers the same
@@ -368,7 +368,8 @@ const MUTANTS = [
   { name: 'a normal hunt may carry a record', fn: 'public.hr_boss_fight_ok(jsonb,text)', find: "if not exists (select 1 from public.hr_boss_calls c where c.hunt_id = p_hunt) then return false; end if;", repl: '', arm: 'forged', want: /BD-RECORD/ },
   { name: 'every door opens the room', fn: FN.admit, find: "and current_setting('hr.boss_call', true) is distinct from p_hunt then", repl: 'and false then', arm: 'verb', want: /BD-DOOR/ },
   { name: 'a stale price is taken', fn: FN.verb, find: "if (v_q->>'price')::bigint <> p_price then", repl: 'if false then', arm: 'verb', want: /BD-WORDS/ },
-  { name: 'the verb charges the client\'s number', fn: FN.verb, find: "'gold', -p_price,", repl: "'gold', -least(p_price, 1),", arm: 'verb', want: /BD-CHARGE/ },
+  { name: 'the verb charges the client\'s number', fn: FN.verb, find: "(case when p_price > 0 then jsonb_build_object('gold', -p_price) else '{}'::jsonb end)",
+    repl: "(case when p_price > 0 then jsonb_build_object('gold', -least(p_price, 1)) else '{}'::jsonb end)", arm: 'verb', want: /BD-CHARGE/ },
   { name: 'a member may call', fn: FN.quote, find: "when not (v_p.leader_user = p_user and v_p.leader_slot = p_slot) then 'call_leader'", repl: "when false then 'call_leader'", arm: 'verb', want: /BD-WORDS/ },
   { name: 'a party of one may call', fn: FN.quote, find: 'or v_seats < r.party_min then', repl: 'then', arm: 'verb', want: /BD-WORDS/ },
   { name: 'the limit is per hero', fn: FN.quote, find: "where l.user_id = p_user and l.kind = 'shop'", repl: "where l.user_id = p_user and l.slot = p_slot and l.kind = 'shop'", arm: 'verb', want: /BD-LIMIT/ },

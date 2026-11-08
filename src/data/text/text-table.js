@@ -8,12 +8,14 @@
 // tests/text-home.mjs keeps every call site honest and ratchets the text
 // still written in code down to none.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_TEXT } from './bar.js?v=0.2.106';
-import { FARM_TEXT } from './farm.js?v=0.2.106';
-import { HEROES_TEXT } from './heroes.js?v=0.2.106';
-import { HOUSE_TEXT } from './house.js?v=0.2.106';
-import { HUNTS_TEXT } from './hunts.js?v=0.2.106';
-import { ITEM_TEXT } from './item.js?v=0.2.106';
+import { BAR_TEXT } from './bar.js?v=0.2.109';
+import { FARM_TEXT } from './farm.js?v=0.2.109';
+import { HEROES_TEXT } from './heroes.js?v=0.2.109';
+import { HOUSE_TEXT } from './house.js?v=0.2.109';
+import { HUNTS_TEXT } from './hunts.js?v=0.2.109';
+import { ITEM_TEXT } from './item.js?v=0.2.109';
+import { SHOP_TEXT } from './shop.js?v=0.2.109';
+import { TEMPER_TEXT } from './temper.js?v=0.2.109';
 
 export const TEXT = Object.freeze({
   bar: BAR_TEXT,
@@ -22,4 +24,6 @@ export const TEXT = Object.freeze({
   house: HOUSE_TEXT,
   hunts: HUNTS_TEXT,
   item: ITEM_TEXT,
+  shop: SHOP_TEXT,
+  temper: TEMPER_TEXT,
 });

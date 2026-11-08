@@ -33,14 +33,20 @@
 //   SV-9  ON A PHONE THE ANSWER COVERS NOTHING (lane/c-temper-craft's play, 2026-11-05: "Your Iron armor is at rung 1." stood stuck to the sheet's foot over
 //         the note on where the next salts come from, for the 30 s an answer stands): at 844x390 the answer takes the question's place, in view as it
 //         lands, and lies over no line of the tab however the sheet is scrolled
+//   SV-10 WHERE A HUNTED INPUT DROPS (Tyler 2026-11-07: "what drops the Fine Tempering Salts? haven't dropped any yet"): short of Fine
+//         Tempering Salts, the line counts the recipe's inputs ("2 Iron Bars and 1 Big Bones") and names where Big Bones drop, read from the
+//         monsters' rows and the open grounds (hunt-ground-facts dropWhereWords), never typed
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 
+const { dropWhereWords } = await import(pathToFileURL(join(ROOT, 'src/shell/hunt-ground-facts.js')).href);
+const { ARTISAN_RECIPES } = await import(pathToFileURL(join(ROOT, 'src/data/recipes.js')).href);
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const SECTIONS = {
@@ -197,7 +203,21 @@ async function checks(overrides) {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
         if (!/You hold 4 \(1 in Storage\)\./.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-8 short of material reads ' + JSON.stringify(b));
         const way = await txt(page, '.hw-temper-way');
-        if (!/Tempering Salts: Smithing 15 \(yours is \d+\) makes them from Iron Bars and Bone Chips/.test(way || '') || !/Or buy them at the Weighhouse\./.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
+        if (!/Tempering Salts: Smithing 15 \(yours is \d+\) makes them from 1 Iron Bar and 1 Bone Chips/.test(way || '') || !/Or buy them at the Weighhouse\./.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
+      }
+      await ctx.close();
+    }
+    { // SV-10: a Steel Sword short of Fine Tempering Salts is told the recipe's counts and where Big Bones drop, from the data
+      const fine = clone(TEMPER);
+      fine.equipment.weapon = 'steel_sword';
+      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), fine));
+      if (!opened) fails.push('SV-10 the Services tab did not open on a Steel Sword');
+      else {
+        const way = (await txt(page, '.hw-temper-way')) || '';
+        const ins = (ARTISAN_RECIPES.smithing.find((r) => r.output === 'fine_temper_salts') || {}).inputs || {};
+        const where = dropWhereWords('big_bones').replace(/^Dropped by /, '');
+        if (!where || !way.includes('makes them from ' + ins.iron_bar + ' Iron Bars and ' + ins.big_bones + ' Big Bones') || !way.includes('Big Bones drop from ' + where + '.'))
+          fails.push('SV-10 the way never says where Big Bones drop (' + JSON.stringify(where) + '): ' + JSON.stringify(way));
       }
       await ctx.close();
     }
@@ -294,7 +314,7 @@ async function checks(overrides) {
 }
 
 const MUTANTS = [
-  ['Temper sends without a confirmation (SV-7)', 'src/shell/windows/temper-pane.js', "sc.ask = t.getAttribute('data-track');\n    sc.msg = '';", "sc.ask = t.getAttribute('data-track');\n    return actTemperPane(ctx, 'temper-yes', t, sc, repaint);\n    sc.msg = '';"],
+  ['Temper sends without a confirmation (SV-7)', 'src/shell/windows/temper-pane.js', "sc.ask = el.getAttribute('data-track');\n    sc.msg = '';", "sc.ask = el.getAttribute('data-track');\n    return actTemperPane(ctx, 'temper-yes', el, sc, repaint);\n    sc.msg = '';"],
   ['the sale carries a price (SV-7)', 'src/shell/windows/temper-pane.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('unlock_buy', { offer, gold: 8000 })"],
   ['the sheet forgets the rungs (SV-7)', 'src/session/temper-sections.js', 'return r && (r.blows.nowPm > 0 || r.armor.nowPm > 0) ?', 'return r && false ?'],
   ['short of material stays on (SV-8)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || !!short ||"],

@@ -78,8 +78,6 @@ export const FARM_TEXT = Object.freeze({
   /* The plot tier. */
   tier_grows: 'Tier {tier} grows {crops}.',
   tier_next: 'Tier {tier} adds {crops}: {price}, at Farming {level}.',
-  tier_next_deeds: { one: 'Tier {tier} adds {crops}: {price} (or {deeds} Farmer\'s Deed), at Farming {level}.',
-    other: 'Tier {tier} adds {crops}: {price} (or {deeds} Farmer\'s Deeds), at Farming {level}.' },
   tier_top: 'Your plots are at the top tier.',
   tier_crop_needs: '{crop} (Farming {level} to plant)',
   improve: 'Improve the soil · {price}',

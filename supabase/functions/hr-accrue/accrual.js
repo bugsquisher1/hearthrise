@@ -90,6 +90,8 @@ import {
 /* THE ONE COMBAT LOOP (src/core/combat-sim.js simulateHuntInstance): a fight is a
    hunt instance, solo or party, priced only by accrueHunt below. */
 import { simulateHuntInstance } from '../../../src/core/combat-sim.js';
+/* A LIVE EVENT'S XP DIAL at each kill's own time, from the windows the server read for each member (2027-03-22-live-events.sql). */
+import { xpMultFor } from '../../../src/core/live-events.js';
 import { simulateSkillSpan, STOP_REASON, SKILL_ACTION_STAT } from '../../../src/core/skill-sim.js';
 /* The third simulation. `simulateArtisanSpan` runs the SAME `sliceSpan` the
    gather path runs, over the same `resolveArtisanAction` the live bench runs —
@@ -1208,8 +1210,9 @@ function fightOf(sim, unitId, call) {
  *        + the envelope inputs (skills, levelXp,
  *        xpFrac, hp, gold, equipment, inventory, deathsLifetimeBefore, perks,
  *        hearthfindReady) }]
+ * @param inp.scale    { level } when the server scales this window (hr_scaled_hunt_of through the instance read), else absent
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
- *            track, events, members: [{ key, delta, hunt }] }
+ *            track, events, members: [{ key, delta, hunt }], scaleLevel }
  */
 export function accrueHunt(inp) {
   const w = inp.window || {};
@@ -1231,9 +1234,14 @@ export function accrueHunt(inp) {
   /* THE INSTANCE'S KEYED SEEDER: built once per settle; throws on a missing or
      malformed secret — an unseeded hunt swing is a predictable one. */
   const seed = seederFor(String(inp.secret ?? ''), String(inp.instance.id));
+  /* A SCALED HUNT (combat-sim.js huntPlayOf): the server's scale of this window, { level } or none; the engine answers what it played. */
+  const scale = inp.scale && Number.isInteger(inp.scale.level) ? { level: inp.scale.level } : null;
+  /* A LIVE EVENT (hr_live_xp_windows through the instance read): each member's own windows; none live, no hook, the hunt as it always ran. */
+  const xpMultOf = xpMultFor(sides, (sd) => sd.mi.liveXp);
   const sim = simulateHuntInstance(
     { world: world0, worldSwing: worldSwing0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
-    { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items });
+    { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items, ...(scale ? { scale } : {}),
+      ...(xpMultOf ? { xpMultOf } : {}) });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
 
   const out = [];
@@ -1263,6 +1271,8 @@ export function accrueHunt(inp) {
     tickMs,
     track: sim.track, events: sim.events, units: sim.units,
     members: out,
+    /* the Level the window played at (null: the ground's own), the commit's claim the server re-proves (hr_hunt_apply_instance) */
+    scaleLevel: Number.isInteger(sim.scale) ? sim.scale : null,
   };
 }
 
@@ -1423,6 +1433,9 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
   }
   /* "Level XP before bonuses" is the even share, not what was paid (blind panel 2026-11-01: the analyzer's two lines always matched). */
   if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;
+  /* A LIVE EVENT'S PART of this window's Level XP (member.js xpEvent), sent only when there is one: the server bounds it and keeps it apart
+     (hunt_session_tally.xp_event), so a personal best leaves it out (2027-03-22-live-events.sql). */
+  const xpEvent = Number.isInteger(t.xpEvent) && t.xpEvent > 0 ? t.xpEvent : 0;
   const next = Math.max(Math.floor(hs.nextSwingAtMs), Math.floor(settledToMs));
   return {
     swing_from: swingFrom,
@@ -1446,6 +1459,7 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
     /* THE HERO'S UNIT in the instance world (null once it has left). */
     unit_id: summary && Number.isInteger(summary.unitId) ? summary.unitId : null,
     tick_ms: tickMs,
+    ...(xpEvent > 0 ? { xp_event: xpEvent } : {}),
   };
 }
 

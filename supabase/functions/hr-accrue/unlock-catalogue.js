@@ -69,11 +69,10 @@ const OFFER_FIELDS_UNDERSTOOD = Object.freeze(['id', 'table', 'name', 'cost', 'g
  *
  *  Everything else is refused by name, and each has a reason rather than an
  *  omission:
- *    plot / worker    REPEATABLE hires and buildings whose cap is the PROPERTY
- *                     TIER's `plots`/`workers`, not a number in any catalogue
- *                     the server has. A cap that is not enforced is not a cap.
- *    farm_plot_tier   priced in `farm_deed` items and gated by src/core/farm.js
- *                     PLOT_TIERS; the same missing-cap argument.
+ *    (the four `plot` buildings and the six `worker` hires were refused here
+ *     and were cut 2026-11-07, lane/c-dead-plot-deed: nothing read either)
+ *    farm_plot_tier   the plot tier has its own verb, hr_farm_upgrade_plot, which
+ *                     prices it in gold from hr_plot_tier (src/core/farm.js).
  *    companion        two of the four carry reqSkill/reqLv, which this verb does
  *                     not implement; the namespace is refused whole rather than
  *                     half, so "which companions are buyable" is not a rule a

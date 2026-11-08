@@ -58,6 +58,9 @@
 //   AW-71 THE SAME CARD KEEPS ITS BOX AND ITS WORDS FOLLOW THE SERVER (door panel 2026-11-04): "You have 19 left" stood over a bar reading 6 for a whole hunt
 //   AW-72 A RING STANDS CLEAR OF THE ANSWER LINE (door panel 2026-11-04, a phone's Services): the next Bless lay behind "Blessing I is yours."
 //   AW-73 ON A PHONE THE CARD'S CROSS IS DRAWN IN ITS BUTTON (door panel 2026-11-04): static, it lay over the words in the middle of every closable card
+//   AW-74 A SEED SAYS WHAT PLANTING IT NEEDS (coverage bot 2026-11-07: carrot and wheat seeds bought on tier 1 land, every plant refused
+//         plot_tier_locked): on the server's tier 1 land a Farming 10 hero's carrot seed reads "Needs plot tier 2 to plant" before the
+//         purchase; the turnip seed (tier 1, Farming 1) names no need
 //   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot plans
 //         and Dispatch loot stay off and the bag value reads a dash
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
@@ -1741,6 +1744,24 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+    { // AW-74 a seed says what planting it needs, before the purchase (the server's Farming and the account's plot tier)
+      const seeds = (e) => {
+        e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.turnip_seed', item: 'turnip_seed', kind: 'seed', price: 5 },
+          { offer: 'supply.carrot_seed', item: 'carrot_seed', kind: 'seed', price: 10 }]) });
+        e.skills = Object.assign({}, e.skills, { farming: { xp: 1154, level: 10, frac: 0 } });
+        e.farm_land = { cap: 2, plot_level: 1, deeds: 0, upgrade: { level: 2, gold: 500, deeds: 1, farming: 5 }, plots: [] };
+      };
+      const { ctx, page, up } = await open({ mutateEnv: seeds });
+      if (up && await openWin(page, 'v', 'shop')) {
+        await page.waitForTimeout(150);
+        const said = await page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('.hw-shop [data-pane="buy"] .hw-line'))
+          .map((l) => [l.getAttribute('data-item'), l.querySelector('small').textContent])));
+        if (!/ · Needs plot tier 2 to plant/.test(said.carrot_seed || '') || /Farming/.test(said.carrot_seed || '')) fails.push('AW-74 the carrot seed on tier 1 land reads ' + JSON.stringify(said.carrot_seed));
+        if (!said.turnip_seed || /Needs/.test(said.turnip_seed)) fails.push('AW-74 the turnip seed reads ' + JSON.stringify(said.turnip_seed));
+      } else fails.push('AW-74 the Shop did not open');
+      await ctx.close();
+    }
+
     { // AW-65 CARRY IN (Tyler 2026-11-02, "Yes, add a press"): a hunting hero's Hunt prep offers the bag's supplies with the
       // server's two counts; Carry asks how many and sends ONE hr_hunt_restock (an item id and a count, nothing else); the
       // counts change only from the server's re-read; a settle_first refusal runs the hunter's settle, then ONE more ask
@@ -2417,12 +2438,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.mouse.move(2, 2);
         /* Storage: the counting axe put away says so, the one that wasn't counting does not. */
         await openWin(page, 't', 'storage');
+        /* each line is read once the server has answered, never after a fixed wait: a slow runner still showed "Putting it away…"
+           at 500 ms (v0.2.107 run 42441133986, in-page-10). Settled = not the pending line, and not the line before the press. */
+        const storeMsg = '[data-hs-win="storage"] .hh-intent-msg';
+        const settledAfter = (before) => wait(page, (a) => { const m = document.querySelector(a.sel); const t = m ? m.textContent.trim() : '';
+          return !!t && !/…$/.test(t) && t !== a.before; }, { sel: storeMsg, before });
         await page.click('[data-hs-win="storage"] [data-side="bag"] .hw-pocket[data-item="bronze_axe"]');
-        await page.waitForTimeout(500);
-        const quiet = await say('[data-hs-win="storage"] .hh-intent-msg');
+        await settledAfter(null);
+        const quiet = await say(storeMsg);
         await page.click('[data-hs-win="storage"] [data-side="bag"] .hw-pocket[data-item="iron_axe"]');
-        await page.waitForTimeout(500);
-        const told = await say('[data-hs-win="storage"] .hh-intent-msg');
+        await settledAfter(quiet);
+        const told = await say(storeMsg);
         if (/slower/.test(quiet || '') || !/Woodcutting is slower without it/.test(told || '')) fails.push('AW-60 Storage says ' + JSON.stringify([quiet, told]));
       }
       if (errors.length) fails.push('AW-60 console errors: ' + errors.slice(0, 2).join(' | '));
@@ -3584,6 +3610,7 @@ const MUTANTS = [
   ['AW-66 the numbers read on under the summary\'s presses', 'src/styles/summary.css', 'position: sticky; bottom: -12px;', 'position: sticky; bottom: 0;'],
   ['AW-67 the Shop\'s last row reads on above its tabs', 'src/styles/windows.css', 'position: sticky; top: -10px; margin-top: -10px; padding-top: 10px;', 'position: sticky; top: 0;'],
   ['AW-67 a Shop tab keeps the last tab\'s scroll', 'src/shell/windows/shop.js', "sc.wear = false; body.scrollTop = 0; repaint(); return true; }", "sc.wear = false; repaint(); return true; }"],
+  ['AW-74 a seed the land cannot grow yet is sold with no word', 'src/shell/windows/shop.js', "  const tier = requiredPlotLevel(crop) > (field ? field.plotLevel : 1) ? requiredPlotLevel(crop) : 0;\n", '  const tier = 0;\n'],
   ['AW-73 the phone card\'s cross lies on its words', 'src/styles/shell.css', '.hs-pointer:not(.is-min) > .hs-coach-close { position: relative; top: auto; right: auto;', '.hs-pointer:not(.is-min) > .hs-coach-close { position: static;'],
   ['AW-72 a ring lands under the answer line', 'src/shell/widgets/bits.js', 'if (r.bottom > floor) { p.scrollTop += r.bottom - floor + 8; return true; }', 'if (r.bottom > b.bottom) { p.scrollTop += r.bottom - b.bottom + 8; return true; }'],
   ['AW-66 the summary\'s presses lie on a phone\'s numbers', 'src/styles/summary.css', '  .hsum-card.is-on { display: flex; flex-direction: column; }\n', ''],

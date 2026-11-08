@@ -29,7 +29,7 @@
 // tier-3 rate (loot-bands.js VENDOR_GEAR_RATES stops at tier 3) until Phase 0's ruled tier-4 0.075 lands; at 0.14 the hour's gear
 // sells for more than half its coin (drop-tables gear-faucet), so this pack ships with or after that rate. Commons feed the Hearth (Grave Dust at 46, Bone Chips at 40, Big Bones) and the forge (Coal, Copper Ore). Each body
 // drops its own imbuement item, kept for the imbuer (catalogue-coherence.js VENDOR_TRASH until imbuing is built).
-import { definePack, box } from '../shape.js?v=0.2.106';
+import { definePack, box, gather } from '../shape.js?v=0.2.106';
 import map from './map.js?v=0.2.106';
 
 const PK = 'greened_pikeman', BG = 'bargeman', ML = 'mudlark', CS = 'color_sergeant';
@@ -72,6 +72,10 @@ export default definePack({
     respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
     densityMax: [8, 8, 8, 8],
     partyPull: [0, 3, 3, 4],
+    /* THE GATHER SLIDER (inert until the hunt-gathering engine lands; tests/hunt-core/forest-cave.mjs gather-nodes): oaks on the north
+       and south banks, as the Ford placed them (refKillMs its 12000). The March kit has no tree node of its own: the art director's read
+       keeps oak off the March, so these swap to a March tree kind (a bank maple or willow, the tier-4 bow and staff wood) when one exists. */
+    gather: gather(12000, [['oak_tree', 9, 4, 0], ['oak_tree', 21, 8, 0], ['oak_tree', 5, 34, 4], ['oak_tree', 18, 32, 4]]),
   },
   /* THE BODIES (art brief 01 and 06): the Mudlark, the Greened Pikeman and the Bargeman are new drawings; the Color Sergeant is a
      verdigris re-pour of the Ford's Bannerman. Each differs from its Ford cousin in its weakness or resistance (pack-distinct).
@@ -154,17 +158,19 @@ export default definePack({
      classes (Tyler 10-31). Measured on the grader with no row (every cell 1000): a mixed four read 0.98-1.03 of the same heroes
      alone (the ruling's 1.15-1.25) and a tank's seat beside a Healer 0.85-0.92, under going alone. The cells lift the mixed seats
      and keep one class under the even share. The four with a Healer reads about 4% more over its heroes alone than the four with a
-     second Melee, so its 4-class cell sits under the 3-class one: both read 1.15-1.25 (grade full, as opened). */
-  partyClassXp: { 2: [960, 1160], 3: [960, 1120, 1240], 4: [960, 1120, 1230, 1200] },
+     second Melee, so one cell serves both: at 1210 run 5 scales to 1.16-1.24 on each (computed, the cell is a straight factor on the share). Adding a class never pays less
+     (tests/hunt-core/xp-share.mjs party-class-every-cell). */
+  partyClassXp: { 2: [960, 1160], 3: [960, 1120, 1240], 4: [960, 1120, 1210, 1210] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured as opened at the band middle (58) on the house plan b1102p's parties, 1 h x 2 seeds, the default pull. Two measures
      part here: against the median lone way the grader reads a mixed four at 1.18-1.23 (the ruling's 1.15-1.25), but a Mage or a
      Healer alone earns 40-90% over the median way at 50-65, so against its own heroes alone a four reads only +5%. */
   partyVsAlone: { 2: [-10, 0], 3: [-20, -10, 0], 4: [-15, -5, 5, 5] },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Warrens' tier-3 store food, the cheapest heal an HP (Salted Lobster, 0.83 g
-     an HP; the tier-4 Swordfish is 1.50). Quantities are about three hours of the measured eating (checks below). */
+     an HP; the tier-4 Swordfish is 1.50: on it a lone sword cleared only +6% at the floor). The Warrens' bag, the melee line raised to
+     three hours of a lone tank's measured 6.1k g an hour at the floor (drop-tables), about 34 Salted Lobster an hour. */
   bagGuide: { tier: 4,
-    melee: { heal: { id: 'cooked_lobster', qty: 80 } },
+    melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 8813 },

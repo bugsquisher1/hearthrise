@@ -16,7 +16,8 @@
 //
 // ART: STAGED. The ground `the_slake_ground` is painted from these rows on the Barrow March kit's tilesets
 // (src/data/world/region-kits.js barrow_march.families.march, with the copper silt pair of brief 04). Every object placed below
-// is a kit prop on a loaded set. Waiting on their sets (brief 04): the Stake Nets (signature 2) as a run of 4-6 across the
+// is a kit prop on a loaded set, but the four gather oaks (the Ford's node kind, which the kit keeps off the March: they swap for a
+// March tree node when one exists). Waiting on their sets (brief 04): the Stake Nets (signature 2) as a run of 4-6 across the
 // north-east bar, x45-52 y7-9 beside the Stake Nets pocket; the barge's spill (sl_grounded_barge_coal, _spar, _pitch, _plank)
 // west of the hull round the Grounded Barge pocket; the river kit's silt stains and ripples (mr_*) at least every 12 tiles of
 // open silt; hf_helm_heap at the Mudlark Holes, hf_pikes_fallen and hf_banded_shield along the Tow Path.
@@ -89,6 +90,8 @@ export default Object.freeze({
     { id: 'mb_fallen_log', x: 5, y: 31 }, { id: 'bone_pile', x: 12, y: 36 }, { id: 'westwood_ash', x: 20, y: 36 },
     /* P5 the Grounded Barge: the stores that came off the hull when its back broke */
     { id: 'barrels', x: 24, y: 17 }, { id: 'barrel_broken', x: 25, y: 21 }, { id: 'sack_pile', x: 16, y: 22 },
+    /* the gather nodes (pack.js ground.gather): bank oaks, to swap for a March tree kind */
+    { id: 'oak', x: 9, y: 4 }, { id: 'oak', x: 21, y: 8 }, { id: 'oak', x: 5, y: 34 }, { id: 'oak', x: 18, y: 32 },
     /* reeds where the silt meets deep water */
     { id: 'mb_reeds', x: 13, y: 10 }, { id: 'mb_reeds', x: 30, y: 10 }, { id: 'mb_reeds', x: 50, y: 10 }, { id: 'mb_reeds', x: 23, y: 14 },
     { id: 'mb_reeds', x: 48, y: 14 }, { id: 'mb_reeds', x: 18, y: 26 }, { id: 'mb_reeds', x: 38, y: 26 }, { id: 'mb_reeds', x: 54, y: 26 },
@@ -108,5 +111,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 13, y: 0, to: 'town_common' }]),
   start: Object.freeze([13, 1]),
-  maskHash: 'ac792a54',
+  maskHash: '75e610b2',
 });

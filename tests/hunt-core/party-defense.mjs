@@ -65,10 +65,13 @@ function loneTankHolds(P, quiet) {
     x = P.run('millrace_sewer', 15, roles, { spanMs: 600000, density: DENSITY, secret, onWindow: (out, members) => {
       const ids = new Map(out.members.map((p) => [p.hunt.unit_id, members.find((m) => m.key === p.key)]));
       const nonTank = new Set([...ids].filter(([, m]) => m && m.hero.role !== 'tank').map(([id]) => id));
+      /* A SPELL IS NO SWING (lane/b-area-data): the Rat King's Squeal strikes every hero by design (Tyler 2026-11-08), so the hits
+         a landing deals (its caster, the sub-step its `spell_end` closes: monster-spells.js land) are not swings that got past the tank */
+      const landed = new Set((out.events || []).filter((e) => e.type === 'spell_end' && e.why === 'landed').map((e) => e.u + '@' + e.atMs));
       for (const e of out.events || []) {
         if (e.type === 'target') { switches++; if (nonTank.has(e.t)) off++; }
         /* the control: monsters swing at heroes all run long (the events are the window's, not empty) */
-        if ((e.type === 'dmg' || e.type === 'miss') && ids.has(e.t) && !ids.has(e.u)) { swings++; if (nonTank.has(e.t)) reached++; }
+        if ((e.type === 'dmg' || e.type === 'miss') && ids.has(e.t) && !ids.has(e.u) && !landed.has(e.u + '@' + e.atMs)) { swings++; if (nonTank.has(e.t)) reached++; }
       }
     } });
     if (off) break;

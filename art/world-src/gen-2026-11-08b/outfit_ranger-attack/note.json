@@ -1,0 +1,533 @@
+{
+  "asset": "outfit_ranger-attack swing (brief 10 B2, Coordinator ruling 2026-11-08)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B2 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (the hero swing clip; heroes have only idle and walk today)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "0934ce5c-0838-4b3e-9b53-16e9e9504489",
+  "name": "S1 ranger: its own crossbow",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); attack/<facing>/0..N.png = the kept roll; alt/<roll>/attack/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the outfit object, frame_count 6, keep_first_frame TRUE (7 stored frames, frame 0 the rotation = the still, checked byte for byte); one group per action text",
+  "rolls": {
+    "r1": [
+      {
+        "group": "418da9a2-f93f-4ef3-8a80-15301615ba6b",
+        "directions": "s e",
+        "action": "lifts the crossbow to aim, it kicks back as it shoots, then lowers it back to its stance, feet planted, the crossbow stays in its hands the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "eee8cf92-6b15-41f1-bd3e-9939dab9518f",
+        "directions": "s e",
+        "action": "lifts the crossbow to aim, the crossbow jolts back in its hands as it shoots, then lowers it back to its stance, feet planted and still, the crossbow stays in its hands the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "3debf4c9-501f-4f17-afd5-bc78b03dc86e",
+        "directions": "e",
+        "action": "aims the crossbow and the crossbow jolts back in its hands once, then lowers it back to its stance, feet planted and still, the crossbow stays in its hands the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "b2": [
+      {
+        "group": "9cdcb131-d6ee-48a8-9ca2-326e606d787a",
+        "directions": "n w se sw ne nw",
+        "action": "keeps facing the same way the whole time, aims the crossbow and the crossbow jolts back in its hands once, then lowers it back to its stance, feet planted and still, the crossbow stays in its hands the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r2",
+    "east": "r3",
+    "north": "b2",
+    "west": "b2",
+    "south-east": "b2",
+    "south-west": "b2",
+    "north-east": "b2",
+    "north-west": "b2"
+  },
+  "refused": {
+    "south r1": "\"kicks back\" kicked a leg up (frames 3-5)",
+    "east r1": "a leg kicks back 5 px at frame 3",
+    "east r2": "an orange muzzle flash at frames 3-4"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r2",
+      "xor": [
+        0,
+        10,
+        76,
+        100,
+        155,
+        101,
+        30
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      "dx": [
+        0,
+        0,
+        -0.8,
+        -1.2,
+        -2.1,
+        -1.2,
+        -0.2
+      ],
+      "dy": [
+        0,
+        0.1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r3",
+      "xor": [
+        0,
+        59,
+        105,
+        155,
+        188,
+        166,
+        161
+      ],
+      "alien": [
+        0,
+        0,
+        2,
+        12,
+        7,
+        12,
+        19
+      ],
+      "dx": [
+        0,
+        0.6,
+        -0.4,
+        -1,
+        -1.9,
+        -1.3,
+        -0.8
+      ],
+      "dy": [
+        0,
+        0.1,
+        0.3,
+        0.7,
+        0.7,
+        0.9,
+        0.8
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north": {
+      "roll": "b2",
+      "xor": [
+        0,
+        48,
+        56,
+        44,
+        55,
+        70,
+        47
+      ],
+      "alien": [
+        0,
+        3,
+        2,
+        2,
+        1,
+        1,
+        2
+      ],
+      "dx": [
+        0,
+        -0.2,
+        0.4,
+        0.4,
+        -0.3,
+        -0.1,
+        0.5
+      ],
+      "dy": [
+        0,
+        0.1,
+        0.1,
+        0.1,
+        0,
+        0.2,
+        0.2
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "b2",
+      "xor": [
+        0,
+        42,
+        94,
+        74,
+        71,
+        85,
+        75
+      ],
+      "alien": [
+        0,
+        2,
+        12,
+        2,
+        1,
+        1,
+        1
+      ],
+      "dx": [
+        0,
+        -0.3,
+        -0.5,
+        -0.1,
+        0.1,
+        0.1,
+        0.3
+      ],
+      "dy": [
+        0,
+        0,
+        -0.9,
+        -1,
+        -0.8,
+        -0.8,
+        -0.4
+      ],
+      "top": [
+        0,
+        0,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "south-east": {
+      "roll": "b2",
+      "xor": [
+        0,
+        15,
+        39,
+        107,
+        141,
+        122,
+        102
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        3,
+        4,
+        12,
+        19
+      ],
+      "dx": [
+        0,
+        0.2,
+        -0.1,
+        -0.2,
+        -0.8,
+        -0.6,
+        -0.3
+      ],
+      "dy": [
+        0,
+        -0.1,
+        0.1,
+        -0.3,
+        -0.2,
+        0.3,
+        0.9
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "south-west": {
+      "roll": "b2",
+      "xor": [
+        0,
+        5,
+        42,
+        30,
+        80,
+        24,
+        2
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "dx": [
+        0,
+        0,
+        0.3,
+        -0.5,
+        -1.1,
+        -0.4,
+        0
+      ],
+      "dy": [
+        0,
+        0,
+        -0.1,
+        -0.2,
+        0,
+        -0.1,
+        0
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north-east": {
+      "roll": "b2",
+      "xor": [
+        0,
+        16,
+        39,
+        52,
+        87,
+        93,
+        90
+      ],
+      "alien": [
+        0,
+        2,
+        2,
+        3,
+        8,
+        5,
+        7
+      ],
+      "dx": [
+        0,
+        0.1,
+        0,
+        0.2,
+        0,
+        -0.2,
+        -0.3
+      ],
+      "dy": [
+        0,
+        0,
+        -0.3,
+        -0.2,
+        0.5,
+        0.7,
+        0.8
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north-west": {
+      "roll": "b2",
+      "xor": [
+        0,
+        98,
+        128,
+        161,
+        153,
+        78,
+        19
+      ],
+      "alien": [
+        0,
+        0,
+        11,
+        20,
+        12,
+        0,
+        0
+      ],
+      "dx": [
+        0,
+        -0.8,
+        -1.1,
+        -1,
+        -1.3,
+        -0.7,
+        0.1
+      ],
+      "dy": [
+        0,
+        -0.4,
+        -0.5,
+        -0.4,
+        -0.1,
+        -0.1,
+        0
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    }
+  },
+  "generations": 11,
+  "flags": [
+    "east r3: the body turns slightly toward the viewer at frames 4-6 as the crossbow lowers",
+    "the swings are small (a 1-2 px jolt): no bolt is drawn; the projectile is the engine VFX"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_ranger-attack.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "ruling": "Coordinator 2026-11-08: a hero swing shows the outfit OWN drawn weapon (the one its idle and walk show), never the equipped item",
+  "sample": "knight S, E and ranger S, E first (frame 0 = still, no impact effect, weapon kept): passed after re-rolls (knight E r3, ranger S r2, ranger E r3)",
+  "hit_frame": "not declared here: the import picks it (the swing peaks at frames 3-4 in most facings)",
+  "import_note": "the import re-runs tools/world-art/outfit-masks.mjs; frames are 48 px objects, seated like the walk"
+}

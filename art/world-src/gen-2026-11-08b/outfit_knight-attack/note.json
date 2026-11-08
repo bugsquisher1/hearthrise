@@ -1,0 +1,576 @@
+{
+  "asset": "outfit_knight-attack swing (brief 10 B2, Coordinator ruling 2026-11-08)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B2 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (the hero swing clip; heroes have only idle and walk today)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "e6b1bc58-8481-40c0-b361-77f9eed15927",
+  "name": "S1 knight v3: its own sword (and shield)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); attack/<facing>/0..N.png = the kept roll; alt/<roll>/attack/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the outfit object, frame_count 6, keep_first_frame TRUE (7 stored frames, frame 0 the rotation = the still, checked byte for byte); one group per action text",
+  "rolls": {
+    "r1": [
+      {
+        "group": "a291018e-afee-4968-ac46-a1f40b4f98f4",
+        "directions": "s e",
+        "action": "raises the sword and cuts down and forward in one short swing, then brings it back to its stance, the shield stays on the other arm, feet planted, the sword stays in its hand the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "01e3cb50-3cde-4d62-b0f9-de3a80b87cbd",
+        "directions": "e",
+        "action": "seen from the side, raises the sword and cuts down and forward in one short swing toward the side it faces, then brings it back to its stance, it never turns toward the viewer, the shield stays on the other arm, feet planted, the sword stays in its hand the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "r3": [
+      {
+        "group": "90c7d9af-7ad2-4cf0-b202-3db2d51fdb6a",
+        "directions": "e",
+        "action": "stays in profile facing right the whole time, lifts the sword up in front of it and cuts it down in front, then lowers it back to where it started, the shield stays on its arm, feet planted, the sword stays in its hand the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "b2": [
+      {
+        "group": "45ea8769-fb89-4962-ae67-a50deb0a0aa0",
+        "directions": "n w se sw ne nw",
+        "action": "keeps facing the same way the whole time, raises the sword and cuts down in one short swing toward the way it faces, then lowers it back to where it started, the shield stays on its arm, feet planted, the sword stays in its hand the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "b2r2": [
+      {
+        "group": "4ca41f89-e8a9-4193-9ad7-ff0061c5af02",
+        "directions": "n nw",
+        "action": "seen from behind the whole time and never turning around, raises the sword and cuts down in one short swing away from the viewer, then lowers it back to where it started, the shield stays on its arm, feet planted, the sword stays in its hand the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "b2r3": [
+      {
+        "group": "48c2bdc2-c8b3-497e-a1b4-ad8f076c5f5c",
+        "directions": "nw",
+        "action": "seen from behind the whole time and never turning around, raises the steel sword and cuts down in one short swing away from the viewer, then lowers it back to where it started, the red plume stays on the helmet, the shield stays on its arm, feet planted, the sword stays steel grey and in its hand the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r3",
+    "north": "b2r2",
+    "west": "b2",
+    "south-east": "b2",
+    "south-west": "b2",
+    "north-east": "b2",
+    "north-west": "b2r3"
+  },
+  "refused": {
+    "east r1": "turns to face the viewer at frames 3-6 (the shield comes round)",
+    "east r2": "turns its back at frames 4-6, the sword barely swings",
+    "north b2": "turns to face the viewer (frames 3-6)",
+    "north-west b2": "the plume comes off as a red blob by the sword (frames 3-6)",
+    "north-west b2r2": "a red streak by the sword again (frames 4-6)"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        0,
+        130,
+        196,
+        190,
+        299,
+        265,
+        263
+      ],
+      "alien": [
+        0,
+        22,
+        34,
+        11,
+        28,
+        39,
+        16
+      ],
+      "dx": [
+        0,
+        -0.1,
+        0.2,
+        1.4,
+        1.2,
+        2.1,
+        2.1
+      ],
+      "dy": [
+        0,
+        -0.1,
+        -1.1,
+        0.1,
+        0.4,
+        0.4,
+        0.3
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (34)",
+        "colour f4 (28)",
+        "colour f5 (39)"
+      ]
+    },
+    "east": {
+      "roll": "r3",
+      "xor": [
+        0,
+        94,
+        133,
+        152,
+        139,
+        124,
+        60
+      ],
+      "alien": [
+        0,
+        5,
+        27,
+        31,
+        32,
+        21,
+        1
+      ],
+      "dx": [
+        0,
+        0.1,
+        -0.3,
+        -0.7,
+        -0.4,
+        -0.4,
+        -0.5
+      ],
+      "dy": [
+        0,
+        -0.5,
+        -1.7,
+        -2.7,
+        -2.3,
+        -0.7,
+        -0.3
+      ],
+      "top": [
+        0,
+        -1,
+        -1,
+        -1,
+        -1,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (27)",
+        "colour f3 (31)",
+        "colour f4 (32)"
+      ]
+    },
+    "north": {
+      "roll": "b2r2",
+      "xor": [
+        0,
+        42,
+        125,
+        165,
+        178,
+        90,
+        74
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        8,
+        26,
+        16,
+        21
+      ],
+      "dx": [
+        0,
+        -0.4,
+        -1.2,
+        -1.6,
+        -1.9,
+        -0.5,
+        -0.1
+      ],
+      "dy": [
+        0,
+        -0.1,
+        -0.5,
+        -0.8,
+        -0.7,
+        0.5,
+        0.5
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f4 (26)"
+      ]
+    },
+    "west": {
+      "roll": "b2",
+      "xor": [
+        0,
+        34,
+        135,
+        133,
+        135,
+        123,
+        128
+      ],
+      "alien": [
+        0,
+        0,
+        24,
+        6,
+        34,
+        1,
+        52
+      ],
+      "dx": [
+        0,
+        -0.1,
+        0.1,
+        0.3,
+        0,
+        0.7,
+        -0.3
+      ],
+      "dy": [
+        0,
+        0,
+        -0.8,
+        -0.5,
+        -0.2,
+        -1,
+        -1.1
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f4 (34)",
+        "colour f6 (52)",
+        "bright f6 (36)"
+      ]
+    },
+    "south-east": {
+      "roll": "b2",
+      "xor": [
+        0,
+        67,
+        93,
+        78,
+        105,
+        85,
+        61
+      ],
+      "alien": [
+        0,
+        1,
+        1,
+        4,
+        8,
+        5,
+        1
+      ],
+      "dx": [
+        0,
+        -0.1,
+        -0.4,
+        -0.2,
+        0.2,
+        0.1,
+        -0.4
+      ],
+      "dy": [
+        0,
+        -0.1,
+        -0.3,
+        0.1,
+        0,
+        -0.2,
+        0
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "south-west": {
+      "roll": "b2",
+      "xor": [
+        0,
+        76,
+        167,
+        237,
+        320,
+        285,
+        247
+      ],
+      "alien": [
+        0,
+        0,
+        38,
+        25,
+        73,
+        41,
+        44
+      ],
+      "dx": [
+        0,
+        0.3,
+        0.1,
+        0.2,
+        -0.8,
+        -0.2,
+        0.9
+      ],
+      "dy": [
+        0,
+        -0.1,
+        -0.7,
+        -1.6,
+        -0.8,
+        -0.4,
+        -0.3
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (38)",
+        "colour f4 (73)",
+        "bright f4 (39)",
+        "colour f5 (41)",
+        "colour f6 (44)"
+      ]
+    },
+    "north-east": {
+      "roll": "b2",
+      "xor": [
+        0,
+        83,
+        137,
+        112,
+        142,
+        125,
+        75
+      ],
+      "alien": [
+        0,
+        17,
+        22,
+        4,
+        13,
+        14,
+        4
+      ],
+      "dx": [
+        0,
+        0,
+        0.2,
+        -0.4,
+        -0.9,
+        -0.7,
+        0
+      ],
+      "dy": [
+        0,
+        -0.3,
+        -0.7,
+        -0.5,
+        -0.7,
+        0,
+        0.2
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north-west": {
+      "roll": "b2r3",
+      "xor": [
+        0,
+        65,
+        92,
+        70,
+        131,
+        167,
+        139
+      ],
+      "alien": [
+        0,
+        0,
+        16,
+        1,
+        28,
+        36,
+        36
+      ],
+      "dx": [
+        0,
+        -0.6,
+        -0.6,
+        0.6,
+        1.1,
+        1.8,
+        0.8
+      ],
+      "dy": [
+        0,
+        -0.4,
+        0.3,
+        0.4,
+        0.6,
+        0.3,
+        0.7
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        -1,
+        -1,
+        -1
+      ],
+      "auto_flags": [
+        "colour f4 (28)",
+        "feet f4 (bot -1, dy 0.6)",
+        "colour f5 (36)",
+        "colour f6 (36)",
+        "bright f6 (26)",
+        "feet f6 (bot -1, dy 0.7)"
+      ]
+    }
+  },
+  "generations": 12,
+  "flags": [
+    "south-east: the body turns a little at frames 4-5 mid-swing, then back",
+    "south r1 ends with the sword across the body (frame 6 is not quite the still)"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_knight-attack.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "ruling": "Coordinator 2026-11-08: a hero swing shows the outfit OWN drawn weapon (the one its idle and walk show), never the equipped item",
+  "sample": "knight S, E and ranger S, E first (frame 0 = still, no impact effect, weapon kept): passed after re-rolls (knight E r3, ranger S r2, ranger E r3)",
+  "hit_frame": "not declared here: the import picks it (the swing peaks at frames 3-4 in most facings)",
+  "import_note": "the import re-runs tools/world-art/outfit-masks.mjs; frames are 48 px objects, seated like the walk"
+}

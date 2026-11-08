@@ -1,0 +1,514 @@
+{
+  "asset": "outfit_berserker-attack swing (brief 10 B2, Coordinator ruling 2026-11-08)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B2 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (the hero swing clip; heroes have only idle and walk today)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "6e27fec6-ce0d-4320-9b6e-753ab0b8518f",
+  "name": "berserker v5: its own two hatchets",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); attack/<facing>/0..N.png = the kept roll; alt/<roll>/attack/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the outfit object, frame_count 6, keep_first_frame TRUE (7 stored frames, frame 0 the rotation = the still, checked byte for byte); one group per action text",
+  "rolls": {
+    "b2": [
+      {
+        "group": "9a84e8a0-2e6f-4b10-bf77-fa0d0f6180ac",
+        "directions": "all 8",
+        "action": "keeps facing the same way the whole time, chops down once with the hatchet in its leading hand toward the way it faces and brings it back to where it started, feet planted, a hatchet stays in each hand the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "b2",
+    "east": "b2",
+    "north": "b2",
+    "west": "b2",
+    "south-east": "b2",
+    "south-west": "b2",
+    "north-east": "b2",
+    "north-west": "b2"
+  },
+  "refused": {},
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "b2",
+      "xor": [
+        0,
+        55,
+        129,
+        128,
+        153,
+        158,
+        91
+      ],
+      "alien": [
+        0,
+        0,
+        7,
+        13,
+        15,
+        10,
+        0
+      ],
+      "dx": [
+        0,
+        0,
+        -0.3,
+        -0.2,
+        -0.2,
+        -0.3,
+        0
+      ],
+      "dy": [
+        0,
+        -0.1,
+        -0.2,
+        -1.1,
+        -1.8,
+        -1.2,
+        -0.6
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        -1,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "b2",
+      "xor": [
+        0,
+        29,
+        75,
+        76,
+        101,
+        42,
+        6
+      ],
+      "alien": [
+        0,
+        0,
+        3,
+        9,
+        18,
+        0,
+        0
+      ],
+      "dx": [
+        0,
+        0.2,
+        0.2,
+        0.2,
+        0,
+        0.2,
+        0.1
+      ],
+      "dy": [
+        0,
+        0.3,
+        0.5,
+        0,
+        -0.1,
+        0.1,
+        0.2
+      ],
+      "top": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north": {
+      "roll": "b2",
+      "xor": [
+        0,
+        36,
+        123,
+        117,
+        133,
+        128,
+        103
+      ],
+      "alien": [
+        0,
+        0,
+        7,
+        0,
+        0,
+        1,
+        7
+      ],
+      "dx": [
+        0,
+        0,
+        -0.1,
+        -0.1,
+        -0.2,
+        -0.2,
+        0
+      ],
+      "dy": [
+        0,
+        0.2,
+        -0.4,
+        -1.3,
+        -1.7,
+        -1.2,
+        -0.3
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "b2",
+      "xor": [
+        0,
+        37,
+        77,
+        103,
+        133,
+        75,
+        43
+      ],
+      "alien": [
+        0,
+        3,
+        10,
+        23,
+        45,
+        11,
+        3
+      ],
+      "dx": [
+        0,
+        0.2,
+        0,
+        0,
+        0.1,
+        0,
+        0
+      ],
+      "dy": [
+        0,
+        0.3,
+        0.7,
+        0.8,
+        1,
+        0.5,
+        0.5
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f4 (45)"
+      ]
+    },
+    "south-east": {
+      "roll": "b2",
+      "xor": [
+        0,
+        50,
+        79,
+        107,
+        142,
+        105,
+        51
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        9,
+        22,
+        12,
+        0
+      ],
+      "dx": [
+        0,
+        -0.2,
+        -0.2,
+        -0.1,
+        0.3,
+        0.1,
+        -0.1
+      ],
+      "dy": [
+        0,
+        0,
+        -0.5,
+        -0.4,
+        -0.6,
+        -0.5,
+        -0.5
+      ],
+      "top": [
+        0,
+        0,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "south-west": {
+      "roll": "b2",
+      "xor": [
+        0,
+        40,
+        93,
+        145,
+        153,
+        113,
+        66
+      ],
+      "alien": [
+        0,
+        0,
+        11,
+        34,
+        34,
+        10,
+        0
+      ],
+      "dx": [
+        0,
+        -0.1,
+        -0.6,
+        -1.2,
+        -1.3,
+        -0.9,
+        -0.6
+      ],
+      "dy": [
+        0,
+        -0.4,
+        -0.5,
+        -0.4,
+        -0.7,
+        -0.5,
+        -0.3
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f3 (34)",
+        "colour f4 (34)"
+      ]
+    },
+    "north-east": {
+      "roll": "b2",
+      "xor": [
+        0,
+        21,
+        47,
+        79,
+        105,
+        76,
+        50
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        8,
+        22,
+        7,
+        1
+      ],
+      "dx": [
+        0,
+        0.1,
+        0.3,
+        0.5,
+        0.5,
+        0.5,
+        0.3
+      ],
+      "dy": [
+        0,
+        0,
+        -0.2,
+        -0.5,
+        -0.7,
+        -0.4,
+        -0.2
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north-west": {
+      "roll": "b2",
+      "xor": [
+        0,
+        41,
+        90,
+        86,
+        151,
+        115,
+        61
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        13,
+        31,
+        14,
+        1
+      ],
+      "dx": [
+        0,
+        -0.3,
+        -0.7,
+        -0.2,
+        -0.5,
+        -0.4,
+        -0.3
+      ],
+      "dy": [
+        0,
+        0.3,
+        0.1,
+        -0.5,
+        -0.5,
+        -0.2,
+        -0.3
+      ],
+      "top": [
+        0,
+        1,
+        1,
+        0,
+        1,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f4 (31)"
+      ]
+    }
+  },
+  "generations": 8,
+  "flags": [
+    "all 8 clean on the first roll; the chops are small (1-2 px), both hatchets stay in the hands"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_berserker-attack.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "ruling": "Coordinator 2026-11-08: a hero swing shows the outfit OWN drawn weapon (the one its idle and walk show), never the equipped item",
+  "sample": "knight S, E and ranger S, E first (frame 0 = still, no impact effect, weapon kept): passed after re-rolls (knight E r3, ranger S r2, ranger E r3)",
+  "hit_frame": "not declared here: the import picks it (the swing peaks at frames 3-4 in most facings)",
+  "import_note": "the import re-runs tools/world-art/outfit-masks.mjs; frames are 48 px objects, seated like the walk"
+}

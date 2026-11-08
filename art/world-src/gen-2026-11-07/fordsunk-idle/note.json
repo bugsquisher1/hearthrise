@@ -39,13 +39,13 @@
     "west": "r1",
     "south-east": "r1",
     "south-west": "r1",
-    "north-east": "r1"
+    "north-east": "r1",
+    "north-west": "r1"
   },
   "loop_preview": {
     "how": "idle-clip.mjs idleFrames(the shipped still from the March art branch, frames, 58)",
     "facings": {
       "south": {
-        "roll": "r1",
         "picks": [
           0,
           1,
@@ -61,7 +61,6 @@
         "missed": 0
       },
       "east": {
-        "roll": "r1",
         "picks": [
           0,
           1,
@@ -77,7 +76,6 @@
         "missed": 0
       },
       "north": {
-        "roll": "r1",
         "picks": [
           0,
           1,
@@ -93,7 +91,6 @@
         "missed": 0
       },
       "west": {
-        "roll": "r1",
         "picks": [
           0,
           1,
@@ -109,7 +106,6 @@
         "missed": 0
       },
       "south-east": {
-        "roll": "r1",
         "picks": [
           0,
           1,
@@ -125,7 +121,6 @@
         "missed": 0
       },
       "south-west": {
-        "roll": "r1",
         "picks": [
           0,
           1,
@@ -141,7 +136,6 @@
         "missed": 0
       },
       "north-east": {
-        "roll": "r1",
         "picks": [
           0,
           1,
@@ -155,6 +149,22 @@
         "feet": 0,
         "detached": 0,
         "missed": 0
+      },
+      "north-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          52,
+          123
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
       }
     }
   },
@@ -166,10 +176,11 @@
       "best_of": "r1 117/220; r2 288/206; r3 238/201"
     }
   },
-  "generations": 9,
+  "generations": 10,
   "flags": [
     "south-east failed all 3 rolls: retry limit; best (r1) in place, hand pass flagged",
-    "north-west comes in batch A3b"
+    "north-west comes in batch A3b",
+    "A3b: north-west r1 passes (52/123, feet 1)"
   ],
   "review_strip": "art/review/gen-2026-11-07/fordsunk-idle.png and fordsunk-idle-loops.png",
   "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set march --id fordsunk --clip art/world-src/gen-2026-11-07/fordsunk-idle (on the March merge, where the march set lives)"

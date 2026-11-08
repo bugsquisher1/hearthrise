@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-07",
- "replay_ms": 64750,
+ "replay_ms": 5615,
  "counts": {
   "tracked_names": 803,
   "entries": 655

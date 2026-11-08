@@ -25,18 +25,18 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-/* Plot tier → crop unlock set + this-tier deed cost. Cumulative deeds to
-   reach tier N = sum of cost[2..N]. Lv 1 is the starting state. */
+/* Plot tier → crop unlock set. Lv 1 is the starting state; the price of each
+   tier above it is PLOT_TIER_PRICES below. */
 export const PLOT_TIERS = [
   null, // index 0 unused
-  { unlocks: ['turnip'], cost: 0 },
-  { unlocks: ['turnip', 'carrot', 'wheat'], cost: 1 },
-  { unlocks: ['turnip', 'carrot', 'wheat', 'potato', 'tomato'], cost: 3 },
+  { unlocks: ['turnip'] },
+  { unlocks: ['turnip', 'carrot', 'wheat'] },
+  { unlocks: ['turnip', 'carrot', 'wheat', 'potato', 'tomato'] },
   /* b223: the three b215 endgame crops had their own farming skill gates but
      were in no tier, so farming's last 37 levels had nothing new to plant even
-     at max plot level. Goldenroot lands at Lv 4; Lv 5 finally earns its 8 deeds. */
-  { unlocks: ['turnip', 'carrot', 'wheat', 'potato', 'tomato', 'pumpkin', 'goldenroot'], cost: 5 },
-  { unlocks: ['turnip', 'carrot', 'wheat', 'potato', 'tomato', 'pumpkin', 'goldenroot', 'emberfruit', 'moonbloom'], cost: 8 },
+     at max plot level. Goldenroot lands at Lv 4. */
+  { unlocks: ['turnip', 'carrot', 'wheat', 'potato', 'tomato', 'pumpkin', 'goldenroot'] },
+  { unlocks: ['turnip', 'carrot', 'wheat', 'potato', 'tomato', 'pumpkin', 'goldenroot', 'emberfruit', 'moonbloom'] },
 ];
 export const MAX_PLOT_LEVEL = PLOT_TIERS.length - 1; // 5
 
@@ -51,18 +51,15 @@ export const MAX_PLOT_LEVEL = PLOT_TIERS.length - 1; // 5
 
    THE RULING: the plot tier is NEVER the gate. You buy it slightly BEFORE the
    crop it unlocks becomes plantable, and the CROP's own farming level does the
-   pacing (carrot 10, potato 30, pumpkin 50, emberfruit 75). Price is GOLD —
-   a sink a farmer actually meets — with the deed count kept as an ALTERNATIVE
-   payment for a player who is short of gold. Deeds are therefore an
-   accelerator and a market good (8 deeds skip 100,000g at tier 5), never the
-   gate. Drop rates are UNCHANGED: nothing about this widens a faucet.
+   pacing (carrot 10, potato 30, pumpkin 50, emberfruit 75). Price is GOLD,
+   a sink a farmer actually meets. (The Farmer's Deed was an alternative
+   payment until it left the catalogue with every source it had, 2026-10-23;
+   the server stopped taking it with lane/c-dead-plot-deed, 2026-11-07.)
 
-   `farming` is the farming level required; `gold` the price; `deeds` the
-   alternative payment and is IDENTICAL to PLOT_TIERS[n].cost (the generated
-   hr_plot_tier.deed_cost) — tests/plot-tier-parity.mjs asserts all three
-   against the server catalogue in
-   supabase/migrations/2026-09-06-plot-tier-reachable.sql, so the client can
-   never quote a price the server does not charge.
+   `farming` is the farming level required; `gold` the price.
+   tools/gen-farm-catalogues.mjs generates hr_plot_tier from this table, and
+   tests/plot-tier-parity.mjs holds it equal to the server catalogue, so the
+   client can never quote a price the server does not charge.
 
    TARGET CURVE for a player who farms nightly:
      tier 2  farming  5 +    500g — first evening (≈4 turnip harvests)
@@ -73,10 +70,10 @@ export const MAX_PLOT_LEVEL = PLOT_TIERS.length - 1; // 5
    pre-flight refusal; hr_farm_upgrade_plot re-reads its own catalogue under a
    row lock and is the only thing that may move plot_level or spend anything. */
 export const PLOT_TIER_PRICES = Object.freeze({
-  2: Object.freeze({ gold: 500,    deeds: 1, farming: 5  }),
-  3: Object.freeze({ gold: 5000,   deeds: 3, farming: 25 }),
-  4: Object.freeze({ gold: 25000,  deeds: 5, farming: 45 }),
-  5: Object.freeze({ gold: 100000, deeds: 8, farming: 70 }),
+  2: Object.freeze({ gold: 500,    farming: 5  }),
+  3: Object.freeze({ gold: 5000,   farming: 25 }),
+  4: Object.freeze({ gold: 25000,  farming: 45 }),
+  5: Object.freeze({ gold: 100000, farming: 70 }),
 });
 
 /** The price of the NEXT tier, or null at max. Shape mirrors hr_plot_tier. */
@@ -85,13 +82,11 @@ export function plotUpgradePrice(plotLevel) {
   if (lv >= MAX_PLOT_LEVEL) return null;
   const p = PLOT_TIER_PRICES[lv + 1];
   if (!p) return null;
-  return { level: lv + 1, gold: p.gold, deeds: p.deeds, farming: p.farming };
+  return { level: lv + 1, gold: p.gold, farming: p.farming };
 }
 
-/* PAYMENT ORDER: GOLD FIRST, deeds only when gold is short. A deed is worth
-   far more than the gold it replaces at every tier (500g at t2 rising to
-   12,500g at t5), so spending gold while you have it is always the player's
-   better trade — the server must never quietly spend the rarer currency. */
+/* The pre-flight: the Farming gate first, then the gold. The server re-checks both
+   under its own lock and is the only thing that may move the tier. */
 export function plotUpgradeCheck(st) {
   const s = st || {};
   const lv = clampPlotLevel(s.plotLevel);
@@ -99,13 +94,11 @@ export function plotUpgradeCheck(st) {
   if (!price) return { ok: false, error: 'max_plot_level', level: lv, price: null };
   const farming = Math.max(1, Math.floor(Number(s.farmingLevel) || 1));
   const gold = Math.max(0, Math.floor(Number(s.gold) || 0));
-  const deeds = Math.max(0, Math.floor(Number(s.deeds) || 0));
   if (farming < price.farming) {
     return { ok: false, error: 'farm_level_too_low', need: price.farming, have: farming, price };
   }
   if (gold >= price.gold) return { ok: true, pay: 'gold', price };
-  if (deeds >= price.deeds) return { ok: true, pay: 'deeds', price };
-  return { ok: false, error: 'cannot_afford', price, gold, deeds };
+  return { ok: false, error: 'cannot_afford', price, gold };
 }
 
 /* b420/b428 — FINITE-PERENNIAL regrow limits. A `regrows:true` crop is NOT
@@ -193,12 +186,6 @@ export function requiredPlotLevel(cropId) {
     if (PLOT_TIERS[lv].unlocks.indexOf(cropId) !== -1) return lv;
   }
   return 0;
-}
-
-export function deedsForNextLevel(plotLevel) {
-  const lv = clampPlotLevel(plotLevel);
-  if (lv >= MAX_PLOT_LEVEL) return 0;
-  return PLOT_TIERS[lv + 1].cost;
 }
 
 // ── The growth model ─────────────────────────────────────────────────────

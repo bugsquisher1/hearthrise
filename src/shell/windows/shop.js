@@ -21,22 +21,25 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.106';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.106';
-import { whole, gold } from '../../render/format.js?v=0.2.106';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.106';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.106';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.106';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.106';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.106';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.106';
-import { toolLossWords } from '../town-work.js?v=0.2.106';
-import { runIntent } from '../intent-words.js?v=0.2.106';
-import { showTip, hideTip } from './item-tip.js?v=0.2.106';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.106';
-import { gearLocked } from '../gear-gate.js?v=0.2.106';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.106';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.106';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.107';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.107';
+import { whole, gold } from '../../render/format.js?v=0.2.107';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.107';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.107';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.107';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.107';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.107';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.107';
+import { toolLossWords } from '../town-work.js?v=0.2.107';
+import { runIntent } from '../intent-words.js?v=0.2.107';
+import { showTip, hideTip } from './item-tip.js?v=0.2.107';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.107';
+import { gearLocked } from '../gear-gate.js?v=0.2.107';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.107';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.107';
+import { CROPS } from '../../data/gathering.js?v=0.2.107';
+import { requiredPlotLevel } from '../../core/farm.js?v=0.2.107';
+import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.107';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -45,9 +48,25 @@ const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
 const BUY_GROUPS = Object.freeze([
   ['gear', 'Gear', 'Gloves and belts are armor. Wear one and Defense trains. Helmets, bodies, legs and boots come from monsters.'],
   ['tool', 'Tools', ''],
-  /* The seed counter (designer 2026-10-22): one seed grows one crop on a farm plot; the crop's Farming level gates the planting, not the purchase. */
-  ['seed', 'Seeds', 'One seed grows one crop on a farm plot. Each crop needs its Farming level to plant.'],
+  /* The seed counter (designer 2026-10-22): one seed grows one crop on a farm plot; the crop's Farming level and the
+     land's plot tier gate the planting, not the purchase. */
+  ['seed', 'Seeds', 'One seed grows one crop on a farm plot. A crop needs a Farming level and a plot tier before you can plant it.'],
 ]);
+/* Each seed's crop, from the data (gathering.js CROPS). */
+const CROP_OF_SEED = new Map(Object.entries(CROPS).map(([id, c]) => [c.seed, id]));
+/* What a seed still needs before it can be planted ('Needs Farming 10 and plot tier 2 to plant'), or ''. The server
+   refuses a plant short of either (hr_farm_plant: level_too_low, plot_tier_locked), so the row says it before the
+   purchase (coverage bot 2026-11-07: carrot and wheat seeds bought on tier 1 land). Both from the server: the hero's
+   Farming and the account's plot tier (farm_land); one it did not send counts as the lowest (CLAUDE.md §6, fail safe). */
+function seedNeedWords(cs, item) {
+  const crop = CROP_OF_SEED.get(item);
+  if (!crop) return '';
+  const sk = /** @type {Record<string, { level: number }> | null} */ (skillsOf(cs)), field = farmFieldOf(cs);
+  const needs = [];
+  if ((CROPS[crop].req || 1) > (sk && sk.farming ? sk.farming.level : 1)) needs.push('Farming ' + CROPS[crop].req);
+  if (requiredPlotLevel(crop) > (field ? field.plotLevel : 1)) needs.push('plot tier ' + requiredPlotLevel(crop));
+  return needs.length ? 'Needs ' + needs.join(' and ') + ' to plant' : '';
+}
 /* A piece of gear is bought one or two at a time (two rings); tools by the stack. */
 const QTYS_BY_KIND = Object.freeze({ gear: Object.freeze([1, 2]) });
 const SCRATCH = new WeakMap();
@@ -98,7 +117,8 @@ function patchBuy(root, st, ctx) {
         const short = st.gold !== null && st.gold < o.price * n ? o.price * n - st.gold : 0;
         /* A tool says what it buys (panel 2026-11-01: the Shop listed them with no benefit). */
         const does = toolEffect(o.item);
-        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag' + (does ? ' · ' + does + ' while in your bag' : '')
+        const plant = o.kind === 'seed' ? seedNeedWords(st.cs, o.item) : '';
+        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag' + (does ? ' · ' + does + ' while in your bag' : '') + (plant ? ' · ' + plant : '')
           + (short ? ' · You need ' + gold(short) + ' more.' : ''));
         prop(li.querySelector('select'), 'value', String(n));
         const b = li.querySelector('[data-hs-act="buy"]');

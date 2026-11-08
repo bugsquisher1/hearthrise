@@ -14,7 +14,9 @@ export const SESSION_CONFIG = Object.freeze({
       account and per network (2027-01-19-play-cap.sql, through the generated `max_concurrent` row); here it only
       bounds the tab's connections. */
   maxConcurrentCharacters: 4,
-  /** The server's slot bound: hr_load / hr-accrue clamp `slot` to 0..5 (request.js MAX_SLOT). */
+  /** The server's slot-id SHAPE bound: hr_load / hr-accrue clamp `slot` to 0..5 (request.js MAX_SLOT, the player_state
+      CHECK). Not the hero count: an account holds four heroes (Tyler 2026-11-07), and that cap is the server's
+      `account.hero_slots_max`, read from hr_hero_slots. A hero already in slot 4 (bought before the cap fell) stays listed. */
   maxSlot: 5,
   /** Where the sign-in token lives: 'device' (survives a closed tab) or 'tab' (one login per tab). */
   authStore: 'device',

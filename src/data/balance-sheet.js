@@ -21,7 +21,7 @@
 // PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. The engine reads only the tier rows (hunt-tiers.js builds GROUND_TIERS from tierRowFor, lane/b-tier-dials).
 // ════════════════════════════════════════════════════════════════════════
 
-import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.106';
+import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.107';
 
 /* ── THE TARGET SHEET ─────────────────────────────────────────────────────
    Judged per ground on the real engine, store supplies bought per use (the store bill is the whole
@@ -257,6 +257,8 @@ export function dangerAt(floor, lift = 0, F = STAT_FORMULA) {
  * fit: 'solo' | 'both' | 'party', default solo); opts { formula, roles } (the lab moves the dials). Answers
  * { hp, atk, baseAcc, def, xp, gp: [lo, hi], hitVsSameLevel, blowShare }: whole numbers where the row stores
  * them, baseAcc to two places.
+ * @param {any} spec
+ * @param {{ formula?: any, roles?: any, groundXp?: any }} [opts]
  */
 export function formulaStats(spec, opts = {}) {
   const F = opts.formula || STAT_FORMULA;
@@ -333,8 +335,13 @@ export const TIER_PULL_OVERRIDES = Object.freeze({
   meadowbrook_thicket: Object.freeze({ dangerous: Object.freeze([0, 0, 0, 0]), deadly: Object.freeze([0, 0, 0, 0]),
     dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1000, xpPm: 1050 }), deadly: Object.freeze({ hpPm: 1000, xpPm: 1080 }) }),
     why: 'the ladder rule: a pull of 3, or the table XP, at the Thicket beats the Normal at Wickstead' }),
-  /* A lone hero keeps the Sewer as it stands, as live: a pull of 4 there beats the Glade for a hammer. */
-  millrace_sewer: Object.freeze({ dangerous: Object.freeze([0, 5, 5, 6]), deadly: Object.freeze([0, 8, 8, 8]), why: 'the ladder rule: a lone pull of 4 at the Sewer beats the Glade for a hammer' }),
+  /* A lone hero keeps the Sewer as it stands, as live: a pull of 4 there beats the Glade for a hammer. Its Deadly pays x1.22 Level XP,
+     not the table's x1.25: since the gentle party blow shape (STAT_FORMULA.fit.party.blowShape) a lone hammer on it at the Glade's
+     floor (16) read 78,980 XP an hour against the Glade's Normal 78,779 (tests/hunt-core/hunt-tiers.mjs ladder, v0.2.106 run
+     42394831391). Still above its Dangerous (x1.2), so Deadly stays the better paid. */
+  millrace_sewer: Object.freeze({ dangerous: Object.freeze([0, 5, 5, 6]), deadly: Object.freeze([0, 8, 8, 8]),
+    dials: Object.freeze({ deadly: Object.freeze({ xpPm: 1220 }) }),
+    why: 'the ladder rule: a lone pull of 4 at the Sewer beats the Glade for a hammer, and its Deadly at x1.25 XP did for a lone hammer at 16' }),
 });
 
 /* What one swing is worth at a same-Level hero: its to-hit times its blow share, a tier's atk scaling `k` applied the engine's way
@@ -351,6 +358,9 @@ function swingWorth(floor, lift, k, F) {
  * The engine's tier row on a ground of this floor and id ({ pull, dmgPm, hpPm, xpPm }, hunt-tiers.js's shape after
  * lane/b-tier-dials): dmgPm is the atk scaling that makes a swing on this ground worth what the tier's is on a full
  * ground lifted as written; the pull is the ground's override, else the table's. opts { formula, tiers, overrides, ground, fit }.
+ * @param {number} floor
+ * @param {string} tierId
+ * @param {{ formula?: any, tiers?: any, overrides?: any, ground?: string, fit?: string }} [opts]
  */
 export function tierRowFor(floor, tierId, opts = {}) {
   const T = (opts.tiers || TIER_DIALS)[tierId];

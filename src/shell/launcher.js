@@ -10,7 +10,7 @@ import { escapeHtml as esc } from '../utils/dom.js?v=0.2.110';
 import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.110';
 import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.110';
 import { tallyOf } from '../session/tally-sections.js?v=0.2.110';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.110';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.110';
 import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.110';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.110';
 import { COACH_READ_MAX } from '../session/residue.js?v=0.2.110';
@@ -126,7 +126,7 @@ export function coachFactsOf(cs, account) {
     roster,
     slotsOwned: rows ? rows.length : null,
     playLimit: account && typeof account.statedLimit === 'function' ? account.statedLimit() : null,
-    sellable: bag && shop ? lootSale(bag, rulesOf(cs), shop, skillsOf(cs), upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length : null,
+    sellable: bag && shop ? lootSale(bag, rulesOf(cs), shop, upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length : null,
     upgrades: bag && eq ? upgradeOf(cs).picks.map((p) => p.id) : null,
     back: (cs.record && cs.record.residue && cs.record.residue.coach && cs.record.residue.coach.back) || null,
     slotCost: account && account.slotOffer ? account.slotOffer.cost : null,

@@ -12,4 +12,10 @@ export const SHOP_TEXT = Object.freeze({
   seed_needs_farming: 'Needs Farming {level} to plant',
   seed_needs_tier: 'Needs plot tier {tier} to plant',
   seed_needs_both: 'Needs Farming {level} and plot tier {tier} to plant',
+  /* The Sell tab's one bulk sale: the Junk only, never a Material (Tyler 2026-11-08). */
+  sell_junk: 'Sell all junk',
+  sell_junk_for: 'Sell all junk · {total}',
+  junk_keeps_it: 'Sell all junk keeps it',
+  junk_keeps: { one: 'Sell all junk keeps {count} stack worth {worth} that a recipe, the House or Tempering uses. Sell it by hand if you want the gold.',
+    other: 'Sell all junk keeps {count} stacks worth {worth} that a recipe, the House or Tempering uses. Sell those by hand if you want the gold.' },
 });

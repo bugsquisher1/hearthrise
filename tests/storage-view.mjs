@@ -21,6 +21,11 @@
 //       nothing changed writes nothing, a depot over the cap writes nothing
 //   V5  the remembered chip and sort fall back on junk; both residue fields are
 //       on the allowlist and bounded (storeSeen by the fullest depot the data allows)
+//   V6  JUNK OR MATERIALS (Tyler 2026-11-08: "if its a monster drop that is only good for
+//       selling, the category should just be Junk"): Big Bones, Bat Wing and Silk Thread are
+//       Materials, Rat Tail is Junk, a boss trophy is Rare; across every monster drop, Junk
+//       is never something a recipe, the House or Tempering spends, and a recipe row added
+//       before the bag files anything makes its drop a Material by itself
 //
 // The selftest copies src/ to a temp tree, plants one defect per arm and
 // requires the named test to fail. No ?v= on imports here (tests/**).
@@ -37,18 +42,34 @@ const RES = 'src/session/residue.js';
 
 async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
-  return { B: await import(u(BAG)), S: await import(u(STORE)), R: await import(u(RES)), H: await import(u('src/data/homestead-tiers.js')) };
+  /* the recipe rows bag-model.js reads, at the same URL it imports them by (the build's ?v=), so V6 can add one */
+  const v = (await import(u('src/build-info.js'))).BUILD.version;
+  return { B: await import(u(BAG)), S: await import(u(STORE)), R: await import(u(RES)), H: await import(u('src/data/homestead-tiers.js')),
+    REC: await import(u('src/data/recipes.js') + '?v=' + v), MON: await import(u('src/data/monsters.js') + '?v=' + v) };
 }
 
-async function runTests({ B, S, R, H }) {
+async function runTests({ B, S, R, H, REC, MON }) {
   const fails = [];
   const ok = (test, cond, msg) => { if (!cond) fails.push(test + ' ' + msg); };
   const ids = (rows) => rows.map((r) => r.id).join(',');
 
+  /* V6 (first, before the bag files anything): a new recipe's input files itself. The Goblin Totem drops and nothing spends it;
+     a Crafting row that takes it, added to the rows, makes it a Material with no other edit. */
+  const NEW = 'goblin_totem';
+  REC.ARTISAN_RECIPES.crafting.push({ id: 'v6_totem_charm', name: 'Totem Charm', input: NEW, inputQty: 1, output: 'copper_ring', req: 1, xp: 1 });
+  ok('V6', B.kindOf(NEW) === 'material', 'a drop a new recipe spends files under ' + B.kindOf(NEW) + ', not material');
+  for (const [id, k] of Object.entries({ big_bones: 'material', bat_wing: 'material', silk_thread: 'material', raw_wolf_meat: 'material', rat_tail: 'junk', gold_bar: 'material', rat_kings_crown: 'rare' }))
+    ok('V6', B.kindOf(id) === k, id + ' files under ' + B.kindOf(id) + ', not ' + k);
+  const drops = new Set(Object.values(MON.MONSTERS).flatMap((m) => ((m && m.drops) || []).map((d) => d && d.id).filter(Boolean)));
+  const wrong = [...drops].filter((id) => B.kindOf(id) === 'junk' && B.isSpentMaterial(id));
+  ok('V6', wrong.length === 0, 'Junk that a recipe, the House or Tempering spends: ' + wrong.join(','));
+  ok('V6', [...drops].some((id) => B.kindOf(id) === 'junk') && [...drops].some((id) => B.kindOf(id) === 'material' && B.isSpentMaterial(id)), 'the drops hold no Junk or no spent Material: the sweep proves nothing');
+
   /* V1 — the chips, and the rows that file into them */
   const cats = new Set(B.BAG_CATS.map(([id]) => id));
-  for (const c of ['all', 'food', 'drink', 'ammo', 'gear', 'material', 'loot', 'rare']) ok('V1', cats.has(c), 'no "' + c + '" chip in BAG_CATS');
-  const want = { shrimp: 'food', carrot_juice: 'drink', bronze_arrows: 'ammo', bronze_helm: 'gear', rat_incisor: 'loot',
+  for (const c of ['all', 'food', 'drink', 'ammo', 'gear', 'material', 'junk', 'rare']) ok('V1', cats.has(c), 'no "' + c + '" chip in BAG_CATS');
+  ok('V1', !cats.has('loot') && (B.BAG_CATS.find(([id]) => id === 'junk') || [])[1] === 'Junk', 'the bag still has a Loot chip, or Junk is not named Junk');
+  const want = { shrimp: 'food', carrot_juice: 'drink', bronze_arrows: 'ammo', bronze_helm: 'gear', rat_incisor: 'junk',
     copper_bar: 'material', oak_plank: 'material', rune_blank: 'material', turnip_seed: 'material', emberheart: 'rare', dragon_relic: 'rare' };
   for (const [id, k] of Object.entries(want)) ok('V1', B.kindOf(id) === k, id + ' files under ' + B.kindOf(id) + ', not ' + k);
 
@@ -75,7 +96,7 @@ async function runTests({ B, S, R, H }) {
   const val = ids(v({ sort: 'value', bids }));
   ok('V3', val.startsWith('shrimp,copper_bar,bronze_helm'), 'Value (the stack at the server\'s bid, most first; no bid last) reads ' + val);
   const type = v({ sort: 'type' }).map((r) => B.kindOf(r.id));
-  ok('V3', type.join() === 'gear,food,loot,material,material,rare', 'Type groups by the chip order: ' + type.join());
+  ok('V3', type.join() === 'gear,food,junk,material,material,rare', 'Type groups by the chip order: ' + type.join());
   const seen = { shrimp: [5, 3], copper_bar: [40, 1], bronze_helm: [1, 0], emberheart: [1, 0], oak_plank: [12, 2] };
   const newest = ids(v({ sort: 'newest', seen }));
   ok('V3', newest.startsWith('rat_incisor,shrimp,oak_plank,copper_bar'), 'Newest (unmarked first, then the latest mark) reads ' + newest);
@@ -115,7 +136,11 @@ async function runTests({ B, S, R, H }) {
 
 const MUTANTS = [
   { test: 'V1', file: BAG, from: "if (it.raw || it.tag === 'crafting-mat' || it.seed || inputSet().has(id)) return 'material';", to: "if (it.raw || it.tag === 'crafting-mat') return 'material';" },
-  { test: 'V1', file: BAG, from: "  if (it.type === 'trophy' || RARE_TAGS.has(it.tag) || RARE_RUNGS.has(it.rarity)) return 'rare';\n", to: '' },
+  { test: 'V1', file: BAG, from: "  if (RARE_RUNGS.has(it.rarity)) return 'rare';\n", to: '' },
+  { test: 'V6', file: BAG, from: "  if (it.type === 'trophy' || RARE_TAGS.has(it.tag)) return 'rare';\n", to: '' },
+  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) ? 'material' : 'junk';", to: "return 'junk';" },
+  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) ? 'material' : 'junk';", to: "return 'material';" },
+  { test: 'V6', file: BAG, from: "export const isSpentMaterial = (id) => inputSet().has(id) || homeSpends().has(id) || TEMPER_SPENDS.has(id);", to: "export const isSpentMaterial = (id) => homeSpends().has(id) || TEMPER_SPENDS.has(id);" },
   { test: 'V2', file: BAG, from: "(cat === 'all' || kindOf(r.id) === cat)", to: 'true' },
   { test: 'V3', file: BAG, from: '    count: (a, b) => b.qty - a.qty || byName(a, b),\n', to: '' },
   { test: 'V4', file: STORE, from: 'out[id] = [qty, !prev ? 0 : s && qty <= s[0] ? s[1] : next++];', to: 'out[id] = [qty, !prev ? 0 : s ? s[1] : next++];' },

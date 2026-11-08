@@ -101,7 +101,7 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   crafting: anchor('Gathering and crafting (src/shell/windows/work.js), its icon, ring.skill, then ring.work\'s Start', 'skills-trade', true),
   tally: anchor('Tamsin\'s tally (src/shell/windows/tally.js), her icon, the armor weight, then ring.task\'s Take', 'tally', true),
   inventory: anchor('the bag (src/shell/windows/inventory), its icon, then the control the card names', 'inventory', true),
-  shop: anchor('the Shop (src/shell/windows/shop.js), its icon, the Sell tab, then Sell all loot', 'shop', true),
+  shop: anchor('the Shop (src/shell/windows/shop.js), its icon, the Sell tab, then Sell all junk', 'shop', true),
   /* Services is the Shop's third tab (Tyler 2026-10-25), the Shop's icon, its Services tab, then the next Bless */
   services: anchor('the Shop\'s Services tab (src/shell/windows/services.js), the Shop\'s icon, the Services tab, then the control', 'shop', true, 'services'),
   storage: anchor('Storage (src/shell/windows/storage.js), its icon', 'storage', true),
@@ -355,9 +355,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Services, then Bless on each of the three Blessings.', hooks: TO_BLESS }),
   step('sell_loot', 'Sell what only pays coin',
-    'Open the Shop and press Sell. Sell all loot sells the parts that are only worth gold, and keeps fuel for the Great Hearth (it raises your Inner Flame), food you can cook, and materials your recipes or your next House step need. Point at anything to see what it\'s for.',
+    'Open the Shop and press Sell. Sell all junk sells what is only worth gold. Your Materials stay, like fuel for the Great Hearth (it raises your Inner Flame), food you can cook and parts for your recipes and your House. Point at anything to see what it\'s for.',
     'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
-    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all loot. It keeps fuel for the Great Hearth, food you can cook, and materials you need.',
+    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all junk. Your Materials stay in your bag.',
       hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
   /* One decision, not a form (panel 2026-11-01: a 14-dropdown list at hour one, "I don't know what I don't need yet"): after the
      Thicket the bag knows what piles up, and a plan once set is kept for every hunt after (the first principle). */

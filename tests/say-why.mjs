@@ -224,7 +224,7 @@ export const REASONS = Object.freeze({
   'src/shell/windows/shop.js': [
     { cond: 'short > 0', words: "' · You need ' + gold(short) + ' more.'", where: 'the offer row: "You need 40 gp more."' },
     { cond: 'isLocked', words: "isLocked ? 'Locked'", where: 'the button reads Locked and the row says locked' },
-    { cond: '!plan.lines.length', words: "'Sell all loot'", where: 'the label carries the total only when there is loot' },
+    { cond: '!plan.lines.length', words: "t('shop.sell_junk')", where: 'the label carries the total only when there is junk' },
   ],
   'src/shell/windows/storage.js': [
     { cond: 'sc.pending || !!dWhy', words: "text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);", where: 'Dispatch loot in Storage: its own line (the store note says a hunt)' },

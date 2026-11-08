@@ -29,7 +29,7 @@ export const ITEM_TEXT = Object.freeze({
   kind_whetstone: 'Whetstone',
   kind_ammo: 'Ammo',
   kind_food: 'Food · heals {heals} health',
-  kind_loot: 'Monster loot',
+  kind_junk: 'Junk',
   kind_material: 'Material',
 
   /* Where it comes from. */

@@ -84,7 +84,7 @@ export function kindWords(id) {
   if (k === 'ammo') return [t(/_rune$/.test(id) ? 'item.kind_rune' : it.reqSkill === 'melee' ? 'item.kind_whetstone' : 'item.kind_ammo')]
     .concat(it.tier ? [t('item.tier', { tier: it.tier })] : []).join(' · ');
   if (k === 'food') return t('item.kind_food', { heals: it.heals });
-  if (k === 'loot') return t('item.kind_loot');
+  if (k === 'junk') return t('item.kind_junk');
   if (k === 'material') return t('item.kind_material');
   return typeWord(it.type, 'item.type_item');
 }

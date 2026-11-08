@@ -20,7 +20,6 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.110';
 import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.110';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.110';
 import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.110';
 import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.110';
 import { whole, gold } from '../../../render/format.js?v=0.2.110';
@@ -211,7 +210,7 @@ function patchHuntPane(root, st, ctx) {
   let worth = 0, priced = true;
   for (const l of loot) if (bids && bids.has(l.item)) worth += bids.get(l.item) * l.count; else priced = false;
   const n = loot.reduce((s, l) => s + l.count, 0);
-  const coin = new Set(lootToSell(loot.map((l) => ({ id: l.item, qty: l.count })), skillsOf(st.cs), upgradeNeeds(homeOf(st.cs), chestsOf(st.cs))));
+  const coin = new Set(lootToSell(loot.map((l) => ({ id: l.item, qty: l.count })), upgradeNeeds(homeOf(st.cs), chestsOf(st.cs))));
   text(pane.querySelector('.hw-loot-sum'), loot.length ? 'This hunt: ' + whole(n) + (n === 1 ? ' item' : ' items') + (bids ? ' · worth ' + gold(worth) + (priced ? '' : ' or more') : '') : '');
   rows(pane.querySelector('.hw-loot'), loot, {
     key: (l) => l.item,
@@ -227,7 +226,7 @@ function patchHuntPane(root, st, ctx) {
       if (st.rules) prop(sel, 'value', st.rules.loot[l.item] || 'keep');
       prop(sel, 'disabled', st.sc.pending || !st.rules);
       for (const o of sel.options) { const why = planBlock(l.item, o.value, bids, inBag > 0); prop(o, 'disabled', !!why); attr(o, 'title', why || null); }
-      /* a stack that only pays coin (what Sell all loot sells): the row the coach's "Decide once" rings, never the
+      /* a stack that only pays coin (what Sell all junk sells): the row the coach's "Decide once" rings, never the
          Bones a skill trains on (played 2026-10-25: the first row, Bones, was ringed for "Sell at the shop") */
       attr(sel, 'data-coin', coin.has(l.item) ? '' : null);
     },

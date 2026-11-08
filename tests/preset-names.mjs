@@ -31,7 +31,8 @@
 //   PN-8  SETUPS CHANGE IN TOWN: with a hunt open, Use, Save here and Save current
 //         setup are off and the window says why; once the hunt has ended, Save
 //         current setup sends ONE hr_hunt_preset_save on the first free number
-//   PN-9  FIVE AT MOST: with ACTION_SET_LIMITS.presets setups, Save current setup is off
+//   PN-9  FIVE AT MOST: with ACTION_SET_LIMITS.presets setups, Save current setup is off, also when the server's
+//         setup_slots counts past that limit (the window then says the limit's number)
 //   PN-11 THE SLOT IS BOUGHT (Tyler 2026-11-04; every number from the row, src/data/gold-sinks.js): past the server's count Save is off, the
 //         window says so in the design's words, and Buy sends ONE hr_setup_slot_buy with the QUOTE; the next slot opens only from the re-read,
 //         and the save lands on the bought number; a short purse says how much more; past the top there is no button; A SETUP ALREADY SAVED
@@ -97,20 +98,24 @@ async function stub(page, s) {
   });
 }
 
+/* A (re)load waits for DOMContentLoaded and its STATE, never the `load` event (alpha-windows' LOAD-PROOF): no rule here is
+   about how fast a page boots, and on a busy machine the default 6 s ran out on the boot itself (2026-11-09, base and lane alike). */
+const BOOTED = 'domcontentloaded';
+const BOOT_MS = 60000;
 async function play(page) {
-  await wait(page, () => document.querySelector('.hs-launchers') || document.querySelector('[data-app="play"][data-slot="0"]'));
+  await wait(page, () => document.querySelector('.hs-launchers') || document.querySelector('[data-app="play"][data-slot="0"]'), null, BOOT_MS);
   if (!(await page.$('.hs-launchers'))) await page.click('[data-app="play"][data-slot="0"]');
-  return wait(page, () => document.querySelector('.hs-launchers'));
+  return wait(page, () => document.querySelector('.hs-launchers'), null, BOOT_MS);
 }
 async function signIn(page, base) {
-  await page.goto(base + '/play.html', { waitUntil: 'load' });
-  await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+  await page.goto(base + '/play.html', { waitUntil: BOOTED, timeout: BOOT_MS });
+  await wait(page, () => document.querySelector('form[data-auth="sign-in"]'), null, BOOT_MS);
   await page.fill('input[name=email]', 'qa@example.test');
   await page.fill('input[name=password]', 'not-a-real-password');
   await page.click('.auth-submit');
   return play(page);
 }
-async function reload(page) { await page.reload({ waitUntil: 'load' }); return play(page); }
+async function reload(page) { await page.reload({ waitUntil: BOOTED, timeout: BOOT_MS }); return play(page); }
 async function openPrep(page) {
   if (await page.$('[data-hs-win="hunt-prep"] [data-hs-built]')) return true;
   await page.keyboard.press('p');
@@ -243,6 +248,18 @@ async function checks(overrides) {
     await openPrep(page);
     await page.waitForTimeout(300);
     if (!(await page.evaluate(() => document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="save-new"]').disabled))) fails.push('PN-9 a sixth setup can be saved');
+    /* The data's limit holds even where the server's count says more (the fixture's count is the limit, so only this reaches it). */
+    {
+      const lim = ACTION_SET_LIMITS.presets, was = s.env.setup_slots;
+      s.env.setup_slots = { count: lim + 1, free: lim + 1, bought: 0, max: lim + 1, price: null };
+      await reload(page);
+      await openPrep(page);
+      await page.waitForTimeout(300);
+      const past = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-prep"]');
+        return { save: w.querySelector('[data-hs-act="save-new"]').disabled, why: w.querySelector('.hw-slot-why').hidden ? '' : w.querySelector('.hw-slot-why').textContent }; });
+      if (!past.save || past.why !== `This hero's ${lim} setup slots are full. Delete one to save a new setup.`) fails.push('PN-9 a sixth setup can be saved when the server counts past the limit: ' + JSON.stringify(past));
+      s.env.setup_slots = was;
+    }
     // PN-11
     {
       const R = SINK_RULES.setup_slot, max = ACTION_SET_LIMITS.presets;
@@ -348,8 +365,8 @@ const MUTANTS = [
     "prop(el, 'disabled', sc.pending || !presets || full || hunting);", "prop(el, 'disabled', sc.pending || !presets || full);"],
   ['a new setup takes a used number', 'src/shell/windows/hunt-prep.js', 'while (used.has(free) && free < MAX_PRESETS) free++;', 'free = used.size;'],
   ['a sixth setup can be saved', 'src/shell/windows/hunt-prep.js', 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;', 'const MAX_PRESETS = 8;'],
-  ['the count is the limit again', 'src/shell/windows/hunt-prep.js', 'const count = slots ? slots.count : 0;', 'const count = MAX_PRESETS;'],
-  ['with no server count every slot is free (PN-12)', 'src/shell/windows/hunt-prep.js', 'const count = slots ? slots.count : 0;', 'const count = slots ? slots.count : MAX_PRESETS;'],
+  ['the count is the limit again', 'src/shell/windows/hunt-prep.js', 'const count = Math.min(slots ? slots.count : 0, MAX_PRESETS);', 'const count = MAX_PRESETS;'],
+  ['with no server count every slot is free (PN-12)', 'src/shell/windows/hunt-prep.js', 'const count = Math.min(slots ? slots.count : 0, MAX_PRESETS);', 'const count = Math.min(slots ? slots.count : MAX_PRESETS, MAX_PRESETS);'],
   ['Buy sends a price of its own', 'src/shell/windows/hunt-prep.js', 'buySetupSlot(ctx.account, cs, q.price)', 'buySetupSlot(ctx.account, cs, 1)'],
   ['Buy stays on with a short purse', 'src/shell/windows/hunt-prep.js', "prop(buy, 'disabled', sc.pending || short > 0);", "prop(buy, 'disabled', sc.pending);"],
   ['Buy stays on while it is in flight', 'src/shell/windows/hunt-prep.js', "prop(buy, 'disabled', sc.pending || short > 0);", "prop(buy, 'disabled', short > 0);"],

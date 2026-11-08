@@ -133,9 +133,10 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
   const none = root.querySelector('.hw-presets-none');
   cls(none, 'is-on', !presets || !presets.length);
   text(none, presets ? 'No saved setups yet.' : t('prep.setups_reading'));
-  /* The server says how many this hero may open (`setup_slots`). Until it has, none is free (§6: fail safe to not unlocked). */
+  /* The server says how many this hero may open (`setup_slots`). Until it has, none is free (§6: fail safe to not unlocked),
+     and never more than the data's limit: past it Save stays off and says so, as the press would send nothing. */
   const slots = setupSlotsOf(cs);
-  const count = slots ? slots.count : 0;
+  const count = Math.min(slots ? slots.count : 0, MAX_PRESETS);
   const full = presets && firstFree(presets) >= count;
   for (const el of root.querySelectorAll('.hw-add input, .hw-add button')) prop(el, 'disabled', sc.pending || !presets || full || hunting);
   cls(root.querySelector('.hw-town-only'), 'is-on', hunting);

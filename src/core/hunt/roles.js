@@ -371,7 +371,8 @@ function keepDistance(inst, h, mons, marked) {
   const here = fromMean(h.x, h.y);
   let best = null; let bs = Infinity;
   for (const [x, y] of candidateTiles(inst, h, pocket, h.x, h.y, KITE.searchRadius)) {
-    if (fromMean(x, y) - here <= KITE.awayMin || (marked && marked(x, y))) continue;
+    if (fromMean(x, y) - here <= KITE.awayMin) continue;
+    if (marked && marked(x, y)) continue;
     const g = gap(x, y);
     if (g < minGap) continue;
     const p = { x, y };
@@ -392,6 +393,9 @@ function keepDistance(inst, h, mons, marked) {
 function stepOff(inst, h, mons, marked) {
   const end = h.goal && h.path.length ? h.goal : [h.x, h.y];
   if (!marked(end[0], end[1])) return false;
+  /* HELD IN MELEE (a monster beside it has it as its target): it is in contact, as a Melee hero is, and holds ("step off
+     when no monster is holding them in melee", the design's rule as the wiki prints it). */
+  if (mons.some((m) => m.target === h.id && cheb(m, h) <= 1)) return false;
   const pocket = (unitById(inst, h.target) || mons[0]).pocket;
   h.spot = null;
   goToNearest(inst, h, (x, y) => !marked(x, y) && standable(inst, h, pocket, x, y));

@@ -246,7 +246,15 @@ const cases = {
     if (hits.some((e) => e.t === 2)) return 'the ranger stood in the blast: ' + JSON.stringify(hits);
     if (!out.track.some((st) => st.u === 2 && st.atMs < blast.atMs + blast.ms)) return 'the ranger never moved';
     const shape = M.shapes.place({ shape: 'blast', r: 1 }, { x: 15, y: 3 }, { x: 17, y: 5 });
-    return M.shapes.covers(shape, b.x, b.y) ? 'the ranger ends on the mark at ' + b.x + ',' + b.y : null;
+    if (M.shapes.covers(shape, b.x, b.y)) return 'the ranger ends on the mark at ' + b.x + ',' + b.y;
+    /* HELD IN MELEE (the caster beside it, its target): a ranged hero holds and takes it, as the wiki says */
+    const k2 = H(M, 1, 13, 3, 'tank');
+    const b2 = H(M, 2, 16, 4, 'ranger', { chase: false, dist: 1, target: 11 });
+    const r2 = mon(M, 10, 0, 14, 3, { target: 1, hp: 99999, maxHp: 99999 });
+    const s2 = mon(M, 11, 0, 16, 3, { kind: 'slime', target: 2, hp: 99999, maxHp: 99999 });
+    const held = swingRun(M, fightOf(M, [k2, b2, r2, s2]), 2, 6);
+    if (!held.events.some((e) => e.type === 'dmg' && e.ability === 't_blast' && e.t === 2)) return 'a ranger held in melee stepped off the blast';
+    return held.track.some((st) => st.u === 2) ? 'the held ranger moved' : null;
   }),
   'spots-avoid-marks': (M) => {
     /* a live blast standing over the ranger's best ground (no spell row needed: the mark is the persisted record) */
@@ -317,6 +325,8 @@ const cases = {
     const hit = (t, el) => M.damage.hurt(inst, t, 100, r, el, null, M.rng.createRng(1)).dmg;
     /* 50% asked, 40% the cap (data/elements.js HERO_RESIST_PM): 60 of 100; gear makes nobody weak, so the -50% ember is 0 */
     if (M.EL.heroElementPermille({ frost: 200 }, 'frost') !== 800) return 'a 20% frost resist does not take 20% off';
+    /* the combat seam holds the cap itself, whatever profile a unit carries */
+    if (M.EL.heroElementPermille({ frost: 900 }, 'frost') !== 600 || M.EL.heroElementPermille({ frost: -300 }, 'frost') !== 1000) return 'the seam reads a resist past the 40% cap or below 0: ' + M.EL.heroElementPermille({ frost: 900 }, 'frost');
     if (hit(plain, 'frost') !== 100 || hit(warm, 'frost') !== 60) return 'frost on a capped 40% resist: ' + hit(warm, 'frost') + ' (plain ' + hit(plain, 'frost') + ')';
     if (hit(warm, 'ember') !== 100) return 'gear made a hero weak to ember: ' + hit(warm, 'ember');
     if (hit(warm, null) !== 100 || hit(warm, 'poison') !== 100) return 'a resist touched a physical or an unnamed element';
@@ -437,6 +447,7 @@ const mutants = [
   { name: 'a Chill does not stretch the swing', case: 'chill-slows', edits: [['src/core/hunt/damage.js', 'export function restart(u) { u.swingLeftMs = slowed(u, COMBAT_BALANCE.tickMs); }', 'export function restart(u) { u.swingLeftMs = COMBAT_BALANCE.tickMs; }']] },
   { name: 'a Chill that outlasts its 4 s', case: 'chill-slows', edits: [['src/data/statuses.js', 'durationMs: 4000, maxStacks: 1, slowPm: 300', 'durationMs: 40000, maxStacks: 1, slowPm: 300']] },
   { name: 'a ranged hero holds on a mark', case: 'ranged-off-melee-holds', edits: [['src/core/hunt/roles.js', '      if (marked) stepOff(inst, h, mons, marked);\n', '']] },
+  { name: 'a ranged hero held in melee steps off anyway', case: 'ranged-off-melee-holds', edits: [['src/core/hunt/roles.js', '  if (mons.some((m) => m.target === h.id && cheb(m, h) <= 1)) return false;\n', '']] },
   { name: 'the strike lands on every hero whatever the mark', case: 'ranged-off-melee-holds', edits: [[S, "h.side === 'hero' && h.alive && covers(s, h.x, h.y)", "h.side === 'hero' && h.alive"]] },
   { name: 'Melee steps off too', case: 'ranged-off-melee-holds', edits: [['src/core/hunt/roles.js', "    if (row.tank) tankPos(inst, h, mons);\n    else if (row.melee) meleePos(inst, h, mons);\n    else {", '    if (false) tankPos(inst, h, mons);\n    else if (false) meleePos(inst, h, mons);\n    else {']] },
   { name: 'a spot may stand on a mark', case: 'spots-avoid-marks', edits: [['src/core/hunt/roles.js', ' && !(marked && marked(x, y));', ';']] },

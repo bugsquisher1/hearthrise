@@ -685,6 +685,10 @@ const cases = {
     /* an aim an earlier condition found outranks the hero's own target */
     const cx = { inst, u: a, h: null, slot: fb, aim: slime, ally: null };
     if (!M.cond.holds(cx, c('target_resists', 'eq', true))) return 'the slot\'s aim was not judged before the hero\'s target';
+    /* a monster that takes ember in full (a Giant Rat) is neither weak to Fireball nor resists it */
+    const rat = mon(M, 12, 0, 20, 9, { kind: 'rat' });
+    const ratCx = (m) => M.cond.holds({ inst, u: a, h: null, slot: fb, aim: rat, ally: null }, c(m, 'eq', true));
+    if (ratCx('target_weak') || ratCx('target_resists')) return 'a neutral element read as weak or resisted';
     /* a stop rule may read the party, the fight and a cast, never a slot-only element test */
     if (M.cond.stopRulesProblem([{ conditions: [c('party_hp_pct', 'lt', 50), c('enemy_casting', 'gte', 1, 'any'), c('in_fight', 'eq', true)], join: 'and', forMs: 0 }])) return 'a stop rule refused the party, the fight or a cast';
     return M.cond.stopRulesProblem([{ conditions: [c('target_weak', 'eq', true)], join: 'and', forMs: 0 }]) ? null : 'a stop rule took a slot-only element test';
@@ -1063,7 +1067,15 @@ const mutants = [
   { name: 'a slot may join or', case: 'validation', edits: [['src/core/hunt/conditions.js', "(!JOINS.includes(join) || (!stop && join !== 'and'))", '!JOINS.includes(join)']] },
   { name: 'four conditions are accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', '  if (list.length > MAX_CONDITIONS) return', '  if (list.length > MAX_CONDITIONS + 1) return']] },
   { name: 'the even footprint is centred north-west', case: 'footprint', edits: [['src/core/hunt/shapes.js', ' : -(size / 2 - 1);', ' : -(size / 2);']] },
-  { name: 'enemies_in_aoe counts the 1x1 always', case: 'enemies-in-aoe', edits: [['src/core/hunt/conditions.js', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h), cx.slot);', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, 3, cx.slot);']] },
+  /* the area spells' conditions (lane/b-area-engine) */
+  { name: "[area-engine] the party's HP is my own", case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', '  party_hp_pct: (cx) => { const hs = heroesOf(cx.inst); return share(', '  party_hp_pct: (cx) => { const hs = [cx.u]; return share(']] },
+  { name: '[area-engine] the fight is on whatever the phase', case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', "  in_fight: (cx) => cx.inst.world.phase === 'fight' && engagedMons(cx.inst).length > 0,", '  in_fight: (cx) => engagedMons(cx.inst).length > 0,']] },
+  { name: '[area-engine] the fight is on with nobody engaged', case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', "  in_fight: (cx) => cx.inst.world.phase === 'fight' && engagedMons(cx.inst).length > 0,", "  in_fight: (cx) => cx.inst.world.phase === 'fight',"]] },
+  { name: '[area-engine] casting at anyone reads only me', case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', "castsCovering(cx.inst, c.subject === 'any' ? heroesOf(cx.inst) : [cx.u])", 'castsCovering(cx.inst, [cx.u])']] },
+  { name: '[area-engine] a neutral element reads as weak', case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', '  target_weak: (cx) => { const pm = elementVs(cx); return pm !== null && pm > 1000; },', '  target_weak: (cx) => { const pm = elementVs(cx); return pm !== null && pm >= 1000; },']] },
+  { name: '[area-engine] the element test ignores the slot\'s aim', case: 'area-spell-metrics', edits: [['src/core/hunt/conditions.js', '  const t = cx.aim && cx.aim.alive ? cx.aim : Number.isInteger(cx.u.target)', '  const t = Number.isInteger(cx.u.target)']] },
+  { name: '[area-engine] a line aims past its own reach', case: 'line-and-ring-aims', edits: [['src/core/hunt/conditions.js', '    if (!covers(s, c.x, c.y)) continue;\n', '']] },
+  { name: '[area-engine] a ring past its maxHits', case: 'line-and-ring-aims', edits: [['src/core/hunt/conditions.js', 'count: Math.min(hit.length, Number.isInteger(row.maxHits) ? row.maxHits : hit.length) }', 'count: hit.length }']] },  { name: 'enemies_in_aoe counts the 1x1 always', case: 'enemies-in-aoe', edits: [['src/core/hunt/conditions.js', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h), cx.slot);', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, 3, cx.slot);']] },
   { name: 'slots fire in reverse order', case: 'priority-fallback', edits: [['src/core/hunt/conditions.js', '  for (const row of rows) {\n    const t = testSlot', '  for (const row of rows.slice().reverse()) {\n    const t = testSlot']] },
   { name: 'or is read as and', case: 'join', edits: [['src/core/hunt/conditions.js', "(slot.join === 'or' ? mask !== 0 : mask === all)", '(mask === all)']] },
   { name: 'the ally subject is ignored (lowest is healed)', case: 'ally-subject', edits: [['src/core/hunt/abilities.js', '      if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;\n', '']] },

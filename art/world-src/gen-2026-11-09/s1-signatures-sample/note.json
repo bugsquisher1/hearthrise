@@ -1,0 +1,15 @@
+{
+  "asset": "brief 11 line 9 S1 (PUSHED past the 11-14 reset by the Coordinator after this ran) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 30,
+  "made_how": "ws_burned_house c1, c2 (256 canvas, seeds 1701, 1702, objects d117dab4, 74bac13d) and mg_spring_house c1, c2 (192 canvas, seeds 1801, 1802, objects b0336138, 63f6c7d6), create_object_pro_flash 1 direction, style = a 128x128 crop of neighbour_cottage (upload 4d5ba6a0)",
+  "measured": "burned house art 105x92 and 114x89 px on the 256 canvas (about 3.5 x 3 tiles, the brief asks about 7 x 3); spring-house 89x103 and 89x101 on 192 (about 3 x 3, the brief asks about 4 x 3)",
+  "findings": [
+    "both houses came out at half the asked width: Pro Flash fills only the middle of a big canvas; the batch would need a wide canvas (for example 256x128) or an outpaint",
+    "burned c1: charred beams and a fallen chimney, the doorway faces the viewer; c2 reads as a roofless stone shed",
+    "spring c1 and c2: slate roofs half fallen in, a trickle of water from the door, moss; c1 reads best"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/s1-signatures-sample.png"
+}

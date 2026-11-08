@@ -1,0 +1,12 @@
+{
+  "asset": "brief 11 line 10 H2d (PUSHED past the 11-14 reset by the Coordinator after this ran) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 5,
+  "made_how": "fall in diagonals with F1's words on F1's groups: knight se, ne (22d8af2d), ranger sw (0bde811b), brute nw (e19a5336); druid se from its upload (job b2ad0bf7)",
+  "findings": [
+    "all five fall and lie flat with the weapon beside the body; no effect"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/h2d-hero-fall-diagonals-sample.png"
+}

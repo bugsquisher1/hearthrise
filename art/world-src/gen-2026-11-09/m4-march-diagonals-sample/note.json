@@ -1,0 +1,16 @@
+{
+  "asset": "brief 11 line 13 M4 (PUSHED past the 11-14 reset by the Coordinator after this ran) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 5,
+  "made_how": "wight death se, ne on its own death group (c0ec96ba, \"the withered body crumples, the coat collapsing to the ground and the ledger falling open beside it, lying still\"); barrow_knight hit se (6919b5f4), mudlark death se (0464dbfe), fordsunk hit ne (07d26c40). The wight's and mudlark's shipped S/E deaths are in the strip for comparison (the rows named death-shipped-ref)",
+  "findings": [
+    "wight se: crumples flat, the same corpse as its S",
+    "wight ne: does NOT fall: it stands and drops the ledger (frames 3-6): needs an end pose",
+    "mudlark se: falls flat face down like its approved S/E",
+    "barrow_knight hit se: leans FORWARD and the sword swings out (reads as a swing, not a flinch)",
+    "fordsunk hit ne: clean"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/m4-march-diagonals-sample.png"
+}

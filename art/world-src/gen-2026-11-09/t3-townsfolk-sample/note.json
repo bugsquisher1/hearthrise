@@ -1,0 +1,15 @@
+{
+  "asset": "brief 11 line 11 T3 (PUSHED past the 11-14 reset by the Coordinator after this ran) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 8,
+  "made_how": "folk_porter create_object_pro_flash 8 directions 48x48, seed 1401, style = the crier crop (object c3260bf8-4be9-4975-a247-f7f9a930bba7); idle S (group d57948e5), walk S (group fbc9312d, \"walks at an easy pace, both feet lift in turn, the sack stays in place, nothing else appears in the frame\", 6 frames)",
+  "measured": "body 22 x 32 px (character 36-40: 4 px SHORT); ring 2.43:1 plaza, 2.76:1 grass (under)",
+  "findings": [
+    "reads as a porter with a grain sack, no hero outfit",
+    "the walk barely lifts the feet (1-2 px): it reads as walking in place",
+    "short for the class, like N1's first Tamsin roll"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/t3-townsfolk-sample.png"
+}

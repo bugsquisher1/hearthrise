@@ -1,0 +1,15 @@
+{
+  "asset": "brief 11 line 12 E1 (PUSHED past the 11-14 reset by the Coordinator after this ran) SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 9,
+  "made_how": "create_image_pixen 32x32 transparent, black outline, seeds 7 and 8: bonus_weekend \"a brass hunting horn with a dark red ribbon\" (jobs 4bdc237b, 8ca42b75), open_halls \"a heavy iron-bound wooden hall door standing open\" (jobs 88a327e0, 7ac65ee6); festival_banner create_object_pro_flash 1 direction 64x64, style = the mill banner (upload 68c13ebb), seed 1601 (object f2f60d68)",
+  "findings": [
+    "the horns read as a cannon and a scroll tube, not hunting horns",
+    "open_halls c1 is an unreadable blob; c2 is a door-ish box with a pale green outline (reads as a glow)",
+    "none is snapped to hr-world-56-v2 yet (pixen has no palette input; the import snaps)",
+    "festival_banner: a dark red banner with a cream flame on a pole, 19x52 px, reads well"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/e1-event-marks-sample.png"
+}

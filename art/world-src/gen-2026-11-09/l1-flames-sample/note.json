@@ -1,0 +1,27 @@
+{
+  "asset": "brief 11 line 2 L1 SAMPLE: the flame flicker for wall_torch, brazier, havora_cook_spit",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt line 2 (L1)",
+  "status": "SAMPLE for the art director's read; not imported, nothing wired. The batch (forge, candle, cauldron, bread oven) waits for the read",
+  "made": "2026-11-08",
+  "generations": 3,
+  "tool": "animate_image on the prop's own frame (shipped sprite, padded only to a multiple of 4: the brazier 32x30 to 32x32 at y+2, the spit 51x32 to 52x32), frame_count 8 (9 stored, frame_000 = the shipped sprite byte for byte), seed 91",
+  "actions": {
+    "wall_torch": "the flame flickers and sways, the torch does not move, nothing else appears in the frame (job 7e413336-b30b-46ed-ad33-f4cd99990d40)",
+    "brazier": "the flame flickers and sways, the bowl does not move, nothing else appears in the frame (job 3abdb006-9912-4579-9f6a-e2d07d21b8b1)",
+    "havora_cook_spit": "the flame flickers and sways, the spit and meat does not move, nothing else appears in the frame (job 83e38716-7ac1-4863-9d34-e61a8b666527)"
+  },
+  "layout": "<prop>/raw/frame_000..008 = generated, cropped back to the prop frame; cut/ = the shipped sprite with only the flame pixels taken from the generated frame; overlay/ = those flame pixels alone on transparency, registered to the prop's own frame and anchor (the `light` overlay the brief asks for)",
+  "cut_rule": "a pixel is flame when it is warm (R > 150, R - B > 70, G > 40) in the generated frame or in the still; everything else is the still's pixel, so the torch cage, the bowl, the spit rod and the meat never move",
+  "measured": {
+    "wall_torch": "32x48; generated frames changed 26-54 px each, all inside x10-20 y8-24; overlay 44-55 px a frame",
+    "brazier": "32x30; changed 73-114 px a frame (box x4-27 y0-25, the rim shimmered too, dropped by the cut); overlay 87-106 px",
+    "havora_cook_spit": "51x32; raw frames 2-5 changed 310-330 px (the spit rod thins and the meat redraws: dropped by the cut); overlay 173-213 px"
+  },
+  "flags": [
+    "wall_torch frame 3 and brazier frames 1-2 throw 3-6 single ember specks above the flame; they are warm so the cut keeps them (they read as embers, not a glow; the art director's call)",
+    "no glow was painted (the brief's 'never the word glow' held)",
+    "the 4-6 calmest frames for the 8 fps loop are the art director's pick: torch 1, 2, 5, 6, 7 are the closest to each other; brazier 3-7",
+    "havora_cook_spit: meat pixels that are warm-red may pass the warm test at a few px; read the overlay at x2 on the cook yard"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/l1-flames-sample.png (x3 on a dark floor: per prop, row 1 raw frames 0-8, row 2 cut frames 0-8)"
+}

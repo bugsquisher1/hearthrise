@@ -1,0 +1,15 @@
+{
+  "asset": "brief 11 line 8 T2 SAMPLE",
+  "brief": "art/briefs/gen-2026-11-07/11-next-batch.txt",
+  "status": "SAMPLE for the art director's one-pass read; the line's batch waits for it. Not imported",
+  "made": "2026-11-08",
+  "generations": 9,
+  "made_how": "town_pigeon: create_object_pro_flash 8 directions 32x32, seed 1301, style = a 32x32 crop of the rat's S still (upload 6a8448dc) (object dcf53c60-fe09-4f24-b530-2644e446df22); idle E (group 5d07be4c \"pecks at the ground, the feet stay planted, ...\" 6 frames keep_first_frame true), hop E (eaad6e4f \"hops forward twice, ...\"), fly E (89d68efb \"takes off and flies up out of the frame, wings beating, ...\")",
+  "measured": "body 31 x 25 px east, 20 x 26 south: OVER the critter budget (12-20 px): a 32 canvas still draws the pigeon at nearly full canvas. Ring 3.05:1 on grass, 2.68:1 on the plaza crop",
+  "findings": [
+    "TOO BIG for the critter class: the batch needs a 24 or 20 canvas (or a crop-and-shrink is not allowed: integer scale only)",
+    "idle barely pecks (a 1 px head dip), hop barely leaves the ground, fly never takes off (it turns three-quarters and folds): the clip words need the motion spelled out (head down to the ground and up; both feet leave the ground; wings open wide and the body rises)",
+    "the rotations read as a pigeon, slate grey with pale bars"
+  ],
+  "review_strip": "art/review/gen-2026-11-09/t2-pigeon-sample.png"
+}

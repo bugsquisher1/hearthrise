@@ -1,0 +1,545 @@
+{
+  "asset": "outfit_witch-attack swing (brief 10 B2, Coordinator ruling 2026-11-08)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B2 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (the hero swing clip; heroes have only idle and walk today)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "85ae81a0-1164-4a49-9101-48960535f0bc",
+  "name": "witch: its own gnarled staff",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); attack/<facing>/0..N.png = the kept roll; alt/<roll>/attack/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the outfit object, frame_count 6, keep_first_frame TRUE (7 stored frames, frame 0 the rotation = the still, checked byte for byte); one group per action text",
+  "rolls": {
+    "b2": [
+      {
+        "group": "d1a52beb-2a58-4ac0-80b3-180eb64e4522",
+        "directions": "all 8",
+        "action": "keeps facing the same way the whole time, jabs the gnarled staff forward once toward the way it faces and draws it back to where it started, feet planted, the staff stays in its hand the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "b2r2": [
+      {
+        "group": "2d07cc6d-2ebb-43e4-a3aa-7bc3af5d8224",
+        "directions": "w",
+        "action": "keeps facing the same way the whole time, jabs the brown gnarled wooden staff forward once toward the way it faces and draws it back to where it started, feet planted, the staff stays brown wood and in her hand the whole time, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "b2r3": [
+      {
+        "group": "bf773584-609c-42ae-b43a-822e2c541073",
+        "directions": "w",
+        "action": "seen from the side the whole time, pushes the brown wooden staff forward a few pixels toward the way it faces and pulls it back to where it started, the body and legs do not move, the staff stays brown wood and keeps its shape, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "b2",
+    "east": "b2",
+    "north": "b2",
+    "west": "b2r3",
+    "south-east": "b2",
+    "south-west": "b2",
+    "north-east": "b2",
+    "north-west": "b2"
+  },
+  "refused": {
+    "west b2": "the staff turns into a white-tipped spear with a pale crescent (frames 4-5)",
+    "west b2r2": "the staff head turns orange and a white puff appears (frames 5-6)"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "b2",
+      "xor": [
+        0,
+        63,
+        87,
+        162,
+        198,
+        194,
+        158
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        17,
+        22,
+        24,
+        17
+      ],
+      "dx": [
+        0,
+        -0.4,
+        0.7,
+        1.6,
+        2.2,
+        2.3,
+        1.9
+      ],
+      "dy": [
+        0,
+        0,
+        -0.2,
+        0,
+        1.3,
+        1,
+        0.7
+      ],
+      "top": [
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "b2",
+      "xor": [
+        0,
+        114,
+        116,
+        120,
+        126,
+        133,
+        117
+      ],
+      "alien": [
+        0,
+        35,
+        34,
+        40,
+        43,
+        41,
+        34
+      ],
+      "dx": [
+        0,
+        1.2,
+        1,
+        1.5,
+        1.4,
+        1.5,
+        0.9
+      ],
+      "dy": [
+        0,
+        -0.6,
+        -0.4,
+        0.3,
+        0.6,
+        0.2,
+        -0.2
+      ],
+      "top": [
+        0,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f1 (35)",
+        "colour f2 (34)",
+        "colour f3 (40)",
+        "colour f4 (43)",
+        "colour f5 (41)",
+        "colour f6 (34)"
+      ]
+    },
+    "north": {
+      "roll": "b2",
+      "xor": [
+        0,
+        54,
+        112,
+        143,
+        182,
+        180,
+        142
+      ],
+      "alien": [
+        0,
+        1,
+        0,
+        9,
+        10,
+        11,
+        7
+      ],
+      "dx": [
+        0,
+        0,
+        -0.2,
+        -0.6,
+        -0.7,
+        -0.7,
+        -0.5
+      ],
+      "dy": [
+        0,
+        -0.2,
+        -0.5,
+        0.3,
+        0.9,
+        0.9,
+        -0.1
+      ],
+      "top": [
+        0,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "b2r3",
+      "xor": [
+        0,
+        90,
+        146,
+        121,
+        122,
+        127,
+        83
+      ],
+      "alien": [
+        0,
+        0,
+        4,
+        35,
+        50,
+        39,
+        32
+      ],
+      "dx": [
+        0,
+        -1.1,
+        -1.7,
+        -1.6,
+        -1.8,
+        -1.2,
+        -1.3
+      ],
+      "dy": [
+        0,
+        -0.3,
+        -0.3,
+        -0.9,
+        -0.4,
+        0.4,
+        0.7
+      ],
+      "top": [
+        0,
+        -1,
+        -2,
+        -2,
+        -2,
+        -1,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        0
+      ],
+      "auto_flags": [
+        "colour f3 (35)",
+        "colour f4 (50)",
+        "colour f5 (39)",
+        "colour f6 (32)"
+      ]
+    },
+    "south-east": {
+      "roll": "b2",
+      "xor": [
+        0,
+        30,
+        103,
+        139,
+        156,
+        130,
+        98
+      ],
+      "alien": [
+        0,
+        0,
+        3,
+        18,
+        21,
+        20,
+        3
+      ],
+      "dx": [
+        0,
+        0,
+        0.7,
+        1.2,
+        1.1,
+        1.2,
+        0.6
+      ],
+      "dy": [
+        0,
+        0.3,
+        -0.3,
+        -0.3,
+        0.4,
+        -0.2,
+        -0.3
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        2,
+        2,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "south-west": {
+      "roll": "b2",
+      "xor": [
+        0,
+        101,
+        120,
+        154,
+        217,
+        234,
+        157
+      ],
+      "alien": [
+        0,
+        3,
+        0,
+        17,
+        29,
+        37,
+        25
+      ],
+      "dx": [
+        0,
+        -0.2,
+        0.1,
+        0.7,
+        1.6,
+        1.3,
+        0.4
+      ],
+      "dy": [
+        0,
+        -0.5,
+        0.2,
+        0,
+        0.8,
+        1.1,
+        0.6
+      ],
+      "top": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        -1,
+        -1,
+        0
+      ],
+      "auto_flags": [
+        "colour f4 (29)",
+        "feet f4 (bot -1, dy 0.8)",
+        "colour f5 (37)",
+        "feet f5 (bot -1, dy 1.1)"
+      ]
+    },
+    "north-east": {
+      "roll": "b2",
+      "xor": [
+        0,
+        49,
+        82,
+        128,
+        134,
+        131,
+        95
+      ],
+      "alien": [
+        0,
+        0,
+        1,
+        10,
+        11,
+        13,
+        2
+      ],
+      "dx": [
+        0,
+        0.1,
+        -0.2,
+        -0.2,
+        -0.2,
+        0,
+        -0.1
+      ],
+      "dy": [
+        0,
+        -0.2,
+        -0.6,
+        0.2,
+        0.4,
+        0.2,
+        -0.5
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "north-west": {
+      "roll": "b2",
+      "xor": [
+        0,
+        42,
+        69,
+        131,
+        134,
+        110,
+        92
+      ],
+      "alien": [
+        0,
+        4,
+        4,
+        27,
+        33,
+        24,
+        18
+      ],
+      "dx": [
+        0,
+        0.1,
+        0.2,
+        0.1,
+        0.1,
+        0,
+        0.2
+      ],
+      "dy": [
+        0,
+        -0.1,
+        -0.2,
+        0.9,
+        1,
+        0.9,
+        0.4
+      ],
+      "top": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f3 (27)",
+        "colour f4 (33)"
+      ]
+    }
+  },
+  "generations": 10,
+  "flags": [
+    "north-west: the gnarled head reads pale, like a fork, at frames 4-7",
+    "west b2r3: a short jab with the staff held level, nothing redrawn but the arm and staff"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_witch-attack.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "ruling": "Coordinator 2026-11-08: a hero swing shows the outfit OWN drawn weapon (the one its idle and walk show), never the equipped item",
+  "sample": "knight S, E and ranger S, E first (frame 0 = still, no impact effect, weapon kept): passed after re-rolls (knight E r3, ranger S r2, ranger E r3)",
+  "hit_frame": "not declared here: the import picks it (the swing peaks at frames 3-4 in most facings)",
+  "import_note": "the import re-runs tools/world-art/outfit-masks.mjs; frames are 48 px objects, seated like the walk"
+}

@@ -1,0 +1,322 @@
+{
+  "asset": "f1_dawnward hit clip (brief 10 F1), every hunt (the hero)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt F1 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "478371a8-809e-4ee5-8722-96b008a3fa87",
+  "name": "Dawnward Paladin",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); fall/<facing>/0..N.png = the kept roll; alt/<roll>/fall/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the outfit object, frame_count 6, keep_first_frame false, directions s e n w in one group (the brief text for all four)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "c7286f64-8e80-43d0-9c60-f103705be0f9",
+        "directions": "s e n w",
+        "action": "collapses to the ground and lies still, the weapon falls beside the body, nothing else appears in the frame"
+      }
+    ],
+    "r2": [
+      {
+        "group": "a365811c-c92c-4e36-aa30-7a048251fb7b",
+        "directions": "n",
+        "action": "collapses and falls forward flat onto the ground face down, then lies still, the mace and shield fall beside the body, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r2",
+    "west": "r1"
+  },
+  "refused": {
+    "north r1": "only crouches and stands back up; never lies down"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        124,
+        220,
+        337,
+        469,
+        605,
+        713
+      ],
+      "alien": [
+        6,
+        29,
+        88,
+        117,
+        115,
+        194
+      ],
+      "dx": [
+        0.6,
+        1,
+        2.2,
+        3.5,
+        3.8,
+        3.9
+      ],
+      "dy": [
+        0.6,
+        1.7,
+        4.3,
+        7.5,
+        10.6,
+        13
+      ],
+      "top": [
+        0,
+        2,
+        6,
+        11,
+        21,
+        24
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f1 (29)",
+        "colour f2 (88)",
+        "shift f2 (2.2,4.3)",
+        "top f2 (6)",
+        "colour f3 (117)",
+        "bright f3 (56)",
+        "shift f3 (3.5,7.5)",
+        "top f3 (11)",
+        "colour f4 (115)",
+        "bright f4 (54)",
+        "shift f4 (3.8,10.6)",
+        "top f4 (21)",
+        "colour f5 (194)",
+        "bright f5 (63)",
+        "shift f5 (3.9,13)",
+        "top f5 (24)"
+      ]
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        108,
+        209,
+        330,
+        385,
+        536,
+        643
+      ],
+      "alien": [
+        8,
+        33,
+        72,
+        129,
+        186,
+        222
+      ],
+      "dx": [
+        0.4,
+        1.2,
+        2.4,
+        2.4,
+        3.3,
+        2.7
+      ],
+      "dy": [
+        0.7,
+        1.5,
+        2.3,
+        5.3,
+        9.4,
+        13.9
+      ],
+      "top": [
+        1,
+        2,
+        4,
+        10,
+        17,
+        25
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        -1,
+        1
+      ],
+      "auto_flags": [
+        "colour f1 (33)",
+        "colour f2 (72)",
+        "bright f2 (36)",
+        "colour f3 (129)",
+        "bright f3 (43)",
+        "shift f3 (2.4,5.3)",
+        "top f3 (10)",
+        "colour f4 (186)",
+        "bright f4 (55)",
+        "shift f4 (3.3,9.4)",
+        "top f4 (17)",
+        "feet f4 (bot -1, dy 9.4)",
+        "colour f5 (222)",
+        "bright f5 (52)",
+        "shift f5 (2.7,13.9)",
+        "top f5 (25)",
+        "feet f5 (bot 1, dy 13.9)"
+      ]
+    },
+    "north": {
+      "roll": "r2",
+      "xor": [
+        146,
+        173,
+        320,
+        465,
+        595,
+        659
+      ],
+      "alien": [
+        1,
+        1,
+        43,
+        89,
+        123,
+        152
+      ],
+      "dx": [
+        1,
+        1.4,
+        1.7,
+        2.2,
+        1.4,
+        3.8
+      ],
+      "dy": [
+        0.6,
+        0.9,
+        2.9,
+        7.2,
+        11.3,
+        12.9
+      ],
+      "top": [
+        1,
+        2,
+        6,
+        12,
+        21,
+        21
+      ],
+      "bottom": [
+        0,
+        0,
+        -1,
+        0,
+        -1,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (43)",
+        "top f2 (6)",
+        "feet f2 (bot -1, dy 2.9)",
+        "colour f3 (89)",
+        "shift f3 (2.2,7.2)",
+        "top f3 (12)",
+        "colour f4 (123)",
+        "bright f4 (28)",
+        "shift f4 (1.4,11.3)",
+        "top f4 (21)",
+        "feet f4 (bot -1, dy 11.3)",
+        "colour f5 (152)",
+        "bright f5 (35)",
+        "shift f5 (3.8,12.9)",
+        "top f5 (21)"
+      ]
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        139,
+        206,
+        420,
+        583,
+        631,
+        666
+      ],
+      "alien": [
+        9,
+        24,
+        99,
+        200,
+        199,
+        219
+      ],
+      "dx": [
+        0.5,
+        0.3,
+        1.4,
+        2.9,
+        1.3,
+        1
+      ],
+      "dy": [
+        1,
+        1.6,
+        7.5,
+        12.2,
+        13,
+        13.9
+      ],
+      "top": [
+        1,
+        2,
+        13,
+        19,
+        23,
+        26
+      ],
+      "bottom": [
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (99)",
+        "bright f2 (36)",
+        "shift f2 (1.4,7.5)",
+        "top f2 (13)",
+        "feet f2 (bot -1, dy 7.5)",
+        "colour f3 (200)",
+        "bright f3 (61)",
+        "shift f3 (2.9,12.2)",
+        "top f3 (19)",
+        "colour f4 (199)",
+        "bright f4 (72)",
+        "shift f4 (1.3,13)",
+        "top f4 (23)",
+        "colour f5 (219)",
+        "bright f5 (95)",
+        "shift f5 (1,13.9)",
+        "top f5 (26)"
+      ]
+    }
+  },
+  "generations": 5,
+  "flags": [],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_dawnward-fall.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "brief_text": "collapses to the ground and lies still, the weapon falls beside the body, nothing else appears in the frame (6 frames, the last held)",
+  "note": "art first: a hero death ends the hunt today with no fall on screen",
+  "import_note": "the import re-runs outfit-masks.mjs; the lying frames are wider than the standing class box"
+}

@@ -1,0 +1,561 @@
+{
+  "asset": "outfit_druid-attack swing (brief 10 B2, Coordinator ruling 2026-11-08)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B2 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (the hero swing clip; heroes have only idle and walk today). A facing with no kept roll has none after the retries (flagged)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "none (the PixelLab druid object is not the shipped druid: 08 R1)",
+  "name": "druid: its own leafy staff, from uploads of the shipped stills",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); attack/<facing>/0..N.png = the kept roll; alt/<roll>/attack/<facing>/ = refused rolls",
+  "tool": "animate_image from an upload of the shipped still (art/world/hunt/outfit_druid.png idle row, 64x64), frame_count 6; index 0 is the input unchanged (= the still), kept as frame 0",
+  "rolls": {
+    "b2": [
+      {
+        "group": "seed 61 jobs s 42fb25bb e 488b9ac5 n 64006c67 w 28829481 se 85d14250 sw ffb2617b ne 52d18be9 nw 535539d0",
+        "directions": "all 8",
+        "action": "keeps facing the same way the whole time, thrusts the staff forward once toward the way it faces and draws it back to where it started, feet planted, the staff stays in its hand the whole time, no leaves, no sparks, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "b2r2": [
+      {
+        "group": "seed 62 jobs e d533f199 n faf6cd47 w 96dd31bb se 0faa87c5 sw 0b52ab8c ne 3965e45b",
+        "directions": "e n w se sw ne",
+        "action": "only the arm holding the plain wooden staff pushes it forward a few pixels toward the way it faces and pulls it back, the body, head and legs do not move, it keeps facing the same way, the staff stays plain wood and the hand does not glow brighter, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "b2r3": [
+      {
+        "group": "seed 63 jobs e 300b6ff2 w bc1a940f se 877ae0c5 ne 02dde63d",
+        "directions": "e w se ne",
+        "action": "pokes the plain wooden walking staff forward a little like a walking stick toward the way it faces and pulls it back, the body, head and legs do not move, it keeps facing the same way, the same colours throughout, nothing else appears in the frame"
+      }
+    ],
+    "b2r2nw": [
+      {
+        "group": "seed 63 job nw 08834ef6 (the walking-stick wording, stored as b2r2 for north-west)",
+        "directions": "nw",
+        "action": "pokes the plain wooden walking staff forward a little like a walking stick toward the way it faces and pulls it back, the body, head and legs do not move, it keeps facing the same way, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "b2",
+    "east": "b2r3",
+    "north": "b2r2",
+    "west": "b2r3",
+    "south-east": "b2r3",
+    "south-west": "b2r2",
+    "north-east": "none",
+    "north-west": "b2r2"
+  },
+  "refused": {
+    "east b2": "green orb and specks over the head",
+    "north b2": "a green magic burst above the staff (frames 2-5)",
+    "west b2": "a green flare and ring",
+    "south-east b2": "green arcs from the staff",
+    "south-west b2": "a green crescent slash (frames 2-5)",
+    "north-east b2": "a green orb and ring above",
+    "east b2r2": "the hand glow flares green (frames 3-4)",
+    "west b2r2": "the staff grows into a long plain crook",
+    "south-east b2r2": "a green leaf flies off (frames 4-6)",
+    "north-east b2r2": "a green ring at the staff top (frames 4-7)",
+    "north-east b2r3": "a bright green blob at the raised staff tip (frames 2-7)",
+    "north-west b2": "cyan sparkles over the staff"
+  },
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "b2",
+      "xor": [
+        0,
+        132,
+        219,
+        230,
+        212,
+        149,
+        146
+      ],
+      "alien": [
+        0,
+        10,
+        34,
+        32,
+        25,
+        16,
+        2
+      ],
+      "dx": [
+        0,
+        -1.8,
+        -1.6,
+        -1.6,
+        -1.9,
+        -1.3,
+        -0.8
+      ],
+      "dy": [
+        0,
+        1.1,
+        1.7,
+        1.3,
+        1.4,
+        0.4,
+        -0.4
+      ],
+      "top": [
+        0,
+        2,
+        3,
+        3,
+        3,
+        1,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (34)",
+        "colour f3 (32)"
+      ]
+    },
+    "east": {
+      "roll": "b2r3",
+      "xor": [
+        0,
+        139,
+        154,
+        159,
+        184,
+        152,
+        151
+      ],
+      "alien": [
+        0,
+        59,
+        70,
+        81,
+        73,
+        79,
+        57
+      ],
+      "dx": [
+        0,
+        -0.3,
+        -0.8,
+        -0.7,
+        -0.4,
+        -0.8,
+        -0.2
+      ],
+      "dy": [
+        0,
+        -3.9,
+        -4.9,
+        -5.2,
+        -4.7,
+        -5.1,
+        -2
+      ],
+      "top": [
+        0,
+        -13,
+        -15,
+        -17,
+        -16,
+        -17,
+        -8
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f1 (59)",
+        "shift f1 (-0.3,-3.9)",
+        "top f1 (-13)",
+        "colour f2 (70)",
+        "shift f2 (-0.8,-4.9)",
+        "top f2 (-15)",
+        "colour f3 (81)",
+        "shift f3 (-0.7,-5.2)",
+        "top f3 (-17)",
+        "colour f4 (73)",
+        "shift f4 (-0.4,-4.7)",
+        "top f4 (-16)",
+        "colour f5 (79)",
+        "shift f5 (-0.8,-5.1)",
+        "top f5 (-17)",
+        "colour f6 (57)",
+        "top f6 (-8)"
+      ]
+    },
+    "north": {
+      "roll": "b2r2",
+      "xor": [
+        0,
+        166,
+        236,
+        321,
+        359,
+        356,
+        231
+      ],
+      "alien": [
+        0,
+        3,
+        29,
+        74,
+        99,
+        83,
+        7
+      ],
+      "dx": [
+        0,
+        0.8,
+        0.9,
+        0.7,
+        0.5,
+        0.7,
+        0.5
+      ],
+      "dy": [
+        0,
+        -0.9,
+        -2.3,
+        -5,
+        -7.1,
+        -6.7,
+        -2.7
+      ],
+      "top": [
+        0,
+        -3,
+        -5,
+        -16,
+        -19,
+        -17,
+        -4
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        -1,
+        -3,
+        -4,
+        -2
+      ],
+      "auto_flags": [
+        "colour f2 (29)",
+        "top f2 (-5)",
+        "colour f3 (74)",
+        "shift f3 (0.7,-5)",
+        "top f3 (-16)",
+        "feet f3 (bot -1, dy -5)",
+        "colour f4 (99)",
+        "shift f4 (0.5,-7.1)",
+        "top f4 (-19)",
+        "feet f4 (bot -3, dy -7.1)",
+        "colour f5 (83)",
+        "shift f5 (0.7,-6.7)",
+        "top f5 (-17)",
+        "feet f5 (bot -4, dy -6.7)"
+      ]
+    },
+    "west": {
+      "roll": "b2r3",
+      "xor": [
+        0,
+        100,
+        156,
+        161,
+        136,
+        133,
+        147
+      ],
+      "alien": [
+        0,
+        24,
+        50,
+        51,
+        49,
+        54,
+        53
+      ],
+      "dx": [
+        0,
+        -0.9,
+        -1.2,
+        -1.5,
+        -1.7,
+        -1.5,
+        -1.2
+      ],
+      "dy": [
+        0,
+        -2,
+        -3.9,
+        -3.6,
+        -3.3,
+        -4.7,
+        -4.1
+      ],
+      "top": [
+        0,
+        -10,
+        -17,
+        -19,
+        -19,
+        -20,
+        -20
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "top f1 (-10)",
+        "colour f2 (50)",
+        "shift f2 (-1.2,-3.9)",
+        "top f2 (-17)",
+        "colour f3 (51)",
+        "shift f3 (-1.5,-3.6)",
+        "top f3 (-19)",
+        "colour f4 (49)",
+        "shift f4 (-1.7,-3.3)",
+        "top f4 (-19)",
+        "colour f5 (54)",
+        "shift f5 (-1.5,-4.7)",
+        "top f5 (-20)",
+        "colour f6 (53)",
+        "shift f6 (-1.2,-4.1)",
+        "top f6 (-20)"
+      ]
+    },
+    "south-east": {
+      "roll": "b2r3",
+      "xor": [
+        0,
+        94,
+        143,
+        153,
+        146,
+        154,
+        155
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        1,
+        6,
+        6,
+        0
+      ],
+      "dx": [
+        0,
+        0.1,
+        0.1,
+        -0.1,
+        0,
+        -0.1,
+        0.1
+      ],
+      "dy": [
+        0,
+        -0.5,
+        -0.8,
+        -0.4,
+        0.1,
+        0.4,
+        0
+      ],
+      "top": [
+        0,
+        -1,
+        -1,
+        0,
+        1,
+        2,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "south-west": {
+      "roll": "b2r2",
+      "xor": [
+        0,
+        65,
+        138,
+        189,
+        177,
+        192,
+        193
+      ],
+      "alien": [
+        0,
+        5,
+        3,
+        72,
+        76,
+        82,
+        90
+      ],
+      "dx": [
+        0,
+        -0.4,
+        -1.2,
+        -1.1,
+        -0.4,
+        -0.4,
+        -1.8
+      ],
+      "dy": [
+        0,
+        -0.7,
+        -1.1,
+        -4.7,
+        -4.9,
+        -5,
+        -4.4
+      ],
+      "top": [
+        0,
+        0,
+        -2,
+        -20,
+        -20,
+        -19,
+        -16
+      ],
+      "bottom": [
+        0,
+        0,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "auto_flags": [
+        "colour f3 (72)",
+        "shift f3 (-1.1,-4.7)",
+        "top f3 (-20)",
+        "feet f3 (bot -1, dy -4.7)",
+        "colour f4 (76)",
+        "shift f4 (-0.4,-4.9)",
+        "top f4 (-20)",
+        "feet f4 (bot -1, dy -4.9)",
+        "colour f5 (82)",
+        "shift f5 (-0.4,-5)",
+        "top f5 (-19)",
+        "feet f5 (bot -1, dy -5)",
+        "colour f6 (90)",
+        "shift f6 (-1.8,-4.4)",
+        "top f6 (-16)",
+        "feet f6 (bot -1, dy -4.4)"
+      ]
+    },
+    "north-west": {
+      "roll": "b2r2",
+      "xor": [
+        0,
+        75,
+        158,
+        230,
+        245,
+        284,
+        257
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        19,
+        16,
+        19,
+        17
+      ],
+      "dx": [
+        0,
+        0.1,
+        0.6,
+        1,
+        0.9,
+        -1,
+        -0.8
+      ],
+      "dy": [
+        0,
+        -0.5,
+        -1.3,
+        -2.3,
+        -1.6,
+        -0.2,
+        -1.5
+      ],
+      "top": [
+        0,
+        -1,
+        -3,
+        -5,
+        -5,
+        0,
+        -1
+      ],
+      "bottom": [
+        0,
+        0,
+        -1,
+        -1,
+        -1,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "top f3 (-5)",
+        "top f4 (-5)"
+      ]
+    }
+  },
+  "generations": 21,
+  "flags": [
+    "the druid is the hardest outfit: every \"thrust\" painted green magic; \"pokes the plain wooden walking staff like a walking stick\" (b2r3) is the wording that held",
+    "east b2r3 and west b2r3: the staff is raised upright and reads longer than the still (a lift, not a forward poke)",
+    "north b2r2: the staff lifts straight up (seen from behind, forward is up the screen)",
+    "south-west b2r2: the leafy staff tip shows green at frames 4-7 (marginal)",
+    "NORTH-EAST: NO CLEAN ROLL after 2 retries (b2 green orb and ring, b2r2 green ring at the top, b2r3 a bright green blob at the staff tip): no swing for that facing",
+    "north-west b2r2 (the walking-stick wording): the leafy staff swings forward, the leaves are the still own"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_druid-attack.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "ruling": "Coordinator 2026-11-08: a hero swing shows the outfit OWN drawn weapon (the one its idle and walk show), never the equipped item",
+  "sample": "knight S, E and ranger S, E first (frame 0 = still, no impact effect, weapon kept): passed after re-rolls (knight E r3, ranger S r2, ranger E r3)",
+  "hit_frame": "not declared here: the import picks it (the swing peaks at frames 3-4 in most facings)",
+  "import_note": "the import re-runs tools/world-art/outfit-masks.mjs; frames are 48 px objects, seated like the walk"
+}

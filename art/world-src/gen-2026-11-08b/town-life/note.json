@@ -1,0 +1,36 @@
+{
+  "asset": "town life (brief 10 C2): the market stall's awning, the mill set's hanging banner, the lamp post's flame, the smithy's smoke",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt C2 (the waterwheel's method: animate_image on the sprite, cut to the moving pixels)",
+  "status": "CANDIDATES for the art director; not imported, nothing wired",
+  "made": "2026-11-08",
+  "generations": 3,
+  "method": "each shipped sprite padded onto a transparent canvas (bottom-centred), uploaded, animate_image frame_count 4 (5 stored frames, frame_000 = the shipped sprite byte for byte), seed 81; raw/ = the generated frames cropped back to the sprite's own size; cut/ = frame_000's pixels everywhere except the moving region, which takes the generated pixels (so the rest never shimmers)",
+  "stall": {
+    "source": "art/world/common/square_market_stall.png (76x58), padded at x2 y6 in 80x64, upload 48a10c6a",
+    "job": "d04327a8-c1d8-43c5-8466-5b1cffce0aac", "action": "the cloth awning of the market stall stirs gently in a light breeze, the posts, the counter and the goods do not move, nothing else appears in the frame",
+    "cut": "rows 0-27 (the awning and its hem) from the generated frames, rows 28-57 (posts, counter, goods, crate) from frame_000",
+    "measured": "the awning rows change 8-181 px a frame, most in its hem (rows 19-26); the counter and goods changed 4-16 px (dropped by the cut)",
+    "flags": ["frames 3-4: the cream stripes' lower edge turns near-white (a brighter highlight along the hem), a colour change more than a stir", "frame 2: the hem scallops (the edge gets wavy), frames 3-4 straighten it"]
+  },
+  "banner": {
+    "source": "art/world/mill/banner.png (18x24, class hanging), padded at x7 y8 in 32x32, upload 68c13ebb",
+    "job": "acd7d5ad-7bef-4ea7-8c07-53deda37104c", "action": "the hanging cloth banner sways gently from side to side, its pole does not move, the same colours throughout, nothing else appears in the frame",
+    "cut": "rows 3-23 (the cloth) from the generated frames, rows 0-2 (the rod) from frame_000",
+    "measured": "the whole cloth sways (13-70 px a column); the rod row moved too in raw (rows 0-3 change 30-69 px), frozen in cut/",
+    "flags": ["cut/: the cloth's top edge meets the frozen rod at row 3, check for a seam at x2", "the tail point swings 1-2 px each way: a slow loop at 4-6 fps"]
+  },
+  "lamp": {
+    "source": "art/world/common/lamppost.png (32x42, material light), padded at x8 y6 in 48x48, upload 7d397c67",
+    "job": "d733331e-cec2-4c86-825e-aeb7d897dad5", "action": "the small warm flame inside the lantern flickers, the post and the lantern frame do not move, nothing else appears in the frame",
+    "cut": "only the flame box x12-19 y21-25 from the generated frames; flame/ = that 8x5 box alone per frame (the light's own sprite, drawn at x12 y21 over the lamp), 8 fps",
+    "measured": "only the flame changed (rows 21-25, cols 12-19: 4-22 px a row); 4 px of noise at rows 35-38 dropped by the cut",
+    "flags": ["clean: the cleanest of the four"]
+  },
+  "smoke": {
+    "tool": "vfx_workbench (free), saved to My effects as 'HR smithy smoke' (effect b8c10013-a773-4fee-a208-0b643a859f72)",
+    "recipe": "24x40 canvas, 6 frames at 6 fps, loop; three noise layers (base r5 y33, mid r7 y22, top r8 y11) scrolling up 24 px/s, intensity 0.85/0.65/0.45, a 4-grey ramp #3b3c3e #58595b #77787a #96979a, no outline, no glow; origin 12,20",
+    "files": "smoke/hr-smithy-smoke.png (sheet) + .json (layout), smoke/frame_000..005.png",
+    "flags": ["it reads as three stacked grey puffs drifting up rather than one soft column", "it has no anchor on the smithy yet: the chimney's top in art/world/common/smithy.png is the import's to find"]
+  },
+  "review_strip": "art/review/gen-2026-11-08b/town-life-c2.png (x4: stall raw 0-4, stall cut 0-4, banner raw, banner cut, lamp raw, lamp cut, smoke 0-5)"
+}

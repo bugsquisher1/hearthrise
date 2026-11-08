@@ -1,0 +1,310 @@
+{
+  "asset": "f1_berserker hit clip (brief 10 F1), every hunt (the hero)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt F1 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "6e27fec6-ce0d-4320-9b6e-753ab0b8518f",
+  "name": "berserker v5",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); fall/<facing>/0..N.png = the kept roll; alt/<roll>/fall/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the outfit object, frame_count 6, keep_first_frame false, directions s e n w in one group (the brief text for all four)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "bc9e6327-e5aa-4573-8aa6-840c0b059457",
+        "directions": "s e n w",
+        "action": "collapses to the ground and lies still, the weapon falls beside the body, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r1",
+    "west": "r1"
+  },
+  "refused": {},
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        128,
+        174,
+        339,
+        477,
+        615,
+        687
+      ],
+      "alien": [
+        0,
+        3,
+        55,
+        109,
+        112,
+        141
+      ],
+      "dx": [
+        0.3,
+        0.6,
+        2,
+        2.7,
+        2.4,
+        3.7
+      ],
+      "dy": [
+        0.9,
+        1.2,
+        4.2,
+        8,
+        10.9,
+        13
+      ],
+      "top": [
+        1,
+        2,
+        7,
+        11,
+        19,
+        23
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (55)",
+        "shift f2 (2,4.2)",
+        "top f2 (7)",
+        "colour f3 (109)",
+        "bright f3 (30)",
+        "shift f3 (2.7,8)",
+        "top f3 (11)",
+        "colour f4 (112)",
+        "shift f4 (2.4,10.9)",
+        "top f4 (19)",
+        "colour f5 (141)",
+        "shift f5 (3.7,13)",
+        "top f5 (23)"
+      ]
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        127,
+        204,
+        375,
+        444,
+        552,
+        582
+      ],
+      "alien": [
+        1,
+        20,
+        90,
+        157,
+        198,
+        209
+      ],
+      "dx": [
+        1.5,
+        1.8,
+        3.3,
+        3.5,
+        2.9,
+        3.4
+      ],
+      "dy": [
+        1.1,
+        1.9,
+        5.1,
+        7.6,
+        11.4,
+        14.1
+      ],
+      "top": [
+        1,
+        2,
+        6,
+        9,
+        17,
+        21
+      ],
+      "bottom": [
+        0,
+        0,
+        -1,
+        0,
+        -1,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (90)",
+        "shift f2 (3.3,5.1)",
+        "top f2 (6)",
+        "feet f2 (bot -1, dy 5.1)",
+        "colour f3 (157)",
+        "bright f3 (38)",
+        "shift f3 (3.5,7.6)",
+        "top f3 (9)",
+        "colour f4 (198)",
+        "bright f4 (37)",
+        "shift f4 (2.9,11.4)",
+        "top f4 (17)",
+        "feet f4 (bot -1, dy 11.4)",
+        "colour f5 (209)",
+        "bright f5 (41)",
+        "shift f5 (3.4,14.1)",
+        "top f5 (21)"
+      ]
+    },
+    "north": {
+      "roll": "r1",
+      "xor": [
+        205,
+        238,
+        452,
+        596,
+        713,
+        703
+      ],
+      "alien": [
+        2,
+        4,
+        143,
+        196,
+        163,
+        152
+      ],
+      "dx": [
+        1.2,
+        1.2,
+        3,
+        4.2,
+        2.9,
+        3.9
+      ],
+      "dy": [
+        0.5,
+        1.6,
+        6.1,
+        10.5,
+        13.4,
+        14.6
+      ],
+      "top": [
+        0,
+        2,
+        9,
+        16,
+        23,
+        28
+      ],
+      "bottom": [
+        0,
+        0,
+        -2,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (143)",
+        "bright f2 (42)",
+        "shift f2 (3,6.1)",
+        "top f2 (9)",
+        "feet f2 (bot -2, dy 6.1)",
+        "colour f3 (196)",
+        "bright f3 (33)",
+        "shift f3 (4.2,10.5)",
+        "top f3 (16)",
+        "colour f4 (163)",
+        "shift f4 (2.9,13.4)",
+        "top f4 (23)",
+        "colour f5 (152)",
+        "bright f5 (31)",
+        "shift f5 (3.9,14.6)",
+        "top f5 (28)"
+      ]
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        126,
+        164,
+        317,
+        455,
+        557,
+        603
+      ],
+      "alien": [
+        0,
+        0,
+        88,
+        154,
+        191,
+        207
+      ],
+      "dx": [
+        1.5,
+        1.9,
+        3.1,
+        3.2,
+        3.4,
+        4.3
+      ],
+      "dy": [
+        0.4,
+        0.8,
+        4.8,
+        9.6,
+        11.5,
+        13.6
+      ],
+      "top": [
+        1,
+        2,
+        7,
+        12,
+        17,
+        20
+      ],
+      "bottom": [
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (88)",
+        "shift f2 (3.1,4.8)",
+        "top f2 (7)",
+        "feet f2 (bot -1, dy 4.8)",
+        "colour f3 (154)",
+        "bright f3 (37)",
+        "shift f3 (3.2,9.6)",
+        "top f3 (12)",
+        "colour f4 (191)",
+        "bright f4 (47)",
+        "shift f4 (3.4,11.5)",
+        "top f4 (17)",
+        "colour f5 (207)",
+        "bright f5 (55)",
+        "shift f5 (4.3,13.6)",
+        "top f5 (20)"
+      ]
+    }
+  },
+  "generations": 4,
+  "flags": [],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_berserker-fall.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "brief_text": "collapses to the ground and lies still, the weapon falls beside the body, nothing else appears in the frame (6 frames, the last held)",
+  "note": "art first: a hero death ends the hunt today with no fall on screen",
+  "import_note": "the import re-runs outfit-masks.mjs; the lying frames are wider than the standing class box"
+}

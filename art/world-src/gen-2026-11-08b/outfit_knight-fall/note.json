@@ -1,0 +1,318 @@
+{
+  "asset": "f1_knight hit clip (brief 10 F1), every hunt (the hero)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt F1 (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "hunt (heroes)",
+  "object_id": "e6b1bc58-8481-40c0-b361-77f9eed15927",
+  "name": "S1 knight v3",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); fall/<facing>/0..N.png = the kept roll; alt/<roll>/fall/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the outfit object, frame_count 6, keep_first_frame false, directions s e n w in one group (the brief text for all four)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "22d8af2d-f9e3-4412-9a3f-72ea6ee8ee21",
+        "directions": "s e n w",
+        "action": "collapses to the ground and lies still, the weapon falls beside the body, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r1",
+    "west": "r1"
+  },
+  "refused": {},
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        179,
+        202,
+        390,
+        482,
+        657,
+        712
+      ],
+      "alien": [
+        0,
+        1,
+        110,
+        191,
+        194,
+        199
+      ],
+      "dx": [
+        1.7,
+        1.7,
+        2.8,
+        4.6,
+        4.8,
+        4.6
+      ],
+      "dy": [
+        0.9,
+        1.6,
+        4.7,
+        8.1,
+        10.6,
+        12.3
+      ],
+      "top": [
+        1,
+        2,
+        7,
+        12,
+        19,
+        22
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        2,
+        1,
+        1
+      ],
+      "auto_flags": [
+        "colour f2 (110)",
+        "bright f2 (31)",
+        "shift f2 (2.8,4.7)",
+        "top f2 (7)",
+        "colour f3 (191)",
+        "bright f3 (55)",
+        "shift f3 (4.6,8.1)",
+        "top f3 (12)",
+        "feet f3 (bot 2, dy 8.1)",
+        "colour f4 (194)",
+        "bright f4 (60)",
+        "shift f4 (4.8,10.6)",
+        "top f4 (19)",
+        "feet f4 (bot 1, dy 10.6)",
+        "colour f5 (199)",
+        "bright f5 (66)",
+        "shift f5 (4.6,12.3)",
+        "top f5 (22)",
+        "feet f5 (bot 1, dy 12.3)"
+      ]
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        126,
+        190,
+        306,
+        412,
+        539,
+        547
+      ],
+      "alien": [
+        1,
+        17,
+        92,
+        167,
+        188,
+        155
+      ],
+      "dx": [
+        0.4,
+        -0.1,
+        1.8,
+        2.9,
+        2.3,
+        3.2
+      ],
+      "dy": [
+        1.1,
+        1.7,
+        4.4,
+        7.7,
+        11.3,
+        13.6
+      ],
+      "top": [
+        0,
+        1,
+        4,
+        9,
+        17,
+        21
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (92)",
+        "bright f2 (34)",
+        "shift f2 (1.8,4.4)",
+        "colour f3 (167)",
+        "bright f3 (54)",
+        "shift f3 (2.9,7.7)",
+        "top f3 (9)",
+        "colour f4 (188)",
+        "bright f4 (50)",
+        "shift f4 (2.3,11.3)",
+        "top f4 (17)",
+        "colour f5 (155)",
+        "bright f5 (51)",
+        "shift f5 (3.2,13.6)",
+        "top f5 (21)"
+      ]
+    },
+    "north": {
+      "roll": "r1",
+      "xor": [
+        149,
+        209,
+        359,
+        500,
+        607,
+        615
+      ],
+      "alien": [
+        26,
+        25,
+        106,
+        150,
+        153,
+        120
+      ],
+      "dx": [
+        0.6,
+        0,
+        0.9,
+        2,
+        0.3,
+        2.3
+      ],
+      "dy": [
+        1.2,
+        1.9,
+        5.1,
+        10.1,
+        11.4,
+        13.9
+      ],
+      "top": [
+        1,
+        2,
+        7,
+        14,
+        20,
+        24
+      ],
+      "bottom": [
+        0,
+        0,
+        -2,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f0 (26)",
+        "colour f2 (106)",
+        "shift f2 (0.9,5.1)",
+        "top f2 (7)",
+        "feet f2 (bot -2, dy 5.1)",
+        "colour f3 (150)",
+        "bright f3 (31)",
+        "shift f3 (2,10.1)",
+        "top f3 (14)",
+        "colour f4 (153)",
+        "bright f4 (32)",
+        "shift f4 (0.3,11.4)",
+        "top f4 (20)",
+        "colour f5 (120)",
+        "bright f5 (36)",
+        "shift f5 (2.3,13.9)",
+        "top f5 (24)"
+      ]
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        107,
+        208,
+        415,
+        554,
+        577,
+        571
+      ],
+      "alien": [
+        1,
+        7,
+        110,
+        235,
+        214,
+        200
+      ],
+      "dx": [
+        0.3,
+        0.4,
+        1.8,
+        3.1,
+        3.7,
+        3.6
+      ],
+      "dy": [
+        1.4,
+        1.1,
+        3.4,
+        9.8,
+        13.1,
+        15.3
+      ],
+      "top": [
+        2,
+        1,
+        6,
+        11,
+        22,
+        26
+      ],
+      "bottom": [
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (110)",
+        "bright f2 (40)",
+        "shift f2 (1.8,3.4)",
+        "top f2 (6)",
+        "feet f2 (bot -1, dy 3.4)",
+        "colour f3 (235)",
+        "bright f3 (95)",
+        "shift f3 (3.1,9.8)",
+        "top f3 (11)",
+        "colour f4 (214)",
+        "bright f4 (78)",
+        "shift f4 (3.7,13.1)",
+        "top f4 (22)",
+        "colour f5 (200)",
+        "bright f5 (80)",
+        "shift f5 (3.6,15.3)",
+        "top f5 (26)"
+      ]
+    }
+  },
+  "generations": 4,
+  "flags": [
+    "south: falls to its right with the shield on top; the sword lies at its feet"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/outfit_knight-fall.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)",
+  "brief_text": "collapses to the ground and lies still, the weapon falls beside the body, nothing else appears in the frame (6 frames, the last held)",
+  "note": "art first: a hero death ends the hunt today with no fall on screen",
+  "import_note": "the import re-runs outfit-masks.mjs; the lying frames are wider than the standing class box"
+}

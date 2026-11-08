@@ -2,7 +2,7 @@
 // src/render/outfit-sprite.js — AN OUTFIT DRAWN AT A WHOLE-NUMBER SCALE.
 //
 // The Character window's portrait and outfit preview draw the hero's style-1
-// outfit sprite (the `hunt` atlas set, the same art the World draws) into a
+// outfit sprite (the `heroes` atlas set, the same art the World draws) into a
 // canvas at an integer scale with smoothing off (ART_DIRECTION §2). A facing
 // is one of the art budget's FACINGS; the frame is the idle clip's.
 //
@@ -14,10 +14,10 @@
 import { loadAtlasSet } from '../world/atlas.js?v=0.2.107';
 import { recolourPixels, loadMasks } from '../world/hero-dye.js?v=0.2.107';
 
-const SET = 'hunt';
+const SET = 'heroes';
 let ART = null;
 
-/** The `hunt` art set, loaded once: Promise<{manifest, image}> (rejects when it cannot load). */
+/** The `heroes` art set, loaded once: Promise<{manifest, image}> (rejects when it cannot load). */
 export function outfitArt(doc, version) {
   if (!ART) ART = loadAtlasSet({ doc, version }, SET).catch((e) => { ART = null; throw e; });
   return ART;

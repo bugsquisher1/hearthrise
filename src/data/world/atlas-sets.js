@@ -11,7 +11,7 @@
 // A new set is one row here; nothing else changes.
 // ════════════════════════════════════════════════════════════════════════
 
-export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead']);
+export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes']);
 
 /* THE SETS OF ANOTHER ART GRID (src/data/world/art-budget.js GRIDS), by grid. They are not loaded
    on the pane's first open: the first scene drawn on that grid loads them into a book of their own
@@ -26,4 +26,4 @@ export const LOADED_SETS = Object.freeze(ATLAS_SETS.concat(...Object.values(GRID
    pane's first open: the dye code loads one on first need (src/world/atlas.js loadAtlasSet). Its sprite
    `<id>_mask` is sprite <id>'s frames keyed by region (src/data/outfits.js MASK_COLOURS), built unpalette-locked by
    tools/world-art/build.mjs, written by tools/world-art/outfit-masks.mjs and held to <id> by tests/outfit-masks.mjs. */
-export const MASK_SETS = Object.freeze({ 'hunt-masks': 'hunt' });
+export const MASK_SETS = Object.freeze({ 'hunt-masks': 'heroes' });

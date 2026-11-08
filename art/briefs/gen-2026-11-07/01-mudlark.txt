@@ -1,0 +1,71 @@
+BRIEF 01: THE MUDLARK, the Slake's one new creature (plan line A4a, about 40 generations)
+Art director, 2026-11-07. Run the SAMPLE first (step 1 and the south facing of step 2), stop, and hand me the strip.
+
+WHAT IT IS (docs/planning/PRIORITY_BOARD.md, "The proof: The Slake", row Mudlark): a river scavenger who picked the
+Banded Company's dead on the mudflat below Hask's Ford and drowned among them. Undead like every Barrow March body, but
+small, hunched and quick: a skirmisher that catches a kiter and hits often and light. Its loot is a hook, so it holds one.
+Sprite id `mudlark`, set `slake` (staged; see "where it goes").
+
+STYLE (style 1, docs/design/PIXELLAB_STYLE1_KIT.md §3; never mix styles):
+  view     high top-down, the one angle of every world sprite; never side-on, never isometric
+  outline  single color black outline
+  shading  basic shading, light from the upper left; no glow, no shadow under the feet (the engine draws shadows)
+  palette  natural and muted: mud browns and greys, the bone-grey of drowned skin; ONE signature accent, verdigris
+           (copper-green), on at most 15% of its pixels (ART_DIRECTION §4). No bright colours, no purple.
+  size     48x48 canvas. Its class is `vermin` (src/data/world/art-budget.js: 48 frame, body 28-40 px, measured on the
+           larger side). Crouched, its body should measure 30-36 px tall: a head shorter than the hero (36-40).
+  style image  art/briefs/gen-2026-11-07/refs/style-glade-poacher-s-48.png (the Glade poacher, the style every Barrow
+           March body was made from). Size and stance check: refs/style-goblin-sluicer-s-48.png (a crouched 37 px body).
+           Upload with get_upload_url and pass upload:<id> (a pasted base64 is truncated, KIT §5).
+
+STEP 1, the rotations: create_object_pro_flash
+  n_directions 8, size 48x48, view "high top-down", outline "single color black outline", shading "basic shading",
+  style_image = the poacher crop, with "match palette, outline, shading".
+  prompt: "hunched undead river scavenger crouching low, mud-caked torn rags, grey-green waterlogged skin, a lumpy sack of
+           scavenged scraps tied on its back, a short iron boathook in one hand, green copper stains on the rags and the
+           hook, muted browns and greys, game enemy sprite"
+  name: "S1 Mudlark"
+  Reject and retry when: it stands upright like a man (it must crouch), the sack is missing in any facing, the hook
+  changes hands between facings, it reads as a goblin (no pointed ears, no big nose), or a facing comes out side-on.
+
+STEP 2, the clips: animate_object (v3) on the object from step 1, one call per facing.
+  idle    8 facings, generate 8 frames, keep the first frame the still: "breathing slowly while crouched, the sack rises
+          and falls, feet planted, stays in place, nothing else appears in the frame"
+  walk    8 facings, 6 frames (v3 keeps the still as an extra first frame: drop it, so 7 come back for 6):
+          "quick crouched scuttle, both feet lift in turn, the sack bounces, nothing else appears in the frame"
+  attack  8 facings, 6 frames: "lunges forward and hooks with the boathook, then pulls back, nothing else appears in the
+          frame". The blow lands on frame 3 (pass --hit 3 at import).
+  death   south, east, north, west only, 6 frames: "collapses face down into the mud, the sack spills, lies still"
+  Muster lesson (lane/b-muster-barrows-art): diagonal facings paint glints and sparkles despite the words. Retry those in a
+  NEW animation group (a group inherits its description), worded "nothing else appears in the frame".
+  Reject and retry when: gear appears or vanishes mid-clip, the feet do not lift in turn, a frame drifts off the anchor
+  by more than 3 px, or any effect (spark, slash arc, splash) is painted in.
+
+WHERE IT GOES: download the object ZIP. Save it under art/world-src/gen-2026-11-07/mudlark/: rotations as
+<facing>.png (south, east, north, west, south-east, south-west, north-east, north-west), clips as
+walk/<facing>/<i>.png, attack/<facing>/<i>.png, death/<facing>/<i>.png, idle/<facing>/frame_NNN.png, and a note.json
+with the object id and every animation group id. Do not import, wire or build: the art director reads it first.
+Import, after my yes (an art lane, on the Slake's art branch, never main while the Slake is unshipped):
+  node tools/world-art/port-pixellab.mjs unit --set slake --id mudlark --dir art/world-src/gen-2026-11-07/mudlark
+       --class vermin --object <OBJ_ID> --name "S1 Mudlark" --hit 3
+  node tools/world-art/port-pixellab.mjs idle --set slake --id mudlark --clip art/world-src/gen-2026-11-07/mudlark/idle
+  node tools/world-art/build.mjs --set slake;  node tests/world-assets.mjs
+
+THE SAME RECIPE, TWO MORE BODIES (plan line A4f, 80 gens; the verdigris re-pour of their Ford twins failed my read,
+art/review/region-kit-2026-11-07/repour-sample.png). Run each only after the Mudlark is accepted.
+  greened_pikeman  class brute (64 frame; canvas 48 like its Ford twin), style image refs/style-glade-poacher-s-48.png
+                   (the March family's source; refs/still-banded_pikeman-s-64.png is the twin to differ from). Swarm row, the Slake's commonest. The Banded Company's pikemen after
+                   years in the copper silt: "undead pikeman soldier crusted in green copper verdigris and dried grey
+                   mud, corroded green helmet and breastplate, a long pike held upright, rags caked to the bones, muted
+                   grey-green and mud brown, game enemy sprite". It must read as the Banded Pikeman's drowned cousin,
+                   not its twin: armoured where the Ford's is a bare skeleton in rags.
+  bargeman         class character (64 frame, body 36-40, canvas 48), style image refs/style-glade-poacher-s-48.png
+                   (refs/still-fordsunk-s-64.png is the twin to differ from). The barge's crew, the slowest thing on the flat: "a drowned river bargeman, broad and heavy,
+                   waterlogged leather apron and rolled sleeves, a long wooden barge pole in both hands, cracked grey
+                   skin, coal-black hands, muted browns and greys, game enemy sprite". No bloat (that is the Fordsunk).
+  Clips, rejects, import and checks as above (set slake; --class brute for the pikeman, character for the bargeman).
+
+WHAT I CHECK (the review): the walk strip beside the knight (node tools/world-art/review-strip.mjs mudlark), body
+30-36 px in every facing (build.mjs --report), verdigris at or under 15% of pixels, palette-locked colours that still
+read as mud and drowned skin, and the body on the Ford's mud at x2 in tools/qa/region-kit.html beside the hero and the
+Banded Pikeman. Readability: the ring of body pixels inside the outline must reach 3:1 against the mud (§4).

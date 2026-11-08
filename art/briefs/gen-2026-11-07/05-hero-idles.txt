@@ -1,0 +1,48 @@
+BRIEF 05: THE HEROES BREATHE: idles for the 8 hunt outfits and the 2 town NPCs (plan lines A1 80, A2 20 generations)
+Art director, 2026-11-07. SAMPLE first: outfit_knight, south and south-east. Stop, hand me the strip.
+
+WHY FIRST: every player sees their own hero every second, in town and between pulls, and the hero is the one body on
+screen that never moves while it stands (ART_DIRECTION §6: nothing alive is a still; every monster breathes since
+v0.2.98). Today each outfit's idle is its still, 1 frame in each of 8 facings (assets/world/atlas-hunt.json).
+This ADDS a clip to shipped sprites; it does not redraw them: frame 0 stays the shipped still pixel for pixel
+(tools/world-art/idle-clip.mjs), and the walk is untouched. Not a cleanup pass (Tyler rejected those on 10-22).
+
+THE BODIES (their PixelLab objects, docs/design/PIXELLAB_STYLE1_KIT.md §6-§7, §8):
+  outfit_knight     e6b1bc58-8481-40c0-b361-77f9eed15927  sword and shield
+  outfit_ranger     0934ce5c-0838-4b3e-9b53-16e9e9504489  the bow hero (the sim called it "paladin"; never use that name)
+  outfit_druid      e4e96180-b199-4d59-9f67-ef9aa033ce16  staff
+  outfit_sorcerer   e60aff3a-0e05-45d3-a83e-a8801ddf4fe8  staff
+  outfit_berserker  6e27fec6-ce0d-4320-9b6e-753ab0b8518f  a hatchet in each hand (v5)
+  outfit_brute      26e7de23-83d3-418b-aaa4-356cafae4fe5  maul at his side (v2)
+  outfit_witch      85ae81a0-1164-4a49-9101-48960535f0bc  gnarled staff
+  outfit_dawnward   478371a8-809e-4ee5-8722-96b008a3fa87  mace and sun shield
+  npc_crier         9fee956c-6e70-4e56-9d7d-9012b5806b9d  the town crier (common set)
+  npc_smith         d014b3d6-5709-4e17-a41a-5f999c558276  the smith (common set)
+
+THE CALL: animate_object (v3) on the object, one call per facing (s, e, n, w, se, sw, ne, nw), 8 frames generated.
+  action: "standing at rest, breathing slowly, chest rises and falls, a slight shift of weight, feet planted, the weapon
+          and shield stay still, stays in place, nothing else appears in the frame"
+  Keep the first frame the still. If an object is gone from the account, animate_image from an upload of the still
+  (the outfit's idle row in art/world/hunt/outfit_<id>.png, row order s e n w se sw ne nw, 64x64 frames).
+  The loop the game plays is a ping-pong of 4 (still, a, b, a) at 5 fps, built from the two calmest frames: a calm clip
+  is the goal. A hero idles for hours in town: one pixel of movement reads, three is fidgeting.
+  Reject and retry (a NEW animation group, Muster lesson) when: the weapon, shield or staff moves, the head turns, a cape
+  or plume flaps more than 2 px, the feet slide, any glow or spark appears, or the body bobs more than 1 px.
+
+WHERE IT GOES: art/world-src/gen-2026-11-07/<id>-idle/<facing>/frame_NNN.png (frame_000 the still) + note.json. Do not
+import. Import after my yes (one lane, main is fine: it changes the hunt and town screens, so it rides a release with
+the visual gate):
+  node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_<id> --clip art/world-src/gen-2026-11-07/outfit_<id>-idle
+  node tools/world-art/port-pixellab.mjs idle --set common --id npc_<id> --clip art/world-src/gen-2026-11-07/npc_<id>-idle
+  node tools/world-art/outfit-masks.mjs      (the dye masks follow each outfit's layout, frame for frame)
+  node tools/world-art/build.mjs;  node tests/world-assets.mjs;  node tests/outfit-masks.mjs;  node tests/hunt-scene.mjs
+  The hunt atlas WILL overflow: it is 2048x1972 of 2048 (lane/a-art-batch-1 already moved two creatures out), and 8
+  outfits x 8 facings x 2 new frames is 128 frames of 64x64, about 256 more rows. So the import lane moves the eight
+  outfits to a set of their own (`heroes`: one row in src/data/world/atlas-sets.js, MASK_SETS 'hunt-masks' re-pointed
+  at it, the masks re-run). scene-sets.js already fetches the hero's sheet first, so a town view still waits on one
+  sheet for the hero; measure the town's first frame on a phone before and after (tools/load-bench.mjs).
+
+WHAT I CHECK: each outfit's 4-frame loop beside its walk's first frame (review-strip.mjs), the still unchanged, the dye
+masks still keyed (a dyed hero breathes in its colours), and a town square of 8 idling heroes at x2 and x3 in
+tools/qa/region-kit.html (map=town_common): calm, never in step with each other (each unit starts from its own place
+in the loop, src/hunt-view/scene.js idleFrame).

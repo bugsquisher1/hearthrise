@@ -1,0 +1,27 @@
+{
+  "asset": "sl_grounded_barge (set slake)",
+  "brief": "art/briefs/gen-2026-11-07/03-grounded-barge.txt, run per 08 (A4b)",
+  "status": "CANDIDATES for the art director's pick; not imported",
+  "made": "2026-11-08",
+  "tool": "create_image_pro",
+  "references": [
+    { "file": "art/briefs/gen-2026-11-07/refs/style-hf_rowboat_sunk.png", "upload": "upload:c9f60cb6-6a0f-480b-a77c-dbc68fdacb28", "usage": "the same wood, plank scale, outline and shading: the barge is this sunk rowboat's big sister" },
+    { "file": "art/briefs/gen-2026-11-07/refs/style-hf_wagon_tipped.png", "upload": "upload:5b98dfa9-4eeb-4ac0-a495-ec7fcfbcbf59", "usage": "the same wood, iron fittings, outline and shading style" }
+  ],
+  "prompt": "a pixel art game prop, high top-down view, a long wrecked river barge run aground, broken in the middle, lying east to west, flat-bottomed, seen from high above so the deck is what we see most and the near south side of the hull shows a little. The deck planks are split and sagging in the middle, one end lower than the other, sunk to the waterline. A stub of a broken mast near the middle. An open cargo hatch with coal heaped inside. Rotted green weed along the hull where the water stood. Three or four round banded shields still hung along the gunwale, greened by copper. Dark wet wood browns, iron grey fittings, coal black, copper-green only on the shields and the weed. Planks 4 to 6 pixels wide. Single black outline, basic shading lit from the upper left, no shadow, no glow, no water and no ground around it, transparent background, no people.",
+  "candidates": {
+    "candidate-1.png": { "job": "7f50c036-e4d1-44a0-bfe7-97a20fc2748c", "asset": "8710ef5d-369d-585d-bcaa-bb0af40fe7a9", "seed": 1, "size": [320, 176], "art_box": "x0-319 y20-159 (320 x 140)", "green": "0.5%", "gens": 10,
+      "flags": ["the hull side shows nearly as much as the deck (a low three-quarter view, not high top-down)", "bow and stern CUT by the canvas: 26 and 28 opaque px on the left and right edge columns"] },
+    "candidate-2.png": { "job": "315e47ce-a57e-4c70-b73c-3708b028f31c", "asset": "46de7bd7-ccc7-5231-8041-5cab6f6019e5", "seed": 2, "size": [320, 176], "art_box": "x0-319 y42-133 (320 x 92)", "green": "3.5%", "gens": 10,
+      "flags": ["broken in two, deck seen from above, coal hatch, 4 shields, weed", "bow and stern CUT by the canvas: 27 and 29 px on the edge columns"] },
+    "candidate-3.png": { "job": "ea521ed5-76d4-4501-b541-731f3ac55743", "asset": "12c09824-0d54-598d-8c49-65decaf80dce", "seed": 3, "size": [320, 176], "art_box": "x0-319 y42-136 (320 x 95)", "green": "4.2%", "gens": 10,
+      "flags": ["the most top-down of the four, broken-backed, coal hatch, 3 shields", "bow and stern CUT by the canvas: 11 px on each edge column"] },
+    "candidate-4-wide.png": { "job": "7ee7cac0-d69c-4514-a85f-7400e4a641c5", "asset": "02585bbb-6fbd-5cf4-b958-faa1faa0a478", "seed": 4, "size": [384, 176], "gens": 15,
+      "prompt_change": "added 'the WHOLE barge inside the picture with its bow and its stern fully drawn and empty transparent space beyond both ends' and a 384 px canvas",
+      "flags": ["a re-roll (1 of 2) to stop the clipping: it did not; the model fills the width whatever the canvas (29 and 68 px on the edges)", "a lower three-quarter angle again, two coal hatches"] }
+  },
+  "generations": 45,
+  "verdict_for_the_art_director": "Every candidate runs off both ends of its canvas, so each would land with a hard vertical cut at bow and stern. After your pick: place it on a canvas about 32 px wider each side and inpaint the two ends (inpaint_image, 64 px windows), or name the one to redo another way. Reject list otherwise: none of the four is side-on or isometric, all are under 170 px tall, no water or ground is painted, planks read 4-6 px.",
+  "review_strip": "art/review/gen-2026-11-07/grounded-barge-candidates.png (x2, candidates 1, 2, 3, 4 top to bottom)",
+  "import_after_pick": "node tools/world-art/port-pixellab.mjs object --set slake --id sl_grounded_barge --class building --material wood --footprint 10,5 --file <picked png> --object <IMAGE_ID> --name \"S1 Grounded Barge\""
+}

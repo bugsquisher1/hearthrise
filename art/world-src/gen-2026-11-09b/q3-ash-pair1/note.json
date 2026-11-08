@@ -1,0 +1,26 @@
+{
+  "asset": "brief 13 Q3 (brief 12 P1) the ash pair 1: the one more roll, and the second because it missed",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Q3",
+  "status": "BOTH ROLLS MISS the locked PASS rule; nothing chained (pairs 2-6 wait), refs/floor-pyre-ash-64.png NOT re-saved. Not imported",
+  "made": "2026-11-08 (the brief's 11-09 samples)",
+  "generations": 30,
+  "tool": "create_topdown_tileset mode pro, 32 px, high top-down, transition_size 0 (the smallest pro allows: flat, no bank)",
+  "rolls": {
+    "r1": { "tileset": "791e1a66-2cbe-4103-a0ea-dfb6173ec1df", "ash_base": "d486397c-e65b-40aa-ac70-6140a6b70340", "scorched_base": "200423ae-ecc3-4581-a79b-3e270065dd55",
+      "lower": "light warm grey wood ash like weathered limestone, mottled with paler and darker flecks, soft, calm",
+      "upper": "dry cracked bare earth, warm brown-grey, flat and level with the ash, no raised edge, no step, no slabs, no paving",
+      "measured": "ash raw median L 0.540 (#c7c1bf); LOCKED #aaa49a 95.7% + #8a867d 3.8%: one flat colour at the white cap (MISS). Scorched raw L 0.148; LOCKED #6a6865 70.3%, #3d2a1d 17.2%, #3a3a3e 8.3% (PASSES: majority #6a6865)" },
+    "r2": { "tileset": "e94b1dc7-0f68-490b-bea5-af1ea0c85f80", "ash_base": "1756775e-7c11-4f65-b2f5-352396bcc653", "scorched_base": "200423ae (chained from r1, byte-identical)",
+      "lower": "warm mid grey wood ash like weathered grey stone, a mid value, mottled with a few paler and darker flecks, soft, calm, not pale, not white",
+      "measured": "ash raw median L 0.194 (#7a7a79, neutral grey); LOCKED #6a6865 89.5%: one flat colour a step too dark, the SAME colour as the scorched majority (MISS)" }
+  },
+  "pass_rule": "locked ash majority #8a867d with at least 15% on #aaa49a and #6a6865 together; scorched majority #6a6865 or an earth colour of that value; no raised bank",
+  "flags": [
+    "the two rolls bracket the target: raw ash L 0.54 locks to #aaa49a, raw 0.19 to #6a6865; #8a867d needs raw about 0.28-0.38 (P1 r1 0.401 and r2 0.216 bracketed it the same way)",
+    "the scorched half PASSES and is kept as base 200423ae, so any later ash roll can chain it",
+    "no raised bank in either (transition 0); the scorched earth is drawn as a network of cracked plates with dark seams, which may still read as paving at x2",
+    "the brief's line allows two rolls: stopped here. A 0-gen route: grade the r1 ash fill down one value step before the lock (a scripted re-pour), or a third roll aimed at raw L ~0.33"
+  ],
+  "layout": "r<N>-<tileset>-sheet.png + -metadata.json per roll",
+  "review_strip": "art/review/gen-2026-11-09b/q3-ash-pair1-sample.png (x3, one row per roll: the sheet | raw ash 32 | LOCKED ash 64 | raw scorched 32 | LOCKED scorched 64 | the target #8a867d)"
+}

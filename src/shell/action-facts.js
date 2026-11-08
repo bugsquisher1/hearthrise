@@ -16,21 +16,21 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.109';
-import { ABILITIES } from '../data/abilities.js?v=0.2.109';
-import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.109';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.109';
-import { STATUSES } from '../data/statuses.js?v=0.2.109';
-import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.109';
-import { ITEMS } from '../data/items.js?v=0.2.109';
-import { isRune } from '../data/supplies.js?v=0.2.109';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.109';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.109';
-import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.109';
-import { shortOf } from './item-lore.js?v=0.2.109';
-import { storeOf, storeWords, storeChoices, conditionWords } from './bar-draft.js?v=0.2.109';
-import { listWords, whole } from '../render/format.js?v=0.2.109';
-import { t } from '../render/player-text.js?v=0.2.109';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.110';
+import { ABILITIES } from '../data/abilities.js?v=0.2.110';
+import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.110';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.110';
+import { STATUSES } from '../data/statuses.js?v=0.2.110';
+import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.110';
+import { ITEMS } from '../data/items.js?v=0.2.110';
+import { isRune } from '../data/supplies.js?v=0.2.110';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.110';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.110';
+import { itemName, abilityName, runeWords, familyCount } from './widgets/bits.js?v=0.2.110';
+import { shortOf } from './item-lore.js?v=0.2.110';
+import { storeOf, storeWords, storeChoices, conditionWords } from './bar-draft.js?v=0.2.110';
+import { listWords, whole } from '../render/format.js?v=0.2.110';
+import { t } from '../render/player-text.js?v=0.2.110';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));

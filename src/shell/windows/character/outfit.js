@@ -14,18 +14,18 @@
 // scratch until the re-read envelope says what is worn and what the colors are. A price the purse can't pay leaves Save colors off with
 // the line under it saying how much more (the house style; v0.2.97 gate: 1,550 gp live on a 400 gp purse, refused only after the press).
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.109';
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.109';
-import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.109';
-import { outfitOf } from '../../../session/character-sections.js?v=0.2.109';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.109';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.109';
-import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.109';
-import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.109';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.109';
-import { gold } from '../../../render/format.js?v=0.2.109';
-import { glyphSvg } from '../../launcher.js?v=0.2.109';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.109';
+import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.110';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.110';
+import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.110';
+import { outfitOf } from '../../../session/character-sections.js?v=0.2.110';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.110';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.110';
+import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.110';
+import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.110';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.110';
+import { gold } from '../../../render/format.js?v=0.2.110';
+import { glyphSvg } from '../../launcher.js?v=0.2.110';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.110';
 
 /* The turn order of the rotate button: clockwise from facing the viewer. */
 const TURN = Object.freeze(['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'].filter((d) => FACINGS.includes(d)));

@@ -72,7 +72,11 @@ export const PENDING_ROWS = Object.freeze([]);
    and every piece still sells for at least its lower-tier twin (drop-tables sale-ladder; the designer, 2026-10-23).
    A tier above the table (no ground drops one yet) sells at its last rate; a piece with no tier at tier 1's. Measured
    against the caps by tests/hunt-core/drop-tables.mjs. PROVISIONAL. */
-export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14]);
+/* TIER 4 (designer 2026-11-08, lane/b-phase0-tier4; the 10-29 plan's 0.075): the Slake, the first tier-4 ground, drops its set in three weights
+   about hourly, and tier-4 book is 3x tier 3's. Measured on the real settle (drop-tables, a lone tank at the Slake's floor): at tier 3's 0.14 its
+   gear sold for 57% of its coin and the hour totalled +36% over its pin; the window that holds both caps and the sale ladder is 0.047-0.107,
+   and 0.075 sits in its middle. Tiers 5-7 read tier 4's rate until a ground drops them (book climbs 3x a tier, so the ladder holds). */
+export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075]);
 export const VENDOR_GEAR_TYPES = Object.freeze(['weapon', 'armor', 'offhand', 'jewelry']);
 /* THE GLADE'S ARMOR SELLS UNDER THE WARRENS' (designer 2026-11-03, lane/c-gold-matters; Tyler the same day: harder monsters pay more).
    Tier 2's helmet, body, legs and boots come about hourly in three weights on Wickstead, the Sewer and the Glade, and at 0.5 of book an Iron

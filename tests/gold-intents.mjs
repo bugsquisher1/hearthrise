@@ -577,8 +577,9 @@ async function run(mutate) {
     ok(cat.SHOP_BUYBACK_RATE === 0.5,
       `G1: the server caps buy-back at ${cat.SHOP_BUYBACK_RATE} of the shop price; the ruling (b565) is 0.5`);
     const LB = await import('../src/data/loot-bands.js');
-    ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14]',
-      `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands) is [0.5, 0.5, 0.14]`);
+    /* tier 4 joined at 0.075 (designer 2026-11-08, lane/b-phase0-tier4): the Slake's hourly tier-4 set sold for 57% of its coin at tier 3's 0.14 */
+    ok(JSON.stringify(LB.VENDOR_GEAR_RATES) === '[0.5,0.5,0.14,0.075]',
+      `G1: the trader pays worn gear ${JSON.stringify(LB.VENDOR_GEAR_RATES)} of book value by tier; the ruling (Tyler 2026-10-23, loot bands; tier 4 designer 2026-11-08) is [0.5, 0.5, 0.14, 0.075]`);
     ok(LB.VENDOR_HOURLY_ARMOR_T2_RATE === 0.3 && JSON.stringify(LB.VENDOR_HOURLY_ARMOR_SLOTS) === '["helmet","body","pants","boots"]',
       `G1: tier 2's hourly armor sells at ${LB.VENDOR_HOURLY_ARMOR_T2_RATE} of book in ${JSON.stringify(LB.VENDOR_HOURLY_ARMOR_SLOTS)}; the ruling (designer 2026-11-03, lane/c-gold-matters) is 0.3 in helmet, body, pants, boots`);
     const { ITEMS } = await import('../src/data/items.js');

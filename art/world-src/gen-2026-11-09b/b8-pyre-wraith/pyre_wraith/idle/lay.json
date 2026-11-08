@@ -215,7 +215,12 @@
   ]
  },
  "south-west": {
-  "order": null,
+  "order": [
+   0,
+   0,
+   1,
+   1
+  ],
   "calm": [
    1
   ],
@@ -240,7 +245,8 @@
    521,
    488,
    459
-  ]
+  ],
+  "ruled": "round 2: one calm frame, a slow two-step breath"
  },
  "west": {
   "order": [

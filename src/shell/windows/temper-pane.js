@@ -10,13 +10,14 @@
 // The answer takes the question's place, in the flow (.hw-temper-msg), never the tab's line stuck to the sheet's foot: on a phone that line lay over the
 // note saying where the next rung's material comes from, for the 30 s an answer stands (lane/c-temper-craft's play, 2026-11-05).
 // ════════════════════════════════════════════════════
-import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.109';
-import { goldOf } from '../../session/item-sections.js?v=0.2.109';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.109';
-import { gold, whole, listWords } from '../../render/format.js?v=0.2.109';
-import { runIntent } from '../intent-words.js?v=0.2.109';
-import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.109';
-import { dropWhereWords } from '../hunt-ground-facts.js?v=0.2.109';
+import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.110';
+import { goldOf } from '../../session/item-sections.js?v=0.2.110';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.110';
+import { gold, whole, listWords } from '../../render/format.js?v=0.2.110';
+import { runIntent } from '../intent-words.js?v=0.2.110';
+import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.110';
+import { dropWhereWords } from '../hunt-ground-facts.js?v=0.2.110';
+import { t } from '../../render/player-text.js?v=0.2.110';
 
 const TRACKS = Object.freeze([
   { id: 'blows', label: 'Blows', effect: 'your blows and heals land', worse: 'harder', none: 'Wield a weapon to temper it.' },
@@ -25,13 +26,13 @@ const TRACKS = Object.freeze([
 const pct = (pm) => String(pm / 10) + '%';
 
 /** What a row says: the rung, what it does now, what the next rung does. */
-function rowWords(t, r) {
-  if (!r.piece) return t.none;
+function rowWords(track, r) {
+  if (!r.piece) return track.none;
   if (!r.ladder) return 'Your ' + r.piece + ' can\'t be tempered' + (r.below ? '. Gear worn from Level 15 can.' : ' yet.');
   const now = 'Rung ' + r.ladder.rung + ' of ' + r.ladder.max + ': ';
-  if (!r.ladder.offer) return now + t.effect + ' ' + pct(r.nowPm) + ' ' + t.worse + '. The most this gear takes.';
-  return (r.ladder.rung ? now + t.effect + ' ' + pct(r.nowPm) + ' ' + t.worse + '. Next rung ' + pct(r.nextPm) + '.'
-    : 'Not tempered yet. First rung: ' + t.effect + ' ' + pct(r.nextPm) + ' ' + t.worse + '.');
+  if (!r.ladder.offer) return now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. The most this gear takes.';
+  return (r.ladder.rung ? now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. Next rung ' + pct(r.nextPm) + '.'
+    : 'Not tempered yet. First rung: ' + track.effect + ' ' + pct(r.nextPm) + ' ' + track.worse + '.');
 }
 
 /* What the next rung takes besides gold, and what this hero holds. */
@@ -43,7 +44,7 @@ const DROPPED_BY = 'Dropped by ';
 function dropWords(f) {
   const w = huntedOnly(f.id) ? dropWhereWords(f.id) : '';
   if (!w) return '';
-  return (w.startsWith(DROPPED_BY) ? f.stack + ' drop from ' + w.slice(DROPPED_BY.length) : w + ', and it drops ' + f.stack) + '.';
+  return w.startsWith(DROPPED_BY) ? t('temper.drop_from', { stack: f.stack, where: w.slice(DROPPED_BY.length) }) : t('temper.drop_pulled', { where: w, stack: f.stack });
 }
 
 /* Where to get what either row is short of, said once under both: the two rows usually ask for the same thing. The Weighhouse is named
@@ -52,9 +53,11 @@ function wayWords(rows) {
   const said = new Map();
   for (const r of rows) for (const n of r.needs) {
     if (!n.short || !n.smith || said.has(n.id)) continue;
-    said.set(n.id, [n.name + ': Smithing ' + n.smith.req + (n.smith.level < n.smith.req ? ' (yours is ' + n.smith.level + ')' : '') + ' makes them from '
-      + listWords(n.smith.from.map((f) => f.words), Infinity) + ', and any of your heroes can use them from Storage.',
-      ...n.smith.from.map(dropWords), saleWords(n.id) ? '' : 'Or buy them at the Weighhouse.'].filter(Boolean).join(' '));
+    const inputs = listWords(n.smith.from.map((f) => f.words), Infinity);
+    said.set(n.id, [n.smith.level < n.smith.req
+      ? t('temper.way_smith_short', { name: n.name, req: n.smith.req, level: n.smith.level, inputs })
+      : t('temper.way_smith', { name: n.name, req: n.smith.req, inputs }),
+    ...n.smith.from.map(dropWords), saleWords(n.id) ? '' : t('temper.way_weighhouse')].filter(Boolean).join(' '));
   }
   return [...said.values()].join(' ');
 }
@@ -78,16 +81,16 @@ export function patchTemperPane(root, ctx, sc) {
   const all = temperRowsOf(cs);
   const row = (id) => (all ? all[id] : null);
   rows(root.querySelector('.hw-temper'), all ? [...TRACKS] : [], {
-    key: (t) => t.id,
-    build: (t) => element(ctx.doc, '<li class="hw-line" data-track="' + t.id + '"><span class="hw-line-name"><b></b><small class="hw-temper-now"></small><small class="hw-temper-need"></small></span>'
-      + '<button type="button" class="hh-tool" data-hs-act="temper-ask" data-track="' + t.id + '"></button></li>'),
-    patch: (li, t) => {
-      const r = row(t.id);
+    key: (track) => track.id,
+    build: (track) => element(ctx.doc, '<li class="hw-line" data-track="' + track.id + '"><span class="hw-line-name"><b></b><small class="hw-temper-now"></small><small class="hw-temper-need"></small></span>'
+      + '<button type="button" class="hh-tool" data-hs-act="temper-ask" data-track="' + track.id + '"></button></li>'),
+    patch: (li, track) => {
+      const r = row(track.id);
       const offer = r.ladder ? r.ladder.offer : null;
       const short = offer && purse !== null && purse < r.ladder.gold ? r.ladder.gold - purse : 0;
       const itemsShort = r.needs.some((n) => n.short > 0);
-      text(li.querySelector('b'), t.label + (r.piece ? ' · ' + r.piece : ''));
-      text(li.querySelector('.hw-temper-now'), rowWords(t, r) + (short ? ' You need ' + gold(short) + ' more.' : ''));
+      text(li.querySelector('b'), track.label + (r.piece ? ' · ' + r.piece : ''));
+      text(li.querySelector('.hw-temper-now'), rowWords(track, r) + (short ? ' You need ' + gold(short) + ' more.' : ''));
       text(li.querySelector('.hw-temper-need'), needWords(r.needs));
       const btn = li.querySelector('button');
       text(btn, offer ? 'Temper · ' + gold(r.ladder.gold) : r.ladder ? 'Full' : 'No rungs');
@@ -112,15 +115,15 @@ export function patchTemperPane(root, ctx, sc) {
 }
 
 /** The section's presses; true when handled. */
-export function actTemperPane(ctx, action, t, sc, repaint) {
+export function actTemperPane(ctx, action, el, sc, repaint) {
   const cs = ctx.character;
   if (action === 'temper-ask') {
-    sc.ask = t.getAttribute('data-track');
+    sc.ask = el.getAttribute('data-track');
     sc.msg = '';
     sc.msgAt = 'temper';
     repaint();
     /* the question sits under the rows: on a short window it opens below the fold, and the press looks dead (played 11-04) */
-    const cf = t.closest('.hw-services').querySelector('.hw-temper-ask');
+    const cf = el.closest('.hw-services').querySelector('.hw-temper-ask');
     if (cf && cf.scrollIntoView) cf.scrollIntoView({ block: 'nearest' });
     return true;
   }
@@ -135,7 +138,7 @@ export function actTemperPane(ctx, action, t, sc, repaint) {
     const send = async () => { const r = await cs.edgeIntent('unlock_buy', { offer }); if (!r.ok && r.error !== 'closed') await cs.resync(); return r; };
     /* the answer takes the question's place; the re-read rows above it can grow (a short purse, where the next salts come from), so once it lands a short
        sheet scrolls it back into view (played 2026-11-05 at 844x390: half of it stood under the sheet's foot) */
-    const line = t.closest('.hw-services') ? t.closest('.hw-services').querySelector('.hw-temper-msg') : null;
+    const line = el.closest('.hw-services') ? el.closest('.hw-services').querySelector('.hw-temper-msg') : null;
     sc.msgAt = 'temper';
     runIntent(sc, repaint, send, 'At the smith…', () => 'Your ' + piece + ' is at rung ' + rung + '.', cs).then(() => {
       if (line && line.isConnected && line.textContent && line.scrollIntoView) line.scrollIntoView({ block: 'nearest' });

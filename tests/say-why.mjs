@@ -269,8 +269,8 @@ export const REASONS = Object.freeze({
     { cond: 'rShort > 0', words: "text(root.querySelector('.hv-why[data-of=\"round\"]'), needWords(rShort))", where: 'a round the purse can\'t pay: the line under the button says how much more, and data-off-why on a press' },
   ],
   'src/shell/windows/characters.js': [
-    { cond: "x.slot === ctx.character.slot || !ctx.goTo", words: "'On screen'", where: 'the button reads On screen' },
-    { cond: '!can', words: "' You have ' + gold(purse) + '.'", where: 'the rename quote: price, why not available, or the gold you have' },
+    { cond: "x.slot === ctx.character.slot || !ctx.goTo", words: "t('heroes.on_screen')", where: 'the button reads On screen' },
+    { cond: '!can', words: "t('heroes.rename_short', { gold: gold(purse) })", where: 'the rename quote: price, why not available, or the gold you have' },
     { cond: 'can.entry.off', words: 'text(inv, can ? can.entry.label', where: 'the phone\'s Invite: an off entry reads its reason as its label ("Party full")' },
   ],
   'src/shell/windows/character/outfit.js': [
@@ -279,7 +279,7 @@ export const REASONS = Object.freeze({
     { cond: 'short > 0', words: "text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more.' : '')", where: 'Save colors over the envelope\'s purse: the line under it says how much more, and data-off-why on a press' },
   ],
   'src/shell/windows/house.js': [
-    { cond: '!on', words: "(you have '", where: 'each step\'s cost lines mark what is short, with your counts' },
+    { cond: '!on', words: "t('house.cost_gold_short'", where: 'each step\'s cost lines mark what is short, with your counts' },
   ],
   'src/shell/windows/tally.js': [
     { cond: '!!why || st.sc.pending || st.hunting', words: "': take tasks when you are back in town.'", where: 'the button reads Held / Full; hunting says the board is in town' },
@@ -321,7 +321,7 @@ export const REASONS = Object.freeze({
   'src/shell/windows/farm.js': [
     { cond: '!r.why', words: 'r.why', where: 'the crop row\'s own why' },
     { cond: '!verb', words: 'verb', where: 'the plot says what it needs' },
-    { cond: 'st.farming < up.farming || !afford', words: "', at Farming '", where: 'the tier line names the price and Farming level (OPEN: does not say which is short)' },
+    { cond: 'st.farming < up.farming || !afford', words: "t('farm.tier_next", where: 'the tier line names the price and Farming level (OPEN: does not say which is short)' },
   ],
   'src/shell/windows/configure-action.js': [
     { cond: 'off', words: "'Your weapon can’t shoot this'", where: 'a locked supply: title only (OPEN: other lane)' },
@@ -439,7 +439,7 @@ async function screens(overrides) {
         return json({ ok: true });
       });
       const shot = async (n) => { if (SHOTS) await page.screenshot({ path: join(ROOT, SHOTS, n + '-' + w + 'x' + h + '.png') }); };
-      await page.goto('http://127.0.0.1:' + port + '/play.html', { waitUntil: 'load', timeout: 30000 });
+      await page.goto('http://127.0.0.1:' + port + '/play.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       await page.fill('input[name=email]', 'qa@example.test');
       await page.fill('input[name=password]', 'not-a-real-password');

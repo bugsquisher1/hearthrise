@@ -44,22 +44,22 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.109';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.109';
-import { createRng } from './rng.js?v=0.2.109';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.109';
-import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.109';
-import { MONSTERS } from '../data/monsters.js?v=0.2.109';
-import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.109';
-import { stepSwing } from './hunt/world-step.js?v=0.2.109';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.109';
-import { newHuntWorld, joinHero, leaveHero, scaleRoomFor } from './hunt-spawn.js?v=0.2.109';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.109';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.109';
-import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.109';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.110';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.110';
+import { createRng } from './rng.js?v=0.2.110';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.110';
+import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.110';
+import { MONSTERS } from '../data/monsters.js?v=0.2.110';
+import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.110';
+import { stepSwing } from './hunt/world-step.js?v=0.2.110';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.110';
+import { newHuntWorld, joinHero, leaveHero, scaleRoomFor } from './hunt-spawn.js?v=0.2.110';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.110';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.110';
+import { BOSS_CALLS, BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.110';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.109';
+export { stepSwing } from './hunt/world-step.js?v=0.2.110';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.

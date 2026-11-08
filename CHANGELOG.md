@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.110 — 2026-11-08 (Heroes at Rest)
+
+**Your heroes move when they stand still.** While they wait in town or between fights on a hunt, heroes now breathe and shift their weight. Every outfit has its own idle, and so do the people of Havora.
+
+**You can turn idle animations off.** Open Settings, then Interface, and switch off "Idle animations". Heroes, townsfolk and monsters then stand still between actions. Walking, attacks, hits and falls still play. The switch applies to every hero you have open.
+
 ## v0.2.109 — 2026-11-08 (Four Heroes)
 
 **An account now holds up to four heroes.** The fifth hero slot is gone from the character screen. If you already have five heroes, all five stay and keep playing.

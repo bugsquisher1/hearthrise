@@ -1,0 +1,23 @@
+{
+  "asset": "outfit_druid-idle (south only, brief 09 R3)",
+  "brief": "art/briefs/gen-2026-11-07/09-next-batch.txt R3",
+  "status": "NO CALM ROLL: south keeps its still (per 09). Both rolls are under alt/ only, so nothing here is imported",
+  "made": "2026-11-08",
+  "set": "hunt",
+  "still": "art/world/hunt/outfit_druid.png idle row 0 (south), 64x64, uploaded as upload:0a61cbf3-96f3-478e-9a75-1a0de957af24",
+  "tool": "animate_image (from the upload, a NEW group), 64x64, frame_count 8",
+  "action": "standing at rest, only the shoulders rise and fall by one pixel; the arms, the hands and the staff are not redrawn and do not move; feet planted; nothing else appears in the frame",
+  "rolls": {
+    "r3a": { "job": "38e808d4-ed33-4be8-a619-4d783e541ee7", "asset": "d3fff5f4-13ea-5e44-b9f6-5c67ac9edb2d", "seed": 31, "gens": 1,
+      "laid": { "picks_raw": "000,001,002,001", "steps": [110, 164], "feet": [4, 5] },
+      "why_not": "the staff head and its leaves redraw in both picked frames (96 and 119 px changed in the staff box x38-47); feet 4-5 px; every other pair is worse (staff 145-167 px)" },
+    "r3b": { "job": "0a232dc9-4869-4c18-8474-687adcd2dbdf", "asset": "4623f379-c76f-59a3-b567-2884ce4c543f", "seed": 32, "gens": 1,
+      "laid": { "picks_raw": "000,001,002,001", "steps": [179, 289], "feet": [8, 14] },
+      "why_not": "the staff grows and redraws (138-198 px), the whole robe edge shifts, feet 8-14 px" }
+  },
+  "chosen": {},
+  "keeps_its_still": ["south"],
+  "generations": 2,
+  "flags": ["south: retry limit (2) reached with no calm roll; the druid's staff redraws in every roll across 11-07 r1-r5 and 11-08 r3a/r3b"],
+  "review_strip": "art/review/gen-2026-11-08/outfit_druid-idle-r3.png (r3a: raw clip x3, change from frame 0, still + laid loop, then laid still/a/b + diffs at x5; r3b the same)"
+}

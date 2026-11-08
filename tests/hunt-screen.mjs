@@ -1897,7 +1897,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 
 const MUTANTS = [
   /* Tyler 10-25: ammo on its own tab (HS-7). */
-  ['ammo mixed back into Food & drink (HS-27, HS-7)', 'src/shell/action-table.js', [["    return { runs, empty: runs.length ? null : 'No food or drink in the game yet.' };\n", ''], ["  if (tab !== 'ammo') return { runs, empty: null };\n", '']]],
+  ['ammo mixed back into Food & drink (HS-27, HS-7)', 'src/shell/action-table.js', [["    return { runs, empty: runs.length ? null : t('bar.no_food') };\n", ''], ["  if (tab !== 'ammo') return { runs, empty: null };\n", '']]],
   ['the shell rebuilds a component on every paint', 'src/shell/shell.js', 'if (render.patch) render.patch(el, ctx);', 'if (render.patch) { el.innerHTML = render(ctx); render.patch(el, ctx); }'],
   ['keyed rows rebuild every row', 'src/render/paint.js', 'let el = held.get(k) || (kept && kept.get(k));', 'let el = null;'],
   ['a setting shows before the server confirms', 'src/shell/widgets/settings-intent.js', [["  attr(root, 'data-pending', true);\n", "  attr(root, 'data-pending', true);\n  root.__want = el;\n"],
@@ -1946,7 +1946,7 @@ const MUTANTS = [
   ['the tier waits for the server before it moves', 'src/shell/windows/hunts.js', '  return t && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : t;', '  return t;'],
   ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
-  ['the tier note drops its numbers', 'src/shell/hunt-list.js', " + (blow && was && blow.hit !== was.hit ? ', and the biggest blow here is ' + blow.hit + ', not ' + was.hit : '') + ", " + "],
+  ['the tier note drops its numbers', 'src/shell/hunt-list.js', "(blow && was && blow.hit !== was.hit ? t('hunts.tier_head_blow'", "(false ? t('hunts.tier_head_blow'"],
   ['a party member picks its own tier', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return tierOf(party.tiers, hunt);\n", ''],
   ['Enter says nothing of the harder hunt', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-enter-why'), off || choosing);", "text(det.querySelector('.hw-enter-why'), off);"],
   ['a party member keeps the tier buttons', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower || !offered.includes(id));", "prop(b, 'hidden', !offered.includes(id));"],
@@ -1969,7 +1969,7 @@ const MUTANTS = [
   ['the hub prints the server’s per-minute mana regen as /s', 'src/shell/widgets/vitals-hub.js', "regen(hero.manaPerS) : ''", "regen(hero.manaPerS * 60) : ''"],
   ['the hub prints regen with two decimals', 'src/shell/widgets/vitals-hub.js', "'+' + r.toFixed(1)", "'+' + r.toFixed(2)"],
   ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = seen ? glyphSvg(ctx.glyphs, seen.glyph) : '';", "g.innerHTML = seen && !seen.strike ? glyphSvg(ctx.glyphs, seen.glyph) : '';"],
-  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
+  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return SERVER;\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
   ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') { const c = valueOf(s, key, cs); return c === null ? null : { chase: !c }; }", "  if (key === 'chase') return null;"],
   /* Tyler 10-25: the bar is configurable IN TOWN from the server's projected picks; the client fills nothing (HS-27). */
   ['the fight panel locks a value the server sent in town (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return null;"],

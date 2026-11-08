@@ -21,25 +21,26 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.109';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.109';
-import { whole, gold } from '../../render/format.js?v=0.2.109';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.109';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.109';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.109';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.109';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.109';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.109';
-import { toolLossWords } from '../town-work.js?v=0.2.109';
-import { runIntent } from '../intent-words.js?v=0.2.109';
-import { showTip, hideTip } from './item-tip.js?v=0.2.109';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.109';
-import { gearLocked } from '../gear-gate.js?v=0.2.109';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.109';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.109';
-import { CROPS } from '../../data/gathering.js?v=0.2.109';
-import { requiredPlotLevel } from '../../core/farm.js?v=0.2.109';
-import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.109';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.110';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.110';
+import { whole, gold } from '../../render/format.js?v=0.2.110';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.110';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.110';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.110';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.110';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.110';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.110';
+import { toolLossWords } from '../town-work.js?v=0.2.110';
+import { runIntent } from '../intent-words.js?v=0.2.110';
+import { showTip, hideTip } from './item-tip.js?v=0.2.110';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.110';
+import { gearLocked } from '../gear-gate.js?v=0.2.110';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.110';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.110';
+import { CROPS } from '../../data/gathering.js?v=0.2.110';
+import { requiredPlotLevel } from '../../core/farm.js?v=0.2.110';
+import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.110';
+import { t } from '../../render/player-text.js?v=0.2.110';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -62,10 +63,10 @@ function seedNeedWords(cs, item) {
   const crop = CROP_OF_SEED.get(item);
   if (!crop) return '';
   const sk = /** @type {Record<string, { level: number }> | null} */ (skillsOf(cs)), field = farmFieldOf(cs);
-  const needs = [];
-  if ((CROPS[crop].req || 1) > (sk && sk.farming ? sk.farming.level : 1)) needs.push('Farming ' + CROPS[crop].req);
-  if (requiredPlotLevel(crop) > (field ? field.plotLevel : 1)) needs.push('plot tier ' + requiredPlotLevel(crop));
-  return needs.length ? 'Needs ' + needs.join(' and ') + ' to plant' : '';
+  const level = (CROPS[crop].req || 1) > (sk && sk.farming ? sk.farming.level : 1) ? CROPS[crop].req : 0;
+  const tier = requiredPlotLevel(crop) > (field ? field.plotLevel : 1) ? requiredPlotLevel(crop) : 0;
+  return level && tier ? t('shop.seed_needs_both', { level, tier })
+    : level ? t('shop.seed_needs_farming', { level }) : tier ? t('shop.seed_needs_tier', { tier }) : '';
 }
 /* A piece of gear is bought one or two at a time (two rings); tools by the stack. */
 const QTYS_BY_KIND = Object.freeze({ gear: Object.freeze([1, 2]) });
@@ -225,29 +226,29 @@ renderShop.patch = function patchShop(body, ctx) {
 
 renderShop.events = Object.freeze(['mouseover', 'mouseout']);
 
-renderShop.act = function actShop(ctx, body, action, ev, t) {
+renderShop.act = function actShop(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderShop.patch(body, ctx);
   const shop = shopOf(cs);
   if (ev.type === 'mouseover' && action === 'line') {
-    const id = t.getAttribute('data-item');
+    const id = el.getAttribute('data-item');
     const bag = bagOf(cs) || [];
     const have = bag.find((r) => r.id === id);
-    showTip(ctx.doc, t, id, { qty: have ? have.qty : 0, bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined, offers: shop ? shop.offers : null });
+    showTip(ctx.doc, el, id, { qty: have ? have.qty : 0, bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined, offers: shop ? shop.offers : null });
     return false;
   }
-  if (ev.type === 'mouseout') { if (!t.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
+  if (ev.type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
   if (ev.type === 'change') {
-    if (action === 'qty') { sc.qty[t.getAttribute('data-offer')] = Number(t.value) || 1; repaint(); }
+    if (action === 'qty') { sc.qty[el.getAttribute('data-offer')] = Number(el.value) || 1; repaint(); }
     return false;
   }
   if (ev.type !== 'click') return false;
-  if (sc.tab === 'services' && actServicesPane(ctx, body, action, ev, t)) return true;
+  if (sc.tab === 'services' && actServicesPane(ctx, body, action, ev, el)) return true;
   /* A tab opens at its top: the Buy list's scroll carried over and laid Sell all loot, ringed, behind the stuck tabs on a phone (door panel 2026-11-04). */
-  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.msgAt = null; sc.wear = false; body.scrollTop = 0; repaint(); return true; }
+  if (action === 'tab') { sc.tab = el.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.msgAt = null; sc.wear = false; body.scrollTop = 0; repaint(); return true; }
   if (action === 'buy') {
-    const offer = t.getAttribute('data-offer');
+    const offer = el.getAttribute('data-offer');
     const o = shop ? shop.offers.find((x) => x.offer === offer) : null;
     sc.wear = false;
     sc.msgAt = null;
@@ -259,7 +260,7 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
   if (action === 'sell' || action === 'sell-loot' || action === 'sell-spare') {
     const items = bagOf(cs) || [];
     const rules = rulesOf(cs);
-    const plan = action === 'sell' ? sellPlan(items, [t.getAttribute('data-item')], { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null })
+    const plan = action === 'sell' ? sellPlan(items, [el.getAttribute('data-item')], { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null })
       : action === 'sell-spare' ? spareOf(cs, items, rules, shop)
         : lootSale(items, rules, shop, skillsOf(cs), upgradeNeeds(homeOf(cs), chestsOf(cs)));
     sc.confirm = plan.lines.length ? plan : null;

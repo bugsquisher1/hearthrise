@@ -26,38 +26,39 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.109';
-import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.109';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.109';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.109';
-import { MONSTERS } from '../data/monsters.js?v=0.2.109';
-import { compileMap } from './core/map-compile.js?v=0.2.109';
-import { createBook } from './core/book.js?v=0.2.109';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.109';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.109';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.109';
-import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.109';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.109';
-import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.109';
-import { createViewSheets } from './view-sheets.js?v=0.2.109';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.109';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.109';
-import { huntOfMap } from './hunt-maps.js?v=0.2.109';
-import { createHuntScene } from './hunt-scene.js?v=0.2.109';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.109';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.109';
-import { createWalkScene } from './walk-scene.js?v=0.2.109';
-import { createTownZoom } from './town-zoom.js?v=0.2.109';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.109';
-import { runAction } from './steer-local.js?v=0.2.109';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.109';
-import { heroDyeOf } from './hero-dye.js?v=0.2.109';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.109';
-import { homeOf } from '../session/home-sections.js?v=0.2.109';
-import { skillsOf } from '../session/item-sections.js?v=0.2.109';
-import { createHearthView } from './hearth-burn.js?v=0.2.109';
-import { townWorksSwap } from './town-works.js?v=0.2.109';
-import { createTownShows } from './town-shows.js?v=0.2.109';
+import { BUILD } from '../build-info.js?v=0.2.110';
+import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.110';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.110';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.110';
+import { MONSTERS } from '../data/monsters.js?v=0.2.110';
+import { compileMap } from './core/map-compile.js?v=0.2.110';
+import { createBook } from './core/book.js?v=0.2.110';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.110';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.110';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.110';
+import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.110';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.110';
+import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.110';
+import { createViewSheets } from './view-sheets.js?v=0.2.110';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.110';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.110';
+import { huntOfMap } from './hunt-maps.js?v=0.2.110';
+import { createHuntScene } from './hunt-scene.js?v=0.2.110';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.110';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.110';
+import { createWalkScene } from './walk-scene.js?v=0.2.110';
+import { createTownZoom } from './town-zoom.js?v=0.2.110';
+import { createIdleMotion } from './idle-motion.js?v=0.2.110';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.110';
+import { runAction } from './steer-local.js?v=0.2.110';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.110';
+import { heroDyeOf } from './hero-dye.js?v=0.2.110';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.110';
+import { homeOf } from '../session/home-sections.js?v=0.2.110';
+import { skillsOf } from '../session/item-sections.js?v=0.2.110';
+import { createHearthView } from './hearth-burn.js?v=0.2.110';
+import { townWorksSwap } from './town-works.js?v=0.2.110';
+import { createTownShows } from './town-shows.js?v=0.2.110';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -220,6 +221,7 @@ export async function bootWorld(panel, opts) {
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
   /* THE TOWN ZOOM (town-zoom.js): the viewer's pick over the town, the screen class's anywhere else */
   const zoom = createTownZoom({ win, doc, stage, character, peers: opts.peers, mq, onChange: () => { if (!running) sync(); } });
+  const idleMotion = createIdleMotion({ win, character, peers: opts.peers });   // the player's Idle animations switch, read each frame
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
   let walk = null, lastWalk = null;
   let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to
@@ -407,7 +409,7 @@ export async function bootWorld(panel, opts) {
     /* a new map's (or zoom's) first view bakes its ground a slice a frame first: the last frame stays meanwhile */
     if (!backend.ready(cast)) return;
     /* the hero's own label in town reads as a stranger's does: "Marlow the Wolfer" */
-    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name && G.playerTitle ? name + ' ' + G.playerTitle : name, roofAlpha, t: now }, cast));
+    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name && G.playerTitle ? name + ' ' + G.playerTitle : name, roofAlpha, t: now, stillIdle: idleMotion.still() }, cast));
     frames++;
   }
 

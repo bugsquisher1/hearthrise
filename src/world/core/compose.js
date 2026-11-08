@@ -33,11 +33,11 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.109';
-import { heroBuilding } from './roofs.js?v=0.2.109';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.109';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.109';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.109';
+import { ySort } from './zsort.js?v=0.2.110';
+import { heroBuilding } from './roofs.js?v=0.2.110';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.110';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.110';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.110';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -312,8 +312,15 @@ function standingOf(map, book, tables, T) {
     for (let x = 0; x < map.w; x++) { const m = tables.materials[map.ground[y * map.w + x]]; if (m && m.solid && !m.flat) cells.push(x, y); }
   }
   const boxes = new Float64Array(map.objects.length * 4);
-  map.objects.forEach((o, i) => { const b = frameBox(book, o.id, o.x, o.y, { fp: [o.fw, o.fh] }, T); boxes.set([b.x, b.y, b.w, b.h], i * 4); });
-  const made = { book, materials: tables.materials, T, n: map.objects.length, cells: Int32Array.from(cells), boxes };
+  /* a placed TOWNSFOLK (a unit sprite standing as a map object: the crier, the smith) breathes on its idle clip; every frame of a
+     sprite shares its size and anchor, so the box below holds for all of them */
+  const folk = new Uint8Array(map.objects.length);
+  map.objects.forEach((o, i) => {
+    const b = frameBox(book, o.id, o.x, o.y, { fp: [o.fw, o.fh] }, T); boxes.set([b.x, b.y, b.w, b.h], i * 4);
+    const s = book.sprite(o.id);
+    folk[i] = s.layer === 'unit' && s.anims && s.anims.idle && s.anims.idle.fps ? 1 : 0;
+  });
+  const made = { book, materials: tables.materials, T, n: map.objects.length, cells: Int32Array.from(cells), boxes, folk };
   STANDING.set(map, made);
   return made;
 }
@@ -322,8 +329,9 @@ function standingOf(map, book, tables, T) {
  * @param {object} map       compileMap() output
  * @param {object} book      createBook()
  * @param {{hero: {x:number,y:number}|null, name?: string, roofAlpha?: object, t?: number,
- *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null}} state
- *                           hero in tile coords (fractional while moving); t = ms clock for idle clips
+ *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
+ *          stillIdle?: boolean}} state
+ *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
  * @param {{materials: object}} tables
  */
@@ -335,7 +343,12 @@ export function composeFrame(map, book, state, view, tables, T) {
   const decals = [], shadows = [], stand = [], raised = [];
   let seq = 0;
 
+  /** @param {string} id @param {number} tx @param {number} ty
+      @param {{anim?: string, dir?: string, i?: number, kind?: string, alpha?: number, ref?: any, bias?: number, raised?: boolean, shadow?: boolean,
+        fp?: number[], crop?: number[], dx?: number, lift?: number}} [o] */
   function place(id, tx, ty, o = {}) {
+    /* IDLE ANIMATIONS OFF (state.stillIdle, src/world/idle-motion.js): every idle clip, any unit's in any scene, holds its first frame */
+    if (state.stillIdle === true && o.anim === 'idle' && o.i) o = Object.assign({}, o, { i: 0 });
     const { s, set, sx, sy, w, h, ax, ay, x, y, fh, air } = frameBox(book, id, tx, ty, o, T);
     const ground = s.class === 'flier' ? air : 0;
     const d = { id, set, sx, sy, w, h, x, y, row: ty * T + fh * T - 1 + (o.bias || 0), seq: seq++, alpha: o.alpha == null ? 1 : o.alpha,
@@ -411,7 +424,10 @@ export function composeFrame(map, book, state, view, tables, T) {
     const o = map.objects[i];
     /* state.objectSwap draws another sprite in a placed object's place ({ havora_weighhouse_staked: 'havora_weighhouse_framed' }: a Town Works stage, src/world/town-works.js).
        The tiles it blocks are the object's own, and a sprite swapped in shares its frame and anchor (tests/town-works.mjs), so the box above still holds. */
-    place((state.objectSwap && state.objectSwap[o.id]) || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+    const swap = state.objectSwap && state.objectSwap[o.id];
+    /* townsfolk breathe through place() as an idle unit does, on the state's clock, so the Idle animations switch holds them too */
+    if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: 's', i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
+    else place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
   }
 
   const plates = [], bars = [], floats = [], bubbles = [], badges = [], effects = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));

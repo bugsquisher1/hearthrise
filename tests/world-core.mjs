@@ -583,7 +583,7 @@ async function check(M) {
       'anything else shows the viewer\'s choice of town or home');
     const miss = book.frame('no_such_sprite');
     ok('G2', miss.set === '' && miss.w === M.bookm.STUB_SPRITE.frame[0] && book.sprite('no_such_sprite') === M.bookm.STUB_SPRITE, 'a sprite no atlas carries must resolve to the stub record and frame');
-    const lost = M.bookm.createBook({ hunt: M.manifests.hunt });
+    const lost = M.bookm.createBook({ heroes: M.manifests.heroes });
     const stubTables = Object.assign({}, tables, { sprites: new Proxy(lost.sprites, { get: (t, k) => t[k] || M.bookm.STUB_SPRITE }) });
     let drawn = null;
     try {
@@ -591,7 +591,7 @@ async function check(M) {
       b.mount(); b.setMap(M.mapc.compileMap(rows.mill_cellar, stubTables)); b.sync({ hero: { x: 10, y: 7 }, t: 0 });
       drawn = b.snapshot().last;
     } catch (e) { drawn = null; }
-    ok('G2', drawn && drawn.sprites.some((d) => d.set === '') && drawn.sprites.some((d) => d.set === 'hunt'), 'with an atlas missing, the scene must still compose (stubs for its sprites, real art for the rest)');
+    ok('G2', drawn && drawn.sprites.some((d) => d.set === '') && drawn.sprites.some((d) => d.set === 'heroes'), 'with an atlas missing, the scene must still compose (stubs for its sprites, real art for the rest)');
     const order = ['list.decals', 'shadows(g, list', 'list.sprites', 'list.raised', 'light(g, list', 'ctx.drawImage(comp.c', 'overlay(list'];
     const draw = M.canvasSrc.slice(M.canvasSrc.indexOf('function draw('));
     const pos = order.map((k) => draw.indexOf(k));

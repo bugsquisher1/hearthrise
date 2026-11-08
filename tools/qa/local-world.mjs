@@ -31,7 +31,8 @@
 // way the world tick does, through the signed tick request. Every ENDED session's clocks move back with it, so history
 // keeps its order (the newest session by entered_at is still the newest: the analyzer, the summary and the coach read
 // it that way). A WAIT is a skip in which town time passes too: a hero not hunting rests (stamina_at), the shared land's
-// crops grow (planted_at, waterings), and a bench or gathering job runs on (active_since, accrued_to). Only waiting moves, never a result.
+// crops grow (planted_at, waterings), a bench or gathering job runs on (active_since, accrued_to), and every rate window
+// (hr_rate_counters.window_start) is that much older. Only waiting moves, never a result.
 // A skip moves the hunt back rather than the clock on, so the browser's last-seen stamp (residue `awaySeen`, away-recap.js) would read
 // the real seconds that passed: "While you were away (10 min)" after 200 min (panel 2026-11-01). `away: true` moves the stamp with it, as a
 // real absence does; use it with the page closed, since an open tab renews the stamp and was never away.
@@ -546,6 +547,9 @@ export async function openWorld(o = {}) {
             where p.active_kind in ('artisan', 'gather') and p.active_since is not null and p.accrued_to is not null and ${idle}`, [ms]);
           await tx.query(`update public.account_farm_plots set planted_at = planted_at - ${back},
             waterings = array(select w - ${back} from unnest(waterings) w)`, [ms]);
+          /* every rate window (hr_rate_ok: a minute, an hour) is a clock too: the minutes waited have passed for it. A bot that
+             plays hours in wall minutes otherwise reads hr_load's 180 a minute as rate_limited (coverage bot, 2026-11-07) */
+          await tx.query(`update public.hr_rate_counters set window_start = window_start - ${back}`, [ms]);
         }
         return open.length;
       });

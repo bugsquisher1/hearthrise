@@ -11,18 +11,19 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.109';
-import { STATUSES } from '../data/statuses.js?v=0.2.109';
-import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.109';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.109';
-import { isRune } from '../data/supplies.js?v=0.2.109';
-import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.109';
-import { ITEMS } from '../data/items.js?v=0.2.109';
-import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.109';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.109';
-import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.109';
-import { refusalWords } from './intent-words.js?v=0.2.109';
-import { skillName } from './widgets/bits.js?v=0.2.109';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.110';
+import { STATUSES } from '../data/statuses.js?v=0.2.110';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.110';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.110';
+import { isRune } from '../data/supplies.js?v=0.2.110';
+import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.110';
+import { ITEMS } from '../data/items.js?v=0.2.110';
+import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.110';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.110';
+import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.110';
+import { refusalWords } from './intent-words.js?v=0.2.110';
+import { skillName } from './widgets/bits.js?v=0.2.110';
+import { t } from '../render/player-text.js?v=0.2.110';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -164,9 +165,9 @@ export function storeDefault(a, rows) {
   return c.length > 1 ? c[1].id : null;
 }
 
-/** The store line in words: "then the store's, from 14 g each, paid as used". */
-export function storeWords(st) {
-  return st ? 'then the store’s ' + st.name + ', ' + st.price + ' g each, paid as used' : '';
+/** The store line in words: "then the store's Plain Fire Rune, 14 g each, paid as used" (`lead` false: without the "then"). */
+export function storeWords(st, lead = true) {
+  return st ? t(lead ? 'bar.store_then' : 'bar.store_plain', { name: st.name, price: st.price }) : '';
 }
 
 function valueWords(c, m) {

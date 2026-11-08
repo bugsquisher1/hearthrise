@@ -27,6 +27,7 @@ import { dirname, join } from 'node:path';
 import { HUNTS, OPEN_HUNTS, CALLED_HUNTS } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { isMain } from '../tests/_is-main.mjs';
+import { wholeViewOrRerun } from './pack/whole.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2026-10-20 and 2026-10-24-hunts-catalogue.generated.sql are APPLIED history (the Sewer hunt
@@ -195,7 +196,8 @@ function selftest() {
   console.log('gen-hunts --selftest: every refusal bites; shipped data passes');
 }
 
-if (isMain(import.meta.url)) {
+/* GROUND PACKS: a whole file carries the base and the folded packs only (tools/pack/whole.mjs), so a new pack re-issues nothing */
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, OUT_NAME)) {
   if (process.argv.includes('--selftest')) {
     selftest();
   } else {

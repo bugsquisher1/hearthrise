@@ -21,6 +21,9 @@
 //            printed as the data rows to paste; the fit is never written into src/data by this tool
 //   --fit-past  with --fit: hold `first` and every bracket starting under the ceiling as they are, re-fit only the
 //            brackets past it (a new contract): the careers never pass the ceiling, so nothing needs re-measuring
+//   --fit-from L  with --fit: the same hold from Level L, the floor of a new ground UNDER the ceiling (lane/b-ground-pack phase 3):
+//            every bracket starting under its floor keeps what it costs, so a ground fits the curve from its own floor up and
+//            never re-prices the Levels under it (re-measure first: the careers play it)
 //   --write  the committed snapshot tools/balance-sim/level-pace.json that tests/level-curve.mjs judges the curve with
 //   --dash   the Balance Dashboard's level data (level-pace.json, findings.json, balance-cells.csv) into DIR
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -40,9 +43,18 @@ const u = (p) => pathToFileURL(join(ROOT, p)).href;
    of it makes the measured pace stale (tests/level-curve.mjs C1). Monsters on the open grounds: xp, hp, level, atk,
    def (never loot); every open ground: its hunt, band, group fit, solo Level, respawn and pockets (spawns and packs);
    and the Hunts window's default pick for a lone hero at every Level to the ceiling (its behaviour, not its source:
-   a comment edit to the recommendation trips nothing, a new pick does). ── */
-export function paceFingerprint(D) {
-  const grounds = Object.values(D.OPEN_GROUNDS).sort((a, b) => (a.id < b.id ? -1 : 1));
+   a comment edit to the recommendation trips nothing, a new pick does).
+   PER GROUND, UNDER THE CEILING (lane/b-ground-pack, phase 3): `ceiling` is the snapshot's (the top of the content it measured).
+   Only the grounds whose floor sits under it are what the careers played, and the pick is read to it; a ground from the ceiling
+   up (a new pack past the content, Level 50-65) moves neither, so it needs no re-measure and no re-fit below its floor (the pick
+   is read to the Level under the ceiling: a career stops AT the ceiling, so where the window sends a hero of that Level is never
+   played, and a pack from the ceiling up is exactly what it would send there): the
+   brackets past the ceiling follow LEVEL_PACE.contract, which the pack's own check grades it against (tools/pack.mjs check). A
+   ground under the ceiling still moves it, and a new pick at any Level to the ceiling does. With no ceiling, the top of every band. ── */
+export function paceFingerprint(D, ceiling = null) {
+  const all = Object.values(D.OPEN_GROUNDS).sort((a, b) => (a.id < b.id ? -1 : 1));
+  const cap = ceiling == null ? Math.max(...all.map((x) => D.HUNT_INDEX[x.hunt].band[1])) : ceiling;
+  const grounds = all.filter((x) => D.HUNT_INDEX[x.hunt].band[0] < cap);
   const ids = new Set();
   const g = grounds.map((x) => {
     for (const p of x.pockets) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
@@ -50,8 +62,7 @@ export function paceFingerprint(D) {
       pockets: x.pockets.map((p) => ({ minParty: p.minParty || null, pack: (p.pack || []).map((s) => [s.monster, s.n]), spawns: (p.spawns || []).map((s) => [s.monster, s.n]) })) };
   });
   const m = [...ids].sort().map((id) => { const r = D.MONSTERS[id] || {}; return [id, r.xp, r.hp, r.level, r.atk, r.def]; });
-  const top = Math.max(...grounds.map((x) => D.HUNT_INDEX[x.hunt].band[1]));
-  const pick = Array.from({ length: top }, (_, i) => D.recommend(i + 1));
+  const pick = Array.from({ length: cap - 1 }, (_, i) => D.recommend(i + 1));
   return createHash('sha256').update(JSON.stringify({ g, m, pick })).digest('hex').slice(0, 16);
 }
 export async function loadPaceData(root = ROOT) {
@@ -271,7 +282,7 @@ async function main() {
     commit: (() => { try { return execSync('git rev-parse --short HEAD', { cwd: ROOT }).toString().trim(); } catch { return null; } })(),
     version: BUILD.version,
     curve: JSON.parse(JSON.stringify(LEVEL_CURVE)),
-    fingerprint: paceFingerprint(D),
+    fingerprint: paceFingerprint(D, ceiling),
     ceiling,
     reference: 'median of ' + careers.length + ' solo styles, Level 1 to ' + ceiling + ', where the Hunts window recommends, as built (tools/balance-sim plan pace)',
     styles: careers.map((c) => c.party[0]),
@@ -323,7 +334,9 @@ async function main() {
     const froms = holdLevel ? [...arg('froms', '1').split(',').map(Number), ...LEVEL_CURVE.brackets.filter((b) => b.from >= holdLevel).map((b) => b.from)]
       : LEVEL_CURVE.brackets.map((b) => b.from);
     /* --fit-past: re-fit only the brackets from the ceiling on (a new contract, no re-measure: the careers never pass it) */
-    const hold = flag('fit-past') ? { ...LEVEL_CURVE, below: ceiling } : null;
+    const fitFrom = Number(arg('fit-from', 0)) || null;
+    if (fitFrom && flag('fit-past')) { console.error('pace --fit: --fit-past and --fit-from are one hold, pick one'); process.exit(2); }
+    const hold = flag('fit-past') ? { ...LEVEL_CURVE, below: ceiling } : fitFrom ? { ...LEVEL_CURVE, below: fitFrom } : null;
     const holdFrom = holdLevel ? { level: holdLevel, curve: LEVEL_CURVE, step: XP.charXpForLevel(holdLevel + 1) - XP.charXpForLevel(holdLevel) } : null;
     /* the guard's rule (LEVEL_PACE.smooth: no Level below the ceiling more than `ratio` times the hours of the one before)
        plus --bands "from:to:lo:hi,..." (e.g. "5:9:1.4:1.8": Levels 5-10 each 1.4-1.8x the one before) */

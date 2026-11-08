@@ -11,8 +11,8 @@
 // way IN (envelope) and on the way OUT (put), so a malformed or oversized value
 // can never reach a renderer or the server.
 // ════════════════════════════════════════════════════════════════════════
-import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.109';
-import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.109';
+import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.110';
+import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.110';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -74,8 +74,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.109';
-import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.109';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.110';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.110';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
@@ -204,9 +204,9 @@ function sanitizeTownZoom(v) {
   return isObj(v) && TOWN_ZOOM.steps.includes(v.z) && Number.isSafeInteger(v.at) && v.at >= 0 ? { z: v.z, at: v.at } : undefined;
 }
 
-/* The session-recording switch (src/session/replay-pref.js): { on, at }, the player's pick and when (the newest any open hero holds
-   is the pick), else no pick at all (the default, src/data/privacy.js). A privacy preference; the game reads it for nothing. */
-function sanitizeShareReplay(v) {
+/* A player switch (src/session/player-switch.js: the session recording, idle animations): { on, at }, the player's pick and when
+   (the newest any open hero holds is the pick), else no pick at all (the switch's default). A display preference; nothing gates on it. */
+function sanitizeSwitch(v) {
   return isObj(v) && typeof v.on === 'boolean' && Number.isSafeInteger(v.at) && v.at >= 0 ? { on: v.on, at: v.at } : undefined;
 }
 
@@ -228,7 +228,8 @@ const SANITIZERS = Object.freeze({
   marketView: sanitizeMarketView,   // display preference: the market window's category, sort, delivery and source; the server still decides each press
   marketSeen: sanitizeMarketSeen,   // display state: the newest market sale already told (src/shell/market-watch.js); gates and spends nothing
   townZoom: sanitizeTownZoom,       // display preference: the viewer's town zoom, one for every hero (src/world/town-zoom.js); gates and spends nothing
-  shareReplay: sanitizeShareReplay, // display preference: whether the screen may be recorded, one for every hero (src/session/replay-pref.js); gates and spends nothing
+  shareReplay: sanitizeSwitch,      // display preference: whether the screen may be recorded, one for every hero (src/session/replay-pref.js); gates and spends nothing
+  idleMotion: sanitizeSwitch,       // display preference: whether standing units breathe, one for every hero (src/world/idle-motion.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

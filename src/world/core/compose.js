@@ -322,8 +322,9 @@ function standingOf(map, book, tables, T) {
  * @param {object} map       compileMap() output
  * @param {object} book      createBook()
  * @param {{hero: {x:number,y:number}|null, name?: string, roofAlpha?: object, t?: number,
- *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null}} state
- *                           hero in tile coords (fractional while moving); t = ms clock for idle clips
+ *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
+ *          stillIdle?: boolean}} state
+ *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
  * @param {{materials: object}} tables
  */
@@ -335,7 +336,12 @@ export function composeFrame(map, book, state, view, tables, T) {
   const decals = [], shadows = [], stand = [], raised = [];
   let seq = 0;
 
+  /** @param {string} id @param {number} tx @param {number} ty
+      @param {{anim?: string, dir?: string, i?: number, kind?: string, alpha?: number, ref?: any, bias?: number, raised?: boolean, shadow?: boolean,
+        fp?: number[], crop?: number[], dx?: number, lift?: number}} [o] */
   function place(id, tx, ty, o = {}) {
+    /* IDLE ANIMATIONS OFF (state.stillIdle, src/world/idle-motion.js): every idle clip, any unit's in any scene, holds its first frame */
+    if (state.stillIdle === true && o.anim === 'idle' && o.i) o = Object.assign({}, o, { i: 0 });
     const { s, set, sx, sy, w, h, ax, ay, x, y, fh, air } = frameBox(book, id, tx, ty, o, T);
     const ground = s.class === 'flier' ? air : 0;
     const d = { id, set, sx, sy, w, h, x, y, row: ty * T + fh * T - 1 + (o.bias || 0), seq: seq++, alpha: o.alpha == null ? 1 : o.alpha,

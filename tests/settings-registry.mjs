@@ -53,7 +53,7 @@ async function check(base) {
   const { REPLAY } = await import(u('src/data/privacy.js'));
   const sw = D.SETTINGS.find((r) => r.id === 'help.replay');
   must(sw && sw.category === 'help' && sw.type === 'toggle' && sw.label === REPLAY.label && sw.label === 'Share session recordings to help fix bugs', 'replay switch: the row is missing from Help or its words changed');
-  must(sw && sw.default === true && REPLAY.defaultOn === true && sw.bind.store === 'replay' && RESIDUE_FIELDS.includes(sw.bind.field), 'replay switch: it must default on and keep its pick in an allowlisted residue field');
+  must(sw && sw.default === true && REPLAY.defaultOn === true && sw.bind.store === 'switch' && RESIDUE_FIELDS.includes(sw.bind.field), 'replay switch: it must default on and keep its pick in an allowlisted residue field');
   const heroOf = (residue) => { const h = { record: { residue }, puts: [], setResidue(f, v) { this.puts.push([f, v]); this.record = { residue: Object.assign({}, this.record.residue, { [f]: v }) }; return true; } }; return h; };
   const a = heroOf({}), b = heroOf({});
   const rctx = { character: a, peers: () => [a, b], hud: ctx.hud };
@@ -67,6 +67,39 @@ async function check(base) {
   const { sanitizeResidueField } = await import(u('src/session/residue.js'));
   must(JSON.stringify(sanitizeResidueField('shareReplay', { on: false, at: 7, x: 1 })) === '{"on":false,"at":7}', 'replay switch: a pick keeps only its answer and its stamp');
   for (const junk of [true, 'off', null, {}, { on: 'no', at: 1 }, { on: true }, { on: true, at: -1 }, { on: true, at: 1.5 }]) must(sanitizeResidueField('shareReplay', junk) === undefined, 'replay switch: not a pick: ' + JSON.stringify(junk));
+  /* IDLE ANIMATIONS (Tyler 2026-11-07, "a toggle to turn that off for people who don't like it"): Settings > Interface, a player switch
+     like the recording one, ON unless the device asks for reduced motion, and the player's press wins over both. Off, every idle clip the
+     World composes (src/world/core/compose.js, through world-boot.js's frame state) holds its first frame, the shipped still, at any
+     age, whether the scene passes an age (town) or a frame (hunt); a walk still turns. */
+  const { IDLE_MOTION } = await import(u('src/data/world/motion.js'));
+  const { residueOf } = await import(u('src/session/residue.js'));
+  const idle = D.SETTINGS.find((r) => r.id === 'ui.idleMotion');
+  must(idle && idle.category === 'interface' && idle.type === 'toggle' && idle.label === 'Idle animations' && idle.default === true && idle.bind.store === 'switch'
+    && idle.bind.field === IDLE_MOTION.field && RESIDUE_FIELDS.includes(idle.bind.field), 'idle switch: the Interface row is missing, or is not a switch kept in an allowlisted residue field');
+  must(JSON.stringify(sanitizeResidueField('idleMotion', { on: false, at: 7, x: 1 })) === '{"on":false,"at":7}'
+    && JSON.stringify(residueOf({ idleMotion: { on: true, at: 3 } }).idleMotion) === '{"on":true,"at":3}', 'idle switch: a pick must round-trip through the residue sanitizer');
+  for (const junk of [false, 'off', {}, { on: 1, at: 1 }, { on: false, at: -1 }]) must(sanitizeResidueField('idleMotion', junk) === undefined, 'idle switch: not a pick: ' + JSON.stringify(junk));
+  const { createIdleMotion } = await import(u('src/world/idle-motion.js'));
+  const winOf = (reduce) => ({ matchMedia: (q) => ({ matches: reduce && q === '(prefers-reduced-motion: reduce)' }) });
+  const i1 = heroOf({}), i2 = heroOf({});
+  const calm = { character: i1, peers: () => [i1, i2], hud: ctx.hud, reducedMotion: () => true }, busy = Object.assign({}, calm, { reducedMotion: () => false });
+  const worldStill = (reduce, viewed) => createIdleMotion({ win: winOf(reduce), character: viewed, peers: () => [i1, i2] }).still();
+  must(idle && M.read(busy, idle) === true && worldStill(false, i1) === false && M.read(calm, idle) === false && worldStill(true, i1) === true, 'idle switch: reduced motion must make the default off, in Settings and in the World');
+  must(idle && M.write(calm, idle, true) && M.read(calm, idle) === true && i2.puts.length === 1 && i2.puts[0][0] === 'idleMotion' && worldStill(true, i2) === false, 'idle switch: a press must win over reduced motion, in every open hero');
+  must(idle && M.write(busy, idle, false) && M.read(busy, idle) === false && worldStill(false, i2) === true, 'idle switch: off must reach the World from any open hero');
+  must(/backend\.sync\(Object\.assign\(\{[^\n]*stillIdle: idleMotion\.still\(\) \}, cast\)\)/.test(readFileSync(join(base, 'src/world/world-boot.js'), 'utf8')), 'idle switch: the World must put the switch on every frame it draws');
+  const BK = await import(u('src/world/core/book.js')), CP = await import(u('src/world/core/compose.js'));
+  const strip = [[0, 0], [8, 0], [16, 0], [24, 0]];
+  const clip = { fps: 4, loop: true, dirs: { s: strip } };
+  const bk = BK.createBook({ t: { size: [32, 8], sprites: { breather: { class: 'unit', layer: 'unit', frame: [8, 8], anchor: [4, 7], footprint: [1, 1], hover: 0, height: 8, shadow: null, anims: { idle: clip, walk: clip } } }, terrain: {} } });
+  const fm = { id: 'm', kind: 'town', T: 32, w: 8, h: 8, ground: new Array(64).fill('flagstone'), groundTerrain: null, objects: [], buildings: [], lights: [], rockBlocks: null, faces: {}, light: 'day', outdoor: true, focus: null };
+  const drawn = (stillIdle, st) => CP.composeFrame(fm, bk, Object.assign({ hero: null, t: 0, stillIdle }, st), { ox: 0, oy: 0, w: 256, h: 256 }, { materials: {}, sprites: bk.sprites, openClasses: [], lights: {} }, 32)
+    .sprites.filter((d) => d.id === 'breather').map((d) => d.sx);
+  const off = worldStill(false, i1), ages = [0, 250, 500, 750, 1250, 86400000 + 250];
+  const stood = (age) => ({ units: [{ id: 'breather', x: 2, y: 2, anim: 'idle', age }, { id: 'breather', x: 4, y: 4, anim: 'idle', frame: 1 + Math.floor(age / 250) }], hero: { id: 'breather', x: 6, y: 6, anim: 'idle', age } });
+  must(off === true && ages.every((a) => drawn(off, stood(a)).every((sx) => sx === 0)), 'idle switch: off must draw every idle unit (town, hunt and hero) on frame 0 at any age, got ' + JSON.stringify(ages.map((a) => drawn(off, stood(a)))));
+  must(JSON.stringify(drawn(false, stood(250))) === '[8,16,8]' && JSON.stringify(drawn(false, stood(500))) === '[16,24,16]', 'idle switch: on, an idle unit must advance through its clip, got ' + JSON.stringify(drawn(false, stood(250))));
+  must(JSON.stringify(drawn(true, { units: [{ id: 'breather', x: 2, y: 2, anim: 'walk', age: 500 }] })) === '[16]', 'idle switch: off must leave a walk turning');
   /* The Privacy Policy names the switch by its words and says it is on by default (the page players read must match the row). */
   const policy = readFileSync(join(ROOT, 'legal/PRIVACY_POLICY.md'), 'utf8');
   must(policy.includes('**' + REPLAY.label + '**') && /on by default/i.test(policy) && /Settings/.test(policy), 'replay switch: legal/PRIVACY_POLICY.md must name the switch by its exact words and say it is on by default');
@@ -102,11 +135,16 @@ const MUTANTS = [
   { name: 'search that ignores help text', file: 'src/shell/settings-model.js', from: "(r.label + ' ' + r.help)", to: 'r.label', want: 'search' },
   { name: 'Help forgets how the game works', file: 'src/data/settings.js', from: '[...HELP_NOTES.map(', to: '[...[].map(', want: 'help notes' },
   { name: 'empty categories shown', file: 'src/shell/settings-model.js', from: 'return cats.filter((c) => have.has(c.id));', to: 'return cats.slice();', want: 'would render empty' },
-  { name: 'the recording switch writes one hero only', file: 'src/shell/settings-model.js', from: 'setReplayWanted(peersOf(ctx), value,', to: 'setReplayWanted([ctx.character], value,', want: 'every open hero' },
-  { name: 'an older recording pick beats a newer one', file: 'src/session/replay-pref.js', from: 'if (p && (!best || p.at > best.at)) best = p;', to: 'if (p && (!best || p.at < best.at)) best = p;', want: 'newest pick' },
-  { name: 'a second press is not stamped after the first', file: 'src/session/replay-pref.js', from: 'was ? was.at + 1 : 0) };', to: 'was ? was.at : 0) };', want: 'second press' },
+  { name: 'the recording switch writes one hero only', file: 'src/shell/settings-model.js', from: 'setSwitch(peersOf(ctx), b.sw, value,', to: 'setSwitch([ctx.character], b.sw, value,', want: 'every open hero' },
+  { name: 'an older recording pick beats a newer one', file: 'src/session/player-switch.js', from: 'if (p && (!best || p.at > best.at)) best = p;', to: 'if (p && (!best || p.at < best.at)) best = p;', want: 'newest pick' },
+  { name: 'a second press is not stamped after the first', file: 'src/session/player-switch.js', from: 'was ? was.at + 1 : 0) };', to: 'was ? was.at : 0) };', want: 'second press' },
   { name: 'recording defaults off', file: 'src/data/privacy.js', from: 'defaultOn: true,', to: 'defaultOn: false,', want: 'default on' },
   { name: 'the recording row loses its words', file: 'src/data/privacy.js', from: "label: 'Share session recordings to help fix bugs'", to: "label: 'Share data'", want: 'its words changed' },
+  { name: 'idle switch off still breathes', file: 'src/world/core/compose.js', from: "if (state.stillIdle === true && o.anim === 'idle' && o.i)", to: 'if (false)', want: 'on frame 0 at any age' },
+  { name: 'idle switch off stops walks too', file: 'src/world/core/compose.js', from: "if (state.stillIdle === true && o.anim === 'idle' && o.i)", to: 'if (state.stillIdle === true && o.i)', want: 'leave a walk turning' },
+  { name: 'the World never reads the idle switch', file: 'src/world/world-boot.js', from: ', stillIdle: idleMotion.still() }, cast));', to: ' }, cast));', want: 'every frame it draws' },
+  { name: 'reduced motion is ignored', file: 'src/session/player-switch.js', from: "return reduced === true && typeof sw.reducedOn === 'boolean' ? sw.reducedOn : sw.defaultOn === true;", to: 'return sw.defaultOn === true;', want: 'reduced motion must make the default off' },
+  { name: 'the idle pick is not allowlisted', file: 'src/session/residue.js', from: '  idleMotion: sanitizeSwitch,', to: '', want: 'round-trip' },
 ];
 
 if (process.argv.includes('--selftest')) {
@@ -117,7 +155,7 @@ if (process.argv.includes('--selftest')) {
     let i = 0;
     for (const m of MUTANTS) {
       const base = join(tmp, String(i++));
-      for (const d of ['src/data', 'src/shell', 'src/utils', 'src/session', 'src/render', 'src/hunt-view', 'src/core']) { mkdirSync(join(base, d), { recursive: true }); cpSync(join(ROOT, d), join(base, d), { recursive: true }); }
+      for (const d of ['src/data', 'src/shell', 'src/utils', 'src/session', 'src/render', 'src/hunt-view', 'src/core', 'src/world']) { mkdirSync(join(base, d), { recursive: true }); cpSync(join(ROOT, d), join(base, d), { recursive: true }); }
       const p = join(base, m.file), src = readFileSync(p, 'utf8');
       if (!src.includes(m.from)) { console.error('selftest anchor missing for: ' + m.name); process.exit(2); }
       writeFileSync(p, src.replace(m.from, m.to));

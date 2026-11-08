@@ -139,7 +139,12 @@
   ]
  },
  "south": {
-  "order": null,
+  "order": [
+   0,
+   0,
+   1,
+   1
+  ],
   "calm": [
    1
   ],
@@ -164,7 +169,8 @@
    784,
    768,
    681
-  ]
+  ],
+  "ruled": "round 2"
  },
  "south-east": {
   "order": [

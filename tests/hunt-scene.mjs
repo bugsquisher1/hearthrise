@@ -236,7 +236,7 @@ async function rules(M) {
     const vfx = M.manifests.vfx.sprites;
     const missing = M.X.effectIds().filter((id) => !vfx[id] || !vfx[id].anims.play);
     ok('SC-5', M.X.effectIds().length >= 20 && !missing.length, 'every named effect must ship in the vfx atlas; missing ' + missing.join(', '));
-    const hunt = M.manifests.hunt.sprites;
+    const hunt = M.manifests.heroes.sprites;
     for (const [o, id] of Object.entries(M.O.OUTFITS)) {
       const s = hunt[id];
       const short = s ? M.AB.FACINGS.filter((d) => !(s.anims.walk && s.anims.walk.dirs[d] && s.anims.walk.dirs[d].length) || !(s.anims.idle && s.anims.idle.dirs[d])) : M.AB.FACINGS;
@@ -283,9 +283,9 @@ async function rules(M) {
     const f = v.at(mid);
     const list = compose(f, mid);
     const tank = list.sprites.find((d) => d.id === 'outfit_knight');
-    const se = M.manifests.hunt.sprites.outfit_knight.anims.walk.dirs.se;
-    ok('SC-6', tank && tank.set === 'hunt' && se.some(([x, y]) => x === tank.sx && y === tank.sy), 'the tank must draw its south-east walk frame from the hunt atlas, got ' + JSON.stringify(tank && [tank.set, tank.sx, tank.sy]));
-    ok('SC-6', list.sprites.some((d) => d.id === 'outfit_ranger' && d.set === 'hunt'), 'the ranger must draw from the hunt atlas');
+    const se = M.manifests.heroes.sprites.outfit_knight.anims.walk.dirs.se;
+    ok('SC-6', tank && tank.set === 'heroes' && se.some(([x, y]) => x === tank.sx && y === tank.sy), 'the tank must draw its south-east walk frame from the heroes atlas, got ' + JSON.stringify(tank && [tank.set, tank.sx, tank.sy]));
+    ok('SC-6', list.sprites.some((d) => d.id === 'outfit_ranger' && d.set === 'heroes'), 'the ranger must draw from the heroes atlas');
     ok('SC-6', list.fx.some((e) => e.set === 'vfx' && e.id === 'fx_power_strike'), 'the strike must draw from the vfx atlas, got ' + JSON.stringify(list.fx.map((e) => [e.id, e.set])));
     ok('SC-6', !list.sprites.some((d) => d.kind === 'unit' && !d.set), 'no unit may draw as a stub: ' + list.sprites.filter((d) => d.kind === 'unit' && !d.set).map((d) => d.id));
     const late = v.at(at(S0 + 300 + 600));          // 600 ms after the rat's death

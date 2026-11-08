@@ -235,7 +235,8 @@ const cases = {
     /* the ranger HOLDS (chase off, distance 1): only the mark can move it */
     const b = H(M, 2, 17, 5, 'ranger', { chase: false, dist: 1, target: 11 });
     const r = mon(M, 10, 0, 14, 3, { target: 1, hp: 99999, maxHp: 99999 });
-    const s = mon(M, 11, 0, 15, 3, { kind: 'slime', target: 2, hp: 99999, maxHp: 99999 });
+    /* (a thrower that keeps its distance: speed 0, so it casts from 2 tiles and never holds the ranger in melee) */
+    const s = mon(M, 11, 0, 15, 3, { kind: 'slime', target: 2, hp: 99999, maxHp: 99999, speed: 0 });
     const inst = fightOf(M, [k, b, r, s]);
     const out = swingRun(M, inst, 2, 6);
     const marks = out.events.filter((e) => e.type === 'spell');

@@ -1,0 +1,94 @@
+BRIEF 09: VERDICTS ON BRIEF 08 + THE NEXT ~300 GENS (art director, 2026-11-08, lane/a-region-kit)
+Read: lane/a-gen-2026-11-07 3e7d126fd (203 gens, 1,941.4 -> 1,738.4, $0). Every idle laid as the import lays it, at x3
+beside its still with a diff (the 08 thresholds). 11-13 is the last day of the cycle; read the balance before each batch.
+
+THE VERDICTS
+  Hand passes   H1 pikeman E, H3 sorcerer E, H4 berserker S, H5 berserker NE, H6 dawnward SE: APPROVED (clean, on the
+                frame pairs idleFrames really picks: moving H1/H5/H7 to those pairs was the right call).
+                H2 ranger S: the crossbow holds but the body redraws (215 px) with a seam at x36/37: S KEEPS ITS STILL,
+                unless R3 below gives a calm roll.
+                H7 smith NE: the hammer redraws in 008: H7b below; a seam, and NE keeps its still.
+  outfit_druid  E, W, NE APPROVED. S, N, SE, SW, NW keep their stills (S gets one more try, R3).
+  outfit_sorcerer NE  APPROVED as kept: the hat tip sways up to 3 px; a pointed felt hat is cloth.
+  banded_pikeman  all 8 APPROVED.   wight  all 8 APPROVED.
+  bannerman       all 8 APPROVED. N and NE: the banner and its pole stir 1 px; the brief asked for the cloth to stir.
+  fordsunk        all 8 APPROVED. SE: the bloated body heaves and the arm swings (220 px); that is the brief's heave.
+  barrow_knight   all 8 APPROVED, S and SE ON THE FLOOR RULING BELOW. E, W, SW, NE: the sword or shield moves 1 px with
+                  the arm (the 1 px rule). No hand pass needed.
+  captain_hask    all 8 APPROVED, S and SE on the floor ruling. E, N, NE, NW: the cape and plume stir 1-2 px (cloth);
+                  the sword moves 1 px with the arm. No hand pass needed.
+  mudlark (pale r3) south clips APPROVED: idle (the laid loop holds 39-41 px, feet still), walk, attack, death. The walk's
+                  42 px at frames 2, 4, 5 is a scuttle's bob, inside the vermin class budget (40 +10% = 44); my 40 cap
+                  was tighter than the law and is withdrawn. Its 2.60:1 in walk frames 0-1 is the hook swinging into the
+                  ring mid-stride; at rest it is 2.81:1 (accepted in 08). No walk fix: go on to the other facings (C1b/c).
+  grounded barge  PICK CANDIDATE 3: the most top-down of the four, clearly broken-backed, one end lower, coal hatch, 3
+                  shields, 95 px tall (3 tiles). Candidates 1 and 2 sit at a low three-quarter angle; 4 leans on the
+                  diagonal (a second perspective, never). Its ends are cut by the canvas (11 px each side): fix B1 below.
+  stake nets      PICKS, cell by cell (sheet-N cell-M, reading order 1-16):
+                  sl_stake_nets       s1c1 (the green harness caught in the net: the piece's identity)
+                  sl_stake_nets_torn  s2c2      sl_stake_nets_snag  s2c3      sl_stake_nets_end   s1c4 (a lone stake)
+                  sl_grounded_barge_coal s2c5   sl_grounded_barge_spar s2c6   sl_grounded_barge_pitch s2c7
+                  sl_grounded_barge_plank s2c8  mr_mooring_post s2c9          mr_eel_trap s2c10
+                  mr_silt_stain s2c11 (organic; s1c11 is a square: refused)   mr_silt_stain_small s1c12 (the subtler)
+                  mr_silt_ripples s1c13 (s2c13's pale rings are brighter than the actors and read as a target: refused)
+                  mr_drowned_pikes s1c14 (4 heads, not s2's evenly spaced 3)  mr_green_harness s1c15 (s2c15 reads as a
+                  knot of snakes: refused)  mr_greened_shield s1c16 (the verdigris shows)
+                  The stakes at 38-42 px pass (wreck class 28-44).
+  copper silt     ACCEPT the kept silt (terrain 330d6904) and both its pairs: c62a50a3 (mud/silt) and 168be062
+                  (shallows/silt). It is the Slake's FLOOR, so the "raised slab" bank only shows where it meets water or
+                  reeds, where a bank is right. Darker than the mud (0.026 vs 0.057) works for this ground: every Slake
+                  body is pale by brief, and the hero's steel gains (about 2.9:1 here, 2.16:1 on the mud). The copper green
+                  comes from the decals (mr_silt_stain*) at one per 12 tiles, not from the fill. Roll 1 (2.6x brighter,
+                  stone-slab look) stays refused. Missing: silt/reeds (S1 below).
+
+THE ANCHOR-ROW RULING (for the import, tools/world-art/port-pixellab.mjs idle)
+  A brute's sidecar declares overhang_px [0,0,5,0]: a blade tip may hang 5 px below the anchor row (58), and in
+  barrow_knight and captain_hask S/SE the still does (rows 60-63). idle-clip.mjs layFrame lifts any frame that reaches
+  below the floor row it is given, so with 58 those facings pop up 2-5 px. RULE: the floor row for a facing is
+  max(anchor_y, the still's own lowest row), never more than anchor_y + overhang_px[2]. A facing whose still stands on
+  the anchor is unchanged. Measured with that floor: barrow_knight S 124/248 px steps, SE 51/148, feet still; captain_hask
+  S 167/103, SE 70/132; every other facing of both picks the same frames as at 58. A one-line change in the idle import
+  (its floorRow argument), made by the lane that imports the March bodies, with world-assets and hunt-scene green there.
+
+THE NEXT ~300 GENS
+  H7b npc_smith NE (free): copy frame_000's pixels in raw BOX x31-40, y28-42 over frame 008 (and keep H7's boot box).
+      A seam at x31 or y28 and NE keeps its still.
+  R3  2 calls each, a NEW group, animate_image from an upload of the shipped still (64x64):
+      outfit_ranger S  "standing at rest, only the shoulders rise and fall by one pixel; the arms, the hands and the
+                        crossbow are not redrawn and do not move; feet planted; nothing else appears in the frame"
+      outfit_druid S   the same words with "the staff" for "the crossbow"
+      No calm roll: S keeps its still (a hero may).
+  C1b (20 calls) mudlark idle and walk e, n, w, se, sw, ne, nw (14) + attack e, n, w, se, sw, ne (6), on object b0f9bca5,
+      the C1a action texts. Hold: the laid idle at 41 px or less, everything under 44 px, the hook in the hand.
+  C1c (4 calls)  mudlark attack nw + death e, n, w.
+  B1  the barge's ends (~20-40 gens): candidate 3 on a 352x176 transparent canvas, centred (x16-335). inpaint_image
+      with masks x16-56 (left end) and x296-335 (right end); x0-15 and x336-351 stay OUTSIDE the mask, so the hull must
+      close inside the mask. Left: "the barge's rounded bow closing the hull, the same planks and outline, transparent
+      beyond it"; right: "the barge's square stern closing the hull, the same planks". Refuse a result that runs to
+      the mask edge or changes the plank scale. The art then spans about 320 px on the 10-tile footprint.
+  S1  silt/reeds pair (1 call, ~15 gens): create_topdown_tileset pro, 32 px, lower = the March reeds
+      8a61041f-fe25-4585-be53-4afbbdd5a45e (it must come back identical), upper = the silt 330d6904-4e64-4737-b6a4-6239f79e74d1,
+      transition 0.25. Check both fills byte for byte against the existing sets.
+  B3  hit clips, ART FIRST (inert until the client plays `hit`). Sample (5 calls): south of rat, gray_wolf, goblin_digger,
+      glade_poacher, drain_rat; animate_object v3, frame_count 6, keep_first_frame false; action "flinches back one pixel
+      from a blow in front of it and recovers to its stance, feet planted, nothing else appears in the frame". I read the
+      5 (ART_DIRECTION §6: 5 frames at 12 fps, a 1-art-px recoil away from the blow), then the rest in batches of 20:
+      the 30 live creatures x s, e, n, w (115 more calls, ~140 gens).
+  C2  town life sample (2 calls): (a) the mill's waterwheel: animate_image on a crop of the mill building around its wheel
+      (art/world/common/mill.png), "the waterwheel turns slowly, water drips from its paddles, nothing else moves", 8
+      frames; cut to the pixels that move (the Great Hearth's fire method), so the mill's walls never shimmer. (b) mb_reeds
+      sways: animate_image on art/world/forest/mb_reeds.png, "the reeds sway gently in the wind", 4 frames.
+  Planned: R3 ~8, C1 ~30, B1 ~30, S1 15, B3 sample 5, C2 ~10 = about 100 for today's open lines; B3's full run (~140) and
+  its re-rolls fill the rest of the 300. A4e and A4f still wait for lane/b-the-slake's roster.
+
+THE ONE IMPORT LANE, NOW (asset director: port, build, then the visual gate; nothing else in it)
+  Hero outfits, idle (58 facings): knight 8, witch 8, brute 8, dawnward 8 (H6), berserker 8 (H4, H5), sorcerer 8 (H3;
+  NE as kept), ranger 7 (all but S), druid 3 (E, W, NE).
+  Town NPCs, idle (15 facings): npc_crier 8, npc_smith 7 (all but NE).
+  Steps, in order: the outfits move to a set of their own (the hunt atlas overflows: brief 05), MASK_SETS 'hunt-masks'
+  re-pointed; port-pixellab.mjs idle per asset from its approved facing folders (a facing with no folder keeps its still);
+  tools/world-art/outfit-masks.mjs; build.mjs; world-assets (+--selftest), outfit-masks, hunt-scene; then the visual gate:
+  the town square at x2 with the 8 outfits and both NPCs idling, and one hunt.
+  NOT in this lane: the six March bodies' idles (all approved) ride the March art merge (the ground pack's Phase 0, or the
+  lane that brings the march and muster sets in for the Slake), with the floor ruling above. The Mudlark, the barge, the
+  nets and the silt go to the Slake's art set when the Slake ships.

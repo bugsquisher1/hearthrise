@@ -1,0 +1,227 @@
+{
+  "asset": "outfit_sorcerer-idle",
+  "brief": "art/briefs/gen-2026-11-07/05-hero-idles.txt, run per 07-next-batch.txt (batches 1-4)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-07",
+  "object_id": "e60aff3a-0e05-45d3-a83e-a8801ddf4fe8",
+  "set": "hunt",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "ba1057e7-4ebe-4070-a122-8e68d56d92e8",
+      "action": "standing at rest, breathing slowly, chest rises and falls, a slight shift of weight, feet planted, the weapon and shield stay still, stays in place, nothing else appears in the frame",
+      "directions": "all 8"
+    },
+    "r2": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "6587f879-88cd-4704-8f12-e0f2522869b9",
+      "action": "standing at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
+      "directions": "s e n w se, then ne nw"
+    },
+    "r3": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "group": "9a3bca33-ba7d-4e5e-889d-b66deb820f8a",
+      "action": "standing still at rest, only the chest rises and falls by one pixel, the head stays level, both feet stay exactly where they are, both arms and everything held in the hands stay completely still, stays in place, nothing else appears in the frame",
+      "directions": "e ne"
+    },
+    "r4": {
+      "brief": "08 R2",
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "38f574b7-5dd6-4717-bab3-4793176211d7",
+      "directions": "ne",
+      "action": "standing at rest, the whole body stays exactly in place, only the beard and the robe's hem stir by one pixel, the staff and orb stay still, nothing else appears in the frame"
+    }
+  },
+  "chosen": {
+    "south-west": "r1",
+    "south": "r2",
+    "north": "r2",
+    "west": "r2",
+    "south-east": "r2",
+    "north-west": "r2",
+    "east": "r3",
+    "north-east": "r4"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(shipped still, frames, 58), as port-pixellab.mjs idle lays it; feet = foot-row mask px moved, detached = px of the picked frames 3+ px off the still's body",
+    "facings": {
+      "south": {
+        "roll": "r2",
+        "picks": [
+          0,
+          7,
+          8,
+          7
+        ],
+        "steps": [
+          128,
+          25
+        ],
+        "feet": 1,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "east": {
+        "roll": "r3",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          80,
+          133
+        ],
+        "feet": 10,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "steps": [
+          57,
+          83
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "roll": "r2",
+        "picks": [
+          0,
+          7,
+          1,
+          7
+        ],
+        "steps": [
+          34,
+          28
+        ],
+        "feet": 1,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          6,
+          1
+        ],
+        "steps": [
+          27,
+          124
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          33,
+          47
+        ],
+        "feet": 0,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "r3",
+        "picks": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "steps": [
+          192,
+          53
+        ],
+        "feet": 2,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r2",
+        "picks": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "steps": [
+          57,
+          40
+        ],
+        "feet": 3,
+        "lifted": 0,
+        "detached": 0,
+        "missed": 0
+      }
+    }
+  },
+  "generations": 18,
+  "flags": [
+    "the sparkles around the staff orb (in the shipped still) blink on and off in most loops: brief 05 rejects any glow or spark; the AD decides whether a twinkle is the orb's own life",
+    "east: all three rolls move the robe hem or the orb (feet 10 at best); retry limit",
+    "north-east: all three rolls pop (r3 first step 192); retry limit"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/outfit_sorcerer-idle.png (per facing: knight walk, raw clip, change from frame 0, the laid loop) and outfit_sorcerer-idle-loops.png (per facing s e n w se sw ne nw: own walk frame 0 or idle still, then the 4-frame loop)",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set hunt --id outfit_sorcerer --clip art/world-src/gen-2026-11-07/outfit_sorcerer-idle",
+  "hand_passes": {
+    "east": {
+      "id": "H3",
+      "box": "x9-32 y35-43 (hem, feet) and x24-32 y2-18 (orb)",
+      "frames": "001, 002",
+      "laid": {
+        "picks_raw": "000,001,002,001",
+        "steps": [
+          27,
+          46
+        ],
+        "feet": 0
+      },
+      "flag": "clean; the hat tip moves 1-2 px",
+      "brief": "08-next-batch.txt",
+      "how": "local script on the raw frames (copy frame_000 inside the box; 0 gens); the other raw frames moved to alt/unpicked/east"
+    }
+  },
+  "r2_brief08": {
+    "north-east": "r4 kept: picks raw 0,1,2,1, steps 151/165, feet 2, no stray px, no whole-body shift (frames 1 and 2 lay at 0,0); the hat tip droops up to 3 px in the far frame (cloth?). The old r3 is under alt/r3"
+  }
+}

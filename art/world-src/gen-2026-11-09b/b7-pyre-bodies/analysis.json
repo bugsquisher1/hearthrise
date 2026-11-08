@@ -421,6 +421,62 @@
    44
   ]
  },
+ "lurcher/attack/east": {
+  "reach": [
+   0,
+   -1,
+   -1,
+   -1,
+   0,
+   0
+  ],
+  "changed": [
+   408,
+   568,
+   593,
+   720,
+   559,
+   372
+  ],
+  "peak": 3,
+  "peakReach": -1,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "lurcher/attack/north": {
+  "reach": [
+   -1,
+   -2,
+   -5,
+   -5,
+   -4,
+   -2
+  ],
+  "changed": [
+   262,
+   433,
+   478,
+   467,
+   375,
+   356
+  ],
+  "peak": 2,
+  "peakReach": -5,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
  "lurcher/attack/north-east": {
   "reach": [
    6,
@@ -477,6 +533,154 @@
    3
   ]
  },
+ "lurcher/attack/south": {
+  "reach": [
+   0,
+   -2,
+   -4,
+   -6,
+   -2,
+   0
+  ],
+  "changed": [
+   462,
+   548,
+   569,
+   457,
+   439,
+   412
+  ],
+  "peak": 2,
+  "peakReach": -4,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "lurcher/attack/south-east": {
+  "reach": [
+   -3,
+   -3,
+   2,
+   4,
+   3,
+   2
+  ],
+  "changed": [
+   453,
+   549,
+   649,
+   609,
+   630,
+   485
+  ],
+  "peak": 2,
+  "peakReach": 2,
+  "order": [
+   0,
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "lurcher/attack/south-west": {
+  "reach": [
+   -2,
+   -1,
+   1,
+   2,
+   -3,
+   -2
+  ],
+  "changed": [
+   360,
+   521,
+   672,
+   684,
+   608,
+   499
+  ],
+  "peak": 3,
+  "peakReach": 2,
+  "order": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ]
+ },
+ "lurcher/attack/west": {
+  "reach": [
+   -1,
+   0,
+   1,
+   1,
+   1,
+   1
+  ],
+  "changed": [
+   240,
+   382,
+   474,
+   655,
+   657,
+   549
+  ],
+  "peak": 4,
+  "peakReach": 1,
+  "order": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   4
+  ]
+ },
+ "lurcher/death/east": {
+  "foot": 44,
+  "lastLow": 43,
+  "shift": 1,
+  "drop": 0.32,
+  "stillBox": [
+   10,
+   11,
+   51,
+   44
+  ],
+  "lastBox": [
+   4,
+   22,
+   51,
+   43
+  ]
+ },
+ "lurcher/death/north": {
+  "foot": 50,
+  "lastLow": 50,
+  "shift": 0,
+  "drop": 0.65,
+  "stillBox": [
+   19,
+   3,
+   36,
+   50
+  ],
+  "lastBox": [
+   6,
+   34,
+   50,
+   50
+  ]
+ },
  "lurcher/death/north-east": {
   "foot": 48,
   "lastLow": 48,
@@ -511,6 +715,96 @@
    34,
    49,
    48
+  ]
+ },
+ "lurcher/death/south": {
+  "foot": 51,
+  "lastLow": 51,
+  "shift": 0,
+  "drop": 0.02,
+  "stillBox": [
+   19,
+   10,
+   35,
+   51
+  ],
+  "lastBox": [
+   15,
+   11,
+   38,
+   51
+  ]
+ },
+ "lurcher/death/south-east": {
+  "foot": 51,
+  "lastLow": 50,
+  "shift": 1,
+  "drop": 0.05,
+  "stillBox": [
+   12,
+   13,
+   44,
+   51
+  ],
+  "lastBox": [
+   5,
+   15,
+   46,
+   50
+  ]
+ },
+ "lurcher/death/south-west": {
+  "foot": 51,
+  "lastLow": 50,
+  "shift": 1,
+  "drop": 0.05,
+  "stillBox": [
+   10,
+   13,
+   42,
+   51
+  ],
+  "lastBox": [
+   9,
+   15,
+   50,
+   50
+  ]
+ },
+ "lurcher/death/west": {
+  "foot": 44,
+  "lastLow": 43,
+  "shift": 1,
+  "drop": 0.34,
+  "stillBox": [
+   5,
+   10,
+   44,
+   44
+  ],
+  "lastBox": [
+   4,
+   22,
+   51,
+   43
+  ]
+ },
+ "lurcher/deathpose/south": {
+  "foot": 51,
+  "lastLow": 41,
+  "shift": 10,
+  "drop": 0.29,
+  "stillBox": [
+   19,
+   10,
+   35,
+   51
+  ],
+  "lastBox": [
+   4,
+   22,
+   51,
+   41
   ]
  },
  "stoker/alt/attack-r1-fire-arc": "no still",

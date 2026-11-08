@@ -11,7 +11,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 - A seed in the Shop now says when your farm plots need an upgrade before you can plant it, for example "Needs plot tier 2 to plant". Carrot and wheat seeds need tier 2.
 - The Farm no longer lists a Farmer's Deed as another way to pay for a land upgrade. That item left the game in October.
-- After you reload the page during a hunt, the hunt shows again in a few seconds. Before, it could sit on "Still loading the world" for over a minute.
+
+**Reloading during a hunt is quicker.** After you reload the page mid-hunt, your hunt shows again in a few seconds. Before, it could sit on "Still loading the world" for over a minute.
 
 ## v0.2.106 — 2026-11-07 (One Rule for Every Hunt)
 

@@ -81,6 +81,8 @@ const PREV = await (async () => { const o = (await manifest()).order; return o[o
    (staleAnchors refuses a plant in a body a later file restates). The purse arms (G2, G3, G8-G12) judge this
    file as of itself, where its re-apply (G9) is defined. */
 const TALLY = '2026-12-23-tally-tasks.sql';
+/* hr_hunt_apply_instance's LAST author (restated whole, tests/patch-chain-guard.mjs): the commit-body plants go there, the text that runs. */
+const SCALED = '2027-03-21-scaled-hunts.sql';
 const CHAIN_END = (await manifest()).order.at(-1);
 
 /* §0's pins (G9 re-applies the MUTATED file, whose own bodies are not its pinned post-images) and §7's
@@ -98,6 +100,9 @@ const LATER_BLIND = {
   [TALLY]: [["  v_cell text := 'mill_cellar'; v_pick jsonb; v_first text; v_cap int;\nbegin\n",
     "  v_cell text := 'mill_cellar'; v_pick jsonb; v_first text; v_cap int;\nbegin\n  if true then return; end if;   -- selftest: §8 short-circuited\n"]],
   [CUT]: [['  v_txt  text;\n  v_code text;\nbegin\n', '  v_txt  text;\n  v_code text;\nbegin\n  if true then return; end if;   -- selftest: §4 short-circuited\n']],
+  /* 2027-03-21-scaled-hunts.sql's §8 (its commit probes would refuse a planted hr_hunt_apply_instance before an arm reads it) */
+  [SCALED]: [['  v jsonb; v_src text; v_iid uuid; v_sid uuid; v_g0 bigint; v_role text; v_sig text; v_to timestamptz;\nbegin\n',
+    '  v jsonb; v_src text; v_iid uuid; v_sid uuid; v_g0 bigint; v_role text; v_sig text; v_to timestamptz;\nbegin\n  if true then return; end if;   -- selftest: §8 short-circuited\n']],
 };
 const SQL_MUTANTS = {
   per_hero_read: {
@@ -113,15 +118,15 @@ const SQL_MUTANTS = {
       ['    alter table public.account_wallet add constraint account_wallet_gold_check check (gold >= 0);', '    null;']],
   },
   bills_before_credits: {
-    file: TALLY,
+    file: SCALED,
     why: 'each member\'s store bill is paid before the next member\'s coins: one account\'s party is refused for gold its own heroes earned',
     pairs: [["      if v_h ? '_purse' then\n", "      if v_h ? '_purse' then\n        perform public.hr_purse_lock((v_m->>'user')::uuid);\n        if public.hr_purse_of((v_m->>'user')::uuid) < (v_h->'_purse'->>'cost')::bigint + (v_h->'_purse'->>'floor')::bigint then\n          perform public.hr_reject('gold_short', jsonb_build_object('why', 'member'));\n        end if;\n"]],
   },
   floor_ignored: {
-    file: TALLY,
+    file: SCALED,
     why: 'the window\'s end purse is not held to the floor: a hero spends below its "Keep at least"',
-    pairs: [["      if public.hr_purse_of(v_u) < v_f then\n        perform public.hr_reject('gold_short', jsonb_build_object('why', 'floor', 'gold', public.hr_purse_of(v_u), 'floor', v_f));",
-      "      if false then\n        perform public.hr_reject('gold_short', jsonb_build_object('why', 'floor', 'gold', public.hr_purse_of(v_u), 'floor', v_f));"]],
+    pairs: [["      if public.hr_purse_of(v_u) < v_f then\n        select jsonb_build_object('user', e.value->'user', 'slot', e.value->'slot', 'session', e.value->'session') into v_cur",
+      "      if false then\n        select jsonb_build_object('user', e.value->'user', 'slot', e.value->'slot', 'session', e.value->'session') into v_cur"]],
   },
   ledger_lies: {
     why: 'the ledger trigger stops comparing the stated purse with the wallet: a row can misstate the balance',

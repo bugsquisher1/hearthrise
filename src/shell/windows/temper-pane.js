@@ -10,11 +10,13 @@
 // The answer takes the question's place, in the flow (.hw-temper-msg), never the tab's line stuck to the sheet's foot: on a phone that line lay over the
 // note saying where the next rung's material comes from, for the 30 s an answer stands (lane/c-temper-craft's play, 2026-11-05).
 // ════════════════════════════════════════════════════
-import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.107';
-import { goldOf } from '../../session/item-sections.js?v=0.2.107';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.107';
-import { gold, whole } from '../../render/format.js?v=0.2.107';
-import { runIntent } from '../intent-words.js?v=0.2.107';
+import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.108';
+import { goldOf } from '../../session/item-sections.js?v=0.2.108';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.108';
+import { gold, whole, listWords } from '../../render/format.js?v=0.2.108';
+import { runIntent } from '../intent-words.js?v=0.2.108';
+import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.108';
+import { dropWhereWords } from '../hunt-ground-facts.js?v=0.2.108';
 
 const TRACKS = Object.freeze([
   { id: 'blows', label: 'Blows', effect: 'your blows and heals land', worse: 'harder', none: 'Wield a weapon to temper it.' },
@@ -35,13 +37,24 @@ function rowWords(t, r) {
 /* What the next rung takes besides gold, and what this hero holds. */
 const needWords = (needs) => needs.map((n) => 'Needs ' + whole(n.need) + ' ' + n.name + '. You hold ' + whole(n.held) + (n.storage ? ' (' + whole(n.storage) + ' in Storage)' : '') + '.').join(' ');
 
-/* Where to get what either row is short of, said once under both: the two rows usually ask for the same thing. */
+/* Where an input only a hunt gets drops, from the monsters' rows and the open grounds, never typed (Tyler 2026-11-07: "what drops the
+   Fine Tempering Salts?"): "Big Bones drop from Hobgoblin Foreman at Coppercap Warrens." */
+const DROPPED_BY = 'Dropped by ';
+function dropWords(f) {
+  const w = huntedOnly(f.id) ? dropWhereWords(f.id) : '';
+  if (!w) return '';
+  return (w.startsWith(DROPPED_BY) ? f.stack + ' drop from ' + w.slice(DROPPED_BY.length) : w + ', and it drops ' + f.stack) + '.';
+}
+
+/* Where to get what either row is short of, said once under both: the two rows usually ask for the same thing. The Weighhouse is named
+   only for what it lists (item-lore saleWords, the market's rule). */
 function wayWords(rows) {
   const said = new Map();
   for (const r of rows) for (const n of r.needs) {
     if (!n.short || !n.smith || said.has(n.id)) continue;
-    said.set(n.id, n.name + ': Smithing ' + n.smith.req + (n.smith.level < n.smith.req ? ' (yours is ' + n.smith.level + ')' : '') + ' makes them from ' + n.smith.from.join(' and ')
-      + ', and any of your heroes can use them from Storage. Or buy them at the Weighhouse.');
+    said.set(n.id, [n.name + ': Smithing ' + n.smith.req + (n.smith.level < n.smith.req ? ' (yours is ' + n.smith.level + ')' : '') + ' makes them from '
+      + listWords(n.smith.from.map((f) => f.words), Infinity) + ', and any of your heroes can use them from Storage.',
+      ...n.smith.from.map(dropWords), saleWords(n.id) ? '' : 'Or buy them at the Weighhouse.'].filter(Boolean).join(' '));
   }
   return [...said.values()].join(' ');
 }

@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.108 — 2026-11-08 (Honest Labels)
+
+**Monster descriptions only say what is true.** When you look at a monster, it no longer says it "shrugs off" a weapon. That never changed the damage you deal, so the line is gone. "Weak to" still works the way it says.
+
+**Tempering tells you where to get the salts.** The Tempering screen now names where each ingredient drops. Big Bones for Fine Tempering Salts drop from the Hobgoblin Foreman and Chief Coppercap at the Coppercap Warrens. Bone Chips for plain Tempering Salts drop at the Sewer and the Mosslight Glade.
+
 ## v0.2.107 — 2026-11-07 (Clear Shop Labels, Faster Reload)
 
 **The Shop and the Farm say what you need before you pay.**

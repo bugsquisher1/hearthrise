@@ -100,6 +100,14 @@ async function check(base) {
   must(off === true && ages.every((a) => drawn(off, stood(a)).every((sx) => sx === 0)), 'idle switch: off must draw every idle unit (town, hunt and hero) on frame 0 at any age, got ' + JSON.stringify(ages.map((a) => drawn(off, stood(a)))));
   must(JSON.stringify(drawn(false, stood(250))) === '[8,16,8]' && JSON.stringify(drawn(false, stood(500))) === '[16,24,16]', 'idle switch: on, an idle unit must advance through its clip, got ' + JSON.stringify(drawn(false, stood(250))));
   must(JSON.stringify(drawn(true, { units: [{ id: 'breather', x: 2, y: 2, anim: 'walk', age: 500 }] })) === '[16]', 'idle switch: off must leave a walk turning');
+  /* TOWNSFOLK (the crier, the smith: unit sprites placed as map objects) breathe on the state's clock through the same place(), so
+     the switch holds them too; a prop with a clip of its own (not a unit) stays the still it always was. */
+  const bk2 = BK.createBook({ t: { size: [32, 8], sprites: { breather: bk.sprites.breather, lamp: Object.assign({}, bk.sprites.breather, { class: 'clutter', layer: 'prop' }) }, terrain: {} } });
+  const town = Object.assign({}, fm, { id: 'm2', objects: [{ id: 'breather', x: 2, y: 2, fw: 1, fh: 1 }, { id: 'lamp', x: 4, y: 4, fw: 1, fh: 1 }] });
+  const folk = (stillIdle, t) => CP.composeFrame(town, bk2, { hero: null, t, stillIdle }, { ox: 0, oy: 0, w: 256, h: 256 }, { materials: {}, sprites: bk2.sprites, openClasses: [], lights: {} }, 32)
+    .sprites.map((d) => d.id + ':' + d.sx).join(' ');
+  must(folk(false, 250) === 'breather:8 lamp:0' && folk(false, 500) === 'breather:16 lamp:0', 'idle switch: on, townsfolk must breathe on the clock (and a prop must not), got ' + folk(false, 250) + ' / ' + folk(false, 500));
+  must(ages.every((a) => folk(off, a) === 'breather:0 lamp:0'), 'idle switch: off must hold townsfolk on frame 0 at any time, got ' + ages.map((a) => folk(off, a)).join(' / '));
   /* The Privacy Policy names the switch by its words and says it is on by default (the page players read must match the row). */
   const policy = readFileSync(join(ROOT, 'legal/PRIVACY_POLICY.md'), 'utf8');
   must(policy.includes('**' + REPLAY.label + '**') && /on by default/i.test(policy) && /Settings/.test(policy), 'replay switch: legal/PRIVACY_POLICY.md must name the switch by its exact words and say it is on by default');
@@ -142,6 +150,8 @@ const MUTANTS = [
   { name: 'the recording row loses its words', file: 'src/data/privacy.js', from: "label: 'Share session recordings to help fix bugs'", to: "label: 'Share data'", want: 'its words changed' },
   { name: 'idle switch off still breathes', file: 'src/world/core/compose.js', from: "if (state.stillIdle === true && o.anim === 'idle' && o.i)", to: 'if (false)', want: 'on frame 0 at any age' },
   { name: 'idle switch off stops walks too', file: 'src/world/core/compose.js', from: "if (state.stillIdle === true && o.anim === 'idle' && o.i)", to: 'if (state.stillIdle === true && o.i)', want: 'leave a walk turning' },
+  { name: 'townsfolk stand as stills', file: 'src/world/core/compose.js', from: 'if (!swap && standing.folk[i]) place(', to: 'if (false) place(', want: 'townsfolk must breathe' },
+  { name: 'every placed clip breathes, props too', file: 'src/world/core/compose.js', from: "folk[i] = s.layer === 'unit' && s.anims", to: 'folk[i] = s.anims', want: 'townsfolk must breathe' },
   { name: 'the World never reads the idle switch', file: 'src/world/world-boot.js', from: ', stillIdle: idleMotion.still() }, cast));', to: ' }, cast));', want: 'every frame it draws' },
   { name: 'reduced motion is ignored', file: 'src/session/player-switch.js', from: "return reduced === true && typeof sw.reducedOn === 'boolean' ? sw.reducedOn : sw.defaultOn === true;", to: 'return sw.defaultOn === true;', want: 'reduced motion must make the default off' },
   { name: 'the idle pick is not allowlisted', file: 'src/session/residue.js', from: '  idleMotion: sanitizeSwitch,', to: '', want: 'round-trip' },

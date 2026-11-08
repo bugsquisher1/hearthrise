@@ -142,7 +142,7 @@ export function mountShell(root, o) {
     account: opts.account || null,
     alerts: opts.alerts || null,
     goTo: opts.goTo || null,
-    isPhone: () => phoneMq.matches,
+    isPhone: () => phoneMq.matches, reducedMotion,
     now: () => host.performance.now(),
     show(id) { if (hud.row(id)) hud.setVisible(id, true); else wm.open(id); },
   };

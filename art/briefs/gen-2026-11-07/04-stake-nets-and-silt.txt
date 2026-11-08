@@ -1,0 +1,66 @@
+BRIEF 04: THE STAKE NETS (the Slake's second signature piece), the barge's spill, and the river kit's missing floor
+pieces: one prop sheet; then the copper silt floor (plan lines A4c 12 and A4d 30 generations)
+Art director, 2026-11-07.
+
+PART 1, THE SHEET: create_image_pro_flash, 256x256, a 4x4 grid of 64 px cells on a transparent background, one prop
+per cell, centred, nothing touching a cell edge. Two calls; I pick cells across both.
+  view high top-down; single black outline; basic shading lit from the upper left; no shadows, no ground around props
+  style image: refs/style-hf_pike_stakes.png (a cell of the March's own prop sheet, image 7bfee120: same hand, same
+  wood). Upload with get_upload_url.
+  palette muted: wet wood, rope tan, iron grey, silt grey-brown; verdigris (copper-green) only where named below.
+  scale: the March sheet's props came out 34-58 px in 64 px cells; keep that. A stake stands 40-46 px tall.
+  prompt: "a 4x4 grid of pixel art game props for a river mudflat where an army's dead lie, high top-down view, one prop
+  per cell, transparent background: 1 two wooden fishing stakes with a long rotted net sagging between them and a green
+  copper-crusted harness strap caught in the net, 2 the same stakes with the net torn and trailing, 3 the same net with a
+  dented helmet and a pike head snagged in it, 4 one lone stake with net rags, 5 a heap of spilled coal and a split
+  sack, 6 a broken wooden spar with rope, 7 a split barrel leaking black pitch, 8 loose broken hull planks, 9 a mooring
+  post with a frayed rope, 10 a wicker eel trap on its side, 11 a patch of green copper stain on wet grey mud, 12 a
+  smaller green copper stain with a line of half-buried rivets, 13 ripple marks in wet mud, 14 three rusted pike heads
+  standing out of the mud, 15 a heap of green copper-crusted leather harness and buckles, 16 a round banded shield gone
+  green, half sunk in mud"
+  Reject a cell when: it is drawn corner-on (isometric), it has a painted shadow or a ground patch under it, a stake is
+  under 36 px tall, or a decal (11-13) has a hard rectangular edge.
+
+  THE IDS (cell -> sprite id, class, what it is for). The two signature pieces are two IDEAS, each a small family whose
+  ids start with the piece's id (src/data/world/region-kits.js: a signature covers its `<id>_*` variants):
+   1 sl_stake_nets          wreck    signature 2, the span
+   2 sl_stake_nets_torn     wreck    signature 2
+   3 sl_stake_nets_snag     wreck    signature 2
+   4 sl_stake_nets_end      fixture  signature 2, a run's last stake
+   5 sl_grounded_barge_coal decal    signature 1's spill (the barge's forge cargo; the Bargeman drops coal)
+   6 sl_grounded_barge_spar decal    signature 1's spill
+   7 sl_grounded_barge_pitch bulky   signature 1's spill (Barge Pitch, the rare named fuel)
+   8 sl_grounded_barge_plank decal   signature 1's spill
+   9 mr_mooring_post        fixture  river kit: any March river ground may place it
+  10 mr_eel_trap            clutter  river kit
+  11 mr_silt_stain          decal    river kit wear (§5: a decal at least every 12 floor tiles, never on a grid)
+  12 mr_silt_stain_small    decal    river kit wear
+  13 mr_silt_ripples        decal    river kit wear
+  14 mr_drowned_pikes       fixture  river kit
+  15 mr_green_harness       decal    river kit
+  16 mr_greened_shield      decal    river kit (the banded shield after years in the silt)
+  WHY the kit pieces (9-16): the Ford's mud is one 32 px fill tile, and on a ground that is 1,373 tiles of mud it
+  repeats its pebble lattice everywhere (read on the Ford in tools/qa/region-kit.html). Wear decals are the law's fix
+  (ART_DIRECTION §5), and any later river ground uses them too.
+
+  Where it goes: art/world-src/gen-2026-11-07/stake-nets/sheet-<n>.png + note.json (image ids). Import after my pick:
+  node tools/world-art/port-pixellab.mjs sheet --set slake --file <sheet> --image <IMAGE_ID> --cell 64
+       --items "sl_stake_nets:wreck:wood,sl_stake_nets_torn:wreck:wood,…" (reading order; skip a refused cell)
+  The mr_ pieces go to the kit's set (march) at the Phase 0 split, and their ids into region-kits.js props.
+
+PART 2, THE COPPER SILT FLOOR: create_topdown_tileset, mode pro, 32 px tiles, view high top-down, transition 0.25.
+The Slake's theme is its floor: "the Meadowbrook drops its copper here". Two chained pairs. Put the side that must not
+drift on the LOWER side and check its fill tile's hash against the existing set (Muster lesson).
+  set 1  lower = the March mud, lower_base_tile_id 2fdf9b47-aff6-4510-a1cf-8461af777554 (with the mud fill,
+         refs/floor-ford-mud-64.png, as the reference image)
+         upper = "wet river silt flat seen from above, smooth grey-brown mud with soft patches of green copper staining
+         and faint ripple marks, muted, calm low contrast"
+  set 2  lower = the March shallows, 40e321d1-9a47-474b-a38b-e5a96c8a9560 (refs/floor-ford-shallows-64.png)
+         upper = set 1's new silt terrain id
+  Reject when: the silt is brighter than the mud (props and actors must stay a value step above the floor, §4), the
+  green covers more than about a fifth of a tile, or the mud or shallows fill comes back changed.
+  Where it goes: art/world-src/gen-2026-11-07/silt/<tileset id>.json (the GET /v2/tilesets/<id> response, the input of
+  port-pixellab.mjs paint). The ids join region-kits.js barrow_march.families.march after my yes.
+
+WHAT I CHECK: every piece on the Ford's mud and shallows beside the hero at x2 (tools/qa/region-kit.html); the net
+spans laid as a run of 4-6 across a bar read as one fence of stakes; no decal brighter than the dimmest actor (§4).

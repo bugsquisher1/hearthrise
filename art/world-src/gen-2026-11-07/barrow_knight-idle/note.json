@@ -1,0 +1,211 @@
+{
+  "asset": "barrow_knight-idle",
+  "brief": "art/briefs/gen-2026-11-07/02-march-idles.txt, run per 08-next-batch.txt (A3)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-08",
+  "object_id": "95e3ea23-fbf4-4bbd-b467-fa6beec1a011",
+  "set": "muster",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "groups": {
+        "south": "9ccf1e6e-ece1-475c-8286-0adc6b9d5201 (custom_start_frame = the shipped still: its rotation differs by 6 px)",
+        "others": "fe806753-c793-424f-b49d-42e13d882e19"
+      },
+      "action": "standing guard, breathing slowly, a slight sway, feet planted, stays in place, nothing else appears in the frame"
+    },
+    "r2": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "groups": {
+        "e se ne": "15f18ea6-fa12-49d4-84e0-1a774370d6ea",
+        "south (custom start)": "8b7535dd-341c-414f-84b3-cad787b6b635"
+      },
+      "action": "standing guard very still, the chest rises and falls by one pixel, the head stays level, the body does not rise or sway, both feet stay exactly where they are, the sword and the shield stay completely still, nothing else appears in the frame"
+    },
+    "r3": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "groups": {
+        "e se": "fec6342f-9ea8-4d0f-b6a8-9ccc1f865b72",
+        "south (custom start)": "7e45468e-7af2-44ef-91d5-71e96ab291a1"
+      },
+      "action": "standing completely still like a statue, only the chest rises and falls by one pixel, the head, the arms, the sword and the shield do not move at all, feet planted, nothing else appears in the frame"
+    }
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r1",
+    "west": "r1",
+    "south-east": "r1",
+    "south-west": "r1",
+    "north-west": "r1",
+    "north-east": "r2"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(the shipped still from the March art branch, frames, 58)",
+    "facings": {
+      "south": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          753,
+          334
+        ],
+        "feet": 47,
+        "detached": 4,
+        "missed": 0
+      },
+      "east": {
+        "roll": "r1",
+        "picks": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "steps": [
+          51,
+          199
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          82,
+          74
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          6,
+          1
+        ],
+        "steps": [
+          139,
+          178
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "roll": "r1",
+        "picks": [
+          0,
+          3,
+          2,
+          3
+        ],
+        "steps": [
+          494,
+          174
+        ],
+        "feet": 23,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          3,
+          1
+        ],
+        "steps": [
+          50,
+          152
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          8,
+          1,
+          8
+        ],
+        "steps": [
+          37,
+          50
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          7,
+          1,
+          7
+        ],
+        "steps": [
+          163,
+          100
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      }
+    }
+  },
+  "needs_hand_pass": {
+    "south": {
+      "roll": "r1",
+      "frames": "001, 002",
+      "moving": "the head and helm rise 2-4 px (the body stands up); laid with the floor at row 63 the loop is 124/248",
+      "best_of": "r1 124/248 (4 stray px); r2 109/341; r3 180/392 (all with the floor at 63)"
+    },
+    "east": {
+      "roll": "r1",
+      "frames": "007, 008",
+      "moving": "the sword blade redraws along its length in frame 008 (199 px step)",
+      "best_of": "r1 51/199; r2 310/313; r3 219/269"
+    },
+    "south-east": {
+      "roll": "r1",
+      "frames": "002, 003",
+      "moving": "the sword tip at the bottom moves (8 px of the foot rows with the floor at row 60)",
+      "best_of": "r1 51/148 feet 8; r2 298/191; r3 288/351 (floor at 60)"
+    }
+  },
+  "generations": 15,
+  "flags": [
+    "IMPORT WARNING: the shipped stills of S and SE reach rows 63 and 60 (the sword tip below the feet), under the anchor row 58. idle-clip.mjs idleFrames(still, frames, 58) then lifts every generated frame 2-5 px (layFrame) while frame 0 stays down, which reads as a pop (the S numbers in the strip, 753 px, are that lift, not the clip). The import needs the floor at the still's lowest row for these facings, or a hand pass",
+    "south, east, south-east failed all 3 rolls: retry limit; best rolls in place, hand passes flagged"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/barrow_knight-idle.png and barrow_knight-idle-loops.png",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set muster --id barrow_knight --clip art/world-src/gen-2026-11-07/barrow_knight-idle (on the March merge, where the muster set lives)"
+}

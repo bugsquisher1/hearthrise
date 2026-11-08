@@ -48,6 +48,7 @@ import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.108';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.108';
 import { createWalkScene } from './walk-scene.js?v=0.2.108';
 import { createTownZoom } from './town-zoom.js?v=0.2.108';
+import { createIdleMotion } from './idle-motion.js?v=0.2.108';
 import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.108';
 import { runAction } from './steer-local.js?v=0.2.108';
 import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.108';
@@ -220,6 +221,7 @@ export async function bootWorld(panel, opts) {
   const mq = typeof win.matchMedia === 'function' ? win.matchMedia(MOBILE_QUERY) : null;
   /* THE TOWN ZOOM (town-zoom.js): the viewer's pick over the town, the screen class's anywhere else */
   const zoom = createTownZoom({ win, doc, stage, character, peers: opts.peers, mq, onChange: () => { if (!running) sync(); } });
+  const idleMotion = createIdleMotion({ win, character, peers: opts.peers });   // the player's Idle animations switch, read each frame
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
   let walk = null, lastWalk = null;
   let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to
@@ -407,7 +409,7 @@ export async function bootWorld(panel, opts) {
     /* a new map's (or zoom's) first view bakes its ground a slice a frame first: the last frame stays meanwhile */
     if (!backend.ready(cast)) return;
     /* the hero's own label in town reads as a stranger's does: "Marlow the Wolfer" */
-    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name && G.playerTitle ? name + ' ' + G.playerTitle : name, roofAlpha, t: now }, cast));
+    backend.sync(Object.assign({ name: sc.kind === 'hunt' ? null : name && G.playerTitle ? name + ' ' + G.playerTitle : name, roofAlpha, t: now, stillIdle: idleMotion.still() }, cast));
     frames++;
   }
 

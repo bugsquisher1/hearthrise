@@ -22,8 +22,9 @@
 //                           `intent` (a CharacterSession method); never residue
 //   bind         where the value lives: { store: 'float', type, target }
 //                | { store: 'hud', id } | { store: 'residue', field }
-//                | { store: 'replay', field } (the session-recording switch: one pick for
-//                  every open hero, the newest wins; src/session/replay-pref.js)
+//                | { store: 'switch', field, sw } (a player switch, sw its data row { field,
+//                  defaultOn, reducedOn? }: one pick for every open hero, the newest wins;
+//                  src/session/player-switch.js. The row's default is sw.defaultOn)
 //                | { store: 'none' } (hotkeys, actions, notes)
 //   options      choice: [{ value, label }];  slider: { min, max, step, unit? } (the unit follows the value shown)
 //   key          hotkey rows: the key;  action rows: `run` names a
@@ -43,6 +44,7 @@ import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.108';
 import { HELP_NOTES } from './how-to-play.js?v=0.2.108';
 import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.108';
 import { REPLAY } from './privacy.js?v=0.2.108';
+import { IDLE_MOTION } from './world/motion.js?v=0.2.108';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -83,6 +85,15 @@ const LOOK_ROWS = [row({
   default: PANEL_ALPHA.initial,
   options: Object.freeze({ min: PANEL_ALPHA.min, max: PANEL_ALPHA.max, step: PANEL_ALPHA.step, unit: '%' }),
   bind: Object.freeze({ store: 'residue', field: 'panelAlpha' }),
+}), row({
+  /* IDLE ANIMATIONS (Tyler 2026-11-07, src/data/world/motion.js): the player's switch, kept for every hero; off holds every idle clip still */
+  id: 'ui.idleMotion',
+  category: 'interface',
+  label: IDLE_MOTION.label,
+  help: 'Heroes, townsfolk and monsters breathe while they stand still. Turn this off to keep them still.',
+  type: 'toggle',
+  default: IDLE_MOTION.defaultOn,
+  bind: Object.freeze({ store: 'switch', field: IDLE_MOTION.field, sw: IDLE_MOTION }),
 })];
 
 /* ── Interface: show or hide each HUD panel, then the HUD layout window (fade, put back a moved panel, reset) ── */
@@ -124,7 +135,7 @@ const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 
   id: 'help.replay', category: 'help', label: REPLAY.label,
   help: 'Sends the team a recording of your game screen so we can see what went wrong. Typed text and chat are hidden. Turn it off and nothing is recorded.',
   type: 'toggle', default: REPLAY.defaultOn,
-  bind: Object.freeze({ store: 'replay', field: REPLAY.field }),
+  bind: Object.freeze({ store: 'switch', field: REPLAY.field, sw: REPLAY }),
 })];
 
 export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, LAYOUT_ROW, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
@@ -143,6 +154,7 @@ export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {
     if (r.scope === 'server' && !r.intent) throw new Error(where + ': a server setting names its existing intent');
     if (r.scope === 'server' && r.bind && r.bind.store === 'residue') throw new Error(where + ': a server setting is never kept in residue');
     if (r.type === 'toggle' && typeof r.default !== 'boolean') throw new Error(where + ': a toggle defaults to a boolean');
+    if (r.bind && r.bind.store === 'switch' && !(r.type === 'toggle' && r.bind.sw && r.bind.sw.field === r.bind.field && r.bind.sw.defaultOn === r.default)) throw new Error(where + ': a switch is a toggle with its data row\'s field and default');
     if (r.type === 'choice' && !(Array.isArray(r.options) && r.options.some((o) => o.value === r.default))) throw new Error(where + ': a choice default must be one of its options');
     if (r.type === 'slider' && !(r.options && r.options.min < r.options.max && typeof r.default === 'number')) throw new Error(where + ': a slider needs min < max and a numeric default');
     if (r.type === 'hotkey' && !r.key) throw new Error(where + ': a hotkey row names its key');

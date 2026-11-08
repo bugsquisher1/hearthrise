@@ -1,0 +1,43 @@
+BRIEF 03: THE GROUNDED BARGE, the Slake's first signature piece (plan line A4b, about 40 generations)
+Art director, 2026-11-07. Three candidates first (about 30 gens), stop, hand me all three; fixes after my pick.
+
+WHAT IT IS: the Banded Company's supply barge. Hask sold the crossing, so it never got back upstream; it ran aground on
+the Slake's middle bar and broke its back there (the board's lore line). It is the ground's centrepiece and its
+landmark: the pocket "the Grounded Barge" (P5) is fought around it, and the Color Sergeant holds it. On the map it
+blocks a step and a shot: the hull fills tiles x27-36, y18-22 of the Slake's rows (10 wide, 5 deep, narrower at the
+bow and stern rows). Sprite id `sl_grounded_barge`, set `slake`.
+
+FORM: a long, flat-bottomed river barge lying east to west, seen from high above (the one world angle): the deck is
+what we see most, with the near (south) side of the hull showing a little. Broken-backed: the deck planks split and
+sagging in the middle, one end lower than the other, sunk to the waterline in grey-brown silt. A stub of a broken mast
+near the middle. An open cargo hatch with coal heaped inside. Rotted green weed along the hull where the water stood.
+Three or four of the company's round banded shields still hung along the gunwale, greened by copper. No people, no
+bodies, no lights.
+
+STYLE (never mix styles; docs/design/PIXELLAB_STYLE1_KIT.md §3):
+  view high top-down; single black outline; basic shading lit from the upper left; no baked shadow, no glow, no water
+  or ground around it (transparent background: the floor is the painted ground under it)
+  palette natural and muted: dark wet wood browns, iron grey fittings, coal black, the one accent verdigris
+  (copper-green) on the shields and the weed only, under 15% of its pixels
+  plank scale: planks 4 to 6 px wide, the same scale as the March's sunk rowboat (refs/style-hf_rowboat_sunk.png):
+  this is that boat's big sister, made of the same wood
+  style images (upload each, get_upload_url): refs/style-hf_rowboat_sunk.png and refs/style-hf_wagon_tipped.png
+
+THE CALL: create_image_pro (Pro Flash caps at 256 px; the Great Hearth was drawn this way at 352, lane/b-hearth-art)
+  size 320x176, transparent background, the two style images, and the description above as the prompt, starting
+  "a pixel art game prop, high top-down view, a long wrecked river barge run aground, broken in the middle ..."
+  Three calls, three candidates.
+  Fixes after my pick: inpaint_image on the region named (a seam, a stray light, a wrong-angle end), 32 to 64 px windows.
+  Reject when: the angle is side-on or isometric (the deck must be seen from above, no corner pointing at us), the hull
+  is shorter than 280 px or taller than 170 px of art, water or ground is painted around it, or the planks are
+  smaller than 3 px (it will read as a model, not a wreck in this world).
+
+WHERE IT GOES: art/world-src/gen-2026-11-07/grounded-barge/candidate-<n>.png + note.json (image ids). After my pick,
+the import lane (class `building`: art-budget.js body 80-160 px tall; a 160 px tall hull fits):
+  node tools/world-art/port-pixellab.mjs object --set slake --id sl_grounded_barge --class building --material wood
+       --footprint 10,5 --file <picked png> --object <IMAGE_ID> --name "S1 Grounded Barge"
+  node tools/world-art/build.mjs --set slake;  node tests/world-assets.mjs
+
+WHAT I CHECK: locked (the wood grade dulls warm browns: judge it after build.mjs, never raw), on the Slake's silt
+beside the hero and a Bargeman at x2 in tools/qa/region-kit.html; its edges where it meets the silt (no hard square
+cut); it reads from across the ground as the place to fight round; the hero is about a fifth of its length.

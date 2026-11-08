@@ -18,14 +18,14 @@
       "fps": 5,
       "loop": true,
       "dirs": {
-        "s": 1,
-        "e": 1,
-        "n": 1,
-        "w": 1,
-        "se": 1,
-        "sw": 1,
+        "s": 4,
+        "e": 4,
+        "n": 4,
+        "w": 4,
+        "se": 4,
+        "sw": 4,
         "ne": 1,
-        "nw": 1
+        "nw": 4
       }
     }
   ],
@@ -33,7 +33,57 @@
     "tool": "create_object_pro_flash",
     "object": "d014b3d6-5709-4e17-a41a-5f999c558276",
     "n_directions": 8,
-    "name": "S1 town smith"
+    "name": "S1 town smith",
+    "idle": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "picked": {
+        "s": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "e": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "n": [
+          0,
+          2,
+          3,
+          2
+        ],
+        "w": [
+          0,
+          1,
+          7,
+          1
+        ],
+        "se": [
+          0,
+          2,
+          7,
+          2
+        ],
+        "sw": [
+          0,
+          2,
+          8,
+          2
+        ],
+        "nw": [
+          0,
+          3,
+          2,
+          3
+        ]
+      }
+    }
   },
-  "notes": "Ported from PixelLab object d014b3d6-5709-4e17-a41a-5f999c558276 (style 1, 48 px canvas, 8 rotations) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels."
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab object d014b3d6-5709-4e17-a41a-5f999c558276 (style 1, 48 px canvas, 8 rotations) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels."
 }

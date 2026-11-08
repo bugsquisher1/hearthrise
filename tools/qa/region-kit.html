@@ -1,0 +1,89 @@
+<!doctype html>
+<!-- tools/qa/region-kit.html — READ A REGION'S ART KIT ON A REAL GROUND. A local, test-only page (never linked from the
+     game, signs nobody in, talks to no server). It draws a hunting ground (src/data/world/maps) or an open field on any
+     painted ground with the real renderer (src/world/render/canvas-backend.js: the light, shadows and zoom a player
+     sees), stands kit pieces and creatures on it, and puts the hero beside them for scale. A kit is judged here, never on
+     a sprite sheet (src/data/world/region-kits.js; ART_DIRECTION §2-§4).
+       http://localhost:<port>/tools/qa/region-kit.html?map=wickstead&at=30,20&props=hf_pikes_fallen@31,21&units=banded_pikeman@32,20
+     map=ID                 a map row (WORLD_MAPS) with its own objects; or ground=TERRAIN&size=WxH: an open field on that ground
+     extra=SET,SET&from=DIR  unshipped atlases to load as well, DIR/atlas-SET.json|png (an art lane's sets before they merge)
+     props=ID@X,Y;…         stand props          units=ID@X,Y[@DIR[@ANIM]];…   stand creatures (idle, facing s)
+     board=KIT&cols=N       every prop of a region kit (region-kits.js) laid out from `at` in rows, 3 tiles apart
+     at=X,Y the hero's tile (the camera follows it)   bare=1 the map's own objects left out   w,h the stage in CSS px
+     Reads window.kit once document.title is 'done': the pieces asked for that drew as stubs (must be none) and the zoom.
+-->
+<html><head><meta charset="utf-8"><title>region kit</title>
+<!-- the site root: the atlases resolve against the document, as on play.html -->
+<base href="../../">
+<link rel="stylesheet" href="../../src/styles/tokens.css">
+<style>html,body{margin:0;background:#0b0a0c;color:#e6dcbc;font:14px sans-serif}#stage{position:relative;overflow:hidden}#stage canvas{position:absolute;inset:0;width:100%;height:100%}#out{position:fixed;left:4px;bottom:4px;background:#000c;padding:4px;white-space:pre;max-width:60vw}</style>
+</head><body><div id="stage"></div><div id="out">loading…</div>
+<script type="module">
+import { loadManifests, createSceneImages, baseTables } from '../../src/world/atlas.js';
+import { createBook } from '../../src/world/core/book.js';
+import { compileMap } from '../../src/world/core/map-compile.js';
+import { createCanvasBackend } from '../../src/world/render/canvas-backend.js';
+import { WORLD_MAPS } from '../../src/data/world/maps/index.js';
+import { REGION_KITS } from '../../src/data/world/region-kits.js';
+import { OUTFITS } from '../../src/data/hunt-outfits.js';
+import { BUILD } from '../../src/build-info.js';
+
+const q = new URLSearchParams(location.search);
+/* the stage is the window's unless w and h name one (a pane that opens hidden measures 0 at load: read it live) */
+const W = () => +q.get('w') || innerWidth, H = () => +q.get('h') || innerHeight;
+const out = document.getElementById('out');
+const stage = document.getElementById('stage');
+stage.style.width = q.get('w') ? W() + 'px' : '100vw'; stage.style.height = q.get('h') ? H() + 'px' : '100vh';
+const win = new Proxy(window, { get: (t, k) => (k === 'innerWidth' ? W() : k === 'innerHeight' ? H() : (typeof t[k] === 'function' ? t[k].bind(t) : t[k])) });
+const styles = getComputedStyle(document.documentElement);
+const css = (name) => styles.getPropertyValue(name).trim();
+const at = (s) => s.split(',').map(Number);
+const list = (k) => (q.get(k) || '').split(';').filter(Boolean).map((s) => s.split('@'));
+
+/* the shipped sets, then any unshipped ones an art lane left in a folder */
+const o = { doc: document, version: BUILD.cache };
+const manifests = await loadManifests(o);
+const art = createSceneImages(o);
+await art.ensure(Object.keys(manifests));
+const extra = (q.get('extra') || '').split(',').filter(Boolean), from = q.get('from') || '';
+for (const set of extra) {
+  manifests[set] = await (await fetch(from + '/atlas-' + set + '.json', { cache: 'reload' })).json();
+  art.images[set] = await new Promise((ok, bad) => { const im = new Image(); im.onload = () => ok(im); im.onerror = bad; im.src = from + '/atlas-' + set + '.png'; });
+}
+const book = createBook(manifests);
+const tables = baseTables(book);
+
+/* the ground: a map row, or an open field on a painted terrain */
+let row;
+if (q.get('map')) {
+  row = WORLD_MAPS.find((m) => m.id === q.get('map'));
+  if (q.get('bare') === '1') row = Object.assign({}, row, { objects: [] });
+} else {
+  const [w, h] = (q.get('size') || '60x40').split('x').map(Number);
+  row = { id: 'kit_field', name: 'Kit field', kind: 'hunt', outdoor: true, light: 'day', ground: q.get('ground'),
+    legend: { '.': 'grass' }, rows: Array.from({ length: h }, () => '.'.repeat(w)), objects: [], buildings: [], faces: [], start: [1, 1] };
+}
+const map = compileMap(row, tables);
+const backend = createCanvasBackend({ win, doc: document, book, images: art.images, tables, css });
+backend.mount(stage);
+backend.setMap(map);
+
+const hero = at(q.get('at') || (map.start || [1, 1]).join(','));
+const props = list('props').map(([id, xy]) => { const [x, y] = at(xy); return { id, x, y }; });
+const units = list('units').map(([id, xy, dir, anim]) => { const [x, y] = at(xy); return { id, x, y, dir: dir || 's', anim: anim || 'idle' }; });
+if (q.get('board')) {
+  const kit = REGION_KITS[q.get('board')], cols = +q.get('cols') || 8;
+  kit.props.forEach((id, i) => props.push({ id, x: hero[0] + 2 + (i % cols) * 3, y: hero[1] - 4 + Math.floor(i / cols) * 3 }));
+}
+const asked = [...props, ...units].map((p) => p.id);
+const stubbed = asked.filter((id) => !book.has(id));
+function draw() {
+  backend.sync({ hero: { x: hero[0], y: hero[1], id: OUTFITS[q.get('hero') || 'knight'] || OUTFITS.knight }, t: performance.now(), props, units, roofAlpha: {} });
+  requestAnimationFrame(draw);
+}
+draw();
+const snap = backend.snapshot();
+window.kit = { map: row.id, ground: row.ground, zoom: snap.z, asked: asked.length, stubbed, extra };
+out.textContent = row.id + ' on ' + row.ground + ', zoom x' + snap.z + (stubbed.length ? '\nSTUBS: ' + stubbed.join(' ') : '');
+document.title = 'done';
+</script></body></html>

@@ -1,0 +1,187 @@
+{
+  "asset": "fordsunk-idle",
+  "brief": "art/briefs/gen-2026-11-07/02-march-idles.txt, run per 08-next-batch.txt (A3)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-08",
+  "object_id": "f9f7c6ba-4f8d-4cc0-bc9d-df3581a2ea0b",
+  "set": "march",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "d17790fc-46ee-4215-aafb-ae982c4f730d",
+      "directions": "s e n w se sw ne (nw in A3b)",
+      "action": "standing guard, breathing slowly, a slight sway, the bloated body heaves, feet planted, stays in place, nothing else appears in the frame"
+    },
+    "r2": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "39754779-24aa-4a50-833a-b5ae7d031451",
+      "directions": "se",
+      "action": "standing guard, the bloated body heaves, the head stays level, both feet stay exactly where they are, both arms hang still, stays in place, nothing else appears in the frame"
+    },
+    "r3": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "fceba42b-ee7b-4868-9c83-5902208c7676",
+      "directions": "se",
+      "action": "standing guard very still, only the bloated belly rises and falls by one pixel, the head stays level, the body does not sway, both feet stay exactly where they are, both arms hang still, nothing else appears in the frame"
+    }
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r1",
+    "west": "r1",
+    "south-east": "r1",
+    "south-west": "r1",
+    "north-east": "r1",
+    "north-west": "r1"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(the shipped still from the March art branch, frames, 58)",
+    "facings": {
+      "south": {
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          48,
+          154
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      },
+      "east": {
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          55,
+          71
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          82,
+          135
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "picks": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "steps": [
+          50,
+          168
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "picks": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "steps": [
+          117,
+          220
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-west": {
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          74,
+          148
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          69,
+          108
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          52,
+          123
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      }
+    }
+  },
+  "needs_hand_pass": {
+    "south-east": {
+      "roll": "r1",
+      "frames": "001, 008",
+      "moving": "the left arm and hand swing out (left edge), the top of the head redraws, and the right hand shifts (220 px far step)",
+      "best_of": "r1 117/220; r2 288/206; r3 238/201"
+    }
+  },
+  "generations": 10,
+  "flags": [
+    "south-east failed all 3 rolls: retry limit; best (r1) in place, hand pass flagged",
+    "north-west comes in batch A3b",
+    "A3b: north-west r1 passes (52/123, feet 1)"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/fordsunk-idle.png and fordsunk-idle-loops.png",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set march --id fordsunk --clip art/world-src/gen-2026-11-07/fordsunk-idle (on the March merge, where the march set lives)"
+}

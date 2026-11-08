@@ -88,7 +88,9 @@ const cases = {
   },
 };
 
-const MS = 'src/data/monster-spells.js', MON = 'src/data/monsters.js', AB = 'src/data/abilities.js';
+const MS = 'src/data/monster-spells.js';
+const MON = 'src/data/monsters.js';
+const AB = 'src/data/abilities.js';
 const mutants = [
   { name: 'a caster names a row that is not there', case: 'rows-validate', edits: [[MON, "    spells: ['smoke_pot'],\n", "    spells: ['smoke_pots'],\n"]] },
   { name: 'a spell no monster casts', case: 'rows-validate', edits: [[MON, "    spells: ['venom_spray'],\n", '']] },
@@ -96,8 +98,8 @@ const mutants = [
   { name: 'a cone that reads a radius', case: 'rows-validate', edits: [[MS, "shape: 'cone', len: 2, range: 1,", "shape: 'cone', len: 2, r: 1, range: 1,"]] },
   { name: 'a spell on a monster no ground spawns', case: 'every-caster-plays',
     edits: [[MON, "  bog_vine: {", "  bog_vine: { spells: ['spore_cloud'],"]] },
-  { name: 'the Rat King leads with his pulse', case: 'boss-kits', edits: [[MON, "    spells: ['tail_lash', 'squeal'],\n", "    spells: ['squeal', 'tail_lash'],\n"]] },
-  { name: 'the called Rat King casts nothing', case: 'boss-kits', edits: [[MON, ",\n    spells: ['tail_lash', 'squeal'] },\n", ' },\n']] },
+  { name: 'the Rat King leads with his pulse', case: 'boss-kits', edits: [[MON, "party takes */\n    spells: ['tail_lash', 'squeal'],", "party takes */\n    spells: ['squeal', 'tail_lash'],"]] },
+  { name: 'the called Rat King casts nothing', case: 'boss-kits', edits: [[MON, "    spells: ['tail_lash', 'squeal'],\n    hp: 2000,", '    hp: 2000,']] },
   { name: 'a regular carries two spells', case: 'boss-kits', edits: [[MON, "    spells: ['spore_cloud'],\n", "    spells: ['spore_cloud', 'venom_spray'],\n"]] },
   { name: 'Spring Tide fires between pulls', case: 'hero-area-rows',
     edits: [[AB, ", { metric: 'in_fight', op: 'eq', value: true }],\n    versions: [[160,", "],\n    versions: [[160,"]] },

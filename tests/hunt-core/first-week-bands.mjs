@@ -170,8 +170,10 @@ cases['risk-ladder'] = (R) => {
   const pushers = play('coppercap_warrens', ['tank', 'healer', 'mage', 'bow'], 29, BUILT);
   const most = Math.max(...pushers.map((h) => h.levelXpPerH));
   if (pushers.some((h) => h.deaths === 0 && Math.abs(h.levelXpPerH - most) > most * 0.02)) return 'a party that pushes together is paid unevenly: ' + pushers.map((h) => h.levelXpPerH).join(', ');
-  const [, , , near] = play('coppercap_warrens', ['tank', 'healer', 'mage', 'bow'], [37, 37, 37, 25], {}, {});
-  if (Math.abs(near.levelXpPerH - t37.levelXpPerH) > t37.levelXpPerH * 0.1) return 'a Level 25 with Level 37s is cut, inside the range: ' + near.levelXpPerH + ' XP/h against ' + t37.levelXpPerH;
+  /* against the 37s of its OWN party: the Level 1's party above restarts at each of its deaths (the Warrens' group spells reach
+     every hero, lane/b-area-data: 20 an hour in the practice set), so its 37s are no baseline for a party that lives */
+  const [n37, , , near] = play('coppercap_warrens', ['tank', 'healer', 'mage', 'bow'], [37, 37, 37, 25], {}, {});
+  if (Math.abs(near.levelXpPerH - n37.levelXpPerH) > n37.levelXpPerH * 0.1) return 'a Level 25 with Level 37s is cut, inside the range: ' + near.levelXpPerH + ' XP/h against ' + n37.levelXpPerH;
   if (G.underFloorSharePm(G.OPEN_GROUNDS.coppercap_warrens, 1, 37) >= 10 || G.underFloorSharePm(G.OPEN_GROUNDS.mill_cellar, 1, 37) !== 1000) return 'the share reads ' + G.underFloorSharePm(G.OPEN_GROUNDS.coppercap_warrens, 1, 37) + ' on the Warrens, ' + G.underFloorSharePm(G.OPEN_GROUNDS.mill_cellar, 1, 37) + ' on a ground in range';
   return null;
 };

@@ -14,8 +14,9 @@
 // the ground's whole-group spell struck every hero at least once (a cell no spell reached proves nothing). Every bar is absolute,
 // never a pinned number: a legitimate data change re-pins nothing, a spell that makes Normal deadly turns it red.
 //
-// Measured when written (lane/b-area-data, this commit): 0 deaths and 0 dips in every cell, alone and in the four, with the five
-// lone ways and the four; the four's typical low 95-100% at Wickstead and 84-94% at the Warrens (86-100% with no spell).
+// Measured when written (lane/b-area-data): 0 deaths and 0 dips in every cell (the tank, hammer, bow, mage and healer alone, and
+// the four); the four's typical low 95-100% at Wickstead and 84-94% at the Warrens (86-100% with no spell). The deadly mutant's
+// Blasting Charge (4x every 2.1 s) kills the lone tank 8 times in its hour.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -74,7 +75,8 @@ const playGround = (key) => async (RUN, root) => {
 };
 const cases = { wickstead: playGround('wickstead'), warrens: playGround('warrens') };
 
-const MS = 'src/data/monster-spells.js', MON = 'src/data/monsters.js';
+const MS = 'src/data/monster-spells.js';
+const MON = 'src/data/monsters.js';
 const mutants = [
   /* the spells-on bar: the rows still list the spells, but the engine never starts one, so a zero-death hour is hollow */
   { name: 'the engine never starts a spell', case: 'wickstead', edits: [['src/core/hunt/monster-spells.js', '      if (begin(inst, sc, u, id, spellRow(id))) break;', '      if (false && begin(inst, sc, u, id, spellRow(id))) break;']] },

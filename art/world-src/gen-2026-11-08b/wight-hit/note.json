@@ -1,0 +1,254 @@
+{
+  "asset": "wight hit clip (brief 10 B3b), Barrow March (unmerged art)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt B3b (recipe approved in 10; ART_DIRECTION section 6: the import keeps frames 0-4, 5 frames at 12 fps)",
+  "status": "CANDIDATES for the art director; not imported (inert until the client plays `hit`)",
+  "made": "2026-11-08",
+  "set": "march",
+  "object_id": "68b66de1-bf39-482d-83c5-60f9c95d225d",
+  "name": "wight (64 frame; March body)",
+  "layout": "<facing>.png = the object's rotation (frame 0 still); hit/<facing>/0..N.png = the kept roll; alt/<roll>/hit/<facing>/ = refused rolls",
+  "tool": "animate_object v3 on the object, frame_count 6, keep_first_frame false; south and the side facings are separate groups (their action texts differ)",
+  "rolls": {
+    "r1": [
+      {
+        "group": "3e9c28f4-dbdd-414c-a5ca-0edb3a5fc133",
+        "directions": "s",
+        "action": "leans back by one pixel as if pushed from the front, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      },
+      {
+        "group": "3a4c241b-5932-4cab-96b5-14549d7d191b",
+        "directions": "e n w",
+        "action": "leans back by one pixel as if pushed from the side it faces, then returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame"
+      }
+    ]
+  },
+  "chosen": {
+    "south": "r1",
+    "east": "r1",
+    "north": "r1",
+    "west": "r1"
+  },
+  "refused": {},
+  "measured": {
+    "how": "each kept frame against the rotation of its facing: xor = mask px changed, alien = px with no colour within 60 RGB of the still inside 3 px (a flash or a new colour), dx/dy = centroid shift px, top/bottom = box edge change px (negative = up)",
+    "south": {
+      "roll": "r1",
+      "xor": [
+        67,
+        139,
+        160,
+        161,
+        124,
+        85
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "dx": [
+        0.2,
+        0.2,
+        0.3,
+        0.1,
+        0.1,
+        0.2
+      ],
+      "dy": [
+        0,
+        0,
+        0.6,
+        0.6,
+        -0.2,
+        -0.5
+      ],
+      "top": [
+        1,
+        2,
+        3,
+        3,
+        2,
+        0
+      ],
+      "bottom": [
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "east": {
+      "roll": "r1",
+      "xor": [
+        61,
+        128,
+        205,
+        214,
+        123,
+        30
+      ],
+      "alien": [
+        0,
+        6,
+        29,
+        40,
+        5,
+        0
+      ],
+      "dx": [
+        0.2,
+        0.1,
+        0.3,
+        0.1,
+        0.1,
+        0.3
+      ],
+      "dy": [
+        0.5,
+        0.3,
+        0.4,
+        0.5,
+        0.7,
+        0.4
+      ],
+      "top": [
+        1,
+        2,
+        3,
+        3,
+        2,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (29)",
+        "colour f3 (40)"
+      ]
+    },
+    "north": {
+      "roll": "r1",
+      "xor": [
+        62,
+        95,
+        164,
+        174,
+        126,
+        56
+      ],
+      "alien": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dx": [
+        0.2,
+        0.1,
+        0,
+        0,
+        0,
+        -0.3
+      ],
+      "dy": [
+        -0.3,
+        -0.5,
+        0.3,
+        0.7,
+        0.3,
+        0.1
+      ],
+      "top": [
+        0,
+        0,
+        2,
+        3,
+        2,
+        0
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": []
+    },
+    "west": {
+      "roll": "r1",
+      "xor": [
+        73,
+        126,
+        164,
+        162,
+        86,
+        29
+      ],
+      "alien": [
+        1,
+        5,
+        28,
+        28,
+        12,
+        0
+      ],
+      "dx": [
+        -0.7,
+        -1.2,
+        -1.6,
+        -1.5,
+        -0.9,
+        -0.1
+      ],
+      "dy": [
+        0.6,
+        0.6,
+        -0.1,
+        0.1,
+        0.3,
+        0.1
+      ],
+      "top": [
+        1,
+        2,
+        2,
+        3,
+        1,
+        1
+      ],
+      "bottom": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "auto_flags": [
+        "colour f2 (28)",
+        "colour f3 (28)"
+      ]
+    }
+  },
+  "generations": 4,
+  "flags": [
+    "east and west: it hunches FORWARD 1-2 px at frames 2-3 (the free hand comes forward) rather than back; no new colour beyond the hand (28-40 px)"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/wight-hit.png (x3: per facing, the rotation then the kept frames, under them each frame's change from the rotation (yellow colour, red mask); refused rolls in the rows after, marked by a red bar)"
+}

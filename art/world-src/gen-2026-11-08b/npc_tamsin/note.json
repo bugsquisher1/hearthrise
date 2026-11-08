@@ -1,0 +1,33 @@
+{
+  "asset": "npc_tamsin, the Tally Board keeper (brief 10 N1 SAMPLE: south rotation + south idle)",
+  "brief": "art/briefs/gen-2026-11-07/10-next-batch.txt N1; Coordinator 2026-11-08: town NPCs are placed map objects facing SOUTH, so each keeper gets only its south facing (rotation + idle)",
+  "status": "SAMPLE for the art director's read; N1 stops here until that read (the shopkeeper, clerk, hunter and cook wait). Not imported",
+  "made": "2026-11-08",
+  "set": "common",
+  "tool": "create_object_pro_flash n_directions 1 (south only), 48x48, view high top-down, seed per roll, style_image = 48x48 crop of npc_crier's south still (art/world/common/npc_crier.png cell 0 at x5 y16, upload 0801d46b) 'match palette, outline, shading'; then animate_object v3 on the 1-direction object, frame_count 8, keep_first_frame true, brief 05's idle text",
+  "idle_action": "standing at rest, breathing slowly, chest rises and falls, a slight shift of weight, feet planted, the weapon and shield stay still, stays in place, nothing else appears in the frame",
+  "layout": "south.png = the kept roll's rotation (r2); idle/south/frame_000..008.png = its idle (frame_000 the rotation); alt/r1/ = the first roll, same layout",
+  "rolls": {
+    "r1": { "object": "5cb056c4-4e82-460e-a18f-f9ffaf335586", "seed": 1108, "idle_group": "f41ef829-5df2-4b45-b77a-067d338f96cc", "gens": 6,
+      "description": "Tamsin Reeve, a weathered woman in a hooded brown travelling cloak, a tally stick and a small slate under one arm, a short knife at her belt, town npc sprite, standing, single black outline, basic shading, muted cloth colours",
+      "measured": "body 22 x 31 px (character class body 36-40: 5 px SHORT; the crier is 23 x 36); hood up, the face reads as a grey mask; ring 3.53:1 on the plaza, 4.00:1 on the grass",
+      "why_alt": "too short for the class and beside the crier; the face is lost in the hood" },
+    "r2": { "object": "d6d848fd-fb68-4272-aa33-bccdf930db8a", "seed": 1109, "idle_group": "878794e0-82b8-42f5-9ac1-4252d7a64eab", "gens": 6,
+      "description": "Tamsin Reeve, a tall weathered woman standing upright at full adult height, a hooded brown travelling cloak with the hood back so her face shows, a tally stick and a small slate under one arm, a short knife at her belt, town npc sprite, single black outline, basic shading, muted cloth colours (style usage: match palette, outline, shading and the figure's height)",
+      "measured": "body 19 x 37 px (inside 36-40); long brown hair, the hood down on the shoulders, a pale slate at her left hand; idle frames change 162-396 px from the rotation, the top row moves at most 1 px, the feet never move" }
+  },
+  "chosen": "r2 (the class height); r1 kept under alt/r1",
+  "ring_contrast": {
+    "how": "tools/world-art/ring-contrast.mjs, floors = 64x64 centre crops of art/world/common/havora_square_plaza.png and common_ground.png (the town has no floor ref in art/briefs/gen-2026-11-07/refs)",
+    "plaza": "r2 2.37:1 UNDER, r1 3.53:1 ok; the shipped crier 2.95:1 and smith 2.64:1 are under on this crop too",
+    "grass": "r2 2.69:1 UNDER, r1 4.00:1 ok; crier 3.34:1, smith 3.00:1"
+  },
+  "generations": 12,
+  "flags": [
+    "r2 is UNDER 3:1 on both town floors (2.37 plaza, 2.69 grass): her ring is the mid-brown hair and cloak; a darker cloak or a lifted body (lock.mjs liftBody) would raise it",
+    "r2 idle: the pale slate slides down from the chest to the hip at frames 4-8 (the held item moves); frames 1-3 are the calm ones (162-327 px, top 1 px) for the 4-frame ping-pong",
+    "r2 reads as a long-haired woman in a brown cloak with the hood down: 'hooded' is lost; the tally stick is not visible as a stick (one pale item at the hand)",
+    "both rolls: the brief's 'match palette' pulled the crier's muted browns, no purple, no glow"
+  ],
+  "review_strip": "art/review/gen-2026-11-08b/npc_tamsin-n1-sample.png (x4, each 48 frame seated in a 64 cell on the character anchor row 58: row 1 the crier's still | r2 rotation | r2 idle 0-8; row 2 the crier | r1 rotation | r1 idle 0-8)"
+}

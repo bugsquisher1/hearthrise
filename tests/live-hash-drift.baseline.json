@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-08",
- "replay_ms": 3555,
+ "replay_ms": 304468,
  "counts": {
-  "tracked_names": 820,
-  "entries": 672
+  "tracked_names": 821,
+  "entries": 673
  },
  "functions": [
   {
@@ -14680,20 +14680,22 @@
    "sig": "hr_town_moves_settle(p_map text, p_limit integer, p_user uuid, p_slot integer)",
    "name": "hr_town_moves_settle",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-01-28-town-stands.sql"
+    "2027-01-28-town-stands.sql",
+    "2027-03-23-town-visit-hold.sql"
    ],
    "live": {
-    "md5": "f7660d3393dadfeb15890d0c2c2256b3",
-    "norm_len": 3044,
+    "md5": "4f1a44969b86ecd62a8b1e0884441be0",
+    "norm_len": 4707,
     "measured": "2026-11-08",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "f7660d3393dadfeb15890d0c2c2256b3",
-    "norm_len": 3044,
+    "md5": "4f1a44969b86ecd62a8b1e0884441be0",
+    "norm_len": 4707,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -14796,17 +14798,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-01-28-town-stands.sql"
+    "2027-01-28-town-stands.sql",
+    "2027-03-23-town-visit-hold.sql"
    ],
    "live": {
-    "md5": "d3bd3e7fecca1023967a1204ed92d758",
-    "norm_len": 4759,
+    "md5": "a905f061a430546164c46db66709406d",
+    "norm_len": 5926,
     "measured": "2026-11-08",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d3bd3e7fecca1023967a1204ed92d758",
-    "norm_len": 4759,
+    "md5": "a905f061a430546164c46db66709406d",
+    "norm_len": 5926,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -15045,6 +15048,7 @@
    "name": "hr_town_station_for",
    "tracked_by": [
     "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -15090,6 +15094,29 @@
    "replay": {
     "md5": "ff2cc25fc03f8009684d5a7e6feea55e",
     "norm_len": 9095,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_visit_hold(p_tiles double precision)",
+   "name": "hr_town_visit_hold",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-03-23-town-visit-hold.sql"
+   ],
+   "live": {
+    "md5": "3e7a3c816b50aa27fdb384114c941d58",
+    "norm_len": 267,
+    "measured": "2026-11-08",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "3e7a3c816b50aa27fdb384114c941d58",
+    "norm_len": 267,
     "source": "computed-from-replay"
    },
    "agree": true

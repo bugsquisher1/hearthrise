@@ -111,6 +111,8 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'orchard_boar_tusk', 'brook_bear_tooth', 'boar_bristle',
   /* the Slake's four (lane/b-the-slake), the same promise */
   'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord',
+  /* the Pyre Field's five (lane/b-pyre-field), the same promise */
+  'pike_ferrule', 'rake_tine', 'kennel_tag', 'shroud_pin', 'warrant_seal',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -137,16 +139,14 @@ export const AWAITING_ROSTER = Object.freeze([
   'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'dragonrend_greatblade',
   'duskwood_bow', 'duskwood_rod', 'duskwood_staff', 'elderscale_heart', 'elderscale_platebody',
   'ember_belt', 'ember_boots', 'ember_helm', 'ember_platebody',
-  'ember_platelegs', 'ember_sword', 'ember_warhammer', 'fangdart_recurve', 'gold_amulet',
+  'ember_platelegs', 'fangdart_recurve', 'gold_amulet',
   'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring',
   'lexarch_seal',
   'maple_rod',
   'nightstalker_pelt', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
   'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
-  'rune_hammer', 'rune_helm', 'rune_knife', 'rune_needle', 'rune_platebody',
-  'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod',
-  'slagheart_core', 'slagheart_platebody', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
-  'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
+  'rune_hammer', 'rune_knife', 'rune_needle', 'runewood_rod',
+  'slagheart_core', 'slagheart_platebody', 'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',
@@ -157,7 +157,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'wartusk_cleaver', 'watchknight_belt', 'watchknight_body', 'watchknight_boots',
   'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants', 'whispering_codex',
   'widows_fang', 'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
-  'wyvernhide_body', 'wyvernhide_helmet', 'wyvernhide_pants', 'yew_rod',
+  'yew_rod',
   /* The Hearth Token (IAP bond): its redeem, IAP grant and store left with the
      client in the same demolition; the row stays because hr_items and
      account_wallet.hearth_tokens still carry it until the M2 migration drops it. */
@@ -200,6 +200,15 @@ export const UNREACHABLE = Object.freeze({
     'mithril_gauntlets', 'mithril_belt', 'snakeskin_boots', 'snakeskin_gloves', 'snakeskin_belt', 'warlock_helmet',
     'warlock_boots', 'warlock_gloves', 'warlock_belt', 'maple_bow', 'maple_wand', 'maple_spellbook', 'grave_dust',
     'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord',
+    /* THE PYRE FIELD (lane/b-pyre-field, staged until its art lands): the tier-5 set in three weights and all six slots, its weapons,
+       the Yew Wand and Yewclasp Spellbook, the six tier-6 weapons (Rares), Razor Claw and Wraith Veil for the Hearth, and its five
+       imbuement items. C11 proves its opening sources every one. */
+    'rune_helm', 'rune_platebody', 'rune_platelegs', 'rune_boots', 'rune_gauntlets', 'rune_belt',
+    'wyvernhide_helmet', 'wyvernhide_body', 'wyvernhide_pants', 'wyvernhide_boots', 'wyvernhide_gloves', 'wyvernhide_belt',
+    'sorcerer_helmet', 'sorcerer_body', 'sorcerer_pants', 'sorcerer_boots', 'sorcerer_gloves', 'sorcerer_belt',
+    'rune_sword', 'rune_warhammer', 'yew_bow', 'yew_staff', 'yew_wand', 'yew_spellbook',
+    'ember_sword', 'ember_warhammer', 'runewood_bow', 'runewood_staff', 'runewood_wand', 'runewood_codex',
+    'razor_claw', 'wraith_veil', 'pike_ferrule', 'rake_tine', 'kennel_tag', 'shroud_pin', 'warrant_seal',
   ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
@@ -207,21 +216,17 @@ export const UNREACHABLE = Object.freeze({
   greenhaven: Object.freeze([
     'rat_stick',
     'spidersilk_choker', 'tusker_charm', 'packlord_band',
-    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'razor_claw',
+    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone',
   ]),
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
      with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
-  later: Object.freeze([ 'rune_boots', 'rune_gauntlets', 'ember_gauntlets',
-    'rune_belt', 'wyvernhide_boots', 'wyvernhide_gloves',
-    'wyvernhide_belt', 'sorcerer_boots', 'archmage_boots',
-    'sorcerer_gloves', 'archmage_gloves', 'sorcerer_belt', 'rune_sword', 'yew_bow',
-    'yew_staff', 'runewood_staff', 'yew_wand', 'runewood_wand', 'yew_spellbook',
-    'runewood_codex', 'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak',
+  later: Object.freeze([ 'ember_gauntlets', 'archmage_boots', 'archmage_gloves',
+    'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak',
     'wraithglass_drops', 'trollhide_cape', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul', 'dragonrib_bow',
     'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
     'keystone',
     'dragon_bones', 'troll_hide', 'vamp_dust', 'demon_shard', 'dragon_scale', 'lich_soul', 'ancient_rune',
-    'dragon_gem', 'wraith_veil', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
+    'dragon_gem', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
     /* the Hunter's Feast waits on its troll hide (the Bear Pelt it also asks for drops from the Brook Bear) */
     'hunters_feast', 'dragon_stew', 'lich_soul_soup', 'void_banquet', 'soul_recipe', 'marrow_cookbook',
     'field_cookbook', 'emberheart',
@@ -246,7 +251,10 @@ export const UNREACHABLE = Object.freeze({
 /* 105 -> 101: the Brook Bear's meat and claw (and the two dishes they cook). */
 /* 101 -> 100 (lane c-house-pelts): the Brook Bear drops the Bear Pelt the Keep and the Trophy Room ask for. */
 /* 100 -> 86 (lane/b-the-slake): the Slake stages its tier-4 gloves, belts, boots, helmets, the Maple Bow, Wand and Spellbook and Grave Dust. */
-export const UNREACHABLE_CEILING = 86;
+/* 86 -> 67 (lane/b-pyre-field): the Pyre Field stages the tier-5 boots, gloves, belts, sword, bow, staff, wand and spellbook, the
+   Runewood Staff, Wand and Codex, Wraith Veil and Razor Claw (its tier-5 helmets, bodies and legs, the Rune Warhammer and three
+   tier-6 weapons leave AWAITING_ROSTER). */
+export const UNREACHABLE_CEILING = 67;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

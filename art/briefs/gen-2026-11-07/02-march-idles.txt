@@ -1,0 +1,36 @@
+BRIEF 02: IDLES FOR THE SIX BARROW MARCH BODIES (plan line A3, about 60 generations)
+Art director, 2026-11-07. SAMPLE first: banded_pikeman, south and east only. Stop, hand me the strip.
+
+WHY: every live monster breathes (lane/a-creature-idles, v0.2.98; tests/world-assets.mjs [live] needs 3 different
+drawings in every facing). The six March bodies were made before that rule and idle on their still. They are the Ford's
+and the Muster's creatures, and three are the Slake's re-poured bases (Greened Pikeman, Bargeman, Color Sergeant), so
+none of those grounds can open without this. Nothing else about them changes: frame 0 stays the shipped still
+(tools/world-art/idle-clip.mjs), the walk, blow and fall are untouched.
+
+THE BODIES (PixelLab objects in Tyler's account; their stills are refs/still-<id>-s-64.png):
+  banded_pikeman  fd5d913f-f372-41a2-b45b-098b375b3570  set march   brute (64 frame)  a skeleton pikeman, pike upright
+  bannerman       371d7c5c-7a9f-4cea-a4e1-6bb261a677ec  set march   brute             carries the company's banner
+  fordsunk        f9f7c6ba-4f8d-4cc0-bc9d-df3581a2ea0b  set march   character         a bloated drowned soldier
+  wight           68b66de1-bf39-482d-83c5-60f9c95d225d  set march   character         a pale robed dead
+  barrow_knight   95e3ea23-fbf4-4bbd-b467-fa6beec1a011  set muster  brute             a mounted sergeant's barrow dead
+  captain_hask    3de1b017-1ac7-4bb6-9976-553fc6a51e27  set muster  brute             the Muster's boss
+
+THE CALL: animate_object (v3) on the object, one call per facing (s, e, n, w, se, sw, ne, nw), 8 frames generated (it
+bills like 4 at 64 px or less; the loop keeps the two calmest, idle-clip.mjs idleFrames).
+  action: "standing guard, breathing slowly, a slight sway, feet planted, stays in place, nothing else appears in the
+           frame" ; for the bannerman add "the banner cloth stirs" ; for the fordsunk "the bloated body heaves" ; for the
+           wight "the robe stirs".
+  Keep the first frame the still. If the object is not in the account, animate_image from an upload of the still
+  (refs/still-<id>-s-64.png for south; the other facings are in the March atlas on origin/lane/b-hasks-ford-art).
+  Reject and retry (a NEW animation group, Muster lesson) when: the weapon or banner moves more than 2 px off its pose,
+  anything appears (sparks, glints, mist), the feet slide, or the head turns away from the facing.
+
+WHERE IT GOES: art/world-src/gen-2026-11-07/<id>-idle/<facing>/frame_NNN.png (frame_000 the still) + note.json (object
+id, group ids). Do not import. Import, after my yes, is the Phase 0 March merge's job (the march and muster sets live
+on origin/lane/b-hasks-ford-art and origin/lane/b-muster-barrows-art; port-pixellab.mjs idle lives on main):
+  node tools/world-art/port-pixellab.mjs idle --set march --id <id> --clip art/world-src/gen-2026-11-07/<id>-idle
+  node tools/world-art/build.mjs --set march (and --set muster);  node tests/world-assets.mjs
+
+WHAT I CHECK: a 4-frame ping-pong per facing at 5 fps on the Ford's ground (tools/qa/region-kit.html), the still
+unchanged pixel for pixel in frame 0, nothing but the silhouette breathing (idle-clip.mjs holdBody), and every facing
+moving the same amount (one calm clock for all units, src/hunt-view/scene.js idleFrame).

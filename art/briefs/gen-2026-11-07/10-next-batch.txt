@@ -1,0 +1,89 @@
+BRIEF 10: VERDICTS ON BRIEF 09 + THE LAST DAYS OF THE CYCLE (art director, 2026-11-08, lane/a-region-kit)
+Read: lane/a-gen-2026-11-08 866289375 (91 gens, 1,738.4 -> 1,647.4, $0). 11-13 is the last day; unused gens expire 11-14.
+
+THE VERDICTS
+  outfit_ranger S r3b   APPROVED. Laid as the import lays it: steps 45/70, feet still; the crossbow holds (a few px at
+                        the bolt tip and the hand) and the 1x2 hair tuft is hair. The hero's most-seen facing breathes.
+  outfit_druid S        keeps its still (no calm roll).   npc_smith NE  keeps its still (H7b left a seam).
+  mudlark               APPROVED, all clips, with ONE hand pass (M1 below).
+                        Idles laid on its own rotations: every facing 36-41 px, feet still. N (202 px first step) and SE
+                        (191) are the hook and the sack swinging, which is the creature, not a pop.
+                        N attack: the hook hides behind the body in frames 2-4: accepted, it lunges away from the camera.
+                        W death: 2.40:1 while it lies there: accepted, a body on the floor is not a fighter to read, and the
+                        corpse fades in 2.6 s (ART_DIRECTION §11).
+  grounded barge        APPROVED: sl_grounded_barge-352.png (rounded bow, square iron-capped stern, both closed inside the
+                        masks, 312 x 95 px, verdigris 5.4%, the plank scale unchanged).
+  silt/reeds (S1)       APPROVED: tileset ec6c96ef, both fills identical to the existing sets; the bank is the family's.
+  hit clips (B3)        RECIPE APPROVED for the full run: r3's words. "Blow" paints impact flashes (3 of 5), so it never
+                        appears in an action again. Kept samples: rat r1, gray_wolf r2, goblin_digger r3, glade_poacher r3,
+                        drain_rat r1. The 2-4 px duck is a flinch, not §6's 1 px recoil: the hook that plays `hit` (a systems
+                        lane, later) drops the engine's 1 px recoil for any unit that has a hit clip, so the two never add
+                        up. The import keeps frames 0-4 (5 frames at 12 fps, §6); frame 5 is the stance again.
+  mill waterwheel       APPROVED, frames 0-6 as a 7-frame loop at 6 fps (7 and 8 thin the rim); no water is fine. It
+                        ships as an overlay sprite cut to the wheel's columns (the cut/ folder), placed on the mill.
+  mb_reeds sway         DROPPED. The stems stretch and the base moves 1-3 px, and a reed is a decal: the floor layer is
+                        kept between frames (canvas-backend.js groundLayer), so an animated decal redraws the floor every
+                        frame. A hunting ground keeps still but for its monsters anyway (§3).
+
+M1, THE MUDLARK'S NE ATTACK (free): in attack/north-east frames 1, 2 and 3, make transparent every opaque island that is
+not 8-connected to the body's largest piece (the loose pale pixels left of the body, and the ones beside the hook in frame
+3). The hook is joined to the hand and stays. Hand me the strip.
+
+THE NEXT BATCHES (about 470 gens of work that needs nothing; each line opens with its first batch as the sample)
+  B3   HIT CLIPS, the live 30 x s, e, n, w, less the 5 done (115 calls, ~140 gens). animate_object v3 on each creature's
+       object, frame_count 6, keep_first_frame false. Action: "leans back by one pixel as if pushed from the front, then
+       returns to its stance, feet planted, the same colours throughout, nothing else appears in the frame" (for e, n, w:
+       "from the side it faces"). Refuse any frame with a flash, spark, glow, dust or colour change; a lean over 3 px; a
+       foot leaving its row except as the whole body leans. Batches of 20: B3a-B3f, in the order of the grounds a new
+       player meets them (Cellar, Thicket, Sewer, Warrens, Glade, Wickstead).
+  B3b  HIT CLIPS for the 6 March bodies and the Mudlark x s, e, n, w (28 calls, ~35 gens), same recipe; they ship with
+       the March merge and the Slake.
+  H1   HERO HIT FLINCH, the 8 outfits x s, e, n, w (32 calls, ~40 gens), same recipe, on each outfit's object (brief 05's
+       list; the druid from an upload of its shipped still, as R1 did). The weapon and shield move only with the body. The
+       import re-runs outfit-masks.mjs (the heroes set's dye masks).
+  N1   THE TOWN'S STATION KEEPERS (5 NPCs, ~90 gens): today the crier stands in for Tamsin at the Tally Board, and the shop,
+       the storage counter, the hunter and the tavern kitchen have nobody. create_object_pro_flash, 8 directions, 48x48,
+       high top-down, single black outline, basic shading, style image a 48x48 crop of npc_crier's south still (art/world/
+       common/npc_crier.png, first cell), "match palette, outline, shading"; then idle (brief 05's action text), 8 facings.
+       Town NPCs stand: no walk. Muted cloth colours; no purple, no glow.
+         npc_tamsin     "Tamsin Reeve, a weathered woman in a hooded brown travelling cloak, a tally stick and a small slate
+                        under one arm, a short knife at her belt, town npc sprite"
+         npc_shopkeep   "a stout shopkeeper in a dark green apron over a cream shirt with rolled sleeves, a small ledger in
+                        one hand, town npc sprite"
+         npc_clerk      "a thin depot clerk in a long grey coat with brass buttons, spectacles, a ring of iron keys at his
+                        belt, town npc sprite"
+         npc_hunter     "a grizzled hunter in fur-trimmed brown leathers, a longbow across his back, a string of wolf teeth
+                        at his belt, town npc sprite"
+         npc_cook       "a broad cook in a stained white apron and a cloth cap, a long wooden ladle in hand, town npc sprite"
+       Sample: npc_tamsin rotations + south idle (2 calls), my read, then the rest in batches of 20 or fewer. Names and lines
+       stay the designer's; the station rows that place them are a data change for the import lane.
+  F1   HERO FALL, the 8 outfits x s, e, n, w (32 calls, ~40 gens): "collapses to the ground and lies still, the weapon
+       falls beside the body, nothing else appears in the frame", 6 frames, the last held. Art first: a hero's death ends
+       the hunt today with no fall on screen.
+  C2   TOWN LIFE (4 calls, ~10 gens), animate_image on a crop, cut to the moving pixels like the wheel: the market stall's
+       awning (common/square_market_stall) stirring, 4 frames; the mill set's hanging banner swaying, 4 frames; the lamp
+       post's flame (common/lamppost) flickering, 4 frames at 8 fps, the light's own sprite. Smoke from the smithy is
+       vfx_workbench's (free): 6 frames at 6 fps, grey, no glow.
+  FALLBACK if B3's recipe drifts in the batch (two refusals running on different creatures): ATTACK DIAGONALS for the 7
+       creatures whose blow exists only in s, e, n, w (rat, slime, cistern_spider, culvert_bat, kobold_tosher, rat_king,
+       hive_wasp) x se, sw, ne, nw (28 calls, ~35 gens), each with its own shipped attack's action text; then go back to B3
+       with the drift's word removed.
+  Planned: about 390 gens with re-rolls. The honest gap: about 1,200 gens have no ready line. What would use them well,
+  each waiting on one answer: B2 hero attack swings (~100; a ruling that the swing shows the outfit's own weapon), the Pyre
+  Field and Ebbe's Chantry (~580; the designer's rows), the Slake's icons (~20; lane/b-phase0-tier4's tier-4 rows).
+
+THE NEXT IMPORT LANE (asset director: port, build, visual gate)
+  With the March art merge (lane/b-phase0-tier4 or whichever lane brings the march and muster sets in):
+    the six March bodies' idles (banded_pikeman, bannerman, fordsunk, wight, barrow_knight, captain_hask; all 8 facings
+    each), with the idle floor ruling of 09 (each facing's floor = max(anchor, the still's lowest row), at most anchor +
+    overhang_px[2]); the sheets rebuilt as indexed colour ([sheet-encoding]); the kit split (march = hf_ + mu_ props and
+    the five bodies; ford, muster, slake their own grounds and signatures).
+  With the Slake (set slake, staged until it ships):
+    mudlark (all clips, after M1; class vermin; ring at rest 2.81-4.15:1), sl_grounded_barge (art/world-src/gen-2026-11-08/
+    grounded-barge/sl_grounded_barge-352.png; class building, footprint 10x5), the stake nets and the barge's spill (09's
+    cell picks: sl_* into slake, mr_* into march), the copper silt (terrain 330d6904; pairs c62a50a3, 168be062, ec6c96ef)
+    painted with the March family, and these four tileset ids and the silt terrain added to src/data/world/region-kits.js
+    barrow_march.families.march (the [kit] rule holds a painted ground to its family's tilesets).
+  A small lane on main, now: outfit_ranger S (art/world-src/gen-2026-11-08/outfit_ranger-idle/south, into the heroes set,
+    masks re-run) and the mill waterwheel overlay (its sprite, its placement on the mill, a 7-frame loop at 6 fps), with
+    the town's visual gate.

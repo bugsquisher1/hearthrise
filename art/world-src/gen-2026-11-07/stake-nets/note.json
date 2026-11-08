@@ -1,0 +1,20 @@
+{
+  "asset": "the Stake Nets sheet (sl_stake_nets*, sl_grounded_barge_* spill, mr_* river kit)",
+  "brief": "art/briefs/gen-2026-11-07/04-stake-nets-and-silt.txt part 1, run per 08 (A4c)",
+  "status": "TWO SHEETS for the art director to pick cells across; not imported",
+  "made": "2026-11-08",
+  "tool": "create_image_pro_flash", "size": [256, 256], "cell": 64,
+  "style_image": { "file": "art/briefs/gen-2026-11-07/refs/style-hf_pike_stakes.png", "upload": "upload:f2a46a7d-0550-4ccf-8809-97c13bf02bf2", "usage": "the same hand and the same wood as this stake prop: match palette, outline, shading and scale" },
+  "prompt": "the brief's 16-item prompt, verbatim, plus: Each prop centred in its 64 pixel cell, nothing touching a cell edge, single black outline, basic shading lit from the upper left, no shadows, no ground under the props, muted wet wood, rope tan, iron grey and silt grey-brown.",
+  "sheets": {
+    "sheet-1.png": { "job": "a2f1b49e-003a-4dca-b0c5-f9d8d3f510fe", "image_id": "4275829b-11ed-534d-a45e-2ac92ff5cacd", "seed": 1, "gens": 9,
+      "cells_wxh": "1 45x38 | 2 46x42 | 3 43x52 | 4 27x45 | 5 49x36 | 6 53x39 | 7 46x45 | 8 52x43 | 9 38x41 | 10 49x62* | 11 52x59* | 12 49x53* | 13 48x38 | 14 38x40* | 15 54x42* | 16 52x41* (* the blob crosses its 64 px cell line; the port cuts by blob, not cell)",
+      "flags": ["rows 3-4 sit low in their cells", "14 (drowned pikes) and 3 (snag) stand on small ground patches", "the stakes of 1-2 are 38-42 px tall (brief 40-46; reject under 36)"] },
+    "sheet-2.png": { "job": "421ae0e3-9075-49a7-8405-8b44b5929a3a", "image_id": "cb38ac56-5091-5665-83fd-96b37c18991a", "seed": 2, "gens": 9,
+      "cells_wxh": "1 44x38 | 2 49x39 | 3 48x51 | 4 21x43 | 5 45x39 | 6 52x39 | 7 46x41 | 8 45x38 | 9 40x44 | 10 50x40 | 11 43x32 | 12 43x31 | 13 43x35 | 14 39x44* | 15 50x43 | 16 46x40",
+      "flags": ["cleaner spacing; 11 and 12 read as stain decals, 13 ripples with no hard edge", "14 stands on a small patch of ground"] }
+  },
+  "generations": 18,
+  "review_strip": "art/review/gen-2026-11-07/stake-nets-sheets.png (x2, sheet 1 above sheet 2)",
+  "import_after_pick": "node tools/world-art/port-pixellab.mjs sheet --set slake --file <sheet> --image <IMAGE_ID> --cell 64 --items \"sl_stake_nets:wreck:wood,...\" (reading order; skip a refused cell)"
+}

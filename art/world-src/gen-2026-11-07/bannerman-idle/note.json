@@ -1,0 +1,199 @@
+{
+  "asset": "bannerman-idle",
+  "brief": "art/briefs/gen-2026-11-07/02-march-idles.txt, run per 08-next-batch.txt (A3)",
+  "status": "NOT imported; waits on the art director's read",
+  "made": "2026-11-08",
+  "object_id": "371d7c5c-7a9f-4cea-a4e1-6bb261a677ec",
+  "set": "march",
+  "layout": "<facing>/frame_000..008.png = the chosen roll (frame_000 the still); alt/<roll>/<facing>/ = every other roll",
+  "rolls": {
+    "r1": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "f0026b9d-c669-49a8-a71d-b8f2252725df",
+      "directions": "all 8",
+      "action": "standing guard, breathing slowly, a slight sway, the banner cloth stirs, feet planted, stays in place, nothing else appears in the frame"
+    },
+    "r2": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "23d2ef20-eeed-4209-b68c-07e3ad29120f",
+      "directions": "e n w ne",
+      "action": "standing guard, the chest rises and falls, the head stays level, both feet stay exactly where they are, the banner pole stays upright and still, only the banner cloth stirs, stays in place, nothing else appears in the frame"
+    },
+    "r3": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "group": "d9acf2b0-0296-406e-953a-3c509ba0b8d9",
+      "directions": "n ne",
+      "action": "standing guard very still, the chest rises and falls by one pixel, the head stays level, the body does not sway, both feet stay exactly where they are, the banner pole stays upright and still, only the banner cloth stirs, nothing else appears in the frame"
+    }
+  },
+  "chosen": {
+    "south": "r1",
+    "south-east": "r1",
+    "south-west": "r1",
+    "north-west": "r1",
+    "east": "r2",
+    "west": "r2",
+    "north": "r2",
+    "north-east": "r2"
+  },
+  "loop_preview": {
+    "how": "idle-clip.mjs idleFrames(the shipped still from the March art branch, frames, 58)",
+    "facings": {
+      "south": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          98,
+          158
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          124,
+          98
+        ],
+        "feet": 1,
+        "detached": 0,
+        "missed": 0
+      },
+      "north": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          122,
+          197
+        ],
+        "feet": 4,
+        "detached": 0,
+        "missed": 0
+      },
+      "west": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          76,
+          46
+        ],
+        "feet": 2,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-east": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          87,
+          77
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "south-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          57,
+          57
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-east": {
+        "roll": "r2",
+        "picks": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "steps": [
+          185,
+          156
+        ],
+        "feet": 3,
+        "detached": 0,
+        "missed": 0
+      },
+      "north-west": {
+        "roll": "r1",
+        "picks": [
+          0,
+          4,
+          3,
+          4
+        ],
+        "steps": [
+          120,
+          24
+        ],
+        "feet": 0,
+        "detached": 0,
+        "missed": 0
+      }
+    }
+  },
+  "needs_hand_pass": {
+    "north": {
+      "roll": "r2",
+      "frames": "001, 002",
+      "moving": "the banner pole leans 1-2 px along its length (cloth may stir; the pole should not), and the kilt hem and right boot move (feet 4)",
+      "best_of": "r1 feet 19 / 371 px; r2 feet 4 / 197 px; r3 feet 7 / 218 px"
+    },
+    "north-east": {
+      "roll": "r2",
+      "frames": "001, 002",
+      "moving": "the banner pole shifts 1-2 px along its length and the legs below the kilt move (185 px first step)",
+      "best_of": "r1 feet 23; r2 185/156 feet 3; r3 feet 20"
+    }
+  },
+  "generations": 14,
+  "flags": [
+    "north and north-east failed all 3 rolls: retry limit; the best roll is in place and the hand pass is flagged above",
+    "east r2: the pole's pixels turn colour along its length (1 px) while the cloth stirs"
+  ],
+  "review_strip": "art/review/gen-2026-11-07/bannerman-idle.png and bannerman-idle-loops.png",
+  "import_after_yes": "node tools/world-art/port-pixellab.mjs idle --set march --id bannerman --clip art/world-src/gen-2026-11-07/bannerman-idle (on the March merge, where the march set lives)"
+}

@@ -3843,3 +3843,11 @@ row. Give the head cells the rows' data-c and hide both with one selector.
 - P4, client: pressing Turnip Juice reads "Cooking Turnip: 0 cooked so far" while it runs (buryingWord names the input); its answer is right.
 - P4, client: one 409 from hr-accrue per session or so stays in the console (first seen v0.2.83); no player sees it and I did not catch its body.
 - NOT RULED OUT: after a hunt ended while away, the first load consumed the summary and the away card when a slow load timed out in my harness and the page was opened again: the second load showed neither. A real reload in the middle of a first load would read the same. Seen once under an interrupted load.
+
+## 2026-11-07 · art-director (lane/a-region-kit) · the river region's art, read through the real renderer
+- P2, art: the March and Muster atlases (unmerged art branches) are RGBA and their six bodies idle on one frame: both fail today's world-assets ([sheet-encoding], [live]) the day they merge. Rebuild + brief 02 (60 gens).
+- P2, art: the March mud is one 32 px fill; across a flat it shows a regular pebble lattice (art/review/region-kit-2026-11-07/ford-south.png). The Slake is 1,373 tiles of it: wear decals (brief 04, mr_silt_*) at one per 12 tiles, never on a grid.
+- P3, art: the Ford's gravel bars are painted as rectangles (ford-crossing.png): the paint followed the walk grid. Paint edges organic.
+- P3, art: mb_stepping_stones are near-white, brighter than any actor's body on the March shallows (ART_DIRECTION §4).
+- P3, art: the eight hero outfits and the two town NPCs still idle on one frame; every monster breathes since v0.2.98 (brief 05).
+- Measured, not a bug: a scripted verdigris re-pour moves only a body's metal ramps, so it fails on bodies without plate (repour-sample.png).

@@ -316,6 +316,8 @@ const RETIRED_UNLOCKS = Object.freeze([
   'dungeon_run:haunted_archive', 'dungeon_run:obsidian_keep', 'dungeon_run:voidbringer',
   'recipe:alpha_pattern', 'recipe:captain_recipe', 'recipe:chief_blade_recipe', 'recipe:gemcutter_note',
   'recipe:spellstone_diagram',
+  /* The fifth hero slot is no longer sold: four heroes an account (Tyler 2026-11-07, 2027-03-22-four-slots.sql). */
+  'character_slot:4',
 ]);
 for (const id of RETIRED_UNLOCKS) {
   if (rows.some((r) => r.unlock_id === id)) die(`retired unlock ${id} is still derived — take it off RETIRED_UNLOCKS or remove its source`);

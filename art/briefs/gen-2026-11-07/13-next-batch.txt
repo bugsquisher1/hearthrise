@@ -449,3 +449,156 @@ READY FOR IMPORT NOW (adds to brief 13's list), each with the free passes ruled 
     rake_tine c1 and warrant_seal c2 after their trims.
  4. TOWN LIFE: the forge loop and the candle, npc_gate_sergeant S and its idle.
  5. THE FARM: tomato and pumpkin (its trim), four stages each. Goldenroot and emberfruit: sprout, young and ripe.
+
+VERDICTS 2026-11-08 ROUND 2 (art director), on the verdict batch (lane/a-gen-2026-11-09 8699868d5)
+Dates: both rounds were written 2026-11-08 UTC. Round 1's heading carries the brief's day (11-09). Balance at this read
+241.4, credits $0. Read every new strip, zoomed the flagged frames, and ran three checks of my own: a scan of every clip
+for bright pixels the still does not have (baked fire, swing trails, glints), a plain value step on all five ash rolls,
+and the seat of the flier corpses. NEW marks faults the generator did not flag.
+
+SECTION A
+ A1  sparring pad c1 KEEP (dark quilted leather, it reads padded, the four were near copies). ward ring c4 KEEP (flat
+     chalked flagstones, the fewest runes that look like Latin letters). Its near-round 46x45 suits the square floor
+     grid. Dummy variants: sheet 2's four REFUSED (55-56 tall, generator right). The retry's helm c4 and split c4
+     KEEP: at 40-42 px against the dummy's 43 they read as other dummies, not small ones, the helm c4 holds its
+     buckler on the far side from the base dummy's, and split c4's rope reads. helm c3 and split c3 to alt. Rune post:
+     ONE rune is fine (one big chalk rune reads at x2 where three small ones would not). NEW: the stone fails. All
+     four are rounded slabs with a rune on the face and a black foot, which reads as a headstone, and beside the
+     lectern the magic corner would read as a small graveyard. RE-ROLL by edit on sheet 1's standing stone, which has
+     the right rough silhouette (5, A1e below). If the edit fails, c1 (the trident rune) is the fallback, not a second
+     edit.
+ A2  arms master r2 KEEP. The crossguard reads at x2, so it is a sword. 35 px is inside the class's 10% band (36). Its
+     S idle laid 0 1 2 1 (or its calmest frames within 1 px of the still, as the idles below).
+ A3  charred_pikeman r3 KEEP. No bow in any facing, ring 0.014 (4.54:1 on the target ash). The head on its pole is a
+     halberd's blade, not a pike's leaf, but at x2 it reads as a polearm soldier, distinct from the stoker's rake and
+     the wraith's shroud. A fourth roll for a 4 px blade shape is not worth 7 gens. The charred bald head reads as burnt
+     flesh, which suits "charred".
+ A4  lurcher: r3 REFUSED (NE and NW still rear, and its collar became a bright yellow loop). r2 (997e815e) with the NE
+     fix KEEP: on four paws, back level, mirrored to NW (no handedness). Its head carried up in NE does not matter seen
+     from behind. NE and NW clips start from the fixed still by animate_image, never from the object's rotation.
+ A5  ash pair 1 r3 REFUSED (flat a step dark, the scorched near black). THE ASH ROUTE, decided: SCRIPTED FILL,
+     AUTHORED WEAR, built next cycle. Five rolls prove PixelLab's tileset ash is near flat in value (P1 r1's fill has
+     p10 = p50 = p90 = 0.401, Q3 r2's all 0.194), so a plain value step on any of them never puts more than 8% on the
+     two neighbours, and past that it slides onto the bluish iron ramp. No wording can reach round 1's "15% on the
+     neighbours" rule. That rule was wrong, not the rolls. So: the fill is P1 r1's ash (tileset 2a24fce7, ash base
+     093a18a0-67de-4862-b64a-b755422ac0a0) with ONE plain value step x0.86 on its ash pixels at import. Locked, it is
+     #8a867d 96% with its own dark flecks, warm, no iron ramp, and the black bodies read on it
+     (art/review/gen-2026-11-09b/ad-probe-ash-route.png, left). That meets brief 12's original floor rule (median
+     #8a867d, warm, low contrast). The texture comes from authored decals (§5: at least one per 12 floor tiles, P5's
+     scatter first). Pairs 1-3 chain on 093a18a0, so every pair's ash side takes the same x0.86 step by a luminance
+     mask (ash raw 0.40, the scorched, cinder and charred sides all far darker). The scorched upper is rolled new in
+     that chain in A5's words (15), then pairs 2-6 (75). The Pyre is staged and no player reaches it this cycle, so
+     its 90 gens wait for 11-14.
+ A6  shroud_pin c3 KEEP (a thin pin with a round knob and a point, 81%). c4 REFUSED (a bone crossed with a needle).
+
+SECTION B
+ B1  quintain KEEP, laid 0 4 3 4 0 as is: the shield lifts with the arm and the sandbag squashes round, which is how a
+     struck sack moves, and it stays one sack. pell REFUSED (it grows 4 px taller at frame 2). archery butt REFUSED (its
+     arrows are redrawn every frame, so the arrows a player shot flicker). small butt REFUSED (its arrow turns). Those
+     three need no generation: a free shudder at import, the rows above the cut's freeze row moved 1 art px right, then
+     1 px left, laid 0 r l 0 at 12 fps, with the free straw and splinter puffs. The base never moves.
+ B2  house dummy parts KEEP, all 16 sets read. The 28 bare crimson pixels at the helm's edge read as a padded arming cap
+     under the helm, and the full set matches c2 but for 41 px. The 23 closed plinth pixels KEEP. Grades 1-2 at import.
+ B3  the first fights KEEP, with these exceptions. slime N attack REFUSED (its back grows a face with blush cheeks,
+     frames 2-6): the pose route (6, B3n below). slime NW attack KEEP (the dark dots sit in its core and do not read
+     as a face at x2). slime death E: frames 1-3 go (NEW: a two-leaf sprout grows on top), laid 0 4 5 6. slime death
+     N: frames 2-4 go (the hollow arch on legs), laid 0 1 5 6. slime death SE KEEP (its flung drop is S's spurt). NEW,
+     rat_king: the swing leaves a white or green-white trail (E frame 2, SE frame 2, the S pose frames 1-3 with a full
+     white ring at 2), which is a baked effect and reads as a glow. The most-changed lay picked exactly those frames.
+     Re-lay, free: E 0 1 1 4 5 5 and SE 0 1 1 3 5 5 (the blow on index 3). The S pose keeps only frames 0 and 4, too
+     few for the boss's front swing, so it is re-animated from the still to its kept pose (1, B3k below). NEW, rat NW
+     attack: its eye turns teal at frames 1-5 (2-4 px), a free pass paints them the still's red. culvert_bat E and W
+     and hive_wasp: NEW, a white glint at the mouth or the sting, free island pass (a detached near-white island of 6
+     px or fewer goes). The generator's lay rule (the most-changed frame on index 3) holds for every clip without a
+     trail.
+ B4  cook cauldron KEEP, loop 0 1 2 1 at 8 fps (cut). From frame 3 the flames climb over the pot's rim, so the pot
+     itself looks on fire. bread oven KEEP, loop 0 6 7 8 7 6 at 8 fps: the frames of one size and brightness (overlay
+     52-57 px, brightness 102-114). Frames 1-5 build to a bright mouth, which is the build the flag names.
+ B6  the 23 bodies' death diagonals KEEP, all seated. brook_bear se and sw KEEP: their crouch matches the shipped S
+     and E corpses (both belly slumps), so the bear's corpses agree. dire_gray and grayjaw KEEP for the same reason.
+     Their whole death set reads crouched rather than dead, which is pre-existing debt for a later pose-route pass,
+     not this cycle. barn_wasp: the seat is judged in the frame it is drawn in. Its sidecar frame is 48 with the
+     anchor at y44, so after the import places its 40 canvas the corpse's lowest row must sit on y43. y35 on the 40
+     canvas is right only if that placement is bottom-aligned. Measure after placement.
+ B7  stoker: idle, walk and the seven plain deaths KEEP. Idles laid by idle/lay.json, and S (one calm frame) 0 0 1 1.
+     NEW: ALL 8 ATTACKS REFUSED. The rake throws a big yellow-orange arc of fire in every facing (the scan finds
+     91-314 bright px a facing against the still's 1-2), a baked glow, and the rake changes shape. The words said "the
+     fire rake": re-roll without the word (8, B7s below). The N pose death: frame 2 (a white-orange flash round the
+     body) goes, laid 0 1 3 4 5 6.
+ B8  pyre wraith KEEP, all clips. SW idle (one calm frame) laid 0 0 1 1, a slow two-step breath, no re-roll. The glide
+     walk suits a shroud.
+ B9  the one-bed inpaint KEEP: no dividers cross it, and its three soft lobes read as the pyre's sag, not a tile repeat.
+     The ember roll is NOT re-rolled. Its frames 0-2 are dull embers that change a few specks, which is all a burnt-down
+     pyre should do. Frames 3-8 (flame tongues with pale tips, the "glowing" word's work) go to alt. Laid 0 1 2 1 at
+     5 fps from cut/ and overlay/. 0 gens.
+ B10 barrow_knight death sw, ne, nw KEEP. A sword or shield lying north-south reads upright from above (the kobold's
+     spear ruling). All four diagonals are now drawn for the provost re-pour.
+ B11 moonbloom's four stages KEEP. The watered overlays KEEP (the grey-blue middle reads as water on tilled soil, at a
+     mid value, not a hole). goldenroot ripening c2 KEEP (fuller than the young, no gold, so it reads unripe), c1 alt
+     (a copy of the young). emberfruit ripening c1 KEEP: its size sits between the young and the ripe, and faint green
+     fruit is enough, because the one thing the stage must say is "no orange yet". c2 alt (bigger than the ripe).
+
+NEXT BATCH, sized to the 241 left (read the balance before each batch, stop at zero, never buy credits, batches of 20
+calls or fewer). From now on every attack's words end "no fire, no flames, no sparks, no trail, no light, nothing else
+appears in the frame", and any attack frame with a trail is dropped from its lay.
+ FREE NOW, 126 (241 less the 115 held)
+ A1e ty_rune_post (5): edit_image_pro_flash on sheet 1's cell (y1-yard-kit/cells/ty_rune_post.png): "the same squat
+     standing stone, the same rough outline and the same small stones at its foot, its carved rune cut deeper and
+     filled with pale chalk so it shows clearly, its foot scorched black, no glow, no light". Pass: the menhir outline
+     is kept and the rune reads pale at x2. Else sheet 2's c1.
+ B1v the two dummy variants' reactions (2): helm c4 and split c4, animate_image in the straw dummy r2's words, cut,
+     laid 0 1 2 1 0, frame 0's arm peg pasted where an arm changes.
+ B3n slime N attack (6): the pose route. Edit on the N still "the same slime seen from behind, squashed low and surging
+     away from the viewer, the same plain back with no face, no eyes, no mouth", then animate still to pose (4 frames),
+     laid 0 1 2 4 2 1.
+ B3k rat_king S attack (1): animate_image from the S still to the kept pose (pose-south.png), 4 frames, the
+     sample's words plus the attack ending above, laid 0 1 2 4 2 1.
+ B7s stoker attacks (8): the stoker's object, 8 facings, "jabs his iron rake forward in a short heavy thrust, then drags
+     it back to his stance, feet planted, the rake stays dark iron and the same shape" plus the attack ending above.
+ B7p charred_pikeman r3 (fb184755) clips (about 37): idle in the 7 other facings (laid still, a, b, a from calm frames),
+     walk 8 (Q5's words), attack 8 "jabs the pole forward in a short thrust, then pulls it back to his stance, feet
+     planted, the pole and its blade stay the same" plus the attack ending, death 8 "falls forward onto his face, the
+     pole beside him, and lies still", plain first, a pose on a refused death, every corpse seated.
+ B7l lurcher r2 (997e815e) clips (about 37): idle_r2's words in the other facings, walk 8, attack 8 "lunges forward
+     and snaps its jaws, then returns to its stance, all four paws stay on the ground" plus the attack ending, death
+     s, e, n, se, ne and mirrored, plain first, a pose on a refusal. NE by animate_image from
+     lurcher/ne-fix/north-east.png, NW its mirror.
+ H1d the hero flinch diagonals, 7 outfits (26), pulled forward from the next cycle: H1's held wording, knight ne again.
+     Heroes are on every screen, and a cardinal flinch on a diagonal turns the hero 45 degrees.
+ Left: about 4, the first re-roll of anything above.
+ HELD, 115, to the evening of 11-12: the re-rolls of this batch first. Whatever is left then goes, by 11-13, to N1's
+ four keepers (35, rotations and the S idle), then M3's hit diagonals, the Cellar and the Sewer first (44), then M3's
+ other grounds to zero.
+ TOTAL: 122 named now + 4 + 115 held = 241. The balance reaches zero on 11-13.
+ BY DAY
+ 11-08  A1e, B1v, B3n, B3k, B7s (22), then my read of those five ...................................... 22
+ 11-09  B7p and B7l (about 74) ........................................................................... 74
+ 11-10  H1d (26), and any re-roll from 11-08/09 ......................................................... 30
+ 11-11  my read of B7 and H1d, their re-rolls from the hold ............................................. as needed
+ 11-12  evening: the hold's rest goes to N1 (35) ......................................................... 35
+ 11-13  M3, the Cellar and the Sewer (44), then M3's other grounds to zero ............................... about 80
+ NEXT CYCLE (after 11-14), in order: whatever of M3 is left, the ash route (the scorched pair 15, pairs 2-6 75, and
+ ash-drift decals if the floor reads bare in the region-kit reader), the druid's five swings and its hits by the pose
+ route, the Pyre bodies' and the wraith's hits, the four dropped B3 facings by the pose route, M4, H2d, S1 drawn wide,
+ E1's two marks, T3, T2, and the dire_gray, grayjaw and bear corpses re-posed flat.
+
+READY TO IMPORT NOW (everything below is read, kept and sized. Each lane applies the free passes ruled in either round)
+ 1. TRAINING YARD (havora set): Y1 sheet 1's 13 kept props (classes in round 1), ty_sparring_board c1, ty_ward_ring
+    c4, ty_straw_dummy_helm c4, ty_straw_dummy_split c4, Y2 r3 snapped (y2-sand-ring/snapped/), npc_arms_master r2 (S,
+    its idle), the straw dummy and quintain reactions as laid, the pell and both butts with the free shudder. WAITS:
+    the rune post (A1e) and the two variants' reactions (B1v). COTTAGE SET: the house dummy, its five parts
+    (y5-house-dummy/parts/top/) and the 16-set order, grades 1-2 by re-pour.
+ 2. THE ANIMATION HOOK LANE: Q1's kept sample clips and all of B3 (attacks in 8 facings, deaths seated) with B3's
+    re-lays and passes above, except the slime's N attack (B3n). Q4's kept diagonals and all of B6, seated, with the
+    barn_wasp measured after placement. The hits and the hero sets listed in brief 13's own READY list.
+ 3. THE PYRE FIELD (staged set pyre): the stoker's rotations, idles, walk and deaths (WAITS: its attacks, B7s), the
+    pyre wraith's whole set, charred_pikeman r3 and lurcher r2 + NE fix (rotations and S idles, their clips wait for
+    B7p/B7l), barrow_knight death se, sw, ne, nw (the provost re-pour), the great pyre (t1-inpainted-one-bed.png) and
+    its embers 0 1 2 1 (its placement waits for the designer's 10x5 footprint), the icons pike_ferrule c1, rake_tine c1,
+    warrant_seal c2 (trimmed), shroud_pin c3 and kennel_tag. The ash floor is NOT ready (next cycle), so the ground is
+    not painted yet.
+ 4. TOWN LIFE: the forge (0 1 2 6 7 8), the candle (island pass), the cook cauldron (0 1 2 1), the bread oven
+    (0 6 7 8 7 6), npc_gate_sergeant (S, idle 0 1 2 1).
+ 5. THE FARM: sheet 2's tomato and pumpkin (trimmed), goldenroot and emberfruit sprout, young and ripe, and sheet 3's
+    moonbloom (4 stages), the 4 watered overlays, goldenroot ripening c2 and emberfruit ripening c1. With sheet 1 that
+    is every crop's four stages.

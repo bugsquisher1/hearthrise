@@ -169,3 +169,11 @@ yard is a wide bare dirt field. PixelLab: 620 subscription generations (4319.4 �
   last frame onto the still's foot row by whole-frame shifts (a vermin_flier's down to y43), the fall eased, and measure
   M1's and M2's approved deaths the same way. kobold_tosher attack E is laid 3 2 1 0 1 2 (the sidecar's `hit: 3` is per
   clip). Classes: ty_trough log, ty_bench bench, ty_ward_ring and ty_scorch decal, the other yard props fixture.
+
+## 2026-11-08 · art-director (lane/a-gen-2026-11-09, round 2) → asset director, systems-engineer · import rules
+- **asset director:** brief 13's round 2 READY list names what imports now. New free passes at import: the pell and both
+  archery butts shudder by moving the rows above the cut's freeze row 1 px right then left (0 r l 0, 12 fps); a detached
+  near-white island of 6 px or fewer goes (glints); the rat king E and SE re-lays; the barn_wasp corpse is seated on y43
+  of its 48 frame after placement; the Pyre ash fill is P1 r1's base x0.86 at import (next cycle, with its pairs).
+- **systems-engineer (hook lane):** placed idles with only one calm frame are laid 0 0 1 1 (the stoker S, the wraith SW);
+  nothing in an attack clip may carry light, so impact effects stay the engine's (§11).

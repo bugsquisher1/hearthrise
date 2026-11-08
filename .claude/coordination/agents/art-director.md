@@ -3216,3 +3216,13 @@ fill moves the sand only), the ash's failed (a flat raw locks to one colour, and
 turns its flecks into a grid); (4) a style image leaks its props (the poacher's bow on the pikeman): pick one whose
 weapon matches; (5) a crop's ripening stage must not show what makes the ripe one ripe, or the player can't read ready;
 (6) the generator's fill percentages were short by 3 points: measure the longest side myself.
+
+### 2026-11-08 lane/a-gen-2026-11-09 round 2 (the verdict batch's read, no generation)
+Round 2 appended to brief 13: 581 gens read, 22 + 100 named, 115 held, zero by 11-13. Lessons: (1) scan every clip for
+bright pixels its still lacks: it found what no flag named (the stoker's fire arcs in all 8 attacks, the rat king's white
+trails, glints), and a "most-changed frame" lay picks exactly those trail frames, so every attack's words now end "no
+fire, no flames, no sparks, no trail, no light"; (2) a prop's adjective leaks into its animation ("the fire rake" threw
+fire), as a style image leaks its props; (3) before writing a pass rule, measure whether the tool can meet it: five
+tileset ash fills have p10 = p90, so "15% on the neighbours" was unreachable and cost 45 gens of re-rolls; a plain step
+plus authored decals is the route; (4) a rounded slab with one glyph reads as a headstone: judge a prop's silhouette in
+the company it keeps; (5) judge a flier's seat in its sidecar frame, after placement, not on the generator's canvas.

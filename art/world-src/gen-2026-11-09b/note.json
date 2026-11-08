@@ -1,0 +1,15 @@
+{
+  "lane": "lane/a-gen-2026-11-09 (from origin/lane/a-art-brief-11 4b8d49d3c)",
+  "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt",
+  "what": "brief 13's SAMPLE of every line (Y1-Y5 training first, then Q1-Q11), for the art director's one read; the batches follow on 11-10 to 11-13. Raw PixelLab output only: nothing imported, nothing chained, no refs re-saved",
+  "made": "2026-11-08 (the brief's 11-09 day)",
+  "balance": { "before": 1034.4, "after": 822.4, "spent": 212, "credits": "$0.00 before and after" },
+  "assets": {
+    "y1-yard-kit": 9, "y2-sand-ring": 45, "y3-npc_arms_master": 7, "y4-reactions": 2, "y5-house-dummy": 10,
+    "q1-first-fights-sample": 28, "q2-flames-sample": 2, "q3-ash-pair1": 30, "q4-fall-diagonals-sample": 11,
+    "q5-pyre-bodies-sample": 15, "q6-pyre-wraith-idle": 1, "q7-great-pyre-wide-sample": 30, "q8-barrow-knight-death-diagonals-sample": 1,
+    "q9-icons-sample": 8, "q10-npc_gate_sergeant": 7, "q11-crop-beds-sheet2": 6
+  },
+  "strips": "art/review/gen-2026-11-09b/<asset>-sample.png, one per asset; each asset's note.json names its strip's row order",
+  "ring_contrast": "measured on LOCKED pixels (brief 13's rule): lock(fill,'terrain'), lock(body,'monster' or 'unit'), then tools/world-art/ring-contrast.mjs; results in q5, q6, y3, q10 and y2 notes"
+}

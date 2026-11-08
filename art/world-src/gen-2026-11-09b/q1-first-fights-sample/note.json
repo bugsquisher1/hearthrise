@@ -3,7 +3,7 @@
   "brief": "art/briefs/gen-2026-11-07/13-next-batch.txt Q1",
   "status": "SAMPLE for the art director's one read; Q1's batch (the other attacks and deaths) waits for it. Not imported",
   "made": "2026-11-08 (the brief's 11-09 samples)",
-  "generations": 32,
+  "generations": 28,
   "objects": { "rat": "01744036-6944-4548-a581-a408b4bf1bee", "slime": "a53b1f35-5b54-47e4-be50-40a593b96392", "cistern_spider": "d6f7f699-30f0-4ed1-985e-62d41ae98bee", "kobold_tosher": "27b8daf0-8222-4e0b-ac00-30cf6fa91b21", "hive_wasp": "1c4dd534-ac8a-47de-90f3-bed71ad6a160", "culvert_bat": "3d41dcb0-204b-4cba-8b22-66ae711d449d", "rat_king": "3c137163-dbd3-4812-8a72-a518a58f0f20" },
   "plain": {
     "tool": "animate_object v3 on the object, one direction, frame_count 6, keep_first_frame false (6 stored frames, frame_000 the first generated); the blow lands on frame 3",

@@ -5,6 +5,15 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.107 — 2026-11-07 (Clear Shop Labels, Faster Reload)
+
+**The Shop and the Farm say what you need before you pay.**
+
+- A seed in the Shop now says when your farm plots need an upgrade before you can plant it, for example "Needs plot tier 2 to plant". Carrot and wheat seeds need tier 2.
+- The Farm no longer lists a Farmer's Deed as another way to pay for a land upgrade. That item left the game in October.
+
+**Reloading during a hunt is quicker.** After you reload the page mid-hunt, your hunt shows again in a few seconds. Before, it could sit on "Still loading the world" for over a minute.
+
 ## v0.2.106 — 2026-11-07 (One Rule for Every Hunt)
 
 **Every hunting ground now follows the same rules.** A ground's Level now decides how hard its monsters hit, how much health they have and how much gold they drop. Before, each ground was set by hand, so some were much easier or richer than others. If you're partway through the game, some hunts will feel different. Your hero keeps all their progress.

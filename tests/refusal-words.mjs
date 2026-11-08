@@ -21,36 +21,14 @@
 //   node tests/refusal-words.mjs            run
 //   node tests/refusal-words.mjs --mutate   each planted defect must turn a claim red
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, readdirSync, cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+/* The latest body of every SQL function, in apply order (shared with catalogue-coherence C13). */
+import { latestBodies, clientRpcNames, jsFiles } from './_sql-bodies.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-
-/* The latest body of every SQL function, in apply order. */
-function latestBodies(root) {
-  const order = JSON.parse(readFileSync(join(root, 'tests/schema-apply-order.json'), 'utf8')).order;
-  const last = new Map();
-  for (const f of order) {
-    let src;
-    try { src = readFileSync(join(root, 'supabase/migrations', f), 'utf8'); } catch { continue; }
-    const re = /create\s+or\s+replace\s+function\s+(?:public\.)?([a-z0-9_]+)\s*\(/gi;
-    const starts = [];
-    let m;
-    while ((m = re.exec(src))) starts.push([m.index, m[1].toLowerCase()]);
-    for (let i = 0; i < starts.length; i++) {
-      const next = i + 1 < starts.length ? starts[i + 1][0] : src.length;
-      /* A body ends at its closing dollar quote: a self-check `do` block after the LAST function (its pg_temp
-         probes' own codes, e.g. density-bounds' probe_no_hunt) is not that function's (v0.2.28 integration). */
-      const q = /\bas\s+(\$[a-z_]*\$)/i.exec(src.slice(starts[i][0], next));
-      const close = q ? src.indexOf(q[1], starts[i][0] + q.index + q[0].length) : -1;
-      last.set(starts[i][1], src.slice(starts[i][0], close >= 0 && close < next ? close + q[1].length : next));
-    }
-  }
-  return last;
-}
-const jsFiles = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? jsFiles(join(d, e.name)) : /\.(js|ts)$/.test(e.name) ? [join(d, e.name)] : []));
 
 /** Every refusal code the client can receive: { code -> where it comes from }. */
 export function clientCodes(root) {
@@ -58,8 +36,7 @@ export function clientCodes(root) {
   const add = (c, from) => { if (/^[a-z][a-z0-9_]*[a-z0-9]$/.test(c) && c !== 'ok' && !codes.has(c)) codes.set(c, from); };
   /* The server: each RPC the client calls, and every function it reaches. */
   const bodies = latestBodies(root);
-  const rpcs = new Set();
-  for (const f of jsFiles(join(root, 'src'))) for (const m of readFileSync(f, 'utf8').matchAll(/rpc\('(hr_[a-z0-9_]+)'/g)) rpcs.add(m[1]);
+  const rpcs = clientRpcNames(root);
   const seen = new Set();
   const walk = (n, from) => {
     if (seen.has(n) || !bodies.has(n)) return;

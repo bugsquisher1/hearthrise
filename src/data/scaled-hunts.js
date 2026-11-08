@@ -25,7 +25,7 @@
 // PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. It imports balance-sheet.js only; the ground facts
 // it needs (floor, top, fit) are restated in SCALABLE_GROUNDS and pinned to hunts.js and hunt-grounds.js by tests/scaled-hunts.mjs.
 // ════════════════════════════════════════════════════════════════════════
-import { formulaStats, tierRowFor, GROUND_ROSTER, STAT_FORMULA, TIER_PULL_OVERRIDES } from './balance-sheet.js?v=0.2.106';
+import { formulaStats, tierRowFor, GROUND_ROSTER, STAT_FORMULA, TIER_PULL_OVERRIDES } from './balance-sheet.js?v=0.2.107';
 
 export const SCALED_HUNTS = Object.freeze({
   /* the slider: whole hours, 1 to 24 a purchase (Tyler 11-07 "up to 24 hours") */

@@ -631,7 +631,7 @@ export const DERIVED_PRICES = [
     "formula": "v = gear (weapon/armor/offhand/jewelry) ? max(1, floor(book * gearSaleRate(item))) : book; min(ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, max(1, floor(SHOP_BUYBACK_RATE * cheapest shop unit price)))   (cap only if the shop sells it)",
     "params": {
       "VENDOR_RAW_RATE": 0.2,
-      "VENDOR_GEAR_RATES": [0.5, 0.5, 0.14, 0.075],
+      "VENDOR_GEAR_RATES": [0.5, 0.5, 0.14, 0.075, 0.033, 0.015],
       "VENDOR_HOURLY_ARMOR_T2_RATE": 0.3,
       "SHOP_BUYBACK_RATE": 0.5
     },

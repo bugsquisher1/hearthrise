@@ -156,6 +156,11 @@ export default definePack({
      and keep one class under the even share. The four with a Healer reads about 4% more over its heroes alone than the four with a
      second Melee, so its 4-class cell sits under the 3-class one: both read 1.15-1.25 (grade full, as opened). */
   partyClassXp: { 2: [960, 1160], 3: [960, 1120, 1240], 4: [960, 1120, 1230, 1200] },
+  /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
+     measured as opened at the band middle (58) on the house plan b1102p's parties, 1 h x 2 seeds, the default pull. Two measures
+     part here: against the median lone way the grader reads a mixed four at 1.18-1.23 (the ruling's 1.15-1.25), but a Mage or a
+     Healer alone earns 40-90% over the median way at 50-65, so against its own heroes alone a four reads only +5%. */
+  partyVsAlone: { 2: [-10, 0], 3: [-20, -10, 0], 4: [-15, -5, 5, 5] },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Warrens' tier-3 store food, the cheapest heal an HP (Salted Lobster, 0.83 g
      an HP; the tier-4 Swordfish is 1.50). Quantities are about three hours of the measured eating (checks below). */
   bagGuide: { tier: 4,

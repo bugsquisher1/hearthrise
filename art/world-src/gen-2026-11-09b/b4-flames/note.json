@@ -1,0 +1,12 @@
+{
+  "asset": "verdicts B4: Q2's cook cauldron and bread oven flames",
+  "status": "for the art director's read. Not imported",
+  "generations": 2,
+  "tool": "animate_image on the prop's own frame, frame_count 8 (9 stored), seed 91, L1's cut (raw/, cut/, overlay/)",
+  "props": {
+    "havora_cook_cauldron": { "source": "art/world/havora/havora_cook_cauldron.png 38x51, padded to 40x52 at x1 y1 (upload 61aa7b10)", "job": "d630f40e-0396-419b-bb98-89edd708d09e", "action": "the flame flickers and sways, a calm flicker, never a bright burst, the pot and tripod does not move, nothing else appears in the frame", "measured": "raw changes 240-402 px a frame (the pot redraws, dropped by the cut); overlay 29-58 px" },
+    "havora_bread_oven": { "source": "art/world/havora/havora_bread_oven.png 57x59, padded to 60x60 at x1 y1 (upload eaacc161)", "job": "978f706b-3d31-4838-ad04-57b81dc89b50", "action": "the flame flickers and sways, a calm flicker, never a bright burst, the oven does not move, nothing else appears in the frame", "measured": "raw changes 156-240 px; overlay 52-77 px" }
+  },
+  "flags": ["the overlay grows over the loop on both (cauldron 29 -> 58 px): the fire builds rather than flickers; a calm loop may take the frames nearest frame 0", "the cauldron's pot redraws in raw: only the cut is usable"],
+  "review_strip": "art/review/gen-2026-11-09b/b4-flames.png (x3 on a dark floor: per prop raw 0-8, then cut 0-8)"
+}

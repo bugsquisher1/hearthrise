@@ -84,11 +84,13 @@ export function blankCondition() {
   return { metric: m.id, op: m.ops[0], value: startValue(m) };
 }
 
-/** A condition re-pointed at another test: that test's first comparison, first subject and lowest value. */
+/** A condition re-pointed at another test: that test's first comparison, first subject and lowest value. A count starts at
+    "at or above 1" (any at all: "the number of monsters casting at me is at or above 1"), never "below 0", which never holds. */
 export function conditionFor(metric) {
   const m = METRIC.get(metric);
   if (!m) return null;
-  const c = { metric: m.id, op: m.ops[0], value: m.value === 'effect' ? Object.keys(STATUSES)[0] : startValue(m) };
+  const any = m.value === 'count' && m.ops.includes('gte');
+  const c = { metric: m.id, op: any ? 'gte' : m.ops[0], value: m.value === 'effect' ? Object.keys(STATUSES)[0] : any ? Math.max(1, m.range[0]) : startValue(m) };
   if (m.subject) c.subject = Object.keys(m.subject)[0];
   return c;
 }

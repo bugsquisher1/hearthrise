@@ -108,6 +108,31 @@ async function check(base) {
     .sprites.map((d) => d.id + ':' + d.sx).join(' ');
   must(folk(false, 250) === 'breather:8 lamp:0' && folk(false, 500) === 'breather:16 lamp:0', 'idle switch: on, townsfolk must breathe on the clock (and a prop must not), got ' + folk(false, 250) + ' / ' + folk(false, 500));
   must(ages.every((a) => folk(off, a) === 'breather:0 lamp:0'), 'idle switch: off must hold townsfolk on frame 0 at any time, got ' + ages.map((a) => folk(off, a)).join(' / '));
+  /* THE EFFECTS SLIDERS (Tyler 2026-11-08: "settings/opacity sliders for on screen effects"; src/data/fx-alpha.js): Settings > Effects,
+     one slider per owner of an effect, each a player switch holding a whole percent, one pick for every open hero (the newest wins),
+     snapped to its step; Danger marks never go under half (the warning rule), the others reach 0. A pick round-trips the residue
+     sanitizer, so a reload (the envelope's client_state through residueOf) reads it back, and the hunt reads it as an opacity. */
+  const fxRows = D.SETTINGS.filter((r) => r.category === 'effects');
+  must(D.SETTING_CATEGORIES.some((c) => c.id === 'effects') && fxRows.map((r) => r.id).join() === 'fx.self,fx.peer,fx.monster,fx.marks'
+    && fxRows.every((r) => r.type === 'slider' && r.bind.store === 'switch' && RESIDUE_FIELDS.includes(r.bind.field) && r.default === 100 && r.options.max === 100 && r.options.unit === '%'),
+  'effects sliders: Settings > Effects must hold the four sliders, each a switch kept in an allowlisted residue field, 100% until moved');
+  const fxRow = (id) => fxRows.find((r) => r.id === id);
+  must(fxRow('fx.marks') && fxRow('fx.marks').options.min === 50 && ['fx.self', 'fx.peer', 'fx.monster'].every((id) => fxRow(id) && fxRow(id).options.min === 0),
+    'effects sliders: Danger marks must never go under half, and every other slider must reach 0');
+  const f1 = heroOf({}), f2 = heroOf({});
+  const fctx = { character: f1, peers: () => [f1, f2], hud: ctx.hud };
+  const mon = fxRow('fx.monster'), mk = fxRow('fx.marks');
+  must(mon && M.read(fctx, mon) === 100, 'effects sliders: with no pick a slider must read 100');
+  must(mon && M.write(fctx, mon, 43) && M.read(fctx, mon) === 40 && f2.puts.length === 1 && f2.puts[0][0] === 'fxMonster' && f2.puts[0][1].v === 40,
+    'effects sliders: a drag must put one pick, snapped to its step, into every open hero, got ' + JSON.stringify(f2.puts));
+  must(mk && M.write(fctx, mk, 10) && M.read(fctx, mk) === 50, 'effects sliders: Danger marks must be held at half, never under');
+  const back = heroOf(residueOf(JSON.parse(JSON.stringify(f2.record.residue))));
+  const { fxAlphaOf } = await import(u('src/hunt-view/fx-prefs.js'));
+  const asAlpha = fxAlphaOf(back, () => [back]);
+  must(mon && M.read({ character: back, peers: () => [back], hud: ctx.hud }, mon) === 40 && asAlpha.monster === 0.4 && asAlpha.marks === 0.5 && asAlpha.self === 1,
+    'effects sliders: a reload must read the picks back from the residue, and the hunt as opacities, got ' + JSON.stringify(asAlpha));
+  for (const junk of [{ v: 40, at: 1 }, { v: 55, at: 1 }, { v: 110, at: 1 }, { v: 60 }, { v: '60', at: 1 }, 60]) must(sanitizeResidueField('fxMarks', junk) === undefined, 'effects sliders: not a Danger marks pick: ' + JSON.stringify(junk));
+  must(JSON.stringify(sanitizeResidueField('fxSelf', { v: 0, at: 3, x: 1 })) === '{"v":0,"at":3}', 'effects sliders: a pick keeps only its value and its stamp');
   /* The Privacy Policy names the switch by its words and says it is on by default (the page players read must match the row). */
   const policy = readFileSync(join(ROOT, 'legal/PRIVACY_POLICY.md'), 'utf8');
   must(policy.includes('**' + REPLAY.label + '**') && /on by default/i.test(policy) && /Settings/.test(policy), 'replay switch: legal/PRIVACY_POLICY.md must name the switch by its exact words and say it is on by default');
@@ -125,7 +150,7 @@ async function check(base) {
   must(shown.length > 0 && shown.length < D.SETTING_CATEGORIES.length, 'categories with no rows must stay hidden');
   const hidden = Object.assign({}, srv, { category: 'account', visibleWhen: () => false });
   must(!M.categoriesFor(ctx, [hidden], D.SETTING_CATEGORIES).length, 'a category whose rows are all hidden must not show');
-  must(D.SETTING_CATEGORIES.map((c) => c.id).join() === 'gameplay,interface,combat_text,chat_social,controls,account,help', 'categories keep the ruled order (Help, last: the problem report)');
+  must(D.SETTING_CATEGORIES.map((c) => c.id).join() === 'gameplay,interface,combat_text,effects,chat_social,controls,account,help', 'categories keep the ruled order (Help, last: the problem report)');
   /* HELP SAYS HOW THE GAME WORKS (designer 2026-10-22: Help held only "Report a problem", and nothing told a newcomer
      the hero keeps hunting with the game closed). Read-only notes, found by search, the idle promise among them. */
   const notes = D.SETTINGS.filter((r) => r.category === 'help' && r.type === 'note');
@@ -155,6 +180,11 @@ const MUTANTS = [
   { name: 'the World never reads the idle switch', file: 'src/world/world-boot.js', from: ', stillIdle: idleMotion.still() }, cast));', to: ' }, cast));', want: 'every frame it draws' },
   { name: 'reduced motion is ignored', file: 'src/session/player-switch.js', from: "return reduced === true && typeof sw.reducedOn === 'boolean' ? sw.reducedOn : sw.defaultOn === true;", to: 'return sw.defaultOn === true;', want: 'reduced motion must make the default off' },
   { name: 'the idle pick is not allowlisted', file: 'src/session/residue.js', from: '  idleMotion: sanitizeSwitch,', to: '', want: 'round-trip' },
+  { name: 'a slider pick is not snapped to its step', file: 'src/session/player-switch.js', from: 'sw.min + Math.round((n - sw.min) / sw.step) * sw.step', to: 'n', want: 'snapped to its step' },
+  { name: 'Danger marks go under half', file: 'src/data/fx-alpha.js', from: "label: 'Danger marks', min: 50,", to: "label: 'Danger marks', min: 0,", want: 'never go under half' },
+  { name: 'a slider drag writes one hero only', file: 'src/shell/settings-model.js', from: 'setSwitchValue(peersOf(ctx), b.sw, value,', to: 'setSwitchValue([ctx.character], b.sw, value,', want: 'every open hero' },
+  { name: 'a slider pick is not allowlisted', file: 'src/session/residue.js', from: '  fxMonster: valuePick(FX_ALPHA_ROW.monster),', to: '', want: 'allowlisted residue field' },
+  { name: 'the residue keeps a pick off its range', file: 'src/session/residue.js', from: '&& v.v >= sw.min && v.v <= sw.max && (v.v - sw.min) % sw.step === 0', to: '', want: 'not a Danger marks pick' },
 ];
 
 if (process.argv.includes('--selftest')) {

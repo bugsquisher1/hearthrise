@@ -40,6 +40,8 @@ import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.108';
 import { whole } from '../../render/format.js?v=0.2.108';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
+/* A test as the picker names it inside the sentence: a true/false test by its own words ("when the fight is on"), any other by its `say`. */
+const pickWords = (m) => (m.value === 'bool' ? m.label.charAt(0).toLowerCase() + m.label.slice(1) : m.say);
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
 const VIEW = new WeakMap();   // CharacterSession -> { tab, hover } (display scratch)
 const viewOf = (cs) => { let v = VIEW.get(cs); if (!v) { v = { tab: null, hover: null }; VIEW.set(cs, v); } return v; };
@@ -55,7 +57,7 @@ function tool(x, label, extra) {
 function condHtml(i) {
   const b = (x, label, body) => '<button type="button" class="hh-seg ca-step" data-hs-act="cfg" data-x="' + x + '" data-i="' + i + '" aria-label="' + label + '">' + body + '</button>';
   return '<li class="ca-cond" data-cond="' + i + '"><span class="ca-glue">' + (i ? 'and' : 'when') + '</span> '
-    + '<select class="ca-token" data-hs-act="cfg-f" data-f="metric" data-i="' + i + '" aria-label="Test ' + (i + 1) + '">' + options(METRICS.map((m) => [m.id, m.say])) + '</select>'
+    + '<select class="ca-token" data-hs-act="cfg-f" data-f="metric" data-i="' + i + '" aria-label="Test ' + (i + 1) + '">' + options(METRICS.map((m) => [m.id, pickWords(m)])) + '</select>'
     + '<select class="ca-token" data-hs-act="cfg-f" data-f="subject" data-i="' + i + '" aria-label="Whose"></select>'
     + '<select class="ca-token" data-hs-act="cfg-f" data-f="op" data-i="' + i + '" aria-label="Comparison"></select>'
     + '<span class="ca-num">' + b('dec', 'Lower', '−')
@@ -126,6 +128,7 @@ function patchCond(row, c, i, s, doc) {
   const op = row.querySelector('[data-f="op"]');
   fill(op, m.ops.map((o) => [o, OPERATORS[o] ? OPERATORS[o].say : o]));
   prop(op, 'value', c.op);
+  prop(op, 'hidden', m.value === 'bool');   // a true/false test's own words already say it: when the fight is on
   const numeric = m.value === 'pct' || m.value === 'count';
   cls(row.querySelector('.ca-num'), 'is-on', numeric);
   const num = row.querySelector('[data-f="value"]');
@@ -250,9 +253,11 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const max = shown && shown.kind === 'drink' ? vitalsOf(cs).manaMax : vitalsOf(cs).hpMax;
   text(root.querySelector('.ca-waste'), shown ? wasteLine(shown, threshold(d, shown.kind), max) : '');
   text(root.querySelector('.ca-src'), shown ? sourceLine(shown) : '');
-  text(root.querySelector('.ca-eff'), effectLine(shown));
   const f = shown ? factsOf(shown.action) : null;
-  text(root.querySelector('.ca-req'), f && f.requires ? f.requires : '');
+  /* a spell's own lines (action-facts.js factsOf): what it strikes and what it does; food and drink's shared rule */
+  const spell = !!shown && (shown.kind === 'spells' || shown.kind === 'runes');
+  text(root.querySelector('.ca-eff'), spell && f ? [f.type].concat(f.effect).filter(Boolean).join(' ') : effectLine(shown));
+  text(root.querySelector('.ca-req'), f ? [f.requires, f.unlock].filter(Boolean).join(' ') : '');
   /* A rune spell's store choice: carried runes only, or a store rune of its family at the server's price a cast. */
   const runes = storeChoices(d.action, set.store, skillsOf(cs));
   cls(root.querySelector('.ca-runestore'), 'is-on', runes.length > 0);

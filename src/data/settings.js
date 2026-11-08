@@ -24,7 +24,9 @@
 //                | { store: 'hud', id } | { store: 'residue', field }
 //                | { store: 'switch', field, sw } (a player switch, sw its data row { field,
 //                  defaultOn, reducedOn? }: one pick for every open hero, the newest wins;
-//                  src/session/player-switch.js. The row's default is sw.defaultOn)
+//                  src/session/player-switch.js. The row's default is sw.defaultOn. A slider
+//                  row's switch holds a value, sw { field, min, max, step, initial }: its
+//                  default is sw.initial and its options are sw's range and step)
 //                | { store: 'none' } (hotkeys, actions, notes)
 //   options      choice: [{ value, label }];  slider: { min, max, step, unit? } (the unit follows the value shown)
 //   key          hotkey rows: the key;  action rows: `run` names a
@@ -45,6 +47,7 @@ import { HELP_NOTES } from './how-to-play.js?v=0.2.108';
 import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.108';
 import { REPLAY } from './privacy.js?v=0.2.108';
 import { IDLE_MOTION } from './world/motion.js?v=0.2.108';
+import { FX_ALPHA } from './fx-alpha.js?v=0.2.108';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -54,6 +57,7 @@ export const SETTING_CATEGORIES = Object.freeze([
   cat('gameplay', 'Gameplay', 'Hunt defaults and alerts.'),
   cat('interface', 'Interface', 'Which panels show and how windows behave.'),
   cat('combat_text', 'Combat text', 'What pops up over monsters and heroes.'),
+  cat('effects', 'Effects', 'How strongly spells, hits and danger marks show in a hunt.'),
   cat('chat_social', 'Chat & Social', 'Chat filters, blocked players and friend requests.'),
   cat('controls', 'Controls', 'Keys.'),
   cat('account', 'Account', 'Your name, password and signing out.'),
@@ -95,6 +99,19 @@ const LOOK_ROWS = [row({
   default: IDLE_MOTION.defaultOn,
   bind: Object.freeze({ store: 'switch', field: IDLE_MOTION.field, sw: IDLE_MOTION }),
 })];
+
+/* ── Effects (Tyler 2026-11-08: "settings/opacity sliders for on screen effects"; src/data/fx-alpha.js): one slider per
+   owner of an effect, a player switch kept for every hero, applied to the hunt while it is dragged ── */
+const FX_ROWS = FX_ALPHA.map((f) => row({
+  id: 'fx.' + f.id,
+  category: 'effects',
+  label: f.label,
+  help: f.help,
+  type: 'slider',
+  default: f.initial,
+  options: Object.freeze({ min: f.min, max: f.max, step: f.step, unit: '%' }),
+  bind: Object.freeze({ store: 'switch', field: f.field, sw: f }),
+}));
 
 /* ── Interface: show or hide each HUD panel, then the HUD layout window (fade, put back a moved panel, reset) ── */
 const LAYOUT_ROW = row({
@@ -138,7 +155,7 @@ const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 
   bind: Object.freeze({ store: 'switch', field: REPLAY.field, sw: REPLAY }),
 })];
 
-export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, LAYOUT_ROW, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
+export const SETTINGS = Object.freeze([...LOOK_ROWS, ...PANEL_ROWS, LAYOUT_ROW, ...FLOAT_ROWS, ...FX_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
 
 /** Throws on the first broken row; the guard and the window both rely on it. */
 export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {
@@ -154,7 +171,10 @@ export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {
     if (r.scope === 'server' && !r.intent) throw new Error(where + ': a server setting names its existing intent');
     if (r.scope === 'server' && r.bind && r.bind.store === 'residue') throw new Error(where + ': a server setting is never kept in residue');
     if (r.type === 'toggle' && typeof r.default !== 'boolean') throw new Error(where + ': a toggle defaults to a boolean');
-    if (r.bind && r.bind.store === 'switch' && !(r.type === 'toggle' && r.bind.sw && r.bind.sw.field === r.bind.field && r.bind.sw.defaultOn === r.default)) throw new Error(where + ': a switch is a toggle with its data row\'s field and default');
+    if (r.bind && r.bind.store === 'switch' && !(r.bind.sw && r.bind.sw.field === r.bind.field && (r.type === 'toggle' ? r.bind.sw.defaultOn === r.default
+      : r.type === 'slider' && r.bind.sw.initial === r.default && ['min', 'max', 'step'].every((k) => r.options && r.options[k] === r.bind.sw[k])))) {
+      throw new Error(where + ': a switch is a toggle or a slider with its data row\'s field, default and range');
+    }
     if (r.type === 'choice' && !(Array.isArray(r.options) && r.options.some((o) => o.value === r.default))) throw new Error(where + ': a choice default must be one of its options');
     if (r.type === 'slider' && !(r.options && r.options.min < r.options.max && typeof r.default === 'number')) throw new Error(where + ': a slider needs min < max and a numeric default');
     if (r.type === 'hotkey' && !r.key) throw new Error(where + ': a hotkey row names its key');

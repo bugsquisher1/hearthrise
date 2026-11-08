@@ -50,6 +50,8 @@ import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.108';
 import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.108';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.108';
 import { levelOf } from '../session/character-sections.js?v=0.2.108';
+import { createSpellMarks } from './spell-marks.js?v=0.2.108';
+import { fxAlphaOf, ownerAlpha } from './fx-prefs.js?v=0.2.108';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -146,6 +148,7 @@ export function readHunt(cs, peers) {
     poseAtMs: h ? h.poseAtMs : null,
     entrance: h ? entranceOf(h.huntId) : null,
     huntName: h && HUNT_INDEX[h.huntId] ? HUNT_INDEX[h.huntId].name : null,
+    huntId: h ? h.huntId : null, fx: fxAlphaOf(cs, peers),   // fx: the Effects sliders as opacities, read each frame (fx-prefs.js)
     huntFromMs: h ? h.huntFromMs : null,
     self: p ? p.members.find((m) => m.seat === p.selfSeat) || null : null,
     /* the viewed hero's look: the ONE source the town draws it with too (chosen outfit, else role) */
@@ -174,6 +177,7 @@ export function createHuntScene(o) {
   const lie = new Map();   // S6: unit -> { dir, diag }, the facing a unit fell with
   const glanced = new Map();   // unit -> the instant its last glance shows (GLANCE_FX.gapMs apart)
   const perUnit = [recoil, dead, swing, bleed, cycle, target, risen, lie, glanced];
+  const marks = createSpellMarks();   // a monster's spell, seen coming (spell-marks.js)
   /* S7: the client instant of the last frame drawn and the units it drew standing */
   let drawnAt = null;
   const standing = new Set();
@@ -215,11 +219,11 @@ export function createHuntScene(o) {
     if (clip.loop) return lifeMs || 1000;
     return Math.round((book.frames(id, 'play', 's') * 1000) / clip.fps);
   }
-  /* `on` is the unit whose art height the effect's lift is a fraction of. */
-  function addFx(id, start, place, lift, lifeMs, on) {
+  /* `on`: the unit whose art height the lift is a fraction of; `by`: whose effect it is (its owner's slider dims it), none for a reward. */
+  function addFx(id, start, place, lift, lifeMs, on, by) {
     if (!id) return;
     const u = on !== undefined ? on : place.follow;
-    fx.push({ id, start, life: lifeOf(id, lifeMs), lift: lift || 0, on: u !== undefined ? spriteOf(u) : null, ...place });
+    fx.push({ id, start, life: lifeOf(id, lifeMs), lift: lift || 0, on: u !== undefined ? spriteOf(u) : null, by, ...place });
     if (fx.length > MAX_FX) fx.splice(0, fx.length - MAX_FX);
   }
   function addFloat(u, type, text, kind, start, big) {
@@ -245,9 +249,9 @@ export function createHuntScene(o) {
     const flies = !!bolt;
     const land = flies ? start + PROJECTILE.flightMs : start;
     const a = fixed(ev.u, start), b = fixed(ev.t, start);
-    if (flies && a && b) addFx(bolt, start, { x: a.x, y: a.y, tx: b.x, ty: b.y }, PROJECTILE.lift, PROJECTILE.flightMs, ev.u);
+    if (flies && a && b) addFx(bolt, start, { x: a.x, y: a.y, tx: b.x, ty: b.y }, PROJECTILE.lift, PROJECTILE.flightMs, ev.u, ev.u);
     const id = HIT_FX.ability[ev.ability] || HIT_FX.element[ev.element] || HIT_FX.role[role] || null;
-    addFx(id, land, at(ev.t), HIT_FX.lift);
+    addFx(id, land, at(ev.t), HIT_FX.lift, undefined, undefined, ev.u);
     /* The struck sprite gives 1 art px away from the blow. It is never tinted: ART_DIRECTION §2, and a white body hid its armor and the miss spark. */
     const d = a && b ? Math.hypot(b.x - a.x, b.y - a.y) || 1 : 1;
     if (a && b) recoil.set(ev.t, { at: land, dx: Math.round((b.x - a.x) / d), dy: Math.round((b.y - a.y) / d) });
@@ -267,7 +271,7 @@ export function createHuntScene(o) {
     glanced.set(ev.t, start);
     const dx = a ? a.x - b.x : 0, dy = a ? a.y - b.y : 0, d = Math.hypot(dx, dy) || 1;
     addFx(isHero(ev.t) ? GLANCE_FX.hero : GLANCE_FX.monster, start,
-      { follow: ev.t, ox: (dx / d) * GLANCE_FX.reach, oy: (dy / d) * GLANCE_FX.reach }, GLANCE_FX.lift);
+      { follow: ev.t, ox: (dx / d) * GLANCE_FX.reach, oy: (dy / d) * GLANCE_FX.reach }, GLANCE_FX.lift, undefined, undefined, ev.u);
   }
 
   /** One timeline event (each key once). `now` is the caller's clock, used only before the first batch. */
@@ -286,7 +290,7 @@ export function createHuntScene(o) {
       case 'heal': addFloat(ev.t, 'heal', '+' + ev.amount, 'heal', start); break;
       case 'cast': {
         const r = CAST_FX.ability[ev.ability] || CAST_FX.role[roleOf(ev.u)];
-        if (r) addFx(r.fx, start, at(ev.u), r.lift, Math.min(CAST_FX.maxMs, r.lifeMs || CAST_FX.maxMs));
+        if (r) addFx(r.fx, start, at(ev.u), r.lift, Math.min(CAST_FX.maxMs, r.lifeMs || CAST_FX.maxMs), undefined, ev.u);
         addFloat(ev.u, 'ability', abilityName(ev.ability), 'ability', start);
         if (Number.isInteger(ev.t) && ev.t !== ev.u) swing.set(ev.u, { t: ev.t, at: start });
         break;
@@ -318,12 +322,14 @@ export function createHuntScene(o) {
       case 'status_on': if (ev.status === 'bleed') bleed.set(ev.t, Number.isInteger(ev.stacks) ? ev.stacks : (bleed.get(ev.t) || 0) + 1); break;
       case 'status_off': if (ev.status === 'bleed') bleed.delete(ev.t); break;
       case 'target': if (Number.isInteger(ev.u)) target.set(ev.u, ev.t); break;
+      case 'spell': marks.open(ev, start, read.huntId); break;
+      case 'spell_end': marks.close(ev.u); break;
       default: break;
     }
     const r = EVENT_FX[ev.type];
     if (r && !(r.monsterOnly && isHero(ev.t))) {
       const who = r.at === 'viewed' ? read.viewed : ev[r.at];
-      if (Number.isInteger(who)) addFx(r.fx, start, ev.type === 'kill' ? fixed(who, start) || at(who) : at(who), r.lift, r.lifeMs, who);
+      if (Number.isInteger(who)) addFx(r.fx, start, ev.type === 'kill' ? fixed(who, start) || at(who) : at(who), r.lift, r.lifeMs, who, r.reward ? undefined : Number.isInteger(ev.u) ? ev.u : who);
     }
     return true;
   }
@@ -502,7 +508,9 @@ export function createHuntScene(o) {
     const tgt = read.viewed !== null ? target.get(read.viewed) : undefined;
     for (const d of units) if (d.unit === tgt && !d.under) d.target = true;
     /* VW-06: the viewed hero's shield bubble while the server says it holds one. */
-    const shields = read.viewedShield > 0 && hero ? [{ id: 'fx_arcane_barrier', x: hero.x, y: hero.y, age: now, lift: EVENT_FX.shield.lift, on: hero.id }] : [];
+    const alphaOf = (by) =>   // THE EFFECTS SLIDERS (fx-prefs.js): an effect's opacity is its owner's, the viewed hero, another hero or a monster
+      ownerAlpha(read.fx, by === undefined ? null : by === read.viewed ? 'self' : isHero(by) ? 'peer' : 'monster');
+    const shields = read.viewedShield > 0 && hero ? [{ id: 'fx_arcane_barrier', x: hero.x, y: hero.y, age: now, lift: EVENT_FX.shield.lift, on: hero.id, alpha: alphaOf(read.viewed) }] : [];
     fx = fx.filter((e) => now - e.start < e.life);
     floats = floats.filter((e) => now - e.start < e.life);
     const where = (e) => {
@@ -513,17 +521,19 @@ export function createHuntScene(o) {
     const effects = shields;
     for (const e of fx) {
       if (now < e.start) continue;
-      const age = now - e.start;
+      const age = now - e.start, alpha = alphaOf(e.by);
+      if (alpha <= 0) continue;
       if (e.tx !== undefined) {
         const k = Math.min(1, age / e.life);
-        effects.push({ id: e.id, x: e.x + (e.tx - e.x) * k, y: e.y + (e.ty - e.y) * k, age, lift: e.lift, on: e.on, angle: Math.atan2(e.ty - e.y, e.tx - e.x) });
+        effects.push({ id: e.id, x: e.x + (e.tx - e.x) * k, y: e.y + (e.ty - e.y) * k, age, lift: e.lift, on: e.on, angle: Math.atan2(e.ty - e.y, e.tx - e.x), alpha });
         continue;
       }
       const p = where(e);
-      if (p) effects.push({ id: e.id, x: p.x + (e.ox || 0), y: p.y + (e.oy || 0), age, lift: e.lift, on: e.on });
+      if (p) effects.push({ id: e.id, x: p.x + (e.ox || 0), y: p.y + (e.oy || 0), age, lift: e.lift, on: e.on, alpha });
     }
     const shown = floats.filter((e) => now >= e.start).map((e) => ({ text: e.text, kind: e.kind, x: e.x, y: e.y, dx: e.dx, dy: e.dy, age: now - e.start, life: e.life, big: e.big }));
-    return { hero, units, floats: shown, fx: effects };
+    const heroes = (hero ? [hero] : []).concat(units.filter((d) => !d.under && isHero(d.unit)));   // a group spell marks each (spell-marks.js)
+    return { hero, units, floats: shown, fx: effects, marks: marks.frame(now, { heroes, gone: (u) => dead.has(u) || serverDead(u), alpha: read.fx ? read.fx.marks : 1 }) };
   }
 
   return {
@@ -541,6 +551,7 @@ export function createHuntScene(o) {
     revive(alive, now) {
       if (!alive) return;
       read = fresh();
+      marks.keep(alive);
       const t = Number.isFinite(now) ? now : null;
       for (const u of alive) {
         if (!dead.has(u)) continue;
@@ -555,7 +566,7 @@ export function createHuntScene(o) {
       }
     },
     /** For tests: how many effects and floats are live, the keys played, and the units drawn dead. */
-    stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size, dead: dead.size }),
+    stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size, dead: dead.size, marks: marks.size() }),
   };
 }
 

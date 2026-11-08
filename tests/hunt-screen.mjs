@@ -1931,7 +1931,7 @@ const MUTANTS = [
   ['the Training tab drops each skill\'s next level in', 'src/shell/widgets/analyzer.js', "text(li.querySelector('.ha-eta'), it.nextMs === null ? '' : 'next level in ' + hoursMinutes(it.nextMs));", ''],
   ['a maxed skill reads next level in 0:00h', 'src/session/hunt-sections.js', 'return h !== null && h > 0 ? Math.round(h * 3600000) : null;', 'return h !== null ? Math.round(h * 3600000) : null;'],
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
-  ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "options(METRICS.map((m) => [m.id, m.say]))", "options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
+  ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "options(METRICS.map((m) => [m.id, pickWords(m)]))", "options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],
   ['a slot tooltip words its test as a form label', 'src/shell/bar-draft.js', "  const op = OPERATORS[c.op] ? OPERATORS[c.op].say : c.op;", "  const op = OPERATORS[c.op] ? OPERATORS[c.op].label : c.op;"],
   ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],

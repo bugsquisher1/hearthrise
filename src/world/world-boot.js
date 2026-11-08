@@ -271,8 +271,8 @@ export async function bootWorld(panel, opts) {
     tl.advance(now);
     const f = scene.frame(now);
     lastHunt = { live: true, units: f.units.map((u) => ({ id: u.id, unit: u.unit, x: u.x, y: u.y, anim: u.anim, frame: u.frame, dir: u.dir, diag: u.diag })),
-      hero: f.hero, floats: f.floats.length, fx: f.fx.map((e) => e.id), stats: scene.stats() };
-    return { hero: f.hero, units: f.units, floats: f.floats, fx: f.fx };
+      hero: f.hero, floats: f.floats.length, fx: f.fx.map((e) => e.id), marks: f.marks.map((m) => m.kind + ':' + m.fill), stats: scene.stats() };
+    return { hero: f.hero, units: f.units, floats: f.floats, fx: f.fx, marks: f.marks };
   }
 
   function huntState(G, sc, map, name, now) {

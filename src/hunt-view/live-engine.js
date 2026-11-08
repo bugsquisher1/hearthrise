@@ -70,6 +70,20 @@ const unknownKinds = (world, monsters) => [...new Set((world ? world.units : [])
   .filter((u) => u.side === 'mon' && !Object.hasOwn(monsters, u.kind)).map((u) => String(u.kind)))];
 /* An engine error as the reason failed() gives. */
 const reasonOf = (e) => String((e && e.message) || e).slice(0, 200);
+/* THE CASTS WINDING UP in a server world at its instant `atMs` (each monster's persisted `cast`, src/core/hunt/marks.js), as the
+   `spell` events that started them: a reload or a restart mid-windup draws the server's own mark again (spell-marks.js). Each
+   id is its own ("cast.<unit>.<start>"): a cast is one mark per caster, whichever event brings it. */
+function castsOf(world, atMs) {
+  const out = [];
+  for (const u of (world ? world.units : [])) {
+    const c = u.side === 'mon' && u.alive && u.cast && typeof u.cast === 'object' ? u.cast : null;
+    if (!c || !isInt(c.ms) || !isInt(c.left) || !isInt(atMs)) continue;
+    const from = atMs - (c.ms - c.left);
+    out.push({ id: 'cast.' + u.id + '.' + from, type: 'spell', atMs: from, u: u.id, t: isInt(u.target) ? u.target : u.id, spell: c.s,
+      shape: c.kind, x: c.x, y: c.y, dx: c.dx || 0, dy: c.dy || 0, r: c.r || 0, len: c.len || 0, ms: c.ms });
+  }
+  return out;
+}
 
 /*
  * THE DRAWN TIMING OF A SWING'S STEPS (display only: nothing reads it back). The engine stamps a step
@@ -267,6 +281,8 @@ export function createLiveEngine(o) {
    *   positions/alive  every unit standing at `until` (spawned and not killed by then) and its tile
    *   units            { id: [kind, maxHp, hp at `until`] } (the bars carry on from the true HP)
    *   track/events     what the swings run hold AFTER `until`: played on as usual, nothing skipped
+   *   spells           the monsters' spells still winding up at `until` (their `spell` events): the screen marks them, never missing one
+   *                    whose start it skipped (a reload or a restart mid-windup)
    *   kills/fallen     the deaths at or before `until` (and each victim's book row at 0 HP): a monster killed inside the skipped span is
    *                    drawn falling, never left standing at its last tile (live v0.2.21 "the kobold
    *                    was still standing at the end"); their ids are the engine's, so a death the
@@ -278,6 +294,8 @@ export function createLiveEngine(o) {
   function forward(serverNowMs, aheadMs) {
     const until = serverNowMs + Math.max(0, Math.floor(Number(aheadMs) || 0));
     const pos = new Map(), killed = new Set(), hp = {}, kills = [], track = [], events = [];
+    /* the spells winding up at `until`: those of the world it starts from, then each the skipped span starts or ends */
+    const open = new Map(castsOf(st.world, st.next).map((ev) => [ev.u, ev]));
     /* Every unit the start point's world holds is named and sized from that world, as combat-sim's own
        unit book is at a window's start: a restart whose instant lies before the start point's next
        boundary runs NO swing (the server settles to the boundary after its now, up to a swing ahead of
@@ -306,6 +324,8 @@ export function createLiveEngine(o) {
           if (d !== null) moved[ev.t] = (moved[ev.t] || 0) + d;
           if (ev.atMs > until) { events.push(ev); continue; }
           if (ev.type === 'kill' && isInt(ev.t)) { killed.add(ev.t); kills.push(ev); }
+          if (ev.type === 'spell') open.set(ev.u, ev);
+          else if (ev.type === 'spell_end') open.delete(ev.u);
           const r = hp[ev.t];
           if (r && d !== null) r[2] = Math.max(0, Math.min(r[1], r[2] + d));
         }
@@ -338,7 +358,7 @@ export function createLiveEngine(o) {
          named and sized from the swing that spawned it (the run's unit book), or the scene cannot draw it until
          the next swing names it ("[hunt-scene] no sprite for unit 6..17 (null)", Andy #65 at a switch) */
       for (const s of track) { alive.add(s.u); if (!units[s.u] && !killed.has(s.u) && hp[s.u]) units[s.u] = rowAt(s.u); }
-      return { positions, alive, units, fallen, fromMs: until, track, events, kills };
+      return { positions, alive, units, fallen, fromMs: until, track, events, kills, spells: [...open.values()] };
     }
     return { of, run, result };
   }
@@ -355,6 +375,8 @@ export function createLiveEngine(o) {
      * mid-hunt: the server settles from its world with the new one, so the prediction must restart from it.
      */
     sameSetup: (live) => !!st && !!live && Array.isArray(live.members) && setupOf(live) === st.setup,
+    /** The monsters' spells winding up in the world the prediction starts from, as `spell` events (castsOf): a fresh start draws them. */
+    openCasts: () => (st && st.world ? castsOf(st.world, st.next) : []),
     /** Is a prediction running? */
     running: () => !!st && !st.starved && !st.ended,
     /** Did the prediction run to the instance's end (every member left)? It holds its world and runs nothing more. */

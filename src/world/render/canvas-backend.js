@@ -163,6 +163,7 @@ export function createCanvasBackend(o) {
     for (const e of list.fx || []) {
       if (!e.set || !images[e.set]) continue;
       g.globalCompositeOperation = e.blend === 'add' ? 'lighter' : 'source-over';
+      g.globalAlpha = e.alpha == null ? 1 : e.alpha;   // its owner's Effects slider (src/hunt-view/fx-prefs.js)
       if (e.angle) {
         g.save();
         g.translate(e.cx - view.ox, e.cy - view.oy);
@@ -174,6 +175,20 @@ export function createCanvasBackend(o) {
       }
     }
     g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+  }
+
+  /* DANGER MARKS (core/mark-shapes.js), on the ground under every actor: the wash at its opacity, then the solid line. Hard pixels only. */
+  function dangerMarks(g, list, view) {
+    for (const m of list.marks || []) {
+      g.fillStyle = tone('mark-fill');
+      g.globalAlpha = m.fillAlpha;
+      for (const r of m.fill) g.fillRect(r[0] - view.ox, r[1] - view.oy, r[2], r[3]);
+      g.fillStyle = tone('mark-line');
+      g.globalAlpha = 1;
+      for (const r of m.line) g.fillRect(r[0] - view.ox, r[1] - view.oy, r[2], r[3]);
+    }
+    g.globalAlpha = 1;
   }
 
   /* A mask's signature: the view, its colour, and every shape (a cast by its frame and its sheet being in) or lamp (the hero's moves). */
@@ -497,6 +512,7 @@ export function createCanvasBackend(o) {
     g.globalCompositeOperation = 'source-over';
     groundLayer(g, list.decals, view);
     shadows(g, list, view);
+    dangerMarks(g, list, view);
     for (const d of list.sprites) {
       if (d.kind === 'unit' && d.grey) blitUnit(g, d, view);
       else { g.globalAlpha = d.alpha == null ? 1 : d.alpha; blit(g, d, view); }

@@ -182,7 +182,7 @@ function tipHtml(i, ctx) {
   const facts = whyFacts(ctx.character);
   const why = slotWhy(s, facts);
   const shared = sharedCooldownOf(wires, i);
-  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, facts.bag, facts.worn)).filter(Boolean);
+  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, [f.unlock], supplyLines(s.action, set, facts.bag, facts.worn)).filter(Boolean);
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
     + (why ? '<p class="' + (why.quiet ? 'is-why' : 'is-warn is-why') + '">' + esc(why.text) + '</p>' : '')
     + lines.map((l) => '<p>' + esc(l) + '</p>').join('')

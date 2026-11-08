@@ -9,7 +9,8 @@
 //                       tab, Tyler 2026-10-25)
 //                       — the same ids the server accepts (src/core/hunt/
 //                       conditions.js actionKnown), never a typed list
-//   factsOf             type line, cost, cooldown, effect, requirement
+//   factsOf             type line, cost, cooldown, effect, requirement, unlock: every line read off the
+//                       ability's own row, so the in-game wiki can print the same words
 //   supplyLines         own stock first, then the store per use at its price
 //   conflictsOf         a slot that can NEVER fire because an earlier slot always
 //                       wins, by the engine's own rule (pickSlot: slots in order,
@@ -17,7 +18,8 @@
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.108';
-import { ABILITIES } from '../data/abilities.js?v=0.2.108';
+import { ABILITIES, ABILITY_RULES, abilitySkill } from '../data/abilities.js?v=0.2.108';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.108';
 import { aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.108';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.108';
 import { STATUSES } from '../data/statuses.js?v=0.2.108';
@@ -98,47 +100,67 @@ export function weaponWarning(a, disc, role, skills) {
   return 'Your weapon can’t cast this. The slot stays struck until you wield a ' + weaponsFor(r.disciplines[0]) + '.';
 }
 
+/* WHAT AN ABILITY STRIKES, one plain sentence from its row (its shape's size, its reach, how many it can hit). */
 const TARGET_LINE = Object.freeze({
-  taunt: 'Taunt: pulls the monsters near you onto you.',
-  mark: 'Mark: marks your current target.',
-  enemy: 'Attack spell: casts on your current target.',
-  area: 'Area spell: hits the monsters round your target.',
-  cleave: 'Cleave: hits the monsters in front of you.',
-  self: 'Self spell: casts on yourself.',
-  ally: 'Heal: casts on the ally who needs it most.',
-  party: 'Group heal: heals everyone near you.',
+  taunt: () => 'A taunt that pulls the monsters near you onto you.',
+  mark: () => 'A mark on your current target.',
+  enemy: () => 'An attack spell on your current target.',
+  area: () => 'An area spell that hits every monster in the ' + ABILITY_RULES.areaSide + ' by ' + ABILITY_RULES.areaSide + ' square round your target.',
+  line: (r) => 'A line spell that hits every monster on a line ' + r.len + ' tiles long, from you through your target.',
+  ring: (r) => 'A ring spell that hits every monster ' + ((r.r || 1) > 1 ? 'within ' + r.r + ' tiles of you' : 'beside you') + (r.maxHits ? ', up to ' + r.maxHits : '') + '.',
+  cleave: () => 'A cleave that hits the monsters in front of you.',
+  self: () => 'A self spell, cast on yourself.',
+  ally: (r) => (r.shield ? 'A ward that shields the ally who needs it most.' : 'A heal for the ally who needs it most.'),
+  party: (r) => 'A group heal for everyone within ' + r.radius + ' tiles of you.',
 });
+/* Who takes a share of the hero's own blow (a `hitPm` row), by what the row strikes. */
+const STRUCK = Object.freeze({ line: 'Each monster on the line', ring: 'Each monster it reaches', area: 'Each monster in the square', cleave: 'Each monster in front of you', enemy: 'Your target' });
+
+/** A `hitPm` row's damage in words: each hit rolls from half its share to its share of the hero's biggest normal hit
+    (src/data/abilities.js blowShare, the rule a monster's spell hits by), so it grows with the weapon and the skill. */
+export function blowShareWords(r) {
+  const top = r.hitPm / 10, low = Math.round((top * ABILITY_RULES.hitLowPm) / 1000);
+  return (STRUCK[r.target] || 'Each monster it hits') + ' takes ' + low + '% to ' + top + '% of your biggest normal hit' + (r.element ? ' as ' + r.element + ' damage' : '') + '.';
+}
+
+/** "Unlocks at Ranged 10." for a row that waits for a level in its own skill (`unlock`), else null. */
+export function unlockWords(r) {
+  if (!r || !r.unlock) return null;
+  const sk = abilitySkill(r);
+  return 'Unlocks at ' + ((SKILLS_DEF[sk] && SKILLS_DEF[sk].name) || sk) + ' ' + r.unlock + '.';
+}
 
 /**
- * What an action is: { type, cost, cooldown, effect[], requires } (absent fields
+ * What an action is: { type, cost, cooldown, effect[], requires, unlock } (absent fields
  * are null). All from catalogue rows.
  */
 export function factsOf(a) {
   if (a.type === 'ability') {
     const r = ABILITIES[a.id];
-    if (!r) return { type: null, cost: null, cooldown: null, effect: [], requires: null };
+    if (!r) return { type: null, cost: null, cooldown: null, effect: [], requires: null, unlock: null };
     const el = r.element ? ' ' + r.element : '';
     const effect = [];
     if (r.target === 'mark') effect.push('Your target takes ' + r.bonusPct + '% more damage for ' + secs(r.durMs) + ' s.');
     if (r.dmg) effect.push('Deals ' + r.dmg[0] + '–' + r.dmg[1] + el + ' damage' + (r.target === 'area' ? ' to each monster hit.' : r.maxHits ? ' to up to ' + r.maxHits + ' monsters.' : r.hits ? ', ' + r.hits + ' times.' : '.'));
+    if (Number.isInteger(r.hitPm)) effect.push(blowShareWords(r));
     if (r.heal) effect.push('Heals ' + r.heal[0] + '–' + r.heal[1] + '.');
     if (r.shield) effect.push('A ' + r.shield + '-point shield.');
     if (r.status && STATUSES[r.status]) effect.push('Causes ' + STATUSES[r.status].name.toLowerCase() + '.');
     const cost = [r.mana ? r.mana + ' mana' : 'No mana'].concat(r.rune ? ['1 ' + runeWords(r.rune, 1)] : [], r.ammo ? [r.ammo + ' ammo'] : []).join(' · ');
     /* (an ally shield is a ward, not a heal; the universal self-heal needs no particular weapon) */
-    const type = r.target === 'ally' && r.shield ? 'Ward: shields the ally who needs it most.' : TARGET_LINE[r.target] || null;
-    return { type, cost, cooldown: secs(r.cdMs) + ' s cooldown', effect, requires: r.universal ? 'Requires: any weapon.' : 'Requires: ' + weaponsFor(r.disciplines[0]) + '.' };
+    const type = TARGET_LINE[r.target] ? TARGET_LINE[r.target](r) : null;
+    return { type, cost, cooldown: secs(r.cdMs) + ' s cooldown', effect, requires: r.universal ? 'Requires: any weapon.' : 'Requires: ' + weaponsFor(r.disciplines[0]) + '.', unlock: unlockWords(r) };
   }
   if (a.type === 'consume') {
     const spread = 'Half lands at once, the rest over ' + secs(CONSUMABLE_RULES.overTimeMs) + ' s.';
     const r = CONSUMABLES[a.id];
-    if (!r) return { type: null, cost: null, cooldown: null, effect: [], requires: null };
-    return { type: r.kind === 'drink' ? 'Drink: restores mana.' : 'Food: restores health.', cost: null, cooldown: null,
-      effect: ['Restores ' + r.amount + (r.kind === 'drink' ? ' mana.' : ' health.'), spread], requires: null };
+    if (!r) return { type: null, cost: null, cooldown: null, effect: [], requires: null, unlock: null };
+    return { type: r.kind === 'drink' ? 'A drink that restores mana.' : 'Food that restores health.', cost: null, cooldown: null,
+      effect: ['Restores ' + r.amount + (r.kind === 'drink' ? ' mana.' : ' health.'), spread], requires: null, unlock: null };
   }
-  if (own(ATTACK_KINDS, a.id)) return { type: 'Ammo: your attacks use whatever you have loaded.', cost: null, cooldown: null, effect: [], requires: null };
+  if (own(ATTACK_KINDS, a.id)) return { type: 'Your attacks use whatever ammo you have loaded.', cost: null, cooldown: null, effect: [], requires: null, unlock: null };
   /* (A rune is no ammo: it fuels spells only, Tyler 2026-10-23, so no attack slot names one.) */
-  return { type: 'Ammo: your attacks use it, one per shot.', cost: null, cooldown: null, effect: [], requires: null };
+  return { type: 'Ammo your attacks use, one per shot.', cost: null, cooldown: null, effect: [], requires: null, unlock: null };
 }
 
 /** How many of an action's ONE item the bag holds, from the server's inventory; null = not counted (a spell, the loaded ammo, a store item). */
@@ -287,6 +309,9 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
     const disc = set && set.discipline ? set.discipline : null;
     if (!disc) return { code: 'weapon', text: 'No weapon worn: abilities come from the weapon you wield. Needs ' + (r.universal ? 'any weapon' : weaponsFor(r.disciplines[0])) + '.', glyph: 'uiLock', strike: true };
     if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: 'Your weapon can’t use this. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
+    /* NOT UNLOCKED YET (`unlock`, a level in the row's own skill, the server's `skills`): the slot is kept and waits, as the engine's does (abilities.js 'level') */
+    const have = r.unlock && skills ? (skills[abilitySkill(r)] || { level: 1 }).level : null;
+    if (have !== null && have < r.unlock) return { code: 'unlock', text: unlockWords(r).replace(/\.$/, '') + ', and you have ' + have + '. This slot waits until then.', glyph: 'uiLock', strike: true };
     const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
     if (r.rune && !(familyCount(r.rune, bag) > 0) && !(storeOn && storeOf(a, set && set.store))) {
       const rune = runeWords(r.rune, 1);

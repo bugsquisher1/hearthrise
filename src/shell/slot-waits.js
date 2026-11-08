@@ -16,13 +16,13 @@
 // tooltip and on Configure action's first line, or every food slot on the bar would look broken at full health.
 // Display only: an answer is worth one frame, and nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS } from '../data/condition-metrics.js?v=0.2.108';
-import { areaTopOf } from '../core/hunt/conditions.js?v=0.2.108';
-import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.108';
-import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.108';
-import { conditionWords } from './bar-draft.js?v=0.2.108';
-import { reasonOf, holdingReason } from './action-facts.js?v=0.2.108';
-import { carryRows } from './carry-in.js?v=0.2.108';
+import { METRICS } from '../data/condition-metrics.js?v=0.2.109';
+import { areaTopOf } from '../core/hunt/conditions.js?v=0.2.109';
+import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.109';
+import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.109';
+import { conditionWords } from './bar-draft.js?v=0.2.109';
+import { reasonOf, holdingReason } from './action-facts.js?v=0.2.109';
+import { carryRows } from './carry-in.js?v=0.2.109';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 /* The tests that mark a slot, and the glyph each marks it with. */

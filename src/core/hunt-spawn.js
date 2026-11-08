@@ -4,16 +4,16 @@
 // roll is src/core/hunt/pull-cycle.js (every pack spawns from its pocket's
 // rows): the C2 single-foe `pickSpawn` was retired with the single-foe swing
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.108';
-import { densityFor, partyPick, packHpFor } from '../data/hunt-grounds.js?v=0.2.108';
-import { MONSTERS } from '../data/monsters.js?v=0.2.108';
-import { atTier } from '../data/hunt-tiers.js?v=0.2.108';
-import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.108';
-import { disciplineAbilities } from '../data/abilities.js?v=0.2.108';
-import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.108';
-import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.108';
-import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.108';
-import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.108';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.109';
+import { densityFor, partyPick, packHpFor } from '../data/hunt-grounds.js?v=0.2.109';
+import { MONSTERS } from '../data/monsters.js?v=0.2.109';
+import { atTier } from '../data/hunt-tiers.js?v=0.2.109';
+import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.109';
+import { disciplineAbilities } from '../data/abilities.js?v=0.2.109';
+import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.109';
+import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.109';
+import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.109';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.109';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -96,7 +96,8 @@ function heroUnit(id, h, partyRoles, tile) {
  * `settings` the character's own { dist, chase, tmode, stance } (an absent key
  * takes the role's default for this party). Heroes are units 1..n. `o.density`, when given,
  * is the density the packs spawn at (the settle's whole entering party), else the party's own.
- * `o.tier` (a hunt-tiers.js row, null = Normal) is the hunt's tier the first packs spawn on, as every respawn does.
+ * `o.tier` (a hunt-tiers.js row, null = Normal) is the hunt's tier the first packs spawn on, as every respawn does; `o.monsters` the
+ * rows they spawn from (combat-sim.js huntPlayOf: a scaled hunt's table; the catalogue when absent).
  */
 export function newHuntWorld(ground, grid, party, o) {
   if (!Array.isArray(party) || !party.length || party.length > ground.start.length) {
@@ -111,16 +112,17 @@ export function newHuntWorld(ground, grid, party, o) {
     density: o && Number.isInteger(o.density) ? o.density
       : densityFor(ground, party.length, partyPick(party.map((h, i) => ({ density: h.density, lead: h.lead === true, seat: i })))) });
   world.units = units;
-  const inst = { world, ground, grid, occ: null, tier: (o && o.tier) || null, makeUnit };
+  const inst = { world, ground, grid, occ: null, tier: (o && o.tier) || null, makeUnit, monsters: (o && o.monsters) || MONSTERS };
   for (let p = 0; p < ground.pockets.length; p++) spawnPack(inst, p, null);
   return world;
 }
 
-/** A CALLED ROOM'S ONE SPAWN (src/data/boss-calls.js): each monster's HP for the `heroes` walking in, as the ground's party scale reads it (hunt-grounds.js packHpFor), on `tier` as a pack's (null = Normal). */
-export function scaleRoomFor(world, ground, heroes, tier) {
+/** A CALLED ROOM'S ONE SPAWN (src/data/boss-calls.js): each monster's HP for the `heroes` walking in, as the ground's party scale reads it (hunt-grounds.js packHpFor), on `tier` as a pack's (null = Normal), from `monsters` (the catalogue when absent). */
+export function scaleRoomFor(world, ground, heroes, tier, monsters) {
+  const rows = monsters || MONSTERS;
   for (const u of world.units) {
     if (u.side !== 'mon') continue;
-    u.maxHp = packHpFor(ground, atTier(MONSTERS[u.kind], tier), heroes);
+    u.maxHp = packHpFor(ground, atTier(rows[u.kind], tier), heroes);
     u.hp = u.maxHp;
   }
 }

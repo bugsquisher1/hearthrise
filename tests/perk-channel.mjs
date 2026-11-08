@@ -48,7 +48,7 @@ import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-  ROOM_PERKS, PLOT_PERKS, CAPSTONE_PERKS, CASTLE_TIER,
+  ROOM_PERKS, CAPSTONE_PERKS, CASTLE_TIER,
   EMPTY_PERKS, PERMANENT_CAP, GOVERNED,
   normalisePerkState, permanentBonus, makeBonus, clampPermanent, restedPayload,
 } from '../src/core/perks.js';
@@ -170,15 +170,12 @@ async function grantUnlocks(db, rows, slot = 0) {
 /* ── THE CLIENT ADAPTER, as src/legacy.js clientPerkState() writes it ─────
    Restated here rather than imported because legacy.js is a classic script
    Node cannot import. That is a second copy and it is guarded: mutation M6
-   below breaks the plot COUNT the way a `{id:true}` shape would, and the
-   parity block goes red. The browser runs the real one — src/features/
-   smoke-test.js B349-2 drives `window.clientPerkState` itself. */
+   below drops the rooms the way an unhoused read would, and the parity block
+   goes red. (It carried the plot buildings' COUNT until they were cut,
+   lane/c-dead-plot-deed 2026-11-07.) */
 function clientPerkStateFromSave(G) {
-  const plots = {};
-  (G.plotBuildings || []).forEach((b) => { if (b && b.id) plots[b.id] = (plots[b.id] || 0) + 1; });
   return {
     rooms: G.rooms || {},
-    plots,
     propertyTier: (G.homestead && G.homestead.tier) || 0,
     renownAllXp: G.renownAllXp || 0,
     clanPerks: {},
@@ -187,26 +184,21 @@ function clientPerkStateFromSave(G) {
 }
 
 /* The same save, expressed as unlock rows — the shape a shop purchase will
-   write. Rooms and property are ABSOLUTE (the rung/tier); plot buildings are
-   REPEATABLE, so the row holds the COUNT. */
+   write. Rooms and property are ABSOLUTE (the rung/tier). */
 function unlockRowsFromSave(G) {
   const rows = {};
   for (const [id, lv] of Object.entries(G.rooms || {})) if (lv > 0) rows[`room:${id}`] = lv;
-  const counts = {};
-  (G.plotBuildings || []).forEach((b) => { if (b && b.id) counts[b.id] = (counts[b.id] || 0) + 1; });
-  for (const [id, n] of Object.entries(counts)) rows[`plot:${id}`] = n;
   const tier = (G.homestead && G.homestead.tier) || 0;
   if (tier > 0) rows[`property:tier${tier}`] = tier;
   return rows;
 }
 
 /* Every key that can carry a permanent bonus — the union of the room table's
-   keys and the plot/capstone keys. Read from the DATA, never listed by hand:
-   a hand-written list cannot notice a new key, which is the whole class of
-   bug this file is a response to. */
+   keys, the capstone's and the governed set. Read from the DATA, never listed
+   by hand: a hand-written list cannot notice a new key, which is the whole
+   class of bug this file is a response to. */
 const ALL_KEYS = [...new Set([
   ...Object.values(ROOM_PERKS).flatMap((l) => l.flatMap((m) => Object.keys(m))),
-  ...Object.values(PLOT_PERKS).flatMap((m) => Object.keys(m)),
   ...Object.keys(CAPSTONE_PERKS),
   ...Object.keys(GOVERNED),
 ])].sort();
@@ -284,26 +276,18 @@ async function run(patch) {
   // The block this file exists for. Six saves, each chosen because it breaks
   // a different naive implementation.
   const SAVES = [
-    { name: 'empty', G: { rooms: {}, plotBuildings: [], homestead: { tier: 0 } } },
-    { name: 'kitchen-3 + toolshed',
-      G: { rooms: { kitchen: 3 }, plotBuildings: [{ id: 'toolshed' }], homestead: { tier: 2 } } },
-    // TWO Toolsheds. `{toolshed:true}` pays one; the truth is two. (The Scarecrow
-    // was the probe until its farmYield left, Master Design Reference §9.)
-    { name: 'two toolsheds',
-      G: { rooms: {}, plotBuildings: [{ id: 'toolshed' }, { id: 'toolshed' }],
-           homestead: { tier: 1 } } },
+    { name: 'empty', G: { rooms: {}, homestead: { tier: 0 } } },
+    { name: 'kitchen-3', G: { rooms: { kitchen: 3 }, homestead: { tier: 2 } } },
+    // Two benches at different rungs: a seam that kept one room id would pay one of them.
+    // (Two Toolsheds were this save until the plot buildings were cut, 2026-11-07.)
+    { name: 'workshop-2 + forge-4', G: { rooms: { workshop: 2, forge: 4 }, homestead: { tier: 1 } } },
     // The capstone, at exactly the tier that grants it.
-    { name: 'castle capstone',
-      G: { rooms: { library: 5 }, plotBuildings: [], homestead: { tier: CASTLE_TIER } } },
+    { name: 'castle capstone', G: { rooms: { library: 5 }, homestead: { tier: CASTLE_TIER } } },
     // One tier BELOW the capstone — the off-by-one that would hand every Keep
     // owner a free +2% allXP.
-    { name: 'keep, no capstone',
-      G: { rooms: { library: 5 }, plotBuildings: [], homestead: { tier: CASTLE_TIER - 1 } } },
+    { name: 'keep, no capstone', G: { rooms: { library: 5 }, homestead: { tier: CASTLE_TIER - 1 } } },
     { name: 'everything',
       G: { rooms: Object.fromEntries(Object.keys(ROOM_PERKS).map((id) => [id, 5])),
-           plotBuildings: [{ id: 'toolshed' }, { id: 'watchtower' },
-                           { id: 'scarecrow' }, { id: 'scarecrow' },
-                           { id: 'farm_plot' }, { id: 'farm_plot' }],
            homestead: { tier: CASTLE_TIER } } },
   ];
   for (const { name, G } of SAVES) {
@@ -333,8 +317,22 @@ async function run(patch) {
     });
     ok(hostile.rooms.kitchen === ROOM_PERKS.kitchen.length,
       `P5: a rung of 99 was not clamped to the ladder (${hostile.rooms.kitchen})`);
-    ok(!('notARoom' in hostile.rooms) && !('notAPlot' in hostile.plots),
-      'P5: an unknown id survived normalisation');
+    ok(!('notARoom' in hostile.rooms), 'P5: an unknown id survived normalisation');
+    /* THE PLOT BUILDINGS ARE CUT (lane/c-dead-plot-deed, 2026-11-07): a `plots` map, from a forged state or from a
+       perk read that still answered one, is not read at all and pays nothing on any key. The database half: this
+       subset's hr_perks_of (2026-08-15) still answers `plots` for a plot:toolshed row, and that answer pays nothing. */
+    ok(!('plots' in hostile), 'P5: a `plots` field survived normalisation, the cut plot buildings are back');
+    const sheds = { rooms: {}, plots: { toolshed: 2, scarecrow: 2, watchtower: 1, farm_plot: 3 }, propertyTier: 0 };
+    for (const k of ALL_KEYS) {
+      ok(makeBonus(sheds)(k) === 0, `P5: a cut plot building pays ${makeBonus(sheds)(k)} ${k}`);
+    }
+    await db.query('delete from public.player_progress where user_id=$1', [USER]);
+    await grantUnlocks(db, { 'plot:toolshed': 2 });
+    const shedEnv = await perksOf(db);
+    ok(shedEnv && shedEnv.plots && Number(shedEnv.plots.toolshed) === 2,
+      `P5 CONTROL: this subset's hr_perks_of did not report the planted Tool Sheds (${JSON.stringify(shedEnv)}), so the line below proves nothing`);
+    ok(makeBonus(shedEnv)('gatherSpeed') === 0,
+      `P5: two Tool Sheds read back from the database pay ${makeBonus(shedEnv)('gatherSpeed')} gatherSpeed`);
     ok(!('constructor' in hostile.rooms),
       'P5: `constructor` survived — ROOM_PERKS[id] truthiness would have accepted it');
     ok(!('renownAllXp' in hostile) && !('clanPerks' in hostile) && !('castle' in hostile),
@@ -447,15 +445,14 @@ async function run(patch) {
       `P9: the fixture monster ${base.activeId} is missing or at most 12 HP — a +2% rung floors away there`);
     const none = huntNight({ ...base, perks: null });
     /* MASTER DESIGN REFERENCE §9 (2026-10-14): a home never grants XP or a
-       resource advantage. Every home source at its top — every room at rung 5,
-       both Scarecrows, the Watchtower, the Castle — must pay this combat night
+       resource advantage. Every home source at its top — every room at rung 5
+       and the Castle — must pay this combat night
        EXACTLY what a bare character is paid: same XP, same items, same kills. */
     const decked = huntNight({
       ...base,
       perks: {
         ok: true,
         rooms: Object.fromEntries(Object.keys(ROOM_PERKS).map((id) => [id, ROOM_PERKS[id].length])),
-        plots: { watchtower: 1, scarecrow: 2, toolshed: 2, farm_plot: 3 },
         propertyTier: CASTLE_TIER,
       },
     });
@@ -470,28 +467,27 @@ async function run(patch) {
         + `${JSON.stringify(none.delta.xp)} — a home is granting XP or loot (Master Design Reference §9)`);
     }
     /* P9-S · THE ENGINE STILL SPENDS THE CHANNEL. The proof used to be the
-       Trophy Room's combat XP; with no home XP left it is a KEPT rate perk, the
-       Toolshed's gatherSpeed, on a gathering night: two sheds must out-chop one,
-       and one must out-chop none, or the perk state reaches the bonus function
-       and the engine drops it. */
+       Trophy Room's combat XP, then the Tool Shed's gatherSpeed (cut with the
+       plot buildings, 2026-11-07, its unlock was unreachable). It is now a KEPT,
+       SOLD rate perk: the Shrine's flameSpeed (room:shrine, hr_unlock_buy) on a
+       12 h Hearth night. Rung 4 must out-fuel rung 1, and rung 1 must out-fuel
+       none, or the perk state reaches the bonus function and the engine drops it. */
     {
-      const { TREES } = await import('../src/data/gathering.js');
-      const { indexGatherNodes } = await import('../src/core/skill-sim.js');
-      const nodes = indexGatherNodes({ woodcutting: TREES, mining: [], fishing: [] });
-      const tree = TREES.find((t) => t.req === 1);
-      const g = {
-        ...base, activeKind: 'gather', activeId: tree.id, nodes,
-        skills: { ...base.skills, woodcutting: xpForLevel(99) },
+      const { GATHER_NODES, ARTISAN_RECIPES_ALL } = await import('../supabase/functions/hr-accrue/catalogue.js');
+      const a = {
+        ...base, activeKind: 'artisan', activeId: 'fuel_bones', nodes: GATHER_NODES, recipes: ARTISAN_RECIPES_ALL,
+        skills: { ...base.skills, inner_flame: xpForLevel(99) }, inventory: { bones: 1e6 }, unlockedRecipes: {},
       };
+      ok(!!ARTISAN_RECIPES_ALL.fuel_bones, 'P9-S: no fuel_bones recipe, the Hearth night has no anchor');
       const sumXp = (x) => Object.values((x.delta && x.delta.xp) || {}).reduce((p, q) => p + q, 0);
-      const shed = (n) => computeAccrual({ ...g, perks: { ok: true, rooms: {}, propertyTier: 0, plots: { toolshed: n } } });
-      const s0 = computeAccrual({ ...g, perks: null }), s1 = shed(1), s2 = shed(2);
-      ok(s0.accrued && s1.accrued && s2.accrued,
-        `P9-S: a gather fixture did not accrue (${s0.reason} / ${s1.reason} / ${s2.reason})`);
-      if (s0.accrued && s1.accrued && s2.accrued) {
-        ok(sumXp(s2) > sumXp(s1) && sumXp(s1) > sumXp(s0),
-          `P9-S: 0/1/2 Toolsheds paid ${sumXp(s0)} / ${sumXp(s1)} / ${sumXp(s2)} XP — the gatherSpeed perk is not spent`);
-        console.log(`  toolshed lift on a 12h ${tree.id} night: ${sumXp(s0)} -> ${sumXp(s1)} -> ${sumXp(s2)} XP`);
+      const shrine = (n) => computeAccrual({ ...a, perks: { ok: true, rooms: { shrine: n }, propertyTier: 0 } });
+      const s0 = computeAccrual({ ...a, perks: null }), s1 = shrine(1), s4 = shrine(4);
+      ok(s0.accrued && s1.accrued && s4.accrued,
+        `P9-S: a Hearth fixture did not accrue (${s0.reason} / ${s1.reason} / ${s4.reason})`);
+      if (s0.accrued && s1.accrued && s4.accrued) {
+        ok(sumXp(s4) > sumXp(s1) && sumXp(s1) > sumXp(s0),
+          `P9-S: Shrine 0/1/4 paid ${sumXp(s0)} / ${sumXp(s1)} / ${sumXp(s4)} XP — the flameSpeed perk is not spent`);
+        console.log(`  shrine lift on a 12h fuel_bones night: ${sumXp(s0)} -> ${sumXp(s1)} -> ${sumXp(s4)} XP`);
       }
     }
     /* CONTROL: an EMPTY perk envelope pays exactly what `perks: null` pays.
@@ -499,7 +495,7 @@ async function run(patch) {
        makeBonus alone — a database with the channel installed but no unlocks
        written must be indistinguishable from one without the channel. */
     const emptyEnv = huntNight({
-      ...base, perks: { ok: true, rooms: {}, plots: {}, propertyTier: 0 },
+      ...base, perks: { ok: true, rooms: {}, propertyTier: 0 },
     });
     ok(JSON.stringify(emptyEnv.delta) === JSON.stringify(none.delta),
       'P9 CONTROL: an empty perk envelope paid differently from no envelope at all — the degrade '
@@ -524,7 +520,10 @@ async function run(patch) {
   // 0 moved. RE-PINNED 2026-10-27 (2247d02f -> 6d5c58d6) for Inner Flame replacing Prayer ONLY (lane/b-inner-flame):
   // the Shrine's key prayerSpeed is renamed flameSpeed. Old (origin/main 437d66b6d) vs new makeBonus over this grid,
   // the renamed key read under its old name and every other key under its own: 81 inputs x 16 keys = 1296 cells,
-  // 0 moved.
+  // 0 moved. RE-PINNED 2026-11-07 (6d5c58d6 -> c6b52418) for the plot buildings' cut ONLY (lane/c-dead-plot-deed):
+  // the grid loses its 16 plot states, the max state its plots and each row its n.plots column (the Tool Shed's
+  // gatherSpeed was the one number they priced, and its unlock was unreachable). Old (39d937577 perks.js) vs new
+  // makeBonus over the new grid, every key: 65 inputs x 16 keys = 1040 cells, 0 moved.
   // ⚠ A FUTURE re-pin needs the same old-vs-new proof in its commit, never just the new hash.
   {
     const KEYS = [...new Set([...ALL_KEYS.filter((k) => k !== 'raidPower'),
@@ -534,19 +533,16 @@ async function run(patch) {
     for (const id of Object.keys(ROOM_PERKS).sort()) {
       for (let lv = 0; lv <= ROOM_PERKS[id].length + 1; lv++) states.push({ rooms: { [id]: lv } });
     }
-    for (const id of Object.keys(PLOT_PERKS).sort()) {
-      for (let n = 0; n <= 3; n++) states.push({ plots: { [id]: n } });
-    }
     for (let t = 0; t <= 6; t++) states.push({ propertyTier: t });
     const maxRooms = Object.fromEntries(Object.keys(ROOM_PERKS).map((id) => [id, ROOM_PERKS[id].length]));
-    states.push({ rooms: maxRooms, plots: { toolshed: 2, scarecrow: 2, watchtower: 1, farm_plot: 3 }, propertyTier: 5 });
+    states.push({ rooms: maxRooms, propertyTier: 5 });
     const rows = states.map((st) => {
       const b = makeBonus(st);
       const n = normalisePerkState(st);
-      return [JSON.stringify(st), KEYS.map((k) => b(k)), n.rooms, n.plots, n.propertyTier];
+      return [JSON.stringify(st), KEYS.map((k) => b(k)), n.rooms, n.propertyTier];
     });
     const hash = createHash('sha256').update(JSON.stringify(rows)).digest('hex');
-    ok(hash === '6d5c58d693ce67dd42f23c937e1d9d004f2b954af45f1d8d6e54bab31001918e',
+    ok(hash === 'c6b52418e4d414a5ab80f6c0e7beba1c1c3937504983540336f60c7a93278c17',
       `P10: makeBonus over ${states.length} kept inputs x ${KEYS.length} keys hashed ${hash} — `
       + 'a kept perk number moved');
     const base = { rooms: maxRooms, propertyTier: 5 };
@@ -596,7 +592,7 @@ const MUTATIONS = [
                     'grant execute on function public.hr_perks_of(uuid, int) to hr_engine, authenticated;')),
   },
   {
-    name: 'M6 the client adapter counts plots per ID, not per instance',
+    name: 'M6 the client adapter reads every room one rung low',
     adapter: true,
   },
 ];
@@ -607,16 +603,16 @@ async function mutate() {
     problems = [];
     let saved = null;
     if (m.adapter) {
-      /* The one mutation that is not SQL. Swap the client adapter for the
-         `{id:true}` shape a naive implementation would write, which pays one
-         Scarecrow instead of two. Restored in `finally`. */
+      /* The one mutation that is not SQL. Swap the client adapter for one
+         that reads each rung as the rung below (a 0- vs 1-based ladder index),
+         which pays a Kitchen 3 as a Kitchen 2. Restored in `finally`. */
       saved = clientPerkStateFromSave;
       // eslint-disable-next-line no-func-assign
       clientPerkStateFromSave = (G) => {
-        const plots = {};
-        (G.plotBuildings || []).forEach((b) => { if (b && b.id) plots[b.id] = 1; });
+        const rooms = {};
+        for (const [id, lv] of Object.entries(G.rooms || {})) rooms[id] = Math.max(0, lv - 1);
         return {
-          rooms: G.rooms || {}, plots,
+          rooms,
           propertyTier: (G.homestead && G.homestead.tier) || 0,
           renownAllXp: G.renownAllXp || 0, clanPerks: {}, castle: null,
         };
